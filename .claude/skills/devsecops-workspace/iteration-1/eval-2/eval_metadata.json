@@ -1,0 +1,49 @@
+{
+  "eval_id": 2,
+  "eval_name": "container-security",
+  "prompt": "Run a security check on our Docker setup. I want to know if our containers have known vulnerabilities (CVEs), if the Dockerfile is following best practices, and if our docker-compose.yml is hardened properly — especially around port exposure and credential handling.",
+  "assertions": [
+    {
+      "id": "report-file-created",
+      "description": "A security-report.md file is written to outputs/",
+      "type": "file_exists",
+      "target": "security-report.md"
+    },
+    {
+      "id": "dockerfile-audited",
+      "description": "Dockerfile is read and audited (non-root user, base image, COPY vs ADD)",
+      "type": "content_contains",
+      "keywords": ["Dockerfile", "USER", "non-root", "base image", "slim", "COPY"]
+    },
+    {
+      "id": "docker-compose-port-binding",
+      "description": "docker-compose.yml port binding is checked (127.0.0.1 vs 0.0.0.0)",
+      "type": "content_contains",
+      "keywords": ["127.0.0.1", "port", "exposed", "0.0.0.0", "binding"]
+    },
+    {
+      "id": "postgres-redis-exposure",
+      "description": "Checks whether postgres and redis ports are exposed externally",
+      "type": "content_contains",
+      "keywords": ["postgres", "redis", "port", "exposed"]
+    },
+    {
+      "id": "trivy-mentioned",
+      "description": "Trivy is either run or documented as missing with install instructions",
+      "type": "content_contains",
+      "keywords": ["trivy", "Trivy", "CVE", "container scan"]
+    },
+    {
+      "id": "credential-handling-checked",
+      "description": "Checks how credentials are handled in docker-compose.yml (env vars vs hardcoded)",
+      "type": "content_contains",
+      "keywords": ["credentials", "env_file", "environment", "hardcoded", "secret"]
+    },
+    {
+      "id": "severity-rating-given",
+      "description": "Findings have severity ratings",
+      "type": "content_contains",
+      "keywords": ["Critical", "High", "Medium", "Low", "Severity"]
+    }
+  ]
+}

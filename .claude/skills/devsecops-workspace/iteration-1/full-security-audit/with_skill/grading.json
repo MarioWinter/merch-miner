@@ -1,0 +1,69 @@
+{
+  "expectations": [
+    {
+      "text": "A security-report.md file is written to outputs/",
+      "passed": true,
+      "evidence": "File confirmed present at with_skill/outputs/security-report.md"
+    },
+    {
+      "text": "Report contains an Executive Summary with severity counts",
+      "passed": true,
+      "evidence": "Report includes table with Critical(3), High(4), Medium(5), Low(3) counts"
+    },
+    {
+      "text": "Report includes a clear production-ready verdict",
+      "passed": true,
+      "evidence": "Verdict: 'CRITICAL ISSUES \u2014 Do not go live yet'"
+    },
+    {
+      "text": "Report audits secrets/git history",
+      "passed": true,
+      "evidence": "CRITICAL-001 covers live credentials in .env; git history for .env.template key"
+    },
+    {
+      "text": "Report checks Django security settings (DEBUG, HTTPS, cookies)",
+      "passed": true,
+      "evidence": "CRITICAL-002 is the DEBUG string truthiness bug; CSRF/SESSION cookies covered in passed checks. 22 grep hits."
+    },
+    {
+      "text": "Report audits docker-compose.yml for port exposure and credentials",
+      "passed": true,
+      "evidence": "Redis unpinned/no auth, postgres:latest, port bindings covered in MEDIUM section"
+    },
+    {
+      "text": "Each finding includes remediation guidance",
+      "passed": true,
+      "evidence": "34 occurrences of Remediation/Fix keywords; code examples provided for DEBUG fix and path traversal"
+    },
+    {
+      "text": "Missing security tools are documented with install instructions",
+      "passed": true,
+      "evidence": "11 occurrences of brew/pip install; skill's tool installation section included"
+    }
+  ],
+  "summary": {
+    "passed": 8,
+    "failed": 0,
+    "total": 8,
+    "pass_rate": 1.0
+  },
+  "execution_metrics": {
+    "tool_uses": 67,
+    "files_read": 12,
+    "files_created": 2
+  },
+  "timing": {
+    "total_tokens": 74124,
+    "duration_ms": 1006812
+  },
+  "claims": [],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": ""
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "expectations": [
+    {
+      "text": "A security-report.md file is written to outputs/",
+      "passed": true,
+      "evidence": "File confirmed present at without_skill/outputs/security-report.md"
+    },
+    {
+      "text": "Report contains an Executive Summary with severity counts",
+      "passed": true,
+      "evidence": "Report mentions 3 Critical, 5 High, 10 Medium, 7 Low in verdict"
+    },
+    {
+      "text": "Report includes a clear production-ready verdict",
+      "passed": true,
+      "evidence": "Verdict: 'HIGH risk \u2014 do not deploy without fixing all CRITICAL and HIGH items'"
+    },
+    {
+      "text": "Report audits secrets/git history",
+      "passed": true,
+      "evidence": "CRITICAL-1 covers live credentials; CRITICAL-2 covers django-insecure key in git history"
+    },
+    {
+      "text": "Report checks Django security settings (DEBUG, HTTPS, cookies)",
+      "passed": true,
+      "evidence": "HIGH-5 covers missing Django security headers; HIGH-7 covers DEBUG string bug"
+    },
+    {
+      "text": "Report audits docker-compose.yml for port exposure and credentials",
+      "passed": true,
+      "evidence": "HIGH-1 unpinned images, HIGH-4 Redis no auth, MEDIUM covers docker-compose"
+    },
+    {
+      "text": "Each finding includes remediation guidance",
+      "passed": true,
+      "evidence": "15 occurrences of Remediation/Fix; ordered 10-step remediation list at the end"
+    },
+    {
+      "text": "Missing security tools are documented with install instructions",
+      "passed": false,
+      "evidence": "Only 1 grep hit for install; no dedicated 'Missing Tools' section with install commands like the skill prescribes"
+    }
+  ],
+  "summary": "Baseline (without skill) was highly comprehensive \u2014 found MORE issues (3 Critical, 5 High, 10 Medium, 7 Low vs skill's 3/4/5/3) including path traversal, django-rq dashboard exposure, and .dockerignore absence. However, it did NOT produce a dedicated 'Missing Tools' section with install instructions. Report structure is less consistent. Passed 7/8 assertions.",
+  "execution_metrics": {
+    "tool_uses": 56,
+    "files_read": 15,
+    "files_created": 2
+  },
+  "timing": {
+    "total_tokens": 70324,
+    "duration_ms": 848152
+  },
+  "claims": [],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": ""
+  }
+}

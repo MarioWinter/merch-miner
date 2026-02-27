@@ -1,0 +1,79 @@
+SECRETS DETECTION AUDIT SUMMARY
+Date: 2026-02-27
+Repo: git@github.com:MarioWinter/aI-coding-kit.git
+Commits: 4 (all pushed to GitHub remote)
+
+VERDICT: CRITICAL ISSUES — Immediate credential rotation required.
+
+FINDINGS SUMMARY
+----------------
+Critical: 3
+High:     1
+Medium:   2
+Low:      1
+Info:     2
+
+CRITICAL FINDINGS
+-----------------
+[CRITICAL-001] Real credentials in django-app/.env — likely exposed on GitHub
+  Credentials at risk:
+  - DJANGO_SUPERUSER_PASSWORD=werte1234
+  - SECRET_KEY="django-insecure-(6or@t(ffo$j26w3tpud#&a$ad-t_q0&v%3m01%m($q6m60ix^)"
+  - DB_PASSWORD=#Xwerte1234#X
+  - EMAIL_HOST_PASSWORD=nvfzahwpvvaqzrdt  <-- Gmail App Password (REVOKE NOW)
+  - PII: mariowinter.sg@gmail.com (email in .env)
+  Action: Rotate ALL credentials + purge .env from git history + force-push
+
+[CRITICAL-002] SECRET_KEY uses "django-insecure-" prefix in production
+  Action: Generate new key without insecure prefix
+
+[CRITICAL-003] Hardcoded fallback DB password in settings.py line 146
+  Code: os.environ.get("DB_PASSWORD", default="supersecretpassword")
+  Action: Remove default fallback; fail loudly if env var missing
+
+HIGH FINDINGS
+-------------
+[HIGH-001] django-app/.env tracked status in git unconfirmed (shell access denied)
+  The .gitignore was added in commit 2; .env may have been tracked in commit 1
+  Action: Run `git ls-files django-app/.env` to verify
+
+MEDIUM FINDINGS
+---------------
+[MEDIUM-001] .env.template contains a real-looking django-insecure SECRET_KEY value
+[MEDIUM-002] DEBUG read as string (always truthy) in settings.py; should be == 'True'
+
+LOW FINDINGS
+------------
+[LOW-001] Missing production security headers in settings.py:
+  SECURE_HSTS_SECONDS, SECURE_SSL_REDIRECT, X_FRAME_OPTIONS, SECURE_CONTENT_TYPE_NOSNIFF
+
+PASSED CHECKS
+-------------
+- SECRET_KEY, EMAIL_HOST_PASSWORD, DB_PASSWORD all read from env vars in settings.py
+- SESSION_COOKIE_SECURE = True
+- CSRF_COOKIE_SECURE = True
+- JWT AUTH_COOKIE_SECURE = True, AUTH_COOKIE_HTTP_ONLY = True
+- CORS_ALLOWED_ORIGINS is domain-restricted (not wildcard)
+- DEBUG=False in production .env
+- ALLOWED_HOSTS restricted to domain in production .env
+- Default REST_FRAMEWORK permission: IsAuthenticated
+- Default REST_FRAMEWORK auth: CookieJWTAuthentication
+- Root .gitignore has .env patterns
+
+MISSING TOOLS (could not run full automated scan)
+-------------------------------------------------
+- trufflehog (full git history scan): brew install trufflehog
+- bandit (Python SAST): pip install bandit
+- trivy (container CVE scan): brew install trivy
+- pip-audit (dependency CVE audit): pip install pip-audit
+
+IMMEDIATE ACTION CHECKLIST
+---------------------------
+[ ] Revoke Gmail App Password at https://myaccount.google.com/apppasswords
+[ ] Change DJANGO_SUPERUSER_PASSWORD on all instances
+[ ] Change DB_PASSWORD for videoflix_user in PostgreSQL
+[ ] Generate new Django SECRET_KEY (without django-insecure- prefix)
+[ ] Run: git ls-files django-app/.env
+[ ] If tracked: git filter-repo --path django-app/.env --invert-paths && git push --force
+[ ] Request GitHub cache purge for sensitive file views
+[ ] Remove hardcoded default="supersecretpassword" from settings.py line 146

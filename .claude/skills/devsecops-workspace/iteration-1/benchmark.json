@@ -1,0 +1,383 @@
+{
+  "metadata": {
+    "skill_name": "devsecops",
+    "skill_path": "<path/to/skill>",
+    "executor_model": "<model-name>",
+    "analyzer_model": "<model-name>",
+    "timestamp": "2026-02-27T11:09:28Z",
+    "evals_run": [
+      0,
+      1,
+      2
+    ],
+    "runs_per_configuration": 3
+  },
+  "runs": [
+    {
+      "eval_id": 0,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 8,
+        "failed": 0,
+        "total": 8,
+        "time_seconds": 1006.8,
+        "tokens": 74124,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A security-report.md file is written to outputs/",
+          "passed": true,
+          "evidence": "File confirmed present at with_skill/outputs/security-report.md"
+        },
+        {
+          "text": "Report contains an Executive Summary with severity counts",
+          "passed": true,
+          "evidence": "Report includes table with Critical(3), High(4), Medium(5), Low(3) counts"
+        },
+        {
+          "text": "Report includes a clear production-ready verdict",
+          "passed": true,
+          "evidence": "Verdict: 'CRITICAL ISSUES \u2014 Do not go live yet'"
+        },
+        {
+          "text": "Report audits secrets/git history",
+          "passed": true,
+          "evidence": "CRITICAL-001 covers live credentials in .env; git history for .env.template key"
+        },
+        {
+          "text": "Report checks Django security settings (DEBUG, HTTPS, cookies)",
+          "passed": true,
+          "evidence": "CRITICAL-002 is the DEBUG string truthiness bug; CSRF/SESSION cookies covered in passed checks. 22 grep hits."
+        },
+        {
+          "text": "Report audits docker-compose.yml for port exposure and credentials",
+          "passed": true,
+          "evidence": "Redis unpinned/no auth, postgres:latest, port bindings covered in MEDIUM section"
+        },
+        {
+          "text": "Each finding includes remediation guidance",
+          "passed": true,
+          "evidence": "34 occurrences of Remediation/Fix keywords; code examples provided for DEBUG fix and path traversal"
+        },
+        {
+          "text": "Missing security tools are documented with install instructions",
+          "passed": true,
+          "evidence": "11 occurrences of brew/pip install; skill's tool installation section included"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 6,
+        "failed": 0,
+        "total": 6,
+        "time_seconds": 204.2,
+        "tokens": 42795,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A security-report.md file is written to outputs/",
+          "passed": true,
+          "evidence": "File confirmed at with_skill/outputs/security-report.md"
+        },
+        {
+          "text": "Git history is actually inspected (runs git log or git grep commands)",
+          "passed": true,
+          "evidence": "13 occurrences of git log/ls-files/trufflehog; agent used Read/Grep to inspect git; noted trufflehog not available with install fallback"
+        },
+        {
+          "text": "Checks that .env files are properly gitignored",
+          "passed": true,
+          "evidence": "From task notification: .gitignore coverage section confirmed .env is excluded"
+        },
+        {
+          "text": "Checks .env.template or .env for default/placeholder values",
+          "passed": true,
+          "evidence": "18 occurrences of placeholder/template/insecure keywords; identified django-insecure- key in .env.template"
+        },
+        {
+          "text": "Findings are rated by severity (Critical/High/Medium/Low)",
+          "passed": true,
+          "evidence": "CRITICAL-001, CRITICAL-002, CRITICAL-003, HIGH-001, MEDIUM-001 structure used"
+        },
+        {
+          "text": "Provides specific remediation steps (git commands or config changes), not just general advice",
+          "passed": true,
+          "evidence": "15 occurrences of git filter/Remediation; includes rotate credentials, specific git ls-files command, Google App Password revocation URL"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "with_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 1.0,
+        "passed": 7,
+        "failed": 0,
+        "total": 7,
+        "time_seconds": 138.4,
+        "tokens": 35757,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A security-report.md file is written to outputs/",
+          "passed": true,
+          "evidence": "File confirmed at with_skill/outputs/security-report.md"
+        },
+        {
+          "text": "Dockerfile is read and audited (non-root user, base image, COPY vs ADD)",
+          "passed": true,
+          "evidence": "14 occurrences of USER/non-root/slim/COPY; LOW-001 covers missing USER, alpine image and COPY usage noted in passed checks"
+        },
+        {
+          "text": "docker-compose.yml port binding is checked (127.0.0.1 vs 0.0.0.0)",
+          "passed": true,
+          "evidence": "14 occurrences of 127.0.0.1/port/exposed/binding; web port correctly bound to 127.0.0.1 noted in passed checks"
+        },
+        {
+          "text": "Checks whether postgres and redis ports are exposed externally",
+          "passed": true,
+          "evidence": "Confirmed postgres/redis ports not exposed externally \u2014 in passed checks section"
+        },
+        {
+          "text": "Trivy is either run or documented as missing with install instructions",
+          "passed": true,
+          "evidence": "14 occurrences of trivy; not installed, documented with 'brew install trivy' and 'brew install trufflehog'"
+        },
+        {
+          "text": "Checks how credentials are handled in docker-compose.yml",
+          "passed": true,
+          "evidence": "DB credentials from env vars noted in passed checks; HIGH-002 covers hardcoded fallback superuser password"
+        },
+        {
+          "text": "Findings have severity ratings",
+          "passed": true,
+          "evidence": "HIGH-001, HIGH-002, MEDIUM-001 through 003, LOW-001 through 003 structure used"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 0,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.875,
+        "passed": 7,
+        "failed": 1,
+        "total": 8,
+        "time_seconds": 848.2,
+        "tokens": 70324,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A security-report.md file is written to outputs/",
+          "passed": true,
+          "evidence": "File confirmed present at without_skill/outputs/security-report.md"
+        },
+        {
+          "text": "Report contains an Executive Summary with severity counts",
+          "passed": true,
+          "evidence": "Report mentions 3 Critical, 5 High, 10 Medium, 7 Low in verdict"
+        },
+        {
+          "text": "Report includes a clear production-ready verdict",
+          "passed": true,
+          "evidence": "Verdict: 'HIGH risk \u2014 do not deploy without fixing all CRITICAL and HIGH items'"
+        },
+        {
+          "text": "Report audits secrets/git history",
+          "passed": true,
+          "evidence": "CRITICAL-1 covers live credentials; CRITICAL-2 covers django-insecure key in git history"
+        },
+        {
+          "text": "Report checks Django security settings (DEBUG, HTTPS, cookies)",
+          "passed": true,
+          "evidence": "HIGH-5 covers missing Django security headers; HIGH-7 covers DEBUG string bug"
+        },
+        {
+          "text": "Report audits docker-compose.yml for port exposure and credentials",
+          "passed": true,
+          "evidence": "HIGH-1 unpinned images, HIGH-4 Redis no auth, MEDIUM covers docker-compose"
+        },
+        {
+          "text": "Each finding includes remediation guidance",
+          "passed": true,
+          "evidence": "15 occurrences of Remediation/Fix; ordered 10-step remediation list at the end"
+        },
+        {
+          "text": "Missing security tools are documented with install instructions",
+          "passed": false,
+          "evidence": "Only 1 grep hit for install; no dedicated 'Missing Tools' section with install commands like the skill prescribes"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 1,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.667,
+        "passed": 4,
+        "failed": 2,
+        "total": 6,
+        "time_seconds": 155.8,
+        "tokens": 32841,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A security-report.md file is written to outputs/",
+          "passed": true,
+          "evidence": "File confirmed at without_skill/outputs/security-report.md"
+        },
+        {
+          "text": "Git history is actually inspected (runs git log or git grep commands)",
+          "passed": true,
+          "evidence": "15 occurrences of git log/ls-files; agent ran actual git commands to confirm .env not in history"
+        },
+        {
+          "text": "Checks that .env files are properly gitignored",
+          "passed": true,
+          "evidence": "From task notification: .gitignore coverage section confirmed, noted minor gap for .env.production at subdirectory level"
+        },
+        {
+          "text": "Checks .env.template or .env for default/placeholder values",
+          "passed": true,
+          "evidence": "Identified real django-insecure- key in .env.template committed since first commit"
+        },
+        {
+          "text": "Findings are rated by severity (Critical/High/Medium/Low)",
+          "passed": false,
+          "evidence": "Only 1 grep hit for Critical/High/Medium/Low; report did not use structured severity labels \u2014 findings listed but not tagged"
+        },
+        {
+          "text": "Provides specific remediation steps (git commands or config changes), not just general advice",
+          "passed": false,
+          "evidence": "0 occurrences of git filter/git rm --cached/BFG/Remediation headers; no git history purge commands provided"
+        }
+      ],
+      "notes": []
+    },
+    {
+      "eval_id": 2,
+      "configuration": "without_skill",
+      "run_number": 1,
+      "result": {
+        "pass_rate": 0.857,
+        "passed": 6,
+        "failed": 1,
+        "total": 7,
+        "time_seconds": 172.2,
+        "tokens": 32973,
+        "tool_calls": 0,
+        "errors": 0
+      },
+      "expectations": [
+        {
+          "text": "A security-report.md file is written to outputs/",
+          "passed": true,
+          "evidence": "File confirmed at without_skill/outputs/security-report.md"
+        },
+        {
+          "text": "Dockerfile is read and audited (non-root user, base image, COPY vs ADD)",
+          "passed": true,
+          "evidence": "HIGH-2 explicitly covers no USER directive; Dockerfile audited thoroughly"
+        },
+        {
+          "text": "docker-compose.yml port binding is checked (127.0.0.1 vs 0.0.0.0)",
+          "passed": true,
+          "evidence": "5 occurrences of 127.0.0.1/port/exposed; MEDIUM discusses gunicorn 0.0.0.0 bind inside container"
+        },
+        {
+          "text": "Checks whether postgres and redis ports are exposed externally",
+          "passed": true,
+          "evidence": "HIGH-4 explicitly covers Redis no authentication; MEDIUM covers Redis no password"
+        },
+        {
+          "text": "Trivy is either run or documented as missing with install instructions",
+          "passed": false,
+          "evidence": "Only 5 occurrences \u2014 CVE scanning concept mentioned but trivy not explicitly called out as a tool to install"
+        },
+        {
+          "text": "Checks how credentials are handled in docker-compose.yml",
+          "passed": true,
+          "evidence": "16 occurrences of credentials/env_file/hardcoded/secret; CRIT-1 covers .env baked into image; CRIT-3 covers fallback password"
+        },
+        {
+          "text": "Findings have severity ratings",
+          "passed": true,
+          "evidence": "Critical(3), High(5), Medium(7), Low(4) structure clearly used"
+        }
+      ],
+      "notes": []
+    }
+  ],
+  "run_summary": {
+    "with_skill": {
+      "pass_rate": {
+        "mean": 1.0,
+        "stddev": 0.0,
+        "min": 1.0,
+        "max": 1.0
+      },
+      "time_seconds": {
+        "mean": 449.8,
+        "stddev": 483.4968,
+        "min": 138.4,
+        "max": 1006.8
+      },
+      "tokens": {
+        "mean": 50892.0,
+        "stddev": 20424.9291,
+        "min": 35757,
+        "max": 74124
+      }
+    },
+    "without_skill": {
+      "pass_rate": {
+        "mean": 0.7997,
+        "stddev": 0.1152,
+        "min": 0.667,
+        "max": 0.875
+      },
+      "time_seconds": {
+        "mean": 392.0667,
+        "stddev": 395.1082,
+        "min": 155.8,
+        "max": 848.2
+      },
+      "tokens": {
+        "mean": 45379.3333,
+        "stddev": 21602.8158,
+        "min": 32841,
+        "max": 70324
+      }
+    },
+    "delta": {
+      "pass_rate": "+0.20",
+      "time_seconds": "+57.7",
+      "tokens": "+5513"
+    }
+  },
+  "notes": []
+}

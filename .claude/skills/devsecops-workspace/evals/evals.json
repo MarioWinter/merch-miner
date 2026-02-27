@@ -1,0 +1,23 @@
+{
+  "skill_name": "devsecops",
+  "evals": [
+    {
+      "id": 0,
+      "prompt": "We're about to push our Django app to production for the first time. Before we go live, do a full security audit — check everything: secrets in git history, container vulnerabilities, Python dependencies, Django settings, Docker Compose config, the works. Write a report.",
+      "expected_output": "A comprehensive security-report.md covering all 9 audit categories (secrets, bandit SAST, trivy container scan, dependency audit, docker-compose hardening, caddy/HTTPS headers, django security settings, auth/permissions, env vars). Each finding should have severity, location, description, and remediation steps. An executive summary with severity counts and a production-ready verdict.",
+      "files": []
+    },
+    {
+      "id": 1,
+      "prompt": "I just noticed our django-app/.env file might have been committed by accident a few weeks ago. Can you check if we have any secrets leaked in the git history and also check if our current .env files are properly gitignored? Also check the .env for any default/placeholder values that shouldn't be in production.",
+      "expected_output": "The agent checks git history for leaked secrets (using trufflehog or fallback git grep), verifies .env files are gitignored, checks for placeholder values in .env. Produces findings specifically about secrets management. If issues found, provides specific git commands to purge the history and remediation steps.",
+      "files": []
+    },
+    {
+      "id": 2,
+      "prompt": "Run a security check on our Docker setup. I want to know if our containers have known vulnerabilities (CVEs), if the Dockerfile is following best practices, and if our docker-compose.yml is hardened properly — especially around port exposure and credential handling.",
+      "expected_output": "Container-focused security report: Trivy scan results or documentation that tool is missing with install instructions, Dockerfile audit (non-root user, base image, COPY vs ADD), docker-compose.yml audit (port binding to 127.0.0.1, no exposed postgres/redis ports, env var handling, network isolation). Findings with severity ratings and concrete remediation.",
+      "files": []
+    }
+  ]
+}

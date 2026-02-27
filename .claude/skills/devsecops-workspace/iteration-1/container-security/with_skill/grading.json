@@ -1,0 +1,64 @@
+{
+  "expectations": [
+    {
+      "text": "A security-report.md file is written to outputs/",
+      "passed": true,
+      "evidence": "File confirmed at with_skill/outputs/security-report.md"
+    },
+    {
+      "text": "Dockerfile is read and audited (non-root user, base image, COPY vs ADD)",
+      "passed": true,
+      "evidence": "14 occurrences of USER/non-root/slim/COPY; LOW-001 covers missing USER, alpine image and COPY usage noted in passed checks"
+    },
+    {
+      "text": "docker-compose.yml port binding is checked (127.0.0.1 vs 0.0.0.0)",
+      "passed": true,
+      "evidence": "14 occurrences of 127.0.0.1/port/exposed/binding; web port correctly bound to 127.0.0.1 noted in passed checks"
+    },
+    {
+      "text": "Checks whether postgres and redis ports are exposed externally",
+      "passed": true,
+      "evidence": "Confirmed postgres/redis ports not exposed externally \u2014 in passed checks section"
+    },
+    {
+      "text": "Trivy is either run or documented as missing with install instructions",
+      "passed": true,
+      "evidence": "14 occurrences of trivy; not installed, documented with 'brew install trivy' and 'brew install trufflehog'"
+    },
+    {
+      "text": "Checks how credentials are handled in docker-compose.yml",
+      "passed": true,
+      "evidence": "DB credentials from env vars noted in passed checks; HIGH-002 covers hardcoded fallback superuser password"
+    },
+    {
+      "text": "Findings have severity ratings",
+      "passed": true,
+      "evidence": "HIGH-001, HIGH-002, MEDIUM-001 through 003, LOW-001 through 003 structure used"
+    }
+  ],
+  "summary": {
+    "passed": 7,
+    "failed": 0,
+    "total": 7,
+    "pass_rate": 1.0
+  },
+  "execution_metrics": {
+    "tool_uses": 18,
+    "files_read": 4,
+    "files_created": 2
+  },
+  "timing": {
+    "total_tokens": 35757,
+    "duration_ms": 138432
+  },
+  "claims": [],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": ""
+  }
+}

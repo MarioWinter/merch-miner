@@ -1,0 +1,64 @@
+{
+  "expectations": [
+    {
+      "text": "A security-report.md file is written to outputs/",
+      "passed": true,
+      "evidence": "File confirmed at without_skill/outputs/security-report.md"
+    },
+    {
+      "text": "Dockerfile is read and audited (non-root user, base image, COPY vs ADD)",
+      "passed": true,
+      "evidence": "HIGH-2 explicitly covers no USER directive; Dockerfile audited thoroughly"
+    },
+    {
+      "text": "docker-compose.yml port binding is checked (127.0.0.1 vs 0.0.0.0)",
+      "passed": true,
+      "evidence": "5 occurrences of 127.0.0.1/port/exposed; MEDIUM discusses gunicorn 0.0.0.0 bind inside container"
+    },
+    {
+      "text": "Checks whether postgres and redis ports are exposed externally",
+      "passed": true,
+      "evidence": "HIGH-4 explicitly covers Redis no authentication; MEDIUM covers Redis no password"
+    },
+    {
+      "text": "Trivy is either run or documented as missing with install instructions",
+      "passed": false,
+      "evidence": "Only 5 occurrences \u2014 CVE scanning concept mentioned but trivy not explicitly called out as a tool to install"
+    },
+    {
+      "text": "Checks how credentials are handled in docker-compose.yml",
+      "passed": true,
+      "evidence": "16 occurrences of credentials/env_file/hardcoded/secret; CRIT-1 covers .env baked into image; CRIT-3 covers fallback password"
+    },
+    {
+      "text": "Findings have severity ratings",
+      "passed": true,
+      "evidence": "Critical(3), High(5), Medium(7), Low(4) structure clearly used"
+    }
+  ],
+  "summary": {
+    "passed": 6,
+    "failed": 1,
+    "total": 7,
+    "pass_rate": 0.857
+  },
+  "execution_metrics": {
+    "tool_uses": 22,
+    "files_read": 6,
+    "files_created": 2
+  },
+  "timing": {
+    "total_tokens": 32973,
+    "duration_ms": 172203
+  },
+  "claims": [],
+  "user_notes_summary": {
+    "uncertainties": [],
+    "needs_review": [],
+    "workarounds": []
+  },
+  "eval_feedback": {
+    "suggestions": [],
+    "overall": ""
+  }
+}

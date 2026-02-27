@@ -1,0 +1,73 @@
+Docker Security Audit Summary
+Date: 2026-02-27
+Project: django-app (Django 5.1 + DRF)
+
+FINDINGS COUNT
+  Critical : 3
+  High     : 5
+  Medium   : 7
+  Low      : 4
+  Info     : 3
+  Total    : 22
+
+TOP CRITICAL ISSUES (Act Immediately)
+
+1. CRIT-1 — Real credentials in django-app/.env
+   - Django SECRET_KEY, DB password, Gmail App Password, and superuser password
+     are stored in a .env file present in the repository directory.
+   - Rotate all affected credentials immediately.
+   - Verify .env was never git-committed; purge history if it was.
+
+2. CRIT-2 — Hardcoded fallback password in settings.py
+   - core/settings.py line 146: default="supersecretpassword" for DB_PASSWORD.
+   - SECRET_KEY falls back to None (silent, not a safe default).
+   - Remove all credential fallbacks; raise ImproperlyConfigured if required vars are absent.
+
+3. CRIT-3 — Auto-superuser with hardcoded fallback credentials
+   - backend.entrypoint.sh creates a superuser with username=admin/password=adminpassword
+     if env vars are absent.
+   - Remove fallbacks; skip or fail if DJANGO_SUPERUSER_PASSWORD is unset.
+
+TOP HIGH ISSUES (Fix Before Production)
+
+4. HIGH-1 — postgres:latest and redis:latest image tags
+   - Pin to specific version+digest for reproducible builds and CVE tracking.
+
+5. HIGH-2 — Container runs as root
+   - Dockerfile has no USER directive; all processes run as UID 0.
+   - Add a non-root appuser before ENTRYPOINT.
+
+6. HIGH-3 — Full source bind-mount (.:/app) mounts .env into container
+   - Remove bind mount for production; use named volumes for media only.
+
+7. HIGH-4 — Redis has no password
+   - Any container on the Docker network can read/write Redis without credentials.
+   - Add --requirepass and update REDIS_LOCATION with credentials.
+
+8. HIGH-5 — makemigrations runs automatically in entrypoint
+   - Can generate incorrect migrations in production with multiple replicas.
+   - Remove from entrypoint; commit migrations to source control.
+
+KEY MEDIUM ISSUES
+
+- DEBUG=False is parsed as a truthy string (MED-3) — likely running with DEBUG=True.
+- No Docker healthchecks on any service (MED-4).
+- No container resource limits — DoS risk from runaway jobs (MED-5).
+- Missing HSTS, SSL redirect, and X-Frame-Options in Django settings (MED-2).
+
+KEY LOW ISSUES
+
+- No .dockerignore — .env and virtual environment baked into image layers (LOW-2).
+- rqworker runs as unsupervised & background process; should be a separate service (LOW-3).
+
+RECOMMENDED IMMEDIATE ACTIONS (Priority Order)
+1. Rotate: SECRET_KEY, DB_PASSWORD, EMAIL_HOST_PASSWORD, superuser password.
+2. Audit git history for .env commits; purge if found.
+3. Create .dockerignore excluding .env, env/, .git/, media/.
+4. Add non-root USER to Dockerfile.
+5. Fix DEBUG string parsing: DEBUG = os.environ.get('DEBUG','False').lower() == 'true'
+6. Remove makemigrations from entrypoint.sh.
+7. Add Redis authentication.
+8. Pin postgres and redis image tags to specific versions.
+9. Add Docker healthchecks to all services.
+10. Extract rqworker into a separate compose service with restart: unless-stopped.

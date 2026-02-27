@@ -1,0 +1,138 @@
+# ── Claude Code ────────────────────────────────────────
+
+# ── Environment Variables ──────────────────────────────
+.env
+.env.local
+.env.*.local
+.env.production
+.DS_Store
+
+# ── Dependencies ───────────────────────────────────────
+node_modules/
+
+# ── Build ──────────────────────────────────────────────
+dist/
+dist-ssr/
+*.local
+build/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+/site
+
+# ── Logs ───────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ── Python / Django ────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+*.pot
+.Python
+*.egg-info/
+*.egg
+*.installed.cfg
+*.manifest
+*.spec
+.python-version
+.mypy_cache/
+.hypothesis/
+api.http
+
+# ── Virtual Environments ───────────────────────────────
+venv/
+env/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# ── Database ───────────────────────────────────────────
+*.sqlite3
+db.sqlite3
+media/
+
+# ── Migrations (keep __init__.py) ──────────────────────
+**/migrations/**
+!**/migrations/
+!**/migrations/__init__.py
+
+# ── Tests & Coverage ───────────────────────────────────
+coverage/
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+.pytest_cache/
+nosetests.xml
+coverage.xml
+*.cover
+
+# ── Jupyter ────────────────────────────────────────────
+.ipynb_checkpoints/
+
+# ── Celery ─────────────────────────────────────────────
+celerybeat-schedule.*
+
+# ── SageMath ───────────────────────────────────────────
+*.sage.py
+
+# ── Backup ─────────────────────────────────────────────
+*.bak
+
+
+# ── Editor — VSCode ────────────────────────────────────
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.history
+
+# ── Editor — JetBrains / PyCharm ───────────────────────
+.idea/**/workspace.xml
+.idea/**/tasks.xml
+.idea/dictionaries
+.idea/**/dataSources/
+.idea/**/dataSources.ids
+.idea/**/dataSources.xml
+.idea/**/dataSources.local.xml
+.idea/**/sqlDataSources.xml
+.idea/**/dynamic.xml
+.idea/**/uiDesigner.xml
+.idea/**/gradle.xml
+.idea/**/libraries
+*.iws
+
+# ── Editor — Sublime Text ──────────────────────────────
+*.tmlanguage.cache
+*.tmPreferences.cache
+*.stTheme.cache
+*.sublime-workspace
+*.sublime-project
+
+# ── Editor — Misc ──────────────────────────────────────
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+sftp-config.json

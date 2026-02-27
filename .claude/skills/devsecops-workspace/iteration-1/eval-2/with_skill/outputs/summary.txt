@@ -1,0 +1,45 @@
+Container Security Audit Summary
+Date: 2026-02-27
+Auditor: DevSecOps Skill (claude-sonnet-4-6)
+Files audited: django-app/docker-compose.yml, django-app/backend.Dockerfile, django-app/backend.entrypoint.sh
+
+VERDICT: NEEDS ATTENTION
+
+Findings: 2 High, 3 Medium, 3 Low, 2 Info
+
+TOP ISSUES:
+1. [HIGH] Hardcoded fallback superuser password 'adminpassword' in backend.entrypoint.sh line 30
+   — if DJANGO_SUPERUSER_PASSWORD env var is missing, admin account is created with trivial password
+2. [HIGH] Unpinned image tags: postgres:latest and redis:latest
+   — floating tags enable silent major-version upgrades and unaudited CVEs
+3. [MEDIUM] makemigrations runs at container boot (entrypoint.sh line 18)
+   — production anti-pattern; migrations not persisted; schema drift risk
+4. [MEDIUM] Gunicorn binds to 0.0.0.0 inside container (entrypoint.sh line 43)
+   — lateral movement possible from other containers on same Docker network
+5. [MEDIUM] No named Docker network; no CPU/memory resource limits
+   — DoS via resource exhaustion possible
+6. [LOW] No non-root USER in Dockerfile — process runs as root inside container
+7. [LOW] Dev volume mount (- .:/app) not marked as dev-only; dangerous if reused in production
+8. [LOW] Stale LABEL version string ('Python 3.14.0a7') does not match actual base image (3.12)
+
+PASSED CHECKS:
+- Web port bound to 127.0.0.1 only (not 0.0.0.0) — GOOD
+- PostgreSQL port not exposed externally — GOOD
+- Redis port not exposed externally — GOOD
+- DB credentials from env vars, not hardcoded — GOOD
+- Alpine base image used (minimal attack surface) — GOOD
+- Build deps cleaned up in Dockerfile (apk del .build-deps) — GOOD
+- .env is gitignored — GOOD
+- COPY used instead of ADD — GOOD
+- set -e in entrypoint — GOOD
+
+MISSING TOOLS (CVE scan not performed):
+- trivy: brew install trivy
+- trufflehog: brew install trufflehog
+- bandit: pip install bandit
+- pip-audit: pip install pip-audit
+
+IMMEDIATE ACTION REQUIRED before production:
+1. Fix hardcoded password fallback (HIGH-001)
+2. Pin image tags (HIGH-002)
+3. Install trivy and run CVE scan (INFO-001)

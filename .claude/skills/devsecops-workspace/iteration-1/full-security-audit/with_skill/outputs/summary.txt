@@ -1,0 +1,93 @@
+SECURITY AUDIT SUMMARY
+Date: 2026-02-27
+Stack: Django 5.2 + Docker Compose + Gunicorn
+Verdict: CRITICAL ISSUES — DO NOT GO LIVE
+
+TOTALS
+  Critical: 3
+  High:     4
+  Medium:   5
+  Low:      3
+  Info:     4
+
+CRITICAL FINDINGS
+-----------------
+CRITICAL-001: Real credentials in django-app/.env
+  - Django SECRET_KEY is "django-insecure-..." (must be regenerated)
+  - Gmail app password nvfzahwpvvaqzrdt (rotate immediately)
+  - DB password and superuser password are weak/real
+  - File is gitignored but exists on disk with live production credentials
+
+CRITICAL-002: DEBUG always True due to Python string truthiness bug
+  - settings.py line 31: DEBUG = os.environ.get('DEBUG', 'False')
+  - The string 'False' is truthy in Python — DEBUG is always on
+  - Fix: DEBUG = os.environ.get('DEBUG', 'False') == 'True'
+  - Impact: full stack traces + env vars (including SECRET_KEY) exposed publicly
+
+CRITICAL-003: Path traversal in HLS segment endpoint
+  - content/api/views.py line 115: os.path.join(hls_dir, segment)
+  - segment param from URL passed unsanitized into file open()
+  - Absolute path like /etc/passwd bypasses hls_dir entirely
+  - Allows arbitrary file read from container filesystem
+  - Fix: validate realpath stays within hls_dir, enforce .ts extension regex
+
+HIGH FINDINGS
+-------------
+HIGH-001: Real-looking SECRET_KEY in .env.template committed to git (commit 39938fb)
+  - Permanently in git history
+  - Replace with placeholder in template; consider git history rewrite if repo goes public
+
+HIGH-002: django-rq dashboard exposed at /django-rq/ without explicit auth guard
+  - Could expose job payloads and allow queue manipulation
+
+HIGH-003: No rate limiting on auth endpoints (login, register, password reset)
+  - Unlimited brute-force and email flooding possible
+  - Fix: add DEFAULT_THROTTLE_CLASSES to REST_FRAMEWORK settings
+
+HIGH-004: makemigrations runs in production entrypoint (backend.entrypoint.sh line 18)
+  - Development-only command; dangerous and wrong in production
+  - Fix: remove the makemigrations line, keep only migrate
+
+MEDIUM FINDINGS
+---------------
+MEDIUM-001: Missing SECURE_HSTS_*, SECURE_SSL_REDIRECT, SECURE_CONTENT_TYPE_NOSNIFF
+MEDIUM-002: No Caddyfile / reverse proxy configuration — HTTPS not configured
+MEDIUM-003: Hardcoded fallback DB password 'supersecretpassword' in settings.py
+MEDIUM-004: Redis has no password auth; uses unpinned redis:latest tag
+MEDIUM-005: postgres:latest unpinned image tag (supply chain / reproducibility risk)
+
+LOW FINDINGS
+------------
+LOW-001: Container runs as root (no non-root USER in Dockerfile)
+LOW-002: Gunicorn binds 0.0.0.0 inside container (acceptable with 127.0.0.1 port mapping)
+LOW-003: CSRF_COOKIE_SAMESITE=None and SESSION_COOKIE_SAMESITE=None (reduces CSRF protection)
+
+PASSED CHECKS
+-------------
+- .env is gitignored and not in git history
+- CSRF_COOKIE_SECURE and SESSION_COOKIE_SECURE are True
+- JWT cookies are HttpOnly and Secure
+- JWT token rotation and blacklisting are enabled
+- All content API views require IsAuthenticated
+- CORS uses specific origins, not wildcard
+- DB and Redis ports are NOT exposed in docker-compose.yml
+- Web port is bound to 127.0.0.1 only
+- Dockerfile uses python:3.12-alpine (minimal image)
+- Build deps are cleaned up in same RUN layer
+- subprocess uses list args (not shell=True) — no shell injection
+- All 4 Django AUTH_PASSWORD_VALIDATORS enabled
+- No raw SQL found
+
+MISSING TOOLS (install before next audit)
+-----------------------------------------
+  pip install bandit pip-audit
+  brew install trivy trufflehog
+
+IMMEDIATE ACTIONS BEFORE GO-LIVE
+---------------------------------
+1. Fix DEBUG boolean bug (1-line change in settings.py)
+2. Fix HLS segment path traversal (add realpath bounds check)
+3. Rotate Gmail app password and generate new SECRET_KEY
+4. Remove makemigrations from entrypoint.sh
+5. Add rate limiting to auth endpoints
+6. Replace SECRET_KEY value in .env.template with placeholder

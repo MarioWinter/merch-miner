@@ -1,0 +1,77 @@
+SECURITY AUDIT SUMMARY
+Date: 2026-02-27
+Project: ai-coding-kit (django-app + frontend-ui)
+
+OVERALL RISK: HIGH — DO NOT DEPLOY without fixing CRITICAL and HIGH items.
+
+=== CRITICAL (3) ===
+1. Real production credentials in django-app/.env on disk
+   - Gmail App Password (nvfzahwpvvaqzrdt) — ROTATE IMMEDIATELY
+   - Django SECRET_KEY with "django-insecure-" prefix — REGENERATE
+   - DB password, superuser password exposed
+
+2. django-insecure SECRET_KEY committed in django-app/.env.template (commit 39938fb)
+   - Key is permanently in git history
+   - Any deployment copying template without changing key uses known-public secret
+
+3. Path traversal in HLS segment endpoint (content/api/views.py:106-120)
+   - `resolution` and `segment` URL params used in os.path.join without sanitization
+   - Authenticated user can read arbitrary files from container filesystem
+   - Fix: validate resolution against allowlist, validate segment with regex ^\d{3}\.ts$
+
+=== HIGH (5) ===
+4. No rate limiting on /api/login/, /api/register/, /api/password_reset/
+   - Brute-force and credential stuffing attacks possible
+   - Fix: Add DRF throttle classes
+
+5. Missing security headers: SECURE_SSL_REDIRECT, HSTS, X_FRAME_OPTIONS,
+   SECURE_CONTENT_TYPE_NOSNIFF, SECURE_PROXY_SSL_HEADER
+
+6. `makemigrations` runs in production entrypoint — remove, keep only `migrate`
+
+7. DEBUG = os.environ.get('DEBUG', 'False') — string 'False' is truthy in Python
+   - Media files always served by Django, debug mode effectively always on for URL routing
+
+8. django-rq dashboard at /django-rq/ exposed without explicit auth restriction
+
+=== MEDIUM (10) ===
+9. AUTH_COOKIE_DOMAIN set to string 'None' instead of Python None
+10. No file type or size validation on video/image uploads
+11. Registration response leaks JWT access token in response body
+12. JWT access tokens reused as email activation and password reset tokens (multi-use risk)
+13. postgres:latest and redis:latest — unpin and use specific versions
+14. Redis has no password authentication
+15. python:3.12-alpine not pinned to specific patch version
+16. Gunicorn missing --workers, --timeout, --max-requests flags
+17. Hardcoded DB password fallback "supersecretpassword" in settings.py
+18. pytest/coverage/pytest-django in production requirements.txt — move to dev deps
+
+=== LOW (7) ===
+19. UserProfileViewSet uses ModelViewSet — exposes unnecessary HTTP methods
+20. Internal exception details returned in API error responses
+21. django-allauth installed but not configured
+22. Superuser default password "adminpassword" in .env.template
+23. No LOGGING configuration in settings.py
+24. WhiteNoise middleware commented out — static files broken in production
+25. *.sh in .gitignore — backend.entrypoint.sh not tracked in git
+
+=== GIT HISTORY SECRETS ===
+- .env file: NOT committed (correctly gitignored)
+- settings.py: No hardcoded secrets (uses os.getenv)
+- .env.template: django-insecure- key committed in first commit (CRITICAL-2 above)
+
+=== DEPENDENCIES ===
+- All major packages are recent versions
+- Pillow (11.3.0): Keep updated — historically has image parsing CVEs
+- moviepy + FFmpeg: Untrusted video files are processed — high attack surface
+- No CVE database scan performed — run pip-audit or safety check
+
+=== IMMEDIATE ACTIONS BEFORE DEPLOYMENT ===
+1. Rotate Gmail App Password at myaccount.google.com/apppasswords
+2. Generate new SECRET_KEY: python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"
+3. Fix path traversal vulnerability in HLS segment/manifest views
+4. Add rate limiting to authentication endpoints
+5. Add Django security headers to settings.py
+6. Remove makemigrations from backend.entrypoint.sh
+7. Fix DEBUG boolean parsing bug
+8. Restrict django-rq dashboard to staff users only

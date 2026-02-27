@@ -1,0 +1,46 @@
+SECURITY AUDIT SUMMARY
+======================
+Date: 2026-02-27
+Repo: /Users/mariomuller/dev/ai-coding-kit
+
+GIT HISTORY — .env LEAK CHECK
+------------------------------
+RESULT: CLEAN — no .env files were ever committed to git history.
+Checked all 4 commits across 1 branch (main).
+Only django-app/.env.template appears in git history (intended).
+
+GITIGNORE COVERAGE
+------------------
+RESULT: .env IS protected — django-app/.env is confirmed ignored by git.
+Root .gitignore covers: .env, .env.local, .env.*.local, .env.production
+GAP: Subdirectory .env.production / .env.staging not covered (e.g. django-app/.env.production).
+
+.ENV.TEMPLATE PLACEHOLDER ANALYSIS
+------------------------------------
+RESULT: ONE CRITICAL ISSUE FOUND
+- SECRET_KEY in template contains a real django-insecure- key (not a placeholder).
+  Value: "django-insecure-lp6h18zq4@z30symy*oz)+hp^uoti48r_ix^qc-m@&yfxd7&hn"
+  This key IS committed to git history (commit 39938fb, first commit).
+- All other values are acceptable placeholders (your_database_name, adminpassword, etc.)
+- Template is missing 3 vars present in actual .env: CORS_ALLOWED_ORIGINS, FRONTEND_ACTIVATION_URL, FRONTEND_CONFIRM_PASSWORD_URL
+
+LOCAL .ENV ISSUES (not in git, but on disk)
+-------------------------------------------
+HIGH: SECRET_KEY uses django-insecure- prefix despite DEBUG=False (production config)
+HIGH: Gmail App Password present (nvfzahwpvvaqzrdt) — 16-char app password pattern
+MEDIUM: Weak passwords using werte1234 pattern for DB and superuser
+INFO: Real personal email (mariowinter.sg@gmail.com) in credentials
+
+PRIORITY ACTIONS
+----------------
+1. [CRITICAL] Generate new SECRET_KEY for production (remove django-insecure- key)
+2. [HIGH] Replace SECRET_KEY in .env.template with placeholder text
+3. [MEDIUM] Rotate Gmail App Password if potentially exposed
+4. [MEDIUM] Strengthen DB/superuser passwords
+5. [LOW] Add **/.env.production and **/.env.staging to .gitignore
+6. [LOW] Add missing vars to .env.template
+
+OVERALL RISK LEVEL: MEDIUM
+- No git history leak confirmed
+- Template has a committed insecure key (known to anyone with repo access)
+- Local production .env uses insecure key prefix — must be rotated before real production use

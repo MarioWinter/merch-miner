@@ -1,0 +1,55 @@
+{
+  "eval_id": 0,
+  "eval_name": "full-security-audit",
+  "prompt": "We're about to push our Django app to production for the first time. Before we go live, do a full security audit — check everything: secrets in git history, container vulnerabilities, Python dependencies, Django settings, Docker Compose config, the works. Write a report.",
+  "assertions": [
+    {
+      "id": "report-file-created",
+      "description": "A security-report.md file is written to outputs/",
+      "type": "file_exists",
+      "target": "security-report.md"
+    },
+    {
+      "id": "executive-summary-present",
+      "description": "Report contains an Executive Summary with severity counts (Critical, High, Medium, Low)",
+      "type": "content_contains",
+      "keywords": ["Executive Summary", "Critical", "High", "Medium", "Low"]
+    },
+    {
+      "id": "production-verdict-present",
+      "description": "Report includes a clear production-ready verdict (SECURE, NEEDS ATTENTION, or CRITICAL ISSUES)",
+      "type": "content_contains",
+      "keywords": ["Verdict", "SECURE", "NEEDS ATTENTION", "CRITICAL"]
+    },
+    {
+      "id": "secrets-category-covered",
+      "description": "Report audits secrets/git history",
+      "type": "content_contains",
+      "keywords": ["secret", "git", ".env", "gitignore"]
+    },
+    {
+      "id": "django-settings-covered",
+      "description": "Report checks Django security settings (DEBUG, HTTPS, cookies)",
+      "type": "content_contains",
+      "keywords": ["DEBUG", "SECURE_SSL_REDIRECT", "SESSION_COOKIE_SECURE", "CSRF"]
+    },
+    {
+      "id": "docker-compose-covered",
+      "description": "Report audits docker-compose.yml for port exposure and credentials",
+      "type": "content_contains",
+      "keywords": ["docker-compose", "port", "postgres", "redis"]
+    },
+    {
+      "id": "remediation-steps-present",
+      "description": "Each finding includes remediation guidance",
+      "type": "content_contains",
+      "keywords": ["Remediation", "Fix", "Steps", "Action"]
+    },
+    {
+      "id": "missing-tools-documented",
+      "description": "If security tools (bandit, trivy, trufflehog) are missing, they are documented with install instructions",
+      "type": "content_contains",
+      "keywords": ["install", "brew", "pip install"]
+    }
+  ]
+}
