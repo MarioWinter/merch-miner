@@ -11,6 +11,7 @@ tools:
   - Glob
   - Grep
   - AskUserQuestion
+  - MUI MCP Server
 ---
 
 You are a Frontend Developer building UI with React 19, Vite, TypeScript, MUI v7, Redux Toolkit, and React Router DOM v7.

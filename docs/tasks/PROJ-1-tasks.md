@@ -43,35 +43,36 @@
 ## Frontend
 
 ### Scaffold
-- [ ] Create `frontend-ui/src/store/index.ts` — configure Redux store
-- [ ] Create `frontend-ui/src/store/authSlice.ts` — `auth` slice with `setUser`, `setLoading`, `setError`, `clearAuth` actions
-- [ ] Create `frontend-ui/src/services/authService.ts` — axios instance (`withCredentials: true`, baseURL from `VITE_API_URL`), 401 interceptor with token refresh + queue, exported methods: `login`, `register`, `logout`, `requestPasswordReset`, `confirmPasswordReset`, `googleLoginUrl`
-- [ ] Create `frontend-ui/src/i18n/index.ts` — i18next setup with inline English translations (no JSON files)
-- [ ] Create `frontend-ui/src/style/theme.ts` — MUI `createTheme()` with dark/light `colorSchemes`, no-uppercase buttons, rounded corners
-- [ ] Create `frontend-ui/src/components/PrivateRoute.tsx` — reads `isAuthenticated` from Redux; redirects to `/login` if false
-- [ ] Update `frontend-ui/src/main.tsx` — wrap app in `<Provider>`, `<ThemeProvider>`, `<SnackbarProvider>`, `<BrowserRouter>`
-- [ ] Update `frontend-ui/src/App.tsx` — add all routes: `/login`, `/register`, `/activate`, `/password-reset`, `/password-reset/confirm`, and `<PrivateRoute>` for `/`
-- [ ] Add session hydration call in `App.tsx` on mount (call `/api/auth/me/` or `/api/users/me/` to populate Redux from cookie)
-- [ ] Create `frontend-ui/.env.template` with `VITE_API_URL=http://localhost:8000`
+- [x] Create `frontend-ui/src/store/index.ts` — configure Redux store
+- [x] Create `frontend-ui/src/store/authSlice.ts` — `auth` slice with `setUser`, `setLoading`, `setError`, `clearAuth` actions
+- [x] Create `frontend-ui/src/services/authService.ts` — axios instance (`withCredentials: true`, baseURL from `VITE_API_URL`), 401 interceptor with token refresh + queue, exported methods: `login`, `register`, `logout`, `requestPasswordReset`, `confirmPasswordReset`, `googleLoginUrl`
+- [x] Create `frontend-ui/src/i18n/index.ts` — i18next setup with inline English translations (no JSON files)
+- [x] Create `frontend-ui/src/style/theme.ts` — MUI `extendTheme()` with dark/light `colorSchemes`, no-uppercase buttons, rounded corners
+- [x] Create `frontend-ui/src/style/constants.ts` — EASING, DURATION, MONO_FONT_STACK exports
+- [x] Create `frontend-ui/src/components/PrivateRoute.tsx` — reads `isAuthenticated` from Redux; redirects to `/login` if false
+- [x] Update `frontend-ui/src/main.tsx` — wrap app in `<Provider>`, `<ThemeProvider>`, `<SnackbarProvider>`, `<BrowserRouter>`
+- [x] Update `frontend-ui/src/App.tsx` — replace PlaceholderPage with real page components, add `<PrivateRoute>` for `/`
+- [x] Add session hydration call in `App.tsx` on mount (call `/api/auth/me/` to populate Redux from cookie)
+- [x] Create `frontend-ui/.env.template` with `VITE_API_URL=http://localhost:8000`
 
 ### Shared Auth UI
-- [ ] Create `frontend-ui/src/views/auth/partials/AuthLayout.tsx` — centered MUI Paper card wrapper
+- [x] Create `frontend-ui/src/views/auth/partials/AuthLayout.tsx` — centered MUI Paper card wrapper
 
 ### Login Page
-- [ ] Create `frontend-ui/src/views/auth/login/schemas/loginSchema.ts` — Zod schema (`email`, `password`)
-- [ ] Create `frontend-ui/src/views/auth/login/LoginPage.tsx` — form with email/password fields, submit dispatches to Redux, "Continue with Google" button
+- [x] Create `frontend-ui/src/views/auth/login/schemas/loginSchema.ts` — Zod schema (`email`, `password`)
+- [x] Create `frontend-ui/src/views/auth/login/LoginPage.tsx` — form with email/password fields, submit dispatches to Redux, "Continue with Google" button
 
 ### Register Page
-- [ ] Create `frontend-ui/src/views/auth/register/schemas/registerSchema.ts` — Zod schema (`email`, `password`, `confirmPassword`)
-- [ ] Create `frontend-ui/src/views/auth/register/RegisterPage.tsx` — registration form, success → redirect to `/login` with message
+- [x] Create `frontend-ui/src/views/auth/register/schemas/registerSchema.ts` — Zod schema (`email`, `password`, `confirmPassword`)
+- [x] Create `frontend-ui/src/views/auth/register/RegisterPage.tsx` — registration form, success → redirect to `/login` with message
 
 ### Activate Page
-- [ ] Create `frontend-ui/src/views/auth/activate/ActivatePage.tsx` — reads `?uid=&token=` from URL, calls activate endpoint on mount, shows success/error state
+- [x] Create `frontend-ui/src/views/auth/activate/ActivatePage.tsx` — reads `?uid=&token=` from URL, calls activate endpoint on mount, shows success/error state
 
 ### Password Reset Pages
-- [ ] Create `frontend-ui/src/views/auth/password-reset/schemas/passwordResetSchema.ts` — Zod schemas for both request and confirm forms
-- [ ] Create `frontend-ui/src/views/auth/password-reset/PasswordResetPage.tsx` — email input form, calls `requestPasswordReset`
-- [ ] Create `frontend-ui/src/views/auth/password-reset/PasswordConfirmPage.tsx` — reads `?uid=&token=`, new password form, calls `confirmPasswordReset`
+- [x] Create `frontend-ui/src/views/auth/password-reset/schemas/passwordResetSchema.ts` — Zod schemas for both request and confirm forms
+- [x] Create `frontend-ui/src/views/auth/password-reset/PasswordResetPage.tsx` — email input form, calls `requestPasswordReset`
+- [x] Create `frontend-ui/src/views/auth/password-reset/PasswordConfirmPage.tsx` — reads `?uid=&token=`, new password form, calls `confirmPasswordReset`
 
 ---
 
