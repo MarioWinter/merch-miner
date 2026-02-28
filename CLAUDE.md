@@ -1,5 +1,11 @@
 # AI Coding Kit
 
+## Workflow Rules
+- After each skill (/requirements, /architecture, /frontend-design), 
+  STOP and wait for explicit approval before proceeding.
+- Never start implementation unless I explicitly say "implement" or "start coding".
+- Task files always go to docs/tasks/PROJ-[N]-tasks.md before any code is written.
+
 > In all interactions and commit messages, be extremely concise. Sacrifice grammar for concision.
 > A React Typescript Vite and Django DRF template with an AI-powered development workflow using specialized skills for Requirements, Architecture, Frontend, Backend, QA, and Deployment.
 
