@@ -1,0 +1,532 @@
+{
+  "name": "00002-SubWorkflowV2",
+  "nodes": [
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "hB5A3yVDEvwekC96",
+          "mode": "list",
+          "cachedResultName": "00002SlogenGenCache",
+          "cachedResultUrl": "/projects/yQqgITfWTvd1QuZo/datatables/hB5A3yVDEvwekC96"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "result": "={{ JSON.stringify($json) }}",
+            "execution_id": "={{ $('Webhook').item.json.body.execution_id }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "execution_id",
+              "displayName": "execution_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "result",
+              "displayName": "result",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "image",
+              "displayName": "image",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "url",
+              "displayName": "url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        912,
+        -224
+      ],
+      "id": "87e12a56-0380-4da6-a52e-83aec70b10ce",
+      "name": "Insert row1"
+    },
+    {
+      "parameters": {
+        "content": "## Step 2\n**INTELLIGENT NICHE DISCOVERY SYSTEM** Check Niche to adaped the Slogan.",
+        "height": 432,
+        "width": 1232,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -112,
+        -320
+      ],
+      "typeVersion": 1,
+      "id": "78b8adba-f457-4020-931e-e50ed1cd3a63",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Step 4\n**PRODUCT REFERENCE VALIDATION**",
+        "height": 944,
+        "width": 1456,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -288,
+        336
+      ],
+      "typeVersion": 1,
+      "id": "df137019-ba3a-49e5-b35f-d3016d7e62c7",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "8892ee61-2171-4230-8465-c9d1c5f5a700",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -112,
+        560
+      ],
+      "id": "1f2c8f18-25ba-412f-9ab9-d0809979e014",
+      "name": "Webhook1",
+      "webhookId": "8892ee61-2171-4230-8465-c9d1c5f5a700"
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "value": "hB5A3yVDEvwekC96",
+          "mode": "list",
+          "cachedResultName": "00002SlogenGenCache",
+          "cachedResultUrl": "/projects/yQqgITfWTvd1QuZo/datatables/hB5A3yVDEvwekC96"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "result": "={{ JSON.stringify($json) }}",
+            "execution_id": "={{ $('Webhook1').item.json.body.execution_id }}",
+            "image": "={{ $('Webhook1').item.json.body.image }}",
+            "url": "={{ $('Webhook1').item.json.body.url }}"
+          },
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "execution_id",
+              "displayName": "execution_id",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "result",
+              "displayName": "result",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "image",
+              "displayName": "image",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "url",
+              "displayName": "url",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {
+          "optimizeBulk": false
+        }
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        832,
+        560
+      ],
+      "id": "b876b9cd-e093-4cd6-98f0-d18e77afbc7f",
+      "name": "Insert row"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "6ec12428-3a41-4c41-a344-647fbddfdefd",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -80,
+        -224
+      ],
+      "id": "0778d758-6f39-4cc2-8d32-af352b11178c",
+      "name": "Webhook",
+      "webhookId": "6ec12428-3a41-4c41-a344-647fbddfdefd"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"name\":  \"{{ $json.output.niche.name }}\",\n  \"grund\": {{ JSON.stringify($json.output.niche) }},\n  \"NicheProfileSellingNiches\": {{ JSON.stringify($('JS Parser').item.json.NicheProfileSellingNiches) }},\n  \"OriginalNicheProfile\": {{ JSON.stringify($('JS Parser').item.json.OriginalNicheProfile) }},\n  \"OriginalSlogan\": {{ JSON.stringify($('JS Parser').item.json.OriginalSlogan) }},\n  \"OriginalNiche\": {{ JSON.stringify($('JS Parser').item.json.OriginalNiche) }},\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        752,
+        -224
+      ],
+      "id": "0ab42c42-3fb6-42f6-8aeb-c96211439630",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Original Slogan: {{ $json.OriginalSlogan }}\nOriginal Niche: {{ $json.OriginalNiche }}\nOriginal Niche Profile: \n{{ JSON.stringify($json.OriginalNicheProfile, null, 2) }}\n\n---\n\nAvailable Niche:\n{{ JSON.stringify($json.NicheProfileSellingNiches, null, 2) }}",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=<Version 1.7>\n# INTELLIGENT NICHE DISCOVERY SYSTEM\n\n## ROLE & MISSION\nYou are an expert in Print-on-Demand market psychology and cultural niche analysis.\nYour task is to evaluate whether a selling niche can authentically adopt an original slogan\nbased on EXACT emotional reality alignment.\n\nCore principle:\nNiches are cultures, not categories. Match lived emotional reality, not job titles.\n\n---\n\n## INPUT\nYou receive:\n\n1. Original slogan text  \n2. Original niche  \n3. Niche profile of the original niche  \n   (niche summary, sentiment, primary emotions, emotional archetype, pattern analysis, emotional reality)  \n4. Niche profile of the selling niche  \n   (niche summary, sentiment, primary emotions, emotional archetype, pattern analysis, emotional reality)\n5. Design patterns of the selling niche  \n   (List of present patterns with context, e.g. IDENTITY DECLARATION, TRIBE/COMMUNITY, FUNNY ACTIVITY, BOUNDARY/GATEKEEPING, COMPETENCE/EXPERTISE, SELF-CARE/PRIORITIES etc.)\n\n---\n\n## ORIGINAL SLOGAN DECODING (MANDATORY PRE-ANALYSIS)\n\nBefore any evaluation, analyze the ORIGINAL SLOGAN as a standalone communication act,\nindependent of any niche context.\n\nDetermine explicitly:\n\n- **Primary Speech Act**  \n  (e.g. self-expressive, instructional, corrective, confrontational, humorous, declarative)\n\n- **Direction of Address**  \n  (inward: describing the wearer / outward: addressing others / mixed)\n\n- **Degree of Imperative or Corrective Language**  \n  (low / medium / high)\n\n### Definition Constraint\n- A slogan is **SELF-EXPRESSIVE** only if it primarily describes the wearer's own identity, state, or traits  \n  (e.g. \"I am\", \"We are\", \"Proud to be\", self-irony).\n- Statements that primarily instruct, correct, warn, or question others are **NOT self-expressive by default**, even if humorous.\n\n### Wearability Signal Type\n- **SELF-SIGNAL**: The slogan functions primarily as an inward or mixed self-identity signal.\n- **OTHER-SIGNAL**: The slogan functions primarily as an outward-directed message using instructional or corrective language.\n\nUse this decoding strictly to inform STEP 1.\nDo NOT assume wearability based on niche alignment alone.\n\n---\n\n## STEP 1: SELF-WEAR VIABILITY CHECK (HARD GATE)\n\nThis step is critical but not absolute.\nEvaluate this step FIRST.\n\n### Adaptation to Selling Niche\n\nAssume the slogan has already been adapted based on its **structure (formula)** to align with the appropriate **present design pattern** of the selling niche.\n\n**Especially when Wearability Signal Types are opposite** (Original: OTHER-SIGNAL → Selling: SELF-SIGNAL or vice versa), the adaptation must account for:\n- **Niche emotionality** of the selling niche (primary emotions, emotional reality)\n- **Wearability Signal Type** that is culturally accepted in the selling niche\n- **Niche keywords** and insider terminology from the present design patterns\n\nNow evaluate the wearability of the ADAPTED slogan in the selling niche with reasonable flexibility:\n\n- Would members of the selling niche **plausibly** choose to wear this shirt themselves in public or at work?\n- Does the slogan function primarily as a self-identity signal rather than policing, instructing, or correcting others?\n- Would wearing it create **significant** social friction, conflict, or require explanation?\n\n### Wearability Evaluation Rule\n\n- If **Wearability Signal Type = SELF-SIGNAL** → proceed normally.\n\n- If **Wearability Signal Type = OTHER-SIGNAL**, evaluate contextually:\n\n  - Does the selling niche culturally accept outward-facing, boundary-setting, or gatekeeping statements as a form of identity expression?\n  - Are similar outward-directed slogans commonly worn by insiders of this niche (warnings, sarcasm, defiant humor, insider call-outs)?\n  - Does the slogan position the wearer as an insider asserting competence or boundaries, rather than policing outsiders generically?\n\nDecision Guidance:\n- OTHER-SIGNAL slogans are acceptable if outward direction is a recognized and worn identity expression within the selling niche.\n- **When borderline or uncertain: proceed to evaluate PASS 1-3 before making final decision**\n\nApply reasonable judgment rather than absolute rejection.\n\n---\n\n## STEP 2: THREE-PASS FILTERING\n\n### PASS 1: MANDATORY COMPATIBILITY CHECK\n\nReject immediately if **4 OR MORE** apply:\n\n1. Strong sentiment mismatch (celebratory vs exhaustion/burnout-dominated)\n2. Direct cultural incompatibility (gatekeeping vs support-focused, or vice versa)\n3. Opposing humor style clash (dark/sarcastic vs warm/encouraging)\n4. Extreme confrontation mismatch (very high vs very low confrontation)\n5. Severe energy mismatch (manic high-intensity vs deeply subdued)\n6. Core emotional archetype conflict  \n   (Rebel/Jester vs Sage/Ruler or Caregiver/Supporter vs Warrior/Rebel)\n\n**Decision Rule:**\n- **0-3 mismatches** → PROCEED with caution\n- **4 or more apply** → **REJECT**\n\n---\n\n### PASS 2: CULTURAL ALIGNMENT CHECK\n\nAnswer YES or NO:\n\n1. Same core pain points?\n2. Same self-view and identity narrative?\n3. Humor used in the same way?\n4. Emotional relatability to the original slogan?\n5. Authentic expression possible in selling niche context?\n\nDecision Rule:\n- YES to 3+ → PASS  \n- Otherwise → **REJECT**\n\n---\n\n### PASS 3: STRUCTURAL TRANSFERABILITY CHECK\n\nAnswer YES or NO:\n\n1. Equivalent insider terminology exists?\n2. Equivalent real-world scenarios exist?\n3. Slogan formula adapts naturally?\n4. Adaptation feels insider-authentic?\n5. Insiders would instantly recognize it as \"theirs\"?\n\nDecision Rule:\n- YES to 3+ → PASS  \n- Otherwise → **REJECT**\n\n---\n\n## STEP 3: SCORING\n\nEvaluate only if all previous steps passed.\n\nScore 0–100:\n\n- Emotional Resonance: 35  \n- Cultural Alignment: 35  \n- Structural Transferability: 15  \n- Authenticity Potential: 15  \n\nDecision:\n- **75+ → APPROVED**\n- **<75 → REJECTED**\n\n---\n\n## STEP 4: EXTRACTION (If APPROVED)\n\nExtract the following data to guide adaptation:\n\n### Signal Conversion Analysis\n\nBased on your evaluation in STEP 1, determine the signal conversion:\n\n**Identify Original Signal:**\n- Does original slogan use \"I/My/We\"? → SELF-SIGNAL\n- Does original slogan use \"You/Don't/Before You\"? → OTHER-SIGNAL\n\n**Determine Target Signal for Selling Niche:**\nBased on your wearability evaluation, what signal type is most appropriate for the selling niche?\n- Consider: `pattern_analysis`, `example_keywords`, `emotional_reality`, wearability\n\n**Specify Conversion Direction:**\n- **MAINTAINED** → Keep original signal type (just swap insider terms)\n- **CONVERTED (OTHER→SELF)** → Original was outward-directed, adapt to inward self-identity statement\n- **CONVERTED (SELF→OTHER)** → Original was self-identity, adapt to outward boundary-setting\n\n**Transformation Strategy (1 sentence):**\nExplain HOW to convert. Examples:\n- \"Convert questions to declarative statements with completion indicators (✓, READY, DONE)\"\n- \"Keep identity format, swap insider terms only\"\n- \"Transform self-description into boundary-setting warning\"\n\n---\n\n### Emotional Alignment Extraction\n\n**Keywords (4-6 items):**\nExtract from `primary_emotions`, `emotional_reality`, `pattern_analysis` contexts\n\n**Core Emotion:**\nCombine first `primary_emotion` + qualifier from `emotional_reality`\n\n**Energy Level:**\nBased on `dominant_design_aesthetics`:\n- \"ALL CAPS\", \"bold\", \"vibrant\" → High\n- \"Mixed case\", \"assertive\" → Medium-High\n- \"Conversational\" → Medium\n- \"Understated\" → Low\n\n**Tone Guidance (1 sentence):**\nCombine humor style + energy + emotional keywords\n\n---\n\n### Structural Insights Extraction\n\n**Element Count:**\nCount discrete components in Original Slogan (numbered items, questions, clauses)\n\n**Format Type:**\n\"Numbered checklist\" / \"Simple statement\" / \"Question + Answer\" / \"Statement with escalation\" / \"List without numbers\" / \"Definition reframe\"\n\n**Punch Line Analysis:**\n- **punch_line_required**: Does final element change tone/add attitude?\n- **punch_line_strategy**: \"Cheeky contrast\" / \"Boundary setting\" / \"Ownership declaration\" / \"Callback with attitude\" / null\n\n---\n\n### Justification (2-3 sentences)\n\nExplain:\n1. Emotional/cultural overlaps between niches\n2. How adaptation integrates niche emotionality + design patterns + signal type + insider keywords\n3. **If CONVERTED, explicitly state the transformation** (e.g., \"converting outward checklist into inward identity declaration\")\n\n---\n\n## OUTPUT REQUIREMENTS\n\nYour response must be a valid JSON object matching the schema provided.\n\n**Key fields to populate:**\n\n**If APPROVED:**\n- `name`: Exact selling niche name\n- `approval_status`: \"APPROVED\"\n- `signal_conversion`: {required, direction, original_signal, target_signal, transformation_strategy}\n- `emotional_alignment`: {keywords, core_emotion, energy_level, tone_guidance}\n- `structural_insights`: {element_count, format_type, punch_line_required, punch_line_strategy}\n- `justification`: 2-3 sentences\n\n**If REJECTED:**\n- `name`: Selling niche name\n- `approval_status`: \"REJECTED\"\n- `rejection_reason`: Brief explanation\n\n---\n\n## CRITICAL PRINCIPLES\n\n- Match emotional reality carefully; apply reasonable judgment\n- Use only provided profile data (no assumptions)\n- Authenticity requires strong alignment, not perfection\n- All extraction must come from INPUT data\n- Signal conversion decision is based on your STEP 1 wearability evaluation\n- Do NOT mention steps, passes, scores in justification\n- Do NOT restate the slogan verbatim in justification\n\n---\n\n## OUTPUT INSTRUCTIONS\n\n- Response must be valid JSON matching the provided schema\n- Do NOT include markdown code fences (```json)\n- Do NOT add text before/after the JSON\n- Do NOT wrap in \"output\" or \"response\" key\n- Start with { and end with }"
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        384,
+        -224
+      ],
+      "id": "4fc1470f-7ba7-4a48-be4d-b1bf28423f15",
+      "name": "INTELLIGENT NICHE DISCOVERY SYSTEM"
+    },
+    {
+      "parameters": {
+        "model": "mistralai/mistral-medium-3.1",
+        "options": {
+          "responseFormat": "json_object",
+          "temperature": 0.7
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        384,
+        -48
+      ],
+      "id": "b74ffe4f-68fc-45bc-8468-41175b359c45",
+      "name": "OpenRouter Chat Model1",
+      "credentials": {
+        "openRouterApi": {
+          "id": "51DEs2SFPnaiUwxH",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"niche\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"name\": {\n          \"type\": \"string\",\n          \"description\": \"Exact name of the selling niche\"\n        },\n        \"approval_status\": {\n          \"type\": \"string\",\n          \"enum\": [\"APPROVED\", \"REJECTED\"],\n          \"description\": \"Whether this niche can authentically adopt the slogan\"\n        },\n        \"signal_conversion\": {\n          \"type\": \"object\",\n          \"properties\": {\n            \"required\": {\n              \"type\": \"boolean\",\n              \"description\": \"true if Original Signal ≠ Target Signal\"\n            },\n            \"direction\": {\n              \"type\": \"string\",\n              \"enum\": [\"MAINTAINED\", \"OTHER→SELF\", \"SELF→OTHER\"],\n              \"description\": \"Type of conversion needed\"\n            },\n            \"original_signal\": {\n              \"type\": \"string\",\n              \"enum\": [\"SELF\", \"OTHER\"],\n              \"description\": \"Signal type of original slogan\"\n            },\n            \"target_signal\": {\n              \"type\": \"string\",\n              \"enum\": [\"SELF\", \"OTHER\"],\n              \"description\": \"Signal type for selling niche\"\n            },\n            \"transformation_strategy\": {\n              \"type\": \"string\",\n              \"description\": \"Specific instruction for HOW to convert (1 sentence)\"\n            }\n          },\n          \"required\": [\"required\", \"direction\", \"original_signal\", \"target_signal\", \"transformation_strategy\"]\n        },\n        \"emotional_alignment\": {\n          \"type\": \"object\",\n          \"properties\": {\n            \"keywords\": {\n              \"type\": \"array\",\n              \"items\": { \"type\": \"string\" },\n              \"minItems\": 4,\n              \"maxItems\": 6,\n              \"description\": \"4-6 emotional keywords from selling niche\"\n            },\n            \"core_emotion\": {\n              \"type\": \"string\",\n              \"description\": \"Primary emotion (can be compound)\"\n            },\n            \"energy_level\": {\n              \"type\": \"string\",\n              \"enum\": [\"Low\", \"Medium\", \"Medium-High\", \"High\"],\n              \"description\": \"Based on dominant_design_aesthetics\"\n            },\n            \"tone_guidance\": {\n              \"type\": \"string\",\n              \"description\": \"1 sentence describing tone for adaptation\"\n            }\n          },\n          \"required\": [\"keywords\", \"core_emotion\", \"energy_level\", \"tone_guidance\"]\n        },\n        \"structural_insights\": {\n          \"type\": \"object\",\n          \"properties\": {\n            \"element_count\": {\n              \"type\": \"integer\",\n              \"description\": \"Number of discrete components in original slogan\"\n            },\n            \"format_type\": {\n              \"type\": \"string\",\n              \"description\": \"Structural pattern (e.g., 'Numbered checklist', 'Simple statement')\"\n            },\n            \"punch_line_required\": {\n              \"type\": \"boolean\",\n              \"description\": \"Does original slogan escalate to final attitude/boundary?\"\n            },\n            \"punch_line_strategy\": {\n              \"type\": [\"string\", \"null\"],\n              \"description\": \"Type of punch line or null if none\"\n            }\n          },\n          \"required\": [\"element_count\", \"format_type\", \"punch_line_required\", \"punch_line_strategy\"]\n        },\n        \"justification\": {\n          \"type\": \"string\",\n          \"description\": \"2-3 sentences explaining compatibility\"\n        },\n        \"rejection_reason\": {\n          \"type\": \"string\",\n          \"description\": \"Brief explanation if REJECTED\"\n        }\n      },\n      \"required\": [\"name\", \"approval_status\"],\n      \"additionalProperties\": false\n    }\n  },\n  \"required\": [\"niche\"],\n  \"additionalProperties\": false\n}\n",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        528,
+        -48
+      ],
+      "id": "2acb9b10-25ff-4807-a1f4-b641c6c6a69d",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "model": "mistralai/mistral-small-3.2-24b-instruct",
+        "options": {
+          "responseFormat": "json_object",
+          "temperature": 0.3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        304,
+        816
+      ],
+      "id": "f97fac07-bc1a-41b4-a133-02178203408a",
+      "name": "OpenRouter Chat Model",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000,
+      "credentials": {
+        "openRouterApi": {
+          "id": "51DEs2SFPnaiUwxH",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "schemaType": "manual",
+        "inputSchema": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"quality_gate\": {\n      \"type\": \"string\",\n      \"enum\": [\"PROCEED\", \"REJECT\"],\n      \"description\": \"Validation result: PROCEED if product passes all checks, REJECT otherwise\"\n    },\n    \"reason\": {\n      \"type\": \"string\",\n      \"description\": \"Required when quality_gate is REJECT. One of: Quality issue, Pattern mismatch, Compatibility fail\"\n    },\n    \"slogan\": {\n      \"type\": \"string\",\n      \"description\": \"Required when quality_gate is PROCEED. The exact slogantext from the product\"\n    },\n    \"pattern\": {\n      \"type\": \"string\",\n      \"description\": \"Required when quality_gate is PROCEED. The emotional_pattern from product_slogan_analysis\"\n    },\n    \"formula\": {\n      \"type\": \"string\",\n      \"description\": \"Required when quality_gate is PROCEED. The adaptation_formula from product_slogan_analysis\"\n    },\n    \"energy\": {\n      \"type\": \"string\",\n      \"description\": \"Required when quality_gate is PROCEED. The energy_level from vibe\"\n    },\n    \"insider_terms\": {\n      \"type\": \"array\",\n      \"items\": {\n        \"type\": \"string\"\n      },\n      \"description\": \"Required when quality_gate is PROCEED. Array of key insider terms extracted from the slogan\"\n    },\n    \"transfer_hint\": {\n      \"type\": \"string\",\n      \"description\": \"Required when quality_gate is PROCEED. One clear sentence explaining how to adapt this formula to the original context\"\n    },\n    \"match_score\": {\n      \"type\": \"integer\",\n      \"description\": \"Required when quality_gate is PROCEED. Overall compatibility score from 1 to 10\"\n    }\n  },\n  \"required\": [\"quality_gate\"],\n  \"additionalProperties\": false,\n  \"if\": {\n    \"properties\": {\n      \"quality_gate\": {\n        \"const\": \"PROCEED\"\n      }\n    }\n  },\n  \"then\": {\n    \"required\": [\"quality_gate\", \"slogan\", \"pattern\", \"formula\", \"energy\", \"insider_terms\", \"transfer_hint\", \"match_score\"]\n  },\n  \"else\": {\n    \"required\": [\"quality_gate\", \"reason\"]\n  }\n}\n",
+        "autoFix": true
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        544,
+        736
+      ],
+      "id": "83d76513-366a-4385-9608-2b001b72ce97",
+      "name": "Structured Output Parser1",
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * n8n Code-Node: Parser für Multi-Agent-SaaS\n * Fokus: Bereinigung von Niche-Profiles (Strings & Arrays)\n */\n\nconst body = items[0].json.body;\n\n// Hilfsfunktion: Erkennt Strings, Arrays und bereinigt Profile\nconst processProfile = (input) => {\n  if (!input) return null;\n  \n  try {\n    let rawData;\n    \n    // Fall 1: Input ist ein Array (wie in deinem OriginalNicheProfile)\n    if (Array.isArray(input)) {\n      rawData = input[0];\n    } else {\n      rawData = input;\n    }\n\n    // Falls String: Parsen und korrupte Quotes fixen\n    let profile = typeof rawData === 'string' \n      ? JSON.parse(rawData.trim().replace(/^\"|\"$/g, '')) \n      : rawData;\n    \n    // Token-Optimierung: Nur aktive Muster (present: true) behalten\n    if (profile.pattern_analysis && Array.isArray(profile.pattern_analysis)) {\n      profile.pattern_analysis = profile.pattern_analysis.filter(p => p.present === true);\n    }\n    \n    // Ballast abwerfen\n    delete profile.row_number;\n    delete profile[\"Last Updated\"];\n    \n    return profile;\n  } catch (e) {\n    return input; // Fallback bei Fehler\n  }\n};\n\n// Rückgabe der bereinigten Daten\nreturn [{\n  json: {\n    execution_id: body.execution_id,\n    OriginalNiche: body.OriginalNiche?.replace(/\"/g, ''),\n    OriginalSlogan: body.OriginalSlogan,\n    // Verarbeitete Profile\n    OriginalNicheProfile: processProfile(body.OriginalNicheProfile),\n    NicheProfileSellingNiches: processProfile(body.NicheProfileSellingNiches)\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        160,
+        -224
+      ],
+      "id": "6741ee2a-a075-444b-9368-61417b2a182b",
+      "name": "JS Parser"
+    },
+    {
+      "parameters": {
+        "jsCode": "/**\n * Combined: JSON Parser + Transform to PRODUCT REFERENCE VALIDATION v2.0 LEAN Format\n * \n * Phase 1: Bereinigt korrupte Anführungszeichen & parsed verschachtelte JSON-Strings\n * Phase 2: Transformiert in LEAN Format für PRODUCT REFERENCE VALIDATION v2.0\n */\n\nconst body = items[0].json.body;\n\n// ===== PHASE 1: JSON PARSING & OPTIMIZATION =====\n\n// 1. Hilfsfunktion: Profile bereinigen & filtern\nconst optimizeProfile = (profileData) => {\n  if (!profileData) return null;\n  try {\n    // Falls String: Parsen und führende/anhängende Quotes entfernen\n    let profile = typeof profileData === 'string' \n      ? JSON.parse(profileData.trim().replace(/^\"|\"$/g, '')) \n      : profileData;\n    \n    // Nur aktive Muster behalten (spart massiv Platz)\n    if (profile.pattern_analysis && Array.isArray(profile.pattern_analysis)) {\n      profile.pattern_analysis = profile.pattern_analysis.filter(p => p.present === true);\n    }\n    \n    // Unnötigen Ballast entfernen\n    delete profile.row_number;\n    delete profile[\"Last Updated\"];\n    \n    return profile;\n  } catch (e) {\n    return profileData; // Fallback\n  }\n};\n\n// 2. Hilfsfunktion: Verschachtelte JSON-Felder im Body parsen\nconst safeParse = (data) => {\n  if (typeof data !== 'string') return data;\n  try {\n    return JSON.parse(data.trim().replace(/^\"|\"$/g, ''));\n  } catch (e) {\n    return data;\n  }\n};\n\n// Liste der Felder im Body, die oft als String-JSON kommen\nconst fieldsToParse = [\n  'transferability_notes',\n  'customer_psychology',\n  'sentiment_analysis',\n  'vibe',\n  'semantic_structure',\n  'key_elements',\n  'adaptation_examples'\n];\n\n// Durchführung des Deep-Parsing\nfieldsToParse.forEach(field => {\n  if (body[field]) {\n    body[field] = safeParse(body[field]);\n  }\n});\n\n// Bereinigtes Input-Objekt\nconst cleanedInput = {\n  ...body,\n  OriginalNiche: body.OriginalNiche?.replace(/\"/g, ''),\n  OriginalNicheProfile: optimizeProfile(body.OriginalNicheProfile),\n  NicheProfileSellingNiches: optimizeProfile(body.NicheProfileSellingNiches),\n  OriginalSloganAnalysis: safeParse(body.OriginalSloganAnalysis)\n};\n\n// ===== PHASE 2: TRANSFORM TO LEAN FORMAT =====\n\nconst nicheProfile = cleanedInput.NicheProfileSellingNiches;\nconst grund = cleanedInput.grund;\n\nreturn [{\n  json: {\n    // 1. PRODUCT\n    product: {\n      title: cleanedInput.title,\n      slogantext: cleanedInput.slogantext\n    },\n    \n    // 2. PRODUCT_SLOGAN_ANALYSIS\n    product_slogan_analysis: {\n      emotional_pattern: cleanedInput.emotional_pattern,\n      vibe: cleanedInput.vibe,\n      tone: cleanedInput.tone,\n      adaptation_formula: cleanedInput.adaptation_formula\n    },\n    \n    // 3. MATCH_CRITERIA\n    match_criteria: {\n      required_patterns: nicheProfile.pattern_analysis\n        .filter(p => p.present === true)\n        .map(p => p.name),\n      required_energy: grund.emotional_alignment.energy_level,\n      required_signal: grund.signal_conversion.target_signal\n    },\n    \n    // 4. ORIGINAL_CONTEXT\n    original_context: {\n      original_slogan: cleanedInput.OriginalSlogan,\n      original_pattern: cleanedInput.OriginalSloganAnalysis.primary_pattern\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        112,
+        560
+      ],
+      "id": "d8b2fc30-a298-47ae-9f17-5d5a7729d935",
+      "name": "JsonParser"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=**product** \n{{ JSON.stringify($json.product, null, 2) }}\n\n**product_slogan_analysis**\n{{ JSON.stringify($json.product_slogan_analysis, null, 2) }}\n\n**match_criteria**\n{{ JSON.stringify($json.match_criteria, null, 2) }}\n\n**original_context**\n{{ JSON.stringify($json.original_context, null, 2) }}\n",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=# PRODUCT REFERENCE VALIDATION v1.0\n\nYou are a T-shirt slogan validation engine. Your job: Quickly determine if a product can serve as a reference for slogan adaptation.\n\n---\n\n## INPUT\n\nYou receive:\n\n1. **product** - Single scraped product\n   - title (string)\n   - slogantext (string)\n\n2. **product_slogan_analysis** - Pre-analyzed data\n   - emotional_pattern (string)\n   - vibe (object with energy_level, attitude, core_emotion)\n   - tone (string)\n   - adaptation_formula (string)\n\n3. **match_criteria** - What we're looking for\n   - required_patterns (array of pattern names that must match)\n   - required_energy (string: High, Medium, or Low)\n   - required_signal (string: SELF or OTHER)\n\n4. **original_context** - Original slogan info\n   - original_slogan (string)\n   - original_pattern (string)\n\n---\n\n## VALIDATION PROCESS (3 STEPS)\n\n### STEP 1: QUALITY GATE\nReject immediately if:\n- slogantext has fewer than 4 words\n- Generic text only (Made in USA, Size XL, brand names)\n- NO_TEXT_FOUND\n- Copyright violation (song lyrics, movie quotes)\n\nIf rejected, set quality_gate to REJECT with reason Quality issue and STOP.\n\n---\n\n### STEP 2: PATTERN MATCH\nCheck if the product's emotional_pattern matches ANY pattern in the required_patterns array.\n\nExamples:\n- Required: IDENTITY DECLARATION, BOUNDARY/GATEKEEPING\n- Product has: BOUNDARY/GATEKEEPING\n- Result: MATCH (proceed to step 3)\n\nIf NO match, set quality_gate to REJECT with reason Pattern mismatch and STOP.\n\n---\n\n### STEP 3: COMPATIBILITY CHECK\n\nCheck these 3 factors:\n\n**A) Energy Match**\nDoes the product's energy_level match the required_energy within plus or minus one level?\n- High matches: High, Medium-High, Medium\n- Medium matches: High, Medium, Low\n- Low matches: Medium, Low\n\n**B) Transferability**\nIs the adaptation_formula transferable to the original_slogan? Can the formula be applied to the original pattern?\n\n**C) Authenticity**\nDoes the tone feel authentic (not generic, not stereotypical)? Does it use insider language?\n\n**Decision Logic:**\n- If ALL 3 factors pass: Set quality_gate to PROCEED\n- If 2 out of 3 pass AND transferability is strong: Set quality_gate to PROCEED\n- Otherwise: Set quality_gate to REJECT with reason Compatibility fail\n\n---\n\n## OUTPUT FIELDS\n\nWhen quality_gate is PROCEED, include these fields:\n- quality_gate: string (PROCEED)\n- slogan: exact slogantext from product\n- pattern: emotional_pattern from product_slogan_analysis\n- formula: adaptation_formula from product_slogan_analysis\n- energy: energy_level from vibe\n- insider_terms: array of 3-5 key terms extracted from the slogan\n- transfer_hint: one clear sentence explaining how to adapt this formula to the original context\n- match_score: integer from 1 to 10 based on overall fit\n\nWhen quality_gate is REJECT, include these fields:\n- quality_gate: string (REJECT)\n- reason: string (Quality issue, Pattern mismatch, or Compatibility fail)\n\n---\n\n## CRITICAL RULES\n\n1. Be strict on STEP 1 - No low-quality slogans\n2. Pattern match must be exact - Don't infer patterns\n3. Energy matching is flexible (within one level)\n4. Transferability is key - Can the formula actually work?\n5. Extract real insider terms from the actual slogan text\n6. match_score should range from 1 to 10 based on overall fit\n\n---\n\nNow validate the product."
+            }
+          ]
+        },
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.9,
+      "position": [
+        352,
+        560
+      ],
+      "id": "5916b398-de9d-4a7a-8443-058d8741d416",
+      "name": "PRODUCT REFERENCE VALIDATION",
+      "retryOnFail": true,
+      "maxTries": 5,
+      "waitBetweenTries": 5000
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook1": {
+      "main": [
+        [
+          {
+            "node": "JsonParser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "JS Parser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Insert row1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model1": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "INTELLIGENT NICHE DISCOVERY SYSTEM",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Structured Output Parser",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "INTELLIGENT NICHE DISCOVERY SYSTEM",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "INTELLIGENT NICHE DISCOVERY SYSTEM": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "PRODUCT REFERENCE VALIDATION",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Structured Output Parser1",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structured Output Parser1": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "PRODUCT REFERENCE VALIDATION",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JS Parser": {
+      "main": [
+        [
+          {
+            "node": "INTELLIGENT NICHE DISCOVERY SYSTEM",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JsonParser": {
+      "main": [
+        [
+          {
+            "node": "PRODUCT REFERENCE VALIDATION",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PRODUCT REFERENCE VALIDATION": {
+      "main": [
+        [
+          {
+            "node": "Insert row",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false
+  },
+  "versionId": "27a3ae46-6674-4388-8ebf-198c3abbe2a3",
+  "meta": {
+    "instanceId": "255ce5f2aa1250d50d62e1df7820878347771b477657ea3db630f142d3a80eed"
+  },
+  "id": "Lss4GMDfNcT5TsUh",
+  "tags": []
+}

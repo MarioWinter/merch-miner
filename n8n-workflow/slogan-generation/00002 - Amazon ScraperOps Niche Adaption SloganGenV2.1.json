@@ -1,0 +1,1064 @@
+{
+  "name": "00002 - Mario Amazon ScraperOps Niche Adaption SloganGenV2.1",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "971d276d-6fba-4f3d-b3f1-abe1725b675c",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -1904,
+        576
+      ],
+      "id": "8122747d-50c2-45d5-a6c7-fc81c3edd903",
+      "name": "Webhook",
+      "webhookId": "971d276d-6fba-4f3d-b3f1-abe1725b675c"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "897c4028-a3cb-4205-8497-046a3110f6d2",
+              "leftValue": "={{ $json.body.rowValues[0][2] }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "exists",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        -1600,
+        576
+      ],
+      "id": "38829a0f-4bb5-4076-ba8f-e8d752acad41",
+      "name": "Filter1"
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "NicheProfileSellingNiches",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -480,
+        576
+      ],
+      "id": "bc9a3eaf-2905-4d8d-882a-ce5e718cd891",
+      "name": "Aggregate1"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "0d126783-ecef-4e05-901d-24e789739cd2",
+              "name": "original_slogan",
+              "value": "={{ $json.body.rowValues[0]['2'] }}",
+              "type": "string"
+            },
+            {
+              "id": "4e370ca9-28a4-49b4-abf3-3586e30900df",
+              "name": "original_niche",
+              "value": "={{ $json.body.rowValues[0]['1'] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -1456,
+        576
+      ],
+      "id": "be582a6b-42ac-440f-958a-20a654eda7b4",
+      "name": "set original slogan"
+    },
+    {
+      "parameters": {
+        "content": "# Step 2 Find niches that can be adapted to\n\n### Die Niche Adoption Search solle ein SubWorkflow mit HTTP und WebHook mit Loop Over erstellt werden. Dann kann über jedes Item (nische) gleichzeitig eine Analyse gemacht werden ohne Limitierung.\n\nDanach werden die Items nochmal Gefiltert auf eignung wenn notwendig. Danach werden alle Items zusammengeführt (Aggregate)\n\nDanach kann der Creative part vom Workflow normal weiter gehen aber auch wieder mit Subworkflows usw..",
+        "height": 768,
+        "width": 896,
+        "color": 3
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        176,
+        336
+      ],
+      "id": "37a06541-e551-46c0-9fac-3633395e5310",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "185MFgmkKUi1fYGgR_BeN1twUvNAOQ6FX9QW5tL2SllM",
+          "mode": "list",
+          "cachedResultName": "DESIGN DATA (ALL DESIGNERS)",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/185MFgmkKUi1fYGgR_BeN1twUvNAOQ6FX9QW5tL2SllM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1437594983,
+          "mode": "list",
+          "cachedResultName": "nicheProfile",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/185MFgmkKUi1fYGgR_BeN1twUvNAOQ6FX9QW5tL2SllM/edit#gid=1437594983"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "niche_name",
+              "lookupValue": "={{ $('set original slogan').item.json.original_niche }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1024,
+        736
+      ],
+      "id": "c2fa202e-9982-4465-8cab-8516dc8a7d7c",
+      "name": "Get NicheProfileOriginNiche",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "9w5yk9PJDGuuRoGB",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "185MFgmkKUi1fYGgR_BeN1twUvNAOQ6FX9QW5tL2SllM",
+          "mode": "list",
+          "cachedResultName": "DESIGN DATA (ALL DESIGNERS)",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/185MFgmkKUi1fYGgR_BeN1twUvNAOQ6FX9QW5tL2SllM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "VIRTUAL AGENT",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/185MFgmkKUi1fYGgR_BeN1twUvNAOQ6FX9QW5tL2SllM/edit#gid=0"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Niche allowed",
+              "lookupValue": "true"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -1024,
+        576
+      ],
+      "id": "533ca6f1-6d5c-428f-9901-8ff10f63a3ca",
+      "name": "GetNicheAllowed",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "9w5yk9PJDGuuRoGB",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7cfafd84-b839-4f91-a06e-a98aaf7e13b6",
+              "name": "Niches",
+              "value": "={{ $json['Selling Niche'] }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -848,
+        576
+      ],
+      "id": "1eaa3d83-869e-457f-ad28-25f2bec95cf2",
+      "name": "selectSellingNicheField"
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "value": "185MFgmkKUi1fYGgR_BeN1twUvNAOQ6FX9QW5tL2SllM",
+          "mode": "list",
+          "cachedResultName": "DESIGN DATA (ALL DESIGNERS)",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/185MFgmkKUi1fYGgR_BeN1twUvNAOQ6FX9QW5tL2SllM/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 1437594983,
+          "mode": "list",
+          "cachedResultName": "nicheProfile",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/185MFgmkKUi1fYGgR_BeN1twUvNAOQ6FX9QW5tL2SllM/edit#gid=1437594983"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "niche_name",
+              "lookupValue": "={{ $json.Niches }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -656,
+        576
+      ],
+      "id": "853a1dba-267e-4b71-b7f7-4fd0ff731b6a",
+      "name": "GetNicheProfileSellingNiche",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "9w5yk9PJDGuuRoGB",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "NicheProfileOriginNiche",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        -480,
+        736
+      ],
+      "id": "01a1f282-a9e3-4c2f-abf6-db51bc00e4b9",
+      "name": "Aggregate12"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        -256,
+        592
+      ],
+      "id": "de755c01-1481-4599-b2f4-a9c954fc6404",
+      "name": "Merge1"
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputItems = $input.all();\n\nconst MIN_MATCHES = 2;\n\nconst parseNiche = (niche) => {\n  const parsed = {};\n  \n  Object.entries(niche).forEach(([key, value]) => {\n    if (typeof value === 'string' && (value.startsWith('[') || value.startsWith('{'))) {\n      try {\n        parsed[key] = JSON.parse(value);\n      } catch (e) {\n        parsed[key] = value;\n      }\n    } else {\n      parsed[key] = value;\n    }\n  });\n  \n  return parsed;\n};\n\nconst getTruePatterns = (parsedNiche) => {\n  return parsedNiche.pattern_analysis\n    .filter(p => p.present === true)\n    .map(p => p.name);\n};\n\nconst getTruePatternAnalysis = (parsedNiche) => {\n  return {\n    ...parsedNiche,\n    pattern_analysis: parsedNiche.pattern_analysis.filter(p => p.present === true)\n  };\n};\n\nconst countMatches = (parsedTargetNiche, originTruePatterns) => {\n  const targetTruePatterns = getTruePatterns(parsedTargetNiche);\n  return originTruePatterns.filter(pattern => \n    targetTruePatterns.includes(pattern)\n  ).length;\n};\n\nconst filterPatternAnalysis = (filtertParsedNiche, originTruePatterns) => {\n  return {\n    ...filtertParsedNiche,\n    pattern_analysis: filtertParsedNiche.pattern_analysis.filter(p => \n      originTruePatterns.includes(p.name)\n    )\n  };\n};\n\nconst originNiche = parseNiche(inputItems[1].json.NicheProfileOriginNiche[0]);\nconst sellingNiches = inputItems[0].json.NicheProfileSellingNiches.map(parseNiche);\n\nconst originTruePatterns = getTruePatterns(originNiche);\nconst sellingTruePatternAnalysis = sellingNiches.map(getTruePatternAnalysis);\n \nconsole.log(\"True Patterns from Origin:\", originTruePatterns);\nconsole.log(\"Pattern Count:\", originTruePatterns.length);\n\nconst filteredNiches = sellingTruePatternAnalysis\n  .map(niche => ({\n    niche,\n    matchCount: countMatches(niche, originTruePatterns)\n  }))\n  .filter(({ niche, matchCount }) => {\n    return matchCount >= MIN_MATCHES;\n  })\n  .map(({ niche }) => JSON.stringify(filterPatternAnalysis(niche, originTruePatterns)));\n\nreturn [\n  {\n    json: {\n      NicheProfileSellingNiches: filteredNiches,\n    }\n  },\n  {\n    json: {\n      NicheProfileOriginNiche: [JSON.stringify(originNiche)]\n    }\n  }\n];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -48,
+        592
+      ],
+      "id": "00ff0f2c-8a4f-4294-a5f2-30a2d1e6e72d",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "NicheProfileSellingNiches",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        112,
+        592
+      ],
+      "id": "fecb1029-eca7-4866-8073-65175829ea11",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "hB5A3yVDEvwekC96",
+          "mode": "list",
+          "cachedResultName": "00002SlogenGenCache",
+          "cachedResultUrl": "/projects/yQqgITfWTvd1QuZo/datatables/hB5A3yVDEvwekC96"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "execution_id",
+              "keyValue": "={{ $execution.id }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "id": "1d083a82-ed36-4dd5-92d8-12d77ceb884b",
+      "name": "Get current data for polling1",
+      "type": "n8n-nodes-base.dataTable",
+      "maxTries": 5,
+      "position": [
+        256,
+        800
+      ],
+      "executeOnce": false,
+      "notesInFlow": false,
+      "retryOnFail": true,
+      "typeVersion": 1,
+      "alwaysOutputData": false,
+      "waitBetweenTries": 3000
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "version": 2,
+            "leftValue": "",
+            "caseSensitive": true,
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "9b2069cc-152e-490e-8c87-3687f24d350c",
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              },
+              "leftValue": "={{ $json.execution_id.length }}",
+              "rightValue": "={{ $('Split Out').all().length }}"
+            }
+          ],
+          "combinator": "or"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "4d19d800-0188-4f32-9f77-de191f75fcf7",
+      "name": "If all data exists1",
+      "type": "n8n-nodes-base.if",
+      "position": [
+        448,
+        800
+      ],
+      "executeOnce": false,
+      "typeVersion": 2.2
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "execution_id"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "53e91c09-6bf2-4449-9db4-6851bcad12f4",
+      "name": "Extract IDs1",
+      "type": "n8n-nodes-base.aggregate",
+      "position": [
+        352,
+        800
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "dataTableId": {
+          "__rl": true,
+          "value": "hB5A3yVDEvwekC96",
+          "mode": "list",
+          "cachedResultName": "00002SlogenGenCache",
+          "cachedResultUrl": "/projects/yQqgITfWTvd1QuZo/datatables/hB5A3yVDEvwekC96"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "execution_id",
+              "keyValue": "={{ $execution.id }}"
+            }
+          ]
+        },
+        "returnAll": true
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        624,
+        592
+      ],
+      "id": "8edb5a22-62a6-4a2f-bc0e-60e67fee99a9",
+      "name": "Get all SloganAnalyses1"
+    },
+    {
+      "parameters": {
+        "operation": "deleteRows",
+        "dataTableId": {
+          "__rl": true,
+          "value": "hB5A3yVDEvwekC96",
+          "mode": "list",
+          "cachedResultName": "00002SlogenGenCache",
+          "cachedResultUrl": "/projects/yQqgITfWTvd1QuZo/datatables/hB5A3yVDEvwekC96"
+        },
+        "matchType": "allConditions",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "result",
+              "condition": "isNotEmpty"
+            },
+            {
+              "keyName": "execution_id",
+              "keyValue": "={{ $execution.id }}"
+            }
+          ]
+        },
+        "options": {
+          "dryRun": false
+        }
+      },
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1,
+      "position": [
+        720,
+        592
+      ],
+      "id": "8ee74ddc-6ed8-476e-8983-053d4a79fd11",
+      "name": "Clean cache1"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "id": "8e804202-2680-4a7c-9230-4c7f53850255",
+      "name": "Wait 5s",
+      "type": "n8n-nodes-base.wait",
+      "position": [
+        624,
+        816
+      ],
+      "webhookId": "246a5673-8ffb-4874-94e5-9d1f9b9bd400",
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "jsCode": "\nreturn $input.all().flatMap((item) => {\n  try {\n    const parsed = JSON.parse(item.json.result);\n\n    // Wenn das JSON ein Array ist, mach daraus mehrere Items\n    if (Array.isArray(parsed)) {\n      return parsed.map((entry) => ({ json: entry }));\n    }\n\n    // Sonst ein einzelnes Item\n    return [{ json: parsed }];\n  } catch (e) {\n    // Optional: Fehler als Item ausgeben statt Node crashen zu lassen\n    return [{\n      json: {\n        error: true,\n        message: e.message,\n        raw: item.json.result,\n      }\n    }];\n  }\n});\n\n\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        816,
+        592
+      ],
+      "id": "71008358-dd75-46ba-a2a2-f3e30c1dc82b",
+      "name": "JsonParser"
+    },
+    {
+      "parameters": {
+        "batchSize": 10,
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -128,
+        832
+      ],
+      "id": "087caeff-9774-4426-b941-8514e38ff261",
+      "name": "Loop Over Items"
+    },
+    {
+      "parameters": {
+        "amount": 2
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        432,
+        592
+      ],
+      "id": "d460e4fc-1392-4178-aa19-644c9a980958",
+      "name": "Wait 1s2",
+      "webhookId": "d4185202-0567-4c91-8550-29227483c131"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        80,
+        800
+      ],
+      "id": "4cb24250-df84-4b5d-a3cc-bcf1bf8ee7fe",
+      "name": "Wait 3s",
+      "webhookId": "51f5eca8-5e17-4fe9-aaa9-967aa44d003b"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "a45ca62b-8ec7-4bcf-aff8-f16eb1272e41",
+              "leftValue": "={{ $json.grund.approval_status }}",
+              "rightValue": "REJECTED",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            },
+            {
+              "id": "5cf7a27a-7000-4423-b06e-93716b935647",
+              "leftValue": "={{ $json.name }}",
+              "rightValue": "={{ $('Webhook').item.json.body.rowValues[0]['1'] }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.3,
+      "position": [
+        912,
+        592
+      ],
+      "id": "c9d1d9e8-251a-4db9-a550-59438edfd08b",
+      "name": "Filter REJECTED Niches"
+    },
+    {
+      "parameters": {
+        "batchSize": 10,
+        "options": {
+          "reset": false
+        }
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        1216,
+        784
+      ],
+      "id": "dd5aa8bb-d19b-4497-b6a7-4840eff5b5f6",
+      "name": "Loop Over Items1"
+    },
+    {
+      "parameters": {
+        "amount": 1
+      },
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        1632,
+        544
+      ],
+      "id": "31113298-2358-41ff-a91e-7a510cb78df8",
+      "name": "Wait 1s",
+      "webhookId": "45996615-0ec8-486f-8f9f-dbe25f97a2ee"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n.mariowinter.com/webhook/6ec12428-3a41-4c41-a344-647fbddfdefd",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "=NicheProfileSellingNiches",
+              "value": "={{ $('Split Out').item.json.NicheProfileSellingNiches }}"
+            },
+            {
+              "name": "execution_id",
+              "value": "={{ $execution.id }}"
+            },
+            {
+              "name": "OriginalNicheProfile",
+              "value": "={{ $('Code in JavaScript').last().json.NicheProfileOriginNiche }}"
+            },
+            {
+              "name": "OriginalNiche",
+              "value": "={{ $('Webhook').item.json.body.rowValues[0]['1'] }}"
+            },
+            {
+              "name": "OriginalSlogan",
+              "value": "={{ $('Webhook').item.json.body.rowValues[0]['2'] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        304,
+        592
+      ],
+      "id": "5bf31899-36dd-4700-b936-945d72e84da7",
+      "name": "FindingNicheAdaption",
+      "executeOnce": false,
+      "retryOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n.mariowinter.com/webhook/4b23db6c-e9bc-4266-8f6d-79a10513a428",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "nicheName",
+              "value": "={{ $json.name }}"
+            },
+            {
+              "name": "grund",
+              "value": "={{ $json.grund }}"
+            },
+            {
+              "name": "=NicheProfileSellingNiches",
+              "value": "={{ $json.NicheProfileSellingNiches }}"
+            },
+            {
+              "name": "=OriginalNicheProfile",
+              "value": "={{ $json.OriginalNicheProfile }}"
+            },
+            {
+              "name": "=OriginalSlogan",
+              "value": "={{ $json.OriginalSlogan }}"
+            },
+            {
+              "name": "=OriginalNiche",
+              "value": "={{ $json.OriginalNiche }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.3,
+      "position": [
+        1440,
+        544
+      ],
+      "id": "1283cff9-4f6e-45e1-9b16-7e22b2ba3427",
+      "name": "00002-SloganCreate",
+      "executeOnce": false
+    },
+    {
+      "parameters": {
+        "content": "## Step1 Start\n",
+        "height": 336,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -1952,
+        448
+      ],
+      "typeVersion": 1,
+      "id": "2cc3a9dc-b449-4af3-ade8-af2f798bdfa7",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {
+        "content": "## Call Step3\n",
+        "height": 592,
+        "width": 752,
+        "color": 7
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1136,
+        400
+      ],
+      "typeVersion": 1,
+      "id": "f863f5a9-ebe7-4e35-9107-25deed97dadf",
+      "name": "Sticky Note9"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Filter1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter1": {
+      "main": [
+        [
+          {
+            "node": "set original slogan",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate1": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "set original slogan": {
+      "main": [
+        [
+          {
+            "node": "GetNicheAllowed",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get NicheProfileOriginNiche",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get NicheProfileOriginNiche": {
+      "main": [
+        [
+          {
+            "node": "Aggregate12",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GetNicheAllowed": {
+      "main": [
+        [
+          {
+            "node": "selectSellingNicheField",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "selectSellingNicheField": {
+      "main": [
+        [
+          {
+            "node": "GetNicheProfileSellingNiche",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "GetNicheProfileSellingNiche": {
+      "main": [
+        [
+          {
+            "node": "Aggregate1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate12": {
+      "main": [
+        [
+          {
+            "node": "Merge1",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge1": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get current data for polling1": {
+      "main": [
+        [
+          {
+            "node": "Extract IDs1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If all data exists1": {
+      "main": [
+        [
+          {
+            "node": "Get all SloganAnalyses1",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Wait 5s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract IDs1": {
+      "main": [
+        [
+          {
+            "node": "If all data exists1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get all SloganAnalyses1": {
+      "main": [
+        [
+          {
+            "node": "Clean cache1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean cache1": {
+      "main": [
+        [
+          {
+            "node": "JsonParser",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 5s": {
+      "main": [
+        [
+          {
+            "node": "Get current data for polling1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [
+          {
+            "node": "Wait 3s",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "FindingNicheAdaption",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 1s2": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "JsonParser": {
+      "main": [
+        [
+          {
+            "node": "Filter REJECTED Niches",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 3s": {
+      "main": [
+        [
+          {
+            "node": "Get current data for polling1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter REJECTED Niches": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items1": {
+      "main": [
+        [],
+        [
+          {
+            "node": "00002-SloganCreate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 1s": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "FindingNicheAdaption": {
+      "main": [
+        [
+          {
+            "node": "Wait 1s2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "00002-SloganCreate": {
+      "main": [
+        [
+          {
+            "node": "Wait 1s",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "5de80a49-9e1e-4e77-aa7e-addb78c81fe0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "255ce5f2aa1250d50d62e1df7820878347771b477657ea3db630f142d3a80eed"
+  },
+  "id": "wpc0Y4jIsXcdltn5",
+  "tags": []
+}
