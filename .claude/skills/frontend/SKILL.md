@@ -56,7 +56,14 @@ Use `AskUserQuestion` for:
 - Connect to backend API endpoints as specified in tech design
 - Handle loading, error, and empty states for every data-fetching component
 
-### 6. User Review
+### 6. Write Tests
+- Write unit tests for every new component and custom hook in `tests/` (co-located)
+- Write at least one integration test covering the primary user flow
+- Mock API calls with `vi.mock` or MSW
+- Use `renderWithProviders` helper for Redux-connected components (create if not exists)
+- Run `npm run test:ci` from `frontend-ui/` — fix any failures before continuing
+
+### 7. User Review
 - Tell the user to test in browser (localhost:5173)
 - Ask: "Does the UI look right? Any changes needed?"
 - Iterate based on feedback

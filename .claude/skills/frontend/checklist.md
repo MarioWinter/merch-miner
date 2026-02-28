@@ -41,6 +41,14 @@ Before marking frontend as complete:
 - [ ] ESLint: No warnings (`npm run lint` from `frontend-ui/`)
 - [ ] i18n: all user-visible strings via `useTranslation()` (no hardcoded text)
 
+## Tests
+- [ ] Unit tests written for every new component (`tests/` in feature dir or `components/__tests__/`)
+- [ ] Unit tests written for every custom hook (`tests/` co-located)
+- [ ] Integration test covers the primary user flow (happy path)
+- [ ] Loading, error, and empty states are tested
+- [ ] API calls mocked (vi.mock or MSW) — no real network calls in tests
+- [ ] `npm run test:ci` passes with zero failures
+
 ## Verification (run before marking complete)
 - [ ] `npm run build` passes without errors (from `frontend-ui/`)
 - [ ] All acceptance criteria from feature spec addressed in UI

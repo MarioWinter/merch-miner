@@ -92,3 +92,15 @@ import SearchIcon from '@mui/icons-material/Search'
 - Implement loading, error, and empty states for every data-fetching component
 - Semantic HTML + ARIA labels for accessibility
 - Keep components small and focused (Single Responsibility)
+
+## Testing — Vitest + Testing Library
+- Test files live in `views/[view]/[section]/tests/` (co-located with the feature)
+- Global reusable component tests live in `components/__tests__/`
+- **Unit tests:** one per component/hook/util — test in isolation with mocked deps
+- **Integration tests:** cover full user flows (e.g. fill form → submit → see success message)
+- Use `render`, `screen`, `userEvent` from `@testing-library/react`
+- Mock API calls with `vi.mock` or MSW — never hit the real network in tests
+- Mock Redux store with `renderWithProviders` helper (create once in `src/utils/test-utils.tsx`)
+- Always test: loading state, error state, empty state, and happy path
+- Run `npm run test:ci` before marking feature complete; zero failures required
+- Coverage target: all new components and hooks must have at least one test
