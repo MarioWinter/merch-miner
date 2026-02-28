@@ -36,6 +36,7 @@ Eliminates spreadsheet chaos and tool-switching by connecting niche data, AI-gen
 | P2 | PROJ-12: Analytics & Reporting | Planned |
 | P2 | PROJ-13: Amazon Product Scraper (Scrapy) | Planned |
 | P1 | PROJ-14: Niche Keyword Bank | Planned |
+| P0 (MVP) | PROJ-15: CI/CD & DevOps Setup | Planned |
 
 ## Success Metrics
 

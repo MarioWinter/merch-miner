@@ -3,40 +3,39 @@
 ## Backend
 
 ### URL Migration
-- [ ] Update `core/urls.py`: change `/api/register/` → `/api/auth/register/` (and all other auth paths)
-- [ ] Verify all existing tests still pass after path change (they use `reverse()` so should be zero-change)
-- [ ] Search Django email templates for any hardcoded `/api/register/` or `/api/login/` URLs and update
+- [x] Update `core/urls.py`: change `/api/register/` → `/api/auth/register/` (and all other auth paths)
+- [x] Verify all existing tests still pass after path change (they use `reverse()` so should be zero-change)
+- [x] Search Django email templates for any hardcoded `/api/register/` or `/api/login/` URLs and update
 
 ### Google OAuth — Settings
-- [ ] Add to `INSTALLED_APPS`: `django.contrib.sites`, `allauth`, `allauth.account`, `allauth.socialaccount`, `allauth.socialaccount.providers.google`
-- [ ] Add `allauth.account.middleware.AccountMiddleware` to `MIDDLEWARE`
-- [ ] Add `allauth.account.auth_backends.AuthenticationBackend` to `AUTHENTICATION_BACKENDS`
-- [ ] Add `SOCIALACCOUNT_PROVIDERS` block with Google client credentials (read from env vars)
-- [ ] Set `SITE_ID = 1` in settings (if not already set)
+- [x] Add to `INSTALLED_APPS`: `django.contrib.sites`, `allauth`, `allauth.account`, `allauth.socialaccount`, `allauth.socialaccount.providers.google`
+- [x] Add `allauth.account.middleware.AccountMiddleware` to `MIDDLEWARE`
+- [x] Add `allauth.account.auth_backends.AuthenticationBackend` to `AUTHENTICATION_BACKENDS`
+- [x] Add `SOCIALACCOUNT_PROVIDERS` block with Google client credentials (read from env vars)
+- [x] Set `SITE_ID = 1` in settings (already set)
 
 ### Google OAuth — Views & URLs
-- [ ] Add `GoogleLoginView` to `user_auth_app/api/views.py` (redirects to Google via allauth)
-- [ ] Add `GoogleCallbackView` to `user_auth_app/api/views.py` (handles callback, issues JWT cookies, redirects to `FRONTEND_URL`)
-- [ ] Wire up `/api/auth/google/` and `/api/auth/google/callback/` in `core/urls.py`
-- [ ] Handle account linking: if email already exists, link OAuth account instead of creating duplicate
+- [x] Add `GoogleLoginView` to `user_auth_app/api/views.py` (redirects to Google via allauth)
+- [x] Add `GoogleCallbackView` to `user_auth_app/api/views.py` (handles callback, issues JWT cookies, redirects to `FRONTEND_URL`)
+- [x] Wire up `/api/auth/google/` and `/api/auth/google/callback/` in `core/urls.py`
+- [x] Handle account linking: if email already exists, link OAuth account instead of creating duplicate (allauth handles this natively)
 
 ### Email Templates & Settings
-- [ ] Update `FRONTEND_ACTIVATION_URL` default in `core/settings.py`: `http://localhost:5500/pages/auth/activate.html` → `http://localhost:5173/activate`
-- [ ] Update `FRONTEND_CONFIRM_PASSWORD_URL` default in `core/settings.py`: `http://localhost:5500/pages/auth/confirm_password.html` → `http://localhost:5173/password-reset/confirm`
-- [ ] Add `FRONTEND_ACTIVATION_URL`, `FRONTEND_CONFIRM_PASSWORD_URL` to `env/.env.template` (currently missing)
-- [ ] Add `COMPANY_NAME=Merch Miner` to `env/.env.template` (used in both email templates)
+- [x] Update `FRONTEND_ACTIVATION_URL` default in `core/settings.py`: `http://localhost:5500/pages/auth/activate.html` → `http://localhost:5173/activate`
+- [x] Update `FRONTEND_CONFIRM_PASSWORD_URL` default in `core/settings.py`: `http://localhost:5500/pages/auth/confirm_password.html` → `http://localhost:5173/password-reset/confirm`
+- [x] Add `FRONTEND_ACTIVATION_URL`, `FRONTEND_CONFIRM_PASSWORD_URL` to `env/.env.template` (currently missing)
+- [x] Add `COMPANY_NAME=Merch Miner` to `env/.env.template` (used in both email templates)
 - [ ] Verify `django-app/static/logo.png` exists — `emails.py` embeds it inline via CID; add a placeholder logo if missing or document that it must be provided before emails are sent
-- [ ] Note: email templates (`activation.html`, `password_reset.html`) contain no hardcoded API URLs — they use `{{ link }}` context var built in Python — no changes needed to template HTML
+- [x] Note: email templates (`activation.html`, `password_reset.html`) contain no hardcoded API URLs — they use `{{ link }}` context var built in Python — no changes needed to template HTML
 
 ### Environment
-- [ ] Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `FRONTEND_URL` to `django-app/env/.env.template`
+- [x] Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `FRONTEND_URL` to `django-app/.env.template`
 
 ### Session Hydration (resolve open question first)
-- [ ] Decide: use existing `/api/users/me/` or add `/api/auth/me/` for post-OAuth Redux hydration
-- [ ] Ensure chosen endpoint returns `{ id, email }` and works with `CookieJWTAuthentication`
+- [x] Added `/api/auth/me/` — returns `{ id, email }`, protected by `CookieJWTAuthentication` + `IsAuthenticated`
 
 ### Migrations
-- [ ] Run `python manage.py migrate` to create allauth + sites tables
+- [ ] Run `docker compose exec web python manage.py migrate` to create allauth + sites tables
 
 ---
 

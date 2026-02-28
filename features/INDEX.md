@@ -26,7 +26,8 @@
 | PROJ-12 | Analytics & Reporting | Planned | [spec](PROJ-12-analytics-reporting.md) | 2026-02-27 |
 | PROJ-13 | Amazon Product Scraper (Scrapy) | Planned | [spec](PROJ-13-amazon-product-scraper.md) | 2026-02-27 |
 | PROJ-14 | Niche Keyword Bank | Planned | [spec](PROJ-14-niche-keyword-bank.md) | 2026-02-27 |
+| PROJ-15 | CI/CD & DevOps Setup | Planned | [spec](PROJ-15-cicd-devops-setup.md) | 2026-02-28 |
 
 <!-- Add features above this line -->
 
-## Next Available ID: PROJ-15
+## Next Available ID: PROJ-16

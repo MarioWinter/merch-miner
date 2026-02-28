@@ -1,18 +1,20 @@
 from django.contrib.auth import get_user_model
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.utils.encoding import force_bytes
+from django.shortcuts import redirect
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import viewsets, status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken, AccessToken, TokenError
 from core import settings
 from .serializers import (
-    UserSerializer, UserCreateSerializer, 
+    UserSerializer, UserCreateSerializer,
     LoginSerializer, PasswordResetSerializer, PasswordChangeSerializer
 )
 from .emails import send_verification_email, send_password_reset_email
 from .utils import set_jwt_cookies, clear_jwt_cookies, get_refresh_token_from_request
+from .authentication import CookieJWTAuthentication
 
 User = get_user_model()
 
@@ -212,7 +214,7 @@ class PasswordResetView(APIView):
 
 class PasswordConfirmView(APIView):
     """Handle password reset confirmation and update user password."""
-    
+
     permission_classes = [AllowAny]
 
     def post(self, request, uidb64, token):
@@ -222,25 +224,95 @@ class PasswordConfirmView(APIView):
                 {"detail": "Passwords do not match"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         try:
             uid = urlsafe_base64_decode(uidb64).decode()
             user = User.objects.get(pk=uid)
             access_token = AccessToken(token)
-            
+
             if str(user.pk) != str(access_token['user_id']):
                 raise Exception
-                
+
         except Exception:
             return Response(
                 {"detail": "Invalid token or user"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         user.set_password(serializer.validated_data['new_password'])
         user.save()
-        
+
         return Response(
             {"detail": "Your password has been successfully reset."},
             status=status.HTTP_200_OK
         )
+
+
+class MeView(APIView):
+    """Return authenticated user's id and email for Redux session hydration."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        return Response({
+            "id": user.id,
+            "email": user.email,
+        }, status=status.HTTP_200_OK)
+
+
+class GoogleLoginView(APIView):
+    """Redirect the browser to Google's OAuth2 consent screen via allauth."""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        from allauth.socialaccount.providers.google.views import oauth2_login
+        return oauth2_login(request)
+
+
+class GoogleCallbackView(APIView):
+    """
+    Handle the Google OAuth2 callback.
+
+    allauth completes the OAuth flow and creates/links the User.
+    We then issue CookieJWT tokens and redirect to the frontend.
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        from allauth.socialaccount.providers.google.views import oauth2_callback
+        from allauth.socialaccount.models import SocialLogin
+        from allauth.core.exceptions import SignupClosedException, ImmediateHttpResponse
+
+        try:
+            # Let allauth process the callback; it handles state validation,
+            # code exchange, account creation/linking.
+            response = oauth2_callback(request)
+        except ImmediateHttpResponse as e:
+            # allauth raises this to redirect on error (e.g. user denied consent)
+            frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+            return redirect(f"{frontend_url}/login?error=oauth_failed")
+        except Exception:
+            frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+            return redirect(f"{frontend_url}/login?error=oauth_failed")
+
+        # After allauth processes the callback, the user is stored in the
+        # Django session. Retrieve it and issue JWT cookies.
+        user = request.user
+        if not user or not user.is_authenticated:
+            # allauth may have stored a pending social login in the session
+            # (e.g. email conflict requiring confirmation). In that case fall
+            # back to whatever allauth returned (usually a redirect to signup).
+            frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+            return redirect(f"{frontend_url}/login?error=oauth_failed")
+
+        refresh = RefreshToken.for_user(user)
+        access_token = refresh.access_token
+
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+        redirect_response = redirect(frontend_url)
+        set_jwt_cookies(redirect_response, access_token, refresh)
+        return redirect_response
