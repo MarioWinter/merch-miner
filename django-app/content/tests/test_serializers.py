@@ -4,11 +4,22 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import RequestFactory
 from content.api.serializers import VideoUploadSerializer, VideoListSerializer
 from content.models import Video
+from user_auth_app.models import User
 
 @pytest.mark.django_db
 class TestVideoUploadSerializer:
     """Test VideoUploadSerializer validation and creation."""
-    
+
+    def setup_method(self):
+        self.user = User.objects.create_superuser(
+            email='admin@test.com',
+            password='AdminPassword123!',
+            username='admin@test.com',
+        )
+        request = RequestFactory().post('/')
+        request.user = self.user
+        self.context = {'request': request}
+
     def test_valid_video_upload(self):
         """Test uploading video with valid data."""
         video_file = SimpleUploadedFile(
@@ -16,23 +27,23 @@ class TestVideoUploadSerializer:
             b"fake video content",
             content_type="video/mp4"
         )
-        
+
         data = {
             'title': 'Test Video',
             'description': 'Test Description',
             'genre': 'action',
             'original_file': video_file
         }
-        
-        serializer = VideoUploadSerializer(data=data)
+
+        serializer = VideoUploadSerializer(data=data, context=self.context)
         assert serializer.is_valid()
-        
+
         video = serializer.save()
         assert video.title == 'Test Video'
         assert video.description == 'Test Description'
         assert video.genre == 'action'
         assert video.original_file is not None
-    
+
     def test_missing_title(self):
         """Test video upload without title."""
         video_file = SimpleUploadedFile(
@@ -40,17 +51,17 @@ class TestVideoUploadSerializer:
             b"fake video content",
             content_type="video/mp4"
         )
-        
+
         data = {
             'description': 'Test Description',
             'genre': 'action',
             'original_file': video_file
         }
-        
-        serializer = VideoUploadSerializer(data=data)
+
+        serializer = VideoUploadSerializer(data=data, context=self.context)
         assert not serializer.is_valid()
         assert 'title' in serializer.errors
-    
+
     def test_missing_description(self):
         """Test video upload without description."""
         video_file = SimpleUploadedFile(
@@ -58,17 +69,17 @@ class TestVideoUploadSerializer:
             b"fake video content",
             content_type="video/mp4"
         )
-        
+
         data = {
             'title': 'Test Video',
             'genre': 'action',
             'original_file': video_file
         }
-        
-        serializer = VideoUploadSerializer(data=data)
+
+        serializer = VideoUploadSerializer(data=data, context=self.context)
         assert not serializer.is_valid()
         assert 'description' in serializer.errors
-    
+
     def test_missing_genre(self):
         """Test video upload without genre."""
         video_file = SimpleUploadedFile(
@@ -76,17 +87,17 @@ class TestVideoUploadSerializer:
             b"fake video content",
             content_type="video/mp4"
         )
-        
+
         data = {
             'title': 'Test Video',
             'description': 'Test Description',
             'original_file': video_file
         }
-        
-        serializer = VideoUploadSerializer(data=data)
+
+        serializer = VideoUploadSerializer(data=data, context=self.context)
         assert not serializer.is_valid()
         assert 'genre' in serializer.errors
-    
+
     def test_missing_file(self):
         """Test video upload without file."""
         data = {
@@ -94,11 +105,11 @@ class TestVideoUploadSerializer:
             'description': 'Test Description',
             'genre': 'action'
         }
-        
-        serializer = VideoUploadSerializer(data=data)
+
+        serializer = VideoUploadSerializer(data=data, context=self.context)
         assert not serializer.is_valid()
         assert 'original_file' in serializer.errors
-    
+
     def test_invalid_genre(self):
         """Test video upload with invalid genre."""
         video_file = SimpleUploadedFile(
@@ -106,18 +117,18 @@ class TestVideoUploadSerializer:
             b"fake video content",
             content_type="video/mp4"
         )
-        
+
         data = {
             'title': 'Test Video',
             'description': 'Test Description',
             'genre': 'invalid_genre',
             'original_file': video_file
         }
-        
-        serializer = VideoUploadSerializer(data=data)
+
+        serializer = VideoUploadSerializer(data=data, context=self.context)
         assert not serializer.is_valid()
         assert 'genre' in serializer.errors
-    
+
     def test_empty_title(self):
         """Test video upload with empty title."""
         video_file = SimpleUploadedFile(
@@ -125,18 +136,18 @@ class TestVideoUploadSerializer:
             b"fake video content",
             content_type="video/mp4"
         )
-        
+
         data = {
             'title': '',
             'description': 'Test Description',
             'genre': 'action',
             'original_file': video_file
         }
-        
-        serializer = VideoUploadSerializer(data=data)
+
+        serializer = VideoUploadSerializer(data=data, context=self.context)
         assert not serializer.is_valid()
         assert 'title' in serializer.errors
-    
+
     def test_empty_description(self):
         """Test video upload with empty description."""
         video_file = SimpleUploadedFile(
@@ -144,18 +155,18 @@ class TestVideoUploadSerializer:
             b"fake video content",
             content_type="video/mp4"
         )
-        
+
         data = {
             'title': 'Test Video',
             'description': '',
             'genre': 'action',
             'original_file': video_file
         }
-        
-        serializer = VideoUploadSerializer(data=data)
+
+        serializer = VideoUploadSerializer(data=data, context=self.context)
         assert not serializer.is_valid()
         assert 'description' in serializer.errors
-    
+
     def test_very_long_title(self):
         """Test video upload with very long title."""
         video_file = SimpleUploadedFile(
@@ -163,17 +174,17 @@ class TestVideoUploadSerializer:
             b"fake video content",
             content_type="video/mp4"
         )
-        
+
         long_title = 'A' * 300
-        
+
         data = {
             'title': long_title,
             'description': 'Test Description',
             'genre': 'action',
             'original_file': video_file
         }
-        
-        serializer = VideoUploadSerializer(data=data)
+
+        serializer = VideoUploadSerializer(data=data, context=self.context)
         assert not serializer.is_valid()
         assert 'title' in serializer.errors
 

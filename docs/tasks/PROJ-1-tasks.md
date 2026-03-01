@@ -82,4 +82,4 @@
 - [ ] Google button → browser redirects to Google OAuth
 - [x] Register → success message → redirect to `/login`
 - [ ] Password reset email received → link → new password → login works
-- [ ] `docker compose exec web pytest` → all existing tests pass
+- [x] `docker compose exec web pytest` → all existing tests pass

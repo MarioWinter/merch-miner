@@ -43,7 +43,7 @@ class TSRenderer(BaseRenderer):
 class VideoUploadView(APIView):
     """API endpoint to upload videos and trigger asynchronous processing."""
 
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAdminUser]
     authentication_classes = [CookieJWTAuthentication]
     parser_classes = [MultiPartParser, FormParser]
 
