@@ -1,4 +1,4 @@
-# PROJ-5: Idea & Slogan Generation (n8n)
+# PROJ-8: Idea & Slogan Generation (n8n)
 
 **Status:** Planned
 **Priority:** P0 (MVP)
@@ -10,7 +10,7 @@ Two-phase workflow for generating adapted slogans via n8n:
 
 **Phase 1 — Source slogan creation (two modes):**
 - *Manual*: User types slogan text + MUST select a source niche. Both fields required; neither alone is valid.
-- *From product research* (PROJ-8 soft-dep): User searches a niche in product research → sees Amazon products → clicks "Save as source slogan" → LLM extracts slogan text from product listing image → source niche auto-set from the search query.
+- *From product research* (PROJ-7 soft-dep): User searches a niche in product research → sees Amazon products → clicks "Save as source slogan" → LLM extracts slogan text from product listing image → source niche auto-set from the search query.
 
 **Phase 2 — Adaptation:** User selects a source slogan (which already carries a niche) → picks 1+ target niches → triggers n8n adaptation workflow → n8n evaluates each target niche for compatibility → generates exactly 10 adapted slogans per approved niche.
 
@@ -27,8 +27,8 @@ Two-phase workflow for generating adapted slogans via n8n:
 5. As a member, I want to see adapted slogans grouped by target niche, so I can review what was generated per niche.
 6. As a member, I want to approve or reject individual slogans, so only good ones proceed to design.
 7. As a member, I want to re-trigger adaptation for a source slogan with different target niches, so I can expand coverage.
-8. *(PROJ-8 dep)* As a member, I want to save a product slogan extracted from its image via LLM as a source slogan, so the source niche is auto-set from my search query.
-9. As a member, when selecting target niches for adaptation, I want to see related niches (from PROJ-4 research results) suggested first, so I can quickly pick the highest-compatibility candidates.
+8. *(PROJ-7 dep)* As a member, I want to save a product slogan extracted from its image via LLM as a source slogan, so the source niche is auto-set from my search query.
+9. As a member, when selecting target niches for adaptation, I want to see related niches (from PROJ-6 research results) suggested first, so I can quickly pick the highest-compatibility candidates.
 
 ## Acceptance Criteria
 
@@ -41,7 +41,7 @@ Two-phase workflow for generating adapted slogans via n8n:
    - `niche` FK (required on ALL ideas — manual and adapted)
    - `adaptation_run` FK (`IdeaAdaptationRun`, nullable — null for manual/source ideas)
    - `source_idea` FK (self, nullable — links adapted ideas to their source)
-   - `source_product_url` (URLField, blank=True — set when imported via PROJ-8 flow)
+   - `source_product_url` (URLField, blank=True — set when imported via PROJ-7 flow)
    - `slogan_text` (TextField)
    - `is_manual` (BooleanField, default=False)
    - `signal_type` choices [self, other] (nullable for manual ideas)
@@ -168,9 +168,9 @@ Two-phase workflow for generating adapted slogans via n8n:
 
 ## Dependencies
 
-- **PROJ-3** (Niche List) — required; source niche must exist
-- **PROJ-4** (Niche Deep Research) — required for full quality; payload includes `NicheAnalysis` profiles for source + target niches
-- **PROJ-8** (Amazon Product Research) — soft dependency; enables "import from product research" source slogan mode
+- **PROJ-5** (Niche List) — required; source niche must exist
+- **PROJ-6** (Niche Deep Research) — required for full quality; payload includes `NicheAnalysis` profiles for source + target niches
+- **PROJ-7** (Amazon Product Research) — soft dependency; enables "import from product research" source slogan mode
 
 ## Environment Variables Required
 
@@ -184,5 +184,5 @@ Document both in `django-app/env/.env.template`.
 ## Unresolved Questions
 
 1. n8n webhook URL confirmed? (Webhook ID `971d276d-6fba-4f3d-b3f1-abe1725b675c` found in workflow file — need full URL with hostname.)
-2. "Import from product research" — defer entirely to PROJ-8, or include as acceptance criterion in PROJ-5?
+2. "Import from product research" — defer entirely to PROJ-7, or include as acceptance criterion in PROJ-8?
 3. Should adapted slogans with `signal_type=OTHER` be hidden from design board by default? (OTHER targets buyers, not wearers — may not suit t-shirt designs.)

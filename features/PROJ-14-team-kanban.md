@@ -1,4 +1,4 @@
-# PROJ-11: Team Kanban
+# PROJ-14: Team Kanban
 
 **Status:** Planned
 **Priority:** P1
@@ -44,6 +44,6 @@ Drag-and-drop kanban board where columns map to `Niche.status` values. Dragging 
 
 ## Dependencies
 
-- PROJ-2 (Workspace & Membership)
-- PROJ-3 (Niche List — uses PATCH /api/niches/{id}/)
+- PROJ-4 (Workspace & Membership)
+- PROJ-5 (Niche List — uses PATCH /api/niches/{id}/)
 - dnd-kit already in frontend dependencies (CLAUDE.md)

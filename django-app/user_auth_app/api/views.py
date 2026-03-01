@@ -60,32 +60,59 @@ class RegisterView(APIView):
 
 
 class ActivateView(APIView):
-    """Activate user account using token from email."""
-    
+    """Activate user account using token from email.
+
+    Accepts two calling conventions:
+    1. POST /api/auth/activate/           body: { uid, token }  (used by frontend SPA)
+    2. GET  /api/auth/activate/<uidb64>/<token>/               (direct link fallback)
+    """
+
     permission_classes = [AllowAny]
 
-    def get(self, request, uidb64, token):
+    def _activate(self, uidb64, token):
+        """Shared activation logic. Returns (success: bool, already_active: bool)."""
+        uid = urlsafe_base64_decode(uidb64).decode()
+        user = User.objects.get(pk=uid)
+        access_token = AccessToken(token)
+
+        if str(user.pk) != str(access_token['user_id']):
+            raise Exception("Token user_id mismatch")
+
+        if not user.is_active:
+            user.is_active = True
+            user.save()
+
+    def post(self, request):
+        """Activate via POST body — used by the React SPA."""
+        uidb64 = request.data.get('uid')
+        token = request.data.get('token')
+
+        if not uidb64 or not token:
+            return Response(
+                {"message": "Account activation failed."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         try:
-            uid = urlsafe_base64_decode(uidb64).decode()
-            user = User.objects.get(pk=uid)
-            access_token = AccessToken(token)
-
-            if str(user.pk) != str(access_token['user_id']):
-                raise Exception
-
-            if not user.is_active:
-                user.is_active = True
-                user.save()
-                return Response(
-                    {"message": "Account successfully activated."},
-                    status=status.HTTP_200_OK
-                )
-            
+            self._activate(uidb64, token)
             return Response(
                 {"message": "Account successfully activated."},
                 status=status.HTTP_200_OK
             )
-            
+        except Exception:
+            return Response(
+                {"message": "Account activation failed."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    def get(self, request, uidb64, token):
+        """Activate via GET path params — direct email link fallback."""
+        try:
+            self._activate(uidb64, token)
+            return Response(
+                {"message": "Account successfully activated."},
+                status=status.HTTP_200_OK
+            )
         except Exception:
             return Response(
                 {"message": "Account activation failed."},
@@ -268,8 +295,10 @@ class GoogleLoginView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        from allauth.socialaccount.providers.google.views import oauth2_login
-        return oauth2_login(request)
+        from allauth.socialaccount.providers.oauth2.views import OAuth2LoginView
+        from user_auth_app.api.adapters import CustomGoogleOAuth2Adapter
+        view = OAuth2LoginView.adapter_view(CustomGoogleOAuth2Adapter)
+        return view(request)
 
 
 class GoogleCallbackView(APIView):
@@ -283,29 +312,22 @@ class GoogleCallbackView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        from allauth.socialaccount.providers.google.views import oauth2_callback
-        from allauth.socialaccount.models import SocialLogin
-        from allauth.core.exceptions import SignupClosedException, ImmediateHttpResponse
+        from allauth.socialaccount.providers.oauth2.views import OAuth2CallbackView
+        from user_auth_app.api.adapters import CustomGoogleOAuth2Adapter
+        from allauth.core.exceptions import ImmediateHttpResponse
 
         try:
-            # Let allauth process the callback; it handles state validation,
-            # code exchange, account creation/linking.
-            response = oauth2_callback(request)
-        except ImmediateHttpResponse as e:
-            # allauth raises this to redirect on error (e.g. user denied consent)
+            view = OAuth2CallbackView.adapter_view(CustomGoogleOAuth2Adapter)
+            response = view(request)
+        except ImmediateHttpResponse:
             frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
             return redirect(f"{frontend_url}/login?error=oauth_failed")
         except Exception:
             frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
             return redirect(f"{frontend_url}/login?error=oauth_failed")
 
-        # After allauth processes the callback, the user is stored in the
-        # Django session. Retrieve it and issue JWT cookies.
         user = request.user
         if not user or not user.is_authenticated:
-            # allauth may have stored a pending social login in the session
-            # (e.g. email conflict requiring confirmation). In that case fall
-            # back to whatever allauth returned (usually a redirect to signup).
             frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
             return redirect(f"{frontend_url}/login?error=oauth_failed")
 

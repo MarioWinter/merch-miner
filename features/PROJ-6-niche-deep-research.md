@@ -1,4 +1,4 @@
-# PROJ-4: Niche Deep Research (n8n)
+# PROJ-6: Niche Deep Research (n8n)
 
 **Status:** Planned
 **Priority:** P0 (MVP)
@@ -120,8 +120,8 @@ all_keywords_flat (string), top_focus_keywords (array), top_long_tail_keywords (
 
 ## Dependencies
 
-- PROJ-2 (Workspace & Membership)
-- PROJ-3 (Niche List — niche FK)
+- PROJ-4 (Workspace & Membership)
+- PROJ-5 (Niche List — niche FK)
 - n8n niche research workflow must accept `{"niche": "string", "research_id": "uuid"}` payload and write to Django-managed tables
 
 ## Environment Variables Required

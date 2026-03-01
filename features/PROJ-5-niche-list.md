@@ -1,4 +1,4 @@
-# PROJ-3: Niche List
+# PROJ-5: Niche List
 
 **Status:** Planned
 **Priority:** P0 (MVP)
@@ -95,7 +95,7 @@ Core data entity of the application. A `Niche` represents a product idea/market 
 
 ## Dependencies
 
-- PROJ-2 (Workspace & Membership) — workspace FK and isolation.
+- PROJ-4 (Workspace & Membership) — workspace FK and isolation.
 
 ## Implementation Notes
 

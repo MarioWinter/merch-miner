@@ -21,6 +21,7 @@ urlpatterns = [
 
     # Auth endpoints — /api/auth/
     path('api/auth/register/', RegisterView.as_view(), name='register'),
+    path('api/auth/activate/', ActivateView.as_view(), name='activate_post'),
     path('api/auth/activate/<uidb64>/<token>/', ActivateView.as_view(), name='activate'),
     path('api/auth/login/', LoginView.as_view(), name='login'),
     path('api/auth/logout/', LogoutView.as_view(), name='logout'),

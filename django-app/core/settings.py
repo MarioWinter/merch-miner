@@ -133,6 +133,7 @@ SOCIALACCOUNT_PROVIDERS = {
 
 # allauth: skip email verification for social accounts (they are pre-verified by Google)
 SOCIALACCOUNT_EMAIL_VERIFICATION = 'none'
+SOCIALACCOUNT_LOGIN_ON_GET = True  # skip intermediate confirmation form → redirect directly to Google
 SOCIALACCOUNT_AUTO_SIGNUP = True
 # Use email as the unique identifier (matches our custom User model)
 ACCOUNT_USER_MODEL_USERNAME_FIELD = None

@@ -177,21 +177,22 @@ npm run preview    # Preview production build
 
 | ID | Feature | Priority | Status |
 |----|---------|----------|--------|
-| PROJ-1 | User Auth (Email + Google OAuth2) | P0 | Planned |
-| PROJ-2 | Workspace & Membership | P0 | Planned |
-| PROJ-3 | Niche List | P0 | Planned |
-| PROJ-4 | Niche Deep Research (n8n) | P0 | Planned |
-| PROJ-5 | Idea & Slogan Generation (n8n) | P0 | Planned |
-| PROJ-6 | Design Generation (OpenRouter) | P0 | Planned |
-| PROJ-7 | Listing & Keyword Generator | P0 | Planned |
-| PROJ-8 | Amazon Product Research | P0 | Planned |
-| PROJ-9 | Dashboard | P1 | Planned |
-| PROJ-10 | Marketplace Upload Manager (Selenium) | P1 | Planned |
-| PROJ-11 | Team Kanban | P1 | Planned |
-| PROJ-12 | Analytics & Reporting | P2 | Planned |
-| PROJ-13 | Amazon Product Scraper (Scrapy) | P2 | Planned |
-| PROJ-14 | Niche Keyword Bank | P1 | Planned |
-| PROJ-15 | CI/CD & DevOps Setup | P0 | Planned |
+| PROJ-1 | User Auth (Email + Google OAuth2) | P0 | In Progress |
+| PROJ-2 | Frontend Docker Integration | P0 | In Progress |
+| PROJ-3 | CI/CD & DevOps Setup | P0 | Planned |
+| PROJ-4 | Workspace & Membership | P0 | Planned |
+| PROJ-5 | Niche List | P0 | Planned |
+| PROJ-6 | Niche Deep Research (n8n) | P0 | Planned |
+| PROJ-7 | Amazon Product Research | P0 | Planned |
+| PROJ-8 | Idea & Slogan Generation (n8n) | P0 | Planned |
+| PROJ-9 | Design Generation (OpenRouter) | P0 | Planned |
+| PROJ-10 | Niche Keyword Bank | P1 | Planned |
+| PROJ-11 | Listing & Keyword Generator | P0 | Planned |
+| PROJ-12 | Dashboard | P1 | Planned |
+| PROJ-13 | Marketplace Upload Manager (Selenium) | P1 | Planned |
+| PROJ-14 | Team Kanban | P1 | Planned |
+| PROJ-15 | Analytics & Reporting | P2 | Planned |
+| PROJ-16 | Amazon Product Scraper (Scrapy) | P2 | Planned |
 
 Full specs in `features/`.
 
@@ -217,5 +218,5 @@ All workflow phases require explicit user approval before proceeding.
 - Workspace isolation enforced at ORM level on every protected endpoint
 - n8n + Django share the same Supabase PostgreSQL instance
 - `makemigrations` is manual — never runs automatically in the entrypoint
-- OpenRouter API key must be rotated before PROJ-6 (currently hardcoded in n8n workflow JSON)
+- OpenRouter API key must be rotated before PROJ-9 (currently hardcoded in n8n workflow JSON)
 - `worker` service handles all background jobs via django-rq

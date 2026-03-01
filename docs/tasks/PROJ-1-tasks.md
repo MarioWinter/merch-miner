@@ -76,10 +76,10 @@
 ---
 
 ## Verification Checklist
-- [ ] `npm run dev` → `/login` renders without errors
-- [ ] Email login → cookie set → redirected to `/`
-- [ ] Unauthenticated visit to `/` → redirected to `/login`
-- [ ] Google button → browser redirects to Google OAuth
+- [x] `npm run dev` → `/login` renders without errors
+- [x] Email login → cookie set → redirected to `/`
+- [x] Unauthenticated visit to `/` → redirected to `/login`
+- [x] Google button → browser redirects to Google OAuth
 - [x] Register → success message → redirect to `/login`
-- [ ] Password reset email received → link → new password → login works
+- [x] Password reset email received → link → new password → login works
 - [x] `docker compose exec web pytest` → all existing tests pass

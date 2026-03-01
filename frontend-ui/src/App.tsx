@@ -1,6 +1,10 @@
-import { useEffect } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
-import { hydrateAuth } from './services/authService';
+import { useEffect, useState } from 'react';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { Box, Button, CircularProgress, Typography } from '@mui/material';
+import LogoutIcon from '@mui/icons-material/Logout';
+import { hydrateAuth, authService } from './services/authService';
+import { clearAuth } from './store/authSlice';
+import { useAppDispatch, useAppSelector } from './store/hooks';
 import PrivateRoute from './components/PrivateRoute';
 import LoginPage from './views/auth/login/LoginPage';
 import RegisterPage from './views/auth/register/RegisterPage';
@@ -8,13 +12,46 @@ import ActivatePage from './views/auth/activate/ActivatePage';
 import PasswordResetPage from './views/auth/password-reset/PasswordResetPage';
 import PasswordConfirmPage from './views/auth/password-reset/PasswordConfirmPage';
 
-// Placeholder — replaced when dashboard is built (PROJ-9)
-const DashboardPlaceholder = () => (
-  <div style={{ padding: 40 }}>
-    <h2>Dashboard</h2>
-    <p>Authenticated. Dashboard coming soon (PROJ-9).</p>
-  </div>
-);
+// Placeholder — replaced when dashboard is built (PROJ-12)
+function DashboardPlaceholder() {
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const user = useAppSelector((state) => state.auth.user);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  async function handleLogout() {
+    setLoggingOut(true);
+    try {
+      await authService.logout();
+    } catch {
+      // proceed even if backend call fails
+    } finally {
+      dispatch(clearAuth());
+      navigate('/login', { replace: true });
+    }
+  }
+
+  return (
+    <Box sx={{ p: 5 }}>
+      <Typography variant="h5" gutterBottom>
+        Dashboard
+      </Typography>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+        Authenticated{user ? ` as ${user.email}` : ''}. Dashboard coming soon (PROJ-12).
+      </Typography>
+      <Button
+        variant="outlined"
+        color="error"
+        startIcon={loggingOut ? <CircularProgress size={16} color="inherit" /> : <LogoutIcon />}
+        onClick={handleLogout}
+        disabled={loggingOut}
+        aria-label="Log out"
+      >
+        {loggingOut ? 'Logging out…' : 'Log out'}
+      </Button>
+    </Box>
+  );
+}
 
 function App() {
   useEffect(() => {

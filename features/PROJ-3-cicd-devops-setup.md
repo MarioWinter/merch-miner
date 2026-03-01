@@ -1,4 +1,4 @@
-# PROJ-15: CI/CD & DevOps Setup
+# PROJ-3: CI/CD & DevOps Setup
 
 ## Status: Planned
 **Created:** 2026-02-28

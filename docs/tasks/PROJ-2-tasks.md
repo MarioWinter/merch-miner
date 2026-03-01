@@ -1,4 +1,4 @@
-# PROJ-16 Tasks — Frontend Docker Integration
+# PROJ-2 Tasks — Frontend Docker Integration
 
 ## Status: In Progress
 
@@ -10,15 +10,15 @@
 - [x] Add `frontend` service + `frontend_dist` volume to `docker-compose.prod.yml`
 - [x] Update `Caddyfile` — SPA routing + explicit `/api/*` and `/admin/*` proxy blocks
 - [x] Add `server.proxy` to `vite.config.ts`
-- [ ] Smoke test dev stack: `docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build`
+- [x] Smoke test dev stack: `docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build`
 - [x] Smoke test prod stack: `docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build`
 
 ## Verification Checklist
 
 ### Dev
-- [ ] `http://localhost:5173` → React app
-- [ ] Edit `.tsx` → hot reload fires
-- [ ] POST `/api/auth/login/` → proxied to Django (no CORS error)
+- [x] `http://localhost:5173` → React app
+- [x] Edit `.tsx` → hot reload fires
+- [x] POST `/api/auth/login/` → proxied to Django (no CORS error)
 
 ### Prod
 - [x] `app_frontend_build` container exits 0 (dist seeded)

@@ -22,21 +22,22 @@ Eliminates spreadsheet chaos and tool-switching by connecting niche data, AI-gen
 
 | Priority | Feature | Status |
 |----------|---------|--------|
-| P0 (MVP) | PROJ-1: User Auth (Email + Google OAuth2) | Planned |
-| P0 (MVP) | PROJ-2: Workspace & Membership | Planned |
-| P0 (MVP) | PROJ-3: Niche List | Planned |
-| P0 (MVP) | PROJ-4: Niche Deep Research (n8n) | Planned |
-| P0 (MVP) | PROJ-5: Idea & Slogan Generation (n8n) | Planned |
-| P0 (MVP) | PROJ-6: Design Generation (OpenRouter) | Planned |
-| P0 (MVP) | PROJ-7: Listing & Keyword Generator | Planned |
-| P0 (MVP) | PROJ-8: Amazon Product Research | Planned |
-| P1 | PROJ-9: Dashboard | Planned |
-| P1 | PROJ-10: Marketplace Upload Manager (MBA Automation — Selenium) | Planned |
-| P1 | PROJ-11: Team Kanban | Planned |
-| P2 | PROJ-12: Analytics & Reporting | Planned |
-| P2 | PROJ-13: Amazon Product Scraper (Scrapy) | Planned |
-| P1 | PROJ-14: Niche Keyword Bank | Planned |
-| P0 (MVP) | PROJ-15: CI/CD & DevOps Setup | Planned |
+| P0 (MVP) | PROJ-1: User Auth (Email + Google OAuth2) | In Progress |
+| P0 (MVP) | PROJ-2: Frontend Docker Integration | In Progress |
+| P0 (MVP) | PROJ-3: CI/CD & DevOps Setup | Planned |
+| P0 (MVP) | PROJ-4: Workspace & Membership | Planned |
+| P0 (MVP) | PROJ-5: Niche List | Planned |
+| P0 (MVP) | PROJ-6: Niche Deep Research (n8n) | Planned |
+| P0 (MVP) | PROJ-7: Amazon Product Research | Planned |
+| P0 (MVP) | PROJ-8: Idea & Slogan Generation (n8n) | Planned |
+| P0 (MVP) | PROJ-9: Design Generation (OpenRouter) | Planned |
+| P1 | PROJ-10: Niche Keyword Bank | Planned |
+| P0 (MVP) | PROJ-11: Listing & Keyword Generator | Planned |
+| P1 | PROJ-12: Dashboard | Planned |
+| P1 | PROJ-13: Marketplace Upload Manager (MBA Automation — Selenium) | Planned |
+| P1 | PROJ-14: Team Kanban | Planned |
+| P2 | PROJ-15: Analytics & Reporting | Planned |
+| P2 | PROJ-16: Amazon Product Scraper (Scrapy) | Planned |
 
 ## Success Metrics
 
@@ -51,9 +52,9 @@ Eliminates spreadsheet chaos and tool-switching by connecting niche data, AI-gen
 - Small team; backend auth already built; n8n workflows for niche research and slogan generation already exist
 - n8n webhook URLs and auth method not yet confirmed
 - n8n + Django share same Supabase PostgreSQL instance (n8n must be granted INSERT on Django-managed tables)
-- n8n slogan workflow currently writes to Google Sheets — must migrate to Supabase PG before PROJ-5
-- OpenRouter API key is currently hardcoded in n8n workflow JSON committed to git — must rotate before PROJ-6
-- No `worker` service in docker-compose yet (needed for PROJ-6 design generation via django-rq)
+- n8n slogan workflow currently writes to Google Sheets — must migrate to Supabase PG before PROJ-8
+- OpenRouter API key is currently hardcoded in n8n workflow JSON committed to git — must rotate before PROJ-9
+- No `worker` service in docker-compose yet (needed for PROJ-9 design generation via django-rq)
 - Workspace isolation must be enforced at ORM level on every protected endpoint
 
 ## Non-Goals (MVP)
@@ -64,6 +65,6 @@ Eliminates spreadsheet chaos and tool-switching by connecting niche data, AI-gen
 - Billing / subscription management (Polar.sh integration deferred to post-MVP)
 - Real-time collaboration (Supabase Realtime / WebSocket notifications)
 - Google Trends live integration
-- Scrapy-based scraper (PROJ-13 is P2; n8n + ScraperOps handles scraping for MVP)
+- Scrapy-based scraper (PROJ-16 is P2; n8n + ScraperOps handles scraping for MVP)
 - pgvector semantic search (future enhancement)
 - Real-time WebSocket push for job status (polling used instead)
