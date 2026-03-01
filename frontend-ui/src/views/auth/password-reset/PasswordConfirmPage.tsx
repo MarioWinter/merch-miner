@@ -47,6 +47,7 @@ export default function PasswordConfirmPage() {
         uid,
         token,
         new_password: values.new_password,
+        confirm_password: values.confirmPassword,
       });
       enqueueSnackbar(t('passwordReset.confirmSuccess'), { variant: 'success' });
       navigate('/login', { replace: true });

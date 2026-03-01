@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { store } from '../store';
-import { clearAuth, setUser } from '../store/authSlice';
+import { clearAuth, setLoading, setUser } from '../store/authSlice';
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
 
@@ -57,7 +57,9 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         processQueue(refreshError);
         store.dispatch(clearAuth());
-        window.location.href = '/login';
+        if (window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
         return Promise.reject(refreshError);
       } finally {
         isRefreshing = false;
@@ -78,6 +80,7 @@ export interface LoginPayload {
 export interface RegisterPayload {
   email: string;
   password: string;
+  confirmed_password: string;
 }
 
 export interface PasswordResetPayload {
@@ -88,6 +91,7 @@ export interface PasswordConfirmPayload {
   uid: string;
   token: string;
   new_password: string;
+  confirm_password: string;
 }
 
 export const authService = {
@@ -118,8 +122,8 @@ export const authService = {
 
   async confirmPasswordReset(payload: PasswordConfirmPayload) {
     const { data } = await apiClient.post(
-      '/api/auth/password/reset/confirm/',
-      payload
+      `/api/auth/password/confirm/${payload.uid}/${payload.token}/`,
+      { new_password: payload.new_password, confirm_password: payload.confirm_password }
     );
     return data;
   },
@@ -131,10 +135,13 @@ export const authService = {
 
 // Hydrate Redux auth state from cookie session on app load
 export async function hydrateAuth() {
+  store.dispatch(setLoading(true));
   try {
     const data = await authService.getMe();
     store.dispatch(setUser({ id: data.id, email: data.email }));
   } catch {
     // No active session — stay unauthenticated
+  } finally {
+    store.dispatch(setLoading(false));
   }
 }

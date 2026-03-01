@@ -16,6 +16,17 @@ services:
       - db
       - redis
 
+  frontend:
+    build:
+      context: ../frontend-ui
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
+    container_name: app_frontend_build
+    volumes:
+      - frontend_dist:/srv/frontend
+    restart: "no"
+
   caddy:
     image: caddy:2-alpine
     container_name: app_caddy
@@ -26,14 +37,19 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - static_volume:/srv/static:ro
       - media_volume:/srv/media:ro
+      - frontend_dist:/srv/frontend:ro
       - caddy_data:/data
       - caddy_config:/config
     restart: unless-stopped
     depends_on:
-      - web
+      web:
+        condition: service_started
+      frontend:
+        condition: service_completed_successfully
 
 volumes:
   static_volume:
   media_volume:
+  frontend_dist:
   caddy_data:
   caddy_config:

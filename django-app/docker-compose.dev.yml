@@ -13,3 +13,19 @@ services:
     depends_on:
       - db
       - redis
+
+  frontend:
+    build:
+      context: ../frontend-ui
+      dockerfile: Dockerfile.dev
+    container_name: app_frontend_dev
+    volumes:
+      - ../frontend-ui:/app
+      - /app/node_modules
+    ports:
+      - "127.0.0.1:5173:5173"
+    environment:
+      - VITE_API_URL=
+      - VITE_PROXY_TARGET=http://web:8000
+    depends_on:
+      - web

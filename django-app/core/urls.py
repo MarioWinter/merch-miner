@@ -3,6 +3,8 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from user_auth_app.views import redirect_to_admin
+
+handler404 = 'core.views.handler404'
 from user_auth_app.api.views import (
     RegisterView, ActivateView, LoginView, LogoutView,
     TokenRefreshView, PasswordResetView, PasswordConfirmView,

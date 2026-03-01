@@ -38,7 +38,11 @@ export default function RegisterPage() {
   const onSubmit = async (values: RegisterFormValues) => {
     setLoading(true);
     try {
-      await authService.register({ email: values.email, password: values.password });
+      await authService.register({
+        email: values.email,
+        password: values.password,
+        confirmed_password: values.confirmPassword,
+      });
       enqueueSnackbar(t('register.success'), { variant: 'success' });
       navigate('/login', { replace: true });
     } catch {

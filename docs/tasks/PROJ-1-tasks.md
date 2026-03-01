@@ -25,7 +25,7 @@
 - [x] Update `FRONTEND_CONFIRM_PASSWORD_URL` default in `core/settings.py`: `http://localhost:5500/pages/auth/confirm_password.html` → `http://localhost:5173/password-reset/confirm`
 - [x] Add `FRONTEND_ACTIVATION_URL`, `FRONTEND_CONFIRM_PASSWORD_URL` to `env/.env.template` (currently missing)
 - [x] Add `COMPANY_NAME=Merch Miner` to `env/.env.template` (used in both email templates)
-- [ ] Verify `django-app/static/logo.png` exists — `emails.py` embeds it inline via CID; add a placeholder logo if missing or document that it must be provided before emails are sent
+- [x] Verify `django-app/static/logo.png` exists — `emails.py` embeds it inline via CID; add a placeholder logo if missing or document that it must be provided before emails are sent
 - [x] Note: email templates (`activation.html`, `password_reset.html`) contain no hardcoded API URLs — they use `{{ link }}` context var built in Python — no changes needed to template HTML
 
 ### Environment
@@ -35,7 +35,7 @@
 - [x] Added `/api/auth/me/` — returns `{ id, email }`, protected by `CookieJWTAuthentication` + `IsAuthenticated`
 
 ### Migrations
-- [ ] Run `docker compose exec web python manage.py migrate` to create allauth + sites tables
+- [x] Run `docker compose exec web python manage.py migrate` to create allauth + sites tables
 
 ---
 
@@ -80,6 +80,6 @@
 - [ ] Email login → cookie set → redirected to `/`
 - [ ] Unauthenticated visit to `/` → redirected to `/login`
 - [ ] Google button → browser redirects to Google OAuth
-- [ ] Register → success message → redirect to `/login`
+- [x] Register → success message → redirect to `/login`
 - [ ] Password reset email received → link → new password → login works
 - [ ] `docker compose exec web pytest` → all existing tests pass
