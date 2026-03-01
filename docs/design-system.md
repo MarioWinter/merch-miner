@@ -311,21 +311,21 @@ COLLAPSED STATE (width=60px):
                    size: 32px, border-radius: 9999px
 
 Sections (PROJ-1 through PROJ-15; PROJ-16 is background-only, no sidebar entry):
+  [Control Room]
+    ─ Dashboard        /dashboard          (Dashboard icon)
+    ─ Reports          /reports            (BarChart icon)
   [Pipeline]
-    ─ Niches          /niches           (ListAlt icon)
-    ─ Research        /research         (Search icon)
-    ─ Ideas & Slogans /slogans          (Lightbulb icon)
-    ─ Designs         /designs          (Brush icon)
-    ─ Listings        /listings         (Article icon)
-  [Amazon]
-    ─ Product Research /amazon/research (QueryStats icon)
-    ─ Keyword Bank     /amazon/keywords (Key icon)
-  [Operations]
-    ─ Upload Manager  /uploads          (CloudUpload icon)
-    ─ Team Kanban     /kanban           (ViewKanban icon)
-  [Analytics]
-    ─ Dashboard       /dashboard        (Dashboard icon)
-    ─ Reports         /reports          (BarChart icon)
+    ─ Niche Claims     /niches             (ListAlt icon)
+    ─ Product Drilling /research           (Search icon)
+    ─ Slogan Refinery  /slogans            (Lightbulb icon)
+    ─ Design Forge     /designs            (Brush icon)
+    ─ Listing Loadout  /listings           (Article icon)
+  [Drilling Zone]
+    ─ Amazon Deep Dive /amazon/research    (QueryStats icon)
+    ─ Keyword Lode     /amazon/keywords    (Key icon)
+  [Surface Ops]
+    ─ Upload Rig       /uploads            (CloudUpload icon)
+    ─ Team Kanban      /kanban             (ViewKanban icon)
 ```
 
 ### 7.4 Main Content Area
