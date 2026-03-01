@@ -9,4 +9,4 @@ RUN npm run build
 
 FROM alpine:3.20
 COPY --from=builder /app/dist /data/dist
-CMD ["sh", "-c", "cp -r /data/dist/. /srv/frontend/ && echo 'Frontend dist seeded'"]
+CMD ["sh", "-c", "mkdir -p /srv/frontend && cp -r /data/dist/. /srv/frontend/ && echo 'Frontend dist seeded'"]

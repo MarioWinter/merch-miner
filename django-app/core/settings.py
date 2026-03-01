@@ -43,9 +43,9 @@ else:
     ]
 CORS_ALLOW_CREDENTIALS = True
 CSRF_COOKIE_SAMESITE = None
-CSRF_COOKIE_SECURE = True
+CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SAMESITE = None
-SESSION_COOKIE_SECURE = True
+SESSION_COOKIE_SECURE = not DEBUG
 
 # Custom user model here
 AUTH_USER_MODEL = 'user_auth_app.User'
@@ -82,11 +82,11 @@ SIMPLE_JWT = {
     'AUTH_HEADER_TYPES': ('JWT',),
     'AUTH_COOKIE': 'access_token',
     'AUTH_COOKIE_REFRESH': 'refresh_token',
-    'AUTH_COOKIE_SECURE': True,
+    'AUTH_COOKIE_SECURE': not DEBUG,
     'AUTH_COOKIE_HTTP_ONLY': True,
     'AUTH_COOKIE_PATH': '/',
     'AUTH_COOKIE_SAMESITE': 'None',
-    'AUTH_COOKIE_DOMAIN': 'None',
+    'AUTH_COOKIE_DOMAIN': None,
 }
 
 # Application definition
