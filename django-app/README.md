@@ -31,6 +31,7 @@ cp env/.env.template .env
 docker compose up --build
 ```
 
+- Auto-loads `docker-compose.override.yml` → exposes ports 8000 + 5173 on host
 - Django `runserver` on `http://localhost:8000`
 - Vite dev server on `http://localhost:5173`
 - Admin: `http://localhost:8000/admin/`
@@ -38,11 +39,22 @@ docker compose up --build
 ## Prod
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 ```
 
-- gunicorn on port 8000 (internal)
+- Explicit `-f` flags skip `override.yml` → no host port binding on `web`
+- gunicorn on port 8000 (internal only)
 - Caddy on ports 80/443 (public)
+
+## Stop
+
+```bash
+# Dev
+docker compose down
+
+# Prod
+docker compose -f docker-compose.yml -f docker-compose.prod.yml down
+```
 
 ## Common Tasks
 

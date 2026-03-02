@@ -57,8 +57,9 @@ merch-miner/
 │   ├── core/             settings, URLs, WSGI
 │   ├── user_auth_app/    custom User model, JWT auth, OAuth2
 │   ├── content/          video management, HLS streaming
-│   ├── docker-compose.yml        base + dev services (db, redis, worker, web, frontend)
-│   ├── docker-compose.prod.yml   prod: gunicorn + caddy
+│   ├── docker-compose.yml          base services (db, redis, worker, web, frontend)
+│   ├── docker-compose.override.yml dev: host port bindings (auto-loaded, git-tracked)
+│   ├── docker-compose.prod.yml     prod: gunicorn + caddy (no host ports on web)
 │   ├── Caddyfile                 static/media serving + reverse proxy
 │   ├── backend.Dockerfile
 │   ├── backend.entrypoint.sh     DB wait → migrate → superuser → exec
@@ -101,6 +102,7 @@ npm run dev       # http://localhost:5173
 docker compose up --build
 ```
 
+- Auto-loads `docker-compose.override.yml` → exposes ports 8000 + 5173 on host
 - Django `runserver` on `http://localhost:8000`
 - Vite dev server on `http://localhost:5173`
 - Code changes hot-reload via volume mount
@@ -109,17 +111,22 @@ docker compose up --build
 ### Prod
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 ```
 
-- gunicorn on port 8000 (internal)
+- Explicit `-f` flags skip `override.yml` → no host port binding on `web`
+- gunicorn on port 8000 (internal only)
 - Caddy on ports 80/443 (public)
 - Static files served by Caddy from `/srv/static/`
 
 ### Stop
 
 ```bash
+# Dev
 docker compose down
+
+# Prod
+docker compose -f docker-compose.yml -f docker-compose.prod.yml down
 ```
 
 ---

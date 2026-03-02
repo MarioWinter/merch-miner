@@ -57,8 +57,13 @@ npm run preview      # Preview production build
 
 **Backend** (Docker required; run from `django-app/`):
 ```bash
+# Dev — auto-loads docker-compose.override.yml (exposes ports 8000 + 5173)
 docker compose up --build       # Start all services (web, db, redis)
 docker compose up               # Start without rebuild
+
+# Prod — explicit -f flags skip override.yml (no host port binding on web)
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+
 docker compose exec web pytest  # Run all tests
 docker compose exec web coverage run -m pytest && docker compose exec web coverage report
 docker compose exec web python manage.py migrate

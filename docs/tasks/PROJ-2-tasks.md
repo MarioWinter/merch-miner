@@ -11,7 +11,8 @@
 - [x] Update `Caddyfile` — SPA routing + explicit `/api/*` and `/admin/*` proxy blocks
 - [x] Add `server.proxy` to `vite.config.ts`
 - [x] Smoke test dev stack: `docker compose up --build`
-- [x] Smoke test prod stack: `docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build`
+- [x] Smoke test prod stack: `docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d`
+- [x] Fix prod port conflict: move host port bindings to `docker-compose.override.yml` (auto-loaded dev only)
 
 ## Verification Checklist
 

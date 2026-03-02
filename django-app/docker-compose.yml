@@ -38,8 +38,6 @@ services:
     env_file: .env
     volumes:
       - .:/app
-    ports:
-      - "127.0.0.1:8000:8000"
     depends_on:
       - db
       - redis
@@ -52,8 +50,6 @@ services:
     volumes:
       - ../frontend-ui:/app
       - /app/node_modules
-    ports:
-      - "127.0.0.1:5173:5173"
     environment:
       - VITE_API_URL=
       - VITE_PROXY_TARGET=http://web:8000
