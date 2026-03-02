@@ -23,7 +23,7 @@ def test_login_user_success(client):
     assert response.status_code == 200
     assert response.data['detail'] == 'Login successful'
     assert response.data['user']['id'] == user.id
-    assert response.data['user']['username'] == 'testuser@test.com'
+    assert response.data['user']['email'] == 'testuser@test.com'
     
     assert 'access_token' in response.cookies
     assert 'refresh_token' in response.cookies

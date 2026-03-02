@@ -16,7 +16,7 @@ def test_register_user_success(client):
     
     assert response.status_code == 201
     assert 'user' in response.data
-    assert 'token' in response.data
+    assert 'token' not in response.data
     assert response.data['user']['email'] == 'testuser@test.com'
     
     user = User.objects.get(email='testuser@test.com')

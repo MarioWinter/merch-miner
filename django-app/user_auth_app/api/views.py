@@ -49,8 +49,7 @@ class RegisterView(APIView):
                 "user": {
                     "id": user.id,
                     "email": user.email
-                },
-                "token": activation_token
+                }
             }, status=status.HTTP_201_CREATED)
         
         return Response(
@@ -140,7 +139,7 @@ class LoginView(APIView):
             "detail": "Login successful",
             "user": {
                 "id": user.id,
-                "username": user.email
+                "email": user.email
             }
         }, status=status.HTTP_200_OK)
         

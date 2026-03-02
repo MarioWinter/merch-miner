@@ -19,10 +19,13 @@ import { useTranslation } from 'react-i18next';
 import { registerSchema, type RegisterFormValues } from './schemas/registerSchema';
 import AuthLayout from '../partials/AuthLayout';
 import { authService } from '../../../services/authService';
+import { useAppDispatch } from '../../../store/hooks';
+import { setError } from '../../../store/authSlice';
 
 export default function RegisterPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const { enqueueSnackbar } = useSnackbar();
   const [loading, setLoading] = useState(false);
 
@@ -46,6 +49,7 @@ export default function RegisterPage() {
       enqueueSnackbar(t('register.success'), { variant: 'success' });
       navigate('/login', { replace: true });
     } catch {
+      dispatch(setError(t('register.error')));
       enqueueSnackbar(t('register.error'), { variant: 'error' });
     } finally {
       setLoading(false);

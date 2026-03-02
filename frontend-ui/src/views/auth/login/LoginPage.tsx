@@ -43,7 +43,7 @@ export default function LoginPage() {
     dispatch(setError(null));
     try {
       const data = await authService.login(values);
-      dispatch(setUser({ id: data.id, email: data.email }));
+      dispatch(setUser({ id: data.user.id, email: data.user.email }));
       enqueueSnackbar(t('login.success'), { variant: 'success' });
       navigate('/', { replace: true });
     } catch {
