@@ -1,6 +1,6 @@
 # PROJ-1: User Auth (Email/Password + Google OAuth2)
 
-**Status:** In Review
+**Status:** Deployed
 **Priority:** P0 (MVP)
 **Created:** 2026-02-27
 
@@ -166,3 +166,12 @@ None block deployment. Address SEC-2 before multi-tenant launch.
 
 ---
 *QA Report v3 — 2026-03-02 — Claude Sonnet 4.6*
+
+---
+
+## Deployment
+
+**Deployed:** 2026-03-02
+**Tag:** `v1.0.0-PROJ-1`
+**Domains:** `https://miner.mariowinter.com` (API) · `https://merch-miner.mariowinter.com` (frontend)
+**Stack:** Caddy (TLS) → Gunicorn → Django → PostgreSQL + Redis + RQ Worker

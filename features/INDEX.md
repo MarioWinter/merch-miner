@@ -12,8 +12,8 @@
 
 | ID | Feature | Status | Spec | Created |
 |----|---------|--------|------|---------|
-| PROJ-1 | User Auth (Email + Google OAuth2) | In Review | [spec](PROJ-1-user-auth.md) | 2026-02-27 |
-| PROJ-2 | Frontend Docker Integration | In Review | [spec](PROJ-2-frontend-docker.md) | 2026-02-28 |
+| PROJ-1 | User Auth (Email + Google OAuth2) | Deployed | [spec](PROJ-1-user-auth.md) | 2026-02-27 |
+| PROJ-2 | Frontend Docker Integration | Deployed | [spec](PROJ-2-frontend-docker.md) | 2026-02-28 |
 | PROJ-3 | CI/CD & DevOps Setup | Planned | [spec](PROJ-3-cicd-devops-setup.md) | 2026-02-28 |
 | PROJ-4 | Workspace & Membership | Planned | [spec](PROJ-4-workspace-membership.md) | 2026-02-27 |
 | PROJ-5 | Niche List | Planned | [spec](PROJ-5-niche-list.md) | 2026-02-27 |

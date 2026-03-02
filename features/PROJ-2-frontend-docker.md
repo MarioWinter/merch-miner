@@ -1,6 +1,6 @@
 # PROJ-2: Frontend Docker Integration
 
-**Status:** In Progress
+**Status:** Deployed
 **Priority:** P0 (MVP)
 **Created:** 2026-02-28
 
@@ -217,3 +217,12 @@ Two modes:
 - **Bugs:** 11/11 fixed
 - **Security:** All findings resolved; SEC-8 (`SOCIALACCOUNT_LOGIN_ON_GET`) accepted as deliberate trade-off
 - **Production Ready:** YES
+
+---
+
+## Deployment
+
+**Deployed:** 2026-03-02
+**Tag:** `v1.0.0-PROJ-2`
+**Domains:** `https://merch-miner.mariowinter.com` (SPA) · `https://miner.mariowinter.com` (API/admin)
+**Stack:** React prod build → `frontend_dist` volume → Caddy (auto-TLS, SPA catch-all)
