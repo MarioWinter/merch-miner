@@ -71,10 +71,8 @@ venv.bak/
 db.sqlite3
 media/
 
-# ── Migrations (keep __init__.py) ──────────────────────
-**/migrations/**
-!**/migrations/
-!**/migrations/__init__.py
+# ── Migrations ─────────────────────────────────────────
+# Committed to git for production schema consistency
 
 # ── Tests & Coverage ───────────────────────────────────
 coverage/
