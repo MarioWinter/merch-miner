@@ -1,4 +1,5 @@
 #!/bin/sh
+chmod +x "$0"
 set -e
 
 echo "Waiting for PostgreSQL on $DB_HOST:$DB_PORT..."
@@ -7,6 +8,8 @@ while ! pg_isready -h "$DB_HOST" -p "$DB_PORT" -q; do
 done
 echo "PostgreSQL ready."
 
+python manage.py collectstatic --noinput
+python manage.py makemigrations
 python manage.py migrate
 
 python manage.py shell <<EOF
@@ -23,5 +26,7 @@ if not User.objects.filter(username=username).exists():
 else:
     print(f"Superuser '{username}' already exists.")
 EOF
+
+python manage.py rqworker default &
 
 exec "$@"
