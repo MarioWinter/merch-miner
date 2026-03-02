@@ -31,6 +31,8 @@ services:
     restart: "no"
 
   caddy:
+    profiles:
+      - disabled
     image: caddy:2-alpine
     container_name: app_caddy
     volumes:
