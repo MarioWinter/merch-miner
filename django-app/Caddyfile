@@ -1,15 +1,4 @@
-# Frontend SPA — merch-miner.mariowinter.com
-merch-miner.mariowinter.com {
-	encode gzip
-
-	header {
-		X-Content-Type-Options nosniff
-		X-Frame-Options DENY
-		Referrer-Policy strict-origin-when-cross-origin
-		Strict-Transport-Security "max-age=31536000; includeSubDomains"
-		-Server
-	}
-
+:80 {
 	handle /static/* {
 		root * /srv
 		file_server
@@ -20,48 +9,11 @@ merch-miner.mariowinter.com {
 		root * /srv
 		file_server
 		header Cache-Control "public, max-age=86400"
-	}
-
-	handle /api/* {
-		reverse_proxy app_backend:8000
-	}
-
-	handle /admin/* {
-		reverse_proxy app_backend:8000
 	}
 
 	handle {
 		root * /srv/frontend
 		try_files {path} /index.html
 		file_server
-	}
-}
-
-# Django API + admin — miner.mariowinter.com
-miner.mariowinter.com {
-	encode gzip
-
-	header {
-		X-Content-Type-Options nosniff
-		X-Frame-Options DENY
-		Referrer-Policy strict-origin-when-cross-origin
-		Strict-Transport-Security "max-age=31536000; includeSubDomains"
-		-Server
-	}
-
-	handle /static/* {
-		root * /srv
-		file_server
-		header Cache-Control "public, max-age=31536000, immutable"
-	}
-
-	handle /media/* {
-		root * /srv
-		file_server
-		header Cache-Control "public, max-age=86400"
-	}
-
-	handle {
-		reverse_proxy app_backend:8000
 	}
 }

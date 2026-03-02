@@ -15,6 +15,9 @@ services:
     depends_on:
       - db
       - redis
+    networks:
+      - default
+      - merch_net
 
   frontend:
     build:
@@ -30,9 +33,6 @@ services:
   caddy:
     image: caddy:2-alpine
     container_name: app_caddy
-    ports:
-      - "80:80"
-      - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - static_volume:/srv/static:ro
@@ -46,6 +46,9 @@ services:
         condition: service_started
       frontend:
         condition: service_completed_successfully
+    networks:
+      - default
+      - merch_net
 
 volumes:
   static_volume:
@@ -53,3 +56,9 @@ volumes:
   frontend_dist:
   caddy_data:
   caddy_config:
+
+networks:
+  default: {}
+  merch_net:
+    external: true
+    name: merch_net
