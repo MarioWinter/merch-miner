@@ -82,7 +82,7 @@ def test_video_upload_unauthenticated(client):
     )
     
     api_client = APIClient()
-    
+
     url = reverse('video-upload')
     data = {
         'title': 'Test Video',
@@ -90,10 +90,10 @@ def test_video_upload_unauthenticated(client):
         'genre': 'action',
         'original_file': video_file
     }
-    
+
     response = api_client.post(url, data, format='multipart')
-    
-    assert response.status_code == 403
+
+    assert response.status_code == 401
 
 @pytest.mark.django_db
 def test_video_upload_missing_fields(client):

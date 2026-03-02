@@ -1,4 +1,4 @@
-# PROJ-2: Workspace & Membership
+# PROJ-4: Workspace & Membership
 
 **Status:** Planned
 **Priority:** P0 (MVP)

@@ -1,4 +1,4 @@
-# PROJ-8: Amazon Product Research
+# PROJ-7: Amazon Product Research
 
 **Status:** Planned
 **Priority:** P0 (MVP)
@@ -98,7 +98,7 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 
 ## n8n Integration (Scrape Trigger)
 
-Shares infrastructure with PROJ-4. Same n8n workflow or separate workflow for product search scrape.
+Shares infrastructure with PROJ-6. Same n8n workflow or separate workflow for product search scrape.
 
 - Django → n8n: `POST {N8N_RESEARCH_WEBHOOK_URL}` with `{"keyword": "...", "marketplace": "amazon_com", "cache_id": "<uuid>"}`
 - n8n: ScraperOps → parse → INSERT into `AmazonProduct` → UPDATE `ProductSearchCache` status=completed
@@ -115,10 +115,10 @@ Shares infrastructure with PROJ-4. Same n8n workflow or separate workflow for pr
 
 ## Dependencies
 
-- PROJ-2 (Workspace & Membership — workspace scope)
-- PROJ-3 (Niche List — "Add to Niche" action calls `POST /api/niches/`)
-- PROJ-4 (shares n8n scrape infrastructure; n8n workflow may be reused or forked)
+- PROJ-4 (Workspace & Membership — workspace scope)
+- PROJ-5 (Niche List — "Add to Niche" action calls `POST /api/niches/`)
+- PROJ-6 (shares n8n scrape infrastructure; n8n workflow may be reused or forked)
 
 ## Environment Variables Required
 
-Shares `N8N_RESEARCH_WEBHOOK_URL` and `N8N_WEBHOOK_SECRET` with PROJ-4.
+Shares `N8N_RESEARCH_WEBHOOK_URL` and `N8N_WEBHOOK_SECRET` with PROJ-6.

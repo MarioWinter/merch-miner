@@ -1,0 +1,55 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    container_name: app_backend
+    command: >
+      sh -c "python manage.py collectstatic --noinput &&
+             gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+    env_file: .env
+    volumes:
+      - static_volume:/app/static
+      - media_volume:/app/media
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis
+
+  frontend:
+    build:
+      context: ../frontend-ui
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
+    container_name: app_frontend_build
+    volumes:
+      - frontend_dist:/srv/frontend
+    restart: "no"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: app_caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - static_volume:/srv/static:ro
+      - media_volume:/srv/media:ro
+      - frontend_dist:/srv/frontend:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_started
+      frontend:
+        condition: service_completed_successfully
+
+volumes:
+  static_volume:
+  media_volume:
+  frontend_dist:
+  caddy_data:
+  caddy_config:

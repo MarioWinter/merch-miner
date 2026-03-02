@@ -1,4 +1,4 @@
-# PROJ-10: Marketplace Upload Manager (MBA Automation)
+# PROJ-13: Marketplace Upload Manager (MBA Automation)
 
 **Status:** Planned
 **Priority:** P1
@@ -13,7 +13,7 @@ Automated MBA upload pipeline via Selenium/Chromium. Users create reusable uploa
 1. As a workspace admin, I want to connect a Google Drive account so team members can browse design files stored there.
 2. As a workspace admin, I want to store MBA login credentials securely at the workspace level so the team shares one upload account.
 3. As a member, I want to create reusable upload templates (brand, product type, fit, colors, marketplace) so I don't re-enter shared settings for every upload.
-4. As a member, I want to create an upload job by selecting a template, a listing from PROJ-7, and a design file from Google Drive so all upload data is assembled in one place.
+4. As a member, I want to create an upload job by selecting a template, a listing from PROJ-11, and a design file from Google Drive so all upload data is assembled in one place.
 5. As a member, I want to see a MBA-mirrored preview of the upload form pre-filled with my listing and template data before submitting, so I can spot errors.
 6. As a member, I want to queue multiple upload jobs and have Selenium upload them sequentially, so I can batch-process uploads unattended.
 7. As a member, I want to see the real-time status of each upload job (pending / downloading / uploading / completed / failed), so I know what's happening.
@@ -140,9 +140,9 @@ selenium:
 
 ## Dependencies
 
-- PROJ-2 (Workspace & Membership — workspace FK, admin role for credential/Drive management)
-- PROJ-7 (Listing & Keyword Generator — listing data for upload form + snapshot)
-- PROJ-6 (Design Generation — `worker` docker-compose service required)
+- PROJ-4 (Workspace & Membership — workspace FK, admin role for credential/Drive management)
+- PROJ-11 (Listing & Keyword Generator — listing data for upload form + snapshot)
+- PROJ-9 (Design Generation — `worker` docker-compose service required)
 - `selenium` docker-compose service (introduced in this feature)
 
 ## Unresolved Questions

@@ -59,9 +59,10 @@ def test_full_authentication_and_video_access_flow(client):
     video = Video.objects.create(
         title='Test Video',
         description='Test Description',
-        genre='action'
+        genre='action',
+        owner=user
     )
-    
+
     login_url = reverse('login')
     login_data = {
         'email': 'testuser@test.com',

@@ -1,18 +1,20 @@
 from django.contrib.auth import get_user_model
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.utils.encoding import force_bytes
+from django.shortcuts import redirect
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import viewsets, status
-from rest_framework.permissions import AllowAny
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken, AccessToken, TokenError
 from core import settings
 from .serializers import (
-    UserSerializer, UserCreateSerializer, 
+    UserSerializer, UserCreateSerializer,
     LoginSerializer, PasswordResetSerializer, PasswordChangeSerializer
 )
 from .emails import send_verification_email, send_password_reset_email
 from .utils import set_jwt_cookies, clear_jwt_cookies, get_refresh_token_from_request
+from .authentication import CookieJWTAuthentication
 
 User = get_user_model()
 
@@ -47,8 +49,7 @@ class RegisterView(APIView):
                 "user": {
                     "id": user.id,
                     "email": user.email
-                },
-                "token": activation_token
+                }
             }, status=status.HTTP_201_CREATED)
         
         return Response(
@@ -58,32 +59,59 @@ class RegisterView(APIView):
 
 
 class ActivateView(APIView):
-    """Activate user account using token from email."""
-    
+    """Activate user account using token from email.
+
+    Accepts two calling conventions:
+    1. POST /api/auth/activate/           body: { uid, token }  (used by frontend SPA)
+    2. GET  /api/auth/activate/<uidb64>/<token>/               (direct link fallback)
+    """
+
     permission_classes = [AllowAny]
 
-    def get(self, request, uidb64, token):
+    def _activate(self, uidb64, token):
+        """Shared activation logic. Returns (success: bool, already_active: bool)."""
+        uid = urlsafe_base64_decode(uidb64).decode()
+        user = User.objects.get(pk=uid)
+        access_token = AccessToken(token)
+
+        if str(user.pk) != str(access_token['user_id']):
+            raise Exception("Token user_id mismatch")
+
+        if not user.is_active:
+            user.is_active = True
+            user.save()
+
+    def post(self, request):
+        """Activate via POST body — used by the React SPA."""
+        uidb64 = request.data.get('uid')
+        token = request.data.get('token')
+
+        if not uidb64 or not token:
+            return Response(
+                {"message": "Account activation failed."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         try:
-            uid = urlsafe_base64_decode(uidb64).decode()
-            user = User.objects.get(pk=uid)
-            access_token = AccessToken(token)
-
-            if str(user.pk) != str(access_token['user_id']):
-                raise Exception
-
-            if not user.is_active:
-                user.is_active = True
-                user.save()
-                return Response(
-                    {"message": "Account successfully activated."},
-                    status=status.HTTP_200_OK
-                )
-            
+            self._activate(uidb64, token)
             return Response(
                 {"message": "Account successfully activated."},
                 status=status.HTTP_200_OK
             )
-            
+        except Exception:
+            return Response(
+                {"message": "Account activation failed."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+    def get(self, request, uidb64, token):
+        """Activate via GET path params — direct email link fallback."""
+        try:
+            self._activate(uidb64, token)
+            return Response(
+                {"message": "Account successfully activated."},
+                status=status.HTTP_200_OK
+            )
         except Exception:
             return Response(
                 {"message": "Account activation failed."},
@@ -111,7 +139,7 @@ class LoginView(APIView):
             "detail": "Login successful",
             "user": {
                 "id": user.id,
-                "username": user.email
+                "email": user.email
             }
         }, status=status.HTTP_200_OK)
         
@@ -212,7 +240,7 @@ class PasswordResetView(APIView):
 
 class PasswordConfirmView(APIView):
     """Handle password reset confirmation and update user password."""
-    
+
     permission_classes = [AllowAny]
 
     def post(self, request, uidb64, token):
@@ -222,25 +250,90 @@ class PasswordConfirmView(APIView):
                 {"detail": "Passwords do not match"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         try:
             uid = urlsafe_base64_decode(uidb64).decode()
             user = User.objects.get(pk=uid)
             access_token = AccessToken(token)
-            
+
             if str(user.pk) != str(access_token['user_id']):
                 raise Exception
-                
+
         except Exception:
             return Response(
                 {"detail": "Invalid token or user"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         user.set_password(serializer.validated_data['new_password'])
         user.save()
-        
+
         return Response(
             {"detail": "Your password has been successfully reset."},
             status=status.HTTP_200_OK
         )
+
+
+class MeView(APIView):
+    """Return authenticated user's id and email for Redux session hydration."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        return Response({
+            "id": user.id,
+            "email": user.email,
+        }, status=status.HTTP_200_OK)
+
+
+class GoogleLoginView(APIView):
+    """Redirect the browser to Google's OAuth2 consent screen via allauth."""
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        from allauth.socialaccount.providers.oauth2.views import OAuth2LoginView
+        from user_auth_app.api.adapters import CustomGoogleOAuth2Adapter
+        view = OAuth2LoginView.adapter_view(CustomGoogleOAuth2Adapter)
+        return view(request)
+
+
+class GoogleCallbackView(APIView):
+    """
+    Handle the Google OAuth2 callback.
+
+    allauth completes the OAuth flow and creates/links the User.
+    We then issue CookieJWT tokens and redirect to the frontend.
+    """
+
+    permission_classes = [AllowAny]
+
+    def get(self, request):
+        from allauth.socialaccount.providers.oauth2.views import OAuth2CallbackView
+        from user_auth_app.api.adapters import CustomGoogleOAuth2Adapter
+        from allauth.core.exceptions import ImmediateHttpResponse
+
+        try:
+            view = OAuth2CallbackView.adapter_view(CustomGoogleOAuth2Adapter)
+            response = view(request)
+        except ImmediateHttpResponse:
+            frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+            return redirect(f"{frontend_url}/login?error=oauth_failed")
+        except Exception:
+            frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+            return redirect(f"{frontend_url}/login?error=oauth_failed")
+
+        user = request.user
+        if not user or not user.is_authenticated:
+            frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+            return redirect(f"{frontend_url}/login?error=oauth_failed")
+
+        refresh = RefreshToken.for_user(user)
+        access_token = refresh.access_token
+
+        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+        redirect_response = redirect(frontend_url)
+        set_jwt_cookies(redirect_response, access_token, refresh)
+        return redirect_response

@@ -1,5 +1,5 @@
 # Merch Miner — Design System v1.1
-> Single source of truth for all 14 features. Do not deviate without explicit approval.
+> Single source of truth for all 16 features. PROJ-16 is background-only (no sidebar route). Do not deviate without explicit approval.
 > Last updated: 2026-02-28 | Changes: FIX 1–6 applied (error color, mono font stack, sidebar collapse, mode toggle, nav, easing)
 
 ---
@@ -310,23 +310,22 @@ COLLAPSED STATE (width=60px):
                    icon: ChevronLeft (expanded) / ChevronRight (collapsed)
                    size: 32px, border-radius: 9999px
 
-Sections (FIX 5 — all 14 features):
+Sections (PROJ-1 through PROJ-15; PROJ-16 is background-only, no sidebar entry):
+  [Control Room]
+    ─ Dashboard        /dashboard          (Dashboard icon)
+    ─ Reports          /reports            (BarChart icon)
   [Pipeline]
-    ─ Niches          /niches           (ListAlt icon)
-    ─ Research        /research         (Search icon)
-    ─ Ideas & Slogans /slogans          (Lightbulb icon)
-    ─ Designs         /designs          (Brush icon)
-    ─ Listings        /listings         (Article icon)
-  [Amazon]
-    ─ Product Research /amazon/research (QueryStats icon)
-    ─ Keyword Bank     /amazon/keywords (Key icon)
-    ─ Amazon Scraper   /amazon/scraper  (BugReport icon)   ← PROJ-13, added by FIX 5
-  [Operations]
-    ─ Upload Manager  /uploads          (CloudUpload icon)
-    ─ Team Kanban     /kanban           (ViewKanban icon)
-  [Analytics]
-    ─ Dashboard       /dashboard        (Dashboard icon)
-    ─ Reports         /reports          (BarChart icon)
+    ─ Niche Claims     /niches             (ListAlt icon)
+    ─ Product Drilling /research           (Search icon)
+    ─ Slogan Refinery  /slogans            (Lightbulb icon)
+    ─ Design Forge     /designs            (Brush icon)
+    ─ Listing Loadout  /listings           (Article icon)
+  [Drilling Zone]
+    ─ Amazon Deep Dive /amazon/research    (QueryStats icon)
+    ─ Keyword Lode     /amazon/keywords    (Key icon)
+  [Surface Ops]
+    ─ Upload Rig       /uploads            (CloudUpload icon)
+    ─ Team Kanban      /kanban             (ViewKanban icon)
 ```
 
 ### 7.4 Main Content Area
@@ -382,7 +381,7 @@ padding:   20px
 min-width: 160px
 ```
 
-**Niche Card** (PROJ-3, PROJ-4 — the core list item)
+**Niche Card** (PROJ-5, PROJ-6 — the core list item)
 ```
 Layout: horizontal, full-width row card
   ┌──────────────────────────────────────────────────────────┐
@@ -513,7 +512,7 @@ Linear progress bar: MUI LinearProgress, color = secondary.main
 Stepper: horizontal, compact
   Step states: pending (neutral) / active (primary + pulse) / done (success)
 
-Example (PROJ-4 Research):
+Example (PROJ-6 Research):
   ① Scraping → ② AI Analysis → ③ Saving Results
 ```
 
@@ -578,19 +577,19 @@ Pages using this layout:
 | Feature | Layout | Key Components |
 |---------|--------|----------------|
 | PROJ-1 Auth | Full-screen centered | Glass auth card, Google OAuth button |
-| PROJ-2 Workspace | Settings-style | Member table, invite chip input |
-| PROJ-3 Niche List | Table + right drawer | Niche row cards, stage chips, filter toolbar |
-| PROJ-4 Research | Niche detail + job progress | Progress stepper, research result cards |
-| PROJ-5 Slogans | Split: niches left / slogans right | Slogan cards with approve/reject actions |
-| PROJ-6 Design Gen | Grid of design previews | Design cards, regenerate button, approve flow |
-| PROJ-7 Listings | Form + preview panel | Multi-field form, keyword tag input, copy button |
-| PROJ-8 Amazon Research | Search bar + results table | BSR badges, dense data table, KPI row |
-| PROJ-9 Dashboard | KPI grid + activity feed | KPI cards (2×3 grid), recent activity list |
-| PROJ-10 Upload Manager | Queue table + status | Job status badges, CSV upload zone |
-| PROJ-11 Team Kanban | Full-width drag board | Stage columns, draggable niche cards |
-| PROJ-12 Analytics | Chart-heavy dashboard | Line chart, bar chart, KPI grid |
-| PROJ-13 Scraper | Admin-style job log | Log table, run button, status feed |
-| PROJ-14 Keyword Bank | Searchable tag cloud | Keyword chips, filter sidebar, copy batch |
+| PROJ-4 Workspace | Settings-style | Member table, invite chip input |
+| PROJ-5 Niche List | Table + right drawer | Niche row cards, stage chips, filter toolbar |
+| PROJ-6 Research | Niche detail + job progress | Progress stepper, research result cards |
+| PROJ-7 Amazon Research | Search bar + results table | BSR badges, dense data table, KPI row |
+| PROJ-8 Slogans | Split: niches left / slogans right | Slogan cards with approve/reject actions |
+| PROJ-9 Design Gen | Grid of design previews | Design cards, regenerate button, approve flow |
+| PROJ-10 Keyword Bank | Searchable tag cloud | Keyword chips, filter sidebar, copy batch |
+| PROJ-11 Listings | Form + preview panel | Multi-field form, keyword tag input, copy button |
+| PROJ-12 Dashboard | KPI grid + activity feed | KPI cards (2×3 grid), recent activity list |
+| PROJ-13 Upload Manager | Queue table + status | Job status badges, CSV upload zone |
+| PROJ-14 Team Kanban | Full-width drag board | Stage columns, draggable niche cards |
+| PROJ-15 Analytics | Chart-heavy dashboard | Line chart, bar chart, KPI grid |
+| PROJ-16 Scraper | Background only — no sidebar route. Future: admin job log | Log table, run button, status feed |
 
 ---
 

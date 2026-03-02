@@ -18,23 +18,25 @@ def test_video_list_authenticated_success(client):
     video1 = Video.objects.create(
         title='Test Video 1',
         description='Test Description 1',
-        genre='action'
+        genre='action',
+        owner=user
     )
     video2 = Video.objects.create(
         title='Test Video 2',
         description='Test Description 2',
-        genre='comedy'
+        genre='comedy',
+        owner=user
     )
-    
+
     refresh = RefreshToken.for_user(user)
     access_token = str(refresh.access_token)
-    
+
     api_client = APIClient()
     api_client.cookies['access_token'] = access_token
-    
+
     url = reverse('video-list')
     response = api_client.get(url)
-    
+
     assert response.status_code == 200
     assert isinstance(response.data, list)
     assert len(response.data) == 2
@@ -94,12 +96,14 @@ def test_video_list_ordering(client):
     video1 = Video.objects.create(
         title='First Video',
         description='Description 1',
-        genre='action'
+        genre='action',
+        owner=user
     )
     video2 = Video.objects.create(
         title='Second Video',
         description='Description 2',
-        genre='comedy'
+        genre='comedy',
+        owner=user
     )
     
     refresh = RefreshToken.for_user(user)
@@ -129,18 +133,19 @@ def test_video_list_thumbnail_url_generation(client):
     video = Video.objects.create(
         title='Test Video',
         description='Test Description',
-        genre='action'
+        genre='action',
+        owner=user
     )
-    
+
     refresh = RefreshToken.for_user(user)
     access_token = str(refresh.access_token)
-    
+
     api_client = APIClient()
     api_client.cookies['access_token'] = access_token
-    
+
     url = reverse('video-list')
     response = api_client.get(url)
-    
+
     assert response.status_code == 200
     assert len(response.data) == 1
     assert response.data[0]['thumbnail_url'] is None
@@ -160,7 +165,8 @@ def test_video_list_multiple_genres(client):
         Video.objects.create(
             title=f'Video {i+1}',
             description=f'Description {i+1}',
-            genre=genre
+            genre=genre,
+            owner=user
         )
     
     refresh = RefreshToken.for_user(user)

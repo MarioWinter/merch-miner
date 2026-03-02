@@ -1,4 +1,4 @@
-# PROJ-6: Design Generation (OpenRouter)
+# PROJ-9: Design Generation (OpenRouter)
 
 **Status:** Planned
 **Priority:** P0 (MVP)
@@ -219,9 +219,9 @@ Image analysis (Gemini 3 Architect pipeline) also uses OpenRouter — same API k
 
 ## Dependencies
 
-- PROJ-2 (Workspace & Membership — worker service in docker-compose; workspace isolation at ORM level)
-- PROJ-5 (Idea & Slogan Generation — idea must exist with slogan)
-- PROJ-4 (Niche Deep Research — `NicheResearchProduct` rows with image + analysis fields must exist)
+- PROJ-4 (Workspace & Membership — worker service in docker-compose; workspace isolation at ORM level)
+- PROJ-8 (Idea & Slogan Generation — idea must exist with slogan)
+- PROJ-6 (Niche Deep Research — `NicheResearchProduct` rows with image + analysis fields must exist)
 
 ---
 

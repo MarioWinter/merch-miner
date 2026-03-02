@@ -1,4 +1,4 @@
-# PROJ-9: Dashboard
+# PROJ-12: Dashboard
 
 **Status:** Planned
 **Priority:** P1
@@ -58,8 +58,8 @@ Workspace home screen. Shows KPI counts, pipeline funnel by niche status, recent
 
 ## Dependencies
 
-- PROJ-2 (Workspace & Membership)
-- PROJ-3 (Niche List)
-- PROJ-5 (Idea Generation — activity events)
-- PROJ-6 (Design Generation — activity events)
-- PROJ-7 (Listing Generator — activity events)
+- PROJ-4 (Workspace & Membership)
+- PROJ-5 (Niche List)
+- PROJ-8 (Idea Generation — activity events)
+- PROJ-9 (Design Generation — activity events)
+- PROJ-11 (Listing Generator — activity events)

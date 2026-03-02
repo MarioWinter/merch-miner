@@ -1,4 +1,4 @@
-# PROJ-12: Analytics & Reporting
+# PROJ-15: Analytics & Reporting
 
 **Status:** Planned
 **Priority:** P2
@@ -42,6 +42,6 @@ Workspace-level production analytics: design generation counts by model and week
 
 ## Dependencies
 
-- PROJ-6 (Design Generation — source data)
-- PROJ-7 (Listing Generator — source data)
-- PROJ-2 (Workspace & Membership — admin role check)
+- PROJ-9 (Design Generation — source data)
+- PROJ-11 (Listing Generator — source data)
+- PROJ-4 (Workspace & Membership — admin role check)

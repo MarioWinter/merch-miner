@@ -1,39 +1,65 @@
 services:
-    db:
-        image: postgres:latest
-        container_name: app_database
-        environment:
-            POSTGRES_DB: ${DB_NAME}
-            POSTGRES_USER: ${DB_USER}
-            POSTGRES_PASSWORD: ${DB_PASSWORD}
-        volumes:
-            - postgres_data:/var/lib/postgresql/data
+  db:
+    image: postgres:16
+    container_name: app_database
+    env_file: .env
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
 
-    redis:
-        image: redis:latest
-        container_name: app_redis
-        volumes:
-            - redis_data:/data
+  redis:
+    image: redis:7-alpine
+    container_name: app_redis
+    volumes:
+      - redis_data:/data
 
-    web:
-        build:
-            context: .
-            dockerfile: backend.Dockerfile
-        env_file: .env
-        container_name: app_backend
+  worker:
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    container_name: app_worker
+    entrypoint: ["./worker.entrypoint.sh"]
+    command: python manage.py rqworker default
+    env_file: .env
+    restart: unless-stopped
+    depends_on:
+      - db
+      - redis
 
-        volumes:
-            - .:/app
-            #- app_media:/app/media
-            #- app_static:/app/static
-        ports:
-            - "127.0.0.1:8000:8000"
-        depends_on:
-            - db
-            - redis
+  web:
+    build:
+      context: .
+      dockerfile: backend.Dockerfile
+    container_name: app_backend_dev
+    command: python manage.py runserver 0.0.0.0:8000
+    env_file: .env
+    volumes:
+      - .:/app
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      - db
+      - redis
+
+  frontend:
+    build:
+      context: ../frontend-ui
+      dockerfile: Dockerfile.dev
+    container_name: app_frontend_dev
+    volumes:
+      - ../frontend-ui:/app
+      - /app/node_modules
+    ports:
+      - "127.0.0.1:5173:5173"
+    environment:
+      - VITE_API_URL=
+      - VITE_PROXY_TARGET=http://web:8000
+    depends_on:
+      - web
 
 volumes:
-    postgres_data:
-    redis_data:
-    #app_media:
-    #app_static:
+  postgres_data:
+  redis_data:

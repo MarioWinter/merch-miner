@@ -1,131 +1,89 @@
-# Videoflix Backend
+# Merch Miner Backend
 
-A Django REST Framework backend for a video streaming service similar to Netflix. This application allows users to register, log in, and stream videos in various resolutions.
+Django DRF API for the Merch Miner POD Business OS.
 
-## Technologies
+## Tech Stack
 
--   **Python/Django**: Backend framework
--   **Django REST Framework**: API development
--   **PostgreSQL**: Primary database
--   **Redis**: Caching and background jobs
--   **Django RQ**: Background task processing
--   **Docker**: Containerization
--   **JWT**: Authentication
--   **FFmpeg**: Video transcoding (HLS streaming)
+| | |
+|---|---|
+| Framework | Django 5.2 + DRF |
+| Auth | django-allauth (email + Google OAuth2) |
+| Database | PostgreSQL 16 (self-hosted Supabase) |
+| Queue | Redis 7 + django-rq |
+| Proxy | Caddy (prod) |
+| Infra | Docker Compose |
 
 ## Prerequisites
 
--   Docker Desktop
--   Git
+- Docker Desktop
+- Git
 
-## Installation
+## Setup
 
-1. Clone the repository:
+```bash
+cp env/.env.template .env
+# fill in DB_NAME, DB_USER, DB_PASSWORD, SECRET_KEY, GOOGLE_CLIENT_ID, etc.
+```
 
-    ```bash
-    git clone [repository-url]
-    cd videoflix-django-app
-    ```
+## Dev
 
-2. Create a `.env` file based on the `.env.template`:
+```bash
+docker compose up --build
+```
 
-    ```bash
-    cp .env.template .env
-    ```
+- Django `runserver` on `http://localhost:8000`
+- Vite dev server on `http://localhost:5173`
+- Admin: `http://localhost:8000/admin/`
 
-3. Adjust the environment variables in the `.env` file:
+## Prod
 
-    ```bash
-    DB_NAME=videoflix
-    DB_USER=postgres
-    DB_PASSWORD=postgres
-    DB_HOST=db
-    DB_PORT=5432
-    DJANGO_SUPERUSER_USERNAME=admin
-    DJANGO_SUPERUSER_EMAIL=admin@example.com
-    DJANGO_SUPERUSER_PASSWORD=adminpassword
-    ```
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
+```
 
-4. Start the Docker containers:
+- gunicorn on port 8000 (internal)
+- Caddy on ports 80/443 (public)
 
-    ```bash
-    docker-compose up --build
-    ```
-
-5. The backend will be available at:
-
-    ```
-    http://localhost:8000
-    ```
-
-## Running Tests
-
-You can execute tests directly within the running Docker container:
+## Common Tasks
 
 ```bash
 # Run all tests
 docker compose exec web pytest
 
-# Run tests with coverage report
-docker compose exec web coverage run -m pytest
-docker compose exec web coverage report
+# Test coverage
+docker compose exec web coverage run -m pytest && \
+  docker compose exec web coverage report
+
+# Create migrations (after changing models)
+docker compose exec web python manage.py makemigrations
+
+# Apply migrations manually
+docker compose exec web python manage.py migrate
+
+# Create superuser
+docker compose exec web python manage.py createsuperuser
+
+# Single test
+docker compose exec web pytest path/to/test_file.py::TestClass::test_method
 ```
 
-To generate a detailed HTML coverage report:
+> `makemigrations` is NOT in the entrypoint — run it manually when you change models.
+> `migrate` runs automatically on every container start.
 
-```bash
-docker compose exec web coverage html
-```
+## API Endpoints
 
-The report will be created inside the container under the `htmlcov/` directory.
+### Auth
 
-## API Documentation
-
-The API provides the following main endpoints:
-
-### User Authentication
-
--   `/api/register/`: User registration
--   `/api/activate/<uidb64>/<token>/`: Account activation
--   `/api/login/`: User login (JWT token)
--   `/api/logout/`: User logout
--   `/api/token/refresh/`: Refresh JWT token
--   `/api/password_reset/`: Request password reset
--   `/api/password_confirm/<uidb64>/<token>/`: Confirm password reset
+- `POST /api/auth/register/` — register
+- `GET /api/auth/activate/<uidb64>/<token>/` — email activation
+- `POST /api/auth/login/` — login (sets HttpOnly JWT cookie)
+- `POST /api/auth/logout/` — logout
+- `POST /api/auth/token/refresh/` — refresh JWT
+- `POST /api/auth/password_reset/` — request password reset
+- `POST /api/auth/password_confirm/<uidb64>/<token>/` — confirm password reset
 
 ### Video Streaming
 
--   `/api/video/`: List all available videos
--   `/api/video/<int:movie_id>/<str:resolution>/index.m3u8`: HLS manifest for a video
--   `/api/video/<int:movie_id>/<str:resolution>/<str:segment>/`: Video segment
-
-A complete API documentation is available at `/api/`.
-
-## Key Features
-
--   Email-activated user registration
--   JWT-based authentication
--   Adaptive video streaming (HLS)
--   Support for multiple video resolutions (480p, 720p, 1080p)
--   Background processing for video transcoding
--   Redis caching for enhanced performance
-
-## Project Structure
-
-The project follows a standard Django layout with separate apps for different responsibilities:
-
--   `user_auth_app`: User authentication and management
--   `content`: Video management and streaming
--   `core`: Project settings and configuration
-
-## Development
-
-For local development:
-
-1. The Docker container is configured for auto-reloading on code changes.
-2. Modify the code in your local development environment.
-3. Changes are automatically reflected in the running container.
-
-## Note
-
-This project is intended for educational purposes and serves as an example implementation of a Django and DRF-based video streaming service.
+- `GET /api/video/` — list videos
+- `GET /api/video/<id>/<resolution>/index.m3u8` — HLS manifest
+- `GET /api/video/<id>/<resolution>/<segment>/` — video segment

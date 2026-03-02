@@ -2,6 +2,7 @@
 
 # ── Environment Variables ──────────────────────────────
 .env
+.env.prod
 .env.local
 .env.*.local
 .env.production
@@ -39,6 +40,7 @@ pip-log.txt
 pip-delete-this-directory.txt
 
 # ── Python / Django ────────────────────────────────────
+django-app/static/
 __pycache__/
 *.py[cod]
 *$py.class

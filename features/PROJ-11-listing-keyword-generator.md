@@ -1,4 +1,4 @@
-# PROJ-7: Listing & Keyword Generator
+# PROJ-11: Listing & Keyword Generator
 
 **Status:** Planned
 **Priority:** P0 (MVP)
@@ -6,7 +6,7 @@
 
 ## Overview
 
-Generate Merch by Amazon-compliant product listings (title, bullet points, description, backend keywords) for an approved idea. Accepts an optional approved design as visual input (vision AI analyzes the image and feeds a description into the listing prompt). Keywords from the Niche Keyword Bank (PROJ-14) can be injected into backend keywords with one click. Enforces MBA character limits with live counters and warnings. Output can be manually edited and copied in MBA-paste format.
+Generate Merch by Amazon-compliant product listings (title, bullet points, description, backend keywords) for an approved idea. Accepts an optional approved design as visual input (vision AI analyzes the image and feeds a description into the listing prompt). Keywords from the Niche Keyword Bank (PROJ-10) can be injected into backend keywords with one click. Enforces MBA character limits with live counters and warnings. Output can be manually edited and copied in MBA-paste format.
 
 ## User Stories
 
@@ -36,7 +36,7 @@ Generate Merch by Amazon-compliant product listings (title, bullet points, descr
 13. Vision call fails (403/404 on image URL or OpenRouter error) → fall back to slogan-only generation; log error; do not block listing creation.
 14a. If `extra_keywords` provided, they are injected into the AI generation prompt as "target SEO keywords" with MBA priority order: prioritize in title first, then bullet_1, then backend_keywords; use in other bullets/description only where natural.
 14b. After generation, `extra_keywords` are also appended (space-separated, commas stripped) to the AI-generated `backend_keywords` value; total `backend_keywords` must not exceed 500 chars after appending; truncate gracefully with snackbar warning if over limit.
-15. Frontend listing generate UI shows "Select Design" picker (only approved designs for this idea) and "Add from Keyword Bank" button (opens PROJ-14 Keyword Bank modal for the niche).
+15. Frontend listing generate UI shows "Select Design" picker (only approved designs for this idea) and "Add from Keyword Bank" button (opens PROJ-10 Keyword Bank modal for the niche).
 
 ## API Endpoints
 
@@ -78,13 +78,13 @@ Generate Merch by Amazon-compliant product listings (title, bullet points, descr
 
 ## Dependencies
 
-- PROJ-5 (Idea & Slogan Generation — idea must exist with slogan data for prompt construction)
-- PROJ-6 (Design Generation — design FK; vision input is optional)
-- PROJ-14 (Niche Keyword Bank — "Add from Keyword Bank" modal in listing UI)
+- PROJ-8 (Idea & Slogan Generation — idea must exist with slogan data for prompt construction)
+- PROJ-9 (Design Generation — design FK; vision input is optional)
+- PROJ-10 (Niche Keyword Bank — "Add from Keyword Bank" modal in listing UI)
 
 ## Implementation Notes (TBD)
 
-- Generation method: direct OpenRouter call via django-rq task in `tasks.py` (same pattern as PROJ-6).
+- Generation method: direct OpenRouter call via django-rq task in `tasks.py` (same pattern as PROJ-9).
 - Vision model for design analysis: TBD (Gemini vision model via OpenRouter, or cheaper alternative like GPT-4o-mini — decide before implementation for cost).
-- Text generation model: same as PROJ-6 or separate — TBD.
-- `worker` docker-compose service required (introduced in PROJ-6).
+- Text generation model: same as PROJ-9 or separate — TBD.
+- `worker` docker-compose service required (introduced in PROJ-9).
