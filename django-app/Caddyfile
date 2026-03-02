@@ -23,11 +23,11 @@ merch-miner.mariowinter.com {
 	}
 
 	handle /api/* {
-		reverse_proxy web:8000
+		reverse_proxy app_backend:8000
 	}
 
 	handle /admin/* {
-		reverse_proxy web:8000
+		reverse_proxy app_backend:8000
 	}
 
 	handle {
@@ -62,6 +62,6 @@ miner.mariowinter.com {
 	}
 
 	handle {
-		reverse_proxy web:8000
+		reverse_proxy app_backend:8000
 	}
 }
