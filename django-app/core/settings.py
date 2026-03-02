@@ -42,9 +42,9 @@ else:
         'http://localhost:5173',
     ]
 CORS_ALLOW_CREDENTIALS = True
-CSRF_COOKIE_SAMESITE = None
+CSRF_COOKIE_SAMESITE = None if not DEBUG else 'Lax'
 CSRF_COOKIE_SECURE = not DEBUG
-SESSION_COOKIE_SAMESITE = None
+SESSION_COOKIE_SAMESITE = None if not DEBUG else 'Lax'
 SESSION_COOKIE_SECURE = not DEBUG
 
 # Custom user model here

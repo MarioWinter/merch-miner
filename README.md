@@ -57,8 +57,7 @@ merch-miner/
 │   ├── core/             settings, URLs, WSGI
 │   ├── user_auth_app/    custom User model, JWT auth, OAuth2
 │   ├── content/          video management, HLS streaming
-│   ├── docker-compose.yml        base services (db, redis, worker)
-│   ├── docker-compose.dev.yml    dev: runserver + volume mount
+│   ├── docker-compose.yml        base + dev services (db, redis, worker, web, frontend)
 │   ├── docker-compose.prod.yml   prod: gunicorn + caddy
 │   ├── Caddyfile                 static/media serving + reverse proxy
 │   ├── backend.Dockerfile
@@ -99,10 +98,11 @@ npm run dev       # http://localhost:5173
 ### Dev
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml up --build
+docker compose up --build
 ```
 
 - Django `runserver` on `http://localhost:8000`
+- Vite dev server on `http://localhost:5173`
 - Code changes hot-reload via volume mount
 - Admin: `http://localhost:8000/admin/`
 
@@ -115,12 +115,11 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build
 - gunicorn on port 8000 (internal)
 - Caddy on ports 80/443 (public)
 - Static files served by Caddy from `/srv/static/`
-- Replace `:80` in `Caddyfile` with your domain for automatic TLS
 
 ### Stop
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.dev.yml down
+docker compose down
 ```
 
 ---
@@ -129,28 +128,23 @@ docker compose -f docker-compose.yml -f docker-compose.dev.yml down
 
 ```bash
 # Run all tests
-docker compose -f docker-compose.yml -f docker-compose.dev.yml exec web pytest
+docker compose exec web pytest
 
 # Test coverage
-docker compose -f docker-compose.yml -f docker-compose.dev.yml exec web \
-  coverage run -m pytest && \
-  docker compose -f docker-compose.yml -f docker-compose.dev.yml exec web coverage report
+docker compose exec web coverage run -m pytest && \
+  docker compose exec web coverage report
 
 # Create migrations (after adding/changing models)
-docker compose -f docker-compose.yml -f docker-compose.dev.yml exec web \
-  python manage.py makemigrations
+docker compose exec web python manage.py makemigrations
 
 # Apply migrations manually
-docker compose -f docker-compose.yml -f docker-compose.dev.yml exec web \
-  python manage.py migrate
+docker compose exec web python manage.py migrate
 
 # Create superuser manually
-docker compose -f docker-compose.yml -f docker-compose.dev.yml exec web \
-  python manage.py createsuperuser
+docker compose exec web python manage.py createsuperuser
 
 # Single test
-docker compose -f docker-compose.yml -f docker-compose.dev.yml exec web \
-  pytest path/to/test_file.py::TestClass::test_method
+docker compose exec web pytest path/to/test_file.py::TestClass::test_method
 ```
 
 > **Note:** `makemigrations` is NOT in the entrypoint. Run it manually when you change models.
