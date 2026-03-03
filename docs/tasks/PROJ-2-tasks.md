@@ -1,6 +1,6 @@
 # PROJ-2 Tasks — Frontend Docker Integration
 
-## Status: In Progress
+## Status: Deployed
 
 ## Tasks
 

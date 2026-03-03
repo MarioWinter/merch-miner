@@ -3,9 +3,9 @@
 ## Secrets Management
 - NEVER commit secrets, API keys, or credentials to git
 - Frontend: use `.env` / `.env.local` (Vite reads both; `.env.local` overrides)
-- Backend: use `django-app/.env` (copied from `env/.env.template`)
+- Backend: use `django-app/.env` (copied from `django-app/.env.template`)
 - Use `VITE_` prefix ONLY for values safe to expose in the browser
-- Document all required env vars in `env/.env.template` with dummy values
+- Document all required env vars in `django-app/.env.template` with dummy values
 
 ## Input Validation
 - Validate ALL user input on the server side with DRF serializers
@@ -26,4 +26,4 @@
 ## Code Review Triggers
 - Any changes to Django permission classes require explicit user approval
 - Any changes to authentication flow require explicit user approval
-- Any new environment variables must be documented in `env/.env.template`
+- Any new environment variables must be documented in `django-app/.env.template`

@@ -1,6 +1,6 @@
 # PROJ-1: User Auth (Email/Password + Google OAuth2)
 
-**Status:** In Review
+**Status:** Deployed
 **Priority:** P0 (MVP)
 **Created:** 2026-02-27
 
@@ -56,7 +56,7 @@ None — this is the root dependency for all other features.
 - `allauth.socialaccount.providers.google` added to `INSTALLED_APPS`
 - Callback URL: `https://{domain}/api/auth/google/callback/`
 - On social callback: check if email exists → link accounts; if new → auto-register + auto-activate + issue JWT cookie → redirect to `/` (frontend)
-- `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` must be added to `env/.env.template`
+- `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` must be added to `.env.template`
 
 ---
 

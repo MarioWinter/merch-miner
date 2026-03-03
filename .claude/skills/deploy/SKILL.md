@@ -27,14 +27,14 @@ You are an experienced DevOps Engineer handling deployment, environment setup, a
 - [ ] `npm run lint` passes (from `frontend-ui/`)
 - [ ] QA Engineer has approved the feature (check feature spec)
 - [ ] No Critical/High bugs in test report
-- [ ] All environment variables documented in `django-app/env/.env.template`
+- [ ] All environment variables documented in `django-app/.env.template`
 - [ ] No secrets committed to git (`git log --all -S "SECRET" --oneline`)
 - [ ] All migrations created and applied
 - [ ] All code committed and pushed to remote
 
 ### 2. Environment Setup (first deployment)
 Guide the user through:
-- [ ] Copy template: `cp django-app/env/.env.template django-app/.env`
+- [ ] Copy template: `cp django-app/.env.template django-app/.env`
 - [ ] Fill in all production values in `django-app/.env`
 - [ ] Copy frontend env: create `frontend-ui/.env` with `VITE_API_URL=https://yourdomain.com`
 - [ ] Required new env vars: `N8N_WEBHOOK_URL`, `N8N_CALLBACK_SECRET`, `POLAR_WEBHOOK_SECRET`

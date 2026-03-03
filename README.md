@@ -42,7 +42,7 @@ Compresses the full creative pipeline — niche research → AI designs → publ
 | Auth | django-allauth (email + Google OAuth2) |
 | Database | PostgreSQL 16 (self-hosted Supabase) |
 | Queue | Redis 7 + django-rq |
-| Background tasks | FFmpeg (HLS transcoding), n8n webhooks |
+| Background tasks | n8n webhooks, design generation (django-rq) |
 | Proxy | Caddy (prod) |
 | Infra | Docker Compose |
 
@@ -78,7 +78,7 @@ merch-miner/
 ### 1. Environment
 
 ```bash
-cp django-app/env/.env.template django-app/.env
+cp django-app/.env.template django-app/.env
 # fill in DB_NAME, DB_USER, DB_PASSWORD, SECRET_KEY, etc.
 ```
 
@@ -178,8 +178,8 @@ npm run preview    # Preview production build
 
 | ID | Feature | Priority | Status |
 |----|---------|----------|--------|
-| PROJ-1 | User Auth (Email + Google OAuth2) | P0 | In Progress |
-| PROJ-2 | Frontend Docker Integration | P0 | In Progress |
+| PROJ-1 | User Auth (Email + Google OAuth2) | P0 | Deployed |
+| PROJ-2 | Frontend Docker Integration | P0 | Deployed |
 | PROJ-3 | CI/CD & DevOps Setup | P0 | Planned |
 | PROJ-4 | Workspace & Membership | P0 | Planned |
 | PROJ-5 | Niche List | P0 | Planned |

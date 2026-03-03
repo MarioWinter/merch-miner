@@ -60,7 +60,7 @@
 - Input validation: `serializer.is_valid()` is first line of defense
 
 ## Environment
-- Env vars template: `django-app/env/.env.template`
+- Env vars template: `django-app/.env.template`
 - Copy to `django-app/.env` before running Docker
 - Never commit `.env` to git
 - Required new vars: `N8N_WEBHOOK_URL`, `N8N_CALLBACK_SECRET`, `POLAR_WEBHOOK_SECRET`

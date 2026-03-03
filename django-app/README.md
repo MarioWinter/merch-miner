@@ -21,7 +21,7 @@ Django DRF API for the Merch Miner POD Business OS.
 ## Setup
 
 ```bash
-cp env/.env.template .env
+cp .env.template .env
 # fill in DB_NAME, DB_USER, DB_PASSWORD, SECRET_KEY, GOOGLE_CLIENT_ID, etc.
 ```
 
@@ -94,8 +94,3 @@ docker compose exec web pytest path/to/test_file.py::TestClass::test_method
 - `POST /api/auth/password_reset/` — request password reset
 - `POST /api/auth/password_confirm/<uidb64>/<token>/` — confirm password reset
 
-### Video Streaming
-
-- `GET /api/video/` — list videos
-- `GET /api/video/<id>/<resolution>/index.m3u8` — HLS manifest
-- `GET /api/video/<id>/<resolution>/<segment>/` — video segment

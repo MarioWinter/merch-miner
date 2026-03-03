@@ -22,8 +22,8 @@ Eliminates spreadsheet chaos and tool-switching by connecting niche data, AI-gen
 
 | Priority | Feature | Status |
 |----------|---------|--------|
-| P0 (MVP) | PROJ-1: User Auth (Email + Google OAuth2) | In Progress |
-| P0 (MVP) | PROJ-2: Frontend Docker Integration | In Progress |
+| P0 (MVP) | PROJ-1: User Auth (Email + Google OAuth2) | Deployed |
+| P0 (MVP) | PROJ-2: Frontend Docker Integration | Deployed |
 | P0 (MVP) | PROJ-3: CI/CD & DevOps Setup | Planned |
 | P0 (MVP) | PROJ-4: Workspace & Membership | Planned |
 | P0 (MVP) | PROJ-5: Niche List | Planned |

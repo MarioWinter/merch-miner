@@ -96,10 +96,14 @@ Two scoped goals:
 ---
 
 ## Unresolved Questions
-- Production server IP/domain (needed for `SERVER_HOST` secret + Google OAuth redirect URI)
 - SSH username on production server
 - App path on server (`/opt/app` assumed — confirm)
 - Production `DATABASE_URL` connection string
+
+## Known Production Details
+- Domain: `merch-miner.mariowinter.com` (frontend) / `miner.mariowinter.com` (alias)
+- Server manually deployed — Caddyfile uses `:80` (HTTP), TLS handled upstream or via Caddy auto-TLS
+- `merch_net` external Docker network used in prod compose
 
 ---
 

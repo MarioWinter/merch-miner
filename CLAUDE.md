@@ -14,7 +14,7 @@
 
 AI-powered development workflow template with two independently runnable projects:
 - `frontend-ui/` — React 19 + Vite + TypeScript SPA
-- `django-app/` — Django 5.1 + DRF REST API
+- `django-app/` — Django 5.2 + DRF REST API
 
 ## Tech Stack
 
@@ -31,15 +31,14 @@ AI-powered development workflow template with two independently runnable project
 - **Tests** Vitest + Testing Library
 
 ### Backend
-- Django + DRF
-- **Auth** django-allauth — multi-provider social login
-- **Database** PostgreSQL (primary) · Supabase (self-hosted, prototyping)
-- **AI / Agents** LangChain + LangGraph · n8n (self-hosted, agent flows)
-- **Queue** Redis + django-rq
-- **Media** FFmpeg — HLS video transcoding
-- **Payment** Polar.sh (primary) · Paddle (fallback) — subscriptions · MoR · tax compliance
-- **Proxy** Caddy (reverse proxy + HTTPS) → Traefik (migration path)
-- **Infra** Docker Compose — `web` · `postgres` · `redis` · `worker` · `supabase` · `n8n`
+- Django 5.2 + DRF
+- **Auth** django-allauth — email + Google OAuth2
+- **Database** PostgreSQL 16 (self-hosted Supabase, shared with n8n)
+- **AI / Agents** n8n (self-hosted, niche research + slogan gen) · OpenRouter (design gen)
+- **Queue** Redis 7 + django-rq
+- **Payment** Polar.sh — subscriptions (post-MVP)
+- **Proxy** Caddy (reverse proxy + HTTPS)
+- **Infra** Docker Compose — `web` · `db` · `redis` · `worker` · `caddy`
 
 
 
@@ -105,12 +104,9 @@ Placement rules: global reuse → top-level dirs; feature-local code stays insid
 - **`user_auth_app/`** — custom User model, JWT auth, email-based activation, password reset
   - `api/authentication.py` — `CookieJWTAuthentication` (reads JWT from HttpOnly cookie)
   - `api/views.py` — register, login, logout, token refresh, password reset
-- **`content/`** — video management + HLS streaming
-  - `api/tasks.py` — django-rq background jobs (FFmpeg transcoding)
-  - `api/views.py` — video list, HLS manifest/segment streaming
 
 ### Background Jobs
-django-rq processes video transcoding async. Redis serves as both cache and job broker. Queue config in `settings.py → RQ_QUEUES`.
+django-rq processes async tasks (n8n triggers, design generation). Redis serves as both cache and job broker. Queue config in `settings.py → RQ_QUEUES`.
 
 ## Key Conventions
 
@@ -118,7 +114,7 @@ django-rq processes video transcoding async. Redis serves as both cache and job 
 - **Commits:** `feat(PROJ-X): description`, `fix(PROJ-X): description`
 - **MUI first:** Check MUI before building any UI component
 - **Single Responsibility:** One feature per spec file
-- **Env vars:** Copy `django-app/env/.env.template` → `django-app/.env` before running Docker
+- **Env vars:** Copy `django-app/.env.template` → `django-app/.env` before running Docker
 - **Human-in-the-loop:** All workflows have user approval checkpoints
 
 ## Development Workflow (Skills)
