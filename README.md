@@ -111,12 +111,19 @@ docker compose up --build
 ### Prod
 
 ```bash
+# Once on server (create external network for host-level proxy routing)
+docker network create merch_net
+
+# Set VITE_API_URL in django-app/.env (baked into frontend bundle at build time)
+# VITE_API_URL=https://miner.mariowinter.com
+
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 ```
 
 - Explicit `-f` flags skip `override.yml` → no host port binding on `web`
 - gunicorn on port 8000 (internal only)
-- Caddy on ports 80/443 (public)
+- Frontend: multi-stage build → Caddy:2-alpine serves `/srv` on :80
+- Main Caddy routes via `merch_net` (no port bindings — host-level proxy handles 80/443)
 - Static files served by Caddy from `/srv/static/`
 
 ### Stop
