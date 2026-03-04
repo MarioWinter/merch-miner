@@ -54,10 +54,10 @@ npm run test:ci      # Vitest run --coverage --reporter=junit
 npm run preview      # Preview production build
 ```
 
-**Backend** (Docker required; run from `django-app/`):
+**Backend** (Docker required; run from `merch-miner/` root):
 ```bash
 # Dev — auto-loads docker-compose.override.yml (exposes ports 8000 + 5173)
-docker compose up --build       # Start all services (web, db, redis)
+docker compose up --build       # Start all services (web, db, redis, frontend)
 docker compose up               # Start without rebuild
 
 # Prod — explicit -f flags skip override.yml (no host port binding on web)

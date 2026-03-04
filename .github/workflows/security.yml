@@ -1,0 +1,56 @@
+name: Security Scan
+
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+  pull_request:
+    branches: [main]
+
+jobs:
+  bandit:
+    name: Python SAST (bandit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - run: pip install bandit
+
+      - name: Run bandit
+        run: bandit -r django-app/ -x django-app/env,django-app/.venv --severity-level medium
+
+  npm-audit:
+    name: NPM Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install
+        working-directory: frontend-ui
+        run: npm ci
+
+      - name: Audit
+        working-directory: frontend-ui
+        run: npm audit --audit-level=high
+
+  trivy:
+    name: Container Scan (trivy)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ghcr.io/${{ github.repository }}/backend:latest
+          format: table
+          severity: HIGH,CRITICAL
+          exit-code: '1'
