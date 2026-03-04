@@ -24,7 +24,9 @@ services:
       context: ../frontend-ui
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: "https://miner.mariowinter.com"
+        VITE_API_URL: ${VITE_API_URL}
+      env_file:
+        - ../frontend-ui/.env
     container_name: app_frontend_build
     volumes:
       - frontend_dist:/srv/frontend

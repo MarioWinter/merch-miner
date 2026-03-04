@@ -15,6 +15,14 @@
         header Cache-Control "public, max-age=86400"
     }
 
+    handle /api/* {
+        reverse_proxy app_backend:8000
+    }
+
+    handle /admin/* {
+        reverse_proxy app_backend:8000
+    }
+
     handle {
         root * /srv/frontend
         try_files {path} /index.html
