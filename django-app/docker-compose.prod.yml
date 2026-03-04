@@ -24,7 +24,7 @@ services:
       context: ../frontend-ui
       dockerfile: Dockerfile
       args:
-        VITE_API_URL: ""
+        VITE_API_URL: "https://miner.mariowinter.com"
     container_name: app_frontend_build
     volumes:
       - frontend_dist:/srv/frontend
@@ -33,8 +33,6 @@ services:
   caddy:
     image: caddy:2-alpine
     container_name: app_caddy
-    ports:
-      - "127.0.0.1:8080:80"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - static_volume:/srv/static:ro

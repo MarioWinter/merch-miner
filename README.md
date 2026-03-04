@@ -119,37 +119,41 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 ```
 
 - Explicit `-f` flags skip `override.yml` → no host port binding on `web`
-- gunicorn on port 8000 (internal only)
-- In-Docker Caddy binds to `127.0.0.1:8080` (HTTP) — external reverse proxy forwards here
-- Static files + SPA served by Caddy from `/srv/static/` and `/srv/frontend/`
+- gunicorn on port 8000 (internal only, reachable via `merch_net` as `app_backend:8000`)
+- Internal Caddy (`app_caddy`) serves only the React SPA + static/media files
 - `merch_net` is an external Docker network; create it once before first deploy
 
-#### External Caddy configuration
+#### Dual-domain routing via external Caddy
 
-If you have a server-level Caddy acting as the HTTPS terminator, add a site block that proxies to the in-Docker Caddy:
+The gateway Caddy (in a separate Docker project on `merch_net`) routes two domains:
 
 ```Caddyfile
+# API / admin — straight to gunicorn
 miner.mariowinter.com {
-    reverse_proxy localhost:8080
+    reverse_proxy app_backend:8000
 }
-```
 
-If the external Caddy runs as a Docker container in a separate Compose project, put it on `merch_net` and use the container hostname instead:
-
-```Caddyfile
-miner.mariowinter.com {
+# React SPA — to internal Caddy (serves static + SPA)
+merch-miner.mariowinter.com {
     reverse_proxy app_caddy:80
 }
 ```
 
+| URL | Container | What it serves |
+|-----|-----------|----------------|
+| `miner.mariowinter.com` | `app_backend` | Django API + admin |
+| `merch-miner.mariowinter.com` | `app_caddy` | React SPA + static/media |
+
+Frontend API calls are baked in at build time via `VITE_API_URL=https://miner.mariowinter.com`.
+
 **Verify connectivity** after the stack is up:
 
 ```bash
-# From the server host — should return "OK"
-curl -f http://localhost:8080/health
-
-# If the external Caddy is a Docker container on merch_net
+# SPA health probe — should return "OK"
 docker exec <gateway_container> wget -qO- http://app_caddy/health
+
+# Backend health probe — should return Django 404 JSON (no route at /)
+docker exec <gateway_container> wget -qO- http://app_backend:8000/api/
 ```
 
 ### Stop
