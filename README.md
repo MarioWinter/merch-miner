@@ -52,7 +52,7 @@ Compresses the full creative pipeline — niche research → AI designs → publ
 
 ```
 merch-miner/
-├── docker-compose.yml          base services (db, redis, worker, web, frontend)
+├── docker-compose.yml          base services (redis, worker, web, frontend) — no db container
 ├── docker-compose.override.yml dev: host port bindings (auto-loaded, git-tracked)
 ├── docker-compose.prod.yml     prod: gunicorn + caddy (no host ports on web)
 ├── Caddyfile                   reverse proxy config (root-level Caddy service)
@@ -68,6 +68,7 @@ merch-miner/
 ├── features/             feature specs (PROJ-X-name.md)
 ├── docs/
 │   ├── PRD.md
+│   ├── supabase-db-setup.md   ← Supabase DB one-time setup guide
 │   └── tasks/
 └── CLAUDE.md             AI workflow instructions
 ```
@@ -76,14 +77,26 @@ merch-miner/
 
 ## Setup
 
-### 1. Environment
+### 1. Supabase DB (one-time)
+
+Django connects to the Supabase PostgreSQL instance from the `localai` stack — no local `db` container.
+
+**First-time setup required:** see [`docs/supabase-db-setup.md`](docs/supabase-db-setup.md) for the full step-by-step guide.
+
+Summary:
+1. Expose port 5432 in the localai stack (`docker-compose.override.yml`)
+2. Create schema `merch_miner` + user `merch_miner_user` in Supabase (SQL in the guide)
+3. Set `DB_PASSWORD` in `django-app/.env`
+
+### 2. Environment
 
 ```bash
 cp django-app/.env.template django-app/.env
-# fill in DB_NAME, DB_USER, DB_PASSWORD, SECRET_KEY, etc.
+# Required: DB_PASSWORD, SECRET_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, EMAIL_*
+# DB_HOST, DB_USER, DB_NAME, DB_SCHEMA already pre-filled in template
 ```
 
-### 2. Frontend
+### 3. Frontend
 
 ```bash
 cd frontend-ui
@@ -224,8 +237,9 @@ All workflow phases require explicit user approval before proceeding.
 
 ## Key Constraints
 
+- **Database:** no local `db` container — Django connects to Supabase PostgreSQL (`localai` stack) via `host.docker.internal:5432`, schema `merch_miner`
+- n8n + Django share the same Supabase PostgreSQL instance (n8n: `public` schema, Django: `merch_miner` schema)
 - Workspace isolation enforced at ORM level on every protected endpoint
-- n8n + Django share the same Supabase PostgreSQL instance
 - `makemigrations` runs automatically in the entrypoint; run manually only to generate files for commit
 - OpenRouter API key must be rotated before PROJ-9 (currently hardcoded in n8n workflow JSON)
 - `worker` service handles all background jobs via django-rq
