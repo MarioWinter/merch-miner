@@ -52,17 +52,18 @@ Compresses the full creative pipeline — niche research → AI designs → publ
 
 ```
 merch-miner/
+├── docker-compose.yml          base services (db, redis, worker, web, frontend)
+├── docker-compose.override.yml dev: host port bindings (auto-loaded, git-tracked)
+├── docker-compose.prod.yml     prod: gunicorn + caddy (no host ports on web)
+├── Caddyfile                   reverse proxy config (root-level Caddy service)
 ├── frontend-ui/          React + Vite SPA
+│   └── Caddyfile         SPA static serving (prod frontend container)
 ├── django-app/           Django DRF API
 │   ├── core/             settings, URLs, WSGI
 │   ├── user_auth_app/    custom User model, JWT auth, OAuth2
-│   ├── content/          video management, HLS streaming
-│   ├── docker-compose.yml          base services (db, redis, worker, web, frontend)
-│   ├── docker-compose.override.yml dev: host port bindings (auto-loaded, git-tracked)
-│   ├── docker-compose.prod.yml     prod: gunicorn + caddy (no host ports on web)
-│   ├── Caddyfile                 static/media serving + reverse proxy
+│   ├── content/          legacy models (not in MVP)
 │   ├── backend.Dockerfile
-│   ├── backend.entrypoint.sh     DB wait → migrate → superuser → exec
+│   ├── backend.entrypoint.sh     DB wait → collectstatic → makemigrations → migrate → superuser → exec
 │   └── worker.entrypoint.sh      DB wait → exec
 ├── features/             feature specs (PROJ-X-name.md)
 ├── docs/
@@ -94,7 +95,7 @@ npm run dev       # http://localhost:5173
 
 ## Backend — Docker Commands
 
-> All commands run from `django-app/`
+> All commands run from repo root (`merch-miner/`)
 
 ### Dev
 
@@ -122,9 +123,9 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 
 - Explicit `-f` flags skip `override.yml` → no host port binding on `web`
 - gunicorn on port 8000 (internal only)
-- Frontend: multi-stage build → Caddy:2-alpine serves `/srv` on :80
-- Main Caddy routes via `merch_net` (no port bindings — host-level proxy handles 80/443)
-- Static files served by Caddy from `/srv/static/`
+- Frontend: multi-stage build → `frontend-ui/Caddyfile` serves SPA from `/srv` on :80
+- Root `Caddyfile` Caddy service: reverse proxy to web + static/media, routes via `merch_net`
+- No host port bindings — host-level proxy handles 80/443
 
 ### Stop
 
@@ -161,8 +162,8 @@ docker compose exec web python manage.py createsuperuser
 docker compose exec web pytest path/to/test_file.py::TestClass::test_method
 ```
 
-> **Note:** `makemigrations` is NOT in the entrypoint. Run it manually when you change models.
-> `migrate` runs automatically on every container start.
+> **Note:** `makemigrations` AND `migrate` both run automatically on every container start (via `backend.entrypoint.sh`).
+> Run `makemigrations` manually only to generate migration files before committing them.
 
 ---
 
@@ -225,6 +226,6 @@ All workflow phases require explicit user approval before proceeding.
 
 - Workspace isolation enforced at ORM level on every protected endpoint
 - n8n + Django share the same Supabase PostgreSQL instance
-- `makemigrations` is manual — never runs automatically in the entrypoint
+- `makemigrations` runs automatically in the entrypoint; run manually only to generate files for commit
 - OpenRouter API key must be rotated before PROJ-9 (currently hardcoded in n8n workflow JSON)
 - `worker` service handles all background jobs via django-rq
