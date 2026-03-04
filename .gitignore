@@ -7,6 +7,8 @@
 .env.*.local
 .env.production
 .DS_Store
+n8n-workflow/
+/n8n-workflow/
 
 # ── Dependencies ───────────────────────────────────────
 node_modules/
