@@ -111,13 +111,46 @@ docker compose up --build
 ### Prod
 
 ```bash
+# 1. Create the shared Docker network (once per server)
+docker network create merch_net
+
+# 2. Start all services
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 ```
 
 - Explicit `-f` flags skip `override.yml` → no host port binding on `web`
 - gunicorn on port 8000 (internal only)
-- Caddy on ports 80/443 (public)
-- Static files served by Caddy from `/srv/static/`
+- In-Docker Caddy binds to `127.0.0.1:8080` (HTTP) — external reverse proxy forwards here
+- Static files + SPA served by Caddy from `/srv/static/` and `/srv/frontend/`
+- `merch_net` is an external Docker network; create it once before first deploy
+
+#### External Caddy configuration
+
+If you have a server-level Caddy acting as the HTTPS terminator, add a site block that proxies to the in-Docker Caddy:
+
+```Caddyfile
+miner.mariowinter.com {
+    reverse_proxy localhost:8080
+}
+```
+
+If the external Caddy runs as a Docker container in a separate Compose project, put it on `merch_net` and use the container hostname instead:
+
+```Caddyfile
+miner.mariowinter.com {
+    reverse_proxy app_caddy:80
+}
+```
+
+**Verify connectivity** after the stack is up:
+
+```bash
+# From the server host — should return "OK"
+curl -f http://localhost:8080/health
+
+# If the external Caddy is a Docker container on merch_net
+docker exec <gateway_container> wget -qO- http://app_caddy/health
+```
 
 ### Stop
 
