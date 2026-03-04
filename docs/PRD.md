@@ -38,6 +38,7 @@ Eliminates spreadsheet chaos and tool-switching by connecting niche data, AI-gen
 | P1 | PROJ-14: Team Kanban | Planned |
 | P2 | PROJ-15: Analytics & Reporting | Planned |
 | P2 | PROJ-16: Amazon Product Scraper (Scrapy) | Planned |
+| P0 (MVP) | PROJ-17: Docker Restructure (Root Compose, Frontend Container, Caddy Fix) | Planned |
 
 ## Success Metrics
 
