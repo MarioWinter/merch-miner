@@ -28,8 +28,7 @@
 | PROJ-14 | Team Kanban | Planned | [spec](PROJ-14-team-kanban.md) | 2026-02-27 |
 | PROJ-15 | Analytics & Reporting | Planned | [spec](PROJ-15-analytics-reporting.md) | 2026-02-27 |
 | PROJ-16 | Amazon Product Scraper (Scrapy) | Planned | [spec](PROJ-16-amazon-product-scraper.md) | 2026-02-27 |
-| PROJ-17 | Docker Restructure (Root Compose, Frontend Container, Caddy Fix) | Planned | [spec](PROJ-17-docker-restructure.md) | 2026-03-04 |
 
 <!-- Add features above this line -->
 
-## Next Available ID: PROJ-18
+## Next Available ID: PROJ-17
