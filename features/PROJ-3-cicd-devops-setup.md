@@ -1,6 +1,6 @@
 # PROJ-3: CI/CD & DevOps Setup
 
-## Status: Planned
+## Status: In Progress
 **Created:** 2026-02-28
 **Last Updated:** 2026-03-04
 
@@ -181,7 +181,145 @@ Three scoped goals:
 ---
 
 ## Tech Design (Solution Architect)
-_To be added by /architecture_
+
+### Overview
+PROJ-3 has three independent but sequentially ordered workstreams. All are infrastructure/DevOps — no frontend UI components or new Django apps are added.
+
+```
+Workstream A: Docker Restructure     (prerequisite for B + C)
+Workstream B: PROJ-1 Verification    (prerequisite for C)
+Workstream C: CI/CD GitHub Actions   (runs last)
+```
+
+---
+
+### A — Docker Restructure
+
+#### Service Architecture (Prod)
+
+```
+Internet
+   │
+   ▼
+Caddy (miner.mariowinter.com  :80/:443)
+   ├── /static/*  ──► Volume: static_volume  (Django collected files)
+   ├── /media/*   ──► Volume: media_volume   (user uploads)
+   ├── /api/*     ──► web:8000 (Gunicorn / Django)
+   ├── /admin/*   ──► web:8000 (Gunicorn / Django)
+   └── /*         ──► frontend:80 (Caddy serving React SPA)
+
+Internal services (no host ports exposed):
+   web:8000     ← Django + Gunicorn (3 workers)
+   frontend:80  ← Caddy serving built React dist
+   db:5432      ← PostgreSQL 16
+   redis:6379   ← Redis 7
+   worker       ← django-rq background jobs
+```
+
+#### Service Architecture (Dev)
+
+```
+localhost:5173  ──► frontend container (Vite dev server + HMR)
+                      └── /api/*  ──► proxy ──► localhost:8000
+                      └── /admin/* ──► proxy ──► localhost:8000
+localhost:8000  ──► web container (Django runserver)
+```
+Dev has no Caddy. Vite's built-in proxy handles API routing. Django's `DEBUG=True` serves static files directly.
+
+#### File Layout After Restructure
+
+```
+merch-miner/                         ← All compose commands run from here
+├── docker-compose.yml               ← Base: 5 services (db, redis, worker, web, frontend)
+├── docker-compose.override.yml      ← Dev: expose ports 8000 + 5173 to localhost
+├── docker-compose.prod.yml          ← Prod: gunicorn, frontend Caddy, main Caddy, merch_net
+├── Caddyfile                        ← Main reverse proxy (domain, routing, TLS)
+├── django-app/
+│   ├── backend.Dockerfile           ← unchanged
+│   ├── backend.entrypoint.sh        ← unchanged (runs collectstatic + migrate)
+│   └── .env                         ← secrets (not in git)
+└── frontend-ui/
+    ├── Dockerfile                   ← Multi-stage: Node build → Caddy serve
+    ├── Caddyfile                    ← Frontend-only: SPA fallback + cache headers
+    └── Dockerfile.dev               ← unchanged (Vite dev server)
+```
+
+#### Why Caddy for Frontend (not nginx)?
+Caddy is already the main reverse proxy. Using `caddy:2-alpine` for the frontend serving container keeps the toolchain uniform — one mental model, one config language. nginx would add a second config syntax for no benefit.
+
+#### Why One Main Caddy (not separate per service)?
+`miner.mariowinter.com` is a single domain. One Caddy handles TLS termination, static file serving, and proxying — simpler ops, fewer moving parts. TLS is automatic via ACME (Let's Encrypt).
+
+#### Why `VITE_API_URL=""`?
+Frontend and backend share the same domain via Caddy. Axios uses relative paths (`/api/...`), which resolve to `miner.mariowinter.com/api/...` in the browser. No CORS headers needed between frontend and backend.
+
+---
+
+### B — PROJ-1 Verification
+
+No new files. Verification steps:
+1. Run existing migrations to confirm allauth + sites tables apply cleanly
+2. Add Google OAuth credentials to `django-app/.env`
+3. Create Social Application record via Django Admin
+4. Manual smoke test of OAuth redirect
+
+---
+
+### C — CI/CD Pipeline
+
+#### Workflow Trigger Map
+
+```
+Any push / PR to main
+   └── ci.yml
+         ├── backend-tests  (pytest, migrate --check, ruff)
+         └── frontend-tests (lint, test:ci, build)
+
+Merge to main (push)
+   └── docker-publish.yml
+         └── Build + push backend image to GHCR
+               └── on success → deploy.yml
+                     └── SSH to server: docker compose pull + up -d
+
+Every Monday 9am UTC + every PR to main
+   └── security.yml
+         ├── bandit (Django SAST)
+         ├── npm audit (frontend deps)
+         └── trivy (container scan — schedule only)
+```
+
+#### Registry
+GitHub Container Registry (GHCR) — free, integrated with GitHub permissions, no separate account.
+
+#### Image Tags
+- `latest` — always points to most recent `main` merge
+- `sha-<commit>` — immutable tag for rollbacks
+
+#### Secrets Required (6 total)
+
+| Secret | Used by |
+|--------|---------|
+| `SECRET_KEY` | CI backend tests |
+| `DATABASE_URL` | CI backend tests |
+| `VITE_API_URL` | CI frontend build |
+| `SERVER_HOST` | deploy.yml SSH |
+| `SERVER_USER` | deploy.yml SSH |
+| `SERVER_SSH_KEY` | deploy.yml SSH |
+
+---
+
+### Data Storage
+No new database tables. No new Django models. No frontend state changes. This is pure infrastructure.
+
+### Dependencies / Tools
+| Tool | Purpose |
+|------|---------|
+| `caddy:2-alpine` | Frontend SPA serving + main reverse proxy |
+| GitHub Actions | CI/CD automation (free tier) |
+| GHCR | Docker image registry |
+| `bandit` | Python SAST scanner |
+| `trivy` | Container vulnerability scanner |
+| `ruff` | Python linter (already in pyproject.toml) |
 
 ## QA Test Results
 _To be added by /qa_
