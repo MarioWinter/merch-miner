@@ -77,26 +77,23 @@ merch-miner/
 
 ## Setup
 
-### 1. Supabase DB (one-time)
-
-Django connects to the Supabase PostgreSQL instance from the `localai` stack — no local `db` container.
-
-**First-time setup required:** see [`docs/supabase-db-setup.md`](docs/supabase-db-setup.md) for the full step-by-step guide.
-
-Summary:
-1. Expose port 5432 in the localai stack (`docker-compose.override.yml`)
-2. Create schema `merch_miner` + user `merch_miner_user` in Supabase (SQL in the guide)
-3. Set `DB_PASSWORD` in `django-app/.env`
-
-### 2. Environment
+### First Time
 
 ```bash
+# 1. Copy and fill in credentials
 cp django-app/.env.template django-app/.env
-# Required: DB_PASSWORD, SECRET_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, EMAIL_*
-# DB_HOST, DB_USER, DB_NAME, DB_SCHEMA already pre-filled in template
+# Set DB_PASSWORD, SECRET_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, EMAIL_*
+
+# 2. One-time DB setup (idempotent — safe to re-run)
+./scripts/init-db.sh
+
+# 3. Start the stack
+docker compose up --build
 ```
 
-### 3. Frontend
+> Full DB details: [`docs/supabase-db-setup.md`](docs/supabase-db-setup.md)
+
+### Frontend (standalone)
 
 ```bash
 cd frontend-ui
@@ -237,7 +234,7 @@ All workflow phases require explicit user approval before proceeding.
 
 ## Key Constraints
 
-- **Database:** no local `db` container — Django connects to Supabase PostgreSQL (`localai` stack) via `host.docker.internal:5432`, schema `merch_miner`
+- **Database:** no local `db` container — Django connects to Supabase PostgreSQL (`localai` stack) via shared Docker network `supabase-net` (container DNS: `supabase-db`), schema `merch_miner`
 - n8n + Django share the same Supabase PostgreSQL instance (n8n: `public` schema, Django: `merch_miner` schema)
 - Workspace isolation enforced at ORM level on every protected endpoint
 - `makemigrations` runs automatically in the entrypoint; run manually only to generate files for commit

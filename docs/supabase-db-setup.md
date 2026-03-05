@@ -52,22 +52,6 @@ docker compose up --build
 
 ---
 
-## Step 2 — Remove localai port override (one-time)
-
-Delete or comment out the port entry in `<localai-repo>/supabase/docker/docker-compose.override.yml`:
-
-```yaml
-# Remove this — port 5432 no longer needs to be exposed on the host
-services:
-  db:
-    ports:
-      - "5432:5432"   # DELETE this block
-```
-
-Network isolation replaces firewall-based port blocking.
-
----
-
 ## Django .env
 
 ```bash
