@@ -52,12 +52,13 @@ Compresses the full creative pipeline — niche research → AI designs → publ
 
 ```
 merch-miner/
-├── docker-compose.yml          base services (redis, worker, web, frontend) — no db container
+├── .env.template               single source of truth for all env vars
+├── docker-compose.yml          base services (redis, worker, web, frontend)
 ├── docker-compose.override.yml dev: host port bindings (auto-loaded, git-tracked)
-├── docker-compose.prod.yml     prod: gunicorn + caddy (no host ports on web)
-├── Caddyfile                   reverse proxy config (root-level Caddy service)
+├── docker-compose.prod.yml     prod: gunicorn + caddy
+├── Caddyfile                   app_caddy routing (miner.* → Django, merch-miner.* → SPA)
 ├── frontend-ui/          React + Vite SPA
-│   └── Caddyfile         SPA static serving (prod frontend container)
+│   └── Caddyfile         SPA static serving (prod frontend container, port 80)
 ├── django-app/           Django DRF API
 │   ├── core/             settings, URLs, WSGI
 │   ├── user_auth_app/    custom User model, JWT auth, OAuth2
@@ -65,10 +66,12 @@ merch-miner/
 │   ├── backend.Dockerfile
 │   ├── backend.entrypoint.sh     DB wait → collectstatic → makemigrations → migrate → superuser → exec
 │   └── worker.entrypoint.sh      DB wait → exec
+├── scripts/
+│   └── init-db.sh        idempotent Supabase DB setup
 ├── features/             feature specs (PROJ-X-name.md)
 ├── docs/
 │   ├── PRD.md
-│   ├── supabase-db-setup.md   ← Supabase DB one-time setup guide
+│   ├── supabase-db-setup.md
 │   └── tasks/
 └── CLAUDE.md             AI workflow instructions
 ```
@@ -77,7 +80,7 @@ merch-miner/
 
 ## Setup
 
-### First Time
+### First Time (Dev)
 
 ```bash
 # 1. Copy and fill in credentials
@@ -116,24 +119,34 @@ docker compose up --build
 - Auto-loads `docker-compose.override.yml` → exposes ports 8000 + 5173 on host
 - Django `runserver` on `http://localhost:8000`
 - Vite dev server on `http://localhost:5173`
-- Code changes hot-reload via volume mount
 - Admin: `http://localhost:8000/admin/`
 
 ### Prod
 
 ```bash
-# Once on server (create external network for host-level proxy routing)
+# Once on server — create external networks
 docker network create merch_net
 
-# Set prod values in .env (VITE_API_URL baked into frontend bundle at build time)
+# Pull, configure, deploy
+git pull
+cp .env.template .env
+# Fill .env: DEBUG=False, ALLOWED_HOSTS, CORS, FRONTEND_URL, VITE_API_URL, DB_PASSWORD, SECRET_KEY, ...
+
+./scripts/init-db.sh
+
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 ```
 
-- Explicit `-f` flags skip `override.yml` → no host port binding on `web`
-- gunicorn on port 8000 (internal only)
-- Frontend: multi-stage build → `frontend-ui/Caddyfile` serves SPA from `/srv` on :80
-- Root `Caddyfile` Caddy service: reverse proxy to web + static/media, routes via `merch_net`
-- No host port bindings — host-level proxy handles 80/443
+**Prod routing (via Haupt-Caddy → app_caddy):**
+
+| Domain | Target |
+|--------|--------|
+| `miner.mariowinter.com` | Django (API + Admin + static/media) |
+| `merch-miner.mariowinter.com` | React SPA |
+
+- No host port bindings on `web` — gunicorn on :8000 (internal only)
+- TLS handled by Haupt-Caddy (`localai` stack); `app_caddy` listens on :80 only
+- `VITE_API_URL` baked into frontend bundle at build time (from root `.env`)
 
 ### Stop
 
@@ -170,7 +183,7 @@ docker compose exec web python manage.py createsuperuser
 docker compose exec web pytest path/to/test_file.py::TestClass::test_method
 ```
 
-> **Note:** `makemigrations` AND `migrate` both run automatically on every container start (via `backend.entrypoint.sh`).
+> **Note:** `makemigrations` AND `migrate` both run automatically on every container start.
 > Run `makemigrations` manually only to generate migration files before committing them.
 
 ---
@@ -232,9 +245,10 @@ All workflow phases require explicit user approval before proceeding.
 
 ## Key Constraints
 
-- **Database:** no local `db` container — Django connects to Supabase PostgreSQL (`localai` stack) via shared Docker network `supabase-net` (container DNS: `supabase-db`), schema `merch_miner`
-- n8n + Django share the same Supabase PostgreSQL instance (n8n: `public` schema, Django: `merch_miner` schema)
+- **Env:** single `/.env` (from `/.env.template`) — no sub-directory env files
+- **Database:** no local `db` container — Django connects to Supabase PostgreSQL (`localai` stack) via `supabase-net` (container DNS: `supabase-db`), schema `merch_miner`
+- n8n + Django share same Supabase instance (n8n: `public` schema, Django: `merch_miner` schema)
 - Workspace isolation enforced at ORM level on every protected endpoint
-- `makemigrations` runs automatically in the entrypoint; run manually only to generate files for commit
+- `makemigrations` auto-runs in entrypoint; run manually only to generate files for commit
 - OpenRouter API key must be rotated before PROJ-9 (currently hardcoded in n8n workflow JSON)
 - `worker` service handles all background jobs via django-rq
