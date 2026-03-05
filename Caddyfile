@@ -14,6 +14,6 @@
         reverse_proxy web:8000
     }
     handle {
-        reverse_proxy frontend:80
+        reverse_proxy web:8000
     }
 }
