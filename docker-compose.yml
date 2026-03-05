@@ -1,0 +1,46 @@
+networks:
+  supabase-net:
+    external: true
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: app_redis
+    restart: unless-stopped
+
+  worker:
+    build:
+      context: ./django-app
+      dockerfile: backend.Dockerfile
+    container_name: app_worker
+    entrypoint: ["./worker.entrypoint.sh"]
+    command: python manage.py rqworker default
+    env_file: ./django-app/.env
+    restart: unless-stopped
+    networks:
+      - default
+      - supabase-net
+    depends_on:
+      - redis
+
+  web:
+    build:
+      context: ./django-app
+      dockerfile: backend.Dockerfile
+    container_name: app_backend
+    command: python manage.py runserver 0.0.0.0:8000
+    env_file: ./django-app/.env
+    networks:
+      - default
+      - supabase-net
+    depends_on:
+      - redis
+
+  frontend:
+    build:
+      context: ./frontend-ui
+      dockerfile: Dockerfile
+      target: dev
+    container_name: app_frontend
+    depends_on:
+      - web

@@ -1,0 +1,62 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build backend image
+        run: docker compose build web
+
+      - name: Check pending migrations
+        run: docker compose run --rm web python manage.py migrate --check
+        env:
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Run pytest
+        run: docker compose run --rm web pytest --tb=short
+        env:
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Lint (ruff)
+        run: docker compose run --rm web ruff check .
+
+  frontend:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: frontend-ui/package-lock.json
+
+      - name: Install
+        working-directory: frontend-ui
+        run: npm ci
+
+      - name: Lint
+        working-directory: frontend-ui
+        run: npm run lint
+
+      - name: Test
+        working-directory: frontend-ui
+        run: npm run test:ci
+
+      - name: Build
+        working-directory: frontend-ui
+        run: npm run build
+        env:
+          VITE_API_URL: ${{ secrets.VITE_API_URL }}

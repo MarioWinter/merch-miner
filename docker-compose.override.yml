@@ -2,6 +2,12 @@ services:
   web:
     ports:
       - "127.0.0.1:8000:8000"
+    volumes:
+      - ./django-app:/app
+
   frontend:
     ports:
       - "127.0.0.1:5173:5173"
+    volumes:
+      - ./frontend-ui:/app
+      - /app/node_modules

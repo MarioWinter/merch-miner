@@ -1,34 +1,28 @@
 services:
   web:
-    build:
-      context: .
-      dockerfile: backend.Dockerfile
     container_name: app_backend
-    command: >
-      sh -c "python manage.py collectstatic --noinput &&
-             gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 3"
-    env_file: .env
+    command: gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 3
     volumes:
       - static_volume:/app/static
       - media_volume:/app/media
     restart: unless-stopped
-    depends_on:
-      - db
-      - redis
     networks:
       - default
       - merch_net
+      - supabase-net
 
   frontend:
     build:
-      context: ../frontend-ui
+      context: ./frontend-ui
       dockerfile: Dockerfile
+      target: prod
       args:
-        VITE_API_URL: ""
-    container_name: app_frontend_build
-    volumes:
-      - frontend_dist:/srv/frontend
-    restart: "no"
+        - VITE_API_URL=${VITE_API_URL}
+    container_name: app_frontend
+    restart: unless-stopped
+    networks:
+      - default
+      - merch_net
 
   caddy:
     image: caddy:2-alpine
@@ -37,15 +31,12 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - static_volume:/srv/static:ro
       - media_volume:/srv/media:ro
-      - frontend_dist:/srv/frontend:ro
       - caddy_data:/data
       - caddy_config:/config
     restart: unless-stopped
     depends_on:
-      web:
-        condition: service_started
-      frontend:
-        condition: service_completed_successfully
+      - web
+      - frontend
     networks:
       - default
       - merch_net
@@ -53,7 +44,6 @@ services:
 volumes:
   static_volume:
   media_volume:
-  frontend_dist:
   caddy_data:
   caddy_config:
 
@@ -62,3 +52,5 @@ networks:
   merch_net:
     external: true
     name: merch_net
+  supabase-net:
+    external: true
