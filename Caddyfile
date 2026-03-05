@@ -1,4 +1,4 @@
-:80 {
+miner.mariowinter.com:80 {
     handle /static/* {
         root * /srv
         file_server
@@ -7,13 +7,11 @@
         root * /srv
         file_server
     }
-    handle /api* {
-        reverse_proxy web:8000
-    }
-    handle /admin* {
-        reverse_proxy web:8000
-    }
     handle {
         reverse_proxy web:8000
     }
+}
+
+merch-miner.mariowinter.com:80 {
+    reverse_proxy frontend:80
 }
