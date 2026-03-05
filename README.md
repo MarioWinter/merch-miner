@@ -81,7 +81,7 @@ merch-miner/
 
 ```bash
 # 1. Copy and fill in credentials
-cp django-app/.env.template django-app/.env
+cp .env.template .env
 # Set DB_PASSWORD, SECRET_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, EMAIL_*
 
 # 2. One-time DB setup (idempotent — safe to re-run)
@@ -125,9 +125,7 @@ docker compose up --build
 # Once on server (create external network for host-level proxy routing)
 docker network create merch_net
 
-# Set VITE_API_URL in django-app/.env (baked into frontend bundle at build time)
-# VITE_API_URL=https://miner.mariowinter.com
-
+# Set prod values in .env (VITE_API_URL baked into frontend bundle at build time)
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 ```
 

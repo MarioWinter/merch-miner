@@ -4,11 +4,11 @@
 set -euo pipefail
 
 SUPABASE_CONTAINER="${SUPABASE_CONTAINER:-supabase-db}"
-ENV_FILE="$(dirname "$0")/../django-app/.env"
+ENV_FILE="$(dirname "$0")/../.env"
 
 # --- Prereqs ---
 if [[ ! -f "$ENV_FILE" ]]; then
-  echo "ERROR: $ENV_FILE not found. Copy django-app/.env.template to django-app/.env first." >&2
+  echo "ERROR: $ENV_FILE not found. Copy .env.template to .env first." >&2
   exit 1
 fi
 

@@ -9,8 +9,8 @@ No host port exposure required — containers resolve `supabase-db` by name.
 
 ```bash
 # 1. Copy and fill in credentials
-cp django-app/.env.template django-app/.env
-# Set DB_USER, DB_PASSWORD (and other vars) in django-app/.env
+cp .env.template .env
+# Set DB_USER, DB_PASSWORD (and other vars) in .env
 
 # 2. Run the idempotent setup script (safe to re-run anytime)
 ./scripts/init-db.sh
@@ -55,10 +55,10 @@ docker compose up --build
 ## Django .env
 
 ```bash
-cp django-app/.env.template django-app/.env
+cp .env.template .env
 ```
 
-Set DB vars in `django-app/.env`:
+Set DB vars in `.env`:
 
 ```env
 DB_HOST=supabase-db
