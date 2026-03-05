@@ -7,10 +7,10 @@
         root * /srv
         file_server
     }
-    handle /api/* {
+    handle /api* {
         reverse_proxy web:8000
     }
-    handle /admin/* {
+    handle /admin* {
         reverse_proxy web:8000
     }
     handle {
