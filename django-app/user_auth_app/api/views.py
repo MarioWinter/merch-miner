@@ -154,29 +154,33 @@ class TokenRefreshView(APIView):
 
     def post(self, request):
         refresh_token = get_refresh_token_from_request(request)
-        
+
         if not refresh_token:
             return Response(
                 {"detail": "Refresh token not found"},
                 status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         try:
-            refresh = RefreshToken(refresh_token)
-            new_access_token = refresh.access_token
+            old_refresh = RefreshToken(refresh_token)
+            user_id = old_refresh['user_id']
+            user = User.objects.get(id=user_id)
+            old_refresh.blacklist()
+            new_refresh = RefreshToken.for_user(user)
+            new_access_token = new_refresh.access_token
         except TokenError:
             return Response(
                 {"detail": "Invalid refresh token"},
                 status=status.HTTP_401_UNAUTHORIZED
             )
-        
+
         response = Response({
             "detail": "Token refreshed",
             "access": str(new_access_token)
         }, status=status.HTTP_200_OK)
-        
-        set_jwt_cookies(response, new_access_token)
-        
+
+        set_jwt_cookies(response, new_access_token, new_refresh)
+
         return response
                 
 class LogoutView(APIView):
