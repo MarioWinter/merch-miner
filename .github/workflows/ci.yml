@@ -36,7 +36,7 @@ jobs:
 
       - name: Check pending migrations
         working-directory: django-app
-        run: python manage.py migrate --check
+        run: python manage.py makemigrations --check --dry-run
         env:
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
           DB_NAME: test_db
