@@ -4,26 +4,24 @@
 
 ---
 
-## Workstream A — Docker Restructure
+## Workstream A — Docker Restructure ✅ COMPLETE
 
 ### Root Compose Files
-- [ ] Create `docker-compose.yml` at root (base: db, redis, worker, web, frontend; updated build contexts `./django-app` + `./frontend-ui`)
-- [ ] Create `docker-compose.override.yml` at root (dev: expose `127.0.0.1:8000:8000` + `127.0.0.1:5173:5173`)
-- [ ] Create `docker-compose.prod.yml` at root (prod: gunicorn command, static/media volumes, frontend Caddy container, main Caddy service, `merch_net`)
-- [ ] Delete `django-app/docker-compose.yml`
-- [ ] Delete `django-app/docker-compose.override.yml`
-- [ ] Delete `django-app/docker-compose.prod.yml`
+- [x] `docker-compose.yml` at root (base: redis, worker, web, frontend; no local db)
+- [x] `docker-compose.override.yml` at root (dev: expose `127.0.0.1:8000:8000` + `127.0.0.1:5173:5173`)
+- [x] `docker-compose.prod.yml` at root (prod: gunicorn, static/media volumes, frontend Caddy, main Caddy, `merch_net`)
+- [x] Old `django-app/docker-compose*.yml` deleted
 
 ### Frontend Serving Container
-- [ ] Create `frontend-ui/Caddyfile` (`:80`, `root * /srv`, `try_files {path} /index.html`, `file_server`, asset cache headers)
-- [ ] Update `frontend-ui/Dockerfile` — replace alpine seed stage with `caddy:2-alpine` stage (`COPY dist → /srv`, `COPY Caddyfile`)
+- [x] `frontend-ui/Caddyfile` (`:80`, `root * /srv`, SPA fallback, asset cache headers)
+- [x] `frontend-ui/Dockerfile` — multi-stage: dev / build / prod (`caddy:2-alpine`)
 
 ### Main Caddy
-- [ ] Create root `Caddyfile` (`miner.mariowinter.com`, `/static/*` + `/media/*` from volumes, `/api/*` + `/admin/*` → `web:8000`, `/*` → `frontend:80`)
-- [ ] Delete `django-app/Caddyfile`
+- [x] Root `Caddyfile` — 2-domain: `miner.mariowinter.com:80` (API+static/media) + `merch-miner.mariowinter.com:80` (SPA)
+- [x] `django-app/Caddyfile` deleted
 
 ### Docs
-- [ ] Update `CLAUDE.md` — backend compose commands: change `run from django-app/` to `run from merch-miner/`
+- [x] `CLAUDE.md` updated — compose commands run from `merch-miner/` root
 
 ---
 
@@ -39,11 +37,24 @@
 
 ## Workstream C — GitHub Actions CI/CD
 
-- [ ] Create `.github/workflows/ci.yml` (trigger: push + PR to main; backend: pytest + migrate check + ruff; frontend: lint + test:ci + build)
-- [ ] Create `.github/workflows/docker-publish.yml` (trigger: push to main; build `django-app/backend.Dockerfile`; push to GHCR with `latest` + SHA tags; GHA layer cache)
-- [ ] Create `.github/workflows/deploy.yml` (trigger: after docker-publish success; SSH in; `docker compose pull && up -d --remove-orphans`; run migrate + collectstatic)
-- [ ] Create `.github/workflows/security.yml` (trigger: weekly Mon 9am + PR to main; bandit on `django-app/`; npm audit on `frontend-ui/`; trivy on GHCR image — schedule only)
-- [ ] Add 6 GitHub Secrets: `SECRET_KEY`, `DATABASE_URL`, `VITE_API_URL`, `SERVER_HOST`, `SERVER_USER`, `SERVER_SSH_KEY`
+### Workflow Fixes (code changes)
+- [x] Fix `ci.yml` — rewrite backend job: native Python 3.12 + GHA postgres service (removes `supabase-net` dependency, adds `ruff` install)
+- [x] Fix `deploy.yml` — correct path (`/home/dev/merch-miner`) + prod compose flags (`-f docker-compose.yml -f docker-compose.prod.yml up --build`)
+
+### Manual Setup Required
+- [ ] Add 5 GitHub Secrets to repo Settings → Secrets → Actions:
+  - `SECRET_KEY` — Django secret key (for CI backend tests)
+  - `VITE_API_URL` — `https://miner.mariowinter.com` (for CI frontend build)
+  - `SERVER_HOST` — prod server IP or hostname
+  - `SERVER_USER` — SSH username on prod server
+  - `SERVER_SSH_KEY` — SSH private key (corresponding public key must be in `~/.ssh/authorized_keys` on server)
+
+### Verification
+- [ ] Push to feature branch → `ci.yml` runs; both backend + frontend jobs pass
+- [ ] Merge to `main` → `docker-publish.yml` pushes backend image to GHCR
+- [ ] GHCR push → `deploy.yml` SSHs to `/home/dev/merch-miner` and deploys cleanly
+- [ ] `https://miner.mariowinter.com/api/` → Django API responds
+- [ ] `https://merch-miner.mariowinter.com/` → React SPA loads
 
 ---
 

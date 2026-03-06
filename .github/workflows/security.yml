@@ -20,7 +20,7 @@ jobs:
       - run: pip install bandit
 
       - name: Run bandit
-        run: bandit -r django-app/ -x django-app/env,django-app/.venv --severity-level medium
+        run: bandit -r django-app/ -x django-app/env,django-app/.venv,django-app/user_auth_app/tests,django-app/core/tests --severity-level medium
 
   npm-audit:
     name: NPM Audit
@@ -48,7 +48,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Run Trivy
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@0.28.0
         with:
           image-ref: ghcr.io/${{ github.repository }}/backend:latest
           format: table

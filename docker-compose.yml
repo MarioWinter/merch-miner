@@ -1,4 +1,6 @@
 networks:
+  # supabase-net must exist before starting this stack.
+  # Created by the localai/Supabase stack: docker network create supabase-net
   supabase-net:
     external: true
 
