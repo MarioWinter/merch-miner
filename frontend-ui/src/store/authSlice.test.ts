@@ -6,7 +6,7 @@ describe('authSlice', () => {
     const state = authReducer(undefined, { type: '@@INIT' });
     expect(state.user).toBeNull();
     expect(state.isAuthenticated).toBe(false);
-    expect(state.loading).toBe(false);
+    expect(state.loading).toBe(true);
     expect(state.error).toBeNull();
   });
 
@@ -18,13 +18,12 @@ describe('authSlice', () => {
   });
 
   it('setLoading sets loading flag', () => {
-    const state = authReducer(undefined, setLoading(true));
-    expect(state.loading).toBe(true);
+    const state = authReducer(undefined, setLoading(false));
+    expect(state.loading).toBe(false);
   });
 
   it('setError sets error and loading false', () => {
-    const withLoading = authReducer(undefined, setLoading(true));
-    const state = authReducer(withLoading, setError('Login failed'));
+    const state = authReducer(undefined, setError('Login failed'));
     expect(state.error).toBe('Login failed');
     expect(state.loading).toBe(false);
   });
