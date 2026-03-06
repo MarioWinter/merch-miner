@@ -321,7 +321,7 @@ class GoogleCallbackView(APIView):
 
         try:
             view = OAuth2CallbackView.adapter_view(CustomGoogleOAuth2Adapter)
-            response = view(request)
+            view(request)
         except ImmediateHttpResponse:
             frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
             return redirect(f"{frontend_url}/login?error=oauth_failed")

@@ -9,13 +9,12 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, IsAdminUser
 from django.http import Http404, FileResponse
 from django.conf import settings
-
-_RESOLUTION_RE = re.compile(r'^(480p|720p|1080p)$')
-_SEGMENT_RE = re.compile(r'^\d{1,6}\.ts$')
-
 from user_auth_app.api.authentication import CookieJWTAuthentication
 from .serializers import VideoUploadSerializer, VideoListSerializer, ImageUploadSerializer, ImageListSerializer
 from ..models import Video, Image
+
+_RESOLUTION_RE = re.compile(r'^(480p|720p|1080p)$')
+_SEGMENT_RE = re.compile(r'^\d{1,6}\.ts$')
 
 logger = logging.getLogger(__name__)
 

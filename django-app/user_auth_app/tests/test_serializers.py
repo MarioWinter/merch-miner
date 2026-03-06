@@ -1,6 +1,4 @@
 import pytest
-from django.core.files.uploadedfile import SimpleUploadedFile
-from rest_framework.exceptions import ValidationError
 from user_auth_app.api.serializers import (
     UserCreateSerializer, LoginSerializer, 
     PasswordResetSerializer, PasswordChangeSerializer

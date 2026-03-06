@@ -15,13 +15,13 @@ def test_video_list_authenticated_success(client):
         is_active=True
     )
     
-    video1 = Video.objects.create(
+    Video.objects.create(
         title='Test Video 1',
         description='Test Description 1',
         genre='action',
         owner=user
     )
-    video2 = Video.objects.create(
+    Video.objects.create(
         title='Test Video 2',
         description='Test Description 2',
         genre='comedy',
@@ -93,13 +93,13 @@ def test_video_list_ordering(client):
         is_active=True
     )
     
-    video1 = Video.objects.create(
+    Video.objects.create(
         title='First Video',
         description='Description 1',
         genre='action',
         owner=user
     )
-    video2 = Video.objects.create(
+    Video.objects.create(
         title='Second Video',
         description='Description 2',
         genre='comedy',
@@ -130,7 +130,7 @@ def test_video_list_thumbnail_url_generation(client):
         is_active=True
     )
     
-    video = Video.objects.create(
+    Video.objects.create(
         title='Test Video',
         description='Test Description',
         genre='action',

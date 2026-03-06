@@ -61,7 +61,7 @@ class VideoAdmin(admin.ModelAdmin):
                     return f"{size/(1024*1024):.1f} MB"
                 else:
                     return f"{size/(1024*1024*1024):.1f} GB"
-            except:
+            except Exception:
                 return "Unknown"
         return "No file"
     

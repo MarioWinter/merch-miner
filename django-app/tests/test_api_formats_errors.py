@@ -1,7 +1,6 @@
 import pytest
 from unittest.mock import patch, mock_open, Mock, MagicMock
-from django.test import TestCase
-from rest_framework.test import APITestCase, APIClient
+from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 from user_auth_app.models import User
 from content.models import Video
