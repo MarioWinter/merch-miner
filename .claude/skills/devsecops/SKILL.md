@@ -127,7 +127,7 @@ jobs:
 
 ### Workflow 2: `docker-publish.yml` — Docker Build & Push
 
-Triggers on merge to `main` (after CI passes).
+Triggers on merge to `main`. Builds **both** backend and frontend images and pushes to GHCR. Uses `GITHUB_TOKEN` (auto-provided) — no separate GHCR PAT needed here.
 
 ```yaml
 name: Docker Publish
@@ -154,6 +154,9 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
       - name: Extract metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -173,13 +176,56 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  build-and-push-frontend:
+    name: Build & Push Frontend to GHCR
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/frontend
+          tags: |
+            type=sha,prefix=,suffix=,format=short
+            type=raw,value=latest
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: frontend-ui
+          file: frontend-ui/Dockerfile
+          target: prod
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VITE_API_URL=${{ secrets.VITE_API_URL }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 ```
 
 ---
 
 ### Workflow 3: `deploy.yml` — Automatic Deployment
 
-Triggers after `docker-publish.yml` succeeds on `main`.
+Triggers after `docker-publish.yml` succeeds on `main`. SSHs to prod server, logs into GHCR with a PAT (`GHCR_TOKEN`/`GHCR_USER` secrets), syncs compose files via `git fetch+reset`, then pulls and restarts with explicit `-f` flags.
 
 ```yaml
 name: Deploy
@@ -203,14 +249,26 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
+          envs: GHCR_TOKEN,GHCR_USER
           script: |
-            cd /opt/app
-            docker compose pull
-            docker compose up -d --remove-orphans
-            docker compose exec -T web python manage.py migrate --no-input
-            docker compose exec -T web python manage.py collectstatic --no-input
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            cd /home/dev/merch-miner
+            git fetch origin main && git reset --hard origin/main
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T web python manage.py migrate --no-input
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T web python manage.py collectstatic --no-input
             echo "Deployed $(date)"
+        env:
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          GHCR_USER: ${{ secrets.GHCR_USER }}
 ```
+
+**Server setup prerequisites:**
+- App cloned at `/home/dev/merch-miner` with `origin` remote pointing to GitHub
+- `.env` file present at `/home/dev/merch-miner/.env`
+- External Docker networks created: `docker network create merch_net` and `supabase-net` (from localai stack)
+- `GHCR_TOKEN` = GitHub PAT with `read:packages` scope; `GHCR_USER` = GitHub username
 
 ---
 
@@ -292,13 +350,14 @@ Present this table to the user:
 | Secret Name | Description | Where to get it |
 |-------------|-------------|-----------------|
 | `SECRET_KEY` | Django SECRET_KEY | Your `.env` file |
-| `DATABASE_URL` | PostgreSQL connection string | Your production DB |
-| `VITE_API_URL` | Frontend API base URL | Your production domain |
+| `VITE_API_URL` | Frontend API base URL + build-arg | Your production domain |
 | `SERVER_HOST` | Production server IP/domain | Your VPS provider |
 | `SERVER_USER` | SSH username on server | Your VPS config |
 | `SERVER_SSH_KEY` | Private SSH key (PEM format) | `cat ~/.ssh/id_rsa` |
+| `GHCR_TOKEN` | GitHub PAT with `read:packages` scope | GitHub → Settings → Developer settings → PAT (classic) |
+| `GHCR_USER` | GitHub username for GHCR login | Your GitHub username |
 
-Note: `GITHUB_TOKEN` is provided automatically by GitHub — no setup needed.
+Note: `GITHUB_TOKEN` is provided automatically by GitHub (used in publish workflow) — no setup needed. `DATABASE_URL` not needed — CI uses in-runner postgres with hardcoded test credentials.
 
 ### Step 4: Verify workflow syntax
 ```bash
