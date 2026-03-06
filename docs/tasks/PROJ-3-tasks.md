@@ -39,15 +39,21 @@
 
 ### Workflow Fixes (code changes)
 - [x] Fix `ci.yml` — rewrite backend job: native Python 3.12 + GHA postgres service (removes `supabase-net` dependency, adds `ruff` install)
-- [x] Fix `deploy.yml` — correct path (`/home/dev/merch-miner`) + prod compose flags (`-f docker-compose.yml -f docker-compose.prod.yml up --build`)
+- [x] Fix `deploy.yml` — correct path (`/home/dev/merch-miner`) + prod compose flags (`-f docker-compose.yml -f docker-compose.prod.yml up -d`) + GHCR login step
+- [x] BUG-1 fixed — `.env.template` `BACKEND_IMAGE` now uses correct `ghcr.io/mariowinter/merch-miner/backend:latest`
+- [x] BUG-3 fixed — `worker` service `env_file` present in `docker-compose.prod.yml` (Docker Compose v2 merges list fields from base)
+- [x] BUG-4 fixed — `backend.entrypoint.sh` runs only `migrate`, not `makemigrations`
+- [x] BUG-8 fixed — `DJANGO_SUPERUSER_PASSWORD` commented out in `.env.template`; entrypoint skips superuser creation when unset
 
 ### Manual Setup Required
-- [ ] Add 5 GitHub Secrets to repo Settings → Secrets → Actions:
+- [ ] Add 7 GitHub Secrets to repo Settings → Secrets → Actions:
   - `SECRET_KEY` — Django secret key (for CI backend tests)
   - `VITE_API_URL` — `https://miner.mariowinter.com` (for CI frontend build)
   - `SERVER_HOST` — prod server IP or hostname
   - `SERVER_USER` — SSH username on prod server
   - `SERVER_SSH_KEY` — SSH private key (corresponding public key must be in `~/.ssh/authorized_keys` on server)
+  - `GHCR_TOKEN` — GitHub personal access token with `read:packages` scope (for server-side `docker login`)
+  - `GHCR_USER` — GitHub username for GHCR login on prod server
 
 ### Verification
 - [ ] Push to feature branch → `ci.yml` runs; both backend + frontend jobs pass

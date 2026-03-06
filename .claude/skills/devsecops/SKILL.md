@@ -26,14 +26,14 @@ You create 4 GitHub Actions workflow files in `.github/workflows/`:
 
 ### Workflow 1: `ci.yml` — Build & Test
 
-Triggers on every push and pull request to `main`.
+Triggers on every pull request to `main` (not push — publish handles main pushes separately).
+
+Uses native Python 3.12 + GHA postgres service (no Docker-in-Docker). Avoids `supabase-net` dependency on the CI runner.
 
 ```yaml
 name: CI
 
 on:
-  push:
-    branches: [main]
   pull_request:
     branches: [main]
 
@@ -41,21 +41,56 @@ jobs:
   backend:
     name: Backend Tests
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: test_db
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build and test
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install -r django-app/requirements.txt ruff
+
+      - name: Check pending migrations
         working-directory: django-app
-        run: |
-          docker compose run --rm web pytest --tb=short
-          docker compose run --rm web python manage.py migrate --check
+        run: python manage.py makemigrations --check --dry-run
         env:
           SECRET_KEY: ${{ secrets.SECRET_KEY }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DB_NAME: test_db
+          DB_USER: test
+          DB_PASSWORD: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+
+      - name: Run pytest
+        working-directory: django-app
+        run: pytest --tb=short
+        env:
+          SECRET_KEY: ${{ secrets.SECRET_KEY }}
+          DB_NAME: test_db
+          DB_USER: test
+          DB_PASSWORD: test
+          DB_HOST: localhost
+          DB_PORT: 5432
 
       - name: Lint (ruff)
-        working-directory: django-app
-        run: docker compose run --rm web ruff check .
+        run: ruff check django-app/
 
   frontend:
     name: Frontend Tests
