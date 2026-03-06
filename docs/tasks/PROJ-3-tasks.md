@@ -1,6 +1,6 @@
 # PROJ-3 Tasks — CI/CD & DevOps Setup
 
-## Status: In Progress
+## Status: Deployed
 
 ---
 
@@ -27,11 +27,11 @@
 
 ## Workstream B — PROJ-1 Verification
 
-- [ ] Run `docker compose exec web python manage.py migrate` — confirm allauth + sites migrations show `[X]`
-- [ ] Add Google OAuth Client ID + Secret to `django-app/.env`
-- [ ] Django Admin → Social Applications → create Google app linked to correct site
-- [ ] Confirm `GET /api/auth/google/` → redirects to Google OAuth consent screen
-- [ ] Run `docker compose exec web pytest` — all tests exit 0
+- [x] Run `docker compose exec web python manage.py migrate` — confirm allauth + sites migrations show `[X]`
+- [x] Add Google OAuth Client ID + Secret to `django-app/.env`
+- [x] Django Admin → Social Applications → create Google app linked to correct site
+- [x] Confirm `GET /api/auth/google/` → redirects to Google OAuth consent screen
+- [x] Run `docker compose exec web pytest` — all tests exit 0
 
 ---
 
@@ -46,7 +46,7 @@
 - [x] BUG-8 fixed — `DJANGO_SUPERUSER_PASSWORD` commented out in `.env.template`; entrypoint skips superuser creation when unset
 
 ### Manual Setup Required
-- [ ] Add 7 GitHub Secrets to repo Settings → Secrets → Actions:
+- [x] Add 7 GitHub Secrets to repo Settings → Secrets → Actions:
   - `SECRET_KEY` — Django secret key (for CI backend tests)
   - `VITE_API_URL` — `https://miner.mariowinter.com` (for CI frontend build)
   - `SERVER_HOST` — prod server IP or hostname
@@ -56,34 +56,34 @@
   - `GHCR_USER` — GitHub username for GHCR login on prod server
 
 ### Verification
-- [ ] Push to feature branch → `ci.yml` runs; both backend + frontend jobs pass
-- [ ] Merge to `main` → `docker-publish.yml` pushes backend image to GHCR
-- [ ] GHCR push → `deploy.yml` SSHs to `/home/dev/merch-miner` and deploys cleanly
-- [ ] `https://miner.mariowinter.com/api/` → Django API responds
-- [ ] `https://merch-miner.mariowinter.com/` → React SPA loads
+- [x] Push to feature branch → `ci.yml` runs; both backend + frontend jobs pass
+- [x] Merge to `main` → `docker-publish.yml` pushes backend image to GHCR
+- [x] GHCR push → `deploy.yml` SSHs to `/home/dev/merch-miner` and deploys cleanly
+- [x] `https://miner.mariowinter.com/api/` → Django API responds
+- [x] `https://merch-miner.mariowinter.com/` → React SPA loads
 
 ---
 
 ## Verification Checklist
 
 ### Docker Restructure — Dev (run from `merch-miner/`)
-- [ ] `docker compose up --build` → all 5 services start, no errors
-- [ ] `http://localhost:5173` → React app loads
-- [ ] Edit `.tsx` file → Vite HMR fires
-- [ ] `POST localhost:5173/api/auth/login/` → proxied to Django (no CORS error)
-- [ ] `http://localhost:8000/admin/` → Django Admin with CSS
+- [x] `docker compose up --build` → all 5 services start, no errors
+- [x] `http://localhost:5173` → React app loads
+- [x] Edit `.tsx` file → Vite HMR fires
+- [x] `POST localhost:5173/api/auth/login/` → proxied to Django (no CORS error)
+- [x] `http://localhost:8000/admin/` → Django Admin with CSS
 
 ### Docker Restructure — Prod (run from `merch-miner/`)
-- [ ] `docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d` → clean start
-- [ ] `https://miner.mariowinter.com/` → React SPA
-- [ ] `https://miner.mariowinter.com/admin/` → Django Admin with full CSS
-- [ ] `GET /static/admin/css/base.css` → HTTP 200, `content-type: text/css`
-- [ ] `https://miner.mariowinter.com/api/auth/login/` → JSON response
-- [ ] Navigate directly to `/login` → React app (no 404)
-- [ ] No `docker-compose*.yml` or `Caddyfile` remaining in `django-app/`
+- [x] `docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d` → clean start
+- [x] `https://miner.mariowinter.com/` → React SPA
+- [x] `https://miner.mariowinter.com/admin/` → Django Admin with full CSS
+- [x] `GET /static/admin/css/base.css` → HTTP 200, `content-type: text/css`
+- [x] `https://miner.mariowinter.com/api/auth/login/` → JSON response
+- [x] Navigate directly to `/login` → React app (no 404)
+- [x] No `docker-compose*.yml` or `Caddyfile` remaining in `django-app/`
 
 ### CI/CD
-- [ ] Push to feature branch → `ci.yml` runs and passes
-- [ ] Merge to `main` → `docker-publish.yml` pushes image to GHCR
-- [ ] GHCR push → `deploy.yml` SSHs in and deploys cleanly
-- [ ] Manual trigger `security.yml` → bandit + npm audit + trivy complete without HIGH/CRITICAL
+- [x] Push to feature branch → `ci.yml` runs and passes
+- [x] Merge to `main` → `docker-publish.yml` pushes image to GHCR
+- [x] GHCR push → `deploy.yml` SSHs in and deploys cleanly
+- [x] Manual trigger `security.yml` → bandit + npm audit + trivy complete without HIGH/CRITICAL

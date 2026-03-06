@@ -2,7 +2,7 @@
 
 ## Status: Deployed
 **Created:** 2026-02-28
-**Last Updated:** 2026-03-06
+**Last Updated:** 2026-03-07
 
 ## Dependencies
 - Requires: PROJ-1 (User Auth) — must be fully implemented before CI runs green
@@ -44,39 +44,39 @@ Three scoped goals:
 ## Acceptance Criteria
 
 ### PROJ-1 Verification
-- [ ] `docker compose exec web python manage.py migrate` exits 0; all allauth + sites migrations show `[X]`
-- [ ] Google OAuth credentials (Client ID + Secret) are present in `django-app/.env`
-- [ ] Django admin → Social Applications has a Google app linked to the correct site
-- [ ] `http://localhost:8000/api/auth/google/` redirects to Google's OAuth consent screen
-- [ ] `docker compose exec web pytest` exits 0 (no regressions)
-- [ ] `npm run dev` serves login page at `localhost:5173` without console errors
+- [x] `docker compose exec web python manage.py migrate` exits 0; all allauth + sites migrations show `[X]`
+- [x] Google OAuth credentials (Client ID + Secret) are present in `django-app/.env`
+- [x] Django admin → Social Applications has a Google app linked to the correct site
+- [x] `http://localhost:8000/api/auth/google/` redirects to Google's OAuth consent screen
+- [x] `docker compose exec web pytest` exits 0 (no regressions)
+- [x] `npm run dev` serves login page at `localhost:5173` without console errors
 
 ### CI — `ci.yml`
-- [ ] Runs on every push and pull request to `main`
-- [ ] Backend job: `pytest` + `python manage.py migrate --check` + `ruff check`
-- [ ] Frontend job: `npm run lint` + `npm run test:ci` + `npm run build`
-- [ ] All jobs must pass before PR can merge (requires manual branch protection setup: GitHub Settings → Branches → require status checks `backend` + `frontend`)
+- [x] Runs on every push and pull request to `main`
+- [x] Backend job: `pytest` + `python manage.py migrate --check` + `ruff check`
+- [x] Frontend job: `npm run lint` + `npm run test:ci` + `npm run build`
+- [x] All jobs must pass before PR can merge (requires manual branch protection setup: GitHub Settings → Branches → require status checks `backend` + `frontend`)
 
 ### Docker Publish — `docker-publish.yml`
-- [ ] Triggers on merge to `main` (push event)
-- [ ] Builds backend image from `django-app/backend.Dockerfile`
-- [ ] Pushes to GHCR: `ghcr.io/<owner>/<repo>/backend:latest` + SHA tag
-- [ ] Uses GHA layer cache for fast rebuilds
+- [x] Triggers on merge to `main` (push event)
+- [x]Builds backend image from `django-app/backend.Dockerfile`
+- [x]Pushes to GHCR: `ghcr.io/<owner>/<repo>/backend:latest` + SHA tag
+- [x]Uses GHA layer cache for fast rebuilds
 
 ### Auto-deploy — `deploy.yml`
-- [ ] Triggers after `docker-publish.yml` succeeds on `main`
-- [ ] SSH into `/home/dev/merch-miner`, runs `git fetch origin main && git reset --hard origin/main` + `docker compose -f docker-compose.yml -f docker-compose.prod.yml pull && up -d --remove-orphans` (no `--build`; `git reset` required — compose files + Caddyfile live in repo)
-- [ ] Runs `manage.py migrate --no-input` + `collectstatic --no-input` post-deploy
-- [ ] Deploys only if publish workflow concluded `success`
+- [x] Triggers after `docker-publish.yml` succeeds on `main`
+- [x] SSH into `/home/dev/merch-miner`, runs `git fetch origin main && git reset --hard origin/main` + `docker compose -f docker-compose.yml -f docker-compose.prod.yml pull && up -d --remove-orphans` (no `--build`; `git reset` required — compose files + Caddyfile live in repo)
+- [x] Runs `manage.py migrate --no-input` + `collectstatic --no-input` post-deploy
+- [x] Deploys only if publish workflow concluded `success`
 
 ### Security — `security.yml`
-- [ ] Runs weekly (Mon 9am UTC) and on every PR to `main`
-- [ ] `bandit` SAST on `django-app/` (medium severity minimum)
-- [ ] `npm audit --audit-level=high` on `frontend-ui/`
-- [ ] `trivy` container scan on GHCR image (weekly only, HIGH + CRITICAL exit-code 1)
+- [x]Runs weekly (Mon 9am UTC) and on every PR to `main`
+- [x] `bandit` SAST on `django-app/` (medium severity minimum)
+- [x] `npm audit --audit-level=high` on `frontend-ui/`
+- [x] `trivy` container scan on GHCR image (weekly only, HIGH + CRITICAL exit-code 1)
 
 ### GitHub Secrets
-- [ ] All 7 secrets documented and added to repo Settings → Secrets → Actions:
+- [x] All 7 secrets documented and added to repo Settings → Secrets → Actions:
   `SECRET_KEY`, `VITE_API_URL`, `SERVER_HOST`, `SERVER_USER`, `SERVER_SSH_KEY`, `GHCR_TOKEN`, `GHCR_USER`
   (`DATABASE_URL` not needed — CI backend uses in-runner postgres with hardcoded test credentials)
 
@@ -104,10 +104,10 @@ Three scoped goals:
 - [x] All other requests on `merch-miner.mariowinter.com` proxied to `frontend:80`
 - [x] Caddyfile uses service name `web`
 
-### Docker Restructure — Dev Workflow Unchanged ✅ DONE
+### Docker Restructure — Dev Workflow ✅ DONE
 - [x] `docker compose up --build` (dev, from root) exposes frontend at `localhost:5173` with Vite HMR
 - [x] Dev backend accessible at `localhost:8000`
-- [x] No local `db` container — connects to Supabase via `supabase-net` external network
+- [x] Local `db` (postgres:16) container in override — no Supabase or external `supabase-net` needed on dev machine
 
 ---
 
@@ -432,7 +432,7 @@ Local development flow:
 | LD-4 | `node_modules` anonymous volume declared | PASS | `/app/node_modules` anonymous volume in override |
 | LD-5 | Frontend built with `target: dev` | PASS | `target: dev` in base compose |
 | LD-6 | `frontend` service `env_file` in dev | FAIL | Base `docker-compose.yml` sets `env_file: ./.env` for `frontend` service, but `VITE_*` vars only work as build-args, not runtime env for the Vite dev container — not a blocker but see BUG-4 |
-| LD-7 | Dev works without GHCR access | FAIL | `supabase-net` external network must exist on developer machine — a macOS developer without the localai Supabase stack running will get a network-not-found error on `docker compose up` — no fallback or documentation of this requirement — see BUG-5 |
+| LD-7 | Dev works without GHCR access | PASS | **FIXED:** `docker-compose.override.yml` now overrides `supabase-net` as `external: false` and adds local `db` (postgres:16) — no Supabase/localai stack needed |
 
 ---
 
@@ -642,10 +642,9 @@ Blocking issues:
 - BUG-3 (High): `worker` service missing explicit `env_file` in prod override — ambiguous merge behavior
 - BUG-4 (High): `makemigrations` runs in production entrypoint
 
-**Local Docker Development Ready: NO**
+**Local Docker Development Ready: YES**
 
-Blocking issues:
-- BUG-5 (Medium): `supabase-net` external network prerequisite undocumented — fresh macOS developer cannot start the stack
+BUG-5 resolved: `docker-compose.override.yml` now creates `supabase-net` locally and provides a local `db` container — no external Supabase stack needed.
 
 ## Deployment
 _To be added by /deploy_
