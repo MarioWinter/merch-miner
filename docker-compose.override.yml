@@ -1,9 +1,43 @@
+networks:
+  supabase-net:
+    external: false   # override base external:true → creates local network for dev
+
 services:
+  db:
+    image: postgres:16
+    container_name: app_db
+    environment:
+      POSTGRES_DB: merch_miner_dev
+      POSTGRES_USER: merch_miner_user
+      POSTGRES_PASSWORD: devpassword
+    networks:
+      - supabase-net
+
   web:
     ports:
       - "127.0.0.1:8000:8000"
     volumes:
       - ./django-app:/app
+    environment:
+      DB_HOST: db
+      DB_NAME: merch_miner_dev
+      DB_USER: merch_miner_user
+      DB_PASSWORD: devpassword
+      DB_PORT: "5432"
+      DB_SCHEMA: public
+    depends_on:
+      - db
+
+  worker:
+    environment:
+      DB_HOST: db
+      DB_NAME: merch_miner_dev
+      DB_USER: merch_miner_user
+      DB_PASSWORD: devpassword
+      DB_PORT: "5432"
+      DB_SCHEMA: public
+    depends_on:
+      - db
 
   frontend:
     ports:

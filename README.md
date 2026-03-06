@@ -54,7 +54,7 @@ Compresses the full creative pipeline — niche research → AI designs → publ
 merch-miner/
 ├── .env.template               single source of truth for all env vars
 ├── docker-compose.yml          base services (redis, worker, web, frontend)
-├── docker-compose.override.yml dev: host port bindings (auto-loaded, git-tracked)
+├── docker-compose.override.yml dev: local db + port bindings (auto-loaded, git-tracked)
 ├── docker-compose.prod.yml     prod: gunicorn + caddy
 ├── Caddyfile                   app_caddy routing (miner.* → Django, merch-miner.* → SPA)
 ├── frontend-ui/          React + Vite SPA
@@ -64,7 +64,7 @@ merch-miner/
 │   ├── user_auth_app/    custom User model, JWT auth, OAuth2
 │   ├── content/          legacy models (not in MVP)
 │   ├── backend.Dockerfile
-│   ├── backend.entrypoint.sh     DB wait → collectstatic → makemigrations → migrate → superuser → exec
+│   ├── backend.entrypoint.sh     DB wait → collectstatic → migrate → exec
 │   └── worker.entrypoint.sh      DB wait → exec
 ├── scripts/
 │   └── init-db.sh        idempotent Supabase DB setup
@@ -82,19 +82,22 @@ merch-miner/
 
 ### First Time (Dev)
 
+No external Supabase or `supabase-net` needed — the override file spins up a local postgres container.
+
 ```bash
 # 1. Copy and fill in credentials
 cp .env.template .env
-# Set DB_PASSWORD, SECRET_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, EMAIL_*
+# Minimum required: SECRET_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, EMAIL_*
+# DB_* vars are overridden by docker-compose.override.yml for local dev — no Supabase needed
 
-# 2. One-time DB setup (idempotent — safe to re-run)
-./scripts/init-db.sh
-
-# 3. Start the stack
+# 2. Start the stack (creates local db + supabase-net automatically)
 docker compose up --build
+
+# 3. First-time migrations (only needed once, or after pulling new migration files)
+docker compose exec web python manage.py migrate
 ```
 
-> Full DB details: [`docs/supabase-db-setup.md`](docs/supabase-db-setup.md)
+> **Prod / server setup:** see the Prod section below. Prod connects to Supabase via `supabase-net` (external network from `localai` stack).
 
 ### Frontend (standalone)
 
@@ -116,10 +119,14 @@ npm run dev       # http://localhost:5173
 docker compose up --build
 ```
 
-- Auto-loads `docker-compose.override.yml` → exposes ports 8000 + 5173 on host
-- Django `runserver` on `http://localhost:8000`
-- Vite dev server on `http://localhost:5173`
-- Admin: `http://localhost:8000/admin/`
+- Auto-loads `docker-compose.override.yml`:
+  - Creates local `supabase-net` network (no external dependency)
+  - Starts `db` (postgres:16) as local DB stand-in
+  - Overrides `DB_HOST/DB_NAME/DB_USER/DB_PASSWORD` on `web` + `worker` → point to local `db`
+  - Exposes ports 8000 + 5173 on host
+- Django `runserver` → `http://localhost:8000`
+- Vite dev server → `http://localhost:5173`
+- Admin → `http://localhost:8000/admin/`
 
 ### Prod
 
@@ -183,8 +190,7 @@ docker compose exec web python manage.py createsuperuser
 docker compose exec web pytest path/to/test_file.py::TestClass::test_method
 ```
 
-> **Note:** `makemigrations` AND `migrate` both run automatically on every container start.
-> Run `makemigrations` manually only to generate migration files before committing them.
+> **Note:** `migrate` runs automatically on every container start. Run `makemigrations` manually to generate migration files before committing.
 
 ---
 
@@ -209,7 +215,7 @@ npm run preview    # Preview production build
 |----|---------|----------|--------|
 | PROJ-1 | User Auth (Email + Google OAuth2) | P0 | Deployed |
 | PROJ-2 | Frontend Docker Integration | P0 | Deployed |
-| PROJ-3 | CI/CD & DevOps Setup | P0 | Planned |
+| PROJ-3 | CI/CD & DevOps Setup | P0 | Deployed |
 | PROJ-4 | Workspace & Membership | P0 | Planned |
 | PROJ-5 | Niche List | P0 | Planned |
 | PROJ-6 | Niche Deep Research (n8n) | P0 | Planned |
@@ -246,9 +252,10 @@ All workflow phases require explicit user approval before proceeding.
 ## Key Constraints
 
 - **Env:** single `/.env` (from `/.env.template`) — no sub-directory env files
-- **Database:** no local `db` container — Django connects to Supabase PostgreSQL (`localai` stack) via `supabase-net` (container DNS: `supabase-db`), schema `merch_miner`
-- n8n + Django share same Supabase instance (n8n: `public` schema, Django: `merch_miner` schema)
+- **Database (dev):** local `db` (postgres:16) container, schema `public` — no Supabase or external network required; `supabase-net` created locally by override
+- **Database (prod):** Django connects to Supabase PostgreSQL (`localai` stack) via `supabase-net` (external), schema `merch_miner`
+- n8n + Django share same Supabase instance (prod only — n8n: `public` schema, Django: `merch_miner` schema)
 - Workspace isolation enforced at ORM level on every protected endpoint
-- `makemigrations` auto-runs in entrypoint; run manually only to generate files for commit
+- `migrate` auto-runs in entrypoint; run `makemigrations` manually only to generate files for commit
 - OpenRouter API key must be rotated before PROJ-9 (currently hardcoded in n8n workflow JSON)
 - `worker` service handles all background jobs via django-rq
