@@ -3,20 +3,19 @@ from django.urls import reverse
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 from user_auth_app.models import User
-from content.models import Video
 import jwt
 from django.conf import settings
 
 @pytest.mark.django_db
 def test_authentication_invalid_jwt_format(client):
     """Test authentication with invalid JWT format."""
-    user = User.objects.create_user(
+    User.objects.create_user(
         email='testuser@test.com',
         password='TestPassword123!',
         username='testuser@test.com',
         is_active=True
     )
-    
+
     api_client = APIClient()
     api_client.cookies['access_token'] = 'invalid.jwt.format'
     
@@ -36,8 +35,7 @@ def test_authentication_expired_jwt(client):
     )
     
     import time
-    from rest_framework_simplejwt.settings import api_settings
-    
+
     payload = {
         'user_id': user.id,
         'exp': int(time.time()) - 3600,
@@ -178,13 +176,13 @@ def test_authentication_blacklisted_access_token(client):
 @pytest.mark.django_db
 def test_cookie_httponly_flag_on_login(client):
     """Test that HTTPOnly flag is set on cookies during login."""
-    user = User.objects.create_user(
+    User.objects.create_user(
         email='testuser@test.com',
         password='TestPassword123!',
         username='testuser@test.com',
         is_active=True
     )
-    
+
     url = reverse('login')
     data = {
         'email': 'testuser@test.com',
@@ -203,13 +201,13 @@ def test_cookie_httponly_flag_on_login(client):
 @pytest.mark.django_db
 def test_cookie_clearing_on_logout(client):
     """Test that cookies are properly cleared on logout."""
-    user = User.objects.create_user(
+    User.objects.create_user(
         email='testuser@test.com',
         password='TestPassword123!',
         username='testuser@test.com',
         is_active=True
     )
-    
+
     login_url = reverse('login')
     login_data = {
         'email': 'testuser@test.com',

@@ -1,5 +1,4 @@
 import pytest
-import os
 from django.urls import reverse
 from django.core.files.uploadedfile import SimpleUploadedFile, InMemoryUploadedFile
 from rest_framework.test import APIClient

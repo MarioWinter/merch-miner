@@ -1,5 +1,6 @@
 services:
   web:
+    image: ${BACKEND_IMAGE}
     container_name: app_backend
     command: gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 3
     volumes:
@@ -11,13 +12,16 @@ services:
       - merch_net
       - supabase-net
 
+  worker:
+    image: ${BACKEND_IMAGE}
+    env_file: ./.env
+    restart: unless-stopped
+    networks:
+      - default
+      - supabase-net
+
   frontend:
-    build:
-      context: ./frontend-ui
-      dockerfile: Dockerfile
-      target: prod
-      args:
-        - VITE_API_URL=${VITE_API_URL}
+    image: ${FRONTEND_IMAGE}
     container_name: app_frontend
     restart: unless-stopped
     networks:

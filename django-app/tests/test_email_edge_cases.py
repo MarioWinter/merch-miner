@@ -1,10 +1,5 @@
 import pytest
-from unittest.mock import patch, Mock, call
-from django.urls import reverse
-from django.utils.http import urlsafe_base64_encode
-from django.utils.encoding import force_bytes
-from rest_framework_simplejwt.tokens import RefreshToken
-from user_auth_app.models import User
+from unittest.mock import patch, Mock
 from user_auth_app.api.emails import send_verification_email, send_password_reset_email
 
 @pytest.mark.django_db

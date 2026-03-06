@@ -56,7 +56,7 @@ def test_full_authentication_and_video_access_flow(client):
         is_active=True
     )
     
-    video = Video.objects.create(
+    Video.objects.create(
         title='Test Video',
         description='Test Description',
         genre='action',
@@ -133,13 +133,13 @@ def test_password_reset_flow(client):
 @pytest.mark.django_db
 def test_token_refresh_flow(client):
     """Test token refresh flow."""
-    user = User.objects.create_user(
+    User.objects.create_user(
         email='testuser@test.com',
         password='TestPassword123!',
         username='testuser@test.com',
         is_active=True
     )
-    
+
     login_url = reverse('login')
     login_data = {
         'email': 'testuser@test.com',
@@ -160,13 +160,13 @@ def test_token_refresh_flow(client):
 @pytest.mark.django_db
 def test_logout_flow(client):
     """Test logout flow."""
-    user = User.objects.create_user(
+    User.objects.create_user(
         email='testuser@test.com',
         password='TestPassword123!',
         username='testuser@test.com',
         is_active=True
     )
-    
+
     login_url = reverse('login')
     login_data = {
         'email': 'testuser@test.com',

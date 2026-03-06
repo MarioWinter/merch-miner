@@ -6,4 +6,4 @@ class ContentConfig(AppConfig):
     name = 'content'
 
     def ready(self):
-       from . import signals
+       from . import signals  # noqa: F401

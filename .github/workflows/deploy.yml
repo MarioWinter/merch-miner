@@ -20,9 +20,10 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            cd /opt/app
-            docker compose pull
-            docker compose up -d --remove-orphans
-            docker compose exec -T web python manage.py migrate --no-input
-            docker compose exec -T web python manage.py collectstatic --no-input
+            cd /home/dev/merch-miner
+            git fetch origin main && git reset --hard origin/main
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T web python manage.py migrate --no-input
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T web python manage.py collectstatic --no-input
             echo "Deployed $(date)"

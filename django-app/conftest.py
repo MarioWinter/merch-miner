@@ -9,3 +9,9 @@ def disable_throttling(settings):
         'DEFAULT_THROTTLE_CLASSES': [],
         'DEFAULT_THROTTLE_RATES': {},
     }
+
+
+@pytest.fixture(autouse=True)
+def use_fast_password_hasher(settings):
+    """Use fast MD5 hasher in all tests — avoids PBKDF2 slowness in CI."""
+    settings.PASSWORD_HASHERS = ['django.contrib.auth.hashers.MD5PasswordHasher']
