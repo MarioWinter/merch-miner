@@ -1,8 +1,8 @@
 # PROJ-3: CI/CD & DevOps Setup
 
-## Status: In Progress
+## Status: Deployed
 **Created:** 2026-02-28
-**Last Updated:** 2026-03-04
+**Last Updated:** 2026-03-06
 
 ## Dependencies
 - Requires: PROJ-1 (User Auth) — must be fully implemented before CI runs green
@@ -55,7 +55,7 @@ Three scoped goals:
 - [ ] Runs on every push and pull request to `main`
 - [ ] Backend job: `pytest` + `python manage.py migrate --check` + `ruff check`
 - [ ] Frontend job: `npm run lint` + `npm run test:ci` + `npm run build`
-- [ ] All jobs must pass before PR can merge
+- [ ] All jobs must pass before PR can merge (requires manual branch protection setup: GitHub Settings → Branches → require status checks `backend` + `frontend`)
 
 ### Docker Publish — `docker-publish.yml`
 - [ ] Triggers on merge to `main` (push event)
@@ -65,7 +65,7 @@ Three scoped goals:
 
 ### Auto-deploy — `deploy.yml`
 - [ ] Triggers after `docker-publish.yml` succeeds on `main`
-- [ ] SSH into `/home/dev/merch-miner`, runs `git fetch origin main && git reset --hard origin/main` + `docker compose -f docker-compose.yml -f docker-compose.prod.yml pull && up -d --remove-orphans` (no `--build`)
+- [ ] SSH into `/home/dev/merch-miner`, runs `git fetch origin main && git reset --hard origin/main` + `docker compose -f docker-compose.yml -f docker-compose.prod.yml pull && up -d --remove-orphans` (no `--build`; `git reset` required — compose files + Caddyfile live in repo)
 - [ ] Runs `manage.py migrate --no-input` + `collectstatic --no-input` post-deploy
 - [ ] Deploys only if publish workflow concluded `success`
 

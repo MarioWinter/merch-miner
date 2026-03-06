@@ -56,6 +56,9 @@ npm run preview      # Preview production build
 
 **Backend** (Docker required; run from `merch-miner/` root):
 ```bash
+# Prerequisite: supabase-net external network must exist (created by localai stack)
+# If missing: docker network create supabase-net
+
 # Dev — auto-loads docker-compose.override.yml (exposes ports 8000 + 5173)
 docker compose up --build       # Start all services (web, db, redis, frontend)
 docker compose up               # Start without rebuild
