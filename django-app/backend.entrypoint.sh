@@ -28,6 +28,4 @@ else:
 EOF
 fi
 
-python manage.py rqworker default &
-
 exec "$@"
