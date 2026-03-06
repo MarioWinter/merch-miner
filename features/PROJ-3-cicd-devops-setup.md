@@ -65,7 +65,7 @@ Three scoped goals:
 
 ### Auto-deploy — `deploy.yml`
 - [ ] Triggers after `docker-publish.yml` succeeds on `main`
-- [ ] SSH into `/home/dev/merch-miner`, runs `git fetch origin main && git reset --hard origin/main` + `docker compose -f docker-compose.yml -f docker-compose.prod.yml pull && up -d --remove-orphans`
+- [ ] SSH into `/home/dev/merch-miner`, runs `git fetch origin main && git reset --hard origin/main` + `docker compose -f docker-compose.yml -f docker-compose.prod.yml pull && up -d --remove-orphans` (no `--build`)
 - [ ] Runs `manage.py migrate --no-input` + `collectstatic --no-input` post-deploy
 - [ ] Deploys only if publish workflow concluded `success`
 
@@ -76,8 +76,8 @@ Three scoped goals:
 - [ ] `trivy` container scan on GHCR image (weekly only, HIGH + CRITICAL exit-code 1)
 
 ### GitHub Secrets
-- [ ] All 5 secrets documented and added to repo Settings → Secrets → Actions:
-  `SECRET_KEY`, `VITE_API_URL`, `SERVER_HOST`, `SERVER_USER`, `SERVER_SSH_KEY`
+- [ ] All 7 secrets documented and added to repo Settings → Secrets → Actions:
+  `SECRET_KEY`, `VITE_API_URL`, `SERVER_HOST`, `SERVER_USER`, `SERVER_SSH_KEY`, `GHCR_TOKEN`, `GHCR_USER`
   (`DATABASE_URL` not needed — CI backend uses in-runner postgres with hardcoded test credentials)
 
 ### Docker Restructure — Root-Level Compose ✅ DONE
@@ -299,15 +299,17 @@ GitHub Container Registry (GHCR) — free, integrated with GitHub permissions, n
 - `latest` — always points to most recent `main` merge
 - `sha-<commit>` — immutable tag for rollbacks
 
-#### Secrets Required (5 total)
+#### Secrets Required (7 total)
 
 | Secret | Used by |
 |--------|---------|
 | `SECRET_KEY` | CI backend tests |
-| `VITE_API_URL` | CI frontend build |
+| `VITE_API_URL` | CI frontend build + docker-publish frontend build-arg |
 | `SERVER_HOST` | deploy.yml SSH |
 | `SERVER_USER` | deploy.yml SSH |
 | `SERVER_SSH_KEY` | deploy.yml SSH |
+| `GHCR_TOKEN` | deploy.yml — server-side `docker login ghcr.io` before `pull` |
+| `GHCR_USER` | deploy.yml — GitHub username for GHCR login on prod server |
 
 `DATABASE_URL` not needed — CI uses in-runner postgres (`localhost:5432`) with hardcoded test credentials.
 
