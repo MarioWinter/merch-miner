@@ -42,6 +42,9 @@ urlpatterns = [
 
     # User profile (api/users/me/)
     path('api/', include(api_urls)),
+
+    # Workspace API
+    path('api/', include('workspace_app.api.urls')),
 ]
 
 if settings.DEBUG:

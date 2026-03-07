@@ -29,22 +29,22 @@
 
 ### 5. Workspace API
 
-- [ ] `workspace_app/api/serializers.py`: `WorkspaceSerializer`, `MembershipSerializer`, `InviteSerializer`
-- [ ] `GET /api/workspaces/me/` — return active workspaces + role for authenticated user
-- [ ] `PATCH /api/workspaces/{id}/` — Workspace Admin only; rename (name field)
-- [ ] `POST /api/workspaces/{id}/invite/` — Workspace Admin; create pending Membership; send signed token email via django-rq task
-- [ ] `GET /api/workspaces/invite/accept/?token={token}` — public; verify token (48h max_age); activate Membership
-- [ ] `PATCH /api/workspaces/{id}/members/{user_id}/` — Workspace Admin; change member role
-- [ ] `DELETE /api/workspaces/{id}/members/{user_id}/` — Workspace Admin; block if target is owner (403)
-- [ ] All protected workspace endpoints: verify active Membership; 403 if not member
-- [ ] `workspace_app/api/urls.py` — wire all routes
-- [ ] Include workspace urls in `core/urls.py`
+- [x] `workspace_app/api/serializers.py`: `WorkspaceSerializer`, `MembershipSerializer`, `InviteSerializer`
+- [x] `GET /api/workspaces/me/` — return active workspaces + role for authenticated user
+- [x] `PATCH /api/workspaces/{id}/` — Workspace Admin only; rename (name field)
+- [x] `POST /api/workspaces/{id}/invite/` — Workspace Admin; create pending Membership; send signed token email via django-rq task
+- [x] `GET /api/workspaces/invite/accept/?token={token}` — public; verify token (48h max_age); activate Membership
+- [x] `PATCH /api/workspaces/{id}/members/{user_id}/` — Workspace Admin; change member role
+- [x] `DELETE /api/workspaces/{id}/members/{user_id}/` — Workspace Admin; block if target is owner (403)
+- [x] All protected workspace endpoints: verify active Membership; 403 if not member
+- [x] `workspace_app/api/urls.py` — wire all routes
+- [x] Include workspace urls in `core/urls.py`
 
 ### 6. Invite Email Task
 
-- [ ] `workspace_app/tasks.py`: django-rq task to send invite email with signed token link
-- [ ] Token: `django.core.signing.dumps()` / `.loads()`, `max_age=172800` (48h)
-- [ ] Expired token → 400, prompt re-invite
+- [x] `workspace_app/tasks.py`: django-rq task to send invite email with signed token link
+- [x] Token: `django.core.signing.dumps()` / `.loads()`, `max_age=172800` (48h)
+- [x] Expired token → 400, prompt re-invite
 
 ### 7. User Profile API (in `user_auth_app`)
 
