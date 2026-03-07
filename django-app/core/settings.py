@@ -109,6 +109,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
     'user_auth_app',
+    'workspace_app',
     'content.apps.ContentConfig',
 ]
 

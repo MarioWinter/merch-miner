@@ -43,7 +43,39 @@ class User(AbstractUser):
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []     
 
+    avatar = models.URLField(blank=True, default='')
+
     objects = CustomUserManager()
 
     def __str__(self):
         return self.email
+
+
+class BillingProfile(models.Model):
+    class AccountType(models.TextChoices):
+        PERSONAL = 'personal', 'Personal'
+        BUSINESS = 'business', 'Business'
+
+    user = models.OneToOneField(
+        'User',
+        on_delete=models.CASCADE,
+        related_name='billing_profile',
+    )
+    account_type = models.CharField(
+        max_length=10,
+        choices=AccountType.choices,
+        default=AccountType.PERSONAL,
+    )
+    company_name = models.CharField(max_length=200, blank=True, default='')
+    vat_number = models.CharField(max_length=50, blank=True, default='')
+    address_line1 = models.CharField(max_length=255, blank=True, default='')
+    address_line2 = models.CharField(max_length=255, blank=True, default='')
+    city = models.CharField(max_length=100, blank=True, default='')
+    state_region = models.CharField(max_length=100, blank=True, default='')
+    postal_code = models.CharField(max_length=20, blank=True, default='')
+    country = models.CharField(max_length=2, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f'BillingProfile({self.user})'

@@ -107,6 +107,22 @@ npm install
 npm run dev       # http://localhost:5173
 ```
 
+> **Cookie / Auth gotcha:** `VITE_API_URL` **must be empty** in `.env` for local dev.
+> When empty, axios uses relative URLs (`/api/...`) which go through the Vite proxy
+> on the same origin → `HttpOnly` JWT cookies work correctly.
+> If set to `http://localhost:8000`, requests are cross-origin and browsers will not
+> persist the auth cookies → users are logged out on every page reload.
+> In prod, set it to the public domain (e.g. `https://miner.example.com`) — same-origin
+> via Caddy, so cookies work there too.
+>
+> ```dotenv
+> # .env — local dev
+> VITE_API_URL=        # leave empty
+>
+> # .env — production
+> VITE_API_URL=https://miner.mariowinter.com
+> ```
+
 ---
 
 ## Backend — Docker Commands
@@ -252,6 +268,7 @@ All workflow phases require explicit user approval before proceeding.
 ## Key Constraints
 
 - **Env:** single `/.env` (from `/.env.template`) — no sub-directory env files
+- **`VITE_API_URL` must be empty in dev** — Vite proxy handles routing to backend; if set to `http://localhost:8000`, cross-origin cookie storage breaks auth (see Setup section above)
 - **Database (dev):** local `db` (postgres:16) container, schema `public` — no Supabase or external network required; `supabase-net` created locally by override
 - **Database (prod):** Django connects to Supabase PostgreSQL (`localai` stack) via `supabase-net` (external), schema `merch_miner`
 - n8n + Django share same Supabase instance (prod only — n8n: `public` schema, Django: `merch_miner` schema)

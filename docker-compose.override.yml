@@ -45,3 +45,5 @@ services:
     volumes:
       - ./frontend-ui:/app
       - /app/node_modules
+    environment:
+      VITE_PROXY_TARGET: http://web:8000
