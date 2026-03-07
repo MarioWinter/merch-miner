@@ -72,19 +72,19 @@
 
 ### 10. Backend Tests
 
-- [ ] Test: Workspace auto-created on user registration (signal)
-- [ ] Test: `GET /api/workspaces/me/` returns correct workspaces + roles
-- [ ] Test: `PATCH /api/workspaces/{id}/` by Workspace Admin → 200; by member → 403
-- [ ] Test: Invite flow end-to-end (POST → token → accept → membership active)
-- [ ] Test: Expired token → 400
-- [ ] Test: Remove non-owner member → 204; remove owner → 403
-- [ ] Test: Duplicate invite → 409
-- [ ] Test: `PATCH /api/users/me/` updates fields; email ignored; duplicate username → 400
-- [ ] Test: `POST /api/users/me/avatar/` with valid image → 200; >2MB → 400; wrong type → 400
-- [ ] Test: `POST /api/auth/password/change/` correct password → 200; wrong password → 400
-- [ ] Test: `GET /api/users/me/billing/` on new user → empty object, not 404
-- [ ] Test: `PUT /api/users/me/billing/` with invalid country → 400
-- [ ] Run full suite: `docker compose exec web pytest user_auth_app/ workspace_app/`
+- [x] Test: Workspace auto-created on user registration (signal)
+- [x] Test: `GET /api/workspaces/me/` returns correct workspaces + roles
+- [x] Test: `PATCH /api/workspaces/{id}/` by Workspace Admin → 200; by member → 403
+- [x] Test: Invite flow end-to-end (POST → token → accept → membership active)
+- [x] Test: Expired token → 400
+- [x] Test: Remove non-owner member → 204; remove owner → 403
+- [x] Test: Duplicate invite → 409
+- [x] Test: `PATCH /api/users/me/` updates fields; email ignored; duplicate username → 400
+- [x] Test: `POST /api/users/me/avatar/` with valid image → 200; >2MB → 400; wrong type → 400
+- [x] Test: `POST /api/auth/password/change/` correct password → 200; wrong password → 400
+- [x] Test: `GET /api/users/me/billing/` on new user → empty object, not 404
+- [x] Test: `PUT /api/users/me/billing/` with invalid country → 400
+- [x] Run full suite: `docker compose exec web pytest user_auth_app/ workspace_app/` — 131 passed
 
 ---
 
