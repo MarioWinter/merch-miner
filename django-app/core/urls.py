@@ -7,6 +7,7 @@ from user_auth_app.api.views import (
     RegisterView, ActivateView, LoginView, LogoutView,
     TokenRefreshView, PasswordResetView, PasswordConfirmView,
     GoogleLoginView, GoogleCallbackView, MeView,
+    InlinePasswordChangeView,
 )
 import user_auth_app.api.urls as api_urls
 
@@ -28,6 +29,7 @@ urlpatterns = [
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/password/reset/', PasswordResetView.as_view(), name='password_reset'),
     path('api/auth/password/confirm/<uidb64>/<token>/', PasswordConfirmView.as_view(), name='password_confirm'),
+    path('api/auth/password/change/', InlinePasswordChangeView.as_view(), name='password_change'),
     path('api/auth/me/', MeView.as_view(), name='auth_me'),
 
     # Google OAuth2 — /api/auth/google/

@@ -48,26 +48,27 @@
 
 ### 7. User Profile API (in `user_auth_app`)
 
-- [ ] `UserProfileSerializer`: id, email (read-only), username, first_name, last_name, date_joined, avatar_url
-- [ ] `UserUpdateSerializer`: username, first_name, last_name only; reject email field silently
-- [ ] `GET /api/users/me/` — return profile
-- [ ] `PATCH /api/users/me/` — update allowed fields; 400 on duplicate username
-- [ ] `POST /api/users/me/avatar/` — multipart; validate JPEG/PNG/WEBP + max 2MB; PUT to Supabase `avatars/` bucket via REST using `SUPABASE_SERVICE_KEY`; store public URL on `user.avatar`; return `{ avatar_url }`
-- [ ] `POST /api/auth/password/change/` — validate `current_password`, `new_password`, `confirm_password`; `user.set_password()` + blacklist refresh token via `RefreshToken(token).blacklist()`
-- [ ] Add new routes to `user_auth_app/api/urls.py` and `core/urls.py`
+- [x] `UserProfileSerializer`: id, email (read-only), username, first_name, last_name, date_joined, avatar_url
+- [x] `UserUpdateSerializer`: username, first_name, last_name only; reject email field silently
+- [x] `GET /api/users/me/` — return profile
+- [x] `PATCH /api/users/me/` — update allowed fields; 400 on duplicate username
+- [x] `POST /api/users/me/avatar/` — multipart; validate JPEG/PNG/WEBP + max 2MB; save to Django `MEDIA_ROOT/avatars/` via `FileSystemStorage`; store relative path on `user.avatar`; return `{ avatar_url }` (served via `MEDIA_URL`)
+- [x] `POST /api/auth/password/change/` — validate `current_password`, `new_password`, `confirm_password`; `user.set_password()` + blacklist refresh token via `RefreshToken(token).blacklist()`
+- [x] Add new routes to `user_auth_app/api/urls.py` and `core/urls.py`
 
 ### 8. Billing API (in `user_auth_app`)
 
-- [ ] `BillingProfileSerializer`: all fields optional; validate country is valid ISO 3166-1 alpha-2
-- [ ] `GET /api/users/me/billing/` — return BillingProfile; auto-create empty one if missing (never 404)
-- [ ] `PUT /api/users/me/billing/` — upsert BillingProfile for `request.user`
-- [ ] Add routes to `user_auth_app/api/urls.py`
+- [x] `BillingProfileSerializer`: all fields optional; validate country is valid ISO 3166-1 alpha-2
+- [x] `GET /api/users/me/billing/` — return BillingProfile; auto-create empty one if missing (never 404)
+- [x] `PUT /api/users/me/billing/` — upsert BillingProfile for `request.user`
+- [x] Add routes to `user_auth_app/api/urls.py`
 
 ### 9. Environment
 
-- [ ] Add `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_STORAGE_BUCKET` to `django-app/.env.template`
-- [ ] Add same vars to `django-app/.env` locally (never commit)
-- [ ] Confirm Supabase storage bucket `avatars/` exists with public read policy
+- [x] Configure `MEDIA_ROOT` + `MEDIA_URL` in `core/settings.py`
+- [x] Serve `/media/` via Django in dev (`urls.py`); Caddy serves `/media/` directly in prod
+- [x] Add `media/` volume mount in `docker-compose.override.yml` so files persist locally
+- [X] Remove unused `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_STORAGE_BUCKET` from `.env` files
 
 ### 10. Backend Tests
 

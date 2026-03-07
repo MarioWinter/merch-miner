@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.core.files.storage import FileSystemStorage
 from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.shortcuts import redirect
@@ -8,9 +9,12 @@ from rest_framework import viewsets, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken, AccessToken, TokenError
 from core import settings
+from user_auth_app.models import BillingProfile
 from .serializers import (
     UserSerializer, UserCreateSerializer,
-    LoginSerializer, PasswordResetSerializer, PasswordChangeSerializer
+    LoginSerializer, PasswordResetSerializer, PasswordChangeSerializer,
+    UserProfileSerializer, UserUpdateSerializer,
+    InlinePasswordChangeSerializer, BillingProfileSerializer,
 )
 from .emails import send_verification_email, send_password_reset_email
 from .utils import set_jwt_cookies, clear_jwt_cookies, get_refresh_token_from_request
@@ -341,3 +345,143 @@ class GoogleCallbackView(APIView):
         redirect_response = redirect(frontend_url)
         set_jwt_cookies(redirect_response, access_token, refresh)
         return redirect_response
+
+
+# ---------------------------------------------------------------------------
+# Task 7 — User Profile API
+# ---------------------------------------------------------------------------
+
+class UserProfileView(APIView):
+    """GET + PATCH /api/users/me/ — full profile read/update."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = UserProfileSerializer(request.user)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def patch(self, request):
+        serializer = UserUpdateSerializer(
+            request.user,
+            data=request.data,
+            partial=True,
+            context={'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(UserProfileSerializer(request.user).data, status=status.HTTP_200_OK)
+
+
+class AvatarUploadView(APIView):
+    """POST /api/users/me/avatar/ — multipart upload to Django FileSystemStorage."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/webp'}
+    MAX_SIZE_BYTES = 2 * 1024 * 1024  # 2 MB
+    EXT_MAP = {'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp'}
+
+    def post(self, request):
+        file = request.FILES.get('avatar')
+        if not file:
+            return Response(
+                {'detail': 'No file provided. Use field name "avatar".'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if file.content_type not in self.ALLOWED_MIME_TYPES:
+            return Response(
+                {'detail': 'Unsupported file type. Allowed: JPEG, PNG, WEBP.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if file.size > self.MAX_SIZE_BYTES:
+            return Response(
+                {'detail': 'File too large. Maximum size is 2 MB.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        ext = self.EXT_MAP[file.content_type]
+        relative_path = f'avatars/user_{request.user.pk}/avatar.{ext}'
+
+        fs = FileSystemStorage()
+        # Delete old avatar file(s) before saving new one
+        for old_ext in self.EXT_MAP.values():
+            old_path = f'avatars/user_{request.user.pk}/avatar.{old_ext}'
+            if fs.exists(old_path):
+                fs.delete(old_path)
+
+        saved_path = fs.save(relative_path, file)
+        avatar_url = request.build_absolute_uri(settings.MEDIA_URL + saved_path)
+
+        request.user.avatar = avatar_url
+        request.user.save(update_fields=['avatar'])
+
+        return Response({'avatar_url': avatar_url}, status=status.HTTP_200_OK)
+
+
+class InlinePasswordChangeView(APIView):
+    """POST /api/auth/password/change/ — change password while logged in."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = InlinePasswordChangeSerializer(
+            data=request.data,
+            context={'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+
+        user = request.user
+        user.set_password(serializer.validated_data['new_password'])
+        user.save()
+
+        # Blacklist current refresh token so the user must re-login
+        refresh_token = get_refresh_token_from_request(request)
+        if refresh_token:
+            try:
+                RefreshToken(refresh_token).blacklist()
+            except TokenError:
+                pass
+
+        response = Response(
+            {'detail': 'Password changed successfully. Please log in again.'},
+            status=status.HTTP_200_OK,
+        )
+        clear_jwt_cookies(response)
+        return response
+
+
+# ---------------------------------------------------------------------------
+# Task 8 — Billing API
+# ---------------------------------------------------------------------------
+
+class BillingProfileView(APIView):
+    """GET + PUT /api/users/me/billing/ — upsert billing profile."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def _get_or_create_billing(self, user):
+        profile, _ = BillingProfile.objects.get_or_create(user=user)
+        return profile
+
+    def get(self, request):
+        profile = self._get_or_create_billing(request.user)
+        serializer = BillingProfileSerializer(profile)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def put(self, request):
+        profile = self._get_or_create_billing(request.user)
+        serializer = BillingProfileSerializer(
+            profile,
+            data=request.data,
+            partial=False,
+            context={'request': request},
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_200_OK)

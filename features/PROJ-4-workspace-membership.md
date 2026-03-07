@@ -29,7 +29,7 @@ Settings page (gear icon + sidebar) exposes: Profile tab, Billing tab, Workspace
 **User Profile:**
 7. As a user, I want to view my profile (name, email, username, avatar).
 8. As a user, I want to update my first name, last name, and username.
-9. As a user, I want to upload an avatar image stored in Supabase storage.
+9. As a user, I want to upload an avatar image stored on the server.
 10. As a user, I want to change my password inline (current + new + confirm).
 
 **Billing Info (Polar.sh prep — all fields optional):**
@@ -47,7 +47,7 @@ Settings page (gear icon + sidebar) exposes: Profile tab, Billing tab, Workspace
 1. `Workspace`: UUID pk, name (max 100), slug (unique, max 110), owner FK → User, created_at.
 2. `Membership`: workspace FK, user FK, role [admin|member], status [pending|active], invited_by FK (nullable), invited_at, accepted_at (nullable). Unique: (workspace, user).
 3. `BillingProfile`: OneToOne → User, account_type [personal|business], company_name (nullable), vat_number (nullable), address_line1, address_line2 (nullable), city, state_region (nullable), postal_code, country (ISO 3166-1 alpha-2, CharField max 2), created_at, updated_at.
-4. `User` model: add `avatar` field (URLField, blank=True) storing Supabase public URL.
+4. `User` model: add `avatar` field (URLField, blank=True) storing absolute URL served via `MEDIA_URL`.
 
 ### Workspace Endpoints
 5. Auto-create personal workspace on user creation (post_save signal) if user has no memberships.
@@ -62,7 +62,7 @@ Settings page (gear icon + sidebar) exposes: Profile tab, Billing tab, Workspace
 ### User Profile Endpoints
 13. `GET /api/users/me/` — return id, email, username, first_name, last_name, date_joined, avatar_url.
 14. `PATCH /api/users/me/` — update username, first_name, last_name. Email read-only. Returns updated profile.
-15. `POST /api/users/me/avatar/` — multipart/form-data; validate image (JPEG/PNG/WEBP, max 2MB); upload to Supabase `avatars/` bucket; store public URL on user.avatar; return `{ avatar_url }`.
+15. `POST /api/users/me/avatar/` — multipart/form-data; validate image (JPEG/PNG/WEBP, max 2MB); save to `MEDIA_ROOT/avatars/user_{id}/` via `FileSystemStorage`; store absolute URL on user.avatar; return `{ avatar_url }`.
 16. `POST /api/auth/password/change/` — authenticated; validate current_password, new_password, confirm_password; update password; blacklist existing refresh token.
 
 ### Billing Endpoints
@@ -102,7 +102,7 @@ Settings page (gear icon + sidebar) exposes: Profile tab, Billing tab, Workspace
 |--------|------|------|-------------|
 | GET | `/api/users/me/` | Member | Own profile (with avatar_url) |
 | PATCH | `/api/users/me/` | Member | Update own profile |
-| POST | `/api/users/me/avatar/` | Member | Upload avatar to Supabase storage |
+| POST | `/api/users/me/avatar/` | Member | Upload avatar to Django FileSystemStorage |
 | POST | `/api/auth/password/change/` | Member | Inline password change |
 | GET | `/api/users/me/billing/` | Member | Get billing profile |
 | PUT | `/api/users/me/billing/` | Member | Upsert billing profile |
@@ -156,7 +156,7 @@ Settings page (gear icon + sidebar) exposes: Profile tab, Billing tab, Workspace
 ## Dependencies
 
 - PROJ-1 (User Auth) — post_save signal for workspace auto-creation; reuse `CookieJWTAuthentication`
-- Supabase storage bucket `avatars/` must exist with public read policy
+- `MEDIA_ROOT/avatars/` directory auto-created by Django on first upload; served by Caddy in prod via `media_volume`
 - Polar.sh integration deferred (post-MVP); billing data stored but not yet sent
 
 ---
@@ -165,12 +165,12 @@ Settings page (gear icon + sidebar) exposes: Profile tab, Billing tab, Workspace
 
 - New Django app: `workspace_app/` (models, views, serializers, urls, tasks, signals).
 - `BillingProfile` lives in `user_auth_app/` (tightly coupled to User model).
-- Avatar upload: direct REST PUT to Supabase storage API using `SUPABASE_SERVICE_KEY`; store returned public URL.
+- Avatar upload: `FileSystemStorage` saves to `MEDIA_ROOT/avatars/user_{id}/avatar.{ext}`; old file deleted before save; absolute URL built via `request.build_absolute_uri(MEDIA_URL + path)`; served by Caddy in prod.
 - Password change: `user.set_password()` + `user.save()` + blacklist current refresh token via `RefreshToken(token).blacklist()`.
 - Invite tokens: `django.core.signing.dumps()` / `.loads()`, `max_age=172800` (48h).
 - Frontend: `views/settings/` shell with `ProfileSection`, `BillingSection`, `WorkspaceSection`.
 - Country list: static ISO 3166-1 list in `data/countries.ts` — no package dependency.
-- New env vars: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_STORAGE_BUCKET`.
+- No new env vars required — uses existing `MEDIA_ROOT`/`MEDIA_URL` from Django settings.
 
 ---
 
@@ -194,10 +194,10 @@ Settings page (gear icon + sidebar) exposes: Profile tab, Billing tab, Workspace
 - `django-app/user_auth_app/api/serializers.py` — add UserUpdateSerializer, BillingProfileSerializer, InlinePasswordChangeSerializer
 - `django-app/user_auth_app/api/urls.py` — new routes
 - `django-app/user_auth_app/migrations/0002_user_avatar_billingprofile.py`
-- `django-app/core/settings.py` — add `workspace_app` to INSTALLED_APPS; Supabase env vars
-- `django-app/core/urls.py` — include workspace_app urls + InlinePasswordChangeView route
-- `django-app/.env.template` — add `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_STORAGE_BUCKET`
-- `django-app/requirements.txt` — no new packages (uses `requests` for Supabase REST upload)
+- `django-app/core/settings.py` — add `workspace_app` to INSTALLED_APPS; `MEDIA_ROOT`/`MEDIA_URL` already configured
+- `django-app/core/urls.py` — include workspace_app urls + InlinePasswordChangeView route; serve `/media/` in dev
+- `docker-compose.override.yml` — add `./media:/app/media` volume for local dev persistence
+- `django-app/requirements.txt` — no new packages
 
 **Frontend (new):**
 - `frontend-ui/src/components/AppLayout.tsx` — app shell with sidebar + topbar

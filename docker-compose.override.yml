@@ -18,6 +18,7 @@ services:
       - "127.0.0.1:8000:8000"
     volumes:
       - ./django-app:/app
+      - ./media:/app/media
     environment:
       DB_HOST: db
       DB_NAME: merch_miner_dev
