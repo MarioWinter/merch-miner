@@ -65,7 +65,15 @@
     "darkMode": "Dunkelmodus",
     "lightMode": "Hellmodus",
     "systemMode": "Systemmodus",
-    "switchLanguage": "Sprache wechseln"
+    "switchLanguage": "Sprache wechseln",
+    "language": "Sprache",
+    "languages": {
+      "en": "Englisch",
+      "de": "Deutsch",
+      "fr": "Französisch",
+      "es": "Spanisch",
+      "it": "Italienisch"
+    }
   },
   "nav": {
     "sidebarLabel": "Hauptnavigation",

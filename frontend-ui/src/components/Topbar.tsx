@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AppBar, Avatar, Box, IconButton, Toolbar, Tooltip, Typography } from '@mui/material';
+import { AppBar, Avatar, Box, IconButton, ListItemIcon, Menu, MenuItem, Toolbar, Tooltip, Typography } from '@mui/material';
 import DarkModeOutlinedIcon from '@mui/icons-material/DarkModeOutlined';
 import LightModeOutlinedIcon from '@mui/icons-material/LightModeOutlined';
 import TranslateOutlinedIcon from '@mui/icons-material/TranslateOutlined';
 import DiamondOutlinedIcon from '@mui/icons-material/DiamondOutlined';
+import CheckIcon from '@mui/icons-material/Check';
 import { alpha, useColorScheme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '../store/hooks';
@@ -20,27 +22,65 @@ const ICON_BUTTON_SX = {
   },
 } as const;
 
-function LanguageToggle() {
-  const { i18n, t } = useTranslation();
+const LANGUAGES = ['en', 'de', 'fr', 'es', 'it'] as const;
 
-  function toggleLanguage() {
-    const next = i18n.language === 'en' ? 'de' : 'en';
-    i18n.changeLanguage(next);
+function LanguageMenu() {
+  const { i18n, t } = useTranslation();
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null);
+  const open = Boolean(anchorEl);
+
+  function handleOpen(event: React.MouseEvent<HTMLElement>) {
+    setAnchorEl(event.currentTarget);
   }
 
-  const label = `${t('topbar.switchLanguage')} (${i18n.language === 'en' ? 'DE' : 'EN'})`;
+  function handleClose() {
+    setAnchorEl(null);
+  }
+
+  function handleSelect(code: string) {
+    i18n.changeLanguage(code);
+    handleClose();
+  }
+
+  const label = t('topbar.language');
 
   return (
-    <Tooltip title={label}>
-      <IconButton
-        onClick={toggleLanguage}
-        size="small"
-        aria-label={label}
-        sx={ICON_BUTTON_SX}
+    <>
+      <Tooltip title={label}>
+        <IconButton
+          onClick={handleOpen}
+          size="small"
+          aria-label={label}
+          aria-controls={open ? 'language-menu' : undefined}
+          aria-haspopup="true"
+          aria-expanded={open ? 'true' : undefined}
+          sx={ICON_BUTTON_SX}
+        >
+          <TranslateOutlinedIcon sx={{ fontSize: 20 }} />
+        </IconButton>
+      </Tooltip>
+      <Menu
+        id="language-menu"
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
-        <TranslateOutlinedIcon sx={{ fontSize: 20 }} />
-      </IconButton>
-    </Tooltip>
+        {LANGUAGES.map((code) => (
+          <MenuItem
+            key={code}
+            onClick={() => handleSelect(code)}
+            selected={i18n.language === code}
+          >
+            <ListItemIcon sx={{ minWidth: 28 }}>
+              {i18n.language === code && <CheckIcon sx={{ fontSize: 18 }} />}
+            </ListItemIcon>
+            {t(`topbar.languages.${code}`)}
+          </MenuItem>
+        ))}
+      </Menu>
+    </>
   );
 }
 
@@ -133,7 +173,7 @@ export default function Topbar() {
 
         {/* Right actions */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-          <LanguageToggle />
+          <LanguageMenu />
           <ColorModeToggle />
 
           <Tooltip title={t('topbar.profile')}>

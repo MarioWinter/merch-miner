@@ -65,7 +65,15 @@
     "darkMode": "Modo oscuro",
     "lightMode": "Modo claro",
     "systemMode": "Modo sistema",
-    "switchLanguage": "Cambiar idioma"
+    "switchLanguage": "Cambiar idioma",
+    "language": "Idioma",
+    "languages": {
+      "en": "Inglés",
+      "de": "Alemán",
+      "fr": "Francés",
+      "es": "Español",
+      "it": "Italiano"
+    }
   },
   "nav": {
     "sidebarLabel": "Navegación principal",

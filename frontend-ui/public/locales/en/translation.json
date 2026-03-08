@@ -65,7 +65,15 @@
     "darkMode": "Dark mode",
     "lightMode": "Light mode",
     "systemMode": "System mode",
-    "switchLanguage": "Switch language"
+    "switchLanguage": "Switch language",
+    "language": "Language",
+    "languages": {
+      "en": "English",
+      "de": "Deutsch",
+      "fr": "Français",
+      "es": "Español",
+      "it": "Italiano"
+    }
   },
   "nav": {
     "sidebarLabel": "Main navigation",
