@@ -112,12 +112,11 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         aria-current={active ? 'page' : undefined}
         sx={{
           height: 40,
-          px: effectiveCollapsed ? 0 : 2,
+          px: effectiveCollapsed ? 1.5 : 2,
           mx: 1,
           borderRadius: '8px',
           mb: '2px',
-          gap: 1.5,
-          justifyContent: effectiveCollapsed ? 'center' : 'flex-start',
+          gap: effectiveCollapsed ? 0 : 1.5,
           bgcolor: active ? alpha(COLORS.red, 0.12) : 'transparent',
           color: active ? 'primary.main' : 'text.secondary',
           borderLeft: active ? '2px solid' : '2px solid transparent',
@@ -217,14 +216,11 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 }}
               />
             )}
-            {/* Section label — animates via grid-template-rows (no layout jump) */}
-            <Box
-              sx={{
-                display: 'grid',
-                gridTemplateRows: effectiveCollapsed ? '0fr' : '1fr',
-                transition: `grid-template-rows ${DURATION.default}ms ${EASING.standard}`,
-              }}
-            >
+            <Box sx={{
+              display: 'grid',
+              gridTemplateRows: effectiveCollapsed ? '0fr' : '1fr',
+              transition: `grid-template-rows ${DURATION.default}ms ${EASING.standard}`,
+            }}>
               <Box sx={{ overflow: 'hidden' }}>
                 <Typography
                   variant="overline"
@@ -250,69 +246,55 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         ))}
       </Box>
 
-      {/* Sidebar toggle tab */}
+      {/* Sidebar toggle — round button with cutout ring */}
       <Box
         className="sidebar-toggle"
         sx={{
           position: 'absolute',
           bottom: 40,
-          right: -16,
-          width: 32,
-          height: 52,
+          right: -24,
+          width: 48,
+          height: 48,
           zIndex: 1,
+          borderRadius: '50%',
+          bgcolor: 'background.default',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
           opacity: collapsed ? 0 : 1,
           transition: `opacity ${DURATION.fast}ms ${EASING.standard}`,
+          // Left-arc border only (matches sidebar edge)
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            inset: 0,
+            borderRadius: '50%',
+            border: '1px solid',
+            borderColor: 'divider',
+            clipPath: 'inset(-1px 50% -1px -1px)',
+            pointerEvents: 'none',
+          },
         }}
       >
-        {/* Tab body */}
         <IconButton
           onClick={onToggle}
           size="small"
           aria-label={collapsed ? t('nav.expandSidebar') : t('nav.collapseSidebar')}
           sx={{
-            width: '100%',
-            height: '100%',
-            borderRadius: '8px 0 0 8px',
-            bgcolor: 'background.default',
-            color: 'text.secondary',
-            borderTop: 'none',
-            borderLeft: '1px solid',
-            borderBottom: 'none',
-            borderRight: 'none',
-            borderColor: 'divider',
-            position: 'relative',
-            overflow: 'visible',
-            '&::before': {
-              content: '""',
-              position: 'absolute',
-              top: -1,
-              left: 8,
-              width: 'calc(50% - 8px)',
-              height: '1px',
-              backgroundColor: 'divider',
-            },
-            '&::after': {
-              content: '""',
-              position: 'absolute',
-              bottom: -1,
-              left: 8,
-              width: 'calc(50% - 8px)',
-              height: '1px',
-              backgroundColor: 'divider',
-            },
-            boxShadow: 'none',
-            outline: 'none',
+            width: 28,
+            height: 28,
+            borderRadius: '50%',
+            bgcolor: COLORS.red,
+            color: '#fff',
+            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
             '&:hover': {
-              bgcolor: 'background.default',
-            },
-            '& .MuiTouchRipple-root': {
-              display: 'none',
+              bgcolor: COLORS.redDk,
             },
           }}
         >
           {effectiveCollapsed
-            ? <ChevronRightIcon sx={{ fontSize: 30 }} />
-            : <ChevronLeftIcon sx={{ fontSize: 30 }} />}
+            ? <ChevronRightIcon sx={{ fontSize: 18 }} />
+            : <ChevronLeftIcon sx={{ fontSize: 18 }} />}
         </IconButton>
       </Box>
     </Box>
