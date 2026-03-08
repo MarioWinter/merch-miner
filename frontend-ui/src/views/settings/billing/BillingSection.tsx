@@ -17,7 +17,7 @@ import { SettingsCard, SectionTitle } from '../../../components/SettingsCard';
 import { useBillingForm } from './hooks/useBillingForm';
 import { COUNTRIES, type Country } from './data/countries';
 
-export default function BillingSection() {
+const BillingSection = () => {
   const { t } = useTranslation();
   const { form, loading, error, saving, handleSave } = useBillingForm();
 
@@ -224,4 +224,6 @@ export default function BillingSection() {
       </form>
     </SettingsCard>
   );
-}
+};
+
+export default BillingSection;

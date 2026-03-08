@@ -7,19 +7,19 @@ import { DURATION, EASING } from '../style/constants';
 
 const SIDEBAR_COLLAPSED_KEY = 'mm-sidebar-collapsed';
 
-function getInitialCollapsed(): boolean {
+const getInitialCollapsed = (): boolean => {
   try {
     return localStorage.getItem(SIDEBAR_COLLAPSED_KEY) === 'true';
   } catch {
     return false;
   }
-}
+};
 
-export default function AppLayout() {
+const AppLayout = () => {
   const [collapsed, setCollapsed] = useState<boolean>(getInitialCollapsed);
   const [hovered, setHovered] = useState(false);
 
-  function handleToggle() {
+  const handleToggle = () => {
     setCollapsed((prev) => {
       const next = !prev;
       try {
@@ -29,7 +29,7 @@ export default function AppLayout() {
       }
       return next;
     });
-  }
+  };
 
   const sidebarWidth = collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
   const borderSidebarW = collapsed && !hovered ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
@@ -56,4 +56,6 @@ export default function AppLayout() {
       </Box>
     </Box>
   );
-}
+};
+
+export default AppLayout;

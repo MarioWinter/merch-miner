@@ -17,7 +17,7 @@ let failedQueue: Array<{
   reject: (reason?: unknown) => void;
 }> = [];
 
-function processQueue(error: unknown) {
+const processQueue = (error: unknown) => {
   failedQueue.forEach(({ resolve, reject }) => {
     if (error) {
       reject(error);
@@ -26,7 +26,7 @@ function processQueue(error: unknown) {
     }
   });
   failedQueue = [];
-}
+};
 
 // --- 401 interceptor ---
 apiClient.interceptors.response.use(
@@ -134,7 +134,7 @@ export const authService = {
 };
 
 // Hydrate Redux auth state from cookie session on app load
-export async function hydrateAuth() {
+export const hydrateAuth = async () => {
   store.dispatch(setLoading(true));
   try {
     const data = await authService.getMe();
@@ -144,4 +144,4 @@ export async function hydrateAuth() {
   } finally {
     store.dispatch(setLoading(false));
   }
-}
+};

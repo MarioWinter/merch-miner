@@ -9,7 +9,7 @@ import { workspaceService } from '../../services/workspaceService';
 
 type State = 'loading' | 'success' | 'already_member' | 'error';
 
-export default function InviteAcceptView() {
+const InviteAcceptView = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { t } = useTranslation();
@@ -25,13 +25,10 @@ export default function InviteAcceptView() {
     hasFetched.current = true;
 
     const token = searchParams.get('token');
-    if (!token) {
-      setErrorMsg(t('invite.missingToken'));
-      setState('error');
-      return;
-    }
-    workspaceService
-      .acceptInvite(token)
+    const request = token
+      ? workspaceService.acceptInvite(token)
+      : Promise.reject(new Error(t('invite.missingToken')));
+    request
       .then((result) => {
         setNeedsPasswordSetup(result.needs_password_setup ?? false);
         setResetUid(result.password_reset_uid ?? null);
@@ -42,10 +39,11 @@ export default function InviteAcceptView() {
           setState('success');
         }
       })
-      .catch((err) => {
+      .catch((err: { message?: string; response?: { data?: { error?: string; detail?: string } } }) => {
         const detail =
           err?.response?.data?.error ||
           err?.response?.data?.detail ||
+          err?.message ||
           t('invite.invalidLink');
         setErrorMsg(detail);
         setState('error');
@@ -116,4 +114,6 @@ export default function InviteAcceptView() {
       )}
     </Box>
   );
-}
+};
+
+export default InviteAcceptView;

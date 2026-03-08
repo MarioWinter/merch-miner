@@ -11,7 +11,7 @@ import {
 import { workspaceService, type MemberRole } from '../../../../services/workspaceService';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 
-export function useWorkspaceSection() {
+export const useWorkspaceSection = () => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
   const dispatch = useAppDispatch();
@@ -40,7 +40,7 @@ export function useWorkspaceSection() {
     dispatch(fetchWorkspaces());
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function handleRenameSave() {
+  const handleRenameSave = async () => {
     if (!activeWorkspace || !nameValue.trim()) return;
     try {
       await dispatch(
@@ -50,9 +50,9 @@ export function useWorkspaceSection() {
     } catch {
       enqueueSnackbar(t('settings.workspace.saveError'), { variant: 'error' });
     }
-  }
+  };
 
-  async function handleInvite() {
+  const handleInvite = async () => {
     if (!activeWorkspace || !inviteEmail.trim()) return;
     setInviting(true);
     try {
@@ -64,9 +64,9 @@ export function useWorkspaceSection() {
     } finally {
       setInviting(false);
     }
-  }
+  };
 
-  async function handleRoleChange(userId: number, role: MemberRole) {
+  const handleRoleChange = async (userId: number, role: MemberRole) => {
     if (!activeWorkspace) return;
     try {
       await dispatch(
@@ -76,9 +76,9 @@ export function useWorkspaceSection() {
     } catch {
       enqueueSnackbar(t('settings.workspace.roleChangeError'), { variant: 'error' });
     }
-  }
+  };
 
-  async function handleRemoveMember(userId: number) {
+  const handleRemoveMember = async (userId: number) => {
     if (!activeWorkspace) return;
     try {
       await dispatch(
@@ -88,11 +88,11 @@ export function useWorkspaceSection() {
     } catch {
       enqueueSnackbar(t('settings.workspace.removeError'), { variant: 'error' });
     }
-  }
+  };
 
-  function handleSelectWorkspace(id: string) {
+  const handleSelectWorkspace = (id: string) => {
     dispatch(setActiveWorkspace(id));
-  }
+  };
 
   return {
     workspaces,
@@ -112,4 +112,4 @@ export function useWorkspaceSection() {
     handleRemoveMember,
     handleSelectWorkspace,
   };
-}
+};

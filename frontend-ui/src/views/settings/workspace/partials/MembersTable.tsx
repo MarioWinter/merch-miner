@@ -41,7 +41,7 @@ const RemoveIconButton = styled(IconButton)(({ theme }) => ({
 // Sub-components
 // ------------------------------------------------------------------
 
-function RoleChip({ role }: { role: MemberRole }) {
+const RoleChip = ({ role }: { role: MemberRole }) => {
   const { t } = useTranslation();
   return (
     <Chip
@@ -54,9 +54,9 @@ function RoleChip({ role }: { role: MemberRole }) {
       size="small"
     />
   );
-}
+};
 
-function StatusChip({ status }: { status: 'active' | 'pending' }) {
+const StatusChip = ({ status }: { status: 'active' | 'pending' }) => {
   const { t } = useTranslation();
   return (
     <Chip
@@ -69,7 +69,7 @@ function StatusChip({ status }: { status: 'active' | 'pending' }) {
       size="small"
     />
   );
-}
+};
 
 // ------------------------------------------------------------------
 // Main component
@@ -82,7 +82,7 @@ interface Props {
   onRemove: (userId: number) => void;
 }
 
-export default function MembersTable({ members, isAdmin, onRoleChange, onRemove }: Props) {
+const MembersTable = ({ members, isAdmin, onRoleChange, onRemove }: Props) => {
   const { t } = useTranslation();
 
   return (
@@ -186,4 +186,6 @@ export default function MembersTable({ members, isAdmin, onRoleChange, onRemove 
       </Table>
     </TableContainer>
   );
-}
+};
+
+export default MembersTable;

@@ -8,7 +8,7 @@ interface AuthLayoutProps {
   children: ReactNode;
 }
 
-export default function AuthLayout({ children }: AuthLayoutProps) {
+const AuthLayout = ({ children }: AuthLayoutProps) => {
   const { t } = useTranslation();
 
   return (
@@ -110,4 +110,6 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
       </Paper>
     </Box>
   );
-}
+};
+
+export default AuthLayout;

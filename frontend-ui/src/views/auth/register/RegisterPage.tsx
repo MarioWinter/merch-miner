@@ -24,7 +24,7 @@ import { authService } from '../../../services/authService';
 import { useAppDispatch } from '../../../store/hooks';
 import { setError } from '../../../store/authSlice';
 
-export default function RegisterPage() {
+const RegisterPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -193,4 +193,6 @@ export default function RegisterPage() {
       </Typography>
     </AuthLayout>
   );
-}
+};
+
+export default RegisterPage;

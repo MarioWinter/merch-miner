@@ -19,13 +19,13 @@ import WorkspaceSection from './views/settings/workspace/WorkspaceSection';
 import InviteAcceptView from './views/invite/InviteAcceptView';
 
 // Placeholder — replaced when dashboard is built (PROJ-12)
-function DashboardPlaceholder() {
+const DashboardPlaceholder = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const user = useAppSelector((state) => state.auth.user);
   const [loggingOut, setLoggingOut] = useState(false);
 
-  async function handleLogout() {
+  const handleLogout = async () => {
     setLoggingOut(true);
     try {
       await authService.logout();
@@ -35,7 +35,7 @@ function DashboardPlaceholder() {
       dispatch(clearAuth());
       navigate('/login', { replace: true });
     }
-  }
+  };
 
   return (
     <Box sx={{ p: 5 }}>
@@ -60,7 +60,7 @@ function DashboardPlaceholder() {
 }
 
 
-function App() {
+const App = () => {
   useEffect(() => {
     hydrateAuth();
   }, []);

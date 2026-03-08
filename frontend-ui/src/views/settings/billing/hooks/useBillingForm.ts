@@ -9,7 +9,7 @@ import {
 } from '../schemas/billingSchema';
 import { billingService } from '../../../../services/billingService';
 
-export function useBillingForm() {
+export const useBillingForm = () => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
 
@@ -56,7 +56,7 @@ export function useBillingForm() {
     load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function handleSave(values: BillingFormValues) {
+  const handleSave = async (values: BillingFormValues) => {
     setSaving(true);
     try {
       await billingService.putBilling(values);
@@ -68,7 +68,7 @@ export function useBillingForm() {
     } finally {
       setSaving(false);
     }
-  }
+  };
 
   return { form, loading, error, saving, handleSave };
-}
+};

@@ -21,7 +21,7 @@ import {
 import AuthLayout from '../partials/AuthLayout';
 import { authService } from '../../../services/authService';
 
-export default function PasswordConfirmPage() {
+const PasswordConfirmPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
@@ -141,4 +141,6 @@ export default function PasswordConfirmPage() {
       </Box>
     </AuthLayout>
   );
-}
+};
+
+export default PasswordConfirmPage;

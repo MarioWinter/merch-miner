@@ -17,7 +17,7 @@ import {
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
-export function useProfileForm() {
+export const useProfileForm = () => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
 
@@ -60,7 +60,7 @@ export function useProfileForm() {
     load();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  async function handleSaveProfile(values: ProfileFormValues) {
+  const handleSaveProfile = async (values: ProfileFormValues) => {
     setSavingProfile(true);
     try {
       const updated = await profileService.patchProfile(values);
@@ -73,9 +73,9 @@ export function useProfileForm() {
     } finally {
       setSavingProfile(false);
     }
-  }
+  };
 
-  async function handleAvatarUpload(file: File) {
+  const handleAvatarUpload = async (file: File) => {
     if (!ALLOWED_TYPES.includes(file.type)) {
       enqueueSnackbar(t('settings.profile.avatarBadType'), {
         variant: 'error',
@@ -101,9 +101,9 @@ export function useProfileForm() {
     } finally {
       setAvatarUploading(false);
     }
-  }
+  };
 
-  async function handleChangePassword(values: PasswordFormValues) {
+  const handleChangePassword = async (values: PasswordFormValues) => {
     try {
       await profileService.changePassword(values);
       passwordForm.reset();
@@ -115,7 +115,7 @@ export function useProfileForm() {
         variant: 'error',
       });
     }
-  }
+  };
 
   return {
     profile,
@@ -129,4 +129,4 @@ export function useProfileForm() {
     handleAvatarUpload,
     handleChangePassword,
   };
-}
+};

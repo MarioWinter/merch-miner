@@ -24,7 +24,7 @@ interface SectionTitleProps {
 /**
  * Section heading used inside SettingsCard panels.
  */
-export function SectionTitle({ children }: SectionTitleProps) {
+export const SectionTitle = ({ children }: SectionTitleProps) => {
   return (
     <Typography
       variant="h4"
@@ -34,4 +34,4 @@ export function SectionTitle({ children }: SectionTitleProps) {
       {children}
     </Typography>
   );
-}
+};

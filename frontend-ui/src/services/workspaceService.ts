@@ -26,12 +26,15 @@ export interface Workspace {
 export const workspaceService = {
   async getMyWorkspaces(): Promise<Workspace[]> {
     const { data } = await apiClient.get('/api/workspaces/me/');
-    return data.data.map((ws: any) => ({
+    type RawUser = { id: number; first_name: string; last_name: string; email: string; username: string; avatar: string | null };
+    type RawMember = { user: RawUser; role: MemberRole; status: MemberStatus; is_owner: boolean };
+    type RawWorkspace = { id: string; name: string; slug: string; role: MemberRole; owner?: { id: number }; members?: RawMember[] };
+    return data.data.map((ws: RawWorkspace) => ({
       id: ws.id,
       name: ws.name,
       slug: ws.slug,
       role: ws.role,
-      members: (ws.members ?? []).map((m: any) => ({
+      members: (ws.members ?? []).map((m: RawMember) => ({
         id: m.user.id,
         first_name: m.user.first_name || '',
         last_name: m.user.last_name || '',

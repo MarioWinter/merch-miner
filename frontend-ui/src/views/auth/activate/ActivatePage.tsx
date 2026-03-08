@@ -18,7 +18,7 @@ import { apiClient } from '../../../services/authService';
 
 type ActivateStatus = 'loading' | 'success' | 'error';
 
-export default function ActivatePage() {
+const ActivatePage = () => {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const uid = searchParams.get('uid');
@@ -126,4 +126,6 @@ export default function ActivatePage() {
       </Stack>
     </AuthLayout>
   );
-}
+};
+
+export default ActivatePage;

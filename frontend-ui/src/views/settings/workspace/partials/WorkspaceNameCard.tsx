@@ -9,7 +9,7 @@ interface Props {
   onSave: () => void;
 }
 
-export default function WorkspaceNameCard({ nameValue, isAdmin, onChange, onSave }: Props) {
+const WorkspaceNameCard = ({ nameValue, isAdmin, onChange, onSave }: Props) => {
   const { t } = useTranslation();
 
   return (
@@ -42,4 +42,6 @@ export default function WorkspaceNameCard({ nameValue, isAdmin, onChange, onSave
       </form>
     </SettingsCard>
   );
-}
+};
+
+export default WorkspaceNameCard;

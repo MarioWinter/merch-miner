@@ -8,7 +8,7 @@ interface Props {
   onSubmit: () => void;
 }
 
-export default function InviteRow({ email, inviting, onChange, onSubmit }: Props) {
+const InviteRow = ({ email, inviting, onChange, onSubmit }: Props) => {
   const { t } = useTranslation();
 
   return (
@@ -44,4 +44,6 @@ export default function InviteRow({ email, inviting, onChange, onSubmit }: Props
       </Stack>
     </form>
   );
-}
+};
+
+export default InviteRow;

@@ -24,7 +24,7 @@ import { authService } from '../../../services/authService';
 import { useAppDispatch } from '../../../store/hooks';
 import { setUser, setError } from '../../../store/authSlice';
 
-export default function LoginPage() {
+const LoginPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -184,4 +184,6 @@ export default function LoginPage() {
       </Typography>
     </AuthLayout>
   );
-}
+};
+
+export default LoginPage;

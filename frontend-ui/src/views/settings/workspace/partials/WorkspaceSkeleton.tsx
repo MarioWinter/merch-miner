@@ -1,7 +1,7 @@
 import { Skeleton, Stack } from '@mui/material';
 import { SettingsCard } from '../../../../components/SettingsCard';
 
-export default function WorkspaceSkeleton() {
+const WorkspaceSkeleton = () => {
   return (
     <Stack spacing={3}>
       <SettingsCard>
@@ -17,4 +17,6 @@ export default function WorkspaceSkeleton() {
       </SettingsCard>
     </Stack>
   );
-}
+};
+
+export default WorkspaceSkeleton;

@@ -8,7 +8,7 @@ import WorkspaceNameCard from './partials/WorkspaceNameCard';
 import MembersTable from './partials/MembersTable';
 import InviteRow from './partials/InviteRow';
 
-export default function WorkspaceSection() {
+const WorkspaceSection = () => {
   const { t } = useTranslation();
 
   const {
@@ -86,4 +86,6 @@ export default function WorkspaceSection() {
       </SettingsCard>
     </Stack>
   );
-}
+};
+
+export default WorkspaceSection;

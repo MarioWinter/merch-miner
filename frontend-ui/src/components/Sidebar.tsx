@@ -27,6 +27,9 @@ import { useTranslation } from 'react-i18next';
 import { alpha } from '@mui/material/styles';
 import { COLORS, DURATION, EASING } from '../style/constants';
 
+export const EXPANDED_WIDTH = 220;
+export const COLLAPSED_WIDTH = 60;
+
 interface NavItem {
   label: string;
   path: string;
@@ -38,16 +41,13 @@ interface NavSection {
   items: NavItem[];
 }
 
-const EXPANDED_WIDTH = 220;
-const COLLAPSED_WIDTH = 60;
-
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
   onHoverChange?: (hovered: boolean) => void;
 }
 
-export default function Sidebar({ collapsed, onToggle, onHoverChange }: SidebarProps) {
+const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
@@ -98,11 +98,10 @@ export default function Sidebar({ collapsed, onToggle, onHoverChange }: SidebarP
     surfaceOps: t('nav.sections.surfaceOps'),
   };
 
-  function isActive(path: string) {
-    return location.pathname === path || location.pathname.startsWith(path + '/');
-  }
+  const isActive = (path: string) =>
+    location.pathname === path || location.pathname.startsWith(path + '/');
 
-  function renderNavItem(item: NavItem) {
+  const renderNavItem = (item: NavItem) => {
     const active = isActive(item.path);
 
     const button = (
@@ -167,7 +166,7 @@ export default function Sidebar({ collapsed, onToggle, onHoverChange }: SidebarP
     }
 
     return button;
-  }
+  };
 
   return (
     <Box
@@ -300,6 +299,6 @@ export default function Sidebar({ collapsed, onToggle, onHoverChange }: SidebarP
       </Box>
     </Box>
   );
-}
+};
 
-export { EXPANDED_WIDTH, COLLAPSED_WIDTH };
+export default Sidebar;

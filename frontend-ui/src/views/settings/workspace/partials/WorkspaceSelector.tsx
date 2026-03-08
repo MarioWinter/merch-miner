@@ -9,7 +9,7 @@ interface Props {
   onSelect: (id: string) => void;
 }
 
-export default function WorkspaceSelector({ workspaces, activeWorkspaceId, onSelect }: Props) {
+const WorkspaceSelector = ({ workspaces, activeWorkspaceId, onSelect }: Props) => {
   const { t } = useTranslation();
 
   if (workspaces.length <= 1) return null;
@@ -33,4 +33,6 @@ export default function WorkspaceSelector({ workspaces, activeWorkspaceId, onSel
       </Select>
     </SettingsCard>
   );
-}
+};
+
+export default WorkspaceSelector;

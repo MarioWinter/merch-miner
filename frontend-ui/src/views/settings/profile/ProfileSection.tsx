@@ -35,7 +35,7 @@ const LargeAvatar = styled(Avatar)({
 
 // ------------------------------------------------------------------
 
-export default function ProfileSection() {
+const ProfileSection = () => {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -285,4 +285,6 @@ export default function ProfileSection() {
       </SettingsCard>
     </Stack>
   );
-}
+};
+
+export default ProfileSection;
