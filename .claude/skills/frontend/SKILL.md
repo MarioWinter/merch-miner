@@ -46,6 +46,11 @@ Use `AskUserQuestion` for:
 - NEVER use GridLegacy or Grid2 — only `Grid` from `@mui/material`
 - NEVER use `InputProps` — use `slotProps={{ input: {...} }}` (v7 breaking change)
 - NEVER import Alert, Autocomplete, etc. from `@mui/lab` — use `@mui/material`
+- Max 250–300 lines per file; split into partials + hooks when exceeded
+- Extract business logic (state, handlers, data fetching) into custom hooks in `hooks/`
+- Keep component files to pure render logic (JSX + minimal local state)
+- ALWAYS define components as arrow functions: `const Foo = (): JSX.Element => { ... }`
+  NEVER use `function Foo() { ... }` declarations
 
 ### 4. Connect State and APIs
 - Global state: create Redux slice in `frontend-ui/src/store/`

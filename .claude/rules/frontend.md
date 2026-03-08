@@ -95,6 +95,15 @@ import SearchIcon from '@mui/icons-material/Search'
 - Semantic HTML + ARIA labels for accessibility
 - Keep components small and focused (Single Responsibility)
 
+## Component Structure & File Size
+- Max file length: 250–300 lines. If a file exceeds this, split it.
+- Separate render logic from business logic:
+  - Business logic (data fetching, state, handlers) → custom hook in `hooks/` dir
+  - Render logic (JSX) → component file in `partials/` or as the main component
+- ALWAYS define components as arrow functions:
+  `const MyComponent = (): JSX.Element => { ... }`
+  NEVER use `function MyComponent() { ... }` declarations
+
 ## Testing — Vitest + Testing Library
 - Test files live in `views/[view]/[section]/tests/` (co-located with the feature)
 - Global reusable component tests live in `components/__tests__/`
