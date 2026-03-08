@@ -8,20 +8,21 @@ class UserAdmin(BaseUserAdmin):
     
     model = User
 
-    list_display = ('email','is_staff', 'is_superuser', 'is_active', 'date_joined', 'last_login')
+    list_display = ('email', 'first_name', 'last_name', 'username', 'is_staff', 'is_superuser', 'is_active', 'date_joined', 'last_login')
     list_filter  = ('is_active',)
 
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
+        ('Personal info', {'fields': ('first_name', 'last_name', 'username')}),
         ('Permissions', {'fields': ('is_active','is_staff','is_superuser')}),
         ('Important dates', {'fields': ('last_login','date_joined')}),
     )
     add_fieldsets = (
         (None, {
             'classes': ('wide',),
-            'fields': ('email','password1','password2','is_active','is_staff','is_superuser'),
+            'fields': ('email', 'first_name', 'last_name', 'username', 'password1', 'password2', 'is_active', 'is_staff', 'is_superuser'),
         }),
     )
 
     ordering = ('email',)
-    search_fields = ('email',)
+    search_fields = ('email', 'first_name', 'last_name', 'username')
