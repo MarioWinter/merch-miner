@@ -1,5 +1,6 @@
 import logging
 import os
+from urllib.parse import quote
 
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
@@ -14,7 +15,7 @@ def send_invite_email_task(email: str, workspace_name: str, token: str) -> None:
     Token is produced by django.core.signing.dumps() and has max_age=172800 (48 h).
     """
     frontend_url = os.environ.get('FRONTEND_URL', 'http://localhost:5173')
-    accept_url = f"{frontend_url}/workspaces/invite/accept/?token={token}"
+    accept_url = f"{frontend_url}/workspaces/invite/accept/?token={quote(token, safe='')}"
 
     subject = f"You've been invited to join {workspace_name} on Merch Miner"
 

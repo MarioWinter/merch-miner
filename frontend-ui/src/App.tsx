@@ -16,6 +16,7 @@ import SettingsLayout from './views/settings/SettingsLayout';
 import ProfileSection from './views/settings/profile/ProfileSection';
 import BillingSection from './views/settings/billing/BillingSection';
 import WorkspaceSection from './views/settings/workspace/WorkspaceSection';
+import InviteAcceptView from './views/invite/InviteAcceptView';
 
 // Placeholder — replaced when dashboard is built (PROJ-12)
 function DashboardPlaceholder() {
@@ -72,6 +73,7 @@ function App() {
       <Route path="/activate" element={<ActivatePage />} />
       <Route path="/password-reset" element={<PasswordResetPage />} />
       <Route path="/password-reset/confirm" element={<PasswordConfirmPage />} />
+      <Route path="/workspaces/invite/accept" element={<InviteAcceptView />} />
 
       {/* Protected routes — all wrapped with AppLayout */}
       <Route element={<PrivateRoute />}>

@@ -1,10 +1,13 @@
 from django.contrib.auth import get_user_model
 from django.core import signing
 from django.utils import timezone
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework_simplejwt.tokens import RefreshToken
 
 from user_auth_app.api.authentication import CookieJWTAuthentication
 from workspace_app.models import Workspace, Membership
@@ -116,10 +119,13 @@ class WorkspaceInviteView(APIView):
         workspace = membership.workspace
 
         # Resolve or create a user for the invited email
-        invited_user, _ = User.objects.get_or_create(
+        invited_user, created = User.objects.get_or_create(
             email=email,
             defaults={'username': email, 'is_active': False},
         )
+        if created:
+            invited_user.set_unusable_password()
+            invited_user.save(update_fields=['password'])
 
         # Check for duplicate active/pending membership
         existing = Membership.objects.filter(workspace=workspace, user=invited_user).first()
@@ -182,10 +188,36 @@ class WorkspaceInviteAcceptView(APIView):
                 status=Membership.Status.PENDING,
             )
         except Membership.DoesNotExist:
-            return Response(
-                {'error': 'Invite not found or already accepted.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            # Check if already accepted — return success-like response, not error
+            try:
+                membership = Membership.objects.select_related('workspace', 'user').get(
+                    workspace_id=workspace_id,
+                    user_id=user_id,
+                    status=Membership.Status.ACTIVE,
+                )
+                serializer = MembershipSerializer(membership)
+                needs_setup = not membership.user.has_usable_password()
+                password_setup_data = {}
+                if needs_setup:
+                    refresh = RefreshToken.for_user(membership.user)
+                    password_setup_data = {
+                        'password_reset_uid': urlsafe_base64_encode(force_bytes(membership.user.pk)),
+                        'password_reset_token': str(refresh.access_token),
+                    }
+                return Response(
+                    {
+                        'data': serializer.data,
+                        'already_accepted': True,
+                        'needs_password_setup': needs_setup,
+                        **password_setup_data,
+                    },
+                    status=status.HTTP_200_OK,
+                )
+            except Membership.DoesNotExist:
+                return Response(
+                    {'error': 'Invite not found or already accepted.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
         membership.status = Membership.Status.ACTIVE
         membership.accepted_at = timezone.now()
@@ -198,7 +230,22 @@ class WorkspaceInviteAcceptView(APIView):
             user.save(update_fields=['is_active'])
 
         serializer = MembershipSerializer(membership)
-        return Response({'data': serializer.data}, status=status.HTTP_200_OK)
+        needs_setup = not membership.user.has_usable_password()
+        password_setup_data = {}
+        if needs_setup:
+            refresh = RefreshToken.for_user(user)
+            password_setup_data = {
+                'password_reset_uid': urlsafe_base64_encode(force_bytes(user.pk)),
+                'password_reset_token': str(refresh.access_token),
+            }
+        return Response(
+            {
+                'data': serializer.data,
+                'needs_password_setup': needs_setup,
+                **password_setup_data,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class WorkspaceMemberDetailView(APIView):

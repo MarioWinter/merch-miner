@@ -111,7 +111,8 @@ export default function MembersTable({ members, isAdmin, onRoleChange, onRemove 
               member.username;
             const initials =
               member.first_name?.charAt(0)?.toUpperCase() ||
-              member.email.charAt(0).toUpperCase();
+              member.email?.charAt(0)?.toUpperCase() ||
+              '?';
 
             return (
               <TableRow key={member.id}>

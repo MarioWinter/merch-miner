@@ -56,7 +56,7 @@
     "passwordsNoMatch": "Passwords do not match"
   },
   "app": {
-    "name": "Merch Miner",
+    "name": "MerchMiner",
     "tagline": "POD Business OS"
   },
   "topbar": {
@@ -89,6 +89,18 @@
       "drillingZone": "Drilling Zone",
       "surfaceOps": "Surface Ops"
     }
+  },
+  "invite": {
+    "successTitle": "You've joined the workspace!",
+    "successBody": "Your invite has been accepted. Log in to get started.",
+    "goToLogin": "Go to login",
+    "setPassword": "Set your password",
+    "alreadyMemberTitle": "Already a member",
+    "alreadyMemberBody": "You're already a member of this workspace.",
+    "errorTitle": "Invite failed",
+    "missingToken": "Missing invite token.",
+    "invalidLink": "Invalid or expired invite link.",
+    "backToLogin": "Back to login"
   },
   "settings": {
     "title": "Settings",
