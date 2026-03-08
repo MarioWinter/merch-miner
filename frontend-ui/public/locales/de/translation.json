@@ -67,6 +67,12 @@
     "systemMode": "Systemmodus",
     "switchLanguage": "Sprache wechseln",
     "language": "Sprache",
+    "menu": {
+      "profile": "Profil",
+      "billing": "Abrechnung",
+      "workspace": "Workspace",
+      "signOut": "Abmelden"
+    },
     "languages": {
       "en": "Englisch",
       "de": "Deutsch",
