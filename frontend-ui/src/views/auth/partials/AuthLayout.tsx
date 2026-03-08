@@ -1,6 +1,8 @@
 import { Box, Paper, Typography } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
+import { COLORS } from '../../../style/constants';
 
 interface AuthLayoutProps {
   children: ReactNode;
@@ -30,7 +32,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
           width: 480,
           height: 480,
           borderRadius: '50%',
-          background: 'rgba(255,90,79,0.08)',
+          background: alpha(COLORS.red, 0.08),
           filter: 'blur(80px)',
           pointerEvents: 'none',
         },
@@ -42,7 +44,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
           width: 480,
           height: 480,
           borderRadius: '50%',
-          background: 'rgba(0,200,215,0.06)',
+          background: alpha(COLORS.cyan, 0.06),
           filter: 'blur(80px)',
           pointerEvents: 'none',
         },
@@ -69,7 +71,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
             justifyContent: 'center',
             fontSize: '1.1rem',
             fontWeight: 700,
-            color: '#fff',
+            color: COLORS.white,
             lineHeight: 1,
           }}
           aria-hidden="true"
@@ -87,24 +89,22 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
       {/* Auth Card */}
       <Paper
         elevation={0}
-        sx={{
+        sx={(theme) => ({
           width: '100%',
           maxWidth: 440,
           p: 5,
           borderRadius: '16px',
           border: '1px solid',
-          borderColor: (theme) =>
-            theme.palette.mode === 'dark'
-              ? 'rgba(255,255,255,0.10)'
-              : 'rgba(7,30,38,0.10)',
-          bgcolor: (theme) =>
-            theme.palette.mode === 'dark'
-              ? 'rgba(11,39,49,0.75)'
-              : 'background.paper',
-          backdropFilter: (theme) =>
-            theme.palette.mode === 'dark' ? 'blur(16px)' : 'none',
+          borderColor: alpha(COLORS.ink, 0.10),
+          bgcolor: 'background.paper',
+          backdropFilter: 'none',
           zIndex: 1,
-        }}
+          ...theme.applyStyles('dark', {
+            borderColor: alpha(COLORS.white, 0.10),
+            bgcolor: alpha(COLORS.inkPaper, 0.75),
+            backdropFilter: 'blur(16px)',
+          }),
+        })}
       >
         {children}
       </Paper>

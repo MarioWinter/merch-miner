@@ -7,10 +7,12 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { useTranslation } from 'react-i18next';
 
+import { COLORS } from '../../../style/constants';
 import AuthLayout from '../partials/AuthLayout';
 import { apiClient } from '../../../services/authService';
 
@@ -68,7 +70,7 @@ export default function ActivatePage() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderRadius: '50%',
-                bgcolor: 'rgba(34,211,163,0.12)',
+                bgcolor: alpha(COLORS.successDk, 0.12),
               }}
             >
               <CheckCircleOutlineIcon sx={{ fontSize: 36, color: 'success.main' }} />
@@ -100,7 +102,7 @@ export default function ActivatePage() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 borderRadius: '50%',
-                bgcolor: 'rgba(244,63,58,0.12)',
+                bgcolor: alpha(COLORS.errorDk, 0.12),
               }}
             >
               <ErrorOutlineIcon sx={{ fontSize: 36, color: 'error.main' }} />

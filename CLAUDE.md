@@ -116,6 +116,8 @@ django-rq processes async tasks (n8n triggers, design generation). Redis serves 
 - **Feature IDs:** PROJ-1, PROJ-2, etc. (sequential)
 - **Commits:** `feat(PROJ-X): description`, `fix(PROJ-X): description`
 - **MUI first:** Check MUI before building any UI component
+- **MUI v7 only:** Use components from `@mui/material` and icons from `@mui/icons-material`; avoid custom re-implementations for standard controls.
+- **No deprecated APIs:** Never use `GridLegacy`/`Grid2`, `Hidden`, `InputProps`, `@mui/lab` imports, or `createMuiTheme`; use v7 patterns (`Grid size={{...}}`, `slotProps`, `sx` breakpoints).
 - **Single Responsibility:** One feature per spec file
 - **Env vars:** Copy `django-app/.env.template` → `django-app/.env` before running Docker
 - **Human-in-the-loop:** All workflows have user approval checkpoints

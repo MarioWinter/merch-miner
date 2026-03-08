@@ -40,6 +40,8 @@ Use `AskUserQuestion` for:
 - Place reusable components in `frontend-ui/src/components/`
 - Place feature-local code in `frontend-ui/src/views/[view]/[section]/`
 - ALWAYS use MUI v7 for standard UI elements
+- Enforce MUI v7 compatibility for every UI change: block deprecated or breaking APIs before writing final code.
+- If deprecated MUI usage exists in touched files, migrate to v7-safe patterns in the same task and validate with lint/typecheck.
 - Use `sx` prop for one-off styling; `styled()` from `@mui/material/styles` for reusable
 - NEVER use GridLegacy or Grid2 — only `Grid` from `@mui/material`
 - NEVER use `InputProps` — use `slotProps={{ input: {...} }}` (v7 breaking change)

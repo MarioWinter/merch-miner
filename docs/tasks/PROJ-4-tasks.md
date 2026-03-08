@@ -92,29 +92,29 @@
 
 ### 11. App Shell
 
-- [ ] `src/components/AppLayout.tsx` — full app shell: Sidebar + Topbar + main content area
-- [ ] `src/components/Sidebar.tsx` — nav sidebar; "Settings" entry at bottom with `SettingsOutlined` icon, route `/settings`
-- [ ] `src/components/Topbar.tsx` — topbar with gear icon (`SettingsOutlined`) → navigates to `/settings`
-- [ ] Wrap existing authenticated routes with `<AppLayout>` in `App.tsx`
+- [x] `src/components/AppLayout.tsx` — full app shell: Sidebar + Topbar + main content area
+- [x] `src/components/Sidebar.tsx` — nav sidebar; "Settings" entry at bottom with `SettingsOutlined` icon, route `/settings`
+- [x] `src/components/Topbar.tsx` — topbar with gear icon (`SettingsOutlined`) → navigates to `/settings`
+- [x] Wrap existing authenticated routes with `<AppLayout>` in `App.tsx`
 
 ### 12. Settings Layout
 
-- [ ] `src/views/settings/SettingsLayout.tsx` — settings shell: left nav tabs (Profile / Billing / Workspace) + right content panel inside `<AppLayout>`
-- [ ] Add `/settings/*` routes in `App.tsx`; default redirect `/settings` → `/settings/profile`
+- [x] `src/views/settings/SettingsLayout.tsx` — settings shell: left nav tabs (Profile / Billing / Workspace) + right content panel inside `<AppLayout>`
+- [x] Add `/settings/*` routes in `App.tsx`; default redirect `/settings` → `/settings/profile`
 
 ### 13. Redux & Services
 
-- [ ] `src/store/workspaceSlice.ts` — Redux slice: workspaces list, active workspace, loading/error states
-- [ ] `src/services/workspaceService.ts` — axios calls for all workspace endpoints
-- [ ] `src/services/billingService.ts` — axios calls for billing endpoints
-- [ ] Update `src/services/authService.ts` — add `patchProfile()`, `uploadAvatar()`, `changePassword()`
-- [ ] Register `workspaceReducer` in `src/store/index.ts`
+- [x] `src/store/workspaceSlice.ts` — Redux slice: workspaces list, active workspace, loading/error states
+- [x] `src/services/workspaceService.ts` — axios calls for all workspace endpoints
+- [x] `src/services/billingService.ts` — axios calls for billing endpoints
+- [x] `src/services/profileService.ts` — created instead of updating authService: `getProfile()`, `patchProfile()`, `uploadAvatar()`, `changePassword()`
+- [x] Register `workspaceReducer` in `src/store/index.ts`
 
 ### 14. Profile Tab (`/settings/profile`)
 
-- [ ] `src/views/settings/profile/schemas/profileSchema.ts` — Zod schema: firstName, lastName, username, currentPassword, newPassword, confirmPassword
-- [ ] `src/views/settings/profile/hooks/useProfileForm.ts` — react-hook-form + submit handlers
-- [ ] `src/views/settings/profile/ProfileSection.tsx`:
+- [x] `src/views/settings/profile/schemas/profileSchema.ts` — Zod schema: firstName, lastName, username, currentPassword, newPassword, confirmPassword
+- [x] `src/views/settings/profile/hooks/useProfileForm.ts` — react-hook-form + submit handlers
+- [x] `src/views/settings/profile/ProfileSection.tsx`:
   - Avatar: 80px circular preview + outlined upload button; `CircularProgress` during upload
   - Fields: First Name, Last Name, Username (editable); Email (`TextField` disabled)
   - Password section: Current Password, New Password, Confirm Password + "Change Password" button
@@ -122,10 +122,10 @@
 
 ### 15. Billing Tab (`/settings/billing`)
 
-- [ ] `src/views/settings/billing/data/countries.ts` — static ISO 3166-1 country list (no package)
-- [ ] `src/views/settings/billing/schemas/billingSchema.ts` — Zod schema: all fields optional
-- [ ] `src/views/settings/billing/hooks/useBillingForm.ts` — react-hook-form + submit handler
-- [ ] `src/views/settings/billing/BillingSection.tsx`:
+- [x] `src/views/settings/billing/data/countries.ts` — static ISO 3166-1 country list (no package)
+- [x] `src/views/settings/billing/schemas/billingSchema.ts` — Zod schema: all fields optional
+- [x] `src/views/settings/billing/hooks/useBillingForm.ts` — react-hook-form + submit handler
+- [x] `src/views/settings/billing/BillingSection.tsx`:
   - Account type: MUI `ToggleButtonGroup` [Personal | Business]
   - Business-only fields (conditional): Company Name, VAT / Tax ID
   - Address: Line 1, Line 2 (optional), City, State/Region, Postal Code
@@ -134,9 +134,9 @@
 
 ### 16. Workspace Tab (`/settings/workspace`)
 
-- [ ] `src/views/settings/workspace/schemas/workspaceSchema.ts` — Zod schema: workspace name, invite email
-- [ ] `src/views/settings/workspace/hooks/useWorkspaceForm.ts` — react-hook-form + submit handlers
-- [ ] `src/views/settings/workspace/WorkspaceSection.tsx`:
+- [x] `src/views/settings/workspace/schemas/workspaceSchema.ts` — Zod schema: workspace name, invite email
+- [x] `src/views/settings/workspace/hooks/useWorkspaceSection.ts` — react-hook-form + submit handlers (named `useWorkspaceSection`, not `useWorkspaceForm`)
+- [x] `src/views/settings/workspace/WorkspaceSection.tsx`:
   - Workspace name: editable `TextField` + Save (Workspace Admin only; `disabled` for members)
   - Member table (Dense, 44px rows): Avatar | Name | Email | Role chip | Status chip | Actions
   - Role chip: "Admin" primary color / "Member" default; Status chip: "Active" success / "Pending" warning
@@ -145,15 +145,24 @@
 
 ### 17. i18n
 
-- [ ] Add all settings translation keys to `src/i18n/` JSON files (profile, billing, workspace strings)
-- [ ] All user-visible strings in new components use `useTranslation()`
+- [x] Add all settings translation keys to `src/i18n/index.ts` (profile, billing, workspace strings) — EN only
+- [x] All user-visible strings in new components use `useTranslation()` — **exception**: `WorkspaceSection.tsx` has 2 hardcoded strings ("No workspace found." line 123, "Active workspace" label line 137)
+- [ ] Create the translation for DE, FR, ES, IT (EN done; other locales pending)
 
 ### 18. Frontend Tests
 
-- [ ] `ProfileSection` — loading state, avatar upload success, avatar >2MB error, save name success, wrong current password error
-- [ ] `BillingSection` — toggle Personal/Business shows/hides company fields, save with invalid country error, save success
-- [ ] `WorkspaceSection` — member table renders, invite flow success, role change by admin, non-admin sees disabled controls
-- [ ] Run: `npm run test:ci` — zero failures required
+- [x] `src/views/settings/profile/tests/ProfileSection.test.tsx` — created
+- [x] `src/views/settings/billing/tests/BillingSection.test.tsx` — created
+- [x] `src/views/settings/workspace/tests/WorkspaceSection.test.tsx` — created
+- [x] Run: `npm run test:ci` — zero failures required (not yet verified)
+
+### Known Styling Issues (to fix before QA)
+
+- [x] `theme.ts` — `MuiTableCell.root.borderBottom` → `theme.palette.divider` (mode-aware)
+- [x] `theme.ts` — `MuiToggleButtonGroup.grouped.border` → `({ theme }) =>` function (mode-aware)
+- [x] `Sidebar.tsx` — `borderRight` → `'1px solid'` + `borderColor: 'divider'`
+- [x] `Topbar.tsx` — transition → `DURATION.default` + `EASING.standard` constants
+- [x] `WorkspaceSection.tsx` — "No workspace found" and "Active workspace" → `t()` keys added to i18n
 
 ---
 

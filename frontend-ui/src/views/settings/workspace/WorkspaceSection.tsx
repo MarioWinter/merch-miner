@@ -1,0 +1,89 @@
+import { Alert, Stack, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
+import { SettingsCard, SectionTitle } from '../../../components/SettingsCard';
+import { useWorkspaceSection } from './hooks/useWorkspaceSection';
+import WorkspaceSkeleton from './partials/WorkspaceSkeleton';
+import WorkspaceSelector from './partials/WorkspaceSelector';
+import WorkspaceNameCard from './partials/WorkspaceNameCard';
+import MembersTable from './partials/MembersTable';
+import InviteRow from './partials/InviteRow';
+
+export default function WorkspaceSection() {
+  const { t } = useTranslation();
+
+  const {
+    workspaces,
+    activeWorkspace,
+    activeWorkspaceId,
+    isAdmin,
+    loading,
+    error,
+    nameValue,
+    setNameValue,
+    inviteEmail,
+    setInviteEmail,
+    inviting,
+    handleRenameSave,
+    handleInvite,
+    handleRoleChange,
+    handleRemoveMember,
+    handleSelectWorkspace,
+  } = useWorkspaceSection();
+
+  if (loading) return <WorkspaceSkeleton />;
+
+  if (error) {
+    return (
+      <SettingsCard>
+        <Alert severity="error">{error}</Alert>
+      </SettingsCard>
+    );
+  }
+
+  if (!activeWorkspace) {
+    return (
+      <SettingsCard>
+        <Typography variant="body2" color="text.secondary">
+          {t('settings.workspace.noWorkspace')}
+        </Typography>
+      </SettingsCard>
+    );
+  }
+
+  return (
+    <Stack spacing={3}>
+      <WorkspaceSelector
+        workspaces={workspaces}
+        activeWorkspaceId={activeWorkspaceId ?? ''}
+        onSelect={handleSelectWorkspace}
+      />
+
+      <WorkspaceNameCard
+        nameValue={nameValue}
+        isAdmin={isAdmin}
+        onChange={setNameValue}
+        onSave={handleRenameSave}
+      />
+
+      <SettingsCard>
+        <SectionTitle>{t('settings.workspace.membersTitle')}</SectionTitle>
+
+        <MembersTable
+          members={activeWorkspace.members}
+          isAdmin={isAdmin}
+          onRoleChange={handleRoleChange}
+          onRemove={handleRemoveMember}
+        />
+
+        {isAdmin && (
+          <InviteRow
+            email={inviteEmail}
+            inviting={inviting}
+            onChange={setInviteEmail}
+            onSubmit={handleInvite}
+          />
+        )}
+      </SettingsCard>
+    </Stack>
+  );
+}

@@ -6,11 +6,16 @@ import { hydrateAuth, authService } from './services/authService';
 import { clearAuth } from './store/authSlice';
 import { useAppDispatch, useAppSelector } from './store/hooks';
 import PrivateRoute from './components/PrivateRoute';
+import AppLayout from './components/AppLayout';
 import LoginPage from './views/auth/login/LoginPage';
 import RegisterPage from './views/auth/register/RegisterPage';
 import ActivatePage from './views/auth/activate/ActivatePage';
 import PasswordResetPage from './views/auth/password-reset/PasswordResetPage';
 import PasswordConfirmPage from './views/auth/password-reset/PasswordConfirmPage';
+import SettingsLayout from './views/settings/SettingsLayout';
+import ProfileSection from './views/settings/profile/ProfileSection';
+import BillingSection from './views/settings/billing/BillingSection';
+import WorkspaceSection from './views/settings/workspace/WorkspaceSection';
 
 // Placeholder — replaced when dashboard is built (PROJ-12)
 function DashboardPlaceholder() {
@@ -53,6 +58,7 @@ function DashboardPlaceholder() {
   );
 }
 
+
 function App() {
   useEffect(() => {
     hydrateAuth();
@@ -67,9 +73,20 @@ function App() {
       <Route path="/password-reset" element={<PasswordResetPage />} />
       <Route path="/password-reset/confirm" element={<PasswordConfirmPage />} />
 
-      {/* Protected routes */}
+      {/* Protected routes — all wrapped with AppLayout */}
       <Route element={<PrivateRoute />}>
-        <Route path="/" element={<DashboardPlaceholder />} />
+        <Route element={<AppLayout />}>
+          <Route path="/" element={<DashboardPlaceholder />} />
+          <Route path="/dashboard" element={<DashboardPlaceholder />} />
+
+          {/* Settings routes */}
+          <Route path="/settings" element={<SettingsLayout />}>
+            <Route index element={<Navigate to="/settings/profile" replace />} />
+            <Route path="profile" element={<ProfileSection />} />
+            <Route path="billing" element={<BillingSection />} />
+            <Route path="workspace" element={<WorkspaceSection />} />
+          </Route>
+        </Route>
       </Route>
 
       {/* Fallback */}

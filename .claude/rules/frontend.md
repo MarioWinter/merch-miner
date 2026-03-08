@@ -6,6 +6,8 @@
   Dialog, Alert, Snackbar, Table, Tabs, Card, Chip, Menu, Popover, Tooltip,
   Drawer, AppBar, Pagination, Rating, Skeleton, Autocomplete, ToggleButton
 - For icons: import from @mui/icons-material
+- Enforce MUI v7 compatibility on every UI change; block deprecated or breaking APIs before finalizing code.
+- If touched files contain deprecated MUI usage, migrate them to v7-safe patterns in the same task and verify with lint + typecheck.
 
 ## Import Patterns
 ```tsx
