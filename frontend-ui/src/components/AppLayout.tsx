@@ -17,6 +17,7 @@ function getInitialCollapsed(): boolean {
 
 export default function AppLayout() {
   const [collapsed, setCollapsed] = useState<boolean>(getInitialCollapsed);
+  const [hovered, setHovered] = useState(false);
 
   function handleToggle() {
     setCollapsed((prev) => {
@@ -31,12 +32,13 @@ export default function AppLayout() {
   }
 
   const sidebarWidth = collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
+  const borderSidebarW = collapsed && !hovered ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
 
   return (
-    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default', '--sidebar-w': `${borderSidebarW}px` } as object}>
       <Topbar />
 
-      <Sidebar collapsed={collapsed} onToggle={handleToggle} />
+      <Sidebar collapsed={collapsed} onToggle={handleToggle} onHoverChange={setHovered} />
 
       <Box
         component="main"

@@ -44,9 +44,10 @@ const COLLAPSED_WIDTH = 60;
 interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
+  onHoverChange?: (hovered: boolean) => void;
 }
 
-export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
+export default function Sidebar({ collapsed, onToggle, onHoverChange }: SidebarProps) {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
@@ -172,11 +173,11 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
     <Box
       component="nav"
       aria-label={t('nav.sidebarLabel')}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={() => { setHovered(true); onHoverChange?.(true); }}
+      onMouseLeave={() => { setHovered(false); onHoverChange?.(false); }}
       sx={(theme) => ({
         position: 'fixed',
-        top: 56,
+        top: 0,
         left: 0,
         bottom: 0,
         width: effectiveCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH,
@@ -185,7 +186,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
         WebkitBackdropFilter: 'blur(16px)',
         borderRight: '1px solid',
         borderColor: 'divider',
-        pt: 2,
+        pt: 'calc(56px + 16px)',
         pb: 1.5,
         display: 'flex',
         flexDirection: 'column',

@@ -15,7 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { clearAuth } from '../store/authSlice';
 import { authService } from '../services/authService';
-import { COLORS } from '../style/constants';
+import { COLORS, DURATION, EASING } from '../style/constants';
 
 const ICON_BUTTON_SX = {
   width: 32,
@@ -261,10 +261,18 @@ export default function Topbar() {
         bgcolor: alpha(COLORS.white, 0.85),
         backdropFilter: 'blur(16px)',
         WebkitBackdropFilter: 'blur(16px)',
-        borderBottom: '1px solid',
-        borderColor: 'divider',
         left: 0,
         right: 0,
+        '&::after': {
+          content: '""',
+          position: 'absolute',
+          bottom: 0,
+          left: 'var(--sidebar-w, 0px)',
+          right: 0,
+          height: '1px',
+          bgcolor: 'divider',
+          transition: `left ${DURATION.default}ms ${EASING.standard}`,
+        },
         ...theme.applyStyles('dark', {
           bgcolor: alpha(COLORS.inkPaper, 0.75),
         }),
