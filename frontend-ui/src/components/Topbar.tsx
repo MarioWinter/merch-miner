@@ -10,7 +10,7 @@ import ColorModeToggle from './topbar/ColorModeToggle';
 import ProfileMenu from './topbar/ProfileMenu';
 import WorkspaceSelector from './topbar/WorkspaceSelector';
 
-const Topbar = (): JSX.Element => {
+const Topbar = () => {
   const { t } = useTranslation();
   const user = useAppSelector((state) => state.auth.user);
   const initial = user?.email?.[0]?.toUpperCase() || '?';

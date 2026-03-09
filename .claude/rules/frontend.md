@@ -36,11 +36,14 @@ import SearchIcon from '@mui/icons-material/Search'
 - StyledEngineProvider: import from `@mui/material/styles`, NOT `@mui/material`
 - Dark mode: use `useColorScheme()` hook; use `theme.vars.palette.*` in `styled()`
 
-## Styling — sx Prop and Theme
-- Use `sx` prop for one-off overrides; never use `style={{ }}` for MUI components
+## Styling — styled() First, sx for One-offs
+- **Default:** use `styled()` from `@mui/material/styles` for reusable or complex styles
+- **`sx` only for small one-off overrides** — max ~5 properties (e.g. spacing tweaks, a single layout fix); never use `style={{ }}` for MUI components
+- Extract styles into a sibling `ComponentName.styles.ts` file; import named styled components into the JSX file to keep it readable
+- If an `sx` object grows beyond 5 properties, extract it into a styled component or an exported `const ...Sx` in the styles file
+- Icons may use `sx={{ fontSize: 20 }}` for tiny size-only overrides
 - Use `theme.components.[MuiX]` overrides for global component style changes
-- Use `styled()` from `@mui/material/styles` for reusable styled components
-- Responsive: use `sx={{ px: { xs: 2, md: 4 } }}` breakpoint objects
+- Responsive: use `sx={{ px: { xs: 2, md: 4 } }}` breakpoint objects (fine in small overrides); for complex responsive styled components use `({ theme }) => ({ ... })`
 - Never use Tailwind CSS or CSS modules; Emotion (MUI's engine) only
 
 ## Layout

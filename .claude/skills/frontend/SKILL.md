@@ -43,7 +43,10 @@ Use `AskUserQuestion` for:
 - ALWAYS use MUI v7 for standard UI elements
 - Enforce MUI v7 compatibility for every UI change: block deprecated or breaking APIs before writing final code.
 - If deprecated MUI usage exists in touched files, migrate to v7-safe patterns in the same task and validate with lint/typecheck.
-- Use `sx` prop for one-off styling; `styled()` from `@mui/material/styles` for reusable
+- **Styling default:** use `styled()` from `@mui/material/styles` for reusable or complex styles. Use `sx` only for small one-off overrides (≤5 properties, e.g. margin tweaks, single-prop layout fixes).
+- Extract styles into a sibling `ComponentName.styles.ts` file to keep JSX readable.
+- If an `sx` object grows beyond 5 properties, move it into a styled component or an exported `const` in the styles file.
+- Icons may still use `sx={{ fontSize: 20 }}` for tiny size-only overrides.
 - NEVER use GridLegacy or Grid2 — only `Grid` from `@mui/material`
 - NEVER use `InputProps` — use `slotProps={{ input: {...} }}` (v7 breaking change)
 - NEVER import Alert, Autocomplete, etc. from `@mui/lab` — use `@mui/material`
