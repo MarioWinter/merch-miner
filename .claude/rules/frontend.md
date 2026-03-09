@@ -39,8 +39,9 @@ import SearchIcon from '@mui/icons-material/Search'
 ## Styling — styled() First, sx for One-offs
 - **Default:** use `styled()` from `@mui/material/styles` for reusable or complex styles
 - **`sx` only for small one-off overrides** — max ~5 properties (e.g. spacing tweaks, a single layout fix); never use `style={{ }}` for MUI components
-- Extract styles into a sibling `ComponentName.styles.ts` file; import named styled components into the JSX file to keep it readable
-- If an `sx` object grows beyond 5 properties, extract it into a styled component or an exported `const ...Sx` in the styles file
+- Inline styled components at the top of the component file (below imports); no separate `.styles.ts` by default
+- Only extract to a sibling `ComponentName.styles.ts` when the component file would exceed 250–300 lines
+- If an `sx` object grows beyond 5 properties, convert it to an inline styled component
 - Icons may use `sx={{ fontSize: 20 }}` for tiny size-only overrides
 - Use `theme.components.[MuiX]` overrides for global component style changes
 - Responsive: use `sx={{ px: { xs: 2, md: 4 } }}` breakpoint objects (fine in small overrides); for complex responsive styled components use `({ theme }) => ({ ... })`

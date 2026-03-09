@@ -3,9 +3,15 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
   List,
+  ListItemButton,
   ListItemIcon,
+  ListItemText,
+  IconButton,
+  Typography,
   Tooltip,
 } from '@mui/material';
+import { styled } from '@mui/material/styles';
+import { alpha } from '@mui/material';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
@@ -20,18 +26,149 @@ import ViewKanbanOutlinedIcon from '@mui/icons-material/ViewKanbanOutlined';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { useTranslation } from 'react-i18next';
-import {
-  SidebarRoot,
-  NavScrollBox,
-  NavItemButton,
-  NavItemText,
-  SectionLabel,
-  ToggleWrap,
-  ToggleButton,
-} from './sidebar/Sidebar.styles';
+import { COLORS, DURATION, EASING } from '@/style/constants';
 
 export const EXPANDED_WIDTH = 220;
 export const COLLAPSED_WIDTH = 60;
+
+// ------------------------------------------------------------------
+// Styled components (inlined — no separate Sidebar.styles.ts)
+// ------------------------------------------------------------------
+
+const SidebarRoot = styled(Box, {
+  shouldForwardProp: (prop) => prop !== '$collapsed',
+})<{ $collapsed: boolean; component?: React.ElementType }>(({ theme }) => ({
+  position: 'fixed',
+  top: 0,
+  left: 0,
+  bottom: 0,
+  backgroundColor: alpha(COLORS.white, 0.85),
+  backdropFilter: 'blur(16px)',
+  WebkitBackdropFilter: 'blur(16px)',
+  borderRight: '1px solid',
+  borderColor: theme.palette.divider,
+  paddingTop: 'calc(56px + 16px)',
+  paddingBottom: theme.spacing(1.5),
+  display: 'flex',
+  flexDirection: 'column',
+  overflow: 'visible',
+  zIndex: theme.zIndex.drawer,
+  transition: `width ${DURATION.default}ms ${EASING.standard}`,
+  '&:hover .sidebar-toggle': { opacity: 1 },
+  ...theme.applyStyles('dark', {
+    backgroundColor: alpha(COLORS.inkPaper, 0.75),
+  }),
+}));
+
+const NavScrollBox = styled(Box)({
+  flex: 1,
+  overflowY: 'auto',
+  overflowX: 'hidden',
+  scrollbarWidth: 'none',
+  '&::-webkit-scrollbar': { display: 'none' },
+});
+
+const NavItemButton = styled(ListItemButton, {
+  shouldForwardProp: (prop) => prop !== '$active' && prop !== '$collapsed',
+})<{ $active: boolean; $collapsed: boolean }>(({ theme, $active, $collapsed }) => ({
+  height: 40,
+  paddingLeft: $collapsed ? 12 : 16,
+  paddingRight: $collapsed ? 12 : 16,
+  marginLeft: 8,
+  marginRight: 8,
+  borderRadius: 8,
+  marginBottom: 2,
+  gap: $collapsed ? 0 : 12,
+  backgroundColor: $active ? alpha(COLORS.red, 0.12) : 'transparent',
+  color: $active ? theme.palette.primary.main : theme.palette.text.secondary,
+  borderLeft: '2px solid',
+  borderColor: $active ? theme.palette.primary.main : 'transparent',
+  overflow: 'hidden',
+  minWidth: 0,
+  transition: `background-color ${DURATION.fast}ms ${EASING.standard}, color ${DURATION.fast}ms ${EASING.standard}, padding ${DURATION.default}ms ${EASING.standard}, gap ${DURATION.default}ms ${EASING.standard}`,
+  '&:hover': {
+    backgroundColor: $active ? alpha(COLORS.red, 0.12) : theme.palette.action.hover,
+    color: $active ? theme.palette.primary.main : theme.palette.text.primary,
+  },
+}));
+
+// maxWidth animation avoids the layout-shift that width:0 can cause
+const NavText = styled(ListItemText, {
+  shouldForwardProp: (prop) => prop !== '$collapsed',
+})<{ $collapsed: boolean }>(({ $collapsed }) => ({
+  opacity: $collapsed ? 0 : 1,
+  maxWidth: $collapsed ? 0 : 200,
+  overflow: 'hidden',
+  margin: 0,
+  whiteSpace: 'nowrap',
+  transition: `opacity ${DURATION.default}ms ${EASING.standard}, max-width ${DURATION.default}ms ${EASING.standard}`,
+}));
+
+// Always occupies the same vertical space — no display:none or height:0
+const SectionHeaderSlot = styled(Box)({
+  paddingLeft: 24,
+  paddingRight: 24,
+  paddingTop: 8,
+  paddingBottom: 4,
+  display: 'block',
+});
+
+// Visually hidden when collapsed but stays in the layout flow
+const SectionHeaderText = styled(Typography, {
+  shouldForwardProp: (prop) => prop !== '$collapsed',
+})<{ $collapsed: boolean }>(({ $collapsed }) => ({
+  display: 'block',
+  opacity: $collapsed ? 0 : 1,
+  transform: $collapsed ? 'translateX(-8px)' : 'translateX(0px)',
+  pointerEvents: $collapsed ? 'none' : 'auto',
+  color: alpha(COLORS.red, 0.60),
+  userSelect: 'none',
+  transition: `opacity ${DURATION.default}ms ${EASING.standard}, transform ${DURATION.default}ms ${EASING.standard}`,
+}));
+
+const ToggleWrap = styled(Box, {
+  shouldForwardProp: (prop) => prop !== '$visible',
+})<{ $visible: boolean }>(({ theme, $visible }) => ({
+  position: 'absolute',
+  bottom: 40,
+  right: -24,
+  width: 48,
+  height: 48,
+  zIndex: 1,
+  borderRadius: '50%',
+  backgroundColor: theme.palette.background.default,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  opacity: $visible ? 1 : 0,
+  transition: `opacity ${DURATION.fast}ms ${EASING.standard}`,
+  '&::before': {
+    content: '""',
+    position: 'absolute',
+    inset: 0,
+    borderRadius: '50%',
+    border: '1px solid',
+    borderColor: theme.palette.divider,
+    clipPath: 'inset(-1px 50% -1px -1px)',
+    pointerEvents: 'none',
+  },
+}));
+
+const ToggleButton = styled(IconButton)({
+  width: 28,
+  height: 28,
+  borderRadius: '50%',
+  backgroundColor: COLORS.red,
+  color: '#fff',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+  '&:hover': {
+    backgroundColor: COLORS.redDk,
+  },
+});
+
+// ------------------------------------------------------------------
+// Types
+// ------------------------------------------------------------------
 
 interface NavItem {
   label: string;
@@ -44,11 +181,15 @@ interface NavSection {
   items: NavItem[];
 }
 
-interface SidebarProps {
+export interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
   onHoverChange?: (hovered: boolean) => void;
 }
+
+// ------------------------------------------------------------------
+// Component
+// ------------------------------------------------------------------
 
 const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
   const { t } = useTranslation();
@@ -119,7 +260,7 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
         <ListItemIcon sx={{ minWidth: 0, color: 'inherit', flexShrink: 0 }}>
           {item.icon}
         </ListItemIcon>
-        <NavItemText
+        <NavText
           primary={item.label}
           primaryTypographyProps={{ variant: 'body2', fontWeight: 500, noWrap: true }}
           $collapsed={effectiveCollapsed}
@@ -147,7 +288,6 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
       onMouseEnter={() => { setHovered(true); onHoverChange?.(true); }}
       onMouseLeave={() => { setHovered(false); onHoverChange?.(false); }}
     >
-      {/* Nav sections */}
       <NavScrollBox>
         {sections.map((section, index) => (
           <Box key={section.sectionKey} sx={{ mb: 1 }}>
@@ -165,17 +305,12 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
                 }}
               />
             )}
-            <Box sx={{
-              display: 'grid',
-              gridTemplateRows: effectiveCollapsed ? '0fr' : '1fr',
-              transition: `grid-template-rows 200ms cubic-bezier(0.4, 0.0, 0.2, 1)`,
-            }}>
-              <Box sx={{ overflow: 'hidden' }}>
-                <SectionLabel variant="overline" $collapsed={effectiveCollapsed}>
-                  {sectionLabels[section.sectionKey]}
-                </SectionLabel>
-              </Box>
-            </Box>
+            {/* SectionHeaderSlot always occupies the same height — no jump when collapsing */}
+            <SectionHeaderSlot>
+              <SectionHeaderText variant="overline" $collapsed={effectiveCollapsed}>
+                {sectionLabels[section.sectionKey]}
+              </SectionHeaderText>
+            </SectionHeaderSlot>
             <List disablePadding>
               {section.items.map(renderNavItem)}
             </List>
