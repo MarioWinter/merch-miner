@@ -1,9 +1,11 @@
+import React from 'react';
 import { styled } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import { DURATION, EASING } from '@/style/constants';
 
 interface MainContentProps {
   $marginLeft: string;
+  component?: React.ElementType;
 }
 
 export const MainContent = styled(Box, {

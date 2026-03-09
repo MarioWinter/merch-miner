@@ -1,3 +1,4 @@
+import React from 'react';
 import { styled } from '@mui/material/styles';
 import { alpha } from '@mui/material';
 import Box from '@mui/material/Box';
@@ -13,6 +14,7 @@ import { COLORS, DURATION, EASING } from '@/style/constants';
 
 interface SidebarRootProps {
   $collapsed: boolean;
+  component?: React.ElementType;
 }
 
 export const SidebarRoot = styled(Box, {
