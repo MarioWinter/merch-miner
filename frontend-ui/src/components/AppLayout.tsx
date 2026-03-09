@@ -1,9 +1,30 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Box } from '@mui/material';
+import { styled } from '@mui/material/styles';
 import { Outlet } from 'react-router-dom';
 import Topbar from './Topbar';
 import Sidebar, { COLLAPSED_WIDTH, EXPANDED_WIDTH } from './Sidebar';
-import { MainContent } from './AppLayout.styles';
+import { DURATION, EASING } from '@/style/constants';
+
+// Styled components
+
+interface MainContentProps {
+  $marginLeft: string;
+  component?: React.ElementType;
+}
+
+const MainContent = styled(Box, {
+  shouldForwardProp: (prop) => prop !== '$marginLeft',
+})<MainContentProps>(({ theme, $marginLeft }) => ({
+  flexGrow: 1,
+  marginLeft: $marginLeft,
+  marginTop: 56,
+  minHeight: 'calc(100vh - 56px)',
+  padding: theme.spacing(3),
+  transition: `margin-left ${DURATION.default}ms ${EASING.standard}`,
+}));
+
+// Component
 
 const SIDEBAR_COLLAPSED_KEY = 'mm-sidebar-collapsed';
 

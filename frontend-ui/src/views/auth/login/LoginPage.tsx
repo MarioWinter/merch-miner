@@ -12,16 +12,33 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
+import { alpha, styled } from '@mui/material/styles';
+import MuiButton from '@mui/material/Button';
 import GoogleIcon from '@mui/icons-material/Google';
 import { useSnackbar } from 'notistack';
 import { useTranslation } from 'react-i18next';
+import { COLORS } from '../../../style/constants';
 
 import { loginSchema, type LoginFormValues } from './schemas/loginSchema';
 import AuthLayout from '../partials/AuthLayout';
 import { authService } from '../../../services/authService';
 import { useAppDispatch } from '../../../store/hooks';
 import { setUser, setError } from '../../../store/authSlice';
-import { GoogleButton } from './LoginPage.styles';
+
+const GoogleButton = styled(MuiButton)(({ theme }) => ({
+  marginBottom: theme.spacing(3),
+  borderColor: alpha(COLORS.ink, 0.20),
+  color: theme.palette.text.primary,
+  '&:hover': {
+    backgroundColor: alpha(COLORS.ink, 0.04),
+  },
+  ...theme.applyStyles('dark', {
+    borderColor: alpha(COLORS.white, 0.16),
+    '&:hover': {
+      backgroundColor: alpha(COLORS.white, 0.04),
+    },
+  }),
+}));
 
 const LoginPage = () => {
   const { t } = useTranslation();

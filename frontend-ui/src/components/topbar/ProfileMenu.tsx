@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Divider, ListItemIcon, Menu, MenuItem, Tooltip, Typography } from '@mui/material';
+import { styled } from '@mui/material/styles';
+import Avatar from '@mui/material/Avatar';
+import Paper from '@mui/material/Paper';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
@@ -9,7 +12,42 @@ import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '../../store/hooks';
 import { clearAuth } from '../../store/authSlice';
 import { authService } from '../../services/authService';
-import { StyledAvatar, ProfileMenuPaper } from './ProfileMenu.styles';
+
+const StyledAvatar = styled(Avatar)({
+  width: 32,
+  height: 32,
+  fontSize: '0.875rem',
+  fontWeight: 600,
+  cursor: 'pointer',
+  '&:hover': {
+    opacity: 0.85,
+  },
+});
+
+const ProfileMenuPaper = styled(Paper)(({ theme }) => ({
+  marginTop: theme.spacing(1),
+  minWidth: 200,
+  borderRadius: 12,
+  border: '1px solid',
+  borderColor: theme.palette.divider,
+  overflow: 'visible',
+  '&::before': {
+    content: '""',
+    display: 'block',
+    position: 'absolute',
+    top: -6,
+    right: 14,
+    width: 12,
+    height: 12,
+    backgroundColor: theme.palette.background.paper,
+    border: '1px solid',
+    borderColor: theme.palette.divider,
+    borderBottom: 'none',
+    borderRight: 'none',
+    transform: 'rotate(45deg)',
+    zIndex: 0,
+  },
+}));
 
 interface ProfileMenuProps {
   initial: string;

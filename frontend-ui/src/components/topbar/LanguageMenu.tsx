@@ -1,9 +1,21 @@
 import { useState } from 'react';
 import { ListItemIcon, Menu, MenuItem, Tooltip } from '@mui/material';
+import { styled } from '@mui/material/styles';
+import IconButton from '@mui/material/IconButton';
 import TranslateOutlinedIcon from '@mui/icons-material/TranslateOutlined';
 import CheckIcon from '@mui/icons-material/Check';
 import { useTranslation } from 'react-i18next';
-import { TopbarIconButton } from './TopbarIconButton.styles';
+
+const TopbarIconButton = styled(IconButton)(({ theme }) => ({
+  width: 32,
+  height: 32,
+  borderRadius: '8px',
+  color: theme.palette.text.secondary,
+  '&:hover': {
+    backgroundColor: theme.palette.action.hover,
+    color: theme.palette.text.primary,
+  },
+}));
 
 const LANGUAGES = ['en', 'de', 'fr', 'es', 'it'] as const;
 

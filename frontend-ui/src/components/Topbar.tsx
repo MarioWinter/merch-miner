@@ -1,5 +1,9 @@
 import React from 'react';
 import { Box, IconButton, Typography } from '@mui/material';
+import { alpha } from '@mui/material';
+import { styled } from '@mui/material/styles';
+import AppBar from '@mui/material/AppBar';
+import Toolbar from '@mui/material/Toolbar';
 import DiamondOutlinedIcon from '@mui/icons-material/DiamondOutlined';
 import NotificationsOutlinedIcon from '@mui/icons-material/NotificationsOutlined';
 import { useTranslation } from 'react-i18next';
@@ -8,7 +12,40 @@ import LanguageMenu from './topbar/LanguageMenu';
 import ColorModeToggle from './topbar/ColorModeToggle';
 import ProfileMenu from './topbar/ProfileMenu';
 import WorkspaceSelector from './topbar/WorkspaceSelector';
-import { TopbarRoot, TopbarToolbar } from './topbar/Topbar.styles';
+import { COLORS, DURATION, EASING } from '@/style/constants';
+
+const TopbarRoot = styled(AppBar)(({ theme }) => ({
+  height: 56,
+  zIndex: theme.zIndex.drawer + 1,
+  backgroundColor: alpha(COLORS.white, 0.85),
+  backdropFilter: 'blur(16px)',
+  WebkitBackdropFilter: 'blur(16px)',
+  left: 0,
+  right: 0,
+  '&::after': {
+    content: '""',
+    position: 'absolute',
+    bottom: 0,
+    left: 'var(--sidebar-w, 0px)',
+    right: 0,
+    height: '1px',
+    backgroundColor: theme.palette.divider,
+    transition: `left ${DURATION.default}ms ${EASING.standard}`,
+  },
+  ...theme.applyStyles('dark', {
+    backgroundColor: alpha(COLORS.inkPaper, 0.75),
+  }),
+}));
+
+const TopbarToolbar = styled(Toolbar)({
+  height: 56,
+  minHeight: '56px !important',
+  paddingLeft: 24,
+  paddingRight: 24,
+  display: 'flex',
+  alignItems: 'center',
+  position: 'relative',
+});
 
 const Topbar = (): React.JSX.Element => {
   const { t } = useTranslation();

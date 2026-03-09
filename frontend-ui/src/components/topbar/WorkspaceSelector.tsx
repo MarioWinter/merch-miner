@@ -1,11 +1,25 @@
 import { useEffect, useState } from 'react';
 import { Menu, MenuItem, Skeleton } from '@mui/material';
+import { styled } from '@mui/material/styles';
+import Button from '@mui/material/Button';
 import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
 import CheckIcon from '@mui/icons-material/Check';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { fetchWorkspaces, setActiveWorkspace } from '../../store/workspaceSlice';
-import { WorkspaceSelectorButton } from './WorkspaceSelector.styles';
+
+const WorkspaceSelectorButton = styled(Button)({
+  borderRadius: '999px',
+  textTransform: 'none',
+  fontWeight: 500,
+  paddingLeft: 16,
+  paddingRight: 16,
+  height: 32,
+  whiteSpace: 'nowrap',
+  maxWidth: 220,
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+});
 
 const WorkspaceSelector = () => {
   const { t } = useTranslation();

@@ -6,13 +6,33 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
+import Box from '@mui/material/Box';
+import { alpha, styled } from '@mui/material/styles';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { useTranslation } from 'react-i18next';
+import { COLORS } from '../../../style/constants';
 
 import AuthLayout from '../partials/AuthLayout';
 import { apiClient } from '../../../services/authService';
-import { StatusIconBox } from './ActivatePage.styles';
+
+interface StatusIconBoxProps {
+  $success?: boolean;
+}
+
+const StatusIconBox = styled(Box, {
+  shouldForwardProp: (prop) => prop !== '$success',
+})<StatusIconBoxProps>(({ $success }) => ({
+  width: 64,
+  height: 64,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderRadius: '50%',
+  backgroundColor: $success
+    ? alpha(COLORS.successDk, 0.12)
+    : alpha(COLORS.errorDk, 0.12),
+}));
 
 type ActivateStatus = 'loading' | 'success' | 'error';
 
