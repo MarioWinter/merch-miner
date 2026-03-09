@@ -73,6 +73,11 @@
       "workspace": "Workspace",
       "signOut": "Esci"
     },
+    "alerts": "Notifiche",
+    "workspace": {
+      "selector": "Seleziona workspace",
+      "noWorkspaces": "Nessun workspace"
+    },
     "languages": {
       "en": "Inglese",
       "de": "Tedesco",

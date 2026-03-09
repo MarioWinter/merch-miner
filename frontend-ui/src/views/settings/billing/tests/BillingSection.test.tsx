@@ -1,15 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
-import { Provider } from 'react-redux';
-import { configureStore } from '@reduxjs/toolkit';
-import { SnackbarProvider } from 'notistack';
-import authReducer from '../../../../store/authSlice';
-import workspaceReducer from '../../../../store/workspaceSlice';
 import { billingService } from '../../../../services/billingService';
 import BillingSection from '../BillingSection';
-import '../../../../i18n';
+import { renderWithProviders } from '../../../../utils/test-utils';
 
 vi.mock('../../../../services/billingService', () => ({
   billingService: {
@@ -20,22 +14,6 @@ vi.mock('../../../../services/billingService', () => ({
 
 const mockGetBilling = vi.mocked(billingService.getBilling);
 const mockPutBilling = vi.mocked(billingService.putBilling);
-
-function renderBilling() {
-  const store = configureStore({
-    reducer: { auth: authReducer, workspace: workspaceReducer },
-  });
-  render(
-    <Provider store={store}>
-      <MemoryRouter>
-        <SnackbarProvider>
-          <BillingSection />
-        </SnackbarProvider>
-      </MemoryRouter>
-    </Provider>
-  );
-  return { store };
-}
 
 const emptyBilling = {
   account_type: 'personal' as const,
@@ -54,13 +32,13 @@ describe('BillingSection', () => {
 
   it('shows skeleton while loading', () => {
     mockGetBilling.mockImplementation(() => new Promise(() => {}));
-    renderBilling();
+    renderWithProviders(<BillingSection />);
     expect(screen.queryByRole('button', { name: /save billing/i })).toBeNull();
   });
 
   it('renders billing form after load', async () => {
     mockGetBilling.mockResolvedValueOnce(emptyBilling);
-    renderBilling();
+    renderWithProviders(<BillingSection />);
 
     await waitFor(() =>
       expect(
@@ -72,7 +50,7 @@ describe('BillingSection', () => {
 
   it('shows company name and VAT fields when Business is selected', async () => {
     mockGetBilling.mockResolvedValueOnce(emptyBilling);
-    renderBilling();
+    renderWithProviders(<BillingSection />);
 
     await waitFor(() =>
       expect(screen.getByRole('button', { name: /business/i })).toBeInTheDocument()
@@ -87,7 +65,7 @@ describe('BillingSection', () => {
   it('calls putBilling on save and shows success snackbar', async () => {
     mockGetBilling.mockResolvedValueOnce(emptyBilling);
     mockPutBilling.mockResolvedValueOnce(emptyBilling);
-    renderBilling();
+    renderWithProviders(<BillingSection />);
 
     await waitFor(() =>
       expect(
@@ -104,7 +82,7 @@ describe('BillingSection', () => {
 
   it('shows error alert when billing fails to load', async () => {
     mockGetBilling.mockRejectedValueOnce(new Error('500'));
-    renderBilling();
+    renderWithProviders(<BillingSection />);
 
     await waitFor(() =>
       expect(screen.getByRole('alert')).toBeInTheDocument()

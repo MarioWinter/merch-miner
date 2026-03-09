@@ -1,0 +1,116 @@
+import { useEffect, useState } from 'react';
+import { Button, Menu, MenuItem, Skeleton } from '@mui/material';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import CheckIcon from '@mui/icons-material/Check';
+import { useTranslation } from 'react-i18next';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { fetchWorkspaces, setActiveWorkspace } from '../../store/workspaceSlice';
+
+const WorkspaceSelector = (): JSX.Element => {
+  const { t } = useTranslation();
+  const dispatch = useAppDispatch();
+  const { workspaces, activeWorkspaceId, loading } = useAppSelector(
+    (state) => state.workspace
+  );
+
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const open = Boolean(anchorEl);
+
+  useEffect(() => {
+    if (workspaces.length === 0 && !loading) {
+      dispatch(fetchWorkspaces());
+    }
+  }, [dispatch, workspaces.length, loading]);
+
+  const activeWorkspace = workspaces.find((w) => w.id === activeWorkspaceId);
+
+  const handleOpen = (event: React.MouseEvent<HTMLButtonElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleClose = () => {
+    setAnchorEl(null);
+  };
+
+  const handleSelect = (id: string) => {
+    dispatch(setActiveWorkspace(id));
+    handleClose();
+  };
+
+  if (loading) {
+    return (
+      <Skeleton
+        variant="rounded"
+        width={140}
+        height={32}
+        sx={{ borderRadius: '999px' }}
+      />
+    );
+  }
+
+  return (
+    <>
+      <Button
+        variant="outlined"
+        size="small"
+        endIcon={<KeyboardArrowDownIcon />}
+        onClick={handleOpen}
+        aria-controls={open ? 'workspace-menu' : undefined}
+        aria-haspopup="true"
+        aria-expanded={open ? 'true' : undefined}
+        sx={{
+          borderRadius: '999px',
+          textTransform: 'none',
+          fontWeight: 500,
+          px: 2,
+          height: 32,
+          whiteSpace: 'nowrap',
+          maxWidth: 220,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        {activeWorkspace?.name ?? t('topbar.workspace.selector')}
+      </Button>
+
+      <Menu
+        id="workspace-menu"
+        anchorEl={anchorEl}
+        open={open}
+        onClose={handleClose}
+        transformOrigin={{ horizontal: 'center', vertical: 'top' }}
+        anchorOrigin={{ horizontal: 'center', vertical: 'bottom' }}
+        slotProps={{
+          paper: {
+            sx: { minWidth: 180, mt: 0.5 },
+          },
+        }}
+      >
+        {workspaces.length === 0 ? (
+          <MenuItem disabled>{t('topbar.workspace.noWorkspaces')}</MenuItem>
+        ) : (
+          workspaces.map((workspace) => (
+            <MenuItem
+              key={workspace.id}
+              selected={workspace.id === activeWorkspaceId}
+              onClick={() => handleSelect(workspace.id)}
+              sx={{ gap: 1 }}
+            >
+              <CheckIcon
+                fontSize="small"
+                sx={{
+                  visibility:
+                    workspace.id === activeWorkspaceId ? 'visible' : 'hidden',
+                  color: 'primary.main',
+                }}
+              />
+              {workspace.name}
+            </MenuItem>
+          ))
+        )}
+      </Menu>
+    </>
+  );
+};
+
+export default WorkspaceSelector;

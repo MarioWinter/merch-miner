@@ -1,15 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
-import { Provider } from 'react-redux';
-import { configureStore } from '@reduxjs/toolkit';
-import { SnackbarProvider } from 'notistack';
-import authReducer from '../../../../store/authSlice';
-import workspaceReducer from '../../../../store/workspaceSlice';
 import { profileService } from '../../../../services/profileService';
 import ProfileSection from '../ProfileSection';
-import '../../../../i18n';
+import { renderWithProviders } from '../../../../utils/test-utils';
 
 vi.mock('../../../../services/profileService', () => ({
   profileService: {
@@ -23,22 +17,6 @@ vi.mock('../../../../services/profileService', () => ({
 const mockGetProfile = vi.mocked(profileService.getProfile);
 const mockPatchProfile = vi.mocked(profileService.patchProfile);
 const mockUploadAvatar = vi.mocked(profileService.uploadAvatar);
-
-function renderProfile() {
-  const store = configureStore({
-    reducer: { auth: authReducer, workspace: workspaceReducer },
-  });
-  render(
-    <Provider store={store}>
-      <MemoryRouter>
-        <SnackbarProvider>
-          <ProfileSection />
-        </SnackbarProvider>
-      </MemoryRouter>
-    </Provider>
-  );
-  return { store };
-}
 
 const mockProfile = {
   id: 1,
@@ -55,14 +33,13 @@ describe('ProfileSection', () => {
 
   it('shows skeleton while loading', () => {
     mockGetProfile.mockImplementation(() => new Promise(() => {}));
-    renderProfile();
-    // No heading visible during loading skeleton
+    renderWithProviders(<ProfileSection />);
     expect(screen.queryByRole('heading')).toBeNull();
   });
 
   it('renders profile fields after load', async () => {
     mockGetProfile.mockResolvedValueOnce(mockProfile);
-    renderProfile();
+    renderWithProviders(<ProfileSection />);
 
     await waitFor(() =>
       expect(screen.getByDisplayValue('testuser')).toBeInTheDocument()
@@ -74,7 +51,7 @@ describe('ProfileSection', () => {
 
   it('shows error alert when profile fails to load', async () => {
     mockGetProfile.mockRejectedValueOnce(new Error('500'));
-    renderProfile();
+    renderWithProviders(<ProfileSection />);
 
     await waitFor(() =>
       expect(screen.getByRole('alert')).toBeInTheDocument()
@@ -88,7 +65,7 @@ describe('ProfileSection', () => {
       first_name: 'Updated',
     });
 
-    renderProfile();
+    renderWithProviders(<ProfileSection />);
     await waitFor(() =>
       expect(screen.getByDisplayValue('Jane')).toBeInTheDocument()
     );
@@ -112,7 +89,7 @@ describe('ProfileSection', () => {
   it('rejects avatar file larger than 2MB', async () => {
     mockGetProfile.mockResolvedValueOnce(mockProfile);
 
-    renderProfile();
+    renderWithProviders(<ProfileSection />);
     await waitFor(() =>
       expect(screen.getByDisplayValue('testuser')).toBeInTheDocument()
     );
