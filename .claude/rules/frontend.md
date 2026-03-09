@@ -1,5 +1,14 @@
 # Frontend Development Rules
 
+## Design System (MANDATORY)
+- Read `docs/design-system.md` before building any UI component or page.
+- Use the defined color tokens (primary #FF5A4F, secondary #00C8D7, dark backgrounds starting at #071E26).
+- Typography: Inter font family (400/500/600/700); JetBrains Mono for codes/ASINs.
+- App shell dimensions: topbar 56px, sidebar 220px/60px collapsed — never deviate.
+- Use the component patterns defined in the design system (cards, buttons, badges, drawers, status chips) before inventing new ones.
+- Dark mode is default; implement light mode support via useColorScheme().
+- Never deviate from design system tokens without explicit user approval.
+
 ## MUI v7 First (MANDATORY)
 - Before ANY UI component, check if MUI has it. Use @mui/mcp for API lookup.
 - NEVER create custom implementations of: Button, TextField, Select, Checkbox, Switch,
