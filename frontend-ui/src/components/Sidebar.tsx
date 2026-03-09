@@ -2,13 +2,9 @@ import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
   Box,
-  IconButton,
   List,
-  ListItemButton,
   ListItemIcon,
-  ListItemText,
   Tooltip,
-  Typography,
 } from '@mui/material';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
 import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
@@ -24,8 +20,15 @@ import ViewKanbanOutlinedIcon from '@mui/icons-material/ViewKanbanOutlined';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { useTranslation } from 'react-i18next';
-import { alpha } from '@mui/material/styles';
-import { COLORS, DURATION, EASING } from '../style/constants';
+import {
+  SidebarRoot,
+  NavScrollBox,
+  NavItemButton,
+  NavItemText,
+  SectionLabel,
+  ToggleWrap,
+  ToggleButton,
+} from './sidebar/Sidebar.styles';
 
 export const EXPANDED_WIDTH = 220;
 export const COLLAPSED_WIDTH = 60;
@@ -105,56 +108,23 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
     const active = isActive(item.path);
 
     const button = (
-      <ListItemButton
+      <NavItemButton
         key={item.path}
         onClick={() => navigate(item.path)}
         aria-label={item.label}
         aria-current={active ? 'page' : undefined}
-        sx={{
-          height: 40,
-          px: effectiveCollapsed ? 1.5 : 2,
-          mx: 1,
-          borderRadius: '8px',
-          mb: '2px',
-          gap: effectiveCollapsed ? 0 : 1.5,
-          bgcolor: active ? alpha(COLORS.red, 0.12) : 'transparent',
-          color: active ? 'primary.main' : 'text.secondary',
-          borderLeft: active ? '2px solid' : '2px solid transparent',
-          borderColor: active ? 'primary.main' : 'transparent',
-          '&:hover': {
-            bgcolor: active ? 'rgba(255,90,79,0.12)' : 'action.hover',
-            color: active ? 'primary.main' : 'text.primary',
-          },
-          transition: `background-color ${DURATION.fast}ms ${EASING.standard}, color ${DURATION.fast}ms ${EASING.standard}, padding ${DURATION.default}ms ${EASING.standard}`,
-          overflow: 'hidden',
-          minWidth: 0,
-        }}
+        $active={active}
+        $collapsed={effectiveCollapsed}
       >
-        <ListItemIcon
-          sx={{
-            minWidth: 0,
-            color: 'inherit',
-            flexShrink: 0,
-          }}
-        >
+        <ListItemIcon sx={{ minWidth: 0, color: 'inherit', flexShrink: 0 }}>
           {item.icon}
         </ListItemIcon>
-        <ListItemText
+        <NavItemText
           primary={item.label}
-          primaryTypographyProps={{
-            variant: 'body2',
-            fontWeight: 500,
-            noWrap: true,
-          }}
-          sx={{
-            opacity: effectiveCollapsed ? 0 : 1,
-            width: effectiveCollapsed ? 0 : 'auto',
-            overflow: 'hidden',
-            transition: `opacity ${DURATION.default}ms ${EASING.standard}, width ${DURATION.default}ms ${EASING.standard}`,
-            m: 0,
-          }}
+          primaryTypographyProps={{ variant: 'body2', fontWeight: 500, noWrap: true }}
+          $collapsed={effectiveCollapsed}
         />
-      </ListItemButton>
+      </NavItemButton>
     );
 
     if (effectiveCollapsed) {
@@ -169,37 +139,16 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
   };
 
   return (
-    <Box
+    <SidebarRoot
       component="nav"
       aria-label={t('nav.sidebarLabel')}
+      $collapsed={effectiveCollapsed}
+      sx={{ width: effectiveCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH }}
       onMouseEnter={() => { setHovered(true); onHoverChange?.(true); }}
       onMouseLeave={() => { setHovered(false); onHoverChange?.(false); }}
-      sx={(theme) => ({
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        bottom: 0,
-        width: effectiveCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH,
-        bgcolor: alpha(COLORS.white, 0.85),
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        borderRight: '1px solid',
-        borderColor: 'divider',
-        pt: 'calc(56px + 16px)',
-        pb: 1.5,
-        display: 'flex',
-        flexDirection: 'column',
-        transition: `width ${DURATION.default}ms ${EASING.standard}`,
-        overflow: 'visible',
-        zIndex: theme.zIndex.drawer,
-        '&:hover .sidebar-toggle': { opacity: 1 },
-        ...theme.applyStyles('dark', {
-          bgcolor: alpha(COLORS.inkPaper, 0.75),
-        }),
-      })}
     >
       {/* Nav sections */}
-      <Box sx={{ flex: 1, overflowY: 'auto', overflowX: 'hidden', scrollbarWidth: 'none', '&::-webkit-scrollbar': { display: 'none' } }}>
+      <NavScrollBox>
         {sections.map((section, index) => (
           <Box key={section.sectionKey} sx={{ mb: 1 }}>
             {index > 0 && (
@@ -219,24 +168,12 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
             <Box sx={{
               display: 'grid',
               gridTemplateRows: effectiveCollapsed ? '0fr' : '1fr',
-              transition: `grid-template-rows ${DURATION.default}ms ${EASING.standard}`,
+              transition: `grid-template-rows 200ms cubic-bezier(0.4, 0.0, 0.2, 1)`,
             }}>
               <Box sx={{ overflow: 'hidden' }}>
-                <Typography
-                  variant="overline"
-                  sx={{
-                    display: 'block',
-                    px: 3,
-                    pt: 1,
-                    pb: 0.5,
-                    opacity: effectiveCollapsed ? 0 : 1,
-                    color: alpha(COLORS.red, 0.60),
-                    userSelect: 'none',
-                    transition: `opacity ${DURATION.default}ms ${EASING.standard}`,
-                  }}
-                >
+                <SectionLabel variant="overline" $collapsed={effectiveCollapsed}>
                   {sectionLabels[section.sectionKey]}
-                </Typography>
+                </SectionLabel>
               </Box>
             </Box>
             <List disablePadding>
@@ -244,60 +181,21 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
             </List>
           </Box>
         ))}
-      </Box>
+      </NavScrollBox>
 
       {/* Sidebar toggle — round button with cutout ring */}
-      <Box
-        className="sidebar-toggle"
-        sx={{
-          position: 'absolute',
-          bottom: 40,
-          right: -24,
-          width: 48,
-          height: 48,
-          zIndex: 1,
-          borderRadius: '50%',
-          bgcolor: 'background.default',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          opacity: collapsed ? 0 : 1,
-          transition: `opacity ${DURATION.fast}ms ${EASING.standard}`,
-          // Left-arc border only (matches sidebar edge)
-          '&::before': {
-            content: '""',
-            position: 'absolute',
-            inset: 0,
-            borderRadius: '50%',
-            border: '1px solid',
-            borderColor: 'divider',
-            clipPath: 'inset(-1px 50% -1px -1px)',
-            pointerEvents: 'none',
-          },
-        }}
-      >
-        <IconButton
+      <ToggleWrap className="sidebar-toggle" $visible={!collapsed}>
+        <ToggleButton
           onClick={onToggle}
           size="small"
           aria-label={collapsed ? t('nav.expandSidebar') : t('nav.collapseSidebar')}
-          sx={{
-            width: 28,
-            height: 28,
-            borderRadius: '50%',
-            bgcolor: COLORS.red,
-            color: '#fff',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-            '&:hover': {
-              bgcolor: COLORS.redDk,
-            },
-          }}
         >
           {effectiveCollapsed
             ? <ChevronRightIcon sx={{ fontSize: 18 }} />
             : <ChevronLeftIcon sx={{ fontSize: 18 }} />}
-        </IconButton>
-      </Box>
-    </Box>
+        </ToggleButton>
+      </ToggleWrap>
+    </SidebarRoot>
   );
 };
 

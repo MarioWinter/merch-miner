@@ -12,17 +12,16 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { alpha } from '@mui/material/styles';
 import GoogleIcon from '@mui/icons-material/Google';
 import { useSnackbar } from 'notistack';
 import { useTranslation } from 'react-i18next';
 
-import { COLORS } from '../../../style/constants';
 import { registerSchema, type RegisterFormValues } from './schemas/registerSchema';
 import AuthLayout from '../partials/AuthLayout';
 import { authService } from '../../../services/authService';
 import { useAppDispatch } from '../../../store/hooks';
 import { setError } from '../../../store/authSlice';
+import { GoogleButton } from '../login/LoginPage.styles';
 
 const RegisterPage = () => {
   const { t } = useTranslation();
@@ -74,25 +73,15 @@ const RegisterPage = () => {
       </Stack>
 
       {/* Google OAuth */}
-      <Button
+      <GoogleButton
         fullWidth
         variant="outlined"
         startIcon={<GoogleIcon />}
         onClick={handleGoogleRegister}
         aria-label={t('auth.googleRegister')}
-        sx={(theme) => ({
-          mb: 3,
-          borderColor: alpha(COLORS.ink, 0.20),
-          color: 'text.primary',
-          '&:hover': { bgcolor: alpha(COLORS.ink, 0.04) },
-          ...theme.applyStyles('dark', {
-            borderColor: alpha(COLORS.white, 0.16),
-            '&:hover': { bgcolor: alpha(COLORS.white, 0.04) },
-          }),
-        })}
       >
         {t('auth.googleRegister')}
-      </Button>
+      </GoogleButton>
 
       <Divider sx={{ mb: 3 }}>
         <Typography variant="caption" sx={{ color: 'text.secondary', px: 1 }}>

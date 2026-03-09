@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Avatar, Divider, ListItemIcon, Menu, MenuItem, Tooltip, Typography } from '@mui/material';
+import { Divider, ListItemIcon, Menu, MenuItem, Tooltip, Typography } from '@mui/material';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
@@ -9,6 +9,7 @@ import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '../../store/hooks';
 import { clearAuth } from '../../store/authSlice';
 import { authService } from '../../services/authService';
+import { StyledAvatar, ProfileMenuPaper } from './ProfileMenu.styles';
 
 interface ProfileMenuProps {
   initial: string;
@@ -49,23 +50,15 @@ const ProfileMenu = ({ initial }: ProfileMenuProps) => {
   return (
     <>
       <Tooltip title={t('topbar.profile')}>
-        <Avatar
+        <StyledAvatar
           onClick={handleOpen}
           aria-label={t('topbar.profile')}
           aria-controls={open ? 'profile-menu' : undefined}
           aria-haspopup="true"
           aria-expanded={open ? 'true' : undefined}
-          sx={{
-            width: 32,
-            height: 32,
-            fontSize: '0.875rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            '&:hover': { opacity: 0.85 },
-          }}
         >
           {initial}
-        </Avatar>
+        </StyledAvatar>
       </Tooltip>
 
       <Menu
@@ -75,33 +68,10 @@ const ProfileMenu = ({ initial }: ProfileMenuProps) => {
         onClose={handleClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        slots={{ paper: ProfileMenuPaper }}
         slotProps={{
           paper: {
             elevation: 4,
-            sx: {
-              mt: 1,
-              minWidth: 200,
-              borderRadius: '12px',
-              border: '1px solid',
-              borderColor: 'divider',
-              overflow: 'visible',
-              '&::before': {
-                content: '""',
-                display: 'block',
-                position: 'absolute',
-                top: -6,
-                right: 14,
-                width: 12,
-                height: 12,
-                bgcolor: 'background.paper',
-                border: '1px solid',
-                borderColor: 'divider',
-                borderBottom: 'none',
-                borderRight: 'none',
-                transform: 'rotate(45deg)',
-                zIndex: 0,
-              },
-            },
           },
         }}
       >
