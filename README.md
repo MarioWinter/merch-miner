@@ -52,7 +52,9 @@ Compresses the full creative pipeline — niche research → AI designs → publ
 
 ```
 merch-miner/
-├── .env.template               single source of truth for all env vars
+├── .env.dev.template           dev-local env template (copy to .env)
+├── .env.prod.template          server-prod env template (copy to .env)
+├── .env.template               legacy dev mirror (backwards compatibility)
 ├── docker-compose.yml          base services (redis, worker, web, frontend)
 ├── docker-compose.override.yml dev: local db + port bindings (auto-loaded, git-tracked)
 ├── docker-compose.prod.yml     prod: gunicorn + caddy
@@ -80,15 +82,50 @@ merch-miner/
 
 ## Setup
 
+### Env File Strategy
+
+Use a single active `/.env` file at runtime, generated from environment-specific templates:
+
+```bash
+# Dev local
+cp .env.dev.template .env
+
+# Prod server
+cp .env.prod.template .env
+```
+
+> `/.env.template` is kept as a legacy dev mirror only.
+
+### What must be filled in `.env`
+
+#### Dev local (`.env.dev.template`)
+
+- Required always: `SECRET_KEY`
+- Required for auth flow: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
+- Required for email flow: `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL`
+- Optional: `DJANGO_SUPERUSER_PASSWORD` (only if auto-create superuser is desired)
+- Usually keep defaults unless intentionally changed: `POSTGRES_*`, `DB_*`, `WEB_*`, `FRONTEND_*`, `REDIS_*`
+
+#### Prod server (`.env.prod.template`)
+
+- Required always: `SECRET_KEY`, `DEBUG=False`
+- Required host/security values: `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `CORS_ALLOWED_ORIGINS`
+- Required app URLs: `FRONTEND_URL`, `FRONTEND_ACTIVATION_URL`, `FRONTEND_CONFIRM_PASSWORD_URL`
+- Required DB access: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_SCHEMA`
+- Required images/runtime: `BACKEND_IMAGE`, `FRONTEND_IMAGE`, `CADDY_IMAGE`, `WEB_INTERNAL_PORT`, `GUNICORN_WORKERS`, `REDIS_IMAGE`
+- Required for auth/email/integrations if enabled: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `EMAIL_*`, `N8N_WEBHOOK_URL`, `N8N_CALLBACK_SECRET`, `POLAR_WEBHOOK_SECRET`
+- Optional: `DJANGO_SUPERUSER_PASSWORD` (only if auto-create superuser is desired)
+
+> For production GHCR deploys, frontend `VITE_API_URL` source-of-truth is GitHub Actions secret (`docker-publish.yml`), not server `/.env`.
+
 ### First Time (Dev)
 
 No external Supabase or `supabase-net` needed — the override file spins up a local postgres container.
 
 ```bash
 # 1. Copy and fill in credentials
-cp .env.template .env
-# Minimum required: SECRET_KEY, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, EMAIL_*
-# DB_* vars are overridden by docker-compose.override.yml for local dev — no Supabase needed
+cp .env.dev.template .env
+# Minimum required: SECRET_KEY (+ OAuth/Email vars if those flows are used)
 
 # 2. Start the stack (creates local db + supabase-net automatically)
 docker compose up --build
@@ -137,8 +174,8 @@ docker compose up --build
 
 - Auto-loads `docker-compose.override.yml`:
   - Creates local `supabase-net` network (no external dependency)
-  - Starts `db` (postgres:16) as local DB stand-in
-  - Overrides `DB_HOST/DB_NAME/DB_USER/DB_PASSWORD` on `web` + `worker` → point to local `db`
+  - Starts `db` as local DB stand-in (configured via `POSTGRES_*` in `/.env`)
+  - Uses `DB_*` from `/.env` for `web` + `worker`
   - Exposes ports 8000 + 5173 on host
 - Django `runserver` → `http://localhost:8000`
 - Vite dev server → `http://localhost:5173`
@@ -148,16 +185,20 @@ docker compose up --build
 
 ```bash
 # Once on server — create external networks
-docker network create merch_net
+docker network create merch_net || true
+docker network create supabase-net || true
 
 # Pull, configure, deploy
 git pull
-cp .env.template .env
-# Fill .env: DEBUG=False, ALLOWED_HOSTS, CORS, FRONTEND_URL, VITE_API_URL, DB_PASSWORD, SECRET_KEY, ...
+cp .env.prod.template .env
+# Fill required values: SECRET_KEY, DB_PASSWORD, ALLOWED_HOSTS, CSRF/CORS, FRONTEND_* URLs, EMAIL_*, GOOGLE_*, N8N/POLAR secrets
 
 ./scripts/init-db.sh
 
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T web python manage.py migrate --no-input
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T web python manage.py collectstatic --no-input
 ```
 
 **Prod routing (via Haupt-Caddy → app_caddy):**
@@ -169,7 +210,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
 
 - No host port bindings on `web` — gunicorn on :8000 (internal only)
 - TLS handled by Haupt-Caddy (`localai` stack); `app_caddy` listens on :80 only
-- `VITE_API_URL` baked into frontend bundle at build time (from root `.env`)
+- `VITE_API_URL` is baked into GHCR frontend image at CI build time (GitHub secret)
 
 ### Stop
 
@@ -267,8 +308,7 @@ All workflow phases require explicit user approval before proceeding.
 
 ## Key Constraints
 
-- **Env:** single `/.env` (from `/.env.template`) — no sub-directory env files
-- **`VITE_API_URL` must be empty in dev** — Vite proxy handles routing to backend; if set to `http://localhost:8000`, cross-origin cookie storage breaks auth (see Setup section above)
+- **Env:** single active `/.env`, created from `/.env.dev.template` (dev) or `/.env.prod.template` (prod)
 - **Database (dev):** local `db` (postgres:16) container, schema `public` — no Supabase or external network required; `supabase-net` created locally by override
 - **Database (prod):** Django connects to Supabase PostgreSQL (`localai` stack) via `supabase-net` (external), schema `merch_miner`
 - n8n + Django share same Supabase instance (prod only — n8n: `public` schema, Django: `merch_miner` schema)

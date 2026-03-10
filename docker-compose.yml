@@ -6,7 +6,7 @@ networks:
 
 services:
   redis:
-    image: redis:7-alpine
+    image: ${REDIS_IMAGE:?REDIS_IMAGE is required}
     container_name: app_redis
     restart: unless-stopped
 
