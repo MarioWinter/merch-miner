@@ -29,12 +29,23 @@ const TopbarRoot = styled(AppBar)(({ theme }) => ({
     left: 'var(--sidebar-w, 0px)',
     right: 0,
     height: '1px',
-    backgroundColor: theme.palette.divider,
+    backgroundColor: theme.vars.palette.divider,
     transition: `left ${DURATION.default}ms ${EASING.standard}`,
   },
   ...theme.applyStyles('dark', {
     backgroundColor: alpha(COLORS.inkPaper, 0.75),
   }),
+}));
+
+const TopbarIconButton = styled(IconButton)(({ theme }) => ({
+  width: 32,
+  height: 32,
+  borderRadius: '8px',
+  color: theme.vars.palette.text.secondary,
+  '&:hover': {
+    backgroundColor: theme.vars.palette.action.hover,
+    color: theme.vars.palette.text.primary,
+  },
 }));
 
 const TopbarToolbar = styled(Toolbar)({
@@ -75,13 +86,12 @@ const Topbar = (): React.JSX.Element => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
           <LanguageMenu />
           <ColorModeToggle />
-          <IconButton
+          <TopbarIconButton
             aria-label={t('topbar.alerts')}
             size="small"
-            sx={{ width: 36, height: 36 }}
           >
-            <NotificationsOutlinedIcon fontSize="small" />
-          </IconButton>
+            <NotificationsOutlinedIcon sx={{ fontSize: 20 }} />
+          </TopbarIconButton>
           <ProfileMenu initial={initial} />
         </Box>
       </TopbarToolbar>

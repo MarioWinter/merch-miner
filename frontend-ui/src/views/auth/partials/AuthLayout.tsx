@@ -12,11 +12,14 @@ const AuthBackground = styled(Box)(({ theme }) => ({
   flexDirection: 'column',
   alignItems: 'center',
   justifyContent: 'center',
-  backgroundColor: theme.palette.background.default,
+  backgroundColor: COLORS.ashDefault,
   paddingLeft: theme.spacing(2),
   paddingRight: theme.spacing(2),
   position: 'relative',
   overflow: 'hidden',
+  ...theme.applyStyles('dark', {
+    backgroundColor: COLORS.ink,
+  }),
   '&::before': {
     content: '""',
     position: 'absolute',

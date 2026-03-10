@@ -157,7 +157,7 @@ const theme = extendTheme({
             backgroundColor: alpha(COLORS.ash, 0.5),
           },
           ...theme.applyStyles('dark', {
-            backgroundColor: alpha(COLORS.black, 0.18),
+            backgroundColor: COLORS.inkElevated,
             '& .MuiOutlinedInput-notchedOutline': {
               borderColor: alpha('#fff', 0.12),
             },

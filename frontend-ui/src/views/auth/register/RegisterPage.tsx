@@ -18,10 +18,10 @@ import { useTranslation } from 'react-i18next';
 
 import { registerSchema, type RegisterFormValues } from './schemas/registerSchema';
 import AuthLayout from '../partials/AuthLayout';
+import GoogleButton from '../partials/GoogleButton';
 import { authService } from '../../../services/authService';
 import { useAppDispatch } from '../../../store/hooks';
 import { setError } from '../../../store/authSlice';
-import { GoogleButton } from '../login/LoginPage.styles';
 
 const RegisterPage = () => {
   const { t } = useTranslation();

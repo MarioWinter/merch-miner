@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Divider, ListItemIcon, Menu, MenuItem, Tooltip, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import Avatar from '@mui/material/Avatar';
-import Paper from '@mui/material/Paper';
 import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import ReceiptLongOutlinedIcon from '@mui/icons-material/ReceiptLongOutlined';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
@@ -24,30 +23,6 @@ const StyledAvatar = styled(Avatar)({
   },
 });
 
-const ProfileMenuPaper = styled(Paper)(({ theme }) => ({
-  marginTop: theme.spacing(1),
-  minWidth: 200,
-  borderRadius: 12,
-  border: '1px solid',
-  borderColor: theme.palette.divider,
-  overflow: 'visible',
-  '&::before': {
-    content: '""',
-    display: 'block',
-    position: 'absolute',
-    top: -6,
-    right: 14,
-    width: 12,
-    height: 12,
-    backgroundColor: theme.palette.background.paper,
-    border: '1px solid',
-    borderColor: theme.palette.divider,
-    borderBottom: 'none',
-    borderRight: 'none',
-    transform: 'rotate(45deg)',
-    zIndex: 0,
-  },
-}));
 
 interface ProfileMenuProps {
   initial: string;
@@ -106,28 +81,52 @@ const ProfileMenu = ({ initial }: ProfileMenuProps) => {
         onClose={handleClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-        slots={{ paper: ProfileMenuPaper }}
+        MenuListProps={{ sx: { p: 0.75 } }}
         slotProps={{
           paper: {
             elevation: 4,
+            sx: {
+              mt: 1,
+              minWidth: 200,
+              borderRadius: 3,
+              border: '1px solid',
+              borderColor: 'divider',
+              overflow: 'hidden',
+              '&::before': {
+                content: '""',
+                display: 'block',
+                position: 'absolute',
+                top: -6,
+                right: 14,
+                width: 12,
+                height: 12,
+                bgcolor: 'background.paper',
+                border: '1px solid',
+                borderColor: 'divider',
+                borderBottom: 'none',
+                borderRight: 'none',
+                transform: 'rotate(45deg)',
+                zIndex: 10,
+              },
+            },
           },
         }}
       >
-        <MenuItem onClick={() => handleNavigate('/settings/profile')} sx={{ gap: 1.5, py: 1.25 }}>
+        <MenuItem onClick={() => handleNavigate('/settings/profile')} sx={{ gap: 1.5, py: 1.25, borderRadius: 1 }}>
           <ListItemIcon sx={{ minWidth: 0, color: 'text.secondary' }}>
             <PersonOutlineIcon sx={{ fontSize: 20 }} />
           </ListItemIcon>
           <Typography variant="body2">{t('topbar.menu.profile')}</Typography>
         </MenuItem>
 
-        <MenuItem onClick={() => handleNavigate('/settings/billing')} sx={{ gap: 1.5, py: 1.25 }}>
+        <MenuItem onClick={() => handleNavigate('/settings/billing')} sx={{ gap: 1.5, py: 1.25, borderRadius: 1 }}>
           <ListItemIcon sx={{ minWidth: 0, color: 'text.secondary' }}>
             <ReceiptLongOutlinedIcon sx={{ fontSize: 20 }} />
           </ListItemIcon>
           <Typography variant="body2">{t('topbar.menu.billing')}</Typography>
         </MenuItem>
 
-        <MenuItem onClick={() => handleNavigate('/settings/workspace')} sx={{ gap: 1.5, py: 1.25 }}>
+        <MenuItem onClick={() => handleNavigate('/settings/workspace')} sx={{ gap: 1.5, py: 1.25, borderRadius: 1 }}>
           <ListItemIcon sx={{ minWidth: 0, color: 'text.secondary' }}>
             <GroupsOutlinedIcon sx={{ fontSize: 20 }} />
           </ListItemIcon>
@@ -136,7 +135,7 @@ const ProfileMenu = ({ initial }: ProfileMenuProps) => {
 
         <Divider sx={{ my: 0.5 }} />
 
-        <MenuItem onClick={handleSignOut} sx={{ gap: 1.5, py: 1.25, color: 'error.main' }}>
+        <MenuItem onClick={handleSignOut} sx={{ gap: 1.5, py: 1.25, borderRadius: 1, color: 'error.main' }}>
           <ListItemIcon sx={{ minWidth: 0, color: 'error.main' }}>
             <LogoutIcon sx={{ fontSize: 20 }} />
           </ListItemIcon>

@@ -42,11 +42,12 @@ const SidebarRoot = styled(Box, {
   top: 0,
   left: 0,
   bottom: 0,
-  backgroundColor: alpha(COLORS.white, 0.85),
-  backdropFilter: 'blur(16px)',
-  WebkitBackdropFilter: 'blur(16px)',
+  backgroundColor: COLORS.white,
   borderRight: '1px solid',
-  borderColor: theme.palette.divider,
+  borderColor: theme.vars!.palette.divider,
+  ...theme.applyStyles('dark', {
+    backgroundColor: COLORS.inkPaper,
+  }),
   paddingTop: 'calc(56px + 16px)',
   paddingBottom: theme.spacing(1.5),
   display: 'flex',
@@ -55,9 +56,6 @@ const SidebarRoot = styled(Box, {
   zIndex: theme.zIndex.drawer,
   transition: `width ${DURATION.default}ms ${EASING.standard}`,
   '&:hover .sidebar-toggle': { opacity: 1 },
-  ...theme.applyStyles('dark', {
-    backgroundColor: alpha(COLORS.inkPaper, 0.75),
-  }),
 }));
 
 const NavScrollBox = styled(Box)({
@@ -80,15 +78,15 @@ const NavItemButton = styled(ListItemButton, {
   marginBottom: 2,
   gap: $collapsed ? 0 : 12,
   backgroundColor: $active ? alpha(COLORS.red, 0.12) : 'transparent',
-  color: $active ? theme.palette.primary.main : theme.palette.text.secondary,
+  color: $active ? theme.vars!.palette.primary.main : theme.vars!.palette.text.secondary,
   borderLeft: '2px solid',
-  borderColor: $active ? theme.palette.primary.main : 'transparent',
+  borderColor: $active ? theme.vars!.palette.primary.main : 'transparent',
   overflow: 'hidden',
   minWidth: 0,
   transition: `background-color ${DURATION.fast}ms ${EASING.standard}, color ${DURATION.fast}ms ${EASING.standard}, padding ${DURATION.default}ms ${EASING.standard}, gap ${DURATION.default}ms ${EASING.standard}`,
   '&:hover': {
-    backgroundColor: $active ? alpha(COLORS.red, 0.12) : theme.palette.action.hover,
-    color: $active ? theme.palette.primary.main : theme.palette.text.primary,
+    backgroundColor: $active ? alpha(COLORS.red, 0.12) : theme.vars!.palette.action.hover,
+    color: $active ? theme.vars!.palette.primary.main : theme.vars!.palette.text.primary,
   },
 }));
 
@@ -136,19 +134,22 @@ const ToggleWrap = styled(Box, {
   height: 48,
   zIndex: 1,
   borderRadius: '50%',
-  backgroundColor: theme.palette.background.default,
+  backgroundColor: COLORS.ashDefault,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
   opacity: $visible ? 1 : 0,
   transition: `opacity ${DURATION.fast}ms ${EASING.standard}`,
+  ...theme.applyStyles('dark', {
+    backgroundColor: COLORS.ink,
+  }),
   '&::before': {
     content: '""',
     position: 'absolute',
     inset: 0,
     borderRadius: '50%',
     border: '1px solid',
-    borderColor: theme.palette.divider,
+    borderColor: theme.vars?.palette.divider ?? theme.palette.divider,
     clipPath: 'inset(-1px 50% -1px -1px)',
     pointerEvents: 'none',
   },
@@ -262,7 +263,7 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
         </ListItemIcon>
         <NavText
           primary={item.label}
-          primaryTypographyProps={{ variant: 'body2', fontWeight: 500, noWrap: true }}
+          slotProps={{ primary: { variant: 'body2', fontWeight: 500, noWrap: true } }}
           $collapsed={effectiveCollapsed}
         />
       </NavItemButton>
