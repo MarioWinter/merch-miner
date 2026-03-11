@@ -19,14 +19,14 @@ def test_password_confirm_success(client):
     token = str(refresh.access_token)
     uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
     
-    url = reverse('password_confirm', kwargs={'uidb64': uidb64, 'token': token})
+    url = reverse('password_confirm_legacy', kwargs={'uidb64': uidb64, 'token': token})
     data = {
         'new_password': 'NewPassword123!',
         'confirm_password': 'NewPassword123!'
     }
-    
+
     response = client.post(url, data, content_type='application/json')
-    
+
     assert response.status_code == 200
     assert response.data['detail'] == 'Your password has been successfully reset.'
     
@@ -47,7 +47,7 @@ def test_password_confirm_passwords_dont_match(client):
     token = str(refresh.access_token)
     uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
     
-    url = reverse('password_confirm', kwargs={'uidb64': uidb64, 'token': token})
+    url = reverse('password_confirm_legacy', kwargs={'uidb64': uidb64, 'token': token})
     data = {
         'new_password': 'NewPassword123!',
         'confirm_password': 'DifferentPassword123!'
@@ -71,7 +71,7 @@ def test_password_confirm_invalid_token(client):
     uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
     invalid_token = 'invalid_token'
     
-    url = reverse('password_confirm', kwargs={'uidb64': uidb64, 'token': invalid_token})
+    url = reverse('password_confirm_legacy', kwargs={'uidb64': uidb64, 'token': invalid_token})
     data = {
         'new_password': 'NewPassword123!',
         'confirm_password': 'NewPassword123!'
@@ -96,7 +96,7 @@ def test_password_confirm_invalid_uid(client):
     token = str(refresh.access_token)
     invalid_uidb64 = urlsafe_base64_encode(force_bytes(99999))
     
-    url = reverse('password_confirm', kwargs={'uidb64': invalid_uidb64, 'token': token})
+    url = reverse('password_confirm_legacy', kwargs={'uidb64': invalid_uidb64, 'token': token})
     data = {
         'new_password': 'NewPassword123!',
         'confirm_password': 'NewPassword123!'
@@ -121,7 +121,7 @@ def test_password_confirm_weak_password(client):
     token = str(refresh.access_token)
     uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
     
-    url = reverse('password_confirm', kwargs={'uidb64': uidb64, 'token': token})
+    url = reverse('password_confirm_legacy', kwargs={'uidb64': uidb64, 'token': token})
     data = {
         'new_password': '123',
         'confirm_password': '123'
