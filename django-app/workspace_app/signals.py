@@ -22,9 +22,12 @@ def auto_create_personal_workspace(sender, instance, created, **kwargs):
     base_slug = slugify(base_name)[:106]  # leave room for suffix
 
     slug = base_slug
-    if Workspace.objects.filter(slug=slug).exists():
-        suffix = ''.join(random.choices(string.ascii_lowercase + string.digits, k=4))
-        slug = f"{base_slug}-{suffix}"
+    for _ in range(10):
+        if not Workspace.objects.filter(slug=slug).exists():
+            break
+        slug = f"{base_slug}-{''.join(random.choices(string.ascii_lowercase + string.digits, k=4))}"
+    else:
+        raise RuntimeError(f"Could not generate unique slug after 10 attempts.")
 
     workspace = Workspace.objects.create(
         name=base_name,

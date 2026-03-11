@@ -324,3 +324,127 @@ def test_pending_invite_resend_returns_200():
         response = client.post(invite_url, {"email": pending_user.email}, format="json")
     assert response.status_code == 200
     assert "resent" in response.json()["detail"].lower()
+
+
+# ---------------------------------------------------------------------------
+# BUG-5 — Owner/last-admin demotion guard
+# ---------------------------------------------------------------------------
+
+@pytest.mark.django_db
+def test_cannot_demote_owner():
+    """PATCH role on workspace owner must return 403."""
+    owner = make_user("ownerdmote@test.com")
+    workspace = Workspace.objects.get(owner=owner)
+    client = auth_client(owner)
+    url = reverse(
+        "workspace-member-detail",
+        kwargs={"workspace_id": workspace.id, "user_id": owner.id},
+    )
+    response = client.patch(url, {"role": Membership.Role.MEMBER}, format="json")
+    assert response.status_code == 403
+    assert "owner" in response.json()["error"].lower()
+
+
+@pytest.mark.django_db
+def test_cannot_demote_last_admin():
+    """Demoting the only admin must return 403."""
+    owner = make_user("lastadmin@test.com")
+    workspace = Workspace.objects.get(owner=owner)
+    # owner is the sole admin; try demoting another admin (but there's only one — the owner)
+    # Add a second user as admin, then have a third user who is the only remaining admin
+    second_admin = make_user("secondadm@test.com")
+    second_membership = Membership.objects.create(
+        workspace=workspace,
+        user=second_admin,
+        role=Membership.Role.ADMIN,
+        status=Membership.Status.ACTIVE,
+    )
+    # Demote owner first via DB to create a scenario where second_admin is the only admin
+    owner_membership = Membership.objects.get(workspace=workspace, user=owner)
+    owner_membership.role = Membership.Role.MEMBER
+    owner_membership.save(update_fields=["role"])
+    # Now second_admin is the sole admin — try to demote them (as owner acting as member)
+    # Use second_admin's own client (they're still admin)
+    client = auth_client(second_admin)
+    url = reverse(
+        "workspace-member-detail",
+        kwargs={"workspace_id": workspace.id, "user_id": second_admin.id},
+    )
+    response = client.patch(url, {"role": Membership.Role.MEMBER}, format="json")
+    assert response.status_code == 403
+    assert "admin" in response.json()["error"].lower()
+
+
+@pytest.mark.django_db
+def test_can_demote_admin_when_multiple_exist():
+    """Demoting one admin when two exist must succeed (200)."""
+    owner = make_user("multiowneradm@test.com")
+    workspace = Workspace.objects.get(owner=owner)
+    second_admin = make_user("multisecondadm@test.com")
+    Membership.objects.create(
+        workspace=workspace,
+        user=second_admin,
+        role=Membership.Role.ADMIN,
+        status=Membership.Status.ACTIVE,
+    )
+    client = auth_client(owner)
+    url = reverse(
+        "workspace-member-detail",
+        kwargs={"workspace_id": workspace.id, "user_id": second_admin.id},
+    )
+    response = client.patch(url, {"role": Membership.Role.MEMBER}, format="json")
+    assert response.status_code == 200
+    second_admin_membership = Membership.objects.get(workspace=workspace, user=second_admin)
+    assert second_admin_membership.role == Membership.Role.MEMBER
+
+
+# ---------------------------------------------------------------------------
+# BUG-3 — Slug collision retry loop
+# ---------------------------------------------------------------------------
+
+@pytest.mark.django_db
+def test_slug_retries_on_collision():
+    """Signal generates a unique slug even when the base slug already exists."""
+    from django.utils.text import slugify
+
+    user1 = make_user("slugcollide1@test.com")
+    base_slug = slugify(f"{user1.email.split('@')[0]}'s Workspace")
+
+    # Manually create a workspace with the same base slug to force collision
+    Workspace.objects.filter(owner=user1).update(slug=base_slug)
+
+    # Create second user whose email produces the same base slug
+    user2 = make_user("slugcollide1@example.com")
+    ws2 = Workspace.objects.get(owner=user2)
+    # Both workspaces were created; ws2 must have a different slug
+    ws1 = Workspace.objects.get(owner=user1)
+    assert ws1.slug != ws2.slug
+
+
+@pytest.mark.django_db
+def test_slug_raises_after_max_retries():
+    """RuntimeError raised when all 10 slug attempts collide."""
+    from workspace_app.signals import auto_create_personal_workspace
+    from unittest.mock import patch, MagicMock
+
+    user = make_user("slugexhaust@test.com")
+
+    # Patch at the models layer (signals imports Workspace from workspace_app.models)
+    always_exists = MagicMock()
+    always_exists.exists.return_value = True
+
+    no_memberships = MagicMock()
+    no_memberships.exists.return_value = False
+
+    def workspace_filter(**kwargs):
+        return always_exists
+
+    def membership_filter(**kwargs):
+        return no_memberships
+
+    with patch("workspace_app.models.Workspace.objects.filter", side_effect=workspace_filter):
+        with patch("workspace_app.models.Membership.objects.filter", side_effect=membership_filter):
+            with pytest.raises(RuntimeError, match="10 attempts"):
+                auto_create_personal_workspace(
+                    sender=user.__class__, instance=user, created=True
+                )

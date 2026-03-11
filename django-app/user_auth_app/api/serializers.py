@@ -128,7 +128,13 @@ class UserSerializer(serializers.ModelSerializer):
 class UserProfileSerializer(serializers.ModelSerializer):
     """Read-only profile view: id, email, username, names, date_joined, avatar_url."""
 
-    avatar_url = serializers.URLField(source='avatar', read_only=True)
+    avatar_url = serializers.SerializerMethodField()
+
+    def get_avatar_url(self, obj):
+        if not obj.avatar:
+            return None
+        request = self.context.get('request')
+        return request.build_absolute_uri(obj.avatar) if request else obj.avatar
 
     class Meta:
         model = User

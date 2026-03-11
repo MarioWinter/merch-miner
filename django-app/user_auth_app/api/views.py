@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import viewsets, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.throttling import UserRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken, AccessToken, TokenError
 from core import settings
 from user_auth_app.models import BillingProfile
@@ -358,7 +359,7 @@ class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        serializer = UserProfileSerializer(request.user)
+        serializer = UserProfileSerializer(request.user, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def patch(self, request):
@@ -370,7 +371,14 @@ class UserProfileView(APIView):
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response(UserProfileSerializer(request.user).data, status=status.HTTP_200_OK)
+        return Response(
+            UserProfileSerializer(request.user, context={'request': request}).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class AvatarRateThrottle(UserRateThrottle):
+    scope = 'avatar'
 
 
 class AvatarUploadView(APIView):
@@ -378,12 +386,15 @@ class AvatarUploadView(APIView):
 
     authentication_classes = [CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AvatarRateThrottle]
 
     ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/webp'}
     MAX_SIZE_BYTES = 2 * 1024 * 1024  # 2 MB
     EXT_MAP = {'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp'}
 
     def post(self, request):
+        from PIL import Image
+
         file = request.FILES.get('avatar')
         if not file:
             return Response(
@@ -403,6 +414,21 @@ class AvatarUploadView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Magic-byte validation via Pillow
+        file.seek(0)
+        try:
+            img = Image.open(file)
+            img.verify()
+        except Exception:
+            return Response({'detail': 'Invalid image file.'}, status=status.HTTP_400_BAD_REQUEST)
+        FORMAT_TO_MIME = {'JPEG': 'image/jpeg', 'PNG': 'image/png', 'WEBP': 'image/webp'}
+        if FORMAT_TO_MIME.get(img.format, '') != file.content_type:
+            return Response(
+                {'detail': 'File content does not match declared type.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        file.seek(0)  # reset for fs.save()
+
         ext = self.EXT_MAP[file.content_type]
         relative_path = f'avatars/user_{request.user.pk}/avatar.{ext}'
 
@@ -414,10 +440,10 @@ class AvatarUploadView(APIView):
                 fs.delete(old_path)
 
         saved_path = fs.save(relative_path, file)
-        avatar_url = request.build_absolute_uri(settings.MEDIA_URL + saved_path)
-
-        request.user.avatar = avatar_url
+        relative = settings.MEDIA_URL + saved_path   # /media/avatars/...
+        request.user.avatar = relative
         request.user.save(update_fields=['avatar'])
+        avatar_url = request.build_absolute_uri(relative)
 
         return Response({'avatar_url': avatar_url}, status=status.HTTP_200_OK)
 

@@ -70,7 +70,14 @@ const InviteAcceptView = () => {
             {t('invite.successBody')}
           </Typography>
           {needsPasswordSetup ? (
-            <Button variant="contained" onClick={() => navigate(`/password-reset/confirm?uid=${resetUid}&token=${resetToken}`)}>
+            <Button
+              variant="contained"
+              onClick={() =>
+                navigate('/password-reset/confirm', {
+                  state: { uid: resetUid, token: resetToken },
+                })
+              }
+            >
               {t('invite.setPassword')}
             </Button>
           ) : (
@@ -89,7 +96,14 @@ const InviteAcceptView = () => {
             {t('invite.alreadyMemberBody')}
           </Typography>
           {needsPasswordSetup ? (
-            <Button variant="contained" onClick={() => navigate(`/password-reset/confirm?uid=${resetUid}&token=${resetToken}`)}>
+            <Button
+              variant="contained"
+              onClick={() =>
+                navigate('/password-reset/confirm', {
+                  state: { uid: resetUid, token: resetToken },
+                })
+              }
+            >
               {t('invite.setPassword')}
             </Button>
           ) : (

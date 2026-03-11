@@ -43,7 +43,7 @@ class User(AbstractUser):
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []     
 
-    avatar = models.URLField(blank=True, default='')
+    avatar = models.CharField(max_length=500, blank=True, null=True)
 
     objects = CustomUserManager()
 

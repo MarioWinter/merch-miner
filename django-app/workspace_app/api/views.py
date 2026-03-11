@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.throttling import UserRateThrottle
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from user_auth_app.api.authentication import CookieJWTAuthentication
@@ -98,11 +99,16 @@ class WorkspaceDetailView(APIView):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
+class InviteRateThrottle(UserRateThrottle):
+    scope = 'invite'
+
+
 class WorkspaceInviteView(APIView):
     """POST /api/workspaces/{id}/invite/ — send invite email (admin only)."""
 
     authentication_classes = [CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
+    throttle_classes = [InviteRateThrottle]
 
     def post(self, request, workspace_id):
         membership = _get_admin_membership(request.user, workspace_id)
@@ -280,6 +286,18 @@ class WorkspaceMemberDetailView(APIView):
 
         serializer = MemberRoleSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
+
+        # Guard 1: owner cannot be demoted
+        workspace = admin_membership.workspace
+        if target.user_id == workspace.owner_id:
+            return Response({'error': 'Cannot change workspace owner role.'}, status=403)
+        # Guard 2: must keep at least one admin
+        new_role = serializer.validated_data['role']
+        if new_role != Membership.Role.ADMIN and target.role == Membership.Role.ADMIN:
+            admin_count = Membership.objects.filter(workspace_id=workspace_id, role=Membership.Role.ADMIN).count()
+            if admin_count <= 1:
+                return Response({'error': 'Workspace must have at least one admin.'}, status=403)
+
         target.role = serializer.validated_data['role']
         target.save(update_fields=['role'])
 

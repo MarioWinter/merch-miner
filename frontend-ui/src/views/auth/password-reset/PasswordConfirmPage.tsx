@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link as RouterLink, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -25,11 +25,10 @@ const PasswordConfirmPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
-  const [searchParams] = useSearchParams();
+  const location = useLocation();
   const [loading, setLoading] = useState(false);
 
-  const uid = searchParams.get('uid') ?? '';
-  const token = searchParams.get('token') ?? '';
+  const { uid = '', token = '' } = (location.state as { uid?: string; token?: string }) ?? {};
 
   const {
     control,
