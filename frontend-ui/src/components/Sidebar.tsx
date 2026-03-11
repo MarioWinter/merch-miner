@@ -44,7 +44,7 @@ const SidebarRoot = styled(Box, {
   bottom: 0,
   backgroundColor: COLORS.white,
   borderRight: '1px solid',
-  borderColor: theme.vars!.palette.divider,
+  borderColor: theme.vars?.palette.divider ?? theme.palette.divider,
   ...theme.applyStyles('dark', {
     backgroundColor: COLORS.inkPaper,
   }),
@@ -70,23 +70,24 @@ const NavItemButton = styled(ListItemButton, {
   shouldForwardProp: (prop) => prop !== '$active' && prop !== '$collapsed',
 })<{ $active: boolean; $collapsed: boolean }>(({ theme, $active, $collapsed }) => ({
   height: 40,
-  paddingLeft: $collapsed ? 12 : 16,
-  paddingRight: $collapsed ? 12 : 16,
+  paddingLeft: 8,
+  paddingRight: 8,
   marginLeft: 8,
   marginRight: 8,
   borderRadius: 8,
   marginBottom: 2,
   gap: $collapsed ? 0 : 12,
+  alignItems: 'center',
   backgroundColor: $active ? alpha(COLORS.red, 0.12) : 'transparent',
-  color: $active ? theme.vars!.palette.primary.main : theme.vars!.palette.text.secondary,
+  color: $active ? (theme.vars?.palette.primary.main ?? theme.palette.primary.main) : (theme.vars?.palette.text.secondary ?? theme.palette.text.secondary),
   borderLeft: '2px solid',
-  borderColor: $active ? theme.vars!.palette.primary.main : 'transparent',
+  borderColor: $active ? (theme.vars?.palette.primary.main ?? theme.palette.primary.main) : 'transparent',
   overflow: 'hidden',
   minWidth: 0,
-  transition: `background-color ${DURATION.fast}ms ${EASING.standard}, color ${DURATION.fast}ms ${EASING.standard}, padding ${DURATION.default}ms ${EASING.standard}, gap ${DURATION.default}ms ${EASING.standard}`,
+  transition: `background-color ${DURATION.fast}ms ${EASING.standard}, color ${DURATION.fast}ms ${EASING.standard}, border-color ${DURATION.default}ms ${EASING.standard}`,
   '&:hover': {
-    backgroundColor: $active ? alpha(COLORS.red, 0.12) : theme.vars!.palette.action.hover,
-    color: $active ? theme.vars!.palette.primary.main : theme.vars!.palette.text.primary,
+    backgroundColor: $active ? alpha(COLORS.red, 0.12) : (theme.vars?.palette.action.hover ?? theme.palette.action.hover),
+    color: $active ? (theme.vars?.palette.primary.main ?? theme.palette.primary.main) : (theme.vars?.palette.text.primary ?? theme.palette.text.primary),
   },
 }));
 
@@ -103,13 +104,15 @@ const NavText = styled(ListItemText, {
 }));
 
 // Always occupies the same vertical space — no display:none or height:0
-const SectionHeaderSlot = styled(Box)({
+const SectionHeaderSlot = styled(Box, {
+  shouldForwardProp: (prop) => prop !== '$collapsed',
+})<{ $collapsed: boolean }>(() => ({
   paddingLeft: 24,
   paddingRight: 24,
-  paddingTop: 8,
-  paddingBottom: 4,
-  display: 'block',
-});
+  minHeight: 30.8,
+  display: 'flex',
+  alignItems: 'center',
+}));
 
 // Visually hidden when collapsed but stays in the layout flow
 const SectionHeaderText = styled(Typography, {
@@ -249,7 +252,7 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
   const renderNavItem = (item: NavItem) => {
     const active = isActive(item.path);
 
-    const button = (
+      const button = (
       <NavItemButton
         key={item.path}
         onClick={() => navigate(item.path)}
@@ -258,8 +261,27 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
         $active={active}
         $collapsed={effectiveCollapsed}
       >
-        <ListItemIcon sx={{ minWidth: 0, color: 'inherit', flexShrink: 0 }}>
-          {item.icon}
+        <ListItemIcon
+          sx={{
+            minWidth: 0,
+            color: 'inherit',
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            height: '100%',
+          }}
+        >
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: `transform ${DURATION.default}ms ${EASING.standard}`,
+            }}
+          >
+            {item.icon}
+          </Box>
         </ListItemIcon>
         <NavText
           primary={item.label}
@@ -307,7 +329,7 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
               />
             )}
             {/* SectionHeaderSlot always occupies the same height — no jump when collapsing */}
-            <SectionHeaderSlot>
+            <SectionHeaderSlot $collapsed={effectiveCollapsed}>
               <SectionHeaderText variant="overline" $collapsed={effectiveCollapsed}>
                 {sectionLabels[section.sectionKey]}
               </SectionHeaderText>

@@ -114,10 +114,9 @@ const workspaceSlice = createSlice({
       })
       // renameWorkspace
       .addCase(renameWorkspace.fulfilled, (state, action) => {
-        const idx = state.workspaces.findIndex(
-          (w) => w.id === action.payload.id
-        );
-        if (idx !== -1) state.workspaces[idx].name = action.payload.name;
+        const { id, name } = action.meta.arg;
+        const idx = state.workspaces.findIndex((w) => w.id === id);
+        if (idx !== -1) state.workspaces[idx].name = name;
       })
       // changeMemberRole
       .addCase(changeMemberRole.fulfilled, (state, action) => {

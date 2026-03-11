@@ -8,18 +8,24 @@ import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { fetchWorkspaces, setActiveWorkspace } from '../../store/workspaceSlice';
 
-const WorkspaceSelectorButton = styled(Button)({
+const WorkspaceSelectorButton = styled(Button)(({ theme }) => ({
   borderRadius: '999px',
+  color: theme.vars?.palette.text.secondary ?? theme.palette.text.secondary,
   textTransform: 'none',
+  borderColor: theme.vars?.palette.text.secondary ?? theme.palette.text.secondary,
   fontWeight: 500,
   paddingLeft: 16,
   paddingRight: 16,
   height: 32,
   whiteSpace: 'nowrap',
-  maxWidth: 220,
+  maxWidth: 300,
   overflow: 'hidden',
   textOverflow: 'ellipsis',
-});
+  '&:hover': {
+  backgroundColor: theme.vars?.palette.action.hover ?? theme.palette.action.hover,
+  color: theme.vars?.palette.text.primary ?? theme.palette.text.primary,
+},
+}));
 
 const WorkspaceSelector = () => {
   const { t } = useTranslation();

@@ -11,7 +11,7 @@ const TABS = [
   { path: '/settings/workspace', labelKey: 'settings.nav.workspace', icon: <GroupsOutlinedIcon sx={{ fontSize: 18 }} /> },
 ];
 
-const SettingsLayout = (): JSX.Element => {
+const SettingsLayout = () => {
   const { t } = useTranslation();
   const location = useLocation();
 

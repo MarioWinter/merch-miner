@@ -18,10 +18,6 @@ const WorkspaceSection = () => {
     isAdmin,
     loading,
     error,
-    nameValue,
-    setNameValue,
-    inviteEmail,
-    setInviteEmail,
     inviting,
     handleRenameSave,
     handleInvite,
@@ -59,9 +55,8 @@ const WorkspaceSection = () => {
       />
 
       <WorkspaceNameCard
-        nameValue={nameValue}
+        defaultName={activeWorkspace?.name ?? ''}
         isAdmin={isAdmin}
-        onChange={setNameValue}
         onSave={handleRenameSave}
       />
 
@@ -77,9 +72,7 @@ const WorkspaceSection = () => {
 
         {isAdmin && (
           <InviteRow
-            email={inviteEmail}
             inviting={inviting}
-            onChange={setInviteEmail}
             onSubmit={handleInvite}
           />
         )}

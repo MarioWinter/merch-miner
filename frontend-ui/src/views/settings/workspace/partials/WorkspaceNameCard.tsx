@@ -1,33 +1,56 @@
+import { useEffect } from 'react';
 import { Button, Stack, TextField } from '@mui/material';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
 import { SettingsCard, SectionTitle } from '../../../../components/SettingsCard';
+import {
+  workspaceNameSchema,
+  type WorkspaceNameFormValues,
+} from '../schemas/workspaceSchema';
 
 interface Props {
-  nameValue: string;
+  defaultName: string;
   isAdmin: boolean;
-  onChange: (value: string) => void;
-  onSave: () => void;
+  onSave: (name: string) => void;
 }
 
-const WorkspaceNameCard = ({ nameValue, isAdmin, onChange, onSave }: Props) => {
+const WorkspaceNameCard = ({ defaultName, isAdmin, onSave }: Props) => {
   const { t } = useTranslation();
+  const { control, handleSubmit, reset, formState: { errors } } = useForm<WorkspaceNameFormValues>({
+    resolver: zodResolver(workspaceNameSchema),
+    defaultValues: { name: defaultName },
+  });
+
+  useEffect(() => {
+    reset({ name: defaultName });
+  }, [defaultName, reset]);
 
   return (
     <SettingsCard>
       <form
-        onSubmit={(e) => { e.preventDefault(); onSave(); }}
+        onSubmit={handleSubmit((data) => onSave(data.name))}
         aria-label={t('settings.workspace.title')}
       >
         <SectionTitle>{t('settings.workspace.title')}</SectionTitle>
 
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} alignItems="flex-start">
-          <TextField
-            value={nameValue}
-            onChange={(e) => onChange(e.target.value)}
-            label={t('settings.workspace.nameLabel')}
-            disabled={!isAdmin}
-            fullWidth
-            helperText={!isAdmin ? t('settings.workspace.nameAdminOnly') : undefined}
+          <Controller
+            name="name"
+            control={control}
+            render={({ field }) => (
+              <TextField
+                {...field}
+                label={t('settings.workspace.nameLabel')}
+                disabled={!isAdmin}
+                fullWidth
+                error={!!errors.name}
+                helperText={
+                  errors.name?.message ??
+                  (!isAdmin ? t('settings.workspace.nameAdminOnly') : undefined)
+                }
+              />
+            )}
           />
           {isAdmin && (
             <Button

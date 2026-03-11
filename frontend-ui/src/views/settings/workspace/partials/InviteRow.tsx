@@ -1,19 +1,24 @@
 import { Button, CircularProgress, Stack, TextField } from '@mui/material';
+import { useForm, Controller } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { useTranslation } from 'react-i18next';
+import { inviteSchema, type InviteFormValues } from '../schemas/workspaceSchema';
 
 interface Props {
-  email: string;
   inviting: boolean;
-  onChange: (value: string) => void;
-  onSubmit: () => void;
+  onSubmit: (email: string) => void;
 }
 
-const InviteRow = ({ email, inviting, onChange, onSubmit }: Props) => {
+const InviteRow = ({ inviting, onSubmit }: Props) => {
   const { t } = useTranslation();
+  const { control, handleSubmit, reset, formState: { errors } } = useForm<InviteFormValues>({
+    resolver: zodResolver(inviteSchema),
+    defaultValues: { email: '' },
+  });
 
   return (
     <form
-      onSubmit={(e) => { e.preventDefault(); onSubmit(); }}
+      onSubmit={handleSubmit((data) => { onSubmit(data.email); reset(); })}
       aria-label={t('settings.workspace.inviteEmail')}
     >
       <Stack
@@ -22,13 +27,19 @@ const InviteRow = ({ email, inviting, onChange, onSubmit }: Props) => {
         alignItems="flex-start"
         sx={{ mt: 2.5 }}
       >
-        <TextField
-          value={email}
-          onChange={(e) => onChange(e.target.value)}
-          label={t('settings.workspace.inviteEmail')}
-          type="email"
-          size="small"
-          fullWidth
+        <Controller
+          name="email"
+          control={control}
+          render={({ field }) => (
+            <TextField
+              {...field}
+              label={t('settings.workspace.inviteEmail')}
+              type="email"
+              fullWidth
+              error={!!errors.email}
+              helperText={errors.email?.message}
+            />
+          )}
         />
         <Button
           type="submit"

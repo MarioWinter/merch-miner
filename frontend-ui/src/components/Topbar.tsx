@@ -1,4 +1,3 @@
-import React from 'react';
 import { Box, IconButton, Typography } from '@mui/material';
 import { alpha } from '@mui/material';
 import { styled } from '@mui/material/styles';
@@ -29,7 +28,7 @@ const TopbarRoot = styled(AppBar)(({ theme }) => ({
     left: 'var(--sidebar-w, 0px)',
     right: 0,
     height: '1px',
-    backgroundColor: theme.vars.palette.divider,
+    backgroundColor: theme.vars?.palette.divider ?? theme.palette.divider,
     transition: `left ${DURATION.default}ms ${EASING.standard}`,
   },
   ...theme.applyStyles('dark', {
@@ -41,10 +40,10 @@ const TopbarIconButton = styled(IconButton)(({ theme }) => ({
   width: 32,
   height: 32,
   borderRadius: '8px',
-  color: theme.vars.palette.text.secondary,
+  color: theme.vars?.palette.text.secondary ?? theme.palette.text.secondary,
   '&:hover': {
-    backgroundColor: theme.vars.palette.action.hover,
-    color: theme.vars.palette.text.primary,
+    backgroundColor: theme.vars?.palette.action.hover ?? theme.palette.action.hover,
+    color: theme.vars?.palette.text.primary ?? theme.palette.text.primary,
   },
 }));
 
@@ -58,7 +57,7 @@ const TopbarToolbar = styled(Toolbar)({
   position: 'relative',
 });
 
-const Topbar = (): React.JSX.Element => {
+const Topbar = () => {
   const { t } = useTranslation();
   const user = useAppSelector((state) => state.auth.user);
   const initial = user?.email?.[0]?.toUpperCase() || '?';

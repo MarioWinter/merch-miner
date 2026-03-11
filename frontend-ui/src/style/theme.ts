@@ -112,7 +112,7 @@ const theme = extendTheme({
           borderRadius: 8,
           textTransform: 'none',
           fontWeight: 600,
-          height: 36,
+          height: 42,
         },
       },
     },
@@ -251,7 +251,7 @@ const theme = extendTheme({
           textTransform: 'none',
           fontWeight: 600,
           fontSize: '0.875rem',
-          height: 36,
+          height: 42,
           color: theme.palette.text.secondary,
           '&.Mui-selected': {
             color: theme.palette.primary.main,

@@ -24,27 +24,18 @@ export const useWorkspaceSection = () => {
     workspaces.find((w) => w.id === activeWorkspaceId) ?? null;
   const isAdmin = activeWorkspace?.role === 'admin';
 
-  const [nameValue, setNameValue] = useState(activeWorkspace?.name ?? '');
-  const [inviteEmail, setInviteEmail] = useState('');
   const [inviting, setInviting] = useState(false);
-
-  // Keep name field in sync when active workspace changes
-  useEffect(() => {
-    if (activeWorkspace) {
-      setNameValue(activeWorkspace.name);
-    }
-  }, [activeWorkspace?.id, activeWorkspace?.name]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load on mount
   useEffect(() => {
     dispatch(fetchWorkspaces());
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleRenameSave = async () => {
-    if (!activeWorkspace || !nameValue.trim()) return;
+  const handleRenameSave = async (name: string) => {
+    if (!activeWorkspace) return;
     try {
       await dispatch(
-        renameWorkspace({ id: activeWorkspace.id, name: nameValue.trim() })
+        renameWorkspace({ id: activeWorkspace.id, name: name.trim() })
       ).unwrap();
       enqueueSnackbar(t('settings.workspace.saveSuccess'), { variant: 'success' });
     } catch {
@@ -52,12 +43,11 @@ export const useWorkspaceSection = () => {
     }
   };
 
-  const handleInvite = async () => {
-    if (!activeWorkspace || !inviteEmail.trim()) return;
+  const handleInvite = async (email: string) => {
+    if (!activeWorkspace) return;
     setInviting(true);
     try {
-      await workspaceService.inviteMember(activeWorkspace.id, inviteEmail.trim());
-      setInviteEmail('');
+      await workspaceService.inviteMember(activeWorkspace.id, email.trim());
       enqueueSnackbar(t('settings.workspace.inviteSuccess'), { variant: 'success' });
     } catch {
       enqueueSnackbar(t('settings.workspace.inviteError'), { variant: 'error' });
@@ -101,10 +91,6 @@ export const useWorkspaceSection = () => {
     isAdmin,
     loading,
     error,
-    nameValue,
-    setNameValue,
-    inviteEmail,
-    setInviteEmail,
     inviting,
     handleRenameSave,
     handleInvite,
