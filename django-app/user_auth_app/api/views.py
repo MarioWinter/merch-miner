@@ -252,7 +252,11 @@ class PasswordConfirmView(APIView):
 
     permission_classes = [AllowAny]
 
-    def post(self, request, uidb64, token):
+    def post(self, request, uidb64=None, token=None):
+        # Accept uid/token from POST body (preferred) or URL path (legacy email links)
+        uidb64 = uidb64 or request.data.get('uid', '')
+        token = token or request.data.get('token', '')
+
         serializer = PasswordChangeSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(
@@ -294,6 +298,7 @@ class MeView(APIView):
         return Response({
             "id": user.id,
             "email": user.email,
+            "first_name": user.first_name,
             "avatar_url": user.avatar,
         }, status=status.HTTP_200_OK)
 

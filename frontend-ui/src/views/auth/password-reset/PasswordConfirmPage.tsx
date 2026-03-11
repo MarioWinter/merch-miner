@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link as RouterLink, useNavigate, useLocation } from 'react-router-dom';
+import { Link as RouterLink, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -26,9 +26,13 @@ const PasswordConfirmPage = () => {
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
   const location = useLocation();
+  const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
 
-  const { uid = '', token = '' } = (location.state as { uid?: string; token?: string }) ?? {};
+  // Invite flow: state (token never in URL). Email reset flow: URL query params.
+  const stateData = (location.state as { uid?: string; token?: string }) ?? {};
+  const uid = stateData.uid ?? searchParams.get('uid') ?? '';
+  const token = stateData.token ?? searchParams.get('token') ?? '';
 
   const {
     control,

@@ -69,6 +69,9 @@ export const useProfileForm = () => {
     try {
       const updated = await profileService.patchProfile(values);
       setProfile(updated);
+      if (authUser) {
+        dispatch(setUser({ ...authUser, first_name: updated.first_name }));
+      }
       enqueueSnackbar(t('settings.profile.saveSuccess'), {
         variant: 'success',
       });

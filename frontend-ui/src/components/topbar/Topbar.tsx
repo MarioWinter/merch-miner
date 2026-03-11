@@ -60,7 +60,10 @@ const TopbarToolbar = styled(Toolbar)({
 const Topbar = () => {
   const { t } = useTranslation();
   const user = useAppSelector((state) => state.auth.user);
-  const initial = user?.email?.[0]?.toUpperCase() || '?';
+  const initial =
+    user?.first_name?.charAt(0)?.toUpperCase() ||
+    user?.email?.charAt(0)?.toUpperCase() ||
+    '?';
   const avatarUrl = user?.avatar_url ?? null;
 
   return (

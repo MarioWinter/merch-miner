@@ -35,7 +35,7 @@ describe('LoginPage', () => {
   it('dispatches setUser and navigates on successful login', async () => {
     const { authService } = await import('../../../../services/authService');
     vi.mocked(authService.login).mockResolvedValueOnce({
-      user: { id: 1, email: 'test@example.com' },
+      user: { id: 1, email: 'test@example.com', first_name: 'Test', avatar_url: null },
     });
 
     const { store } = renderLoginPage();
@@ -45,7 +45,7 @@ describe('LoginPage', () => {
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true }));
     expect(store.getState().auth.isAuthenticated).toBe(true);
-    expect(store.getState().auth.user).toEqual({ id: 1, email: 'test@example.com' });
+    expect(store.getState().auth.user).toEqual({ id: 1, email: 'test@example.com', first_name: 'Test', avatar_url: null });
   });
 
   it('shows error snackbar and dispatches setError on failed login', async () => {

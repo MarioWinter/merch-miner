@@ -121,10 +121,7 @@ export const authService = {
   },
 
   async confirmPasswordReset(payload: PasswordConfirmPayload) {
-    const { data } = await apiClient.post(
-      `/api/auth/password/confirm/${payload.uid}/${payload.token}/`,
-      { new_password: payload.new_password, confirm_password: payload.confirm_password }
-    );
+    const { data } = await apiClient.post('/api/auth/password/confirm/', payload);
     return data;
   },
 
@@ -138,7 +135,7 @@ export const hydrateAuth = async () => {
   store.dispatch(setLoading(true));
   try {
     const data = await authService.getMe();
-    store.dispatch(setUser({ id: data.id, email: data.email, avatar_url: data.avatar_url ?? null }));
+    store.dispatch(setUser({ id: data.id, email: data.email, first_name: data.first_name ?? '', avatar_url: data.avatar_url ?? null }));
   } catch {
     // No active session — stay unauthenticated
   } finally {
