@@ -104,7 +104,7 @@ cp .env.prod.template .env
 - Required for auth flow: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`
 - Required for email flow: `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL`
 - Optional: `DJANGO_SUPERUSER_PASSWORD` (only if auto-create superuser is desired)
-- Usually keep defaults unless intentionally changed: `POSTGRES_*`, `DB_*`, `WEB_*`, `FRONTEND_*`, `REDIS_*`
+- Usually keep defaults unless intentionally changed: `POSTGRES_*`, `DB_*`, `REDIS_*`
 
 #### Prod server (`.env.prod.template`)
 
@@ -112,7 +112,6 @@ cp .env.prod.template .env
 - Required host/security values: `ALLOWED_HOSTS`, `CSRF_TRUSTED_ORIGINS`, `CORS_ALLOWED_ORIGINS`
 - Required app URLs: `FRONTEND_URL`, `FRONTEND_ACTIVATION_URL`, `FRONTEND_CONFIRM_PASSWORD_URL`
 - Required DB access: `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD`, `DB_SCHEMA`
-- Required images/runtime: `BACKEND_IMAGE`, `FRONTEND_IMAGE`, `CADDY_IMAGE`, `WEB_INTERNAL_PORT`, `GUNICORN_WORKERS`, `REDIS_IMAGE`
 - Required for auth/email/integrations if enabled: `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `EMAIL_*`, `N8N_WEBHOOK_URL`, `N8N_CALLBACK_SECRET`, `POLAR_WEBHOOK_SECRET`
 - Optional: `DJANGO_SUPERUSER_PASSWORD` (only if auto-create superuser is desired)
 
@@ -192,6 +191,7 @@ docker network create supabase-net || true
 git pull
 cp .env.prod.template .env
 # Fill required values: SECRET_KEY, DB_PASSWORD, ALLOWED_HOSTS, CSRF/CORS, FRONTEND_* URLs, EMAIL_*, GOOGLE_*, N8N/POLAR secrets
+# Image tags + port configs are hardcoded in docker-compose.prod.yml — no env vars needed for those
 
 ./scripts/init-db.sh
 

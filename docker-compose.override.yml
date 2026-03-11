@@ -4,7 +4,7 @@ networks:
 
 services:
   db:
-    image: ${POSTGRES_IMAGE:?POSTGRES_IMAGE is required}
+    image: postgres:16
     container_name: app_db
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
@@ -15,7 +15,7 @@ services:
 
   web:
     ports:
-      - "${WEB_BIND_HOST:?WEB_BIND_HOST is required}:${WEB_HOST_PORT:?WEB_HOST_PORT is required}:${WEB_CONTAINER_PORT:?WEB_CONTAINER_PORT is required}"
+      - "127.0.0.1:8000:8000"
     volumes:
       - ./django-app:/app
     depends_on:
@@ -27,7 +27,7 @@ services:
 
   frontend:
     ports:
-      - "${FRONTEND_BIND_HOST:?FRONTEND_BIND_HOST is required}:${FRONTEND_HOST_PORT:?FRONTEND_HOST_PORT is required}:${FRONTEND_CONTAINER_PORT:?FRONTEND_CONTAINER_PORT is required}"
+      - "127.0.0.1:5173:5173"
     volumes:
       - ./frontend-ui:/app
       - /app/node_modules

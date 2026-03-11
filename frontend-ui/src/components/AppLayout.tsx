@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import { Box } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { Outlet } from 'react-router-dom';
-import Topbar from './Topbar';
-import Sidebar, { COLLAPSED_WIDTH, EXPANDED_WIDTH } from './Sidebar';
+import Topbar from './topbar/Topbar';
+import Sidebar, { COLLAPSED_WIDTH, EXPANDED_WIDTH } from './sidebar/Sidebar';
 import { DURATION, EASING } from '@/style/constants';
 
 // Styled components

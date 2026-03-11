@@ -6,11 +6,11 @@ import Toolbar from '@mui/material/Toolbar';
 import DiamondOutlinedIcon from '@mui/icons-material/DiamondOutlined';
 import NotificationsOutlinedIcon from '@mui/icons-material/NotificationsOutlined';
 import { useTranslation } from 'react-i18next';
-import { useAppSelector } from '../store/hooks';
-import LanguageMenu from './topbar/LanguageMenu';
-import ColorModeToggle from './topbar/ColorModeToggle';
-import ProfileMenu from './topbar/ProfileMenu';
-import WorkspaceSelector from './topbar/WorkspaceSelector';
+import { useAppSelector } from '../../store/hooks';
+import LanguageMenu from './LanguageMenu';
+import ColorModeToggle from './ColorModeToggle';
+import ProfileMenu from './ProfileMenu';
+import WorkspaceSelector from './WorkspaceSelector';
 import { COLORS, DURATION, EASING } from '@/style/constants';
 
 const TopbarRoot = styled(AppBar)(({ theme }) => ({

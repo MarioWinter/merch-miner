@@ -10,7 +10,7 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
-import { CssVarsProvider } from '@mui/material/styles';
+import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { SnackbarProvider } from 'notistack';
 
@@ -21,7 +21,7 @@ import App from './App';
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Provider store={store}>
-      <CssVarsProvider theme={theme} defaultMode="dark" modeStorageKey="mm-color-mode">
+      <ThemeProvider theme={theme} defaultMode="dark" modeStorageKey="mm-color-mode">
         <CssBaseline />
         <SnackbarProvider
           maxSnack={4}
@@ -32,7 +32,7 @@ createRoot(document.getElementById('root')!).render(
             <App />
           </BrowserRouter>
         </SnackbarProvider>
-      </CssVarsProvider>
+      </ThemeProvider>
     </Provider>
   </StrictMode>
 );

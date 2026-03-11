@@ -9,7 +9,7 @@ volumes:
 
 services:
   redis:
-    image: ${REDIS_IMAGE:?REDIS_IMAGE is required}
+    image: redis:7-alpine
     container_name: app_redis
     restart: unless-stopped
 
