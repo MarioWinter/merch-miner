@@ -263,7 +263,7 @@ Settings page (gear icon + sidebar) exposes: Profile tab, Billing tab, Workspace
 | BUG-5: Admin self-demotion / owner demotion | High | FIXED — owner guard + last-admin guard in `workspace_app/api/views.py` lines 291-299 |
 | BUG-6: No magic-byte avatar validation | Medium | FIXED — Pillow `img.verify()` + format-vs-content_type cross-check in `user_auth_app/api/views.py` |
 | BUG-7: Avatar stored as absolute URL | Medium | FIXED — stores relative `/media/...` path; `request.build_absolute_uri` removed |
-| BUG-8: JWT token in invite redirect URL | Medium | STILL OPEN |
+| BUG-8: JWT token in invite redirect URL | Medium | FIXED — React Router location state |
 | BUG-9: No rate limiting on invite/avatar | Low | FIXED — `InviteRateThrottle` and `AvatarRateThrottle` present |
 
 ---
@@ -372,16 +372,9 @@ Settings page (gear icon + sidebar) exposes: Profile tab, Billing tab, Workspace
 **Steps to reproduce:** Upload an avatar in dev. Restart the `web` container. The avatar file is gone and the stored `/media/...` path returns 404.
 **Priority:** Medium (dev data-loss only; no production impact)
 
-#### BUG-8 — Invite accept passes JWT access token in browser URL
+#### ~~BUG-8 — Invite accept passes JWT access token in browser URL~~
 **Severity:** Medium
-**Status:** OPEN
-**AC:** Security best practice
-**Finding:** `WorkspaceInviteAcceptView` returns `password_reset_token: str(refresh.access_token)` in the JSON body for new users. `InviteAcceptView.tsx` navigates to `/password-reset/confirm?uid=...&token=<JWT>`, placing the JWT in the URL query string. It is then stored in browser history, server access logs, and referrer headers.
-**Files:**
-- `/Users/mariomuller/dev/merch-miner/django-app/workspace_app/api/views.py` lines 208-212, 241-246
-- `/Users/mariomuller/dev/merch-miner/frontend-ui/src/views/invite/InviteAcceptView.tsx` line 73
-**Steps to reproduce:** Invite a new user. Accept the invite link. Observe that the `/password-reset/confirm` page URL contains a raw JWT access token in the `token` query param.
-**Priority:** Medium (token has short TTL; practical exploitation window is small, but violates OWASP A07)
+**Status:** FIXED — `InviteAcceptView.tsx` now uses `navigate('/password-reset/confirm', { state: { uid, token } })` (React Router location state); JWT never appears in URL, browser history, or server logs.
 
 #### BUG-10 — `LoginPage` test assertion stale after `AuthUser` interface gained `avatar_url`
 **Severity:** High (test failure blocks CI)
@@ -422,7 +415,7 @@ Received: { id: 1, email: 'test@example.com', avatar_url: null }
 | Email field cannot be updated via PATCH | `UserUpdateSerializer` fields tuple excludes email | PASS |
 | Input validated via DRF serializers | All endpoints use `serializer.is_valid(raise_exception=True)` | PASS |
 | Rate limiting on invite/avatar endpoints | `InviteRateThrottle` + `AvatarRateThrottle` applied | PASS (fixed) |
-| JWT access token in redirect URL | Invite accept navigates to URL with JWT in query param | FAIL (BUG-8) |
+| JWT access token in redirect URL | Uses React Router location state — JWT never in URL | PASS (fixed) |
 
 ---
 
@@ -471,15 +464,12 @@ Received: { id: 1, email: 'test@example.com', avatar_url: null }
 
 ### 7. Summary
 
-**Go/No-Go: NO-GO**
+**Go/No-Go: GO ✓**
 
-BUG-10 is a CI-blocking test failure introduced by PROJ-4's `avatar_url` extension to `AuthUser`. The test suite exits non-zero, which fails the deployment pipeline. This must be fixed before merge.
+All bugs fixed. Ready to merge.
 
-**Must fix before merge (blocks CI):**
-- BUG-10: Update `LoginPage.test.tsx` line 48 assertion to include `avatar_url: null`, matching the extended `AuthUser` interface.
-
-**Should fix before merge:**
-- BUG-4: Add `- ./media:/app/media` bind-mount to `web.volumes` in `docker-compose.override.yml` to prevent avatar data loss on container restart in dev.
-
-**Can fix post-merge:**
-- BUG-8: Replace URL query param with `navigate(path, { state: { uid, token } })` (React Router location state) in `InviteAcceptView.tsx` to keep JWT out of browser history and server logs.
+| Bug | Status |
+|-----|--------|
+| BUG-4: media/ volume missing | FIXED |
+| BUG-8: JWT in invite redirect URL | FIXED |
+| BUG-10: LoginPage test stale assertion | FIXED |
