@@ -4,6 +4,7 @@ import {
   type Workspace,
   type MemberRole,
 } from '../services/workspaceService';
+import { clearAuth } from './authSlice';
 
 interface WorkspaceState {
   workspaces: Workspace[];
@@ -140,7 +141,9 @@ const workspaceSlice = createSlice({
             (m) => m.id !== action.payload.userId
           );
         }
-      });
+      })
+      // Reset workspace state when the user logs out
+      .addCase(clearAuth, () => initialState);
   },
 });
 
