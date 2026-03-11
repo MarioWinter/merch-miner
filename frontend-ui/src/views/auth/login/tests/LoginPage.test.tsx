@@ -1,13 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
-import { Provider } from 'react-redux';
-import { configureStore } from '@reduxjs/toolkit';
-import { SnackbarProvider } from 'notistack';
-import authReducer from '../../../../store/authSlice';
+import { renderWithProviders } from '../../../../utils/test-utils';
 import LoginPage from '../LoginPage';
-import '../../../../i18n';
 
 vi.mock('../../../../services/authService', () => ({
   authService: {
@@ -23,17 +18,7 @@ vi.mock('react-router-dom', async () => {
 });
 
 function renderLoginPage() {
-  const store = configureStore({ reducer: { auth: authReducer } });
-  render(
-    <Provider store={store}>
-      <MemoryRouter>
-        <SnackbarProvider>
-          <LoginPage />
-        </SnackbarProvider>
-      </MemoryRouter>
-    </Provider>
-  );
-  return { store };
+  return renderWithProviders(<LoginPage />);
 }
 
 describe('LoginPage', () => {
