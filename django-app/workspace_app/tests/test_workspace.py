@@ -353,7 +353,7 @@ def test_cannot_demote_last_admin():
     # owner is the sole admin; try demoting another admin (but there's only one — the owner)
     # Add a second user as admin, then have a third user who is the only remaining admin
     second_admin = make_user("secondadm@test.com")
-    second_membership = Membership.objects.create(
+    Membership.objects.create(
         workspace=workspace,
         user=second_admin,
         role=Membership.Role.ADMIN,

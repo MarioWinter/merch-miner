@@ -27,7 +27,7 @@ def auto_create_personal_workspace(sender, instance, created, **kwargs):
             break
         slug = f"{base_slug}-{''.join(random.choices(string.ascii_lowercase + string.digits, k=4))}"
     else:
-        raise RuntimeError(f"Could not generate unique slug after 10 attempts.")
+        raise RuntimeError("Could not generate unique slug after 10 attempts.")
 
     workspace = Workspace.objects.create(
         name=base_name,
