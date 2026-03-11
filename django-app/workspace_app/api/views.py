@@ -70,7 +70,7 @@ class WorkspaceMeView(APIView):
         )
 
         serializer = WorkspaceMeSerializer(workspaces, many=True, context={'request': request})
-        return Response({'data': serializer.data}, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class WorkspaceDetailView(APIView):
@@ -95,7 +95,7 @@ class WorkspaceDetailView(APIView):
         serializer = WorkspaceRenameSerializer(workspace, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        return Response({'data': serializer.data}, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class WorkspaceInviteView(APIView):
@@ -138,7 +138,7 @@ class WorkspaceInviteView(APIView):
             from workspace_app.tasks import send_invite_email_task
             import django_rq
             django_rq.enqueue(send_invite_email_task, email, workspace.name, token)
-            return Response({'data': {'detail': 'Invite resent.'}}, status=status.HTTP_200_OK)
+            return Response({'detail': 'Invite resent.'}, status=status.HTTP_200_OK)
 
         Membership.objects.create(
             workspace=workspace,
@@ -155,7 +155,7 @@ class WorkspaceInviteView(APIView):
         import django_rq
         django_rq.enqueue(send_invite_email_task, email, workspace.name, token)
 
-        return Response({'data': {'detail': 'Invite sent.'}}, status=status.HTTP_201_CREATED)
+        return Response({'detail': 'Invite sent.'}, status=status.HTTP_201_CREATED)
 
 
 class WorkspaceInviteAcceptView(APIView):
@@ -206,7 +206,7 @@ class WorkspaceInviteAcceptView(APIView):
                     }
                 return Response(
                     {
-                        'data': serializer.data,
+                        **serializer.data,
                         'already_accepted': True,
                         'needs_password_setup': needs_setup,
                         **password_setup_data,
@@ -240,7 +240,7 @@ class WorkspaceInviteAcceptView(APIView):
             }
         return Response(
             {
-                'data': serializer.data,
+                **serializer.data,
                 'needs_password_setup': needs_setup,
                 **password_setup_data,
             },
@@ -283,7 +283,7 @@ class WorkspaceMemberDetailView(APIView):
         target.role = serializer.validated_data['role']
         target.save(update_fields=['role'])
 
-        return Response({'data': MembershipSerializer(target).data}, status=status.HTTP_200_OK)
+        return Response(MembershipSerializer(target).data, status=status.HTTP_200_OK)
 
     def delete(self, request, workspace_id, user_id):
         admin_membership = _get_admin_membership(request.user, workspace_id)

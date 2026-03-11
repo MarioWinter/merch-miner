@@ -82,7 +82,7 @@ def test_get_workspaces_me_returns_user_workspaces():
     url = reverse("workspace-me")
     response = client.get(url)
     assert response.status_code == 200
-    data = response.json()["data"]
+    data = response.json()
     assert len(data) == 1
     assert data[0]["name"].startswith("wsme")
 
@@ -94,7 +94,7 @@ def test_get_workspaces_me_includes_role():
     url = reverse("workspace-me")
     response = client.get(url)
     assert response.status_code == 200
-    data = response.json()["data"]
+    data = response.json()
     assert data[0]["role"] == Membership.Role.ADMIN
 
 
@@ -116,7 +116,7 @@ def test_get_workspaces_me_excludes_pending_memberships():
     response = client.get(url)
     assert response.status_code == 200
     # invited_user's own auto-created workspace is active; admin's workspace is pending → excluded
-    workspace_ids = [w["id"] for w in response.json()["data"]]
+    workspace_ids = [w["id"] for w in response.json()]
     assert str(workspace.id) not in workspace_ids
 
 
@@ -323,4 +323,4 @@ def test_pending_invite_resend_returns_200():
     with patch("django_rq.enqueue"):
         response = client.post(invite_url, {"email": pending_user.email}, format="json")
     assert response.status_code == 200
-    assert "resent" in response.json()["data"]["detail"].lower()
+    assert "resent" in response.json()["detail"].lower()

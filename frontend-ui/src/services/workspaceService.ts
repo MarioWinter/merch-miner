@@ -29,7 +29,7 @@ export const workspaceService = {
     type RawUser = { id: number; first_name: string; last_name: string; email: string; username: string; avatar: string | null };
     type RawMember = { user: RawUser; role: MemberRole; status: MemberStatus; is_owner: boolean };
     type RawWorkspace = { id: string; name: string; slug: string; role: MemberRole; owner?: { id: number }; members?: RawMember[] };
-    return data.data.map((ws: RawWorkspace) => ({
+    return data.map((ws: RawWorkspace) => ({
       id: ws.id,
       name: ws.name,
       slug: ws.slug,
@@ -50,7 +50,7 @@ export const workspaceService = {
 
   async renameWorkspace(id: string, name: string): Promise<Workspace> {
     const { data } = await apiClient.patch(`/api/workspaces/${id}/`, { name });
-    return data.data;
+    return data;
   },
 
   async inviteMember(id: string, email: string): Promise<void> {
@@ -84,12 +84,6 @@ export const workspaceService = {
     const { data } = await apiClient.get('/api/workspaces/invite/accept/', {
       params: { token },
     });
-    return {
-      ...data.data,
-      already_accepted: data.already_accepted,
-      needs_password_setup: data.needs_password_setup,
-      password_reset_uid: data.password_reset_uid,
-      password_reset_token: data.password_reset_token,
-    };
+    return data;
   },
 };

@@ -27,7 +27,8 @@ class WorkspaceRenameSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Workspace
-        fields = ('name',)
+        fields = ('id', 'name')
+        read_only_fields = ('id',)
 
 
 class MembershipSerializer(serializers.ModelSerializer):
