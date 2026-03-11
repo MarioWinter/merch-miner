@@ -7,6 +7,7 @@ from user_auth_app.api.views import (
     RegisterView, ActivateView, LoginView, LogoutView,
     TokenRefreshView, PasswordResetView, PasswordConfirmView,
     GoogleLoginView, GoogleCallbackView, MeView,
+    InlinePasswordChangeView,
 )
 import user_auth_app.api.urls as api_urls
 
@@ -27,7 +28,9 @@ urlpatterns = [
     path('api/auth/logout/', LogoutView.as_view(), name='logout'),
     path('api/auth/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/password/reset/', PasswordResetView.as_view(), name='password_reset'),
-    path('api/auth/password/confirm/<uidb64>/<token>/', PasswordConfirmView.as_view(), name='password_confirm'),
+    path('api/auth/password/confirm/', PasswordConfirmView.as_view(), name='password_confirm'),
+    path('api/auth/password/confirm/<uidb64>/<token>/', PasswordConfirmView.as_view(), name='password_confirm_legacy'),
+    path('api/auth/password/change/', InlinePasswordChangeView.as_view(), name='password_change'),
     path('api/auth/me/', MeView.as_view(), name='auth_me'),
 
     # Google OAuth2 — /api/auth/google/
@@ -42,6 +45,9 @@ urlpatterns = [
 
     # User profile (api/users/me/)
     path('api/', include(api_urls)),
+
+    # Workspace API
+    path('api/', include('workspace_app.api.urls')),
 ]
 
 if settings.DEBUG:

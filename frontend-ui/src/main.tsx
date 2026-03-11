@@ -11,7 +11,6 @@ import { createRoot } from 'react-dom/client';
 import { Provider } from 'react-redux';
 import { BrowserRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
-import { InitColorSchemeScript } from '@mui/material';
 import CssBaseline from '@mui/material/CssBaseline';
 import { SnackbarProvider } from 'notistack';
 
@@ -23,7 +22,6 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <Provider store={store}>
       <ThemeProvider theme={theme} defaultMode="dark" modeStorageKey="mm-color-mode">
-        <InitColorSchemeScript defaultMode="dark" modeStorageKey="mm-color-mode" />
         <CssBaseline />
         <SnackbarProvider
           maxSnack={4}

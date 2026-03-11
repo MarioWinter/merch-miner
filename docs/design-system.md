@@ -1,5 +1,5 @@
 # Merch Miner — Design System v1.1
-> Single source of truth for all 16 features. PROJ-16 is background-only (no sidebar route). Do not deviate without explicit approval.
+> Single source of truth for all features. PROJ-16 is background-only (no sidebar route). Do not deviate without explicit approval.
 > Last updated: 2026-02-28 | Changes: FIX 1–6 applied (error color, mono font stack, sidebar collapse, mode toggle, nav, easing)
 
 ---

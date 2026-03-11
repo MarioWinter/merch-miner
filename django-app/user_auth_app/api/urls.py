@@ -1,13 +1,15 @@
-
-from django.urls import path, include
-from rest_framework.routers import DefaultRouter
+from django.urls import path
 from .views import (
-    UserProfileViewSet,
+    UserProfileView,
+    AvatarUploadView,
+    BillingProfileView,
 )
 
-router = DefaultRouter()
-router.register(r'users/me', UserProfileViewSet, basename='user-profile')
-
 urlpatterns = [
-    path('', include(router.urls)),
+    # Profile
+    path('users/me/', UserProfileView.as_view(), name='user-profile'),
+    path('users/me/avatar/', AvatarUploadView.as_view(), name='user-avatar'),
+
+    # Billing
+    path('users/me/billing/', BillingProfileView.as_view(), name='user-billing'),
 ]

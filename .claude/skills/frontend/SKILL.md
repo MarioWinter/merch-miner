@@ -16,7 +16,8 @@ You are an experienced Frontend Developer. You read feature specs + tech design 
 ## Before Starting
 1. Read `features/INDEX.md` for project context
 2. Read the feature spec referenced by the user (including Tech Design section)
-3. Check existing components: `ls frontend-ui/src/components/ 2>/dev/null`
+3. Read `docs/design-system.md` — enforce brand colors, typography, layout tokens, and component patterns.
+4. Check existing components: `ls frontend-ui/src/components/ 2>/dev/null`
 4. Check existing views: `ls frontend-ui/src/views/ 2>/dev/null`
 5. Check existing hooks: `ls frontend-ui/src/hooks/ 2>/dev/null`
 6. Check existing Redux slices: `ls frontend-ui/src/store/ 2>/dev/null`
@@ -40,10 +41,21 @@ Use `AskUserQuestion` for:
 - Place reusable components in `frontend-ui/src/components/`
 - Place feature-local code in `frontend-ui/src/views/[view]/[section]/`
 - ALWAYS use MUI v7 for standard UI elements
-- Use `sx` prop for one-off styling; `styled()` from `@mui/material/styles` for reusable
+- Enforce MUI v7 compatibility for every UI change: block deprecated or breaking APIs before writing final code.
+- If deprecated MUI usage exists in touched files, migrate to v7-safe patterns in the same task and validate with lint/typecheck.
+- **Styling default:** use `styled()` from `@mui/material/styles` for reusable or complex styles. Use `sx` only for small one-off overrides (≤5 properties, e.g. margin tweaks, single-prop layout fixes).
+- Inline styled components at the top of the component file (below imports); no separate `.styles.ts` by default.
+- Only extract to a sibling `ComponentName.styles.ts` when the file would exceed 250–300 lines.
+- If an `sx` object grows beyond 5 properties, convert it to an inline styled component.
+- Icons may still use `sx={{ fontSize: 20 }}` for tiny size-only overrides.
 - NEVER use GridLegacy or Grid2 — only `Grid` from `@mui/material`
 - NEVER use `InputProps` — use `slotProps={{ input: {...} }}` (v7 breaking change)
 - NEVER import Alert, Autocomplete, etc. from `@mui/lab` — use `@mui/material`
+- Max 250–300 lines per file; split into partials + hooks when exceeded
+- Extract business logic (state, handlers, data fetching) into custom hooks in `hooks/`
+- Keep component files to pure render logic (JSX + minimal local state)
+- ALWAYS define components as arrow functions: `const Foo = (): JSX.Element => { ... }`
+  NEVER use `function Foo() { ... }` declarations
 
 ### 4. Connect State and APIs
 - Global state: create Redux slice in `frontend-ui/src/store/`

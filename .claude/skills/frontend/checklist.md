@@ -34,6 +34,13 @@ Before marking frontend as complete:
 - [ ] API calls use axios service or RTK Query endpoint
 - [ ] Notifications use notistack `enqueueSnackbar`
 
+## Component Structure
+- [ ] All components defined as arrow functions (const X = (): JSX.Element => {...})
+- [ ] No `function ComponentName()` declarations
+- [ ] No file exceeds 300 lines
+- [ ] Business logic extracted to hooks/ (state, handlers, API calls)
+- [ ] Component files contain only render logic (JSX)
+
 ## Quality
 - [ ] Responsive: Mobile (375px), Tablet (768px), Desktop (1440px) via `sx` breakpoints
 - [ ] Accessibility: Semantic HTML, ARIA labels, keyboard navigation

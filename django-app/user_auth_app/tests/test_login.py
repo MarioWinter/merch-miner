@@ -24,6 +24,8 @@ def test_login_user_success(client):
     assert response.data['detail'] == 'Login successful'
     assert response.data['user']['id'] == user.id
     assert response.data['user']['email'] == 'testuser@test.com'
+    assert 'first_name' in response.data['user']
+    assert 'avatar_url' in response.data['user']
     
     assert 'access_token' in response.cookies
     assert 'refresh_token' in response.cookies

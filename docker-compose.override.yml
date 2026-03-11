@@ -7,9 +7,9 @@ services:
     image: postgres:16
     container_name: app_db
     environment:
-      POSTGRES_DB: merch_miner_dev
-      POSTGRES_USER: merch_miner_user
-      POSTGRES_PASSWORD: devpassword
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
     networks:
       - supabase-net
 
@@ -18,24 +18,11 @@ services:
       - "127.0.0.1:8000:8000"
     volumes:
       - ./django-app:/app
-    environment:
-      DB_HOST: db
-      DB_NAME: merch_miner_dev
-      DB_USER: merch_miner_user
-      DB_PASSWORD: devpassword
-      DB_PORT: "5432"
-      DB_SCHEMA: public
+      - ./media:/app/media
     depends_on:
       - db
 
   worker:
-    environment:
-      DB_HOST: db
-      DB_NAME: merch_miner_dev
-      DB_USER: merch_miner_user
-      DB_PASSWORD: devpassword
-      DB_PORT: "5432"
-      DB_SCHEMA: public
     depends_on:
       - db
 
@@ -45,3 +32,5 @@ services:
     volumes:
       - ./frontend-ui:/app
       - /app/node_modules
+    environment:
+      VITE_PROXY_TARGET: http://web:8000

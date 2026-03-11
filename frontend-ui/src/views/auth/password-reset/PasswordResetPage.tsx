@@ -22,7 +22,7 @@ import {
 import AuthLayout from '../partials/AuthLayout';
 import { authService } from '../../../services/authService';
 
-export default function PasswordResetPage() {
+const PasswordResetPage = () => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
   const [loading, setLoading] = useState(false);
@@ -136,4 +136,6 @@ export default function PasswordResetPage() {
       </Box>
     </AuthLayout>
   );
-}
+};
+
+export default PasswordResetPage;

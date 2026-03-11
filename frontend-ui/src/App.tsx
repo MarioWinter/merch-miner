@@ -6,20 +6,23 @@ import { hydrateAuth, authService } from './services/authService';
 import { clearAuth } from './store/authSlice';
 import { useAppDispatch, useAppSelector } from './store/hooks';
 import PrivateRoute from './components/PrivateRoute';
+import AppLayout from './components/AppLayout';
 import LoginPage from './views/auth/login/LoginPage';
 import RegisterPage from './views/auth/register/RegisterPage';
 import ActivatePage from './views/auth/activate/ActivatePage';
 import PasswordResetPage from './views/auth/password-reset/PasswordResetPage';
 import PasswordConfirmPage from './views/auth/password-reset/PasswordConfirmPage';
+import SettingsLayout from './views/settings/SettingsLayout';
+import InviteAcceptView from './views/invite/InviteAcceptView';
 
 // Placeholder — replaced when dashboard is built (PROJ-12)
-function DashboardPlaceholder() {
+const DashboardPlaceholder = () => {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const user = useAppSelector((state) => state.auth.user);
   const [loggingOut, setLoggingOut] = useState(false);
 
-  async function handleLogout() {
+  const handleLogout = async () => {
     setLoggingOut(true);
     try {
       await authService.logout();
@@ -29,7 +32,7 @@ function DashboardPlaceholder() {
       dispatch(clearAuth());
       navigate('/login', { replace: true });
     }
-  }
+  };
 
   return (
     <Box sx={{ p: 5 }}>
@@ -53,7 +56,8 @@ function DashboardPlaceholder() {
   );
 }
 
-function App() {
+
+const App = () => {
   useEffect(() => {
     hydrateAuth();
   }, []);
@@ -66,10 +70,22 @@ function App() {
       <Route path="/activate" element={<ActivatePage />} />
       <Route path="/password-reset" element={<PasswordResetPage />} />
       <Route path="/password-reset/confirm" element={<PasswordConfirmPage />} />
+      <Route path="/workspaces/invite/accept" element={<InviteAcceptView />} />
 
-      {/* Protected routes */}
+      {/* Protected routes — all wrapped with AppLayout */}
       <Route element={<PrivateRoute />}>
-        <Route path="/" element={<DashboardPlaceholder />} />
+        <Route element={<AppLayout />}>
+          <Route path="/" element={<DashboardPlaceholder />} />
+          <Route path="/dashboard" element={<DashboardPlaceholder />} />
+
+          {/* Settings routes */}
+          <Route path="/settings" element={<SettingsLayout />}>
+            <Route index element={<Navigate to="/settings/profile" replace />} />
+            <Route path="profile" element={null} />
+            <Route path="billing" element={null} />
+            <Route path="workspace" element={null} />
+          </Route>
+        </Route>
       </Route>
 
       {/* Fallback */}

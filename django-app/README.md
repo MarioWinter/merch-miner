@@ -21,8 +21,17 @@ Django DRF API for the Merch Miner POD Business OS.
 ## Setup
 
 ```bash
-cp .env.template .env
-# fill in DB_NAME, DB_USER, DB_PASSWORD, SECRET_KEY, GOOGLE_CLIENT_ID, etc.
+# from repo root
+cp .env.dev.template .env
+# fill in SECRET_KEY (+ OAuth/Email vars if used)
+```
+
+Prod server setup uses:
+
+```bash
+# from repo root
+cp .env.prod.template .env
+# fill in SECRET_KEY, DB_PASSWORD, ALLOWED_HOSTS, CSRF/CORS, FRONTEND_* URLs, EMAIL_*, GOOGLE_*, N8N/POLAR secrets
 ```
 
 ## Dev
@@ -39,7 +48,8 @@ docker compose up --build
 ## Prod
 
 ```bash
-docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d
+docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
 ```
 
 - Explicit `-f` flags skip `override.yml` → no host port binding on `web`

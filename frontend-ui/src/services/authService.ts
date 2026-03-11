@@ -17,7 +17,7 @@ let failedQueue: Array<{
   reject: (reason?: unknown) => void;
 }> = [];
 
-function processQueue(error: unknown) {
+const processQueue = (error: unknown) => {
   failedQueue.forEach(({ resolve, reject }) => {
     if (error) {
       reject(error);
@@ -26,7 +26,7 @@ function processQueue(error: unknown) {
     }
   });
   failedQueue = [];
-}
+};
 
 // --- 401 interceptor ---
 apiClient.interceptors.response.use(
@@ -121,10 +121,7 @@ export const authService = {
   },
 
   async confirmPasswordReset(payload: PasswordConfirmPayload) {
-    const { data } = await apiClient.post(
-      `/api/auth/password/confirm/${payload.uid}/${payload.token}/`,
-      { new_password: payload.new_password, confirm_password: payload.confirm_password }
-    );
+    const { data } = await apiClient.post('/api/auth/password/confirm/', payload);
     return data;
   },
 
@@ -134,14 +131,14 @@ export const authService = {
 };
 
 // Hydrate Redux auth state from cookie session on app load
-export async function hydrateAuth() {
+export const hydrateAuth = async () => {
   store.dispatch(setLoading(true));
   try {
     const data = await authService.getMe();
-    store.dispatch(setUser({ id: data.id, email: data.email }));
+    store.dispatch(setUser({ id: data.id, email: data.email, first_name: data.first_name ?? '', avatar_url: data.avatar_url ?? null }));
   } catch {
     // No active session — stay unauthenticated
   } finally {
     store.dispatch(setLoading(false));
   }
-}
+};

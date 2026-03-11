@@ -1,22 +1,42 @@
 import { useEffect, useState } from 'react';
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
 import {
-  Box,
   Button,
   CircularProgress,
   Stack,
   Typography,
 } from '@mui/material';
+import Box from '@mui/material/Box';
+import { alpha, styled } from '@mui/material/styles';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { useTranslation } from 'react-i18next';
+import { COLORS } from '../../../style/constants';
 
 import AuthLayout from '../partials/AuthLayout';
 import { apiClient } from '../../../services/authService';
 
+interface StatusIconBoxProps {
+  $success?: boolean;
+}
+
+const StatusIconBox = styled(Box, {
+  shouldForwardProp: (prop) => prop !== '$success',
+})<StatusIconBoxProps>(({ $success }) => ({
+  width: 64,
+  height: 64,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  borderRadius: '50%',
+  backgroundColor: $success
+    ? alpha(COLORS.successDk, 0.12)
+    : alpha(COLORS.errorDk, 0.12),
+}));
+
 type ActivateStatus = 'loading' | 'success' | 'error';
 
-export default function ActivatePage() {
+const ActivatePage = () => {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const uid = searchParams.get('uid');
@@ -60,19 +80,9 @@ export default function ActivatePage() {
 
         {status === 'success' && (
           <>
-            <Box
-              sx={{
-                width: 64,
-                height: 64,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '50%',
-                bgcolor: 'rgba(34,211,163,0.12)',
-              }}
-            >
+            <StatusIconBox $success>
               <CheckCircleOutlineIcon sx={{ fontSize: 36, color: 'success.main' }} />
-            </Box>
+            </StatusIconBox>
             <Typography variant="h4" component="h1" sx={{ color: 'text.primary' }}>
               {t('activate.title')}
             </Typography>
@@ -92,19 +102,9 @@ export default function ActivatePage() {
 
         {status === 'error' && (
           <>
-            <Box
-              sx={{
-                width: 64,
-                height: 64,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                borderRadius: '50%',
-                bgcolor: 'rgba(244,63,58,0.12)',
-              }}
-            >
+            <StatusIconBox>
               <ErrorOutlineIcon sx={{ fontSize: 36, color: 'error.main' }} />
-            </Box>
+            </StatusIconBox>
             <Typography variant="h4" component="h1" sx={{ color: 'text.primary' }}>
               {t('activate.title')}
             </Typography>
@@ -124,4 +124,6 @@ export default function ActivatePage() {
       </Stack>
     </AuthLayout>
   );
-}
+};
+
+export default ActivatePage;

@@ -18,11 +18,12 @@ import { useTranslation } from 'react-i18next';
 
 import { loginSchema, type LoginFormValues } from './schemas/loginSchema';
 import AuthLayout from '../partials/AuthLayout';
+import GoogleButton from '../partials/GoogleButton';
 import { authService } from '../../../services/authService';
 import { useAppDispatch } from '../../../store/hooks';
 import { setUser, setError } from '../../../store/authSlice';
 
-export default function LoginPage() {
+const LoginPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -43,7 +44,7 @@ export default function LoginPage() {
     dispatch(setError(null));
     try {
       const data = await authService.login(values);
-      dispatch(setUser({ id: data.user.id, email: data.user.email }));
+      dispatch(setUser({ id: data.user.id, email: data.user.email, first_name: data.user.first_name ?? '', avatar_url: data.user.avatar_url ?? null }));
       enqueueSnackbar(t('login.success'), { variant: 'success' });
       navigate('/', { replace: true });
     } catch {
@@ -70,29 +71,15 @@ export default function LoginPage() {
       </Stack>
 
       {/* Google OAuth */}
-      <Button
+      <GoogleButton
         fullWidth
         variant="outlined"
         startIcon={<GoogleIcon />}
         onClick={handleGoogleLogin}
         aria-label={t('auth.googleLogin')}
-        sx={{
-          mb: 3,
-          borderColor: (theme) =>
-            theme.palette.mode === 'dark'
-              ? 'rgba(255,255,255,0.16)'
-              : 'rgba(7,30,38,0.20)',
-          color: 'text.primary',
-          '&:hover': {
-            bgcolor: (theme) =>
-              theme.palette.mode === 'dark'
-                ? 'rgba(255,255,255,0.04)'
-                : 'rgba(7,30,38,0.04)',
-          },
-        }}
       >
         {t('auth.googleLogin')}
-      </Button>
+      </GoogleButton>
 
       <Divider sx={{ mb: 3 }}>
         <Typography variant="caption" sx={{ color: 'text.secondary', px: 1 }}>
@@ -186,4 +173,6 @@ export default function LoginPage() {
       </Typography>
     </AuthLayout>
   );
-}
+};
+
+export default LoginPage;

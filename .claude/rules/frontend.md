@@ -1,11 +1,22 @@
 # Frontend Development Rules
 
+## Design System (MANDATORY)
+- Read `docs/design-system.md` before building any UI component or page.
+- Use the defined color tokens (primary #FF5A4F, secondary #00C8D7, dark backgrounds starting at #071E26).
+- Typography: Inter font family (400/500/600/700); JetBrains Mono for codes/ASINs.
+- App shell dimensions: topbar 56px, sidebar 220px/60px collapsed — never deviate.
+- Use the component patterns defined in the design system (cards, buttons, badges, drawers, status chips) before inventing new ones.
+- Dark mode is default; implement light mode support via useColorScheme().
+- Never deviate from design system tokens without explicit user approval.
+
 ## MUI v7 First (MANDATORY)
 - Before ANY UI component, check if MUI has it. Use @mui/mcp for API lookup.
 - NEVER create custom implementations of: Button, TextField, Select, Checkbox, Switch,
   Dialog, Alert, Snackbar, Table, Tabs, Card, Chip, Menu, Popover, Tooltip,
   Drawer, AppBar, Pagination, Rating, Skeleton, Autocomplete, ToggleButton
 - For icons: import from @mui/icons-material
+- Enforce MUI v7 compatibility on every UI change; block deprecated or breaking APIs before finalizing code.
+- If touched files contain deprecated MUI usage, migrate them to v7-safe patterns in the same task and verify with lint + typecheck.
 
 ## Import Patterns
 ```tsx
@@ -25,11 +36,15 @@ import SearchIcon from '@mui/icons-material/Search'
 - StyledEngineProvider: import from `@mui/material/styles`, NOT `@mui/material`
 - Dark mode: use `useColorScheme()` hook; use `theme.vars.palette.*` in `styled()`
 
-## Styling — sx Prop and Theme
-- Use `sx` prop for one-off overrides; never use `style={{ }}` for MUI components
+## Styling — styled() First, sx for One-offs
+- **Default:** use `styled()` from `@mui/material/styles` for reusable or complex styles
+- **`sx` only for small one-off overrides** — max ~5 properties (e.g. spacing tweaks, a single layout fix); never use `style={{ }}` for MUI components
+- Inline styled components at the top of the component file (below imports); no separate `.styles.ts` by default
+- Only extract to a sibling `ComponentName.styles.ts` when the component file would exceed 250–300 lines
+- If an `sx` object grows beyond 5 properties, convert it to an inline styled component
+- Icons may use `sx={{ fontSize: 20 }}` for tiny size-only overrides
 - Use `theme.components.[MuiX]` overrides for global component style changes
-- Use `styled()` from `@mui/material/styles` for reusable styled components
-- Responsive: use `sx={{ px: { xs: 2, md: 4 } }}` breakpoint objects
+- Responsive: use `sx={{ px: { xs: 2, md: 4 } }}` breakpoint objects (fine in small overrides); for complex responsive styled components use `({ theme }) => ({ ... })`
 - Never use Tailwind CSS or CSS modules; Emotion (MUI's engine) only
 
 ## Layout
@@ -92,6 +107,16 @@ import SearchIcon from '@mui/icons-material/Search'
 - Implement loading, error, and empty states for every data-fetching component
 - Semantic HTML + ARIA labels for accessibility
 - Keep components small and focused (Single Responsibility)
+
+## Component Structure & File Size
+- Max file length: 250–300 lines. If a file exceeds this, split it.
+- Separate render logic from business logic:
+  - Business logic (data fetching, state, handlers) → custom hook in `hooks/` dir
+  - Render logic (JSX) → component file in `partials/` or as the main component
+- ALWAYS define components as arrow functions — omit return type (TypeScript infers it):
+  `const MyComponent = () => { ... }`
+  NEVER annotate with `: JSX.Element`, `: ReactElement`, or any explicit return type
+  NEVER use `function MyComponent() { ... }` declarations
 
 ## Testing — Vitest + Testing Library
 - Test files live in `views/[view]/[section]/tests/` (co-located with the feature)

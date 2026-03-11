@@ -108,7 +108,7 @@ def test_password_reset_flow(client):
     token = str(refresh.access_token)
     uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
     
-    confirm_url = reverse('password_confirm', kwargs={'uidb64': uidb64, 'token': token})
+    confirm_url = reverse('password_confirm_legacy', kwargs={'uidb64': uidb64, 'token': token})
     confirm_data = {
         'new_password': 'NewPassword123!',
         'confirm_password': 'NewPassword123!'

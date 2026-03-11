@@ -18,11 +18,12 @@ import { useTranslation } from 'react-i18next';
 
 import { registerSchema, type RegisterFormValues } from './schemas/registerSchema';
 import AuthLayout from '../partials/AuthLayout';
+import GoogleButton from '../partials/GoogleButton';
 import { authService } from '../../../services/authService';
 import { useAppDispatch } from '../../../store/hooks';
 import { setError } from '../../../store/authSlice';
 
-export default function RegisterPage() {
+const RegisterPage = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -72,29 +73,15 @@ export default function RegisterPage() {
       </Stack>
 
       {/* Google OAuth */}
-      <Button
+      <GoogleButton
         fullWidth
         variant="outlined"
         startIcon={<GoogleIcon />}
         onClick={handleGoogleRegister}
         aria-label={t('auth.googleRegister')}
-        sx={{
-          mb: 3,
-          borderColor: (theme) =>
-            theme.palette.mode === 'dark'
-              ? 'rgba(255,255,255,0.16)'
-              : 'rgba(7,30,38,0.20)',
-          color: 'text.primary',
-          '&:hover': {
-            bgcolor: (theme) =>
-              theme.palette.mode === 'dark'
-                ? 'rgba(255,255,255,0.04)'
-                : 'rgba(7,30,38,0.04)',
-          },
-        }}
       >
         {t('auth.googleRegister')}
-      </Button>
+      </GoogleButton>
 
       <Divider sx={{ mb: 3 }}>
         <Typography variant="caption" sx={{ color: 'text.secondary', px: 1 }}>
@@ -195,4 +182,6 @@ export default function RegisterPage() {
       </Typography>
     </AuthLayout>
   );
-}
+};
+
+export default RegisterPage;

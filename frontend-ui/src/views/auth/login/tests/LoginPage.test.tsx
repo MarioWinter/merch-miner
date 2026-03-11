@@ -1,13 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { MemoryRouter } from 'react-router-dom';
-import { Provider } from 'react-redux';
-import { configureStore } from '@reduxjs/toolkit';
-import { SnackbarProvider } from 'notistack';
-import authReducer from '../../../../store/authSlice';
+import { renderWithProviders } from '../../../../utils/test-utils';
 import LoginPage from '../LoginPage';
-import '../../../../i18n';
 
 vi.mock('../../../../services/authService', () => ({
   authService: {
@@ -23,17 +18,7 @@ vi.mock('react-router-dom', async () => {
 });
 
 function renderLoginPage() {
-  const store = configureStore({ reducer: { auth: authReducer } });
-  render(
-    <Provider store={store}>
-      <MemoryRouter>
-        <SnackbarProvider>
-          <LoginPage />
-        </SnackbarProvider>
-      </MemoryRouter>
-    </Provider>
-  );
-  return { store };
+  return renderWithProviders(<LoginPage />);
 }
 
 describe('LoginPage', () => {
@@ -50,7 +35,7 @@ describe('LoginPage', () => {
   it('dispatches setUser and navigates on successful login', async () => {
     const { authService } = await import('../../../../services/authService');
     vi.mocked(authService.login).mockResolvedValueOnce({
-      user: { id: 1, email: 'test@example.com' },
+      user: { id: 1, email: 'test@example.com', first_name: 'Test', avatar_url: null },
     });
 
     const { store } = renderLoginPage();
@@ -60,7 +45,7 @@ describe('LoginPage', () => {
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true }));
     expect(store.getState().auth.isAuthenticated).toBe(true);
-    expect(store.getState().auth.user).toEqual({ id: 1, email: 'test@example.com' });
+    expect(store.getState().auth.user).toEqual({ id: 1, email: 'test@example.com', first_name: 'Test', avatar_url: null });
   });
 
   it('shows error snackbar and dispatches setError on failed login', async () => {
@@ -75,6 +60,19 @@ describe('LoginPage', () => {
     await waitFor(() => expect(screen.getByText(/invalid email or password/i)).toBeInTheDocument());
     expect(store.getState().auth.isAuthenticated).toBe(false);
     expect(store.getState().auth.error).toBe('Invalid email or password');
+  });
+
+  it('stores avatar_url in Redux when login returns one', async () => {
+    const { authService } = await import('../../../../services/authService');
+    vi.mocked(authService.login).mockResolvedValueOnce({
+      user: { id: 2, email: 'alice@example.com', first_name: 'Alice', avatar_url: '/media/avatars/user_2/avatar.jpg' },
+    });
+    const { store } = renderLoginPage();
+    await userEvent.type(screen.getByLabelText(/email/i), 'alice@example.com');
+    await userEvent.type(screen.getByLabelText(/password/i), 'password123');
+    await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true }));
+    expect(store.getState().auth.user?.avatar_url).toBe('/media/avatars/user_2/avatar.jpg');
   });
 
   it('shows loading spinner while login is in progress', async () => {

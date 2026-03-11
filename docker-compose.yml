@@ -4,6 +4,9 @@ networks:
   supabase-net:
     external: true
 
+volumes:
+  media_data:
+
 services:
   redis:
     image: redis:7-alpine
@@ -32,6 +35,8 @@ services:
     container_name: app_backend
     command: python manage.py runserver 0.0.0.0:8000
     env_file: ./.env
+    volumes:
+      - media_data:/app/media
     networks:
       - default
       - supabase-net

@@ -109,6 +109,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.google',
     'user_auth_app',
+    'workspace_app',
     'content.apps.ContentConfig',
 ]
 
@@ -273,6 +274,8 @@ REST_FRAMEWORK = {
     'DEFAULT_THROTTLE_RATES': {
         'anon': '20/hour',
         'user': '1000/day',
+        'avatar': '50/hour',
+        'invite': '20/hour',
     },
 }
 

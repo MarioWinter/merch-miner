@@ -359,7 +359,7 @@ Production flow:
 1. Push to `main` triggers `ci.yml` (tests) in parallel with `docker-publish.yml` (image build)
 2. `docker-publish.yml` builds backend image (`django-app/backend.Dockerfile`) and frontend image (`frontend-ui/Dockerfile` target `prod`) and pushes both to GHCR
 3. `deploy.yml` triggers on `docker-publish.yml` success; SSHs to `/home/dev/merch-miner`; runs `git pull --ff-only` then `docker compose -f docker-compose.yml -f docker-compose.prod.yml pull && up -d`
-4. `docker-compose.prod.yml` overrides `web` and `worker` with `image: ${BACKEND_IMAGE}` and `frontend` with `image: ${FRONTEND_IMAGE}`; adds `caddy` service; uses `merch_net` + `supabase-net` external networks
+4. `docker-compose.prod.yml` overrides `web` and `worker` with `image: ghcr.io/mariowinter/merch-miner/backend:latest` and `frontend` with `image: ghcr.io/mariowinter/merch-miner/frontend:latest`; adds `caddy: caddy:2-alpine`; uses `merch_net` + `supabase-net` external networks
 5. Root `Caddyfile` routes `miner.mariowinter.com:80` (API+static/media) and `merch-miner.mariowinter.com:80` (SPA) through to services
 
 Local development flow:
