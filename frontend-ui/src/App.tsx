@@ -13,9 +13,6 @@ import ActivatePage from './views/auth/activate/ActivatePage';
 import PasswordResetPage from './views/auth/password-reset/PasswordResetPage';
 import PasswordConfirmPage from './views/auth/password-reset/PasswordConfirmPage';
 import SettingsLayout from './views/settings/SettingsLayout';
-import ProfileSection from './views/settings/profile/ProfileSection';
-import BillingSection from './views/settings/billing/BillingSection';
-import WorkspaceSection from './views/settings/workspace/WorkspaceSection';
 import InviteAcceptView from './views/invite/InviteAcceptView';
 
 // Placeholder — replaced when dashboard is built (PROJ-12)
@@ -84,9 +81,9 @@ const App = () => {
           {/* Settings routes */}
           <Route path="/settings" element={<SettingsLayout />}>
             <Route index element={<Navigate to="/settings/profile" replace />} />
-            <Route path="profile" element={<ProfileSection />} />
-            <Route path="billing" element={<BillingSection />} />
-            <Route path="workspace" element={<WorkspaceSection />} />
+            <Route path="profile" element={null} />
+            <Route path="billing" element={null} />
+            <Route path="workspace" element={null} />
           </Route>
         </Route>
       </Route>

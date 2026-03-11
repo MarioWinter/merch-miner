@@ -113,8 +113,9 @@ import SearchIcon from '@mui/icons-material/Search'
 - Separate render logic from business logic:
   - Business logic (data fetching, state, handlers) → custom hook in `hooks/` dir
   - Render logic (JSX) → component file in `partials/` or as the main component
-- ALWAYS define components as arrow functions:
-  `const MyComponent = (): JSX.Element => { ... }`
+- ALWAYS define components as arrow functions — omit return type (TypeScript infers it):
+  `const MyComponent = () => { ... }`
+  NEVER annotate with `: JSX.Element`, `: ReactElement`, or any explicit return type
   NEVER use `function MyComponent() { ... }` declarations
 
 ## Testing — Vitest + Testing Library

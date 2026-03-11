@@ -44,7 +44,7 @@ const LoginPage = () => {
     dispatch(setError(null));
     try {
       const data = await authService.login(values);
-      dispatch(setUser({ id: data.user.id, email: data.user.email }));
+      dispatch(setUser({ id: data.user.id, email: data.user.email, avatar_url: data.user.avatar_url ?? null }));
       enqueueSnackbar(t('login.success'), { variant: 'success' });
       navigate('/', { replace: true });
     } catch {

@@ -61,6 +61,7 @@ const Topbar = () => {
   const { t } = useTranslation();
   const user = useAppSelector((state) => state.auth.user);
   const initial = user?.email?.[0]?.toUpperCase() || '?';
+  const avatarUrl = user?.avatar_url ?? null;
 
   return (
     <TopbarRoot position="fixed" elevation={0}>
@@ -91,7 +92,7 @@ const Topbar = () => {
           >
             <NotificationsOutlinedIcon sx={{ fontSize: 20 }} />
           </TopbarIconButton>
-          <ProfileMenu initial={initial} />
+          <ProfileMenu initial={initial} avatarUrl={avatarUrl} />
         </Box>
       </TopbarToolbar>
     </TopbarRoot>

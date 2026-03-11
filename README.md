@@ -156,7 +156,9 @@ npm run dev       # http://localhost:5173
 > VITE_API_URL=        # leave empty
 >
 > # .env — production
-> VITE_API_URL=https://miner.mariowinter.com
+> # Kein Eintrag nötig — VITE_API_URL ist ein fester Wert in der CI/CD-Pipeline.
+> # docker-publish.yml baut ihn als Build-Arg (GitHub Secret) ins Frontend-Image ein.
+> # VITE_API_URL=https://miner.mariowinter.com
 > ```
 
 ---

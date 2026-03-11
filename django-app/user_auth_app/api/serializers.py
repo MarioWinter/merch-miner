@@ -131,10 +131,7 @@ class UserProfileSerializer(serializers.ModelSerializer):
     avatar_url = serializers.SerializerMethodField()
 
     def get_avatar_url(self, obj):
-        if not obj.avatar:
-            return None
-        request = self.context.get('request')
-        return request.build_absolute_uri(obj.avatar) if request else obj.avatar
+        return obj.avatar or None
 
     class Meta:
         model = User

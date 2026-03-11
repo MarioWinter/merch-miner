@@ -11,8 +11,8 @@ describe('authSlice', () => {
   });
 
   it('setUser sets user, isAuthenticated, clears error', () => {
-    const state = authReducer(undefined, setUser({ id: 1, email: 'a@b.com' }));
-    expect(state.user).toEqual({ id: 1, email: 'a@b.com' });
+    const state = authReducer(undefined, setUser({ id: 1, email: 'a@b.com', avatar_url: null }));
+    expect(state.user).toEqual({ id: 1, email: 'a@b.com', avatar_url: null });
     expect(state.isAuthenticated).toBe(true);
     expect(state.error).toBeNull();
   });
@@ -35,7 +35,7 @@ describe('authSlice', () => {
   });
 
   it('clearAuth resets all state', () => {
-    const authenticated = authReducer(undefined, setUser({ id: 1, email: 'a@b.com' }));
+    const authenticated = authReducer(undefined, setUser({ id: 1, email: 'a@b.com', avatar_url: null }));
     const state = authReducer(authenticated, clearAuth());
     expect(state.user).toBeNull();
     expect(state.isAuthenticated).toBe(false);

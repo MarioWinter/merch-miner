@@ -294,6 +294,7 @@ class MeView(APIView):
         return Response({
             "id": user.id,
             "email": user.email,
+            "avatar_url": user.avatar,
         }, status=status.HTTP_200_OK)
 
 
@@ -443,9 +444,7 @@ class AvatarUploadView(APIView):
         relative = settings.MEDIA_URL + saved_path   # /media/avatars/...
         request.user.avatar = relative
         request.user.save(update_fields=['avatar'])
-        avatar_url = request.build_absolute_uri(relative)
-
-        return Response({'avatar_url': avatar_url}, status=status.HTTP_200_OK)
+        return Response({'avatar_url': relative}, status=status.HTTP_200_OK)
 
 
 class InlinePasswordChangeView(APIView):

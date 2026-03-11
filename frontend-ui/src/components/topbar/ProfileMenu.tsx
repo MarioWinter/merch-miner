@@ -26,9 +26,10 @@ const StyledAvatar = styled(Avatar)({
 
 interface ProfileMenuProps {
   initial: string;
+  avatarUrl?: string | null;
 }
 
-const ProfileMenu = ({ initial }: ProfileMenuProps) => {
+const ProfileMenu = ({ initial, avatarUrl }: ProfileMenuProps) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -64,6 +65,7 @@ const ProfileMenu = ({ initial }: ProfileMenuProps) => {
     <>
       <Tooltip title={t('topbar.profile')}>
         <StyledAvatar
+          src={avatarUrl ?? undefined}
           onClick={handleOpen}
           aria-label={t('topbar.profile')}
           aria-controls={open ? 'profile-menu' : undefined}

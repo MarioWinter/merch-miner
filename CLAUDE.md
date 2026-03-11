@@ -82,6 +82,14 @@ App.tsx
 main.tsx
 assets/           Static assets
 components/       Global reusable components (MUI wrappers, shared UI)
+  └── [compName]/
+      └-index
+      ├── hooks/      # useForm submit hooks
+      ├── types/      # Section-scoped types
+      ├── partials/   # Section-specific components
+      ├── tests/      # Vitest + RTL tests
+      ├── utils/      # Section-scoped helpers
+      └── schemas/    # Zod schemas (form source of truth)
 hooks/            Global custom hooks
 i18n/             i18next setup + language JSON files
 services/         axios API calls → Django backend

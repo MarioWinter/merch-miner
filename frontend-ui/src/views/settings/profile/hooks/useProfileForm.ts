@@ -13,6 +13,8 @@ import {
   profileService,
   type UserProfile,
 } from '../../../../services/profileService';
+import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
+import { setUser } from '../../../../store/authSlice';
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -20,6 +22,8 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 export const useProfileForm = () => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
+  const dispatch = useAppDispatch();
+  const authUser = useAppSelector((state) => state.auth.user);
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -93,6 +97,9 @@ export const useProfileForm = () => {
     try {
       const { avatar_url } = await profileService.uploadAvatar(file);
       setProfile((prev) => (prev ? { ...prev, avatar_url } : prev));
+      if (authUser) {
+        dispatch(setUser({ ...authUser, avatar_url }));
+      }
       enqueueSnackbar(t('settings.profile.avatarSuccess'), {
         variant: 'success',
       });

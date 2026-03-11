@@ -138,7 +138,7 @@ export const hydrateAuth = async () => {
   store.dispatch(setLoading(true));
   try {
     const data = await authService.getMe();
-    store.dispatch(setUser({ id: data.id, email: data.email }));
+    store.dispatch(setUser({ id: data.id, email: data.email, avatar_url: data.avatar_url ?? null }));
   } catch {
     // No active session — stay unauthenticated
   } finally {
