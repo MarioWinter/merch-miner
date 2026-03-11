@@ -36,6 +36,15 @@ describe('Topbar — avatar initial derivation', () => {
     renderWithProviders(<Topbar />);
     expect(screen.getByText('MerchMiner')).toBeInTheDocument();
   });
+
+  it('renders avatar img when avatar_url is set on user', async () => {
+    const { store } = renderWithProviders(<Topbar />);
+    await act(async () => {
+      store.dispatch(setUser({ id: 3, email: 'alice@x.com', first_name: 'Alice', avatar_url: '/media/avatars/user_3/avatar.jpg' }));
+    });
+    const img = screen.getByRole('img');
+    expect(img).toHaveAttribute('src', '/media/avatars/user_3/avatar.jpg');
+  });
 });
 
 /**

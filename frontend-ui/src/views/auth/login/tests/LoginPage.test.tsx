@@ -62,6 +62,19 @@ describe('LoginPage', () => {
     expect(store.getState().auth.error).toBe('Invalid email or password');
   });
 
+  it('stores avatar_url in Redux when login returns one', async () => {
+    const { authService } = await import('../../../../services/authService');
+    vi.mocked(authService.login).mockResolvedValueOnce({
+      user: { id: 2, email: 'alice@example.com', first_name: 'Alice', avatar_url: '/media/avatars/user_2/avatar.jpg' },
+    });
+    const { store } = renderLoginPage();
+    await userEvent.type(screen.getByLabelText(/email/i), 'alice@example.com');
+    await userEvent.type(screen.getByLabelText(/password/i), 'password123');
+    await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
+    await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true }));
+    expect(store.getState().auth.user?.avatar_url).toBe('/media/avatars/user_2/avatar.jpg');
+  });
+
   it('shows loading spinner while login is in progress', async () => {
     const { authService } = await import('../../../../services/authService');
     vi.mocked(authService.login).mockImplementationOnce(

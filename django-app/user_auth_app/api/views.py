@@ -144,7 +144,9 @@ class LoginView(APIView):
             "detail": "Login successful",
             "user": {
                 "id": user.id,
-                "email": user.email
+                "email": user.email,
+                "first_name": user.first_name,
+                "avatar_url": user.avatar,
             }
         }, status=status.HTTP_200_OK)
         
