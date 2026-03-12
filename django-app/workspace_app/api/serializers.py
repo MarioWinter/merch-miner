@@ -8,9 +8,17 @@ User = get_user_model()
 class WorkspaceMemberSerializer(serializers.ModelSerializer):
     """Minimal user representation used inside MembershipSerializer."""
 
+    avatar_url = serializers.SerializerMethodField()
+
+    def get_avatar_url(self, obj):
+        request = self.context.get('request')
+        if obj.avatar and request:
+            return request.build_absolute_uri(obj.avatar)
+        return None
+
     class Meta:
         model = User
-        fields = ('id', 'email', 'first_name', 'last_name', 'avatar')
+        fields = ('id', 'email', 'first_name', 'last_name', 'avatar_url')
 
 
 class WorkspaceSerializer(serializers.ModelSerializer):
@@ -70,7 +78,7 @@ class WorkspaceMeSerializer(serializers.ModelSerializer):
 
     def get_members(self, obj):
         memberships = obj.memberships.select_related('user', 'invited_by').all()
-        return MembershipSerializer(memberships, many=True).data
+        return MembershipSerializer(memberships, many=True, context=self.context).data
 
 
 class InviteSerializer(serializers.Serializer):
