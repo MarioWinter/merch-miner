@@ -94,6 +94,16 @@ const workspaceSlice = createSlice({
     setActiveWorkspace(state, action: PayloadAction<string>) {
       state.activeWorkspaceId = action.payload;
     },
+    updateMemberAvatar(
+      state,
+      action: PayloadAction<{ userId: number; avatar_url: string }>
+    ) {
+      const { userId, avatar_url } = action.payload;
+      state.workspaces.forEach((ws) => {
+        const member = ws.members.find((m) => m.id === userId);
+        if (member) member.avatar_url = avatar_url;
+      });
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -147,5 +157,5 @@ const workspaceSlice = createSlice({
   },
 });
 
-export const { setActiveWorkspace } = workspaceSlice.actions;
+export const { setActiveWorkspace, updateMemberAvatar } = workspaceSlice.actions;
 export default workspaceSlice.reducer;
