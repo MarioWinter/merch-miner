@@ -15,6 +15,7 @@ import {
 } from '../../../../services/profileService';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
 import { setUser } from '../../../../store/authSlice';
+import { updateMemberAvatar } from '../../../../store/workspaceSlice';
 
 const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
@@ -102,6 +103,7 @@ export const useProfileForm = () => {
       setProfile((prev) => (prev ? { ...prev, avatar_url } : prev));
       if (authUser) {
         dispatch(setUser({ ...authUser, avatar_url }));
+        dispatch(updateMemberAvatar({ userId: authUser.id, avatar_url }));
       }
       enqueueSnackbar(t('settings.profile.avatarSuccess'), {
         variant: 'success',

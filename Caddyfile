@@ -13,5 +13,11 @@ miner.mariowinter.com:80 {
 }
 
 merch-miner.mariowinter.com:80 {
-    reverse_proxy frontend:80
+    handle /media/* {
+        root * /srv
+        file_server
+    }
+    handle {
+        reverse_proxy frontend:80
+    }
 }
