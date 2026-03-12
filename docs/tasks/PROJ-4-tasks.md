@@ -168,18 +168,18 @@
 
 ## Verification Checklist (from spec)
 
-- [ ] `docker compose exec web pytest user_auth_app/ workspace_app/` — zero failures
-- [ ] `PATCH /api/users/me/` → 200, fields updated; email unchanged
-- [ ] `POST /api/users/me/avatar/` valid image → 200, URL stored + returned
-- [ ] `POST /api/users/me/avatar/` >2MB → 400
-- [ ] `POST /api/auth/password/change/` correct password → 200; wrong → 400
-- [ ] `GET /api/users/me/billing/` new user → empty object, not 404
-- [ ] `PUT /api/users/me/billing/` business + VAT → 200 stored
-- [ ] `PUT /api/users/me/billing/` invalid country → 400
-- [ ] Workspace auto-created on user registration
-- [ ] Invite flow: POST → email → accept link → membership active
-- [ ] `PATCH /api/workspaces/{id}/` by Workspace Admin → 200; by member → 403
-- [ ] Admin removes non-owner → 204; tries owner → 403
-- [ ] `/settings/profile` — upload avatar, preview updates, save name → snackbar
-- [ ] `/settings/billing` — toggle Business, fill VAT, save → snackbar
-- [ ] `/settings/workspace` — member table, invite, role change all work
+- [x] `docker compose exec web pytest user_auth_app/ workspace_app/` — zero failures
+- [x] `PATCH /api/users/me/` → 200, fields updated; email unchanged
+- [x] `POST /api/users/me/avatar/` valid image → 200, URL stored + returned
+- [x] `POST /api/users/me/avatar/` >2MB → 400
+- [x] `POST /api/auth/password/change/` correct password → 200; wrong → 400
+- [x] `GET /api/users/me/billing/` new user → empty object, not 404
+- [x] `PUT /api/users/me/billing/` business + VAT → 200 stored
+- [x] `PUT /api/users/me/billing/` invalid country → 400
+- [x] Workspace auto-created on user registration
+- [x] Invite flow: POST → email → accept link → membership active
+- [x] `PATCH /api/workspaces/{id}/` by Workspace Admin → 200; by member → 403
+- [x] Admin removes non-owner → 204; tries owner → 403
+- [x] `/settings/profile` — upload avatar, preview updates, save name → snackbar
+- [x] `/settings/billing` — toggle Business, fill VAT, save → snackbar
+- [x] `/settings/workspace` — member table, invite, role change all work

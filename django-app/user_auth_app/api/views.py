@@ -1,32 +1,39 @@
+from core import settings
 from django.contrib.auth import get_user_model
 from django.core.files.storage import FileSystemStorage
-from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
-from django.utils.encoding import force_bytes
 from django.shortcuts import redirect
-from rest_framework.views import APIView
-from rest_framework.response import Response
-from rest_framework import viewsets, status
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
+from rest_framework import status, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
-from rest_framework_simplejwt.tokens import RefreshToken, AccessToken, TokenError
-from core import settings
+from rest_framework.views import APIView
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken, TokenError
+
 from user_auth_app.models import BillingProfile
-from .serializers import (
-    UserSerializer, UserCreateSerializer,
-    LoginSerializer, PasswordResetSerializer, PasswordChangeSerializer,
-    UserProfileSerializer, UserUpdateSerializer,
-    InlinePasswordChangeSerializer, BillingProfileSerializer,
-)
-from .emails import send_verification_email, send_password_reset_email
-from .utils import set_jwt_cookies, clear_jwt_cookies, get_refresh_token_from_request
+
 from .authentication import CookieJWTAuthentication
+from .emails import send_password_reset_email, send_verification_email
+from .serializers import (
+    BillingProfileSerializer,
+    InlinePasswordChangeSerializer,
+    LoginSerializer,
+    PasswordChangeSerializer,
+    PasswordResetSerializer,
+    UserCreateSerializer,
+    UserProfileSerializer,
+    UserSerializer,
+    UserUpdateSerializer,
+)
+from .utils import clear_jwt_cookies, get_refresh_token_from_request, set_jwt_cookies
 
 User = get_user_model()
 
 
 class UserProfileViewSet(viewsets.ModelViewSet):
     """Retrieve and update the authenticated user's profile."""
-    
+
     queryset = User.objects.all()
     serializer_class = UserSerializer
 
@@ -36,30 +43,28 @@ class UserProfileViewSet(viewsets.ModelViewSet):
 
 class RegisterView(APIView):
     """Handle user registration and send activation email."""
-    
+
     permission_classes = [AllowAny]
 
     def post(self, request):
         serializer = UserCreateSerializer(data=request.data)
         if serializer.is_valid():
             user = serializer.save()
-            
+
             refresh = RefreshToken.for_user(user)
             activation_token = str(refresh.access_token)
             uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
-            
+
             send_verification_email(user.email, uidb64, activation_token)
-            
-            return Response({
-                "user": {
-                    "id": user.id,
-                    "email": user.email
-                }
-            }, status=status.HTTP_201_CREATED)
-        
+
+            return Response(
+                {"user": {"id": user.id, "email": user.email}},
+                status=status.HTTP_201_CREATED,
+            )
+
         return Response(
             {"detail": "Please check your entries and try again."},
-            status=status.HTTP_400_BAD_REQUEST
+            status=status.HTTP_400_BAD_REQUEST,
         )
 
 
@@ -79,7 +84,7 @@ class ActivateView(APIView):
         user = User.objects.get(pk=uid)
         access_token = AccessToken(token)
 
-        if str(user.pk) != str(access_token['user_id']):
+        if str(user.pk) != str(access_token["user_id"]):
             raise Exception("Token user_id mismatch")
 
         if not user.is_active:
@@ -88,25 +93,25 @@ class ActivateView(APIView):
 
     def post(self, request):
         """Activate via POST body — used by the React SPA."""
-        uidb64 = request.data.get('uid')
-        token = request.data.get('token')
+        uidb64 = request.data.get("uid")
+        token = request.data.get("token")
 
         if not uidb64 or not token:
             return Response(
                 {"message": "Account activation failed."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         try:
             self._activate(uidb64, token)
             return Response(
                 {"message": "Account successfully activated."},
-                status=status.HTTP_200_OK
+                status=status.HTTP_200_OK,
             )
         except Exception:
             return Response(
                 {"message": "Account activation failed."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
     def get(self, request, uidb64, token):
@@ -115,17 +120,18 @@ class ActivateView(APIView):
             self._activate(uidb64, token)
             return Response(
                 {"message": "Account successfully activated."},
-                status=status.HTTP_200_OK
+                status=status.HTTP_200_OK,
             )
         except Exception:
             return Response(
                 {"message": "Account activation failed."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
-    
+
+
 class LoginView(APIView):
     """Handle user login and set JWT tokens in cookies."""
-    
+
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -133,30 +139,36 @@ class LoginView(APIView):
         if not serializer.is_valid():
             return Response(
                 {"detail": "Please check your entries and try again."},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        
-        user = serializer.validated_data['user']
+
+        user = serializer.validated_data["user"]
         refresh = RefreshToken.for_user(user)
         access_token = refresh.access_token
-        
-        response = Response({
-            "detail": "Login successful",
-            "user": {
-                "id": user.id,
-                "email": user.email,
-                "first_name": user.first_name,
-                "avatar_url": user.avatar,
-            }
-        }, status=status.HTTP_200_OK)
-        
+
+        response = Response(
+            {
+                "detail": "Login successful",
+                "user": {
+                    "id": user.id,
+                    "email": user.email,
+                    "first_name": user.first_name,
+                    "avatar_url": request.build_absolute_uri(user.avatar)
+                    if user.avatar
+                    else None,
+                },
+            },
+            status=status.HTTP_200_OK,
+        )
+
         set_jwt_cookies(response, access_token, refresh)
-        
+
         return response
-        
+
+
 class TokenRefreshView(APIView):
     """Refresh JWT access token using refresh token from cookies."""
-    
+
     permission_classes = [AllowAny]
 
     def post(self, request):
@@ -165,87 +177,87 @@ class TokenRefreshView(APIView):
         if not refresh_token:
             return Response(
                 {"detail": "Refresh token not found"},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         try:
             old_refresh = RefreshToken(refresh_token)
-            user_id = old_refresh['user_id']
+            user_id = old_refresh["user_id"]
             user = User.objects.get(id=user_id)
             old_refresh.blacklist()
             new_refresh = RefreshToken.for_user(user)
             new_access_token = new_refresh.access_token
         except TokenError:
             return Response(
-                {"detail": "Invalid refresh token"},
-                status=status.HTTP_401_UNAUTHORIZED
+                {"detail": "Invalid refresh token"}, status=status.HTTP_401_UNAUTHORIZED
             )
 
-        response = Response({
-            "detail": "Token refreshed",
-            "access": str(new_access_token)
-        }, status=status.HTTP_200_OK)
+        response = Response(
+            {"detail": "Token refreshed", "access": str(new_access_token)},
+            status=status.HTTP_200_OK,
+        )
 
         set_jwt_cookies(response, new_access_token, new_refresh)
 
         return response
-                
+
+
 class LogoutView(APIView):
     """Log out user by clearing JWT cookies and blacklisting refresh token."""
-    
+
     permission_classes = [AllowAny]
 
     def post(self, request):
         refresh_token = get_refresh_token_from_request(request)
-        
+
         if not refresh_token:
             return Response(
                 {"detail": "Refresh token not found"},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
-        
+
         try:
             RefreshToken(refresh_token).blacklist()
         except Exception:
             pass
-        
-        response = Response({
-            "detail": "Log-Out successfully!"
-        }, status=status.HTTP_200_OK)
-        
+
+        response = Response(
+            {"detail": "Log-Out successfully!"}, status=status.HTTP_200_OK
+        )
+
         clear_jwt_cookies(response)
-        
+
         return response
+
 
 class PasswordResetView(APIView):
     """Handle password reset requests by sending email with reset link."""
-    
+
     permission_classes = [AllowAny]
 
     def post(self, request):
         serializer = PasswordResetSerializer(data=request.data)
         if serializer.is_valid():
-            email = serializer.validated_data['email']
+            email = serializer.validated_data["email"]
             try:
                 user = User.objects.get(email=email)
-                
+
                 refresh = RefreshToken.for_user(user)
                 token = str(refresh.access_token)
                 uidb64 = urlsafe_base64_encode(force_bytes(user.pk))
-                
+
                 send_password_reset_email(user.email, uidb64, token)
-                
+
             except User.DoesNotExist:
                 pass
-            
+
             return Response(
                 {"detail": "An email has been sent to reset your password."},
-                status=status.HTTP_200_OK
+                status=status.HTTP_200_OK,
             )
-        
+
         return Response(
-            {"detail": "Invalid email address"},
-            status=status.HTTP_400_BAD_REQUEST
+            {"detail": "Invalid email address"}, status=status.HTTP_400_BAD_REQUEST
         )
 
 
@@ -256,14 +268,13 @@ class PasswordConfirmView(APIView):
 
     def post(self, request, uidb64=None, token=None):
         # Accept uid/token from POST body (preferred) or URL path (legacy email links)
-        uidb64 = uidb64 or request.data.get('uid', '')
-        token = token or request.data.get('token', '')
+        uidb64 = uidb64 or request.data.get("uid", "")
+        token = token or request.data.get("token", "")
 
         serializer = PasswordChangeSerializer(data=request.data)
         if not serializer.is_valid():
             return Response(
-                {"detail": "Passwords do not match"},
-                status=status.HTTP_400_BAD_REQUEST
+                {"detail": "Passwords do not match"}, status=status.HTTP_400_BAD_REQUEST
             )
 
         try:
@@ -271,21 +282,20 @@ class PasswordConfirmView(APIView):
             user = User.objects.get(pk=uid)
             access_token = AccessToken(token)
 
-            if str(user.pk) != str(access_token['user_id']):
+            if str(user.pk) != str(access_token["user_id"]):
                 raise Exception
 
         except Exception:
             return Response(
-                {"detail": "Invalid token or user"},
-                status=status.HTTP_400_BAD_REQUEST
+                {"detail": "Invalid token or user"}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        user.set_password(serializer.validated_data['new_password'])
+        user.set_password(serializer.validated_data["new_password"])
         user.save()
 
         return Response(
             {"detail": "Your password has been successfully reset."},
-            status=status.HTTP_200_OK
+            status=status.HTTP_200_OK,
         )
 
 
@@ -297,12 +307,17 @@ class MeView(APIView):
 
     def get(self, request):
         user = request.user
-        return Response({
-            "id": user.id,
-            "email": user.email,
-            "first_name": user.first_name,
-            "avatar_url": user.avatar,
-        }, status=status.HTTP_200_OK)
+        return Response(
+            {
+                "id": user.id,
+                "email": user.email,
+                "first_name": user.first_name,
+                "avatar_url": request.build_absolute_uri(user.avatar)
+                if user.avatar
+                else None,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class GoogleLoginView(APIView):
@@ -312,7 +327,9 @@ class GoogleLoginView(APIView):
 
     def get(self, request):
         from allauth.socialaccount.providers.oauth2.views import OAuth2LoginView
+
         from user_auth_app.api.adapters import CustomGoogleOAuth2Adapter
+
         view = OAuth2LoginView.adapter_view(CustomGoogleOAuth2Adapter)
         return view(request)
 
@@ -328,29 +345,30 @@ class GoogleCallbackView(APIView):
     permission_classes = [AllowAny]
 
     def get(self, request):
-        from allauth.socialaccount.providers.oauth2.views import OAuth2CallbackView
-        from user_auth_app.api.adapters import CustomGoogleOAuth2Adapter
         from allauth.core.exceptions import ImmediateHttpResponse
+        from allauth.socialaccount.providers.oauth2.views import OAuth2CallbackView
+
+        from user_auth_app.api.adapters import CustomGoogleOAuth2Adapter
 
         try:
             view = OAuth2CallbackView.adapter_view(CustomGoogleOAuth2Adapter)
             view(request)
         except ImmediateHttpResponse:
-            frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+            frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
             return redirect(f"{frontend_url}/login?error=oauth_failed")
         except Exception:
-            frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+            frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
             return redirect(f"{frontend_url}/login?error=oauth_failed")
 
         user = request.user
         if not user or not user.is_authenticated:
-            frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+            frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
             return redirect(f"{frontend_url}/login?error=oauth_failed")
 
         refresh = RefreshToken.for_user(user)
         access_token = refresh.access_token
 
-        frontend_url = getattr(settings, 'FRONTEND_URL', 'http://localhost:5173')
+        frontend_url = getattr(settings, "FRONTEND_URL", "http://localhost:5173")
         redirect_response = redirect(frontend_url)
         set_jwt_cookies(redirect_response, access_token, refresh)
         return redirect_response
@@ -360,6 +378,7 @@ class GoogleCallbackView(APIView):
 # Task 7 — User Profile API
 # ---------------------------------------------------------------------------
 
+
 class UserProfileView(APIView):
     """GET + PATCH /api/users/me/ — full profile read/update."""
 
@@ -367,7 +386,7 @@ class UserProfileView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        serializer = UserProfileSerializer(request.user, context={'request': request})
+        serializer = UserProfileSerializer(request.user, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
 
     def patch(self, request):
@@ -375,18 +394,18 @@ class UserProfileView(APIView):
             request.user,
             data=request.data,
             partial=True,
-            context={'request': request},
+            context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(
-            UserProfileSerializer(request.user, context={'request': request}).data,
+            UserProfileSerializer(request.user, context={"request": request}).data,
             status=status.HTTP_200_OK,
         )
 
 
 class AvatarRateThrottle(UserRateThrottle):
-    scope = 'avatar'
+    scope = "avatar"
 
 
 class AvatarUploadView(APIView):
@@ -396,29 +415,29 @@ class AvatarUploadView(APIView):
     permission_classes = [IsAuthenticated]
     throttle_classes = [AvatarRateThrottle]
 
-    ALLOWED_MIME_TYPES = {'image/jpeg', 'image/png', 'image/webp'}
+    ALLOWED_MIME_TYPES = {"image/jpeg", "image/png", "image/webp"}
     MAX_SIZE_BYTES = 2 * 1024 * 1024  # 2 MB
-    EXT_MAP = {'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp'}
+    EXT_MAP = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
 
     def post(self, request):
         from PIL import Image
 
-        file = request.FILES.get('avatar')
+        file = request.FILES.get("avatar")
         if not file:
             return Response(
-                {'detail': 'No file provided. Use field name "avatar".'},
+                {"detail": 'No file provided. Use field name "avatar".'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         if file.content_type not in self.ALLOWED_MIME_TYPES:
             return Response(
-                {'detail': 'Unsupported file type. Allowed: JPEG, PNG, WEBP.'},
+                {"detail": "Unsupported file type. Allowed: JPEG, PNG, WEBP."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         if file.size > self.MAX_SIZE_BYTES:
             return Response(
-                {'detail': 'File too large. Maximum size is 2 MB.'},
+                {"detail": "File too large. Maximum size is 2 MB."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -428,30 +447,39 @@ class AvatarUploadView(APIView):
             img = Image.open(file)
             img.verify()
         except Exception:
-            return Response({'detail': 'Invalid image file.'}, status=status.HTTP_400_BAD_REQUEST)
-        FORMAT_TO_MIME = {'JPEG': 'image/jpeg', 'PNG': 'image/png', 'WEBP': 'image/webp'}
-        if FORMAT_TO_MIME.get(img.format, '') != file.content_type:
             return Response(
-                {'detail': 'File content does not match declared type.'},
+                {"detail": "Invalid image file."}, status=status.HTTP_400_BAD_REQUEST
+            )
+        FORMAT_TO_MIME = {
+            "JPEG": "image/jpeg",
+            "PNG": "image/png",
+            "WEBP": "image/webp",
+        }
+        if FORMAT_TO_MIME.get(img.format, "") != file.content_type:
+            return Response(
+                {"detail": "File content does not match declared type."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
         file.seek(0)  # reset for fs.save()
 
         ext = self.EXT_MAP[file.content_type]
-        relative_path = f'avatars/user_{request.user.pk}/avatar.{ext}'
+        relative_path = f"avatars/user_{request.user.pk}/avatar.{ext}"
 
         fs = FileSystemStorage()
         # Delete old avatar file(s) before saving new one
         for old_ext in self.EXT_MAP.values():
-            old_path = f'avatars/user_{request.user.pk}/avatar.{old_ext}'
+            old_path = f"avatars/user_{request.user.pk}/avatar.{old_ext}"
             if fs.exists(old_path):
                 fs.delete(old_path)
 
         saved_path = fs.save(relative_path, file)
-        relative = settings.MEDIA_URL + saved_path   # /media/avatars/...
+        relative = settings.MEDIA_URL + saved_path  # /media/avatars/...
         request.user.avatar = relative
-        request.user.save(update_fields=['avatar'])
-        return Response({'avatar_url': relative}, status=status.HTTP_200_OK)
+        request.user.save(update_fields=["avatar"])
+        return Response(
+            {"avatar_url": request.build_absolute_uri(relative)},
+            status=status.HTTP_200_OK,
+        )
 
 
 class InlinePasswordChangeView(APIView):
@@ -463,12 +491,12 @@ class InlinePasswordChangeView(APIView):
     def post(self, request):
         serializer = InlinePasswordChangeSerializer(
             data=request.data,
-            context={'request': request},
+            context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
 
         user = request.user
-        user.set_password(serializer.validated_data['new_password'])
+        user.set_password(serializer.validated_data["new_password"])
         user.save()
 
         # Blacklist current refresh token so the user must re-login
@@ -480,7 +508,7 @@ class InlinePasswordChangeView(APIView):
                 pass
 
         response = Response(
-            {'detail': 'Password changed successfully. Please log in again.'},
+            {"detail": "Password changed successfully. Please log in again."},
             status=status.HTTP_200_OK,
         )
         clear_jwt_cookies(response)
@@ -490,6 +518,7 @@ class InlinePasswordChangeView(APIView):
 # ---------------------------------------------------------------------------
 # Task 8 — Billing API
 # ---------------------------------------------------------------------------
+
 
 class BillingProfileView(APIView):
     """GET + PUT /api/users/me/billing/ — upsert billing profile."""
@@ -512,7 +541,7 @@ class BillingProfileView(APIView):
             profile,
             data=request.data,
             partial=False,
-            context={'request': request},
+            context={"request": request},
         )
         serializer.is_valid(raise_exception=True)
         serializer.save()
