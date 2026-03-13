@@ -19,7 +19,8 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { alpha, styled } from '@mui/material/styles';
+import { COLORS } from '@/style/constants';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { Button } from '@mui/material';
@@ -40,22 +41,25 @@ interface NicheTableProps {
   onArchive: (id: string) => Promise<void>;
 }
 
-const StyledTableRow = styled(TableRow)({
+const StyledTableRow = styled(TableRow)(({ theme }) => ({
   cursor: 'pointer',
   transition: 'background-color 150ms ease',
   '&:hover': {
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: alpha(COLORS.white, 0.03),
+    ...theme.applyStyles('light', {
+      backgroundColor: alpha(COLORS.ink, 0.03),
+    }),
   },
   '& td': {
-    borderBottom: '1px solid rgba(255,255,255,0.06)',
+    borderBottom: `1px solid ${theme.vars.palette.divider}`,
     padding: '0 12px',
     height: 44,
   },
-});
+}));
 
-const HeaderCell = styled(TableCell)({
+const HeaderCell = styled(TableCell)(({ theme }) => ({
   backgroundColor: 'transparent',
-  borderBottom: '1px solid rgba(255,255,255,0.08)',
+  borderBottom: `1px solid ${theme.vars.palette.divider}`,
   padding: '0 12px',
   height: 40,
   '& .MuiTableSortLabel-root': {
@@ -65,7 +69,7 @@ const HeaderCell = styled(TableCell)({
     textTransform: 'uppercase',
     color: 'inherit',
   },
-});
+}));
 
 const OverlineText = styled('span')({
   fontSize: '0.6875rem',
@@ -85,7 +89,7 @@ const DestructiveMenuItem = styled(MenuItem)(({ theme }) => ({
   color: theme.vars.palette.error.main,
   gap: theme.spacing(1),
   '&:hover': {
-    backgroundColor: 'rgba(244,63,58,0.08)',
+    backgroundColor: alpha(COLORS.errorDk, 0.08),
   },
 }));
 
@@ -239,7 +243,7 @@ export const NicheTable = ({
                 selected={selected}
                 onClick={() => handleRowClick(niche.id)}
                 aria-label={niche.name}
-                sx={selected ? { backgroundColor: 'rgba(255,90,79,0.06)' } : undefined}
+                sx={selected ? { backgroundColor: alpha(COLORS.red, 0.06) } : undefined}
               >
                 <TableCell padding="checkbox" onClick={(e) => handleCheckboxClick(e, niche.id)}>
                   <Checkbox

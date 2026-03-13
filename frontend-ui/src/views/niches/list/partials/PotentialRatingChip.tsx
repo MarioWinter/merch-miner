@@ -1,6 +1,7 @@
 import { Chip } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { alpha, styled } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
+import { COLORS } from '@/style/constants';
 import type { PotentialRating } from '../types';
 
 interface PotentialRatingChipProps {
@@ -18,19 +19,19 @@ const StyledRatingChip = styled(Chip, {
 })<StyledChipProps>(({ theme, ratingvariant }) => {
   const variantStyles: Record<RatingVariant, object> = {
     good: {
-      backgroundColor: `rgba(34, 211, 163, 0.12)`,
+      backgroundColor: alpha(COLORS.successDk, 0.12),
       color: theme.vars.palette.success.main,
-      borderColor: `rgba(34, 211, 163, 0.25)`,
+      borderColor: alpha(COLORS.successDk, 0.25),
     },
     very_good: {
-      backgroundColor: `rgba(255, 90, 79, 0.12)`,
+      backgroundColor: alpha(COLORS.red, 0.12),
       color: theme.vars.palette.primary.main,
-      borderColor: `rgba(255, 90, 79, 0.25)`,
+      borderColor: alpha(COLORS.red, 0.25),
     },
     rejected: {
-      backgroundColor: `rgba(244, 63, 58, 0.12)`,
+      backgroundColor: alpha(COLORS.errorDk, 0.12),
       color: theme.vars.palette.error.main,
-      borderColor: `rgba(244, 63, 58, 0.25)`,
+      borderColor: alpha(COLORS.errorDk, 0.25),
     },
   };
 

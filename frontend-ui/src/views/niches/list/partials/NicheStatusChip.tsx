@@ -1,6 +1,7 @@
 import { Chip } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { alpha, styled } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
+import { COLORS } from '@/style/constants';
 import type { NicheStatus } from '../types';
 
 interface NicheStatusChipProps {
@@ -33,24 +34,24 @@ const StyledStatusChip = styled(Chip, {
 })<StyledChipProps>(({ theme, chipvariant }) => {
   const variantStyles: Record<ChipVariant, object> = {
     todo: {
-      backgroundColor: `rgba(56, 189, 248, 0.10)`,
+      backgroundColor: alpha(COLORS.infoDk, 0.10),
       color: theme.vars.palette.info.main,
-      borderColor: `rgba(56, 189, 248, 0.20)`,
+      borderColor: alpha(COLORS.infoDk, 0.20),
     },
     inProgress: {
-      backgroundColor: `rgba(245, 158, 11, 0.12)`,
+      backgroundColor: alpha(COLORS.warningDk, 0.12),
       color: theme.vars.palette.warning.main,
-      borderColor: `rgba(245, 158, 11, 0.25)`,
+      borderColor: alpha(COLORS.warningDk, 0.25),
     },
     complete: {
-      backgroundColor: `rgba(34, 211, 163, 0.12)`,
+      backgroundColor: alpha(COLORS.successDk, 0.12),
       color: theme.vars.palette.success.main,
-      borderColor: `rgba(34, 211, 163, 0.25)`,
+      borderColor: alpha(COLORS.successDk, 0.25),
     },
     system: {
-      backgroundColor: `rgba(123, 170, 184, 0.10)`,
+      backgroundColor: alpha(COLORS.snowMuted, 0.10),
       color: theme.vars.palette.text.secondary,
-      borderColor: `rgba(123, 170, 184, 0.20)`,
+      borderColor: alpha(COLORS.snowMuted, 0.20),
     },
   };
 

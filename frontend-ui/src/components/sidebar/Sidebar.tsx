@@ -163,8 +163,8 @@ const ToggleButton = styled(IconButton)({
   height: 28,
   borderRadius: '50%',
   backgroundColor: COLORS.red,
-  color: '#fff',
-  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+  color: COLORS.white,
+  boxShadow: `0 2px 8px ${alpha(COLORS.black, 0.15)}`,
   '&:hover': {
     backgroundColor: COLORS.redDk,
   },

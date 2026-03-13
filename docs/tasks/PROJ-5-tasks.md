@@ -194,36 +194,36 @@
 
 ### 23. TableSkeleton + EmptyState
 
-- [ ] `TableSkeleton`: 5 ghost rows using MUI `Skeleton`, matches table column widths
-- [ ] `EmptyState` (no niches): 64px `ListAltIcon`, "No niches yet", "+ New Niche" CTA button
-- [ ] `EmptyState` (no search results): "No niches match your filters", "Clear filters" ghost button
+- [x] `TableSkeleton`: 5 ghost rows using MUI `Skeleton`, matches table column widths
+- [x] `EmptyState` (no niches): 64px `ListAltIcon`, "No niches yet", "+ New Niche" CTA button
+- [x] `EmptyState` (no search results): "No niches match your filters", "Clear filters" ghost button
 
 ### 24. NicheDetailDrawer Component
 
-- [ ] `views/niches/list/partials/NicheDetailDrawer.tsx`
-- [ ] MUI `Drawer` (anchor=right, width=480px per design system §8.8)
-- [ ] **Create mode**: header "New Niche", fields: Name (required) + Notes (optional); footer: [Cancel] [Create Niche]
-- [ ] **Edit mode**: header = niche name (editable inline), fields: Name, Notes, Status Select, Potential Rating Select, Assignee Select
-- [ ] Potential Rating Select: always visible in edit mode (not locked to status)
-- [ ] Assignee Select: MUI `Autocomplete` from workspace members, nullable (clear button)
-- [ ] IdeaCountsSection (edit mode): chips showing "X total · Y approved ideas"
-- [ ] Footer (edit mode): [Save Changes] (primary) + [Archive] (destructive, `DeleteOutline` icon, right-aligned)
-- [ ] Archive: show MUI `Dialog` confirmation before calling `deleteNiche(id)`
-- [ ] 400 error display: MUI `Alert` severity=error inside drawer with backend message
-- [ ] On create success: close drawer, show notistack success, invalidate list cache
-- [ ] On update success: show notistack success, invalidate list + detail cache
-- [ ] Drawer closes on backdrop click (unless unsaved changes — show confirm dialog)
+- [x] `views/niches/list/partials/NicheDetailDrawer.tsx`
+- [x] MUI `Drawer` (anchor=right, width=480px per design system §8.8)
+- [x] **Create mode**: header "New Niche", fields: Name (required) + Notes (optional); footer: [Cancel] [Create Niche]
+- [x] **Edit mode**: header = niche name (editable inline), fields: Name, Notes, Status Select, Potential Rating Select, Assignee Select
+- [x] Potential Rating Select: always visible in edit mode (not locked to status)
+- [x] Assignee Select: MUI `Autocomplete` from workspace members, nullable (clear button)
+- [x] IdeaCountsSection (edit mode): chips showing "X total · Y approved ideas"
+- [x] Footer (edit mode): [Save Changes] (primary) + [Archive] (destructive, `DeleteOutline` icon, right-aligned)
+- [x] Archive: show MUI `Dialog` confirmation before calling `deleteNiche(id)`
+- [x] 400 error display: MUI `Alert` severity=error inside drawer with backend message
+- [x] On create success: close drawer, show notistack success, invalidate list cache
+- [x] On update success: show notistack success, invalidate list + detail cache
+- [x] Drawer closes on backdrop click (unless unsaved changes — show confirm dialog)
 
 ### 25. BulkActionBar Component
 
-- [ ] `views/niches/list/partials/BulkActionBar.tsx`
-- [ ] Fixed bottom, full width (above sidebar, below topbar level) — `position: fixed, bottom: 0, left: 220px`
-- [ ] Glass card style (`glass-md`, elevation.3) with 16px padding
-- [ ] Content: "X selected" label + [Archive] (destructive) + [Assign ▾] (dropdown of workspace members) + [×] clear
-- [ ] [Archive] → confirmation Dialog → call `bulkNicheAction({ids, action:'archive'})` → notistack + clear selection
-- [ ] [Assign ▾] → MUI `Menu` with member list → call `bulkNicheAction({ids, action:'assign', assigned_to})` → notistack
-- [ ] Appears/disappears with `Slide` animation (200ms) when `selectedCount > 0`
-- [ ] Adjusts `left` to 60px when sidebar is collapsed
+- [x] `views/niches/list/partials/BulkActionBar.tsx`
+- [x] Fixed bottom, full width (above sidebar, below topbar level) — `position: fixed, bottom: 0, left: 220px`
+- [x] Glass card style (`glass-md`, elevation.3) with 16px padding
+- [x] Content: "X selected" label + [Archive] (destructive) + [Assign ▾] (dropdown of workspace members) + [×] clear
+- [x] [Archive] → confirmation Dialog → call `bulkNicheAction({ids, action:'archive'})` → notistack + clear selection
+- [x] [Assign ▾] → MUI `Menu` with member list → call `bulkNicheAction({ids, action:'assign', assigned_to})` → notistack
+- [x] Appears/disappears with `Slide` animation (200ms) when `selectedCount > 0`
+- [x] Adjusts `left` to 60px when sidebar is collapsed
 
 ### 26. NicheListView (Main Container)
 

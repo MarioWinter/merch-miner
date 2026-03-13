@@ -1,5 +1,6 @@
 import { Badge, Box, Button, InputAdornment, MenuItem, Select, TextField } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { alpha, styled } from '@mui/material/styles';
+import { COLORS } from '@/style/constants';
 import SearchIcon from '@mui/icons-material/Search';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import { useTranslation } from 'react-i18next';
@@ -27,7 +28,10 @@ const FilterSelect = styled(Select)(({ theme }) => ({
   height: 36,
   fontSize: '0.8125rem',
   '& .MuiOutlinedInput-notchedOutline': {
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: alpha(COLORS.ink, 0.18),
+    ...theme.applyStyles('dark', {
+      borderColor: alpha(COLORS.white, 0.12),
+    }),
   },
   '& .MuiSelect-select': {
     paddingTop: theme.spacing(1),
@@ -35,16 +39,19 @@ const FilterSelect = styled(Select)(({ theme }) => ({
   },
 }));
 
-const SearchInput = styled(TextField)({
+const SearchInput = styled(TextField)(({ theme }) => ({
   width: 220,
   '& .MuiInputBase-root': {
     height: 36,
     fontSize: '0.8125rem',
   },
   '& .MuiOutlinedInput-notchedOutline': {
-    borderColor: 'rgba(255,255,255,0.12)',
+    borderColor: alpha(COLORS.ink, 0.18),
+    ...theme.applyStyles('dark', {
+      borderColor: alpha(COLORS.white, 0.12),
+    }),
   },
-});
+}));
 
 const ClearButton = styled(Button)(({ theme }) => ({
   color: theme.vars.palette.text.secondary,
@@ -54,7 +61,10 @@ const ClearButton = styled(Button)(({ theme }) => ({
   minWidth: 'auto',
   '&:hover': {
     color: theme.vars.palette.text.primary,
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: alpha(COLORS.white, 0.04),
+    ...theme.applyStyles('light', {
+      backgroundColor: alpha(COLORS.ink, 0.04),
+    }),
   },
 }));
 
