@@ -69,7 +69,7 @@ const DrawerFooter = styled(Box)(({ theme }) => ({
 const NICHE_STATUSES: NicheStatus[] = [
   'data_entry', 'deep_research', 'niche_with_potential',
   'to_designer', 'upload', 'start_ads',
-  'pending', 'winner', 'loser', 'archived',
+  'pending', 'winner', 'loser',
 ];
 
 const POTENTIAL_RATINGS: (PotentialRating | '')[] = ['', 'good', 'very_good', 'rejected'];
@@ -218,9 +218,27 @@ export const NicheDetailDrawer = ({
                         <Typography variant="subtitle2" sx={{ mb: 0.75, color: 'text.secondary' }}>
                           {t('niches.drawer.status')}
                         </Typography>
-                        <Select {...field} fullWidth size="small" displayEmpty>
+                        <Select
+                          {...field}
+                          onChange={(e) => {
+                            const newStatus = e.target.value as NicheStatus;
+                            field.onChange(newStatus);
+                            if (
+                              newStatus === 'niche_with_potential' &&
+                              editForm.getValues('potential_rating') !== 'good' &&
+                              editForm.getValues('potential_rating') !== 'very_good'
+                            ) {
+                              editForm.setValue('potential_rating', 'good', { shouldDirty: true });
+                            }
+                          }}
+                          fullWidth
+                          size="small"
+                          displayEmpty
+                        >
                           {NICHE_STATUSES.map((s) => (
-                            <MenuItem key={s} value={s}>{t(`niches.status.${s}`)}</MenuItem>
+                            <MenuItem key={s} value={s}>
+                              {t(`niches.status.${s}`)}
+                            </MenuItem>
                           ))}
                         </Select>
                       </Box>

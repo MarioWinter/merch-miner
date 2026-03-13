@@ -11,6 +11,7 @@ import {
 } from '../../../../store/nicheSlice';
 import { createNicheSchema, updateNicheSchema } from '../schemas/nicheSchema';
 import type { CreateNicheFormValues, UpdateNicheFormValues } from '../schemas/nicheSchema';
+import type { NicheUpdateBody } from '../types';
 import type { DrawerMode } from './useNicheDrawer';
 
 interface UseNicheDetailDrawerOptions {
@@ -21,9 +22,17 @@ interface UseNicheDetailDrawerOptions {
 
 const extractErrorMessage = (error: unknown): string | null => {
   if (!error) return null;
-  const e = error as { data?: { detail?: string; name?: string[] } };
-  if (e.data?.detail) return e.data.detail;
-  if (e.data?.name?.[0]) return e.data.name[0];
+  const e = error as { data?: unknown };
+  if (!e.data || typeof e.data !== 'object') return null;
+  const data = e.data as Record<string, unknown>;
+  // DRF non-field error
+  if (typeof data['detail'] === 'string') return data['detail'];
+  // DRF field-keyed errors — pick the first field's first message
+  for (const key of Object.keys(data)) {
+    const val = data[key];
+    if (typeof val === 'string') return val;
+    if (Array.isArray(val) && typeof val[0] === 'string') return val[0];
+  }
   return null;
 };
 
@@ -95,8 +104,14 @@ export const useNicheDetailDrawer = ({
   const handleUpdate: SubmitHandler<UpdateNicheFormValues> = async (values) => {
     if (!selectedId) return;
     setServerError(null);
+    const dirtyKeys = Object.keys(editForm.formState.dirtyFields) as (keyof UpdateNicheFormValues)[];
+    if (dirtyKeys.length === 0) return;
+    const body: Record<string, unknown> = {};
+    for (const key of dirtyKeys) {
+      body[key] = values[key];
+    }
     try {
-      await updateNiche({ id: selectedId, body: values }).unwrap();
+      await updateNiche({ id: selectedId, body: body as NicheUpdateBody }).unwrap();
       enqueueSnackbar(t('niches.notifications.updateSuccess'), { variant: 'success' });
     } catch (err) {
       const msg = extractErrorMessage(err);

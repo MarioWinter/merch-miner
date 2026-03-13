@@ -87,9 +87,11 @@ class NicheSerializer(serializers.ModelSerializer):
                 Niche.PotentialRating.VERY_GOOD,
             )
         ):
-            raise serializers.ValidationError(
-                {'status': 'Cannot set niche_with_potential without a compatible potential_rating (good or very_good).'}
-            )
+            if potential_rating == Niche.PotentialRating.REJECTED:
+                msg = 'Niche rated Rejected cannot advance to Niche with Potential.'
+            else:
+                msg = 'Set potential rating to Gut or Sehr gut first.'
+            raise serializers.ValidationError({'status': msg})
 
         # When changing rating to incompatible value while status is
         # niche_with_potential, auto-downgrade status to deep_research

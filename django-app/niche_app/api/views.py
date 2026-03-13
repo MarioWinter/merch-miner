@@ -151,14 +151,8 @@ class NicheViewSet(ModelViewSet):
         return context
 
     def update(self, request, *args, **kwargs):
-        import logging
-        logger = logging.getLogger(__name__)
-        logger.warning('PATCH body: %s', request.data)
         kwargs['partial'] = True
-        response = super().update(request, *args, **kwargs)
-        if response.status_code >= 400:
-            logger.warning('PATCH error response: %s', response.data)
-        return response
+        return super().update(request, *args, **kwargs)
 
     def partial_update(self, request, *args, **kwargs):
         return self.update(request, *args, **kwargs)

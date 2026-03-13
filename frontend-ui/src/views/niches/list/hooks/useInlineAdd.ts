@@ -1,4 +1,5 @@
 import { useState, useCallback } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useCreateNicheMutation } from '../../../../store/nicheSlice';
 
 export interface UseInlineAddReturn {
@@ -11,6 +12,7 @@ export interface UseInlineAddReturn {
 }
 
 export const useInlineAdd = (): UseInlineAddReturn => {
+  const { t } = useTranslation();
   const [isActive, setIsActive] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [createNiche, { isLoading: isCreating }] = useCreateNicheMutation();
@@ -29,7 +31,7 @@ export const useInlineAdd = (): UseInlineAddReturn => {
     async (name: string) => {
       const trimmed = name.trim();
       if (!trimmed) {
-        setError('Name is required');
+        setError(t('niches.validation.nameRequired'));
         return;
       }
       try {
@@ -37,10 +39,10 @@ export const useInlineAdd = (): UseInlineAddReturn => {
         await createNiche({ name: trimmed }).unwrap();
         setIsActive(false);
       } catch {
-        setError('Failed to create niche');
+        setError(t('niches.notifications.createError'));
       }
     },
-    [createNiche],
+    [createNiche, t],
   );
 
   return { isActive, isCreating, error, activate, cancel, submit };

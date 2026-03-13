@@ -1,4 +1,6 @@
 import { useState, useCallback } from 'react';
+import { useSnackbar } from 'notistack';
+import { useTranslation } from 'react-i18next';
 import { useUpdateNicheMutation } from '../../../../store/nicheSlice';
 import type { NicheStatus, PotentialRating, NicheUpdateBody } from '../types';
 
@@ -18,11 +20,14 @@ export interface UseInlineEditReturn {
   saveStatus: (nicheId: string, value: NicheStatus) => Promise<void>;
   savePotentialRating: (nicheId: string, value: PotentialRating | null) => Promise<void>;
   saveAssignee: (nicheId: string, value: number | null) => Promise<void>;
+  saveFields: (nicheId: string, body: NicheUpdateBody) => Promise<void>;
 }
 
 export const useInlineEdit = (): UseInlineEditReturn => {
   const [activeCell, setActiveCell] = useState<ActiveCell | null>(null);
   const [updateNiche, { isLoading: isSaving }] = useUpdateNicheMutation();
+  const { enqueueSnackbar } = useSnackbar();
+  const { t } = useTranslation();
 
   const activateCell = useCallback((nicheId: string, column: EditableColumn) => {
     setActiveCell({ nicheId, column });
@@ -32,12 +37,29 @@ export const useInlineEdit = (): UseInlineEditReturn => {
     setActiveCell(null);
   }, []);
 
+  const extractError = (err: unknown): string => {
+    const e = err as { data?: Record<string, unknown> };
+    if (e?.data && typeof e.data === 'object') {
+      for (const key of Object.keys(e.data)) {
+        const val = e.data[key];
+        if (typeof val === 'string') return val;
+        if (Array.isArray(val) && typeof val[0] === 'string') return val[0];
+      }
+    }
+    return t('niches.notifications.updateError');
+  };
+
   const save = useCallback(
     async (nicheId: string, body: NicheUpdateBody) => {
-      await updateNiche({ id: nicheId, body }).unwrap();
-      setActiveCell(null);
+      try {
+        await updateNiche({ id: nicheId, body }).unwrap();
+        setActiveCell(null);
+      } catch (err) {
+        setActiveCell(null);
+        enqueueSnackbar(extractError(err), { variant: 'error' });
+      }
     },
-    [updateNiche],
+    [updateNiche, enqueueSnackbar, t],
   );
 
   const saveName = useCallback(
@@ -70,6 +92,13 @@ export const useInlineEdit = (): UseInlineEditReturn => {
     [save],
   );
 
+  const saveFields = useCallback(
+    async (nicheId: string, body: NicheUpdateBody) => {
+      await save(nicheId, body);
+    },
+    [save],
+  );
+
   return {
     activeCell,
     isSaving,
@@ -79,5 +108,6 @@ export const useInlineEdit = (): UseInlineEditReturn => {
     saveStatus,
     savePotentialRating,
     saveAssignee,
+    saveFields,
   };
 };

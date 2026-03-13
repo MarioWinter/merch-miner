@@ -197,6 +197,50 @@ describe('NicheDetailDrawer — edit mode', () => {
     expect(screen.getByRole('alert')).toBeInTheDocument();
   });
 
+  it('auto-sets potential_rating to good when status changes to niche_with_potential', async () => {
+    renderDrawer({ open: true, mode: 'edit', selectedId: 'niche-abc' });
+    await waitFor(() => screen.getByDisplayValue('Yoga Gifts'));
+
+    // Open the Status select (the first combobox after name/notes fields)
+    const statusSelect = screen.getByText('Data Entry');
+    await userEvent.click(statusSelect);
+
+    // Click the "Niche with Potential" menu item in the dropdown
+    const option = await screen.findByRole('option', { name: /niche with potential/i });
+    await userEvent.click(option);
+
+    // The potential_rating select should now show "Good" (auto-set)
+    await waitFor(() => expect(screen.getByText('Good')).toBeInTheDocument());
+  });
+
+  it('only sends dirty fields in PATCH request', async () => {
+    mockUpdateNiche.mockReturnValue({ unwrap: () => Promise.resolve(mockNiche) });
+    renderDrawer({ open: true, mode: 'edit', selectedId: 'niche-abc' });
+    await waitFor(() => screen.getByDisplayValue('Yoga Gifts'));
+
+    // Change ONLY the name field
+    const nameInput = screen.getByDisplayValue('Yoga Gifts');
+    await userEvent.clear(nameInput);
+    await userEvent.type(nameInput, 'Updated Niche Name');
+
+    // Submit the edit form
+    await userEvent.click(screen.getByRole('button', { name: /save changes/i }));
+
+    // Verify updateNiche was called with only the dirty field (name)
+    await waitFor(() =>
+      expect(mockUpdateNiche).toHaveBeenCalledWith({
+        id: 'niche-abc',
+        body: { name: 'Updated Niche Name' },
+      }),
+    );
+    // Ensure other fields were NOT included in the body
+    const callArgs = mockUpdateNiche.mock.calls[0][0];
+    expect(callArgs.body).not.toHaveProperty('status');
+    expect(callArgs.body).not.toHaveProperty('potential_rating');
+    expect(callArgs.body).not.toHaveProperty('assigned_to');
+    expect(callArgs.body).not.toHaveProperty('notes');
+  });
+
   it('opens unsaved-changes dialog when closing with dirty edit form', async () => {
     renderDrawer({ open: true, mode: 'edit', selectedId: 'niche-abc' });
     await waitFor(() => screen.getByDisplayValue('Yoga Gifts'));

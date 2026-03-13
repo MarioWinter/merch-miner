@@ -76,7 +76,13 @@ class NicheFilter:
         assigned_to = self.params.get('assigned_to')
         if not assigned_to:
             return queryset
-        return queryset.filter(assigned_to_id=assigned_to)
+        try:
+            assigned_to_int = int(assigned_to)
+        except (ValueError, TypeError):
+            raise ValidationError(
+                {'assigned_to': 'Must be a valid user ID (integer).'}
+            )
+        return queryset.filter(assigned_to_id=assigned_to_int)
 
     def _filter_search(self, queryset):
         search = self.params.get('search', '').strip()

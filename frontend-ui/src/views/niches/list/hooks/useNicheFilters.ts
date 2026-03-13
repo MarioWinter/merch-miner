@@ -169,7 +169,6 @@ export const useNicheFilters = (): UseNicheFiltersReturn => {
     filters.status_group,
     filters.potential_rating,
     filters.assigned_to,
-    filters.ordering,
   ].filter(Boolean).length;
 
   return {

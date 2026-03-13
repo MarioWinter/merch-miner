@@ -207,7 +207,18 @@ const StatusCell = ({ niche, inlineEdit, width }: StatusCellProps) => {
     <EditingCell sx={{ width: w }} onClick={(e) => e.stopPropagation()} aria-label={t('niches.table.colStatus')}>
       <Select
         value={niche.status}
-        onChange={(e) => void inlineEdit.saveStatus(niche.id, e.target.value as NicheStatus)}
+        onChange={(e) => {
+          const newStatus = e.target.value as NicheStatus;
+          if (
+            newStatus === 'niche_with_potential' &&
+            niche.potential_rating !== 'good' &&
+            niche.potential_rating !== 'very_good'
+          ) {
+            void inlineEdit.saveFields(niche.id, { status: newStatus, potential_rating: 'good' });
+          } else {
+            void inlineEdit.saveStatus(niche.id, newStatus);
+          }
+        }}
         size="small"
         fullWidth
         autoFocus
@@ -216,7 +227,9 @@ const StatusCell = ({ niche, inlineEdit, width }: StatusCellProps) => {
         sx={{ height: 32, fontSize: '0.875rem' }}
       >
         {NICHE_STATUSES.map((s) => (
-          <MenuItem key={s} value={s}>{t(`niches.status.${s}`)}</MenuItem>
+          <MenuItem key={s} value={s}>
+            {t(`niches.status.${s}`)}
+          </MenuItem>
         ))}
       </Select>
     </EditingCell>
@@ -355,7 +368,7 @@ export const NicheRow = ({
   const selected = isSelected(niche.id);
   const updatedAgo = dayjs(niche.updated_at).fromNow();
 
-  // Kept for compatibility — single-click on non-editable areas does not open drawer
+  // Single-click activates inline edit; double-click opens drawer
   void onRowClick;
 
   const handleCheckboxClick = (e: React.MouseEvent) => {

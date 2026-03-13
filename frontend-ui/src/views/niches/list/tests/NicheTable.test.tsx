@@ -51,6 +51,7 @@ const makeInlineEdit = (overrides?: Partial<UseInlineEditReturn>): UseInlineEdit
   saveStatus: vi.fn(),
   savePotentialRating: vi.fn(),
   saveAssignee: vi.fn(),
+  saveFields: vi.fn(),
   ...overrides,
 });
 
@@ -184,5 +185,57 @@ describe('NicheTable', () => {
 
     await userEvent.click(screen.getByText('Updated'));
     expect(onOrderingChange).toHaveBeenCalledWith('updated_at');
+  });
+
+  describe('StatusCell auto-sets potential_rating', () => {
+    it('calls saveFields with status + potential_rating when potential_rating is null', async () => {
+      const saveFields = vi.fn();
+      const saveStatus = vi.fn();
+      const inlineEdit = makeInlineEdit({
+        activeCell: { nicheId: 'niche-1', column: 'status' },
+        saveFields,
+        saveStatus,
+      });
+      const niche = buildNiche({ potential_rating: null, status: 'data_entry' });
+      renderWithProviders(
+        <NicheTable {...defaultProps} niches={[niche]} inlineEdit={inlineEdit} />,
+      );
+
+      // The status cell is active — a Select is rendered with current value
+      const select = screen.getByRole('combobox');
+      await userEvent.click(select);
+
+      const option = await screen.findByRole('option', { name: /niche with potential/i });
+      await userEvent.click(option);
+
+      expect(saveFields).toHaveBeenCalledWith('niche-1', {
+        status: 'niche_with_potential',
+        potential_rating: 'good',
+      });
+      expect(saveStatus).not.toHaveBeenCalled();
+    });
+
+    it('calls saveStatus (not saveFields) when potential_rating is already good', async () => {
+      const saveFields = vi.fn();
+      const saveStatus = vi.fn();
+      const inlineEdit = makeInlineEdit({
+        activeCell: { nicheId: 'niche-1', column: 'status' },
+        saveFields,
+        saveStatus,
+      });
+      const niche = buildNiche({ potential_rating: 'good', status: 'data_entry' });
+      renderWithProviders(
+        <NicheTable {...defaultProps} niches={[niche]} inlineEdit={inlineEdit} />,
+      );
+
+      const select = screen.getByRole('combobox');
+      await userEvent.click(select);
+
+      const option = await screen.findByRole('option', { name: /niche with potential/i });
+      await userEvent.click(option);
+
+      expect(saveStatus).toHaveBeenCalledWith('niche-1', 'niche_with_potential');
+      expect(saveFields).not.toHaveBeenCalled();
+    });
   });
 });

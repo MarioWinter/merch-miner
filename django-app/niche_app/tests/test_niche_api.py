@@ -15,6 +15,7 @@ Covers:
   - DELETE soft-delete
   - POST /api/niches/bulk/ archive + empty ids + member 403
   - Response includes idea_count, approved_idea_count
+  - assigned_to filter integer validation (rejects non-int, accepts valid int)
 """
 
 import pytest
@@ -446,3 +447,34 @@ def test_response_includes_idea_counts():
     # No ideas linked yet -> both 0
     assert result["idea_count"] == 0
     assert result["approved_idea_count"] == 0
+
+
+# ---------------------------------------------------------------------------
+# 18. ?assigned_to=not-a-number -> 400 (integer validation)
+# ---------------------------------------------------------------------------
+
+@pytest.mark.django_db
+def test_filter_assigned_to_non_integer_400():
+    admin, ws, _ = make_workspace_with_admin("assignfilter@test.com")
+    create_niche(ws, admin, name="Test")
+
+    client = auth_client(admin, ws)
+    response = client.get(LIST_URL, {"assigned_to": "not-a-number"})
+    assert response.status_code == 400
+    assert response.json()["assigned_to"] == "Must be a valid user ID (integer)."
+
+
+# ---------------------------------------------------------------------------
+# 19. ?assigned_to=<valid_int> -> 200
+# ---------------------------------------------------------------------------
+
+@pytest.mark.django_db
+def test_filter_assigned_to_valid_integer_200():
+    admin, ws, _ = make_workspace_with_admin("assignvalid@test.com")
+    create_niche(ws, admin, name="Assigned", assigned_to=admin)
+
+    client = auth_client(admin, ws)
+    response = client.get(LIST_URL, {"assigned_to": str(admin.id)})
+    assert response.status_code == 200
+    names = [n["name"] for n in response.json()["results"]]
+    assert "Assigned" in names
