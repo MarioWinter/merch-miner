@@ -48,6 +48,9 @@ urlpatterns = [
 
     # Workspace API
     path('api/', include('workspace_app.api.urls')),
+
+    # Niche API
+    path('api/', include('niche_app.api.urls')),
 ]
 
 if settings.DEBUG:

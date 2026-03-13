@@ -1,18 +1,29 @@
+from django.contrib.auth import get_user_model
 from django.db.models import Count, Q, Value
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from rest_framework.viewsets import ModelViewSet
 
 from user_auth_app.api.authentication import CookieJWTAuthentication
 from workspace_app.models import Membership
 from niche_app.models import Niche
 from niche_app.api.filters import NicheFilter
-from niche_app.api.serializers import NicheSerializer, NicheCreateSerializer
+from niche_app.api.permissions import IsWorkspaceMember, IsNicheOwnerOrAdmin
+from niche_app.api.serializers import (
+    NicheSerializer,
+    NicheCreateSerializer,
+    NicheBulkSerializer,
+)
 
+User = get_user_model()
 
-VALID_ORDERING_FIELDS = ['name', '-name', 'created_at', '-created_at', 'updated_at', '-updated_at', 'position', '-position']
+VALID_ORDERING_FIELDS = [
+    'name', '-name', 'created_at', '-created_at',
+    'updated_at', '-updated_at', 'position', '-position',
+]
 
 
 class NichePagination(PageNumberPagination):
@@ -50,7 +61,7 @@ class NicheViewSet(ModelViewSet):
     """
 
     authentication_classes = [CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsAuthenticated, IsWorkspaceMember, IsNicheOwnerOrAdmin]
     pagination_class = NichePagination
     http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
 
@@ -61,12 +72,18 @@ class NicheViewSet(ModelViewSet):
             return _get_membership_for_workspace(self.request.user, workspace_id)
         return _get_active_membership(self.request.user)
 
-    def get_queryset(self):
+    def initial(self, request, *args, **kwargs):
+        """Resolve membership early so permission classes can access it."""
         membership = self._resolve_membership()
+        if membership:
+            self._membership = membership
+        super().initial(request, *args, **kwargs)
+
+    def get_queryset(self):
+        membership = getattr(self, '_membership', None)
         if not membership:
             return Niche.objects.none()
 
-        self._membership = membership
         workspace = membership.workspace
 
         queryset = (
@@ -75,7 +92,7 @@ class NicheViewSet(ModelViewSet):
             .select_related('assigned_to', 'created_by')
         )
 
-        # Annotate idea counts — relation added by PROJ-8 Idea model
+        # Annotate idea counts -- relation added by PROJ-8 Idea model
         # Until then, annotate with 0 to keep serializer fields consistent
         related_names = [f.get_accessor_name() for f in Niche._meta.get_fields() if f.one_to_many]
         if 'ideas' in related_names:
@@ -132,55 +149,7 @@ class NicheViewSet(ModelViewSet):
             context['membership'] = membership
         return context
 
-    def list(self, request, *args, **kwargs):
-        membership = self._resolve_membership()
-        if not membership:
-            return Response(
-                {'error': 'No active workspace membership.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        return super().list(request, *args, **kwargs)
-
-    def create(self, request, *args, **kwargs):
-        membership = self._resolve_membership()
-        if not membership:
-            return Response(
-                {'error': 'No active workspace membership.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        self._membership = membership
-        return super().create(request, *args, **kwargs)
-
-    def retrieve(self, request, *args, **kwargs):
-        membership = self._resolve_membership()
-        if not membership:
-            return Response(
-                {'error': 'No active workspace membership.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        return super().retrieve(request, *args, **kwargs)
-
     def update(self, request, *args, **kwargs):
-        membership = self._resolve_membership()
-        if not membership:
-            return Response(
-                {'error': 'No active workspace membership.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        self._membership = membership
-
-        # Permission check: admin can update any; member only own/assigned
-        instance = self.get_object()
-        if membership.role != Membership.Role.ADMIN:
-            if (
-                instance.assigned_to_id != request.user.id
-                and instance.created_by_id != request.user.id
-            ):
-                return Response(
-                    {'error': 'You can only update niches assigned to or created by you.'},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-
         kwargs['partial'] = True
         return super().update(request, *args, **kwargs)
 
@@ -188,27 +157,7 @@ class NicheViewSet(ModelViewSet):
         return self.update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
-        membership = self._resolve_membership()
-        if not membership:
-            return Response(
-                {'error': 'No active workspace membership.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-        self._membership = membership
-
         instance = self.get_object()
-
-        # Permission check: admin can delete any; member only own/assigned
-        if membership.role != Membership.Role.ADMIN:
-            if (
-                instance.assigned_to_id != request.user.id
-                and instance.created_by_id != request.user.id
-            ):
-                return Response(
-                    {'error': 'You can only archive niches assigned to or created by you.'},
-                    status=status.HTTP_403_FORBIDDEN,
-                )
-
         # Soft delete: set status=archived instead of deleting
         instance.status = Niche.Status.ARCHIVED
         instance.save(update_fields=['status', 'updated_at'])
@@ -216,3 +165,69 @@ class NicheViewSet(ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save()
+
+
+class NicheBulkActionView(APIView):
+    """
+    POST /api/niches/bulk/
+    Admin-only bulk actions: archive, assign.
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def _resolve_membership(self, request):
+        workspace_id = request.headers.get('X-Workspace-Id')
+        if workspace_id:
+            return _get_membership_for_workspace(request.user, workspace_id)
+        return _get_active_membership(request.user)
+
+    def post(self, request):
+        membership = self._resolve_membership(request)
+        if not membership:
+            return Response(
+                {'error': 'No active workspace membership.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Admin only
+        if membership.role != Membership.Role.ADMIN:
+            return Response(
+                {'error': 'Only admins can perform bulk actions.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = NicheBulkSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        action = serializer.validated_data['action']
+        ids = serializer.validated_data['ids']
+        workspace = membership.workspace
+
+        # Filter IDs by workspace (silently skip cross-workspace IDs)
+        niches = Niche.objects.filter(id__in=ids, workspace=workspace)
+
+        if action == 'archive':
+            updated = niches.update(status=Niche.Status.ARCHIVED)
+            return Response({'updated': updated}, status=status.HTTP_200_OK)
+
+        if action == 'assign':
+            assigned_to_id = serializer.validated_data['assigned_to']
+            # Validate assignee is workspace member
+            is_member = Membership.objects.filter(
+                workspace=workspace,
+                user_id=assigned_to_id,
+                status=Membership.Status.ACTIVE,
+            ).exists()
+            if not is_member:
+                return Response(
+                    {'error': 'Assignee is not an active member of this workspace.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            updated = niches.update(assigned_to_id=assigned_to_id)
+            return Response({'updated': updated}, status=status.HTTP_200_OK)
+
+        return Response(
+            {'error': 'Unknown action.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )

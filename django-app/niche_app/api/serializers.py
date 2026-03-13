@@ -98,6 +98,25 @@ class NicheSerializer(serializers.ModelSerializer):
         return attrs
 
 
+class NicheBulkSerializer(serializers.Serializer):
+    BULK_ACTIONS = ('archive', 'assign')
+
+    ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        min_length=1,
+        allow_empty=False,
+    )
+    action = serializers.ChoiceField(choices=BULK_ACTIONS)
+    assigned_to = serializers.UUIDField(required=False, allow_null=True)
+
+    def validate(self, attrs):
+        if attrs['action'] == 'assign' and not attrs.get('assigned_to'):
+            raise serializers.ValidationError(
+                {'assigned_to': 'This field is required when action is assign.'}
+            )
+        return attrs
+
+
 class NicheCreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Niche

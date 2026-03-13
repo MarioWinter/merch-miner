@@ -69,17 +69,17 @@
 
 ### 8. Permissions
 
-- [ ] Custom permission: Admin can PATCH/DELETE any niche in workspace
-- [ ] Member can only PATCH/DELETE niches where `assigned_to == request.user` OR `created_by == request.user`; otherwise 403
-- [ ] Non-members receive 403 on all endpoints
+- [x] Custom permission: Admin can PATCH/DELETE any niche in workspace
+- [x] Member can only PATCH/DELETE niches where `assigned_to == request.user` OR `created_by == request.user`; otherwise 403
+- [x] Non-members receive 403 on all endpoints
 
 ### 9. Bulk Endpoint
 
-- [ ] `NicheBulkSerializer`: `ids` (list of UUIDs, min 1), `action` [archive|assign], `assigned_to` (UUID, required if action=assign)
-- [ ] `POST /api/niches/bulk/` view: Admin only; filter IDs by workspace (silently skip cross-workspace IDs)
-- [ ] `action=archive`: bulk set `status=archived`; return `{ "updated": N }`
-- [ ] `action=assign`: bulk set `assigned_to`; validate assignee is workspace member; return `{ "updated": N }`
-- [ ] Empty `ids` → 400; `action=assign` without `assigned_to` → 400
+- [x] `NicheBulkSerializer`: `ids` (list of UUIDs, min 1), `action` [archive|assign], `assigned_to` (UUID, required if action=assign)
+- [x] `POST /api/niches/bulk/` view: Admin only; filter IDs by workspace (silently skip cross-workspace IDs)
+- [x] `action=archive`: bulk set `status=archived`; return `{ "updated": N }`
+- [x] `action=assign`: bulk set `assigned_to`; validate assignee is workspace member; return `{ "updated": N }`
+- [x] Empty `ids` → 400; `action=assign` without `assigned_to` → 400
 
 ### 10. URL Routing
 
