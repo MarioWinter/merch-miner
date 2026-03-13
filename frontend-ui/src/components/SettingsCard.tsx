@@ -7,8 +7,8 @@ import { COLORS } from '../style/constants';
  * Provides consistent background, border, border-radius, and padding.
  */
 export const SettingsCard = styled(Box)(({ theme }) => ({
-  backgroundColor: theme.palette.background.paper,
-  border: `1px solid ${theme.palette.divider}`,
+  backgroundColor: theme.vars.palette.background.paper,
+  border: `1px solid ${theme.vars.palette.divider}`,
   borderRadius: 12,
   padding: theme.spacing(2.5, 3),
   ...theme.applyStyles('dark', {

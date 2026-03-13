@@ -47,13 +47,13 @@ const SearchInput = styled(TextField)({
 });
 
 const ClearButton = styled(Button)(({ theme }) => ({
-  color: theme.vars?.palette?.text?.secondary ?? '#7BAAB8',
+  color: theme.vars.palette.text.secondary,
   fontSize: '0.8125rem',
   fontWeight: 500,
   padding: `${theme.spacing(0.5)} ${theme.spacing(1.5)}`,
   minWidth: 'auto',
   '&:hover': {
-    color: theme.vars?.palette?.text?.primary ?? '#E8F4F8',
+    color: theme.vars.palette.text.primary,
     backgroundColor: 'rgba(255,255,255,0.04)',
   },
 }));

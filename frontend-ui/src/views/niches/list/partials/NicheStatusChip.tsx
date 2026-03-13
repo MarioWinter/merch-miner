@@ -34,22 +34,22 @@ const StyledStatusChip = styled(Chip, {
   const variantStyles: Record<ChipVariant, object> = {
     todo: {
       backgroundColor: `rgba(56, 189, 248, 0.10)`,
-      color: theme.vars?.palette?.info?.main ?? '#38BDF8',
+      color: theme.vars.palette.info.main,
       borderColor: `rgba(56, 189, 248, 0.20)`,
     },
     inProgress: {
       backgroundColor: `rgba(245, 158, 11, 0.12)`,
-      color: theme.vars?.palette?.warning?.main ?? '#F59E0B',
+      color: theme.vars.palette.warning.main,
       borderColor: `rgba(245, 158, 11, 0.25)`,
     },
     complete: {
       backgroundColor: `rgba(34, 211, 163, 0.12)`,
-      color: theme.vars?.palette?.success?.main ?? '#22D3A3',
+      color: theme.vars.palette.success.main,
       borderColor: `rgba(34, 211, 163, 0.25)`,
     },
     system: {
       backgroundColor: `rgba(123, 170, 184, 0.10)`,
-      color: theme.vars?.palette?.text?.secondary ?? '#7BAAB8',
+      color: theme.vars.palette.text.secondary,
       borderColor: `rgba(123, 170, 184, 0.20)`,
     },
   };

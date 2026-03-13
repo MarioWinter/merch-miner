@@ -82,7 +82,7 @@ const IdeasText = styled(Typography)({
 });
 
 const DestructiveMenuItem = styled(MenuItem)(({ theme }) => ({
-  color: theme.vars?.palette?.error?.main ?? '#F43F3A',
+  color: theme.vars.palette.error.main,
   gap: theme.spacing(1),
   '&:hover': {
     backgroundColor: 'rgba(244,63,58,0.08)',
