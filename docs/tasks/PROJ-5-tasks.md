@@ -149,25 +149,25 @@
 
 ### 18. useNicheSelection Hook
 
-- [ ] `views/niches/list/hooks/useNicheSelection.ts`
-- [ ] State: `selectedIds` (Set\<string\>)
-- [ ] `toggleOne(id)`, `toggleAll(ids)`, `clearSelection()` actions
-- [ ] `isSelected(id)`, `selectedCount` derived values
+- [x] `views/niches/list/hooks/useNicheSelection.ts`
+- [x] State: `selectedIds` (Set\<string\>)
+- [x] `toggleOne(id)`, `toggleAll(ids)`, `clearSelection()` actions
+- [x] `isSelected(id)`, `selectedCount` derived values
 
 ### 19. NicheStatusChip Component
 
-- [ ] `views/niches/list/partials/NicheStatusChip.tsx`
-- [ ] Maps each `NicheStatus` to design system Stage Pipeline Chip colors (§8.5)
-- [ ] `data_entry` / `deep_research` / `niche_with_potential` → To-Do group style
-- [ ] `to_designer` / `upload` / `start_ads` → In Progress group style
-- [ ] `pending` / `winner` / `loser` / `archived` → Complete/system group style
-- [ ] Shows status display label (not DB value)
+- [x] `views/niches/list/partials/NicheStatusChip.tsx`
+- [x] Maps each `NicheStatus` to design system Stage Pipeline Chip colors (§8.5)
+- [x] `data_entry` / `deep_research` / `niche_with_potential` → To-Do group style
+- [x] `to_designer` / `upload` / `start_ads` → In Progress group style
+- [x] `pending` / `winner` / `loser` / `archived` → Complete/system group style
+- [x] Shows status display label (not DB value)
 
 ### 20. PotentialRatingChip Component
 
-- [ ] `views/niches/list/partials/PotentialRatingChip.tsx`
-- [ ] `good` → success style ("Gut"); `very_good` → primary style ("Sehr gut"); `rejected` → error style ("Rejected")
-- [ ] Renders nothing if `potential_rating` is null
+- [x] `views/niches/list/partials/PotentialRatingChip.tsx`
+- [x] `good` → success style ("Gut"); `very_good` → primary style ("Sehr gut"); `rejected` → error style ("Rejected")
+- [x] Renders nothing if `potential_rating` is null
 
 ### 21. NicheFilterToolbar Component
 
