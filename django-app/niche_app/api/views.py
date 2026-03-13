@@ -9,13 +9,14 @@ from rest_framework.viewsets import ModelViewSet
 
 from user_auth_app.api.authentication import CookieJWTAuthentication
 from workspace_app.models import Membership
-from niche_app.models import Niche
+from niche_app.models import Niche, NicheFilterTemplate
 from niche_app.api.filters import NicheFilter
 from niche_app.api.permissions import IsWorkspaceMember, IsNicheOwnerOrAdmin
 from niche_app.api.serializers import (
     NicheSerializer,
     NicheCreateSerializer,
     NicheBulkSerializer,
+    NicheFilterTemplateSerializer,
 )
 
 User = get_user_model()
@@ -150,8 +151,14 @@ class NicheViewSet(ModelViewSet):
         return context
 
     def update(self, request, *args, **kwargs):
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.warning('PATCH body: %s', request.data)
         kwargs['partial'] = True
-        return super().update(request, *args, **kwargs)
+        response = super().update(request, *args, **kwargs)
+        if response.status_code >= 400:
+            logger.warning('PATCH error response: %s', response.data)
+        return response
 
     def partial_update(self, request, *args, **kwargs):
         return self.update(request, *args, **kwargs)
@@ -231,3 +238,25 @@ class NicheBulkActionView(APIView):
             {'error': 'Unknown action.'},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+
+class NicheFilterTemplatePagination(PageNumberPagination):
+    page_size = 50
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
+class NicheFilterTemplateViewSet(ModelViewSet):
+    """CRUD for per-user saved filter templates."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    serializer_class = NicheFilterTemplateSerializer
+    pagination_class = NicheFilterTemplatePagination
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+
+    def get_queryset(self):
+        return NicheFilterTemplate.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)

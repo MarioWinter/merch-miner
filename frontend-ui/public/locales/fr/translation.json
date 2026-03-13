@@ -143,8 +143,8 @@
       "complete": "Terminé"
     },
     "potentialRating": {
-      "good": "Gut",
-      "very_good": "Sehr gut",
+      "good": "Bon",
+      "very_good": "Très bon",
       "rejected": "Rejeté",
       "none": "Aucune note"
     },
@@ -236,6 +236,26 @@
       "createError": "Échec de la création de la niche",
       "updateError": "Échec de la mise à jour de la niche",
       "archiveError": "Échec de l'archivage de la niche"
+    },
+    "inlineAdd": {
+      "addNiche": "+ Ajouter une niche…",
+      "placeholder": "Nom de la niche…"
+    },
+    "filterTemplates": {
+      "button": "Modèles de filtres",
+      "loading": "Chargement…",
+      "empty": "Aucun modèle enregistré",
+      "saveFilters": "Enregistrer les filtres actuels…",
+      "updateCurrent": "Mettre à jour le modèle actuel",
+      "namePlaceholder": "Nom du modèle…",
+      "save": "Enregistrer",
+      "delete": "Supprimer le modèle",
+      "saveSuccess": "Modèle de filtre enregistré",
+      "saveError": "Échec de l'enregistrement du modèle",
+      "updateSuccess": "Modèle mis à jour",
+      "updateError": "Échec de la mise à jour du modèle",
+      "deleteSuccess": "Modèle supprimé",
+      "deleteError": "Échec de la suppression du modèle"
     }
   },
   "settings": {

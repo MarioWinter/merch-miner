@@ -143,8 +143,8 @@
       "complete": "Completato"
     },
     "potentialRating": {
-      "good": "Gut",
-      "very_good": "Sehr gut",
+      "good": "Buono",
+      "very_good": "Molto buono",
       "rejected": "Rifiutato",
       "none": "Nessuna valutazione"
     },
@@ -236,6 +236,26 @@
       "createError": "Impossibile creare la nicchia",
       "updateError": "Impossibile aggiornare la nicchia",
       "archiveError": "Impossibile archiviare la nicchia"
+    },
+    "inlineAdd": {
+      "addNiche": "+ Aggiungi nicchia…",
+      "placeholder": "Nome della nicchia…"
+    },
+    "filterTemplates": {
+      "button": "Modelli di filtri",
+      "loading": "Caricamento…",
+      "empty": "Nessun modello salvato",
+      "saveFilters": "Salva filtri correnti…",
+      "updateCurrent": "Aggiorna modello corrente",
+      "namePlaceholder": "Nome del modello…",
+      "save": "Salva",
+      "delete": "Elimina modello",
+      "saveSuccess": "Modello di filtro salvato",
+      "saveError": "Impossibile salvare il modello",
+      "updateSuccess": "Modello aggiornato",
+      "updateError": "Impossibile aggiornare il modello",
+      "deleteSuccess": "Modello eliminato",
+      "deleteError": "Impossibile eliminare il modello"
     }
   },
   "settings": {

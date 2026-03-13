@@ -143,8 +143,8 @@
       "complete": "Complete"
     },
     "potentialRating": {
-      "good": "Gut",
-      "very_good": "Sehr gut",
+      "good": "Good",
+      "very_good": "Very Good",
       "rejected": "Rejected",
       "none": "No rating"
     },
@@ -236,6 +236,26 @@
       "createError": "Failed to create niche",
       "updateError": "Failed to update niche",
       "archiveError": "Failed to archive niche"
+    },
+    "inlineAdd": {
+      "addNiche": "+ Add niche…",
+      "placeholder": "Niche name…"
+    },
+    "filterTemplates": {
+      "button": "Filter Templates",
+      "loading": "Loading…",
+      "empty": "No saved templates",
+      "saveFilters": "Save current filters…",
+      "updateCurrent": "Update current template",
+      "namePlaceholder": "Template name…",
+      "save": "Save",
+      "delete": "Delete template",
+      "saveSuccess": "Filter template saved",
+      "saveError": "Failed to save template",
+      "updateSuccess": "Template updated",
+      "updateError": "Failed to update template",
+      "deleteSuccess": "Template deleted",
+      "deleteError": "Failed to delete template"
     }
   },
   "settings": {

@@ -236,6 +236,26 @@
       "createError": "Nische konnte nicht erstellt werden",
       "updateError": "Nische konnte nicht aktualisiert werden",
       "archiveError": "Nische konnte nicht archiviert werden"
+    },
+    "inlineAdd": {
+      "addNiche": "+ Nische hinzufügen…",
+      "placeholder": "Nischenname…"
+    },
+    "filterTemplates": {
+      "button": "Filter-Vorlagen",
+      "loading": "Lädt…",
+      "empty": "Keine gespeicherten Vorlagen",
+      "saveFilters": "Aktuelle Filter speichern…",
+      "updateCurrent": "Aktuelle Vorlage aktualisieren",
+      "namePlaceholder": "Vorlagenname…",
+      "save": "Speichern",
+      "delete": "Vorlage löschen",
+      "saveSuccess": "Filter-Vorlage gespeichert",
+      "saveError": "Vorlage konnte nicht gespeichert werden",
+      "updateSuccess": "Vorlage aktualisiert",
+      "updateError": "Vorlage konnte nicht aktualisiert werden",
+      "deleteSuccess": "Vorlage gelöscht",
+      "deleteError": "Vorlage konnte nicht gelöscht werden"
     }
   },
   "settings": {

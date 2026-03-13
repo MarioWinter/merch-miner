@@ -227,12 +227,12 @@
 
 ### 26. NicheListView (Main Container)
 
-- [ ] `views/niches/list/NicheListView.tsx`
-- [ ] PageHeader: `h1` "Niche Claims" + [+ New Niche] Primary button (right-aligned)
-- [ ] Wire `useNicheFilters`, `useNicheDrawer`, `useNicheSelection` hooks
-- [ ] Pass filter params to `useListNichesQuery()`; show loading / error / empty states
-- [ ] Pagination: MUI `Pagination` component, synced to `?page=` URL param
-- [ ] Add route `/niches` in `App.tsx` (already in sidebar navConfig)
+- [x] `views/niches/list/NicheListView.tsx`
+- [x] PageHeader: `h1` "Niche Claims" + [+ New Niche] Primary button (right-aligned)
+- [x] Wire `useNicheFilters`, `useNicheDrawer`, `useNicheSelection` hooks
+- [x] Pass filter params to `useListNichesQuery()`; show loading / error / empty states
+- [x] Pagination: MUI `Pagination` component, synced to `?page=` URL param
+- [x] Add route `/niches` in `App.tsx` (already in sidebar navConfig)
 
 ### 27. i18n — Translation Files
 
@@ -240,18 +240,18 @@ All 5 locale JSON files at `frontend-ui/public/locales/{lang}/translation.json` 
 
 **Sub-sections (all 5 languages: EN · DE · FR · ES · IT):**
 
-- [ ] `niches.status.*` — all 10 status display labels (data_entry → archived)
-- [ ] `niches.statusGroup.*` — all/todo/in_progress/complete
-- [ ] `niches.potentialRating.*` — good ("Gut") / very_good ("Sehr gut") / rejected / none
+- [x] `niches.status.*` — all 10 status display labels (data_entry → archived)
+- [x] `niches.statusGroup.*` — all/todo/in_progress/complete
+- [x] `niches.potentialRating.*` — good ("Gut") / very_good ("Sehr gut") / rejected / none
   - Note: `good` and `very_good` display values intentionally kept as German domain terms across ALL locales
-- [ ] `niches.researchStatus.*` — pending / running / done
-- [ ] `niches.filter.*` — search placeholder, all dropdown labels, ordering options, `activeFilters_one` + `activeFilters_other` (plural forms)
-- [ ] `niches.table.*` — all column headers + unassigned label
-- [ ] `niches.drawer.*` — create/edit titles, all field labels + placeholders, action buttons, confirmation dialogs, unsaved-changes dialog
-- [ ] `niches.empty.*` — no niches + no results states (title + hint)
-- [ ] `niches.bulk.*` — selected count (`selected_one` + `selected_other`), action labels, confirmation dialogs, success messages
-- [ ] `niches.validation.*` — all 6 validation error messages
-- [ ] `niches.notifications.*` — createSuccess/Error, updateSuccess/Error, archiveSuccess/Error
+- [x] `niches.researchStatus.*` — pending / running / done
+- [x] `niches.filter.*` — search placeholder, all dropdown labels, ordering options, `activeFilters_one` + `activeFilters_other` (plural forms)
+- [x] `niches.table.*` — all column headers + unassigned label
+- [x] `niches.drawer.*` — create/edit titles, all field labels + placeholders, action buttons, confirmation dialogs, unsaved-changes dialog
+- [x] `niches.empty.*` — no niches + no results states (title + hint)
+- [x] `niches.bulk.*` — selected count (`selected_one` + `selected_other`), action labels, confirmation dialogs, success messages
+- [x] `niches.validation.*` — all 6 validation error messages
+- [x] `niches.notifications.*` — createSuccess/Error, updateSuccess/Error, archiveSuccess/Error
 
 **Key paths used in components (reference):**
 ```

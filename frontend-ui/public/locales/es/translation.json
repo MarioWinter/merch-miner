@@ -143,8 +143,8 @@
       "complete": "Completado"
     },
     "potentialRating": {
-      "good": "Gut",
-      "very_good": "Sehr gut",
+      "good": "Bueno",
+      "very_good": "Muy bueno",
       "rejected": "Rechazado",
       "none": "Sin calificación"
     },
@@ -236,6 +236,26 @@
       "createError": "No se pudo crear el nicho",
       "updateError": "No se pudo actualizar el nicho",
       "archiveError": "No se pudo archivar el nicho"
+    },
+    "inlineAdd": {
+      "addNiche": "+ Añadir nicho…",
+      "placeholder": "Nombre del nicho…"
+    },
+    "filterTemplates": {
+      "button": "Plantillas de filtros",
+      "loading": "Cargando…",
+      "empty": "No hay plantillas guardadas",
+      "saveFilters": "Guardar filtros actuales…",
+      "updateCurrent": "Actualizar plantilla actual",
+      "namePlaceholder": "Nombre de la plantilla…",
+      "save": "Guardar",
+      "delete": "Eliminar plantilla",
+      "saveSuccess": "Plantilla de filtro guardada",
+      "saveError": "No se pudo guardar la plantilla",
+      "updateSuccess": "Plantilla actualizada",
+      "updateError": "No se pudo actualizar la plantilla",
+      "deleteSuccess": "Plantilla eliminada",
+      "deleteError": "No se pudo eliminar la plantilla"
     }
   },
   "settings": {

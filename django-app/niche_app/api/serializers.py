@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 
-from niche_app.models import Niche
+from niche_app.models import Niche, NicheFilterTemplate
 from workspace_app.api.serializers import WorkspaceMemberSerializer
 from workspace_app.models import Membership
 
@@ -78,22 +78,31 @@ class NicheSerializer(serializers.ModelSerializer):
             if status is None and 'status' not in attrs:
                 status = self.instance.status
 
-        if status == Niche.Status.NICHE_WITH_POTENTIAL:
-            if potential_rating not in (
+        # When setting status to niche_with_potential without a
+        # compatible rating, auto-set rating to 'good'
+        if (
+            'status' in attrs
+            and status == Niche.Status.NICHE_WITH_POTENTIAL
+            and potential_rating not in (
                 Niche.PotentialRating.GOOD,
                 Niche.PotentialRating.VERY_GOOD,
-            ):
-                raise serializers.ValidationError(
-                    'Set potential rating to Gut oder Sehr gut first.'
-                )
-
-        if (
-            potential_rating == Niche.PotentialRating.REJECTED
-            and status == Niche.Status.NICHE_WITH_POTENTIAL
-        ):
-            raise serializers.ValidationError(
-                'Niche rated Rejected cannot advance to Niche with Potential.'
             )
+        ):
+            attrs['potential_rating'] = Niche.PotentialRating.GOOD
+
+        # When changing rating to incompatible value while status is
+        # niche_with_potential, auto-downgrade status to deep_research
+        if (
+            'potential_rating' in attrs
+            and 'status' not in attrs
+            and self.instance
+            and self.instance.status == Niche.Status.NICHE_WITH_POTENTIAL
+            and potential_rating not in (
+                Niche.PotentialRating.GOOD,
+                Niche.PotentialRating.VERY_GOOD,
+            )
+        ):
+            attrs['status'] = Niche.Status.DEEP_RESEARCH
 
         return attrs
 
@@ -115,6 +124,18 @@ class NicheBulkSerializer(serializers.Serializer):
                 {'assigned_to': 'This field is required when action is assign.'}
             )
         return attrs
+
+
+class NicheFilterTemplateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = NicheFilterTemplate
+        fields = ('id', 'user', 'name', 'filters', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'user', 'created_at', 'updated_at')
+
+    def validate_filters(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError('Filters must be a JSON object.')
+        return value
 
 
 class NicheCreateSerializer(serializers.ModelSerializer):

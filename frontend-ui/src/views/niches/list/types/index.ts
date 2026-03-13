@@ -75,3 +75,11 @@ export interface NicheBulkPayload {
 export interface NicheBulkResponse {
   updated: number;
 }
+
+export interface FilterTemplate {
+  id: string;
+  name: string;
+  filters: Partial<import('../hooks/useNicheFilters').NicheFilters>;
+  created_at: string;
+  updated_at: string;
+}

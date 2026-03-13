@@ -8,12 +8,14 @@ import type {
   NicheUpdateBody,
   NicheBulkPayload,
   NicheBulkResponse,
+  FilterTemplate,
 } from '../views/niches/list/types';
+import type { NicheFilters } from '../views/niches/list/hooks/useNicheFilters';
 
 export const nicheApi = createApi({
   reducerPath: 'nicheApi',
   baseQuery: axiosBaseQuery({ baseUrl: '' }),
-  tagTypes: ['Niche', 'NicheList'],
+  tagTypes: ['Niche', 'NicheList', 'FilterTemplate'],
   endpoints: (builder) => ({
     listNiches: builder.query<NicheListResponse, NicheListParams>({
       query: (params) => ({
@@ -81,6 +83,43 @@ export const nicheApi = createApi({
       }),
       invalidatesTags: [{ type: 'NicheList', id: 'LIST' }],
     }),
+
+    listFilterTemplates: builder.query<FilterTemplate[], void>({
+      query: () => ({
+        url: '/api/niches/filter-templates/',
+        method: 'GET',
+        params: { page_size: 100 },
+      }),
+      transformResponse: (response: { results: FilterTemplate[] } | FilterTemplate[]) =>
+        Array.isArray(response) ? response : (response.results ?? []),
+      providesTags: [{ type: 'FilterTemplate', id: 'LIST' }],
+    }),
+
+    createFilterTemplate: builder.mutation<FilterTemplate, { name: string; filters: Partial<NicheFilters> }>({
+      query: (body) => ({
+        url: '/api/niches/filter-templates/',
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: [{ type: 'FilterTemplate', id: 'LIST' }],
+    }),
+
+    updateFilterTemplate: builder.mutation<FilterTemplate, { id: string; name?: string; filters?: Partial<NicheFilters> }>({
+      query: ({ id, ...body }) => ({
+        url: `/api/niches/filter-templates/${id}/`,
+        method: 'PATCH',
+        data: body,
+      }),
+      invalidatesTags: [{ type: 'FilterTemplate', id: 'LIST' }],
+    }),
+
+    deleteFilterTemplate: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/api/niches/filter-templates/${id}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: [{ type: 'FilterTemplate', id: 'LIST' }],
+    }),
   }),
 });
 
@@ -91,4 +130,8 @@ export const {
   useUpdateNicheMutation,
   useDeleteNicheMutation,
   useBulkNicheActionMutation,
+  useListFilterTemplatesQuery,
+  useCreateFilterTemplateMutation,
+  useUpdateFilterTemplateMutation,
+  useDeleteFilterTemplateMutation,
 } = nicheApi;

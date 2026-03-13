@@ -10,6 +10,7 @@ import type { RootState } from '../../../../store';
 import type { UseNicheFiltersReturn } from '../hooks/useNicheFilters';
 import type { NicheStatus, PotentialRating } from '../types';
 import type { StatusGroup, NicheOrdering } from '../hooks/useNicheFilters';
+import { FilterTemplateDropdown } from './FilterTemplateDropdown';
 
 interface NicheFilterToolbarProps {
   filterState: UseNicheFiltersReturn;
@@ -140,6 +141,8 @@ export const NicheFilterToolbar = ({ filterState }: NicheFilterToolbarProps) => 
 
   return (
     <ToolbarRoot role="search" aria-label={t('niches.filter.search')}>
+      <FilterTemplateDropdown filterState={filterState} />
+
       <SearchInput
         size="small"
         placeholder={t('niches.filter.search')}

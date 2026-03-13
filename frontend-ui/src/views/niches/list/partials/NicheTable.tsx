@@ -1,13 +1,12 @@
 import { useState } from 'react';
 import {
-  Box,
+  Button,
   Checkbox,
   Dialog,
   DialogActions,
   DialogContent,
   DialogContentText,
   DialogTitle,
-  IconButton,
   Menu,
   MenuItem,
   Table,
@@ -16,20 +15,19 @@ import {
   TableHead,
   TableRow,
   TableSortLabel,
-  Tooltip,
-  Typography,
 } from '@mui/material';
 import { alpha, styled } from '@mui/material/styles';
 import { COLORS } from '@/style/constants';
-import MoreVertIcon from '@mui/icons-material/MoreVert';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import { Button } from '@mui/material';
 import { useTranslation } from 'react-i18next';
-import { formatDistanceToNow } from 'date-fns';
-import { NicheStatusChip } from './NicheStatusChip';
-import { PotentialRatingChip } from './PotentialRatingChip';
+import { NicheRow } from './NicheRow';
+import { InlineAddRow } from './InlineAddRow';
+import { useColumnWidths } from '../hooks/useColumnWidths';
+import type { ColumnKey } from '../hooks/useColumnWidths';
 import type { Niche } from '../types';
 import type { UseNicheSelectionReturn } from '../hooks/useNicheSelection';
+import type { UseInlineEditReturn } from '../hooks/useInlineEdit';
+import type { UseInlineAddReturn } from '../hooks/useInlineAdd';
 import type { NicheOrdering } from '../hooks/useNicheFilters';
 
 interface NicheTableProps {
@@ -39,29 +37,17 @@ interface NicheTableProps {
   selection: UseNicheSelectionReturn;
   onRowClick: (id: string) => void;
   onArchive: (id: string) => Promise<void>;
+  inlineEdit: UseInlineEditReturn;
+  inlineAdd: UseInlineAddReturn;
 }
-
-const StyledTableRow = styled(TableRow)(({ theme }) => ({
-  cursor: 'pointer',
-  transition: 'background-color 150ms ease',
-  '&:hover': {
-    backgroundColor: alpha(COLORS.white, 0.03),
-    ...theme.applyStyles('light', {
-      backgroundColor: alpha(COLORS.ink, 0.03),
-    }),
-  },
-  '& td': {
-    borderBottom: `1px solid ${theme.vars.palette.divider}`,
-    padding: '0 12px',
-    height: 44,
-  },
-}));
 
 const HeaderCell = styled(TableCell)(({ theme }) => ({
   backgroundColor: 'transparent',
   borderBottom: `1px solid ${theme.vars.palette.divider}`,
   padding: '0 12px',
   height: 40,
+  position: 'relative',
+  userSelect: 'none',
   '& .MuiTableSortLabel-root': {
     fontSize: '0.6875rem',
     fontWeight: 600,
@@ -79,17 +65,27 @@ const OverlineText = styled('span')({
   color: 'inherit',
 });
 
-const IdeasText = styled(Typography)({
-  fontSize: '0.8125rem',
-  color: 'inherit',
-  fontVariantNumeric: 'tabular-nums',
-});
-
 const DestructiveMenuItem = styled(MenuItem)(({ theme }) => ({
   color: theme.vars.palette.error.main,
   gap: theme.spacing(1),
   '&:hover': {
     backgroundColor: alpha(COLORS.errorDk, 0.08),
+  },
+}));
+
+const ResizeHandle = styled('div')(({ theme }) => ({
+  position: 'absolute',
+  right: 0,
+  top: 0,
+  bottom: 0,
+  width: 6,
+  cursor: 'col-resize',
+  zIndex: 1,
+  '&:hover': {
+    backgroundColor: alpha(COLORS.white, 0.10),
+    ...theme.applyStyles('light', {
+      backgroundColor: alpha(COLORS.ink, 0.10),
+    }),
   },
 }));
 
@@ -119,9 +115,12 @@ export const NicheTable = ({
   selection,
   onRowClick,
   onArchive,
+  inlineEdit,
+  inlineAdd,
 }: NicheTableProps) => {
   const { t } = useTranslation();
-  const { selectedIds, toggleOne, toggleAll, isSelected } = selection;
+  const { toggleAll, isSelected } = selection;
+  const { widths, startResize, isResizing } = useColumnWidths();
 
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [menuNicheId, setMenuNicheId] = useState<string | null>(null);
@@ -130,6 +129,8 @@ export const NicheTable = ({
 
   const allSelected = niches.length > 0 && niches.every((n) => isSelected(n.id));
   const someSelected = niches.some((n) => isSelected(n.id));
+
+  const hasCustomWidths = Object.values(widths).some((w) => typeof w === 'number' && w !== 44);
 
   const handleMenuOpen = (e: React.MouseEvent<HTMLButtonElement>, id: string) => {
     e.stopPropagation();
@@ -159,25 +160,27 @@ export const NicheTable = ({
     }
   };
 
-  const handleRowClick = (id: string) => {
-    onRowClick(id);
-  };
-
-  const handleCheckboxClick = (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    toggleOne(id);
-  };
-
   const handleSelectAll = () => {
     toggleAll(niches.map((n) => n.id));
   };
 
+  const handleResizeMouseDown =
+    (col: ColumnKey) => (e: React.MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      startResize(col, e.clientX);
+    };
+
   const nameSortDir = getSortDirection(ordering, 'name');
   const updatedSortDir = getSortDirection(ordering, 'updated_at');
 
+  const tableStyle = hasCustomWidths || isResizing ? { tableLayout: 'fixed' as const } : undefined;
+
+  const colWidth = (key: ColumnKey): number | 'auto' => widths[key];
+
   return (
     <>
-      <Table size="small" aria-label={t('niches.pageTitle')}>
+      <Table size="small" aria-label={t('niches.pageTitle')} sx={tableStyle}>
         <TableHead>
           <TableRow>
             <HeaderCell padding="checkbox" sx={{ width: 44 }}>
@@ -190,7 +193,7 @@ export const NicheTable = ({
               />
             </HeaderCell>
 
-            <HeaderCell>
+            <HeaderCell sx={{ width: colWidth('name') }}>
               <TableSortLabel
                 active={!!nameSortDir}
                 direction={nameSortDir ?? 'asc'}
@@ -198,25 +201,30 @@ export const NicheTable = ({
               >
                 {t('niches.table.colName')}
               </TableSortLabel>
+              <ResizeHandle onMouseDown={handleResizeMouseDown('name')} />
             </HeaderCell>
 
-            <HeaderCell sx={{ width: 160 }}>
+            <HeaderCell sx={{ width: colWidth('status') }}>
               <OverlineText>{t('niches.table.colStatus')}</OverlineText>
+              <ResizeHandle onMouseDown={handleResizeMouseDown('status')} />
             </HeaderCell>
 
-            <HeaderCell sx={{ width: 120 }}>
+            <HeaderCell sx={{ width: colWidth('potential_rating') }}>
               <OverlineText>{t('niches.table.colRating')}</OverlineText>
+              <ResizeHandle onMouseDown={handleResizeMouseDown('potential_rating')} />
             </HeaderCell>
 
-            <HeaderCell sx={{ width: 140 }}>
+            <HeaderCell sx={{ width: colWidth('assignee') }}>
               <OverlineText>{t('niches.table.colAssignee')}</OverlineText>
+              <ResizeHandle onMouseDown={handleResizeMouseDown('assignee')} />
             </HeaderCell>
 
-            <HeaderCell sx={{ width: 80 }}>
+            <HeaderCell sx={{ width: colWidth('ideas') }}>
               <OverlineText>{t('niches.table.colIdeas')}</OverlineText>
+              <ResizeHandle onMouseDown={handleResizeMouseDown('ideas')} />
             </HeaderCell>
 
-            <HeaderCell sx={{ width: 120 }}>
+            <HeaderCell sx={{ width: colWidth('updated') }}>
               <TableSortLabel
                 active={!!updatedSortDir}
                 direction={updatedSortDir ?? 'asc'}
@@ -224,84 +232,28 @@ export const NicheTable = ({
               >
                 {t('niches.table.colUpdated')}
               </TableSortLabel>
+              <ResizeHandle onMouseDown={handleResizeMouseDown('updated')} />
             </HeaderCell>
 
-            <HeaderCell sx={{ width: 44 }} aria-label={t('niches.table.colActions')} />
+            <HeaderCell sx={{ width: colWidth('actions') }} aria-label={t('niches.table.colActions')} />
           </TableRow>
         </TableHead>
 
         <TableBody>
-          {niches.map((niche) => {
-            const selected = isSelected(niche.id);
-            const updatedAgo = formatDistanceToNow(new Date(niche.updated_at), {
-              addSuffix: true,
-            });
+          {niches.map((niche) => (
+            <NicheRow
+              key={niche.id}
+              niche={niche}
+              selection={selection}
+              inlineEdit={inlineEdit}
+              onRowClick={onRowClick}
+              onDoubleClick={onRowClick}
+              onMenuOpen={handleMenuOpen}
+              widths={widths}
+            />
+          ))}
 
-            return (
-              <StyledTableRow
-                key={niche.id}
-                selected={selected}
-                onClick={() => handleRowClick(niche.id)}
-                aria-label={niche.name}
-                sx={selected ? { backgroundColor: alpha(COLORS.red, 0.06) } : undefined}
-              >
-                <TableCell padding="checkbox" onClick={(e) => handleCheckboxClick(e, niche.id)}>
-                  <Checkbox
-                    size="small"
-                    checked={selected}
-                    slotProps={{ input: { 'aria-label': `Select ${niche.name}` } }}
-                  />
-                </TableCell>
-
-                <TableCell>
-                  <Typography variant="body2" fontWeight={500} noWrap>
-                    {niche.name}
-                  </Typography>
-                </TableCell>
-
-                <TableCell>
-                  <NicheStatusChip status={niche.status} />
-                </TableCell>
-
-                <TableCell>
-                  <PotentialRatingChip potentialRating={niche.potential_rating} />
-                </TableCell>
-
-                <TableCell>
-                  <Typography variant="caption" color="text.secondary" noWrap>
-                    {niche.assigned_to
-                      ? String(niche.assigned_to)
-                      : t('niches.table.unassigned')}
-                  </Typography>
-                </TableCell>
-
-                <TableCell>
-                  <IdeasText variant="body2">
-                    {niche.approved_idea_count} / {niche.idea_count}
-                  </IdeasText>
-                </TableCell>
-
-                <TableCell>
-                  <Tooltip title={new Date(niche.updated_at).toLocaleString()}>
-                    <Typography variant="caption" color="text.secondary" noWrap>
-                      {updatedAgo}
-                    </Typography>
-                  </Tooltip>
-                </TableCell>
-
-                <TableCell onClick={(e) => e.stopPropagation()}>
-                  <IconButton
-                    size="small"
-                    aria-label={t('niches.table.colActions')}
-                    onClick={(e) => handleMenuOpen(e, niche.id)}
-                    sx={{ borderRadius: '8px' }}
-                  >
-                    <MoreVertIcon sx={{ fontSize: 18 }} />
-                  </IconButton>
-                </TableCell>
-              </StyledTableRow>
-            );
-          })}
+          <InlineAddRow inlineAdd={inlineAdd} />
         </TableBody>
       </Table>
 
@@ -348,14 +300,6 @@ export const NicheTable = ({
           </Button>
         </DialogActions>
       </Dialog>
-
-      {selectedIds.size > 0 && (
-        <Box sx={{ mt: 1 }}>
-          <Typography variant="caption" color="text.secondary">
-            {t('niches.bulk.selected', { count: selectedIds.size })}
-          </Typography>
-        </Box>
-      )}
     </>
   );
 };

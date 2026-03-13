@@ -33,6 +33,7 @@ export interface UseNicheFiltersReturn {
   setOrdering: (value: NicheOrdering | '') => void;
   setPage: (value: number) => void;
   resetFilters: () => void;
+  applyFilters: (partial: Partial<NicheFilters>) => void;
   activeFilterCount: number;
 }
 
@@ -143,6 +144,25 @@ export const useNicheFilters = (): UseNicheFiltersReturn => {
     setSearchParams(new URLSearchParams());
   }, [setSearchParams]);
 
+  const applyFilters = useCallback(
+    (partial: Partial<NicheFilters>) => {
+      setSearchParams(() => {
+        const next = new URLSearchParams();
+        if (partial.search) next.set('search', partial.search);
+        if (partial.status) next.set('status', partial.status);
+        if (partial.status_group) next.set('status_group', partial.status_group);
+        if (partial.potential_rating) next.set('potential_rating', partial.potential_rating);
+        if (partial.assigned_to) next.set('assigned_to', partial.assigned_to);
+        if (partial.ordering) next.set('ordering', partial.ordering);
+        return next;
+      });
+      if (partial.search !== undefined) {
+        setSearchInput(partial.search);
+      }
+    },
+    [setSearchParams],
+  );
+
   const activeFilterCount = [
     filters.search,
     filters.status,
@@ -162,6 +182,7 @@ export const useNicheFilters = (): UseNicheFiltersReturn => {
     setOrdering,
     setPage,
     resetFilters,
+    applyFilters,
     activeFilterCount,
   };
 };
