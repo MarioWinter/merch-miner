@@ -83,34 +83,34 @@
 
 ### 10. URL Routing
 
-- [ ] `niche_app/api/urls.py`: DRF Router for NicheViewSet → `/api/niches/`
-- [ ] Register bulk URL: `POST /api/niches/bulk/`
-- [ ] Include in `core/urls.py`
+- [x] `niche_app/api/urls.py`: DRF Router for NicheViewSet → `/api/niches/`
+- [x] Register bulk URL: `POST /api/niches/bulk/`
+- [x] Include in `core/urls.py`
 
 ### 11. Admin
 
-- [ ] Register `Niche` in `niche_app/admin.py` with list_display, list_filter, search_fields
+- [x] Register `Niche` in `niche_app/admin.py` with list_display, list_filter, search_fields
 
 ### 12. Backend Tests
 
-- [ ] Test: Create niche → status=`data_entry`, potential_rating=null, research_status=null, position=0
-- [ ] Test: `GET /api/niches/` by non-member → 403
-- [ ] Test: `GET /api/niches/` excludes archived by default; `?status=archived` includes them
-- [ ] Test: `GET /api/niches/?status_group=todo` → only data_entry + deep_research + niche_with_potential
-- [ ] Test: `GET /api/niches/?potential_rating=rejected` → filtered correctly
-- [ ] Test: `GET /api/niches/?search=shoes` → icontains match; empty search → all returned
-- [ ] Test: `GET /api/niches/?ordering=-created_at` → newest first
-- [ ] Test: `PATCH` status=`niche_with_potential` without rating → 400
-- [ ] Test: `PATCH` potential_rating=`rejected` then status=`niche_with_potential` → 400
-- [ ] Test: `PATCH` potential_rating=`good` then status=`niche_with_potential` → 200
-- [ ] Test: `PATCH` assigned_to = user not in workspace → 400
-- [ ] Test: Member PATCH own niche → 200; PATCH other member's niche → 403
-- [ ] Test: `DELETE` → status=archived, row still exists in DB, 204 returned
-- [ ] Test: `POST /api/niches/bulk/` archive 2 niches → 200, `{ "updated": 2 }`
-- [ ] Test: `POST /api/niches/bulk/` empty ids → 400
-- [ ] Test: `POST /api/niches/bulk/` by member (not admin) → 403
-- [ ] Test: `GET /api/niches/` response includes `idea_count`, `approved_idea_count` fields
-- [ ] Run: `docker compose exec web pytest niche_app/` — zero failures
+- [x] Test: Create niche → status=`data_entry`, potential_rating=null, research_status=null, position=0
+- [x] Test: `GET /api/niches/` by non-member → 403
+- [x] Test: `GET /api/niches/` excludes archived by default; `?status=archived` includes them
+- [x] Test: `GET /api/niches/?status_group=todo` → only data_entry + deep_research + niche_with_potential
+- [x] Test: `GET /api/niches/?potential_rating=rejected` → filtered correctly
+- [x] Test: `GET /api/niches/?search=shoes` → icontains match; empty search → all returned
+- [x] Test: `GET /api/niches/?ordering=-created_at` → newest first
+- [x] Test: `PATCH` status=`niche_with_potential` without rating → 400
+- [x] Test: `PATCH` potential_rating=`rejected` then status=`niche_with_potential` → 400
+- [x] Test: `PATCH` potential_rating=`good` then status=`niche_with_potential` → 200
+- [x] Test: `PATCH` assigned_to = user not in workspace → 400
+- [x] Test: Member PATCH own niche → 200; PATCH other member's niche → 403
+- [x] Test: `DELETE` → status=archived, row still exists in DB, 204 returned
+- [x] Test: `POST /api/niches/bulk/` archive 2 niches → 200, `{ "updated": 2 }`
+- [x] Test: `POST /api/niches/bulk/` empty ids → 400
+- [x] Test: `POST /api/niches/bulk/` by member (not admin) → 403
+- [x] Test: `GET /api/niches/` response includes `idea_count`, `approved_idea_count` fields
+- [x] Run: `docker compose exec web pytest niche_app/` — zero failures
 
 ---
 
