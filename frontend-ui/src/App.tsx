@@ -4,6 +4,7 @@ import { Box, Button, CircularProgress, Typography } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { hydrateAuth, authService } from './services/authService';
 import { clearAuth } from './store/authSlice';
+import { nicheApi } from './store/nicheSlice';
 import { useAppDispatch, useAppSelector } from './store/hooks';
 import PrivateRoute from './components/PrivateRoute';
 import AppLayout from './components/AppLayout';
@@ -30,6 +31,7 @@ const DashboardPlaceholder = () => {
     } catch {
       // proceed even if backend call fails
     } finally {
+      dispatch(nicheApi.util.resetApiState());
       dispatch(clearAuth());
       navigate('/login', { replace: true });
     }
