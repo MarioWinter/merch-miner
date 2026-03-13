@@ -1,12 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { configureStore } from '@reduxjs/toolkit';
 import { renderWithProviders } from '../../../../utils/test-utils';
 import { NicheDetailDrawer } from '../partials/NicheDetailDrawer';
-import { nicheApi } from '../../../../store/nicheSlice';
-import authReducer from '../../../../store/authSlice';
-import workspaceReducer from '../../../../store/workspaceSlice';
 import type { Niche } from '../types';
 
 // Shared mock handlers for RTK Query endpoints

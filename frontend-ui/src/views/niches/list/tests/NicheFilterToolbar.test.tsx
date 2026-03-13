@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { screen, fireEvent, waitFor } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { screen, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from '../../../../utils/test-utils';
 import { NicheFilterToolbar } from '../partials/NicheFilterToolbar';
 import type { UseNicheFiltersReturn } from '../hooks/useNicheFilters';
@@ -94,8 +93,6 @@ describe('NicheFilterToolbar', () => {
     renderWithProviders(<NicheFilterToolbar filterState={filterState} />);
 
     // MUI Select renders a hidden native <select> — fire change on it directly
-    const nativeSelects = document.querySelectorAll('input[type="hidden"]');
-    // Find the one associated with status_group (second hidden input after search input)
     // Simpler: trigger via the onChange handler by finding the Select's visible div
     // We use the MUI Select's data attribute approach — the div with role and aria
     const selectDivs = document.querySelectorAll('.MuiSelect-select');

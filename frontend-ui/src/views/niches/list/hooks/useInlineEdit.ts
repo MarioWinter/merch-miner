@@ -37,20 +37,19 @@ export const useInlineEdit = (): UseInlineEditReturn => {
     setActiveCell(null);
   }, []);
 
-  const extractError = (err: unknown): string => {
-    const e = err as { data?: Record<string, unknown> };
-    if (e?.data && typeof e.data === 'object') {
-      for (const key of Object.keys(e.data)) {
-        const val = e.data[key];
-        if (typeof val === 'string') return val;
-        if (Array.isArray(val) && typeof val[0] === 'string') return val[0];
-      }
-    }
-    return t('niches.notifications.updateError');
-  };
-
   const save = useCallback(
     async (nicheId: string, body: NicheUpdateBody) => {
+      const extractError = (err: unknown): string => {
+        const e = err as { data?: Record<string, unknown> };
+        if (e?.data && typeof e.data === 'object') {
+          for (const key of Object.keys(e.data)) {
+            const val = e.data[key];
+            if (typeof val === 'string') return val;
+            if (Array.isArray(val) && typeof val[0] === 'string') return val[0];
+          }
+        }
+        return t('niches.notifications.updateError');
+      };
       try {
         await updateNiche({ id: nicheId, body }).unwrap();
         setActiveCell(null);

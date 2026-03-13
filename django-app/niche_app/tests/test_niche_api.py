@@ -22,15 +22,15 @@ import pytest
 from django.urls import reverse
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
-
 from user_auth_app.models import User
-from workspace_app.models import Workspace, Membership
-from niche_app.models import Niche
+from workspace_app.models import Membership, Workspace
 
+from niche_app.models import Niche
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def make_user(email, password="TestPass123!", active=True, **kwargs):
     return User.objects.create_user(
@@ -57,7 +57,9 @@ def make_workspace_with_admin(email):
     user = make_user(email)
     workspace = Workspace.objects.get(owner=user)
     membership = Membership.objects.get(
-        user=user, workspace=workspace, status=Membership.Status.ACTIVE,
+        user=user,
+        workspace=workspace,
+        status=Membership.Status.ACTIVE,
     )
     return user, workspace, membership
 
@@ -101,6 +103,7 @@ def detail_url(niche_id):
 # 1. Create niche -> defaults
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_create_niche_defaults():
     admin, ws, _ = make_workspace_with_admin("create@test.com")
@@ -123,6 +126,7 @@ def test_create_niche_defaults():
 # 2. GET /api/niches/ by non-member -> 403
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_list_niches_non_member_403():
     admin, ws, _ = make_workspace_with_admin("admin403@test.com")
@@ -137,6 +141,7 @@ def test_list_niches_non_member_403():
 # ---------------------------------------------------------------------------
 # 3. GET excludes archived by default; ?status=archived includes them
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_archived_excluded_by_default():
@@ -164,13 +169,16 @@ def test_archived_excluded_by_default():
 # 4. ?status_group=todo -> data_entry + deep_research + niche_with_potential
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_status_group_todo_filter():
     admin, ws, _ = make_workspace_with_admin("group@test.com")
     create_niche(ws, admin, name="N1", status=Niche.Status.DATA_ENTRY)
     create_niche(ws, admin, name="N2", status=Niche.Status.DEEP_RESEARCH)
     create_niche(
-        ws, admin, name="N3",
+        ws,
+        admin,
+        name="N3",
         status=Niche.Status.NICHE_WITH_POTENTIAL,
         potential_rating=Niche.PotentialRating.GOOD,
     )
@@ -188,11 +196,14 @@ def test_status_group_todo_filter():
 # 5. ?potential_rating=rejected -> filtered correctly
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_potential_rating_filter():
     admin, ws, _ = make_workspace_with_admin("rating@test.com")
     create_niche(ws, admin, name="Good", potential_rating=Niche.PotentialRating.GOOD)
-    create_niche(ws, admin, name="Rejected", potential_rating=Niche.PotentialRating.REJECTED)
+    create_niche(
+        ws, admin, name="Rejected", potential_rating=Niche.PotentialRating.REJECTED
+    )
     create_niche(ws, admin, name="None", potential_rating=None)
 
     client = auth_client(admin, ws)
@@ -205,6 +216,7 @@ def test_potential_rating_filter():
 # ---------------------------------------------------------------------------
 # 6. ?search=shoes -> icontains; empty search -> all
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_search_filter():
@@ -231,11 +243,12 @@ def test_search_filter():
 # 7. ?ordering=-created_at -> newest first
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_ordering_newest_first():
     admin, ws, _ = make_workspace_with_admin("order@test.com")
-    n1 = create_niche(ws, admin, name="First")
-    n2 = create_niche(ws, admin, name="Second")
+    create_niche(ws, admin, name="First")
+    create_niche(ws, admin, name="Second")
 
     client = auth_client(admin, ws)
     response = client.get(LIST_URL, {"ordering": "-created_at"})
@@ -248,6 +261,7 @@ def test_ordering_newest_first():
 # ---------------------------------------------------------------------------
 # 8. PATCH status=niche_with_potential without rating -> 400
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_patch_nwp_without_rating_400():
@@ -267,10 +281,13 @@ def test_patch_nwp_without_rating_400():
 # 9. PATCH potential_rating=rejected then status=niche_with_potential -> 400
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_patch_rejected_then_nwp_400():
     admin, ws, _ = make_workspace_with_admin("nwp2@test.com")
-    niche = create_niche(ws, admin, name="Test", potential_rating=Niche.PotentialRating.REJECTED)
+    niche = create_niche(
+        ws, admin, name="Test", potential_rating=Niche.PotentialRating.REJECTED
+    )
 
     client = auth_client(admin, ws)
     response = client.patch(
@@ -285,10 +302,13 @@ def test_patch_rejected_then_nwp_400():
 # 10. PATCH potential_rating=good then status=niche_with_potential -> 200
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_patch_good_then_nwp_200():
     admin, ws, _ = make_workspace_with_admin("nwp3@test.com")
-    niche = create_niche(ws, admin, name="Test", potential_rating=Niche.PotentialRating.GOOD)
+    niche = create_niche(
+        ws, admin, name="Test", potential_rating=Niche.PotentialRating.GOOD
+    )
 
     client = auth_client(admin, ws)
     response = client.patch(
@@ -303,6 +323,7 @@ def test_patch_good_then_nwp_200():
 # ---------------------------------------------------------------------------
 # 11. PATCH assigned_to = user not in workspace -> 400
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_patch_assigned_to_non_member_400():
@@ -323,6 +344,7 @@ def test_patch_assigned_to_non_member_400():
 # 12. Member PATCH own niche -> 200; PATCH other member's niche -> 403
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_member_patch_own_vs_others_niche():
     admin, ws, _ = make_workspace_with_admin("permadmin@test.com")
@@ -330,7 +352,9 @@ def test_member_patch_own_vs_others_niche():
     other_member, _ = add_member(ws, "othermember@test.com")
 
     own_niche = create_niche(ws, member, name="My Niche", assigned_to=member)
-    other_niche = create_niche(ws, other_member, name="Other Niche", assigned_to=other_member)
+    other_niche = create_niche(
+        ws, other_member, name="Other Niche", assigned_to=other_member
+    )
 
     client = auth_client(member, ws)
 
@@ -355,6 +379,7 @@ def test_member_patch_own_vs_others_niche():
 # 13. DELETE -> status=archived, row still in DB, 204
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_delete_soft_deletes():
     admin, ws, _ = make_workspace_with_admin("del@test.com")
@@ -372,6 +397,7 @@ def test_delete_soft_deletes():
 # ---------------------------------------------------------------------------
 # 14. POST /api/niches/bulk/ archive 2 niches -> 200, {"updated": 2}
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_bulk_archive():
@@ -398,6 +424,7 @@ def test_bulk_archive():
 # 15. POST /api/niches/bulk/ empty ids -> 400
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_bulk_empty_ids_400():
     admin, ws, _ = make_workspace_with_admin("bulkempty@test.com")
@@ -413,6 +440,7 @@ def test_bulk_empty_ids_400():
 # ---------------------------------------------------------------------------
 # 16. POST /api/niches/bulk/ by member (not admin) -> 403
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_bulk_member_403():
@@ -432,6 +460,7 @@ def test_bulk_member_403():
 # ---------------------------------------------------------------------------
 # 17. GET /api/niches/ response includes idea_count, approved_idea_count
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_response_includes_idea_counts():
@@ -453,6 +482,7 @@ def test_response_includes_idea_counts():
 # 18. ?assigned_to=not-a-number -> 400 (integer validation)
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_filter_assigned_to_non_integer_400():
     admin, ws, _ = make_workspace_with_admin("assignfilter@test.com")
@@ -467,6 +497,7 @@ def test_filter_assigned_to_non_integer_400():
 # ---------------------------------------------------------------------------
 # 19. ?assigned_to=<valid_int> -> 200
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_filter_assigned_to_valid_integer_200():
