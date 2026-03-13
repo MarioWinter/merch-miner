@@ -118,34 +118,34 @@
 
 ### 13. TypeScript Types
 
-- [ ] `views/niches/list/types/index.ts`: `Niche`, `NicheStatus`, `PotentialRating`, `ResearchStatus` TypeScript interfaces
-- [ ] `NicheListResponse` type (paginated: count, next, previous, results)
-- [ ] `NicheBulkPayload` type
+- [x] `views/niches/list/types/index.ts`: `Niche`, `NicheStatus`, `PotentialRating`, `ResearchStatus` TypeScript interfaces
+- [x] `NicheListResponse` type (paginated: count, next, previous, results)
+- [x] `NicheBulkPayload` type
 
 ### 14. Zod Schema
 
-- [ ] `views/niches/list/schemas/nicheSchema.ts`: `createNicheSchema` — `name` required (max 200), `notes` optional
-- [ ] `updateNicheSchema` — all fields optional (PATCH)
+- [x] `views/niches/list/schemas/nicheSchema.ts`: `createNicheSchema` — `name` required (max 200), `notes` optional
+- [x] `updateNicheSchema` — all fields optional (PATCH)
 
 ### 15. RTK Query Slice
 
-- [ ] `store/nicheSlice.ts`: RTK Query `createApi` with base `/api/niches/`
-- [ ] Endpoints: `listNiches(params)`, `getNiche(id)`, `createNiche(body)`, `updateNiche({id, body})`, `deleteNiche(id)`, `bulkNicheAction(body)`
-- [ ] Cache tags: `providesTags` on list/detail; `invalidatesTags` on create/update/delete/bulk
-- [ ] Register `nicheReducer` + `nicheMiddleware` in `store/index.ts`
+- [x] `store/nicheSlice.ts`: RTK Query `createApi` with base `/api/niches/`
+- [x] Endpoints: `listNiches(params)`, `getNiche(id)`, `createNiche(body)`, `updateNiche({id, body})`, `deleteNiche(id)`, `bulkNicheAction(body)`
+- [x] Cache tags: `providesTags` on list/detail; `invalidatesTags` on create/update/delete/bulk
+- [x] Register `nicheReducer` + `nicheMiddleware` in `store/index.ts`
 
 ### 16. useNicheFilters Hook
 
-- [ ] `views/niches/list/hooks/useNicheFilters.ts`
-- [ ] Read/write `search`, `status`, `status_group`, `potential_rating`, `assigned_to`, `ordering`, `page` from URL `searchParams`
-- [ ] Debounce search input (300ms) before syncing to URL
-- [ ] `resetFilters()` helper clears all params
+- [x] `views/niches/list/hooks/useNicheFilters.ts`
+- [x] Read/write `search`, `status`, `status_group`, `potential_rating`, `assigned_to`, `ordering`, `page` from URL `searchParams`
+- [x] Debounce search input (300ms) before syncing to URL
+- [x] `resetFilters()` helper clears all params
 
 ### 17. useNicheDrawer Hook
 
-- [ ] `views/niches/list/hooks/useNicheDrawer.ts`
-- [ ] State: `open` (bool), `mode` ('create' | 'edit'), `selectedId` (string | null)
-- [ ] `openCreate()`, `openEdit(id)`, `closeDrawer()` actions
+- [x] `views/niches/list/hooks/useNicheDrawer.ts`
+- [x] State: `open` (bool), `mode` ('create' | 'edit'), `selectedId` (string | null)
+- [x] `openCreate()`, `openEdit(id)`, `closeDrawer()` actions
 
 ### 18. useNicheSelection Hook
 
