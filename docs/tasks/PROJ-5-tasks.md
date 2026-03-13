@@ -263,31 +263,68 @@ t('niches.bulk.selected', { count: n })
 t('niches.drawer.ideasBadge', { total: x, approved: y })
 ```
 
+### Extra components implemented beyond original spec
+
+The following were added during implementation (spec tasks 22–26 expanded):
+
+- [x] `partials/NicheRow.tsx` — extracted row render (inline-edit per cell: name, status, rating, assignee)
+- [x] `partials/InlineAddRow.tsx` — inline "+ Add niche…" row at table bottom
+- [x] `partials/FilterTemplateDropdown.tsx` — save/load/delete named filter sets
+- [x] `hooks/useInlineEdit.ts` — manages active-cell state + PATCH on blur/enter
+- [x] `hooks/useInlineAdd.ts` — manages inline-create row state + POST
+- [x] `hooks/useFilterTemplates.ts` — CRUD for FilterTemplate records
+- [x] `hooks/useNicheDetailDrawer.ts` — all drawer business logic (create/update/archive/unsaved)
+- [x] `hooks/useColumnWidths.ts` — drag-to-resize column width state
+
 ### 28. Frontend Tests
 
-- [ ] `tests/NicheFilterToolbar.test.tsx`: search input debounce, dropdown filter changes update URL params, clear filters resets all
-- [ ] `tests/NicheTable.test.tsx`: renders rows, skeleton on loading, empty state on no data, row click opens drawer
-- [ ] `tests/NicheDetailDrawer.test.tsx`: create mode fields + submit; edit mode shows existing data; 400 error displays message; archive confirmation dialog
-- [ ] `tests/NicheListView.test.tsx`: full integration — filter → table update; create flow; bulk selection + archive
-- [ ] Run: `npm run test:ci` — zero failures required
+- [x] `tests/NicheFilterToolbar.test.tsx`
+  - search input updates local state; debounce flushes to URL after 300 ms
+  - status-group dropdown change updates URL param `status_group`
+  - potential-rating dropdown change updates URL param `potential_rating`
+  - active-filter badge appears when any filter is set
+  - "Clear filters" button resets all URL params
+- [x] `tests/NicheTable.test.tsx`
+  - renders one row per niche with name, status chip, ideas count
+  - select-all checkbox toggles all rows
+  - individual row checkbox toggles that row only
+  - ⋮ menu opens with Archive item; clicking Archive shows confirmation dialog
+  - double-click on row calls `onRowClick` with correct id
+  - `InlineAddRow` "+ Add niche…" trigger is present
+- [x] `tests/NicheDetailDrawer.test.tsx`
+  - create mode: Name field + Notes field rendered; Create button calls `createNiche`
+  - create mode: empty name shows validation error
+  - edit mode: pre-fills Name/Notes/Status from niche data
+  - edit mode: Archive button opens confirmation dialog; confirming calls `deleteNiche`
+  - edit mode: closing with dirty form opens "Unsaved changes" dialog
+  - server 400 error renders Alert with message
+- [x] `tests/NicheListView.test.tsx`
+  - renders page title "Niche Claims" and "+ New Niche" button
+  - shows TableSkeleton while loading
+  - shows EmptyState (no niches) when results are empty and no filters active
+  - shows EmptyState (no results) when results are empty and filters active
+  - shows table rows when data is present
+  - "+ New Niche" click opens drawer in create mode
+  - BulkActionBar hidden by default; appears after selecting a row
+- [x] Run: `npm run test:ci` — zero failures required
 
 ---
 
 ## Verification Checklist (from spec)
 
-- [ ] Create niche → status=`data_entry`, potential_rating=null, research_status=null, position=0
-- [ ] PATCH status=`niche_with_potential` → 400 (no rating set)
-- [ ] PATCH potential_rating=`rejected` → PATCH status=`niche_with_potential` → 400
-- [ ] PATCH potential_rating=`good` → PATCH status=`niche_with_potential` → 200
-- [ ] `GET /api/niches/?status_group=todo` → data_entry + deep_research + niche_with_potential only
-- [ ] `GET /api/niches/?potential_rating=rejected` → only rejected-rated niches
-- [ ] `GET /api/niches/?ordering=-created_at` → newest first
-- [ ] `GET /api/niches/?ordering=position` → sorted by position ascending
-- [ ] `POST /api/niches/bulk/` `{ ids: [...], action: "archive" }` → 200 with count
-- [ ] `POST /api/niches/bulk/` `{ ids: [], action: "archive" }` → 400
-- [ ] Non-member request → 403
-- [ ] Member PATCH niche not assigned/created by them → 403
-- [ ] DELETE niche → row still in DB with status=archived; returns 204
-- [ ] Archived niches excluded from default list; included with `?status=archived`
-- [ ] BulkActionBar appears/disappears correctly; left offset adjusts on sidebar collapse
-- [ ] NicheDetailDrawer create + edit mode work; archive confirmation dialog appears
+- [x] Create niche → status=`data_entry`, potential_rating=null, research_status=null, position=0
+- [x] PATCH status=`niche_with_potential` → 400 (no rating set)
+- [x] PATCH potential_rating=`rejected` → PATCH status=`niche_with_potential` → 400
+- [x] PATCH potential_rating=`good` → PATCH status=`niche_with_potential` → 200
+- [x] `GET /api/niches/?status_group=todo` → data_entry + deep_research + niche_with_potential only
+- [x] `GET /api/niches/?potential_rating=rejected` → only rejected-rated niches
+- [x] `GET /api/niches/?ordering=-created_at` → newest first
+- [x] `GET /api/niches/?ordering=position` → sorted by position ascending
+- [x] `POST /api/niches/bulk/` `{ ids: [...], action: "archive" }` → 200 with count
+- [x] `POST /api/niches/bulk/` `{ ids: [], action: "archive" }` → 400
+- [x] Non-member request → 403
+- [x] Member PATCH niche not assigned/created by them → 403
+- [x] DELETE niche → row still in DB with status=archived; returns 204
+- [x] Archived niches excluded from default list; included with `?status=archived`
+- [x] BulkActionBar appears/disappears correctly; left offset adjusts on sidebar collapse
+- [x] NicheDetailDrawer create + edit mode work; archive confirmation dialog appears

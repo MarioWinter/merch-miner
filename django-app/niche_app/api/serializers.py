@@ -78,8 +78,7 @@ class NicheSerializer(serializers.ModelSerializer):
             if status is None and 'status' not in attrs:
                 status = self.instance.status
 
-        # When setting status to niche_with_potential without a
-        # compatible rating, auto-set rating to 'good'
+        # Reject status=niche_with_potential when rating is not good/very_good
         if (
             'status' in attrs
             and status == Niche.Status.NICHE_WITH_POTENTIAL
@@ -88,7 +87,9 @@ class NicheSerializer(serializers.ModelSerializer):
                 Niche.PotentialRating.VERY_GOOD,
             )
         ):
-            attrs['potential_rating'] = Niche.PotentialRating.GOOD
+            raise serializers.ValidationError(
+                {'status': 'Cannot set niche_with_potential without a compatible potential_rating (good or very_good).'}
+            )
 
         # When changing rating to incompatible value while status is
         # niche_with_potential, auto-downgrade status to deep_research

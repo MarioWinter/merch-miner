@@ -57,10 +57,13 @@ export const useNicheDetailDrawer = ({
     defaultValues: {},
   });
 
+  const { reset: resetEditForm } = editForm;
+  const { reset: resetCreateForm } = createForm;
+
   // Populate edit form when niche data arrives
   useEffect(() => {
     if (mode === 'edit' && niche) {
-      editForm.reset({
+      resetEditForm({
         name: niche.name,
         notes: niche.notes ?? '',
         status: niche.status,
@@ -68,14 +71,14 @@ export const useNicheDetailDrawer = ({
         assigned_to: niche.assigned_to,
       });
     }
-  }, [niche, mode, editForm]);
+  }, [niche, mode, resetEditForm]);
 
   // Reset create form on mode change to create
   useEffect(() => {
     if (mode === 'create') {
-      createForm.reset({ name: '', notes: '' });
+      resetCreateForm({ name: '', notes: '' });
     }
-  }, [mode, createForm]);
+  }, [mode, resetCreateForm]);
 
   const handleCreate: SubmitHandler<CreateNicheFormValues> = async (values) => {
     setServerError(null);
@@ -112,6 +115,10 @@ export const useNicheDetailDrawer = ({
       enqueueSnackbar(t('niches.notifications.archiveError'), { variant: 'error' });
     }
   };
+
+  // Subscribe to isDirty during render so react-hook-form tracks it via its proxy
+  void createForm.formState.isDirty;
+  void editForm.formState.isDirty;
 
   const requestClose = () => {
     const isDirty =
