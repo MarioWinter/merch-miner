@@ -121,6 +121,123 @@
     "invalidLink": "Lien d'invitation invalide ou expiré.",
     "backToLogin": "Retour à la connexion"
   },
+  "niches": {
+    "pageTitle": "Niches",
+    "newNiche": "Nouvelle niche",
+    "status": {
+      "data_entry": "Saisie de données",
+      "deep_research": "Recherche approfondie",
+      "niche_with_potential": "Niche prometteuse",
+      "to_designer": "Envoyé au designer",
+      "upload": "Upload",
+      "start_ads": "Lancer les publicités",
+      "pending": "En attente",
+      "winner": "Gagnante",
+      "loser": "Perdante",
+      "archived": "Archivée"
+    },
+    "statusGroup": {
+      "all": "Toutes",
+      "todo": "À faire",
+      "in_progress": "En cours",
+      "complete": "Terminé"
+    },
+    "potentialRating": {
+      "good": "Gut",
+      "very_good": "Sehr gut",
+      "rejected": "Rejeté",
+      "none": "Aucune note"
+    },
+    "researchStatus": {
+      "pending": "En attente",
+      "running": "Analyse en cours…",
+      "done": "Terminé"
+    },
+    "filter": {
+      "search": "Rechercher des niches…",
+      "statusGroup": "Groupe de statut",
+      "status": "Statut",
+      "rating": "Note potentielle",
+      "assignee": "Assigné à",
+      "ordering": "Trier par",
+      "clearFilters": "Effacer les filtres",
+      "activeFilters_one": "{{count}} filtre actif",
+      "activeFilters_other": "{{count}} filtres actifs",
+      "ordering_name": "Nom A → Z",
+      "ordering_name_desc": "Nom Z → A",
+      "ordering_created_at": "Plus anciens d'abord",
+      "ordering_created_at_desc": "Plus récents d'abord",
+      "ordering_updated_at": "Récemment mis à jour",
+      "ordering_position": "Position"
+    },
+    "table": {
+      "colName": "Nom",
+      "colStatus": "Statut",
+      "colRating": "Note",
+      "colAssignee": "Assigné",
+      "colIdeas": "Idées",
+      "colUpdated": "Mis à jour",
+      "colActions": "Actions",
+      "unassigned": "Non assigné"
+    },
+    "drawer": {
+      "createTitle": "Nouvelle niche",
+      "editTitle": "Modifier la niche",
+      "name": "Nom",
+      "namePlaceholder": "ex. Cadeaux randonnée pour hommes",
+      "notes": "Notes (optionnel)",
+      "notesPlaceholder": "Ajouter des détails pertinents…",
+      "status": "Statut",
+      "potentialRating": "Note potentielle",
+      "assignee": "Assigné à",
+      "ideasBadge": "{{total}} idées · {{approved}} approuvées",
+      "create": "Créer la niche",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "archive": "Archiver",
+      "archiveConfirmTitle": "Archiver cette niche ?",
+      "archiveConfirmBody": "La niche sera masquée de la liste mais ne sera pas supprimée.",
+      "archiveConfirm": "Archiver",
+      "archiveCancel": "Annuler",
+      "unsavedChangesTitle": "Modifications non enregistrées",
+      "unsavedChangesBody": "Vous avez des modifications non enregistrées. Les ignorer ?",
+      "discardChanges": "Ignorer",
+      "keepEditing": "Continuer la modification"
+    },
+    "empty": {
+      "noNiches": "Aucune niche pour l'instant",
+      "noNichesHint": "Créez votre première niche pour lancer le pipeline.",
+      "noResults": "Aucune niche ne correspond à vos filtres",
+      "noResultsHint": "Essayez de modifier ou d'effacer les filtres actifs."
+    },
+    "bulk": {
+      "selected_one": "{{count}} sélectionnée",
+      "selected_other": "{{count}} sélectionnées",
+      "archive": "Archiver",
+      "assign": "Assigner",
+      "clearSelection": "Effacer la sélection",
+      "archiveConfirmTitle": "Archiver {{count}} niches ?",
+      "archiveConfirmBody": "Elles seront masquées de la liste mais pas supprimées.",
+      "archiveSuccess": "{{count}} niches archivées",
+      "assignSuccess": "{{count}} niches assignées"
+    },
+    "validation": {
+      "nameRequired": "Le nom est requis",
+      "nameMaxLength": "Le nom ne doit pas dépasser 200 caractères",
+      "ratingRequired": "Définir la note sur Gut ou Sehr gut d'abord.",
+      "ratingRejectedBlocked": "Les niches notées Rejeté ne peuvent pas avancer vers Niche prometteuse.",
+      "assigneeNotMember": "Cet utilisateur n'est pas membre du workspace.",
+      "invalidStatus": "Valeur de statut invalide."
+    },
+    "notifications": {
+      "createSuccess": "Niche créée",
+      "updateSuccess": "Niche mise à jour",
+      "archiveSuccess": "Niche archivée",
+      "createError": "Échec de la création de la niche",
+      "updateError": "Échec de la mise à jour de la niche",
+      "archiveError": "Échec de l'archivage de la niche"
+    }
+  },
   "settings": {
     "title": "Paramètres",
     "nav": {

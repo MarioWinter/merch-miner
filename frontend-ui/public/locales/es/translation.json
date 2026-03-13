@@ -121,6 +121,123 @@
     "invalidLink": "Enlace de invitación inválido o caducado.",
     "backToLogin": "Volver al inicio de sesión"
   },
+  "niches": {
+    "pageTitle": "Nichos",
+    "newNiche": "Nuevo nicho",
+    "status": {
+      "data_entry": "Entrada de datos",
+      "deep_research": "Investigación profunda",
+      "niche_with_potential": "Nicho con potencial",
+      "to_designer": "Al diseñador",
+      "upload": "Subida",
+      "start_ads": "Iniciar anuncios",
+      "pending": "Pendiente",
+      "winner": "Ganador",
+      "loser": "Perdedor",
+      "archived": "Archivado"
+    },
+    "statusGroup": {
+      "all": "Todos",
+      "todo": "Por hacer",
+      "in_progress": "En progreso",
+      "complete": "Completado"
+    },
+    "potentialRating": {
+      "good": "Gut",
+      "very_good": "Sehr gut",
+      "rejected": "Rechazado",
+      "none": "Sin calificación"
+    },
+    "researchStatus": {
+      "pending": "Pendiente",
+      "running": "Analizando…",
+      "done": "Listo"
+    },
+    "filter": {
+      "search": "Buscar nichos…",
+      "statusGroup": "Grupo de estado",
+      "status": "Estado",
+      "rating": "Calificación de potencial",
+      "assignee": "Asignado a",
+      "ordering": "Ordenar por",
+      "clearFilters": "Limpiar filtros",
+      "activeFilters_one": "{{count}} filtro activo",
+      "activeFilters_other": "{{count}} filtros activos",
+      "ordering_name": "Nombre A → Z",
+      "ordering_name_desc": "Nombre Z → A",
+      "ordering_created_at": "Más antiguos primero",
+      "ordering_created_at_desc": "Más recientes primero",
+      "ordering_updated_at": "Actualizado recientemente",
+      "ordering_position": "Posición"
+    },
+    "table": {
+      "colName": "Nombre",
+      "colStatus": "Estado",
+      "colRating": "Calificación",
+      "colAssignee": "Asignado",
+      "colIdeas": "Ideas",
+      "colUpdated": "Actualizado",
+      "colActions": "Acciones",
+      "unassigned": "Sin asignar"
+    },
+    "drawer": {
+      "createTitle": "Nuevo nicho",
+      "editTitle": "Editar nicho",
+      "name": "Nombre",
+      "namePlaceholder": "ej. Regalos de senderismo para hombres",
+      "notes": "Notas (opcional)",
+      "notesPlaceholder": "Agrega detalles relevantes…",
+      "status": "Estado",
+      "potentialRating": "Calificación de potencial",
+      "assignee": "Asignado a",
+      "ideasBadge": "{{total}} ideas · {{approved}} aprobadas",
+      "create": "Crear nicho",
+      "save": "Guardar cambios",
+      "cancel": "Cancelar",
+      "archive": "Archivar",
+      "archiveConfirmTitle": "¿Archivar este nicho?",
+      "archiveConfirmBody": "El nicho se ocultará de la lista pero no se eliminará.",
+      "archiveConfirm": "Archivar",
+      "archiveCancel": "Cancelar",
+      "unsavedChangesTitle": "Cambios sin guardar",
+      "unsavedChangesBody": "Tienes cambios sin guardar. ¿Descartarlos?",
+      "discardChanges": "Descartar",
+      "keepEditing": "Seguir editando"
+    },
+    "empty": {
+      "noNiches": "Aún no hay nichos",
+      "noNichesHint": "Crea tu primer nicho para iniciar el pipeline.",
+      "noResults": "Ningún nicho coincide con tus filtros",
+      "noResultsHint": "Intenta ajustar o limpiar los filtros activos."
+    },
+    "bulk": {
+      "selected_one": "{{count}} seleccionado",
+      "selected_other": "{{count}} seleccionados",
+      "archive": "Archivar",
+      "assign": "Asignar",
+      "clearSelection": "Limpiar selección",
+      "archiveConfirmTitle": "¿Archivar {{count}} nichos?",
+      "archiveConfirmBody": "Se ocultarán de la lista pero no se eliminarán.",
+      "archiveSuccess": "{{count}} nichos archivados",
+      "assignSuccess": "{{count}} nichos asignados"
+    },
+    "validation": {
+      "nameRequired": "El nombre es obligatorio",
+      "nameMaxLength": "El nombre no debe superar 200 caracteres",
+      "ratingRequired": "Establece la calificación en Gut o Sehr gut primero.",
+      "ratingRejectedBlocked": "Los nichos calificados como Rechazado no pueden avanzar a Nicho con potencial.",
+      "assigneeNotMember": "Este usuario no es miembro del workspace.",
+      "invalidStatus": "Valor de estado no válido."
+    },
+    "notifications": {
+      "createSuccess": "Nicho creado",
+      "updateSuccess": "Nicho actualizado",
+      "archiveSuccess": "Nicho archivado",
+      "createError": "No se pudo crear el nicho",
+      "updateError": "No se pudo actualizar el nicho",
+      "archiveError": "No se pudo archivar el nicho"
+    }
+  },
   "settings": {
     "title": "Ajustes",
     "nav": {

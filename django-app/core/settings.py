@@ -110,6 +110,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google',
     'user_auth_app',
     'workspace_app',
+    'niche_app',
     'content.apps.ContentConfig',
 ]
 
