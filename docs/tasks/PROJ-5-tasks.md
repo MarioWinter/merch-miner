@@ -171,26 +171,26 @@
 
 ### 21. NicheFilterToolbar Component
 
-- [ ] `views/niches/list/partials/NicheFilterToolbar.tsx`
-- [ ] `SearchField`: MUI `TextField` with `SearchIcon` adornment, debounced via `useNicheFilters`
-- [ ] `StatusGroupSelect`: MUI `Select` (All / To-Do / In Progress / Complete) → `?status_group=`
-- [ ] `StatusSelect`: MUI `Select` (all individual status values + "All") → `?status=`
-- [ ] `PotentialRatingSelect`: MUI `Select` (Gut / Sehr gut / Rejected / All) → `?potential_rating=`
-- [ ] `AssigneeSelect`: MUI `Select` from workspace members → `?assigned_to=`
-- [ ] `OrderingSelect`: MUI `Select` (Newest / Oldest / Name A-Z / Name Z-A / Position) → `?ordering=`
-- [ ] Active filter count badge on toolbar (shows number of non-default filters applied)
-- [ ] "Clear filters" ghost button (visible when any filter active)
+- [x] `views/niches/list/partials/NicheFilterToolbar.tsx`
+- [x] `SearchField`: MUI `TextField` with `SearchIcon` adornment, debounced via `useNicheFilters`
+- [x] `StatusGroupSelect`: MUI `Select` (All / To-Do / In Progress / Complete) → `?status_group=`
+- [x] `StatusSelect`: MUI `Select` (all individual status values + "All") → `?status=`
+- [x] `PotentialRatingSelect`: MUI `Select` (Gut / Sehr gut / Rejected / All) → `?potential_rating=`
+- [x] `AssigneeSelect`: MUI `Select` from workspace members → `?assigned_to=`
+- [x] `OrderingSelect`: MUI `Select` (Newest / Oldest / Name A-Z / Name Z-A / Position) → `?ordering=`
+- [x] Active filter count badge on toolbar (shows number of non-default filters applied)
+- [x] "Clear filters" ghost button (visible when any filter active)
 
 ### 22. NicheTable Component
 
-- [ ] `views/niches/list/partials/NicheTable.tsx`
-- [ ] MUI `Table` (dense, 44px rows) with columns: ☐ | Name | Status | Rating | Assignee | Ideas | Updated | ⋮
-- [ ] Header: `overline` text, sortable (Name + Updated columns trigger `?ordering=`)
-- [ ] Checkbox column: select-all in header; individual in each row
-- [ ] Row hover: `rgba(255,255,255,0.03)` + cursor pointer → `openEdit(id)`
-- [ ] "Ideas" column: `approved_idea_count / idea_count` text (e.g. "3 / 10")
-- [ ] "Updated" column: relative time (e.g. "2h ago") — use `formatDistanceToNow` from date-fns
-- [ ] ⋮ row action menu: "Archive" (destructive, confirmation required)
+- [x] `views/niches/list/partials/NicheTable.tsx`
+- [x] MUI `Table` (dense, 44px rows) with columns: ☐ | Name | Status | Rating | Assignee | Ideas | Updated | ⋮
+- [x] Header: `overline` text, sortable (Name + Updated columns trigger `?ordering=`)
+- [x] Checkbox column: select-all in header; individual in each row
+- [x] Row hover: `rgba(255,255,255,0.03)` + cursor pointer → `openEdit(id)`
+- [x] "Ideas" column: `approved_idea_count / idea_count` text (e.g. "3 / 10")
+- [x] "Updated" column: relative time (e.g. "2h ago") — use `formatDistanceToNow` from date-fns
+- [x] ⋮ row action menu: "Archive" (destructive, confirmation required)
 
 ### 23. TableSkeleton + EmptyState
 
