@@ -157,10 +157,19 @@ docker compose exec web pytest path/to/test_file.py::TestClass::test_method
 ```bash
 npm run dev          # Dev server (localhost:5173)
 npm run build        # tsc + vite build
-npm run lint         # ESLint
+npm run lint         # ESLint check
+npm run lint:fix     # ESLint auto-fix
 npm run test         # Vitest watch mode
 npm run test:ci      # Vitest run --coverage --reporter=junit
 npm run preview      # Preview production build
+```
+
+**Backend linting** (from repo root):
+
+```bash
+ruff check django-app/                                   # check only
+ruff check --fix django-app/                             # safe auto-fixes
+ruff check --fix --unsafe-fixes django-app/              # incl. unused variables (F841)
 ```
 
 ---

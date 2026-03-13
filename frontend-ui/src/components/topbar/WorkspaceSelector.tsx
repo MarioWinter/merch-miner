@@ -10,9 +10,9 @@ import { fetchWorkspaces, setActiveWorkspace } from '../../store/workspaceSlice'
 
 const WorkspaceSelectorButton = styled(Button)(({ theme }) => ({
   borderRadius: '999px',
-  color: theme.vars?.palette.text.secondary ?? theme.palette.text.secondary,
+  color: theme.vars.palette.text.secondary,
   textTransform: 'none',
-  borderColor: theme.vars?.palette.text.secondary ?? theme.palette.text.secondary,
+  borderColor: theme.vars.palette.text.secondary,
   fontWeight: 500,
   paddingLeft: 16,
   paddingRight: 16,
@@ -22,9 +22,9 @@ const WorkspaceSelectorButton = styled(Button)(({ theme }) => ({
   overflow: 'hidden',
   textOverflow: 'ellipsis',
   '&:hover': {
-  backgroundColor: theme.vars?.palette.action.hover ?? theme.palette.action.hover,
-  color: theme.vars?.palette.text.primary ?? theme.palette.text.primary,
-},
+    backgroundColor: theme.vars.palette.action.hover,
+    color: theme.vars.palette.text.primary,
+  },
 }));
 
 const WorkspaceSelector = () => {

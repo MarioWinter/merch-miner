@@ -24,7 +24,7 @@ import type { WorkspaceMember, MemberRole } from '../../../../services/workspace
 // ------------------------------------------------------------------
 
 const RemoveIconButton = styled(IconButton)(({ theme }) => ({
-  color: theme.palette.error.main,
+  color: theme.vars.palette.error.main,
   opacity: 0.7,
   '&:hover': {
     opacity: 1,

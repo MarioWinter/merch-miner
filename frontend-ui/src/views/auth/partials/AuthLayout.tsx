@@ -50,7 +50,7 @@ const LogoSquare = styled(Box)(({ theme }) => ({
   width: 32,
   height: 32,
   borderRadius: '8px',
-  backgroundColor: theme.palette.primary.main,
+  backgroundColor: theme.vars.palette.primary.main,
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
@@ -67,7 +67,7 @@ const AuthPaper = styled(Paper)(({ theme }) => ({
   borderRadius: '16px',
   border: '1px solid',
   borderColor: alpha(COLORS.ink, 0.10),
-  backgroundColor: theme.palette.background.paper,
+  backgroundColor: theme.vars.palette.background.paper,
   backdropFilter: 'none',
   zIndex: 1,
   ...theme.applyStyles('dark', {

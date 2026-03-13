@@ -1,4 +1,6 @@
 import pytest
+from django.core.cache import cache as django_cache
+from rest_framework.settings import api_settings
 
 
 @pytest.fixture(autouse=True)
@@ -6,8 +8,8 @@ def disable_throttling(settings):
     """Disable DRF throttling in all tests to prevent 429 interference.
 
     DEFAULT_THROTTLE_CLASSES is cleared so global throttles don't fire.
-    View-level throttle_classes are also cleared via REST_FRAMEWORK override.
-    Rates are kept populated so any residual scope lookup doesn't KeyError.
+    Rates are set very high so any view-level throttle_classes won't block.
+    Cache is cleared to reset any accumulated throttle history.
     """
     settings.REST_FRAMEWORK = {
         **settings.REST_FRAMEWORK,
@@ -19,6 +21,12 @@ def disable_throttling(settings):
             'invite': '10000/day',
         },
     }
+    # Force DRF to re-read settings (it caches on first access)
+    api_settings.reload()
+    # Clear any throttle history stored in cache from previous tests
+    django_cache.clear()
+    yield
+    api_settings.reload()
 
 
 @pytest.fixture(autouse=True)

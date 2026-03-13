@@ -1,6 +1,12 @@
 import { alpha, extendTheme } from '@mui/material/styles';
 import { COLORS } from './constants';
 
+declare module '@mui/material/styles' {
+  interface CssThemeVariables {
+    enabled: true;
+  }
+}
+
 const theme = extendTheme({
   colorSchemeSelector: 'data-mui-color-scheme',
   shape: {
@@ -151,7 +157,7 @@ const theme = extendTheme({
             borderColor: alpha(COLORS.ink, 0.30),
           },
           '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
-            borderColor: theme.palette.primary.main,
+            borderColor: theme.vars.palette.primary.main,
           },
           '&.Mui-disabled': {
             backgroundColor: alpha(COLORS.ash, 0.5),
@@ -205,7 +211,7 @@ const theme = extendTheme({
     MuiTableCell: {
       styleOverrides: {
         root: ({ theme }) => ({
-          borderBottom: `1px solid ${theme.palette.divider}`,
+          borderBottom: `1px solid ${theme.vars.palette.divider}`,
           padding: '8px 16px',
         }),
         head: {
@@ -252,9 +258,9 @@ const theme = extendTheme({
           fontWeight: 600,
           fontSize: '0.875rem',
           height: 42,
-          color: theme.palette.text.secondary,
+          color: theme.vars.palette.text.secondary,
           '&.Mui-selected': {
-            color: theme.palette.primary.main,
+            color: theme.vars.palette.primary.main,
             backgroundColor: alpha(COLORS.red, 0.08),
             '&:hover': {
               backgroundColor: alpha(COLORS.red, 0.14),

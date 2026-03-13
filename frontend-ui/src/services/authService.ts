@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { store } from '../store';
 import { clearAuth, setLoading, setUser } from '../store/authSlice';
+import { nicheApi } from '../store/nicheSlice';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 
@@ -56,6 +57,7 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError);
+        store.dispatch(nicheApi.util.resetApiState());
         store.dispatch(clearAuth());
         if (window.location.pathname !== '/login') {
           window.location.href = '/login';

@@ -121,6 +121,143 @@
     "invalidLink": "Ungültiger oder abgelaufener Einladungslink.",
     "backToLogin": "Zurück zur Anmeldung"
   },
+  "niches": {
+    "pageTitle": "Nischen",
+    "newNiche": "Neue Nische",
+    "status": {
+      "data_entry": "Dateneingabe",
+      "deep_research": "Tiefenrecherche",
+      "niche_with_potential": "Nische mit Potenzial",
+      "to_designer": "Zum Designer",
+      "upload": "Upload",
+      "start_ads": "Werbung starten",
+      "pending": "Ausstehend",
+      "winner": "Gewinner",
+      "loser": "Verlierer",
+      "archived": "Archiviert"
+    },
+    "statusGroup": {
+      "all": "Alle",
+      "todo": "Zu erledigen",
+      "in_progress": "In Bearbeitung",
+      "complete": "Abgeschlossen"
+    },
+    "potentialRating": {
+      "good": "Gut",
+      "very_good": "Sehr gut",
+      "rejected": "Abgelehnt",
+      "none": "Keine Bewertung"
+    },
+    "researchStatus": {
+      "pending": "Ausstehend",
+      "running": "Analysiere…",
+      "done": "Fertig"
+    },
+    "filter": {
+      "search": "Nischen suchen…",
+      "statusGroup": "Statusgruppe",
+      "status": "Status",
+      "rating": "Potenzial-Bewertung",
+      "assignee": "Zugewiesen an",
+      "ordering": "Sortieren nach",
+      "clearFilters": "Filter zurücksetzen",
+      "activeFilters_one": "{{count}} Filter aktiv",
+      "activeFilters_other": "{{count}} Filter aktiv",
+      "ordering_name": "Name A → Z",
+      "ordering_name_desc": "Name Z → A",
+      "ordering_created_at": "Älteste zuerst",
+      "ordering_created_at_desc": "Neueste zuerst",
+      "ordering_updated_at": "Zuletzt aktualisiert",
+      "ordering_position": "Position"
+    },
+    "table": {
+      "colName": "Name",
+      "colStatus": "Status",
+      "colRating": "Bewertung",
+      "colAssignee": "Zugewiesen",
+      "colIdeas": "Ideen",
+      "colUpdated": "Aktualisiert",
+      "colActions": "Aktionen",
+      "unassigned": "Nicht zugewiesen"
+    },
+    "drawer": {
+      "createTitle": "Neue Nische",
+      "editTitle": "Nische bearbeiten",
+      "name": "Name",
+      "namePlaceholder": "z. B. Wandergeschenke für Männer",
+      "notes": "Notizen (optional)",
+      "notesPlaceholder": "Relevante Details hinzufügen…",
+      "status": "Status",
+      "potentialRating": "Potenzial-Bewertung",
+      "assignee": "Zugewiesen an",
+      "ideasBadge": "{{total}} Ideen · {{approved}} genehmigt",
+      "create": "Nische erstellen",
+      "save": "Änderungen speichern",
+      "cancel": "Abbrechen",
+      "archive": "Archivieren",
+      "archiveConfirmTitle": "Diese Nische archivieren?",
+      "archiveConfirmBody": "Die Nische wird aus der Liste ausgeblendet, aber nicht gelöscht.",
+      "archiveConfirm": "Archivieren",
+      "archiveCancel": "Abbrechen",
+      "unsavedChangesTitle": "Ungespeicherte Änderungen",
+      "unsavedChangesBody": "Du hast ungespeicherte Änderungen. Verwerfen?",
+      "discardChanges": "Verwerfen",
+      "keepEditing": "Weiter bearbeiten"
+    },
+    "empty": {
+      "noNiches": "Noch keine Nischen",
+      "noNichesHint": "Erstelle deine erste Nische, um die Pipeline zu starten.",
+      "noResults": "Keine Nischen gefunden",
+      "noResultsHint": "Versuche, die aktiven Filter anzupassen oder zurückzusetzen."
+    },
+    "bulk": {
+      "selected_one": "{{count}} ausgewählt",
+      "selected_other": "{{count}} ausgewählt",
+      "archive": "Archivieren",
+      "assign": "Zuweisen",
+      "clearSelection": "Auswahl aufheben",
+      "archiveConfirmTitle": "{{count}} Nischen archivieren?",
+      "archiveConfirmBody": "Sie werden aus der Liste ausgeblendet, aber nicht gelöscht.",
+      "archiveSuccess": "{{count}} Nischen archiviert",
+      "assignSuccess": "{{count}} Nischen zugewiesen"
+    },
+    "validation": {
+      "nameRequired": "Name ist erforderlich",
+      "nameMaxLength": "Name darf maximal 200 Zeichen lang sein",
+      "ratingRequired": "Potenzial-Bewertung auf Gut oder Sehr gut setzen.",
+      "ratingRejectedBlocked": "Nischen mit Bewertung Abgelehnt können nicht zu Nische mit Potenzial wechseln.",
+      "assigneeNotMember": "Dieser Benutzer ist kein Workspace-Mitglied.",
+      "invalidStatus": "Ungültiger Statuswert."
+    },
+    "notifications": {
+      "createSuccess": "Nische erstellt",
+      "updateSuccess": "Nische aktualisiert",
+      "archiveSuccess": "Nische archiviert",
+      "createError": "Nische konnte nicht erstellt werden",
+      "updateError": "Nische konnte nicht aktualisiert werden",
+      "archiveError": "Nische konnte nicht archiviert werden"
+    },
+    "inlineAdd": {
+      "addNiche": "+ Nische hinzufügen…",
+      "placeholder": "Nischenname…"
+    },
+    "filterTemplates": {
+      "button": "Filter-Vorlagen",
+      "loading": "Lädt…",
+      "empty": "Keine gespeicherten Vorlagen",
+      "saveFilters": "Aktuelle Filter speichern…",
+      "updateCurrent": "Aktuelle Vorlage aktualisieren",
+      "namePlaceholder": "Vorlagenname…",
+      "save": "Speichern",
+      "delete": "Vorlage löschen",
+      "saveSuccess": "Filter-Vorlage gespeichert",
+      "saveError": "Vorlage konnte nicht gespeichert werden",
+      "updateSuccess": "Vorlage aktualisiert",
+      "updateError": "Vorlage konnte nicht aktualisiert werden",
+      "deleteSuccess": "Vorlage gelöscht",
+      "deleteError": "Vorlage konnte nicht gelöscht werden"
+    }
+  },
   "settings": {
     "title": "Einstellungen",
     "nav": {

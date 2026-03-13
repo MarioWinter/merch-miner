@@ -121,6 +121,143 @@
     "invalidLink": "Invalid or expired invite link.",
     "backToLogin": "Back to login"
   },
+  "niches": {
+    "pageTitle": "Niche Claims",
+    "newNiche": "New Niche",
+    "status": {
+      "data_entry": "Data Entry",
+      "deep_research": "Deep Research",
+      "niche_with_potential": "Niche with Potential",
+      "to_designer": "Goes to Designer",
+      "upload": "Upload",
+      "start_ads": "Start Ads",
+      "pending": "Pending",
+      "winner": "Winner",
+      "loser": "Loser",
+      "archived": "Archived"
+    },
+    "statusGroup": {
+      "all": "All",
+      "todo": "To-Do",
+      "in_progress": "In Progress",
+      "complete": "Complete"
+    },
+    "potentialRating": {
+      "good": "Good",
+      "very_good": "Very Good",
+      "rejected": "Rejected",
+      "none": "No rating"
+    },
+    "researchStatus": {
+      "pending": "Pending",
+      "running": "Analyzing…",
+      "done": "Done"
+    },
+    "filter": {
+      "search": "Search niches…",
+      "statusGroup": "Status group",
+      "status": "Status",
+      "rating": "Potential rating",
+      "assignee": "Assignee",
+      "ordering": "Sort by",
+      "clearFilters": "Clear filters",
+      "activeFilters_one": "{{count}} filter active",
+      "activeFilters_other": "{{count}} filters active",
+      "ordering_name": "Name A → Z",
+      "ordering_name_desc": "Name Z → A",
+      "ordering_created_at": "Oldest first",
+      "ordering_created_at_desc": "Newest first",
+      "ordering_updated_at": "Recently updated",
+      "ordering_position": "Position"
+    },
+    "table": {
+      "colName": "Name",
+      "colStatus": "Status",
+      "colRating": "Rating",
+      "colAssignee": "Assignee",
+      "colIdeas": "Ideas",
+      "colUpdated": "Updated",
+      "colActions": "Actions",
+      "unassigned": "Unassigned"
+    },
+    "drawer": {
+      "createTitle": "New Niche",
+      "editTitle": "Edit Niche",
+      "name": "Name",
+      "namePlaceholder": "e.g. Hiking Gifts for Men",
+      "notes": "Notes (optional)",
+      "notesPlaceholder": "Add any relevant details…",
+      "status": "Status",
+      "potentialRating": "Potential rating",
+      "assignee": "Assignee",
+      "ideasBadge": "{{total}} ideas · {{approved}} approved",
+      "create": "Create Niche",
+      "save": "Save Changes",
+      "cancel": "Cancel",
+      "archive": "Archive",
+      "archiveConfirmTitle": "Archive this niche?",
+      "archiveConfirmBody": "The niche will be hidden from the list but not deleted.",
+      "archiveConfirm": "Archive",
+      "archiveCancel": "Cancel",
+      "unsavedChangesTitle": "Unsaved changes",
+      "unsavedChangesBody": "You have unsaved changes. Discard them?",
+      "discardChanges": "Discard",
+      "keepEditing": "Keep editing"
+    },
+    "empty": {
+      "noNiches": "No niches yet",
+      "noNichesHint": "Create your first niche to start the pipeline.",
+      "noResults": "No niches match your filters",
+      "noResultsHint": "Try adjusting or clearing the active filters."
+    },
+    "bulk": {
+      "selected_one": "{{count}} selected",
+      "selected_other": "{{count}} selected",
+      "archive": "Archive",
+      "assign": "Assign",
+      "clearSelection": "Clear selection",
+      "archiveConfirmTitle": "Archive {{count}} niches?",
+      "archiveConfirmBody": "They will be hidden from the list but not deleted.",
+      "archiveSuccess": "{{count}} niches archived",
+      "assignSuccess": "{{count}} niches assigned"
+    },
+    "validation": {
+      "nameRequired": "Name is required",
+      "nameMaxLength": "Name must be 200 characters or fewer",
+      "ratingRequired": "Set potential rating to Gut or Sehr gut first.",
+      "ratingRejectedBlocked": "Niche rated Rejected cannot advance to Niche with Potential.",
+      "assigneeNotMember": "This user is not a workspace member.",
+      "invalidStatus": "Invalid status value."
+    },
+    "notifications": {
+      "createSuccess": "Niche created",
+      "updateSuccess": "Niche updated",
+      "archiveSuccess": "Niche archived",
+      "createError": "Failed to create niche",
+      "updateError": "Failed to update niche",
+      "archiveError": "Failed to archive niche"
+    },
+    "inlineAdd": {
+      "addNiche": "+ Add niche…",
+      "placeholder": "Niche name…"
+    },
+    "filterTemplates": {
+      "button": "Filter Templates",
+      "loading": "Loading…",
+      "empty": "No saved templates",
+      "saveFilters": "Save current filters…",
+      "updateCurrent": "Update current template",
+      "namePlaceholder": "Template name…",
+      "save": "Save",
+      "delete": "Delete template",
+      "saveSuccess": "Filter template saved",
+      "saveError": "Failed to save template",
+      "updateSuccess": "Template updated",
+      "updateError": "Failed to update template",
+      "deleteSuccess": "Template deleted",
+      "deleteError": "Failed to delete template"
+    }
+  },
   "settings": {
     "title": "Settings",
     "nav": {

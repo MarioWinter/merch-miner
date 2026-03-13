@@ -4,6 +4,7 @@ import { Box, Button, CircularProgress, Typography } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { hydrateAuth, authService } from './services/authService';
 import { clearAuth } from './store/authSlice';
+import { nicheApi } from './store/nicheSlice';
 import { useAppDispatch, useAppSelector } from './store/hooks';
 import PrivateRoute from './components/PrivateRoute';
 import AppLayout from './components/AppLayout';
@@ -14,6 +15,7 @@ import PasswordResetPage from './views/auth/password-reset/PasswordResetPage';
 import PasswordConfirmPage from './views/auth/password-reset/PasswordConfirmPage';
 import SettingsLayout from './views/settings/SettingsLayout';
 import InviteAcceptView from './views/invite/InviteAcceptView';
+import NicheListView from './views/niches/list/NicheListView';
 
 // Placeholder — replaced when dashboard is built (PROJ-12)
 const DashboardPlaceholder = () => {
@@ -29,6 +31,7 @@ const DashboardPlaceholder = () => {
     } catch {
       // proceed even if backend call fails
     } finally {
+      dispatch(nicheApi.util.resetApiState());
       dispatch(clearAuth());
       navigate('/login', { replace: true });
     }
@@ -77,6 +80,7 @@ const App = () => {
         <Route element={<AppLayout />}>
           <Route path="/" element={<DashboardPlaceholder />} />
           <Route path="/dashboard" element={<DashboardPlaceholder />} />
+          <Route path="/niches" element={<NicheListView />} />
 
           {/* Settings routes */}
           <Route path="/settings" element={<SettingsLayout />}>
@@ -88,8 +92,8 @@ const App = () => {
         </Route>
       </Route>
 
-      {/* Fallback */}
-      <Route path="*" element={<Navigate to="/login" replace />} />
+      {/* Fallback — redirect unknown routes to dashboard; PrivateRoute handles auth guard */}
+      <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
   );
 }

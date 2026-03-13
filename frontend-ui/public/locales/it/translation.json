@@ -121,6 +121,143 @@
     "invalidLink": "Link di invito non valido o scaduto.",
     "backToLogin": "Torna al login"
   },
+  "niches": {
+    "pageTitle": "Nicchie",
+    "newNiche": "Nuova nicchia",
+    "status": {
+      "data_entry": "Inserimento dati",
+      "deep_research": "Ricerca approfondita",
+      "niche_with_potential": "Nicchia con potenziale",
+      "to_designer": "Al designer",
+      "upload": "Caricamento",
+      "start_ads": "Avvia annunci",
+      "pending": "In attesa",
+      "winner": "Vincente",
+      "loser": "Perdente",
+      "archived": "Archiviata"
+    },
+    "statusGroup": {
+      "all": "Tutte",
+      "todo": "Da fare",
+      "in_progress": "In corso",
+      "complete": "Completato"
+    },
+    "potentialRating": {
+      "good": "Buono",
+      "very_good": "Molto buono",
+      "rejected": "Rifiutato",
+      "none": "Nessuna valutazione"
+    },
+    "researchStatus": {
+      "pending": "In attesa",
+      "running": "Analisi in corso…",
+      "done": "Completato"
+    },
+    "filter": {
+      "search": "Cerca nicchie…",
+      "statusGroup": "Gruppo di stato",
+      "status": "Stato",
+      "rating": "Valutazione del potenziale",
+      "assignee": "Assegnato a",
+      "ordering": "Ordina per",
+      "clearFilters": "Cancella filtri",
+      "activeFilters_one": "{{count}} filtro attivo",
+      "activeFilters_other": "{{count}} filtri attivi",
+      "ordering_name": "Nome A → Z",
+      "ordering_name_desc": "Nome Z → A",
+      "ordering_created_at": "Più vecchi prima",
+      "ordering_created_at_desc": "Più recenti prima",
+      "ordering_updated_at": "Aggiornati di recente",
+      "ordering_position": "Posizione"
+    },
+    "table": {
+      "colName": "Nome",
+      "colStatus": "Stato",
+      "colRating": "Valutazione",
+      "colAssignee": "Assegnato",
+      "colIdeas": "Idee",
+      "colUpdated": "Aggiornato",
+      "colActions": "Azioni",
+      "unassigned": "Non assegnato"
+    },
+    "drawer": {
+      "createTitle": "Nuova nicchia",
+      "editTitle": "Modifica nicchia",
+      "name": "Nome",
+      "namePlaceholder": "es. Regali per escursionisti uomo",
+      "notes": "Note (opzionale)",
+      "notesPlaceholder": "Aggiungi dettagli rilevanti…",
+      "status": "Stato",
+      "potentialRating": "Valutazione del potenziale",
+      "assignee": "Assegnato a",
+      "ideasBadge": "{{total}} idee · {{approved}} approvate",
+      "create": "Crea nicchia",
+      "save": "Salva modifiche",
+      "cancel": "Annulla",
+      "archive": "Archivia",
+      "archiveConfirmTitle": "Archiviare questa nicchia?",
+      "archiveConfirmBody": "La nicchia verrà nascosta dall'elenco ma non eliminata.",
+      "archiveConfirm": "Archivia",
+      "archiveCancel": "Annulla",
+      "unsavedChangesTitle": "Modifiche non salvate",
+      "unsavedChangesBody": "Hai modifiche non salvate. Scartarle?",
+      "discardChanges": "Scarta",
+      "keepEditing": "Continua modifica"
+    },
+    "empty": {
+      "noNiches": "Nessuna nicchia ancora",
+      "noNichesHint": "Crea la tua prima nicchia per avviare la pipeline.",
+      "noResults": "Nessuna nicchia corrisponde ai tuoi filtri",
+      "noResultsHint": "Prova a modificare o cancellare i filtri attivi."
+    },
+    "bulk": {
+      "selected_one": "{{count}} selezionata",
+      "selected_other": "{{count}} selezionate",
+      "archive": "Archivia",
+      "assign": "Assegna",
+      "clearSelection": "Cancella selezione",
+      "archiveConfirmTitle": "Archiviare {{count}} nicchie?",
+      "archiveConfirmBody": "Verranno nascoste dall'elenco ma non eliminate.",
+      "archiveSuccess": "{{count}} nicchie archiviate",
+      "assignSuccess": "{{count}} nicchie assegnate"
+    },
+    "validation": {
+      "nameRequired": "Il nome è obbligatorio",
+      "nameMaxLength": "Il nome non deve superare 200 caratteri",
+      "ratingRequired": "Imposta la valutazione su Gut o Sehr gut prima.",
+      "ratingRejectedBlocked": "Le nicchie valutate Rifiutato non possono avanzare a Nicchia con potenziale.",
+      "assigneeNotMember": "Questo utente non è membro del workspace.",
+      "invalidStatus": "Valore di stato non valido."
+    },
+    "notifications": {
+      "createSuccess": "Nicchia creata",
+      "updateSuccess": "Nicchia aggiornata",
+      "archiveSuccess": "Nicchia archiviata",
+      "createError": "Impossibile creare la nicchia",
+      "updateError": "Impossibile aggiornare la nicchia",
+      "archiveError": "Impossibile archiviare la nicchia"
+    },
+    "inlineAdd": {
+      "addNiche": "+ Aggiungi nicchia…",
+      "placeholder": "Nome della nicchia…"
+    },
+    "filterTemplates": {
+      "button": "Modelli di filtri",
+      "loading": "Caricamento…",
+      "empty": "Nessun modello salvato",
+      "saveFilters": "Salva filtri correnti…",
+      "updateCurrent": "Aggiorna modello corrente",
+      "namePlaceholder": "Nome del modello…",
+      "save": "Salva",
+      "delete": "Elimina modello",
+      "saveSuccess": "Modello di filtro salvato",
+      "saveError": "Impossibile salvare il modello",
+      "updateSuccess": "Modello aggiornato",
+      "updateError": "Impossibile aggiornare il modello",
+      "deleteSuccess": "Modello eliminato",
+      "deleteError": "Impossibile eliminare il modello"
+    }
+  },
   "settings": {
     "title": "Impostazioni",
     "nav": {

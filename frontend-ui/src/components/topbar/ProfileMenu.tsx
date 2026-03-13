@@ -10,6 +10,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '../../store/hooks';
 import { clearAuth } from '../../store/authSlice';
+import { nicheApi } from '../../store/nicheSlice';
 import { authService } from '../../services/authService';
 
 const StyledAvatar = styled(Avatar)({
@@ -56,6 +57,7 @@ const ProfileMenu = ({ initial, avatarUrl }: ProfileMenuProps) => {
     } catch {
       // proceed even on backend failure
     } finally {
+      dispatch(nicheApi.util.resetApiState());
       dispatch(clearAuth());
       navigate('/login', { replace: true });
     }

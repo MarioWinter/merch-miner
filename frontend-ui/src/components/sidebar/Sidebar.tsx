@@ -44,7 +44,7 @@ const SidebarRoot = styled(Box, {
   bottom: 0,
   backgroundColor: COLORS.white,
   borderRight: '1px solid',
-  borderColor: theme.vars?.palette.divider ?? theme.palette.divider,
+  borderColor: theme.vars.palette.divider,
   ...theme.applyStyles('dark', {
     backgroundColor: COLORS.inkPaper,
   }),
@@ -79,15 +79,15 @@ const NavItemButton = styled(ListItemButton, {
   gap: $collapsed ? 0 : 12,
   alignItems: 'center',
   backgroundColor: $active ? alpha(COLORS.red, 0.12) : 'transparent',
-  color: $active ? (theme.vars?.palette.primary.main ?? theme.palette.primary.main) : (theme.vars?.palette.text.secondary ?? theme.palette.text.secondary),
+  color: $active ? theme.vars.palette.primary.main : theme.vars.palette.text.secondary,
   borderLeft: '2px solid',
-  borderColor: $active ? (theme.vars?.palette.primary.main ?? theme.palette.primary.main) : 'transparent',
+  borderColor: $active ? theme.vars.palette.primary.main : 'transparent',
   overflow: 'hidden',
   minWidth: 0,
   transition: `background-color ${DURATION.fast}ms ${EASING.standard}, color ${DURATION.fast}ms ${EASING.standard}, border-color ${DURATION.default}ms ${EASING.standard}`,
   '&:hover': {
-    backgroundColor: $active ? alpha(COLORS.red, 0.12) : (theme.vars?.palette.action.hover ?? theme.palette.action.hover),
-    color: $active ? (theme.vars?.palette.primary.main ?? theme.palette.primary.main) : (theme.vars?.palette.text.primary ?? theme.palette.text.primary),
+    backgroundColor: $active ? alpha(COLORS.red, 0.12) : theme.vars.palette.action.hover,
+    color: $active ? theme.vars.palette.primary.main : theme.vars.palette.text.primary,
   },
 }));
 
@@ -152,7 +152,7 @@ const ToggleWrap = styled(Box, {
     inset: 0,
     borderRadius: '50%',
     border: '1px solid',
-    borderColor: theme.vars?.palette.divider ?? theme.palette.divider,
+    borderColor: theme.vars.palette.divider,
     clipPath: 'inset(-1px 50% -1px -1px)',
     pointerEvents: 'none',
   },
@@ -163,8 +163,8 @@ const ToggleButton = styled(IconButton)({
   height: 28,
   borderRadius: '50%',
   backgroundColor: COLORS.red,
-  color: '#fff',
-  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+  color: COLORS.white,
+  boxShadow: `0 2px 8px ${alpha(COLORS.black, 0.15)}`,
   '&:hover': {
     backgroundColor: COLORS.redDk,
   },
@@ -322,7 +322,7 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
                   height: '1px',
                   opacity: 0.4,
                   background: (theme) => {
-                    const disabledTextColor = theme.vars?.palette.text.disabled ?? theme.palette.text.disabled;
+                    const disabledTextColor = theme.vars.palette.text.disabled;
                     return `linear-gradient(to right, transparent, ${disabledTextColor} 25%, ${disabledTextColor} 75%, transparent)`;
                   },
                 }}
