@@ -123,9 +123,26 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 | Param | Type | Description |
 |-------|------|-------------|
 | `keyword` | string | Required; triggers scrape |
-| `marketplace` | string | Required |
-| `product_type` | string (multi) | Optional pre-filter |
+| `marketplace` | string | Required; e.g. `amazon_com` |
+| `product_type` | string | Optional; user selects from dropdown (t_shirt, hoodie, pullover, zip_hoodie, long_sleeve, tank_top). UI maps to `search_index` + `hidden_keywords` spider args via product type config (see below) |
 | `hide_official_brands` | bool | Optional |
+
+### Product Type → Amazon Filter Mapping
+
+UI needs a config mapping `product_type` selection to the raw Amazon search params passed to PROJ-16 spider. PROJ-16 accepts these as optional spider kwargs: `search_index`, `seller_filter`, `hidden_keywords`.
+
+| Product Type | search_index | seller_filter | hidden_keywords |
+|---|---|---|---|
+| T-Shirt | `fashion-novelty` | `ATVPDKIKX0DER` | `Lightweight, Classic fit, Double-needle sleeve and bottom hem -Longsleeve -Raglan -Vneck -Tanktop` |
+| Hoodie | `fashion-novelty` | `ATVPDKIKX0DER` | `Hoodie -Tanktop -Vneck -Longsleeve` |
+| Pullover | `fashion-novelty` | `ATVPDKIKX0DER` | `Pullover Sweatshirt -Hoodie -Tanktop -Vneck` |
+| Zip Hoodie | `fashion-novelty` | `ATVPDKIKX0DER` | `Zip Hoodie -Pullover -Tanktop` |
+| Long Sleeve | `fashion-novelty` | `ATVPDKIKX0DER` | `Long Sleeve -Hoodie -Tanktop -Vneck` |
+| Tank Top | `fashion-novelty` | `ATVPDKIKX0DER` | `Tank Top -Hoodie -Longsleeve` |
+
+> `seller_filter=ATVPDKIKX0DER` = "Sold by Amazon" = Merch on Demand products only.
+> `hidden_keywords` are appended to the Amazon search URL as `&hidden-keywords=...` to narrow results to specific product types.
+> This mapping lives in the PROJ-7 API layer (not in PROJ-16 scraper). PROJ-16 receives raw params and passes them through.
 
 ## Amazon Autocomplete Proxy
 

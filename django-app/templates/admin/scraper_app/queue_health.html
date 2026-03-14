@@ -1,0 +1,52 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}Scraper Queue Health{% endblock %}
+
+{% block content %}
+<h1>Scraper Queue Health</h1>
+
+<table>
+  <tr>
+    <th>Metric</th>
+    <th>Value</th>
+  </tr>
+  <tr>
+    <td>Pending Jobs</td>
+    <td>{{ pending_count }}</td>
+  </tr>
+  <tr>
+    <td>Running Jobs</td>
+    <td>{{ running_count }}</td>
+  </tr>
+  <tr>
+    <td>Completed Today</td>
+    <td>{{ completed_today }}</td>
+  </tr>
+  <tr>
+    <td>Failed Today</td>
+    <td>{{ failed_today }}</td>
+  </tr>
+  <tr>
+    <td>ScraperOps API Key</td>
+    <td>{% if scrapeops_configured %}<span style="color: green;">Configured</span>{% else %}<span style="color: red;">Missing</span>{% endif %}</td>
+  </tr>
+  <tr>
+    <td>Active Targets</td>
+    <td>{{ active_targets }}</td>
+  </tr>
+</table>
+
+<br>
+
+{% if running_count > 0 or pending_count > 0 %}
+<form method="post">
+  {% csrf_token %}
+  <input type="submit" name="stop_all" value="Stop All Jobs" class="default"
+         onclick="return confirm('Stop all running and pending scrape jobs?');">
+</form>
+{% endif %}
+
+<br>
+<a href="{% url 'admin:scraper_app_scrapejob_changelist' %}">View All Jobs</a>
+{% endblock %}

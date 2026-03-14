@@ -1,0 +1,32 @@
+[
+  {
+    "model": "scraper_app.scrapetier",
+    "pk": 1,
+    "fields": {
+      "name": "Tier 1",
+      "bsr_min": 1,
+      "bsr_max": 50000,
+      "interval_days": 1
+    }
+  },
+  {
+    "model": "scraper_app.scrapetier",
+    "pk": 2,
+    "fields": {
+      "name": "Tier 2",
+      "bsr_min": 50001,
+      "bsr_max": 200000,
+      "interval_days": 3
+    }
+  },
+  {
+    "model": "scraper_app.scrapetier",
+    "pk": 3,
+    "fields": {
+      "name": "Tier 3",
+      "bsr_min": 200001,
+      "bsr_max": null,
+      "interval_days": 7
+    }
+  }
+]

@@ -1,0 +1,28 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+
+<p>Upload a CSV file to create or update scheduled scrape targets.</p>
+
+<ul>
+  <li><strong>ASIN CSV:</strong> columns <code>asin, marketplace, tier</code> (tier is optional)</li>
+  <li><strong>Keyword CSV:</strong> columns <code>keyword, marketplace, tier</code> (tier is optional)</li>
+</ul>
+
+<p>Valid marketplaces: <code>amazon_com</code>, <code>amazon_de</code>, <code>amazon_co_uk</code>, <code>amazon_fr</code>, <code>amazon_it</code>, <code>amazon_es</code></p>
+<p>Valid tiers: <code>Tier 1</code>, <code>Tier 2</code>, <code>Tier 3</code> (leave empty for auto-assignment by BSR)</p>
+
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  <table>
+    {{ form.as_table }}
+  </table>
+  <br>
+  <input type="submit" value="Upload CSV" class="default">
+  <a href="{% url 'admin:scraper_app_scheduledscrapetarget_changelist' %}">Cancel</a>
+</form>
+{% endblock %}
