@@ -30,7 +30,7 @@ Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. 
 6. If completed scrape < 24h old → return cached results immediately; no new scrape triggered.
 
 ### Scheduled Scrape Mode
-7. Admin CSV upload (via custom Django Admin action) accepts columns: `asin` or `keyword`, `marketplace`, `tier` (optional, overrides auto-assignment).
+7. Admin CSV upload (via custom Django Admin action) — two separate CSV types: **ASIN CSV** (columns: `asin, marketplace, tier`) and **Keyword CSV** (columns: `keyword, marketplace, tier`). Tier column is optional in both.
 8. Uploaded ASINs/keywords are added to `ScheduledScrapeTarget`; tier auto-assigned by current BSR if not specified.
 9. django-rq cron job (`schedule_scrape_runner`) runs every hour; enqueues due targets based on `ScrapeTier.interval_days` and `last_scraped_at`.
 10. Each scrape target re-scraped at its tier interval; if BSR changes tier on next scrape, tier auto-updates.
@@ -50,7 +50,7 @@ Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. 
 
 ### Django Admin
 20. `ScrapeJob` list view shows: keyword/asin, marketplace, mode, status, progress (pages done/total), start time, end time, products scraped, error count.
-21. Admin actions on `ScrapeJob`: cancel pending job, retry failed job.
+21. Admin actions on `ScrapeJob`: **stop running job** (kills subprocess via PID), cancel pending job, retry failed job. Live Research also stoppable from UI (PROJ-7).
 22. `ScrapeTier` changelist is editable inline: BSR min/max, interval_days.
 23. Custom Admin page shows queue health: pending job count, ScraperOps rate limit status (requests remaining).
 24. CSV upload available as a custom Admin action on `ScheduledScrapeTarget`.
@@ -63,6 +63,7 @@ Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. 
 |--------|------|-------------|
 | POST | `/api/research/search/` | Triggers Live Research scrape job |
 | GET | `/api/research/search/{cache_id}/status/` | Poll job status |
+| POST | `/api/research/search/{cache_id}/cancel/` | Cancel running Live Research (PROJ-7 calls this) |
 
 ## Models
 
@@ -74,8 +75,9 @@ Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. 
 | marketplace | CharField choices [amazon_com, amazon_de, amazon_co_uk, amazon_fr, amazon_it, amazon_es] | |
 | title | TextField | |
 | brand | CharField(200) | |
-| bsr | IntegerField | Current BSR (db_index=True) |
-| category | CharField(200) | |
+| bsr | IntegerField | Lowest/primary BSR rank (db_index=True) |
+| bsr_categories | JSONField | List of {rank, category, category_url} — all BSR entries |
+| category | CharField(200) | Primary category (from first BSR entry) |
 | subcategory | CharField(200) | |
 | price | DecimalField(10,2) | |
 | rating | FloatField | |
@@ -145,7 +147,9 @@ Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. 
 | pages_total | IntegerField | Max 4 |
 | pages_done | IntegerField | |
 | products_scraped | IntegerField | |
-| error_log | TextField | Failure details |
+| error_log | TextField | Failure details (includes failed selector name, URL, marketplace, response status) |
+| pid | IntegerField(nullable) | Subprocess PID for cancellation |
+| cancelled_by | CharField(choices=[admin, user], nullable) | Who cancelled the job |
 | started_at | DateTimeField(nullable) | |
 | finished_at | DateTimeField(nullable) | |
 | rq_job_id | CharField(100) | django-rq job reference |
@@ -329,13 +333,15 @@ Piggybacks on Mode 1 + 2. Pipeline always creates BSRSnapshot after product upse
 | Decision | Why |
 |----------|-----|
 | New Django app `scraper_app` | Clean boundary — PROJ-7 imports from scraper_app, not vice versa |
-| Scrapy runs inside django-rq worker | Worker exists in docker-compose. CrawlerProcess runs in-process. Spider accesses Django ORM via django.setup() |
+| Scrapy via subprocess (not CrawlerProcess) | Avoids Twisted reactor crash on repeated calls. django-rq task runs `scrapy crawl` as subprocess. PID stored in ScrapeJob for cancellation. More robust than crochet workaround |
 | Django ORM pipeline (not raw psycopg2) | Django owns schema via migrations. Prevents schema drift. update_or_create handles upserts |
 | ScraperOps SDK for proxies | Proven in reference repos. Handles rotation, CAPTCHAs, user-agents |
 | rqscheduler for hourly cron | django-rq built-in. Simpler than celery-beat. Already have Redis |
 | US marketplace first, flexible for expansion | CSS selectors stored in settings dict keyed by marketplace. Defaults = US selectors from reference repo. Add marketplace = add selector dict entry |
-| 2 worker containers (1 disabled initially) | worker = active (default queue). worker-scraper = disabled (scale=0). Ready for paid ScraperOps plan with higher concurrency |
+| 2 worker containers (1 disabled initially) | worker = active (default queue). worker-scraper = disabled via profiles:["scale"]. Ready for paid ScraperOps plan |
 | CSS selectors from Simple-Python-Scrapy-Scrapers repo | More robust fallbacks per field. User can adjust selectors without code changes (settings dict) |
+| BSR: multiple entries per product | `ul.zg_hrsr li span.a-list-item` contains N BSR entries (one per category). All stored in `bsr_categories` JSONField, lowest rank as primary `bsr` |
+| Job cancellation via PID | All jobs stoppable: Admin (any job) + UI (Live Research via PROJ-7). Subprocess killed via SIGTERM. Status set to cancelled with source tracking |
 
 ### File Structure
 
