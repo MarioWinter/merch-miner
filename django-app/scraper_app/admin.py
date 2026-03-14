@@ -387,8 +387,26 @@ class ScheduledScrapeTargetAdmin(admin.ModelAdmin):
 class AmazonProductAdmin(admin.ModelAdmin):
     list_display = ['asin', 'marketplace', 'title', 'bsr', 'price', 'rating', 'scraped_at']
     list_filter = ['marketplace', 'product_type']
-    search_fields = ['asin', 'title', 'brand']
+    search_fields = ['asin', 'title', 'brand', 'bullet_1', 'bullet_2']
     readonly_fields = ['id']
+    fieldsets = (
+        (None, {
+            'fields': (
+                'id', 'asin', 'marketplace', 'title', 'brand', 'product_type',
+                'bsr', 'bsr_categories', 'category', 'subcategory',
+                'price', 'rating', 'reviews_count', 'listed_date',
+            ),
+        }),
+        ('Bullets & Description', {
+            'fields': ('bullet_1', 'bullet_2', 'description'),
+        }),
+        ('Media & Links', {
+            'fields': ('thumbnail_url', 'product_url', 'image_gallery'),
+        }),
+        ('Other', {
+            'fields': ('seller_name', 'variants', 'scraped_at'),
+        }),
+    )
 
 
 # ---------------------------------------------------------------------------

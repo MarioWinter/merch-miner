@@ -7,6 +7,16 @@ from scraper_app.scrapy_app.items import AmazonProductItem, ScrapeErrorItem
 from scraper_app.selectors import get_selectors, get_base_url
 
 
+BOILERPLATE_PHRASES = [
+    'lightweight, classic fit',
+    'double-needle sleeve',
+    'solid colors:',
+    'pull on closure',
+    'machine wash',
+    'imported',
+]
+
+
 class ProductDetailMixin:
     """Mixin providing parse_product_data for Amazon detail pages.
 
@@ -43,14 +53,20 @@ class ProductDetailMixin:
         rating_count = self._extract_rating_count(response, detail)
 
         # --- Feature bullets ---
-        feature_bullets = []
+        raw_bullets = []
         bullet_selectors = detail['feature_bullets']
         if isinstance(bullet_selectors, str):
             bullet_selectors = [bullet_selectors]
         for sel in bullet_selectors:
-            feature_bullets = [b.strip() for b in response.css(sel).getall() if b.strip()]
-            if feature_bullets:
+            raw_bullets = [b.strip() for b in response.css(sel).getall() if b.strip()]
+            if raw_bullets:
                 break
+        real_bullets = [
+            b for b in raw_bullets
+            if not any(phrase in b.lower() for phrase in BOILERPLATE_PHRASES)
+        ]
+        bullet_1 = real_bullets[0] if len(real_bullets) > 0 else ''
+        bullet_2 = real_bullets[1] if len(real_bullets) > 1 else ''
 
         # --- BSR ---
         bsr, bsr_categories = self._extract_bsr(response, detail)
@@ -120,7 +136,7 @@ class ProductDetailMixin:
             self.logger.info("Price missing on %s", response.url)
         if stars is None:
             self.logger.info("Stars rating missing on %s", response.url)
-        if not feature_bullets:
+        if not bullet_1:
             self.logger.info("Feature bullets missing on %s", response.url)
 
         yield AmazonProductItem(
@@ -140,7 +156,8 @@ class ProductDetailMixin:
             thumbnail_url=thumbnail_url,
             product_url=response.url,
             seller_name=None,
-            feature_bullets=feature_bullets,
+            bullet_1=bullet_1,
+            bullet_2=bullet_2,
             description=description,
             variants=variants,
             image_gallery=image_gallery,
@@ -444,6 +461,7 @@ class ProductDetailMixin:
 
         return 'other'
 
+    @staticmethod
     def _extract_variants(response, detail):
         """Extract variant data via regex on page source."""
         regex = detail.get('variants_regex', '')

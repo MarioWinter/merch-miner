@@ -19,7 +19,8 @@ class AmazonProductItem(scrapy.Item):
     thumbnail_url = scrapy.Field()
     product_url = scrapy.Field()
     seller_name = scrapy.Field()
-    feature_bullets = scrapy.Field()    # list of bullet strings
+    bullet_1 = scrapy.Field()           # first real (non-boilerplate) bullet
+    bullet_2 = scrapy.Field()           # second real (non-boilerplate) bullet
     description = scrapy.Field()
     variants = scrapy.Field()           # list/dict of size/color options
     image_gallery = scrapy.Field()      # list of image URLs

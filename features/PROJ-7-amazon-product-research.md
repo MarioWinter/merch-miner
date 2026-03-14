@@ -163,6 +163,14 @@ UI needs a config mapping `product_type` selection to the raw Amazon search para
 8. BSR history chart has < 2 data points → show single value with "Not enough history" label.
 9. DB Research with no stored products for keyword → empty state with suggestion to run Live Research.
 
+## Data Ownership Architecture (decided 2026-03-14)
+
+- **AmazonProduct** = global, no User/Workspace FK. Scrape data is shared market data — saves scrape costs (same keyword scraped once, used by all users within 24h cache)
+- **ProductSearchCache** = gets `workspace` FK in PROJ-7. Tracks "who triggered this search" for polling + history
+- **Niche** (PROJ-5) = has Workspace FK. "Add to Niche List" links keyword to user's workspace
+- User identity flows: UI → PROJ-7 API (authenticated, workspace-scoped) → ProductSearchCache(workspace=request.workspace) → PROJ-16 scrape engine (no user context, global data)
+- PROJ-6 (Deep Research) reads AmazonProduct data globally, results scoped to workspace via Niche FK
+
 ## Dependencies
 
 - PROJ-4 (Workspace & Membership — workspace scope)
