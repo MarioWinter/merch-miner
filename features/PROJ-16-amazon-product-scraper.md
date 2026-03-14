@@ -1,6 +1,6 @@
 # PROJ-16: Amazon Product Scraper (Scrapy)
 
-**Status:** Planned
+**Status:** In Progress
 **Priority:** P0 (MVP — required for PROJ-7 Live Research)
 **Created:** 2026-02-27
 **Updated:** 2026-03-14
@@ -42,17 +42,26 @@ Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. 
 
 ### Scraper Technical
 14. ScraperOps SDK used for proxy rotation on all requests; no fallback provider.
-15. 3 retry attempts with exponential backoff on request failure; after 3 failures, job marked failed.
+15. 3 retry attempts on critical selector failure (title, ASIN); after 3 failures, job marked failed. BSR is non-critical — products without BSR saved with `bsr=NULL`.
 16. Failed jobs logged to `ScrapeJob.error_log`; error count visible in Admin.
 17. Spider supports all 6 marketplaces: `amazon_com`, `amazon_de`, `amazon_co_uk`, `amazon_fr`, `amazon_it`, `amazon_es`.
 18. CSS selectors based on reference repos; marketplace-specific selector overrides supported.
 19. `CONCURRENT_REQUESTS` configurable per ScraperOps plan (default 1 for free tier).
+20. Scrapy runs via subprocess (not CrawlerProcess) to avoid Twisted reactor crash on repeated calls. `TWISTED_REACTOR = SelectReactor` for Django ORM compatibility.
+21. `scrape_job_id` parameter name used (not `job_id` — RQ reserves that name).
+22. `scrapy.cfg` lives in Django root `/app/`; `_scrapy_env()` helper sets `PYTHONPATH` and `SCRAPY_SETTINGS_MODULE`.
+23. BSR extraction uses 4 fallback formats: `ul.zg_hrsr` (sidebar), product details table, detail bullets, raw regex.
+24. `product_type` auto-detected from title suffix (e.g. "Funny Cat T-Shirt" → `t_shirt`).
+25. `listed_date` extracted from "Date First Available" field (3 source formats + 4 date format parsers).
+26. Boilerplate bullet filtering — common MBA phrases ("Lightweight, classic fit", "Pull on closure", etc.) stripped before storing `bullet_1`/`bullet_2`.
+27. `PRODUCT_TYPE_SPIDER_KWARGS` mapping provides per-type `search_index`, `seller_filter`, `hidden_keywords` for MBA-specific search filtering.
+28. `max_items` field on ScrapeJob maps to Scrapy's `CLOSESPIDER_ITEMCOUNT` for limiting products per job.
 
 ### Django Admin
-20. `ScrapeJob` list view shows: keyword/asin, marketplace, mode, status, progress (pages done/total), start time, end time, products scraped, error count.
-21. Admin actions on `ScrapeJob`: **stop running job** (kills subprocess via PID), cancel pending job, retry failed job. Live Research also stoppable from UI (PROJ-7).
+20. `ScrapeJob` list view shows: keyword/asin, marketplace, mode, product_type_filter, status, progress (pages done/total), max_items, products scraped, error count, start time, end time.
+21. Admin actions on `ScrapeJob`: **start pending jobs**, **stop running job** (kills subprocess via PID), cancel pending job, retry failed job. Start action reads `product_type_filter` and passes `PRODUCT_TYPE_SPIDER_KWARGS` + `max_items` to spider. Live Research also stoppable from UI (PROJ-7).
 22. `ScrapeTier` changelist is editable inline: BSR min/max, interval_days.
-23. Custom Admin page shows queue health: pending job count, ScraperOps rate limit status (requests remaining).
+23. Custom Admin page shows queue health: pending job count, running count, completed/failed today, active targets, ScraperOps key status.
 24. CSV upload available as a custom Admin action on `ScheduledScrapeTarget`.
 
 ## API Endpoints
@@ -71,27 +80,28 @@ Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. 
 | Field | Type | Notes |
 |-------|------|-------|
 | id | UUID | PK |
-| asin | CharField(20) | Unique together with marketplace |
-| marketplace | CharField choices [amazon_com, amazon_de, amazon_co_uk, amazon_fr, amazon_it, amazon_es] | |
+| asin | CharField(20) | Unique together with marketplace, db_index=True |
+| marketplace | CharField choices [amazon_com, amazon_de, amazon_co_uk, amazon_fr, amazon_it, amazon_es] | db_index=True |
 | title | TextField | |
 | brand | CharField(200) | |
-| bsr | IntegerField | Lowest/primary BSR rank (db_index=True) |
+| bsr | IntegerField(nullable) | Lowest/primary BSR rank (db_index=True). NULL if BSR not found (non-apparel) |
 | bsr_categories | JSONField | List of {rank, category, category_url} — all BSR entries |
 | category | CharField(200) | Primary category (from first BSR entry) |
 | subcategory | CharField(200) | |
 | price | DecimalField(10,2) | |
 | rating | FloatField | |
 | reviews_count | IntegerField | |
-| listed_date | DateField(nullable) | |
-| product_type | CharField choices [t_shirt, hoodie, pullover, zip_hoodie, long_sleeve, tank_top, other] | |
-| thumbnail_url | URLField | |
-| product_url | URLField | |
+| listed_date | DateField(nullable) | Extracted from "Date First Available" |
+| product_type | CharField choices [t_shirt, hoodie, pullover, zip_hoodie, long_sleeve, tank_top, other] | db_index=True. Auto-detected from title suffix |
+| thumbnail_url | URLField(max_length=2048) | |
+| product_url | URLField(max_length=2048) | |
 | seller_name | CharField(200) | |
-| feature_bullets | JSONField | List of bullet strings |
+| bullet_1 | TextField | First real (non-boilerplate) bullet |
+| bullet_2 | TextField | Second real (non-boilerplate) bullet |
 | description | TextField | |
 | variants | JSONField | Size/color options |
 | image_gallery | JSONField | List of image URLs |
-| scraped_at | DateTimeField | Last full scrape timestamp |
+| scraped_at | DateTimeField(nullable) | Last full scrape timestamp, db_index=True |
 | keywords | ManyToManyField(Keyword) | |
 
 ### Keyword
@@ -139,12 +149,14 @@ Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. 
 | Field | Type | Notes |
 |-------|------|-------|
 | id | UUID | PK |
-| mode | CharField choices [live, scheduled, bsr_snapshot] | |
+| mode | CharField choices [live, scheduled, bsr_snapshot] | db_index=True |
 | keyword | ForeignKey(Keyword, nullable) | For keyword-based jobs |
-| asin | CharField(20, nullable) | For ASIN-based jobs |
-| marketplace | CharField | |
-| status | CharField choices [pending, running, completed, failed, cancelled] | |
-| pages_total | IntegerField | Max 4 |
+| asin | CharField(20) | For ASIN-based jobs (blank default) |
+| marketplace | CharField | db_index=True |
+| status | CharField choices [pending, running, completed, failed, cancelled] | db_index=True |
+| product_type_filter | CharField choices ['', t_shirt, hoodie, pullover, zip_hoodie, long_sleeve, tank_top] | Maps to `PRODUCT_TYPE_SPIDER_KWARGS` for MBA search filtering |
+| pages_total | IntegerField | Default 4 |
+| max_items | PositiveIntegerField(nullable) | Limits products via `CLOSESPIDER_ITEMCOUNT`. NULL = no limit |
 | pages_done | IntegerField | |
 | products_scraped | IntegerField | |
 | error_log | TextField | Failure details (includes failed selector name, URL, marketplace, response status) |
@@ -206,10 +218,14 @@ django-rq cron (hourly)
 
 | Model | Admin Features |
 |-------|---------------|
-| `ScrapeJob` | List with filters (status, mode, marketplace); custom actions: cancel, retry |
+| `ScrapeJob` | List with filters (status, mode, marketplace, product_type_filter); actions: start pending, stop running, cancel pending, retry failed. Shows product_type_filter + max_items columns |
 | `ScrapeTier` | Inline editable (bsr_min, bsr_max, interval_days) |
 | `ScheduledScrapeTarget` | List with filters; CSV upload action; toggle active |
-| Custom Admin Page | Queue health: pending count, ScraperOps quota status |
+| `AmazonProduct` | List with filters (marketplace, product_type); search by ASIN, title, brand, bullet_1, bullet_2. Fieldsets for bullets/description, media, other |
+| `BSRSnapshot` | List display with filters (recorded_at) |
+| `Keyword` | List with filters (marketplace); searchable |
+| `ProductSearchCache` | List with status filter |
+| Custom Admin Page | Queue health: pending/running count, completed/failed today, active targets, ScraperOps key status, Stop All button |
 
 ## Dependencies
 
@@ -322,8 +338,9 @@ Piggybacks on Mode 1 + 2. Pipeline always creates BSRSnapshot after product upse
 ### Selector Error Handling
 
 - Each CSS selector extraction is wrapped with validation
-- If a critical selector (title, ASIN, BSR) returns empty after page load: retry request (max 3 attempts)
-- After 3 failures on same selector: job aborted, ScrapeJob.status=failed
+- **Critical selectors:** title, ASIN — if empty after page load: retry request (max 3 attempts). After 3 failures: yield `ScrapeErrorItem`, job can fail
+- **Non-critical selectors:** BSR, price, rating, bullets — extract what's available, log INFO for missing, no retry. Products without BSR saved with `bsr=NULL`
+- BSR extraction uses 4 fallback formats before giving up: `ul.zg_hrsr` (sidebar), product details table, detail bullets, raw regex
 - `ScrapeJob.error_log` records: which selector failed, on which URL, which marketplace, response status code
 - Django Admin ScrapeJob detail page shows full error log
 - Spider logs at WARNING level for each retry, ERROR level for final failure
@@ -340,30 +357,38 @@ Piggybacks on Mode 1 + 2. Pipeline always creates BSRSnapshot after product upse
 | US marketplace first, flexible for expansion | CSS selectors stored in settings dict keyed by marketplace. Defaults = US selectors from reference repo. Add marketplace = add selector dict entry |
 | 2 worker containers (1 disabled initially) | worker = active (default queue). worker-scraper = disabled via profiles:["scale"]. Ready for paid ScraperOps plan |
 | CSS selectors from Simple-Python-Scrapy-Scrapers repo | More robust fallbacks per field. User can adjust selectors without code changes (settings dict) |
-| BSR: multiple entries per product | `ul.zg_hrsr li span.a-list-item` contains N BSR entries (one per category). All stored in `bsr_categories` JSONField, lowest rank as primary `bsr` |
+| BSR: 4 fallback formats | `ul.zg_hrsr` → product details table → detail bullets → raw regex. All entries stored in `bsr_categories` JSONField, lowest rank as primary `bsr`. BSR is non-critical (NULL if not found) |
 | Job cancellation via PID | All jobs stoppable: Admin (any job) + UI (Live Research via PROJ-7). Subprocess killed via SIGTERM. Status set to cancelled with source tracking |
+| `TWISTED_REACTOR = SelectReactor` | Scrapy 2.14+ defaults to AsyncioSelectorReactor which blocks sync DB calls. SelectReactor required for Django ORM in pipelines |
+| `scrape_job_id` not `job_id` | RQ reserves `job_id` parameter internally. Using `scrape_job_id` avoids conflict |
+| `_scrapy_env()` helper | Sets `PYTHONPATH=/app` and `SCRAPY_SETTINGS_MODULE` so subprocess can import `scraper_app.*` |
+| `bullet_1`/`bullet_2` not `feature_bullets` JSONField | Only first 2 non-boilerplate bullets are useful for MBA listings. Simpler than JSONField for querying/display |
+| Product type auto-detection | Title suffix mapping (e.g. "T-Shirt" → `t_shirt`). Multi-word types checked first to avoid false matches |
+| `PRODUCT_TYPE_SPIDER_KWARGS` | Per-type search params (search_index, seller_filter, hidden_keywords) for MBA-specific Amazon search filtering |
+| `max_items` via `CLOSESPIDER_ITEMCOUNT` | Scrapy built-in extension. Cleaner than custom counting logic |
 
 ### File Structure
 
 ```
 django-app/
-├── scraper_app/                    ← NEW Django app
+├── scrapy.cfg                      ← Scrapy config (lives in Django root /app/)
+├── scraper_app/                    ← Django app
 │   ├── __init__.py
 │   ├── apps.py
-│   ├── models.py                   ← 7 models (as defined in spec)
-│   ├── admin.py                    ← Admin views, CSV upload, queue health
-│   ├── tasks.py                    ← 3 django-rq job functions
+│   ├── models.py                   ← 7 models + PRODUCT_TYPE_SPIDER_KWARGS mapping
+│   ├── admin.py                    ← Admin views, CSV upload, queue health, start/stop/retry actions
+│   ├── tasks.py                    ← 4 django-rq job functions + _scrapy_env() helper
 │   ├── selectors.py                ← CSS selector dicts per marketplace
 │   ├── fixtures/
 │   │   └── default_tiers.json      ← ScrapeTier defaults (3 tiers)
 │   ├── migrations/
 │   ├── scrapy_app/                 ← Scrapy project (nested)
-│   │   ├── scrapy.cfg
-│   │   ├── settings.py             ← ScraperOps config
-│   │   ├── items.py                ← AmazonProductItem fields
+│   │   ├── settings.py             ← ScraperOps config + TWISTED_REACTOR = SelectReactor
+│   │   ├── items.py                ← AmazonProductItem + ScrapeErrorItem
 │   │   ├── pipelines.py            ← DjangoORMPipeline
 │   │   └── spiders/
 │   │       ├── __init__.py
+│   │       ├── mixins.py           ← ProductDetailMixin (shared extraction logic)
 │   │       ├── amazon_search_product.py
 │   │       └── amazon_product.py
 │   └── tests/

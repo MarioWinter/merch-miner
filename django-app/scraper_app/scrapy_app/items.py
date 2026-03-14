@@ -7,9 +7,9 @@ class AmazonProductItem(scrapy.Item):
     marketplace = scrapy.Field()
     title = scrapy.Field()
     brand = scrapy.Field()
-    bsr = scrapy.Field()                # int - lowest/primary BSR rank
+    bsr = scrapy.Field()
     bsr_categories = scrapy.Field()     # list of {rank, category, category_url}
-    category = scrapy.Field()
+    category = scrapy.Field()           # str - first sub-category name
     subcategory = scrapy.Field()
     price = scrapy.Field()
     rating = scrapy.Field()

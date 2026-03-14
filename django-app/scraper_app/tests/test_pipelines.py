@@ -276,6 +276,46 @@ class TestPipelineJobProgress:
 # ------------------------------------------------------------------
 
 
+# ------------------------------------------------------------------
+# Bullet fields
+# ------------------------------------------------------------------
+
+
+class TestPipelineBulletFields:
+    def test_saves_bullet_1_and_bullet_2(self, pipeline, scrape_tiers):
+        pipe, spider = pipeline
+        item = make_product_item(bullet_1="Gift for nurses", bullet_2="Birthday present")
+        pipe.process_item(item, spider)
+
+        product = AmazonProduct.objects.get(asin="B0TEST12345")
+        assert product.bullet_1 == "Gift for nurses"
+        assert product.bullet_2 == "Birthday present"
+
+    def test_empty_bullets_default_to_empty_string(self, pipeline, scrape_tiers):
+        pipe, spider = pipeline
+        item = make_product_item(bullet_1="", bullet_2="")
+        pipe.process_item(item, spider)
+
+        product = AmazonProduct.objects.get(asin="B0TEST12345")
+        assert product.bullet_1 == ''
+        assert product.bullet_2 == ''
+
+    def test_none_bullets_stored_as_empty_string(self, pipeline, scrape_tiers):
+        """Pipeline defaults None bullets to '' via `or ''`."""
+        pipe, spider = pipeline
+        item = make_product_item(bullet_1=None, bullet_2=None)
+        pipe.process_item(item, spider)
+
+        product = AmazonProduct.objects.get(asin="B0TEST12345")
+        assert product.bullet_1 == ''
+        assert product.bullet_2 == ''
+
+
+# ------------------------------------------------------------------
+# BSR lowest rank
+# ------------------------------------------------------------------
+
+
 class TestPipelineBSRLowestRank:
     def test_bsr_stored_as_primary(self, pipeline, scrape_tiers):
         """Item bsr=500 stored directly on product model."""
@@ -285,6 +325,7 @@ class TestPipelineBSRLowestRank:
 
         product = AmazonProduct.objects.get(asin="B0TEST12345")
         assert product.bsr == 500
+
 
 
 # ------------------------------------------------------------------

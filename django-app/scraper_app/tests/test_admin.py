@@ -211,6 +211,121 @@ class TestScrapeJobActions:
         mock_queue.enqueue.assert_not_called()
 
     @patch('django_rq.get_queue')
+    def test_start_pending_with_product_type_filter(self, mock_get_queue, admin_client):
+        """Start action with product_type_filter='t_shirt' passes correct spider_kwargs."""
+        mock_queue = MagicMock()
+        mock_rq_job = MagicMock()
+        mock_rq_job.id = 'rq-filter-001'
+        mock_queue.enqueue.return_value = mock_rq_job
+        mock_get_queue.return_value = mock_queue
+
+        kw = _make_keyword('test filter')
+        job = _make_scrape_job(
+            keyword=kw, status=ScrapeJob.Status.PENDING,
+            product_type_filter='t_shirt',
+        )
+
+        changelist_url = reverse('admin:scraper_app_scrapejob_changelist')
+        admin_client.post(changelist_url, {
+            'action': 'start_pending_jobs',
+            '_selected_action': [str(job.id)],
+        })
+
+        mock_queue.enqueue.assert_called_once()
+        call_kwargs = mock_queue.enqueue.call_args.kwargs
+        assert call_kwargs['search_index'] == 'fashion-novelty'
+        assert call_kwargs['seller_filter'] == 'ATVPDKIKX0DER'
+        assert 'hidden_keywords' in call_kwargs
+
+    @patch('django_rq.get_queue')
+    def test_start_pending_without_product_type_filter(self, mock_get_queue, admin_client):
+        """Start action with empty product_type_filter passes no extra kwargs."""
+        mock_queue = MagicMock()
+        mock_rq_job = MagicMock()
+        mock_rq_job.id = 'rq-nofilter-001'
+        mock_queue.enqueue.return_value = mock_rq_job
+        mock_get_queue.return_value = mock_queue
+
+        kw = _make_keyword('no filter test')
+        job = _make_scrape_job(
+            keyword=kw, status=ScrapeJob.Status.PENDING,
+            product_type_filter='',
+        )
+
+        changelist_url = reverse('admin:scraper_app_scrapejob_changelist')
+        admin_client.post(changelist_url, {
+            'action': 'start_pending_jobs',
+            '_selected_action': [str(job.id)],
+        })
+
+        mock_queue.enqueue.assert_called_once()
+        call_kwargs = mock_queue.enqueue.call_args.kwargs
+        assert 'search_index' not in call_kwargs
+        assert 'seller_filter' not in call_kwargs
+        assert 'hidden_keywords' not in call_kwargs
+
+    @patch('django_rq.get_queue')
+    def test_start_pending_passes_max_items(self, mock_get_queue, admin_client):
+        """Start action passes max_items when set on the job."""
+        mock_queue = MagicMock()
+        mock_rq_job = MagicMock()
+        mock_rq_job.id = 'rq-max-001'
+        mock_queue.enqueue.return_value = mock_rq_job
+        mock_get_queue.return_value = mock_queue
+
+        kw = _make_keyword('max items test')
+        job = _make_scrape_job(
+            keyword=kw, status=ScrapeJob.Status.PENDING,
+            max_items=50,
+        )
+
+        changelist_url = reverse('admin:scraper_app_scrapejob_changelist')
+        admin_client.post(changelist_url, {
+            'action': 'start_pending_jobs',
+            '_selected_action': [str(job.id)],
+        })
+
+        mock_queue.enqueue.assert_called_once()
+        call_kwargs = mock_queue.enqueue.call_args.kwargs
+        assert call_kwargs['max_items'] == 50
+
+    @patch('django_rq.get_queue')
+    def test_retry_copies_product_type_filter_and_max_items(self, mock_get_queue, admin_client):
+        """Retry action copies product_type_filter and max_items to new job."""
+        mock_queue = MagicMock()
+        mock_rq_job = MagicMock()
+        mock_rq_job.id = 'rq-retry-copy-001'
+        mock_queue.enqueue.return_value = mock_rq_job
+        mock_get_queue.return_value = mock_queue
+
+        kw = _make_keyword('retry copy test')
+        failed_job = _make_scrape_job(
+            keyword=kw,
+            status=ScrapeJob.Status.FAILED,
+            product_type_filter='hoodie',
+            max_items=30,
+        )
+
+        changelist_url = reverse('admin:scraper_app_scrapejob_changelist')
+        admin_client.post(changelist_url, {
+            'action': 'retry_failed_jobs',
+            '_selected_action': [str(failed_job.id)],
+        })
+
+        mock_queue.enqueue.assert_called_once()
+        new_job = ScrapeJob.objects.filter(
+            status=ScrapeJob.Status.PENDING, keyword=kw,
+        ).first()
+        assert new_job is not None
+        assert new_job.product_type_filter == 'hoodie'
+        assert new_job.max_items == 30
+
+        # Verify spider_kwargs include hoodie filter
+        call_kwargs = mock_queue.enqueue.call_args.kwargs
+        assert call_kwargs['search_index'] == 'fashion-novelty'
+        assert call_kwargs['max_items'] == 30
+
+    @patch('django_rq.get_queue')
     def test_start_pending_asin_job(self, mock_get_queue, admin_client):
         """Start action dispatches scrape_asin_detail_job for ASIN-based jobs."""
         mock_queue = MagicMock()

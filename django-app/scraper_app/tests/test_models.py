@@ -189,6 +189,7 @@ class TestAmazonProductBSRCategories:
         assert product.bsr_categories[0]["rank"] == 5000
 
 
+
 # ------------------------------------------------------------------
 # ScrapeJob.error_count
 # ------------------------------------------------------------------
@@ -226,3 +227,89 @@ class TestScrapeJobErrorCount:
             error_log="   ",
         )
         assert job.error_count == 0
+
+
+# ------------------------------------------------------------------
+# ScrapeJob.product_type_filter
+# ------------------------------------------------------------------
+
+
+class TestScrapeJobProductTypeFilter:
+    def test_default_empty(self):
+        """product_type_filter defaults to '' (all products)."""
+        job = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.LIVE,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+        )
+        assert job.product_type_filter == ''
+
+    def test_valid_choices(self):
+        """product_type_filter accepts all defined choices."""
+        valid = ['', 't_shirt', 'hoodie', 'pullover', 'zip_hoodie', 'long_sleeve', 'tank_top']
+        for choice in valid:
+            job = ScrapeJob.objects.create(
+                mode=ScrapeJob.Mode.LIVE,
+                marketplace=MarketplaceChoices.AMAZON_COM,
+                product_type_filter=choice,
+            )
+            assert job.product_type_filter == choice
+            job.delete()
+
+    def test_stored_and_retrieved(self):
+        job = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.LIVE,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+            product_type_filter='t_shirt',
+        )
+        job.refresh_from_db()
+        assert job.product_type_filter == 't_shirt'
+
+
+# ------------------------------------------------------------------
+# ScrapeJob.max_items
+# ------------------------------------------------------------------
+
+
+class TestScrapeJobMaxItems:
+    def test_default_null(self):
+        """max_items defaults to None (null=True)."""
+        job = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.LIVE,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+        )
+        assert job.max_items is None
+
+    def test_accepts_positive_integer(self):
+        job = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.LIVE,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+            max_items=50,
+        )
+        job.refresh_from_db()
+        assert job.max_items == 50
+
+
+# ------------------------------------------------------------------
+# AmazonProduct bullet_1 / bullet_2
+# ------------------------------------------------------------------
+
+
+class TestAmazonProductBullets:
+    def test_bullet_fields_default_empty(self):
+        product = AmazonProduct.objects.create(
+            asin="B0BULLET001",
+            marketplace=MarketplaceChoices.AMAZON_COM,
+        )
+        assert product.bullet_1 == ''
+        assert product.bullet_2 == ''
+
+    def test_bullet_fields_stored(self):
+        product = AmazonProduct.objects.create(
+            asin="B0BULLET002",
+            marketplace=MarketplaceChoices.AMAZON_COM,
+            bullet_1="Perfect gift for bus drivers",
+            bullet_2="Great for birthdays and holidays",
+        )
+        product.refresh_from_db()
+        assert product.bullet_1 == "Perfect gift for bus drivers"
+        assert product.bullet_2 == "Great for birthdays and holidays"

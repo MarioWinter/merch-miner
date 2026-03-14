@@ -94,6 +94,12 @@ class TestScrapeKeywordJob:
         kw = _make_keyword()
         job = _make_scrape_job(keyword=kw)
 
+        # Simulate pipeline writing products during subprocess run
+        def simulate_scrape(*args, **kwargs):
+            ScrapeJob.objects.filter(id=job.id).update(products_scraped=5)
+            return (b'', b'')
+        mock_proc.communicate.side_effect = simulate_scrape
+
         scrape_keyword_job(kw.keyword, 'amazon_com', scrape_job_id=str(job.id))
 
         job.refresh_from_db()
@@ -104,10 +110,17 @@ class TestScrapeKeywordJob:
     @patch('scraper_app.tasks.subprocess.Popen')
     def test_success_clears_pid(self, mock_popen_cls):
         """On returncode=0, PID is cleared and status is completed."""
-        mock_popen_cls.return_value = _mock_popen(returncode=0)
+        mock_proc = _mock_popen(returncode=0)
+        mock_popen_cls.return_value = mock_proc
 
         kw = _make_keyword()
         job = _make_scrape_job(keyword=kw)
+
+        # Simulate pipeline writing products during subprocess run
+        def simulate_scrape(*args, **kwargs):
+            ScrapeJob.objects.filter(id=job.id).update(products_scraped=5)
+            return (b'', b'')
+        mock_proc.communicate.side_effect = simulate_scrape
 
         scrape_keyword_job(kw.keyword, 'amazon_com', scrape_job_id=str(job.id))
 
@@ -136,13 +149,20 @@ class TestScrapeKeywordJob:
     @patch('scraper_app.tasks.subprocess.Popen')
     def test_success_updates_product_search_cache(self, mock_popen_cls):
         """On success, linked ProductSearchCache is marked completed."""
-        mock_popen_cls.return_value = _mock_popen(returncode=0)
+        mock_proc = _mock_popen(returncode=0)
+        mock_popen_cls.return_value = mock_proc
 
         kw = _make_keyword()
         job = _make_scrape_job(keyword=kw)
         cache = ProductSearchCache.objects.create(
             keyword=kw, scrape_job=job, status=ProductSearchCache.Status.PENDING,
         )
+
+        # Simulate pipeline writing products during subprocess run
+        def simulate_scrape(*args, **kwargs):
+            ScrapeJob.objects.filter(id=job.id).update(products_scraped=5)
+            return (b'', b'')
+        mock_proc.communicate.side_effect = simulate_scrape
 
         scrape_keyword_job(kw.keyword, 'amazon_com', scrape_job_id=str(job.id))
 
@@ -199,6 +219,28 @@ class TestScrapeKeywordJob:
         cmd = mock_popen_cls.call_args.args[0]
         assert '-a' in cmd
         assert 'max_pages=3' in cmd
+
+    @patch('scraper_app.tasks.subprocess.Popen')
+    def test_max_items_adds_closespider_setting(self, mock_popen_cls):
+        """max_items is popped from spider_kwargs and passed as -s CLOSESPIDER_ITEMCOUNT=N."""
+        mock_popen_cls.return_value = _mock_popen(returncode=0)
+
+        scrape_keyword_job('test', 'amazon_com', max_items=25)
+
+        cmd = mock_popen_cls.call_args.args[0]
+        assert '-s' in cmd
+        idx = cmd.index('-s')
+        assert cmd[idx + 1] == 'CLOSESPIDER_ITEMCOUNT=25'
+
+    @patch('scraper_app.tasks.subprocess.Popen')
+    def test_max_items_none_no_closespider(self, mock_popen_cls):
+        """max_items=None does not add CLOSESPIDER_ITEMCOUNT to cmd."""
+        mock_popen_cls.return_value = _mock_popen(returncode=0)
+
+        scrape_keyword_job('test', 'amazon_com', max_items=None)
+
+        cmd = mock_popen_cls.call_args.args[0]
+        assert 'CLOSESPIDER_ITEMCOUNT' not in ' '.join(str(c) for c in cmd)
 
     @patch('scraper_app.tasks.subprocess.Popen')
     def test_nonexistent_job_id_returns_early(self, mock_popen_cls):

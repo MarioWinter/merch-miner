@@ -4,7 +4,7 @@ import json
 import re
 
 from scraper_app.scrapy_app.items import AmazonProductItem, ScrapeErrorItem
-from scraper_app.selectors import get_selectors, get_base_url
+from scraper_app.selectors import get_selectors
 
 
 BOILERPLATE_PHRASES = [
@@ -25,14 +25,12 @@ class ProductDetailMixin:
 
     def parse_product_data(self, response):
         marketplace = response.meta.get('marketplace', 'amazon_com')
-        job_id = response.meta.get('job_id')
         keyword = response.meta.get('keyword')
         is_sponsored = response.meta.get('is_sponsored', False)
         meta_asin = response.meta.get('asin')
         retry_count = response.meta.get('retry_count', 0)
 
         selectors = get_selectors(marketplace)
-        base_url = get_base_url(marketplace)
         detail = selectors['detail']
 
         # --- Title ---
@@ -70,12 +68,10 @@ class ProductDetailMixin:
 
         # --- BSR ---
         bsr, bsr_categories = self._extract_bsr(response, detail)
+        category = bsr_categories[0]['category'] if bsr_categories else None
 
         # --- Brand ---
         brand = self._extract_brand(response, detail)
-
-        # --- Category (first BSR category) ---
-        category = bsr_categories[0]['category'] if bsr_categories else None
 
         # --- Images ---
         image_gallery = self._extract_images(response, detail)
@@ -225,10 +221,12 @@ class ProductDetailMixin:
     def _extract_bsr(response, detail):
         """Extract BSR categories list and primary (lowest) BSR rank.
 
-        Tries 3 Amazon BSR formats:
+        Tries 4 Amazon BSR formats:
         1. ul.zg_hrsr — sidebar ranking list (apparel/fashion)
-        2. #productDetails table rows — "Best Sellers Rank" row
+        2. Any table row with "Best Sellers Rank" header — covers both
+           #productDetails_detailBullets_sections1 and voyager-ns-desktop-table
         3. #detailBullets_feature_div — detail bullets section
+        4. Raw text regex as last resort
         """
         bsr_categories = []
 
@@ -249,45 +247,76 @@ class ProductDetailMixin:
                     'category_url': cat_url,
                 })
 
-        # --- Format 2: Product Details table ---
+        # --- Format 2: Product Details table (any table with BSR row) ---
+        # Catches both #productDetails_detailBullets_sections1 and
+        # table.a-keyvalue.voyager-ns-desktop-table formats.
         if not bsr_categories:
-            table_rows = response.css('#productDetails_detailBullets_sections1 tr')
-            for row in table_rows:
-                header = (row.css('th::text').get('') or '').strip().lower()
-                if 'best sellers rank' in header or 'ranking' in header:
-                    value_cell = row.css('td')
-                    if value_cell:
-                        # Main rank
-                        cell_texts = value_cell.css('::text').getall()
-                        cell_text = ' '.join(t.strip() for t in cell_texts)
-                        for match in re.finditer(r'#([\d,]+)\s+in\s+([^()\n]+?)(?:\s*\(|$)', cell_text):
-                            rank = int(match.group(1).replace(',', ''))
-                            cat_name = match.group(2).strip()
+            for row in response.css('table tr'):
+                header = ' '.join(row.css('th::text').getall()).strip().lower()
+                if 'best sellers rank' not in header and 'ranking' not in header:
+                    continue
+                value_cell = row.css('td')
+                if not value_cell:
+                    continue
+
+                # Try per-<li> extraction first (voyager table with ul inside td)
+                li_items = value_cell.css('ul li span.a-list-item')
+                if li_items:
+                    for li in li_items:
+                        texts = li.css('::text').getall()
+                        full_text = ''.join(texts).strip()
+                        rank_match = re.search(r'#([\d,]+)', full_text)
+                        if rank_match:
+                            rank = int(rank_match.group(1).replace(',', ''))
+                            cat_link = li.css('a')
+                            cat_name = (cat_link.css('::text').get('') or '').strip()
+                            cat_url = cat_link.attrib.get('href', '')
+                            # Skip "See Top 100" links — use the last link as category
+                            if cat_name.startswith('See Top 100'):
+                                all_links = li.css('a')
+                                if len(all_links) > 1:
+                                    cat_link = all_links[-1]
+                                    cat_name = (cat_link.css('::text').get('') or '').strip()
+                                    cat_url = cat_link.attrib.get('href', '')
+                                else:
+                                    # Extract category from "in CategoryName" text
+                                    in_match = re.search(r'in\s+(.+?)(?:\s*\(|$)', full_text)
+                                    cat_name = in_match.group(1).strip() if in_match else cat_name
+                                    cat_url = ''
                             bsr_categories.append({
                                 'rank': rank,
                                 'category': cat_name,
-                                'category_url': '',
+                                'category_url': cat_url,
                             })
-                        # Sub-ranks in nested spans
-                        for link in value_cell.css('a'):
-                            link_text = (link.css('::text').get('') or '').strip()
-                            link_href = link.attrib.get('href', '')
-                            # Find rank number before this link
-                            prev_text = ' '.join(cell_texts)
-                            rank_before = re.search(r'#([\d,]+)\s+in\s+$', prev_text)
-                            if link_text and not any(c['category'] == link_text for c in bsr_categories):
-                                # Try to find rank from full cell text
-                                rank_pattern = re.search(
-                                    r'#([\d,]+)\s+in\s+' + re.escape(link_text),
-                                    cell_text,
-                                )
-                                if rank_pattern:
-                                    rank = int(rank_pattern.group(1).replace(',', ''))
-                                    bsr_categories.append({
-                                        'rank': rank,
-                                        'category': link_text,
-                                        'category_url': link_href,
-                                    })
+                else:
+                    # Fallback: flat text parsing (original productDetails format)
+                    cell_texts = value_cell.css('::text').getall()
+                    cell_text = ' '.join(t.strip() for t in cell_texts)
+                    for match in re.finditer(r'#([\d,]+)\s+in\s+([^()\n]+?)(?:\s*\(|$)', cell_text):
+                        rank = int(match.group(1).replace(',', ''))
+                        cat_name = match.group(2).strip()
+                        bsr_categories.append({
+                            'rank': rank,
+                            'category': cat_name,
+                            'category_url': '',
+                        })
+                    # Sub-ranks in nested spans
+                    for link in value_cell.css('a'):
+                        link_text = (link.css('::text').get('') or '').strip()
+                        link_href = link.attrib.get('href', '')
+                        if link_text and not any(c['category'] == link_text for c in bsr_categories):
+                            rank_pattern = re.search(
+                                r'#([\d,]+)\s+in\s+' + re.escape(link_text),
+                                cell_text,
+                            )
+                            if rank_pattern:
+                                rank = int(rank_pattern.group(1).replace(',', ''))
+                                bsr_categories.append({
+                                    'rank': rank,
+                                    'category': link_text,
+                                    'category_url': link_href,
+                                })
+                break
 
         # --- Format 3: Detail Bullets wrapper ---
         if not bsr_categories:
@@ -368,7 +397,6 @@ class ProductDetailMixin:
                     pass
         return []
 
-    @staticmethod
     @staticmethod
     def _extract_date_first_available(response, detail):
         """Extract 'Date First Available' from product details.

@@ -3,7 +3,7 @@
 import scrapy
 
 from scraper_app.scrapy_app.spiders.mixins import ProductDetailMixin
-from scraper_app.selectors import get_selectors, get_base_url
+from scraper_app.selectors import get_base_url
 
 
 class AmazonProductSpider(ProductDetailMixin, scrapy.Spider):
