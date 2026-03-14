@@ -4,7 +4,7 @@ description: Design PM-friendly technical architecture for features. No code, on
 argument-hint: [feature-spec-path]
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion
-model: sonnet
+model: opus
 ---
 
 # Solution Architect

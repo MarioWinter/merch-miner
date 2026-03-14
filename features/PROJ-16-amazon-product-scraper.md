@@ -222,3 +222,186 @@ SCRAPEOPS_API_KEY=        # ScraperOps proxy SDK key
 
 - ScraperOps integration: `github.com/python-scrapy-playbook/amazon-python-scrapy-scraper`
 - CSS selectors (newer): `github.com/Simple-Python-Scrapy-Scrapers/amazon-scrapy-scraper`
+
+---
+
+## Tech Design (Solution Architect)
+
+### System Overview
+
+```
+┌──────────────────────────────────────────────────────────┐
+│                    Django Admin                          │
+│  ┌──────────┐  ┌──────────────┐  ┌────────────────────┐ │
+│  │ScrapeJob  │  │ScrapeTier    │  │ScheduledScrapeTarget││
+│  │list/filter│  │inline edit   │  │CSV upload action   │ │
+│  │cancel/retry│ │BSR ranges    │  │toggle active       │ │
+│  └──────────┘  └──────────────┘  └────────────────────┘ │
+└────────────────────────┬─────────────────────────────────┘
+                         │ triggers
+                         ▼
+┌──────────────────────────────────────────────────────────┐
+│                 django-rq (Redis Queue)                  │
+│                                                          │
+│  Jobs:                                                   │
+│  ├── scrape_keyword_job    (Live Research + Scheduled)    │
+│  ├── scrape_asin_detail_job (BSR Snapshot + Scheduled)    │
+│  └── schedule_scrape_runner (hourly via rqscheduler)      │
+│                                                          │
+│  Scheduler: rqscheduler (django-rq built-in)             │
+└────────────────────────┬─────────────────────────────────┘
+                         │ runs inside worker
+                         ▼
+┌──────────────────────────────────────────────────────────┐
+│              Scrapy Spiders (2 spiders)                   │
+│                                                          │
+│  ┌─────────────────────────────────────────────────┐     │
+│  │ AmazonSearchProductSpider (2-phase combined)     │     │
+│  │ Phase 1: Search pages → discover ASINs           │     │
+│  │ Phase 2: Follow each ASIN → detail page          │     │
+│  │ Used by: Live Research + Keyword Scheduled Scrape │     │
+│  └─────────────────────────────────────────────────┘     │
+│  ┌─────────────────────────────────────────────────┐     │
+│  │ AmazonProductSpider (single ASIN detail)         │     │
+│  │ Used by: ASIN Scheduled Scrape + BSR Snapshot     │     │
+│  └─────────────────────────────────────────────────┘     │
+│                                                          │
+│  ScraperOps SDK (all requests):                          │
+│  ├── Proxy rotation + User-agent rotation                │
+│  ├── CAPTCHA bypass                                      │
+│  └── Monitoring dashboard                                │
+│                                                          │
+│  Selector Error Handling:                                 │
+│  ├── 3 retry attempts per failed selector                │
+│  ├── On 3rd fail → abort job, log WHICH selector failed  │
+│  └── Error visible in Django Admin ScrapeJob detail       │
+└────────────────────────┬─────────────────────────────────┘
+                         │ yields items
+                         ▼
+┌──────────────────────────────────────────────────────────┐
+│            Django ORM Pipeline                            │
+│                                                          │
+│  process_item():                                         │
+│  ├── AmazonProduct → update_or_create(asin, marketplace) │
+│  ├── Keyword → get_or_create + M2M link                  │
+│  ├── BSRSnapshot → create (every scrape)                 │
+│  ├── ScheduledScrapeTarget → get_or_create (auto-enroll) │
+│  └── ScrapeJob → update progress counters                │
+└────────────────────────┬─────────────────────────────────┘
+                         │ writes to
+                         ▼
+┌──────────────────────────────────────────────────────────┐
+│          PostgreSQL (merch_miner schema)                  │
+└──────────────────────────────────────────────────────────┘
+```
+
+### Spider Architecture
+
+| Spider | Trigger | Scrapes | Output |
+|--------|---------|---------|--------|
+| `AmazonSearchProductSpider` | Live Research, Keyword Scheduled | Search pages (max 4) → follows each ASIN to detail page | Full AmazonProduct + BSRSnapshot |
+| `AmazonProductSpider` | ASIN Scheduled, BSR Snapshot | Single product detail page by ASIN | Updated AmazonProduct + BSRSnapshot |
+
+**Why 2 spiders, not 3:** Search-only spider has no use — BSR requires detail page. 2-phase spider covers keyword scrapes; single-ASIN spider covers scheduled re-scrapes efficiently (1 request vs 4 pages + N detail pages).
+
+### Job Flow (3 Modes)
+
+**Mode 1 — Live Research:**
+PROJ-7 API → ProductSearchCache(pending) → ScrapeJob(live) → enqueue scrape_keyword_job → AmazonSearchProductSpider → pipeline saves all → ScrapeJob(completed)
+
+**Mode 2 — Scheduled Scrape:**
+rqscheduler (hourly) → schedule_scrape_runner → query ScheduledScrapeTarget(next_scrape_at <= now, active) → keyword target: scrape_keyword_job / ASIN target: scrape_asin_detail_job → pipeline saves all → tier auto-updates if BSR changed
+
+**Mode 3 — BSR History:**
+Piggybacks on Mode 1 + 2. Pipeline always creates BSRSnapshot after product upsert. No separate job.
+
+### Selector Error Handling
+
+- Each CSS selector extraction is wrapped with validation
+- If a critical selector (title, ASIN, BSR) returns empty after page load: retry request (max 3 attempts)
+- After 3 failures on same selector: job aborted, ScrapeJob.status=failed
+- `ScrapeJob.error_log` records: which selector failed, on which URL, which marketplace, response status code
+- Django Admin ScrapeJob detail page shows full error log
+- Spider logs at WARNING level for each retry, ERROR level for final failure
+
+### Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| New Django app `scraper_app` | Clean boundary — PROJ-7 imports from scraper_app, not vice versa |
+| Scrapy runs inside django-rq worker | Worker exists in docker-compose. CrawlerProcess runs in-process. Spider accesses Django ORM via django.setup() |
+| Django ORM pipeline (not raw psycopg2) | Django owns schema via migrations. Prevents schema drift. update_or_create handles upserts |
+| ScraperOps SDK for proxies | Proven in reference repos. Handles rotation, CAPTCHAs, user-agents |
+| rqscheduler for hourly cron | django-rq built-in. Simpler than celery-beat. Already have Redis |
+| US marketplace first, flexible for expansion | CSS selectors stored in settings dict keyed by marketplace. Defaults = US selectors from reference repo. Add marketplace = add selector dict entry |
+| 2 worker containers (1 disabled initially) | worker = active (default queue). worker-scraper = disabled (scale=0). Ready for paid ScraperOps plan with higher concurrency |
+| CSS selectors from Simple-Python-Scrapy-Scrapers repo | More robust fallbacks per field. User can adjust selectors without code changes (settings dict) |
+
+### File Structure
+
+```
+django-app/
+├── scraper_app/                    ← NEW Django app
+│   ├── __init__.py
+│   ├── apps.py
+│   ├── models.py                   ← 7 models (as defined in spec)
+│   ├── admin.py                    ← Admin views, CSV upload, queue health
+│   ├── tasks.py                    ← 3 django-rq job functions
+│   ├── selectors.py                ← CSS selector dicts per marketplace
+│   ├── fixtures/
+│   │   └── default_tiers.json      ← ScrapeTier defaults (3 tiers)
+│   ├── migrations/
+│   ├── scrapy_app/                 ← Scrapy project (nested)
+│   │   ├── scrapy.cfg
+│   │   ├── settings.py             ← ScraperOps config
+│   │   ├── items.py                ← AmazonProductItem fields
+│   │   ├── pipelines.py            ← DjangoORMPipeline
+│   │   └── spiders/
+│   │       ├── __init__.py
+│   │       ├── amazon_search_product.py
+│   │       └── amazon_product.py
+│   └── tests/
+│       ├── test_models.py
+│       ├── test_tasks.py
+│       ├── test_pipelines.py
+│       └── test_admin.py
+```
+
+### Docker Changes
+
+```
+services:
+  worker:           ← existing, handles default queue
+  worker-scraper:   ← NEW, same image, handles scraper queue
+                      profiles: ["scale"] → disabled by default
+                      activate: docker compose --profile scale up worker-scraper
+```
+
+### Dependencies (New)
+
+| Package | Purpose |
+|---------|---------|
+| `scrapy>=2.11` | Spider framework |
+| `scrapeops-scrapy>=0.5` | Monitoring + retry middleware |
+| `scrapeops-scrapy-proxy-sdk>=0.5` | Proxy rotation, CAPTCHA bypass |
+
+### Environment Variables (New)
+
+| Variable | Purpose |
+|----------|---------|
+| `SCRAPEOPS_API_KEY` | ScraperOps proxy + monitoring key |
+
+### Integration Points
+
+| From | To | How |
+|------|----|-----|
+| PROJ-7 API | scraper_app.tasks | django_rq.enqueue() |
+| PROJ-7 API | scraper_app.models | Query ProductSearchCache, AmazonProduct |
+| PROJ-6 LangGraph | scraper_app.models | Read AmazonProduct for AI analysis |
+| PROJ-10 Keyword Bank | scraper_app.models | Auto-populate ScheduledScrapeTarget |
+
+**PROJ-16 has no dependency on PROJ-7** — built and tested independently via Django Admin.
+
+### Marketplace Flexibility
+
+CSS selectors stored in `selectors.py` as dict keyed by marketplace code. Initial implementation: `amazon_com` only with selectors from reference repo. Adding a marketplace = adding a new dict entry with marketplace-specific overrides. Spider reads selectors from this dict based on job's marketplace field.
