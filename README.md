@@ -29,6 +29,7 @@ Business OS for Print on Demand sellers on Merch by Amazon — niche research �
 | Auth | django-allauth (email + Google OAuth2) |
 | Database | PostgreSQL 16 (self-hosted Supabase) |
 | Queue | Redis 7 + django-rq |
+| Scraper | Scrapy 2.14 + ScraperOps SDK |
 | Proxy | Caddy (prod) |
 | Infra | Docker Compose |
 
@@ -46,17 +47,7 @@ merch-miner/
 ├── Caddyfile                   routing (miner.* → Django, merch-miner.* → SPA)
 ├── frontend-ui/                React + Vite SPA
 │   └── src/
-│       ├── App.tsx
-│       ├── main.tsx
-│       ├── assets/
-│       ├── components/         Global reusable components (MUI wrappers, shared UI)
-│       │   └── [compName]/
-│       │       ├── hooks/
-│       │       ├── types/
-│       │       ├── partials/
-│       │       ├── tests/
-│       │       ├── utils/
-│       │       └── schemas/
+│       ├── components/         Global reusable components
 │       ├── hooks/              Global custom hooks
 │       ├── i18n/               i18next setup + language JSON files
 │       ├── services/           axios API calls → Django backend
@@ -64,18 +55,14 @@ merch-miner/
 │       ├── style/              MUI theme + global styles
 │       ├── types/              Global TypeScript interfaces
 │       ├── utils/              Pure helper functions
-│       └── views/
-│           └── [viewName]/
-│               └── [sectionName]/
-│                   ├── hooks/
-│                   ├── types/
-│                   ├── partials/
-│                   ├── tests/
-│                   ├── utils/
-│                   └── schemas/
+│       └── views/              Feature views
 ├── django-app/                 Django DRF API
 │   ├── core/                   settings, URLs, WSGI
-│   └── user_auth_app/          custom User model, JWT auth, OAuth2
+│   ├── user_auth_app/          custom User model, JWT auth, OAuth2
+│   ├── workspace_app/          Workspace + Membership
+│   ├── niche_app/              Niche List
+│   ├── scraper_app/            Amazon Product Scraper (Scrapy)
+│   └── content/                Content management
 ├── scripts/
 │   └── init-db.sh              idempotent Supabase DB setup
 ├── features/                   feature specs (PROJ-X-name.md)
@@ -89,14 +76,18 @@ merch-miner/
 ## Dev Setup
 
 ```bash
-# 1. Copy and fill credentials (minimum: SECRET_KEY)
+# 1. Copy and fill credentials (minimum: SECRET_KEY, SCRAPEOPS_API_KEY)
 cp .env.dev.template .env
 
 # 2. Start the stack
 docker compose up --build
 
-# 3. Apply migrations (first time or after pulling new migration files)
+# 3. Apply migrations + load fixtures
 docker compose exec web python manage.py migrate
+docker compose exec web python manage.py loaddata default_tiers
+
+# 4. Create admin user
+docker compose exec web python manage.py createsuperuser
 ```
 
 Dev URLs: Django → `http://localhost:8000` · Vite → `http://localhost:5173` · Admin → `http://localhost:8000/admin/`
@@ -114,7 +105,8 @@ docker network create supabase-net || true
 
 # 2. Configure env
 cp .env.prod.template .env
-# Fill: SECRET_KEY, DB_*, ALLOWED_HOSTS, CSRF/CORS origins, FRONTEND_* URLs, EMAIL_*, GOOGLE_*, N8N/POLAR secrets
+# Fill: SECRET_KEY, DB_*, ALLOWED_HOSTS, CSRF/CORS origins, FRONTEND_* URLs,
+#       EMAIL_*, GOOGLE_*, SCRAPEOPS_API_KEY
 
 # 3. Init database (idempotent)
 ./scripts/init-db.sh
@@ -123,6 +115,7 @@ cp .env.prod.template .env
 docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
 docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
 docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T web python manage.py migrate --no-input
+docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T web python manage.py loaddata default_tiers
 ```
 
 **Prod routing (via Haupt-Caddy → app_caddy):**
@@ -142,11 +135,13 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T web pyth
 
 ```bash
 docker compose exec web pytest                                    # all tests
+docker compose exec web pytest scraper_app/ -v                    # scraper tests only
 docker compose exec web coverage run -m pytest && \
   docker compose exec web coverage report                        # coverage
 docker compose exec web python manage.py makemigrations          # generate migration files
 docker compose exec web python manage.py migrate                 # apply migrations
 docker compose exec web python manage.py createsuperuser
+docker compose exec web python manage.py loaddata default_tiers  # load scraper tier config
 
 # single test
 docker compose exec web pytest path/to/test_file.py::TestClass::test_method
@@ -174,6 +169,72 @@ ruff check --fix --unsafe-fixes django-app/              # incl. unused variable
 
 ---
 
+## Amazon Product Scraper (PROJ-16)
+
+Scrapy-based Amazon scraper with ScraperOps proxy, django-rq background jobs, Django Admin management. Scrapes Merch by Amazon product listings (T-Shirts, Hoodies, etc.) with BSR tracking.
+
+### Admin Workflow
+
+1. **Admin → Scrape jobs → Add Scrape Job**
+2. Fill in: Keyword, Marketplace, Product type filter (T-Shirt/Hoodie/etc.), Pages total, Max items
+3. Save → select job → Action: **"Start selected pending jobs"** → Go
+4. Monitor: Status changes Pending → Running → Completed/Failed
+5. View results: **Amazon products** shows scraped data
+
+### Quick Test (Shell)
+
+```bash
+docker compose exec web bash -c 'cd /app && SCRAPY_SETTINGS_MODULE=scraper_app.scrapy_app.settings PYTHONPATH=/app scrapy crawl amazon_search_product -a keyword="school bus driver" -a marketplace=amazon_com -a max_pages=1 -a search_index=fashion-novelty -a seller_filter=ATVPDKIKX0DER -s CLOSESPIDER_ITEMCOUNT=5'
+```
+
+### Scheduler (for automatic re-scraping)
+
+```bash
+# Register hourly job (once)
+docker compose exec web python manage.py setup_scheduler
+
+# Start scheduler process (runs permanently)
+docker compose exec worker python manage.py rqscheduler
+```
+
+### Admin Panel Sections
+
+| Section | Description |
+|---------|-------------|
+| **Scrape jobs** | Monitor + control jobs. Actions: Start / Stop / Cancel / Retry |
+| **Scrape tiers** | BSR ranges + re-scrape intervals (inline editable) |
+| **Scheduled scrape targets** | Automatic re-scraping pool. CSV upload for bulk import |
+| **Amazon products** | Browse scraped products. Search by ASIN, title, brand, bullets |
+| **BSR snapshots** | BSR history per product |
+| **Queue Health** | `/admin/scraper/queue-health/` — queue stats + Stop All |
+
+### Job Status
+
+| Status | Meaning |
+|--------|---------|
+| **Pending** | Created, waiting for "Start" action |
+| **Running** | Scrapy subprocess active, PID tracked |
+| **Completed** | Products saved to DB |
+| **Failed** | Error or 0 products; check `error_log` for selector details |
+| **Cancelled** | Stopped by admin/user; `cancelled_by` tracks source |
+
+### CSV Upload
+
+Admin → **Scheduled scrape targets** → Action: "Upload ASIN CSV" or "Upload Keyword CSV"
+
+**ASIN CSV:** `asin,marketplace,tier` · **Keyword CSV:** `keyword,marketplace,tier` (tier optional)
+
+### Scaling
+
+```bash
+# Activate second worker (paid ScraperOps plan)
+docker compose --profile scale up -d worker-scraper
+```
+
+Set `SCRAPY_CONCURRENT_REQUESTS=10` in `.env` for parallel requests per spider.
+
+---
+
 ## Feature Roadmap
 
 | ID | Feature | Priority | Status |
@@ -182,8 +243,8 @@ ruff check --fix --unsafe-fixes django-app/              # incl. unused variable
 | PROJ-2 | Frontend Docker Integration | P0 | Deployed |
 | PROJ-3 | CI/CD & DevOps Setup | P0 | Deployed |
 | PROJ-4 | Workspace & Membership | P0 | Deployed |
-| PROJ-5 | Niche List | P0 | Planned |
-| PROJ-6 | Niche Deep Research (n8n) | P0 | Planned |
+| PROJ-5 | Niche List | P0 | Deployed |
+| PROJ-6 | Niche Deep Research (LangGraph) | P0 | Planned |
 | PROJ-7 | Amazon Product Research | P0 | Planned |
 | PROJ-8 | Idea & Slogan Generation (n8n) | P0 | Planned |
 | PROJ-9 | Design Generation (OpenRouter) | P0 | Planned |
@@ -193,6 +254,6 @@ ruff check --fix --unsafe-fixes django-app/              # incl. unused variable
 | PROJ-13 | Marketplace Upload Manager (Selenium) | P1 | Planned |
 | PROJ-14 | Team Kanban | P1 | Planned |
 | PROJ-15 | Analytics & Reporting | P2 | Planned |
-| PROJ-16 | Amazon Product Scraper (Scrapy) | P2 | Planned |
+| PROJ-16 | Amazon Product Scraper (Scrapy) | P0 | In Progress |
 
 Full specs in `features/`.

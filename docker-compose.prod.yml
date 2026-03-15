@@ -21,6 +21,29 @@ services:
       - default
       - supabase-net
 
+  worker-scraper:
+    image: ghcr.io/mariowinter/merch-miner/backend:latest
+    command: python manage.py rqworker scraper
+    env_file: ./.env
+    restart: unless-stopped
+    networks:
+      - default
+      - supabase-net
+    depends_on:
+      - redis
+
+  scheduler:
+    image: ghcr.io/mariowinter/merch-miner/backend:latest
+    entrypoint: ["./worker.entrypoint.sh"]
+    command: python manage.py rqscheduler
+    env_file: ./.env
+    restart: unless-stopped
+    networks:
+      - default
+      - supabase-net
+    depends_on:
+      - redis
+
   frontend:
     image: ghcr.io/mariowinter/merch-miner/frontend:latest
     container_name: app_frontend

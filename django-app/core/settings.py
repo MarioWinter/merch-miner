@@ -112,6 +112,7 @@ INSTALLED_APPS = [
     'workspace_app',
     'niche_app',
     'content.apps.ContentConfig',
+    'scraper_app',
 ]
 
 # django-allauth settings
@@ -211,7 +212,18 @@ RQ_QUEUES = {
         'DEFAULT_TIMEOUT': 900,
         'REDIS_CLIENT_KWARGS': {},
     },
+    'scraper': {
+        'HOST': os.environ.get("REDIS_HOST", default="redis"),
+        'PORT': os.environ.get("REDIS_PORT", default=6379),
+        'DB': os.environ.get("REDIS_DB", default=0),
+        'DEFAULT_TIMEOUT': 1800,
+        'REDIS_CLIENT_KWARGS': {},
+    },
 }
+
+# Scraper settings
+SCRAPEOPS_API_KEY = os.environ.get('SCRAPEOPS_API_KEY', '')
+SCRAPY_CONCURRENT_REQUESTS = int(os.environ.get('SCRAPY_CONCURRENT_REQUESTS', 1))
 
 
 # Password validation

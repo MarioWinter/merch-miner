@@ -1,7 +1,7 @@
 ---
 name: Frontend Developer
 description: Builds UI components with React 19, Vite, TypeScript, MUI v7, Redux Toolkit, and React Router DOM v7
-model: sonnet
+model: opus
 maxTurns: 50
 tools:
   - Read

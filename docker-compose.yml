@@ -28,6 +28,36 @@ services:
     depends_on:
       - redis
 
+  worker-scraper:
+    build:
+      context: ./django-app
+      dockerfile: backend.Dockerfile
+    container_name: app_worker_scraper
+    entrypoint: ["./worker.entrypoint.sh"]
+    command: python manage.py rqworker scraper
+    env_file: ./.env
+    restart: unless-stopped
+    networks:
+      - default
+      - supabase-net
+    depends_on:
+      - redis
+
+  scheduler:
+    build:
+      context: ./django-app
+      dockerfile: backend.Dockerfile
+    container_name: app_scheduler
+    entrypoint: ["./worker.entrypoint.sh"]
+    command: python manage.py rqscheduler
+    env_file: ./.env
+    restart: unless-stopped
+    networks:
+      - default
+      - supabase-net
+    depends_on:
+      - redis
+
   web:
     build:
       context: ./django-app
