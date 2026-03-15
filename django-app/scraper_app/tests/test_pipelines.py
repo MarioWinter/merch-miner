@@ -187,12 +187,17 @@ class TestPipelineBSRSnapshot:
         assert snap.rating == 4.5
         assert snap.price == Decimal("19.99")
 
-    def test_no_snapshot_when_bsr_none(self, pipeline, scrape_tiers):
+    def test_snapshot_created_when_bsr_none(self, pipeline, scrape_tiers):
+        """BSRSnapshot is created even when BSR is None (captures rating/price)."""
         pipe, spider = pipeline
-        item = make_product_item(bsr=None)
+        item = make_product_item(bsr=None, rating=3.5, price=Decimal("14.99"))
         pipe.process_item(item, spider)
 
-        assert BSRSnapshot.objects.count() == 0
+        assert BSRSnapshot.objects.count() == 1
+        snap = BSRSnapshot.objects.first()
+        assert snap.bsr is None
+        assert snap.rating == 3.5
+        assert snap.price == Decimal("14.99")
 
 
 # ------------------------------------------------------------------
@@ -224,6 +229,21 @@ class TestPipelineAutoEnroll:
         pipe.process_item(item, spider)
 
         assert ScheduledScrapeTarget.objects.count() == 0
+
+    def test_auto_enroll_updates_tier_on_rescrape(self, pipeline, scrape_tiers):
+        """Existing target gets tier updated when BSR changes on keyword re-scrape."""
+        pipe, spider = pipeline
+        # First scrape: BSR=100000 -> Tier 2
+        item1 = make_product_item(bsr=100000)
+        pipe.process_item(item1, spider)
+        target = ScheduledScrapeTarget.objects.get(asin="B0TEST12345")
+        assert target.tier.name == "Tier 2"
+
+        # Re-scrape: BSR=5000 -> Tier 1
+        item2 = make_product_item(bsr=5000)
+        pipe.process_item(item2, spider)
+        target.refresh_from_db()
+        assert target.tier.name == "Tier 1"
 
 
 # ------------------------------------------------------------------

@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 from django.urls import reverse
 
 from scraper_app.models import (
+    AmazonProduct,
     Keyword,
     ScheduledScrapeTarget,
     ScrapeJob,
@@ -82,6 +83,19 @@ class TestAsinCsvUpload:
         assert ScheduledScrapeTarget.objects.count() == 0
         content = response.content.decode()
         assert 'Missing columns' in content or 'asin' in content
+
+    def test_no_tier_uses_existing_product_bsr(self, admin_client, scrape_tiers):
+        """BUG-03: ASIN CSV without tier uses existing product's BSR for tier assignment."""
+        AmazonProduct.objects.create(asin='B0TEST6789', marketplace='amazon_com', bsr=5000)
+        csv_content = "asin,marketplace\nB0TEST6789,amazon_com\n"
+        csv_file = io.BytesIO(csv_content.encode('utf-8'))
+        csv_file.name = 'bsr_tier.csv'
+
+        admin_client.post(self.UPLOAD_URL, {'csv_file': csv_file})
+
+        target = ScheduledScrapeTarget.objects.get(asin='B0TEST6789')
+        # BSR 5000 falls in Tier 1 range (1-50000)
+        assert target.tier.name == 'Tier 1'
 
     def test_invalid_asin_format_shows_error(self, admin_client, scrape_tiers):
         """ASIN not matching ^[A-Z0-9]{10}$ is rejected."""

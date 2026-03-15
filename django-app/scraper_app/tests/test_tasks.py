@@ -17,6 +17,7 @@ from scraper_app.tasks import (
     SCRAPY_PROJECT_DIR,
     _scrapy_env,
     cancel_scrape_job,
+    get_or_create_keyword_cache,
     schedule_scrape_runner,
     scrape_asin_detail_job,
     scrape_keyword_job,
@@ -351,7 +352,7 @@ class TestCancelScrapeJob:
 
         job.refresh_from_db()
         assert job.status == ScrapeJob.Status.CANCELLED
-        mock_django_rq.get_queue.assert_called_once_with('default')
+        mock_django_rq.get_queue.assert_called_once_with('scraper')
         mock_queue.remove.assert_called_once_with('test-rq-123')
 
     def test_cancel_job_updates_cache(self):
@@ -478,3 +479,72 @@ class TestScheduleScrapeRunner:
         call_kwargs = mock_queue.enqueue.call_args.kwargs
         assert 'scrape_job_id' in call_kwargs
         assert 'job_id' not in call_kwargs
+
+
+# ---------------------------------------------------------------------------
+# get_or_create_keyword_cache (BUG-01 dedup + BUG-02 cache freshness)
+# ---------------------------------------------------------------------------
+
+class TestGetOrCreateKeywordCache:
+    def test_returns_pending_cache_for_dedup(self):
+        """BUG-01: existing pending cache returned instead of creating duplicate."""
+        kw = _make_keyword('dedup test')
+        job = _make_scrape_job(keyword=kw)
+        cache = ProductSearchCache.objects.create(
+            keyword=kw, scrape_job=job, status=ProductSearchCache.Status.PENDING,
+        )
+
+        result, is_new = get_or_create_keyword_cache('dedup test', 'amazon_com')
+
+        assert result == cache
+        assert is_new is False
+
+    def test_returns_fresh_completed_cache(self):
+        """BUG-02: completed cache <24h old returned without new scrape."""
+        kw = _make_keyword('fresh test')
+        job = _make_scrape_job(keyword=kw, status=ScrapeJob.Status.COMPLETED)
+        cache = ProductSearchCache.objects.create(
+            keyword=kw, scrape_job=job,
+            status=ProductSearchCache.Status.COMPLETED,
+            last_scraped_at=timezone.now() - timedelta(hours=1),
+        )
+
+        result, is_new = get_or_create_keyword_cache('fresh test', 'amazon_com')
+
+        assert result == cache
+        assert is_new is False
+
+    def test_stale_cache_returns_none(self):
+        """Completed cache >24h old is not returned."""
+        kw = _make_keyword('stale test')
+        job = _make_scrape_job(keyword=kw, status=ScrapeJob.Status.COMPLETED)
+        ProductSearchCache.objects.create(
+            keyword=kw, scrape_job=job,
+            status=ProductSearchCache.Status.COMPLETED,
+            last_scraped_at=timezone.now() - timedelta(hours=25),
+        )
+
+        result, is_new = get_or_create_keyword_cache('stale test', 'amazon_com')
+
+        assert result is None
+        assert is_new is True
+
+    def test_no_existing_cache_returns_none(self):
+        """No cache at all returns None + is_new=True."""
+        result, is_new = get_or_create_keyword_cache('brand new', 'amazon_com')
+
+        assert result is None
+        assert is_new is True
+
+    def test_failed_cache_ignored(self):
+        """Failed cache is not returned for dedup."""
+        kw = _make_keyword('failed test')
+        job = _make_scrape_job(keyword=kw, status=ScrapeJob.Status.FAILED)
+        ProductSearchCache.objects.create(
+            keyword=kw, scrape_job=job, status=ProductSearchCache.Status.FAILED,
+        )
+
+        result, is_new = get_or_create_keyword_cache('failed test', 'amazon_com')
+
+        assert result is None
+        assert is_new is True

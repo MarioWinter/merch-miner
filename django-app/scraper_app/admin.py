@@ -22,6 +22,20 @@ from scraper_app.models import (
 )
 
 
+def _tier_from_bsr_or_fallback(asin=None, marketplace=None):
+    """Lookup tier from existing product BSR, fallback to Tier 3."""
+    if asin and marketplace:
+        try:
+            product = AmazonProduct.objects.get(asin=asin, marketplace=marketplace)
+            if product.bsr is not None:
+                tier = ScrapeTier.get_tier_for_bsr(product.bsr)
+                if tier:
+                    return tier
+        except AmazonProduct.DoesNotExist:
+            pass
+    return ScrapeTier.objects.order_by('-bsr_min').first()
+
+
 # ---------------------------------------------------------------------------
 # CSV Upload Form
 # ---------------------------------------------------------------------------
@@ -68,7 +82,7 @@ class ScrapeJobAdmin(admin.ModelAdmin):
 
         pending = queryset.filter(status=ScrapeJob.Status.PENDING)
         count = 0
-        queue = django_rq.get_queue('default')
+        queue = django_rq.get_queue('scraper')
         for job in pending:
             if job.keyword:
                 spider_kwargs = {}
@@ -133,7 +147,7 @@ class ScrapeJobAdmin(admin.ModelAdmin):
 
         failed = queryset.filter(status=ScrapeJob.Status.FAILED)
         count = 0
-        queue = django_rq.get_queue('default')
+        queue = django_rq.get_queue('scraper')
         for job in failed:
             new_job = ScrapeJob.objects.create(
                 mode=job.mode,
@@ -318,7 +332,7 @@ class ScheduledScrapeTargetAdmin(admin.ModelAdmin):
                     errors.append(f"Row {i}: unknown tier '{tier_name}'")
                     continue
             else:
-                tier = ScrapeTier.objects.order_by('-bsr_min').first()
+                tier = _tier_from_bsr_or_fallback(asin=asin, marketplace=marketplace)
 
             ScheduledScrapeTarget.objects.update_or_create(
                 asin=asin,
@@ -361,6 +375,7 @@ class ScheduledScrapeTargetAdmin(admin.ModelAdmin):
                     errors.append(f"Row {i}: unknown tier '{tier_name}'")
                     continue
             else:
+                # Keywords have no ASIN for BSR lookup; fallback to Tier 3
                 tier = ScrapeTier.objects.order_by('-bsr_min').first()
 
             keyword_obj, _ = Keyword.objects.get_or_create(

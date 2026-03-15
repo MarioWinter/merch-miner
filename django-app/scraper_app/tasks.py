@@ -2,6 +2,7 @@ import logging
 import os
 import signal
 import subprocess
+from datetime import timedelta
 
 import django_rq
 from django.conf import settings
@@ -9,6 +10,7 @@ from django.utils import timezone
 
 from scraper_app.models import (
     AmazonProduct,
+    Keyword,
     ProductSearchCache,
     ScheduledScrapeTarget,
     ScrapeJob,
@@ -27,6 +29,39 @@ def _scrapy_env():
     existing = env.get('PYTHONPATH', '')
     env['PYTHONPATH'] = f"{SCRAPY_PROJECT_DIR}:{existing}" if existing else SCRAPY_PROJECT_DIR
     return env
+
+
+CACHE_TTL_HOURS = 24
+
+
+def get_or_create_keyword_cache(keyword_str, marketplace):
+    """Check for existing pending/fresh cache. Returns (cache, is_new) or (None, False) to proceed.
+
+    BUG-01 fix: dedup concurrent pending jobs.
+    BUG-02 fix: return completed cache if <24h old.
+    """
+    keyword_obj, _ = Keyword.objects.get_or_create(
+        keyword=keyword_str, marketplace=marketplace,
+    )
+    # Check for pending/running job (dedup)
+    pending_cache = ProductSearchCache.objects.filter(
+        keyword=keyword_obj,
+        status=ProductSearchCache.Status.PENDING,
+    ).select_related('scrape_job').first()
+    if pending_cache:
+        return pending_cache, False
+
+    # Check for fresh completed cache (<24h)
+    cutoff = timezone.now() - timedelta(hours=CACHE_TTL_HOURS)
+    fresh_cache = ProductSearchCache.objects.filter(
+        keyword=keyword_obj,
+        status=ProductSearchCache.Status.COMPLETED,
+        last_scraped_at__gte=cutoff,
+    ).order_by('-last_scraped_at').first()
+    if fresh_cache:
+        return fresh_cache, False
+
+    return None, True
 
 
 def scrape_keyword_job(keyword_str, marketplace, scrape_job_id=None, **spider_kwargs):
@@ -184,6 +219,14 @@ def scrape_asin_detail_job(asin, marketplace, scrape_job_id=None):
 
         stdout, stderr = proc.communicate()
 
+        # BUG-07 fix: log stdout/stderr symmetrically with keyword job
+        stdout_text = stdout.decode('utf-8', errors='replace') if stdout else ''
+        stderr_text = stderr.decode('utf-8', errors='replace') if stderr else ''
+        if stdout_text:
+            logger.info("Scrapy ASIN stdout:\n%s", stdout_text[-2000:])
+        if stderr_text:
+            logger.warning("Scrapy ASIN stderr:\n%s", stderr_text[-2000:])
+
         if scrape_job:
             scrape_job.refresh_from_db()
             scrape_job.pid = None
@@ -213,7 +256,6 @@ def scrape_asin_detail_job(asin, marketplace, scrape_job_id=None):
                     # save() triggers next_scrape_at recalculation via model's save()
                     target.save()
             else:
-                stderr_text = stderr.decode('utf-8', errors='replace') if stderr else ''
                 if stderr_text:
                     scrape_job.error_log = (
                         f"{scrape_job.error_log}\n---\n{stderr_text}".strip()
@@ -261,7 +303,7 @@ def cancel_scrape_job(scrape_job_id, cancelled_by='admin'):
 
     elif scrape_job.status == ScrapeJob.Status.PENDING and scrape_job.rq_job_id:
         try:
-            queue = django_rq.get_queue('default')
+            queue = django_rq.get_queue('scraper')
             queue.remove(scrape_job.rq_job_id)
             logger.info("Removed pending RQ job %s", scrape_job.rq_job_id)
         except Exception:
@@ -290,7 +332,7 @@ def schedule_scrape_runner():
     ).select_related('keyword', 'tier')
 
     enqueued = 0
-    queue = django_rq.get_queue('default')
+    queue = django_rq.get_queue('scraper')
 
     for target in due_targets:
         try:

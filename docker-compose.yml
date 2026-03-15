@@ -37,7 +37,6 @@ services:
     command: python manage.py rqworker scraper
     env_file: ./.env
     restart: unless-stopped
-    profiles: ["scale"]
     networks:
       - default
       - supabase-net

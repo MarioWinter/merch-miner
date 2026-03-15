@@ -24,6 +24,23 @@ class AmazonSearchProductSpider(ProductDetailMixin, scrapy.Spider):
         self.seller_filter = seller_filter
         self.hidden_keywords = hidden_keywords
 
+    def _increment_pages_done(self):
+        """Increment pages_done on the ScrapeJob if tracked."""
+        if not self.job_id:
+            return
+        try:
+            import os
+            import django
+            os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
+            django.setup()
+            from django.db.models import F
+            from scraper_app.models import ScrapeJob
+            ScrapeJob.objects.filter(id=self.job_id).update(
+                pages_done=F('pages_done') + 1,
+            )
+        except Exception:
+            self.logger.debug("Failed to increment pages_done for job %s", self.job_id)
+
     def start_requests(self):
         base_url = get_base_url(self.marketplace)
         search_url = f"{base_url}/s?k={quote_plus(self.keyword)}&page=1"
@@ -98,6 +115,8 @@ class AmazonSearchProductSpider(ProductDetailMixin, scrapy.Spider):
                     'retry_count': 0,
                 },
             )
+
+        self._increment_pages_done()
 
         # Pagination: only on page 1, discover total pages
         if page == 1:

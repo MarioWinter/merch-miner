@@ -163,11 +163,9 @@ class DjangoORMPipeline:
         product.keywords.add(keyword_obj)
 
     def _create_bsr_snapshot(self, item, product):
-        if item.get('bsr') is None:
-            return
         self.BSRSnapshot.objects.create(
             product=product,
-            bsr=item['bsr'],
+            bsr=item.get('bsr'),
             rating=item.get('rating'),
             price=item.get('price'),
         )
@@ -177,7 +175,7 @@ class DjangoORMPipeline:
         tier = self.ScrapeTier.get_tier_for_bsr(bsr) if bsr is not None else None
         if not tier:
             return
-        self.ScheduledScrapeTarget.objects.get_or_create(
+        target, created = self.ScheduledScrapeTarget.objects.get_or_create(
             asin=item['asin'],
             marketplace=item['marketplace'],
             defaults={
@@ -185,6 +183,8 @@ class DjangoORMPipeline:
                 'active': True,
             },
         )
+        if not created and bsr is not None:
+            target.update_tier_from_bsr(bsr)
 
     def _update_job_progress(self):
         if not self.scrape_job:

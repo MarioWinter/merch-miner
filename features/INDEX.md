@@ -27,7 +27,7 @@
 | PROJ-13 | Marketplace Upload Manager (MBA Automation) | Planned | [spec](PROJ-13-marketplace-upload-manager.md) | 2026-02-27 |
 | PROJ-14 | Team Kanban | Planned | [spec](PROJ-14-team-kanban.md) | 2026-02-27 |
 | PROJ-15 | Analytics & Reporting | Planned | [spec](PROJ-15-analytics-reporting.md) | 2026-02-27 |
-| PROJ-16 | Amazon Product Scraper (Scrapy) — P0 | Planned | [spec](PROJ-16-amazon-product-scraper.md) | 2026-02-27 |
+| PROJ-16 | Amazon Product Scraper (Scrapy) — P0 | In Review | [spec](PROJ-16-amazon-product-scraper.md) | 2026-02-27 |
 
 <!-- Add features above this line -->
 
