@@ -30,6 +30,8 @@ jobs:
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
             docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T web python manage.py migrate --no-input
             docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T web python manage.py collectstatic --no-input
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T web python manage.py loaddata default_tiers
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml exec -T web python manage.py setup_scheduler
             echo "Deployed $(date)"
         env:
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}

@@ -406,3 +406,54 @@ class TestScrapeJobListFilters:
         content = response.content.decode()
         assert 'B0LIVE0001' in content
         assert 'B0SCHED001' not in content
+
+
+# ---------------------------------------------------------------------------
+# ScheduledScrapeTarget Admin Actions
+# ---------------------------------------------------------------------------
+
+class TestScheduledScrapeTargetActions:
+    @patch('scraper_app.tasks.schedule_scrape_runner')
+    def test_run_due_scrapes_calls_runner_and_shows_count(
+        self, mock_runner, admin_client, scrape_tiers,
+    ):
+        """run_due_scrapes action calls schedule_scrape_runner and shows enqueued count."""
+        mock_runner.return_value = 3
+
+        target = ScheduledScrapeTarget.objects.create(
+            asin='B0DUE00001', marketplace='amazon_com',
+            tier=scrape_tiers[0], active=True,
+        )
+
+        changelist_url = reverse('admin:scraper_app_scheduledscrapetarget_changelist')
+        response = admin_client.post(changelist_url, {
+            'action': 'run_due_scrapes',
+            '_selected_action': [str(target.id)],
+        }, follow=True)
+
+        mock_runner.assert_called_once()
+        content = response.content.decode()
+        assert 'Enqueued 3 scrape jobs for due targets' in content
+
+    @patch('scraper_app.tasks.schedule_scrape_runner')
+    def test_run_due_scrapes_error_shows_message(
+        self, mock_runner, admin_client, scrape_tiers,
+    ):
+        """run_due_scrapes shows admin error message when runner raises."""
+        mock_runner.side_effect = ConnectionError('Redis unavailable')
+
+        target = ScheduledScrapeTarget.objects.create(
+            asin='B0ERR00001', marketplace='amazon_com',
+            tier=scrape_tiers[0], active=True,
+        )
+
+        changelist_url = reverse('admin:scraper_app_scheduledscrapetarget_changelist')
+        response = admin_client.post(changelist_url, {
+            'action': 'run_due_scrapes',
+            '_selected_action': [str(target.id)],
+        }, follow=True)
+
+        mock_runner.assert_called_once()
+        content = response.content.decode()
+        assert 'Failed to run scheduled scrapes' in content
+        assert 'Redis unavailable' in content

@@ -215,11 +215,30 @@ class ScheduledScrapeTargetAdmin(admin.ModelAdmin):
     ]
     list_filter = ['marketplace', 'tier', 'active']
     list_editable = ['active']
-    actions = ['upload_asin_csv', 'upload_keyword_csv']
+    actions = ['run_due_scrapes', 'upload_asin_csv', 'upload_keyword_csv']
 
     def get_target(self, obj):
         return str(obj.keyword) if obj.keyword else obj.asin or '-'
     get_target.short_description = 'Target'
+
+    @admin.action(description='Run ALL due scheduled scrapes (selection ignored)')
+    def run_due_scrapes(self, request, queryset):
+        from scraper_app.tasks import schedule_scrape_runner
+
+        try:
+            enqueued = schedule_scrape_runner()
+        except Exception as exc:
+            self.message_user(
+                request,
+                f"Failed to run scheduled scrapes: {exc}",
+                messages.ERROR,
+            )
+            return
+        self.message_user(
+            request,
+            f"Enqueued {enqueued} scrape jobs for due targets.",
+            messages.SUCCESS,
+        )
 
     def get_urls(self):
         custom_urls = [

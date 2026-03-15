@@ -1,9 +1,10 @@
 # PROJ-16: Amazon Product Scraper (Scrapy)
 
-**Status:** In Review
+**Status:** Deployed
 **Priority:** P0 (MVP — required for PROJ-7 Live Research)
 **Created:** 2026-02-27
-**Updated:** 2026-03-14
+**Updated:** 2026-03-15
+**Deployed:** 2026-03-15
 
 ## Overview
 
