@@ -1,6 +1,7 @@
 import logging
 
 from django.core.management.base import BaseCommand
+from django.utils import timezone
 from django_rq import get_scheduler
 
 from scraper_app.tasks import schedule_scrape_runner
@@ -23,7 +24,7 @@ class Command(BaseCommand):
                 self.stdout.write(f'Cancelled existing job {job.id}')
 
         scheduler.schedule(
-            scheduled_time=None,  # start immediately
+            scheduled_time=timezone.now(),  # start immediately
             func=schedule_scrape_runner,
             interval=SCHEDULER_INTERVAL_SECONDS,
             repeat=None,  # repeat forever
