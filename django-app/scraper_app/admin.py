@@ -15,7 +15,9 @@ from scraper_app.models import (
     BSRSnapshot,
     Keyword,
     MarketplaceChoices,
+    MetaKeyword,
     ProductSearchCache,
+    SearchKeywordResult,
     ScrapeJob,
     ScrapeTier,
     ScheduledScrapeTarget,
@@ -78,7 +80,7 @@ class ScrapeJobAdmin(admin.ModelAdmin):
     def start_pending_jobs(self, request, queryset):
         import django_rq
         from scraper_app.models import PRODUCT_TYPE_SPIDER_KWARGS
-        from scraper_app.tasks import scrape_asin_detail_job, scrape_keyword_job
+        from scraper_app.tasks import scrape_asin_detail_job, scrape_keyword_job, scrape_search_page_job
 
         pending = queryset.filter(status=ScrapeJob.Status.PENDING)
         count = 0
@@ -91,8 +93,10 @@ class ScrapeJobAdmin(admin.ModelAdmin):
                 spider_kwargs['max_pages'] = job.pages_total
                 if job.max_items:
                     spider_kwargs['max_items'] = job.max_items
+                # Choose spider based on mode
+                task_func = scrape_search_page_job if job.mode == ScrapeJob.Mode.SEARCH_PAGE_ONLY else scrape_keyword_job
                 rq_job = queue.enqueue(
-                    scrape_keyword_job,
+                    task_func,
                     keyword_str=job.keyword.keyword,
                     marketplace=job.marketplace,
                     scrape_job_id=str(job.id),
@@ -143,7 +147,7 @@ class ScrapeJobAdmin(admin.ModelAdmin):
     def retry_failed_jobs(self, request, queryset):
         import django_rq
         from scraper_app.models import PRODUCT_TYPE_SPIDER_KWARGS
-        from scraper_app.tasks import scrape_asin_detail_job, scrape_keyword_job
+        from scraper_app.tasks import scrape_asin_detail_job, scrape_keyword_job, scrape_search_page_job
 
         failed = queryset.filter(status=ScrapeJob.Status.FAILED)
         count = 0
@@ -166,8 +170,9 @@ class ScrapeJobAdmin(admin.ModelAdmin):
                 spider_kwargs['max_pages'] = job.pages_total
                 if job.max_items:
                     spider_kwargs['max_items'] = job.max_items
+                task_func = scrape_search_page_job if job.mode == ScrapeJob.Mode.SEARCH_PAGE_ONLY else scrape_keyword_job
                 rq_job = queue.enqueue(
-                    scrape_keyword_job,
+                    task_func,
                     keyword_str=job.keyword.keyword,
                     marketplace=job.marketplace,
                     scrape_job_id=str(new_job.id),
@@ -423,6 +428,7 @@ class AmazonProductAdmin(admin.ModelAdmin):
     list_filter = ['marketplace', 'product_type']
     search_fields = ['asin', 'title', 'brand', 'bullet_1', 'bullet_2']
     readonly_fields = ['id']
+    filter_horizontal = ['meta_keywords']
     fieldsets = (
         (None, {
             'fields': (
@@ -436,6 +442,9 @@ class AmazonProductAdmin(admin.ModelAdmin):
         }),
         ('Media & Links', {
             'fields': ('thumbnail_url', 'product_url', 'image_gallery'),
+        }),
+        ('Keywords', {
+            'fields': ('meta_keywords',),
         }),
         ('Other', {
             'fields': ('seller_name', 'variants', 'scraped_at'),
@@ -473,6 +482,28 @@ class KeywordAdmin(admin.ModelAdmin):
 class ProductSearchCacheAdmin(admin.ModelAdmin):
     list_display = ['keyword', 'status', 'last_scraped_at']
     list_filter = ['status']
+
+
+# ---------------------------------------------------------------------------
+# MetaKeyword Admin
+# ---------------------------------------------------------------------------
+
+@admin.register(MetaKeyword)
+class MetaKeywordAdmin(admin.ModelAdmin):
+    list_display = ['keyword', 'type', 'frequency']
+    list_filter = ['type']
+    search_fields = ['keyword']
+    readonly_fields = ['id']
+
+
+# ---------------------------------------------------------------------------
+# SearchKeywordResult Admin
+# ---------------------------------------------------------------------------
+
+@admin.register(SearchKeywordResult)
+class SearchKeywordResultAdmin(admin.ModelAdmin):
+    list_display = ['search_cache', 'created_at']
+    readonly_fields = ['id', 'top_focus_keywords', 'top_long_tail_keywords', 'all_keywords_flat', 'created_at']
 
 
 # ---------------------------------------------------------------------------

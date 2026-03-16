@@ -17,11 +17,18 @@ DEFAULT_SELECTORS = {
     'search': {
         'product_container': 'div.s-result-item[data-component-type=s-search-result]',
         'title': [
-            'h2 a span::text',
-            'h2 span::text',
-            'a.a-link-normal span::text',
+            'div[data-cy=title-recipe] a.s-line-clamp-2 h2 span::text',
+            'div[data-cy=title-recipe] a.a-link-normal h2 span::text',
+            'div[data-cy=title-recipe] a h2 span::text',
+            'h2.a-size-base-plus span::text',
+        ],
+        'brand': [
+            'div[data-cy=title-recipe] h2.a-size-mini span.a-size-base-plus::text',
+            'div[data-cy=title-recipe] .a-row.a-color-secondary h2 span::text',
         ],
         'url': [
+            'div[data-cy=title-recipe] a.s-line-clamp-2::attr(href)',
+            'div[data-cy=title-recipe] a.a-link-normal::attr(href)',
             'h2 a::attr(href)',
             'a.a-link-normal::attr(href)',
         ],
@@ -31,6 +38,25 @@ DEFAULT_SELECTORS = {
         'rating_count': 'span[aria-label~=stars] + span::attr(aria-label)',
         'thumbnail': 'img.s-image::attr(src)',
         'pagination': '//*[contains(@class, "s-pagination-item")][not(has-class("s-pagination-separator"))]/text()',
+        'sponsored_indicator': '/slredirect/',
+    },
+    'search_page': {
+        # Regex patterns for extracting data from raw HTML blocks per product card
+        'asin_attr_regex': r'data-csa-c-item-id="([A-Z0-9]{10})"',
+        'asin_url_regex': r'/dp/([A-Z0-9]{10})',
+        'title': [
+            'div[data-cy=title-recipe] a.s-line-clamp-2 h2 span::text',
+            'div[data-cy=title-recipe] a.a-link-normal h2 span::text',
+            'div[data-cy=title-recipe] a h2 span::text',
+            'h2.a-size-base-plus span::text',
+        ],
+        'brand': [
+            'div[data-cy=title-recipe] h2.a-size-mini span.a-size-base-plus::text',
+            'div[data-cy=title-recipe] .a-row.a-color-secondary h2 span::text',
+        ],
+        'rating': 'div[data-cy=reviews-block] span.a-size-small.a-color-base::text',
+        'reviews': 'div[data-cy=reviews-block] span.a-size-mini::text',
+        'thumbnail': 'img.s-image::attr(src)',
         'sponsored_indicator': '/slredirect/',
     },
     'detail': {
@@ -80,7 +106,7 @@ def get_selectors(marketplace):
     """Get merged selectors for a marketplace. Overrides take precedence over defaults."""
     overrides = MARKETPLACE_SELECTORS.get(marketplace, {})
     selectors = {}
-    for section in ('search', 'detail'):
+    for section in ('search', 'search_page', 'detail'):
         selectors[section] = {**DEFAULT_SELECTORS[section], **overrides.get(section, {})}
     return selectors
 

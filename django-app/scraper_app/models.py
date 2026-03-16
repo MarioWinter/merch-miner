@@ -72,6 +72,7 @@ class AmazonProduct(models.Model):
     image_gallery = models.JSONField(default=list, blank=True)
     scraped_at = models.DateTimeField(null=True, blank=True, db_index=True)
     keywords = models.ManyToManyField(Keyword, related_name='products', blank=True)
+    meta_keywords = models.ManyToManyField('MetaKeyword', related_name='products', blank=True)
 
     class Meta:
         unique_together = ('asin', 'marketplace')
@@ -105,11 +106,32 @@ class ScrapeTier(models.Model):
         ).first()
 
 
+class MetaKeyword(models.Model):
+    class KeywordType(models.TextChoices):
+        SHORT_TAIL = 'short_tail', 'Short Tail'
+        LONG_TAIL = 'long_tail', 'Long Tail'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    keyword = models.CharField(max_length=200, db_index=True)
+    type = models.CharField(max_length=20, choices=KeywordType.choices, db_index=True)
+    frequency = models.IntegerField(default=0)
+    search_keywords = models.ManyToManyField(
+        'Keyword', related_name='meta_keywords', blank=True,
+    )
+
+    class Meta:
+        unique_together = ('keyword', 'type')
+
+    def __str__(self):
+        return f"{self.keyword} ({self.type}, freq={self.frequency})"
+
+
 class ScrapeJob(models.Model):
     class Mode(models.TextChoices):
         LIVE = 'live', 'Live Research'
         SCHEDULED = 'scheduled', 'Scheduled Scrape'
         BSR_SNAPSHOT = 'bsr_snapshot', 'BSR Snapshot'
+        SEARCH_PAGE_ONLY = 'search_page_only', 'Search Page Only'
 
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending'
@@ -259,6 +281,22 @@ class ProductSearchCache(models.Model):
 
     def __str__(self):
         return f"Cache: {self.keyword} ({self.status})"
+
+
+class SearchKeywordResult(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    search_cache = models.OneToOneField(
+        ProductSearchCache,
+        on_delete=models.CASCADE,
+        related_name='keyword_result',
+    )
+    top_focus_keywords = models.JSONField(default=list, blank=True)
+    top_long_tail_keywords = models.JSONField(default=list, blank=True)
+    all_keywords_flat = models.TextField(blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"KeywordResult for {self.search_cache}"
 
 
 class BSRSnapshot(models.Model):

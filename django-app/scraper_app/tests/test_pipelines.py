@@ -7,6 +7,9 @@ from scraper_app.models import (
     BSRSnapshot,
     Keyword,
     MarketplaceChoices,
+    MetaKeyword,
+    ProductSearchCache,
+    SearchKeywordResult,
     ScrapeTier,
     ScrapeJob,
     ScheduledScrapeTarget,
@@ -187,17 +190,13 @@ class TestPipelineBSRSnapshot:
         assert snap.rating == 4.5
         assert snap.price == Decimal("19.99")
 
-    def test_snapshot_created_when_bsr_none(self, pipeline, scrape_tiers):
-        """BSRSnapshot is created even when BSR is None (captures rating/price)."""
+    def test_no_snapshot_when_bsr_none(self, pipeline, scrape_tiers):
+        """BSRSnapshot is NOT created when BSR is None (search_page_only guard)."""
         pipe, spider = pipeline
         item = make_product_item(bsr=None, rating=3.5, price=Decimal("14.99"))
         pipe.process_item(item, spider)
 
-        assert BSRSnapshot.objects.count() == 1
-        snap = BSRSnapshot.objects.first()
-        assert snap.bsr is None
-        assert snap.rating == 3.5
-        assert snap.price == Decimal("14.99")
+        assert BSRSnapshot.objects.count() == 0
 
 
 # ------------------------------------------------------------------
@@ -381,3 +380,279 @@ class TestPipelineCloseSpider:
 
         scrape_job.refresh_from_db()
         assert scrape_job.status == ScrapeJob.Status.COMPLETED
+
+
+# ------------------------------------------------------------------
+# PATCH semantics (Task 8.5)
+# ------------------------------------------------------------------
+
+
+def _make_search_only_item(**overrides):
+    """Search-page-only item: detail fields are None."""
+    defaults = {
+        "asin": "B0PATCH0001",
+        "marketplace": "amazon_com",
+        "title": "Search Title T-Shirt",
+        "brand": None,
+        "bsr": None,
+        "bsr_categories": None,
+        "category": None,
+        "subcategory": None,
+        "price": Decimal("15.99"),
+        "rating": 4.0,
+        "reviews_count": 50,
+        "listed_date": None,
+        "product_type": "t_shirt",
+        "thumbnail_url": "https://example.com/thumb.jpg",
+        "product_url": "https://www.amazon.com/dp/B0PATCH0001",
+        "seller_name": None,
+        "bullet_1": None,
+        "bullet_2": None,
+        "description": None,
+        "variants": None,
+        "image_gallery": None,
+        "keyword": "test keyword",
+        "is_sponsored": False,
+    }
+    defaults.update(overrides)
+    item = AmazonProductItem()
+    for k, v in defaults.items():
+        item[k] = v
+    return item
+
+
+class TestPipelinePatchSemantics:
+    def test_search_page_only_after_detail_preserves_detail(self, pipeline, scrape_tiers):
+        """PATCH: search_page_only after detail scrape -> detail fields preserved."""
+        pipe, spider = pipeline
+
+        # First: full detail scrape
+        detail_item = make_product_item(
+            asin="B0PATCH0001",
+            bullet_1="Real bullet 1",
+            bullet_2="Real bullet 2",
+            description="Full description",
+            bsr=5000,
+            bsr_categories=[{"rank": 5000, "category": "Test", "category_url": ""}],
+        )
+        pipe.process_item(detail_item, spider)
+
+        # Second: search_page_only (detail fields None)
+        search_item = _make_search_only_item(title="Updated Search Title")
+        pipe.process_item(search_item, spider)
+
+        product = AmazonProduct.objects.get(asin="B0PATCH0001")
+        # Detail fields preserved (not overwritten by None)
+        assert product.bullet_1 == "Real bullet 1"
+        assert product.bullet_2 == "Real bullet 2"
+        assert product.description == "Full description"
+        assert product.bsr == 5000
+        # Search fields updated
+        assert product.title == "Updated Search Title"
+
+    def test_detail_after_search_page_only_fills_detail(self, pipeline, scrape_tiers):
+        """PATCH: detail scrape after search_page_only -> detail fields filled."""
+        pipe, spider = pipeline
+
+        # First: search_page_only
+        search_item = _make_search_only_item()
+        pipe.process_item(search_item, spider)
+
+        product = AmazonProduct.objects.get(asin="B0PATCH0001")
+        assert product.bullet_1 == ""  # Model default
+        assert product.bsr is None
+
+        # Second: full detail scrape
+        detail_item = make_product_item(
+            asin="B0PATCH0001",
+            bullet_1="Now with bullets",
+            bsr=3000,
+        )
+        pipe.process_item(detail_item, spider)
+
+        product.refresh_from_db()
+        assert product.bullet_1 == "Now with bullets"
+        assert product.bsr == 3000
+
+    def test_full_scrape_writes_all_fields(self, pipeline, scrape_tiers):
+        """PATCH: full scrape writes all fields correctly."""
+        pipe, spider = pipeline
+        item = make_product_item()
+        pipe.process_item(item, spider)
+
+        product = AmazonProduct.objects.get(asin="B0TEST12345")
+        assert product.title == "Test Product"
+        assert product.brand == "Test Brand"
+        assert product.bsr == 5000
+        assert product.bullet_1 == "Bullet 1"
+        assert product.bullet_2 == "Bullet 2"
+        assert product.description == "Test description"
+
+
+# ------------------------------------------------------------------
+# BSRSnapshot guard (Task 8.6)
+# ------------------------------------------------------------------
+
+
+class TestPipelineBSRSnapshotGuard:
+    def test_no_snapshot_for_none_bsr(self, pipeline, scrape_tiers):
+        """No BSRSnapshot created when BSR is None (search_page_only)."""
+        pipe, spider = pipeline
+        item = _make_search_only_item()
+        pipe.process_item(item, spider)
+
+        assert BSRSnapshot.objects.count() == 0
+
+    def test_snapshot_created_with_bsr(self, pipeline, scrape_tiers):
+        """BSRSnapshot created when BSR is present."""
+        pipe, spider = pipeline
+        item = make_product_item(bsr=1000)
+        pipe.process_item(item, spider)
+
+        assert BSRSnapshot.objects.count() == 1
+        assert BSRSnapshot.objects.first().bsr == 1000
+
+
+# ------------------------------------------------------------------
+# MetaKeyword integration (Task 8.8)
+# ------------------------------------------------------------------
+
+
+class TestPipelineMetaKeywordIntegration:
+    def test_meta_keywords_created_on_close_spider(self, scrape_tiers):
+        """MetaKeywords are created in close_spider for scraped products."""
+        job = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.LIVE,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+            status=ScrapeJob.Status.PENDING,
+        )
+        pipe = DjangoORMPipeline()
+        spider = MagicMock()
+        spider.job_id = str(job.id)
+        spider.keyword = "funny cat"
+        pipe.open_spider(spider)
+
+        # Process items with MBA-relevant titles
+        for i in range(3):
+            item = make_product_item(
+                asin=f"B0META000{i}",
+                title=f"Funny Cat Teacher Gift T-Shirt {i}",
+                bullet_1="Perfect gift for cat lovers",
+                bullet_2="Great for teachers",
+            )
+            pipe.process_item(item, spider)
+
+        pipe.close_spider(spider)
+
+        # MetaKeywords should exist
+        assert MetaKeyword.objects.exists()
+        # Products should have meta_keywords M2M links
+        for i in range(3):
+            product = AmazonProduct.objects.get(asin=f"B0META000{i}")
+            assert product.meta_keywords.count() > 0
+
+    def test_data_basis_guard_skips_when_has_bullets(self, scrape_tiers):
+        """Data-basis guard: skip MetaKeyword re-calc when search_page_only and product has bullets."""
+        job = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.SEARCH_PAGE_ONLY,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+            status=ScrapeJob.Status.PENDING,
+        )
+        # Pre-create product with bullets
+        product = AmazonProduct.objects.create(
+            asin="B0GUARD0001",
+            marketplace="amazon_com",
+            title="Existing Product",
+            bullet_1="Existing bullet",
+            description="Existing description",
+        )
+
+        pipe = DjangoORMPipeline()
+        spider = MagicMock()
+        spider.job_id = str(job.id)
+        spider.keyword = "test"
+        pipe.open_spider(spider)
+
+        # Simulate search_page_only item for same ASIN
+        item = _make_search_only_item(asin="B0GUARD0001", title="Updated Title")
+        pipe.process_item(item, spider)
+        pipe.close_spider(spider)
+
+        # Product should NOT have meta_keywords updated (guard skipped it)
+        product.refresh_from_db()
+        assert product.meta_keywords.count() == 0
+
+    def test_search_keyword_result_created(self, scrape_tiers):
+        """SearchKeywordResult is created with global aggregation."""
+        kw = Keyword.objects.create(keyword="funny cat", marketplace="amazon_com")
+        job = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.LIVE,
+            keyword=kw,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+            status=ScrapeJob.Status.PENDING,
+        )
+        cache = ProductSearchCache.objects.create(
+            keyword=kw, scrape_job=job, status=ProductSearchCache.Status.PENDING,
+        )
+
+        pipe = DjangoORMPipeline()
+        spider = MagicMock()
+        spider.job_id = str(job.id)
+        spider.keyword = "funny cat"
+        pipe.open_spider(spider)
+
+        for i in range(4):
+            item = make_product_item(
+                asin=f"B0SKWRD00{i}",
+                title=f"Funny Cat Teacher T-Shirt {i}",
+                bullet_1="Perfect gift for cat lovers",
+            )
+            pipe.process_item(item, spider)
+
+        pipe.close_spider(spider)
+
+        assert SearchKeywordResult.objects.filter(search_cache=cache).exists()
+        skr = SearchKeywordResult.objects.get(search_cache=cache)
+        assert isinstance(skr.top_focus_keywords, list)
+        assert isinstance(skr.top_long_tail_keywords, list)
+        assert isinstance(skr.all_keywords_flat, str)
+
+    def test_meta_keyword_dedup(self, scrape_tiers):
+        """MetaKeyword.get_or_create prevents duplicates."""
+        job = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.LIVE,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+            status=ScrapeJob.Status.PENDING,
+        )
+        pipe = DjangoORMPipeline()
+        spider = MagicMock()
+        spider.job_id = str(job.id)
+        spider.keyword = "cat gift"
+        pipe.open_spider(spider)
+
+        # Two products with identical keywords
+        for i in range(2):
+            item = make_product_item(
+                asin=f"B0DEDUP00{i}",
+                title="Funny Cat Teacher Gift T-Shirt",
+                bullet_1="Perfect gift for cat teachers",
+            )
+            pipe.process_item(item, spider)
+
+        pipe.close_spider(spider)
+
+        # Same keyword should not create duplicates
+        for mk in MetaKeyword.objects.all():
+            assert MetaKeyword.objects.filter(
+                keyword=mk.keyword, type=mk.type,
+            ).count() == 1
+
+    def test_product_pk_tracking(self, pipeline, scrape_tiers):
+        """Pipeline tracks scraped product PKs for close_spider extraction."""
+        pipe, spider = pipeline
+        item = make_product_item()
+        pipe.process_item(item, spider)
+
+        assert len(pipe.scraped_product_pks) == 1
+        product = AmazonProduct.objects.get(asin="B0TEST12345")
+        assert product.pk in pipe.scraped_product_pks
