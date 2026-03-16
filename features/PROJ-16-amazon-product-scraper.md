@@ -1,14 +1,14 @@
 # PROJ-16: Amazon Product Scraper (Scrapy)
 
-**Status:** Deployed
-**Priority:** P0 (MVP — required for PROJ-7 Live Research)
+**Status:** Deployed (update pending — search_page_only spider)
+**Priority:** P0 (MVP — required for PROJ-7 Live Research + PROJ-6 Niche Deep Research)
 **Created:** 2026-02-27
-**Updated:** 2026-03-15
+**Updated:** 2026-03-16
 **Deployed:** 2026-03-15
 
 ## Overview
 
-Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. Runs as django-rq background jobs. Three operating modes: **Live Research** (UI-triggered, single keyword), **Scheduled Scrape** (tier-based, Admin-managed), and **BSR History Tracking** (daily lightweight snapshot). Proxy via ScraperOps SDK. Managed and monitored entirely through Django Admin. No n8n dependency; no feature flag.
+Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. Runs as django-rq background jobs. Four operating modes: **Live Research** (UI-triggered, single keyword, search+detail), **Search Page Only** (PROJ-6 Niche Research, search pages only — no detail follow), **Scheduled Scrape** (tier-based, Admin-managed), and **BSR History Tracking** (daily lightweight snapshot). Proxy via ScraperOps SDK. Managed and monitored entirely through Django Admin. No n8n dependency; no feature flag.
 
 ## User Stories
 
@@ -19,6 +19,7 @@ Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. 
 5. As an admin, I want to see all active and past scrape jobs in the Django Admin, including status, product count, and errors, so I can monitor scraper health.
 6. As an admin, I want to start, stop, and restart individual scrape jobs from the Admin, so I can recover from failures without code changes.
 7. As a system, when an ASIN is discovered via Live Research, I want it automatically added to the scheduled tracking pool (tier assigned by current BSR), so all researched products are continuously monitored.
+8. As a system (PROJ-6 LangGraph), I want a fast search-page-only scrape that collects title, ASIN, price, rating, reviews, brand, and thumbnail from Amazon search results without following to detail pages, so AI niche analysis can run quickly on listing-level data.
 
 ## Acceptance Criteria
 
@@ -30,6 +31,19 @@ Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. 
 5. If `ProductSearchCache` for keyword+marketplace already exists with status=pending → return existing cache_id; no duplicate job.
 6. If completed scrape < 24h old → return cached results immediately; no new scrape triggered.
 
+### Search Page Only Mode (PROJ-6 Niche Research)
+7a. `AmazonSearchPageSpider` scrapes Amazon search results pages only (max 4 pages per keyword). No follow to detail pages.
+7b. Extracts from search result cards: ASIN (from `data-csa-c-item-id` or `/dp/` fallback), title (`h2 a-size-base-plus aria-label` → `h2 span` fallback → `h2 a-size-mini span` fallback), brand (`h2 a-size-mini span.a-size-base-plus.a-color-base` → merchant ID fallback), price (whole + fraction), rating (`data-cy=reviews-block span.a-icon-alt`), reviews_count (`data-cy=reviews-block span.a-size-mini`), thumbnail (`img.s-image`), product URL (`/dp/ASIN/`), sponsored detection (`/slredirect/` in URL).
+7c. Data stored in existing `AmazonProduct` model via `update_or_create(asin, marketplace)`. Detail-only fields (BSR, bullets, description, listed_date, image_gallery, variants) remain NULL.
+7d. `ScrapeJob.mode = search_page_only`. Same Admin parameters as search+detail spider: `marketplace`, `product_type_filter`, `max_items`, `pages_total`.
+7e. `ProductSearchCache` created for dedup guard + 24h cache (same logic as Live Research: pending → completed; existing pending returns same cache_id; completed <24h returns cached).
+7f. Keyword M2M linking: discovered ASINs linked to search keyword via `AmazonProduct.keywords`.
+7g. Auto-enroll in `ScheduledScrapeTarget` (idempotent — no duplicate ASINs). Tier assigned by current BSR; since BSR is NULL for search-page-only, falls back to lowest tier (Tier 3).
+7h. No `BSRSnapshot` created (BSR not available on search results pages).
+7i. `scrape_search_page_job` task function in `tasks.py`. Runs spider via subprocess (same pattern as `scrape_keyword_job`).
+7j. Admin actions: start, stop, cancel, retry — identical to other spider modes.
+7k. Boilerplate bullet filtering not applicable (no bullets on search pages).
+
 ### Scheduled Scrape Mode
 7. Admin CSV upload (via custom Django Admin action) — two separate CSV types: **ASIN CSV** (columns: `asin, marketplace, tier`) and **Keyword CSV** (columns: `keyword, marketplace, tier`). Tier column is optional in both.
 8. Uploaded ASINs/keywords are added to `ScheduledScrapeTarget`; tier auto-assigned by current BSR if not specified.
@@ -40,6 +54,23 @@ Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. 
 11. After every scrape (live or scheduled), a `BSRSnapshot` record is written for each ASIN with current BSR, rating, price, and timestamp.
 12. BSR is only available on the product detail page (not in Amazon search results). Daily BSR/Rating/Price snapshots are taken by scraping the ASIN detail page directly — no keyword search required. This is more efficient than a full keyword scrape (1 request per ASIN vs. 4 pages + N detail pages per keyword).
 13. BSR snapshots retained indefinitely.
+
+### MetaKeyword Extraction
+14a. After all products are saved (in `close_spider` or post-scrape hook), keyword extraction runs over all products of the scrape run.
+14b. **Per-product extraction basis:** concatenation of `title` + `brand` + `bullet_1` + `bullet_2` + `description` — only fields that are non-NULL.
+14c. **PATCH semantics for MetaKeywords:** Only re-calculate per-product MetaKeywords if data basis is **equal or better** than existing. If product already has bullet_1/bullet_2/description populated and current spider is search_page_only (only title+brand available), skip MetaKeyword re-calculation for that product.
+14d. **Tokenization:** Normalize text (lowercase, strip HTML entities, remove special chars). Filter via stopwords, junk words, function words (lists ported from n8n workflow `00003`).
+14e. **Short-tail keywords:** Single tokens filtered by noun-likelihood heuristic (suffix scoring: -er, -or, -ist, -ment, -ness, -tion, -gift, -lover etc. + length + frequency). Top 10 per product.
+14f. **Long-tail keywords:** 2–3 word n-grams from token stream. At least 1 noun-like token required. No junk words. Top 10 per product.
+14g. **Generic word filtering:** Words/n-grams appearing in ≥80% of products in the run are excluded (too common to be distinctive).
+14h. `MetaKeyword` records created/updated via `get_or_create(keyword, type)`. `frequency` field overwritten with current count.
+14i. M2M links: `AmazonProduct.meta_keywords` set per product. `MetaKeyword.search_keywords` linked to the search `Keyword`.
+14j. `SearchKeywordResult` created (1:1 with `ProductSearchCache`): `top_focus_keywords` (top 50 short-tail, filtered by frequency >2), `top_long_tail_keywords` (top 50 long-tail, filtered by frequency >2), `all_keywords_flat`.
+14k. Extraction runs on **every spider mode** (live, search_page_only, scheduled, bsr_snapshot) — respecting 14c data basis guard.
+
+### Pipeline PATCH Semantics
+14l. All spider modes use PATCH semantics for `AmazonProduct`: `get_or_create(asin, marketplace)` + only update fields where spider item value is **not None**. Prevents search_page_only from overwriting existing detail data (BSR, bullets, description) with NULL.
+14m. `product.save(update_fields=[...])` with only the changed fields for efficiency.
 
 ### Scraper Technical
 14. ScraperOps SDK used for proxy rotation on all requests; no fallback provider.
@@ -104,6 +135,7 @@ Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. 
 | image_gallery | JSONField | List of image URLs |
 | scraped_at | DateTimeField(nullable) | Last full scrape timestamp, db_index=True |
 | keywords | ManyToManyField(Keyword) | |
+| meta_keywords | ManyToManyField(MetaKeyword) | Per-product extracted keywords (from title + brand + bullet_1 + bullet_2 + description) |
 
 ### Keyword
 | Field | Type | Notes |
@@ -150,7 +182,7 @@ Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. 
 | Field | Type | Notes |
 |-------|------|-------|
 | id | UUID | PK |
-| mode | CharField choices [live, scheduled, bsr_snapshot] | db_index=True |
+| mode | CharField choices [live, search_page_only, scheduled, bsr_snapshot] | db_index=True |
 | keyword | ForeignKey(Keyword, nullable) | For keyword-based jobs |
 | asin | CharField(20) | For ASIN-based jobs (blank default) |
 | marketplace | CharField | db_index=True |
@@ -180,6 +212,25 @@ Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. 
 | next_scrape_at | DateTimeField | Computed on save |
 | active | BooleanField | Admin can disable |
 
+### MetaKeyword
+| Field | Type | Notes |
+|-------|------|-------|
+| id | UUID | PK |
+| keyword | CharField(200) | Unique together with type |
+| type | CharField choices [short_tail, long_tail] | db_index=True |
+| frequency | IntegerField | Global occurrence count across products. Overwritten on each scrape run |
+| search_keywords | ManyToManyField(Keyword) | Which search terms discovered this meta keyword |
+
+### SearchKeywordResult
+| Field | Type | Notes |
+|-------|------|-------|
+| id | UUID | PK |
+| search_cache | OneToOneField(ProductSearchCache, on_delete=CASCADE) | 1:1 link to scrape run |
+| top_focus_keywords | JSONField | list[{keyword: str, used: int}] — global short-tail ranked by frequency |
+| top_long_tail_keywords | JSONField | list[{keyword: str, used: int}] — global long-tail n-grams ranked by frequency |
+| all_keywords_flat | TextField | Comma-separated all extracted keywords (short + long tail) |
+| created_at | DateTimeField | auto_now_add=True |
+
 ## Scraper Architecture
 
 ```
@@ -191,9 +242,11 @@ UI (PROJ-7)
                     ├── Detail pages (per ASIN)
                     ├── ScraperOps SDK (proxy rotation)
                     └── Django ORM
-                          ├── AmazonProduct.objects.update_or_create(asin, marketplace)
-                          ├── BSRSnapshot.objects.create(...)
+                          ├── AmazonProduct → get_or_create + PATCH (non-None fields only)
+                          ├── BSRSnapshot.objects.create(...) (if BSR available)
                           ├── ScheduledScrapeTarget.objects.get_or_create(...)
+                          ├── MetaKeyword extraction (per product + global)
+                          ├── SearchKeywordResult (global aggregation per run)
                           └── ProductSearchCache.status = completed
 
 django-rq cron (hourly)
@@ -214,6 +267,13 @@ django-rq cron (hourly)
 7. CSV upload with duplicate ASINs/keywords → idempotent; existing `ScheduledScrapeTarget` updated, not duplicated.
 8. ASIN detail page structure differs per marketplace → marketplace-specific CSS selector override applied; if BSR selector fails, job logged as failed with selector error detail.
 9. Admin cancels a running job → `ScrapeJob.status=cancelled`; django-rq job stopped via `rq_job_id`.
+10. Search-page-only scrape followed by Live Research for same keyword → `AmazonProduct` records updated via `update_or_create`; detail fields filled in; `ScheduledScrapeTarget` already exists (idempotent).
+11. PROJ-6 triggers search_page_only for keyword already cached <24h → `ProductSearchCache` returns cached results; no new scrape.
+12. Search page shows sponsored products → `is_sponsored=True` detected via `/slredirect/` URL pattern; product still saved (PROJ-6 AI can filter if needed).
+13. Live Research (full data) before AI Deep Research → 24h cache greift; PROJ-6 gets full products + MetaKeywords already calculated from all 5 fields.
+14. Detail-scrape after search_page_only → MetaKeywords re-calculated with better basis (title+brand+bullets+description replaces title+brand only).
+15. MetaKeyword deduplication → `get_or_create(keyword, type)` ensures no duplicate keyword records; frequency overwritten with latest count.
+16. search_page_only products have NULL bullets/description → MetaKeyword extraction uses only title+brand; still produces useful short-tail + long-tail keywords for PROJ-6 AI analysis.
 
 ## Django Admin Views
 
@@ -225,6 +285,8 @@ django-rq cron (hourly)
 | `AmazonProduct` | List with filters (marketplace, product_type); search by ASIN, title, brand, bullet_1, bullet_2. Fieldsets for bullets/description, media, other |
 | `BSRSnapshot` | List display with filters (recorded_at) |
 | `Keyword` | List with filters (marketplace); searchable |
+| `MetaKeyword` | List with filters (type); search by keyword; inline M2M view |
+| `SearchKeywordResult` | Read-only detail via ProductSearchCache; shows top keywords |
 | `ProductSearchCache` | List with status filter |
 | Custom Admin Page | Queue health: pending/running count, completed/failed today, active targets, ScraperOps key status, Stop All button |
 
@@ -274,13 +336,18 @@ SCRAPEOPS_API_KEY=        # ScraperOps proxy SDK key
                          │ runs inside worker
                          ▼
 ┌──────────────────────────────────────────────────────────┐
-│              Scrapy Spiders (2 spiders)                   │
+│              Scrapy Spiders (3 spiders)                   │
 │                                                          │
 │  ┌─────────────────────────────────────────────────┐     │
 │  │ AmazonSearchProductSpider (2-phase combined)     │     │
 │  │ Phase 1: Search pages → discover ASINs           │     │
 │  │ Phase 2: Follow each ASIN → detail page          │     │
 │  │ Used by: Live Research + Keyword Scheduled Scrape │     │
+│  └─────────────────────────────────────────────────┘     │
+│  ┌─────────────────────────────────────────────────┐     │
+│  │ AmazonSearchPageSpider (search pages only)       │     │
+│  │ Search pages → extract listing data (no detail)  │     │
+│  │ Used by: PROJ-6 Niche Deep Research (LangGraph)  │     │
 │  └─────────────────────────────────────────────────┘     │
 │  ┌─────────────────────────────────────────────────┐     │
 │  │ AmazonProductSpider (single ASIN detail)         │     │
@@ -303,11 +370,18 @@ SCRAPEOPS_API_KEY=        # ScraperOps proxy SDK key
 │            Django ORM Pipeline                            │
 │                                                          │
 │  process_item():                                         │
-│  ├── AmazonProduct → update_or_create(asin, marketplace) │
+│  ├── AmazonProduct → get_or_create + PATCH non-None only │
 │  ├── Keyword → get_or_create + M2M link                  │
-│  ├── BSRSnapshot → create (every scrape)                 │
+│  ├── BSRSnapshot → create (when BSR available)           │
 │  ├── ScheduledScrapeTarget → get_or_create (auto-enroll) │
 │  └── ScrapeJob → update progress counters                │
+│                                                          │
+│  close_spider() / post-scrape:                           │
+│  ├── MetaKeyword extraction per product                  │
+│  │   (title + brand + bullet_1 + bullet_2 + description) │
+│  │   Only re-calc if data basis equal or better           │
+│  ├── MetaKeyword → get_or_create + M2M links             │
+│  └── SearchKeywordResult → global top-lists per run      │
 └────────────────────────┬─────────────────────────────────┘
                          │ writes to
                          ▼
@@ -321,20 +395,24 @@ SCRAPEOPS_API_KEY=        # ScraperOps proxy SDK key
 | Spider | Trigger | Scrapes | Output |
 |--------|---------|---------|--------|
 | `AmazonSearchProductSpider` | Live Research, Keyword Scheduled | Search pages (max 4) → follows each ASIN to detail page | Full AmazonProduct + BSRSnapshot |
+| `AmazonSearchPageSpider` | PROJ-6 Niche Research (LangGraph) | Search pages only (max 4) — no detail page follow | Partial AmazonProduct (title, ASIN, price, rating, reviews, brand, thumbnail, URL). Detail fields NULL. No BSRSnapshot |
 | `AmazonProductSpider` | ASIN Scheduled, BSR Snapshot | Single product detail page by ASIN | Updated AmazonProduct + BSRSnapshot |
 
-**Why 2 spiders, not 3:** Search-only spider has no use — BSR requires detail page. 2-phase spider covers keyword scrapes; single-ASIN spider covers scheduled re-scrapes efficiently (1 request vs 4 pages + N detail pages).
+**Why 3 spiders:** Search+Detail covers Live Research (full data). Search-Page-Only is optimized for PROJ-6 AI analysis (fast, listing-level data only — no detail crawl needed). Single-ASIN covers scheduled re-scrapes efficiently (1 request per ASIN).
 
-### Job Flow (3 Modes)
+### Job Flow (4 Modes)
 
 **Mode 1 — Live Research:**
 PROJ-7 API → ProductSearchCache(pending) → ScrapeJob(live) → enqueue scrape_keyword_job → AmazonSearchProductSpider → pipeline saves all → ScrapeJob(completed)
 
-**Mode 2 — Scheduled Scrape:**
+**Mode 2 — Search Page Only (PROJ-6 Niche Research):**
+PROJ-6 LangGraph `scrape` node → ProductSearchCache(pending) → ScrapeJob(search_page_only) → enqueue scrape_search_page_job → AmazonSearchPageSpider → pipeline saves partial AmazonProduct (detail fields NULL) + Keyword M2M + auto-enroll ScheduledScrapeTarget → ScrapeJob(completed). No BSRSnapshot.
+
+**Mode 3 — Scheduled Scrape:**
 rqscheduler (hourly) → schedule_scrape_runner → query ScheduledScrapeTarget(next_scrape_at <= now, active) → keyword target: scrape_keyword_job / ASIN target: scrape_asin_detail_job → pipeline saves all → tier auto-updates if BSR changed
 
-**Mode 3 — BSR History:**
-Piggybacks on Mode 1 + 2. Pipeline always creates BSRSnapshot after product upsert. No separate job.
+**Mode 4 — BSR History:**
+Piggybacks on Mode 1 + 3. Pipeline creates BSRSnapshot after product upsert (only when BSR available — not for search_page_only). No separate job.
 
 ### Selector Error Handling
 
@@ -367,6 +445,14 @@ Piggybacks on Mode 1 + 2. Pipeline always creates BSRSnapshot after product upse
 | Product type auto-detection | Title suffix mapping (e.g. "T-Shirt" → `t_shirt`). Multi-word types checked first to avoid false matches |
 | `PRODUCT_TYPE_SPIDER_KWARGS` | Per-type search params (search_index, seller_filter, hidden_keywords) for MBA-specific Amazon search filtering |
 | `max_items` via `CLOSESPIDER_ITEMCOUNT` | Scrapy built-in extension. Cleaner than custom counting logic |
+| 3 spiders (not 2) | `AmazonSearchPageSpider` added for PROJ-6. Search-page-only is 4–10x faster than search+detail (no detail crawl). Enough data for AI niche analysis (title, price, rating, reviews). Detail enrichment happens later via scheduled scrape |
+| Search-page selectors from n8n workflow | CSS selectors ported from existing n8n Amazon Niche Analyser (`00003`). ASIN: `data-csa-c-item-id` + `/dp/` fallback. Title: `h2 aria-label` + span fallbacks. Brand: `h2 a-size-mini span`. Rating/reviews: `data-cy=reviews-block` spans. Thumbnail: `img.s-image` |
+| No new model for search_page_only | Reuses `AmazonProduct` — detail fields stay NULL until enriched by scheduled scrape. Avoids schema bloat and duplicate ASIN tracking |
+| PATCH semantics (not update_or_create) | `get_or_create` + selective field update. Prevents search_page_only from overwriting existing detail data with NULL. All spider modes use same pattern |
+| MetaKeyword as own model + M2M | Queryable, deduplicated. PROJ-10 Keyword Bank builds directly on it. Frequency on model (overwritten per scrape) — simpler than through-table |
+| SearchKeywordResult 1:1 with ProductSearchCache | Global keyword aggregation per scrape run. PROJ-6 reads this for AI analysis context. Separate from per-product MetaKeywords |
+| MetaKeyword data-basis guard | Only re-calculate when new data ≥ existing (don't downgrade 5-field extraction to 2-field). Prevents keyword quality regression on search_page_only re-scrapes |
+| Keyword extraction logic from n8n workflow | Stopwords, junk words, noun heuristic, n-gram generation ported from n8n `00003` workflow (JS → Python). Proven logic, consistent results |
 
 ### File Structure
 
@@ -376,9 +462,9 @@ django-app/
 ├── scraper_app/                    ← Django app
 │   ├── __init__.py
 │   ├── apps.py
-│   ├── models.py                   ← 7 models + PRODUCT_TYPE_SPIDER_KWARGS mapping
+│   ├── models.py                   ← 9 models + PRODUCT_TYPE_SPIDER_KWARGS mapping
 │   ├── admin.py                    ← Admin views, CSV upload, queue health, start/stop/retry actions
-│   ├── tasks.py                    ← 4 django-rq job functions + _scrapy_env() helper
+│   ├── tasks.py                    ← 5 django-rq job functions + _scrapy_env() helper
 │   ├── selectors.py                ← CSS selector dicts per marketplace
 │   ├── fixtures/
 │   │   └── default_tiers.json      ← ScrapeTier defaults (3 tiers)
@@ -386,11 +472,13 @@ django-app/
 │   ├── scrapy_app/                 ← Scrapy project (nested)
 │   │   ├── settings.py             ← ScraperOps config + TWISTED_REACTOR = SelectReactor
 │   │   ├── items.py                ← AmazonProductItem + ScrapeErrorItem
-│   │   ├── pipelines.py            ← DjangoORMPipeline
+│   │   ├── pipelines.py            ← DjangoORMPipeline (PATCH semantics + MetaKeyword extraction)
+│   │   ├── keyword_extractor.py   ← MetaKeyword extraction logic (stopwords, noun heuristic, n-grams)
 │   │   └── spiders/
 │   │       ├── __init__.py
 │   │       ├── mixins.py           ← ProductDetailMixin (shared extraction logic)
 │   │       ├── amazon_search_product.py
+│   │       ├── amazon_search_page.py  ← NEW: search-page-only spider (PROJ-6)
 │   │       └── amazon_product.py
 │   └── tests/
 │       ├── test_models.py
@@ -427,10 +515,11 @@ services:
 
 | From | To | How |
 |------|----|-----|
-| PROJ-7 API | scraper_app.tasks | django_rq.enqueue() |
+| PROJ-7 API | scraper_app.tasks | django_rq.enqueue(scrape_keyword_job) |
 | PROJ-7 API | scraper_app.models | Query ProductSearchCache, AmazonProduct |
-| PROJ-6 LangGraph | scraper_app.models | Read AmazonProduct for AI analysis |
-| PROJ-10 Keyword Bank | scraper_app.models | Auto-populate ScheduledScrapeTarget |
+| PROJ-6 LangGraph | scraper_app.tasks | django_rq.enqueue(scrape_search_page_job) — search-page-only mode |
+| PROJ-6 LangGraph | scraper_app.models | Read AmazonProduct + MetaKeywords + SearchKeywordResult for AI analysis |
+| PROJ-10 Keyword Bank | scraper_app.models | Query MetaKeyword M2M for keyword discovery + auto-populate ScheduledScrapeTarget |
 
 **PROJ-16 has no dependency on PROJ-7** — built and tested independently via Django Admin.
 

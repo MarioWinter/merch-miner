@@ -1,20 +1,30 @@
 """2-phase spider: Amazon search results -> product detail pages."""
 
+from urllib.parse import quote_plus, urljoin
+
 import scrapy
-from urllib.parse import urljoin, quote_plus
 
 from scraper_app.scrapy_app.spiders.mixins import ProductDetailMixin
-from scraper_app.selectors import get_selectors, get_base_url
+from scraper_app.selectors import get_base_url, get_selectors
 
 
 class AmazonSearchProductSpider(ProductDetailMixin, scrapy.Spider):
     """Crawl Amazon search results for a keyword, then scrape each product detail page."""
 
-    name = 'amazon_search_product'
+    name = "amazon_search_product"
 
-    def __init__(self, keyword, marketplace='amazon_com', job_id=None,
-                 max_pages=4, search_index=None, seller_filter=None,
-                 hidden_keywords=None, *args, **kwargs):
+    def __init__(
+        self,
+        keyword,
+        marketplace="amazon_com",
+        job_id=None,
+        max_pages=2,
+        search_index=None,
+        seller_filter=None,
+        hidden_keywords=None,
+        *args,
+        **kwargs,
+    ):
         super().__init__(*args, **kwargs)
         self.keyword = keyword
         self.marketplace = marketplace
@@ -30,13 +40,17 @@ class AmazonSearchProductSpider(ProductDetailMixin, scrapy.Spider):
             return
         try:
             import os
+
             import django
-            os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
+
+            os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
             django.setup()
             from django.db.models import F
+
             from scraper_app.models import ScrapeJob
+
             ScrapeJob.objects.filter(id=self.job_id).update(
-                pages_done=F('pages_done') + 1,
+                pages_done=F("pages_done") + 1,
             )
         except Exception:
             self.logger.debug("Failed to increment pages_done for job %s", self.job_id)
@@ -54,33 +68,36 @@ class AmazonSearchProductSpider(ProductDetailMixin, scrapy.Spider):
             url=search_url,
             callback=self.discover_product_urls,
             meta={
-                'keyword': self.keyword,
-                'marketplace': self.marketplace,
-                'page': 1,
-                'job_id': self.job_id,
-                'retry_count': 0,
+                "keyword": self.keyword,
+                "marketplace": self.marketplace,
+                "page": 1,
+                "job_id": self.job_id,
+                "retry_count": 0,
             },
         )
 
     def discover_product_urls(self, response):
-        marketplace = response.meta['marketplace']
-        keyword = response.meta['keyword']
-        job_id = response.meta['job_id']
-        page = response.meta['page']
+        marketplace = response.meta["marketplace"]
+        keyword = response.meta["keyword"]
+        job_id = response.meta["job_id"]
+        page = response.meta["page"]
 
         selectors = get_selectors(marketplace)
         base_url = get_base_url(marketplace)
-        search_sel = selectors['search']
+        search_sel = selectors["search"]
 
-        products = response.css(search_sel['product_container'])
+        products = response.css(search_sel["product_container"])
         self.logger.info(
-            "Page %d: found %d products for '%s'", page, len(products), keyword,
+            "Page %d: found %d products for '%s'",
+            page,
+            len(products),
+            keyword,
         )
 
         for product in products:
             # Extract URL using fallback list
             product_url = None
-            for url_selector in search_sel['url']:
+            for url_selector in search_sel["url"]:
                 product_url = product.css(url_selector).get()
                 if product_url:
                     break
@@ -89,30 +106,30 @@ class AmazonSearchProductSpider(ProductDetailMixin, scrapy.Spider):
                 continue
 
             # Build absolute URL, strip query params
-            absolute_url = urljoin(base_url, product_url).split('?')[0]
+            absolute_url = urljoin(base_url, product_url).split("?")[0]
 
             # Extract ASIN from URL
             asin = None
-            if '/dp/' in absolute_url:
-                asin = absolute_url.split('/dp/')[-1].split('/')[0]
+            if "/dp/" in absolute_url:
+                asin = absolute_url.split("/dp/")[-1].split("/")[0]
             else:
-                parts = absolute_url.rstrip('/').split('/')
+                parts = absolute_url.rstrip("/").split("/")
                 if len(parts) > 3:
                     asin = parts[3]
 
             # Check if sponsored
-            is_sponsored = search_sel['sponsored_indicator'] in product_url
+            is_sponsored = search_sel["sponsored_indicator"] in product_url
 
             yield scrapy.Request(
                 url=absolute_url,
                 callback=self.parse_product_data,
                 meta={
-                    'keyword': keyword,
-                    'marketplace': marketplace,
-                    'job_id': job_id,
-                    'is_sponsored': is_sponsored,
-                    'asin': asin,
-                    'retry_count': 0,
+                    "keyword": keyword,
+                    "marketplace": marketplace,
+                    "job_id": job_id,
+                    "is_sponsored": is_sponsored,
+                    "asin": asin,
+                    "retry_count": 0,
                 },
             )
 
@@ -120,7 +137,7 @@ class AmazonSearchProductSpider(ProductDetailMixin, scrapy.Spider):
 
         # Pagination: only on page 1, discover total pages
         if page == 1:
-            page_numbers = response.xpath(search_sel['pagination']).getall()
+            page_numbers = response.xpath(search_sel["pagination"]).getall()
             numeric_pages = []
             for p in page_numbers:
                 try:
@@ -142,10 +159,10 @@ class AmazonSearchProductSpider(ProductDetailMixin, scrapy.Spider):
                     url=next_url,
                     callback=self.discover_product_urls,
                     meta={
-                        'keyword': keyword,
-                        'marketplace': marketplace,
-                        'page': next_page,
-                        'job_id': job_id,
-                        'retry_count': 0,
+                        "keyword": keyword,
+                        "marketplace": marketplace,
+                        "page": next_page,
+                        "job_id": job_id,
+                        "retry_count": 0,
                     },
                 )
