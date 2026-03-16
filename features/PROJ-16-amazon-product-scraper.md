@@ -452,7 +452,7 @@ Piggybacks on Mode 1 + 3. Pipeline creates BSRSnapshot after product upsert (onl
 | MetaKeyword as own model + M2M | Queryable, deduplicated. PROJ-10 Keyword Bank builds directly on it. Frequency on model (overwritten per scrape) — simpler than through-table |
 | SearchKeywordResult 1:1 with ProductSearchCache | Global keyword aggregation per scrape run. PROJ-6 reads this for AI analysis context. Separate from per-product MetaKeywords |
 | MetaKeyword data-basis guard | Only re-calculate when new data ≥ existing (don't downgrade 5-field extraction to 2-field). Prevents keyword quality regression on search_page_only re-scrapes |
-| Keyword extraction logic from n8n workflow | Stopwords, junk words, noun heuristic, n-gram generation ported from n8n `00003` workflow (JS → Python). Proven logic, consistent results |
+| Keyword extraction improved from n8n workflow | Base logic (stopwords, n-grams, noun heuristic) from n8n `00003`. 6 improvements: MBA-specific noun/theme word lists (fixes "cat"/"nurse"/"dad" scoring 0), light plural stemming ("teachers"→"teacher"), hyphen-split ("cat-lover"→3 tokens), brand-token separation, single normalization pass, clean filter pipeline without redundant checks |
 
 ### File Structure
 
@@ -526,6 +526,318 @@ services:
 ### Marketplace Flexibility
 
 CSS selectors stored in `selectors.py` as dict keyed by marketplace code. Initial implementation: `amazon_com` only with selectors from reference repo. Adding a marketplace = adding a new dict entry with marketplace-specific overrides. Spider reads selectors from this dict based on job's marketplace field.
+
+---
+
+## Tech Design Update: Search Page Only Spider + MetaKeyword Extraction
+
+**Architect:** Claude Sonnet 4.6
+**Date:** 2026-03-16
+**Scope:** 3 additions to deployed PROJ-16: (1) AmazonSearchPageSpider, (2) MetaKeyword extraction pipeline, (3) PATCH semantics for all pipelines
+
+### What Changes and Why
+
+The deployed PROJ-16 has 2 spiders. PROJ-6 (Niche Deep Research) needs fast search-level data for AI analysis — scraping detail pages is unnecessary overhead (4–10x slower). Additionally, keyword extraction from product listings was previously done in n8n (JavaScript) and must move into the scraper pipeline so keywords are persisted and reusable across PROJ-6, PROJ-7, and PROJ-10.
+
+### Change 1: AmazonSearchPageSpider
+
+```
+Existing AmazonSearchProductSpider (2-phase):
+  Search page → extract product URLs → follow each → detail page → full data
+  ~50 requests per keyword (4 pages + ~46 detail pages)
+
+New AmazonSearchPageSpider (1-phase):
+  Search page → extract listing data directly from search cards → done
+  ~4 requests per keyword (4 pages only)
+```
+
+**What it extracts from search result cards:**
+
+| Field | Selector Source | Fallback |
+|-------|----------------|----------|
+| ASIN | `data-csa-c-item-id` attribute | `/dp/ASIN/` in URL |
+| Title | `h2 aria-label` attribute | `h2 a-size-base-plus span` → `h2 a-size-mini span` |
+| Brand | `h2 a-size-mini span.a-size-base-plus.a-color-base` | merchant ID from URL |
+| Price | `span.a-price-whole` + `span.a-price-fraction` | — |
+| Rating | `data-cy=reviews-block span.a-icon-alt` | — |
+| Reviews | `data-cy=reviews-block span.a-size-mini` | — |
+| Thumbnail | `img.s-image::attr(src)` | — |
+| Product URL | `/dp/ASIN/` from `h2 a::attr(href)` | — |
+| Sponsored | `/slredirect/` pattern in URL | — |
+
+> Selectors ported from n8n workflow `00003 - n8n Amazon Niche Analyser Prototyping.json`. Already proven in production.
+
+**What it shares with the existing search+detail spider:**
+- Same pagination logic (max 4 pages, `pages_total` configurable)
+- Same `product_container` selector: `div.s-result-item[data-component-type=s-search-result]`
+- Same `product_type_filter` + `PRODUCT_TYPE_SPIDER_KWARGS` for MBA search URL filtering
+- Same `max_items` via `CLOSESPIDER_ITEMCOUNT`
+- Same `_increment_pages_done()` progress tracking
+- Same `ScrapeJob` model (mode=`search_page_only`)
+
+**What it does NOT do:**
+- No detail page follow (no `scrapy.Request` to product URLs)
+- No BSR, bullets, description, listed_date, image_gallery, variants extraction
+- No `BSRSnapshot` creation
+- No boilerplate bullet filtering (no bullets to filter)
+
+**Spider reuse strategy:**
+
+```
+Shared Code (extract into SearchPageMixin):
+├── Search URL construction (marketplace + keyword + product_type_filter)
+├── Pagination handling (next page detection, pages_done tracking)
+├── Product container iteration
+├── Search-level field extraction (ASIN, title, brand, price, rating, reviews, thumbnail, URL)
+└── Sponsored detection
+
+AmazonSearchProductSpider (existing):
+├── inherits SearchPageMixin
+├── adds: detail page follow (yield Request per ASIN URL)
+└── uses ProductDetailMixin for detail extraction
+
+AmazonSearchPageSpider (new):
+├── inherits SearchPageMixin
+├── yields AmazonProductItem directly from search data
+└── no detail follow, no ProductDetailMixin needed
+```
+
+> The existing `AmazonSearchProductSpider` already has search-page extraction logic. Refactoring the shared parts into a `SearchPageMixin` avoids code duplication between the two search spiders.
+
+### Change 2: Pipeline PATCH Semantics
+
+**Current behavior (problem):**
+```
+pipeline.process_item():
+  AmazonProduct.objects.update_or_create(
+      asin=item['asin'], marketplace=item['marketplace'],
+      defaults={title: ..., brand: ..., bsr: ..., bullets: ..., ...}
+  )
+  → ALL fields overwritten, including with None from search_page_only spider
+  → Detail data (BSR, bullets, description) lost if search_page_only runs after detail scrape
+```
+
+**New behavior (PATCH):**
+```
+pipeline.process_item():
+  product, created = AmazonProduct.objects.get_or_create(
+      asin=item['asin'], marketplace=item['marketplace']
+  )
+  → Only update fields where item value is NOT None
+  → Existing detail data preserved when search_page_only spider runs
+  → save(update_fields=[...]) for efficiency
+```
+
+**Applies to ALL spider modes** — not just search_page_only. This is a safer default: no spider should accidentally null-out data from another spider's previous run.
+
+**Data flow per mode after PATCH:**
+
+| Mode | Fields Written | Fields Preserved |
+|------|---------------|-----------------|
+| search_page_only | title, brand, price, rating, reviews_count, thumbnail_url, product_url, is_sponsored, product_type | bsr, bsr_categories, bullets, description, listed_date, image_gallery, variants, seller_name |
+| live (search+detail) | All fields | — (full scrape) |
+| scheduled (keyword) | All fields | — (full scrape) |
+| scheduled (ASIN detail) | All detail fields | — (full scrape) |
+| bsr_snapshot | bsr, rating, price | All other fields |
+
+### Change 3: MetaKeyword Extraction
+
+**Why in the pipeline, not at query time:**
+- Tokenization + n-gram generation + frequency analysis over 50–200 products = non-trivial compute
+- Keywords should reflect market state at scrape time, not shift on every API call
+- Three consumers (PROJ-6, PROJ-7, PROJ-10) read the same keywords — compute once, read many
+
+**Two outputs from one extraction run:**
+
+```
+Per-Product Output:
+  AmazonProduct ←M2M→ MetaKeyword
+  Each product gets its short_tail + long_tail keywords
+
+Per-Run Output (global aggregation):
+  ProductSearchCache ←1:1→ SearchKeywordResult
+  Top 50 short-tail + top 50 long-tail across all products of this scrape
+```
+
+**Extraction pipeline (improved port from n8n workflow `00003`):**
+
+> 6 improvements over n8n JS: MBA-specific noun categories, hyphen-split, brand-token separation, light plural stemming, single normalization pass, clean filter pipeline.
+
+```
+Step 1: Text Collection (per product)
+  Concatenate: title + brand + bullet_1 + bullet_2 + description
+  (only non-NULL fields — search_page_only has title + brand only)
+  Brand tokenized separately into brand_tokens set (ranked lower in output)
+
+Step 2: Normalization (single pass per text — not twice like n8n)
+  Lowercase, html.unescape() (stdlib, not regex), remove parens content,
+  remove special chars except hyphens, collapse whitespace
+
+Step 3: Tokenization + Hyphen Split (new)
+  Split on whitespace
+  Hyphenated words emit 3 tokens: "cat-lover" → ["cat-lover", "cat", "lover"]
+
+Step 4: Light Plural Stemming (new — n8n had none)
+  "teachers" → "teacher", "gifts" → "gift", "cats" → "cat"
+  Exception list: bus, dress, atlas, plus, canvas, etc.
+  -shes/-ches/-xes/-zes/-ses → strip "es" (dishes → dish, watches → watch)
+  Prevents frequency splitting between singular/plural
+
+Step 5: Filter
+  Remove: stopwords (for, with, the, a, tshirt, shirt, men, women, ...)
+  Remove: junk words (amp, nbsp, thy, co, stuff, ...)
+  Remove: function words (am, is, was, in, on, at, ...)
+  Remove: tokens < 3 chars, pure numbers
+  Clean pipeline: tokenize → filter → score (no redundant checks like n8n)
+
+Step 6: Short-Tail Keywords (per product)
+  Filter by noun-likelihood heuristic (improved):
+    Score += 0.2 if length >= 4
+    Score += 0.1 if length >= 6
+    Score += 0.4 if noun suffix (-er, -or, -ist, -ment, -ness, -tion, -gift, -lover)
+    Score += 0.2 if contains hyphen
+    Score += 0.2 if frequency >= 2
+    Score += 0.1 if frequency >= 5
+    NEW: Score += 0.5 if in MBA_NICHE_NOUNS (cat, dog, nurse, teacher, dad, mom...)
+    NEW: Score += 0.3 if in MBA_THEME_WORDS (funny, sarcastic, vintage, retro, cute...)
+    Keep if score >= 0.4
+  Exclude generic words (appear in >= 80% of products)
+  Brand-only tokens deprioritized (not excluded, but ranked lower)
+  Top 10 per product, ranked by global frequency
+
+Step 7: Long-Tail Keywords (per product)
+  Build 2–3 word n-grams (from tokens with STOPWORDS allowed, same as n8n)
+  Filter: at least 1 noun-like word, no junk words
+  Exclude generic n-grams (>= 80% of products)
+  Top 10 per product, ranked by global frequency
+
+Step 8: Persist
+  MetaKeyword.objects.get_or_create(keyword=..., type=short_tail|long_tail)
+  Update frequency (overwrite with current count)
+  Set M2M links: product.meta_keywords, meta_keyword.search_keywords
+  Create SearchKeywordResult (top 50 each, filtered by frequency > 2)
+```
+
+**Data-basis guard (prevents keyword quality regression):**
+
+```
+Before re-calculating MetaKeywords for a product:
+  Check: does product already have bullet_1 OR bullet_2 OR description?
+  If YES and current spider is search_page_only (no bullets/description):
+    → SKIP MetaKeyword re-calculation for this product
+    → Existing keywords (from 5-field basis) are better
+  If NO (product only has title+brand):
+    → Calculate from title+brand (better than nothing)
+  If current spider provides bullets/description:
+    → Always re-calculate (equal or better basis)
+```
+
+**When extraction runs:**
+
+```
+close_spider() signal in pipeline:
+  1. Query all AmazonProducts updated in this scrape run
+  2. For each product: check data-basis guard → extract if appropriate
+  3. Aggregate global frequencies across all products of this run
+  4. Create/update MetaKeyword records + M2M links
+  5. Create SearchKeywordResult for this ProductSearchCache
+```
+
+> Runs in `close_spider()` (not per-item) because global frequency analysis and generic-word filtering need all products of the run.
+
+### Change 4: New Task Function
+
+```
+scrape_search_page_job(scrape_job_id, keyword, marketplace):
+  Same pattern as scrape_keyword_job:
+  ├── Update ScrapeJob status → running
+  ├── Build subprocess command: scrapy crawl amazon_search_page -a ...
+  ├── _scrapy_env() for PYTHONPATH + SCRAPY_SETTINGS_MODULE
+  ├── Pass product_type_filter + max_items as spider args
+  ├── Monitor subprocess (PID stored for cancellation)
+  ├── Log stdout at INFO level
+  └── Update ScrapeJob status → completed/failed
+
+  Uses same get_or_create_keyword_cache() for dedup + 24h cache.
+```
+
+### Change 5: Admin Updates
+
+| What | Change |
+|------|--------|
+| `ScrapeJob` mode filter | Add `search_page_only` to choices |
+| `ScrapeJob` actions | start/stop/cancel/retry work unchanged (same subprocess pattern) |
+| `MetaKeywordAdmin` | New: list with filters (type), search by keyword |
+| `SearchKeywordResultAdmin` | New: read-only, accessible via ProductSearchCache link |
+| `AmazonProductAdmin` | Add `meta_keywords` to fieldsets (read-only M2M display) |
+
+### Data Model Relationships (complete picture)
+
+```
+Keyword (search term)
+  ├── M2M → AmazonProduct.keywords (products found for this search)
+  ├── M2M → MetaKeyword.search_keywords (extracted keywords from this search)
+  └── FK ← ProductSearchCache (dedup + 24h cache)
+              └── 1:1 → SearchKeywordResult (global top keywords for this run)
+
+AmazonProduct
+  ├── M2M → Keyword (which searches found this product)
+  ├── M2M → MetaKeyword (per-product extracted keywords)
+  ├── FK ← BSRSnapshot (time-series BSR/rating/price)
+  └── FK ← NicheResearchProduct (PROJ-6: which research analyzed this product)
+
+MetaKeyword
+  ├── M2M → AmazonProduct (which products have this keyword)
+  └── M2M → Keyword (which search terms discovered this keyword)
+
+ScrapeJob
+  └── mode: live | search_page_only | scheduled | bsr_snapshot
+```
+
+### Consumer Map
+
+| Consumer | Reads | Purpose |
+|----------|-------|---------|
+| PROJ-6 LangGraph (analyze node) | AmazonProduct + MetaKeywords + SearchKeywordResult | AI niche analysis with keyword context |
+| PROJ-6 LangGraph (keywords node) | SearchKeywordResult.top_focus + top_long_tail | Seed data for LLM keyword generation |
+| PROJ-7 UI | AmazonProduct.meta_keywords | Display keywords per product in search results |
+| PROJ-10 Keyword Bank | MetaKeyword (query by type, frequency) | Keyword discovery + trending keywords |
+
+### File Changes Summary
+
+| File | Change Type | What |
+|------|------------|------|
+| `models.py` | ADD | `MetaKeyword` model, `SearchKeywordResult` model, `meta_keywords` M2M on AmazonProduct, `search_page_only` in ScrapeJob mode choices |
+| `selectors.py` | ADD | `search_page` section in `DEFAULT_SELECTORS` (ASIN, title, brand, rating, reviews selectors from n8n workflow) |
+| `items.py` | NO CHANGE | Existing `AmazonProductItem` reused (search_page_only sets detail fields to None) |
+| `pipelines.py` | MODIFY | PATCH semantics (get_or_create + selective update), MetaKeyword extraction in `close_spider()`, SearchKeywordResult creation |
+| `keyword_extractor.py` | ADD | Stopwords/junkwords/function words sets, noun heuristic, tokenizer, n-gram builder, generic word filter, extraction orchestrator |
+| `spiders/mixins.py` | ADD | `SearchPageMixin` (shared search-page logic extracted from AmazonSearchProductSpider) |
+| `spiders/amazon_search_page.py` | ADD | `AmazonSearchPageSpider` (inherits SearchPageMixin, yields items from search cards) |
+| `spiders/amazon_search_product.py` | MODIFY | Refactor to inherit `SearchPageMixin` (no behavior change, just code reuse) |
+| `tasks.py` | ADD | `scrape_search_page_job()` function |
+| `admin.py` | ADD | `MetaKeywordAdmin`, `SearchKeywordResultAdmin`, update AmazonProductAdmin fieldsets |
+| `tests/` | ADD | `test_keyword_extractor.py`, update `test_pipelines.py`, `test_tasks.py`, `test_models.py` |
+
+### Migration Plan
+
+Single migration file covering:
+1. `MetaKeyword` model creation
+2. `SearchKeywordResult` model creation
+3. `AmazonProduct.meta_keywords` M2M field addition
+4. `ScrapeJob.mode` choices update (add `search_page_only`)
+
+No data migration needed — new models start empty. Existing data unaffected.
+
+### Risk Assessment
+
+| Risk | Mitigation |
+|------|-----------|
+| Search-page selectors break (Amazon HTML change) | Same 3-retry + error logging as existing spiders. Selectors from proven n8n workflow |
+| PATCH semantics breaks existing pipeline behavior | All existing tests must still pass. PATCH is strictly additive (never writes less data than before for full-scrape modes) |
+| MetaKeyword extraction slow on large result sets | Runs in `close_spider()` (after all items saved). Max ~200 products × 5 fields = fast. If needed: batch DB writes |
+| Keyword extractor produces poor results | Logic is 1:1 port from working n8n workflow. Same stopwords, same heuristic, same n-gram logic |
+| SearchPageMixin refactor breaks AmazonSearchProductSpider | Existing spider tests must pass unchanged. Mixin extraction is pure refactor, no behavior change |
 
 ---
 
