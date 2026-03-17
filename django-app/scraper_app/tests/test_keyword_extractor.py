@@ -292,3 +292,42 @@ class TestExtractKeywords:
         ]
         result = extract_keywords(products, "cat")
         assert isinstance(result['all_flat'], str)
+
+    def test_per_product_capped_at_30(self):
+        """BUG-P8-03: per-product short_tail and long_tail capped at 30."""
+        many_nouns = ' '.join(
+            f'{w}shirt' for w in [
+                'alpha', 'bravo', 'charlie', 'delta', 'echo',
+                'foxtrot', 'golf', 'hotel', 'india', 'juliet',
+                'kilo', 'lima', 'mike', 'november', 'oscar',
+                'papa', 'quebec', 'romeo', 'sierra', 'tango',
+                'uniform', 'victor', 'whiskey', 'xray', 'yankee',
+                'zulu', 'amber', 'bronze', 'coral', 'denim',
+                'ebony', 'flint',
+            ]
+        )
+        products = [
+            {'title': many_nouns, 'brand': None,
+             'bullet_1': many_nouns, 'bullet_2': many_nouns,
+             'description': many_nouns},
+        ]
+        result = extract_keywords(products)
+        pp = result['per_product'][0]
+        assert len(pp['short_tail']) <= 30
+        assert len(pp['long_tail']) <= 30
+
+    def test_ngrams_exclude_no_noun_tokens(self):
+        """BUG-P8-04: n-grams with no noun-like tokens are excluded."""
+        products = [
+            {'title': 'for the with on by at in to of up',
+             'brand': None, 'bullet_1': None, 'bullet_2': None,
+             'description': None},
+        ]
+        result = extract_keywords(products)
+        pp = result['per_product'][0]
+        # All pure-stopword n-grams should be filtered out
+        for ngram in pp['long_tail']:
+            tokens = ngram.split()
+            assert any(_noun_score(t) >= 0.3 for t in tokens), (
+                f"n-gram '{ngram}' has no noun-like token"
+            )

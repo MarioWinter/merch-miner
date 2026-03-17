@@ -208,7 +208,7 @@ class DjangoORMPipeline:
 
     def _auto_enroll_target(self, item):
         bsr = item.get('bsr')
-        tier = self.ScrapeTier.get_tier_for_bsr(bsr) if bsr is not None else None
+        tier = self.ScrapeTier.get_tier_for_bsr(bsr)
         if not tier:
             return
         target, created = self.ScheduledScrapeTarget.objects.get_or_create(

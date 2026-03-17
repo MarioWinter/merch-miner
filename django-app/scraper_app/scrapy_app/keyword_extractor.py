@@ -300,7 +300,12 @@ def extract_keywords(products, keyword_text=''):
         long_tail_filtered = filter_long_tail(all_tokens)
         bigrams = _build_ngrams(long_tail_filtered, 2)
         trigrams = _build_ngrams(long_tail_filtered, 3)
-        product_long_tail = Counter(bigrams + trigrams)
+        # Keep only n-grams containing at least 1 noun-like token
+        all_ngrams = [
+            ng for ng in bigrams + trigrams
+            if any(_noun_score(t) >= 0.3 for t in ng.split())
+        ]
+        product_long_tail = Counter(all_ngrams)
 
         # Track doc frequency
         for token in set(product_short_tail.keys()):
@@ -314,8 +319,8 @@ def extract_keywords(products, keyword_text=''):
 
         per_product_results.append({
             'product_idx': idx,
-            'short_tail': list(product_short_tail.keys()),
-            'long_tail': list(product_long_tail.keys()),
+            'short_tail': [k for k, _ in product_short_tail.most_common(30)],
+            'long_tail': [k for k, _ in product_long_tail.most_common(30)],
         })
 
     # Filter generic words

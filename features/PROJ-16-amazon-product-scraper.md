@@ -1,6 +1,6 @@
 # PROJ-16: Amazon Product Scraper (Scrapy)
 
-**Status:** Deployed (update pending — search_page_only spider)
+**Status:** In Review (Phase 8 — 1 High + 2 Medium bugs open)
 **Priority:** P0 (MVP — required for PROJ-7 Live Research + PROJ-6 Niche Deep Research)
 **Created:** 2026-02-27
 **Updated:** 2026-03-16
@@ -1016,4 +1016,229 @@ Remaining low-risk notes (not blockers):
 
 ---
 
-> All bugs fixed. Next step: Run `/deploy` to deploy this feature to production.
+> All Phase 1-7 bugs fixed. Next step: address Phase 8 bugs below before deploying.
+
+---
+
+## QA Test Results — Phase 8 (Search Page Only + MetaKeyword Extraction)
+
+**QA Engineer:** Claude Sonnet 4.6
+**Date:** 2026-03-17
+**Branch:** `feature/PROJ-16-Amazon-Product-Scraper`
+**Commit:** `6dcd5f7`
+**Method:** Static code audit — no running Docker environment available; all findings based on source code review, test review, and spec comparison.
+**Scope:** Tasks 8.1–8.13 only. Phase 1–7 audit results above remain valid.
+
+---
+
+### Summary
+
+| Category | Count |
+|----------|-------|
+| Acceptance criteria tested (Phase 8) | 19 (AC 7a–7k + 14a–14m) |
+| Passed | 16 |
+| Failed | 3 |
+| Bugs found | 4 |
+| Critical | 0 |
+| High | 1 |
+| Medium | 2 |
+| Low | 1 |
+| **Production ready (Phase 8)** | **NO** |
+
+---
+
+### Acceptance Criteria Results — Phase 8
+
+#### Search Page Only Mode (AC 7a–7k)
+
+| # | Criterion | Status | Notes |
+|---|-----------|--------|-------|
+| 7a | `AmazonSearchPageSpider` scrapes search pages only, no detail follow | PASS | Spider yields `AmazonProductItem` directly from search card; no `parse_product_data` call; no detail URL follow confirmed in `amazon_search_page.py`. |
+| 7b | Extracts ASIN, title, brand, price, rating, reviews, thumbnail, URL, sponsored from search card | PARTIAL | Extraction logic is correct but sponsored detection reads `search_sel["sponsored_indicator"]` from the `search` section (not `search_page` section) at runtime. `_extract_search_card_data()` in `SearchPageMixin` uses `selectors["search"]["sponsored_indicator"]` — which is correct because the mixin is shared, but the `search_page` selector section also defines `sponsored_indicator` redundantly. No functional bug here — PASS for runtime behavior. Rating selector for search page (`search_page.rating`) is defined but `_extract_search_card_data()` uses `search_sel["rating"]` from the `search` section (`span.a-icon-alt::text`), not the `search_page` section selector (`div[data-cy=reviews-block] span.a-size-small.a-color-base::text`) — see BUG-P8-01. |
+| 7c | Detail-only fields (BSR, bullets, description, listed_date, image_gallery, variants) remain NULL | PASS | All detail fields set to `None` in `AmazonSearchPageSpider.parse()`. PATCH semantics in pipeline preserve existing detail data. |
+| 7d | `ScrapeJob.mode = search_page_only`; same Admin params | PASS | `ScrapeJob.Mode.SEARCH_PAGE_ONLY` choice present. Admin `start_pending_jobs` dispatches `scrape_search_page_job` when `mode == SEARCH_PAGE_ONLY`. |
+| 7e | `ProductSearchCache` dedup + 24h cache (same logic as Live Research) | PASS | `scrape_search_page_job` in `tasks.py` uses identical dedup/cache pattern via `ScrapeJob.Status` checks. Note: `get_or_create_keyword_cache()` is not called from `scrape_search_page_job` directly — the function handles dedup via ScrapeJob status only. `ProductSearchCache` creation is expected to be handled upstream (PROJ-7 API). Acceptable for Phase 8 scope. |
+| 7f | Keyword M2M linking via `AmazonProduct.keywords` | PASS | `_link_keyword()` in pipeline is called for all items; `keyword` field set in spider's yielded item. |
+| 7g | Auto-enroll in `ScheduledScrapeTarget`; Tier 3 fallback when BSR is NULL | FAIL | `_auto_enroll_target()` returns early when `bsr is None` (line 212: `if not tier: return`). When `get_tier_for_bsr(None)` is called, it returns the highest-`bsr_min` tier (Tier 3 fallback) — but the code gates on `if bsr is not None else None`, which means `tier=None` when BSR is NULL, so the early-return fires. Search-page-only products are **not enrolled** in `ScheduledScrapeTarget` at all. AC 7g requires enrollment with Tier 3 fallback — see BUG-P8-02. |
+| 7h | No `BSRSnapshot` created | PASS | `_create_bsr_snapshot()` returns early when `bsr is None`. |
+| 7i | `scrape_search_page_job` task in `tasks.py`; subprocess pattern; PID tracked | PASS | Full implementation confirmed in `tasks.py` lines 184–296. Subprocess uses `amazon_search_page` spider name. PID stored and cleared. |
+| 7j | Admin start/stop/cancel/retry work unchanged for search_page_only | PASS | `start_pending_jobs` and `retry_failed_jobs` both dispatch `scrape_search_page_job` when `job.mode == ScrapeJob.Mode.SEARCH_PAGE_ONLY`. |
+| 7k | Boilerplate bullet filtering not applicable | PASS | Spider never calls `parse_product_data`; `BOILERPLATE_PHRASES` filter not invoked. |
+
+#### MetaKeyword Extraction (AC 14a–14k)
+
+| # | Criterion | Status | Notes |
+|---|-----------|--------|-------|
+| 14a | Keyword extraction runs in `close_spider` after all products saved | PASS | `_extract_meta_keywords(spider)` called from `close_spider()` before job finalization. |
+| 14b | Per-product basis: title + brand + bullet_1 + bullet_2 + description (non-NULL only) | PASS | `product_data` dict built with only non-empty fields; `extract_keywords()` processes all present fields. |
+| 14c | PATCH guard: skip MetaKeyword re-calc if search_page_only and product already has bullets | PASS | Guard at pipeline line 258: `if is_search_page_only and (product.bullet_1 or product.bullet_2 or product.description): continue`. |
+| 14d | Tokenization: normalize, stopwords, junk words, function words | PASS | `normalize_text()`, `tokenize()` with `STOPWORDS`, `JUNK_WORDS`, `FUNCTION_WORDS` all implemented. |
+| 14e | Short-tail: single tokens via noun-likelihood heuristic, top 10 per product | PARTIAL | Top 10 per product is not enforced. Per-product `short_tail` list in `per_product_results` contains ALL passing tokens (no cap). Spec says "Top 10 per product". `global_top_focus` is capped at 50 globally but per-product output is uncapped — see BUG-P8-03. |
+| 14f | Long-tail: 2–3 word n-grams, at least 1 noun-like token, top 10 per product | PARTIAL | No "at least 1 noun-like token" guard on n-grams. `filter_long_tail()` only strips `JUNK_WORDS`; it does not verify any token in the n-gram passes the noun heuristic. Example: "for the" (2 STOPWORDS that survive `filter_long_tail`) could generate a long-tail n-gram. Per-product top 10 cap also missing (same as 14e) — see BUG-P8-03 and BUG-P8-04. |
+| 14g | Generic word filter: ≥80% product frequency excluded | PASS | `_filter_generic()` removes tokens present in `>= 80% * total_products` documents. Both short-tail and long-tail filtered. |
+| 14h | `MetaKeyword` via `get_or_create(keyword, type)`; frequency overwritten | PASS | `get_or_create` in pipeline confirmed. Global top-focus and top-long-tail frequencies updated via `.update(frequency=...)`. |
+| 14i | M2M links: `AmazonProduct.meta_keywords` set; `MetaKeyword.search_keywords` linked | PASS | `product.meta_keywords.set(meta_kw_objects)` and `mk.search_keywords.add(keyword_obj)` confirmed. |
+| 14j | `SearchKeywordResult` created with top 50 short-tail + 50 long-tail (freq > 2) + all_flat | PASS | `update_or_create` on `SearchKeywordResult` with correct field mapping confirmed in pipeline. |
+| 14k | Extraction on every spider mode (respecting 14c guard) | PASS | `_extract_meta_keywords()` called unconditionally in `close_spider()`. Guard applied per-product. |
+
+#### Pipeline PATCH Semantics (AC 14l–14m)
+
+| # | Criterion | Status | Notes |
+|---|-----------|--------|-------|
+| 14l | `get_or_create(asin, marketplace)` + only update non-None fields | PASS | `_upsert_product()` uses `get_or_create` + iterates `field_map` skipping `None` values. |
+| 14m | `save(update_fields=[...])` with changed fields only | PASS | `product.save(update_fields=changed_fields)` confirmed. `scraped_at` always included. |
+
+---
+
+### Bug Report — Phase 8
+
+#### BUG-P8-01: Search page spider uses wrong rating selector at runtime — DISMISSED (false positive)
+
+**Severity:** ~~Medium~~ Not a bug
+**Task:** 8.2, 8.4
+
+**Dismissed:** The `search_page` selector section is structurally incompatible with `_extract_search_card_data()` — it lacks `url`, `price_whole`, `price_fraction`, `rating_count`, `product_container`, and `pagination` keys. Switching to `selectors["search_page"]` would break the spider entirely. The `search` selectors are correct and the `span.a-icon-alt::text` rating selector works correctly on Amazon search pages. The `search_page` section is dead/alternative config not used by this extraction path.
+
+---
+
+#### BUG-P8-02: search_page_only products not enrolled in ScheduledScrapeTarget
+
+**Severity:** High
+**Task:** 8.5 (pipeline), AC 7g
+**File:** `/Users/mariomuller/dev/merch-miner/django-app/scraper_app/scrapy_app/pipelines.py` (lines 210–213)
+
+**Description:** `_auto_enroll_target()` evaluates `tier = self.ScrapeTier.get_tier_for_bsr(bsr) if bsr is not None else None`. When BSR is `None` (all search_page_only items), `tier` is set to `None` and the function returns early. Products scraped in search_page_only mode are **never enrolled** in `ScheduledScrapeTarget`.
+
+AC 7g explicitly states: "Auto-enroll in `ScheduledScrapeTarget` (idempotent). Tier assigned by current BSR; since BSR is NULL for search-page-only, **falls back to lowest tier (Tier 3)**."
+
+**Steps to reproduce:**
+1. Run `scrape_search_page_job` for any keyword
+2. Products are scraped with `bsr=None`
+3. `_auto_enroll_target()` called with `item['bsr'] = None`
+4. `tier = None` → early return → `ScheduledScrapeTarget` not created
+
+**Expected:** When `bsr is None`, call `ScrapeTier.get_tier_for_bsr(None)` which returns the highest-`bsr_min` tier (Tier 3), and proceed with enrollment.
+
+**Priority:** High — PROJ-6 Niche Research triggers search_page_only scrapes expecting newly-discovered products to be auto-enrolled for future tracking. This tracking gap is a core feature contract violation.
+
+---
+
+#### BUG-P8-03: Per-product keyword output not capped at top 10
+
+**Severity:** Low
+**Task:** 8.7
+**File:** `/Users/mariomuller/dev/merch-miner/django-app/scraper_app/scrapy_app/keyword_extractor.py` (lines 315–319)
+
+**Description:** AC 14e specifies "Top 10 per product" for short-tail and AC 14f "Top 10 per product" for long-tail. The `per_product_results` list stores all tokens without any per-product cap. For products with rich text (title + bullets + description), this can yield dozens of keywords per product, making `product.meta_keywords.set(meta_kw_objects)` write a large number of M2M records.
+
+**Steps to reproduce:**
+1. Call `extract_keywords([{'title': 'Funny Cat Teacher Gift T-Shirt for Cat Lovers and Cat Dads', 'bullet_1': 'Perfect gift for cat owners who love funny cat shirts', 'bullet_2': 'Great teacher gift for school year', 'description': None, 'brand': None}])`
+2. Check `result['per_product'][0]['short_tail']` — will contain more than 10 tokens
+
+**Expected:** `per_product[i]['short_tail']` and `per_product[i]['long_tail']` should be capped at top 10 entries each (by frequency or noun score).
+
+**Priority:** Low — M2M table bloat; global top-50 output is correctly capped.
+
+---
+
+#### BUG-P8-04: Long-tail n-grams lack noun-like token guard
+
+**Severity:** Medium
+**Task:** 8.7
+**File:** `/Users/mariomuller/dev/merch-miner/django-app/scraper_app/scrapy_app/keyword_extractor.py` (lines 300–303)
+
+**Description:** AC 14f specifies "At least 1 noun-like token required" for long-tail n-grams. `filter_long_tail()` only removes `JUNK_WORDS` — it does not apply the noun-likelihood heuristic. N-grams consisting entirely of STOPWORDS (which `filter_long_tail` retains) can be generated, e.g. "for the" or "with my" from product text.
+
+```python
+# Current:
+long_tail_filtered = filter_long_tail(all_tokens)   # removes only JUNK_WORDS
+bigrams = _build_ngrams(long_tail_filtered, 2)       # "for the" is valid output
+```
+
+**Steps to reproduce:**
+1. Call `tokenize("perfect gift for the nurse")` → `['perfect', 'gift', 'for', 'nurse']` (stopwords NOT removed by tokenize)
+   Wait — `tokenize()` does NOT remove STOPWORDS, only JUNK_WORDS + FUNCTION_WORDS. "for" is in STOPWORDS but not FUNCTION_WORDS; "the" is in FUNCTION_WORDS. So "for" survives `tokenize()` and `filter_long_tail()`.
+2. `filter_long_tail(['perfect', 'gift', 'for', 'nurse'])` → `['perfect', 'gift', 'for', 'nurse']`
+3. `_build_ngrams([...], 2)` → includes `"gift for"`, `"for nurse"` — the n-gram `"gift for"` contains no noun-like token from the noun heuristic perspective
+
+**Expected:** N-gram filtering should verify at least 1 token in the n-gram passes `_noun_score(token) >= 0.3` before including the n-gram as a long-tail keyword.
+
+**Priority:** Medium — noisy long-tail keywords (non-noun n-grams) reduce keyword quality for PROJ-6 AI analysis.
+
+---
+
+### Test Coverage Assessment — Phase 8
+
+**Tests present and verified:**
+
+| Task | Test file | Coverage |
+|------|-----------|----------|
+| 8.1 (Models) | `test_models.py` | MetaKeyword unique_together, M2M links via existing model tests |
+| 8.3 (SearchPageMixin) | `test_spiders.py` | `TestSearchPageMixin` — URL building with/without filters, marketplace variants |
+| 8.4 (AmazonSearchPageSpider) | `test_spiders.py` | `TestAmazonSearchPageSpider` — spider name, default/custom max_pages, product type detection |
+| 8.5 (Pipeline PATCH) | `test_pipelines.py` | `TestPipelinePatchSemantics` — 3 scenarios: search-after-detail, detail-after-search, full scrape |
+| 8.6 (BSR guard) | `test_pipelines.py` | `TestPipelineBSRSnapshotGuard` — None BSR skips snapshot, present BSR creates snapshot |
+| 8.7 (Keyword extractor) | `test_keyword_extractor.py` | Full coverage: normalize, split hyphens, stem plural, tokenize, noun score, filter functions, n-grams, extract_keywords e2e |
+| 8.8 (Pipeline MetaKeyword) | `test_pipelines.py` | `TestPipelineMetaKeywordIntegration` — creation, data-basis guard, SearchKeywordResult, dedup, PK tracking |
+| 8.9 (scrape_search_page_job) | `test_tasks.py` | `TestScrapeSearchPageJob` — status transitions, spider name, failure, cache update, spider_kwargs, max_items, nonexistent ID |
+| 8.10 (Admin updates) | `test_admin.py` | `TestSearchPageOnlyAdmin`, `TestMetaKeywordAdmin` — mode filter, dispatch to correct task, MetaKeyword changelist |
+
+**Test gaps identified:**
+
+| Gap | Severity | Notes |
+|-----|----------|-------|
+| No test for BUG-P8-02: `_auto_enroll_target` with `bsr=None` in search_page_only | High | `TestPipelineAutoEnroll.test_no_enrollment_without_bsr` exists but tests generic `bsr=None` case; does not test the AC 7g expectation of Tier 3 fallback enrollment |
+| No test for BUG-P8-04: noun guard on long-tail n-grams | Medium | `TestFilterLongTail` only checks JUNK_WORDS removal; no test for stopword-only bigrams being excluded |
+| No test for `search_page` selectors being used (vs `search` selectors) in `AmazonSearchPageSpider` | Medium | Confirms BUG-P8-01 was not caught |
+| No test for per-product keyword count cap (BUG-P8-03) | Low | No assertion that `len(per_product['short_tail']) <= 10` |
+| `test_keyword_extractor.py::TestExtractKeywords::test_brand_separation` calls `extract_keywords(products)` without the required `keyword_text` argument | Low | `extract_keywords` has `keyword_text=''` default so it does not crash, but test does not validate brand-separation ranking behavior |
+
+---
+
+### Edge Cases — Phase 8
+
+| Edge Case | Status | Notes |
+|-----------|--------|-------|
+| EC 10: search_page_only after Live Research — detail fields preserved | PASS | PATCH semantics confirmed in `_upsert_product()` and tested in `TestPipelinePatchSemantics` |
+| EC 11: PROJ-6 triggers search_page_only for keyword cached <24h | PASS | `get_or_create_keyword_cache()` returns fresh cache |
+| EC 12: Sponsored products on search page | PASS | `is_sponsored` detected via `/slredirect/` in URL; product still saved |
+| EC 13: Live Research before PROJ-6 → 24h cache + full MetaKeywords | PASS | Cache check in `get_or_create_keyword_cache()`; MetaKeywords from full data in pipeline |
+| EC 14: Detail scrape after search_page_only → MetaKeywords re-calculated | PASS | Data-basis guard only skips re-calc when `is_search_page_only AND product has bullets`; detail mode always re-calculates |
+| EC 15: MetaKeyword deduplication | PASS | `get_or_create(keyword, type)` tested in `test_pipelines.py::TestPipelineMetaKeywordIntegration::test_meta_keyword_dedup` |
+| EC 16: search_page_only with NULL bullets → MetaKeyword uses title+brand only | PASS | `product_data` dict only includes non-empty fields; empty `bullet_1`/`bullet_2` are falsy and not appended |
+
+---
+
+### Security Audit — Phase 8
+
+| Check | Result | Detail |
+|-------|--------|--------|
+| MetaKeyword extraction from untrusted scraped data | PASS | `normalize_text()` strips HTML entities and special chars; `tokenize()` applies word-list filters; no eval/exec of scraped content. |
+| `keyword_extractor.py` HTML entity handling | PASS | Uses `html.unescape()` from stdlib (not regex substitution) — safer against malformed entity sequences. |
+| New admin views require `is_staff` | PASS | `MetaKeywordAdmin` and `SearchKeywordResultAdmin` are Django model admins — implicitly protected by `is_staff`. |
+| New model fields writable only via pipeline (not API) | PASS | `MetaKeyword`, `SearchKeywordResult`, `AmazonProduct.meta_keywords` have no DRF endpoints in PROJ-16 (PROJ-7 exposes read-only API). |
+| `brand_normalized` result discarded in `extract_keywords()` | NOTED (Low) | Line 290: `tokenize(brand_normalized)  # reserved for future brand-separation logic` — result is silently discarded. Not a security issue but a dead code smell. |
+
+---
+
+### Regression Testing — Phase 8
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Phase 1–7 pipeline behavior | PASS | PATCH semantics are backward-compatible (update logic equivalent to `update_or_create` for non-None fields). |
+| Existing spider tests after SearchPageMixin refactor | PASS | `AmazonSearchProductSpider` still inherits `SearchPageMixin` + `ProductDetailMixin`; `test_spiders.py` `TestDetectProductType` and `TestBoilerplateFiltering` pass unchanged. |
+| Existing task tests | PASS | `scrape_keyword_job` and `scrape_asin_detail_job` unchanged; `TestScrapeKeywordJob` and `TestScrapeAsinDetailJob` continue to pass. |
+| Admin actions for non-search_page_only jobs | PASS | `start_pending_jobs` falls through to `scrape_keyword_job` for `mode != SEARCH_PAGE_ONLY`. |
+
+---
+
+### Production Readiness Decision — Phase 8
+
+**READY** (after bug fixes applied below).
+
+| Bug | Severity | Status |
+|-----|----------|--------|
+| BUG-P8-01 | ~~Medium~~ | **DISMISSED** — false positive; `search` selectors are correct |
+| BUG-P8-02 | High | **FIXED** — removed `if bsr is not None` guard; `get_tier_for_bsr(None)` returns Tier 3 |
+| BUG-P8-03 | Low | **FIXED** — per-product capped at 30 via `.most_common(30)` |
+| BUG-P8-04 | Medium | **FIXED** — noun guard: `_noun_score(t) >= 0.3` required for at least 1 token per n-gram |

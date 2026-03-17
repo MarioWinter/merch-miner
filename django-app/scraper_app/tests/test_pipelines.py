@@ -222,12 +222,25 @@ class TestPipelineAutoEnroll:
         target = ScheduledScrapeTarget.objects.get(asin="B0TEST12345")
         assert target.tier.name == "Tier 2"
 
-    def test_no_enrollment_without_bsr(self, pipeline, scrape_tiers):
+    def test_enrollment_with_bsr_none_falls_back_to_tier3(self, pipeline, scrape_tiers):
+        """BUG-P8-02: bsr=None (search_page_only) enrolls at Tier 3."""
         pipe, spider = pipeline
         item = make_product_item(bsr=None)
         pipe.process_item(item, spider)
 
-        assert ScheduledScrapeTarget.objects.count() == 0
+        target = ScheduledScrapeTarget.objects.get(asin="B0TEST12345")
+        assert target.tier.name == "Tier 3"
+        assert target.active is True
+
+    def test_search_page_only_item_enrolled_tier3(self, pipeline, scrape_tiers):
+        """BUG-P8-02: search_page_only products (bsr=None) auto-enroll at Tier 3."""
+        pipe, spider = pipeline
+        item = _make_search_only_item()
+        pipe.process_item(item, spider)
+
+        target = ScheduledScrapeTarget.objects.get(asin="B0PATCH0001")
+        assert target.tier.name == "Tier 3"
+        assert target.active is True
 
     def test_auto_enroll_updates_tier_on_rescrape(self, pipeline, scrape_tiers):
         """Existing target gets tier updated when BSR changes on keyword re-scrape."""
@@ -383,7 +396,7 @@ class TestPipelineCloseSpider:
 
 
 # ------------------------------------------------------------------
-# PATCH semantics (Task 8.5)
+# PATCH semantics
 # ------------------------------------------------------------------
 
 

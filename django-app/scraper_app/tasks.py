@@ -334,7 +334,6 @@ def scrape_asin_detail_job(asin, marketplace, scrape_job_id=None):
 
         stdout, stderr = proc.communicate()
 
-        # BUG-07 fix: log stdout/stderr symmetrically with keyword job
         stdout_text = stdout.decode('utf-8', errors='replace') if stdout else ''
         stderr_text = stderr.decode('utf-8', errors='replace') if stderr else ''
         if stdout_text:
