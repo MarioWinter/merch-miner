@@ -10,6 +10,9 @@ from scraper_app.models import (
     BSRSnapshot,
     Keyword,
     MarketplaceChoices,
+    MetaKeyword,
+    SearchKeywordResult,
+    ProductSearchCache,
     ScrapeTier,
     ScrapeJob,
     ScheduledScrapeTarget,
@@ -265,6 +268,17 @@ class TestScrapeJobProductTypeFilter:
         assert job.product_type_filter == 't_shirt'
 
 
+class TestScrapeJobSearchPageOnlyMode:
+    def test_search_page_only_mode_exists(self):
+        """search_page_only is a valid Mode choice."""
+        job = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.SEARCH_PAGE_ONLY,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+        )
+        job.refresh_from_db()
+        assert job.mode == 'search_page_only'
+
+
 # ------------------------------------------------------------------
 # ScrapeJob.max_items
 # ------------------------------------------------------------------
@@ -313,3 +327,89 @@ class TestAmazonProductBullets:
         product.refresh_from_db()
         assert product.bullet_1 == "Perfect gift for bus drivers"
         assert product.bullet_2 == "Great for birthdays and holidays"
+
+
+# ------------------------------------------------------------------
+# MetaKeyword (Task 8.1)
+# ------------------------------------------------------------------
+
+
+class TestMetaKeyword:
+    def test_creation(self):
+        mk = MetaKeyword.objects.create(
+            keyword="cat", type=MetaKeyword.KeywordType.SHORT_TAIL, frequency=10,
+        )
+        assert mk.keyword == "cat"
+        assert mk.type == "short_tail"
+        assert mk.frequency == 10
+
+    def test_unique_together(self):
+        MetaKeyword.objects.create(
+            keyword="cat", type=MetaKeyword.KeywordType.SHORT_TAIL,
+        )
+        with pytest.raises(IntegrityError):
+            MetaKeyword.objects.create(
+                keyword="cat", type=MetaKeyword.KeywordType.SHORT_TAIL,
+            )
+
+    def test_same_keyword_different_type(self):
+        MetaKeyword.objects.create(
+            keyword="cat lover", type=MetaKeyword.KeywordType.SHORT_TAIL,
+        )
+        mk2 = MetaKeyword.objects.create(
+            keyword="cat lover", type=MetaKeyword.KeywordType.LONG_TAIL,
+        )
+        assert mk2.pk is not None
+
+    def test_search_keywords_m2m(self, keyword):
+        mk = MetaKeyword.objects.create(
+            keyword="cat", type=MetaKeyword.KeywordType.SHORT_TAIL,
+        )
+        mk.search_keywords.add(keyword)
+        assert keyword in mk.search_keywords.all()
+
+    def test_product_m2m(self, product):
+        mk = MetaKeyword.objects.create(
+            keyword="cat", type=MetaKeyword.KeywordType.SHORT_TAIL,
+        )
+        product.meta_keywords.add(mk)
+        assert mk in product.meta_keywords.all()
+
+
+# ------------------------------------------------------------------
+# SearchKeywordResult (Task 8.1)
+# ------------------------------------------------------------------
+
+
+class TestSearchKeywordResult:
+    def test_creation(self, keyword):
+        job = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.LIVE,
+            keyword=keyword,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+        )
+        cache = ProductSearchCache.objects.create(
+            keyword=keyword, scrape_job=job,
+        )
+        skr = SearchKeywordResult.objects.create(
+            search_cache=cache,
+            top_focus_keywords=[{"keyword": "cat", "frequency": 10}],
+            top_long_tail_keywords=[{"keyword": "funny cat", "frequency": 5}],
+            all_keywords_flat="cat, funny cat",
+        )
+        assert skr.created_at is not None
+        assert skr.top_focus_keywords[0]["keyword"] == "cat"
+
+    def test_one_to_one(self, keyword):
+        job = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.LIVE,
+            keyword=keyword,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+        )
+        cache = ProductSearchCache.objects.create(
+            keyword=keyword, scrape_job=job,
+        )
+        SearchKeywordResult.objects.create(search_cache=cache)
+        with pytest.raises(IntegrityError):
+            with transaction.atomic():
+                SearchKeywordResult.objects.create(search_cache=cache)

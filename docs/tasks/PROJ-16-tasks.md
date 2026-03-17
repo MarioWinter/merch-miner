@@ -292,16 +292,213 @@
 
 ---
 
-## Implementation Order
+## Phase 8: Search Page Only Spider + MetaKeyword Extraction (Update 2026-03-16)
+
+> New phase added for PROJ-6 Niche Deep Research support. Builds on deployed Phase 1–7.
+
+### Key Technical Decisions (Phase 8)
+
+- **PATCH semantics:** All pipelines switch from `update_or_create` to `get_or_create` + selective field update. Prevents search_page_only from nulling detail data.
+- **SearchPageMixin:** Shared search-page logic extracted from `AmazonSearchProductSpider`. Both search spiders inherit it. Pure refactor — no behavior change.
+- **MetaKeyword extraction:** Runs in `close_spider()` (not per-item) because global frequency analysis needs all products of the run.
+- **Data-basis guard:** MetaKeywords only re-calculated if new data ≥ existing (prevents 5-field → 2-field regression).
+- **Keyword extractor improvements over n8n JS:** MBA-specific noun categories, hyphen-split, brand-token separation, light plural stemming, single normalization pass, clean filter pipeline.
+
+### Task 8.1: Models — MetaKeyword + SearchKeywordResult + AmazonProduct update
+- `MetaKeyword`: UUID PK, `keyword` CharField(200), `type` CharField choices [short_tail, long_tail], `frequency` IntegerField, `search_keywords` M2M(Keyword). Unique together: keyword + type.
+- `SearchKeywordResult`: UUID PK, `search_cache` OneToOne(ProductSearchCache), `top_focus_keywords` JSONField, `top_long_tail_keywords` JSONField, `all_keywords_flat` TextField, `created_at` DateTimeField.
+- `AmazonProduct`: add `meta_keywords` M2M(MetaKeyword)
+- `ScrapeJob.mode` choices: add `search_page_only`
+- Migration
+- **AC:** New tables exist. `search_page_only` selectable as ScrapeJob mode. M2M relations work.
+
+### Task 8.2: Selectors — search_page section
+- Add `search_page` section to `DEFAULT_SELECTORS` in `selectors.py`
+- Search-page-specific selectors (from n8n workflow `00003`):
+  - ASIN: `data-csa-c-item-id` attribute regex + `/dp/` URL fallback
+  - Title: `h2 aria-label` attr → `h2 a-size-base-plus span` → `h2 a-size-mini span`
+  - Brand: `h2 a-size-mini span.a-size-base-plus.a-color-base` → merchant ID
+  - Rating: `data-cy=reviews-block span.a-size-small.a-color-base`
+  - Reviews: `data-cy=reviews-block span.a-size-mini`
+  - Thumbnail: `img.s-image::attr(src)`
+  - Sponsored: `/slredirect/` URL pattern
+- These use regex on raw HTML (not Scrapy CSS selectors) because search card extraction needs full HTML block per product
+- **AC:** `get_selectors('amazon_com')['search_page']` returns all selectors.
+
+### Task 8.3: SearchPageMixin — extract shared search logic
+- New `SearchPageMixin` in `spiders/mixins.py` (or separate file `spiders/search_mixins.py`)
+- Extract from `AmazonSearchProductSpider`:
+  - `_build_search_url()` — marketplace + keyword + product_type_filter params
+  - `_parse_search_page()` — product container iteration, pagination, pages_done tracking
+  - `_extract_search_card_data()` — ASIN, title, brand, price, rating, reviews, thumbnail, URL, sponsored from search result card
+- `AmazonSearchProductSpider` refactored to inherit `SearchPageMixin` + `ProductDetailMixin`
+- **AC:** Existing `AmazonSearchProductSpider` tests pass unchanged after refactor. Mixin methods independently testable.
+
+### Task 8.4: AmazonSearchPageSpider
+- New spider `amazon_search_page` in `spiders/amazon_search_page.py`
+- Inherits `SearchPageMixin`
+- `start_requests`: build search URL (same as search+detail spider)
+- `parse`: iterate product containers → extract search-card data → yield `AmazonProductItem` directly
+  - Detail fields set to None (bsr, bsr_categories, bullets, description, listed_date, image_gallery, variants)
+  - `product_type` still auto-detected from title suffix
+- Pagination: follow next page up to `max_pages` (default 4)
+- `_increment_pages_done()` for progress tracking
+- No detail page follow. No `ProductDetailMixin` needed.
+- Spider name: `amazon_search_page`
+- **AC:** Spider scrapes search pages, yields items with search-level data. Detail fields are None. Pagination works. pages_done tracked.
+
+### Task 8.5: Pipeline — PATCH semantics
+- Modify `DjangoORMPipeline._upsert_product()`:
+  - Replace `update_or_create(asin, marketplace, defaults={...})` with `get_or_create(asin, marketplace)`
+  - Only update fields where item value is not None
+  - `product.save(update_fields=[...])` with only changed fields
+- Applies to ALL spider modes (not just search_page_only)
+- Ensure existing detail data preserved when search_page_only runs after detail scrape
+- Ensure full-scrape modes still write all fields correctly
+- **AC:** search_page_only after detail scrape → detail fields preserved. Detail scrape after search_page_only → detail fields filled. All existing pipeline tests pass.
+
+### Task 8.6: Pipeline — BSRSnapshot guard
+- Modify `_create_bsr_snapshot()`: skip if spider mode is `search_page_only` (BSR not available on search pages)
+- Alternative: already handled if bsr is None and snapshot requires non-null BSR
+- **AC:** No BSRSnapshot created for search_page_only jobs.
+
+### Task 8.7: `keyword_extractor.py` — MetaKeyword extraction engine
+- New module `scraper_app/scrapy_app/keyword_extractor.py`
+- **Improvements over n8n JS implementation:**
+
+**Word lists (ported + expanded):**
+- `STOPWORDS`: Same as n8n (for, with, the, tshirt, shirt, men, women, colors, sizes...)
+- `JUNK_WORDS`: Same as n8n (amp, nbsp, thy, co, stuff...)
+- `FUNCTION_WORDS`: Same as n8n (am, is, was, in, on, at...)
+- NEW: `MBA_NICHE_NOUNS`: cat, dog, nurse, teacher, dad, mom, grandma, grandpa, firefighter, mechanic, trucker, gamer, baker, farmer, fishing, hunting, camping, yoga, soccer, baseball... (common MBA niche words that fail generic noun heuristic)
+- NEW: `MBA_THEME_WORDS`: funny, sarcastic, vintage, retro, cute, kawaii, patriotic, christmas, halloween, birthday, retirement... (theme/emotion words important for MBA)
+
+**Normalization (improved):**
+- `normalize_text(text)` — lowercase, strip HTML entities (using `html.unescape()` from stdlib instead of regex), remove parens content, remove special chars except hyphens, collapse whitespace
+- Called ONCE per text field, not twice like n8n (tokenizeFocus + tokenizeLong both called normalizeText)
+
+**Hyphen handling (new):**
+- "cat-lover" → emit 3 tokens: `["cat-lover", "cat", "lover"]`
+- Compound word preserved for long-tail, parts available for short-tail
+
+**Light plural stemming (new):**
+- Strip trailing "s" if word > 4 chars and not in exception list (bus, dress, atlas, plus, canvas...)
+- "teachers" → "teacher", "gifts" → "gift", "cats" → "cat"
+- Prevents frequency splitting between singular/plural
+- Strip trailing "es" for words ending in -shes, -ches, -xes, -zes, -ses (dishes → dish, watches → watch)
+
+**Brand-token separation (new):**
+- Brand text tokenized separately into `brand_tokens` set
+- Brand tokens not excluded, but ranked lower in short-tail output (frequency still counts, but brand-only tokens deprioritized)
+
+**Noun-likelihood heuristic (improved):**
+- Same base scoring as n8n (length, suffix, hyphen, frequency)
+- NEW: +0.5 if word in `MBA_NICHE_NOUNS` (guaranteed pass)
+- NEW: +0.3 if word in `MBA_THEME_WORDS`
+- This fixes: "cat" (length 3, no suffix → score 0.0 in n8n) now scores 0.5 → passes threshold
+
+**Clean filter pipeline (improved):**
+- `tokenize(text)` → single pass, returns all non-junk tokens
+- `filter_short_tail(tokens)` → applies STOPWORDS + noun heuristic
+- `filter_long_tail(tokens)` → applies only JUNK_WORDS (STOPWORDS allowed, same as n8n)
+- No redundant `isJunkWord` checks inside `isLikelyNoun`
+
+**Public API:**
+- `extract_keywords(products, keyword_text)` → returns `{per_product: [...], global_top_focus: [...], global_top_long_tail: [...], all_flat: str}`
+- `products` = list of dicts with keys: title, brand, bullet_1, bullet_2, description (all nullable)
+- `keyword_text` = search keyword string (for M2M linking context)
+
+- **AC:** Extractor produces short-tail + long-tail keywords. "cat", "nurse", "dad" correctly identified. Plurals merged. Brand tokens separated. Hyphenated words split. Generic words (≥80% doc frequency) excluded.
+
+### Task 8.8: Pipeline — MetaKeyword integration in `close_spider()`
+- In `close_spider()`:
+  1. Query all `AmazonProduct` records updated in this scrape run (tracked via `products_scraped` list in pipeline)
+  2. For each product: apply data-basis guard
+     - Has bullet_1/bullet_2/description AND current mode is search_page_only → SKIP
+     - Otherwise → extract keywords from available fields
+  3. Call `keyword_extractor.extract_keywords(products, keyword_text)`
+  4. For each per-product result:
+     - `MetaKeyword.objects.get_or_create(keyword=kw, type=type)` → update frequency
+     - `product.meta_keywords.set(keyword_objects)` (replace existing M2M links)
+  5. For each MetaKeyword: `meta_kw.search_keywords.add(keyword_obj)` (M2M to search Keyword)
+  6. Create `SearchKeywordResult` linked to `ProductSearchCache`:
+     - `top_focus_keywords` = global top 50 short-tail (frequency > 2)
+     - `top_long_tail_keywords` = global top 50 long-tail (frequency > 2)
+     - `all_keywords_flat` = comma-separated all keywords
+- Track scraped product PKs during `process_item()` for efficient query in `close_spider()`
+- **AC:** MetaKeywords created after scrape. M2M links set. SearchKeywordResult has global aggregation. Data-basis guard prevents regression.
+
+### Task 8.9: `scrape_search_page_job` task function
+- New function in `tasks.py`
+- Same pattern as `scrape_keyword_job`:
+  - Takes `keyword_str`, `marketplace`, `scrape_job_id`, `**spider_kwargs`
+  - Uses `get_or_create_keyword_cache()` for dedup + 24h cache
+  - Sets ScrapeJob status=running, started_at
+  - Builds subprocess: `scrapy crawl amazon_search_page -a keyword=... -a marketplace=... -a job_id=...`
+  - Passes `product_type_filter` kwargs + `max_items` as spider args
+  - Stores PID, monitors subprocess, logs stdout
+  - On completion: ScrapeJob → completed, ProductSearchCache → completed
+- **AC:** Job enqueues and runs. Dedup + 24h cache works. ScrapeJob tracks progress.
+
+### Task 8.10: Admin updates
+- `ScrapeJobAdmin`: `search_page_only` visible in mode filter (automatic from model choices update)
+- `MetaKeywordAdmin`: list display (keyword, type, frequency), list filter (type), search (keyword)
+- `SearchKeywordResultAdmin`: list display (search_cache, created_at), readonly fields (top_focus_keywords, top_long_tail_keywords, all_keywords_flat)
+- `AmazonProductAdmin`: add `meta_keywords` to fieldsets (read-only inline or horizontal filter widget)
+- Start/stop/cancel/retry actions: work unchanged for search_page_only (same subprocess pattern)
+- **AC:** Admin can view MetaKeywords, SearchKeywordResults. search_page_only jobs manageable via same actions.
+
+### Task 8.11: Tests — keyword extractor
+- Test `normalize_text`: HTML entities, parens, special chars, whitespace
+- Test `tokenize`: stopwords removed, junk words removed, short words removed
+- Test `filter_short_tail`: noun heuristic with MBA words (cat, nurse, dad pass; the, for, shirt fail)
+- Test `filter_long_tail`: STOPWORDS allowed (gift, for → kept), JUNK_WORDS removed
+- Test plural stemming: teachers→teacher, gifts→gift, bus→bus (exception), dress→dress (exception)
+- Test hyphen split: cat-lover → [cat-lover, cat, lover]
+- Test brand separation: brand tokens ranked lower
+- Test generic word filter: word in ≥80% products excluded
+- Test n-gram building: 2-gram and 3-gram correct
+- Test `extract_keywords` end-to-end with sample MBA product data
+
+### Task 8.12: Tests — pipeline PATCH + MetaKeyword integration
+- Test PATCH: search_page_only after detail → detail fields preserved
+- Test PATCH: detail after search_page_only → detail fields filled
+- Test PATCH: full scrape writes all fields
+- Test data-basis guard: skip MetaKeyword re-calc when search_page_only and product has bullets
+- Test MetaKeyword creation + M2M links
+- Test SearchKeywordResult created with correct aggregation
+- Test MetaKeyword frequency overwritten on re-scrape
+- Test MetaKeyword dedup (get_or_create)
+
+### Task 8.13: Tests — search page spider + task
+- Test `AmazonSearchPageSpider`: yields items with search-level data, detail fields None
+- Test pagination (max_pages respected)
+- Test `scrape_search_page_job`: subprocess runs, status transitions correct
+- Test dedup + 24h cache via `get_or_create_keyword_cache()`
+- Test admin start/stop/cancel for search_page_only jobs
+
+---
+
+## Implementation Order (Updated)
 
 ```
-Phase 1 (Foundation)  → 1.1 → 1.2 → 1.3 → 1.4
-Phase 6 (Docker)      → 6.1 → 6.2 → 6.3              (parallel with Phase 1)
-Phase 2 (Scrapy Setup)→ 2.1 → 2.2 → 2.3 → 2.4        (after Phase 1)
-Phase 3 (Spiders)     → 3.1 → 3.2 → 3.3               (after Phase 2)
-Phase 4 (Jobs)        → 4.1 → 4.2 → 4.3 → 4.4 → 4.5  (after Phase 3)
-Phase 5 (Admin)       → 5.1 → 5.2 → 5.3 → 5.4         (after Phase 4)
-Phase 7 (Tests)       → 7.1 → 7.2 → 7.3 → 7.4         (parallel with each phase)
+Phase 1 (Foundation)  → 1.1 → 1.2 → 1.3 → 1.4           [x] deployed
+Phase 6 (Docker)      → 6.1 → 6.2 → 6.3                  [x] deployed
+Phase 2 (Scrapy Setup)→ 2.1 → 2.2 → 2.3 → 2.4            [x] deployed
+Phase 3 (Spiders)     → 3.0 → 3.1 → 3.2 → 3.3            [x] deployed
+Phase 4 (Jobs)        → 4.0 → 4.1 → 4.2 → 4.3 → 4.4      [x] deployed
+Phase 5 (Admin)       → 5.1 → 5.2 → 5.3 → 5.4 → 5.5 → 5.6 [x] deployed
+Phase 7 (Tests)       → 7.1 → 7.2 → 7.3 → 7.4            [x] deployed
+
+Phase 8 (Search Page Only + MetaKeywords):                  [ ] NEW
+  8.1 (Models)
+  → 8.2 (Selectors) + 8.7 (Keyword Extractor)             (parallel)
+  → 8.3 (SearchPageMixin) + 8.5 (Pipeline PATCH)          (parallel)
+  → 8.4 (Spider) + 8.6 (BSR guard)                        (parallel, after 8.3)
+  → 8.8 (Pipeline MetaKeyword integration)                 (after 8.5 + 8.7)
+  → 8.9 (Task function)                                    (after 8.4)
+  → 8.10 (Admin)                                           (after 8.1)
+  → 8.11 + 8.12 + 8.13 (Tests)                            (parallel with each task)
 ```
 
-Total: **30 tasks** across 7 phases. Tasks marked [x] are implemented.
+Total: **43 tasks** across 8 phases. Phase 1–7 deployed. Phase 8: 13 new tasks.

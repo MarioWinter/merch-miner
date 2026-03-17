@@ -8,6 +8,7 @@ from django.urls import reverse
 from scraper_app.models import (
     AmazonProduct,
     Keyword,
+    MetaKeyword,
     ScheduledScrapeTarget,
     ScrapeJob,
 )
@@ -457,3 +458,80 @@ class TestScheduledScrapeTargetActions:
         content = response.content.decode()
         assert 'Failed to run scheduled scrapes' in content
         assert 'Redis unavailable' in content
+
+
+# ---------------------------------------------------------------------------
+# search_page_only mode in ScrapeJob Admin (Task 8.10)
+# ---------------------------------------------------------------------------
+
+class TestSearchPageOnlyAdmin:
+    def test_filter_by_search_page_only_mode(self, admin_client):
+        """Admin changelist filters by search_page_only mode."""
+        kw = _make_keyword('search only test')
+        _make_scrape_job(
+            keyword=kw, mode=ScrapeJob.Mode.SEARCH_PAGE_ONLY, asin='',
+        )
+        _make_scrape_job(
+            mode=ScrapeJob.Mode.LIVE, asin='B0LIVE0002',
+        )
+
+        changelist_url = reverse('admin:scraper_app_scrapejob_changelist')
+        response = admin_client.get(changelist_url, {'mode__exact': 'search_page_only'})
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert 'search only test' in content
+
+    @patch('django_rq.get_queue')
+    def test_start_pending_search_page_only_job(self, mock_get_queue, admin_client):
+        """Start action dispatches scrape_search_page_job for search_page_only mode."""
+        mock_queue = MagicMock()
+        mock_rq_job = MagicMock()
+        mock_rq_job.id = 'rq-search-page-001'
+        mock_queue.enqueue.return_value = mock_rq_job
+        mock_get_queue.return_value = mock_queue
+
+        kw = _make_keyword('search page start test')
+        job = _make_scrape_job(
+            keyword=kw,
+            status=ScrapeJob.Status.PENDING,
+            mode=ScrapeJob.Mode.SEARCH_PAGE_ONLY,
+        )
+
+        changelist_url = reverse('admin:scraper_app_scrapejob_changelist')
+        admin_client.post(changelist_url, {
+            'action': 'start_pending_jobs',
+            '_selected_action': [str(job.id)],
+        })
+
+        mock_queue.enqueue.assert_called_once()
+        from scraper_app.tasks import scrape_search_page_job
+        call_args = mock_queue.enqueue.call_args
+        assert call_args.args[0] == scrape_search_page_job
+
+
+# ---------------------------------------------------------------------------
+# MetaKeyword Admin (Task 8.10)
+# ---------------------------------------------------------------------------
+
+class TestMetaKeywordAdmin:
+    def test_changelist_renders(self, admin_client):
+        MetaKeyword.objects.create(
+            keyword='cat', type=MetaKeyword.KeywordType.SHORT_TAIL, frequency=10,
+        )
+        url = reverse('admin:scraper_app_metakeyword_changelist')
+        response = admin_client.get(url)
+        assert response.status_code == 200
+        assert 'cat' in response.content.decode()
+
+    def test_filter_by_type(self, admin_client):
+        MetaKeyword.objects.create(
+            keyword='cat', type=MetaKeyword.KeywordType.SHORT_TAIL,
+        )
+        MetaKeyword.objects.create(
+            keyword='funny cat shirt', type=MetaKeyword.KeywordType.LONG_TAIL,
+        )
+        url = reverse('admin:scraper_app_metakeyword_changelist')
+        response = admin_client.get(url, {'type__exact': 'short_tail'})
+        assert response.status_code == 200
+        content = response.content.decode()
+        assert 'cat' in content

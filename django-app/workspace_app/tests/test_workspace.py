@@ -327,7 +327,7 @@ def test_pending_invite_resend_returns_200():
 
 
 # ---------------------------------------------------------------------------
-# BUG-5 — Owner/last-admin demotion guard
+# Owner/last-admin demotion guard
 # ---------------------------------------------------------------------------
 
 @pytest.mark.django_db
@@ -399,7 +399,7 @@ def test_can_demote_admin_when_multiple_exist():
 
 
 # ---------------------------------------------------------------------------
-# BUG-3 — Slug collision retry loop
+# Slug collision retry loop
 # ---------------------------------------------------------------------------
 
 @pytest.mark.django_db

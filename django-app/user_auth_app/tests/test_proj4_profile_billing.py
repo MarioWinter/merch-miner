@@ -346,7 +346,7 @@ def test_billing_unauthenticated_returns_401():
 
 
 # ---------------------------------------------------------------------------
-# BUG-6 — Pillow magic-byte validation
+# Pillow magic-byte validation
 # ---------------------------------------------------------------------------
 
 @pytest.mark.django_db
@@ -401,7 +401,7 @@ def test_rejects_non_image_binary(tmp_path, settings):
 
 
 # ---------------------------------------------------------------------------
-# BUG-7 — Avatar stores relative path
+# Avatar stores relative path
 # ---------------------------------------------------------------------------
 
 @pytest.mark.django_db

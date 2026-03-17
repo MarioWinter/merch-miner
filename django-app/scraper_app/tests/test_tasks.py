@@ -21,6 +21,7 @@ from scraper_app.tasks import (
     schedule_scrape_runner,
     scrape_asin_detail_job,
     scrape_keyword_job,
+    scrape_search_page_job,
 )
 
 pytestmark = pytest.mark.django_db
@@ -548,3 +549,114 @@ class TestGetOrCreateKeywordCache:
 
         assert result is None
         assert is_new is True
+
+
+# ---------------------------------------------------------------------------
+# scrape_search_page_job (Task 8.9)
+# ---------------------------------------------------------------------------
+
+class TestScrapeSearchPageJob:
+    @patch('scraper_app.tasks.subprocess.Popen')
+    def test_sets_status_running(self, mock_popen_cls):
+        """Job transitions to running and stores PID."""
+        mock_proc = _mock_popen(returncode=0)
+        mock_popen_cls.return_value = mock_proc
+
+        kw = _make_keyword('search page test')
+        job = _make_scrape_job(
+            keyword=kw,
+            mode=ScrapeJob.Mode.SEARCH_PAGE_ONLY,
+        )
+
+        def simulate_scrape(*args, **kwargs):
+            ScrapeJob.objects.filter(id=job.id).update(products_scraped=5)
+            return (b'', b'')
+        mock_proc.communicate.side_effect = simulate_scrape
+
+        scrape_search_page_job(kw.keyword, 'amazon_com', scrape_job_id=str(job.id))
+
+        job.refresh_from_db()
+        assert job.started_at is not None
+        assert job.status == ScrapeJob.Status.COMPLETED
+
+    @patch('scraper_app.tasks.subprocess.Popen')
+    def test_uses_correct_spider_name(self, mock_popen_cls):
+        """Subprocess cmd uses 'amazon_search_page' spider."""
+        mock_popen_cls.return_value = _mock_popen(returncode=0)
+
+        scrape_search_page_job('test', 'amazon_com')
+
+        cmd = mock_popen_cls.call_args.args[0]
+        assert 'amazon_search_page' in cmd
+
+    @patch('scraper_app.tasks.subprocess.Popen')
+    def test_failure_stores_stderr(self, mock_popen_cls):
+        """On returncode=1, status=failed and error_log contains stderr."""
+        mock_popen_cls.return_value = _mock_popen(
+            returncode=1, stderr=b'Spider crashed: timeout',
+        )
+
+        kw = _make_keyword('fail search test')
+        job = _make_scrape_job(
+            keyword=kw,
+            mode=ScrapeJob.Mode.SEARCH_PAGE_ONLY,
+        )
+
+        scrape_search_page_job(kw.keyword, 'amazon_com', scrape_job_id=str(job.id))
+
+        job.refresh_from_db()
+        assert job.status == ScrapeJob.Status.FAILED
+        assert 'timeout' in job.error_log
+
+    @patch('scraper_app.tasks.subprocess.Popen')
+    def test_success_updates_product_search_cache(self, mock_popen_cls):
+        """On success, linked ProductSearchCache is marked completed."""
+        mock_proc = _mock_popen(returncode=0)
+        mock_popen_cls.return_value = mock_proc
+
+        kw = _make_keyword('cache search test')
+        job = _make_scrape_job(
+            keyword=kw,
+            mode=ScrapeJob.Mode.SEARCH_PAGE_ONLY,
+        )
+        cache = ProductSearchCache.objects.create(
+            keyword=kw, scrape_job=job, status=ProductSearchCache.Status.PENDING,
+        )
+
+        def simulate_scrape(*args, **kwargs):
+            ScrapeJob.objects.filter(id=job.id).update(products_scraped=3)
+            return (b'', b'')
+        mock_proc.communicate.side_effect = simulate_scrape
+
+        scrape_search_page_job(kw.keyword, 'amazon_com', scrape_job_id=str(job.id))
+
+        cache.refresh_from_db()
+        assert cache.status == ProductSearchCache.Status.COMPLETED
+
+    @patch('scraper_app.tasks.subprocess.Popen')
+    def test_passes_spider_kwargs(self, mock_popen_cls):
+        """Extra spider_kwargs are forwarded as -a flags."""
+        mock_popen_cls.return_value = _mock_popen(returncode=0)
+
+        scrape_search_page_job('test', 'amazon_com', max_pages=4)
+
+        cmd = mock_popen_cls.call_args.args[0]
+        assert 'max_pages=4' in cmd
+
+    @patch('scraper_app.tasks.subprocess.Popen')
+    def test_max_items_adds_closespider_setting(self, mock_popen_cls):
+        """max_items is passed as -s CLOSESPIDER_ITEMCOUNT=N."""
+        mock_popen_cls.return_value = _mock_popen(returncode=0)
+
+        scrape_search_page_job('test', 'amazon_com', max_items=20)
+
+        cmd = mock_popen_cls.call_args.args[0]
+        assert '-s' in cmd
+        idx = cmd.index('-s')
+        assert cmd[idx + 1] == 'CLOSESPIDER_ITEMCOUNT=20'
+
+    @patch('scraper_app.tasks.subprocess.Popen')
+    def test_nonexistent_job_id_returns_early(self, mock_popen_cls):
+        """If scrape_job_id points to a missing ScrapeJob, return without running."""
+        scrape_search_page_job('test', 'amazon_com', scrape_job_id='00000000-0000-0000-0000-000000000000')
+        mock_popen_cls.assert_not_called()

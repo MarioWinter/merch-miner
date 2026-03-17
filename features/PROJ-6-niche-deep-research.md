@@ -3,7 +3,7 @@
 **Status:** Planned
 **Priority:** P0 (MVP)
 **Created:** 2026-02-27
-**Updated:** 2026-03-14
+**Updated:** 2026-03-16
 
 ## Overview
 
@@ -34,9 +34,9 @@ LangGraph is the production-grade standard for stateful, multi-step agent orches
 2. The django-rq job runs the LangGraph StateGraph synchronously in the worker process.
 
 ### LangGraph Workflow Nodes
-3. **Node `scrape`**: Calls PROJ-16 `scrape_keyword_job` (synchronous within worker) with the niche keyword + marketplace. Updates `NicheResearch.status = running`. Waits for `ProductSearchCache.status = completed` by polling DB (max 10 min, 5s interval). On timeout → raise error → node retry.
-4. **Node `analyze`**: Fetches scraped `AmazonProduct` rows for the keyword. Calls LLM via `llm.with_structured_output(NicheAnalysisSchema)` with product data. Saves result to `NicheAnalysis` table.
-5. **Node `keywords`**: Calls LLM via `llm.with_structured_output(NicheKeywordSchema)` with product titles + analysis context. Saves result to `NicheKeywordAnalysis` table.
+3. **Node `scrape`**: Calls PROJ-16 `scrape_search_page_job` (search-page-only mode — no detail page follow) with the niche keyword + marketplace. Updates `NicheResearch.status = running`. Waits for `ProductSearchCache.status = completed` by polling DB (max 10 min, 5s interval). On timeout → raise error → node retry. Uses `AmazonSearchPageSpider` for fast listing-level data (title, ASIN, price, rating, reviews, brand, thumbnail). Detail fields (BSR, bullets, description) are NULL — not needed for AI analysis.
+4. **Node `analyze`**: Fetches scraped `AmazonProduct` rows for the keyword + per-product `MetaKeywords` + `SearchKeywordResult` (global keyword aggregation from PROJ-16). Calls LLM via `llm.with_structured_output(NicheAnalysisSchema)` with product data + extracted keywords as additional context. Saves result to `NicheAnalysis` table.
+5. **Node `keywords`**: Calls LLM via `llm.with_structured_output(NicheKeywordSchema)` with product titles + analysis context + `SearchKeywordResult.top_focus_keywords` + `top_long_tail_keywords` as seed data. Saves result to `NicheKeywordAnalysis` table.
 6. **Node `finalize`**: Sets `NicheResearch.status = completed`, `completed_at = now()`. Updates niche `status = deep_research`.
 7. Each node writes its output to the LangGraph state. The PostgreSQL checkpointer snapshots state after each node — if the job crashes, it resumes from the last successful node.
 
@@ -65,15 +65,17 @@ django-rq worker
               │   PostgreSQL checkpointer (durable state per node)
               ├── [START]
               ├── Node: scrape
-              │     ├── call scrape_keyword_job(keyword, marketplace)
+              │     ├── call scrape_search_page_job(keyword, marketplace)
+              │     │     (search-page-only — no detail crawl, fast)
               │     ├── poll ProductSearchCache.status until completed
               │     └── write products to state
               ├── Node: analyze
-              │     ├── load AmazonProducts from DB
+              │     ├── load AmazonProducts + MetaKeywords + SearchKeywordResult
               │     ├── llm.with_structured_output(NicheAnalysisSchema)
               │     └── INSERT NicheAnalysis
               ├── Node: keywords
               │     ├── llm.with_structured_output(NicheKeywordSchema)
+              │     │     (seeded with SearchKeywordResult top keywords)
               │     └── INSERT NicheKeywordAnalysis
               ├── Node: finalize
               │     ├── NicheResearch.status = completed
@@ -126,7 +128,7 @@ django-rq worker
     "top_long_tail_keywords": ["..."]
   },
   "products": [
-    {"asin": "...", "title": "...", "brand": "...", "url": "...", "rating": 4.8, "reviews_count": 124, "thumbnail_url": "..."}
+    {"asin": "...", "title": "...", "brand": "...", "url": "...", "rating": 4.8, "reviews_count": 124, "thumbnail_url": "...", "meta_keywords": {"short_tail": ["cat", "teacher"], "long_tail": ["funny cat", "cat teacher"]}}
   ],
   "related_niches": [
     {"id": "uuid", "name": "...", "shared_patterns": ["PATTERN_A", "PATTERN_B"]}
@@ -201,7 +203,7 @@ django-rq worker
 
 - PROJ-4 (Workspace & Membership — workspace scope, worker service)
 - PROJ-5 (Niche List — niche FK; status update to `deep_research`)
-- PROJ-16 (Amazon Product Scraper — `scrape_keyword_job` called internally; `AmazonProduct` model)
+- PROJ-16 (Amazon Product Scraper — `scrape_search_page_job` called internally; `AmazonSearchPageSpider` for fast search-page-only scrape; `AmazonProduct` model)
 
 ## Environment Variables Required
 

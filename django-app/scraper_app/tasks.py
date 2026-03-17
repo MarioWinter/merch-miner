@@ -181,6 +181,121 @@ def scrape_keyword_job(keyword_str, marketplace, scrape_job_id=None, **spider_kw
                 logger.exception("Failed to mark ScrapeJob %s as failed", scrape_job_id)
 
 
+def scrape_search_page_job(keyword_str, marketplace, scrape_job_id=None, **spider_kwargs):
+    """Run AmazonSearchPageSpider via subprocess for search-page-only scraping."""
+    scrape_job = None
+    if scrape_job_id:
+        try:
+            scrape_job = ScrapeJob.objects.get(id=scrape_job_id)
+        except ScrapeJob.DoesNotExist:
+            logger.error("ScrapeJob %s not found", scrape_job_id)
+            return
+
+    try:
+        if scrape_job:
+            scrape_job.status = ScrapeJob.Status.RUNNING
+            scrape_job.started_at = timezone.now()
+            scrape_job.save(update_fields=['status', 'started_at'])
+
+        cmd = [
+            'scrapy', 'crawl', 'amazon_search_page',
+            '-a', f'keyword={keyword_str}',
+            '-a', f'marketplace={marketplace}',
+        ]
+        if scrape_job_id:
+            cmd.extend(['-a', f'job_id={scrape_job_id}'])
+        max_items = spider_kwargs.pop('max_items', None)
+        for key, value in spider_kwargs.items():
+            if value is not None:
+                cmd.extend(['-a', f'{key}={value}'])
+        if max_items:
+            cmd.extend(['-s', f'CLOSESPIDER_ITEMCOUNT={max_items}'])
+
+        proc = subprocess.Popen(
+            cmd,
+            cwd=SCRAPY_PROJECT_DIR,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=_scrapy_env(),
+        )
+
+        if scrape_job:
+            scrape_job.pid = proc.pid
+            scrape_job.save(update_fields=['pid'])
+
+        stdout, stderr = proc.communicate()
+
+        stdout_text = stdout.decode('utf-8', errors='replace') if stdout else ''
+        stderr_text = stderr.decode('utf-8', errors='replace') if stderr else ''
+        if stdout_text:
+            logger.info("Scrapy search_page stdout:\n%s", stdout_text[-2000:])
+        if stderr_text:
+            logger.warning("Scrapy search_page stderr:\n%s", stderr_text[-2000:])
+
+        if scrape_job:
+            scrape_job.refresh_from_db()
+            scrape_job.pid = None
+
+            if proc.returncode == 0:
+                if scrape_job.products_scraped == 0:
+                    scrape_job.status = ScrapeJob.Status.FAILED
+                    scrape_job.finished_at = timezone.now()
+                    log_entry = f"Spider completed with 0 products.\nstdout (last 2000 chars):\n{stdout_text[-2000:]}\nstderr:\n{stderr_text[-2000:]}"
+                    scrape_job.error_log = (
+                        f"{scrape_job.error_log}\n---\n{log_entry}".strip()
+                        if scrape_job.error_log else log_entry
+                    )
+                    scrape_job.save(update_fields=['status', 'finished_at', 'pid', 'error_log'])
+
+                    ProductSearchCache.objects.filter(scrape_job=scrape_job).update(
+                        status=ProductSearchCache.Status.FAILED,
+                    )
+                else:
+                    if scrape_job.status != ScrapeJob.Status.COMPLETED:
+                        scrape_job.status = ScrapeJob.Status.COMPLETED
+                        scrape_job.finished_at = timezone.now()
+                    scrape_job.save(update_fields=['status', 'finished_at', 'pid'])
+
+                    ProductSearchCache.objects.filter(scrape_job=scrape_job).update(
+                        status=ProductSearchCache.Status.COMPLETED,
+                        last_scraped_at=timezone.now(),
+                    )
+            else:
+                if stderr_text:
+                    scrape_job.error_log = (
+                        f"{scrape_job.error_log}\n---\n{stderr_text}".strip()
+                        if scrape_job.error_log
+                        else stderr_text
+                    )
+                scrape_job.status = ScrapeJob.Status.FAILED
+                scrape_job.finished_at = timezone.now()
+                scrape_job.save(update_fields=['status', 'finished_at', 'pid', 'error_log'])
+
+                ProductSearchCache.objects.filter(scrape_job=scrape_job).update(
+                    status=ProductSearchCache.Status.FAILED,
+                )
+
+        logger.info(
+            "scrape_search_page_job finished job_id=%s returncode=%s",
+            scrape_job_id, proc.returncode,
+        )
+
+    except Exception:
+        logger.exception("Unexpected error in scrape_search_page_job scrape_job_id=%s", scrape_job_id)
+        if scrape_job:
+            try:
+                scrape_job.refresh_from_db()
+                scrape_job.status = ScrapeJob.Status.FAILED
+                scrape_job.finished_at = timezone.now()
+                scrape_job.pid = None
+                scrape_job.save(update_fields=['status', 'finished_at', 'pid'])
+                ProductSearchCache.objects.filter(scrape_job=scrape_job).update(
+                    status=ProductSearchCache.Status.FAILED,
+                )
+            except Exception:
+                logger.exception("Failed to mark ScrapeJob %s as failed", scrape_job_id)
+
+
 def scrape_asin_detail_job(asin, marketplace, scrape_job_id=None):
     """Run AmazonProductSpider via subprocess for a single ASIN detail page."""
     scrape_job = None
@@ -219,7 +334,6 @@ def scrape_asin_detail_job(asin, marketplace, scrape_job_id=None):
 
         stdout, stderr = proc.communicate()
 
-        # BUG-07 fix: log stdout/stderr symmetrically with keyword job
         stdout_text = stdout.decode('utf-8', errors='replace') if stdout else ''
         stderr_text = stderr.decode('utf-8', errors='replace') if stderr else ''
         if stdout_text:

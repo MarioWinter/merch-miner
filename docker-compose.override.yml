@@ -23,8 +23,18 @@ services:
       - db
 
   worker:
+    volumes:
+      - ./django-app:/app
     depends_on:
       - db
+
+  worker-scraper:
+    volumes:
+      - ./django-app:/app
+
+  scheduler:
+    volumes:
+      - ./django-app:/app
 
   frontend:
     ports:

@@ -1,10 +1,13 @@
-"""Shared extraction logic for Amazon product detail pages."""
+"""Shared extraction logic for Amazon product detail and search pages."""
 
 import json
 import re
+from urllib.parse import quote_plus, urljoin
+
+import scrapy
 
 from scraper_app.scrapy_app.items import AmazonProductItem, ScrapeErrorItem
-from scraper_app.selectors import get_selectors
+from scraper_app.selectors import get_base_url, get_selectors
 
 
 BOILERPLATE_PHRASES = [
@@ -501,3 +504,203 @@ class ProductDetailMixin:
                 except (json.JSONDecodeError, IndexError):
                     pass
         return {}
+
+
+class SearchPageMixin:
+    """Mixin providing shared search page logic for Amazon search spiders.
+
+    Expects spider to have: self.keyword, self.marketplace, self.job_id,
+    self.max_pages, self.search_index, self.seller_filter, self.logger.
+    """
+
+    def _build_search_url(self, page=1):
+        """Build Amazon search URL with keyword + product_type_filter params."""
+        base_url = get_base_url(self.marketplace)
+        search_url = f"{base_url}/s?k={quote_plus(self.keyword)}&page={page}"
+        if self.search_index:
+            search_url += f"&i={self.search_index}"
+        if self.seller_filter:
+            search_url += f"&rh=p_6:{self.seller_filter}"
+        return search_url
+
+    def _increment_pages_done(self):
+        """Increment pages_done on the ScrapeJob if tracked."""
+        if not self.job_id:
+            return
+        try:
+            import os
+
+            import django
+
+            os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
+            django.setup()
+            from django.db.models import F
+
+            from scraper_app.models import ScrapeJob
+
+            ScrapeJob.objects.filter(id=self.job_id).update(
+                pages_done=F("pages_done") + 1,
+            )
+        except Exception:
+            self.logger.debug("Failed to increment pages_done for job %s", self.job_id)
+
+    def _parse_search_page(self, response):
+        """Iterate product containers on search page, handle pagination.
+
+        Yields (product_selector, is_sponsored) tuples for each product found.
+        Returns list of next-page Request objects for pagination.
+        """
+        marketplace = response.meta["marketplace"]
+        keyword = response.meta["keyword"]
+        page = response.meta["page"]
+
+        selectors = get_selectors(marketplace)
+        search_sel = selectors["search"]
+
+        products = response.css(search_sel["product_container"])
+        self.logger.info(
+            "Page %d: found %d products for '%s'",
+            page,
+            len(products),
+            keyword,
+        )
+
+        self._increment_pages_done()
+
+        return products, search_sel, page
+
+    def _extract_search_card_data(self, product, search_sel, marketplace):
+        """Extract ASIN, title, brand, price, URL, thumbnail, sponsored from search result card.
+
+        Returns dict with extracted data or None if no URL found.
+        """
+        base_url = get_base_url(marketplace)
+
+        # Extract URL using fallback list
+        product_url = None
+        for url_selector in search_sel["url"]:
+            product_url = product.css(url_selector).get()
+            if product_url:
+                break
+
+        if not product_url:
+            return None
+
+        # Build absolute URL, strip query params
+        absolute_url = urljoin(base_url, product_url).split("?")[0]
+
+        # Extract ASIN from URL
+        asin = None
+        if "/dp/" in absolute_url:
+            asin = absolute_url.split("/dp/")[-1].split("/")[0]
+        else:
+            parts = absolute_url.rstrip("/").split("/")
+            if len(parts) > 3:
+                asin = parts[3]
+
+        # Check if sponsored
+        is_sponsored = search_sel["sponsored_indicator"] in product_url
+
+        # Title
+        title = None
+        title_selectors = search_sel["title"]
+        if isinstance(title_selectors, str):
+            title_selectors = [title_selectors]
+        for sel in title_selectors:
+            title = product.css(sel).get()
+            if title:
+                title = title.strip()
+                break
+
+        # Price
+        price = None
+        price_whole = (product.css(search_sel["price_whole"]).get('') or '').strip().rstrip('.')
+        price_fraction = (product.css(search_sel["price_fraction"]).get('') or '').strip()
+        if price_whole:
+            try:
+                price = float(f"{price_whole}.{price_fraction}" if price_fraction else price_whole)
+            except ValueError:
+                pass
+
+        # Rating
+        rating = None
+        rating_text = (product.css(search_sel["rating"]).get('') or '').strip()
+        if rating_text:
+            match = re.search(r'([\d.]+)', rating_text)
+            if match:
+                try:
+                    rating = float(match.group(1))
+                except ValueError:
+                    pass
+
+        # Reviews count
+        reviews_count = None
+        reviews_text = (product.css(search_sel["rating_count"]).get('') or '').strip()
+        if reviews_text:
+            cleaned = re.sub(r'[^\d]', '', reviews_text)
+            if cleaned:
+                reviews_count = int(cleaned)
+
+        # Brand (short name above the title link)
+        brand = None
+        brand_selectors = search_sel.get("brand", [])
+        if isinstance(brand_selectors, str):
+            brand_selectors = [brand_selectors]
+        for sel in brand_selectors:
+            brand = product.css(sel).get()
+            if brand:
+                brand = brand.strip()
+                break
+
+        # Thumbnail
+        thumbnail = product.css(search_sel["thumbnail"]).get()
+
+        return {
+            'asin': asin,
+            'absolute_url': absolute_url,
+            'is_sponsored': is_sponsored,
+            'title': title,
+            'brand': brand,
+            'price': price,
+            'rating': rating,
+            'reviews_count': reviews_count,
+            'thumbnail_url': thumbnail,
+        }
+
+    def _get_pagination_requests(self, response, callback):
+        """Generate pagination requests for pages 2..max_pages (only on page 1)."""
+        page = response.meta["page"]
+        keyword = response.meta["keyword"]
+        marketplace = response.meta["marketplace"]
+        job_id = response.meta.get("job_id")
+
+        if page != 1:
+            return
+
+        selectors = get_selectors(marketplace)
+        search_sel = selectors["search"]
+
+        page_numbers = response.xpath(search_sel["pagination"]).getall()
+        numeric_pages = []
+        for p in page_numbers:
+            try:
+                numeric_pages.append(int(p.strip()))
+            except ValueError:
+                continue
+
+        last_page = max(numeric_pages) if numeric_pages else 1
+        last_page = min(last_page, self.max_pages)
+
+        for next_page in range(2, last_page + 1):
+            next_url = self._build_search_url(page=next_page)
+            yield scrapy.Request(
+                url=next_url,
+                callback=callback,
+                meta={
+                    "keyword": keyword,
+                    "marketplace": marketplace,
+                    "page": next_page,
+                    "job_id": job_id,
+                    "retry_count": 0,
+                },
+            )
