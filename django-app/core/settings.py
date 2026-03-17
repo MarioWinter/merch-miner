@@ -97,6 +97,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.postgres',
     'django.contrib.sites',
     'django_rq',
     'corsheaders',
@@ -114,6 +115,7 @@ INSTALLED_APPS = [
     'content.apps.ContentConfig',
     'scraper_app',
     'niche_research_app',
+    'research_app',
 ]
 
 # django-allauth settings
