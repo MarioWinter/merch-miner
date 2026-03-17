@@ -3,7 +3,7 @@
 **Status:** Planned
 **Priority:** P0 (MVP)
 **Created:** 2026-02-27
-**Updated:** 2026-03-14
+**Updated:** 2026-03-17
 
 ## Overview
 
@@ -19,6 +19,9 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 6. As a member, I want to click "Open on Amazon" to see live search results, so that I can verify the data.
 7. As a member, I want to hide official brand products, so that I only see POD-eligible opportunities.
 8. As a member, I want to click a product and add its keyword as a Niche, so that the research pipeline is connected.
+9. As a member, I want to toggle between table and card view, so that I can switch between dense data comparison and visual browsing.
+10. As a member, I want my recent searches saved as chips, so that I can quickly repeat common research queries.
+11. As a member, I want to export the current filtered results to CSV, so that I can analyse or share data offline.
 
 ## Acceptance Criteria
 
@@ -26,14 +29,20 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 2. **Live Research mode:** `POST /api/research/search/` triggers a Scrapy scrape job (via PROJ-16) if no completed `ProductSearchCache` exists for the keyword+marketplace within 24h. Returns job `cache_id` for polling.
 3. **DB Research mode:** `GET /api/research/products/` returns all stored products matching the keyword using PostgreSQL full-text search (`SearchVector` + `SearchRank`) across `title`, `brand`, `feature_bullets`, `description`; full filter set applied server-side.
 4. Mode toggle (Live / DB) is prominent in the UI; switching modes re-fetches data with the appropriate endpoint.
-5. MUI DataGrid or Card grid shows per product: thumbnail, title, brand, BSR, rating, reviews count, price, product type, listed date.
-6. Clicking a product row expands a detail panel showing: BSR history sparkline (last 30 days from BSRSnapshot), feature bullets, description excerpt.
-7. Sort controls update `sort_by` query param; results re-fetch from server.
-8. "Open on Amazon" button opens `https://www.amazon.{marketplace}/s?k={keyword}` in new tab (pure frontend).
-9. "Add to Niche List" button calls `POST /api/niches/` with keyword as name; shows success toast via notistack.
-10. Loading state (MUI LinearProgress) while scrape is pending.
-11. Amazon autocomplete proxy has 60s Redis cache per (query, marketplace) pair.
-12. Polling endpoint: `GET /api/research/search/{cache_id}/status/` returns current scrape status.
+5. **Layout toggle:** Table / Cards toggle buttons in the results toolbar. Table = MUI DataGrid (dense row view). Cards = grid of product cards with thumbnail prominent. Default: Table.
+6. Results (DataGrid or Card grid) show per product: thumbnail, title, brand, BSR, rating, reviews count, price, product type, listed date.
+7. **Filter bar (DB Research):** Collapsible top bar directly above results. Chips show active filters: BSR, Rating, Reviews, Price, Product Type, and a "More" overflow. Expanding a chip opens an inline popover for that filter's inputs. Applying filters re-fetches immediately.
+8. Clicking a product row/card expands an inline detail panel: BSR history sparkline (last 30 days from BSRSnapshot), feature bullets, description excerpt, "Add to Niche" + "Open on Amazon" actions.
+9. Sort controls update `sort_by` query param; results re-fetch from server.
+10. "Open on Amazon" button opens `https://www.amazon.{marketplace}/s?k={keyword}` in new tab (pure frontend).
+11. "Add to Niche List" button calls `POST /api/niches/` with the search keyword as name; shows success toast via notistack.
+12. Loading state (MUI LinearProgress) while scrape is pending.
+13. **Live Research error state:** If scrape status = `failed`, show error message and a "Retry" button that re-triggers `POST /api/research/search/`.
+14. Amazon autocomplete proxy has 60s Redis cache per (query, marketplace) pair.
+15. Polling endpoint: `GET /api/research/search/{cache_id}/status/` returns current scrape status.
+16. **Recent searches:** Last 10 unique (keyword + marketplace) pairs stored in `localStorage`. Displayed as clickable chips below the search input. Clicking a chip pre-fills the search and triggers the active mode's request. Persists across sessions per browser.
+17. **CSV export (DB Research):** "Export CSV" button downloads all products matching the current filters/sort (no pagination limit on export). Button is disabled when result count = 0.
+18. **Default marketplace:** `amazon_com` on page load. Selection persists to `localStorage` and is restored on next visit.
 
 ## API Endpoints
 
@@ -43,6 +52,7 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 | POST | `/api/research/search/` | Member | Live Research: trigger Scrapy scrape or return cached |
 | GET | `/api/research/search/{cache_id}/status/` | Member | Poll scrape job status |
 | GET | `/api/research/products/` | Member | DB Research: filter/sort all stored products |
+| GET | `/api/research/products/export/` | Member | DB Research: export filtered results as CSV (no pagination) |
 | GET | `/api/research/products/{asin}/bsr-history/` | Member | BSR history snapshots for a product |
 
 ## Models
@@ -162,6 +172,12 @@ UI needs a config mapping `product_type` selection to the raw Amazon search para
 7. `hide_official_brands` list is maintained as a static fixture (not user-configurable in MVP).
 8. BSR history chart has < 2 data points → show single value with "Not enough history" label.
 9. DB Research with no stored products for keyword → empty state with suggestion to run Live Research.
+10. Live Research scrape status = `failed` → show error toast + inline error message with "Retry" button; retry re-triggers `POST /api/research/search/` with same params.
+11. Recent search chip clicked while scrape is in progress → previous polling cancelled; new request started.
+12. CSV export with 0 results → "Export CSV" button is disabled (no request sent).
+13. CSV export starts streaming immediately; backend uses `StreamingHttpResponse` to avoid memory issues on large sets.
+14. localStorage recent searches exceed 10 entries → oldest entry is dropped (FIFO).
+15. User clears the search input → recent search chips remain visible as quick-start options.
 
 ## Data Ownership Architecture (decided 2026-03-14)
 
