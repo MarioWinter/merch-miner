@@ -7,7 +7,7 @@
 
 ## Overview
 
-A dedicated research page (inspired by MerchMatrix / Flying Research) for searching and filtering Amazon products before committing to a niche. Two modes: **Live Research** (triggers a Scrapy scrape via PROJ-16, fewer filters, fresh data) and **DB Research** (queries the existing product database with full filters and PostgreSQL full-text search). Amazon autocomplete proxy to avoid CORS. All filters applied server-side. Scrape engine is PROJ-16 (Scrapy + ScraperOps SDK).
+A dedicated research page (inspired by MerchMatrix / Flying Research) for searching and filtering Amazon products before committing to a niche. Two modes: **Live Research** (triggers a fresh scrape via PROJ-16, fewer filters, real-time data) and **DB Research** (queries stored products with full filters and full-text search). All filters applied server-side. Scrape engine provided by PROJ-16.
 
 ## User Stories
 
@@ -26,20 +26,20 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 ## Acceptance Criteria
 
 1. Search input shows Amazon suggestions via proxy endpoint; debounced 300ms; max 10 suggestions shown.
-2. **Live Research mode:** `POST /api/research/search/` triggers a Scrapy scrape job (via PROJ-16) if no completed `ProductSearchCache` exists for the keyword+marketplace within 24h. Returns job `cache_id` for polling.
-3. **DB Research mode:** `GET /api/research/products/` returns all stored products matching the keyword using PostgreSQL full-text search (`SearchVector` + `SearchRank`) across `title`, `brand`, `feature_bullets`, `description`; full filter set applied server-side.
+2. **Live Research mode:** Submitting a search triggers a fresh scrape via PROJ-16 if no completed result exists for that keyword+marketplace within 24h. Returns a job reference for the user to track progress via polling.
+3. **DB Research mode:** `GET /api/research/products/` returns all stored products matching the keyword via full-text search across title, brand, bullets, description; full filter set applied server-side.
 4. Mode toggle (Live / DB) is prominent in the UI; switching modes re-fetches data with the appropriate endpoint.
-5. **Layout toggle:** Table / Cards toggle buttons in the results toolbar. Table = MUI DataGrid (dense row view). Cards = grid of product cards with thumbnail prominent. Default: Table.
-6. Results (DataGrid or Card grid) show per product: thumbnail, title, brand, BSR, rating, reviews count, price, product type, listed date.
-7. **Filter bar (DB Research):** Collapsible top bar directly above results. Chips show active filters: BSR, Rating, Reviews, Price, Product Type, and a "More" overflow. Expanding a chip opens an inline popover for that filter's inputs. Applying filters re-fetches immediately.
-8. Clicking a product row/card expands an inline detail panel: BSR history sparkline (last 30 days from BSRSnapshot), feature bullets, description excerpt, "Add to Niche" + "Open on Amazon" actions.
-9. Sort controls update `sort_by` query param; results re-fetch from server.
+5. **Layout toggle:** Grid / List toggle buttons in the results toolbar. Grid = product cards with thumbnail prominent. List = dense table view. Default: Grid.
+6. Results (Grid or List view) show per product: thumbnail, title, brand, BSR (color-coded badge), rating, reviews count, price, ASIN, "published since X days".
+7. **Advanced Options (DB Research):** Collapsible panel below the controls row. Range sliders for BSR, Reviews, Price — each with an enable/disable toggle switch. Star-click rating selector. Hide Official Brands toggle button. Subcategory, Exclude Words text inputs, Date Range pickers. In Live mode: panel dimmed, only Product Type + Hide Official Brands active. Applying filters re-fetches immediately.
+8. Clicking a product row/card expands an inline detail panel: BSR history sparkline (last 30 days), feature bullets, description excerpt, "Add to Niche" + "Open on Amazon" actions.
+9. Sort controls change the result order; results re-fetch from server on sort change.
 10. "Open on Amazon" button opens `https://www.amazon.{marketplace}/s?k={keyword}` in new tab (pure frontend).
-11. "Add to Niche List" button calls `POST /api/niches/` with the search keyword as name; shows success toast via notistack.
-12. Loading state (MUI LinearProgress) while scrape is pending.
-13. **Live Research error state:** If scrape status = `failed`, show error message and a "Retry" button that re-triggers `POST /api/research/search/`.
-14. Amazon autocomplete proxy has 60s Redis cache per (query, marketplace) pair.
-15. Polling endpoint: `GET /api/research/search/{cache_id}/status/` returns current scrape status.
+11. "Add to Niche List" button creates a new Niche from the search keyword and shows a success notification.
+12. A progress indicator is shown while a Live Research scrape is in progress, including current page and product count.
+13. **Live Research error state:** If scrape fails, show error message and a "Retry" button that re-triggers the search.
+14. Autocomplete suggestions are server-side cached; repeated identical queries return instantly without hitting Amazon's API again.
+15. Live Research status can be polled by the UI until the scrape completes or fails.
 16. **Recent searches:** Last 10 unique (keyword + marketplace) pairs stored in `localStorage`. Displayed as clickable chips below the search input. Clicking a chip pre-fills the search and triggers the active mode's request. Persists across sessions per browser.
 17. **CSV export (DB Research):** "Export CSV" button downloads all products matching the current filters/sort (no pagination limit on export). Button is disabled when result count = 0.
 18. **Default marketplace:** `amazon_com` on page load. Selection persists to `localStorage` and is restored on next visit.
@@ -57,58 +57,8 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 
 ## Models
 
-> Models are owned by PROJ-16. Defined here for reference.
-
-### AmazonProduct
-| Field | Type | Notes |
-|-------|------|-------|
-| id | UUID | PK |
-| asin | CharField(20) | Unique per marketplace |
-| marketplace | CharField choices [amazon_com, amazon_de, amazon_co_uk, amazon_fr, amazon_it, amazon_es] | |
-| title | TextField | |
-| brand | CharField(200) | |
-| bsr | IntegerField | Current BSR (updated each scrape) |
-| category | CharField(200) | |
-| subcategory | CharField(200) | |
-| price | DecimalField(10,2) | |
-| rating | FloatField | |
-| reviews_count | IntegerField | |
-| listed_date | DateField(nullable) | |
-| product_type | CharField choices [t_shirt, hoodie, pullover, zip_hoodie, long_sleeve, tank_top, other] | |
-| thumbnail_url | URLField | |
-| product_url | URLField | |
-| seller_name | CharField(200) | |
-| feature_bullets | JSONField | List of bullet strings |
-| description | TextField | |
-| variants | JSONField | Size/color options |
-| image_gallery | JSONField | List of image URLs |
-| scraped_at | DateTimeField | Last full scrape timestamp |
-| keywords | ManyToManyField(Keyword) | Search terms this ASIN appeared in |
-
-### Keyword
-| Field | Type | Notes |
-|-------|------|-------|
-| id | UUID | PK |
-| keyword | CharField(200) | Unique per marketplace |
-| marketplace | CharField | |
-
-### ProductSearchCache
-| Field | Type | Notes |
-|-------|------|-------|
-| id | UUID | PK |
-| keyword | ForeignKey(Keyword) | |
-| last_scraped_at | DateTimeField(nullable) | |
-| status | CharField choices [pending, completed, failed] | |
-
-### BSRSnapshot (owned by PROJ-16)
-| Field | Type | Notes |
-|-------|------|-------|
-| id | UUID | PK |
-| product | ForeignKey(AmazonProduct) | |
-| bsr | IntegerField | |
-| rating | FloatField | |
-| price | DecimalField(10,2) | |
-| recorded_at | DateTimeField | |
+> All models owned by PROJ-16 (`scraper_app`). See [PROJ-16 spec](PROJ-16-amazon-product-scraper.md) for full schema.
+> PROJ-7 adds a `workspace` FK to `ProductSearchCache` (via migration in `scraper_app`).
 
 ## Filters — DB Research (GET /api/research/products/)
 
@@ -122,9 +72,9 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 | `price_min` / `price_max` | decimal | Price range |
 | `date_from` / `date_to` | date | Listed date range |
 | `product_type` | string (multi) | Comma-separated list |
-| `subcategory` | string | icontains filter |
-| `hide_official_brands` | bool | Exclude known brand ASINs (static fixture) |
-| `exclude_words` | string | Comma-separated; exclude if title contains any (plain string, escaped) |
+| `subcategory` | string | Partial match on subcategory |
+| `hide_official_brands` | bool | Exclude known official brand products (static list) |
+| `exclude_words` | string | Comma-separated; exclude products whose title contains any of these words |
 | `sort_by` | string | `bsr_asc`, `reviews_desc`, `rating_desc`, `price_asc`, `newest` |
 | `page` / `page_size` | int | Pagination (default 50/page) |
 
@@ -134,70 +84,32 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 |-------|------|-------------|
 | `keyword` | string | Required; triggers scrape |
 | `marketplace` | string | Required; e.g. `amazon_com` |
-| `product_type` | string | Optional; user selects from dropdown (t_shirt, hoodie, pullover, zip_hoodie, long_sleeve, tank_top). UI maps to `search_index` + `hidden_keywords` spider args via product type config (see below) |
+| `product_type` | string | Optional; user selects from dropdown (t_shirt, hoodie, pullover, zip_hoodie, long_sleeve, tank_top). Narrows the scrape to that MBA product type. |
 | `hide_official_brands` | bool | Optional |
-
-### Product Type → Amazon Filter Mapping
-
-UI needs a config mapping `product_type` selection to the raw Amazon search params passed to PROJ-16 spider. PROJ-16 accepts these as optional spider kwargs: `search_index`, `seller_filter`, `hidden_keywords`.
-
-| Product Type | search_index | seller_filter | hidden_keywords |
-|---|---|---|---|
-| T-Shirt | `fashion-novelty` | `ATVPDKIKX0DER` | `Lightweight, Classic fit, Double-needle sleeve and bottom hem -Longsleeve -Raglan -Vneck -Tanktop` |
-| Hoodie | `fashion-novelty` | `ATVPDKIKX0DER` | `Hoodie -Tanktop -Vneck -Longsleeve` |
-| Pullover | `fashion-novelty` | `ATVPDKIKX0DER` | `Pullover Sweatshirt -Hoodie -Tanktop -Vneck` |
-| Zip Hoodie | `fashion-novelty` | `ATVPDKIKX0DER` | `Zip Hoodie -Pullover -Tanktop` |
-| Long Sleeve | `fashion-novelty` | `ATVPDKIKX0DER` | `Long Sleeve -Hoodie -Tanktop -Vneck` |
-| Tank Top | `fashion-novelty` | `ATVPDKIKX0DER` | `Tank Top -Hoodie -Longsleeve` |
-
-> `seller_filter=ATVPDKIKX0DER` = "Sold by Amazon" = Merch on Demand products only.
-> `hidden_keywords` are appended to the Amazon search URL as `&hidden-keywords=...` to narrow results to specific product types.
-> This mapping lives in the PROJ-7 API layer (not in PROJ-16 scraper). PROJ-16 receives raw params and passes them through.
-
-## Amazon Autocomplete Proxy
-
-- Amazon API: `https://completion.amazon.com/api/2017/suggestions?prefix={q}&mid={marketplace_id}&alias=aps`
-- Django proxies this to avoid CORS restrictions in the browser
-- Response: array of suggestion strings
-- Redis cache: 60s TTL per (q, marketplace) pair
 
 ## Edge Cases
 
 1. Amazon autocomplete returns empty → input works normally; no suggestions shown (no error).
 2. Live Research scrape returns 0 products → empty state: "No products found for this keyword."
-3. Scrape triggered while previous scrape for same keyword still running → return existing pending `ProductSearchCache`; no duplicate trigger.
-4. `exclude_words` contains regex special chars → escape before filter; treat as plain string.
+3. Scrape triggered while previous scrape for same keyword still running → return the in-progress job; no duplicate scrape started.
+4. `exclude_words` containing special characters → treated as plain text, not as patterns.
 5. Large result set (500+ products) → pagination 50/page; no client-side JS filtering.
 6. BSR `min` > `max` → 400 validation error.
 7. `hide_official_brands` list is maintained as a static fixture (not user-configurable in MVP).
 8. BSR history chart has < 2 data points → show single value with "Not enough history" label.
 9. DB Research with no stored products for keyword → empty state with suggestion to run Live Research.
-10. Live Research scrape status = `failed` → show error toast + inline error message with "Retry" button; retry re-triggers `POST /api/research/search/` with same params.
+10. Live Research scrape status = `failed` → show error toast + inline error message with "Retry" button; retry re-triggers search with same params.
 11. Recent search chip clicked while scrape is in progress → previous polling cancelled; new request started.
 12. CSV export with 0 results → "Export CSV" button is disabled (no request sent).
-13. CSV export starts streaming immediately; backend uses `StreamingHttpResponse` to avoid memory issues on large sets.
+13. CSV export streams immediately; large sets (500+) handled without memory issues.
 14. localStorage recent searches exceed 10 entries → oldest entry is dropped (FIFO).
 15. User clears the search input → recent search chips remain visible as quick-start options.
-
-## Data Ownership Architecture (decided 2026-03-14)
-
-- **AmazonProduct** = global, no User/Workspace FK. Scrape data is shared market data — saves scrape costs (same keyword scraped once, used by all users within 24h cache)
-- **ProductSearchCache** = gets `workspace` FK in PROJ-7. Tracks "who triggered this search" for polling + history
-- **Niche** (PROJ-5) = has Workspace FK. "Add to Niche List" links keyword to user's workspace
-- User identity flows: UI → PROJ-7 API (authenticated, workspace-scoped) → ProductSearchCache(workspace=request.workspace) → PROJ-16 scrape engine (no user context, global data)
-- PROJ-6 (Deep Research) reads AmazonProduct data globally, results scoped to workspace via Niche FK
 
 ## Dependencies
 
 - PROJ-4 (Workspace & Membership — workspace scope)
 - PROJ-5 (Niche List — "Add to Niche" action calls `POST /api/niches/`)
 - PROJ-16 (Amazon Product Scraper — scrape engine, models, BSRSnapshot)
-
-## Environment Variables Required
-
-```
-SCRAPEOPS_API_KEY=  # Used by PROJ-16 scraper engine
-```
 
 ---
 
@@ -332,13 +244,19 @@ DB MODE — "funny cat shirts"
 
 ---
 
-### E) Database Changes (PROJ-7 Migration)
+### E) Database Changes & Data Ownership
 
 **One migration** added to `scraper_app` (model stays there, PROJ-7 adds a field):
 
 - `ProductSearchCache` gains a `workspace` FK → `workspace_app.Workspace` (`null=True, blank=True` for existing rows)
 - All `research_app` views filter `ProductSearchCache` by `request.user`'s active workspace
 - `AmazonProduct` stays global — shared market data, no workspace FK
+
+**Data ownership (decided 2026-03-14):**
+- **AmazonProduct** = global, no User/Workspace FK — saves scrape costs (same keyword scraped once, used by all users within 24h cache)
+- **ProductSearchCache** = workspace-scoped — tracks "who triggered this search" for polling + history
+- **Niche** (PROJ-5) = workspace-scoped — "Add to Niche List" links keyword to user's workspace
+- Identity flow: UI → PROJ-7 API (authenticated) → ProductSearchCache(workspace) → PROJ-16 scrape engine (no user context)
 
 ---
 
@@ -393,9 +311,15 @@ DB MODE — "funny cat shirts"
 
 **Frontend:** No new packages — `@mui/x-data-grid` and `@mui/x-charts` confirmed present in `package.json`.
 
+### J) Environment Variables
+
+```
+SCRAPEOPS_API_KEY=  # Used by PROJ-16 scraper engine (already set)
+```
+
 ---
 
-### J) File Structure (Frontend)
+### K) File Structure (Frontend)
 
 ```
 views/amazon/research/
