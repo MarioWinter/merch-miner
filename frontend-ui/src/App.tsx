@@ -17,6 +17,7 @@ import SettingsLayout from './views/settings/SettingsLayout';
 import InviteAcceptView from './views/invite/InviteAcceptView';
 import NicheListView from './views/niches/list/NicheListView';
 import NicheResearchView from './views/niches/research';
+import AmazonResearchView from './views/amazon/research/AmazonResearchView';
 
 // Placeholder — replaced when dashboard is built (PROJ-12)
 const DashboardPlaceholder = () => {
@@ -83,6 +84,7 @@ const App = () => {
           <Route path="/dashboard" element={<DashboardPlaceholder />} />
           <Route path="/niches" element={<NicheListView />} />
           <Route path="/niches/research" element={<NicheResearchView />} />
+          <Route path="/amazon/research" element={<AmazonResearchView />} />
 
           {/* Settings routes */}
           <Route path="/settings" element={<SettingsLayout />}>
