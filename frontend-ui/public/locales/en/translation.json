@@ -383,7 +383,9 @@
       "collapseAll": "Collapse All",
       "expandAll": "Expand All",
       "productCount": "{{count}} products",
-      "uncategorized": "Uncategorized"
+      "uncategorized": "Uncategorized",
+      "titleLabel": "Title",
+      "brandLabel": "Brand"
     },
     "related": {
       "title": "Related Niches",

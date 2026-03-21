@@ -383,7 +383,9 @@
       "collapseAll": "Comprimi tutto",
       "expandAll": "Espandi tutto",
       "productCount": "{{count}} prodotti",
-      "uncategorized": "Senza categoria"
+      "uncategorized": "Senza categoria",
+      "titleLabel": "Titolo",
+      "brandLabel": "Marca"
     },
     "related": {
       "title": "Nicchie correlate",

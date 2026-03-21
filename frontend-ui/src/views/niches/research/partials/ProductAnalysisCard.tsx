@@ -8,94 +8,45 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { alpha, styled } from '@mui/material/styles';
+import { alpha } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import BlockIcon from '@mui/icons-material/Block';
+import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useTranslation } from 'react-i18next';
 import { getPatternVisual } from './patternConfig';
 import { useDispatch, useSelector } from 'react-redux';
 import { useSnackbar } from 'notistack';
-import { MONO_FONT_STACK } from '@/style/constants';
 import { COLORS } from '@/style/constants';
 import { toggleSlogan, selectCollectedSlogans } from '@/store/collectedItemsSlice';
 import type { RootState } from '@/store';
 import type { ResearchProduct } from '../types';
+import {
+  Card,
+  ProductHeader,
+  ThumbnailWrap,
+  Thumbnail,
+  ThumbnailPreview,
+  HeaderLabel,
+  AsinText,
+  SectionLabel,
+  DetailSection,
+  FieldRow,
+  FieldLabel,
+  FieldValue,
+} from './ProductAnalysisCard.styles';
 
 interface ProductAnalysisCardProps {
   product: ResearchProduct;
   nicheId: string;
 }
 
-const Card = styled(Box)(({ theme }) => ({
-  background: theme.vars.palette.background.paper,
-  border: `1px solid ${theme.vars.palette.divider}`,
-  borderRadius: 12,
-  overflow: 'hidden',
-  wordBreak: 'break-word',
-  transition: 'box-shadow 150ms ease',
-  '&:hover': {
-    boxShadow: `0 4px 16px rgba(0,0,0,0.30)`,
-  },
-}));
-
-const ProductHeader = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  gap: theme.spacing(2),
-  padding: theme.spacing(2, 2.5),
-}));
-
-const Thumbnail = styled('img')({
-  width: 64,
-  height: 64,
-  borderRadius: 8,
-  objectFit: 'cover',
-  flexShrink: 0,
-  backgroundColor: 'rgba(255,255,255,0.04)',
-});
-
-const AsinText = styled(Typography)({
-  fontFamily: MONO_FONT_STACK,
-  fontSize: '0.75rem',
-});
-
-const SectionLabel = styled(Typography)(({ theme }) => ({
-  fontSize: '0.6875rem',
-  fontWeight: 600,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  color: theme.vars.palette.text.secondary,
-  marginBottom: theme.spacing(0.5),
-}));
-
-const DetailSection = styled(Box)(({ theme }) => ({
-  padding: theme.spacing(0, 2.5, 2),
-}));
-
-const FieldRow = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  gap: theme.spacing(1),
-  marginBottom: theme.spacing(0.5),
-}));
-
-const FieldLabel = styled(Typography)(({ theme }) => ({
-  fontSize: '0.75rem',
-  fontWeight: 600,
-  color: theme.vars.palette.text.secondary,
-  minWidth: 100,
-  flexShrink: 0,
-}));
-
-const FieldValue = styled(Typography)({
-  fontSize: '0.8125rem',
-  wordBreak: 'break-word',
-});
-
 export const ProductAnalysisCard = ({ product, nicheId }: ProductAnalysisCardProps) => {
   const { t } = useTranslation();
   const dispatch = useDispatch();
   const { enqueueSnackbar } = useSnackbar();
   const [expanded, setExpanded] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const vision = product.vision_analysis;
   const emotional = product.emotional_analysis;
   const collectedSlogans = useSelector((state: RootState) => selectCollectedSlogans(state, nicheId));
@@ -110,39 +61,77 @@ export const ProductAnalysisCard = ({ product, nicheId }: ProductAnalysisCardPro
     <Card>
       <ProductHeader>
         {product.thumbnail_url && (
-          <Thumbnail
-            src={product.thumbnail_url}
-            alt={product.title}
-            loading="lazy"
-          />
+          <>
+            <ThumbnailWrap
+              onMouseEnter={() => setShowPreview(true)}
+              onMouseLeave={() => setShowPreview(false)}
+            >
+              <Thumbnail
+                src={product.thumbnail_url}
+                alt={product.title}
+                loading="lazy"
+              />
+            </ThumbnailWrap>
+            {showPreview && (
+              <ThumbnailPreview>
+                <img src={product.thumbnail_url} alt={product.title} />
+              </ThumbnailPreview>
+            )}
+          </>
         )}
         <Box sx={{ flex: 1, minWidth: 0 }}>
+          <HeaderLabel color="text.disabled">
+            {t('research.products.titleLabel')}
+          </HeaderLabel>
           <Typography variant="subtitle2" fontWeight={600} noWrap>
             {product.title}
           </Typography>
-          <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
-            <AsinText color="text.secondary">{product.asin}</AsinText>
+          <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 0.5 }}>
+            <Box>
+              <HeaderLabel color="text.disabled">ASIN</HeaderLabel>
+              <Stack direction="row" spacing={0.5} alignItems="center">
+                <AsinText color="text.secondary">{product.asin}</AsinText>
+                {product.url && (
+                  <IconButton
+                    component="a"
+                    href={product.url}
+                    target="_blank"
+                    rel="noopener"
+                    size="small"
+                    sx={{ p: 0.25, color: 'text.disabled', '&:hover': { color: 'secondary.main' } }}
+                    aria-label="Open on Amazon"
+                  >
+                    <OpenInNewIcon sx={{ fontSize: 14 }} />
+                  </IconButton>
+                )}
+              </Stack>
+            </Box>
             {product.brand && (
-              <Typography variant="caption" color="text.secondary">
-                {product.brand}
-              </Typography>
-            )}
-            {product.brand_blocked && (
-              <Chip
-                icon={<BlockIcon sx={{ fontSize: 12 }} />}
-                label={t('research.products.trademark')}
-                size="small"
-                sx={(theme) => ({
-                  height: 20,
-                  fontSize: '0.6875rem',
-                  backgroundColor: alpha(theme.palette.warning.main, 0.12),
-                  color: theme.vars.palette.warning.main,
-                  borderRadius: '4px',
-                  '& .MuiChip-icon': {
-                    color: 'inherit',
-                  },
-                })}
-              />
+              <Box>
+                <HeaderLabel color="text.disabled">
+                  {t('research.products.brandLabel')}
+                </HeaderLabel>
+                <Stack direction="row" spacing={0.5} alignItems="center">
+                  <Typography variant="caption" color="text.secondary">
+                    {product.brand}
+                  </Typography>
+                  {product.brand_blocked && (
+                    <Chip
+                      icon={<BlockIcon sx={{ fontSize: 12 }} />}
+                      label={t('research.products.trademark')}
+                      size="small"
+                      sx={(theme) => ({
+                        height: 20,
+                        fontSize: '0.6875rem',
+                        backgroundColor: alpha(theme.palette.warning.main, 0.12),
+                        color: theme.vars.palette.warning.main,
+                        borderRadius: '4px',
+                        '& .MuiChip-icon': { color: 'inherit' },
+                      })}
+                    />
+                  )}
+                </Stack>
+              </Box>
             )}
           </Stack>
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>

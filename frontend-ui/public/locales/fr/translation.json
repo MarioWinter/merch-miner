@@ -383,7 +383,9 @@
       "collapseAll": "Tout replier",
       "expandAll": "Tout déplier",
       "productCount": "{{count}} produits",
-      "uncategorized": "Non catégorisé"
+      "uncategorized": "Non catégorisé",
+      "titleLabel": "Titre",
+      "brandLabel": "Marque"
     },
     "related": {
       "title": "Niches associées",
