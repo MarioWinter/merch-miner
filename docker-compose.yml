@@ -43,6 +43,21 @@ services:
     depends_on:
       - redis
 
+  worker-research:
+    build:
+      context: ./django-app
+      dockerfile: backend.Dockerfile
+    container_name: app_worker_research
+    entrypoint: ["./worker.entrypoint.sh"]
+    command: python manage.py rqworker research
+    env_file: ./.env
+    restart: unless-stopped
+    networks:
+      - default
+      - supabase-net
+    depends_on:
+      - redis
+
   scheduler:
     build:
       context: ./django-app

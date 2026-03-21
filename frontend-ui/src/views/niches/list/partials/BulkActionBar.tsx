@@ -12,11 +12,13 @@ import {
   Menu,
   MenuItem,
   Slide,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { alpha, styled } from '@mui/material/styles';
 import { COLORS } from '@/style/constants';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { useTranslation } from 'react-i18next';
@@ -63,6 +65,19 @@ const DestructiveButton = styled(Button)(({ theme }) => ({
   '&:hover': {
     backgroundColor: alpha(COLORS.errorDk, 0.08),
     borderColor: alpha(COLORS.errorDk, 0.50),
+  },
+}));
+
+const AiOutlinedButton = styled(Button)(() => ({
+  color: COLORS.red,
+  borderColor: alpha(COLORS.red, 0.30),
+  '&:hover': {
+    backgroundColor: alpha(COLORS.red, 0.08),
+    borderColor: alpha(COLORS.red, 0.50),
+  },
+  '&.Mui-disabled': {
+    color: alpha(COLORS.red, 0.40),
+    borderColor: alpha(COLORS.red, 0.15),
   },
 }));
 
@@ -144,6 +159,19 @@ export const BulkActionBar = ({ selection, sidebarCollapsed }: BulkActionBarProp
           >
             {t('niches.bulk.assign')}
           </Button>
+
+          <Tooltip title={t('niches.table.deepDrill.bulkDisabled')} placement="top">
+            <span>
+              <AiOutlinedButton
+                variant="outlined"
+                size="small"
+                startIcon={<AutoAwesomeIcon />}
+                disabled
+              >
+                {t('niches.table.deepDrill.bulkLabel', { count: selectedCount })}
+              </AiOutlinedButton>
+            </span>
+          </Tooltip>
 
           <Box sx={{ flex: 1 }} />
 

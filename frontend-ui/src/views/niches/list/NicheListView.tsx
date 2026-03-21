@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Box, Button, Pagination, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
@@ -96,7 +96,19 @@ const NicheListView = () => {
     page_size: PAGE_SIZE,
   };
 
-  const { data, isLoading, isError, isFetching } = useListNichesQuery(queryParams);
+  // Track whether any niche has running research for auto-polling.
+  // Use a ref updated during render to avoid calling setState inside useEffect.
+  const pollingRef = useRef(0);
+  const { data, isLoading, isError, isFetching } = useListNichesQuery(queryParams, {
+    pollingInterval: pollingRef.current,
+  });
+
+  // Compute during render (not in an effect) — ref update does not cause extra render;
+  // RTK Query re-renders on each poll result, which picks up the latest ref value.
+  const hasRunning = (data?.results ?? []).some(
+    (n) => n.research_status === 'running' || n.research_status === 'pending',
+  );
+  pollingRef.current = hasRunning ? 10_000 : 0;
 
   const [deleteNiche] = useDeleteNicheMutation();
 

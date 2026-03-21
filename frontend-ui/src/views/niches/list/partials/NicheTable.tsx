@@ -15,10 +15,12 @@ import {
   TableHead,
   TableRow,
   TableSortLabel,
+  Tooltip,
 } from '@mui/material';
 import { alpha, styled } from '@mui/material/styles';
 import { COLORS } from '@/style/constants';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { useTranslation } from 'react-i18next';
 import { NicheRow } from './NicheRow';
 import { InlineAddRow } from './InlineAddRow';
@@ -222,6 +224,12 @@ export const NicheTable = ({
             <HeaderCell sx={{ width: colWidth('ideas') }}>
               <OverlineText>{t('niches.table.colIdeas')}</OverlineText>
               <ResizeHandle onMouseDown={handleResizeMouseDown('ideas')} />
+            </HeaderCell>
+
+            <HeaderCell sx={{ width: colWidth('ai'), px: 0.5, textAlign: 'center' }}>
+              <Tooltip title={t('niches.table.colDeepDrill')} placement="top">
+                <AutoAwesomeIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+              </Tooltip>
             </HeaderCell>
 
             <HeaderCell sx={{ width: colWidth('updated') }}>

@@ -51,6 +51,14 @@ export const COLORS = {
   warningLight: '#D97706',
   errorLight:   '#DC2626',
   infoLight:    '#0284C7',
+
+  // AI glow — derived from secondary cyan (#00C8D7)
+  aiHighlight:     '#00C8D7',
+  aiGlow80:        'rgba(0, 200, 215, 0.80)',
+  aiGlow50:        'rgba(0, 200, 215, 0.50)',
+  aiGlow30:        'rgba(0, 200, 215, 0.30)',
+  aiGlow20:        'rgba(0, 200, 215, 0.20)',
+  aiGlow10:        'rgba(0, 200, 215, 0.10)',
 } as const;
 
 export const EASING = {

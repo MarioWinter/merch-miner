@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
-export type ColumnKey = 'name' | 'status' | 'potential_rating' | 'assignee' | 'ideas' | 'updated' | 'actions';
+export type ColumnKey = 'name' | 'status' | 'potential_rating' | 'assignee' | 'ideas' | 'ai' | 'updated' | 'actions';
 
 export type ColumnWidths = Record<ColumnKey, number | 'auto'>;
 
@@ -12,6 +12,7 @@ const DEFAULTS: ColumnWidths = {
   potential_rating: 120,
   assignee: 140,
   ideas: 80,
+  ai: 48,
   updated: 120,
   actions: 44,
 };

@@ -181,7 +181,7 @@ class ScrapeJob(models.Model):
         default='',
         help_text='Filter Amazon search to specific MBA product type',
     )
-    pages_total = models.IntegerField(default=4)
+    pages_total = models.IntegerField(default=2)
     max_items = models.PositiveIntegerField(
         null=True,
         blank=True,

@@ -19,8 +19,10 @@ import dayjs from 'dayjs';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../../store';
 import { COLORS } from '@/style/constants';
+import { DeepDrillCell } from './DeepDrillCell';
 import { NicheStatusChip } from './NicheStatusChip';
 import { PotentialRatingChip } from './PotentialRatingChip';
+import { ResearchProgressCell } from './ResearchProgressCell';
 import type { Niche, NicheStatus, PotentialRating } from '../types';
 import type { UseNicheSelectionReturn } from '../hooks/useNicheSelection';
 import type { UseInlineEditReturn, EditableColumn } from '../hooks/useInlineEdit';
@@ -185,6 +187,9 @@ interface StatusCellProps {
   width?: number | 'auto';
 }
 
+const isResearchRunning = (niche: Niche): boolean =>
+  niche.research_status === 'running' || niche.research_status === 'pending';
+
 const StatusCell = ({ niche, inlineEdit, width }: StatusCellProps) => {
   const { t } = useTranslation();
   const active = isCellActive(inlineEdit.activeCell, niche.id, 'status');
@@ -194,6 +199,15 @@ const StatusCell = ({ niche, inlineEdit, width }: StatusCellProps) => {
     e.stopPropagation();
     inlineEdit.activateCell(niche.id, 'status');
   };
+
+  // Show research progress when research is active
+  if (!active && isResearchRunning(niche) && niche.research_progress) {
+    return (
+      <TableCell sx={{ width: w }} onClick={handleClick} aria-label={t('niches.table.colStatus')}>
+        <ResearchProgressCell progress={niche.research_progress} />
+      </TableCell>
+    );
+  }
 
   if (!active) {
     return (
@@ -410,6 +424,8 @@ export const NicheRow = ({
           {niche.approved_idea_count} / {niche.idea_count}
         </IdeasText>
       </TableCell>
+
+      <DeepDrillCell niche={niche} width={w?.ai} />
 
       <TableCell sx={{ width: w?.updated ?? 120 }}>
         <Tooltip title={new Date(niche.updated_at).toLocaleString()}>
