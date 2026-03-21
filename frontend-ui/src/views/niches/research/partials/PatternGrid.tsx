@@ -5,10 +5,13 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import { useTranslation } from 'react-i18next';
 import type { PatternItem } from '../types';
+import { normalizePatternKey } from './patternConfig';
 import { PatternCard } from './PatternCard';
 
 interface PatternGridProps {
   patterns: PatternItem[];
+  productCounts?: Record<string, number>;
+  onPatternClick?: (name: string) => void;
 }
 
 const SectionHeader = styled(Box)(({ theme }) => ({
@@ -24,7 +27,11 @@ const ActiveCount = styled(Typography)(({ theme }) => ({
   color: theme.vars.palette.success.main,
 }));
 
-export const PatternGrid = ({ patterns }: PatternGridProps) => {
+export const PatternGrid = ({
+  patterns,
+  productCounts,
+  onPatternClick,
+}: PatternGridProps) => {
   const { t } = useTranslation();
   const [showInactive, setShowInactive] = useState(false);
 
@@ -49,7 +56,15 @@ export const PatternGrid = ({ patterns }: PatternGridProps) => {
       <Grid container spacing={1.5}>
         {active.map((p) => (
           <Grid key={p.name} size={{ xs: 12, sm: 6, lg: 4 }}>
-            <PatternCard pattern={p} />
+            <PatternCard
+              pattern={p}
+              count={productCounts?.[normalizePatternKey(p.name)]}
+              onClick={
+                onPatternClick && productCounts?.[normalizePatternKey(p.name)]
+                  ? () => onPatternClick(normalizePatternKey(p.name))
+                  : undefined
+              }
+            />
           </Grid>
         ))}
       </Grid>

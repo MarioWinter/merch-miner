@@ -52,6 +52,7 @@ class NicheResearchSerializer(serializers.ModelSerializer):
             'id', 'status', 'created_at', 'completed_at', 'error_message',
             'completed_nodes', 'current_node', 'total_nodes',
             'marketplace', 'product_type', 'retry_count',
+            'brand_filtered_count',
         ]
         read_only_fields = fields
 
@@ -96,6 +97,7 @@ class NicheProductSerializer(serializers.ModelSerializer):
         fields = [
             'asin', 'title', 'brand', 'url', 'rating', 'reviews_count',
             'thumbnail_url', 'vision_analysis', 'emotional_analysis',
+            'brand_blocked',
         ]
 
     def get_vision_analysis(self, obj):
@@ -161,6 +163,7 @@ class NicheResearchDetailSerializer(serializers.ModelSerializer):
             'id', 'status', 'created_at', 'completed_at', 'error_message',
             'completed_nodes', 'current_node', 'total_nodes',
             'marketplace', 'product_type', 'retry_count',
+            'brand_filtered_count',
             'analysis', 'keywords', 'products', 'related_niches',
         ]
         read_only_fields = fields

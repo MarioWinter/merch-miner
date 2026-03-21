@@ -1,86 +1,133 @@
+import { useState } from 'react';
 import { Box, Collapse, IconButton, Typography } from '@mui/material';
 import { alpha, styled } from '@mui/material/styles';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import CancelIcon from '@mui/icons-material/Cancel';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import { useState } from 'react';
 import type { PatternItem } from '../types';
+import { getPatternVisual } from './patternConfig';
 
 interface PatternCardProps {
   pattern: PatternItem;
+  count?: number;
+  onClick?: () => void;
 }
 
-const PATTERN_LABELS: Record<string, string> = {
-  IDENTITY_DECLARATION: 'Identity Declaration',
-  GROUP_LEADER: 'Group Leader',
-  TRIBE_COMMUNITY: 'Tribe / Community',
-  FUNNY_ACTIVITY: 'Funny Activity',
-  CROSS_NICHE_EVENTS: 'Cross-Niche Events',
-  CROSS_NICHE_MASHUP: 'Cross-Niche Mashup',
-  ADDICTION_OBSESSION: 'Addiction / Obsession',
-  VINTAGE_LEGACY: 'Vintage / Legacy',
-  ACHIEVEMENT_GAMIFIED: 'Achievement / Gamified',
-  JOB_PROFESSION_PARODY: 'Job / Profession Parody',
-  RELATIONSHIP_HUMOR: 'Relationship Humor',
-  BOUNDARY_GATEKEEPING: 'Boundary Gatekeeping',
-  ENDURANCE_SURVIVAL: 'Endurance / Survival',
-  COMPETENCE_EXPERTISE: 'Competence / Expertise',
-  CHAOS_CONTROL: 'Chaos / Control',
-  SELF_CARE_PRIORITIES: 'Self-Care Priorities',
-};
-
-const ActiveCard = styled(Box)(({ theme }) => ({
-  background: theme.vars.palette.background.paper,
-  border: `1px solid ${alpha(theme.palette.success.main, 0.3)}`,
+const CardBase = styled(Box)({
   borderRadius: 12,
-  padding: theme.spacing(2, 2.5),
-  transition: 'box-shadow 150ms ease',
-  '&:hover': {
-    boxShadow: `0 4px 16px ${alpha(theme.palette.success.main, 0.1)}`,
-  },
-}));
+  position: 'relative',
+  overflow: 'hidden',
+  transition: 'box-shadow 200ms ease, transform 150ms ease',
+});
 
-const InactiveCard = styled(Box)(({ theme }) => ({
-  background: theme.vars.palette.background.paper,
-  border: `1px solid ${theme.vars.palette.divider}`,
-  borderRadius: 12,
-  padding: theme.spacing(1.5, 2.5),
-  opacity: 0.6,
-  cursor: 'pointer',
-  '&:hover': {
-    opacity: 0.8,
-  },
-}));
-
-export const PatternCard = ({ pattern }: PatternCardProps) => {
+export const PatternCard = ({ pattern, count, onClick }: PatternCardProps) => {
   const [expanded, setExpanded] = useState(false);
-  const label = PATTERN_LABELS[pattern.name] ?? pattern.name;
+  const visual = getPatternVisual(pattern.name);
+  const Icon = visual.icon;
+  const color = visual.color;
 
   if (pattern.present) {
     return (
-      <ActiveCard>
+      <CardBase
+        onClick={onClick}
+        sx={{
+          background: alpha(color, 0.06),
+          border: `1px solid ${alpha(color, 0.22)}`,
+          borderLeft: `3px solid ${alpha(color, 0.5)}`,
+          p: '14px 18px',
+          cursor: onClick ? 'pointer' : 'default',
+          '&:hover': {
+            boxShadow: `0 4px 20px ${alpha(color, 0.12)}`,
+            transform: 'translateY(-1px)',
+          },
+        }}
+      >
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 1 }}>
-          <CheckCircleIcon color="success" sx={{ fontSize: 20 }} />
-          <Typography variant="subtitle2" fontWeight={600}>
-            {label}
+          <Box
+            sx={{
+              width: 28,
+              height: 28,
+              borderRadius: '8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              background: alpha(color, 0.14),
+              flexShrink: 0,
+            }}
+          >
+            <Icon sx={{ fontSize: 17, color }} />
+          </Box>
+          <Typography
+            variant="subtitle2"
+            fontWeight={600}
+            sx={{ letterSpacing: '0.02em', flex: 1 }}
+          >
+            {visual.label}
           </Typography>
+          {count != null && count > 0 && (
+            <Typography
+              variant="caption"
+              fontWeight={600}
+              sx={{
+                backgroundColor: alpha(color, 0.14),
+                color,
+                borderRadius: '6px',
+                px: 1,
+                py: 0.25,
+                fontSize: '0.6875rem',
+                lineHeight: 1.4,
+              }}
+            >
+              {count}
+            </Typography>
+          )}
         </Box>
-        <Typography variant="body2" color="text.secondary">
+        <Typography
+          variant="body2"
+          sx={{ color: 'text.secondary', lineHeight: 1.55, pl: '36px' }}
+        >
           {pattern.context}
         </Typography>
-      </ActiveCard>
+      </CardBase>
     );
   }
 
+  // Inactive card
   return (
-    <InactiveCard onClick={() => setExpanded((prev) => !prev)}>
+    <CardBase
+      onClick={() => setExpanded((prev) => !prev)}
+      sx={{
+        background: 'transparent',
+        border: '1px solid rgba(255,255,255,0.06)',
+        borderLeft: '3px solid rgba(255,255,255,0.04)',
+        opacity: 0.5,
+        cursor: 'pointer',
+        p: '10px 18px',
+        '&:hover': { opacity: 0.7 },
+      }}
+    >
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-        <CancelIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
-        <Typography variant="body2" color="text.disabled" sx={{ flex: 1 }}>
-          {label}
+        <Box
+          sx={{
+            width: 28,
+            height: 28,
+            borderRadius: '8px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: alpha(color, 0.06),
+            flexShrink: 0,
+          }}
+        >
+          <Icon sx={{ fontSize: 17, color: alpha(color, 0.35) }} />
+        </Box>
+        <Typography
+          variant="body2"
+          sx={{ flex: 1, color: 'text.disabled', letterSpacing: '0.01em' }}
+        >
+          {visual.label}
         </Typography>
         <IconButton
           size="small"
+          tabIndex={-1}
           sx={{
             transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
             transition: 'transform 150ms ease',
@@ -91,10 +138,13 @@ export const PatternCard = ({ pattern }: PatternCardProps) => {
         </IconButton>
       </Box>
       <Collapse in={expanded}>
-        <Typography variant="caption" color="text.disabled" sx={{ mt: 1, display: 'block' }}>
+        <Typography
+          variant="caption"
+          sx={{ mt: 1, display: 'block', color: 'text.disabled', pl: '36px' }}
+        >
           {pattern.context || 'Not detected in this niche.'}
         </Typography>
       </Collapse>
-    </InactiveCard>
+    </CardBase>
   );
 };

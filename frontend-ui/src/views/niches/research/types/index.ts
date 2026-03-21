@@ -151,6 +151,7 @@ export interface ResearchProduct {
   rating: number;
   reviews_count: number;
   thumbnail_url: string;
+  brand_blocked: boolean;
   vision_analysis: VisionAnalysis | null;
   emotional_analysis: EmotionalAnalysis | null;
 }
@@ -193,6 +194,7 @@ export interface NicheResearchRun {
   marketplace: Marketplace;
   product_type: ProductType;
   retry_count: number;
+  brand_filtered_count: number;
   analysis: NicheAnalysis | null;
   keywords: NicheKeywords | null;
   products: ResearchProduct[];

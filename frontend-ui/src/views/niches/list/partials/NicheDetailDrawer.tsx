@@ -45,6 +45,7 @@ import type {
 } from '../../research/types';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../../store';
+import { CollectedItemsSection } from './CollectedItemsSection';
 import type { NicheStatus, PotentialRating } from '../types';
 import type { DrawerMode } from '../hooks/useNicheDrawer';
 import { useNicheDetailDrawer } from '../hooks/useNicheDetailDrawer';
@@ -53,6 +54,7 @@ interface NicheDetailDrawerProps {
   open: boolean;
   mode: DrawerMode;
   selectedId: string | null;
+  niche: import('../types').Niche | undefined;
   onClose: () => void;
 }
 
@@ -136,6 +138,7 @@ export const NicheDetailDrawer = ({
   open,
   mode,
   selectedId,
+  niche: nicheProp,
   onClose,
 }: NicheDetailDrawerProps) => {
   const { t } = useTranslation();
@@ -147,7 +150,6 @@ export const NicheDetailDrawer = ({
 
   const {
     niche,
-    isFetching,
     createForm,
     editForm,
     handleCreate,
@@ -163,10 +165,10 @@ export const NicheDetailDrawer = ({
     handleArchiveConfirm,
     requestClose,
     discardAndClose,
-  } = useNicheDetailDrawer({ mode, selectedId, onClose });
+  } = useNicheDetailDrawer({ mode, selectedId, niche: nicheProp, onClose });
 
   const isCreate = mode === 'create';
-  const isBusy = creating || updating || deleting || isFetching;
+  const isBusy = creating || updating || deleting;
 
   // Research filter state
   const [marketplace, setMarketplace] = useState<Marketplace>('amazon_com');
@@ -609,6 +611,9 @@ export const NicheDetailDrawer = ({
                       </Stack>
                     )}
                   </ResearchSection>
+
+                  {/* --- Collected Items Section --- */}
+                  {niche && <CollectedItemsSection nicheId={niche.id} />}
                 </>
               )}
             </Stack>

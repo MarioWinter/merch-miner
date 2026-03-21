@@ -11,13 +11,20 @@ import {
 import { alpha, styled } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import VisibilityIcon from '@mui/icons-material/Visibility';
-import PsychologyIcon from '@mui/icons-material/Psychology';
+import BlockIcon from '@mui/icons-material/Block';
 import { useTranslation } from 'react-i18next';
+import { getPatternVisual } from './patternConfig';
+import { useDispatch, useSelector } from 'react-redux';
+import { useSnackbar } from 'notistack';
 import { MONO_FONT_STACK } from '@/style/constants';
+import { COLORS } from '@/style/constants';
+import { toggleSlogan, selectCollectedSlogans } from '@/store/collectedItemsSlice';
+import type { RootState } from '@/store';
 import type { ResearchProduct } from '../types';
 
 interface ProductAnalysisCardProps {
   product: ResearchProduct;
+  nicheId: string;
 }
 
 const Card = styled(Box)(({ theme }) => ({
@@ -82,11 +89,20 @@ const FieldValue = styled(Typography)({
   fontSize: '0.8125rem',
 });
 
-export const ProductAnalysisCard = ({ product }: ProductAnalysisCardProps) => {
+export const ProductAnalysisCard = ({ product, nicheId }: ProductAnalysisCardProps) => {
   const { t } = useTranslation();
+  const dispatch = useDispatch();
+  const { enqueueSnackbar } = useSnackbar();
   const [expanded, setExpanded] = useState(false);
   const vision = product.vision_analysis;
   const emotional = product.emotional_analysis;
+  const collectedSlogans = useSelector((state: RootState) => selectCollectedSlogans(state, nicheId));
+
+  const handleSloganClick = (sloganText: string) => {
+    dispatch(toggleSlogan({ nicheId, value: sloganText }));
+    navigator.clipboard.writeText(sloganText);
+    enqueueSnackbar(t('research.products.slogan') + ': ' + sloganText, { variant: 'success' });
+  };
 
   return (
     <Card>
@@ -108,6 +124,23 @@ export const ProductAnalysisCard = ({ product }: ProductAnalysisCardProps) => {
               <Typography variant="caption" color="text.secondary">
                 {product.brand}
               </Typography>
+            )}
+            {product.brand_blocked && (
+              <Chip
+                icon={<BlockIcon sx={{ fontSize: 12 }} />}
+                label={t('research.products.trademark')}
+                size="small"
+                sx={(theme) => ({
+                  height: 20,
+                  fontSize: '0.6875rem',
+                  backgroundColor: alpha(theme.palette.warning.main, 0.12),
+                  color: theme.vars.palette.warning.main,
+                  borderRadius: '4px',
+                  '& .MuiChip-icon': {
+                    color: 'inherit',
+                  },
+                })}
+              />
             )}
           </Stack>
           <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 0.5 }}>
@@ -140,31 +173,43 @@ export const ProductAnalysisCard = ({ product }: ProductAnalysisCardProps) => {
       {(vision || emotional) && (
         <Box sx={{ px: 2.5, pb: 1.5 }}>
           <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
-            {vision?.slogan_text && (
-              <Chip
-                icon={<VisibilityIcon sx={{ fontSize: 14 }} />}
-                label={vision.slogan_text}
-                size="small"
-                sx={(theme) => ({
-                  backgroundColor: alpha(theme.palette.secondary.main, 0.1),
-                  color: theme.vars.palette.secondary.main,
-                  borderRadius: '6px',
-                  maxWidth: 240,
-                })}
-              />
-            )}
-            {emotional?.emotional_pattern && (
-              <Chip
-                icon={<PsychologyIcon sx={{ fontSize: 14 }} />}
-                label={emotional.emotional_pattern}
-                size="small"
-                sx={(theme) => ({
-                  backgroundColor: alpha(theme.palette.primary.main, 0.12),
-                  color: theme.vars.palette.primary.main,
-                  borderRadius: '6px',
-                })}
-              />
-            )}
+            {vision?.slogan_text && (() => {
+              const isCollected = collectedSlogans.includes(vision.slogan_text);
+              return (
+                <Chip
+                  icon={<VisibilityIcon sx={{ fontSize: 14 }} />}
+                  label={vision.slogan_text}
+                  size="small"
+                  onClick={() => handleSloganClick(vision.slogan_text)}
+                  sx={(theme) => ({
+                    backgroundColor: isCollected
+                      ? alpha(COLORS.cyan, 0.2)
+                      : alpha(theme.palette.secondary.main, 0.1),
+                    color: isCollected ? COLORS.cyan : theme.vars.palette.secondary.main,
+                    border: isCollected ? `1px solid ${COLORS.cyan}` : '1px solid transparent',
+                    borderRadius: '6px',
+                    cursor: 'pointer',
+                    transition: 'all 150ms ease',
+                  })}
+                />
+              );
+            })()}
+            {emotional?.emotional_pattern && (() => {
+              const visual = getPatternVisual(emotional.emotional_pattern);
+              const PatternIcon = visual.icon;
+              return (
+                <Chip
+                  icon={<PatternIcon sx={{ fontSize: 14 }} />}
+                  label={emotional.emotional_pattern}
+                  size="small"
+                  sx={{
+                    backgroundColor: alpha(visual.color, 0.12),
+                    color: visual.color,
+                    borderRadius: '6px',
+                  }}
+                />
+              );
+            })()}
           </Stack>
         </Box>
       )}

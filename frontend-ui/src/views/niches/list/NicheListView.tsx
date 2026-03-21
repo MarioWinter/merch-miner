@@ -81,6 +81,7 @@ const NicheListView = () => {
   const { filters, setOrdering, resetFilters, setPage } = filterState;
 
   const { drawerState, openCreate, openEdit, closeDrawer } = useNicheDrawer();
+
   const selection = useNicheSelection();
   const inlineEdit = useInlineEdit();
   const inlineAdd = useInlineAdd();
@@ -200,6 +201,7 @@ const NicheListView = () => {
         open={drawerState.open}
         mode={drawerState.mode}
         selectedId={drawerState.selectedId}
+        niche={data?.results.find((n) => n.id === drawerState.selectedId)}
         onClose={closeDrawer}
       />
 

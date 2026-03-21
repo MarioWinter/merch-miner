@@ -4,7 +4,7 @@ import {
   TableCell,
   Tooltip,
 } from '@mui/material';
-import { alpha, styled } from '@mui/material/styles';
+import { styled } from '@mui/material/styles';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
@@ -62,7 +62,7 @@ export const DeepDrillCell = ({ niche, width }: DeepDrillCellProps) => {
   } else {
     icon = (
       <AutoAwesomeIcon
-        sx={{ fontSize: 18, color: alpha(COLORS.red, 0.6) }}
+        sx={{ fontSize: 18, color: COLORS.cyan }}
       />
     );
     tooltip = t('niches.table.deepDrill.idle');

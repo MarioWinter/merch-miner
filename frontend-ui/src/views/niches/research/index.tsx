@@ -1,19 +1,24 @@
-import { Box, CircularProgress, Stack, Typography } from '@mui/material';
+import { useCallback, useMemo, useState } from 'react';
+import { Alert, Box, CircularProgress, Stack, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import IconButton from '@mui/material/IconButton';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useGetNicheQuery } from '@/store/nicheSlice';
 import { useNicheResearch } from './hooks/useNicheResearch';
 import { ResearchTriggerButton } from './partials/ResearchTriggerButton';
 import { ResearchProgress } from './partials/ResearchProgress';
 import { NicheSummaryCard } from './partials/NicheSummaryCard';
 import { PatternGrid } from './partials/PatternGrid';
 import { KeywordChips } from './partials/KeywordChips';
-import { ProductAnalysisCard } from './partials/ProductAnalysisCard';
+import { GroupedProductAnalysis } from './partials/GroupedProductAnalysis';
+import { normalizePatternKey } from './partials/patternConfig';
 import { RelatedNiches } from './partials/RelatedNiches';
 import { ResearchErrorState } from './partials/ResearchErrorState';
 import { ResearchEmptyState } from './partials/ResearchEmptyState';
+import { NicheDetailDrawer } from '../list/partials/NicheDetailDrawer';
+import type { Marketplace, ProductType } from './types';
 
 const PageHeader = styled(Box)(({ theme }) => ({
   display: 'flex',
@@ -34,6 +39,25 @@ const NicheResearchView = () => {
   const [searchParams] = useSearchParams();
   const nicheId = searchParams.get('nicheId');
   const nicheName = searchParams.get('nicheName') ?? '';
+  const initialMarketplace = searchParams.get('marketplace') as Marketplace | null;
+  const initialProductType = searchParams.get('product_type') as ProductType | null;
+
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const [showHint, setShowHint] = useState(
+    () => localStorage.getItem('research_dblclick_hint_seen') !== 'true',
+  );
+
+  const handleDoubleClick = useCallback(() => {
+    if (!nicheId) return;
+    if (showHint) {
+      localStorage.setItem('research_dblclick_hint_seen', 'true');
+      setShowHint(false);
+    }
+    setDrawerOpen(true);
+  }, [nicheId, showHint]);
+
+  const { data: nicheData } = useGetNicheQuery(nicheId ?? '', { skip: !nicheId });
 
   const {
     data,
@@ -44,6 +68,20 @@ const NicheResearchView = () => {
     cancelResearch,
   } = useNicheResearch(nicheId);
 
+  const products = data?.products;
+  const productCounts = useMemo(() => {
+    if (!products) return {};
+    const counts: Record<string, number> = {};
+    for (const p of products) {
+      const raw = p.emotional_analysis?.emotional_pattern;
+      if (raw) {
+        const pattern = normalizePatternKey(raw);
+        counts[pattern] = (counts[pattern] ?? 0) + 1;
+      }
+    }
+    return counts;
+  }, [products]);
+
   const status = data?.status ?? null;
   const isRunning = status === 'pending' || status === 'running' || isPolling;
   const isCompleted = status === 'completed';
@@ -52,7 +90,7 @@ const NicheResearchView = () => {
   const hasNoResearch = !data && !isLoading && !error;
 
   return (
-    <Box>
+    <Box onDoubleClick={handleDoubleClick} sx={{ cursor: 'default' }}>
       <PageHeader>
         <Stack direction="row" spacing={1.5} alignItems="center">
           <IconButton
@@ -77,8 +115,16 @@ const NicheResearchView = () => {
           isPolling={isPolling}
           onTrigger={triggerResearch}
           onCancel={cancelResearch}
+          initialMarketplace={initialMarketplace ?? undefined}
+          initialProductType={initialProductType ?? undefined}
         />
       </PageHeader>
+
+      {showHint && (
+        <Typography variant="caption" color="text.disabled" sx={{ mb: 1, display: 'block' }}>
+          {t('research.doubleClickHint')}
+        </Typography>
+      )}
 
       {/* Loading */}
       {isLoading && (
@@ -123,32 +169,49 @@ const NicheResearchView = () => {
 
           {/* Patterns */}
           {data.analysis?.pattern_analysis && (
-            <PatternGrid patterns={data.analysis.pattern_analysis} />
+            <PatternGrid
+              patterns={data.analysis.pattern_analysis}
+              productCounts={productCounts}
+              onPatternClick={(name) => {
+                document
+                  .getElementById(`pattern-${name}`)
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }}
+            />
           )}
 
           {/* Keywords */}
           {data.keywords && (
-            <KeywordChips keywords={data.keywords} />
+            <KeywordChips keywords={data.keywords} nicheId={nicheId!} />
           )}
 
-          {/* Products */}
+          {/* Brand filter info */}
+          {data.brand_filtered_count > 0 && (
+            <Alert severity="info" variant="outlined">
+              {t('research.brandFiltered', { count: data.brand_filtered_count })}
+            </Alert>
+          )}
+
+          {/* Products grouped by pattern */}
           {data.products.length > 0 && (
-            <Box>
-              <Typography variant="h5" fontWeight={600} sx={{ mb: 2 }}>
-                {t('research.products.title')}
-              </Typography>
-              <Stack spacing={1.5}>
-                {data.products.map((product) => (
-                  <ProductAnalysisCard key={product.asin} product={product} />
-                ))}
-              </Stack>
-            </Box>
+            <GroupedProductAnalysis
+              products={data.products}
+              nicheId={nicheId!}
+            />
           )}
 
           {/* Related niches */}
           <RelatedNiches niches={data.related_niches} />
         </Stack>
       )}
+
+      <NicheDetailDrawer
+        open={drawerOpen}
+        mode="edit"
+        selectedId={nicheId}
+        niche={nicheData}
+        onClose={() => setDrawerOpen(false)}
+      />
     </Box>
   );
 };

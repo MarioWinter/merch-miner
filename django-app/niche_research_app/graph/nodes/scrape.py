@@ -45,79 +45,101 @@ async def scrape_node(state: ResearchState) -> dict:
         NicheResearch.objects.filter(id=research_id).update
     )(status=NicheResearch.Status.RUNNING)
 
-    # Check for existing cache or create new scrape job
-    cache, is_new = await sync_to_async(get_or_create_keyword_cache)(
-        niche_name, marketplace,
-    )
+    # DB-first: use existing products if available
+    keyword_obj = await sync_to_async(
+        Keyword.objects.filter(keyword=niche_name, marketplace=marketplace).first
+    )()
 
-    if cache and not is_new:
-        # Fresh cache exists or pending job already running
-        if cache.status == ProductSearchCache.Status.COMPLETED:
-            logger.info("Using fresh cache for '%s'", niche_name)
+    @sync_to_async
+    def _has_products(kw):
+        return AmazonProduct.objects.filter(keywords=kw).exists()
+
+    needs_scrape = keyword_obj is None or not await _has_products(keyword_obj)
+
+    if needs_scrape:
+        # Check for existing cache or create new scrape job
+        cache, is_new = await sync_to_async(get_or_create_keyword_cache)(
+            niche_name, marketplace,
+        )
+
+        if cache and not is_new:
+            # Fresh cache exists or pending job already running
+            if cache.status == ProductSearchCache.Status.COMPLETED:
+                logger.info("Using fresh cache for '%s'", niche_name)
+            else:
+                # Wait for pending job
+                logger.info("Pending scrape for '%s', waiting...", niche_name)
+                elapsed = 0
+                while elapsed < MAX_POLL_SECONDS:
+                    await asyncio.sleep(POLL_INTERVAL_SECONDS)
+                    elapsed += POLL_INTERVAL_SECONDS
+                    await sync_to_async(cache.refresh_from_db)()
+                    if cache.status != ProductSearchCache.Status.PENDING:
+                        break
+
+                if cache.status == ProductSearchCache.Status.FAILED:
+                    raise RuntimeError(
+                        f"Scrape failed for keyword '{niche_name}'"
+                    )
+                if cache.status == ProductSearchCache.Status.PENDING:
+                    raise TimeoutError(
+                        f"Scrape timed out after {MAX_POLL_SECONDS}s for '{niche_name}'"
+                    )
         else:
-            # Wait for pending job
-            logger.info("Pending scrape for '%s', waiting...", niche_name)
-            elapsed = 0
-            while elapsed < MAX_POLL_SECONDS:
-                await asyncio.sleep(POLL_INTERVAL_SECONDS)
-                elapsed += POLL_INTERVAL_SECONDS
-                await sync_to_async(cache.refresh_from_db)()
-                if cache.status != ProductSearchCache.Status.PENDING:
-                    break
+            # Need to trigger a new scrape
+            keyword_obj, _ = await sync_to_async(Keyword.objects.get_or_create)(
+                keyword=niche_name, marketplace=marketplace,
+            )
+            scrape_job = await sync_to_async(ScrapeJob.objects.create)(
+                mode=ScrapeJob.Mode.SEARCH_PAGE_ONLY,
+                keyword=keyword_obj,
+                marketplace=marketplace,
+                status=ScrapeJob.Status.PENDING,
+                pages_total=2,
+                product_type_filter=product_type,
+            )
+            cache = await sync_to_async(ProductSearchCache.objects.create)(
+                keyword=keyword_obj,
+                scrape_job=scrape_job,
+                status=ProductSearchCache.Status.PENDING,
+            )
 
+            # Build spider kwargs for product type filter
+            spider_kwargs = {}
+            if product_type and product_type in PRODUCT_TYPE_SPIDER_KWARGS:
+                spider_kwargs = PRODUCT_TYPE_SPIDER_KWARGS[product_type].copy()
+
+            # Run scrape in thread pool (blocking subprocess)
+            await sync_to_async(scrape_search_page_job)(
+                keyword_str=niche_name,
+                marketplace=marketplace,
+                scrape_job_id=str(scrape_job.id),
+                **spider_kwargs,
+            )
+
+            # Refresh cache status
+            await sync_to_async(cache.refresh_from_db)()
             if cache.status == ProductSearchCache.Status.FAILED:
                 raise RuntimeError(
                     f"Scrape failed for keyword '{niche_name}'"
                 )
-            if cache.status == ProductSearchCache.Status.PENDING:
-                raise TimeoutError(
-                    f"Scrape timed out after {MAX_POLL_SECONDS}s for '{niche_name}'"
-                )
+
+            # Poll if still pending (shouldn't happen normally after sync scrape)
+            elapsed = 0
+            while cache.status == ProductSearchCache.Status.PENDING and elapsed < MAX_POLL_SECONDS:
+                await asyncio.sleep(POLL_INTERVAL_SECONDS)
+                elapsed += POLL_INTERVAL_SECONDS
+                await sync_to_async(cache.refresh_from_db)()
     else:
-        # Need to trigger a new scrape
-        keyword_obj, _ = await sync_to_async(Keyword.objects.get_or_create)(
-            keyword=niche_name, marketplace=marketplace,
-        )
-        scrape_job = await sync_to_async(ScrapeJob.objects.create)(
-            mode=ScrapeJob.Mode.SEARCH_PAGE_ONLY,
-            keyword=keyword_obj,
-            marketplace=marketplace,
-            status=ScrapeJob.Status.PENDING,
-            pages_total=2,
-            product_type_filter=product_type,
-        )
-        cache = await sync_to_async(ProductSearchCache.objects.create)(
-            keyword=keyword_obj,
-            scrape_job=scrape_job,
-            status=ProductSearchCache.Status.PENDING,
-        )
+        @sync_to_async
+        def _count_products(kw):
+            return AmazonProduct.objects.filter(keywords=kw).count()
 
-        # Build spider kwargs for product type filter
-        spider_kwargs = {}
-        if product_type and product_type in PRODUCT_TYPE_SPIDER_KWARGS:
-            spider_kwargs = PRODUCT_TYPE_SPIDER_KWARGS[product_type].copy()
-
-        # Run scrape in thread pool (blocking subprocess)
-        await sync_to_async(scrape_search_page_job)(
-            keyword_str=niche_name,
-            marketplace=marketplace,
-            scrape_job_id=str(scrape_job.id),
-            **spider_kwargs,
+        count = await _count_products(keyword_obj)
+        logger.info(
+            "DB-first: found %d existing products for '%s', skipping scrape",
+            count, niche_name,
         )
-
-        # Refresh cache status
-        await sync_to_async(cache.refresh_from_db)()
-        if cache.status == ProductSearchCache.Status.FAILED:
-            raise RuntimeError(
-                f"Scrape failed for keyword '{niche_name}'"
-            )
-
-        # Poll if still pending (shouldn't happen normally after sync scrape)
-        elapsed = 0
-        while cache.status == ProductSearchCache.Status.PENDING and elapsed < MAX_POLL_SECONDS:
-            await asyncio.sleep(POLL_INTERVAL_SECONDS)
-            elapsed += POLL_INTERVAL_SECONDS
-            await sync_to_async(cache.refresh_from_db)()
 
     # Gather products
     keyword_obj = await sync_to_async(Keyword.objects.get)(
@@ -138,15 +160,22 @@ async def scrape_node(state: ResearchState) -> dict:
             f"No products found for keyword '{niche_name}'"
         )
 
-    # Create NicheResearchProduct entries
+    # Create NicheResearchProduct entries with brand_blocked flag
     @sync_to_async
     def _create_research_products():
+        from scraper_app.brand_filter import get_blacklisted_brands, is_brand_blocked
+
         research = NicheResearch.objects.get(id=research_id)
         amazon_products = AmazonProduct.objects.filter(
             asin__in=product_asins, keywords=keyword_obj,
         )
+        blacklist = get_blacklisted_brands()
         entries = [
-            NicheResearchProduct(research=research, product=p)
+            NicheResearchProduct(
+                research=research,
+                product=p,
+                brand_blocked=is_brand_blocked(p.brand, blacklist),
+            )
             for p in amazon_products
         ]
         NicheResearchProduct.objects.bulk_create(entries, ignore_conflicts=True)

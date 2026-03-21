@@ -21,6 +21,16 @@ from niche_research_app.models import NicheResearch, ResearchNodeConfig
 from niche_research_app.tests.conftest import _auth_client, _make_user
 
 
+def _mock_rq_queue(mock_rq):
+    """Configure mock django_rq so enqueue() returns a job with a string id."""
+    mock_queue = MagicMock()
+    mock_job = MagicMock()
+    mock_job.id = 'test-job-id-123'
+    mock_queue.enqueue.return_value = mock_job
+    mock_rq.get_queue.return_value = mock_queue
+    return mock_queue
+
+
 # ---------------------------------------------------------------------------
 # POST /api/niches/{id}/research/
 # ---------------------------------------------------------------------------
@@ -31,8 +41,7 @@ class TestResearchTrigger:
     @patch('niche_research_app.api.views.django_rq')
     def test_trigger_success(self, mock_rq, niche, auth_client, research_configs):
         """POST creates NicheResearch and enqueues job."""
-        mock_queue = MagicMock()
-        mock_rq.get_queue.return_value = mock_queue
+        mock_queue = _mock_rq_queue(mock_rq)
 
         url = reverse('niche-research', kwargs={'niche_id': niche.id})
         resp = auth_client.post(url)
@@ -74,17 +83,33 @@ class TestResearchTrigger:
         assert resp.status_code == status.HTTP_409_CONFLICT
 
     @patch('niche_research_app.api.views.django_rq')
-    def test_trigger_allows_after_completed(self, mock_rq, niche, auth_client, user_with_workspace):
-        """Can trigger new research after previous completed."""
+    def test_trigger_returns_existing_completed(self, mock_rq, niche, auth_client, user_with_workspace):
+        """POST with completed research and no force_refresh returns existing (200)."""
         user, _ = user_with_workspace
         NicheResearch.objects.create(
             niche=niche, triggered_by=user,
             status=NicheResearch.Status.COMPLETED,
         )
 
-        mock_rq.get_queue.return_value = MagicMock()
+        _mock_rq_queue(mock_rq)
         url = reverse('niche-research', kwargs={'niche_id': niche.id})
         resp = auth_client.post(url)
+
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data['status'] == 'completed'
+
+    @patch('niche_research_app.api.views.django_rq')
+    def test_trigger_force_refresh_after_completed(self, mock_rq, niche, auth_client, user_with_workspace):
+        """POST with force_refresh=True on completed re-triggers (201)."""
+        user, _ = user_with_workspace
+        NicheResearch.objects.create(
+            niche=niche, triggered_by=user,
+            status=NicheResearch.Status.COMPLETED,
+        )
+
+        _mock_rq_queue(mock_rq)
+        url = reverse('niche-research', kwargs={'niche_id': niche.id})
+        resp = auth_client.post(url, {'force_refresh': True})
 
         assert resp.status_code == status.HTTP_201_CREATED
 
@@ -97,7 +122,7 @@ class TestResearchTrigger:
             status=NicheResearch.Status.FAILED,
         )
 
-        mock_rq.get_queue.return_value = MagicMock()
+        _mock_rq_queue(mock_rq)
         url = reverse('niche-research', kwargs={'niche_id': niche.id})
         resp = auth_client.post(url)
 
@@ -136,7 +161,7 @@ class TestResearchTrigger:
         config.temperature = 0.99
         config.save()
 
-        mock_rq.get_queue.return_value = MagicMock()
+        _mock_rq_queue(mock_rq)
         url = reverse('niche-research', kwargs={'niche_id': niche.id})
         auth_client.post(url)
 
@@ -342,3 +367,264 @@ class TestWorkspaceScoping:
         url = reverse('niche-research', kwargs={'niche_id': other_niche.id})
         resp = auth_client.get(url)
         assert resp.status_code == status.HTTP_403_FORBIDDEN
+
+
+# ---------------------------------------------------------------------------
+# Task 9.3: Retry / Force Refresh / Brand Filtered Count
+# ---------------------------------------------------------------------------
+
+@pytest.mark.django_db
+class TestRetryAndForceRefresh:
+    """Tests for retry failed runs, force_refresh completed runs, max retries."""
+
+    @patch('niche_research_app.api.views.django_rq')
+    def test_trigger_creates_new_research(self, mock_rq, niche, auth_client, research_configs):
+        """POST with no existing run creates a new NicheResearch."""
+        mock_queue = _mock_rq_queue(mock_rq)
+
+        url = reverse('niche-research', kwargs={'niche_id': niche.id})
+        resp = auth_client.post(url, {
+            'marketplace': 'amazon_com',
+            'product_type': 't_shirt',
+        })
+
+        assert resp.status_code == status.HTTP_201_CREATED
+        assert resp.data['status'] == 'pending'
+        assert resp.data['marketplace'] == 'amazon_com'
+        assert resp.data['product_type'] == 't_shirt'
+        mock_queue.enqueue.assert_called_once()
+
+    @patch('niche_research_app.api.views.django_rq')
+    def test_409_when_pending_exists(self, mock_rq, niche, auth_client, user_with_workspace):
+        """409 when pending research already exists."""
+        user, _ = user_with_workspace
+        NicheResearch.objects.create(
+            niche=niche, triggered_by=user,
+            status=NicheResearch.Status.PENDING,
+        )
+        mock_rq.get_queue.return_value = MagicMock()
+
+        url = reverse('niche-research', kwargs={'niche_id': niche.id})
+        resp = auth_client.post(url)
+
+        assert resp.status_code == status.HTTP_409_CONFLICT
+
+    @patch('niche_research_app.api.views.django_rq')
+    def test_409_when_running_exists(self, mock_rq, niche, auth_client, user_with_workspace):
+        """409 when running research exists."""
+        user, _ = user_with_workspace
+        NicheResearch.objects.create(
+            niche=niche, triggered_by=user,
+            status=NicheResearch.Status.RUNNING,
+        )
+        mock_rq.get_queue.return_value = MagicMock()
+
+        url = reverse('niche-research', kwargs={'niche_id': niche.id})
+        resp = auth_client.post(url)
+
+        assert resp.status_code == status.HTTP_409_CONFLICT
+
+    @patch('niche_research_app.api.views.django_rq')
+    def test_retry_failed_run_reuses_record(self, mock_rq, niche, auth_client, user_with_workspace):
+        """Retrying a failed run reuses the same NicheResearch, increments retry_count."""
+        user, _ = user_with_workspace
+        research = NicheResearch.objects.create(
+            niche=niche, triggered_by=user,
+            status=NicheResearch.Status.FAILED,
+            error_message='LLM timeout',
+            completed_nodes=['scrape', 'vision_analyze'],
+            retry_count=0,
+        )
+        original_id = research.id
+
+        mock_queue = _mock_rq_queue(mock_rq)
+
+        url = reverse('niche-research', kwargs={'niche_id': niche.id})
+        resp = auth_client.post(url)
+
+        assert resp.status_code == status.HTTP_201_CREATED
+        assert resp.data['id'] == str(original_id)  # same record reused
+        assert resp.data['status'] == 'pending'
+        assert resp.data['retry_count'] == 1
+
+        # Verify DB state
+        research.refresh_from_db()
+        assert research.retry_count == 1
+        assert research.status == NicheResearch.Status.PENDING
+        assert research.error_message == ''
+        assert research.completed_nodes == ['scrape', 'vision_analyze']  # kept
+
+        niche.refresh_from_db()
+        assert niche.research_retry_count == 1
+
+        mock_queue.enqueue.assert_called_once()
+
+    @patch('niche_research_app.api.views.django_rq')
+    def test_max_retries_exceeded(self, mock_rq, niche, auth_client, user_with_workspace):
+        """400 when niche.research_retry_count >= 3."""
+        user, _ = user_with_workspace
+        niche.research_retry_count = 3
+        niche.save(update_fields=['research_retry_count'])
+
+        NicheResearch.objects.create(
+            niche=niche, triggered_by=user,
+            status=NicheResearch.Status.FAILED,
+        )
+
+        mock_rq.get_queue.return_value = MagicMock()
+        url = reverse('niche-research', kwargs={'niche_id': niche.id})
+        resp = auth_client.post(url)
+
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'max retries' in resp.data['error'].lower()
+
+    @patch('niche_research_app.api.views.django_rq')
+    def test_completed_no_force_refresh_returns_existing(
+        self, mock_rq, niche, auth_client, user_with_workspace,
+    ):
+        """Completed + force_refresh=False returns existing research (200, no new job)."""
+        user, _ = user_with_workspace
+        research = NicheResearch.objects.create(
+            niche=niche, triggered_by=user,
+            status=NicheResearch.Status.COMPLETED,
+            brand_filtered_count=5,
+        )
+
+        mock_queue = MagicMock()
+        mock_rq.get_queue.return_value = mock_queue
+
+        url = reverse('niche-research', kwargs={'niche_id': niche.id})
+        resp = auth_client.post(url, {'force_refresh': False})
+
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data['id'] == str(research.id)
+        assert resp.data['status'] == 'completed'
+        mock_queue.enqueue.assert_not_called()
+
+    @patch('niche_research_app.api.views.django_rq')
+    def test_force_refresh_completed_run(
+        self, mock_rq, niche, auth_client, user_with_workspace, amazon_products,
+    ):
+        """force_refresh=True on completed: reuses record, deletes LLM results, keeps products."""
+        user, _ = user_with_workspace
+        from niche_research_app.models import (
+            NicheAnalysis,
+            NicheKeywordAnalysis,
+            NicheProductEmotionalAnalysis,
+            NicheProductVisionAnalysis,
+            NicheResearchProduct,
+        )
+
+        research = NicheResearch.objects.create(
+            niche=niche, triggered_by=user,
+            status=NicheResearch.Status.COMPLETED,
+            completed_nodes=['scrape', 'vision_analyze', 'emotional_analyze',
+                             'niche_profile', 'keywords', 'finalize'],
+        )
+        original_id = research.id
+
+        # Create child records
+        for p in amazon_products:
+            NicheResearchProduct.objects.create(research=research, product=p)
+            NicheProductVisionAnalysis.objects.create(
+                research=research, product=p,
+                slogan_text=f'Test {p.asin}', is_niche_match=True,
+            )
+            NicheProductEmotionalAnalysis.objects.create(
+                research=research, product=p,
+                original_slogan=f'Test {p.asin}',
+            )
+        NicheAnalysis.objects.create(research=research, niche=niche)
+        NicheKeywordAnalysis.objects.create(research=research, niche=niche)
+
+        mock_queue = _mock_rq_queue(mock_rq)
+
+        url = reverse('niche-research', kwargs={'niche_id': niche.id})
+        resp = auth_client.post(url, {'force_refresh': True})
+
+        assert resp.status_code == status.HTTP_201_CREATED
+        assert resp.data['id'] == str(original_id)
+        assert resp.data['status'] == 'pending'
+        assert resp.data['completed_nodes'] == ['scrape']
+
+        # LLM results deleted
+        assert NicheProductVisionAnalysis.objects.filter(research=research).count() == 0
+        assert NicheProductEmotionalAnalysis.objects.filter(research=research).count() == 0
+        assert NicheAnalysis.objects.filter(research=research).count() == 0
+        assert NicheKeywordAnalysis.objects.filter(research=research).count() == 0
+
+        # Products kept
+        assert NicheResearchProduct.objects.filter(research=research).count() == 3
+
+        mock_queue.enqueue.assert_called_once()
+
+    @patch('niche_research_app.api.views.django_rq')
+    def test_marketplace_product_type_passed(
+        self, mock_rq, niche, auth_client, research_configs,
+    ):
+        """Marketplace + product_type stored on research record."""
+        mock_queue = _mock_rq_queue(mock_rq)
+
+        url = reverse('niche-research', kwargs={'niche_id': niche.id})
+        resp = auth_client.post(url, {
+            'marketplace': 'amazon_de',
+            'product_type': 'hoodie',
+        })
+
+        assert resp.status_code == status.HTTP_201_CREATED
+        assert resp.data['marketplace'] == 'amazon_de'
+        assert resp.data['product_type'] == 'hoodie'
+
+        research = NicheResearch.objects.get(niche=niche)
+        assert research.marketplace == 'amazon_de'
+        assert research.product_type == 'hoodie'
+
+    @patch('niche_research_app.api.views.django_rq')
+    def test_brand_filtered_count_in_response(
+        self, mock_rq, niche, auth_client, user_with_workspace,
+    ):
+        """brand_filtered_count is included in serializer response."""
+        user, _ = user_with_workspace
+        NicheResearch.objects.create(
+            niche=niche, triggered_by=user,
+            status=NicheResearch.Status.COMPLETED,
+            brand_filtered_count=7,
+        )
+
+        url = reverse('niche-research', kwargs={'niche_id': niche.id})
+        resp = auth_client.post(url, {'force_refresh': False})
+
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data['brand_filtered_count'] == 7
+
+    @patch('niche_research_app.api.views.django_rq')
+    def test_brand_filtered_count_in_latest(
+        self, mock_rq, completed_research, niche, auth_client,
+    ):
+        """brand_filtered_count appears in latest detail response."""
+        completed_research.brand_filtered_count = 3
+        completed_research.save(update_fields=['brand_filtered_count'])
+
+        url = reverse('niche-research-latest', kwargs={'niche_id': niche.id})
+        resp = auth_client.get(url)
+
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data['brand_filtered_count'] == 3
+
+    @patch('niche_research_app.api.views.django_rq')
+    def test_brand_filtered_count_in_list(
+        self, mock_rq, niche, auth_client, user_with_workspace,
+    ):
+        """brand_filtered_count appears in list response items."""
+        user, _ = user_with_workspace
+        NicheResearch.objects.create(
+            niche=niche, triggered_by=user,
+            status=NicheResearch.Status.COMPLETED,
+            brand_filtered_count=2,
+        )
+
+        url = reverse('niche-research', kwargs={'niche_id': niche.id})
+        resp = auth_client.get(url)
+
+        assert resp.status_code == status.HTTP_200_OK
+        assert resp.data['results'][0]['brand_filtered_count'] == 2

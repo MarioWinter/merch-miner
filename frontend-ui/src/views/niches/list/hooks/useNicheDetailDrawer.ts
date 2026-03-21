@@ -7,16 +7,16 @@ import {
   useCreateNicheMutation,
   useUpdateNicheMutation,
   useDeleteNicheMutation,
-  useGetNicheQuery,
 } from '../../../../store/nicheSlice';
 import { createNicheSchema, updateNicheSchema } from '../schemas/nicheSchema';
 import type { CreateNicheFormValues, UpdateNicheFormValues } from '../schemas/nicheSchema';
-import type { NicheUpdateBody } from '../types';
+import type { Niche, NicheUpdateBody } from '../types';
 import type { DrawerMode } from './useNicheDrawer';
 
 interface UseNicheDetailDrawerOptions {
   mode: DrawerMode;
   selectedId: string | null;
+  niche: Niche | undefined;
   onClose: () => void;
 }
 
@@ -39,14 +39,11 @@ const extractErrorMessage = (error: unknown): string | null => {
 export const useNicheDetailDrawer = ({
   mode,
   selectedId,
+  niche,
   onClose,
 }: UseNicheDetailDrawerOptions) => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
-
-  const { data: niche, isFetching } = useGetNicheQuery(selectedId ?? '', {
-    skip: mode !== 'edit' || !selectedId,
-  });
 
   const [createNiche, { isLoading: creating }] = useCreateNicheMutation();
   const [updateNiche, { isLoading: updating }] = useUpdateNicheMutation();
@@ -152,7 +149,6 @@ export const useNicheDetailDrawer = ({
 
   return {
     niche,
-    isFetching,
     createForm,
     editForm,
     handleCreate,

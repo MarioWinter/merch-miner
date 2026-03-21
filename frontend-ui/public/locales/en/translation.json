@@ -211,7 +211,11 @@
       "unsavedChangesTitle": "Unsaved changes",
       "unsavedChangesBody": "You have unsaved changes. Discard them?",
       "discardChanges": "Discard",
-      "keepEditing": "Keep editing"
+      "keepEditing": "Keep editing",
+      "collectedSlogans": "Collected Slogans",
+      "collectedKeywords": "Collected Keywords",
+      "copyAll": "Copy All",
+      "copiedAll": "All copied to clipboard"
     },
     "empty": {
       "noNiches": "No niches yet",
@@ -341,10 +345,18 @@
       "longTail": "Long-Tail",
       "focus": "Focus Keywords",
       "longTailTop": "Top Long-Tail",
-      "allFlat": "All Keywords"
+      "allFlat": "All Keywords",
+      "copied": "{{count}} keywords copied",
+      "clipboardCleared": "Clipboard cleared",
+      "researchKeyword": "Live Research (coming soon)",
+      "comingSoon": "Live Research — coming soon",
+      "clearSelection": "Clear selection",
+      "clipboardCount": "{{count}} keywords in clipboard"
     },
+    "brandFiltered": "{{count}} products filtered (trademark brands)",
     "products": {
       "title": "Analyzed Products",
+      "trademark": "Trademark",
       "reviews": "{{count}} reviews",
       "vision": "Vision Analysis",
       "emotional": "Emotional Analysis",
@@ -367,7 +379,11 @@
       "worksBestIn": "Works best in",
       "avoidIn": "Avoid in",
       "successFactors": "Success factors",
-      "noProducts": "No analyzed products"
+      "noProducts": "No analyzed products",
+      "collapseAll": "Collapse All",
+      "expandAll": "Expand All",
+      "productCount": "{{count}} products",
+      "uncategorized": "Uncategorized"
     },
     "related": {
       "title": "Related Niches",
@@ -381,13 +397,14 @@
       "timeoutTitle": "Research Timed Out",
       "timeoutMessage": "The research exceeded the 20-minute limit. Try again."
     },
+    "doubleClickHint": "Double-click anywhere to open niche details",
     "empty": {
       "title": "No research yet",
       "hint": "Run AI Research to analyze this niche."
     },
     "drawer": {
       "sectionTitle": "AI Research",
-      "startResearch": "Start Research",
+      "startResearch": "Deep Drilling",
       "viewResults": "View Results",
       "reAnalyze": "Re-analyze",
       "completedOn": "Completed {{date}}",

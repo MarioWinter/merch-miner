@@ -1,17 +1,17 @@
 import { useState } from 'react';
 import {
   Box,
-  Button,
   FormControlLabel,
   MenuItem,
   Stack,
   Switch,
   TextField,
+  Typography,
 } from '@mui/material';
-import { styled, keyframes } from '@mui/material/styles';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import StopCircleIcon from '@mui/icons-material/StopCircle';
 import { useTranslation } from 'react-i18next';
+import { SonarPulseButton } from '@/components/SonarPulseButton';
+import { MagmaCoreButton } from '@/components/MagmaCoreButton';
+import { DataPrismButton } from '@/components/DataPrismButton';
 import {
   MARKETPLACES,
   PRODUCT_TYPES,
@@ -28,46 +28,23 @@ interface ResearchTriggerButtonProps {
   isPolling: boolean;
   onTrigger: (params?: ResearchTriggerParams) => void;
   onCancel: () => void;
+  initialMarketplace?: Marketplace;
+  initialProductType?: ProductType;
 }
-
-const shimmer = keyframes`
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-`;
-
-const AiButton = styled(Button)(({ theme }) => ({
-  background: 'linear-gradient(135deg, #FF5A4F 0%, #E84B42 100%)',
-  backgroundSize: '200% 100%',
-  color: '#FFFFFF',
-  borderRadius: 8,
-  fontWeight: 600,
-  fontSize: '0.875rem',
-  textTransform: 'none',
-  padding: '8px 20px',
-  minHeight: 36,
-  '&:hover': {
-    background: `linear-gradient(135deg, #FF5A4F 0%, #E84B42 50%, #FF5A4F 100%)`,
-    backgroundSize: '200% 100%',
-    animation: `${shimmer} 2s infinite linear`,
-  },
-  '&.Mui-disabled': {
-    color: theme.vars.palette.text.disabled,
-    background: theme.vars.palette.action.disabledBackground,
-  },
-}));
 
 export const ResearchTriggerButton = ({
   status,
   isPolling,
   onTrigger,
   onCancel,
+  initialMarketplace,
+  initialProductType,
 }: ResearchTriggerButtonProps) => {
   const { t } = useTranslation();
-  const isBusy = status === 'pending' || status === 'running' || isPolling;
   const showForceRefresh = status === 'completed' || status === 'failed';
 
-  const [marketplace, setMarketplace] = useState<Marketplace>('amazon_com');
-  const [productType, setProductType] = useState<ProductType>('t_shirt');
+  const [marketplace, setMarketplace] = useState<Marketplace>(initialMarketplace ?? 'amazon_com');
+  const [productType, setProductType] = useState<ProductType>(initialProductType ?? 't_shirt');
   const [forceRefresh, setForceRefresh] = useState(false);
 
   const handleTrigger = () => {
@@ -78,23 +55,7 @@ export const ResearchTriggerButton = ({
     });
   };
 
-  if (isBusy) {
-    return (
-      <Stack spacing={1.5} alignItems="flex-end">
-        <Button
-          variant="outlined"
-          color="error"
-          size="small"
-          onClick={onCancel}
-          startIcon={<StopCircleIcon sx={{ fontSize: 18 }} />}
-          aria-label={t('research.stopButton')}
-          sx={{ minHeight: 36, textTransform: 'none', fontWeight: 600 }}
-        >
-          {t('research.stopButton')}
-        </Button>
-      </Stack>
-    );
-  }
+  const drillStatus = status as 'pending' | 'running' | 'completed' | 'failed' | null;
 
   return (
     <Stack spacing={1.5} alignItems="flex-end">
@@ -128,16 +89,54 @@ export const ResearchTriggerButton = ({
             </MenuItem>
           ))}
         </TextField>
+      </Stack>
 
-        <AiButton
-          onClick={handleTrigger}
-          startIcon={<AutoAwesomeIcon sx={{ fontSize: 18 }} />}
-          aria-label={t('research.triggerButton')}
-        >
-          {status === 'failed'
-            ? t('research.error.retryButton')
-            : t('research.triggerButton')}
-        </AiButton>
+      <Stack direction="row" spacing={1.5} alignItems="flex-end">
+        <Box>
+          <Typography
+            variant="overline"
+            color="text.secondary"
+            sx={{ fontSize: '0.6rem', display: 'block', mb: 0.5 }}
+          >
+            A: Sonar
+          </Typography>
+          <SonarPulseButton
+            status={drillStatus}
+            isPolling={isPolling}
+            onClick={handleTrigger}
+            onCancel={onCancel}
+          />
+        </Box>
+        <Box>
+          <Typography
+            variant="overline"
+            color="text.secondary"
+            sx={{ fontSize: '0.6rem', display: 'block', mb: 0.5 }}
+          >
+            B: Magma
+          </Typography>
+          <MagmaCoreButton
+            status={drillStatus}
+            isPolling={isPolling}
+            onClick={handleTrigger}
+            onCancel={onCancel}
+          />
+        </Box>
+        <Box>
+          <Typography
+            variant="overline"
+            color="text.secondary"
+            sx={{ fontSize: '0.6rem', display: 'block', mb: 0.5 }}
+          >
+            C: Prism
+          </Typography>
+          <DataPrismButton
+            status={drillStatus}
+            isPolling={isPolling}
+            onClick={handleTrigger}
+            onCancel={onCancel}
+          />
+        </Box>
       </Stack>
 
       {showForceRefresh && (

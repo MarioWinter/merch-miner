@@ -178,7 +178,16 @@
       "colIdeas": "Idee",
       "colUpdated": "Aggiornato",
       "colActions": "Azioni",
-      "unassigned": "Non assegnato"
+      "unassigned": "Non assegnato",
+      "colDeepDrill": "Deep Drill",
+      "deepDrill": {
+        "idle": "Avvia Deep Drill",
+        "running": "Deep Drill in corso\u2026",
+        "completed": "Vedi risultati",
+        "failed": "Deep Drill fallito — riprova",
+        "bulkLabel": "Deep Drill ({{count}})",
+        "bulkDisabled": "In arrivo"
+      }
     },
     "drawer": {
       "createTitle": "Nuova nicchia",
@@ -202,7 +211,11 @@
       "unsavedChangesTitle": "Modifiche non salvate",
       "unsavedChangesBody": "Hai modifiche non salvate. Scartarle?",
       "discardChanges": "Scarta",
-      "keepEditing": "Continua modifica"
+      "keepEditing": "Continua modifica",
+      "collectedSlogans": "Slogan raccolti",
+      "collectedKeywords": "Keyword raccolti",
+      "copyAll": "Copia tutto",
+      "copiedAll": "Tutto copiato negli appunti"
     },
     "empty": {
       "noNiches": "Nessuna nicchia ancora",
@@ -256,6 +269,148 @@
       "updateError": "Impossibile aggiornare il modello",
       "deleteSuccess": "Modello eliminato",
       "deleteError": "Impossibile eliminare il modello"
+    }
+  },
+  "research": {
+    "triggerButton": "Ricerca IA",
+    "stopButton": "Ferma ricerca",
+    "running": "Ricerca in corso\u2026",
+    "progressTitle": "Ricerca IA in corso",
+    "progressHint": "Potrebbe richiedere qualche minuto. Puoi uscire e tornare.",
+    "steps": {
+      "scrape": "Scrape",
+      "vision_analyze": "Visione",
+      "emotional_analyze": "Emozionale",
+      "niche_profile": "Profilo nicchia",
+      "keywords": "Keyword",
+      "finalize": "Finalizza",
+      "scraping": "Scraping",
+      "analyzing": "Analisi IA",
+      "saving": "Salvataggio risultati"
+    },
+    "marketplace": {
+      "label": "Marketplace",
+      "amazon_com": "Amazon.com (US)",
+      "amazon_de": "Amazon.de (DE)",
+      "amazon_co_uk": "Amazon.co.uk (UK)",
+      "amazon_fr": "Amazon.fr (FR)",
+      "amazon_it": "Amazon.it (IT)",
+      "amazon_es": "Amazon.es (ES)"
+    },
+    "productType": {
+      "label": "Tipo di prodotto",
+      "t_shirt": "T-Shirt",
+      "hoodie": "Hoodie",
+      "long_sleeve": "Long Sleeve",
+      "sweatshirt": "Sweatshirt",
+      "popsocket": "PopSocket",
+      "tank_top": "Tank Top"
+    },
+    "forceRefresh": "Forza aggiornamento (riesegui analisi LLM)",
+    "retryCount": "Tentativo {{current}}/{{max}}",
+    "maxRetriesExceeded": "Tentativi massimi superati",
+    "progressLabel": "{{completed}}/{{total}}",
+    "currentNode": "In esecuzione: {{node}}",
+    "notifications": {
+      "triggered": "Ricerca avviata",
+      "completed": "Ricerca completata",
+      "failed": "Ricerca fallita",
+      "cancelled": "Ricerca annullata"
+    },
+    "errors": {
+      "fetchFailed": "Impossibile caricare i dati della ricerca",
+      "alreadyRunning": "Una ricerca è già in corso per questa nicchia",
+      "triggerFailed": "Impossibile avviare la ricerca",
+      "timeout": "Ricerca scaduta. Riprova.",
+      "cancelFailed": "Impossibile annullare la ricerca"
+    },
+    "summary": {
+      "title": "Riepilogo",
+      "sentiment": "Sentiment",
+      "emotions": "Emozioni primarie",
+      "archetypes": "Archetipi emozionali",
+      "emotionalReality": "Realtà emozionale",
+      "designConcepts": "Concetti di design",
+      "designAesthetics": "Estetica del design"
+    },
+    "patterns": {
+      "title": "Schemi emozionali",
+      "activeCount": "{{count}} attivi",
+      "expandInactive": "Mostra schemi inattivi",
+      "collapseInactive": "Nascondi schemi inattivi"
+    },
+    "keywords": {
+      "title": "Keyword",
+      "shortTail": "Short-Tail",
+      "longTail": "Long-Tail",
+      "focus": "Keyword di focus",
+      "longTailTop": "Top Long-Tail",
+      "allFlat": "Tutti i keyword",
+      "copied": "{{count}} keyword copiati",
+      "clipboardCleared": "Appunti svuotati",
+      "researchKeyword": "Ricerca live (in arrivo)",
+      "comingSoon": "Ricerca live — in arrivo",
+      "clearSelection": "Cancella selezione",
+      "clipboardCount": "{{count}} keyword negli appunti"
+    },
+    "brandFiltered": "{{count}} prodotti filtrati (marchi registrati)",
+    "products": {
+      "title": "Prodotti analizzati",
+      "trademark": "Marchio",
+      "reviews": "{{count}} recensioni",
+      "vision": "Analisi visiva",
+      "emotional": "Analisi emozionale",
+      "slogan": "Slogan",
+      "meaning": "Significato",
+      "visualStyle": "Stile visivo",
+      "graphicElements": "Elementi grafici",
+      "layout": "Layout",
+      "pattern": "Schema",
+      "vibe": "Atmosfera",
+      "tone": "Tono",
+      "psychology": "Psicologia del cliente",
+      "buyerProfile": "Profilo acquirente",
+      "emotionalNeed": "Bisogno emozionale",
+      "internalMonologue": "Monologo interiore",
+      "unsaid": "Ciò che non possono dire",
+      "adaptation": "Formula di adattamento",
+      "adaptationExamples": "Esempi",
+      "transferability": "Trasferibilità",
+      "worksBestIn": "Funziona meglio in",
+      "avoidIn": "Da evitare in",
+      "successFactors": "Fattori di successo",
+      "noProducts": "Nessun prodotto analizzato",
+      "collapseAll": "Comprimi tutto",
+      "expandAll": "Espandi tutto",
+      "productCount": "{{count}} prodotti",
+      "uncategorized": "Senza categoria"
+    },
+    "related": {
+      "title": "Nicchie correlate",
+      "sharedPatterns": "Schemi condivisi",
+      "noRelated": "Nessuna nicchia correlata trovata",
+      "noRelatedHint": "Le nicchie con 2+ schemi attivi condivisi appariranno qui."
+    },
+    "error": {
+      "title": "Ricerca fallita",
+      "retryButton": "Riprova ricerca",
+      "timeoutTitle": "Ricerca scaduta",
+      "timeoutMessage": "La ricerca ha superato il limite di 20 minuti. Riprova."
+    },
+    "doubleClickHint": "Doppio clic ovunque per aprire i dettagli della nicchia",
+    "empty": {
+      "title": "Nessuna ricerca ancora",
+      "hint": "Avvia la ricerca IA per analizzare questa nicchia."
+    },
+    "drawer": {
+      "sectionTitle": "Ricerca IA",
+      "startResearch": "Deep Drilling",
+      "viewResults": "Vedi risultati",
+      "reAnalyze": "Ri-analizza",
+      "completedOn": "Completata il {{date}}",
+      "failedMessage": "Errore: {{message}}",
+      "retriesExhausted": "Tentativi massimi raggiunti ({{max}})",
+      "cancelledByUser": "Annullata dall'utente"
     }
   },
   "settings": {

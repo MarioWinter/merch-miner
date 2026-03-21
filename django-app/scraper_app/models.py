@@ -249,6 +249,25 @@ PRODUCT_TYPE_SPIDER_KWARGS = {
 }
 
 
+class BrandBlacklist(models.Model):
+    """Trademarked/blocked brands that should be filtered from research."""
+
+    brand_name = models.CharField(max_length=200, unique=True, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['brand_name']
+        verbose_name = 'Brand Blacklist'
+        verbose_name_plural = 'Brand Blacklist'
+
+    def save(self, *args, **kwargs):
+        self.brand_name = self.brand_name.lower().strip()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return self.brand_name
+
+
 class ProductSearchCache(models.Model):
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending'

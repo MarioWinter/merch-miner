@@ -1,12 +1,14 @@
 import { configureStore } from '@reduxjs/toolkit';
 import authReducer from './authSlice';
 import workspaceReducer from './workspaceSlice';
+import collectedItemsReducer from './collectedItemsSlice';
 import { nicheApi } from './nicheSlice';
 
 export const store = configureStore({
   reducer: {
     auth: authReducer,
     workspace: workspaceReducer,
+    collectedItems: collectedItemsReducer,
     [nicheApi.reducerPath]: nicheApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>

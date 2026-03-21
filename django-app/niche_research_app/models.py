@@ -100,6 +100,10 @@ class NicheResearch(models.Model):
         default=False,
         help_text='Whether this research was cancelled by user',
     )
+    brand_filtered_count = models.PositiveIntegerField(
+        default=0,
+        help_text='Number of products filtered out by brand blacklist',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     error_message = models.TextField(blank=True, default='')
@@ -131,6 +135,10 @@ class NicheResearchProduct(models.Model):
         'scraper_app.AmazonProduct',
         on_delete=models.CASCADE,
         related_name='research_entries',
+    )
+    brand_blocked = models.BooleanField(
+        default=False,
+        help_text='Whether this product was blocked by brand blacklist',
     )
 
     class Meta:

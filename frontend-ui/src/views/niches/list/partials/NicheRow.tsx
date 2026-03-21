@@ -66,9 +66,6 @@ const EditingCell = styled(TableCell)(({ theme }) => ({
   borderBottom: `1px solid ${theme.vars.palette.divider}`,
   padding: '0 6px !important',
   height: 44,
-  outline: `2px solid ${theme.vars.palette.primary.main}`,
-  outlineOffset: -2,
-  borderRadius: 4,
 }));
 
 const IdeasText = styled(Typography)({
@@ -135,7 +132,11 @@ const NameInput = ({ initialValue, isSaving, onSave, onCancel }: NameInputProps)
           ) : undefined,
         },
       }}
-      sx={{ '& .MuiOutlinedInput-root': { height: 32, fontSize: '0.875rem' } }}
+      sx={{
+        '& .MuiOutlinedInput-root': { height: 32, fontSize: '0.875rem' },
+        '& .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
+        '& .Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
+      }}
     />
   );
 };
@@ -238,7 +239,11 @@ const StatusCell = ({ niche, inlineEdit, width }: StatusCellProps) => {
         autoFocus
         onClose={inlineEdit.deactivateCell}
         disabled={inlineEdit.isSaving}
-        sx={{ height: 32, fontSize: '0.875rem' }}
+        sx={{
+          height: 32, fontSize: '0.875rem',
+          '& .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
+        }}
       >
         {NICHE_STATUSES.map((s) => (
           <MenuItem key={s} value={s}>
@@ -290,7 +295,11 @@ const RatingCell = ({ niche, inlineEdit, width }: RatingCellProps) => {
         onClose={inlineEdit.deactivateCell}
         disabled={inlineEdit.isSaving}
         displayEmpty
-        sx={{ height: 32, fontSize: '0.875rem' }}
+        sx={{
+          height: 32, fontSize: '0.875rem',
+          '& .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
+        }}
       >
         {POTENTIAL_RATINGS.map((r) => (
           <MenuItem key={r} value={r}>
@@ -357,7 +366,11 @@ const AssigneeCell = ({ niche, inlineEdit, width }: AssigneeCellProps) => {
             {...params}
             autoFocus
             placeholder={t('niches.table.unassigned')}
-            sx={{ '& .MuiOutlinedInput-root': { height: 32, fontSize: '0.875rem' } }}
+            sx={{
+              '& .MuiOutlinedInput-root': { height: 32, fontSize: '0.875rem' },
+              '& .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
+              '& .Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
+            }}
           />
         )}
         sx={{ minWidth: 120 }}

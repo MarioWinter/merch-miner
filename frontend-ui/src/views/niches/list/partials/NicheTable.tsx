@@ -15,7 +15,6 @@ import {
   TableHead,
   TableRow,
   TableSortLabel,
-  Tooltip,
 } from '@mui/material';
 import { alpha, styled } from '@mui/material/styles';
 import { COLORS } from '@/style/constants';
@@ -227,9 +226,8 @@ export const NicheTable = ({
             </HeaderCell>
 
             <HeaderCell sx={{ width: colWidth('ai'), px: 0.5, textAlign: 'center' }}>
-              <Tooltip title={t('niches.table.colDeepDrill')} placement="top">
-                <AutoAwesomeIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-              </Tooltip>
+              <OverlineText>{t('niches.table.colDeepDrill')}</OverlineText>
+              <AutoAwesomeIcon sx={{ fontSize: 14, ml: 0.5, verticalAlign: 'middle', color: 'text.secondary' }} />
             </HeaderCell>
 
             <HeaderCell sx={{ width: colWidth('updated') }}>

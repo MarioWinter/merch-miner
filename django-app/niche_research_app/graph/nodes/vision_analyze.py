@@ -55,6 +55,18 @@ async def vision_analyze_node(state: ResearchState) -> dict:
 
     products = await _load_products()
 
+    # Brand blacklist filter — remove trademarked brands before LLM calls
+    from scraper_app.brand_filter import filter_products_by_brand, get_blacklisted_brands
+
+    blacklist = await sync_to_async(get_blacklisted_brands)()
+    products, blocked = filter_products_by_brand(products, blacklist)
+    logger.info("Brand filter: %d blocked, %d allowed", len(blocked), len(products))
+
+    # Save count on research record
+    research_for_count = await sync_to_async(NicheResearch.objects.get)(id=research_id)
+    research_for_count.brand_filtered_count = len(blocked)
+    await sync_to_async(research_for_count.save)(update_fields=['brand_filtered_count'])
+
     semaphore = asyncio.Semaphore(MAX_CONCURRENT)
     results = []
 

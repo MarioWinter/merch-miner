@@ -12,7 +12,7 @@ const DEFAULTS: ColumnWidths = {
   potential_rating: 120,
   assignee: 140,
   ideas: 80,
-  ai: 48,
+  ai: 100,
   updated: 120,
   actions: 44,
 };

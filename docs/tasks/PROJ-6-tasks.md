@@ -245,24 +245,244 @@ Phases 1-4 are implemented and deployed. See git history for details.
 
 ---
 
-## Phase 8: Testing
+## Phase 8: Brand Blacklist (Trademark Filter)
 
-### Task 8.1: Resume/skip unit tests
+Design goal: reusable `BrandBlacklist` model + `brand_filter` utility in `scraper_app` — usable from PROJ-6 (niche research), PROJ-7 (product research UI), and any future product filtering.
+
+### Task 8.1: `BrandBlacklist` model — `scraper_app/models.py` [/backend]
+- New model in `scraper_app/models.py`:
+  - `brand_name` (CharField, max_length=200, unique, db_index) — stored lowercase
+  - `created_at` (DateTimeField, auto_now_add)
+- Migration in `scraper_app`
+- **AC:** Model exists, migration applies cleanly, `brand_name` unique + indexed
+
+### Task 8.2: Seed migration with n8n brand list [/backend]
+- Data migration: insert ~480 brands from provided n8n list (all lowercase, stripped)
+- Use `RunPython` with bulk_create + `ignore_conflicts=True`
+- **AC:** `BrandBlacklist.objects.count()` ≈ 480 after migrate
+
+### Task 8.3: Admin registration — `scraper_app/admin.py` [/backend]
+- Register `BrandBlacklist` in admin
+- `list_display`: `brand_name`, `created_at`
+- `search_fields`: `brand_name`
+- `ordering`: `brand_name`
+- **AC:** Blacklist editable in Django Admin, searchable
+
+### Task 8.4: Reusable brand filter utility — `scraper_app/brand_filter.py` [/backend]
+- New module `scraper_app/brand_filter.py`:
+  ```python
+  def get_blacklisted_brands() -> set[str]:
+      """Load all blacklisted brand names as lowercase set. Cached per-request."""
+      return set(BrandBlacklist.objects.values_list('brand_name', flat=True))
+
+  def is_brand_blocked(brand: str, blacklist: set[str] | None = None) -> bool:
+      """Check if brand matches any blacklisted brand (substring/includes match).
+      If blacklist not passed, loads from DB."""
+      if not brand:
+          return False
+      brand_lower = brand.lower().strip()
+      if blacklist is None:
+          blacklist = get_blacklisted_brands()
+      return any(blocked in brand_lower for blocked in blacklist)
+
+  def filter_products_by_brand(products, blacklist: set[str] | None = None):
+      """Filter product list/queryset, return (allowed, blocked) tuple.
+      Works with AmazonProduct objects (has .brand attr).
+      Reusable across PROJ-6 (vision_analyze), PROJ-7 (product list), etc."""
+      if blacklist is None:
+          blacklist = get_blacklisted_brands()
+      allowed, blocked = [], []
+      for p in products:
+          if is_brand_blocked(p.brand, blacklist):
+              blocked.append(p)
+          else:
+              allowed.append(p)
+      return allowed, blocked
+  ```
+- **AC:** `filter_products_by_brand()` returns (allowed, blocked) tuple; `is_brand_blocked("Nike Shoes")` returns True; reusable from any app
+
+### Task 8.5: `brand_filtered_count` field on `NicheResearch` [/backend]
+- Add `brand_filtered_count = PositiveIntegerField(default=0)` to `NicheResearch`
+- Migration in `niche_research_app`
+- Add field to `NicheResearchSerializer` + `NicheResearchDetailSerializer` `fields` list
+- **AC:** Field in API response, shows how many products were filtered
+
+### Task 8.6: Integrate brand filter in `vision_analyze.py` [/backend]
+- After `products = await _load_products()`:
+  ```python
+  from scraper_app.brand_filter import filter_products_by_brand, get_blacklisted_brands
+
+  blacklist = await sync_to_async(get_blacklisted_brands)()
+  products, blocked = await sync_to_async(filter_products_by_brand)(products, blacklist)
+  logger.info("Brand filter: %d blocked, %d allowed", len(blocked), len(products))
+
+  # Save count on research record
+  research = await sync_to_async(NicheResearch.objects.get)(id=research_id)
+  research.brand_filtered_count = len(blocked)
+  await sync_to_async(research.save)(update_fields=['brand_filtered_count'])
+  ```
+- Only allowed products go to LLM calls
+- Blocked products still exist as `NicheResearchProduct` (for audit) but get no vision analysis
+- **AC:** Trademarked brands skipped before LLM, count saved, LLM token savings confirmed in logs
+
+### Task 8.7: `NicheResearchProduct.brand_blocked` flag [/backend]
+- Add `brand_blocked = BooleanField(default=False)` to `NicheResearchProduct`
+- Migration in `niche_research_app`
+- In `scrape.py`: when creating `NicheResearchProduct` entries, check brand against blacklist and set flag
+- Add `brand_blocked` to `NicheProductSerializer` fields
+- **AC:** Products flagged at scrape time, visible in API response
+
+### Task 8.8: Frontend — brand filter info [/frontend]
+- In research result view: show info line when `brand_filtered_count > 0`
+  - MUI Alert (severity="info"): "X products filtered (trademark brands)"
+  - Placed above product analysis cards
+- i18n key: `niches.research.brandFiltered` = "{{count}} products filtered (trademark brands)"
+- In product list: blocked products show subtle "Trademark" Chip (if `brand_blocked=true`)
+- **AC:** User sees feedback on how many products were filtered
+
+---
+
+## Phase 8b: Scrape Node — DB-First Product Lookup
+
+Research should use existing products from the DB instead of always triggering a new scrape. Scheduled scraping (PROJ-16) keeps products current independently.
+
+### Task 8b.1: DB-first check in `scrape.py` [/backend]
+- After skip-guard + status update, before `get_or_create_keyword_cache`:
+  - Check if `Keyword` exists for `niche_name` + `marketplace`
+  - If yes: check `AmazonProduct.objects.filter(keywords=keyword_obj).exists()`
+  - **If products exist:** skip entire cache/scrape flow, go straight to `_get_product_asins()` + `_create_research_products()`
+  - **If no products:** fall through to existing cache/scrape flow (unchanged)
+- Log: `"DB-first: found %d existing products for '%s', skipping scrape"`
+- No new state fields, no API changes, no frontend changes
+- `force_refresh` in API already sets `completed_nodes=['scrape']` → scrape node skipped entirely → correct behavior preserved
+- **AC:** Research for keyword with existing products starts instantly (no scrape wait); keyword without products triggers scrape as before
+
+---
+
+## Phase 9: Testing
+
+### Task 9.1: Brand filter unit tests [/backend]
+- Test `is_brand_blocked()`: exact match, substring match, empty brand, case insensitive
+- Test `filter_products_by_brand()`: mixed list → correct split
+- Test `get_blacklisted_brands()`: returns set from DB
+- **AC:** All brand filter tests pass
+
+### Task 9.2: Resume/skip unit tests [/backend]
 - Test each node's skip guard (results exist → skip, no results → run)
 - Test resume.py helpers (correct state dict reconstruction from DB)
 - Test progress decorator (completed_nodes updated, current_node set/cleared)
 - **AC:** All skip/resume tests pass
 
-### Task 8.2: API retry/force_refresh tests
+### Task 9.3: API retry/force_refresh tests [/backend]
 - Test retry of failed run (reuses record, skips completed nodes, increments retry count)
 - Test force_refresh on completed run (clears LLM results, keeps scrape, re-runs LLM)
 - Test max retries exceeded (400 response)
 - Test completed + no force_refresh (returns existing, no new job)
 - Test marketplace + product_type passed correctly
+- Test `brand_filtered_count` in response
 - **AC:** All API scenario tests pass
 
-### Task 8.3: Frontend tests
+### Task 9.4: Frontend tests [/frontend]
 - Research trigger with filters (marketplace, product_type selection)
 - Progress display in NicheTable (polling, progress bar, status transitions)
 - 6-step stepper (correct step highlighting from completed_nodes)
+- Brand filter info display (Alert visible when count > 0, hidden when 0)
 - **AC:** All frontend tests pass
+
+---
+
+## Phase 10: Collected Items — Slogan & Keyword Collector [/frontend]
+
+Slogans + Keywords aus Research als "Collected Items" im globalen Redux Store sammeln. Drawer zeigt gesammelte Items. Basis für zukünftige Pipeline (PROJ-8 Idea Gen → PROJ-9 Design → PROJ-11 Listing).
+
+### Task 10.1: Redux Slice `collectedItemsSlice` [/frontend]
+- New file: `store/collectedItemsSlice.ts`
+- State: `{ byNicheId: Record<string, { slogans: string[], keywords: string[] }> }`
+- Actions: `toggleSlogan(nicheId, slogan)`, `toggleKeyword(nicheId, keyword)`, `removeSlogan(...)`, `removeKeyword(...)`, `clearAll(nicheId)`
+- Selectors: `selectCollectedSlogans(nicheId)`, `selectCollectedKeywords(nicheId)`, `selectCollectedCount(nicheId)`
+- Register in `store/index.ts`
+- **AC:** Slice exists, actions dispatch, selectors return correct state
+
+### Task 10.2: Slogan-Chip full text + click-to-collect [/frontend]
+- File: `ProductAnalysisCard.tsx`
+- Remove `maxWidth: 240` on slogan Chip → full text visible
+- Add `nicheId` prop (passed from research/index.tsx)
+- onClick: `dispatch(toggleSlogan(nicheId, sloganText))` + copy to clipboard + snackbar
+- Visual: collected slogans get filled/highlighted Chip style
+- Use `selectCollectedSlogans` to determine selected state
+- **AC:** Slogan fully visible, click copies + toggles in store, visual feedback
+
+### Task 10.3: KeywordChips → global store [/frontend]
+- File: `KeywordChips.tsx`
+- Remove local `selectedKeywords` useState
+- Replace with `useSelector(selectCollectedKeywords(nicheId))` + `dispatch(toggleKeyword(...))`
+- Add `nicheId` prop
+- Clipboard copy stays as-is, but selection persisted in global store
+- **AC:** Keyword selection persisted across navigation, stored globally
+
+### Task 10.4: Research view — pass nicheId to children [/frontend]
+- File: `research/index.tsx`
+- Pass `nicheId` prop to `ProductAnalysisCard` and `KeywordChips`
+- **AC:** Children receive nicheId for store operations
+
+### Task 10.5: Drawer — "Collected" section [/frontend]
+- File: `NicheDetailDrawer.tsx`
+- New section below AI Research box (only visible when items exist):
+  - "Collected Slogans" — Chips with close icon, onClick removes from store
+  - "Collected Keywords" — Chips with close icon, onClick removes from store
+  - "Copy All" button per section
+- Data from `useSelector(selectCollectedSlogans(niche.id))` — reads global store directly
+- i18n keys: `niches.drawer.collectedSlogans`, `niches.drawer.collectedKeywords`, `niches.drawer.copyAll`
+- **AC:** Drawer shows collected items, items removable, copy-all works
+
+---
+
+## Phase 11: UI Polish + Pattern-Grouped Products [/frontend]
+
+### Task 11.1: Pattern-Chip in ProductAnalysisCard — use patternConfig [/frontend]
+- File: `ProductAnalysisCard.tsx`
+- Import `getPatternVisual` from `patternConfig.ts`
+- Pattern Chip: replace generic `PsychologyIcon` + `primary.main` with `visual.icon` + `visual.color`
+- Remove `PsychologyIcon` import
+- **AC:** Pattern Chip shows correct per-pattern icon + color (matching PatternCard)
+
+### Task 11.2: Research View → Drawer back-navigation [/frontend]
+- File: `research/index.tsx` — Back-button: `navigate('/niches?openDrawer={nicheId}')` instead of `/niches`
+- File: `NicheListView.tsx` — read `openDrawer` query param, if present: set drawerState to `{ open: true, mode: 'edit', selectedId: openDrawer }`, remove param from URL after processing
+- **AC:** Back-button from research opens Drawer for current niche
+
+### Task 11.3: GroupedProductAnalysis component [/frontend]
+- New file: `research/partials/GroupedProductAnalysis.tsx`
+- Input: `products: ResearchProduct[]`, `nicheId: string`
+- Group products by `emotional_analysis.emotional_pattern` into `Map<string, ResearchProduct[]>`
+- Sort groups by product count descending; uncategorized at end
+- State: `expandedGroups: Set<string>` (all expanded initially)
+- "Collapse All / Expand All" toggle button
+- Render `PatternProductGroup` per group with `id="pattern-{PATTERN_NAME}"` scroll anchor
+- **AC:** Products grouped by pattern, collapsible, sorted by count
+
+### Task 11.4: PatternProductGroup component [/frontend]
+- New file: `research/partials/PatternProductGroup.tsx`
+- Pattern header bar:
+  - Left border 3px solid `patternColor`
+  - Background `alpha(patternColor, 0.06)`
+  - Icon box 28x28 `alpha(patternColor, 0.14)` (same as PatternCard)
+  - Label: `visual.label` (subtitle2, fontWeight 600)
+  - Product count right-aligned
+  - Chevron expand/collapse
+- Body: `Collapse` with `Stack spacing={1.5}` of `ProductAnalysisCard`
+- Props: `patternName: string`, `products: ResearchProduct[]`, `nicheId: string`, `expanded: boolean`, `onToggle: () => void`
+- **AC:** Section header matches PatternCard styling, products listed inside
+
+### Task 11.5: PatternGrid interactive — click-to-scroll + count badge [/frontend]
+- File: `PatternGrid.tsx` — add `productCounts: Record<string, number>` + `onPatternClick(name: string)` props
+- File: `PatternCard.tsx` — active cards: add `count` prop (small badge), `onClick` prop, cursor pointer
+- On click: `document.getElementById('pattern-{name}')?.scrollIntoView({ behavior: 'smooth' })`
+- **AC:** Active PatternCards show product count, click scrolls to grouped section
+
+### Task 11.6: Research view — wire grouped layout [/frontend]
+- File: `research/index.tsx`
+- Compute `productCounts` from `data.products` (useMemo)
+- Replace flat `products.map(ProductAnalysisCard)` with `<GroupedProductAnalysis>`
+- Pass `productCounts` + `onPatternClick` to `PatternGrid`
+- **AC:** Products displayed grouped by pattern, PatternGrid scrolls to sections
