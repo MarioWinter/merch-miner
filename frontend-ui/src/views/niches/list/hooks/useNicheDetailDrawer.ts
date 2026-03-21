@@ -4,19 +4,19 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useSnackbar } from 'notistack';
 import { useTranslation } from 'react-i18next';
 import {
+  useGetNicheQuery,
   useCreateNicheMutation,
   useUpdateNicheMutation,
   useDeleteNicheMutation,
 } from '../../../../store/nicheSlice';
 import { createNicheSchema, updateNicheSchema } from '../schemas/nicheSchema';
 import type { CreateNicheFormValues, UpdateNicheFormValues } from '../schemas/nicheSchema';
-import type { Niche, NicheUpdateBody } from '../types';
+import type { NicheUpdateBody } from '../types';
 import type { DrawerMode } from './useNicheDrawer';
 
 interface UseNicheDetailDrawerOptions {
   mode: DrawerMode;
   selectedId: string | null;
-  niche: Niche | undefined;
   onClose: () => void;
 }
 
@@ -39,10 +39,13 @@ const extractErrorMessage = (error: unknown): string | null => {
 export const useNicheDetailDrawer = ({
   mode,
   selectedId,
-  niche,
   onClose,
 }: UseNicheDetailDrawerOptions) => {
   const { t } = useTranslation();
+
+  const { data: niche, isFetching } = useGetNicheQuery(selectedId ?? '', {
+    skip: mode !== 'edit' || !selectedId,
+  });
   const { enqueueSnackbar } = useSnackbar();
 
   const [createNiche, { isLoading: creating }] = useCreateNicheMutation();
@@ -149,6 +152,7 @@ export const useNicheDetailDrawer = ({
 
   return {
     niche,
+    isFetching,
     createForm,
     editForm,
     handleCreate,

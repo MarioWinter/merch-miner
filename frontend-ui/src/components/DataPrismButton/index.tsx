@@ -24,9 +24,32 @@ const labelPulse = keyframes`
   50%      { opacity: 0.8; }
 `;
 
+// Cyan↔coral glow cycle — hardcoded rgba matches theme tokens:
+// secondary.main (#00C8D7 → 0,200,215) and primary.main (#FF5A4F → 255,90,79)
 const glowPulse = keyframes`
-  0%, 100% { box-shadow: 0 4px 20px rgba(0, 200, 215, 0.15); }
-  50%      { box-shadow: 0 4px 28px rgba(0, 200, 215, 0.3); }
+  0%   { box-shadow: 0 4px 20px rgba(0, 200, 215, 0.15); }
+  50%  { box-shadow: 0 4px 28px rgba(255, 90, 79, 0.3); }
+  100% { box-shadow: 0 4px 20px rgba(0, 200, 215, 0.15); }
+`;
+
+// Cyan↔coral color shift for the left accent bar gradient
+const accentColorShift = keyframes`
+  0%   { background-image: linear-gradient(0deg, transparent, rgba(0, 200, 215, 1), transparent); }
+  50%  { background-image: linear-gradient(0deg, transparent, rgba(255, 90, 79, 1), transparent); }
+  100% { background-image: linear-gradient(0deg, transparent, rgba(0, 200, 215, 1), transparent); }
+`;
+
+// Icon color shift: cyan↔coral, synced with glow (3s)
+const iconColorShift = keyframes`
+  0%   { color: rgba(0, 200, 215, 1); }
+  50%  { color: rgba(255, 90, 79, 1); }
+  100% { color: rgba(0, 200, 215, 1); }
+`;
+
+// Failed state: subtle coral background pulse (4s)
+const failedBgPulse = keyframes`
+  0%, 100% { background-color: rgba(255, 90, 79, 0.06); }
+  50%      { background-color: rgba(255, 90, 79, 0.12); }
 `;
 
 type ButtonState = 'idle' | 'busy' | 'failed';
@@ -66,6 +89,9 @@ const PrismRoot = styled(ButtonBase, {
     ...(state === 'busy' && {
       animation: `${glowPulse} 3s ease-in-out infinite`,
     }),
+    ...(state === 'failed' && {
+      animation: `${failedBgPulse} 4s ease-in-out infinite`,
+    }),
 
     // Left accent bar
     '&::before': {
@@ -85,7 +111,7 @@ const PrismRoot = styled(ButtonBase, {
         height: '100%',
         backgroundImage: `linear-gradient(0deg, transparent, ${cyan}, transparent)`,
         backgroundSize: '100% 200%',
-        animation: `${accentSweep} 1.5s ease-in-out infinite`,
+        animation: `${accentSweep} 1.5s ease-in-out infinite, ${accentColorShift} 3s ease-in-out infinite`,
       }),
       ...(state === 'failed' && {
         top: '15%',
@@ -149,13 +175,14 @@ export const DataPrismButton = ({
   const renderIcon = () => {
     if (isBusy) {
       return (
-        <>
-          <IconWrap className="prism-icon">
-            <AutoAwesomeIcon
-              sx={{ fontSize: 20, color: 'secondary.main' }}
-            />
-          </IconWrap>
-        </>
+        <IconWrap className="prism-icon">
+          <AutoAwesomeIcon
+            sx={{
+              fontSize: 20,
+              animation: `${iconColorShift} 3s ease-in-out infinite`,
+            }}
+          />
+        </IconWrap>
       );
     }
     if (isFailed) {

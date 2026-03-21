@@ -6,11 +6,8 @@ import {
   Stack,
   Switch,
   TextField,
-  Typography,
 } from '@mui/material';
 import { useTranslation } from 'react-i18next';
-import { SonarPulseButton } from '@/components/SonarPulseButton';
-import { MagmaCoreButton } from '@/components/MagmaCoreButton';
 import { DataPrismButton } from '@/components/DataPrismButton';
 import {
   MARKETPLACES,
@@ -59,7 +56,7 @@ export const ResearchTriggerButton = ({
 
   return (
     <Stack spacing={1.5} alignItems="flex-end">
-      <Stack direction="row" spacing={1}>
+      <Stack direction="row" spacing={1} alignItems="center" flexWrap="wrap" useFlexGap>
         <TextField
           select
           size="small"
@@ -89,54 +86,13 @@ export const ResearchTriggerButton = ({
             </MenuItem>
           ))}
         </TextField>
-      </Stack>
 
-      <Stack direction="row" spacing={1.5} alignItems="flex-end">
-        <Box>
-          <Typography
-            variant="overline"
-            color="text.secondary"
-            sx={{ fontSize: '0.6rem', display: 'block', mb: 0.5 }}
-          >
-            A: Sonar
-          </Typography>
-          <SonarPulseButton
-            status={drillStatus}
-            isPolling={isPolling}
-            onClick={handleTrigger}
-            onCancel={onCancel}
-          />
-        </Box>
-        <Box>
-          <Typography
-            variant="overline"
-            color="text.secondary"
-            sx={{ fontSize: '0.6rem', display: 'block', mb: 0.5 }}
-          >
-            B: Magma
-          </Typography>
-          <MagmaCoreButton
-            status={drillStatus}
-            isPolling={isPolling}
-            onClick={handleTrigger}
-            onCancel={onCancel}
-          />
-        </Box>
-        <Box>
-          <Typography
-            variant="overline"
-            color="text.secondary"
-            sx={{ fontSize: '0.6rem', display: 'block', mb: 0.5 }}
-          >
-            C: Prism
-          </Typography>
-          <DataPrismButton
-            status={drillStatus}
-            isPolling={isPolling}
-            onClick={handleTrigger}
-            onCancel={onCancel}
-          />
-        </Box>
+        <DataPrismButton
+          status={drillStatus}
+          isPolling={isPolling}
+          onClick={handleTrigger}
+          onCancel={onCancel}
+        />
       </Stack>
 
       {showForceRefresh && (

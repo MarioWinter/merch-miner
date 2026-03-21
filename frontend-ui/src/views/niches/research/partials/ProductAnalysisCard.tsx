@@ -32,6 +32,7 @@ const Card = styled(Box)(({ theme }) => ({
   border: `1px solid ${theme.vars.palette.divider}`,
   borderRadius: 12,
   overflow: 'hidden',
+  wordBreak: 'break-word',
   transition: 'box-shadow 150ms ease',
   '&:hover': {
     boxShadow: `0 4px 16px rgba(0,0,0,0.30)`,
@@ -87,6 +88,7 @@ const FieldLabel = styled(Typography)(({ theme }) => ({
 
 const FieldValue = styled(Typography)({
   fontSize: '0.8125rem',
+  wordBreak: 'break-word',
 });
 
 export const ProductAnalysisCard = ({ product, nicheId }: ProductAnalysisCardProps) => {
@@ -182,6 +184,9 @@ export const ProductAnalysisCard = ({ product, nicheId }: ProductAnalysisCardPro
                   size="small"
                   onClick={() => handleSloganClick(vision.slogan_text)}
                   sx={(theme) => ({
+                    display: 'flex',
+                    maxWidth: '100%',
+                    height: 'auto',
                     backgroundColor: isCollected
                       ? alpha(COLORS.cyan, 0.2)
                       : alpha(theme.palette.secondary.main, 0.1),
@@ -190,6 +195,7 @@ export const ProductAnalysisCard = ({ product, nicheId }: ProductAnalysisCardPro
                     borderRadius: '6px',
                     cursor: 'pointer',
                     transition: 'all 150ms ease',
+                    '& .MuiChip-label': { whiteSpace: 'normal', wordBreak: 'break-word' },
                   })}
                 />
               );
@@ -206,6 +212,7 @@ export const ProductAnalysisCard = ({ product, nicheId }: ProductAnalysisCardPro
                     backgroundColor: alpha(visual.color, 0.12),
                     color: visual.color,
                     borderRadius: '6px',
+                    '& .MuiChip-icon': { color: 'inherit' },
                   }}
                 />
               );

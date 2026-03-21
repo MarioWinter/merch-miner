@@ -15,6 +15,7 @@ const Card = styled(Box)(({ theme }) => ({
   border: `1px solid ${theme.vars.palette.divider}`,
   borderRadius: 12,
   padding: theme.spacing(2.5, 3),
+  wordBreak: 'break-word',
 }));
 
 const SectionLabel = styled(Typography)(({ theme }) => ({

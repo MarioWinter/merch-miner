@@ -1,11 +1,10 @@
 import { useCallback, useMemo, useState } from 'react';
-import { Alert, Box, CircularProgress, Stack, Typography } from '@mui/material';
+import { Alert, Box, Skeleton, Stack, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import IconButton from '@mui/material/IconButton';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { useGetNicheQuery } from '@/store/nicheSlice';
 import { useNicheResearch } from './hooks/useNicheResearch';
 import { ResearchTriggerButton } from './partials/ResearchTriggerButton';
 import { ResearchProgress } from './partials/ResearchProgress';
@@ -24,14 +23,10 @@ const PageHeader = styled(Box)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'space-between',
+  flexWrap: 'wrap',
+  gap: theme.spacing(2),
   marginBottom: theme.spacing(3),
 }));
-
-const LoadingWrapper = styled(Box)({
-  display: 'flex',
-  justifyContent: 'center',
-  padding: '64px 0',
-});
 
 const NicheResearchView = () => {
   const { t } = useTranslation();
@@ -56,8 +51,6 @@ const NicheResearchView = () => {
     }
     setDrawerOpen(true);
   }, [nicheId, showHint]);
-
-  const { data: nicheData } = useGetNicheQuery(nicheId ?? '', { skip: !nicheId });
 
   const {
     data,
@@ -90,7 +83,7 @@ const NicheResearchView = () => {
   const hasNoResearch = !data && !isLoading && !error;
 
   return (
-    <Box onDoubleClick={handleDoubleClick} sx={{ cursor: 'default' }}>
+    <Box onDoubleClick={handleDoubleClick} sx={{ cursor: 'default', maxWidth: '100%' }}>
       <PageHeader>
         <Stack direction="row" spacing={1.5} alignItems="center">
           <IconButton
@@ -128,9 +121,29 @@ const NicheResearchView = () => {
 
       {/* Loading */}
       {isLoading && (
-        <LoadingWrapper>
-          <CircularProgress />
-        </LoadingWrapper>
+        <Stack spacing={3}>
+          {/* Summary card skeleton */}
+          <Skeleton variant="rectangular" animation="wave" height={180} sx={{ borderRadius: '12px' }} />
+          {/* Pattern grid skeleton — 2 rows of 3 */}
+          <Box>
+            <Skeleton variant="rectangular" animation="wave" height={20} width={180} sx={{ borderRadius: '4px', mb: 2 }} />
+            <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
+              {[...Array(6)].map((_, i) => (
+                <Skeleton key={i} variant="rectangular" animation="wave" height={80} sx={{ borderRadius: '12px', flex: '1 1 30%', minWidth: 200 }} />
+              ))}
+            </Stack>
+          </Box>
+          {/* Keywords skeleton */}
+          <Skeleton variant="rectangular" animation="wave" height={60} sx={{ borderRadius: '12px' }} />
+          {/* Product cards skeleton */}
+          <Box>
+            <Skeleton variant="rectangular" animation="wave" height={20} width={200} sx={{ borderRadius: '4px', mb: 2 }} />
+            <Stack spacing={1.5}>
+              <Skeleton variant="rectangular" animation="wave" height={100} sx={{ borderRadius: '12px' }} />
+              <Skeleton variant="rectangular" animation="wave" height={100} sx={{ borderRadius: '12px' }} />
+            </Stack>
+          </Box>
+        </Stack>
       )}
 
       {/* Running / polling */}
@@ -209,7 +222,6 @@ const NicheResearchView = () => {
         open={drawerOpen}
         mode="edit"
         selectedId={nicheId}
-        niche={nicheData}
         onClose={() => setDrawerOpen(false)}
       />
     </Box>
