@@ -2,6 +2,7 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '@/utils/test-utils';
 import { ProductAnalysisCard } from '../partials/ProductAnalysisCard';
+import collectedItemsReducer from '@/store/collectedItemsSlice';
 import type { ResearchProduct } from '../types';
 
 const product: ResearchProduct = {
@@ -12,6 +13,7 @@ const product: ResearchProduct = {
   rating: 4.5,
   reviews_count: 142,
   thumbnail_url: 'https://images.amazon.com/test.jpg',
+  brand_blocked: false,
   vision_analysis: {
     slogan_text: 'I Hike Because Murder Is Wrong',
     meaning_context: 'Dark humor about stress relief via hiking',
@@ -66,46 +68,49 @@ const productNoAnalysis: ResearchProduct = {
   rating: 3.2,
   reviews_count: 12,
   thumbnail_url: '',
+  brand_blocked: false,
   vision_analysis: null,
   emotional_analysis: null,
 };
 
+const opts = { reducers: { collectedItems: collectedItemsReducer } };
+
 describe('ProductAnalysisCard', () => {
   it('renders product title and ASIN', () => {
-    renderWithProviders(<ProductAnalysisCard product={product} />);
+    renderWithProviders(<ProductAnalysisCard product={product} nicheId="n-1" />, opts);
 
     expect(screen.getByText(product.title)).toBeInTheDocument();
     expect(screen.getByText(product.asin)).toBeInTheDocument();
   });
 
   it('renders brand name', () => {
-    renderWithProviders(<ProductAnalysisCard product={product} />);
+    renderWithProviders(<ProductAnalysisCard product={product} nicheId="n-1" />, opts);
 
     expect(screen.getByText('TrailWear')).toBeInTheDocument();
   });
 
   it('renders review count', () => {
-    renderWithProviders(<ProductAnalysisCard product={product} />);
+    renderWithProviders(<ProductAnalysisCard product={product} nicheId="n-1" />, opts);
 
     expect(screen.getByText('142 reviews')).toBeInTheDocument();
   });
 
   it('renders slogan chip when vision analysis exists', () => {
-    renderWithProviders(<ProductAnalysisCard product={product} />);
+    renderWithProviders(<ProductAnalysisCard product={product} nicheId="n-1" />, opts);
 
     const matches = screen.getAllByText('I Hike Because Murder Is Wrong');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders emotional pattern chip when emotional analysis exists', () => {
-    renderWithProviders(<ProductAnalysisCard product={product} />);
+    renderWithProviders(<ProductAnalysisCard product={product} nicheId="n-1" />, opts);
 
     const matches = screen.getAllByText('1: IDENTITY_DECLARATION');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('does not render chips when no analysis', () => {
-    renderWithProviders(<ProductAnalysisCard product={productNoAnalysis} />);
+    renderWithProviders(<ProductAnalysisCard product={productNoAnalysis} nicheId="n-1" />, opts);
 
     expect(screen.getByText('Plain Hiking Tee')).toBeInTheDocument();
     expect(screen.queryByText('IDENTITY_DECLARATION')).not.toBeInTheDocument();
@@ -113,7 +118,7 @@ describe('ProductAnalysisCard', () => {
 
   it('expands to show detailed analysis on click', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<ProductAnalysisCard product={product} />);
+    renderWithProviders(<ProductAnalysisCard product={product} nicheId="n-1" />, opts);
 
     // Details collapsed by default (MUI Collapse renders children in DOM with height: 0px)
     const collapseRegion = screen.getByText('Dark humor about stress relief via hiking').closest('.MuiCollapse-root') as HTMLElement;
@@ -142,14 +147,14 @@ describe('ProductAnalysisCard', () => {
   });
 
   it('renders thumbnail image when URL provided', () => {
-    renderWithProviders(<ProductAnalysisCard product={product} />);
+    renderWithProviders(<ProductAnalysisCard product={product} nicheId="n-1" />, opts);
 
     const img = screen.getByRole('img', { name: product.title });
     expect(img).toHaveAttribute('src', product.thumbnail_url);
   });
 
   it('does not render thumbnail when URL is empty', () => {
-    renderWithProviders(<ProductAnalysisCard product={productNoAnalysis} />);
+    renderWithProviders(<ProductAnalysisCard product={productNoAnalysis} nicheId="n-1" />, opts);
 
     expect(screen.queryByRole('img', { name: productNoAnalysis.title })).not.toBeInTheDocument();
   });

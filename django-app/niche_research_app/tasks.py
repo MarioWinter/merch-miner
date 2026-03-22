@@ -73,7 +73,6 @@ def run_niche_research(research_id: str):
         """Async inner function: set up checkpointer and run graph."""
         from niche_research_app.graph.workflow import compile_and_run
 
-        checkpointer = None
         try:
             db_config = settings.DATABASES['default']
             db_uri = (

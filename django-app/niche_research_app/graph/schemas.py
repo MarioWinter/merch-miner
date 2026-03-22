@@ -1,7 +1,6 @@
 """Pydantic schemas for LLM structured output (with_structured_output)."""
 
 from enum import Enum
-from typing import Optional
 
 from pydantic import BaseModel, Field
 

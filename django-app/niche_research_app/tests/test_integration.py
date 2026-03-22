@@ -12,7 +12,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from django.urls import reverse
-from django.utils import timezone
 
 from niche_app.models import Niche
 from niche_research_app.models import (
@@ -24,7 +23,6 @@ from niche_research_app.models import (
     NicheResearchProduct,
     ResearchNodeConfig,
 )
-from niche_research_app.tests.conftest import _auth_client
 
 
 # ---------------------------------------------------------------------------
@@ -120,7 +118,7 @@ def _mock_keyword_result():
 # Full Workflow Mock
 # ---------------------------------------------------------------------------
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 class TestFullWorkflowMock:
     """End-to-end: trigger -> mock all LLM calls -> verify DB records + API response."""
 
@@ -266,7 +264,7 @@ class TestFullWorkflowMock:
 # Checkpoint Resume
 # ---------------------------------------------------------------------------
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 class TestCheckpointResume:
     """Simulate failure at emotional_analyze, verify earlier results preserved."""
 
@@ -431,7 +429,7 @@ class TestCheckpointResume:
 # Config Change Between Runs
 # ---------------------------------------------------------------------------
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 class TestConfigChangeBetweenRuns:
 
     @patch('niche_research_app.api.views.django_rq')

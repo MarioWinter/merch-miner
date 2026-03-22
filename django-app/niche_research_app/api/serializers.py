@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 
-from scraper_app.models import MarketplaceChoices, ScrapeJob
+from scraper_app.models import MarketplaceChoices
 
 from niche_research_app.models import (
     NicheAnalysis,

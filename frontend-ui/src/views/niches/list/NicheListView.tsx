@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { Box, Button, Pagination, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
@@ -97,19 +97,22 @@ const NicheListView = () => {
     page_size: PAGE_SIZE,
   };
 
-  // Track whether any niche has running research for auto-polling.
-  // Use a ref updated during render to avoid calling setState inside useEffect.
-  const pollingRef = useRef(0);
+  const [pollingInterval, setPollingInterval] = useState(0);
   const { data, isLoading, isError, isFetching } = useListNichesQuery(queryParams, {
-    pollingInterval: pollingRef.current,
+    pollingInterval,
   });
 
-  // Compute during render (not in an effect) — ref update does not cause extra render;
-  // RTK Query re-renders on each poll result, which picks up the latest ref value.
-  const hasRunning = (data?.results ?? []).some(
-    (n) => n.research_status === 'running' || n.research_status === 'pending',
-  );
-  pollingRef.current = hasRunning ? 10_000 : 0;
+  // Sync polling interval with query results — setState is intentional here
+  // because the polling interval must change when research status transitions.
+  useEffect(() => {
+    const hasRunning = (data?.results ?? []).some(
+      (n) => n.research_status === 'running' || n.research_status === 'pending',
+    );
+    const next = hasRunning ? 10_000 : 0;
+    // Only update when the interval actually changes to avoid unnecessary re-renders
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPollingInterval((prev) => (prev === next ? prev : next));
+  }, [data?.results]);
 
   const [deleteNiche] = useDeleteNicheMutation();
 

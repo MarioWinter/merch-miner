@@ -34,6 +34,13 @@ const pendingRun: NicheResearchRun = {
   status: 'pending',
   created_at: '2026-03-18T10:00:00Z',
   completed_at: null,
+  completed_nodes: [],
+  current_node: '',
+  total_nodes: 6,
+  marketplace: 'amazon_com',
+  product_type: 't_shirt',
+  retry_count: 0,
+  brand_filtered_count: 0,
   analysis: null,
   keywords: null,
   products: [],
@@ -182,7 +189,7 @@ describe('useNicheResearch', () => {
       await result.current.triggerResearch();
     });
 
-    expect(mockTriggerResearch).toHaveBeenCalledWith('niche-1');
+    expect(mockTriggerResearch).toHaveBeenCalledWith('niche-1', undefined);
     expect(result.current.data).toEqual(pendingRun);
     expect(result.current.isPolling).toBe(true);
     expect(mockEnqueueSnackbar).toHaveBeenCalledWith(

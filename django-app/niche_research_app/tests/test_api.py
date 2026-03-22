@@ -18,7 +18,6 @@ from rest_framework import status
 
 from niche_app.models import Niche
 from niche_research_app.models import NicheResearch, ResearchNodeConfig
-from niche_research_app.tests.conftest import _auth_client, _make_user
 
 
 def _mock_rq_queue(mock_rq):
@@ -219,7 +218,7 @@ class TestResearchLatest:
     def test_latest_returns_most_recent(self, niche, auth_client, user_with_workspace):
         """Latest endpoint returns the most recently created research."""
         user, _ = user_with_workspace
-        r1 = NicheResearch.objects.create(
+        NicheResearch.objects.create(
             niche=niche, triggered_by=user, status=NicheResearch.Status.FAILED,
         )
         r2 = NicheResearch.objects.create(
@@ -563,7 +562,7 @@ class TestRetryAndForceRefresh:
         self, mock_rq, niche, auth_client, research_configs,
     ):
         """Marketplace + product_type stored on research record."""
-        mock_queue = _mock_rq_queue(mock_rq)
+        _mock_rq_queue(mock_rq)
 
         url = reverse('niche-research', kwargs={'niche_id': niche.id})
         resp = auth_client.post(url, {

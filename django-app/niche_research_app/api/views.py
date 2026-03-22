@@ -10,8 +10,6 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-logger = logging.getLogger(__name__)
-
 from user_auth_app.api.authentication import CookieJWTAuthentication
 from workspace_app.models import Membership
 from niche_app.models import Niche
@@ -28,6 +26,8 @@ from niche_research_app.api.serializers import (
     NicheResearchSerializer,
     ResearchTriggerSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def _get_membership_for_niche(user, niche_id):

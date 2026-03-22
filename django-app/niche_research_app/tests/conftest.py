@@ -1,6 +1,5 @@
 """Shared fixtures for niche_research_app tests."""
 
-import uuid
 
 import pytest
 from rest_framework.test import APIClient
@@ -130,11 +129,13 @@ def research_configs(db):
     """Seed all 4 ResearchNodeConfig rows."""
     configs = []
     for node in ResearchNodeConfig.NodeName.values:
-        c = ResearchNodeConfig.objects.create(
+        c, _ = ResearchNodeConfig.objects.get_or_create(
             node_name=node,
-            model_name='openai/gpt-4.1-mini',
-            temperature=0.3,
-            system_prompt=f'Default prompt for {node}',
+            defaults={
+                'model_name': 'openai/gpt-4.1-mini',
+                'temperature': 0.3,
+                'system_prompt': f'Default prompt for {node}',
+            },
         )
         configs.append(c)
     return configs

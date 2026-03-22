@@ -9,7 +9,6 @@ Covers:
 """
 
 import pytest
-from django.utils import timezone
 
 from niche_app.models import Niche
 from niche_research_app.api.serializers import (
@@ -332,6 +331,9 @@ class TestNicheResearchSerializer:
         data = NicheResearchSerializer(completed_research).data
         assert set(data.keys()) == {
             'id', 'status', 'created_at', 'completed_at', 'error_message',
+            'completed_nodes', 'current_node', 'total_nodes',
+            'marketplace', 'product_type', 'retry_count',
+            'brand_filtered_count',
         }
         assert data['status'] == 'completed'
 

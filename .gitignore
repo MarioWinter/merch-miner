@@ -1,4 +1,6 @@
 # ── Claude Code ────────────────────────────────────────
+.playwright-mcp/
+snapshot-*.md
 
 # ── Environment Variables ──────────────────────────────
 .env

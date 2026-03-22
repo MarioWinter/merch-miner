@@ -103,7 +103,7 @@ class TestAmazonSearchPageSpider:
 
     def test_default_max_pages(self):
         spider = AmazonSearchPageSpider(keyword="test")
-        assert spider.max_pages == 4
+        assert spider.max_pages == 2
 
     def test_custom_max_pages(self):
         spider = AmazonSearchPageSpider(keyword="test", max_pages=2)

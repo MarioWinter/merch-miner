@@ -11,13 +11,13 @@ const activePattern: PatternItem = {
 };
 
 const inactivePattern: PatternItem = {
-  name: 'VINTAGE_LEGACY',
+  name: 'FUNNY_ACTIVITY',
   present: false,
   context: '',
 };
 
 const inactiveWithContext: PatternItem = {
-  name: 'CHAOS_CONTROL',
+  name: 'GROUP_LEADER',
   present: false,
   context: 'Minor traces detected but not dominant.',
 };
@@ -33,7 +33,7 @@ describe('PatternCard', () => {
   it('renders inactive pattern label in collapsed state', () => {
     renderWithProviders(<PatternCard pattern={inactivePattern} />);
 
-    expect(screen.getByText('Vintage / Legacy')).toBeInTheDocument();
+    expect(screen.getByText('Funny Activity')).toBeInTheDocument();
     // Default fallback text should not be visible until expanded
     expect(screen.queryByText('Not detected in this niche.')).not.toBeVisible();
   });
@@ -42,10 +42,10 @@ describe('PatternCard', () => {
     const user = userEvent.setup();
     renderWithProviders(<PatternCard pattern={inactiveWithContext} />);
 
-    expect(screen.getByText('Chaos / Control')).toBeInTheDocument();
+    expect(screen.getByText('Group Leader')).toBeInTheDocument();
 
     // Click the card to expand
-    await user.click(screen.getByText('Chaos / Control'));
+    await user.click(screen.getByText('Group Leader'));
 
     expect(screen.getByText('Minor traces detected but not dominant.')).toBeVisible();
   });
@@ -54,7 +54,7 @@ describe('PatternCard', () => {
     const user = userEvent.setup();
     renderWithProviders(<PatternCard pattern={inactivePattern} />);
 
-    await user.click(screen.getByText('Vintage / Legacy'));
+    await user.click(screen.getByText('Funny Activity'));
 
     expect(screen.getByText('Not detected in this niche.')).toBeVisible();
   });

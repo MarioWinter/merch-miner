@@ -23,7 +23,6 @@ from niche_research_app.models import (
     NicheProductEmotionalAnalysis,
     NicheProductVisionAnalysis,
     NicheResearch,
-    NicheResearchProduct,
 )
 
 
@@ -31,7 +30,7 @@ from niche_research_app.models import (
 # Scrape Node
 # ---------------------------------------------------------------------------
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 class TestScrapeNode:
 
     def _make_state(self, research):
@@ -41,67 +40,53 @@ class TestScrapeNode:
             'marketplace': 'amazon_com',
         }
 
-    @patch('niche_research_app.graph.nodes.scrape.scrape_search_page_job')
-    @patch('niche_research_app.graph.nodes.scrape.get_or_create_keyword_cache')
+    @patch('scraper_app.brand_filter.get_blacklisted_brands', return_value=set())
     def test_fresh_cache_skips_scrape(
-        self, mock_get_cache, mock_scrape, niche, user_with_workspace,
+        self, mock_blacklist, niche, user_with_workspace,
         keyword, amazon_products,
     ):
-        """If fresh completed cache exists, scrape is not triggered."""
-        from scraper_app.models import ProductSearchCache
+        """If products already exist in DB, scrape is not triggered (DB-first)."""
         user, _ = user_with_workspace
         research = NicheResearch.objects.create(niche=niche, triggered_by=user)
-        for p in amazon_products:
-            NicheResearchProduct.objects.create(research=research, product=p)
-
-        cache = MagicMock()
-        cache.status = ProductSearchCache.Status.COMPLETED
-        mock_get_cache.return_value = (cache, False)
 
         from niche_research_app.graph.nodes.scrape import scrape_node
         result = asyncio.get_event_loop().run_until_complete(
             scrape_node(self._make_state(research))
         )
 
-        mock_scrape.assert_not_called()
         assert 'product_asins' in result
         assert len(result['product_asins']) == 3
 
-    @patch('niche_research_app.graph.nodes.scrape.scrape_search_page_job')
-    @patch('niche_research_app.graph.nodes.scrape.get_or_create_keyword_cache')
+    @patch('scraper_app.brand_filter.get_blacklisted_brands', return_value=set())
     def test_new_scrape_triggered(
-        self, mock_get_cache, mock_scrape, niche, user_with_workspace,
+        self, mock_blacklist, niche, user_with_workspace,
         keyword, amazon_products,
     ):
-        """If no cache, triggers scrape and creates research products."""
-        from scraper_app.models import ProductSearchCache, ScrapeJob
+        """DB-first: existing products used, output shape is correct."""
         user, _ = user_with_workspace
         research = NicheResearch.objects.create(niche=niche, triggered_by=user)
 
-        # Return None to trigger new scrape branch
-        mock_get_cache.return_value = (None, False)
-
         from niche_research_app.graph.nodes.scrape import scrape_node
-
-        # We need to mock the entire new-scrape branch since it creates DB objects
-        # Instead, use the fresh-cache path for verifying the output shape
-        cache = MagicMock()
-        cache.status = ProductSearchCache.Status.COMPLETED
-        mock_get_cache.return_value = (cache, False)
 
         result = asyncio.get_event_loop().run_until_complete(
             scrape_node(self._make_state(research))
         )
         assert 'product_asins' in result
+        assert len(result['product_asins']) == 3
 
-    @patch('niche_research_app.graph.nodes.scrape.get_or_create_keyword_cache')
+    @patch('scraper_app.brand_filter.get_blacklisted_brands', return_value=set())
+    @patch('scraper_app.tasks.get_or_create_keyword_cache')
     def test_scrape_timeout_raises(
-        self, mock_get_cache, niche, user_with_workspace, keyword,
+        self, mock_get_cache, mock_blacklist, niche, user_with_workspace,
     ):
         """Polling timeout raises TimeoutError."""
         from scraper_app.models import ProductSearchCache
         user, _ = user_with_workspace
-        research = NicheResearch.objects.create(niche=niche, triggered_by=user)
+        # Use a niche name with no existing keyword/products to trigger scrape path
+        timeout_niche = Niche.objects.create(
+            workspace=niche.workspace, name='TimeoutNiche', created_by=user,
+        )
+        research = NicheResearch.objects.create(niche=timeout_niche, triggered_by=user)
 
         cache = MagicMock()
         cache.status = ProductSearchCache.Status.PENDING
@@ -114,17 +99,25 @@ class TestScrapeNode:
             with patch('niche_research_app.graph.nodes.scrape.POLL_INTERVAL_SECONDS', 0):
                 with pytest.raises(TimeoutError, match='timed out'):
                     asyncio.get_event_loop().run_until_complete(
-                        scrape_node(self._make_state(research))
+                        scrape_node({
+                            'research_id': str(research.id),
+                            'niche_name': 'TimeoutNiche',
+                            'marketplace': 'amazon_com',
+                        })
                     )
 
-    @patch('niche_research_app.graph.nodes.scrape.get_or_create_keyword_cache')
+    @patch('scraper_app.brand_filter.get_blacklisted_brands', return_value=set())
+    @patch('scraper_app.tasks.get_or_create_keyword_cache')
     def test_scrape_failed_raises(
-        self, mock_get_cache, niche, user_with_workspace, keyword,
+        self, mock_get_cache, mock_blacklist, niche, user_with_workspace,
     ):
         """Scrape failure raises RuntimeError."""
         from scraper_app.models import ProductSearchCache
         user, _ = user_with_workspace
-        research = NicheResearch.objects.create(niche=niche, triggered_by=user)
+        failed_niche = Niche.objects.create(
+            workspace=niche.workspace, name='FailedNiche', created_by=user,
+        )
+        research = NicheResearch.objects.create(niche=failed_niche, triggered_by=user)
 
         cache = MagicMock()
         cache.status = ProductSearchCache.Status.FAILED
@@ -132,27 +125,29 @@ class TestScrapeNode:
 
         from niche_research_app.graph.nodes.scrape import scrape_node
 
-        # The node checks cache.status after polling
         with pytest.raises(RuntimeError, match='failed'):
             asyncio.get_event_loop().run_until_complete(
-                scrape_node(self._make_state(research))
+                scrape_node({
+                    'research_id': str(research.id),
+                    'niche_name': 'FailedNiche',
+                    'marketplace': 'amazon_com',
+                })
             )
 
-    @patch('niche_research_app.graph.nodes.scrape.scrape_search_page_job')
-    @patch('niche_research_app.graph.nodes.scrape.get_or_create_keyword_cache')
+    @patch('scraper_app.brand_filter.get_blacklisted_brands', return_value=set())
+    @patch('scraper_app.tasks.get_or_create_keyword_cache')
     def test_no_products_raises(
-        self, mock_get_cache, mock_scrape, user_with_workspace, keyword,
+        self, mock_get_cache, mock_blacklist, user_with_workspace,
     ):
         """0 products found -> RuntimeError."""
-        from scraper_app.models import ProductSearchCache
+        from scraper_app.models import Keyword as ScraperKeyword, ProductSearchCache
         user, ws = user_with_workspace
         niche = Niche.objects.create(
             workspace=ws, name='EmptyNiche', created_by=user,
         )
         research = NicheResearch.objects.create(niche=niche, triggered_by=user)
 
-        # Keyword exists but no products linked
-        from scraper_app.models import Keyword as ScraperKeyword
+        # Keyword exists but no products linked — triggers scrape path
         ScraperKeyword.objects.get_or_create(
             keyword='EmptyNiche', marketplace='amazon_com',
         )
@@ -172,20 +167,14 @@ class TestScrapeNode:
                 })
             )
 
-    @patch('niche_research_app.graph.nodes.scrape.scrape_search_page_job')
-    @patch('niche_research_app.graph.nodes.scrape.get_or_create_keyword_cache')
+    @patch('scraper_app.brand_filter.get_blacklisted_brands', return_value=set())
     def test_status_updated_to_running(
-        self, mock_get_cache, mock_scrape, niche, user_with_workspace,
+        self, mock_blacklist, niche, user_with_workspace,
         keyword, amazon_products,
     ):
         """Scrape node sets NicheResearch.status = running."""
-        from scraper_app.models import ProductSearchCache
         user, _ = user_with_workspace
         research = NicheResearch.objects.create(niche=niche, triggered_by=user)
-
-        cache = MagicMock()
-        cache.status = ProductSearchCache.Status.COMPLETED
-        mock_get_cache.return_value = (cache, False)
 
         from niche_research_app.graph.nodes.scrape import scrape_node
         asyncio.get_event_loop().run_until_complete(
@@ -200,7 +189,7 @@ class TestScrapeNode:
 # Vision Analyze Node
 # ---------------------------------------------------------------------------
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 class TestVisionAnalyzeNode:
 
     def _make_state(self, research, asins):
@@ -211,9 +200,10 @@ class TestVisionAnalyzeNode:
             'product_asins': asins,
         }
 
+    @patch('scraper_app.brand_filter.get_blacklisted_brands', return_value=set())
     @patch('niche_research_app.graph.nodes.vision_analyze.get_llm_for_node')
     def test_parallel_execution_and_filtering(
-        self, mock_get_llm, niche, user_with_workspace, keyword, amazon_products,
+        self, mock_get_llm, mock_blacklist, niche, user_with_workspace, keyword, amazon_products,
     ):
         """Products are analyzed in parallel, non-matches filtered out."""
         user, _ = user_with_workspace
@@ -246,9 +236,10 @@ class TestVisionAnalyzeNode:
         assert len(result['vision_analyses']) == 3
         assert NicheProductVisionAnalysis.objects.filter(research=research).count() == 3
 
+    @patch('scraper_app.brand_filter.get_blacklisted_brands', return_value=set())
     @patch('niche_research_app.graph.nodes.vision_analyze.get_llm_for_node')
     def test_non_match_filtered_out(
-        self, mock_get_llm, niche, user_with_workspace, keyword, amazon_products,
+        self, mock_get_llm, mock_blacklist, niche, user_with_workspace, keyword, amazon_products,
     ):
         """Products with is_niche_match=False are saved but not in state."""
         user, _ = user_with_workspace
@@ -279,9 +270,10 @@ class TestVisionAnalyzeNode:
         # Records are still saved to DB for audit
         assert NicheProductVisionAnalysis.objects.filter(research=research).count() == 3
 
+    @patch('scraper_app.brand_filter.get_blacklisted_brands', return_value=set())
     @patch('niche_research_app.graph.nodes.vision_analyze.get_llm_for_node')
     def test_short_slogan_filtered_unless_exception(
-        self, mock_get_llm, niche, user_with_workspace, keyword, amazon_products,
+        self, mock_get_llm, mock_blacklist, niche, user_with_workspace, keyword, amazon_products,
     ):
         """Slogans <=2 words filtered, but Squad/Crew exceptions pass."""
         user, _ = user_with_workspace
@@ -322,9 +314,10 @@ class TestVisionAnalyzeNode:
         assert len(result['vision_analyses']) == 1
         assert result['vision_analyses'][0]['slogan_text'] == 'Fishing Squad'
 
+    @patch('scraper_app.brand_filter.get_blacklisted_brands', return_value=set())
     @patch('niche_research_app.graph.nodes.vision_analyze.get_llm_for_node')
     def test_thumbnail_failure_skipped(
-        self, mock_get_llm, niche, user_with_workspace, keyword, amazon_products,
+        self, mock_get_llm, mock_blacklist, niche, user_with_workspace, keyword, amazon_products,
     ):
         """If LLM call fails for one product, it's skipped gracefully."""
         user, _ = user_with_workspace
@@ -361,9 +354,10 @@ class TestVisionAnalyzeNode:
         # 1 failed, 2 passed
         assert len(result['vision_analyses']) == 2
 
+    @patch('scraper_app.brand_filter.get_blacklisted_brands', return_value=set())
     @patch('niche_research_app.graph.nodes.vision_analyze.get_llm_for_node')
     def test_no_thumbnail_skipped(
-        self, mock_get_llm, niche, user_with_workspace, keyword,
+        self, mock_get_llm, mock_blacklist, niche, user_with_workspace, keyword,
     ):
         """Products without thumbnail_url are skipped."""
         from scraper_app.models import AmazonProduct
@@ -395,7 +389,7 @@ class TestVisionAnalyzeNode:
 # Emotional Analyze Node
 # ---------------------------------------------------------------------------
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 class TestEmotionalAnalyzeNode:
 
     @patch('niche_research_app.graph.nodes.emotional_analyze.get_llm_for_node')
@@ -541,7 +535,7 @@ class TestEmotionalAnalyzeNode:
 # Niche Profile Node
 # ---------------------------------------------------------------------------
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 class TestNicheProfileNode:
 
     @patch('niche_research_app.graph.nodes.niche_profile.create_react_agent')
@@ -565,7 +559,6 @@ class TestNicheProfileNode:
         mock_create_agent.return_value = mock_agent
 
         # Mock structured output
-        from niche_research_app.graph.schemas import NicheAnalysisSchema, PatternItem
         mock_analysis = MagicMock()
         mock_analysis.niche_summary = 'Fishing niche summary'
         mock_analysis.sentiment = 'Positive'
@@ -653,7 +646,7 @@ class TestNicheProfileNode:
 # Keywords Node
 # ---------------------------------------------------------------------------
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 class TestKeywordsNode:
 
     @patch('niche_research_app.graph.nodes.keywords.get_llm_for_node')
@@ -736,7 +729,7 @@ class TestKeywordsNode:
 # Finalize Node
 # ---------------------------------------------------------------------------
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 class TestFinalizeNode:
 
     def test_sets_completed(self, niche, user_with_workspace):

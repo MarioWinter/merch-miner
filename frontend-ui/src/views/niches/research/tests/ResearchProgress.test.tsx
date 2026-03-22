@@ -17,12 +17,15 @@ describe('ResearchProgress', () => {
     ).toBeInTheDocument();
   });
 
-  it('renders all three stepper steps', () => {
+  it('renders all six stepper steps', () => {
     renderWithProviders(<ResearchProgress status="pending" />);
 
-    expect(screen.getByText('Scraping')).toBeInTheDocument();
-    expect(screen.getByText('AI Analysis')).toBeInTheDocument();
-    expect(screen.getByText('Saving Results')).toBeInTheDocument();
+    expect(screen.getByText('Scrape')).toBeInTheDocument();
+    expect(screen.getByText('Vision')).toBeInTheDocument();
+    expect(screen.getByText('Emotional')).toBeInTheDocument();
+    expect(screen.getByText('Niche Profile')).toBeInTheDocument();
+    expect(screen.getByText('Keywords')).toBeInTheDocument();
+    expect(screen.getByText('Finalize')).toBeInTheDocument();
   });
 
   it('renders the linear progress bar', () => {

@@ -24,7 +24,6 @@ describe('ResearchTriggerButton', () => {
     );
 
     expect(screen.getByRole('button', { name: /stop research/i })).toBeInTheDocument();
-    expect(screen.getByText('Stop Research')).toBeInTheDocument();
   });
 
   it('renders stop button when status is running', () => {
@@ -43,13 +42,14 @@ describe('ResearchTriggerButton', () => {
     expect(screen.getByRole('button', { name: /stop research/i })).toBeInTheDocument();
   });
 
-  it('hides marketplace and product type dropdowns when busy', () => {
+  it('always shows marketplace and product type dropdowns', () => {
     renderWithProviders(
       <ResearchTriggerButton {...defaultProps} status="running" />,
     );
 
-    expect(screen.queryByLabelText(/marketplace/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/product type/i)).not.toBeInTheDocument();
+    // Dropdowns are always rendered (siblings of DataPrismButton)
+    expect(screen.getByLabelText(/marketplace/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/product type/i)).toBeInTheDocument();
   });
 
   it('shows marketplace and product type dropdowns when idle', () => {

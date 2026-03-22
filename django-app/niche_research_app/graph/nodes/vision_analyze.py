@@ -68,7 +68,6 @@ async def vision_analyze_node(state: ResearchState) -> dict:
     await sync_to_async(research_for_count.save)(update_fields=['brand_filtered_count'])
 
     semaphore = asyncio.Semaphore(MAX_CONCURRENT)
-    results = []
 
     async def analyze_product(product):
         async with semaphore:

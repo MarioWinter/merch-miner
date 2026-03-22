@@ -1,6 +1,7 @@
 import { screen } from '@testing-library/react';
 import { renderWithProviders } from '@/utils/test-utils';
 import { KeywordChips } from '../partials/KeywordChips';
+import collectedItemsReducer from '@/store/collectedItemsSlice';
 import type { NicheKeywords } from '../types';
 
 const keywords: NicheKeywords = {
@@ -11,9 +12,14 @@ const keywords: NicheKeywords = {
   top_long_tail_keywords: ['funny hiking t-shirt for dad'],
 };
 
+const renderChips = (kw: NicheKeywords) =>
+  renderWithProviders(<KeywordChips keywords={kw} nicheId="niche-1" />, {
+    reducers: { collectedItems: collectedItemsReducer },
+  });
+
 describe('KeywordChips', () => {
   it('renders all keyword sections', () => {
-    renderWithProviders(<KeywordChips keywords={keywords} />);
+    renderChips(keywords);
 
     expect(screen.getByText('hiking')).toBeInTheDocument();
     expect(screen.getByText('outdoor')).toBeInTheDocument();
@@ -31,7 +37,7 @@ describe('KeywordChips', () => {
       top_focus_keywords: ['test keyword'],
       top_long_tail_keywords: [],
     };
-    renderWithProviders(<KeywordChips keywords={emptyKeywords} />);
+    renderChips(emptyKeywords);
 
     expect(screen.getByText('test keyword')).toBeInTheDocument();
     // Short-tail section label should not render

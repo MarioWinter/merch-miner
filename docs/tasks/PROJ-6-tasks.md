@@ -245,7 +245,7 @@ Phases 1-4 are implemented and deployed. See git history for details.
 
 ---
 
-## Phase 8: Brand Blacklist (Trademark Filter)
+## Phase 8: Brand Blacklist (Trademark Filter) [DONE]
 
 Design goal: reusable `BrandBlacklist` model + `brand_filter` utility in `scraper_app` — usable from PROJ-6 (niche research), PROJ-7 (product research UI), and any future product filtering.
 
@@ -342,7 +342,7 @@ Design goal: reusable `BrandBlacklist` model + `brand_filter` utility in `scrape
 
 ---
 
-## Phase 8b: Scrape Node — DB-First Product Lookup
+## Phase 8b: Scrape Node — DB-First Product Lookup [DONE]
 
 Research should use existing products from the DB instead of always triggering a new scrape. Scheduled scraping (PROJ-16) keeps products current independently.
 
@@ -359,7 +359,7 @@ Research should use existing products from the DB instead of always triggering a
 
 ---
 
-## Phase 9: Testing
+## Phase 9: Testing [DONE]
 
 ### Task 9.1: Brand filter unit tests [/backend]
 - Test `is_brand_blocked()`: exact match, substring match, empty brand, case insensitive
@@ -391,7 +391,7 @@ Research should use existing products from the DB instead of always triggering a
 
 ---
 
-## Phase 10: Collected Items — Slogan & Keyword Collector [/frontend]
+## Phase 10: Collected Items — Slogan & Keyword Collector [DONE]
 
 Slogans + Keywords aus Research als "Collected Items" im globalen Redux Store sammeln. Drawer zeigt gesammelte Items. Basis für zukünftige Pipeline (PROJ-8 Idea Gen → PROJ-9 Design → PROJ-11 Listing).
 
@@ -437,7 +437,7 @@ Slogans + Keywords aus Research als "Collected Items" im globalen Redux Store sa
 
 ---
 
-## Phase 11: UI Polish + Pattern-Grouped Products [/frontend]
+## Phase 11: UI Polish + Pattern-Grouped Products [DONE]
 
 ### Task 11.1: Pattern-Chip in ProductAnalysisCard — use patternConfig [/frontend]
 - File: `ProductAnalysisCard.tsx`
@@ -486,3 +486,65 @@ Slogans + Keywords aus Research als "Collected Items" im globalen Redux Store sa
 - Replace flat `products.map(ProductAnalysisCard)` with `<GroupedProductAnalysis>`
 - Pass `productCounts` + `onPatternClick` to `PatternGrid`
 - **AC:** Products displayed grouped by pattern, PatternGrid scrolls to sections
+
+---
+
+## Phase 12: E2E Tests (Playwright MCP) [DONE]
+
+No AI Research trigger — avoid LLM/scraping costs.
+
+### Test E2E-1: Niche-Liste → Deep Drill Navigation
+- Open `/niches`, verify table + Deep Drill column
+- Click Deep Drill icon → navigates to `/niches/research?nicheId=...`
+- Page header shows niche name
+
+### Test E2E-2: Research View — Idle State
+- DataPrismButton visible with "AI Research" label
+- Marketplace select (default: Amazon.com US) + ProductType select (default: T-Shirt)
+- Double-click hint visible
+- DO NOT click the trigger button
+
+### Test E2E-3: Research View — Completed Results
+- Niche Summary Card visible
+- Pattern Grid with active/inactive patterns + count badges
+- Keyword Chips (4 sections)
+- Grouped Product Analysis (pattern groups with headers)
+- Product Cards with labels (Title, ASIN, Brand)
+
+### Test E2E-4: Pattern Click-to-Scroll
+- Click active PatternCard in grid → page scrolls to pattern group
+
+### Test E2E-5: Slogan/Keyword Collect
+- Click slogan chip → selected style (cyan border)
+- Click keyword chip → selected style
+
+### Test E2E-6: Double-Click → Drawer Overlay
+- Double-click on research page → drawer opens as overlay
+- Research page stays visible behind drawer
+- Drawer shows niche details
+- Close drawer
+
+### Test E2E-7: Drawer — Collected Items
+- After collecting slogans/keywords, open drawer
+- "Collected Slogans" + "Collected Keywords" sections visible
+- "Copy All" button present
+- Remove item via X → item removed
+
+### Test E2E-8: Thumbnail Hover Preview
+- Hover product thumbnail → 280x280 preview appears
+- Mouse away → preview disappears
+
+### Test E2E-9: Amazon Link
+- OpenInNew icon next to ASIN → link with target="_blank"
+
+### Test E2E-10: Back-Navigation
+- Click back button → navigates to `/niches`
+- Table visible, no drawer open
+
+### Test E2E-11: Responsive Header
+- Viewport ~800px width → selects + button wrap (no horizontal scrollbar)
+
+### Test E2E-12: Drawer from Table
+- Double-click niche row → drawer opens
+- Niche name in drawer header
+- AI Research section visible

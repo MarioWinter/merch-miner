@@ -16,7 +16,6 @@ import uuid
 
 import pytest
 from django.test import TransactionTestCase
-from django.utils import timezone
 
 from niche_research_app.models import (
     NicheAnalysis,
@@ -274,7 +273,7 @@ class TestLoadAnalysisResult:
 
     def test_returns_analysis_dict(self):
         research, niche, _, _ = _setup_research()
-        na = NicheAnalysis.objects.create(
+        NicheAnalysis.objects.create(
             research=research, niche=niche,
             niche_summary='Fishing niche summary',
             sentiment='Positive',
