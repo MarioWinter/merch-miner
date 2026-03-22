@@ -128,7 +128,7 @@ class TestFullWorkflowMock:
     @patch('niche_research_app.graph.nodes.niche_profile.get_llm_for_node')
     @patch('niche_research_app.graph.nodes.emotional_analyze.get_llm_for_node')
     @patch('niche_research_app.graph.nodes.vision_analyze.get_llm_for_node')
-    @patch('niche_research_app.graph.nodes.scrape.get_or_create_keyword_cache')
+    @patch('scraper_app.tasks.get_or_create_keyword_cache')
     def test_full_pipeline(
         self, mock_cache, mock_vision_llm, mock_emotional_llm,
         mock_profile_llm, mock_keywords_llm, mock_agent, mock_rq,
@@ -268,7 +268,7 @@ class TestFullWorkflowMock:
 class TestCheckpointResume:
     """Simulate failure at emotional_analyze, verify earlier results preserved."""
 
-    @patch('niche_research_app.graph.nodes.scrape.get_or_create_keyword_cache')
+    @patch('scraper_app.tasks.get_or_create_keyword_cache')
     @patch('niche_research_app.graph.nodes.vision_analyze.get_llm_for_node')
     def test_scrape_and_vision_preserved_after_emotional_failure(
         self, mock_vision_llm, mock_cache,
@@ -437,7 +437,9 @@ class TestConfigChangeBetweenRuns:
         self, mock_rq, niche, auth_client, user_with_workspace, research_configs,
     ):
         """Changing ResearchNodeConfig between runs updates config_snapshot."""
-        mock_rq.get_queue.return_value = MagicMock()
+        mock_queue = MagicMock()
+        mock_queue.enqueue.return_value = MagicMock(id='fake-job-id')
+        mock_rq.get_queue.return_value = mock_queue
 
         # First run
         url = reverse('niche-research', kwargs={'niche_id': niche.id})
@@ -476,7 +478,9 @@ class TestConfigChangeBetweenRuns:
         self, mock_rq, niche, auth_client, user_with_workspace,
     ):
         """If no ResearchNodeConfig rows, snapshot is empty dict."""
-        mock_rq.get_queue.return_value = MagicMock()
+        mock_queue = MagicMock()
+        mock_queue.enqueue.return_value = MagicMock(id='fake-job-id')
+        mock_rq.get_queue.return_value = mock_queue
         # No research_configs fixture -> 0 config rows
 
         url = reverse('niche-research', kwargs={'niche_id': niche.id})

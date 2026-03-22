@@ -48,7 +48,7 @@ class TestResearchNodeConfig:
             )
 
     def test_defaults(self, db):
-        config = ResearchNodeConfig.objects.create(
+        config, _ = ResearchNodeConfig.objects.get_or_create(
             node_name='vision_analyze',
         )
         assert config.model_name == 'openai/gpt-4.1-mini'

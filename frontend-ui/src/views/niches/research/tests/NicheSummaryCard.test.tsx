@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderWithProviders } from '@/utils/test-utils';
 import { NicheSummaryCard } from '../partials/NicheSummaryCard';
