@@ -3,11 +3,19 @@ services:
     image: ghcr.io/mariowinter/merch-miner/backend:latest
     env_file: ./.env
     container_name: app_backend
+    environment:
+      DJANGO_ENV: production
     command: gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 3
     volumes:
       - static_volume:/app/static
       - media_volume:/app/media
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health/')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
     networks:
       - default
       - merch_net
@@ -17,6 +25,9 @@ services:
     image: ghcr.io/mariowinter/merch-miner/backend:latest
     env_file: ./.env
     restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
     networks:
       - default
       - supabase-net
@@ -26,16 +37,20 @@ services:
     command: python manage.py rqworker scraper
     env_file: ./.env
     restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
     networks:
       - default
       - supabase-net
-    depends_on:
-      - redis
 
   worker-research:
     image: ghcr.io/mariowinter/merch-miner/backend:latest
     env_file: ./.env
     restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
     networks:
       - default
       - supabase-net
@@ -46,11 +61,12 @@ services:
     command: python manage.py rqscheduler
     env_file: ./.env
     restart: unless-stopped
+    depends_on:
+      web:
+        condition: service_healthy
     networks:
       - default
       - supabase-net
-    depends_on:
-      - redis
 
   frontend:
     image: ghcr.io/mariowinter/merch-miner/frontend:latest

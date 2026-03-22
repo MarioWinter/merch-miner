@@ -8,8 +8,13 @@ while ! pg_isready -h "$DB_HOST" -p "$DB_PORT" -q; do
 done
 echo "PostgreSQL ready."
 
+python manage.py migrate --noinput
 python manage.py collectstatic --noinput
-python manage.py migrate
+
+if [ "$DJANGO_ENV" = "production" ]; then
+  python manage.py loaddata default_tiers || true
+  python manage.py setup_scheduler || true
+fi
 
 if [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then
 python manage.py shell <<EOF
