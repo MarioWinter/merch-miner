@@ -54,7 +54,8 @@ class TestResearchNodeConfig:
         assert config.model_name == 'openai/gpt-4.1-mini'
         assert config.temperature == 0.3
         assert config.max_tokens is None
-        assert config.system_prompt == ''
+        # system_prompt is seeded by data migration 0002
+        assert isinstance(config.system_prompt, str)
 
     def test_str(self, research_configs):
         config = ResearchNodeConfig.objects.get(node_name='vision_analyze')

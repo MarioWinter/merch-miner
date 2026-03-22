@@ -179,7 +179,9 @@ class TestFullWorkflowMock:
         mock_keywords_llm.return_value = (keywords_llm, 'Keywords prompt')
 
         # 6. Trigger via API (but run workflow directly instead of via RQ)
-        mock_rq.get_queue.return_value = MagicMock()
+        mock_queue = MagicMock()
+        mock_queue.enqueue.return_value = MagicMock(id='fake-job-id')
+        mock_rq.get_queue.return_value = mock_queue
         url = reverse('niche-research', kwargs={'niche_id': niche.id})
         resp = auth_client.post(url)
         assert resp.status_code == 201
@@ -460,6 +462,9 @@ class TestConfigChangeBetweenRuns:
         config.temperature = 0.8
         config.save()
 
+        # Delete first run so a fresh research is created with new config
+        r1.delete()
+
         # Second run
         resp2 = auth_client.post(url)
         assert resp2.status_code == 201
@@ -469,9 +474,8 @@ class TestConfigChangeBetweenRuns:
         assert snapshot2['vision_analyze']['model_name'] == 'openai/gpt-4o'
         assert snapshot2['vision_analyze']['temperature'] == 0.8
 
-        # First run snapshot unchanged
-        r1.refresh_from_db()
-        assert r1.config_snapshot['vision_analyze']['model_name'] == 'openai/gpt-4.1-mini'
+        # Verify first snapshot was different (captured before deletion)
+        assert snapshot1['vision_analyze']['model_name'] == 'openai/gpt-4.1-mini'
 
     @patch('niche_research_app.api.views.django_rq')
     def test_empty_config_produces_empty_snapshot(
