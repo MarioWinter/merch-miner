@@ -23,13 +23,19 @@ jobs:
           command_timeout: 5m
           script: |
             set -e
+            DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             cd /home/dev/merch-miner
             git fetch origin main && git reset --hard origin/main
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
-            # web entrypoint runs: migrate, collectstatic, loaddata, setup_scheduler
-            # workers wait for web healthcheck (service_healthy) before starting
-            docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
+            $DC pull
+            # 1. Start web + redis + frontend + caddy (entrypoint runs migrate, collectstatic, loaddata, setup_scheduler)
+            $DC up -d web redis frontend caddy
+            # 2. Wait for web to be ready (gunicorn responding)
+            echo "Waiting for web..."
+            until $DC exec -T web python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/admin/login/')" 2>/dev/null; do sleep 3; done
+            echo "Web ready."
+            # 3. Start workers
+            $DC up -d --remove-orphans
             echo "Deployed $(date)"
         env:
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
