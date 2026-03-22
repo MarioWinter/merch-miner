@@ -4,7 +4,7 @@ description: Deploy with Docker Compose and Caddy reverse proxy. Production-read
 argument-hint: [feature-spec-path or "to production"]
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion
-model: sonnet
+model: opus
 ---
 
 # DevOps Engineer

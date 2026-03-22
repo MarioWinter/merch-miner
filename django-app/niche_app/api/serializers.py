@@ -17,6 +17,7 @@ class NicheSerializer(serializers.ModelSerializer):
     )
     idea_count = serializers.SerializerMethodField()
     approved_idea_count = serializers.SerializerMethodField()
+    research_progress = serializers.SerializerMethodField()
 
     class Meta:
         model = Niche
@@ -25,7 +26,7 @@ class NicheSerializer(serializers.ModelSerializer):
             'potential_rating', 'research_status', 'research_run_id',
             'position', 'assigned_to', 'created_by',
             'created_at', 'updated_at',
-            'idea_count', 'approved_idea_count',
+            'idea_count', 'approved_idea_count', 'research_progress',
         )
         read_only_fields = (
             'id', 'workspace', 'created_by', 'created_at', 'updated_at',
@@ -49,6 +50,18 @@ class NicheSerializer(serializers.ModelSerializer):
 
     def get_approved_idea_count(self, obj):
         return getattr(obj, 'approved_idea_count', 0)
+
+    def get_research_progress(self, obj):
+        """Return progress of latest research run, or null."""
+        research = obj.research_runs.order_by('-created_at').first()
+        if research is None:
+            return None
+        return {
+            'completed_nodes': research.completed_nodes or [],
+            'current_node': research.current_node or '',
+            'status': research.status,
+            'total_nodes': 6,
+        }
 
     def validate_assigned_to(self, value):
         if value is None:

@@ -12,6 +12,7 @@ from django.utils import timezone
 
 from scraper_app.models import (
     AmazonProduct,
+    BrandBlacklist,
     BSRSnapshot,
     Keyword,
     MarketplaceChoices,
@@ -416,6 +417,17 @@ class ScheduledScrapeTargetAdmin(admin.ModelAdmin):
             )
             count += 1
         return count, errors
+
+
+# ---------------------------------------------------------------------------
+# BrandBlacklist Admin (Task 8.3)
+# ---------------------------------------------------------------------------
+
+@admin.register(BrandBlacklist)
+class BrandBlacklistAdmin(admin.ModelAdmin):
+    list_display = ['brand_name', 'created_at']
+    search_fields = ['brand_name']
+    ordering = ['brand_name']
 
 
 # ---------------------------------------------------------------------------

@@ -1,4 +1,6 @@
 # ── Claude Code ────────────────────────────────────────
+.playwright-mcp/
+snapshot-*.md
 
 # ── Environment Variables ──────────────────────────────
 .env
@@ -57,6 +59,7 @@ __pycache__/
 *.spec
 .python-version
 .mypy_cache/
+.ruff_cache/
 .hypothesis/
 api.http
 

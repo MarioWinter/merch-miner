@@ -4,10 +4,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useSnackbar } from 'notistack';
 import { useTranslation } from 'react-i18next';
 import {
+  useGetNicheQuery,
   useCreateNicheMutation,
   useUpdateNicheMutation,
   useDeleteNicheMutation,
-  useGetNicheQuery,
 } from '../../../../store/nicheSlice';
 import { createNicheSchema, updateNicheSchema } from '../schemas/nicheSchema';
 import type { CreateNicheFormValues, UpdateNicheFormValues } from '../schemas/nicheSchema';
@@ -42,11 +42,11 @@ export const useNicheDetailDrawer = ({
   onClose,
 }: UseNicheDetailDrawerOptions) => {
   const { t } = useTranslation();
-  const { enqueueSnackbar } = useSnackbar();
 
   const { data: niche, isFetching } = useGetNicheQuery(selectedId ?? '', {
     skip: mode !== 'edit' || !selectedId,
   });
+  const { enqueueSnackbar } = useSnackbar();
 
   const [createNiche, { isLoading: creating }] = useCreateNicheMutation();
   const [updateNiche, { isLoading: updating }] = useUpdateNicheMutation();

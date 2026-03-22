@@ -14,6 +14,16 @@ export type PotentialRating = 'good' | 'very_good' | 'rejected';
 
 export type ResearchStatus = 'pending' | 'running' | 'done';
 
+export interface NicheResearchProgress {
+  completed_nodes: string[];
+  current_node: string;
+  status: string;
+  total_nodes: number;
+  marketplace?: string;
+  product_type?: string;
+  retry_count?: number;
+}
+
 export interface Niche {
   id: string;
   workspace: string;
@@ -23,6 +33,7 @@ export interface Niche {
   potential_rating: PotentialRating | null;
   research_status: ResearchStatus | null;
   research_run_id: string | null;
+  research_progress: NicheResearchProgress | null;
   position: number;
   assigned_to: number | null;
   created_by: number;

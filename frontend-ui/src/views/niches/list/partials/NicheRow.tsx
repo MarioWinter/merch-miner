@@ -19,8 +19,10 @@ import dayjs from 'dayjs';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../../store';
 import { COLORS } from '@/style/constants';
+import { DeepDrillCell } from './DeepDrillCell';
 import { NicheStatusChip } from './NicheStatusChip';
 import { PotentialRatingChip } from './PotentialRatingChip';
+import { ResearchProgressCell } from './ResearchProgressCell';
 import type { Niche, NicheStatus, PotentialRating } from '../types';
 import type { UseNicheSelectionReturn } from '../hooks/useNicheSelection';
 import type { UseInlineEditReturn, EditableColumn } from '../hooks/useInlineEdit';
@@ -64,9 +66,6 @@ const EditingCell = styled(TableCell)(({ theme }) => ({
   borderBottom: `1px solid ${theme.vars.palette.divider}`,
   padding: '0 6px !important',
   height: 44,
-  outline: `2px solid ${theme.vars.palette.primary.main}`,
-  outlineOffset: -2,
-  borderRadius: 4,
 }));
 
 const IdeasText = styled(Typography)({
@@ -133,7 +132,11 @@ const NameInput = ({ initialValue, isSaving, onSave, onCancel }: NameInputProps)
           ) : undefined,
         },
       }}
-      sx={{ '& .MuiOutlinedInput-root': { height: 32, fontSize: '0.875rem' } }}
+      sx={{
+        '& .MuiOutlinedInput-root': { height: 32, fontSize: '0.875rem' },
+        '& .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
+        '& .Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
+      }}
     />
   );
 };
@@ -185,6 +188,9 @@ interface StatusCellProps {
   width?: number | 'auto';
 }
 
+const isResearchRunning = (niche: Niche): boolean =>
+  niche.research_status === 'running' || niche.research_status === 'pending';
+
 const StatusCell = ({ niche, inlineEdit, width }: StatusCellProps) => {
   const { t } = useTranslation();
   const active = isCellActive(inlineEdit.activeCell, niche.id, 'status');
@@ -194,6 +200,15 @@ const StatusCell = ({ niche, inlineEdit, width }: StatusCellProps) => {
     e.stopPropagation();
     inlineEdit.activateCell(niche.id, 'status');
   };
+
+  // Show research progress when research is active
+  if (!active && isResearchRunning(niche) && niche.research_progress) {
+    return (
+      <TableCell sx={{ width: w }} onClick={handleClick} aria-label={t('niches.table.colStatus')}>
+        <ResearchProgressCell progress={niche.research_progress} />
+      </TableCell>
+    );
+  }
 
   if (!active) {
     return (
@@ -224,7 +239,11 @@ const StatusCell = ({ niche, inlineEdit, width }: StatusCellProps) => {
         autoFocus
         onClose={inlineEdit.deactivateCell}
         disabled={inlineEdit.isSaving}
-        sx={{ height: 32, fontSize: '0.875rem' }}
+        sx={{
+          height: 32, fontSize: '0.875rem',
+          '& .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
+        }}
       >
         {NICHE_STATUSES.map((s) => (
           <MenuItem key={s} value={s}>
@@ -276,7 +295,11 @@ const RatingCell = ({ niche, inlineEdit, width }: RatingCellProps) => {
         onClose={inlineEdit.deactivateCell}
         disabled={inlineEdit.isSaving}
         displayEmpty
-        sx={{ height: 32, fontSize: '0.875rem' }}
+        sx={{
+          height: 32, fontSize: '0.875rem',
+          '& .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
+        }}
       >
         {POTENTIAL_RATINGS.map((r) => (
           <MenuItem key={r} value={r}>
@@ -343,7 +366,11 @@ const AssigneeCell = ({ niche, inlineEdit, width }: AssigneeCellProps) => {
             {...params}
             autoFocus
             placeholder={t('niches.table.unassigned')}
-            sx={{ '& .MuiOutlinedInput-root': { height: 32, fontSize: '0.875rem' } }}
+            sx={{
+              '& .MuiOutlinedInput-root': { height: 32, fontSize: '0.875rem' },
+              '& .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
+              '& .Mui-focused .MuiOutlinedInput-notchedOutline': { borderColor: 'divider' },
+            }}
           />
         )}
         sx={{ minWidth: 120 }}
@@ -410,6 +437,8 @@ export const NicheRow = ({
           {niche.approved_idea_count} / {niche.idea_count}
         </IdeasText>
       </TableCell>
+
+      <DeepDrillCell niche={niche} width={w?.ai} />
 
       <TableCell sx={{ width: w?.updated ?? 120 }}>
         <Tooltip title={new Date(niche.updated_at).toLocaleString()}>

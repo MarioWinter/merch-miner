@@ -113,6 +113,7 @@ INSTALLED_APPS = [
     'niche_app',
     'content.apps.ContentConfig',
     'scraper_app',
+    'niche_research_app',
 ]
 
 # django-allauth settings
@@ -219,11 +220,38 @@ RQ_QUEUES = {
         'DEFAULT_TIMEOUT': 1800,
         'REDIS_CLIENT_KWARGS': {},
     },
+    'research': {
+        'HOST': os.environ.get("REDIS_HOST", default="redis"),
+        'PORT': os.environ.get("REDIS_PORT", default=6379),
+        'DB': os.environ.get("REDIS_DB", default=0),
+        'DEFAULT_TIMEOUT': 1200,
+        'REDIS_CLIENT_KWARGS': {},
+    },
 }
 
 # Scraper settings
 SCRAPEOPS_API_KEY = os.environ.get('SCRAPEOPS_API_KEY', '')
 SCRAPY_CONCURRENT_REQUESTS = int(os.environ.get('SCRAPY_CONCURRENT_REQUESTS', 1))
+
+# ----------------------------------------
+# OpenRouter (LLM API via OpenAI-compatible endpoint)
+# ----------------------------------------
+OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
+OPENROUTER_BASE_URL = os.environ.get(
+    'OPENROUTER_BASE_URL', 'https://openrouter.ai/api/v1',
+)
+
+# ----------------------------------------
+# SearXNG (web search for niche research)
+# ----------------------------------------
+SEARXNG_BASE_URL = os.environ.get('SEARXNG_BASE_URL', '')
+
+# ----------------------------------------
+# Langfuse Observability
+# ----------------------------------------
+LANGFUSE_PUBLIC_KEY = os.environ.get('LANGFUSE_PUBLIC_KEY', '')
+LANGFUSE_SECRET_KEY = os.environ.get('LANGFUSE_SECRET_KEY', '')
+LANGFUSE_HOST = os.environ.get('LANGFUSE_HOST', 'https://langfuse.mariowinter.com')
 
 
 # Password validation

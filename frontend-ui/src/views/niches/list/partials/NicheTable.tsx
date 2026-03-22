@@ -19,6 +19,7 @@ import {
 import { alpha, styled } from '@mui/material/styles';
 import { COLORS } from '@/style/constants';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { useTranslation } from 'react-i18next';
 import { NicheRow } from './NicheRow';
 import { InlineAddRow } from './InlineAddRow';
@@ -222,6 +223,11 @@ export const NicheTable = ({
             <HeaderCell sx={{ width: colWidth('ideas') }}>
               <OverlineText>{t('niches.table.colIdeas')}</OverlineText>
               <ResizeHandle onMouseDown={handleResizeMouseDown('ideas')} />
+            </HeaderCell>
+
+            <HeaderCell sx={{ width: colWidth('ai'), px: 0.5, textAlign: 'center' }}>
+              <OverlineText>{t('niches.table.colDeepDrill')}</OverlineText>
+              <AutoAwesomeIcon sx={{ fontSize: 14, ml: 0.5, verticalAlign: 'middle', color: 'text.secondary' }} />
             </HeaderCell>
 
             <HeaderCell sx={{ width: colWidth('updated') }}>

@@ -20,3 +20,10 @@ coverage==7.10.0
 scrapy>=2.11
 scrapeops-scrapy>=0.5
 scrapeops-scrapy-proxy-sdk>=0.5
+langchain-core>=0.3
+langchain-openai>=0.3
+langchain-community>=0.3
+langgraph>=0.4
+langgraph-checkpoint-postgres>=2.0
+psycopg[binary]>=3.1
+langfuse>=4.0

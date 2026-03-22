@@ -56,6 +56,10 @@ class Niche(models.Model):
         default=None,
     )
     research_run_id = models.UUIDField(null=True, blank=True)
+    research_retry_count = models.PositiveIntegerField(
+        default=0,
+        help_text='Number of research retries for this niche (max 3)',
+    )
     position = models.PositiveIntegerField(default=0)
     assigned_to = models.ForeignKey(
         settings.AUTH_USER_MODEL,

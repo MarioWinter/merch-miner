@@ -4,7 +4,7 @@ description: Create detailed feature specifications with user stories, acceptanc
 argument-hint: [project-description or feature-idea]
 user-invocable: true
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, AskUserQuestion
-model: sonnet
+model: opus
 ---
 
 # Requirements Engineer

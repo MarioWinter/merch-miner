@@ -178,7 +178,16 @@
       "colIdeas": "Ideas",
       "colUpdated": "Updated",
       "colActions": "Actions",
-      "unassigned": "Unassigned"
+      "colDeepDrill": "Deep Drill",
+      "unassigned": "Unassigned",
+      "deepDrill": {
+        "idle": "Start Deep Drill",
+        "running": "Deep Drill running\u2026",
+        "completed": "View Results",
+        "failed": "Deep Drill failed \u2014 retry",
+        "bulkLabel": "Deep Drill ({{count}})",
+        "bulkDisabled": "Coming soon"
+      }
     },
     "drawer": {
       "createTitle": "New Niche",
@@ -202,7 +211,11 @@
       "unsavedChangesTitle": "Unsaved changes",
       "unsavedChangesBody": "You have unsaved changes. Discard them?",
       "discardChanges": "Discard",
-      "keepEditing": "Keep editing"
+      "keepEditing": "Keep editing",
+      "collectedSlogans": "Collected Slogans",
+      "collectedKeywords": "Collected Keywords",
+      "copyAll": "Copy All",
+      "copiedAll": "All copied to clipboard"
     },
     "empty": {
       "noNiches": "No niches yet",
@@ -256,6 +269,150 @@
       "updateError": "Failed to update template",
       "deleteSuccess": "Template deleted",
       "deleteError": "Failed to delete template"
+    }
+  },
+  "research": {
+    "triggerButton": "AI Research",
+    "stopButton": "Stop Research",
+    "running": "Researching…",
+    "progressTitle": "AI Research in progress",
+    "progressHint": "This may take a few minutes. You can leave and come back.",
+    "steps": {
+      "scrape": "Scrape",
+      "vision_analyze": "Vision",
+      "emotional_analyze": "Emotional",
+      "niche_profile": "Niche Profile",
+      "keywords": "Keywords",
+      "finalize": "Finalize",
+      "scraping": "Scraping",
+      "analyzing": "AI Analysis",
+      "saving": "Saving Results"
+    },
+    "marketplace": {
+      "label": "Marketplace",
+      "amazon_com": "Amazon.com (US)",
+      "amazon_de": "Amazon.de (DE)",
+      "amazon_co_uk": "Amazon.co.uk (UK)",
+      "amazon_fr": "Amazon.fr (FR)",
+      "amazon_it": "Amazon.it (IT)",
+      "amazon_es": "Amazon.es (ES)"
+    },
+    "productType": {
+      "label": "Product type",
+      "t_shirt": "T-Shirt",
+      "hoodie": "Hoodie",
+      "long_sleeve": "Long Sleeve",
+      "sweatshirt": "Sweatshirt",
+      "popsocket": "PopSocket",
+      "tank_top": "Tank Top"
+    },
+    "forceRefresh": "Force refresh (re-run LLM analysis)",
+    "retryCount": "Retry {{current}}/{{max}}",
+    "maxRetriesExceeded": "Max retries exceeded",
+    "progressLabel": "{{completed}}/{{total}}",
+    "currentNode": "Running: {{node}}",
+    "notifications": {
+      "triggered": "Research started",
+      "completed": "Research completed",
+      "failed": "Research failed",
+      "cancelled": "Research cancelled"
+    },
+    "errors": {
+      "fetchFailed": "Failed to load research data",
+      "alreadyRunning": "Research is already running for this niche",
+      "triggerFailed": "Failed to start research",
+      "timeout": "Research timed out. Please try again.",
+      "cancelFailed": "Failed to cancel research"
+    },
+    "summary": {
+      "title": "Summary",
+      "sentiment": "Sentiment",
+      "emotions": "Primary Emotions",
+      "archetypes": "Emotional Archetypes",
+      "emotionalReality": "Emotional Reality",
+      "designConcepts": "Design Concepts",
+      "designAesthetics": "Design Aesthetics"
+    },
+    "patterns": {
+      "title": "Emotional Patterns",
+      "activeCount": "{{count}} active",
+      "expandInactive": "Show inactive patterns",
+      "collapseInactive": "Hide inactive patterns"
+    },
+    "keywords": {
+      "title": "Keywords",
+      "shortTail": "Short-Tail",
+      "longTail": "Long-Tail",
+      "focus": "Focus Keywords",
+      "longTailTop": "Top Long-Tail",
+      "allFlat": "All Keywords",
+      "copied": "{{count}} keywords copied",
+      "clipboardCleared": "Clipboard cleared",
+      "researchKeyword": "Live Research (coming soon)",
+      "comingSoon": "Live Research — coming soon",
+      "clearSelection": "Clear selection",
+      "clipboardCount": "{{count}} keywords in clipboard"
+    },
+    "brandFiltered": "{{count}} products filtered (trademark brands)",
+    "products": {
+      "title": "Analyzed Products",
+      "trademark": "Trademark",
+      "reviews": "{{count}} reviews",
+      "vision": "Vision Analysis",
+      "emotional": "Emotional Analysis",
+      "slogan": "Slogan",
+      "meaning": "Meaning",
+      "visualStyle": "Visual Style",
+      "graphicElements": "Graphic Elements",
+      "layout": "Layout",
+      "pattern": "Pattern",
+      "vibe": "Vibe",
+      "tone": "Tone",
+      "psychology": "Customer Psychology",
+      "buyerProfile": "Buyer Profile",
+      "emotionalNeed": "Emotional Need",
+      "internalMonologue": "Internal Monologue",
+      "unsaid": "What They Can't Say",
+      "adaptation": "Adaptation Formula",
+      "adaptationExamples": "Examples",
+      "transferability": "Transferability",
+      "worksBestIn": "Works best in",
+      "avoidIn": "Avoid in",
+      "successFactors": "Success factors",
+      "noProducts": "No analyzed products",
+      "collapseAll": "Collapse All",
+      "expandAll": "Expand All",
+      "productCount": "{{count}} products",
+      "uncategorized": "Uncategorized",
+      "titleLabel": "Title",
+      "brandLabel": "Brand"
+    },
+    "related": {
+      "title": "Related Niches",
+      "sharedPatterns": "Shared patterns",
+      "noRelated": "No related niches found",
+      "noRelatedHint": "Niches with 2+ shared active patterns will appear here."
+    },
+    "error": {
+      "title": "Research Failed",
+      "retryButton": "Retry Research",
+      "timeoutTitle": "Research Timed Out",
+      "timeoutMessage": "The research exceeded the 20-minute limit. Try again."
+    },
+    "doubleClickHint": "Double-click anywhere to open niche details",
+    "empty": {
+      "title": "No research yet",
+      "hint": "Run AI Research to analyze this niche."
+    },
+    "drawer": {
+      "sectionTitle": "AI Research",
+      "startResearch": "Deep Drilling",
+      "viewResults": "View Results",
+      "reAnalyze": "Re-analyze",
+      "completedOn": "Completed {{date}}",
+      "failedMessage": "Error: {{message}}",
+      "retriesExhausted": "Maximum retries reached ({{max}})",
+      "cancelledByUser": "Cancelled by user"
     }
   },
   "settings": {

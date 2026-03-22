@@ -20,7 +20,7 @@ class AmazonSearchPageSpider(SearchPageMixin, scrapy.Spider):
         keyword,
         marketplace="amazon_com",
         job_id=None,
-        max_pages=4,
+        max_pages=2,
         search_index=None,
         seller_filter=None,
         hidden_keywords=None,

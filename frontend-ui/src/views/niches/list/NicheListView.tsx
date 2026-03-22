@@ -81,6 +81,7 @@ const NicheListView = () => {
   const { filters, setOrdering, resetFilters, setPage } = filterState;
 
   const { drawerState, openCreate, openEdit, closeDrawer } = useNicheDrawer();
+
   const selection = useNicheSelection();
   const inlineEdit = useInlineEdit();
   const inlineAdd = useInlineAdd();
@@ -96,7 +97,22 @@ const NicheListView = () => {
     page_size: PAGE_SIZE,
   };
 
-  const { data, isLoading, isError, isFetching } = useListNichesQuery(queryParams);
+  const [pollingInterval, setPollingInterval] = useState(0);
+  const { data, isLoading, isError, isFetching } = useListNichesQuery(queryParams, {
+    pollingInterval,
+  });
+
+  // Sync polling interval with query results — setState is intentional here
+  // because the polling interval must change when research status transitions.
+  useEffect(() => {
+    const hasRunning = (data?.results ?? []).some(
+      (n) => n.research_status === 'running' || n.research_status === 'pending',
+    );
+    const next = hasRunning ? 10_000 : 0;
+    // Only update when the interval actually changes to avoid unnecessary re-renders
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPollingInterval((prev) => (prev === next ? prev : next));
+  }, [data?.results]);
 
   const [deleteNiche] = useDeleteNicheMutation();
 

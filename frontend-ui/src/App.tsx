@@ -16,6 +16,7 @@ import PasswordConfirmPage from './views/auth/password-reset/PasswordConfirmPage
 import SettingsLayout from './views/settings/SettingsLayout';
 import InviteAcceptView from './views/invite/InviteAcceptView';
 import NicheListView from './views/niches/list/NicheListView';
+import NicheResearchView from './views/niches/research';
 
 // Placeholder — replaced when dashboard is built (PROJ-12)
 const DashboardPlaceholder = () => {
@@ -81,6 +82,7 @@ const App = () => {
           <Route path="/" element={<DashboardPlaceholder />} />
           <Route path="/dashboard" element={<DashboardPlaceholder />} />
           <Route path="/niches" element={<NicheListView />} />
+          <Route path="/niches/research" element={<NicheResearchView />} />
 
           {/* Settings routes */}
           <Route path="/settings" element={<SettingsLayout />}>

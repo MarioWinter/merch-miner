@@ -3,6 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../../../utils/test-utils';
 import { NicheDetailDrawer } from '../partials/NicheDetailDrawer';
+import collectedItemsReducer from '../../../../store/collectedItemsSlice';
 import type { Niche } from '../types';
 
 // Shared mock handlers for RTK Query endpoints
@@ -34,6 +35,7 @@ const mockNiche: Niche = {
   potential_rating: null,
   research_status: null,
   research_run_id: null,
+  research_progress: null,
   position: 0,
   assigned_to: null,
   created_by: 1,
@@ -56,6 +58,7 @@ const renderDrawer = (props: {
       selectedId={props.selectedId ?? null}
       onClose={props.onClose ?? vi.fn()}
     />,
+    { reducers: { collectedItems: collectedItemsReducer } },
   );
 };
 

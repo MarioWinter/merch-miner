@@ -43,6 +43,7 @@ const buildNiche = (overrides?: Partial<Niche>): Niche => ({
   potential_rating: null,
   research_status: null,
   research_run_id: null,
+  research_progress: null,
   position: 0,
   assigned_to: null,
   created_by: 1,

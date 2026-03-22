@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Box } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { Box, useMediaQuery } from '@mui/material';
+import { styled, useTheme } from '@mui/material/styles';
 import { Outlet } from 'react-router-dom';
 import Topbar from './topbar/Topbar';
 import Sidebar, { COLLAPSED_WIDTH, EXPANDED_WIDTH } from './sidebar/Sidebar';
@@ -17,6 +17,7 @@ const MainContent = styled(Box, {
   shouldForwardProp: (prop) => prop !== '$marginLeft',
 })<MainContentProps>(({ theme, $marginLeft }) => ({
   flexGrow: 1,
+  minWidth: 0,
   marginLeft: $marginLeft,
   marginTop: 56,
   minHeight: 'calc(100vh - 56px)',
@@ -37,11 +38,15 @@ const getInitialCollapsed = (): boolean => {
 };
 
 const AppLayout = () => {
-  const [collapsed, setCollapsed] = useState<boolean>(getInitialCollapsed);
+  const theme = useTheme();
+  const isSmallScreen = useMediaQuery(theme.breakpoints.down('md'));
+  const [userCollapsed, setUserCollapsed] = useState<boolean>(getInitialCollapsed);
   const [hovered, setHovered] = useState(false);
 
+  const collapsed = isSmallScreen || userCollapsed;
+
   const handleToggle = () => {
-    setCollapsed((prev) => {
+    setUserCollapsed((prev) => {
       const next = !prev;
       try {
         localStorage.setItem(SIDEBAR_COLLAPSED_KEY, String(next));

@@ -32,6 +32,10 @@ services:
     volumes:
       - ./django-app:/app
 
+  worker-research:
+    volumes:
+      - ./django-app:/app
+
   scheduler:
     volumes:
       - ./django-app:/app
