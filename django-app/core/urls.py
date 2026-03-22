@@ -2,7 +2,6 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
-from core.views import health
 from user_auth_app.views import redirect_to_admin
 from user_auth_app.api.views import (
     RegisterView, ActivateView, LoginView, LogoutView,
@@ -16,7 +15,6 @@ handler404 = 'core.views.handler404'
 
 urlpatterns = [
 
-    path('api/health/', health, name='health'),
     path('', redirect_to_admin, name='root'),
     path('api/', redirect_to_admin, name='root'),
     path('admin/', admin.site.urls),
