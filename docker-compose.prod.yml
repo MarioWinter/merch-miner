@@ -32,6 +32,14 @@ services:
     depends_on:
       - redis
 
+  worker-research:
+    image: ghcr.io/mariowinter/merch-miner/backend:latest
+    env_file: ./.env
+    restart: unless-stopped
+    networks:
+      - default
+      - supabase-net
+
   scheduler:
     image: ghcr.io/mariowinter/merch-miner/backend:latest
     entrypoint: ["./worker.entrypoint.sh"]
