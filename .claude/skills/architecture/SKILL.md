@@ -80,6 +80,16 @@ Add a "Tech Design (Solution Architect)" section to `/features/PROJ-X.md`
 - Ask: "Does this design make sense? Any questions?"
 - Wait for approval before suggesting handoff
 
+## Output Formatting Rules (MANDATORY)
+The tech design section added to the feature spec MUST use markdown checklists for trackable items:
+- **Data model fields:** Table format (not prose)
+- **API endpoints:** Table format with endpoint, method, and behavior columns
+- **Tech decisions:** Table format with Decision and Why columns
+- **File structure:** Tree format (visual, scannable)
+- **Task breakdown (`docs/tasks/PROJ-X-tasks.md`):** Every task must be a `- [ ]` checkbox, grouped by phase (e.g., Phase 1: Backend Foundation, Phase 2: API Endpoints, Phase 3: Frontend State, Phase 4: UI Components, Phase 5: Tests). Each phase is a section header, tasks are checkboxes beneath.
+
+This is critical because implementation skills (/frontend, /backend) check off tasks as they complete them. Without checkboxes, progress tracking breaks.
+
 ## Checklist Before Completion
 - [ ] Checked existing architecture via git
 - [ ] Feature spec read and understood
@@ -89,6 +99,7 @@ Add a "Tech Design (Solution Architect)" section to `/features/PROJ-X.md`
 - [ ] Tech decisions justified (WHY, not HOW)
 - [ ] Dependencies listed
 - [ ] Design added to feature spec file
+- [ ] Task file created at `docs/tasks/PROJ-X-tasks.md` with `- [ ]` checkboxes per phase
 - [ ] User has reviewed and approved
 - [ ] `features/INDEX.md` status updated to "In Progress"
 
