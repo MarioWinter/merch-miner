@@ -18,7 +18,7 @@
 | PROJ-4 | Workspace & Membership | Deployed | [spec](PROJ-4-workspace-membership.md) | 2026-02-27 |
 | PROJ-5 | Niche List | Deployed | [spec](PROJ-5-niche-list.md) | 2026-02-27 |
 | PROJ-6 | Niche Deep Research (LangGraph) | Ready to Deploy | [spec](PROJ-6-niche-deep-research.md) | 2026-02-27 |
-| PROJ-7 | Amazon Product Research | Planned | [spec](PROJ-7-amazon-product-research.md) | 2026-02-27 |
+| PROJ-7 | Amazon Product Research | Ready to Deploy | [spec](PROJ-7-amazon-product-research.md) | 2026-02-27 |
 | PROJ-8 | Idea & Slogan Generation (n8n) | Planned | [spec](PROJ-8-idea-slogan-generation.md) | 2026-02-27 |
 | PROJ-9 | Design Generation (OpenRouter) | Planned | [spec](PROJ-9-design-generation.md) | 2026-02-27 |
 | PROJ-10 | Niche Keyword Bank | Planned | [spec](PROJ-10-niche-keyword-bank.md) | 2026-02-27 |

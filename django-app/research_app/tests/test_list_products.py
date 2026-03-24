@@ -1,0 +1,331 @@
+from datetime import date
+
+import pytest
+from django.urls import reverse
+
+from scraper_app.models import AmazonProduct
+
+from research_app.tests.conftest import make_product
+
+pytestmark = pytest.mark.django_db
+
+URL = reverse('research-products')
+
+
+class TestProductListAuth:
+    def test_unauthenticated_returns_401(self, api_client):
+        resp = api_client.get(URL)
+        assert resp.status_code == 401
+
+
+class TestProductListBasic:
+    def test_returns_paginated_results(self, auth_client):
+        """Default response contains count, results, next, previous."""
+        for i in range(3):
+            make_product(asin=f'B0LIST{i:04d}')
+
+        resp = auth_client.get(URL)
+        assert resp.status_code == 200
+        data = resp.data
+        assert data['count'] == 3
+        assert len(data['results']) == 3
+        assert 'next' in data
+        assert 'previous' in data
+
+    def test_pagination_page_size(self, auth_client):
+        """page_size param limits results per page."""
+        for i in range(5):
+            make_product(asin=f'B0PAGE{i:04d}', bsr=i + 1)
+
+        resp = auth_client.get(URL, {'page_size': 2})
+        assert resp.status_code == 200
+        data = resp.data
+        assert data['count'] == 5
+        assert len(data['results']) == 2
+        assert data['next'] is not None
+
+    def test_pagination_page_2(self, auth_client):
+        """Page 2 returns correct slice."""
+        for i in range(5):
+            make_product(asin=f'B0PG2_{i:04d}', bsr=i + 1)
+
+        resp = auth_client.get(URL, {'page': 2, 'page_size': 2})
+        assert resp.status_code == 200
+        data = resp.data
+        assert len(data['results']) == 2
+        assert data['previous'] is not None
+
+
+class TestProductListBSRFilter:
+    def test_bsr_range_filter(self, auth_client):
+        make_product(asin='B0BSR_LOW', bsr=100)
+        make_product(asin='B0BSR_MID', bsr=5000)
+        make_product(asin='B0BSR_HI', bsr=50000)
+
+        resp = auth_client.get(URL, {'bsr_min': 1000, 'bsr_max': 10000})
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert 'B0BSR_MID' in asins
+        assert 'B0BSR_LOW' not in asins
+        assert 'B0BSR_HI' not in asins
+
+    def test_bsr_min_greater_than_max_returns_400(self, auth_client):
+        resp = auth_client.get(URL, {'bsr_min': 10000, 'bsr_max': 100})
+        assert resp.status_code == 400
+
+
+class TestProductListBrandFilter:
+    def test_hide_official_brands_excludes_nike(self, auth_client):
+        """hide_official_brands=true excludes brands from fixture (case-insensitive)."""
+        make_product(asin='B0NIKE001', brand='Nike')
+        make_product(asin='B0INDIE01', brand='IndieShop')
+
+        resp = auth_client.get(URL, {'hide_official_brands': 'true'})
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert 'B0INDIE01' in asins
+        assert 'B0NIKE001' not in asins
+
+    def test_hide_official_brands_case_insensitive(self, auth_client):
+        """Brand matching is case-insensitive (nike == Nike == NIKE)."""
+        make_product(asin='B0NIKELO', brand='nike')
+        make_product(asin='B0NIKEUP', brand='NIKE')
+        make_product(asin='B0GOOD01', brand='MyCoolBrand')
+
+        resp = auth_client.get(URL, {'hide_official_brands': 'true'})
+        asins = [p['asin'] for p in resp.data['results']]
+        assert 'B0GOOD01' in asins
+        assert 'B0NIKELO' not in asins
+        assert 'B0NIKEUP' not in asins
+
+
+class TestProductListExcludeWords:
+    def test_exclude_words_filters_titles(self, auth_client):
+        make_product(asin='B0EXCL001', title='Funny Christmas Cat Shirt')
+        make_product(asin='B0EXCL002', title='Funny Birthday Dog Shirt')
+        make_product(asin='B0EXCL003', title='Cool Summer Design')
+
+        resp = auth_client.get(URL, {'exclude_words': 'Christmas,Dog'})
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert 'B0EXCL003' in asins
+        assert 'B0EXCL001' not in asins
+        assert 'B0EXCL002' not in asins
+
+
+class TestProductListCombinedFilters:
+    def test_multiple_filters_combine_with_and(self, auth_client):
+        """BSR range + hide_official_brands + exclude_words all AND together."""
+        make_product(asin='B0COMB001', bsr=500, brand='IndieShop', title='Cat Lover Shirt')
+        make_product(asin='B0COMB002', bsr=500, brand='Nike', title='Cat Lover Shirt')
+        make_product(asin='B0COMB003', bsr=500, brand='IndieShop', title='Christmas Cat')
+        make_product(asin='B0COMB004', bsr=99999, brand='IndieShop', title='Cat Lover Shirt')
+
+        resp = auth_client.get(URL, {
+            'bsr_min': 100,
+            'bsr_max': 1000,
+            'hide_official_brands': 'true',
+            'exclude_words': 'Christmas',
+        })
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert asins == ['B0COMB001']
+
+
+class TestProductListFTS:
+    def test_fts_returns_results_for_keyword(self, auth_client):
+        """Full-text search returns products matching keyword in title/brand."""
+        make_product(asin='B0FTS_001', title='Funny Cat Birthday Shirt')
+        make_product(asin='B0FTS_002', title='Dog Walking Adventure')
+
+        resp = auth_client.get(URL, {'keyword': 'cat birthday'})
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        # FTS should find product with "cat" and "birthday" in title
+        assert 'B0FTS_001' in asins
+
+
+class TestProductListProductTypeFilter:
+    def test_single_product_type(self, auth_client):
+        """Filter by single product_type returns only matching products."""
+        make_product(asin='B0TYPE_TS', product_type=AmazonProduct.ProductType.T_SHIRT)
+        make_product(asin='B0TYPE_HD', product_type=AmazonProduct.ProductType.HOODIE)
+        make_product(asin='B0TYPE_TK', product_type=AmazonProduct.ProductType.TANK_TOP)
+
+        resp = auth_client.get(URL, {'product_type': 'hoodie'})
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert asins == ['B0TYPE_HD']
+
+    def test_multiple_product_types_comma_separated(self, auth_client):
+        """Comma-separated product_type returns products of any listed type."""
+        make_product(asin='B0MTP_TS', product_type=AmazonProduct.ProductType.T_SHIRT)
+        make_product(asin='B0MTP_HD', product_type=AmazonProduct.ProductType.HOODIE)
+        make_product(asin='B0MTP_TK', product_type=AmazonProduct.ProductType.TANK_TOP)
+
+        resp = auth_client.get(URL, {'product_type': 't_shirt,tank_top'})
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert 'B0MTP_TS' in asins
+        assert 'B0MTP_TK' in asins
+        assert 'B0MTP_HD' not in asins
+
+    def test_empty_product_type_returns_all(self, auth_client):
+        """Empty product_type string returns all products (no filter)."""
+        make_product(asin='B0EPT_TS', product_type=AmazonProduct.ProductType.T_SHIRT)
+        make_product(asin='B0EPT_HD', product_type=AmazonProduct.ProductType.HOODIE)
+
+        resp = auth_client.get(URL, {'product_type': ''})
+        assert resp.status_code == 200
+        assert resp.data['count'] == 2
+
+
+class TestProductListSubcategoryFilter:
+    def test_subcategory_filter_icontains(self, auth_client):
+        """Subcategory filter uses case-insensitive contains."""
+        make_product(asin='B0SUB_NOV', subcategory='Novelty T-Shirts')
+        make_product(asin='B0SUB_SPO', subcategory='Sports Hoodies')
+        make_product(asin='B0SUB_NOV2', subcategory='novelty accessories')
+
+        resp = auth_client.get(URL, {'subcategory': 'novelty'})
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert 'B0SUB_NOV' in asins
+        assert 'B0SUB_NOV2' in asins
+        assert 'B0SUB_SPO' not in asins
+
+    def test_empty_subcategory_returns_all(self, auth_client):
+        """Empty subcategory returns all products."""
+        make_product(asin='B0ESC_001', subcategory='Novelty')
+        make_product(asin='B0ESC_002', subcategory='Sports')
+
+        resp = auth_client.get(URL, {'subcategory': ''})
+        assert resp.status_code == 200
+        assert resp.data['count'] == 2
+
+
+class TestProductListDateFilter:
+    def test_date_from_filter(self, auth_client):
+        """date_from excludes products listed before that date."""
+        make_product(asin='B0DATE_OLD', listed_date=date(2024, 1, 15))
+        make_product(asin='B0DATE_NEW', listed_date=date(2025, 6, 1))
+        make_product(asin='B0DATE_MID', listed_date=date(2025, 3, 1))
+
+        resp = auth_client.get(URL, {'date_from': '2025-01-01'})
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert 'B0DATE_NEW' in asins
+        assert 'B0DATE_MID' in asins
+        assert 'B0DATE_OLD' not in asins
+
+    def test_date_to_filter(self, auth_client):
+        """date_to excludes products listed after that date."""
+        make_product(asin='B0DT2_OLD', listed_date=date(2024, 6, 1))
+        make_product(asin='B0DT2_NEW', listed_date=date(2025, 12, 1))
+
+        resp = auth_client.get(URL, {'date_to': '2025-01-01'})
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert 'B0DT2_OLD' in asins
+        assert 'B0DT2_NEW' not in asins
+
+    def test_date_range_filter(self, auth_client):
+        """date_from + date_to combined narrows to range."""
+        make_product(asin='B0DR_BEF', listed_date=date(2024, 1, 1))
+        make_product(asin='B0DR_IN1', listed_date=date(2025, 3, 15))
+        make_product(asin='B0DR_IN2', listed_date=date(2025, 6, 1))
+        make_product(asin='B0DR_AFT', listed_date=date(2026, 1, 1))
+
+        resp = auth_client.get(URL, {
+            'date_from': '2025-01-01',
+            'date_to': '2025-12-31',
+        })
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert 'B0DR_IN1' in asins
+        assert 'B0DR_IN2' in asins
+        assert 'B0DR_BEF' not in asins
+        assert 'B0DR_AFT' not in asins
+
+    def test_null_listed_date_excluded_by_date_from(self, auth_client):
+        """Products with null listed_date are excluded when date_from is set."""
+        make_product(asin='B0DNULL01', listed_date=None)
+        make_product(asin='B0DNULL02', listed_date=date(2025, 6, 1))
+
+        resp = auth_client.get(URL, {'date_from': '2025-01-01'})
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert 'B0DNULL02' in asins
+        assert 'B0DNULL01' not in asins
+
+
+class TestProductListSorting:
+    def test_sort_bsr_asc(self, auth_client):
+        """sort_by=bsr_asc orders by BSR ascending."""
+        make_product(asin='B0SRT_HI', bsr=50000)
+        make_product(asin='B0SRT_LO', bsr=100)
+        make_product(asin='B0SRT_MD', bsr=5000)
+
+        resp = auth_client.get(URL, {'sort_by': 'bsr_asc'})
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert asins == ['B0SRT_LO', 'B0SRT_MD', 'B0SRT_HI']
+
+    def test_sort_reviews_desc(self, auth_client):
+        """sort_by=reviews_desc orders by reviews descending."""
+        make_product(asin='B0RVW_LO', reviews_count=10)
+        make_product(asin='B0RVW_HI', reviews_count=500)
+        make_product(asin='B0RVW_MD', reviews_count=100)
+
+        resp = auth_client.get(URL, {'sort_by': 'reviews_desc'})
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert asins == ['B0RVW_HI', 'B0RVW_MD', 'B0RVW_LO']
+
+    def test_sort_rating_desc(self, auth_client):
+        """sort_by=rating_desc orders by rating descending."""
+        make_product(asin='B0RAT_LO', rating=2.0)
+        make_product(asin='B0RAT_HI', rating=5.0)
+        make_product(asin='B0RAT_MD', rating=3.5)
+
+        resp = auth_client.get(URL, {'sort_by': 'rating_desc'})
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert asins == ['B0RAT_HI', 'B0RAT_MD', 'B0RAT_LO']
+
+    def test_sort_price_asc(self, auth_client):
+        """sort_by=price_asc orders by price ascending."""
+        make_product(asin='B0PRC_HI', price='49.99')
+        make_product(asin='B0PRC_LO', price='9.99')
+        make_product(asin='B0PRC_MD', price='24.99')
+
+        resp = auth_client.get(URL, {'sort_by': 'price_asc'})
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert asins == ['B0PRC_LO', 'B0PRC_MD', 'B0PRC_HI']
+
+    def test_sort_newest(self, auth_client):
+        """sort_by=newest orders by listed_date descending."""
+        make_product(asin='B0NEW_OLD', listed_date=date(2024, 1, 1))
+        make_product(asin='B0NEW_NEW', listed_date=date(2026, 1, 1))
+        make_product(asin='B0NEW_MID', listed_date=date(2025, 6, 1))
+
+        resp = auth_client.get(URL, {'sort_by': 'newest'})
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert asins == ['B0NEW_NEW', 'B0NEW_MID', 'B0NEW_OLD']
+
+    def test_default_sort_is_bsr_asc(self, auth_client):
+        """No sort_by param defaults to BSR ascending."""
+        make_product(asin='B0DEF_HI', bsr=9000)
+        make_product(asin='B0DEF_LO', bsr=100)
+
+        resp = auth_client.get(URL)
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert asins == ['B0DEF_LO', 'B0DEF_HI']
+
+    def test_invalid_sort_by_returns_400(self, auth_client):
+        """Invalid sort_by value is rejected by serializer."""
+        resp = auth_client.get(URL, {'sort_by': 'invalid_field'})
+        assert resp.status_code == 400

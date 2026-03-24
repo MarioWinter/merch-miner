@@ -171,6 +171,16 @@ Each feature file = ONE testable, deployable unit.
 - NEVER create tech design - that is for the Architecture skill
 - Focus: WHAT should the feature do (not HOW)
 
+## Output Formatting Rules (MANDATORY)
+All feature specs and task files MUST use markdown checklists (`- [ ]`) for trackable items:
+- **Acceptance Criteria:** Every AC must be a `- [ ]` checkbox, numbered AC-1, AC-2, etc.
+- **Edge Cases:** Every edge case must be a `- [ ]` checkbox, numbered EC-1, EC-2, etc.
+- **User Stories:** Bullet list (no checkboxes — these are context, not testable items)
+- **Dependencies:** Bullet list with PROJ-IDs
+- **Task files (`docs/tasks/PROJ-X-tasks.md`):** Every task must be a `- [ ]` checkbox grouped by phase
+
+This is critical because QA and Deploy skills check off these items during their workflows. Without checkboxes, progress tracking breaks.
+
 ## Checklist Before Completion
 
 ### Init Mode

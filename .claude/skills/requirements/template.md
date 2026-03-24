@@ -11,12 +11,14 @@
 - As a [user type], I want to [action] so that [goal]
 
 ## Acceptance Criteria
-- [ ] Criterion 1
-- [ ] Criterion 2
+- [ ] AC-1: [Testable criterion]
+- [ ] AC-2: [Testable criterion]
+- [ ] AC-3: [Testable criterion]
 
 ## Edge Cases
-- What happens when...?
-- How do we handle...?
+- [ ] EC-1: What happens when...?
+- [ ] EC-2: How do we handle...?
+- [ ] EC-3: What if...?
 
 ## Technical Requirements (optional)
 - Performance: < 200ms response time

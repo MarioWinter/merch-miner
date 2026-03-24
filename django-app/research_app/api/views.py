@@ -1,0 +1,526 @@
+import csv
+import json
+import logging
+import re
+from datetime import timedelta
+
+import httpx
+from django.core.cache import cache as redis_cache
+from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
+from django.http import StreamingHttpResponse
+from django.utils import timezone
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+import django_rq
+
+from scraper_app.models import (
+    AmazonProduct,
+    BSRSnapshot,
+    Keyword,
+    MarketplaceChoices,
+    PRODUCT_TYPE_SPIDER_KWARGS,
+    ProductSearchCache,
+    ScrapeJob,
+)
+from scraper_app.tasks import get_or_create_keyword_cache, scrape_keyword_job
+from user_auth_app.api.authentication import CookieJWTAuthentication
+from workspace_app.models import Membership
+
+from research_app.api.serializers import (
+    AmazonProductSerializer,
+    BSRSnapshotSerializer,
+    LiveSearchSerializer,
+    ProductFilterSerializer,
+    SuggestionsQuerySerializer,
+)
+
+logger = logging.getLogger(__name__)
+
+# Amazon marketplace IDs for autocomplete API
+MARKETPLACE_MIDS = {
+    'amazon_com': 'ATVPDKIKX0DER',
+    'amazon_de': 'A1PA6795UKMFR9',
+    'amazon_co_uk': 'A1F83G8C2ARO7P',
+    'amazon_fr': 'A13V1IB3VIYBER',
+    'amazon_it': 'APJ6JRA9NG5V4',
+    'amazon_es': 'A1RKKUPIHCS9HS',
+}
+
+SUGGESTIONS_CACHE_TTL = 60  # seconds
+
+
+def _load_official_brands():
+    """Load official brands from fixture (cached in module)."""
+    import os
+    fixture_path = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        'fixtures',
+        'official_brands.json',
+    )
+    try:
+        with open(fixture_path, 'r') as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        logger.warning("Could not load official_brands.json")
+        return []
+
+
+# Load once at module level
+_OFFICIAL_BRANDS = None
+
+
+def _get_official_brands():
+    global _OFFICIAL_BRANDS
+    if _OFFICIAL_BRANDS is None:
+        _OFFICIAL_BRANDS = _load_official_brands()
+    return _OFFICIAL_BRANDS
+
+
+def _get_active_membership(user):
+    """Return first active Membership for user, or None."""
+    return (
+        Membership.objects
+        .filter(user=user, status=Membership.Status.ACTIVE)
+        .select_related('workspace')
+        .first()
+    )
+
+
+def _get_membership_for_workspace(user, workspace_id):
+    """Return Membership if user is active member of workspace_id."""
+    try:
+        return Membership.objects.select_related('workspace').get(
+            user=user,
+            workspace_id=workspace_id,
+            status=Membership.Status.ACTIVE,
+        )
+    except Membership.DoesNotExist:
+        return None
+
+
+def _resolve_workspace(request):
+    """Resolve workspace from X-Workspace-Id header or first active membership."""
+    workspace_id = request.headers.get('X-Workspace-Id')
+    if workspace_id:
+        membership = _get_membership_for_workspace(request.user, workspace_id)
+    else:
+        membership = _get_active_membership(request.user)
+    if membership:
+        return membership.workspace
+    return None
+
+
+def _build_product_queryset(filters):
+    """Build filtered AmazonProduct queryset from validated filter data.
+
+    Shared by ProductListView and ProductExportView.
+    """
+    qs = AmazonProduct.objects.all()
+
+    marketplace = filters.get('marketplace', MarketplaceChoices.AMAZON_COM)
+    qs = qs.filter(marketplace=marketplace)
+
+    keyword = filters.get('keyword', '').strip()
+    if keyword:
+        search_vector = SearchVector(
+            'title', weight='A',
+        ) + SearchVector(
+            'brand', weight='B',
+        ) + SearchVector(
+            'bullet_1', weight='C',
+        ) + SearchVector(
+            'bullet_2', weight='C',
+        ) + SearchVector(
+            'description', weight='D',
+        )
+        search_query = SearchQuery(keyword)
+        qs = qs.annotate(
+            search=search_vector,
+            rank=SearchRank(search_vector, search_query),
+        ).filter(search=search_query)
+
+    # Range filters — only applied if param present
+    bsr_min = filters.get('bsr_min')
+    if bsr_min is not None:
+        qs = qs.filter(bsr__gte=bsr_min)
+    bsr_max = filters.get('bsr_max')
+    if bsr_max is not None:
+        qs = qs.filter(bsr__lte=bsr_max)
+
+    rating_min = filters.get('rating_min')
+    if rating_min is not None:
+        qs = qs.filter(rating__gte=rating_min)
+
+    reviews_min = filters.get('reviews_min')
+    if reviews_min is not None:
+        qs = qs.filter(reviews_count__gte=reviews_min)
+    reviews_max = filters.get('reviews_max')
+    if reviews_max is not None:
+        qs = qs.filter(reviews_count__lte=reviews_max)
+
+    price_min = filters.get('price_min')
+    if price_min is not None:
+        qs = qs.filter(price__gte=price_min)
+    price_max = filters.get('price_max')
+    if price_max is not None:
+        qs = qs.filter(price__lte=price_max)
+
+    date_from = filters.get('date_from')
+    if date_from is not None:
+        qs = qs.filter(listed_date__gte=date_from)
+    date_to = filters.get('date_to')
+    if date_to is not None:
+        qs = qs.filter(listed_date__lte=date_to)
+
+    product_type = filters.get('product_type', '').strip()
+    if product_type:
+        types = [t.strip() for t in product_type.split(',') if t.strip()]
+        if types:
+            qs = qs.filter(product_type__in=types)
+
+    subcategory = filters.get('subcategory', '').strip()
+    if subcategory:
+        qs = qs.filter(subcategory__icontains=subcategory)
+
+    hide_official_brands = filters.get('hide_official_brands', False)
+    if hide_official_brands:
+        brands = _get_official_brands()
+        if brands:
+            # Build case-insensitive regex alternation
+            escaped = [b.replace('(', r'\(').replace(')', r'\)').replace('.', r'\.') for b in brands]
+            pattern = '|'.join(escaped)
+            qs = qs.exclude(brand__iregex=f'^({pattern})$')
+
+    exclude_words = filters.get('exclude_words', '').strip()
+    if exclude_words:
+        words = [w.strip() for w in exclude_words.split(',') if w.strip()]
+        for word in words:
+            qs = qs.exclude(title__icontains=word)
+
+    # Sorting
+    sort_by = filters.get('sort_by', '')
+    sort_map = {
+        'bsr_asc': 'bsr',
+        'reviews_desc': '-reviews_count',
+        'rating_desc': '-rating',
+        'price_asc': 'price',
+        'newest': '-listed_date',
+    }
+    if sort_by and sort_by in sort_map:
+        qs = qs.order_by(sort_map[sort_by])
+    elif keyword:
+        # Relevance order when keyword search active
+        qs = qs.order_by('-rank')
+    else:
+        qs = qs.order_by('bsr')
+
+    return qs
+
+
+class SuggestionsView(APIView):
+    """GET /api/research/suggestions/ — Amazon autocomplete proxy."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = SuggestionsQuerySerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+
+        q = serializer.validated_data['q']
+        marketplace = serializer.validated_data['marketplace']
+
+        # Redis cache check
+        cache_key = f"suggestions:{q}:{marketplace}"
+        cached = redis_cache.get(cache_key)
+        if cached is not None:
+            return Response(cached)
+
+        mid = MARKETPLACE_MIDS.get(marketplace, MARKETPLACE_MIDS['amazon_com'])
+        url = "https://completion.amazon.com/api/2017/suggestions"
+
+        try:
+            with httpx.Client(timeout=5.0) as client:
+                resp = client.get(url, params={'prefix': q, 'mid': mid, 'alias': 'aps'})
+                resp.raise_for_status()
+                data = resp.json()
+                suggestions = [s.get('value', '') for s in data.get('suggestions', [])]
+        except Exception:
+            logger.warning("Amazon autocomplete failed for q=%s marketplace=%s", q, marketplace)
+            suggestions = []
+
+        redis_cache.set(cache_key, suggestions, SUGGESTIONS_CACHE_TTL)
+        return Response(suggestions)
+
+
+class LiveSearchView(APIView):
+    """POST /api/research/search/ — trigger live scrape or return cached."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = LiveSearchSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        keyword_str = serializer.validated_data['keyword']
+        marketplace = serializer.validated_data['marketplace']
+        product_type = serializer.validated_data.get('product_type', '')
+
+        workspace = _resolve_workspace(request)
+        if not workspace:
+            return Response(
+                {'error': 'No active workspace membership.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Dedup: check existing pending/completed cache
+        existing_cache, is_new = get_or_create_keyword_cache(keyword_str, marketplace)
+        if existing_cache and not is_new:
+            return Response({
+                'cache_id': str(existing_cache.id),
+                'status': existing_cache.status,
+            })
+
+        # Create new job + cache
+        keyword_obj, _ = Keyword.objects.get_or_create(
+            keyword=keyword_str, marketplace=marketplace,
+        )
+
+        scrape_job = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.LIVE,
+            keyword=keyword_obj,
+            marketplace=marketplace,
+            status=ScrapeJob.Status.PENDING,
+            product_type_filter=product_type,
+        )
+
+        search_cache = ProductSearchCache.objects.create(
+            keyword=keyword_obj,
+            scrape_job=scrape_job,
+            workspace=workspace,
+            status=ProductSearchCache.Status.PENDING,
+        )
+
+        # Build spider kwargs
+        spider_kwargs = {}
+        if product_type and product_type in PRODUCT_TYPE_SPIDER_KWARGS:
+            spider_kwargs.update(PRODUCT_TYPE_SPIDER_KWARGS[product_type])
+
+        queue = django_rq.get_queue('scraper')
+        rq_job = queue.enqueue(
+            scrape_keyword_job,
+            keyword_str=keyword_str,
+            marketplace=marketplace,
+            scrape_job_id=str(scrape_job.id),
+            **spider_kwargs,
+        )
+        scrape_job.rq_job_id = rq_job.id
+        scrape_job.save(update_fields=['rq_job_id'])
+
+        return Response(
+            {
+                'cache_id': str(search_cache.id),
+                'status': search_cache.status,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class SearchStatusView(APIView):
+    """GET /api/research/search/{cache_id}/status/ — poll scrape status."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, cache_id):
+        try:
+            search_cache = ProductSearchCache.objects.select_related(
+                'scrape_job', 'keyword', 'workspace',
+            ).get(id=cache_id)
+        except ProductSearchCache.DoesNotExist:
+            return Response(
+                {'error': 'Search cache not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Workspace ownership check
+        workspace = _resolve_workspace(request)
+        if not workspace:
+            return Response(
+                {'error': 'No active workspace membership.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if search_cache.workspace_id and search_cache.workspace_id != workspace.id:
+            return Response(
+                {'error': 'Access denied.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        scrape_job = search_cache.scrape_job
+        result = {
+            'status': search_cache.status,
+            'pages_done': scrape_job.pages_done if scrape_job else 0,
+            'products_scraped': scrape_job.products_scraped if scrape_job else 0,
+            'error_log': scrape_job.error_log if scrape_job else '',
+        }
+
+        # On completion include first page of products
+        if search_cache.status == ProductSearchCache.Status.COMPLETED and search_cache.keyword:
+            products = (
+                AmazonProduct.objects
+                .filter(
+                    keywords=search_cache.keyword,
+                    marketplace=search_cache.keyword.marketplace,
+                )
+                .order_by('bsr')[:50]
+            )
+            result['products'] = AmazonProductSerializer(products, many=True).data
+
+        return Response(result)
+
+
+class ProductListView(APIView):
+    """GET /api/research/products/ — DB research with full filters."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = ProductFilterSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        filters = serializer.validated_data
+
+        qs = _build_product_queryset(filters)
+
+        # Pagination
+        page = filters.get('page', 1)
+        page_size = filters.get('page_size', 50)
+        total = qs.count()
+        start = (page - 1) * page_size
+        end = start + page_size
+        products = qs[start:end]
+
+        # Build next/previous URLs preserving all filter params
+        base_url = request.build_absolute_uri(request.path)
+        query_dict = request.query_params.copy()
+        next_url = None
+        previous_url = None
+        if end < total:
+            query_dict['page'] = page + 1
+            query_dict['page_size'] = page_size
+            next_url = f"{base_url}?{query_dict.urlencode()}"
+        if page > 1:
+            query_dict['page'] = page - 1
+            query_dict['page_size'] = page_size
+            previous_url = f"{base_url}?{query_dict.urlencode()}"
+
+        return Response({
+            'count': total,
+            'results': AmazonProductSerializer(products, many=True).data,
+            'next': next_url,
+            'previous': previous_url,
+        })
+
+
+class ProductExportView(APIView):
+    """GET /api/research/products/export/ — CSV export with streaming."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    CSV_COLUMNS = [
+        'ASIN', 'Title', 'Brand', 'BSR', 'Rating', 'Reviews',
+        'Price', 'Product Type', 'Subcategory', 'Listed Date',
+        'Scraped At', 'Marketplace',
+    ]
+
+    def get(self, request):
+        serializer = ProductFilterSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        filters = serializer.validated_data
+
+        qs = _build_product_queryset(filters)
+
+        def stream_csv():
+            """Generator yielding CSV rows."""
+            # Use a pseudo-buffer for csv.writer
+            class Echo:
+                def write(self, value):
+                    return value
+
+            writer = csv.writer(Echo())
+            yield writer.writerow(self.CSV_COLUMNS)
+
+            for product in qs.iterator(chunk_size=200):
+                yield writer.writerow([
+                    product.asin,
+                    product.title,
+                    product.brand,
+                    product.bsr,
+                    product.rating,
+                    product.reviews_count,
+                    product.price,
+                    product.get_product_type_display(),
+                    product.subcategory,
+                    product.listed_date.isoformat() if product.listed_date else '',
+                    product.scraped_at.isoformat() if product.scraped_at else '',
+                    product.marketplace,
+                ])
+
+        response = StreamingHttpResponse(stream_csv(), content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="research-export.csv"'
+        return response
+
+
+class BSRHistoryView(APIView):
+    """GET /api/research/products/{asin}/bsr-history/ — BSR snapshots."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, asin):
+        if not re.match(r'^[A-Z0-9]{10}$', asin):
+            return Response(
+                {'error': 'Invalid ASIN format. Must be 10 alphanumeric characters.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        marketplace = request.query_params.get('marketplace')
+        if not marketplace:
+            return Response(
+                {'error': 'marketplace query param is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if marketplace not in dict(MarketplaceChoices.choices):
+            return Response(
+                {'error': f'Invalid marketplace: {marketplace}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Verify product exists
+        product_exists = AmazonProduct.objects.filter(
+            asin=asin, marketplace=marketplace,
+        ).exists()
+        if not product_exists:
+            return Response(
+                {'error': 'Product not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        cutoff = timezone.now() - timedelta(days=30)
+        snapshots = (
+            BSRSnapshot.objects
+            .filter(
+                product__asin=asin,
+                product__marketplace=marketplace,
+                recorded_at__gte=cutoff,
+            )
+            .order_by('recorded_at')
+        )
+
+        return Response(BSRSnapshotSerializer(snapshots, many=True).data)

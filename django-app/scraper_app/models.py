@@ -287,6 +287,13 @@ class ProductSearchCache(models.Model):
         blank=True,
         related_name='search_caches',
     )
+    workspace = models.ForeignKey(
+        'workspace_app.Workspace',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='search_caches',
+    )
     last_scraped_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(
         max_length=20,

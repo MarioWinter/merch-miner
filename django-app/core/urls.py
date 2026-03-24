@@ -54,6 +54,9 @@ urlpatterns = [
 
     # Niche Research API
     path('api/', include('niche_research_app.api.urls')),
+
+    # Research API
+    path('api/', include('research_app.api.urls')),
 ]
 
 if settings.DEBUG:
