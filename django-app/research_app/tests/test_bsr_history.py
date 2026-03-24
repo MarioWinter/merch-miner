@@ -4,7 +4,7 @@ from datetime import timedelta
 from django.urls import reverse
 from django.utils import timezone
 
-from scraper_app.models import AmazonProduct, BSRSnapshot, MarketplaceChoices
+from scraper_app.models import BSRSnapshot
 
 pytestmark = pytest.mark.django_db
 
@@ -51,13 +51,13 @@ class TestBSRHistoryData:
         )
         BSRSnapshot.objects.filter(id=s2.id).update(recorded_at=now - timedelta(days=1))
 
-        s3 = BSRSnapshot.objects.create(
+        BSRSnapshot.objects.create(
             product=product, bsr=4000, rating=4.6, price='19.99',
         )
 
         resp = auth_client.get(_url(product.asin), {'marketplace': 'amazon_com'})
         assert resp.status_code == 200
-        data = resp.data['data']
+        data = resp.data
         assert len(data) == 3
         # Ordered ascending by recorded_at
         bsr_values = [s['bsr'] for s in data]
@@ -67,7 +67,7 @@ class TestBSRHistoryData:
         """Product exists but has no BSR snapshots."""
         resp = auth_client.get(_url(product.asin), {'marketplace': 'amazon_com'})
         assert resp.status_code == 200
-        assert resp.data['data'] == []
+        assert resp.data == []
 
     def test_only_returns_last_30_days(self, auth_client, product):
         """Snapshots older than 30 days are excluded."""
@@ -80,13 +80,13 @@ class TestBSRHistoryData:
             recorded_at=now - timedelta(days=35),
         )
 
-        recent = BSRSnapshot.objects.create(
+        BSRSnapshot.objects.create(
             product=product, bsr=5000,
         )
 
         resp = auth_client.get(_url(product.asin), {'marketplace': 'amazon_com'})
         assert resp.status_code == 200
-        data = resp.data['data']
+        data = resp.data
         assert len(data) == 1
         assert data[0]['bsr'] == 5000
 
@@ -97,7 +97,7 @@ class TestBSRHistoryData:
         )
 
         resp = auth_client.get(_url(product.asin), {'marketplace': 'amazon_com'})
-        snapshot = resp.data['data'][0]
+        snapshot = resp.data[0]
         assert 'bsr' in snapshot
         assert 'rating' in snapshot
         assert 'price' in snapshot

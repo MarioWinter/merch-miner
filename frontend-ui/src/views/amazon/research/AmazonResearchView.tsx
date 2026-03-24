@@ -109,7 +109,7 @@ const AmazonResearchView = () => {
             product_type: filters.product_type || undefined,
             hide_official_brands: filters.hide_official_brands || undefined,
           }).unwrap();
-          setCacheId(result.data.cache_id);
+          setCacheId(result.cache_id);
         } catch {
           // Error handled by RTK Query
         }
@@ -157,9 +157,11 @@ const AmazonResearchView = () => {
     <Box>
       <Stack direction="row" alignItems="baseline" spacing={2} sx={{ mb: 3 }}>
         <Typography variant="h4">Amazon Research</Typography>
-        <Typography variant="body2" color="text.secondary">
-          {isLive ? 'Live Research' : 'DB Research'}
-        </Typography>
+        {isLive && (
+          <Typography variant="body2" color="text.secondary">
+            Live Research
+          </Typography>
+        )}
       </Stack>
 
       <SearchBar

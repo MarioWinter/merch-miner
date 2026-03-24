@@ -1,13 +1,12 @@
 import csv
 import json
 import logging
+import re
 from datetime import timedelta
 
 import httpx
-from django.conf import settings
 from django.core.cache import cache as redis_cache
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
-from django.db.models import Q
 from django.http import StreamingHttpResponse
 from django.utils import timezone
 from rest_framework import status
@@ -238,14 +237,14 @@ class SuggestionsView(APIView):
         cache_key = f"suggestions:{q}:{marketplace}"
         cached = redis_cache.get(cache_key)
         if cached is not None:
-            return Response({'data': cached})
+            return Response(cached)
 
         mid = MARKETPLACE_MIDS.get(marketplace, MARKETPLACE_MIDS['amazon_com'])
-        url = f"https://completion.amazon.com/api/2017/suggestions?prefix={q}&mid={mid}&alias=aps"
+        url = "https://completion.amazon.com/api/2017/suggestions"
 
         try:
             with httpx.Client(timeout=5.0) as client:
-                resp = client.get(url)
+                resp = client.get(url, params={'prefix': q, 'mid': mid, 'alias': 'aps'})
                 resp.raise_for_status()
                 data = resp.json()
                 suggestions = [s.get('value', '') for s in data.get('suggestions', [])]
@@ -254,7 +253,7 @@ class SuggestionsView(APIView):
             suggestions = []
 
         redis_cache.set(cache_key, suggestions, SUGGESTIONS_CACHE_TTL)
-        return Response({'data': suggestions})
+        return Response(suggestions)
 
 
 class LiveSearchView(APIView):
@@ -281,10 +280,10 @@ class LiveSearchView(APIView):
         # Dedup: check existing pending/completed cache
         existing_cache, is_new = get_or_create_keyword_cache(keyword_str, marketplace)
         if existing_cache and not is_new:
-            return Response({'data': {
+            return Response({
                 'cache_id': str(existing_cache.id),
                 'status': existing_cache.status,
-            }})
+            })
 
         # Create new job + cache
         keyword_obj, _ = Keyword.objects.get_or_create(
@@ -323,10 +322,10 @@ class LiveSearchView(APIView):
         scrape_job.save(update_fields=['rq_job_id'])
 
         return Response(
-            {'data': {
+            {
                 'cache_id': str(search_cache.id),
                 'status': search_cache.status,
-            }},
+            },
             status=status.HTTP_201_CREATED,
         )
 
@@ -381,7 +380,7 @@ class SearchStatusView(APIView):
             )
             result['products'] = AmazonProductSerializer(products, many=True).data
 
-        return Response({'data': result})
+        return Response(result)
 
 
 class ProductListView(APIView):
@@ -405,21 +404,26 @@ class ProductListView(APIView):
         end = start + page_size
         products = qs[start:end]
 
-        # Build next/previous URLs
+        # Build next/previous URLs preserving all filter params
         base_url = request.build_absolute_uri(request.path)
+        query_dict = request.query_params.copy()
         next_url = None
         previous_url = None
         if end < total:
-            next_url = f"{base_url}?page={page + 1}&page_size={page_size}"
+            query_dict['page'] = page + 1
+            query_dict['page_size'] = page_size
+            next_url = f"{base_url}?{query_dict.urlencode()}"
         if page > 1:
-            previous_url = f"{base_url}?page={page - 1}&page_size={page_size}"
+            query_dict['page'] = page - 1
+            query_dict['page_size'] = page_size
+            previous_url = f"{base_url}?{query_dict.urlencode()}"
 
-        return Response({'data': {
+        return Response({
             'count': total,
             'results': AmazonProductSerializer(products, many=True).data,
             'next': next_url,
             'previous': previous_url,
-        }})
+        })
 
 
 class ProductExportView(APIView):
@@ -479,6 +483,12 @@ class BSRHistoryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, asin):
+        if not re.match(r'^[A-Z0-9]{10}$', asin):
+            return Response(
+                {'error': 'Invalid ASIN format. Must be 10 alphanumeric characters.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         marketplace = request.query_params.get('marketplace')
         if not marketplace:
             return Response(
@@ -513,6 +523,4 @@ class BSRHistoryView(APIView):
             .order_by('recorded_at')
         )
 
-        return Response({
-            'data': BSRSnapshotSerializer(snapshots, many=True).data,
-        })
+        return Response(BSRSnapshotSerializer(snapshots, many=True).data)

@@ -95,7 +95,7 @@ const ProductDetailPanel = ({ product, keyword }: ProductDetailPanelProps) => {
               series={[{ data: chartBsr, label: 'BSR', color: '#00C8D7' }]}
               height={180}
               margin={{ top: 10, right: 10, bottom: 30, left: 50 }}
-              slotProps={{ legend: { hidden: true } }}
+              slotProps={{ legend: { sx: { display: 'none' } } }}
             />
           ) : (
             <Box

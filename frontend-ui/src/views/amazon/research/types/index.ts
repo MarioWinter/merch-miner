@@ -79,10 +79,8 @@ export interface LiveSearchParams {
 }
 
 export interface LiveSearchResponse {
-  data: {
-    cache_id: string;
-    status: ProductSearchStatus;
-  };
+  cache_id: string;
+  status: ProductSearchStatus;
 }
 
 export interface MarketplaceOption {

@@ -1,6 +1,6 @@
 # PROJ-7: Amazon Product Research
 
-**Status:** In Progress
+**Status:** In Review
 **Priority:** P0 (MVP)
 **Created:** 2026-02-27
 **Updated:** 2026-03-17
@@ -351,3 +351,296 @@ views/amazon/research/
     ├── AdvancedOptionsPanel.test.tsx
     └── ProductCard.test.tsx
 ```
+
+---
+
+## QA Test Results
+
+**Tested:** 2026-03-23 (Re-test after fixes)
+**App URL:** http://localhost:5173
+**Tester:** QA Engineer (AI)
+**Branch:** `feature/PROJ-7-amazon-product-research`
+
+### Acceptance Criteria Status
+
+#### AC-1: Search input shows Amazon suggestions via proxy endpoint; debounced 300ms; max 10 suggestions shown
+- [x] Autocomplete component with debounced input (300ms via `setTimeout`)
+- [x] Max 10 suggestions enforced via `.slice(0, 10)` in SearchBar.tsx
+- [x] Query skipped when input length < 2
+- [x] Backend proxy endpoint exists at `GET /api/research/suggestions/`
+- [x] Redis cache 60s TTL on suggestions
+- [x] Backend uses `httpx params={}` dict -- properly URL-encoded (BUG-1 FIXED)
+
+#### AC-2: Live Research mode triggers scrape or returns cached; returns job reference
+- [x] `POST /api/research/search/` creates ScrapeJob + ProductSearchCache
+- [x] Deduplication via `get_or_create_keyword_cache()` returns existing pending/completed cache
+- [x] Returns `{ cache_id, status }` with 201 on new job
+- [x] Workspace scoping enforced via `_resolve_workspace()`
+
+#### AC-3: DB Research mode returns products via full-text search with full filter set
+- [x] `GET /api/research/products/` with PG `SearchVector` + `SearchRank`
+- [x] Weights: title=A, brand=B, bullets=C, description=D
+- [x] All range filters (BSR, reviews, price, date) applied server-side
+- [x] Product type, subcategory (icontains), exclude_words, hide_official_brands filters work
+- [x] `rating_min` implemented; `rating_max` omitted intentionally (star-click UI sets floor only)
+
+#### AC-4: Mode toggle (Live/DB) prominent in UI; switching modes re-fetches
+- [x] MUI Switch component with "Live Research" label when active
+- [x] Mode toggle resets filters via `resetFilters` callback
+- [x] DB query skipped in live mode, live polling skipped in DB mode
+
+#### AC-5: Layout toggle Grid/List with correct defaults
+- [x] ToggleButtonGroup with Grid (default) and List options
+- [x] Grid = ProductCard with thumbnail prominent
+- [x] List = DataGrid with dense 52px rows
+
+#### AC-6: Results show per product: thumbnail, title, brand, BSR badge, rating, reviews, price, ASIN, published since
+- [x] ProductCard renders all fields: thumbnail, title (2-line clamp), brand, BSR (color-coded Chip), star+rating, reviews count, price, ASIN (mono font), "Published Xd ago"
+- [x] ProductTable DataGrid columns: Thumbnail, Title, Brand, BSR (Chip), Rating (star icon), Reviews, Price, Type, Listed Date, ASIN (mono), Actions
+- [x] BSR color coding: <10k=success, 10k-50k=warning, >50k=default
+
+#### AC-7: Advanced Options panel with range sliders, toggles, star rating, text inputs, date pickers
+- [x] Collapsible panel via MUI Collapse
+- [x] BSR, Reviews, Price range sliders with per-filter enable/disable Switch
+- [x] Star click-to-set rating selector
+- [x] Hide Official Brands button (outlined/contained toggle, secondary color when active)
+- [x] Subcategory and Exclude Words TextFields
+- [x] Date Range with two DatePicker inputs
+- [x] Live mode: DB-only controls dimmed; Hide Official Brands stays active (BUG-3 FIXED)
+- [x] Live mode info Alert displayed
+
+#### AC-8: Clicking product row/card expands inline detail panel with BSR sparkline, bullets, description, actions
+- [x] ProductDetailPanel rendered inline below expanded card/row
+- [x] BSR History sparkline via `@mui/x-charts` LineChart (reversed Y-axis, 30 days)
+- [x] Feature bullets list (bullet_1, bullet_2)
+- [x] Description excerpt (3-line clamp, expandable)
+- [x] "Add to Niche List" and "Open on Amazon" action buttons
+
+#### AC-9: Sort controls change result order; re-fetch from server on sort change
+- [x] Sorting Select in ControlsRow (hidden in live mode)
+- [x] DataGrid `sortingMode="server"` with `onSortModelChange` handler
+- [x] Sort map: bsr->bsr_asc, rating->rating_desc, reviews_count->reviews_desc, price->price_asc, listed_date->newest
+- [x] Page resets to 0 on sort change
+
+#### AC-10: "Open on Amazon" opens correct URL in new tab
+- [x] ProductCard: `https://www.{domain}/dp/{asin}` (product page)
+- [x] ProductDetailPanel: `https://www.{domain}/s?k={keyword}` (search page, keyword URL-encoded)
+- [x] `target="_blank"` and `rel="noopener noreferrer"` set
+
+#### AC-11: "Add to Niche List" creates niche and shows success notification
+- [x] Uses `useCreateNicheMutation` from nicheSlice
+- [x] notistack success toast on completion
+- [x] Error toast on failure
+- [x] Button disabled while creating
+
+#### AC-12: Progress indicator during Live Research scrape
+- [x] LiveProgressBanner with LinearProgress
+- [x] Shows "Scraping Amazon..." text + page count + products found count
+- [x] Visible during pending/running status
+
+#### AC-13: Live Research error state with Retry button
+- [x] Alert severity="error" with error message (from errorLog or default)
+- [x] "Retry" button triggers `handleRetry` -> `handleSearch(keyword)`
+
+#### AC-14: Autocomplete suggestions server-side cached
+- [x] Redis cache key: `suggestions:{q}:{marketplace}`, TTL 60s
+- [x] Cache checked before external request
+
+#### AC-15: Live Research status polling until completion/failure
+- [x] RTK Query `pollingInterval: 3000` with conditional stop on terminal state (BUG-4 FIXED)
+- [x] Single hook call; `pollingInterval: 0` when status is completed/failed
+
+#### AC-16: Recent searches stored in localStorage, max 10, FIFO, clickable chips
+- [x] `useRecentSearches` hook with `mm-research-recent` key
+- [x] Max 10 entries, FIFO dedup (existing match moved to front, oldest dropped)
+- [x] Chips rendered with keyword label, delete icon
+- [x] Click pre-fills search and triggers active mode request
+- [x] Persists across sessions
+
+#### AC-17: CSV export (DB Research) with streaming, disabled when 0 results
+- [x] `GET /api/research/products/export/` with `StreamingHttpResponse`
+- [x] Uses `iterator(chunk_size=200)` for memory efficiency
+- [x] Frontend downloads via blob URL + anchor click
+- [x] "Export CSV" button disabled when `count === 0`
+- [x] Button hidden in Live mode
+
+#### AC-18: Default marketplace amazon_com, persisted to localStorage
+- [x] Default `amazon_com` in `getInitialMarketplace()`
+- [x] localStorage key `mm-research-marketplace`
+- [x] Restored on page load via `useEffect`
+
+### Edge Cases Status
+
+#### EC-1: Amazon autocomplete returns empty
+- [x] Backend returns empty array on exception; frontend renders no suggestions
+
+#### EC-2: Live Research scrape returns 0 products
+- [x] EmptyState component with "No products found on Amazon for this keyword" message
+
+#### EC-3: Duplicate scrape for same keyword while previous running
+- [x] `get_or_create_keyword_cache()` returns existing in-progress cache
+
+#### EC-4: exclude_words with special characters treated as plain text
+- [x] Backend uses `title__icontains` (Django LIKE, not regex) -- safe
+
+#### EC-5: Large result set 500+ products with 50/page pagination
+- [x] Server-side pagination with page/page_size params
+- [x] `max_value=100` on page_size serializer prevents abuse
+
+#### EC-6: BSR min > max returns 400
+- [x] `ProductFilterSerializer.validate()` checks bsr_min > bsr_max
+- [x] Also validates reviews_min > reviews_max and price_min > price_max
+
+#### EC-7: hide_official_brands as static fixture
+- [x] `official_brands.json` loaded once at module level
+
+#### EC-8: BSR history < 2 data points shows "Not enough history"
+- [x] `hasChart = bsrHistory.length >= 2`; shows "Not enough history yet" label
+
+#### EC-9: DB Research no stored products suggests Live Research
+- [x] EmptyState in DB mode shows "Try Live Research" button
+- [x] Button calls `toggleMode` to switch to Live mode (correct behavior -- user then searches)
+
+#### EC-10: Live Research failed -> error toast + inline error + Retry
+- [x] LiveProgressBanner shows Alert with error + Retry button
+
+#### EC-11: Recent chip clicked while scrape in progress
+- [x] RTK Query automatically unsubscribes from old cacheId when new cacheId is set
+- [x] Old polling stops implicitly via cache key change (acceptable RTK Query pattern)
+
+#### EC-12: CSV export with 0 results -> button disabled
+- [x] `disabled={count === 0}` on Export CSV button
+
+#### EC-13: CSV export streams for large sets
+- [x] `StreamingHttpResponse` with `iterator(chunk_size=200)`
+
+#### EC-14: localStorage recent searches FIFO max 10
+- [x] `.slice(0, MAX_ITEMS)` after prepending new entry
+
+#### EC-15: User clears search input -> recent chips remain visible
+- [x] Recent chips rendered independently of keyword state
+
+### Security Audit Results
+
+- [x] Authentication: All 6 endpoints use `CookieJWTAuthentication` + `IsAuthenticated`
+- [x] Authorization: `SearchStatusView` checks workspace ownership; `LiveSearchView` requires active workspace membership
+- [x] Global rate limiting: DRF throttle classes configured in settings.py
+- [x] Suggestions proxy: uses `httpx params={}` dict for safe URL encoding (FIXED)
+- [x] ASIN validation: regex `^[A-Z0-9]{10}$` on BSR history endpoint (FIXED)
+- [x] Input validation: All inputs validated via DRF serializers with `is_valid(raise_exception=True)`
+- [x] XSS: No raw HTML rendering; React escapes output by default
+- [x] CORS: Handled globally via django-cors-headers
+- [x] SQL injection: All queries via Django ORM (parameterized)
+- [x] `exclude_words` uses `icontains` not regex -- safe from ReDoS
+- [x] CSV export uses `StreamingHttpResponse` -- no memory DoS on large exports
+- [x] `page_size` capped at 100 via serializer `max_value` -- prevents large payload responses
+- [x] `AmazonProduct` intentionally global (no workspace FK) per spec section E -- not a vulnerability
+
+### Bugs Found
+
+#### BUG-1: FIXED -- Suggestions proxy URL now uses httpx params dict
+- Previously: `q` parameter was interpolated raw into Amazon URL
+- Now: `client.get(url, params={'prefix': q, 'mid': mid, 'alias': 'aps'})` (line 249)
+
+#### BUG-2: CLOSED (spec clarification) -- rating_max not needed
+- Spec's star-click UI (AC-7) defines "minimum rating" only. No max rating UI exists.
+- `rating_min` is implemented. No `rating_max` needed.
+
+#### BUG-3: FIXED -- Hide Official Brands stays active in Live mode
+- AdvancedOptionsPanel now dims only DB-only controls per-section
+- Hide Official Brands button (center column) remains clickable in Live mode
+
+#### BUG-4: FIXED -- Polling stops on terminal state
+- Single `usePollSearchStatusQuery` call with `pollingInterval: shouldPoll && !isTerminal ? POLL_INTERVAL : 0`
+- No duplicate hook calls
+
+#### BUG-5: FIXED -- All frontend tests passing (88/88)
+- Tests rewritten to match actual rendered output
+
+#### BUG-6: CLOSED -- RTK Query handles cache key change automatically
+- When `cacheId` changes, RTK Query unsubscribes from old key. Implicit but correct.
+
+#### BUG-7: FIXED -- Same as BUG-1
+
+#### BUG-8: FIXED -- ASIN validation added
+- `re.match(r'^[A-Z0-9]{10}$', asin)` with 400 response on invalid format
+
+#### BUG-9: CLOSED (by design) -- AmazonProduct is global per spec
+
+#### BUG-10: FIXED -- Pagination URLs now preserve all query params
+- Uses `request.query_params.copy()` as base, updates page/page_size
+
+#### BUG-11 (NEW): Double pagination controls in List view
+- **Severity:** Low
+- **Steps to Reproduce:**
+  1. Search for a keyword in DB mode with 50+ results
+  2. Switch to List view layout
+  3. Expected: One pagination control
+  4. Actual: DataGrid renders its own built-in pagination footer AND `AmazonResearchView` renders a separate `TablePagination` component below. Two pagination bars visible.
+- **File:** `AmazonResearchView.tsx` lines 254-264 (parent TablePagination) + `ProductTable.tsx` DataGrid with no `hideFooterPagination` prop
+- **Fix:** Either add `hideFooterPagination` to DataGrid, or remove the parent `TablePagination` when `layout === 'list'`
+- **Priority:** Fix in next sprint
+
+#### BUG-12 (NEW): "Copy ASINs" copies only current page, not all results
+- **Severity:** Low
+- **Steps to Reproduce:**
+  1. Search for keyword with 200+ results in DB mode
+  2. Click "Copy ASINs" button
+  3. Expected: All matching ASINs copied (button label says "Copy ASINs")
+  4. Actual: Only ASINs from current page (max 50) are copied. `products` prop only contains current page data.
+- **File:** `ResultsToolbar.tsx` line 39 -- `products.map((p) => p.asin)`
+- **Note:** May be intentional (copying 500+ ASINs could be unwieldy). Clarify with product owner. If intentional, label should say "Copy Page ASINs" or show count.
+- **Priority:** Nice to have (clarify intent)
+
+#### BUG-13 (NEW): CSV export sends disabled filter values
+- **Severity:** Low
+- **Steps to Reproduce:**
+  1. Search in DB mode without enabling any range sliders
+  2. Click "Export CSV"
+  3. Expected: Export uses same filters as displayed results
+  4. Actual: `handleExportCSV` passes entire `filters` object as params, including disabled filter defaults (e.g., `bsr_min=1&bsr_max=500000`). The `enabled` state is not consulted.
+- **File:** `ResultsToolbar.tsx` line 50 -- `const params = { ...filters }`
+- **Note:** In practice, the default range values (1-500000 BSR, 0-10000 reviews, $1-$100) span the full spectrum, so results are not incorrectly narrowed. But the export query differs from the list query (which checks `enabled` flags). This could cause subtle mismatches if a user has partially adjusted a slider but toggled it off.
+- **Fix:** Pass the same `buildQueryParams()` output to the export, or pass enabled flags to ResultsToolbar.
+- **Priority:** Fix in next sprint
+
+### Previously Fixed Bugs (from first QA pass)
+- BUG-1: URL injection in suggestions proxy -- FIXED
+- BUG-3: Advanced panel fully disabled in live mode -- FIXED
+- BUG-4: Polling never stops -- FIXED
+- BUG-5: 3 failing tests -- FIXED
+- BUG-8: No ASIN validation -- FIXED
+- BUG-10: Pagination URLs lose filter params -- FIXED
+
+### Test Results
+- **Backend:** 62/62 passed (research_app)
+- **Frontend:** 88/88 passed (views/amazon/research)
+- **TypeScript:** Clean (no errors)
+- **ESLint:** Clean (no errors)
+
+### Summary
+- **Acceptance Criteria:** 18/18 passed
+- **Edge Cases:** 15/15 passed
+- **Bugs Found (new):** 3 total (0 critical, 0 high, 0 medium, 3 low)
+- **Bugs Fixed (from first pass):** 6 of 10 fixed, 3 closed (by design/clarification), 1 reclassified
+- **Security:** All findings resolved
+- **Tests:** 150/150 passing (62 backend + 88 frontend)
+- **TypeScript:** Clean
+- **ESLint:** Clean
+- **Production Ready:** YES
+- **Recommendation:** Deploy. Fix BUG-11 (double pagination), BUG-12 (copy ASINs scope), BUG-13 (export filter mismatch) in next sprint -- all are low severity with no functional impact.
+
+### Deployment Readiness (2026-03-24)
+
+| Check | Status |
+|-------|--------|
+| `npm run build` | PASS |
+| `npm run lint` (ESLint) | PASS |
+| `npm run test:ci` (287 tests) | PASS |
+| `ruff check` (backend lint) | PASS |
+| `pytest research_app/` (62 tests) | PASS |
+| `npm audit` | 0 vulnerabilities |
+| Secrets in git | None found |
+| CI/CD workflows | ci.yml, deploy.yml, docker-publish.yml, security.yml -- all compatible |
+| Migrations | No new migrations needed (uses scraper_app models) |
+| TypeScript | Clean (0 errors) |

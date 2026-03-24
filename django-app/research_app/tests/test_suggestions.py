@@ -38,7 +38,7 @@ class TestSuggestionsView:
             resp = auth_client.get(URL, {'q': 'cat', 'marketplace': 'amazon_com'})
 
         assert resp.status_code == 200
-        assert resp.data['data'] == ['cat shirt', 'cat hoodie']
+        assert resp.data == ['cat shirt', 'cat hoodie']
 
     def test_cache_hit_returns_cached_data(self, auth_client):
         """Redis cache hit skips HTTP call."""
@@ -50,7 +50,7 @@ class TestSuggestionsView:
             resp = auth_client.get(URL, {'q': 'dog', 'marketplace': 'amazon_com'})
 
         assert resp.status_code == 200
-        assert resp.data['data'] == cached
+        assert resp.data == cached
 
     def test_amazon_error_returns_empty_list(self, auth_client):
         """Amazon timeout/error returns empty list, not 500."""
@@ -65,7 +65,7 @@ class TestSuggestionsView:
             resp = auth_client.get(URL, {'q': 'test', 'marketplace': 'amazon_com'})
 
         assert resp.status_code == 200
-        assert resp.data['data'] == []
+        assert resp.data == []
 
     def test_missing_q_param_returns_400(self, auth_client):
         resp = auth_client.get(URL, {'marketplace': 'amazon_com'})

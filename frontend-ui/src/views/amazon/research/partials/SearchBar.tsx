@@ -92,9 +92,7 @@ const SearchBar = ({
             color="secondary"
             aria-label="Toggle research mode"
           />
-          <ModeLabel>
-            {isLive ? 'Live Research' : 'DB Research'}
-          </ModeLabel>
+          {isLive && <ModeLabel>Live Research</ModeLabel>}
         </Stack>
 
         <Autocomplete

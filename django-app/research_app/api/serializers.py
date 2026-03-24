@@ -4,7 +4,6 @@ from scraper_app.models import (
     AmazonProduct,
     BSRSnapshot,
     MarketplaceChoices,
-    ProductSearchCache,
     ScrapeJob,
 )
 

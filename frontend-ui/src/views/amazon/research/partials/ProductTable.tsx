@@ -117,7 +117,7 @@ const ProductTable = ({
           params.value != null ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <StarIcon sx={{ fontSize: 14, color: 'warning.main' }} />
-              {params.value.toFixed(1)}
+              {Number(params.value).toFixed(1)}
             </Box>
           ) : (
             '-'
@@ -135,7 +135,7 @@ const ProductTable = ({
         headerName: 'Price',
         width: 80,
         renderCell: (params) =>
-          params.value != null ? `$${params.value.toFixed(2)}` : '-',
+          params.value != null ? `$${Number(params.value).toFixed(2)}` : '-',
       },
       { field: 'product_type', headerName: 'Type', width: 100, sortable: false },
       {

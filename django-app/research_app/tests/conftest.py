@@ -4,7 +4,6 @@ from rest_framework.test import APIClient
 
 from scraper_app.models import (
     AmazonProduct,
-    BSRSnapshot,
     Keyword,
     MarketplaceChoices,
     ProductSearchCache,
@@ -17,12 +16,17 @@ User = get_user_model()
 
 @pytest.fixture
 def user():
-    return User.objects.create_user(
+    u = User.objects.create_user(
         email='researcher@test.com',
         password='TestPass123!',
         username='researcher',
         is_active=True,
     )
+    # Delete auto-created personal workspace+membership from signal
+    # so tests control workspace setup explicitly via fixtures
+    Membership.objects.filter(user=u).delete()
+    Workspace.objects.filter(owner=u).delete()
+    return u
 
 
 @pytest.fixture

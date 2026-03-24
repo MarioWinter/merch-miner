@@ -4,8 +4,6 @@ from unittest.mock import patch, MagicMock
 from django.urls import reverse
 
 from scraper_app.models import (
-    Keyword,
-    MarketplaceChoices,
     ProductSearchCache,
     ScrapeJob,
 )
@@ -52,8 +50,8 @@ class TestLiveSearchDedup:
             )
 
         assert resp.status_code == 200
-        assert resp.data['data']['cache_id'] == str(existing_cache.id)
-        assert resp.data['data']['status'] == 'pending'
+        assert resp.data['cache_id'] == str(existing_cache.id)
+        assert resp.data['status'] == 'pending'
 
 
 class TestLiveSearchNewJob:
@@ -75,12 +73,12 @@ class TestLiveSearchNewJob:
             )
 
         assert resp.status_code == 201
-        assert 'cache_id' in resp.data['data']
-        assert resp.data['data']['status'] == 'pending'
+        assert 'cache_id' in resp.data
+        assert resp.data['status'] == 'pending'
 
         # Verify DB objects created
         assert ScrapeJob.objects.filter(mode=ScrapeJob.Mode.LIVE).exists()
-        cache = ProductSearchCache.objects.get(id=resp.data['data']['cache_id'])
+        cache = ProductSearchCache.objects.get(id=resp.data['cache_id'])
         assert cache.workspace == membership.workspace
         mock_queue.enqueue.assert_called_once()
 

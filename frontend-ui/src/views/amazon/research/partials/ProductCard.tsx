@@ -111,7 +111,7 @@ const ProductCard = ({
               <>
                 <StarIcon sx={{ fontSize: 14, color: 'warning.main' }} />
                 <Typography variant="caption">
-                  {product.rating.toFixed(1)}
+                  {Number(product.rating).toFixed(1)}
                 </Typography>
               </>
             )}
@@ -123,7 +123,7 @@ const ProductCard = ({
             <Box sx={{ flex: 1 }} />
             {product.price !== null && (
               <Typography variant="caption" sx={{ fontWeight: 600 }}>
-                ${product.price.toFixed(2)}
+                ${Number(product.price).toFixed(2)}
               </Typography>
             )}
           </Stack>

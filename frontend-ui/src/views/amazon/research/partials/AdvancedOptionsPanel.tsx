@@ -45,22 +45,20 @@ const AdvancedOptionsPanel = ({
   onEnabledChange,
 }: AdvancedOptionsPanelProps) => (
   <Collapse in={open}>
-    <PanelBox
-      sx={{
-        mt: 2,
-        opacity: isLive ? 0.4 : 1,
-        pointerEvents: isLive ? 'none' : 'auto',
-      }}
-    >
+    <PanelBox sx={{ mt: 2 }}>
       {isLive && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          Advanced filters available in DB Research mode only
+          Most filters available in DB Research mode only. Hide Official Brands
+          is active in Live mode.
         </Alert>
       )}
 
       <Grid container spacing={3}>
-        {/* Left column: Range sliders */}
-        <Grid size={{ xs: 12, md: 4 }}>
+        {/* Left column: Range sliders (DB-only) */}
+        <Grid
+          size={{ xs: 12, md: 4 }}
+          sx={isLive ? { opacity: 0.4, pointerEvents: 'none' } : undefined}
+        >
           <RangeSliderFilter
             label="BSR Range"
             value={[filters.bsr_min, filters.bsr_max]}
@@ -115,15 +113,17 @@ const AdvancedOptionsPanel = ({
           />
         </Grid>
 
-        {/* Center column: Rating + Hide Official Brands */}
+        {/* Center column: Rating (DB-only) + Hide Official Brands (always active) */}
         <Grid size={{ xs: 12, md: 4 }}>
-          <StarRatingFilter
-            value={filters.rating_min}
-            onChange={(v) => {
-              onFilterChange('rating_min', v);
-              onEnabledChange('rating_min', v > 0);
-            }}
-          />
+          <Box sx={isLive ? { opacity: 0.4, pointerEvents: 'none' } : undefined}>
+            <StarRatingFilter
+              value={filters.rating_min}
+              onChange={(v) => {
+                onFilterChange('rating_min', v);
+                onEnabledChange('rating_min', v > 0);
+              }}
+            />
+          </Box>
 
           <Box sx={{ mt: 3 }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
@@ -147,8 +147,11 @@ const AdvancedOptionsPanel = ({
           </Box>
         </Grid>
 
-        {/* Right column: Subcategory, Exclude Words, Date Range */}
-        <Grid size={{ xs: 12, md: 4 }}>
+        {/* Right column: Subcategory, Exclude Words, Date Range (DB-only) */}
+        <Grid
+          size={{ xs: 12, md: 4 }}
+          sx={isLive ? { opacity: 0.4, pointerEvents: 'none' } : undefined}
+        >
           <TextField
             label="Subcategory"
             size="small"

@@ -54,7 +54,7 @@ class TestPollStatusFields:
     def test_returns_correct_fields(self, auth_client, membership, search_cache, scrape_job):
         resp = auth_client.get(_url(search_cache.id))
         assert resp.status_code == 200
-        data = resp.data['data']
+        data = resp.data
         assert 'status' in data
         assert 'pages_done' in data
         assert 'products_scraped' in data
@@ -65,7 +65,7 @@ class TestPollStatusFields:
     def test_pending_status_no_products(self, auth_client, membership, search_cache):
         resp = auth_client.get(_url(search_cache.id))
         assert resp.status_code == 200
-        assert 'products' not in resp.data['data']
+        assert 'products' not in resp.data
 
 
 class TestPollStatusCompleted:
@@ -99,7 +99,7 @@ class TestPollStatusCompleted:
 
         resp = auth_client.get(_url(cache.id))
         assert resp.status_code == 200
-        data = resp.data['data']
+        data = resp.data
         assert data['status'] == 'completed'
         assert 'products' in data
         assert len(data['products']) == 50

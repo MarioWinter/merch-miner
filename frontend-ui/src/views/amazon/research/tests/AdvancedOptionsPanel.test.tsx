@@ -27,26 +27,33 @@ describe('AdvancedOptionsPanel', () => {
     expect(screen.getByText('Date Range')).toBeInTheDocument();
   });
 
-  it('Live mode dims panel (opacity 0.4, pointer-events none)', () => {
-    const { container } = renderWithProviders(
+  it('Live mode dims DB-only filters but keeps Hide Official Brands active', () => {
+    renderWithProviders(
       <AdvancedOptionsPanel {...baseProps} isLive={true} />,
     );
 
-    // The PanelBox is the first child inside Collapse's transition wrapper
-    // It has the sx applied with opacity and pointerEvents
-    const panelBox = container.querySelector('.MuiBox-root');
-    expect(panelBox).toBeTruthy();
+    // Hide Official Brands button should remain interactive
+    const brandBtn = screen.getByRole('button', { name: 'Toggle hide official brands' });
+    expect(brandBtn).toBeInTheDocument();
+    expect(brandBtn).not.toBeDisabled();
 
-    const style = window.getComputedStyle(panelBox!);
-    expect(style.opacity).toBe('0.4');
-    expect(style.pointerEvents).toBe('none');
+    // BSR slider inputs should be dimmed (inside a container with pointerEvents none)
+    const bsrSliders = screen.getAllByRole('slider');
+    // All range sliders are inside dimmed containers
+    bsrSliders.forEach((slider) => {
+      const grid = slider.closest('.MuiGrid-root');
+      if (grid) {
+        const style = window.getComputedStyle(grid);
+        expect(style.pointerEvents).toBe('none');
+      }
+    });
   });
 
   it('info banner shows in Live mode', () => {
     renderWithProviders(<AdvancedOptionsPanel {...baseProps} isLive={true} />);
 
     expect(
-      screen.getByText('Advanced filters available in DB Research mode only'),
+      screen.getByText(/Hide Official Brands.*is active in Live mode/),
     ).toBeInTheDocument();
   });
 
@@ -54,7 +61,7 @@ describe('AdvancedOptionsPanel', () => {
     renderWithProviders(<AdvancedOptionsPanel {...baseProps} isLive={false} />);
 
     expect(
-      screen.queryByText('Advanced filters available in DB Research mode only'),
+      screen.queryByText(/Hide Official Brands.*is active in Live mode/),
     ).not.toBeInTheDocument();
   });
 

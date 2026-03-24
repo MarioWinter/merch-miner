@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { usePollSearchStatusQuery } from '../../../../store/researchSlice';
 import type { AmazonProduct, ProductSearchStatus } from '../types';
 
@@ -13,22 +13,22 @@ interface UsePollingReturn {
 
 const POLL_INTERVAL = 3000;
 
+// When cacheId changes (e.g. recent chip click), RTK Query automatically
+// unsubscribes from the previous cache key and subscribes to the new one,
+// so explicit cancellation of the old poll is not needed.
 const usePolling = (cacheId: string | null): UsePollingReturn => {
   const shouldPoll = !!cacheId;
+  const [isTerminal, setIsTerminal] = useState(false);
 
   const { data, isLoading } = usePollSearchStatusQuery(cacheId ?? '', {
     skip: !shouldPoll,
-    pollingInterval: POLL_INTERVAL,
+    pollingInterval: shouldPoll && !isTerminal ? POLL_INTERVAL : 0,
   });
 
-  const isTerminal = data?.status === 'completed' || data?.status === 'failed';
-
-  // RTK Query pollingInterval keeps running but we use skip to stop
-  // Re-query with skip when terminal
-  usePollSearchStatusQuery(cacheId ?? '', {
-    skip: !shouldPoll || !isTerminal,
-    pollingInterval: 0,
-  });
+  useEffect(() => {
+    const terminal = data?.status === 'completed' || data?.status === 'failed';
+    setIsTerminal(!!terminal);
+  }, [data?.status]);
 
   return useMemo(
     () => ({

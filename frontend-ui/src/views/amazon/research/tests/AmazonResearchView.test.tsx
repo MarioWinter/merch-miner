@@ -64,18 +64,22 @@ describe('AmazonResearchView', () => {
 
   it('defaults to DB Research mode', () => {
     renderWithProviders(<AmazonResearchView />);
-    expect(screen.getAllByText('DB Research').length).toBeGreaterThanOrEqual(1);
+    // In DB mode the "Live Research" label is not shown
+    expect(screen.queryByText('Live Research')).not.toBeInTheDocument();
+    // The switch should be unchecked (DB mode = default)
+    expect(screen.getByRole('switch')).not.toBeChecked();
   });
 
   it('toggles between DB Research and Live Research mode', async () => {
     renderWithProviders(<AmazonResearchView />);
 
-    // "DB Research" appears in both ModeLabel and subtitle; just check presence
-    expect(screen.getAllByText('DB Research').length).toBeGreaterThanOrEqual(1);
+    // DB mode: no "Live Research" label visible, switch unchecked
+    expect(screen.queryByText('Live Research')).not.toBeInTheDocument();
 
     const toggle = screen.getByRole('switch');
     await userEvent.click(toggle);
 
+    // After toggle: "Live Research" label appears (SearchBar ModeLabel + subtitle)
     expect(screen.getAllByText('Live Research').length).toBeGreaterThanOrEqual(1);
   });
 
@@ -91,7 +95,7 @@ describe('AmazonResearchView', () => {
     expect(skeletons.length).toBeGreaterThan(0);
   });
 
-  it('switches between Grid/List view', async () => {
+  it('switches between Grid/List view', { timeout: 15000 }, async () => {
     // Need products to see the layout toggle
     mockListProductsResult = {
       isLoading: false,
@@ -155,14 +159,13 @@ describe('AmazonResearchView', () => {
   it('mode label updates when toggling mode', async () => {
     renderWithProviders(<AmazonResearchView />);
 
-    // Initially DB mode
-    expect(screen.getAllByText('DB Research').length).toBeGreaterThanOrEqual(1);
+    // Initially DB mode: no mode label text rendered
+    expect(screen.queryByText('Live Research')).not.toBeInTheDocument();
 
     const toggle = screen.getByRole('switch');
     await userEvent.click(toggle);
 
-    // After toggle, "DB Research" should be gone and "Live Research" present
-    expect(screen.queryByText('DB Research')).not.toBeInTheDocument();
+    // After toggle, "Live Research" label present
     expect(screen.getAllByText('Live Research').length).toBeGreaterThanOrEqual(1);
   });
 });

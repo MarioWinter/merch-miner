@@ -4,7 +4,6 @@ import io
 import pytest
 from django.urls import reverse
 
-from scraper_app.models import AmazonProduct, MarketplaceChoices
 
 from research_app.tests.conftest import make_product
 

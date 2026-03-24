@@ -19,7 +19,6 @@ export const researchApi = createApi({
         method: 'GET',
         params: { q, marketplace },
       }),
-      transformResponse: (response: { data: string[] }) => response.data ?? [],
     }),
 
     triggerLiveSearch: builder.mutation<LiveSearchResponse, LiveSearchParams>({
@@ -58,8 +57,7 @@ export const researchApi = createApi({
         method: 'GET',
         params: { marketplace },
       }),
-      transformResponse: (response: { data: BSRSnapshot[] }) =>
-        response.data ?? [],
+      transformResponse: (response: BSRSnapshot[]) => response ?? [],
       providesTags: (_result, _error, { asin }) => [
         { type: 'BSRHistory', id: asin },
       ],
