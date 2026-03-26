@@ -1,151 +1,173 @@
-# PROJ-13: Marketplace Upload Manager (MBA Automation)
+# PROJ-13: Desktop Upload App (Electron + Playwright)
 
 **Status:** Planned
 **Priority:** P1
 **Created:** 2026-02-27
+**Updated:** 2026-03-26
 
 ## Overview
 
-Automated MBA upload pipeline via Selenium/Chromium. Users create reusable upload templates, assemble upload jobs (template + listing + Google Drive design file), preview a MBA-mirrored form, then queue jobs for headless browser automation. ASIN is captured automatically on completion.
+Standalone Electron desktop application that executes MBA upload jobs from the Merch Miner backend. Receives upload jobs via **WebSocket**, automates the Amazon Merch on Demand upload form using **Playwright** with human-like behavior (streamed typing, mouse movements, randomized delays). Runs locally on the user's machine or a Remote Desktop.
+
+The web app (PROJ-11 Publish) configures and queues upload jobs. This desktop app executes them. Separation ensures: CAPTCHA can be solved manually, no server-side Chromium needed, lighter Docker stack.
+
+**Tech Stack:** Electron + TypeScript/React + Playwright + WebSocket
+
+**Future:** Support for Spreadshirt, KDP (Kindle Direct Publishing) in addition to MBA.
 
 ## User Stories
 
-1. As a workspace admin, I want to connect a Google Drive account so team members can browse design files stored there.
-2. As a workspace admin, I want to store MBA login credentials securely at the workspace level so the team shares one upload account.
-3. As a member, I want to create reusable upload templates (brand, product type, fit, colors, marketplace) so I don't re-enter shared settings for every upload.
-4. As a member, I want to create an upload job by selecting a template, a listing from PROJ-11, and a design file from Google Drive so all upload data is assembled in one place.
-5. As a member, I want to see a MBA-mirrored preview of the upload form pre-filled with my listing and template data before submitting, so I can spot errors.
-6. As a member, I want to queue multiple upload jobs and have Selenium upload them sequentially, so I can batch-process uploads unattended.
-7. As a member, I want to see the real-time status of each upload job (pending / downloading / uploading / completed / failed), so I know what's happening.
-8. As a member, I want the ASIN captured automatically after upload success, so I don't have to track it manually.
+### Connection & Setup
+1. As a user, I want to install the Desktop Upload App on my Windows/Mac, so I can process upload jobs from Merch Miner.
+2. As a user, I want to configure my Merch Miner server URL and authenticate with my workspace credentials, so the app connects securely.
+3. As a user, I want the app to run in the system tray (minimized), so it doesn't clutter my taskbar.
+4. As a user, I want to see the connection status (connected/disconnected) to my Merch Miner backend at a glance.
+
+### MBA Authentication
+5. As a user, I want to enter my MBA (Amazon Seller) credentials in the desktop app, so it can log in to upload.
+6. As a user, I want the app to cache my MBA session cookie and reuse it across uploads, so I don't re-login every time.
+7. As a user, I want the app to auto-detect expired sessions and re-login automatically.
+
+### Upload Execution
+8. As a user, I want the app to fill MBA upload forms with human-like typing (character by character, 50-150ms delay, randomized), so Amazon doesn't detect automation.
+9. As a user, I want realistic mouse movements between form fields (Bezier curves, not instant jumps) and Tab-key navigation.
+10. As a user, I want configurable delay between uploads (30-120s, randomized) to avoid detection patterns.
+11. As a user, I want the app to process uploads sequentially from my job queue, so uploads happen one at a time in order.
+12. As a user, I want bulk upload support — multiple designs queued and processed automatically in sequence.
+
+### Controls
+13. As a user, I want Start/Pause/Stop buttons to control the upload queue at any time.
+14. As a user, I want to Schedule uploads (e.g. "Start at 2:00 AM") for off-peak processing.
+15. As a user, I want to add or remove designs from the queue before/during processing (designs come from Merch Miner backend selection).
+
+### Validation & Safety
+16. As a user, I want a pre-upload validation check that verifies all data is complete (listing fields, design file, marketplace config) before starting, so I don't waste uploads on incomplete data.
+17. As a user, I want a legal warning "Automated uploads may violate Amazon TOS" with a confirmation checkbox that I must check before the first upload, so I'm aware of the risk.
+
+### Monitoring & Feedback
+18. As a user, I want to see real-time progress: which design is currently uploading, which step (logging in / filling form / uploading file / submitting).
+19. As a user, I want to see a summary of completed uploads: design name, marketplace, ASIN (if captured), status (success/failed).
+20. As a user, I want an error log showing why an upload failed, with the exact error message and a screenshot of the MBA page at the moment of failure.
+21. As a user, I want the ASIN automatically captured after successful upload and reported back to my Merch Miner backend, so my Product Lifecycle (PROJ-11) is updated.
+
+### Error Handling
+22. As a user, I want failed uploads to auto-retry once after a delay. If the retry also fails, the job is marked failed and I'm notified.
+23. As a user, I want CAPTCHA detection — if Amazon shows a CAPTCHA, the app pauses the queue, brings the browser window to focus, and shows me a notification "CAPTCHA detected — please solve manually". After I solve it, the app continues.
+24. As a user, I want a screenshot saved automatically when any upload fails, so I can debug the issue later.
+
+### Marketplace Support
+25. As a user, I want to select which marketplace to upload to (Amazon.com, .co.uk, .de, .fr, .it, .es, .co.jp) per job.
+26. As a user, I want future support for additional marketplaces (Spreadshirt, KDP) without changing the core architecture.
 
 ## Acceptance Criteria
 
-1. `UploadTemplate` CRUD with workspace isolation; required fields: name, brand_name (max 50), product_type, fit_type, colors (JSON array of MBA color codes), marketplace.
-2. `WorkspaceMBACredential`: password stored encrypted (Fernet via `cryptography` library); never returned in API response — masked email + last_verified_at only.
-3. Google Drive OAuth2 via `google-auth-oauthlib`; token stored in `WorkspaceGDriveToken`; access token auto-refreshed on expiry using refresh_token.
-4. `GET /api/workspace/gdrive/files/` returns paginated list of `.png`/`.jpg` files in specified Drive folder (query param `folder_id`; default: root).
-5. `POST /api/upload-jobs/` validates: template and listing both belong to same workspace; `drive_file_id` is non-empty.
-6. On job creation, job is appended to workspace queue (position = last + 1); status set to `pending`.
-7. Queue worker (`tasks.py: process_upload_queue`) runs as django-rq job; processes one job at a time per workspace; advances only after current completes or fails.
-8. Job execution steps (all in worker):
-   a. Set `status=downloading`; download design from Drive to temp file.
-   b. Set `status=uploading`; launch headless Chromium (Selenium WebDriver via selenium service on port 4444); log in to MBA (reuse session cookie if valid).
-   c. Fill MBA upload form fields from template + listing data (brand, title, bullets, description, keywords, product type, fit, colors).
-   d. Upload temp design file via file input element.
-   e. Submit form; wait for ASIN confirmation page.
-   f. Capture ASIN; set `status=completed`; store `asin` on `UploadJob`; set `completed_at`.
-   g. Delete temp file.
-9. MBA-mirrored preview in frontend: read-only form matching MBA field layout (brand, title, bullets 1–5, description, backend keywords, product type, fit, colors); data sourced from selected template + listing.
-10. Upload queue UI: MUI Table with columns — position, niche/slogan, template name, Drive file name, status badge, ASIN (editable after completion), actions (cancel, retry).
-11. Job status polling: frontend polls `GET /api/upload-jobs/{id}/` every 5s while status is `pending`/`downloading`/`uploading`; stops on terminal state.
-12. On Selenium failure (CAPTCHA, form error, timeout): set `status=failed`; store `error_message`; capture screenshot to `/tmp/upload_screenshot_{job_id}.png`; log error. No auto-retry — manual retry via UI.
-13. On Drive download failure: retry up to 3 times with exponential backoff; if all fail, set `status=failed`.
-14. Cancelled jobs (`status=cancelled`) are skipped by queue worker; remaining jobs shift queue positions.
-15. New docker-compose service `selenium` using `selenium/standalone-chromium:latest`; accessible internally at `http://selenium:4444`; `shm_size: "2g"`.
+### Electron App
 
-## Models
+- [ ] AC-1: Electron app with system tray icon. Main window shows: connection status, queue overview, controls, settings.
+- [ ] AC-2: Settings page: Server URL, workspace auth token, MBA email/password (stored encrypted locally via `safeStorage`), upload delay range (min/max seconds), auto-start on system boot toggle.
+- [ ] AC-3: Auto-updater — checks for new versions on startup, prompts user to update.
 
-### `UploadTemplate`
-```
-id            — UUID pk
-workspace     — FK(Workspace, on_delete=CASCADE)
-name          — CharField(100)
-brand_name    — CharField(50)
-product_type  — CharField choices [standard, premium]
-fit_type      — CharField choices [men, women, unisex, youth]
-colors        — JSONField (list of MBA color code strings)
-marketplace   — CharField choices [amazon_com, amazon_de, amazon_uk]
-created_by    — FK(User, on_delete=SET_NULL, null=True)
-created_at    — auto
-updated_at    — auto
-```
+### WebSocket Connection
 
-### `WorkspaceMBACredential`
-```
-workspace       — OneToOneField(Workspace, on_delete=CASCADE)
-email           — CharField(255)
-password        — BinaryField (Fernet-encrypted)
-last_verified_at — DateTimeField(null=True, blank=True)
-```
+- [ ] AC-4: WebSocket client connects to `ws://server/ws/upload-app/` (from PROJ-11). Authenticates with workspace token.
+- [ ] AC-5: Receives new upload jobs in real-time. Job payload: listing snapshot, design file URL, template settings, marketplace.
+- [ ] AC-6: Reports back to server: status updates (per step), ASIN on success, error message + screenshot URL on failure.
+- [ ] AC-7: Auto-reconnect on disconnect with exponential backoff (1s, 2s, 4s, max 30s).
 
-### `WorkspaceGDriveToken`
-```
-workspace     — OneToOneField(Workspace, on_delete=CASCADE)
-access_token  — TextField (Fernet-encrypted)
-refresh_token — TextField (Fernet-encrypted)
-token_expiry  — DateTimeField
-connected_by  — FK(User, on_delete=SET_NULL, null=True)
-connected_at  — DateTimeField(auto_now_add=True)
-```
+### Playwright Automation
 
-### `UploadJob`
-```
-id            — UUID pk
-workspace     — FK(Workspace, on_delete=CASCADE)
-template      — FK(UploadTemplate, on_delete=PROTECT)
-listing       — FK(Listing, null=True, blank=True, on_delete=SET_NULL)
-listing_snapshot — JSONField (denormalized listing data captured at job creation)
-drive_file_id — CharField(255)
-drive_file_name — CharField(255)
-status        — CharField choices [pending, downloading, uploading, completed, failed, cancelled]
-asin          — CharField(20, blank=True)
-error_message — TextField(blank=True)
-queued_position — PositiveIntegerField
-queued_at     — DateTimeField(auto_now_add=True)
-started_at    — DateTimeField(null=True, blank=True)
-completed_at  — DateTimeField(null=True, blank=True)
-created_by    — FK(User, on_delete=SET_NULL, null=True)
-```
+- [ ] AC-8: Playwright launches Chromium (visible or headless, configurable). Navigates to MBA upload page.
+- [ ] AC-9: MBA login with credentials from settings. Session cookie cached in Playwright browser context. Reused across uploads. Auto-detect expiry → re-login.
+- [ ] AC-10: Human-like form filling:
+  - Character input: streamed, 50-150ms random delay per character (not `fill()`)
+  - Mouse: Bezier-curve movements between fields, realistic speed
+  - Navigation: Tab-key between fields, not direct click on every field
+  - Pauses: 1-3s randomized delay between form sections
+  - Scroll: smooth scroll to elements, not instant jump
+- [ ] AC-11: File upload via Playwright `set_input_files()` for design image.
+- [ ] AC-12: Form submission → wait for confirmation page → capture ASIN from response.
+- [ ] AC-13: Upload throttling: configurable delay between uploads (default 30-120s, randomized within range).
 
-## API Endpoints
+### CAPTCHA Handling
 
-| Method | Path | Description |
-|--------|------|-------------|
-| GET | `/api/upload-templates/` | List templates (workspace-scoped) |
-| POST | `/api/upload-templates/` | Create template |
-| GET | `/api/upload-templates/{id}/` | Template detail |
-| PUT | `/api/upload-templates/{id}/` | Update template |
-| DELETE | `/api/upload-templates/{id}/` | Delete (blocked if active jobs reference it) |
-| POST | `/api/upload-jobs/` | Create + enqueue job |
-| GET | `/api/upload-jobs/` | List jobs (paginated, filterable by status) |
-| GET | `/api/upload-jobs/{id}/` | Job detail + live status |
-| POST | `/api/upload-jobs/{id}/cancel/` | Cancel pending job |
-| POST | `/api/workspace/gdrive/connect/` | Initiate Google Drive OAuth2 flow |
-| GET | `/api/workspace/gdrive/callback/` | OAuth2 callback (store token) |
-| GET | `/api/workspace/gdrive/files/` | Browse Drive files (query param: folder_id) |
-| POST | `/api/workspace/mba-credentials/` | Save / update MBA credentials |
-| GET | `/api/workspace/mba-credentials/status/` | Masked email + last_verified_at |
+- [ ] AC-14: CAPTCHA detection: check for known CAPTCHA elements on page after navigation/submission.
+- [ ] AC-15: On CAPTCHA: pause queue, bring browser window to foreground, show desktop notification "CAPTCHA detected". Poll page every 2s for CAPTCHA resolution. When resolved → continue upload.
+
+### Error Handling
+
+- [ ] AC-16: On upload failure: capture full-page screenshot → save to local temp folder → upload screenshot URL to backend via WebSocket.
+- [ ] AC-17: Auto-retry: 1 retry after 60s delay. If retry fails → mark job as failed, move to next job.
+- [ ] AC-18: MBA session expired mid-upload → attempt re-login. If re-login fails (credentials changed) → pause queue, notify user.
+
+### Queue Management
+
+- [ ] AC-19: Queue UI shows all pending/active/completed/failed jobs with: design thumbnail, design name, marketplace, status, ASIN (if completed), error (if failed).
+- [ ] AC-20: Start/Pause/Stop buttons in main window + tray menu.
+- [ ] AC-21: Schedule: "Start at [time]" picker. App waits until scheduled time, then starts queue.
+- [ ] AC-22: Add/remove jobs: reflects real-time changes from Merch Miner web app via WebSocket.
+
+### Legal & Safety
+
+- [ ] AC-23: First-run dialog: legal warning about automated uploads + confirmation checkbox. Must be checked before any upload. Stored in local settings.
+- [ ] AC-24: Pre-upload validation per job: check listing_snapshot has all required fields, design file URL accessible, marketplace configured. Skip invalid jobs with error log.
+
+## Architecture
+
+```
+Merch Miner Web App (PROJ-11)
+        │
+        │ WebSocket (ws://server/ws/upload-app/)
+        │
+        ▼
+Desktop Upload App (Electron)
+        │
+        ├── WebSocket Client (receives jobs, reports status)
+        ├── Queue Manager (sequential processing, scheduling)
+        ├── Playwright Controller
+        │     ├── MBA Login + Session Management
+        │     ├── Human-like Form Filler (streamed typing, mouse, tabs)
+        │     ├── File Uploader
+        │     ├── ASIN Capturer
+        │     └── CAPTCHA Detector + Pause Handler
+        ├── Screenshot Manager (failure captures)
+        ├── Settings Store (encrypted credentials, config)
+        └── Tray Icon + UI (React)
+```
 
 ## Edge Cases
 
-1. Drive OAuth token expired → auto-refresh before each file operation; if refresh fails → workspace admin notified (banner in UI), all pending jobs blocked until reconnected.
-2. Design file moved/deleted from Drive → job fails with "Drive file not found"; user must update job with new file ID.
-3. MBA session expired mid-upload → worker attempts re-login; if credentials invalid, job fails and admin is notified.
-4. Multiple workspaces → each workspace has an independent per-workspace queue; Selenium sessions are serialized per workspace so they don't conflict.
-5. Listing deleted after job created → `listing_snapshot` (JSONField) preserves listing data; job proceeds from snapshot. If snapshot is empty and listing FK is null, job fails gracefully.
-6. Template deleted with pending jobs → `on_delete=PROTECT` prevents deletion; admin is shown list of dependent jobs before retry.
-7. MBA form layout change (Amazon redesign) → Selenium selectors break; job fails with screenshot + error; requires manual selector update in code.
-8. Temp file not cleaned after failure → worker startup cleanup task deletes `/tmp/upload_*` files older than 1 hour.
-
-## New docker-compose Service
-
-```yaml
-selenium:
-  image: selenium/standalone-chromium:latest
-  ports:
-    - "4444:4444"
-  shm_size: "2g"
-```
+- [ ] EC-1: WebSocket disconnected → app queues local retry, reconnects with backoff. Jobs received after reconnect.
+- [ ] EC-2: MBA login fails (wrong credentials) → notify user, pause queue. Don't retry login in loop.
+- [ ] EC-3: Design file URL expired/unreachable → job fails with "Design file not accessible". No retry.
+- [ ] EC-4: MBA form layout changed (Amazon redesign) → Playwright selectors break, job fails with screenshot. Requires app update with new selectors.
+- [ ] EC-5: CAPTCHA not solved within 10 minutes → mark current job as failed ("CAPTCHA timeout"), move to next job.
+- [ ] EC-6: Multiple marketplace uploads for same design → separate jobs, each processed independently.
+- [ ] EC-7: App closed during upload → current job marked as failed on next startup. Queue resumes from next pending job.
+- [ ] EC-8: Two apps connected from same workspace → server sends jobs to first connected app only. Second app shows: "Another upload app is already connected."
+- [ ] EC-9: App started but no jobs pending → idle state, tray icon shows "Waiting for jobs".
+- [ ] EC-10: Internet connection lost during upload → Playwright timeout → job fails, retry on reconnect.
 
 ## Dependencies
 
-- PROJ-4 (Workspace & Membership — workspace FK, admin role for credential/Drive management)
-- PROJ-11 (Listing & Keyword Generator — listing data for upload form + snapshot)
-- PROJ-9 (Design Generation — `worker` docker-compose service required)
-- `selenium` docker-compose service (introduced in this feature)
+- PROJ-11 (Publish — web app queues jobs, provides WebSocket endpoint + job data)
+- PROJ-4 (Workspace & Membership — authentication token)
 
-## Unresolved Questions
+## Tech Stack
 
-- Persist MBA session cookies between jobs (avoid re-login per job) — yes or skip for MVP?
-- Screenshot storage on failure: `/tmp` (ephemeral) or S3/Supabase bucket (persistent)?
+| Component | Technology |
+|-----------|-----------|
+| App Shell | Electron |
+| UI | React + TypeScript (shared knowledge with frontend-ui) |
+| Automation | Playwright (Chromium) |
+| Communication | WebSocket (`ws` package) |
+| Credential Storage | Electron `safeStorage` (OS-level encryption) |
+| Auto-Update | `electron-updater` |
+| Build | `electron-builder` (Windows + Mac installers) |
+
+## Future Enhancements
+
+- Spreadshirt marketplace support (different form, same Playwright pattern)
+- KDP (Kindle Direct Publishing) support for book covers
+- Browser Extension alternative (lighter than Electron, for users who don't want to install an app)
+- Amazon Sales Data scraping from Seller Central (Extension, reuses login session)
+- Parallel uploads (multiple browser contexts) — risky for detection, but possible

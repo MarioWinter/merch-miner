@@ -111,6 +111,44 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 - PROJ-5 (Niche List — "Add to Niche" action calls `POST /api/niches/`)
 - PROJ-16 (Amazon Product Scraper — scrape engine, models, BSRSnapshot)
 
+## Amendments (PROJ-15/18/19 Harmonization)
+
+### Vector DB Integration (PROJ-15)
+- `AmazonProduct` model is an embeddable source. `get_embedding_text()` returns `title + " " + brand + " " + bullets`.
+- `post_save` signal on AmazonProduct enqueues embedding job.
+- Enables cross-niche product discovery via semantic search (e.g. "find similar products across all niches").
+
+### Web Search Integration (PROJ-17)
+- Web Search results that reference Amazon products can be linked to existing AmazonProduct records via ASIN matching.
+- "Save to Niche" quick-action from PROJ-17 Chat can trigger "Add to Niche List" (same as existing UI action).
+
+### Agent Integration (PROJ-18)
+- Research Agent has tools: `trigger_product_research`, `read_product_results`, `filter_product_results`.
+- Agent can start Live Research, read results, and apply filters (BSR range, rating, reviews, price, product type, hide brands).
+- Agent permission default for `trigger_product_research`: Approve (costs scraper credits). `filter_product_results` + `read_product_results` = Auto.
+
+### Known Bugs (to fix before deploy)
+- [ ] BUG: Search triggers on every keystroke — should only trigger on Enter key or Search button click
+- [ ] BUG: Sort by filter options not applied correctly
+- [ ] BUG: Wrong BSR value displayed on product cards
+- [ ] BUG: Review count not displayed on product cards
+- [ ] BUG: Review range filter does not work
+- [ ] BUG: Bullet1/Bullet2/Description panel rendering broken (layout/overflow issues)
+- [ ] BUG: Add date (listed_since) not shown — only "X days online" displayed, should show actual date too
+
+### UI Improvements (to fix before deploy)
+- [ ] UI: Live Research loading state should show Skeleton cards with product streaming (progressive reveal as products arrive)
+- [ ] UI: Product Card design image should show only the design (crop/zoom), not the full t-shirt mockup
+- [ ] UI: All Product Cards must be equal height and width (fixed dimensions, consistent grid)
+- [ ] UI: Remove Brand and Title from Product Card surface — move to Detail view. Card shows: image, BSR badge, rating, price, reviews, days online.
+- [ ] UI: Detail view layout needs cleanup for Bullets + Description display
+
+### New Features (Amendment)
+- [ ] FEAT: "Use as Listing Template" button in product Detail view — copies product title, bullets, description as pre-filled draft into PROJ-11 Listing Generator for the active niche. Creates a new Listing with `generated_by=manual` pre-populated with the product's copy.
+- [ ] FEAT: Statistics/Keywords page — switchable view (toggle or tab) showing aggregated keyword data from current search results: top keywords extracted from product titles/bullets, keyword frequency, keyword overlap across products. Helps identify high-value keywords before committing to a niche.
+- [ ] FEAT: Product Listing Keywords in Detail view — show extracted keywords from the product's title + bullets + description. Keywords displayed as chips, clickable to save to Keyword Bank (PROJ-10, source=amazon_search).
+- [ ] NOTE: Scraper (PROJ-16) may need adjustments to support additional data fields if keywords/bullets are not yet fully scraped.
+
 ---
 
 ## Tech Design (Solution Architect)

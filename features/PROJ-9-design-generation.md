@@ -46,17 +46,56 @@ These fields are read when a user opens `/design-board/:ideaId` and are used to 
 
 ## User Stories
 
+### Design Generation
 1. As a member, I want a board/canvas view to create designs, so I can see reference images, prompts, and results side by side.
 2. As a member, I want to jump from an approved idea directly to the design board pre-loaded with that idea's slogan + reference images.
-3. As a member, I want the system to auto-analyze reference images using the Gemini 3 Architect pipeline, so a high-quality prompt is generated without me writing one from scratch.
+3. As a member, I want the system to auto-analyze reference images using the Gemini 3 Architect pipeline, so a high-quality prompt is generated without me writing one from scratch. If PROJ-7 "Analyze Design" was already run on this product, reuse that analysis instead of re-running.
 4. As a member, I want to choose the background color (light gray / neon pink / neon green) for the generated design, so background removal works cleanly later.
-5. As a member, I want to upscale and remove the background from approved designs in batch, so I can prepare multiple designs for upload at once.
-6. As a member, I want to click "Generate Design" on an approved idea, so AI creates a T-shirt graphic based on the slogan.
-7. As a member, I want to choose the AI model (e.g., Flux, GPT-Image), so I can compare output quality.
-8. As a member, I want to see a progress indicator while the design is generating, so I know it's working.
-9. As a member, I want to view generated designs in a gallery, so I can pick the best one.
-10. As a member, I want to approve one design per idea and reject others, so the pipeline moves forward with the best image.
-11. As a member, I want to download an approved design, so I can use it outside the app if needed.
+5. As a member, I want to click "Generate Design" on an approved idea, so AI creates a T-shirt graphic based on the slogan.
+6. As a member, I want to choose the AI model (e.g., Flux, GPT-Image), so I can compare output quality.
+7. As a member, I want to see a progress indicator while the design is generating, so I know it's working.
+8. As a member, I want to view generated designs in a gallery, so I can pick the best one.
+9. As a member, I want to approve one design per idea and reject others, so the pipeline moves forward with the best image.
+10. As a member, I want to download an approved design, so I can use it outside the app if needed.
+
+### Post-Processing Pipeline (ReadyPixl-inspired)
+
+#### Batch & Pipeline
+11. As a member, I want to drag & drop multiple design images (100+) into the editor at once, so I can process my entire catalog in one session.
+12. As a member, I want to chain multiple processing tools in my preferred order as a pipeline, so each image goes through the same steps automatically.
+13. As a member, I want to save pipeline configurations as reusable presets, so I don't have to rebuild my workflow every time.
+14. As a member, I want to apply conditional logic to pipeline steps (e.g. "upscale only if <5000px"), so the pipeline handles mixed-size batches intelligently.
+
+#### Cloud Import
+15. As a member, I want to import design images directly from Google Drive into the editor, so I don't have to download and re-upload.
+16. As a member, I want to import design images directly from Microsoft OneDrive into the editor, so I can use my preferred cloud storage.
+
+#### Quality Control & Manual Correction
+17. As a member, I want to use the Transparency Highlighter to visualize hidden semi-transparent pixels, so I can spot artifacts before downloading.
+18. As a member, I want to correct individual images manually (eraser tool, magic wand) within a batch, so I can fix edge cases without reprocessing everything.
+19. As a member, I want to browse through all images in my batch with preview before downloading, so I can quality-check each result.
+
+#### Edge Cleanup & Defringe
+20. As a member, I want to auto-detect color fringe after background removal and get a suggested shrink value, so cleanup is fast and accurate.
+21. As a member, I want to manually shrink the design edge by 1-5px with live preview, so I can cleanly remove any remaining color halo.
+22. As a member, I want to replace semi-transparent edge pixels with the nearest design color instead of removing them, so the design edge stays sharp.
+23. As a member, I want multi-step edge smoothing after BG removal, so jagged edges become print-clean.
+
+#### AI Processing & Export
+24. As a member, I want to choose my AI processing providers (BG Remove, Upscaling) in Settings — self-hosted or external API — so I control cost vs. speed.
+25. As a member, I want smart upscaling that uses client-side Pica.js for large images and AI upscaling only for low-res images, so I don't waste resources.
+26. As a member, I want to compress processed images to <2MB without losing print quality, so uploads to MBA are fast.
+27. As a member, I want to export with configurable format (PNG), DPI (300), and compression level, and download single images or all at once.
+28. As a member, I want to choose between overwriting the original file or creating a new version, so I don't lose my source material.
+
+#### Canvas & Positioning
+29. As a member, I want my designs automatically formatted to 4500x5400px at 300 DPI (MBA standard), so they're upload-ready without manual calculation.
+30. As a member, I want to position designs with Align-to-Top and configurable padding (default: 1 inch top/sides), so placement is consistent across my catalog.
+31. As a member, I want the target canvas size to be configurable for other marketplaces, so I'm not locked to MBA dimensions.
+
+### UI/UX Notes
+- Full editor layout to be defined with `/frontend-design`. ReadyPixl (readypixl.com) serves as inspiration — see `reference_proj9_image_editor.md`.
+- ReadyPixl UI reference: Pill-bar for pipeline tools on top, parameter panel on left, canvas center/right, thumbnail strip at bottom. Not prescriptive — designer decides.
 
 ---
 
@@ -223,6 +262,77 @@ Image analysis (Gemini 3 Architect pipeline) also uses OpenRouter — same API k
 - PROJ-8 (Idea & Slogan Generation — idea must exist with slogan)
 - PROJ-6 (Niche Deep Research — `NicheResearchProduct` rows with image + analysis fields must exist)
 
+## Amendments (PROJ-15/18/19 Harmonization)
+
+### Vector DB Integration (PROJ-15)
+- `Design` model itself is NOT embedded (images, not text). However:
+  - `Design.prompt_analysis` (JSONField — 7-step Gemini analysis) is text-rich → embedded as part of the Idea's context.
+  - `DesignGenerationRun.prompt_used` (the final prompt sent to the model) → embedded for "find designs with similar prompts" search.
+- Approval/rejection patterns stored in Vector DB → Agent learns design preferences over time.
+
+### PROJ-7 "Analyze Design" Reuse
+- PROJ-7 adds an "Analyze Design" button per product that runs the 7-Step Gemini Architect analysis and produces a ready-to-use generation prompt.
+- When user opens Design Board for an Idea whose source product already has a completed analysis → **reuse the existing prompt** instead of re-analyzing. `Design.prompt_analysis` is pre-populated from the PROJ-7 analysis.
+- "Analyze Image" button on the Design Board still available for images without prior analysis (manual uploads, different reference images).
+- Saves one LLM-call per design that originates from Product Research.
+
+### Post-Processing Pipeline (ReadyPixl-inspired)
+- Design Board gets a **Post-Processing section** with a chainable tool pipeline, inspired by ReadyPixl (readypixl.com).
+- **Client-side tools** (Konva.js + Web Workers, run in browser):
+  - Resize / Reposition
+  - Color Removal / Color Adjustment
+  - Trim (auto-crop excess whitespace)
+  - Rotate / Flip
+  - Filters (brightness, contrast, saturation etc.)
+  - Sprinkle/Speckle Remover
+  - Transparency Cleaner
+  - Distress (vintage/used-look effects)
+  - Watermark (text + image)
+- **Edge Cleanup tools** (client-side):
+  - Auto-Detect Defringe — erkennt Farbrand automatisch, schlägt Shrink-Wert vor
+  - Manual Shrink — Slider "Shrink Edge: 0-5px" mit Live-Preview
+  - Color Defringe — erkennt Hintergrundfarbe im Rand, ersetzt semi-transparente Randpixel mit Design-Farbe
+  - Edge Cleaner — mehrstufige Kantenglättung nach BG Removal
+- **Quality Control tools** (client-side):
+  - Transparency Highlighter — markiert unsichtbare semi-transparente Pixel (Visualisierung, kein Edit)
+  - Built-in Compressor — Dateigröße reduzieren (<2MB) ohne Druckqualität zu verlieren
+- **Manual Correction tools** (client-side, Konva.js Canvas):
+  - Radiergummi-Tool — manuell Pixel/Bereiche entfernen
+  - Zauberstab — Bereichsauswahl nach Farbähnlichkeit
+  - Per-Bild Vorschau im Batch — einzelne Bilder durchklicken und korrigieren VOR Batch-Download
+- **Server-side AI tools** (django-rq worker OR external API — user-configurable in Settings):
+  - AI Background Removal:
+    - Option 1: `rembg` (self-hosted, CPU — ~3-8s/Bild, kostenlos)
+    - Option 2: Professional API (e.g. remove.bg — schneller, Pay-per-Use)
+    - Default: rembg. User kann in Settings auf API wechseln.
+  - AI Upscaling — 3-Stufen-System, user-wählbar in Settings:
+    - Option 1: `Pica.js` (client-side, Lanczos filter — für Bilder ≥3000px, kostenlos, schnell)
+    - Option 2: `Real-ESRGAN` (self-hosted, GPU empfohlen — für Low-Res <3000px, beste Qualität)
+    - Option 3: Professional API (e.g. Deep-Image.ai — wenn kein GPU-Server, Pay-per-Use)
+    - Default-Preset (Auto): ≥3000px → Pica.js, <3000px + GPU → Real-ESRGAN, <3000px ohne GPU → API. User kann Default überschreiben und z.B. "immer API" oder "immer Pica.js" wählen.
+  - Alle Provider-Einstellungen in Settings UI konfigurierbar, nicht nur via env var.
+- **Pipeline concept** (ReadyPixl-inspired):
+  - Plugin/Pill-basiertes System — jeder Bearbeitungsschritt ist ein "Pill" in einer Kette
+  - User chains multiple tools in preferred order → creates a reusable pipeline
+  - Pipeline stored as `DesignPipeline` model (JSONField with ordered tool+params list)
+  - **Presets:** Pipeline-Konfigurationen speichern + laden (Name, Tool-Kette, Parameter)
+  - **Konditionale Logik:** Tools können bedingt ausgeführt werden (z.B. "Upscale nur wenn <5000px")
+  - **Overwrite-Option:** Original überschreiben oder neue Datei erstellen
+- **Batch processing:**
+  - Drag & Drop Massen-Upload (100+ Bilder gleichzeitig)
+  - Einmaliges Setup — Pipeline-Parameter für ein Bild einstellen, auf alle anwenden
+  - Individuelle Nachbearbeitung — einzelne Bilder durchklicken + manuell korrigieren VOR Batch-Download
+  - Progress tracked per image in Batch-View
+  - Export: Format (PNG default), DPI (300 default), Compression Level, Download einzeln oder ALL
+- **Target Canvas:** 4500x5400 Pixel, 300 DPI (MBA-Standard). Configurable für andere Marktplätze.
+- **Reposition:** Align-to-Top + konfigurierbares Padding (Default: 1 Zoll oben/seiten). Snap-to-Top für kleinere Designs.
+- Tech stack reference: `reference_proj9_image_editor.md`
+
+### Agent Integration (PROJ-18)
+- Design Agent has tools: `get_design_board_context`, `analyze_reference_image`, `generate_design`, `read_design_status`, `approve_reject_design`, `trigger_batch_processing`, `apply_pipeline`.
+- Agent can autonomously: analyze reference images, generate designs with chosen model + background color, apply post-processing pipelines, and trigger batch operations.
+- Agent permission defaults: `generate_design` = Approve (LLM + image gen costs), `trigger_batch_processing` = Approve, `apply_pipeline` = Notify, `approve_reject_design` = Notify.
+
 ---
 
 ## Environment Variables Required
@@ -231,9 +341,18 @@ Image analysis (Gemini 3 Architect pipeline) also uses OpenRouter — same API k
 OPENROUTER_API_KEY=       # Rotate existing key before adding — currently exposed in n8n workflow JSON
 ```
 
-Document in `django-app/env/.env.template`. **Rotate the existing key before adding this.**
+> **AI Processing providers (BG Remove, Upscale) are configured in the Settings UI, not only via env vars.** Env vars serve as initial defaults. Settings model stores per-workspace provider choice + API keys (encrypted). This allows non-technical admins to switch providers without redeploying.
 
-No additional keys needed for background removal (rembg, in-house) or image analysis (same OpenRouter key).
+```
+# Initial defaults (overridable in Settings UI):
+BG_REMOVAL_PROVIDER=rembg           # choices: rembg, api
+BG_REMOVAL_API_KEY=                 # only if provider=api (e.g. remove.bg key)
+UPSCALE_PROVIDER=auto               # choices: pica (client), real_esrgan (server), api, auto
+UPSCALE_API_KEY=                    # only if provider=api (e.g. Deep-Image.ai key)
+UPSCALE_AUTO_THRESHOLD=3000         # pixel threshold for auto mode: >=threshold → Pica.js, <threshold → Real-ESRGAN/API
+```
+
+Document in `django-app/env/.env.template`. **Rotate the existing OpenRouter key before adding this.**
 
 ---
 

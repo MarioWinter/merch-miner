@@ -127,6 +127,23 @@ Core data entity of the application. A `Niche` represents a product idea/market 
 - PROJ-8 (Idea & Slogan Generation) — Slogans will have a FK to Niche (one niche → many slogans); relationship defined in PROJ-8.
 - PROJ-14 (Team Kanban) — will use `position` field for drag-and-drop column ordering.
 
+## Amendments (PROJ-15/18/19 Harmonization)
+
+### Vector DB Integration (PROJ-15)
+- `Niche` model is an embeddable source. `get_embedding_text()` returns `name + " " + notes`.
+- `post_save` signal on Niche enqueues embedding creation/update job in PROJ-15.
+- `GET /api/niches/{id}/similar/` convenience endpoint added by PROJ-15 — returns semantically similar niches.
+
+### Multi-Purpose Drawer (PROJ-17)
+- `NicheDetailDrawer` becomes one panel in a shared multi-purpose right drawer (480px).
+- Drawer header gets `ToggleButtonGroup exclusive` with segments: `[📋 Niche] [💬 Chat] [🤖 Agent]`.
+- Niche Detail panel content unchanged — only the drawer shell is shared.
+- Active niche context passed to Chat/Agent panels as sticky context chip.
+
+### Agent Integration (PROJ-18)
+- Research Agent has tools: `create_niche`, `update_niche_status`, `read_niche_details`.
+- Agent can create niches, change status, read details — same API endpoints, authenticated as the triggering user.
+
 ## Implementation Notes
 
 - Use DRF `PageNumberPagination` with `page_size=20`.

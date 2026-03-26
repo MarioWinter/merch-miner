@@ -36,8 +36,10 @@ Eliminates spreadsheet chaos and tool-switching by connecting niche data, AI-gen
 | P1 | PROJ-12: Dashboard | Planned |
 | P1 | PROJ-13: Marketplace Upload Manager (MBA Automation — Selenium) | Planned |
 | P1 | PROJ-14: Team Kanban | Planned |
-| P2 | PROJ-15: Analytics & Reporting | Planned |
+| P0 (MVP) | PROJ-15: Vector Database (AI Memory) | Planned |
 | P2 | PROJ-16: Amazon Product Scraper (Scrapy) | Planned |
+| P0 (MVP) | PROJ-17: Deep Web Search (Vane + Crawl4ai) | Planned |
+| P0 (MVP) | PROJ-18: OpenClaw Agent (Multi-Agent System) | Planned |
 
 ## Success Metrics
 
@@ -59,12 +61,12 @@ Eliminates spreadsheet chaos and tool-switching by connecting niche data, AI-gen
 
 ## Non-Goals (MVP)
 
-- LangChain / LangGraph agent migration
+- ~~LangChain / LangGraph agent migration~~ (now PROJ-18, LangGraph Multi-Agent System)
 - Mobile app (iOS/Android)
 - Multi-marketplace support beyond Amazon (Redbubble, Teepublic, etc.)
 - Billing / subscription management (Polar.sh integration deferred to post-MVP)
 - Real-time collaboration (Supabase Realtime / WebSocket notifications)
 - Google Trends live integration
 - Scrapy-based scraper (PROJ-16 is P2; n8n + ScraperOps handles scraping for MVP)
-- pgvector semantic search (future enhancement)
+- ~~pgvector semantic search~~ (now PROJ-15, promoted to P0 MVP)
 - Real-time WebSocket push for job status (polling used instead)

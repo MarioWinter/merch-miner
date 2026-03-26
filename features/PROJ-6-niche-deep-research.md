@@ -341,6 +341,31 @@ django-rq worker
 - PROJ-16 (Amazon Product Scraper — `scrape_search_page_job` called internally; `AmazonSearchPageSpider`; `AmazonProduct` model; `SearchKeywordResult` for keyword seeding)
 - SearXNG instance in localai-stack (must be reachable via `SEARXNG_BASE_URL`)
 
+## Amendments (PROJ-15/18/19 Harmonization)
+
+### Vector DB Integration (PROJ-15)
+- Research outputs are embeddable sources in PROJ-15:
+  - `NicheAnalysis` → `niche_summary + emotional_reality + design_concepts + dominant_design_aesthetics`
+  - `NicheProductVisionAnalysis` → `slogan_text + meaning_context + visual_style`
+  - `NicheProductEmotionalAnalysis` → `original_slogan + tone + adaptation_formula`
+  - `NicheKeywordAnalysis` → `all_keywords_flat`
+- `post_save` signals on all 4 models enqueue embedding jobs.
+- Agent and users can semantically search across all research data via PROJ-15.
+- `related_niches` computation (≥2 shared patterns) could be enhanced with vector similarity as future improvement.
+
+### Web Search Enhancement (PROJ-17)
+- niche_profile node: replace direct SearXNG calls with Vane API calls (PROJ-17). Vane uses SearXNG internally but adds LLM-synthesized answers — better quality, same infrastructure.
+- Vane's mandatory searches (culture/slang, Reddit context, lifestyle terms) replace the current 3 SearXNG tool calls.
+- Fallback: if Vane unavailable → fall back to direct SearXNG (existing behavior). Graceful degradation.
+- Dependency on PROJ-17: `VANE_API_URL` env var must be set. If not set → use SearXNG directly.
+
+### Agent Integration (PROJ-18)
+- Research Agent has tools: `trigger_deep_research`, `read_research_results`, `find_similar_niches`, `cancel_research`.
+- Agent can trigger research autonomously (subject to permission level: default=Approve).
+- Agent can cancel running research if it determines the niche is not viable or workflow changes direction.
+- Agent reads completed research results to inform downstream workflow decisions.
+- Agent permission defaults: `trigger_deep_research` = Approve, `cancel_research` = Notify, `read_research_results` = Auto.
+
 ## Environment Variables Required
 
 ```
