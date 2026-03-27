@@ -24,77 +24,75 @@ Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. 
 ## Acceptance Criteria
 
 ### Live Research Mode
-1. `POST /api/research/search/` → creates `ProductSearchCache` (status=pending) → enqueues `scrape_keyword_job` via django-rq → returns `cache_id`.
-2. Spider scrapes Amazon search results pages (max 4 pages per keyword) + detail pages for each ASIN found → full product data stored in `AmazonProduct`.
-3. Each ASIN is linked to the search keyword via the `keywords` M2M field (one `AmazonProduct` record per ASIN; no duplicates).
-4. On completion: `ProductSearchCache.status` = completed; all discovered ASINs auto-enrolled in scheduled tracking (tier assigned by BSR).
-5. If `ProductSearchCache` for keyword+marketplace already exists with status=pending → return existing cache_id; no duplicate job.
-6. If completed scrape < 24h old → return cached results immediately; no new scrape triggered.
+- [ ] AC-1: `POST /api/research/search/` → creates `ProductSearchCache` (status=pending) → enqueues `scrape_keyword_job` via django-rq → returns `cache_id`.
+- [ ] AC-2: Spider scrapes Amazon search results pages (max 4 pages per keyword) + detail pages for each ASIN found → full product data stored in `AmazonProduct`.
+- [ ] AC-3: Each ASIN is linked to the search keyword via the `keywords` M2M field (one `AmazonProduct` record per ASIN; no duplicates).
+- [ ] AC-4: On completion: `ProductSearchCache.status` = completed; all discovered ASINs auto-enrolled in scheduled tracking (tier assigned by BSR).
+- [ ] AC-5: If `ProductSearchCache` for keyword+marketplace already exists with status=pending → return existing cache_id; no duplicate job.
+- [ ] AC-6: If completed scrape < 24h old → return cached results immediately; no new scrape triggered.
 
 ### Search Page Only Mode (PROJ-6 Niche Research)
-7a. `AmazonSearchPageSpider` scrapes Amazon search results pages only (max 4 pages per keyword). No follow to detail pages.
-7b. Extracts from search result cards: ASIN (from `data-csa-c-item-id` or `/dp/` fallback), title (`h2 a-size-base-plus aria-label` → `h2 span` fallback → `h2 a-size-mini span` fallback), brand (`h2 a-size-mini span.a-size-base-plus.a-color-base` → merchant ID fallback), price (whole + fraction), rating (`data-cy=reviews-block span.a-icon-alt`), reviews_count (`data-cy=reviews-block span.a-size-mini`), thumbnail (`img.s-image`), product URL (`/dp/ASIN/`), sponsored detection (`/slredirect/` in URL).
-7c. Data stored in existing `AmazonProduct` model via `update_or_create(asin, marketplace)`. Detail-only fields (BSR, bullets, description, listed_date, image_gallery, variants) remain NULL.
-7d. `ScrapeJob.mode = search_page_only`. Same Admin parameters as search+detail spider: `marketplace`, `product_type_filter`, `max_items`, `pages_total`.
-7e. `ProductSearchCache` created for dedup guard + 24h cache (same logic as Live Research: pending → completed; existing pending returns same cache_id; completed <24h returns cached).
-7f. Keyword M2M linking: discovered ASINs linked to search keyword via `AmazonProduct.keywords`.
-7g. Auto-enroll in `ScheduledScrapeTarget` (idempotent — no duplicate ASINs). Tier assigned by current BSR; since BSR is NULL for search-page-only, falls back to lowest tier (Tier 3).
-7h. No `BSRSnapshot` created (BSR not available on search results pages).
-7i. `scrape_search_page_job` task function in `tasks.py`. Runs spider via subprocess (same pattern as `scrape_keyword_job`).
-7j. Admin actions: start, stop, cancel, retry — identical to other spider modes.
-7k. Boilerplate bullet filtering not applicable (no bullets on search pages).
+- [ ] AC-7a: `AmazonSearchPageSpider` scrapes Amazon search results pages only (max 4 pages per keyword). No follow to detail pages.
+- [ ] AC-7b: Extracts from search result cards: ASIN, title, brand, price, rating, reviews_count, thumbnail, product URL, sponsored detection.
+- [ ] AC-7c: Data stored via `update_or_create(asin, marketplace)`. Detail-only fields remain NULL.
+- [ ] AC-7d: `ScrapeJob.mode = search_page_only`. Same Admin parameters as search+detail spider.
+- [ ] AC-7e: `ProductSearchCache` created for dedup guard + 24h cache.
+- [ ] AC-7f: Keyword M2M linking: discovered ASINs linked to search keyword.
+- [ ] AC-7g: Auto-enroll in `ScheduledScrapeTarget` (idempotent). BSR NULL → Tier 3.
+- [ ] AC-7h: No `BSRSnapshot` created (BSR not on search pages).
+- [ ] AC-7i: `scrape_search_page_job` task runs spider via subprocess.
+- [ ] AC-7j: Admin actions: start, stop, cancel, retry — identical to other modes.
+- [ ] AC-7k: Boilerplate bullet filtering not applicable (no bullets on search pages).
 
 ### Scheduled Scrape Mode
-7. Admin CSV upload (via custom Django Admin action) — two separate CSV types: **ASIN CSV** (columns: `asin, marketplace, tier`) and **Keyword CSV** (columns: `keyword, marketplace, tier`). Tier column is optional in both.
-8. Uploaded ASINs/keywords are added to `ScheduledScrapeTarget`; tier auto-assigned by current BSR if not specified.
-9. django-rq cron job (`schedule_scrape_runner`) runs every hour; enqueues due targets based on `ScrapeTier.interval_days` and `last_scraped_at`.
-10. Each scrape target re-scraped at its tier interval; if BSR changes tier on next scrape, tier auto-updates.
+- [ ] AC-8: Admin CSV upload (ASIN CSV + Keyword CSV). Tier column optional.
+- [ ] AC-9: Uploaded ASINs/keywords added to `ScheduledScrapeTarget`; tier auto-assigned by BSR.
+- [ ] AC-10: django-rq cron job (`schedule_scrape_runner`) runs hourly; enqueues due targets.
+- [ ] AC-11: Each target re-scraped at tier interval; BSR changes → tier auto-updates.
 
 ### BSR History Tracking
-11. After every scrape (live or scheduled), a `BSRSnapshot` record is written for each ASIN with current BSR, rating, price, and timestamp.
-12. BSR is only available on the product detail page (not in Amazon search results). Daily BSR/Rating/Price snapshots are taken by scraping the ASIN detail page directly — no keyword search required. This is more efficient than a full keyword scrape (1 request per ASIN vs. 4 pages + N detail pages per keyword).
-13. BSR snapshots retained indefinitely.
+- [ ] AC-12: After every scrape, `BSRSnapshot` record written per ASIN (BSR, rating, price, timestamp).
+- [ ] AC-13: Daily BSR snapshots via direct ASIN detail page scrape (not keyword search).
+- [ ] AC-14: BSR snapshots retained indefinitely.
 
 ### MetaKeyword Extraction
-14a. After all products are saved (in `close_spider` or post-scrape hook), keyword extraction runs over all products of the scrape run.
-14b. **Per-product extraction basis:** concatenation of `title` + `brand` + `bullet_1` + `bullet_2` + `description` — only fields that are non-NULL.
-14c. **PATCH semantics for MetaKeywords:** Only re-calculate per-product MetaKeywords if data basis is **equal or better** than existing. If product already has bullet_1/bullet_2/description populated and current spider is search_page_only (only title+brand available), skip MetaKeyword re-calculation for that product.
-14d. **Tokenization:** Normalize text (lowercase, strip HTML entities, remove special chars). Filter via stopwords, junk words, function words (lists ported from n8n workflow `00003`).
-14e. **Short-tail keywords:** Single tokens filtered by noun-likelihood heuristic (suffix scoring: -er, -or, -ist, -ment, -ness, -tion, -gift, -lover etc. + length + frequency). Top 10 per product.
-14f. **Long-tail keywords:** 2–3 word n-grams from token stream. At least 1 noun-like token required. No junk words. Top 10 per product.
-14g. **Generic word filtering:** Words/n-grams appearing in ≥80% of products in the run are excluded (too common to be distinctive).
-14h. `MetaKeyword` records created/updated via `get_or_create(keyword, type)`. `frequency` field overwritten with current count.
-14i. M2M links: `AmazonProduct.meta_keywords` set per product. `MetaKeyword.search_keywords` linked to the search `Keyword`.
-14j. `SearchKeywordResult` created (1:1 with `ProductSearchCache`): `top_focus_keywords` (top 50 short-tail, filtered by frequency >2), `top_long_tail_keywords` (top 50 long-tail, filtered by frequency >2), `all_keywords_flat`.
-14k. Extraction runs on **every spider mode** (live, search_page_only, scheduled, bsr_snapshot) — respecting 14c data basis guard.
+- [ ] AC-15a: Post-scrape keyword extraction runs over all products of the run.
+- [ ] AC-15b: Per-product basis: `title + brand + bullet_1 + bullet_2 + description` (non-NULL fields).
+- [ ] AC-15c: PATCH semantics: skip re-calculation if existing data basis is richer.
+- [ ] AC-15d: Tokenization: normalize, stopwords, junk words (ported from n8n).
+- [ ] AC-15e: Short-tail: single tokens, noun-likelihood heuristic, top 10 per product.
+- [ ] AC-15f: Long-tail: 2-3 word n-grams, ≥1 noun-like token, top 10 per product.
+- [ ] AC-15g: Generic word filter: ≥80% frequency excluded.
+- [ ] AC-15h: `MetaKeyword` get_or_create, frequency overwritten.
+- [ ] AC-15i: M2M links: AmazonProduct.meta_keywords + MetaKeyword.search_keywords.
+- [ ] AC-15j: `SearchKeywordResult` created: top_focus_keywords, top_long_tail_keywords, all_keywords_flat.
+- [ ] AC-15k: Extraction runs on every spider mode, respecting data basis guard.
 
 ### Pipeline PATCH Semantics
-14l. All spider modes use PATCH semantics for `AmazonProduct`: `get_or_create(asin, marketplace)` + only update fields where spider item value is **not None**. Prevents search_page_only from overwriting existing detail data (BSR, bullets, description) with NULL.
-14m. `product.save(update_fields=[...])` with only the changed fields for efficiency.
+- [ ] AC-16a: All modes use `get_or_create(asin, marketplace)` + only update non-None fields.
+- [ ] AC-16b: `product.save(update_fields=[...])` for efficiency.
 
 ### Scraper Technical
-14. ScraperOps SDK used for proxy rotation on all requests; no fallback provider.
-15. 3 retry attempts on critical selector failure (title, ASIN); after 3 failures, job marked failed. BSR is non-critical — products without BSR saved with `bsr=NULL`.
-16. Failed jobs logged to `ScrapeJob.error_log`; error count visible in Admin.
-17. Spider supports all 6 marketplaces: `amazon_com`, `amazon_de`, `amazon_co_uk`, `amazon_fr`, `amazon_it`, `amazon_es`.
-18. CSS selectors based on reference repos; marketplace-specific selector overrides supported.
-19. `CONCURRENT_REQUESTS` configurable per ScraperOps plan (default 1 for free tier).
-20. Scrapy runs via subprocess (not CrawlerProcess) to avoid Twisted reactor crash on repeated calls. `TWISTED_REACTOR = SelectReactor` for Django ORM compatibility.
-21. `scrape_job_id` parameter name used (not `job_id` — RQ reserves that name).
-22. `scrapy.cfg` lives in Django root `/app/`; `_scrapy_env()` helper sets `PYTHONPATH` and `SCRAPY_SETTINGS_MODULE`.
-23. BSR extraction uses 4 fallback formats: `ul.zg_hrsr` (sidebar), product details table, detail bullets, raw regex.
-24. `product_type` auto-detected from title suffix (e.g. "Funny Cat T-Shirt" → `t_shirt`).
-25. `listed_date` extracted from "Date First Available" field (3 source formats + 4 date format parsers).
-26. Boilerplate bullet filtering — common MBA phrases ("Lightweight, classic fit", "Pull on closure", etc.) stripped before storing `bullet_1`/`bullet_2`.
-27. `PRODUCT_TYPE_SPIDER_KWARGS` mapping provides per-type `search_index`, `seller_filter`, `hidden_keywords` for MBA-specific search filtering.
-28. `max_items` field on ScrapeJob maps to Scrapy's `CLOSESPIDER_ITEMCOUNT` for limiting products per job.
+- [ ] AC-17: ScraperOps SDK for proxy rotation.
+- [ ] AC-18: 3 retries on critical selector failure; BSR non-critical (NULL allowed).
+- [ ] AC-19: Failed jobs logged to `ScrapeJob.error_log`.
+- [ ] AC-20: 6 marketplaces supported.
+- [ ] AC-21: Marketplace-specific CSS selector overrides.
+- [ ] AC-22: `CONCURRENT_REQUESTS` configurable.
+- [ ] AC-23: Subprocess execution (not CrawlerProcess). `SelectReactor`.
+- [ ] AC-24: BSR extraction: 4 fallback formats.
+- [ ] AC-25: `product_type` auto-detected from title suffix.
+- [ ] AC-26: `listed_date` extraction (3 sources + 4 date format parsers).
+- [ ] AC-27: Boilerplate bullet filtering.
+- [ ] AC-28: `PRODUCT_TYPE_SPIDER_KWARGS` mapping for MBA search filtering.
+- [ ] AC-29: `max_items` → `CLOSESPIDER_ITEMCOUNT`.
 
 ### Django Admin
-20. `ScrapeJob` list view shows: keyword/asin, marketplace, mode, product_type_filter, status, progress (pages done/total), max_items, products scraped, error count, start time, end time.
-21. Admin actions on `ScrapeJob`: **start pending jobs**, **stop running job** (kills subprocess via PID), cancel pending job, retry failed job. Start action reads `product_type_filter` and passes `PRODUCT_TYPE_SPIDER_KWARGS` + `max_items` to spider. Live Research also stoppable from UI (PROJ-7).
-22. `ScrapeTier` changelist is editable inline: BSR min/max, interval_days.
-23. Custom Admin page shows queue health: pending job count, running count, completed/failed today, active targets, ScraperOps key status.
-24. CSV upload available as a custom Admin action on `ScheduledScrapeTarget`.
+- [ ] AC-30: `ScrapeJob` list view: keyword/asin, marketplace, mode, status, progress, max_items, products, errors, timestamps.
+- [ ] AC-31: Admin actions: start, stop (kills PID), cancel, retry. Live Research stoppable from PROJ-7 UI.
+- [ ] AC-32: `ScrapeTier` inline editable: BSR min/max, interval_days.
+- [ ] AC-33: Custom Admin page: queue health dashboard.
+- [ ] AC-34: CSV upload as Admin action on `ScheduledScrapeTarget`.
 
 ## API Endpoints
 

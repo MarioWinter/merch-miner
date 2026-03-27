@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Merch Miner — Feature Specs</title>
+<!-- Fonts: loaded via link for online, system fallback for offline/local file -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  /* System font fallback if Google Fonts can't load (local file:// mode) */
+  @font-face{font-family:'Inter';font-style:normal;font-weight:300 800;src:local('Inter'),local('.SFNSText-Regular'),local('SF Pro Text'),local('Helvetica Neue');font-display:swap}
+  @font-face{font-family:'JetBrains Mono';font-style:normal;font-weight:400 500;src:local('JetBrains Mono'),local('SF Mono'),local('Menlo'),local('Monaco'),local('Consolas');font-display:swap}
+</style>
+<style>
+  :root {
+    --bg: #071E26; --paper: #0B2731; --elevated: #0F3040; --sunken: #051820;
+    --primary: #FF5A4F; --primary-dark: #E84B42; --primary-light: #FF7A72;
+    --primary-subtle: rgba(255,90,79,0.12); --primary-glow: 0 0 30px rgba(255,90,79,0.35);
+    --secondary: #00C8D7; --secondary-dark: #00A8B5; --secondary-subtle: rgba(0,200,215,0.10);
+    --text1: #E8F4F8; --text2: #7BAAB8; --text3: #3D6A7A;
+    --border: rgba(255,255,255,0.08); --border-strong: rgba(255,255,255,0.15);
+    --success: #22D3A3; --warning: #F59E0B; --info: #38BDF8;
+    --indigo: #818CF8; --rose: #FB7185; --emerald: #34D399;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth;-webkit-text-size-adjust:100%;text-size-adjust:100%}
+  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text1);overflow-x:hidden;-webkit-font-smoothing:antialiased;min-width:320px}
+
+  /* ===== PARTICLES BG ===== */
+  .particles{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:0}
+  .particle{position:absolute;border-radius:50%;opacity:0;animation:float linear infinite}
+  @keyframes float{
+    0%{transform:translateY(100vh) scale(0);opacity:0}
+    10%{opacity:1}
+    90%{opacity:1}
+    100%{transform:translateY(-10vh) scale(1);opacity:0}
+  }
+
+  /* ===== HERO ===== */
+  .hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:2rem;position:relative;z-index:1}
+  .hero::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% 40%,rgba(255,90,79,0.1) 0%,transparent 60%),radial-gradient(ellipse at 70% 60%,rgba(0,200,215,0.08) 0%,transparent 60%)}
+  .hero-content{position:relative;z-index:2}
+  .hero-icon{font-size:4rem;margin-bottom:1.5rem;animation:bounce 2s ease-in-out infinite}
+  @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-15px)}}
+  .hero h1{font-size:clamp(2.5rem,6vw,5rem);font-weight:800;letter-spacing:-0.04em;line-height:1.1}
+  .hero h1 .gradient{background:linear-gradient(135deg,var(--primary),var(--primary-light),var(--secondary));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .hero .subtitle{font-size:clamp(1rem,2vw,1.3rem);color:var(--text2);max-width:650px;margin:1.5rem auto 3rem;line-height:1.7;font-weight:300}
+
+  /* Stats */
+  .stats{display:flex;gap:2rem;flex-wrap:wrap;justify-content:center}
+  .stat{background:var(--paper);border:1px solid var(--border);border-radius:16px;padding:1.5rem 2rem;min-width:140px;transition:all 0.3s;position:relative;overflow:hidden}
+  .stat:hover{border-color:var(--primary);transform:translateY(-4px);box-shadow:var(--primary-glow)}
+  .stat::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--primary),var(--secondary));opacity:0;transition:opacity 0.3s}
+  .stat:hover::before{opacity:1}
+  .stat-icon{font-size:1.5rem;margin-bottom:0.5rem}
+  .stat-num{font-family:'JetBrains Mono',monospace;font-size:2.5rem;font-weight:700;background:linear-gradient(135deg,var(--secondary),var(--emerald));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+  .stat-label{font-size:0.8rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.1em;margin-top:0.25rem}
+
+  /* Pipeline */
+  .pipeline-wrap{margin:4rem auto 0;max-width:800px}
+  .pipeline-title{font-size:0.75rem;text-transform:uppercase;letter-spacing:0.15em;color:var(--text3);text-align:center;margin-bottom:1rem}
+  .pipeline{display:flex;align-items:center;justify-content:center;gap:0;flex-wrap:wrap}
+  .pipe-step{display:flex;align-items:center}
+  .pipe-node{padding:0.65rem 1.1rem;border-radius:10px;font-size:0.82rem;font-weight:600;border:1px solid var(--border);background:var(--paper);transition:all 0.3s;cursor:default;display:flex;align-items:center;gap:0.4rem}
+  .pipe-node:hover{border-color:var(--secondary);box-shadow:0 0 20px rgba(0,200,215,0.2);transform:scale(1.05)}
+  .pipe-node.active{background:linear-gradient(135deg,var(--primary-subtle),rgba(0,200,215,0.08));border-color:var(--primary)}
+  .pipe-arrow{color:var(--text3);padding:0 0.2rem;font-size:1.2rem}
+
+  /* ===== NAV ===== */
+  nav{position:sticky;top:0;z-index:100;background:rgba(7,30,38,0.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--border);padding:0.6rem 1rem;display:flex;gap:0.35rem;overflow-x:auto;scrollbar-width:none}
+  nav::-webkit-scrollbar{display:none}
+  nav a{color:var(--text3);text-decoration:none;font-size:0.75rem;font-weight:600;padding:0.4rem 0.7rem;border-radius:8px;white-space:nowrap;transition:all 0.2s;border:1px solid transparent;letter-spacing:0.02em}
+  nav a:hover{color:var(--text1);background:var(--elevated);border-color:var(--border)}
+  nav a .nav-icon{margin-right:0.3rem}
+
+  /* ===== SECTIONS ===== */
+  .section{max-width:960px;margin:0 auto;padding:5rem 2rem 3rem;position:relative;z-index:1}
+  .section-divider{height:1px;max-width:960px;margin:0 auto;background:linear-gradient(90deg,transparent,var(--border-strong),transparent)}
+
+  /* Header */
+  .feat-head{display:flex;align-items:flex-start;gap:1.25rem;margin-bottom:2rem}
+  .feat-icon-wrap{width:56px;height:56px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:1.6rem;flex-shrink:0;border:1px solid var(--border);position:relative;overflow:hidden}
+  .feat-icon-wrap::before{content:'';position:absolute;inset:0;opacity:0.15}
+  .feat-icon-wrap.coral::before{background:var(--primary)}.feat-icon-wrap.cyan::before{background:var(--secondary)}
+  .feat-icon-wrap.mint::before{background:var(--success)}.feat-icon-wrap.amber::before{background:var(--warning)}
+  .feat-icon-wrap.indigo::before{background:var(--indigo)}.feat-icon-wrap.rose::before{background:var(--rose)}
+  .feat-icon-wrap.blue::before{background:var(--info)}
+  .feat-meta{flex:1}
+  .feat-badges{display:flex;gap:0.5rem;margin-bottom:0.5rem;flex-wrap:wrap}
+  .badge{font-size:0.65rem;font-weight:700;padding:0.2rem 0.55rem;border-radius:5px;text-transform:uppercase;letter-spacing:0.06em}
+  .badge-id{font-family:'JetBrains Mono',monospace;background:var(--primary-subtle);color:var(--primary)}
+  .badge-deployed{background:rgba(34,211,163,0.15);color:var(--success)}
+  .badge-ready{background:rgba(56,189,248,0.15);color:var(--info)}
+  .badge-planned{background:rgba(245,158,11,0.15);color:var(--warning)}
+  .badge-new{background:rgba(255,90,79,0.15);color:var(--primary);animation:glow-badge 2s ease-in-out infinite alternate}
+  .badge-rewritten{background:rgba(129,140,248,0.15);color:var(--indigo)}
+  @keyframes glow-badge{0%{box-shadow:none}100%{box-shadow:0 0 8px rgba(255,90,79,0.3)}}
+  .feat-meta h2{font-size:1.6rem;font-weight:700;letter-spacing:-0.02em}
+
+  /* Overview */
+  .overview{color:var(--text2);font-size:0.95rem;line-height:1.75;margin-bottom:2.5rem;padding:1.25rem 1.5rem;background:linear-gradient(135deg,var(--paper),rgba(11,39,49,0.5));border-radius:12px;border-left:3px solid var(--secondary);position:relative;overflow:hidden}
+  .overview::after{content:'';position:absolute;top:0;right:0;width:200px;height:100%;background:radial-gradient(ellipse at right,rgba(0,200,215,0.04),transparent);pointer-events:none}
+  .overview strong{color:var(--text1)}.overview em{color:var(--primary-light);font-style:normal;font-weight:500}
+  .overview code{font-family:'JetBrains Mono',monospace;font-size:0.82em;color:var(--secondary);background:var(--sunken);padding:0.15em 0.4em;border-radius:4px}
+
+  /* Stories */
+  .stories-head{font-size:1rem;font-weight:700;color:var(--text1);margin-bottom:1.25rem;display:flex;align-items:center;gap:0.6rem}
+  .stories-head .count{font-family:'JetBrains Mono',monospace;font-size:0.75rem;background:var(--primary-subtle);color:var(--primary);padding:0.15rem 0.5rem;border-radius:4px}
+  .group{margin-bottom:2rem}
+  .group-title{font-size:0.78rem;font-weight:700;color:var(--secondary);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:0.6rem;padding-left:0.25rem;display:flex;align-items:center;gap:0.4rem}
+  .group-title::before{content:'';width:8px;height:8px;border-radius:50%;background:var(--secondary);display:inline-block;animation:dot-pulse 2s ease-in-out infinite}
+  @keyframes dot-pulse{0%,100%{opacity:0.4;transform:scale(0.8)}50%{opacity:1;transform:scale(1)}}
+
+  .story{display:flex;gap:0.75rem;padding:0.55rem 0.75rem;border-radius:8px;margin-bottom:0.2rem;transition:all 0.2s;align-items:flex-start;border:1px solid transparent}
+  .story:hover{background:var(--paper);border-color:var(--border);transform:translateX(4px)}
+  .story-num{font-family:'JetBrains Mono',monospace;font-size:0.7rem;color:var(--text3);min-width:1.8rem;text-align:right;padding-top:0.2rem;flex-shrink:0}
+  .story-text{font-size:0.88rem;color:var(--text2);line-height:1.55}
+  .story-text em{color:var(--primary-light);font-style:normal;font-weight:600;background:var(--primary-subtle);padding:0.05em 0.35em;border-radius:3px;font-size:0.85em}
+  .story-text strong{color:var(--text1)}
+
+  /* Compact stories */
+  .story-compact{font-size:0.85rem;color:var(--text2);line-height:1.55;padding:0.4rem 0.75rem;border-radius:8px;margin-bottom:0.15rem;transition:all 0.2s;border:1px solid transparent}
+  .story-compact:hover{background:var(--paper);border-color:var(--border);transform:translateX(4px)}
+  .story-compact .nums{font-family:'JetBrains Mono',monospace;color:var(--text3);font-size:0.7rem;margin-right:0.5rem}
+
+  /* ===== SCROLL ANIMATIONS ===== */
+  .reveal{opacity:0;transform:translateY(30px);transition:all 0.7s cubic-bezier(0.16,1,0.3,1)}
+  .reveal.visible{opacity:1;transform:translateY(0)}
+  .reveal-delay-1{transition-delay:0.1s}.reveal-delay-2{transition-delay:0.2s}.reveal-delay-3{transition-delay:0.3s}
+  /* iOS Safari fallback — if IntersectionObserver fails, show everything */
+  .no-io .reveal{opacity:1;transform:none}
+
+  /* ===== FOOTER ===== */
+  footer{text-align:center;padding:4rem 2rem;position:relative;z-index:1}
+  footer p{color:var(--text3);font-size:0.85rem}
+  footer .brand{font-size:1.2rem;font-weight:700;margin-bottom:0.5rem}
+  footer .brand span{color:var(--primary)}
+  footer code{font-family:'JetBrains Mono',monospace;color:var(--secondary);background:var(--paper);padding:0.2em 0.6em;border-radius:4px;font-size:0.8rem}
+
+  /* ===== RESPONSIVE ===== */
+  @media(max-width:768px){
+    .hero{min-height:auto;padding:3rem 1.25rem 2rem}
+    .hero h1{font-size:2.2rem}
+    .hero .subtitle{font-size:0.95rem;margin:1rem auto 2rem}
+    .hero-icon svg{width:50px;height:50px}
+    .stats{gap:0.75rem;justify-content:center}
+    .stat{min-width:calc(50% - 0.75rem);padding:1rem;text-align:center}
+    .stat-num{font-size:1.8rem}
+    .stat-label{font-size:0.7rem}
+    .pipeline-wrap{margin:2rem auto 0}
+    .pipeline{flex-wrap:wrap;gap:0.25rem;justify-content:center}
+    .pipe-node{padding:0.45rem 0.65rem;font-size:0.7rem;min-width:auto}
+    .pipe-arrow{font-size:0.9rem;padding:0 0.1rem}
+    nav{padding:0.5rem 0.75rem;gap:0.25rem}
+    nav a{font-size:0.7rem;padding:0.3rem 0.5rem}
+    nav a .nav-icon{display:none}
+    .section{padding:2.5rem 1rem 1.5rem}
+    .feat-head{flex-direction:row;gap:0.75rem;align-items:center}
+    .feat-icon-wrap{width:44px;height:44px;font-size:1.2rem;border-radius:10px;flex-shrink:0}
+    .feat-meta h2{font-size:1.2rem}
+    .feat-badges{margin-bottom:0.3rem}
+    .badge{font-size:0.6rem;padding:0.15rem 0.4rem}
+    .overview{font-size:0.88rem;padding:1rem;line-height:1.65;border-radius:10px}
+    .stories-head{font-size:0.9rem}
+    .story{padding:0.45rem 0.5rem;gap:0.5rem}
+    .story-num{font-size:0.65rem;min-width:1.4rem}
+    .story-text{font-size:0.82rem;line-height:1.5}
+    .story-compact{font-size:0.8rem;padding:0.35rem 0.5rem}
+    .group-title{font-size:0.72rem}
+    footer{padding:2rem 1rem}
+    footer .brand{font-size:1rem}
+  }
+  @media(max-width:380px){
+    .hero h1{font-size:1.8rem}
+    .stat{min-width:100%}
+    .pipe-step{margin-bottom:0.2rem}
+    .feat-meta h2{font-size:1.05rem}
+    .overview{font-size:0.82rem}
+  }
+</style>
+</head>
+<body>
+
+<!-- PARTICLES -->
+<div class="particles" id="particles"></div>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-content">
+    <div class="hero-icon"><svg width="80" height="80" viewBox="0 0 80 80" fill="none"><defs><linearGradient id="dg1" x1="20" y1="10" x2="60" y2="70"><stop offset="0%" stop-color="#FF7A72"/><stop offset="50%" stop-color="#FF5A4F"/><stop offset="100%" stop-color="#E84B42"/></linearGradient><linearGradient id="dg2" x1="40" y1="5" x2="40" y2="45"><stop offset="0%" stop-color="#FF9A94"/><stop offset="100%" stop-color="#FF5A4F" stop-opacity="0.6"/></linearGradient><filter id="glow"><feGaussianBlur stdDeviation="4" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter></defs><g filter="url(#glow)"><path d="M40 8 L62 30 L40 72 L18 30 Z" fill="url(#dg1)" stroke="#FF7A72" stroke-width="1.5"/><path d="M40 8 L62 30 L40 34 L18 30 Z" fill="url(#dg2)" opacity="0.7"/><path d="M18 30 L40 34 L40 72 Z" fill="#E84B42" opacity="0.4"/><path d="M62 30 L40 34 L40 72 Z" fill="#FF5A4F" opacity="0.3"/><line x1="40" y1="8" x2="40" y2="34" stroke="#FF9A94" stroke-width="0.8" opacity="0.5"/><line x1="18" y1="30" x2="62" y2="30" stroke="#FF9A94" stroke-width="0.8" opacity="0.3"/></g></svg></div>
+    <h1><span style="color:var(--primary)">Merch</span> Miner</h1>
+    <p class="subtitle">Dein komplettes Print-on-Demand Business in einer App. Von der Nischen-Recherche uber AI-generierte Slogans und Designs bis zum automatisierten Amazon-Upload. Mit 7 AI Agents die fur dich arbeiten — wahrend du schlafst.</p>
+
+    <div class="stats">
+      <div class="stat reveal">
+        <div class="stat-icon">&#x1F4CB;</div>
+        <div class="stat-num">14</div>
+        <div class="stat-label">Features</div>
+      </div>
+      <div class="stat reveal reveal-delay-1">
+        <div class="stat-icon">&#x1F4DD;</div>
+        <div class="stat-num">180+</div>
+        <div class="stat-label">User Stories</div>
+      </div>
+      <div class="stat reveal reveal-delay-2">
+        <div class="stat-icon">&#x1F916;</div>
+        <div class="stat-num">7</div>
+        <div class="stat-label">AI Agents</div>
+      </div>
+      <div class="stat reveal reveal-delay-3">
+        <div class="stat-icon">&#x1F4A1;</div>
+        <div class="stat-num">3</div>
+        <div class="stat-label">AI Systeme</div>
+      </div>
+    </div>
+
+    <div class="pipeline-wrap reveal">
+      <div class="pipeline-title">&#x26A1; Die Pipeline</div>
+      <div class="pipeline">
+        <div class="pipe-step"><div class="pipe-node">&#x1F50D; Research</div><span class="pipe-arrow">&rarr;</span></div>
+        <div class="pipe-step"><div class="pipe-node">&#x1F4AC; Slogans</div><span class="pipe-arrow">&rarr;</span></div>
+        <div class="pipe-step"><div class="pipe-node">&#x1F3A8; Design</div><span class="pipe-arrow">&rarr;</span></div>
+        <div class="pipe-step"><div class="pipe-node">&#x2702;&#xFE0F; Edit</div><span class="pipe-arrow">&rarr;</span></div>
+        <div class="pipe-step"><div class="pipe-node">&#x1F4E6; Publish</div><span class="pipe-arrow">&rarr;</span></div>
+        <div class="pipe-step"><div class="pipe-node active">&#x1F680; Upload</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- NAV -->
+<nav>
+  <a href="#p5"><span class="nav-icon">&#x1F4CB;</span>Niches</a>
+  <a href="#p6"><span class="nav-icon">&#x1F9EA;</span>Research</a>
+  <a href="#p7"><span class="nav-icon">&#x1F50D;</span>Products</a>
+  <a href="#p8"><span class="nav-icon">&#x1F4AC;</span>Slogans</a>
+  <a href="#p9"><span class="nav-icon">&#x1F3A8;</span>Design</a>
+  <a href="#p10"><span class="nav-icon">&#x1F511;</span>Keywords</a>
+  <a href="#p11"><span class="nav-icon">&#x1F4E6;</span>Publish</a>
+  <a href="#p12"><span class="nav-icon">&#x1F4CA;</span>Dashboard</a>
+  <a href="#p13"><span class="nav-icon">&#x1F5A5;&#xFE0F;</span>Upload App</a>
+  <a href="#p14"><span class="nav-icon">&#x1F4CC;</span>Kanban</a>
+  <a href="#p15"><span class="nav-icon">&#x1F9E0;</span>Vector DB</a>
+  <a href="#p17"><span class="nav-icon">&#x1F310;</span>Web Search</a>
+  <a href="#p18"><span class="nav-icon">&#x1F916;</span>Agent</a>
+</nav>
+
+<!-- ===================== FEATURES ===================== -->
+
+<!-- PROJ-5 -->
+<section class="section" id="p5">
+  <div class="feat-head reveal">
+    <div class="feat-icon-wrap cyan">&#x1F4CB;</div>
+    <div class="feat-meta">
+      <div class="feat-badges"><span class="badge badge-id">PROJ-5</span><span class="badge badge-deployed">Deployed</span></div>
+      <h2>Niche List</h2>
+    </div>
+  </div>
+  <div class="overview reveal">Deine Nischen sind dein Kapital. Hier sammelst, bewertest und steuerst du jede einzelne Produktidee — von der ersten Eingebung bis zum profitablen Winner. Jede Niche durchlauft einen klaren <strong>Pipeline-Status</strong>, bekommt ein Potenzial-Rating und wird einem Teammitglied zugewiesen. Und wenn eine Niche zum Winner wird? Starte einfach eine <strong>neue Runde</strong> und skaliere mit frischen Designs nach. Deine Nische, deine Regeln.</div>
+  <div class="stories-head reveal">&#x1F4DD; User Stories <span class="count">8</span></div>
+  <div class="story reveal"><span class="story-num">1</span><span class="story-text">Als Mitglied will ich eine Niche mit Name und optionalen Notizen erstellen, um Produktideen zu erfassen und den Research-Prozess zu starten.</span></div>
+  <div class="story reveal"><span class="story-num">2</span><span class="story-text">Als Mitglied will ich eine paginierte Niche-Liste nach Status oder Status-Gruppe filtern, um mich auf die aktuelle Pipeline-Phase zu fokussieren.</span></div>
+  <div class="story reveal"><span class="story-num">3</span><span class="story-text">Als Mitglied will ich Niches nach Name suchen, um schnell eine bestimmte Niche zu finden.</span></div>
+  <div class="story reveal"><span class="story-num">4</span><span class="story-text">Als Mitglied will ich Niches nach Name, Datum oder Status sortieren, um meine Ansicht zu organisieren.</span></div>
+  <div class="story reveal"><span class="story-num">5</span><span class="story-text">Als Mitglied will ich den Status und Assignee einer Niche aktualisieren, damit das Team jederzeit weiss wo jede Niche in der Pipeline steht.</span></div>
+  <div class="story reveal"><span class="story-num">6</span><span class="story-text">Als Mitglied will ich das Potenzial einer Niche bewerten bevor ich sie weiterbringe, damit das Team nur vielversprechende Niches verfolgt.</span></div>
+  <div class="story reveal"><span class="story-num">7</span><span class="story-text">Als Mitglied will ich eine Niche archivieren statt loschen, um sie spater wiederherstellen zu konnen.</span></div>
+  <div class="story reveal"><span class="story-num">8</span><span class="story-text">Als Admin will ich Niches in Bulk archivieren oder neu zuweisen, um die Pipeline effizient zu managen.</span></div>
+</section>
+<div class="section-divider"></div>
+
+<!-- PROJ-6 -->
+<section class="section" id="p6">
+  <div class="feat-head reveal">
+    <div class="feat-icon-wrap mint">&#x1F9EA;</div>
+    <div class="feat-meta">
+      <div class="feat-badges"><span class="badge badge-id">PROJ-6</span><span class="badge badge-ready">Ready to Deploy</span></div>
+      <h2>Niche Deep Research (LangGraph)</h2>
+    </div>
+  </div>
+  <div class="overview reveal">Ein Klick — und die AI analysiert deine Nische bis auf die Knochen. Sie scraped automatisch Amazon-Bestseller, liest die Slogans von den T-Shirt Designs ab, durchleuchtet die <strong>emotionale Psychologie</strong> hinter jedem einzelnen Spruch und baut dir ein komplettes Nischen-Profil: Was fuhlen die Kaufer? Welche Patterns funktionieren? Welche Keywords dominieren? Dazu durchsucht die AI das Internet nach kulturellen Insider-Informationen. Das Ergebnis: du verstehst deine Nische besser als jeder Konkurrent — und das in <strong>wenigen Minuten statt Stunden</strong>.</div>
+  <div class="stories-head reveal">&#x1F4DD; User Stories <span class="count">7</span></div>
+  <div class="story reveal"><span class="story-num">1</span><span class="story-text">Als Mitglied will ich <em>"AI Research"</em> auf einer Niche klicken, damit Amazon-Produktdaten und AI-Analyse automatisch gesammelt werden — ein Klick startet den kompletten 6-Schritt Workflow.</span></div>
+  <div class="story reveal"><span class="story-num">2</span><span class="story-text">Als Mitglied will ich einen 6-Step Progress Stepper sehen (Scrape &rarr; Vision &rarr; Emotional &rarr; Niche Profile &rarr; Keywords &rarr; Finalize), damit ich weiss wo der Workflow gerade steht.</span></div>
+  <div class="story reveal"><span class="story-num">3</span><span class="story-text">Als Mitglied will ich die Niche-Analyse ubersichtlich sehen: <strong>Summary, Sentiment, primare Emotionen, Archetypes, Emotional Reality, Design-Konzepte und dominante Design-Asthetik</strong> — um zu bewerten ob die Niche Potenzial hat.</span></div>
+  <div class="story reveal"><span class="story-num">4</span><span class="story-text">Als Mitglied will ich sehen welche der 16 Emotional Patterns fur diese Niche <em>aktiv</em> sind (mit Kontext-Erklarung warum), um die psychologischen Kauftreiber zu verstehen.</span></div>
+  <div class="story reveal"><span class="story-num">5</span><span class="story-text">Als Mitglied will ich Keyword-Vorschlage (Short-Tail + Long-Tail) aus der Research sehen, um sie spater im Listing und in der Keyword Bank zu nutzen.</span></div>
+  <div class="story reveal"><span class="story-num">6</span><span class="story-text">Als Mitglied will ich <strong>verwandte Niches</strong> in meinem Workspace sehen die &ge;2 gemeinsame aktive Patterns teilen, um bewahrte Slogans fur die Adaptation zu finden.</span></div>
+  <div class="story reveal"><span class="story-num">7</span><span class="story-text">Als Mitglied will ich eine klare Fehlermeldung sehen wenn die Research fehlschlagt, inklusive <em>"Retry"</em> Button um es erneut zu versuchen.</span></div>
+</section>
+<div class="section-divider"></div>
+
+<!-- PROJ-7 -->
+<section class="section" id="p7">
+  <div class="feat-head reveal">
+    <div class="feat-icon-wrap amber">&#x1F50D;</div>
+    <div class="feat-meta">
+      <div class="feat-badges"><span class="badge badge-id">PROJ-7</span><span class="badge badge-ready">Ready to Deploy</span></div>
+      <h2>Amazon Product Research</h2>
+    </div>
+  </div>
+  <div class="overview reveal">Schluss mit dem Tabwechsel-Wahnsinn zwischen Amazon, MerchMatrix und Spreadsheets. Hier recherchierst du Amazon-Produkte <strong>direkt in der App</strong> — live oder aus der Datenbank. Filter nach BSR, Reviews, Preis und Produkttyp, verfolge <strong>BSR-Trends uber Zeit</strong>, blende offizielle Marken aus. Entdeckst du einen genialen Spruch auf einem T-Shirt? Ein Klick extrahiert den Slogan per AI. Gefallst dir das Design? Die AI analysiert es in 7 Schritten und baut dir einen fertigen <strong>Prompt fur dein eigenes Design</strong>. Von der Recherche zum eigenen Produkt — ohne Umwege.</div>
+  <div class="stories-head reveal">&#x1F4DD; User Stories <span class="count">11 + 3 neue Features</span></div>
+  <div class="story reveal"><span class="story-num">1</span><span class="story-text">Als Mitglied will ich ein Keyword eingeben und <strong>Amazon Autocomplete-Vorschlage</strong> in Echtzeit sehen, um verwandte Suchbegriffe zu entdecken.</span></div>
+  <div class="story reveal"><span class="story-num">2</span><span class="story-text">Als Mitglied will ich zwischen <em>Live Research</em> (frischer Scrape) und <em>DB Research</em> (vorhandene Daten) umschalten, um zwischen Geschwindigkeit und Tiefe zu wahlen.</span></div>
+  <div class="story reveal"><span class="story-num">3</span><span class="story-text">Als Mitglied will ich Produkte nach <strong>BSR-Range, Rating, Reviews, Preis und Produkttyp</strong> filtern, um den Sweet Spot fur die Niche-Viabilitat zu finden.</span></div>
+  <div class="story reveal"><span class="story-num">4</span><span class="story-text">Als Mitglied will ich uber Titel, Brand, Bullets und Description volltextsuchen, um relevante Produkte zu finden auch wenn das Keyword nicht im Titel steht.</span></div>
+  <div class="story reveal"><span class="story-num">5</span><span class="story-text">Als Mitglied will ich ein <strong>BSR-History Chart</strong> pro Produkt sehen (letzte 30 Tage), um die Trend-Richtung uber die Zeit zu bewerten.</span></div>
+  <div class="story reveal"><span class="story-num">6</span><span class="story-text">Als Mitglied will ich <em>"Open on Amazon"</em> klicken um die Live-Suchergebnisse in einem neuen Tab zu sehen und die Daten zu verifizieren.</span></div>
+  <div class="story reveal"><span class="story-num">7</span><span class="story-text">Als Mitglied will ich offizielle Marken-Produkte per Toggle ausblenden, um nur POD-taugliche Chancen zu sehen.</span></div>
+  <div class="story reveal"><span class="story-num">8</span><span class="story-text">Als Mitglied will ich ein Produkt klicken und sein Keyword <strong>direkt als Niche hinzufugen</strong>, damit Research-Pipeline und Niche-Liste verbunden sind.</span></div>
+  <div class="story reveal"><span class="story-num">9</span><span class="story-text">Als Mitglied will ich zwischen <strong>Tabellen- und Card-Ansicht</strong> wechseln, um zwischen dichtem Datenvergleich und visuellem Browsen zu wahlen.</span></div>
+  <div class="story reveal"><span class="story-num">10</span><span class="story-text">Als Mitglied will ich meine letzten 10 Suchen als klickbare Chips gespeichert haben, um haufige Research-Queries schnell zu wiederholen.</span></div>
+  <div class="story reveal"><span class="story-num">11</span><span class="story-text">Als Mitglied will ich die aktuellen gefilterten Ergebnisse als <strong>CSV exportieren</strong>, um Daten offline zu analysieren oder mit dem Team zu teilen.</span></div>
+  <div class="group reveal">
+    <div class="group-title">Neue Features</div>
+    <div class="story"><span class="story-num">&#x2B50;</span><span class="story-text"><em>"Use as Listing Template"</em> — Produkt-Listing als Vorlage fur eigene Listings nutzen (Title, Bullets, Description ubernehmen).</span></div>
+    <div class="story"><span class="story-num">&#x2B50;</span><span class="story-text"><strong>Statistik-/Keywords-Seite</strong> — aggregierte Keyword-Daten aus Suchergebnissen: Top Keywords, Haufigkeit, Overlap zwischen Produkten.</span></div>
+    <div class="story"><span class="story-num">&#x2B50;</span><span class="story-text"><strong>Product Listing Keywords in Detail-Ansicht</strong> — extrahierte Keywords als Chips, klickbar zum Speichern in der Keyword Bank.</span></div>
+  </div>
+</section>
+<div class="section-divider"></div>
+
+<!-- PROJ-8 -->
+<section class="section" id="p8">
+  <div class="feat-head reveal">
+    <div class="feat-icon-wrap coral">&#x1F4AC;</div>
+    <div class="feat-meta">
+      <div class="feat-badges"><span class="badge badge-id">PROJ-8</span><span class="badge badge-rewritten">Rewritten</span></div>
+      <h2>Idea & Slogan Generation (LangGraph)</h2>
+    </div>
+  </div>
+  <div class="overview reveal">Dein Slogan-Game auf einem vollig neuen Level. Gib einen Ausgangs-Spruch ein — die AI findet automatisch die <strong>besten Niches zum Adaptieren</strong>, bewertet die Kompatibilitat mit einem Score, und generiert <strong>10 massgeschneiderte Varianten pro Niche</strong>. Jeder Slogan wird von einer AI-Qualitatskontrolle gepruft: Klingt er authentisch? Wurde jemand aus der Nische sagen "OMG, das bin ich!"? Und das Beste: hover uber jeden Slogan und <strong>starte einen Chat</strong> — brainstorme mit der AI, lass Varianten verbessern, oder suche live im Web nach Trend-Inspiration. Wie ein kreativer Sparringspartner der nie muede wird.</div>
+  <div class="stories-head reveal">&#x1F4DD; User Stories <span class="count">21</span></div>
+
+  <div class="group reveal">
+    <div class="group-title">Source Slogan Erstellung</div>
+    <div class="story"><span class="story-num">1</span><span class="story-text">Als Mitglied will ich manuell einen Slogan eingeben — mit <strong>Copy-Paste Unterstutzung</strong> (auto-bereinigt) und <strong>Batch-Input</strong> (ein Slogan pro Zeile) — um den Workflow mit eigenen Ideen zu starten.</span></div>
+    <div class="story"><span class="story-num">2</span><span class="story-text">Als Mitglied will ich die Niche beim Erstellen <strong>optional</strong> lassen, aber vor der Adaptation verpflichtend, um Slogans frei zu sammeln und spater zuzuordnen.</span></div>
+    <div class="story"><span class="story-num">3</span><span class="story-text">Als Mitglied will ich dass das System eine <strong>passende Niche vorschlagt</strong> basierend auf dem Slogan-Text (Vector DB Similarity), damit ich nicht manuell suchen muss wenn Daten vorhanden sind.</span></div>
+  </div>
+
+  <div class="group reveal">
+    <div class="group-title">Import aus Product Research</div>
+    <div class="story"><span class="story-num">4</span><span class="story-text">Als Mitglied will ich per <em>"Extract Slogan"</em> Button einen Slogan von einem Produktbild extrahieren — <strong>einzeln oder als Bulk-Auswahl</strong> mehrerer Produkte gleichzeitig.</span></div>
+    <div class="story"><span class="story-num">5</span><span class="story-text">Als Mitglied will ich separat <em>"Analyze Design"</em> (7-Step Gemini Architect) auf einem Produktbild ausfuhren, um einen <strong>fertigen Generation-Prompt</strong> fur das Design Board zu erhalten — kopierbar, zum Drawer hinzufugbar, oder direkt an PROJ-9 sendbar.</span></div>
+  </div>
+
+  <div class="group reveal">
+    <div class="group-title">Target Niche Auswahl & Adaptation</div>
+    <div class="story"><span class="story-num">6</span><span class="story-text">Als Mitglied will ich einen Source Slogan wahlen und Target Niches auswahlen, damit der Workflow <strong>10 neue Slogans pro genehmigter Niche</strong> generiert (5 SELF + 5 OTHER Signal).</span></div>
+    <div class="story"><span class="story-num">7</span><span class="story-text">Als Mitglied will ich <strong>kompatible Target Niches vorgeschlagen</strong> bekommen, gerankt nach Combined Score (Pattern-Match + Vector DB Similarity), damit ich die besten Kandidaten zuerst sehe.</span></div>
+    <div class="story"><span class="story-num">8</span><span class="story-text">Als Mitglied will ich einen <em>"Auto-Select"</em> Button der die <strong>Top 5 kompatibelsten Niches</strong> automatisch auswahlt, um die Adaptation mit einem Klick zu starten.</span></div>
+    <div class="story"><span class="story-num">9</span><span class="story-text">Als Mitglied will ich sehen welche Target Niches approved oder rejected wurden, mit <strong>Compatibility Score (0-100)</strong> und <strong>Signal Conversion Info</strong> (z.B. "SELF&rarr;OTHER"), um die Ergebnisse zu verstehen.</span></div>
+  </div>
+
+  <div class="group reveal">
+    <div class="group-title">Slogan Review & Aktionen</div>
+    <div class="story"><span class="story-num">10</span><span class="story-text">Als Mitglied will ich adaptierte Slogans nach Target Niche gruppiert sehen, aufgeteilt in <strong>SELF/OTHER Signal-Gruppen</strong>, sortiert nach Market Confidence (High &rarr; Low).</span></div>
+    <div class="story"><span class="story-num">11</span><span class="story-text">Als Mitglied will ich einzelne Slogans approven oder rejecten, mit <strong>Bulk Approve/Reject uber Checkboxen</strong>, um grosse Batches schnell zu verarbeiten.</span></div>
+    <div class="story"><span class="story-num">12</span><span class="story-text">Als Mitglied will ich einen <em>"Improve"</em> Button pro Slogan (gleich im Edit-Modus und nach Rejection) der den Slogan + optionales Feedback an ein LLM schickt und <strong>3 verbesserte Varianten</strong> zuruckgibt.</span></div>
+    <div class="story"><span class="story-num">13</span><span class="story-text">Als Mitglied will ich einen <em>"Regenerate"</em> Button pro rejected Slogan der einen <strong>komplett neuen Slogan</strong> im gleichen Kontext generiert und den alten ersetzt.</span></div>
+  </div>
+
+  <div class="group reveal">
+    <div class="group-title">Interaktive Slogan-Entwicklung</div>
+    <div class="story"><span class="story-num">14</span><span class="story-text">Als Mitglied will ich uber einen Slogan <strong>hovern und ein Chat-Icon</strong> sehen, das das Chat-Panel mit diesem Slogan + Niche als Kontext offnet — wie <strong>Copilot Inline-Chat</strong> fur interaktives Brainstorming, Web-Suche und Iteration.</span></div>
+    <div class="story"><span class="story-num">15</span><span class="story-text">Als Mitglied will ich den <strong>Agent</strong> nutzen um kreative Slogans mit Vector DB Kontext (Research-Daten, Keywords, ahnliche Slogans) zu generieren — kontextreiche AI-Vorschlage.</span></div>
+    <div class="story"><span class="story-num">16</span><span class="story-text">Als Mitglied will ich dass Chat-generierte Slogans <em>"Save as Idea"</em> und <em>"Save & Adapt"</em> Buttons haben, damit Ergebnisse direkt in die Pipeline fliessen.</span></div>
+  </div>
+
+  <div class="group reveal">
+    <div class="group-title">Re-trigger & Erweitern</div>
+    <div class="story"><span class="story-num">17</span><span class="story-text">Als Mitglied will ich die Adaptation erneut auslosen mit anderen Target Niches, wobei bereits adaptierte Niches <strong>ausgegraut</strong> angezeigt werden ("Already adapted").</span></div>
+    <div class="story"><span class="story-num">18</span><span class="story-text">Als Mitglied will ich <em>"Adapt to All Compatible"</em> — ein Button der <strong>alle noch nicht adaptierten</strong> kompatiblen Niches findet und die Adaptation fur alle auslost.</span></div>
+  </div>
+
+  <div class="group reveal">
+    <div class="group-title">Tracking & Lernen</div>
+    <div class="story"><span class="story-num">19</span><span class="story-text">Als Mitglied will ich sehen welche approved Slogans zu <strong>erfolgreichen Designs/Listings</strong> gefuhrt haben — Slogan Performance Tracking das gleichzeitig dem Agent beibringt welche Patterns funktionieren.</span></div>
+    <div class="story"><span class="story-num">20</span><span class="story-text">Als Mitglied will ich die <strong>volle Historie</strong> eines Slogans sehen (Original &rarr; Improved &rarr; v2), inklusive wer die Anderung gemacht hat (User, Agent, Quality Check).</span></div>
+    <div class="story"><span class="story-num">21</span><span class="story-text">Als Mitglied will ich die <strong>erfolgreichsten Slogans aus anderen Niches</strong> mit ahnlichem Emotional Pattern entdecken (Vector DB) — Cross-Niche Inspiration.</span></div>
+  </div>
+</section>
+<div class="section-divider"></div>
+
+<!-- PROJ-9 -->
+<section class="section" id="p9">
+  <div class="feat-head reveal">
+    <div class="feat-icon-wrap rose">&#x1F3A8;</div>
+    <div class="feat-meta">
+      <div class="feat-badges"><span class="badge badge-id">PROJ-9</span><span class="badge badge-rewritten">Rewritten</span></div>
+      <h2>Design Generation + Post-Processing</h2>
+    </div>
+  </div>
+  <div class="overview reveal">Vom Slogan zum fertigen Design — <strong>ohne Photoshop</strong>. Wahle ein AI-Modell (Flux, GPT-Image, Gemini), generiere T-Shirt Designs auf Knopfdruck, und bearbeite sie in einem <strong>professionellen In-Browser Bildeditor</strong>. Hintergrund entfernen, Farbrander saubern, hochskalieren auf MBA-Qualitat, Vintage-Effekte anwenden — alles als <strong>verkettbare Pipeline</strong>. Zieh 100+ Designs rein, stelle die Pipeline einmal ein, und lass sie laufen. Importiere direkt aus Google Drive oder OneDrive. Exportiere druckfertig: <strong>4500x5400px, 300 DPI</strong>, unter 2MB. Dein eigenes ReadyPixl — eingebaut in dein Business OS.</div>
+  <div class="stories-head reveal">&#x1F4DD; User Stories <span class="count">31</span></div>
+
+  <div class="group reveal">
+    <div class="group-title">Design Generation (10)</div>
+    <div class="story-compact"><span class="nums">1-2</span> Board/Canvas View fur Designs mit Referenzbildern, Prompts und Ergebnissen nebeneinander. Direkter Sprung von approved Idea zum vorgeladenen Board.</div>
+    <div class="story-compact"><span class="nums">3</span> <strong>7-Step Gemini Architect Analyse</strong> auto-generiert hochwertige Prompts aus Referenzbildern. Wenn PROJ-7 "Analyze Design" schon gelaufen ist &rarr; wiederverwendet.</div>
+    <div class="story-compact"><span class="nums">4-10</span> Hintergrundfarbe wahlen (fur sauberes BG Remove), AI-Modell wahlen, Progress Indicator, Design-Galerie, Approve/Reject, Download.</div>
+  </div>
+
+  <div class="group reveal">
+    <div class="group-title">Post-Processing Pipeline (21)</div>
+    <div class="story"><span class="story-num">11</span><span class="story-text">Als Mitglied will ich <strong>100+ Design-Bilder per Drag & Drop</strong> auf einmal in den Editor laden, um meinen gesamten Katalog in einer Session zu verarbeiten.</span></div>
+    <div class="story"><span class="story-num">12</span><span class="story-text">Als Mitglied will ich mehrere Bearbeitungs-Tools in meiner bevorzugten Reihenfolge als <strong>Pipeline verketten</strong>, damit jedes Bild automatisch die gleichen Schritte durchlauft — wie ReadyPixl's Plugin-System.</span></div>
+    <div class="story"><span class="story-num">13</span><span class="story-text">Als Mitglied will ich Pipeline-Konfigurationen als <strong>wiederverwendbare Presets</strong> speichern und laden.</span></div>
+    <div class="story"><span class="story-num">14</span><span class="story-text">Als Mitglied will ich <strong>konditionale Logik</strong> auf Pipeline-Schritte anwenden (z.B. "Upscale nur wenn &lt;5000px"), damit die Pipeline gemischte Batches intelligent verarbeitet.</span></div>
+    <div class="story-compact"><span class="nums">15-16</span> Import direkt von <strong>Google Drive</strong> und <strong>Microsoft OneDrive</strong> in den Editor.</div>
+    <div class="story-compact"><span class="nums">17-19</span> <strong>Transparency Highlighter</strong> (unsichtbare Artefakte visualisieren), manuelle Korrekturen (<strong>Radiergummi + Zauberstab</strong>), Batch Preview vor Download.</div>
+    <div class="story-compact"><span class="nums">20-23</span> <strong>Edge Cleanup:</strong> Auto-Detect Defringe, Manual Shrink Edge (1-5px Live Preview), semi-transparente Randpixel ersetzen, Multi-Step Edge Smoothing.</div>
+    <div class="story-compact"><span class="nums">24-28</span> AI Provider wahlen in Settings (BG Remove: rembg/API, Upscale: Pica.js/Real-ESRGAN/API), Kompression &lt;2MB, Export (Format, DPI, Compression), Overwrite oder neue Version.</div>
+    <div class="story-compact"><span class="nums">29-31</span> Auto-Format <code>4500x5400 @ 300 DPI</code>, Align-to-Top + Padding (Default: 1 Zoll), Canvas-Grosse konfigurierbar fur andere Marktplatze.</div>
+  </div>
+</section>
+<div class="section-divider"></div>
+
+<!-- PROJ-10 -->
+<section class="section" id="p10">
+  <div class="feat-head reveal">
+    <div class="feat-icon-wrap indigo">&#x1F511;</div>
+    <div class="feat-meta">
+      <div class="feat-badges"><span class="badge badge-id">PROJ-10</span><span class="badge badge-rewritten">Rewritten</span></div>
+      <h2>Keyword Research & Bank</h2>
+    </div>
+  </div>
+  <div class="overview reveal">Keywords sind das Fundament jedes erfolgreichen Listings. Hier findest du die besten — <strong>aus drei Quellen gleichzeitig</strong>: deine eigene Datenbank (kostenlos, sofort), Amazon Autocomplete (was Kaufer wirklich suchen), und auf Wunsch <strong>JungleScout-Daten</strong> mit echtem Suchvolumen, CPC und Competition Score. Organisiere deine Keywords in Gruppen, weise sie bestimmten Designs zu, und lass sie <strong>automatisch ins Listing fliessen</strong> wenn du publizierst. Der Agent hilft bei der Recherche, der Chat nimmt Befehle entgegen — <em>"Fuge 'camping humor shirt' zu Camping Dad hinzu"</em> — erledigt.</div>
+  <div class="stories-head reveal">&#x1F4DD; User Stories <span class="count">23</span></div>
+
+  <div class="group reveal">
+    <div class="group-title">Keyword Research Page</div>
+    <div class="story"><span class="story-num">1</span><span class="story-text">Als Mitglied will ich eine dedizierte <strong>Keyword Research Page</strong> wo ich Keywords suchen und Daten aus mehreren Quellen sehen kann, um informierte Entscheidungen zu treffen.</span></div>
+    <div class="story"><span class="story-num">2</span><span class="story-text">Als Mitglied will ich <strong>Amazon Autocomplete-Vorschlage</strong> im Suchfeld wahrend des Tippens sehen, um verwandte Keywords schon vor der Suche zu entdecken.</span></div>
+    <div class="story"><span class="story-num">3</span><span class="story-text">Als Mitglied will ich dass Suchergebnisse zuerst <strong>eigene DB-Daten</strong> zeigen (kostenlos), dann Autocomplete, damit ich sehe was ich schon habe bevor ich fur externe Daten zahle.</span></div>
+    <div class="story"><span class="story-num">4</span><span class="story-text">Als Mitglied will ich einzelne Keywords on-demand mit <strong>JungleScout-Daten</strong> (Suchvolumen, CPC, PPC, Competition) anreichern uber einen <em>"Enrich"</em> Button — volle Kostenkontrolle.</span></div>
+    <div class="story-compact"><span class="nums">5-8</span> 30-Tage JS Cache, konfigurierbarer <strong>Column Picker</strong>, Historical Trend Chart (12 Monate), <strong>CSV Export</strong>.</div>
+    <div class="story-compact"><span class="nums">9-10</span> Kontext-Button <em>"Add X Keywords to {aktive Niche}"</em> + "Change Niche" Fallback.</div>
+  </div>
+
+  <div class="group reveal">
+    <div class="group-title">Keyword Management (Drawer)</div>
+    <div class="story-compact"><span class="nums">11-15</span> Keywords im Drawer nach Source gruppiert, <strong>Keyword-Gruppen</strong> erstellen (Primary, Long-Tail, Negative), Keywords zu <strong>Designs als Templates</strong> zuordnen, Edit/Delete/Reorder, manuell hinzufugen.</div>
+  </div>
+
+  <div class="group reveal">
+    <div class="group-title">Integrationen</div>
+    <div class="story-compact"><span class="nums">16-17</span> Auto-Import aus PROJ-6 Research + PROJ-7 Autocomplete Save.</div>
+    <div class="story-compact"><span class="nums">18</span> <strong>Cross-Niche Discovery:</strong> welche Niches haben ahnliche Keywords? (Vector DB semantische Suche)</div>
+    <div class="story-compact"><span class="nums">19-20</span> <strong>Agent:</strong> recherchiert Keywords (DB + Autocomplete), max 1 JungleScout-Call pro Niche.</div>
+    <div class="story-compact"><span class="nums">21-23</span> <strong>Chat:</strong> Keywords suchen, Kontext der Keyword Page nutzen, <em>"Add keyword to niche"</em> per Chat-Befehl.</div>
+  </div>
+</section>
+<div class="section-divider"></div>
+
+<!-- PROJ-11 -->
+<section class="section" id="p11">
+  <div class="feat-head reveal">
+    <div class="feat-icon-wrap cyan">&#x1F4E6;</div>
+    <div class="feat-meta">
+      <div class="feat-badges"><span class="badge badge-id">PROJ-11</span><span class="badge badge-rewritten">Rewritten</span></div>
+      <h2>Publish (Listing + Upload Manager)</h2>
+    </div>
+  </div>
+  <div class="overview reveal">Die letzte Meile zum Geld verdienen — und die schnellste. <strong>Alles auf einer Seite:</strong> Designs aus deiner Gallery wahlen, Produkttypen konfigurieren (T-Shirts, Hoodies, PopSockets, Mugs — 74+ Optionen), Farben und Marktplatze festlegen, und ein <strong>AI-generiertes Listing</strong> erstellen das MBA-Zeichenlimits perfekt einhalt. Hovere uber jedes Textfeld und lass die <strong>AI es verbessern</strong>. Ubersetze per Klick in 6 Sprachen. Prufe auf Trademark-Verletzungen. Und dann: ab in die Upload-Queue. Bulk-Operationen per <strong>Ctrl+K Command Palette</strong> — kopiere Einstellungen von einem Design auf hundert andere. Vom Design zum Live-Produkt auf Amazon: <strong>so schnell wie noch nie</strong>.</div>
+  <div class="stories-head reveal">&#x1F4DD; User Stories <span class="count">27</span></div>
+
+  <div class="group reveal">
+    <div class="group-title">Design Gallery</div>
+    <div class="story-compact"><span class="nums">1-4</span> Design Gallery als Card Grid, Import von <strong>Google Drive / OneDrive</strong> (einzeln oder Bulk), Sort/Filter/Search, <strong>Bulk Actions</strong> uber Bottom Action Bar.</div>
+  </div>
+  <div class="group reveal">
+    <div class="group-title">Produkt-Konfiguration</div>
+    <div class="story-compact"><span class="nums">5-7</span> Produkttypen-Grid mit Badges (74+ Typen), Fit Type/Print Side/Colors, <strong>Marketplaces & Preise</strong> pro Marktplatz mit Toggle + Royalty.</div>
+  </div>
+  <div class="group reveal">
+    <div class="group-title">Listing Editor</div>
+    <div class="story"><span class="story-num">8</span><span class="story-text">Als Mitglied will ich ein MBA-Listing (Brand, Title, Bullets 1-5, Description, Backend Keywords) per <strong>AI mit einem Klick</strong> generieren, mit Slogan + Design + Keywords als Kontext.</span></div>
+    <div class="story"><span class="story-num">9</span><span class="story-text">Live <strong>Character Counter</strong> auf jedem Feld: amber bei 90%, rot bei 100%.</span></div>
+    <div class="story"><span class="story-num">10</span><span class="story-text">Als Mitglied will ich uber jedes Listing-Feld hovern und ein <em>"Improve"</em> Icon sehen, das den <strong>Chat mit diesem Feld als Kontext</strong> offnet fur AI-Verfeinerung.</span></div>
+    <div class="story-compact"><span class="nums">11-14</span> Multi-Language Tabs + Auto-Translate, Keywords aus PROJ-10 injizieren, "Copy for MBA" Button, Keywords als entfernbare Chips.</div>
+    <div class="story"><span class="story-num">15</span><span class="story-text"><strong>TM Check</strong> (Trademark) — Listing-Text gegen Trademark-Datenbank prufen vor dem Upload.</span></div>
+  </div>
+  <div class="group reveal">
+    <div class="group-title">Bulk & Upload</div>
+    <div class="story-compact"><span class="nums">16-18</span> <strong>Command Palette</strong> (<code>Ctrl+K</code>) fur Copy/Apply Ops, Action Bar, Templates speichern.</div>
+    <div class="story-compact"><span class="nums">19-22</span> Availability/Publish Mode, Pre-Upload Validation, Upload Jobs an Desktop App queuen, Status + ASIN anzeigen.</div>
+    <div class="story-compact"><span class="nums">23-27</span> <strong>Product Lifecycle</strong> pro Design, ASIN gespeichert, Agent Listing/Upload Tools, Round System.</div>
+  </div>
+</section>
+<div class="section-divider"></div>
+
+<!-- PROJ-12 -->
+<section class="section" id="p12">
+  <div class="feat-head reveal">
+    <div class="feat-icon-wrap mint">&#x1F4CA;</div>
+    <div class="feat-meta">
+      <div class="feat-badges"><span class="badge badge-id">PROJ-12</span><span class="badge badge-rewritten">Rewritten</span></div>
+      <h2>Dashboard & Analytics</h2>
+    </div>
+  </div>
+  <div class="overview reveal">Offne die App und <strong>sieh sofort wo du stehst</strong>. Wie viele Niches in der Pipeline? Wie viele Designs diese Woche generiert? Welche Niches stecken fest? Was hat der Agent gemacht wahrend du geschlafen hast? Alles auf einem Blick — <strong>KPIs, Pipeline Funnel, Activity Feed, Agent-Aktivitat, Web-Search Nutzung</strong> und historische Trend-Charts. Dein Team sieht wer was gemacht hat. Du siehst welches AI-Modell die besten Designs liefert. Und mit einem Klick exportierst du jeden Chart als CSV fur deine eigene Analyse. <strong>Daten statt Bauchgefuhl.</strong></div>
+  <div class="stories-head reveal">&#x1F4DD; User Stories <span class="count">19</span></div>
+  <div class="story-compact reveal"><span class="nums">1-3</span> Pipeline Summary nach Status-Gruppen, Design + Listing Counts, <strong>Pipeline Funnel</strong> Visualisierung.</div>
+  <div class="story-compact reveal"><span class="nums">4-5</span> Activity Feed (letzte 20 Events) mit <strong>Agent Events</strong> (Avatar + Name, z.B. "&#x1F916; Chief started Full Pipeline").</div>
+  <div class="story-compact reveal"><span class="nums">6</span> <strong>Stuck Niches</strong> Widget (7+ Tage ohne Aktivitat) mit Quick-Links.</div>
+  <div class="story-compact reveal"><span class="nums">7-10</span> Design Analytics (Bar Chart by Model/Week + CSV), Listing Production Rate (Line Chart + CSV).</div>
+  <div class="story-compact reveal"><span class="nums">11-14</span> <strong>Agent Activity:</strong> aktive Workflows, Budget-Verbrauch, Success Rate, per Sub-Agent Stats (Runs + Kosten), Workflow Effizienz, CSV.</div>
+  <div class="story-compact reveal"><span class="nums">15-18</span> <strong>Web Search:</strong> Suchen/Tag Chart, Top Queries, Deep Crawl Stats, per-User Attribution, CSV.</div>
+  <div class="story-compact reveal"><span class="nums">19</span> <strong>Date Range Filter</strong> fur alle Analytics Charts gleichzeitig.</div>
+</section>
+<div class="section-divider"></div>
+
+<!-- PROJ-13 -->
+<section class="section" id="p13">
+  <div class="feat-head reveal">
+    <div class="feat-icon-wrap amber">&#x1F5A5;&#xFE0F;</div>
+    <div class="feat-meta">
+      <div class="feat-badges"><span class="badge badge-id">PROJ-13</span><span class="badge badge-rewritten">Rewritten</span></div>
+      <h2>Desktop Upload App (Electron + Playwright)</h2>
+    </div>
+  </div>
+  <div class="overview reveal">Kein manuelles Copy-Paste mehr in Amazon Seller Central. Die <strong>Desktop Upload App</strong> nimmt deine fertigen Listings und ladt sie automatisch auf Amazon hoch — <strong>als wurde ein Mensch am Rechner sitzen</strong>. Jedes Formularfeld wird Zeichen fur Zeichen ausgefullt, die Maus bewegt sich naturlich zwischen den Feldern, und zwischen jedem Upload liegt eine realistische Pause. CAPTCHA erkannt? Die App pausiert und lasst dich manuell losen. ASIN wird automatisch erfasst. Starte abends die Queue, geh schlafen — morgens sind <strong>50 Designs live auf Amazon</strong>. Lauft auf deinem Rechner oder einem Remote Desktop.</div>
+  <div class="stories-head reveal">&#x1F4DD; User Stories <span class="count">26</span></div>
+
+  <div class="group reveal">
+    <div class="group-title">Setup & Authentifizierung</div>
+    <div class="story-compact"><span class="nums">1-4</span> App installieren (Win/Mac), Server URL + Auth konfigurieren, System Tray (minimiert), <strong>Connection Status</strong> auf einen Blick.</div>
+    <div class="story-compact"><span class="nums">5-7</span> MBA Credentials eingeben, <strong>Session Cookie cachen</strong> (kein Re-Login pro Upload), Auto Re-Login bei Expiry.</div>
+  </div>
+  <div class="group reveal">
+    <div class="group-title">Upload-Ausfuhrung</div>
+    <div class="story"><span class="story-num">8</span><span class="story-text">Als User will ich dass die App MBA-Formulare mit <strong>menschengleicher Eingabe</strong> ausfullt — Zeichen fur Zeichen (50-150ms Delay, randomisiert), damit Amazon keine Automatisierung erkennt.</span></div>
+    <div class="story"><span class="story-num">9</span><span class="story-text"><strong>Realistische Mausbewegungen</strong> zwischen Feldern (Bezier-Kurven, keine Instant-Jumps) + Tab-Navigation statt direkter Klicks.</span></div>
+    <div class="story-compact"><span class="nums">10-12</span> Konfigurierbarer Delay (30-120s randomisiert), sequenzielle Verarbeitung, <strong>Bulk Upload</strong> Support.</div>
+  </div>
+  <div class="group reveal">
+    <div class="group-title">Steuerung & Sicherheit</div>
+    <div class="story-compact"><span class="nums">13-15</span> <strong>Start/Pause/Stop</strong>, Schedule ("Start um 2:00 nachts"), Designs hinzufugen/entfernen aus Queue.</div>
+    <div class="story-compact"><span class="nums">16-17</span> <strong>Pre-Upload Validation</strong> (alle Felder gepruft), Legal Warning + Bestatigungs-Checkbox.</div>
+  </div>
+  <div class="group reveal">
+    <div class="group-title">Monitoring & Fehlerbehandlung</div>
+    <div class="story-compact"><span class="nums">18-21</span> Echtzeit-Progress, Completed Summary mit ASIN, Error Log mit Screenshot, <strong>ASIN automatisch ans Backend</strong>.</div>
+    <div class="story"><span class="story-num">22</span><span class="story-text"><strong>Auto-Retry</strong> (1x) bei Fehler. Retry fehlgeschlagen &rarr; Job als "failed" markiert, weiter zum nachsten.</span></div>
+    <div class="story"><span class="story-num">23</span><span class="story-text"><strong>CAPTCHA Detection:</strong> App pausiert Queue, bringt Browser in den Vordergrund, zeigt Notification <em>"CAPTCHA erkannt — bitte manuell losen"</em>. Nach Losung geht es automatisch weiter.</span></div>
+    <div class="story-compact"><span class="nums">24-26</span> Screenshot bei Fehler, Marketplace Selection (MBA jetzt, <strong>Spreadshirt/KDP</strong> zukunftig).</div>
+  </div>
+</section>
+<div class="section-divider"></div>
+
+<!-- PROJ-14 -->
+<section class="section" id="p14">
+  <div class="feat-head reveal">
+    <div class="feat-icon-wrap coral">&#x1F4CC;</div>
+    <div class="feat-meta">
+      <div class="feat-badges"><span class="badge badge-id">PROJ-14</span><span class="badge badge-rewritten">Rewritten</span></div>
+      <h2>Team Kanban & Collaboration</h2>
+    </div>
+  </div>
+  <div class="overview reveal">Dein Team auf einen Blick — wer arbeitet woran, was ist stuck, wo warten Designs auf Feedback? Das Kanban Board zeigt die <strong>gesamte Pipeline als visuelle Landkarte</strong>. Zieh eine Niche von "Research" nach "Design" — der Status aktualisiert sich sofort. Klick auf eine Card und <strong>scrolle durch alle Designs</strong> deines Designers im Carousel. Approve, reject, oder gib Feedback — alles inline, mit @Mentions die dein Team sofort benachrichtigen. Genehmigte Designs werden <strong>automatisch in Google Drive gesichert</strong>. Und wenn eine Niche zum Winner wird? Drucke "New Round" und starte die nachste Design-Welle. Der AI Agent ist ubrigens auch hier — <strong>er bewegt Cards, hinterlasst Kommentare und halt dich auf dem Laufenden</strong>.</div>
+  <div class="stories-head reveal">&#x1F4DD; User Stories <span class="count">28</span></div>
+
+  <div class="group reveal">
+    <div class="group-title">Board & Cards</div>
+    <div class="story-compact"><span class="nums">1-5</span> 5-Spalten Board, <strong>Drag & Drop</strong> Status-Update (optimistic UI), Card mit Thumbnail + Name + Assignee + Status Chip + Round Badge + Counts, Column Badges, Filter by Assignee.</div>
+  </div>
+  <div class="group reveal">
+    <div class="group-title">Round System</div>
+    <div class="story"><span class="story-num">6</span><span class="story-text">Als Mitglied will ich <em>"New Round"</em> auf Winner/Loser Cards klicken um <code>current_round</code> zu erhohen und den Status zuruckzusetzen — <strong>neuer Design-Zyklus fur dieselbe Niche</strong>.</span></div>
+    <div class="story-compact"><span class="nums">7-8</span> Round Summaries auf Cards ("Round 1: 10 Slogans &rarr; 4 Designs &rarr; 1 Winner"), aktive Round sichtbar.</div>
+  </div>
+  <div class="group reveal">
+    <div class="group-title">Card Modal</div>
+    <div class="story"><span class="story-num">9</span><span class="story-text">Als Mitglied will ich eine Card klicken um ein <strong>Full-Screen Modal</strong> zu offnen: Design-Carousel, Kommentare, Feedback, Round History, Lifecycle Chain, Upload Zone.</span></div>
+    <div class="story-compact"><span class="nums">10-12</span> <strong>Design-Carousel</strong> (horizontal), Approve/Reject/Feedback pro Design, Product Lifecycle (Slogan &rarr; Design &rarr; ASIN &rarr; Sales).</div>
+  </div>
+  <div class="group reveal">
+    <div class="group-title">Designer Upload & Cloud</div>
+    <div class="story"><span class="story-num">13</span><span class="story-text">Als Mitglied will ich Designs <strong>per Drag & Drop (multi-file)</strong> direkt auf eine Card hochladen.</span></div>
+    <div class="story-compact"><span class="nums">14-15</span> Import von Drive/OneDrive, Approved Designs <strong>auto-sync zum Cloud-Ordner</strong>.</div>
+    <div class="story-compact"><span class="nums">16-18</span> Rejected &rarr; <strong>Soft-Delete Trash</strong> (30 Tage, wiederherstellbar), Round 2+ zeigt Round 1 Winner als Referenz.</div>
+  </div>
+  <div class="group reveal">
+    <div class="group-title">Kommentare & Notifications</div>
+    <div class="story-compact"><span class="nums">19-21</span> <strong>Card-Level Thread</strong> (Niche-Diskussion) + <strong>Design-Level Thread</strong> (spezifisches Feedback), <strong>@Mentions</strong> mit Autocomplete + In-App Notification.</div>
+    <div class="story-compact"><span class="nums">22-24</span> Assignee setzen, Notifications (Assignment, Approval, @Mention, Status-Change), <strong>Notification Bell</strong> in TopBar.</div>
+  </div>
+  <div class="group reveal">
+    <div class="group-title">Chat & Agent</div>
+    <div class="story"><span class="story-num">25</span><span class="story-text"><em>"Discuss"</em> Button im Modal offnet <strong>Chat mit Niche-Kontext</strong> — brainstormen und Web-Suchen direkt aus dem Kanban.</span></div>
+    <div class="story-compact"><span class="nums">26-28</span> <strong>Agent sichtbar:</strong> "&#x1F916; Chief moved to Design", Agent Kommentare auf Cards ("Research completed. 3 Patterns found."), Agent Status-Updates im Workflow.</div>
+  </div>
+</section>
+<div class="section-divider"></div>
+
+<!-- PROJ-15 -->
+<section class="section" id="p15">
+  <div class="feat-head reveal">
+    <div class="feat-icon-wrap blue">&#x1F9E0;</div>
+    <div class="feat-meta">
+      <div class="feat-badges"><span class="badge badge-id">PROJ-15</span><span class="badge badge-new">New</span></div>
+      <h2>Vector Database (AI Memory)</h2>
+    </div>
+  </div>
+  <div class="overview reveal">Das Gedachtnis deines Workspace. <strong>Alles was du recherchierst, generierst und entscheidest wird gespeichert</strong> — nicht als tote Daten in einer Tabelle, sondern als intelligente, durchsuchbare Wissensbasis. Frage: <em>"Welche Niches sind ahnlich wie Camping Dad?"</em> und bekomme Ergebnisse die auf dem tatsachlichen Inhalt basieren, nicht nur auf Keywords. Suche nach einer ASIN und finde gleichzeitig semantisch verwandte Produkte. Diese Wissensbasis ist das <strong>Fundament fur den AI Agent</strong> — er greift auf alle vergangenen Entscheidungen, Erfolge und Fehlschlage zu. Je langer du arbeitest, desto <strong>schlauer wird das System</strong>.</div>
+  <div class="stories-head reveal">&#x1F4DD; User Stories <span class="count">6</span></div>
+  <div class="story reveal"><span class="story-num">1</span><span class="story-text">Als Mitglied will ich <strong>semantisch ahnliche Niches</strong> finden, um verwandte Chancen zu entdecken die ich mit reiner Keyword-Suche nicht finden wurde.</span></div>
+  <div class="story reveal"><span class="story-num">2</span><span class="story-text">Als Mitglied will ich uber <strong>alle Workspace-Daten</strong> (Slogans, Research, Keywords, Produkte) mit einer einzigen Query suchen — ein ganzheitliches Bild aller relevanten Informationen.</span></div>
+  <div class="story reveal"><span class="story-num">3</span><span class="story-text">Als Mitglied will ich <strong>exakte Treffer</strong> auf ASINs, Markennamen und spezifische Keywords <strong>neben semantischen Ergebnissen</strong> sehen, damit offensichtliche Hits nicht verloren gehen.</span></div>
+  <div class="story reveal"><span class="story-num">4</span><span class="story-text">Als Agent brauche ich relevanten <strong>Kontext aus vergangenen Sessions</strong> — Research, Slogans, Chat-History — um informierte Entscheidungen zu treffen ohne erneut zu recherchieren.</span></div>
+  <div class="story reveal"><span class="story-num">5</span><span class="story-text">Als Web Search System muss ich gecrawlte Web-Inhalte als Embeddings speichern, damit Ergebnisse spater <strong>durchsuchbar und wiederverwendbar</strong> sind.</span></div>
+  <div class="story reveal"><span class="story-num">6</span><span class="story-text">Als Mitglied will ich dass meine Workspace-Daten <strong>von anderen Workspaces isoliert</strong> sind — Research und Strategien bleiben privat.</span></div>
+</section>
+<div class="section-divider"></div>
+
+<!-- PROJ-17 -->
+<section class="section" id="p17">
+  <div class="feat-head reveal">
+    <div class="feat-icon-wrap cyan">&#x1F310;</div>
+    <div class="feat-meta">
+      <div class="feat-badges"><span class="badge badge-id">PROJ-17</span><span class="badge badge-new">New</span></div>
+      <h2>Deep Web Search (Vane + Crawl4ai)</h2>
+    </div>
+  </div>
+  <div class="overview reveal">Google, Reddit, Amazon, MerchMatrix — Schluss mit 15 offenen Tabs. Die <strong>Deep Web Search</strong> bringt das gesamte Internet in deine App. Tippe eine Frage in die <strong>schwebende Chat-Bar</strong> (immer sichtbar, egal wo du gerade bist) und bekomme eine <strong>AI-synthetisierte Antwort mit Quellen</strong>. Interessante Quelle dabei? Ein Klick crawlt die komplette Seite und speichert sie in deiner Wissensbasis. Das Beste: der Chat <strong>weiss immer welche Niche du gerade bearbeitest</strong>. Frage <em>"Was sind Camping Trends 2026?"</em> wahrend du die Camping Dad Niche offen hast — die Ergebnisse passen automatisch zum Kontext. Teile spannende Recherchen mit deinem Team. Alles durchsuchbar, kategorisiert, und bereit fur den Agent.</div>
+  <div class="stories-head reveal">&#x1F4DD; User Stories <span class="count">12</span></div>
+  <div class="story reveal"><span class="story-num">1</span><span class="story-text">Als Mitglied will ich das <strong>Web aus Merch Miner heraus durchsuchen</strong> ohne zu externen Tools zu wechseln, damit meine Research an einem Ort bleibt.</span></div>
+  <div class="story reveal"><span class="story-num">2</span><span class="story-text">Als Mitglied will ich <strong>AI-synthetisierte Antworten mit zitierten Quellen</strong> sehen, um schnelle Insights zu bekommen ohne ganze Artikel lesen zu mussen.</span></div>
+  <div class="story reveal"><span class="story-num">3</span><span class="story-text">Als Mitglied will ich interessante Quell-URLs <strong>deep-crawlen</strong> (voller Seiteninhalt als Markdown extrahieren), damit wertvolle Informationen in der Vector DB gespeichert werden.</span></div>
+  <div class="story reveal"><span class="story-num">4</span><span class="story-text">Als Mitglied will ich eine <strong>schwebende Chat-Bar</strong> die auf jeder Seite verfugbar ist, um von uberall suchen zu konnen ohne wegzunavigieren.</span></div>
+  <div class="story reveal"><span class="story-num">5</span><span class="story-text">Als Mitglied will ich dass der Chat <strong>weiss welche Niche ich gerade ansehe</strong> (Sticky Kontext-Chip), damit Suchergebnisse automatisch kontextualisiert werden.</span></div>
+  <div class="story reveal"><span class="story-num">6</span><span class="story-text">Als Mitglied will ich Suchergebnisse mit <strong>einem Klick zu einer Niche oder Keyword Bank speichern</strong>, mit kontextbasiertem Vorschlag "Save to {aktive Niche}".</span></div>
+  <div class="story reveal"><span class="story-num">7</span><span class="story-text">Als Mitglied will ich meine <strong>Chat-History gespeichert und durchsuchbar</strong> haben, um vergangene Research wiederzufinden.</span></div>
+  <div class="story-compact reveal"><span class="nums">8-9</span> Chats <strong>taggen + kategorisieren</strong>, automatische Niche-Zuordnung.</div>
+  <div class="story reveal"><span class="story-num">10</span><span class="story-text">Als Mitglied will ich einen Chat mit meinem Workspace-Team <strong>teilen</strong>, damit sie von meiner Research profitieren.</span></div>
+  <div class="story reveal"><span class="story-num">11</span><span class="story-text">Als Mitglied will ich vor der Nutzung den <strong>Service Health Status</strong> sehen (grun/gelb/rot), damit ich nicht von Fehlern uberrascht werde.</span></div>
+  <div class="story reveal"><span class="story-num">12</span><span class="story-text">Als Mitglied will ich zwischen <strong>Niche Detail, Chat und Agent</strong> im gleichen Drawer wechseln per Segmented Button.</span></div>
+</section>
+<div class="section-divider"></div>
+
+<!-- PROJ-18 -->
+<section class="section" id="p18">
+  <div class="feat-head reveal">
+    <div class="feat-icon-wrap coral">&#x1F916;</div>
+    <div class="feat-meta">
+      <div class="feat-badges"><span class="badge badge-id">PROJ-18</span><span class="badge badge-new">New</span></div>
+      <h2>OpenClaw Agent (Multi-Agent System)</h2>
+    </div>
+  </div>
+  <div class="overview reveal">Stell dir vor du sagst <em>"Bring Camping Dad zum fertigen Listing"</em> — und es passiert. <strong>Automatisch.</strong> Der Orchestrator Agent "Chief" &#x1F916; plant den Workflow und delegiert an <strong>6 spezialisierte AI-Mitarbeiter</strong>: Scout &#x1F52C; recherchiert, Muse &#x1F4A1; generiert Slogans, Pixel &#x1F3A8; erstellt Designs, Scribe &#x270D;&#xFE0F; schreibt Listings, Launch &#x1F680; veroffentlicht, und Radar &#x1F50D; durchsucht das Web. Du behaltst die volle Kontrolle: entscheide pro Aktion ob der Agent autonom handeln darf, dich informieren soll, oder erst fragen muss. <strong>Gib ihnen Namen und Personlichkeiten.</strong> Bringe ihnen deine Praferenzen bei — sie lernen aus jedem Approve und Reject. Starte eine Full Pipeline, geh einen Kaffee trinken, und komm zuruck zu <strong>10 fertigen Listings die auf dein OK warten</strong>.</div>
+  <div class="stories-head reveal">&#x1F4DD; User Stories <span class="count">14</span></div>
+  <div class="story reveal"><span class="story-num">1</span><span class="story-text">Als Mitglied will ich dem Agent einen einzelnen Befehl geben wie <em>"Research Camping Dad"</em>, damit der Agent <strong>alle Research-Schritte autonom</strong> durchfuhrt.</span></div>
+  <div class="story reveal"><span class="story-num">2</span><span class="story-text">Als Mitglied will ich einen <strong>Full Pipeline Workflow</strong> fur eine Niche starten, damit der Agent sie von Research bis Listing-Ready mit minimalem Eingriff bringt.</span></div>
+  <div class="story reveal"><span class="story-num">3</span><span class="story-text">Als Mitglied will ich aus <strong>5 Workflow Templates</strong> wahlen (Full Pipeline, Research Only, Ideation, Design Sprint, Listing Finalize), um haufige Workflows mit einem Klick zu starten.</span></div>
+  <div class="story reveal"><span class="story-num">4</span><span class="story-text">Als Mitglied will ich Agent-Aktionen die <strong>Geld kosten</strong> (Design Generation, Research) <strong>approven oder rejecten</strong>, um die Kontrolle uber Ausgaben zu behalten.</span></div>
+  <div class="story reveal"><span class="story-num">5</span><span class="story-text">Als Mitglied will ich <strong>pro Tool konfigurieren</strong> was autonom lauft (Auto), was mich informiert (Notify), und was meine Freigabe braucht (Approve) — mit 3 Quick-Presets (Supervised / Assisted / Autonomous).</span></div>
+  <div class="story reveal"><span class="story-num">6</span><span class="story-text">Als Mitglied will ich dem Agent meine Praferenzen uber <strong>Knowledge Docs</strong> oder Chat-Befehle (<em>"Merke dir: Ich bevorzuge minimalistische Designs"</em>) beibringen.</span></div>
+  <div class="story reveal"><span class="story-num">7</span><span class="story-text">Als Mitglied will ich dass der Agent <strong>implizit aus meinen Approvals und Rejections lernt</strong> — z.B. "User rejected 3x bunte Designs" &rarr; Agent wahlt zukunftig minimalistische Stile.</span></div>
+  <div class="story reveal"><span class="story-num">8</span><span class="story-text">Als Mitglied will ich einen <strong>Live Workflow Stepper</strong> im Agent-Tab sehen (Research &#x2713; &rarr; Slogan &#x25CF; &rarr; Design &#x25CB;), um zu wissen bei welchem Schritt der Agent ist.</span></div>
+  <div class="story reveal"><span class="story-num">9</span><span class="story-text">Als Mitglied will ich einen laufenden Workflow <strong>pausieren, fortsetzen oder stoppen</strong> — volle Kontrolle jederzeit, wie ein Media Player.</span></div>
+  <div class="story reveal"><span class="story-num">10</span><span class="story-text">Als Mitglied will ich dass der Agent nach einem Server-Restart <strong>automatisch dort weitermacht</strong> wo er war (PostgreSQL Checkpointer), damit Workflows nicht verloren gehen.</span></div>
+  <div class="story reveal"><span class="story-num">11</span><span class="story-text">Als Mitglied will ich <strong>Autonomie-Presets</strong> mit einem Klick wechseln + eigene Custom Presets erstellen (z.B. "Nacht-Modus: alles Auto").</span></div>
+  <div class="story reveal"><span class="story-num">12</span><span class="story-text">Als Mitglied will ich den Agent auf <strong>mehreren Niches im Batch</strong> laufen lassen — sequentiell (Default) oder parallel — um die Pipeline skaliert zu verarbeiten.</span></div>
+  <div class="story reveal"><span class="story-num">13</span><span class="story-text">Als Mitglied will ich dass der Agent mich <strong>warnt wenn ein Teammitglied bereits an der gleichen Niche</strong> arbeitet, damit wir keine Arbeit doppelt machen.</span></div>
+  <div class="story reveal"><span class="story-num">14</span><span class="story-text">Als Mitglied will ich meine Agent-Sessions mit Teammates <strong>teilen</strong>, damit sie meine Workflow-Ergebnisse und Entscheidungen nachvollziehen konnen.</span></div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="brand"><span>Merch</span> Miner</div>
+  <p>Business OS for Print-on-Demand &middot; Branch: <code>feature/PROJ-requirements-talk</code></p>
+  <p style="margin-top:0.75rem;font-size:0.75rem">Stand: 27. Marz 2026 &middot; 14 Features &middot; 180+ User Stories &middot; 7 AI Agents</p>
+</footer>
+
+<!-- ===== SCRIPTS ===== -->
+<script>
+// Particles
+const container = document.getElementById('particles');
+const colors = ['#FF5A4F','#00C8D7','#22D3A3','#818CF8','#FB7185'];
+for(let i=0;i<40;i++){
+  const p=document.createElement('div');
+  p.className='particle';
+  const size=Math.random()*4+1;
+  p.style.cssText=`width:${size}px;height:${size}px;left:${Math.random()*100}%;background:${colors[i%colors.length]};animation-duration:${Math.random()*15+10}s;animation-delay:${Math.random()*10}s`;
+  container.appendChild(p);
+}
+
+// Detect local file mode
+const isLocal = location.protocol === 'file:';
+
+// Scroll reveal
+if(!isLocal && 'IntersectionObserver' in window){
+  const observer=new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{if(e.isIntersecting){e.target.classList.add('visible');observer.unobserve(e.target)}})
+  },{threshold:0.05,rootMargin:'0px 0px -20px 0px'});
+  document.querySelectorAll('.reveal').forEach(el=>observer.observe(el));
+  setTimeout(()=>{document.querySelectorAll('.hero .reveal').forEach(el=>el.classList.add('visible'))},800);
+} else {
+  // Local file or no IO support — show everything immediately
+  document.querySelectorAll('.reveal').forEach(el=>el.classList.add('visible'));
+}
+
+// Active nav
+const sections=document.querySelectorAll('.section[id]');
+const navLinks=document.querySelectorAll('nav a');
+window.addEventListener('scroll',()=>{
+  let current='';
+  sections.forEach(s=>{if(window.scrollY>=s.offsetTop-100)current=s.id});
+  navLinks.forEach(a=>{a.classList.toggle('active',a.getAttribute('href')==='#'+current)});
+},{passive:true});
+</script>
+</body>
+</html>
