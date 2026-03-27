@@ -225,6 +225,136 @@ Both Vane and Crawl4ai must be running in the localai-stack before PROJ-17 can f
 - Real-time WebSocket for streaming instead of SSE polling
 - Voice input for chat-bar
 
+## Tech Design (Solution Architect)
+
+> Decided: 2026-03-27 | Approved by user.
+
+### A) Backend Architecture
+
+**New Django app:** `search_app`
+
+```
+search_app/
+├── models.py                           # ChatSession, ChatTag, ChatMessage,
+│                                       #   WebSearchResult, SearchUsageLog
+├── api/
+│   ├── views.py                        # Chat CRUD, message send (+ Vane), crawl trigger,
+│   │                                   #   save-to-niche, health check, tags CRUD
+│   ├── serializers.py                  # All serializers
+│   └── urls.py                         # URL routing
+├── services/
+│   ├── vane_service.py                 # Vane API client (search + search_stream)
+│   ├── crawl_service.py                # Crawl4ai API client (crawl_url)
+│   └── context_builder.py             # Build system_instructions from niche context
+├── tasks.py                            # django-rq: crawl jobs, usage logging
+├── admin.py
+└── tests/
+```
+
+**Registered in:** `core/settings.py` INSTALLED_APPS, `core/urls.py`
+
+---
+
+### B) Frontend Architecture
+
+**Global components** (available on all pages):
+
+```
+components/
+├── FloatingChatBar/
+│   ├── index.tsx                       # Fixed bottom bar + expand animation
+│   └── ChatBarInput.tsx                # TextField + send button + dismiss
+│
+└── MultiPurposeDrawer/
+    ├── index.tsx                       # Shared 480px drawer shell + ToggleButtonGroup
+    ├── DrawerSegments.tsx              # Segment definitions: Niche | Chat | Search
+    └── panels/
+        ├── NicheDetailPanel.tsx        # Existing NicheDetailDrawer content (wrapped)
+        ├── ChatPanel.tsx               # Chat session UI
+        │   ├── ChatMessageList.tsx     # Scrollable message list + Markdown rendering
+        │   ├── ChatControls.tsx        # Model picker, search mode, source toggles
+        │   ├── RecentChats.tsx         # Last 10 sessions, clickable
+        │   ├── ContextChip.tsx         # Sticky niche context chip with X
+        │   └── SessionTagManager.tsx   # Tag chips + add/remove
+        └── SearchResultsPanel.tsx      # Vane answer + source cards
+            ├── VaneAnswer.tsx          # Markdown-rendered AI answer
+            ├── SourceCard.tsx          # Title + URL + snippet + Deep Crawl button
+            └── CrawlStatusBadge.tsx    # pending/running/completed/failed
+
+store/
+├── searchSlice.ts                      # RTK Query: sessions, messages, crawl, tags, health
+└── chatBarSlice.ts                     # UI state: bar expanded/hidden, active session
+```
+
+---
+
+### C) Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| `search_app` separate from `vector_app` | Search is user-facing (chat UI, crawl). Vector DB is infrastructure (embeddings, indexing). Different concerns |
+| Vane as external service (not embedded) | Runs in localai-stack. Merch Miner stays slim. REST API ready |
+| Crawl4ai as external service | Same rationale. Chromium-based crawler = heavy, stays external |
+| Floating chat-bar (global component) | Available on every page. No navigation needed. Modern UX pattern |
+| Multi-purpose drawer (shared shell) | One drawer, 3 panels (Niche/Chat/Search). Reuses existing NicheDetailDrawer. No drawer-per-feature bloat |
+| SSE streaming for Vane responses | Real-time answer chunks. Better UX than waiting for full response. Django StreamingHttpResponse |
+| Crawl jobs via django-rq | Crawl4ai can take 10-30s. Don't block HTTP request. Poll status |
+| ChatMessage stores sources as JSONField | Flexible per-message source list. No separate Source model needed |
+| Auto Vector DB storage via post_save | All search results automatically available for PROJ-15/18. Zero friction |
+| Health check polling (60s) | Proactive service status. User knows before clicking. Low overhead |
+
+---
+
+### D) Infrastructure Changes
+
+| Change | Where |
+|--------|-------|
+| `search_app` registered | `INSTALLED_APPS` + `core/urls.py` |
+| 4 new env vars | `VANE_API_URL`, `CRAWL4AI_API_URL`, `VANE_DEFAULT_MODEL`, `VANE_EMBEDDING_MODEL` |
+| MultiPurposeDrawer replaces NicheDetailDrawer | `frontend-ui/src/components/` — wraps existing drawer content |
+
+---
+
+### E) New Packages
+
+**Backend:**
+
+| Package | Purpose |
+|---------|---------|
+| `httpx` | Async HTTP client for Vane + Crawl4ai API calls (already installed from PROJ-7) |
+
+**Frontend:**
+
+| Package | Purpose |
+|---------|---------|
+| `react-markdown` | Render Vane AI answers as Markdown in Chat panel |
+| `remark-gfm` | GitHub Flavored Markdown support (tables, links) |
+
+---
+
+## Verification Steps
+
+1. Click floating chat-bar → expands into input field. Type "camping trends" → send → drawer opens with Chat panel
+2. Vane returns AI-synthesized answer with 5 cited sources. Answer rendered as Markdown
+3. Click "Deep Crawl" on a source → status: pending → running → completed. Full Markdown content visible
+4. Crawled content auto-stored in Vector DB (PROJ-15) — confirm via `embedding_stats`
+5. Niche "Camping Dad" open → switch to Chat → sticky context chip "Context: Camping Dad" shown
+6. Search with context → Vane receives system instruction with niche name
+7. "Save to Camping Dad" button on result → keywords saved to PROJ-10 Keyword Bank (source=web_search)
+8. Create new chat session → send 3 messages → close drawer → reopen → "Recent Chats" shows session → click to resume
+9. "Share" button → session appears in teammate's session list with "Shared by {username}" badge. Read-only for teammate
+10. Add tag "Research" to session → tag chip visible in session list. Filter by tag works
+11. Search mode toggle: Speed vs Balanced vs Quality → different response quality/latency
+12. Source toggles: web / academic / discussions → Vane searches only selected sources
+13. Model picker: switch from gpt-4.1-mini to different model → response uses selected model
+14. Health check: Vane online → green dot. Crawl4ai offline → yellow dot, "Deep Crawl" disabled with tooltip
+15. Both services offline → red dot, search disabled, banner "Search services offline"
+16. Dismiss chat-bar → hover near bottom edge → arrow indicator → click → bar reappears
+17. Workspace isolation: other workspace's sessions not visible
+18. 100+ messages in session → only latest 50 shown, "Load more" button loads older
+
+---
+
 ## Decisions Log
 
 | # | Topic | Decision | Rationale |

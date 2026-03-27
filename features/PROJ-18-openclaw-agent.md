@@ -268,6 +268,154 @@ Each Sub-Agent: own System Prompt (~800 tokens) + own Tool set (4-6 tools) + own
 - [ ] EC-16: "Merke dir" chat command → agent extracts knowledge, creates KnowledgeDoc with source=chat_command, confirms: "Saved: {title}". Embedded in Vector DB.
 - [ ] EC-17: No Knowledge Docs and no past experience (fresh workspace) → agent operates on System Prompt only. Performance improves as data accumulates.
 
+## Tech Design (Solution Architect)
+
+> Decided: 2026-03-27 | Approved by user.
+
+### A) Backend Architecture
+
+**New Django app:** `agent_app`
+
+```
+agent_app/
+├── models.py                           # AgentConfig, AgentSession, AgentMessage,
+│                                       #   AgentActionLog, ToolPermission, AutonomyPreset,
+│                                       #   KnowledgeDoc, WorkflowTemplate
+├── api/
+│   ├── views.py                        # Session CRUD, messages, controls (pause/resume/stop),
+│   │                                   #   approval, config, permissions, presets, templates, knowledge
+│   ├── serializers.py                  # All serializers
+│   └── urls.py                         # URL routing
+├── agents/
+│   ├── orchestrator.py                 # Orchestrator StateGraph (delegates to sub-agents)
+│   ├── research_agent.py               # Research Sub-Agent (PROJ-5/6/7 tools)
+│   ├── ideation_agent.py               # Ideation Sub-Agent (PROJ-8/10 tools)
+│   ├── design_agent.py                 # Design Sub-Agent (PROJ-9 tools)
+│   ├── listing_agent.py                # Listing Sub-Agent (PROJ-11 tools)
+│   ├── publishing_agent.py             # Publishing Sub-Agent (PROJ-13/14 tools)
+│   ├── search_agent.py                 # Search Sub-Agent (PROJ-15/17 tools)
+│   └── tools/
+│       ├── research_tools.py           # 8 tools: create_niche, trigger_deep_research, etc.
+│       ├── ideation_tools.py           # 7 tools: create_idea, trigger_adaptation, etc.
+│       ├── design_tools.py             # 6 tools: analyze_image, generate_design, etc.
+│       ├── listing_tools.py            # 5 tools: generate_listing, update_listing, etc.
+│       ├── publishing_tools.py         # 4 tools: create_upload_job, update_kanban, etc.
+│       └── search_tools.py             # 6 tools: semantic_search, web_search, etc.
+├── services/
+│   ├── permission_checker.py           # Check ToolPermission before tool execution
+│   ├── knowledge_loader.py             # Load System Prompt + Knowledge Docs + Implicit Learning
+│   ├── collision_detector.py           # Check for active sessions on same niche
+│   └── cost_tracker.py                 # Estimate + track costs per tool call
+├── tasks.py                            # django-rq: run_agent_workflow, batch execution
+├── admin.py
+└── tests/
+```
+
+**Registered in:** `core/settings.py` INSTALLED_APPS, `core/urls.py`
+
+---
+
+### B) Frontend Architecture
+
+**Agent tab** in multi-purpose drawer (3rd segment, shared with PROJ-5 + PROJ-17):
+
+```
+components/MultiPurposeDrawer/panels/
+└── AgentPanel/
+    ├── index.tsx                        # Agent tab content
+    ├── hooks/
+    │   ├── useAgentSession.ts          # Session CRUD + polling
+    │   ├── useAgentControls.ts         # Pause/resume/stop
+    │   ├── useApproval.ts              # Approve/reject pending actions
+    │   └── useAgentSettings.ts         # Config, permissions, presets
+    ├── partials/
+    │   ├── AgentHeader.tsx             # Budget bar + autonomy preset chip + niche context + controls
+    │   ├── WorkflowStepper.tsx         # MUI Stepper showing template steps
+    │   ├── AgentLog.tsx                # Scrollable message list (agent/user/approval/system)
+    │   ├── AgentMessageBubble.tsx      # Per-message: avatar_emoji + display_name + content
+    │   ├── ApprovalCard.tsx            # Inline: action description + cost + Approve/Reject buttons
+    │   ├── QuickActionBar.tsx          # Template buttons for one-click workflow start
+    │   ├── BatchView.tsx               # Niche list with individual progress indicators
+    │   ├── CollisionWarning.tsx        # "User X is working on this niche" dialog
+    │   ├── AgentSettingsPage.tsx       # Per-agent: name, personality, avatar, model
+    │   ├── PersonalityPresets.tsx      # Clickable preset chips above personality textarea
+    │   ├── PermissionEditor.tsx        # Tool permission table (Auto/Notify/Approve toggles)
+    │   ├── PresetSelector.tsx          # Autonomy preset dropdown + activate
+    │   ├── KnowledgeDocList.tsx        # Knowledge docs CRUD
+    │   ├── TemplateEditor.tsx          # Custom workflow template builder
+    │   └── OnboardingBanner.tsx        # First-time setup banner (dismissable)
+    └── types/
+        └── index.ts
+
+store/
+└── agentSlice.ts                       # RTK Query: sessions, messages, controls, config,
+                                        #   permissions, presets, templates, knowledge
+```
+
+---
+
+### C) Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| `agent_app` separate from `search_app` | Agent = autonomous workflow execution. Search = user-driven chat. Different runtime model |
+| LangGraph `create_react_agent()` for all agents | Same pattern as PROJ-6/8. Proven ReAct loop with tool binding |
+| Orchestrator delegates via "call sub-agent" tools | Orchestrator doesn't know tool details — only knows sub-agent capabilities. Cleaner separation |
+| Separate tool files per sub-agent | Enforced isolation — sub-agent can only import its own tools file |
+| Permission check as wrapper around every tool | Consistent enforcement. Auto/Notify/Approve checked before execution |
+| 3-layer knowledge: Prompt + Docs + Implicit | Progressive learning. System starts with rules, improves with explicit + implicit knowledge |
+| Separate OpenRouter API key for agent | Budget isolation. OpenRouter manages credit limit. No custom rate limiter needed |
+| Dedicated `worker-agent` (60min timeout) | Full Pipeline can take 30+ minutes. Don't block other queues |
+| PostgreSQL Checkpointer (shared with PROJ-6) | Resume on crash. Same infrastructure, proven pattern |
+| Resizable drawer (480→768→1200px) | Agent needs more space than Chat. Adapts to use case |
+| Approval wait unbounded (no timeout) | Safety — never auto-skip an expensive action. User decides when |
+
+---
+
+### D) Infrastructure Changes
+
+| Change | Where |
+|--------|-------|
+| `agent_app` registered | `INSTALLED_APPS` + `core/urls.py` |
+| New RQ queue `agent` (60min timeout) | `settings.py → RQ_QUEUES` |
+| New Docker service `worker-agent` | `docker-compose.yml` + `docker-compose.override.yml` |
+| `OPENROUTER_AGENT_API_KEY` env var | `.env.template` |
+| Optional `AGENT_BUDGET_WARNING_THRESHOLD` env var | `.env.template` |
+| Agent tab added to MultiPurposeDrawer | `frontend-ui/src/components/MultiPurposeDrawer/` |
+
+---
+
+### E) New Packages
+
+No new packages — `langchain-core`, `langchain-openai`, `langgraph`, `langgraph-checkpoint-postgres` already installed (PROJ-6/8).
+
+---
+
+## Verification Steps
+
+1. Open Agent tab in drawer → Quick-Action bar with template buttons visible
+2. Click "Full Pipeline" on niche "Camping Dad" → workflow stepper shows 5 steps. Agent starts Research step
+3. Research Agent triggers deep research → permission check: `trigger_deep_research` = Approve → approval card in log → click Approve → agent continues
+4. Agent delegates to Ideation Agent → log shows "🤖 Chief delegiert an 💡 Muse..."
+5. Ideation Agent generates slogans → `approve_reject_idea` = Notify → agent executes + notification shown
+6. Pause button → agent finishes current tool, halts. Resume → continues from paused state
+7. Stop button → workflow cancelled, data persists. Status=cancelled
+8. Worker crash → restart → workflow resumes from last checkpoint. Notification "Workflow resumed at step X"
+9. Batch: select 3 niches → "Full Pipeline" → 3 sessions created, sequential processing. Progress per niche visible
+10. Collision: teammate already working on same niche → warning "User Lisa is working on Camping Dad. Continue?"
+11. Switch autonomy preset: Supervised → all tools need approval. Autonomous → only upload needs approval
+12. Knowledge Doc: "Merke dir: Immer Humor-Slogans bevorzugen" → KnowledgeDoc created, embedded in Vector DB
+13. Agent queries Vector DB before decisions → uses past approvals + Knowledge Docs as context
+14. OpenRouter 402 (budget exhausted) → agent pauses, message "Agent budget exhausted"
+15. Budget warning at 80% threshold → warning in Agent-Tab
+16. Agent Settings: change Orchestrator name to "Julian", personality to "Minimalist" → messages show "🤖 Julian"
+17. Create custom workflow template "Quick Design" (Research → Design only) → available in Quick-Action bar
+18. Shared session: teammate sees read-only, can't send commands
+19. Onboarding: first Agent tab open → banner "Set up your agent". Dismissable. Skip works
+20. Dashboard: Agent Activity widget shows active workflows, budget, recent actions
+
+---
+
 ## Environment Variables Required
 
 ```

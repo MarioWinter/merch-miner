@@ -143,3 +143,135 @@ All aggregations computed at DB level with Redis cache (60s). Historical charts 
 - PROJ-11 (Publish — listing counts, upload events)
 - PROJ-17 (Web Search — SearchUsageLog for search analytics)
 - PROJ-18 (Agent — AgentActionLog for agent analytics)
+
+---
+
+## Verification Steps
+
+1. Open `/dashboard` → KPI cards show correct niche/design/listing counts
+2. Pipeline funnel shows niche status distribution (Research → Design → Publish → Live)
+3. Activity feed shows last 20 events with user avatar + timestamp
+4. Agent event in feed shows robot emoji + agent name
+5. Stuck niches widget lists niches >7 days unchanged with days count
+6. Design analytics chart: bar chart by model + week. Change date range → chart updates
+7. Listing analytics chart: line chart by week
+8. Agent analytics: per-agent cost breakdown, success rate, avg duration
+9. Search analytics: searches/day bar chart, top 5 queries
+10. CSV export icon on each chart → downloads CSV with correct columns
+11. Date range picker filters all analytics charts simultaneously
+12. Empty workspace → all counts 0, empty charts (no errors)
+13. Agent/Search not configured → placeholder messages shown
+14. Admin-only analytics endpoints → member gets 403
+
+---
+
+## Tech Design (Solution Architect)
+
+> Decided: 2026-03-27 | Approved by user.
+
+### A) Backend Architecture
+
+**New Django app:** `dashboard_app` (read-only aggregation layer — no core models, reads from other apps)
+
+```
+dashboard_app/
+├── models.py                           # ActivityEvent (simple event log)
+├── api/
+│   ├── views.py                        # Dashboard + analytics endpoints
+│   ├── serializers.py                  # Response serializers
+│   └── urls.py                         # URL routing
+├── services/
+│   ├── kpi_aggregator.py               # Niche/Design/Listing counts (DB-level)
+│   ├── analytics_aggregator.py         # Weekly aggregations with TruncWeek
+│   ├── activity_feed.py                # Recent activity from ActivityEvent
+│   └── stuck_detector.py               # Niches unchanged >7 days
+├── signals.py                          # post_save signals → create ActivityEvent
+├── admin.py
+└── tests/
+```
+
+**Registered in:** `core/settings.py` INSTALLED_APPS, `core/urls.py`
+
+---
+
+### B) Data Model
+
+**`ActivityEvent`** — simple event log for the activity feed
+
+| Field | Type | Notes |
+|-------|------|-------|
+| id | UUID | PK |
+| workspace | FK(Workspace) | |
+| event_type | CharField(50) | choices: niche_created, research_completed, idea_created, design_generated, listing_ready, upload_completed, etc. |
+| target_name | CharField(200) | e.g. niche name, idea slogan excerpt |
+| target_id | UUIDField(nullable) | link to source object |
+| user | FK(User, nullable) | null for agent actions |
+| agent_type | CharField(50, blank=True) | e.g. "research", "design" — set for agent actions |
+| metadata | JSONField(default=dict) | extra context per event type |
+| created_at | DateTimeField | |
+
+> All other data (niche counts, design counts, listing counts, agent stats, search stats) is aggregated live from existing models in other apps. No denormalization.
+
+---
+
+### C) Frontend Architecture
+
+**Route:** `/dashboard` (workspace home screen)
+
+```
+views/dashboard/
+├── DashboardView.tsx                   # Main scrollable page
+├── hooks/
+│   ├── useDashboardData.ts            # RTK Query for main dashboard endpoint
+│   ├── useAnalytics.ts                # RTK Query for analytics endpoints + date range
+│   └── useCSVExport.ts                # Export handler per widget
+├── partials/
+│   ├── KPICards.tsx                     # Top row: niche/design/listing counts
+│   ├── PipelineFunnel.tsx              # Funnel visualization (niche status flow)
+│   ├── ActivityFeed.tsx                # MUI List with user/agent avatars
+│   ├── ActivityItem.tsx                # Single feed item with icon + timestamp
+│   ├── StuckNichesWidget.tsx           # Niche name + days stuck + quick-link
+│   ├── DesignAnalyticsChart.tsx        # Bar chart: designs by model/week
+│   ├── ListingAnalyticsChart.tsx       # Line chart: listings ready/week
+│   ├── AgentActivityWidget.tsx         # Active workflows, budget, per-agent stats
+│   ├── SearchActivityWidget.tsx        # Searches/day, top queries, crawl stats
+│   ├── DateRangePicker.tsx             # MUI DatePicker — filters all charts
+│   ├── CSVExportButton.tsx             # Reusable export icon button per widget
+│   └── PlaceholderWidget.tsx           # "Not configured" state for Agent/Search
+├── types/
+│   └── index.ts
+└── tests/
+
+store/
+└── dashboardSlice.ts                   # RTK Query: dashboard, analytics, exports
+```
+
+---
+
+### D) Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| `dashboard_app` (read-only, no core models) | Aggregates from existing models. Only own model: `ActivityEvent` for feed |
+| `ActivityEvent` via `post_save` signals | Automatic logging without modifying other apps. Signals in dashboard_app |
+| Redis cache 60s on dashboard endpoint | Aggregations are expensive on large datasets. 60s TTL = fresh enough for dashboard |
+| DB-level COUNT/GROUP BY (not Python) | Performance — avoids loading thousands of rows into memory |
+| `TruncWeek` for analytics | Weekly granularity is right for small team. Daily too granular, monthly too coarse |
+| `@mui/x-charts` for all charts | Already installed (PROJ-7). Consistent with MUI ecosystem |
+| CSV export via `StreamingHttpResponse` | Same pattern as PROJ-7/10. Consistent, memory-efficient |
+| Admin-only for analytics endpoints | KPI dashboard for all members. Detailed analytics = admin privilege |
+
+---
+
+### E) Infrastructure Changes
+
+| Change | Where |
+|--------|-------|
+| `dashboard_app` registered | `INSTALLED_APPS` + `core/urls.py` |
+| Redis cache config | `settings.py → CACHES` (if not already configured) |
+
+---
+
+### F) New Packages
+
+No new packages — Redis (`django-redis`), `@mui/x-charts` already installed.

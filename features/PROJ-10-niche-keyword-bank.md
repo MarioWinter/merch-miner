@@ -13,7 +13,7 @@ JS-Daten werden serverseitig gecached — wenn Keyword-Daten innerhalb der letzt
 
 Researched keywords flow into the Niche Drawer where they can be organized into groups, assigned to specific designs as templates, and automatically injected into PROJ-11 Listing Generation.
 
-**Django App:** extends `idea_app` or new `keyword_app` (TBD at architecture phase)
+**Django App:** `keyword_app` (separate — own models, own domain)
 
 ## Data Sources (Priority Loading)
 
@@ -204,6 +204,162 @@ Document in `django-app/env/.env.template`.
 | 9 | Drawer features | Keyword groups + Design template assignment + edit/delete/reorder |
 | 10 | Agent JS limit | Max 1 JS-Call per Niche-ID (main term only) |
 | 11 | Chat integration | Conversational keyword search + add commands |
+
+## Verification Steps
+
+1. Search "camping" → DB keywords appear instantly, Autocomplete suggestions appear after 300ms debounce
+2. Click "Enrich with JungleScout" on keyword → JS data loads (search volume, CPC, PPC, competition)
+3. Enrich same keyword again within 30 days → uses cache, no API call
+4. Enrich keyword after 30 days → makes new JS call, updates cache
+5. Click keyword row → Historical Search Volume chart appears (12 months)
+6. Select 3 keywords + click "Add to {niche}" → 3 `NicheKeyword` records created
+7. Add duplicate keyword to niche → 409 (or silently skipped in bulk-add)
+8. Open Drawer → keywords grouped by source, organized by groups
+9. Create keyword group "Primary" → drag keywords into it → position saved
+10. Assign keyword group to design template → saved on `NicheKeyword.design_template`
+11. PROJ-6 research completes → research keywords auto-imported (source=research)
+12. Export CSV → all visible columns including JS data where cached
+13. JS API key not configured → Enrich button disabled, tooltip shows
+14. Agent calls `keyword_search_js` → first call makes JS request, second call uses cache
+15. Delete keyword group → keywords become ungrouped (not deleted)
+16. Workspace isolation: keywords from other workspaces → 403
+
+---
+
+## Tech Design (Solution Architect)
+
+> Decided: 2026-03-27 | Approved by user.
+
+### A) Backend Architecture
+
+**New Django app:** `keyword_app`
+
+```
+keyword_app/
+├── models.py                           # NicheKeyword, NicheKeywordGroup,
+│                                       #   KeywordJSCache, NicheJSCallTracker
+├── api/
+│   ├── views.py                        # Research search, enrich, history, CRUD, groups
+│   ├── serializers.py                  # All serializers
+│   └── urls.py                         # URL routing
+├── services/
+│   ├── junglescout_service.py          # JS API wrapper, cache logic, call tracking
+│   ├── autocomplete_service.py         # Amazon Autocomplete (reuses research_app proxy)
+│   └── auto_import.py                  # Signal handler for PROJ-6 research completion
+├── admin.py
+└── tests/
+```
+
+**Registered in:** `core/settings.py` INSTALLED_APPS, `core/urls.py`
+
+---
+
+### B) Frontend Architecture
+
+**Routes:**
+- `/keywords` — Keyword Research Page (search + analyze + collect)
+- Drawer integration: "Keywords" tab in NicheDetailDrawer (organize + assign)
+
+```
+views/keywords/
+├── research/
+│   ├── KeywordResearchView.tsx         # Main research page
+│   ├── hooks/
+│   │   ├── useKeywordSearch.ts         # Search + merged results (DB + Autocomplete)
+│   │   ├── useJSEnrich.ts             # On-demand JungleScout enrichment
+│   │   └── useKeywordExport.ts        # CSV export
+│   ├── partials/
+│   │   ├── KeywordSearchBar.tsx        # Search input + Autocomplete suggestions
+│   │   ├── KeywordTable.tsx            # MUI DataGrid with configurable columns
+│   │   ├── ColumnPicker.tsx            # Column visibility config
+│   │   ├── EnrichButton.tsx            # "Enrich with JungleScout" per-row + bulk
+│   │   ├── TrendChart.tsx              # Historical search volume (@mui/x-charts)
+│   │   ├── AddToNicheButton.tsx        # Context-aware "Add X to {niche}" + Change Niche
+│   │   ├── SourceBadge.tsx             # research / amazon / web_search / manual / JS
+│   │   └── EmptyState.tsx
+│   ├── types/
+│   │   └── index.ts
+│   └── tests/
+│
+└── drawer/
+    ├── DrawerKeywordsSection.tsx        # Keywords tab content in NicheDetailDrawer
+    ├── partials/
+    │   ├── KeywordGroupList.tsx         # Groups with drag-to-reorder
+    │   ├── KeywordGroupCard.tsx         # Single group with keywords inside
+    │   ├── KeywordChipRow.tsx           # Single keyword: chip + source badge + actions
+    │   ├── ManualKeywordInput.tsx       # Add keywords manually
+    │   └── DesignTemplateAssign.tsx     # Assign group to design template
+    └── types/
+        └── index.ts
+
+store/
+└── keywordSlice.ts                     # RTK Query: search, enrich, history, CRUD, groups
+```
+
+---
+
+### C) Data Flow
+
+```
+Keyword Research Page:
+  Search "camping" →
+    1. DB query (NicheKeyword + NicheKeywordAnalysis): instant, free
+    2. Amazon Autocomplete: 300ms debounce, cached 60s
+    → Merged results table (source-tagged)
+    → "Enrich" button per row → JS API (cached 30d) → adds search volume, CPC, etc.
+    → Select keywords → "Add to {active Niche}" → POST /api/niches/{id}/keywords/
+
+Drawer Keywords Tab:
+  Open Drawer → load keywords grouped by NicheKeywordGroup
+    → Create/rename/delete groups
+    → Drag keywords between groups
+    → Assign group to design template → PROJ-11 auto-injection
+
+Auto-Import:
+  PROJ-6 research completes → signal → auto-insert research keywords (source=research)
+  PROJ-7 Autocomplete save → POST source=amazon_search
+  PROJ-17 Web Search save → POST source=web_search
+```
+
+---
+
+### D) Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| Separate `keyword_app` (not in `idea_app`) | 4 eigene Models, 14 Endpoints, eigene Domain — Single Responsibility |
+| No dedicated worker | JS API calls sind schnell (<2s). Default queue reicht. Kein eigener Worker nötig |
+| 30-day cache in DB (not Redis) | Cache muss persistent sein + queryable (expired check). Redis TTL nicht ausreichend |
+| `junglescout-python-client` | Offizieller Python Client, async + sync, alle benötigten Endpoints |
+| `NicheJSCallTracker` separates Model | Explizites Tracking pro Niche — einfacher zu querien als JSONField oder Counter |
+| Amazon Autocomplete via `research_app` proxy | Endpoint existiert bereits (PROJ-7). Kein Duplizieren |
+| `design_template` FK auf NicheKeyword | Direkter Link Keyword → Design für PROJ-11 Auto-Injection. Einfacher als N:M |
+| Signal für Auto-Import | `post_save` auf NicheResearch(status=completed) — automatisch, kein manueller Trigger |
+
+---
+
+### E) Infrastructure Changes
+
+| Change | Where |
+|--------|-------|
+| `keyword_app` registered | `INSTALLED_APPS` + `core/urls.py` |
+| `junglescout-python-client` | `requirements.txt` |
+| 3 new env vars | `JUNGLESCOUT_API_KEY_NAME`, `JUNGLESCOUT_API_KEY`, `JUNGLESCOUT_DEFAULT_MARKETPLACE` |
+| Env vars documented | `django-app/env/.env.template` |
+
+---
+
+### F) New Packages
+
+**Backend:**
+
+| Package | Purpose |
+|---------|---------|
+| `junglescout-python-client` | Official JungleScout API client (keyword data, trends) |
+
+**Frontend:** No new packages — `@mui/x-data-grid` + `@mui/x-charts` already installed.
+
+---
 
 ## Future Enhancements
 

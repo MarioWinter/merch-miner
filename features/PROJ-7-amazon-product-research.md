@@ -1,6 +1,6 @@
 # PROJ-7: Amazon Product Research
 
-**Status:** In Review
+**Status:** In Progress
 **Priority:** P0 (MVP)
 **Created:** 2026-02-27
 **Updated:** 2026-03-17

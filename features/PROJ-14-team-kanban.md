@@ -192,6 +192,149 @@ Approved designs auto-sync to configured Google Drive / OneDrive folder. Rejecte
 - Drawer: round toggle (Round 1 / Round 2 / All) for filtering designs, slogans, keywords, listings.
 - Product Lifecycle visible in Drawer: Niche → Slogan → Design → Listing → ASIN → Sales per round.
 
+## Tech Design (Solution Architect)
+
+> Decided: 2026-03-27 | Approved by user.
+
+### A) Backend Architecture
+
+**New Django app:** `kanban_app` (comments, notifications, trash, round logic, cloud sync)
+
+```
+kanban_app/
+├── models.py                           # NicheComment, Notification, DesignTrash
+├── api/
+│   ├── views.py                        # Comments CRUD, Notifications, Round, Trash,
+│   │                                   #   Design upload/import, Cloud sync
+│   ├── serializers.py                  # All serializers
+│   └── urls.py                         # URL routing
+├── services/
+│   ├── round_manager.py                # New Round logic (increment, reset status)
+│   ├── cloud_sync.py                   # Auto-sync approved designs to Drive/OneDrive
+│   ├── notification_service.py         # Create notifications on events (assign, approve, mention)
+│   └── trash_cleanup.py                # Cronjob: delete expired trash entries + files
+├── signals.py                          # post_save signals → create notifications
+├── tasks.py                            # django-rq: cloud sync, trash cleanup
+├── admin.py
+└── tests/
+```
+
+**Amendments to existing apps:**
+- `niche_app/models.py`: add `current_round` field to `Niche`
+- `idea_app/models.py`, `publish_app/models.py`: add `round` field to `Idea`, `DesignAsset`, `Listing`
+- Migrations in respective apps
+
+**Registered in:** `core/settings.py` INSTALLED_APPS, `core/urls.py`
+
+---
+
+### B) Frontend Architecture
+
+**Route:** `/kanban` — Kanban board (full-page)
+
+```
+views/kanban/
+├── KanbanBoardView.tsx                 # Main board page
+├── hooks/
+│   ├── useBoardData.ts                # Load niches, distribute to columns
+│   ├── useCardDrag.ts                 # dnd-kit drag handlers + optimistic PATCH
+│   ├── useCardModal.ts                # Modal open/close state + data loading
+│   ├── useComments.ts                 # Comments CRUD + @mention
+│   └── useNotifications.ts            # Notification list + unread count + mark read
+├── partials/
+│   ├── KanbanColumn.tsx                # Single column: header (name + count) + card list
+│   ├── NicheCard.tsx                   # Card: thumbnail, name, assignee, status chip,
+│   │                                   #   round badge, counts
+│   ├── CardModal.tsx                   # Full-screen MUI Dialog
+│   ├── DesignCarousel.tsx              # Horizontal scroll, approve/reject/feedback per design
+│   ├── DesignSlide.tsx                 # Single design in carousel: image + status + actions
+│   ├── CommentThread.tsx               # Card-level or design-level comments list
+│   ├── CommentInput.tsx                # TextField with @mention autocomplete
+│   ├── RoundHistory.tsx                # Per-round summaries with counts
+│   ├── LifecycleChain.tsx              # Reuses PROJ-11 LifecycleChain component
+│   ├── DesignUploadZone.tsx            # Drag & Drop zone in modal
+│   ├── TrashView.tsx                   # Trashed designs list with restore button
+│   ├── AssigneeFilter.tsx              # Board header filter dropdown
+│   ├── ArchivedToggle.tsx              # Board header toggle
+│   └── EmptyColumn.tsx                 # Empty column placeholder
+│
+├── types/
+│   └── index.ts
+└── tests/
+
+components/
+└── NotificationBell/
+    ├── index.tsx                        # TopBar bell icon + unread badge
+    └── NotificationDropdown.tsx         # Dropdown list with click-to-navigate
+
+store/
+├── kanbanSlice.ts                      # RTK Query: board data, comments, rounds, designs
+└── notificationSlice.ts                # RTK Query: notifications, unread count
+```
+
+---
+
+### C) Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| `kanban_app` separate from `niche_app` | Kanban adds comments, notifications, trash, cloud sync — distinct collaboration domain. Niche stays simple CRUD |
+| `current_round` on Niche (not separate Round model) | Simple counter. Round data derived from `round` field on Idea/Design/Listing. No need for heavyweight Round entity |
+| dnd-kit for drag & drop | Already in frontend dependencies. Proven for Kanban boards. SortableContext per column |
+| Full-screen MUI Dialog (not page route) | Card detail as overlay — user doesn't lose board context. URL updates via query param `?card=nicheId` for deep-linking |
+| Optimistic drag + revert on failure | Instant UI feedback. PATCH failure → card snaps back + error snackbar |
+| NotificationBell as global component | Lives in TopBar, available on all pages (not just Kanban) |
+| Cloud sync as async django-rq job | Don't block approval. Sync failure → log + notify, approval still succeeds |
+| Soft-delete Trash with 30-day expiry | Allows undo. Cronjob cleans up automatically. No manual admin intervention |
+| @Mention via JSONField (not M2M) | Simple list of user IDs. Notification created on comment save. No complex query needs |
+| No real-time WebSocket for board | Manual refresh for MVP. Real-time via Supabase Realtime deferred to Future Enhancements |
+
+---
+
+### D) Infrastructure Changes
+
+| Change | Where |
+|--------|-------|
+| `kanban_app` registered | `INSTALLED_APPS` + `core/urls.py` |
+| `current_round` migration | `niche_app/migrations/` |
+| `round` field migrations | `idea_app/`, `publish_app/` migrations |
+| Cronjob: trash cleanup (daily) | rq-scheduler or django management command via cron |
+| `NotificationBell` in TopBar | `frontend-ui/src/components/NotificationBell/` |
+
+---
+
+### E) New Packages
+
+No new packages — `dnd-kit`, `@mui/material`, `@mui/icons-material` already installed.
+
+---
+
+## Verification Steps
+
+1. Board shows 5 columns with niches distributed by status group
+2. Drag card from Research → Design → PATCH status updates, card moves. Network error → card reverts
+3. Card shows: thumbnail, niche name, assignee avatar, status chip, round badge "R2", counts
+4. Click card → full-screen Modal opens with Design-Carousel, comments, lifecycle
+5. Upload 3 designs via drag & drop in modal → all appear in carousel, linked to current round
+6. Approve design → previous approved auto-rejected. Approved design syncs to configured Drive folder
+7. Reject design → feedback text saved as design-level comment, design moves to Trash
+8. Restore design from Trash within 30 days → design appears back in carousel
+9. "New Round" on winner card → status resets to `to_designer`, `current_round` incremented
+10. Round summaries on card: "R1: 10💡 4🎨 1🏆. R2: in progress..."
+11. Card-level comment: type message + @Lisa → comment saved, Lisa gets notification
+12. Design-level comment: select design in carousel, type feedback → comment linked to specific design
+13. Notification Bell: shows unread count. Click → notification list. Click notification → opens card modal
+14. Mark all read → badge resets to 0
+15. Agent moves card → mini-event "🤖 Chief moved to Design" visible on board
+16. Agent comment on card → visible in thread with agent avatar
+17. Filter by assignee → only assigned niches shown
+18. Archived toggle → archived niches show/hide
+19. Cronjob: trashed designs expired >30 days → auto-deleted
+20. 200+ niches → warning "Showing first 200 niches"
+21. Workspace isolation: cards/designs/comments from other workspaces → 403
+
+---
+
 ## Future Enhancements
 
 - Browser Push Notifications + Email Digests

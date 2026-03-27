@@ -1,10 +1,13 @@
 # AI Coding Kit
 
 ## Workflow Rules
-- After each skill (/requirements, /architecture, /frontend-design), 
-  STOP and wait for explicit approval before proceeding.
-- Never start implementation unless I explicitly say "implement" or "start coding".
+- Run autonomously through the skill pipeline. Only ask the user when:
+  - **Scope ambiguity** — spec has contradictions or missing info that can't be inferred
+  - **Architecture trade-offs** — multiple valid approaches, need user preference (present as A/B/C)
+  - **Breaking changes** — modifying deployed features, changing model schemas with data
+  - **Cost decisions** — choosing paid APIs, adding new services
 - Task files always go to docs/tasks/PROJ-[N]-tasks.md before any code is written.
+- When done with a skill step, briefly summarize what was done and move to the next step.
 
 > In all interactions and commit messages, be extremely concise. Sacrifice grammar for concision.
 > A React Typescript Vite and Django DRF template with an AI-powered development workflow using specialized skills for Requirements, Architecture, Frontend, Backend, QA, and Deployment.
@@ -130,16 +133,32 @@ django-rq processes async tasks (n8n triggers, design generation). Redis serves 
 - **Env vars:** Copy `django-app/.env.template` → `django-app/.env` before running Docker
 - **Human-in-the-loop:** All workflows have user approval checkpoints
 
-## Development Workflow (Skills)
+## Development Workflow (Skills) — MANDATORY
 
-1. `/requirements` — Create feature spec from idea
-2. `/architecture` — Design tech architecture (PM-friendly, no code)
-3. `/frontend` — Build UI components with MUI v7
-4. `/backend` — Django API + database, RLS policies
-5. `/qa` — Test against acceptance criteria + security audit
-6. `/deploy` — production-ready checks
+**ALWAYS invoke skills via the `Skill` tool. NEVER manually replicate a skill's workflow.**
+Skills have checklists and formatting rules that manual work does not guarantee.
 
-Feature tracking: `features/INDEX.md`. Specs: `features/PROJ-X-name.md`.
+### Workflow per Feature (in order)
+
+| Step | Skill | When | Output |
+|------|-------|------|--------|
+| 1. Write/review spec | `/requirements` | New feature idea, spec review, fix ACs | `features/PROJ-X-name.md` |
+| 2. Tech Design + Tasks | `/architecture` | After approved spec | Tech Design in spec + `docs/tasks/PROJ-X-tasks.md` |
+| 3. UI Design (optional) | `/frontend-design` | When layout/design decisions needed | Design decisions |
+| 4. Build frontend | `/frontend` | After approved architecture | Code in `frontend-ui/src/` |
+| 5. Build backend | `/backend` | After frontend or in parallel | Code in `django-app/` |
+| 6. QA + Security Audit | `/qa` | After implementation complete | QA Report in spec, bugs fixed |
+| 7. Deploy | `/deploy` | After QA passed | Production-ready checks |
+
+### Rules
+- **Two skills minimum per feature:** `/requirements` → `/architecture`
+- **Spec review = `/requirements`**, task files = `/architecture`
+- **"Next PROJ-X"** = first `/requirements` (spec ok?), then `/architecture` (tasks)
+- **Run autonomously** — move through skills without asking unless critical (see Workflow Rules above)
+- **Never code without tasks** — task file must exist before implementation begins
+- **Brief summary after each step** — state what was done, then continue to next skill
+
+Feature tracking: `features/INDEX.md`. Specs: `features/PROJ-X-name.md`. Tasks: `docs/tasks/PROJ-X-tasks.md`.
 
 ## Product Context
 

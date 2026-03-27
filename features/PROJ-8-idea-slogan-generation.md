@@ -10,7 +10,7 @@
 Two-phase workflow for generating adapted slogans via **LangGraph** (migrated from n8n):
 
 **Phase 1 — Source slogan creation (two modes):**
-- *Manual*: User types slogan text + MUST select a source niche. Both fields required; neither alone is valid.
+- *Manual*: User types slogan text (required) + optionally selects a source niche. Niche is optional on creation but required before adaptation can be triggered.
 - *From product research* (PROJ-7 soft-dep): User searches a niche in product research → sees Amazon products → clicks "Save as source slogan" → LLM extracts slogan text from product listing image → source niche auto-set from the search query.
 
 **Phase 2 — Adaptation:** User selects a source slogan (which already carries a niche) → picks 1+ target niches → triggers LangGraph adaptation workflow → evaluates each target niche for compatibility → generates exactly 10 adapted slogans per approved niche (5 SELF-Signal + 5 OTHER-Signal).
@@ -70,82 +70,56 @@ Both graphs: PostgreSQL Checkpointer for resume/fault tolerance, DB-configurable
 
 ### Models
 
-1. **`IdeaAdaptationRun`** model: UUID pk, `source_idea` FK (`Idea`), `target_niche_ids` (JSONField, list of niche UUIDs), `niche_results` (JSONField — per-niche approved/rejected + reason, populated by n8n), status choices [pending, running, completed, failed], triggered_by FK (User), created_at, completed_at (nullable), error_message (TextField, blank=True).
-
-2. **`Idea`** model (full field list):
-   - UUID pk
-   - `niche` FK (nullable — optional on creation, required before adaptation. System suggests niche via Vector DB similarity when data available.)
-   - `adaptation_run` FK (`IdeaAdaptationRun`, nullable — null for manual/source ideas)
-   - `source_idea` FK (self, nullable — links adapted ideas to their source)
-   - `source_product_url` (URLField, blank=True — set when imported via PROJ-7 flow)
-   - `slogan_text` (TextField)
-   - `is_manual` (BooleanField, default=False)
-   - `signal_type` choices [self, other] (nullable for manual ideas)
-   - `creative_modules_used` (JSONField, default=list)
-   - `emotional_archetype` (CharField, max 100, blank=True)
-   - `buyer_voice_pattern` (TextField, blank=True)
-   - `stylistic_device` (CharField, max 100, blank=True)
-   - `pattern_used` (CharField, max 200, blank=True)
-   - `why_it_works` (TextField, blank=True)
-   - `market_confidence` choices [High, Medium, Low], nullable
-   - `status` choices [pending, approved, rejected, for_review]
-   - `created_at`
-
-3. Validation: `slogan_text` + `niche` are BOTH required before an adaptation run can be triggered. Saving a manual idea without `niche` returns 400.
+- [ ] AC-1: `IdeaAdaptationRun` model: UUID pk, `source_idea` FK (`Idea`), `target_niche_ids` (JSONField, list of niche UUIDs), `niche_results` (JSONField — per-niche approved/rejected + reason), status choices [pending, running, completed, failed], triggered_by FK (User), created_at, completed_at (nullable), error_message (TextField, blank=True).
+- [ ] AC-2: `Idea` model: UUID pk, `niche` FK (nullable — optional on creation, required before adaptation), `adaptation_run` FK (nullable), `source_idea` FK (self, nullable), `source_product_url` URLField, `slogan_text` TextField, `is_manual` BooleanField, `signal_type` choices [self, other] (nullable), `creative_modules_used` JSONField, `emotional_archetype` CharField(100), `buyer_voice_pattern` TextField, `stylistic_device` CharField(100), `pattern_used` CharField(200), `why_it_works` TextField, `market_confidence` choices [High, Medium, Low] (nullable), `status` choices [pending, approved, rejected, for_review], `was_changed` BooleanField, `change_reason` TextField, `created_by` FK, `created_at`.
+- [ ] AC-3: Validation: `slogan_text` required on creation. `niche` optional on creation but required before adaptation (`POST /api/ideas/{id}/adapt/` returns 400 "Source idea must have a niche").
 
 ### API
 
-4. `POST /api/ideas/{id}/adapt/` — body: `{"target_niche_ids": ["uuid1", "uuid2"]}`. Validates source idea has a niche. Creates `IdeaAdaptationRun` (status=pending) → enqueues django-rq task → task POSTs to n8n webhook. Returns run record.
+- [ ] AC-4: `POST /api/ideas/{id}/adapt/` — body: `{"target_niche_ids": ["uuid1", "uuid2"]}`. Validates source idea has a niche. Creates `IdeaAdaptationRun` (status=pending) → enqueues django-rq task → runs LangGraph workflow. Returns run record. 409 if run already pending/running.
+- [ ] AC-5: `GET /api/ideas/adaptation-runs/{run_id}/` — returns `IdeaAdaptationRun` with `niche_results` (per-niche status + reason) and `status`. Used for polling.
+- [ ] AC-6: `GET /api/niches/{id}/ideas/` — returns all ideas for a niche (source + adapted), ordered by created_at desc.
+- [ ] AC-7: `POST /api/niches/{id}/ideas/` — manual idea creation (is_manual=True, niche auto-set from URL param). Returns 400 if `slogan_text` is missing.
+- [ ] AC-8: `PATCH /api/ideas/{id}/` — update status (approved/rejected/for_review) or any field.
+- [ ] AC-9: `DELETE /api/ideas/{id}/` — hard delete; workspace member or admin only.
 
-5. `GET /api/ideas/adaptation-runs/{run_id}/` — returns `IdeaAdaptationRun` with `niche_results` (per-niche status + reason) and `status`. Used for polling.
+### LangGraph Trigger
 
-6. `GET /api/niches/{id}/ideas/` — returns all ideas for a niche (source + adapted), ordered by created_at desc.
-
-7. `POST /api/niches/{id}/ideas/` — manual idea creation (is_manual=True, niche auto-set from URL param). Returns 400 if `slogan_text` is missing.
-
-8. `PATCH /api/ideas/{id}/` — update status (approved/rejected/for_review) or any field.
-
-9. `DELETE /api/ideas/{id}/` — hard delete; workspace member or admin only.
-
-### n8n Trigger
-
-10. Django → n8n: django-rq task POSTs to `N8N_SLOGAN_ADAPTATION_WEBHOOK_URL` with:
-    ```json
-    {
-      "run_id": "uuid",
-      "original_niche": "niche_name",
-      "original_slogan": "slogan_text",
-      "original_niche_profile": { "...NicheAnalysis fields..." },
-      "target_niches": [
-        { "name": "niche_name", "profile": { "...NicheAnalysis fields..." } }
-      ]
-    }
-    ```
-    `profile` is `null` when target niche has no `NicheAnalysis` — n8n runs in degraded mode (name only).
-
-11. n8n (after migration) → Supabase PG:
-    - INSERT into `Idea` table: one row per approved slogan, with niche FK + `source_idea` FK + all schema fields.
-    - UPDATE `IdeaAdaptationRun`: status=completed, `niche_results` JSON, `completed_at`.
+- [ ] AC-10: django-rq task runs **Graph 1 (Niche Discovery & Validation)** via `asyncio.run(graph.ainvoke(...))` with `source_slogan`, `source_niche_profile` (from `NicheAnalysis`), `target_niches` (list of niche name + profile pairs). `profile` is `null` when target niche has no `NicheAnalysis` — LLM runs in degraded mode (name only).
+- [ ] AC-11: For each APPROVED niche from Graph 1, django-rq task runs **Graph 2 (Slogan Adaptation)**. INSERT into `Idea` table: one row per generated slogan, with niche FK + `source_idea` FK + all schema fields. UPDATE `IdeaAdaptationRun`: status=completed, `niche_results` JSON, `completed_at`.
 
 ### Frontend
 
-12. Idea card shows "Adapt" button → opens "Select Target Niches" modal (multi-select from workspace niche list).
-13. After confirm: MUI LinearProgress shown; per-niche status chips update (pending → approved/rejected) as poll results arrive.
-14. On run completion: approved niches expand to show 10 slogans; rejected niches show reason inline.
-15. Manual idea form: slogan_text (required) + niche select (required). Submit disabled unless both filled.
-16. Idea list groups source ideas separately from adapted ideas. `signal_type` badge shown on each adapted idea.
-17. When a selected target niche has no `NicheAnalysis` data, show a yellow warning chip next to its name: "No research — degraded quality." User can still proceed.
+- [ ] AC-12: Idea card shows "Adapt" button → opens "Select Target Niches" modal (multi-select from workspace niche list).
+- [ ] AC-13: After confirm: MUI LinearProgress shown; per-niche status chips update (pending → approved/rejected) as poll results arrive.
+- [ ] AC-14: On run completion: approved niches expand to show 10 slogans; rejected niches show reason inline.
+- [ ] AC-15: Manual idea form: slogan_text (required) + niche select (optional). Niche required before adaptation, not on creation.
+- [ ] AC-16: Idea list groups source ideas separately from adapted ideas. `signal_type` badge shown on each adapted idea.
+- [ ] AC-17: When a selected target niche has no `NicheAnalysis` data, show a yellow warning chip next to its name: "No research — degraded quality." User can still proceed.
+
+### Improve, Suggest & Bulk
+
+- [ ] AC-18: `POST /api/ideas/{id}/improve/` — body: `{"feedback": "optional text"}`. Single LLM call returns 3 improved variants as new Idea records (`source_idea` = original, `status=for_review`). "Improve" is the same action in edit mode, after rejection, and from chat.
+- [ ] AC-19: `POST /api/ideas/{id}/regenerate/` — generates 1 new slogan in same context (niche, signal_type, pattern). Updates the existing rejected Idea record in-place.
+- [ ] AC-20: `GET /api/ideas/{id}/suggest-niches/` — returns ranked list of compatible target niches. Combined Score = Pattern-Match (NicheAnalysis) + Vector DB Similarity (PROJ-15, graceful degradation without). Already-adapted niches marked `already_adapted=true` (greyed in UI). "Auto-Select" button picks top 5.
+- [ ] AC-21: `POST /api/ideas/bulk-status/` — body: `{"ids": [...], "status": "approved"|"rejected"}`. Workspace-scoped. Returns count of affected ideas. Rejecting an idea with an approved design shows warning + requires confirmation (frontend).
+- [ ] AC-22: `POST /api/ideas/extract-slogan/` — body: `{"product_image_url": "...", "product_title": "...", "product_brand": "..."}`. Vision LLM extracts slogan text from product image. Returns `{"slogan_text": "..."}`. Called from PROJ-7 Product Card UI.
 
 ## API Endpoints
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/api/ideas/{id}/adapt/` | Member | Trigger adaptation run |
-| GET | `/api/ideas/adaptation-runs/{run_id}/` | Member | Poll run status |
-| GET | `/api/niches/{id}/ideas/` | Member | List all ideas for niche |
-| POST | `/api/niches/{id}/ideas/` | Member | Create manual source idea |
-| PATCH | `/api/ideas/{id}/` | Member | Update idea |
-| DELETE | `/api/ideas/{id}/` | Member/Admin | Delete idea |
+| GET | `/api/niches/{id}/ideas/` | Member | List all ideas for niche (source + adapted) |
+| POST | `/api/niches/{id}/ideas/` | Member | Create manual/collected idea |
+| PATCH | `/api/ideas/{id}/` | Member | Update idea (status, fields) |
+| DELETE | `/api/ideas/{id}/` | Member/Admin | Hard delete |
+| POST | `/api/ideas/{id}/adapt/` | Member | Trigger adaptation run (body: target_niche_ids) |
+| GET | `/api/ideas/adaptation-runs/{run_id}/` | Member | Poll run status + niche_results |
+| POST | `/api/ideas/{id}/improve/` | Member | Improve slogan (body: feedback) → 3 variants |
+| POST | `/api/ideas/{id}/regenerate/` | Member | Generate new slogan replacing rejected one |
+| POST | `/api/ideas/extract-slogan/` | Member | Extract slogan from product image (Vision LLM) |
+| GET | `/api/ideas/{id}/suggest-niches/` | Member | Suggest compatible target niches (ranked) |
+| POST | `/api/ideas/bulk-status/` | Member | Bulk approve/reject |
 
 ## LangGraph Architecture
 
@@ -299,13 +273,177 @@ OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 ## Infrastructure
 
 - New django-rq queue: `slogan` with 30-minute timeout
-- New Docker service: `worker-slogan` processing the `slogan` queue (or shared with `worker-research`)
+- New Docker service: `worker-slogan` processing the `slogan` queue (dedicated, not shared with `worker-research`)
 - PostgreSQL Checkpointer shared with PROJ-6
 
 Document both in `django-app/env/.env.template`.
 
-## Unresolved Questions
+## Resolved Questions
 
-1. n8n webhook URL confirmed? (Webhook ID `971d276d-6fba-4f3d-b3f1-abe1725b675c` found in workflow file — need full URL with hostname.)
-2. "Import from product research" — defer entirely to PROJ-7, or include as acceptance criterion in PROJ-8?
-3. Should adapted slogans with `signal_type=OTHER` be hidden from design board by default? (OTHER targets buyers, not wearers — may not suit t-shirt designs.)
+1. ~~n8n webhook URL?~~ → **Full LangGraph migration**, no n8n. AC 10-11 updated.
+2. ~~Import from product research?~~ → **PROJ-8 builds "Extract Slogan" backend** (`POST /api/ideas/extract-slogan/`). PROJ-7 adds UI button that calls this endpoint.
+3. ~~OTHER signal hidden from design board?~~ → Open for PROJ-9 to decide. No filtering in PROJ-8.
+
+---
+
+## Tech Design (Solution Architect)
+
+> Decided: 2026-03-27 | Approved by user.
+
+### A) Backend Architecture
+
+**New Django app:** `idea_app`
+
+```
+idea_app/
+├── models.py                           # SloganNodeConfig, Idea, IdeaAdaptationRun
+├── api/
+│   ├── views.py                        # CRUD + adapt + improve + extract + suggest
+│   ├── serializers.py                  # All serializers
+│   └── urls.py                         # URL routing
+├── graph/
+│   ├── state.py                        # DiscoveryState, AdaptationState TypedDicts
+│   ├── schemas.py                      # Pydantic: OriginalAnalysis, NicheEvaluation,
+│   │                                   #   AdaptedSlogan, QualityResult
+│   ├── prompts.py                      # Default prompts (ported from n8n)
+│   ├── llm.py                          # get_llm(node_name) — reads SloganNodeConfig
+│   ├── nodes/
+│   │   ├── analyze_original.py         # Deconstruct source slogan
+│   │   ├── discover_niches.py          # Evaluate target niche compatibility (≥75)
+│   │   ├── validate_products.py        # Quality gate on reference products
+│   │   ├── adapt_slogans.py            # Agent + Think Tool, 10 slogans per niche
+│   │   └── quality_check.py            # Post-validation + auto-correction
+│   ├── discovery_graph.py              # Graph 1: analyze → discover → validate
+│   └── adaptation_graph.py             # Graph 2: adapt → quality_check (per niche)
+├── tasks.py                            # django-rq jobs (queue: slogan)
+├── admin.py
+└── tests/
+    ├── test_models.py
+    ├── test_api.py
+    └── test_graphs.py
+```
+
+**Registered in:** `core/settings.py` INSTALLED_APPS, `core/urls.py`
+
+---
+
+### B) Frontend Architecture
+
+**Route:** `/niches/{id}/ideas` — niche-scoped idea list. Also accessible via NicheDetailDrawer "Ideas" tab
+
+```
+views/ideas/
+├── IdeaListView.tsx                    # Main ideas page (per niche context)
+├── hooks/
+│   ├── useAdaptation.ts                # Trigger + poll adaptation runs
+│   ├── useIdeaActions.ts               # Approve/reject/improve/regenerate
+│   └── useNicheSuggestions.ts          # Fetch compatible target niches
+├── partials/
+│   ├── ManualIdeaForm.tsx              # Create: slogan_text + niche (batch input)
+│   ├── IdeaCard.tsx                    # Single idea with actions
+│   ├── IdeaSourceGroup.tsx             # Source + adapted children grouped
+│   ├── SignalTypeBadge.tsx             # SELF / OTHER badge
+│   ├── MarketConfidenceBadge.tsx       # High / Medium / Low
+│   ├── AdaptationModal.tsx             # Target niche multi-select + Auto-Select
+│   ├── NicheSuggestionList.tsx         # Ranked compatible niches with scores
+│   ├── AdaptationProgress.tsx          # Per-niche status during run
+│   ├── ImproveDialog.tsx               # Improve with feedback → 3 variants
+│   ├── SloganHistory.tsx               # Version chain (Original → v2 → v3)
+│   └── EmptyState.tsx
+├── types/
+│   └── index.ts
+├── schemas/
+│   └── ideaSchema.ts                   # Zod: slogan_text required
+└── tests/
+
+store/
+├── ideaSlice.ts                        # RTK Query: CRUD + adapt + improve + extract
+└── collectedItemsSlice.ts              # UPDATE: dispatch createIdea mutation on collect
+```
+
+---
+
+### C) LangGraph Flow
+
+```
+User triggers adaptation (source slogan + target niches)
+  │
+  ├── Graph 1: Niche Discovery & Validation (reusable by PROJ-18)
+  │     ├── analyze_original        → extract pattern, formula, signal type
+  │     ├── discover_niches         → score each target (≥75 = APPROVED)
+  │     └── validate_products       → quality gate on reference products
+  │
+  └── For each APPROVED niche:
+        └── Graph 2: Slogan Adaptation
+              ├── adapt_slogans     → Agent + Think Tool → 10 slogans (5 SELF + 5 OTHER)
+              └── quality_check     → validate + auto-correct → INSERT Idea records
+```
+
+Both graphs: `AsyncPostgresSaver` (shared with PROJ-6), `RetryPolicy(max_attempts=3)` on LLM nodes, `Semaphore(5)` for parallel niche adaptation.
+
+---
+
+### D) Collected Items → Backend Persistence
+
+Current state (PROJ-6): User clicks "Collect" → Redux only (lost on refresh).
+
+New flow (PROJ-8):
+1. User clicks "Collect" on slogan in PROJ-6 research view
+2. Redux `collectedItemsSlice` dispatches `createIdea` RTK mutation (`POST /api/niches/{id}/ideas/`)
+3. Idea record created in DB (`is_manual=True`, `status=pending`)
+4. Drawer "Collected" section reads from API (RTK Query cache), not Redux-only
+5. Keywords stay Redux-only (persist to Keyword Bank in PROJ-10)
+
+---
+
+### E) Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| Dedicated `worker-slogan` (queue: `slogan`, 30min) | Research + Slogan parallel, kein Blocking |
+| 2 separate LangGraph Graphs | Graph 1 wiederverwendbar für PROJ-18 Agent. Graph 2 läuft N-mal pro approved Niche |
+| Same pattern wie PROJ-6 (`graph/`, `SloganNodeConfig`, `progress.py`) | Konsistenz, bewährtes Resume/Skip, Admin-editable Prompts |
+| Think Tool als LangGraph Tool | Strukturiertes Reasoning vor Output — Signal, Element Count, Insider Terms validiert |
+| `Idea.niche` nullable | Flexibilität: Collected/Imported Ideas ohne Niche erstellen, zuordnen vor Adaptation |
+| Collected Items → Redux + sofort API dispatch | Sofortiges UI Feedback + persistent in DB. Kein Datenverlust bei Refresh |
+| Extract Slogan in `idea_app` | Logisch Ideas-Scope. PROJ-7 UI ruft `POST /api/ideas/extract-slogan/` auf |
+| Improve = einfacher LLM Call (kein Graph) | Synchron, kein State-Management nötig — Slogan + Feedback rein, 3 Varianten raus |
+
+---
+
+### F) Infrastructure Changes
+
+| Change | Where |
+|--------|-------|
+| New RQ queue `slogan` (30min timeout) | `settings.py → RQ_QUEUES` |
+| New Docker service `worker-slogan` | `docker-compose.yml` + `docker-compose.override.yml` |
+| `idea_app` registered | `INSTALLED_APPS` + `core/urls.py` |
+
+---
+
+### G) Dependencies
+
+No new packages — `langchain-core`, `langchain-openai`, `langgraph`, `langgraph-checkpoint-postgres` already installed (PROJ-6).
+
+---
+
+## Verification Steps
+
+1. Create manual idea (no niche) → Idea saved, niche=null, status=pending
+2. Create manual idea (with niche) → Idea saved, niche FK set
+3. Batch create (3 slogans, newline-separated) → 3 Idea records created
+4. `POST /api/ideas/{id}/adapt/` without niche → 400 "Source idea must have a niche"
+5. `POST /api/ideas/{id}/adapt/` with niche + 3 targets → IdeaAdaptationRun created, status=pending, job enqueued
+6. Poll adaptation run → status transitions: pending → running → completed. `niche_results` shows per-niche approved/rejected + score
+7. Approved niche: 10 new Idea records (5 SELF + 5 OTHER), each linked via `source_idea` + `adaptation_run`
+8. Rejected niche: reason in `niche_results`, 0 ideas created
+9. All niches rejected: run completes with status=completed, 0 total ideas
+10. `POST /api/ideas/{id}/improve/` → 3 new Idea records (status=for_review, source_idea=original)
+11. `POST /api/ideas/{id}/regenerate/` → existing rejected Idea updated in-place with new slogan
+12. `POST /api/ideas/extract-slogan/` with product image → returns `{slogan_text: "..."}`
+13. `GET /api/ideas/{id}/suggest-niches/` → ranked list, already-adapted marked
+14. `POST /api/ideas/bulk-status/` with 5 IDs → 200 with `{updated: 5}`
+15. Collect slogan in PROJ-6 research view → Idea record created in DB, visible in drawer
+16. Target niche without NicheAnalysis → warning chip shown, adaptation runs in degraded mode
+17. Worker crash mid-adaptation → retry resumes from last completed node (checkpointer)
+18. Workspace isolation: ideas from other workspaces → 403

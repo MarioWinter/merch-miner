@@ -164,6 +164,152 @@ Desktop Upload App (Electron)
 | Auto-Update | `electron-updater` |
 | Build | `electron-builder` (Windows + Mac installers) |
 
+## Verification Steps
+
+1. Install Desktop App on Mac/Windows → launches, tray icon visible
+2. Configure server URL + workspace token → connection status shows "Connected"
+3. Enter MBA credentials → stored encrypted, test login succeeds
+4. Queue upload job from PROJ-11 web app → job appears in Desktop App queue via WebSocket
+5. Start queue → Playwright opens Chromium, navigates to MBA, logs in with cached session
+6. Form filling: typing is character-by-character (50-150ms), mouse moves in curves, Tab between fields
+7. Design file uploaded → form submitted → ASIN captured → reported back to server
+8. Upload delay: 30-120s randomized between consecutive uploads
+9. CAPTCHA appears → queue pauses, browser window focused, notification shown. Solve manually → queue continues
+10. Upload fails → screenshot saved → error reported to server → auto-retry once after 60s
+11. Retry also fails → job marked failed, next job starts
+12. Schedule "Start at 2:00 AM" → app waits, starts at scheduled time
+13. WebSocket disconnects → auto-reconnect with exponential backoff (1s, 2s, 4s, max 30s)
+14. Two apps from same workspace → second shows "Another upload app is already connected"
+15. Pre-upload validation: incomplete listing → job skipped with error log
+16. First-run legal warning: must check confirmation before any upload
+17. Pause/Stop → queue halts. Start → resumes from next pending job
+
+---
+
+## Tech Design (Solution Architect)
+
+> Decided: 2026-03-27 | Approved by user.
+
+### A) Project Structure
+
+**Location:** `desktop-app/` in monorepo (alongside `frontend-ui/` and `django-app/`)
+
+```
+desktop-app/
+├── package.json                        # Electron + Playwright + React deps
+├── electron-builder.yml                # Build config (Win + Mac installers)
+├── tsconfig.json
+├── src/
+│   ├── main/                           # Electron main process
+│   │   ├── index.ts                    # App entry, tray icon, window management
+│   │   ├── tray.ts                     # System tray icon + menu
+│   │   ├── auto-updater.ts            # electron-updater check + prompt
+│   │   └── ipc-handlers.ts            # IPC bridge (main ↔ renderer)
+│   │
+│   ├── services/                       # Core services (main process)
+│   │   ├── websocket-client.ts         # WebSocket connection + reconnect
+│   │   ├── queue-manager.ts            # Sequential job processing + scheduling
+│   │   ├── settings-store.ts           # Encrypted credential storage (safeStorage)
+│   │   ├── screenshot-manager.ts       # Failure screenshot capture + local storage
+│   │   └── playwright/
+│   │       ├── browser-manager.ts      # Chromium launch + session management
+│   │       ├── mba-login.ts            # MBA authentication + session cookie cache
+│   │       ├── human-filler.ts         # Streamed typing, Bezier mouse, Tab nav
+│   │       ├── form-filler.ts          # MBA form field mapping + filling
+│   │       ├── file-uploader.ts        # Design image upload via set_input_files
+│   │       ├── asin-capturer.ts        # Post-submit ASIN extraction
+│   │       ├── captcha-detector.ts     # CAPTCHA detection + pause + poll
+│   │       └── selectors.ts            # MBA form selectors (updatable per marketplace)
+│   │
+│   ├── renderer/                       # Electron renderer (React UI)
+│   │   ├── App.tsx                     # Main app shell
+│   │   ├── pages/
+│   │   │   ├── QueuePage.tsx           # Job queue overview + controls
+│   │   │   ├── SettingsPage.tsx        # Server URL, credentials, delays
+│   │   │   └── LogPage.tsx             # Error log + screenshots
+│   │   ├── components/
+│   │   │   ├── ConnectionStatus.tsx    # Connected/disconnected indicator
+│   │   │   ├── JobCard.tsx             # Single job: thumbnail, status, ASIN, error
+│   │   │   ├── QueueControls.tsx       # Start/Pause/Stop + Schedule picker
+│   │   │   ├── ProgressBar.tsx         # Current upload step progress
+│   │   │   ├── LegalWarning.tsx        # First-run dialog with checkbox
+│   │   │   └── ValidationErrors.tsx    # Pre-upload validation results
+│   │   └── hooks/
+│   │       ├── useQueue.ts             # Queue state via IPC
+│   │       ├── useConnection.ts        # WebSocket status via IPC
+│   │       └── useSettings.ts          # Settings read/write via IPC
+│   │
+│   └── shared/
+│       └── types.ts                    # Shared types (job, status, settings)
+│
+├── resources/                          # App icons, tray icons
+└── build/                              # electron-builder output
+```
+
+---
+
+### B) Communication Flow
+
+```
+PROJ-11 Web App                     Desktop Upload App
+     │                                     │
+     │  WebSocket (ws://server/ws/upload-app/)
+     │  ──── new job payload ──────────▶   │
+     │                                     ├── Queue Manager receives job
+     │                                     ├── Validates listing_snapshot
+     │                                     ├── Downloads design file
+     │                                     ├── Playwright: login → fill → upload → capture ASIN
+     │  ◀── status: "uploading" ─────────  │
+     │  ◀── status: "completed" + ASIN ──  │
+     │  ◀── status: "failed" + error ────  │
+     │                                     │
+     │  If CAPTCHA:                        │
+     │  ◀── status: "captcha_detected" ──  │
+     │       ... user solves manually ...   │
+     │  ◀── status: "uploading" ─────────  │
+```
+
+---
+
+### C) Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| Standalone Electron app (not browser extension) | Playwright needs full browser control. Extensions can't automate form filling reliably. Electron = full Chromium + Node.js access |
+| `desktop-app/` in monorepo | Shared TypeScript types with frontend. Simpler CI/CD. Single repo for team |
+| Playwright (not Puppeteer/Selenium) | Best API for human-like input (keyboard.type with delay, mouse.move). Built-in CAPTCHA-friendly patterns. Cross-browser |
+| Human-like filling (streamed typing, Bezier mouse) | Amazon detection avoidance. Instant fill() is easily detectable. Character-by-character + mouse curves mimics real user |
+| Sequential uploads (not parallel) | Parallel = higher detection risk. Sequential + randomized delay = safer pattern |
+| `safeStorage` for credentials | OS-level encryption (Keychain on Mac, DPAPI on Windows). Industry standard for Electron credential storage |
+| WebSocket client (not HTTP polling) | Real-time job delivery + status reporting. PROJ-11 already has the WebSocket server |
+| Selectors in separate file (`selectors.ts`) | MBA form layout can change. Centralized selectors = single file update on Amazon redesign |
+| Session cookie reuse | Avoids re-login per upload. Cookie cached in Playwright BrowserContext. Auto-detect expiry |
+
+---
+
+### D) New Packages (desktop-app)
+
+| Package | Purpose |
+|---------|---------|
+| `electron` | Desktop app shell |
+| `electron-builder` | Build Windows + Mac installers |
+| `electron-updater` | Auto-update check + prompt |
+| `playwright` | Browser automation (Chromium) |
+| `ws` | WebSocket client |
+| `react` + `react-dom` | Renderer UI |
+| `typescript` | Type safety |
+
+---
+
+### E) Infrastructure
+
+| Change | Where |
+|--------|-------|
+| `desktop-app/` directory | Monorepo root |
+| No Docker needed | Runs on user's machine, not server |
+| No Django changes | Uses PROJ-11 WebSocket endpoint (already built) |
+| GitHub Releases | Electron-builder publishes installers. Auto-updater checks releases |
+
 ## Future Enhancements
 
 - Spreadshirt marketplace support (different form, same Playwright pattern)

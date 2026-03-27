@@ -199,3 +199,143 @@ GOOGLE_DRIVE_CLIENT_SECRET=
 ONEDRIVE_CLIENT_ID=           # OAuth2 for OneDrive import
 ONEDRIVE_CLIENT_SECRET=
 ```
+
+---
+
+## Verification Steps
+
+1. Select approved design → click "Generate Listing" → AI produces Brand, Title, 5 Bullets, Description, Keywords. All fields within char limits.
+2. Hover over Title → "Improve" icon → Chat opens with title as context.
+3. Character counter turns amber at 90%, red at 100%.
+4. Click "Translate to All" → DE/FR/IT/ES/JA tabs populated. Auto-translated fields flagged if over limit.
+5. Inject keywords from PROJ-10 Keyword Bank → chips shown in Keywords field. Design template keywords pre-selected.
+6. Run TM Check → flagged terms highlighted with warning.
+7. Configure product types (T-Shirt, Hoodie) + colors + marketplaces + prices → saved on template.
+8. Save configuration as UploadTemplate → load on different design → settings applied.
+9. Queue upload job → status shows "pending". Desktop App connected → status transitions to "uploading" → "completed" with ASIN.
+10. Desktop App not connected → UI shows "Desktop App not connected" message. Jobs stay pending.
+11. Batch create jobs for 5 designs → 5 jobs created, each trackable independently.
+12. Upload fails → status=failed, error screenshot saved, retry available.
+13. Import design from Google Drive → file appears in Design Gallery with thumbnail.
+14. `Ctrl+K` → Command Palette opens → search "copy listing" → apply to selected designs.
+15. Product Lifecycle: Niche → Slogan → Design → Listing → ASIN → shows full chain.
+16. "Copy for MBA" → formatted listing text in clipboard.
+17. Workspace isolation: listings/designs from other workspaces → 403.
+
+---
+
+## Tech Design (Solution Architect)
+
+> Decided: 2026-03-27 | Approved by user.
+
+### A) Backend Architecture
+
+**New Django app:** `publish_app`
+
+```
+publish_app/
+├── models.py                           # Listing, UploadTemplate, UploadJob,
+│                                       #   DesignAsset, ProductLifecycle
+├── api/
+│   ├── views.py                        # Listing CRUD + generate + translate + TM check,
+│   │                                   #   Gallery CRUD + import, Upload jobs, Templates, Lifecycle
+│   ├── serializers.py                  # All serializers
+│   └── urls.py                         # URL routing
+├── services/
+│   ├── listing_generator.py            # AI listing generation (OpenRouter)
+│   ├── translator.py                   # AI translation (OpenRouter)
+│   ├── tm_checker.py                   # Trademark check (BrandBlacklist reuse + expandable)
+│   ├── cloud_import.py                 # Google Drive + OneDrive file import
+│   └── lifecycle_tracker.py            # Product lifecycle chain builder
+├── consumers.py                        # WebSocket consumer for Desktop App communication
+├── routing.py                          # WebSocket URL routing
+├── tasks.py                            # django-rq jobs: generate, translate, TM check
+├── admin.py
+└── tests/
+```
+
+**Registered in:** `core/settings.py` INSTALLED_APPS, `core/urls.py`, WebSocket routing in `core/asgi.py`
+
+---
+
+### B) Frontend Architecture
+
+**Route:** `/publish` — single scrollable page with all sections
+
+```
+views/publish/
+├── PublishView.tsx                      # Main page assembly (scrollable)
+├── hooks/
+│   ├── useListingGeneration.ts         # AI generate + poll
+│   ├── useDesignGallery.ts             # Gallery CRUD + import + filter
+│   ├── useUploadJobs.ts                # Job CRUD + WebSocket status updates
+│   ├── useCommandPalette.ts            # Ctrl+K actions
+│   └── useLifecycle.ts                 # Product lifecycle chain
+├── partials/
+│   ├── DesignGallerySection.tsx         # Card grid with import, filter, sort, bulk select
+│   ├── DesignCard.tsx                   # Thumbnail + tags + lifecycle badge
+│   ├── ProductConfigSection.tsx         # Product types grid + fit + colors + marketplaces
+│   ├── ProductTypeGrid.tsx              # Visual product type selector with count badges
+│   ├── MarketplacePricing.tsx           # Marketplace toggles + price inputs + royalty display
+│   ├── ListingEditorSection.tsx         # All listing fields with char counters + Improve icons
+│   ├── ListingField.tsx                 # Reusable: TextField + char counter + Improve hover
+│   ├── KeywordChipsField.tsx            # Removable keyword chips + Add + KW Finder link
+│   ├── TranslationTabs.tsx             # Multi-language tabs + Auto-Translate toggle
+│   ├── TMCheckDialog.tsx                # Trademark check results
+│   ├── UploadQueueSection.tsx           # Upload jobs list with status
+│   ├── UploadJobRow.tsx                 # Single job: status chip + ASIN + retry + screenshot
+│   ├── UploadTemplateDropdown.tsx       # Save/load templates
+│   ├── CommandPalette.tsx               # Ctrl+K modal with searchable actions
+│   ├── ActionBar.tsx                    # Bottom bar on selection (bulk actions)
+│   ├── CloudImportDialog.tsx            # Google Drive + OneDrive picker
+│   ├── LifecycleChain.tsx              # Visual lifecycle: Niche → Slogan → Design → Listing → ASIN
+│   └── EmptyState.tsx
+├── types/
+│   └── index.ts
+├── schemas/
+│   └── listingSchema.ts                # Zod: all field max lengths
+└── tests/
+
+store/
+└── publishSlice.ts                     # RTK Query: listing, gallery, jobs, templates, lifecycle
+```
+
+---
+
+### C) Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| `publish_app` (merged listing + upload + lifecycle) | Single page = single app. Listing and Upload are tightly coupled — same models, same workflow |
+| Django Channels for WebSocket | Desktop App needs real-time bidirectional communication. Channels is the standard Django solution |
+| TM Check via BrandBlacklist (PROJ-6 reuse) | Start with existing trademark brand list. Expandable to external TM API later |
+| `listing_snapshot` JSONField on UploadJob | Denormalized copy of listing at queue time. If listing is edited after queueing, upload uses the snapshot |
+| `ProductLifecycle` as separate model | Cross-cutting entity spanning Niche → Idea → Design → Listing → Upload. Separate model avoids complex JOINs |
+| Single scrollable page (not wizard/stepper) | Flying Upload pattern — all sections visible, user scrolls. Faster than step-by-step for experienced users |
+| Command Palette (`Ctrl+K`) | Power-user pattern. Searchable actions for copy/apply operations across designs |
+| `DesignAsset` separate from PROJ-9 `Design` | Gallery manages files from any source (upload, cloud, PROJ-9). Different lifecycle than generation |
+
+---
+
+### D) Infrastructure Changes
+
+| Change | Where |
+|--------|-------|
+| `publish_app` registered | `INSTALLED_APPS` + `core/urls.py` |
+| Django Channels + channels-redis | `requirements.txt` |
+| ASGI config for WebSocket | `core/asgi.py` |
+| Redis channel layer | `settings.py → CHANNEL_LAYERS` |
+| OAuth2 env vars (Drive + OneDrive) | `.env.template` |
+
+---
+
+### E) New Packages
+
+**Backend:**
+
+| Package | Purpose |
+|---------|---------|
+| `channels` | Django WebSocket support (Desktop App communication) |
+| `channels-redis` | Redis channel layer for Channels |
+
+**Frontend:** No new packages.

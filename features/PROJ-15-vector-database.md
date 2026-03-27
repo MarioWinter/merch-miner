@@ -211,6 +211,99 @@ Document in `django-app/env/.env.template`.
 | 11 | Top-K / Threshold | Default 10/0.3, overridable per request | Good default, flexible when needed |
 | 12 | Re-Ranking | None initially, add later if needed | YAGNI — hybrid score is strong baseline |
 
+## Tech Design (Solution Architect)
+
+> Decided: 2026-03-27 | Approved by user.
+
+### A) Backend Architecture
+
+**New Django app:** `vector_app` (already outlined in spec — formalized here)
+
+```
+vector_app/
+├── models.py                           # Embedding (VectorField, SearchVectorField, GenericFK)
+├── services.py                         # EmbeddingService (create, search, delete, hybrid query)
+├── signals.py                          # post_save / post_delete on all embeddable models
+├── tasks.py                            # django-rq: create_or_update_embedding, delete_embedding
+├── chunking.py                         # WebSearchResult chunking (1500 tokens, 5% overlap)
+├── api/
+│   ├── views.py                        # SemanticSearch, NicheSimilar, IdeaSimilar, RelatedContent
+│   ├── serializers.py                  # SearchRequest, SearchResult
+│   └── urls.py
+├── management/
+│   └── commands/
+│       ├── backfill_embeddings.py      # Backfill missing embeddings (batch, filterable)
+│       └── embedding_stats.py          # Print per-content_type + workspace counts
+├── admin.py                            # Embedding admin (read-only, stats)
+└── tests/
+```
+
+### B) Frontend Architecture
+
+**No dedicated page** — PROJ-15 is a backend-only foundation layer. Consumers:
+- PROJ-17 Chat uses `POST /api/search/semantic/` for context retrieval
+- PROJ-18 Agent uses `EmbeddingService.search()` internally
+- PROJ-5/8 use convenience endpoints (`/similar/`, `/related-content/`) in existing UI
+
+### C) Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| `vector_app` separate from consuming apps | Foundation layer — all apps depend on it, it depends on none |
+| Central `Embedding` table with GenericFK | Cross-domain search in one query. No per-model embedding tables |
+| pgvector in existing Supabase PG | No new service. JOINs with relational data. Same host = fast |
+| HNSW index (not IVFFlat) | Better recall at similar speed. No periodic reindexing needed |
+| Hybrid search (0.7 vector + 0.3 full-text) | Exact matches (ASINs, brand names) + semantic results combined |
+| Async embedding via django-rq post_save | No request blocking. Source objects never delayed by embedding failures |
+| Idempotent upsert (unique content_type + object_id) | Multiple saves = last wins. No duplicate embeddings |
+| `text-embedding-3-small` (1536d) via OpenRouter | Cheap ($0.02/1M tokens), reliable, good quality. Upgradeable later |
+| Chunking only for WebSearchResult | DB fields are natural chunks. Only web content needs splitting |
+| No dedicated worker | Embedding jobs are fast (<1s). Default queue sufficient |
+
+### D) Infrastructure Changes
+
+| Change | Where |
+|--------|-------|
+| `vector_app` registered | `INSTALLED_APPS` + `core/urls.py` |
+| `pgvector` extension migration | `vector_app/migrations/0001_initial.py` |
+| `pg_trgm` extension migration | same migration |
+| `pgvector` Python package | `requirements.txt` |
+| 2 new env vars | `EMBEDDING_MODEL`, `EMBEDDING_DIMENSIONS` in `.env.template` |
+
+### E) New Packages
+
+**Backend:**
+
+| Package | Purpose |
+|---------|---------|
+| `pgvector` | Django VectorField + pgvector operations |
+| `tiktoken` | Token counting for WebSearchResult chunking |
+
+**Frontend:** None — backend-only feature.
+
+---
+
+## Verification Steps
+
+1. Save a Niche → embedding job enqueued → Embedding record created in DB with 1536-dim vector
+2. `POST /api/search/semantic/` with `{query: "camping humor"}` → returns ranked results across niches, ideas, products
+3. Same query with `content_types: ["idea"]` → only idea results returned
+4. `GET /api/niches/{id}/similar/` → top 10 similar niches by semantic similarity
+5. `GET /api/ideas/{id}/similar/` → top 10 similar slogans across niches
+6. `GET /api/niches/{id}/related-content/` → mixed results (ideas, products, keywords, research)
+7. Hybrid search: query "B0C1234567" (ASIN) → exact match via full-text + semantic results combined
+8. Update a Niche name → embedding auto-updated (idempotent overwrite)
+9. Delete a Niche → embedding auto-deleted
+10. OpenRouter down → embedding job retries 3x, source object not blocked
+11. `python manage.py backfill_embeddings --content-type=idea` → enqueues jobs for all Ideas without embeddings
+12. `python manage.py embedding_stats` → shows counts per content_type and workspace
+13. WebSearchResult with 5000 tokens → split into ~4 chunks, each stored as separate Embedding
+14. MMR strategy: `strategy=mmr` → results are diverse (not all from same niche)
+15. Workspace isolation: search only returns results from authenticated user's workspace
+16. Search with 0 embeddings → returns `{results: [], total: 0}` (no error)
+
+---
+
 ## Future Enhancements (not MVP)
 
 - LightRAG for unstructured Web Search knowledge graphs (evaluate with PROJ-17)
