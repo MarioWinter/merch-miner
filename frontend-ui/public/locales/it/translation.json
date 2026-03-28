@@ -495,5 +495,191 @@
       "noWorkspace": "Nessun workspace trovato",
       "activeWorkspace": "Workspace attivo"
     }
+  },
+  "ideas": {
+    "pageTitle": "Raffineria di slogan",
+    "newIdea": "Nuova idea",
+    "batchHint": "Inserisci slogan (uno per riga per inserimento in blocco)...",
+    "adapted": "adattato",
+    "delete": "Elimina",
+    "status": {
+      "pending": "In attesa",
+      "approved": "Approvato",
+      "rejected": "Rifiutato",
+      "for_review": "Da revisionare"
+    },
+    "signal": {
+      "self": "SELF",
+      "other": "OTHER"
+    },
+    "confidence": {
+      "high": "Alto",
+      "medium": "Medio",
+      "low": "Basso"
+    },
+    "adapt": {
+      "button": "Adatta",
+      "modalTitle": "Seleziona nicchie di destinazione",
+      "source": "Origine",
+      "selectTargets": "Nicchie di destinazione",
+      "autoSelect": "Selezione automatica Top 5",
+      "confirm": "Adatta",
+      "cancel": "Annulla",
+      "progress": "Progresso dell'adattamento",
+      "currentNode": "In esecuzione: {{node}}",
+      "noCompatible": "Nessuna nicchia compatibile trovata",
+      "started": "Adattamento avviato",
+      "completed": "Adattamento completato",
+      "failed": "Adattamento fallito",
+      "error": "Impossibile avviare l'adattamento",
+      "adaptAll": "Adatta a tutte le nicchie compatibili",
+      "runStatus": {
+        "pending": "In attesa",
+        "running": "In corso",
+        "completed": "Completato",
+        "failed": "Fallito"
+      }
+    },
+    "improve": {
+      "button": "Migliora",
+      "dialogTitle": "Migliora slogan",
+      "feedbackPlaceholder": "Feedback opzionale per l'IA...",
+      "variantsCount": "{{count}} varianti generate",
+      "selectVariant": "Seleziona",
+      "cancel": "Annulla",
+      "success": "Varianti migliorate generate",
+      "error": "Impossibile migliorare lo slogan"
+    },
+    "regenerate": {
+      "button": "Rigenera",
+      "confirm": "Generare un nuovo slogan?",
+      "success": "Slogan rigenerato",
+      "error": "Impossibile rigenerare lo slogan"
+    },
+    "extract": {
+      "button": "Estrai slogan",
+      "success": "Slogan estratto e salvato come idea",
+      "error": "Impossibile estrarre lo slogan",
+      "bulkLabel": "Estrai slogan ({{count}})"
+    },
+    "history": {
+      "title": "Cronologia",
+      "qualityChecked": "Modificato dal controllo qualita",
+      "actor": {
+        "user": "Utente",
+        "agent": "Agente",
+        "quality_check": "Controllo qualita"
+      }
+    },
+    "empty": {
+      "title": "Nessuna idea ancora",
+      "hint": "Crea la tua prima idea o avvia una ricerca per scoprire slogan.",
+      "cta": "Crea idea",
+      "selectNiche": "Seleziona una nicchia per vedere le idee"
+    },
+    "bulk": {
+      "selected": "{{count}} selezionato/i",
+      "selectIdea": "Seleziona idea",
+      "approve": "Approva",
+      "reject": "Rifiuta",
+      "clear": "Cancella selezione",
+      "updateSuccess": "{{count}} idee aggiornate",
+      "updateError": "Impossibile aggiornare le idee"
+    },
+    "niche": {
+      "noResearchWarning": "Alcune nicchie non hanno dati di ricerca — i risultati potrebbero essere di qualita inferiore.",
+      "alreadyAdapted": "Gia adattato"
+    },
+    "notifications": {
+      "createSuccess": "{{count}} idea/e creata/e",
+      "createError": "Impossibile creare l'idea",
+      "updateError": "Impossibile aggiornare l'idea",
+      "deleteSuccess": "Idea eliminata",
+      "deleteError": "Impossibile eliminare l'idea",
+      "loadError": "Impossibile caricare le idee"
+    }
+  },
+  "design": {
+    "board": {
+      "title": "Design Board",
+      "prompt": "Prompt",
+      "promptPlaceholder": "Descrivi il design che vuoi generare...",
+      "promptRequired": "Inserisci prima un prompt",
+      "generate": "Genera design",
+      "generating": "Generazione in corso...",
+      "generateError": "Impossibile generare il design",
+      "generationFailed": "Generazione del design fallita",
+      "retry": "Riprova",
+      "references": "Immagini di riferimento",
+      "noReferences": "Nessuna immagine di riferimento disponibile",
+      "usePrompt": "Usa prompt",
+      "useThisPrompt": "Usa questo prompt nell'editor",
+      "goBack": "Indietro",
+      "loadError": "Impossibile caricare il design board",
+      "analysisBreakdown": "Analisi in 7 passaggi",
+      "jumpButton": "Apri Design Board",
+      "analysisStep": {
+        "text_dna": "DNA del testo",
+        "visual": "Analisi visiva",
+        "spatial": "Layout spaziale",
+        "style": "Stile",
+        "color": "Palette colori",
+        "tech": "Tecnico",
+        "final_prompt": "Prompt finale"
+      }
+    },
+    "model": {
+      "label": "Modello IA",
+      "gemini_flash": "Gemini Flash",
+      "gemini_pro": "Gemini Pro",
+      "gpt_image": "GPT Image",
+      "flux": "Flux"
+    },
+    "background": {
+      "label": "Colore di sfondo",
+      "light_gray": "Grigio chiaro",
+      "neon_pink": "Rosa neon",
+      "neon_green": "Verde neon"
+    },
+    "status": {
+      "pending": "In attesa",
+      "approved": "Approvato",
+      "rejected": "Rifiutato",
+      "failed": "Fallito"
+    },
+    "gallery": {
+      "title": "Design generati",
+      "approve": "Approva",
+      "reject": "Rifiuta",
+      "download": "Scarica",
+      "delete": "Elimina",
+      "approved": "Design approvato",
+      "rejected": "Design rifiutato",
+      "deleted": "Design eliminato",
+      "approveError": "Impossibile approvare il design",
+      "rejectError": "Impossibile rifiutare il design",
+      "deleteError": "Impossibile eliminare il design",
+      "imageAlt": "Design generato",
+      "noImage": "Nessuna immagine"
+    },
+    "empty": {
+      "noDesigns": "Nessun design ancora",
+      "cta": "Genera il tuo primo design con l'editor di prompt"
+    },
+    "batch": {
+      "selectedCount": "{{count}} selezionato/i",
+      "processButton": "Scala + Rimuovi sfondo",
+      "started": "Elaborazione batch avviata",
+      "triggerError": "Impossibile avviare l'elaborazione batch",
+      "jobFailed": "{{type}} fallito",
+      "upscale": "Scalatura",
+      "bg_remove": "Rimozione sfondo"
+    },
+    "analyze": {
+      "button": "Analizza immagine",
+      "started": "Analisi dell'immagine avviata",
+      "success": "Design analizzato - prompt pronto",
+      "error": "Impossibile analizzare l'immagine"
+    }
   }
 }

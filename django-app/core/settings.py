@@ -116,6 +116,15 @@ INSTALLED_APPS = [
     'scraper_app',
     'niche_research_app',
     'research_app',
+    'vector_app',
+    'idea_app',
+    'design_app',
+    'keyword_app',
+    'publish_app',
+    'dashboard_app',
+    'kanban_app',
+    'search_app',
+    'agent_app',
 ]
 
 # django-allauth settings
@@ -229,6 +238,27 @@ RQ_QUEUES = {
         'DEFAULT_TIMEOUT': 1200,
         'REDIS_CLIENT_KWARGS': {},
     },
+    'slogan': {
+        'HOST': os.environ.get("REDIS_HOST", default="redis"),
+        'PORT': os.environ.get("REDIS_PORT", default=6379),
+        'DB': os.environ.get("REDIS_DB", default=0),
+        'DEFAULT_TIMEOUT': 1800,
+        'REDIS_CLIENT_KWARGS': {},
+    },
+    'design': {
+        'HOST': os.environ.get("REDIS_HOST", default="redis"),
+        'PORT': os.environ.get("REDIS_PORT", default=6379),
+        'DB': os.environ.get("REDIS_DB", default=0),
+        'DEFAULT_TIMEOUT': 1800,
+        'REDIS_CLIENT_KWARGS': {},
+    },
+    'agent': {
+        'HOST': os.environ.get("REDIS_HOST", default="redis"),
+        'PORT': os.environ.get("REDIS_PORT", default=6379),
+        'DB': os.environ.get("REDIS_DB", default=0),
+        'DEFAULT_TIMEOUT': 3600,
+        'REDIS_CLIENT_KWARGS': {},
+    },
 }
 
 # Scraper settings
@@ -242,6 +272,8 @@ OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
 OPENROUTER_BASE_URL = os.environ.get(
     'OPENROUTER_BASE_URL', 'https://openrouter.ai/api/v1',
 )
+OPENROUTER_AGENT_API_KEY = os.environ.get('OPENROUTER_AGENT_API_KEY', '')
+AGENT_BUDGET_WARNING_THRESHOLD = os.environ.get('AGENT_BUDGET_WARNING_THRESHOLD', '')
 
 # ----------------------------------------
 # SearXNG (web search for niche research)
@@ -249,8 +281,55 @@ OPENROUTER_BASE_URL = os.environ.get(
 SEARXNG_BASE_URL = os.environ.get('SEARXNG_BASE_URL', '')
 
 # ----------------------------------------
+# Deep Web Search — Vane + Crawl4ai (PROJ-17)
+# ----------------------------------------
+VANE_API_URL = os.environ.get('VANE_API_URL', '')
+CRAWL4AI_API_URL = os.environ.get('CRAWL4AI_API_URL', '')
+VANE_DEFAULT_MODEL = os.environ.get('VANE_DEFAULT_MODEL', 'gpt-4.1-mini')
+VANE_EMBEDDING_MODEL = os.environ.get('VANE_EMBEDDING_MODEL', 'text-embedding-3-small')
+
+# ----------------------------------------
 # Langfuse Observability
 # ----------------------------------------
+# ----------------------------------------
+# Vector Database / Embeddings (PROJ-15)
+# ----------------------------------------
+EMBEDDING_MODEL = os.environ.get('EMBEDDING_MODEL', 'text-embedding-3-small')
+EMBEDDING_DIMENSIONS = int(os.environ.get('EMBEDDING_DIMENSIONS', '1536'))
+
+# ----------------------------------------
+# JungleScout (Keyword Research — PROJ-10)
+# ----------------------------------------
+JUNGLESCOUT_API_KEY_NAME = os.environ.get('JUNGLESCOUT_API_KEY_NAME', '')
+JUNGLESCOUT_API_KEY = os.environ.get('JUNGLESCOUT_API_KEY', '')
+JUNGLESCOUT_DEFAULT_MARKETPLACE = os.environ.get('JUNGLESCOUT_DEFAULT_MARKETPLACE', 'us')
+
+# ----------------------------------------
+# Publish / Cloud Import (PROJ-11)
+# ----------------------------------------
+GOOGLE_DRIVE_CLIENT_ID = os.environ.get('GOOGLE_DRIVE_CLIENT_ID', '')
+GOOGLE_DRIVE_CLIENT_SECRET = os.environ.get('GOOGLE_DRIVE_CLIENT_SECRET', '')
+ONEDRIVE_CLIENT_ID = os.environ.get('ONEDRIVE_CLIENT_ID', '')
+ONEDRIVE_CLIENT_SECRET = os.environ.get('ONEDRIVE_CLIENT_SECRET', '')
+
+# ----------------------------------------
+# Django Channels (WebSocket — Desktop Upload App)
+# ----------------------------------------
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels_redis.core.RedisChannelLayer',
+        'CONFIG': {
+            'hosts': [(
+                os.environ.get('REDIS_HOST', 'redis'),
+                int(os.environ.get('REDIS_PORT', 6379)),
+            )],
+        },
+    },
+}
+
+# Upload file limits
+MAX_DESIGN_UPLOAD_SIZE = 25 * 1024 * 1024  # 25 MB
+
 LANGFUSE_PUBLIC_KEY = os.environ.get('LANGFUSE_PUBLIC_KEY', '')
 LANGFUSE_SECRET_KEY = os.environ.get('LANGFUSE_SECRET_KEY', '')
 LANGFUSE_HOST = os.environ.get('LANGFUSE_HOST', 'https://langfuse.mariowinter.com')
@@ -319,6 +398,7 @@ REST_FRAMEWORK = {
         'user': '1000/day',
         'avatar': '50/hour',
         'invite': '20/hour',
+        'semantic_search': '30/minute',
     },
 }
 

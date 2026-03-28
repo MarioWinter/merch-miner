@@ -5,6 +5,7 @@ import {
   CardContent,
   CardMedia,
   Chip,
+  CircularProgress,
   IconButton,
   Stack,
   Typography,
@@ -12,6 +13,10 @@ import {
 import { styled } from '@mui/material/styles';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import StarIcon from '@mui/icons-material/Star';
+import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
+import { useTranslation } from 'react-i18next';
+import { useSnackbar } from 'notistack';
+import { useExtractSloganMutation, useCreateIdeaMutation } from '@/store/ideaSlice';
 import { MONO_FONT_STACK } from '../../../../style/constants';
 import { MARKETPLACE_OPTIONS, type AmazonProduct } from '../types';
 
@@ -72,7 +77,33 @@ const ProductCard = ({
   isExpanded,
   onToggleExpand,
 }: ProductCardProps) => {
+  const { t } = useTranslation();
+  const { enqueueSnackbar } = useSnackbar();
+  const [extractSlogan, { isLoading: isExtracting }] = useExtractSloganMutation();
+  const [createIdea] = useCreateIdeaMutation();
   const bsrColor = getBsrColor(product.bsr);
+
+  const handleExtractSlogan = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const result = await extractSlogan({
+        product_image_url: product.thumbnail_url,
+        product_title: product.title,
+        product_brand: product.brand,
+      }).unwrap();
+      // Auto-create an Idea record (no niche -- user assigns later)
+      await createIdea({
+        nicheId: '', // Will be handled by backend as niche-less idea
+        body: {
+          slogan_text: result.slogan_text,
+          source_product_url: getAmazonUrl(product.marketplace, product.asin),
+        },
+      }).unwrap();
+      enqueueSnackbar(t('ideas.extract.success'), { variant: 'success' });
+    } catch {
+      enqueueSnackbar(t('ideas.extract.error'), { variant: 'error' });
+    }
+  };
 
   return (
     <StyledCard
@@ -151,6 +182,22 @@ const ProductCard = ({
               aria-label="Add to niche"
             >
               Add to Niche
+            </Button>
+            <Button
+              size="small"
+              variant="text"
+              onClick={handleExtractSlogan}
+              disabled={isExtracting}
+              startIcon={
+                isExtracting ? (
+                  <CircularProgress size={14} color="inherit" />
+                ) : (
+                  <LightbulbOutlinedIcon sx={{ fontSize: 16 }} />
+                )
+              }
+              aria-label={t('ideas.extract.button')}
+            >
+              {t('ideas.extract.button')}
             </Button>
             <IconButton
               size="small"

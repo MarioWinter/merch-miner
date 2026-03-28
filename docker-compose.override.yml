@@ -9,7 +9,7 @@ volumes:
 
 services:
   db:
-    image: postgres:16
+    image: pgvector/pgvector:pg16
     container_name: app_db
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
@@ -44,6 +44,19 @@ services:
       - ./django-app:/app
 
   worker-research:
+    volumes:
+      - ./django-app:/app
+
+  worker-slogan:
+    volumes:
+      - ./django-app:/app
+
+  worker-design:
+    volumes:
+      - ./django-app:/app
+      - ./media:/app/media
+
+  worker-agent:
     volumes:
       - ./django-app:/app
 

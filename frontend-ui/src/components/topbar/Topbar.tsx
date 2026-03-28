@@ -1,16 +1,16 @@
-import { Box, IconButton, Typography } from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import { alpha } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import DiamondOutlinedIcon from '@mui/icons-material/DiamondOutlined';
-import NotificationsOutlinedIcon from '@mui/icons-material/NotificationsOutlined';
 import { useTranslation } from 'react-i18next';
 import { useAppSelector } from '../../store/hooks';
 import LanguageMenu from './LanguageMenu';
 import ColorModeToggle from './ColorModeToggle';
 import ProfileMenu from './ProfileMenu';
 import WorkspaceSelector from './WorkspaceSelector';
+import NotificationBell from '../NotificationBell';
 import { COLORS, DURATION, EASING } from '@/style/constants';
 
 const TopbarRoot = styled(AppBar)(({ theme }) => ({
@@ -34,17 +34,6 @@ const TopbarRoot = styled(AppBar)(({ theme }) => ({
   ...theme.applyStyles('dark', {
     backgroundColor: alpha(COLORS.inkPaper, 0.75),
   }),
-}));
-
-const TopbarIconButton = styled(IconButton)(({ theme }) => ({
-  width: 32,
-  height: 32,
-  borderRadius: '8px',
-  color: theme.vars.palette.text.secondary,
-  '&:hover': {
-    backgroundColor: theme.vars.palette.action.hover,
-    color: theme.vars.palette.text.primary,
-  },
 }));
 
 const TopbarToolbar = styled(Toolbar)({
@@ -89,12 +78,7 @@ const Topbar = () => {
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
           <LanguageMenu />
           <ColorModeToggle />
-          <TopbarIconButton
-            aria-label={t('topbar.alerts')}
-            size="small"
-          >
-            <NotificationsOutlinedIcon sx={{ fontSize: 20 }} />
-          </TopbarIconButton>
+          <NotificationBell />
           <ProfileMenu initial={initial} avatarUrl={avatarUrl} />
         </Box>
       </TopbarToolbar>

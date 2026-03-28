@@ -18,6 +18,7 @@ import { DrawerCreateForm } from './DrawerCreateForm';
 import { DrawerEditForm } from './DrawerEditForm';
 import { DrawerResearchSection } from './DrawerResearchSection';
 import { DrawerConfirmDialogs } from './DrawerConfirmDialogs';
+import { DrawerKeywordsSection } from '@/views/amazon/keywords/drawer/DrawerKeywordsSection';
 
 interface NicheDetailDrawerProps {
   open: boolean;
@@ -122,6 +123,7 @@ export const NicheDetailDrawer = ({
                 isFetching={isFetching}
               />
               {niche && <DrawerResearchSection niche={niche} isBusy={isBusy} />}
+              {niche && <DrawerKeywordsSection nicheId={niche.id} />}
             </>
           )}
         </DrawerBody>

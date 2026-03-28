@@ -17,19 +17,19 @@
 | PROJ-3 | CI/CD & DevOps Setup | Deployed | [spec](PROJ-3-cicd-devops-setup.md) | 2026-02-28 |
 | PROJ-4 | Workspace & Membership | Deployed | [spec](PROJ-4-workspace-membership.md) | 2026-02-27 |
 | PROJ-5 | Niche List | Deployed | [spec](PROJ-5-niche-list.md) | 2026-02-27 |
-| PROJ-6 | Niche Deep Research (LangGraph) | Ready to Deploy | [spec](PROJ-6-niche-deep-research.md) | 2026-02-27 |
+| PROJ-6 | Niche Deep Research (LangGraph) | Deployed | [spec](PROJ-6-niche-deep-research.md) | 2026-02-27 |
 | PROJ-7 | Amazon Product Research | In Progress | [spec](PROJ-7-amazon-product-research.md) | 2026-02-27 |
-| PROJ-8 | Idea & Slogan Generation (LangGraph) | In Progress | [spec](PROJ-8-idea-slogan-generation.md) | 2026-02-27 |
-| PROJ-9 | Design Generation (OpenRouter) | In Progress | [spec](PROJ-9-design-generation.md) | 2026-02-27 |
-| PROJ-10 | Keyword Research & Bank | In Progress | [spec](PROJ-10-niche-keyword-bank.md) | 2026-02-27 |
-| PROJ-11 | Publish (Listing + Upload Manager) | In Progress | [spec](PROJ-11-listing-keyword-generator.md) | 2026-02-27 |
-| PROJ-12 | Dashboard & Analytics | In Progress | [spec](PROJ-12-dashboard.md) | 2026-02-27 |
+| PROJ-8 | Idea & Slogan Generation (LangGraph) | Ready to Deploy | [spec](PROJ-8-idea-slogan-generation.md) | 2026-02-27 |
+| PROJ-9 | Design Generation (OpenRouter) | In Review | [spec](PROJ-9-design-generation.md) | 2026-02-27 |
+| PROJ-10 | Keyword Research & Bank | In Review | [spec](PROJ-10-niche-keyword-bank.md) | 2026-02-27 |
+| PROJ-11 | Publish (Listing + Upload Manager) | In Review | [spec](PROJ-11-listing-keyword-generator.md) | 2026-02-27 |
+| PROJ-12 | Dashboard & Analytics | In Review | [spec](PROJ-12-dashboard.md) | 2026-02-27 |
 | PROJ-13 | Desktop Upload App (Electron + Playwright) | In Progress | [spec](PROJ-13-marketplace-upload-manager.md) | 2026-02-27 |
-| PROJ-14 | Team Kanban & Collaboration | In Progress | [spec](PROJ-14-team-kanban.md) | 2026-02-27 |
-| PROJ-15 | Vector Database (AI Memory) | In Progress | [spec](PROJ-15-vector-database.md) | 2026-03-24 |
+| PROJ-14 | Team Kanban & Collaboration | In Review | [spec](PROJ-14-team-kanban.md) | 2026-02-27 |
+| PROJ-15 | Vector Database (AI Memory) | In Review | [spec](PROJ-15-vector-database.md) | 2026-03-24 |
 | PROJ-16 | Amazon Product Scraper (Scrapy) — P0 | In Review | [spec](PROJ-16-amazon-product-scraper.md) | 2026-02-27 |
-| PROJ-17 | Deep Web Search (Vane + Crawl4ai) | In Progress | [spec](PROJ-17-deep-web-search.md) | 2026-03-24 |
-| PROJ-18 | OpenClaw Agent (Multi-Agent System) | In Progress | [spec](PROJ-18-openclaw-agent.md) | 2026-03-24 |
+| PROJ-17 | Deep Web Search (Vane + Crawl4ai) | In Review | [spec](PROJ-17-deep-web-search.md) | 2026-03-24 |
+| PROJ-18 | OpenClaw Agent (Multi-Agent System) | In Review | [spec](PROJ-18-openclaw-agent.md) | 2026-03-24 |
 
 <!-- Add features above this line -->
 

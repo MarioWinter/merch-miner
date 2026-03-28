@@ -4,6 +4,8 @@ import { styled, useTheme } from '@mui/material/styles';
 import { Outlet } from 'react-router-dom';
 import Topbar from './topbar/Topbar';
 import Sidebar, { COLLAPSED_WIDTH, EXPANDED_WIDTH } from './sidebar/Sidebar';
+import FloatingChatBar from './FloatingChatBar';
+import MultiPurposeDrawer from './MultiPurposeDrawer';
 import { DURATION, EASING } from '@/style/constants';
 
 // Styled components
@@ -76,6 +78,9 @@ const AppLayout = () => {
       <MainContent component="main" $marginLeft={`${sidebarWidth}px`}>
         <Outlet />
       </MainContent>
+
+      <FloatingChatBar />
+      <MultiPurposeDrawer />
     </Box>
   );
 };

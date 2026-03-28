@@ -495,5 +495,203 @@
       "noWorkspace": "No se encontró ningún workspace",
       "activeWorkspace": "Workspace activo"
     }
+  },
+  "ideas": {
+    "pageTitle": "Refineria de slogans",
+    "newIdea": "Nueva idea",
+    "batchHint": "Introduce slogans (uno por linea para entrada en lote)...",
+    "adapted": "adaptado",
+    "delete": "Eliminar",
+    "status": {
+      "pending": "Pendiente",
+      "approved": "Aprobado",
+      "rejected": "Rechazado",
+      "for_review": "En revision"
+    },
+    "signal": {
+      "self": "SELF",
+      "other": "OTHER"
+    },
+    "confidence": {
+      "high": "Alto",
+      "medium": "Medio",
+      "low": "Bajo"
+    },
+    "adapt": {
+      "button": "Adaptar",
+      "modalTitle": "Seleccionar nichos objetivo",
+      "source": "Origen",
+      "selectTargets": "Nichos objetivo",
+      "autoSelect": "Seleccion automatica Top 5",
+      "confirm": "Adaptar",
+      "cancel": "Cancelar",
+      "progress": "Progreso de la adaptacion",
+      "currentNode": "Ejecutando: {{node}}",
+      "noCompatible": "No se encontraron nichos compatibles",
+      "started": "Adaptacion iniciada",
+      "completed": "Adaptacion completada",
+      "failed": "Adaptacion fallida",
+      "error": "No se pudo iniciar la adaptacion",
+      "adaptAll": "Adaptar a todos los nichos compatibles",
+      "runStatus": {
+        "pending": "Pendiente",
+        "running": "En curso",
+        "completed": "Completado",
+        "failed": "Fallido"
+      }
+    },
+    "improve": {
+      "button": "Mejorar",
+      "dialogTitle": "Mejorar slogan",
+      "feedbackPlaceholder": "Comentarios opcionales para la IA...",
+      "variantsCount": "{{count}} variantes generadas",
+      "selectVariant": "Seleccionar",
+      "cancel": "Cancelar",
+      "success": "Variantes mejoradas generadas",
+      "error": "No se pudo mejorar el slogan"
+    },
+    "regenerate": {
+      "button": "Regenerar",
+      "confirm": "Generar un nuevo slogan?",
+      "success": "Slogan regenerado",
+      "error": "No se pudo regenerar el slogan"
+    },
+    "extract": {
+      "button": "Extraer slogan",
+      "success": "Slogan extraido y guardado como idea",
+      "error": "No se pudo extraer el slogan",
+      "bulkLabel": "Extraer slogans ({{count}})"
+    },
+    "history": {
+      "title": "Historial",
+      "qualityChecked": "Modificado por control de calidad",
+      "actor": {
+        "user": "Usuario",
+        "agent": "Agente",
+        "quality_check": "Control de calidad"
+      }
+    },
+    "empty": {
+      "title": "Aun no hay ideas",
+      "hint": "Crea tu primera idea o ejecuta una investigacion para descubrir slogans.",
+      "cta": "Crear idea",
+      "selectNiche": "Selecciona un nicho para ver las ideas"
+    },
+    "bulk": {
+      "selected": "{{count}} seleccionado(s)",
+      "selectIdea": "Seleccionar idea",
+      "approve": "Aprobar",
+      "reject": "Rechazar",
+      "clear": "Limpiar seleccion",
+      "updateSuccess": "{{count}} ideas actualizadas",
+      "updateError": "No se pudieron actualizar las ideas"
+    },
+    "niche": {
+      "noResearchWarning": "Algunos nichos no tienen datos de investigacion — los resultados pueden ser de menor calidad.",
+      "alreadyAdapted": "Ya adaptado"
+    },
+    "notifications": {
+      "createSuccess": "{{count}} idea(s) creada(s)",
+      "createError": "No se pudo crear la idea",
+      "updateError": "No se pudo actualizar la idea",
+      "deleteSuccess": "Idea eliminada",
+      "deleteError": "No se pudo eliminar la idea",
+      "loadError": "No se pudieron cargar las ideas"
+    }
+  },
+  "design": {
+    "board": {
+      "title": "Tablero de diseno",
+      "prompt": "Prompt",
+      "promptPlaceholder": "Describe el diseno que quieres generar...",
+      "promptRequired": "Por favor, introduce un prompt primero",
+      "generate": "Generar diseno",
+      "generating": "Generando...",
+      "generateError": "No se pudo generar el diseno",
+      "generationFailed": "La generacion del diseno fallo",
+      "retry": "Reintentar",
+      "references": "Imagenes de referencia",
+      "noReferences": "No hay imagenes de referencia disponibles",
+      "usePrompt": "Usar prompt",
+      "useThisPrompt": "Usar este prompt en el editor",
+      "goBack": "Volver",
+      "loadError": "No se pudo cargar el tablero de diseno",
+      "analysisBreakdown": "Analisis en 7 pasos",
+      "jumpButton": "Abrir Design Board",
+      "analysisStep": {
+        "text_dna": "ADN del texto",
+        "visual": "Analisis visual",
+        "spatial": "Disposicion espacial",
+        "style": "Estilo",
+        "color": "Paleta de colores",
+        "tech": "Tecnico",
+        "final_prompt": "Prompt final"
+      }
+    },
+    "model": {
+      "label": "Modelo IA",
+      "gemini_flash": "Gemini Flash",
+      "gemini_pro": "Gemini Pro",
+      "gpt_image": "GPT Image",
+      "flux": "Flux"
+    },
+    "background": {
+      "label": "Color de fondo",
+      "light_gray": "Gris claro",
+      "neon_pink": "Rosa neon",
+      "neon_green": "Verde neon"
+    },
+    "status": {
+      "pending": "Pendiente",
+      "approved": "Aprobado",
+      "rejected": "Rechazado",
+      "failed": "Fallido"
+    },
+    "gallery": {
+      "title": "Disenos generados",
+      "approve": "Aprobar",
+      "reject": "Rechazar",
+      "download": "Descargar",
+      "delete": "Eliminar",
+      "approved": "Diseno aprobado",
+      "rejected": "Diseno rechazado",
+      "deleted": "Diseno eliminado",
+      "approveError": "No se pudo aprobar el diseno",
+      "rejectError": "No se pudo rechazar el diseno",
+      "deleteError": "No se pudo eliminar el diseno",
+      "imageAlt": "Diseno generado",
+      "noImage": "Sin imagen"
+    },
+    "empty": {
+      "noDesigns": "Aun no hay disenos",
+      "cta": "Genera tu primer diseno con el editor de prompts"
+    },
+    "batch": {
+      "selectedCount": "{{count}} seleccionado(s)",
+      "processButton": "Escalar + Eliminar fondo",
+      "started": "Procesamiento por lotes iniciado",
+      "triggerError": "No se pudo iniciar el procesamiento por lotes",
+      "jobFailed": "{{type}} fallo",
+      "upscale": "Escalado",
+      "bg_remove": "Eliminacion de fondo"
+    },
+    "analyze": {
+      "button": "Analizar imagen",
+      "started": "Analisis de imagen iniciado",
+      "success": "Diseno analizado - prompt listo",
+      "error": "No se pudo analizar la imagen"
+    }
+  },
+  "keywords": {
+    "page": { "title": "Keyword Lode", "searchPlaceholder": "Buscar palabras clave..." },
+    "source": { "research": "Investigacion", "amazon_search": "Amazon", "web_search": "Busqueda web", "manual": "Manual", "junglescout": "JungleScout" },
+    "enrich": { "buttonLabel": "Enriquecer", "bulkLabel": "Enriquecer seleccion", "loading": "Enriqueciendo...", "success": "Palabras clave enriquecidas", "noApiKeyTooltip": "Configure la clave API de JungleScout en Configuracion" },
+    "table": { "col_keyword": "Palabra clave", "col_source": "Fuente", "col_monthly_search_volume_exact": "Volumen (exacto)", "col_monthly_search_volume_broad": "Volumen (amplio)", "col_monthly_trend": "Tendencia mensual", "col_quarterly_trend": "Tendencia trimestral", "col_ppc_bid_exact": "CPC (exacto)", "col_ppc_bid_broad": "CPC (amplio)", "col_sp_brand_ad_bid": "Puja SP Brand", "col_ease_of_ranking_score": "Facilidad de ranking", "col_relevancy_score": "Relevancia", "col_organic_product_count": "Cantidad organica", "col_sponsored_product_count": "Cantidad patrocinada", "col_dominant_category": "Categoria", "col_recommended_promotions": "Promociones", "col_in_product_count": "En productos", "col_in_slogan_count": "En eslogan", "columnPicker": "Configurar columnas", "done": "Listo", "selected": "{{count}} seleccionado(s)" },
+    "trend": { "chartTitle": "Tendencia del volumen de busqueda", "noData": "Datos insuficientes", "monthLabel": "Mes", "volumeLabel": "Volumen de busqueda" },
+    "addToNiche": { "buttonLabel": "Agregar {{count}} a {{niche}}", "selectNiche": "Agregar {{count}} a nicho...", "changeNiche": "Cambiar nicho", "noNiches": "No se encontraron nichos", "addedCount": "{{count}} palabra(s) clave agregada(s)" },
+    "export": { "buttonLabel": "Exportar CSV" },
+    "empty": { "noResults": "No se encontraron palabras clave", "tryCta": "Intente con otro termino de busqueda", "startSearch": "Buscar palabras clave", "searchHint": "Ingrese una palabra clave para buscar en su base de datos y Amazon" },
+    "drawer": { "sectionTitle": "Palabras clave", "addGroup": "Agregar grupo", "groupNamePlaceholder": "Nombre del grupo...", "addButton": "Agregar", "manualPlaceholder": "Agregar palabras clave (separadas por comas)...", "deleteKeyword": "Eliminar palabra clave", "editGroup": "Renombrar grupo", "deleteGroup": "Eliminar grupo", "emptyGroup": "Sin palabras clave en este grupo", "ungrouped": "Sin grupo", "noKeywords": "Sin palabras clave recopiladas", "groupDeleted": "Grupo eliminado (palabras clave conservadas)" },
+    "errors": { "enrichFailed": "Error al enriquecer", "addFailed": "Error al agregar", "deleteFailed": "Error al eliminar", "exportFailed": "Error al exportar", "historyFailed": "Error al cargar tendencias", "renameFailed": "Error al renombrar", "deleteGroupFailed": "Error al eliminar grupo", "createGroupFailed": "Error al crear grupo" }
   }
 }

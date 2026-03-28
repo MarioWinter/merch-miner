@@ -1,0 +1,48 @@
+from django.contrib import admin
+
+from publish_app.models import (
+    DesignAsset,
+    Listing,
+    ProductLifecycle,
+    UploadJob,
+    UploadTemplate,
+)
+
+
+@admin.register(Listing)
+class ListingAdmin(admin.ModelAdmin):
+    list_display = ['id', 'workspace', 'idea', 'status', 'generated_by', 'language', 'created_at']
+    list_filter = ['status', 'generated_by', 'language']
+    search_fields = ['title', 'brand_name']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+
+@admin.register(UploadTemplate)
+class UploadTemplateAdmin(admin.ModelAdmin):
+    list_display = ['id', 'workspace', 'name', 'print_side', 'created_at']
+    search_fields = ['name']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+
+
+@admin.register(UploadJob)
+class UploadJobAdmin(admin.ModelAdmin):
+    list_display = ['id', 'workspace', 'marketplace', 'status', 'asin', 'queued_at']
+    list_filter = ['status', 'marketplace']
+    search_fields = ['asin']
+    readonly_fields = ['id', 'queued_at', 'started_at', 'completed_at']
+
+
+@admin.register(DesignAsset)
+class DesignAssetAdmin(admin.ModelAdmin):
+    list_display = ['id', 'workspace', 'file_name', 'source', 'file_size', 'created_at']
+    list_filter = ['source']
+    search_fields = ['file_name']
+    readonly_fields = ['id', 'created_at']
+
+
+@admin.register(ProductLifecycle)
+class ProductLifecycleAdmin(admin.ModelAdmin):
+    list_display = ['id', 'workspace', 'niche', 'asin', 'marketplace', 'round', 'updated_at']
+    list_filter = ['marketplace', 'round']
+    search_fields = ['asin']
+    readonly_fields = ['id', 'updated_at']

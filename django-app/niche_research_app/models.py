@@ -178,6 +178,13 @@ class NicheProductVisionAnalysis(models.Model):
     def __str__(self):
         return f"Vision: {self.product} [{self.research_id}]"
 
+    def get_embedding_text(self):
+        """Return text to embed for vector search."""
+        parts = filter(None, [
+            self.slogan_text, self.meaning_context, self.visual_style,
+        ])
+        return ' '.join(parts)
+
 
 class NicheProductEmotionalAnalysis(models.Model):
     """Emotional/psychological analysis of a product slogan."""
@@ -213,6 +220,13 @@ class NicheProductEmotionalAnalysis(models.Model):
 
     def __str__(self):
         return f"Emotional: {self.product} [{self.research_id}]"
+
+    def get_embedding_text(self):
+        """Return text to embed for vector search."""
+        parts = filter(None, [
+            self.original_slogan, self.tone, self.adaptation_formula,
+        ])
+        return ' '.join(parts)
 
 
 class NicheAnalysis(models.Model):
@@ -262,6 +276,14 @@ class NicheAnalysis(models.Model):
     def __str__(self):
         return f"Analysis: {self.niche} [{self.research_id}]"
 
+    def get_embedding_text(self):
+        """Return text to embed for vector search."""
+        parts = filter(None, [
+            self.niche_summary, self.emotional_reality,
+            self.design_concepts, self.dominant_design_aesthetics,
+        ])
+        return ' '.join(parts)
+
 
 class NicheKeywordAnalysis(models.Model):
     """Keyword recommendations from research."""
@@ -291,3 +313,7 @@ class NicheKeywordAnalysis(models.Model):
 
     def __str__(self):
         return f"Keywords: {self.niche} [{self.research_id}]"
+
+    def get_embedding_text(self):
+        """Return text to embed for vector search."""
+        return self.all_keywords_flat or ''

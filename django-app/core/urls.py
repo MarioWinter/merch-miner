@@ -57,6 +57,33 @@ urlpatterns = [
 
     # Research API
     path('api/', include('research_app.api.urls')),
+
+    # Vector / Semantic Search API
+    path('api/', include('vector_app.api.urls')),
+
+    # Idea & Slogan API
+    path('api/', include('idea_app.api.urls')),
+
+    # Design Generation API
+    path('api/', include('design_app.api.urls')),
+
+    # Keyword Research & Bank API
+    path('api/', include('keyword_app.api.urls')),
+
+    # Publish (Listing + Upload + Gallery + Lifecycle) API
+    path('api/', include('publish_app.api.urls')),
+
+    # Dashboard & Analytics API
+    path('api/', include('dashboard_app.api.urls')),
+
+    # Kanban & Collaboration API
+    path('api/', include('kanban_app.api.urls')),
+
+    # Deep Web Search (Chat + Crawl) API
+    path('api/', include('search_app.api.urls')),
+
+    # OpenClaw Agent (Multi-Agent System) API
+    path('api/', include('agent_app.api.urls')),
 ]
 
 if settings.DEBUG:

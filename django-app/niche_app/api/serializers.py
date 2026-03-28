@@ -24,7 +24,7 @@ class NicheSerializer(serializers.ModelSerializer):
         fields = (
             'id', 'workspace', 'name', 'notes', 'status',
             'potential_rating', 'research_status', 'research_run_id',
-            'position', 'assigned_to', 'created_by',
+            'current_round', 'position', 'assigned_to', 'created_by',
             'created_at', 'updated_at',
             'idea_count', 'approved_idea_count', 'research_progress',
         )

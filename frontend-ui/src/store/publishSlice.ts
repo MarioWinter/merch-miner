@@ -1,0 +1,266 @@
+import { createApi } from '@reduxjs/toolkit/query/react';
+import { axiosBaseQuery } from './axiosBaseQuery';
+import type {
+  Listing,
+  GenerateListingBody,
+  TranslateListingBody,
+  TMCheckResult,
+  DesignAsset,
+  GalleryListParams,
+  GalleryListResponse,
+  ImportDriveBody,
+  BulkActionBody,
+  UploadJob,
+  CreateUploadJobBody,
+  BatchUploadJobBody,
+  UploadJobListParams,
+  UploadJobListResponse,
+  UploadTemplate,
+  UploadTemplateCreateBody,
+  LifecycleResponse,
+} from '../views/publish/types';
+
+export const publishApi = createApi({
+  reducerPath: 'publishApi',
+  baseQuery: axiosBaseQuery({ baseUrl: '' }),
+  tagTypes: ['Listing', 'Gallery', 'GalleryList', 'UploadJob', 'UploadJobList', 'Template', 'TemplateList', 'Lifecycle'],
+  endpoints: (builder) => ({
+    // ---- Listing ----------------------------------------------------------
+    generateListing: builder.mutation<Listing, { ideaId: string; body: GenerateListingBody }>({
+      query: ({ ideaId, body }) => ({
+        url: `/api/ideas/${ideaId}/listing/generate/`,
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: ['Listing'],
+    }),
+
+    getListing: builder.query<Listing, string>({
+      query: (ideaId) => ({
+        url: `/api/ideas/${ideaId}/listing/`,
+        method: 'GET',
+      }),
+      providesTags: (_r, _e, ideaId) => [{ type: 'Listing', id: ideaId }],
+    }),
+
+    updateListing: builder.mutation<Listing, { id: string; body: Partial<Listing> }>({
+      query: ({ id, body }) => ({
+        url: `/api/listings/${id}/`,
+        method: 'PATCH',
+        data: body,
+      }),
+      invalidatesTags: (_r, _e, { id }) => [{ type: 'Listing', id }],
+    }),
+
+    translateListing: builder.mutation<Listing, { id: string; body: TranslateListingBody }>({
+      query: ({ id, body }) => ({
+        url: `/api/listings/${id}/translate/`,
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: (_r, _e, { id }) => [{ type: 'Listing', id }],
+    }),
+
+    tmCheck: builder.mutation<TMCheckResult, string>({
+      query: (id) => ({
+        url: `/api/listings/${id}/tm-check/`,
+        method: 'POST',
+      }),
+    }),
+
+    exportListing: builder.query<string, string>({
+      query: (id) => ({
+        url: `/api/listings/${id}/export/`,
+        method: 'GET',
+      }),
+    }),
+
+    // ---- Design Gallery ---------------------------------------------------
+    listGallery: builder.query<GalleryListResponse, GalleryListParams>({
+      query: (params) => ({
+        url: '/api/designs/gallery/',
+        method: 'GET',
+        params,
+      }),
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.results.map(({ id }) => ({ type: 'Gallery' as const, id })),
+              { type: 'GalleryList', id: 'LIST' },
+            ]
+          : [{ type: 'GalleryList', id: 'LIST' }],
+    }),
+
+    uploadDesign: builder.mutation<DesignAsset, FormData>({
+      query: (formData) => ({
+        url: '/api/designs/gallery/upload/',
+        method: 'POST',
+        data: formData,
+      }),
+      invalidatesTags: [{ type: 'GalleryList', id: 'LIST' }],
+    }),
+
+    importDrive: builder.mutation<DesignAsset[], ImportDriveBody>({
+      query: (body) => ({
+        url: '/api/designs/gallery/import-drive/',
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: [{ type: 'GalleryList', id: 'LIST' }],
+    }),
+
+    deleteDesign: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/api/designs/gallery/${id}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: [{ type: 'GalleryList', id: 'LIST' }],
+    }),
+
+    updateDesign: builder.mutation<DesignAsset, { id: string; body: Partial<DesignAsset> }>({
+      query: ({ id, body }) => ({
+        url: `/api/designs/gallery/${id}/`,
+        method: 'PATCH',
+        data: body,
+      }),
+      invalidatesTags: (_r, _e, { id }) => [{ type: 'Gallery', id }],
+    }),
+
+    bulkAction: builder.mutation<void, BulkActionBody>({
+      query: (body) => ({
+        url: '/api/designs/gallery/bulk-action/',
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: [{ type: 'GalleryList', id: 'LIST' }],
+    }),
+
+    // ---- Upload Jobs ------------------------------------------------------
+    createUploadJob: builder.mutation<UploadJob, CreateUploadJobBody>({
+      query: (body) => ({
+        url: '/api/upload-jobs/',
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: [{ type: 'UploadJobList', id: 'LIST' }],
+    }),
+
+    batchUploadJobs: builder.mutation<UploadJob[], BatchUploadJobBody>({
+      query: (body) => ({
+        url: '/api/upload-jobs/batch/',
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: [{ type: 'UploadJobList', id: 'LIST' }],
+    }),
+
+    listUploadJobs: builder.query<UploadJobListResponse, UploadJobListParams>({
+      query: (params) => ({
+        url: '/api/upload-jobs/',
+        method: 'GET',
+        params,
+      }),
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.results.map(({ id }) => ({ type: 'UploadJob' as const, id })),
+              { type: 'UploadJobList', id: 'LIST' },
+            ]
+          : [{ type: 'UploadJobList', id: 'LIST' }],
+    }),
+
+    getUploadJob: builder.query<UploadJob, string>({
+      query: (id) => ({
+        url: `/api/upload-jobs/${id}/`,
+        method: 'GET',
+      }),
+      providesTags: (_r, _e, id) => [{ type: 'UploadJob', id }],
+    }),
+
+    cancelUploadJob: builder.mutation<UploadJob, string>({
+      query: (id) => ({
+        url: `/api/upload-jobs/${id}/cancel/`,
+        method: 'POST',
+      }),
+      invalidatesTags: (_r, _e, id) => [{ type: 'UploadJob', id }],
+    }),
+
+    // ---- Upload Templates -------------------------------------------------
+    listTemplates: builder.query<UploadTemplate[], void>({
+      query: () => ({
+        url: '/api/upload-templates/',
+        method: 'GET',
+      }),
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.map(({ id }) => ({ type: 'Template' as const, id })),
+              { type: 'TemplateList', id: 'LIST' },
+            ]
+          : [{ type: 'TemplateList', id: 'LIST' }],
+    }),
+
+    createTemplate: builder.mutation<UploadTemplate, UploadTemplateCreateBody>({
+      query: (body) => ({
+        url: '/api/upload-templates/',
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: [{ type: 'TemplateList', id: 'LIST' }],
+    }),
+
+    updateTemplate: builder.mutation<
+      UploadTemplate,
+      { id: string; body: Partial<UploadTemplateCreateBody> }
+    >({
+      query: ({ id, body }) => ({
+        url: `/api/upload-templates/${id}/`,
+        method: 'PATCH',
+        data: body,
+      }),
+      invalidatesTags: (_r, _e, { id }) => [{ type: 'Template', id }],
+    }),
+
+    deleteTemplate: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/api/upload-templates/${id}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: [{ type: 'TemplateList', id: 'LIST' }],
+    }),
+
+    // ---- Product Lifecycle ------------------------------------------------
+    getLifecycle: builder.query<LifecycleResponse, string>({
+      query: (nicheId) => ({
+        url: `/api/niches/${nicheId}/lifecycle/`,
+        method: 'GET',
+      }),
+      providesTags: (_r, _e, nicheId) => [{ type: 'Lifecycle', id: nicheId }],
+    }),
+  }),
+});
+
+export const {
+  useGenerateListingMutation,
+  useGetListingQuery,
+  useUpdateListingMutation,
+  useTranslateListingMutation,
+  useTmCheckMutation,
+  useLazyExportListingQuery,
+  useListGalleryQuery,
+  useUploadDesignMutation,
+  useImportDriveMutation,
+  useDeleteDesignMutation,
+  useUpdateDesignMutation,
+  useBulkActionMutation,
+  useCreateUploadJobMutation,
+  useBatchUploadJobsMutation,
+  useListUploadJobsQuery,
+  useGetUploadJobQuery,
+  useCancelUploadJobMutation,
+  useListTemplatesQuery,
+  useCreateTemplateMutation,
+  useUpdateTemplateMutation,
+  useDeleteTemplateMutation,
+  useGetLifecycleQuery,
+} = publishApi;

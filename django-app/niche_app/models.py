@@ -60,6 +60,10 @@ class Niche(models.Model):
         default=0,
         help_text='Number of research retries for this niche (max 3)',
     )
+    current_round = models.PositiveIntegerField(
+        default=1,
+        help_text='Current active round for the niche',
+    )
     position = models.PositiveIntegerField(default=0)
     assigned_to = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -85,6 +89,13 @@ class Niche(models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_embedding_text(self):
+        """Return text to embed for vector search."""
+        parts = [self.name]
+        if self.notes:
+            parts.append(self.notes)
+        return ' '.join(parts)
 
 
 class NicheFilterTemplate(models.Model):

@@ -495,5 +495,492 @@
       "noWorkspace": "Kein Workspace gefunden",
       "activeWorkspace": "Aktiver Workspace"
     }
+  },
+  "ideas": {
+    "pageTitle": "Slogan-Werkstatt",
+    "newIdea": "Neue Idee",
+    "batchHint": "Slogans eingeben (einer pro Zeile)...",
+    "adapted": "adaptiert",
+    "delete": "Loeschen",
+    "status": {
+      "pending": "Ausstehend",
+      "approved": "Genehmigt",
+      "rejected": "Abgelehnt",
+      "for_review": "Zur Pruefung"
+    },
+    "signal": { "self": "SELF", "other": "OTHER" },
+    "confidence": { "high": "Hoch", "medium": "Mittel", "low": "Niedrig" },
+    "adapt": {
+      "button": "Adaptieren",
+      "modalTitle": "Ziel-Nischen waehlen",
+      "source": "Quelle",
+      "selectTargets": "Ziel-Nischen",
+      "autoSelect": "Top 5 automatisch",
+      "confirm": "Adaptieren",
+      "cancel": "Abbrechen",
+      "progress": "Adaptionsfortschritt",
+      "currentNode": "Aktiv: {{node}}",
+      "noCompatible": "Keine kompatiblen Nischen gefunden",
+      "started": "Adaption gestartet",
+      "completed": "Adaption abgeschlossen",
+      "failed": "Adaption fehlgeschlagen",
+      "error": "Adaption konnte nicht gestartet werden",
+      "adaptAll": "Alle kompatiblen adaptieren",
+      "runStatus": { "pending": "Ausstehend", "running": "Laeuft", "completed": "Abgeschlossen", "failed": "Fehlgeschlagen" }
+    },
+    "improve": {
+      "button": "Verbessern",
+      "dialogTitle": "Slogan verbessern",
+      "feedbackPlaceholder": "Optionales Feedback fuer die KI...",
+      "variantsCount": "{{count}} Varianten erzeugt",
+      "selectVariant": "Auswaehlen",
+      "cancel": "Abbrechen",
+      "success": "Verbesserte Varianten erzeugt",
+      "error": "Slogan konnte nicht verbessert werden"
+    },
+    "regenerate": {
+      "button": "Regenerieren",
+      "confirm": "Neuen Slogan generieren?",
+      "success": "Slogan regeneriert",
+      "error": "Slogan konnte nicht regeneriert werden"
+    },
+    "extract": {
+      "button": "Slogan extrahieren",
+      "success": "Slogan extrahiert und als Idee gespeichert",
+      "error": "Slogan konnte nicht extrahiert werden",
+      "bulkLabel": "Slogans extrahieren ({{count}})"
+    },
+    "history": {
+      "title": "Verlauf",
+      "qualityChecked": "Von Quality Check geaendert",
+      "actor": { "user": "Benutzer", "agent": "Agent", "quality_check": "Quality Check" }
+    },
+    "empty": {
+      "title": "Noch keine Ideen",
+      "hint": "Erstelle deine erste Idee oder starte eine Recherche.",
+      "cta": "Idee erstellen",
+      "selectNiche": "Waehle eine Nische, um Ideen anzuzeigen"
+    },
+    "bulk": {
+      "selected": "{{count}} ausgewaehlt",
+      "selectIdea": "Idee auswaehlen",
+      "approve": "Genehmigen",
+      "reject": "Ablehnen",
+      "clear": "Auswahl aufheben",
+      "updateSuccess": "{{count}} Ideen aktualisiert",
+      "updateError": "Ideen konnten nicht aktualisiert werden"
+    },
+    "niche": {
+      "noResearchWarning": "Einige Nischen haben keine Recherche-Daten - Ergebnisse koennten schlechter sein.",
+      "alreadyAdapted": "Bereits adaptiert"
+    },
+    "notifications": {
+      "createSuccess": "{{count}} Idee(n) erstellt",
+      "createError": "Idee konnte nicht erstellt werden",
+      "updateError": "Idee konnte nicht aktualisiert werden",
+      "deleteSuccess": "Idee geloescht",
+      "deleteError": "Idee konnte nicht geloescht werden",
+      "loadError": "Ideen konnten nicht geladen werden"
+    }
+  },
+  "design": {
+    "board": {
+      "title": "Design Board",
+      "prompt": "Prompt",
+      "promptPlaceholder": "Beschreibe das Design, das du generieren moechtest...",
+      "promptRequired": "Bitte gib zuerst einen Prompt ein",
+      "generate": "Design generieren",
+      "generating": "Wird generiert...",
+      "generateError": "Design konnte nicht generiert werden",
+      "generationFailed": "Designgenerierung fehlgeschlagen",
+      "retry": "Erneut versuchen",
+      "references": "Referenzbilder",
+      "noReferences": "Keine Referenzbilder verfuegbar",
+      "usePrompt": "Prompt verwenden",
+      "useThisPrompt": "Diesen Prompt im Editor verwenden",
+      "goBack": "Zurueck",
+      "loadError": "Design Board konnte nicht geladen werden",
+      "analysisBreakdown": "7-Schritte-Analyse",
+      "jumpButton": "Design Board oeffnen",
+      "analysisStep": {
+        "text_dna": "Text-DNA",
+        "visual": "Visuelle Analyse",
+        "spatial": "Raeumliches Layout",
+        "style": "Stil",
+        "color": "Farbpalette",
+        "tech": "Technisch",
+        "final_prompt": "Finaler Prompt"
+      }
+    },
+    "model": {
+      "label": "KI-Modell",
+      "gemini_flash": "Gemini Flash",
+      "gemini_pro": "Gemini Pro",
+      "gpt_image": "GPT Image",
+      "flux": "Flux"
+    },
+    "background": {
+      "label": "Hintergrundfarbe",
+      "light_gray": "Hellgrau",
+      "neon_pink": "Neonpink",
+      "neon_green": "Neongruen"
+    },
+    "status": {
+      "pending": "Ausstehend",
+      "approved": "Genehmigt",
+      "rejected": "Abgelehnt",
+      "failed": "Fehlgeschlagen"
+    },
+    "gallery": {
+      "title": "Generierte Designs",
+      "approve": "Genehmigen",
+      "reject": "Ablehnen",
+      "download": "Herunterladen",
+      "delete": "Loeschen",
+      "approved": "Design genehmigt",
+      "rejected": "Design abgelehnt",
+      "deleted": "Design geloescht",
+      "approveError": "Design konnte nicht genehmigt werden",
+      "rejectError": "Design konnte nicht abgelehnt werden",
+      "deleteError": "Design konnte nicht geloescht werden",
+      "imageAlt": "Generiertes Design",
+      "noImage": "Kein Bild"
+    },
+    "empty": {
+      "noDesigns": "Noch keine Designs",
+      "cta": "Generiere dein erstes Design mit dem Prompt-Editor"
+    },
+    "batch": {
+      "selectedCount": "{{count}} ausgewaehlt",
+      "processButton": "Hochskalieren + BG entfernen",
+      "started": "Batch-Verarbeitung gestartet",
+      "triggerError": "Batch-Verarbeitung konnte nicht gestartet werden",
+      "jobFailed": "{{type}} fehlgeschlagen",
+      "upscale": "Hochskalieren",
+      "bg_remove": "BG entfernen"
+    },
+    "analyze": {
+      "button": "Bild analysieren",
+      "started": "Bildanalyse gestartet",
+      "success": "Design analysiert - Prompt bereit",
+      "error": "Bildanalyse fehlgeschlagen"
+    }
+  },
+  "keywords": {
+    "page": {
+      "title": "Keyword Lode",
+      "searchPlaceholder": "Keywords suchen..."
+    },
+    "source": {
+      "research": "Recherche",
+      "amazon_search": "Amazon",
+      "web_search": "Websuche",
+      "manual": "Manuell",
+      "junglescout": "JungleScout"
+    },
+    "enrich": {
+      "buttonLabel": "Anreichern",
+      "bulkLabel": "Auswahl anreichern",
+      "loading": "Wird angereichert...",
+      "success": "Keywords angereichert",
+      "noApiKeyTooltip": "JungleScout API-Key in Einstellungen konfigurieren"
+    },
+    "table": {
+      "col_keyword": "Keyword",
+      "col_source": "Quelle",
+      "col_monthly_search_volume_exact": "Volumen (Exakt)",
+      "col_monthly_search_volume_broad": "Volumen (Breit)",
+      "col_monthly_trend": "Monatstrend",
+      "col_quarterly_trend": "Quartalstrend",
+      "col_ppc_bid_exact": "CPC (Exakt)",
+      "col_ppc_bid_broad": "CPC (Breit)",
+      "col_sp_brand_ad_bid": "SP Brand Gebot",
+      "col_ease_of_ranking_score": "Ranking-Leichtigkeit",
+      "col_relevancy_score": "Relevanz",
+      "col_organic_product_count": "Organische Anzahl",
+      "col_sponsored_product_count": "Gesponserte Anzahl",
+      "col_dominant_category": "Kategorie",
+      "col_recommended_promotions": "Aktionen",
+      "col_in_product_count": "In Produkten",
+      "col_in_slogan_count": "In Slogans",
+      "columnPicker": "Spalten konfigurieren",
+      "done": "Fertig",
+      "selected": "{{count}} ausgewahlt"
+    },
+    "trend": {
+      "chartTitle": "Suchvolumen-Trend",
+      "noData": "Nicht genug Daten fur Trenddiagramm",
+      "monthLabel": "Monat",
+      "volumeLabel": "Suchvolumen"
+    },
+    "addToNiche": {
+      "buttonLabel": "{{count}} zu {{niche}} hinzufugen",
+      "selectNiche": "{{count}} zu Nische hinzufugen...",
+      "changeNiche": "Nische wechseln",
+      "noNiches": "Keine Nischen gefunden",
+      "addedCount": "{{count}} Keyword(s) hinzugefugt"
+    },
+    "export": {
+      "buttonLabel": "CSV exportieren"
+    },
+    "empty": {
+      "noResults": "Keine Keywords gefunden",
+      "tryCta": "Versuche einen anderen Suchbegriff oder reichere Keywords an",
+      "startSearch": "Keywords suchen",
+      "searchHint": "Keyword eingeben, um Datenbank und Amazon zu durchsuchen"
+    },
+    "drawer": {
+      "sectionTitle": "Keywords",
+      "addGroup": "Gruppe hinzufugen",
+      "groupNamePlaceholder": "Gruppenname...",
+      "addButton": "Hinzufugen",
+      "manualPlaceholder": "Keywords hinzufugen (kommagetrennt)...",
+      "deleteKeyword": "Keyword entfernen",
+      "editGroup": "Gruppe umbenennen",
+      "deleteGroup": "Gruppe loschen",
+      "emptyGroup": "Keine Keywords in dieser Gruppe",
+      "ungrouped": "Ohne Gruppe",
+      "noKeywords": "Noch keine Keywords gesammelt",
+      "groupDeleted": "Gruppe geloscht (Keywords behalten)"
+    },
+    "errors": {
+      "enrichFailed": "Keywords anreichern fehlgeschlagen",
+      "addFailed": "Keywords hinzufugen fehlgeschlagen",
+      "deleteFailed": "Keyword loschen fehlgeschlagen",
+      "exportFailed": "Keywords exportieren fehlgeschlagen",
+      "historyFailed": "Trenddaten laden fehlgeschlagen",
+      "renameFailed": "Gruppe umbenennen fehlgeschlagen",
+      "deleteGroupFailed": "Gruppe loschen fehlgeschlagen",
+      "createGroupFailed": "Gruppe erstellen fehlgeschlagen"
+    }
+  },
+  "search": {
+    "chatBar": {
+      "placeholder": "Web durchsuchen oder Frage stellen...",
+      "send": "Senden",
+      "dismiss": "Chatleiste ausblenden",
+      "reveal": "Chatleiste anzeigen",
+      "expand": "Suche offnen"
+    },
+    "drawer": {
+      "segments": "Drawer-Bereiche",
+      "nicheDetail": "Nische",
+      "chat": "Chat",
+      "search": "Suche",
+      "close": "Drawer schliessen",
+      "noNicheSelected": "Keine Nische ausgewahlt",
+      "selectNicheHint": "Offne eine Nische aus der Liste, um Details hier zu sehen."
+    },
+    "chat": {
+      "model": "Modell",
+      "mode": "Modus",
+      "modeSpeed": "Schnell",
+      "modeBalanced": "Ausgewogen",
+      "modeQuality": "Qualitat",
+      "sources": "Quellen",
+      "source_web": "Web",
+      "source_academic": "Akademisch",
+      "source_discussions": "Diskussionen",
+      "sendError": "Nachricht senden fehlgeschlagen.",
+      "loadMore": "Altere Nachrichten laden",
+      "toggleControls": "Sucheinstellungen ein-/ausblenden"
+    },
+    "context": {
+      "label": "Kontext: {{name}}",
+      "removeTooltip": "Nischen-Kontext entfernen"
+    },
+    "results": {
+      "aiAnswer": "KI-Antwort",
+      "sources": "Quellen",
+      "noSources": "Keine Quellen fur diese Anfrage gefunden.",
+      "deepCrawl": "Deep Crawl"
+    },
+    "crawl": {
+      "pending": "Wartend",
+      "running": "Crawlt...",
+      "completed": "Gecrawlt",
+      "failed": "Fehlgeschlagen",
+      "error": "Deep Crawl konnte nicht gestartet werden.",
+      "retry": "Erneut versuchen"
+    },
+    "sessions": {
+      "recentChats": "Letzte Chats",
+      "untitled": "Unbenannter Chat",
+      "share": "Mit Workspace teilen",
+      "unshare": "Teilen beenden",
+      "shared": "Session mit Workspace geteilt.",
+      "unshared": "Session ist jetzt privat.",
+      "shareError": "Teilen aktualisieren fehlgeschlagen.",
+      "sharedBy": "Geteilt von {{name}}",
+      "readOnly": "Diese geteilte Session ist schreibgeschutzt."
+    },
+    "tags": {
+      "label": "Tags",
+      "updateError": "Tags aktualisieren fehlgeschlagen."
+    },
+    "health": {
+      "online": "Online",
+      "offline": "Offline",
+      "tooltip": "Vane: {{vane}} | Crawl4ai: {{crawl4ai}}",
+      "vaneOffline": "Websuche ist derzeit nicht verfugbar.",
+      "crawl4aiOffline": "Deep Crawl ist derzeit nicht verfugbar.",
+      "allOffline": "Suchdienste sind offline."
+    },
+    "save": {
+      "toNiche": "Speichern in {{name}}",
+      "keywords": "Keywords speichern",
+      "vectorDbSaved": "Automatisch in Vector DB gespeichert",
+      "saved": "Gespeichert in {{name}}.",
+      "error": "Speichern fehlgeschlagen."
+    },
+    "empty": {
+      "noSessions": "Noch keine Chat-Sessions. Starte eine Suche!",
+      "noResults": "Keine Suchergebnisse",
+      "firstSearchHint": "Stelle eine Frage in der Chatleiste, um das Web mit KI zu durchsuchen."
+    }
+  },
+  "agent": {
+    "tab": {
+      "label": "Agent",
+      "pageTitle": "OpenClaw Agent"
+    },
+    "header": {
+      "pause": "Workflow pausieren",
+      "resume": "Workflow fortsetzen",
+      "stop": "Workflow stoppen",
+      "share": "Session teilen",
+      "paused": "Workflow pausiert",
+      "resumed": "Workflow fortgesetzt",
+      "stopped": "Workflow gestoppt",
+      "shared": "Session mit Workspace geteilt",
+      "unshared": "Session nicht mehr geteilt",
+      "pauseError": "Fehler beim Pausieren",
+      "resumeError": "Fehler beim Fortsetzen",
+      "stopError": "Fehler beim Stoppen",
+      "shareError": "Fehler beim Teilen",
+      "unshareError": "Fehler beim Aufheben der Freigabe",
+      "startError": "Fehler beim Starten der Agent-Session"
+    },
+    "stepper": {
+      "title": "Workflow-Fortschritt",
+      "steps": "Schritte",
+      "status": {
+        "idle": "Bereit",
+        "running": "L\u00e4uft",
+        "paused": "Pausiert",
+        "completed": "Abgeschlossen",
+        "failed": "Fehlgeschlagen",
+        "cancelled": "Abgebrochen"
+      }
+    },
+    "log": {
+      "empty": "Noch keine Nachrichten",
+      "loadMore": "Fr\u00fchere Nachrichten laden",
+      "sendError": "Fehler beim Senden",
+      "startPrompt": "Starte einen Workflow oder gib einen Befehl ein",
+      "inputPlaceholder": "Sag dem Agent was er tun soll...",
+      "send": "Senden"
+    },
+    "approval": {
+      "title": "Genehmigung erforderlich",
+      "cost": "Gesch. Kosten",
+      "approve": "Genehmigen",
+      "reject": "Ablehnen",
+      "approved": "Aktion genehmigt",
+      "rejected": "Aktion abgelehnt",
+      "approveError": "Fehler bei Genehmigung",
+      "rejectError": "Fehler bei Ablehnung"
+    },
+    "quickAction": {
+      "title": "Schnellaktionen"
+    },
+    "batch": {
+      "title": "Batch-Fortschritt",
+      "empty": "Keine Batch-Sessions"
+    },
+    "settings": {
+      "title": "Agent-Einstellungen",
+      "agentConfig": "Agenten",
+      "permissions": "Berechtigungen",
+      "personalityPresets": "Pers\u00f6nlichkeits-Vorlagen",
+      "name": "Anzeigename",
+      "avatar": "Emoji",
+      "personality": "Pers\u00f6nlichkeit",
+      "model": "Modell",
+      "temperature": "Temp",
+      "save": "Speichern",
+      "tool": "Tool",
+      "permissionLevel": "Stufe",
+      "auto": "Auto",
+      "notify": "Benachrichtigen",
+      "approveLevel": "Genehmigen",
+      "autonomyPreset": "Autonomie-Preset"
+    },
+    "knowledge": {
+      "title": "Wissensdokumente",
+      "titlePlaceholder": "Titel",
+      "contentPlaceholder": "Inhalt (Markdown unterst\u00fctzt)",
+      "empty": "Noch keine Wissensdokumente",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "edit": "Bearbeiten",
+      "delete": "L\u00f6schen"
+    },
+    "templates": {
+      "title": "Workflow-Vorlagen",
+      "namePlaceholder": "Vorlagenname",
+      "keyPlaceholder": "Vorlagen-Key (z.B. quick_design)",
+      "actionPlaceholder": "Aktion",
+      "addStep": "Schritt hinzuf\u00fcgen",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "delete": "L\u00f6schen",
+      "empty": "Keine eigenen Vorlagen"
+    },
+    "collision": {
+      "title": "Kollisionswarnung",
+      "message": "{{username}} arbeitet bereits an \"{{nicheName}}\". Trotzdem fortfahren?",
+      "continue": "Fortfahren",
+      "cancel": "Abbrechen"
+    },
+    "onboarding": {
+      "title": "Agent einrichten",
+      "message": "Konfiguriere Autonomie-Level und Pr\u00e4ferenzen f\u00fcr deinen KI-Assistenten.",
+      "setup": "Konfigurieren",
+      "skip": "\u00dcberspringen"
+    },
+    "budget": {
+      "label": "Budget",
+      "exhausted": "Agent-Budget ersch\u00f6pft. Bitte API-Key aufladen.",
+      "warning": "Agent-Budget bei {{percent}}% der Schwelle"
+    },
+    "personality": {
+      "projektleiter": "Projektleiter",
+      "creativeDirector": "Creative Director",
+      "minimalist": "Minimalist",
+      "analyst": "Analyst",
+      "scout": "Scout",
+      "texter": "Texter",
+      "brainstormer": "Brainstormer",
+      "artDirector": "Art Director",
+      "experimentator": "Experimentator",
+      "seoProfi": "SEO-Profi",
+      "copywriter": "Copywriter",
+      "koordinator": "Koordinator",
+      "rechercheur": "Rechercheur"
+    },
+    "names": {
+      "chief": "Chief",
+      "scout": "Scout",
+      "muse": "Muse",
+      "pixel": "Pixel",
+      "scribe": "Scribe",
+      "launch": "Launch",
+      "radar": "Radar"
+    },
+    "shared": {
+      "badge": "Geteilt von {{username}}",
+      "readOnly": "Nur Lesen (geteilte Session)"
+    }
   }
 }

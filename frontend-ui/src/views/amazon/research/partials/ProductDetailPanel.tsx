@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   Box,
   Button,
+  CircularProgress,
   List,
   ListItem,
   ListItemText,
@@ -12,10 +13,13 @@ import {
 import { styled, alpha } from '@mui/material/styles';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import AddIcon from '@mui/icons-material/Add';
+import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import { LineChart } from '@mui/x-charts/LineChart';
 import { useSnackbar } from 'notistack';
+import { useTranslation } from 'react-i18next';
 import { useGetBSRHistoryQuery } from '../../../../store/researchSlice';
 import { useCreateNicheMutation } from '../../../../store/nicheSlice';
+import { useExtractSloganMutation, useCreateIdeaMutation } from '@/store/ideaSlice';
 import { MARKETPLACE_OPTIONS, type AmazonProduct } from '../types';
 
 interface ProductDetailPanelProps {
@@ -48,6 +52,9 @@ const DescriptionText = styled(Typography)<{ expanded: boolean }>(
 const ProductDetailPanel = ({ product, keyword }: ProductDetailPanelProps) => {
   const [descExpanded, setDescExpanded] = useState(false);
   const { enqueueSnackbar } = useSnackbar();
+  const { t } = useTranslation();
+  const [extractSlogan, { isLoading: isExtracting }] = useExtractSloganMutation();
+  const [createIdea] = useCreateIdeaMutation();
 
   const { data: bsrHistory, isLoading: bsrLoading } = useGetBSRHistoryQuery({
     asin: product.asin,
@@ -160,7 +167,7 @@ const ProductDetailPanel = ({ product, keyword }: ProductDetailPanelProps) => {
             </Box>
           )}
 
-          <Stack direction="row" spacing={1.5} sx={{ mt: 2 }}>
+          <Stack direction="row" spacing={1.5} sx={{ mt: 2 }} flexWrap="wrap" useFlexGap>
             <Button
               variant="contained"
               size="small"
@@ -170,6 +177,43 @@ const ProductDetailPanel = ({ product, keyword }: ProductDetailPanelProps) => {
               aria-label="Add to niche list"
             >
               Add to Niche List
+            </Button>
+            <Button
+              variant="outlined"
+              size="small"
+              startIcon={
+                isExtracting ? (
+                  <CircularProgress size={14} color="inherit" />
+                ) : (
+                  <LightbulbOutlinedIcon sx={{ fontSize: 16 }} />
+                )
+              }
+              onClick={async () => {
+                try {
+                  const mp = MARKETPLACE_OPTIONS.find((m) => m.value === product.marketplace);
+                  const domain = mp?.domain ?? 'amazon.com';
+                  const productUrl = `https://www.${domain}/dp/${product.asin}`;
+                  const result = await extractSlogan({
+                    product_image_url: product.thumbnail_url,
+                    product_title: product.title,
+                    product_brand: product.brand,
+                  }).unwrap();
+                  await createIdea({
+                    nicheId: '',
+                    body: {
+                      slogan_text: result.slogan_text,
+                      source_product_url: productUrl,
+                    },
+                  }).unwrap();
+                  enqueueSnackbar(t('ideas.extract.success'), { variant: 'success' });
+                } catch {
+                  enqueueSnackbar(t('ideas.extract.error'), { variant: 'error' });
+                }
+              }}
+              disabled={isExtracting}
+              aria-label={t('ideas.extract.button')}
+            >
+              {t('ideas.extract.button')}
             </Button>
             <Button
               variant="outlined"

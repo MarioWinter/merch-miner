@@ -220,7 +220,7 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
         { label: t('nav.research'), path: '/research', icon: <SearchOutlinedIcon sx={{ fontSize: 20 }} /> },
         { label: t('nav.slogans'), path: '/slogans', icon: <LightbulbOutlinedIcon sx={{ fontSize: 20 }} /> },
         { label: t('nav.designs'), path: '/designs', icon: <BrushOutlinedIcon sx={{ fontSize: 20 }} /> },
-        { label: t('nav.listings'), path: '/listings', icon: <ArticleOutlinedIcon sx={{ fontSize: 20 }} /> },
+        { label: t('nav.listings'), path: '/publish', icon: <ArticleOutlinedIcon sx={{ fontSize: 20 }} /> },
       ],
     },
     {
@@ -233,7 +233,7 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
     {
       sectionKey: 'surfaceOps',
       items: [
-        { label: t('nav.uploads'), path: '/uploads', icon: <CloudUploadOutlinedIcon sx={{ fontSize: 20 }} /> },
+        { label: t('nav.uploads'), path: '/publish', icon: <CloudUploadOutlinedIcon sx={{ fontSize: 20 }} /> },
         { label: t('nav.kanban'), path: '/kanban', icon: <ViewKanbanOutlinedIcon sx={{ fontSize: 20 }} /> },
       ],
     },

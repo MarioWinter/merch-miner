@@ -495,5 +495,216 @@
       "noWorkspace": "Aucun workspace trouvé",
       "activeWorkspace": "Workspace actif"
     }
+  },
+  "ideas": {
+    "pageTitle": "Raffinerie de slogans",
+    "newIdea": "Nouvelle idee",
+    "batchHint": "Saisissez des slogans (un par ligne pour la saisie en lot)...",
+    "adapted": "adapte",
+    "delete": "Supprimer",
+    "status": {
+      "pending": "En attente",
+      "approved": "Approuve",
+      "rejected": "Rejete",
+      "for_review": "A examiner"
+    },
+    "signal": {
+      "self": "SELF",
+      "other": "OTHER"
+    },
+    "confidence": {
+      "high": "Eleve",
+      "medium": "Moyen",
+      "low": "Faible"
+    },
+    "adapt": {
+      "button": "Adapter",
+      "modalTitle": "Selectionner les niches cibles",
+      "source": "Source",
+      "selectTargets": "Niches cibles",
+      "autoSelect": "Selection auto Top 5",
+      "confirm": "Adapter",
+      "cancel": "Annuler",
+      "progress": "Progression de l'adaptation",
+      "currentNode": "En cours : {{node}}",
+      "noCompatible": "Aucune niche compatible trouvee",
+      "started": "Adaptation lancee",
+      "completed": "Adaptation terminee",
+      "failed": "Adaptation echouee",
+      "error": "Impossible de lancer l'adaptation",
+      "adaptAll": "Adapter a toutes les niches compatibles",
+      "runStatus": {
+        "pending": "En attente",
+        "running": "En cours",
+        "completed": "Termine",
+        "failed": "Echoue"
+      }
+    },
+    "improve": {
+      "button": "Ameliorer",
+      "dialogTitle": "Ameliorer le slogan",
+      "feedbackPlaceholder": "Retour optionnel pour l'IA...",
+      "variantsCount": "{{count}} variantes generees",
+      "selectVariant": "Selectionner",
+      "cancel": "Annuler",
+      "success": "Variantes ameliorees generees",
+      "error": "Impossible d'ameliorer le slogan"
+    },
+    "regenerate": {
+      "button": "Regenerer",
+      "confirm": "Generer un nouveau slogan ?",
+      "success": "Slogan regenere",
+      "error": "Impossible de regenerer le slogan"
+    },
+    "extract": {
+      "button": "Extraire le slogan",
+      "success": "Slogan extrait et enregistre comme idee",
+      "error": "Impossible d'extraire le slogan",
+      "bulkLabel": "Extraire les slogans ({{count}})"
+    },
+    "history": {
+      "title": "Historique",
+      "qualityChecked": "Modifie par le controle qualite",
+      "actor": {
+        "user": "Utilisateur",
+        "agent": "Agent",
+        "quality_check": "Controle qualite"
+      }
+    },
+    "empty": {
+      "title": "Aucune idee pour l'instant",
+      "hint": "Creez votre premiere idee ou lancez une recherche pour decouvrir des slogans.",
+      "cta": "Creer une idee",
+      "selectNiche": "Selectionnez une niche pour voir les idees"
+    },
+    "bulk": {
+      "selected": "{{count}} selectionne(s)",
+      "selectIdea": "Selectionner l'idee",
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "clear": "Effacer la selection",
+      "updateSuccess": "{{count}} idees mises a jour",
+      "updateError": "Impossible de mettre a jour les idees"
+    },
+    "niche": {
+      "noResearchWarning": "Certaines niches n'ont pas de donnees de recherche — les resultats peuvent etre de moindre qualite.",
+      "alreadyAdapted": "Deja adapte"
+    },
+    "notifications": {
+      "createSuccess": "{{count}} idee(s) creee(s)",
+      "createError": "Impossible de creer l'idee",
+      "updateError": "Impossible de mettre a jour l'idee",
+      "deleteSuccess": "Idee supprimee",
+      "deleteError": "Impossible de supprimer l'idee",
+      "loadError": "Impossible de charger les idees"
+    }
+  },
+  "design": {
+    "board": {
+      "title": "Tableau de design",
+      "prompt": "Prompt",
+      "promptPlaceholder": "Decrivez le design que vous souhaitez generer...",
+      "promptRequired": "Veuillez d'abord saisir un prompt",
+      "generate": "Generer le design",
+      "generating": "Generation en cours...",
+      "generateError": "Impossible de generer le design",
+      "generationFailed": "La generation du design a echoue",
+      "retry": "Reessayer",
+      "references": "Images de reference",
+      "noReferences": "Aucune image de reference disponible",
+      "usePrompt": "Utiliser le prompt",
+      "useThisPrompt": "Utiliser ce prompt dans l'editeur",
+      "goBack": "Retour",
+      "loadError": "Impossible de charger le tableau de design",
+      "analysisBreakdown": "Analyse en 7 etapes",
+      "jumpButton": "Ouvrir le Design Board",
+      "analysisStep": {
+        "text_dna": "ADN textuel",
+        "visual": "Analyse visuelle",
+        "spatial": "Disposition spatiale",
+        "style": "Style",
+        "color": "Palette de couleurs",
+        "tech": "Technique",
+        "final_prompt": "Prompt final"
+      }
+    },
+    "model": {
+      "label": "Modele IA",
+      "gemini_flash": "Gemini Flash",
+      "gemini_pro": "Gemini Pro",
+      "gpt_image": "GPT Image",
+      "flux": "Flux"
+    },
+    "background": {
+      "label": "Couleur de fond",
+      "light_gray": "Gris clair",
+      "neon_pink": "Rose neon",
+      "neon_green": "Vert neon"
+    },
+    "status": {
+      "pending": "En attente",
+      "approved": "Approuve",
+      "rejected": "Rejete",
+      "failed": "Echoue"
+    },
+    "gallery": {
+      "title": "Designs generes",
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "download": "Telecharger",
+      "delete": "Supprimer",
+      "approved": "Design approuve",
+      "rejected": "Design rejete",
+      "deleted": "Design supprime",
+      "approveError": "Impossible d'approuver le design",
+      "rejectError": "Impossible de rejeter le design",
+      "deleteError": "Impossible de supprimer le design",
+      "imageAlt": "Design genere",
+      "noImage": "Aucune image"
+    },
+    "empty": {
+      "noDesigns": "Aucun design pour le moment",
+      "cta": "Generez votre premier design avec l'editeur de prompt"
+    },
+    "batch": {
+      "selectedCount": "{{count}} selectionne(s)",
+      "processButton": "Agrandir + Supprimer le fond",
+      "started": "Traitement par lot demarre",
+      "triggerError": "Impossible de demarrer le traitement par lot",
+      "jobFailed": "{{type}} a echoue",
+      "upscale": "Agrandissement",
+      "bg_remove": "Suppression du fond"
+    },
+    "analyze": {
+      "button": "Analyser l'image",
+      "started": "Analyse d'image demarree",
+      "success": "Design analyse - prompt pret",
+      "error": "Impossible d'analyser l'image"
+    }
+  },
+  "keywords": {
+    "page": { "title": "Keyword Lode", "searchPlaceholder": "Rechercher des mots-cles..." },
+    "source": { "research": "Recherche", "amazon_search": "Amazon", "web_search": "Recherche web", "manual": "Manuel", "junglescout": "JungleScout" },
+    "enrich": { "buttonLabel": "Enrichir", "bulkLabel": "Enrichir la selection", "loading": "Enrichissement...", "success": "Mots-cles enrichis", "noApiKeyTooltip": "Configurez la cle API JungleScout dans les parametres" },
+    "table": { "col_keyword": "Mot-cle", "col_source": "Source", "col_monthly_search_volume_exact": "Volume (exact)", "col_monthly_search_volume_broad": "Volume (large)", "col_monthly_trend": "Tendance mensuelle", "col_quarterly_trend": "Tendance trimestrielle", "col_ppc_bid_exact": "CPC (exact)", "col_ppc_bid_broad": "CPC (large)", "col_sp_brand_ad_bid": "Enchere SP Brand", "col_ease_of_ranking_score": "Facilite de classement", "col_relevancy_score": "Pertinence", "col_organic_product_count": "Nombre organique", "col_sponsored_product_count": "Nombre sponsorise", "col_dominant_category": "Categorie", "col_recommended_promotions": "Promotions", "col_in_product_count": "Dans produits", "col_in_slogan_count": "Dans slogans", "columnPicker": "Configurer les colonnes", "done": "Termine", "selected": "{{count}} selectionne(s)" },
+    "trend": { "chartTitle": "Tendance du volume de recherche", "noData": "Pas assez de donnees", "monthLabel": "Mois", "volumeLabel": "Volume de recherche" },
+    "addToNiche": { "buttonLabel": "Ajouter {{count}} a {{niche}}", "selectNiche": "Ajouter {{count}} a une niche...", "changeNiche": "Changer de niche", "noNiches": "Aucune niche trouvee", "addedCount": "{{count}} mot(s)-cle(s) ajoute(s)" },
+    "export": { "buttonLabel": "Exporter CSV" },
+    "empty": { "noResults": "Aucun mot-cle trouve", "tryCta": "Essayez un autre terme de recherche", "startSearch": "Rechercher des mots-cles", "searchHint": "Entrez un mot-cle pour rechercher dans votre base de donnees et Amazon" },
+    "drawer": { "sectionTitle": "Mots-cles", "addGroup": "Ajouter un groupe", "groupNamePlaceholder": "Nom du groupe...", "addButton": "Ajouter", "manualPlaceholder": "Ajouter des mots-cles (separes par des virgules)...", "deleteKeyword": "Supprimer le mot-cle", "editGroup": "Renommer le groupe", "deleteGroup": "Supprimer le groupe", "emptyGroup": "Aucun mot-cle dans ce groupe", "ungrouped": "Sans groupe", "noKeywords": "Aucun mot-cle collecte", "groupDeleted": "Groupe supprime (mots-cles conserves)" },
+    "errors": { "enrichFailed": "Impossible d'enrichir", "addFailed": "Impossible d'ajouter", "deleteFailed": "Impossible de supprimer", "exportFailed": "Impossible d'exporter", "historyFailed": "Impossible de charger les tendances", "renameFailed": "Impossible de renommer", "deleteGroupFailed": "Impossible de supprimer le groupe", "createGroupFailed": "Impossible de creer le groupe" }
+  },
+  "search": {
+    "chatBar": { "placeholder": "Rechercher sur le web ou poser une question...", "send": "Envoyer", "dismiss": "Masquer la barre de chat", "reveal": "Afficher la barre de chat", "expand": "Ouvrir la recherche" },
+    "drawer": { "segments": "Panneaux", "nicheDetail": "Niche", "chat": "Chat", "search": "Recherche", "close": "Fermer", "noNicheSelected": "Aucune niche selectionnee", "selectNicheHint": "Ouvrez une niche de la liste pour voir ses details ici." },
+    "chat": { "model": "Modele", "mode": "Mode", "modeSpeed": "Rapide", "modeBalanced": "Equilibre", "modeQuality": "Qualite", "sources": "Sources", "source_web": "Web", "source_academic": "Academique", "source_discussions": "Discussions", "sendError": "Echec de l'envoi du message.", "loadMore": "Charger les anciens messages", "toggleControls": "Parametres de recherche" },
+    "context": { "label": "Contexte: {{name}}", "removeTooltip": "Supprimer le contexte" },
+    "results": { "aiAnswer": "Reponse IA", "sources": "Sources", "noSources": "Aucune source trouvee.", "deepCrawl": "Deep Crawl" },
+    "crawl": { "pending": "En attente", "running": "En cours...", "completed": "Termine", "failed": "Echoue", "error": "Impossible de demarrer le Deep Crawl.", "retry": "Reessayer" },
+    "sessions": { "recentChats": "Chats recents", "untitled": "Chat sans titre", "share": "Partager", "unshare": "Arreter le partage", "shared": "Session partagee.", "unshared": "Session privee.", "shareError": "Echec du partage.", "sharedBy": "Partage par {{name}}", "readOnly": "Cette session partagee est en lecture seule." },
+    "tags": { "label": "Tags", "updateError": "Echec de la mise a jour des tags." },
+    "health": { "online": "En ligne", "offline": "Hors ligne", "tooltip": "Vane: {{vane}} | Crawl4ai: {{crawl4ai}}", "vaneOffline": "Recherche web indisponible.", "crawl4aiOffline": "Deep Crawl indisponible.", "allOffline": "Services de recherche hors ligne." },
+    "save": { "toNiche": "Enregistrer dans {{name}}", "keywords": "Enregistrer les mots-cles", "vectorDbSaved": "Sauvegarde auto dans Vector DB", "saved": "Enregistre dans {{name}}.", "error": "Echec de l'enregistrement." },
+    "empty": { "noSessions": "Aucune session de chat. Lancez une recherche!", "noResults": "Aucun resultat", "firstSearchHint": "Posez une question pour rechercher le web avec l'IA." }
   }
 }

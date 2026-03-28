@@ -58,6 +58,51 @@ services:
     depends_on:
       - redis
 
+  worker-slogan:
+    build:
+      context: ./django-app
+      dockerfile: backend.Dockerfile
+    container_name: app_worker_slogan
+    entrypoint: ["./worker.entrypoint.sh"]
+    command: python manage.py rqworker slogan
+    env_file: ./.env
+    restart: unless-stopped
+    networks:
+      - default
+      - supabase-net
+    depends_on:
+      - redis
+
+  worker-design:
+    build:
+      context: ./django-app
+      dockerfile: backend.Dockerfile
+    container_name: app_worker_design
+    entrypoint: ["./worker.entrypoint.sh"]
+    command: python manage.py rqworker design
+    env_file: ./.env
+    restart: unless-stopped
+    networks:
+      - default
+      - supabase-net
+    depends_on:
+      - redis
+
+  worker-agent:
+    build:
+      context: ./django-app
+      dockerfile: backend.Dockerfile
+    container_name: app_worker_agent
+    entrypoint: ["./worker.entrypoint.sh"]
+    command: python manage.py rqworker agent
+    env_file: ./.env
+    restart: unless-stopped
+    networks:
+      - default
+      - supabase-net
+    depends_on:
+      - redis
+
   scheduler:
     build:
       context: ./django-app

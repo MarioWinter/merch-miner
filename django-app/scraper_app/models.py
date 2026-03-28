@@ -80,6 +80,14 @@ class AmazonProduct(models.Model):
     def __str__(self):
         return f"{self.asin} - {self.title[:50]}" if self.title else self.asin
 
+    def get_embedding_text(self):
+        """Return text to embed for vector search."""
+        parts = filter(None, [
+            self.title, self.brand,
+            self.bullet_1, self.bullet_2,
+        ])
+        return ' '.join(parts)
+
 
 class ScrapeTier(models.Model):
     name = models.CharField(max_length=50)

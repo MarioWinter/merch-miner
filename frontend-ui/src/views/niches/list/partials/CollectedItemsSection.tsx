@@ -7,11 +7,10 @@ import { useSnackbar } from 'notistack';
 import { COLORS } from '@/style/constants';
 import type { RootState } from '@/store';
 import {
-  selectCollectedSlogans,
   selectCollectedKeywords,
-  removeSlogan,
   removeKeyword,
 } from '@/store/collectedItemsSlice';
+import { useListIdeasQuery, useDeleteIdeaMutation } from '@/store/ideaSlice';
 
 interface CollectedItemsSectionProps {
   nicheId: string;
@@ -29,14 +28,33 @@ export const CollectedItemsSection = ({ nicheId }: CollectedItemsSectionProps) =
   const dispatch = useDispatch();
   const { enqueueSnackbar } = useSnackbar();
 
-  const slogans = useSelector((s: RootState) => selectCollectedSlogans(s, nicheId));
+  // API-backed slogans (ideas with is_manual=true for this niche)
+  const { data: ideasData } = useListIdeasQuery(
+    { nicheId, page_size: 100 },
+    { skip: !nicheId },
+  );
+  const slogans = (ideasData?.results ?? [])
+    .filter((i) => i.is_manual)
+    .map((i) => ({ id: i.id, text: i.slogan_text }));
+
+  // Redux-only keywords
   const keywords = useSelector((s: RootState) => selectCollectedKeywords(s, nicheId));
+
+  const [deleteIdea] = useDeleteIdeaMutation();
 
   if (slogans.length === 0 && keywords.length === 0) return null;
 
   const handleCopyAll = (items: string[]) => {
     navigator.clipboard.writeText(items.join(', '));
     enqueueSnackbar(t('niches.drawer.copiedAll'), { variant: 'success' });
+  };
+
+  const handleRemoveSlogan = async (ideaId: string) => {
+    try {
+      await deleteIdea({ id: ideaId, nicheId }).unwrap();
+    } catch {
+      enqueueSnackbar(t('ideas.notifications.deleteError'), { variant: 'error' });
+    }
   };
 
   return (
@@ -50,7 +68,7 @@ export const CollectedItemsSection = ({ nicheId }: CollectedItemsSectionProps) =
             <Button
               size="small"
               startIcon={<ContentCopyIcon sx={{ fontSize: 14 }} />}
-              onClick={() => handleCopyAll(slogans)}
+              onClick={() => handleCopyAll(slogans.map((s) => s.text))}
               sx={{ fontSize: '0.75rem', textTransform: 'none' }}
             >
               {t('niches.drawer.copyAll')}
@@ -59,10 +77,10 @@ export const CollectedItemsSection = ({ nicheId }: CollectedItemsSectionProps) =
           <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
             {slogans.map((slogan) => (
               <Chip
-                key={slogan}
-                label={slogan}
+                key={slogan.id}
+                label={slogan.text}
                 size="small"
-                onDelete={() => dispatch(removeSlogan({ nicheId, value: slogan }))}
+                onDelete={() => handleRemoveSlogan(slogan.id)}
                 sx={(theme) => ({
                   backgroundColor: alpha(theme.palette.secondary.main, 0.12),
                   color: theme.vars.palette.secondary.main,
