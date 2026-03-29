@@ -13,9 +13,7 @@ import {
 import { styled } from '@mui/material/styles';
 import { alpha } from '@mui/material';
 import DashboardOutlinedIcon from '@mui/icons-material/DashboardOutlined';
-import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
 import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
-import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import BrushOutlinedIcon from '@mui/icons-material/BrushOutlined';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
@@ -210,17 +208,6 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
       sectionKey: 'controlRoom',
       items: [
         { label: t('nav.dashboard'), path: '/dashboard', icon: <DashboardOutlinedIcon sx={{ fontSize: 20 }} /> },
-        { label: t('nav.reports'), path: '/reports', icon: <BarChartOutlinedIcon sx={{ fontSize: 20 }} /> },
-      ],
-    },
-    {
-      sectionKey: 'pipeline',
-      items: [
-        { label: t('nav.niches'), path: '/niches', icon: <ListAltOutlinedIcon sx={{ fontSize: 20 }} /> },
-        { label: t('nav.research'), path: '/research', icon: <SearchOutlinedIcon sx={{ fontSize: 20 }} /> },
-        { label: t('nav.slogans'), path: '/slogans', icon: <LightbulbOutlinedIcon sx={{ fontSize: 20 }} /> },
-        { label: t('nav.designs'), path: '/designs', icon: <BrushOutlinedIcon sx={{ fontSize: 20 }} /> },
-        { label: t('nav.listings'), path: '/publish', icon: <ArticleOutlinedIcon sx={{ fontSize: 20 }} /> },
       ],
     },
     {
@@ -231,9 +218,18 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
       ],
     },
     {
+      sectionKey: 'pipeline',
+      items: [
+        { label: t('nav.niches'), path: '/niches', icon: <ListAltOutlinedIcon sx={{ fontSize: 20 }} /> },
+        { label: t('nav.slogans'), path: '/slogans', icon: <LightbulbOutlinedIcon sx={{ fontSize: 20 }} /> },
+        { label: t('nav.designs'), path: '/design-editor', icon: <BrushOutlinedIcon sx={{ fontSize: 20 }} /> },
+        { label: t('nav.listings'), path: '/publish', icon: <ArticleOutlinedIcon sx={{ fontSize: 20 }} /> },
+      ],
+    },
+    {
       sectionKey: 'surfaceOps',
       items: [
-        { label: t('nav.uploads'), path: '/publish', icon: <CloudUploadOutlinedIcon sx={{ fontSize: 20 }} /> },
+        { label: t('nav.uploads'), path: '/desktop-app', icon: <CloudUploadOutlinedIcon sx={{ fontSize: 20 }} /> },
         { label: t('nav.kanban'), path: '/kanban', icon: <ViewKanbanOutlinedIcon sx={{ fontSize: 20 }} /> },
       ],
     },
