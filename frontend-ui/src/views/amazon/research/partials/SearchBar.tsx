@@ -12,6 +12,7 @@ import {
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import SearchIcon from '@mui/icons-material/Search';
+import StopCircleOutlinedIcon from '@mui/icons-material/StopCircleOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import { useGetSuggestionsQuery } from '../../../../store/researchSlice';
@@ -34,6 +35,10 @@ interface SearchBarProps {
   hasSearched: boolean;
   /** Called when the niche indicator is clicked. */
   onNicheIndicatorClick: () => void;
+  /** Whether a live search is currently running. */
+  isSearching?: boolean;
+  /** Called to cancel a running live search. */
+  onCancel?: () => void;
 }
 
 const ModeLabel = styled(Typography)(({ theme }) => ({
@@ -56,6 +61,8 @@ const SearchBar = ({
   matchedNiche,
   hasSearched,
   onNicheIndicatorClick,
+  isSearching = false,
+  onCancel,
 }: SearchBarProps) => {
   const [inputValue, setInputValue] = useState(keyword);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -157,16 +164,37 @@ const SearchBar = ({
           </Tooltip>
         )}
 
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<SearchIcon />}
-          onClick={handleSearch}
-          aria-label="Search"
-          sx={{ minWidth: 110 }}
-        >
-          Search
-        </Button>
+        {isSearching && onCancel ? (
+          <Button
+            variant="contained"
+            color="error"
+            startIcon={<StopCircleOutlinedIcon />}
+            onClick={onCancel}
+            aria-label="Stop search"
+            sx={{ minWidth: 110 }}
+          >
+            Stop
+          </Button>
+        ) : (
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<SearchIcon />}
+            onClick={handleSearch}
+            disabled={!inputValue.trim()}
+            aria-label="Search"
+            sx={{
+              minWidth: 110,
+              '&.Mui-disabled': {
+                backgroundColor: (theme) => theme.vars.palette.primary.dark,
+                color: (theme) => theme.vars.palette.primary.contrastText,
+                opacity: 0.5,
+              },
+            }}
+          >
+            Search
+          </Button>
+        )}
       </Stack>
 
       {recentSearches.length > 0 && (

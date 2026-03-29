@@ -20,7 +20,9 @@ class SuggestionsQuerySerializer(serializers.Serializer):
 
 
 class LiveSearchSerializer(serializers.Serializer):
-    keyword = serializers.CharField(required=True, min_length=1, max_length=200)
+    keyword = serializers.CharField(
+        required=False, allow_blank=True, default='', max_length=200,
+    )
     marketplace = serializers.ChoiceField(
         choices=MarketplaceChoices.choices,
         required=True,
@@ -32,6 +34,46 @@ class LiveSearchSerializer(serializers.Serializer):
         default='',
     )
     hide_official_brands = serializers.BooleanField(required=False, default=False)
+    sort_by = serializers.ChoiceField(
+        choices=ScrapeJob.SortBy.choices,
+        required=False,
+        allow_blank=True,
+        default='',
+    )
+    price_min = serializers.DecimalField(
+        max_digits=10, decimal_places=2,
+        required=False, allow_null=True, default=None,
+    )
+    price_max = serializers.DecimalField(
+        max_digits=10, decimal_places=2,
+        required=False, allow_null=True, default=None,
+    )
+    browse_node = serializers.CharField(
+        max_length=20, required=False, allow_blank=True, default='',
+    )
+    pages_total = serializers.IntegerField(
+        required=False, min_value=1, max_value=400, default=2,
+    )
+    start_page = serializers.IntegerField(
+        required=False, min_value=1, default=1,
+    )
+
+    def validate(self, data):
+        keyword = data.get('keyword', '').strip()
+        browse_node = data.get('browse_node', '').strip()
+        if not keyword and not browse_node:
+            raise serializers.ValidationError(
+                'At least one of keyword or browse_node must be provided.',
+            )
+
+        price_min = data.get('price_min')
+        price_max = data.get('price_max')
+        if price_min is not None and price_max is not None and price_min >= price_max:
+            raise serializers.ValidationError(
+                {'price_min': 'price_min must be less than price_max.'},
+            )
+
+        return data
 
 
 class AmazonProductSerializer(serializers.ModelSerializer):

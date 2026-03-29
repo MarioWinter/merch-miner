@@ -9,6 +9,7 @@ from django.conf import settings
 from django.utils import timezone
 
 from scraper_app.models import (
+    PRODUCT_TYPE_SPIDER_KWARGS,
     AmazonProduct,
     Keyword,
     ProductSearchCache,
@@ -34,18 +35,31 @@ def _scrapy_env():
 CACHE_TTL_HOURS = 24
 
 
-def get_or_create_keyword_cache(keyword_str, marketplace):
+def get_or_create_keyword_cache(
+    keyword_str, marketplace,
+    sort_by='', price_min=None, price_max=None, browse_node='',
+    product_type_filter='',
+):
     """Check for existing pending/fresh cache. Returns (cache, is_new) or (None, False) to proceed.
 
     BUG-01 fix: dedup concurrent pending jobs.
     BUG-02 fix: return completed cache if <24h old.
+    Cache key includes sort_by, price_min, price_max, browse_node — different combos = separate cache.
     """
     keyword_obj, _ = Keyword.objects.get_or_create(
         keyword=keyword_str, marketplace=marketplace,
     )
+    filter_kwargs = dict(
+        keyword=keyword_obj,
+        sort_by=sort_by,
+        price_min=price_min,
+        price_max=price_max,
+        browse_node=browse_node,
+        product_type_filter=product_type_filter,
+    )
     # Check for pending/running job (dedup)
     pending_cache = ProductSearchCache.objects.filter(
-        keyword=keyword_obj,
+        **filter_kwargs,
         status=ProductSearchCache.Status.PENDING,
     ).select_related('scrape_job').first()
     if pending_cache:
@@ -54,7 +68,7 @@ def get_or_create_keyword_cache(keyword_str, marketplace):
     # Check for fresh completed cache (<24h)
     cutoff = timezone.now() - timedelta(hours=CACHE_TTL_HOURS)
     fresh_cache = ProductSearchCache.objects.filter(
-        keyword=keyword_obj,
+        **filter_kwargs,
         status=ProductSearchCache.Status.COMPLETED,
         last_scraped_at__gte=cutoff,
     ).order_by('-last_scraped_at').first()
@@ -64,7 +78,12 @@ def get_or_create_keyword_cache(keyword_str, marketplace):
     return None, True
 
 
-def scrape_keyword_job(keyword_str, marketplace, scrape_job_id=None, **spider_kwargs):
+def scrape_keyword_job(
+    keyword_str, marketplace, scrape_job_id=None,
+    sort_by='', price_min=None, price_max=None, browse_node='',
+    start_page=1,
+    **spider_kwargs,
+):
     """Run AmazonSearchProductSpider via subprocess for a keyword search."""
     scrape_job = None
     if scrape_job_id:
@@ -73,6 +92,12 @@ def scrape_keyword_job(keyword_str, marketplace, scrape_job_id=None, **spider_kw
         except ScrapeJob.DoesNotExist:
             logger.error("ScrapeJob %s not found", scrape_job_id)
             return
+
+    # Auto-populate browse_node from product_type if not explicitly set
+    if not browse_node:
+        product_type_filter = spider_kwargs.get('product_type_filter', '')
+        if product_type_filter and product_type_filter in PRODUCT_TYPE_SPIDER_KWARGS:
+            browse_node = PRODUCT_TYPE_SPIDER_KWARGS[product_type_filter].get('browse_node', '')
 
     try:
         if scrape_job:
@@ -87,6 +112,17 @@ def scrape_keyword_job(keyword_str, marketplace, scrape_job_id=None, **spider_kw
         ]
         if scrape_job_id:
             cmd.extend(['-a', f'job_id={scrape_job_id}'])
+        # Append filter params as spider args (only when set)
+        if sort_by:
+            cmd.extend(['-a', f'sort_by={sort_by}'])
+        if price_min is not None:
+            cmd.extend(['-a', f'price_min={price_min}'])
+        if price_max is not None:
+            cmd.extend(['-a', f'price_max={price_max}'])
+        if browse_node:
+            cmd.extend(['-a', f'browse_node={browse_node}'])
+        if start_page and int(start_page) > 1:
+            cmd.extend(['-a', f'start_page={start_page}'])
         max_items = spider_kwargs.pop('max_items', None)
         for key, value in spider_kwargs.items():
             if value is not None:
@@ -181,7 +217,12 @@ def scrape_keyword_job(keyword_str, marketplace, scrape_job_id=None, **spider_kw
                 logger.exception("Failed to mark ScrapeJob %s as failed", scrape_job_id)
 
 
-def scrape_search_page_job(keyword_str, marketplace, scrape_job_id=None, **spider_kwargs):
+def scrape_search_page_job(
+    keyword_str, marketplace, scrape_job_id=None,
+    sort_by='', price_min=None, price_max=None, browse_node='',
+    start_page=1,
+    **spider_kwargs,
+):
     """Run AmazonSearchPageSpider via subprocess for search-page-only scraping."""
     scrape_job = None
     if scrape_job_id:
@@ -190,6 +231,12 @@ def scrape_search_page_job(keyword_str, marketplace, scrape_job_id=None, **spide
         except ScrapeJob.DoesNotExist:
             logger.error("ScrapeJob %s not found", scrape_job_id)
             return
+
+    # Auto-populate browse_node from product_type if not explicitly set
+    if not browse_node:
+        product_type_filter = spider_kwargs.get('product_type_filter', '')
+        if product_type_filter and product_type_filter in PRODUCT_TYPE_SPIDER_KWARGS:
+            browse_node = PRODUCT_TYPE_SPIDER_KWARGS[product_type_filter].get('browse_node', '')
 
     try:
         if scrape_job:
@@ -204,6 +251,17 @@ def scrape_search_page_job(keyword_str, marketplace, scrape_job_id=None, **spide
         ]
         if scrape_job_id:
             cmd.extend(['-a', f'job_id={scrape_job_id}'])
+        # Append filter params as spider args (only when set)
+        if sort_by:
+            cmd.extend(['-a', f'sort_by={sort_by}'])
+        if price_min is not None:
+            cmd.extend(['-a', f'price_min={price_min}'])
+        if price_max is not None:
+            cmd.extend(['-a', f'price_max={price_max}'])
+        if browse_node:
+            cmd.extend(['-a', f'browse_node={browse_node}'])
+        if start_page and int(start_page) > 1:
+            cmd.extend(['-a', f'start_page={start_page}'])
         max_items = spider_kwargs.pop('max_items', None)
         for key, value in spider_kwargs.items():
             if value is not None:
@@ -429,9 +487,9 @@ def cancel_scrape_job(scrape_job_id, cancelled_by='admin'):
     scrape_job.finished_at = timezone.now()
     scrape_job.save(update_fields=['status', 'cancelled_by', 'pid', 'finished_at'])
 
-    # If linked to ProductSearchCache, mark as failed
+    # If linked to ProductSearchCache, mark as cancelled
     ProductSearchCache.objects.filter(scrape_job=scrape_job).update(
-        status=ProductSearchCache.Status.FAILED,
+        status=ProductSearchCache.Status.CANCELLED,
     )
 
     logger.info("ScrapeJob %s cancelled by %s", scrape_job_id, cancelled_by)

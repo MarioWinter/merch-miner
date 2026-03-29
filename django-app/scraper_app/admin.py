@@ -55,14 +55,32 @@ class CsvUploadForm(forms.Form):
 class ScrapeJobAdmin(admin.ModelAdmin):
     list_display = [
         'get_target', 'marketplace', 'mode', 'product_type_filter', 'status',
-        'pages_total', 'max_items', 'get_progress', 'products_scraped', 'get_error_count',
+        'get_sort_by', 'browse_node',
+        'pages_total', 'start_page', 'max_items', 'get_progress', 'products_scraped', 'get_error_count',
         'started_at', 'finished_at',
     ]
-    list_filter = ['status', 'mode', 'marketplace', 'product_type_filter']
+    list_filter = ['status', 'mode', 'marketplace', 'product_type_filter', 'sort_by']
     readonly_fields = [
         'id', 'rq_job_id', 'pid', 'error_log', 'cancelled_by',
         'started_at', 'finished_at', 'pages_done', 'products_scraped',
     ]
+    fieldsets = (
+        (None, {
+            'fields': (
+                'mode', 'keyword', 'asin', 'marketplace', 'product_type_filter',
+                'status', 'pages_total', 'start_page', 'max_items',
+            ),
+        }),
+        ('Search Filters', {
+            'fields': ('sort_by', 'price_min', 'price_max', 'browse_node'),
+        }),
+        ('Progress & Metadata', {
+            'fields': (
+                'id', 'rq_job_id', 'pid', 'pages_done', 'products_scraped',
+                'error_log', 'cancelled_by', 'started_at', 'finished_at',
+            ),
+        }),
+    )
     actions = ['start_pending_jobs', 'stop_running_jobs', 'cancel_pending_jobs', 'retry_failed_jobs']
 
     def get_target(self, obj):
@@ -76,6 +94,11 @@ class ScrapeJobAdmin(admin.ModelAdmin):
     def get_error_count(self, obj):
         return obj.error_count
     get_error_count.short_description = 'Errors'
+
+    def get_sort_by(self, obj):
+        return obj.get_sort_by_display() if obj.sort_by else '-'
+    get_sort_by.short_description = 'Sort'
+    get_sort_by.admin_order_field = 'sort_by'
 
     @admin.action(description='Start selected pending jobs')
     def start_pending_jobs(self, request, queryset):
@@ -94,6 +117,8 @@ class ScrapeJobAdmin(admin.ModelAdmin):
                 spider_kwargs['max_pages'] = job.pages_total
                 if job.max_items:
                     spider_kwargs['max_items'] = job.max_items
+                # Remove browse_node from spider_kwargs to avoid conflict with explicit kwarg
+                spider_kwargs.pop('browse_node', None)
                 # Choose spider based on mode
                 task_func = scrape_search_page_job if job.mode == ScrapeJob.Mode.SEARCH_PAGE_ONLY else scrape_keyword_job
                 rq_job = queue.enqueue(
@@ -101,6 +126,11 @@ class ScrapeJobAdmin(admin.ModelAdmin):
                     keyword_str=job.keyword.keyword,
                     marketplace=job.marketplace,
                     scrape_job_id=str(job.id),
+                    sort_by=job.sort_by or '',
+                    price_min=job.price_min,
+                    price_max=job.price_max,
+                    browse_node=job.browse_node or '',
+                    start_page=job.start_page,
                     **spider_kwargs,
                 )
             elif job.asin:
@@ -161,8 +191,13 @@ class ScrapeJobAdmin(admin.ModelAdmin):
                 marketplace=job.marketplace,
                 status=ScrapeJob.Status.PENDING,
                 pages_total=job.pages_total,
+                start_page=job.start_page,
                 max_items=job.max_items,
                 product_type_filter=job.product_type_filter,
+                sort_by=job.sort_by,
+                price_min=job.price_min,
+                price_max=job.price_max,
+                browse_node=job.browse_node,
             )
             if job.keyword:
                 spider_kwargs = {}
@@ -171,12 +206,19 @@ class ScrapeJobAdmin(admin.ModelAdmin):
                 spider_kwargs['max_pages'] = job.pages_total
                 if job.max_items:
                     spider_kwargs['max_items'] = job.max_items
+                # Remove browse_node from spider_kwargs to avoid conflict with explicit kwarg
+                spider_kwargs.pop('browse_node', None)
                 task_func = scrape_search_page_job if job.mode == ScrapeJob.Mode.SEARCH_PAGE_ONLY else scrape_keyword_job
                 rq_job = queue.enqueue(
                     task_func,
                     keyword_str=job.keyword.keyword,
                     marketplace=job.marketplace,
                     scrape_job_id=str(new_job.id),
+                    sort_by=job.sort_by or '',
+                    price_min=job.price_min,
+                    price_max=job.price_max,
+                    browse_node=job.browse_node or '',
+                    start_page=job.start_page,
                     **spider_kwargs,
                 )
             elif job.asin:
@@ -492,7 +534,7 @@ class KeywordAdmin(admin.ModelAdmin):
 
 @admin.register(ProductSearchCache)
 class ProductSearchCacheAdmin(admin.ModelAdmin):
-    list_display = ['keyword', 'status', 'last_scraped_at']
+    list_display = ['keyword', 'sort_by', 'price_min', 'price_max', 'browse_node', 'status', 'last_scraped_at']
     list_filter = ['status']
 
 

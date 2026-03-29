@@ -199,7 +199,7 @@ export const CollectedProductsSection = ({ nicheId }: CollectedProductsSectionPr
   const products = collectedData?.results ?? [];
   const [currentIndex, setCurrentIndex] = useState(0);
   const [slideDir, setSlideDir] = useState<'enter' | 'idle' | 'exit-left' | 'exit-right'>('idle');
-  const slideTimerRef = useRef<ReturnType<typeof setTimeout>>();
+  const slideTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   const safeIndex = products.length > 0 ? Math.min(currentIndex, products.length - 1) : 0;
   const currentProduct = products[safeIndex];

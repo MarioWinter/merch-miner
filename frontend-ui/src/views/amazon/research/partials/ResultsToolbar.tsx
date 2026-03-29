@@ -28,6 +28,7 @@ interface ResultsToolbarProps {
   buildQueryParams: () => Record<string, unknown>;
   activeTab: ResultsTab;
   onTabChange: (tab: ResultsTab) => void;
+  activeFilterSummary?: string;
 }
 
 const ResultsToolbar = ({
@@ -40,6 +41,7 @@ const ResultsToolbar = ({
   buildQueryParams,
   activeTab,
   onTabChange,
+  activeFilterSummary,
 }: ResultsToolbarProps) => {
   const { enqueueSnackbar } = useSnackbar();
 
@@ -103,6 +105,15 @@ const ResultsToolbar = ({
         {count > 0
           ? `${count.toLocaleString()} results${keyword ? ` for "${keyword}"` : ''}`
           : 'No results'}
+        {activeFilterSummary && (
+          <Typography
+            component="span"
+            variant="body2"
+            sx={{ ml: 1, color: 'secondary.main' }}
+          >
+            {activeFilterSummary}
+          </Typography>
+        )}
       </Typography>
 
       {activeTab === 'products' && (

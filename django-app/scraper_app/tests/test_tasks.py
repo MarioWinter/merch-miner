@@ -251,6 +251,68 @@ class TestScrapeKeywordJob:
 
         mock_popen_cls.assert_not_called()
 
+    @patch('scraper_app.tasks.subprocess.Popen')
+    def test_passes_sort_by_arg(self, mock_popen_cls):
+        """sort_by is forwarded as -a sort_by=... to scrapy crawl."""
+        mock_popen_cls.return_value = _mock_popen(returncode=0)
+
+        scrape_keyword_job('test', 'amazon_com', sort_by='date-desc-rank')
+
+        cmd = mock_popen_cls.call_args.args[0]
+        assert '-a' in cmd
+        assert 'sort_by=date-desc-rank' in cmd
+
+    @patch('scraper_app.tasks.subprocess.Popen')
+    def test_passes_price_min_arg(self, mock_popen_cls):
+        """price_min is forwarded as -a price_min=... to scrapy crawl."""
+        mock_popen_cls.return_value = _mock_popen(returncode=0)
+
+        scrape_keyword_job('test', 'amazon_com', price_min=9.99)
+
+        cmd = mock_popen_cls.call_args.args[0]
+        assert 'price_min=9.99' in cmd
+
+    @patch('scraper_app.tasks.subprocess.Popen')
+    def test_passes_price_max_arg(self, mock_popen_cls):
+        """price_max is forwarded as -a price_max=... to scrapy crawl."""
+        mock_popen_cls.return_value = _mock_popen(returncode=0)
+
+        scrape_keyword_job('test', 'amazon_com', price_max=29.99)
+
+        cmd = mock_popen_cls.call_args.args[0]
+        assert 'price_max=29.99' in cmd
+
+    @patch('scraper_app.tasks.subprocess.Popen')
+    def test_passes_browse_node_arg(self, mock_popen_cls):
+        """browse_node is forwarded as -a browse_node=... to scrapy crawl."""
+        mock_popen_cls.return_value = _mock_popen(returncode=0)
+
+        scrape_keyword_job('test', 'amazon_com', browse_node='12035955011')
+
+        cmd = mock_popen_cls.call_args.args[0]
+        assert 'browse_node=12035955011' in cmd
+
+    @patch('scraper_app.tasks.subprocess.Popen')
+    def test_empty_sort_by_not_in_cmd(self, mock_popen_cls):
+        """Empty sort_by does not add -a sort_by= to command."""
+        mock_popen_cls.return_value = _mock_popen(returncode=0)
+
+        scrape_keyword_job('test', 'amazon_com', sort_by='')
+
+        cmd = mock_popen_cls.call_args.args[0]
+        assert not any('sort_by=' in str(c) for c in cmd)
+
+    @patch('scraper_app.tasks.subprocess.Popen')
+    def test_none_price_not_in_cmd(self, mock_popen_cls):
+        """price_min=None does not add -a price_min= to command."""
+        mock_popen_cls.return_value = _mock_popen(returncode=0)
+
+        scrape_keyword_job('test', 'amazon_com', price_min=None, price_max=None)
+
+        cmd = ' '.join(str(c) for c in mock_popen_cls.call_args.args[0])
+        assert 'price_min=' not in cmd
+        assert 'price_max=' not in cmd
+
 
 # ---------------------------------------------------------------------------
 # scrape_asin_detail_job
@@ -547,6 +609,73 @@ class TestGetOrCreateKeywordCache:
 
         result, is_new = get_or_create_keyword_cache('failed test', 'amazon_com')
 
+        assert result is None
+        assert is_new is True
+
+    def test_different_sort_by_creates_separate_cache(self):
+        """Different sort_by for same keyword → separate cache entries."""
+        kw = _make_keyword('sort test')
+        job1 = _make_scrape_job(keyword=kw)
+        ProductSearchCache.objects.create(
+            keyword=kw, scrape_job=job1,
+            status=ProductSearchCache.Status.PENDING,
+            sort_by='',
+        )
+
+        # Same keyword but different sort_by → no dedup hit
+        result, is_new = get_or_create_keyword_cache(
+            'sort test', 'amazon_com', sort_by='date-desc-rank',
+        )
+        assert result is None
+        assert is_new is True
+
+    def test_same_keyword_same_sort_by_cache_hit(self):
+        """Same keyword + same sort_by → dedup returns existing cache."""
+        kw = _make_keyword('sort dedup test')
+        job = _make_scrape_job(keyword=kw)
+        cache = ProductSearchCache.objects.create(
+            keyword=kw, scrape_job=job,
+            status=ProductSearchCache.Status.PENDING,
+            sort_by='date-desc-rank',
+        )
+
+        result, is_new = get_or_create_keyword_cache(
+            'sort dedup test', 'amazon_com', sort_by='date-desc-rank',
+        )
+        assert result == cache
+        assert is_new is False
+
+    def test_different_price_range_creates_separate_cache(self):
+        """Different price_min/price_max → separate cache."""
+        from decimal import Decimal
+        kw = _make_keyword('price test')
+        job = _make_scrape_job(keyword=kw)
+        ProductSearchCache.objects.create(
+            keyword=kw, scrape_job=job,
+            status=ProductSearchCache.Status.PENDING,
+            price_min=Decimal('10.00'), price_max=Decimal('30.00'),
+        )
+
+        result, is_new = get_or_create_keyword_cache(
+            'price test', 'amazon_com',
+            price_min=Decimal('5.00'), price_max=Decimal('20.00'),
+        )
+        assert result is None
+        assert is_new is True
+
+    def test_different_browse_node_creates_separate_cache(self):
+        """Different browse_node → separate cache."""
+        kw = _make_keyword('node test')
+        job = _make_scrape_job(keyword=kw)
+        ProductSearchCache.objects.create(
+            keyword=kw, scrape_job=job,
+            status=ProductSearchCache.Status.PENDING,
+            browse_node='12035955011',
+        )
+
+        result, is_new = get_or_create_keyword_cache(
+            'node test', 'amazon_com', browse_node='99999999999',
+        )
         assert result is None
         assert is_new is True
 

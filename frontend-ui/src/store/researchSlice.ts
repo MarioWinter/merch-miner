@@ -141,6 +141,13 @@ export const researchApi = createApi({
         { type: 'ResearchStatus', id: cacheId },
       ],
     }),
+
+    cancelLiveSearch: builder.mutation<{ status: string }, string>({
+      query: (cacheId) => ({
+        url: `/api/research/search/${cacheId}/cancel/`,
+        method: 'POST',
+      }),
+    }),
   }),
 });
 
@@ -157,4 +164,5 @@ export const {
   useGetPriceHistoryQuery,
   useUseAsTemplateMutation,
   usePollSearchStatusExtendedQuery,
+  useCancelLiveSearchMutation,
 } = researchApi;

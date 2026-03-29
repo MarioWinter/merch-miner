@@ -62,7 +62,7 @@ const PriceHistorySection = ({ snapshots }: PriceHistorySectionProps) => {
           height={250}
           margin={{ left: 60, right: 20, top: 20, bottom: 40 }}
           grid={{ horizontal: true }}
-          slotProps={{ legend: { hidden: true } }}
+          hideLegend
         />
       ) : (
         <Box

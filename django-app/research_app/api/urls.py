@@ -8,6 +8,7 @@ from research_app.api.views import (
     ProductExportView,
     ProductListView,
     SameBrandView,
+    SearchCancelView,
     SearchStatusView,
     SimilarProductsView,
     SuggestionsView,
@@ -18,6 +19,7 @@ urlpatterns = [
     path('research/suggestions/', SuggestionsView.as_view(), name='research-suggestions'),
     path('research/search/', LiveSearchView.as_view(), name='research-live-search'),
     path('research/search/<uuid:cache_id>/status/', SearchStatusView.as_view(), name='research-search-status'),
+    path('research/search/<uuid:cache_id>/cancel/', SearchCancelView.as_view(), name='research-search-cancel'),
     path('research/products/', ProductListView.as_view(), name='research-products'),
     path('research/products/export/', ProductExportView.as_view(), name='research-products-export'),
     # Product detail + sub-resources (order matters: specific paths before <str:asin>/)

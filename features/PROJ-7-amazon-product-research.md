@@ -3,7 +3,7 @@
 **Status:** In Progress
 **Priority:** P0 (MVP)
 **Created:** 2026-02-27
-**Updated:** 2026-03-28
+**Updated:** 2026-03-29
 
 ## Overview
 
@@ -88,6 +88,37 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 - [x] AC-40: **Copy ASINs scope:** Label shows count.
 - [x] AC-41: **CSV export filter consistency:** Uses `buildQueryParams()`.
 
+### Phase 6 — Sort Selection, Product Types, Infinite Scroll, Cancel (amendment 2026-03-29)
+
+#### Sort Selection
+- [ ] AC-42: **Live Sort dropdown:** Visible in Live mode with Amazon sort options: Featured (default), Best Sellers, Newest, Price Low→High, Price High→Low, Avg Reviews, Relevance. MUI icons per option.
+- [ ] AC-43: **DB Sort dropdown:** Unchanged — BSR, Reviews, Rating, Price, Newest. Both sort dropdowns visible simultaneously.
+- [ ] AC-44: **Live sort default:** `featured-rank` pre-selected on page load.
+
+#### Product Type Expansion (16 MBA Types)
+- [ ] AC-45: **Product Type dropdown:** Expanded from 6 to 16 MBA types with custom SVG icons: T-Shirt, Premium Shirt, Comfort Colors, V-Neck, Long Sleeve, Raglan, Sweatshirt, Hoodie, Performance Polo, Zip Hoodie, PopSocket, Phone Case, Tote Bag, Tumbler, Ceramic Mug, Tank Top.
+- [ ] AC-46: **`pullover` removed**, replaced by `sweatshirt` across frontend and backend.
+
+#### Infinite Scroll (Live Mode)
+- [ ] AC-47: **Page-by-page scraping:** Each live search job scrapes 1 Amazon page (`pages_total=1`). Products displayed when job completes.
+- [ ] AC-48: **Scroll-triggered next page:** When user scrolls to bottom of product list AND previous job is completed → new job triggered with `start_page=N+1`. Products appended (deduplicated by ASIN).
+- [ ] AC-49: **End of results:** If scrape returns 0 new products → infinite scroll stops.
+- [ ] AC-50: **New keyword resets:** New search clears accumulated products and resets to page 1.
+
+#### Cancel / Stop
+- [ ] AC-51: **Search↔Stop toggle:** Search button becomes red "Stop" button (StopCircle icon) when live search is running. Clicking Stop cancels the backend job and resets UI to initial state.
+- [ ] AC-52: **No error on cancel:** Cancelled searches show no error message. UI returns to clean state.
+
+#### Skeleton Cards
+- [ ] AC-53: **Skeleton progress:** During pending/running, skeleton cards (wave animation) shown below existing products instead of a loading bar. Max 8 skeletons. Count reduces as real products load.
+
+#### Hardcoded Defaults
+- [ ] AC-54: **Price range:** `price_min=13, price_max=100` sent to API automatically. Not exposed in UI.
+- [ ] AC-55: **Browse node:** Auto-resolved from `PRODUCT_TYPE_BROWSE_NODES[product_type]`. Not exposed in UI.
+
+#### Search Button UX
+- [ ] AC-56: **Disabled when empty:** Search button disabled when keyword input is empty. Keeps primary color but darker/dimmed (0.5 opacity).
+
 ## API Endpoints
 
 | Method | Path | Auth | Description |
@@ -95,6 +126,7 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 | GET | `/api/research/suggestions/` | Member | Amazon autocomplete proxy |
 | POST | `/api/research/search/` | Member | Live Research: trigger Scrapy scrape or return cached |
 | GET | `/api/research/search/{cache_id}/status/` | Member | Poll scrape job status |
+| POST | `/api/research/search/{cache_id}/cancel/` | Member | Cancel running live search (kills scraper process) |
 | GET | `/api/research/products/` | Member | DB Research: filter/sort all stored products |
 | GET | `/api/research/products/export/` | Member | DB Research: export filtered results as CSV (no pagination) |
 | GET | `/api/research/products/{asin}/bsr-history/` | Member | BSR history snapshots (extended to 90 days) |
@@ -137,10 +169,16 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 
 | Param | Type | Description |
 |-------|------|-------------|
-| `keyword` | string | Required; triggers scrape |
+| `keyword` | string | Optional (required if no `browse_node`); triggers scrape |
 | `marketplace` | string | Required; e.g. `amazon_com` |
-| `product_type` | string | Optional; user selects from dropdown (t_shirt, hoodie, pullover, zip_hoodie, long_sleeve, tank_top). Narrows the scrape to that MBA product type. |
+| `product_type` | string | Optional; 16 MBA product types (t_shirt, premium_shirt, comfort_colors, v_neck, long_sleeve, raglan, sweatshirt, hoodie, performance_polo, zip_hoodie, popsocket, phone_case, tote_bag, tumbler, ceramic_mug, tank_top) |
 | `hide_official_brands` | bool | Optional |
+| `sort_by` | string | Optional; Amazon sort param (featured-rank, exact-aware-popularity-rank, date-desc-rank, price-asc-rank, price-desc-rank, review-rank). Default: featured-rank |
+| `price_min` | decimal | Optional; Amazon low-price filter. Frontend default: 13 |
+| `price_max` | decimal | Optional; Amazon high-price filter. Frontend default: 100 |
+| `browse_node` | string | Optional; Amazon bbn param. Auto-resolved from product_type |
+| `pages_total` | int | Optional; max 400. Frontend always sends 1 (Infinite Scroll) |
+| `start_page` | int | Optional; default 1. Frontend increments per scroll |
 
 ## Edge Cases
 
@@ -172,6 +210,13 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 - [ ] EC-23: Card hover on touch device (no hover) → action icons always visible on mobile/tablet.
 - [ ] EC-24: Detail page navigated to directly via URL (no search context) → page loads product data via ASIN lookup; back button returns to research page with empty results.
 - [ ] EC-25: Statistics view with 0 results → show "Run a search first" empty state.
+
+### Phase 6 (amendment 2026-03-29)
+- [ ] EC-26: User clicks Stop during pending (before any products) → UI resets cleanly, no stale skeletons.
+- [ ] EC-27: User clicks Stop during running (some products loaded) → already-loaded products remain visible, skeletons removed.
+- [ ] EC-28: Infinite scroll: Amazon returns 0 products on next page → `canLoadMore=false`, no more scroll triggers.
+- [ ] EC-29: User changes product type mid-scroll → resets to page 1, clears accumulated products, new search with new type.
+- [ ] EC-30: Best Sellers sort returns many branded products → BrandBlacklist filters them (no UI change needed).
 
 ## Dependencies
 

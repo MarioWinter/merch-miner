@@ -16,9 +16,14 @@ class AmazonSearchProductSpider(SearchPageMixin, ProductDetailMixin, scrapy.Spid
         marketplace="amazon_com",
         job_id=None,
         max_pages=2,
+        start_page='1',
         search_index=None,
         seller_filter=None,
         hidden_keywords=None,
+        sort_by=None,
+        price_min=None,
+        price_max=None,
+        browse_node=None,
         *args,
         **kwargs,
     ):
@@ -27,19 +32,24 @@ class AmazonSearchProductSpider(SearchPageMixin, ProductDetailMixin, scrapy.Spid
         self.marketplace = marketplace
         self.job_id = job_id
         self.max_pages = int(max_pages)
+        self.start_page = int(start_page)
         self.search_index = search_index
         self.seller_filter = seller_filter
         self.hidden_keywords = hidden_keywords
+        self.sort_by = sort_by or ""
+        self.price_min = price_min if price_min is not None and price_min != "" else None
+        self.price_max = price_max if price_max is not None and price_max != "" else None
+        self.browse_node = browse_node or ""
 
     def start_requests(self):
-        search_url = self._build_search_url(page=1)
+        search_url = self._build_search_url(page=self.start_page)
         yield scrapy.Request(
             url=search_url,
             callback=self.discover_product_urls,
             meta={
                 "keyword": self.keyword,
                 "marketplace": self.marketplace,
-                "page": 1,
+                "page": self.start_page,
                 "job_id": self.job_id,
                 "retry_count": 0,
             },

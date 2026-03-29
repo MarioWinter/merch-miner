@@ -1,7 +1,8 @@
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   Box,
   Button,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -18,6 +19,7 @@ import {
   useListProductsQuery,
   useTriggerLiveSearchMutation,
   usePollSearchStatusExtendedQuery,
+  useCancelLiveSearchMutation,
 } from '../../../store/researchSlice';
 import { useExtractSloganMutation } from '../../../store/ideaSlice';
 import { useCreateNicheMutation } from '../../../store/nicheSlice';
@@ -31,6 +33,7 @@ import useFilterState from './hooks/useFilterState';
 import useRecentSearches from './hooks/useRecentSearches';
 import usePolling from './hooks/usePolling';
 import useActiveNiche from './hooks/useActiveNiche';
+import { LIVE_SORT_OPTIONS, PRODUCT_TYPE_BROWSE_NODES } from './types';
 import type { ResearchFilters, SearchKeywordResult, AmazonProduct } from './types';
 import type { ResultsTab } from './partials/ResultsToolbar';
 import SearchBar from './partials/SearchBar';
@@ -65,6 +68,12 @@ const AmazonResearchView = () => {
   const [page, setPage] = useState(0);
   const [cacheId, setCacheId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ResultsTab>('products');
+
+  // Infinite scroll state (live mode)
+  const [currentPage, setCurrentPage] = useState(1);
+  const [allLiveProducts, setAllLiveProducts] = useState<AmazonProduct[]>([]);
+  const [canLoadMore, setCanLoadMore] = useState(false);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -151,7 +160,8 @@ const AmazonResearchView = () => {
 
   // Live mode
   const [triggerLiveSearch] = useTriggerLiveSearchMutation();
-  const { status, pagesDone, productsScraped, products: liveProducts, errorLog, isPolling } =
+  const [cancelLiveSearch] = useCancelLiveSearchMutation();
+  const { status, productsScraped, products: liveProducts, errorLog, isPolling } =
     usePolling(isLive ? cacheId : null);
 
   // Fetch extended status for keyword results (statistics)
@@ -162,6 +172,78 @@ const AmazonResearchView = () => {
   const keywordResults: SearchKeywordResult | undefined =
     extendedStatus?.keyword_result ?? undefined;
 
+  // Accumulate live products when a page completes
+  useEffect(() => {
+    if (status === 'completed' && liveProducts.length > 0) {
+      setAllLiveProducts((prev) => {
+        // Deduplicate by ASIN
+        const existingAsins = new Set(prev.map((p) => p.asin));
+        const newProducts = liveProducts.filter((p) => !existingAsins.has(p.asin));
+        if (newProducts.length === 0) {
+          setCanLoadMore(false);
+          return prev;
+        }
+        setCanLoadMore(true);
+        return [...prev, ...newProducts];
+      });
+    } else if (status === 'completed' && liveProducts.length === 0) {
+      setCanLoadMore(false);
+    }
+  }, [status, liveProducts]);
+
+  // Trigger a live search for a given page
+  const triggerLivePage = useCallback(
+    async (kw: string, startPage: number) => {
+      const browseNode = PRODUCT_TYPE_BROWSE_NODES[filters.product_type] || undefined;
+      try {
+        const result = await triggerLiveSearch({
+          keyword: kw,
+          marketplace: filters.marketplace,
+          product_type: filters.product_type || undefined,
+          hide_official_brands: filters.hide_official_brands || undefined,
+          sort_by: filters.live_sort_by || undefined,
+          price_min: 13,
+          price_max: 100,
+          browse_node: browseNode,
+          pages_total: 1,
+          start_page: startPage,
+        }).unwrap();
+        setCacheId(result.cache_id);
+      } catch {
+        // Error handled by RTK Query
+      }
+    },
+    [filters, triggerLiveSearch],
+  );
+
+  // IntersectionObserver for infinite scroll sentinel
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    if (!sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (
+          entry.isIntersecting &&
+          isLive &&
+          status === 'completed' &&
+          canLoadMore &&
+          !isPolling
+        ) {
+          const nextPage = currentPage + 1;
+          setCurrentPage(nextPage);
+          setCanLoadMore(false);
+          triggerLivePage(keyword, nextPage);
+        }
+      },
+      { threshold: 0.1 },
+    );
+
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [isLive, status, canLoadMore, isPolling, currentPage, keyword, triggerLivePage]);
+
   const handleSearch = useCallback(
     async (kw: string) => {
       setKeyword(kw);
@@ -170,25 +252,19 @@ const AmazonResearchView = () => {
       addSearch(kw, filters.marketplace);
 
       if (isLive) {
-        try {
-          const result = await triggerLiveSearch({
-            keyword: kw,
-            marketplace: filters.marketplace,
-            product_type: filters.product_type || undefined,
-            hide_official_brands: filters.hide_official_brands || undefined,
-          }).unwrap();
-          setCacheId(result.cache_id);
-        } catch {
-          // Error handled by RTK Query
-        }
+        // Reset infinite scroll state for new keyword
+        setCurrentPage(1);
+        setAllLiveProducts([]);
+        setCanLoadMore(false);
+        await triggerLivePage(kw, 1);
       }
     },
-    [isLive, filters, addSearch, triggerLiveSearch],
+    [isLive, filters.marketplace, addSearch, triggerLivePage],
   );
 
   // Recent chip click: only fill input + set marketplace, do NOT trigger search
   const handleRecentClick = useCallback(
-    (kw: string, mp: string) => {
+    (_kw: string, mp: string) => {
       setFilter('marketplace', mp);
       // keyword state is set by SearchBar via setInputValue;
       // we only sync the marketplace here
@@ -199,6 +275,20 @@ const AmazonResearchView = () => {
   const handleRetry = useCallback(() => {
     if (keyword) handleSearch(keyword);
   }, [keyword, handleSearch]);
+
+  const handleCancel = useCallback(async () => {
+    if (!cacheId) return;
+    try {
+      await cancelLiveSearch(cacheId).unwrap();
+    } catch {
+      // Best-effort cancel
+    }
+    setCacheId(null);
+    setCanLoadMore(false);
+    enqueueSnackbar(t('amazonResearch.searchCancelled', 'Search cancelled'), {
+      variant: 'info',
+    });
+  }, [cacheId, cancelLiveSearch, enqueueSnackbar, t]);
 
   const handleSortChange = useCallback(
     (sortBy: string) => {
@@ -342,9 +432,20 @@ const AmazonResearchView = () => {
   );
 
   // Determine displayed products
-  const products = isLive ? liveProducts : dbData?.results ?? [];
-  const totalCount = isLive ? liveProducts.length : (dbData?.count ?? 0);
-  const loading = isLive ? isPolling : dbLoading || dbFetching;
+  const products = isLive ? allLiveProducts : dbData?.results ?? [];
+  const totalCount = isLive ? allLiveProducts.length : (dbData?.count ?? 0);
+  const loading = isLive ? (isPolling && allLiveProducts.length === 0) : dbLoading || dbFetching;
+
+  // Build active filter summary for results header
+  const activeFilterSummary = useMemo(() => {
+    if (!isLive) return '';
+    const parts: string[] = [];
+    if (filters.live_sort_by) {
+      const sortOpt = LIVE_SORT_OPTIONS.find((o) => o.value === filters.live_sort_by);
+      if (sortOpt) parts.push(sortOpt.label);
+    }
+    return parts.length > 0 ? `· ${parts.join(' · ')}` : '';
+  }, [isLive, filters.live_sort_by]);
 
   return (
     <Box>
@@ -370,6 +471,8 @@ const AmazonResearchView = () => {
         matchedNiche={matchedNiche}
         hasSearched={hasSearched}
         onNicheIndicatorClick={handleNicheIndicatorClick}
+        isSearching={isLive && (status === 'pending' || status === 'running')}
+        onCancel={handleCancel}
       />
 
       <ControlsRow
@@ -393,12 +496,10 @@ const AmazonResearchView = () => {
       {isLive && (
         <LiveProgressBanner
           status={status}
-          pagesDone={pagesDone}
           productsScraped={productsScraped}
           errorLog={errorLog}
           onRetry={handleRetry}
-          showSkeletons={true}
-          loadedCount={liveProducts.length}
+          loadedCount={allLiveProducts.length}
         />
       )}
 
@@ -413,6 +514,7 @@ const AmazonResearchView = () => {
           buildQueryParams={buildQueryParams}
           activeTab={activeTab}
           onTabChange={setActiveTab}
+          activeFilterSummary={activeFilterSummary}
         />
       )}
 
@@ -478,6 +580,26 @@ const AmazonResearchView = () => {
               onPageChange={(_, newPage) => setPage(newPage)}
               sx={{ mt: 2 }}
             />
+          )}
+
+          {/* Infinite scroll sentinel + loading indicator (live mode) */}
+          {isLive && (
+            <>
+              {isPolling && allLiveProducts.length > 0 && (
+                <Stack alignItems="center" sx={{ py: 3 }}>
+                  <CircularProgress size={28} />
+                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                    Loading more products (page {currentPage})...
+                  </Typography>
+                </Stack>
+              )}
+              <Box
+                ref={sentinelRef}
+                data-testid="infinite-scroll-sentinel"
+                sx={{ height: 1, width: '100%' }}
+                aria-hidden="true"
+              />
+            </>
           )}
         </>
       )}

@@ -26,7 +26,7 @@ from scraper_app.models import (
     SearchKeywordResult,
     ScrapeJob,
 )
-from scraper_app.tasks import get_or_create_keyword_cache, scrape_keyword_job
+from scraper_app.tasks import cancel_scrape_job, get_or_create_keyword_cache, scrape_keyword_job
 from user_auth_app.api.authentication import CookieJWTAuthentication
 from workspace_app.models import Membership
 
@@ -272,9 +272,15 @@ class LiveSearchView(APIView):
         serializer = LiveSearchSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        keyword_str = serializer.validated_data['keyword']
+        keyword_str = serializer.validated_data.get('keyword', '').strip()
         marketplace = serializer.validated_data['marketplace']
         product_type = serializer.validated_data.get('product_type', '')
+        sort_by = serializer.validated_data.get('sort_by', '')
+        price_min = serializer.validated_data.get('price_min')
+        price_max = serializer.validated_data.get('price_max')
+        browse_node = serializer.validated_data.get('browse_node', '').strip()
+        pages_total = serializer.validated_data.get('pages_total', 2)
+        start_page = serializer.validated_data.get('start_page', 1)
 
         workspace = _resolve_workspace(request)
         if not workspace:
@@ -284,7 +290,12 @@ class LiveSearchView(APIView):
             )
 
         # Dedup: check existing pending/completed cache
-        existing_cache, is_new = get_or_create_keyword_cache(keyword_str, marketplace)
+        existing_cache, is_new = get_or_create_keyword_cache(
+            keyword_str, marketplace,
+            sort_by=sort_by, price_min=price_min,
+            price_max=price_max, browse_node=browse_node,
+            product_type_filter=product_type,
+        )
         if existing_cache and not is_new:
             return Response({
                 'cache_id': str(existing_cache.id),
@@ -302,6 +313,12 @@ class LiveSearchView(APIView):
             marketplace=marketplace,
             status=ScrapeJob.Status.PENDING,
             product_type_filter=product_type,
+            sort_by=sort_by,
+            price_min=price_min,
+            price_max=price_max,
+            browse_node=browse_node,
+            pages_total=pages_total,
+            start_page=start_page,
         )
 
         search_cache = ProductSearchCache.objects.create(
@@ -309,6 +326,11 @@ class LiveSearchView(APIView):
             scrape_job=scrape_job,
             workspace=workspace,
             status=ProductSearchCache.Status.PENDING,
+            sort_by=sort_by,
+            price_min=price_min,
+            price_max=price_max,
+            browse_node=browse_node,
+            product_type_filter=product_type,
         )
 
         # Build spider kwargs
@@ -316,13 +338,22 @@ class LiveSearchView(APIView):
         if product_type and product_type in PRODUCT_TYPE_SPIDER_KWARGS:
             spider_kwargs.update(PRODUCT_TYPE_SPIDER_KWARGS[product_type])
 
+        # Override browse_node if explicitly set by user
+        if browse_node:
+            spider_kwargs['browse_node'] = browse_node
+
         queue = django_rq.get_queue('scraper')
         rq_job = queue.enqueue(
             scrape_keyword_job,
             keyword_str=keyword_str,
             marketplace=marketplace,
             scrape_job_id=str(scrape_job.id),
-            **spider_kwargs,
+            sort_by=sort_by,
+            price_min=price_min,
+            price_max=price_max,
+            browse_node=spider_kwargs.get('browse_node', ''),
+            start_page=start_page,
+            **{k: v for k, v in spider_kwargs.items() if k != 'browse_node'},
         )
         scrape_job.rq_job_id = rq_job.id
         scrape_job.save(update_fields=['rq_job_id'])
@@ -372,6 +403,10 @@ class SearchStatusView(APIView):
             'pages_done': scrape_job.pages_done if scrape_job else 0,
             'products_scraped': scrape_job.products_scraped if scrape_job else 0,
             'error_log': scrape_job.error_log if scrape_job else '',
+            'sort_by': search_cache.sort_by,
+            'price_min': str(search_cache.price_min) if search_cache.price_min is not None else None,
+            'price_max': str(search_cache.price_max) if search_cache.price_max is not None else None,
+            'browse_node': search_cache.browse_node,
         }
 
         # On completion include first page of products + keyword results
@@ -397,6 +432,48 @@ class SearchStatusView(APIView):
                 result['keyword_result'] = None
 
         return Response(result)
+
+
+class SearchCancelView(APIView):
+    """POST /api/research/search/{cache_id}/cancel/ — cancel a live search job."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, cache_id):
+        try:
+            search_cache = ProductSearchCache.objects.select_related(
+                'scrape_job', 'workspace',
+            ).get(id=cache_id)
+        except ProductSearchCache.DoesNotExist:
+            return Response(
+                {'error': 'Search cache not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Workspace ownership check
+        workspace = _resolve_workspace(request)
+        if not workspace:
+            return Response(
+                {'error': 'No active workspace membership.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if search_cache.workspace_id and search_cache.workspace_id != workspace.id:
+            return Response(
+                {'error': 'Access denied.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        scrape_job = search_cache.scrape_job
+        if not scrape_job:
+            return Response({'status': search_cache.status})
+
+        # Only cancel if job is still cancellable
+        if scrape_job.status in (ScrapeJob.Status.PENDING, ScrapeJob.Status.RUNNING):
+            cancel_scrape_job(scrape_job.id, cancelled_by='user')
+            scrape_job.refresh_from_db()
+
+        return Response({'status': scrape_job.status})
 
 
 class ProductListView(APIView):

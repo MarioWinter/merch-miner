@@ -531,8 +531,8 @@ class ProductDetailMixin:
             ('tee shirt', 't_shirt'),
             ('tee', 't_shirt'),
             ('hoodie', 'hoodie'),
-            ('pullover', 'pullover'),
-            ('sweatshirt', 'pullover'),
+            ('pullover', 'sweatshirt'),
+            ('sweatshirt', 'sweatshirt'),
         ]
 
         for suffix, product_type in type_mapping:
@@ -565,11 +565,34 @@ class SearchPageMixin:
     def _build_search_url(self, page=1):
         """Build Amazon search URL with keyword + product_type_filter params."""
         base_url = get_base_url(self.marketplace)
-        search_url = f"{base_url}/s?k={quote_plus(self.keyword)}&page={page}"
+
+        # When keyword is empty (browse-node-only scrape), omit &k= param
+        if self.keyword:
+            search_url = f"{base_url}/s?k={quote_plus(self.keyword)}&page={page}"
+        else:
+            search_url = f"{base_url}/s?page={page}"
+
         if self.search_index:
             search_url += f"&i={self.search_index}"
         if self.seller_filter:
             search_url += f"&rh=p_6:{self.seller_filter}"
+
+        sort_by = getattr(self, "sort_by", None)
+        if sort_by:
+            search_url += f"&s={sort_by}"
+
+        price_min = getattr(self, "price_min", None)
+        if price_min is not None and price_min != "":
+            search_url += f"&low-price={price_min}"
+
+        price_max = getattr(self, "price_max", None)
+        if price_max is not None and price_max != "":
+            search_url += f"&high-price={price_max}"
+
+        browse_node = getattr(self, "browse_node", None)
+        if browse_node:
+            search_url += f"&bbn={browse_node}"
+
         return search_url
 
     def _increment_pages_done(self):
@@ -717,13 +740,14 @@ class SearchPageMixin:
         }
 
     def _get_pagination_requests(self, response, callback):
-        """Generate pagination requests for pages 2..max_pages (only on page 1)."""
+        """Generate pagination requests for remaining pages (only on first page)."""
         page = response.meta["page"]
         keyword = response.meta["keyword"]
         marketplace = response.meta["marketplace"]
         job_id = response.meta.get("job_id")
 
-        if page != 1:
+        start_page = getattr(self, "start_page", 1)
+        if page != start_page:
             return
 
         selectors = get_selectors(marketplace)
@@ -737,10 +761,10 @@ class SearchPageMixin:
             except ValueError:
                 continue
 
-        last_page = max(numeric_pages) if numeric_pages else 1
-        last_page = min(last_page, self.max_pages)
+        last_page = max(numeric_pages) if numeric_pages else start_page
+        last_page = min(last_page, start_page + self.max_pages - 1)
 
-        for next_page in range(2, last_page + 1):
+        for next_page in range(start_page + 1, last_page + 1):
             next_url = self._build_search_url(page=next_page)
             yield scrapy.Request(
                 url=next_url,

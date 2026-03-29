@@ -1,4 +1,5 @@
 import uuid
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 from django.utils import timezone
 from datetime import timedelta
@@ -31,12 +32,25 @@ class Keyword(models.Model):
 
 class AmazonProduct(models.Model):
     class ProductType(models.TextChoices):
-        T_SHIRT = 't_shirt', 'T-Shirt'
-        HOODIE = 'hoodie', 'Hoodie'
-        PULLOVER = 'pullover', 'Pullover'
-        ZIP_HOODIE = 'zip_hoodie', 'Zip Hoodie'
+        T_SHIRT = 't_shirt', 'T-Shirt (Standard)'
+        PREMIUM_SHIRT = 'premium_shirt', 'Premium Shirt'
+        COMFORT_COLORS = 'comfort_colors', 'Comfort Colors'
+        V_NECK = 'v_neck', 'V-Neck'
         LONG_SLEEVE = 'long_sleeve', 'Long Sleeve'
+        RAGLAN = 'raglan', 'Raglan'
+        SWEATSHIRT = 'sweatshirt', 'Sweatshirt'
+        HOODIE = 'hoodie', 'Hoodie'
+        PERFORMANCE_POLO = 'performance_polo', 'Performance Polo'
+        ZIP_HOODIE = 'zip_hoodie', 'Zip Hoodie'
+        POPSOCKET = 'popsocket', 'PopSocket'
+        PHONE_CASE = 'phone_case', 'Phone Case'
+        TOTE_BAG = 'tote_bag', 'Tote Bag'
+        TUMBLER = 'tumbler', 'Tumbler'
+        CERAMIC_MUG = 'ceramic_mug', 'Ceramic Mug'
         TANK_TOP = 'tank_top', 'Tank Top'
+        # NOTE: 'pullover' removed in favor of 'sweatshirt' (2026-03-29).
+        # Existing DB rows with product_type='pullover' are orphaned but harmless
+        # (CharField still stores the string, just no longer a valid choice).
         OTHER = 'other', 'Other'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -154,12 +168,31 @@ class ScrapeJob(models.Model):
 
     class ProductTypeFilter(models.TextChoices):
         ALL = '', 'All Products (no filter)'
-        T_SHIRT = 't_shirt', 'T-Shirt'
-        HOODIE = 'hoodie', 'Hoodie'
-        PULLOVER = 'pullover', 'Pullover'
-        ZIP_HOODIE = 'zip_hoodie', 'Zip Hoodie'
+        T_SHIRT = 't_shirt', 'T-Shirt (Standard)'
+        PREMIUM_SHIRT = 'premium_shirt', 'Premium Shirt'
+        COMFORT_COLORS = 'comfort_colors', 'Comfort Colors'
+        V_NECK = 'v_neck', 'V-Neck'
         LONG_SLEEVE = 'long_sleeve', 'Long Sleeve'
+        RAGLAN = 'raglan', 'Raglan'
+        SWEATSHIRT = 'sweatshirt', 'Sweatshirt'
+        HOODIE = 'hoodie', 'Hoodie'
+        PERFORMANCE_POLO = 'performance_polo', 'Performance Polo'
+        ZIP_HOODIE = 'zip_hoodie', 'Zip Hoodie'
+        POPSOCKET = 'popsocket', 'PopSocket'
+        PHONE_CASE = 'phone_case', 'Phone Case'
+        TOTE_BAG = 'tote_bag', 'Tote Bag'
+        TUMBLER = 'tumbler', 'Tumbler'
+        CERAMIC_MUG = 'ceramic_mug', 'Ceramic Mug'
         TANK_TOP = 'tank_top', 'Tank Top'
+
+    class SortBy(models.TextChoices):
+        RELEVANCE = '', 'Relevance'
+        BEST_SELLERS = 'exact-aware-popularity-rank', 'Best Sellers'
+        FEATURED = 'featured-rank', 'Featured'
+        NEWEST = 'date-desc-rank', 'Newest Arrivals'
+        PRICE_LOW_HIGH = 'price-asc-rank', 'Price: Low to High'
+        PRICE_HIGH_LOW = 'price-desc-rank', 'Price: High to Low'
+        AVG_REVIEW = 'review-rank', 'Avg. Customer Review'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     mode = models.CharField(max_length=20, choices=Mode.choices, db_index=True)
@@ -189,7 +222,34 @@ class ScrapeJob(models.Model):
         default='',
         help_text='Filter Amazon search to specific MBA product type',
     )
-    pages_total = models.IntegerField(default=2)
+    sort_by = models.CharField(
+        max_length=50,
+        choices=SortBy.choices,
+        blank=True,
+        default='',
+        help_text='Amazon search sort parameter',
+    )
+    price_min = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        help_text='Minimum price filter (USD)',
+    )
+    price_max = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+        help_text='Maximum price filter (USD)',
+    )
+    browse_node = models.CharField(
+        max_length=20, blank=True, default='',
+        help_text='Amazon browse node ID for category filtering',
+    )
+    pages_total = models.IntegerField(
+        default=2,
+        validators=[MinValueValidator(1), MaxValueValidator(400)],
+    )
+    start_page = models.PositiveIntegerField(
+        default=1,
+        validators=[MinValueValidator(1)],
+        help_text='First search result page to scrape (default: 1)',
+    )
     max_items = models.PositiveIntegerField(
         null=True,
         blank=True,
@@ -223,36 +283,107 @@ class ScrapeJob(models.Model):
         return self.error_log.count('\n---\n') + 1
 
 
+# MBA product type → Amazon search URL parameters.
+# Extracted from real Amazon MBA search URLs (2026-03-29).
+# browse_node: '' means no &bbn= param needed.
+# hidden_keywords: '' means keyword alone is sufficient (e.g. "raglan", "popsocket").
+# seller_filter: ATVPDKIKX0DER = Amazon as seller (filters to MBA products).
 PRODUCT_TYPE_SPIDER_KWARGS = {
     't_shirt': {
         'search_index': 'fashion-novelty',
-        'seller_filter': 'ATVPDKIKX0DER',
+        'browse_node': '12035955011',
         'hidden_keywords': 'Lightweight, Classic fit, Double-needle sleeve and bottom hem -Longsleeve -Raglan -Vneck -Tanktop',
-    },
-    'hoodie': {
-        'search_index': 'fashion-novelty',
         'seller_filter': 'ATVPDKIKX0DER',
-        'hidden_keywords': 'Hoodie -Tanktop -Vneck -Longsleeve',
     },
-    'pullover': {
+    'premium_shirt': {
         'search_index': 'fashion-novelty',
+        'browse_node': '12035955011',
+        'hidden_keywords': 'This premium t-shirt is made of lightweight fine jersey fabric Mens fit runs small size up for a looser fit',
         'seller_filter': 'ATVPDKIKX0DER',
-        'hidden_keywords': 'Pullover Sweatshirt -Hoodie -Tanktop -Vneck',
     },
-    'zip_hoodie': {
-        'search_index': 'fashion-novelty',
+    'comfort_colors': {
+        'search_index': 'fashion-mens',
+        'browse_node': '',
+        'hidden_keywords': 'Merch on Demand Comfort Colors Heavyweight T Shirt',
         'seller_filter': 'ATVPDKIKX0DER',
-        'hidden_keywords': 'Zip Hoodie -Pullover -Tanktop',
+    },
+    'v_neck': {
+        'search_index': 'fashion-novelty',
+        'browse_node': '',
+        'hidden_keywords': 'v-neck Lightweight, Classic fit, Double-needle sleeve and bottom hem',
+        'seller_filter': 'ATVPDKIKX0DER',
     },
     'long_sleeve': {
         'search_index': 'fashion-novelty',
+        'browse_node': '12035955011',
+        'hidden_keywords': '"Lightweight, Classic fit, Double-needle sleeve and bottom hem" "long sleeve"',
         'seller_filter': 'ATVPDKIKX0DER',
-        'hidden_keywords': 'Long Sleeve -Hoodie -Tanktop -Vneck',
+    },
+    'raglan': {
+        'search_index': 'fashion-novelty',
+        'browse_node': '12035955011',
+        'hidden_keywords': '',
+        'seller_filter': 'ATVPDKIKX0DER',
+    },
+    'sweatshirt': {
+        'search_index': 'fashion-novelty',
+        'browse_node': '12035955011',
+        'hidden_keywords': '"8.5 oz, Classic fit, Twill-taped neck" "sweatshirt" -hoodie',
+        'seller_filter': 'ATVPDKIKX0DER',
+    },
+    'hoodie': {
+        'search_index': 'fashion',
+        'browse_node': '',
+        'hidden_keywords': '8.5 oz, Classic fit, Twill-taped neck hoodie',
+        'seller_filter': 'ATVPDKIKX0DER',
+    },
+    'performance_polo': {
+        'search_index': 'fashion-mens',
+        'browse_node': '',
+        'hidden_keywords': 'Merch on Demand Performance Polo Shirt',
+        'seller_filter': 'ATVPDKIKX0DER',
+    },
+    'zip_hoodie': {
+        'search_index': 'fashion-mens',
+        'browse_node': '',
+        'hidden_keywords': 'Merch on Demand Performance Quarter Zip Top',
+        'seller_filter': 'ATVPDKIKX0DER',
+    },
+    'popsocket': {
+        'search_index': 'mobile',
+        'browse_node': '',
+        'hidden_keywords': '',
+        'seller_filter': 'ATVPDKIKX0DER',
+    },
+    'phone_case': {
+        'search_index': 'mobile',
+        'browse_node': '',
+        'hidden_keywords': 'Two-part protective case made from a premium scratch-resistant polycarbonate shell and shock absorbent TPU liner protects against drops',
+        'seller_filter': 'ATVPDKIKX0DER',
+    },
+    'tote_bag': {
+        'search_index': 'fashion-womens',
+        'browse_node': '',
+        'hidden_keywords': 'Graphic Tote',
+        'seller_filter': 'ATVPDKIKX0DER',
+    },
+    'tumbler': {
+        'search_index': 'kitchen',
+        'browse_node': '',
+        'hidden_keywords': 'Merch on Demand Stainless Steel Insulated Tumbler',
+        'seller_filter': 'ATVPDKIKX0DER',
+    },
+    'ceramic_mug': {
+        'search_index': 'kitchen',
+        'browse_node': '',
+        'hidden_keywords': 'Merch on Demand Ceramic Coffee Mug',
+        'seller_filter': 'ATVPDKIKX0DER',
     },
     'tank_top': {
         'search_index': 'fashion-novelty',
+        'browse_node': '',
+        'hidden_keywords': 'Tank Top',
         'seller_filter': 'ATVPDKIKX0DER',
-        'hidden_keywords': 'Tank Top -Hoodie -Longsleeve',
     },
 }
 
@@ -281,6 +412,7 @@ class ProductSearchCache(models.Model):
         PENDING = 'pending', 'Pending'
         COMPLETED = 'completed', 'Completed'
         FAILED = 'failed', 'Failed'
+        CANCELLED = 'cancelled', 'Cancelled'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     keyword = models.ForeignKey(
@@ -302,6 +434,15 @@ class ProductSearchCache(models.Model):
         blank=True,
         related_name='search_caches',
     )
+    sort_by = models.CharField(max_length=50, blank=True, default='')
+    price_min = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+    )
+    price_max = models.DecimalField(
+        max_digits=10, decimal_places=2, null=True, blank=True,
+    )
+    browse_node = models.CharField(max_length=20, blank=True, default='')
+    product_type_filter = models.CharField(max_length=20, blank=True, default='')
     last_scraped_at = models.DateTimeField(null=True, blank=True)
     status = models.CharField(
         max_length=20,

@@ -188,6 +188,7 @@ describe('AmazonResearchView', () => {
             description: '',
             marketplace: 'amazon_com',
             scraped_at: '2026-03-01T00:00:00Z',
+            bsr_categories: [],
           },
         ],
         next: null,

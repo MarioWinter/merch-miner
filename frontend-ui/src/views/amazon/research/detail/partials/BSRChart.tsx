@@ -84,7 +84,7 @@ const BSRChart = ({ snapshots, summary, categories }: BSRChartProps) => {
             height={300}
             margin={{ left: 60, right: 20, top: 20, bottom: 40 }}
             grid={{ horizontal: true }}
-            slotProps={{ legend: { hidden: true } }}
+            hideLegend
           />
         ) : (
           <Box

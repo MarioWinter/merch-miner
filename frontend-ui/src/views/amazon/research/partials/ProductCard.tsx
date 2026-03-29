@@ -315,7 +315,7 @@ const ProductCard = ({
           <SparkLineChart
             data={sparkData}
             height={SPARKLINE_HEIGHT}
-            colors={['var(--mui-palette-secondary-main)']}
+            color="var(--mui-palette-secondary-main)"
             showHighlight
             showTooltip
             aria-label="BSR trend"

@@ -25,6 +25,9 @@ const baseProps = {
   recentSearches: [] as { keyword: string; marketplace: string }[],
   onRecentClick: vi.fn(),
   onRecentRemove: vi.fn(),
+  matchedNiche: null,
+  hasSearched: false,
+  onNicheIndicatorClick: vi.fn(),
 };
 
 describe('SearchBar', () => {

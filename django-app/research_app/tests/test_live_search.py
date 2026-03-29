@@ -1,8 +1,10 @@
 import pytest
+from decimal import Decimal
 from unittest.mock import patch, MagicMock
 
 from django.urls import reverse
 
+from research_app.api.serializers import LiveSearchSerializer
 from scraper_app.models import (
     ProductSearchCache,
     ScrapeJob,
@@ -116,3 +118,153 @@ class TestLiveSearchNewJob:
     def test_missing_keyword_returns_400(self, auth_client, membership):
         resp = auth_client.post(URL, {'marketplace': 'amazon_com'}, format='json')
         assert resp.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# LiveSearchSerializer validation (Phase 14)
+# ---------------------------------------------------------------------------
+
+
+class TestLiveSearchSerializerValidation:
+    def test_price_min_less_than_price_max_valid(self):
+        s = LiveSearchSerializer(data={
+            'keyword': 'test', 'marketplace': 'amazon_com',
+            'price_min': '10.00', 'price_max': '30.00',
+        })
+        assert s.is_valid(), s.errors
+
+    def test_price_min_greater_than_price_max_rejected(self):
+        s = LiveSearchSerializer(data={
+            'keyword': 'test', 'marketplace': 'amazon_com',
+            'price_min': '30.00', 'price_max': '10.00',
+        })
+        assert not s.is_valid()
+        assert 'price_min' in s.errors
+
+    def test_price_min_equal_price_max_rejected(self):
+        s = LiveSearchSerializer(data={
+            'keyword': 'test', 'marketplace': 'amazon_com',
+            'price_min': '20.00', 'price_max': '20.00',
+        })
+        assert not s.is_valid()
+        assert 'price_min' in s.errors
+
+    def test_sort_by_valid_choices_accepted(self):
+        for choice in ['', 'exact-aware-popularity-rank', 'featured-rank',
+                        'date-desc-rank', 'price-asc-rank', 'price-desc-rank',
+                        'review-rank']:
+            s = LiveSearchSerializer(data={
+                'keyword': 'test', 'marketplace': 'amazon_com',
+                'sort_by': choice,
+            })
+            assert s.is_valid(), f"Failed for sort_by={choice}: {s.errors}"
+
+    def test_sort_by_invalid_rejected(self):
+        s = LiveSearchSerializer(data={
+            'keyword': 'test', 'marketplace': 'amazon_com',
+            'sort_by': 'invalid-sort',
+        })
+        assert not s.is_valid()
+        assert 'sort_by' in s.errors
+
+    def test_pages_total_400_accepted(self):
+        s = LiveSearchSerializer(data={
+            'keyword': 'test', 'marketplace': 'amazon_com',
+            'pages_total': 400,
+        })
+        assert s.is_valid(), s.errors
+        assert s.validated_data['pages_total'] == 400
+
+    def test_pages_total_401_rejected(self):
+        s = LiveSearchSerializer(data={
+            'keyword': 'test', 'marketplace': 'amazon_com',
+            'pages_total': 401,
+        })
+        assert not s.is_valid()
+        assert 'pages_total' in s.errors
+
+    def test_pages_total_0_rejected(self):
+        s = LiveSearchSerializer(data={
+            'keyword': 'test', 'marketplace': 'amazon_com',
+            'pages_total': 0,
+        })
+        assert not s.is_valid()
+        assert 'pages_total' in s.errors
+
+    def test_browse_node_only_valid(self):
+        """browse_node without keyword is valid."""
+        s = LiveSearchSerializer(data={
+            'marketplace': 'amazon_com',
+            'browse_node': '12035955011',
+        })
+        assert s.is_valid(), s.errors
+
+    def test_no_keyword_no_browse_node_rejected(self):
+        s = LiveSearchSerializer(data={'marketplace': 'amazon_com'})
+        assert not s.is_valid()
+
+
+# ---------------------------------------------------------------------------
+# LiveSearchView — new fields in ScrapeJob + Cache (Phase 14)
+# ---------------------------------------------------------------------------
+
+
+class TestLiveSearchNewFields:
+    def test_creates_job_and_cache_with_sort_and_filters(self, auth_client, membership):
+        """New search with sort/price/browse creates ScrapeJob + Cache with those fields."""
+        mock_rq_job = MagicMock()
+        mock_rq_job.id = 'rq-sort-001'
+        mock_queue = MagicMock()
+        mock_queue.enqueue.return_value = mock_rq_job
+
+        with patch('research_app.api.views.get_or_create_keyword_cache') as mock_get, \
+             patch('research_app.api.views.django_rq.get_queue', return_value=mock_queue):
+            mock_get.return_value = (None, True)
+
+            resp = auth_client.post(URL, {
+                'keyword': 'sorted search',
+                'marketplace': 'amazon_com',
+                'sort_by': 'date-desc-rank',
+                'price_min': '10.00',
+                'price_max': '30.00',
+                'browse_node': '12035955011',
+                'pages_total': 5,
+            }, format='json')
+
+        assert resp.status_code == 201
+
+        job = ScrapeJob.objects.get(mode=ScrapeJob.Mode.LIVE)
+        assert job.sort_by == 'date-desc-rank'
+        assert job.price_min == Decimal('10.00')
+        assert job.price_max == Decimal('30.00')
+        assert job.browse_node == '12035955011'
+        assert job.pages_total == 5
+
+        cache = ProductSearchCache.objects.get(id=resp.data['cache_id'])
+        assert cache.sort_by == 'date-desc-rank'
+        assert cache.price_min == Decimal('10.00')
+        assert cache.price_max == Decimal('30.00')
+        assert cache.browse_node == '12035955011'
+
+    def test_browse_node_override_takes_precedence(self, auth_client, membership):
+        """Explicit browse_node overrides PRODUCT_TYPE_SPIDER_KWARGS default."""
+        mock_rq_job = MagicMock()
+        mock_rq_job.id = 'rq-override-001'
+        mock_queue = MagicMock()
+        mock_queue.enqueue.return_value = mock_rq_job
+
+        with patch('research_app.api.views.get_or_create_keyword_cache') as mock_get, \
+             patch('research_app.api.views.django_rq.get_queue', return_value=mock_queue):
+            mock_get.return_value = (None, True)
+
+            resp = auth_client.post(URL, {
+                'keyword': 'override test',
+                'marketplace': 'amazon_com',
+                'product_type': 't_shirt',
+                'browse_node': '99999999999',
+            }, format='json')
+
+        assert resp.status_code == 201
+        # The enqueue call should use the explicit browse_node, not the t_shirt default
+        call_kwargs = mock_queue.enqueue.call_args.kwargs
+        assert call_kwargs['browse_node'] == '99999999999'

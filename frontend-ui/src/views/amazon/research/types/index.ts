@@ -1,3 +1,17 @@
+import React from 'react';
+import SearchIcon from '@mui/icons-material/Search';
+import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
+import StarIcon from '@mui/icons-material/Star';
+import NewReleasesIcon from '@mui/icons-material/NewReleases';
+import TrendingDownIcon from '@mui/icons-material/TrendingDown';
+import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import ReviewsIcon from '@mui/icons-material/Reviews';
+import FormatListNumberedIcon from '@mui/icons-material/FormatListNumbered';
+import ThumbUpIcon from '@mui/icons-material/ThumbUp';
+import AttachMoneyIcon from '@mui/icons-material/AttachMoney';
+import ScheduleIcon from '@mui/icons-material/Schedule';
+import type { SvgIconProps } from '@mui/material/SvgIcon';
+
 export interface AmazonProduct {
   asin: string;
   title: string;
@@ -18,7 +32,7 @@ export interface AmazonProduct {
   scraped_at: string;
 }
 
-export type ProductSearchStatus = 'pending' | 'running' | 'completed' | 'failed';
+export type ProductSearchStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';
 
 export type ResearchMode = 'live' | 'db';
 
@@ -39,9 +53,13 @@ export interface ResearchFilters {
   hide_official_brands: boolean;
   exclude_words: string;
   sort_by: string;
+  live_sort_by: string;
 }
 
-export type FilterKey = keyof Omit<ResearchFilters, 'keyword' | 'marketplace' | 'sort_by'>;
+export type FilterKey = keyof Omit<
+  ResearchFilters,
+  'keyword' | 'marketplace' | 'sort_by' | 'live_sort_by'
+>;
 
 export type FilterEnabled = Record<FilterKey, boolean>;
 
@@ -77,6 +95,12 @@ export interface LiveSearchParams {
   marketplace: string;
   product_type?: string;
   hide_official_brands?: boolean;
+  sort_by?: string;
+  price_min?: number | null;
+  price_max?: number | null;
+  browse_node?: string;
+  pages_total?: number;
+  start_page?: number;
 }
 
 export interface LiveSearchResponse {
@@ -99,7 +123,6 @@ export interface BSRCategory {
 
 export interface ProductDetail extends AmazonProduct {
   meta_keywords: MetaKeyword[];
-  bsr_categories?: BSRCategory[];
 }
 
 export interface BSRSummary {
@@ -168,19 +191,45 @@ export interface ProductTypeOption {
 
 export const PRODUCT_TYPE_OPTIONS: ProductTypeOption[] = [
   { value: 't_shirt', label: 'T-Shirt' },
-  { value: 'hoodie', label: 'Hoodie' },
-  { value: 'pullover', label: 'Pullover' },
-  { value: 'zip_hoodie', label: 'Zip Hoodie' },
+  { value: 'premium_shirt', label: 'Premium Shirt' },
+  { value: 'comfort_colors', label: 'Comfort Colors' },
+  { value: 'v_neck', label: 'V-Neck' },
   { value: 'long_sleeve', label: 'Long Sleeve' },
+  { value: 'raglan', label: 'Raglan' },
+  { value: 'sweatshirt', label: 'Sweatshirt' },
+  { value: 'hoodie', label: 'Hoodie' },
+  { value: 'performance_polo', label: 'Performance Polo' },
+  { value: 'zip_hoodie', label: 'Zip Hoodie' },
+  { value: 'popsocket', label: 'PopSocket' },
+  { value: 'phone_case', label: 'Phone Case' },
+  { value: 'tote_bag', label: 'Tote Bag' },
+  { value: 'tumbler', label: 'Tumbler' },
+  { value: 'ceramic_mug', label: 'Ceramic Mug' },
   { value: 'tank_top', label: 'Tank Top' },
 ];
 
-export const SORT_OPTIONS = [
-  { value: 'bsr_asc', label: 'BSR (Low to High)' },
-  { value: 'reviews_desc', label: 'Reviews (High to Low)' },
-  { value: 'rating_desc', label: 'Rating (High to Low)' },
-  { value: 'price_asc', label: 'Price (Low to High)' },
-  { value: 'newest', label: 'Newest First' },
+export interface SortOption {
+  value: string;
+  label: string;
+  icon: React.ComponentType<SvgIconProps>;
+}
+
+export const SORT_OPTIONS: SortOption[] = [
+  { value: 'bsr_asc', label: 'BSR (Low to High)', icon: FormatListNumberedIcon },
+  { value: 'reviews_desc', label: 'Reviews (High to Low)', icon: ThumbUpIcon },
+  { value: 'rating_desc', label: 'Rating (High to Low)', icon: StarIcon },
+  { value: 'price_asc', label: 'Price (Low to High)', icon: AttachMoneyIcon },
+  { value: 'newest', label: 'Newest First', icon: ScheduleIcon },
+];
+
+export const LIVE_SORT_OPTIONS: SortOption[] = [
+  { value: '', label: 'Relevance', icon: SearchIcon },
+  { value: 'exact-aware-popularity-rank', label: 'Best Sellers', icon: EmojiEventsIcon },
+  { value: 'featured-rank', label: 'Featured', icon: StarIcon },
+  { value: 'date-desc-rank', label: 'Newest', icon: NewReleasesIcon },
+  { value: 'price-asc-rank', label: 'Price: Low to High', icon: TrendingDownIcon },
+  { value: 'price-desc-rank', label: 'Price: High to Low', icon: TrendingUpIcon },
+  { value: 'review-rank', label: 'Avg Reviews', icon: ReviewsIcon },
 ];
 
 export const DEFAULT_FILTERS: ResearchFilters = {
@@ -200,6 +249,7 @@ export const DEFAULT_FILTERS: ResearchFilters = {
   hide_official_brands: false,
   exclude_words: '',
   sort_by: 'bsr_asc',
+  live_sort_by: 'featured-rank',
 };
 
 export const DEFAULT_FILTER_ENABLED: FilterEnabled = {
@@ -216,4 +266,24 @@ export const DEFAULT_FILTER_ENABLED: FilterEnabled = {
   subcategory: false,
   hide_official_brands: false,
   exclude_words: false,
+};
+
+/** Default browse nodes per product type (mirrors backend PRODUCT_TYPE_SPIDER_KWARGS) */
+export const PRODUCT_TYPE_BROWSE_NODES: Record<string, string> = {
+  t_shirt: '12035955011',
+  premium_shirt: '12035955011',
+  comfort_colors: '',
+  v_neck: '',
+  long_sleeve: '12035955011',
+  raglan: '12035955011',
+  sweatshirt: '12035955011',
+  hoodie: '',
+  performance_polo: '',
+  zip_hoodie: '',
+  popsocket: '',
+  phone_case: '',
+  tote_bag: '',
+  tumbler: '',
+  ceramic_mug: '',
+  tank_top: '',
 };

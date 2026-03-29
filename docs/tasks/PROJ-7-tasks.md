@@ -235,3 +235,62 @@
 - [x] Drawer CollectedProductsSection redesigned — glassmorphism, dot carousel, action pill row, no hover/heart on drawer cards
 - [ ] 41/41 total Acceptance Criteria passed (pending: full AC audit)
 - [ ] 25/25 total Edge Cases passed (pending: full EC audit)
+
+---
+
+## Phase 6: Sort Selection, Product Types, Infinite Scroll, Cancel (2026-03-29)
+
+### Backend (PROJ-16 provides, PROJ-7 consumes)
+- [x] `POST /api/research/search/` extended: `sort_by`, `price_min`, `price_max`, `browse_node`, `pages_total`, `start_page`
+- [x] `POST /api/research/search/{cache_id}/cancel/` — new endpoint (SearchCancelView)
+- [x] `ProductSearchCache.Status.CANCELLED` — cancel sets `cancelled`, not `failed`
+- [x] `GET /api/research/search/{cache_id}/status/` includes sort/filter info in response
+
+### Frontend — Sort & Product Types
+- [x] Sort dropdown visible in BOTH Live and DB mode (Live=Amazon sort, DB=local sort)
+- [x] Live Sort options with MUI icons: Featured (default), Best Sellers, Newest, Price asc/desc, Avg Reviews, Relevance
+- [x] Live Sort default: `featured-rank`
+- [x] Product Type dropdown: 16 MBA types with 11 custom SVG icons
+- [x] `pullover` removed, `sweatshirt` added across frontend
+
+### Frontend — Infinite Scroll
+- [x] `pages_total=1` per job, `start_page` incremented per scroll
+- [x] `allLiveProducts` accumulates across pages (dedupe by ASIN)
+- [x] IntersectionObserver on sentinel div — triggers only when previous job completed + canLoadMore
+- [x] 0 new products → canLoadMore=false (end of results)
+- [x] New keyword search resets page + clears accumulated products
+
+### Frontend — Cancel / Stop
+- [x] `cancelLiveSearch` mutation in researchSlice
+- [x] Search button → red "Stop" button when live search running
+- [x] Stop: cancels backend job → setCacheId(null) → polling stops → UI resets to initial state
+- [x] usePolling returns empty state when cacheId null (no stale status)
+- [x] `cancelled` in ProductSearchStatus type + TERMINAL_STATUSES
+- [x] LiveProgressBanner returns null on cancelled (no error shown)
+
+### Frontend — Skeleton Cards
+- [x] LinearProgress bar removed
+- [x] Separate Stop button in banner removed
+- [x] 8 skeleton cards (wave animation) during pending/running
+- [x] Skeleton count reduces as real products load
+
+### Frontend — Search Button UX
+- [x] Disabled when keyword empty
+- [x] Disabled state: primary.dark with 0.5 opacity
+
+### Frontend — Hardcoded Defaults
+- [x] price_min=13, price_max=100 (not in UI)
+- [x] browse_node from PRODUCT_TYPE_BROWSE_NODES mapping (not in UI)
+
+### Frontend — Build Fixes
+- [x] ProductDetail.bsr_categories type conflict
+- [x] CollectedProductsSection useRef init
+- [x] SparkLineChart colors→color
+- [x] hideLegend for MUI Charts
+- [x] background.elevated→paper
+- [x] SearchBar test missing props
+
+### Tests
+- [x] 10 ControlsRow tests (sort both modes, 16 product types, API params)
+- [x] Build clean: 0 TypeScript errors
+- [ ] Full QA pass pending

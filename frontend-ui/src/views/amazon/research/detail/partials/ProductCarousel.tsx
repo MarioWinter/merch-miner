@@ -48,7 +48,7 @@ const MiniImg = styled('img')(({ theme }) => ({
 }));
 
 const NavButton = styled(IconButton)(({ theme }) => ({
-  backgroundColor: theme.vars.palette.background.elevated,
+  backgroundColor: theme.vars.palette.background.paper,
   '&:hover': {
     backgroundColor: theme.vars.palette.background.paper,
   },

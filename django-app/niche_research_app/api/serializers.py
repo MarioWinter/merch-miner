@@ -18,11 +18,21 @@ TOTAL_NODES = 6
 # Product type choices for research trigger (subset of ScrapeJob.ProductTypeFilter,
 # excluding 'ALL' since research always needs a specific type)
 RESEARCH_PRODUCT_TYPE_CHOICES = [
-    ('t_shirt', 'T-Shirt'),
-    ('hoodie', 'Hoodie'),
+    ('t_shirt', 'T-Shirt (Standard)'),
+    ('premium_shirt', 'Premium Shirt'),
+    ('comfort_colors', 'Comfort Colors'),
+    ('v_neck', 'V-Neck'),
     ('long_sleeve', 'Long Sleeve'),
-    ('pullover', 'Pullover'),
+    ('raglan', 'Raglan'),
+    ('sweatshirt', 'Sweatshirt'),
+    ('hoodie', 'Hoodie'),
+    ('performance_polo', 'Performance Polo'),
     ('zip_hoodie', 'Zip Hoodie'),
+    ('popsocket', 'PopSocket'),
+    ('phone_case', 'Phone Case'),
+    ('tote_bag', 'Tote Bag'),
+    ('tumbler', 'Tumbler'),
+    ('ceramic_mug', 'Ceramic Mug'),
     ('tank_top', 'Tank Top'),
 ]
 
