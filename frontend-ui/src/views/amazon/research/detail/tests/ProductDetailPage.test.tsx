@@ -112,8 +112,8 @@ describe('ProductDetailPage', () => {
       initialRoute: '/amazon/research/product/B09TEST123',
     });
 
-    expect(screen.getByText('hiking (5)')).toBeInTheDocument();
-    expect(screen.getByText('funny shirt (3)')).toBeInTheDocument();
+    expect(screen.getByText('hiking')).toBeInTheDocument();
+    expect(screen.getByText('funny shirt')).toBeInTheDocument();
   });
 
   it('renders breadcrumb with ASIN', () => {

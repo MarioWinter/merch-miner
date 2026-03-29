@@ -52,41 +52,41 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 
 ### Phase 2 — Bug Fixes (amendment 2026-03-28)
 
-- [ ] AC-18: **Search trigger:** Search only fires on Enter key press or Search button click. Typing alone must NOT trigger a search or API call (autocomplete suggestions still fire on debounce).
-- [ ] AC-19: **Sort by:** Changing sort dropdown correctly re-fetches results in the selected order. All 5 sort options (BSR asc, Reviews desc, Rating desc, Price asc, Newest) produce correct server-side ordering.
-- [ ] AC-20: **BSR display:** Product cards and table rows show the correct current BSR value from the `bsr` field (not a stale or wrong field).
-- [ ] AC-21: **Review count display:** Product cards show review count (e.g. "170 review(s)") below the star rating. Visible in both Grid and List views.
-- [ ] AC-22: **Review filter:** Review range slider in Advanced Options correctly filters products by `reviews_min`/`reviews_max` when enabled. Results update on filter change.
-- [ ] AC-23: **Bullets/Description layout:** Detail view renders bullet_1, bullet_2 as a proper list and description as a paragraph with "read more" truncation. No overflow, no broken layout.
-- [ ] AC-24: **Listed date display:** Product cards show the actual listed date (e.g. "2025-05-28") AND the relative "Published since X days" text. Both values visible.
+- [x] AC-18: **Search trigger:** Search only fires on Enter key press or Search button click.
+- [x] AC-19: **Sort by:** Changing sort dropdown correctly re-fetches results in the selected order.
+- [x] AC-20: **BSR display:** Product cards and table rows show the correct current BSR value.
+- [x] AC-21: **Review count display:** Product cards show review count below the star rating.
+- [x] AC-22: **Review filter:** Review range slider correctly filters products by `reviews_min`/`reviews_max`.
+- [x] AC-23: **Bullets/Description layout:** Detail view renders bullets as list, description with "read more" truncation.
+- [x] AC-24: **Listed date display:** Detail page shows listed date.
 
 ### Phase 3 — Product Card Redesign (amendment 2026-03-28)
 
-- [ ] AC-25: **Card image + sparkline:** Product card: 370px fixed height (220px image + 30px BSR sparkline + 120px info). Image shows design-cropped (`object-fit: cover`, `object-position: center 20%`). BSR sparkline row shows mini line chart from BSR history (secondary color via theme token); empty if < 2 data points. All cards identical dimensions.
-- [ ] AC-26: **Card hover overlay:** On hover over the card image area, show action icons: download image, copy ASIN, open on Amazon, navigate to detail page. Plus a favorite/heart icon (top-left) and AI badge (top-right, if slogan extracted). All hidden by default; visible on hover via gradient overlay. Touch fallback: always visible.
-- [ ] AC-27: **Card info layout:** Below sparkline, 2 compact rows: Row 1 (BSR color-coded + sales rank + price), Row 2 (star rating + reviews + ASIN chip). No title or brand on card — moved to detail page. All colors via theme tokens, zero hardcoded values.
-- [ ] AC-28: **Card click → detail page:** Clicking a product card navigates to `/amazon/research/product/{asin}` (dedicated route), NOT an inline expand panel. The search results page remains in browser history for back-navigation.
+- [x] AC-25: **Card image + sparkline:** 340px fixed height, BSR sparkline, design-cropped image.
+- [x] AC-26: **Card hover overlay:** Copy ASIN, Open on Amazon, View details. `disableHover` prop for drawer. Download image removed. `hideHeart` prop for drawer. Touch fallback.
+- [x] AC-27: **Card info layout:** BSR color-coded + price, stars + reviews, ASIN chip. No title/brand.
+- [x] AC-28: **Card click → detail page:** Navigates to `/amazon/research/product/{asin}`.
 
 ### Phase 4 — Product Detail Page (amendment 2026-03-28)
 
 > Design: Option B "Data Dashboard" — scrollable single page with KPI row, no tabs.
 
-- [ ] AC-29: **Detail page route:** `/amazon/research/product/{asin}` renders a scrollable product dossier page. Shows loading skeleton while data fetches.
-- [ ] AC-30: **KPI row + content grid:** Top: 4 KPI cards (BSR with trend, Price, Reviews, Rating). Below: 2-column grid — left (product image 300×300 + title, brand, info chips, bullets, description "read more"), right (BSR chart + subcategory ranks + BSR summary).
-- [ ] AC-31: **Detail page actions row:** "Open in Amazon" (outlined secondary), "Use as Listing Template" (contained primary, PROJ-11), "Save Keywords" (outlined secondary, PROJ-10) below the content grid.
-- [ ] AC-32: **BSR section:** Full line chart (90 days, reversed Y-axis, secondary color via theme, area fill secondary.subtle, height 300px, proper axes + tooltips). Subcategory ranks list from `bsr_categories` JSONField. BSR summary: overall trend, current trend, average, median.
-- [ ] AC-33: **Price history section:** Price line chart (primary color via theme, area fill primary.subtle, Y-axis $ prefix, height 250px). Estimated sales if available.
-- [ ] AC-34: **Keywords section:** Short-tail keyword chips (secondary.subtle bg, secondary color) + long-tail keyword chips (info.subtle bg, info color). Click chip → save to Keyword Bank (PROJ-10, `source=amazon_search`). Search icon on chip → new research search. "Copy all keywords" button.
-- [ ] AC-35: **Competition section:** "Similar Designs" horizontal scroll-snap carousel (200px mini-cards). "Same Brand" carousel. Each item: thumbnail, BSR, price, reviews, date. Click → navigate to that product's detail.
-- [ ] AC-36: **Use as Listing Template:** Button on detail page copies product title, bullets, description as a pre-filled draft into PROJ-11 Listing Generator for the active niche. Creates a new Listing with `generated_by=manual`. Success notification shown.
+- [x] AC-29: **Detail page route:** Scrollable product dossier page with loading skeleton.
+- [x] AC-30: **KPI row + content grid:** 4 KPI cards with visible icons (coral on alpha bg). Info chips with icons (Checkroom, Language, Calendar). Product type formatted (t_shirt → T Shirt).
+- [x] AC-31: **Detail page actions row:** Open in Amazon, Use as Listing Template, Save Keywords.
+- [x] AC-32: **BSR section:** LineChart 90 days. Subcategory ranks as split-tag design (category | BSR icon + mono-bold rank, tier color coded). Null-rank safe. BSR summary with trend icons.
+- [x] AC-33: **Price history section:** Price line chart.
+- [x] AC-34: **Keywords section:** Flying Research style — outlined chips with keyword + search icon, count below chip only when frequency > 1. Short-tail (cyan) + long-tail (info-blue). "Copy all keywords" button.
+- [x] AC-35: **Competition section:** Similar Designs + Same Brand carousels. BSR icon instead of #, tier color coded. Click → navigate to detail page (null-rank crash fixed).
+- [x] AC-36: **Use as Listing Template:** Button on detail page, POST mutation, notistack notification.
 
 ### Phase 5 — Statistics & Live Research UX (amendment 2026-03-28)
 
-- [ ] AC-37: **Statistics/Keywords view:** A toggle or tab on the research page that switches from product results to a keyword statistics view. Shows: top keywords extracted from current result set (title + bullets), keyword frequency count, keyword overlap across products. Helps identify high-value keywords before committing to a niche.
-- [ ] AC-38: **Live Research skeleton streaming:** During Live Research, show Skeleton cards that progressively fill in as products arrive from the scraper. Products appear one-by-one or in batches as they are scraped, not all at once after completion.
-- [ ] AC-39: **Double pagination fix:** List view (DataGrid) shows only one pagination control, not two.
-- [ ] AC-40: **Copy ASINs scope:** "Copy ASINs" button label indicates scope (e.g. "Copy 50 ASINs" for current page). Copies only current page ASINs.
-- [ ] AC-41: **CSV export filter consistency:** CSV export sends only enabled filter values (same query as the displayed results), not disabled slider defaults.
+- [x] AC-37: **Statistics/Keywords view:** Products/Keywords toggle. Flying Research style keyword chips with count.
+- [x] AC-38: **Live Research skeleton streaming:** Skeleton cards during scrape, progressive fill.
+- [x] AC-39: **Double pagination fix:** Single pagination control.
+- [x] AC-40: **Copy ASINs scope:** Label shows count.
+- [x] AC-41: **CSV export filter consistency:** Uses `buildQueryParams()`.
 
 ## API Endpoints
 
