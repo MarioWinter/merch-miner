@@ -6,6 +6,7 @@ import type { RootState } from './index';
  * - Slogans: tracked here for optimistic UI, but persisted via ideaApi mutations.
  *   The toggleSlogan action is dispatched alongside the RTK mutation in components.
  * - Keywords: Redux-only (persist to Keyword Bank in PROJ-10).
+ * - Products: moved to collectedProductsApi (RTK Query, backend-persisted).
  */
 interface CollectedItems {
   slogans: string[];
@@ -68,7 +69,6 @@ const collectedItemsSlice = createSlice({
       if (idx >= 0) items.slogans.splice(idx, 1);
     },
     rollbackSlogan(state, action: PayloadAction<ItemPayload>) {
-      // Undo an optimistic add on API failure
       const { nicheId, value } = action.payload;
       const items = state.byNicheId[nicheId];
       if (!items) return;

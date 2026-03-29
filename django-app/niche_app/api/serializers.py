@@ -1,7 +1,8 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model
 
-from niche_app.models import Niche, NicheFilterTemplate
+from niche_app.models import Niche, NicheFilterTemplate, CollectedProduct
+from scraper_app.models import AmazonProduct, MarketplaceChoices
 from workspace_app.api.serializers import WorkspaceMemberSerializer
 from workspace_app.models import Membership
 
@@ -163,3 +164,44 @@ class NicheCreateSerializer(serializers.ModelSerializer):
         validated_data['created_by'] = self.context['request'].user
         validated_data['workspace'] = self.context['workspace']
         return super().create(validated_data)
+
+
+class AmazonProductNestedSerializer(serializers.ModelSerializer):
+    meta_keywords = serializers.SerializerMethodField()
+
+    class Meta:
+        model = AmazonProduct
+        fields = (
+            'id', 'asin', 'marketplace', 'title', 'brand',
+            'bsr', 'bsr_categories', 'price', 'rating',
+            'reviews_count', 'thumbnail_url', 'meta_keywords',
+        )
+
+    def get_meta_keywords(self, obj):
+        keywords = getattr(obj, '_prefetched_meta_keywords', None)
+        if keywords is None:
+            keywords = obj.meta_keywords.all()
+        return [
+            {'keyword': kw.keyword, 'type': kw.type, 'frequency': kw.frequency}
+            for kw in keywords
+        ]
+
+
+class CollectedProductSerializer(serializers.ModelSerializer):
+    product = AmazonProductNestedSerializer(read_only=True)
+
+    class Meta:
+        model = CollectedProduct
+        fields = (
+            'id', 'niche', 'product', 'collected_at',
+            'extracted_keywords', 'listing_template',
+        )
+        read_only_fields = (
+            'id', 'niche', 'collected_at',
+            'extracted_keywords', 'listing_template',
+        )
+
+
+class CollectedProductCreateSerializer(serializers.Serializer):
+    asin = serializers.CharField(max_length=20)
+    marketplace = serializers.ChoiceField(choices=MarketplaceChoices.choices)

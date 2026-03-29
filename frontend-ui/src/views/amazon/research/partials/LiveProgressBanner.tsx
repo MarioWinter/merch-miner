@@ -1,4 +1,5 @@
-import { Alert, Box, Button, LinearProgress, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Grid, LinearProgress, Skeleton, Stack, Typography } from '@mui/material';
+import { styled } from '@mui/material/styles';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import type { ProductSearchStatus } from '../types';
 
@@ -8,7 +9,17 @@ interface LiveProgressBannerProps {
   productsScraped: number;
   errorLog: string | null;
   onRetry: () => void;
+  showSkeletons?: boolean;
+  loadedCount?: number;
 }
+
+const SkeletonCard = styled(Box)(({ theme }) => ({
+  height: 370,
+  borderRadius: 12,
+  backgroundColor: theme.vars.palette.background.paper,
+  border: `1px solid ${theme.vars.palette.divider}`,
+  overflow: 'hidden',
+}));
 
 const LiveProgressBanner = ({
   status,
@@ -16,6 +27,8 @@ const LiveProgressBanner = ({
   productsScraped,
   errorLog,
   onRetry,
+  showSkeletons = false,
+  loadedCount = 0,
 }: LiveProgressBannerProps) => {
   if (!status) return null;
 
@@ -42,6 +55,11 @@ const LiveProgressBanner = ({
   }
 
   if (status === 'pending' || status === 'running') {
+    // Calculate skeleton count: show placeholders for expected products
+    const skeletonCount = showSkeletons
+      ? Math.max(0, productsScraped - loadedCount)
+      : 0;
+
     return (
       <Box sx={{ mt: 2 }}>
         <LinearProgress color="secondary" />
@@ -56,6 +74,24 @@ const LiveProgressBanner = ({
             </Typography>
           )}
         </Stack>
+
+        {/* Skeleton cards for streaming effect */}
+        {skeletonCount > 0 && (
+          <Grid container spacing={2} sx={{ mt: 1 }}>
+            {[...Array(Math.min(skeletonCount, 8))].map((_, i) => (
+              <Grid key={i} size={{ xs: 6, sm: 6, md: 4, lg: 3 }}>
+                <SkeletonCard>
+                  <Skeleton variant="rectangular" height={220} />
+                  <Skeleton variant="rectangular" height={30} sx={{ mt: 0 }} />
+                  <Box sx={{ p: 1.5 }}>
+                    <Skeleton variant="text" width="80%" />
+                    <Skeleton variant="text" width="60%" />
+                  </Box>
+                </SkeletonCard>
+              </Grid>
+            ))}
+          </Grid>
+        )}
       </Box>
     );
   }

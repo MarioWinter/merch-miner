@@ -9,6 +9,11 @@ vi.mock('../WorkspaceSelector', () => ({
   default: () => null,
 }));
 
+// NotificationBell uses notificationApi (RTK Query) — stub to avoid store middleware error
+vi.mock('../../NotificationBell', () => ({
+  default: () => null,
+}));
+
 describe('Topbar — avatar initial derivation', () => {
   it('shows first_name initial (M) when first_name is set, not email initial (b)', async () => {
     const { store } = renderWithProviders(<Topbar />);

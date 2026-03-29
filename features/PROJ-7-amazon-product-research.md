@@ -3,7 +3,7 @@
 **Status:** In Progress
 **Priority:** P0 (MVP)
 **Created:** 2026-02-27
-**Updated:** 2026-03-17
+**Updated:** 2026-03-28
 
 ## Overview
 
@@ -15,34 +15,78 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 2. As a member, I want to switch between Live Research (fresh scrape) and DB Research (existing data), so that I can choose between speed and depth.
 3. As a member, I want to filter products by BSR range, rating, reviews, price, and product type in DB Research mode, so that I find the sweet spot for niche viability.
 4. As a member, I want to search across product title, brand, bullets, and description in DB Research mode, so that I find relevant products even if the keyword isn't the main title.
-5. As a member, I want to see a BSR history chart for a product, so that I can evaluate trend direction over time.
+5. As a member, I want to see a full BSR history chart with trend indicators for a product, so that I can evaluate rank direction over time.
 6. As a member, I want to click "Open on Amazon" to see live search results, so that I can verify the data.
 7. As a member, I want to hide official brand products, so that I only see POD-eligible opportunities.
 8. As a member, I want to click a product and add its keyword as a Niche, so that the research pipeline is connected.
 9. As a member, I want to toggle between table and card view, so that I can switch between dense data comparison and visual browsing.
 10. As a member, I want my recent searches saved as chips, so that I can quickly repeat common research queries.
 11. As a member, I want to export the current filtered results to CSV, so that I can analyse or share data offline.
+12. As a member, I want to click a product card and open a dedicated detail page (not inline), so that I can deeply analyze a single product without losing my search context.
+13. As a member, I want to see extracted keywords from a product's listing on its detail page, so that I can identify high-value keywords and save them to my Keyword Bank.
+14. As a member, I want to use a competitor's listing as a template for my own, so that I can quickly draft listings based on proven copy.
+15. As a member, I want a statistics/keywords overview of my current search results, so that I can spot keyword frequency and overlap patterns before committing to a niche.
+16. As a member, I want product cards to show a clean design-focused image with hover actions, so that I can quickly scan designs and act without clutter.
 
 ## Acceptance Criteria
 
-1. Search input shows Amazon suggestions via proxy endpoint; debounced 300ms; max 10 suggestions shown.
-2. **Live Research mode:** Submitting a search triggers a fresh scrape via PROJ-16 if no completed result exists for that keyword+marketplace within 24h. Returns a job reference for the user to track progress via polling.
-3. **DB Research mode:** `GET /api/research/products/` returns all stored products matching the keyword via full-text search across title, brand, bullets, description; full filter set applied server-side.
-4. Mode toggle (Live / DB) is prominent in the UI; switching modes re-fetches data with the appropriate endpoint.
-5. **Layout toggle:** Grid / List toggle buttons in the results toolbar. Grid = product cards with thumbnail prominent. List = dense table view. Default: Grid.
-6. Results (Grid or List view) show per product: thumbnail, title, brand, BSR (color-coded badge), rating, reviews count, price, ASIN, "published since X days".
-7. **Advanced Options (DB Research):** Collapsible panel below the controls row. Range sliders for BSR, Reviews, Price — each with an enable/disable toggle switch. Star-click rating selector. Hide Official Brands toggle button. Subcategory, Exclude Words text inputs, Date Range pickers. In Live mode: panel dimmed, only Product Type + Hide Official Brands active. Applying filters re-fetches immediately.
-8. Clicking a product row/card expands an inline detail panel: BSR history sparkline (last 30 days), feature bullets, description excerpt, "Add to Niche" + "Open on Amazon" actions.
-9. Sort controls change the result order; results re-fetch from server on sort change.
-10. "Open on Amazon" button opens `https://www.amazon.{marketplace}/s?k={keyword}` in new tab (pure frontend).
-11. "Add to Niche List" button creates a new Niche from the search keyword and shows a success notification.
-12. A progress indicator is shown while a Live Research scrape is in progress, including current page and product count.
-13. **Live Research error state:** If scrape fails, show error message and a "Retry" button that re-triggers the search.
-14. Autocomplete suggestions are server-side cached; repeated identical queries return instantly without hitting Amazon's API again.
-15. Live Research status can be polled by the UI until the scrape completes or fails.
-16. **Recent searches:** Last 10 unique (keyword + marketplace) pairs stored in `localStorage`. Displayed as clickable chips below the search input. Clicking a chip pre-fills the search and triggers the active mode's request. Persists across sessions per browser.
-17. **CSV export (DB Research):** "Export CSV" button downloads all products matching the current filters/sort (no pagination limit on export). Button is disabled when result count = 0.
-18. **Default marketplace:** `amazon_com` on page load. Selection persists to `localStorage` and is restored on next visit.
+### Phase 1 — Core Research (existing, QA passed 2026-03-23)
+
+- [x] AC-1: Search input shows Amazon suggestions via proxy endpoint; debounced 300ms; max 10 suggestions shown.
+- [x] AC-2: **Live Research mode:** Submitting a search triggers a fresh scrape via PROJ-16 if no completed result exists for that keyword+marketplace within 24h. Returns a job reference for the user to track progress via polling.
+- [x] AC-3: **DB Research mode:** `GET /api/research/products/` returns all stored products matching the keyword via full-text search across title, brand, bullets, description; full filter set applied server-side.
+- [x] AC-4: Mode toggle (Live / DB) is prominent in the UI; switching modes re-fetches data with the appropriate endpoint.
+- [x] AC-5: **Layout toggle:** Grid / List toggle buttons in the results toolbar. Grid = product cards with thumbnail prominent. List = dense table view. Default: Grid.
+- [x] AC-6: Results (List view) show per product: thumbnail, title, brand, BSR (color-coded badge), rating, reviews count, price, ASIN, listed date.
+- [x] AC-7: **Advanced Options (DB Research):** Collapsible panel below the controls row. Range sliders for BSR, Reviews, Price — each with an enable/disable toggle switch. Star-click rating selector. Hide Official Brands toggle button. Subcategory, Exclude Words text inputs, Date Range pickers. In Live mode: panel dimmed, only Product Type + Hide Official Brands active. Applying filters re-fetches immediately.
+- [x] AC-8: Sort controls change the result order; results re-fetch from server on sort change.
+- [x] AC-9: "Open on Amazon" button opens `https://www.amazon.{marketplace}/s?k={keyword}` in new tab (pure frontend).
+- [x] AC-10: "Add to Niche List" button creates a new Niche from the search keyword and shows a success notification.
+- [x] AC-11: A progress indicator is shown while a Live Research scrape is in progress, including current page and product count.
+- [x] AC-12: **Live Research error state:** If scrape fails, show error message and a "Retry" button that re-triggers the search.
+- [x] AC-13: Autocomplete suggestions are server-side cached; repeated identical queries return instantly without hitting Amazon's API again.
+- [x] AC-14: Live Research status can be polled by the UI until the scrape completes or fails.
+- [x] AC-15: **Recent searches:** Last 10 unique (keyword + marketplace) pairs stored in `localStorage`. Displayed as clickable chips below the search input. Clicking a chip pre-fills the search and triggers the active mode's request. Persists across sessions per browser.
+- [x] AC-16: **CSV export (DB Research):** "Export CSV" button downloads all products matching the current filters/sort (no pagination limit on export). Button is disabled when result count = 0.
+- [x] AC-17: **Default marketplace:** `amazon_com` on page load. Selection persists to `localStorage` and is restored on next visit.
+
+### Phase 2 — Bug Fixes (amendment 2026-03-28)
+
+- [ ] AC-18: **Search trigger:** Search only fires on Enter key press or Search button click. Typing alone must NOT trigger a search or API call (autocomplete suggestions still fire on debounce).
+- [ ] AC-19: **Sort by:** Changing sort dropdown correctly re-fetches results in the selected order. All 5 sort options (BSR asc, Reviews desc, Rating desc, Price asc, Newest) produce correct server-side ordering.
+- [ ] AC-20: **BSR display:** Product cards and table rows show the correct current BSR value from the `bsr` field (not a stale or wrong field).
+- [ ] AC-21: **Review count display:** Product cards show review count (e.g. "170 review(s)") below the star rating. Visible in both Grid and List views.
+- [ ] AC-22: **Review filter:** Review range slider in Advanced Options correctly filters products by `reviews_min`/`reviews_max` when enabled. Results update on filter change.
+- [ ] AC-23: **Bullets/Description layout:** Detail view renders bullet_1, bullet_2 as a proper list and description as a paragraph with "read more" truncation. No overflow, no broken layout.
+- [ ] AC-24: **Listed date display:** Product cards show the actual listed date (e.g. "2025-05-28") AND the relative "Published since X days" text. Both values visible.
+
+### Phase 3 — Product Card Redesign (amendment 2026-03-28)
+
+- [ ] AC-25: **Card image + sparkline:** Product card: 370px fixed height (220px image + 30px BSR sparkline + 120px info). Image shows design-cropped (`object-fit: cover`, `object-position: center 20%`). BSR sparkline row shows mini line chart from BSR history (secondary color via theme token); empty if < 2 data points. All cards identical dimensions.
+- [ ] AC-26: **Card hover overlay:** On hover over the card image area, show action icons: download image, copy ASIN, open on Amazon, navigate to detail page. Plus a favorite/heart icon (top-left) and AI badge (top-right, if slogan extracted). All hidden by default; visible on hover via gradient overlay. Touch fallback: always visible.
+- [ ] AC-27: **Card info layout:** Below sparkline, 2 compact rows: Row 1 (BSR color-coded + sales rank + price), Row 2 (star rating + reviews + ASIN chip). No title or brand on card — moved to detail page. All colors via theme tokens, zero hardcoded values.
+- [ ] AC-28: **Card click → detail page:** Clicking a product card navigates to `/amazon/research/product/{asin}` (dedicated route), NOT an inline expand panel. The search results page remains in browser history for back-navigation.
+
+### Phase 4 — Product Detail Page (amendment 2026-03-28)
+
+> Design: Option B "Data Dashboard" — scrollable single page with KPI row, no tabs.
+
+- [ ] AC-29: **Detail page route:** `/amazon/research/product/{asin}` renders a scrollable product dossier page. Shows loading skeleton while data fetches.
+- [ ] AC-30: **KPI row + content grid:** Top: 4 KPI cards (BSR with trend, Price, Reviews, Rating). Below: 2-column grid — left (product image 300×300 + title, brand, info chips, bullets, description "read more"), right (BSR chart + subcategory ranks + BSR summary).
+- [ ] AC-31: **Detail page actions row:** "Open in Amazon" (outlined secondary), "Use as Listing Template" (contained primary, PROJ-11), "Save Keywords" (outlined secondary, PROJ-10) below the content grid.
+- [ ] AC-32: **BSR section:** Full line chart (90 days, reversed Y-axis, secondary color via theme, area fill secondary.subtle, height 300px, proper axes + tooltips). Subcategory ranks list from `bsr_categories` JSONField. BSR summary: overall trend, current trend, average, median.
+- [ ] AC-33: **Price history section:** Price line chart (primary color via theme, area fill primary.subtle, Y-axis $ prefix, height 250px). Estimated sales if available.
+- [ ] AC-34: **Keywords section:** Short-tail keyword chips (secondary.subtle bg, secondary color) + long-tail keyword chips (info.subtle bg, info color). Click chip → save to Keyword Bank (PROJ-10, `source=amazon_search`). Search icon on chip → new research search. "Copy all keywords" button.
+- [ ] AC-35: **Competition section:** "Similar Designs" horizontal scroll-snap carousel (200px mini-cards). "Same Brand" carousel. Each item: thumbnail, BSR, price, reviews, date. Click → navigate to that product's detail.
+- [ ] AC-36: **Use as Listing Template:** Button on detail page copies product title, bullets, description as a pre-filled draft into PROJ-11 Listing Generator for the active niche. Creates a new Listing with `generated_by=manual`. Success notification shown.
+
+### Phase 5 — Statistics & Live Research UX (amendment 2026-03-28)
+
+- [ ] AC-37: **Statistics/Keywords view:** A toggle or tab on the research page that switches from product results to a keyword statistics view. Shows: top keywords extracted from current result set (title + bullets), keyword frequency count, keyword overlap across products. Helps identify high-value keywords before committing to a niche.
+- [ ] AC-38: **Live Research skeleton streaming:** During Live Research, show Skeleton cards that progressively fill in as products arrive from the scraper. Products appear one-by-one or in batches as they are scraped, not all at once after completion.
+- [ ] AC-39: **Double pagination fix:** List view (DataGrid) shows only one pagination control, not two.
+- [ ] AC-40: **Copy ASINs scope:** "Copy ASINs" button label indicates scope (e.g. "Copy 50 ASINs" for current page). Copies only current page ASINs.
+- [ ] AC-41: **CSV export filter consistency:** CSV export sends only enabled filter values (same query as the displayed results), not disabled slider defaults.
 
 ## API Endpoints
 
@@ -53,7 +97,18 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 | GET | `/api/research/search/{cache_id}/status/` | Member | Poll scrape job status |
 | GET | `/api/research/products/` | Member | DB Research: filter/sort all stored products |
 | GET | `/api/research/products/export/` | Member | DB Research: export filtered results as CSV (no pagination) |
-| GET | `/api/research/products/{asin}/bsr-history/` | Member | BSR history snapshots for a product |
+| GET | `/api/research/products/{asin}/bsr-history/` | Member | BSR history snapshots (extended to 90 days) |
+| GET | `/api/research/products/{asin}/` | Member | **NEW** Single product detail (all fields + meta_keywords M2M) |
+| GET | `/api/research/products/{asin}/similar/` | Member | **NEW** Similar products by keyword/category |
+| GET | `/api/research/products/{asin}/same-brand/` | Member | **NEW** Other products from same brand |
+| GET | `/api/research/products/{asin}/price-history/` | Member | **NEW** Price snapshots over time |
+| POST | `/api/research/products/{asin}/use-as-template/` | Member | **NEW** Create listing draft from product copy (PROJ-11) |
+
+> **Reused endpoints (no new code needed):**
+> - Keywords per product: `AmazonProduct.meta_keywords` M2M (MetaKeyword, short_tail/long_tail) — included in product detail serializer
+> - Keywords per search: `SearchKeywordResult` on `ProductSearchCache` (top_focus_keywords, top_long_tail_keywords) — exposed via search status endpoint
+> - Save keywords: `POST /api/niches/{niche_id}/keywords/bulk-add/` (keyword_app, source=amazon_search)
+> - Statistics/keyword aggregation: `SearchKeywordResult` from current search cache — no separate endpoint needed
 
 ## Models
 
@@ -89,27 +144,42 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 
 ## Edge Cases
 
-1. Amazon autocomplete returns empty → input works normally; no suggestions shown (no error).
-2. Live Research scrape returns 0 products → empty state: "No products found for this keyword."
-3. Scrape triggered while previous scrape for same keyword still running → return the in-progress job; no duplicate scrape started.
-4. `exclude_words` containing special characters → treated as plain text, not as patterns.
-5. Large result set (500+ products) → pagination 50/page; no client-side JS filtering.
-6. BSR `min` > `max` → 400 validation error.
-7. `hide_official_brands` list is maintained as a static fixture (not user-configurable in MVP).
-8. BSR history chart has < 2 data points → show single value with "Not enough history" label.
-9. DB Research with no stored products for keyword → empty state with suggestion to run Live Research.
-10. Live Research scrape status = `failed` → show error toast + inline error message with "Retry" button; retry re-triggers search with same params.
-11. Recent search chip clicked while scrape is in progress → previous polling cancelled; new request started.
-12. CSV export with 0 results → "Export CSV" button is disabled (no request sent).
-13. CSV export streams immediately; large sets (500+) handled without memory issues.
-14. localStorage recent searches exceed 10 entries → oldest entry is dropped (FIFO).
-15. User clears the search input → recent search chips remain visible as quick-start options.
+### Phase 1 (existing, QA passed)
+- [x] EC-1: Amazon autocomplete returns empty → input works normally; no suggestions shown (no error).
+- [x] EC-2: Live Research scrape returns 0 products → empty state: "No products found for this keyword."
+- [x] EC-3: Scrape triggered while previous scrape for same keyword still running → return the in-progress job; no duplicate scrape started.
+- [x] EC-4: `exclude_words` containing special characters → treated as plain text, not as patterns.
+- [x] EC-5: Large result set (500+ products) → pagination 50/page; no client-side JS filtering.
+- [x] EC-6: BSR `min` > `max` → 400 validation error.
+- [x] EC-7: `hide_official_brands` list is maintained as a static fixture (not user-configurable in MVP).
+- [x] EC-8: BSR history chart has < 2 data points → show single value with "Not enough history" label.
+- [x] EC-9: DB Research with no stored products for keyword → empty state with suggestion to run Live Research.
+- [x] EC-10: Live Research scrape status = `failed` → show error toast + inline error message with "Retry" button; retry re-triggers search with same params.
+- [x] EC-11: Recent search chip clicked while scrape is in progress → previous polling cancelled; new request started.
+- [x] EC-12: CSV export with 0 results → "Export CSV" button is disabled (no request sent).
+- [x] EC-13: CSV export streams immediately; large sets (500+) handled without memory issues.
+- [x] EC-14: localStorage recent searches exceed 10 entries → oldest entry is dropped (FIFO).
+- [x] EC-15: User clears the search input → recent search chips remain visible as quick-start options.
+
+### Phase 2-5 (amendment 2026-03-28)
+- [ ] EC-16: Detail page for non-existent ASIN → 404 page with "Product not found" message and back link.
+- [ ] EC-17: Detail page BSR history has 0 data points → show "No BSR data available" placeholder instead of empty chart.
+- [ ] EC-18: Product has no thumbnail_url → show placeholder image on card and detail page.
+- [ ] EC-19: "Use as Listing Template" with no active niche → show notistack warning "Select a niche first" or prompt niche selection.
+- [ ] EC-20: Keywords extraction returns 0 keywords (empty title+bullets+description) → show "No keywords available" message on Keywords tab.
+- [ ] EC-21: Competition tab finds 0 similar designs → show "No similar products found" empty state.
+- [ ] EC-22: Live Research streaming — scraper returns products in batches; if a batch has 0 new products, skeleton cards remain until next batch or completion.
+- [ ] EC-23: Card hover on touch device (no hover) → action icons always visible on mobile/tablet.
+- [ ] EC-24: Detail page navigated to directly via URL (no search context) → page loads product data via ASIN lookup; back button returns to research page with empty results.
+- [ ] EC-25: Statistics view with 0 results → show "Run a search first" empty state.
 
 ## Dependencies
 
 - PROJ-4 (Workspace & Membership — workspace scope)
 - PROJ-5 (Niche List — "Add to Niche" action calls `POST /api/niches/`)
-- PROJ-16 (Amazon Product Scraper — scrape engine, models, BSRSnapshot)
+- PROJ-10 (Keyword Research & Bank — "Save to Keyword Bank" from detail page keywords tab)
+- PROJ-11 (Listing Generator — "Use as Listing Template" creates listing draft)
+- PROJ-16 (Amazon Product Scraper — scrape engine, models, BSRSnapshot, PriceSnapshot)
 
 ## Amendments (PROJ-15/18/19 Harmonization)
 
@@ -127,27 +197,19 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 - Agent can start Live Research, read results, and apply filters (BSR range, rating, reviews, price, product type, hide brands).
 - Agent permission default for `trigger_product_research`: Approve (costs scraper credits). `filter_product_results` + `read_product_results` = Auto.
 
-### Known Bugs (to fix before deploy)
-- [ ] BUG: Search triggers on every keystroke — should only trigger on Enter key or Search button click
-- [ ] BUG: Sort by filter options not applied correctly
-- [ ] BUG: Wrong BSR value displayed on product cards
-- [ ] BUG: Review count not displayed on product cards
-- [ ] BUG: Review range filter does not work
-- [ ] BUG: Bullet1/Bullet2/Description panel rendering broken (layout/overflow issues)
-- [ ] BUG: Add date (listed_since) not shown — only "X days online" displayed, should show actual date too
+### Amendment Log (2026-03-28)
 
-### UI Improvements (to fix before deploy)
-- [ ] UI: Live Research loading state should show Skeleton cards with product streaming (progressive reveal as products arrive)
-- [ ] UI: Product Card design image should show only the design (crop/zoom), not the full t-shirt mockup
-- [ ] UI: All Product Cards must be equal height and width (fixed dimensions, consistent grid)
-- [ ] UI: Remove Brand and Title from Product Card surface — move to Detail view. Card shows: image, BSR badge, rating, price, reviews, days online.
-- [ ] UI: Detail view layout needs cleanup for Bullets + Description display
+All bugs, UI improvements, and new features from the original amendments section have been promoted to formal Acceptance Criteria:
 
-### New Features (Amendment)
-- [ ] FEAT: "Use as Listing Template" button in product Detail view — copies product title, bullets, description as pre-filled draft into PROJ-11 Listing Generator for the active niche. Creates a new Listing with `generated_by=manual` pre-populated with the product's copy.
-- [ ] FEAT: Statistics/Keywords page — switchable view (toggle or tab) showing aggregated keyword data from current search results: top keywords extracted from product titles/bullets, keyword frequency, keyword overlap across products. Helps identify high-value keywords before committing to a niche.
-- [ ] FEAT: Product Listing Keywords in Detail view — show extracted keywords from the product's title + bullets + description. Keywords displayed as chips, clickable to save to Keyword Bank (PROJ-10, source=amazon_search).
-- [ ] NOTE: Scraper (PROJ-16) may need adjustments to support additional data fields if keywords/bullets are not yet fully scraped.
+- **7 Bug fixes** → AC-18 to AC-24 (Phase 2)
+- **7 UI improvements** → AC-25 to AC-28 (Phase 3: Card Redesign)
+- **Detail page overhaul** → AC-29 to AC-36 (Phase 4: Detail Page)
+- **Statistics + Live UX** → AC-37 to AC-41 (Phase 5)
+- **3 QA low-severity bugs** (BUG-11, BUG-12, BUG-13) → AC-39, AC-40, AC-41
+
+**Design note:** Product Card and Detail Page exact styling to be decided via `/frontend-design`. Flying Research "Design Detail Page" is the primary reference.
+
+**Scraper note:** PROJ-16 may need `PriceSnapshot` model + keyword extraction support for AC-33, AC-34.
 
 ---
 
@@ -389,6 +451,333 @@ views/amazon/research/
     ├── AdvancedOptionsPanel.test.tsx
     └── ProductCard.test.tsx
 ```
+
+---
+
+## Tech Design Amendment: Phases 2-5 (2026-03-28)
+
+> Added: 2026-03-28 | Extends the original Tech Design (sections A-K) for Phase 1.
+
+### L) Phase 2 — Bug Fixes (AC-18 to AC-24)
+
+All fixes are in existing components — no new files or endpoints needed.
+
+| Bug | Component | Fix |
+|-----|-----------|-----|
+| Search triggers on keystroke (AC-18) | `SearchBar.tsx` | Remove `onSearch` call from Autocomplete `onChange`; only fire from Enter keydown + Search button click |
+| Sort-by not applied (AC-19) | `ControlsRow.tsx` + `useFilterState` | Verify `sort_by` param is passed to `listProducts` query; check backend `ProductListView` ordering |
+| Wrong BSR (AC-20) | `ProductCard.tsx` | Verify `product.bsr` field mapping (not a stale field) |
+| Review count missing (AC-21) | `ProductCard.tsx` | Add `reviews_count` display next to star rating |
+| Review filter broken (AC-22) | `AdvancedOptionsPanel.tsx` + backend `ProductListView` | Verify `reviews_min`/`reviews_max` params flow through `useFilterState` → query params → backend filter |
+| Bullets/Description broken (AC-23) | `ProductDetailPanel.tsx` | Fix layout: bullets as `<ul>`, description as `<Typography>` with 3-line clamp + expand toggle, proper overflow |
+| Listed date missing (AC-24) | `ProductCard.tsx` | Show `listed_date` formatted (e.g. "2025-05-28") alongside existing "Published Xd ago" |
+
+---
+
+### M) Phase 3 — Product Card Redesign (AC-25 to AC-28)
+
+> Design decided: 2026-03-28 | `/frontend-design` session | Option B "Data Dashboard"
+
+**Card Visual Tree (final):**
+```
+ProductCard (fixed height: 370px, width: 100% of grid cell)
+│
+├── Image Area (height: 220px, design-cropped)
+│   ├── [HOVER ONLY] Favorite/Heart icon (top-left)
+│   │   size: 28px container, 18px icon
+│   │   color: error.main when active, text.secondary when inactive
+│   │   bg: glass-sm circle
+│   ├── [HOVER ONLY] AI badge (top-right, if slogan extracted)
+│   │   size: 28px, bg: secondary.dark, icon: AutoAwesome 16px white
+│   │   border-radius: sm (6px)
+│   ├── [HOVER ONLY] Action row (bottom center, gap: 12px):
+│   │   icons: 20px, color: text.primary
+│   │   [SaveAltOutlined]       → download thumbnail
+│   │   [ContentCopyOutlined]   → copy ASIN + notistack
+│   │   [OpenInNewOutlined]     → open on Amazon
+│   │   [ArrowForwardOutlined]  → navigate to detail page
+│   └── Hover overlay: gradient
+│       top: rgba(background.default, 0.70) → transparent 30%
+│       bottom: transparent 60% → rgba(background.default, 0.80)
+│       transition: opacity 150ms ease
+│       Touch fallback (@media (hover: none)): always visible, opacity 0.6
+│
+├── BSR Sparkline Row (height: 30px, padding: 0 14px)
+│   @mui/x-charts SparkLineChart (if >= 2 BSR data points)
+│   color: secondary.main (via theme token)
+│   area fill: secondary.subtle (via theme token)
+│   If < 2 data points: row empty (height preserved for grid alignment)
+│
+└── Info Area (height: 120px, padding: 12px 14px)
+    ├── Row 1 (flex, space-between):
+    │   BSR: TrendingUp icon (16px) + value (body2, 500)
+    │         color: success.main (<10k), warning.main (10k-50k), text.secondary (>50k)
+    │   Sales: ShoppingCart icon (14px, text.secondary) + value (body2)
+    │   Price: "$" (text.secondary) + value (body2, 600)
+    └── Row 2 (flex, space-between):
+        Stars: 5× Star icons (14px), filled=warning.main, empty=text.disabled
+        Reviews: "/ {count} review(s)" (caption, text.secondary)
+        ASIN: Chip variant="outlined" size="small", mono font, onClick→copy
+```
+
+**Card grid columns:**
+```
+xs: 6 (2 per row)   sm: 6 (2)   md: 4 (3)   lg: 3 (4)   xl: 2.4 (5)
+spacing: 2 (16px)
+```
+
+**Card specs (all via design system tokens — no hardcoded colors):**
+```
+background:     theme.vars.palette.background.paper
+border:         1px solid theme.vars.palette.divider
+border-radius:  12px (lg)
+overflow:       hidden
+cursor:         pointer
+hover:          translateY(-2px), elevation.2 shadow (150ms ease)
+
+Image:
+  object-fit:       cover
+  object-position:  center 20% (shifts up to focus on print area)
+  height:           220px
+  width:            100%
+  background:       theme.vars.palette.background.default (fallback)
+
+Numeric values: font-feature-settings: 'tnum' (tabular nums)
+ASIN: mono font stack (JetBrains Mono)
+```
+
+**Key decisions:**
+- No title or brand on card — moved to detail page (AC-27)
+- BSR sparkline on card = instant trend visibility, unique differentiator vs competitors
+- BSR value = `product.bsr` (main category rank); subcategory ranks on detail page only
+- Sparkline uses existing `getBSRHistory` RTK query (lazy, per-card, cached)
+- Hover overlay via CSS `:hover` + gradient; touch fallback via `@media (hover: none)`
+- Card click navigates to detail page route, NOT inline expand (AC-28)
+- All colors via `theme.vars.palette.*` — zero hardcoded hex values
+
+---
+
+### N) Phase 4 — Product Detail Page (AC-29 to AC-36)
+
+> Design decided: 2026-03-28 | `/frontend-design` session | Option B "Data Dashboard" — scrollable single page, no tabs
+
+**New route:** `/amazon/research/product/:asin`
+
+**Page Visual Tree:**
+```
+ProductDetailPage (/amazon/research/product/:asin)
+│
+├── Back + Breadcrumb Row
+│   ← Back button (ghost)   Home / Amazon Deep Dive / ASIN: {asin}
+│
+├── KPI Row (4 KPI Cards, horizontal, equal width)
+│   ┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+│   │ BSR          │ │ PRICE        │ │ REVIEWS      │ │ RATING       │
+│   │ 12,450  ▼   │ │ $19.99      │ │ 142          │ │ ★ 4.2        │
+│   │ Trend: Down  │ │             │ │              │ │              │
+│   └──────────────┘ └──────────────┘ └──────────────┘ └──────────────┘
+│   Uses design system KPI Card pattern (overline label, h3 value, caption trend)
+│   BSR trend arrow: success.main (improving=down) / error.main (worsening=up)
+│
+├── Content Grid (2-column: image+info left, chart right)
+│   ┌─────────────────────────────┬───────────────────────────────────┐
+│   │ Product Image (300×300)     │ BSR History Chart                 │
+│   │ border-radius: lg (12px)    │ @mui/x-charts LineChart           │
+│   │ object-fit: cover           │ 90 days, reversed Y-axis          │
+│   │                             │ line: secondary.main              │
+│   │ Below image:                │ area: secondary.subtle            │
+│   │ ┌─ Product Info ──────────┐ │ grid: divider color, dashed      │
+│   │ │ Title (h4, 600)        │ │ height: 300px                     │
+│   │ │ Brand (body2, secondary)│ │ tooltip: glass-sm bg              │
+│   │ │ Chips: Marketplace ·   │ │                                   │
+│   │ │  ASIN (copy) · Date    │ │ Below chart:                      │
+│   │ │ Bullets (ul, dot=primary)│ │ ┌─ Subcategory Ranks ──────────┐ │
+│   │ │ Description (3-line     │ │ │ • 4 - Women's Novelty T-Shirt│ │
+│   │ │  clamp + "read more")  │ │ │ • 5 - Men's Novelty T-Shirts │ │
+│   │ └────────────────────────┘ │ │ • 1,224 - Men's Fashion       │ │
+│   │                             │ └──────────────────────────────┘ │
+│   │                             │ ┌─ BSR Summary ────────────────┐ │
+│   │                             │ │ Overall: ▼ Down  Avg: 117k  │ │
+│   │                             │ │ Current: ▼ Down  Med: 79k   │ │
+│   │                             │ └──────────────────────────────┘ │
+│   └─────────────────────────────┴───────────────────────────────────┘
+│
+├── Actions Row (below content grid, gap: 12px)
+│   [Open in Amazon]        outlined, secondary
+│   [Use as Listing Template]  contained, primary
+│   [Save Keywords]         outlined, secondary
+│
+├── Keywords Section (full-width card)
+│   ┌──────────────────────────────────────────────────────────────┐
+│   │ Keywords ℹ️                                     [Copy all]  │
+│   │ Short-tail: chips (bg: secondary.subtle, color: secondary)  │
+│   │   each chip: keyword text + Search icon → new research      │
+│   │   click chip body → save to Keyword Bank (PROJ-10)          │
+│   │   below chip: score (caption) + "(count)"                   │
+│   │                                                              │
+│   │ Long-tail: chips (bg: info.subtle, color: info.main)        │
+│   │   same interaction pattern                                   │
+│   │                                                              │
+│   │ [Click here to copy all keywords]                           │
+│   └──────────────────────────────────────────────────────────────┘
+│
+├── Price History Section (full-width card)
+│   ┌──────────────────────────────────────────────────────────────┐
+│   │ Price History                                                │
+│   │ LineChart: line=primary.main, area=primary.subtle            │
+│   │ Y-axis: $ prefix, normal (higher=top)                       │
+│   │ height: 250px                                                │
+│   │ Same tooltip style as BSR chart                              │
+│   └──────────────────────────────────────────────────────────────┘
+│
+├── Competition Section (full-width)
+│   ┌──────────────────────────────────────────────────────────────┐
+│   │ Similar Designs                           [Open in Search]  │
+│   │ ◀  [card] [card] [card] [card]  ▶                          │
+│   │ Horizontal scroll, snap, 200px wide mini-cards              │
+│   │                                                              │
+│   │ Same Brand                                                   │
+│   │ ◀  [card] [card]  ▶                                        │
+│   └──────────────────────────────────────────────────────────────┘
+│
+└── Responsive (< md): single column, image stacks above info
+```
+
+**Design philosophy: "Product Dossier"**
+- Everything on one scrollable page — no tabs, no hidden content
+- KPI row at top for instant metrics overview
+- Image + Chart side-by-side = visual + data in one glance
+- Sections flow naturally: metrics → visual → keywords → price → competition
+- Differentiator vs Flying Research (tabs) and MerchMatrix (table-only)
+
+**New API endpoints (5 total, all in `research_app`):**
+
+| Endpoint | Behaviour |
+|----------|-----------|
+| `GET /api/research/products/{asin}/` | Returns full `AmazonProduct` fields + `meta_keywords` M2M (short_tail + long_tail with frequency) for a single ASIN+marketplace. 404 if not found. |
+| `GET /api/research/products/{asin}/similar/` | Returns products with overlapping `meta_keywords` M2M in the same marketplace. Limit 20, exclude self. |
+| `GET /api/research/products/{asin}/same-brand/` | Returns products with same `brand` + `marketplace`, excluding self. Limit 20. |
+| `GET /api/research/products/{asin}/price-history/` | Returns `BSRSnapshot` records (price field) for last 90 days. Reuses existing `BSRSnapshot` model (already has `price` field). |
+| `POST /api/research/products/{asin}/use-as-template/` | Accepts `{ niche_id }`. Creates a Listing draft (PROJ-11) pre-populated with product title, bullets, description. Returns listing ID. Requires active workspace membership. |
+
+**Reused existing infrastructure (no new endpoints):**
+- **Keywords per product:** `AmazonProduct.meta_keywords` M2M → `MetaKeyword` model (short_tail/long_tail + frequency). Populated by scraper pipeline (`keyword_extractor.py`). Included in product detail serializer.
+- **Keywords per search:** `SearchKeywordResult` model (top_focus_keywords, top_long_tail_keywords, all_keywords_flat). Populated by `DjangoORMPipeline.close_spider()`. Accessed via `ProductSearchCache.keyword_result`.
+- **Save keywords to niche:** `POST /api/niches/{niche_id}/keywords/bulk-add/` (keyword_app). Use `source=amazon_search`.
+- **Statistics/aggregation:** Frontend reads `SearchKeywordResult` from the current search cache status response — no separate aggregation endpoint needed.
+
+**BSR History endpoint change:** Extend existing `BSRHistoryView` from 30 days → 90 days (change timedelta filter).
+
+**Data for BSR summary (calculated server-side):**
+- Overall trend: compare first 30-day avg vs last 30-day avg → "Up" / "Down" / "Stable"
+- Current trend: compare last 7 days avg vs prior 7 days → "Up" / "Down" / "Stable"
+- Average: mean of all BSR snapshots in range
+- Median: middle value of all BSR snapshots in range
+
+---
+
+### O) Phase 5 — Statistics View & Live Research UX (AC-37 to AC-41)
+
+**Statistics view:**
+- Toggle between "Products" and "Keywords" view in the results toolbar (MUI ToggleButtonGroup or Tab)
+- Keywords view calls `GET /api/research/statistics/` with same filter params as product list
+- Display: keyword chips with frequency count, sorted by count desc
+- Each keyword clickable → pre-fills search bar with that keyword
+
+**Live Research skeleton streaming (AC-38):**
+- During `status: running`, poll returns `products_scraped` count
+- Show `products_scraped` Skeleton cards; as poll returns new count, add more skeletons
+- On `status: completed`, replace skeletons with actual product cards from response
+- Progressive feel: skeleton count grows with each poll response
+
+**Minor fixes (AC-39, AC-40, AC-41):**
+- Double pagination: add `hideFooterPagination` prop to `ProductTable` DataGrid
+- Copy ASINs: change label to "Copy {count} ASINs" showing current page count
+- CSV export: use `buildQueryParams()` (respects `enabled` state) instead of raw `filters` object
+
+---
+
+### P) Frontend File Structure (new + modified files)
+
+```
+views/amazon/research/
+├── AmazonResearchView.tsx        MODIFIED (remove inline detail, add stats toggle)
+├── hooks/
+│   ├── useFilterState.ts         MODIFIED (bug fixes)
+│   ├── usePolling.ts             EXISTING
+│   ├── useRecentSearches.ts      EXISTING
+│   └── useResearchMode.ts        EXISTING
+├── partials/
+│   ├── SearchBar.tsx             MODIFIED (Enter-only search trigger)
+│   ├── ControlsRow.tsx           MODIFIED (sort fix)
+│   ├── AdvancedOptionsPanel.tsx  MODIFIED (review filter fix)
+│   ├── RangeSliderFilter.tsx     EXISTING
+│   ├── StarRatingFilter.tsx      EXISTING
+│   ├── ResultsToolbar.tsx        MODIFIED (stats toggle, copy ASINs label, export fix)
+│   ├── ProductGrid.tsx           MODIFIED (remove inline expand, card click → navigate)
+│   ├── ProductCard.tsx           REWRITE (new card design: hover overlay, compact info)
+│   ├── ProductTable.tsx          MODIFIED (hideFooterPagination, row click → navigate)
+│   ├── ProductDetailPanel.tsx    DELETED (replaced by detail page)
+│   ├── LiveProgressBanner.tsx    MODIFIED (skeleton streaming)
+│   ├── EmptyState.tsx            EXISTING
+│   └── StatisticsView.tsx        NEW (keyword stats display)
+├── types/
+│   └── index.ts                  MODIFIED (new types for detail, keywords, statistics)
+├── schemas/
+│   └── searchSchema.ts           EXISTING
+└── tests/                        MODIFIED + NEW tests
+
+views/amazon/research/detail/
+├── ProductDetailPage.tsx         NEW (main detail page — scrollable, no tabs)
+├── hooks/
+│   └── useProductDetail.ts       NEW (fetches product + BSR + keywords + similar + price)
+├── partials/
+│   ├── KPIRow.tsx                NEW (4 KPI cards: BSR, Price, Reviews, Rating)
+│   ├── ProductInfoSection.tsx    NEW (image + info + chart side-by-side grid)
+│   ├── BSRChart.tsx              NEW (full line chart + subcategory ranks + summary)
+│   ├── PriceHistorySection.tsx   NEW (price history line chart)
+│   ├── KeywordsSection.tsx       NEW (short-tail + long-tail chips + copy all)
+│   ├── CompetitionSection.tsx    NEW (similar designs + same brand carousels)
+│   └── ProductCarousel.tsx       NEW (reusable horizontal product carousel)
+└── types/
+    └── index.ts                  NEW (detail-specific types)
+```
+
+**New route in App.tsx:**
+```
+<Route path="/amazon/research/product/:asin" element={<ProductDetailPage />} />
+```
+
+---
+
+### Q) RTK Query Slice Updates
+
+**New endpoints to add to `researchApi` (store/researchSlice.ts):**
+
+| Endpoint | Tag | Cache |
+|----------|-----|-------|
+| `getProductDetail` | `ProductDetail` | Per ASIN (includes meta_keywords) |
+| `getSimilarProducts` | `SimilarProducts` | Per ASIN |
+| `getSameBrandProducts` | `SameBrandProducts` | Per ASIN |
+| `getPriceHistory` | `PriceHistory` | Per ASIN |
+| `useAsTemplate` | Mutation (invalidates `Listings`) | N/A |
+
+Existing `getBSRHistory` updated to pass `days=90` param.
+
+---
+
+### R) Tech Decisions (Phases 2-5)
+
+| Decision | Why |
+|----------|-----|
+| Detail page as route (not drawer/inline) | User wanted Flying Research style: full page with tabs for deep analysis. Also avoids re-rendering the product grid on detail open. |
+| BSR chart 90 days (up from 30) | More data for trend analysis; BSRSnapshot already stores daily. UI can zoom to 30 days. |
+| Server-side keyword extraction | Product text is already in DB; no need for client-side NLP. Server can cache results. Reuses `MetaKeyword` model when available. |
+| Statistics via dedicated endpoint | Aggregation query across 50-500 products would be expensive client-side. Server computes once, caches per search. |
+| Hover overlay for card actions | Clean card surface by default; actions on demand. Touch devices fallback to always-visible. |
+| `use-as-template` as POST | Creates a resource (Listing draft); POST is semantically correct. Requires niche context. |
+| Price history from BSRSnapshot | BSRSnapshot already has `price` field recorded daily. No need for separate `PriceSnapshot` model. |
+| Carousel component (reusable) | Same pattern needed for "Similar Designs" and "Same Brand" — extract once, use twice. |
 
 ---
 

@@ -15,6 +15,24 @@ import {
   SORT_OPTIONS,
   type ResearchFilters,
 } from '../types';
+import {
+  TShirtIcon,
+  HoodieIcon,
+  PulloverIcon,
+  ZipHoodieIcon,
+  LongSleeveIcon,
+  TankTopIcon,
+} from './ProductTypeIcons';
+import type { SvgIconProps } from '@mui/material/SvgIcon';
+
+const PRODUCT_TYPE_ICON_MAP: Record<string, (props: SvgIconProps) => JSX.Element> = {
+  t_shirt: TShirtIcon,
+  hoodie: HoodieIcon,
+  pullover: PulloverIcon,
+  zip_hoodie: ZipHoodieIcon,
+  long_sleeve: LongSleeveIcon,
+  tank_top: TankTopIcon,
+};
 
 interface ControlsRowProps {
   isLive: boolean;
@@ -32,70 +50,85 @@ const ControlsRow = ({
   advancedOpen,
   onToggleAdvanced,
   activeFilterCount,
-}: ControlsRowProps) => (
-  <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2 }}>
-    <FormControl size="small" sx={{ minWidth: 160 }}>
-      <InputLabel>Marketplace</InputLabel>
-      <Select
-        value={filters.marketplace}
-        label="Marketplace"
-        onChange={(e) => onFilterChange('marketplace', e.target.value)}
-        aria-label="Select marketplace"
-      >
-        {MARKETPLACE_OPTIONS.map((opt) => (
-          <MenuItem key={opt.value} value={opt.value}>
-            {opt.flag} {opt.label}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
+}: ControlsRowProps) => {
 
-    <FormControl size="small" sx={{ minWidth: 140 }}>
-      <InputLabel>Product Type</InputLabel>
-      <Select
-        value={filters.product_type}
-        label="Product Type"
-        onChange={(e) => onFilterChange('product_type', e.target.value)}
-        aria-label="Select product type"
-      >
-        {PRODUCT_TYPE_OPTIONS.map((opt) => (
-          <MenuItem key={opt.value} value={opt.value}>
-            {opt.label}
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
-
-    {!isLive && (
+  return (
+    <Stack direction="row" spacing={2} alignItems="center" sx={{ mt: 2 }}>
       <FormControl size="small" sx={{ minWidth: 180 }}>
-        <InputLabel>Sort By</InputLabel>
+        <InputLabel>Marketplace</InputLabel>
         <Select
-          value={filters.sort_by}
-          label="Sort By"
-          onChange={(e) => onFilterChange('sort_by', e.target.value)}
-          aria-label="Sort results"
+          value={filters.marketplace}
+          label="Marketplace"
+          onChange={(e) => onFilterChange('marketplace', e.target.value)}
+          renderValue={(value) => {
+            const mp = MARKETPLACE_OPTIONS.find((m) => m.value === value);
+            return mp ? `${mp.flag} ${mp.label}` : value;
+          }}
+          aria-label="Select marketplace"
         >
-          {SORT_OPTIONS.map((opt) => (
+          {MARKETPLACE_OPTIONS.map((opt) => (
             <MenuItem key={opt.value} value={opt.value}>
-              {opt.label}
+              {opt.flag} {opt.label}
             </MenuItem>
           ))}
         </Select>
       </FormControl>
-    )}
 
-    <Box sx={{ flex: 1 }} />
+      <FormControl size="small" sx={{ minWidth: 160 }}>
+        <InputLabel>Product Type</InputLabel>
+        <Select
+          value={filters.product_type}
+          label="Product Type"
+          onChange={(e) => onFilterChange('product_type', e.target.value)}
+          renderValue={(value) => {
+            const pt = PRODUCT_TYPE_OPTIONS.find((p) => p.value === value);
+            return pt ? pt.label : value;
+          }}
+          aria-label="Select product type"
+        >
+          {PRODUCT_TYPE_OPTIONS.map((opt) => {
+            const IconComponent = PRODUCT_TYPE_ICON_MAP[opt.value];
+            return (
+              <MenuItem key={opt.value} value={opt.value} sx={{ gap: 1 }}>
+                {IconComponent && <IconComponent sx={{ fontSize: 18 }} />}
+                {opt.label}
+              </MenuItem>
+            );
+          })}
+        </Select>
+      </FormControl>
 
-    <Button
-      variant="text"
-      onClick={onToggleAdvanced}
-      endIcon={advancedOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-      sx={{ color: 'text.secondary' }}
-      aria-label="Toggle advanced options"
-    >
-      Advanced Options{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-    </Button>
-  </Stack>
-);
+      {!isLive && (
+        <FormControl size="small" sx={{ minWidth: 180 }}>
+          <InputLabel>Sort By</InputLabel>
+          <Select
+            value={filters.sort_by}
+            label="Sort By"
+            onChange={(e) => onFilterChange('sort_by', e.target.value)}
+            aria-label="Sort results"
+          >
+            {SORT_OPTIONS.map((opt) => (
+              <MenuItem key={opt.value} value={opt.value}>
+                {opt.label}
+              </MenuItem>
+            ))}
+          </Select>
+        </FormControl>
+      )}
+
+      <Box sx={{ flex: 1 }} />
+
+      <Button
+        variant="text"
+        onClick={onToggleAdvanced}
+        endIcon={advancedOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+        sx={{ color: 'text.secondary' }}
+        aria-label="Toggle advanced options"
+      >
+        Advanced Options{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+      </Button>
+    </Stack>
+  );
+};
 
 export default ControlsRow;

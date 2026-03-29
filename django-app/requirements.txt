@@ -31,7 +31,9 @@ langfuse>=4.0
 pgvector>=0.4
 tiktoken>=0.8
 numpy>=1.26
-rembg>=2.0
-junglescout-python-client>=0.1
+# rembg>=2.0 — heavy deps (opencv, numba, llvmlite), lazy import in design_app/services/bg_remover.py
+# Install separately for design workers: pip install rembg>=2.0
+# junglescout-python-client — not on PyPI, lazy import in keyword_app/services/junglescout_service.py
+# Install manually for prod: pip install git+https://github.com/...
 channels>=4.0
 channels-redis>=4.1

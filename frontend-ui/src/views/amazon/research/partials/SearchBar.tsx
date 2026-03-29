@@ -3,16 +3,20 @@ import {
   Autocomplete,
   Button,
   Chip,
+  IconButton,
   Stack,
   Switch,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import SearchIcon from '@mui/icons-material/Search';
 import CloseIcon from '@mui/icons-material/Close';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import { useGetSuggestionsQuery } from '../../../../store/researchSlice';
 import type { RecentSearch } from '../hooks/useRecentSearches';
+import type { Niche } from '../../../niches/list/types';
 
 interface SearchBarProps {
   isLive: boolean;
@@ -24,6 +28,12 @@ interface SearchBarProps {
   recentSearches: RecentSearch[];
   onRecentClick: (keyword: string, marketplace: string) => void;
   onRecentRemove: (index: number) => void;
+  /** The auto-detected niche matching the searched keyword (null if none). */
+  matchedNiche: Niche | null;
+  /** Whether a search has been submitted at least once. */
+  hasSearched: boolean;
+  /** Called when the niche indicator is clicked. */
+  onNicheIndicatorClick: () => void;
 }
 
 const ModeLabel = styled(Typography)(({ theme }) => ({
@@ -43,6 +53,9 @@ const SearchBar = ({
   recentSearches,
   onRecentClick,
   onRecentRemove,
+  matchedNiche,
+  hasSearched,
+  onNicheIndicatorClick,
 }: SearchBarProps) => {
   const [inputValue, setInputValue] = useState(keyword);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -82,6 +95,19 @@ const SearchBar = ({
     [handleSearch],
   );
 
+  const handleRecentChipClick = useCallback(
+    (kw: string, mp: string) => {
+      // Only fill the input — do NOT trigger search
+      setInputValue(kw);
+      onRecentClick(kw, mp);
+    },
+    [onRecentClick],
+  );
+
+  const nicheTooltip = matchedNiche
+    ? `${matchedNiche.name} — Open Niche Drawer`
+    : 'Niche not saved';
+
   return (
     <Stack spacing={1.5}>
       <Stack direction="row" spacing={2} alignItems="center">
@@ -103,8 +129,7 @@ const SearchBar = ({
           onInputChange={handleInputChange}
           onChange={(_, value) => {
             if (typeof value === 'string' && value.trim()) {
-              onKeywordChange(value.trim());
-              onSearch(value.trim());
+              setInputValue(value);
             }
           }}
           renderInput={(params) => (
@@ -118,6 +143,19 @@ const SearchBar = ({
           )}
           sx={{ flex: 1 }}
         />
+
+        {hasSearched && (
+          <Tooltip title={nicheTooltip}>
+            <IconButton
+              size="small"
+              onClick={onNicheIndicatorClick}
+              aria-label={nicheTooltip}
+              sx={{ color: matchedNiche ? 'success.main' : 'text.disabled' }}
+            >
+              <Inventory2OutlinedIcon sx={{ fontSize: 22 }} />
+            </IconButton>
+          </Tooltip>
+        )}
 
         <Button
           variant="contained"
@@ -138,7 +176,7 @@ const SearchBar = ({
               key={`${item.keyword}-${item.marketplace}`}
               label={item.keyword}
               size="small"
-              onClick={() => onRecentClick(item.keyword, item.marketplace)}
+              onClick={() => handleRecentChipClick(item.keyword, item.marketplace)}
               onDelete={() => onRecentRemove(idx)}
               deleteIcon={<CloseIcon sx={{ fontSize: 14 }} />}
               variant="outlined"

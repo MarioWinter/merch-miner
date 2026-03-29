@@ -5,6 +5,14 @@
 - `django-allauth` must be added to `requirements.txt` before auth work begins
 - `openpyxl` must be added to `requirements.txt` before any Excel upload/download work
 
+## API Endpoint Reuse (MANDATORY)
+- Before creating ANY new endpoint, check if an existing endpoint or model already provides the data:
+  1. Check all Django apps for existing views/serializers that return the needed data
+  2. Check existing models for M2M relationships, related fields, or JSONFields that already hold the data
+  3. If data exists on a related model, include it via serializer nesting — don't create a new endpoint
+  4. If an existing endpoint can be extended (e.g. adding a field to a serializer), prefer that over a new endpoint
+- Only create a new endpoint when no existing infrastructure can serve the data
+
 ## Django DRF Patterns
 - All API views: use DRF `APIView` or `ViewSet`
 - Auth: use `CookieJWTAuthentication` (`api/authentication.py`) on all protected views

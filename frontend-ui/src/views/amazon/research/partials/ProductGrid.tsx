@@ -1,59 +1,55 @@
-import { useState, useCallback, Fragment } from 'react';
-import { Grid } from '@mui/material';
-import { useSnackbar } from 'notistack';
-import { useCreateNicheMutation } from '../../../../store/nicheSlice';
+import { useCallback } from 'react';
+import { Box } from '@mui/material';
+import { styled } from '@mui/material/styles';
 import type { AmazonProduct } from '../types';
 import ProductCard from './ProductCard';
-import ProductDetailPanel from './ProductDetailPanel';
 
 interface ProductGridProps {
   products: AmazonProduct[];
-  keyword: string;
+  favoriteAsins?: Set<string>;
+  extractedAsins?: Set<string>;
+  extractingAsin?: string | null;
+  onToggleFavorite?: (product: AmazonProduct) => void;
+  onExtractSlogan?: (product: AmazonProduct) => void;
+  onDoubleClick?: (product: AmazonProduct) => void;
 }
 
-const ProductGrid = ({ products, keyword }: ProductGridProps) => {
-  const [expandedAsin, setExpandedAsin] = useState<string | null>(null);
-  const { enqueueSnackbar } = useSnackbar();
-  const [createNiche] = useCreateNicheMutation();
+const GridContainer = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: theme.spacing(2),
+  justifyContent: 'center',
+}));
 
-  const handleToggleExpand = useCallback((asin: string) => {
-    setExpandedAsin((prev) => (prev === asin ? null : asin));
+const ProductGrid = ({
+  products,
+  favoriteAsins,
+  extractedAsins,
+  extractingAsin,
+  onToggleFavorite,
+  onExtractSlogan,
+  onDoubleClick,
+}: ProductGridProps) => {
+  const handleCardClick = useCallback((asin: string) => {
+    window.open(`/amazon/research/product/${asin}`, '_blank', 'noopener');
   }, []);
 
-  const handleAddToNiche = useCallback(
-    async (kw: string) => {
-      try {
-        await createNiche({ name: kw }).unwrap();
-        enqueueSnackbar('Added to niche list', { variant: 'success' });
-      } catch {
-        enqueueSnackbar('Failed to add niche', { variant: 'error' });
-      }
-    },
-    [createNiche, enqueueSnackbar],
-  );
-
-  const expandedProduct = products.find((p) => p.asin === expandedAsin);
-
   return (
-    <Grid container spacing={2}>
+    <GridContainer>
       {products.map((product) => (
-        <Fragment key={product.asin}>
-          <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
-            <ProductCard
-              product={product}
-              onAddToNiche={() => handleAddToNiche(keyword)}
-              isExpanded={expandedAsin === product.asin}
-              onToggleExpand={() => handleToggleExpand(product.asin)}
-            />
-          </Grid>
-          {expandedAsin === product.asin && expandedProduct && (
-            <Grid size={{ xs: 12 }}>
-              <ProductDetailPanel product={expandedProduct} keyword={keyword} />
-            </Grid>
-          )}
-        </Fragment>
+        <ProductCard
+          key={product.asin}
+          product={product}
+          onClick={() => handleCardClick(product.asin)}
+          onDoubleClick={onDoubleClick ? () => onDoubleClick(product) : undefined}
+          isFavorite={favoriteAsins?.has(product.asin)}
+          onToggleFavorite={onToggleFavorite ? () => onToggleFavorite(product) : undefined}
+          hasSloganExtracted={extractedAsins?.has(product.asin)}
+          onExtractSlogan={onExtractSlogan ? () => onExtractSlogan(product) : undefined}
+          isExtracting={extractingAsin === product.asin}
+        />
       ))}
-    </Grid>
+    </GridContainer>
   );
 };
 

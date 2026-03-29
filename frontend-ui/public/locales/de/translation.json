@@ -215,7 +215,25 @@
       "collectedSlogans": "Gesammelte Slogans",
       "collectedKeywords": "Gesammelte Keywords",
       "copyAll": "Alle kopieren",
-      "copiedAll": "Alles in die Zwischenablage kopiert"
+      "copiedAll": "Alles in die Zwischenablage kopiert",
+      "collectedProducts": {
+        "title": "Gesammelte Produkte",
+        "clearAll": "Alle entfernen",
+        "previous": "Vorheriges Produkt",
+        "next": "Nächstes Produkt",
+        "counter": "{{current}} von {{total}}",
+        "extractKeywords": "Keywords extrahieren",
+        "useAsTemplate": "Als Listing-Vorlage verwenden",
+        "openDetail": "Detailseite öffnen",
+        "openAmazon": "Auf Amazon öffnen",
+        "remove": "Entfernen",
+        "removeTooltip": "Aus gesammelten Produkten entfernen",
+        "keywordsExtracted": "Keywords in die Zwischenablage kopiert",
+        "keywordsExtractFailed": "Keywords konnten nicht kopiert werden",
+        "templateCreated": "Listing-Vorlage erstellt",
+        "templateFailed": "Listing-Vorlage konnte nicht erstellt werden",
+        "empty": "Noch keine Produkte gesammelt"
+      }
     },
     "empty": {
       "noNiches": "Noch keine Nischen",
@@ -981,6 +999,80 @@
     "shared": {
       "badge": "Geteilt von {{username}}",
       "readOnly": "Nur Lesen (geteilte Session)"
+    }
+  },
+  "amazonResearch": {
+    "detail": {
+      "breadcrumb": "Amazon Research",
+      "notFound": "Produkt nicht gefunden",
+      "notFoundDescription": "Das Produkt mit ASIN \"{{asin}}\" wurde nicht gefunden.",
+      "backToResearch": "Zurueck zur Suche",
+      "openInAmazon": "Auf Amazon oeffnen",
+      "useAsTemplate": "Als Listing-Vorlage nutzen",
+      "saveKeywords": "Keywords speichern",
+      "selectNicheFirst": "Waehle zuerst eine Nische",
+      "readMore": "Mehr lesen",
+      "showLess": "Weniger anzeigen",
+      "noImage": "Kein Bild verfuegbar",
+      "bsrHistory": "BSR Verlauf (90 Tage)",
+      "noBsrData": "Keine BSR-Daten verfuegbar",
+      "subcategoryRanks": "Unterkategorie-Raenge",
+      "overall": "Gesamt",
+      "current": "Aktuell",
+      "average": "Durchschnitt",
+      "median": "Median",
+      "priceHistory": "Preisverlauf",
+      "noPriceData": "Kein Preisverlauf verfuegbar",
+      "keywords": "Keywords",
+      "noKeywords": "Keine Keywords verfuegbar",
+      "shortTail": "Short-Tail",
+      "longTail": "Long-Tail",
+      "copyAllKeywords": "Alle Keywords kopieren",
+      "keywordsCopied": "{{count}} Keywords kopiert",
+      "similarDesigns": "Aehnliche Designs",
+      "sameBrand": "Gleiche Marke",
+      "noSimilar": "Keine aehnlichen Produkte gefunden",
+      "noSameBrand": "Keine anderen Produkte dieser Marke",
+      "kpiBsr": "BSR",
+      "kpiPrice": "PREIS",
+      "kpiReviews": "BEWERTUNGEN",
+      "kpiRating": "RATING",
+      "trendUp": "Steigend",
+      "trendDown": "Fallend",
+      "trendStable": "Stabil"
+    },
+    "statistics": {
+      "runSearchFirst": "Suche zuerst starten",
+      "runSearchHint": "Keyword-Statistiken erscheinen nach Abschluss einer Suche",
+      "noKeywordData": "Keine Keyword-Daten verfuegbar",
+      "noKeywordHint": "Versuche eine andere Suche oder warte auf Ergebnisse",
+      "focusKeywords": "Focus Keywords",
+      "longTailKeywords": "Long-Tail Keywords"
+    },
+    "toolbar": {
+      "products": "Produkte",
+      "keywords": "Keywords"
+    },
+    "niche": {
+      "selectLabel": "Aktive Nische",
+      "none": "Keine Nische",
+      "selectFirst": "Bitte zuerst eine Nische auswaehlen",
+      "openDrawer": "Nischen-Details oeffnen",
+      "notSaved": "Nische noch nicht gespeichert — bitte zuerst speichern",
+      "created": "'{{name}}' als Nische gespeichert",
+      "createError": "Nische konnte nicht erstellt werden",
+      "saveDialogTitle": "Nische nicht gefunden",
+      "saveDialogText": "'{{keyword}}' ist noch nicht als Nische gespeichert. Moechtest du sie speichern?",
+      "cancel": "Abbrechen",
+      "saveAsNiche": "Als Nische speichern"
+    },
+    "favorite": {
+      "added": "Produkt zu {{niche}} hinzugefuegt"
+    },
+    "extract": {
+      "success": "Slogan extrahiert: {{slogan}}",
+      "error": "Slogan-Extraktion fehlgeschlagen",
+      "noImage": "Kein Produktbild verfuegbar"
     }
   }
 }

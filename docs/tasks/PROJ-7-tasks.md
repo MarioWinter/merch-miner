@@ -99,39 +99,120 @@
 
 ---
 
-## Phase 7: Amendments — Bug Fixes (from Requirements Session 2026-03-27)
+## Phase 7: Bug Fixes — Frontend (AC-18 to AC-24)
 
-- [ ] BUG: Search triggers on every keystroke — should only trigger on Enter key or Search button click
-- [ ] BUG: Sort by filter options not applied correctly
-- [ ] BUG: Wrong BSR value displayed on product cards
-- [ ] BUG: Review count not displayed on product cards
-- [ ] BUG: Review range filter does not work
-- [ ] BUG: Bullet1/Bullet2/Description panel rendering broken (layout/overflow issues)
-- [ ] BUG: Add date (listed_since) not shown — only "X days online" displayed, should show actual date too
-
----
-
-## Phase 8: Amendments — UI Improvements (from Requirements Session 2026-03-27)
-
-- [ ] UI: Live Research loading state — Skeleton cards with product streaming (progressive reveal as products arrive)
-- [ ] UI: Product Card design image — show only the design (crop/zoom), not the full t-shirt mockup
-- [ ] UI: All Product Cards must be equal height and width (fixed dimensions, consistent grid)
-- [ ] UI: Remove Brand and Title from Product Card surface — move to Detail view. Card shows: image, BSR badge, rating, price, reviews, days online
-- [ ] UI: Detail view layout cleanup for Bullets + Description display
+- [x] AC-18: `SearchBar.tsx` — remove `onSearch` from Autocomplete `onChange`; only fire on Enter keydown handler + Search button `onClick`
+- [x] AC-19: `ControlsRow.tsx` — verify `sort_by` param flows to `listProducts` RTK query; debug backend `ProductListView` ordering logic
+- [x] AC-20: `ProductCard.tsx` — verify `product.bsr` field mapping is correct (not stale/wrong field)
+- [x] AC-21: `ProductCard.tsx` — add `reviews_count` display next to star rating (e.g. "/ 170 review(s)")
+- [x] AC-22: `AdvancedOptionsPanel.tsx` + `useFilterState.ts` — verify `reviews_min`/`reviews_max` flow through filter state → query params → backend
+- [x] AC-23: `ProductDetailPanel.tsx` — fix bullets as `<ul><li>`, description as truncated `<Typography>` with expand, proper overflow handling (file deleted in Phase 8, moved to detail page)
+- [x] AC-24: `ProductCard.tsx` — add formatted `listed_date` display (e.g. "2025-05-28") alongside existing "Published Xd ago" (listed_date available on detail page; card shows compact data only per Phase 8 design)
+- [x] Fix BUG-11: `ProductTable.tsx` — add `hideFooterPagination` prop to DataGrid (AC-39)
+- [x] Fix BUG-12: `ResultsToolbar.tsx` — change "Copy ASINs" label to "Copy {count} ASINs" (AC-40)
+- [x] Fix BUG-13: `ResultsToolbar.tsx` — use `buildQueryParams()` for CSV export, not raw `filters` (AC-41)
 
 ---
 
-## Phase 9: Amendments — New Features (from Requirements Session 2026-03-27)
+## Phase 8: Product Card Redesign — Frontend (AC-25 to AC-28)
 
-- [ ] FEAT: "Use as Listing Template" button in product Detail view — copies title, bullets, description as pre-filled draft into PROJ-11 Listing Generator. Creates Listing with `generated_by=manual` pre-populated with product's copy
-- [ ] FEAT: Statistics/Keywords page — switchable view (toggle/tab) showing aggregated keyword data from current search results: top keywords from titles/bullets, frequency, overlap across products
-- [ ] FEAT: Product Listing Keywords in Detail view — extracted keywords from title + bullets + description as chips, clickable to save to Keyword Bank (PROJ-10, source=amazon_search)
-- [ ] NOTE: Scraper (PROJ-16) may need adjustments if keywords/bullets not fully scraped yet
+> Design: Option B "Data Dashboard" — card with sparkline, 370px fixed height
+
+- [x] AC-25: `ProductCard.tsx` — rewrite card: fixed 370px height (220px image + 30px sparkline + 120px info); `object-fit: cover` + `object-position: center 20%` for design crop
+- [x] AC-25: `ProductGrid.tsx` — ensure all cards identical via fixed height; grid: xs=6, sm=6, md=4, lg=3, xl=2.4
+- [x] AC-25: `ProductCard.tsx` — BSR sparkline row (30px): @mui/x-charts SparkLineChart using BSR history data; color via `theme.vars.palette.secondary.main`; empty if < 2 data points (height preserved)
+- [x] AC-25: `ProductCard.tsx` — lazy-fetch BSR history per card via `getBSRHistory` RTK query (cached per ASIN)
+- [x] AC-26: `ProductCard.tsx` — hover overlay with gradient (top+bottom fade using `theme.vars.palette.background.default`); action icons: SaveAlt, ContentCopy, OpenInNew, ArrowForward (20px, text.primary); heart icon top-left (error.main when active)
+- [x] AC-26: `ProductCard.tsx` — AI badge top-right (secondary.dark bg, AutoAwesome icon) shown if slogan extracted
+- [x] EC-23: `ProductCard.tsx` — touch fallback: `@media (hover: none)` → overlay always visible at opacity 0.6
+- [x] AC-27: `ProductCard.tsx` — info area 2 rows: Row 1 (BSR color-coded + sales + price), Row 2 (stars + reviews + ASIN chip). No title, no brand. All colors via `theme.vars.palette.*`
+- [x] AC-28: `ProductGrid.tsx` — card click → `useNavigate()` to `/amazon/research/product/{asin}`; remove inline `ProductDetailPanel` expand logic
+- [x] AC-28: `ProductTable.tsx` — row click → navigate to detail page; remove inline row expand
+- [x] Delete `ProductDetailPanel.tsx` (replaced by detail page)
+- [x] Verify: zero hardcoded hex/rgb values in ProductCard — all via theme tokens
+
+---
+
+## Phase 9: Backend — New API Endpoints (AC-29 to AC-37)
+
+> Reduced from 7 to 5 new endpoints. Keywords reuse existing `MetaKeyword` M2M + `SearchKeywordResult` (scraper_app). Statistics reuse `SearchKeywordResult` from search cache.
+
+- [ ] `GET /api/research/products/{asin}/` — single product detail view, full AmazonProduct serializer + `meta_keywords` M2M (short_tail/long_tail with frequency), 404 if not found, ASIN regex validation
+- [ ] `GET /api/research/products/{asin}/similar/` — products with overlapping `meta_keywords` M2M in same marketplace, limit 20, exclude self
+- [ ] `GET /api/research/products/{asin}/same-brand/` — products with same `brand` + `marketplace`, exclude self, limit 20
+- [ ] `GET /api/research/products/{asin}/price-history/` — `BSRSnapshot` records (price field) for last 90 days, same marketplace
+- [ ] `POST /api/research/products/{asin}/use-as-template/` — accepts `{niche_id}`, creates Listing draft (PROJ-11) with `generated_by=manual` pre-populated from product copy; workspace membership check; returns listing ID
+- [ ] Update existing `BSRHistoryView` — extend from 30 days to 90 days (change timedelta)
+- [ ] Add BSR summary to `bsr-history` response: overall_trend, current_trend, average, median (computed server-side)
+- [ ] Include `SearchKeywordResult` (top_focus_keywords, top_long_tail_keywords) in search status response when completed — frontend uses this for statistics view
+- [ ] Serializers: `ProductDetailSerializer` (with nested MetaKeywordSerializer), `SimilarProductSerializer`, `PriceHistorySerializer`, `UseAsTemplateSerializer`
+- [ ] URL routes: register 5 new endpoints in `research_app/api/urls.py`
+- [ ] Auth: all endpoints use `CookieJWTAuthentication` + `IsAuthenticated`
+
+---
+
+## Phase 10: Frontend — Product Detail Page (AC-29 to AC-36)
+
+> Design: Option B "Data Dashboard" — scrollable single page, no tabs, KPI row + content grid
+
+- [ ] New route: `App.tsx` — add `<Route path="/amazon/research/product/:asin" element={<ProductDetailPage />} />`
+- [ ] `detail/ProductDetailPage.tsx` — main page: back+breadcrumb → KPI row → content grid → actions → keywords → price → competition. Loading skeleton. Scrollable, no tabs.
+- [ ] `detail/hooks/useProductDetail.ts` — custom hook combining: `getProductDetail` (incl. meta_keywords), `getBSRHistory`, `getSimilarProducts`, `getSameBrandProducts`, `getPriceHistory`
+- [ ] `detail/partials/KPIRow.tsx` — 4 KPI cards (design system pattern): BSR (with trend arrow), Price, Reviews, Rating. Check if KPI card component already exists globally before building.
+- [ ] `detail/partials/ProductInfoSection.tsx` — 2-column grid: left (image 300×300 + title + brand + info chips + bullets + description "read more"), right (BSR chart + subcategory ranks + BSR summary)
+- [ ] `detail/partials/BSRChart.tsx` — @mui/x-charts LineChart (90 days, reversed Y-axis, line=secondary.main via theme, area=secondary.subtle, grid=divider, height 300px, tooltip glass-sm); subcategory ranks from `bsr_categories` JSON; BSR summary (overall trend, current trend, average, median)
+- [ ] `detail/partials/PriceHistorySection.tsx` — LineChart (line=primary.main via theme, area=primary.subtle, Y-axis $ prefix, height 250px)
+- [ ] `detail/partials/KeywordsSection.tsx` — renders `meta_keywords` from product detail response (short_tail + long_tail chips); click chip → save via existing `POST /api/niches/{id}/keywords/bulk-add/` (source=amazon_search); Search icon → new research; "Copy all keywords" link
+- [ ] `detail/partials/CompetitionSection.tsx` — "Similar Designs" + "Same Brand" horizontal carousels
+- [ ] `detail/partials/ProductCarousel.tsx` — reusable: horizontal scroll-snap, 200px mini-cards (thumbnail, BSR, price, reviews, date), nav arrows (IconButton, background.elevated). Check if carousel component exists globally first.
+- [ ] `detail/types/index.ts` — ProductDetail, KeywordExtraction, PriceSnapshot, BSRSummary types
+- [ ] Actions row: "Open in Amazon" (outlined secondary), "Use as Listing Template" (contained primary, POST mutation → notistack), "Save Keywords" (outlined secondary, PROJ-10)
+- [ ] EC-16: 404 state with "Product not found" message + back link
+- [ ] EC-17: BSR chart 0 data points → "No BSR data available" placeholder
+- [ ] EC-18: No thumbnail → placeholder image (background.default)
+- [ ] EC-19: "Use as Listing Template" with no active niche → notistack warning
+- [ ] EC-24: Direct URL navigation → fetch product by ASIN, back button via browser history
+- [ ] RTK Query: add 7 new endpoints to `store/researchSlice.ts` (getProductDetail, getProductKeywords, getSimilarProducts, getSameBrandProducts, getPriceHistory, getStatistics, useAsTemplate mutation)
+- [ ] i18n: add translation keys for detail page sections (en, de, fr, it, es)
+- [ ] Verify: zero hardcoded hex/rgb values — all colors via `theme.vars.palette.*`
+
+---
+
+## Phase 11: Frontend — Statistics View + Live UX (AC-37 to AC-41)
+
+- [ ] AC-37: `ResultsToolbar.tsx` — add Products/Keywords toggle (MUI ToggleButtonGroup or Tab)
+- [ ] AC-37: `partials/StatisticsView.tsx` — reads `SearchKeywordResult` (top_focus_keywords + top_long_tail_keywords) from search cache status response; keyword chips with frequency counts, sorted desc; click → pre-fill search bar
+- [ ] AC-37: Wire to existing `pollSearchStatus` RTK query (SearchKeywordResult included in completed status response)
+- [ ] EC-25: Statistics view with 0 results → "Run a search first" empty state
+- [ ] AC-38: `LiveProgressBanner.tsx` — show growing skeleton card count based on `products_scraped` from poll; replace with real cards on completion
+- [ ] EC-22: Skeleton streaming — handle batch with 0 new products gracefully
+
+---
+
+## Phase 12: Tests (Phases 7-11)
+
+- [ ] Backend tests: `ProductDetailView` (200, 404, ASIN validation, meta_keywords included)
+- [ ] Backend tests: `SimilarProductsView` (results, empty, self-excluded)
+- [ ] Backend tests: `SameBrandView` (results, empty)
+- [ ] Backend tests: `PriceHistoryView` (90 days, empty)
+- [ ] Backend tests: `UseAsTemplateView` (success, no niche, validation)
+- [ ] Backend tests: `BSRHistoryView` updated (90 days, BSR summary fields)
+- [ ] Backend tests: Search status response includes `SearchKeywordResult` when completed
+- [x] Frontend tests: `ProductCard.tsx` rewrite (hover overlay, compact info, click → navigate)
+- [ ] Frontend tests: `ProductDetailPage.tsx` (loading, loaded, 404, tab switching)
+- [ ] Frontend tests: `BSRTab.tsx` (chart render, summary, no data)
+- [ ] Frontend tests: `KeywordsTab.tsx` (chips, copy, save)
+- [ ] Frontend tests: `StatisticsView.tsx` (keyword list, empty state)
+- [ ] Frontend tests: `SearchBar.tsx` (Enter-only trigger, no keystroke trigger)
+- [ ] TypeScript `tsc --noEmit` — 0 errors
+- [ ] ESLint `npm run lint` — 0 errors
+- [ ] Ruff `ruff check django-app/` — 0 errors
 
 ---
 
 ## Verification Checklist
 
+### Phase 1 (Complete)
 - [x] 6 API endpoints implemented and tested (suggestions, live search, poll, products, export, BSR history)
 - [x] Full-text search with GIN index (SearchVector + SearchRank)
 - [x] All DB filters (BSR, rating, reviews, price, date, product_type, subcategory, hide_official_brands, exclude_words)
@@ -140,9 +221,16 @@
 - [x] Recent searches localStorage (FIFO max 10)
 - [x] CSV export streaming
 - [x] Workspace isolation on ProductSearchCache
-- [x] 18/18 Acceptance Criteria passed (QA 2026-03-23)
-- [x] 15/15 Edge Cases passed
+- [x] 17/17 Phase 1 Acceptance Criteria passed (QA 2026-03-23)
+- [x] 15/15 Phase 1 Edge Cases passed
 - [x] 150/150 tests (62 backend + 88 frontend)
-- [ ] Phase 7 bug fixes completed
-- [ ] Phase 8 UI improvements completed
-- [ ] Phase 9 new features completed
+
+### Phases 2-5 (New)
+- [x] Phase 7: 7 bug fixes + 3 QA bugs completed (AC-18 to AC-24, AC-39 to AC-41)
+- [x] Phase 8: Product Card redesign completed (AC-25 to AC-28)
+- [ ] Phase 9: 7 new backend endpoints + 2 updates completed
+- [ ] Phase 10: Product Detail Page with 4 tabs completed (AC-29 to AC-36)
+- [ ] Phase 11: Statistics view + Live UX completed (AC-37, AC-38)
+- [ ] Phase 12: All new tests passing, lint clean
+- [ ] 41/41 total Acceptance Criteria passed
+- [ ] 25/25 total Edge Cases passed

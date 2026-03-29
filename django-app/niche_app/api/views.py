@@ -1,6 +1,8 @@
 from django.contrib.auth import get_user_model
 from django.db.models import Count, Q, Value
+from django.shortcuts import get_object_or_404
 from rest_framework import status
+from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -9,7 +11,8 @@ from rest_framework.viewsets import ModelViewSet
 
 from user_auth_app.api.authentication import CookieJWTAuthentication
 from workspace_app.models import Membership
-from niche_app.models import Niche, NicheFilterTemplate
+from scraper_app.models import AmazonProduct
+from niche_app.models import Niche, NicheFilterTemplate, CollectedProduct
 from niche_app.api.filters import NicheFilter
 from niche_app.api.permissions import IsWorkspaceMember, IsNicheOwnerOrAdmin
 from niche_app.api.serializers import (
@@ -17,6 +20,8 @@ from niche_app.api.serializers import (
     NicheCreateSerializer,
     NicheBulkSerializer,
     NicheFilterTemplateSerializer,
+    CollectedProductSerializer,
+    CollectedProductCreateSerializer,
 )
 
 User = get_user_model()
@@ -254,3 +259,152 @@ class NicheFilterTemplateViewSet(ModelViewSet):
 
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+
+class CollectedProductPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
+
+
+class CollectedProductViewSet(ModelViewSet):
+    """
+    CRUD for collected products within a niche.
+    Nested under /api/niches/{niche_id}/collected-products/
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    pagination_class = CollectedProductPagination
+    http_method_names = ['get', 'post', 'delete', 'head', 'options']
+
+    def _resolve_membership(self):
+        workspace_id = self.request.headers.get('X-Workspace-Id')
+        if workspace_id:
+            return _get_membership_for_workspace(self.request.user, workspace_id)
+        return _get_active_membership(self.request.user)
+
+    def _get_niche(self):
+        """Return niche scoped to workspace, or 404."""
+        membership = self._resolve_membership()
+        if not membership:
+            return None
+        niche_id = self.kwargs['niche_id']
+        return get_object_or_404(
+            Niche, id=niche_id, workspace=membership.workspace,
+        )
+
+    def get_queryset(self):
+        niche = self._get_niche()
+        if not niche:
+            return CollectedProduct.objects.none()
+        return (
+            CollectedProduct.objects
+            .filter(niche=niche)
+            .select_related('product')
+            .prefetch_related('product__meta_keywords')
+        )
+
+    def get_serializer_class(self):
+        if self.action == 'create':
+            return CollectedProductCreateSerializer
+        return CollectedProductSerializer
+
+    def create(self, request, *args, **kwargs):
+        niche = self._get_niche()
+        if not niche:
+            return Response(
+                {'error': 'No active workspace membership.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        serializer = CollectedProductCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        asin = serializer.validated_data['asin']
+        marketplace = serializer.validated_data['marketplace']
+
+        product = AmazonProduct.objects.filter(
+            asin=asin, marketplace=marketplace,
+        ).first()
+        if not product:
+            return Response(
+                {'error': f'AmazonProduct with asin={asin}, marketplace={marketplace} not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        collected, created = CollectedProduct.objects.get_or_create(
+            niche=niche, product=product,
+        )
+        if not created:
+            return Response(
+                {'error': 'Product already collected for this niche.'},
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        out_serializer = CollectedProductSerializer(collected)
+        return Response(out_serializer.data, status=status.HTTP_201_CREATED)
+
+    def destroy(self, request, *args, **kwargs):
+        niche = self._get_niche()
+        if not niche:
+            return Response(
+                {'error': 'No active workspace membership.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        collected = get_object_or_404(
+            CollectedProduct, id=self.kwargs['pk'], niche=niche,
+        )
+        collected.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=['post'], url_path='extract-keywords')
+    def extract_keywords(self, request, niche_id=None, pk=None):
+        """Extract keywords from product's meta_keywords M2M into JSONField."""
+        niche = self._get_niche()
+        if not niche:
+            return Response(
+                {'error': 'No active workspace membership.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        collected = get_object_or_404(
+            CollectedProduct, id=pk, niche=niche,
+        )
+        meta_kws = collected.product.meta_keywords.all()
+        collected.extracted_keywords = [
+            {
+                'keyword': kw.keyword,
+                'type': kw.type,
+                'frequency': kw.frequency,
+            }
+            for kw in meta_kws
+        ]
+        collected.save(update_fields=['extracted_keywords'])
+        return Response(
+            CollectedProductSerializer(collected).data,
+            status=status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=['post'], url_path='save-listing-template')
+    def save_listing_template(self, request, niche_id=None, pk=None):
+        """Copy product title, bullets, description to listing_template JSONField."""
+        niche = self._get_niche()
+        if not niche:
+            return Response(
+                {'error': 'No active workspace membership.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        collected = get_object_or_404(
+            CollectedProduct, id=pk, niche=niche,
+        )
+        product = collected.product
+        collected.listing_template = {
+            'title': product.title,
+            'bullet_1': product.bullet_1,
+            'bullet_2': product.bullet_2,
+            'description': product.description,
+        }
+        collected.save(update_fields=['listing_template'])
+        return Response(
+            CollectedProductSerializer(collected).data,
+            status=status.HTTP_200_OK,
+        )

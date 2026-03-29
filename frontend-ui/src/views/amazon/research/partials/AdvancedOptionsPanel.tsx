@@ -8,7 +8,7 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { styled, alpha } from '@mui/material/styles';
+import { styled } from '@mui/material/styles';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
@@ -29,11 +29,8 @@ interface AdvancedOptionsPanelProps {
 const PanelBox = styled(Box)(({ theme }) => ({
   backgroundColor: theme.vars.palette.background.paper,
   borderRadius: 12,
-  border: `1px solid ${alpha('#fff', 0.08)}`,
+  border: `1px solid ${theme.vars.palette.divider}`,
   padding: theme.spacing(3),
-  ...theme.applyStyles('light', {
-    border: `1px solid ${alpha('#071E26', 0.08)}`,
-  }),
 }));
 
 const AdvancedOptionsPanel = ({

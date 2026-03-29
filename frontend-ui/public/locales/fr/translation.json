@@ -215,7 +215,25 @@
       "collectedSlogans": "Slogans collectés",
       "collectedKeywords": "Mots-clés collectés",
       "copyAll": "Tout copier",
-      "copiedAll": "Tout copié dans le presse-papiers"
+      "copiedAll": "Tout copié dans le presse-papiers",
+      "collectedProducts": {
+        "title": "Produits collectés",
+        "clearAll": "Tout supprimer",
+        "previous": "Produit précédent",
+        "next": "Produit suivant",
+        "counter": "{{current}} sur {{total}}",
+        "extractKeywords": "Extraire les mots-clés",
+        "useAsTemplate": "Utiliser comme modèle de listing",
+        "openDetail": "Ouvrir la page de détail",
+        "openAmazon": "Ouvrir sur Amazon",
+        "remove": "Supprimer",
+        "removeTooltip": "Supprimer des produits collectés",
+        "keywordsExtracted": "Mots-clés copiés dans le presse-papiers",
+        "keywordsExtractFailed": "Échec de la copie des mots-clés",
+        "templateCreated": "Modèle de listing créé",
+        "templateFailed": "Échec de la création du modèle de listing",
+        "empty": "Aucun produit collecté"
+      }
     },
     "empty": {
       "noNiches": "Aucune niche pour l'instant",
@@ -706,5 +724,79 @@
     "health": { "online": "En ligne", "offline": "Hors ligne", "tooltip": "Vane: {{vane}} | Crawl4ai: {{crawl4ai}}", "vaneOffline": "Recherche web indisponible.", "crawl4aiOffline": "Deep Crawl indisponible.", "allOffline": "Services de recherche hors ligne." },
     "save": { "toNiche": "Enregistrer dans {{name}}", "keywords": "Enregistrer les mots-cles", "vectorDbSaved": "Sauvegarde auto dans Vector DB", "saved": "Enregistre dans {{name}}.", "error": "Echec de l'enregistrement." },
     "empty": { "noSessions": "Aucune session de chat. Lancez une recherche!", "noResults": "Aucun resultat", "firstSearchHint": "Posez une question pour rechercher le web avec l'IA." }
+  },
+  "amazonResearch": {
+    "detail": {
+      "breadcrumb": "Amazon Research",
+      "notFound": "Produit introuvable",
+      "notFoundDescription": "Le produit avec l'ASIN \"{{asin}}\" est introuvable.",
+      "backToResearch": "Retour a la recherche",
+      "openInAmazon": "Ouvrir sur Amazon",
+      "useAsTemplate": "Utiliser comme modele de listing",
+      "saveKeywords": "Enregistrer les mots-cles",
+      "selectNicheFirst": "Selectionnez d'abord une niche",
+      "readMore": "Lire la suite",
+      "showLess": "Afficher moins",
+      "noImage": "Aucune image disponible",
+      "bsrHistory": "Historique BSR (90 jours)",
+      "noBsrData": "Aucune donnee BSR disponible",
+      "subcategoryRanks": "Classements par sous-categorie",
+      "overall": "Global",
+      "current": "Actuel",
+      "average": "Moyenne",
+      "median": "Mediane",
+      "priceHistory": "Historique des prix",
+      "noPriceData": "Aucun historique de prix disponible",
+      "keywords": "Mots-cles",
+      "noKeywords": "Aucun mot-cle disponible",
+      "shortTail": "Short-Tail",
+      "longTail": "Long-Tail",
+      "copyAllKeywords": "Copier tous les mots-cles",
+      "keywordsCopied": "{{count}} mots-cles copies",
+      "similarDesigns": "Designs similaires",
+      "sameBrand": "Meme marque",
+      "noSimilar": "Aucun produit similaire trouve",
+      "noSameBrand": "Aucun autre produit de cette marque",
+      "kpiBsr": "BSR",
+      "kpiPrice": "PRIX",
+      "kpiReviews": "AVIS",
+      "kpiRating": "NOTE",
+      "trendUp": "En hausse",
+      "trendDown": "En baisse",
+      "trendStable": "Stable"
+    },
+    "statistics": {
+      "runSearchFirst": "Lancez d'abord une recherche",
+      "runSearchHint": "Les statistiques des mots-cles apparaitront apres la fin d'une recherche",
+      "noKeywordData": "Aucune donnee de mots-cles disponible",
+      "noKeywordHint": "Essayez une autre recherche ou attendez les resultats",
+      "focusKeywords": "Mots-cles principaux",
+      "longTailKeywords": "Mots-cles longue traine"
+    },
+    "toolbar": {
+      "products": "Produits",
+      "keywords": "Mots-cles"
+    },
+    "niche": {
+      "selectLabel": "Niche active",
+      "none": "Aucune niche",
+      "selectFirst": "Selectionnez d'abord une niche",
+      "openDrawer": "Ouvrir les details de la niche",
+      "notSaved": "Niche non enregistree — enregistrez-la d'abord",
+      "created": "'{{name}}' enregistree comme niche",
+      "createError": "Impossible de creer la niche",
+      "saveDialogTitle": "Niche introuvable",
+      "saveDialogText": "'{{keyword}}' n'est pas encore enregistree comme niche. Voulez-vous l'enregistrer ?",
+      "cancel": "Annuler",
+      "saveAsNiche": "Enregistrer comme niche"
+    },
+    "favorite": {
+      "added": "Produit ajoute a {{niche}}"
+    },
+    "extract": {
+      "success": "Slogan extrait : {{slogan}}",
+      "error": "Echec de l'extraction du slogan",
+      "noImage": "Aucune image produit disponible"
+    }
   }
 }

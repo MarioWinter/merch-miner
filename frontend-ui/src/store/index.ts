@@ -14,6 +14,7 @@ import { kanbanApi } from './kanbanSlice';
 import { notificationApi } from './notificationSlice';
 import { searchApi } from './searchSlice';
 import { agentApi } from './agentSlice';
+import { collectedProductsApi } from './collectedProductsSlice';
 
 export const store = configureStore({
   reducer: {
@@ -32,6 +33,7 @@ export const store = configureStore({
     [notificationApi.reducerPath]: notificationApi.reducer,
     [searchApi.reducerPath]: searchApi.reducer,
     [agentApi.reducerPath]: agentApi.reducer,
+    [collectedProductsApi.reducerPath]: collectedProductsApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware()
@@ -45,7 +47,8 @@ export const store = configureStore({
       .concat(kanbanApi.middleware)
       .concat(notificationApi.middleware)
       .concat(searchApi.middleware)
-      .concat(agentApi.middleware),
+      .concat(agentApi.middleware)
+      .concat(collectedProductsApi.middleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

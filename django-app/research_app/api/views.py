@@ -23,6 +23,7 @@ from scraper_app.models import (
     MarketplaceChoices,
     PRODUCT_TYPE_SPIDER_KWARGS,
     ProductSearchCache,
+    SearchKeywordResult,
     ScrapeJob,
 )
 from scraper_app.tasks import get_or_create_keyword_cache, scrape_keyword_job
@@ -33,8 +34,13 @@ from research_app.api.serializers import (
     AmazonProductSerializer,
     BSRSnapshotSerializer,
     LiveSearchSerializer,
+    PriceHistorySerializer,
+    ProductDetailSerializer,
     ProductFilterSerializer,
+    SimilarProductSerializer,
     SuggestionsQuerySerializer,
+    UseAsTemplateSerializer,
+    compute_bsr_summary,
 )
 
 logger = logging.getLogger(__name__)
@@ -368,7 +374,7 @@ class SearchStatusView(APIView):
             'error_log': scrape_job.error_log if scrape_job else '',
         }
 
-        # On completion include first page of products
+        # On completion include first page of products + keyword results
         if search_cache.status == ProductSearchCache.Status.COMPLETED and search_cache.keyword:
             products = (
                 AmazonProduct.objects
@@ -379,6 +385,16 @@ class SearchStatusView(APIView):
                 .order_by('bsr')[:50]
             )
             result['products'] = AmazonProductSerializer(products, many=True).data
+
+            # Include SearchKeywordResult if available
+            try:
+                kw_result = search_cache.keyword_result
+                result['keyword_result'] = {
+                    'top_focus_keywords': kw_result.top_focus_keywords,
+                    'top_long_tail_keywords': kw_result.top_long_tail_keywords,
+                }
+            except SearchKeywordResult.DoesNotExist:
+                result['keyword_result'] = None
 
         return Response(result)
 
@@ -512,8 +528,8 @@ class BSRHistoryView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        cutoff = timezone.now() - timedelta(days=30)
-        snapshots = (
+        cutoff = timezone.now() - timedelta(days=90)
+        snapshots = list(
             BSRSnapshot.objects
             .filter(
                 product__asin=asin,
@@ -523,4 +539,288 @@ class BSRHistoryView(APIView):
             .order_by('recorded_at')
         )
 
-        return Response(BSRSnapshotSerializer(snapshots, many=True).data)
+        summary = compute_bsr_summary(snapshots)
+
+        return Response({
+            'snapshots': BSRSnapshotSerializer(snapshots, many=True).data,
+            'summary': summary,
+        })
+
+
+def _validate_asin(asin):
+    """Return error Response if ASIN invalid, else None."""
+    if not re.match(r'^[A-Z0-9]{10}$', asin):
+        return Response(
+            {'error': 'Invalid ASIN format. Must be 10 alphanumeric characters.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return None
+
+
+def _get_product_or_404(asin, marketplace=None):
+    """Return (product, None) or (None, error_response)."""
+    filters = {'asin': asin}
+    if marketplace:
+        filters['marketplace'] = marketplace
+    try:
+        product = AmazonProduct.objects.get(**filters)
+        return product, None
+    except AmazonProduct.DoesNotExist:
+        return None, Response(
+            {'error': 'Product not found.'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except AmazonProduct.MultipleObjectsReturned:
+        # ASIN without marketplace may match multiple — get first
+        product = AmazonProduct.objects.filter(**filters).first()
+        return product, None
+
+
+class ProductDetailView(APIView):
+    """GET /api/research/products/{asin}/ — single product with meta_keywords."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, asin):
+        err = _validate_asin(asin)
+        if err:
+            return err
+
+        marketplace = request.query_params.get('marketplace')
+
+        filters = {'asin': asin}
+        if marketplace:
+            if marketplace not in dict(MarketplaceChoices.choices):
+                return Response(
+                    {'error': f'Invalid marketplace: {marketplace}'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            filters['marketplace'] = marketplace
+
+        product = (
+            AmazonProduct.objects
+            .prefetch_related('meta_keywords')
+            .filter(**filters)
+            .first()
+        )
+        if not product:
+            return Response(
+                {'error': 'Product not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(ProductDetailSerializer(product).data)
+
+
+class SimilarProductsView(APIView):
+    """GET /api/research/products/{asin}/similar/ — products with overlapping meta_keywords."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, asin):
+        err = _validate_asin(asin)
+        if err:
+            return err
+
+        marketplace = request.query_params.get('marketplace')
+
+        filters = {'asin': asin}
+        if marketplace:
+            filters['marketplace'] = marketplace
+
+        product = (
+            AmazonProduct.objects
+            .prefetch_related('meta_keywords')
+            .filter(**filters)
+            .first()
+        )
+        if not product:
+            return Response(
+                {'error': 'Product not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Get meta_keyword IDs for this product
+        keyword_ids = list(product.meta_keywords.values_list('id', flat=True))
+        if not keyword_ids:
+            return Response([])
+
+        # Find products sharing meta_keywords in same marketplace, exclude self
+        from django.db.models import Count
+
+        similar = (
+            AmazonProduct.objects
+            .filter(
+                meta_keywords__id__in=keyword_ids,
+                marketplace=product.marketplace,
+            )
+            .exclude(id=product.id)
+            .annotate(shared_count=Count('meta_keywords'))
+            .order_by('-shared_count')[:20]
+        )
+
+        return Response(SimilarProductSerializer(similar, many=True).data)
+
+
+class SameBrandView(APIView):
+    """GET /api/research/products/{asin}/same-brand/ — products with same brand + marketplace."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, asin):
+        err = _validate_asin(asin)
+        if err:
+            return err
+
+        marketplace = request.query_params.get('marketplace')
+
+        filters = {'asin': asin}
+        if marketplace:
+            filters['marketplace'] = marketplace
+
+        product = AmazonProduct.objects.filter(**filters).first()
+        if not product:
+            return Response(
+                {'error': 'Product not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not product.brand:
+            return Response([])
+
+        same_brand = (
+            AmazonProduct.objects
+            .filter(brand=product.brand, marketplace=product.marketplace)
+            .exclude(id=product.id)
+            .order_by('bsr')[:20]
+        )
+
+        return Response(SimilarProductSerializer(same_brand, many=True).data)
+
+
+class PriceHistoryView(APIView):
+    """GET /api/research/products/{asin}/price-history/ — price snapshots for last 90 days."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, asin):
+        err = _validate_asin(asin)
+        if err:
+            return err
+
+        marketplace = request.query_params.get('marketplace')
+        if not marketplace:
+            return Response(
+                {'error': 'marketplace query param is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if marketplace not in dict(MarketplaceChoices.choices):
+            return Response(
+                {'error': f'Invalid marketplace: {marketplace}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        product_exists = AmazonProduct.objects.filter(
+            asin=asin, marketplace=marketplace,
+        ).exists()
+        if not product_exists:
+            return Response(
+                {'error': 'Product not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        cutoff = timezone.now() - timedelta(days=90)
+        snapshots = (
+            BSRSnapshot.objects
+            .filter(
+                product__asin=asin,
+                product__marketplace=marketplace,
+                recorded_at__gte=cutoff,
+                price__isnull=False,
+            )
+            .order_by('recorded_at')
+        )
+
+        return Response(PriceHistorySerializer(snapshots, many=True).data)
+
+
+class UseAsTemplateView(APIView):
+    """POST /api/research/products/{asin}/use-as-template/ — create Listing draft from product."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, asin):
+        err = _validate_asin(asin)
+        if err:
+            return err
+
+        serializer = UseAsTemplateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        niche_id = serializer.validated_data['niche_id']
+
+        workspace = _resolve_workspace(request)
+        if not workspace:
+            return Response(
+                {'error': 'No active workspace membership.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Verify niche belongs to workspace
+        from niche_app.models import Niche
+
+        try:
+            niche = Niche.objects.get(id=niche_id, workspace=workspace)
+        except Niche.DoesNotExist:
+            return Response(
+                {'error': 'Niche not found or not in your workspace.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Get product
+        product = AmazonProduct.objects.filter(asin=asin).first()
+        if not product:
+            return Response(
+                {'error': 'Product not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Create a placeholder Idea for the Listing (manual, from product copy)
+        from idea_app.models import Idea
+
+        idea = Idea.objects.create(
+            workspace=workspace,
+            niche=niche,
+            slogan_text=product.title[:200] if product.title else 'Template from research',
+            is_manual=True,
+            source_product_url=product.product_url or '',
+            status=Idea.Status.APPROVED,
+        )
+
+        # Create Listing draft pre-populated from product
+        from publish_app.models import Listing
+
+        listing = Listing.objects.create(
+            workspace=workspace,
+            idea=idea,
+            brand_name=product.brand[:50] if product.brand else '',
+            title=product.title[:60] if product.title else '',
+            bullet_1=product.bullet_1[:256] if product.bullet_1 else '',
+            bullet_2=product.bullet_2[:256] if product.bullet_2 else '',
+            description=product.description[:2000] if product.description else '',
+            status=Listing.Status.DRAFT,
+            generated_by=Listing.GeneratedBy.MANUAL,
+        )
+
+        return Response(
+            {
+                'listing_id': str(listing.id),
+                'idea_id': str(idea.id),
+            },
+            status=status.HTTP_201_CREATED,
+        )

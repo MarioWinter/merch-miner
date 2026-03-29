@@ -20,6 +20,7 @@ import KeywordResearchView from './views/amazon/keywords/research/KeywordResearc
 import PublishView from './views/publish/PublishView';
 import DashboardView from './views/dashboard/DashboardView';
 import KanbanBoardView from './views/kanban/KanbanBoardView';
+import ProductDetailPage from './views/amazon/research/detail/ProductDetailPage';
 
 
 const App = () => {
@@ -45,6 +46,7 @@ const App = () => {
           <Route path="/niches" element={<NicheListView />} />
           <Route path="/niches/research" element={<NicheResearchView />} />
           <Route path="/amazon/research" element={<AmazonResearchView />} />
+          <Route path="/amazon/research/product/:asin" element={<ProductDetailPage />} />
           <Route path="/amazon/keywords" element={<KeywordResearchView />} />
           <Route path="/slogans" element={<IdeaListView />} />
           <Route path="/design-board/:ideaId" element={<DesignBoardView />} />

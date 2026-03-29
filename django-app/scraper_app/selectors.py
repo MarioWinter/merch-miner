@@ -68,7 +68,12 @@ DEFAULT_SELECTORS = {
             'i[data-hook=average-star-rating] ::text',
             'span.a-icon-alt::text',
         ],
-        'rating_count': 'div[data-hook=total-review-count] ::text',
+        'rating_count': [
+            '#acrCustomerReviewText::attr(aria-label)',
+            '#acrCustomerReviewText::text',
+            'span[data-hook=total-review-count]::text',
+            'div[data-hook=total-review-count] ::text',
+        ],
         'feature_bullets': [
             '#feature-bullets li ::text',
             'ul.a-unordered-list.a-vertical.a-spacing-small li span.a-list-item::text',

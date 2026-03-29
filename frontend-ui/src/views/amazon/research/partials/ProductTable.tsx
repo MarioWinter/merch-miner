@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Box, Chip, IconButton } from '@mui/material';
 import { DataGrid, type GridColDef, type GridSortModel } from '@mui/x-data-grid';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
@@ -6,11 +6,9 @@ import StarIcon from '@mui/icons-material/Star';
 import { styled } from '@mui/material/styles';
 import { MONO_FONT_STACK } from '../../../../style/constants';
 import { MARKETPLACE_OPTIONS, type AmazonProduct } from '../types';
-import ProductDetailPanel from './ProductDetailPanel';
 
 interface ProductTableProps {
   products: AmazonProduct[];
-  keyword: string;
   count: number;
   page: number;
   pageSize: number;
@@ -48,7 +46,6 @@ const SORT_MAP: Record<string, string> = {
 
 const ProductTable = ({
   products,
-  keyword,
   count,
   page,
   pageSize,
@@ -56,13 +53,9 @@ const ProductTable = ({
   onSortChange,
   loading,
 }: ProductTableProps) => {
-  const [expandedAsin, setExpandedAsin] = useState<string | null>(null);
-
   const handleRowClick = useCallback(
     (params: { row: AmazonProduct }) => {
-      setExpandedAsin((prev) =>
-        prev === params.row.asin ? null : params.row.asin,
-      );
+      window.open(`/amazon/research/product/${params.row.asin}`, '_blank', 'noopener');
     },
     [],
   );
@@ -181,34 +174,28 @@ const ProductTable = ({
     [],
   );
 
-  const expandedProduct = products.find((p) => p.asin === expandedAsin);
-
   return (
-    <Box>
-      <DataGrid
-        rows={products}
-        columns={columns}
-        getRowId={(row) => row.asin}
-        rowCount={count}
-        paginationMode="server"
-        paginationModel={{ page, pageSize }}
-        onPaginationModelChange={(model) => onPageChange(model.page)}
-        sortingMode="server"
-        onSortModelChange={handleSortModelChange}
-        onRowClick={handleRowClick}
-        loading={loading}
-        rowHeight={52}
-        density="compact"
-        pageSizeOptions={[50]}
-        disableColumnFilter
-        disableRowSelectionOnClick
-        sx={{ border: 0 }}
-        aria-label="Product research results"
-      />
-      {expandedProduct && (
-        <ProductDetailPanel product={expandedProduct} keyword={keyword} />
-      )}
-    </Box>
+    <DataGrid
+      rows={products}
+      columns={columns}
+      getRowId={(row) => row.asin}
+      rowCount={count}
+      paginationMode="server"
+      paginationModel={{ page, pageSize }}
+      onPaginationModelChange={(model) => onPageChange(model.page)}
+      sortingMode="server"
+      onSortModelChange={handleSortModelChange}
+      onRowClick={handleRowClick}
+      loading={loading}
+      rowHeight={52}
+      density="compact"
+      pageSizeOptions={[50]}
+      disableColumnFilter
+      disableRowSelectionOnClick
+      hideFooterPagination
+      sx={{ border: 0 }}
+      aria-label="Product research results"
+    />
   );
 };
 

@@ -12,6 +12,42 @@ const mockUpdateNiche = vi.fn();
 const mockDeleteNiche = vi.fn();
 const mockGetNiche = vi.fn();
 
+// Mock ideaSlice — CollectedItemsSection uses useListIdeasQuery / useDeleteIdeaMutation
+vi.mock('../../../../store/ideaSlice', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../store/ideaSlice')>();
+  return {
+    ...actual,
+    useListIdeasQuery: () => ({ data: { results: [] }, isLoading: false }),
+    useDeleteIdeaMutation: () => [vi.fn(), { isLoading: false }],
+  };
+});
+
+// Mock keywordSlice — DrawerKeywordsSection uses keyword queries
+vi.mock('../../../../store/keywordSlice', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../store/keywordSlice')>();
+  return {
+    ...actual,
+    useListNicheKeywordsQuery: () => ({ data: { results: [] }, isLoading: false }),
+    useListKeywordGroupsQuery: () => ({ data: [], isLoading: false }),
+    useDeleteKeywordMutation: () => [vi.fn(), { isLoading: false }],
+    useCreateKeywordGroupMutation: () => [vi.fn(), { isLoading: false }],
+    useUpdateKeywordGroupMutation: () => [vi.fn(), { isLoading: false }],
+    useDeleteKeywordGroupMutation: () => [vi.fn(), { isLoading: false }],
+  };
+});
+
+// Mock collectedProductsSlice — CollectedProductsSection uses backend API
+vi.mock('../../../../store/collectedProductsSlice', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../store/collectedProductsSlice')>();
+  return {
+    ...actual,
+    useGetCollectedProductsQuery: () => ({ data: { results: [] }, isLoading: false }),
+    useRemoveCollectedProductMutation: () => [vi.fn().mockReturnValue({ unwrap: vi.fn() }), { isLoading: false }],
+    useExtractKeywordsMutation: () => [vi.fn().mockReturnValue({ unwrap: vi.fn() }), { isLoading: false }],
+    useSaveListingTemplateMutation: () => [vi.fn().mockReturnValue({ unwrap: vi.fn() }), { isLoading: false }],
+  };
+});
+
 vi.mock('../../../../store/nicheSlice', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../../store/nicheSlice')>();
   return {

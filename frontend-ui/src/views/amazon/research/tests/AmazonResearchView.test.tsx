@@ -3,9 +3,10 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../../../utils/test-utils';
 import AmazonResearchView from '../AmazonResearchView';
+import collectedItemsReducer from '../../../../store/collectedItemsSlice';
 import type { ProductListResponse } from '../types';
 
-// ── RTK Query mock ──────────────────────────────────────────────────────────
+// ── RTK Query mock — researchSlice ─────────────────────────────────────────
 const mockTriggerLiveSearch = vi.fn().mockReturnValue({ unwrap: vi.fn() });
 
 const emptyResponse: ProductListResponse = {
@@ -29,17 +30,87 @@ vi.mock('../../../../store/researchSlice', async (importOriginal) => {
     useTriggerLiveSearchMutation: () => [mockTriggerLiveSearch, { isLoading: false }],
     useGetSuggestionsQuery: () => ({ data: [], isLoading: false }),
     usePollSearchStatusQuery: () => ({ data: undefined, isLoading: false }),
+    usePollSearchStatusExtendedQuery: () => ({ data: undefined, isLoading: false }),
+    useGetBSRHistoryQuery: () => ({ data: [], isLoading: false }),
   };
 });
 
-// Mock niche slice used by ProductGrid
+// ── RTK Query mock — nicheSlice ────────────────────────────────────────────
 vi.mock('../../../../store/nicheSlice', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../../store/nicheSlice')>();
   return {
     ...actual,
+    useListNichesQuery: () => ({ data: { results: [] }, isLoading: false }),
+    useGetNicheQuery: () => ({ data: undefined, isLoading: false }),
     useCreateNicheMutation: () => [vi.fn(), { isLoading: false }],
+    useUpdateNicheMutation: () => [vi.fn(), { isLoading: false }],
+    useDeleteNicheMutation: () => [vi.fn(), { isLoading: false }],
+    useBulkNicheActionMutation: () => [vi.fn(), { isLoading: false }],
+    useListFilterTemplatesQuery: () => ({ data: [], isLoading: false }),
+    useCreateFilterTemplateMutation: () => [vi.fn(), { isLoading: false }],
+    useUpdateFilterTemplateMutation: () => [vi.fn(), { isLoading: false }],
+    useDeleteFilterTemplateMutation: () => [vi.fn(), { isLoading: false }],
   };
 });
+
+// ── RTK Query mock — ideaSlice ─────────────────────────────────────────────
+vi.mock('../../../../store/ideaSlice', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../store/ideaSlice')>();
+  return {
+    ...actual,
+    useExtractSloganMutation: () => [vi.fn().mockReturnValue({ unwrap: vi.fn() }), { isLoading: false }],
+    useListIdeasQuery: () => ({ data: { results: [] }, isLoading: false }),
+    useCreateIdeaMutation: () => [vi.fn(), { isLoading: false }],
+    useUpdateIdeaMutation: () => [vi.fn(), { isLoading: false }],
+    useDeleteIdeaMutation: () => [vi.fn(), { isLoading: false }],
+    useBulkUpdateStatusMutation: () => [vi.fn(), { isLoading: false }],
+    useTriggerAdaptationMutation: () => [vi.fn(), { isLoading: false }],
+    useGetAdaptationRunQuery: () => ({ data: undefined, isLoading: false }),
+    useImproveIdeaMutation: () => [vi.fn(), { isLoading: false }],
+    useRegenerateIdeaMutation: () => [vi.fn(), { isLoading: false }],
+    useSuggestNichesQuery: () => ({ data: [], isLoading: false }),
+  };
+});
+
+// ── RTK Query mock — keywordSlice (used by DrawerKeywordsSection) ──────────
+vi.mock('../../../../store/keywordSlice', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../store/keywordSlice')>();
+  return {
+    ...actual,
+    useListNicheKeywordsQuery: () => ({ data: { results: [] }, isLoading: false }),
+    useListKeywordGroupsQuery: () => ({ data: { results: [] }, isLoading: false }),
+    useDeleteKeywordMutation: () => [vi.fn(), { isLoading: false }],
+    useCreateKeywordGroupMutation: () => [vi.fn(), { isLoading: false }],
+    useUpdateKeywordGroupMutation: () => [vi.fn(), { isLoading: false }],
+    useDeleteKeywordGroupMutation: () => [vi.fn(), { isLoading: false }],
+  };
+});
+
+// ── RTK Query mock — collectedProductsSlice ───────────────────────────────
+vi.mock('../../../../store/collectedProductsSlice', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../store/collectedProductsSlice')>();
+  return {
+    ...actual,
+    useGetCollectedProductsQuery: () => ({ data: { results: [] }, isLoading: false }),
+    useCollectProductMutation: () => [vi.fn().mockReturnValue({ unwrap: vi.fn() }), { isLoading: false }],
+    useRemoveCollectedProductMutation: () => [vi.fn().mockReturnValue({ unwrap: vi.fn() }), { isLoading: false }],
+  };
+});
+
+// ── Mock react-router-dom for navigation ───────────────────────────────────
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
+// ── Reducers needed by selectors (collectedItemsSlice) ─────────────────────
+const extraReducers = {
+  collectedItems: collectedItemsReducer,
+};
 
 describe('AmazonResearchView', () => {
   beforeEach(() => {
@@ -53,17 +124,17 @@ describe('AmazonResearchView', () => {
   });
 
   it('renders without crash', () => {
-    renderWithProviders(<AmazonResearchView />);
+    renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
     expect(screen.getByText('Amazon Research')).toBeInTheDocument();
   });
 
   it('shows empty state when no search has been performed', () => {
-    renderWithProviders(<AmazonResearchView />);
+    renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
     expect(screen.getByText('Search a keyword to get started')).toBeInTheDocument();
   });
 
   it('defaults to DB Research mode', () => {
-    renderWithProviders(<AmazonResearchView />);
+    renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
     // In DB mode the "Live Research" label is not shown
     expect(screen.queryByText('Live Research')).not.toBeInTheDocument();
     // The switch should be unchecked (DB mode = default)
@@ -71,7 +142,7 @@ describe('AmazonResearchView', () => {
   });
 
   it('toggles between DB Research and Live Research mode', async () => {
-    renderWithProviders(<AmazonResearchView />);
+    renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
 
     // DB mode: no "Live Research" label visible, switch unchecked
     expect(screen.queryByText('Live Research')).not.toBeInTheDocument();
@@ -85,12 +156,9 @@ describe('AmazonResearchView', () => {
 
   it('shows loading skeleton while fetching (loading state)', () => {
     mockListProductsResult = { isLoading: true, isFetching: true, data: undefined };
-    renderWithProviders(<AmazonResearchView />);
+    renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
 
     // The view shows skeletons when loading && !hasSearched
-    // Since hasSearched is initially false and loading is true, skeletons render
-    // Actually the condition is `loading && !hasSearched` which is true
-    // Skeletons render as rectangular spans
     const skeletons = document.querySelectorAll('.MuiSkeleton-root');
     expect(skeletons.length).toBeGreaterThan(0);
   });
@@ -127,7 +195,7 @@ describe('AmazonResearchView', () => {
       },
     };
 
-    renderWithProviders(<AmazonResearchView />);
+    renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
 
     // Trigger a search to show results
     const searchInput = screen.getByPlaceholderText('Search keywords...');
@@ -149,7 +217,7 @@ describe('AmazonResearchView', () => {
   });
 
   it('shows advanced options panel toggle', async () => {
-    renderWithProviders(<AmazonResearchView />);
+    renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
 
     const advancedBtn = screen.getByRole('button', { name: /toggle advanced options/i });
     expect(advancedBtn).toBeInTheDocument();
@@ -157,7 +225,7 @@ describe('AmazonResearchView', () => {
   });
 
   it('mode label updates when toggling mode', async () => {
-    renderWithProviders(<AmazonResearchView />);
+    renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
 
     // Initially DB mode: no mode label text rendered
     expect(screen.queryByText('Live Research')).not.toBeInTheDocument();

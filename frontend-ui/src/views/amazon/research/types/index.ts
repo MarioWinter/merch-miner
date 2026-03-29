@@ -3,6 +3,7 @@ export interface AmazonProduct {
   title: string;
   brand: string;
   bsr: number | null;
+  bsr_categories: BSRCategory[];
   rating: number | null;
   reviews_count: number | null;
   price: number | null;
@@ -83,6 +84,67 @@ export interface LiveSearchResponse {
   status: ProductSearchStatus;
 }
 
+export interface MetaKeyword {
+  id: number;
+  keyword: string;
+  type: 'short_tail' | 'long_tail';
+  frequency: number;
+}
+
+export interface BSRCategory {
+  rank: number;
+  category: string;
+  category_url?: string;
+}
+
+export interface ProductDetail extends AmazonProduct {
+  meta_keywords: MetaKeyword[];
+  bsr_categories?: BSRCategory[];
+}
+
+export interface BSRSummary {
+  overall_trend: 'up' | 'down' | 'stable';
+  current_trend: 'up' | 'down' | 'stable';
+  average: number;
+  median: number;
+}
+
+export interface BSRHistoryResponse {
+  snapshots: BSRSnapshot[];
+  summary: BSRSummary | null;
+}
+
+export interface PriceSnapshot {
+  price: number;
+  recorded_at: string;
+}
+
+export interface SimilarProduct {
+  asin: string;
+  title: string;
+  brand: string;
+  bsr: number | null;
+  price: number | null;
+  reviews_count: number | null;
+  listed_date: string | null;
+  thumbnail_url: string;
+  marketplace: string;
+}
+
+export interface UseAsTemplateResponse {
+  listing_id: number;
+  message: string;
+}
+
+export interface SearchKeywordResult {
+  top_focus_keywords: Array<{ keyword: string; frequency: number }>;
+  top_long_tail_keywords: Array<{ keyword: string; frequency: number }>;
+}
+
+export interface SearchCacheStatusExtended extends SearchCacheStatus {
+  keyword_result?: SearchKeywordResult | null;
+}
+
 export interface MarketplaceOption {
   value: string;
   label: string;
@@ -99,8 +161,12 @@ export const MARKETPLACE_OPTIONS: MarketplaceOption[] = [
   { value: 'amazon_es', label: 'Amazon.es', flag: '\u{1F1EA}\u{1F1F8}', domain: 'amazon.es' },
 ];
 
-export const PRODUCT_TYPE_OPTIONS = [
-  { value: '', label: 'All Types' },
+export interface ProductTypeOption {
+  value: string;
+  label: string;
+}
+
+export const PRODUCT_TYPE_OPTIONS: ProductTypeOption[] = [
   { value: 't_shirt', label: 'T-Shirt' },
   { value: 'hoodie', label: 'Hoodie' },
   { value: 'pullover', label: 'Pullover' },
@@ -129,7 +195,7 @@ export const DEFAULT_FILTERS: ResearchFilters = {
   price_max: 100,
   date_from: '',
   date_to: '',
-  product_type: '',
+  product_type: 't_shirt',
   subcategory: '',
   hide_official_brands: false,
   exclude_words: '',

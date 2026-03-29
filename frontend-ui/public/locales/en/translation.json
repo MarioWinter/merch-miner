@@ -215,7 +215,25 @@
       "collectedSlogans": "Collected Slogans",
       "collectedKeywords": "Collected Keywords",
       "copyAll": "Copy All",
-      "copiedAll": "All copied to clipboard"
+      "copiedAll": "All copied to clipboard",
+      "collectedProducts": {
+        "title": "Collected Products",
+        "clearAll": "Clear All",
+        "previous": "Previous product",
+        "next": "Next product",
+        "counter": "{{current}} of {{total}}",
+        "extractKeywords": "Extract Keywords",
+        "useAsTemplate": "Use as Listing Template",
+        "openDetail": "Open Detail Page",
+        "openAmazon": "Open on Amazon",
+        "remove": "Remove",
+        "removeTooltip": "Remove from collected products",
+        "keywordsExtracted": "Keywords copied to clipboard",
+        "keywordsExtractFailed": "Failed to copy keywords",
+        "templateCreated": "Listing template created",
+        "templateFailed": "Failed to create listing template",
+        "empty": "No products collected yet"
+      }
     },
     "empty": {
       "noNiches": "No niches yet",
@@ -1334,6 +1352,80 @@
     "shared": {
       "badge": "Shared by {{username}}",
       "readOnly": "Read-only (shared session)"
+    }
+  },
+  "amazonResearch": {
+    "detail": {
+      "breadcrumb": "Amazon Research",
+      "notFound": "Product not found",
+      "notFoundDescription": "The product with ASIN \"{{asin}}\" could not be found.",
+      "backToResearch": "Back to research",
+      "openInAmazon": "Open in Amazon",
+      "useAsTemplate": "Use as Listing Template",
+      "saveKeywords": "Save Keywords",
+      "selectNicheFirst": "Select a niche first",
+      "readMore": "Read more",
+      "showLess": "Show less",
+      "noImage": "No image available",
+      "bsrHistory": "BSR History (90 days)",
+      "noBsrData": "No BSR data available",
+      "subcategoryRanks": "Subcategory Ranks",
+      "overall": "Overall",
+      "current": "Current",
+      "average": "Average",
+      "median": "Median",
+      "priceHistory": "Price History",
+      "noPriceData": "No price history available",
+      "keywords": "Keywords",
+      "noKeywords": "No keywords available",
+      "shortTail": "Short-Tail",
+      "longTail": "Long-Tail",
+      "copyAllKeywords": "Copy all keywords",
+      "keywordsCopied": "{{count}} keywords copied",
+      "similarDesigns": "Similar Designs",
+      "sameBrand": "Same Brand",
+      "noSimilar": "No similar products found",
+      "noSameBrand": "No other products from this brand",
+      "kpiBsr": "BSR",
+      "kpiPrice": "PRICE",
+      "kpiReviews": "REVIEWS",
+      "kpiRating": "RATING",
+      "trendUp": "Improving",
+      "trendDown": "Declining",
+      "trendStable": "Stable"
+    },
+    "statistics": {
+      "runSearchFirst": "Run a search first",
+      "runSearchHint": "Keyword statistics will appear after a search completes",
+      "noKeywordData": "No keyword data available",
+      "noKeywordHint": "Try a different search or wait for results to complete",
+      "focusKeywords": "Focus Keywords",
+      "longTailKeywords": "Long-Tail Keywords"
+    },
+    "toolbar": {
+      "products": "Products",
+      "keywords": "Keywords"
+    },
+    "niche": {
+      "selectLabel": "Active Niche",
+      "none": "No niche",
+      "selectFirst": "Select a niche first",
+      "openDrawer": "Open niche details",
+      "notSaved": "Niche not saved yet — save it first",
+      "created": "'{{name}}' saved as niche",
+      "createError": "Failed to create niche",
+      "saveDialogTitle": "Niche not found",
+      "saveDialogText": "'{{keyword}}' is not saved as a niche yet. Would you like to save it?",
+      "cancel": "Cancel",
+      "saveAsNiche": "Save as Niche"
+    },
+    "favorite": {
+      "added": "Product collected to {{niche}}"
+    },
+    "extract": {
+      "success": "Slogan extracted: {{slogan}}",
+      "error": "Failed to extract slogan",
+      "noImage": "No product image available"
     }
   }
 }

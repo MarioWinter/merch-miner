@@ -31,6 +31,7 @@ import type {
 } from '../../research/types';
 import type { Niche } from '../types';
 import { CollectedItemsSection } from './CollectedItemsSection';
+import { CollectedProductsSection } from './CollectedProductsSection';
 
 interface DrawerResearchSectionProps {
   niche: Niche;
@@ -323,6 +324,7 @@ export const DrawerResearchSection = ({ niche, isBusy }: DrawerResearchSectionPr
         )}
       </ResearchSectionWrapper>
 
+      <CollectedProductsSection nicheId={niche.id} />
       <CollectedItemsSection nicheId={niche.id} />
     </>
   );

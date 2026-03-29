@@ -98,6 +98,31 @@ class Niche(models.Model):
         return ' '.join(parts)
 
 
+class CollectedProduct(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    niche = models.ForeignKey(
+        'Niche',
+        on_delete=models.CASCADE,
+        related_name='collected_products',
+        db_index=True,
+    )
+    product = models.ForeignKey(
+        'scraper_app.AmazonProduct',
+        on_delete=models.CASCADE,
+        related_name='collected_by_niches',
+    )
+    collected_at = models.DateTimeField(auto_now_add=True)
+    extracted_keywords = models.JSONField(default=list, blank=True)
+    listing_template = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        unique_together = ('niche', 'product')
+        ordering = ['-collected_at']
+
+    def __str__(self):
+        return f"Collected {self.product} for {self.niche}"
+
+
 class NicheFilterTemplate(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(

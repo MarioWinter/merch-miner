@@ -63,7 +63,13 @@ export const useNicheDetailDrawer = ({
 
   const editForm = useForm<UpdateNicheFormValues>({
     resolver: zodResolver(updateNicheSchema),
-    defaultValues: {},
+    defaultValues: {
+      name: '',
+      notes: '',
+      status: 'data_entry',
+      potential_rating: null,
+      assigned_to: null,
+    },
   });
 
   const { reset: resetEditForm } = editForm;

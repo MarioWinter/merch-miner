@@ -215,7 +215,25 @@
       "collectedSlogans": "Slogans recopilados",
       "collectedKeywords": "Keywords recopilados",
       "copyAll": "Copiar todo",
-      "copiedAll": "Todo copiado al portapapeles"
+      "copiedAll": "Todo copiado al portapapeles",
+      "collectedProducts": {
+        "title": "Productos recopilados",
+        "clearAll": "Eliminar todos",
+        "previous": "Producto anterior",
+        "next": "Siguiente producto",
+        "counter": "{{current}} de {{total}}",
+        "extractKeywords": "Extraer palabras clave",
+        "useAsTemplate": "Usar como plantilla de listing",
+        "openDetail": "Abrir página de detalle",
+        "openAmazon": "Abrir en Amazon",
+        "remove": "Eliminar",
+        "removeTooltip": "Eliminar de productos recopilados",
+        "keywordsExtracted": "Palabras clave copiadas al portapapeles",
+        "keywordsExtractFailed": "Error al copiar palabras clave",
+        "templateCreated": "Plantilla de listing creada",
+        "templateFailed": "Error al crear plantilla de listing",
+        "empty": "Aún no hay productos recopilados"
+      }
     },
     "empty": {
       "noNiches": "Aún no hay nichos",
@@ -693,5 +711,79 @@
     "empty": { "noResults": "No se encontraron palabras clave", "tryCta": "Intente con otro termino de busqueda", "startSearch": "Buscar palabras clave", "searchHint": "Ingrese una palabra clave para buscar en su base de datos y Amazon" },
     "drawer": { "sectionTitle": "Palabras clave", "addGroup": "Agregar grupo", "groupNamePlaceholder": "Nombre del grupo...", "addButton": "Agregar", "manualPlaceholder": "Agregar palabras clave (separadas por comas)...", "deleteKeyword": "Eliminar palabra clave", "editGroup": "Renombrar grupo", "deleteGroup": "Eliminar grupo", "emptyGroup": "Sin palabras clave en este grupo", "ungrouped": "Sin grupo", "noKeywords": "Sin palabras clave recopiladas", "groupDeleted": "Grupo eliminado (palabras clave conservadas)" },
     "errors": { "enrichFailed": "Error al enriquecer", "addFailed": "Error al agregar", "deleteFailed": "Error al eliminar", "exportFailed": "Error al exportar", "historyFailed": "Error al cargar tendencias", "renameFailed": "Error al renombrar", "deleteGroupFailed": "Error al eliminar grupo", "createGroupFailed": "Error al crear grupo" }
+  },
+  "amazonResearch": {
+    "detail": {
+      "breadcrumb": "Amazon Research",
+      "notFound": "Producto no encontrado",
+      "notFoundDescription": "El producto con ASIN \"{{asin}}\" no se encontro.",
+      "backToResearch": "Volver a la busqueda",
+      "openInAmazon": "Abrir en Amazon",
+      "useAsTemplate": "Usar como plantilla de listado",
+      "saveKeywords": "Guardar palabras clave",
+      "selectNicheFirst": "Selecciona primero un nicho",
+      "readMore": "Leer mas",
+      "showLess": "Mostrar menos",
+      "noImage": "Sin imagen disponible",
+      "bsrHistory": "Historial BSR (90 dias)",
+      "noBsrData": "Sin datos BSR disponibles",
+      "subcategoryRanks": "Ranking por subcategoria",
+      "overall": "General",
+      "current": "Actual",
+      "average": "Promedio",
+      "median": "Mediana",
+      "priceHistory": "Historial de precios",
+      "noPriceData": "Sin historial de precios disponible",
+      "keywords": "Palabras clave",
+      "noKeywords": "Sin palabras clave disponibles",
+      "shortTail": "Short-Tail",
+      "longTail": "Long-Tail",
+      "copyAllKeywords": "Copiar todas las palabras clave",
+      "keywordsCopied": "{{count}} palabras clave copiadas",
+      "similarDesigns": "Disenos similares",
+      "sameBrand": "Misma marca",
+      "noSimilar": "No se encontraron productos similares",
+      "noSameBrand": "No se encontraron otros productos de esta marca",
+      "kpiBsr": "BSR",
+      "kpiPrice": "PRECIO",
+      "kpiReviews": "RESENAS",
+      "kpiRating": "CALIFICACION",
+      "trendUp": "En alza",
+      "trendDown": "En baja",
+      "trendStable": "Estable"
+    },
+    "statistics": {
+      "runSearchFirst": "Ejecuta primero una busqueda",
+      "runSearchHint": "Las estadisticas de palabras clave apareceran al completar una busqueda",
+      "noKeywordData": "Sin datos de palabras clave disponibles",
+      "noKeywordHint": "Intenta con otra busqueda o espera los resultados",
+      "focusKeywords": "Palabras clave principales",
+      "longTailKeywords": "Palabras clave de cola larga"
+    },
+    "toolbar": {
+      "products": "Productos",
+      "keywords": "Palabras clave"
+    },
+    "niche": {
+      "selectLabel": "Nicho activo",
+      "none": "Sin nicho",
+      "selectFirst": "Selecciona un nicho primero",
+      "openDrawer": "Abrir detalles del nicho",
+      "notSaved": "Nicho no guardado — guardalo primero",
+      "created": "'{{name}}' guardado como nicho",
+      "createError": "Error al crear el nicho",
+      "saveDialogTitle": "Nicho no encontrado",
+      "saveDialogText": "'{{keyword}}' no esta guardado como nicho. Quieres guardarlo?",
+      "cancel": "Cancelar",
+      "saveAsNiche": "Guardar como nicho"
+    },
+    "favorite": {
+      "added": "Producto agregado a {{niche}}"
+    },
+    "extract": {
+      "success": "Slogan extraido: {{slogan}}",
+      "error": "Error al extraer el slogan",
+      "noImage": "No hay imagen del producto disponible"
+    }
   }
 }

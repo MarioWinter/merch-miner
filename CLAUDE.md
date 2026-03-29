@@ -1,7 +1,7 @@
 # AI Coding Kit
 
 ## Workflow Rules
-- Run autonomously through the skill pipeline. Only ask the user when:
+- Run each skill step manually. Always ask before proceeding to the next step. Additionally, ask when:
   - **Scope ambiguity** — spec has contradictions or missing info that can't be inferred
   - **Architecture trade-offs** — multiple valid approaches, need user preference (present as A/B/C)
   - **Breaking changes** — modifying deployed features, changing model schemas with data
@@ -132,6 +132,8 @@ django-rq processes async tasks (n8n triggers, design generation). Redis serves 
 - **Single Responsibility:** One feature per spec file
 - **Env vars:** Copy `django-app/.env.template` → `django-app/.env` before running Docker
 - **Human-in-the-loop:** All workflows have user approval checkpoints
+- **Reuse first:** Before creating new API endpoints, components, or utilities — check what already exists. Extend existing code over building new. Promote feature-local code to global when reusable.
+- **No hardcoded colors:** All colors via design system tokens (`theme.vars.palette.*`). New colors → `docs/design-system.md` + MUI theme first.
 
 ## Development Workflow (Skills) — MANDATORY
 
@@ -144,7 +146,7 @@ Skills have checklists and formatting rules that manual work does not guarantee.
 |------|-------|------|--------|
 | 1. Write/review spec | `/requirements` | New feature idea, spec review, fix ACs | `features/PROJ-X-name.md` |
 | 2. Tech Design + Tasks | `/architecture` | After approved spec | Tech Design in spec + `docs/tasks/PROJ-X-tasks.md` |
-| 3. UI Design (optional) | `/frontend-design` | When layout/design decisions needed | Design decisions |
+| 3. UI Design | `/frontend-design` | When layout/design decisions needed | Design decisions |
 | 4. Build frontend | `/frontend` | After approved architecture | Code in `frontend-ui/src/` |
 | 5. Build backend | `/backend` | After frontend or in parallel | Code in `django-app/` |
 | 6. QA + Security Audit | `/qa` | After implementation complete | QA Report in spec, bugs fixed |
@@ -154,7 +156,7 @@ Skills have checklists and formatting rules that manual work does not guarantee.
 - **Two skills minimum per feature:** `/requirements` → `/architecture`
 - **Spec review = `/requirements`**, task files = `/architecture`
 - **"Next PROJ-X"** = first `/requirements` (spec ok?), then `/architecture` (tasks)
-- **Run autonomously** — move through skills without asking unless critical (see Workflow Rules above)
+- **Run manual** — execute each skill step, then stop and ask before proceeding to the next step
 - **Never code without tasks** — task file must exist before implementation begins
 - **Brief summary after each step** — state what was done, then continue to next skill
 
