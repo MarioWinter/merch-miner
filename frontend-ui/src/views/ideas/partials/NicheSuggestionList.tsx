@@ -3,10 +3,13 @@ import {
   Chip,
   LinearProgress,
   Stack,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import CheckIcon from '@mui/icons-material/Check';
+import ScienceIcon from '@mui/icons-material/Science';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '@/style/constants';
 import type { NicheSuggestion } from '../types';
@@ -95,6 +98,19 @@ export const NicheSuggestionList = ({
                 <Typography variant="body2" sx={{ fontWeight: 500 }}>
                   {s.niche_name}
                 </Typography>
+                {s.has_completed_research ? (
+                  <Tooltip title={t('ideas.niche.researchDone')}>
+                    <ScienceIcon
+                      sx={{ fontSize: 16, color: 'success.main' }}
+                    />
+                  </Tooltip>
+                ) : (
+                  <Tooltip title={t('ideas.niche.noResearch')}>
+                    <WarningAmberIcon
+                      sx={{ fontSize: 16, color: 'warning.main' }}
+                    />
+                  </Tooltip>
+                )}
                 {isDisabled && (
                   <Chip
                     label={t('ideas.niche.alreadyAdapted')}

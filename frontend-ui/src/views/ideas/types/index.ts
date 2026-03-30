@@ -115,6 +115,8 @@ export interface NicheSuggestion {
   compatibility_score: number;
   shared_patterns: string[];
   already_adapted: boolean;
+  has_completed_research: boolean;
+  research_status: 'pending' | 'running' | 'done' | null;
 }
 
 export interface BulkStatusBody {

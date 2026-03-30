@@ -212,7 +212,61 @@ describe('NicheDetailDrawer — edit mode', () => {
     const confirmBtn = await screen.findByRole('button', { name: /^archive$/i });
     await userEvent.click(confirmBtn);
 
-    await waitFor(() => expect(mockDeleteNiche).toHaveBeenCalledWith('niche-abc'));
+    await waitFor(() =>
+      expect(mockDeleteNiche).toHaveBeenCalledWith({ id: 'niche-abc' }),
+    );
+  });
+
+  it('shows linked-ideas dialog when archive returns 409 with has_linked_ideas', async () => {
+    mockDeleteNiche.mockReturnValue({
+      unwrap: () =>
+        Promise.reject({ status: 409, data: { has_linked_ideas: true, idea_count: 5 } }),
+    });
+    renderDrawer({ open: true, mode: 'edit', selectedId: 'niche-abc' });
+    await waitFor(() => screen.getByRole('button', { name: /archive/i }));
+
+    // Open archive dialog
+    await userEvent.click(screen.getByRole('button', { name: /archive/i }));
+    const confirmBtn = await screen.findByRole('button', { name: /^archive$/i });
+    await userEvent.click(confirmBtn);
+
+    // Linked-ideas dialog should appear
+    await waitFor(() =>
+      expect(screen.getByText(/has linked ideas/i)).toBeInTheDocument(),
+    );
+    expect(screen.getByText(/5/)).toBeInTheDocument();
+  });
+
+  it('calls deleteNiche with confirmArchiveIdeas when linked-ideas dialog is confirmed', async () => {
+    // First call: 409
+    mockDeleteNiche
+      .mockReturnValueOnce({
+        unwrap: () =>
+          Promise.reject({ status: 409, data: { has_linked_ideas: true, idea_count: 3 } }),
+      })
+      // Second call: success
+      .mockReturnValueOnce({
+        unwrap: () => Promise.resolve(undefined),
+      });
+
+    renderDrawer({ open: true, mode: 'edit', selectedId: 'niche-abc' });
+    await waitFor(() => screen.getByRole('button', { name: /archive/i }));
+
+    // Trigger archive → 409
+    await userEvent.click(screen.getByRole('button', { name: /archive/i }));
+    const archiveBtn = await screen.findByRole('button', { name: /^archive$/i });
+    await userEvent.click(archiveBtn);
+
+    // Confirm linked-ideas dialog
+    const archiveAllBtn = await screen.findByRole('button', { name: /archive all/i });
+    await userEvent.click(archiveAllBtn);
+
+    await waitFor(() =>
+      expect(mockDeleteNiche).toHaveBeenCalledWith({
+        id: 'niche-abc',
+        confirmArchiveIdeas: true,
+      }),
+    );
   });
 
   it('displays server error Alert when createNiche rejects with detail', async () => {

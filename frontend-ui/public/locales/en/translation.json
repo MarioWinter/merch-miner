@@ -208,6 +208,9 @@
       "archiveConfirmBody": "The niche will be hidden from the list but not deleted.",
       "archiveConfirm": "Archive",
       "archiveCancel": "Cancel",
+      "archiveLinkedIdeasTitle": "Niche has linked ideas",
+      "archiveLinkedIdeasBody": "This niche has {{count}} linked idea(s). Archiving the niche will also archive all linked ideas.",
+      "archiveLinkedIdeasConfirm": "Archive all",
       "unsavedChangesTitle": "Unsaved changes",
       "unsavedChangesBody": "You have unsaved changes. Discard them?",
       "discardChanges": "Discard",
@@ -266,7 +269,9 @@
       "archiveSuccess": "Niche archived",
       "createError": "Failed to create niche",
       "updateError": "Failed to update niche",
-      "archiveError": "Failed to archive niche"
+      "archiveError": "Failed to archive niche",
+      "archiveWithIdeasSuccess": "Niche and linked ideas archived",
+      "archiveBlocked": "Archive cancelled — ideas still linked to this niche"
     },
     "inlineAdd": {
       "addNiche": "+ Add niche…",
@@ -606,7 +611,9 @@
     },
     "niche": {
       "noResearchWarning": "Some niches have no research data - results may be lower quality.",
-      "alreadyAdapted": "Already adapted"
+      "alreadyAdapted": "Already adapted",
+      "researchDone": "Deep Drill research completed — full data available",
+      "noResearch": "No Deep Drill research — adaptation quality may be limited"
     },
     "notifications": {
       "createSuccess": "{{count}} idea(s) created",

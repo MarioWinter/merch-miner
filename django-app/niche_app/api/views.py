@@ -163,8 +163,31 @@ class NicheViewSet(ModelViewSet):
         return self.update(request, *args, **kwargs)
 
     def destroy(self, request, *args, **kwargs):
+        from idea_app.models import Idea
+
         instance = self.get_object()
-        # Soft delete: set status=archived instead of deleting
+        confirm = request.query_params.get('confirm_archive_ideas') == 'true'
+
+        # Check for linked non-archived ideas
+        linked_ideas = Idea.objects.filter(
+            niche=instance,
+        ).exclude(status=Idea.Status.ARCHIVED)
+        idea_count = linked_ideas.count()
+
+        if idea_count > 0 and not confirm:
+            return Response(
+                {
+                    'has_linked_ideas': True,
+                    'idea_count': idea_count,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        # Archive linked ideas if confirmed
+        if idea_count > 0 and confirm:
+            linked_ideas.update(status=Idea.Status.ARCHIVED)
+
+        # Soft delete: set status=archived
         instance.status = Niche.Status.ARCHIVED
         instance.save(update_fields=['status', 'updated_at'])
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -214,6 +237,28 @@ class NicheBulkActionView(APIView):
         niches = Niche.objects.filter(id__in=ids, workspace=workspace)
 
         if action == 'archive':
+            from idea_app.models import Idea
+
+            confirm = request.query_params.get('confirm_archive_ideas') == 'true'
+
+            # Check for linked non-archived ideas across all target niches
+            linked_ideas = Idea.objects.filter(
+                niche__in=niches,
+            ).exclude(status=Idea.Status.ARCHIVED)
+            idea_count = linked_ideas.count()
+
+            if idea_count > 0 and not confirm:
+                return Response(
+                    {
+                        'has_linked_ideas': True,
+                        'idea_count': idea_count,
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
+
+            if idea_count > 0 and confirm:
+                linked_ideas.update(status=Idea.Status.ARCHIVED)
+
             updated = niches.update(status=Niche.Status.ARCHIVED)
             return Response({'updated': updated}, status=status.HTTP_200_OK)
 

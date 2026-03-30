@@ -1,5 +1,6 @@
 import {
   Button,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -7,6 +8,7 @@ import {
   DialogTitle,
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { useTranslation } from 'react-i18next';
 
 interface DrawerConfirmDialogsProps {
@@ -17,6 +19,10 @@ interface DrawerConfirmDialogsProps {
   unsavedDialogOpen: boolean;
   setUnsavedDialogOpen: (open: boolean) => void;
   discardAndClose: () => void;
+  linkedIdeasDialogOpen: boolean;
+  linkedIdeaCount: number;
+  handleArchiveWithIdeas: () => void;
+  handleLinkedIdeasCancel: () => void;
 }
 
 export const DrawerConfirmDialogs = ({
@@ -27,6 +33,10 @@ export const DrawerConfirmDialogs = ({
   unsavedDialogOpen,
   setUnsavedDialogOpen,
   discardAndClose,
+  linkedIdeasDialogOpen,
+  linkedIdeaCount,
+  handleArchiveWithIdeas,
+  handleLinkedIdeasCancel,
 }: DrawerConfirmDialogsProps) => {
   const { t } = useTranslation();
 
@@ -55,6 +65,36 @@ export const DrawerConfirmDialogs = ({
             disabled={deleting}
           >
             {t('niches.drawer.archiveConfirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={linkedIdeasDialogOpen}
+        onClose={handleLinkedIdeasCancel}
+        aria-labelledby="linked-ideas-dialog-title"
+      >
+        <DialogTitle id="linked-ideas-dialog-title" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <WarningAmberIcon color="warning" sx={{ fontSize: 22 }} />
+          {t('niches.drawer.archiveLinkedIdeasTitle')}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {t('niches.drawer.archiveLinkedIdeasBody', { count: linkedIdeaCount })}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="text" onClick={handleLinkedIdeasCancel} disabled={deleting}>
+            {t('niches.drawer.archiveCancel')}
+          </Button>
+          <Button
+            variant="outlined"
+            color="error"
+            startIcon={deleting ? <CircularProgress size={16} /> : <DeleteOutlineIcon />}
+            onClick={handleArchiveWithIdeas}
+            disabled={deleting}
+          >
+            {t('niches.drawer.archiveLinkedIdeasConfirm')}
           </Button>
         </DialogActions>
       </Dialog>

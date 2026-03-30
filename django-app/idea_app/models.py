@@ -58,6 +58,7 @@ class Idea(models.Model):
         APPROVED = 'approved', 'Approved'
         REJECTED = 'rejected', 'Rejected'
         FOR_REVIEW = 'for_review', 'For Review'
+        ARCHIVED = 'archived', 'Archived'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     workspace = models.ForeignKey(

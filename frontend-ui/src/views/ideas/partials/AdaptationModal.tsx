@@ -82,8 +82,8 @@ export const AdaptationModal = ({
           </Typography>
         )}
 
-        {/* Niche warning when no research */}
-        {!isLoading && suggestions.some((s) => !s.shared_patterns.length) && (
+        {/* Niche warning when some targets lack research */}
+        {!isLoading && suggestions.some((s) => !s.has_completed_research) && (
           <Typography variant="caption" color="warning.main" sx={{ mb: 1 }}>
             {t('ideas.niche.noResearchWarning')}
           </Typography>

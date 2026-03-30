@@ -78,9 +78,13 @@ export const NicheDetailDrawer = ({
     serverError,
     archiveDialogOpen,
     setArchiveDialogOpen,
+    linkedIdeasDialogOpen,
+    linkedIdeaCount,
+    handleArchiveConfirm,
+    handleArchiveWithIdeas,
+    handleLinkedIdeasCancel,
     unsavedDialogOpen,
     setUnsavedDialogOpen,
-    handleArchiveConfirm,
     requestClose,
     discardAndClose,
   } = useNicheDetailDrawer({ mode, selectedId, onClose });
@@ -180,6 +184,10 @@ export const NicheDetailDrawer = ({
         unsavedDialogOpen={unsavedDialogOpen}
         setUnsavedDialogOpen={setUnsavedDialogOpen}
         discardAndClose={discardAndClose}
+        linkedIdeasDialogOpen={linkedIdeasDialogOpen}
+        linkedIdeaCount={linkedIdeaCount}
+        handleArchiveWithIdeas={handleArchiveWithIdeas}
+        handleLinkedIdeasCancel={handleLinkedIdeasCancel}
       />
     </>
   );

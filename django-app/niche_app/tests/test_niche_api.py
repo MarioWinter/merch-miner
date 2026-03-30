@@ -509,3 +509,182 @@ def test_filter_assigned_to_valid_integer_200():
     assert response.status_code == 200
     names = [n["name"] for n in response.json()["results"]]
     assert "Assigned" in names
+
+
+# ---------------------------------------------------------------------------
+# 20. DELETE niche with linked ideas -> 409 Conflict
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_destroy_niche_with_linked_ideas_returns_409():
+    from idea_app.models import Idea
+
+    admin, ws, _ = make_workspace_with_admin("archidea1@test.com")
+    niche = create_niche(ws, admin, name="Has Ideas")
+
+    # Create two non-archived ideas linked to this niche
+    Idea.objects.create(workspace=ws, niche=niche, slogan_text="Slogan 1", created_by=admin)
+    Idea.objects.create(workspace=ws, niche=niche, slogan_text="Slogan 2", created_by=admin)
+
+    client = auth_client(admin, ws)
+    response = client.delete(detail_url(niche.id))
+    assert response.status_code == 409
+
+    data = response.json()
+    assert data["has_linked_ideas"] is True
+    assert data["idea_count"] == 2
+
+    # Niche should NOT be archived
+    niche.refresh_from_db()
+    assert niche.status != Niche.Status.ARCHIVED
+
+
+# ---------------------------------------------------------------------------
+# 21. DELETE niche with linked ideas + confirm -> archives ideas + niche
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_destroy_niche_with_confirm_archives_ideas_and_niche():
+    from idea_app.models import Idea
+
+    admin, ws, _ = make_workspace_with_admin("archidea2@test.com")
+    niche = create_niche(ws, admin, name="Confirm Archive")
+
+    idea1 = Idea.objects.create(workspace=ws, niche=niche, slogan_text="S1", created_by=admin)
+    idea2 = Idea.objects.create(
+        workspace=ws, niche=niche, slogan_text="S2", created_by=admin, status=Idea.Status.APPROVED,
+    )
+
+    client = auth_client(admin, ws)
+    url = detail_url(niche.id) + "?confirm_archive_ideas=true"
+    response = client.delete(url)
+    assert response.status_code == 204
+
+    # Niche archived
+    niche.refresh_from_db()
+    assert niche.status == Niche.Status.ARCHIVED
+
+    # Both ideas archived
+    idea1.refresh_from_db()
+    idea2.refresh_from_db()
+    assert idea1.status == Idea.Status.ARCHIVED
+    assert idea2.status == Idea.Status.ARCHIVED
+
+
+# ---------------------------------------------------------------------------
+# 22. DELETE niche without ideas -> 204 (no 409)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_destroy_niche_without_ideas_204():
+    admin, ws, _ = make_workspace_with_admin("archidea3@test.com")
+    niche = create_niche(ws, admin, name="No Ideas")
+
+    client = auth_client(admin, ws)
+    response = client.delete(detail_url(niche.id))
+    assert response.status_code == 204
+
+    niche.refresh_from_db()
+    assert niche.status == Niche.Status.ARCHIVED
+
+
+# ---------------------------------------------------------------------------
+# 23. DELETE niche with only archived ideas -> 204 (no 409)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_destroy_niche_with_only_archived_ideas_204():
+    from idea_app.models import Idea
+
+    admin, ws, _ = make_workspace_with_admin("archidea4@test.com")
+    niche = create_niche(ws, admin, name="Archived Ideas Only")
+
+    Idea.objects.create(
+        workspace=ws, niche=niche, slogan_text="Old", created_by=admin,
+        status=Idea.Status.ARCHIVED,
+    )
+
+    client = auth_client(admin, ws)
+    response = client.delete(detail_url(niche.id))
+    assert response.status_code == 204
+
+    niche.refresh_from_db()
+    assert niche.status == Niche.Status.ARCHIVED
+
+
+# ---------------------------------------------------------------------------
+# 24. Bulk archive with linked ideas -> 409
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_bulk_archive_with_linked_ideas_returns_409():
+    from idea_app.models import Idea
+
+    admin, ws, _ = make_workspace_with_admin("bulkidea1@test.com")
+    n1 = create_niche(ws, admin, name="BulkN1")
+    n2 = create_niche(ws, admin, name="BulkN2")
+
+    Idea.objects.create(workspace=ws, niche=n1, slogan_text="S1", created_by=admin)
+    Idea.objects.create(workspace=ws, niche=n2, slogan_text="S2", created_by=admin)
+    Idea.objects.create(workspace=ws, niche=n2, slogan_text="S3", created_by=admin)
+
+    client = auth_client(admin, ws)
+    response = client.post(
+        BULK_URL,
+        {"ids": [str(n1.id), str(n2.id)], "action": "archive"},
+        format="json",
+    )
+    assert response.status_code == 409
+
+    data = response.json()
+    assert data["has_linked_ideas"] is True
+    assert data["idea_count"] == 3
+
+    # Niches should NOT be archived
+    n1.refresh_from_db()
+    n2.refresh_from_db()
+    assert n1.status != Niche.Status.ARCHIVED
+    assert n2.status != Niche.Status.ARCHIVED
+
+
+# ---------------------------------------------------------------------------
+# 25. Bulk archive with linked ideas + confirm -> archives all
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_bulk_archive_with_confirm_archives_ideas_and_niches():
+    from idea_app.models import Idea
+
+    admin, ws, _ = make_workspace_with_admin("bulkidea2@test.com")
+    n1 = create_niche(ws, admin, name="BulkC1")
+    n2 = create_niche(ws, admin, name="BulkC2")
+
+    idea1 = Idea.objects.create(workspace=ws, niche=n1, slogan_text="S1", created_by=admin)
+    idea2 = Idea.objects.create(workspace=ws, niche=n2, slogan_text="S2", created_by=admin)
+
+    client = auth_client(admin, ws)
+    response = client.post(
+        BULK_URL + "?confirm_archive_ideas=true",
+        {"ids": [str(n1.id), str(n2.id)], "action": "archive"},
+        format="json",
+    )
+    assert response.status_code == 200
+    assert response.json()["updated"] == 2
+
+    # Niches archived
+    n1.refresh_from_db()
+    n2.refresh_from_db()
+    assert n1.status == Niche.Status.ARCHIVED
+    assert n2.status == Niche.Status.ARCHIVED
+
+    # Ideas archived
+    idea1.refresh_from_db()
+    idea2.refresh_from_db()
+    assert idea1.status == Idea.Status.ARCHIVED
+    assert idea2.status == Idea.Status.ARCHIVED

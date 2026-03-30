@@ -133,6 +133,8 @@ class NicheSuggestionSerializer(serializers.Serializer):
         child=serializers.CharField(), required=False,
     )
     already_adapted = serializers.BooleanField()
+    has_completed_research = serializers.BooleanField()
+    research_status = serializers.CharField(allow_null=True)
 
 
 class IdeaImportItemSerializer(serializers.Serializer):

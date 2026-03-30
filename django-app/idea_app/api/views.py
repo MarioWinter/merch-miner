@@ -484,6 +484,16 @@ class IdeaSuggestNichesView(APIView):
                 if p.get('present')
             }
 
+        from niche_research_app.models import NicheResearch
+
+        # Prefetch latest completed research per niche
+        completed_research_niche_ids = set(
+            NicheResearch.objects.filter(
+                niche__in=niches,
+                status='completed',
+            ).values_list('niche_id', flat=True),
+        )
+
         suggestions = []
         for niche in niches:
             target_analysis = NicheAnalysis.objects.filter(
@@ -508,6 +518,8 @@ class IdeaSuggestNichesView(APIView):
                 'compatibility_score': score,
                 'shared_patterns': shared[:5],
                 'already_adapted': str(niche.id) in already_adapted_ids,
+                'has_completed_research': niche.id in completed_research_niche_ids,
+                'research_status': niche.research_status,
             })
 
         suggestions.sort(key=lambda x: x['compatibility_score'], reverse=True)

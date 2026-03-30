@@ -54,6 +54,8 @@ export const useNicheDetailDrawer = ({
 
   const [serverError, setServerError] = useState<string | null>(null);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const [linkedIdeasDialogOpen, setLinkedIdeasDialogOpen] = useState(false);
+  const [linkedIdeaCount, setLinkedIdeaCount] = useState(0);
   const [unsavedDialogOpen, setUnsavedDialogOpen] = useState(false);
 
   const createForm = useForm<CreateNicheFormValues>({
@@ -128,13 +130,37 @@ export const useNicheDetailDrawer = ({
   const handleArchiveConfirm = async () => {
     if (!selectedId) return;
     try {
-      await deleteNiche(selectedId).unwrap();
+      await deleteNiche({ id: selectedId }).unwrap();
       enqueueSnackbar(t('niches.notifications.archiveSuccess'), { variant: 'success' });
       setArchiveDialogOpen(false);
+      onClose();
+    } catch (err) {
+      const e = err as { status?: number; data?: { has_linked_ideas?: boolean; idea_count?: number } };
+      if (e.status === 409 && e.data?.has_linked_ideas) {
+        setLinkedIdeaCount(e.data.idea_count ?? 0);
+        setArchiveDialogOpen(false);
+        setLinkedIdeasDialogOpen(true);
+      } else {
+        enqueueSnackbar(t('niches.notifications.archiveError'), { variant: 'error' });
+      }
+    }
+  };
+
+  const handleArchiveWithIdeas = async () => {
+    if (!selectedId) return;
+    try {
+      await deleteNiche({ id: selectedId, confirmArchiveIdeas: true }).unwrap();
+      enqueueSnackbar(t('niches.notifications.archiveWithIdeasSuccess'), { variant: 'success' });
+      setLinkedIdeasDialogOpen(false);
       onClose();
     } catch {
       enqueueSnackbar(t('niches.notifications.archiveError'), { variant: 'error' });
     }
+  };
+
+  const handleLinkedIdeasCancel = () => {
+    setLinkedIdeasDialogOpen(false);
+    enqueueSnackbar(t('niches.notifications.archiveBlocked'), { variant: 'warning' });
   };
 
   // Subscribe to isDirty during render so react-hook-form tracks it via its proxy
@@ -169,9 +195,14 @@ export const useNicheDetailDrawer = ({
     serverError,
     archiveDialogOpen,
     setArchiveDialogOpen,
+    linkedIdeasDialogOpen,
+    setLinkedIdeasDialogOpen,
+    linkedIdeaCount,
+    handleArchiveConfirm,
+    handleArchiveWithIdeas,
+    handleLinkedIdeasCancel,
     unsavedDialogOpen,
     setUnsavedDialogOpen,
-    handleArchiveConfirm,
     requestClose,
     discardAndClose,
   };

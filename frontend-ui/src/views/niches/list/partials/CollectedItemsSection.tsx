@@ -36,7 +36,12 @@ export const CollectedItemsSection = ({ nicheId }: CollectedItemsSectionProps) =
   );
   const slogans = (ideasData?.results ?? [])
     .filter((i) => i.is_manual || i.status === 'approved')
-    .map((i) => ({ id: i.id, text: i.slogan_text, isApproved: i.status === 'approved' }));
+    .map((i) => ({
+      id: i.id,
+      text: i.slogan_text,
+      isApproved: i.status === 'approved',
+      isSource: !i.source_idea,
+    }));
 
   // Redux-only keywords
   const keywords = useSelector((s: RootState) => selectCollectedKeywords(s, nicheId));
@@ -76,22 +81,35 @@ export const CollectedItemsSection = ({ nicheId }: CollectedItemsSectionProps) =
             </Button>
           </Stack>
           <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-            {slogans.map((slogan) => (
-              <Chip
-                key={slogan.id}
-                label={slogan.text}
-                size="small"
-                icon={slogan.isApproved ? <CheckCircleIcon sx={{ fontSize: 14 }} /> : undefined}
-                onDelete={() => handleRemoveSlogan(slogan.id)}
-                sx={{
-                  backgroundColor: alpha(slogan.isApproved ? COLORS.successDk : COLORS.cyan, 0.12),
-                  color: slogan.isApproved ? 'success.main' : 'secondary.main',
-                  borderRadius: '6px',
-                  mb: 0.5,
-                  '& .MuiChip-icon': { color: 'success.main' },
-                }}
-              />
-            ))}
+            {slogans.map((slogan) => {
+              const chipColor = slogan.isApproved
+                ? COLORS.successDk
+                : slogan.isSource
+                  ? COLORS.red
+                  : COLORS.cyan;
+              const chipTextColor = slogan.isApproved
+                ? 'success.main'
+                : slogan.isSource
+                  ? 'primary.main'
+                  : 'secondary.main';
+
+              return (
+                <Chip
+                  key={slogan.id}
+                  label={slogan.text}
+                  size="small"
+                  icon={slogan.isApproved ? <CheckCircleIcon sx={{ fontSize: 14 }} /> : undefined}
+                  onDelete={() => handleRemoveSlogan(slogan.id)}
+                  sx={{
+                    backgroundColor: alpha(chipColor, 0.12),
+                    color: chipTextColor,
+                    borderRadius: '6px',
+                    mb: 0.5,
+                    '& .MuiChip-icon': { color: 'success.main' },
+                  }}
+                />
+              );
+            })}
           </Stack>
         </Box>
       )}

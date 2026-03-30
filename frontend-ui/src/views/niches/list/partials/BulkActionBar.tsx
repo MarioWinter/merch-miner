@@ -19,6 +19,7 @@ import { alpha, styled } from '@mui/material/styles';
 import { COLORS } from '@/style/constants';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import CloseIcon from '@mui/icons-material/Close';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import { useTranslation } from 'react-i18next';
@@ -94,6 +95,8 @@ export const BulkActionBar = ({ selection, sidebarCollapsed }: BulkActionBarProp
   const [bulkAction, { isLoading }] = useBulkNicheActionMutation();
 
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
+  const [linkedIdeasDialogOpen, setLinkedIdeasDialogOpen] = useState(false);
+  const [linkedIdeaCount, setLinkedIdeaCount] = useState(0);
   const [assignMenuAnchor, setAssignMenuAnchor] = useState<HTMLElement | null>(null);
 
   const leftOffset = sidebarCollapsed ? SIDEBAR_COLLAPSED : SIDEBAR_EXPANDED;
@@ -108,11 +111,41 @@ export const BulkActionBar = ({ selection, sidebarCollapsed }: BulkActionBarProp
         variant: 'success',
       });
       clearSelection();
+      setArchiveDialogOpen(false);
+    } catch (err) {
+      const e = err as { status?: number; data?: { has_linked_ideas?: boolean; idea_count?: number } };
+      if (e.status === 409 && e.data?.has_linked_ideas) {
+        setLinkedIdeaCount(e.data.idea_count ?? 0);
+        setArchiveDialogOpen(false);
+        setLinkedIdeasDialogOpen(true);
+      } else {
+        enqueueSnackbar(t('niches.notifications.archiveError'), { variant: 'error' });
+        setArchiveDialogOpen(false);
+      }
+    }
+  };
+
+  const handleArchiveWithIdeasConfirm = async () => {
+    try {
+      const result = await bulkAction({
+        ids: Array.from(selectedIds),
+        action: 'archive',
+        confirmArchiveIdeas: true,
+      }).unwrap();
+      enqueueSnackbar(t('niches.notifications.archiveWithIdeasSuccess', { count: result.updated }), {
+        variant: 'success',
+      });
+      clearSelection();
     } catch {
       enqueueSnackbar(t('niches.notifications.archiveError'), { variant: 'error' });
     } finally {
-      setArchiveDialogOpen(false);
+      setLinkedIdeasDialogOpen(false);
     }
+  };
+
+  const handleLinkedIdeasCancel = () => {
+    setLinkedIdeasDialogOpen(false);
+    enqueueSnackbar(t('niches.notifications.archiveBlocked'), { variant: 'warning' });
   };
 
   const handleAssign = async (userId: number) => {
@@ -231,6 +264,37 @@ export const BulkActionBar = ({ selection, sidebarCollapsed }: BulkActionBarProp
             disabled={isLoading}
           >
             {t('niches.bulk.archive')}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Linked ideas confirmation dialog */}
+      <Dialog
+        open={linkedIdeasDialogOpen}
+        onClose={handleLinkedIdeasCancel}
+        aria-labelledby="bulk-linked-ideas-dialog-title"
+      >
+        <DialogTitle id="bulk-linked-ideas-dialog-title" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <WarningAmberIcon color="warning" sx={{ fontSize: 22 }} />
+          {t('niches.drawer.archiveLinkedIdeasTitle')}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            {t('niches.drawer.archiveLinkedIdeasBody', { count: linkedIdeaCount })}
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="text" onClick={handleLinkedIdeasCancel} disabled={isLoading}>
+            {t('niches.drawer.archiveCancel')}
+          </Button>
+          <Button
+            variant="outlined"
+            color="error"
+            startIcon={isLoading ? <CircularProgress size={16} /> : <DeleteOutlineIcon />}
+            onClick={handleArchiveWithIdeasConfirm}
+            disabled={isLoading}
+          >
+            {t('niches.drawer.archiveLinkedIdeasConfirm')}
           </Button>
         </DialogActions>
       </Dialog>

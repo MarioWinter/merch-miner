@@ -291,6 +291,7 @@ System prompts stored in DB, editable via Admin. Code contains fallback defaults
 8. Rejecting an idea with an approved design → warn user; require confirmation.
 9. Quality Check corrects a slogan → both original and corrected version stored; `was_changed` + `change_reason` logged on Idea.
 10. Worker crashes mid-adaptation → Checkpointer resumes from last completed node on retry.
+11. Archiving a niche with linked non-archived Ideas → backend returns 409 Conflict with `idea_count`; frontend shows confirm dialog "X slogans still linked — archive all?". Confirm → bulk-archive Ideas + niche. Cancel → abort, snackbar "Niche cannot be archived". Same flow for bulk archive.
 
 ## Dependencies
 

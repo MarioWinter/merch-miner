@@ -355,3 +355,42 @@
 - [ ] Reject with approved design shows warning dialog (deferred → PROJ-9)
 - [x] Frontend tests written and passing (Phase 10)
 - [x] All tests pass, lint clean
+
+---
+
+## Bugfix: Archive Niche with linked Ideas
+
+**Problem:** Archiving a niche does not check for linked non-archived Ideas. Orphaned Ideas then 404 on niche detail fetch (queryset excludes archived niches).
+**Spec:** Edge Case #11 in `features/PROJ-8-idea-slogan-generation.md`
+
+### Phase B1: Backend — Archive Guard
+
+- [x] `NicheViewSet.destroy()`: count non-archived Ideas linked to niche before archiving
+- [x] If linked ideas exist and `?confirm_archive_ideas=true` NOT in query params → return `409 Conflict` with `{ "has_linked_ideas": true, "idea_count": N }`
+- [x] If linked ideas exist and `?confirm_archive_ideas=true` → bulk-update linked Ideas to `status=archived`, then archive niche
+- [x] `NicheBulkActionView` archive action: same 409 / confirm logic across all target niches
+- [x] Ruff lint clean (`ruff check django-app/`)
+
+### Phase B2: Frontend — RTK Query + Hook
+
+- [x] `nicheSlice.ts`: update `deleteNiche` mutation arg type to accept `{ id, confirmArchiveIdeas? }`, append `?confirm_archive_ideas=true` to URL when flag set
+- [x] `nicheSlice.ts`: update `bulkNicheAction` mutation to support `?confirm_archive_ideas=true` query param
+- [x] `useNicheDetailDrawer.ts`: `handleArchiveConfirm` — catch 409, extract `idea_count`, open linked-ideas confirm dialog
+- [x] `useNicheDetailDrawer.ts`: add `handleArchiveWithIdeas` — re-send DELETE with confirm flag
+- [x] `useNicheDetailDrawer.ts`: add `handleLinkedIdeasCancel` — close dialog, show warning snackbar
+
+### Phase B3: Frontend — UI Components
+
+- [x] `DrawerConfirmDialogs.tsx`: add linked-ideas confirm dialog (title, body with idea count, Confirm + Cancel buttons)
+- [x] `NicheDetailDrawer.tsx`: wire new dialog props from hook
+- [x] `BulkActionBar.tsx`: handle 409 on bulk archive, show linked-ideas confirm dialog
+- [x] i18n keys (EN + DE): `archiveLinkedIdeasTitle`, `archiveLinkedIdeasBody`, `archiveLinkedIdeasConfirm`, `archiveWithIdeasSuccess`, `archiveBlocked`
+
+### Phase B4: Tests
+
+- [x] Backend: test `destroy()` returns 409 when niche has linked ideas
+- [x] Backend: test `destroy()` with `?confirm_archive_ideas=true` archives ideas + niche
+- [x] Backend: test bulk archive 409 + confirm flow
+- [x] Frontend: test `useNicheDetailDrawer` 409 handling (show dialog, confirm, cancel)
+- [x] Frontend: test `DrawerConfirmDialogs` renders linked-ideas dialog
+- [x] ESLint + TypeScript clean (`npm run lint`, `npx tsc --noEmit`)

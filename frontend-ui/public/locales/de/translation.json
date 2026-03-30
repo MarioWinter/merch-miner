@@ -208,6 +208,9 @@
       "archiveConfirmBody": "Die Nische wird aus der Liste ausgeblendet, aber nicht gelöscht.",
       "archiveConfirm": "Archivieren",
       "archiveCancel": "Abbrechen",
+      "archiveLinkedIdeasTitle": "Nische hat verknüpfte Ideen",
+      "archiveLinkedIdeasBody": "Diese Nische hat {{count}} verknüpfte Idee(n). Beim Archivieren werden auch alle verknüpften Ideen archiviert.",
+      "archiveLinkedIdeasConfirm": "Alle archivieren",
       "unsavedChangesTitle": "Ungespeicherte Änderungen",
       "unsavedChangesBody": "Du hast ungespeicherte Änderungen. Verwerfen?",
       "discardChanges": "Verwerfen",
@@ -266,7 +269,9 @@
       "archiveSuccess": "Nische archiviert",
       "createError": "Nische konnte nicht erstellt werden",
       "updateError": "Nische konnte nicht aktualisiert werden",
-      "archiveError": "Nische konnte nicht archiviert werden"
+      "archiveError": "Nische konnte nicht archiviert werden",
+      "archiveWithIdeasSuccess": "Nische und verknüpfte Ideen archiviert",
+      "archiveBlocked": "Archivierung abgebrochen — Ideen sind noch mit dieser Nische verknüpft"
     },
     "inlineAdd": {
       "addNiche": "+ Nische hinzufügen…",
@@ -606,7 +611,9 @@
     },
     "niche": {
       "noResearchWarning": "Einige Nischen haben keine Recherche-Daten - Ergebnisse koennten schlechter sein.",
-      "alreadyAdapted": "Bereits adaptiert"
+      "alreadyAdapted": "Bereits adaptiert",
+      "researchDone": "Deep Drill Analyse abgeschlossen — vollständige Daten verfügbar",
+      "noResearch": "Keine Deep Drill Analyse — Adaptionsqualität kann eingeschränkt sein"
     },
     "notifications": {
       "createSuccess": "{{count}} Idee(n) erstellt",
