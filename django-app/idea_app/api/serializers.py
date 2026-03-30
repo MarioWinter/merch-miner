@@ -2,7 +2,7 @@
 
 from rest_framework import serializers
 
-from idea_app.models import Idea, IdeaAdaptationRun
+from idea_app.models import Idea, IdeaAdaptationRun, IdeaFilterTemplate
 
 
 class IdeaSerializer(serializers.ModelSerializer):
@@ -133,3 +133,55 @@ class NicheSuggestionSerializer(serializers.Serializer):
         child=serializers.CharField(), required=False,
     )
     already_adapted = serializers.BooleanField()
+
+
+class IdeaImportItemSerializer(serializers.Serializer):
+    """Single item in a batch import."""
+
+    slogan_text = serializers.CharField()
+    niche_name = serializers.CharField(required=False, default='', allow_blank=True)
+
+    def validate_slogan_text(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Slogan text cannot be empty.")
+        return value
+
+
+class IdeaImportSerializer(serializers.Serializer):
+    """Batch import ideas from parsed CSV/XLSX data."""
+
+    ideas = serializers.ListField(
+        child=IdeaImportItemSerializer(),
+        min_length=1,
+        max_length=500,
+    )
+
+
+class IdeaFilterTemplateSerializer(serializers.ModelSerializer):
+    """CRUD serializer for saved filter templates."""
+
+    class Meta:
+        model = IdeaFilterTemplate
+        fields = [
+            'id', 'workspace', 'name', 'filters',
+            'created_by', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'workspace', 'created_by', 'created_at', 'updated_at']
+
+    def validate_name(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError("Name cannot be empty.")
+        return value
+
+    def validate_filters(self, value):
+        if not isinstance(value, dict):
+            raise serializers.ValidationError("Filters must be a JSON object.")
+        allowed_keys = {'niche_id', 'status', 'signal_type', 'is_orphan', 'ordering'}
+        unknown = set(value.keys()) - allowed_keys
+        if unknown:
+            raise serializers.ValidationError(
+                f"Unknown filter keys: {', '.join(sorted(unknown))}",
+            )
+        return value

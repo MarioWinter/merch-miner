@@ -182,7 +182,7 @@
       "colDeepDrill": "Deep Drill",
       "deepDrill": {
         "idle": "Avvia Deep Drill",
-        "running": "Deep Drill in corso\u2026",
+        "running": "Deep Drill in corso…",
         "completed": "Vedi risultati",
         "failed": "Deep Drill fallito — riprova",
         "bulkLabel": "Deep Drill ({{count}})",
@@ -292,7 +292,7 @@
   "research": {
     "triggerButton": "Ricerca IA",
     "stopButton": "Ferma ricerca",
-    "running": "Ricerca in corso\u2026",
+    "running": "Ricerca in corso…",
     "progressTitle": "Ricerca IA in corso",
     "progressHint": "Potrebbe richiedere qualche minuto. Puoi uscire e tornare.",
     "steps": {
@@ -615,6 +615,58 @@
       "deleteSuccess": "Idea eliminata",
       "deleteError": "Impossibile eliminare l'idea",
       "loadError": "Impossibile caricare le idee"
+    },
+    "filter": {
+      "allNiches": "Tutte le nicchie",
+      "allStatuses": "Tutti gli stati",
+      "allSignals": "Tutti i segnali",
+      "noNiche": "Nessuna nicchia",
+      "clearFilters": "Cancella filtri",
+      "ordering_newest": "Più recenti",
+      "ordering_oldest": "Più vecchi",
+      "ordering_text_asc": "Testo A-Z",
+      "ordering_text_desc": "Testo Z-A"
+    },
+    "noNicheChip": "Nessuna nicchia",
+    "noNicheTooltip": "Assegna una nicchia prima di adattare",
+    "inlineAdd": {
+      "placeholder": "Aggiungi nuovo slogan...",
+      "batchHint": "Shift+Enter per nuova riga. Ogni riga crea un'idea separata."
+    },
+    "import": {
+      "button": "Importa",
+      "title": "Importa idee",
+      "dropHint": "Trascina un file CSV o XLSX qui, o clicca per sfogliare",
+      "preview": "Anteprima",
+      "confirm": "Importa",
+      "success": "{{count}} idee importate",
+      "warnings": "Importazione completata con avvisi",
+      "noData": "Nessun dato valido trovato",
+      "tooMany": "Massimo {{max}} elementi. File troncato.",
+      "parseError": "Impossibile leggere il file",
+      "andMore": "e {{count}} altri",
+      "reset": "Reimposta"
+    },
+    "sourceGroup": {
+      "adapted": "adattati",
+      "expand": "Espandi",
+      "collapse": "Comprimi"
+    },
+    "filterTemplate": {
+      "button": "Modelli",
+      "save": "Salva",
+      "saveFilters": "Salva filtri correnti",
+      "updateCurrent": "Aggiorna modello",
+      "delete": "Elimina",
+      "loading": "Caricamento...",
+      "empty": "Nessun modello",
+      "namePlaceholder": "Nome modello...",
+      "saveSuccess": "Modello salvato",
+      "saveError": "Errore di salvataggio",
+      "updateSuccess": "Modello aggiornato",
+      "updateError": "Errore di aggiornamento",
+      "deleteSuccess": "Modello eliminato",
+      "deleteError": "Errore di eliminazione"
     }
   },
   "design": {

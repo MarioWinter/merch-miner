@@ -6,6 +6,14 @@ export type MarketConfidence = 'High' | 'Medium' | 'Low';
 
 export type AdaptationRunStatus = 'pending' | 'running' | 'completed' | 'failed';
 
+export type IdeaOrdering =
+  | 'created_at'
+  | '-created_at'
+  | 'slogan_text'
+  | '-slogan_text'
+  | 'status'
+  | '-status';
+
 export interface IdeaSourceSummary {
   id: string;
   slogan_text: string;
@@ -48,6 +56,17 @@ export interface IdeaListParams {
   page?: number;
   page_size?: number;
   is_manual?: boolean;
+}
+
+/** Params for workspace-wide GET /api/ideas/ */
+export interface IdeaListAllParams {
+  niche_id?: string;
+  status?: IdeaStatus | '';
+  signal_type?: SignalType | '';
+  is_orphan?: boolean;
+  ordering?: IdeaOrdering | '';
+  page?: number;
+  page_size?: number;
 }
 
 export interface IdeaCreateBody {
@@ -119,4 +138,34 @@ export interface ExtractSloganResponse {
 
 export interface ImproveBody {
   feedback?: string;
+}
+
+export interface ImportIdeaItem {
+  slogan_text: string;
+  niche_name?: string;
+}
+
+export interface ImportIdeasBody {
+  ideas: ImportIdeaItem[];
+}
+
+export interface ImportIdeasResponse {
+  created: number;
+  warnings: string[];
+}
+
+export interface IdeaFilterTemplate {
+  id: string;
+  name: string;
+  filters: Partial<IdeaFilters>;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface IdeaFilters {
+  niche_id: string;
+  status: IdeaStatus | '';
+  signal_type: SignalType | '';
+  ordering: IdeaOrdering | '';
+  page: number;
 }

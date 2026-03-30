@@ -70,6 +70,14 @@ class NicheEvaluationSchema(BaseModel):
     )
 
 
+class NicheEvaluationListSchema(BaseModel):
+    """Wrapper for list of niche evaluations (with_structured_output requires a class)."""
+
+    evaluations: list[NicheEvaluationSchema] = Field(
+        description="List of niche evaluations.",
+    )
+
+
 # ---------- Product Validation (Graph 1, Node 3) ----------
 
 

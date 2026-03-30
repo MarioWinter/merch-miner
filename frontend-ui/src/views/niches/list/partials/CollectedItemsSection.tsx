@@ -1,6 +1,7 @@
 import { Box, Button, Chip, Stack, Typography } from '@mui/material';
 import { alpha, styled } from '@mui/material/styles';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useTranslation } from 'react-i18next';
 import { useDispatch, useSelector } from 'react-redux';
 import { useSnackbar } from 'notistack';
@@ -16,12 +17,12 @@ interface CollectedItemsSectionProps {
   nicheId: string;
 }
 
-const Section = styled(Box)({
-  border: '1px solid rgba(255,255,255,0.08)',
+const Section = styled(Box)(({ theme }) => ({
+  border: `1px solid ${theme.vars.palette.divider}`,
   borderRadius: 12,
   padding: 16,
-  background: 'rgba(11,39,49,0.40)',
-});
+  background: alpha(COLORS.inkPaper, 0.40),
+}));
 
 export const CollectedItemsSection = ({ nicheId }: CollectedItemsSectionProps) => {
   const { t } = useTranslation();
@@ -34,8 +35,8 @@ export const CollectedItemsSection = ({ nicheId }: CollectedItemsSectionProps) =
     { skip: !nicheId },
   );
   const slogans = (ideasData?.results ?? [])
-    .filter((i) => i.is_manual)
-    .map((i) => ({ id: i.id, text: i.slogan_text }));
+    .filter((i) => i.is_manual || i.status === 'approved')
+    .map((i) => ({ id: i.id, text: i.slogan_text, isApproved: i.status === 'approved' }));
 
   // Redux-only keywords
   const keywords = useSelector((s: RootState) => selectCollectedKeywords(s, nicheId));
@@ -51,7 +52,7 @@ export const CollectedItemsSection = ({ nicheId }: CollectedItemsSectionProps) =
 
   const handleRemoveSlogan = async (ideaId: string) => {
     try {
-      await deleteIdea({ id: ideaId, nicheId }).unwrap();
+      await deleteIdea({ id: ideaId }).unwrap();
     } catch {
       enqueueSnackbar(t('ideas.notifications.deleteError'), { variant: 'error' });
     }
@@ -80,13 +81,15 @@ export const CollectedItemsSection = ({ nicheId }: CollectedItemsSectionProps) =
                 key={slogan.id}
                 label={slogan.text}
                 size="small"
+                icon={slogan.isApproved ? <CheckCircleIcon sx={{ fontSize: 14 }} /> : undefined}
                 onDelete={() => handleRemoveSlogan(slogan.id)}
-                sx={(theme) => ({
-                  backgroundColor: alpha(theme.palette.secondary.main, 0.12),
-                  color: theme.vars.palette.secondary.main,
+                sx={{
+                  backgroundColor: alpha(slogan.isApproved ? COLORS.successDk : COLORS.cyan, 0.12),
+                  color: slogan.isApproved ? 'success.main' : 'secondary.main',
                   borderRadius: '6px',
                   mb: 0.5,
-                })}
+                  '& .MuiChip-icon': { color: 'success.main' },
+                }}
               />
             ))}
           </Stack>

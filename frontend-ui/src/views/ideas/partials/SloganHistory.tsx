@@ -28,7 +28,7 @@ export const SloganHistory = ({ chain }: SloganHistoryProps) => {
   if (chain.length <= 1) return null;
 
   return (
-    <Box sx={{ pl: 2, borderLeft: '2px solid rgba(255,255,255,0.08)' }}>
+    <Box sx={(theme) => ({ pl: 2, borderLeft: `2px solid ${alpha(theme.vars.palette.common.white, 0.08)}` })}>
       <Typography variant="subtitle2" sx={{ fontWeight: 600, mb: 1 }}>
         {t('ideas.history.title')}
       </Typography>
@@ -63,7 +63,7 @@ export const SloganHistory = ({ chain }: SloganHistoryProps) => {
                     fontWeight: isLatest ? 500 : 400,
                     color: isLatest
                       ? 'text.primary'
-                      : alpha('#E8F4F8', 0.65),
+                      : 'text.secondary',
                   }}
                 >
                   {idea.slogan_text}

@@ -182,9 +182,9 @@
       "unassigned": "Unassigned",
       "deepDrill": {
         "idle": "Start Deep Drill",
-        "running": "Deep Drill running\u2026",
+        "running": "Deep Drill running…",
         "completed": "View Results",
-        "failed": "Deep Drill failed \u2014 retry",
+        "failed": "Deep Drill failed — retry",
         "bulkLabel": "Deep Drill ({{count}})",
         "bulkDisabled": "Coming soon"
       }
@@ -615,6 +615,58 @@
       "deleteSuccess": "Idea deleted",
       "deleteError": "Failed to delete idea",
       "loadError": "Failed to load ideas"
+    },
+    "filter": {
+      "allNiches": "All Niches",
+      "allStatuses": "All Statuses",
+      "allSignals": "All Signals",
+      "noNiche": "No Niche",
+      "clearFilters": "Clear filters",
+      "ordering_newest": "Newest first",
+      "ordering_oldest": "Oldest first",
+      "ordering_text_asc": "Text A-Z",
+      "ordering_text_desc": "Text Z-A"
+    },
+    "noNicheChip": "No niche",
+    "noNicheTooltip": "Assign a niche before adapting",
+    "inlineAdd": {
+      "placeholder": "Add new slogan...",
+      "batchHint": "Shift+Enter for new line. Each line creates a separate idea."
+    },
+    "import": {
+      "button": "Import",
+      "title": "Import Ideas",
+      "dropHint": "Drop a CSV or XLSX file here, or click to browse",
+      "preview": "Preview",
+      "confirm": "Import",
+      "success": "{{count}} ideas imported",
+      "warnings": "Import completed with warnings",
+      "noData": "No valid data found in file",
+      "tooMany": "Max {{max}} items allowed. File truncated.",
+      "parseError": "Failed to parse file",
+      "andMore": "and {{count}} more",
+      "reset": "Reset"
+    },
+    "sourceGroup": {
+      "adapted": "adapted",
+      "expand": "Expand group",
+      "collapse": "Collapse group"
+    },
+    "filterTemplate": {
+      "button": "Templates",
+      "save": "Save",
+      "saveFilters": "Save current filters",
+      "updateCurrent": "Update current template",
+      "delete": "Delete template",
+      "loading": "Loading...",
+      "empty": "No saved templates",
+      "namePlaceholder": "Template name...",
+      "saveSuccess": "Filter template saved",
+      "saveError": "Failed to save template",
+      "updateSuccess": "Template updated",
+      "updateError": "Failed to update template",
+      "deleteSuccess": "Template deleted",
+      "deleteError": "Failed to delete template"
     }
   },
   "design": {

@@ -8,6 +8,7 @@ import {
 import { alpha } from '@mui/material/styles';
 import CheckIcon from '@mui/icons-material/Check';
 import { useTranslation } from 'react-i18next';
+import { COLORS } from '@/style/constants';
 import type { NicheSuggestion } from '../types';
 
 interface NicheSuggestionListProps {
@@ -61,11 +62,11 @@ export const NicheSuggestionList = ({
               border: `1px solid ${
                 isSelected
                   ? theme.vars.palette.secondary.main
-                  : alpha('#fff', 0.06)
+                  : theme.vars.palette.divider
               }`,
               '&:hover': isDisabled
                 ? {}
-                : { borderColor: alpha('#fff', 0.14) },
+                : { borderColor: alpha(COLORS.white, 0.14) },
             })}
           >
             {/* Selection indicator */}
@@ -79,12 +80,12 @@ export const NicheSuggestionList = ({
                 justifyContent: 'center',
                 border: isSelected
                   ? 'none'
-                  : '1px solid rgba(255,255,255,0.2)',
+                  : `1px solid ${alpha(COLORS.white, 0.2)}`,
                 bgcolor: isSelected ? 'secondary.main' : 'transparent',
               }}
             >
               {isSelected && (
-                <CheckIcon sx={{ fontSize: 14, color: '#fff' }} />
+                <CheckIcon sx={{ fontSize: 14, color: 'common.white' }} />
               )}
             </Box>
 

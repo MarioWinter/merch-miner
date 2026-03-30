@@ -19,7 +19,7 @@
 | PROJ-5 | Niche List | Deployed | [spec](PROJ-5-niche-list.md) | 2026-02-27 |
 | PROJ-6 | Niche Deep Research (LangGraph) | Deployed | [spec](PROJ-6-niche-deep-research.md) | 2026-02-27 |
 | PROJ-7 | Amazon Product Research | In Progress | [spec](PROJ-7-amazon-product-research.md) | 2026-02-27 |
-| PROJ-8 | Idea & Slogan Generation (LangGraph) | Ready to Deploy | [spec](PROJ-8-idea-slogan-generation.md) | 2026-02-27 |
+| PROJ-8 | Idea & Slogan Generation (LangGraph) | In Review | [spec](PROJ-8-idea-slogan-generation.md) | 2026-02-27 |
 | PROJ-9 | Design Generation (OpenRouter) | In Review | [spec](PROJ-9-design-generation.md) | 2026-02-27 |
 | PROJ-10 | Keyword Research & Bank | In Review | [spec](PROJ-10-niche-keyword-bank.md) | 2026-02-27 |
 | PROJ-11 | Publish (Listing + Upload Manager) | In Review | [spec](PROJ-11-listing-keyword-generator.md) | 2026-02-27 |

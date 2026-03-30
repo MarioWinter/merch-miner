@@ -8,18 +8,45 @@ from idea_app.api.views import (
     IdeaAdaptView,
     IdeaBulkStatusView,
     IdeaDetailView,
+    IdeaFilterTemplateDetailView,
+    IdeaFilterTemplateListCreateView,
+    IdeaImportView,
     IdeaImproveView,
     IdeaListCreateView,
     IdeaRegenerateView,
     IdeaSuggestNichesView,
+    IdeaWorkspaceListCreateView,
 )
 
 urlpatterns = [
-    # Niche-scoped
+    # Niche-scoped (backward compat)
     path(
         'niches/<uuid:niche_id>/ideas/',
         IdeaListCreateView.as_view(),
         name='idea-list-create',
+    ),
+    # Workspace-wide list/create (new — Phase 11)
+    path(
+        'ideas/',
+        IdeaWorkspaceListCreateView.as_view(),
+        name='idea-workspace-list-create',
+    ),
+    # Batch import (new — Phase 11)
+    path(
+        'ideas/import/',
+        IdeaImportView.as_view(),
+        name='idea-import',
+    ),
+    # Filter templates (new — Phase 11)
+    path(
+        'ideas/filter-templates/',
+        IdeaFilterTemplateListCreateView.as_view(),
+        name='idea-filter-template-list-create',
+    ),
+    path(
+        'ideas/filter-templates/<uuid:pk>/',
+        IdeaFilterTemplateDetailView.as_view(),
+        name='idea-filter-template-detail',
     ),
     # Idea-scoped
     path(

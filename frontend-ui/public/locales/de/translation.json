@@ -182,7 +182,7 @@
       "colDeepDrill": "Deep Drill",
       "deepDrill": {
         "idle": "Deep Drill starten",
-        "running": "Deep Drill läuft\u2026",
+        "running": "Deep Drill läuft…",
         "completed": "Ergebnisse ansehen",
         "failed": "Deep Drill fehlgeschlagen — erneut versuchen",
         "bulkLabel": "Deep Drill ({{count}})",
@@ -292,7 +292,7 @@
   "research": {
     "triggerButton": "KI-Recherche",
     "stopButton": "Recherche stoppen",
-    "running": "Recherche läuft\u2026",
+    "running": "Recherche läuft…",
     "progressTitle": "KI-Recherche läuft",
     "progressHint": "Das kann einige Minuten dauern. Du kannst die Seite verlassen und zurückkehren.",
     "steps": {
@@ -526,8 +526,15 @@
       "rejected": "Abgelehnt",
       "for_review": "Zur Pruefung"
     },
-    "signal": { "self": "SELF", "other": "OTHER" },
-    "confidence": { "high": "Hoch", "medium": "Mittel", "low": "Niedrig" },
+    "signal": {
+      "self": "SELF",
+      "other": "OTHER"
+    },
+    "confidence": {
+      "high": "Hoch",
+      "medium": "Mittel",
+      "low": "Niedrig"
+    },
     "adapt": {
       "button": "Adaptieren",
       "modalTitle": "Ziel-Nischen waehlen",
@@ -544,7 +551,12 @@
       "failed": "Adaption fehlgeschlagen",
       "error": "Adaption konnte nicht gestartet werden",
       "adaptAll": "Alle kompatiblen adaptieren",
-      "runStatus": { "pending": "Ausstehend", "running": "Laeuft", "completed": "Abgeschlossen", "failed": "Fehlgeschlagen" }
+      "runStatus": {
+        "pending": "Ausstehend",
+        "running": "Laeuft",
+        "completed": "Abgeschlossen",
+        "failed": "Fehlgeschlagen"
+      }
     },
     "improve": {
       "button": "Verbessern",
@@ -571,7 +583,11 @@
     "history": {
       "title": "Verlauf",
       "qualityChecked": "Von Quality Check geaendert",
-      "actor": { "user": "Benutzer", "agent": "Agent", "quality_check": "Quality Check" }
+      "actor": {
+        "user": "Benutzer",
+        "agent": "Agent",
+        "quality_check": "Quality Check"
+      }
     },
     "empty": {
       "title": "Noch keine Ideen",
@@ -599,6 +615,58 @@
       "deleteSuccess": "Idee geloescht",
       "deleteError": "Idee konnte nicht geloescht werden",
       "loadError": "Ideen konnten nicht geladen werden"
+    },
+    "filter": {
+      "allNiches": "Alle Nischen",
+      "allStatuses": "Alle Status",
+      "allSignals": "Alle Signale",
+      "noNiche": "Keine Nische",
+      "clearFilters": "Filter löschen",
+      "ordering_newest": "Neueste zuerst",
+      "ordering_oldest": "Älteste zuerst",
+      "ordering_text_asc": "Text A-Z",
+      "ordering_text_desc": "Text Z-A"
+    },
+    "noNicheChip": "Keine Nische",
+    "noNicheTooltip": "Weise eine Nische zu, bevor du adaptierst",
+    "inlineAdd": {
+      "placeholder": "Neuen Slogan hinzufügen...",
+      "batchHint": "Shift+Enter für neue Zeile. Jede Zeile erstellt eine eigene Idee."
+    },
+    "import": {
+      "button": "Import",
+      "title": "Ideen importieren",
+      "dropHint": "CSV oder XLSX Datei hierher ziehen oder klicken",
+      "preview": "Vorschau",
+      "confirm": "Importieren",
+      "success": "{{count}} Ideen importiert",
+      "warnings": "Import mit Warnungen abgeschlossen",
+      "noData": "Keine gültigen Daten in Datei gefunden",
+      "tooMany": "Max. {{max}} Einträge erlaubt. Datei gekürzt.",
+      "parseError": "Datei konnte nicht gelesen werden",
+      "andMore": "und {{count}} weitere",
+      "reset": "Zurücksetzen"
+    },
+    "sourceGroup": {
+      "adapted": "adaptiert",
+      "expand": "Gruppe öffnen",
+      "collapse": "Gruppe schließen"
+    },
+    "filterTemplate": {
+      "button": "Vorlagen",
+      "save": "Speichern",
+      "saveFilters": "Aktuelle Filter speichern",
+      "updateCurrent": "Aktuelle Vorlage aktualisieren",
+      "delete": "Vorlage löschen",
+      "loading": "Laden...",
+      "empty": "Keine gespeicherten Vorlagen",
+      "namePlaceholder": "Vorlagenname...",
+      "saveSuccess": "Filtervorlage gespeichert",
+      "saveError": "Vorlage konnte nicht gespeichert werden",
+      "updateSuccess": "Vorlage aktualisiert",
+      "updateError": "Vorlage konnte nicht aktualisiert werden",
+      "deleteSuccess": "Vorlage gelöscht",
+      "deleteError": "Vorlage konnte nicht gelöscht werden"
     }
   },
   "design": {
@@ -884,7 +952,7 @@
       "steps": "Schritte",
       "status": {
         "idle": "Bereit",
-        "running": "L\u00e4uft",
+        "running": "Läuft",
         "paused": "Pausiert",
         "completed": "Abgeschlossen",
         "failed": "Fehlgeschlagen",
@@ -893,7 +961,7 @@
     },
     "log": {
       "empty": "Noch keine Nachrichten",
-      "loadMore": "Fr\u00fchere Nachrichten laden",
+      "loadMore": "Frühere Nachrichten laden",
       "sendError": "Fehler beim Senden",
       "startPrompt": "Starte einen Workflow oder gib einen Befehl ein",
       "inputPlaceholder": "Sag dem Agent was er tun soll...",
@@ -920,10 +988,10 @@
       "title": "Agent-Einstellungen",
       "agentConfig": "Agenten",
       "permissions": "Berechtigungen",
-      "personalityPresets": "Pers\u00f6nlichkeits-Vorlagen",
+      "personalityPresets": "Persönlichkeits-Vorlagen",
       "name": "Anzeigename",
       "avatar": "Emoji",
-      "personality": "Pers\u00f6nlichkeit",
+      "personality": "Persönlichkeit",
       "model": "Modell",
       "temperature": "Temp",
       "save": "Speichern",
@@ -937,22 +1005,22 @@
     "knowledge": {
       "title": "Wissensdokumente",
       "titlePlaceholder": "Titel",
-      "contentPlaceholder": "Inhalt (Markdown unterst\u00fctzt)",
+      "contentPlaceholder": "Inhalt (Markdown unterstützt)",
       "empty": "Noch keine Wissensdokumente",
       "save": "Speichern",
       "cancel": "Abbrechen",
       "edit": "Bearbeiten",
-      "delete": "L\u00f6schen"
+      "delete": "Löschen"
     },
     "templates": {
       "title": "Workflow-Vorlagen",
       "namePlaceholder": "Vorlagenname",
       "keyPlaceholder": "Vorlagen-Key (z.B. quick_design)",
       "actionPlaceholder": "Aktion",
-      "addStep": "Schritt hinzuf\u00fcgen",
+      "addStep": "Schritt hinzufügen",
       "save": "Speichern",
       "cancel": "Abbrechen",
-      "delete": "L\u00f6schen",
+      "delete": "Löschen",
       "empty": "Keine eigenen Vorlagen"
     },
     "collision": {
@@ -963,13 +1031,13 @@
     },
     "onboarding": {
       "title": "Agent einrichten",
-      "message": "Konfiguriere Autonomie-Level und Pr\u00e4ferenzen f\u00fcr deinen KI-Assistenten.",
+      "message": "Konfiguriere Autonomie-Level und Präferenzen für deinen KI-Assistenten.",
       "setup": "Konfigurieren",
-      "skip": "\u00dcberspringen"
+      "skip": "Überspringen"
     },
     "budget": {
       "label": "Budget",
-      "exhausted": "Agent-Budget ersch\u00f6pft. Bitte API-Key aufladen.",
+      "exhausted": "Agent-Budget erschöpft. Bitte API-Key aufladen.",
       "warning": "Agent-Budget bei {{percent}}% der Schwelle"
     },
     "personality": {

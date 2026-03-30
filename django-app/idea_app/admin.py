@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from idea_app.models import Idea, IdeaAdaptationRun, SloganNodeConfig
+from idea_app.models import Idea, IdeaAdaptationRun, IdeaFilterTemplate, SloganNodeConfig
 
 
 @admin.register(SloganNodeConfig)
@@ -42,3 +42,11 @@ class IdeaAdaptationRunAdmin(admin.ModelAdmin):
     @admin.display(description='ID')
     def id_short(self, obj):
         return str(obj.id)[:8]
+
+
+@admin.register(IdeaFilterTemplate)
+class IdeaFilterTemplateAdmin(admin.ModelAdmin):
+    list_display = ('name', 'workspace', 'created_by', 'created_at', 'updated_at')
+    list_filter = ('workspace',)
+    search_fields = ('name',)
+    readonly_fields = ('created_at', 'updated_at')

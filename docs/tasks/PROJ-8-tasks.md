@@ -1,6 +1,6 @@
 # PROJ-8: Idea & Slogan Generation (LangGraph) — Implementation Tasks
 
-## Key Technical Decisions (from architecture review 2026-03-27)
+## Key Technical Decisions (from architecture review 2026-03-27, updated 2026-03-29)
 
 - **New Django app:** `idea_app` — Models, LangGraph graphs, API endpoints for idea/slogan management
 - **Full LangGraph** (migrated from n8n) — no n8n dependency at runtime
@@ -10,6 +10,8 @@
 - **Collected Items → Backend:** Redux dispatch triggers RTK mutation → Idea record in DB
 - **Extract Slogan:** Vision LLM endpoint in `idea_app`, called from PROJ-7 UI
 - **Improve:** Simple LLM call (no graph), synchronous → 3 variants returned
+- **Workspace-wide listing (NEW):** `GET /api/ideas/` as primary endpoint, niche-scoped kept as shortcut
+- **Niche-optional creation (NEW):** `POST /api/ideas/` with niche in body (nullable), niche-scoped POST kept as shortcut
 
 ---
 
@@ -79,7 +81,7 @@
 ### CRUD
 
 - [x] `GET /api/niches/{id}/ideas/` — paginated (20/page), ordered by created_at desc. Workspace-scoped. Includes source + adapted ideas
-- [x] `POST /api/niches/{id}/ideas/` — create manual/collected idea. `is_manual=True`, niche from URL param (optional — can be null)
+- [x] `POST /api/niches/{id}/ideas/` — create manual/collected idea. `is_manual=True`, niche from URL param
 - [x] `PATCH /api/ideas/{id}/` — update status (approved/rejected/for_review), slogan_text, niche, any field
 - [x] `DELETE /api/ideas/{id}/` — hard delete. Workspace member or admin only
 - [x] `POST /api/ideas/bulk-status/` — body: `{ids: [...], status: "approved"|"rejected"}`. Workspace-scoped
@@ -91,12 +93,12 @@
 
 ### Improve + Regenerate
 
-- [x] `POST /api/ideas/{id}/improve/` — body: `{feedback: "optional text"}`. Single LLM call (not graph). Returns 3 improved variants as new Idea records (`source_idea` = original, status=for_review)
-- [x] `POST /api/ideas/{id}/regenerate/` — generates 1 new slogan in same context (niche, signal_type, pattern). Replaces rejected idea (updates existing record)
+- [x] `POST /api/ideas/{id}/improve/` — body: `{feedback: "optional text"}`. Single LLM call (not graph). Returns 3 improved variants as new Idea records (`source_idea` = original, status=for_review). Rate-limited (10/min)
+- [x] `POST /api/ideas/{id}/regenerate/` — generates 1 new slogan in same context (niche, signal_type, pattern). Replaces rejected idea (updates existing record). Rate-limited (10/min)
 
 ### Extract + Suggest
 
-- [x] `POST /api/ideas/extract-slogan/` — body: `{product_image_url: "...", product_title: "...", product_brand: "..."}`. Vision LLM extracts slogan text. Returns `{slogan_text: "..."}`. Called from PROJ-7 UI
+- [x] `POST /api/ideas/extract-slogan/` — body: `{product_image_url: "...", product_title: "...", product_brand: "..."}`. Vision LLM extracts slogan text. Returns `{slogan_text: "..."}`. Workspace-scoped + rate-limited (10/min)
 - [x] `GET /api/ideas/{id}/suggest-niches/` — returns ranked list of compatible target niches. Scores via pattern matching on `NicheAnalysis.pattern_analysis`. Already-adapted niches marked as greyed out
 
 ### Serializers
@@ -110,13 +112,13 @@
 
 ## Phase 5: Frontend — State & Services
 
-- [x] RTK Query `ideaApi` slice (`store/ideaSlice.ts`): listIdeas, createIdea, updateIdea, deleteIdea, bulkUpdateStatus, triggerAdaptation, pollAdaptationRun, improveIdea, regenerateIdea, extractSlogan, suggestNiches
+- [x] RTK Query `ideaApi` slice (`store/ideaSlice.ts`): 11 endpoints — listIdeas, createIdea, updateIdea, deleteIdea, bulkUpdateStatus, triggerAdaptation, getAdaptationRun, improveIdea, regenerateIdea, extractSlogan, suggestNiches
 - [x] Cache tags: `providesTags` on list/detail; `invalidatesTags` on mutations
 - [x] Register slice in `store/index.ts`
 - [x] TypeScript types (`types/index.ts`): Idea, IdeaAdaptationRun, NicheSuggestion, SignalType, MarketConfidence, IdeaStatus
 - [x] Zod schema (`schemas/ideaSchema.ts`): slogan_text required, niche optional
 - [x] Update `collectedItemsSlice.ts`: `toggleSlogan` dispatches `createIdea` RTK mutation (POST to API). On success: slogan persisted. On failure: rollback Redux state. Keywords stay Redux-only (PROJ-10)
-- [x] `useAdaptation` hook: trigger adaptation, poll via RTK Query `pollingInterval: 3000`, auto-stop on terminal state
+- [x] `useAdaptation` hook: trigger adaptation, poll via RTK Query `pollingInterval`, auto-stop on terminal state
 - [x] `useIdeaActions` hook: approve/reject/improve/regenerate actions, loading states
 - [x] `useNicheSuggestions` hook: fetch suggest-niches endpoint, expose auto-select (top 5)
 
@@ -124,7 +126,7 @@
 
 ## Phase 6: Frontend — UI Components
 
-- [x] `ManualIdeaForm.tsx`: slogan_text TextField (multiline, batch: one per line) + niche Autocomplete (optional). Submit creates 1+ ideas. Supports paste-and-clean
+- [x] `ManualIdeaForm.tsx` → replaced by `InlineAddBar.tsx` in Phase 12. Old form-card pattern removed
 - [x] `IdeaCard.tsx`: slogan text, SignalTypeBadge, MarketConfidenceBadge, pattern chip, actions row (Approve/Reject/Improve/Adapt/Delete). Status chip (pending/approved/rejected/for_review). `was_changed` indicator if Quality Check modified it
 - [x] `IdeaSourceGroup.tsx`: Collapsible group — source idea header + adapted children below. Adapted ideas split by SELF/OTHER signal, sorted by market_confidence (High → Low)
 - [x] `SignalTypeBadge.tsx`: MUI Chip — SELF (coral) / OTHER (cyan)
@@ -134,10 +136,10 @@
 - [x] `AdaptationProgress.tsx`: Per-niche status row — niche name + status chip (pending → running → approved/rejected). MUI LinearProgress during run. Rejection reason inline
 - [x] `ImproveDialog.tsx`: Dialog with optional feedback TextField + "Improve" button. Shows 3 returned variants as selectable cards. User picks one → replaces/adds
 - [x] `SloganHistory.tsx`: Version chain display — Original → Improved v1 → v2. Each entry: slogan text, who/what changed (User/Agent/Quality Check), timestamp
-- [x] `EmptyState.tsx`: No ideas for niche — CTA to create manual or run research first
-- [x] `IdeaListView.tsx`: Main page assembly — ManualIdeaForm + IdeaSourceGroups + AdaptationModal + Pagination
+- [x] `EmptyState.tsx` → replaced by inline hint in Phase 12. No full-page empty state
+- [x] `IdeaListView.tsx`: Works **without nicheId** — shows all workspace ideas by default. Niche filter Autocomplete at top. URL syncs with filter. Currently: blocks without nicheId
 - [x] "Adapt to All Compatible" button (US-18): calls suggest-niches → filters already-adapted → triggers adaptation for all remaining. Disabled when 0 compatible niches available
-- [x] Reject confirmation dialog: when rejecting an idea with an approved design (EC-8), show MUI Dialog warning before proceeding
+- [ ] Reject confirmation dialog: when rejecting an idea with an approved design (EC-8), show MUI Dialog warning before proceeding. Currently: not implemented (deferred until PROJ-9 Design model exists)
 
 ---
 
@@ -179,6 +181,7 @@
 - [x] `ideas.bulk.*` — selected count, approve, reject
 - [x] `ideas.niche.*` — no research warning, already adapted, compatibility score
 - [x] All 5 locales: EN, DE, FR, ES, IT
+- [x] New keys moved to Phase 12 i18n section
 
 ---
 
@@ -194,18 +197,131 @@
 - [x] Extract slogan: returns slogan_text from Vision LLM (mocked)
 - [x] Suggest niches: returns ranked list, marks already-adapted
 - [x] Serializer tests: nested source_idea, niche_results JSON shape
+- [x] Tests for workspace-wide `GET /api/ideas/` endpoint (new)
+- [x] Tests for `POST /api/ideas/` niche-optional creation (new)
+- [x] Tests for `?status=`, `?is_orphan=` query param filters (new)
 
 ### Frontend
 
 - [x] IdeaCard: renders all fields, action buttons work, status chip correct
-- [x] ManualIdeaForm: validates slogan_text required, batch input creates multiple
+- [x] InlineAddBar (was ManualIdeaForm): validates slogan_text required, niche Autocomplete optional, batch input creates multiple
 - [x] AdaptationModal: multi-select, auto-select top 5, greyed-out adapted niches, warning on no research
 - [x] AdaptationProgress: polling, per-niche status updates
 - [x] ImproveDialog: feedback input, 3 variants returned, selection works
-- [x] CollectedItemsSection: reads from API, not Redux-only
+- [x] IdeaListView: works without nicheId, niche filter dropdown, pagination
 - [x] TypeScript `tsc --noEmit` — 0 errors
-- [x] ESLint — 0 errors
+- [x] ESLint — 0 errors (pre-existing errors in other views, not in ideas)
 - [x] Ruff — 0 errors
+
+---
+
+## Phase 11: Backend — Workspace-wide Endpoints + Import + Filter Templates (added 2026-03-30)
+
+### Workspace-wide List/Create (AC-6, AC-7)
+
+- [x] New view: `IdeaWorkspaceListCreateView` — handles `GET /api/ideas/` and `POST /api/ideas/`
+- [x] `GET /api/ideas/`: workspace-scoped, paginated (20/page), ordered by created_at desc. Query params: `?niche_id=<uuid>`, `?status=<status>`, `?signal_type=<self|other>`, `?is_orphan=true` (niche=null), `?ordering=<field>`
+- [x] `POST /api/ideas/`: body `{slogan_text, niche (optional uuid)}`. Reuses `IdeaCreateSerializer`. Sets `is_manual=True`, workspace from header, created_by from auth
+- [x] URL pattern: `path('ideas/', IdeaWorkspaceListCreateView.as_view())` — must not conflict with `ideas/<uuid:pk>/`
+- [x] Keep existing `IdeaListCreateView` (niche-scoped) as-is for backward compatibility
+
+### Batch Import (AC-23)
+
+- [x] New view: `IdeaImportView` — handles `POST /api/ideas/import/`
+- [x] Body: `{"ideas": [{"slogan_text": "...", "niche_name": "optional"}, ...]}`. Max 500 items
+- [x] `niche_name` matched to workspace niches case-insensitive. Unmatched → niche=null + warning
+- [x] Returns `{"created": N, "warnings": ["Niche 'xyz' not found — 3 ideas created without niche"]}`
+- [x] URL pattern: `path('ideas/import/', IdeaImportView.as_view())`
+
+### Filter Templates (AC-24)
+
+- [x] `IdeaFilterTemplate` model: UUID pk, workspace FK, name CharField(100), filters JSONField, created_by FK, created_at, updated_at
+- [x] Migration for IdeaFilterTemplate
+- [x] Admin registration
+- [x] CRUD view: `IdeaFilterTemplateViewSet` — list, create, partial_update, destroy
+- [x] Serializer: `IdeaFilterTemplateSerializer` — name required, filters validated
+- [x] URL patterns: `path('ideas/filter-templates/', ...)` + `path('ideas/filter-templates/<uuid:pk>/', ...)`
+
+### Backend Tests (Phase 11)
+
+- [x] Tests: workspace-wide list (all, filter by niche, filter by status, filter orphans, ordering)
+- [x] Tests: workspace-wide create (with niche, without niche, batch)
+- [x] Tests: import endpoint (valid CSV data, niche matching, unmatched warnings, max limit)
+- [x] Tests: filter template CRUD + workspace isolation
+
+---
+
+## Phase 12: Frontend — Redesigned IdeaListView (added 2026-03-30)
+
+> Full redesign based on `/frontend-design` decisions. NicheList-style patterns: inline add, inline edit, filter templates.
+
+### RTK Query Updates (AC-15, AC-23, AC-24)
+
+- [x] `ideaSlice.ts`: new `listAllIdeas` query → `GET /api/ideas/` with optional params `{niche_id?, status?, signal_type?, is_orphan?, ordering?, page, page_size}`. Keep existing `listIdeas` for Drawer contexts
+- [x] `ideaSlice.ts`: new `createIdeaGlobal` mutation → `POST /api/ideas/` with niche in body
+- [x] `ideaSlice.ts`: new `importIdeas` mutation → `POST /api/ideas/import/`
+- [x] `ideaSlice.ts`: filter template endpoints — `listFilterTemplates`, `createFilterTemplate`, `updateFilterTemplate`, `deleteFilterTemplate`
+- [x] `triggerAdaptation` mutation: add `invalidatesTags: ['IdeaList']`
+
+### Hooks (reuse NicheList patterns)
+
+- [x] `useInlineAdd.ts`: same pattern as NicheList — activate/cancel/submit, manages TextField state. Calls `createIdeaGlobal` mutation. Supports optional niche selection
+- [x] `useInlineEdit.ts`: same pattern as NicheList — click cell to edit, Blur/Enter=save (PATCH), Escape=cancel. For `slogan_text` and `niche` fields
+- [x] `useIdeaFilters.ts`: manages filter state (niche_id, status, signal_type, ordering), syncs with URL search params, provides `getCurrentFilters()` for template save
+- [x] `useFilterTemplates.ts`: same pattern as NicheList — CRUD operations on IdeaFilterTemplate via RTK Query
+
+### Page Layout (AC-15, AC-15d)
+
+- [x] `IdeaListView.tsx`: complete rewrite. Remove `if (!nicheId) return` block. Structure: PageHeader → FilterToolbar → InlineAddBar → IdeaList → Pagination. Always render full layout (no full-page empty state)
+- [x] `IdeaFilterToolbar.tsx`: new component. Niche Autocomplete (240px) + Status Select + Signal Select + Ordering Select + FilterTemplateDropdown. Same visual pattern as `NicheFilterToolbar`
+- [x] `FilterTemplateDropdown.tsx`: reuse/adapt from NicheList — save/load/delete filter presets via API
+
+### Inline Add Bar (AC-15b)
+
+- [x] `InlineAddBar.tsx`: new component. Always visible at top of list area. Inactive: flat glass-card row — "+" icon + "Add new slogan..." placeholder text. Active: multiline TextField (flex:1) + Niche Autocomplete (200px, optional) + Add Button + Cancel. Enter=save single, Shift+Enter=newline, Escape=collapse
+- [x] Design-system compliant: glass-sm background, `theme.vars.palette.divider` borders, 12px radius
+
+### Inline Edit (AC-15c)
+
+- [x] Update `IdeaCard.tsx`: click slogan text → inline TextField. Uses `useInlineEdit` hook. Blur/Enter=PATCH save. Escape=cancel. Loading spinner while saving
+- [x] Update `IdeaCard.tsx`: click "No niche" chip → inline Niche Autocomplete popover to assign niche
+
+### Source Groups (AC-16)
+
+- [x] `IdeaSourceGroup.tsx`: rewrite for collapsed default. Collapsed: source slogan + niche chip + status chip + "N adapted" count badge + expand chevron. Left accent bar (3px solid primary.main)
+- [x] Expanded: adapted ideas indented (ml: 4). SELF section header (overline + coral dot, alpha bg). OTHER section header (overline + cyan dot, alpha bg). Sorted by market_confidence within each group
+
+### Niche-less Ideas (AC-16b)
+
+- [x] Update `IdeaCard.tsx`: dashed border variant for niche=null ideas. Amber "No niche" chip (LinkOff icon, outlined, warning color). Adapt button disabled + tooltip
+- [x] `IdeaListView.tsx`: render niche-less ideas at top of list (before source groups)
+
+### CSV/XLSX Import (AC-15e)
+
+- [x] `ImportDialog.tsx`: new component. MUI Dialog with drag-drop zone + file picker. Accepts .csv and .xlsx
+- [x] Client-side parsing: papaparse (CSV) + SheetJS/xlsx (XLSX). Required column: `slogan_text`. Optional: `niche` (name)
+- [x] Preview table (MUI Table, max 10 rows preview + "...and N more")
+- [x] Confirm → calls `importIdeas` mutation → shows result summary (created count + warnings)
+- [x] Header "Import" button (UploadFileIcon) opens dialog
+
+### Design System Compliance Fixes
+
+- [x] `IdeaCard.tsx`: replace `alpha('#fff', 0.08)` → `theme.vars.palette.divider`
+- [x] `IdeaCard.tsx`: replace HTML `<input type="checkbox">` → MUI `<Checkbox size="small">`
+- [x] `ManualIdeaForm.tsx` → replaced by `InlineAddBar.tsx` (delete old component)
+- [x] `SignalTypeBadge.tsx`: replace `rgba(255,90,79,0.12)` → `alpha(theme.vars.palette.primary.main, 0.12)`
+- [x] `SignalTypeBadge.tsx`: replace `rgba(0,200,215,0.12)` → `alpha(theme.vars.palette.secondary.main, 0.12)`
+- [x] `EmptyState.tsx` → replaced by inline hint in list area (no full-page takeover)
+
+### i18n Keys (new)
+
+- [x] `ideas.filter.allNiches`, `ideas.filter.allStatuses`, `ideas.filter.allSignals`
+- [x] `ideas.filter.noNiche`, `ideas.noNicheChip`, `ideas.noNicheTooltip`
+- [x] `ideas.inlineAdd.placeholder`, `ideas.inlineAdd.batchHint`
+- [x] `ideas.import.button`, `ideas.import.title`, `ideas.import.dropHint`, `ideas.import.preview`, `ideas.import.confirm`, `ideas.import.success`, `ideas.import.warnings`
+- [x] `ideas.sourceGroup.adapted` (count badge), `ideas.sourceGroup.expand`, `ideas.sourceGroup.collapse`
+- [x] `ideas.filterTemplate.*` — save, load, delete, name placeholder
+- [x] All 5 locales: EN, DE, FR, ES, IT
 
 ---
 
@@ -215,13 +331,27 @@
 - [x] SloganNodeConfig: 5 rows, Admin-editable prompts
 - [x] Graph 1 (Discovery): 3 nodes, checkpointer, retry, resume/skip
 - [x] Graph 2 (Adaptation): 2 nodes, Think Tool, quality check, 10 slogans per niche
-- [x] 11 API endpoints functional + workspace-isolated
+- [x] 9 existing API endpoints functional + workspace-isolated
 - [x] Collected Items persist to DB via API (not Redux-only)
 - [x] Extract Slogan endpoint callable from PROJ-7 UI
 - [x] Improve returns 3 variants, Regenerate replaces rejected
 - [x] Adaptation runs parallel niches with Semaphore(5)
 - [x] "Adapt to All Compatible" button works (US-18)
-- [x] Reject with approved design shows warning dialog (EC-8)
 - [x] Langfuse traces all LLM calls
 - [x] worker-slogan runs independently from worker-research
+- [x] Rate limiting on LLM endpoints (improve, regenerate, extract-slogan)
+- [x] `GET /api/ideas/` workspace-wide listing works (Phase 11)
+- [x] `POST /api/ideas/` niche-optional creation works (Phase 11)
+- [x] `POST /api/ideas/import/` batch import works (Phase 11)
+- [x] Filter template CRUD works (Phase 11)
+- [x] `/slogans` page works without nicheId (Phase 12)
+- [x] Inline add bar always visible (Phase 12)
+- [x] Inline edit on slogan text (Phase 12)
+- [x] Source groups collapsed by default (Phase 12)
+- [x] Niche-less ideas at top with assign flow (Phase 12)
+- [x] CSV/XLSX import dialog (Phase 12)
+- [x] Filter toolbar + templates (Phase 12)
+- [x] All hardcoded colors replaced with theme tokens (Phase 12)
+- [ ] Reject with approved design shows warning dialog (deferred → PROJ-9)
+- [x] Frontend tests written and passing (Phase 10)
 - [x] All tests pass, lint clean

@@ -95,9 +95,10 @@ class TestIdeaListCreate:
         )
         assert resp.status_code == 400
 
-    def test_no_workspace_header(self, client, niche):
+    def test_no_workspace_header_falls_back_to_membership(self, client, niche):
+        """Without X-Workspace-Id header, fallback resolves via active membership."""
         resp = client.get(f'/api/niches/{niche.id}/ideas/')
-        assert resp.status_code == 400
+        assert resp.status_code == 200
 
     def test_workspace_isolation(self, client, niche):
         other_ws_id = str(uuid.uuid4())
@@ -252,6 +253,290 @@ class TestBulkStatus:
         )
         assert resp.status_code == 200
         assert resp.data['updated'] == 0  # workspace isolation
+
+
+class TestWorkspaceListCreate:
+    """Tests for GET/POST /api/ideas/ (workspace-wide)."""
+
+    def test_list_all_ideas(self, client, workspace, niche, idea):
+        resp = client.get('/api/ideas/', **_ws_headers(workspace))
+        assert resp.status_code == 200
+        assert resp.data['count'] == 1
+        assert resp.data['results'][0]['id'] == str(idea.id)
+
+    def test_list_filter_by_niche(self, client, workspace, niche, niche2, user):
+        Idea.objects.create(workspace=workspace, niche=niche, slogan_text='A', created_by=user)
+        Idea.objects.create(workspace=workspace, niche=niche2, slogan_text='B', created_by=user)
+        resp = client.get(
+            f'/api/ideas/?niche_id={niche.id}', **_ws_headers(workspace),
+        )
+        assert resp.status_code == 200
+        assert resp.data['count'] == 1
+        assert resp.data['results'][0]['slogan_text'] == 'A'
+
+    def test_list_filter_by_status(self, client, workspace, niche, user):
+        Idea.objects.create(
+            workspace=workspace, niche=niche, slogan_text='Approved',
+            status='approved', created_by=user,
+        )
+        Idea.objects.create(
+            workspace=workspace, niche=niche, slogan_text='Pending',
+            status='pending', created_by=user,
+        )
+        resp = client.get(
+            '/api/ideas/?status=approved', **_ws_headers(workspace),
+        )
+        assert resp.status_code == 200
+        assert resp.data['count'] == 1
+        assert resp.data['results'][0]['status'] == 'approved'
+
+    def test_list_filter_orphans(self, client, workspace, niche, user):
+        Idea.objects.create(
+            workspace=workspace, niche=niche, slogan_text='Has niche', created_by=user,
+        )
+        Idea.objects.create(
+            workspace=workspace, niche=None, slogan_text='Orphan', created_by=user,
+        )
+        resp = client.get(
+            '/api/ideas/?is_orphan=true', **_ws_headers(workspace),
+        )
+        assert resp.status_code == 200
+        assert resp.data['count'] == 1
+        assert resp.data['results'][0]['slogan_text'] == 'Orphan'
+
+    def test_list_ordering(self, client, workspace, niche, user):
+        Idea.objects.create(
+            workspace=workspace, niche=niche, slogan_text='Zebra', created_by=user,
+        )
+        Idea.objects.create(
+            workspace=workspace, niche=niche, slogan_text='Alpha', created_by=user,
+        )
+        resp = client.get(
+            '/api/ideas/?ordering=slogan_text', **_ws_headers(workspace),
+        )
+        assert resp.status_code == 200
+        texts = [r['slogan_text'] for r in resp.data['results']]
+        assert texts == sorted(texts)
+
+    def test_list_invalid_ordering_ignored(self, client, workspace, niche, idea):
+        resp = client.get(
+            '/api/ideas/?ordering=invalid_field', **_ws_headers(workspace),
+        )
+        assert resp.status_code == 200
+
+    def test_create_with_niche(self, client, workspace, niche):
+        resp = client.post(
+            '/api/ideas/',
+            {'slogan_text': 'Workspace idea', 'niche': str(niche.id)},
+            format='json',
+            **_ws_headers(workspace),
+        )
+        assert resp.status_code == 201
+        assert len(resp.data) == 1
+        assert str(resp.data[0]['niche']) == str(niche.id)
+
+    def test_create_without_niche(self, client, workspace):
+        resp = client.post(
+            '/api/ideas/',
+            {'slogan_text': 'Orphan idea'},
+            format='json',
+            **_ws_headers(workspace),
+        )
+        assert resp.status_code == 201
+        assert resp.data[0]['niche'] is None
+
+    def test_create_batch(self, client, workspace):
+        resp = client.post(
+            '/api/ideas/',
+            {'slogan_text': 'Line1\nLine2'},
+            format='json',
+            **_ws_headers(workspace),
+        )
+        assert resp.status_code == 201
+        assert len(resp.data) == 2
+
+    def test_workspace_isolation(self, client, workspace, idea):
+        resp = client.get(
+            '/api/ideas/',
+            HTTP_X_WORKSPACE_ID=str(uuid.uuid4()),
+        )
+        assert resp.status_code == 200
+        assert resp.data['count'] == 0
+
+
+class TestIdeaImport:
+    """Tests for POST /api/ideas/import/."""
+
+    def test_import_basic(self, client, workspace):
+        resp = client.post(
+            '/api/ideas/import/',
+            {'ideas': [
+                {'slogan_text': 'Imported 1'},
+                {'slogan_text': 'Imported 2'},
+            ]},
+            format='json',
+            **_ws_headers(workspace),
+        )
+        assert resp.status_code == 201
+        assert resp.data['created'] == 2
+        assert resp.data['warnings'] == []
+
+    def test_import_niche_matching(self, client, workspace, niche):
+        resp = client.post(
+            '/api/ideas/import/',
+            {'ideas': [
+                {'slogan_text': 'With niche', 'niche_name': 'Fishing'},
+                {'slogan_text': 'Case insensitive', 'niche_name': 'fishing'},
+            ]},
+            format='json',
+            **_ws_headers(workspace),
+        )
+        assert resp.status_code == 201
+        assert resp.data['created'] == 2
+        assert resp.data['warnings'] == []
+        assert Idea.objects.filter(
+            workspace=workspace, niche=niche,
+        ).count() == 2
+
+    def test_import_unmatched_niche_warning(self, client, workspace):
+        resp = client.post(
+            '/api/ideas/import/',
+            {'ideas': [
+                {'slogan_text': 'S1', 'niche_name': 'NonExistent'},
+                {'slogan_text': 'S2', 'niche_name': 'NonExistent'},
+            ]},
+            format='json',
+            **_ws_headers(workspace),
+        )
+        assert resp.status_code == 201
+        assert resp.data['created'] == 2
+        assert len(resp.data['warnings']) == 1
+        assert 'NonExistent' in resp.data['warnings'][0]
+        assert '2' in resp.data['warnings'][0]
+
+    def test_import_max_limit(self, client, workspace):
+        items = [{'slogan_text': f'S{i}'} for i in range(501)]
+        resp = client.post(
+            '/api/ideas/import/',
+            {'ideas': items},
+            format='json',
+            **_ws_headers(workspace),
+        )
+        assert resp.status_code == 400
+
+    def test_import_empty_list(self, client, workspace):
+        resp = client.post(
+            '/api/ideas/import/',
+            {'ideas': []},
+            format='json',
+            **_ws_headers(workspace),
+        )
+        assert resp.status_code == 400
+
+    def test_import_empty_slogan_rejected(self, client, workspace):
+        resp = client.post(
+            '/api/ideas/import/',
+            {'ideas': [{'slogan_text': '  '}]},
+            format='json',
+            **_ws_headers(workspace),
+        )
+        assert resp.status_code == 400
+
+
+class TestFilterTemplateCRUD:
+    """Tests for /api/ideas/filter-templates/ CRUD."""
+
+    def test_create_template(self, client, workspace):
+        resp = client.post(
+            '/api/ideas/filter-templates/',
+            {'name': 'My Filter', 'filters': {'status': 'approved'}},
+            format='json',
+            **_ws_headers(workspace),
+        )
+        assert resp.status_code == 201
+        assert resp.data['name'] == 'My Filter'
+        assert resp.data['filters'] == {'status': 'approved'}
+
+    def test_list_templates(self, client, workspace, user):
+        from idea_app.models import IdeaFilterTemplate
+        IdeaFilterTemplate.objects.create(
+            workspace=workspace, name='T1', filters={}, created_by=user,
+        )
+        IdeaFilterTemplate.objects.create(
+            workspace=workspace, name='T2', filters={}, created_by=user,
+        )
+        resp = client.get(
+            '/api/ideas/filter-templates/',
+            **_ws_headers(workspace),
+        )
+        assert resp.status_code == 200
+        assert len(resp.data) == 2
+
+    def test_update_template(self, client, workspace, user):
+        from idea_app.models import IdeaFilterTemplate
+        t = IdeaFilterTemplate.objects.create(
+            workspace=workspace, name='Old', filters={}, created_by=user,
+        )
+        resp = client.patch(
+            f'/api/ideas/filter-templates/{t.id}/',
+            {'name': 'New', 'filters': {'signal_type': 'self'}},
+            format='json',
+            **_ws_headers(workspace),
+        )
+        assert resp.status_code == 200
+        assert resp.data['name'] == 'New'
+        assert resp.data['filters'] == {'signal_type': 'self'}
+
+    def test_delete_template(self, client, workspace, user):
+        from idea_app.models import IdeaFilterTemplate
+        t = IdeaFilterTemplate.objects.create(
+            workspace=workspace, name='Del', filters={}, created_by=user,
+        )
+        resp = client.delete(
+            f'/api/ideas/filter-templates/{t.id}/',
+            **_ws_headers(workspace),
+        )
+        assert resp.status_code == 204
+        assert not IdeaFilterTemplate.objects.filter(id=t.id).exists()
+
+    def test_workspace_isolation(self, client, workspace, user):
+        from idea_app.models import IdeaFilterTemplate
+        t = IdeaFilterTemplate.objects.create(
+            workspace=workspace, name='Isolated', filters={}, created_by=user,
+        )
+        resp = client.get(
+            '/api/ideas/filter-templates/',
+            HTTP_X_WORKSPACE_ID=str(uuid.uuid4()),
+        )
+        assert resp.status_code == 200
+        assert len(resp.data) == 0
+
+        # Cannot update from other workspace
+        resp = client.patch(
+            f'/api/ideas/filter-templates/{t.id}/',
+            {'name': 'Hacked'},
+            format='json',
+            HTTP_X_WORKSPACE_ID=str(uuid.uuid4()),
+        )
+        assert resp.status_code == 404
+
+    def test_invalid_filter_keys(self, client, workspace):
+        resp = client.post(
+            '/api/ideas/filter-templates/',
+            {'name': 'Bad', 'filters': {'unknown_key': 'val'}},
+            format='json',
+            **_ws_headers(workspace),
+        )
+        assert resp.status_code == 400
+
+    def test_empty_name_rejected(self, client, workspace):
+        resp = client.post(
+            '/api/ideas/filter-templates/',
+            {'name': '', 'filters': {}},
+            format='json',
+            **_ws_headers(workspace),
+        )
+        assert resp.status_code == 400
 
 
 class TestSuggestNiches:

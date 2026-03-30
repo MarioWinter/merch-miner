@@ -15,6 +15,7 @@ import { alpha, styled } from '@mui/material/styles';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import CheckIcon from '@mui/icons-material/Check';
 import { useTranslation } from 'react-i18next';
+import { COLORS } from '@/style/constants';
 import type { Idea } from '../types';
 
 interface ImproveDialogProps {
@@ -30,20 +31,18 @@ const VariantCard = styled(Box, {
   shouldForwardProp: (p) => p !== 'selected',
 })<{ selected?: boolean }>(({ theme, selected }) => ({
   border: `1px solid ${
-    selected ? theme.vars.palette.secondary.main : alpha('#fff', 0.08)
+    selected ? theme.vars.palette.secondary.main : theme.vars.palette.divider
   }`,
   borderRadius: 8,
   padding: theme.spacing(1.5),
   cursor: 'pointer',
   transition: 'border-color 150ms ease',
   '&:hover': {
-    borderColor: alpha('#fff', 0.18),
+    borderColor: alpha(COLORS.white, 0.18),
+    ...theme.applyStyles('light', {
+      borderColor: alpha(COLORS.ink, 0.18),
+    }),
   },
-  ...theme.applyStyles('light', {
-    border: `1px solid ${
-      selected ? theme.vars.palette.secondary.main : alpha('#071E26', 0.08)
-    }`,
-  }),
 }));
 
 export const ImproveDialog = ({

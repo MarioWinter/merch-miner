@@ -182,7 +182,7 @@
       "colDeepDrill": "Deep Drill",
       "deepDrill": {
         "idle": "Iniciar Deep Drill",
-        "running": "Deep Drill en curso\u2026",
+        "running": "Deep Drill en curso…",
         "completed": "Ver resultados",
         "failed": "Deep Drill fallido — reintentar",
         "bulkLabel": "Deep Drill ({{count}})",
@@ -292,7 +292,7 @@
   "research": {
     "triggerButton": "Investigación IA",
     "stopButton": "Detener investigación",
-    "running": "Investigando\u2026",
+    "running": "Investigando…",
     "progressTitle": "Investigación IA en curso",
     "progressHint": "Esto puede tardar unos minutos. Puedes salir y volver.",
     "steps": {
@@ -615,6 +615,58 @@
       "deleteSuccess": "Idea eliminada",
       "deleteError": "No se pudo eliminar la idea",
       "loadError": "No se pudieron cargar las ideas"
+    },
+    "filter": {
+      "allNiches": "Todos los nichos",
+      "allStatuses": "Todos los estados",
+      "allSignals": "Todas las señales",
+      "noNiche": "Sin nicho",
+      "clearFilters": "Limpiar filtros",
+      "ordering_newest": "Más recientes",
+      "ordering_oldest": "Más antiguos",
+      "ordering_text_asc": "Texto A-Z",
+      "ordering_text_desc": "Texto Z-A"
+    },
+    "noNicheChip": "Sin nicho",
+    "noNicheTooltip": "Asigna un nicho antes de adaptar",
+    "inlineAdd": {
+      "placeholder": "Agregar nuevo slogan...",
+      "batchHint": "Shift+Enter para nueva línea. Cada línea crea una idea separada."
+    },
+    "import": {
+      "button": "Importar",
+      "title": "Importar ideas",
+      "dropHint": "Arrastra un archivo CSV o XLSX aquí, o haz clic para buscar",
+      "preview": "Vista previa",
+      "confirm": "Importar",
+      "success": "{{count}} ideas importadas",
+      "warnings": "Importación completada con advertencias",
+      "noData": "No se encontraron datos válidos",
+      "tooMany": "Máximo {{max}} elementos. Archivo truncado.",
+      "parseError": "Error al leer el archivo",
+      "andMore": "y {{count}} más",
+      "reset": "Reiniciar"
+    },
+    "sourceGroup": {
+      "adapted": "adaptados",
+      "expand": "Expandir",
+      "collapse": "Contraer"
+    },
+    "filterTemplate": {
+      "button": "Plantillas",
+      "save": "Guardar",
+      "saveFilters": "Guardar filtros actuales",
+      "updateCurrent": "Actualizar plantilla",
+      "delete": "Eliminar",
+      "loading": "Cargando...",
+      "empty": "Sin plantillas",
+      "namePlaceholder": "Nombre de plantilla...",
+      "saveSuccess": "Plantilla guardada",
+      "saveError": "Error al guardar",
+      "updateSuccess": "Plantilla actualizada",
+      "updateError": "Error al actualizar",
+      "deleteSuccess": "Plantilla eliminada",
+      "deleteError": "Error al eliminar"
     }
   },
   "design": {
@@ -701,16 +753,92 @@
     }
   },
   "keywords": {
-    "page": { "title": "Keyword Lode", "searchPlaceholder": "Buscar palabras clave..." },
-    "source": { "research": "Investigacion", "amazon_search": "Amazon", "web_search": "Busqueda web", "manual": "Manual", "junglescout": "JungleScout" },
-    "enrich": { "buttonLabel": "Enriquecer", "bulkLabel": "Enriquecer seleccion", "loading": "Enriqueciendo...", "success": "Palabras clave enriquecidas", "noApiKeyTooltip": "Configure la clave API de JungleScout en Configuracion" },
-    "table": { "col_keyword": "Palabra clave", "col_source": "Fuente", "col_monthly_search_volume_exact": "Volumen (exacto)", "col_monthly_search_volume_broad": "Volumen (amplio)", "col_monthly_trend": "Tendencia mensual", "col_quarterly_trend": "Tendencia trimestral", "col_ppc_bid_exact": "CPC (exacto)", "col_ppc_bid_broad": "CPC (amplio)", "col_sp_brand_ad_bid": "Puja SP Brand", "col_ease_of_ranking_score": "Facilidad de ranking", "col_relevancy_score": "Relevancia", "col_organic_product_count": "Cantidad organica", "col_sponsored_product_count": "Cantidad patrocinada", "col_dominant_category": "Categoria", "col_recommended_promotions": "Promociones", "col_in_product_count": "En productos", "col_in_slogan_count": "En eslogan", "columnPicker": "Configurar columnas", "done": "Listo", "selected": "{{count}} seleccionado(s)" },
-    "trend": { "chartTitle": "Tendencia del volumen de busqueda", "noData": "Datos insuficientes", "monthLabel": "Mes", "volumeLabel": "Volumen de busqueda" },
-    "addToNiche": { "buttonLabel": "Agregar {{count}} a {{niche}}", "selectNiche": "Agregar {{count}} a nicho...", "changeNiche": "Cambiar nicho", "noNiches": "No se encontraron nichos", "addedCount": "{{count}} palabra(s) clave agregada(s)" },
-    "export": { "buttonLabel": "Exportar CSV" },
-    "empty": { "noResults": "No se encontraron palabras clave", "tryCta": "Intente con otro termino de busqueda", "startSearch": "Buscar palabras clave", "searchHint": "Ingrese una palabra clave para buscar en su base de datos y Amazon" },
-    "drawer": { "sectionTitle": "Palabras clave", "addGroup": "Agregar grupo", "groupNamePlaceholder": "Nombre del grupo...", "addButton": "Agregar", "manualPlaceholder": "Agregar palabras clave (separadas por comas)...", "deleteKeyword": "Eliminar palabra clave", "editGroup": "Renombrar grupo", "deleteGroup": "Eliminar grupo", "emptyGroup": "Sin palabras clave en este grupo", "ungrouped": "Sin grupo", "noKeywords": "Sin palabras clave recopiladas", "groupDeleted": "Grupo eliminado (palabras clave conservadas)" },
-    "errors": { "enrichFailed": "Error al enriquecer", "addFailed": "Error al agregar", "deleteFailed": "Error al eliminar", "exportFailed": "Error al exportar", "historyFailed": "Error al cargar tendencias", "renameFailed": "Error al renombrar", "deleteGroupFailed": "Error al eliminar grupo", "createGroupFailed": "Error al crear grupo" }
+    "page": {
+      "title": "Keyword Lode",
+      "searchPlaceholder": "Buscar palabras clave..."
+    },
+    "source": {
+      "research": "Investigacion",
+      "amazon_search": "Amazon",
+      "web_search": "Busqueda web",
+      "manual": "Manual",
+      "junglescout": "JungleScout"
+    },
+    "enrich": {
+      "buttonLabel": "Enriquecer",
+      "bulkLabel": "Enriquecer seleccion",
+      "loading": "Enriqueciendo...",
+      "success": "Palabras clave enriquecidas",
+      "noApiKeyTooltip": "Configure la clave API de JungleScout en Configuracion"
+    },
+    "table": {
+      "col_keyword": "Palabra clave",
+      "col_source": "Fuente",
+      "col_monthly_search_volume_exact": "Volumen (exacto)",
+      "col_monthly_search_volume_broad": "Volumen (amplio)",
+      "col_monthly_trend": "Tendencia mensual",
+      "col_quarterly_trend": "Tendencia trimestral",
+      "col_ppc_bid_exact": "CPC (exacto)",
+      "col_ppc_bid_broad": "CPC (amplio)",
+      "col_sp_brand_ad_bid": "Puja SP Brand",
+      "col_ease_of_ranking_score": "Facilidad de ranking",
+      "col_relevancy_score": "Relevancia",
+      "col_organic_product_count": "Cantidad organica",
+      "col_sponsored_product_count": "Cantidad patrocinada",
+      "col_dominant_category": "Categoria",
+      "col_recommended_promotions": "Promociones",
+      "col_in_product_count": "En productos",
+      "col_in_slogan_count": "En eslogan",
+      "columnPicker": "Configurar columnas",
+      "done": "Listo",
+      "selected": "{{count}} seleccionado(s)"
+    },
+    "trend": {
+      "chartTitle": "Tendencia del volumen de busqueda",
+      "noData": "Datos insuficientes",
+      "monthLabel": "Mes",
+      "volumeLabel": "Volumen de busqueda"
+    },
+    "addToNiche": {
+      "buttonLabel": "Agregar {{count}} a {{niche}}",
+      "selectNiche": "Agregar {{count}} a nicho...",
+      "changeNiche": "Cambiar nicho",
+      "noNiches": "No se encontraron nichos",
+      "addedCount": "{{count}} palabra(s) clave agregada(s)"
+    },
+    "export": {
+      "buttonLabel": "Exportar CSV"
+    },
+    "empty": {
+      "noResults": "No se encontraron palabras clave",
+      "tryCta": "Intente con otro termino de busqueda",
+      "startSearch": "Buscar palabras clave",
+      "searchHint": "Ingrese una palabra clave para buscar en su base de datos y Amazon"
+    },
+    "drawer": {
+      "sectionTitle": "Palabras clave",
+      "addGroup": "Agregar grupo",
+      "groupNamePlaceholder": "Nombre del grupo...",
+      "addButton": "Agregar",
+      "manualPlaceholder": "Agregar palabras clave (separadas por comas)...",
+      "deleteKeyword": "Eliminar palabra clave",
+      "editGroup": "Renombrar grupo",
+      "deleteGroup": "Eliminar grupo",
+      "emptyGroup": "Sin palabras clave en este grupo",
+      "ungrouped": "Sin grupo",
+      "noKeywords": "Sin palabras clave recopiladas",
+      "groupDeleted": "Grupo eliminado (palabras clave conservadas)"
+    },
+    "errors": {
+      "enrichFailed": "Error al enriquecer",
+      "addFailed": "Error al agregar",
+      "deleteFailed": "Error al eliminar",
+      "exportFailed": "Error al exportar",
+      "historyFailed": "Error al cargar tendencias",
+      "renameFailed": "Error al renombrar",
+      "deleteGroupFailed": "Error al eliminar grupo",
+      "createGroupFailed": "Error al crear grupo"
+    }
   },
   "amazonResearch": {
     "detail": {

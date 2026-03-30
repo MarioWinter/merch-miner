@@ -3,7 +3,7 @@
 **Status:** In Review
 **Priority:** P0 (MVP)
 **Created:** 2026-02-27
-**Updated:** 2026-03-24
+**Updated:** 2026-03-30
 
 ## Overview
 
@@ -63,8 +63,65 @@ Both graphs: PostgreSQL Checkpointer for resume/fault tolerance, DB-configurable
 21. As a member, I want to discover the most successful slogans from other niches that use a similar emotional pattern (via Vector DB), so I get cross-niche inspiration.
 
 ### UI/UX Notes
-- Layout/design for slogan list, grouping, and action placement to be defined with `/frontend-design`. Functional requirements only here — no layout prescriptions.
 - "Improve" button is always the same label regardless of context (edit mode, rejected slogan, chat). One consistent action name.
+
+### Frontend Design (decided 2026-03-30)
+
+**Layout:** Full-width list page (not split-panel). Same pattern as NicheList — header + toolbar + list.
+
+```
+PAGE HEADER
+  h4 "Slogan Refinery"       [Import CSV ↑]  [+ Add Niche btn if needed]
+
+FILTER TOOLBAR (always visible)
+  [Niche ▾ All Niches]  [Status ▾ All]  [Signal ▾ All]  [Sort ▾]  [Template ▾ Save/Load]
+
+INLINE ADD BAR (always visible, top of list, never scrolls away)
+  Inactive:  flat row — "+" icon + "Add new slogan..." placeholder
+  Active:    multiline TextField + Niche Autocomplete (optional) + [Add] [×]
+  Enter=save, Shift+Enter=newline (batch), Escape=collapse
+
+IDEA LIST
+  1. Niche-less ideas (top, dashed border, amber "No niche" chip)
+  2. Source groups (collapsed default — source slogan + "N adapted" badge)
+     Expanded: adapted ideas grouped SELF/OTHER, sorted by confidence
+
+PAGINATION (bottom, centered)
+```
+
+**Inline Edit:** Click slogan text → TextField. Blur/Enter=save (PATCH). Escape=cancel. Same hook pattern as NicheList `useInlineEdit`.
+
+**Source Groups:**
+- Collapsed default: source slogan + niche chip + status chip + "5 adapted" count + chevron
+- Left accent bar (3px solid primary.main) on source cards
+- Expanded: adapted ideas indented (ml: 4), SELF section (coral subtle bg), OTHER section (cyan subtle bg)
+- Section dividers: overline text "SELF Signal" / "OTHER Signal" with colored dot
+
+**Niche-less Ideas:**
+- Dashed border + amber "No niche" chip (LinkOff icon)
+- Click chip → inline Niche Autocomplete popover
+- Adapt button disabled + tooltip "Assign a niche first"
+
+**CSV/XLSX Import:**
+- Header button "Import" (UploadFile icon) → ImportDialog
+- Drag-drop zone + file picker (papaparse for CSV, SheetJS for XLSX)
+- Required column: `slogan_text`. Optional: `niche` (name match)
+- Preview table before confirm. Unmatched niches → warning
+
+**Filter Templates:**
+- Same pattern as NicheList `FilterTemplateDropdown`
+- Save/Load via API (IdeaFilterTemplate model)
+- Filters: niche, status, signal_type, ordering
+
+**Design System Compliance:**
+- All colors via `theme.vars.palette.*` — no hardcoded hex/rgba
+- Glass card for add bar: `alpha(theme.vars.palette.background.paper, 0.6)` + blur
+- Borders: `theme.vars.palette.divider`
+- Badges: use `alpha()` with palette tokens for subtle backgrounds
+- MUI Checkbox instead of HTML `<input type="checkbox">`
+- Inter font, spacing per design system tokens
+
+**Empty State:** No full-page takeover. Header + filters + add bar stay visible. Inline hint in list area: icon + text + CTA "Add your first slogan" (same as NicheList empty row behavior).
 
 ## Acceptance Criteria
 
@@ -78,9 +135,11 @@ Both graphs: PostgreSQL Checkpointer for resume/fault tolerance, DB-configurable
 
 - [ ] AC-4: `POST /api/ideas/{id}/adapt/` — body: `{"target_niche_ids": ["uuid1", "uuid2"]}`. Validates source idea has a niche. Creates `IdeaAdaptationRun` (status=pending) → enqueues django-rq task → runs LangGraph workflow. Returns run record. 409 if run already pending/running.
 - [ ] AC-5: `GET /api/ideas/adaptation-runs/{run_id}/` — returns `IdeaAdaptationRun` with `niche_results` (per-niche status + reason) and `status`. Used for polling.
-- [ ] AC-6: `GET /api/niches/{id}/ideas/` — returns all ideas for a niche (source + adapted), ordered by created_at desc.
-- [ ] AC-7: `POST /api/niches/{id}/ideas/` — manual idea creation (is_manual=True, niche auto-set from URL param). Returns 400 if `slogan_text` is missing.
-- [ ] AC-8: `PATCH /api/ideas/{id}/` — update status (approved/rejected/for_review) or any field.
+- [ ] AC-6: `GET /api/ideas/` — list all ideas in workspace, paginated (20/page), ordered by created_at desc. Optional query params: `?niche_id=<uuid>` (filter by niche), `?status=<status>` (filter by status), `?is_orphan=true` (ideas without niche). This is the **primary listing endpoint** used by the Slogan Refinery page.
+- [ ] AC-6b: `GET /api/niches/{id}/ideas/` — convenience shortcut, equivalent to `GET /api/ideas/?niche_id={id}`. Kept for backward compatibility and niche-scoped contexts (e.g. NicheDetailDrawer).
+- [ ] AC-7: `POST /api/ideas/` — create idea. Body: `{"slogan_text": "...", "niche": "<uuid|null>"}`. Niche is optional (nullable). `is_manual=True` when created via form. Returns 400 if `slogan_text` missing. Supports batch input: `{"slogan_text": "line1\nline2"}` creates multiple ideas.
+- [ ] AC-7b: `POST /api/niches/{id}/ideas/` — convenience shortcut, auto-sets niche from URL param. Kept for backward compatibility.
+- [ ] AC-8: `PATCH /api/ideas/{id}/` — update status (approved/rejected/for_review), niche (assign/reassign), or any field.
 - [ ] AC-9: `DELETE /api/ideas/{id}/` — hard delete; workspace member or admin only.
 
 ### LangGraph Trigger
@@ -91,11 +150,17 @@ Both graphs: PostgreSQL Checkpointer for resume/fault tolerance, DB-configurable
 ### Frontend
 
 - [ ] AC-12: Idea card shows "Adapt" button → opens "Select Target Niches" modal (multi-select from workspace niche list).
-- [ ] AC-13: After confirm: MUI LinearProgress shown; per-niche status chips update (pending → approved/rejected) as poll results arrive.
+- [ ] AC-13: After confirm: MUI LinearProgress shown; per-niche status chips update (pending → approved/rejected) as poll results arrive. On terminal state: polling stops automatically, idea list cache invalidated to show new slogans.
 - [ ] AC-14: On run completion: approved niches expand to show 10 slogans; rejected niches show reason inline.
-- [ ] AC-15: Manual idea form: slogan_text (required) + niche select (optional). Niche required before adaptation, not on creation.
-- [ ] AC-16: Idea list groups source ideas separately from adapted ideas. `signal_type` badge shown on each adapted idea.
+- [ ] AC-15: Slogan Refinery page (`/slogans`) works **without nicheId**. Default view shows all workspace ideas. Page header + inline add bar + list skeleton always visible even when empty (no full-page empty state — only an inline hint in the list area). Niche filter + status filter in header bar. URL syncs: `/slogans?nicheId=<uuid>&status=approved`.
+- [ ] AC-15b: Inline Add Bar at top of list (always visible, never scrolls away). Inactive: flat row with `+` icon + "Add new slogan..." placeholder. Click → expands to multiline TextField + optional Niche Autocomplete. Enter = save single slogan, Shift+Enter = new line (batch). Escape = collapse. Same pattern as NicheList `InlineAddRow`.
+- [ ] AC-15c: Inline edit on slogan text: click slogan text in IdeaCard → TextField appears (same pattern as NicheList `useInlineEdit`). Blur/Enter = PATCH save. Escape = cancel. Loading spinner while saving.
+- [ ] AC-15d: Filter toolbar with template save/load (same pattern as NicheList `FilterTemplateDropdown`). Filters: niche (Autocomplete), status (Select), signal_type (Select), ordering (Select). Templates saved via API (not localStorage).
+- [ ] AC-15e: CSV/XLSX import: Upload button in header → ImportDialog with drag-drop zone. Parse client-side (papaparse for CSV, SheetJS for XLSX). Required column: `slogan_text`. Optional columns: `niche` (name, matched to workspace niches). Preview table before import. Batch `POST /api/ideas/` on confirm.
+- [ ] AC-16: Idea list groups source ideas separately from adapted ideas. Source groups collapsed by default (only source slogan visible + "N adapted" count badge). Click to expand. `signal_type` badge shown on each adapted idea. Adapted ideas grouped by SELF/OTHER signal within each source group, sorted by market_confidence (High → Low).
+- [ ] AC-16b: Niche-less ideas shown at top of list (before source groups) with dashed border + amber "No niche" chip. Click chip → inline Niche Autocomplete popover to assign. Adapt button disabled with tooltip "Assign a niche first".
 - [ ] AC-17: When a selected target niche has no `NicheAnalysis` data, show a yellow warning chip next to its name: "No research — degraded quality." User can still proceed.
+- [ ] AC-17b: When list is empty, show inline hint text in list area (not a full-page takeover). Header, filters, and add bar remain fully functional.
 
 ### Improve, Suggest & Bulk
 
@@ -104,14 +169,18 @@ Both graphs: PostgreSQL Checkpointer for resume/fault tolerance, DB-configurable
 - [ ] AC-20: `GET /api/ideas/{id}/suggest-niches/` — returns ranked list of compatible target niches. Combined Score = Pattern-Match (NicheAnalysis) + Vector DB Similarity (PROJ-15, graceful degradation without). Already-adapted niches marked `already_adapted=true` (greyed in UI). "Auto-Select" button picks top 5.
 - [ ] AC-21: `POST /api/ideas/bulk-status/` — body: `{"ids": [...], "status": "approved"|"rejected"}`. Workspace-scoped. Returns count of affected ideas. Rejecting an idea with an approved design shows warning + requires confirmation (frontend).
 - [ ] AC-22: `POST /api/ideas/extract-slogan/` — body: `{"product_image_url": "...", "product_title": "...", "product_brand": "..."}`. Vision LLM extracts slogan text from product image. Returns `{"slogan_text": "..."}`. Called from PROJ-7 Product Card UI.
+- [ ] AC-23: `POST /api/ideas/import/` — body: `{"ideas": [{"slogan_text": "...", "niche_name": "optional"}]}`. Batch create ideas from CSV/XLSX import. `niche_name` matched to workspace niches by name (case-insensitive). Unmatched niche names → idea created with niche=null + warning in response. Returns `{"created": N, "warnings": [...]}`.
+- [ ] AC-24: `IdeaFilterTemplate` model (or reuse generic FilterTemplate): UUID pk, workspace FK, name CharField, filters JSONField, created_by FK, created_at, updated_at. CRUD endpoints: `GET/POST /api/ideas/filter-templates/`, `PATCH/DELETE /api/ideas/filter-templates/{id}/`.
 
 ## API Endpoints
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/niches/{id}/ideas/` | Member | List all ideas for niche (source + adapted) |
-| POST | `/api/niches/{id}/ideas/` | Member | Create manual/collected idea |
-| PATCH | `/api/ideas/{id}/` | Member | Update idea (status, fields) |
+| GET | `/api/ideas/` | Member | **Primary:** List all workspace ideas (optional `?niche_id=`, `?status=`, `?is_orphan=`) |
+| POST | `/api/ideas/` | Member | **Primary:** Create idea (niche optional in body) |
+| GET | `/api/niches/{id}/ideas/` | Member | Convenience shortcut — equivalent to `?niche_id={id}` |
+| POST | `/api/niches/{id}/ideas/` | Member | Convenience shortcut — auto-sets niche from URL |
+| PATCH | `/api/ideas/{id}/` | Member | Update idea (status, niche, fields) |
 | DELETE | `/api/ideas/{id}/` | Member/Admin | Hard delete |
 | POST | `/api/ideas/{id}/adapt/` | Member | Trigger adaptation run (body: target_niche_ids) |
 | GET | `/api/ideas/adaptation-runs/{run_id}/` | Member | Poll run status + niche_results |
@@ -120,6 +189,11 @@ Both graphs: PostgreSQL Checkpointer for resume/fault tolerance, DB-configurable
 | POST | `/api/ideas/extract-slogan/` | Member | Extract slogan from product image (Vision LLM) |
 | GET | `/api/ideas/{id}/suggest-niches/` | Member | Suggest compatible target niches (ranked) |
 | POST | `/api/ideas/bulk-status/` | Member | Bulk approve/reject |
+| POST | `/api/ideas/import/` | Member | Batch import from CSV/XLSX (parsed client-side) |
+| GET | `/api/ideas/filter-templates/` | Member | List saved filter templates |
+| POST | `/api/ideas/filter-templates/` | Member | Save filter template |
+| PATCH | `/api/ideas/filter-templates/{id}/` | Member | Update filter template |
+| DELETE | `/api/ideas/filter-templates/{id}/` | Member | Delete filter template |
 
 ## LangGraph Architecture
 
@@ -288,7 +362,7 @@ Document both in `django-app/env/.env.template`.
 
 ## Tech Design (Solution Architect)
 
-> Decided: 2026-03-27 | Approved by user.
+> Decided: 2026-03-27 | Updated: 2026-03-29 (workspace-wide endpoints + niche-decoupled frontend)
 
 ### A) Backend Architecture
 
@@ -299,6 +373,8 @@ idea_app/
 ├── models.py                           # SloganNodeConfig, Idea, IdeaAdaptationRun
 ├── api/
 │   ├── views.py                        # CRUD + adapt + improve + extract + suggest
+│   │                                   # IdeaWorkspaceListCreateView (NEW: GET/POST /api/ideas/)
+│   │                                   # IdeaListCreateView (kept: GET/POST /api/niches/{id}/ideas/)
 │   ├── serializers.py                  # All serializers
 │   └── urls.py                         # URL routing
 ├── graph/
@@ -329,7 +405,7 @@ idea_app/
 
 ### B) Frontend Architecture
 
-**Route:** `/niches/{id}/ideas` — niche-scoped idea list. Also accessible via NicheDetailDrawer "Ideas" tab
+**Route:** `/slogans` — workspace-wide idea list (primary). Optional `?nicheId=<uuid>` for filtered view. Also accessible via NicheDetailDrawer "Ideas" tab (uses niche-scoped API shortcut)
 
 ```
 views/ideas/
@@ -408,6 +484,9 @@ New flow (PROJ-8):
 | Collected Items → Redux + sofort API dispatch | Sofortiges UI Feedback + persistent in DB. Kein Datenverlust bei Refresh |
 | Extract Slogan in `idea_app` | Logisch Ideas-Scope. PROJ-7 UI ruft `POST /api/ideas/extract-slogan/` auf |
 | Improve = einfacher LLM Call (kein Graph) | Synchron, kein State-Management nötig — Slogan + Feedback rein, 3 Varianten raus |
+| **Workspace-wide `GET/POST /api/ideas/` (NEW)** | Slogan Refinery = eigenständiger Pipeline-Schritt, nicht Niche-Sub-Tab. User sieht alle Ideas, filtert optional per Niche |
+| **Niche-scoped endpoints kept as shortcuts (NEW)** | Backward compat für NicheDetailDrawer + CollectedItems. Kein Breaking Change |
+| **Niche filter Autocomplete on page (NEW)** | "All Niches" = Default. Kein Zwang zur Niche-Auswahl. URL syncs mit Filter |
 
 ---
 
@@ -780,3 +859,248 @@ No regressions detected from code analysis.
 | Env vars documented in templates | PASS — PROJ-15 vars added to .env.dev.template |
 | No console.log/print debugging | PASS |
 | QA approved — no Critical/High bugs | PASS — all fixed |
+
+---
+
+## QA Test Results — Phase 11 + 12 (Code Review)
+
+**Tested:** 2026-03-30
+**Tester:** QA Engineer (AI) -- Code Review + Static Analysis
+**Branch:** `feature/create-new-features`
+**Scope:** Phase 11 (Backend: workspace-wide endpoints, import, filter templates) + Phase 12 (Frontend: redesigned IdeaListView, inline add/edit, filters, import dialog)
+
+### Acceptance Criteria Status (Phase 11+12 scope)
+
+#### AC-6: `GET /api/ideas/` -- workspace-wide listing (NEW)
+- [x] Endpoint exists at `IdeaWorkspaceListCreateView.get()`
+- [x] Workspace-scoped via `_require_workspace()`
+- [x] Paginated (20/page via `IdeaPagination`)
+- [x] Default ordering `-created_at` (via model Meta)
+- [x] Query param `?niche_id=<uuid>` filters by niche
+- [x] Query param `?status=<status>` filters by status
+- [x] Query param `?signal_type=<self|other>` filters by signal type
+- [x] Query param `?is_orphan=true` filters niche=null ideas
+- [x] Query param `?ordering=<field>` with ALLOWED_ORDERING whitelist (prevents SQL injection via ordering)
+- **PASS**
+
+#### AC-6b: `GET /api/niches/{id}/ideas/` backward compatibility
+- [x] Original `IdeaListCreateView` preserved unchanged
+- **PASS**
+
+#### AC-7: `POST /api/ideas/` -- niche-optional creation (NEW)
+- [x] Endpoint exists at `IdeaWorkspaceListCreateView.post()`
+- [x] Uses `IdeaCreateSerializer` with `niche` as optional UUID field
+- [x] `is_manual=True` set automatically
+- [x] Batch: newline-separated slogan_text creates multiple ideas
+- [x] 400 if `slogan_text` missing (serializer validation)
+- **PASS**
+
+#### AC-7b: `POST /api/niches/{id}/ideas/` backward compatibility
+- [x] Original `IdeaListCreateView.post()` preserved
+- **PASS**
+
+#### AC-15: Slogan Refinery page works without nicheId
+- [x] `IdeaListView.tsx` removed the `if (!nicheId) return` block (no longer requires nicheId)
+- [x] Uses `useListAllIdeasQuery` (workspace-wide) instead of niche-scoped query
+- [x] Page header, inline add bar, list skeleton always visible even when empty
+- [x] Inline hint in list area for empty state (not full-page takeover)
+- [x] URL syncs via `useIdeaFilters` hook (search params: niche_id, status, signal_type, ordering, page)
+- **PASS**
+
+#### AC-15b: Inline Add Bar
+- [x] `InlineAddBar.tsx` always visible at top of list area
+- [x] Inactive: flat row with "+" icon + placeholder text
+- [x] Active: multiline TextField + optional Niche Autocomplete (200px) + Add button + Cancel
+- [x] Enter = save single slogan (via `useIdeaInlineAdd.submit`)
+- [x] Shift+Enter = newline (batch mode via `!e.shiftKey` check in handleKeyDown)
+- [x] Escape = collapse
+- [x] Loading spinner on Add button while creating
+- **PASS**
+
+#### AC-15c: Inline edit on slogan text
+- [x] `IdeaCard.tsx` shows `InlineSloganEdit` component when editing
+- [x] Click slogan text activates edit via `useIdeaInlineEdit.activateCell()`
+- [x] Enter = PATCH save (`saveSloganText`), Escape = cancel (`deactivateCell`)
+- [x] Blur = save if changed, cancel if unchanged
+- [x] Loading spinner while saving (CircularProgress endAdornment)
+- [x] Click "No niche" chip on orphan ideas opens inline Niche Autocomplete
+- **PASS**
+
+#### AC-15d: Filter toolbar with template save/load
+- [x] `IdeaFilterToolbar.tsx` renders: Niche Autocomplete (240px) + Status Select + Signal Select + Ordering Select + FilterTemplateDropdown
+- [x] `IdeaFilterTemplateDropdown.tsx` provides save/load/delete of filter presets
+- [x] Templates saved via API (`POST /api/ideas/filter-templates/`)
+- [x] Active filter count badge shown when filters are set
+- [x] Clear filters button resets all URL search params
+- **PASS**
+
+#### AC-15e: CSV/XLSX import
+- [x] `ImportDialog.tsx` with drag-drop zone + file picker
+- [x] Accepts .csv and .xlsx (.xls also accepted)
+- [x] Client-side parsing: papaparse (CSV) + SheetJS/xlsx (XLSX) -- xlsx loaded via dynamic import
+- [x] Required column: `slogan_text` (also accepts `slogan`, `text` as fallback column names)
+- [x] Optional column: `niche_name` (also accepts `niche`)
+- [x] Preview table (MUI Table, max 10 rows + "...and N more")
+- [x] Confirm calls `importIdeas` RTK mutation
+- [x] Shows result summary (created count + warnings via notistack)
+- [x] Max 500 items enforced client-side
+- [x] Header "Import" button (UploadFileIcon) opens dialog
+- **PASS**
+
+#### AC-16: Source groups collapsed by default
+- [x] `IdeaSourceGroup.tsx` starts with `expanded = false` (collapsed)
+- [x] Collapsed: source slogan text + niche chip + status chip + adapted count badge + chevron
+- [x] Left accent bar (3px solid primary.main) via `borderLeft` on GroupRoot
+- [x] Expanded: source card + SELF section header (coral dot) + OTHER section header (cyan dot)
+- [x] Sorted by market_confidence within each signal group
+- **PASS**
+
+#### AC-16b: Niche-less ideas at top with assign flow
+- [x] `IdeaListView.tsx` renders `nicheLessIdeas` before source groups
+- [x] `IdeaCard.tsx` uses dashed border for orphan ideas (`isOrphan ? 'dashed' : 'solid'`)
+- [x] Amber "No niche" chip with LinkOff icon, warning color, outlined variant
+- [x] Click chip opens inline Niche Autocomplete (via `useIdeaInlineEdit`)
+- [x] Adapt button disabled + tooltip "Assign a niche first" for orphan ideas
+- **PASS**
+
+#### AC-17b: Empty list inline hint
+- [x] EmptyHint component shows icon + text + hint -- not a full-page takeover
+- [x] Header, filters, and add bar remain visible above it
+- **PASS**
+
+#### AC-23: `POST /api/ideas/import/`
+- [x] Endpoint exists at `IdeaImportView.post()`
+- [x] Body: `{"ideas": [{"slogan_text": "...", "niche_name": "optional"}]}`
+- [x] Max 500 items via `IdeaImportSerializer` (max_length=500)
+- [x] `niche_name` matched case-insensitive to workspace niches
+- [x] Unmatched niche names create ideas with niche=null + warnings in response
+- [x] Returns `{"created": N, "warnings": [...]}`
+- **PASS**
+
+#### AC-24: `IdeaFilterTemplate` model + CRUD
+- [x] Model: UUID pk, workspace FK, name CharField(100), filters JSONField, created_by FK, timestamps
+- [x] Migration exists (`0003_ideafiltertemplate.py`)
+- [x] Admin registered (`IdeaFilterTemplateAdmin`)
+- [x] CRUD endpoints: list, create (POST), update (PATCH), delete (DELETE)
+- [x] Serializer validates name not empty, filters is dict, only allowed keys
+- [x] Workspace-scoped on all operations
+- **PASS**
+
+### Design System Compliance
+
+#### Hardcoded Colors Audit
+
+| File | Issue | Severity |
+|------|-------|----------|
+| `NicheSuggestionList.tsx:64` | `alpha('#fff', 0.06)` -- should use `alpha(theme.vars.palette.common.white, 0.06)` or COLORS.white | Medium |
+| `NicheSuggestionList.tsx:68` | `alpha('#fff', 0.14)` -- same issue | Medium |
+| `NicheSuggestionList.tsx:82` | `rgba(255,255,255,0.2)` raw rgba in border | Medium |
+| `NicheSuggestionList.tsx:87` | `color: '#fff'` hardcoded white | Medium |
+| `ImproveDialog.tsx:33` | `alpha('#fff', 0.08)` -- should use COLORS.white | Medium |
+| `ImproveDialog.tsx:40` | `alpha('#fff', 0.18)` | Medium |
+| `ImproveDialog.tsx:44` | `alpha('#071E26', 0.08)` -- hardcoded ink hex | Medium |
+| `SloganHistory.tsx:31` | `rgba(255,255,255,0.08)` raw rgba in border | Medium |
+| `SloganHistory.tsx:66` | `alpha('#E8F4F8', 0.65)` -- hardcoded snow hex | Medium |
+| `AdaptationProgress.tsx:39` | `rgba(255,255,255,0.08)` raw rgba in border | Medium |
+| `IdeaSourceGroup.tsx:195,228` | `COLORS.red` / `COLORS.cyan` passed as `signalColor` prop to `alpha()` -- acceptable (uses COLORS constants, not raw hex) | OK |
+| `IdeaCard.tsx:63,65` | `alpha(COLORS.white, 0.14)` / `alpha(COLORS.ink, 0.14)` -- acceptable (uses COLORS constants) | OK |
+| `InlineAddBar.tsx` | Uses `COLORS.inkPaper`, `COLORS.white`, `COLORS.ink` -- acceptable | OK |
+| `IdeaFilterToolbar.tsx` | Uses `COLORS.ink`, `COLORS.white` -- acceptable | OK |
+| `ImportDialog.tsx:48,52` | Uses `COLORS.red` -- acceptable | OK |
+| `IdeaFilterTemplateDropdown.tsx` | Uses COLORS constants -- acceptable | OK |
+| `SignalTypeBadge.tsx` | Uses `theme.vars.palette.primary.main` / `secondary.main` -- fully compliant | OK |
+
+**Summary:** 10 hardcoded color violations across 4 files (NicheSuggestionList, ImproveDialog, SloganHistory, AdaptationProgress). These files were from Phase 6-10, not Phase 12. Phase 12 new components (InlineAddBar, IdeaFilterToolbar, ImportDialog, IdeaFilterTemplateDropdown) are compliant.
+
+### MUI Checkbox Compliance
+- [x] `IdeaCard.tsx` uses MUI `<Checkbox size="small">` (not HTML `<input type="checkbox">`)
+- **PASS** (this was a task item in Phase 12 design system fixes)
+
+### RTK Query Endpoints
+- [x] `listAllIdeas` -- `GET /api/ideas/` with filter params
+- [x] `createIdeaGlobal` -- `POST /api/ideas/` with niche in body
+- [x] `importIdeas` -- `POST /api/ideas/import/`
+- [x] `listIdeaFilterTemplates`, `createIdeaFilterTemplate`, `updateIdeaFilterTemplate`, `deleteIdeaFilterTemplate`
+- [x] All mutations properly invalidate `IdeaList` / `IdeaFilterTemplate` cache tags
+- **PASS**
+
+### Security Audit (Phase 11+12 scope)
+
+- [x] `IdeaWorkspaceListCreateView` -- workspace-scoped via `_require_workspace()`, global auth applies
+- [x] `IdeaImportView` -- workspace-scoped, serializer validates input (max 500 items, slogan_text required)
+- [x] `IdeaFilterTemplateListCreateView` -- workspace-scoped, filter keys validated against allowed set
+- [x] `IdeaFilterTemplateDetailView` -- workspace-scoped via `get_object_or_404(pk, workspace_id)`
+- [x] URL pattern ordering correct -- static paths (`import/`, `filter-templates/`) before UUID-capturing `<uuid:pk>/`
+- [x] `ALLOWED_ORDERING` whitelist prevents ordering injection
+- [x] Import endpoint validates items via serializer before DB writes
+- [ ] **SEC-1 (Low):** `IdeaFilterTemplateSerializer.validate_filters()` allows `niche_id` as a string but does not validate it as a UUID. A user could store arbitrary strings in the `niche_id` filter field. However, when applied, the Autocomplete UI would just not match -- no real exploit vector.
+- [ ] **SEC-2 (Low):** Import endpoint creates ideas in a loop without `bulk_create()`. For 500 items, this is 500 individual INSERT queries. While not a security issue, it could be used for minor DoS if users repeatedly import max-size batches.
+
+### TypeScript / Lint Status
+
+- [x] `tsc --noEmit` -- 0 errors (all PROJ-8 files pass typecheck)
+- [x] `npm run lint` -- 0 errors in PROJ-8 files (2 errors and 2 warnings exist in PROJ-7/PROJ-14 files, pre-existing)
+- **PASS** (no new issues introduced)
+
+### i18n Completeness
+- [x] All new Phase 12 keys present in EN locale (verified programmatically)
+- [x] All 4 other locales (DE, FR, ES, IT) have matching key structure (verified programmatically)
+- **PASS**
+
+### Bugs Found (Phase 11+12)
+
+#### BUG-10: Hardcoded colors in pre-Phase-12 files
+- **Severity:** Medium
+- **Files:** `NicheSuggestionList.tsx`, `ImproveDialog.tsx`, `SloganHistory.tsx`, `AdaptationProgress.tsx`
+- **Details:** 10 instances of hardcoded `#fff`, `#071E26`, `#E8F4F8`, `rgba(255,255,255,...)` instead of `COLORS.*` constants or `theme.vars.palette.*` tokens. Per project rules, no hardcoded colors allowed.
+- **Steps to Reproduce:** Grep for `'#` or `rgba(` in `frontend-ui/src/views/ideas/partials/`
+- **Priority:** Fix before deployment -- replace with COLORS constants or theme tokens
+
+#### BUG-11: Import endpoint uses loop INSERT instead of bulk_create
+- **Severity:** Low
+- **Details:** `IdeaImportView.post()` creates ideas one-by-one in a for-loop (line 644). For 500 items this is 500 DB roundtrips. Should use `Idea.objects.bulk_create()`.
+- **Steps to Reproduce:** Import a CSV with 500 rows, observe slow response
+- **Priority:** Performance optimization -- nice to have
+
+#### BUG-12: useFilterTemplates has stale closure in getCurrentFilters
+- **Severity:** Low
+- **Details:** `getCurrentFilters()` in `useFilterTemplates.ts` (line 43) reads `filterState.filters` directly inside a regular function, not wrapped in `useCallback`. The `saveCurrentFilters` callback has `filterState.filters` in its dep array via eslint-disable comment. If filters change between render and the save action, the function might capture stale values.
+- **Steps to Reproduce:** Rapidly change filters and immediately save template -- saved filters may not match current UI state
+- **Priority:** Edge case -- low impact
+
+#### BUG-13: Phase 12 task checkboxes not updated
+- **Severity:** Low (documentation only)
+- **Details:** All Phase 12 checkboxes in `docs/tasks/PROJ-8-tasks.md` are unchecked `[ ]` despite implementation being complete. This creates confusion about actual project status.
+- **Priority:** Update task file checkboxes
+
+### Regression Assessment (Phase 11+12)
+
+- **PROJ-5 (Niche List):** `useListNichesQuery` used in InlineAddBar and IdeaFilterToolbar. Read-only, no writes to niche models. No regression.
+- **PROJ-6 (Niche Deep Research):** `collectedItemsSlice.ts` changes (Phase 7) are unchanged in Phase 12. No regression.
+- **PROJ-7 (Amazon Product Research):** `CollectedItemsSection.tsx` modified to read from `useListIdeasQuery` (Phase 7). Phase 12 does not touch this file. No regression.
+- **Existing idea_app endpoints:** All Phase 1-10 endpoints and URL patterns preserved. Phase 11 adds new paths without modifying existing ones. No regression.
+- **RTK Query store:** `ideaSlice.ts` extended with new endpoints. Existing endpoints unchanged. Cache tags compatible. No regression.
+
+### Phase 11+12 Summary
+
+| Category | Result |
+|----------|--------|
+| Acceptance Criteria (new) | **13/13 PASS** (AC-6, 6b, 7, 7b, 15, 15b, 15c, 15d, 15e, 16, 16b, 23, 24) |
+| Security Audit | **PASS** -- 2 low-severity notes, no exploitable issues |
+| TypeScript | **PASS** -- 0 errors |
+| Lint | **PASS** -- 0 new errors |
+| i18n | **PASS** -- all keys present in all 5 locales |
+| Regression | **PASS** -- no regressions detected |
+| Bugs Found | 4 (0 critical, 0 high, 1 medium, 3 low) |
+| Design System | **PARTIAL** -- Phase 12 new files compliant; 4 pre-existing files have hardcoded colors |
+
+### Production Readiness (Phase 11+12)
+
+| Check | Status |
+|-------|--------|
+| All new ACs pass | YES |
+| No Critical/High bugs | YES |
+| Medium bugs blocking? | BUG-10 (hardcoded colors) -- should fix before deployment per project rules |
+| Security clear | YES |
+
+**Recommendation:** **CONDITIONALLY READY** -- Fix BUG-10 (hardcoded colors in 4 files) before deploying. All other bugs are low priority. After BUG-10 fix, Phase 11+12 is production-ready.

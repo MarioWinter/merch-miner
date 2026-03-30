@@ -29,7 +29,7 @@ Eliminates spreadsheet chaos and tool-switching by connecting niche data, AI-gen
 | P0 (MVP) | PROJ-5: Niche List | Deployed |
 | P0 (MVP) | PROJ-6: Niche Deep Research (LangGraph) | Ready to Deploy |
 | P0 (MVP) | PROJ-7: Amazon Product Research | In Progress |
-| P0 (MVP) | PROJ-8: Idea & Slogan Generation (LangGraph) | In Progress |
+| P0 (MVP) | PROJ-8: Idea & Slogan Generation (LangGraph) | In Review |
 | P0 (MVP) | PROJ-9: Design Generation + Post-Processing (OpenRouter) | In Progress |
 | P1 | PROJ-10: Keyword Research & Bank (JungleScout) | In Progress |
 | P0 (MVP) | PROJ-11: Publish (Listing + Upload Manager) | In Progress |

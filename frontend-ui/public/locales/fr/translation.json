@@ -182,7 +182,7 @@
       "colDeepDrill": "Deep Drill",
       "deepDrill": {
         "idle": "Lancer le Deep Drill",
-        "running": "Deep Drill en cours\u2026",
+        "running": "Deep Drill en cours…",
         "completed": "Voir les résultats",
         "failed": "Deep Drill échoué — réessayer",
         "bulkLabel": "Deep Drill ({{count}})",
@@ -292,7 +292,7 @@
   "research": {
     "triggerButton": "Recherche IA",
     "stopButton": "Arrêter la recherche",
-    "running": "Recherche en cours\u2026",
+    "running": "Recherche en cours…",
     "progressTitle": "Recherche IA en cours",
     "progressHint": "Cela peut prendre quelques minutes. Vous pouvez quitter et revenir.",
     "steps": {
@@ -615,6 +615,58 @@
       "deleteSuccess": "Idee supprimee",
       "deleteError": "Impossible de supprimer l'idee",
       "loadError": "Impossible de charger les idees"
+    },
+    "filter": {
+      "allNiches": "Toutes les niches",
+      "allStatuses": "Tous les statuts",
+      "allSignals": "Tous les signaux",
+      "noNiche": "Aucune niche",
+      "clearFilters": "Effacer les filtres",
+      "ordering_newest": "Plus récents",
+      "ordering_oldest": "Plus anciens",
+      "ordering_text_asc": "Texte A-Z",
+      "ordering_text_desc": "Texte Z-A"
+    },
+    "noNicheChip": "Sans niche",
+    "noNicheTooltip": "Assignez une niche avant d'adapter",
+    "inlineAdd": {
+      "placeholder": "Ajouter un slogan...",
+      "batchHint": "Shift+Enter pour nouvelle ligne. Chaque ligne crée une idée séparée."
+    },
+    "import": {
+      "button": "Importer",
+      "title": "Importer des idées",
+      "dropHint": "Déposez un fichier CSV ou XLSX ici, ou cliquez pour parcourir",
+      "preview": "Aperçu",
+      "confirm": "Importer",
+      "success": "{{count}} idées importées",
+      "warnings": "Import terminé avec des avertissements",
+      "noData": "Aucune donnée valide trouvée",
+      "tooMany": "Maximum {{max}} éléments. Fichier tronqué.",
+      "parseError": "Impossible de lire le fichier",
+      "andMore": "et {{count}} de plus",
+      "reset": "Réinitialiser"
+    },
+    "sourceGroup": {
+      "adapted": "adaptés",
+      "expand": "Développer",
+      "collapse": "Réduire"
+    },
+    "filterTemplate": {
+      "button": "Modèles",
+      "save": "Enregistrer",
+      "saveFilters": "Enregistrer les filtres",
+      "updateCurrent": "Mettre à jour le modèle",
+      "delete": "Supprimer",
+      "loading": "Chargement...",
+      "empty": "Aucun modèle",
+      "namePlaceholder": "Nom du modèle...",
+      "saveSuccess": "Modèle enregistré",
+      "saveError": "Erreur d'enregistrement",
+      "updateSuccess": "Modèle mis à jour",
+      "updateError": "Erreur de mise à jour",
+      "deleteSuccess": "Modèle supprimé",
+      "deleteError": "Erreur de suppression"
     }
   },
   "design": {
@@ -701,29 +753,177 @@
     }
   },
   "keywords": {
-    "page": { "title": "Keyword Lode", "searchPlaceholder": "Rechercher des mots-cles..." },
-    "source": { "research": "Recherche", "amazon_search": "Amazon", "web_search": "Recherche web", "manual": "Manuel", "junglescout": "JungleScout" },
-    "enrich": { "buttonLabel": "Enrichir", "bulkLabel": "Enrichir la selection", "loading": "Enrichissement...", "success": "Mots-cles enrichis", "noApiKeyTooltip": "Configurez la cle API JungleScout dans les parametres" },
-    "table": { "col_keyword": "Mot-cle", "col_source": "Source", "col_monthly_search_volume_exact": "Volume (exact)", "col_monthly_search_volume_broad": "Volume (large)", "col_monthly_trend": "Tendance mensuelle", "col_quarterly_trend": "Tendance trimestrielle", "col_ppc_bid_exact": "CPC (exact)", "col_ppc_bid_broad": "CPC (large)", "col_sp_brand_ad_bid": "Enchere SP Brand", "col_ease_of_ranking_score": "Facilite de classement", "col_relevancy_score": "Pertinence", "col_organic_product_count": "Nombre organique", "col_sponsored_product_count": "Nombre sponsorise", "col_dominant_category": "Categorie", "col_recommended_promotions": "Promotions", "col_in_product_count": "Dans produits", "col_in_slogan_count": "Dans slogans", "columnPicker": "Configurer les colonnes", "done": "Termine", "selected": "{{count}} selectionne(s)" },
-    "trend": { "chartTitle": "Tendance du volume de recherche", "noData": "Pas assez de donnees", "monthLabel": "Mois", "volumeLabel": "Volume de recherche" },
-    "addToNiche": { "buttonLabel": "Ajouter {{count}} a {{niche}}", "selectNiche": "Ajouter {{count}} a une niche...", "changeNiche": "Changer de niche", "noNiches": "Aucune niche trouvee", "addedCount": "{{count}} mot(s)-cle(s) ajoute(s)" },
-    "export": { "buttonLabel": "Exporter CSV" },
-    "empty": { "noResults": "Aucun mot-cle trouve", "tryCta": "Essayez un autre terme de recherche", "startSearch": "Rechercher des mots-cles", "searchHint": "Entrez un mot-cle pour rechercher dans votre base de donnees et Amazon" },
-    "drawer": { "sectionTitle": "Mots-cles", "addGroup": "Ajouter un groupe", "groupNamePlaceholder": "Nom du groupe...", "addButton": "Ajouter", "manualPlaceholder": "Ajouter des mots-cles (separes par des virgules)...", "deleteKeyword": "Supprimer le mot-cle", "editGroup": "Renommer le groupe", "deleteGroup": "Supprimer le groupe", "emptyGroup": "Aucun mot-cle dans ce groupe", "ungrouped": "Sans groupe", "noKeywords": "Aucun mot-cle collecte", "groupDeleted": "Groupe supprime (mots-cles conserves)" },
-    "errors": { "enrichFailed": "Impossible d'enrichir", "addFailed": "Impossible d'ajouter", "deleteFailed": "Impossible de supprimer", "exportFailed": "Impossible d'exporter", "historyFailed": "Impossible de charger les tendances", "renameFailed": "Impossible de renommer", "deleteGroupFailed": "Impossible de supprimer le groupe", "createGroupFailed": "Impossible de creer le groupe" }
+    "page": {
+      "title": "Keyword Lode",
+      "searchPlaceholder": "Rechercher des mots-cles..."
+    },
+    "source": {
+      "research": "Recherche",
+      "amazon_search": "Amazon",
+      "web_search": "Recherche web",
+      "manual": "Manuel",
+      "junglescout": "JungleScout"
+    },
+    "enrich": {
+      "buttonLabel": "Enrichir",
+      "bulkLabel": "Enrichir la selection",
+      "loading": "Enrichissement...",
+      "success": "Mots-cles enrichis",
+      "noApiKeyTooltip": "Configurez la cle API JungleScout dans les parametres"
+    },
+    "table": {
+      "col_keyword": "Mot-cle",
+      "col_source": "Source",
+      "col_monthly_search_volume_exact": "Volume (exact)",
+      "col_monthly_search_volume_broad": "Volume (large)",
+      "col_monthly_trend": "Tendance mensuelle",
+      "col_quarterly_trend": "Tendance trimestrielle",
+      "col_ppc_bid_exact": "CPC (exact)",
+      "col_ppc_bid_broad": "CPC (large)",
+      "col_sp_brand_ad_bid": "Enchere SP Brand",
+      "col_ease_of_ranking_score": "Facilite de classement",
+      "col_relevancy_score": "Pertinence",
+      "col_organic_product_count": "Nombre organique",
+      "col_sponsored_product_count": "Nombre sponsorise",
+      "col_dominant_category": "Categorie",
+      "col_recommended_promotions": "Promotions",
+      "col_in_product_count": "Dans produits",
+      "col_in_slogan_count": "Dans slogans",
+      "columnPicker": "Configurer les colonnes",
+      "done": "Termine",
+      "selected": "{{count}} selectionne(s)"
+    },
+    "trend": {
+      "chartTitle": "Tendance du volume de recherche",
+      "noData": "Pas assez de donnees",
+      "monthLabel": "Mois",
+      "volumeLabel": "Volume de recherche"
+    },
+    "addToNiche": {
+      "buttonLabel": "Ajouter {{count}} a {{niche}}",
+      "selectNiche": "Ajouter {{count}} a une niche...",
+      "changeNiche": "Changer de niche",
+      "noNiches": "Aucune niche trouvee",
+      "addedCount": "{{count}} mot(s)-cle(s) ajoute(s)"
+    },
+    "export": {
+      "buttonLabel": "Exporter CSV"
+    },
+    "empty": {
+      "noResults": "Aucun mot-cle trouve",
+      "tryCta": "Essayez un autre terme de recherche",
+      "startSearch": "Rechercher des mots-cles",
+      "searchHint": "Entrez un mot-cle pour rechercher dans votre base de donnees et Amazon"
+    },
+    "drawer": {
+      "sectionTitle": "Mots-cles",
+      "addGroup": "Ajouter un groupe",
+      "groupNamePlaceholder": "Nom du groupe...",
+      "addButton": "Ajouter",
+      "manualPlaceholder": "Ajouter des mots-cles (separes par des virgules)...",
+      "deleteKeyword": "Supprimer le mot-cle",
+      "editGroup": "Renommer le groupe",
+      "deleteGroup": "Supprimer le groupe",
+      "emptyGroup": "Aucun mot-cle dans ce groupe",
+      "ungrouped": "Sans groupe",
+      "noKeywords": "Aucun mot-cle collecte",
+      "groupDeleted": "Groupe supprime (mots-cles conserves)"
+    },
+    "errors": {
+      "enrichFailed": "Impossible d'enrichir",
+      "addFailed": "Impossible d'ajouter",
+      "deleteFailed": "Impossible de supprimer",
+      "exportFailed": "Impossible d'exporter",
+      "historyFailed": "Impossible de charger les tendances",
+      "renameFailed": "Impossible de renommer",
+      "deleteGroupFailed": "Impossible de supprimer le groupe",
+      "createGroupFailed": "Impossible de creer le groupe"
+    }
   },
   "search": {
-    "chatBar": { "placeholder": "Rechercher sur le web ou poser une question...", "send": "Envoyer", "dismiss": "Masquer la barre de chat", "reveal": "Afficher la barre de chat", "expand": "Ouvrir la recherche" },
-    "drawer": { "segments": "Panneaux", "nicheDetail": "Niche", "chat": "Chat", "search": "Recherche", "close": "Fermer", "noNicheSelected": "Aucune niche selectionnee", "selectNicheHint": "Ouvrez une niche de la liste pour voir ses details ici." },
-    "chat": { "model": "Modele", "mode": "Mode", "modeSpeed": "Rapide", "modeBalanced": "Equilibre", "modeQuality": "Qualite", "sources": "Sources", "source_web": "Web", "source_academic": "Academique", "source_discussions": "Discussions", "sendError": "Echec de l'envoi du message.", "loadMore": "Charger les anciens messages", "toggleControls": "Parametres de recherche" },
-    "context": { "label": "Contexte: {{name}}", "removeTooltip": "Supprimer le contexte" },
-    "results": { "aiAnswer": "Reponse IA", "sources": "Sources", "noSources": "Aucune source trouvee.", "deepCrawl": "Deep Crawl" },
-    "crawl": { "pending": "En attente", "running": "En cours...", "completed": "Termine", "failed": "Echoue", "error": "Impossible de demarrer le Deep Crawl.", "retry": "Reessayer" },
-    "sessions": { "recentChats": "Chats recents", "untitled": "Chat sans titre", "share": "Partager", "unshare": "Arreter le partage", "shared": "Session partagee.", "unshared": "Session privee.", "shareError": "Echec du partage.", "sharedBy": "Partage par {{name}}", "readOnly": "Cette session partagee est en lecture seule." },
-    "tags": { "label": "Tags", "updateError": "Echec de la mise a jour des tags." },
-    "health": { "online": "En ligne", "offline": "Hors ligne", "tooltip": "Vane: {{vane}} | Crawl4ai: {{crawl4ai}}", "vaneOffline": "Recherche web indisponible.", "crawl4aiOffline": "Deep Crawl indisponible.", "allOffline": "Services de recherche hors ligne." },
-    "save": { "toNiche": "Enregistrer dans {{name}}", "keywords": "Enregistrer les mots-cles", "vectorDbSaved": "Sauvegarde auto dans Vector DB", "saved": "Enregistre dans {{name}}.", "error": "Echec de l'enregistrement." },
-    "empty": { "noSessions": "Aucune session de chat. Lancez une recherche!", "noResults": "Aucun resultat", "firstSearchHint": "Posez une question pour rechercher le web avec l'IA." }
+    "chatBar": {
+      "placeholder": "Rechercher sur le web ou poser une question...",
+      "send": "Envoyer",
+      "dismiss": "Masquer la barre de chat",
+      "reveal": "Afficher la barre de chat",
+      "expand": "Ouvrir la recherche"
+    },
+    "drawer": {
+      "segments": "Panneaux",
+      "nicheDetail": "Niche",
+      "chat": "Chat",
+      "search": "Recherche",
+      "close": "Fermer",
+      "noNicheSelected": "Aucune niche selectionnee",
+      "selectNicheHint": "Ouvrez une niche de la liste pour voir ses details ici."
+    },
+    "chat": {
+      "model": "Modele",
+      "mode": "Mode",
+      "modeSpeed": "Rapide",
+      "modeBalanced": "Equilibre",
+      "modeQuality": "Qualite",
+      "sources": "Sources",
+      "source_web": "Web",
+      "source_academic": "Academique",
+      "source_discussions": "Discussions",
+      "sendError": "Echec de l'envoi du message.",
+      "loadMore": "Charger les anciens messages",
+      "toggleControls": "Parametres de recherche"
+    },
+    "context": {
+      "label": "Contexte: {{name}}",
+      "removeTooltip": "Supprimer le contexte"
+    },
+    "results": {
+      "aiAnswer": "Reponse IA",
+      "sources": "Sources",
+      "noSources": "Aucune source trouvee.",
+      "deepCrawl": "Deep Crawl"
+    },
+    "crawl": {
+      "pending": "En attente",
+      "running": "En cours...",
+      "completed": "Termine",
+      "failed": "Echoue",
+      "error": "Impossible de demarrer le Deep Crawl.",
+      "retry": "Reessayer"
+    },
+    "sessions": {
+      "recentChats": "Chats recents",
+      "untitled": "Chat sans titre",
+      "share": "Partager",
+      "unshare": "Arreter le partage",
+      "shared": "Session partagee.",
+      "unshared": "Session privee.",
+      "shareError": "Echec du partage.",
+      "sharedBy": "Partage par {{name}}",
+      "readOnly": "Cette session partagee est en lecture seule."
+    },
+    "tags": {
+      "label": "Tags",
+      "updateError": "Echec de la mise a jour des tags."
+    },
+    "health": {
+      "online": "En ligne",
+      "offline": "Hors ligne",
+      "tooltip": "Vane: {{vane}} | Crawl4ai: {{crawl4ai}}",
+      "vaneOffline": "Recherche web indisponible.",
+      "crawl4aiOffline": "Deep Crawl indisponible.",
+      "allOffline": "Services de recherche hors ligne."
+    },
+    "save": {
+      "toNiche": "Enregistrer dans {{name}}",
+      "keywords": "Enregistrer les mots-cles",
+      "vectorDbSaved": "Sauvegarde auto dans Vector DB",
+      "saved": "Enregistre dans {{name}}.",
+      "error": "Echec de l'enregistrement."
+    },
+    "empty": {
+      "noSessions": "Aucune session de chat. Lancez une recherche!",
+      "noResults": "Aucun resultat",
+      "firstSearchHint": "Posez une question pour rechercher le web avec l'IA."
+    }
   },
   "amazonResearch": {
     "detail": {

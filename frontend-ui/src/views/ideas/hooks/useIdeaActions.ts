@@ -62,7 +62,7 @@ export const useIdeaActions = (): UseIdeaActionsReturn => {
   const deleteIdea = useCallback(
     async (idea: Idea) => {
       try {
-        await remove({ id: idea.id, nicheId: idea.niche ?? '' }).unwrap();
+        await remove({ id: idea.id }).unwrap();
         enqueueSnackbar(t('ideas.notifications.deleteSuccess'), {
           variant: 'success',
         });

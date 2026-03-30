@@ -224,3 +224,33 @@ class IdeaAdaptationRun(models.Model):
 
     def __str__(self):
         return f"AdaptationRun {str(self.id)[:8]} [{self.status}]"
+
+
+class IdeaFilterTemplate(models.Model):
+    """Saved filter preset for the idea list view."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        'workspace_app.Workspace',
+        on_delete=models.CASCADE,
+        related_name='idea_filter_templates',
+        db_index=True,
+    )
+    name = models.CharField(max_length=100)
+    filters = models.JSONField(
+        default=dict,
+        help_text='Saved filter state: {niche_id, status, signal_type, is_orphan, ordering}',
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='idea_filter_templates',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return self.name

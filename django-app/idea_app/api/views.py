@@ -17,12 +17,14 @@ from idea_app.api.serializers import (
     ExtractSloganSerializer,
     IdeaAdaptationRunSerializer,
     IdeaCreateSerializer,
+    IdeaFilterTemplateSerializer,
+    IdeaImportSerializer,
     IdeaSerializer,
     IdeaUpdateSerializer,
     ImproveSerializer,
     NicheSuggestionSerializer,
 )
-from idea_app.models import Idea, IdeaAdaptationRun
+from idea_app.models import Idea, IdeaAdaptationRun, IdeaFilterTemplate
 
 logger = logging.getLogger(__name__)
 
@@ -39,22 +41,28 @@ class IdeaPagination(PageNumberPagination):
     max_page_size = 100
 
 
-def _get_workspace_id(request):
-    """Extract workspace ID from header."""
-    return request.headers.get('X-Workspace-Id')
-
-
 def _require_workspace(request):
-    """Return workspace ID or None. Views should 400 if None."""
-    ws_id = _get_workspace_id(request)
-    if not ws_id:
-        return None
-    return ws_id
+    """Resolve workspace ID from header or user's first active membership."""
+    ws_id = request.headers.get('X-Workspace-Id')
+    if ws_id:
+        return ws_id
+    # Fallback: first active membership (same pattern as niche_app)
+    from workspace_app.models import Membership
+
+    membership = (
+        Membership.objects
+        .filter(user=request.user, status=Membership.Status.ACTIVE)
+        .select_related('workspace')
+        .first()
+    )
+    if membership:
+        return str(membership.workspace_id)
+    return None
 
 
 def _ws_error():
     return Response(
-        {'error': 'X-Workspace-Id header required'},
+        {'error': 'No workspace found. Set X-Workspace-Id header or join a workspace.'},
         status=status.HTTP_400_BAD_REQUEST,
     )
 
@@ -528,3 +536,179 @@ class IdeaBulkStatusView(APIView):
         ).update(status=new_status)
 
         return Response({'updated': updated})
+
+
+class IdeaWorkspaceListCreateView(APIView):
+    """GET: workspace-wide idea list with filters. POST: create idea (niche optional)."""
+
+    ALLOWED_ORDERING = {
+        'created_at', '-created_at', 'slogan_text', '-slogan_text',
+        'status', '-status', 'signal_type', '-signal_type',
+    }
+
+    def get(self, request):
+        workspace_id = _require_workspace(request)
+        if not workspace_id:
+            return _ws_error()
+
+        qs = Idea.objects.filter(
+            workspace_id=workspace_id,
+        ).select_related('source_idea', 'niche')
+
+        # Filters
+        niche_id = request.query_params.get('niche_id')
+        if niche_id:
+            qs = qs.filter(niche_id=niche_id)
+
+        idea_status = request.query_params.get('status')
+        if idea_status:
+            qs = qs.filter(status=idea_status)
+
+        signal_type = request.query_params.get('signal_type')
+        if signal_type:
+            qs = qs.filter(signal_type=signal_type)
+
+        is_orphan = request.query_params.get('is_orphan')
+        if is_orphan and is_orphan.lower() == 'true':
+            qs = qs.filter(niche__isnull=True)
+
+        ordering = request.query_params.get('ordering')
+        if ordering and ordering in self.ALLOWED_ORDERING:
+            qs = qs.order_by(ordering)
+
+        paginator = IdeaPagination()
+        page = paginator.paginate_queryset(qs, request)
+        serializer = IdeaSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
+    def post(self, request):
+        workspace_id = _require_workspace(request)
+        if not workspace_id:
+            return _ws_error()
+
+        serializer = IdeaCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        slogan_text = serializer.validated_data['slogan_text']
+        niche_id = serializer.validated_data.get('niche')
+        source_product_url = serializer.validated_data.get('source_product_url', '')
+
+        lines = [line.strip() for line in slogan_text.split('\n') if line.strip()]
+
+        created_ideas = []
+        for line in lines:
+            idea = Idea.objects.create(
+                workspace_id=workspace_id,
+                niche_id=niche_id,
+                slogan_text=line,
+                is_manual=True,
+                source_product_url=source_product_url,
+                created_by=request.user,
+            )
+            created_ideas.append(idea)
+
+        result = IdeaSerializer(created_ideas, many=True)
+        return Response(result.data, status=status.HTTP_201_CREATED)
+
+
+class IdeaImportView(APIView):
+    """POST: batch import ideas from parsed CSV/XLSX data."""
+
+    def post(self, request):
+        workspace_id = _require_workspace(request)
+        if not workspace_id:
+            return _ws_error()
+
+        serializer = IdeaImportSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        items = serializer.validated_data['ideas']
+
+        # Pre-fetch workspace niches for name matching
+        from niche_app.models import Niche
+        niches = Niche.objects.filter(workspace_id=workspace_id)
+        niche_map = {n.name.lower(): n for n in niches}
+
+        warnings = []
+        unmatched_names = {}  # name -> count
+        created_count = 0
+
+        for item in items:
+            niche = None
+            niche_name = item.get('niche_name', '').strip()
+            if niche_name:
+                niche = niche_map.get(niche_name.lower())
+                if not niche:
+                    unmatched_names[niche_name] = unmatched_names.get(niche_name, 0) + 1
+
+            Idea.objects.create(
+                workspace_id=workspace_id,
+                niche=niche,
+                slogan_text=item['slogan_text'],
+                is_manual=True,
+                created_by=request.user,
+            )
+            created_count += 1
+
+        for name, count in unmatched_names.items():
+            warnings.append(
+                f"Niche '{name}' not found — {count} idea(s) created without niche",
+            )
+
+        return Response(
+            {'created': created_count, 'warnings': warnings},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class IdeaFilterTemplateListCreateView(APIView):
+    """GET: list filter templates. POST: create one."""
+
+    def get(self, request):
+        workspace_id = _require_workspace(request)
+        if not workspace_id:
+            return _ws_error()
+
+        templates = IdeaFilterTemplate.objects.filter(workspace_id=workspace_id)
+        serializer = IdeaFilterTemplateSerializer(templates, many=True)
+        return Response(serializer.data)
+
+    def post(self, request):
+        workspace_id = _require_workspace(request)
+        if not workspace_id:
+            return _ws_error()
+
+        serializer = IdeaFilterTemplateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save(workspace_id=workspace_id, created_by=request.user)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+
+class IdeaFilterTemplateDetailView(APIView):
+    """PATCH: update filter template. DELETE: remove it."""
+
+    def patch(self, request, pk):
+        workspace_id = _require_workspace(request)
+        if not workspace_id:
+            return _ws_error()
+
+        template = get_object_or_404(
+            IdeaFilterTemplate, pk=pk, workspace_id=workspace_id,
+        )
+        serializer = IdeaFilterTemplateSerializer(
+            template, data=request.data, partial=True,
+        )
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data)
+
+    def delete(self, request, pk):
+        workspace_id = _require_workspace(request)
+        if not workspace_id:
+            return _ws_error()
+
+        template = get_object_or_404(
+            IdeaFilterTemplate, pk=pk, workspace_id=workspace_id,
+        )
+        template.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

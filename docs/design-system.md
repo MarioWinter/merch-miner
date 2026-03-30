@@ -581,7 +581,7 @@ Pages using this layout:
 | PROJ-5 Niche List | Table + right drawer | Niche row cards, stage chips, filter toolbar |
 | PROJ-6 Research | Niche detail + job progress | Progress stepper, research result cards |
 | PROJ-7 Amazon Research | Search bar + results table | BSR badges, dense data table, KPI row |
-| PROJ-8 Slogans | Split: niches left / slogans right | Slogan cards with approve/reject actions |
+| PROJ-8 Slogans | Full-width list + filter toolbar | Inline add bar, source groups (collapsed), inline edit, CSV import, filter templates |
 | PROJ-9 Design Gen | Grid of design previews | Design cards, regenerate button, approve flow |
 | PROJ-10 Keyword Bank | Searchable tag cloud | Keyword chips, filter sidebar, copy batch |
 | PROJ-11 Listings | Form + preview panel | Multi-field form, keyword tag input, copy button |

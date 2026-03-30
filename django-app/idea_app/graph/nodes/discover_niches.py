@@ -8,7 +8,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from idea_app.graph.llm import get_slogan_llm
 from idea_app.graph.progress import get_completed_nodes, update_node_progress
 from idea_app.graph.prompts import DEFAULT_USER_TEMPLATES
-from idea_app.graph.schemas import NicheEvaluationSchema
+from idea_app.graph.schemas import NicheEvaluationListSchema, NicheEvaluationSchema
 from idea_app.graph.state import DiscoveryState
 
 logger = logging.getLogger(__name__)
@@ -55,10 +55,10 @@ async def discover_niches_node(state: DiscoveryState) -> dict:
     ]
 
     # Evaluate all niches in one call
-    structured_llm = llm.with_structured_output(list[NicheEvaluationSchema])
+    structured_llm = llm.with_structured_output(NicheEvaluationListSchema)
     try:
-        results = await structured_llm.ainvoke(messages)
-        evaluations = [r.model_dump() for r in results]
+        result = await structured_llm.ainvoke(messages)
+        evaluations = [r.model_dump() for r in result.evaluations]
     except Exception:
         # Fallback: evaluate one by one
         logger.warning("Batch evaluation failed, falling back to individual calls")
