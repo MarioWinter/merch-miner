@@ -1,4 +1,5 @@
 from django.contrib.auth import get_user_model
+from django.db import transaction
 from django.db.models import Count, Q, Value
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -183,13 +184,14 @@ class NicheViewSet(ModelViewSet):
                 status=status.HTTP_409_CONFLICT,
             )
 
-        # Archive linked ideas if confirmed
-        if idea_count > 0 and confirm:
-            linked_ideas.update(status=Idea.Status.ARCHIVED)
+        with transaction.atomic():
+            # Archive linked ideas if confirmed
+            if idea_count > 0 and confirm:
+                linked_ideas.update(status=Idea.Status.ARCHIVED)
 
-        # Soft delete: set status=archived
-        instance.status = Niche.Status.ARCHIVED
-        instance.save(update_fields=['status', 'updated_at'])
+            # Soft delete: set status=archived
+            instance.status = Niche.Status.ARCHIVED
+            instance.save(update_fields=['status', 'updated_at'])
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     def perform_create(self, serializer):
@@ -256,10 +258,10 @@ class NicheBulkActionView(APIView):
                     status=status.HTTP_409_CONFLICT,
                 )
 
-            if idea_count > 0 and confirm:
-                linked_ideas.update(status=Idea.Status.ARCHIVED)
-
-            updated = niches.update(status=Niche.Status.ARCHIVED)
+            with transaction.atomic():
+                if idea_count > 0 and confirm:
+                    linked_ideas.update(status=Idea.Status.ARCHIVED)
+                updated = niches.update(status=Niche.Status.ARCHIVED)
             return Response({'updated': updated}, status=status.HTTP_200_OK)
 
         if action == 'assign':
