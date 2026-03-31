@@ -292,7 +292,7 @@
 
 ### D1: Cleanup — Remove React Flow, Unify Routes
 
-- [ ] Remove `@xyflow/react` from `package.json` (run `npm uninstall @xyflow/react`)
+- [x] Remove `@xyflow/react` from `package.json` (already removed)
 - [x] Delete React Flow components: `ReferenceNode.tsx`, `GenerateHubNode.tsx`, `VariantNode.tsx`, `GeneratingNode.tsx`, `BoardMinimap.tsx`
 - [x] Delete React Flow hooks: `useBoardNodes.ts` (converts to RF nodes/edges — no longer needed)
 - [x] Keep and adapt: `useBoardContext.ts`, `useGeneration.ts`, `useDesignActions.ts`, `useImageAnalysis.ts`, `useBoardLayout.ts`, `useBatchProcess.ts`
@@ -316,87 +316,99 @@
 
 ### D3.1: Canvas Foundation
 
-- [ ] `ArtboardCanvas.tsx`: NEW — Konva.js Stage filling tab content area. Infinite pan (drag empty canvas) + zoom (scroll wheel, pinch). Canvas bg: dark `#1A1A2E` / light `#E8E8E8`. Grid dots at zoom >30%
-- [ ] `useArtboardCanvas` hook: NEW — canvas state (zoom, pan offset, stage dimensions). Resize observer. Wheel zoom handler. Fit-to-view
-- [ ] Fix Konva.js drag-and-drop bug: individual artboards must move independently without snapping back. Stage `draggable` for panning, artboard Groups `draggable` for repositioning
+- [x] `ArtboardCanvas.tsx`: NEW — Konva.js Stage filling tab content area. Infinite pan (drag empty canvas) + zoom (scroll wheel, pinch). Canvas bg: dark `#1A1A2E` / light `#E8E8E8`. Grid dots at zoom >30%
+- [x] `useArtboardCanvas` hook: NEW — canvas state (zoom, pan offset, stage dimensions). Callback ref + ResizeObserver. Wheel zoom (discrete + trackpad pinch). Fit-to-view
+- [x] Fix Konva.js drag-and-drop bug: individual artboards must move independently without snapping back. Stage `draggable` for panning, artboard Groups `draggable` for repositioning
 
 ### D3.2: Artboard Component
 
-- [ ] `Artboard.tsx`: NEW — Konva Group containing: labeled frame above (text), white background rect, image inside, selection border (dashed blue `#4A9EFF` + resize handles on select). Draggable + selectable
-- [ ] `useArtboards` hook: NEW — manages artboard list (positions, sizes, selection state, connections). Loads from `board_layout`. Persists on change (debounced)
-- [ ] Click artboard = select (single). Shift+click = multi-select. Click empty canvas = deselect all
-- [ ] Drag-select rectangle: rubber-band selection for multiple artboards
-- [ ] Artboard labels: "Artboard 1", "AI Image Board", custom names. Editable on double-click label
+- [x] `Artboard.tsx`: NEW — Konva Group containing: labeled frame above (text), white background rect, image inside, selection border (dashed blue `#4A9EFF` + resize handles on select). Draggable + selectable + resizable (corner drag handles)
+- [x] `useArtboards` hook: NEW — manages artboard list (positions, sizes, selection state, connections). Loads from `board_layout`. Persists on change (debounced)
+- [x] Click artboard = select (single). Shift+click = multi-select. Click empty canvas = deselect all
+- [x] Drag-select rectangle: rubber-band selection for multiple artboards (`RubberBandSelection.tsx`)
+- [x] Artboard labels: "Artboard 1", "AI Image Board", custom names. Editable on double-click label (`ArtboardLabelEditor.tsx`)
 
 ### D3.3: AI Image Board + Connection Arrows
 
-- [ ] `ConnectionArrow.tsx`: NEW — thin 1px line (Konva Arrow) from source artboard edge to AI Board edge. Color = `text.secondary`. Purely visual, not interactive
-- [ ] "Add AI Image Board" via context menu on source artboard → creates new artboard to the right, auto-connected
-- [ ] AI Image Board shows "✦ AI Image Board" label in cyan. "Regenerate" button below frame when selected
-- [ ] Connections stored in `board_layout.connections[]` as `{sourceId, targetId}`
+- [x] `ConnectionArrow.tsx`: NEW — thin 1px Konva Arrow from source right-center to AI Board left-center. Color = `text.secondary`. Purely visual, not interactive
+- [x] `addAiImageBoard(sourceId)` in `useArtboards` — creates new AI artboard 100px right of source, auto-connected
+- [x] AI Image Board shows "✦ AI Image Board" label in cyan. `RegenerateOverlay.tsx` below frame when selected
+- [x] Connections stored in `board_layout.edges[]` as `{source, target}` (reused existing type)
 
 ### D3.4: Context Menu
 
-- [ ] `ArtboardContextMenu.tsx`: NEW — MUI Menu on right-click artboard: "Add AI Image Board", "Duplicate", "Delete", "Bring to Front", "Send to Back"
-- [ ] Right-click empty canvas: "Add Artboard" (upload image), "Paste"
+- [x] `ArtboardContextMenu.tsx`: NEW — MUI Menu on right-click artboard: "Add AI Image Board", "Duplicate", "Delete", "Bring to Front", "Send to Back"
+- [x] `CanvasContextMenu.tsx`: Right-click empty canvas: "Add Artboard" (upload image), "Paste" (placeholder)
+- [x] `useContextMenu` hook: manages both menu states, coordinates, file-to-artboard creation
 
 ### D3.5: Right Panel (280px, always visible)
 
-- [ ] `RightPanel.tsx`: NEW — context-sensitive. Three states:
-- [ ] Nothing selected: project search, "Project Colors" (extracted from designs), Tools list (AI Image Board, Flatten, Upscale, Reframe, BG Remove)
-- [ ] Artboard selected: Artboard Size (W×H, preset dropdown: Square 1200, MBA 4500×5400), Layer (opacity), Color (bg hex), Clip Content toggle. Then Tools
-- [ ] AI Image Board selected: same + "Regenerate" button at top of Tools
-- [ ] Multi-select: bulk actions — "Open in Editor" button, "Delete All", "Export Selected"
-- [ ] Tool buttons in right panel = apply to selected artboard(s)
+- [x] `RightPanel.tsx`: NEW — context-sensitive via `useRightPanelState` hook. Four modes:
+- [x] Nothing selected (`PanelNoneState`): project search, "Project Colors", Tools grid
+- [x] Artboard selected (`PanelArtboardState`): Size (W×H, preset dropdown: Square 1200, MBA 4500×5400), Layer (opacity), Color (bg hex), Clip Content toggle. Then Tools
+- [x] AI Image Board selected: same + "Regenerate" button at top of Tools
+- [x] Multi-select (`PanelMultiState`): "Open in Editor", "Delete All", "Export Selected"
+- [x] `ToolsSection.tsx`: AI Board, Flatten, Upscale, Reframe, BG Remove
 
 ### D3.6: Bottom Toolbar
 
-- [ ] `BottomToolbar.tsx`: NEW — 48px horizontal bar. Left: cursor, move, shapes (dropdown), brush, text, emoji, AI sparkle. Separator. Undo/Redo. Separator. Zoom (-, %, +). Canvas resize
-- [ ] AI sparkle button → expands Prompt Bar (same as clicking an AI Image Board)
+- [x] `BottomToolbar.tsx` + `.styles.ts`: NEW — 48px bar. Left: cursor, move, shapes (dropdown via `ShapesMenu.tsx`), brush, text, emoji, AI sparkle. Separator. Undo/Redo (disabled placeholder). Separator. Zoom (-, %, +, fit-to-view)
+- [x] AI sparkle button → expands Prompt Bar
 
 ### D3.7: Prompt Bar (Collapsible Chat)
 
-- [ ] Rewrite `PromptBar.tsx` for new layout:
-- [ ] Collapsed: single-line "✨ Describe what you want to create..." input. Overlays bottom of canvas above toolbar
-- [ ] Expanded (on AI Board select or AI sparkle click): "Edit AI Image Board" header + ✖ close. Source→result thumbnails (48px). Multiline prompt. "Prompt builder" accordion. Model/Ratio/Style/BG selectors. Generate/Regenerate button
-- [ ] Keep existing `ModelSelector.tsx` + `BackgroundColorPicker.tsx` embedded in expanded bar
-- [ ] Smooth slide-up animation (200ms ease)
+- [x] Rewrite `PromptBar.tsx` + `PromptBar.styles.ts` for new layout:
+- [x] Collapsed: single-line "✨ Describe what you want to create..." input. Overlays bottom of canvas above toolbar
+- [x] Expanded (on AI Board select or AI sparkle click): "Edit AI Image Board" header + ✖ close. Source→result thumbnails (48px). Multiline prompt. "Prompt builder" accordion. Model/Ratio/Style/BG selectors. Generate/Regenerate button
+- [x] Keep existing `ModelSelector.tsx` + `BackgroundColorPicker.tsx` embedded in expanded bar
+- [x] Smooth slide-up animation (200ms ease). `usePromptBar` hook for auto-expand/collapse
 
 ### D3.8: Artboard Canvas Export
 
-- [ ] Export in right panel or toolbar: export selected artboards or all
-- [ ] Format: PNG (default), DPI: 300, compression slider
-- [ ] Download individual or all as ZIP
+- [x] `ExportDialog.tsx` + `useExportArtboards` hook: export selected or all artboards
+- [x] Format: PNG (default), DPI: 72-600 (default 300), quality slider
+- [x] Download individual PNG or multiple as ZIP (JSZip)
 
 ### D3.9: External Drag-Drop + Empty State
 
-- [ ] Drag image files from desktop onto canvas → creates new artboard at drop position
-- [ ] Empty state: centered "+" icon + "Drop images here or create an AI Image Board" + Browse Files button
+- [x] `useExternalDrop` hook: drag image files from desktop onto canvas → creates new artboard at drop position. Cyan dashed `DropZoneOverlay` during drag. Browse Files via hidden file input
+- [x] ~~Empty state~~ Removed per user feedback — clean canvas on first open
+
+> **D3 completed 2026-03-31.** Bug fixes applied:
+> - Zoom: trackpad pinch uses continuous scaling, mouse wheel scales by deltaY magnitude
+> - Artboard resize: corner handles are draggable (all 4 corners, min 40px)
+> - Global chat bar hidden on `/designs/:id` route (AppLayout pattern match)
+> - `crossOrigin='anonymous'` skipped for blob/data URLs (image loading fix)
+> - ResizeObserver: callback ref pattern for lifted hook (stageWidth was 0)
+> **Known issues:** ~~Dropped images not persisted~~ Fixed — upload endpoint + auto-upload wired. Zoom feel needs further tuning.
 
 ### D4: Image Editor Integration (Tab 2)
 
-- [ ] Move existing `DesignEditorView` content into `EditorTab.tsx` (or render inline). Remove standalone route dependency
-- [ ] Editor receives images via context: when user clicks "Open in Editor" from Canvas tab, selected artboard images are passed as batch
-- [ ] Also supports standalone use: drop images, browse files, URL param `?tab=editor&images=id1,id2`
-- [ ] No dependency on Canvas tab — works independently with its own pipeline, canvas, export
+- [x] Move existing `DesignEditorView` content into `EditorTab.tsx` (or render inline). Remove standalone route dependency
+- [x] Editor receives images via context: when user clicks "Open in Editor" from Canvas tab, selected artboard images are passed as batch
+- [x] Also supports standalone use: drop images, browse files, URL param `?tab=editor&images=id1,id2`
+- [x] No dependency on Canvas tab — works independently with its own pipeline, canvas, export
 
 ### D5: Hooks Refactor
 
-- [ ] `useBoardContext` → adapt to use `getProjectBoard` endpoint (if not already done)
-- [ ] `useBoardLayout` → save/load artboard positions to `DesignProject.board_layout` (replaces React Flow node positions)
-- [ ] `useGeneration` → use project-scoped `POST /api/designs/generate/` with `{project_id, idea_id?}`
-- [ ] `useDesignActions` → invalidate `DesignProject` cache (not `DesignBoard`)
-- [ ] `useImageAnalysis` → invalidate `DesignProject` cache
-- [ ] Remove `useBoardNodes` (React Flow specific)
+- [x] `useBoardContext` → already uses `getProjectBoard` endpoint (no changes needed)
+- [x] `useBoardLayout` → deleted (dead code, fully replaced by `useArtboards` which handles layout persistence)
+- [x] `useGeneration` → already uses project-scoped `POST /api/designs/generate/` with `{project_id, idea_id?}` and invalidates `DesignProject` cache
+- [x] `useDesignActions` → already passes `projectId` to mutations; `designSlice` invalidates `DesignProject` cache
+- [x] `useImageAnalysis` → already invalidates `DesignProject` cache
+- [x] Remove `useBoardNodes` — already deleted in prior phase (React Flow removal)
 
 ### D6: i18n — Workspace + Artboard Canvas
 
-- [ ] `design.workspace.*` — tab labels (Artboard Canvas, Image Editor), workspace title
-- [ ] `design.artboard.*` — artboard labels, context menu items, selection actions
-- [ ] `design.canvas.*` — toolbar labels, zoom, empty state, export
-- [ ] `design.prompt.*` — collapsed placeholder, expanded header, prompt builder
-- [ ] Update existing `design.board.*` keys as needed
-- [ ] All 5 locales: EN, DE, FR, ES, IT
+- [x] `design.workspace.*` — tab labels (Artboard Canvas, Image Editor), workspace title
+- [x] `design.artboard.*` — artboard labels, context menu items, selection actions
+- [x] `design.canvas.*` — toolbar labels, zoom, empty state, export
+- [x] `design.prompt.*` — collapsed placeholder, expanded header, prompt builder
+- [x] Update existing `design.board.*` keys as needed
+- [x] All 5 locales: EN, DE, FR, ES, IT
+
+> **Phase D (Unified Design Workspace) completed 2026-04-01.** All frontend work done.
+> **Backend for Artboard Canvas completed 2026-04-01.** All 26 RTK Query endpoints matched. Added: image upload (`POST /projects/{id}/upload/`), designs by IDs (`GET /designs/?ids=...`). Board layout persistence + design generation were already working.
 
 ---
 

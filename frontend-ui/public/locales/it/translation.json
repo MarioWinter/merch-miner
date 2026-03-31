@@ -673,7 +673,7 @@
   },
   "design": {
     "board": {
-      "title": "Design Board",
+      "title": "Design Forge",
       "prompt": "Prompt",
       "promptPlaceholder": "Descrivi il design che vuoi generare...",
       "promptRequired": "Inserisci prima un prompt",
@@ -689,7 +689,7 @@
       "goBack": "Indietro",
       "loadError": "Impossibile caricare il design board",
       "analysisBreakdown": "Analisi in 7 passaggi",
-      "jumpButton": "Apri Design Board",
+      "jumpButton": "Apri Design Forge",
       "analysisStep": {
         "text_dna": "DNA del testo",
         "visual": "Analisi visiva",
@@ -718,7 +718,8 @@
       "nodeCount": "{{count}} nodi",
       "nodeCount_one": "{{count}} nodo",
       "cancel": "Annulla",
-      "dropImages": "Rilascia le immagini qui"
+      "dropImages": "Rilascia le immagini qui",
+      "regenerate": "Rigenera"
     },
     "model": {
       "label": "Modello IA",
@@ -855,7 +856,22 @@
       "downloadCurrent": "Scarica corrente",
       "downloadAll": "Scarica tutto (ZIP)",
       "overwrite": "Sovrascrivi originale",
-      "newVersion": "Crea nuova versione"
+      "newVersion": "Crea nuova versione",
+      "titleCount": "Esporta {{count}} Artboard",
+      "formatPng": "File PNG",
+      "formatZip": "File PNG in ZIP",
+      "quality": "Qualita",
+      "exporting": "Esportazione...",
+      "download": "Scarica"
+    },
+    "contextMenu": {
+      "addAiBoard": "Aggiungi tavola IA",
+      "duplicate": "Duplica",
+      "bringToFront": "Porta in primo piano",
+      "sendToBack": "Manda in secondo piano",
+      "delete": "Elimina",
+      "addArtboard": "Aggiungi artboard",
+      "paste": "Incolla"
     },
     "projects": {
       "title": "Design Forge",
@@ -886,6 +902,73 @@
         "placeholder": "Inserisci nome del progetto...",
         "confirm": "Crea progetto",
         "cancel": "Annulla"
+      }
+    },
+    "workspace": {
+      "loadError": "Impossibile caricare il progetto",
+      "backToGallery": "Torna alla galleria",
+      "untitled": "Progetto senza nome",
+      "tabCanvas": "Artboard Canvas",
+      "tabEditor": "Editor immagini",
+      "settings": "Impostazioni progetto",
+      "canvasComingSoon": "Artboard Canvas in arrivo",
+      "canvasDescription": "L'artboard Konva.js sostituira il vecchio React Flow."
+    },
+    "canvas": {
+      "emptyTitle": "Rilascia immagini o crea una tavola IA",
+      "emptyDescription": "Trascina immagini o usa la barra degli strumenti.",
+      "dropHint": "Rilascia immagini per creare artboard",
+      "browseFiles": "Sfoglia file"
+    },
+    "toolbar": {
+      "ariaLabel": "Barra degli strumenti del canvas",
+      "cursor": "Cursore",
+      "move": "Sposta",
+      "shapes": "Forme",
+      "rectangle": "Rettangolo",
+      "ellipse": "Ellisse",
+      "triangle": "Triangolo",
+      "line": "Linea",
+      "brush": "Pennello",
+      "text": "Testo",
+      "emoji": "Emoji",
+      "aiSparkle": "Genera con IA",
+      "undo": "Annulla",
+      "redo": "Ripristina",
+      "zoomIn": "Ingrandisci",
+      "zoomOut": "Riduci",
+      "fitToView": "Adatta vista"
+    },
+    "panel": {
+      "ariaLabel": "Pannello proprieta",
+      "project": "Progetto",
+      "artboardProperties": "Artboard",
+      "aiImageBoard": "Tavola IA",
+      "multiSelect": "{{count}} Selezionato/i",
+      "searchPlaceholder": "Cerca nel progetto...",
+      "projectColors": "Colori del progetto",
+      "noColors": "Nessun colore estratto",
+      "size": "Dimensione",
+      "layer": "Livello",
+      "opacity": "Op",
+      "opacityLabel": "Opacita",
+      "color": "Colore",
+      "bgColor": "Colore di sfondo",
+      "clipContent": "Ritaglia contenuto",
+      "toolsLabel": "Strumenti",
+      "selection": "Selezione",
+      "artboards": "Artboard",
+      "aiBoards": "Tavole IA",
+      "openInEditor": "Apri nell'editor",
+      "exportSelected": "Esporta selezione",
+      "deleteAll": "Elimina tutto",
+      "tools": {
+        "regenerate": "Rigenera",
+        "aiImageBoard": "Tavola IA",
+        "flatten": "Unisci livelli",
+        "upscale": "Scala",
+        "reframe": "Riquadra",
+        "bgRemove": "Rimuovi sfondo"
       }
     }
   },

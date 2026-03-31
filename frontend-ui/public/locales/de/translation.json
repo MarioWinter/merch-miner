@@ -108,7 +108,7 @@
       "drillingZone": "Bohrzone",
       "surfaceOps": "Oberfläche"
     },
-    "designBoard": "Design Board",
+    "designBoard": "Design Forge",
     "imageEditor": "Bildbearbeitung"
   },
   "invite": {
@@ -686,7 +686,7 @@
   },
   "design": {
     "board": {
-      "title": "Design Board",
+      "title": "Design Forge",
       "prompt": "Prompt",
       "promptPlaceholder": "Beschreibe das Design, das du generieren moechtest...",
       "promptRequired": "Bitte gib zuerst einen Prompt ein",
@@ -700,9 +700,9 @@
       "usePrompt": "Prompt verwenden",
       "useThisPrompt": "Diesen Prompt im Editor verwenden",
       "goBack": "Zurueck",
-      "loadError": "Design Board konnte nicht geladen werden",
+      "loadError": "Design Forge konnte nicht geladen werden",
       "analysisBreakdown": "7-Schritte-Analyse",
-      "jumpButton": "Design Board oeffnen",
+      "jumpButton": "Design Forge oeffnen",
       "analysisStep": {
         "text_dna": "Text-DNA",
         "visual": "Visuelle Analyse",
@@ -731,7 +731,8 @@
       "nodeCount": "{{count}} Nodes",
       "nodeCount_one": "{{count}} Node",
       "cancel": "Abbrechen",
-      "dropImages": "Bilder hier ablegen"
+      "dropImages": "Bilder hier ablegen",
+      "regenerate": "Regenerieren"
     },
     "model": {
       "label": "KI-Modell",
@@ -868,7 +869,22 @@
       "downloadCurrent": "Aktuelles herunterladen",
       "downloadAll": "Alle herunterladen (ZIP)",
       "overwrite": "Original ueberschreiben",
-      "newVersion": "Neue Version erstellen"
+      "newVersion": "Neue Version erstellen",
+      "titleCount": "{{count}} Artboard exportieren",
+      "formatPng": "PNG-Datei",
+      "formatZip": "PNG-Dateien als ZIP",
+      "quality": "Qualitaet",
+      "exporting": "Wird exportiert...",
+      "download": "Herunterladen"
+    },
+    "contextMenu": {
+      "addAiBoard": "KI-Bildboard hinzufuegen",
+      "duplicate": "Duplizieren",
+      "bringToFront": "In den Vordergrund",
+      "sendToBack": "In den Hintergrund",
+      "delete": "Loeschen",
+      "addArtboard": "Artboard hinzufuegen",
+      "paste": "Einfuegen"
     },
     "projects": {
       "title": "Design Forge",
@@ -899,6 +915,73 @@
         "placeholder": "Projektname eingeben...",
         "confirm": "Projekt erstellen",
         "cancel": "Abbrechen"
+      }
+    },
+    "workspace": {
+      "loadError": "Projekt konnte nicht geladen werden",
+      "backToGallery": "Zurueck zur Galerie",
+      "untitled": "Unbenanntes Projekt",
+      "tabCanvas": "Artboard Canvas",
+      "tabEditor": "Bildbearbeitung",
+      "settings": "Projekteinstellungen",
+      "canvasComingSoon": "Artboard Canvas kommt bald",
+      "canvasDescription": "Der Konva.js-basierte Artboard ersetzt das alte React Flow Board."
+    },
+    "canvas": {
+      "emptyTitle": "Bilder ablegen oder KI-Bildboard erstellen",
+      "emptyDescription": "Ziehe Bilder vom Desktop oder nutze die Toolbar.",
+      "dropHint": "Bilder ablegen, um Artboards zu erstellen",
+      "browseFiles": "Dateien durchsuchen"
+    },
+    "toolbar": {
+      "ariaLabel": "Canvas-Werkzeugleiste",
+      "cursor": "Zeiger",
+      "move": "Verschieben",
+      "shapes": "Formen",
+      "rectangle": "Rechteck",
+      "ellipse": "Ellipse",
+      "triangle": "Dreieck",
+      "line": "Linie",
+      "brush": "Pinsel",
+      "text": "Text",
+      "emoji": "Emoji",
+      "aiSparkle": "KI-Generierung",
+      "undo": "Rueckgaengig",
+      "redo": "Wiederholen",
+      "zoomIn": "Vergroessern",
+      "zoomOut": "Verkleinern",
+      "fitToView": "Ansicht anpassen"
+    },
+    "panel": {
+      "ariaLabel": "Eigenschaftenpanel",
+      "project": "Projekt",
+      "artboardProperties": "Artboard",
+      "aiImageBoard": "KI-Bildboard",
+      "multiSelect": "{{count}} Ausgewaehlt",
+      "searchPlaceholder": "Projekt durchsuchen...",
+      "projectColors": "Projektfarben",
+      "noColors": "Noch keine Farben extrahiert",
+      "size": "Groesse",
+      "layer": "Ebene",
+      "opacity": "Op",
+      "opacityLabel": "Deckkraft",
+      "color": "Farbe",
+      "bgColor": "Hintergrundfarbe",
+      "clipContent": "Inhalt beschneiden",
+      "toolsLabel": "Werkzeuge",
+      "selection": "Auswahl",
+      "artboards": "Artboards",
+      "aiBoards": "KI-Boards",
+      "openInEditor": "Im Editor oeffnen",
+      "exportSelected": "Auswahl exportieren",
+      "deleteAll": "Alle loeschen",
+      "tools": {
+        "regenerate": "Regenerieren",
+        "aiImageBoard": "KI-Board",
+        "flatten": "Zusammenfuegen",
+        "upscale": "Hochskalieren",
+        "reframe": "Reframe",
+        "bgRemove": "HG entfernen"
       }
     }
   },

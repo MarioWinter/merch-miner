@@ -350,3 +350,33 @@ class ProductAnalyzeImageSerializer(serializers.Serializer):
     """Trigger image analysis on an AmazonProduct."""
 
     source_image_url = serializers.URLField(required=True)
+
+
+class DesignUploadSerializer(serializers.Serializer):
+    """Validate manual image upload for artboard canvas."""
+
+    ALLOWED_TYPES = (
+        'image/png',
+        'image/jpeg',
+        'image/webp',
+        'image/svg+xml',
+    )
+
+    file = serializers.FileField(required=True)
+
+    def validate_file(self, value):
+        from django.conf import settings
+
+        max_size = getattr(settings, 'MAX_DESIGN_UPLOAD_SIZE', 25 * 1024 * 1024)
+        if value.size > max_size:
+            raise serializers.ValidationError(
+                f'File size {value.size} exceeds maximum of {max_size} bytes.',
+            )
+
+        if value.content_type not in self.ALLOWED_TYPES:
+            raise serializers.ValidationError(
+                f'File type "{value.content_type}" not allowed. '
+                f'Accepted: {", ".join(self.ALLOWED_TYPES)}.',
+            )
+
+        return value

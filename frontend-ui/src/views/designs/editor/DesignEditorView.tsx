@@ -15,6 +15,15 @@ import { JobPollerManager } from './partials/JobPollerManager';
 import type { PipelineTool, BatchImage, CanvasToolType, ExportSettings } from './types';
 
 // -----------------------------------------------------------------
+// Props
+// -----------------------------------------------------------------
+
+interface DesignEditorViewProps {
+  /** Images passed directly from canvas tab (local blob URLs without designId) */
+  initialImages?: Array<{ url: string; name: string }>;
+}
+
+// -----------------------------------------------------------------
 // Constants
 // -----------------------------------------------------------------
 
@@ -105,7 +114,7 @@ const StripWrapper = styled(Box)(({ theme }) => ({
 // Component
 // -----------------------------------------------------------------
 
-const DesignEditorView = () => {
+const DesignEditorView = ({ initialImages }: DesignEditorViewProps) => {
   const { t } = useTranslation();
   const [searchParams] = useSearchParams();
 
@@ -113,8 +122,17 @@ const DesignEditorView = () => {
   const [pipelineExpanded, setPipelineExpanded] = useState(false);
   const [activePipeline, setActivePipeline] = useState<PipelineTool[]>([]);
 
-  // Batch state
-  const [batchImages, setBatchImages] = useState<BatchImage[]>([]);
+  // Batch state — seed with initialImages from canvas tab on first render
+  const [batchImages, setBatchImages] = useState<BatchImage[]>(() => {
+    if (!initialImages || initialImages.length === 0) return [];
+    return initialImages.map((img) => ({
+      id: crypto.randomUUID(),
+      file: null,
+      previewUrl: img.url,
+      name: img.name,
+      status: 'idle' as const,
+    }));
+  });
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   // Canvas tool state
@@ -129,8 +147,10 @@ const DesignEditorView = () => {
   // File input ref for "Browse Files"
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Preloaded design IDs from URL
-  const preloadIds = searchParams.get('designs')?.split(',').filter(Boolean) ?? [];
+  // Preloaded design IDs from URL (supports both ?designs= and ?images= params)
+  const preloadIds = (
+    searchParams.get('designs') ?? searchParams.get('images') ?? ''
+  ).split(',').filter(Boolean);
 
   const hasImages = batchImages.length > 0;
   const currentImage = hasImages ? batchImages[currentImageIndex] : null;

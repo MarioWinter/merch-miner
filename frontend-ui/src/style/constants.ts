@@ -33,6 +33,10 @@ export const COLORS = {
   tealDk: '#00838F',
   tealLt: '#00BCD4',
 
+  // Artboard canvas backgrounds (Design Board zoom canvas)
+  artboardDark:  '#1A1A2E',
+  artboardLight: '#E8E8E8',
+
   // Neutral
   white: '#FFFFFF',
   black: '#000000',

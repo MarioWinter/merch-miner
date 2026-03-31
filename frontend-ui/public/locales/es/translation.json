@@ -689,7 +689,7 @@
       "goBack": "Volver",
       "loadError": "No se pudo cargar el tablero de diseno",
       "analysisBreakdown": "Analisis en 7 pasos",
-      "jumpButton": "Abrir Design Board",
+      "jumpButton": "Abrir Design Forge",
       "analysisStep": {
         "text_dna": "ADN del texto",
         "visual": "Analisis visual",
@@ -718,7 +718,8 @@
       "nodeCount": "{{count}} nodos",
       "nodeCount_one": "{{count}} nodo",
       "cancel": "Cancelar",
-      "dropImages": "Soltar imagenes aqui"
+      "dropImages": "Soltar imagenes aqui",
+      "regenerate": "Regenerar"
     },
     "model": {
       "label": "Modelo IA",
@@ -855,7 +856,22 @@
       "downloadCurrent": "Descargar actual",
       "downloadAll": "Descargar todo (ZIP)",
       "overwrite": "Sobrescribir original",
-      "newVersion": "Crear nueva version"
+      "newVersion": "Crear nueva version",
+      "titleCount": "Exportar {{count}} Artboard",
+      "formatPng": "Archivo PNG",
+      "formatZip": "Archivos PNG en ZIP",
+      "quality": "Calidad",
+      "exporting": "Exportando...",
+      "download": "Descargar"
+    },
+    "contextMenu": {
+      "addAiBoard": "Agregar tablero IA",
+      "duplicate": "Duplicar",
+      "bringToFront": "Traer al frente",
+      "sendToBack": "Enviar al fondo",
+      "delete": "Eliminar",
+      "addArtboard": "Agregar artboard",
+      "paste": "Pegar"
     },
     "projects": {
       "title": "Design Forge",
@@ -886,6 +902,73 @@
         "placeholder": "Ingresar nombre del proyecto...",
         "confirm": "Crear proyecto",
         "cancel": "Cancelar"
+      }
+    },
+    "workspace": {
+      "loadError": "No se pudo cargar el proyecto",
+      "backToGallery": "Volver a la galeria",
+      "untitled": "Proyecto sin nombre",
+      "tabCanvas": "Artboard Canvas",
+      "tabEditor": "Editor de imagenes",
+      "settings": "Configuracion del proyecto",
+      "canvasComingSoon": "Artboard Canvas proximamente",
+      "canvasDescription": "El artboard Konva.js reemplazara el antiguo React Flow."
+    },
+    "canvas": {
+      "emptyTitle": "Suelta imagenes o crea un tablero IA",
+      "emptyDescription": "Arrastra imagenes o usa la barra de herramientas.",
+      "dropHint": "Suelta imagenes para crear artboards",
+      "browseFiles": "Explorar archivos"
+    },
+    "toolbar": {
+      "ariaLabel": "Barra de herramientas del lienzo",
+      "cursor": "Cursor",
+      "move": "Mover",
+      "shapes": "Formas",
+      "rectangle": "Rectangulo",
+      "ellipse": "Elipse",
+      "triangle": "Triangulo",
+      "line": "Linea",
+      "brush": "Pincel",
+      "text": "Texto",
+      "emoji": "Emoji",
+      "aiSparkle": "Generar con IA",
+      "undo": "Deshacer",
+      "redo": "Rehacer",
+      "zoomIn": "Ampliar",
+      "zoomOut": "Reducir",
+      "fitToView": "Ajustar vista"
+    },
+    "panel": {
+      "ariaLabel": "Panel de propiedades",
+      "project": "Proyecto",
+      "artboardProperties": "Artboard",
+      "aiImageBoard": "Tablero IA",
+      "multiSelect": "{{count}} Seleccionado(s)",
+      "searchPlaceholder": "Buscar en el proyecto...",
+      "projectColors": "Colores del proyecto",
+      "noColors": "Sin colores extraidos",
+      "size": "Tamano",
+      "layer": "Capa",
+      "opacity": "Op",
+      "opacityLabel": "Opacidad",
+      "color": "Color",
+      "bgColor": "Color de fondo",
+      "clipContent": "Recortar contenido",
+      "toolsLabel": "Herramientas",
+      "selection": "Seleccion",
+      "artboards": "Artboards",
+      "aiBoards": "Tableros IA",
+      "openInEditor": "Abrir en el editor",
+      "exportSelected": "Exportar seleccion",
+      "deleteAll": "Eliminar todo",
+      "tools": {
+        "regenerate": "Regenerar",
+        "aiImageBoard": "Tablero IA",
+        "flatten": "Aplanar",
+        "upscale": "Escalar",
+        "reframe": "Reencuadrar",
+        "bgRemove": "Eliminar fondo"
       }
     }
   },

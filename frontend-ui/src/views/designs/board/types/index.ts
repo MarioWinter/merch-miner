@@ -145,6 +145,63 @@ export interface BoardLayout {
   edges: Array<{ source: string; target: string }>;
 }
 
+// -----------------------------------------------------------------
+// Artboard types (D3.2 — Konva.js artboard canvas)
+// -----------------------------------------------------------------
+
+export type ArtboardKind = 'regular' | 'ai';
+
+export interface ArtboardData {
+  id: string;
+  /** Display label (editable by user) */
+  label: string;
+  /** Position in world coordinates */
+  x: number;
+  y: number;
+  /** Frame dimensions (image container) */
+  width: number;
+  height: number;
+  /** URL to the image rendered inside the frame */
+  imageUrl: string | null;
+  /** Artboard kind */
+  kind: ArtboardKind;
+  /** Connected source artboard ID (for AI Image Boards) */
+  sourceId: string | null;
+  /** Optional linked design ID */
+  designId: string | null;
+  /** Layer opacity (0-100) */
+  opacity: number;
+  /** Background color hex (e.g. '#FFFFFF') */
+  backgroundColor: string;
+  /** Whether content is clipped to artboard bounds */
+  clipContent: boolean;
+}
+
+/** Preset artboard sizes */
+export interface ArtboardPreset {
+  label: string;
+  width: number;
+  height: number;
+}
+
+export const ARTBOARD_PRESETS: ArtboardPreset[] = [
+  { label: 'Square 1200', width: 1200, height: 1200 },
+  { label: 'MBA 4500x5400', width: 4500, height: 5400 },
+  { label: 'Custom', width: 0, height: 0 },
+];
+
+export interface ArtboardSelection {
+  /** IDs of currently selected artboards */
+  selectedIds: Set<string>;
+}
+
+export interface RubberBandRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface ExternalImageDrop {
   file: File;
   previewUrl: string;

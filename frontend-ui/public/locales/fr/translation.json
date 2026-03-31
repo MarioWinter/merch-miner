@@ -689,7 +689,7 @@
       "goBack": "Retour",
       "loadError": "Impossible de charger le tableau de design",
       "analysisBreakdown": "Analyse en 7 etapes",
-      "jumpButton": "Ouvrir le Design Board",
+      "jumpButton": "Ouvrir le Design Forge",
       "analysisStep": {
         "text_dna": "ADN textuel",
         "visual": "Analyse visuelle",
@@ -718,7 +718,8 @@
       "nodeCount": "{{count}} noeuds",
       "nodeCount_one": "{{count}} noeud",
       "cancel": "Annuler",
-      "dropImages": "Deposer les images ici"
+      "dropImages": "Deposer les images ici",
+      "regenerate": "Regenerer"
     },
     "model": {
       "label": "Modele IA",
@@ -855,7 +856,22 @@
       "downloadCurrent": "Telecharger l'actuel",
       "downloadAll": "Tout telecharger (ZIP)",
       "overwrite": "Ecraser l'original",
-      "newVersion": "Creer une nouvelle version"
+      "newVersion": "Creer une nouvelle version",
+      "titleCount": "Exporter {{count}} Artboard",
+      "formatPng": "Fichier PNG",
+      "formatZip": "Fichiers PNG en ZIP",
+      "quality": "Qualite",
+      "exporting": "Exportation...",
+      "download": "Telecharger"
+    },
+    "contextMenu": {
+      "addAiBoard": "Ajouter un tableau IA",
+      "duplicate": "Dupliquer",
+      "bringToFront": "Mettre au premier plan",
+      "sendToBack": "Mettre en arriere-plan",
+      "delete": "Supprimer",
+      "addArtboard": "Ajouter un artboard",
+      "paste": "Coller"
     },
     "projects": {
       "title": "Design Forge",
@@ -886,6 +902,73 @@
         "placeholder": "Entrer le nom du projet...",
         "confirm": "Creer le projet",
         "cancel": "Annuler"
+      }
+    },
+    "workspace": {
+      "loadError": "Impossible de charger le projet",
+      "backToGallery": "Retour a la galerie",
+      "untitled": "Projet sans nom",
+      "tabCanvas": "Artboard Canvas",
+      "tabEditor": "Editeur d'images",
+      "settings": "Parametres du projet",
+      "canvasComingSoon": "Artboard Canvas bientot disponible",
+      "canvasDescription": "L'artboard Konva.js remplacera l'ancien React Flow."
+    },
+    "canvas": {
+      "emptyTitle": "Deposez des images ou creez un tableau IA",
+      "emptyDescription": "Glissez des images ou utilisez la barre d'outils.",
+      "dropHint": "Deposez des images pour creer des artboards",
+      "browseFiles": "Parcourir"
+    },
+    "toolbar": {
+      "ariaLabel": "Barre d'outils du canevas",
+      "cursor": "Curseur",
+      "move": "Deplacer",
+      "shapes": "Formes",
+      "rectangle": "Rectangle",
+      "ellipse": "Ellipse",
+      "triangle": "Triangle",
+      "line": "Ligne",
+      "brush": "Pinceau",
+      "text": "Texte",
+      "emoji": "Emoji",
+      "aiSparkle": "Generation IA",
+      "undo": "Annuler",
+      "redo": "Retablir",
+      "zoomIn": "Zoom avant",
+      "zoomOut": "Zoom arriere",
+      "fitToView": "Ajuster la vue"
+    },
+    "panel": {
+      "ariaLabel": "Panneau de proprietes",
+      "project": "Projet",
+      "artboardProperties": "Artboard",
+      "aiImageBoard": "Tableau IA",
+      "multiSelect": "{{count}} Selectionne(s)",
+      "searchPlaceholder": "Rechercher dans le projet...",
+      "projectColors": "Couleurs du projet",
+      "noColors": "Aucune couleur extraite",
+      "size": "Taille",
+      "layer": "Calque",
+      "opacity": "Op",
+      "opacityLabel": "Opacite",
+      "color": "Couleur",
+      "bgColor": "Couleur de fond",
+      "clipContent": "Recadrer le contenu",
+      "toolsLabel": "Outils",
+      "selection": "Selection",
+      "artboards": "Artboards",
+      "aiBoards": "Tableaux IA",
+      "openInEditor": "Ouvrir dans l'editeur",
+      "exportSelected": "Exporter la selection",
+      "deleteAll": "Tout supprimer",
+      "tools": {
+        "regenerate": "Regenerer",
+        "aiImageBoard": "Tableau IA",
+        "flatten": "Aplatir",
+        "upscale": "Agrandir",
+        "reframe": "Recadrer",
+        "bgRemove": "Suppr. fond"
       }
     }
   },

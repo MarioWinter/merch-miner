@@ -394,8 +394,8 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '20/hour',
-        'user': '1000/day',
+        'anon': '500/hour' if DEBUG else '20/hour',
+        'user': '10000/day' if DEBUG else '1000/day',
         'avatar': '50/hour',
         'invite': '20/hour',
         'semantic_search': '30/minute',

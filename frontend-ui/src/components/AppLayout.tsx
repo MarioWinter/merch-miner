@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Box, useMediaQuery } from '@mui/material';
 import { styled, useTheme } from '@mui/material/styles';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import Topbar from './topbar/Topbar';
 import Sidebar, { COLLAPSED_WIDTH, EXPANDED_WIDTH } from './sidebar/Sidebar';
 import FloatingChatBar from './FloatingChatBar';
@@ -39,9 +39,14 @@ const getInitialCollapsed = (): boolean => {
   }
 };
 
+// Routes where the floating chat bar should be hidden (e.g. full-screen canvas)
+const CHAT_BAR_HIDDEN_PATTERN = /^\/designs\/[^/]+$/;
+
 const AppLayout = () => {
   const theme = useTheme();
+  const location = useLocation();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down('md'));
+  const hideChatBar = CHAT_BAR_HIDDEN_PATTERN.test(location.pathname);
   const [userCollapsed, setUserCollapsed] = useState<boolean>(getInitialCollapsed);
   const [hovered, setHovered] = useState(false);
 
@@ -79,7 +84,7 @@ const AppLayout = () => {
         <Outlet />
       </MainContent>
 
-      <FloatingChatBar />
+      {!hideChatBar && <FloatingChatBar />}
       <MultiPurposeDrawer />
     </Box>
   );

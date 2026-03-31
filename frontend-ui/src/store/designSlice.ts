@@ -369,6 +369,26 @@ export const designApi = createApi({
         { type: 'DesignProject', id: projectId },
       ],
     }),
+
+    // Upload image to project (manual upload for artboard canvas)
+    uploadDesignToProject: builder.mutation<
+      Design,
+      { projectId: string; file: File }
+    >({
+      query: ({ projectId, file }) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return {
+          url: `/api/designs/projects/${projectId}/upload/`,
+          method: 'POST',
+          data: formData,
+        };
+      },
+      invalidatesTags: (_result, _error, { projectId }) => [
+        { type: 'DesignProject', id: projectId },
+        { type: 'DesignProjectList', id: 'LIST' },
+      ],
+    }),
   }),
 });
 
@@ -399,4 +419,5 @@ export const {
   useAddDesignsToProjectMutation,
   useRemoveDesignFromProjectMutation,
   useGetProjectBoardQuery,
+  useUploadDesignToProjectMutation,
 } = designApi;

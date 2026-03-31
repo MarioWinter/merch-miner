@@ -108,7 +108,7 @@
       "drillingZone": "Drilling Zone",
       "surfaceOps": "Surface Ops"
     },
-    "designBoard": "Design Board",
+    "designBoard": "Design Forge",
     "imageEditor": "Image Editor"
   },
   "invite": {
@@ -685,8 +685,26 @@
     }
   },
   "design": {
+    "prompt": {
+      "expandBar": "Open prompt bar",
+      "placeholder": "Describe what you want to create...",
+      "header": "Edit AI Image Board",
+      "close": "Close prompt bar",
+      "sourceThumbnail": "Source image",
+      "resultThumbnail": "Result image",
+      "inputPlaceholder": "Describe the design you want to generate...",
+      "inputLabel": "Design prompt",
+      "builder": "Prompt builder",
+      "generate": "Generate",
+      "generating": "Generating...",
+      "regenerate": "Regenerate"
+    },
+    "canvas": {
+      "emptyTitle": "Drop images here or create a design",
+      "emptyDescription": "Use the prompt bar below to generate AI designs"
+    },
     "board": {
-      "title": "Design Board",
+      "title": "Design Forge",
       "prompt": "Prompt",
       "promptPlaceholder": "Describe the design you want to generate...",
       "promptRequired": "Please enter a prompt first",
@@ -702,7 +720,7 @@
       "goBack": "Back",
       "loadError": "Failed to load design board",
       "analysisBreakdown": "7-Step Analysis Breakdown",
-      "jumpButton": "Open Design Board",
+      "jumpButton": "Open Design Forge",
       "analysisStep": {
         "text_dna": "Text DNA",
         "visual": "Visual Analysis",
@@ -731,7 +749,8 @@
       "nodeCount": "{{count}} nodes",
       "nodeCount_one": "{{count}} node",
       "cancel": "Cancel",
-      "dropImages": "Drop images here"
+      "dropImages": "Drop images here",
+      "regenerate": "Regenerate"
     },
     "model": {
       "label": "AI Model",
@@ -785,7 +804,7 @@
     "analyze": {
       "button": "Analyze Design",
       "started": "Image analysis started",
-      "success": "Design analyzed - prompt ready for Design Board",
+      "success": "Design analyzed - prompt ready for Design Forge",
       "error": "Failed to analyze image",
       "reused": "Analysis ready"
     },
@@ -871,7 +890,22 @@
       "downloadCurrent": "Download Current",
       "downloadAll": "Download All (ZIP)",
       "overwrite": "Overwrite original",
-      "newVersion": "Create new version"
+      "newVersion": "Create new version",
+      "titleCount": "Export {{count}} Artboard",
+      "formatPng": "PNG file",
+      "formatZip": "PNG files bundled as ZIP",
+      "quality": "Quality",
+      "exporting": "Exporting...",
+      "download": "Download"
+    },
+    "contextMenu": {
+      "addAiBoard": "Add AI Image Board",
+      "duplicate": "Duplicate",
+      "bringToFront": "Bring to Front",
+      "sendToBack": "Send to Back",
+      "delete": "Delete",
+      "addArtboard": "Add Artboard",
+      "paste": "Paste"
     },
     "projects": {
       "title": "Design Forge",
@@ -916,7 +950,7 @@
       "drawerSection": {
         "title": "Design Projects",
         "emptyTitle": "No design projects linked",
-        "emptyCta": "Link a project from the Design Board",
+        "emptyCta": "Link a project from the Design Forge",
         "openBoard": "Open Board",
         "designCount": "{{count}} designs",
         "designCount_one": "{{count}} design"
@@ -931,6 +965,63 @@
       "settings": "Project Settings",
       "canvasComingSoon": "Artboard Canvas coming soon",
       "canvasDescription": "The Konva.js-powered artboard will replace the old React Flow board."
+    },
+    "canvas": {
+      "emptyTitle": "Drop images or create an AI Image Board",
+      "emptyDescription": "Drag images from your desktop or use the toolbar to get started.",
+      "dropHint": "Drop images to create artboards",
+      "browseFiles": "Browse Files"
+    },
+    "toolbar": {
+      "ariaLabel": "Canvas toolbar",
+      "cursor": "Cursor",
+      "move": "Move",
+      "shapes": "Shapes",
+      "rectangle": "Rectangle",
+      "ellipse": "Ellipse",
+      "triangle": "Triangle",
+      "line": "Line",
+      "brush": "Brush",
+      "text": "Text",
+      "emoji": "Emoji",
+      "aiSparkle": "AI Generate",
+      "undo": "Undo",
+      "redo": "Redo",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "fitToView": "Fit to view"
+    },
+    "panel": {
+      "ariaLabel": "Properties panel",
+      "project": "Project",
+      "artboardProperties": "Artboard",
+      "aiImageBoard": "AI Image Board",
+      "multiSelect": "{{count}} Selected",
+      "searchPlaceholder": "Search project...",
+      "projectColors": "Project Colors",
+      "noColors": "No colors extracted yet",
+      "size": "Size",
+      "layer": "Layer",
+      "opacity": "Op",
+      "opacityLabel": "Opacity",
+      "color": "Color",
+      "bgColor": "Background color",
+      "clipContent": "Clip Content",
+      "toolsLabel": "Tools",
+      "selection": "Selection",
+      "artboards": "Artboards",
+      "aiBoards": "AI Boards",
+      "openInEditor": "Open in Editor",
+      "exportSelected": "Export Selected",
+      "deleteAll": "Delete All",
+      "tools": {
+        "regenerate": "Regenerate",
+        "aiImageBoard": "AI Board",
+        "flatten": "Flatten",
+        "upscale": "Upscale",
+        "reframe": "Reframe",
+        "bgRemove": "BG Remove"
+      }
     }
   },
   "keywords": {

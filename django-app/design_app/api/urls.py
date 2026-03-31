@@ -9,6 +9,7 @@ from design_app.api.views import (
     DesignBoardView,
     DesignDetailView,
     DesignDownloadView,
+    DesignListByIdsView,
     DesignListView,
     GenerateDesignView,
     PipelineDetailView,
@@ -21,6 +22,7 @@ from design_app.api.views import (
     ProjectDesignsView,
     ProjectDetailView,
     ProjectListCreateView,
+    ProjectUploadView,
     RunStatusView,
     StandaloneGenerateView,
 )
@@ -43,6 +45,12 @@ urlpatterns = [
         'ideas/<uuid:pk>/designs/generate/',
         GenerateDesignView.as_view(),
         name='design-generate',
+    ),
+    # Design list by IDs (query param: ?ids=uuid1,uuid2)
+    path(
+        'designs/',
+        DesignListByIdsView.as_view(),
+        name='design-list-by-ids',
     ),
     # Design detail: PATCH status, DELETE
     path(
@@ -136,6 +144,12 @@ urlpatterns = [
         'designs/projects/<uuid:pk>/board/',
         ProjectBoardView.as_view(),
         name='design-project-board',
+    ),
+    # Manual image upload to project
+    path(
+        'designs/projects/<uuid:project_id>/upload/',
+        ProjectUploadView.as_view(),
+        name='design-project-upload',
     ),
     # Product image analysis (PROJ-7 integration)
     path(

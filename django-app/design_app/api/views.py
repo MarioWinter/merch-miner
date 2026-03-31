@@ -25,12 +25,14 @@ from design_app.api.serializers import (
     DesignProjectSerializer,
     DesignSerializer,
     DesignStatusUpdateSerializer,
+    DesignUploadSerializer,
     GenerateDesignSerializer,
     ProcessingSettingsSerializer,
     ProductAnalyzeImageSerializer,
     StandaloneGenerateSerializer,
     UpdateProjectSerializer,
 )
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from design_app.models import (
     Design,
     DesignGenerationRun,
@@ -213,6 +215,37 @@ class DesignListView(APIView):
         page = paginator.paginate_queryset(designs, request)
         serializer = DesignSerializer(page, many=True)
         return paginator.get_paginated_response(serializer.data)
+
+
+# -- Design List by IDs --
+
+class DesignListByIdsView(APIView):
+    """GET /api/designs/?ids=uuid1,uuid2,... — fetch designs by comma-separated IDs."""
+
+    def get(self, request):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        ids_param = request.query_params.get('ids', '')
+        if not ids_param:
+            raise DRFValidationError({'ids': 'Query parameter "ids" is required.'})
+
+        id_list = [i.strip() for i in ids_param.split(',') if i.strip()]
+        if not id_list:
+            raise DRFValidationError({'ids': 'At least one design ID is required.'})
+        if len(id_list) > 100:
+            raise DRFValidationError({'ids': 'Maximum 100 IDs per request.'})
+
+        designs = (
+            Design.objects.filter(id__in=id_list, workspace_id=ws_id)
+            .select_related('generation_run', 'idea')
+            .prefetch_related('projects')
+            .order_by('-created_at')
+        )
+
+        serializer = DesignSerializer(designs, many=True)
+        return Response(serializer.data)
 
 
 # -- Generate Design --
@@ -964,4 +997,43 @@ class ProductAnalyzeImageView(APIView):
                 'product_id': str(product.id),
             },
             status=status.HTTP_202_ACCEPTED,
+        )
+
+
+# -- Manual Upload to Project (Artboard Canvas) --
+
+class ProjectUploadView(APIView):
+    """POST /api/designs/projects/{id}/upload/ — upload image, create Design + M2M link."""
+
+    def post(self, request, project_id):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        project = get_object_or_404(
+            DesignProject, pk=project_id, workspace_id=ws_id,
+        )
+
+        serializer = DesignUploadSerializer(data=request.data, files=request.FILES)
+        serializer.is_valid(raise_exception=True)
+
+        uploaded_file = serializer.validated_data['file']
+
+        # Create Design record
+        design = Design.objects.create(
+            workspace_id=ws_id,
+            image_file=uploaded_file,
+            status=Design.Status.APPROVED,
+            is_manual=True,
+        )
+
+        # Link to project via M2M
+        DesignProjectDesign.objects.create(
+            project=project,
+            design=design,
+        )
+
+        return Response(
+            DesignSerializer(design).data,
+            status=status.HTTP_201_CREATED,
         )
