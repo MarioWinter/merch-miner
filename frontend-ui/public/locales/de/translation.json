@@ -107,7 +107,9 @@
       "pipeline": "Pipeline",
       "drillingZone": "Bohrzone",
       "surfaceOps": "Oberfläche"
-    }
+    },
+    "designBoard": "Design Board",
+    "imageEditor": "Bildbearbeitung"
   },
   "invite": {
     "successTitle": "Du bist dem Workspace beigetreten!",
@@ -674,6 +676,12 @@
       "updateError": "Vorlage konnte nicht aktualisiert werden",
       "deleteSuccess": "Vorlage gelöscht",
       "deleteError": "Vorlage konnte nicht gelöscht werden"
+    },
+    "rejectWarning": {
+      "title": "Idee hat genehmigtes Design",
+      "body": "Diese Idee hat ein genehmigtes Design. Das Ablehnen der Idee löscht das Design nicht, aber es wird nicht mehr mit der Pipeline verknüpft sein. Fortfahren?",
+      "confirm": "Idee ablehnen",
+      "cancel": "Abbrechen"
     }
   },
   "design": {
@@ -703,7 +711,27 @@
         "color": "Farbpalette",
         "tech": "Technisch",
         "final_prompt": "Finaler Prompt"
-      }
+      },
+      "noImage": "Kein Bild verfuegbar",
+      "externalImage": "Externes Bild",
+      "openInEditor": "Im Editor oeffnen",
+      "referenceDetails": "Referenz-Details",
+      "designDetails": "Design-Details",
+      "nodeDetails": "Node-Details",
+      "visualStyle": "Visueller Stil",
+      "graphicElements": "Grafische Elemente",
+      "tone": "Tonfall",
+      "vibe": "Stimmung",
+      "zoomIn": "Vergroessern",
+      "zoomOut": "Verkleinern",
+      "fitView": "Ansicht anpassen",
+      "addHub": "Generierungs-Hub hinzufuegen",
+      "addImage": "Bild hinzufuegen",
+      "toggleMinimap": "Minimap umschalten",
+      "nodeCount": "{{count}} Nodes",
+      "nodeCount_one": "{{count}} Node",
+      "cancel": "Abbrechen",
+      "dropImages": "Bilder hier ablegen"
     },
     "model": {
       "label": "KI-Modell",
@@ -757,6 +785,121 @@
       "started": "Bildanalyse gestartet",
       "success": "Design analysiert - Prompt bereit",
       "error": "Bildanalyse fehlgeschlagen"
+    },
+    "editor": {
+      "title": "Bildbearbeitung",
+      "dropHint": "Bilder hier ablegen oder Dateien durchsuchen",
+      "browseFiles": "Dateien durchsuchen",
+      "batchCount": "{{current}} / {{total}}",
+      "batchCountLabel": "Bild {{current}} von {{total}}",
+      "deleteImage": "Bild entfernen",
+      "deleteAll": "Alle entfernen",
+      "previousImage": "Vorheriges Bild",
+      "nextImage": "Naechstes Bild",
+      "noImages": "Keine Bilder geladen",
+      "noImagesCta": "Bilder hierher ziehen oder auf Dateien durchsuchen klicken",
+      "processing": "Verarbeitung...",
+      "processAll": "Alle verarbeiten",
+      "exportCurrent": "Aktuelles exportieren",
+      "exportAll": "Alle exportieren (ZIP)",
+      "resetAll": "Alles zuruecksetzen",
+      "removeAll": "Alle Tools entfernen",
+      "loadError": "Designs konnten nicht geladen werden",
+      "canvasToolbar": "Canvas-Werkzeuge"
+    },
+    "pipeline": {
+      "title": "Pipeline",
+      "addTool": "Tool hinzufuegen",
+      "collapse": "Pipeline einklappen",
+      "expand": "Pipeline ausklappen",
+      "activePipeline": "Aktive Pipeline",
+      "availableTools": "Verfuegbare Tools",
+      "presets": "Vorlagen",
+      "savePreset": "Vorlage speichern",
+      "loadPreset": "Vorlage laden",
+      "deletePreset": "Vorlage loeschen",
+      "presetName": "Vorlagenname",
+      "presetSaved": "Pipeline-Vorlage gespeichert",
+      "presetDeleted": "Pipeline-Vorlage geloescht",
+      "presetSaveError": "Vorlage konnte nicht gespeichert werden",
+      "presetDeleteError": "Vorlage konnte nicht geloescht werden",
+      "noPresets": "Keine gespeicherten Vorlagen",
+      "noTools": "Keine Tools in der Pipeline",
+      "noToolsCta": "Klicke auf ein Tool, um es zur Pipeline hinzuzufuegen",
+      "removeTool": "Tool entfernen",
+      "toggleTool": "Tool umschalten",
+      "dragToReorder": "Zum Sortieren ziehen",
+      "categories": {
+        "standard": "Standard",
+        "edge": "Kantenbereinigung",
+        "ai": "KI-Verarbeitung",
+        "quality": "Qualitaet"
+      }
+    },
+    "tools": {
+      "resize": "Groesse aendern",
+      "trim": "Zuschneiden",
+      "rotate": "Drehen",
+      "filters": "Filter",
+      "distress": "Distress",
+      "colorRemoval": "Farbentfernung",
+      "speckleRemover": "Fleckenentferner",
+      "transparencyCleaner": "Transp.-Reiniger",
+      "watermark": "Wasserzeichen",
+      "defringe": "Defringe",
+      "shrink": "Schrumpfen",
+      "colorDefringe": "Farb-Defringe",
+      "edgeCleaner": "Kantenreiniger",
+      "bgRemove": "HG entfernen",
+      "aiUpscale": "KI-Hochskalierung",
+      "transparencyHighlighter": "Transp.-Hervorhebung",
+      "compressor": "Kompressor",
+      "move": "Verschieben",
+      "eraser": "Radierer",
+      "wand": "Zauberstab"
+    },
+    "export": {
+      "title": "Export",
+      "format": "Format",
+      "dpi": "DPI",
+      "compression": "Komprimierung",
+      "compressionHint": "Niedriger = kleinere Datei, hoeher = bessere Qualitaet",
+      "estimatedSize": "Gesch. Groesse: {{size}}",
+      "downloadCurrent": "Aktuelles herunterladen",
+      "downloadAll": "Alle herunterladen (ZIP)",
+      "overwrite": "Original ueberschreiben",
+      "newVersion": "Neue Version erstellen"
+    },
+    "projects": {
+      "title": "Design Forge",
+      "createButton": "Neues Projekt",
+      "createSuccess": "Projekt erstellt",
+      "createError": "Projekt konnte nicht erstellt werden",
+      "loadError": "Projekte konnten nicht geladen werden",
+      "emptyTitle": "Noch keine Projekte",
+      "emptyCta": "Erstelle dein erstes Designprojekt, um loszulegen",
+      "openProject": "Projekt oeffnen",
+      "designCount": "{{count}} Designs",
+      "designCount_one": "{{count}} Design",
+      "createDialog": {
+        "title": "Designprojekt erstellen",
+        "nameLabel": "Projektname",
+        "namePlaceholder": "z.B. Sommerkollektion 2026",
+        "nicheLabel": "Mit Nische verknuepfen (optional)",
+        "nichePlaceholder": "Nische auswaehlen...",
+        "confirm": "Erstellen",
+        "cancel": "Abbrechen"
+      },
+      "namingDialog": {
+        "title": "Projekt benennen",
+        "nicheOption": "Nach Nische benennen",
+        "sloganOption": "Nach Slogan benennen",
+        "customOption": "Eigenen Namen eingeben",
+        "existingProjectOption": "Zu bestehendem Projekt hinzufuegen",
+        "placeholder": "Projektname eingeben...",
+        "confirm": "Projekt erstellen",
+        "cancel": "Abbrechen"
+      }
     }
   },
   "keywords": {

@@ -6,7 +6,10 @@ import {
   useDeleteDesignMutation,
 } from '../../../../store/designSlice';
 
-export const useDesignActions = (ideaId: string) => {
+/**
+ * Approve/reject/delete design actions, scoped to a project for cache invalidation.
+ */
+export const useDesignActions = (projectId: string) => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
   const [updateStatus] = useUpdateDesignStatusMutation();
@@ -18,14 +21,14 @@ export const useDesignActions = (ideaId: string) => {
         await updateStatus({
           designId,
           body: { status: 'approved' },
-          ideaId,
+          projectId,
         }).unwrap();
         enqueueSnackbar(t('design.gallery.approved'), { variant: 'success' });
       } catch {
         enqueueSnackbar(t('design.gallery.approveError'), { variant: 'error' });
       }
     },
-    [updateStatus, ideaId, enqueueSnackbar, t],
+    [updateStatus, projectId, enqueueSnackbar, t],
   );
 
   const reject = useCallback(
@@ -34,26 +37,26 @@ export const useDesignActions = (ideaId: string) => {
         await updateStatus({
           designId,
           body: { status: 'rejected' },
-          ideaId,
+          projectId,
         }).unwrap();
         enqueueSnackbar(t('design.gallery.rejected'), { variant: 'success' });
       } catch {
         enqueueSnackbar(t('design.gallery.rejectError'), { variant: 'error' });
       }
     },
-    [updateStatus, ideaId, enqueueSnackbar, t],
+    [updateStatus, projectId, enqueueSnackbar, t],
   );
 
   const remove = useCallback(
     async (designId: string) => {
       try {
-        await deleteDesign({ designId, ideaId }).unwrap();
+        await deleteDesign({ designId, projectId }).unwrap();
         enqueueSnackbar(t('design.gallery.deleted'), { variant: 'success' });
       } catch {
         enqueueSnackbar(t('design.gallery.deleteError'), { variant: 'error' });
       }
     },
-    [deleteDesign, ideaId, enqueueSnackbar, t],
+    [deleteDesign, projectId, enqueueSnackbar, t],
   );
 
   return { approve, reject, remove };

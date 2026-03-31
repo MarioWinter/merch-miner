@@ -107,7 +107,9 @@
       "pipeline": "Pipeline",
       "drillingZone": "Drilling Zone",
       "surfaceOps": "Surface Ops"
-    }
+    },
+    "designBoard": "Design Board",
+    "imageEditor": "Image Editor"
   },
   "invite": {
     "successTitle": "You've joined the workspace!",
@@ -674,6 +676,12 @@
       "updateError": "Failed to update template",
       "deleteSuccess": "Template deleted",
       "deleteError": "Failed to delete template"
+    },
+    "rejectWarning": {
+      "title": "Idea Has Approved Design",
+      "body": "This idea has an approved design. Rejecting the idea will not delete the design, but it will no longer be linked to the pipeline. Continue?",
+      "confirm": "Reject Idea",
+      "cancel": "Cancel"
     }
   },
   "design": {
@@ -703,7 +711,27 @@
         "color": "Color Palette",
         "tech": "Technical",
         "final_prompt": "Final Prompt"
-      }
+      },
+      "noImage": "No image available",
+      "externalImage": "External image",
+      "openInEditor": "Open in Editor",
+      "referenceDetails": "Reference Details",
+      "designDetails": "Design Details",
+      "nodeDetails": "Node Details",
+      "visualStyle": "Visual Style",
+      "graphicElements": "Graphic Elements",
+      "tone": "Tone",
+      "vibe": "Vibe",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "fitView": "Fit to view",
+      "addHub": "Add Generate Hub",
+      "addImage": "Add image",
+      "toggleMinimap": "Toggle minimap",
+      "nodeCount": "{{count}} nodes",
+      "nodeCount_one": "{{count}} node",
+      "cancel": "Cancel",
+      "dropImages": "Drop images here"
     },
     "model": {
       "label": "AI Model",
@@ -750,13 +778,159 @@
       "triggerError": "Failed to start batch processing",
       "jobFailed": "{{type}} failed",
       "upscale": "Upscale",
-      "bg_remove": "BG Remove"
+      "bg_remove": "BG Remove",
+      "failure": "Batch processing failed",
+      "jobCompleted": "Processing job completed"
     },
     "analyze": {
-      "button": "Analyze Image",
+      "button": "Analyze Design",
       "started": "Image analysis started",
-      "success": "Design analyzed - prompt ready",
-      "error": "Failed to analyze image"
+      "success": "Design analyzed - prompt ready for Design Board",
+      "error": "Failed to analyze image",
+      "reused": "Analysis ready"
+    },
+    "editor": {
+      "title": "Image Editor",
+      "dropHint": "Drop images here or browse to add files",
+      "browseFiles": "Browse Files",
+      "batchCount": "{{current}} / {{total}}",
+      "batchCountLabel": "Image {{current}} of {{total}}",
+      "deleteImage": "Remove image",
+      "deleteAll": "Remove all",
+      "previousImage": "Previous image",
+      "nextImage": "Next image",
+      "noImages": "No images loaded",
+      "noImagesCta": "Drag and drop images here or click Browse Files to get started",
+      "processing": "Processing...",
+      "processAll": "Process All",
+      "exportCurrent": "Export Current",
+      "exportAll": "Export All (ZIP)",
+      "resetAll": "Reset All",
+      "removeAll": "Remove All Tools",
+      "loadError": "Failed to load designs",
+      "canvasToolbar": "Canvas tools"
+    },
+    "pipeline": {
+      "title": "Pipeline",
+      "addTool": "Add Tool",
+      "collapse": "Collapse pipeline",
+      "expand": "Expand pipeline",
+      "activePipeline": "Active Pipeline",
+      "availableTools": "Available Tools",
+      "presets": "Presets",
+      "savePreset": "Save Preset",
+      "loadPreset": "Load Preset",
+      "deletePreset": "Delete Preset",
+      "presetName": "Preset Name",
+      "presetSaved": "Pipeline preset saved",
+      "presetDeleted": "Pipeline preset deleted",
+      "presetSaveError": "Failed to save preset",
+      "presetDeleteError": "Failed to delete preset",
+      "noPresets": "No saved presets",
+      "noTools": "No tools in pipeline",
+      "noToolsCta": "Click a tool above to add it to the pipeline",
+      "removeTool": "Remove tool",
+      "toggleTool": "Toggle tool",
+      "dragToReorder": "Drag to reorder",
+      "categories": {
+        "standard": "Standard",
+        "edge": "Edge Cleanup",
+        "ai": "AI Processing",
+        "quality": "Quality"
+      }
+    },
+    "tools": {
+      "resize": "Resize",
+      "trim": "Trim",
+      "rotate": "Rotate",
+      "filters": "Filters",
+      "distress": "Distress",
+      "colorRemoval": "Color Removal",
+      "speckleRemover": "Speckle Remover",
+      "transparencyCleaner": "Transp. Cleaner",
+      "watermark": "Watermark",
+      "defringe": "Defringe",
+      "shrink": "Shrink",
+      "colorDefringe": "Color Defringe",
+      "edgeCleaner": "Edge Cleaner",
+      "bgRemove": "BG Remove",
+      "aiUpscale": "AI Upscale",
+      "transparencyHighlighter": "Transp. Highlighter",
+      "compressor": "Compressor",
+      "move": "Move",
+      "eraser": "Eraser",
+      "wand": "Magic Wand"
+    },
+    "export": {
+      "title": "Export",
+      "format": "Format",
+      "dpi": "DPI",
+      "compression": "Compression",
+      "compressionHint": "Lower = smaller file, higher = better quality",
+      "estimatedSize": "Est. size: {{size}}",
+      "downloadCurrent": "Download Current",
+      "downloadAll": "Download All (ZIP)",
+      "overwrite": "Overwrite original",
+      "newVersion": "Create new version"
+    },
+    "projects": {
+      "title": "Design Forge",
+      "createButton": "New Project",
+      "createSuccess": "Project created",
+      "createError": "Failed to create project",
+      "loadError": "Failed to load projects",
+      "emptyTitle": "No projects yet",
+      "emptyCta": "Create your first design project to get started",
+      "openProject": "Open project",
+      "designCount": "{{count}} designs",
+      "designCount_one": "{{count}} design",
+      "createDialog": {
+        "title": "Create Design Project",
+        "nameLabel": "Project Name",
+        "namePlaceholder": "e.g. Summer Collection 2026",
+        "nicheLabel": "Link to Niche (optional)",
+        "nichePlaceholder": "Select a niche...",
+        "confirm": "Create",
+        "cancel": "Cancel"
+      },
+      "namingDialog": {
+        "title": "Name Your Project",
+        "nicheOption": "Name after niche",
+        "sloganOption": "Name after slogan",
+        "customOption": "Enter custom name",
+        "existingProjectOption": "Add to existing project",
+        "placeholder": "Enter project name...",
+        "confirm": "Create Project",
+        "cancel": "Cancel"
+      },
+      "nicheBinding": {
+        "label": "Linked Niche",
+        "placeholder": "Select a niche...",
+        "none": "No niche linked",
+        "linked": "Linked to {{niche}}",
+        "unlink": "Unlink niche",
+        "linkSuccess": "Niche linked to project",
+        "unlinkSuccess": "Niche unlinked from project",
+        "linkError": "Failed to update niche binding"
+      },
+      "drawerSection": {
+        "title": "Design Projects",
+        "emptyTitle": "No design projects linked",
+        "emptyCta": "Link a project from the Design Board",
+        "openBoard": "Open Board",
+        "designCount": "{{count}} designs",
+        "designCount_one": "{{count}} design"
+      }
+    },
+    "workspace": {
+      "loadError": "Failed to load project",
+      "backToGallery": "Back to Gallery",
+      "untitled": "Untitled Project",
+      "tabCanvas": "Artboard Canvas",
+      "tabEditor": "Image Editor",
+      "settings": "Project Settings",
+      "canvasComingSoon": "Artboard Canvas coming soon",
+      "canvasDescription": "The Konva.js-powered artboard will replace the old React Flow board."
     }
   },
   "keywords": {

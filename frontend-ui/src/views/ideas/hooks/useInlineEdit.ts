@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { useSnackbar } from 'notistack';
 import { useTranslation } from 'react-i18next';
 import { useUpdateIdeaMutation } from '@/store/ideaSlice';
-import type { IdeaUpdateBody } from '../types';
+import type { IdeaStatus, IdeaUpdateBody } from '../types';
 
 export type IdeaEditableColumn = 'slogan_text' | 'niche';
 
@@ -18,7 +18,7 @@ export interface UseIdeaInlineEditReturn {
   deactivateCell: () => void;
   saveSloganText: (ideaId: string, value: string) => Promise<void>;
   saveNiche: (ideaId: string, nicheId: string | null) => Promise<void>;
-  saveStatus: (ideaId: string, status: string) => Promise<void>;
+  saveStatus: (ideaId: string, status: IdeaStatus) => Promise<void>;
 }
 
 export const useIdeaInlineEdit = (): UseIdeaInlineEditReturn => {
@@ -65,7 +65,7 @@ export const useIdeaInlineEdit = (): UseIdeaInlineEditReturn => {
   );
 
   const saveStatus = useCallback(
-    async (ideaId: string, status: string) => {
+    async (ideaId: string, status: IdeaStatus) => {
       await save(ideaId, { status });
     },
     [save],

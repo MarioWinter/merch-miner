@@ -27,6 +27,7 @@ BACKGROUND
   paper           #0B2731   Cards, panels, sidebars
   elevated        #0F3040   Hover surfaces, dropdowns
   sunken          #051820   Input fills, code blocks
+  artboard        #1A1A2E   Design Board zoom canvas (warmer than page bg)
 
 SURFACE OVERLAYS (glassmorphism)
   glass-sm        rgba(11,39,49, 0.60) + blur(8px)
@@ -95,6 +96,7 @@ BACKGROUND
   paper           #FFFFFF   Cards, panels
   elevated        #F7FBFC   Hover surfaces
   sunken          #E8F0F3   Input fills
+  artboard        #E8E8E8   Design Board zoom canvas (neutral gray)
 
 SURFACE OVERLAYS
   glass-sm        rgba(255,255,255, 0.70) + blur(8px)

@@ -23,7 +23,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { labelKey: 'nav.niches', path: '/niches', iconName: 'ListAltOutlined' },
       { labelKey: 'nav.research', path: '/research', iconName: 'SearchOutlined' },
       { labelKey: 'nav.slogans', path: '/slogans', iconName: 'LightbulbOutlined' },
-      { labelKey: 'nav.designs', path: '/designs', iconName: 'BrushOutlined' },
+      { labelKey: 'nav.designBoard', path: '/designs', iconName: 'BrushOutlined' },
       { labelKey: 'nav.listings', path: '/listings', iconName: 'ArticleOutlined' },
     ],
   },

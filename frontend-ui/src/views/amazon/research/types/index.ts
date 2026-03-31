@@ -13,6 +13,7 @@ import ScheduleIcon from '@mui/icons-material/Schedule';
 import type { SvgIconProps } from '@mui/material/SvgIcon';
 
 export interface AmazonProduct {
+  id: string;
   asin: string;
   title: string;
   brand: string;
@@ -30,6 +31,7 @@ export interface AmazonProduct {
   description: string;
   marketplace: string;
   scraped_at: string;
+  prompt_analysis?: Record<string, unknown> | null;
 }
 
 export type ProductSearchStatus = 'pending' | 'running' | 'completed' | 'failed' | 'cancelled';

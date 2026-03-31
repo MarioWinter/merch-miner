@@ -172,6 +172,7 @@ describe('AmazonResearchView', () => {
         count: 1,
         results: [
           {
+            id: 'prod-001',
             asin: 'B09TEST001',
             title: 'Test Product',
             brand: 'TestBrand',

@@ -10,23 +10,34 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from django.db.models import Count
+
 from design_app.api.serializers import (
+    AddDesignsToProjectSerializer,
     AnalyzeImageSerializer,
     ApplyPipelineSerializer,
     BatchProcessSerializer,
+    CreateProjectSerializer,
     DesignPipelineSerializer,
     DesignProcessingJobSerializer,
     DesignGenerationRunSerializer,
+    DesignProjectListSerializer,
+    DesignProjectSerializer,
     DesignSerializer,
     DesignStatusUpdateSerializer,
     GenerateDesignSerializer,
     ProcessingSettingsSerializer,
+    ProductAnalyzeImageSerializer,
+    StandaloneGenerateSerializer,
+    UpdateProjectSerializer,
 )
 from design_app.models import (
     Design,
     DesignGenerationRun,
     DesignPipeline,
     DesignProcessingJob,
+    DesignProject,
+    DesignProjectDesign,
     ProcessingSettings,
 )
 from design_app.tasks import (
@@ -42,7 +53,21 @@ logger = logging.getLogger(__name__)
 # -- Helpers --
 
 def _get_workspace_id(request):
-    return request.headers.get('X-Workspace-Id')
+    """Resolve workspace from X-Workspace-Id header or user's active membership."""
+    ws_id = request.headers.get('X-Workspace-Id')
+    if ws_id:
+        return ws_id
+    # Fallback: use user's first active membership
+    from workspace_app.models import Membership
+    membership = (
+        Membership.objects
+        .filter(user=request.user, status=Membership.Status.ACTIVE)
+        .select_related('workspace')
+        .first()
+    )
+    if membership:
+        return str(membership.workspace_id)
+    return None
 
 
 def _require_workspace(request):
@@ -54,7 +79,7 @@ def _require_workspace(request):
 
 def _ws_error():
     return Response(
-        {'error': 'X-Workspace-Id header required'},
+        {'error': 'Workspace not found. Ensure active membership or send X-Workspace-Id header.'},
         status=status.HTTP_400_BAD_REQUEST,
     )
 
@@ -95,6 +120,7 @@ class DesignBoardView(APIView):
             'idea_id': str(idea.id),
             'slogan_text': idea.slogan_text,
             'niche_name': idea.niche.name if idea.niche else None,
+            'board_layout': idea.board_layout,
             'reference_products': reference_products,
             'designs': DesignSerializer(designs, many=True).data,
         }
@@ -214,9 +240,20 @@ class GenerateDesignView(APIView):
             prompt_used=serializer.validated_data['prompt'],
         )
 
+        # Resolve optional project_id
+        project_id_str = None
+        project_id = serializer.validated_data.get('project_id')
+        if project_id:
+            project = get_object_or_404(
+                DesignProject, pk=project_id, workspace_id=ws_id,
+            )
+            project_id_str = str(project.id)
+
         # Enqueue to design worker
         queue = django_rq.get_queue('design')
-        job = queue.enqueue(task_generate_design, str(run.id))
+        job = queue.enqueue(
+            task_generate_design, str(run.id), project_id_str,
+        )
         run.rq_job_id = job.id
         run.save(update_fields=['rq_job_id'])
 
@@ -251,7 +288,8 @@ class DesignDetailView(APIView):
         new_status = serializer.validated_data['status']
 
         # Auto-reject previous approved design when approving new one
-        if new_status == 'approved':
+        # Only within same idea scope (skip if no idea — standalone designs)
+        if new_status == 'approved' and design.idea is not None:
             Design.objects.filter(
                 idea=design.idea,
                 workspace_id=ws_id,
@@ -590,3 +628,340 @@ class ApplyPipelineView(APIView):
             'server_jobs': DesignProcessingJobSerializer(server_jobs, many=True).data,
             'client_steps': client_steps,
         })
+
+
+# -- Design Project CRUD (C1.2) --
+
+class ProjectListCreateView(APIView):
+    """GET /api/designs/projects/ — list projects. POST — create."""
+
+    def get(self, request):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        projects = (
+            DesignProject.objects.filter(workspace_id=ws_id)
+            .select_related('niche')
+            .annotate(design_count_annotated=Count('designs'))
+            .order_by('-updated_at')
+        )
+
+        paginator = DesignPagination()
+        page = paginator.paginate_queryset(projects, request)
+        serializer = DesignProjectListSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
+    def post(self, request):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        serializer = CreateProjectSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        niche_id = serializer.validated_data.get('niche')
+        niche = None
+        if niche_id:
+            from niche_app.models import Niche
+            niche = get_object_or_404(Niche, pk=niche_id, workspace_id=ws_id)
+
+        project = DesignProject.objects.create(
+            workspace_id=ws_id,
+            name=serializer.validated_data['name'],
+            niche=niche,
+            created_by=request.user,
+        )
+
+        return Response(
+            DesignProjectSerializer(project).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ProjectDetailView(APIView):
+    """GET/PATCH/DELETE /api/designs/projects/{id}/"""
+
+    def get(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        project = get_object_or_404(
+            DesignProject.objects.select_related('niche')
+            .annotate(design_count_annotated=Count('designs')),
+            pk=pk,
+            workspace_id=ws_id,
+        )
+
+        return Response(DesignProjectSerializer(project).data)
+
+    def patch(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        project = get_object_or_404(
+            DesignProject, pk=pk, workspace_id=ws_id,
+        )
+
+        serializer = UpdateProjectSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        if 'name' in serializer.validated_data:
+            project.name = serializer.validated_data['name']
+
+        if 'niche' in serializer.validated_data:
+            niche_id = serializer.validated_data['niche']
+            if niche_id:
+                from niche_app.models import Niche
+                niche = get_object_or_404(Niche, pk=niche_id, workspace_id=ws_id)
+                project.niche = niche
+            else:
+                project.niche = None
+
+        if 'board_layout' in serializer.validated_data:
+            project.board_layout = serializer.validated_data['board_layout']
+
+        project.save()
+
+        return Response(DesignProjectSerializer(project).data)
+
+    def delete(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        project = get_object_or_404(
+            DesignProject, pk=pk, workspace_id=ws_id,
+        )
+        # M2M unlinked automatically, designs NOT deleted
+        project.delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# -- Project <-> Design M2M (C1.3) --
+
+class ProjectDesignsView(APIView):
+    """POST /api/designs/projects/{id}/designs/ — add designs to project."""
+
+    def post(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        project = get_object_or_404(
+            DesignProject, pk=pk, workspace_id=ws_id,
+        )
+
+        serializer = AddDesignsToProjectSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        design_ids = serializer.validated_data['design_ids']
+
+        # Validate all designs belong to workspace
+        designs = Design.objects.filter(
+            id__in=design_ids, workspace_id=ws_id,
+        )
+        if designs.count() != len(design_ids):
+            return Response(
+                {'error': 'Some designs not found in workspace'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Create M2M links, ignoring duplicates
+        created = 0
+        for design in designs:
+            _, was_created = DesignProjectDesign.objects.get_or_create(
+                project=project, design=design,
+            )
+            if was_created:
+                created += 1
+
+        return Response(
+            {'added': created, 'total': project.designs.count()},
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ProjectDesignRemoveView(APIView):
+    """DELETE /api/designs/projects/{id}/designs/{design_id}/ — remove."""
+
+    def delete(self, request, pk, design_id):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        project = get_object_or_404(
+            DesignProject, pk=pk, workspace_id=ws_id,
+        )
+
+        link = get_object_or_404(
+            DesignProjectDesign, project=project, design_id=design_id,
+        )
+        link.delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ProjectBoardView(APIView):
+    """GET /api/designs/projects/{id}/board/ — board context."""
+
+    def get(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        project = get_object_or_404(
+            DesignProject.objects.select_related('niche')
+            .annotate(design_count_annotated=Count('designs')),
+            pk=pk,
+            workspace_id=ws_id,
+        )
+
+        # Get project designs
+        designs = (
+            Design.objects.filter(
+                design_projects_through__project=project,
+            )
+            .select_related('generation_run', 'idea')
+            .prefetch_related('projects')
+            .order_by('-created_at')
+        )
+
+        # Optional idea context overlay
+        idea_context = None
+        idea_id = request.query_params.get('ideaId')
+        if idea_id:
+            from idea_app.models import Idea
+            try:
+                idea = Idea.objects.select_related('niche').get(
+                    pk=idea_id, workspace_id=ws_id,
+                )
+                reference_products = _get_reference_products(idea)
+                idea_context = {
+                    'idea_id': str(idea.id),
+                    'slogan_text': idea.slogan_text,
+                    'niche_name': idea.niche.name if idea.niche else None,
+                    'reference_products': reference_products,
+                }
+            except Idea.DoesNotExist:
+                pass
+
+        data = {
+            'project': DesignProjectSerializer(project).data,
+            'designs': DesignSerializer(designs, many=True).data,
+            'board_layout': project.board_layout,
+            'idea_context': idea_context,
+        }
+
+        return Response(data)
+
+
+# -- Standalone Generate (C1.4) --
+
+class StandaloneGenerateView(APIView):
+    """POST /api/designs/generate/ — generate with project_id + optional idea_id."""
+
+    def post(self, request):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        serializer = StandaloneGenerateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        project_id = serializer.validated_data.get('project_id')
+        idea_id = serializer.validated_data.get('idea_id')
+
+        # Resolve or auto-create project
+        if project_id:
+            project = get_object_or_404(
+                DesignProject, pk=project_id, workspace_id=ws_id,
+            )
+        else:
+            # Auto-create default project if none exists
+            project, _ = DesignProject.objects.get_or_create(
+                workspace_id=ws_id,
+                name='My Designs',
+                defaults={'created_by': request.user},
+            )
+
+        # Resolve optional idea
+        idea = None
+        if idea_id:
+            from idea_app.models import Idea
+            idea = get_object_or_404(Idea, pk=idea_id, workspace_id=ws_id)
+
+        # Create generation run
+        run = DesignGenerationRun.objects.create(
+            idea=idea,
+            model_name=serializer.validated_data['model'],
+            status=DesignGenerationRun.Status.PENDING,
+            triggered_by=request.user,
+            prompt_used=serializer.validated_data['prompt'],
+        )
+
+        # Enqueue to design worker
+        queue = django_rq.get_queue('design')
+        job = queue.enqueue(
+            task_generate_design,
+            str(run.id),
+            str(project.id),  # Pass project_id for auto-linking
+        )
+        run.rq_job_id = job.id
+        run.save(update_fields=['rq_job_id'])
+
+        return Response(
+            {
+                **DesignGenerationRunSerializer(run).data,
+                'project_id': str(project.id),
+            },
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+
+# -- Product Image Analysis (C1.5) --
+
+class ProductAnalyzeImageView(APIView):
+    """POST /api/products/{product_id}/analyze-image/ — analyze Amazon product image."""
+
+    def post(self, request, product_id):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        from scraper_app.models import AmazonProduct
+        product = get_object_or_404(AmazonProduct, pk=product_id)
+
+        serializer = ProductAnalyzeImageSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        source_url = serializer.validated_data['source_image_url']
+
+        # Reuse check: if prompt_analysis already populated, return immediately
+        if product.prompt_analysis:
+            return Response({
+                'status': 'reused',
+                'product_id': str(product.id),
+                'prompt_analysis': product.prompt_analysis,
+            })
+
+        # Enqueue analysis job
+        from design_app.tasks import task_analyze_product_image
+        queue = django_rq.get_queue('design')
+        job = queue.enqueue(
+            task_analyze_product_image,
+            str(product.id),
+            source_url,
+        )
+
+        return Response(
+            {
+                'status': 'pending',
+                'job_id': job.id,
+                'product_id': str(product.id),
+            },
+            status=status.HTTP_202_ACCEPTED,
+        )

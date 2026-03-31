@@ -11,14 +11,17 @@ import {
   Typography,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
+import BrushOutlinedIcon from '@mui/icons-material/BrushOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import ArticleIcon from '@mui/icons-material/Article';
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import { useSnackbar } from 'notistack';
 import { useTranslation } from 'react-i18next';
 import { useUseAsTemplateMutation } from '../../../../store/researchSlice';
 import { MARKETPLACE_OPTIONS } from '../types';
 import useProductDetail from './hooks/useProductDetail';
+import useAnalyzeDesign from '../hooks/useAnalyzeDesign';
 import KPIRow from './partials/KPIRow';
 import ProductInfoSection from './partials/ProductInfoSection';
 import PriceHistorySection from './partials/PriceHistorySection';
@@ -37,6 +40,7 @@ const ProductDetailPage = () => {
   const { t } = useTranslation();
   const [triggerUseAsTemplate, { isLoading: templateLoading }] =
     useUseAsTemplateMutation();
+  const { analyzeDesign, isAnalyzing, analyzingProductId } = useAnalyzeDesign();
 
   const {
     product,
@@ -62,6 +66,11 @@ const ProductDetailPage = () => {
       variant: 'warning',
     });
   }, [asin, enqueueSnackbar, t, triggerUseAsTemplate]);
+
+  const handleAnalyzeDesign = useCallback(() => {
+    if (!product) return;
+    analyzeDesign(product.id, product.thumbnail_url);
+  }, [product, analyzeDesign]);
 
   const handleOpenAmazon = useCallback(() => {
     if (!product) return;
@@ -184,6 +193,25 @@ const ProductDetailPage = () => {
           disabled={templateLoading}
         >
           {t('amazonResearch.detail.useAsTemplate')}
+        </Button>
+        <Button
+          variant="contained"
+          color="secondary"
+          startIcon={
+            product.prompt_analysis ? (
+              <CheckCircleOutlineIcon sx={{ fontSize: 18 }} />
+            ) : (
+              <BrushOutlinedIcon sx={{ fontSize: 18 }} />
+            )
+          }
+          onClick={handleAnalyzeDesign}
+          disabled={isAnalyzing && analyzingProductId === product.id}
+        >
+          {product.prompt_analysis
+            ? t('design.analyze.reused')
+            : isAnalyzing && analyzingProductId === product.id
+              ? t('design.analyze.started')
+              : t('design.analyze.button')}
         </Button>
         <Button
           variant="outlined"

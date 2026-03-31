@@ -1,28 +1,48 @@
 # PROJ-9: Design Generation (OpenRouter)
 
-**Status:** Planned
+**Status:** In Review
 **Priority:** P0 (MVP)
 **Created:** 2026-02-27
 
 ## Overview
 
-Board-based design creation experience for approved ideas. Three input modes:
+**Project-based** AI design creation board + post-processing editor. Designs are organized into **Projects** (Kittl-style folders). The Design Board works independently — no idea, niche, or slogan required. Users can create projects, generate designs from scratch, and optionally link projects to niches.
 
-- **From idea** — auto-loads slogan + reference product images from niche research; constructs prompt using the 7-step "Gemini 3 Architect" analysis of reference images plus idea DB fields (`visual_style`, `vibe`, `graphic_elements`, `tone`).
-- **From image** — user uploads or selects a reference image; system runs image analysis → generates structured prompt → user reviews/edits → generates.
-- **From prompt** — user writes prompt manually on the board.
+**Three input modes:**
 
-The board is a dedicated full-page route (`/design-board/:ideaId`) with reference images, prompt editor, model selector, background color picker, and a generated design gallery — all visible side by side. Users can jump directly from the idea list card to the board, which pre-loads with the idea's context.
+- **From prompt (standalone)** — user creates a new project, writes a prompt manually, selects model + background color, generates. No idea or niche context needed.
+- **From idea (context-loaded)** — user navigates from an approved idea; a naming dialog asks whether to create a new project (named after niche/slogan/custom) or assign to an existing project. Board opens with idea context pre-loaded.
+- **From image** — user uploads or drags a reference image onto the board; system runs image analysis → generates structured prompt → user reviews/edits → generates.
 
-After generation, approved designs can be batch-processed: upscaled to 3000×3000px and background-removed, ready for MBA upload.
+**Entry points:**
+- `/designs` — Project Gallery (overview of all projects in workspace)
+- `/designs/:projectId` — Design Workspace: unified view with two tab-modes
+- `/designs/:projectId?ideaId=xxx` — Opens with idea context pre-loaded
+
+The sidebar "Design Board" link goes to `/designs` (Project Gallery). When opening from niche/idea context, the workspace opens directly after the project naming dialog.
+
+**Unified Design Workspace (two tab-modes, one page):**
+- **Tab 1: Artboard Canvas** — Designs as freely movable artboards, AI generation, connections, right panel with tools/properties
+- **Tab 2: Image Editor** — Pipeline bar, batch processing, pixel-level tools (Konva.js), export controls
+- Both tabs are **fully independent** — no dependencies between them. Only context is shared (selected images transfer as batch input)
+- Multi-select artboards on Canvas → switch to Editor tab → selected images pre-loaded as batch
+- Tab switch via prominent, visually polished toggle buttons (not generic MUI Tabs)
+- Each tab works standalone — Editor can be used without ever touching the Canvas, and vice versa
+
+**Project model:**
+- `DesignProject`: UUID pk, workspace FK, name, niche FK (nullable — optional binding), board_layout JSONField, created_at
+- Design ↔ Project: **M2M relationship** (a design can belong to multiple projects, a project can have many designs)
+- Default project auto-created on first design generation if none exists (user can rename)
+
+After generation, approved designs can be batch-processed: upscaled to 4500×5400px at 300 DPI and background-removed, ready for MBA upload.
 
 **SECURITY NOTE:** OpenRouter API key is currently visible in n8n workflow JSON committed to git. Key MUST be rotated and moved to env var `OPENROUTER_API_KEY` before development begins.
 
 ---
 
-## Source Data Available (from n8n DB Schema)
+## Source Data Available (from Niche Research — LangGraph / Django ORM)
 
-Every `NicheResearchProduct` row written by n8n contains rich design-relevant fields available when constructing the board context:
+Every `NicheResearchProduct` row written by the LangGraph research workflow contains rich design-relevant fields available when constructing the board context:
 
 | Field | Description |
 |-------|-------------|
@@ -46,9 +66,17 @@ These fields are read when a user opens `/design-board/:ideaId` and are used to 
 
 ## User Stories
 
+### Design Projects
+1a. As a member, I want a Project Gallery overview so I can see all my design projects, create new ones, and open existing ones.
+1b. As a member, I want to create a new project from scratch (empty canvas, manual prompt + upload) so I can generate designs without needing a niche or idea.
+1c. As a member, I want to open a project and see its Design Board canvas with all designs belonging to that project.
+1d. As a member, I want to assign a design to multiple projects so I can organize designs flexibly (no limit).
+1e. As a member, I want to optionally link a project to a niche so related designs are visible in the niche drawer, but this binding is independent from the board itself.
+1f. As a member, I want a default project auto-created when I generate my first design without selecting a project, so I don't have to set up a project first. I can rename it later.
+
 ### Design Generation
 1. As a member, I want a board/canvas view to create designs, so I can see reference images, prompts, and results side by side.
-2. As a member, I want to jump from an approved idea directly to the design board pre-loaded with that idea's slogan + reference images.
+2. As a member, I want to jump from an approved idea directly to the design board, with a naming dialog asking me to create a new project (named after niche/slogan/custom) or assign to an existing project.
 3. As a member, I want the system to auto-analyze reference images using the Gemini 3 Architect pipeline, so a high-quality prompt is generated without me writing one from scratch. If PROJ-7 "Analyze Design" was already run on this product, reuse that analysis instead of re-running.
 4. As a member, I want to choose the background color (light gray / neon pink / neon green) for the generated design, so background removal works cleanly later.
 5. As a member, I want to click "Generate Design" on an approved idea, so AI creates a T-shirt graphic based on the slogan.
@@ -93,9 +121,219 @@ These fields are read when a user opens `/design-board/:ideaId` and are used to 
 30. As a member, I want to position designs with Align-to-Top and configurable padding (default: 1 inch top/sides), so placement is consistent across my catalog.
 31. As a member, I want the target canvas size to be configurable for other marketplaces, so I'm not locked to MBA dimensions.
 
-### UI/UX Notes
-- Full editor layout to be defined with `/frontend-design`. ReadyPixl (readypixl.com) serves as inspiration — see `reference_proj9_image_editor.md`.
-- ReadyPixl UI reference: Pill-bar for pipeline tools on top, parameter panel on left, canvas center/right, thumbnail strip at bottom. Not prescriptive — designer decides.
+### PROJ-8 Integration (Deferred from PROJ-8)
+32. As a member, I want to see a warning dialog when rejecting an idea that has an approved design, so I don't accidentally discard a design that's already been finalized.
+
+### Canvas Board Interaction
+33. As a member, I want to drag external images from my desktop onto the canvas as new reference nodes, so I can add custom references beyond the niche research products.
+34. As a member, I want to create multiple generation flows from different subsets of references on the same board, so I can A/B test different design directions for the same idea.
+
+### UI/UX Notes — Design Board (`/design-board/:projectId`)
+
+> REDESIGNED: 2026-03-31 via `/frontend-design` session. Based on Kittl Artboards reference screenshots.
+> Replaces previous React Flow node-graph design (deprecated — "das sieht kacke aus").
+
+**Paradigm:** Kittl-style Artboard Canvas. Images live as freely movable artboards on an infinite zoom canvas. AI generation happens through a chat-like prompt bar at the bottom. Tools and properties shown in a right panel — never on the image itself.
+
+**Library:** Konva.js (`react-konva`) for the infinite canvas + artboard rendering. NOT React Flow — this is a design canvas, not a node graph.
+
+**Core Concept — Artboards:**
+Each design image on the canvas is an "artboard" — a named, selectable, movable frame. Artboards can be:
+- **Regular Artboard** — any uploaded or reference image
+- **AI Image Board** — an AI-generated variant connected to a source artboard via a thin arrow
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  TOPBAR (56px) — project name + back + actions                       │
+├──────────────────────────────────────────────────────────┬───────────┤
+│                                                          │           │
+│                  INFINITE ZOOM CANVAS                    │   RIGHT   │
+│                  (Konva.js Stage)                        │   PANEL   │
+│                                                          │  (280px)  │
+│   ┌─ Artboard 1 ─────┐        ┌─ AI Image Board ──┐    │           │
+│   │ "school bus"      │   ──→  │ "school bus v2"   │    │  Search   │
+│   │ ┌──────────────┐  │        │ ┌──────────────┐  │    │  ─────    │
+│   │ │              │  │        │ │              │  │    │  Tools:   │
+│   │ │  [IMAGE]     │  │        │ │  [AI IMAGE]  │  │    │  AI Image │
+│   │ │              │  │        │ │              │  │    │  Flatten  │
+│   │ └──────────────┘  │        │ └──────────────┘  │    │  Upscale  │
+│   └───────────────────┘        │  ✦ Regenerate     │    │  Reframe  │
+│                                └───────────────────┘    │  BG Remove│
+│                                                          │           │
+│   ┌─ Artboard 3 ─────┐                                  │  ─────    │
+│   │ "variant"         │                                  │  (context │
+│   │ ┌──────────────┐  │                                  │   panel   │
+│   │ │  [IMAGE]     │  │                                  │   when    │
+│   │ └──────────────┘  │                                  │   board   │
+│   └───────────────────┘                                  │  selected)│
+│                                                          │           │
+├──────────────────────────────────────────────────────────┴───────────┤
+│  BOTTOM TOOLBAR                                                      │
+│  [▶cursor] [✦move] [□shapes▾] [🖌brush] [T text] [😊emoji]         │
+│  [✨AI] | [↩undo] [↪redo] | [-] 13% [+] | ⊕ 6260               │
+├──────────────────────────────────────────────────────────────────────┤
+│  💬 CHAT / PROMPT BAR                                                │
+│  ┌─ "Edit AI Image Board" ──────────────────────── ✖ ─┐             │
+│  │  [src thumb] → [result thumb]                       │             │
+│  │                                                     │             │
+│  │  "Humorous vector design for T-shirts...           │             │
+│  │   featuring a stylized Cartoon School Bus..."       │             │
+│  │                                                     │             │
+│  │  ⚙ Prompt builder                             ↗    │             │
+│  │  ─────────────────────────────────────────────────  │             │
+│  │  [⚙ Gemini Flash] [□ 1:1] [◆ Opaque]  [Generate]  │             │
+│  └─────────────────────────────────────────────────────┘             │
+│                                                                      │
+│  OR (collapsed): ✨ "Describe what you want to create..."           │
+└──────────────────────────────────────────────────────────────────────┘
+```
+
+**Canvas Behavior:**
+- Dark mode: `#1A1A2E` canvas background (slightly warmer than page bg). Light mode: `#E8E8E8`
+- Infinite pan (click-drag on empty canvas) + zoom (scroll wheel, pinch, +/- buttons)
+- Artboards cast subtle drop shadows on the canvas (elevation.2)
+- Grid dots visible at zoom >30% (subtle, `rgba(255,255,255,0.04)` dark / `rgba(0,0,0,0.04)` light)
+- Zoom level shown in bottom toolbar (e.g. "13%"), fit-to-view on double-click toolbar button
+
+**Artboard Behavior:**
+- Each artboard: titled label above (e.g. "Artboard 1", "AI Image Board"), white background frame, image inside
+- Click to select → dashed blue border (`#4A9EFF`) with resize handles at corners/edges
+- Drag to move freely on canvas
+- Right-click → context menu: "Add AI Image Board", "Duplicate", "Delete", "Bring to Front", "Send to Back"
+- Double-click → opens image in fullscreen preview overlay
+- NO tools shown directly on artboards (user explicitly dislikes this on laptop)
+
+**AI Image Board:**
+- Created from context menu on an existing artboard: "Add AI Image Board"
+- Appears to the right of source artboard, connected by a thin horizontal arrow (1px, `text.secondary` color)
+- Label shows "✦ AI Image Board" in cyan accent above the frame
+- Selected AI Board shows "Regenerate" button below the frame (small, subtle)
+- The connection arrow is purely visual context — not an interactive drag handle
+
+**Right Panel (280px, always visible):**
+- **Nothing selected:** Project search field at top. "Project Colors" section (extracted from designs). "Tools" section: AI Image Board, Flatten, Upscale, Reframe, BG Remove
+- **Artboard selected:** Artboard properties — Size (W × H px, preset dropdown: Standard Square 1200×1200, MBA 4500×5400), Layer (opacity slider), Color (background hex), Clip Content toggle. Then "Tools" section
+- **AI Image Board selected:** Same as artboard, but Tools also show "Regenerate" at top
+- Tools in right panel are buttons: click = apply tool to selected artboard(s)
+
+**Bottom Toolbar (48px):**
+Fixed horizontal bar below canvas. Left side: cursor tool, move tool, shape tool (dropdown), brush tool, text tool, emoji picker, AI sparkle button. Separator. Undo/Redo. Separator. Zoom controls (-, percentage, +). Canvas resize button.
+
+**Chat / Prompt Bar (bottom, collapsible):**
+- **Collapsed state:** Single-line input: "✨ Describe what you want to create..." — clicking expands
+- **Expanded state** (when AI Image Board is selected or user clicks AI sparkle):
+  - Header: "Edit AI Image Board" + close (✖) button
+  - Source → Result thumbnail pair (small, ~48px, with arrow between)
+  - Multiline prompt text field (editable, pre-filled from analysis if available)
+  - "Prompt builder" link (expands 7-step analysis accordion)
+  - Bottom controls row: Model selector (dropdown), Aspect ratio (1:1, 4:5, etc.), Style selector (Opaque, etc.), Background color, **Generate/Regenerate** button
+- Prompt bar sits ABOVE the bottom toolbar, overlaying the canvas from below
+- Smooth slide-up animation (200ms ease)
+
+**Board Persistence:** Artboard positions, sizes, and connections saved to `DesignProject.board_layout` JSONField. Restored on reload.
+
+**External Drag-Drop:** Drag image files from desktop onto canvas → creates new artboard at drop position.
+
+**Empty State:** Centered on canvas — large "+" icon with "Drop images here or create an AI Image Board" text. Browse Files button below.
+
+**Multi-Select + Editor Handoff:**
+- Shift+Click or drag-select rectangle to select multiple artboards
+- Selection shown as blue dashed border on all selected
+- Right panel shows bulk actions when multiple selected: "Open in Editor" button
+- Clicking "Open in Editor" switches to Image Editor tab with selected images pre-loaded as batch
+- Context transfer is one-way (images passed as list), no live binding between tabs
+
+**Artboard Canvas Export:**
+- Export button in bottom toolbar or right panel
+- Export selected artboards or all artboards
+- Format: PNG (default), DPI: 300, with compression slider
+- Download individual or all as ZIP
+- Separate from Image Editor export (which exports processed pipeline results)
+
+### Unified Design Workspace — Tab Mode Switch
+
+```
+┌──────────────────────────────────────────────────────────────┐
+│  [← Back]  Bingo Caller Designs        [🔗 Niche] [⚙]      │
+│                                                              │
+│  ┌─────────────────┐  ┌─────────────────┐                   │
+│  │  ✦ Artboard     │  │  🔧 Image       │                   │
+│  │    Canvas       │  │    Editor       │    (polished       │
+│  │  ▔▔▔▔▔▔▔▔▔▔▔▔▔ │  │                 │     toggle btns)  │
+│  └─────────────────┘  └─────────────────┘                   │
+├──────────────────────────────────────────────────────────────┤
+│                                                              │
+│              Active tab content fills here                   │
+│                                                              │
+└──────────────────────────────────────────────────────────────┘
+```
+
+- Toggle buttons are visually prominent — not small text tabs
+- Active tab: filled background (primary.subtle), text in primary color, slight glow
+- Inactive tab: transparent background, secondary text color
+- Both tabs share the project header (name, niche, settings)
+- Tab state preserved in URL query param: `?tab=canvas` or `?tab=editor`
+
+### UI/UX Notes — Post-Processing Editor (Tab 2 in Design Workspace)
+
+> Decided: 2026-03-30 via `/frontend-design` session. Updated 2026-03-31: merged into unified Design Workspace as Tab 2.
+
+**Paradigm:** ReadyPixl-style bulk image editing pipeline, now embedded as "Image Editor" tab within the Design Workspace. Fully independent from Artboard Canvas — only receives images as context input.
+**Library:** Konva.js (`react-konva`) for canvas, Web Workers for heavy pixel ops.
+
+**Layout:**
+```
+┌──────────────────────────────────────────────────────────┐
+│ PIPELINE BAR (collapsible)                                │
+│ Active: [Transp.Cleaner ✖] [Color Removal ✖] [Defringe ✖]│
+│ + Add tool ▾                                              │
+│ ┌─STANDARD─────────────────────────────────────────────┐  │
+│ │ Resize │ Trim │ Rotate │ Filters │ Distress │ ...    │  │
+│ ├─EDGE CLEANUP─────────────────────────────────────────┤  │
+│ │ Defringe │ Shrink │ Color Defringe │ Edge Cleaner    │  │
+│ ├─AI PROCESSING────────────────────────────────────────┤  │
+│ │ BG Remove │ AI Upscale                               │  │
+│ ├─QUALITY──────────────────────────────────────────────┤  │
+│ │ Transp. Highlight │ Compressor                       │  │
+│ └──────────────────────────────────────────────────────┘  │
+├──────────┬───────────────────────────────────┬───────────┤
+│ LEFT     │  CANVAS (Konva.js)                │           │
+│ PANEL    │  < > 2/100 🗑 ALL (top-left)     │  [✛]      │
+│ (280px)  │                                   │  [◯] mini │
+│          │                                   │  [✦] tools│
+│ Presets  │       [IMAGE]                     │           │
+│ ▾ + Save │                                   │           │
+│          │                                   │           │
+│ ┌Tool 1┐ │                                   │           │
+│ │params│ │                                   │           │
+│ └──────┘ │                                   │           │
+│ ┌Tool 2┐ │                                   │           │
+│ │params│ │                                   │           │
+│ └──────┘ │                                   │           │
+│          │                                   │           │
+│ Reset All│                                   │           │
+│ Remove   ├───────────────────────────────────┤           │
+│          │ [■][□][□][✓][✓]... 23/100 │ Export│           │
+└──────────┴───────────────────────────────────┴───────────┘
+```
+
+**Pipeline Bar:** Top, collapsible. Active pipeline tools as colored pill-chips (drag-to-reorder, ✖ to remove). Expand to show available tools grouped with section labels: Standard, Edge Cleanup, AI Processing, Quality.
+
+**Left Panel (~280px):** Preset dropdown + Save. Stacked collapsible tool config cards (toggle on/off, expand/collapse, drag-to-reorder — synced with pill bar). Each card has tool-specific params (sliders, toggles, buttons). Bottom: Reset All / Remove All.
+
+**Canvas (center):** Konva.js Stage + Layer. Transparency checkerboard background. Top-left: compact batch nav overlay (< > 2/100 🗑 ALL). Top-right: floating mini-toolbar (Move, Eraser, Wand) — click to activate, full params appear in left panel.
+
+**Bottom Thumbnail Strip:** Horizontal scrollable filmstrip. Click to navigate. Status dot per image (pending/processed/error). Current image highlighted. Export button integrated in strip area.
+
+**Export:** Button in bottom strip → inline export controls: format (PNG), DPI (300), compression slider with live file size, download single/all (zip), overwrite vs new version.
+
+**Empty State:** Cyan dashed border drop zone (secondary #00C8D7), cloud icon, "Drop image here", "Browse Files" button.
+
+**Board → Editor:** URL param preload `/design-editor?designs=id1,id2`. RTK Query fetches on mount. Also supports empty state (fresh drag-drop).
+
+**Sidebar:** Single entry "Design Board" under Pipeline section — opens Project Gallery. Image Editor is a tab within each project workspace (no separate sidebar entry).
+
+**Tool reorder:** Drag in both pill bar AND left panel cards. Both stay synced via shared pipeline state.
 
 ---
 
@@ -128,6 +366,36 @@ These fields are read when a user opens `/design-board/:ideaId` and are used to 
 - [ ] AC-17: Batch processing: one job fails → continue others; report individual failures per job in response.
 - [ ] AC-18: Quick-jump button on idea list card navigates to `/design-board/:ideaId` — board auto-loads context.
 
+### Design Projects
+
+- [ ] AC-52: `DesignProject` model: UUID pk, workspace FK, name CharField, niche FK (nullable), board_layout JSONField (nullable), created_at. M2M to Design via `DesignProjectDesign` through table.
+- [ ] AC-53: `/designs` — Project Gallery page listing all workspace projects. Create new project button. Click project → opens `/design-board/:projectId`.
+- [ ] AC-54: Sidebar "Design Board" link navigates to `/designs` (Project Gallery).
+- [ ] AC-55: `/design-board/:projectId` renders the canvas board scoped to a project. Loads all designs belonging to that project. PromptBar, model selector, BG color picker, Generate button always functional.
+- [ ] AC-56: When opening from idea context (quick-jump), a naming dialog appears: name after niche / name after slogan / enter custom name / assign to existing project. Then opens board directly.
+- [ ] AC-57: Default project auto-created on first design generation if user has no projects. Name = "My Designs" (renameable).
+- [ ] AC-58: `POST /api/designs/generate/` — accepts `{model, background_color, prompt, project_id, idea_id?}`. Returns run record. Generated design auto-added to the project.
+- [ ] AC-59: Design ↔ Project is M2M: a design can belong to multiple projects, a project can have unlimited designs.
+- [ ] AC-60: Optional niche binding on project: `PATCH /api/designs/projects/{id}/` with `{niche: nicheId}`. Linked projects' designs visible in niche drawer.
+- [ ] AC-61: `?ideaId=xxx` query param on board route: pre-loads idea context (slogan, references) into the project board. Idea context is additive, not exclusive.
+
+### Canvas Board (Kittl Artboard-style — Konva.js)
+
+- [ ] AC-33: Design Board uses Konva.js (`react-konva`) infinite zoom canvas with artboard paradigm — images as freely movable, selectable frames. NOT React Flow node-graph.
+- [ ] AC-34: Artboards: titled label above frame, white background, image inside. Click to select (dashed blue border + resize handles). Drag to reposition. Right-click context menu.
+- [ ] AC-35: "Add AI Image Board" from context menu on source artboard → new artboard appears to the right, connected by thin arrow. Shows "Regenerate" button when selected.
+- [ ] AC-36: Chat/Prompt Bar (bottom, collapsible): collapsed = single-line "Describe what you want to create...". Expanded = source→result thumbnails, editable prompt, Prompt Builder accordion, model/ratio/style/BG selectors, Generate button.
+- [ ] AC-37: Right Panel (280px, always visible): context-sensitive — nothing selected = project colors + tools list. Artboard selected = size/layer/color properties + tools. Tools: AI Image Board, Flatten, Upscale, Reframe, BG Remove.
+- [ ] AC-38: Bottom Toolbar (48px): cursor, move, shapes, brush, text, emoji, AI sparkle, undo/redo, zoom controls (-, %, +), canvas resize.
+- [ ] AC-39: Tools in right panel apply to selected artboard(s). Quick actions: BG Remove, Upscale, Flatten, Reframe. "Open in Editor →" navigates to `/design-editor`.
+- [ ] AC-40: Board positions persisted to backend (`DesignProject.board_layout` JSONField). Restored on reload.
+- [ ] AC-41: Connection arrows between source artboard and AI Image Board — thin 1px line, purely visual context.
+- [ ] AC-42: Drag external images from desktop onto canvas → creates new artboard at drop position.
+- [ ] AC-43: Canvas zoom: scroll wheel, pinch, +/- buttons. Grid dots visible at >30% zoom. Dark mode: `#1A1A2E` bg. Light mode: `#E8E8E8` bg. NO tools shown directly on artboards.
+- [ ] AC-62: Artboard Canvas has its own export: export selected or all artboards, PNG 300 DPI, compression slider, single or ZIP download. Separate from Editor pipeline export.
+- [ ] AC-63: Multi-select artboards (shift+click or drag-select) → "Open in Editor" in right panel → switches to Editor tab with selected images as batch. Context transfer only, no live binding.
+- [ ] AC-64: Both tab-modes are fully independent — Editor works without Canvas data, Canvas works without Editor. No cross-dependencies.
+
 ### Post-Processing Pipeline
 
 - [ ] AC-19: Drag & drop 100+ images into editor. Progress tracked per image. Thumbnail strip for batch browsing.
@@ -143,9 +411,24 @@ These fields are read when a user opens `/design-board/:ideaId` and are used to 
 - [ ] AC-29: Target canvas 4500x5400px at 300 DPI (MBA standard). Configurable for other marketplaces. Align-to-Top + configurable padding (default: 1 inch top/sides).
 - [ ] AC-30: Export: configurable format (PNG default), DPI (300), compression level. Download single or all. Option to overwrite original or create new version.
 
+### Editor Layout (ReadyPixl-inspired)
+
+- [ ] AC-44: Pipeline bar at top, collapsible. Active tools as colored pill-chips (drag-to-reorder, ✖ to remove). Expand to show available tools grouped with section labels (Standard, Edge Cleanup, AI Processing, Quality).
+- [ ] AC-45: Left panel (~280px): preset dropdown + Save, stacked collapsible tool config cards (toggle, expand/collapse, drag-to-reorder synced with pill bar), Reset All / Remove All at bottom.
+- [ ] AC-46: Canvas center (Konva.js): transparency checkerboard background. Top-left: compact batch nav overlay (< > N/Total 🗑 ALL). Top-right: floating mini-toolbar (Move, Eraser, Wand) — full params in left panel when active.
+- [ ] AC-47: Bottom thumbnail filmstrip: horizontal scrollable, click to navigate, status dot per image, current highlighted. Export button integrated in strip.
+- [ ] AC-48: Tool reorder via drag in both pill bar and left panel cards. Both synced.
+- [ ] AC-49: Canvas → Editor handoff via tab switch: multi-select artboards → "Open in Editor" → switches to Editor tab with images pre-loaded. Also via URL: `?tab=editor&images=id1,id2`.
+- [ ] AC-50: Empty state: cyan dashed border drop zone, cloud icon, "Drop image here", "Browse Files" button.
+- [ ] AC-51: Unified Design Workspace: single page with two tab-modes (Artboard Canvas + Image Editor). Polished toggle buttons, not generic tabs. Single sidebar entry "Design Board" → Project Gallery.
+
 ### PROJ-7 Integration
 
-- [ ] AC-31: "Analyze Design" button in PROJ-7 `ProductCard.tsx` / `ProductDetailPanel.tsx`. Triggers Gemini 3 Architect analysis (same `POST /api/designs/{id}/analyze-image/` endpoint). Stores result on product. When user later opens Design Board for an Idea from that product → reuses existing analysis (no re-run).
+- [ ] AC-31: "Analyze Design" button in PROJ-7 `ProductCard.tsx` / `ProductDetailPanel.tsx`. Triggers Gemini 3 Architect analysis via `POST /api/products/{product_id}/analyze-image/` (new lightweight endpoint — no Design record needed). Stores `prompt_analysis` JSONField on `AmazonProduct` model. When user later opens Design Board for an Idea from that product → reuses existing analysis (no re-run). Also usable from standalone board when user adds a product image as reference.
+
+### PROJ-8 Integration (Deferred)
+
+- [ ] AC-32: Rejecting an idea that has an approved design shows a MUI confirmation dialog warning the user that an approved design exists before proceeding. If confirmed, idea is rejected and design status unchanged.
 
 ---
 
@@ -217,26 +500,21 @@ Both paths inject the background color instruction as the final sentence of the 
 
 ---
 
-## Batch Post-Processing
-
-After designs are approved, user can select multiple and trigger batch processing in two steps:
-
-1. **Upscale** — resize to 4500×5400px (MBA-ready resolution). Upscaler: TBD (see unresolved questions). Result stored in `Design.upscaled_file`.
-2. **Background Removal** — remove the solid background color using rembg (in-house, runs in the `worker` container). Result stored in `Design.bg_removed_file`.
-
-Each step is a separate `DesignProcessingJob` enqueued via django-rq. Frontend polls individual job status. One failed job does not block others.
-
-Backend task files: `design_app/api/tasks.py` — `task_upscale_design()`, `task_remove_background()`.
-
----
-
 ## API Endpoints
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| GET | `/api/ideas/{id}/design-board/` | Member | Board context: slogan, reference images, existing designs |
+| GET | `/api/designs/projects/` | Member | List all projects in workspace |
+| POST | `/api/designs/projects/` | Member | Create project. Body: `{name, niche?}` |
+| PATCH | `/api/designs/projects/{id}/` | Member | Update project (name, niche binding, board_layout) |
+| DELETE | `/api/designs/projects/{id}/` | Member | Delete project (designs remain, just unlinked) |
+| GET | `/api/designs/projects/{id}/board/` | Member | Board context: project designs, board_layout. Optional `?ideaId=` for idea context |
+| POST | `/api/designs/projects/{id}/designs/` | Member | Add existing design(s) to project (M2M) |
+| DELETE | `/api/designs/projects/{id}/designs/{designId}/` | Member | Remove design from project (M2M unlink, design not deleted) |
+| GET | `/api/ideas/{id}/design-board/` | Member | Idea context: slogan, reference images, existing designs |
 | POST | `/api/designs/{id}/analyze-image/` | Member | Trigger Gemini 3 Architect analysis; returns generated prompt |
-| POST | `/api/ideas/{id}/designs/generate/` | Member | Trigger image generation (enqueue job) |
+| POST | `/api/designs/generate/` | Member | Generate design. Body: `{model, bg_color, prompt, project_id, idea_id?}` |
+| POST | `/api/products/{product_id}/analyze-image/` | Member | Analyze product image (PROJ-7). Stores on AmazonProduct |
 | GET | `/api/designs/runs/{run_id}/` | Member | Poll generation run status |
 | GET | `/api/ideas/{id}/designs/` | Member | List designs for idea |
 | PATCH | `/api/designs/{id}/` | Member | Approve / reject design |
@@ -261,23 +539,28 @@ Image analysis (Gemini 3 Architect pipeline) also uses OpenRouter — same API k
 
 ## Edge Cases
 
-1. Reference image URL returns 403/404 (Amazon CDN) → skip analysis; fall back to idea-driven prompt.
-2. Gemini 3 analysis returns malformed JSON → display raw output in prompt editor for manual correction.
-3. Background color not supported by selected model → warn user via snackbar; proceed with `light_gray` default.
-4. OpenRouter returns content policy violation → `Design(status=failed, error_message="Content policy refusal")`.
-5. OpenRouter API key expired/invalid → all runs fail immediately; surface error to member.
-6. Worker service not running → job queued but never executed; surface in UI after timeout.
-7. Batch processing: one design fails → continue others; report per-job failures in response.
-8. Same idea generates multiple runs → all designs stored; board shows all in gallery.
-9. Approving a new design when one is already approved → auto-reject previous approved.
+- [ ] EC-1: Reference image URL returns 403/404 (Amazon CDN) → skip analysis; fall back to idea-driven prompt.
+- [ ] EC-2: Gemini 3 analysis returns malformed JSON → display raw output in prompt editor for manual correction.
+- [ ] EC-3: Background color not supported by selected model → warn user via snackbar; proceed with `light_gray` default.
+- [ ] EC-4: OpenRouter returns content policy violation → `Design(status=failed, error_message="Content policy refusal")`.
+- [ ] EC-5: OpenRouter API key expired/invalid → all runs fail immediately; surface error to member.
+- [ ] EC-6: Worker service not running → job queued but never executed; surface in UI after timeout.
+- [ ] EC-7: Batch processing: one design fails → continue others; report per-job failures in response.
+- [ ] EC-8: Same idea generates multiple runs → all designs stored; board shows all in gallery.
+- [ ] EC-9: Approving a new design when one is already approved → auto-reject previous approved.
+- [ ] EC-10: Rejecting an idea with an approved design → confirmation dialog before proceeding (PROJ-8 deferred).
+- [ ] EC-11: Project Gallery empty state — no projects yet → show "Create your first project" CTA.
+- [ ] EC-12: Delete project with designs — designs remain in workspace (M2M unlinked), not deleted.
+- [ ] EC-13: Idea quick-jump with no existing projects — naming dialog offers create new only (no "assign to existing" option).
+- [ ] EC-14: Design in multiple projects — deleting from one project doesn't affect the other.
 
 ---
 
 ## Dependencies
 
 - PROJ-4 (Workspace & Membership — worker service in docker-compose; workspace isolation at ORM level)
-- PROJ-8 (Idea & Slogan Generation — idea must exist with slogan)
-- PROJ-6 (Niche Deep Research — `NicheResearchProduct` rows with image + analysis fields must exist)
+- PROJ-8 (Idea & Slogan Generation — **optional**: idea context enhances the board but is not required for standalone mode)
+- PROJ-6 (Niche Deep Research — **optional**: reference images from research enhance the board but are not required)
 
 ## Amendments (PROJ-15/18/19 Harmonization)
 
@@ -306,43 +589,43 @@ Image analysis (Gemini 3 Architect pipeline) also uses OpenRouter — same API k
   - Distress (vintage/used-look effects)
   - Watermark (text + image)
 - **Edge Cleanup tools** (client-side):
-  - Auto-Detect Defringe — erkennt Farbrand automatisch, schlägt Shrink-Wert vor
-  - Manual Shrink — Slider "Shrink Edge: 0-5px" mit Live-Preview
-  - Color Defringe — erkennt Hintergrundfarbe im Rand, ersetzt semi-transparente Randpixel mit Design-Farbe
-  - Edge Cleaner — mehrstufige Kantenglättung nach BG Removal
+  - Auto-Detect Defringe — detects color fringe automatically, suggests shrink value
+  - Manual Shrink — slider "Shrink Edge: 0-5px" with live preview
+  - Color Defringe — detects background color in edge, replaces semi-transparent edge pixels with nearest design color
+  - Edge Cleaner — multi-step edge smoothing after BG removal
 - **Quality Control tools** (client-side):
-  - Transparency Highlighter — markiert unsichtbare semi-transparente Pixel (Visualisierung, kein Edit)
-  - Built-in Compressor — Dateigröße reduzieren (<2MB) ohne Druckqualität zu verlieren
+  - Transparency Highlighter — visualizes hidden semi-transparent pixels (read-only overlay, no edit)
+  - Built-in Compressor — reduce file size (<2MB) without losing print quality
 - **Manual Correction tools** (client-side, Konva.js Canvas):
-  - Radiergummi-Tool — manuell Pixel/Bereiche entfernen
-  - Zauberstab — Bereichsauswahl nach Farbähnlichkeit
-  - Per-Bild Vorschau im Batch — einzelne Bilder durchklicken und korrigieren VOR Batch-Download
+  - Eraser tool — manually remove pixels/areas
+  - Magic Wand — area selection by color similarity
+  - Per-image preview in batch — click through individual images and correct before batch download
 - **Server-side AI tools** (django-rq worker OR external API — user-configurable in Settings):
   - AI Background Removal:
-    - Option 1: `rembg` (self-hosted, CPU — ~3-8s/Bild, kostenlos)
-    - Option 2: Professional API (e.g. remove.bg — schneller, Pay-per-Use)
-    - Default: rembg. User kann in Settings auf API wechseln.
-  - AI Upscaling — 3-Stufen-System, user-wählbar in Settings:
-    - Option 1: `Pica.js` (client-side, Lanczos filter — für Bilder ≥3000px, kostenlos, schnell)
-    - Option 2: `Real-ESRGAN` (self-hosted, GPU empfohlen — für Low-Res <3000px, beste Qualität)
-    - Option 3: Professional API (e.g. Deep-Image.ai — wenn kein GPU-Server, Pay-per-Use)
-    - Default-Preset (Auto): ≥3000px → Pica.js, <3000px + GPU → Real-ESRGAN, <3000px ohne GPU → API. User kann Default überschreiben und z.B. "immer API" oder "immer Pica.js" wählen.
-  - Alle Provider-Einstellungen in Settings UI konfigurierbar, nicht nur via env var.
+    - Option 1: `rembg` (self-hosted, CPU — ~3-8s/image, free)
+    - Option 2: Professional API (e.g. remove.bg — faster, pay-per-use)
+    - Default: rembg. User can switch to API in Settings.
+  - AI Upscaling — 2-tier system (MVP), user-selectable in Settings:
+    - Option 1: `Pica.js` (client-side, Lanczos filter — for images ≥3000px, free, fast)
+    - Option 2: Professional API (e.g. Deep-Image.ai — for low-res <3000px, pay-per-use)
+    - Default (Auto): ≥3000px → Pica.js, <3000px → API. User can override to "always API" or "always Pica.js".
+    - _Future: Real-ESRGAN (self-hosted, GPU) as Option 3 when GPU server available._
+  - All provider settings configurable in Settings UI, not only via env vars.
 - **Pipeline concept** (ReadyPixl-inspired):
-  - Plugin/Pill-basiertes System — jeder Bearbeitungsschritt ist ein "Pill" in einer Kette
+  - Plugin/pill-based system — each processing step is a "pill" in a chain
   - User chains multiple tools in preferred order → creates a reusable pipeline
   - Pipeline stored as `DesignPipeline` model (JSONField with ordered tool+params list)
-  - **Presets:** Pipeline-Konfigurationen speichern + laden (Name, Tool-Kette, Parameter)
-  - **Konditionale Logik:** Tools können bedingt ausgeführt werden (z.B. "Upscale nur wenn <5000px")
-  - **Overwrite-Option:** Original überschreiben oder neue Datei erstellen
+  - **Presets:** save + load pipeline configurations (name, tool chain, parameters)
+  - **Conditional logic:** tools can run conditionally (e.g. "upscale only if <5000px")
+  - **Overwrite option:** overwrite original or create new file
 - **Batch processing:**
-  - Drag & Drop Massen-Upload (100+ Bilder gleichzeitig)
-  - Einmaliges Setup — Pipeline-Parameter für ein Bild einstellen, auf alle anwenden
-  - Individuelle Nachbearbeitung — einzelne Bilder durchklicken + manuell korrigieren VOR Batch-Download
-  - Progress tracked per image in Batch-View
-  - Export: Format (PNG default), DPI (300 default), Compression Level, Download einzeln oder ALL
-- **Target Canvas:** 4500x5400 Pixel, 300 DPI (MBA-Standard). Configurable für andere Marktplätze.
-- **Reposition:** Align-to-Top + konfigurierbares Padding (Default: 1 Zoll oben/seiten). Snap-to-Top für kleinere Designs.
+  - Drag & drop bulk upload (100+ images at once)
+  - One-time setup — configure pipeline parameters for one image, apply to all
+  - Individual post-processing — click through individual images and correct before batch download
+  - Progress tracked per image in batch view
+  - Export: format (PNG default), DPI (300 default), compression level, download single or all
+- **Target Canvas:** 4500x5400px, 300 DPI (MBA standard). Configurable for other marketplaces.
+- **Reposition:** Align-to-Top + configurable padding (default: 1 inch top/sides). Snap-to-Top for smaller designs.
 - Tech stack reference: `reference_proj9_image_editor.md`
 
 ### Agent Integration (PROJ-18)
@@ -364,9 +647,9 @@ OPENROUTER_API_KEY=       # Rotate existing key before adding — currently expo
 # Initial defaults (overridable in Settings UI):
 BG_REMOVAL_PROVIDER=rembg           # choices: rembg, api
 BG_REMOVAL_API_KEY=                 # only if provider=api (e.g. remove.bg key)
-UPSCALE_PROVIDER=auto               # choices: pica (client), real_esrgan (server), api, auto
+UPSCALE_PROVIDER=auto               # choices: pica (client), api, auto
 UPSCALE_API_KEY=                    # only if provider=api (e.g. Deep-Image.ai key)
-UPSCALE_AUTO_THRESHOLD=3000         # pixel threshold for auto mode: >=threshold → Pica.js, <threshold → Real-ESRGAN/API
+UPSCALE_AUTO_THRESHOLD=3000         # pixel threshold for auto mode: >=threshold → Pica.js, <threshold → API
 ```
 
 Document in `django-app/env/.env.template`. **Rotate the existing OpenRouter key before adding this.**
@@ -376,15 +659,19 @@ Document in `django-app/env/.env.template`. **Rotate the existing OpenRouter key
 ## Verification Steps
 
 ### Phase A: Design Generation
-1. Open `/design-board/:ideaId` from an approved idea → board loads with slogan + reference images.
-2. Click "Analyze Image" on a reference → Gemini 3 Architect prompt appears, editable on the board.
-3. Select background color → choose neon pink → generate → image has neon pink background.
-4. Generate with different models (Gemini Flash, GPT Image) → both return images.
-5. Approve design → previous approved auto-rejected. Only 1 approved per idea.
-6. Quick-jump button from idea list card → navigates to design board pre-loaded with idea context.
-7. Reference image 403/404 → falls back to idea-driven prompt (no crash).
-8. Content policy refusal → Design(status=failed) with error message shown.
-9. "Analyze Design" button in PROJ-7 ProductCard → analysis saved → reused on Design Board.
+1. Open "Design Board" in sidebar → Project Gallery with all projects listed.
+2. Create new project → opens empty board with PromptBar, generate works.
+3. Write manual prompt → generate → design added to project.
+4. Drag-drop reference images → creates reference nodes → analyze works.
+5. Quick-jump from approved idea → naming dialog → choose project name/existing → board opens with idea context.
+5. Click "Analyze Image" on a reference → Gemini 3 Architect prompt appears, editable on the board.
+6. Select background color → choose neon pink → generate → image has neon pink background.
+7. Generate with different models (Gemini Flash, GPT Image) → both return images.
+8. Approve design → previous approved auto-rejected. Only 1 approved per idea.
+9. Quick-jump button from idea list card → navigates to design board pre-loaded with idea context.
+10. Reference image 403/404 → falls back to idea-driven prompt (no crash).
+11. Content policy refusal → Design(status=failed) with error message shown.
+12. "Analyze Design" button in PROJ-7 ProductCard → analysis saved → reused on Design Board.
 
 ### Phase B: Post-Processing
 10. Drag & drop 100 images → all appear in thumbnail strip, progress tracked per image.
@@ -443,28 +730,36 @@ design_app/
 ### B) Frontend Architecture
 
 **Routes:**
-- `/design-board/:ideaId` — Design Board (full-page, idea-scoped)
-- `/design-editor` — Post-Processing Editor (full-page, standalone batch tool)
+- `/designs` — Project Gallery (overview of all design projects)
+- `/designs/:projectId` — Design Workspace (unified: Artboard Canvas + Image Editor tabs)
+- `/designs/:projectId?ideaId=xxx` — Workspace with idea context pre-loaded
+- `/designs/:projectId?tab=editor&images=id1,id2` — Opens directly in Editor tab with pre-selected images
 
 ```
 views/design/
 ├── board/
-│   ├── DesignBoardView.tsx             # Main board page
+│   ├── DesignBoardView.tsx             # Konva.js artboard canvas + PromptBar + RightPanel
 │   ├── hooks/
 │   │   ├── useBoardContext.ts          # Load idea + references + existing designs
 │   │   ├── useGeneration.ts            # Trigger + poll generation runs
-│   │   └── useImageAnalysis.ts         # Trigger + poll Gemini 3 analysis
+│   │   ├── useDesignActions.ts         # Approve, reject, delete mutations
+│   │   ├── useBatchProcess.ts          # Batch upscale + bg_remove
+│   │   ├── useImageAnalysis.ts         # Trigger + poll Gemini 3 analysis
+│   │   ├── useBoardLayout.ts           # Artboard positions, canvas zoom/pan state
+│   │   └── useBoardArtboards.ts        # Convert API data → artboard objects
 │   ├── partials/
-│   │   ├── ReferencePanel.tsx          # Reference images from NicheResearchProduct
-│   │   ├── PromptEditor.tsx            # Editable prompt field + 7-step analysis display
-│   │   ├── ModelSelector.tsx           # Gemini Flash / Pro / GPT Image / Flux
-│   │   ├── BackgroundColorPicker.tsx   # 3 color options (ToggleButtonGroup)
-│   │   ├── DesignGallery.tsx           # Generated designs grid with approve/reject
-│   │   ├── DesignCard.tsx              # Single design with status + actions
-│   │   ├── GenerationProgress.tsx      # LinearProgress during generation
-│   │   └── BatchProcessPanel.tsx       # Select designs → upscale + bg_remove
+│   │   ├── ArtboardCanvas.tsx           # Konva.js infinite canvas with artboards
+│   │   ├── Artboard.tsx                # Single artboard frame (image + label + selection)
+│   │   ├── ConnectionArrow.tsx         # Thin arrow between source → AI Image Board
+│   │   ├── PromptBar.tsx               # Bottom collapsible chat/prompt bar
+│   │   ├── RightPanel.tsx              # Always-visible right panel (280px) — properties + tools
+│   │   ├── BottomToolbar.tsx           # Cursor/move/shapes/brush/text/emoji/AI/undo/redo/zoom
+│   │   ├── ArtboardContextMenu.tsx     # Right-click menu: Add AI Board, Duplicate, Delete
+│   │   ├── ProjectNamingDialog.tsx     # Naming dialog for idea→project flow
+│   │   ├── ModelSelector.tsx           # Embedded in PromptBar
+│   │   └── BackgroundColorPicker.tsx   # Embedded in PromptBar
 │   └── types/
-│       └── index.ts
+│       └── index.ts                    # Artboard types, canvas state
 │
 ├── editor/
 │   ├── DesignEditorView.tsx            # Post-processing editor (ReadyPixl-inspired)
@@ -498,11 +793,15 @@ store/
 
 ```
 Phase A — Design Generation:
-  Idea Card [Approve] → Quick-Jump → /design-board/:ideaId
-    → Load board context (slogan + reference images + existing designs)
+  Path 1 (Standalone): Sidebar → /designs (Gallery) → New Project → /design-board/:projectId
+    → Empty canvas, manual prompt, upload references
+    → Select model + background color → Generate → poll → designs added to project
+
+  Path 2 (From Idea): Idea Card [Quick-Jump] → Naming Dialog → /design-board/:projectId?ideaId=xxx
+    → Load idea context (slogan + reference images + existing designs) into project board
     → "Analyze Image" → Gemini 3 Architect → structured prompt → editable
     → OR auto-construct prompt from DB fields (idea-driven)
-    → Select model + background color → Generate → poll → gallery
+    → Select model + background color → Generate → poll → designs added to project
     → Approve best design → batch upscale + bg_remove
 
 Phase B — Post-Processing:
@@ -521,8 +820,12 @@ Phase B — Post-Processing:
 | Decision | Why |
 |----------|-----|
 | `design_app` separate from `idea_app` | Single Responsibility — design generation + image processing is distinct from slogan management |
-| 2 separate routes (Board + Editor) | Board = idea-scoped (1 idea → N designs). Editor = batch tool (N images from any source) |
-| Konva.js for client-side canvas tools | Proven for browser-based image editing. Web Workers for non-blocking processing. Used by ReadyPixl |
+| 3 routes (Gallery + Board + Editor) | Gallery = project list. Board = project-scoped artboard canvas. Editor = batch tool (N images from any source) |
+| Konva.js (`react-konva`) for Design Board | Artboard-style canvas like Kittl. Free image positioning, selection, resize handles. Shared with post-processing editor. React Flow removed — node-graph paradigm was wrong for design canvas |
+| Konva.js for post-processing editor canvas | Proven for browser-based pixel manipulation. Web Workers for non-blocking processing. Used by ReadyPixl |
+| Kittl-style bottom Prompt Bar | Chat-like prompt entry with source→result thumbnails. Keeps canvas clean, prompt always accessible |
+| `DesignProject` model with M2M to Design | Kittl-style project folders. Designs can belong to multiple projects. Optional niche binding. Board layout per project |
+| `DesignProject.board_layout` JSONField | Save node positions + connections per project. Restore board state on reload |
 | Pica.js for client-side upscaling (≥3000px) | Lanczos filter quality, runs in browser, no server cost. Only low-res needs AI upscaling |
 | rembg (u2net) self-hosted default | Free, 170MB model, 3-8s/image. POD designs = graphics on solid bg = perfect match |
 | External API as configurable fallback | Settings UI lets admin switch provider without redeploy. API keys encrypted in DB |
@@ -557,6 +860,7 @@ Phase B — Post-Processing:
 
 | Package | Purpose |
 |---------|---------|
-| `konva` + `react-konva` | Canvas-based image editor for post-processing tools |
+| ~~`@xyflow/react`~~ | ~~React Flow~~ — REMOVED. Design Board now uses Konva.js (same as editor). Artboard paradigm, not node-graph |
+| `konva` + `react-konva` | Canvas-based image editor for post-processing tools (Phase B) |
 | `pica` | Client-side image upscaling (Lanczos filter) |
 | `tinycolor2` | Color manipulation for defringe/color tools |

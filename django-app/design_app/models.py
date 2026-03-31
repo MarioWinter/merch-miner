@@ -4,8 +4,87 @@ from django.conf import settings
 from django.db import models
 
 
+class DesignProject(models.Model):
+    """A project folder organizing designs (Kittl-style)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        'workspace_app.Workspace',
+        on_delete=models.CASCADE,
+        related_name='design_projects',
+        db_index=True,
+    )
+    name = models.CharField(max_length=200)
+    niche = models.ForeignKey(
+        'niche_app.Niche',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='design_projects',
+    )
+    board_layout = models.JSONField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text='React Flow node positions + edges',
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='created_design_projects',
+    )
+    designs = models.ManyToManyField(
+        'Design',
+        through='DesignProjectDesign',
+        related_name='projects',
+        blank=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+        indexes = [
+            models.Index(
+                fields=['workspace'],
+                name='designproject_ws_idx',
+            ),
+        ]
+
+    def __str__(self):
+        return f"Project: {self.name}"
+
+
+class DesignProjectDesign(models.Model):
+    """Through table for DesignProject <-> Design M2M."""
+
+    project = models.ForeignKey(
+        DesignProject,
+        on_delete=models.CASCADE,
+        related_name='project_designs',
+    )
+    design = models.ForeignKey(
+        'Design',
+        on_delete=models.CASCADE,
+        related_name='design_projects_through',
+    )
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('project', 'design')
+        indexes = [
+            models.Index(
+                fields=['project', 'design'],
+                name='projdesign_proj_design_idx',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.project.name} <-> Design {str(self.design_id)[:8]}"
+
+
 class DesignGenerationRun(models.Model):
-    """A single AI design generation run linked to an idea."""
+    """A single AI design generation run, optionally linked to an idea."""
 
     class ModelName(models.TextChoices):
         GEMINI_FLASH = 'gemini_flash', 'Gemini Flash'
@@ -22,7 +101,9 @@ class DesignGenerationRun(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     idea = models.ForeignKey(
         'idea_app.Idea',
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='generation_runs',
         db_index=True,
     )
@@ -96,7 +177,9 @@ class Design(models.Model):
     )
     idea = models.ForeignKey(
         'idea_app.Idea',
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name='designs',
         db_index=True,
     )

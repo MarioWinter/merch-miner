@@ -84,6 +84,12 @@ class AmazonProduct(models.Model):
     description = models.TextField(blank=True, default='')
     variants = models.JSONField(default=dict, blank=True)
     image_gallery = models.JSONField(default=list, blank=True)
+    prompt_analysis = models.JSONField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text='Gemini 3 Architect 7-step image analysis output',
+    )
     scraped_at = models.DateTimeField(null=True, blank=True, db_index=True)
     keywords = models.ManyToManyField(Keyword, related_name='products', blank=True)
     meta_keywords = models.ManyToManyField('MetaKeyword', related_name='products', blank=True)

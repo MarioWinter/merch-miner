@@ -118,6 +118,12 @@ class Idea(models.Model):
     round = models.PositiveIntegerField(default=1)
     was_changed = models.BooleanField(default=False)
     change_reason = models.TextField(blank=True, default='')
+    board_layout = models.JSONField(
+        null=True,
+        default=None,
+        blank=True,
+        help_text='React Flow board state: {nodes: [...], edges: [...]}',
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,

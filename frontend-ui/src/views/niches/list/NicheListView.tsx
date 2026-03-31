@@ -118,7 +118,7 @@ const NicheListView = () => {
 
   const handleArchive = async (id: string) => {
     try {
-      await deleteNiche(id).unwrap();
+      await deleteNiche({ id }).unwrap();
       enqueueSnackbar(t('niches.notifications.archiveSuccess'), { variant: 'success' });
     } catch {
       enqueueSnackbar(t('niches.notifications.archiveError'), { variant: 'error' });

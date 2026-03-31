@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useCallback, useRef, useState, useEffect } from 'react';
 import {
   Autocomplete,
   Box,
@@ -25,9 +25,10 @@ import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useListNichesQuery } from '@/store/nicheSlice';
 import { COLORS } from '@/style/constants';
+import { ProjectNamingDialog } from '../../designs/board/partials/ProjectNamingDialog';
 import { SignalTypeBadge } from './SignalTypeBadge';
 import { MarketConfidenceBadge } from './MarketConfidenceBadge';
-import type { Idea } from '../types';
+import type { Idea, IdeaStatus } from '../types';
 import type { UseIdeaInlineEditReturn } from '../hooks/useInlineEdit';
 
 interface IdeaCardProps {
@@ -85,6 +86,14 @@ export const IdeaCard = ({
   const { t } = useTranslation();
   const navigate = useNavigate();
   const isOrphan = !idea.niche;
+  const [namingDialogOpen, setNamingDialogOpen] = useState(false);
+
+  const handleProjectSelected = useCallback(
+    (projectId: string) => {
+      navigate(`/designs/${projectId}?ideaId=${idea.id}`);
+    },
+    [navigate, idea.id],
+  );
 
   const isEditingText =
     inlineEdit?.activeCell?.ideaId === idea.id &&
@@ -248,7 +257,7 @@ export const IdeaCard = ({
             <Tooltip title={t('design.board.jumpButton')}>
               <IconButton
                 size="small"
-                onClick={() => navigate(`/design-board/${idea.id}`)}
+                onClick={() => setNamingDialogOpen(true)}
                 color="secondary"
                 aria-label={t('design.board.jumpButton')}
               >
@@ -269,6 +278,14 @@ export const IdeaCard = ({
           </Tooltip>
         </Stack>
       </Stack>
+      {/* Project naming dialog for design board quick-jump */}
+      <ProjectNamingDialog
+        open={namingDialogOpen}
+        onClose={() => setNamingDialogOpen(false)}
+        onProjectSelected={handleProjectSelected}
+        nicheName={idea.niche_name ?? undefined}
+        sloganText={idea.slogan_text}
+      />
     </CardRoot>
   );
 };
@@ -417,7 +434,7 @@ const NicheChip = ({
 };
 
 /* ----------- Status chip (clickable to change) ----------- */
-const STATUS_CYCLE: Record<string, string> = {
+const STATUS_CYCLE: Record<string, IdeaStatus> = {
   pending: 'approved',
   approved: 'rejected',
   rejected: 'for_review',

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { screen, fireEvent, within } from '@testing-library/react';
+import { screen, fireEvent } from '@testing-library/react';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const { fa } = vi.hoisted(() => ({

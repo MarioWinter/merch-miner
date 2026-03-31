@@ -15,7 +15,14 @@ from design_app.api.views import (
     PipelineListCreateView,
     ProcessingJobStatusView,
     ProcessingSettingsView,
+    ProductAnalyzeImageView,
+    ProjectBoardView,
+    ProjectDesignRemoveView,
+    ProjectDesignsView,
+    ProjectDetailView,
+    ProjectListCreateView,
     RunStatusView,
+    StandaloneGenerateView,
 )
 
 urlpatterns = [
@@ -95,5 +102,45 @@ urlpatterns = [
         'designs/apply-pipeline/',
         ApplyPipelineView.as_view(),
         name='design-apply-pipeline',
+    ),
+    # Standalone generate (project-scoped)
+    path(
+        'designs/generate/',
+        StandaloneGenerateView.as_view(),
+        name='design-standalone-generate',
+    ),
+    # Design Projects CRUD
+    path(
+        'designs/projects/',
+        ProjectListCreateView.as_view(),
+        name='design-project-list-create',
+    ),
+    path(
+        'designs/projects/<uuid:pk>/',
+        ProjectDetailView.as_view(),
+        name='design-project-detail',
+    ),
+    # Project <-> Design M2M
+    path(
+        'designs/projects/<uuid:pk>/designs/',
+        ProjectDesignsView.as_view(),
+        name='design-project-designs',
+    ),
+    path(
+        'designs/projects/<uuid:pk>/designs/<uuid:design_id>/',
+        ProjectDesignRemoveView.as_view(),
+        name='design-project-design-remove',
+    ),
+    # Project board context
+    path(
+        'designs/projects/<uuid:pk>/board/',
+        ProjectBoardView.as_view(),
+        name='design-project-board',
+    ),
+    # Product image analysis (PROJ-7 integration)
+    path(
+        'products/<uuid:product_id>/analyze-image/',
+        ProductAnalyzeImageView.as_view(),
+        name='product-analyze-image',
     ),
 ]

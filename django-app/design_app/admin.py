@@ -5,8 +5,26 @@ from design_app.models import (
     DesignGenerationRun,
     DesignPipeline,
     DesignProcessingJob,
+    DesignProject,
+    DesignProjectDesign,
     ProcessingSettings,
 )
+
+
+class DesignProjectDesignInline(admin.TabularInline):
+    model = DesignProjectDesign
+    extra = 0
+    raw_id_fields = ('design',)
+
+
+@admin.register(DesignProject)
+class DesignProjectAdmin(admin.ModelAdmin):
+    list_display = ('id', 'name', 'workspace', 'niche', 'created_by', 'created_at', 'updated_at')
+    list_filter = ('workspace',)
+    search_fields = ('name',)
+    readonly_fields = ('id', 'created_at', 'updated_at')
+    raw_id_fields = ('workspace', 'niche', 'created_by')
+    inlines = [DesignProjectDesignInline]
 
 
 @admin.register(DesignGenerationRun)

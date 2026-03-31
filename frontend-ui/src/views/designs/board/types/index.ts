@@ -73,6 +73,8 @@ export interface GenerateDesignBody {
   model: DesignModel;
   background_color: BackgroundColor;
   prompt: string;
+  project_id?: string;
+  idea_id?: string;
 }
 
 export interface AnalyzeImageBody {
@@ -97,4 +99,54 @@ export interface DesignProcessingJob {
   error_message: string;
   created_at: string;
   completed_at: string | null;
+}
+
+// --- React Flow Node/Edge Types ---
+
+export type BoardNodeType = 'reference' | 'generateHub' | 'variant' | 'generating';
+
+export interface ReferenceNodeData {
+  [key: string]: unknown;
+  type: 'reference';
+  product: ReferenceProduct;
+  isAnalyzing?: boolean;
+  hasAnalysis?: boolean;
+}
+
+export interface GenerateHubNodeData {
+  [key: string]: unknown;
+  type: 'generateHub';
+  hubId: string;
+  isGenerating?: boolean;
+  connectedReferenceIds: string[];
+}
+
+export interface VariantNodeData {
+  [key: string]: unknown;
+  type: 'variant';
+  design: Design;
+}
+
+export interface GeneratingNodeData {
+  [key: string]: unknown;
+  type: 'generating';
+  runId: string;
+  run: DesignGenerationRun | null;
+}
+
+export type BoardNodeData =
+  | ReferenceNodeData
+  | GenerateHubNodeData
+  | VariantNodeData
+  | GeneratingNodeData;
+
+export interface BoardLayout {
+  nodes: Array<{ id: string; x: number; y: number }>;
+  edges: Array<{ source: string; target: string }>;
+}
+
+export interface ExternalImageDrop {
+  file: File;
+  previewUrl: string;
+  name: string;
 }

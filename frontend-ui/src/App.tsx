@@ -14,8 +14,8 @@ import NicheListView from './views/niches/list/NicheListView';
 import NicheResearchView from './views/niches/research';
 import AmazonResearchView from './views/amazon/research/AmazonResearchView';
 import IdeaListView from './views/ideas/IdeaListView';
-import DesignBoardView from './views/designs/board/DesignBoardView';
-import DesignEditorView from './views/designs/editor/DesignEditorView';
+import ProjectGalleryView from './views/designs/gallery/ProjectGalleryView';
+import DesignWorkspaceView from './views/designs/workspace/DesignWorkspaceView';
 import KeywordResearchView from './views/amazon/keywords/research/KeywordResearchView';
 import PublishView from './views/publish/PublishView';
 import DashboardView from './views/dashboard/DashboardView';
@@ -49,8 +49,8 @@ const App = () => {
           <Route path="/amazon/research/product/:asin" element={<ProductDetailPage />} />
           <Route path="/amazon/keywords" element={<KeywordResearchView />} />
           <Route path="/slogans" element={<IdeaListView />} />
-          <Route path="/design-board/:ideaId" element={<DesignBoardView />} />
-          <Route path="/design-editor" element={<DesignEditorView />} />
+          <Route path="/designs" element={<ProjectGalleryView />} />
+          <Route path="/designs/:projectId" element={<DesignWorkspaceView />} />
           <Route path="/publish" element={<PublishView />} />
           <Route path="/kanban" element={<KanbanBoardView />} />
 

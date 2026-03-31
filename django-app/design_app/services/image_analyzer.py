@@ -8,6 +8,25 @@ from django.conf import settings
 
 logger = logging.getLogger(__name__)
 
+
+def _get_langfuse():
+    """Return Langfuse client if configured, else None."""
+    if not getattr(settings, 'LANGFUSE_PUBLIC_KEY', '') or not getattr(
+        settings, 'LANGFUSE_SECRET_KEY', '',
+    ):
+        return None
+    try:
+        from langfuse import Langfuse
+
+        return Langfuse(
+            public_key=settings.LANGFUSE_PUBLIC_KEY,
+            secret_key=settings.LANGFUSE_SECRET_KEY,
+            base_url=settings.LANGFUSE_HOST,
+        )
+    except ImportError:
+        logger.warning("langfuse package not installed, skipping tracing")
+        return None
+
 SYSTEM_PROMPT = """You are Gemini 3 Architect, an expert visual analyst for print-on-demand T-shirt designs.
 
 Analyze the provided product image in exactly 7 steps. Return ONLY valid JSON.
@@ -51,12 +70,15 @@ def analyze_image(image_url: str) -> dict:
     """Run 7-step analysis on an image URL via OpenRouter.
 
     Returns structured dict with 7 keys, or raises on failure.
+    Traces the LLM call via Langfuse when configured.
     """
     api_key = settings.OPENROUTER_API_KEY
     base_url = settings.OPENROUTER_BASE_URL
 
     if not api_key:
         raise ValueError("OPENROUTER_API_KEY not configured")
+
+    model_name = 'google/gemini-2.5-flash-preview'
 
     headers = {
         'Authorization': f'Bearer {api_key}',
@@ -66,7 +88,7 @@ def analyze_image(image_url: str) -> dict:
     }
 
     payload = {
-        'model': 'google/gemini-2.5-flash-preview',
+        'model': model_name,
         'messages': [
             {'role': 'system', 'content': SYSTEM_PROMPT},
             {
@@ -88,24 +110,96 @@ def analyze_image(image_url: str) -> dict:
         'response_format': {'type': 'json_object'},
     }
 
-    with httpx.Client(timeout=60.0) as client:
-        resp = client.post(
-            f'{base_url}/chat/completions',
-            headers=headers,
-            json=payload,
-        )
-        resp.raise_for_status()
-
-    data = resp.json()
-    content = data['choices'][0]['message']['content']
+    # --- Langfuse tracing ---
+    langfuse = _get_langfuse()
+    trace = None
+    generation = None
+    if langfuse:
+        try:
+            trace = langfuse.trace(
+                name="design-image-analysis",
+                metadata={"image_url": image_url},
+                tags=["design_app", "image_analysis"],
+            )
+            generation = trace.generation(
+                name="gemini-7-step-analysis",
+                model=model_name,
+                input=payload['messages'],
+                model_parameters={
+                    "temperature": 0.2,
+                    "max_tokens": 2000,
+                },
+            )
+        except Exception:
+            logger.warning("Failed to init Langfuse trace for image analysis")
+            trace = None
+            generation = None
 
     try:
-        return json.loads(content)
-    except json.JSONDecodeError:
-        # Try to extract JSON from surrounding text
-        start = content.find('{')
-        end = content.rfind('}') + 1
-        if start >= 0 and end > start:
-            return json.loads(content[start:end])
-        logger.error("Failed to parse image analysis response: %s", content[:500])
-        raise ValueError("Malformed analysis output from LLM")
+        with httpx.Client(timeout=60.0) as client:
+            resp = client.post(
+                f'{base_url}/chat/completions',
+                headers=headers,
+                json=payload,
+            )
+            resp.raise_for_status()
+
+        data = resp.json()
+        content = data['choices'][0]['message']['content']
+
+        # Extract usage stats for Langfuse
+        usage = data.get('usage', {})
+
+        try:
+            result = json.loads(content)
+        except json.JSONDecodeError:
+            # Try to extract JSON from surrounding text
+            start = content.find('{')
+            end = content.rfind('}') + 1
+            if start >= 0 and end > start:
+                result = json.loads(content[start:end])
+            else:
+                logger.error(
+                    "Failed to parse image analysis response: %s", content[:500],
+                )
+                if generation:
+                    generation.end(
+                        output=content[:500],
+                        level="ERROR",
+                        status_message="Malformed JSON output",
+                    )
+                raise ValueError("Malformed analysis output from LLM")
+
+        # Log success to Langfuse
+        if generation:
+            try:
+                generation.end(
+                    output=result,
+                    usage={
+                        "input": usage.get('prompt_tokens'),
+                        "output": usage.get('completion_tokens'),
+                        "total": usage.get('total_tokens'),
+                    },
+                )
+            except Exception:
+                logger.warning("Failed to end Langfuse generation span")
+
+        return result
+
+    except Exception as exc:
+        # Log error to Langfuse
+        if generation:
+            try:
+                generation.end(
+                    level="ERROR",
+                    status_message=str(exc)[:500],
+                )
+            except Exception:
+                pass
+        raise
+    finally:
+        if langfuse:
+            try:
+                langfuse.flush()
+            except Exception:
+                logger.warning("Failed to flush Langfuse client")

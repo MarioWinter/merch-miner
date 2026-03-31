@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
-  useGenerateDesignMutation,
+  useGenerateDesignForProjectMutation,
   useGetRunStatusQuery,
   designApi,
 } from '../../../../store/designSlice';
@@ -12,13 +12,13 @@ const TERMINAL_STATUSES = ['completed', 'failed'];
 
 /**
  * Manages design generation trigger + polling.
- * Uses state for active run ID so React can track changes during render.
+ * Uses project-scoped standalone endpoint: POST /api/designs/generate/
  */
-export const useGeneration = (ideaId: string) => {
+export const useGeneration = (projectId: string, ideaId?: string) => {
   const dispatch = useAppDispatch();
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [generateDesign, { isLoading: isTriggering }] =
-    useGenerateDesignMutation();
+    useGenerateDesignForProjectMutation();
 
   const { data: runStatus } = useGetRunStatusQuery(activeRunId ?? '', {
     skip: !activeRunId,
@@ -29,23 +29,29 @@ export const useGeneration = (ideaId: string) => {
     ? TERMINAL_STATUSES.includes(runStatus.status)
     : false;
 
-  // When terminal, invalidate board to refresh designs
+  // When terminal, invalidate project board to refresh designs
   useEffect(() => {
     if (isTerminal && activeRunId) {
       setActiveRunId(null); // eslint-disable-line react-hooks/set-state-in-effect -- syncs with RTK Query
       dispatch(
-        designApi.util.invalidateTags([{ type: 'DesignBoard', id: ideaId }]),
+        designApi.util.invalidateTags([
+          { type: 'DesignProject', id: projectId },
+        ]),
       );
     }
-  }, [isTerminal, activeRunId, dispatch, ideaId]);
+  }, [isTerminal, activeRunId, dispatch, projectId]);
 
   const trigger = useCallback(
-    async (body: GenerateDesignBody) => {
-      const result = await generateDesign({ ideaId, body }).unwrap();
+    async (body: Omit<GenerateDesignBody, 'project_id' | 'idea_id'>) => {
+      const result = await generateDesign({
+        ...body,
+        project_id: projectId,
+        idea_id: ideaId,
+      }).unwrap();
       setActiveRunId(result.id);
       return result;
     },
-    [generateDesign, ideaId],
+    [generateDesign, projectId, ideaId],
   );
 
   const isGenerating = isTriggering || (!!activeRunId && !isTerminal);

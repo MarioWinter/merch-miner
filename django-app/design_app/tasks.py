@@ -10,13 +10,19 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 
-def task_generate_design(run_id: str):
+def task_generate_design(run_id: str, project_id: str = None):
     """Generate a design image via OpenRouter.
 
     Called by django-rq worker-design queue.
     Creates a Design record on success, marks run as failed on error.
+    If project_id is provided, auto-links the design to that project.
     """
-    from design_app.models import Design, DesignGenerationRun
+    from design_app.models import (
+        Design,
+        DesignGenerationRun,
+        DesignProject,
+        DesignProjectDesign,
+    )
     from design_app.services.image_generator import generate_image
 
     run = DesignGenerationRun.objects.select_related('idea').get(pk=run_id)
@@ -38,8 +44,22 @@ def task_generate_design(run_id: str):
         with open(output_path, 'rb') as f:
             image_content = f.read()
 
+        # Resolve workspace: from idea if available, else from project
+        workspace = None
+        if run.idea:
+            workspace = run.idea.workspace
+        elif project_id:
+            try:
+                project = DesignProject.objects.get(pk=project_id)
+                workspace = project.workspace
+            except DesignProject.DoesNotExist:
+                pass
+
+        if not workspace:
+            raise ValueError("Cannot determine workspace for design")
+
         design = Design(
-            workspace=run.idea.workspace,
+            workspace=workspace,
             idea=run.idea,
             generation_run=run,
             status=Design.Status.PENDING,
@@ -48,6 +68,19 @@ def task_generate_design(run_id: str):
         filename = f"design_{str(run.id)[:8]}.png"
         design.image_file.save(filename, ContentFile(image_content), save=False)
         design.save()
+
+        # Auto-link to project if provided
+        if project_id:
+            try:
+                DesignProjectDesign.objects.get_or_create(
+                    project_id=project_id,
+                    design=design,
+                )
+            except Exception:
+                logger.warning(
+                    "Failed to link design to project: design=%s project=%s",
+                    design.id, project_id,
+                )
 
         # Clean up temp file
         if os.path.exists(output_path):
@@ -68,7 +101,7 @@ def task_generate_design(run_id: str):
             run._retried = True
             logger.info("Retrying generation: run=%s", run_id)
             try:
-                return task_generate_design(run_id)
+                return task_generate_design(run_id, project_id)
             except Exception:
                 pass
 
@@ -238,6 +271,29 @@ def task_upscale_design(job_id: str):
         job.completed_at = timezone.now()
         job.error_message = str(exc)[:2000]
         job.save(update_fields=['status', 'completed_at', 'error_message'])
+
+
+def task_analyze_product_image(product_id: str, source_image_url: str):
+    """Run Gemini 3 Architect 7-step analysis on an AmazonProduct image.
+
+    Stores structured output in AmazonProduct.prompt_analysis.
+    """
+    from scraper_app.models import AmazonProduct
+    from design_app.services.image_analyzer import analyze_image
+
+    product = AmazonProduct.objects.get(pk=product_id)
+
+    try:
+        analysis = analyze_image(source_image_url)
+        product.prompt_analysis = analysis
+        product.save(update_fields=['prompt_analysis'])
+
+        logger.info("Product image analyzed: product=%s", product_id)
+        return analysis
+
+    except Exception:
+        logger.exception("Product image analysis failed: product=%s", product_id)
+        raise
 
 
 def _get_bg_from_prompt(prompt: str) -> str:

@@ -222,7 +222,7 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
       items: [
         { label: t('nav.niches'), path: '/niches', icon: <ListAltOutlinedIcon sx={{ fontSize: 20 }} /> },
         { label: t('nav.slogans'), path: '/slogans', icon: <LightbulbOutlinedIcon sx={{ fontSize: 20 }} /> },
-        { label: t('nav.designs'), path: '/design-editor', icon: <BrushOutlinedIcon sx={{ fontSize: 20 }} /> },
+        { label: t('nav.designBoard'), path: '/designs', icon: <BrushOutlinedIcon sx={{ fontSize: 20 }} /> },
         { label: t('nav.listings'), path: '/publish', icon: <ArticleOutlinedIcon sx={{ fontSize: 20 }} /> },
       ],
     },
@@ -242,8 +242,12 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
     surfaceOps: t('nav.sections.surfaceOps'),
   };
 
-  const isActive = (path: string) =>
-    location.pathname === path || location.pathname.startsWith(path + '/');
+  const isActive = (path: string) => {
+    if (path === '/designs') {
+      return location.pathname === '/designs' || location.pathname.startsWith('/designs/');
+    }
+    return location.pathname === path || location.pathname.startsWith(path + '/');
+  };
 
   const renderNavItem = (item: NavItem) => {
     const active = isActive(item.path);

@@ -19,6 +19,7 @@ import { useIdeaInlineAdd } from './hooks/useInlineAdd';
 import { useIdeaInlineEdit } from './hooks/useInlineEdit';
 import { useAdaptation } from './hooks/useAdaptation';
 import { useIdeaActions } from './hooks/useIdeaActions';
+import { useRejectWithDesignWarning } from './hooks/useRejectWithDesignWarning';
 import { IdeaFilterToolbar } from './partials/IdeaFilterToolbar';
 import { InlineAddBar } from './partials/InlineAddBar';
 import { IdeaCard } from './partials/IdeaCard';
@@ -27,6 +28,7 @@ import { AdaptationModal } from './partials/AdaptationModal';
 import { AdaptationProgress } from './partials/AdaptationProgress';
 import { ImproveDialog } from './partials/ImproveDialog';
 import { ImportDialog } from './partials/ImportDialog';
+import { RejectIdeaWarningDialog } from './partials/RejectIdeaWarningDialog';
 import { useMockAdaptation } from './hooks/useMockAdaptation';
 import { NicheDetailDrawer } from '../niches/list/partials/NicheDetailDrawer';
 import type { Idea } from './types';
@@ -77,6 +79,7 @@ export const IdeaListView = () => {
   const inlineAdd = useIdeaInlineAdd();
   const inlineEdit = useIdeaInlineEdit();
   const actions = useIdeaActions();
+  const rejectWarning = useRejectWithDesignWarning(actions.reject);
   const adaptation = useAdaptation();
   const mockAdaptation = useMockAdaptation();
 
@@ -304,7 +307,7 @@ export const IdeaListView = () => {
               key={idea.id}
               idea={idea}
               onApprove={() => actions.approve(idea)}
-              onReject={() => actions.reject(idea)}
+              onReject={() => rejectWarning.requestReject(idea)}
               onImprove={() => setImproveIdea(idea)}
               onAdapt={() => setAdaptIdea(idea)}
               onDelete={() => actions.deleteIdea(idea)}
@@ -326,7 +329,7 @@ export const IdeaListView = () => {
                   sourceIdea={source}
                   adaptedIdeas={adapted}
                   onApprove={actions.approve}
-                  onReject={actions.reject}
+                  onReject={rejectWarning.requestReject}
                   onImprove={(idea) => setImproveIdea(idea)}
                   onAdapt={(idea) => setAdaptIdea(idea)}
                   onDelete={actions.deleteIdea}
@@ -343,7 +346,7 @@ export const IdeaListView = () => {
                 key={source.id}
                 idea={source}
                 onApprove={() => actions.approve(source)}
-                onReject={() => actions.reject(source)}
+                onReject={() => rejectWarning.requestReject(source)}
                 onImprove={() => setImproveIdea(source)}
                 onAdapt={() => setAdaptIdea(source)}
                 onDelete={() => actions.deleteIdea(source)}
@@ -362,7 +365,7 @@ export const IdeaListView = () => {
               key={idea.id}
               idea={idea}
               onApprove={() => actions.approve(idea)}
-              onReject={() => actions.reject(idea)}
+              onReject={() => rejectWarning.requestReject(idea)}
               onImprove={() => setImproveIdea(idea)}
               onAdapt={() => setAdaptIdea(idea)}
               onDelete={() => actions.deleteIdea(idea)}
@@ -418,6 +421,13 @@ export const IdeaListView = () => {
         mode="edit"
         selectedId={drawerNicheId}
         onClose={() => setDrawerNicheId(null)}
+      />
+
+      {/* Reject idea warning (when idea has approved design) */}
+      <RejectIdeaWarningDialog
+        open={rejectWarning.warningOpen}
+        onConfirm={rejectWarning.confirmReject}
+        onCancel={rejectWarning.cancelReject}
       />
     </Box>
   );

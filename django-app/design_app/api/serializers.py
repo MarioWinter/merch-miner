@@ -7,6 +7,8 @@ from design_app.models import (
     DesignGenerationRun,
     DesignPipeline,
     DesignProcessingJob,
+    DesignProject,
+    DesignProjectDesign,
     ProcessingSettings,
 )
 
@@ -32,6 +34,7 @@ class DesignSerializer(serializers.ModelSerializer):
 
     generation_run = DesignGenerationRunSerializer(read_only=True)
     idea_summary = serializers.SerializerMethodField()
+    project_ids = serializers.SerializerMethodField()
 
     class Meta:
         model = Design
@@ -40,6 +43,7 @@ class DesignSerializer(serializers.ModelSerializer):
             'image_file', 'status', 'is_manual', 'background_color',
             'source_image_url', 'prompt_analysis',
             'upscaled_file', 'bg_removed_file', 'created_at',
+            'project_ids',
         ]
         read_only_fields = fields
 
@@ -50,6 +54,15 @@ class DesignSerializer(serializers.ModelSerializer):
                 'slogan_text': obj.idea.slogan_text[:100],
             }
         return None
+
+    def get_project_ids(self, obj):
+        # Use prefetched data if available
+        if hasattr(obj, '_prefetched_objects_cache') and 'projects' in obj._prefetched_objects_cache:
+            return [str(p.id) for p in obj.projects.all()]
+        return list(
+            DesignProjectDesign.objects.filter(design=obj)
+            .values_list('project_id', flat=True)
+        )
 
 
 # -- Board Context --
@@ -81,6 +94,7 @@ class DesignBoardSerializer(serializers.Serializer):
     idea_id = serializers.UUIDField()
     slogan_text = serializers.CharField()
     niche_name = serializers.CharField(allow_blank=True, allow_null=True)
+    board_layout = serializers.JSONField(allow_null=True, required=False)
     reference_products = ReferenceProductSerializer(many=True)
     designs = DesignSerializer(many=True)
 
@@ -88,7 +102,7 @@ class DesignBoardSerializer(serializers.Serializer):
 # -- Generate Trigger --
 
 class GenerateDesignSerializer(serializers.Serializer):
-    """Trigger design generation."""
+    """Trigger design generation (idea-scoped, optional project link)."""
 
     model = serializers.ChoiceField(
         choices=DesignGenerationRun.ModelName.choices,
@@ -98,6 +112,7 @@ class GenerateDesignSerializer(serializers.Serializer):
         default=Design.BackgroundColor.LIGHT_GRAY,
     )
     prompt = serializers.CharField(required=True, min_length=10)
+    project_id = serializers.UUIDField(required=False, allow_null=True)
 
 
 # -- Analyze Image --
@@ -199,3 +214,139 @@ class ApplyPipelineSerializer(serializers.Serializer):
         max_length=50,
     )
     pipeline_id = serializers.UUIDField()
+
+
+# -- Design Project --
+
+class DesignProjectListSerializer(serializers.ModelSerializer):
+    """Compact project list representation."""
+
+    niche_name = serializers.SerializerMethodField()
+    design_count = serializers.SerializerMethodField()
+    thumbnail = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DesignProject
+        fields = [
+            'id', 'name', 'niche', 'niche_name', 'design_count',
+            'thumbnail', 'updated_at', 'created_at',
+        ]
+        read_only_fields = fields
+
+    def get_niche_name(self, obj):
+        return obj.niche.name if obj.niche else None
+
+    def get_design_count(self, obj):
+        # Use annotated count if available, else query
+        if hasattr(obj, 'design_count_annotated'):
+            return obj.design_count_annotated
+        return obj.designs.count()
+
+    def get_thumbnail(self, obj):
+        # Return first design's image URL
+        first = (
+            DesignProjectDesign.objects.filter(project=obj)
+            .select_related('design')
+            .order_by('-added_at')
+            .first()
+        )
+        if first and first.design.image_file:
+            return first.design.image_file.url
+        return None
+
+
+class DesignProjectSerializer(serializers.ModelSerializer):
+    """Full project representation with nested niche info."""
+
+    niche_summary = serializers.SerializerMethodField()
+    design_count = serializers.SerializerMethodField()
+    thumbnail = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DesignProject
+        fields = [
+            'id', 'name', 'niche', 'niche_summary', 'design_count',
+            'thumbnail', 'board_layout', 'created_by',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = [
+            'id', 'design_count', 'thumbnail', 'niche_summary',
+            'created_by', 'created_at', 'updated_at',
+        ]
+
+    def get_niche_summary(self, obj):
+        if obj.niche:
+            return {'id': str(obj.niche.id), 'name': obj.niche.name}
+        return None
+
+    def get_design_count(self, obj):
+        if hasattr(obj, 'design_count_annotated'):
+            return obj.design_count_annotated
+        return obj.designs.count()
+
+    def get_thumbnail(self, obj):
+        first = (
+            DesignProjectDesign.objects.filter(project=obj)
+            .select_related('design')
+            .order_by('-added_at')
+            .first()
+        )
+        if first and first.design.image_file:
+            return first.design.image_file.url
+        return None
+
+
+class CreateProjectSerializer(serializers.Serializer):
+    """Create a new design project."""
+
+    name = serializers.CharField(max_length=200, min_length=1)
+    niche = serializers.UUIDField(required=False, allow_null=True)
+
+
+class UpdateProjectSerializer(serializers.Serializer):
+    """Update a design project."""
+
+    name = serializers.CharField(max_length=200, min_length=1, required=False)
+    niche = serializers.UUIDField(required=False, allow_null=True)
+    board_layout = serializers.JSONField(required=False, allow_null=True)
+
+
+class AddDesignsToProjectSerializer(serializers.Serializer):
+    """Add designs to a project."""
+
+    design_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        min_length=1,
+        max_length=100,
+    )
+
+
+class DesignProjectBoardSerializer(serializers.Serializer):
+    """Full board context for a project."""
+
+    project = DesignProjectSerializer()
+    designs = DesignSerializer(many=True)
+    board_layout = serializers.JSONField(allow_null=True)
+    # Optional idea context overlay
+    idea_context = serializers.DictField(required=False, allow_null=True)
+
+
+class StandaloneGenerateSerializer(serializers.Serializer):
+    """Standalone design generation (project-scoped)."""
+
+    model = serializers.ChoiceField(
+        choices=DesignGenerationRun.ModelName.choices,
+    )
+    background_color = serializers.ChoiceField(
+        choices=Design.BackgroundColor.choices,
+        default=Design.BackgroundColor.LIGHT_GRAY,
+    )
+    prompt = serializers.CharField(required=True, min_length=10)
+    project_id = serializers.UUIDField(required=False, allow_null=True)
+    idea_id = serializers.UUIDField(required=False, allow_null=True)
+
+
+class ProductAnalyzeImageSerializer(serializers.Serializer):
+    """Trigger image analysis on an AmazonProduct."""
+
+    source_image_url = serializers.URLField(required=True)

@@ -15,6 +15,7 @@ vi.mock('../../../../store/researchSlice', async (importOriginal) => {
 });
 
 const buildProduct = (overrides?: Partial<AmazonProduct>): AmazonProduct => ({
+  id: 'prod-test-123',
   asin: 'B09TEST123',
   title: 'Funny Hiking T-Shirt',
   brand: 'TrailBrand',

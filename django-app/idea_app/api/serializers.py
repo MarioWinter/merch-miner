@@ -20,7 +20,8 @@ class IdeaSerializer(serializers.ModelSerializer):
             'creative_modules_used', 'emotional_archetype',
             'buyer_voice_pattern', 'stylistic_device', 'pattern_used',
             'why_it_works', 'market_confidence', 'status',
-            'was_changed', 'change_reason', 'created_by', 'created_at',
+            'was_changed', 'change_reason', 'board_layout',
+            'created_by', 'created_at',
         ]
         read_only_fields = [
             'id', 'workspace', 'created_by', 'created_at',
@@ -62,9 +63,21 @@ class IdeaUpdateSerializer(serializers.ModelSerializer):
         model = Idea
         fields = [
             'slogan_text', 'niche', 'status', 'signal_type',
-            'market_confidence', 'emotional_archetype',
+            'market_confidence', 'emotional_archetype', 'board_layout',
         ]
         extra_kwargs = {field: {'required': False} for field in fields}
+
+    def validate_board_layout(self, value):
+        if value is not None and not isinstance(value, dict):
+            raise serializers.ValidationError("board_layout must be a JSON object or null.")
+        if isinstance(value, dict):
+            allowed_keys = {'nodes', 'edges', 'viewport'}
+            unknown = set(value.keys()) - allowed_keys
+            if unknown:
+                raise serializers.ValidationError(
+                    f"Unknown board_layout keys: {', '.join(sorted(unknown))}",
+                )
+        return value
 
 
 class AdaptTriggerSerializer(serializers.Serializer):

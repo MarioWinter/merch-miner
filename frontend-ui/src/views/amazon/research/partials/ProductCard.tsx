@@ -7,9 +7,12 @@ import ArrowForwardOutlinedIcon from '@mui/icons-material/ArrowForwardOutlined';
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import BrushOutlinedIcon from '@mui/icons-material/BrushOutlined';
+import CircularProgress from '@mui/material/CircularProgress';
 import StarIcon from '@mui/icons-material/Star';
 import { SparkLineChart } from '@mui/x-charts/SparkLineChart';
 import { useSnackbar } from 'notistack';
+import { useTranslation } from 'react-i18next';
 import { useGetBSRHistoryQuery } from '../../../../store/researchSlice';
 import { MONO_FONT_STACK } from '../../../../style/constants';
 import { MARKETPLACE_OPTIONS, type AmazonProduct } from '../types';
@@ -25,6 +28,9 @@ interface ProductCardProps {
   isExtracting?: boolean;
   disableHover?: boolean;
   hideHeart?: boolean;
+  onAnalyzeDesign?: () => void;
+  isAnalyzingDesign?: boolean;
+  hasDesignAnalysis?: boolean;
 }
 
 const CARD_HEIGHT = 340;
@@ -169,8 +175,12 @@ const ProductCard = ({
   isExtracting = false,
   disableHover = false,
   hideHeart = false,
+  onAnalyzeDesign,
+  isAnalyzingDesign = false,
+  hasDesignAnalysis = false,
 }: ProductCardProps) => {
   const { enqueueSnackbar } = useSnackbar();
+  const { t } = useTranslation();
   // Show the broadest/main category BSR (highest rank = first in Amazon DOM order)
   // After scraper fix, bsr_categories[0] is "Clothing, Shoes & Jewelry" (broadest)
   // Fallback: pick the entry with the highest rank (broadest category)
@@ -216,6 +226,11 @@ const ProductCard = ({
   const handleExtractSlogan = (e: React.MouseEvent) => {
     e.stopPropagation();
     onExtractSlogan?.();
+  };
+
+  const handleAnalyzeDesign = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onAnalyzeDesign?.();
   };
 
   return (
@@ -295,6 +310,23 @@ const ProductCard = ({
                     sx={{ color: 'secondary.main' }}
                   >
                     <AutoAwesomeIcon sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Tooltip>
+              )}
+              {onAnalyzeDesign && (
+                <Tooltip title={hasDesignAnalysis ? t('design.analyze.reused') : t('design.analyze.button')}>
+                  <IconButton
+                    size="small"
+                    onClick={handleAnalyzeDesign}
+                    disabled={isAnalyzingDesign}
+                    aria-label={t('design.analyze.button')}
+                    sx={{ color: hasDesignAnalysis ? 'success.main' : 'primary.main' }}
+                  >
+                    {isAnalyzingDesign ? (
+                      <CircularProgress size={16} color="inherit" />
+                    ) : (
+                      <BrushOutlinedIcon sx={{ fontSize: 16 }} />
+                    )}
                   </IconButton>
                 </Tooltip>
               )}

@@ -73,5 +73,7 @@ export const makeSuggestion = (
   compatibility_score: 85,
   shared_patterns: ['Metaphor', 'Alliteration'],
   already_adapted: false,
+  has_completed_research: false,
+  research_status: null,
   ...overrides,
 });
