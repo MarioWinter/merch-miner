@@ -81,7 +81,7 @@
 
 ## Phase A4: Task Runner (django-rq)
 
-- [x] `tasks.py: task_generate_design(run_id)` — call OpenRouter image generation API with prompt + model. Download result. Save to `Design.image_file`. Update run status
+- [x] `tasks.py: task_generate_design(run_id, project_id)` — call OpenRouter image generation API with prompt + model. Download result. Save to `Design.image_file`. Auto-link to project. Update run status
 - [x] `tasks.py: task_analyze_image(design_id)` — call Gemini 3 Architect (7-step). Save structured output to `Design.prompt_analysis`. Return prompt to board
 - [x] `tasks.py: task_upscale_design(job_id)` — read ProcessingSettings. Auto mode: check dimensions → Pica.js hint (return to client) or API call. Save to `Design.upscaled_file`
 - [x] `tasks.py: task_remove_background(job_id)` — read ProcessingSettings. rembg (u2net) or API. Save to `Design.bg_removed_file`
@@ -332,7 +332,7 @@
 
 - [x] `ConnectionArrow.tsx`: NEW — thin 1px Konva Arrow from source right-center to AI Board left-center. Color = `text.secondary`. Purely visual, not interactive
 - [x] `addAiImageBoard(sourceId)` in `useArtboards` — creates new AI artboard 100px right of source, auto-connected
-- [x] AI Image Board shows "✦ AI Image Board" label in cyan. `RegenerateOverlay.tsx` below frame when selected
+- [x] AI Image Board shows "✦ AI: {prompt}" label in cyan. Regeneration via PromptBar (RegenerateOverlay removed)
 - [x] Connections stored in `board_layout.edges[]` as `{source, target}` (reused existing type)
 
 ### D3.4: Context Menu
@@ -359,7 +359,7 @@
 
 - [x] Rewrite `PromptBar.tsx` + `PromptBar.styles.ts` for new layout:
 - [x] Collapsed: single-line "✨ Describe what you want to create..." input. Overlays bottom of canvas above toolbar
-- [x] Expanded (on AI Board select or AI sparkle click): "Edit AI Image Board" header + ✖ close. Source→result thumbnails (48px). Multiline prompt. "Prompt builder" accordion. Model/Ratio/Style/BG selectors. Generate/Regenerate button
+- [x] Expanded (on AI Board select or AI sparkle click): "Edit AI Image Board" header + ✖ close. Source→result thumbnails (48px). Multiline prompt. "Prompt builder" accordion. Model/Ratio/Style/BG selectors. Generate button (becomes "Regenerate" when AI artboard with image is selected). Prompt/model/bgColor auto-restored from selected artboard
 - [x] Keep existing `ModelSelector.tsx` + `BackgroundColorPicker.tsx` embedded in expanded bar
 - [x] Smooth slide-up animation (200ms ease). `usePromptBar` hook for auto-expand/collapse
 
@@ -409,6 +409,16 @@
 
 > **Phase D (Unified Design Workspace) completed 2026-04-01.** All frontend work done.
 > **Backend for Artboard Canvas completed 2026-04-01.** All 26 RTK Query endpoints matched. Added: image upload (`POST /projects/{id}/upload/`), designs by IDs (`GET /designs/?ids=...`). Board layout persistence + design generation were already working.
+>
+> **AI Generation E2E verified 2026-04-01.** Fixes applied:
+> - **OpenRouter model IDs:** `gemini-2.5-flash-preview` → `gemini-2.5-flash-image`, `gemini-2.5-pro-preview` → `gemini-3-pro-image-preview`
+> - **Image extraction:** Added `message.images[]` parsing (Gemini returns images separately from `content`)
+> - **useGeneration hook wired:** Skeleton artboard on canvas during generation, auto-replaced with image on completion
+> - **SkeletonPulse:** Konva.js animated pulse overlay ("Generating...") while waiting for API
+> - **Prompt persistence:** `ArtboardData.promptUsed/modelUsed/bgColorUsed` stored per artboard. Hydrated from backend `DesignGenerationRun.prompt_used` on reload
+> - **Regenerate flow:** PromptBar shows saved prompt + "Regenerate" button when AI artboard selected. Old `RegenerateOverlay` removed
+> - **Artboard hydration:** Designs with `generation_run` hydrate as `kind: 'ai'` with cyan "✦ AI:" label
+> - **ProjectUploadView fix:** Removed redundant `files=request.FILES` (DRF handles automatically)
 
 ---
 

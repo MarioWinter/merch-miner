@@ -1014,7 +1014,7 @@ class ProjectUploadView(APIView):
             DesignProject, pk=project_id, workspace_id=ws_id,
         )
 
-        serializer = DesignUploadSerializer(data=request.data, files=request.FILES)
+        serializer = DesignUploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         uploaded_file = serializer.validated_data['file']

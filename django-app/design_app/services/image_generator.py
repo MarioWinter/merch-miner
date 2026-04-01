@@ -13,8 +13,8 @@ logger = logging.getLogger(__name__)
 
 # OpenRouter model mapping
 MODEL_MAP = {
-    'gemini_flash': 'google/gemini-2.5-flash-preview',
-    'gemini_pro': 'google/gemini-2.5-pro-preview',
+    'gemini_flash': 'google/gemini-2.5-flash-image',
+    'gemini_pro': 'google/gemini-3-pro-image-preview',
     'gpt_image': 'openai/gpt-image-1',
     'flux': 'black-forest-labs/flux-1.1-pro',
 }
@@ -78,6 +78,11 @@ def generate_image(prompt: str, model_name: str, output_dir: str = None) -> str:
             headers=headers,
             json=payload,
         )
+        if resp.status_code >= 400:
+            logger.error(
+                "OpenRouter API error %s: %s",
+                resp.status_code, resp.text[:500],
+            )
         resp.raise_for_status()
 
     data = resp.json()
@@ -121,6 +126,21 @@ def _extract_image(response_data: dict, model_name: str) -> bytes | None:
 
     message = choices[0].get('message', {})
     content = message.get('content', '')
+
+    # Case 0: message.images[] (Gemini Flash Image via OpenRouter)
+    images = message.get('images', [])
+    if isinstance(images, list):
+        for img in images:
+            if isinstance(img, dict):
+                url = img.get('image_url', {}).get('url', '')
+                if url.startswith('data:'):
+                    b64 = url.split(',', 1)[1]
+                    return base64.b64decode(b64)
+                if url.startswith('http'):
+                    with httpx.Client(timeout=30.0) as client:
+                        img_resp = client.get(url)
+                        img_resp.raise_for_status()
+                        return img_resp.content
 
     # Case 1: content is a list of parts (Gemini style)
     if isinstance(content, list):

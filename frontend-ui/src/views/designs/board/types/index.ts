@@ -175,6 +175,14 @@ export interface ArtboardData {
   backgroundColor: string;
   /** Whether content is clipped to artboard bounds */
   clipContent: boolean;
+  /** Whether AI generation is in progress for this artboard */
+  isGenerating?: boolean;
+  /** Prompt used to generate this artboard (for regeneration) */
+  promptUsed?: string;
+  /** AI model used for generation */
+  modelUsed?: DesignModel;
+  /** Background color used for generation */
+  bgColorUsed?: BackgroundColor;
 }
 
 /** Preset artboard sizes */

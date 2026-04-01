@@ -69,6 +69,8 @@ interface PromptBarProps {
   /** Generate handler */
   onGenerate: () => void;
   isGenerating: boolean;
+  /** Whether this is a regeneration (selected AI artboard has image) */
+  isRegenerate?: boolean;
   disabled?: boolean;
   /** Source artboard (for thumbnail preview) */
   sourceArtboard?: ArtboardData | null;
@@ -93,6 +95,7 @@ export const PromptBar = ({
   promptAnalysis,
   onGenerate,
   isGenerating,
+  isRegenerate = false,
   disabled,
   sourceArtboard,
   resultArtboards = [],
@@ -265,12 +268,16 @@ export const PromptBar = ({
               aria-label={
                 isGenerating
                   ? t('design.prompt.generating', 'Generating...')
-                  : t('design.prompt.generate', 'Generate')
+                  : isRegenerate
+                    ? t('design.prompt.regenerate', 'Regenerate')
+                    : t('design.prompt.generate', 'Generate')
               }
             >
               {isGenerating
                 ? t('design.prompt.generating', 'Generating...')
-                : t('design.prompt.generate', 'Generate')}
+                : isRegenerate
+                  ? t('design.prompt.regenerate', 'Regenerate')
+                  : t('design.prompt.generate', 'Generate')}
             </GenerateButton>
           </Stack>
         </ControlsRow>

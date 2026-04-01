@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Group, Rect, Text, Image as KonvaImage } from 'react-konva';
 import type Konva from 'konva';
 import type { ArtboardData } from '../types';
+import SkeletonPulse from './SkeletonPulse';
 
 // -----------------------------------------------------------------
 // Constants
@@ -250,6 +251,11 @@ const Artboard = ({
         shadowEnabled
       />
 
+      {/* Skeleton pulse while generating */}
+      {data.isGenerating && !image && (
+        <SkeletonPulse width={data.width} height={data.height} />
+      )}
+
       {/* Image inside frame */}
       {image && (
         <KonvaImage
@@ -262,8 +268,8 @@ const Artboard = ({
         />
       )}
 
-      {/* Placeholder when no image */}
-      {!image && (
+      {/* Placeholder when no image and not generating */}
+      {!image && !data.isGenerating && (
         <Text
           x={0}
           y={data.height / 2 - 8}

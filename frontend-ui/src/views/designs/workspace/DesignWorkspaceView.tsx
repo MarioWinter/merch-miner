@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ArtboardData, BackgroundColor, DesignModel } from '../board/types';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Alert, Box, Button, IconButton, Skeleton, Tooltip, Typography } from '@mui/material';
@@ -12,6 +12,7 @@ import useArtboardCanvas from '../board/hooks/useArtboardCanvas';
 import useArtboards from '../board/hooks/useArtboards';
 import useRightPanelState from '../board/hooks/useRightPanelState';
 import usePromptBar from '../board/hooks/usePromptBar';
+import { useGeneration } from '../board/hooks/useGeneration';
 import ArtboardCanvas from '../board/partials/ArtboardCanvas';
 import BottomToolbar from '../board/partials/BottomToolbar';
 import { PromptBar } from '../board/partials/PromptBar';
@@ -100,6 +101,50 @@ const DesignWorkspaceView = () => {
   const [aiModel, setAiModel] = useState<DesignModel>('gemini_flash');
   const [bgColor, setBgColor] = useState<BackgroundColor>('light_gray');
 
+  // -- AI generation --
+  const generation = useGeneration(projectId ?? '');
+  const generatingArtboardRef = useRef<string | null>(null);
+
+  // -- Sync prompt state when selecting an AI artboard --
+  const selectedAb = panelState.artboard;
+  const prevSelectedIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const id = selectedAb?.id ?? null;
+    if (id === prevSelectedIdRef.current) return;
+    prevSelectedIdRef.current = id;
+
+    if (selectedAb?.kind === 'ai' && selectedAb.promptUsed) {
+      setPrompt(selectedAb.promptUsed);
+      if (selectedAb.modelUsed) setAiModel(selectedAb.modelUsed);
+      if (selectedAb.bgColorUsed) setBgColor(selectedAb.bgColorUsed);
+    }
+  }, [selectedAb]);
+
+  const isRegenerate = !!(selectedAb?.kind === 'ai' && selectedAb.imageUrl);
+
+  // -- Update skeleton artboard when generation completes --
+  const prevDesignCountRef = useRef(boardData?.designs?.length ?? 0);
+  useEffect(() => {
+    const designs = boardData?.designs;
+    if (!designs || !generatingArtboardRef.current) return;
+
+    const prevCount = prevDesignCountRef.current;
+    prevDesignCountRef.current = designs.length;
+
+    // When a new design appears while we have a generating artboard
+    if (designs.length > prevCount && !generation.isGenerating) {
+      const newest = designs[0]; // ordered by created_at desc
+      if (newest?.image_file) {
+        artboardState.updateArtboard(generatingArtboardRef.current, {
+          imageUrl: newest.image_file,
+          designId: newest.id,
+          isGenerating: false,
+        });
+        generatingArtboardRef.current = null;
+      }
+    }
+  }, [boardData?.designs, generation.isGenerating, artboardState]);
+
   // -- Right panel handlers --
   const handleRegenerate = useCallback(() => {
     // TODO: trigger AI design generation for the selected AI Image Board
@@ -182,9 +227,33 @@ const DesignWorkspaceView = () => {
     promptBar.expand();
   }, [promptBar]);
 
-  const handleGenerate = useCallback(() => {
-    // TODO: wire to useGeneration hook with prompt, aiModel, bgColor
-  }, []);
+  const handleGenerate = useCallback(async () => {
+    if (!prompt.trim() || generation.isGenerating) return;
+
+    // Create a skeleton artboard on the canvas
+    const skeletonAb = artboardState.addArtboard({
+      label: `AI: ${prompt.slice(0, 30)}${prompt.length > 30 ? '…' : ''}`,
+      kind: 'ai',
+      width: 280,
+      height: 280,
+      isGenerating: true,
+      promptUsed: prompt,
+      modelUsed: aiModel,
+      bgColorUsed: bgColor,
+    });
+    generatingArtboardRef.current = skeletonAb.id;
+
+    try {
+      await generation.trigger({
+        model: aiModel,
+        background_color: bgColor,
+        prompt,
+      });
+      promptBar.collapse();
+    } catch {
+      artboardState.updateArtboard(skeletonAb.id, { isGenerating: false });
+    }
+  }, [prompt, generation, artboardState, aiModel, bgColor, promptBar]);
 
   // -- Loading --
   if (isLoading) {
@@ -314,7 +383,8 @@ const DesignWorkspaceView = () => {
                 bgColor={bgColor}
                 onBgColorChange={setBgColor}
                 onGenerate={handleGenerate}
-                isGenerating={false}
+                isGenerating={generation.isGenerating}
+                isRegenerate={isRegenerate}
                 sourceArtboard={panelState.artboard}
                 resultArtboards={[]}
               />

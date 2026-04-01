@@ -17,7 +17,6 @@ import CanvasContextMenu from './CanvasContextMenu';
 import ConnectionArrow from './ConnectionArrow';
 import RubberBandSelection from './RubberBandSelection';
 import ArtboardLabelEditor from './ArtboardLabelEditor';
-import RegenerateOverlay from './RegenerateOverlay';
 import {
   CanvasContainer,
   DropZoneOverlay,
@@ -120,7 +119,6 @@ const ArtboardCanvas = ({
   // -- Canvas handlers (labels, drag, regenerate) --
   const {
     editingLabel,
-    regeneratePosition,
     artboardMap,
     handleDragEnd,
     handleDragStart,
@@ -129,7 +127,6 @@ const ArtboardCanvas = ({
     handleDoubleClickLabel,
     handleLabelConfirm,
     handleLabelCancel,
-    handleRegenerate,
   } = useCanvasHandlers({
     artboards,
     selectedIds,
@@ -280,14 +277,6 @@ const ArtboardCanvas = ({
           screenY={editingLabel.screenY}
           onConfirm={handleLabelConfirm}
           onCancel={handleLabelCancel}
-        />
-      )}
-
-      {regeneratePosition && (
-        <RegenerateOverlay
-          screenX={regeneratePosition.screenX}
-          screenY={regeneratePosition.screenY}
-          onRegenerate={handleRegenerate}
         />
       )}
 

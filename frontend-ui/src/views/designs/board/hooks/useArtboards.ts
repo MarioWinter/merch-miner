@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useUpdateProjectMutation } from '@/store/designSlice';
-import type { ArtboardData, BoardLayout } from '../types';
+import type { ArtboardData, BackgroundColor, BoardLayout, DesignModel } from '../types';
 
 // -----------------------------------------------------------------
 // Constants
@@ -32,6 +32,12 @@ interface UseArtboardsParams {
     id: string;
     image_file: string | null;
     status: string;
+    is_manual?: boolean;
+    background_color?: string;
+    generation_run?: {
+      prompt_used?: string;
+      model_name?: string;
+    } | null;
   }>;
 }
 
@@ -109,20 +115,28 @@ const useArtboards = ({
 
     const hydrated: ArtboardData[] = designs.map((d, i) => {
       const pos = positionMap.get(d.id);
+      const run = d.generation_run;
+      const isAi = !!run && !d.is_manual;
+      const promptText = run?.prompt_used ?? '';
       return {
         id: d.id,
-        label: `Artboard ${i + 1}`,
+        label: isAi
+          ? `AI: ${promptText.slice(0, 30)}${promptText.length > 30 ? '…' : ''}`
+          : `Artboard ${i + 1}`,
         x: pos?.x ?? 80 + i * (DEFAULT_WIDTH + 60),
         y: pos?.y ?? 80,
         width: DEFAULT_WIDTH,
         height: DEFAULT_HEIGHT,
         imageUrl: d.image_file ?? null,
-        kind: 'regular' as const,
+        kind: isAi ? 'ai' as const : 'regular' as const,
         sourceId: null,
         designId: d.id,
         opacity: 100,
         backgroundColor: '#FFFFFF',
         clipContent: false,
+        promptUsed: run?.prompt_used,
+        modelUsed: run?.model_name as DesignModel | undefined,
+        bgColorUsed: d.background_color as BackgroundColor | undefined,
       };
     });
 
@@ -231,6 +245,10 @@ const useArtboards = ({
         opacity: partial?.opacity ?? 100,
         backgroundColor: partial?.backgroundColor ?? '#FFFFFF',
         clipContent: partial?.clipContent ?? false,
+        isGenerating: partial?.isGenerating ?? false,
+        promptUsed: partial?.promptUsed,
+        modelUsed: partial?.modelUsed,
+        bgColorUsed: partial?.bgColorUsed,
       };
       setArtboards((prev) => {
         const next = [...prev, newBoard];
