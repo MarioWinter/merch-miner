@@ -170,6 +170,503 @@
 
 ---
 
+## Phase A6: Frontend — PROJ-7 Integration ("Analyze Design")
+
+> Updated: Uses new `POST /api/products/{product_id}/analyze-image/` endpoint (Phase C1.5)
+
+- [x] "Analyze Design" button in PROJ-7 `ProductCard.tsx` and/or `ProductDetailPanel.tsx`
+- [x] On click: call `POST /api/products/{product_id}/analyze-image/` with product image URL
+- [x] Poll for analysis completion
+- [x] On success: notistack toast "Design analyzed — prompt ready for Design Board"
+- [x] Store `prompt_analysis` on `AmazonProduct` for reuse
+- [x] i18n keys for analyze button + success/error messages
+- [x] Reuse on Design Board: when loading idea context, check `AmazonProduct.prompt_analysis` — if exists, skip re-analysis
+
+---
+
+## Phase A7: RTK Query Slice + Types
+
+- [x] RTK Query `designApi` slice (`store/designSlice.ts`): getBoardContext, listDesigns, generateDesign, analyzeImage, pollRunStatus, updateDesignStatus, downloadDesign, batchProcess, pollProcessingJob
+- [x] Cache tags: `providesTags` on board/list; `invalidatesTags` on generate/approve/reject
+- [x] Register slice in `store/index.ts`
+- [x] TypeScript types: Design, DesignGenerationRun, DesignProcessingJob, BackgroundColor, DesignModel, DesignStatus, BoardContext
+
+---
+
+## Phase A8: i18n — Design Board
+
+- [x] `design.board.*` — page title, analyze button, generate button, prompt placeholder
+- [x] `design.model.*` — gemini_flash, gemini_pro, gpt_image, flux labels
+- [x] `design.background.*` — light_gray, neon_pink, neon_green labels
+- [x] `design.status.*` — pending, approved, rejected, failed
+- [x] `design.gallery.*` — approve, reject, download, retry
+- [x] `design.batch.*` — process button, upscale, bg_remove, progress, failure
+- [x] `design.analyze.*` — button label, progress, success, error, fallback warning
+- [x] `design.empty.*` — no designs, CTA
+- [x] All 5 locales: EN, DE, FR, ES, IT
+
+---
+
+## Phase A9: Tests — Design Generation
+
+### Backend
+
+- [x] Model tests: DesignGenerationRun status transitions, Design auto-reject on new approve
+- [x] Board context API: returns slogan + references + designs, workspace isolation
+- [x] Generate API: enqueues job, returns run record, polls status
+- [x] Analyze API: triggers Gemini 3, stores prompt_analysis, reuse check
+- [x] Batch process: creates N jobs, individual failure isolation
+- [x] Download API: returns file, 404 on missing
+- [x] Workspace isolation on all endpoints
+
+### Frontend
+
+- [x] DesignBoardView: renders board with references + prompt + gallery
+- [x] DesignCard: approve/reject toggles status, approved shows green border
+- [x] PromptEditor: pre-fills from analysis, editable
+- [x] BackgroundColorPicker: default light_gray, selection updates state
+- [x] GenerationProgress: shows skeleton during pending, error with retry
+- [x] BatchProcessPanel: select designs, trigger, per-job progress
+- [x] TypeScript + ESLint + Ruff: 0 errors
+
+---
+
+## Phase B1: Post-Processing — Pipeline Model + API
+
+- [x] `DesignPipeline` model: UUID pk, `workspace` FK, `name` CharField, `tools` JSONField (ordered list of `{tool_name, params, condition}` objects), `is_preset` BooleanField, `created_by` FK, `created_at`
+- [x] Migration
+- [x] `GET /api/designs/pipelines/` — list workspace pipelines/presets
+- [x] `POST /api/designs/pipelines/` — create pipeline
+- [x] `PATCH /api/designs/pipelines/{id}/` — update pipeline
+- [x] `DELETE /api/designs/pipelines/{id}/` — delete pipeline
+- [x] `POST /api/designs/apply-pipeline/` — body: `{design_ids: [...], pipeline_id}`. Enqueues server-side steps, returns client-side steps list for Konva.js execution
+
+---
+
+## Phase B2: Post-Processing — Server-Side Services
+
+- [x] `services/bg_remover.py`: rembg wrapper (u2net model). Load model on first call, cache in memory. Input: image file path. Output: transparent PNG path. Fallback: external API if configured
+- [x] `services/upscaler.py`: Auto-mode logic — check dimensions vs threshold → return "client" hint (Pica.js) or call external API. Input: image file + target dimensions. Output: upscaled file path
+- [x] `ProcessingSettings` API: `GET/PATCH /api/designs/settings/` — workspace-scoped. Provider selection, API keys (encrypted), auto threshold
+- [x] Settings UI serializer: provider choices, threshold, masked API keys
+
+---
+
+## Phase B3: Post-Processing — Editor UI (Konva.js + ReadyPixl Layout)
+
+> Design decided 2026-03-30 via `/frontend-design`. ReadyPixl screenshots as reference.
+
+### B3.1: Editor Shell + Routing
+
+- [x] `DesignEditorView.tsx`: REWRITE — full layout: collapsible pipeline bar (top), left tool panel (280px), Konva.js canvas (center), thumbnail filmstrip (bottom)
+- [x] Route `/design-editor` with optional query param `?designs=id1,id2` for preloading from Board
+- [x] Sidebar entry under "Design Forge" — "Image Editor" with icon
+- [x] Route registered in `App.tsx`
+
+### B3.2: Pipeline Bar (Top, Collapsible)
+
+- [x] `PipelineBar.tsx`: collapsible top bar. Row 1: active pipeline tools as colored pill-chips (drag-to-reorder via dnd-kit, ✖ to remove). Row 2 (expandable): available tools grouped with section labels
+- [x] Tool groups with overline labels: **Standard** (Resize, Trim, Rotate, Filters, Distress, Color Removal, Speckle Remover, Transp. Cleaner, Watermark) | **Edge Cleanup** (Defringe, Shrink, Color Defringe, Edge Cleaner) | **AI Processing** (BG Remove, AI Upscale) | **Quality** (Transp. Highlighter, Compressor)
+- [x] Click tool in available row → adds to active pipeline + appears in left panel
+- [x] Collapse/expand toggle ('+' button or chevron)
+
+### B3.3: Left Tool Panel (280px)
+
+- [x] `ToolPanel.tsx`: scrollable left panel. Top: `PipelinePresetDropdown.tsx` (preset selector + "+ Save" button). Body: stacked tool config cards. Bottom: "Reset All" / "Remove All" buttons
+- [x] `ToolConfigCard.tsx`: collapsible card per active tool — toggle on/off, expand/collapse chevron, ✖ remove, drag handle for reorder. Tool-specific params inside (sliders, toggles, buttons)
+- [x] Drag-to-reorder cards (dnd-kit) — synced with pill bar order
+- [x] `PipelinePresetDropdown.tsx`: MUI Select + save/load/delete presets via RTK Query
+
+### B3.4: Canvas Area (Konva.js)
+
+- [x] `EditorCanvas.tsx`: Konva.js Stage + Layer. Transparency checkerboard background. Renders current batch image. Zoom/pan controls
+- [x] `BatchNavOverlay.tsx`: top-left overlay on canvas — compact `< > 2/100 🗑 ALL` navigation. Keyboard arrows supported
+- [x] `CanvasToolbar.tsx`: floating vertical mini-toolbar top-right of canvas — Move, Eraser, Wand icons. Click to activate, cursor changes. Full params appear in left panel when active
+
+### B3.5: Batch Thumbnail Strip (Bottom)
+
+- [x] `BatchThumbnailStrip.tsx`: horizontal scrollable filmstrip pinned to bottom. Click to navigate. Status dot per image (pending=neutral, processed=success, error=error). Current image highlighted with coral border
+- [x] Export button integrated in strip area — opens inline export controls
+- [x] `ExportControls.tsx`: inline in strip — format (PNG), DPI (300), compression slider with live file size, download current / download all (zip), overwrite vs new version toggle
+
+### B3.6: Empty State + Image Loading
+
+- [x] `DropZone.tsx`: cyan dashed border (secondary #00C8D7), cloud icon, "Drop image here", "Browse Files" button. Drag-drop from desktop or Board
+- [x] URL param preload: read `?designs=id1,id2`, fetch via RTK Query, populate batch
+- [x] Drag-drop handler: accept 100+ images, show upload progress, populate filmstrip
+
+### B3.7: Hooks
+
+- [x] `usePipeline` hook: ordered tool list, add/remove/reorder, conditional logic, save/load presets, sync pill bar ↔ left panel (inline in DesignEditorView — no separate hook file yet)
+- [x] `useBatchImages` hook: drag-drop handler, URL param loading, thumbnail navigation, per-image status tracking (inline in DesignEditorView)
+- [x] `useCanvasTools` hook: active tool state, Konva.js integration, undo/redo stack (Ctrl+Z/Y) (inline in EditorCanvas)
+- [x] `useProcessing` hook: trigger server-side jobs (BG remove, upscale), poll status, download results
+
+---
+
+## Phase B4: Post-Processing — Client-Side Tools
+
+### Canvas Tools (Konva.js + Web Workers)
+
+- [x] Resize/Reposition: target canvas (4500x5400 default), Align-to-Top, configurable padding
+- [x] Color Removal: remove specific color from image (tolerance slider)
+- [x] Color Adjustment: brightness, contrast, saturation sliders
+- [x] Trim: auto-crop excess whitespace/transparency
+- [x] Rotate/Flip: 90° rotation, horizontal/vertical flip
+- [x] Filters: preset filters (brightness, contrast, saturation, hue shift)
+- [x] Sprinkle/Speckle Remover: detect + remove small isolated pixel groups
+- [x] Transparency Cleaner: remove near-transparent pixels below threshold
+- [x] Distress: vintage/used-look texture overlay effects
+- [x] Watermark: text + image watermark with position/opacity controls
+
+### Edge Cleanup Tools
+
+- [x] Auto-Detect Defringe: analyze edge pixels, detect color fringe, suggest shrink value
+- [x] Manual Shrink: slider 0-5px with live preview on canvas
+- [x] Color Defringe: detect background color in edge, replace semi-transparent edge pixels with nearest design color
+- [x] Edge Cleaner: multi-step edge smoothing (anti-alias pass)
+
+### Quality Control
+
+- [x] Transparency Highlighter: overlay visualization — highlights semi-transparent pixels in red/yellow
+- [x] Built-in Compressor: reduce file size <2MB. Quality slider with live size preview
+
+### Manual Correction
+
+- [x] Eraser Tool: brush-based pixel removal. Size slider, hardness slider
+- [x] Magic Wand: click-to-select by color similarity. Tolerance slider. Delete/clear selection
+- [x] Per-image preview in batch: click thumbnail → load in canvas → correct → next
+
+---
+
+## Phase B5: Post-Processing — Cloud Import + Export
+
+- [ ] `CloudImportDialog.tsx`: Google Drive picker (OAuth2 + Google Picker API) + OneDrive picker (Microsoft Graph API). Import selected images into batch
+- [ ] `ExportDialog.tsx`: format (PNG default), DPI (300 default), compression level slider, download single or all (zip). Option: overwrite original or create new version
+- [ ] Pica.js integration: client-side upscaling for images ≥ threshold. Web Worker for non-blocking. Quality comparison (before/after preview)
+
+---
+
+## Phase B6: i18n — Post-Processing Editor
+
+- [ ] `design.editor.*` — page title, drag-drop hint, batch count
+- [ ] `design.pipeline.*` — toolbar labels, preset save/load/delete, conditional logic labels
+- [ ] `design.tools.*` — all tool names (resize, trim, rotate, filters, eraser, wand, etc.)
+- [ ] `design.tools.params.*` — parameter labels per tool (size, tolerance, threshold, etc.)
+- [ ] `design.edge.*` — defringe, shrink, color defringe, edge cleaner labels
+- [ ] `design.qc.*` — transparency highlighter, compressor labels
+- [ ] `design.export.*` — format, DPI, compression, download labels
+- [ ] `design.cloud.*` — Google Drive, OneDrive, import button labels
+- [ ] `design.settings.*` — provider labels, API key placeholder, threshold
+- [ ] All 5 locales: EN, DE, FR, ES, IT
+
+---
+
+## Phase B7: Tests — Post-Processing
+
+### Backend
+
+- [ ] Pipeline CRUD: create, update, delete, list presets
+- [ ] Apply pipeline: enqueues correct jobs per tool, returns client-side steps
+- [ ] BG remover service: rembg produces transparent PNG, API fallback works
+- [ ] Upscaler service: auto-mode routes correctly (client hint vs API)
+- [ ] ProcessingSettings: CRUD, encrypted API keys, workspace isolation
+
+### Frontend
+
+- [ ] DesignEditorView: renders with empty state, drag-drop loads images
+- [ ] PipelineToolbar: add/remove/reorder tools, preset save/load
+- [ ] EditorCanvas: renders image, eraser tool removes pixels
+- [ ] BatchThumbnailStrip: navigation, status indicators
+- [ ] ExportDialog: format/DPI/compression controls work
+- [ ] TypeScript + ESLint + Ruff: 0 errors
+
+---
+
+## Phase B8: Bug Fixes + Live Preview Pipeline (2026-04-02)
+
+> Discovered during manual QA. 4 issues: tool panel layout, project card sizing, image persistence, live preview architecture.
+
+### B8.1: Tool-Panel Layout Fixes
+
+- [x] Trim tool: "Auto-Detect" ToggleButton wraps to 2 lines → fix to single line (adjust padding/font or shorten label)
+- [x] Resize & Reposition: title "Resize & Reposition" wraps awkwardly → fix header layout
+- [x] Resize & Reposition: preset buttons "POD Standard (4500x5400)" / "Square (4500x4500)" overflow → replace with custom SVG icons (T-Shirt for POD, Square icon) + dimensions in Tooltip
+- [x] Resize & Reposition: "Square (4500x4500)" text gets cut off → fixed by icon+tooltip approach
+- [x] Audit all `toolParams/` components for 280px panel width compliance, fix any remaining overflows
+
+### B8.2: Project Card — Halve Max Size
+
+- [x] `ProjectGalleryView.tsx`: change Grid breakpoints from `xs: 12, sm: 6, md: 4, lg: 3` to `xs: 6, sm: 4, md: 3, lg: 2`
+- [x] Adjust card thumbnail aspect ratio + card body if needed at smaller size
+- [x] Verify responsive behavior at all breakpoints
+
+### B8.3: Image Save — Fix Dropped Images Not Persisting
+
+- [x] Trace drop flow: `useExternalDrop` → `uploadDesignToProjectMutation` → backend endpoint
+- [x] Verify mutation fires correctly after Konva.js refactor (was working, now broken)
+- [x] Ensure blob URL → server URL replacement works on upload success
+- [x] Test: drop image → reload page → image still present
+
+### B8.4: Live Preview per Tool (Architecture Change)
+
+> Currently: tools only apply on "Apply Pipeline" click (batch).
+> New: each enabled tool applies immediately on the selected image (live preview).
+> "Apply Pipeline" remains for batch processing (all filmstrip images).
+
+**D1 — Filmstrip Layout Refactor:**
+- [x] `EditorCanvas.tsx` refactor: full-size view of currently selected image (top/center)
+- [x] Thumbnail strip (bottom): all project images, clickable to switch active image
+- [x] "+ ADD" button in filmstrip for adding new images
+- [x] Image navigation: left/right arrows + "1 / N" counter (in BatchThumbnailStrip)
+- [x] Drag & drop multiple images into editor → appear in filmstrip
+
+**D2 — `useLivePreview` Hook:**
+- [x] New hook: `useLivePreview(selectedImage, enabledTools, toolParams)`
+- [x] `useEffect` on `[selectedImageId, enabledTools, toolParams]` with debounce (300ms for sliders, instant for toggles/presets)
+- [x] Calls `processImage()` from `imageProcessing.ts` — chains all enabled tools in pipeline order
+- [x] Returns `{ previewUrl, isProcessing }` — Object URL from Blob result
+- [x] Cleanup: revoke old Object URLs on new preview
+- [x] Cancellation: abort previous processing when new params arrive before completion
+
+**D3 — Canvas Live Preview Integration:**
+- [x] Canvas shows `previewUrl` when available, original URL otherwise
+- [x] `LinearProgress` bar (small, subtle) while `isProcessing === true`
+- [x] Tool Toggle ON → tool added to chain, recompute preview immediately
+- [x] Tool Toggle OFF → tool stays in list (visually disabled/grayed out), skipped in chain computation, recompute immediately
+- [x] Tool "X" remove → removed from list entirely + recompute
+- [x] Parameter change → recompute (debounced for sliders)
+
+**D4 — Apply Pipeline (Batch) — Existing Logic:**
+- [x] "Apply Pipeline" button = existing `processBatch()` logic (unchanged)
+- [x] Applies current enabled-tool chain to ALL filmstrip images
+- [x] Progress per image (existing implementation)
+
+### B8.5: Unified Tool Bar Redesign (2026-04-02)
+
+- [x] Merge Tool Catalog + PipelineBar → single unified top bar with all tools as chips
+- [x] Active tools = category-colored (filled), inactive = neutral/outlined
+- [x] Single click inactive chip = add to pipeline, single click active = toggle ON/OFF, X = remove
+- [x] Active chips sortable via dnd-kit drag
+- [x] Vertical dividers between category groups for visual separation
+- [x] Preset dropdown moved from bar → ToolPanel (above tool cards)
+- [x] ToolPanel simplified: catalog section removed, only active tool cards + actions
+- [x] Remove borderBottom from PipelineBarWrapper, borderRight from ToolPanelWrapper
+
+### B8.6: Image Persistence + Upload Fix (2026-04-02)
+
+- [x] `axiosBaseQuery`: detect FormData → set `Content-Type: multipart/form-data` (was blocked by global `application/json` header)
+- [x] Editor hydrates persisted designs on mount via `useGetProjectBoardQuery` → `batchImages`
+
+### B8.7: Live Preview Bug Fixes (2026-04-02)
+
+- [x] `useLivePreview`: reset `previewUrl` to null on image switch (was showing old image's preview)
+- [x] `EditorCanvas`: only `applyAutoFit` on batch image switch, not on preview URL changes (zoom was resetting to fit on every preview update)
+
+### B8.8: Color Removal Upgrade + Transparency Cleaner (2026-04-02)
+
+- [x] Color Removal: Auto-detect background color (sample 8 edge/corner points)
+- [x] Color Removal: Auto/Manual mode toggle
+- [x] Color Removal: Contiguous mode (BFS flood-fill from edges only)
+- [x] Color Removal: Edge Refinement — Edge Trim (dilate mask, 0-10px) + Edge Feather (blur mask, 0-10px)
+- [x] Color Removal: softEdge fix — inner 80% fully transparent, only outer 20% gradual alpha
+- [x] Color Removal: Edge Trim fixed — was eroding (shrinking), now dilating (expanding into design)
+- [x] Color Removal: Auto mode forces contiguous BFS (like ReadyPixl)
+- [x] Color Removal: Edge Trim only with contiguous mode (non-contiguous = simple per-pixel)
+- [x] ~~DEFERRED~~ Color Removal: quality gap vs ReadyPixl → **resolved in B8.10** (LAB color space, Fill Holes, improved sampling)
+- [x] Transparency Cleaner: merged Transparency Highlighter into it (VIEW/DELETE mode)
+- [x] Transparency Cleaner: ReadyPixl-style layout — THRESHOLD+Auto+VIEW/DELETE switch inline, highlight colors + visibility always visible
+- [x] Transparency Highlighter removed from TOOL_CATALOG (functionality merged into Cleaner)
+
+### B8.9: Tool Chip Redesign + Misc Fixes (2026-04-02)
+
+- [x] Tool chips: MUI Outlined icons for all 16 tools (ToolIcons.tsx)
+- [x] Tool chips: Tooltips with 1-sentence description per tool (all 5 locales)
+- [x] Tool chips: Tooltip toggle switch (default OFF, 3s delay when ON)
+- [x] Tool chips: Active chip hover — subtle brightness filter instead of BG fill
+- [x] Tool chips: Inactive chip hover — border brightens, subtle BG tint
+- [x] Pipeline presets: Save button updates existing preset when selected (was always creating new)
+- [x] Color Removal: Tolerance default 30 → 4
+- [x] Debounce increased from 300ms → 500ms for live preview stability
+
+### B8.10: Color Removal Algorithm Upgrade (2026-04-02)
+
+> Addresses B8.8 DEFERRED item — quality gap vs ReadyPixl. Replaces RGB Euclidean distance with CIE LAB Delta-E for perceptually accurate color matching. Adds Fill Holes inpainting and improved edge sampling.
+
+**Algorithm Changes:**
+- [x] CIE LAB color space: `srgbToLinear()` → `rgbToXyz()` → `xyzToLab()` conversion pipeline
+- [x] Delta-E (CIE76) distance function replaces RGB Euclidean in all matching
+- [x] Tolerance scale: 0-100 maps to 0-50 Delta-E (was 0-441 RGB Euclidean) — more intuitive
+- [x] `autoDetectBgColor()`: 20 edge sample points (was 8) — 4 corners + 4 midpoints + 12 evenly-spaced
+- [x] `autoDetectBgColor()`: clustering uses LAB Delta-E (was RGB Euclidean)
+- [x] `buildContiguousMask()`: BFS flood-fill uses LAB Delta-E for pixel matching
+- [x] `processColorRemoval()`: soft-edge gradient computed in LAB space
+- [x] Non-contiguous mode: per-pixel check uses LAB Delta-E
+- [x] Default `contiguous: true` (was false) — protects interior design elements by default
+
+**Fill Holes (Inpainting):**
+- [x] `fillInteriorHoles()`: finds transparent regions NOT connected to image border
+- [x] BFS from border identifies "real" background vs interior holes
+- [x] Iterative nearest-neighbor inpainting: fills holes from edges inward (4-connected avg)
+- [x] Max 100 passes, handles arbitrarily large holes
+- [x] New param: `fillHoles: boolean` (default false, only for non-contiguous mode)
+
+**UI:**
+- [x] "Fill Holes" toggle in `ColorRemovalToolParams.tsx` — only visible when non-contiguous
+- [x] Hint text explains purpose
+- [x] `useClientProcessing.ts`: resolver includes `fillHoles`
+- [x] Unused `Chip` import removed from `ColorRemovalToolParams.tsx`
+
+**i18n (all 5 locales):**
+- [x] EN: "Fill Holes" / "Fill interior gaps left by color removal"
+- [x] DE: "Löcher füllen" / "Innere Lücken nach Farbentfernung auffüllen"
+- [x] FR: "Remplir les trous" / "Remplir les espaces intérieurs après suppression de couleur"
+- [x] ES: "Rellenar huecos" / "Rellenar espacios interiores tras eliminar color"
+- [x] IT: "Riempi buchi" / "Riempire spazi interni dopo la rimozione del colore"
+
+**TypeScript + ESLint:** 0 new errors
+
+**Trapped Background Removal (2nd pass — contiguous mode):**
+- [x] `findTrappedBackground()`: after BFS, finds remaining matching-color pixels enclosed by design
+- [x] Connected component labeling: groups remaining matching pixels into clusters
+- [x] Small clusters (≤0.5% of image area) = trapped BG pockets → removed with soft-edge
+- [x] Large clusters = intentional design elements → preserved
+- [x] Opt-in via "Deep Clean" toggle (only visible in Contiguous mode)
+
+**Calibration Fixes:**
+- [x] Default tolerance 4 → 15 (Delta-E 12 covers typical BG variations)
+- [x] Tolerance scaling: `tolerance * 0.8` (was 0.5 — too tight)
+- [x] `autoDetectBgColor()`: fixed cluster threshold to Delta-E 15 (was tolerance-dependent — changing tolerance shifted detected color)
+- [x] `autoDetectBgColor()`: removed unused `tolerance` parameter
+- [x] Pre-computed Delta-E map: `precomputeDeltaEMap()` computes once, BFS + soft-edge + trapped-pass all read from it
+
+**Cleanup (iteration 3):**
+- [x] Removed `fillInteriorHoles()` inpainting — caused color artifacts on complex designs
+- [x] Contiguous mode no longer forced in Auto mode — user controls via toggle
+- [x] "Deep Clean" toggle only visible in Contiguous mode (where it makes sense)
+- [x] Non-contiguous mode: no Deep Clean (already removes all matching pixels globally)
+- [x] Recommended pipeline for complex designs: Color Removal (Contiguous) → Speckle Remover → Transparency Cleaner
+
+### B8.11: Multi-Color Removal + HD Mode (ReadyPixl Feature Parity)
+
+> Inspired by ReadyPixl v0.5.7 analysis. Two high-impact features for POD workflows.
+
+**Multi-Color Removal (up to 3 colors):**
+- [x] Extend `ColorRemovalParams` with `colors: Array<{ targetColor, tolerance, softEdge }>` (max 3)
+- [x] UI: COLOR 1 / COLOR 2 / COLOR 3 tabs with "+" to add, "×" to remove — each tab has independent color picker + tolerance + soft edge
+- [x] Processing: run removal pass per color sequentially (order: COLOR 1 → 2 → 3)
+- [x] Single-color mode preserved as default (1 tab, same UX as before)
+- [x] Contiguous / Fill Holes / Edge Trim / Edge Feather shared across all colors
+- [x] i18n: tab labels + "Add Color" / "Remove Color" (all 5 locales)
+
+**HD Mode (Auto-Upscale for Small AI Images):**
+- [x] New toggle: "HD Mode" (Auto / On / Off) — default Auto
+- [x] Auto logic: if image width or height < 3000px → upscale 2× with Pica.js (Lanczos) before processing
+- [x] After color removal: downscale result back to original dimensions
+- [x] Purpose: AI-generated images (1024px from OpenRouter) get precision processing on small details
+- [x] Show indicator when HD Mode is active (e.g. "HD" badge on canvas)
+- [x] i18n: "HD Mode" / hint text (all 5 locales)
+
+**BG Preview Toggle (Quick Quality Check):**
+- [x] Floating button group bottom-right of canvas: Black / White / Gray / Transparent / Custom background
+- [x] Swaps the checkerboard/canvas background color for visual QC of removal edges
+- [x] Default: Transparent (checkerboard)
+- [x] i18n: button tooltips (all 5 locales)
+
+### B8.11b: Color Removal Quality Upgrade + BG Remove E2E (2026-04-02)
+
+> Improved Color Removal algorithm, wired up BG Remove (rembg) E2E, Docker migration Alpine→Debian.
+
+**Color Removal Improvements:**
+- [x] Wider soft edge zone (0.6 threshold start, +30% extension beyond threshold)
+- [x] `decontaminateEdgeColors()` — replaces gray BG-tinted RGB on semi-transparent edge pixels with nearest opaque design pixel color
+- [x] Contiguous mode: direct alpha falloff (removed broken `max(t, 1-strength)` logic)
+- [x] Non-contiguous mode: same wider soft edge + decontamination
+- [x] Defringe: gradual alpha fade instead of hard alpha=0 (outer pass=full, inner=partial)
+- [x] Defringe: LAB Delta-E for auto-detect (was RGB Euclidean)
+- [x] Defringe: `decontaminateEdgeColors` applied after erosion
+- [x] Removed unused `buildContiguousMask` function (lint fix)
+
+**BG Remove (rembg) — Full E2E:**
+- [x] `BgRemoveToolParams.tsx` — Model dropdown (BiRefNet Lite, ISNet, U2Net, etc.) + "Remove Background" run button
+- [x] `DesignEditorView.tsx` — `handleRunServerTool` runs single server tool on current image
+- [x] `handleApplyPipeline` extended: sends server tools via `batchProcess` mutation
+- [x] `handleJobUpdate` loads server-job results back into canvas
+- [x] `useProcessing.ts` — `model` parameter passed through to backend
+- [x] `ToolPanel.tsx` — `onRunServerTool` + `isServerProcessing` props
+- [x] Artboard Canvas: BG Remove button wired (ToolsSection → PanelArtboardState → RightPanel → DesignWorkspaceView)
+- [x] Server processing overlay on EditorCanvas (pulsing dimmed + CircularProgress + text)
+
+**Backend:**
+- [x] `backend.Dockerfile` — Alpine → Debian slim (opencv/onnxruntime compatible)
+- [x] `requirements.txt` — `rembg>=2.0` + `onnxruntime>=1.17` added
+- [x] `bg_remover.py` — model selection, session cache per model, default=`birefnet-general-lite`
+- [x] `tasks.py` — `model_name` parameter on `task_remove_background`
+- [x] `views.py` — `model` from request body passed to task
+- [x] `ProcessingSettings` created with `bg_removal_provider=rembg`
+- [x] BiRefNet Lite + BiRefNet Full models pre-downloaded in worker container
+- [x] BiRefNet full removed from UI dropdown (OOM-kills Docker workers, needs >2GB RAM)
+
+**Image Editor Fixes:**
+- [x] Center-bug on image switch: `originalDimsRef` reset + set in onload before `setHtmlImage`
+- [x] First-load positioning bug: `dims` fallback to `htmlImage` when ref is null
+- [x] ResizeObserver re-fit: `applyAutoFit` called when container gets real size (was using default 800×600)
+- [x] Show Original toggle: History icon button in canvas toolbar (shows original vs processed)
+- [x] Editor hydration: prefers `bg_removed_file` over `image_file`, stores `originalUrl`
+- [x] `BatchImage.originalUrl` field added to types
+
+**Misc:**
+- [x] `vector_app/signals.py` — removed Niche from embedding signals (name-only embedding is low-value)
+- [x] Docker Desktop memory limit increased to 8GB
+- [x] i18n strings for all new UI (EN)
+
+### B8.12: Undo/Redo (Image Editor + Artboard Canvas)
+
+> Both editor and canvas need undo/redo. Image Editor = undo pipeline apply / eraser strokes. Artboard Canvas = undo artboard move/resize/delete/add.
+> **Completed 2026-04-03.** Bug found + fixed: `currentRef` stale-state issue — `undo()`/`redo()` now accept current state as parameter instead of relying on stale ref. Playwright-tested: all state transitions correct on both tabs.
+
+**Image Editor — Undo/Redo:**
+- [x] `useUndoRedo` hook: maintains stack of `BatchImage[]` snapshots (max ~20 entries)
+- [x] Push snapshot before each Apply Pipeline + eraser stroke
+- [x] Undo = restore previous snapshot, Redo = restore next
+- [x] Wire into EditorCanvas toolbar (existing disabled buttons)
+- [x] Keyboard shortcuts: Cmd+Z (undo), Cmd+Shift+Z (redo)
+- [x] Disable buttons when stack empty
+
+**Artboard Canvas — Undo/Redo:**
+- [x] `useCanvasHistory` hook: tracks artboard state changes (position, size, add, delete, property changes)
+- [x] Debounced snapshot on drag-end / resize-end (avoid per-pixel history entries)
+- [x] Wire into BottomToolbar (existing disabled buttons)
+- [x] Keyboard shortcuts: Cmd+Z / Cmd+Shift+Z
+- [x] Disable buttons when stack empty
+
+### B8.13: Delete Designs (Gallery + Canvas)
+
+> Designs can be deleted from backend but no UI exists. Add delete options in Gallery and Canvas.
+> **Completed 2026-04-03.** Gallery: 3-dot menu + ConfirmDialog. Editor: "Remove from batch" vs "Delete permanently" menu. Canvas: server-delete with confirmation for persisted designs. DimensionOverlay shows original→new dims after trim. Playwright-tested.
+
+**Project Gallery — Delete Design:**
+- [x] ProjectCard: 3-dot menu (IconButton) → "Delete Project" option
+- [x] Confirmation dialog before delete
+- [x] Call `DELETE /api/designs/projects/{id}/` endpoint
+- [x] Invalidate RTK Query cache + remove from gallery
+
+**Artboard Canvas — Delete Design from Server:**
+- [x] Existing context menu "Delete" currently only removes from canvas state
+- [x] Extend: also call `DELETE /api/designs/{id}/` for designs with `designId`
+- [x] Confirmation dialog for server-persisted designs
+- [x] Multi-select delete: bulk delete from server
+
+**Image Editor — Delete from Batch:**
+- [x] "Remove image" button: add option to also delete from server (if `designId` exists)
+- [x] Differentiate "Remove from batch" vs "Delete permanently"
+
+**Dimension Change Indicator:**
+- [x] After auto-trim: show "1024×1024 → 866×505" in canvas footer or status bar
+- [x] Only visible when dimensions changed (trim active)
+
+---
+
 ## Phase C1: Backend — DesignProject Model + API
 
 ### C1.1: Model + Migration
@@ -267,20 +764,6 @@
 - [x] In niche detail drawer: show "Designs" section listing projects linked to this niche
 - [x] Each project shows thumbnail + name + design count. Click → opens board
 - [x] Empty state: "No design projects linked to this niche"
-
----
-
-## Phase A6: Frontend — PROJ-7 Integration ("Analyze Design")
-
-> Updated: Uses new `POST /api/products/{product_id}/analyze-image/` endpoint (Phase C1.5)
-
-- [x] "Analyze Design" button in PROJ-7 `ProductCard.tsx` and/or `ProductDetailPanel.tsx`
-- [x] On click: call `POST /api/products/{product_id}/analyze-image/` with product image URL
-- [x] Poll for analysis completion
-- [x] On success: notistack toast "Design analyzed — prompt ready for Design Board"
-- [x] Store `prompt_analysis` on `AmazonProduct` for reuse
-- [x] i18n keys for analyze button + success/error messages
-- [x] Reuse on Design Board: when loading idea context, check `AmazonProduct.prompt_analysis` — if exists, skip re-analysis
 
 ---
 
@@ -422,205 +905,6 @@
 
 ---
 
-## Phase A7: RTK Query Slice + Types
-
-- [x] RTK Query `designApi` slice (`store/designSlice.ts`): getBoardContext, listDesigns, generateDesign, analyzeImage, pollRunStatus, updateDesignStatus, downloadDesign, batchProcess, pollProcessingJob
-- [x] Cache tags: `providesTags` on board/list; `invalidatesTags` on generate/approve/reject
-- [x] Register slice in `store/index.ts`
-- [x] TypeScript types: Design, DesignGenerationRun, DesignProcessingJob, BackgroundColor, DesignModel, DesignStatus, BoardContext
-
----
-
-## Phase A8: i18n — Design Board
-
-- [x] `design.board.*` — page title, analyze button, generate button, prompt placeholder
-- [x] `design.model.*` — gemini_flash, gemini_pro, gpt_image, flux labels
-- [x] `design.background.*` — light_gray, neon_pink, neon_green labels
-- [x] `design.status.*` — pending, approved, rejected, failed
-- [x] `design.gallery.*` — approve, reject, download, retry
-- [x] `design.batch.*` — process button, upscale, bg_remove, progress, failure
-- [x] `design.analyze.*` — button label, progress, success, error, fallback warning
-- [x] `design.empty.*` — no designs, CTA
-- [x] All 5 locales: EN, DE, FR, ES, IT
-
----
-
-## Phase A9: Tests — Design Generation
-
-### Backend
-
-- [ ] Model tests: DesignGenerationRun status transitions, Design auto-reject on new approve
-- [ ] Board context API: returns slogan + references + designs, workspace isolation
-- [ ] Generate API: enqueues job, returns run record, polls status
-- [ ] Analyze API: triggers Gemini 3, stores prompt_analysis, reuse check
-- [ ] Batch process: creates N jobs, individual failure isolation
-- [ ] Download API: returns file, 404 on missing
-- [ ] Workspace isolation on all endpoints
-
-### Frontend
-
-- [ ] DesignBoardView: renders board with references + prompt + gallery
-- [ ] DesignCard: approve/reject toggles status, approved shows green border
-- [ ] PromptEditor: pre-fills from analysis, editable
-- [ ] BackgroundColorPicker: default light_gray, selection updates state
-- [ ] GenerationProgress: shows skeleton during pending, error with retry
-- [ ] BatchProcessPanel: select designs, trigger, per-job progress
-- [ ] TypeScript + ESLint + Ruff: 0 errors
-
----
-
-## Phase B1: Post-Processing — Pipeline Model + API
-
-- [x] `DesignPipeline` model: UUID pk, `workspace` FK, `name` CharField, `tools` JSONField (ordered list of `{tool_name, params, condition}` objects), `is_preset` BooleanField, `created_by` FK, `created_at`
-- [x] Migration
-- [x] `GET /api/designs/pipelines/` — list workspace pipelines/presets
-- [x] `POST /api/designs/pipelines/` — create pipeline
-- [x] `PATCH /api/designs/pipelines/{id}/` — update pipeline
-- [x] `DELETE /api/designs/pipelines/{id}/` — delete pipeline
-- [x] `POST /api/designs/apply-pipeline/` — body: `{design_ids: [...], pipeline_id}`. Enqueues server-side steps, returns client-side steps list for Konva.js execution
-
----
-
-## Phase B2: Post-Processing — Server-Side Services
-
-- [x] `services/bg_remover.py`: rembg wrapper (u2net model). Load model on first call, cache in memory. Input: image file path. Output: transparent PNG path. Fallback: external API if configured
-- [x] `services/upscaler.py`: Auto-mode logic — check dimensions vs threshold → return "client" hint (Pica.js) or call external API. Input: image file + target dimensions. Output: upscaled file path
-- [x] `ProcessingSettings` API: `GET/PATCH /api/designs/settings/` — workspace-scoped. Provider selection, API keys (encrypted), auto threshold
-- [x] Settings UI serializer: provider choices, threshold, masked API keys
-
----
-
-## Phase B3: Post-Processing — Editor UI (Konva.js + ReadyPixl Layout)
-
-> Design decided 2026-03-30 via `/frontend-design`. ReadyPixl screenshots as reference.
-
-### B3.1: Editor Shell + Routing
-
-- [x] `DesignEditorView.tsx`: REWRITE — full layout: collapsible pipeline bar (top), left tool panel (280px), Konva.js canvas (center), thumbnail filmstrip (bottom)
-- [x] Route `/design-editor` with optional query param `?designs=id1,id2` for preloading from Board
-- [x] Sidebar entry under "Design Forge" — "Image Editor" with icon
-- [x] Route registered in `App.tsx`
-
-### B3.2: Pipeline Bar (Top, Collapsible)
-
-- [x] `PipelineBar.tsx`: collapsible top bar. Row 1: active pipeline tools as colored pill-chips (drag-to-reorder via dnd-kit, ✖ to remove). Row 2 (expandable): available tools grouped with section labels
-- [x] Tool groups with overline labels: **Standard** (Resize, Trim, Rotate, Filters, Distress, Color Removal, Speckle Remover, Transp. Cleaner, Watermark) | **Edge Cleanup** (Defringe, Shrink, Color Defringe, Edge Cleaner) | **AI Processing** (BG Remove, AI Upscale) | **Quality** (Transp. Highlighter, Compressor)
-- [x] Click tool in available row → adds to active pipeline + appears in left panel
-- [x] Collapse/expand toggle ('+' button or chevron)
-
-### B3.3: Left Tool Panel (280px)
-
-- [x] `ToolPanel.tsx`: scrollable left panel. Top: `PipelinePresetDropdown.tsx` (preset selector + "+ Save" button). Body: stacked tool config cards. Bottom: "Reset All" / "Remove All" buttons
-- [x] `ToolConfigCard.tsx`: collapsible card per active tool — toggle on/off, expand/collapse chevron, ✖ remove, drag handle for reorder. Tool-specific params inside (sliders, toggles, buttons)
-- [x] Drag-to-reorder cards (dnd-kit) — synced with pill bar order
-- [x] `PipelinePresetDropdown.tsx`: MUI Select + save/load/delete presets via RTK Query
-
-### B3.4: Canvas Area (Konva.js)
-
-- [x] `EditorCanvas.tsx`: Konva.js Stage + Layer. Transparency checkerboard background. Renders current batch image. Zoom/pan controls
-- [x] `BatchNavOverlay.tsx`: top-left overlay on canvas — compact `< > 2/100 🗑 ALL` navigation. Keyboard arrows supported
-- [x] `CanvasToolbar.tsx`: floating vertical mini-toolbar top-right of canvas — Move, Eraser, Wand icons. Click to activate, cursor changes. Full params appear in left panel when active
-
-### B3.5: Batch Thumbnail Strip (Bottom)
-
-- [x] `BatchThumbnailStrip.tsx`: horizontal scrollable filmstrip pinned to bottom. Click to navigate. Status dot per image (pending=neutral, processed=success, error=error). Current image highlighted with coral border
-- [x] Export button integrated in strip area — opens inline export controls
-- [x] `ExportControls.tsx`: inline in strip — format (PNG), DPI (300), compression slider with live file size, download current / download all (zip), overwrite vs new version toggle
-
-### B3.6: Empty State + Image Loading
-
-- [x] `DropZone.tsx`: cyan dashed border (secondary #00C8D7), cloud icon, "Drop image here", "Browse Files" button. Drag-drop from desktop or Board
-- [x] URL param preload: read `?designs=id1,id2`, fetch via RTK Query, populate batch
-- [x] Drag-drop handler: accept 100+ images, show upload progress, populate filmstrip
-
-### B3.7: Hooks
-
-- [x] `usePipeline` hook: ordered tool list, add/remove/reorder, conditional logic, save/load presets, sync pill bar ↔ left panel (inline in DesignEditorView — no separate hook file yet)
-- [x] `useBatchImages` hook: drag-drop handler, URL param loading, thumbnail navigation, per-image status tracking (inline in DesignEditorView)
-- [x] `useCanvasTools` hook: active tool state, Konva.js integration, undo/redo stack (Ctrl+Z/Y) (inline in EditorCanvas)
-- [x] `useProcessing` hook: trigger server-side jobs (BG remove, upscale), poll status, download results
-
----
-
-## Phase B4: Post-Processing — Client-Side Tools
-
-### Canvas Tools (Konva.js + Web Workers)
-
-- [ ] Resize/Reposition: target canvas (4500x5400 default), Align-to-Top, configurable padding
-- [ ] Color Removal: remove specific color from image (tolerance slider)
-- [ ] Color Adjustment: brightness, contrast, saturation sliders
-- [ ] Trim: auto-crop excess whitespace/transparency
-- [ ] Rotate/Flip: 90° rotation, horizontal/vertical flip
-- [ ] Filters: preset filters (brightness, contrast, saturation, hue shift)
-- [ ] Sprinkle/Speckle Remover: detect + remove small isolated pixel groups
-- [ ] Transparency Cleaner: remove near-transparent pixels below threshold
-- [ ] Distress: vintage/used-look texture overlay effects
-- [ ] Watermark: text + image watermark with position/opacity controls
-
-### Edge Cleanup Tools
-
-- [ ] Auto-Detect Defringe: analyze edge pixels, detect color fringe, suggest shrink value
-- [ ] Manual Shrink: slider 0-5px with live preview on canvas
-- [ ] Color Defringe: detect background color in edge, replace semi-transparent edge pixels with nearest design color
-- [ ] Edge Cleaner: multi-step edge smoothing (anti-alias pass)
-
-### Quality Control
-
-- [ ] Transparency Highlighter: overlay visualization — highlights semi-transparent pixels in red/yellow
-- [ ] Built-in Compressor: reduce file size <2MB. Quality slider with live size preview
-
-### Manual Correction
-
-- [ ] Eraser Tool: brush-based pixel removal. Size slider, hardness slider
-- [ ] Magic Wand: click-to-select by color similarity. Tolerance slider. Delete/clear selection
-- [ ] Per-image preview in batch: click thumbnail → load in canvas → correct → next
-
----
-
-## Phase B5: Post-Processing — Cloud Import + Export
-
-- [ ] `CloudImportDialog.tsx`: Google Drive picker (OAuth2 + Google Picker API) + OneDrive picker (Microsoft Graph API). Import selected images into batch
-- [ ] `ExportDialog.tsx`: format (PNG default), DPI (300 default), compression level slider, download single or all (zip). Option: overwrite original or create new version
-- [ ] Pica.js integration: client-side upscaling for images ≥ threshold. Web Worker for non-blocking. Quality comparison (before/after preview)
-
----
-
-## Phase B6: i18n — Post-Processing Editor
-
-- [ ] `design.editor.*` — page title, drag-drop hint, batch count
-- [ ] `design.pipeline.*` — toolbar labels, preset save/load/delete, conditional logic labels
-- [ ] `design.tools.*` — all tool names (resize, trim, rotate, filters, eraser, wand, etc.)
-- [ ] `design.tools.params.*` — parameter labels per tool (size, tolerance, threshold, etc.)
-- [ ] `design.edge.*` — defringe, shrink, color defringe, edge cleaner labels
-- [ ] `design.qc.*` — transparency highlighter, compressor labels
-- [ ] `design.export.*` — format, DPI, compression, download labels
-- [ ] `design.cloud.*` — Google Drive, OneDrive, import button labels
-- [ ] `design.settings.*` — provider labels, API key placeholder, threshold
-- [ ] All 5 locales: EN, DE, FR, ES, IT
-
----
-
-## Phase B7: Tests — Post-Processing
-
-### Backend
-
-- [ ] Pipeline CRUD: create, update, delete, list presets
-- [ ] Apply pipeline: enqueues correct jobs per tool, returns client-side steps
-- [ ] BG remover service: rembg produces transparent PNG, API fallback works
-- [ ] Upscaler service: auto-mode routes correctly (client hint vs API)
-- [ ] ProcessingSettings: CRUD, encrypted API keys, workspace isolation
-
-### Frontend
-
-- [ ] DesignEditorView: renders with empty state, drag-drop loads images
-- [ ] PipelineToolbar: add/remove/reorder tools, preset save/load
-- [ ] EditorCanvas: renders image, eraser tool removes pixels
-- [ ] BatchThumbnailStrip: navigation, status indicators
-- [ ] ExportDialog: format/DPI/compression controls work
-- [ ] TypeScript + ESLint + Ruff: 0 errors
-
----
-
 ## Verification Checklist
 
 ### Phase A: Backend + Generation (all done)
@@ -641,26 +925,43 @@
 - [x] Niche binding + drawer integration
 - [x] RTK Query + i18n
 
-### Phase D: Unified Design Workspace (NEW — to implement)
-- [ ] React Flow removed, routes unified to `/designs/:projectId`
-- [ ] Workspace shell with polished tab toggle (Canvas / Editor)
-- [ ] Artboard Canvas: Konva.js infinite zoom canvas with artboard paradigm
-- [ ] Artboards: freely movable, selectable (dashed blue border + resize handles)
-- [ ] AI Image Boards with thin arrow connections
-- [ ] Right panel (280px, always visible, context-sensitive)
-- [ ] Bottom toolbar (cursor/move/shapes/brush/text/emoji/AI/undo/redo/zoom)
-- [ ] Collapsible Prompt Bar (chat-style, collapsed one-liner → expanded editor)
-- [ ] Multi-select artboards → "Open in Editor" tab switch
-- [ ] Canvas export (selected/all artboards, PNG/ZIP)
-- [ ] External drag-drop onto canvas
-- [ ] Image Editor as Tab 2 (existing code, standalone, context-only)
-- [ ] Konva.js drag-and-drop bug fixed (artboards move independently)
-- [ ] Board layout persistence on DesignProject
+### Phase D: Unified Design Workspace (completed 2026-04-01)
+- [x] React Flow removed, routes unified to `/designs/:projectId`
+- [x] Workspace shell with polished tab toggle (Canvas / Editor)
+- [x] Artboard Canvas: Konva.js infinite zoom canvas with artboard paradigm
+- [x] Artboards: freely movable, selectable (dashed blue border + resize handles)
+- [x] AI Image Boards with thin arrow connections
+- [x] Right panel (280px, always visible, context-sensitive)
+- [x] Bottom toolbar (cursor/move/shapes/brush/text/emoji/AI/undo/redo/zoom)
+- [x] Collapsible Prompt Bar (chat-style, collapsed one-liner → expanded editor)
+- [x] Multi-select artboards → "Open in Editor" tab switch
+- [x] Canvas export (selected/all artboards, PNG/ZIP)
+- [x] External drag-drop onto canvas
+- [x] Image Editor as Tab 2 (existing code, standalone, context-only)
+- [x] Konva.js drag-and-drop bug fixed (artboards move independently)
+- [x] Board layout persistence on DesignProject
 
 ### Phase B: Post-Processing Editor (existing — becomes Tab 2)
 - [x] Pipeline bar, tool panel, canvas, batch strip, export controls
-- [ ] Client-side tools: resize, trim, rotate, filters, defringe, eraser, wand
-- [ ] AI BG Remove + AI Upscale auto-mode
+- [x] Client-side tools: resize, trim, rotate, filters, defringe, eraser, wand
+- [x] AI BG Remove + AI Upscale auto-mode
 - [ ] Cloud import (Google Drive + OneDrive)
 - [ ] Settings UI: provider selection, API keys, threshold
 - [ ] All tests pass, lint clean
+
+### Phase B8: Bug Fixes + Live Preview + Tool Upgrades (2026-04-02)
+- [x] Tool panel layout: all toolParams fit 280px without overflow
+- [x] Resize presets: SVG icons + tooltip (no text overflow)
+- [x] Project cards: halved max size (Grid lg:2)
+- [x] Dropped images persist after page reload
+- [x] Live preview: enabled tools apply immediately on selected image
+- [x] Filmstrip: thumbnail strip, navigation arrows + counter, multi-image support
+- [x] "Apply Pipeline" = batch only (all filmstrip images)
+- [x] Unified Tool Bar: catalog + pipeline merged into single top bar
+- [x] Upload fix: FormData Content-Type header, editor hydration on mount
+- [x] Live preview: image switch resets preview, zoom stays stable during processing
+- [x] Color Removal: auto-detect, contiguous, edge trim/feather
+- [x] Transparency Cleaner: merged highlighter, ReadyPixl-style UI
+- [x] Undo/Redo: Image Editor (useUndoRedo) + Artboard Canvas (useCanvasHistory), Cmd+Z/Shift+Z
+- [x] Delete Designs: Gallery 3-dot menu, Editor remove/delete menu, Canvas server-delete + confirmation
+- [x] Dimension Change Indicator: shows original→new dims after trim/resize
