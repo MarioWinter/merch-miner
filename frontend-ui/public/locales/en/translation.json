@@ -1202,6 +1202,23 @@
       "canvasComingSoon": "Artboard Canvas coming soon",
       "canvasDescription": "The Konva.js-powered artboard will replace the old React Flow board."
     },
+    "settings": {
+      "title": "Processing Settings",
+      "loadError": "Failed to load settings",
+      "saveSuccess": "Settings saved",
+      "saveError": "Failed to save settings",
+      "bgRemovalSection": "BACKGROUND REMOVAL",
+      "upscaleSection": "UPSCALING",
+      "provider": "Provider",
+      "selfHosted": "self-hosted",
+      "externalApi": "External API",
+      "apiKey": "API Key",
+      "apiKeyPlaceholder": "Enter API key...",
+      "apiKeySet": "Key is set (leave empty to keep)",
+      "apiKeyKept": "Existing key will be kept",
+      "autoThreshold": "Auto Threshold",
+      "autoThresholdHint": "Images below this size use API, above use Pica.js (client-side)"
+    },
     "canvas": {
       "emptyTitle": "Drop images or create an AI Image Board",
       "emptyDescription": "Drag images from your desktop or use the toolbar to get started.",

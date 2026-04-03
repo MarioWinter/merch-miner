@@ -1194,6 +1194,23 @@
       "deleteSuccess": "Designs geloescht",
       "deleteError": "Designs konnten nicht geloescht werden"
     },
+    "settings": {
+      "title": "Verarbeitungseinstellungen",
+      "loadError": "Einstellungen konnten nicht geladen werden",
+      "saveSuccess": "Einstellungen gespeichert",
+      "saveError": "Einstellungen konnten nicht gespeichert werden",
+      "bgRemovalSection": "HINTERGRUNDENTFERNUNG",
+      "upscaleSection": "HOCHSKALIERUNG",
+      "provider": "Anbieter",
+      "selfHosted": "selbst gehostet",
+      "externalApi": "Externe API",
+      "apiKey": "API-Schluessel",
+      "apiKeyPlaceholder": "API-Schluessel eingeben...",
+      "apiKeySet": "Schluessel ist gesetzt (leer lassen zum Behalten)",
+      "apiKeyKept": "Bestehender Schluessel wird beibehalten",
+      "autoThreshold": "Auto-Schwellwert",
+      "autoThresholdHint": "Bilder unter dieser Groesse nutzen API, darueber Pica.js (clientseitig)"
+    },
     "toolbar": {
       "ariaLabel": "Canvas-Werkzeugleiste",
       "cursor": "Zeiger",

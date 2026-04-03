@@ -1181,6 +1181,23 @@
       "deleteSuccess": "Design eliminati",
       "deleteError": "Impossibile eliminare i design"
     },
+    "settings": {
+      "title": "Impostazioni elaborazione",
+      "loadError": "Impossibile caricare le impostazioni",
+      "saveSuccess": "Impostazioni salvate",
+      "saveError": "Impossibile salvare le impostazioni",
+      "bgRemovalSection": "RIMOZIONE SFONDO",
+      "upscaleSection": "UPSCALING",
+      "provider": "Fornitore",
+      "selfHosted": "self-hosted",
+      "externalApi": "API esterna",
+      "apiKey": "Chiave API",
+      "apiKeyPlaceholder": "Inserire chiave API...",
+      "apiKeySet": "Chiave impostata (lasciare vuoto per mantenere)",
+      "apiKeyKept": "La chiave esistente verra mantenuta",
+      "autoThreshold": "Soglia automatica",
+      "autoThresholdHint": "Immagini sotto questa dimensione usano API, sopra Pica.js (lato client)"
+    },
     "toolbar": {
       "ariaLabel": "Barra degli strumenti del canvas",
       "cursor": "Cursore",

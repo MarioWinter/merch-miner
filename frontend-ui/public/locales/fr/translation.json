@@ -1208,6 +1208,23 @@
       "canvasComingSoon": "Artboard Canvas bientot disponible",
       "canvasDescription": "L'artboard Konva.js remplacera l'ancien React Flow."
     },
+    "settings": {
+      "title": "Parametres de traitement",
+      "loadError": "Impossible de charger les parametres",
+      "saveSuccess": "Parametres enregistres",
+      "saveError": "Impossible d'enregistrer les parametres",
+      "bgRemovalSection": "SUPPRESSION D'ARRIERE-PLAN",
+      "upscaleSection": "MISE A L'ECHELLE",
+      "provider": "Fournisseur",
+      "selfHosted": "auto-heberge",
+      "externalApi": "API externe",
+      "apiKey": "Cle API",
+      "apiKeyPlaceholder": "Entrer la cle API...",
+      "apiKeySet": "Cle definie (laisser vide pour conserver)",
+      "apiKeyKept": "La cle existante sera conservee",
+      "autoThreshold": "Seuil automatique",
+      "autoThresholdHint": "Les images sous cette taille utilisent l'API, au-dessus Pica.js (cote client)"
+    },
     "toolbar": {
       "ariaLabel": "Barre d'outils du canevas",
       "cursor": "Curseur",

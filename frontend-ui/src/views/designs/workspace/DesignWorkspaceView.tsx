@@ -7,9 +7,12 @@ import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import BuildOutlinedIcon from '@mui/icons-material/BuildOutlined';
 import { useTranslation } from 'react-i18next';
-import { useGetProjectQuery, useGetProjectBoardQuery } from '@/store/designSlice';
+import { useSnackbar } from 'notistack';
+import { useGetProjectQuery, useGetProjectBoardQuery, useBatchProcessMutation, useDeleteDesignMutation } from '@/store/designSlice';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import useArtboardCanvas from '../board/hooks/useArtboardCanvas';
 import useArtboards from '../board/hooks/useArtboards';
+import useCanvasHistory from '../board/hooks/useCanvasHistory';
 import useRightPanelState from '../board/hooks/useRightPanelState';
 import usePromptBar from '../board/hooks/usePromptBar';
 import { useGeneration } from '../board/hooks/useGeneration';
@@ -21,6 +24,7 @@ import RightPanel from '../board/partials/RightPanel';
 import NicheBindingSelector from '../board/partials/NicheBindingSelector';
 import ExportDialog from '../board/partials/ExportDialog';
 import DesignEditorView from '../editor/DesignEditorView';
+import ProcessingSettingsDialog from './ProcessingSettingsDialog';
 import useWorkspaceTab from './hooks/useWorkspaceTab';
 import type { WorkspaceTab } from './hooks/useWorkspaceTab';
 import {
@@ -65,6 +69,7 @@ const DesignWorkspaceView = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { activeTab, setActiveTab } = useWorkspaceTab();
+  const { enqueueSnackbar } = useSnackbar();
 
   const {
     data: project,
@@ -89,6 +94,46 @@ const DesignWorkspaceView = () => {
     savedLayout: boardData?.board_layout ?? null,
     designs: boardData?.designs,
   });
+
+  // -- Canvas history (undo/redo) --
+  const canvasHistory = useCanvasHistory();
+
+  /** Push current state onto history before a mutation */
+  const pushHistory = useCallback(() => {
+    canvasHistory.pushSnapshot(artboardState.artboards, artboardState.edges);
+  }, [canvasHistory, artboardState.artboards, artboardState.edges]);
+
+  const handleCanvasUndo = useCallback(() => {
+    const snapshot = canvasHistory.undo(artboardState.artboards, artboardState.edges);
+    if (snapshot) {
+      artboardState.replaceAll(snapshot.artboards, snapshot.edges);
+    }
+  }, [canvasHistory, artboardState]);
+
+  const handleCanvasRedo = useCallback(() => {
+    const snapshot = canvasHistory.redo(artboardState.artboards, artboardState.edges);
+    if (snapshot) {
+      artboardState.replaceAll(snapshot.artboards, snapshot.edges);
+    }
+  }, [canvasHistory, artboardState]);
+
+  // Keyboard shortcuts: Cmd+Z / Cmd+Shift+Z (only on canvas tab)
+  useEffect(() => {
+    if (activeTab !== 'canvas') return;
+    const handler = (e: KeyboardEvent) => {
+      const isMeta = e.metaKey || e.ctrlKey;
+      if (!isMeta || e.key.toLowerCase() !== 'z') return;
+
+      e.preventDefault();
+      if (e.shiftKey) {
+        handleCanvasRedo();
+      } else {
+        handleCanvasUndo();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [activeTab, handleCanvasUndo, handleCanvasRedo]);
 
   const panelState = useRightPanelState({
     artboards: artboardState.artboards,
@@ -150,6 +195,17 @@ const DesignWorkspaceView = () => {
     // TODO: trigger AI design generation for the selected AI Image Board
   }, []);
 
+  const [batchProcess] = useBatchProcessMutation();
+  const handleBgRemove = useCallback(async () => {
+    const artboard = panelState.artboard;
+    if (!artboard?.designId) return;
+    try {
+      await batchProcess({ design_ids: [artboard.designId], steps: ['bg_remove'] }).unwrap();
+    } catch {
+      // error handled by RTK
+    }
+  }, [panelState.artboard, batchProcess]);
+
   // Images from canvas artboards to pass directly to editor (blob URLs without designId)
   const [editorInitialImages, setEditorInitialImages] = useState<
     Array<{ url: string; name: string }>
@@ -182,12 +238,59 @@ const DesignWorkspaceView = () => {
     [artboardState.artboards, navigate, setActiveTab],
   );
 
+  // -- Delete with server-side removal for persisted designs --
+  const [deleteDesign] = useDeleteDesignMutation();
+  const [pendingDeleteIds, setPendingDeleteIds] = useState<string[]>([]);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [isDeletingFromServer, setIsDeletingFromServer] = useState(false);
+
   const handleDeleteSelected = useCallback(
     (ids: string[]) => {
-      artboardState.removeArtboards(ids);
+      pushHistory();
+      // Check if any artboards have server-persisted designs
+      const hasServerDesigns = artboardState.artboards
+        .filter((ab) => ids.includes(ab.id))
+        .some((ab) => ab.designId);
+
+      if (hasServerDesigns) {
+        setPendingDeleteIds(ids);
+        setDeleteConfirmOpen(true);
+      } else {
+        // Local-only artboards: remove without confirmation
+        artboardState.removeArtboards(ids);
+      }
     },
-    [artboardState],
+    [artboardState, pushHistory],
   );
+
+  const handleDeleteConfirm = useCallback(async () => {
+    setIsDeletingFromServer(true);
+    const toDelete = artboardState.artboards.filter(
+      (ab) => pendingDeleteIds.includes(ab.id) && ab.designId,
+    );
+
+    try {
+      await Promise.all(
+        toDelete.map((ab) =>
+          deleteDesign({ designId: ab.designId!, projectId }).unwrap(),
+        ),
+      );
+      artboardState.removeArtboards(pendingDeleteIds);
+      enqueueSnackbar(t('design.canvas.deleteSuccess'), { variant: 'success' });
+    } catch {
+      enqueueSnackbar(t('design.canvas.deleteError'), { variant: 'error' });
+    } finally {
+      setIsDeletingFromServer(false);
+      setDeleteConfirmOpen(false);
+      setPendingDeleteIds([]);
+    }
+  }, [pendingDeleteIds, artboardState, deleteDesign, projectId, enqueueSnackbar, t]);
+
+  const handleDeleteCancel = useCallback(() => {
+    setDeleteConfirmOpen(false);
+    setPendingDeleteIds([]);
+  }, []);
 
   // -- Export dialog state --
   const exportArtboardsRef = useRef<ArtboardData[]>([]);
@@ -227,8 +330,27 @@ const DesignWorkspaceView = () => {
     promptBar.expand();
   }, [promptBar]);
 
+  // -- History-aware wrappers for artboard mutations --
+  const moveArtboardWithHistory = useCallback(
+    (id: string, x: number, y: number) => {
+      pushHistory();
+      artboardState.moveArtboard(id, x, y);
+    },
+    [pushHistory, artboardState],
+  );
+
+  const resizeArtboardWithHistory = useCallback(
+    (id: string, width: number, height: number) => {
+      pushHistory();
+      artboardState.resizeArtboard(id, width, height);
+    },
+    [pushHistory, artboardState],
+  );
+
   const handleGenerate = useCallback(async () => {
     if (!prompt.trim() || generation.isGenerating) return;
+
+    pushHistory();
 
     // Create a skeleton artboard on the canvas
     const skeletonAb = artboardState.addArtboard({
@@ -253,7 +375,7 @@ const DesignWorkspaceView = () => {
     } catch {
       artboardState.updateArtboard(skeletonAb.id, { isGenerating: false });
     }
-  }, [prompt, generation, artboardState, aiModel, bgColor, promptBar]);
+  }, [prompt, generation, artboardState, aiModel, bgColor, promptBar, pushHistory]);
 
   // -- Loading --
   if (isLoading) {
@@ -337,7 +459,7 @@ const DesignWorkspaceView = () => {
         </TabGroup>
 
         <Tooltip title={t('design.workspace.settings')}>
-          <IconButton size="small" aria-label={t('design.workspace.settings')}>
+          <IconButton size="small" aria-label={t('design.workspace.settings')} onClick={() => setSettingsOpen(true)}>
             <SettingsOutlinedIcon sx={{ fontSize: 20 }} />
           </IconButton>
         </Tooltip>
@@ -356,7 +478,7 @@ const DesignWorkspaceView = () => {
                 selectArtboard={artboardState.selectArtboard}
                 deselectAll={artboardState.deselectAll}
                 selectByRect={artboardState.selectByRect}
-                moveArtboard={artboardState.moveArtboard}
+                moveArtboard={moveArtboardWithHistory}
                 renameArtboard={artboardState.renameArtboard}
                 addArtboard={artboardState.addArtboard}
                 addAiImageBoard={artboardState.addAiImageBoard}
@@ -370,7 +492,7 @@ const DesignWorkspaceView = () => {
                 setContainerRef={canvasHook.setContainerRef}
                 handleWheel={canvasHook.handleWheel}
                 setPan={canvasHook.setPan}
-                resizeArtboard={artboardState.resizeArtboard}
+                resizeArtboard={resizeArtboardWithHistory}
               />
               <PromptBar
                 isExpanded={promptBar.isExpanded}
@@ -397,6 +519,10 @@ const DesignWorkspaceView = () => {
                 activeTool={activeTool}
                 onToolChange={setActiveTool}
                 onAiSparkle={handleAiSparkle}
+                onUndo={handleCanvasUndo}
+                onRedo={handleCanvasRedo}
+                canUndo={canvasHistory.canUndo}
+                canRedo={canvasHistory.canRedo}
               />
             </CanvasColumn>
             <RightPanel
@@ -404,13 +530,14 @@ const DesignWorkspaceView = () => {
               onUpdateArtboard={artboardState.updateArtboard}
               onResizeArtboard={artboardState.resizeArtboard}
               onRegenerate={handleRegenerate}
+              onBgRemove={handleBgRemove}
               onOpenInEditor={handleOpenInEditor}
               onDeleteSelected={handleDeleteSelected}
               onExportSelected={handleExportSelected}
             />
           </>
         ) : (
-          <DesignEditorView initialImages={editorInitialImages} />
+          <DesignEditorView projectId={projectId ?? ''} initialImages={editorInitialImages} />
         )}
       </ContentArea>
       {/* Export dialog */}
@@ -419,6 +546,19 @@ const DesignWorkspaceView = () => {
         onClose={() => setExportDialogOpen(false)}
         artboards={exportArtboardsRef.current}
       />
+      <ConfirmDialog
+        open={deleteConfirmOpen}
+        title={t('design.canvas.deleteDialogTitle', 'Delete Designs')}
+        body={t('design.canvas.deleteDialogBody', {
+          count: pendingDeleteIds.length,
+        })}
+        confirmLabel={t('design.canvas.deleteConfirm', 'Delete')}
+        cancelLabel={t('design.canvas.deleteCancel', 'Cancel')}
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        isLoading={isDeletingFromServer}
+      />
+      <ProcessingSettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </WorkspaceRoot>
   );
 };

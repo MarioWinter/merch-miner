@@ -357,7 +357,7 @@
 - [x] `design.qc.*` — transparency highlighter, compressor labels
 - [x] `design.export.*` — format, DPI, compression, download labels
 - [ ] `design.cloud.*` — Google Drive, OneDrive, import button labels
-- [ ] `design.settings.*` — provider labels, API key placeholder, threshold
+- [x] `design.settings.*` — provider labels, API key placeholder, threshold
 - [x] All 5 locales: EN, DE, FR, ES, IT (482 design keys synced)
 
 ---
@@ -946,7 +946,7 @@
 - [x] Client-side tools: resize, trim, rotate, filters, defringe, eraser, wand
 - [x] AI BG Remove + AI Upscale auto-mode
 - [ ] Cloud import (Google Drive + OneDrive)
-- [ ] Settings UI: provider selection, API keys, threshold
+- [x] Settings UI: provider selection, API keys, threshold
 - [ ] All tests pass, lint clean
 
 ### Phase B8: Bug Fixes + Live Preview + Tool Upgrades (2026-04-02)

@@ -1181,6 +1181,23 @@
       "deleteSuccess": "Disenos eliminados",
       "deleteError": "No se pudieron eliminar los disenos"
     },
+    "settings": {
+      "title": "Configuracion de procesamiento",
+      "loadError": "No se pudieron cargar las configuraciones",
+      "saveSuccess": "Configuracion guardada",
+      "saveError": "No se pudo guardar la configuracion",
+      "bgRemovalSection": "ELIMINACION DE FONDO",
+      "upscaleSection": "ESCALADO",
+      "provider": "Proveedor",
+      "selfHosted": "autoalojado",
+      "externalApi": "API externa",
+      "apiKey": "Clave API",
+      "apiKeyPlaceholder": "Ingresar clave API...",
+      "apiKeySet": "Clave configurada (dejar vacio para mantener)",
+      "apiKeyKept": "Se mantendra la clave existente",
+      "autoThreshold": "Umbral automatico",
+      "autoThresholdHint": "Imagenes bajo este tamano usan API, por encima Pica.js (lado cliente)"
+    },
     "toolbar": {
       "ariaLabel": "Barra de herramientas del lienzo",
       "cursor": "Cursor",

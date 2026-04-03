@@ -26,6 +26,24 @@ import type {
   ProjectBoardResponse,
 } from '../views/designs/gallery/types';
 
+// --- Processing Settings types ---
+
+export interface ProcessingSettings {
+  bg_removal_provider: 'rembg' | 'api';
+  bg_removal_api_key_set: boolean;
+  upscale_provider: 'pica' | 'api' | 'auto';
+  upscale_api_key_set: boolean;
+  upscale_auto_threshold: number;
+}
+
+export interface UpdateProcessingSettingsBody {
+  bg_removal_provider?: 'rembg' | 'api';
+  bg_removal_api_key?: string;
+  upscale_provider?: 'pica' | 'api' | 'auto';
+  upscale_api_key?: string;
+  upscale_auto_threshold?: number;
+}
+
 /** Response from POST /api/products/{id}/analyze-image/ */
 export interface ProductAnalyzeResponse {
   status: 'reused' | 'pending';
@@ -37,7 +55,7 @@ export interface ProductAnalyzeResponse {
 export const designApi = createApi({
   reducerPath: 'designApi',
   baseQuery: axiosBaseQuery({ baseUrl: '' }),
-  tagTypes: ['DesignBoard', 'Design', 'DesignList', 'Run', 'ProcessingJob', 'Pipeline', 'DesignProject', 'DesignProjectList'],
+  tagTypes: ['DesignBoard', 'Design', 'DesignList', 'Run', 'ProcessingJob', 'Pipeline', 'DesignProject', 'DesignProjectList', 'ProcessingSettings'],
   endpoints: (builder) => ({
     // Board context (idea-scoped)
     getBoardContext: builder.query<BoardContext, string>({
@@ -51,15 +69,15 @@ export const designApi = createApi({
     }),
 
     // List designs for an idea
-    listDesigns: builder.query<Design[], string>({
+    listDesigns: builder.query<{ results: Design[]; count: number }, string>({
       query: (ideaId) => ({
         url: `/api/ideas/${ideaId}/designs/`,
         method: 'GET',
       }),
       providesTags: (result, _error, ideaId) =>
-        result
+        result?.results
           ? [
-              ...result.map(({ id }) => ({ type: 'Design' as const, id })),
+              ...result.results.map(({ id }) => ({ type: 'Design' as const, id })),
               { type: 'DesignList', id: ideaId },
             ]
           : [{ type: 'DesignList', id: ideaId }],
@@ -199,15 +217,15 @@ export const designApi = createApi({
     // --- Pipeline endpoints ---
 
     // List workspace pipelines/presets
-    listPipelines: builder.query<DesignPipeline[], void>({
+    listPipelines: builder.query<{ results: DesignPipeline[]; count: number }, void>({
       query: () => ({
         url: '/api/designs/pipelines/',
         method: 'GET',
       }),
       providesTags: (result) =>
-        result
+        result?.results
           ? [
-              ...result.map(({ id }) => ({ type: 'Pipeline' as const, id })),
+              ...result.results.map(({ id }) => ({ type: 'Pipeline' as const, id })),
               { type: 'Pipeline', id: 'LIST' },
             ]
           : [{ type: 'Pipeline', id: 'LIST' }],
@@ -370,6 +388,25 @@ export const designApi = createApi({
       ],
     }),
 
+    // --- Processing Settings ---
+
+    getProcessingSettings: builder.query<ProcessingSettings, void>({
+      query: () => ({
+        url: '/api/designs/settings/',
+        method: 'GET',
+      }),
+      providesTags: ['ProcessingSettings'],
+    }),
+
+    updateProcessingSettings: builder.mutation<ProcessingSettings, UpdateProcessingSettingsBody>({
+      query: (data) => ({
+        url: '/api/designs/settings/',
+        method: 'PATCH',
+        data,
+      }),
+      invalidatesTags: ['ProcessingSettings'],
+    }),
+
     // Upload image to project (manual upload for artboard canvas)
     uploadDesignToProject: builder.mutation<
       Design,
@@ -420,4 +457,7 @@ export const {
   useRemoveDesignFromProjectMutation,
   useGetProjectBoardQuery,
   useUploadDesignToProjectMutation,
+  // Processing Settings
+  useGetProcessingSettingsQuery,
+  useUpdateProcessingSettingsMutation,
 } = designApi;
