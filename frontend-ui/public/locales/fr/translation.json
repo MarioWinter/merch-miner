@@ -180,8 +180,8 @@
       "colIdeas": "Idées",
       "colUpdated": "Mis à jour",
       "colActions": "Actions",
-      "unassigned": "Non assigné",
       "colDeepDrill": "Deep Drill",
+      "unassigned": "Non assigné",
       "deepDrill": {
         "idle": "Lancer le Deep Drill",
         "running": "Deep Drill en cours…",
@@ -210,6 +210,9 @@
       "archiveConfirmBody": "La niche sera masquée de la liste mais ne sera pas supprimée.",
       "archiveConfirm": "Archiver",
       "archiveCancel": "Annuler",
+      "archiveLinkedIdeasTitle": "La niche a des idees liees",
+      "archiveLinkedIdeasBody": "Cette niche a {{count}} idee(s) liee(s). L'archivage de la niche archivera aussi toutes les idees liees.",
+      "archiveLinkedIdeasConfirm": "Tout archiver",
       "unsavedChangesTitle": "Modifications non enregistrées",
       "unsavedChangesBody": "Vous avez des modifications non enregistrées. Les ignorer ?",
       "discardChanges": "Ignorer",
@@ -268,7 +271,9 @@
       "archiveSuccess": "Niche archivée",
       "createError": "Échec de la création de la niche",
       "updateError": "Échec de la mise à jour de la niche",
-      "archiveError": "Échec de l'archivage de la niche"
+      "archiveError": "Échec de l'archivage de la niche",
+      "archiveWithIdeasSuccess": "Niche et idees liees archivees",
+      "archiveBlocked": "Archivage annule — des idees sont encore liees a cette niche"
     },
     "inlineAdd": {
       "addNiche": "+ Ajouter une niche…",
@@ -608,7 +613,9 @@
     },
     "niche": {
       "noResearchWarning": "Certaines niches n'ont pas de donnees de recherche — les resultats peuvent etre de moindre qualite.",
-      "alreadyAdapted": "Deja adapte"
+      "alreadyAdapted": "Deja adapte",
+      "researchDone": "Recherche Deep Drill terminee — donnees completes disponibles",
+      "noResearch": "Pas de recherche Deep Drill — la qualite d'adaptation peut etre limitee"
     },
     "notifications": {
       "createSuccess": "{{count}} idee(s) creee(s)",
@@ -669,9 +676,41 @@
       "updateError": "Erreur de mise à jour",
       "deleteSuccess": "Modèle supprimé",
       "deleteError": "Erreur de suppression"
+    },
+    "rejectWarning": {
+      "title": "L'idee a un design approuve",
+      "body": "Cette idee a un design approuve. Rejeter l'idee ne supprimera pas le design, mais il ne sera plus lie au pipeline. Continuer ?",
+      "confirm": "Rejeter l'idee",
+      "cancel": "Annuler"
     }
   },
   "design": {
+    "prompt": {
+      "expandBar": "Ouvrir la barre de prompt",
+      "placeholder": "Decrivez ce que vous souhaitez creer...",
+      "header": "Modifier le tableau IA",
+      "close": "Fermer la barre de prompt",
+      "sourceThumbnail": "Image source",
+      "resultThumbnail": "Image resultat",
+      "inputPlaceholder": "Decrivez le design que vous souhaitez generer...",
+      "inputLabel": "Prompt de design",
+      "builder": "Constructeur de prompt",
+      "generate": "Generer",
+      "generating": "Generation en cours...",
+      "regenerate": "Regenerer"
+    },
+    "canvas": {
+      "emptyTitle": "Deposez des images ou creez un tableau IA",
+      "emptyDescription": "Glissez des images ou utilisez la barre d'outils.",
+      "dropHint": "Deposez des images pour creer des artboards",
+      "browseFiles": "Parcourir",
+      "deleteDialogTitle": "Supprimer les designs",
+      "deleteDialogBody": "{{count}} design(s) seront definitivement supprimes du serveur. Cette action est irreversible.",
+      "deleteConfirm": "Supprimer",
+      "deleteCancel": "Annuler",
+      "deleteSuccess": "Designs supprimes",
+      "deleteError": "Impossible de supprimer les designs"
+    },
     "board": {
       "title": "Tableau de design",
       "prompt": "Prompt",
@@ -766,13 +805,16 @@
       "triggerError": "Impossible de demarrer le traitement par lot",
       "jobFailed": "{{type}} a echoue",
       "upscale": "Agrandissement",
-      "bg_remove": "Suppression du fond"
+      "bg_remove": "Suppression du fond",
+      "failure": "Echec du traitement par lot",
+      "jobCompleted": "Traitement termine"
     },
     "analyze": {
       "button": "Analyser l'image",
       "started": "Analyse d'image demarree",
       "success": "Design analyse - prompt pret",
-      "error": "Impossible d'analyser l'image"
+      "error": "Impossible d'analyser l'image",
+      "reused": "Analyse prete"
     },
     "editor": {
       "title": "Editeur d'images",
@@ -795,6 +837,24 @@
       "loadError": "Echec du chargement des designs",
       "centerImage": "Centrer et ajuster l'image",
       "canvasToolbar": "Outils de canevas",
+      "processingComplete": "Toutes les images ont ete traitees avec succes",
+      "processingPartialFail": "{{count}} image(s) en echec de traitement",
+      "applyPipeline": "Appliquer le Pipeline",
+      "applying": "Application...",
+      "cancelProcessing": "Annuler",
+      "processingProgress": "Traitement {{current}}/{{total}} : {{name}}",
+      "uploadFailed": "Echec du telechargement de \"{{name}}\"",
+      "addMoreImages": "Ajouter d'autres images",
+      "serverProcessing": "Traitement sur le serveur...",
+      "showOriginal": "Afficher l'original",
+      "showProcessed": "Afficher le resultat",
+      "bgPreview": {
+        "transparent": "Transparent (damier)",
+        "black": "Fond noir",
+        "white": "Fond blanc",
+        "gray": "Fond gris",
+        "custom": "Couleur personnalisee"
+      },
       "removeFromBatch": "Retirer du lot",
       "deletePermanently": "Supprimer definitivement",
       "deleteServerDialogTitle": "Supprimer le design",
@@ -817,6 +877,7 @@
       "deletePreset": "Supprimer",
       "presetName": "Nom du preset",
       "presetSaved": "Preset sauvegarde",
+      "presetUpdated": "Preset Pipeline mis a jour",
       "presetDeleted": "Preset supprime",
       "presetSaveError": "Echec de la sauvegarde",
       "presetDeleteError": "Echec de la suppression",
@@ -826,6 +887,8 @@
       "removeTool": "Supprimer l'outil",
       "toggleTool": "Activer/desactiver",
       "dragToReorder": "Glisser pour reorganiser",
+      "toolCatalog": "Catalogue d'outils",
+      "selectToolsHint": "Selectionnez des outils dans la barre ci-dessus",
       "toggleTooltips": "Afficher les descriptions des outils",
       "categories": {
         "standard": "Standard",
@@ -854,10 +917,63 @@
         "compressor": "Reduire la taille du fichier sous la cible"
       },
       "resize": "Redimensionner",
+      "resizeParams": {
+        "sizePreset": "Preset de taille",
+        "targetWidth": "Largeur cible",
+        "targetHeight": "Hauteur cible",
+        "alignY": "Alignement vertical",
+        "alignX": "Alignement horizontal",
+        "padding": "Marge (px)",
+        "bgColor": "Remplissage du fond",
+        "maintainAspectRatio": "Conserver les proportions",
+        "top": "Haut",
+        "center": "Centre",
+        "bottom": "Bas",
+        "left": "Gauche",
+        "right": "Droite",
+        "transparent": "Transparent",
+        "presetPod": "POD Standard (4500×5400)",
+        "presetSquare": "Carre (4500×4500)",
+        "presetCustom": "Personnalise"
+      },
       "trim": "Rogner",
+      "trimParams": {
+        "trimMode": "Mode de rognage",
+        "transparent": "Transparent",
+        "autoDetect": "Detection auto",
+        "threshold": "Seuil",
+        "alphaThreshold": "Seuil alpha",
+        "colorTolerance": "Tolerance de couleur",
+        "padding": "Marge (px)"
+      },
       "rotate": "Pivoter",
+      "rotateFlipParams": {
+        "rotation": "Rotation",
+        "flipH": "Retournement horizontal",
+        "flipV": "Retournement vertical",
+        "deg0": "0°",
+        "deg90": "90°",
+        "deg180": "180°",
+        "deg270": "270°"
+      },
       "filters": "Filtres",
+      "colorAdjustmentParams": {
+        "brightness": "Luminosite",
+        "contrast": "Contraste",
+        "saturation": "Saturation",
+        "hueShift": "Decalage de teinte",
+        "reset": "Tout reinitialiser"
+      },
       "distress": "Distress",
+      "distressParams": {
+        "intensity": "Intensite",
+        "grainAmount": "Quantite de grain",
+        "scratches": "Rayures",
+        "edgeWear": "Usure des bords",
+        "seed": "Graine",
+        "randomize": "Aleatoire",
+        "reset": "Tout reinitialiser"
+      },
       "colorRemoval": "Suppression couleur",
       "colorRemovalParams": {
         "mode": "Mode de detection",
@@ -888,6 +1004,14 @@
         "hdHint": "Agrandir les petites images 2x avant traitement pour plus de precision"
       },
       "speckleRemover": "Anti-taches",
+      "speckleRemoverParams": {
+        "minSize": "Taille min (px)",
+        "minSizeHint": "Les groupes de pixels plus petits sont supprimes",
+        "connectivity": "Connectivite",
+        "fourWay": "4 directions",
+        "eightWay": "8 directions",
+        "alphaThreshold": "Seuil alpha"
+      },
       "transparencyCleaner": "Nettoyeur transp.",
       "transparencyCleanerParams": {
         "mode": "Mode",
@@ -903,16 +1027,92 @@
         "visibility": "Visibilite"
       },
       "watermark": "Filigrane",
+      "watermarkParams": {
+        "text": "Texte du filigrane",
+        "textPlaceholder": "Saisir le texte du filigrane...",
+        "fontSize": "Taille de police",
+        "color": "Couleur",
+        "opacity": "Opacite",
+        "position": "Position",
+        "posCenter": "Centre",
+        "posTopLeft": "Haut gauche",
+        "posTopRight": "Haut droit",
+        "posBottomLeft": "Bas gauche",
+        "posBottomRight": "Bas droit",
+        "posTile": "Mosaique (repeter)",
+        "rotation": "Rotation (°)",
+        "tileSpacing": "Espacement mosaique (px)"
+      },
       "defringe": "Defringe",
+      "defringeParams": {
+        "autoDetect": "Detection auto",
+        "shrinkPx": "Retrecir (px)",
+        "edgeThreshold": "Seuil de bord",
+        "autoDetected": "Valeur calculee automatiquement selon l'analyse des bords"
+      },
       "shrink": "Retrecir",
+      "shrinkParams": {
+        "amount": "Retrecissement (px)",
+        "amountHint": "Nombre de pixels de bord a supprimer par iteration",
+        "alphaThreshold": "Seuil alpha"
+      },
       "colorDefringe": "Defringe couleur",
+      "colorDefringeParams": {
+        "edgeWidth": "Largeur de bord (px)",
+        "edgeWidthHint": "Nombre de pixels depuis le bord a traiter",
+        "alphaThreshold": "Seuil alpha",
+        "colorTolerance": "Tolerance de couleur",
+        "colorToleranceHint": "Intensite de remplacement des couleurs de bord (0 = aucun, 100 = total)"
+      },
       "edgeCleaner": "Nettoyeur bords",
+      "edgeCleanerParams": {
+        "passes": "Passes",
+        "strength": "Force",
+        "alphaThreshold": "Seuil alpha",
+        "alphaThresholdHint": "Les pixels avec alpha inferieur sont consideres transparents pour la detection des bords"
+      },
       "bgRemove": "Suppr. arriere-plan",
+      "bgRemoveParams": {
+        "serverInfo": "Traite sur le serveur avec un modele IA",
+        "description": "Suppression d'arriere-plan IA pour les fonds complexes. Le traitement prend quelques secondes.",
+        "model": "Modele",
+        "runNow": "Supprimer l'arriere-plan",
+        "processing": "Traitement..."
+      },
       "aiUpscale": "Mise a l'echelle IA",
+      "transparencyHighlighter": "Surlign. transp.",
+      "transparencyHighlighterParams": {
+        "highlightColor": "Couleur de surbrillance",
+        "red": "Rouge",
+        "yellow": "Jaune",
+        "magenta": "Magenta",
+        "showOpaque": "Afficher les opaques"
+      },
       "compressor": "Compresseur",
+      "compressorParams": {
+        "maxSize": "Taille max (KB)",
+        "maxSizeHint": "Taille maximale cible du fichier en kilooctets",
+        "quality": "Qualite",
+        "format": "Format",
+        "png": "PNG",
+        "webp": "WebP",
+        "estimatedSize": "Estime"
+      },
       "move": "Deplacer",
       "eraser": "Gomme",
-      "wand": "Baguette magique"
+      "eraserParams": {
+        "size": "Taille du pinceau",
+        "hardness": "Durete"
+      },
+      "wand": "Baguette magique",
+      "magicWandParams": {
+        "tolerance": "Tolerance",
+        "contiguous": "Contigu",
+        "contiguousHint": "Selectionner uniquement les pixels connectes de couleur similaire",
+        "action": "Action",
+        "actionDelete": "Supprimer",
+        "actionSelect": "Selectionner"
+      }
     },
     "export": {
       "title": "Export",
@@ -978,6 +1178,24 @@
         "placeholder": "Entrer le nom du projet...",
         "confirm": "Creer le projet",
         "cancel": "Annuler"
+      },
+      "nicheBinding": {
+        "label": "Niche liee",
+        "placeholder": "Selectionner une niche...",
+        "none": "Aucune niche liee",
+        "linked": "Liee a {{niche}}",
+        "unlink": "Dissocier la niche",
+        "linkSuccess": "Niche liee au projet",
+        "unlinkSuccess": "Niche dissociee du projet",
+        "linkError": "Echec de la mise a jour du lien de niche"
+      },
+      "drawerSection": {
+        "title": "Projets de design",
+        "emptyTitle": "Aucun projet de design lie",
+        "emptyCta": "Liez un projet depuis le Design Forge",
+        "openBoard": "Ouvrir le tableau",
+        "designCount": "{{count}} designs",
+        "designCount_one": "{{count}} design"
       }
     },
     "workspace": {
@@ -989,18 +1207,6 @@
       "settings": "Parametres du projet",
       "canvasComingSoon": "Artboard Canvas bientot disponible",
       "canvasDescription": "L'artboard Konva.js remplacera l'ancien React Flow."
-    },
-    "canvas": {
-      "emptyTitle": "Deposez des images ou creez un tableau IA",
-      "emptyDescription": "Glissez des images ou utilisez la barre d'outils.",
-      "dropHint": "Deposez des images pour creer des artboards",
-      "browseFiles": "Parcourir",
-      "deleteDialogTitle": "Supprimer les designs",
-      "deleteDialogBody": "{{count}} design(s) seront definitivement supprimes du serveur. Cette action est irreversible.",
-      "deleteConfirm": "Supprimer",
-      "deleteCancel": "Annuler",
-      "deleteSuccess": "Designs supprimes",
-      "deleteError": "Impossible de supprimer les designs"
     },
     "toolbar": {
       "ariaLabel": "Barre d'outils du canevas",
@@ -1142,6 +1348,343 @@
       "createGroupFailed": "Impossible de creer le groupe"
     }
   },
+  "publish": {
+    "page": {
+      "title": "Publication",
+      "subtitle": "Selection de designs, editeur de fiches et file d'attente"
+    },
+    "gallery": {
+      "title": "Galerie de designs",
+      "upload": "Telecharger",
+      "importCloud": "Importer depuis le cloud",
+      "importCloudTitle": "Importer depuis le stockage cloud",
+      "importCloudHint": "Collez les IDs de fichiers Google Drive ou OneDrive (un par ligne).",
+      "fileIdsLabel": "IDs de fichiers",
+      "fileIdsPlaceholder": "Collez les IDs de fichiers ici, un par ligne...",
+      "fileIdsHelper": "Entrez les IDs de fichiers Google Drive ou OneDrive",
+      "importButton": "Importer",
+      "importSuccess": "{{count}} design(s) importe(s)",
+      "importError": "Impossible d'importer les designs",
+      "cancel": "Annuler",
+      "selectAll": "Tout selectionner",
+      "selectDesign": "Selectionner le design",
+      "delete": "Supprimer",
+      "hasListing": "Fiche produit",
+      "noImage": "Aucune image",
+      "search": "Rechercher des designs...",
+      "sortBy": "Trier par",
+      "sortNewest": "Plus recents",
+      "sortEdited": "Recemment modifies",
+      "loadError": "Impossible de charger les designs"
+    },
+    "empty": {
+      "noDesigns": "Aucun design",
+      "hint": "Telechargez des designs ou importez depuis le cloud pour commencer.",
+      "upload": "Telecharger un design",
+      "import": "Importer depuis le cloud"
+    },
+    "product": {
+      "title": "Configuration produit",
+      "types": "Types de produit",
+      "fitType": "Type de coupe",
+      "printSide": "Cote d'impression",
+      "front": "Avant",
+      "back": "Arriere",
+      "both": "Les deux",
+      "colorsComingSoon": "Selection de couleurs bientot disponible"
+    },
+    "marketplace": {
+      "title": "Places de marche et tarifs",
+      "price": "Prix"
+    },
+    "listing": {
+      "title": "Editeur de fiche",
+      "generate": "Generer la fiche",
+      "generateSuccess": "Fiche generee",
+      "generateError": "Impossible de generer la fiche",
+      "save": "Enregistrer la fiche",
+      "saveSuccess": "Fiche enregistree",
+      "saveError": "Impossible d'enregistrer la fiche",
+      "loadError": "Impossible de charger la fiche",
+      "noListing": "Selectionnez un design et generez une fiche pour commencer.",
+      "improve": "Ameliorer avec l'IA",
+      "copied": "Fiche copiee dans le presse-papiers",
+      "copyError": "Impossible de copier la fiche",
+      "copyMBA": "Copier pour MBA",
+      "brandName": "Nom de marque",
+      "titleField": "Titre",
+      "bullet": "Point cle",
+      "description": "Description",
+      "keywords": "Mots-cles backend",
+      "addKeyword": "Ajouter des mots-cles (separes par des virgules)...",
+      "add": "Ajouter",
+      "kwFinder": "KW Finder",
+      "availability": "Disponibilite",
+      "public": "Public",
+      "private": "Prive",
+      "publishMode": "Mode de publication",
+      "live": "En ligne",
+      "draft": "Brouillon"
+    },
+    "translate": {
+      "title": "Traductions",
+      "autoTranslate": "Traduction auto",
+      "translateAll": "Traduire en tout",
+      "success": "Traductions generees",
+      "error": "Impossible de traduire la fiche",
+      "notTranslated": "Pas encore traduit. Cliquez sur \"Traduire en tout\" pour generer.",
+      "overLimit": "limite depassee"
+    },
+    "tm": {
+      "check": "Verification TM",
+      "clean": "Aucun probleme de marque detecte",
+      "flagged": "Problemes potentiels de marque detectes",
+      "error": "Echec de la verification de marque",
+      "cleanTitle": "Tout est en ordre",
+      "cleanMessage": "Aucun terme protege detecte dans votre fiche.",
+      "flaggedTitle": "Avertissement marque deposee",
+      "flaggedMessage": "Les termes suivants peuvent etre proteges. Verifiez avant de telecharger.",
+      "close": "Fermer",
+      "edit": "Modifier la fiche",
+      "proceedAnyway": "Continuer quand meme"
+    },
+    "upload": {
+      "title": "File d'attente",
+      "all": "Tous",
+      "status": {
+        "pending": "En attente",
+        "validating": "Validation",
+        "uploading": "Telechargement",
+        "completed": "Termine",
+        "failed": "Echoue",
+        "cancelled": "Annule"
+      },
+      "totalJobs": "{{count}} taches",
+      "noJobs": "Aucune tache de telechargement",
+      "loadError": "Impossible de charger les taches",
+      "desktopAppHint": "Les taches sont traitees par l'application Desktop Upload. Lancez l'app pour traiter les taches en attente.",
+      "queued": "Tache de telechargement en file",
+      "queueError": "Impossible de mettre en file la tache",
+      "batchQueued": "{{count}} taches mises en file",
+      "batchError": "Impossible de mettre en file le lot",
+      "cancelled": "Tache annulee",
+      "cancelError": "Impossible d'annuler la tache",
+      "cancel": "Annuler",
+      "retry": "Reessayer",
+      "viewScreenshot": "Voir la capture d'erreur"
+    },
+    "template": {
+      "button": "Modeles",
+      "saveNew": "Enregistrer comme modele",
+      "saveTitle": "Enregistrer le modele",
+      "nameLabel": "Nom du modele",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "empty": "Aucun modele enregistre",
+      "saveSuccess": "Modele enregistre",
+      "saveError": "Impossible d'enregistrer le modele",
+      "deleteSuccess": "Modele supprime",
+      "deleteError": "Impossible de supprimer le modele"
+    },
+    "command": {
+      "title": "Actions",
+      "searchPlaceholder": "Rechercher des actions...",
+      "noResults": "Aucune action correspondante",
+      "copyListing": "Copier la fiche",
+      "copyListingDesc": "Copier la fiche actuelle vers les designs selectionnes",
+      "applyTemplate": "Appliquer le modele",
+      "applyTemplateDesc": "Appliquer un modele enregistre aux designs selectionnes",
+      "applyColors": "Appliquer les couleurs",
+      "applyColorsDesc": "Copier les couleurs vers les designs selectionnes",
+      "applyFitTypes": "Appliquer les types de coupe",
+      "applyFitTypesDesc": "Copier les types de coupe vers les designs selectionnes",
+      "applyProductSettings": "Appliquer les parametres produit",
+      "applyProductSettingsDesc": "Copier tous les parametres produit vers les designs selectionnes",
+      "bulkUpload": "Telechargement en lot",
+      "bulkUploadDesc": "Mettre en file les taches pour tous les designs selectionnes"
+    },
+    "actionBar": {
+      "label": "Actions en lot",
+      "selected": "{{count}} selectionne(s)",
+      "edit": "Modifier",
+      "uploadBatch": "Telecharger le lot",
+      "delete": "Supprimer",
+      "clear": "Effacer"
+    },
+    "lifecycle": {
+      "title": "Cycle de vie produit",
+      "round": "Tour {{round}}",
+      "niche": "Niche",
+      "design": "Design",
+      "noData": "Aucune donnee de cycle de vie disponible",
+      "awaitingSales": "En attente de donnees de vente"
+    }
+  },
+  "dashboard": {
+    "page": {
+      "title": "Tableau de bord"
+    },
+    "kpi": {
+      "research": "Recherche",
+      "design": "Design",
+      "publish": "Publication",
+      "live": "En ligne",
+      "designsApproved": "Designs approuves",
+      "listingsReady": "Fiches pretes"
+    },
+    "funnel": {
+      "title": "Entonnoir pipeline",
+      "research": "Recherche",
+      "design": "Design",
+      "publish": "Publication",
+      "live": "En ligne"
+    },
+    "activity": {
+      "title": "Activite recente",
+      "empty": "Aucune activite recente"
+    },
+    "stuck": {
+      "title": "Niches bloquees",
+      "empty": "Aucune niche bloquee",
+      "daysStuck": "{{days}}j bloquee"
+    },
+    "agent": {
+      "title": "Activite de l'agent",
+      "activeWorkflows": "Workflows actifs",
+      "successRate": "Taux de reussite",
+      "budgetUsage": "Utilisation du budget",
+      "agentType": "Agent",
+      "runs": "Executions",
+      "cost": "Cout",
+      "lastCompleted": "Dernier : {{niche}} ({{template}}, {{duration}}min)"
+    },
+    "search": {
+      "title": "Activite de recherche",
+      "searchesPerDay": "Recherches / jour",
+      "crawlCount": "Crawls",
+      "crawlSuccessRate": "Taux de reussite",
+      "topQueries": "Requetes principales"
+    },
+    "analytics": {
+      "sectionTitle": "Analytiques",
+      "dateRange": "Periode",
+      "from": "Du",
+      "to": "Au",
+      "weekLabel": "Semaine",
+      "noData": "Aucune donnee pour cette periode",
+      "designsTitle": "Designs par modele / semaine",
+      "listingsTitle": "Fiches / semaine",
+      "listingsReady": "Pretes",
+      "listingsPublished": "Publiees"
+    },
+    "export": {
+      "tooltip": "Exporter CSV"
+    },
+    "placeholder": {
+      "agentNotConfigured": "Agent non configure",
+      "searchNotConfigured": "Recherche non connectee"
+    },
+    "error": {
+      "loadFailed": "Impossible de charger les donnees du tableau de bord"
+    }
+  },
+  "kanban": {
+    "board": {
+      "title": "Kanban d'equipe",
+      "columnResearch": "Recherche",
+      "columnDesign": "Design",
+      "columnPublish": "Publication",
+      "columnLive": "En ligne",
+      "columnDone": "Termine",
+      "dragError": "Impossible de mettre a jour le statut. Carte retablie.",
+      "loadError": "Impossible de charger les donnees du tableau.",
+      "maxWarning": "Affichage des 200 premieres niches. Archivez ou filtrez pour en voir plus."
+    },
+    "card": {
+      "status": {
+        "data_entry": "Saisie de donnees",
+        "deep_research": "Recherche approfondie",
+        "niche_with_potential": "Potentiel",
+        "to_designer": "Vers le designer",
+        "upload": "Telecharger",
+        "start_ads": "Lancer les pubs",
+        "pending": "En attente",
+        "winner": "Gagnante",
+        "loser": "Perdante",
+        "archived": "Archivee"
+      }
+    },
+    "modal": {
+      "designs": "Designs",
+      "designStatus": {
+        "approved": "Approuve",
+        "rejected": "Rejete",
+        "pending": "En attente"
+      },
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "delete": "Supprimer",
+      "send": "Envoyer",
+      "feedbackPlaceholder": "Raison du rejet...",
+      "approveError": "Impossible d'approuver le design.",
+      "rejectError": "Impossible de rejeter le design.",
+      "deleteError": "Impossible de supprimer le design."
+    },
+    "comments": {
+      "title": "Commentaires",
+      "cardLevel": "Commentaires de la carte",
+      "placeholder": "Ecrire un commentaire... (@ pour mentionner)",
+      "mentionHint": "Rechercher des membres...",
+      "send": "Envoyer",
+      "createError": "Impossible de publier le commentaire.",
+      "deleteError": "Impossible de supprimer le commentaire."
+    },
+    "round": {
+      "history": "Historique des tours",
+      "newRound": "Nouveau tour",
+      "newSuccess": "Nouveau tour demarre.",
+      "newError": "Impossible de demarrer un nouveau tour.",
+      "mustBeDone": "La niche doit etre dans la colonne Termine pour un nouveau tour.",
+      "noHistory": "Aucune donnee de tour.",
+      "ideas": "idees",
+      "designs": "designs",
+      "approved": "approuves",
+      "listings": "fiches"
+    },
+    "upload": {
+      "title": "Telecharger des designs",
+      "dropHint": "Deposez des fichiers ici ou cliquez pour telecharger",
+      "success": "{{count}} design(s) telecharge(s).",
+      "error": "Echec du telechargement."
+    },
+    "trash": {
+      "title": "Corbeille",
+      "restore": "Restaurer",
+      "restoreSuccess": "Design restaure.",
+      "restoreError": "Impossible de restaurer le design.",
+      "empty": "La corbeille est vide.",
+      "expiresIn": "Expire dans {{days}} jours"
+    },
+    "filter": {
+      "allMembers": "Tous les membres",
+      "showArchived": "Afficher les archivees"
+    },
+    "empty": {
+      "column": "Aucune niche dans cette colonne",
+      "designs": "Aucun design",
+      "comments": "Aucun commentaire"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "bell": "Notifications",
+      "markAllRead": "Tout marquer comme lu",
+      "empty": "Aucune notification"
+    }
+  },
+  "common": {
+    "close": "Fermer",
+    "retry": "Reessayer"
+  },
   "search": {
     "chatBar": {
       "placeholder": "Rechercher sur le web ou poser une question...",
@@ -1225,6 +1768,150 @@
       "noSessions": "Aucune session de chat. Lancez une recherche!",
       "noResults": "Aucun resultat",
       "firstSearchHint": "Posez une question pour rechercher le web avec l'IA."
+    }
+  },
+  "agent": {
+    "tab": {
+      "label": "Agent",
+      "pageTitle": "Agent OpenClaw"
+    },
+    "header": {
+      "pause": "Mettre en pause le workflow",
+      "resume": "Reprendre le workflow",
+      "stop": "Arreter le workflow",
+      "share": "Partager la session",
+      "paused": "Workflow en pause",
+      "resumed": "Workflow repris",
+      "stopped": "Workflow arrete",
+      "shared": "Session partagee avec le workspace",
+      "unshared": "Session non partagee",
+      "pauseError": "Impossible de mettre en pause le workflow",
+      "resumeError": "Impossible de reprendre le workflow",
+      "stopError": "Impossible d'arreter le workflow",
+      "shareError": "Impossible de partager la session",
+      "unshareError": "Impossible d'arreter le partage",
+      "startError": "Impossible de demarrer la session agent"
+    },
+    "stepper": {
+      "title": "Progression du workflow",
+      "steps": "etapes",
+      "status": {
+        "idle": "Inactif",
+        "running": "En cours",
+        "paused": "En pause",
+        "completed": "Termine",
+        "failed": "Echoue",
+        "cancelled": "Annule"
+      }
+    },
+    "log": {
+      "empty": "Aucun message",
+      "loadMore": "Charger les anciens messages",
+      "sendError": "Impossible d'envoyer le message",
+      "startPrompt": "Lancez un workflow ou tapez une commande",
+      "inputPlaceholder": "Dites a l'agent quoi faire...",
+      "send": "Envoyer"
+    },
+    "approval": {
+      "title": "Approbation requise",
+      "cost": "Cout est.",
+      "approve": "Approuver",
+      "reject": "Rejeter",
+      "approved": "Action approuvee",
+      "rejected": "Action rejetee",
+      "approveError": "Impossible d'approuver l'action",
+      "rejectError": "Impossible de rejeter l'action"
+    },
+    "quickAction": {
+      "title": "Actions rapides"
+    },
+    "batch": {
+      "title": "Progression par lot",
+      "empty": "Aucune session par lot"
+    },
+    "settings": {
+      "title": "Parametres de l'agent",
+      "agentConfig": "Agents",
+      "permissions": "Permissions",
+      "personalityPresets": "Preselections de personnalite",
+      "name": "Nom d'affichage",
+      "avatar": "Emoji",
+      "personality": "Personnalite",
+      "model": "Modele",
+      "temperature": "Temp",
+      "save": "Enregistrer",
+      "tool": "Outil",
+      "permissionLevel": "Niveau",
+      "auto": "Auto",
+      "notify": "Notifier",
+      "approveLevel": "Approuver",
+      "autonomyPreset": "Preset d'autonomie"
+    },
+    "knowledge": {
+      "title": "Documents de connaissance",
+      "titlePlaceholder": "Titre",
+      "contentPlaceholder": "Contenu (Markdown supporte)",
+      "empty": "Aucun document de connaissance",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "edit": "Modifier",
+      "delete": "Supprimer"
+    },
+    "templates": {
+      "title": "Modeles de workflow",
+      "namePlaceholder": "Nom du modele",
+      "keyPlaceholder": "Cle du modele (ex. quick_design)",
+      "actionPlaceholder": "Action",
+      "addStep": "Ajouter une etape",
+      "save": "Enregistrer",
+      "cancel": "Annuler",
+      "delete": "Supprimer",
+      "empty": "Aucun modele personnalise"
+    },
+    "collision": {
+      "title": "Avertissement de collision",
+      "message": "{{username}} travaille deja sur \"{{nicheName}}\". Continuer quand meme ?",
+      "continue": "Continuer",
+      "cancel": "Annuler"
+    },
+    "onboarding": {
+      "title": "Configurer votre agent",
+      "message": "Configurez le niveau d'autonomie et les preferences de votre assistant IA.",
+      "setup": "Configurer",
+      "skip": "Passer"
+    },
+    "budget": {
+      "label": "Budget",
+      "exhausted": "Budget agent epuise. Veuillez recharger la cle API de l'agent.",
+      "warning": "Budget agent a {{percent}}% du seuil"
+    },
+    "personality": {
+      "projektleiter": "Chef de projet",
+      "creativeDirector": "Directeur creatif",
+      "minimalist": "Minimaliste",
+      "analyst": "Analyste",
+      "scout": "Eclaireur",
+      "texter": "Redacteur",
+      "brainstormer": "Brainstormer",
+      "artDirector": "Directeur artistique",
+      "experimentator": "Experimentateur",
+      "seoProfi": "Expert SEO",
+      "copywriter": "Redacteur",
+      "koordinator": "Coordinateur",
+      "rechercheur": "Chercheur"
+    },
+    "names": {
+      "chief": "Chef",
+      "scout": "Eclaireur",
+      "muse": "Muse",
+      "pixel": "Pixel",
+      "scribe": "Scribe",
+      "launch": "Lancement",
+      "radar": "Radar"
+    },
+    "shared": {
+      "badge": "Partage par {{username}}",
+      "readOnly": "Lecture seule (session partagee)"
     }
   },
   "amazonResearch": {

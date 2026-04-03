@@ -766,13 +766,16 @@
       "triggerError": "No se pudo iniciar el procesamiento por lotes",
       "jobFailed": "{{type}} fallo",
       "upscale": "Escalado",
-      "bg_remove": "Eliminacion de fondo"
+      "bg_remove": "Eliminacion de fondo",
+      "failure": "El procesamiento por lotes fallo",
+      "jobCompleted": "Trabajo de procesamiento completado"
     },
     "analyze": {
       "button": "Analizar imagen",
       "started": "Analisis de imagen iniciado",
       "success": "Diseno analizado - prompt listo",
-      "error": "No se pudo analizar la imagen"
+      "error": "No se pudo analizar la imagen",
+      "reused": "Analisis listo"
     },
     "editor": {
       "title": "Editor de imagenes",
@@ -802,7 +805,25 @@
       "deleteServerConfirm": "Eliminar",
       "deleteServerCancel": "Cancelar",
       "deleteServerSuccess": "Diseno eliminado",
-      "deleteServerError": "Error al eliminar el diseno"
+      "deleteServerError": "Error al eliminar el diseno",
+      "processingComplete": "Todas las imagenes procesadas correctamente",
+      "processingPartialFail": "{{count}} imagen(es) fallaron al procesar",
+      "applyPipeline": "Aplicar Pipeline",
+      "applying": "Aplicando...",
+      "cancelProcessing": "Cancelar",
+      "processingProgress": "Procesando {{current}}/{{total}}: {{name}}",
+      "uploadFailed": "No se pudo subir \"{{name}}\"",
+      "addMoreImages": "Agregar mas imagenes",
+      "serverProcessing": "Procesando en el servidor...",
+      "showOriginal": "Mostrar original",
+      "showProcessed": "Mostrar procesada",
+      "bgPreview": {
+        "transparent": "Transparente (tablero de ajedrez)",
+        "black": "Fondo negro",
+        "white": "Fondo blanco",
+        "gray": "Fondo gris",
+        "custom": "Color personalizado"
+      }
     },
     "pipeline": {
       "title": "Pipeline",
@@ -832,7 +853,10 @@
         "edge": "Limpieza de bordes",
         "ai": "Procesamiento IA",
         "quality": "Calidad"
-      }
+      },
+      "presetUpdated": "Preajuste de pipeline actualizado",
+      "toolCatalog": "Catalogo de herramientas",
+      "selectToolsHint": "Selecciona herramientas de la barra superior"
     },
     "tools": {
       "tooltip": {
@@ -912,7 +936,144 @@
       "compressor": "Compresor",
       "move": "Mover",
       "eraser": "Borrador",
-      "wand": "Varita magica"
+      "wand": "Varita magica",
+      "resizeParams": {
+        "sizePreset": "Preset de tamano",
+        "targetWidth": "Ancho objetivo",
+        "targetHeight": "Alto objetivo",
+        "alignY": "Alineacion vertical",
+        "alignX": "Alineacion horizontal",
+        "padding": "Relleno (px)",
+        "bgColor": "Relleno de fondo",
+        "maintainAspectRatio": "Mantener relacion de aspecto",
+        "top": "Arriba",
+        "center": "Centro",
+        "bottom": "Abajo",
+        "left": "Izquierda",
+        "right": "Derecha",
+        "transparent": "Transparente",
+        "presetPod": "POD Estandar (4500×5400)",
+        "presetSquare": "Cuadrado (4500×4500)",
+        "presetCustom": "Personalizado"
+      },
+      "trimParams": {
+        "trimMode": "Modo de recorte",
+        "transparent": "Transparente",
+        "autoDetect": "Auto-Detect",
+        "threshold": "Umbral",
+        "alphaThreshold": "Umbral alfa",
+        "colorTolerance": "Tolerancia de color",
+        "padding": "Relleno (px)"
+      },
+      "rotateFlipParams": {
+        "rotation": "Rotacion",
+        "flipH": "Voltear horizontal",
+        "flipV": "Voltear vertical",
+        "deg0": "0°",
+        "deg90": "90°",
+        "deg180": "180°",
+        "deg270": "270°"
+      },
+      "colorAdjustmentParams": {
+        "brightness": "Brillo",
+        "contrast": "Contraste",
+        "saturation": "Saturacion",
+        "hueShift": "Cambio de tono",
+        "reset": "Restablecer todo"
+      },
+      "distressParams": {
+        "intensity": "Intensidad",
+        "grainAmount": "Cantidad de grano",
+        "scratches": "Rasgunos",
+        "edgeWear": "Desgaste de bordes",
+        "seed": "Semilla",
+        "randomize": "Aleatorizar",
+        "reset": "Restablecer todo"
+      },
+      "speckleRemoverParams": {
+        "minSize": "Tamano minimo (px)",
+        "minSizeHint": "Grupos de pixeles menores a esto se eliminan",
+        "connectivity": "Conectividad",
+        "fourWay": "4 direcciones",
+        "eightWay": "8 direcciones",
+        "alphaThreshold": "Umbral alfa"
+      },
+      "watermarkParams": {
+        "text": "Texto de marca de agua",
+        "textPlaceholder": "Introduce el texto de la marca de agua...",
+        "fontSize": "Tamano de fuente",
+        "color": "Color",
+        "opacity": "Opacidad",
+        "position": "Posicion",
+        "posCenter": "Centro",
+        "posTopLeft": "Arriba izquierda",
+        "posTopRight": "Arriba derecha",
+        "posBottomLeft": "Abajo izquierda",
+        "posBottomRight": "Abajo derecha",
+        "posTile": "Mosaico (repetir)",
+        "rotation": "Rotacion (°)",
+        "tileSpacing": "Espaciado de mosaico (px)"
+      },
+      "defringeParams": {
+        "autoDetect": "Auto-Detect",
+        "shrinkPx": "Reduccion (px)",
+        "edgeThreshold": "Umbral de borde",
+        "autoDetected": "El valor se calcula automaticamente segun el analisis de bordes"
+      },
+      "shrinkParams": {
+        "amount": "Cantidad de reduccion (px)",
+        "amountHint": "Pixeles de borde a eliminar por iteracion",
+        "alphaThreshold": "Umbral alfa"
+      },
+      "colorDefringeParams": {
+        "edgeWidth": "Ancho de borde (px)",
+        "edgeWidthHint": "Cuantos pixeles desde el borde procesar",
+        "alphaThreshold": "Umbral alfa",
+        "colorTolerance": "Tolerancia de color",
+        "colorToleranceHint": "Agresividad al reemplazar colores de borde (0 = nada, 100 = total)"
+      },
+      "edgeCleanerParams": {
+        "passes": "Pasadas",
+        "strength": "Fuerza",
+        "alphaThreshold": "Umbral alfa",
+        "alphaThresholdHint": "Pixeles con alfa inferior se consideran transparentes para deteccion de bordes"
+      },
+      "bgRemoveParams": {
+        "serverInfo": "Procesado en el servidor usando modelo IA",
+        "description": "Eliminacion de fondo con IA para fondos complejos. El procesamiento tarda unos segundos.",
+        "model": "Modelo",
+        "runNow": "Eliminar fondo",
+        "processing": "Procesando..."
+      },
+      "transparencyHighlighter": "Resaltador transp.",
+      "transparencyHighlighterParams": {
+        "highlightColor": "Color de resaltado",
+        "red": "Rojo",
+        "yellow": "Amarillo",
+        "magenta": "Magenta",
+        "showOpaque": "Mostrar opacos"
+      },
+      "compressorParams": {
+        "maxSize": "Tamano maximo (KB)",
+        "maxSizeHint": "Tamano maximo objetivo en kilobytes",
+        "quality": "Calidad",
+        "format": "Formato",
+        "png": "PNG",
+        "webp": "WebP",
+        "estimatedSize": "Estimado"
+      },
+      "eraserParams": {
+        "size": "Tamano del pincel",
+        "hardness": "Dureza"
+      },
+      "magicWandParams": {
+        "tolerance": "Tolerancia",
+        "contiguous": "Contiguo",
+        "contiguousHint": "Solo seleccionar pixeles conectados de color similar",
+        "action": "Accion",
+        "actionDelete": "Eliminar",
+        "actionSelect": "Seleccionar"
+      }
     },
     "export": {
       "title": "Exportar",
@@ -978,6 +1139,24 @@
         "placeholder": "Ingresar nombre del proyecto...",
         "confirm": "Crear proyecto",
         "cancel": "Cancelar"
+      },
+      "nicheBinding": {
+        "label": "Nicho vinculado",
+        "placeholder": "Seleccionar un nicho...",
+        "none": "Sin nicho vinculado",
+        "linked": "Vinculado a {{niche}}",
+        "unlink": "Desvincular nicho",
+        "linkSuccess": "Nicho vinculado al proyecto",
+        "unlinkSuccess": "Nicho desvinculado del proyecto",
+        "linkError": "No se pudo actualizar la vinculacion del nicho"
+      },
+      "drawerSection": {
+        "title": "Proyectos de diseno",
+        "emptyTitle": "Sin proyectos de diseno vinculados",
+        "emptyCta": "Vincula un proyecto desde el Design Forge",
+        "openBoard": "Abrir tablero",
+        "designCount": "{{count}} disenos",
+        "designCount_one": "{{count}} diseno"
       }
     },
     "workspace": {
@@ -1052,6 +1231,20 @@
         "reframe": "Reencuadrar",
         "bgRemove": "Eliminar fondo"
       }
+    },
+    "prompt": {
+      "expandBar": "Abrir barra de prompt",
+      "placeholder": "Describe lo que quieres crear...",
+      "header": "Editar tablero de imagenes IA",
+      "close": "Cerrar barra de prompt",
+      "sourceThumbnail": "Imagen de origen",
+      "resultThumbnail": "Imagen de resultado",
+      "inputPlaceholder": "Describe el diseno que quieres generar...",
+      "inputLabel": "Prompt de diseno",
+      "builder": "Constructor de prompt",
+      "generate": "Generar",
+      "generating": "Generando...",
+      "regenerate": "Regenerar"
     }
   },
   "keywords": {

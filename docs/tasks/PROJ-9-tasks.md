@@ -349,16 +349,16 @@
 
 ## Phase B6: i18n — Post-Processing Editor
 
-- [ ] `design.editor.*` — page title, drag-drop hint, batch count
-- [ ] `design.pipeline.*` — toolbar labels, preset save/load/delete, conditional logic labels
-- [ ] `design.tools.*` — all tool names (resize, trim, rotate, filters, eraser, wand, etc.)
-- [ ] `design.tools.params.*` — parameter labels per tool (size, tolerance, threshold, etc.)
-- [ ] `design.edge.*` — defringe, shrink, color defringe, edge cleaner labels
-- [ ] `design.qc.*` — transparency highlighter, compressor labels
-- [ ] `design.export.*` — format, DPI, compression, download labels
+- [x] `design.editor.*` — page title, drag-drop hint, batch count
+- [x] `design.pipeline.*` — toolbar labels, preset save/load/delete, conditional logic labels
+- [x] `design.tools.*` — all tool names (resize, trim, rotate, filters, eraser, wand, etc.)
+- [x] `design.tools.params.*` — parameter labels per tool (size, tolerance, threshold, etc.)
+- [x] `design.edge.*` — defringe, shrink, color defringe, edge cleaner labels
+- [x] `design.qc.*` — transparency highlighter, compressor labels
+- [x] `design.export.*` — format, DPI, compression, download labels
 - [ ] `design.cloud.*` — Google Drive, OneDrive, import button labels
 - [ ] `design.settings.*` — provider labels, API key placeholder, threshold
-- [ ] All 5 locales: EN, DE, FR, ES, IT
+- [x] All 5 locales: EN, DE, FR, ES, IT (482 design keys synced)
 
 ---
 

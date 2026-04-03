@@ -766,13 +766,16 @@
       "triggerError": "Impossibile avviare l'elaborazione batch",
       "jobFailed": "{{type}} fallito",
       "upscale": "Scalatura",
-      "bg_remove": "Rimozione sfondo"
+      "bg_remove": "Rimozione sfondo",
+      "failure": "Elaborazione batch fallita",
+      "jobCompleted": "Elaborazione completata"
     },
     "analyze": {
       "button": "Analizza immagine",
       "started": "Analisi dell'immagine avviata",
       "success": "Design analizzato - prompt pronto",
-      "error": "Impossibile analizzare l'immagine"
+      "error": "Impossibile analizzare l'immagine",
+      "reused": "Analisi pronta"
     },
     "editor": {
       "title": "Editor immagini",
@@ -802,7 +805,25 @@
       "deleteServerConfirm": "Elimina",
       "deleteServerCancel": "Annulla",
       "deleteServerSuccess": "Design eliminato",
-      "deleteServerError": "Impossibile eliminare il design"
+      "deleteServerError": "Impossibile eliminare il design",
+      "processingComplete": "Tutte le immagini elaborate con successo",
+      "processingPartialFail": "{{count}} immagine/i non elaborate",
+      "applyPipeline": "Applica Pipeline",
+      "applying": "Applicazione...",
+      "cancelProcessing": "Annulla",
+      "processingProgress": "Elaborazione {{current}}/{{total}}: {{name}}",
+      "uploadFailed": "Caricamento di \"{{name}}\" fallito",
+      "addMoreImages": "Aggiungi altre immagini",
+      "serverProcessing": "Elaborazione sul server...",
+      "showOriginal": "Mostra originale",
+      "showProcessed": "Mostra elaborato",
+      "bgPreview": {
+        "transparent": "Trasparente (scacchiera)",
+        "black": "Sfondo nero",
+        "white": "Sfondo bianco",
+        "gray": "Sfondo grigio",
+        "custom": "Colore personalizzato"
+      }
     },
     "pipeline": {
       "title": "Pipeline",
@@ -832,7 +853,10 @@
         "edge": "Pulizia bordi",
         "ai": "Elaborazione IA",
         "quality": "Qualita"
-      }
+      },
+      "presetUpdated": "Preset aggiornato",
+      "toolCatalog": "Catalogo strumenti",
+      "selectToolsHint": "Seleziona strumenti dalla barra sopra"
     },
     "tools": {
       "tooltip": {
@@ -912,7 +936,144 @@
       "compressor": "Compressore",
       "move": "Sposta",
       "eraser": "Gomma",
-      "wand": "Bacchetta magica"
+      "wand": "Bacchetta magica",
+      "resizeParams": {
+        "sizePreset": "Preset dimensione",
+        "targetWidth": "Larghezza obiettivo",
+        "targetHeight": "Altezza obiettivo",
+        "alignY": "Allineamento verticale",
+        "alignX": "Allineamento orizzontale",
+        "padding": "Padding (px)",
+        "bgColor": "Colore di riempimento",
+        "maintainAspectRatio": "Mantieni proporzioni",
+        "top": "Alto",
+        "center": "Centro",
+        "bottom": "Basso",
+        "left": "Sinistra",
+        "right": "Destra",
+        "transparent": "Trasparente",
+        "presetPod": "POD Standard (4500x5400)",
+        "presetSquare": "Quadrato (4500x4500)",
+        "presetCustom": "Personalizzato"
+      },
+      "trimParams": {
+        "trimMode": "Modalita di ritaglio",
+        "transparent": "Trasparente",
+        "autoDetect": "Rilevamento auto",
+        "threshold": "Soglia",
+        "alphaThreshold": "Soglia alfa",
+        "colorTolerance": "Tolleranza colore",
+        "padding": "Padding (px)"
+      },
+      "rotateFlipParams": {
+        "rotation": "Rotazione",
+        "flipH": "Capovolgimento orizzontale",
+        "flipV": "Capovolgimento verticale",
+        "deg0": "0°",
+        "deg90": "90°",
+        "deg180": "180°",
+        "deg270": "270°"
+      },
+      "colorAdjustmentParams": {
+        "brightness": "Luminosita",
+        "contrast": "Contrasto",
+        "saturation": "Saturazione",
+        "hueShift": "Tonalita",
+        "reset": "Reimposta tutto"
+      },
+      "distressParams": {
+        "intensity": "Intensita",
+        "grainAmount": "Quantita grana",
+        "scratches": "Graffi",
+        "edgeWear": "Usura bordi",
+        "seed": "Seme",
+        "randomize": "Casuale",
+        "reset": "Reimposta tutto"
+      },
+      "speckleRemoverParams": {
+        "minSize": "Dim. minima (px)",
+        "minSizeHint": "I gruppi di pixel piu piccoli vengono rimossi",
+        "connectivity": "Connettivita",
+        "fourWay": "4 direzioni",
+        "eightWay": "8 direzioni",
+        "alphaThreshold": "Soglia alfa"
+      },
+      "watermarkParams": {
+        "text": "Testo filigrana",
+        "textPlaceholder": "Inserisci testo filigrana...",
+        "fontSize": "Dimensione font",
+        "color": "Colore",
+        "opacity": "Opacita",
+        "position": "Posizione",
+        "posCenter": "Centro",
+        "posTopLeft": "In alto a sinistra",
+        "posTopRight": "In alto a destra",
+        "posBottomLeft": "In basso a sinistra",
+        "posBottomRight": "In basso a destra",
+        "posTile": "Affiancamento (ripeti)",
+        "rotation": "Rotazione (°)",
+        "tileSpacing": "Spaziatura affiancamento (px)"
+      },
+      "defringeParams": {
+        "autoDetect": "Rilevamento auto",
+        "shrinkPx": "Riduzione (px)",
+        "edgeThreshold": "Soglia bordo",
+        "autoDetected": "Valore calcolato automaticamente dall analisi dei bordi"
+      },
+      "shrinkParams": {
+        "amount": "Riduzione (px)",
+        "amountHint": "Numero di pixel da rimuovere dai bordi per iterazione",
+        "alphaThreshold": "Soglia alfa"
+      },
+      "colorDefringeParams": {
+        "edgeWidth": "Larghezza bordo (px)",
+        "edgeWidthHint": "Quanti pixel dal bordo elaborare",
+        "alphaThreshold": "Soglia alfa",
+        "colorTolerance": "Tolleranza colore",
+        "colorToleranceHint": "Quanto aggressivamente sostituire i colori dei bordi (0 = nessuno, 100 = totale)"
+      },
+      "edgeCleanerParams": {
+        "passes": "Passaggi",
+        "strength": "Intensita",
+        "alphaThreshold": "Soglia alfa",
+        "alphaThresholdHint": "I pixel con alfa inferiore sono considerati trasparenti per il rilevamento bordi"
+      },
+      "bgRemoveParams": {
+        "serverInfo": "Elaborato sul server con modello IA",
+        "description": "Rimozione sfondo IA per sfondi complessi. L elaborazione richiede qualche secondo.",
+        "model": "Modello",
+        "runNow": "Rimuovi sfondo",
+        "processing": "Elaborazione..."
+      },
+      "transparencyHighlighter": "Evidenziatore trasp.",
+      "transparencyHighlighterParams": {
+        "highlightColor": "Colore evidenziazione",
+        "red": "Rosso",
+        "yellow": "Giallo",
+        "magenta": "Magenta",
+        "showOpaque": "Mostra opaco"
+      },
+      "compressorParams": {
+        "maxSize": "Dim. massima (KB)",
+        "maxSizeHint": "Dimensione massima del file in kilobyte",
+        "quality": "Qualita",
+        "format": "Formato",
+        "png": "PNG",
+        "webp": "WebP",
+        "estimatedSize": "Stimata"
+      },
+      "eraserParams": {
+        "size": "Dimensione pennello",
+        "hardness": "Durezza"
+      },
+      "magicWandParams": {
+        "tolerance": "Tolleranza",
+        "contiguous": "Contiguo",
+        "contiguousHint": "Seleziona solo pixel collegati di colore simile",
+        "action": "Azione",
+        "actionDelete": "Elimina",
+        "actionSelect": "Seleziona"
+      }
     },
     "export": {
       "title": "Esporta",
@@ -978,6 +1139,24 @@
         "placeholder": "Inserisci nome del progetto...",
         "confirm": "Crea progetto",
         "cancel": "Annulla"
+      },
+      "nicheBinding": {
+        "label": "Nicchia collegata",
+        "placeholder": "Seleziona una nicchia...",
+        "none": "Nessuna nicchia collegata",
+        "linked": "Collegato a {{niche}}",
+        "unlink": "Scollega nicchia",
+        "linkSuccess": "Nicchia collegata al progetto",
+        "unlinkSuccess": "Nicchia scollegata dal progetto",
+        "linkError": "Impossibile aggiornare il collegamento alla nicchia"
+      },
+      "drawerSection": {
+        "title": "Progetti di design",
+        "emptyTitle": "Nessun progetto di design collegato",
+        "emptyCta": "Collega un progetto dal Design Forge",
+        "openBoard": "Apri tavola",
+        "designCount": "{{count}} design",
+        "designCount_one": "{{count}} design"
       }
     },
     "workspace": {
@@ -1052,6 +1231,20 @@
         "reframe": "Riquadra",
         "bgRemove": "Rimuovi sfondo"
       }
+    },
+    "prompt": {
+      "expandBar": "Apri barra prompt",
+      "placeholder": "Descrivi cosa vuoi creare...",
+      "header": "Modifica tavola immagini IA",
+      "close": "Chiudi barra prompt",
+      "sourceThumbnail": "Immagine sorgente",
+      "resultThumbnail": "Immagine risultato",
+      "inputPlaceholder": "Descrivi il design che vuoi generare...",
+      "inputLabel": "Prompt di design",
+      "builder": "Costruttore prompt",
+      "generate": "Genera",
+      "generating": "Generazione...",
+      "regenerate": "Rigenera"
     }
   },
   "amazonResearch": {

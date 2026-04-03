@@ -779,13 +779,16 @@
       "triggerError": "Batch-Verarbeitung konnte nicht gestartet werden",
       "jobFailed": "{{type}} fehlgeschlagen",
       "upscale": "Hochskalieren",
-      "bg_remove": "BG entfernen"
+      "bg_remove": "BG entfernen",
+      "failure": "Batch-Verarbeitung fehlgeschlagen",
+      "jobCompleted": "Verarbeitungsjob abgeschlossen"
     },
     "analyze": {
       "button": "Bild analysieren",
       "started": "Bildanalyse gestartet",
       "success": "Design analysiert - Prompt bereit",
-      "error": "Bildanalyse fehlgeschlagen"
+      "error": "Bildanalyse fehlgeschlagen",
+      "reused": "Analyse bereit"
     },
     "editor": {
       "title": "Bildbearbeitung",
@@ -815,7 +818,25 @@
       "deleteServerConfirm": "Loeschen",
       "deleteServerCancel": "Abbrechen",
       "deleteServerSuccess": "Design geloescht",
-      "deleteServerError": "Design konnte nicht geloescht werden"
+      "deleteServerError": "Design konnte nicht geloescht werden",
+      "processingComplete": "Alle Bilder erfolgreich verarbeitet",
+      "processingPartialFail": "{{count}} Bild(er) fehlgeschlagen",
+      "applyPipeline": "Pipeline anwenden",
+      "applying": "Wird angewendet...",
+      "cancelProcessing": "Abbrechen",
+      "processingProgress": "Verarbeite {{current}}/{{total}}: {{name}}",
+      "uploadFailed": "Upload von \"{{name}}\" fehlgeschlagen",
+      "addMoreImages": "Weitere Bilder hinzufuegen",
+      "serverProcessing": "Wird auf Server verarbeitet...",
+      "showOriginal": "Original anzeigen",
+      "showProcessed": "Verarbeitet anzeigen",
+      "bgPreview": {
+        "transparent": "Transparent (Schachbrett)",
+        "black": "Schwarzer Hintergrund",
+        "white": "Weisser Hintergrund",
+        "gray": "Grauer Hintergrund",
+        "custom": "Eigene Farbe"
+      }
     },
     "pipeline": {
       "title": "Pipeline",
@@ -845,7 +866,10 @@
         "edge": "Kantenbereinigung",
         "ai": "KI-Verarbeitung",
         "quality": "Qualitaet"
-      }
+      },
+      "presetUpdated": "Pipeline-Vorlage aktualisiert",
+      "toolCatalog": "Tool-Katalog",
+      "selectToolsHint": "Waehle Tools aus der Leiste oben"
     },
     "tools": {
       "tooltip": {
@@ -925,7 +949,144 @@
       "compressor": "Kompressor",
       "move": "Verschieben",
       "eraser": "Radierer",
-      "wand": "Zauberstab"
+      "wand": "Zauberstab",
+      "resizeParams": {
+        "sizePreset": "Groessen-Preset",
+        "targetWidth": "Zielbreite",
+        "targetHeight": "Zielhoehe",
+        "alignY": "Vertikale Ausrichtung",
+        "alignX": "Horizontale Ausrichtung",
+        "padding": "Abstand (px)",
+        "bgColor": "Hintergrundfuellung",
+        "maintainAspectRatio": "Seitenverhaeltnis beibehalten",
+        "top": "Oben",
+        "center": "Mitte",
+        "bottom": "Unten",
+        "left": "Links",
+        "right": "Rechts",
+        "transparent": "Transparent",
+        "presetPod": "POD Standard (4500×5400)",
+        "presetSquare": "Quadratisch (4500×4500)",
+        "presetCustom": "Benutzerdefiniert"
+      },
+      "trimParams": {
+        "trimMode": "Zuschnittmodus",
+        "transparent": "Transparent",
+        "autoDetect": "Auto-Erkennung",
+        "threshold": "Schwellenwert",
+        "alphaThreshold": "Alpha-Schwellenwert",
+        "colorTolerance": "Farbtoleranz",
+        "padding": "Abstand (px)"
+      },
+      "rotateFlipParams": {
+        "rotation": "Drehung",
+        "flipH": "Horizontal spiegeln",
+        "flipV": "Vertikal spiegeln",
+        "deg0": "0°",
+        "deg90": "90°",
+        "deg180": "180°",
+        "deg270": "270°"
+      },
+      "colorAdjustmentParams": {
+        "brightness": "Helligkeit",
+        "contrast": "Kontrast",
+        "saturation": "Saettigung",
+        "hueShift": "Farbtonverschiebung",
+        "reset": "Alles zuruecksetzen"
+      },
+      "distressParams": {
+        "intensity": "Intensitaet",
+        "grainAmount": "Koernung",
+        "scratches": "Kratzer",
+        "edgeWear": "Kantenabnutzung",
+        "seed": "Seed",
+        "randomize": "Zufaellig",
+        "reset": "Alles zuruecksetzen"
+      },
+      "speckleRemoverParams": {
+        "minSize": "Mindestgroesse (px)",
+        "minSizeHint": "Pixelgruppen kleiner als dieser Wert werden entfernt",
+        "connectivity": "Konnektivitaet",
+        "fourWay": "4-Wege",
+        "eightWay": "8-Wege",
+        "alphaThreshold": "Alpha-Schwellenwert"
+      },
+      "watermarkParams": {
+        "text": "Wasserzeichen-Text",
+        "textPlaceholder": "Wasserzeichen-Text eingeben...",
+        "fontSize": "Schriftgroesse",
+        "color": "Farbe",
+        "opacity": "Deckkraft",
+        "position": "Position",
+        "posCenter": "Mitte",
+        "posTopLeft": "Oben links",
+        "posTopRight": "Oben rechts",
+        "posBottomLeft": "Unten links",
+        "posBottomRight": "Unten rechts",
+        "posTile": "Kacheln (Wiederholen)",
+        "rotation": "Drehung (°)",
+        "tileSpacing": "Kachelabstand (px)"
+      },
+      "defringeParams": {
+        "autoDetect": "Auto-Erkennung",
+        "shrinkPx": "Schrumpfen (px)",
+        "edgeThreshold": "Kantenschwellenwert",
+        "autoDetected": "Wert wird automatisch basierend auf Kantenanalyse berechnet"
+      },
+      "shrinkParams": {
+        "amount": "Schrumpfbetrag (px)",
+        "amountHint": "Anzahl der Kantenpixel pro Durchlauf",
+        "alphaThreshold": "Alpha-Schwellenwert"
+      },
+      "colorDefringeParams": {
+        "edgeWidth": "Kantenbreite (px)",
+        "edgeWidthHint": "Wie viele Pixel von der Kante verarbeitet werden",
+        "alphaThreshold": "Alpha-Schwellenwert",
+        "colorTolerance": "Farbtoleranz",
+        "colorToleranceHint": "Wie aggressiv Kantenfarben ersetzt werden (0 = keine, 100 = voll)"
+      },
+      "edgeCleanerParams": {
+        "passes": "Durchlaeufe",
+        "strength": "Staerke",
+        "alphaThreshold": "Alpha-Schwellenwert",
+        "alphaThresholdHint": "Pixel mit Alpha unter diesem Wert gelten als transparent fuer Kantenerkennung"
+      },
+      "bgRemoveParams": {
+        "serverInfo": "Wird auf dem Server mit KI-Modell verarbeitet",
+        "description": "KI-Hintergrundentfernung fuer komplexe Hintergruende. Verarbeitung dauert einige Sekunden.",
+        "model": "Modell",
+        "runNow": "Hintergrund entfernen",
+        "processing": "Wird verarbeitet..."
+      },
+      "transparencyHighlighter": "Transp.-Hervorhebung",
+      "transparencyHighlighterParams": {
+        "highlightColor": "Hervorhebungsfarbe",
+        "red": "Rot",
+        "yellow": "Gelb",
+        "magenta": "Magenta",
+        "showOpaque": "Deckend anzeigen"
+      },
+      "compressorParams": {
+        "maxSize": "Max. Groesse (KB)",
+        "maxSizeHint": "Maximale Zieldateigroesse in Kilobyte",
+        "quality": "Qualitaet",
+        "format": "Format",
+        "png": "PNG",
+        "webp": "WebP",
+        "estimatedSize": "Geschaetzt"
+      },
+      "eraserParams": {
+        "size": "Pinselgroesse",
+        "hardness": "Haerte"
+      },
+      "magicWandParams": {
+        "tolerance": "Toleranz",
+        "contiguous": "Zusammenhaengend",
+        "contiguousHint": "Nur verbundene Pixel aehnlicher Farbe auswaehlen",
+        "action": "Aktion",
+        "actionDelete": "Loeschen",
+        "actionSelect": "Auswaehlen"
+      }
     },
     "export": {
       "title": "Export",
@@ -991,6 +1152,24 @@
         "placeholder": "Projektname eingeben...",
         "confirm": "Projekt erstellen",
         "cancel": "Abbrechen"
+      },
+      "nicheBinding": {
+        "label": "Verknuepfte Nische",
+        "placeholder": "Nische auswaehlen...",
+        "none": "Keine Nische verknuepft",
+        "linked": "Verknuepft mit {{niche}}",
+        "unlink": "Nische trennen",
+        "linkSuccess": "Nische mit Projekt verknuepft",
+        "unlinkSuccess": "Nische vom Projekt getrennt",
+        "linkError": "Nischen-Verknuepfung konnte nicht aktualisiert werden"
+      },
+      "drawerSection": {
+        "title": "Designprojekte",
+        "emptyTitle": "Keine Designprojekte verknuepft",
+        "emptyCta": "Verknuepfe ein Projekt aus der Design Forge",
+        "openBoard": "Board oeffnen",
+        "designCount": "{{count}} Designs",
+        "designCount_one": "{{count}} Design"
       }
     },
     "workspace": {
@@ -1065,6 +1244,20 @@
         "reframe": "Reframe",
         "bgRemove": "HG entfernen"
       }
+    },
+    "prompt": {
+      "expandBar": "Prompt-Leiste oeffnen",
+      "placeholder": "Beschreibe, was du erstellen moechtest...",
+      "header": "KI-Bildboard bearbeiten",
+      "close": "Prompt-Leiste schliessen",
+      "sourceThumbnail": "Quellbild",
+      "resultThumbnail": "Ergebnisbild",
+      "inputPlaceholder": "Beschreibe das Design, das du generieren moechtest...",
+      "inputLabel": "Design-Prompt",
+      "builder": "Prompt-Baukasten",
+      "generate": "Generieren",
+      "generating": "Wird generiert...",
+      "regenerate": "Regenerieren"
     }
   },
   "keywords": {
@@ -1457,5 +1650,342 @@
       "error": "Slogan-Extraktion fehlgeschlagen",
       "noImage": "Kein Produktbild verfuegbar"
     }
+  },
+  "publish": {
+    "page": {
+      "title": "Veroeffentlichen",
+      "subtitle": "Design-Auswahl, Listing-Editor und Upload-Warteschlange"
+    },
+    "gallery": {
+      "title": "Design-Galerie",
+      "upload": "Hochladen",
+      "importCloud": "Aus Cloud importieren",
+      "importCloudTitle": "Aus Cloud-Speicher importieren",
+      "importCloudHint": "Datei-IDs von Google Drive oder OneDrive einfuegen (eine pro Zeile).",
+      "fileIdsLabel": "Datei-IDs",
+      "fileIdsPlaceholder": "Datei-IDs hier einfuegen, eine pro Zeile...",
+      "fileIdsHelper": "Google Drive oder OneDrive Datei-IDs eingeben",
+      "importButton": "Importieren",
+      "importSuccess": "{{count}} Design(s) importiert",
+      "importError": "Designs konnten nicht importiert werden",
+      "cancel": "Abbrechen",
+      "selectAll": "Alle auswaehlen",
+      "selectDesign": "Design auswaehlen",
+      "delete": "Loeschen",
+      "hasListing": "Listing",
+      "noImage": "Kein Bild",
+      "search": "Designs suchen...",
+      "sortBy": "Sortieren nach",
+      "sortNewest": "Neueste",
+      "sortEdited": "Zuletzt bearbeitet",
+      "loadError": "Designs konnten nicht geladen werden"
+    },
+    "empty": {
+      "noDesigns": "Noch keine Designs",
+      "hint": "Lade Designs hoch oder importiere sie aus dem Cloud-Speicher.",
+      "upload": "Design hochladen",
+      "import": "Aus Cloud importieren"
+    },
+    "product": {
+      "title": "Produktkonfiguration",
+      "types": "Produkttypen",
+      "fitType": "Passform",
+      "printSide": "Druckseite",
+      "front": "Vorderseite",
+      "back": "Rueckseite",
+      "both": "Beide",
+      "colorsComingSoon": "Farbauswahl kommt bald"
+    },
+    "marketplace": {
+      "title": "Marktplaetze & Preise",
+      "price": "Preis"
+    },
+    "listing": {
+      "title": "Listing-Editor",
+      "generate": "Listing generieren",
+      "generateSuccess": "Listing generiert",
+      "generateError": "Listing konnte nicht generiert werden",
+      "save": "Listing speichern",
+      "saveSuccess": "Listing gespeichert",
+      "saveError": "Listing konnte nicht gespeichert werden",
+      "loadError": "Listing konnte nicht geladen werden",
+      "noListing": "Waehle ein Design und generiere ein Listing, um zu starten.",
+      "improve": "Mit KI verbessern",
+      "copied": "Listing in Zwischenablage kopiert",
+      "copyError": "Listing konnte nicht kopiert werden",
+      "copyMBA": "Fuer MBA kopieren",
+      "brandName": "Markenname",
+      "titleField": "Titel",
+      "bullet": "Bullet Point",
+      "description": "Beschreibung",
+      "keywords": "Backend-Keywords",
+      "addKeyword": "Keywords hinzufuegen (kommagetrennt)...",
+      "add": "Hinzufuegen",
+      "kwFinder": "KW Finder",
+      "availability": "Verfuegbarkeit",
+      "public": "Oeffentlich",
+      "private": "Privat",
+      "publishMode": "Veroeffentlichungsmodus",
+      "live": "Live",
+      "draft": "Entwurf"
+    },
+    "translate": {
+      "title": "Uebersetzungen",
+      "autoTranslate": "Auto-Uebersetzen",
+      "translateAll": "In alle uebersetzen",
+      "success": "Uebersetzungen generiert",
+      "error": "Listing konnte nicht uebersetzt werden",
+      "notTranslated": "Noch nicht uebersetzt. Klicke auf \"In alle uebersetzen\".",
+      "overLimit": "ueber Limit"
+    },
+    "tm": {
+      "check": "Markencheck",
+      "clean": "Keine Markenrechtsprobleme gefunden",
+      "flagged": "Moegliche Markenrechtsprobleme gefunden",
+      "error": "Markencheck fehlgeschlagen",
+      "cleanTitle": "Alles in Ordnung",
+      "cleanMessage": "Keine markenrechtlich geschuetzten Begriffe in deinem Listing erkannt.",
+      "flaggedTitle": "Markenrechtswarnung",
+      "flaggedMessage": "Die folgenden Begriffe koennten markenrechtlich geschuetzt sein. Vor dem Upload pruefen.",
+      "close": "Schliessen",
+      "edit": "Listing bearbeiten",
+      "proceedAnyway": "Trotzdem fortfahren"
+    },
+    "upload": {
+      "title": "Upload-Warteschlange",
+      "all": "Alle",
+      "status": {
+        "pending": "Ausstehend",
+        "validating": "Wird validiert",
+        "uploading": "Wird hochgeladen",
+        "completed": "Abgeschlossen",
+        "failed": "Fehlgeschlagen",
+        "cancelled": "Abgebrochen"
+      },
+      "totalJobs": "{{count}} Jobs",
+      "noJobs": "Noch keine Upload-Jobs",
+      "loadError": "Upload-Jobs konnten nicht geladen werden",
+      "desktopAppHint": "Upload-Jobs werden von der Desktop-Upload-App verarbeitet. Starte die App, um ausstehende Jobs zu verarbeiten.",
+      "queued": "Upload-Job eingereiht",
+      "queueError": "Upload-Job konnte nicht eingereiht werden",
+      "batchQueued": "{{count}} Upload-Jobs eingereiht",
+      "batchError": "Batch-Upload konnte nicht eingereiht werden",
+      "cancelled": "Upload-Job abgebrochen",
+      "cancelError": "Upload-Job konnte nicht abgebrochen werden",
+      "cancel": "Abbrechen",
+      "retry": "Erneut versuchen",
+      "viewScreenshot": "Fehler-Screenshot ansehen"
+    },
+    "template": {
+      "button": "Vorlagen",
+      "saveNew": "Aktuelles als Vorlage speichern",
+      "saveTitle": "Vorlage speichern",
+      "nameLabel": "Vorlagenname",
+      "cancel": "Abbrechen",
+      "save": "Speichern",
+      "empty": "Keine gespeicherten Vorlagen",
+      "saveSuccess": "Vorlage gespeichert",
+      "saveError": "Vorlage konnte nicht gespeichert werden",
+      "deleteSuccess": "Vorlage geloescht",
+      "deleteError": "Vorlage konnte nicht geloescht werden"
+    },
+    "command": {
+      "title": "Aktionen",
+      "searchPlaceholder": "Aktionen suchen...",
+      "noResults": "Keine passenden Aktionen",
+      "copyListing": "Listing kopieren",
+      "copyListingDesc": "Aktuelles Listing auf andere ausgewaehlte Designs kopieren",
+      "applyTemplate": "Vorlage anwenden",
+      "applyTemplateDesc": "Gespeicherte Vorlage auf ausgewaehlte Designs anwenden",
+      "applyColors": "Farben anwenden",
+      "applyColorsDesc": "Farbeinstellungen auf ausgewaehlte Designs kopieren",
+      "applyFitTypes": "Passformen anwenden",
+      "applyFitTypesDesc": "Passform-Einstellungen auf ausgewaehlte Designs kopieren",
+      "applyProductSettings": "Produkteinstellungen anwenden",
+      "applyProductSettingsDesc": "Alle Produkteinstellungen auf ausgewaehlte Designs kopieren",
+      "bulkUpload": "Batch-Upload",
+      "bulkUploadDesc": "Upload-Jobs fuer alle ausgewaehlten Designs einreihen"
+    },
+    "actionBar": {
+      "label": "Massenaktionen",
+      "selected": "{{count}} ausgewaehlt",
+      "edit": "Bearbeiten",
+      "uploadBatch": "Batch hochladen",
+      "delete": "Loeschen",
+      "clear": "Aufheben"
+    },
+    "lifecycle": {
+      "title": "Produkt-Lebenszyklus",
+      "round": "Runde {{round}}",
+      "niche": "Nische",
+      "design": "Design",
+      "noData": "Keine Lebenszyklus-Daten verfuegbar",
+      "awaitingSales": "Warte auf Verkaufsdaten"
+    }
+  },
+  "dashboard": {
+    "page": {
+      "title": "Dashboard"
+    },
+    "kpi": {
+      "research": "Recherche",
+      "design": "Design",
+      "publish": "Veroeffentlicht",
+      "live": "Live",
+      "designsApproved": "Designs genehmigt",
+      "listingsReady": "Listings bereit"
+    },
+    "funnel": {
+      "title": "Pipeline-Trichter",
+      "research": "Recherche",
+      "design": "Design",
+      "publish": "Veroeffentlicht",
+      "live": "Live"
+    },
+    "activity": {
+      "title": "Letzte Aktivitaet",
+      "empty": "Keine aktuelle Aktivitaet"
+    },
+    "stuck": {
+      "title": "Blockierte Nischen",
+      "empty": "Keine blockierten Nischen",
+      "daysStuck": "{{days}}T blockiert"
+    },
+    "agent": {
+      "title": "Agent-Aktivitaet",
+      "activeWorkflows": "Aktive Workflows",
+      "successRate": "Erfolgsrate",
+      "budgetUsage": "Budget-Nutzung",
+      "agentType": "Agent",
+      "runs": "Durchlaeufe",
+      "cost": "Kosten",
+      "lastCompleted": "Letzter: {{niche}} ({{template}}, {{duration}}min)"
+    },
+    "search": {
+      "title": "Such-Aktivitaet",
+      "searchesPerDay": "Suchen / Tag",
+      "crawlCount": "Crawls",
+      "crawlSuccessRate": "Erfolgsrate",
+      "topQueries": "Top-Anfragen"
+    },
+    "analytics": {
+      "sectionTitle": "Analytics",
+      "dateRange": "Zeitraum",
+      "from": "Von",
+      "to": "Bis",
+      "weekLabel": "Woche",
+      "noData": "Keine Daten fuer diesen Zeitraum",
+      "designsTitle": "Designs nach Modell / Woche",
+      "listingsTitle": "Listings / Woche",
+      "listingsReady": "Bereit",
+      "listingsPublished": "Veroeffentlicht"
+    },
+    "export": {
+      "tooltip": "CSV exportieren"
+    },
+    "placeholder": {
+      "agentNotConfigured": "Agent nicht eingerichtet",
+      "searchNotConfigured": "Suche nicht verbunden"
+    },
+    "error": {
+      "loadFailed": "Dashboard-Daten konnten nicht geladen werden"
+    }
+  },
+  "kanban": {
+    "board": {
+      "title": "Team Kanban",
+      "columnResearch": "Recherche",
+      "columnDesign": "Design",
+      "columnPublish": "Veroeffentlichen",
+      "columnLive": "Live",
+      "columnDone": "Fertig",
+      "dragError": "Status konnte nicht aktualisiert werden. Karte zurueckgesetzt.",
+      "loadError": "Board-Daten konnten nicht geladen werden.",
+      "maxWarning": "Zeige erste 200 Nischen. Archiviere oder filtere, um mehr zu sehen."
+    },
+    "card": {
+      "status": {
+        "data_entry": "Dateneingabe",
+        "deep_research": "Tiefenrecherche",
+        "niche_with_potential": "Potenzial",
+        "to_designer": "Zum Designer",
+        "upload": "Upload",
+        "start_ads": "Werbung starten",
+        "pending": "Ausstehend",
+        "winner": "Gewinner",
+        "loser": "Verlierer",
+        "archived": "Archiviert"
+      }
+    },
+    "modal": {
+      "designs": "Designs",
+      "designStatus": {
+        "approved": "Genehmigt",
+        "rejected": "Abgelehnt",
+        "pending": "Ausstehend"
+      },
+      "approve": "Genehmigen",
+      "reject": "Ablehnen",
+      "delete": "Loeschen",
+      "send": "Senden",
+      "feedbackPlaceholder": "Grund fuer Ablehnung...",
+      "approveError": "Design konnte nicht genehmigt werden.",
+      "rejectError": "Design konnte nicht abgelehnt werden.",
+      "deleteError": "Design konnte nicht geloescht werden."
+    },
+    "comments": {
+      "title": "Kommentare",
+      "cardLevel": "Karten-Kommentare",
+      "placeholder": "Kommentar schreiben... (@ zum Erwaehnen)",
+      "mentionHint": "Mitglieder suchen...",
+      "send": "Senden",
+      "createError": "Kommentar konnte nicht gepostet werden.",
+      "deleteError": "Kommentar konnte nicht geloescht werden."
+    },
+    "round": {
+      "history": "Rundenverlauf",
+      "newRound": "Neue Runde",
+      "newSuccess": "Neue Runde gestartet.",
+      "newError": "Neue Runde konnte nicht gestartet werden.",
+      "mustBeDone": "Nische muss in der Fertig-Spalte sein, um eine neue Runde zu starten.",
+      "noHistory": "Noch keine Rundendaten.",
+      "ideas": "Ideen",
+      "designs": "Designs",
+      "approved": "genehmigt",
+      "listings": "Listings"
+    },
+    "upload": {
+      "title": "Designs hochladen",
+      "dropHint": "Dateien hierher ziehen oder klicken zum Hochladen",
+      "success": "{{count}} Design(s) hochgeladen.",
+      "error": "Upload fehlgeschlagen."
+    },
+    "trash": {
+      "title": "Papierkorb",
+      "restore": "Wiederherstellen",
+      "restoreSuccess": "Design wiederhergestellt.",
+      "restoreError": "Design konnte nicht wiederhergestellt werden.",
+      "empty": "Papierkorb ist leer.",
+      "expiresIn": "Laeuft ab in {{days}} Tagen"
+    },
+    "filter": {
+      "allMembers": "Alle Mitglieder",
+      "showArchived": "Archivierte anzeigen"
+    },
+    "empty": {
+      "column": "Keine Nischen in dieser Spalte",
+      "designs": "Noch keine Designs",
+      "comments": "Noch keine Kommentare"
+    },
+    "notifications": {
+      "title": "Benachrichtigungen",
+      "bell": "Benachrichtigungen",
+      "markAllRead": "Alle als gelesen markieren",
+      "empty": "Keine Benachrichtigungen"
+    }
+  },
+  "common": {
+    "close": "Schliessen",
+    "retry": "Erneut versuchen"
   }
 }
