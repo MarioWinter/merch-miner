@@ -42,7 +42,7 @@ class DesignSerializer(serializers.ModelSerializer):
             'id', 'workspace', 'idea', 'idea_summary', 'generation_run',
             'image_file', 'status', 'is_manual', 'background_color',
             'source_image_url', 'prompt_analysis',
-            'upscaled_file', 'bg_removed_file', 'created_at',
+            'upscaled_file', 'bg_removed_file', 'processed_file', 'created_at',
             'project_ids',
         ]
         read_only_fields = fields

@@ -14,7 +14,7 @@ export const ToolbarRoot = styled(Box)(({ theme }) => ({
   paddingRight: theme.spacing(1.5),
   borderTop: '1px solid',
   borderColor: theme.vars.palette.divider,
-  backgroundColor: COLORS.inkPaper,
+  backgroundColor: COLORS.ink,
   transition: `background-color ${DURATION.fast}ms ${EASING.standard}`,
   ...theme.applyStyles('light', {
     backgroundColor: COLORS.white,
@@ -35,7 +35,7 @@ export const ToolButton = styled(IconButton, {
   '&:hover': {
     backgroundColor: $active
       ? alpha(COLORS.red, 0.18)
-      : theme.vars.palette.action.hover,
+      : alpha(COLORS.inkElevated, 0.6),
     color: $active
       ? theme.vars.palette.primary.main
       : theme.vars.palette.text.primary,

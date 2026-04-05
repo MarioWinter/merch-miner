@@ -22,8 +22,9 @@ const MainContent = styled(Box, {
   minWidth: 0,
   marginLeft: $marginLeft,
   marginTop: 56,
-  minHeight: 'calc(100vh - 56px)',
+  minHeight: 'calc(100dvh - 56px)',
   padding: theme.spacing(3),
+  boxSizing: 'border-box',
   transition: `margin-left ${DURATION.default}ms ${EASING.standard}`,
 }));
 
@@ -71,7 +72,9 @@ const AppLayout = () => {
     <Box
       sx={{
         display: 'flex',
-        minHeight: '100vh',
+        minHeight: '100dvh',
+        width: '100%',
+        overflow: 'hidden',
         bgcolor: 'background.default',
         '--sidebar-w': `${borderSidebarW}px`,
       } as object}

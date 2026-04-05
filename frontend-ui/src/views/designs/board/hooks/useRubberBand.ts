@@ -11,6 +11,8 @@ interface UseRubberBandParams {
   selectByRect: (rect: { x: number; y: number; width: number; height: number }) => void;
   deselectAll: () => void;
   stageRef: React.RefObject<Konva.Stage | null>;
+  /** When true, skip rubber-band and let Stage drag handle panning */
+  isPanMode?: boolean;
 }
 
 interface UseRubberBandReturn {
@@ -32,6 +34,7 @@ const useRubberBand = ({
   selectByRect,
   deselectAll,
   stageRef,
+  isPanMode = false,
 }: UseRubberBandParams): UseRubberBandReturn => {
   const [rubberBand, setRubberBand] = useState<RubberBandRect | null>(null);
   const [isRubberBanding, setIsRubberBanding] = useState(false);
@@ -43,6 +46,9 @@ const useRubberBand = ({
       if (e.target !== e.currentTarget) return;
       isDraggingStageRef.current = false;
 
+      // Skip rubber-band in pan mode, middle-click, or space+click — let Stage drag handle pan
+      if (isPanMode || e.evt.button === 1 || e.evt.button === 2) return;
+
       const stage = stageRef.current;
       if (!stage) return;
       const pos = stage.getPointerPosition();
@@ -52,7 +58,7 @@ const useRubberBand = ({
       rubberBandOriginRef.current = world;
       setIsRubberBanding(true);
     },
-    [screenToWorld, stageRef],
+    [screenToWorld, stageRef, isPanMode],
   );
 
   const handleMouseMove = useCallback(

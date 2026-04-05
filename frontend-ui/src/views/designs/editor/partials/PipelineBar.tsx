@@ -1,6 +1,8 @@
-import { Box, Chip, IconButton, Typography, Tooltip } from '@mui/material';
+import { useState } from 'react';
+import { Box, Chip, Divider, Switch, Tooltip, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
+import HelpOutlineIcon from '@mui/icons-material/HelpOutline';
 import {
   DndContext,
   closestCenter,
@@ -18,12 +20,11 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { restrictToHorizontalAxis, restrictToParentElement } from '@dnd-kit/modifiers';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import CloseIcon from '@mui/icons-material/Close';
 import { COLORS, DURATION, EASING } from '@/style/constants';
 import { TOOL_CATALOG, TOOL_CATEGORIES } from '../types';
 import type { PipelineTool, ToolName } from '../types';
+import { TOOL_ICON_MAP } from './ToolIcons';
 
 // -----------------------------------------------------------------
 // Styled
@@ -31,77 +32,87 @@ import type { PipelineTool, ToolName } from '../types';
 
 const BarRoot = styled(Box)({
   display: 'flex',
-  flexDirection: 'column',
-  height: '100%',
+  alignItems: 'center',
+  gap: 12,
+  padding: '6px 16px',
+  minHeight: 44,
+  flexWrap: 'wrap',
 });
 
-const ActiveRow = styled(Box)(() => ({
-  display: 'flex',
-  alignItems: 'center',
-  height: 48,
-  padding: '0 16px',
-  gap: 8,
-  flexShrink: 0,
-}));
-
-const PillsContainer = styled(Box)({
+const CategoryGroup = styled(Box)({
   display: 'flex',
   alignItems: 'center',
   gap: 6,
-  flex: 1,
-  overflowX: 'auto',
-  scrollbarWidth: 'none',
-  '&::-webkit-scrollbar': { display: 'none' },
+  flexShrink: 0,
 });
 
-const ToolPill = styled(Chip)(({ theme }) => ({
+const CategoryLabel = styled(Typography)({
+  fontSize: '0.5625rem',
+  lineHeight: 1,
+  letterSpacing: '0.08em',
+  whiteSpace: 'nowrap',
+  marginRight: 2,
+});
+
+const InactiveChip = styled(Chip)(({ theme }) => ({
   borderRadius: 16,
   height: 28,
   fontWeight: 500,
   fontSize: '0.75rem',
-  '& .MuiChip-deleteIcon': {
-    fontSize: 16,
-    color: 'inherit',
-    '&:hover': { color: theme.vars.palette.error.main },
-  },
-}));
-
-const ExpandedSection = styled(Box)(({ theme }) => ({
-  flex: 1,
-  overflowY: 'auto',
-  padding: '8px 16px 12px',
-  borderTop: '1px solid',
-  borderColor: theme.vars.palette.divider,
-}));
-
-const CategoryRow = styled(Box)({
-  marginBottom: 8,
-});
-
-const ToolChipsRow = styled(Box)({
-  display: 'flex',
-  flexWrap: 'wrap',
-  gap: 6,
-  marginTop: 4,
-});
-
-const AvailableToolChip = styled(Chip)(({ theme }) => ({
-  borderRadius: 6,
-  height: 28,
+  padding: '0 10px',
   cursor: 'pointer',
-  fontSize: '0.75rem',
-  fontWeight: 500,
   backgroundColor: 'transparent',
   border: '1px solid',
   borderColor: theme.vars.palette.divider,
   color: theme.vars.palette.text.secondary,
   transition: `all ${DURATION.fast}ms ${EASING.standard}`,
+  '& .MuiChip-icon': {
+    fontSize: 14,
+    marginLeft: 0,
+    marginRight: 4,
+    color: 'inherit',
+  },
   '&:hover': {
-    borderColor: theme.vars.palette.secondary.main,
-    color: theme.vars.palette.secondary.main,
-    backgroundColor: 'rgba(0, 200, 215, 0.06)',
+    borderColor: 'var(--chip-cat-color)',
+    backgroundColor: 'rgba(255, 255, 255, 0.04)',
   },
 }));
+
+const ActiveChip = styled(Chip)({
+  borderRadius: 16,
+  height: 28,
+  fontWeight: 500,
+  fontSize: '0.75rem',
+  padding: '0 10px',
+  border: '1px solid',
+  transition: `all ${DURATION.fast}ms ${EASING.standard}`,
+  '& .MuiChip-icon': {
+    fontSize: 14,
+    marginLeft: 0,
+    marginRight: 4,
+    color: 'inherit',
+  },
+  '& .MuiChip-deleteIcon': {
+    fontSize: 14,
+    color: 'inherit',
+    opacity: 0,
+    transition: `opacity ${DURATION.fast}ms ${EASING.standard}`,
+    marginRight: -2,
+    marginLeft: 2,
+  },
+  '&:hover': {
+    filter: 'brightness(1.15)',
+  },
+  '&:hover .MuiChip-deleteIcon': {
+    opacity: 1,
+  },
+});
+
+const CategoryDivider = styled(Divider)({
+  height: 24,
+  alignSelf: 'center',
+  margin: '0 4px',
+});
 
 // -----------------------------------------------------------------
 // Helpers
@@ -118,17 +129,20 @@ const camelCase = (s: string): string =>
   s.replace(/_([a-z])/g, (_, c: string) => c.toUpperCase());
 
 // -----------------------------------------------------------------
-// SortablePill sub-component
+// SortableActiveChip sub-component
 // -----------------------------------------------------------------
 
-interface SortablePillProps {
+interface SortableActiveChipProps {
   tool: PipelineTool;
   color: string;
   label: string;
+  tooltip: string;
+  showTooltips: boolean;
+  onToggle: (id: string) => void;
   onRemove: (id: string) => void;
 }
 
-const SortablePill = ({ tool, color, label, onRemove }: SortablePillProps) => {
+const SortableActiveChip = ({ tool, color, label, tooltip, showTooltips, onToggle, onRemove }: SortableActiveChipProps) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: tool.id });
 
@@ -139,22 +153,30 @@ const SortablePill = ({ tool, color, label, onRemove }: SortablePillProps) => {
     zIndex: isDragging ? 10 : undefined,
   };
 
+  const IconComponent = TOOL_ICON_MAP[tool.name];
+
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <ToolPill
-        label={label}
-        size="small"
-        onDelete={() => onRemove(tool.id)}
-        deleteIcon={<CloseIcon />}
-        sx={{
-          borderColor: color,
-          color,
-          borderWidth: 1,
-          borderStyle: 'solid',
-          opacity: tool.enabled ? 1 : 0.5,
-          cursor: isDragging ? 'grabbing' : 'grab',
-        }}
-      />
+      <Tooltip title={showTooltips ? tooltip : ''} placement="bottom" arrow enterDelay={3000}>
+        <ActiveChip
+          icon={<IconComponent />}
+          label={label}
+          size="small"
+          onDelete={(e) => {
+            e.stopPropagation();
+            onRemove(tool.id);
+          }}
+          deleteIcon={<CloseIcon />}
+          onClick={() => onToggle(tool.id)}
+          sx={{
+            borderColor: color,
+            color,
+            backgroundColor: tool.enabled ? `${color}1F` : 'transparent',
+            opacity: tool.enabled ? 1 : 0.45,
+            cursor: isDragging ? 'grabbing' : 'pointer',
+          }}
+        />
+      </Tooltip>
     </div>
   );
 };
@@ -164,10 +186,9 @@ const SortablePill = ({ tool, color, label, onRemove }: SortablePillProps) => {
 // -----------------------------------------------------------------
 
 interface PipelineBarProps {
-  expanded: boolean;
-  onToggleExpand: () => void;
   activePipeline: PipelineTool[];
   onAddTool: (tool: PipelineTool) => void;
+  onToggleTool: (toolId: string) => void;
   onRemoveTool: (toolId: string) => void;
   onReorder: (tools: PipelineTool[]) => void;
 }
@@ -177,14 +198,14 @@ interface PipelineBarProps {
 // -----------------------------------------------------------------
 
 export const PipelineBar = ({
-  expanded,
-  onToggleExpand,
   activePipeline,
   onAddTool,
+  onToggleTool,
   onRemoveTool,
   onReorder,
 }: PipelineBarProps) => {
   const { t } = useTranslation();
+  const [showTooltips, setShowTooltips] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -192,6 +213,10 @@ export const PipelineBar = ({
   );
 
   const activeToolNames = new Set(activePipeline.map((p) => p.name));
+  const activeToolMap = new Map(activePipeline.map((p) => [p.name, p]));
+
+  const getCategoryColor = (category: string): string =>
+    CATEGORY_COLORS[category] ?? COLORS.cyan;
 
   const handleAddTool = (toolName: ToolName) => {
     const newTool: PipelineTool = {
@@ -202,11 +227,6 @@ export const PipelineBar = ({
       condition: null,
     };
     onAddTool(newTool);
-  };
-
-  const getCategoryColor = (toolName: ToolName): string => {
-    const def = TOOL_CATALOG.find((tc) => tc.name === toolName);
-    return def ? (CATEGORY_COLORS[def.category] ?? COLORS.cyan) : COLORS.cyan;
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
@@ -222,78 +242,76 @@ export const PipelineBar = ({
 
   return (
     <BarRoot>
-      {/* Active pipeline pills row */}
-      <ActiveRow>
-        <Typography variant="overline" color="text.secondary" sx={{ flexShrink: 0, mr: 1 }}>
-          {t('design.pipeline.activePipeline')}
-        </Typography>
-
-        <PillsContainer>
-          {activePipeline.length === 0 ? (
-            <Typography variant="caption" color="text.disabled">
-              {t('design.pipeline.noTools')}
-            </Typography>
-          ) : (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              modifiers={[restrictToHorizontalAxis, restrictToParentElement]}
-              onDragEnd={handleDragEnd}
-            >
-              <SortableContext items={sortableIds} strategy={horizontalListSortingStrategy}>
-                <Box sx={{ display: 'flex', gap: 0.75, alignItems: 'center' }}>
-                  {activePipeline.map((tool) => (
-                    <SortablePill
-                      key={tool.id}
-                      tool={tool}
-                      color={getCategoryColor(tool.name)}
-                      label={t(`design.tools.${camelCase(tool.name)}`)}
-                      onRemove={onRemoveTool}
-                    />
-                  ))}
-                </Box>
-              </SortableContext>
-            </DndContext>
-          )}
-        </PillsContainer>
-
-        <Tooltip title={expanded ? t('design.pipeline.collapse') : t('design.pipeline.expand')}>
-          <IconButton size="small" onClick={onToggleExpand} aria-label={t('design.pipeline.addTool')}>
-            {expanded ? <ExpandLessIcon sx={{ fontSize: 20 }} /> : <ExpandMoreIcon sx={{ fontSize: 20 }} />}
-          </IconButton>
-        </Tooltip>
-      </ActiveRow>
-
-      {/* Expanded: available tools grouped by category */}
-      {expanded && (
-        <ExpandedSection>
-          {TOOL_CATEGORIES.map(({ key, labelKey }) => {
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        modifiers={[restrictToHorizontalAxis, restrictToParentElement]}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={sortableIds} strategy={horizontalListSortingStrategy}>
+          {TOOL_CATEGORIES.map(({ key, labelKey }, catIndex) => {
             const tools = TOOL_CATALOG.filter((tc) => tc.category === key);
+            const catColor = getCategoryColor(key);
             return (
-              <CategoryRow key={key}>
-                <Typography variant="overline" color="text.secondary">
-                  {t(labelKey)}
-                </Typography>
-                <ToolChipsRow>
-                  {tools.map((tool) => {
-                    const alreadyActive = activeToolNames.has(tool.name);
+              <Box key={key} sx={{ display: 'contents' }}>
+                {catIndex > 0 && <CategoryDivider orientation="vertical" flexItem />}
+                <CategoryGroup>
+                  <CategoryLabel variant="overline" sx={{ color: catColor }}>
+                    {t(labelKey)}
+                  </CategoryLabel>
+                  {tools.map((toolDef) => {
+                    const isActive = activeToolNames.has(toolDef.name);
+                    const activeTool = activeToolMap.get(toolDef.name);
+                    const label = t(`design.tools.${camelCase(toolDef.name)}`);
+                    const tooltip = t(`design.tools.tooltip.${camelCase(toolDef.name)}`);
+                    const IconComponent = TOOL_ICON_MAP[toolDef.name];
+
+                    if (isActive && activeTool) {
+                      return (
+                        <SortableActiveChip
+                          key={activeTool.id}
+                          tool={activeTool}
+                          color={catColor}
+                          label={label}
+                          tooltip={tooltip}
+                          showTooltips={showTooltips}
+                          onToggle={onToggleTool}
+                          onRemove={onRemoveTool}
+                        />
+                      );
+                    }
+
                     return (
-                      <AvailableToolChip
-                        key={tool.name}
-                        label={t(tool.labelKey)}
-                        size="small"
-                        disabled={alreadyActive}
-                        onClick={() => !alreadyActive && handleAddTool(tool.name)}
-                        sx={alreadyActive ? { opacity: 0.4, pointerEvents: 'none' } : {}}
-                      />
+                      <Tooltip key={toolDef.name} title={showTooltips ? tooltip : ''} placement="bottom" arrow enterDelay={3000}>
+                        <InactiveChip
+                          icon={<IconComponent />}
+                          label={label}
+                          size="small"
+                          onClick={() => handleAddTool(toolDef.name)}
+                          style={{ '--chip-cat-color': catColor } as React.CSSProperties}
+                        />
+                      </Tooltip>
                     );
                   })}
-                </ToolChipsRow>
-              </CategoryRow>
+                </CategoryGroup>
+              </Box>
             );
           })}
-        </ExpandedSection>
-      )}
+        </SortableContext>
+      </DndContext>
+
+      {/* Tooltip toggle — right end */}
+      <Tooltip title={t('design.pipeline.toggleTooltips')} placement="bottom" arrow>
+        <Box sx={{ ml: 'auto', display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+          <HelpOutlineIcon sx={{ fontSize: 14, color: 'text.disabled', mr: 0.25 }} />
+          <Switch
+            size="small"
+            checked={showTooltips}
+            onChange={(_, checked) => setShowTooltips(checked)}
+            aria-label={t('design.pipeline.toggleTooltips')}
+          />
+        </Box>
+      </Tooltip>
     </BarRoot>
   );
 };

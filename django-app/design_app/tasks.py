@@ -135,10 +135,11 @@ def task_analyze_image(design_id: str, source_image_url: str):
         raise
 
 
-def task_remove_background(job_id: str):
+def task_remove_background(job_id: str, model_name: str = ''):
     """Remove background from a design image.
 
     Reads ProcessingSettings to determine provider (rembg vs API).
+    model_name overrides the default rembg model if provided.
     """
     from design_app.models import DesignProcessingJob, ProcessingSettings
     from design_app.services.bg_remover import (
@@ -168,7 +169,7 @@ def task_remove_background(job_id: str):
         input_path = job.design.image_file.path
 
         if provider == 'rembg':
-            output_path = remove_background_rembg(input_path)
+            output_path = remove_background_rembg(input_path, model_name=model_name or '')
         else:
             api_key = ps.bg_removal_api_key if ps else ''
             output_path = remove_background_api(input_path, api_key)

@@ -339,11 +339,44 @@
 
 ---
 
-## Phase B5: Post-Processing — Cloud Import + Export
+## Phase B5: Post-Processing — Cloud Manager + Export
 
-- [ ] `CloudImportDialog.tsx`: Google Drive picker (OAuth2 + Google Picker API) + OneDrive picker (Microsoft Graph API). Import selected images into batch
-- [ ] `ExportDialog.tsx`: format (PNG default), DPI (300 default), compression level slider, download single or all (zip). Option: overwrite original or create new version
-- [ ] Pica.js integration: client-side upscaling for images ≥ threshold. Web Worker for non-blocking. Quality comparison (before/after preview)
+### Cloud Manager — Design Decisions
+- **Component:** `CloudManagerDialog.tsx` (renamed from CloudImportDialog)
+- **Dialog:** MUI Tabs (Google Drive | OneDrive), `maxWidth="md"`, fullscreen toggle button
+- **Auth:** OAuth2 popup per provider, no page redirect
+- **Google:** External + Testing Mode (MVP, up to 100 test users). Later: Google Verification (~1-2 weeks). Scope: `drive.file` (read+write own files). Env: `VITE_GOOGLE_CLIENT_ID`, `VITE_GOOGLE_API_KEY`
+- **Google setup:** Enable Google Drive API, OAuth2 Client ID (Web), API Key restricted to Drive API
+- **OneDrive:** Personal Microsoft accounts only (MVP). Later: Multi-tenant for Business/SharePoint. Scope: `Files.ReadWrite`. Env: `VITE_ONEDRIVE_CLIENT_ID`
+- **Azure setup:** App registration (SPA), redirect URI localhost:5173 + prod, `Files.ReadWrite` delegated permission
+- **No native pickers:** Custom folder browser + image table via Drive API / Graph API directly
+- **File filter:** Images only (png/jpg/webp), no SVG for MVP. Max 25MB per file
+- **SDK loading:** Dynamic on dialog open (lazy, no page load impact)
+- **Missing env vars:** Tab shows "Not Configured" state with hint to set env vars
+
+### Cloud Manager — Features
+- **Folder browser:** Breadcrumb navigation, click folders to navigate, recursive scan (subfolders)
+- **Image table:** Thumbnail (48px) | Folder path (relative) | Filename | Size | Actions
+- **Actions per image:** Download (browser download) | Use for AI (fetches → File → onFilesAdded → Editor Batch)
+- **Multi-select:** Checkboxes per row + bulk "Download Selected" / "Use Selected for AI" buttons
+- **Upload to cloud:** Select target folder via browser → upload generated images from Batch (multi-select)
+- **No auto-download:** Images shown as thumbnails/links only, downloaded on-demand
+
+### Cloud Storage Settings
+- **Reachable from:** Central App Settings + Design Editor Settings (Processing Settings UI)
+- **Content:** Google Drive + OneDrive connection status, connected account (email), Connect/Disconnect buttons
+- **Inline fallback:** CloudManagerDialog shows "Connect" button if not connected (quick-start without going to Settings)
+
+### Tasks
+- [x] `CloudManagerDialog.tsx`: Tabbed dialog (Google Drive | OneDrive), fullscreen toggle. Folder breadcrumb browser, recursive image scan, image table with thumbnails + actions (Download, Use for AI). Multi-select + bulk actions. Upload from Batch to selected cloud folder
+- [x] `useGoogleDrive.ts`: Hook for Google Drive OAuth2 + Drive API (list folders, list images, download file, upload file). Dynamic gapi SDK loading
+- [x] `useOneDrive.ts`: Hook for OneDrive MSAL auth + Graph API (list folders, list images, download file, upload file). Dynamic MSAL SDK loading
+- [x] `CloudStorageSettings.tsx`: Connection management section (status, account email, connect/disconnect). Reusable in central Settings + Design Editor Settings
+- [x] Integration: DropZone "Import from Cloud" button + BatchThumbnailStrip cloud icon → opens CloudManagerDialog
+- [x] Integration: Upload flow — select images from Batch → choose cloud folder → upload
+- [ ] Env var template update: `VITE_GOOGLE_CLIENT_ID`, `VITE_GOOGLE_API_KEY`, `VITE_ONEDRIVE_CLIENT_ID` (no template file exists yet — env vars documented in task)
+- [x] `ExportDialog.tsx`: format (PNG/JPEG/WebP), DPI (72-600), quality/compression slider, download single or ZIP all. Overwrite vs new version. Advanced Export button in ExportControls. JSZip with progress. i18n synced (9 keys × 5 locales)
+- [x] Pica.js integration: client-side upscaling for images ≥3000px (Lanczos3, Web Worker + WASM). Auto-mode routing (client/server). UpscaleToolParams UI with mode toggle. i18n synced (18 keys × 5 locales)
 
 ---
 
@@ -356,7 +389,7 @@
 - [x] `design.edge.*` — defringe, shrink, color defringe, edge cleaner labels
 - [x] `design.qc.*` — transparency highlighter, compressor labels
 - [x] `design.export.*` — format, DPI, compression, download labels
-- [ ] `design.cloud.*` — Google Drive, OneDrive, import button labels
+- [x] `design.cloud.*` — Google Drive, OneDrive, folder browser, image table, download, upload, connect/disconnect, settings labels (28 keys × 5 locales)
 - [x] `design.settings.*` — provider labels, API key placeholder, threshold
 - [x] All 5 locales: EN, DE, FR, ES, IT (482 design keys synced)
 
@@ -945,7 +978,7 @@
 - [x] Pipeline bar, tool panel, canvas, batch strip, export controls
 - [x] Client-side tools: resize, trim, rotate, filters, defringe, eraser, wand
 - [x] AI BG Remove + AI Upscale auto-mode
-- [ ] Cloud import (Google Drive + OneDrive)
+- [x] Cloud Manager (Google Drive + OneDrive): browse, download, use for AI, upload
 - [x] Settings UI: provider selection, API keys, threshold
 - [ ] All tests pass, lint clean
 
@@ -965,3 +998,100 @@
 - [x] Undo/Redo: Image Editor (useUndoRedo) + Artboard Canvas (useCanvasHistory), Cmd+Z/Shift+Z
 - [x] Delete Designs: Gallery 3-dot menu, Editor remove/delete menu, Canvas server-delete + confirmation
 - [x] Dimension Change Indicator: shows original→new dims after trim/resize
+
+---
+
+## Phase C: Canvas Element Manipulation (AC-65 to AC-83)
+
+### Phase C1: Element Data Model + Core Hook
+
+- [x] `CanvasElement` type in `board/types/index.ts`: id, type (image|text|shape|brush|emoji), x, y, width, height, rotation, scaleX/Y, opacity, visible, locked, zIndex, props (type-specific)
+- [x] Extend `BoardLayout` nodes to include `layers: CanvasElement[]`
+- [x] `useCanvasElements.ts` hook: addElement, removeElement, updateElement, reorderElement, getElementsForArtboard. Integrates with existing `persistLayout` (debounced save)
+- [x] Integrate with `useCanvasHistory` — element changes trigger undo/redo snapshots
+- [x] Hydration: load `layers` from `board_layout.nodes[].layers` on mount
+
+### Phase C2: Element Selection + Transform
+
+- [ ] `useElementSelection.ts` hook: selectedElementId, selectElement, deselectElement, isElementSelected. Separate from artboard selection
+- [ ] Click element inside artboard → select element (not artboard). Click artboard frame → select artboard. Click empty canvas → deselect all
+- [ ] Selected element: Konva `Transformer` component (resize handles + rotation handle). Aspect ratio locked by default, Shift = free
+- [ ] Double-click image element → free-transform mode (move + scale + rotate). Click outside → exit to normal select
+- [ ] `PanelElementState.tsx`: right panel shows element properties when element selected (instead of artboard properties)
+- [ ] Element drag → stays within artboard coordinate space. Artboard move → all child elements move with it
+
+### Phase C3: Image Layer
+
+- [x] Existing artboard image becomes a `CanvasElement` of type `'image'` (first layer, auto-created on hydration)
+- [x] `ImageLayer.tsx` Konva component: renders `KonvaImage` with transform support
+- [x] Image click → select as element. Resize handles with aspect lock
+- [x] Double-click → free-transform (rotate enabled). Single click → move + scale only
+- [x] Image properties in PanelElementState: opacity, position (x/y), dimensions (w/h read-only)
+
+### Phase C4: Text Tool
+
+- [x] Text tool button in BottomToolbar wired to `activeTool === 'text'`
+- [x] `useTextEditing.ts` hook: handles text creation, inline editing (HTML textarea overlay positioned over Konva text), commit on blur/escape
+- [x] `TextLayer.tsx` Konva component: renders `Konva.Text` with all style properties
+- [x] Click on artboard with text tool → inserts text element at click position, opens inline editor
+- [x] `TextProperties.tsx` in PanelElementState: font family dropdown (system fonts + Google Fonts top 30), font size, color picker, bold/italic toggles
+- [x] Advanced text: outline (stroke color + width), drop shadow (color, offsetX/Y, blur), letter-spacing slider, line-height slider
+- [x] Curved text: arc angle slider (-180° to +180°). Konva `textPath` or manual arc rendering. Live preview on canvas
+- [ ] Text effects: gradient fill (2-color, linear/radial direction), 3D emboss (layered shadow stack). Applied via effects section in TextProperties
+- [ ] Google Fonts loading: on font-family change, inject CSS `@import` for selected font. Cache loaded fonts
+
+### Phase C5: Shapes Tool
+
+- [ ] Shape tool dropdown wired — selecting tool sets `activeTool` to specific shape type
+- [ ] `useDrawingHandlers.ts` hook: onMouseDown → start shape, onMouseMove → resize preview, onMouseUp → commit shape element
+- [ ] `ShapeLayer.tsx` Konva component: renders Rect, Ellipse, RegularPolygon (triangle), or Line based on `shapeType`
+- [ ] `ShapeProperties.tsx` in PanelElementState: fill color, stroke color, stroke width. Rectangle: corner radius slider
+- [ ] Pen tool: `usePenTool.ts` hook — click to add points, double-click to finish, click first point to close. Creates shape element with `points` array
+- [ ] Pen path rendering: `Konva.Line` with `closed` flag + `tension` for smoothing
+
+### Phase C6: Brush Tool
+
+- [x] Brush tool button wired to `activeTool === 'brush'`
+- [x] Mouse down + move → captures points array. Mouse up → commits as brush element
+- [x] `BrushLayer.tsx` Konva component: renders `Konva.Line` with `lineCap: 'round'`, `lineJoin: 'round'`, tension smoothing
+- [x] `BrushProperties.tsx` in PanelElementState: stroke width slider (1-50px), color picker
+- [ ] Brush strokes grouped: consecutive strokes within 2s → merge into single "Drawing" layer for cleaner layer panel (deferred — each stroke is a separate element for MVP)
+
+### Phase C7: Emoji
+
+- [x] Emoji button → triggers native OS picker (`window.EyeDropper` pattern or focused hidden input for emoji keyboard). Fallback: text input for paste
+- [x] Selected emoji → rasterized to image: hidden canvas `fillText` at 64px → `toDataURL` → creates image element
+- [x] `EmojiLayer.tsx` Konva component: renders as `KonvaImage` from rasterized data URL
+- [x] Emoji movable, scalable, deletable like any element
+
+### Phase C8: Layer Panel
+
+- [x] `LayerPanel.tsx` in RightPanel: shows when artboard selected. Lists all layers of selected artboard
+- [x] Each layer row: type icon (🖼/T/▢/🖌/😊), name/preview, eye icon (visibility toggle), lock icon (lock toggle)
+- [x] Drag-reorder layers (dnd-kit `useSortable`): updates `zIndex` values, re-renders canvas in new order
+- [x] Click layer → selects element on canvas. Select element on canvas → highlights layer in panel. Bidirectional sync via `useElementSelection`
+- [x] Virtualized list for 50+ layers (MUI `List` with fixed height, scrollable)
+- [x] Layer naming: auto-generated (`Text 1`, `Rectangle 2`, etc.), editable on double-click
+
+### Phase C9: i18n — Canvas Elements
+
+- [x] `design.canvas.tools.*` — shape names, brush, text, emoji labels (covered by `design.toolbar.*` from Phase D6)
+- [ ] `design.canvas.layers.*` — layer panel labels, visibility, lock, reorder (no EN keys yet)
+- [x] `design.canvas.text.*` — font, size, bold, italic, outline, shadow, arc, gradient, effects
+- [x] `design.canvas.shapes.*` — fill, stroke, corner radius, pen tool
+- [x] `design.canvas.brush.*` — color, size, smoothing
+- [x] All 5 locales: EN, DE, FR, ES, IT (text 16 keys + shapes 9 keys + brush 3 keys synced)
+
+### Completion Checklist — Phase C
+
+- [ ] Image layer: click, move, scale (aspect lock), double-click free-transform
+- [ ] Text tool: insert, edit inline, font/size/color, outline/shadow, curved text, gradient/3D
+- [ ] Shapes: rect, ellipse, triangle, line, pen tool freeform
+- [ ] Brush: freehand strokes, size + color
+- [x] Emoji: native picker, rasterized as image layer
+- [x] Layer panel: list, drag-reorder, visibility, lock, bidirectional selection
+- [ ] All elements belong to parent artboard (move together)
+- [ ] All element data persisted in board_layout (survives reload)
+- [ ] Undo/redo works for element operations
+- [x] i18n synced (5 locales) — canvas text/shapes/brush keys added to DE/FR/ES/IT
+- [ ] All tests pass, lint clean

@@ -1,0 +1,115 @@
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - img [ref=e7]
+        - heading "MerchMiner" [level=5] [ref=e9]
+      - button "test's Workspace" [ref=e11] [cursor=pointer]:
+        - text: test's Workspace
+        - img [ref=e13]
+      - generic [ref=e15]:
+        - button "Language" [ref=e16] [cursor=pointer]:
+          - img [ref=e17]
+        - button "Dark mode" [ref=e19] [cursor=pointer]:
+          - img [ref=e20]
+        - button "Notifications" [ref=e22] [cursor=pointer]:
+          - generic [ref=e23]:
+            - img [ref=e24]
+            - generic: "0"
+        - generic "Profile" [ref=e26] [cursor=pointer]: T
+  - navigation "Main navigation" [ref=e27]:
+    - generic [ref=e28]:
+      - generic [ref=e29]:
+        - generic [ref=e31]: Control Room
+        - list [ref=e32]:
+          - button "Dashboard" [ref=e33] [cursor=pointer]:
+            - img [ref=e36]
+            - paragraph [ref=e39]: Dashboard
+      - generic [ref=e40]:
+        - generic [ref=e43]: Drilling Zone
+        - list [ref=e44]:
+          - button "Amazon Deep Dive" [ref=e45] [cursor=pointer]:
+            - img [ref=e48]
+            - paragraph [ref=e51]: Amazon Deep Dive
+          - button "Keyword Lode" [ref=e52] [cursor=pointer]:
+            - img [ref=e55]
+            - paragraph [ref=e58]: Keyword Lode
+      - generic [ref=e59]:
+        - generic [ref=e62]: Pipeline
+        - list [ref=e63]:
+          - button "Niche Claims" [ref=e64] [cursor=pointer]:
+            - img [ref=e67]
+            - paragraph [ref=e70]: Niche Claims
+          - button "Slogan Refinery" [ref=e71] [cursor=pointer]:
+            - img [ref=e74]
+            - paragraph [ref=e77]: Slogan Refinery
+          - button "Design Forge" [ref=e78] [cursor=pointer]:
+            - img [ref=e81]
+            - paragraph [ref=e84]: Design Forge
+          - button "Listing Loadout" [ref=e85] [cursor=pointer]:
+            - img [ref=e88]
+            - paragraph [ref=e92]: Listing Loadout
+      - generic [ref=e93]:
+        - generic [ref=e96]: Surface Ops
+        - list [ref=e97]:
+          - button "Upload Rig" [ref=e98] [cursor=pointer]:
+            - img [ref=e101]
+            - paragraph [ref=e104]: Upload Rig
+          - button "Team Kanban" [ref=e105] [cursor=pointer]:
+            - img [ref=e108]
+            - paragraph [ref=e112]: Team Kanban
+    - button "Collapse sidebar" [ref=e114] [cursor=pointer]:
+      - img [ref=e115]
+  - main [ref=e117]:
+    - generic [ref=e312]:
+      - generic [ref=e313]:
+        - button "Back to Gallery" [ref=e314] [cursor=pointer]:
+          - img [ref=e315]
+        - heading "Test Canvas Project" [level=6] [ref=e317]
+        - button "Linked Niche" [ref=e318] [cursor=pointer]:
+          - img [ref=e319]
+        - generic [ref=e321]:
+          - tab "Artboard Canvas" [ref=e322] [cursor=pointer]:
+            - img [ref=e323]
+            - text: Artboard Canvas
+          - tab "Image Editor" [ref=e325] [cursor=pointer]:
+            - img [ref=e326]
+            - text: Image Editor
+        - button "Project Settings" [ref=e328] [cursor=pointer]:
+          - img [ref=e329]
+      - generic [ref=e417]:
+        - generic [ref=e419]:
+          - generic [ref=e421]:
+            - generic [ref=e422]: Standard
+            - button "Resize & Reposition" [ref=e423] [cursor=pointer]
+            - button "Trim" [ref=e427] [cursor=pointer]
+            - button "Rotate" [ref=e431] [cursor=pointer]
+            - button "Filters" [ref=e435] [cursor=pointer]
+            - button "Distress" [ref=e439] [cursor=pointer]
+            - button "Color Removal" [ref=e602]
+            - button "Speckle Remover" [ref=e447] [cursor=pointer]
+            - button "Transp. Cleaner" [ref=e451] [cursor=pointer]
+            - button "Watermark" [ref=e455] [cursor=pointer]
+          - generic [ref=e459]:
+            - separator [ref=e460]
+            - generic [ref=e461]
+          - generic [ref=e495]:
+            - separator [ref=e496]
+            - generic [ref=e497]
+          - generic [ref=e507]:
+            - separator [ref=e508]
+            - generic [ref=e509]
+          - status [ref=e515]
+          - generic "Show tool descriptions" [ref=e516]:
+            - img [ref=e517]
+            - generic "Show tool descriptions" [ref=e520] [cursor=pointer]
+        - generic [ref=e524]:
+          - generic [ref=e526]:
+            - generic [ref=e528]
+            - separator [ref=e534]
+            - generic [ref=e612]
+            - status [ref=e629]
+            - generic [ref=e630]
+          - generic [ref=e538]:
+            - generic [ref=e540]
+            - generic [ref=e573]

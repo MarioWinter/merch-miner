@@ -129,7 +129,7 @@ const ToggleWrap = styled(Box, {
   shouldForwardProp: (prop) => prop !== '$visible',
 })<{ $visible: boolean }>(({ theme, $visible }) => ({
   position: 'absolute',
-  bottom: 40,
+  bottom: 80,
   right: -24,
   width: 48,
   height: 48,

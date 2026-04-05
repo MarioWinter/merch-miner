@@ -30,6 +30,7 @@ import { ImproveDialog } from './partials/ImproveDialog';
 import { ImportDialog } from './partials/ImportDialog';
 import { RejectIdeaWarningDialog } from './partials/RejectIdeaWarningDialog';
 import { useMockAdaptation } from './hooks/useMockAdaptation';
+import { MOCK_IDEAS } from './hooks/useMockIdeas';
 import { NicheDetailDrawer } from '../niches/list/partials/NicheDetailDrawer';
 import type { Idea } from './types';
 
@@ -113,14 +114,21 @@ export const IdeaListView = () => {
     });
   }, []);
 
+  // DEV: always append mock ideas so we can preview styling
+  const rawIdeas = data?.results ?? [];
+  const allIdeas = useMemo(
+    () => (import.meta.env.DEV ? [...rawIdeas, ...MOCK_IDEAS] : rawIdeas),
+    [rawIdeas],
+  );
+  const totalCount = import.meta.env.DEV ? allIdeas.length : (data?.count ?? 0);
+
   // Group ideas: niche-less at top, source groups, orphan adapted
   const { nicheLessIdeas, sourceIdeas, adaptedBySource, orphanIdeas } = useMemo(() => {
-    const ideas = data?.results ?? [];
     const nicheLess: Idea[] = [];
     const sources: Idea[] = [];
     const bySource: Record<string, Idea[]> = {};
 
-    for (const idea of ideas) {
+    for (const idea of allIdeas) {
       if (!idea.source_idea) {
         if (!idea.niche) {
           nicheLess.push(idea);
@@ -148,7 +156,7 @@ export const IdeaListView = () => {
       adaptedBySource: bySource,
       orphanIdeas: orphans,
     };
-  }, [data]);
+  }, [allIdeas]);
 
   const handleAdaptConfirm = useCallback(
     (targetNicheIds: string[]) => {
@@ -170,8 +178,7 @@ export const IdeaListView = () => {
     setSelectedIds(new Set());
   };
 
-  const ideas = data?.results ?? [];
-  const totalCount = data?.count ?? 0;
+  const ideas = allIdeas;
   const pageCount = Math.ceil(totalCount / PAGE_SIZE);
   const showSkeleton = isLoading || (isFetching && ideas.length === 0);
   const showEmpty = !isLoading && !isError && ideas.length === 0;

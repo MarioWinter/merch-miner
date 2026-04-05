@@ -220,6 +220,8 @@ interface EditorCanvasProps {
   onRemoveAll: () => void;
   /** Delete current image from server (only for server-persisted images) */
   onDeleteFromServer?: () => void;
+  /** Delete a specific version (context-aware) */
+  onDeleteVersion?: (version: 'original' | 'processed' | 'bg_removed' | 'upscaled') => void;
   /** Live preview URL from useLivePreview — overrides image source when present */
   livePreviewUrl?: string | null;
   /** Whether live preview is currently computing */
@@ -252,6 +254,7 @@ export const EditorCanvas = ({
   onRemoveImage,
   onRemoveAll,
   onDeleteFromServer,
+  onDeleteVersion,
   livePreviewUrl,
   isPreviewProcessing = false,
   isServerProcessing = false,
@@ -321,10 +324,11 @@ export const EditorCanvas = ({
     if (showOriginal) setShowOriginal(false);
   }
 
-  // Load image — prefer live preview > processedUrl > previewUrl (unless showing original)
+  // Load image — prefer processedUrl (applied result) > live preview > previewUrl
+  // Live preview is only relevant BEFORE applying; after apply, processedUrl takes over.
   const imageSrc = showOriginal
     ? (image.originalUrl ?? image.previewUrl)
-    : (livePreviewUrl ?? image.processedUrl ?? image.previewUrl);
+    : (image.processedUrl ?? livePreviewUrl ?? image.previewUrl);
 
   // Track which batch image we're on — only auto-fit on image switch, not preview updates
   const currentImageIdRef = useRef<string | null>(null);
@@ -408,6 +412,10 @@ export const EditorCanvas = ({
     isPanningRef.current = false;
   }, []);
 
+  // Image dimensions for positioning — set in onload before setHtmlImage.
+  // Using cached dims prevents jumping on live preview updates.
+  const originalDimsRef = useRef<{ width: number; height: number; imageId: string } | null>(null);
+
   // Center/fit image — always use the currently loaded image dimensions
   const handleCenterImage = useCallback(() => {
     if (!htmlImage) return;
@@ -415,10 +423,6 @@ export const EditorCanvas = ({
     originalDimsRef.current = { width: htmlImage.width, height: htmlImage.height, imageId: image.id };
     applyAutoFit(htmlImage.width, htmlImage.height);
   }, [htmlImage, applyAutoFit, image.id]);
-
-  // Image dimensions for positioning — set in onload before setHtmlImage.
-  // Using cached dims prevents jumping on live preview updates.
-  const originalDimsRef = useRef<{ width: number; height: number; imageId: string } | null>(null);
   const dims = originalDimsRef.current
     ?? (htmlImage ? { width: htmlImage.width, height: htmlImage.height, imageId: image.id } : null);
   const imgX = dims
@@ -533,12 +537,39 @@ export const EditorCanvas = ({
               onClose={() => setDeleteMenuAnchor(null)}
               slotProps={{ paper: { sx: { minWidth: 200 } } }}
             >
+              {/* Context-aware delete: deletes whatever is currently shown */}
+              {onDeleteVersion && (
+                <MenuItem onClick={() => {
+                  setDeleteMenuAnchor(null);
+                  // Determine which version is active
+                  if (showOriginal) {
+                    onDeleteVersion('original');
+                  } else if (image.processedUrl) {
+                    onDeleteVersion('processed');
+                  } else {
+                    onDeleteVersion('original');
+                  }
+                }}>
+                  <ListItemIcon>
+                    <DeleteOutlineIcon sx={{ fontSize: 20, color: 'warning.main' }} />
+                  </ListItemIcon>
+                  <ListItemText sx={{ '& .MuiTypography-root': { color: 'warning.main' } }}>
+                    {showOriginal
+                      ? t('design.editor.deleteOriginal', 'Delete original')
+                      : hasProcessedVersion
+                        ? t('design.editor.deleteProcessed', 'Delete processed version')
+                        : t('design.editor.deleteOriginal', 'Delete original')}
+                  </ListItemText>
+                </MenuItem>
+              )}
+              {/* Remove from batch (local only, no server delete) */}
               <MenuItem onClick={() => { setDeleteMenuAnchor(null); onRemoveImage(); }}>
                 <ListItemIcon>
                   <RemoveCircleOutlineIcon sx={{ fontSize: 20 }} />
                 </ListItemIcon>
                 <ListItemText>{t('design.editor.removeFromBatch')}</ListItemText>
               </MenuItem>
+              {/* Delete permanently — removes entire Design from server */}
               {onDeleteFromServer && (
                 <MenuItem onClick={() => { setDeleteMenuAnchor(null); onDeleteFromServer(); }}>
                   <ListItemIcon>

@@ -2799,3 +2799,63 @@ export const processCompressor = async (
 
   return blob;
 };
+
+// -----------------------------------------------------------------
+// Pica Upscale (client-side Lanczos resampling via Pica.js)
+// -----------------------------------------------------------------
+
+export interface PicaUpscaleParams {
+  targetWidth: number;
+  targetHeight: number;
+  filter: 'lanczos3' | 'lanczos2' | 'mks2013';
+  unsharpAmount: number;
+  unsharpRadius: number;
+  unsharpThreshold: number;
+}
+
+export const DEFAULT_PICA_UPSCALE_PARAMS: PicaUpscaleParams = {
+  targetWidth: 4500,
+  targetHeight: 5400,
+  filter: 'lanczos3',
+  unsharpAmount: 0,
+  unsharpRadius: 0,
+  unsharpThreshold: 0,
+};
+
+/**
+ * High-quality client-side upscale using Pica.js (Lanczos resampling).
+ * Uses Web Workers + WASM for non-blocking performance.
+ */
+export const processPicaUpscale = async (
+  source: string | Blob,
+  params: PicaUpscaleParams,
+): Promise<Blob> => {
+  // Dynamic import to keep the singleton lazy
+  const { getPicaInstance } = await import('./picaInstance');
+  const pica = getPicaInstance();
+
+  const img = await loadImage(source);
+
+  // Draw source onto a canvas
+  const srcCanvas = document.createElement('canvas');
+  srcCanvas.width = img.naturalWidth;
+  srcCanvas.height = img.naturalHeight;
+  const srcCtx = srcCanvas.getContext('2d');
+  if (!srcCtx) throw new Error('Failed to create source canvas context');
+  srcCtx.drawImage(img, 0, 0);
+
+  // Create target canvas
+  const destCanvas = document.createElement('canvas');
+  destCanvas.width = params.targetWidth;
+  destCanvas.height = params.targetHeight;
+
+  // Run Pica resize
+  await pica.resize(srcCanvas, destCanvas, {
+    filter: params.filter,
+    unsharpAmount: params.unsharpAmount,
+    unsharpRadius: params.unsharpRadius,
+    unsharpThreshold: params.unsharpThreshold,
+  });
+
+  return pica.toBlob(destCanvas, 'image/png');
+};

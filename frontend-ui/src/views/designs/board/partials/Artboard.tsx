@@ -1,8 +1,16 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { Group, Rect, Text, Image as KonvaImage } from 'react-konva';
+import { useCallback, useMemo, useRef } from 'react';
+import { Group, Rect, Text } from 'react-konva';
 import type Konva from 'konva';
-import type { ArtboardData } from '../types';
+import type { ArtboardData, CanvasElement } from '../types';
+import useSnapGuides from '../hooks/useSnapGuides';
 import SkeletonPulse from './SkeletonPulse';
+import SnapGuides from './SnapGuides';
+import ArtboardElement from './ArtboardElement';
+import ImageLayer from './layers/ImageLayer';
+import TextLayer from './layers/TextLayer';
+import ShapeLayer from './layers/ShapeLayer';
+import BrushLayer from './layers/BrushLayer';
+import EmojiLayer from './layers/EmojiLayer';
 
 // -----------------------------------------------------------------
 // Constants
@@ -33,6 +41,26 @@ interface ArtboardProps {
   onDoubleClickLabel: (id: string) => void;
   onContextMenu?: (id: string, evt: MouseEvent) => void;
   onResize?: (id: string, width: number, height: number, x: number, y: number) => void;
+  /** Element selection callbacks */
+  selectedElementId?: string | null;
+  isFreeTransform?: boolean;
+  onElementSelect?: (artboardId: string, elementId: string) => void;
+  onElementDoubleClick?: (artboardId: string, elementId: string) => void;
+  onElementUpdate?: (
+    artboardId: string,
+    elementId: string,
+    patch: Partial<Omit<CanvasElement, 'id' | 'type'>>,
+  ) => void;
+  /** Active canvas tool */
+  activeTool?: string;
+  /** Called when artboard clicked while text tool active */
+  onTextInsert?: (artboardId: string, localX: number, localY: number) => void;
+  /** Called when shape draw starts on artboard */
+  onShapeDrawStart?: (artboardId: string, localX: number, localY: number) => void;
+  /** Called when pen tool clicks on artboard */
+  onPenClick?: (artboardId: string, localX: number, localY: number) => void;
+  /** Called when brush draw starts on artboard */
+  onBrushDrawStart?: (artboardId: string, localX: number, localY: number) => void;
 }
 
 // Corner indices: 0=top-left, 1=top-right, 2=bottom-left, 3=bottom-right
@@ -63,43 +91,99 @@ const Artboard = ({
   onDoubleClickLabel,
   onContextMenu,
   onResize,
+  selectedElementId,
+  isFreeTransform = false,
+  onElementSelect,
+  onElementDoubleClick,
+  onElementUpdate,
+  activeTool,
+  onTextInsert,
+  onShapeDrawStart,
+  onPenClick,
+  onBrushDrawStart,
 }: ArtboardProps) => {
   const groupRef = useRef<Konva.Group>(null);
-  const [image, setImage] = useState<HTMLImageElement | null>(null);
 
-  // Load image when URL changes
-  useEffect(() => {
-    if (!data.imageUrl) {
-      setImage(null);
-      return;
-    }
+  // -- Snap guides --
+  const snapGuides = useSnapGuides({
+    artboard: data,
+    elements: data.layers ?? [],
+    draggingElementId: null,
+  });
 
-    const img = new window.Image();
-    // Only set crossOrigin for remote URLs — blob: and data: URLs fail with it
-    if (data.imageUrl.startsWith('http')) {
-      img.crossOrigin = 'anonymous';
-    }
-    img.src = data.imageUrl;
+  const handleElementDragMove = useCallback(
+    (artboardId: string, elementId: string, node: Konva.Node) => {
+      const el = (data.layers ?? []).find((l) => l.id === elementId);
+      if (!el) return;
 
-    img.onload = () => setImage(img);
-    img.onerror = () => setImage(null);
+      const rawX = node.x();
+      const rawY = node.y();
+      const w = el.width * el.scaleX;
+      const h = el.height * el.scaleY;
 
-    return () => {
-      img.onload = null;
-      img.onerror = null;
-    };
-  }, [data.imageUrl]);
+      const { x, y } = snapGuides.computeSnap(elementId, rawX, rawY, w, h);
+      node.x(x);
+      node.y(y);
+    },
+    [data.layers, snapGuides],
+  );
+
+  const handleElementDragEnd = useCallback(
+    (artboardId: string, elementId: string, patch: Partial<Omit<CanvasElement, 'id' | 'type'>>) => {
+      snapGuides.clearGuides();
+      onElementUpdate?.(artboardId, elementId, patch);
+    },
+    [snapGuides, onElementUpdate],
+  );
+
+  const isShapeTool =
+    activeTool === 'rectangle' ||
+    activeTool === 'ellipse' ||
+    activeTool === 'triangle' ||
+    activeTool === 'line';
+
+  const isBrushTool = activeTool === 'brush';
+
+  const getLocalPos = useCallback(() => {
+    const group = groupRef.current;
+    if (!group) return null;
+    const pointerPos = group.getStage()?.getPointerPosition();
+    if (!pointerPos) return null;
+    const transform = group.getAbsoluteTransform().copy().invert();
+    return transform.point(pointerPos);
+  }, []);
 
   const handleClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
       e.cancelBubble = true;
+
+      // When text tool is active, insert text at click position
+      if (activeTool === 'text' && onTextInsert) {
+        const localPos = getLocalPos();
+        if (localPos) {
+          onTextInsert(data.id, localPos.x, localPos.y);
+          return;
+        }
+      }
+
+      // When pen tool is active, add point
+      if (activeTool === 'pen' && onPenClick) {
+        const localPos = getLocalPos();
+        if (localPos) {
+          onPenClick(data.id, localPos.x, localPos.y);
+          return;
+        }
+      }
+
       onSelect(data.id, e.evt.shiftKey);
     },
-    [data.id, onSelect],
+    [data.id, onSelect, activeTool, onTextInsert, onPenClick, getLocalPos],
   );
 
   const handleDragEnd = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>) => {
+      // Only handle drag for the artboard group itself, not child elements
+      if (e.target !== groupRef.current) return;
       e.cancelBubble = true;
       const node = e.target;
       onDragEnd(data.id, node.x(), node.y());
@@ -163,6 +247,9 @@ const Artboard = ({
         resizeOriginRef.current;
       const dx = node.x() - startX;
       const dy = node.y() - startY;
+      const aspect = origW / origH;
+      // Default: constrained (keep aspect ratio). Hold Shift to free-resize.
+      const freeResize = e.evt.shiftKey;
 
       let newW = origW;
       let newH = origH;
@@ -172,29 +259,45 @@ const Artboard = ({
       // bottom-right (3): grow width/height
       if (cornerIdx === 3) {
         newW = Math.max(MIN_ARTBOARD_SIZE, origW + dx);
-        newH = Math.max(MIN_ARTBOARD_SIZE, origH + dy);
+        if (freeResize) {
+          newH = Math.max(MIN_ARTBOARD_SIZE, origH + dy);
+        } else {
+          newH = Math.max(MIN_ARTBOARD_SIZE, Math.round(newW / aspect));
+        }
       }
       // bottom-left (2): grow height, shrink width from left
       else if (cornerIdx === 2) {
         newW = Math.max(MIN_ARTBOARD_SIZE, origW - dx);
-        newH = Math.max(MIN_ARTBOARD_SIZE, origH + dy);
+        if (freeResize) {
+          newH = Math.max(MIN_ARTBOARD_SIZE, origH + dy);
+        } else {
+          newH = Math.max(MIN_ARTBOARD_SIZE, Math.round(newW / aspect));
+        }
         newAbX = origAbX + (origW - newW);
       }
       // top-right (1): grow width, shrink height from top
       else if (cornerIdx === 1) {
         newW = Math.max(MIN_ARTBOARD_SIZE, origW + dx);
-        newH = Math.max(MIN_ARTBOARD_SIZE, origH - dy);
+        if (freeResize) {
+          newH = Math.max(MIN_ARTBOARD_SIZE, origH - dy);
+        } else {
+          newH = Math.max(MIN_ARTBOARD_SIZE, Math.round(newW / aspect));
+        }
         newAbY = origAbY + (origH - newH);
       }
       // top-left (0): shrink both from top-left
       else if (cornerIdx === 0) {
         newW = Math.max(MIN_ARTBOARD_SIZE, origW - dx);
-        newH = Math.max(MIN_ARTBOARD_SIZE, origH - dy);
+        if (freeResize) {
+          newH = Math.max(MIN_ARTBOARD_SIZE, origH - dy);
+        } else {
+          newH = Math.max(MIN_ARTBOARD_SIZE, Math.round(newW / aspect));
+        }
         newAbX = origAbX + (origW - newW);
         newAbY = origAbY + (origH - newH);
       }
 
-      onResize(data.id, newW, newH, newAbX, newAbY);
+      onResize(data.id, Math.round(newW), Math.round(newH), Math.round(newAbX), Math.round(newAbY));
     },
     [data.id, onResize],
   );
@@ -207,6 +310,38 @@ const Artboard = ({
     [],
   );
 
+  // Sort layers by zIndex for render order
+  const sortedLayers = useMemo(
+    () => [...(data.layers ?? [])].sort((a, b) => a.zIndex - b.zIndex),
+    [data.layers],
+  );
+
+  const hasElements = sortedLayers.length > 0;
+  const hasElementSelection = !!selectedElementId;
+
+  const handleMouseDown = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>) => {
+      // Shape tools
+      if (isShapeTool && onShapeDrawStart) {
+        e.cancelBubble = true;
+        const localPos = getLocalPos();
+        if (localPos) {
+          onShapeDrawStart(data.id, localPos.x, localPos.y);
+        }
+        return;
+      }
+      // Brush tool
+      if (isBrushTool && onBrushDrawStart) {
+        e.cancelBubble = true;
+        const localPos = getLocalPos();
+        if (localPos) {
+          onBrushDrawStart(data.id, localPos.x, localPos.y);
+        }
+      }
+    },
+    [isShapeTool, isBrushTool, onShapeDrawStart, onBrushDrawStart, data.id, getLocalPos],
+  );
+
   const labelColor = data.kind === 'ai' ? AI_LABEL_COLOR : (isDark ? '#7BAAB8' : '#3D6A7A');
   const labelPrefix = data.kind === 'ai' ? '\u2726 ' : '';
   const handles = getHandlePositions(data.width, data.height);
@@ -216,11 +351,12 @@ const Artboard = ({
       ref={groupRef}
       x={data.x}
       y={data.y}
-      draggable
+      draggable={!isShapeTool && !isBrushTool && activeTool !== 'pen' && !hasElementSelection}
       onClick={handleClick}
       onTap={handleClick}
       onDragEnd={handleDragEnd}
       onContextMenu={handleContextMenu}
+      onMouseDown={handleMouseDown}
     >
       {/* Label above frame */}
       <Text
@@ -237,13 +373,13 @@ const Artboard = ({
         onDblTap={handleLabelDblClick}
       />
 
-      {/* White background frame with shadow */}
+      {/* Background frame with shadow */}
       <Rect
         x={0}
         y={0}
         width={data.width}
         height={data.height}
-        fill="#FFFFFF"
+        fill={data.backgroundColor}
         cornerRadius={4}
         shadowColor={FRAME_SHADOW_COLOR}
         shadowBlur={FRAME_SHADOW_BLUR}
@@ -252,24 +388,12 @@ const Artboard = ({
       />
 
       {/* Skeleton pulse while generating */}
-      {data.isGenerating && !image && (
+      {data.isGenerating && !hasElements && (
         <SkeletonPulse width={data.width} height={data.height} />
       )}
 
-      {/* Image inside frame */}
-      {image && (
-        <KonvaImage
-          x={0}
-          y={0}
-          width={data.width}
-          height={data.height}
-          image={image}
-          cornerRadius={4}
-        />
-      )}
-
-      {/* Placeholder when no image and not generating */}
-      {!image && !data.isGenerating && (
+      {/* Placeholder when no layers and not generating */}
+      {!data.isGenerating && !hasElements && (
         <Text
           x={0}
           y={data.height / 2 - 8}
@@ -282,8 +406,94 @@ const Artboard = ({
         />
       )}
 
-      {/* Selection border (dashed blue) */}
-      {isSelected && (
+      {/* Canvas element layers */}
+      {hasElements && onElementSelect && onElementDoubleClick && onElementUpdate && (
+        <Group
+          opacity={data.opacity / 100}
+          clipFunc={data.clipContent ? (ctx) => {
+            ctx.rect(0, 0, data.width, data.height);
+          } : undefined}
+        >
+          {sortedLayers.map((el) => {
+            const elSelected = selectedElementId === el.id;
+            const elFreeTransform = elSelected && isFreeTransform;
+            const commonProps = {
+              artboardId: data.id,
+              isSelected: elSelected,
+              isFreeTransform: elFreeTransform,
+              zoom,
+              onSelect: onElementSelect,
+              onDoubleClick: onElementDoubleClick,
+              onUpdate: handleElementDragEnd,
+              onDragMove: handleElementDragMove,
+            };
+
+            if (el.type === 'image') {
+              return (
+                <ImageLayer
+                  key={el.id}
+                  {...commonProps}
+                  element={el as CanvasElement<'image'>}
+                />
+              );
+            }
+            if (el.type === 'text') {
+              return (
+                <TextLayer
+                  key={el.id}
+                  {...commonProps}
+                  element={el as CanvasElement<'text'>}
+                />
+              );
+            }
+            if (el.type === 'shape') {
+              return (
+                <ShapeLayer
+                  key={el.id}
+                  {...commonProps}
+                  element={el as CanvasElement<'shape'>}
+                />
+              );
+            }
+            if (el.type === 'brush') {
+              return (
+                <BrushLayer
+                  key={el.id}
+                  {...commonProps}
+                  element={el as CanvasElement<'brush'>}
+                />
+              );
+            }
+            if (el.type === 'emoji') {
+              return (
+                <EmojiLayer
+                  key={el.id}
+                  {...commonProps}
+                  element={el as CanvasElement<'emoji'>}
+                />
+              );
+            }
+            return (
+              <ArtboardElement
+                key={el.id}
+                {...commonProps}
+                element={el}
+              />
+            );
+          })}
+        </Group>
+      )}
+
+      {/* Snap guide lines */}
+      <SnapGuides
+        guides={snapGuides.activeGuides}
+        artboardWidth={data.width}
+        artboardHeight={data.height}
+        zoom={zoom}
+      />
+
+      {/* Selection border (dashed blue) — only show artboard handles when no element is selected */}
+      {isSelected && !hasElementSelection && (
         <>
           <Rect
             x={-1}
@@ -315,6 +525,20 @@ const Artboard = ({
             />
           ))}
         </>
+      )}
+      {/* Subtle border when element selected (artboard implicitly active, no resize handles) */}
+      {isSelected && hasElementSelection && (
+        <Rect
+          x={-1}
+          y={-1}
+          width={data.width + 2}
+          height={data.height + 2}
+          stroke={SELECTION_STROKE}
+          strokeWidth={1 / zoom}
+          dash={[4, 6]}
+          opacity={0.5}
+          listening={false}
+        />
       )}
     </Group>
   );

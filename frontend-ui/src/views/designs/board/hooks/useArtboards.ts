@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useUpdateProjectMutation } from '@/store/designSlice';
-import type { ArtboardData, BackgroundColor, BoardLayout, DesignModel } from '../types';
+import type { ArtboardData, BackgroundColor, BoardLayout, CanvasElement, DesignModel } from '../types';
 
 // -----------------------------------------------------------------
 // Constants
@@ -71,6 +71,8 @@ interface UseArtboardsReturn {
   updateArtboard: (id: string, patch: Partial<ArtboardData>) => void;
   /** Resize an artboard (width/height) */
   resizeArtboard: (id: string, width: number, height: number) => void;
+  /** Replace all artboards and edges (used by undo/redo) */
+  replaceAll: (newArtboards: ArtboardData[], newEdges: BoardEdge[]) => void;
 }
 
 // -----------------------------------------------------------------
@@ -111,32 +113,62 @@ const useArtboards = ({
     if (!designs) return;
 
     const layoutNodes = savedLayout?.nodes ?? [];
-    const positionMap = new Map(layoutNodes.map((n) => [n.id, { x: n.x, y: n.y }]));
+    const nodeMap = new Map(layoutNodes.map((n) => [n.id, n]));
 
     const hydrated: ArtboardData[] = designs.map((d, i) => {
-      const pos = positionMap.get(d.id);
+      const saved = nodeMap.get(d.id);
       const run = d.generation_run;
       const isAi = !!run && !d.is_manual;
       const promptText = run?.prompt_used ?? '';
+      const imageUrl = d.image_file ?? null;
+      const savedLayers = (saved?.layers ?? []) as CanvasElement[];
+      const abWidth = saved?.width ?? DEFAULT_WIDTH;
+      const abHeight = saved?.height ?? DEFAULT_HEIGHT;
+
+      // Auto-create image layer if artboard has imageUrl but no image element in layers
+      let layers = savedLayers;
+      if (imageUrl && !savedLayers.some((l) => l.type === 'image')) {
+        const imgLayer: CanvasElement<'image'> = {
+          id: `img_${d.id}`,
+          type: 'image',
+          x: 0,
+          y: 0,
+          width: abWidth,
+          height: abHeight,
+          rotation: 0,
+          scaleX: 1,
+          scaleY: 1,
+          opacity: 1,
+          visible: true,
+          locked: false,
+          zIndex: 0,
+          name: 'Image',
+          props: { src: imageUrl, naturalWidth: abWidth, naturalHeight: abHeight },
+        };
+        layers = [imgLayer, ...savedLayers];
+      }
+
       return {
         id: d.id,
-        label: isAi
-          ? `AI: ${promptText.slice(0, 30)}${promptText.length > 30 ? '…' : ''}`
-          : `Artboard ${i + 1}`,
-        x: pos?.x ?? 80 + i * (DEFAULT_WIDTH + 60),
-        y: pos?.y ?? 80,
-        width: DEFAULT_WIDTH,
-        height: DEFAULT_HEIGHT,
-        imageUrl: d.image_file ?? null,
+        label: saved?.label
+          ?? (isAi
+            ? `AI: ${promptText.slice(0, 30)}${promptText.length > 30 ? '…' : ''}`
+            : `Artboard ${i + 1}`),
+        x: saved?.x ?? 80 + i * (DEFAULT_WIDTH + 60),
+        y: saved?.y ?? 80,
+        width: abWidth,
+        height: abHeight,
+        imageUrl,
         kind: isAi ? 'ai' as const : 'regular' as const,
         sourceId: null,
         designId: d.id,
-        opacity: 100,
-        backgroundColor: '#FFFFFF',
-        clipContent: false,
+        opacity: saved?.opacity ?? 100,
+        backgroundColor: saved?.backgroundColor ?? '#FFFFFF',
+        clipContent: saved?.clipContent ?? false,
         promptUsed: run?.prompt_used,
         modelUsed: run?.model_name as DesignModel | undefined,
         bgColorUsed: d.background_color as BackgroundColor | undefined,
+        layers,
       };
     });
 
@@ -156,7 +188,18 @@ const useArtboards = ({
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
 
       saveTimerRef.current = setTimeout(() => {
-        const nodes = boards.map((b) => ({ id: b.id, x: b.x, y: b.y }));
+        const nodes = boards.map((b) => ({
+          id: b.id,
+          x: b.x,
+          y: b.y,
+          label: b.label,
+          width: b.width,
+          height: b.height,
+          backgroundColor: b.backgroundColor,
+          opacity: b.opacity,
+          clipContent: b.clipContent,
+          layers: b.layers ?? [],
+        }));
         setEdges((latestEdges) => {
           const edgesToSave = currentEdges ?? latestEdges;
           void updateProject({
@@ -245,6 +288,7 @@ const useArtboards = ({
         opacity: partial?.opacity ?? 100,
         backgroundColor: partial?.backgroundColor ?? '#FFFFFF',
         clipContent: partial?.clipContent ?? false,
+        layers: partial?.layers ?? [],
         isGenerating: partial?.isGenerating ?? false,
         promptUsed: partial?.promptUsed,
         modelUsed: partial?.modelUsed,
@@ -280,6 +324,7 @@ const useArtboards = ({
         opacity: 100,
         backgroundColor: '#FFFFFF',
         clipContent: false,
+        layers: [],
       };
 
       const newEdge: BoardEdge = { source: sourceId, target: aiBoard.id };
@@ -316,6 +361,11 @@ const useArtboards = ({
         opacity: source.opacity,
         backgroundColor: source.backgroundColor,
         clipContent: source.clipContent,
+        layers: source.layers.map((el) => ({
+          ...el,
+          id: `el_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+          props: { ...el.props },
+        })),
       };
 
       setArtboards((prev) => {
@@ -404,6 +454,16 @@ const useArtboards = ({
     [persistLayout],
   );
 
+  // -- Replace all (undo/redo) --
+  const replaceAll = useCallback(
+    (newArtboards: ArtboardData[], newEdges: BoardEdge[]) => {
+      setArtboards(newArtboards);
+      setEdges(newEdges);
+      persistLayout(newArtboards, newEdges);
+    },
+    [persistLayout],
+  );
+
   return {
     artboards,
     edges,
@@ -421,6 +481,7 @@ const useArtboards = ({
     sendToBack,
     updateArtboard,
     resizeArtboard,
+    replaceAll,
   };
 };
 

@@ -194,6 +194,57 @@ export const designApi = createApi({
       },
     }),
 
+    // Save processed image — upload client-processed result to server
+    saveProcessedImage: builder.mutation<Design, { designId: string; file: File; projectId?: string }>({
+      query: ({ designId, file }) => {
+        const formData = new FormData();
+        formData.append('file', file);
+        return {
+          url: `/api/designs/${designId}/save-processed/`,
+          method: 'POST',
+          data: formData,
+        };
+      },
+      invalidatesTags: (_result, _error, { projectId }) => {
+        const tags: Array<{ type: 'DesignProject' | 'DesignProjectList'; id: string }> = [];
+        if (projectId) {
+          tags.push({ type: 'DesignProject', id: projectId });
+        }
+        return tags;
+      },
+    }),
+
+    // Delete a specific version of a design (original, processed, bg_removed, upscaled)
+    deleteDesignVersion: builder.mutation<Design, { designId: string; version: 'original' | 'processed' | 'bg_removed' | 'upscaled'; projectId?: string }>({
+      query: ({ designId, version }) => ({
+        url: `/api/designs/${designId}/delete-version/`,
+        method: 'POST',
+        data: { version },
+      }),
+      invalidatesTags: (_result, _error, { projectId }) => {
+        const tags: Array<{ type: 'DesignProject' | 'DesignProjectList'; id: string }> = [];
+        if (projectId) {
+          tags.push({ type: 'DesignProject', id: projectId });
+        }
+        return tags;
+      },
+    }),
+
+    // Revert design — delete processed files, keep original
+    revertDesign: builder.mutation<void, { designId: string; projectId?: string }>({
+      query: ({ designId }) => ({
+        url: `/api/designs/${designId}/revert/`,
+        method: 'POST',
+      }),
+      invalidatesTags: (_result, _error, { projectId }) => {
+        const tags: Array<{ type: 'DesignProject' | 'DesignProjectList'; id: string }> = [];
+        if (projectId) {
+          tags.push({ type: 'DesignProject', id: projectId });
+        }
+        return tags;
+      },
+    }),
+
     // Batch process (upscale + bg_remove)
     batchProcess: builder.mutation<DesignProcessingJob[], BatchProcessBody>({
       query: (body) => ({
@@ -439,6 +490,9 @@ export const {
   useGetRunStatusQuery,
   useUpdateDesignStatusMutation,
   useDeleteDesignMutation,
+  useRevertDesignMutation,
+  useDeleteDesignVersionMutation,
+  useSaveProcessedImageMutation,
   useBatchProcessMutation,
   useGetProcessingJobQuery,
   useListPipelinesQuery,

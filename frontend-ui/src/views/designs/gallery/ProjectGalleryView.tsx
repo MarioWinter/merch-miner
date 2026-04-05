@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Button, Grid, Skeleton, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
@@ -6,8 +6,9 @@ import AddIcon from '@mui/icons-material/Add';
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
-import { useListProjectsQuery, useCreateProjectMutation } from '@/store/designSlice';
+import { useListProjectsQuery, useCreateProjectMutation, useDeleteProjectMutation } from '@/store/designSlice';
 import { COLORS } from '@/style/constants';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import ProjectCard from './partials/ProjectCard';
 import CreateProjectDialog from './partials/CreateProjectDialog';
 
@@ -48,6 +49,7 @@ const ProjectGalleryView = () => {
   const { enqueueSnackbar } = useSnackbar();
 
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   const {
     data: projectData,
@@ -56,8 +58,9 @@ const ProjectGalleryView = () => {
   } = useListProjectsQuery();
 
   const [createProject, { isLoading: isCreating }] = useCreateProjectMutation();
+  const [deleteProject, { isLoading: isDeleting }] = useDeleteProjectMutation();
 
-  const projects = projectData?.results ?? [];
+  const projects = useMemo(() => projectData?.results ?? [], [projectData?.results]);
 
   const handleCreateProject = async (name: string, nicheId?: string) => {
     try {
@@ -77,6 +80,30 @@ const ProjectGalleryView = () => {
     navigate(`/designs/${projectId}`);
   };
 
+  const handleDeleteRequest = useCallback(
+    (projectId: string) => {
+      const proj = projects.find((p) => p.id === projectId);
+      setDeleteTarget(proj ? { id: proj.id, name: proj.name } : null);
+    },
+    [projects],
+  );
+
+  const handleDeleteConfirm = useCallback(async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteProject(deleteTarget.id).unwrap();
+      enqueueSnackbar(t('design.projects.deleteSuccess'), { variant: 'success' });
+    } catch {
+      enqueueSnackbar(t('design.projects.deleteError'), { variant: 'error' });
+    } finally {
+      setDeleteTarget(null);
+    }
+  }, [deleteTarget, deleteProject, enqueueSnackbar, t]);
+
+  const handleDeleteCancel = useCallback(() => {
+    setDeleteTarget(null);
+  }, []);
+
   // -- Loading state --
   if (isLoading) {
     return (
@@ -86,11 +113,11 @@ const ProjectGalleryView = () => {
           <Skeleton variant="rounded" width={140} height={36} />
         </PageHeader>
         <Grid container spacing={3}>
-          {Array.from({ length: 6 }).map((_, i) => (
-            <Grid key={i} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
+          {Array.from({ length: 12 }).map((_, i) => (
+            <Grid key={i} size={{ xs: 6, sm: 4, md: 3, lg: 2 }}>
               <SkeletonCard>
                 <Skeleton variant="rectangular" sx={{ aspectRatio: '4 / 3' }} />
-                <Box sx={{ p: 2 }}>
+                <Box sx={{ p: 1.5 }}>
                   <Skeleton variant="text" width="70%" />
                   <Skeleton variant="text" width="40%" />
                 </Box>
@@ -168,8 +195,12 @@ const ProjectGalleryView = () => {
 
       <Grid container spacing={3}>
         {projects.map((project) => (
-          <Grid key={project.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
-            <ProjectCard project={project} onClick={handleCardClick} />
+          <Grid key={project.id} size={{ xs: 6, sm: 4, md: 3, lg: 2 }}>
+            <ProjectCard
+              project={project}
+              onClick={handleCardClick}
+              onDelete={handleDeleteRequest}
+            />
           </Grid>
         ))}
       </Grid>
@@ -179,6 +210,19 @@ const ProjectGalleryView = () => {
         onClose={() => setDialogOpen(false)}
         onSubmit={handleCreateProject}
         isSubmitting={isCreating}
+      />
+
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title={t('design.projects.deleteDialogTitle', 'Delete Project')}
+        body={t('design.projects.deleteDialogBody', {
+          name: deleteTarget?.name ?? '',
+        })}
+        confirmLabel={t('design.projects.deleteConfirm', 'Delete')}
+        cancelLabel={t('design.projects.deleteCancel', 'Cancel')}
+        onConfirm={handleDeleteConfirm}
+        onCancel={handleDeleteCancel}
+        isLoading={isDeleting}
       />
     </Box>
   );

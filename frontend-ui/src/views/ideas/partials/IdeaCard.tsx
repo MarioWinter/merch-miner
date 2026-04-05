@@ -59,14 +59,8 @@ const CardRoot = styled(Box, {
   border: `1px ${isOrphan ? 'dashed' : 'solid'} ${theme.vars.palette.divider}`,
   borderRadius: 12,
   padding: theme.spacing(2),
-  transition: 'border-color 150ms ease',
+  backgroundColor: theme.vars.palette.background.paper,
   ...(indented && { marginLeft: theme.spacing(4) }),
-  '&:hover': {
-    borderColor: alpha(COLORS.white, 0.14),
-    ...theme.applyStyles('light', {
-      borderColor: alpha(COLORS.ink, 0.14),
-    }),
-  },
 }));
 
 export const IdeaCard = ({

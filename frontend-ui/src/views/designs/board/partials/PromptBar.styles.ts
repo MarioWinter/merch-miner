@@ -15,10 +15,12 @@ export const BarRoot = styled(Box, {
 })<{ $expanded: boolean }>(({ theme, $expanded }) => ({
   position: 'absolute',
   bottom: BOTTOM_TOOLBAR_HEIGHT + 8, // sits above BottomToolbar with 8px gap
-  left: 16,
-  right: 16,
+  left: '50%',
+  transform: 'translateX(-50%)',
+  width: '100%',
+  maxWidth: 560,
   zIndex: 10,
-  background: 'rgba(11,39,49, 0.92)',
+  background: alpha(COLORS.ink, 0.92),
   backdropFilter: 'blur(16px)',
   border: '1px solid rgba(255,255,255,0.10)',
   borderRadius: 16,

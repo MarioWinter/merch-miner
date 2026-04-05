@@ -701,7 +701,41 @@
     },
     "canvas": {
       "emptyTitle": "Drop images here or create a design",
-      "emptyDescription": "Use the prompt bar below to generate AI designs"
+      "emptyDescription": "Use the prompt bar below to generate AI designs",
+      "text": {
+        "fontFamily": "Font",
+        "fontSize": "Size",
+        "bold": "Bold",
+        "italic": "Italic",
+        "color": "Color",
+        "align": "Alignment",
+        "letterSpacing": "Letter Spacing",
+        "lineHeight": "Line Height",
+        "outline": "Outline",
+        "shadow": "Shadow",
+        "arc": "Curved Text",
+        "arcAngle": "Arc Angle",
+        "strokeWidth": "Stroke Width",
+        "shadowBlur": "Blur",
+        "shadowOffset": "Offset",
+        "placeholder": "Type here"
+      },
+      "shapes": {
+        "fill": "Fill",
+        "stroke": "Stroke",
+        "strokeWidth": "Stroke Width",
+        "cornerRadius": "Corner Radius",
+        "pen": "Pen",
+        "rectangle": "Rectangle",
+        "ellipse": "Ellipse",
+        "triangle": "Triangle",
+        "line": "Line"
+      },
+      "brush": {
+        "color": "Color",
+        "size": "Brush Size",
+        "smoothing": "Smoothing"
+      }
     },
     "board": {
       "title": "Design Forge",
@@ -754,10 +788,7 @@
     },
     "model": {
       "label": "AI Model",
-      "gemini_flash": "Gemini Flash",
-      "gemini_pro": "Gemini Pro",
-      "gpt_image": "GPT Image",
-      "flux": "Flux"
+      "placeholder": "Select model"
     },
     "background": {
       "label": "Background Color",
@@ -851,6 +882,12 @@
       },
       "removeFromBatch": "Remove from batch",
       "deletePermanently": "Delete permanently",
+      "deleteProcessed": "Delete processed version",
+      "deleteOriginal": "Delete original",
+      "deleteVersionSuccess": "Version deleted",
+      "deleteVersionError": "Delete failed",
+      "revertSuccess": "Reverted to original",
+      "revertError": "Revert failed",
       "deleteServerDialogTitle": "Delete Design",
       "deleteServerDialogBody": "\"{{name}}\" will be permanently deleted from the server. This cannot be undone.",
       "deleteServerConfirm": "Delete",
@@ -1074,6 +1111,26 @@
         "processing": "Processing..."
       },
       "aiUpscale": "AI Upscale",
+      "upscaleParams": {
+        "mode": "Upscale Mode",
+        "modeAuto": "Auto",
+        "modeClient": "Client",
+        "modeServer": "Server",
+        "autoClientHint": "Image is large enough — using Pica.js (client-side, instant)",
+        "autoServerHint": "Image is small — using AI upscale API (server-side)",
+        "currentSize": "Current: {{w}} x {{h}} px",
+        "targetDimensions": "Target Dimensions",
+        "width": "Width",
+        "height": "Height",
+        "filter": "Resampling Filter",
+        "filterLanczos3": "Lanczos3 (highest quality)",
+        "filterLanczos2": "Lanczos2 (fast)",
+        "filterMks2013": "MKS 2013 (sharp + resize)",
+        "runNow": "Upscale Now",
+        "processing": "Upscaling...",
+        "thresholdInfo": "Auto mode: Pica.js for images >= {{threshold}}px, AI API for smaller",
+        "compare": "Compare Original"
+      },
       "transparencyHighlighter": "Transp. Highlighter",
       "transparencyHighlighterParams": {
         "highlightColor": "Highlight Color",
@@ -1124,7 +1181,17 @@
       "formatZip": "PNG files bundled as ZIP",
       "quality": "Quality",
       "exporting": "Exporting...",
-      "download": "Download"
+      "download": "Download",
+      "advanced": "Advanced Export",
+      "formatPngShort": "PNG",
+      "formatJpeg": "JPEG",
+      "formatWebp": "WebP",
+      "resolution": "Resolution",
+      "dimensions": "{{width}} \u00d7 {{height}} px",
+      "downloadZip": "Download All (ZIP)",
+      "creatingZip": "Creating ZIP...",
+      "totalSize": "Estimated total: {{size}}",
+      "imageCount": "{{count}} images"
     },
     "contextMenu": {
       "addAiBoard": "Add AI Image Board",
@@ -1259,7 +1326,11 @@
       "searchPlaceholder": "Search project...",
       "projectColors": "Project Colors",
       "noColors": "No colors extracted yet",
+      "name": "Name",
+      "namePlaceholder": "Artboard name",
       "size": "Size",
+      "lockAspect": "Lock aspect ratio",
+      "unlockAspect": "Unlock aspect ratio",
       "layer": "Layer",
       "opacity": "Op",
       "opacityLabel": "Opacity",
@@ -1281,6 +1352,44 @@
         "reframe": "Reframe",
         "bgRemove": "BG Remove"
       }
+    },
+    "cloud": {
+      "title": "Cloud Storage",
+      "googleDrive": "Google Drive",
+      "oneDrive": "OneDrive",
+      "connect": "Connect",
+      "connecting": "Connecting...",
+      "connected": "Connected",
+      "disconnect": "Disconnect",
+      "disconnectedHint": "Connect your cloud storage to browse and import images",
+      "browseFiles": "Browse Files",
+      "selectedFiles_one": "{{count}} selected",
+      "selectedFiles_other": "{{count}} selected",
+      "noFiles": "No files found",
+      "download": "Download",
+      "useForAi": "Use for AI",
+      "uploadToBatch": "Upload from Batch",
+      "uploadToCloud": "Upload batch images to this folder",
+      "selectFolder": "Select folder",
+      "notConfigured": "Not Configured",
+      "notConfiguredHint": "Add the required API keys in your environment variables to enable this provider",
+      "authError": "Authentication failed",
+      "fetchError": "Failed to load files",
+      "uploading": "Uploading...",
+      "uploadSuccess": "Upload complete",
+      "uploadError": "Upload failed",
+      "fileCount_one": "{{count}} image",
+      "fileCount_other": "{{count}} images",
+      "folderPath": "Folder",
+      "fileName": "File",
+      "fileSize": "Size",
+      "selectAll": "Select all",
+      "deselectAll": "Deselect all",
+      "noImages": "No images found in this folder",
+      "breadcrumbRoot": "My Drive",
+      "fullscreen": "Fullscreen",
+      "exitFullscreen": "Exit fullscreen",
+      "importFromCloud": "Import from Cloud"
     }
   },
   "keywords": {
@@ -1706,7 +1815,9 @@
   },
   "common": {
     "close": "Close",
-    "retry": "Retry"
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "save": "Save"
   },
   "search": {
     "chatBar": {

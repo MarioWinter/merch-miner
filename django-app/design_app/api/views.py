@@ -449,6 +449,7 @@ class BatchProcessView(APIView):
 
         design_ids = serializer.validated_data['design_ids']
         steps = serializer.validated_data['steps']
+        model_name = request.data.get('model', '')
 
         # Validate all designs belong to workspace
         designs = Design.objects.filter(
@@ -475,7 +476,7 @@ class BatchProcessView(APIView):
                 if step == 'upscale':
                     rq_job = queue.enqueue(task_upscale_design, str(job_record.id))
                 elif step == 'bg_remove':
-                    rq_job = queue.enqueue(task_remove_background, str(job_record.id))
+                    rq_job = queue.enqueue(task_remove_background, str(job_record.id), model_name=model_name)
                 else:
                     continue
 
@@ -998,6 +999,130 @@ class ProductAnalyzeImageView(APIView):
             },
             status=status.HTTP_202_ACCEPTED,
         )
+
+
+# -- Revert to Original --
+
+class DesignRevertView(APIView):
+    """POST /api/designs/{id}/revert/ — delete processed files, revert to original."""
+
+    def post(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        design = get_object_or_404(Design, pk=pk, workspace_id=ws_id)
+
+        has_bg = bool(design.bg_removed_file)
+        has_upscaled = bool(design.upscaled_file)
+        has_processed = bool(design.processed_file)
+
+        if not has_bg and not has_upscaled and not has_processed:
+            return Response(
+                {'error': 'No processed files to revert.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Delete files from disk
+        if has_bg:
+            design.bg_removed_file.delete(save=False)
+        if has_upscaled:
+            design.upscaled_file.delete(save=False)
+        if has_processed:
+            design.processed_file.delete(save=False)
+
+        # Clear DB fields
+        design.bg_removed_file = ''
+        design.upscaled_file = ''
+        design.processed_file = ''
+        design.save(update_fields=['bg_removed_file', 'upscaled_file', 'processed_file'])
+
+        return Response(DesignSerializer(design).data)
+
+
+# -- Save Processed Image --
+
+ALLOWED_IMAGE_TYPES = {'image/png', 'image/jpeg', 'image/webp'}
+MAX_UPLOAD_SIZE = 25 * 1024 * 1024  # 25 MB
+
+
+class DesignSaveProcessedView(APIView):
+    """POST /api/designs/{id}/save-processed/ — save processed upload to processed_file."""
+
+    def post(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        design = get_object_or_404(Design, pk=pk, workspace_id=ws_id)
+
+        uploaded = request.FILES.get('file')
+        if not uploaded:
+            raise DRFValidationError({'file': 'No file provided.'})
+
+        if uploaded.content_type not in ALLOWED_IMAGE_TYPES:
+            raise DRFValidationError(
+                {'file': f'Invalid type {uploaded.content_type}. Allowed: png, jpeg, webp.'},
+            )
+
+        if uploaded.size > MAX_UPLOAD_SIZE:
+            raise DRFValidationError(
+                {'file': f'File too large ({uploaded.size} bytes). Max 25 MB.'},
+            )
+
+        # Delete old processed file from disk (not image_file — that stays as original)
+        if design.processed_file:
+            design.processed_file.delete(save=False)
+
+        # Save new file to processed_file
+        design.processed_file = uploaded
+        design.save(update_fields=['processed_file'])
+
+        return Response(DesignSerializer(design).data)
+
+
+# -- Delete Specific Version --
+
+VERSION_FIELD_MAP = {
+    'original': 'image_file',
+    'processed': 'processed_file',
+    'bg_removed': 'bg_removed_file',
+    'upscaled': 'upscaled_file',
+}
+
+
+class DesignDeleteVersionView(APIView):
+    """POST /api/designs/{id}/delete-version/ — delete a specific file version."""
+
+    def post(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        design = get_object_or_404(Design, pk=pk, workspace_id=ws_id)
+
+        version = request.data.get('version')
+        if version not in VERSION_FIELD_MAP:
+            raise DRFValidationError(
+                {'version': f'Invalid version "{version}". '
+                            f'Allowed: {", ".join(VERSION_FIELD_MAP.keys())}.'},
+            )
+
+        field_name = VERSION_FIELD_MAP[version]
+        file_field = getattr(design, field_name)
+
+        if not file_field:
+            return Response(
+                {'error': f'No {version} file exists for this design.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Delete file from disk and clear field
+        file_field.delete(save=False)
+        setattr(design, field_name, '')
+        design.save(update_fields=[field_name])
+
+        return Response(DesignSerializer(design).data)
 
 
 # -- Manual Upload to Project (Artboard Canvas) --

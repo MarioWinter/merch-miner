@@ -223,6 +223,11 @@ class Design(models.Model):
         blank=True,
         default='',
     )
+    processed_file = models.FileField(
+        upload_to='designs/processed/%Y/%m/',
+        blank=True,
+        default='',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

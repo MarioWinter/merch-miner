@@ -2,13 +2,23 @@ import { Box, Stack } from '@mui/material';
 import { styled, alpha } from '@mui/material/styles';
 import { COLORS, DURATION, EASING } from '@/style/constants';
 
-export const WorkspaceRoot = styled(Box)({
+export const WorkspaceRoot = styled(Box)(({ theme }) => ({
   display: 'flex',
   flexDirection: 'column',
-  height: 'calc(100vh - 56px)',
-  margin: '-24px',
+  height: 'calc(100dvh - 56px)',
+  marginTop: theme.spacing(-3),
+  marginBottom: theme.spacing(-3),
+  marginLeft: 0,
+  marginRight: theme.spacing(-3),
+  width: `calc(100% + ${theme.spacing(3)})`,
+  maxHeight: 'calc(100dvh - 56px)',
   overflow: 'hidden',
-});
+  // Background now matches parent (COLORS.ink) — no left-padding gap compensation needed
+  backgroundColor: COLORS.ink,
+  ...theme.applyStyles('light', {
+    backgroundColor: COLORS.white,
+  }),
+}));
 
 export const HeaderBar = styled(Stack)(({ theme }) => ({
   flexDirection: 'row',
@@ -20,7 +30,7 @@ export const HeaderBar = styled(Stack)(({ theme }) => ({
   paddingRight: theme.spacing(2),
   borderBottom: '1px solid',
   borderColor: theme.vars.palette.divider,
-  backgroundColor: COLORS.inkPaper,
+  backgroundColor: COLORS.ink,
   ...theme.applyStyles('light', {
     backgroundColor: COLORS.white,
   }),

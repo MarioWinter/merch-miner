@@ -26,7 +26,6 @@ export type ToolName =
   | 'bg_remove'
   | 'ai_upscale'
   // Quality
-  | 'transparency_highlighter'
   | 'compressor';
 
 export interface ToolDefinition {
@@ -98,6 +97,8 @@ export interface BatchImage {
   designId?: string;
   processedUrl?: string;
   errorMessage?: string;
+  /** Original image URL (before any server processing) for "show original" toggle */
+  originalUrl?: string;
 }
 
 // --- Canvas Tool Types ---
@@ -115,11 +116,12 @@ export interface CanvasToolState {
 
 // --- Export Types ---
 
-export type ExportFormat = 'png';
+export type ExportFormat = 'png' | 'jpeg' | 'webp';
 
 export interface ExportSettings {
   format: ExportFormat;
   dpi: number;
+  /** For PNG: compression level (0-100). For JPEG/WebP: quality (0-100). */
   compression: number;
   overwriteOriginal: boolean;
 }
@@ -146,7 +148,6 @@ export const TOOL_CATALOG: ToolDefinition[] = [
   { name: 'bg_remove', category: 'ai', labelKey: 'design.tools.bgRemove', iconName: 'ContentCut' },
   { name: 'ai_upscale', category: 'ai', labelKey: 'design.tools.aiUpscale', iconName: 'ZoomIn' },
   // Quality
-  { name: 'transparency_highlighter', category: 'quality', labelKey: 'design.tools.transparencyHighlighter', iconName: 'Visibility' },
   { name: 'compressor', category: 'quality', labelKey: 'design.tools.compressor', iconName: 'Compress' },
 ];
 

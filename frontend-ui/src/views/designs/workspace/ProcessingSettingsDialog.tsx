@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -67,23 +67,23 @@ const ProcessingSettingsDialog = ({ open, onClose }: ProcessingSettingsDialogPro
   const { data: settings, isLoading, error } = useGetProcessingSettingsQuery(undefined, { skip: !open });
   const [updateSettings, { isLoading: isSaving }] = useUpdateProcessingSettingsMutation();
 
-  // Local form state
+  // Local form state — sync from server data during render (no useEffect)
   const [bgProvider, setBgProvider] = useState<'rembg' | 'api'>('rembg');
   const [bgApiKey, setBgApiKey] = useState('');
   const [upscaleProvider, setUpscaleProvider] = useState<'pica' | 'api' | 'auto'>('auto');
   const [upscaleApiKey, setUpscaleApiKey] = useState('');
   const [autoThreshold, setAutoThreshold] = useState(3000);
 
-  // Sync server state → local state when data loads
-  useEffect(() => {
-    if (settings) {
-      setBgProvider(settings.bg_removal_provider);
-      setBgApiKey('');
-      setUpscaleProvider(settings.upscale_provider);
-      setUpscaleApiKey('');
-      setAutoThreshold(settings.upscale_auto_threshold);
-    }
-  }, [settings]);
+  // Track which settings version we've synced to avoid re-syncing
+  const syncedSettingsRef = useRef<typeof settings>(undefined);
+  if (settings && settings !== syncedSettingsRef.current) {
+    syncedSettingsRef.current = settings;
+    setBgProvider(settings.bg_removal_provider);
+    setBgApiKey('');
+    setUpscaleProvider(settings.upscale_provider);
+    setUpscaleApiKey('');
+    setAutoThreshold(settings.upscale_auto_threshold);
+  }
 
   const handleSave = async () => {
     const body: UpdateProcessingSettingsBody = {

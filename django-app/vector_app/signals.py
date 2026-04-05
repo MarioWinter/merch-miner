@@ -21,11 +21,9 @@ def _get_embeddable_models():
 
     models = []
 
-    try:
-        from niche_app.models import Niche
-        models.append(Niche)
-    except ImportError:
-        pass
+    # Niche excluded: name-only embedding is low-value.
+    # Niche research results (NicheAnalysis etc.) are embedded instead —
+    # they contain the actual AI-generated insights.
 
     try:
         from niche_research_app.models import (

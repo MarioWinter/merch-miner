@@ -736,10 +736,7 @@
     },
     "model": {
       "label": "KI-Modell",
-      "gemini_flash": "Gemini Flash",
-      "gemini_pro": "Gemini Pro",
-      "gpt_image": "GPT Image",
-      "flux": "Flux"
+      "placeholder": "Modell auswählen"
     },
     "background": {
       "label": "Hintergrundfarbe",
@@ -1058,6 +1055,26 @@
         "runNow": "Hintergrund entfernen",
         "processing": "Wird verarbeitet..."
       },
+      "upscaleParams": {
+        "mode": "Hochskalierungsmodus",
+        "modeAuto": "Auto",
+        "modeClient": "Client",
+        "modeServer": "Server",
+        "autoClientHint": "Bild ist gross genug — Pica.js wird verwendet (clientseitig, sofort)",
+        "autoServerHint": "Bild ist klein — KI-Upscale-API wird verwendet (serverseitig)",
+        "currentSize": "Aktuell: {{w}} x {{h}} px",
+        "targetDimensions": "Zielabmessungen",
+        "width": "Breite",
+        "height": "Hoehe",
+        "filter": "Resampling-Filter",
+        "filterLanczos3": "Lanczos3 (hoechste Qualitaet)",
+        "filterLanczos2": "Lanczos2 (schnell)",
+        "filterMks2013": "MKS 2013 (scharf + Groessenaenderung)",
+        "runNow": "Jetzt hochskalieren",
+        "processing": "Wird hochskaliert...",
+        "thresholdInfo": "Auto-Modus: Pica.js fuer Bilder >= {{threshold}}px, KI-API fuer kleinere",
+        "compare": "Original vergleichen"
+      },
       "transparencyHighlighter": "Transp.-Hervorhebung",
       "transparencyHighlighterParams": {
         "highlightColor": "Hervorhebungsfarbe",
@@ -1104,7 +1121,17 @@
       "formatZip": "PNG-Dateien als ZIP",
       "quality": "Qualitaet",
       "exporting": "Wird exportiert...",
-      "download": "Herunterladen"
+      "download": "Herunterladen",
+      "advanced": "Erweiterter Export",
+      "formatPngShort": "PNG",
+      "formatJpeg": "JPEG",
+      "formatWebp": "WebP",
+      "resolution": "Aufloesung",
+      "dimensions": "{{width}} \u00d7 {{height}} px",
+      "downloadZip": "Alle herunterladen (ZIP)",
+      "creatingZip": "ZIP wird erstellt...",
+      "totalSize": "Geschaetzte Gesamtgroesse: {{size}}",
+      "imageCount": "{{count}} Bilder"
     },
     "contextMenu": {
       "addAiBoard": "KI-Bildboard hinzufuegen",
@@ -1192,7 +1219,41 @@
       "deleteConfirm": "Loeschen",
       "deleteCancel": "Abbrechen",
       "deleteSuccess": "Designs geloescht",
-      "deleteError": "Designs konnten nicht geloescht werden"
+      "deleteError": "Designs konnten nicht geloescht werden",
+      "text": {
+        "fontFamily": "Schriftart",
+        "fontSize": "Groesse",
+        "bold": "Fett",
+        "italic": "Kursiv",
+        "color": "Farbe",
+        "align": "Ausrichtung",
+        "letterSpacing": "Zeichenabstand",
+        "lineHeight": "Zeilenhoehe",
+        "outline": "Umriss",
+        "shadow": "Schatten",
+        "arc": "Gebogener Text",
+        "arcAngle": "Bogenwinkel",
+        "strokeWidth": "Strichstaerke",
+        "shadowBlur": "Weichzeichnung",
+        "shadowOffset": "Versatz",
+        "placeholder": "Hier tippen"
+      },
+      "shapes": {
+        "fill": "Fuellung",
+        "stroke": "Kontur",
+        "strokeWidth": "Strichstaerke",
+        "cornerRadius": "Eckenradius",
+        "pen": "Stift",
+        "rectangle": "Rechteck",
+        "ellipse": "Ellipse",
+        "triangle": "Dreieck",
+        "line": "Linie"
+      },
+      "brush": {
+        "color": "Farbe",
+        "size": "Pinselgroesse",
+        "smoothing": "Glaettung"
+      }
     },
     "settings": {
       "title": "Verarbeitungseinstellungen",
@@ -1239,7 +1300,11 @@
       "searchPlaceholder": "Projekt durchsuchen...",
       "projectColors": "Projektfarben",
       "noColors": "Noch keine Farben extrahiert",
+      "name": "Name",
+      "namePlaceholder": "Artboard-Name",
       "size": "Groesse",
+      "lockAspect": "Seitenverhaeltnis sperren",
+      "unlockAspect": "Seitenverhaeltnis entsperren",
       "layer": "Ebene",
       "opacity": "Op",
       "opacityLabel": "Deckkraft",
@@ -1275,6 +1340,44 @@
       "generate": "Generieren",
       "generating": "Wird generiert...",
       "regenerate": "Regenerieren"
+    },
+    "cloud": {
+      "title": "Cloud-Speicher",
+      "googleDrive": "Google Drive",
+      "oneDrive": "OneDrive",
+      "connect": "Verbinden",
+      "connecting": "Verbindung wird hergestellt...",
+      "connected": "Verbunden",
+      "disconnect": "Trennen",
+      "disconnectedHint": "Verbinde deinen Cloud-Speicher, um Bilder zu durchsuchen und zu importieren",
+      "browseFiles": "Dateien durchsuchen",
+      "selectedFiles_one": "{{count}} ausgewaehlt",
+      "selectedFiles_other": "{{count}} ausgewaehlt",
+      "noFiles": "Keine Dateien gefunden",
+      "download": "Herunterladen",
+      "useForAi": "Fuer KI verwenden",
+      "uploadToBatch": "Aus Stapel hochladen",
+      "uploadToCloud": "Stapelbilder in diesen Ordner hochladen",
+      "selectFolder": "Ordner auswaehlen",
+      "notConfigured": "Nicht konfiguriert",
+      "notConfiguredHint": "Fuege die erforderlichen API-Schluessel in deinen Umgebungsvariablen hinzu, um diesen Anbieter zu aktivieren",
+      "authError": "Authentifizierung fehlgeschlagen",
+      "fetchError": "Dateien konnten nicht geladen werden",
+      "uploading": "Wird hochgeladen...",
+      "uploadSuccess": "Upload abgeschlossen",
+      "uploadError": "Upload fehlgeschlagen",
+      "fileCount_one": "{{count}} Bild",
+      "fileCount_other": "{{count}} Bilder",
+      "folderPath": "Ordner",
+      "fileName": "Datei",
+      "fileSize": "Groesse",
+      "selectAll": "Alle auswaehlen",
+      "deselectAll": "Alle abwaehlen",
+      "noImages": "Keine Bilder in diesem Ordner gefunden",
+      "breadcrumbRoot": "Mein Laufwerk",
+      "fullscreen": "Vollbild",
+      "exitFullscreen": "Vollbild beenden",
+      "importFromCloud": "Aus Cloud importieren"
     }
   },
   "keywords": {
@@ -2003,6 +2106,8 @@
   },
   "common": {
     "close": "Schliessen",
-    "retry": "Erneut versuchen"
+    "retry": "Erneut versuchen",
+    "cancel": "Abbrechen",
+    "save": "Speichern"
   }
 }

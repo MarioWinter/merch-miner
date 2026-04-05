@@ -723,10 +723,7 @@
     },
     "model": {
       "label": "Modelo IA",
-      "gemini_flash": "Gemini Flash",
-      "gemini_pro": "Gemini Pro",
-      "gpt_image": "GPT Image",
-      "flux": "Flux"
+      "placeholder": "Seleccionar modelo"
     },
     "background": {
       "label": "Color de fondo",
@@ -1045,6 +1042,26 @@
         "runNow": "Eliminar fondo",
         "processing": "Procesando..."
       },
+      "upscaleParams": {
+        "mode": "Modo de escalado",
+        "modeAuto": "Auto",
+        "modeClient": "Cliente",
+        "modeServer": "Servidor",
+        "autoClientHint": "Imagen suficientemente grande — usando Pica.js (lado cliente, instantaneo)",
+        "autoServerHint": "Imagen pequena — usando API de escalado IA (lado servidor)",
+        "currentSize": "Actual: {{w}} x {{h}} px",
+        "targetDimensions": "Dimensiones objetivo",
+        "width": "Ancho",
+        "height": "Alto",
+        "filter": "Filtro de remuestreo",
+        "filterLanczos3": "Lanczos3 (maxima calidad)",
+        "filterLanczos2": "Lanczos2 (rapido)",
+        "filterMks2013": "MKS 2013 (nitido + redimension)",
+        "runNow": "Escalar ahora",
+        "processing": "Escalando...",
+        "thresholdInfo": "Modo auto: Pica.js para imagenes >= {{threshold}}px, API IA para menores",
+        "compare": "Comparar original"
+      },
       "transparencyHighlighter": "Resaltador transp.",
       "transparencyHighlighterParams": {
         "highlightColor": "Color de resaltado",
@@ -1091,7 +1108,17 @@
       "formatZip": "Archivos PNG en ZIP",
       "quality": "Calidad",
       "exporting": "Exportando...",
-      "download": "Descargar"
+      "download": "Descargar",
+      "advanced": "Exportacion avanzada",
+      "formatPngShort": "PNG",
+      "formatJpeg": "JPEG",
+      "formatWebp": "WebP",
+      "resolution": "Resolucion",
+      "dimensions": "{{width}} \u00d7 {{height}} px",
+      "downloadZip": "Descargar todo (ZIP)",
+      "creatingZip": "Creando ZIP...",
+      "totalSize": "Total estimado: {{size}}",
+      "imageCount": "{{count}} imagenes"
     },
     "contextMenu": {
       "addAiBoard": "Agregar tablero IA",
@@ -1179,7 +1206,41 @@
       "deleteConfirm": "Eliminar",
       "deleteCancel": "Cancelar",
       "deleteSuccess": "Disenos eliminados",
-      "deleteError": "No se pudieron eliminar los disenos"
+      "deleteError": "No se pudieron eliminar los disenos",
+      "text": {
+        "fontFamily": "Fuente",
+        "fontSize": "Tamano",
+        "bold": "Negrita",
+        "italic": "Cursiva",
+        "color": "Color",
+        "align": "Alineacion",
+        "letterSpacing": "Espaciado de letras",
+        "lineHeight": "Altura de linea",
+        "outline": "Contorno",
+        "shadow": "Sombra",
+        "arc": "Texto curvado",
+        "arcAngle": "Angulo de arco",
+        "strokeWidth": "Grosor del trazo",
+        "shadowBlur": "Desenfoque",
+        "shadowOffset": "Desplazamiento",
+        "placeholder": "Escribe aqui"
+      },
+      "shapes": {
+        "fill": "Relleno",
+        "stroke": "Trazo",
+        "strokeWidth": "Grosor del trazo",
+        "cornerRadius": "Radio de esquina",
+        "pen": "Pluma",
+        "rectangle": "Rectangulo",
+        "ellipse": "Elipse",
+        "triangle": "Triangulo",
+        "line": "Linea"
+      },
+      "brush": {
+        "color": "Color",
+        "size": "Tamano del pincel",
+        "smoothing": "Suavizado"
+      }
     },
     "settings": {
       "title": "Configuracion de procesamiento",
@@ -1226,7 +1287,11 @@
       "searchPlaceholder": "Buscar en el proyecto...",
       "projectColors": "Colores del proyecto",
       "noColors": "Sin colores extraidos",
+      "name": "Nombre",
+      "namePlaceholder": "Nombre del artboard",
       "size": "Tamano",
+      "lockAspect": "Bloquear proporcion",
+      "unlockAspect": "Desbloquear proporcion",
       "layer": "Capa",
       "opacity": "Op",
       "opacityLabel": "Opacidad",
@@ -1262,6 +1327,44 @@
       "generate": "Generar",
       "generating": "Generando...",
       "regenerate": "Regenerar"
+    },
+    "cloud": {
+      "title": "Almacenamiento en la nube",
+      "googleDrive": "Google Drive",
+      "oneDrive": "OneDrive",
+      "connect": "Conectar",
+      "connecting": "Conectando...",
+      "connected": "Conectado",
+      "disconnect": "Desconectar",
+      "disconnectedHint": "Conecta tu almacenamiento en la nube para explorar e importar imagenes",
+      "browseFiles": "Explorar archivos",
+      "selectedFiles_one": "{{count}} seleccionado",
+      "selectedFiles_other": "{{count}} seleccionados",
+      "noFiles": "No se encontraron archivos",
+      "download": "Descargar",
+      "useForAi": "Usar para IA",
+      "uploadToBatch": "Subir desde el lote",
+      "uploadToCloud": "Subir imagenes del lote a esta carpeta",
+      "selectFolder": "Seleccionar carpeta",
+      "notConfigured": "No configurado",
+      "notConfiguredHint": "Agrega las claves API requeridas en tus variables de entorno para habilitar este proveedor",
+      "authError": "Error de autenticacion",
+      "fetchError": "No se pudieron cargar los archivos",
+      "uploading": "Subiendo...",
+      "uploadSuccess": "Subida completada",
+      "uploadError": "Error al subir",
+      "fileCount_one": "{{count}} imagen",
+      "fileCount_other": "{{count}} imagenes",
+      "folderPath": "Carpeta",
+      "fileName": "Archivo",
+      "fileSize": "Tamano",
+      "selectAll": "Seleccionar todo",
+      "deselectAll": "Deseleccionar todo",
+      "noImages": "No se encontraron imagenes en esta carpeta",
+      "breadcrumbRoot": "Mi unidad",
+      "fullscreen": "Pantalla completa",
+      "exitFullscreen": "Salir de pantalla completa",
+      "importFromCloud": "Importar desde la nube"
     }
   },
   "keywords": {
@@ -1425,5 +1528,11 @@
       "error": "Error al extraer el slogan",
       "noImage": "No hay imagen del producto disponible"
     }
+  },
+  "common": {
+    "close": "Cerrar",
+    "retry": "Reintentar",
+    "cancel": "Cancelar",
+    "save": "Guardar"
   }
 }

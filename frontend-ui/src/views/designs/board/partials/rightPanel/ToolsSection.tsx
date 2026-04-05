@@ -58,13 +58,14 @@ const SectionLabel = styled(Typography)(({ theme }) => ({
 interface ToolsSectionProps {
   showRegenerate?: boolean;
   onRegenerate?: () => void;
+  onBgRemove?: () => void;
 }
 
 // -----------------------------------------------------------------
 // Component
 // -----------------------------------------------------------------
 
-const ToolsSection = ({ showRegenerate, onRegenerate }: ToolsSectionProps) => {
+const ToolsSection = ({ showRegenerate, onRegenerate, onBgRemove }: ToolsSectionProps) => {
   const { t } = useTranslation();
 
   const tools = [
@@ -106,7 +107,7 @@ const ToolsSection = ({ showRegenerate, onRegenerate }: ToolsSectionProps) => {
       key: 'bgRemove',
       icon: <WallpaperIcon sx={{ fontSize: 20 }} />,
       label: t('design.panel.tools.bgRemove', 'BG Remove'),
-      onClick: undefined,
+      onClick: onBgRemove,
     },
   ];
 

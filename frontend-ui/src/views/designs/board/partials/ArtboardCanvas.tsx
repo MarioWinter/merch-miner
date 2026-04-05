@@ -1,4 +1,4 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Stage, Layer, Circle } from 'react-konva';
 import { Typography } from '@mui/material';
 import { useColorScheme } from '@mui/material/styles';
@@ -23,7 +23,7 @@ import {
   HiddenInput,
 } from './ArtboardCanvas.styles';
 import type Konva from 'konva';
-import type { ArtboardData } from '../types';
+import type { ArtboardData, CanvasElement } from '../types';
 
 // -----------------------------------------------------------------
 // Constants
@@ -60,6 +60,36 @@ export interface ArtboardCanvasProps {
   handleWheel: (e: { evt: WheelEvent }) => void;
   setPan: (x: number, y: number) => void;
   resizeArtboard: (id: string, width: number, height: number) => void;
+  /** Element selection state */
+  selectedElementId?: string | null;
+  isFreeTransform?: boolean;
+  onElementSelect?: (artboardId: string, elementId: string) => void;
+  onElementDoubleClick?: (artboardId: string, elementId: string) => void;
+  onElementUpdate?: (
+    artboardId: string,
+    elementId: string,
+    patch: Partial<Omit<CanvasElement, 'id' | 'type'>>,
+  ) => void;
+  /** Active canvas tool (cursor, text, etc.) */
+  activeTool?: string;
+  /** Called when an artboard is clicked while text tool is active */
+  onTextInsert?: (artboardId: string, localX: number, localY: number) => void;
+  /** Called when shape draw starts on an artboard */
+  onShapeDrawStart?: (artboardId: string, localX: number, localY: number) => void;
+  /** Called when shape draw moves */
+  onShapeDrawMove?: (localX: number, localY: number) => void;
+  /** Called when shape draw ends */
+  onShapeDrawEnd?: () => void;
+  /** Called when pen tool clicks on an artboard */
+  onPenClick?: (artboardId: string, localX: number, localY: number) => void;
+  /** Called when pen tool moves */
+  onPenMove?: (localX: number, localY: number) => void;
+  /** Called when brush draw starts on an artboard */
+  onBrushDrawStart?: (artboardId: string, localX: number, localY: number) => void;
+  /** Called when brush draw moves */
+  onBrushDrawMove?: (localX: number, localY: number) => void;
+  /** Called when brush draw ends */
+  onBrushDrawEnd?: () => void;
 }
 
 // -----------------------------------------------------------------
@@ -89,6 +119,21 @@ const ArtboardCanvas = ({
   handleWheel,
   setPan,
   resizeArtboard,
+  selectedElementId,
+  isFreeTransform,
+  onElementSelect,
+  onElementDoubleClick,
+  onElementUpdate,
+  activeTool,
+  onTextInsert,
+  onShapeDrawStart,
+  onShapeDrawMove,
+  onShapeDrawEnd,
+  onPenClick,
+  onPenMove,
+  onBrushDrawStart,
+  onBrushDrawMove,
+  onBrushDrawEnd,
 }: ArtboardCanvasProps) => {
   const { t } = useTranslation();
   const { mode } = useColorScheme();
@@ -100,6 +145,28 @@ const ArtboardCanvas = ({
   const bgColor = isDark ? COLORS.artboardDark : COLORS.artboardLight;
   const dotColor = isDark ? GRID_DOT_COLOR_DARK : GRID_DOT_COLOR_LIGHT;
   const hasContent = artboards.length > 0;
+
+  // -- Space key tracking for temporary pan mode --
+  const [spaceHeld, setSpaceHeld] = useState(false);
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.code === 'Space' && !e.repeat && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+        e.preventDefault();
+        setSpaceHeld(true);
+      }
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.code === 'Space') setSpaceHeld(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  }, []);
+
+  const isPanMode = spaceHeld;
 
   const screenToWorld = (screenX: number, screenY: number) => ({
     x: (screenX - panX) / zoom,
@@ -114,7 +181,7 @@ const ArtboardCanvas = ({
     handleMouseDown,
     handleMouseMove,
     handleMouseUp,
-  } = useRubberBand({ screenToWorld, selectByRect, deselectAll, stageRef });
+  } = useRubberBand({ screenToWorld, selectByRect, deselectAll, stageRef, isPanMode });
 
   // -- Canvas handlers (labels, drag, regenerate) --
   const {
@@ -150,6 +217,59 @@ const ArtboardCanvas = ({
     closeArtboardMenu,
     closeCanvasMenu,
   } = useContextMenu({ containerRef, screenToWorld, addArtboard });
+
+  // -- Shape/pen drawing stage handlers --
+  const handleStageMouseMove = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>) => {
+      handleMouseMove(e);
+      // Forward to shape drawing
+      if (onShapeDrawMove) {
+        const stage = stageRef.current;
+        if (stage) {
+          const pointer = stage.getPointerPosition();
+          if (pointer) {
+            const worldX = (pointer.x - panX) / zoom;
+            const worldY = (pointer.y - panY) / zoom;
+            onShapeDrawMove(worldX, worldY);
+          }
+        }
+      }
+      // Forward to pen tool
+      if (onPenMove) {
+        const stage = stageRef.current;
+        if (stage) {
+          const pointer = stage.getPointerPosition();
+          if (pointer) {
+            const worldX = (pointer.x - panX) / zoom;
+            const worldY = (pointer.y - panY) / zoom;
+            onPenMove(worldX, worldY);
+          }
+        }
+      }
+      // Forward to brush tool
+      if (onBrushDrawMove) {
+        const stage = stageRef.current;
+        if (stage) {
+          const pointer = stage.getPointerPosition();
+          if (pointer) {
+            const worldX = (pointer.x - panX) / zoom;
+            const worldY = (pointer.y - panY) / zoom;
+            onBrushDrawMove(worldX, worldY);
+          }
+        }
+      }
+    },
+    [handleMouseMove, onShapeDrawMove, onPenMove, onBrushDrawMove, panX, panY, zoom],
+  );
+
+  const handleStageMouseUp = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>) => {
+      handleMouseUp(e);
+      onShapeDrawEnd?.();
+      onBrushDrawEnd?.();
+    },
+    [handleMouseUp, onShapeDrawEnd, onBrushDrawEnd],
+  );
 
   // -- Artboard resize (combines size + position update) --
   const handleArtboardResize = useCallback(
@@ -208,14 +328,14 @@ const ArtboardCanvas = ({
           y={panY}
           scaleX={zoom}
           scaleY={zoom}
-          draggable={!isRubberBanding}
+          draggable={isPanMode || !isRubberBanding}
           onWheel={handleWheel}
           onDragEnd={handleDragEnd}
           onDragStart={handleDragStart}
           onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          style={{ position: 'absolute', top: 0, left: 0 }}
+          onMouseMove={handleStageMouseMove}
+          onMouseUp={handleStageMouseUp}
+          style={{ position: 'absolute', top: 0, left: 0, cursor: isPanMode ? 'grab' : 'default' }}
         >
           {showGrid && (
             <Layer listening={false}>
@@ -263,6 +383,16 @@ const ArtboardCanvas = ({
                 onDoubleClickLabel={handleDoubleClickLabel}
                 onContextMenu={handleArtboardContextMenu}
                 onResize={handleArtboardResize}
+                selectedElementId={selectedElementId}
+                isFreeTransform={isFreeTransform}
+                onElementSelect={onElementSelect}
+                onElementDoubleClick={onElementDoubleClick}
+                onElementUpdate={onElementUpdate}
+                activeTool={activeTool}
+                onTextInsert={onTextInsert}
+                onShapeDrawStart={onShapeDrawStart}
+                onPenClick={onPenClick}
+                onBrushDrawStart={onBrushDrawStart}
               />
             ))}
             <RubberBandSelection rect={rubberBand} zoom={zoom} />

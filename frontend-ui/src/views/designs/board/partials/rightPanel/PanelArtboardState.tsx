@@ -2,19 +2,23 @@ import { useCallback, useState } from 'react';
 import {
   Box,
   Divider,
+  IconButton,
   MenuItem,
   Select,
   Slider,
   Switch,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import type { SelectChangeEvent } from '@mui/material/Select';
+import LinkIcon from '@mui/icons-material/Link';
+import LinkOffIcon from '@mui/icons-material/LinkOff';
 import { useTranslation } from 'react-i18next';
-import type { ArtboardData } from '../../types';
+import type { ArtboardData, CanvasElement } from '../../types';
 import { ARTBOARD_PRESETS } from '../../types';
-import ToolsSection from './ToolsSection';
+import LayerPanel from './LayerPanel';
 
 // -----------------------------------------------------------------
 // Styled
@@ -53,10 +57,16 @@ const SwitchRow = styled(Box)(({ theme }) => ({
 
 interface PanelArtboardStateProps {
   artboard: ArtboardData;
-  isAiBoard: boolean;
   onUpdate: (id: string, patch: Partial<ArtboardData>) => void;
   onResize: (id: string, width: number, height: number) => void;
-  onRegenerate: () => void;
+  selectedElementId?: string | null;
+  onSelectElement?: (artboardId: string, elementId: string) => void;
+  onUpdateElement?: (
+    artboardId: string,
+    elementId: string,
+    patch: Partial<Omit<CanvasElement, 'id' | 'type'>>,
+  ) => void;
+  onReorderElement?: (artboardId: string, elementId: string, newIndex: number) => void;
 }
 
 // -----------------------------------------------------------------
@@ -76,15 +86,25 @@ const findPresetIndex = (w: number, h: number): string => {
 
 const PanelArtboardState = ({
   artboard,
-  isAiBoard,
   onUpdate,
   onResize,
-  onRegenerate,
+  selectedElementId,
+  onSelectElement,
+  onUpdateElement,
+  onReorderElement,
 }: PanelArtboardStateProps) => {
   const { t } = useTranslation();
-  const [localWidth, setLocalWidth] = useState(String(artboard.width));
-  const [localHeight, setLocalHeight] = useState(String(artboard.height));
+  const [editingWidth, setEditingWidth] = useState<string | null>(null);
+  const [editingHeight, setEditingHeight] = useState<string | null>(null);
+  const [lockAspect, setLockAspect] = useState(true);
+  const [editingLabel, setEditingLabel] = useState<string | null>(null);
 
+  // Display rounded values from artboard, override with local edits while typing
+  const displayWidth = editingWidth ?? String(Math.round(artboard.width));
+  const displayHeight = editingHeight ?? String(Math.round(artboard.height));
+  const displayLabel = editingLabel ?? artboard.label;
+
+  const aspectRatio = artboard.width / artboard.height;
   const presetValue = findPresetIndex(artboard.width, artboard.height);
 
   const handlePresetChange = useCallback(
@@ -92,20 +112,44 @@ const PanelArtboardState = ({
       const idx = Number(e.target.value);
       const preset = ARTBOARD_PRESETS[idx];
       if (!preset || preset.width === 0) return; // Custom — no auto-resize
-      setLocalWidth(String(preset.width));
-      setLocalHeight(String(preset.height));
+      setEditingWidth(null);
+      setEditingHeight(null);
       onResize(artboard.id, preset.width, preset.height);
     },
     [artboard.id, onResize],
   );
 
+  const handleWidthChange = useCallback((value: string) => {
+    setEditingWidth(value);
+    if (lockAspect) {
+      const w = Number(value);
+      if (w > 0) setEditingHeight(String(Math.round(w / aspectRatio)));
+    }
+  }, [lockAspect, aspectRatio]);
+
+  const handleHeightChange = useCallback((value: string) => {
+    setEditingHeight(value);
+    if (lockAspect) {
+      const h = Number(value);
+      if (h > 0) setEditingWidth(String(Math.round(h * aspectRatio)));
+    }
+  }, [lockAspect, aspectRatio]);
+
   const commitSize = useCallback(() => {
-    const w = Math.max(1, Number(localWidth) || artboard.width);
-    const h = Math.max(1, Number(localHeight) || artboard.height);
-    setLocalWidth(String(w));
-    setLocalHeight(String(h));
+    const w = Math.max(1, Number(displayWidth) || artboard.width);
+    const h = Math.max(1, Number(displayHeight) || artboard.height);
+    setEditingWidth(null);
+    setEditingHeight(null);
     onResize(artboard.id, w, h);
-  }, [artboard.id, artboard.width, artboard.height, localWidth, localHeight, onResize]);
+  }, [artboard.id, artboard.width, artboard.height, displayWidth, displayHeight, onResize]);
+
+  const commitLabel = useCallback(() => {
+    const trimmed = displayLabel.trim();
+    if (trimmed && trimmed !== artboard.label) {
+      onUpdate(artboard.id, { label: trimmed });
+    }
+    setEditingLabel(null);
+  }, [artboard.id, artboard.label, displayLabel, onUpdate]);
 
   const handleOpacityChange = useCallback(
     (_: Event, value: number | number[]) => {
@@ -131,6 +175,24 @@ const PanelArtboardState = ({
 
   return (
     <Box>
+      {/* Artboard Name */}
+      <Section>
+        <SectionLabel variant="overline" color="text.secondary">
+          {t('design.panel.name', 'Name')}
+        </SectionLabel>
+        <TextField
+          size="small"
+          fullWidth
+          value={displayLabel}
+          onChange={(e) => setEditingLabel(e.target.value)}
+          onBlur={commitLabel}
+          onKeyDown={(e) => e.key === 'Enter' && commitLabel()}
+          placeholder={t('design.panel.namePlaceholder', 'Artboard name')}
+        />
+      </Section>
+
+      <Divider />
+
       {/* Artboard Size */}
       <Section>
         <SectionLabel variant="overline" color="text.secondary">
@@ -161,7 +223,7 @@ const PanelArtboardState = ({
           ))}
         </Select>
 
-        {/* Width / Height fields */}
+        {/* Width / Height fields + aspect lock */}
         <FieldRow>
           <FieldLabel variant="caption" color="text.secondary">
             W
@@ -170,8 +232,8 @@ const PanelArtboardState = ({
             size="small"
             fullWidth
             type="number"
-            value={localWidth}
-            onChange={(e) => setLocalWidth(e.target.value)}
+            value={displayWidth}
+            onChange={(e) => handleWidthChange(e.target.value)}
             onBlur={commitSize}
             onKeyDown={(e) => e.key === 'Enter' && commitSize()}
             slotProps={{ htmlInput: { min: 1 } }}
@@ -185,12 +247,21 @@ const PanelArtboardState = ({
             size="small"
             fullWidth
             type="number"
-            value={localHeight}
-            onChange={(e) => setLocalHeight(e.target.value)}
+            value={displayHeight}
+            onChange={(e) => handleHeightChange(e.target.value)}
             onBlur={commitSize}
             onKeyDown={(e) => e.key === 'Enter' && commitSize()}
             slotProps={{ htmlInput: { min: 1 } }}
           />
+          <Tooltip title={lockAspect ? t('design.panel.unlockAspect', 'Unlock aspect ratio') : t('design.panel.lockAspect', 'Lock aspect ratio')}>
+            <IconButton
+              size="small"
+              onClick={() => setLockAspect((p) => !p)}
+              aria-label={lockAspect ? 'Unlock aspect ratio' : 'Lock aspect ratio'}
+            >
+              {lockAspect ? <LinkIcon sx={{ fontSize: 18 }} /> : <LinkOffIcon sx={{ fontSize: 18 }} />}
+            </IconButton>
+          </Tooltip>
         </FieldRow>
       </Section>
 
@@ -283,11 +354,27 @@ const PanelArtboardState = ({
 
       <Divider />
 
-      {/* Tools */}
-      <ToolsSection
-        showRegenerate={isAiBoard}
-        onRegenerate={onRegenerate}
-      />
+      {/* Layers */}
+      <Section>
+        <SectionLabel variant="overline" color="text.secondary">
+          {t('design.canvas.layers.title', 'Layers')}
+        </SectionLabel>
+        {onSelectElement && onUpdateElement && onReorderElement ? (
+          <LayerPanel
+            artboardId={artboard.id}
+            layers={artboard.layers}
+            selectedElementId={selectedElementId ?? null}
+            onSelectElement={onSelectElement}
+            onUpdateElement={onUpdateElement}
+            onReorderElement={onReorderElement}
+          />
+        ) : (
+          <Typography variant="caption" color="text.disabled">
+            {t('design.canvas.layers.empty', 'No layers')}
+          </Typography>
+        )}
+      </Section>
+
     </Box>
   );
 };

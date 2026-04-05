@@ -8,12 +8,20 @@ import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import BuildOutlinedIcon from '@mui/icons-material/BuildOutlined';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
-import { useGetProjectQuery, useGetProjectBoardQuery, useBatchProcessMutation, useDeleteDesignMutation } from '@/store/designSlice';
+import { useGetProjectQuery, useGetProjectBoardQuery, useDeleteDesignMutation } from '@/store/designSlice';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import useArtboardCanvas from '../board/hooks/useArtboardCanvas';
 import useArtboards from '../board/hooks/useArtboards';
 import useCanvasHistory from '../board/hooks/useCanvasHistory';
+import useCanvasElements from '../board/hooks/useCanvasElements';
+import useElementSelection from '../board/hooks/useElementSelection';
 import useRightPanelState from '../board/hooks/useRightPanelState';
+import useTextEditing from '../board/hooks/useTextEditing';
+import useDrawingHandlers from '../board/hooks/useDrawingHandlers';
+import usePenTool from '../board/hooks/usePenTool';
+import useBrushTool from '../board/hooks/useBrushTool';
+import useEmojiPicker from '../board/hooks/useEmojiPicker';
+import rasterizeEmoji from '../board/utils/rasterizeEmoji';
 import usePromptBar from '../board/hooks/usePromptBar';
 import { useGeneration } from '../board/hooks/useGeneration';
 import ArtboardCanvas from '../board/partials/ArtboardCanvas';
@@ -98,6 +106,17 @@ const DesignWorkspaceView = () => {
   // -- Canvas history (undo/redo) --
   const canvasHistory = useCanvasHistory();
 
+  // -- Element selection --
+  const elementSelection = useElementSelection();
+
+  // -- Canvas elements CRUD --
+  const canvasElements = useCanvasElements({
+    artboards: artboardState.artboards,
+    edges: artboardState.edges,
+    updateArtboard: artboardState.updateArtboard,
+    pushSnapshot: canvasHistory.pushSnapshot,
+  });
+
   /** Push current state onto history before a mutation */
   const pushHistory = useCallback(() => {
     canvasHistory.pushSnapshot(artboardState.artboards, artboardState.edges);
@@ -117,6 +136,23 @@ const DesignWorkspaceView = () => {
     }
   }, [canvasHistory, artboardState]);
 
+  // Shift-key held → free-scale (keepRatio: false) while shift is down
+  useEffect(() => {
+    if (activeTab !== 'canvas') return;
+    const down = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') elementSelection.enterFreeTransform();
+    };
+    const up = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') elementSelection.exitFreeTransform();
+    };
+    window.addEventListener('keydown', down);
+    window.addEventListener('keyup', up);
+    return () => {
+      window.removeEventListener('keydown', down);
+      window.removeEventListener('keyup', up);
+    };
+  }, [activeTab, elementSelection]);
+
   // Keyboard shortcuts: Cmd+Z / Cmd+Shift+Z (only on canvas tab)
   useEffect(() => {
     if (activeTab !== 'canvas') return;
@@ -135,15 +171,53 @@ const DesignWorkspaceView = () => {
     return () => window.removeEventListener('keydown', handler);
   }, [activeTab, handleCanvasUndo, handleCanvasRedo]);
 
+  // Ref to track text editing state (avoids hook ordering issue with textEditing defined later)
+  const isTextEditingRef = useRef(false);
+
+  // Keyboard shortcuts: Delete/Backspace to remove, Escape to deselect element
+  useEffect(() => {
+    if (activeTab !== 'canvas') return;
+    const handler = (e: KeyboardEvent) => {
+      // Don't handle if user is typing in an input/textarea
+      const tag = (e.target as HTMLElement)?.tagName;
+      const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable;
+
+      // Escape: deselect element — but not if text editing is active (textarea handles its own Escape)
+      if (e.key === 'Escape') {
+        if (isTextEditingRef.current) return;
+        if (elementSelection.selectedElementId) {
+          e.preventDefault();
+          elementSelection.deselectElement();
+        }
+        return;
+      }
+
+      // Delete/Backspace: remove selected element
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !isInput) {
+        const elId = elementSelection.selectedElementId;
+        const abId = elementSelection.selectedArtboardIdForElement;
+        if (!elId || !abId) return;
+
+        e.preventDefault();
+        canvasElements.removeElement(abId, elId);
+        elementSelection.deselectElement();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [activeTab, elementSelection, canvasElements]);
+
   const panelState = useRightPanelState({
     artboards: artboardState.artboards,
     selectedIds: artboardState.selectedIds,
+    selectedElementId: elementSelection.selectedElementId,
+    selectedArtboardIdForElement: elementSelection.selectedArtboardIdForElement,
   });
 
   // -- Prompt bar state --
   const promptBar = usePromptBar(panelState.mode);
   const [prompt, setPrompt] = useState('');
-  const [aiModel, setAiModel] = useState<DesignModel>('gemini_flash');
+  const [aiModel, setAiModel] = useState<DesignModel>('google/gemini-3.1-flash-preview-image-generation');
   const [bgColor, setBgColor] = useState<BackgroundColor>('light_gray');
 
   // -- AI generation --
@@ -190,21 +264,197 @@ const DesignWorkspaceView = () => {
     }
   }, [boardData?.designs, generation.isGenerating, artboardState]);
 
-  // -- Right panel handlers --
-  const handleRegenerate = useCallback(() => {
-    // TODO: trigger AI design generation for the selected AI Image Board
-  }, []);
+  // -- Element selection handlers --
+  const handleElementSelect = useCallback(
+    (artboardId: string, elementId: string) => {
+      elementSelection.selectElement(artboardId, elementId);
+      // Ensure the parent artboard is selected too
+      artboardState.selectArtboard(artboardId, false);
+    },
+    [elementSelection, artboardState],
+  );
 
-  const [batchProcess] = useBatchProcessMutation();
-  const handleBgRemove = useCallback(async () => {
-    const artboard = panelState.artboard;
-    if (!artboard?.designId) return;
-    try {
-      await batchProcess({ design_ids: [artboard.designId], steps: ['bg_remove'] }).unwrap();
-    } catch {
-      // error handled by RTK
-    }
-  }, [panelState.artboard, batchProcess]);
+  // -- Shape drawing --
+  const drawingHandlers = useDrawingHandlers({
+    activeTool,
+    addElement: canvasElements.addElement,
+    setActiveTool,
+    onElementSelect: handleElementSelect,
+  });
+
+  // -- Pen tool --
+  const penTool = usePenTool({
+    activeTool,
+    addElement: canvasElements.addElement,
+    setActiveTool,
+    onElementSelect: handleElementSelect,
+  });
+
+  // -- Brush tool --
+  const brushTool = useBrushTool({
+    activeTool,
+    addElement: canvasElements.addElement,
+    onElementSelect: handleElementSelect,
+  });
+
+  // -- Emoji picker --
+  const handleEmojiSelected = useCallback(
+    (emoji: string) => {
+      const dataUrl = rasterizeEmoji(emoji);
+      if (!dataUrl) return;
+
+      // Find target artboard: selected or first
+      const targetId =
+        artboardState.selectedIds.size > 0
+          ? [...artboardState.selectedIds][0]
+          : artboardState.artboards[0]?.id;
+
+      if (!targetId) {
+        enqueueSnackbar(t('design.canvas.noArtboard', 'Create an artboard first'), {
+          variant: 'warning',
+        });
+        return;
+      }
+
+      const ab = artboardState.artboards.find((a) => a.id === targetId);
+      if (!ab) return;
+
+      const size = 64;
+      const newEl = canvasElements.addElement(
+        targetId,
+        'emoji',
+        { emoji, dataUrl },
+        {
+          x: Math.round(ab.width / 2 - size / 2),
+          y: Math.round(ab.height / 2 - size / 2),
+          width: size,
+          height: size,
+        },
+      );
+
+      if (newEl) {
+        handleElementSelect(targetId, newEl.id);
+      }
+    },
+    [artboardState, canvasElements, handleElementSelect, enqueueSnackbar, t],
+  );
+
+  const emojiPicker = useEmojiPicker({ onEmojiSelected: handleEmojiSelected });
+
+  // -- Text editing --
+  const textEditing = useTextEditing({
+    containerRef: canvasHook.containerRef,
+    zoom: canvasHook.state.zoom,
+    panX: canvasHook.state.panX,
+    panY: canvasHook.state.panY,
+    onCommit: useCallback(
+      (artboardId: string, elementId: string, text: string) => {
+        canvasElements.updateElementProps(artboardId, elementId, { text });
+      },
+      [canvasElements],
+    ),
+  });
+  // Keep ref in sync for keyboard handler (defined before textEditing)
+  isTextEditingRef.current = textEditing.isEditing;
+
+  const handleElementDoubleClick = useCallback(
+    (artboardId: string, elementId: string) => {
+      // If the element is text, start inline editing
+      const ab = artboardState.artboards.find((a) => a.id === artboardId);
+      const el = ab?.layers.find((l) => l.id === elementId);
+      if (el?.type === 'text') {
+        elementSelection.selectElement(artboardId, elementId);
+        textEditing.startEditing(
+          artboardId,
+          el as import('../board/types').CanvasElement<'text'>,
+          ab!.x,
+          ab!.y,
+        );
+        return;
+      }
+      elementSelection.selectElement(artboardId, elementId);
+      elementSelection.enterFreeTransform();
+    },
+    [elementSelection, artboardState.artboards, textEditing],
+  );
+
+  // -- Text tool insertion --
+  const handleTextInsert = useCallback(
+    (artboardId: string, localX: number, localY: number) => {
+      const newEl = canvasElements.addElement(
+        artboardId,
+        'text',
+        {
+          text: 'Type here',
+          fontFamily: 'Inter',
+          fontSize: 24,
+          fontWeight: 400,
+          fontStyle: 'normal',
+          fill: '#000000',
+          align: 'left',
+          letterSpacing: 0,
+          lineHeight: 1.2,
+        },
+        {
+          x: localX,
+          y: localY,
+          width: 200,
+          height: 40,
+        },
+      );
+
+      if (newEl) {
+        elementSelection.selectElement(artboardId, newEl.id);
+        // Switch tool first, then start editing after React settles
+        setActiveTool('cursor');
+        const ab = artboardState.artboards.find((a) => a.id === artboardId);
+        if (ab) {
+          requestAnimationFrame(() => {
+            textEditing.startEditing(
+              artboardId,
+              newEl,
+              ab.x,
+              ab.y,
+            );
+          });
+        }
+      } else {
+        setActiveTool('cursor');
+      }
+    },
+    [canvasElements, elementSelection, artboardState.artboards, textEditing],
+  );
+
+  const handleElementUpdate = useCallback(
+    (artboardId: string, elementId: string, patch: Partial<Omit<import('../board/types').CanvasElement, 'id' | 'type'>>) => {
+      canvasElements.updateElement(artboardId, elementId, patch);
+    },
+    [canvasElements],
+  );
+
+  // -- Delete selected element --
+  const handleDeleteElement = useCallback(
+    (artboardId: string, elementId: string) => {
+      canvasElements.removeElement(artboardId, elementId);
+      elementSelection.deselectElement();
+    },
+    [canvasElements, elementSelection],
+  );
+
+  // Wrap artboard select to deselect element when clicking artboard background
+  const handleArtboardSelectWithDeselect = useCallback(
+    (id: string, additive: boolean) => {
+      elementSelection.deselectElement();
+      artboardState.selectArtboard(id, additive);
+    },
+    [elementSelection, artboardState],
+  );
+
+  // Wrap deselectAll to also deselect element
+  const handleDeselectAllWithElement = useCallback(() => {
+    elementSelection.deselectElement();
+    artboardState.deselectAll();
+  }, [elementSelection, artboardState]);
 
   // Images from canvas artboards to pass directly to editor (blob URLs without designId)
   const [editorInitialImages, setEditorInitialImages] = useState<
@@ -475,8 +725,8 @@ const DesignWorkspaceView = () => {
                 artboards={artboardState.artboards}
                 edges={artboardState.edges}
                 selectedIds={artboardState.selectedIds}
-                selectArtboard={artboardState.selectArtboard}
-                deselectAll={artboardState.deselectAll}
+                selectArtboard={handleArtboardSelectWithDeselect}
+                deselectAll={handleDeselectAllWithElement}
                 selectByRect={artboardState.selectByRect}
                 moveArtboard={moveArtboardWithHistory}
                 renameArtboard={artboardState.renameArtboard}
@@ -493,6 +743,21 @@ const DesignWorkspaceView = () => {
                 handleWheel={canvasHook.handleWheel}
                 setPan={canvasHook.setPan}
                 resizeArtboard={resizeArtboardWithHistory}
+                selectedElementId={elementSelection.selectedElementId}
+                isFreeTransform={elementSelection.isFreeTransform}
+                onElementSelect={handleElementSelect}
+                onElementDoubleClick={handleElementDoubleClick}
+                onElementUpdate={handleElementUpdate}
+                activeTool={activeTool}
+                onTextInsert={handleTextInsert}
+                onShapeDrawStart={drawingHandlers.handleDrawStart}
+                onShapeDrawMove={drawingHandlers.handleDrawMove}
+                onShapeDrawEnd={drawingHandlers.handleDrawEnd}
+                onPenClick={penTool.handlePenClick}
+                onPenMove={penTool.handlePenMove}
+                onBrushDrawStart={brushTool.handleBrushStart}
+                onBrushDrawMove={brushTool.handleBrushMove}
+                onBrushDrawEnd={brushTool.handleBrushEnd}
               />
               <PromptBar
                 isExpanded={promptBar.isExpanded}
@@ -519,6 +784,7 @@ const DesignWorkspaceView = () => {
                 activeTool={activeTool}
                 onToolChange={setActiveTool}
                 onAiSparkle={handleAiSparkle}
+                onEmojiClick={emojiPicker.openPicker}
                 onUndo={handleCanvasUndo}
                 onRedo={handleCanvasRedo}
                 canUndo={canvasHistory.canUndo}
@@ -529,11 +795,14 @@ const DesignWorkspaceView = () => {
               panelState={panelState}
               onUpdateArtboard={artboardState.updateArtboard}
               onResizeArtboard={artboardState.resizeArtboard}
-              onRegenerate={handleRegenerate}
-              onBgRemove={handleBgRemove}
               onOpenInEditor={handleOpenInEditor}
               onDeleteSelected={handleDeleteSelected}
               onExportSelected={handleExportSelected}
+              onUpdateElement={handleElementUpdate}
+              onSelectElement={handleElementSelect}
+              onReorderElement={canvasElements.reorderElement}
+              onDeleteElement={handleDeleteElement}
+              selectedElementId={elementSelection.selectedElementId}
             />
           </>
         ) : (

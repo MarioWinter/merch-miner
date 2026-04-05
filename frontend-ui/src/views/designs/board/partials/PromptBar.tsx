@@ -4,6 +4,7 @@ import {
   AccordionDetails,
   AccordionSummary,
   Box,
+  ClickAwayListener,
   Stack,
   TextField,
   Typography,
@@ -141,6 +142,12 @@ export const PromptBar = ({
 
   // -- Expanded state --
   return (
+    <ClickAwayListener onClickAway={(e) => {
+      // Don't collapse if click landed on a MUI Portal (Select/Menu/Popover/Modal)
+      const target = e.target as HTMLElement;
+      if (target.closest('.MuiPopover-root, .MuiMenu-root, .MuiModal-root, .MuiSelect-root, .MuiAutocomplete-popper, [role="listbox"], [role="menu"], [role="dialog"]')) return;
+      onCollapse();
+    }} mouseEvent="onMouseDown" touchEvent="onTouchStart">
     <BarRoot $expanded>
       {/* Header */}
       <ExpandedHeader>
@@ -283,5 +290,6 @@ export const PromptBar = ({
         </ControlsRow>
       </ExpandedContent>
     </BarRoot>
+    </ClickAwayListener>
   );
 };

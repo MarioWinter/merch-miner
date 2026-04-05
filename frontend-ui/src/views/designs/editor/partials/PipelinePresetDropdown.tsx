@@ -17,6 +17,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import {
   useListPipelinesQuery,
   useCreatePipelineMutation,
+  useUpdatePipelineMutation,
   useDeletePipelineMutation,
 } from '@/store/designSlice';
 import type { PipelineTool, DesignPipeline } from '../types';
@@ -63,9 +64,12 @@ export const PipelinePresetDropdown = ({
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
 
-  const { data: pipelines = [], isLoading } = useListPipelinesQuery();
-  const [createPipeline, { isLoading: isSaving }] = useCreatePipelineMutation();
+  const { data: pipelineData, isLoading } = useListPipelinesQuery();
+  const pipelines = pipelineData?.results ?? [];
+  const [createPipeline, { isLoading: isCreating }] = useCreatePipelineMutation();
+  const [updatePipeline, { isLoading: isUpdating }] = useUpdatePipelineMutation();
   const [deletePipeline, { isLoading: isDeleting }] = useDeletePipelineMutation();
+  const isSaving = isCreating || isUpdating;
 
   const [selectedId, setSelectedId] = useState<string>('');
   const [showSaveInput, setShowSaveInput] = useState(false);
@@ -79,7 +83,28 @@ export const PipelinePresetDropdown = ({
     }
   };
 
-  const handleSave = async () => {
+  const handleSaveClick = async () => {
+    if (activePipeline.length === 0) return;
+
+    // If a preset is selected → update it in place
+    if (selectedId) {
+      try {
+        await updatePipeline({
+          pipelineId: selectedId,
+          body: { tools: activePipeline },
+        }).unwrap();
+        enqueueSnackbar(t('design.pipeline.presetUpdated'), { variant: 'success' });
+      } catch {
+        enqueueSnackbar(t('design.pipeline.presetSaveError'), { variant: 'error' });
+      }
+      return;
+    }
+
+    // No preset selected → show name input for new preset
+    setShowSaveInput((p) => !p);
+  };
+
+  const handleCreateNew = async () => {
     const name = presetName.trim();
     if (!name || activePipeline.length === 0) return;
     try {
@@ -138,8 +163,8 @@ export const PipelinePresetDropdown = ({
           <span>
             <IconButton
               size="small"
-              onClick={() => setShowSaveInput((p) => !p)}
-              disabled={activePipeline.length === 0}
+              onClick={handleSaveClick}
+              disabled={activePipeline.length === 0 || isSaving}
               aria-label={t('design.pipeline.savePreset')}
             >
               <SaveIcon sx={{ fontSize: 18 }} />
@@ -176,7 +201,7 @@ export const PipelinePresetDropdown = ({
             slotProps={{ input: { sx: { fontSize: '0.8125rem', height: 32 } } }}
             sx={{ flex: 1 }}
             onKeyDown={(e) => {
-              if (e.key === 'Enter') handleSave();
+              if (e.key === 'Enter') handleCreateNew();
             }}
             autoFocus
           />
@@ -184,7 +209,7 @@ export const PipelinePresetDropdown = ({
             <span>
               <IconButton
                 size="small"
-                onClick={handleSave}
+                onClick={handleCreateNew}
                 disabled={!presetName.trim() || isSaving}
                 color="secondary"
                 aria-label={t('design.pipeline.savePreset')}

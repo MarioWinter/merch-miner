@@ -709,7 +709,41 @@
       "deleteConfirm": "Supprimer",
       "deleteCancel": "Annuler",
       "deleteSuccess": "Designs supprimes",
-      "deleteError": "Impossible de supprimer les designs"
+      "deleteError": "Impossible de supprimer les designs",
+      "text": {
+        "fontFamily": "Police",
+        "fontSize": "Taille",
+        "bold": "Gras",
+        "italic": "Italique",
+        "color": "Couleur",
+        "align": "Alignement",
+        "letterSpacing": "Espacement des lettres",
+        "lineHeight": "Hauteur de ligne",
+        "outline": "Contour",
+        "shadow": "Ombre",
+        "arc": "Texte courbe",
+        "arcAngle": "Angle de courbure",
+        "strokeWidth": "Epaisseur du trait",
+        "shadowBlur": "Flou",
+        "shadowOffset": "Decalage",
+        "placeholder": "Tapez ici"
+      },
+      "shapes": {
+        "fill": "Remplissage",
+        "stroke": "Contour",
+        "strokeWidth": "Epaisseur du trait",
+        "cornerRadius": "Rayon d'angle",
+        "pen": "Stylo",
+        "rectangle": "Rectangle",
+        "ellipse": "Ellipse",
+        "triangle": "Triangle",
+        "line": "Ligne"
+      },
+      "brush": {
+        "color": "Couleur",
+        "size": "Taille du pinceau",
+        "smoothing": "Lissage"
+      }
     },
     "board": {
       "title": "Tableau de design",
@@ -762,10 +796,7 @@
     },
     "model": {
       "label": "Modele IA",
-      "gemini_flash": "Gemini Flash",
-      "gemini_pro": "Gemini Pro",
-      "gpt_image": "GPT Image",
-      "flux": "Flux"
+      "placeholder": "Choisir un modele"
     },
     "background": {
       "label": "Couleur de fond",
@@ -1080,6 +1111,26 @@
         "processing": "Traitement..."
       },
       "aiUpscale": "Mise a l'echelle IA",
+      "upscaleParams": {
+        "mode": "Mode de mise a l'echelle",
+        "modeAuto": "Auto",
+        "modeClient": "Client",
+        "modeServer": "Serveur",
+        "autoClientHint": "Image assez grande — Pica.js utilise (cote client, instantane)",
+        "autoServerHint": "Image petite — API IA utilisee (cote serveur)",
+        "currentSize": "Actuel : {{w}} x {{h}} px",
+        "targetDimensions": "Dimensions cibles",
+        "width": "Largeur",
+        "height": "Hauteur",
+        "filter": "Filtre de reeechantillonnage",
+        "filterLanczos3": "Lanczos3 (qualite maximale)",
+        "filterLanczos2": "Lanczos2 (rapide)",
+        "filterMks2013": "MKS 2013 (net + redimensionnement)",
+        "runNow": "Mettre a l'echelle",
+        "processing": "Mise a l'echelle...",
+        "thresholdInfo": "Mode auto : Pica.js pour images >= {{threshold}}px, API IA pour les plus petites",
+        "compare": "Comparer l'original"
+      },
       "transparencyHighlighter": "Surlign. transp.",
       "transparencyHighlighterParams": {
         "highlightColor": "Couleur de surbrillance",
@@ -1130,7 +1181,17 @@
       "formatZip": "Fichiers PNG en ZIP",
       "quality": "Qualite",
       "exporting": "Exportation...",
-      "download": "Telecharger"
+      "download": "Telecharger",
+      "advanced": "Export avance",
+      "formatPngShort": "PNG",
+      "formatJpeg": "JPEG",
+      "formatWebp": "WebP",
+      "resolution": "Resolution",
+      "dimensions": "{{width}} \u00d7 {{height}} px",
+      "downloadZip": "Tout telecharger (ZIP)",
+      "creatingZip": "Creation du ZIP...",
+      "totalSize": "Total estime: {{size}}",
+      "imageCount": "{{count}} images"
     },
     "contextMenu": {
       "addAiBoard": "Ajouter un tableau IA",
@@ -1253,7 +1314,11 @@
       "searchPlaceholder": "Rechercher dans le projet...",
       "projectColors": "Couleurs du projet",
       "noColors": "Aucune couleur extraite",
+      "name": "Nom",
+      "namePlaceholder": "Nom de l'artboard",
       "size": "Taille",
+      "lockAspect": "Verrouiller le ratio",
+      "unlockAspect": "Deverrouiller le ratio",
       "layer": "Calque",
       "opacity": "Op",
       "opacityLabel": "Opacite",
@@ -1275,6 +1340,44 @@
         "reframe": "Recadrer",
         "bgRemove": "Suppr. fond"
       }
+    },
+    "cloud": {
+      "title": "Stockage cloud",
+      "googleDrive": "Google Drive",
+      "oneDrive": "OneDrive",
+      "connect": "Connecter",
+      "connecting": "Connexion en cours...",
+      "connected": "Connecte",
+      "disconnect": "Deconnecter",
+      "disconnectedHint": "Connectez votre stockage cloud pour parcourir et importer des images",
+      "browseFiles": "Parcourir les fichiers",
+      "selectedFiles_one": "{{count}} selectionne",
+      "selectedFiles_other": "{{count}} selectionnes",
+      "noFiles": "Aucun fichier trouve",
+      "download": "Telecharger",
+      "useForAi": "Utiliser pour l'IA",
+      "uploadToBatch": "Importer depuis le lot",
+      "uploadToCloud": "Envoyer les images du lot vers ce dossier",
+      "selectFolder": "Choisir un dossier",
+      "notConfigured": "Non configure",
+      "notConfiguredHint": "Ajoutez les cles API requises dans vos variables d'environnement pour activer ce fournisseur",
+      "authError": "Echec de l'authentification",
+      "fetchError": "Impossible de charger les fichiers",
+      "uploading": "Envoi en cours...",
+      "uploadSuccess": "Envoi termine",
+      "uploadError": "Echec de l'envoi",
+      "fileCount_one": "{{count}} image",
+      "fileCount_other": "{{count}} images",
+      "folderPath": "Dossier",
+      "fileName": "Fichier",
+      "fileSize": "Taille",
+      "selectAll": "Tout selectionner",
+      "deselectAll": "Tout deselectionner",
+      "noImages": "Aucune image trouvee dans ce dossier",
+      "breadcrumbRoot": "Mon Drive",
+      "fullscreen": "Plein ecran",
+      "exitFullscreen": "Quitter le plein ecran",
+      "importFromCloud": "Importer depuis le cloud"
     }
   },
   "keywords": {
@@ -1700,7 +1803,9 @@
   },
   "common": {
     "close": "Fermer",
-    "retry": "Reessayer"
+    "retry": "Reessayer",
+    "cancel": "Annuler",
+    "save": "Enregistrer"
   },
   "search": {
     "chatBar": {

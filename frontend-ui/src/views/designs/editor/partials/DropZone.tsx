@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Box, Typography, Button, CircularProgress } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
+import CloudSyncIcon from '@mui/icons-material/CloudSync';
 import { useTranslation } from 'react-i18next';
 import { useGetDesignsByIdsQuery } from '@/store/designSlice';
 
@@ -41,13 +42,14 @@ interface DropZoneProps {
   onBrowse: () => void;
   preloadIds: string[];
   onFilesAdded: (files: File[]) => void;
+  onOpenCloudManager?: () => void;
 }
 
 // -----------------------------------------------------------------
 // Component
 // -----------------------------------------------------------------
 
-export const DropZone = ({ onBrowse, preloadIds, onFilesAdded }: DropZoneProps) => {
+export const DropZone = ({ onBrowse, preloadIds, onFilesAdded, onOpenCloudManager }: DropZoneProps) => {
   const { t } = useTranslation();
   const [dragOver, setDragOver] = useState(false);
 
@@ -125,6 +127,17 @@ export const DropZone = ({ onBrowse, preloadIds, onFilesAdded }: DropZoneProps) 
       >
         {t('design.editor.browseFiles')}
       </Button>
+      {onOpenCloudManager && (
+        <Button
+          variant="text"
+          color="secondary"
+          onClick={onOpenCloudManager}
+          startIcon={<CloudSyncIcon />}
+          size="small"
+        >
+          {t('design.cloud.importFromCloud')}
+        </Button>
+      )}
     </DropZoneRoot>
   );
 };

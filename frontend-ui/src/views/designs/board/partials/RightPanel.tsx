@@ -2,11 +2,12 @@ import { Box, Divider, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import { COLORS, DURATION, EASING } from '@/style/constants';
-import type { ArtboardData } from '../types';
+import type { ArtboardData, CanvasElement } from '../types';
 import type { RightPanelState } from '../hooks/useRightPanelState';
 import PanelNoneState from './rightPanel/PanelNoneState';
 import PanelArtboardState from './rightPanel/PanelArtboardState';
 import PanelMultiState from './rightPanel/PanelMultiState';
+import PanelElementState from './rightPanel/PanelElementState';
 
 // -----------------------------------------------------------------
 // Constants
@@ -28,7 +29,7 @@ const PanelRoot = styled(Box)(({ theme }) => ({
   overflowX: 'hidden',
   borderLeft: '1px solid',
   borderColor: theme.vars.palette.divider,
-  backgroundColor: COLORS.inkPaper,
+  backgroundColor: COLORS.ink,
   transition: `background-color ${DURATION.fast}ms ${EASING.standard}`,
   ...theme.applyStyles('light', {
     backgroundColor: COLORS.white,
@@ -48,10 +49,18 @@ interface RightPanelProps {
   panelState: RightPanelState;
   onUpdateArtboard: (id: string, patch: Partial<ArtboardData>) => void;
   onResizeArtboard: (id: string, width: number, height: number) => void;
-  onRegenerate: () => void;
   onOpenInEditor: (ids: string[]) => void;
   onDeleteSelected: (ids: string[]) => void;
   onExportSelected: (ids: string[]) => void;
+  onUpdateElement?: (
+    artboardId: string,
+    elementId: string,
+    patch: Partial<Omit<CanvasElement, 'id' | 'type'>>,
+  ) => void;
+  onSelectElement?: (artboardId: string, elementId: string) => void;
+  onReorderElement?: (artboardId: string, elementId: string, newIndex: number) => void;
+  onDeleteElement?: (artboardId: string, elementId: string) => void;
+  selectedElementId?: string | null;
 }
 
 // -----------------------------------------------------------------
@@ -62,15 +71,21 @@ const RightPanel = ({
   panelState,
   onUpdateArtboard,
   onResizeArtboard,
-  onRegenerate,
   onOpenInEditor,
   onDeleteSelected,
   onExportSelected,
+  onUpdateElement,
+  onSelectElement,
+  onReorderElement,
+  onDeleteElement,
+  selectedElementId,
 }: RightPanelProps) => {
   const { t } = useTranslation();
 
   const headerTitle = (() => {
     switch (panelState.mode) {
+      case 'element':
+        return t('design.panel.elementProperties', 'Element');
       case 'single':
         return t('design.panel.artboardProperties', 'Artboard');
       case 'ai':
@@ -85,7 +100,10 @@ const RightPanel = ({
   })();
 
   return (
-    <PanelRoot aria-label={t('design.panel.ariaLabel', 'Properties panel')}>
+    <PanelRoot
+      aria-label={t('design.panel.ariaLabel', 'Properties panel')}
+      onMouseDown={(e) => e.stopPropagation()}
+    >
       <PanelHeader>
         <Typography variant="subtitle2" color="text.secondary">
           {headerTitle}
@@ -102,10 +120,12 @@ const RightPanel = ({
         panelState.artboard && (
           <PanelArtboardState
             artboard={panelState.artboard}
-            isAiBoard={panelState.mode === 'ai'}
             onUpdate={onUpdateArtboard}
             onResize={onResizeArtboard}
-            onRegenerate={onRegenerate}
+            selectedElementId={selectedElementId}
+            onSelectElement={onSelectElement}
+            onUpdateElement={onUpdateElement}
+            onReorderElement={onReorderElement}
           />
         )}
 
@@ -118,6 +138,19 @@ const RightPanel = ({
           onExportSelected={onExportSelected}
         />
       )}
+
+      {/* Element selected */}
+      {panelState.mode === 'element' &&
+        panelState.selectedElement &&
+        panelState.selectedElementArtboardId &&
+        onUpdateElement && (
+          <PanelElementState
+            element={panelState.selectedElement}
+            artboardId={panelState.selectedElementArtboardId}
+            onUpdate={onUpdateElement}
+            onDeleteElement={onDeleteElement}
+          />
+        )}
     </PanelRoot>
   );
 };

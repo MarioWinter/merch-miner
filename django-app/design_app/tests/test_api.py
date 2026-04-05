@@ -67,10 +67,19 @@ class TestDesignBoardView:
         assert resp.data['slogan_text'] == 'Coffee is Life'
         assert resp.data['idea_id'] == str(idea.id)
 
-    def test_board_requires_workspace(self, user, idea):
+    def test_board_requires_workspace(self, django_user_model):
+        """User with no workspace membership gets 400."""
+        from workspace_app.models import Membership, Workspace
+        no_ws_user = django_user_model.objects.create_user(
+            email='nowsuser@example.com', password='testpass123',
+        )
+        # Remove auto-created workspace + membership
+        Membership.objects.filter(user=no_ws_user).delete()
+        Workspace.objects.filter(owner=no_ws_user).delete()
         client = APIClient()
-        client.force_authenticate(user=user)
-        resp = client.get(f'/api/ideas/{idea.id}/design-board/')
+        client.force_authenticate(user=no_ws_user)
+        fake_id = uuid.uuid4()
+        resp = client.get(f'/api/ideas/{fake_id}/design-board/')
         assert resp.status_code == 400
 
     def test_board_workspace_isolation(self, auth_client, user):

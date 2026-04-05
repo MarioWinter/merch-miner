@@ -21,11 +21,13 @@ export const axiosBaseQuery =
   > =>
   async ({ url, method = 'GET', data, params }) => {
     try {
+      const isFormData = data instanceof FormData;
       const result = await apiClient({
         url: baseUrl + url,
         method,
         data,
         params,
+        ...(isFormData && { headers: { 'Content-Type': 'multipart/form-data' } }),
       });
       return { data: result.data };
     } catch (axiosError) {

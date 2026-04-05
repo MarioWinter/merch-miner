@@ -94,9 +94,27 @@ These fields are read when a user opens `/design-board/:ideaId` and are used to 
 13. As a member, I want to save pipeline configurations as reusable presets, so I don't have to rebuild my workflow every time.
 14. As a member, I want to apply conditional logic to pipeline steps (e.g. "upscale only if <5000px"), so the pipeline handles mixed-size batches intelligently.
 
-#### Cloud Import
-15. As a member, I want to import design images directly from Google Drive into the editor, so I don't have to download and re-upload.
-16. As a member, I want to import design images directly from Microsoft OneDrive into the editor, so I can use my preferred cloud storage.
+#### Cloud Storage Manager
+15. As a member, I want to browse my Google Drive folder structure and see all images (with thumbnails) in a table, so I can find reference images without leaving the app.
+16. As a member, I want to browse my Microsoft OneDrive folder structure and see all images in a table, so I can use my preferred cloud storage.
+17. As a member, I want to download individual cloud images or use them directly for AI tools in the editor, so I can work with cloud files on-demand without bulk-downloading.
+18. As a member, I want to upload generated/processed images from the editor batch back to a selected cloud folder, so I can organize finished designs in my cloud storage.
+19. As a member, I want to manage my cloud storage connections (connect/disconnect) in Settings, so I can control which accounts are linked.
+
+**Cloud Storage Manager — Implementation Notes:**
+- `CloudManagerDialog.tsx`: Tabbed (Google Drive | OneDrive), `maxWidth="md"`, fullscreen toggle
+- Custom folder browser (breadcrumb nav) + image table (thumbnail, folder, filename, size, actions) — no native picker SDKs
+- Actions per image: Download (browser) | Use for AI (fetch → File → onFilesAdded → Batch)
+- Multi-select: checkboxes + bulk Download / Use for AI buttons
+- Upload: select Batch images → choose cloud target folder → upload
+- Google: OAuth2 External + Testing Mode (MVP), scope `drive.file`, Drive API. Env: `VITE_GOOGLE_CLIENT_ID`, `VITE_GOOGLE_API_KEY`. Production: Google Verification (~1-2 weeks)
+- OneDrive: Personal accounts only (MVP), MSAL popup, scope `Files.ReadWrite`. Env: `VITE_ONEDRIVE_CLIENT_ID`. Later: Multi-tenant for Business
+- Azure setup: App registration (SPA), redirect URI localhost:5173 + prod
+- SDK loading: dynamic on dialog open (lazy). Missing env vars: "Not Configured" state with hint
+- `CloudStorageSettings.tsx`: reusable section in Central App Settings + Design Editor Settings. Shows connection status, account email, connect/disconnect
+- CloudManagerDialog inline fallback: "Connect" button if not connected
+- File filter: images only (png/jpg/webp), no SVG. Max 25MB per file
+- No backend changes needed — all client-side via provider APIs
 
 #### Quality Control & Manual Correction
 17. As a member, I want to use the Transparency Highlighter to visualize hidden semi-transparent pixels, so I can spot artifacts before downloading.
@@ -127,6 +145,39 @@ These fields are read when a user opens `/design-board/:ideaId` and are used to 
 ### Canvas Board Interaction
 33. As a member, I want to drag external images from my desktop onto the canvas as new reference nodes, so I can add custom references beyond the niche research products.
 34. As a member, I want to create multiple generation flows from different subsets of references on the same board, so I can A/B test different design directions for the same idea.
+
+### Canvas Element Manipulation (Artboard Content)
+
+#### Image Manipulation
+35. As a member, I want to click an image inside an artboard to select it as a layer, so I can manipulate it independently from the artboard frame.
+36. As a member, I want to scale an image inside an artboard with aspect ratio lock (default), so the image doesn't distort when resizing.
+37. As a member, I want to double-click an image to enter free-transform mode (move, scale, rotate freely within the artboard), and click outside to exit, so I have precise control when needed but a simple default behavior.
+38. As a member, I want image content to belong to its artboard — when I move the artboard, all content moves with it.
+
+#### Text Tool
+39. As a member, I want to select the Text tool and click on an artboard to insert editable text, so I can add slogans, titles, or labels directly on the canvas.
+40. As a member, I want to choose font family, size, color, bold, and italic for text elements, so I can style text to match my design.
+41. As a member, I want to adjust outline/stroke, shadow, letter-spacing, and line-height on text, so I can create visually polished text overlays.
+42. As a member, I want to apply curved/arched text (text on a path), so I can create badge-style or circular text layouts common in POD designs.
+43. As a member, I want text effects like gradient fill and 3D/emboss, so I can create eye-catching typography without external tools.
+
+#### Shapes Tool
+44. As a member, I want to insert basic shapes (rectangle, circle, triangle, line) onto an artboard with fill color and stroke, so I can create backgrounds, borders, and decorative elements.
+45. As a member, I want to move and scale inserted shapes freely within the artboard, so I can position them precisely.
+46. As a member, I want a Pen tool to draw custom vector paths (freeform shapes), so I can create unique design elements beyond basic shapes.
+
+#### Brush / Freehand Drawing
+47. As a member, I want a basic brush tool with configurable size and color, so I can make quick freehand markings or annotations on the canvas.
+
+#### Emoji
+48. As a member, I want to insert emojis onto an artboard via the native OS emoji picker, so I can quickly add emoji graphics to my designs.
+49. As a member, I want inserted emojis to be rendered as image layers on the canvas (not text), so they scale cleanly and look consistent across devices.
+
+#### Layer Management
+50. As a member, I want a Layer Panel in the right sidebar showing all elements (images, text, shapes, emojis) of the selected artboard, so I can see and manage the stacking order.
+51. As a member, I want to drag-reorder layers in the panel to change z-order, so I can control which elements appear in front of or behind others.
+52. As a member, I want to toggle layer visibility (eye icon) and lock layers (lock icon), so I can protect finished elements while working on others.
+53. As a member, I want to click a layer in the panel to select it on the canvas, and vice versa, so navigation between panel and canvas is seamless.
 
 ### UI/UX Notes — Design Board (`/design-board/:projectId`)
 
@@ -386,7 +437,7 @@ Fixed horizontal bar below canvas. Left side: cursor tool, move tool, shape tool
 - [ ] AC-35: "Add AI Image Board" from context menu on source artboard → new artboard appears to the right, connected by thin arrow. Shows "Regenerate" button when selected.
 - [ ] AC-36: Chat/Prompt Bar (bottom, collapsible): collapsed = single-line "Describe what you want to create...". Expanded = source→result thumbnails, editable prompt, Prompt Builder accordion, model/ratio/style/BG selectors, Generate button.
 - [ ] AC-37: Right Panel (280px, always visible): context-sensitive — nothing selected = project colors + tools list. Artboard selected = size/layer/color properties + tools. Tools: AI Image Board, Flatten, Upscale, Reframe, BG Remove.
-- [ ] AC-38: Bottom Toolbar (48px): cursor, move, shapes, brush, text, emoji, AI sparkle, undo/redo, zoom controls (-, %, +), canvas resize.
+- [ ] AC-38: Bottom Toolbar (48px): cursor, shapes (dropdown), brush, text, emoji, AI sparkle, undo/redo, zoom controls (-, %, +). Canvas pan via Space+Drag or middle-mouse (no separate move tool).
 - [ ] AC-39: Tools in right panel apply to selected artboard(s). Quick actions: BG Remove, Upscale, Flatten, Reframe. "Open in Editor →" navigates to `/design-editor`.
 - [ ] AC-40: Board positions persisted to backend (`DesignProject.board_layout` JSONField). Restored on reload.
 - [ ] AC-41: Connection arrows between source artboard and AI Image Board — thin 1px line, purely visual context.
@@ -395,6 +446,39 @@ Fixed horizontal bar below canvas. Left side: cursor tool, move tool, shape tool
 - [ ] AC-62: Artboard Canvas has its own export: export selected or all artboards, PNG 300 DPI, compression slider, single or ZIP download. Separate from Editor pipeline export.
 - [ ] AC-63: Multi-select artboards (shift+click or drag-select) → "Open in Editor" in right panel → switches to Editor tab with selected images as batch. Context transfer only, no live binding.
 - [ ] AC-64: Both tab-modes are fully independent — Editor works without Canvas data, Canvas works without Editor. No cross-dependencies.
+
+### Canvas Element Manipulation
+
+#### Image Manipulation
+- [ ] AC-65: Click image inside artboard → selects as layer (distinct from artboard selection). Resize handles appear on the image, not the artboard.
+- [ ] AC-66: Image scaling defaults to aspect-ratio-locked. Hold Shift to free-scale (same pattern as artboard resize).
+- [ ] AC-67: Double-click image → enters free-transform mode (move, scale, rotate within artboard). Click outside image → exits free-transform. Single click → select only (move + scale, no rotate).
+- [ ] AC-68: All content elements (images, text, shapes, emojis) belong to their parent artboard. Moving the artboard moves all child elements together.
+
+#### Text Tool
+- [ ] AC-69: Text tool active → click on artboard → inserts editable text element at click position. Inline editing with blinking cursor. Click outside or press Escape → deselect.
+- [ ] AC-70: Text properties panel (right sidebar when text selected): font family (dropdown, system fonts + Google Fonts subset), font size (slider + number input), color (picker), bold/italic toggles.
+- [ ] AC-71: Advanced text: outline/stroke (color + width), drop shadow (color + offset + blur), letter-spacing (slider), line-height (slider).
+- [ ] AC-72: Curved/arched text (text on path): arc slider (-180° to +180°). Preview updates live on canvas. Stored as path data in element.
+- [ ] AC-73: Text effects: gradient fill (2-color linear/radial), 3D/emboss (simple CSS-style shadow stack). Applied via effects dropdown in text properties panel.
+
+#### Shapes Tool
+- [ ] AC-74: Shape tool dropdown (bottom toolbar): Rectangle, Circle, Triangle, Line. Click+drag on artboard → inserts shape with fill + stroke.
+- [ ] AC-75: Shape properties (right sidebar): fill color, stroke color, stroke width. Rectangle: corner radius slider.
+- [ ] AC-76: Pen tool (in shapes dropdown): click to add points, click first point to close path. Creates editable vector path. Double-click to finish open path.
+
+#### Brush Tool
+- [ ] AC-77: Brush tool active → draw freehand strokes on artboard. Properties: brush size (1-50px slider), color picker. Strokes rendered as Konva Line with tension smoothing.
+
+#### Emoji
+- [ ] AC-78: Emoji button → opens native OS emoji picker (`showPicker()` API, fallback: `input` focus trick). Selected emoji rendered as rasterized image layer (canvas `measureText` + `drawText` → toDataURL) on the artboard at center position.
+
+#### Layer Panel
+- [ ] AC-79: Right sidebar shows "Layers" section when an artboard is selected. Lists all child elements (images, text, shapes, brush strokes, emojis) with type icon + name/preview.
+- [ ] AC-80: Drag-reorder layers in panel → updates z-order on canvas in real-time.
+- [ ] AC-81: Eye icon per layer → toggles visibility (sets Konva node `visible`). Lock icon → prevents selection/move/edit (sets `draggable: false` + `listening: false`).
+- [ ] AC-82: Click layer in panel → selects corresponding element on canvas. Select element on canvas → highlights corresponding layer in panel. Bidirectional sync.
+- [ ] AC-83: Layer data persisted in `board_layout` JSONField (per-artboard `layers` array with type, position, properties). Restored on reload.
 
 ### Post-Processing Pipeline
 
@@ -407,7 +491,7 @@ Fixed horizontal bar below canvas. Left side: cursor tool, move tool, shape tool
 - [ ] AC-25: Manual Correction tools (Konva.js canvas): Eraser tool, Magic Wand (color similarity selection), per-image preview in batch before download.
 - [ ] AC-26: AI Background Removal: Default `rembg` (u2net model, self-hosted, ~3-8s/image). Optional external API (e.g. remove.bg). Provider configurable in Settings UI.
 - [ ] AC-27: AI Upscaling — Auto mode: ≥3000px → Pica.js (client-side, Lanczos), <3000px → external API (e.g. Deep-Image.ai). Provider configurable in Settings UI. User can override auto with fixed provider.
-- [ ] AC-28: Cloud Import: Google Drive + Microsoft OneDrive direct import into editor.
+- [ ] AC-28: Cloud Storage Manager: Google Drive + Microsoft OneDrive folder browser, image table with thumbnails, on-demand download, "Use for AI" import into editor, upload processed images back to cloud. Connection management in Settings (central + editor).
 - [ ] AC-29: Target canvas 4500x5400px at 300 DPI (MBA standard). Configurable for other marketplaces. Align-to-Top + configurable padding (default: 1 inch top/sides).
 - [ ] AC-30: Export: configurable format (PNG default), DPI (300), compression level. Download single or all. Option to overwrite original or create new version.
 
@@ -553,6 +637,14 @@ Image analysis (Gemini 3 Architect pipeline) also uses OpenRouter — same API k
 - [ ] EC-12: Delete project with designs — designs remain in workspace (M2M unlinked), not deleted.
 - [ ] EC-13: Idea quick-jump with no existing projects — naming dialog offers create new only (no "assign to existing" option).
 - [ ] EC-14: Design in multiple projects — deleting from one project doesn't affect the other.
+- [ ] EC-15: Text element with empty string — prevent inserting empty text. Show placeholder "Type here" on creation, remove if user deletes all text and clicks away.
+- [ ] EC-16: Shape drag outside artboard bounds — if clipContent enabled, shape is visually clipped. If disabled, shape extends beyond frame (user's choice).
+- [ ] EC-17: Pen tool — user closes browser mid-path → discard incomplete path (no save of partial vectors).
+- [ ] EC-18: Layer panel with 50+ elements — virtualized list to prevent scroll lag. Group brush strokes into single "Drawing" layer.
+- [ ] EC-19: Font loading failure (Google Fonts offline) → fallback to system font stack, show warning.
+- [ ] EC-20: Emoji picker not supported (older browsers) → fallback: text input field where user can paste emoji.
+- [ ] EC-21: Curved text with extreme arc values → clamp to prevent text overlapping itself.
+- [ ] EC-22: Free-transform rotate on image → rotation angle persisted in layer data, restored on reload.
 
 ---
 
@@ -777,7 +869,8 @@ views/design/
 │   │   ├── TransparencyHighlighter.tsx # QC overlay
 │   │   ├── DefringeControls.tsx        # Edge cleanup slider + preview
 │   │   ├── ExportDialog.tsx            # Format, DPI, compression, download
-│   │   └── CloudImportDialog.tsx       # Google Drive + OneDrive picker
+│   │   ├── CloudManagerDialog.tsx       # Google Drive + OneDrive folder browser, image table, upload
+│   │   └── CloudStorageSettings.tsx    # Connection management (reused in central + editor settings)
 │   └── types/
 │       └── index.ts
 │
@@ -864,3 +957,235 @@ Phase B — Post-Processing:
 | `konva` + `react-konva` | Canvas-based image editor for post-processing tools (Phase B) |
 | `pica` | Client-side image upscaling (Lanczos filter) |
 | `tinycolor2` | Color manipulation for defringe/color tools |
+| `@fontsource/*` or Google Fonts API | Font loading for text tool |
+
+---
+
+### G) Canvas Element Manipulation — Tech Design
+
+> Added: 2026-04-05 | Covers AC-65 to AC-83, User Stories 35-53
+
+#### Data Model — Canvas Elements
+
+Each artboard has a `layers` array in `board_layout`. Every element on the artboard is a layer:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | string | Unique element ID |
+| `type` | enum | `'image' \| 'text' \| 'shape' \| 'brush' \| 'emoji'` |
+| `x, y` | number | Position relative to artboard origin |
+| `width, height` | number | Bounding box |
+| `rotation` | number | Degrees (0-360) |
+| `scaleX, scaleY` | number | Scale factors (default 1) |
+| `opacity` | number | 0-100 |
+| `visible` | boolean | Layer visibility |
+| `locked` | boolean | Prevents selection/editing |
+| `zIndex` | number | Render order (higher = front) |
+
+**Type-specific properties (stored in `props` object):**
+
+| Element Type | Properties |
+|-------------|------------|
+| **image** | `src` (URL), `cropRect?` |
+| **text** | `text`, `fontFamily`, `fontSize`, `fontStyle` (bold/italic), `fill`, `stroke`, `strokeWidth`, `shadowColor`, `shadowOffsetX/Y`, `shadowBlur`, `letterSpacing`, `lineHeight`, `arcAngle` (curved text, 0 = straight), `gradientFill?` (start/end color + type) |
+| **shape** | `shapeType` (rect/ellipse/triangle/line), `fill`, `stroke`, `strokeWidth`, `cornerRadius?`, `points?` (for line/pen paths) |
+| **brush** | `points` (array of x,y coordinates), `strokeColor`, `strokeWidth`, `tension` (smoothing) |
+| **emoji** | `emoji` (character), `src` (rasterized data URL) |
+
+#### Persistence
+
+All layer data stored in `board_layout.nodes[].layers` JSONField — same save mechanism as artboard properties (debounced `persistLayout`). No backend model changes needed.
+
+```
+board_layout: {
+  nodes: [
+    {
+      id, x, y, label, width, height, backgroundColor, opacity, clipContent,
+      layers: [ { id, type, x, y, ... props } ]
+    }
+  ],
+  edges: [...]
+}
+```
+
+#### Component Tree (New/Modified)
+
+```
+ArtboardCanvas (existing)
+├── Artboard (modified — renders child layers)
+│   ├── BackgroundRect (existing)
+│   ├── ContentGroup (existing — add layer rendering here)
+│   │   ├── ImageLayer          ← NEW: selectable/transformable image
+│   │   ├── TextLayer           ← NEW: editable text with rich props
+│   │   ├── ShapeLayer          ← NEW: rect/ellipse/triangle/line/pen path
+│   │   ├── BrushLayer          ← NEW: freehand stroke
+│   │   └── EmojiLayer          ← NEW: rasterized emoji image
+│   ├── SelectionBorder (existing)
+│   └── ResizeHandles (existing)
+│
+RightPanel (modified)
+├── PanelArtboardState (modified — add Layer Panel section)
+│   ├── Name / Size / Layer / Color / ClipContent (existing)
+│   └── LayerPanel              ← NEW: layer list with reorder/visibility/lock
+├── PanelElementState           ← NEW: properties for selected element
+│   ├── TextProperties          ← NEW: font, size, color, effects
+│   ├── ShapeProperties         ← NEW: fill, stroke, corner radius
+│   └── BrushProperties         ← NEW: stroke width, color
+│
+BottomToolbar (existing — wire tool handlers)
+```
+
+#### Hooks (New)
+
+| Hook | Purpose |
+|------|---------|
+| `useCanvasElements` | CRUD for layers within selected artboard. Add/remove/update/reorder elements. Integrates with undo/redo |
+| `useDrawingHandlers` | Mouse event handlers for shape/brush/text drawing. Dispatches to useCanvasElements |
+| `useElementSelection` | Track which element within an artboard is selected. Double-click = free-transform mode |
+| `useTextEditing` | Inline text editing (cursor, selection, keyboard input). Konva textarea overlay |
+| `usePenTool` | Point-by-point path creation for custom vector shapes |
+
+#### Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| Layers in JSONField (not DB) | Canvas elements are ephemeral design state, not business entities. No query/filter needs. Keeps API simple |
+| Konva Transformer for free-transform | Built-in Konva component handles resize/rotate handles with aspect lock. No custom math needed |
+| Text as Konva.Text + HTML overlay for editing | Konva.Text renders on canvas. Double-click opens positioned HTML textarea for actual editing (cursor/selection). Standard Konva pattern |
+| Pen tool as Konva.Line with points array | Simple data model, smoothing via tension param. No complex SVG path parsing |
+| Emoji rasterized to image | Ensures cross-platform consistency. OS emoji picker → canvas drawText → toDataURL → Image layer |
+| Google Fonts via CSS injection | Load font CSS on demand when user selects font. No npm package per font |
+
+---
+
+### QA Report: Phase C — Canvas Element Manipulation
+> Date: 2026-04-03 | Tester: QA Bot (Claude Opus 4.6)
+
+#### 1. TypeScript Status
+
+**PASS** — `npx tsc --noEmit` exits cleanly with zero errors. All Phase C files compile without type errors.
+
+#### 2. Lint Status
+
+**13 errors, 5 warnings total** across the project. Phase C specific:
+
+| File | Rule | Severity | Classification |
+|------|------|----------|----------------|
+| `hooks/usePenTool.ts:77` | `react-hooks/set-state-in-effect` | error | **NEW (Phase C)** |
+| `hooks/usePenTool.ts:82` | unused eslint-disable directive | warning | **NEW (Phase C)** |
+| `partials/ArtboardCanvas.tsx:147` | `no-unused-vars` (`hasContent`) | error | **NEW (Phase C)** |
+| `partials/ArtboardCanvas.tsx:290` | `no-unused-vars` (`openFilePicker`) | error | **NEW (Phase C)** |
+| `partials/ArtboardElement.tsx:48` | `react-hooks/set-state-in-effect` | error | **NEW (Phase C)** |
+| `partials/layers/ImageLayer.tsx:48` | `react-hooks/set-state-in-effect` | error | **NEW (Phase C)** |
+
+Pre-existing (not Phase C):
+- `usePolling.ts` (PROJ-7): 2 errors (ref access during render)
+- `useArtboards.ts` (Phase B): 1 error (setState in effect)
+- `EditorCanvas.tsx`: 1 error (ref immutability)
+- `DesignWorkspaceView.tsx`: 2 errors (unused vars)
+- `ProcessingSettingsDialog.tsx`: 1 error (setState in effect)
+- `ProjectGalleryView.tsx`, `IdeaListView.tsx`, `useBoardData.ts`, `CommentInput.tsx`: 4 warnings (useMemo deps)
+
+**Summary: 6 new Phase C lint issues (4 errors, 1 warning, 1 error in ArtboardElement).**
+
+#### 3. File Structure Review
+
+**All 19 files exist.** Structure follows project conventions (hooks/, partials/layers/, partials/rightPanel/, utils/).
+
+Import from `../partials/BottomToolbar` for `CanvasTool` type in 3 hooks is a minor coupling concern (hooks importing from partials). Consider extracting `CanvasTool` type to `types/index.ts`. No circular dependencies detected.
+
+#### 4. Line Count Compliance
+
+| File | Lines | Status |
+|------|-------|--------|
+| `types/index.ts` | 351 | **FAIL (>300)** |
+| `hooks/useCanvasElements.ts` | 320 | **FAIL (>300)** |
+| `hooks/useElementSelection.ts` | 80 | PASS |
+| `hooks/useTextEditing.ts` | 215 | PASS |
+| `hooks/useDrawingHandlers.ts` | 173 | PASS |
+| `hooks/usePenTool.ts` | 206 | PASS |
+| `hooks/useBrushTool.ts` | 155 | PASS |
+| `hooks/useEmojiPicker.ts` | 84 | PASS |
+| `partials/layers/ImageLayer.tsx` | 192 | PASS |
+| `partials/layers/TextLayer.tsx` | 185 | PASS |
+| `partials/layers/ShapeLayer.tsx` | 233 | PASS |
+| `partials/layers/BrushLayer.tsx` | 158 | PASS |
+| `partials/layers/EmojiLayer.tsx` | 186 | PASS |
+| `partials/rightPanel/LayerPanel.tsx` | 364 | **FAIL (>300)** |
+| `partials/rightPanel/PanelElementState.tsx` | 392 | **FAIL (>300)** |
+| `partials/rightPanel/TextProperties.tsx` | 414 | **FAIL (>300)** |
+| `partials/rightPanel/ShapeProperties.tsx` | 195 | PASS |
+| `partials/rightPanel/BrushProperties.tsx` | 158 | PASS |
+| `utils/rasterizeEmoji.ts` | 26 | PASS |
+
+**5 of 19 files exceed the 300-line limit.** TextProperties.tsx is the worst at 414 lines.
+
+#### 5. Acceptance Criteria Coverage
+
+| AC | Description | Status | Notes |
+|----|-------------|--------|-------|
+| AC-65 | Click image inside artboard selects as layer, resize handles on image | **PASS** | ImageLayer renders Transformer on selection, `e.cancelBubble = true` prevents artboard selection |
+| AC-66 | Image scaling defaults to aspect-ratio-locked, Shift to free-scale | **PARTIAL** | `keepRatio={!isFreeTransform}` locks aspect ratio. However, Shift key is not wired — free-scale requires double-click (free-transform mode), not Shift. AC says "Hold Shift to free-scale" |
+| AC-67 | Double-click image enters free-transform (rotate). Single click = select only | **PASS** | `useElementSelection` has `enterFreeTransform`/`exitFreeTransform`. Transformer enables rotation only in free-transform |
+| AC-68 | All elements belong to parent artboard, move together | **PASS** | Elements stored in `artboard.layers[]`, rendered relative to artboard Group position |
+| AC-69 | Text tool click on artboard inserts editable text, Escape deselects | **PASS** | `useTextEditing` creates positioned textarea overlay with blur/Escape/Enter handlers |
+| AC-70 | Text properties: font family, font size, color, bold/italic | **PASS** | TextProperties has font dropdown (20 fonts), size input, color picker, bold/italic toggles |
+| AC-71 | Advanced text: outline/stroke, drop shadow, letter-spacing, line-height | **PASS** | TextProperties has Outline accordion (color + width), Shadow accordion (color + offset + blur), letter-spacing/line-height sliders |
+| AC-72 | Curved/arched text (-180 to +180 arc slider) | **PARTIAL** | TextProperties has arcAngle slider. However, `TextLayer.tsx` does NOT render arc — no TextPath implementation. Comment on line 385: "TODO: arcAngle rendering -- TextPath along computed SVG arc". **UI only, no canvas rendering** |
+| AC-73 | Text effects: gradient fill, 3D/emboss | **FAIL** | Not implemented. No gradient fill or 3D/emboss controls in TextProperties |
+| AC-74 | Shape tool: Rectangle, Circle, Triangle, Line. Click+drag inserts | **PASS** | `useDrawingHandlers` handles all 4 shapes with click-to-insert and drag-to-draw |
+| AC-75 | Shape properties: fill, stroke, stroke width, corner radius for rect | **PASS** | ShapeProperties renders fill/stroke/strokeWidth. Corner radius slider for rect only |
+| AC-76 | Pen tool: click to add points, click first to close, double-click finish | **PASS** | `usePenTool` implements close-snap detection (12px), double-click finish, Escape cancel |
+| AC-77 | Brush tool: freehand strokes, brush size 1-50px, color picker, tension smoothing | **PASS** | `useBrushTool` + BrushProperties (size 1-50, color, tension/smoothing slider) |
+| AC-78 | Emoji picker via OS API, rasterized as image layer | **PASS** | `useEmojiPicker` creates hidden input for OS picker. `rasterizeEmoji` converts emoji to data URL via canvas |
+| AC-79 | Layers panel shows child elements with type icon + name | **PASS** | LayerPanel lists layers sorted by zIndex desc with type icons (Image/Text/Shape/Brush/Emoji) |
+| AC-80 | Drag-reorder layers updates z-order on canvas | **PASS** | dnd-kit SortableContext with vertical list. `handleDragEnd` calls `onReorderElement` |
+| AC-81 | Eye icon toggles visibility, Lock icon prevents selection/move | **PASS** | Visibility/Lock toggle buttons in SortableLayerRow. Locked elements have `draggable: false` in all Layer components |
+| AC-82 | Click layer in panel selects on canvas, bidirectional sync | **PASS** | `selectedElementId` prop flows to both LayerPanel and Layer components |
+| AC-83 | Layer data persisted in board_layout JSONField | **PASS** | `ArtboardData.layers: CanvasElement[]` included in `BoardLayoutNode.layers`. `useArtboards` hydrates from `savedLayout` |
+
+**Summary: 15 PASS, 2 PARTIAL, 1 FAIL out of 19 ACs.**
+
+#### 6. Security Audit
+
+| Check | Status | Notes |
+|-------|--------|-------|
+| Hardcoded secrets/tokens | **PASS** | No secrets, API keys, or tokens found |
+| XSS vectors | **PASS** | No `innerHTML`, `dangerouslySetInnerHTML`, or `eval()` usage |
+| User input sanitization | **PASS** | Text editing uses textarea value (not HTML). Emoji input is filtered (trim check) |
+| Hardcoded colors | **WARN** | 20+ instances of hardcoded hex/rgba values. See issues below |
+
+#### 7. Issues Found
+
+**CRITICAL**
+- None
+
+**MAJOR**
+
+| # | Issue | File(s) | Priority |
+|---|-------|---------|----------|
+| M1 | AC-72 curved text has UI slider but NO canvas rendering (TODO comment). Users can change arcAngle but nothing happens visually | `TextLayer.tsx`, `TextProperties.tsx:385` | P1 |
+| M2 | AC-66 Shift-to-free-scale not implemented. Free-scale only via double-click (free-transform mode). AC explicitly says "Hold Shift to free-scale" | All Layer components | P2 |
+| M3 | AC-73 gradient fill + 3D/emboss text effects not implemented at all | `TextProperties.tsx` | P2 |
+| M4 | 5 files exceed 300-line limit (types/index.ts=351, useCanvasElements=320, LayerPanel=364, PanelElementState=392, TextProperties=414) | Multiple | P2 |
+| M5 | Module-level `nameCounters` object in `useCanvasElements.ts` is a singleton shared across all hook instances. If multiple boards are open or component re-mounts, counters persist incorrectly and names like "Image 47" appear on first use | `hooks/useCanvasElements.ts:10-16` | P2 |
+
+**MINOR**
+
+| # | Issue | File(s) | Priority |
+|---|-------|---------|----------|
+| m1 | 6 new lint errors from Phase C (4 `set-state-in-effect`, 2 `no-unused-vars`). Must fix before merge | Multiple | P3 |
+| m2 | 20+ hardcoded colors (hex #000000, #FFFFFF, #00C8D7, #FF5A4F, #22D3A3, #4A9EFF, rgba values). Violates "no hardcoded colors" rule. Canvas tool defaults and color picker fallbacks should use design system tokens | Multiple hooks + properties panels | P3 |
+| m3 | `CanvasTool` type imported from `partials/BottomToolbar` in 3 hooks. Should be in `types/index.ts` to avoid hooks-to-partials coupling | `usePenTool`, `useBrushTool`, `useDrawingHandlers` | P3 |
+| m4 | Duplicate styled components (`Section`, `SectionLabel`, `FieldRow`, `FieldLabel`, `ColorInput`) copy-pasted across TextProperties, ShapeProperties, BrushProperties, PanelElementState. Should be shared | 4 files | P3 |
+| m5 | `useTextEditing` manipulates DOM directly (createElement, appendChild, removeChild) instead of using React Portal. Works but fragile — no React lifecycle management for the textarea | `hooks/useTextEditing.ts` | P3 |
+| m6 | `usePenTool.ts:82` has an unused eslint-disable comment (the disable was applied but the rule name is wrong — it disables `set-state-in-effect` but the error is still reported on line 77) | `hooks/usePenTool.ts` | P4 |
+
+#### 8. Recommendations
+
+1. **Fix lint errors** (m1) before merge — the 4 `set-state-in-effect` issues can be resolved by moving state resets into cleanup functions or using `useSyncExternalStore` pattern.
+2. **Decide on AC-72 and AC-73** — either implement curved text rendering and gradient/3D effects, or explicitly defer them in the spec with a note (currently AC-72 slider exists but does nothing).
+3. **Split oversized files** (M4) — extract `SortableLayerRow` from `LayerPanel.tsx`, extract shared styled components, split `TextProperties.tsx` into sub-sections.
+4. **Move `nameCounters` into hook state** (M5) — use `useRef` for the counter map to scope it per hook instance.
+5. **Extract `CanvasTool` type** to `types/index.ts` (m3).
+6. **Address hardcoded colors** (m2) — some are legitimate canvas defaults (shape fills), but the textarea border `#4A9EFF` and background `rgba(0,0,0,0.7)` in `useTextEditing` should use theme tokens.

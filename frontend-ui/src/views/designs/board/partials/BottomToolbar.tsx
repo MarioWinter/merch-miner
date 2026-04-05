@@ -1,7 +1,6 @@
 import { useCallback } from 'react';
 import { Box, Tooltip } from '@mui/material';
 import NearMeIcon from '@mui/icons-material/NearMe';
-import OpenWithIcon from '@mui/icons-material/OpenWith';
 import CategoryIcon from '@mui/icons-material/Category';
 import BrushIcon from '@mui/icons-material/Brush';
 import TextFieldsIcon from '@mui/icons-material/TextFields';
@@ -42,11 +41,11 @@ const ZOOM_STEP = 0.1;
 
 export type CanvasTool =
   | 'cursor'
-  | 'move'
   | 'rectangle'
   | 'ellipse'
   | 'triangle'
   | 'line'
+  | 'pen'
   | 'brush'
   | 'text'
   | 'emoji';
@@ -64,6 +63,16 @@ interface BottomToolbarProps {
   activeTool: CanvasTool;
   onToolChange: (tool: CanvasTool) => void;
   onAiSparkle: () => void;
+  /** Called when Emoji button is clicked (one-shot action, not a tool mode) */
+  onEmojiClick?: () => void;
+  /** Undo handler */
+  onUndo?: () => void;
+  /** Redo handler */
+  onRedo?: () => void;
+  /** Whether undo is available */
+  canUndo?: boolean;
+  /** Whether redo is available */
+  canRedo?: boolean;
 }
 
 // -----------------------------------------------------------------
@@ -77,6 +86,11 @@ const BottomToolbar = ({
   activeTool,
   onToolChange,
   onAiSparkle,
+  onEmojiClick,
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
 }: BottomToolbarProps) => {
   const { t } = useTranslation();
 
@@ -84,7 +98,8 @@ const BottomToolbar = ({
     activeTool === 'rectangle' ||
     activeTool === 'ellipse' ||
     activeTool === 'triangle' ||
-    activeTool === 'line';
+    activeTool === 'line' ||
+    activeTool === 'pen';
 
   const zoomPercent = `${Math.round(zoom * 100)}%`;
 
@@ -107,17 +122,6 @@ const BottomToolbar = ({
           aria-pressed={activeTool === 'cursor'}
         >
           <NearMeIcon sx={{ fontSize: 18 }} />
-        </ToolButton>
-      </Tooltip>
-
-      <Tooltip title={t('design.toolbar.move', 'Move')}>
-        <ToolButton
-          $active={activeTool === 'move'}
-          onClick={() => onToolChange('move')}
-          aria-label={t('design.toolbar.move', 'Move')}
-          aria-pressed={activeTool === 'move'}
-        >
-          <OpenWithIcon sx={{ fontSize: 18 }} />
         </ToolButton>
       </Tooltip>
 
@@ -162,10 +166,9 @@ const BottomToolbar = ({
 
       <Tooltip title={t('design.toolbar.emoji', 'Emoji')}>
         <ToolButton
-          $active={activeTool === 'emoji'}
-          onClick={() => onToolChange('emoji')}
+          $active={false}
+          onClick={() => onEmojiClick?.()}
           aria-label={t('design.toolbar.emoji', 'Emoji')}
-          aria-pressed={activeTool === 'emoji'}
         >
           <EmojiEmotionsIcon sx={{ fontSize: 18 }} />
         </ToolButton>
@@ -182,18 +185,26 @@ const BottomToolbar = ({
 
       <ToolbarDivider orientation="vertical" flexItem />
 
-      {/* -- Undo / Redo (placeholder, disabled) -- */}
-      <Tooltip title={t('design.toolbar.undo', 'Undo')}>
+      {/* -- Undo / Redo -- */}
+      <Tooltip title={`${t('design.toolbar.undo', 'Undo')} (${navigator.platform.includes('Mac') ? '\u2318' : 'Ctrl+'}Z)`}>
         <span>
-          <ToolButton disabled aria-label={t('design.toolbar.undo', 'Undo')}>
+          <ToolButton
+            disabled={!canUndo}
+            onClick={onUndo}
+            aria-label={t('design.toolbar.undo', 'Undo')}
+          >
             <UndoRoundedIcon sx={{ fontSize: 18 }} />
           </ToolButton>
         </span>
       </Tooltip>
 
-      <Tooltip title={t('design.toolbar.redo', 'Redo')}>
+      <Tooltip title={`${t('design.toolbar.redo', 'Redo')} (${navigator.platform.includes('Mac') ? '\u2318' : 'Ctrl+'}Shift+Z)`}>
         <span>
-          <ToolButton disabled aria-label={t('design.toolbar.redo', 'Redo')}>
+          <ToolButton
+            disabled={!canRedo}
+            onClick={onRedo}
+            aria-label={t('design.toolbar.redo', 'Redo')}
+          >
             <RedoRoundedIcon sx={{ fontSize: 18 }} />
           </ToolButton>
         </span>

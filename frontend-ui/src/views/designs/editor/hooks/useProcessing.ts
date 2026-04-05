@@ -26,7 +26,7 @@ export type JobUpdateFn = (
 ) => void;
 
 export interface UseProcessingReturn {
-  startProcessing: (designIds: string[], steps: ProcessingStep[]) => Promise<void>;
+  startProcessing: (designIds: string[], steps: ProcessingStep[], model?: string) => Promise<void>;
   jobs: JobTracker[];
   isSubmitting: boolean;
   isProcessing: boolean;
@@ -48,12 +48,13 @@ export const useProcessing = (): UseProcessingReturn => {
   const [jobs, setJobs] = useState<JobTracker[]>([]);
 
   const startProcessing = useCallback(
-    async (designIds: string[], steps: ProcessingStep[]) => {
+    async (designIds: string[], steps: ProcessingStep[], model?: string) => {
       if (designIds.length === 0 || steps.length === 0) return;
       try {
         const result = await batchProcess({
           design_ids: designIds,
           steps,
+          ...(model ? { model } : {}),
         }).unwrap();
 
         const newJobs: JobTracker[] = result.map((job) => ({

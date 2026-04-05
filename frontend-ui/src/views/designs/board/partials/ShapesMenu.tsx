@@ -4,6 +4,7 @@ import RectangleOutlinedIcon from '@mui/icons-material/RectangleOutlined';
 import CircleOutlinedIcon from '@mui/icons-material/CircleOutlined';
 import ChangeHistoryIcon from '@mui/icons-material/ChangeHistory';
 import HorizontalRuleIcon from '@mui/icons-material/HorizontalRule';
+import GestureIcon from '@mui/icons-material/Gesture';
 import { useTranslation } from 'react-i18next';
 import type { CanvasTool } from './BottomToolbar';
 
@@ -11,13 +12,14 @@ import type { CanvasTool } from './BottomToolbar';
 // Types
 // -----------------------------------------------------------------
 
-type ShapeTool = Extract<CanvasTool, 'rectangle' | 'ellipse' | 'triangle' | 'line'>;
+type ShapeTool = Extract<CanvasTool, 'rectangle' | 'ellipse' | 'triangle' | 'line' | 'pen'>;
 
 const SHAPE_TOOLS: { tool: ShapeTool; icon: React.ReactNode; labelKey: string; fallback: string }[] = [
-  { tool: 'rectangle', icon: <RectangleOutlinedIcon sx={{ fontSize: 18 }} />, labelKey: 'design.toolbar.rectangle', fallback: 'Rectangle' },
-  { tool: 'ellipse', icon: <CircleOutlinedIcon sx={{ fontSize: 18 }} />, labelKey: 'design.toolbar.ellipse', fallback: 'Ellipse' },
-  { tool: 'triangle', icon: <ChangeHistoryIcon sx={{ fontSize: 18 }} />, labelKey: 'design.toolbar.triangle', fallback: 'Triangle' },
-  { tool: 'line', icon: <HorizontalRuleIcon sx={{ fontSize: 18 }} />, labelKey: 'design.toolbar.line', fallback: 'Line' },
+  { tool: 'rectangle', icon: <RectangleOutlinedIcon sx={{ fontSize: 18 }} />, labelKey: 'design.canvas.shapes.rectangle', fallback: 'Rectangle' },
+  { tool: 'ellipse', icon: <CircleOutlinedIcon sx={{ fontSize: 18 }} />, labelKey: 'design.canvas.shapes.ellipse', fallback: 'Ellipse' },
+  { tool: 'triangle', icon: <ChangeHistoryIcon sx={{ fontSize: 18 }} />, labelKey: 'design.canvas.shapes.triangle', fallback: 'Triangle' },
+  { tool: 'line', icon: <HorizontalRuleIcon sx={{ fontSize: 18 }} />, labelKey: 'design.canvas.shapes.line', fallback: 'Line' },
+  { tool: 'pen', icon: <GestureIcon sx={{ fontSize: 18 }} />, labelKey: 'design.canvas.shapes.pen', fallback: 'Pen' },
 ];
 
 // -----------------------------------------------------------------

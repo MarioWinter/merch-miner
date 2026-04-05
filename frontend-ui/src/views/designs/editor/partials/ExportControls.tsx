@@ -13,6 +13,7 @@ import { styled } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import DownloadIcon from '@mui/icons-material/Download';
 import FolderZipIcon from '@mui/icons-material/FolderZip';
+import TuneIcon from '@mui/icons-material/Tune';
 import CloseIcon from '@mui/icons-material/Close';
 import type { BatchImage, ExportSettings } from '../types';
 
@@ -94,6 +95,7 @@ interface ExportControlsProps {
   onClose: () => void;
   onDownloadCurrent: (settings: ExportSettings) => void;
   onDownloadAll: (settings: ExportSettings) => void;
+  onOpenAdvanced: () => void;
 }
 
 // -----------------------------------------------------------------
@@ -106,6 +108,7 @@ export const ExportControls = ({
   onClose,
   onDownloadCurrent,
   onDownloadAll,
+  onOpenAdvanced,
 }: ExportControlsProps) => {
   const { t } = useTranslation();
 
@@ -235,6 +238,12 @@ export const ExportControls = ({
               {t('design.export.downloadAll')}
             </Button>
           </span>
+        </Tooltip>
+
+        <Tooltip title={t('design.export.advanced')}>
+          <IconButton size="small" onClick={onOpenAdvanced} aria-label={t('design.export.advanced')}>
+            <TuneIcon sx={{ fontSize: 18 }} />
+          </IconButton>
         </Tooltip>
 
         <IconButton size="small" onClick={onClose} aria-label="Close export">

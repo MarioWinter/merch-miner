@@ -7,10 +7,13 @@ from design_app.api.views import (
     ApplyPipelineView,
     BatchProcessView,
     DesignBoardView,
+    DesignDeleteVersionView,
     DesignDetailView,
     DesignDownloadView,
     DesignListByIdsView,
     DesignListView,
+    DesignRevertView,
+    DesignSaveProcessedView,
     GenerateDesignView,
     PipelineDetailView,
     PipelineListCreateView,
@@ -63,6 +66,24 @@ urlpatterns = [
         'designs/<uuid:pk>/download/',
         DesignDownloadView.as_view(),
         name='design-download',
+    ),
+    # Revert design to original (delete processed files)
+    path(
+        'designs/<uuid:pk>/revert/',
+        DesignRevertView.as_view(),
+        name='design-revert',
+    ),
+    # Save processed image (to processed_file)
+    path(
+        'designs/<uuid:pk>/save-processed/',
+        DesignSaveProcessedView.as_view(),
+        name='design-save-processed',
+    ),
+    # Delete a specific file version
+    path(
+        'designs/<uuid:pk>/delete-version/',
+        DesignDeleteVersionView.as_view(),
+        name='design-delete-version',
     ),
     # Analyze image on a design
     path(
