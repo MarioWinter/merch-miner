@@ -59,10 +59,12 @@ const MenuButton = styled(IconButton)(({ theme }) => ({
   right: 4,
   opacity: 0,
   transition: `opacity ${DURATION.fast}ms ${EASING.standard}`,
-  backgroundColor: alpha(theme.palette.background.paper, 0.85),
+  backgroundColor: alpha(COLORS.ink, 0.7),
   backdropFilter: 'blur(4px)',
+  color: COLORS.snow,
   '&:hover': {
-    backgroundColor: alpha(theme.palette.background.paper, 0.95),
+    backgroundColor: COLORS.inkElevated,
+    color: COLORS.snow,
   },
 }));
 

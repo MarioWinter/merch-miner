@@ -39,6 +39,12 @@ class DesignProject(models.Model):
         related_name='projects',
         blank=True,
     )
+    ideas = models.ManyToManyField(
+        'idea_app.Idea',
+        through='DesignProjectIdea',
+        related_name='design_projects',
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -122,6 +128,14 @@ class DesignGenerationRun(models.Model):
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name='triggered_design_runs',
+    )
+    project_prompt = models.ForeignKey(
+        'ProjectPrompt',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='generation_runs',
+        help_text='Saved prompt this run was generated from',
     )
     prompt_used = models.TextField(blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -382,3 +396,107 @@ class DesignPipeline(models.Model):
 
     def __str__(self):
         return f"Pipeline: {self.name}"
+
+
+class DesignProjectIdea(models.Model):
+    """Through table for DesignProject <-> Idea M2M (Slogan Pool)."""
+
+    project = models.ForeignKey(
+        DesignProject,
+        on_delete=models.CASCADE,
+        related_name='project_ideas',
+    )
+    idea = models.ForeignKey(
+        'idea_app.Idea',
+        on_delete=models.CASCADE,
+        related_name='idea_projects_through',
+    )
+    position = models.IntegerField(default=0)
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('project', 'idea')
+        ordering = ['position', '-added_at']
+        indexes = [
+            models.Index(
+                fields=['project', 'idea'],
+                name='projidea_proj_idea_idx',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.project.name} <-> Idea {str(self.idea_id)[:8]}"
+
+
+class ProjectPrompt(models.Model):
+    """A saved prompt for a design project (not ephemeral)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.ForeignKey(
+        DesignProject,
+        on_delete=models.CASCADE,
+        related_name='prompts',
+        db_index=True,
+    )
+    prompt_text = models.TextField()
+    sources = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='Which sources were used: {slogan, keywords, research, web_research, image}',
+    )
+    source_idea = models.ForeignKey(
+        'idea_app.Idea',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='project_prompts',
+    )
+    source_image_url = models.URLField(
+        blank=True,
+        default='',
+        max_length=2048,
+    )
+    variant_index = models.IntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(
+                fields=['project', 'created_at'],
+                name='projprompt_proj_created_idx',
+            ),
+        ]
+
+    def __str__(self):
+        return f"Prompt {str(self.id)[:8]} for {self.project.name}"
+
+
+class PromptPreset(models.Model):
+    """Saved source configuration template for the Prompt Builder."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        'workspace_app.Workspace',
+        on_delete=models.CASCADE,
+        related_name='prompt_presets',
+        db_index=True,
+    )
+    name = models.CharField(max_length=100)
+    source_config = models.JSONField(
+        default=dict,
+        help_text='Source toggle config: {slogan, keywords, research, web_research, image}',
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='created_prompt_presets',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['name']
+
+    def __str__(self):
+        return f"Preset: {self.name}"

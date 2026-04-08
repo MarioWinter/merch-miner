@@ -700,8 +700,16 @@
       "regenerate": "Regenerate"
     },
     "canvas": {
-      "emptyTitle": "Drop images here or create a design",
-      "emptyDescription": "Use the prompt bar below to generate AI designs",
+      "emptyTitle": "Drop images or create an AI Image Board",
+      "emptyDescription": "Drag images from your desktop or use the toolbar to get started.",
+      "dropHint": "Drop images to create artboards",
+      "browseFiles": "Browse Files",
+      "deleteDialogTitle": "Delete Designs",
+      "deleteDialogBody": "{{count}} design(s) will be permanently deleted from the server. This cannot be undone.",
+      "deleteConfirm": "Delete",
+      "deleteCancel": "Cancel",
+      "deleteSuccess": "Designs deleted",
+      "deleteError": "Failed to delete designs",
       "text": {
         "fontFamily": "Font",
         "fontSize": "Size",
@@ -735,6 +743,13 @@
         "color": "Color",
         "size": "Brush Size",
         "smoothing": "Smoothing"
+      },
+      "layers": {
+        "title": "Layers",
+        "empty": "No layers",
+        "visible": "Toggle visibility",
+        "lock": "Toggle lock",
+        "rename": "Rename layer"
       }
     },
     "board": {
@@ -838,6 +853,81 @@
       "success": "Design analyzed - prompt ready for Design Forge",
       "error": "Failed to analyze image",
       "reused": "Analysis ready"
+    },
+    "promptBuilder": {
+      "openButton": "Build Prompt",
+      "title": "Prompt Builder",
+      "titleBulk": "Building prompts for {{count}} slogans",
+      "slogan": "Slogan",
+      "selectSlogan": "Select slogan",
+      "bulkSelected": "{{count}} slogans selected",
+      "keywords": "Keywords",
+      "noNicheKeywords": "Link a niche to enable keywords",
+      "research": "AI Research",
+      "noResearch": "No research data available",
+      "webResearch": "Web Research",
+      "notAvailable": "Not available — run Deep Web Search first",
+      "image": "Reference Image",
+      "uploadImage": "Upload Image",
+      "variants": "Variants",
+      "preview": "Prompt Preview",
+      "variantLabel": "Variant {{n}}",
+      "noPreview": "Toggle sources to see a preview",
+      "build": "Build Prompt(s)",
+      "buildBulk": "Build {{count}} Prompt(s)",
+      "buildError": "Failed to build prompts",
+      "buildSuccess": "{{count}} prompt(s) saved",
+      "saveError": "Failed to save prompts",
+      "noKeywordsFound": "No keywords found for this niche",
+      "noResearchData": "Run AI Research first to enable this source",
+      "visualStyle": "Visual Style",
+      "graphicElements": "Graphics",
+      "vibe": "Vibe",
+      "tone": "Tone",
+      "aesthetics": "Aesthetics",
+      "analyzeImage": "Analyze"
+    },
+    "sloganPool": {
+      "title": "Slogan Pool",
+      "empty": "No slogans — add from Slogan Refinery or Niche Drawer",
+      "selectSlogan": "Select slogan",
+      "refProducts": "Add to canvas",
+      "details": "Details",
+      "autoPrompt": "Auto-Prompt",
+      "remove": "Remove",
+      "removeError": "Failed to remove",
+      "autoPromptError": "Auto-prompt failed",
+      "maxBulk": "Max 10 per batch",
+      "generateSelected": "Generate Selected ({{count}})"
+    },
+    "prompts": {
+      "title": "Prompts",
+      "empty": "No saved prompts",
+      "edit": "Edit",
+      "delete": "Delete",
+      "generated": "Generated",
+      "editError": "Failed to update",
+      "deleteError": "Failed to delete",
+      "generateAll": "Generate All ({{count}})"
+    },
+    "presets": {
+      "title": "Presets",
+      "namePlaceholder": "Preset name",
+      "save": "Save as Preset",
+      "saved": "Preset saved",
+      "saveError": "Failed to save preset"
+    },
+    "actions": {
+      "analyzeImage": "Analyze Image",
+      "analyzeImageTooltip": "Analyze selected image to generate a prompt",
+      "analyzeImageUpload": "Upload an image to analyze",
+      "bulkGenerating": "Generating {{count}} designs...",
+      "imageAdded": "Image added as reference artboard"
+    },
+    "artboards": {
+      "title": "Artboards",
+      "empty": "No artboards",
+      "prompt": "Prompt"
     },
     "editor": {
       "title": "Image Editor",
@@ -1267,7 +1357,8 @@
       "tabEditor": "Image Editor",
       "settings": "Project Settings",
       "canvasComingSoon": "Artboard Canvas coming soon",
-      "canvasDescription": "The Konva.js-powered artboard will replace the old React Flow board."
+      "canvasDescription": "The Konva.js-powered artboard will replace the old React Flow board.",
+      "openNicheDrawer": "Niche Details"
     },
     "settings": {
       "title": "Processing Settings",
@@ -1285,18 +1376,6 @@
       "apiKeyKept": "Existing key will be kept",
       "autoThreshold": "Auto Threshold",
       "autoThresholdHint": "Images below this size use API, above use Pica.js (client-side)"
-    },
-    "canvas": {
-      "emptyTitle": "Drop images or create an AI Image Board",
-      "emptyDescription": "Drag images from your desktop or use the toolbar to get started.",
-      "dropHint": "Drop images to create artboards",
-      "browseFiles": "Browse Files",
-      "deleteDialogTitle": "Delete Designs",
-      "deleteDialogBody": "{{count}} design(s) will be permanently deleted from the server. This cannot be undone.",
-      "deleteConfirm": "Delete",
-      "deleteCancel": "Cancel",
-      "deleteSuccess": "Designs deleted",
-      "deleteError": "Failed to delete designs"
     },
     "toolbar": {
       "ariaLabel": "Canvas toolbar",
@@ -1344,6 +1423,18 @@
       "openInEditor": "Open in Editor",
       "exportSelected": "Export Selected",
       "deleteAll": "Delete All",
+      "elementName": "Name",
+      "elementNamePlaceholder": "Element name",
+      "deleteElement": "Delete Element",
+      "position": "Position",
+      "elementSize": "Size",
+      "originalSize": "Original Size",
+      "rotation": "Rotation",
+      "rotationDeg": "Deg",
+      "elementOpacity": "Opacity",
+      "visible": "Visible",
+      "locked": "Locked",
+      "emojiPreview": "Emoji",
       "tools": {
         "regenerate": "Regenerate",
         "aiImageBoard": "AI Board",

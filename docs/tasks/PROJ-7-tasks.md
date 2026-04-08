@@ -294,3 +294,36 @@
 - [x] 10 ControlsRow tests (sort both modes, 16 product types, API params)
 - [x] Build clean: 0 TypeScript errors
 - [ ] Full QA pass pending
+
+---
+
+## Phase 13: DB Search — Virtualized Infinite Scroll (AC-57 to AC-63, EC-31 to EC-34)
+
+> DB mode shows thousands of products. Initial load = 100, then load 50 more on scroll. React Virtualized for smooth scrolling through large result sets.
+
+### Backend
+- [ ] Increase `max_value` on `page_size` serializer field from 100 → 200 (allows initial 100-fetch)
+- [ ] Confirm offset pagination works correctly for infinite scroll (no duplicate/skip issues when products are inserted between page fetches)
+
+### Frontend — State Hook
+- [ ] Create `useDbInfiniteScroll` hook: manages page counter, accumulated products array, loading flag, `hasMore` flag, `isFetchingNext` flag
+- [ ] Initial fetch: `page_size=100, page=1` on search submit (AC-57)
+- [ ] `loadNextPage()`: increments page, fetches with `page_size=50`, appends results (dedupe by ASIN) (AC-58)
+- [ ] End detection: if returned count < `page_size` → set `hasMore=false`, stop scroll loading (AC-59)
+- [ ] Small result set: if initial fetch returns < 100 → `hasMore=false` immediately, no scroll trigger (EC-31)
+- [ ] Search/filter reset: new keyword or filter change resets accumulated products, page counter, scroll position to top (AC-62)
+- [ ] Request deduplication: only one fetch in-flight at a time. Fast scroll events ignored while `isFetchingNext=true` (EC-32)
+- [ ] Filter change cancellation: if filter changes while next page is loading → abort in-flight request (AbortController or RTK Query abort), reset, new search with `page=1` (EC-33)
+
+### Frontend — RTK Query Changes
+- [ ] Current `useListProductsQuery` returns single-page results. Add `useLazyListProductsQuery` for imperative fetching inside the hook (trigger on scroll, not on param change)
+
+### Frontend — Virtualized Rendering
+- [ ] Install `react-virtuoso` — lightweight virtualizer with grid support and MUI compatibility
+- [ ] Replace `ProductGrid.tsx` flex-wrap grid with `VirtuosoGrid` — renders only visible cards + buffer (overscan ~5 rows). Smooth 60fps scrolling (AC-60)
+- [ ] `ProductTable.tsx` (List view): wrap `DataGrid` rows with virtualized container or use DataGrid's built-in row virtualization. Confirm both view modes work with infinite scroll (AC-63)
+- [ ] `endReached` callback from Virtuoso → calls `loadNextPage()` from hook
+
+### Frontend — Loading & UX
+- [ ] Loading indicator: skeleton cards (same wave style as Live mode) appended at bottom while next page loads. Removed when products arrive (AC-61)
+- [ ] Scroll position preserved when switching between Grid ↔ List view within same search

@@ -5,7 +5,10 @@ from django.urls import path
 from design_app.api.views import (
     AnalyzeImageView,
     ApplyPipelineView,
+    AutoPromptView,
     BatchProcessView,
+    BuildPromptsView,
+    BulkGenerateView,
     DesignBoardView,
     DesignDeleteVersionView,
     DesignDetailView,
@@ -15,6 +18,7 @@ from design_app.api.views import (
     DesignRevertView,
     DesignSaveProcessedView,
     GenerateDesignView,
+    GenerateFromPromptView,
     PipelineDetailView,
     PipelineListCreateView,
     ProcessingJobStatusView,
@@ -24,8 +28,14 @@ from design_app.api.views import (
     ProjectDesignRemoveView,
     ProjectDesignsView,
     ProjectDetailView,
+    ProjectIdeaRemoveView,
+    ProjectIdeasView,
     ProjectListCreateView,
+    ProjectPromptDetailView,
+    ProjectPromptsView,
     ProjectUploadView,
+    PromptPresetDeleteView,
+    PromptPresetListCreateView,
     RunStatusView,
     StandaloneGenerateView,
 )
@@ -171,6 +181,62 @@ urlpatterns = [
         'designs/projects/<uuid:project_id>/upload/',
         ProjectUploadView.as_view(),
         name='design-project-upload',
+    ),
+    # Slogan Pool (G2)
+    path(
+        'designs/projects/<uuid:pk>/ideas/',
+        ProjectIdeasView.as_view(),
+        name='design-project-ideas',
+    ),
+    path(
+        'designs/projects/<uuid:pk>/ideas/<uuid:idea_id>/',
+        ProjectIdeaRemoveView.as_view(),
+        name='design-project-idea-remove',
+    ),
+    # Auto-Prompt (G3)
+    path(
+        'designs/projects/<uuid:pk>/ideas/<uuid:idea_id>/auto-prompt/',
+        AutoPromptView.as_view(),
+        name='design-project-auto-prompt',
+    ),
+    # Bulk Generate (G3)
+    path(
+        'designs/projects/<uuid:pk>/bulk-generate/',
+        BulkGenerateView.as_view(),
+        name='design-project-bulk-generate',
+    ),
+    # ProjectPrompt CRUD (G9)
+    path(
+        'designs/projects/<uuid:pk>/prompts/',
+        ProjectPromptsView.as_view(),
+        name='design-project-prompts',
+    ),
+    path(
+        'designs/projects/<uuid:pk>/prompts/<uuid:prompt_id>/',
+        ProjectPromptDetailView.as_view(),
+        name='design-project-prompt-detail',
+    ),
+    path(
+        'designs/projects/<uuid:pk>/prompts/<uuid:prompt_id>/generate/',
+        GenerateFromPromptView.as_view(),
+        name='design-project-prompt-generate',
+    ),
+    # Prompt Builder (G10)
+    path(
+        'designs/projects/<uuid:pk>/build-prompts/',
+        BuildPromptsView.as_view(),
+        name='design-project-build-prompts',
+    ),
+    # Prompt Presets (G10)
+    path(
+        'designs/prompt-presets/',
+        PromptPresetListCreateView.as_view(),
+        name='design-prompt-preset-list-create',
+    ),
+    path(
+        'designs/prompt-presets/<uuid:pk>/',
+        PromptPresetDeleteView.as_view(),
+        name='design-prompt-preset-delete',
     ),
     # Product image analysis (PROJ-7 integration)
     path(

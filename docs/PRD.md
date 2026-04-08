@@ -40,6 +40,7 @@ Eliminates spreadsheet chaos and tool-switching by connecting niche data, AI-gen
 | P0 (MVP) | PROJ-16: Amazon Product Scraper (Scrapy) | In Review |
 | P0 (MVP) | PROJ-17: Deep Web Search (Vane + Crawl4ai) | In Progress |
 | P0 (MVP) | PROJ-18: OpenClaw Agent (LangGraph Multi-Agent) | In Progress |
+| P1 | PROJ-19: Global Cloud Picker (OneDrive + Google Drive) | Planned |
 
 ## Success Metrics
 

@@ -10,6 +10,8 @@ from design_app.models import (
     DesignProject,
     DesignProjectDesign,
     ProcessingSettings,
+    ProjectPrompt,
+    PromptPreset,
 )
 
 
@@ -301,6 +303,12 @@ class CreateProjectSerializer(serializers.Serializer):
 
     name = serializers.CharField(max_length=200, min_length=1)
     niche = serializers.UUIDField(required=False, allow_null=True)
+    idea_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        default=list,
+        max_length=50,
+    )
 
 
 class UpdateProjectSerializer(serializers.Serializer):
@@ -380,3 +388,182 @@ class DesignUploadSerializer(serializers.Serializer):
             )
 
         return value
+
+
+# -- Slogan Pool (G2) --
+
+class AddIdeasToPoolSerializer(serializers.Serializer):
+    """Add ideas to a project's slogan pool."""
+
+    idea_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        min_length=1,
+        max_length=50,
+    )
+
+
+class ProjectIdeaSerializer(serializers.Serializer):
+    """Slogan pool item with full metadata."""
+
+    id = serializers.UUIDField(source='idea.id')
+    slogan_text = serializers.CharField(source='idea.slogan_text')
+    signal_type = serializers.CharField(source='idea.signal_type', allow_blank=True)
+    market_confidence = serializers.CharField(
+        source='idea.market_confidence', allow_blank=True,
+    )
+    emotional_archetype = serializers.CharField(
+        source='idea.emotional_archetype', allow_blank=True,
+    )
+    pattern_used = serializers.CharField(source='idea.pattern_used', allow_blank=True)
+    why_it_works = serializers.CharField(source='idea.why_it_works', allow_blank=True)
+    niche_name = serializers.SerializerMethodField()
+    position = serializers.IntegerField()
+    added_at = serializers.DateTimeField()
+    reference_products = serializers.SerializerMethodField()
+    design_count = serializers.SerializerMethodField()
+
+    def get_niche_name(self, obj):
+        idea = obj.idea
+        return idea.niche.name if idea.niche else None
+
+    def get_reference_products(self, obj):
+        # Lazy import to avoid circulars
+        from design_app.api.views import _get_reference_products
+        return _get_reference_products(obj.idea)
+
+    def get_design_count(self, obj):
+        return obj.idea.designs.count()
+
+
+# -- Bulk Generate (G3) --
+
+class BulkGenerateSerializer(serializers.Serializer):
+    """Bulk generate designs for multiple ideas."""
+
+    idea_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        min_length=1,
+        max_length=10,
+    )
+    model = serializers.ChoiceField(
+        choices=DesignGenerationRun.ModelName.choices,
+    )
+    background_color = serializers.ChoiceField(
+        choices=Design.BackgroundColor.choices,
+        default=Design.BackgroundColor.LIGHT_GRAY,
+    )
+
+
+# -- ProjectPrompt (G9) --
+
+class ProjectPromptSerializer(serializers.ModelSerializer):
+    """Full prompt representation."""
+
+    source_idea_summary = serializers.SerializerMethodField()
+    is_generated = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ProjectPrompt
+        fields = [
+            'id', 'project', 'prompt_text', 'sources',
+            'source_idea', 'source_idea_summary',
+            'source_image_url', 'variant_index',
+            'is_generated', 'created_at', 'updated_at',
+        ]
+        read_only_fields = [
+            'id', 'project', 'source_idea_summary',
+            'is_generated', 'created_at', 'updated_at',
+        ]
+
+    def get_source_idea_summary(self, obj):
+        if obj.source_idea:
+            return {
+                'id': str(obj.source_idea.id),
+                'slogan_text': obj.source_idea.slogan_text[:100],
+            }
+        return None
+
+    def get_is_generated(self, obj):
+        return obj.generation_runs.filter(
+            status=DesignGenerationRun.Status.COMPLETED,
+        ).exists()
+
+
+class BulkCreatePromptsSerializer(serializers.Serializer):
+    """Bulk create prompts for a project."""
+
+    prompts = serializers.ListField(
+        min_length=1,
+        max_length=50,
+    )
+
+    def validate_prompts(self, value):
+        for i, item in enumerate(value):
+            if not isinstance(item, dict):
+                raise serializers.ValidationError(
+                    f'Item {i} must be a dict.',
+                )
+            if 'prompt_text' not in item or not item['prompt_text']:
+                raise serializers.ValidationError(
+                    f'Item {i} missing prompt_text.',
+                )
+        return value
+
+
+class UpdatePromptSerializer(serializers.Serializer):
+    """Edit a prompt's text."""
+
+    prompt_text = serializers.CharField(min_length=1)
+
+
+class GenerateFromPromptSerializer(serializers.Serializer):
+    """Generate a design from a saved prompt."""
+
+    model = serializers.ChoiceField(
+        choices=DesignGenerationRun.ModelName.choices,
+    )
+    background_color = serializers.ChoiceField(
+        choices=Design.BackgroundColor.choices,
+        default=Design.BackgroundColor.LIGHT_GRAY,
+    )
+
+
+# -- Prompt Builder (G10) --
+
+class BuildPromptsSerializer(serializers.Serializer):
+    """Prompt Builder: gather sources, build prompt(s)."""
+
+    sources = serializers.DictField()
+    slogan_id = serializers.UUIDField(required=False, allow_null=True)
+    image_url = serializers.URLField(required=False, allow_blank=True, allow_null=True)
+    variants = serializers.IntegerField(min_value=1, max_value=5, default=1)
+
+    def validate_sources(self, value):
+        valid_keys = {'slogan', 'keywords', 'research', 'web_research', 'image'}
+        for key in value:
+            if key not in valid_keys:
+                raise serializers.ValidationError(
+                    f'Invalid source key: {key}. Valid: {valid_keys}',
+                )
+        return value
+
+
+# -- Prompt Preset (G10) --
+
+class PromptPresetSerializer(serializers.ModelSerializer):
+    """Prompt preset CRUD."""
+
+    class Meta:
+        model = PromptPreset
+        fields = [
+            'id', 'workspace', 'name', 'source_config',
+            'created_by', 'created_at',
+        ]
+        read_only_fields = ['id', 'workspace', 'created_by', 'created_at']
+
+
+class CreatePromptPresetSerializer(serializers.Serializer):
+    """Create a new prompt preset."""
+
+    name = serializers.CharField(max_length=100, min_length=1)
+    source_config = serializers.DictField()

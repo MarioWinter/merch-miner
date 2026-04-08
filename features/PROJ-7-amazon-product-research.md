@@ -27,6 +27,7 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 14. As a member, I want to use a competitor's listing as a template for my own, so that I can quickly draft listings based on proven copy.
 15. As a member, I want a statistics/keywords overview of my current search results, so that I can spot keyword frequency and overlap patterns before committing to a niche.
 16. As a member, I want product cards to show a clean design-focused image with hover actions, so that I can quickly scan designs and act without clutter.
+17. As a member, I want DB Research results to load progressively as I scroll (first 100, then 50 more each time) with virtualized rendering, so that I can browse thousands of products without lag or memory issues.
 
 ## Acceptance Criteria
 
@@ -119,6 +120,16 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 #### Search Button UX
 - [ ] AC-56: **Disabled when empty:** Search button disabled when keyword input is empty. Keeps primary color but darker/dimmed (0.5 opacity).
 
+### Phase 7 — DB Search: Virtualized Infinite Scroll (amendment 2026-04-07)
+
+- [ ] AC-57: **Initial load:** DB Research search returns first 100 products (`page_size=100, page=1`). No upfront full-count query.
+- [ ] AC-58: **Scroll-triggered loading:** When user scrolls near bottom of product list → next page fetched with `page_size=50`. Products appended to existing list (deduplicated by ID).
+- [ ] AC-59: **End detection:** If returned results count < `page_size` → no more pages. Scroll loading stops.
+- [ ] AC-60: **Virtualized rendering:** Product card grid uses `react-virtuoso` (or `@tanstack/react-virtual`) to render only visible cards + buffer. Smooth 60fps scrolling through thousands of products.
+- [ ] AC-61: **Loading indicator:** Skeleton cards (same style as Live mode) shown at bottom while next page loads. Removed once products arrive.
+- [ ] AC-62: **Search reset:** New keyword search or filter change resets accumulated products, page counter, and scroll position.
+- [ ] AC-63: **View mode compatible:** Virtualized scroll works in both Grid and List view modes.
+
 ## API Endpoints
 
 | Method | Path | Auth | Description |
@@ -163,7 +174,7 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 | `hide_official_brands` | bool | Exclude known official brand products (static list) |
 | `exclude_words` | string | Comma-separated; exclude products whose title contains any of these words |
 | `sort_by` | string | `bsr_asc`, `reviews_desc`, `rating_desc`, `price_asc`, `newest` |
-| `page` / `page_size` | int | Pagination (default 50/page) |
+| `page` / `page_size` | int | Pagination (default 50/page, initial load 100, scroll loads 50) |
 
 ## Filters — Live Research (POST /api/research/search/)
 
@@ -217,6 +228,12 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 - [ ] EC-28: Infinite scroll: Amazon returns 0 products on next page → `canLoadMore=false`, no more scroll triggers.
 - [ ] EC-29: User changes product type mid-scroll → resets to page 1, clears accumulated products, new search with new type.
 - [ ] EC-30: Best Sellers sort returns many branded products → BrandBlacklist filters them (no UI change needed).
+
+### Phase 7 (amendment 2026-04-07)
+- [ ] EC-31: DB search returns < 100 products total → all shown immediately, no scroll loading triggered.
+- [ ] EC-32: User scrolls fast (multiple scroll events) → debounce/throttle prevents duplicate page fetches. Only one request in-flight at a time.
+- [ ] EC-33: Filter change while next page is loading → in-flight request cancelled, results reset, new search with `page=1`.
+- [ ] EC-34: Browser tab hidden during scroll loading → fetch completes normally, products appended when tab regains focus.
 
 ## Dependencies
 

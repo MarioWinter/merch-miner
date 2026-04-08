@@ -374,7 +374,7 @@
 - [x] `CloudStorageSettings.tsx`: Connection management section (status, account email, connect/disconnect). Reusable in central Settings + Design Editor Settings
 - [x] Integration: DropZone "Import from Cloud" button + BatchThumbnailStrip cloud icon → opens CloudManagerDialog
 - [x] Integration: Upload flow — select images from Batch → choose cloud folder → upload
-- [ ] Env var template update: `VITE_GOOGLE_CLIENT_ID`, `VITE_GOOGLE_API_KEY`, `VITE_ONEDRIVE_CLIENT_ID` (no template file exists yet — env vars documented in task)
+- [x] Env var template update: `VITE_GOOGLE_CLIENT_ID`, `VITE_GOOGLE_API_KEY`, `VITE_ONEDRIVE_CLIENT_ID` — added to `.env.dev.template` + `.env.prod.template`
 - [x] `ExportDialog.tsx`: format (PNG/JPEG/WebP), DPI (72-600), quality/compression slider, download single or ZIP all. Overwrite vs new version. Advanced Export button in ExportControls. JSZip with progress. i18n synced (9 keys × 5 locales)
 - [x] Pica.js integration: client-side upscaling for images ≥3000px (Lanczos3, Web Worker + WASM). Auto-mode routing (client/server). UpscaleToolParams UI with mode toggle. i18n synced (18 keys × 5 locales)
 
@@ -1013,12 +1013,12 @@
 
 ### Phase C2: Element Selection + Transform
 
-- [ ] `useElementSelection.ts` hook: selectedElementId, selectElement, deselectElement, isElementSelected. Separate from artboard selection
-- [ ] Click element inside artboard → select element (not artboard). Click artboard frame → select artboard. Click empty canvas → deselect all
-- [ ] Selected element: Konva `Transformer` component (resize handles + rotation handle). Aspect ratio locked by default, Shift = free
-- [ ] Double-click image element → free-transform mode (move + scale + rotate). Click outside → exit to normal select
-- [ ] `PanelElementState.tsx`: right panel shows element properties when element selected (instead of artboard properties)
-- [ ] Element drag → stays within artboard coordinate space. Artboard move → all child elements move with it
+- [x] `useElementSelection.ts` hook: selectedElementId, selectElement, deselectElement, isElementSelected. Separate from artboard selection
+- [x] Click element inside artboard → select element (not artboard). Click artboard frame → select artboard. Click empty canvas → deselect all
+- [x] Selected element: Konva `Transformer` component (resize handles + rotation handle). Aspect ratio locked by default, Shift = free
+- [x] Double-click image element → free-transform mode (move + scale + rotate). Click outside → exit to normal select
+- [x] `PanelElementState.tsx`: right panel shows element properties when element selected (instead of artboard properties)
+- [x] Element drag → stays within artboard coordinate space. Artboard move → all child elements move with it
 
 ### Phase C3: Image Layer
 
@@ -1037,17 +1037,17 @@
 - [x] `TextProperties.tsx` in PanelElementState: font family dropdown (system fonts + Google Fonts top 30), font size, color picker, bold/italic toggles
 - [x] Advanced text: outline (stroke color + width), drop shadow (color, offsetX/Y, blur), letter-spacing slider, line-height slider
 - [x] Curved text: arc angle slider (-180° to +180°). Konva `textPath` or manual arc rendering. Live preview on canvas
-- [ ] Text effects: gradient fill (2-color, linear/radial direction), 3D emboss (layered shadow stack). Applied via effects section in TextProperties
-- [ ] Google Fonts loading: on font-family change, inject CSS `@import` for selected font. Cache loaded fonts
+- [x] Text effects: gradient fill (2-color, linear/radial direction), 3D emboss (layered shadow stack). Applied via effects section in TextProperties
+- [ ] Self-hosted fonts: download popular Google Fonts as `.woff2` to `frontend-ui/public/fonts/`, load via `@font-face`. No external Google CDN (DSGVO). Cache loaded fonts
 
 ### Phase C5: Shapes Tool
 
-- [ ] Shape tool dropdown wired — selecting tool sets `activeTool` to specific shape type
-- [ ] `useDrawingHandlers.ts` hook: onMouseDown → start shape, onMouseMove → resize preview, onMouseUp → commit shape element
-- [ ] `ShapeLayer.tsx` Konva component: renders Rect, Ellipse, RegularPolygon (triangle), or Line based on `shapeType`
-- [ ] `ShapeProperties.tsx` in PanelElementState: fill color, stroke color, stroke width. Rectangle: corner radius slider
-- [ ] Pen tool: `usePenTool.ts` hook — click to add points, double-click to finish, click first point to close. Creates shape element with `points` array
-- [ ] Pen path rendering: `Konva.Line` with `closed` flag + `tension` for smoothing
+- [x] Shape tool dropdown wired — selecting tool sets `activeTool` to specific shape type
+- [x] `useDrawingHandlers.ts` hook: onMouseDown → start shape, onMouseMove → resize preview, onMouseUp → commit shape element
+- [x] `ShapeLayer.tsx` Konva component: renders Rect, Ellipse, RegularPolygon (triangle), or Line based on `shapeType`
+- [x] `ShapeProperties.tsx` in PanelElementState: fill color, stroke color, stroke width. Rectangle: corner radius slider
+- [x] Pen tool: `usePenTool.ts` hook — click to add points, double-click to finish, click first point to close. Creates shape element with `points` array
+- [x] Pen path rendering: `Konva.Line` with `closed` flag + `tension` for smoothing
 
 ### Phase C6: Brush Tool
 
@@ -1055,7 +1055,7 @@
 - [x] Mouse down + move → captures points array. Mouse up → commits as brush element
 - [x] `BrushLayer.tsx` Konva component: renders `Konva.Line` with `lineCap: 'round'`, `lineJoin: 'round'`, tension smoothing
 - [x] `BrushProperties.tsx` in PanelElementState: stroke width slider (1-50px), color picker
-- [ ] Brush strokes grouped: consecutive strokes within 2s → merge into single "Drawing" layer for cleaner layer panel (deferred — each stroke is a separate element for MVP)
+- [x] Brush strokes grouped: consecutive strokes within 2s → merge into single "Drawing" layer for cleaner layer panel
 
 ### Phase C7: Emoji
 
@@ -1076,7 +1076,7 @@
 ### Phase C9: i18n — Canvas Elements
 
 - [x] `design.canvas.tools.*` — shape names, brush, text, emoji labels (covered by `design.toolbar.*` from Phase D6)
-- [ ] `design.canvas.layers.*` — layer panel labels, visibility, lock, reorder (no EN keys yet)
+- [x] `design.canvas.layers.*` — layer panel labels (title, empty, visible, lock, rename) + `design.panel` element keys (12 keys). All 5 locales. Fixed duplicate `canvas` key in EN locale
 - [x] `design.canvas.text.*` — font, size, bold, italic, outline, shadow, arc, gradient, effects
 - [x] `design.canvas.shapes.*` — fill, stroke, corner radius, pen tool
 - [x] `design.canvas.brush.*` — color, size, smoothing
@@ -1084,14 +1084,294 @@
 
 ### Completion Checklist — Phase C
 
-- [ ] Image layer: click, move, scale (aspect lock), double-click free-transform
-- [ ] Text tool: insert, edit inline, font/size/color, outline/shadow, curved text, gradient/3D
-- [ ] Shapes: rect, ellipse, triangle, line, pen tool freeform
-- [ ] Brush: freehand strokes, size + color
+- [x] Image layer: click, move, scale (aspect lock), double-click free-transform
+- [x] Text tool: insert, edit inline, font/size/color, outline/shadow, curved text, gradient/3D
+- [x] Shapes: rect, ellipse, triangle, line, pen tool freeform
+- [x] Brush: freehand strokes, size + color
 - [x] Emoji: native picker, rasterized as image layer
 - [x] Layer panel: list, drag-reorder, visibility, lock, bidirectional selection
-- [ ] All elements belong to parent artboard (move together)
-- [ ] All element data persisted in board_layout (survives reload)
-- [ ] Undo/redo works for element operations
+- [x] All elements belong to parent artboard (move together)
+- [x] All element data persisted in board_layout (survives reload)
+- [x] Undo/redo works for element operations
 - [x] i18n synced (5 locales) — canvas text/shapes/brush keys added to DE/FR/ES/IT
+- [ ] All tests pass, lint clean
+
+---
+
+## Phase E: Upload-Ready Status & Drawer Integration (AC-84 to AC-88)
+
+> Design status extension: `listing_ready` choice. Toggle on approved designs. Bulk action per project. Drawer shows individual design thumbnails with badges.
+
+### E1: Backend — listing_ready Status
+
+- [ ] Add `listing_ready` to `Design.Status` choices: `LISTING_READY = 'listing_ready', 'Listing Ready'`
+- [ ] Migration — **run via Docker**
+- [ ] Status flow constraint: only `approved` designs can transition to `listing_ready`. Return 400 if design is not `approved` when toggling to `listing_ready`
+- [ ] `PATCH /api/designs/{id}/` — accept `{status: "listing_ready"}` and `{status: "approved"}` (reversible toggle)
+- [ ] Rejecting a `listing_ready` design → resets to `rejected` (loses ready state)
+- [ ] Update `DesignSerializer` — include `listing_ready` in status display
+
+### E2: Backend — Bulk Mark Ready
+
+- [ ] `POST /api/designs/projects/{id}/mark-all-ready/` — sets all `approved` designs in project to `listing_ready`. Returns count updated. If no approved designs → 200 with `{count: 0, message: "No approved designs"}`
+- [ ] `POST /api/designs/projects/{id}/unmark-all-ready/` — sets all `listing_ready` designs back to `approved`. Returns count
+- [ ] Workspace isolation on both endpoints
+
+### E3: Backend — Project Designs with Status for Drawer
+
+- [ ] Extend `DesignProjectListSerializer` with `designs_summary` field: list of `{id, thumbnail_url, status}` for each design in the project (max 10, ordered by created_at desc)
+- [ ] Include `ready_count` field: count of `listing_ready` designs in project
+
+### E4: Frontend — Upload-Ready Toggle (RightPanel Artboard List)
+
+- [ ] RightPanel "Project" section (PanelNoneState): artboard list already shows artboard names with search. Add a Ready/WIP toggle icon per artboard row
+- [ ] Only show toggle on artboards whose design has `status === 'approved'` or `status === 'listing_ready'`
+- [ ] Visual: filled CheckCircle (green) when `listing_ready`, outlined circle (grey) when `approved` WIP. No icon for pending/rejected/failed
+- [ ] Click toggle → `PATCH /api/designs/{id}/` with status flip. RTK Query mutation + tag invalidation
+- [ ] i18n keys: `design.status.listing_ready`, `design.actions.markReady`, `design.actions.markWip`
+
+### E5: Frontend — Bulk Mark Ready (Project Level)
+
+- [ ] "Mark All Ready" button in Project Gallery `ProjectCard` 3-dot menu or workspace header
+- [ ] "Unmark All" option when project has `listing_ready` designs
+- [ ] Notistack feedback: "X designs marked as ready" / "No approved designs to mark"
+- [ ] RTK Query mutations for bulk endpoints + project list invalidation
+- [ ] i18n keys: `design.actions.markAllReady`, `design.actions.unmarkAllReady`, `design.actions.noApprovedDesigns`
+
+### E6: Frontend — Drawer Design Thumbnails with Status Badges
+
+- [ ] Extend `DrawerDesignsSection.tsx`: each `ProjectRow` gets expandable accordion showing individual design thumbnails
+- [ ] Design thumbnails: 40×40px grid, max 10 per project
+- [ ] Status badge per thumbnail: green chip "Ready" for `listing_ready`, grey chip "WIP" for `approved`, no badge for other statuses
+- [ ] Project summary line: "Bingo Caller Designs — 3 designs (1 ready)" using `designs_summary` + `ready_count` from API
+- [ ] Click thumbnail → navigate to `/designs/:projectId`
+- [ ] RTK Query: use extended `useListProjectsQuery` (already exists, needs `designs_summary` from backend)
+- [ ] i18n keys: `design.projects.drawerSection.readyBadge`, `design.projects.drawerSection.wipBadge`, `design.projects.drawerSection.designSummary`
+
+### E7: i18n — Upload-Ready Status
+
+- [ ] All new keys added to EN locale
+- [ ] Sync to DE, FR, ES, IT (5 locales)
+
+---
+
+## Phase F: Curved Text Canvas Rendering (AC-72)
+
+> AC-72 partial: Slider exists in TextProperties but TextLayer has no TextPath rendering. AC-73 (Gradient/3D) deferred to post-MVP.
+
+### F1: TextPath Rendering
+
+- [ ] `TextLayer.tsx`: implement curved text rendering using Konva `TextPath` component
+- [ ] When `arcAngle !== 0`: compute SVG arc path from text width + arcAngle value, render text along path
+- [ ] When `arcAngle === 0`: render as normal `Konva.Text` (existing behavior)
+- [ ] Arc range: -180° to +180° (slider already exists in TextProperties)
+- [ ] Live preview: arc updates immediately as slider moves
+- [ ] Persist `arcAngle` in layer data (already in `CanvasElement.props.arcAngle` — no model change)
+
+### F2: Edge Cases + Clamp
+
+- [ ] EC-21: Extreme arc values → clamp to prevent text overlapping itself. Min arc based on text length
+- [ ] Empty text + arc → no render (prevent crash)
+- [ ] Undo/redo: arc changes included in canvas history (already via `useCanvasElements`)
+
+### F3: Defer AC-73
+
+- [ ] Add note in spec AC-73: "Deferred to post-MVP — gradient fill + 3D/emboss text effects"
+- [ ] Remove or comment out any placeholder UI for gradient/3D in TextProperties (if exists)
+
+---
+
+## QA Fixes — Phase C (einsortiert in bestehende Phasen)
+
+> Issues from Phase C QA Report (2026-04-03). Integrated into relevant phases.
+
+### QA-C: Lint + Code Quality Fixes
+
+- [ ] Fix `usePenTool.ts:77` — `react-hooks/set-state-in-effect` error. Move state reset into cleanup function or `useSyncExternalStore`
+- [ ] Fix `usePenTool.ts:82` — remove unused/wrong eslint-disable comment
+- [ ] Fix `ArtboardCanvas.tsx:147` — remove unused `hasContent` variable
+- [ ] Fix `ArtboardCanvas.tsx:290` — remove unused `openFilePicker` variable
+- [ ] Fix `ArtboardElement.tsx:48` — `react-hooks/set-state-in-effect` error
+- [ ] Fix `ImageLayer.tsx:48` — `react-hooks/set-state-in-effect` error
+- [ ] Extract `CanvasTool` type from `partials/BottomToolbar.tsx` → `types/index.ts` (fix hooks-to-partials coupling)
+
+### QA-C: File Size Splits (>300 lines)
+
+- [ ] Split `types/index.ts` (351 lines): extract element-specific interfaces to `types/elements.ts`
+- [ ] Split `useCanvasElements.ts` (320 lines): extract element CRUD helpers to `utils/elementHelpers.ts`
+- [ ] Split `LayerPanel.tsx` (364 lines): extract `SortableLayerRow` to `partials/rightPanel/SortableLayerRow.tsx`
+- [ ] Split `PanelElementState.tsx` (392 lines): extract shared styled components to `partials/rightPanel/ElementPanel.styles.ts`
+- [ ] Split `TextProperties.tsx` (414 lines): extract sub-sections (Outline, Shadow, Arc) to separate components or shared styled file
+
+### QA-C: Bug Fixes
+
+- [ ] M5: Move module-level `nameCounters` in `useCanvasElements.ts` into `useRef` — scope per hook instance, prevent stale counters across re-mounts
+- [ ] M2: Wire Shift-key to free-scale on image elements (AC-66). Currently free-scale only via double-click free-transform. Add `onKeyDown`/`onKeyUp` handler for Shift → set `keepRatio={false}` on Transformer
+- [ ] m4: Extract duplicate styled components (`Section`, `SectionLabel`, `FieldRow`, `FieldLabel`, `ColorInput`) from TextProperties/ShapeProperties/BrushProperties/PanelElementState → shared `rightPanel/PanelFields.styles.ts`
+- [ ] m2: Replace hardcoded colors in canvas hooks + properties panels with design system tokens where applicable (textarea border `#4A9EFF` → `theme.vars.palette.primary.main`, bg `rgba(0,0,0,0.7)` → theme token). Canvas tool defaults (shape fills) may stay as explicit hex values
+
+---
+
+## Phase G: Slogan → Design Forge Bulk Flow (AC-89 to AC-106)
+
+> Bridge between PROJ-8 (Slogan Refinery) and PROJ-9 (Design Forge). Slogans as a "pool" per project with bulk auto-prompt and bulk generation.
+
+### G1: Backend — DesignProjectIdea Model (AC-89)
+
+- [x] `DesignProjectIdea` through table: project FK (CASCADE), idea FK (CASCADE), position IntegerField (default=0), added_at DateTimeField (auto_now_add). unique_together: (project, idea)
+- [x] Add `ideas` M2M field on `DesignProject` model via through table
+- [x] Migration — **run via Docker** (0004_phase_g_models + 0005_phase_g_complete)
+- [x] Admin registration for `DesignProjectIdea`
+- [x] Index on `(project, idea)` for fast lookups
+
+### G2: Backend — Slogan Pool CRUD API (AC-90 to AC-93)
+
+- [x] `POST /api/designs/projects/{id}/ideas/` — body: `{idea_ids: [uuid, ...]}`. Creates `DesignProjectIdea` per idea. Auto-assigns position. Idempotent (ignores existing). Returns updated list. Workspace isolation (AC-91)
+- [x] `DELETE /api/designs/projects/{id}/ideas/{ideaId}/` — removes M2M link only, idea not deleted. 404 if not in pool (AC-92)
+- [x] Extend `CreateProjectSerializer` — accept optional `idea_ids` list. On create: bulk-create `DesignProjectIdea` for each (AC-90)
+- [x] Extend `ProjectBoardView` response — include `ideas` array with per-slogan: id, slogan_text, signal_type, market_confidence, emotional_archetype, pattern_used, why_it_works, niche_name, position, reference_products (reuse `_get_reference_products` helper), design_count (AC-93)
+- [x] `ProjectIdeaSerializer` — serializes slogan pool items with all metadata fields + nested reference_products
+- [x] Workspace isolation on all new endpoints — verify idea belongs to same workspace
+
+### G3: Backend — Auto-Prompt + Bulk Generate (AC-101 to AC-104)
+
+- [x] `GET /api/designs/projects/{id}/ideas/{ideaId}/auto-prompt/` — calls `prompt_builder.build_from_idea(idea, 'light_gray', reference_analyses)`. Returns `{prompt: string}`. Reuses existing `_get_reference_products` for reference data (AC-101)
+- [x] Auto-prompt fallback: if idea has no niche research (no reference products) → `build_from_idea()` uses slogan metadata only (slogan_text, signal_type, emotional_archetype, pattern_used). No error returned (AC-102)
+- [x] `POST /api/designs/projects/{id}/bulk-generate/` — body: `{idea_ids: [uuid, ...], model, background_color}`. Max 10 idea_ids per request (400 if exceeded). For each idea: call `build_from_idea()` → create `DesignGenerationRun` linked to idea → enqueue RQ job → auto-add generated Design to project via `DesignProjectDesign` (AC-103)
+- [x] Each generated `Design` linked to source idea via `Design.idea` FK (AC-104)
+- [x] Return list of `{idea_id, run_id, prompt_used}` for frontend progress tracking
+- [x] Backward compat: `?ideaId=` URL param on `ProjectBoardView` still works. Additionally auto-adds idea to project pool if not already there (EC-30)
+
+### G4: Frontend — Drawer Multi-Select (AC-94 to AC-96)
+
+- [x] `CollectedItemsSection.tsx`: add `selectedIds: Set<string>` state. Each approved slogan chip gets a Checkbox. Pending/rejected slogans not selectable (EC-31)
+- [x] "Select All" / "Deselect All" toggle link above slogan chips
+- [x] Action bar: appears when `selectedIds.size > 0`. Shows "Forge N Slogans" button (primary color, coral accent)
+- [x] "Forge N Slogans" click → opens `ProjectNamingDialog` with `ideaIds={Array.from(selectedIds)}` prop
+- [x] Selection resets when drawer closes
+- [x] i18n keys: `ideas.drawer.selectAll`, `ideas.drawer.deselectAll`, `ideas.drawer.forgeCount`
+
+### G5: Frontend — ProjectNamingDialog Extension (AC-96)
+
+- [x] New prop `ideaIds?: string[]` on `ProjectNamingDialog`
+- [x] On "Create new project": `POST /api/designs/projects/` with `{name, niche, idea_ids}` → navigate to `/designs/:projectId`
+- [x] On "Add to existing project": `POST /api/designs/projects/{id}/ideas/` with `{idea_ids}` → navigate to `/designs/:projectId`
+- [x] `IdeaCard.tsx` (Slogan Refinery): brush button now opens dialog with `ideaIds={[idea.id]}` — slogan added to pool on create/add (AC-106)
+
+### G6: Frontend — Slogan Pool in RightPanel (AC-97 to AC-100)
+
+- [x] `SloganPoolSection.tsx` (NEW — `rightPanel/`): header "✨ Slogan Pool (N)", slogan card list, "Generate Selected (N)" button at bottom. Empty state: "No slogans — add from Slogan Refinery or Niche Drawer"
+- [x] `SloganPoolCard.tsx` (NEW — `rightPanel/`): Checkbox, slogan text (Typography noWrap + Tooltip), signal_type badge (Chip), market_confidence badge (colored dot + label), niche chip. Horizontal thumbnail row (max 4, 36×36px). "Auto-Prompt" IconButton. Remove (✕) IconButton. Expandable Accordion with why_it_works, emotional_archetype, pattern_used
+- [x] Integrate in `PanelNoneState.tsx`: render `SloganPoolSection` when `ideas.length > 0` (between Project search and Tools section)
+- [x] `DesignWorkspaceView.tsx`: read `boardData.ideas` from `useGetProjectBoardQuery`, pass as `ideas` prop to `RightPanel` → `PanelNoneState`
+- [x] Reference product thumbnail click → calls `onAddReferenceArtboard(imageUrl)` → creates new artboard on canvas with product image (AC-99)
+- [x] Remove button → `DELETE /api/designs/projects/{id}/ideas/{ideaId}/` mutation → RTK Query invalidation refreshes pool
+
+### G7: Frontend — Auto-Prompt + Bulk Generate (AC-101, AC-103 to AC-105)
+
+- [x] RTK Query endpoints in `designSlice.ts`: `addIdeasToProject` mutation, `removeIdeaFromProject` mutation, `useAutoPromptQuery` (lazy), `bulkGenerateDesigns` mutation
+- [x] Tag invalidation: `addIdeasToProject` + `removeIdeaFromProject` + `bulkGenerateDesigns` invalidate project board tags
+- [x] Single Auto-Prompt: "Auto-Prompt" button on SloganPoolCard → `useLazyAutoPromptQuery` → on success, calls `onAutoPromptFill(prompt)` on PromptBar → prompt text field populated. User edits → clicks Generate (existing flow)
+- [x] `PromptBar.tsx`: add `onAutoPromptFill?: (prompt: string) => void` prop. When called, sets prompt text and auto-expands the prompt bar
+- [x] Bulk Generate: "Generate Selected" button (disabled when selection = 0 or > 10). Click → `bulkGenerateDesigns({projectId, idea_ids, model, background_color})`. Model + BG color from current PromptBar settings
+- [x] On bulk response: create skeleton artboards on canvas (one per run). Label = slogan text (truncated). Poll each `run_id` via existing `useGetDesignRunQuery`. Artboard fills in when generation completes (AC-105)
+- [x] Progress indicator per SloganPoolCard: show CircularProgress spinner next to slogan while its run is pending/running. Clear when completed/failed
+- [x] Bulk generate > 10 selected: "Generate Selected" button disabled with tooltip "Max 10 per batch" (EC-28)
+
+### G8: i18n — Slogan Pool
+
+- [x] New keys: `design.sloganPool.title`, `design.sloganPool.empty`, `design.sloganPool.generateSelected`, `design.sloganPool.autoPrompt`, `design.sloganPool.remove`, `design.sloganPool.refProducts`, `design.sloganPool.maxBulk`
+- [x] New keys: `design.actions.forgeSlogan`, `design.actions.bulkGenerating`
+- [x] All 5 locales: EN, DE, FR, ES, IT
+
+### G9: Backend — ProjectPrompt Model + API (AC-107 to AC-112)
+
+- [x] `ProjectPrompt` model: UUID pk, project FK (CASCADE), prompt_text TextField, sources JSONField, source_idea FK (nullable, SET_NULL), source_image_url URLField (nullable), variant_index IntegerField (default=0), created_at, updated_at
+- [x] Migration — **run via Docker** (0004_phase_g_models + 0005_phase_g_complete)
+- [x] Admin registration
+- [x] Index on `(project, created_at)` for list queries
+- [x] `POST /api/designs/projects/{id}/prompts/` — bulk create. Body: `{prompts: [{prompt_text, sources, source_idea?, source_image_url?, variant_index?}]}`. Returns created records (AC-108)
+- [x] `PATCH /api/designs/projects/{id}/prompts/{promptId}/` — edit prompt_text only (AC-109)
+- [x] `DELETE /api/designs/projects/{id}/prompts/{promptId}/` — delete prompt. Designs generated from it remain unaffected (AC-110)
+- [x] Extend `ProjectBoardView` response — include `prompts` array ordered by created_at desc (AC-111)
+- [x] `POST /api/designs/projects/{id}/prompts/{promptId}/generate/` — create DesignGenerationRun from saved prompt. Links to source_idea if present. Same RQ job as existing generate (AC-112)
+- [x] `ProjectPromptSerializer` — all fields, nested source_idea summary (id, slogan_text), `is_generated` boolean computed field (true if linked DesignGenerationRun with status=completed exists)
+- [x] Add `project_prompt` FK (nullable, SET_NULL) on `DesignGenerationRun` model — back-reference for tracking which prompt a run was generated from (AC-112b). Migration — **run via Docker**
+- [x] Workspace isolation on all endpoints
+
+### G10: Backend — Prompt Builder + Presets (AC-119 to AC-131)
+
+- [x] `POST /api/designs/projects/{id}/build-prompts/` — body: `{sources: {slogan: bool, keywords: bool, research: bool, web_research: bool, image: bool}, slogan_id?: uuid, image_url?: string, variants: int (1-5)}`. Server-side: gathers enabled source data → calls extended `prompt_builder` → returns `{prompts: [{prompt_text, sources}]}`. Does NOT auto-save (frontend decides to save or edit first)
+- [x] Extend `prompt_builder.py` — new `build_from_sources(sources_config, idea?, keywords?, research_data?, image_analysis?)` function. Combines selected sources into prompt following 9 critical rules. Support for variants (different stylistic approaches per variant)
+- [x] Keywords source: `build-prompts` endpoint fetches keywords server-side via `keyword_app` models (NicheKeyword for the project's linked niche). Falls back gracefully if niche has 0 keywords (EC-44). Integrates top keywords into prompt as design theme terms
+- [x] Web Research source: accepts PROJ-17 web research results if available. Adds trend/market context to prompt
+- [x] Image source: if image_url provided + sources.image=true → runs Gemini 3 Architect 7-step analysis (reuse existing `image_analyzer.py`). Merges visual analysis into prompt
+- [x] `PromptPreset` model: UUID pk, workspace FK, name CharField (max 100), source_config JSONField, created_by FK, created_at
+- [x] Migration for PromptPreset — **run via Docker** (0004_phase_g_models)
+- [x] `GET /api/designs/prompt-presets/` — list workspace presets
+- [x] `POST /api/designs/prompt-presets/` — create preset. Body: `{name, source_config}`
+- [x] `DELETE /api/designs/prompt-presets/{id}/` — delete preset
+- [x] Seed 3 default presets on workspace creation: "Full Context" (all on), "Slogan Only" (slogan on, rest off), "Image Analysis Only" (image on, rest off)
+
+### G11: Frontend — RightPanel Command Center (AC-113 to AC-118)
+
+- [x] Refactor `PanelNoneState.tsx` into 3 collapsible sections: **Slogan Pool** (top), **Prompts** (middle), **Artboards** (bottom). Each with header + collapse toggle
+- [x] `PromptListSection.tsx` (NEW — `rightPanel/`): lists all `ProjectPrompt` records. Each card: truncated text (expandable), source chips (Slogan/Keywords/Research/Image), variant badge, "Generate" IconButton, "Edit" IconButton (inline edit), "Delete" (✕). "Generate All" button at bottom
+- [x] `PromptCard.tsx` (NEW — `rightPanel/`): single prompt card. Click → loads prompt into PromptBar. Shows "From saved prompt" indicator in PromptBar
+- [x] `ArtboardListSection.tsx` (NEW — `rightPanel/`): lists all artboards in project. Each card: thumbnail (40×40), label, expandable context (used prompt truncated, source slogan, keywords from Drawer, reference images). Click card → select artboard on canvas. Bidirectional sync
+- [x] `DesignWorkspaceView.tsx`: read `boardData.prompts` + pass to RightPanel
+- [x] RTK Query: `createPrompts` mutation, `updatePrompt` mutation, `deletePrompt` mutation, `generateFromPrompt` mutation. Tag invalidation on project board
+- [x] "Generate All" button: filters prompts where `is_generated=false` (AC-112b) → calls `generateFromPrompt` for each → skeleton artboards on canvas → polling per run. Disabled when all prompts already generated
+- [x] Prompt cards show "Generated" badge (green chip) when `is_generated=true`. Un-generated prompts show active "Generate" button (AC-112b)
+
+### G12: Frontend — Prompt Builder Dialog (AC-119 to AC-128)
+
+- [x] `PromptBuilderDialog.tsx` (NEW — `board/partials/`): MUI Dialog, maxWidth="md". Opened via "✨ Build Prompt" button in PromptBar
+- [x] Source sections (each with toggle + preview):
+  - [x] **Slogan Section**: dropdown to select slogan from pool. Preview: slogan text, signal_type badge, emotional_archetype, pattern_used
+  - [x] **Keywords Section**: fetches keywords via `GET /api/niches/{nicheId}/keywords/` (existing endpoint). Preview: keyword chips. Toggle on/off. If no linked niche → disabled state "Link a niche to enable keywords" (AC-121, EC-43)
+  - [x] **AI Research Section**: shows NicheResearch data (visual_style, graphic_elements, vibe, tone). Toggle on/off. If no niche or no completed research → disabled state "No research data available" (AC-122, EC-43)
+  - [x] **Web Research Section**: shows PROJ-17 results if available. "Not available — run Deep Web Search first" disabled state. Toggle on/off. If no niche → disabled (EC-43)
+  - [x] **Reference Image Section**: file upload or select existing artboard image. "Analyze" button triggers Gemini 3 analysis. Shows analysis preview when done. Toggle on/off
+- [x] Prompt Preview panel at bottom: live-updating text preview as user toggles sources. Read-only text area showing what the prompt will look like
+- [x] "Variants" slider (1-5): how many stylistic variations to generate from same sources
+- [x] "Build Prompt(s)" button: calls `POST /projects/{id}/build-prompts/` → receives prompt text(s) → saves as ProjectPrompt(s) → appear in RightPanel Prompts section → dialog closes
+- [x] Bulk mode: when opened with multiple slogans selected → header shows "Building prompts for N slogans". Each slogan gets its own prompt(s) from same source config
+- [x] Preset dropdown at top: load saved PromptPreset → toggles apply. "Save as Preset" button → name input → saves source_config
+- [x] i18n keys: `design.promptBuilder.*` (title, sections, preview, variants, build, preset)
+
+### G13: Frontend — Image→Prompt in PromptBar + Context Menu (AC-132 to AC-134)
+
+- [x] 🖼 "Analyze Image" button in PromptBar (next to "✨ Build Prompt"). Visible always
+- [x] If image artboard selected → click triggers Gemini 3 Architect analysis on artboard image → loading spinner → result fills PromptBar text field
+- [x] If no image artboard selected → click opens file picker → user uploads image → triggers analysis → result fills PromptBar
+- [x] Analysis result auto-saved as `ProjectPrompt` with `sources: {image: true}` + `source_image_url`. Appears in RightPanel Prompts section
+- [x] Right-click context menu on artboard: add "Analyze Image → Generate Prompt" option (only on artboards that have an image). Click → same analysis flow → fills PromptBar
+- [x] Reuse existing `useImageAnalysis` hook + `POST /api/designs/{id}/analyze-image/` endpoint
+- [x] i18n keys: `design.actions.analyzeImage`, `design.actions.analyzeImageTooltip`, `design.promptBar.fromImage`
+
+### G14: i18n — Prompt Builder + Persistence
+
+- [x] New keys: `design.promptBuilder.title`, `design.promptBuilder.slogan`, `design.promptBuilder.keywords`, `design.promptBuilder.research`, `design.promptBuilder.webResearch`, `design.promptBuilder.image`, `design.promptBuilder.preview`, `design.promptBuilder.variants`, `design.promptBuilder.build`, `design.promptBuilder.notAvailable`
+- [x] New keys: `design.prompts.title`, `design.prompts.empty`, `design.prompts.generateAll`, `design.prompts.fromSaved`, `design.prompts.edit`, `design.prompts.delete`
+- [x] New keys: `design.presets.title`, `design.presets.save`, `design.presets.fullContext`, `design.presets.sloganOnly`, `design.presets.imageOnly`
+- [x] New keys: `design.artboards.title`, `design.artboards.context`, `design.artboards.prompt`, `design.artboards.keywords`
+- [x] All 5 locales: EN, DE, FR, ES, IT
+
+### Verification Checklist — Phase G (Complete)
+
+- [ ] Drawer: select 3 approved slogans → "Forge 3 Slogans" → create new project → Design Forge opens with pool
+- [ ] RightPanel shows 3 sections: Slogan Pool, Prompts (empty), Artboards (empty)
+- [ ] Open Prompt Builder → toggle Slogan + Keywords + Research → preview updates live → "Build 3 Prompts" (1 per slogan, 1 variant) → 3 prompts appear in RightPanel
+- [ ] Edit a prompt inline in RightPanel → text updates
+- [ ] Click "Generate" on a prompt → skeleton artboard → image loads via polling
+- [ ] "Generate All" → all 3 prompts generate → 3 skeleton artboards → fill in
+- [ ] Artboard list shows generated artboards with context (prompt, slogan, keywords)
+- [ ] Click artboard in list → selects on canvas. Select on canvas → highlights in list
+- [ ] 🖼 Analyze Image → upload image → Gemini 7-step → prompt fills PromptBar + saved to Prompts section
+- [ ] Right-click image artboard → "Analyze Image → Generate Prompt" → same flow
+- [ ] Prompt Presets: save "My Config" → load it later → sources restore correctly
+- [ ] Prompt Builder with Variants=3 → 3 different prompts generated from same sources
+- [ ] Bulk mode: select 2 slogans → "Build Prompts" → Prompt Builder → build → 2 prompts saved
+- [ ] IdeaCard brush button → project with 1 slogan → Prompt Builder → works
 - [ ] All tests pass, lint clean

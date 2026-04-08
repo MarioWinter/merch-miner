@@ -24,6 +24,15 @@ import type {
   UpdateProjectBody,
   AddDesignsToProjectBody,
   ProjectBoardResponse,
+  AddIdeasBody,
+  BulkGenerateBody,
+  BulkGenerateResult,
+  AutoPromptResponse,
+  ProjectPrompt,
+  CreatePromptsBody,
+  BuildPromptsBody,
+  BuildPromptsResponse,
+  PromptPreset,
 } from '../views/designs/gallery/types';
 
 // --- Processing Settings types ---
@@ -477,6 +486,164 @@ export const designApi = createApi({
         { type: 'DesignProjectList', id: 'LIST' },
       ],
     }),
+
+    // --- Phase G: Slogan Pool + Prompt Builder ---
+
+    // Add ideas to project pool
+    addIdeasToProject: builder.mutation<
+      void,
+      { projectId: string; body: AddIdeasBody }
+    >({
+      query: ({ projectId, body }) => ({
+        url: `/api/designs/projects/${projectId}/ideas/`,
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: (_result, _error, { projectId }) => [
+        { type: 'DesignProject', id: projectId },
+      ],
+    }),
+
+    // Remove idea from project pool
+    removeIdeaFromProject: builder.mutation<
+      void,
+      { projectId: string; ideaId: string }
+    >({
+      query: ({ projectId, ideaId }) => ({
+        url: `/api/designs/projects/${projectId}/ideas/${ideaId}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_result, _error, { projectId }) => [
+        { type: 'DesignProject', id: projectId },
+      ],
+    }),
+
+    // Auto-prompt for a single idea
+    autoPrompt: builder.query<
+      AutoPromptResponse,
+      { projectId: string; ideaId: string }
+    >({
+      query: ({ projectId, ideaId }) => ({
+        url: `/api/designs/projects/${projectId}/ideas/${ideaId}/auto-prompt/`,
+        method: 'GET',
+      }),
+    }),
+
+    // Bulk generate designs from multiple ideas
+    bulkGenerateDesigns: builder.mutation<
+      BulkGenerateResult[],
+      { projectId: string; body: BulkGenerateBody }
+    >({
+      query: ({ projectId, body }) => ({
+        url: `/api/designs/projects/${projectId}/bulk-generate/`,
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: (_result, _error, { projectId }) => [
+        { type: 'DesignProject', id: projectId },
+      ],
+    }),
+
+    // Create prompts (bulk)
+    createPrompts: builder.mutation<
+      ProjectPrompt[],
+      { projectId: string; body: CreatePromptsBody }
+    >({
+      query: ({ projectId, body }) => ({
+        url: `/api/designs/projects/${projectId}/prompts/`,
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: (_result, _error, { projectId }) => [
+        { type: 'DesignProject', id: projectId },
+      ],
+    }),
+
+    // Update a prompt
+    updatePrompt: builder.mutation<
+      ProjectPrompt,
+      { projectId: string; promptId: string; prompt_text: string }
+    >({
+      query: ({ projectId, promptId, prompt_text }) => ({
+        url: `/api/designs/projects/${projectId}/prompts/${promptId}/`,
+        method: 'PATCH',
+        data: { prompt_text },
+      }),
+      invalidatesTags: (_result, _error, { projectId }) => [
+        { type: 'DesignProject', id: projectId },
+      ],
+    }),
+
+    // Delete a prompt
+    deletePrompt: builder.mutation<
+      void,
+      { projectId: string; promptId: string }
+    >({
+      query: ({ projectId, promptId }) => ({
+        url: `/api/designs/projects/${projectId}/prompts/${promptId}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_result, _error, { projectId }) => [
+        { type: 'DesignProject', id: projectId },
+      ],
+    }),
+
+    // Generate design from saved prompt
+    generateFromPrompt: builder.mutation<
+      DesignGenerationRun & { project_id: string },
+      { projectId: string; promptId: string }
+    >({
+      query: ({ projectId, promptId }) => ({
+        url: `/api/designs/projects/${projectId}/prompts/${promptId}/generate/`,
+        method: 'POST',
+      }),
+      invalidatesTags: (_result, _error, { projectId }) => [
+        { type: 'DesignProject', id: projectId },
+      ],
+    }),
+
+    // Build prompts from sources (Prompt Builder)
+    buildPrompts: builder.mutation<
+      BuildPromptsResponse,
+      { projectId: string; body: BuildPromptsBody }
+    >({
+      query: ({ projectId, body }) => ({
+        url: `/api/designs/projects/${projectId}/build-prompts/`,
+        method: 'POST',
+        data: body,
+      }),
+    }),
+
+    // List prompt presets
+    listPromptPresets: builder.query<PromptPreset[], void>({
+      query: () => ({
+        url: '/api/designs/prompt-presets/',
+        method: 'GET',
+      }),
+      providesTags: [{ type: 'DesignProject', id: 'PRESETS' }],
+    }),
+
+    // Create prompt preset
+    createPromptPreset: builder.mutation<
+      PromptPreset,
+      { name: string; source_config: Record<string, boolean> }
+    >({
+      query: (body) => ({
+        url: '/api/designs/prompt-presets/',
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: [{ type: 'DesignProject', id: 'PRESETS' }],
+    }),
+
+    // Delete prompt preset
+    deletePromptPreset: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/api/designs/prompt-presets/${id}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: [{ type: 'DesignProject', id: 'PRESETS' }],
+    }),
   }),
 });
 
@@ -514,4 +681,17 @@ export const {
   // Processing Settings
   useGetProcessingSettingsQuery,
   useUpdateProcessingSettingsMutation,
+  // Phase G: Slogan Pool + Prompt Builder
+  useAddIdeasToProjectMutation,
+  useRemoveIdeaFromProjectMutation,
+  useLazyAutoPromptQuery,
+  useBulkGenerateDesignsMutation,
+  useCreatePromptsMutation,
+  useUpdatePromptMutation,
+  useDeletePromptMutation,
+  useGenerateFromPromptMutation,
+  useBuildPromptsMutation,
+  useListPromptPresetsQuery,
+  useCreatePromptPresetMutation,
+  useDeletePromptPresetMutation,
 } = designApi;

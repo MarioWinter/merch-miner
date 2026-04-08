@@ -4,15 +4,20 @@ import {
   AccordionDetails,
   AccordionSummary,
   Box,
+  Button,
+  CircularProgress,
   ClickAwayListener,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CloseIcon from '@mui/icons-material/Close';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
+import ImageSearchIcon from '@mui/icons-material/ImageSearch';
+import BuildOutlinedIcon from '@mui/icons-material/BuildOutlined';
 import { useTranslation } from 'react-i18next';
 import { ModelSelector } from './ModelSelector';
 import { BackgroundColorPicker } from './BackgroundColorPicker';
@@ -77,6 +82,13 @@ interface PromptBarProps {
   sourceArtboard?: ArtboardData | null;
   /** Result artboards linked to the AI board */
   resultArtboards?: ArtboardData[];
+  /** Phase G12: open Prompt Builder dialog */
+  onOpenPromptBuilder?: () => void;
+  /** Phase G13: trigger image analysis */
+  onAnalyzeImage?: () => void;
+  isAnalyzingImage?: boolean;
+  /** Whether a selected artboard has an image (for analyze context) */
+  hasSelectedImage?: boolean;
 }
 
 // -----------------------------------------------------------------
@@ -100,6 +112,10 @@ export const PromptBar = ({
   disabled,
   sourceArtboard,
   resultArtboards = [],
+  onOpenPromptBuilder,
+  onAnalyzeImage,
+  isAnalyzingImage = false,
+  hasSelectedImage = false,
 }: PromptBarProps) => {
   const { t } = useTranslation();
   const [builderExpanded, setBuilderExpanded] = useState(false);
@@ -210,6 +226,45 @@ export const PromptBar = ({
           slotProps={{ inputLabel: { shrink: true } }}
           aria-label={t('design.prompt.inputLabel', 'Design prompt')}
         />
+
+        {/* Phase G12+G13: Build Prompt + Analyze Image buttons */}
+        <Stack direction="row" spacing={1}>
+          {onOpenPromptBuilder && (
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<BuildOutlinedIcon sx={{ fontSize: 16 }} />}
+              onClick={onOpenPromptBuilder}
+              sx={{ borderRadius: 2, textTransform: 'none', fontSize: '0.75rem' }}
+            >
+              {t('design.promptBuilder.openButton', 'Build Prompt')}
+            </Button>
+          )}
+          {onAnalyzeImage && (
+            <Tooltip
+              title={
+                hasSelectedImage
+                  ? t('design.actions.analyzeImageTooltip', 'Analyze selected image to generate a prompt')
+                  : t('design.actions.analyzeImageUpload', 'Upload an image to analyze')
+              }
+            >
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={
+                  isAnalyzingImage
+                    ? <CircularProgress size={14} color="inherit" />
+                    : <ImageSearchIcon sx={{ fontSize: 16 }} />
+                }
+                onClick={onAnalyzeImage}
+                disabled={isAnalyzingImage}
+                sx={{ borderRadius: 2, textTransform: 'none', fontSize: '0.75rem' }}
+              >
+                {t('design.actions.analyzeImage', 'Analyze Image')}
+              </Button>
+            </Tooltip>
+          )}
+        </Stack>
 
         {/* Prompt builder accordion */}
         {hasAnalysis && (

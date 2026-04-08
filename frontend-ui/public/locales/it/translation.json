@@ -774,6 +774,81 @@
       "error": "Impossibile analizzare l'immagine",
       "reused": "Analisi pronta"
     },
+    "promptBuilder": {
+      "openButton": "Crea prompt",
+      "title": "Costruttore di prompt",
+      "titleBulk": "Creazione prompt per {{count}} slogan",
+      "slogan": "Slogan",
+      "selectSlogan": "Seleziona slogan",
+      "bulkSelected": "{{count}} slogan selezionati",
+      "keywords": "Parole chiave",
+      "noNicheKeywords": "Collega una nicchia per abilitare le parole chiave",
+      "research": "Ricerca IA",
+      "noResearch": "Nessun dato di ricerca disponibile",
+      "webResearch": "Ricerca web",
+      "notAvailable": "Non disponibile — esegui prima Deep Web Search",
+      "image": "Immagine di riferimento",
+      "uploadImage": "Carica immagine",
+      "variants": "Varianti",
+      "preview": "Anteprima prompt",
+      "variantLabel": "Variante {{n}}",
+      "noPreview": "Attiva le fonti per vedere un'anteprima",
+      "build": "Crea prompt",
+      "buildBulk": "Crea {{count}} prompt",
+      "buildError": "Impossibile creare i prompt",
+      "buildSuccess": "{{count}} prompt salvati",
+      "saveError": "Impossibile salvare i prompt",
+      "noKeywordsFound": "Nessuna parola chiave trovata per questa nicchia",
+      "noResearchData": "Esegui prima la ricerca IA",
+      "visualStyle": "Stile visivo",
+      "graphicElements": "Grafiche",
+      "vibe": "Atmosfera",
+      "tone": "Tono",
+      "aesthetics": "Estetica",
+      "analyzeImage": "Analizza"
+    },
+    "sloganPool": {
+      "title": "Pool di slogan",
+      "empty": "Nessuno slogan — aggiungi dalla Raffineria Slogan o dal Cassetto Nicchia",
+      "selectSlogan": "Seleziona slogan",
+      "refProducts": "Aggiungi alla tela",
+      "details": "Dettagli",
+      "autoPrompt": "Auto-Prompt",
+      "remove": "Rimuovi",
+      "removeError": "Rimozione fallita",
+      "autoPromptError": "Auto-prompt fallito",
+      "maxBulk": "Max. 10 per lotto",
+      "generateSelected": "Genera selezionati ({{count}})"
+    },
+    "prompts": {
+      "title": "Prompt",
+      "empty": "Nessun prompt salvato",
+      "edit": "Modifica",
+      "delete": "Elimina",
+      "generated": "Generato",
+      "editError": "Aggiornamento fallito",
+      "deleteError": "Eliminazione fallita",
+      "generateAll": "Genera tutti ({{count}})"
+    },
+    "presets": {
+      "title": "Preimpostazioni",
+      "namePlaceholder": "Nome preimpostazione",
+      "save": "Salva come preimpostazione",
+      "saved": "Preimpostazione salvata",
+      "saveError": "Impossibile salvare la preimpostazione"
+    },
+    "actions": {
+      "analyzeImage": "Analizza immagine",
+      "analyzeImageTooltip": "Analizza l'immagine selezionata per generare un prompt",
+      "analyzeImageUpload": "Carica un'immagine da analizzare",
+      "bulkGenerating": "Generazione di {{count}} design in corso...",
+      "imageAdded": "Immagine aggiunta come artboard di riferimento"
+    },
+    "artboards": {
+      "title": "Artboard",
+      "empty": "Nessun artboard",
+      "prompt": "Prompt"
+    },
     "editor": {
       "title": "Editor immagini",
       "dropHint": "Trascina le immagini qui o sfoglia i file",
@@ -1194,7 +1269,8 @@
       "tabEditor": "Editor immagini",
       "settings": "Impostazioni progetto",
       "canvasComingSoon": "Artboard Canvas in arrivo",
-      "canvasDescription": "L'artboard Konva.js sostituira il vecchio React Flow."
+      "canvasDescription": "L'artboard Konva.js sostituira il vecchio React Flow.",
+      "openNicheDrawer": "Dettagli nicchia"
     },
     "canvas": {
       "emptyTitle": "Rilascia immagini o crea una tavola IA",
@@ -1240,6 +1316,13 @@
         "color": "Colore",
         "size": "Dimensione pennello",
         "smoothing": "Levigatura"
+      },
+      "layers": {
+        "title": "Livelli",
+        "empty": "Nessun livello",
+        "visible": "Attiva/disattiva visibilita",
+        "lock": "Attiva/disattiva blocco",
+        "rename": "Rinomina livello"
       }
     },
     "settings": {
@@ -1305,6 +1388,18 @@
       "openInEditor": "Apri nell'editor",
       "exportSelected": "Esporta selezione",
       "deleteAll": "Elimina tutto",
+      "elementName": "Nome",
+      "elementNamePlaceholder": "Nome elemento",
+      "deleteElement": "Elimina elemento",
+      "position": "Posizione",
+      "elementSize": "Dimensione",
+      "originalSize": "Dimensione originale",
+      "rotation": "Rotazione",
+      "rotationDeg": "Gradi",
+      "elementOpacity": "Opacita",
+      "visible": "Visibile",
+      "locked": "Bloccato",
+      "emojiPreview": "Emoji",
       "tools": {
         "regenerate": "Rigenera",
         "aiImageBoard": "Tavola IA",

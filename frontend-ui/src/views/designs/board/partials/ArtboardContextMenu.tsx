@@ -6,6 +6,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import FlipToFrontIcon from '@mui/icons-material/FlipToFront';
 import FlipToBackIcon from '@mui/icons-material/FlipToBack';
+import ImageSearchIcon from '@mui/icons-material/ImageSearch';
 
 // -----------------------------------------------------------------
 // Types
@@ -21,12 +22,16 @@ interface ArtboardContextMenuProps {
   position: ContextMenuPosition | null;
   /** ID of the right-clicked artboard */
   artboardId: string | null;
+  /** Whether the right-clicked artboard has an image */
+  hasImage?: boolean;
   onClose: () => void;
   onAddAiImageBoard: (sourceId: string) => void;
   onDuplicate: (id: string) => void;
   onDelete: (ids: string[]) => void;
   onBringToFront: (id: string) => void;
   onSendToBack: (id: string) => void;
+  /** Phase G13: analyze image -> generate prompt */
+  onAnalyzeImage?: (artboardId: string) => void;
 }
 
 // -----------------------------------------------------------------
@@ -36,12 +41,14 @@ interface ArtboardContextMenuProps {
 const ArtboardContextMenu = ({
   position,
   artboardId,
+  hasImage = false,
   onClose,
   onAddAiImageBoard,
   onDuplicate,
   onDelete,
   onBringToFront,
   onSendToBack,
+  onAnalyzeImage,
 }: ArtboardContextMenuProps) => {
   const { t } = useTranslation();
 
@@ -59,6 +66,11 @@ const ArtboardContextMenu = ({
     if (artboardId) onDelete([artboardId]);
     onClose();
   }, [artboardId, onDelete, onClose]);
+
+  const handleAnalyzeImage = useCallback(() => {
+    if (artboardId && onAnalyzeImage) onAnalyzeImage(artboardId);
+    onClose();
+  }, [artboardId, onAnalyzeImage, onClose]);
 
   const handleBringToFront = useCallback(() => {
     if (artboardId) onBringToFront(artboardId);
@@ -96,6 +108,17 @@ const ArtboardContextMenu = ({
           {t('design.contextMenu.addAiBoard', 'Add AI Image Board')}
         </ListItemText>
       </MenuItem>
+
+      {hasImage && onAnalyzeImage && (
+        <MenuItem onClick={handleAnalyzeImage}>
+          <ListItemIcon>
+            <ImageSearchIcon sx={{ fontSize: 20 }} />
+          </ListItemIcon>
+          <ListItemText>
+            {t('design.contextMenu.analyzeImage', 'Analyze Image \u2192 Generate Prompt')}
+          </ListItemText>
+        </MenuItem>
+      )}
 
       <MenuItem onClick={handleDuplicate}>
         <ListItemIcon>

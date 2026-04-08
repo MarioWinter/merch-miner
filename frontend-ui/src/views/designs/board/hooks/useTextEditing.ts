@@ -6,38 +6,27 @@ import type { CanvasElement, TextElementProps } from '../types';
 // -----------------------------------------------------------------
 
 interface TextEditingState {
-  /** Whether inline text editing is active */
   isEditing: boolean;
-  /** ID of the element being edited */
   editingElementId: string | null;
-  /** Artboard containing the edited element */
   editingArtboardId: string | null;
 }
 
 interface UseTextEditingParams {
-  /** Container element of the Konva stage (for positioning overlay) */
   containerRef: React.RefObject<HTMLDivElement | null>;
-  /** Canvas zoom level */
   zoom: number;
-  /** Canvas pan offset X */
   panX: number;
-  /** Canvas pan offset Y */
   panY: number;
-  /** Callback to commit text change */
   onCommit: (artboardId: string, elementId: string, text: string) => void;
 }
 
 interface UseTextEditingReturn extends TextEditingState {
-  /** Start editing a text element (call on double-click) */
   startEditing: (
     artboardId: string,
     element: CanvasElement<'text'>,
     artboardX: number,
     artboardY: number,
   ) => void;
-  /** Stop editing (commits or cancels) */
   stopEditing: () => void;
-  /** The textarea DOM element ref (render this in portal/overlay) */
   textareaRef: React.RefObject<HTMLTextAreaElement | null>;
 }
 
@@ -60,46 +49,56 @@ const useTextEditing = ({
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const originalTextRef = useRef<string>('');
-  const elementRef = useRef<CanvasElement<'text'> | null>(null);
-  const artboardPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  // Use refs to avoid stale closures in event handlers
+  const editingElementIdRef = useRef<string | null>(null);
+  const editingArtboardIdRef = useRef<string | null>(null);
+  const onCommitRef = useRef(onCommit);
+  // Keep transform values in refs so startEditing always reads latest
+  const zoomRef = useRef(zoom);
+  const panXRef = useRef(panX);
+  const panYRef = useRef(panY);
+  useEffect(() => {
+    onCommitRef.current = onCommit;
+    zoomRef.current = zoom;
+    panXRef.current = panX;
+    panYRef.current = panY;
+  });
+
+  const cleanup = useCallback(() => {
+    if (textareaRef.current?.parentElement) {
+      textareaRef.current.parentElement.removeChild(textareaRef.current);
+    }
+    textareaRef.current = null;
+    editingElementIdRef.current = null;
+    editingArtboardIdRef.current = null;
+    setState({ isEditing: false, editingElementId: null, editingArtboardId: null });
+  }, []);
 
   const stopEditing = useCallback(() => {
     const textarea = textareaRef.current;
-    if (textarea && state.editingElementId && state.editingArtboardId) {
+    const elId = editingElementIdRef.current;
+    const abId = editingArtboardIdRef.current;
+
+    if (textarea && elId && abId) {
       const newText = textarea.value;
       if (newText !== originalTextRef.current && newText.trim()) {
-        onCommit(state.editingArtboardId, state.editingElementId, newText);
+        onCommitRef.current(abId, elId, newText);
       }
     }
-
-    // Remove textarea from DOM
-    if (textareaRef.current?.parentElement) {
-      textareaRef.current.parentElement.removeChild(textareaRef.current);
-    }
-    textareaRef.current = null;
-    elementRef.current = null;
-
-    setState({
-      isEditing: false,
-      editingElementId: null,
-      editingArtboardId: null,
-    });
-  }, [state.editingElementId, state.editingArtboardId, onCommit]);
+    cleanup();
+  }, [cleanup]);
 
   const cancelEditing = useCallback(() => {
-    // Remove textarea without committing
-    if (textareaRef.current?.parentElement) {
-      textareaRef.current.parentElement.removeChild(textareaRef.current);
-    }
-    textareaRef.current = null;
-    elementRef.current = null;
+    cleanup();
+  }, [cleanup]);
 
-    setState({
-      isEditing: false,
-      editingElementId: null,
-      editingArtboardId: null,
-    });
-  }, []);
+  // Stable ref for stopEditing/cancelEditing so textarea event listeners never go stale
+  const stopEditingRef = useRef(stopEditing);
+  const cancelEditingRef = useRef(cancelEditing);
+  useEffect(() => {
+    stopEditingRef.current = stopEditing;
+    cancelEditingRef.current = cancelEditing;
+  });
 
   const startEditing = useCallback(
     (
@@ -108,19 +107,29 @@ const useTextEditing = ({
       artboardX: number,
       artboardY: number,
     ) => {
+      // Clean up any existing editing session
+      if (textareaRef.current) {
+        cleanup();
+      }
+
       const container = containerRef.current;
       if (!container) return;
 
       const props = element.props as TextElementProps;
       originalTextRef.current = props.text;
-      elementRef.current = element;
-      artboardPosRef.current = { x: artboardX, y: artboardY };
+      editingElementIdRef.current = element.id;
+      editingArtboardIdRef.current = artboardId;
+
+      // Read latest transform values from refs (not stale closure)
+      const z = zoomRef.current;
+      const px = panXRef.current;
+      const py = panYRef.current;
 
       // Calculate screen position of the text element
-      const screenX = (artboardX + element.x) * zoom + panX;
-      const screenY = (artboardY + element.y) * zoom + panY;
-      const screenWidth = element.width * zoom;
-      const scaledFontSize = props.fontSize * zoom;
+      const screenX = (artboardX + element.x) * z + px;
+      const screenY = (artboardY + element.y) * z + py;
+      const screenWidth = element.width * z;
+      const scaledFontSize = props.fontSize * z;
 
       // Create textarea overlay
       const textarea = document.createElement('textarea');
@@ -136,7 +145,7 @@ const useTextEditing = ({
       textarea.style.fontStyle = props.fontStyle ?? 'normal';
       textarea.style.color = props.fill;
       textarea.style.textAlign = props.align;
-      textarea.style.letterSpacing = `${(props.letterSpacing ?? 0) * zoom}px`;
+      textarea.style.letterSpacing = `${(props.letterSpacing ?? 0) * z}px`;
       textarea.style.lineHeight = String(props.lineHeight ?? 1.2);
       textarea.style.border = '2px solid #4A9EFF';
       textarea.style.borderRadius = '2px';
@@ -149,36 +158,45 @@ const useTextEditing = ({
       textarea.style.boxSizing = 'border-box';
       textarea.style.transformOrigin = 'top left';
 
+      // Prevent clicks on textarea from reaching Konva canvas (would trigger deselectAll)
+      textarea.addEventListener('mousedown', (e) => e.stopPropagation());
+      textarea.addEventListener('pointerdown', (e) => e.stopPropagation());
+
       container.appendChild(textarea);
       textareaRef.current = textarea;
 
-      // Auto-focus and select all
+      // Focus after DOM is ready — double rAF to survive React re-render flush
       requestAnimationFrame(() => {
-        textarea.focus();
-        textarea.select();
+        requestAnimationFrame(() => {
+          if (textareaRef.current === textarea) {
+            textarea.focus();
+            textarea.select();
+          }
+        });
       });
 
       // Handle blur → commit
-      textarea.addEventListener('blur', () => {
-        // Short delay to allow Escape key handler to run first
+      const handleBlur = () => {
         setTimeout(() => {
           if (textareaRef.current === textarea) {
-            stopEditing();
+            stopEditingRef.current();
           }
-        }, 50);
-      });
+        }, 150);
+      };
+      textarea.addEventListener('blur', handleBlur);
 
       // Handle keydown
-      textarea.addEventListener('keydown', (e: KeyboardEvent) => {
+      const handleKeydown = (e: KeyboardEvent) => {
+        e.stopPropagation(); // Prevent canvas keyboard shortcuts from firing
         if (e.key === 'Escape') {
           e.preventDefault();
-          e.stopPropagation();
-          cancelEditing();
+          cancelEditingRef.current();
         } else if (e.key === 'Enter' && !e.shiftKey) {
           e.preventDefault();
-          stopEditing();
+          stopEditingRef.current();
         }
-      });
+      };
+      textarea.addEventListener('keydown', handleKeydown);
 
       // Auto-resize textarea height
       textarea.addEventListener('input', () => {
@@ -192,7 +210,8 @@ const useTextEditing = ({
         editingArtboardId: artboardId,
       });
     },
-    [containerRef, zoom, panX, panY, stopEditing, cancelEditing],
+    // Only depend on stable refs — no zoom/panX/panY (read from refs inside)
+    [containerRef, cleanup],
   );
 
   // Clean up on unmount

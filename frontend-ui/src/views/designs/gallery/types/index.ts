@@ -37,6 +37,7 @@ export interface DesignProjectListResponse {
 export interface CreateProjectBody {
   name: string;
   niche?: string | null;
+  idea_ids?: string[];
 }
 
 export interface UpdateProjectBody {
@@ -56,9 +57,97 @@ export interface IdeaContext {
   reference_products: import('../../board/types').ReferenceProduct[];
 }
 
+/** A slogan/idea attached to a project's pool */
+export interface ProjectIdea {
+  id: string;
+  slogan_text: string;
+  signal_type: string | null;
+  market_confidence: string | null;
+  emotional_archetype: string;
+  pattern_used: string;
+  why_it_works: string;
+  niche_name: string | null;
+  position: number;
+  reference_products: import('../../board/types').ReferenceProduct[];
+  design_count: number;
+}
+
+/** A saved prompt attached to a project */
+export interface ProjectPrompt {
+  id: string;
+  prompt_text: string;
+  sources: Record<string, boolean>;
+  source_idea: { id: string; slogan_text: string } | null;
+  source_image_url: string | null;
+  variant_index: number;
+  is_generated: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A reusable prompt preset */
+export interface PromptPreset {
+  id: string;
+  name: string;
+  source_config: Record<string, boolean>;
+  created_at: string;
+}
+
+export interface AddIdeasBody {
+  idea_ids: string[];
+}
+
+export interface BulkGenerateBody {
+  idea_ids: string[];
+  model: import('../../board/types').DesignModel;
+  background_color: import('../../board/types').BackgroundColor;
+}
+
+export interface BulkGenerateResult {
+  idea_id: string;
+  run_id: string;
+  prompt_used: string;
+}
+
+export interface AutoPromptResponse {
+  prompt: string;
+}
+
+export interface CreatePromptsBody {
+  prompts: Array<{
+    prompt_text: string;
+    sources: Record<string, boolean>;
+    source_idea?: string;
+    source_image_url?: string;
+    variant_index?: number;
+  }>;
+}
+
+export interface BuildPromptsBody {
+  sources: {
+    slogan: boolean;
+    keywords: boolean;
+    research: boolean;
+    web_research: boolean;
+    image: boolean;
+  };
+  slogan_id?: string;
+  image_url?: string;
+  variants: number;
+}
+
+export interface BuildPromptsResponse {
+  prompts: Array<{
+    prompt_text: string;
+    sources: Record<string, boolean>;
+  }>;
+}
+
 export interface ProjectBoardResponse {
   project: DesignProject;
   designs: import('../../board/types').Design[];
   board_layout: import('../../board/types').BoardLayout | null;
   idea_context: IdeaContext | null;
+  ideas: ProjectIdea[];
+  prompts: ProjectPrompt[];
 }

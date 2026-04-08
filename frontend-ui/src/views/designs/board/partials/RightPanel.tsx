@@ -2,8 +2,9 @@ import { Box, Divider, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import { COLORS, DURATION, EASING } from '@/style/constants';
-import type { ArtboardData, CanvasElement } from '../types';
+import type { ArtboardData, BackgroundColor, CanvasElement, DesignModel } from '../types';
 import type { RightPanelState } from '../hooks/useRightPanelState';
+import type { ProjectIdea, ProjectPrompt } from '../../gallery/types';
 import PanelNoneState from './rightPanel/PanelNoneState';
 import PanelArtboardState from './rightPanel/PanelArtboardState';
 import PanelMultiState from './rightPanel/PanelMultiState';
@@ -61,6 +62,21 @@ interface RightPanelProps {
   onReorderElement?: (artboardId: string, elementId: string, newIndex: number) => void;
   onDeleteElement?: (artboardId: string, elementId: string) => void;
   selectedElementId?: string | null;
+  // Phase G props
+  projectId?: string;
+  ideas?: ProjectIdea[];
+  prompts?: ProjectPrompt[];
+  artboards?: ArtboardData[];
+  selectedIds?: Set<string>;
+  model?: DesignModel;
+  bgColor?: BackgroundColor;
+  onAutoPromptFill?: (prompt: string) => void;
+  onAddReferenceArtboard?: (imageUrl: string) => void;
+  onSelectArtboard?: (id: string) => void;
+  onPromptClick?: (prompt: ProjectPrompt) => void;
+  onCreateSkeletonArtboards?: (
+    items: Array<{ runId: string; label: string }>,
+  ) => void;
 }
 
 // -----------------------------------------------------------------
@@ -79,6 +95,19 @@ const RightPanel = ({
   onReorderElement,
   onDeleteElement,
   selectedElementId,
+  // Phase G props
+  projectId,
+  ideas,
+  prompts,
+  artboards,
+  selectedIds,
+  model,
+  bgColor,
+  onAutoPromptFill,
+  onAddReferenceArtboard,
+  onSelectArtboard,
+  onPromptClick,
+  onCreateSkeletonArtboards,
 }: RightPanelProps) => {
   const { t } = useTranslation();
 
@@ -112,8 +141,23 @@ const RightPanel = ({
 
       <Divider />
 
-      {/* None state: project overview */}
-      {panelState.mode === 'none' && <PanelNoneState />}
+      {/* None state: project overview with slogan pool, prompts, artboards */}
+      {panelState.mode === 'none' && (
+        <PanelNoneState
+          projectId={projectId}
+          ideas={ideas}
+          prompts={prompts}
+          artboards={artboards}
+          selectedIds={selectedIds}
+          model={model}
+          bgColor={bgColor}
+          onAutoPromptFill={onAutoPromptFill}
+          onAddReferenceArtboard={onAddReferenceArtboard}
+          onSelectArtboard={onSelectArtboard}
+          onPromptClick={onPromptClick}
+          onCreateSkeletonArtboards={onCreateSkeletonArtboards}
+        />
+      )}
 
       {/* Single artboard or AI board */}
       {(panelState.mode === 'single' || panelState.mode === 'ai') &&

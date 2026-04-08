@@ -127,7 +127,7 @@ export const NicheDetailDrawer = ({
                 niche={niche}
                 isFetching={isFetching}
               />
-              {niche && <DrawerResearchSection niche={niche} isBusy={isBusy} />}
+              {niche && <DrawerResearchSection niche={niche} isBusy={isBusy} onDrawerClose={onClose} />}
               {niche && <DrawerKeywordsSection nicheId={niche.id} />}
               {niche && <DrawerDesignsSection nicheId={niche.id} />}
             </>

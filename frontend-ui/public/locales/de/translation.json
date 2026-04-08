@@ -787,6 +787,81 @@
       "error": "Bildanalyse fehlgeschlagen",
       "reused": "Analyse bereit"
     },
+    "promptBuilder": {
+      "openButton": "Prompt erstellen",
+      "title": "Prompt-Baukasten",
+      "titleBulk": "Prompts für {{count}} Slogans erstellen",
+      "slogan": "Slogan",
+      "selectSlogan": "Slogan auswählen",
+      "bulkSelected": "{{count}} Slogans ausgewählt",
+      "keywords": "Keywords",
+      "noNicheKeywords": "Nische verknüpfen, um Keywords zu aktivieren",
+      "research": "KI-Recherche",
+      "noResearch": "Keine Recherche-Daten verfügbar",
+      "webResearch": "Web-Recherche",
+      "notAvailable": "Nicht verfügbar — zuerst Deep Web Search ausführen",
+      "image": "Referenzbild",
+      "uploadImage": "Bild hochladen",
+      "variants": "Varianten",
+      "preview": "Prompt-Vorschau",
+      "variantLabel": "Variante {{n}}",
+      "noPreview": "Quellen aktivieren, um eine Vorschau zu sehen",
+      "build": "Prompt(s) erstellen",
+      "buildBulk": "{{count}} Prompt(s) erstellen",
+      "buildError": "Prompts konnten nicht erstellt werden",
+      "buildSuccess": "{{count}} Prompt(s) gespeichert",
+      "saveError": "Prompts konnten nicht gespeichert werden",
+      "noKeywordsFound": "Keine Keywords für diese Nische gefunden",
+      "noResearchData": "Zuerst KI-Recherche ausführen",
+      "visualStyle": "Visueller Stil",
+      "graphicElements": "Grafik",
+      "vibe": "Stimmung",
+      "tone": "Ton",
+      "aesthetics": "Ästhetik",
+      "analyzeImage": "Analysieren"
+    },
+    "sloganPool": {
+      "title": "Slogan-Pool",
+      "empty": "Keine Slogans — aus Slogan Refinery oder Nischen-Drawer hinzufügen",
+      "selectSlogan": "Slogan auswählen",
+      "refProducts": "Zur Leinwand hinzufügen",
+      "details": "Details",
+      "autoPrompt": "Auto-Prompt",
+      "remove": "Entfernen",
+      "removeError": "Entfernen fehlgeschlagen",
+      "autoPromptError": "Auto-Prompt fehlgeschlagen",
+      "maxBulk": "Max. 10 pro Stapel",
+      "generateSelected": "Ausgewählte generieren ({{count}})"
+    },
+    "prompts": {
+      "title": "Prompts",
+      "empty": "Keine gespeicherten Prompts",
+      "edit": "Bearbeiten",
+      "delete": "Löschen",
+      "generated": "Generiert",
+      "editError": "Aktualisierung fehlgeschlagen",
+      "deleteError": "Löschen fehlgeschlagen",
+      "generateAll": "Alle generieren ({{count}})"
+    },
+    "presets": {
+      "title": "Vorlagen",
+      "namePlaceholder": "Vorlagenname",
+      "save": "Als Vorlage speichern",
+      "saved": "Vorlage gespeichert",
+      "saveError": "Vorlage konnte nicht gespeichert werden"
+    },
+    "actions": {
+      "analyzeImage": "Bild analysieren",
+      "analyzeImageTooltip": "Ausgewähltes Bild analysieren, um einen Prompt zu generieren",
+      "analyzeImageUpload": "Bild zum Analysieren hochladen",
+      "bulkGenerating": "{{count}} Designs werden generiert...",
+      "imageAdded": "Bild als Referenz-Artboard hinzugefügt"
+    },
+    "artboards": {
+      "title": "Artboards",
+      "empty": "Keine Artboards",
+      "prompt": "Prompt"
+    },
     "editor": {
       "title": "Bildbearbeitung",
       "dropHint": "Bilder hier ablegen oder Dateien durchsuchen",
@@ -1207,7 +1282,8 @@
       "tabEditor": "Bildbearbeitung",
       "settings": "Projekteinstellungen",
       "canvasComingSoon": "Artboard Canvas kommt bald",
-      "canvasDescription": "Der Konva.js-basierte Artboard ersetzt das alte React Flow Board."
+      "canvasDescription": "Der Konva.js-basierte Artboard ersetzt das alte React Flow Board.",
+      "openNicheDrawer": "Nischen-Details"
     },
     "canvas": {
       "emptyTitle": "Bilder ablegen oder KI-Bildboard erstellen",
@@ -1253,6 +1329,13 @@
         "color": "Farbe",
         "size": "Pinselgroesse",
         "smoothing": "Glaettung"
+      },
+      "layers": {
+        "title": "Ebenen",
+        "empty": "Keine Ebenen",
+        "visible": "Sichtbarkeit umschalten",
+        "lock": "Sperre umschalten",
+        "rename": "Ebene umbenennen"
       }
     },
     "settings": {
@@ -1318,6 +1401,18 @@
       "openInEditor": "Im Editor oeffnen",
       "exportSelected": "Auswahl exportieren",
       "deleteAll": "Alle loeschen",
+      "elementName": "Name",
+      "elementNamePlaceholder": "Elementname",
+      "deleteElement": "Element loeschen",
+      "position": "Position",
+      "elementSize": "Groesse",
+      "originalSize": "Originalgroesse",
+      "rotation": "Drehung",
+      "rotationDeg": "Grad",
+      "elementOpacity": "Deckkraft",
+      "visible": "Sichtbar",
+      "locked": "Gesperrt",
+      "emojiPreview": "Emoji",
       "tools": {
         "regenerate": "Regenerieren",
         "aiImageBoard": "KI-Board",

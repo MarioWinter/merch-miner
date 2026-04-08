@@ -139,6 +139,13 @@ These fields are read when a user opens `/design-board/:ideaId` and are used to 
 30. As a member, I want to position designs with Align-to-Top and configurable padding (default: 1 inch top/sides), so placement is consistent across my catalog.
 31. As a member, I want the target canvas size to be configurable for other marketplaces, so I'm not locked to MBA dimensions.
 
+### Upload-Ready Status & Drawer Integration
+
+30b. As a member, I want to toggle an approved design as "Ready for Upload" so it's clear which designs are finalized and can move to the Listing/Publish workflow.
+30c. As a member, I want to mark all designs in a project as "Ready for Upload" in one action, so I can batch-finalize an entire project.
+30d. As a member, I want to see individual design thumbnails with a status badge (WIP / Ready) in the Niche Drawer's "Design Projects" section, so I can tell at a glance which designs are upload-ready without opening the project.
+30e. As a member, I want to toggle the upload-ready status back to WIP if I change my mind, so the workflow is reversible.
+
 ### PROJ-8 Integration (Deferred from PROJ-8)
 32. As a member, I want to see a warning dialog when rejecting an idea that has an approved design, so I don't accidentally discard a design that's already been finalized.
 
@@ -178,6 +185,24 @@ These fields are read when a user opens `/design-board/:ideaId` and are used to 
 51. As a member, I want to drag-reorder layers in the panel to change z-order, so I can control which elements appear in front of or behind others.
 52. As a member, I want to toggle layer visibility (eye icon) and lock layers (lock icon), so I can protect finished elements while working on others.
 53. As a member, I want to click a layer in the panel to select it on the canvas, and vice versa, so navigation between panel and canvas is seamless.
+
+### Slogan → Design Forge Bulk Flow
+
+54. As a member, I want to select multiple approved slogans in the Niche Drawer and send them to a new or existing Design Forge project in one action, so I can batch-generate designs from my slogan collection.
+55. As a member, I want to see all slogans assigned to a project as a "Slogan Pool" in the RightPanel, so I can manage which slogans I'm working on and see their context (signal type, confidence, reference products).
+56. As a member, I want to click "Auto-Prompt" on a slogan in the pool and get a ready-to-use AI generation prompt (built from slogan text + niche research data), so I don't have to write prompts from scratch.
+57. As a member, I want to select multiple slogans and click "Generate Selected" to bulk-generate one design per slogan automatically, so I can produce designs for my entire slogan batch in one action.
+58. As a member, I want to click a reference product thumbnail in a slogan's pool card and add it as a reference artboard on the canvas, so I can visually compare while generating.
+59. As a member, I want the existing IdeaCard brush button to add the slogan to the project's pool (not just pass as URL param), so the slogan context is permanently available in the Design Forge.
+
+#### Prompt Builder + Persistence
+60. As a member, I want generated prompts saved persistently in my project (not lost when a dialog closes), so I can review, edit, and generate from them later.
+61. As a member, I want a Prompt Builder dialog where I toggle context sources (Slogan, Keywords, AI Research, Web Research, Reference Image) with live preview, so I can control exactly what goes into my prompt.
+62. As a member, I want to generate multiple prompt variants (1-5) from the same sources, so I can compare different stylistic approaches before generating images.
+63. As a member, I want to save my preferred source configurations as Prompt Presets ("Full Context", "Slogan Only", "Image Analysis Only"), so I don't have to re-configure every time.
+64. As a member, I want to see all my project's artboards listed in the RightPanel with their context (prompt used, slogan, keywords, reference images), so I have a complete overview without clicking each artboard.
+65. As a member, I want a "🖼 Analyze Image" button in the PromptBar that runs Gemini 3 Architect analysis on a selected image and generates a prompt from it, so I can create designs inspired by existing images.
+66. As a member, I want to right-click an image artboard and choose "Analyze Image → Generate Prompt" to quickly get an AI-generated prompt from that image.
 
 ### UI/UX Notes — Design Board (`/design-board/:projectId`)
 
@@ -460,7 +485,7 @@ Fixed horizontal bar below canvas. Left side: cursor tool, move tool, shape tool
 - [ ] AC-70: Text properties panel (right sidebar when text selected): font family (dropdown, system fonts + Google Fonts subset), font size (slider + number input), color (picker), bold/italic toggles.
 - [ ] AC-71: Advanced text: outline/stroke (color + width), drop shadow (color + offset + blur), letter-spacing (slider), line-height (slider).
 - [ ] AC-72: Curved/arched text (text on path): arc slider (-180° to +180°). Preview updates live on canvas. Stored as path data in element.
-- [ ] AC-73: Text effects: gradient fill (2-color linear/radial), 3D/emboss (simple CSS-style shadow stack). Applied via effects dropdown in text properties panel.
+- [ ] AC-73: ~~Text effects: gradient fill (2-color linear/radial), 3D/emboss (simple CSS-style shadow stack). Applied via effects dropdown in text properties panel.~~ **Deferred to post-MVP**
 
 #### Shapes Tool
 - [ ] AC-74: Shape tool dropdown (bottom toolbar): Rectangle, Circle, Triangle, Line. Click+drag on artboard → inserts shape with fill + stroke.
@@ -479,6 +504,14 @@ Fixed horizontal bar below canvas. Left side: cursor tool, move tool, shape tool
 - [ ] AC-81: Eye icon per layer → toggles visibility (sets Konva node `visible`). Lock icon → prevents selection/move/edit (sets `draggable: false` + `listening: false`).
 - [ ] AC-82: Click layer in panel → selects corresponding element on canvas. Select element on canvas → highlights corresponding layer in panel. Bidirectional sync.
 - [ ] AC-83: Layer data persisted in `board_layout` JSONField (per-artboard `layers` array with type, position, properties). Restored on reload.
+
+### Upload-Ready Status & Drawer Integration
+
+- [ ] AC-84: `Design.status` extended with `listing_ready` choice. Status flow: `pending → approved → listing_ready`. Toggle via `PATCH /api/designs/{id}/` with `{status: "listing_ready"}` or `{status: "approved"}` (reversible).
+- [ ] AC-85: "Ready for Upload" toggle button on each approved design in the Design Forge (Artboard Canvas). Only visible on designs with `status=approved` or `status=listing_ready`. Visual: filled icon when ready, outlined when WIP.
+- [ ] AC-86: "Mark All Ready" bulk action on project level: `POST /api/designs/projects/{id}/mark-all-ready/` — sets all approved designs in the project to `listing_ready`. Reverse: `POST /api/designs/projects/{id}/unmark-all-ready/`.
+- [ ] AC-87: Niche Drawer "Design Projects" section shows individual design thumbnails (not just project card). Each thumbnail has a status badge: green chip "Ready" for `listing_ready`, grey chip "WIP" for `approved`, no badge for `pending/rejected/failed`.
+- [ ] AC-88: Niche Drawer project summary shows count: "Bingo Caller Designs — 2 designs (1 ready)".
 
 ### Post-Processing Pipeline
 
@@ -513,6 +546,77 @@ Fixed horizontal bar below canvas. Left side: cursor tool, move tool, shape tool
 ### PROJ-8 Integration (Deferred)
 
 - [ ] AC-32: Rejecting an idea that has an approved design shows a MUI confirmation dialog warning the user that an approved design exists before proceeding. If confirmed, idea is rejected and design status unchanged.
+
+### Slogan → Design Forge Bulk Flow (PROJ-8 → PROJ-9 Bridge)
+
+#### Slogan Pool (Data Model)
+- [ ] AC-89: `DesignProjectIdea` through table: project FK, idea FK, position (ordering), added_at. M2M on `DesignProject.ideas`. A slogan can belong to multiple projects. Existing `Design.idea` FK unchanged (tracks individual design provenance).
+- [ ] AC-90: Create project with slogans: `POST /api/designs/projects/` accepts optional `idea_ids: [uuid, ...]`. Creates project AND links slogans in one call.
+- [ ] AC-91: Add slogans to existing project: `POST /api/designs/projects/{id}/ideas/` with `{idea_ids: [...]}`. Idempotent — duplicates ignored. Returns updated slogan list.
+- [ ] AC-92: Remove slogan from project pool: `DELETE /api/designs/projects/{id}/ideas/{ideaId}/`. Removes link only, idea not deleted.
+- [ ] AC-93: Board context includes slogan pool: `GET /api/designs/projects/{id}/board/` response extended with `ideas` array containing per-slogan: id, slogan_text, signal_type, market_confidence, emotional_archetype, pattern_used, why_it_works, niche_name, position, reference_products (from niche research), design_count (how many designs generated from this slogan in this project).
+
+#### Drawer Multi-Select
+- [ ] AC-94: CollectedItemsSection (Niche Detail Drawer) gets multi-select: checkboxes on approved slogan chips. "Select All" / "Deselect All" toggle.
+- [ ] AC-95: Action bar appears when ≥1 slogan selected: "Forge N Slogans" button. Click opens ProjectNamingDialog with selected slogan IDs.
+- [ ] AC-96: ProjectNamingDialog extended with `ideaIds` prop. On "Create new": creates project with slogans attached. On "Add to existing": adds slogans to chosen project's pool. After both: navigates to `/designs/:projectId`.
+
+#### Slogan Pool in RightPanel
+- [ ] AC-97: RightPanel "none" state (no artboard selected) shows SloganPoolSection when project has slogans. Lists each slogan as a card with: slogan text (truncated, tooltip full), signal_type badge, market_confidence badge, niche chip, reference product thumbnails (horizontal, max 4 visible), "Auto-Prompt" button, remove (✕) button.
+- [ ] AC-98: Each slogan card has a checkbox for bulk selection. "Generate Selected (N)" button appears when ≥1 checked.
+- [ ] AC-99: Reference product thumbnails clickable → adds product image as new artboard on canvas.
+- [ ] AC-100: Slogan card expandable: reveals why_it_works, emotional_archetype, pattern_used details.
+
+#### Auto-Prompt Generation
+- [ ] AC-101: "Auto-Prompt" button on slogan card: calls `GET /api/designs/projects/{id}/ideas/{ideaId}/auto-prompt/` which uses `prompt_builder.build_from_idea()` server-side. Returns `{prompt: string}`. Prompt fills the PromptBar text field. User can edit before clicking Generate.
+- [ ] AC-102: Auto-prompt fallback: if slogan has no niche research reference products, prompt is built from slogan metadata only (slogan_text + signal_type + emotional_archetype + pattern_used). No error, just simpler prompt.
+
+#### Bulk Design Generation
+- [ ] AC-103: "Generate Selected" button: `POST /api/designs/projects/{id}/bulk-generate/` with `{idea_ids, model, background_color}`. Creates one `DesignGenerationRun` per slogan. Auto-builds prompt per slogan via `prompt_builder.build_from_idea()`. Max 10 slogans per request.
+- [ ] AC-104: Each generated design auto-linked to its source idea via `Design.idea` FK. Auto-added to the project via `DesignProjectDesign`.
+- [ ] AC-105: Bulk generation progress: skeleton artboards appear on canvas (one per slogan). Each shows the slogan text as artboard label. Progress indicator per slogan card in RightPanel. Artboards fill in as generations complete (existing polling mechanism).
+- [ ] AC-106: IdeaCard brush button (Slogan Refinery) now passes `ideaIds=[thisIdeaId]` to ProjectNamingDialog. On create/add, slogan is added to project pool. Same flow as bulk, just with 1 slogan.
+
+#### ProjectPrompt Model + Prompt Persistence
+- [ ] AC-107: `ProjectPrompt` model: UUID pk, project FK, prompt_text TextField, sources JSONField (which sources were used: `{slogan: bool, keywords: bool, research: bool, web_research: bool, image: bool}`), source_idea FK (nullable — which slogan this was built from), source_image_url URLField (nullable — reference image used), variant_index IntegerField (default=0 — for multi-variant batches), created_at, updated_at. Workspace isolation.
+- [ ] AC-108: `POST /api/designs/projects/{id}/prompts/` — create prompt(s). Body: `{prompts: [{prompt_text, sources, source_idea?, source_image_url?, variant_index?}]}`. Returns created prompt records.
+- [ ] AC-109: `PATCH /api/designs/projects/{id}/prompts/{promptId}/` — edit prompt text inline.
+- [ ] AC-110: `DELETE /api/designs/projects/{id}/prompts/{promptId}/` — remove prompt.
+- [ ] AC-111: `GET /api/designs/projects/{id}/board/` response extended with `prompts` array (all ProjectPrompts for this project, ordered by created_at desc).
+- [ ] AC-112: `POST /api/designs/projects/{id}/prompts/{promptId}/generate/` — generate design from a saved prompt. Creates DesignGenerationRun, links to source_idea if present. Same as existing generate but uses a stored prompt. `DesignGenerationRun` gets a `project_prompt` FK (nullable) back-reference so prompt cards can show generated/un-generated status.
+- [ ] AC-112b: `ProjectPrompt` tracks generation status via the back-reference: prompt card shows "Generated" badge when a linked `DesignGenerationRun` exists with `status=completed`. "Generate All" (AC-115) filters to prompts without a completed run.
+
+#### RightPanel — Prompts Section (Command Center)
+- [ ] AC-113: RightPanel "none" state shows 3 persistent sections: **Slogan Pool** (top), **Prompts** (middle), **Artboards** (bottom). All collapsible.
+- [ ] AC-114: Prompts section lists all `ProjectPrompt` records for this project. Each prompt card shows: truncated prompt text (expandable), source tags (Slogan/Keywords/Research/Image as small chips), variant badge if multi-variant, "Generate" button, "Edit" (inline text edit), "Delete" (✕). 
+- [ ] AC-115: "Generate All" button below prompt list — generates all un-generated prompts in one batch. Creates skeleton artboards on canvas per prompt.
+- [ ] AC-116: Click a prompt card → prompt text loads into PromptBar for editing/generating. PromptBar shows "From saved prompt" indicator.
+
+#### RightPanel — Artboard Context List
+- [ ] AC-117: Artboards section lists all artboards in the project with expandable context cards. Each card shows: artboard label/thumbnail, used prompt (truncated), source slogan (if linked via Design.idea), keywords (from Drawer collected keywords for the niche), reference images.
+- [ ] AC-118: Click artboard card → selects artboard on canvas + scrolls to it. Bidirectional: selecting artboard on canvas highlights card in list.
+
+#### Prompt Builder Dialog (Multi-Source, mydesigns.io-inspired)
+- [ ] AC-119: "✨ Build Prompt" button in PromptBar opens Prompt Builder Dialog. Dialog has source sections (not generic tabs): Slogan, Keywords, AI Niche Research, Web Research, Reference Image. Each section has a toggle (on/off) + preview of available data.
+- [ ] AC-120: Slogan section: dropdown to select which slogan from the pool. Preview: slogan text, signal_type, emotional_archetype, pattern_used.
+- [ ] AC-121: Keywords section: shows collected keywords from Drawer (for the linked niche). Keywords fetched via `GET /api/niches/{nicheId}/keywords/` (existing keyword_app endpoint). Preview: keyword chips. Toggle to include/exclude. If project has no linked niche → section shows "Link a niche to enable keywords" disabled state.
+- [ ] AC-122: AI Niche Research section: shows NicheResearch data (visual_style, graphic_elements, layout_composition, vibe, tone). Toggle to include/exclude. If project has no linked niche or niche has no completed research → section shows "No research data available" disabled state.
+- [ ] AC-123: Web Research section: shows PROJ-17 web research results if available. "Not available" state if no web research for this niche. Toggle to include/exclude.
+- [ ] AC-124: Reference Image section: upload or select an existing artboard image. If image selected → shows "Analyze" button that triggers Gemini 3 Architect 7-step analysis. Analysis result shown as preview. Toggle to include/exclude.
+- [ ] AC-125: Prompt Preview panel at bottom of dialog — live preview of the generated prompt text as user toggles sources on/off. Updates in real-time.
+- [ ] AC-126: "Variants" slider (1-5): generates N prompt variants from the same sources with different stylistic approaches. Each variant = a separate `ProjectPrompt` record.
+- [ ] AC-127: "Build Prompt(s)" button: calls server-side `prompt_builder` with selected sources → creates `ProjectPrompt` record(s) → prompts appear in RightPanel Prompts section. Dialog closes.
+- [ ] AC-128: Prompt Builder also available for Bulk: when multiple slogans selected in Slogan Pool → "Build Prompts for Selected" → Prompt Builder opens → selected sources apply to ALL selected slogans → one prompt per slogan generated → all saved to Prompts section.
+
+#### Prompt Presets
+- [ ] AC-129: `PromptPreset` model: UUID pk, workspace FK, name CharField, source_config JSONField (which sources toggled on/off + any fixed parameters), created_by FK, created_at.
+- [ ] AC-130: Prompt Builder Dialog has "Preset" dropdown at top — load a saved source configuration. "Save as Preset" button to save current toggles.
+- [ ] AC-131: Presets listed as dropdown with search. Default presets: "Full Context" (all sources on), "Slogan Only", "Image Analysis Only".
+
+#### Image → Prompt (Gemini 3 Architect in PromptBar + Context Menu)
+- [ ] AC-132: 🖼 "Analyze Image" button in PromptBar (next to "✨ Build Prompt"). When clicked: if an image artboard is selected → triggers Gemini 3 Architect 7-step analysis on that image → result fills PromptBar as editable prompt. If no image artboard selected → opens file picker to upload an image for analysis.
+- [ ] AC-133: Right-click context menu on image artboard: "Analyze Image → Generate Prompt" option. Same flow: triggers 7-step analysis → result fills PromptBar.
+- [ ] AC-134: Analysis result is also saved as `ProjectPrompt` with `sources: {image: true}` and `source_image_url` set. Persists in RightPanel Prompts section.
 
 ---
 
@@ -605,6 +709,18 @@ Both paths inject the background color instruction as the final sentence of the 
 | GET | `/api/designs/{id}/download/` | Member | Download image |
 | POST | `/api/designs/batch-process/` | Member | Enqueue batch upscale + bg_remove jobs |
 | GET | `/api/designs/processing-jobs/{job_id}/` | Member | Poll batch job status |
+| POST | `/api/designs/projects/{id}/ideas/` | Member | Add slogans to project pool. Body: `{idea_ids: [...]}`. Idempotent |
+| DELETE | `/api/designs/projects/{id}/ideas/{ideaId}/` | Member | Remove slogan from project pool (M2M unlink) |
+| GET | `/api/designs/projects/{id}/ideas/{ideaId}/auto-prompt/` | Member | Auto-generate prompt from slogan via `prompt_builder.build_from_idea()` |
+| POST | `/api/designs/projects/{id}/bulk-generate/` | Member | Bulk generate: one design per slogan. Body: `{idea_ids, model, bg_color}`. Max 10 |
+| POST | `/api/designs/projects/{id}/prompts/` | Member | Save prompt(s). Body: `{prompts: [{prompt_text, sources, source_idea?, variant_index?}]}` |
+| PATCH | `/api/designs/projects/{id}/prompts/{promptId}/` | Member | Edit saved prompt text |
+| DELETE | `/api/designs/projects/{id}/prompts/{promptId}/` | Member | Delete saved prompt |
+| POST | `/api/designs/projects/{id}/prompts/{promptId}/generate/` | Member | Generate design from saved prompt |
+| POST | `/api/designs/projects/{id}/build-prompts/` | Member | Prompt Builder: build prompt(s) from sources. Body: `{sources, slogan_id?, image_url?, variants}` |
+| GET | `/api/designs/prompt-presets/` | Member | List prompt presets for workspace |
+| POST | `/api/designs/prompt-presets/` | Member | Save new prompt preset. Body: `{name, source_config}` |
+| DELETE | `/api/designs/prompt-presets/{id}/` | Member | Delete prompt preset |
 
 ---
 
@@ -645,6 +761,32 @@ Image analysis (Gemini 3 Architect pipeline) also uses OpenRouter — same API k
 - [ ] EC-20: Emoji picker not supported (older browsers) → fallback: text input field where user can paste emoji.
 - [ ] EC-21: Curved text with extreme arc values → clamp to prevent text overlapping itself.
 - [ ] EC-22: Free-transform rotate on image → rotation angle persisted in layer data, restored on reload.
+- [ ] EC-23: Toggling `listing_ready` on a non-approved design → action disabled, only approved designs can be marked ready.
+- [ ] EC-24: "Mark All Ready" on project with no approved designs → snackbar info "No approved designs to mark".
+- [ ] EC-25: Design marked `listing_ready` then rejected → status resets to `rejected`, loses ready state.
+
+### Slogan → Design Forge Bulk Flow
+- [ ] EC-26: Slogan deleted from idea_app after added to project pool → CASCADE removes `DesignProjectIdea`. Frontend refreshes pool list. Already-generated designs from that slogan remain (Design.idea set to null via SET_NULL).
+- [ ] EC-27: Same slogan added to multiple projects → allowed by M2M. Each project has its own pool entry.
+- [ ] EC-28: Bulk generate with > 10 slogans → API returns 400 "Maximum 10 slogans per bulk request". Frontend disables "Generate Selected" button when selection > 10.
+- [ ] EC-29: Auto-prompt for slogan with no niche research (no reference products) → fallback prompt built from slogan metadata only (slogan_text, signal_type, emotional_archetype, pattern_used). No error shown.
+- [ ] EC-30: Existing `?ideaId=` URL param → backward-compatible. idea_context still returned by API. Additionally, slogan is auto-added to project pool if not already there.
+- [ ] EC-31: Drawer "Forge N Slogans" with only pending/rejected slogans selected → action bar hidden (only approved slogans selectable).
+- [ ] EC-32: Bulk generate while previous generation still running → new runs queued. Multiple skeleton artboards can be in-progress simultaneously.
+- [ ] EC-33: ProjectNamingDialog "Add to existing project" with slogans already in that pool → idempotent, duplicates ignored, no error.
+
+### Prompt Builder + Persistence
+- [ ] EC-34: Prompt Builder with no sources toggled on → "Build Prompt" button disabled. Minimum 1 source required.
+- [ ] EC-35: Prompt Builder with "Web Research" toggled on but no PROJ-17 data available → section shows "No web research data for this niche. Run Deep Web Search first." Toggle disabled.
+- [ ] EC-36: Reference Image analysis fails (403/malformed) → fallback: prompt built from other sources only. Error toast shown.
+- [ ] EC-37: Generate from saved ProjectPrompt that was already generated → allowed (creates new design, not duplicate). User may want to re-generate with different model.
+- [ ] EC-38: Delete a ProjectPrompt that has generated designs → prompt deleted, designs remain (no cascade). Design still has prompt_used in DesignGenerationRun.
+- [ ] EC-39: Prompt variants (5 requested) → all 5 saved as ProjectPrompt with variant_index 0-4. Each independently editable/deletable.
+- [ ] EC-40: Prompt Preset deleted → prompts already generated from that preset unaffected. Preset is just a config template.
+- [ ] EC-41: RightPanel Artboards section with 50+ artboards → virtualized list or "Show more" pagination to prevent scroll lag.
+- [ ] EC-42: Prompt Builder opened while PromptBar has manually typed text → dialog does NOT clear PromptBar. "Build Prompt" result replaces PromptBar text (user can undo via Cmd+Z in the text field).
+- [ ] EC-43: Prompt Builder for project without linked niche → Keywords, AI Research, Web Research sections show disabled state "Link a niche to enable". Only Slogan (from pool) and Reference Image remain usable.
+- [ ] EC-44: `build-prompts` endpoint called with `sources.keywords=true` but niche has 0 keywords → prompt built without keyword context. No error, just simpler prompt.
 
 ---
 
@@ -1055,6 +1197,209 @@ BottomToolbar (existing — wire tool handlers)
 | Pen tool as Konva.Line with points array | Simple data model, smoothing via tension param. No complex SVG path parsing |
 | Emoji rasterized to image | Ensures cross-platform consistency. OS emoji picker → canvas drawText → toDataURL → Image layer |
 | Google Fonts via CSS injection | Load font CSS on demand when user selects font. No npm package per font |
+
+---
+
+### H) Slogan → Design Forge Bulk Flow — Tech Design
+
+> Added: 2026-04-07 | Covers AC-89 to AC-106, User Stories 54-59
+
+#### Data Model — DesignProjectIdea
+
+New through table linking projects to their slogan pool:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `project` | FK → DesignProject | CASCADE |
+| `idea` | FK → idea_app.Idea | CASCADE |
+| `position` | IntegerField (default=0) | Order in pool |
+| `added_at` | DateTimeField (auto_now_add) | When added |
+
+- `unique_together: (project, idea)`
+- `DesignProject.ideas` M2M via through table
+- Existing `Design.idea` FK unchanged — tracks per-design provenance
+- File: `django-app/design_app/models.py`
+
+#### API Endpoints
+
+| Method | Endpoint | Behavior |
+|--------|----------|----------|
+| POST | `/api/designs/projects/` | Extended: accepts optional `idea_ids` on create |
+| POST | `/api/designs/projects/{id}/ideas/` | Add slogans to pool. Idempotent |
+| DELETE | `/api/designs/projects/{id}/ideas/{ideaId}/` | Remove from pool (M2M unlink) |
+| GET | `/api/designs/projects/{id}/board/` | Extended: response includes `ideas` array |
+| GET | `/api/designs/projects/{id}/ideas/{ideaId}/auto-prompt/` | Returns `{prompt}` via `prompt_builder.build_from_idea()` |
+| POST | `/api/designs/projects/{id}/bulk-generate/` | One run per idea. Max 10. Body: `{idea_ids, model, bg_color}` |
+
+#### Component Tree (New/Modified)
+
+```
+CollectedItemsSection (modified — add multi-select + action bar)
+├── Checkbox per approved slogan chip
+├── "Select All / Deselect All" toggle
+└── ActionBar (visible when selection > 0)
+    └── "Forge N Slogans" button → ProjectNamingDialog
+
+ProjectNamingDialog (modified — accepts ideaIds prop)
+├── On create: POST /projects/ with idea_ids
+└── On existing: POST /projects/{id}/ideas/ with idea_ids
+
+PanelNoneState (modified — renders SloganPoolSection)
+│
+SloganPoolSection (NEW)
+├── Slogan list header with count
+├── SloganPoolCard (NEW, per slogan)
+│   ├── Checkbox (bulk select)
+│   ├── Slogan text (truncated + tooltip)
+│   ├── Badges: signal_type, market_confidence
+│   ├── Niche chip
+│   ├── Reference product thumbnails (horizontal, max 4)
+│   │   └── Click → add as reference artboard on canvas
+│   ├── "Auto-Prompt" button → fills PromptBar
+│   ├── Remove (✕) button
+│   └── Expandable: why_it_works, emotional_archetype, pattern_used
+└── "Generate Selected (N)" button
+
+DesignWorkspaceView (modified — reads boardData.ideas, passes to RightPanel)
+
+PromptBar (modified — accepts onAutoPromptFill callback)
+
+IdeaCard (modified — passes ideaIds=[thisIdeaId] to ProjectNamingDialog)
+```
+
+#### Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| M2M through table (not JSONField) | Referential integrity, queryable from both sides, CASCADE on idea delete, supports ordering |
+| Auto-prompt server-side | `prompt_builder.build_from_idea()` already exists. Needs niche research data only available on server |
+| Dedicated bulk-generate endpoint | Reduces HTTP overhead vs N sequential calls. Backend can batch-fetch ideas + references |
+| Slogan pool embedded in board response | Avoids extra roundtrip on page load. Pool always needed when board loads |
+| Selection state as local React state | Ephemeral — resets when drawer closes or page navigates. No Redux needed |
+| Max 10 per bulk request | Prevents overwhelming the generation queue. User can generate in batches |
+
+#### Dependencies (No new packages)
+
+All required packages already installed. Uses existing RTK Query, MUI, Konva.js infrastructure.
+
+---
+
+### I) Prompt Builder + Persistence + Image→Prompt — Tech Design
+
+> Added: 2026-04-07 | Covers AC-107 to AC-134, User Stories 60-66
+
+#### Data Models
+
+**ProjectPrompt** — saved prompt for a project (not ephemeral):
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID pk | Auto-generated |
+| `project` | FK → DesignProject | CASCADE |
+| `prompt_text` | TextField | The generated/edited prompt text |
+| `sources` | JSONField | `{slogan: bool, keywords: bool, research: bool, web_research: bool, image: bool}` |
+| `source_idea` | FK → Idea (nullable) | Which slogan this prompt was built from |
+| `source_image_url` | URLField (nullable) | Reference image used for image analysis |
+| `variant_index` | IntegerField (default=0) | For multi-variant batches (0-4) |
+| `created_at` | DateTimeField | Auto |
+| `updated_at` | DateTimeField | Auto |
+
+**PromptPreset** — saved source configuration template:
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | UUID pk | Auto-generated |
+| `workspace` | FK → Workspace | CASCADE |
+| `name` | CharField (max 100) | User-given name |
+| `source_config` | JSONField | `{slogan: bool, keywords: bool, ...}` |
+| `created_by` | FK → User | CASCADE |
+| `created_at` | DateTimeField | Auto |
+
+**DesignGenerationRun modification:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `project_prompt` | FK → ProjectPrompt (nullable) | SET_NULL. Back-reference: which saved prompt generated this run |
+
+#### API Endpoints (G9-G14)
+
+| Method | Endpoint | Behavior |
+|--------|----------|----------|
+| POST | `/api/designs/projects/{id}/prompts/` | Bulk create prompts. Body: `{prompts: [...]}` |
+| PATCH | `/api/designs/projects/{id}/prompts/{promptId}/` | Edit prompt text |
+| DELETE | `/api/designs/projects/{id}/prompts/{promptId}/` | Delete prompt (designs remain) |
+| POST | `/api/designs/projects/{id}/prompts/{promptId}/generate/` | Generate design from saved prompt |
+| POST | `/api/designs/projects/{id}/build-prompts/` | Prompt Builder: sources → prompt text(s). Server gathers data |
+| GET | `/api/designs/prompt-presets/` | List workspace presets |
+| POST | `/api/designs/prompt-presets/` | Create preset |
+| DELETE | `/api/designs/prompt-presets/{id}/` | Delete preset |
+
+#### Component Tree (G9-G14)
+
+```
+PanelNoneState (refactored — 3 collapsible sections)
+├── SloganPoolSection (existing from Phase H)
+│
+├── PromptListSection (NEW)
+│   ├── PromptCard (NEW, per prompt)
+│   │   ├── Truncated text (expandable)
+│   │   ├── Source chips (Slogan/Keywords/Research/Image)
+│   │   ├── "Generated" badge (green) or "Generate" button
+│   │   ├── "Edit" inline edit
+│   │   └── "Delete" (✕)
+│   └── "Generate All" button (un-generated only)
+│
+└── ArtboardListSection (NEW)
+    └── ArtboardContextCard (NEW, per artboard)
+        ├── Thumbnail + label
+        └── Expandable: prompt, slogan, keywords, ref images
+
+PromptBuilderDialog (NEW — board/partials/)
+├── Preset dropdown + "Save as Preset"
+├── Source sections (each toggle + preview):
+│   ├── Slogan (dropdown from pool)
+│   ├── Keywords (from keyword_app API, disabled if no niche)
+│   ├── AI Research (from NicheResearch, disabled if no niche/research)
+│   ├── Web Research (from PROJ-17, disabled if unavailable)
+│   └── Reference Image (upload or select artboard, "Analyze" button)
+├── Prompt Preview (live-updating)
+├── Variants slider (1-5)
+└── "Build Prompt(s)" button
+
+PromptBar (modified)
+├── "✨ Build Prompt" button → opens PromptBuilderDialog
+├── "🖼 Analyze Image" button → Gemini 3 analysis
+└── "From saved prompt" indicator
+```
+
+#### Data Flow
+
+```
+Prompt Builder Dialog → POST /build-prompts/ (server builds text)
+                      → returns prompt text(s)
+                      → frontend saves via POST /prompts/
+                      → RightPanel PromptListSection updates (RTK Query invalidation)
+
+Generate from Prompt  → POST /prompts/{id}/generate/
+                      → creates DesignGenerationRun (linked to ProjectPrompt)
+                      → skeleton artboard on canvas
+                      → polling → artboard fills in
+
+Image Analysis        → POST /designs/{id}/analyze-image/ (existing)
+                      → result → auto-save as ProjectPrompt
+                      → fills PromptBar
+```
+
+#### Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| `ProjectPrompt` as DB model (not JSONField) | CRUD, searchable, survives across sessions. Backend can track generation status via FK |
+| `project_prompt` FK on DesignGenerationRun | Enables "generated/un-generated" badge on prompt cards without extra queries |
+| Keywords fetched server-side in `build-prompts` | `keyword_app` data is in DB, not on client. Server gathers all source data in one call |
+| Prompt Builder does NOT auto-save | User may want to see the preview first, edit, then explicitly save. Frontend saves via separate POST |
+| 3 default presets seeded | Reduces friction for new users. Can be deleted/modified |
+| Prompt Preview is server-rendered | Live preview calls `build-prompts` on each toggle change (debounced 500ms). Ensures preview matches final output exactly |
 
 ---
 

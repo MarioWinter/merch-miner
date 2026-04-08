@@ -14,9 +14,11 @@ import {
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import {
   useListProjectsQuery,
   useCreateProjectMutation,
+  useAddIdeasToProjectMutation,
 } from '../../../../store/designSlice';
 import type { DesignProjectListItem } from '../../gallery/types';
 
@@ -29,6 +31,8 @@ interface ProjectNamingDialogProps {
   nicheName?: string;
   sloganText?: string;
   nicheId?: string | null;
+  /** Idea IDs to attach to the project on create/add */
+  ideaIds?: string[];
 }
 
 const StyledDialogContent = styled(DialogContent)(({ theme }) => ({
@@ -43,8 +47,10 @@ export const ProjectNamingDialog = ({
   nicheName,
   sloganText,
   nicheId,
+  ideaIds,
 }: ProjectNamingDialogProps) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const [option, setOption] = useState<NamingOption>('niche');
   const [customName, setCustomName] = useState('');
   const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
@@ -52,6 +58,7 @@ export const ProjectNamingDialog = ({
 
   const { data: projectsData } = useListProjectsQuery();
   const [createProject] = useCreateProjectMutation();
+  const [addIdeas] = useAddIdeasToProjectMutation();
 
   const projects = projectsData?.results ?? [];
   const hasProjects = projects.length > 0;
@@ -82,7 +89,19 @@ export const ProjectNamingDialog = ({
 
   const handleConfirm = async () => {
     if (option === 'existing' && selectedProjectId) {
+      // Add ideas to existing project if provided
+      if (ideaIds?.length) {
+        try {
+          await addIdeas({
+            projectId: selectedProjectId,
+            body: { idea_ids: ideaIds },
+          }).unwrap();
+        } catch {
+          // Error handled by RTK Query
+        }
+      }
       onProjectSelected(selectedProjectId);
+      navigate(`/designs/${selectedProjectId}`);
       onClose();
       return;
     }
@@ -95,8 +114,10 @@ export const ProjectNamingDialog = ({
       const result = await createProject({
         name,
         niche: nicheId ?? undefined,
+        idea_ids: ideaIds?.length ? ideaIds : undefined,
       }).unwrap();
       onProjectSelected(result.id);
+      navigate(`/designs/${result.id}`);
       onClose();
     } catch {
       // Error handled by RTK Query

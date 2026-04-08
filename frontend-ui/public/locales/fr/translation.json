@@ -743,6 +743,13 @@
         "color": "Couleur",
         "size": "Taille du pinceau",
         "smoothing": "Lissage"
+      },
+      "layers": {
+        "title": "Calques",
+        "empty": "Aucun calque",
+        "visible": "Basculer la visibilite",
+        "lock": "Basculer le verrouillage",
+        "rename": "Renommer le calque"
       }
     },
     "board": {
@@ -846,6 +853,81 @@
       "success": "Design analyse - prompt pret",
       "error": "Impossible d'analyser l'image",
       "reused": "Analyse prete"
+    },
+    "promptBuilder": {
+      "openButton": "Créer un prompt",
+      "title": "Constructeur de prompts",
+      "titleBulk": "Création de prompts pour {{count}} slogans",
+      "slogan": "Slogan",
+      "selectSlogan": "Sélectionner un slogan",
+      "bulkSelected": "{{count}} slogans sélectionnés",
+      "keywords": "Mots-clés",
+      "noNicheKeywords": "Lier une niche pour activer les mots-clés",
+      "research": "Recherche IA",
+      "noResearch": "Aucune donnée de recherche disponible",
+      "webResearch": "Recherche Web",
+      "notAvailable": "Non disponible — lancez d'abord Deep Web Search",
+      "image": "Image de référence",
+      "uploadImage": "Télécharger une image",
+      "variants": "Variantes",
+      "preview": "Aperçu du prompt",
+      "variantLabel": "Variante {{n}}",
+      "noPreview": "Activez des sources pour voir un aperçu",
+      "build": "Créer le(s) prompt(s)",
+      "buildBulk": "Créer {{count}} prompt(s)",
+      "buildError": "Impossible de créer les prompts",
+      "buildSuccess": "{{count}} prompt(s) enregistré(s)",
+      "saveError": "Impossible d'enregistrer les prompts",
+      "noKeywordsFound": "Aucun mot-clé trouvé pour cette niche",
+      "noResearchData": "Lancez d'abord la recherche IA",
+      "visualStyle": "Style visuel",
+      "graphicElements": "Graphiques",
+      "vibe": "Ambiance",
+      "tone": "Ton",
+      "aesthetics": "Esthétique",
+      "analyzeImage": "Analyser"
+    },
+    "sloganPool": {
+      "title": "Pool de slogans",
+      "empty": "Aucun slogan — ajoutez depuis la Raffinerie de Slogans ou le Tiroir de Niche",
+      "selectSlogan": "Sélectionner un slogan",
+      "refProducts": "Ajouter au canevas",
+      "details": "Détails",
+      "autoPrompt": "Auto-Prompt",
+      "remove": "Supprimer",
+      "removeError": "Échec de la suppression",
+      "autoPromptError": "Échec de l'auto-prompt",
+      "maxBulk": "Max. 10 par lot",
+      "generateSelected": "Générer la sélection ({{count}})"
+    },
+    "prompts": {
+      "title": "Prompts",
+      "empty": "Aucun prompt enregistré",
+      "edit": "Modifier",
+      "delete": "Supprimer",
+      "generated": "Généré",
+      "editError": "Échec de la mise à jour",
+      "deleteError": "Échec de la suppression",
+      "generateAll": "Tout générer ({{count}})"
+    },
+    "presets": {
+      "title": "Préréglages",
+      "namePlaceholder": "Nom du préréglage",
+      "save": "Enregistrer comme préréglage",
+      "saved": "Préréglage enregistré",
+      "saveError": "Impossible d'enregistrer le préréglage"
+    },
+    "actions": {
+      "analyzeImage": "Analyser l'image",
+      "analyzeImageTooltip": "Analyser l'image sélectionnée pour générer un prompt",
+      "analyzeImageUpload": "Télécharger une image à analyser",
+      "bulkGenerating": "Génération de {{count}} designs en cours...",
+      "imageAdded": "Image ajoutée comme artboard de référence"
+    },
+    "artboards": {
+      "title": "Artboards",
+      "empty": "Aucun artboard",
+      "prompt": "Prompt"
     },
     "editor": {
       "title": "Editeur d'images",
@@ -1267,7 +1349,8 @@
       "tabEditor": "Editeur d'images",
       "settings": "Parametres du projet",
       "canvasComingSoon": "Artboard Canvas bientot disponible",
-      "canvasDescription": "L'artboard Konva.js remplacera l'ancien React Flow."
+      "canvasDescription": "L'artboard Konva.js remplacera l'ancien React Flow.",
+      "openNicheDrawer": "Détails de la niche"
     },
     "settings": {
       "title": "Parametres de traitement",
@@ -1332,6 +1415,18 @@
       "openInEditor": "Ouvrir dans l'editeur",
       "exportSelected": "Exporter la selection",
       "deleteAll": "Tout supprimer",
+      "elementName": "Nom",
+      "elementNamePlaceholder": "Nom de l'element",
+      "deleteElement": "Supprimer l'element",
+      "position": "Position",
+      "elementSize": "Taille",
+      "originalSize": "Taille originale",
+      "rotation": "Rotation",
+      "rotationDeg": "Deg",
+      "elementOpacity": "Opacite",
+      "visible": "Visible",
+      "locked": "Verrouille",
+      "emojiPreview": "Emoji",
       "tools": {
         "regenerate": "Regenerer",
         "aiImageBoard": "Tableau IA",

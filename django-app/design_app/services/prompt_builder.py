@@ -107,3 +107,90 @@ def build_from_idea(idea, background_color: str, reference_analyses=None) -> str
     )
 
     return f"{prompt}\n{bg_instruction}"
+
+
+def build_from_sources(
+    sources_config: dict,
+    idea=None,
+    keywords: list | None = None,
+    research_data: dict | None = None,
+    image_analysis: dict | None = None,
+    background_color: str = 'light_gray',
+    variant_index: int = 0,
+) -> str:
+    """Build prompt by combining multiple source types.
+
+    Args:
+        sources_config: {slogan, keywords, research, web_research, image} booleans
+        idea: Idea model instance (if slogan source enabled)
+        keywords: list of keyword strings (if keywords source enabled)
+        research_data: dict with niche research fields (if research source enabled)
+        image_analysis: 7-step analysis output (if image source enabled)
+        background_color: BackgroundColor choice value
+        variant_index: 0-4, controls stylistic variation
+    """
+    parts = []
+
+    # -- Slogan source --
+    if sources_config.get('slogan') and idea:
+        parts.append(f'T-shirt design with text: "{idea.slogan_text}"')
+        if idea.emotional_archetype:
+            parts.append(f'emotional tone: {idea.emotional_archetype}')
+        if idea.signal_type:
+            parts.append(f'signal type: {idea.signal_type}')
+
+    # -- Keywords source --
+    if sources_config.get('keywords') and keywords:
+        top_kw = keywords[:10]
+        parts.append(f'design theme keywords: {", ".join(top_kw)}')
+
+    # -- Research source (niche research data) --
+    if sources_config.get('research') and research_data:
+        if research_data.get('visual_styles'):
+            parts.append(f'visual style: {", ".join(research_data["visual_styles"][:3])}')
+        if research_data.get('graphic_elements'):
+            parts.append(
+                f'graphic elements: {", ".join(research_data["graphic_elements"][:3])}',
+            )
+        if research_data.get('vibes'):
+            parts.append(f'vibe: {", ".join(research_data["vibes"][:3])}')
+        if research_data.get('tones'):
+            parts.append(f'tone: {", ".join(research_data["tones"][:3])}')
+
+    # -- Web Research source --
+    if sources_config.get('web_research') and research_data:
+        trends = research_data.get('web_trends')
+        if trends:
+            parts.append(f'market trend context: {trends}')
+
+    # -- Image source (7-step analysis) --
+    if sources_config.get('image') and image_analysis:
+        final_prompt = image_analysis.get('final_prompt', '')
+        if final_prompt:
+            parts.append(f'inspired by: {final_prompt[:300]}')
+        else:
+            visual = image_analysis.get('visual', {})
+            if visual.get('style'):
+                parts.append(f'visual reference: {visual["style"]}')
+
+    # Stylistic variation per variant_index
+    variant_styles = [
+        'high quality, print resolution, isolated design',
+        'bold and eye-catching, modern graphic design, clean lines',
+        'vintage retro style, distressed texture, classic typography',
+        'minimalist, clean, subtle, elegant design',
+        'hand-drawn illustration style, artistic, textured',
+    ]
+    style_suffix = variant_styles[variant_index % len(variant_styles)]
+    parts.append(style_suffix)
+
+    prompt = ', '.join(parts)
+
+    # Background color injection
+    bg_hex = Design.BG_COLOR_HEX.get(background_color, '#D3D3D3')
+    bg_instruction = (
+        f"Background: solid {bg_hex} color, saturated, no gradients, "
+        f"no patterns, flat single color background"
+    )
+
+    return f"{prompt}\n{bg_instruction}"

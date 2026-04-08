@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import {
   useAnalyzeImageMutation,
   useGetRunStatusQuery,
+  useCreatePromptsMutation,
   designApi,
 } from '../../../../store/designSlice';
 import { useAppDispatch } from '../../../../store/hooks';
@@ -22,8 +23,10 @@ export const useImageAnalysis = (projectId: string) => {
   const { enqueueSnackbar } = useSnackbar();
 
   const [analyzeImage] = useAnalyzeImageMutation();
+  const [createPrompts] = useCreatePromptsMutation();
   const [activeAnalysisRunId, setActiveAnalysisRunId] = useState<string | null>(null);
   const [analyzingProductIds, setAnalyzingProductIds] = useState<string[]>([]);
+  const [lastSourceImageUrl, setLastSourceImageUrl] = useState<string | null>(null);
 
   const { data: runStatus } = useGetRunStatusQuery(activeAnalysisRunId ?? '', {
     skip: !activeAnalysisRunId,
@@ -43,6 +46,22 @@ export const useImageAnalysis = (projectId: string) => {
       dispatch(
         designApi.util.invalidateTags([{ type: 'DesignProject', id: projectId }]),
       );
+
+      // Gap 8: Auto-save analysis result as ProjectPrompt
+      if (runStatus.prompt_used) {
+        void createPrompts({
+          projectId,
+          body: {
+            prompts: [
+              {
+                prompt_text: runStatus.prompt_used,
+                sources: { image: true },
+                ...(lastSourceImageUrl && { source_image_url: lastSourceImageUrl }),
+              },
+            ],
+          },
+        });
+      }
     } else if (runStatus?.status === 'failed') {
       enqueueSnackbar(
         runStatus.error_message || t('design.analyze.error'),
@@ -53,7 +72,8 @@ export const useImageAnalysis = (projectId: string) => {
     // Reset polling state after handling terminal result
     setActiveAnalysisRunId(null); // eslint-disable-line react-hooks/set-state-in-effect -- reacting to external poll result
     setAnalyzingProductIds([]);
-  }, [isTerminal, activeAnalysisRunId, runStatus, dispatch, projectId, enqueueSnackbar, t]);
+    setLastSourceImageUrl(null);
+  }, [isTerminal, activeAnalysisRunId, runStatus, dispatch, projectId, enqueueSnackbar, t, createPrompts, lastSourceImageUrl]);
 
   // Derive last prompt from terminal run status
   const lastPrompt = isTerminal && runStatus?.status === 'completed' && runStatus.prompt_used
@@ -64,6 +84,7 @@ export const useImageAnalysis = (projectId: string) => {
     async (designId: string, imageUrl: string, productId: string) => {
       try {
         setAnalyzingProductIds((prev) => [...prev, productId]);
+        setLastSourceImageUrl(imageUrl);
         enqueueSnackbar(t('design.analyze.started'), { variant: 'info' });
         const result = await analyzeImage({
           designId,

@@ -7,7 +7,10 @@ from design_app.models import (
     DesignProcessingJob,
     DesignProject,
     DesignProjectDesign,
+    DesignProjectIdea,
     ProcessingSettings,
+    ProjectPrompt,
+    PromptPreset,
 )
 
 
@@ -17,6 +20,12 @@ class DesignProjectDesignInline(admin.TabularInline):
     raw_id_fields = ('design',)
 
 
+class DesignProjectIdeaInline(admin.TabularInline):
+    model = DesignProjectIdea
+    extra = 0
+    raw_id_fields = ('idea',)
+
+
 @admin.register(DesignProject)
 class DesignProjectAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'workspace', 'niche', 'created_by', 'created_at', 'updated_at')
@@ -24,7 +33,7 @@ class DesignProjectAdmin(admin.ModelAdmin):
     search_fields = ('name',)
     readonly_fields = ('id', 'created_at', 'updated_at')
     raw_id_fields = ('workspace', 'niche', 'created_by')
-    inlines = [DesignProjectDesignInline]
+    inlines = [DesignProjectDesignInline, DesignProjectIdeaInline]
 
 
 @admin.register(DesignGenerationRun)
@@ -61,3 +70,27 @@ class DesignPipelineAdmin(admin.ModelAdmin):
     list_filter = ('is_preset',)
     search_fields = ('name',)
     readonly_fields = ('id', 'created_at')
+
+
+@admin.register(DesignProjectIdea)
+class DesignProjectIdeaAdmin(admin.ModelAdmin):
+    list_display = ('id', 'project', 'idea', 'position', 'added_at')
+    raw_id_fields = ('project', 'idea')
+    readonly_fields = ('added_at',)
+
+
+@admin.register(ProjectPrompt)
+class ProjectPromptAdmin(admin.ModelAdmin):
+    list_display = ('id', 'project', 'source_idea', 'variant_index', 'created_at', 'updated_at')
+    list_filter = ('variant_index',)
+    search_fields = ('prompt_text',)
+    readonly_fields = ('id', 'created_at', 'updated_at')
+    raw_id_fields = ('project', 'source_idea')
+
+
+@admin.register(PromptPreset)
+class PromptPresetAdmin(admin.ModelAdmin):
+    list_display = ('id', 'workspace', 'name', 'created_by', 'created_at')
+    search_fields = ('name',)
+    readonly_fields = ('id', 'created_at')
+    raw_id_fields = ('workspace', 'created_by')

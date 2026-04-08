@@ -58,7 +58,7 @@ const useOneDrive = () => {
     const msal = new PublicClientApplication({
       auth: {
         clientId: CLIENT_ID,
-        redirectUri: window.location.origin,
+        redirectUri: `${window.location.origin}/auth-redirect.html`,
       },
       cache: { cacheLocation: 'localStorage' },
     });
@@ -117,6 +117,9 @@ const useOneDrive = () => {
 
     setState((prev) => ({ ...prev, isConnecting: true, error: null }));
 
+    // Store client ID so the popup redirect page can initialize MSAL
+    localStorage.setItem('mm-onedrive-client-id', CLIENT_ID);
+
     try {
       const resp = await msalRef.current.loginPopup({ scopes: SCOPES });
       accountRef.current = resp.account;
@@ -163,41 +166,31 @@ const useOneDrive = () => {
     }));
   }, [graphFetch]);
 
-  // Recursively list images
+  // List images in a single folder (no recursion — user navigates manually)
   const listImages = useCallback(async (
     folderId: string,
-    basePath = '',
   ): Promise<CloudFile[]> => {
     const path = folderId === 'root'
-      ? '/me/drive/root/children?$select=id,name,size,file,folder,parentReference&$top=200'
-      : `/me/drive/items/${folderId}/children?$select=id,name,size,file,folder,parentReference&$top=200`;
+      ? '/me/drive/root/children?$select=id,name,size,file,parentReference&$top=200'
+      : `/me/drive/items/${folderId}/children?$select=id,name,size,file,parentReference&$top=200`;
 
     const resp = await graphFetch(path);
     const data = await resp.json();
     const files: CloudFile[] = [];
 
     for (const item of (data.value ?? []) as GraphDriveItem[]) {
-      // If it's a file with an image extension
-      if (item.file) {
-        const ext = item.name.split('.').pop()?.toLowerCase() ?? '';
-        if (!IMAGE_EXTENSIONS.includes(ext)) continue;
-        if ((item.size ?? 0) > MAX_FILE_SIZE) continue;
+      if (!item.file) continue;
+      const ext = item.name.split('.').pop()?.toLowerCase() ?? '';
+      if (!IMAGE_EXTENSIONS.includes(ext)) continue;
+      if ((item.size ?? 0) > MAX_FILE_SIZE) continue;
 
-        files.push({
-          id: item.id,
-          name: item.name,
-          mimeType: item.file.mimeType ?? `image/${ext}`,
-          size: item.size ?? 0,
-          folderPath: basePath || '/',
-        });
-      }
-
-      // Recurse into subfolders
-      if (item.folder) {
-        const subPath = basePath ? `${basePath}/${item.name}` : item.name;
-        const subFiles = await listImages(item.id, subPath);
-        files.push(...subFiles);
-      }
+      files.push({
+        id: item.id,
+        name: item.name,
+        mimeType: item.file.mimeType ?? `image/${ext}`,
+        size: item.size ?? 0,
+        folderPath: item.parentReference?.path ?? '/',
+      });
     }
 
     return files;

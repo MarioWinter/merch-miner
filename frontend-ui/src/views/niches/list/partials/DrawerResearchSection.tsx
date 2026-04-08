@@ -36,6 +36,7 @@ import { CollectedProductsSection } from './CollectedProductsSection';
 interface DrawerResearchSectionProps {
   niche: Niche;
   isBusy: boolean;
+  onDrawerClose?: () => void;
 }
 
 const shimmer = keyframes`
@@ -76,7 +77,7 @@ const StartButton = styled(Button)({
   },
 });
 
-export const DrawerResearchSection = ({ niche, isBusy }: DrawerResearchSectionProps) => {
+export const DrawerResearchSection = ({ niche, isBusy, onDrawerClose }: DrawerResearchSectionProps) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
 
@@ -325,7 +326,12 @@ export const DrawerResearchSection = ({ niche, isBusy }: DrawerResearchSectionPr
       </ResearchSectionWrapper>
 
       <CollectedProductsSection nicheId={niche.id} />
-      <CollectedItemsSection nicheId={niche.id} />
+      <CollectedItemsSection
+        nicheId={niche.id}
+        nicheName={niche.name}
+        nicheIdForProject={niche.id}
+        onDrawerClose={onDrawerClose}
+      />
     </>
   );
 };

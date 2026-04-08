@@ -14,10 +14,15 @@ from django.db.models import Count
 
 from design_app.api.serializers import (
     AddDesignsToProjectSerializer,
+    AddIdeasToPoolSerializer,
     AnalyzeImageSerializer,
     ApplyPipelineSerializer,
     BatchProcessSerializer,
+    BuildPromptsSerializer,
+    BulkCreatePromptsSerializer,
+    BulkGenerateSerializer,
     CreateProjectSerializer,
+    CreatePromptPresetSerializer,
     DesignPipelineSerializer,
     DesignProcessingJobSerializer,
     DesignGenerationRunSerializer,
@@ -27,10 +32,15 @@ from design_app.api.serializers import (
     DesignStatusUpdateSerializer,
     DesignUploadSerializer,
     GenerateDesignSerializer,
+    GenerateFromPromptSerializer,
     ProcessingSettingsSerializer,
     ProductAnalyzeImageSerializer,
+    ProjectIdeaSerializer,
+    ProjectPromptSerializer,
+    PromptPresetSerializer,
     StandaloneGenerateSerializer,
     UpdateProjectSerializer,
+    UpdatePromptSerializer,
 )
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from design_app.models import (
@@ -40,7 +50,10 @@ from design_app.models import (
     DesignProcessingJob,
     DesignProject,
     DesignProjectDesign,
+    DesignProjectIdea,
     ProcessingSettings,
+    ProjectPrompt,
+    PromptPreset,
 )
 from design_app.tasks import (
     task_analyze_image,
@@ -707,6 +720,21 @@ class ProjectListCreateView(APIView):
             created_by=request.user,
         )
 
+        # Bulk-create DesignProjectIdea for each idea_id (G1/G2)
+        idea_ids = serializer.validated_data.get('idea_ids', [])
+        if idea_ids:
+            from idea_app.models import Idea
+            valid_ideas = Idea.objects.filter(
+                id__in=idea_ids, workspace_id=ws_id,
+            ).values_list('id', flat=True)
+            links = [
+                DesignProjectIdea(
+                    project=project, idea_id=idea_id, position=idx,
+                )
+                for idx, idea_id in enumerate(valid_ideas)
+            ]
+            DesignProjectIdea.objects.bulk_create(links, ignore_conflicts=True)
+
         return Response(
             DesignProjectSerializer(project).data,
             status=status.HTTP_201_CREATED,
@@ -880,14 +908,38 @@ class ProjectBoardView(APIView):
                     'niche_name': idea.niche.name if idea.niche else None,
                     'reference_products': reference_products,
                 }
+                # Auto-add idea to pool if not already there (EC-30)
+                DesignProjectIdea.objects.get_or_create(
+                    project=project,
+                    idea=idea,
+                    defaults={'position': 0},
+                )
             except Idea.DoesNotExist:
                 pass
+
+        # Slogan pool (G2)
+        pool_items = (
+            DesignProjectIdea.objects.filter(project=project)
+            .select_related('idea', 'idea__niche')
+            .order_by('position', '-added_at')
+        )
+        ideas_data = ProjectIdeaSerializer(pool_items, many=True).data
+
+        # Prompts (G9)
+        prompts = (
+            ProjectPrompt.objects.filter(project=project)
+            .select_related('source_idea')
+            .order_by('-created_at')
+        )
+        prompts_data = ProjectPromptSerializer(prompts, many=True).data
 
         data = {
             'project': DesignProjectSerializer(project).data,
             'designs': DesignSerializer(designs, many=True).data,
             'board_layout': project.board_layout,
             'idea_context': idea_context,
+            'ideas': ideas_data,
+            'prompts': prompts_data,
         }
 
         return Response(data)
@@ -1162,3 +1214,503 @@ class ProjectUploadView(APIView):
             DesignSerializer(design).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+# -- Slogan Pool CRUD (G2) --
+
+class ProjectIdeasView(APIView):
+    """POST /api/designs/projects/{id}/ideas/ — add ideas to slogan pool."""
+
+    def post(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        project = get_object_or_404(
+            DesignProject, pk=pk, workspace_id=ws_id,
+        )
+
+        serializer = AddIdeasToPoolSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        idea_ids = serializer.validated_data['idea_ids']
+
+        # Validate ideas belong to same workspace
+        from idea_app.models import Idea
+        valid_ideas = Idea.objects.filter(
+            id__in=idea_ids, workspace_id=ws_id,
+        ).values_list('id', flat=True)
+
+        # Auto-assign position starting after max existing
+        max_pos = (
+            DesignProjectIdea.objects.filter(project=project)
+            .order_by('-position')
+            .values_list('position', flat=True)
+            .first()
+        ) or 0
+
+        links = []
+        for idx, idea_id in enumerate(valid_ideas):
+            links.append(
+                DesignProjectIdea(
+                    project=project,
+                    idea_id=idea_id,
+                    position=max_pos + idx + 1,
+                ),
+            )
+        DesignProjectIdea.objects.bulk_create(links, ignore_conflicts=True)
+
+        # Return updated pool
+        pool_items = (
+            DesignProjectIdea.objects.filter(project=project)
+            .select_related('idea', 'idea__niche')
+            .order_by('position', '-added_at')
+        )
+        return Response(ProjectIdeaSerializer(pool_items, many=True).data)
+
+
+class ProjectIdeaRemoveView(APIView):
+    """DELETE /api/designs/projects/{id}/ideas/{ideaId}/ — remove from pool."""
+
+    def delete(self, request, pk, idea_id):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        project = get_object_or_404(
+            DesignProject, pk=pk, workspace_id=ws_id,
+        )
+
+        link = get_object_or_404(
+            DesignProjectIdea, project=project, idea_id=idea_id,
+        )
+        link.delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# -- Auto-Prompt (G3) --
+
+class AutoPromptView(APIView):
+    """GET /api/designs/projects/{id}/ideas/{ideaId}/auto-prompt/"""
+
+    def get(self, request, pk, idea_id):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        project = get_object_or_404(
+            DesignProject, pk=pk, workspace_id=ws_id,
+        )
+
+        from idea_app.models import Idea
+        idea = get_object_or_404(
+            Idea.objects.select_related('niche'),
+            pk=idea_id,
+            workspace_id=ws_id,
+        )
+
+        # Verify idea is in this project's pool
+        if not DesignProjectIdea.objects.filter(
+            project=project, idea=idea,
+        ).exists():
+            return Response(
+                {'error': 'Idea not in project pool.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Get reference products for prompt context
+        reference_analyses = _get_reference_products(idea)
+
+        from design_app.services.prompt_builder import build_from_idea
+        prompt = build_from_idea(idea, 'light_gray', reference_analyses or None)
+
+        return Response({'prompt': prompt})
+
+
+# -- Bulk Generate (G3) --
+
+class BulkGenerateView(APIView):
+    """POST /api/designs/projects/{id}/bulk-generate/"""
+
+    def post(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        project = get_object_or_404(
+            DesignProject, pk=pk, workspace_id=ws_id,
+        )
+
+        serializer = BulkGenerateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        idea_ids = serializer.validated_data['idea_ids']
+        model_name = serializer.validated_data['model']
+        bg_color = serializer.validated_data['background_color']
+
+        from idea_app.models import Idea
+        ideas = Idea.objects.filter(
+            id__in=idea_ids, workspace_id=ws_id,
+        ).select_related('niche')
+
+        if ideas.count() == 0:
+            raise DRFValidationError({'idea_ids': 'No valid ideas found.'})
+
+        results = []
+        queue = django_rq.get_queue('design')
+
+        for idea in ideas:
+            # Build prompt
+            reference_analyses = _get_reference_products(idea)
+            from design_app.services.prompt_builder import build_from_idea
+            prompt = build_from_idea(idea, bg_color, reference_analyses or None)
+
+            # Create run
+            run = DesignGenerationRun.objects.create(
+                idea=idea,
+                model_name=model_name,
+                status=DesignGenerationRun.Status.PENDING,
+                triggered_by=request.user,
+                prompt_used=prompt,
+            )
+
+            # Enqueue
+            job = queue.enqueue(
+                task_generate_design,
+                str(run.id),
+                str(project.id),
+            )
+            run.rq_job_id = job.id
+            run.save(update_fields=['rq_job_id'])
+
+            # Auto-add idea to pool if not already there
+            DesignProjectIdea.objects.get_or_create(
+                project=project,
+                idea=idea,
+                defaults={'position': 0},
+            )
+
+            results.append({
+                'idea_id': str(idea.id),
+                'run_id': str(run.id),
+                'prompt_used': prompt,
+            })
+
+        return Response(results, status=status.HTTP_202_ACCEPTED)
+
+
+# -- ProjectPrompt CRUD (G9) --
+
+class ProjectPromptsView(APIView):
+    """POST /api/designs/projects/{id}/prompts/ — bulk create prompts."""
+
+    def post(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        project = get_object_or_404(
+            DesignProject, pk=pk, workspace_id=ws_id,
+        )
+
+        serializer = BulkCreatePromptsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        created = []
+        for item in serializer.validated_data['prompts']:
+            source_idea_id = item.get('source_idea')
+            source_idea = None
+            if source_idea_id:
+                from idea_app.models import Idea
+                try:
+                    source_idea = Idea.objects.get(
+                        pk=source_idea_id, workspace_id=ws_id,
+                    )
+                except Idea.DoesNotExist:
+                    pass
+
+            prompt = ProjectPrompt.objects.create(
+                project=project,
+                prompt_text=item['prompt_text'],
+                sources=item.get('sources', {}),
+                source_idea=source_idea,
+                source_image_url=item.get('source_image_url', ''),
+                variant_index=item.get('variant_index', 0),
+            )
+            created.append(prompt)
+
+        return Response(
+            ProjectPromptSerializer(created, many=True).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ProjectPromptDetailView(APIView):
+    """PATCH/DELETE /api/designs/projects/{id}/prompts/{promptId}/"""
+
+    def patch(self, request, pk, prompt_id):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        project = get_object_or_404(
+            DesignProject, pk=pk, workspace_id=ws_id,
+        )
+        prompt = get_object_or_404(
+            ProjectPrompt, pk=prompt_id, project=project,
+        )
+
+        serializer = UpdatePromptSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        prompt.prompt_text = serializer.validated_data['prompt_text']
+        prompt.save(update_fields=['prompt_text', 'updated_at'])
+
+        return Response(ProjectPromptSerializer(prompt).data)
+
+    def delete(self, request, pk, prompt_id):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        project = get_object_or_404(
+            DesignProject, pk=pk, workspace_id=ws_id,
+        )
+        prompt = get_object_or_404(
+            ProjectPrompt, pk=prompt_id, project=project,
+        )
+        prompt.delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class GenerateFromPromptView(APIView):
+    """POST /api/designs/projects/{id}/prompts/{promptId}/generate/"""
+
+    def post(self, request, pk, prompt_id):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        project = get_object_or_404(
+            DesignProject, pk=pk, workspace_id=ws_id,
+        )
+        prompt = get_object_or_404(
+            ProjectPrompt.objects.select_related('source_idea'),
+            pk=prompt_id,
+            project=project,
+        )
+
+        serializer = GenerateFromPromptSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        run = DesignGenerationRun.objects.create(
+            idea=prompt.source_idea,
+            project_prompt=prompt,
+            model_name=serializer.validated_data['model'],
+            status=DesignGenerationRun.Status.PENDING,
+            triggered_by=request.user,
+            prompt_used=prompt.prompt_text,
+        )
+
+        queue = django_rq.get_queue('design')
+        job = queue.enqueue(
+            task_generate_design,
+            str(run.id),
+            str(project.id),
+        )
+        run.rq_job_id = job.id
+        run.save(update_fields=['rq_job_id'])
+
+        return Response(
+            DesignGenerationRunSerializer(run).data,
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+
+# -- Prompt Builder (G10) --
+
+class BuildPromptsView(APIView):
+    """POST /api/designs/projects/{id}/build-prompts/"""
+
+    def post(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        project = get_object_or_404(
+            DesignProject.objects.select_related('niche'),
+            pk=pk,
+            workspace_id=ws_id,
+        )
+
+        serializer = BuildPromptsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        sources = serializer.validated_data['sources']
+        slogan_id = serializer.validated_data.get('slogan_id')
+        image_url = serializer.validated_data.get('image_url')
+        variants = serializer.validated_data.get('variants', 1)
+
+        # Gather source data
+        idea = None
+        if sources.get('slogan') and slogan_id:
+            from idea_app.models import Idea
+            try:
+                idea = Idea.objects.select_related('niche').get(
+                    pk=slogan_id, workspace_id=ws_id,
+                )
+            except Idea.DoesNotExist:
+                pass
+
+        # Keywords
+        keywords = None
+        if sources.get('keywords') and project.niche:
+            from keyword_app.models import NicheKeyword
+            keywords = list(
+                NicheKeyword.objects.filter(niche=project.niche)
+                .order_by('position')
+                .values_list('keyword', flat=True)[:20]
+            )
+
+        # Research data
+        research_data = None
+        if sources.get('research') and project.niche:
+            research_data = _gather_research_data(project.niche)
+
+        # Image analysis
+        image_analysis = None
+        if sources.get('image') and image_url:
+            from design_app.services.image_analyzer import analyze_image
+            try:
+                image_analysis = analyze_image(image_url)
+            except Exception:
+                logger.exception('Image analysis failed for %s', image_url)
+
+        # Build prompts (one per variant)
+        from design_app.services.prompt_builder import build_from_sources
+        prompts = []
+        for v in range(variants):
+            prompt_text = build_from_sources(
+                sources_config=sources,
+                idea=idea,
+                keywords=keywords,
+                research_data=research_data,
+                image_analysis=image_analysis,
+                variant_index=v,
+            )
+            prompts.append({
+                'prompt_text': prompt_text,
+                'sources': sources,
+            })
+
+        return Response({'prompts': prompts})
+
+
+def _gather_research_data(niche):
+    """Gather niche research data for prompt building."""
+    from niche_research_app.models import (
+        NicheProductEmotionalAnalysis,
+        NicheProductVisionAnalysis,
+        NicheResearch,
+        NicheResearchProduct,
+    )
+
+    latest = NicheResearch.objects.filter(
+        niche=niche,
+        status=NicheResearch.Status.COMPLETED,
+    ).order_by('-created_at').first()
+
+    if not latest:
+        return None
+
+    products = NicheResearchProduct.objects.filter(
+        research=latest, brand_blocked=False,
+    ).select_related('product')[:10]
+
+    product_ids = [rp.product_id for rp in products]
+
+    visions = NicheProductVisionAnalysis.objects.filter(
+        research=latest, product_id__in=product_ids,
+    )
+    emotionals = NicheProductEmotionalAnalysis.objects.filter(
+        research=latest, product_id__in=product_ids,
+    )
+
+    styles = set()
+    elements = set()
+    vibes = set()
+    tones = set()
+
+    for v in visions:
+        if v.visual_style:
+            styles.add(v.visual_style)
+        if v.graphic_elements:
+            elements.add(v.graphic_elements)
+    for e in emotionals:
+        if e.tone:
+            tones.add(e.tone)
+        if e.vibe:
+            vibe_val = e.vibe
+            if isinstance(vibe_val, dict):
+                vibe_val = vibe_val.get('primary', '')
+            if isinstance(vibe_val, str) and vibe_val:
+                vibes.add(vibe_val)
+
+    return {
+        'visual_styles': list(styles)[:5],
+        'graphic_elements': list(elements)[:5],
+        'vibes': list(vibes)[:5],
+        'tones': list(tones)[:5],
+    }
+
+
+# -- Prompt Presets (G10) --
+
+class PromptPresetListCreateView(APIView):
+    """GET/POST /api/designs/prompt-presets/"""
+
+    def get(self, request):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        presets = PromptPreset.objects.filter(workspace_id=ws_id)
+        return Response(PromptPresetSerializer(presets, many=True).data)
+
+    def post(self, request):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        serializer = CreatePromptPresetSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        preset = PromptPreset.objects.create(
+            workspace_id=ws_id,
+            name=serializer.validated_data['name'],
+            source_config=serializer.validated_data['source_config'],
+            created_by=request.user,
+        )
+
+        return Response(
+            PromptPresetSerializer(preset).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class PromptPresetDeleteView(APIView):
+    """DELETE /api/designs/prompt-presets/{id}/"""
+
+    def delete(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        preset = get_object_or_404(
+            PromptPreset, pk=pk, workspace_id=ws_id,
+        )
+        preset.delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)

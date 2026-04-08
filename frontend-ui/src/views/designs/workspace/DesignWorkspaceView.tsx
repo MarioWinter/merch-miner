@@ -6,6 +6,7 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import BuildOutlinedIcon from '@mui/icons-material/BuildOutlined';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
 import { useGetProjectQuery, useGetProjectBoardQuery, useDeleteDesignMutation } from '@/store/designSlice';
@@ -31,8 +32,13 @@ import type { CanvasTool } from '../board/partials/BottomToolbar';
 import RightPanel from '../board/partials/RightPanel';
 import NicheBindingSelector from '../board/partials/NicheBindingSelector';
 import ExportDialog from '../board/partials/ExportDialog';
+import PromptBuilderDialog from '../board/partials/PromptBuilderDialog';
+import { usePromptBuilder } from '../board/hooks/usePromptBuilder';
+import { useImageAnalysis } from '../board/hooks/useImageAnalysis';
 import DesignEditorView from '../editor/DesignEditorView';
 import ProcessingSettingsDialog from './ProcessingSettingsDialog';
+import { NicheDetailDrawer } from '../../niches/list/partials/NicheDetailDrawer';
+import type { ProjectPrompt } from '../gallery/types';
 import useWorkspaceTab from './hooks/useWorkspaceTab';
 import type { WorkspaceTab } from './hooks/useWorkspaceTab';
 import {
@@ -294,6 +300,8 @@ const DesignWorkspaceView = () => {
   const brushTool = useBrushTool({
     activeTool,
     addElement: canvasElements.addElement,
+    updateElement: canvasElements.updateElement,
+    getElements: canvasElements.getElements,
     onElementSelect: handleElementSelect,
   });
 
@@ -494,6 +502,84 @@ const DesignWorkspaceView = () => {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isDeletingFromServer, setIsDeletingFromServer] = useState(false);
+  const [promptBuilderOpen, setPromptBuilderOpen] = useState(false);
+  const [nicheDrawerOpen, setNicheDrawerOpen] = useState(false);
+
+  // -- Prompt Builder hook --
+  const promptBuilder = usePromptBuilder(
+    projectId ?? '',
+    project?.niche ?? null,
+  );
+
+  // -- Image analysis hook (G13) --
+  const imageAnalysis = useImageAnalysis(projectId ?? '');
+
+  // Fill prompt bar when analysis completes
+  useEffect(() => {
+    if (imageAnalysis.lastPrompt) {
+      setPrompt(imageAnalysis.lastPrompt);
+      promptBar.expand();
+    }
+  }, [imageAnalysis.lastPrompt]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleOpenPromptBuilder = useCallback(() => {
+    promptBuilder.reset();
+    setPromptBuilderOpen(true);
+  }, [promptBuilder]);
+
+  const handleClosePromptBuilder = useCallback(() => {
+    setPromptBuilderOpen(false);
+  }, []);
+
+  // G13: analyze image from prompt bar or context menu
+  const handleAnalyzeImage = useCallback(() => {
+    // If an artboard with image is selected, analyze that
+    const selectedAb = panelState.artboard;
+    if (selectedAb?.imageUrl && selectedAb?.designId) {
+      void imageAnalysis.triggerAnalysis(
+        selectedAb.designId,
+        selectedAb.imageUrl,
+        selectedAb.designId,
+      );
+      return;
+    }
+
+    // Otherwise open file picker
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = () => {
+      const file = input.files?.[0];
+      if (!file) return;
+      const url = URL.createObjectURL(file);
+      // Add as reference artboard, then we'd need a design ID to analyze
+      // For now, just fill prompt with a placeholder
+      artboardState.addArtboard({
+        label: 'Reference',
+        kind: 'regular',
+        width: 280,
+        height: 280,
+        imageUrl: url,
+      });
+      enqueueSnackbar(
+        t('design.actions.imageAdded', 'Image added as reference artboard'),
+        { variant: 'info' },
+      );
+    };
+    input.click();
+  }, [panelState.artboard, imageAnalysis, artboardState, enqueueSnackbar, t]);
+
+  // G13: context menu analyze handler
+  const handleContextMenuAnalyze = useCallback(
+    (artboardId: string) => {
+      const ab = artboardState.artboards.find((a) => a.id === artboardId);
+      if (!ab?.imageUrl || !ab?.designId) return;
+      void imageAnalysis.triggerAnalysis(ab.designId, ab.imageUrl, ab.designId);
+    },
+    [artboardState.artboards, imageAnalysis],
+  );
+
+  const hasSelectedImage = Boolean(panelState.artboard?.imageUrl);
 
   const handleDeleteSelected = useCallback(
     (ids: string[]) => {
@@ -579,6 +665,63 @@ const DesignWorkspaceView = () => {
   const handleAiSparkle = useCallback(() => {
     promptBar.expand();
   }, [promptBar]);
+
+  // Phase G: auto-prompt fill handler
+  const handleAutoPromptFill = useCallback(
+    (promptText: string) => {
+      setPrompt(promptText);
+      promptBar.expand();
+    },
+    [promptBar],
+  );
+
+  // Phase G: prompt card click -> load into prompt bar
+  const handlePromptClick = useCallback(
+    (p: ProjectPrompt) => {
+      setPrompt(p.prompt_text);
+      promptBar.expand();
+    },
+    [promptBar],
+  );
+
+  // Phase G: add reference artboard from slogan pool product
+  const handleAddReferenceArtboard = useCallback(
+    (imageUrl: string) => {
+      artboardState.addArtboard({
+        label: 'Reference',
+        kind: 'regular',
+        width: 280,
+        height: 280,
+        imageUrl,
+      });
+    },
+    [artboardState],
+  );
+
+  // Phase G: create skeleton artboards when bulk generate / generate all fires (Gap 1 & 4)
+  const handleCreateSkeletonArtboards = useCallback(
+    (items: Array<{ runId: string; label: string }>) => {
+      pushHistory();
+      for (const item of items) {
+        artboardState.addArtboard({
+          label: item.label,
+          kind: 'ai',
+          width: 280,
+          height: 280,
+          isGenerating: true,
+        });
+      }
+    },
+    [artboardState, pushHistory],
+  );
+
+  // Phase G: select artboard from panel list
+  const handlePanelSelectArtboard = useCallback(
+    (id: string) => {
+      artboardState.selectArtboard(id, false);
+    },
+    [artboardState],
+  );
 
   // -- History-aware wrappers for artboard mutations --
   const moveArtboardWithHistory = useCallback(
@@ -682,11 +825,24 @@ const DesignWorkspaceView = () => {
         </Typography>
 
         {project && (
-          <NicheBindingSelector
-            projectId={projectId}
-            currentNicheId={project.niche}
-            currentNicheName={project.niche_summary?.name ?? null}
-          />
+          <>
+            <NicheBindingSelector
+              projectId={projectId}
+              currentNicheId={project.niche}
+              currentNicheName={project.niche_summary?.name ?? null}
+            />
+            {project.niche && (
+              <Tooltip title={t('design.workspace.openNicheDrawer', 'Niche Details')}>
+                <IconButton
+                  size="small"
+                  onClick={() => setNicheDrawerOpen(true)}
+                  aria-label={t('design.workspace.openNicheDrawer', 'Niche Details')}
+                >
+                  <InfoOutlinedIcon sx={{ fontSize: 18 }} />
+                </IconButton>
+              </Tooltip>
+            )}
+          </>
         )}
 
         <Box sx={{ flex: 1 }} />
@@ -758,6 +914,7 @@ const DesignWorkspaceView = () => {
                 onBrushDrawStart={brushTool.handleBrushStart}
                 onBrushDrawMove={brushTool.handleBrushMove}
                 onBrushDrawEnd={brushTool.handleBrushEnd}
+                onAnalyzeImage={handleContextMenuAnalyze}
               />
               <PromptBar
                 isExpanded={promptBar.isExpanded}
@@ -774,6 +931,10 @@ const DesignWorkspaceView = () => {
                 isRegenerate={isRegenerate}
                 sourceArtboard={panelState.artboard}
                 resultArtboards={[]}
+                onOpenPromptBuilder={handleOpenPromptBuilder}
+                onAnalyzeImage={handleAnalyzeImage}
+                isAnalyzingImage={imageAnalysis.isAnalyzing}
+                hasSelectedImage={hasSelectedImage}
               />
               <BottomToolbar
                 zoom={canvasHook.state.zoom}
@@ -803,6 +964,16 @@ const DesignWorkspaceView = () => {
               onReorderElement={canvasElements.reorderElement}
               onDeleteElement={handleDeleteElement}
               selectedElementId={elementSelection.selectedElementId}
+              ideas={boardData?.ideas}
+              prompts={boardData?.prompts}
+              artboards={artboardState.artboards}
+              onAutoPromptFill={handleAutoPromptFill}
+              onPromptClick={handlePromptClick}
+              onAddReferenceArtboard={handleAddReferenceArtboard}
+              onSelectArtboard={handlePanelSelectArtboard}
+              onCreateSkeletonArtboards={handleCreateSkeletonArtboards}
+              selectedArtboardId={artboardState.selectedIds?.[0]}
+              projectId={projectId}
             />
           </>
         ) : (
@@ -828,6 +999,43 @@ const DesignWorkspaceView = () => {
         isLoading={isDeletingFromServer}
       />
       <ProcessingSettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <PromptBuilderDialog
+        open={promptBuilderOpen}
+        onClose={handleClosePromptBuilder}
+        ideas={boardData?.ideas ?? []}
+        sources={promptBuilder.sources}
+        selectedSloganId={promptBuilder.selectedSloganId}
+        imageUrl={promptBuilder.imageUrl}
+        variants={promptBuilder.variants}
+        preview={promptBuilder.preview}
+        isPreviewLoading={promptBuilder.isPreviewLoading}
+        isSaving={promptBuilder.isSaving}
+        hasNiche={promptBuilder.hasNiche}
+        presets={promptBuilder.presets}
+        bulkSloganIds={promptBuilder.bulkSloganIds}
+        nicheKeywords={promptBuilder.nicheKeywords}
+        researchPreview={promptBuilder.researchPreview}
+        isResearchLoading={promptBuilder.isResearchLoading}
+        onAnalyzeImage={handleAnalyzeImage}
+        isAnalyzingImage={imageAnalysis.isAnalyzing}
+        imageAnalysisResult={imageAnalysis.lastPrompt}
+        toggleSource={promptBuilder.toggleSource}
+        setSelectedSloganId={promptBuilder.setSelectedSloganId}
+        setImageUrl={promptBuilder.setImageUrl}
+        setVariants={promptBuilder.setVariants}
+        fetchPreview={promptBuilder.fetchPreview}
+        applyPreset={promptBuilder.applyPreset}
+        savePreset={promptBuilder.savePreset}
+        buildAndSave={promptBuilder.buildAndSave}
+      />
+      {project?.niche && (
+        <NicheDetailDrawer
+          open={nicheDrawerOpen}
+          mode="edit"
+          selectedId={project.niche}
+          onClose={() => setNicheDrawerOpen(false)}
+        />
+      )}
     </WorkspaceRoot>
   );
 };

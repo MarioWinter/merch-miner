@@ -224,6 +224,18 @@ ONEDRIVE_CLIENT_SECRET=
 
 ---
 
+## Open Planning Items (2026-04-06)
+
+> **Design → Listing Transition:** User Stories needed for how approved/processed designs from PROJ-9 transition into the Publish flow. Currently Design Projects are linked in the Niche Drawer but there is no distinction between "work in progress" and "upload-ready" designs. Need to plan:
+> - How the user marks a design as "ready for upload" in Design Forge
+> - How upload-ready designs are visually distinguished in the Drawer (badge, status, separate section?)
+> - The exact UX flow from Drawer → Listing creation (one-click? multi-step?)
+> - Whether `DesignAsset` (PROJ-11) is auto-created from approved `Design` (PROJ-9) or manually triggered
+>
+> Plan this before starting PROJ-11 implementation.
+
+---
+
 ## Tech Design (Solution Architect)
 
 > Decided: 2026-03-27 | Approved by user.

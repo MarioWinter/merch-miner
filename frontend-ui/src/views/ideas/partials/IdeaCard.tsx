@@ -279,6 +279,7 @@ export const IdeaCard = ({
         onProjectSelected={handleProjectSelected}
         nicheName={idea.niche_name ?? undefined}
         sloganText={idea.slogan_text}
+        ideaIds={[idea.id]}
       />
     </CardRoot>
   );

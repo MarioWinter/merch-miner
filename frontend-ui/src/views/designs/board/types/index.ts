@@ -176,14 +176,25 @@ export interface ShapeElementProps {
   tension?: number;
 }
 
+/** A single brush sub-stroke within a grouped Drawing layer */
+export interface BrushSubStroke {
+  /** Flat array of [x, y, x, y, ...] points relative to parent element origin */
+  points: number[];
+  stroke: string;
+  strokeWidth: number;
+  tension: number;
+}
+
 /** Type-specific properties for brush elements */
 export interface BrushElementProps {
-  /** Flat array of [x, y, x, y, ...] points */
+  /** Flat array of [x, y, x, y, ...] points (single stroke, or first stroke for legacy) */
   points: number[];
   stroke: string;
   strokeWidth: number;
   /** Line tension for smoothing (0-1) */
   tension: number;
+  /** Grouped sub-strokes (when multiple strokes merged into one Drawing layer) */
+  subStrokes?: BrushSubStroke[];
 }
 
 /** Type-specific properties for emoji elements */

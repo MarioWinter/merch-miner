@@ -90,6 +90,8 @@ export interface ArtboardCanvasProps {
   onBrushDrawMove?: (localX: number, localY: number) => void;
   /** Called when brush draw ends */
   onBrushDrawEnd?: () => void;
+  /** Phase G13: analyze image from context menu */
+  onAnalyzeImage?: (artboardId: string) => void;
 }
 
 // -----------------------------------------------------------------
@@ -134,6 +136,7 @@ const ArtboardCanvas = ({
   onBrushDrawStart,
   onBrushDrawMove,
   onBrushDrawEnd,
+  onAnalyzeImage,
 }: ArtboardCanvasProps) => {
   const { t } = useTranslation();
   const { mode } = useColorScheme();
@@ -413,12 +416,17 @@ const ArtboardCanvas = ({
       <ArtboardContextMenu
         position={artboardMenu.position}
         artboardId={artboardMenu.artboardId}
+        hasImage={Boolean(
+          artboardMenu.artboardId &&
+            artboards.find((ab) => ab.id === artboardMenu.artboardId)?.imageUrl,
+        )}
         onClose={closeArtboardMenu}
         onAddAiImageBoard={addAiImageBoard}
         onDuplicate={duplicateArtboard}
         onDelete={removeArtboards}
         onBringToFront={bringToFront}
         onSendToBack={sendToBack}
+        onAnalyzeImage={onAnalyzeImage}
       />
       <CanvasContextMenu
         position={canvasMenu.position}

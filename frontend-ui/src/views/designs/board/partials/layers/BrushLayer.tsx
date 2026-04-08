@@ -103,6 +103,19 @@ const BrushLayer = ({
 
   if (!element.visible) return null;
 
+  // Determine strokes to render: use subStrokes if present, otherwise single stroke
+  const strokes =
+    props.subStrokes && props.subStrokes.length > 0
+      ? props.subStrokes
+      : [
+          {
+            points: props.points,
+            stroke: props.stroke,
+            strokeWidth: props.strokeWidth,
+            tension: props.tension,
+          },
+        ];
+
   return (
     <>
       <Group
@@ -122,15 +135,18 @@ const BrushLayer = ({
         onDragEnd={handleDragEnd}
         onTransformEnd={handleTransformEnd}
       >
-        <Line
-          points={props.points}
-          stroke={props.stroke}
-          strokeWidth={props.strokeWidth}
-          tension={props.tension}
-          lineCap="round"
-          lineJoin="round"
-          listening
-        />
+        {strokes.map((s, i) => (
+          <Line
+            key={i}
+            points={s.points}
+            stroke={s.stroke}
+            strokeWidth={s.strokeWidth}
+            tension={s.tension}
+            lineCap="round"
+            lineJoin="round"
+            listening={i === 0}
+          />
+        ))}
       </Group>
 
       {isSelected && (
