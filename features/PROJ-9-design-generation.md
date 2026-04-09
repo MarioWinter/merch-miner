@@ -146,6 +146,44 @@ These fields are read when a user opens `/design-board/:ideaId` and are used to 
 30d. As a member, I want to see individual design thumbnails with a status badge (WIP / Ready) in the Niche Drawer's "Design Projects" section, so I can tell at a glance which designs are upload-ready without opening the project.
 30e. As a member, I want to toggle the upload-ready status back to WIP if I change my mind, so the workflow is reversible.
 
+### Niche Drawer — Pipeline Status Redesign
+
+> REDESIGNED: 2026-04-08. Drawer = compact workflow pipeline overview per niche. Replaces scattered sections with unified pipeline cards.
+
+The Niche Drawer keeps the existing **niche header** (name, keyword, status, round, edit) at the top. Below, the workflow pipeline is shown as **compact + expandable cards** — one card per pipeline step. Each card shows status + count and has context-specific action buttons to push items to the next workflow step.
+
+**Pipeline Cards (in order):**
+
+| Card | Status Sources | Expanded Content | Action Buttons |
+|------|---------------|-----------------|----------------|
+| 🔬 Deep Research | NicheResearch status/score | Summary: score, product count, date, top vibes/styles | [🔬 View] → navigates to `/niches/research?nicheId=...`. [🔄] → force refresh. If no research: [🔬 Start] |
+| 🔑 Keywords | Keyword count from PROJ-10 | Top keywords preview | [🔑 View] → navigates to keyword page |
+| ❤️ Collected Products | CollectedProduct count | **Thumbnail grid** (not carousel) — small images, 3 per row. BSR + Price under each. | Per product: [🔑→KW] [💡→Slogan] [🎨→Canvas] [🔍→Detail]. Multi-select: [Use N as Canvas References] |
+| 💡 Slogans | Approved idea count | Approved slogan list with signal_type badge | Per slogan: [🎨→] (Add to Canvas). Bulk: [☑ Select All] [Forge N → 🎨] |
+| 🎨 Designs | DesignProject count + design count | Project list with thumbnail grid (max 4 per project) | Per project: [📋→ Listings]. [→ Open Canvas] |
+| 📋 Listings | Listing count by status | Listing summary (draft/ready/published counts) | [📋→ Open Publish Page] |
+| 📤 Upload | UploadJob count by status | Upload summary (pending/completed/failed counts) | [📤→ Upload Queue] |
+
+**Card States:**
+- **Done** (✅): green badge, compact 1-line summary, chevron to expand
+- **Active** (🔄): blue left-border accent, auto-expanded, items + actions visible
+- **Pending** (⏳): grey, minimal — "No X yet" + hint what needs to happen first
+
+**Collected Products — Grid Pattern (replaces Carousel):**
+- Thumbnail grid (3 columns, ~80×80px thumbnails) instead of single-image carousel
+- Below each thumbnail: BSR + Price in small text
+- Inline icon chip actions per product (visible on hover or always): 🔑 🎨 💡 🔍
+- Multi-select via checkboxes for batch actions
+- Click thumbnail → full product detail (existing ProductDetailDrawer)
+
+### Direct Action Buttons (Cross-View)
+
+Action buttons exist in **both** the Drawer pipeline cards AND the source views themselves:
+- **SloganGen View** (IdeaCard): [🎨→] icon button per approved slogan → ProjectNamingDialog → Canvas (already implemented)
+- **Design Canvas** (Artboard): [📋→ Save to Listings] icon button per approved design → sends to Listing/Publish
+- **Listing Page**: [📤→ Queue Upload] per listing → creates UploadJob
+- Same dialog/flow regardless of entry point (Drawer or View)
+
 ### PROJ-8 Integration (Deferred from PROJ-8)
 32. As a member, I want to see a warning dialog when rejecting an idea that has an approved design, so I don't accidentally discard a design that's already been finalized.
 
@@ -196,13 +234,51 @@ These fields are read when a user opens `/design-board/:ideaId` and are used to 
 59. As a member, I want the existing IdeaCard brush button to add the slogan to the project's pool (not just pass as URL param), so the slogan context is permanently available in the Design Forge.
 
 #### Prompt Builder + Persistence
+
+> REDESIGNED: 2026-04-08. Prompt Builder Dialog now uses tabbed layout inspired by MyDesigns.io Dream AI Prompt Builder, but with POD-specific data sources instead of generic dropdowns.
+
 60. As a member, I want generated prompts saved persistently in my project (not lost when a dialog closes), so I can review, edit, and generate from them later.
-61. As a member, I want a Prompt Builder dialog where I toggle context sources (Slogan, Keywords, AI Research, Web Research, Reference Image) with live preview, so I can control exactly what goes into my prompt.
-62. As a member, I want to generate multiple prompt variants (1-5) from the same sources, so I can compare different stylistic approaches before generating images.
+61. As a member, I want a tabbed Prompt Builder dialog (MyDesigns.io style) where each tab controls a different aspect of the prompt, so I can fine-tune my design request step by step.
+62. ~~As a member, I want to generate multiple prompt variants (1-5) from the same sources~~ — **REMOVED**: Variants slider already exists in the RightPanel (Images count slider).
 63. As a member, I want to save my preferred source configurations as Prompt Presets ("Full Context", "Slogan Only", "Image Analysis Only"), so I don't have to re-configure every time.
 64. As a member, I want to see all my project's artboards listed in the RightPanel with their context (prompt used, slogan, keywords, reference images), so I have a complete overview without clicking each artboard.
-65. As a member, I want a "🖼 Analyze Image" button in the PromptBar that runs Gemini 3 Architect analysis on a selected image and generates a prompt from it, so I can create designs inspired by existing images.
+65. As a member, I want a "🖼 Analyze Image" button in the RightPanel that runs Gemini 3 Architect analysis on a selected image and generates a prompt from it, so I can create designs inspired by existing images.
 66. As a member, I want to right-click an image artboard and choose "Analyze Image → Generate Prompt" to quickly get an AI-generated prompt from that image.
+
+**Prompt Builder Dialog — Tab Structure (MyDesigns.io style, POD-adapted):**
+
+```
+┌─ Prompt Builder ──────────────────────── ✕ ─┐
+│                                              │
+│ Concept  Context  Style  Format  Color       │
+│ Background  Text  Output                     │
+│ ─────────────────────────────────────────    │
+│                                              │
+│  (active tab content here)                   │
+│                                              │
+│                                              │
+│ [Cancel]                  [Generate Prompt]  │
+└──────────────────────────────────────────────┘
+```
+
+| Tab | Fields | Purpose |
+|-----|--------|---------|
+| **Concept** | Prompt Title (input), Slogan Selector (dropdown from pool — auto-fills Main Subject), Main Subject (textarea), Content Type (dropdown), Mood (dropdown) | Core idea — what to generate |
+| **Context** | Toggle sections: ☑ Keywords (chips from PROJ-10), ☑ AI Research (visual_style, vibe, tone from Deep Research), ☑ Reference Products (thumbnail grid from collected products). Each toggleable on/off | *NEW* — inject real niche data into prompt. MyDesigns has nothing like this |
+| **Style** | Style Category (dropdown: Vector, Vintage, Retro, Minimalist, Bold, Cartoon, etc.), Style (dropdown), "+ Add Style" button | Visual style direction |
+| **Format** | Orientation (dropdown), Aspect Ratio (dropdown), Detail Level (dropdown), Composition (dropdown), Rendering Style (dropdown) | Technical params (merged MyDesigns Format + Composition tabs) |
+| **Color** | Color swatches + "+ Add Color" + "From Research" auto-fill button (pulls dominant colors from niche research) | Color palette for the design |
+| **Background** | Background Type dropdown (Transparent, Solid Color, Gradient) + BG Color Presets (Light Gray, Neon Pink, Neon Green — MBA post-processing optimized) | Background control |
+| **Text** | Text Included? (dropdown: No Text, Slogan Text, Custom Text) + Text Preview (shows selected slogan if applicable) | Whether design contains text |
+| **Output** | Use (dropdown), Avoid (dropdown), Print Requirements (MBA preset: "4500x5400, 300DPI, seamless edges, no bleed"), Final Feel (dropdown) | Output constraints + quality |
+
+**Key differences from MyDesigns:**
+- **Context tab is unique to Merch Miner** — real data from niche research pipeline
+- **Slogan integration** in Concept tab (auto-fills from Slogan Pool)
+- **"From Research" auto-fill** in Color tab
+- **MBA Print Requirements** preset in Output tab
+- **No Variants slider** — already in RightPanel (Images count)
+- "Generate Prompt" → builds prompt text → fills RightPanel textarea → user reviews/edits → clicks Generate
 
 ### UI/UX Notes — Design Board (`/design-board/:projectId`)
 
@@ -286,23 +362,43 @@ Each design image on the canvas is an "artboard" — a named, selectable, movabl
 - Selected AI Board shows "Regenerate" button below the frame (small, subtle)
 - The connection arrow is purely visual context — not an interactive drag handle
 
-**Right Panel (280px, always visible):**
-- **Nothing selected:** Project search field at top. "Project Colors" section (extracted from designs). "Tools" section: AI Image Board, Flatten, Upscale, Reframe, BG Remove
-- **Artboard selected:** Artboard properties — Size (W × H px, preset dropdown: Standard Square 1200×1200, MBA 4500×5400), Layer (opacity slider), Color (background hex), Clip Content toggle. Then "Tools" section
-- **AI Image Board selected:** Same as artboard, but Tools also show "Regenerate" at top
-- Tools in right panel are buttons: click = apply tool to selected artboard(s)
+**Right Panel (280px, always visible) — REDESIGNED 2026-04-08:**
 
-**Bottom Toolbar (48px):**
-Fixed horizontal bar below canvas. Left side: cursor tool, move tool, shape tool (dropdown), brush tool, text tool, emoji picker, AI sparkle button. Separator. Undo/Redo. Separator. Zoom controls (-, percentage, +). Canvas resize button.
+> Inspired by MyDesigns.io Dream AI left panel — but positioned on the right. The PromptBar moves from the bottom into the RightPanel. The panel is the **primary prompt + generation control center**.
 
-**Chat / Prompt Bar (bottom, collapsible):**
-- **Collapsed state:** Single-line input: "✨ Describe what you want to create..." — clicking expands
-- **Expanded state** (when AI Image Board is selected or user clicks AI sparkle):
-  - Header: "Edit AI Image Board" + close (✖) button
-  - Source → Result thumbnail pair (small, ~48px, with arrow between)
-  - Multiline prompt text field (editable, pre-filled from analysis if available)
-  - "Prompt builder" link (expands 7-step analysis accordion)
-  - Bottom controls row: Model selector (dropdown), Aspect ratio (1:1, 4:5, etc.), Style selector (Opaque, etc.), Background color, **Generate/Regenerate** button
+**Nothing selected (default state):**
+```
+┌─ RIGHT PANEL (280px) ─────────────┐
+│ Model: [Flux ▾]    BG: [■ Gray ▾] │
+│ Images: ─●── 4    Res: 1:1        │
+│ ┌────────────────────────────────┐ │
+│ │ Enter prompt...                │ │
+│ │                                │ │
+│ │                                │ │
+│ └────────────────────────────────┘ │
+│ [🖼 Analyze] [+ Prompt Builder]   │
+│ [✨ Generate]                      │
+│ ─────────────────────────────────  │
+│ ▶ Saved Prompts (3)               │
+│ ▶ Slogan Pool (3)                 │
+│ ▶ Artboards (5)                   │
+└────────────────────────────────────┘
+```
+
+- **Top zone:** Model selector dropdown, Background color, Images count slider, Resolution/Aspect ratio
+- **Prompt zone:** Multiline textarea (pre-filled from analysis or auto-prompt). [🖼 Analyze Image] button + [+ Prompt Builder] button (opens dialog with source toggles: Slogan, Keywords, Research, Image)
+- **Generate button:** Primary CTA below prompt. "Generate All" when multiple saved prompts exist
+- **Accordion sections below:** Saved Prompts, Slogan Pool, Artboards — collapsible, scrollable
+
+**Artboard selected:** Accordion sections shift. Element properties appear at top (Size, Layer, Color, Clip). Prompt zone stays accessible via scroll or collapse.
+
+**Element selected (text/shape/brush):** Properties panel replaces top zone (font, color, stroke, etc.). Layer Panel visible. Prompt zone collapsed but accessible.
+
+**Bottom Toolbar (48px):** (unchanged)
+Fixed horizontal bar below canvas. Left side: cursor tool, move tool, shape tool (dropdown), brush tool, text tool, emoji picker. Separator. Undo/Redo. Separator. Zoom controls (-, percentage, +). Canvas resize button.
+
+**PromptBar (bottom) — REMOVED:**
+~~Chat / Prompt Bar at bottom~~ — merged into RightPanel. The bottom area is now only the Bottom Toolbar (tools + zoom).
 - Prompt bar sits ABOVE the bottom toolbar, overlaying the canvas from below
 - Smooth slide-up animation (200ms ease)
 
@@ -410,6 +506,272 @@ Fixed horizontal bar below canvas. Left side: cursor tool, move tool, shape tool
 **Sidebar:** Single entry "Design Board" under Pipeline section — opens Project Gallery. Image Editor is a tab within each project workspace (no separate sidebar entry).
 
 **Tool reorder:** Drag in both pill bar AND left panel cards. Both stay synced via shared pipeline state.
+
+---
+
+## Frontend Design Decisions (2026-04-09 `/frontend-design` Session)
+
+> **MANDATORY for `/architecture`:** These design decisions MUST be reflected 1:1 in the task file. Every styled component, token mapping, and animation specified here is a requirement, not a suggestion. The `/frontend` skill implements exactly what the tasks say.
+
+### FD-0: Icon Strategy
+
+**MUI Icons first** — check `@mui/icons-material` before creating custom icons. But when no fitting MUI icon exists (especially for pipeline steps, workflow actions, POD-specific concepts), create **custom SVG icons** as React components in `frontend-ui/src/assets/icons/`.
+
+Custom icons must:
+- Match MUI icon sizing conventions (default 24px viewBox, `fontSize` prop support)
+- Use `currentColor` for fill/stroke (inherits from parent color)
+- Be exported as named components: `export const NicheResearchIcon = (props: SvgIconProps) => ...`
+- Follow the design system aesthetic: 1.5px stroke weight, rounded line caps, consistent with MUI Outlined style
+- Reference: MyDesigns.io + Flying Upload use custom icons extensively for their pipeline/action buttons — we should match that polish level
+
+**Where custom icons are likely needed:**
+- Pipeline step icons (🔬 Research, 🔑 Keywords, ❤️ Products, 💡 Slogans, 🎨 Designs, 📋 Listings, 📤 Upload) — the emoji placeholders in this spec MUST be replaced with proper SVG icons
+- Flow Button targets if MUI alternatives look too generic
+- Prompt Builder tab icons (optional — tabs are text-only like MyDesigns, but icons could enhance)
+- "Forge" / "Dream" / "Analyze" action concepts that have no good MUI equivalent
+
+### FD-1: Pipeline Cards (Drawer)
+
+**Replaces:** Current `Section` wrappers (bordered box with dark bg) in `DrawerResearchSection`, `CollectedProductsSection`, `CollectedItemsSection`, `DrawerDesignsSection`.
+
+**Pattern:** Glassmorphism Status Cards with left color stripe as state indicator.
+
+**Card Container:**
+- bg: `alpha(COLORS.inkPaper, 0.60)` + `backdropFilter: 'blur(8px)'` (dark) / `theme.vars.palette.background.paper` (light)
+- border: `theme.vars.palette.divider`
+- border-radius: `theme.shape.borderRadius * 1.5` → 12px
+- padding: `theme.spacing(1.5, 2)` → 12px 16px
+- margin-bottom: `theme.spacing(1)`
+- hover bg: `COLORS.inkElevated`
+- transition: `DURATION.fast` + `EASING.standard`
+
+**Left Status Stripe** (3px wide, border-radius left):
+- Done: `COLORS.successDk` — solid
+- Active: `COLORS.cyan` — pulse animation (opacity 0.5↔1.0, 1.2s infinite)
+- Pending: `COLORS.snowDisabled` — solid, muted
+
+**Card Header** (always visible, 40px):
+- Icon: `theme.spacing(2.25)` → 18px, color matches stripe state
+- Title: `theme.typography.subtitle2`
+- Badge: `theme.typography.overline`, pill shape (`theme.shape.borderRadius * 0.75`)
+  - Done: bg `alpha(COLORS.successDk, 0.12)`, color `COLORS.successDk`
+  - Active: bg `alpha(COLORS.cyan, 0.10)`, color `COLORS.cyan`
+  - Pending: bg `alpha(COLORS.snowDisabled, 0.12)`, color `COLORS.snowDisabled`
+- Chevron: `ExpandMore` 18px, `text.disabled`, rotates 180° when expanded
+
+**Expanded Content:**
+- padding-top: `theme.spacing(1.5)`
+- border-top: `theme.vars.palette.divider`
+- Expand animation: `max-height` + `opacity`, `DURATION.default` + `EASING.enter`
+
+**Card Order in Drawer:** 🔬 Deep Research → 🔑 Keywords → ❤️ Collected Products → 💡 Slogans → 🎨 Designs → 📋 Listings → 📤 Upload
+
+**Animations:**
+1. Expand/Collapse: `max-height` + `opacity`, 200ms enter / 150ms exit
+2. Active stripe pulse: `@keyframes pulseCyan { 0%,100%{opacity:1} 50%{opacity:0.5} }` 1.2s
+3. Badge count update: `scale 1.0→1.15→1.0`, `DURATION.fast`
+4. Card hover: bg transition + `translateY(-1px)`, `DURATION.fast`
+
+---
+
+### FD-2: Collected Products Grid
+
+**Replaces:** Current carousel (`CarouselContainer`, `CardSlide`, `NavArrow`, `DotRow`) in `CollectedProductsSection.tsx`.
+
+**Grid:**
+- CSS Grid: `repeat(3, 1fr)`, gap `theme.spacing(1.5)` → 12px
+- Inside Pipeline Card expanded content
+- Max 6 visible, scroll or "Show all" beyond
+
+**Product Thumbnail Card:**
+- bg: `COLORS.inkElevated` (dark) / `theme.vars.palette.background.paper` (light)
+- border: `theme.vars.palette.divider`
+- border-radius: `theme.shape.borderRadius` → 8px
+- hover: border `alpha(COLORS.cyan, 0.30)`, `translateY(-1px)`
+- selected: border `COLORS.cyan`, `box-shadow: 0 0 0 1px ${COLORS.cyan}`
+
+**Image area:** `aspect-ratio: 1/1`, `object-fit: cover`
+
+**Info bar** (under image):
+- padding: `theme.spacing(0.75, 1)` → 6px 8px
+- BSR: `theme.typography.caption`, TrendingUp icon 14px, color-coded (successDk <10k, warningDk 10-50k, text.secondary >50k)
+- Price: `theme.typography.caption`, weight 600, `text.primary`, right-aligned
+
+**Hover Action Overlay** (over image area only):
+- bg: `alpha(COLORS.ink, 0.70)`, `backdrop-filter: blur(4px)`
+- opacity 0→1, `DURATION.fast`, `EASING.enter`
+- 4 Icon Buttons: `theme.spacing(4)` → 32px, `theme.shape.borderRadius` → 8px
+- Default bg: `alpha('#fff', 0.10)`, color: `text.primary`
+- Per-button hover:
+  - 🔑 Keywords: bg `alpha(COLORS.warningDk, 0.20)`, color `COLORS.warningDk`
+  - 💡 Slogan: bg `alpha(COLORS.cyan, 0.20)`, color `COLORS.cyan`
+  - 🎨 Canvas: bg `alpha(COLORS.red, 0.20)`, color `COLORS.red`
+  - 🔍 Detail: bg `alpha('#fff', 0.15)`, color `text.primary`
+
+**Multi-Select:**
+- Checkbox: absolute top-left, 20px, opacity 0→1 on hover or when any selected
+- Checked: `COLORS.cyan` bg, white checkmark
+- Bulk Action Button: outlined, full-width, border `alpha(COLORS.cyan, 0.30)`, color `COLORS.cyan`
+- Bulk button slide-in: `translateY(8px)→0` + `opacity 0→1`, `DURATION.default`
+
+**"Add Product" Card** (last grid item when <6):
+- transparent bg, dashed border `alpha('#fff', 0.12)`, AddCircleOutline icon 32px
+- hover: border `alpha(COLORS.cyan, 0.30)`
+
+---
+
+### FD-3: RightPanel (Dream AI-Style Prompt Center)
+
+**Replaces:** Current `PanelNoneState.tsx` layout. PromptBar (bottom) merged into RightPanel.
+
+**Two zones:** Sticky Generation Zone (top) + Scrollable Accordion Zone (below).
+
+**Generation Zone (sticky top):**
+- bg: `COLORS.inkPaper` (dark) / `theme.vars.palette.background.paper` (light)
+- padding: `theme.spacing(2)` → 16px
+- border-bottom: `theme.vars.palette.divider`
+
+**Controls:**
+- Model + BG selectors: 2-column grid, compact Select height `theme.spacing(4)` → 32px, bg `COLORS.inkElevated`, radius `theme.shape.borderRadius * 0.75` → 6px
+- Images Slider: MUI Slider `size="small"`, color `secondary.main` (cyan), thumb 12px
+- BG Color: dropdown with colored dot (10px square, radius 2px) before label
+
+**Parallel Prompts Row:**
+- MUI Switch `size="small"`, checked color `secondary.main`
+- Label: `subtitle2`, `text.primary`, clickable
+- Hint (when active): `caption`, `text.disabled`, "Each new line = separate image"
+- Right side: two icon buttons with `theme.spacing(0.75)` gap
+
+**[🖼] Analyze Image IconButton:**
+- `theme.spacing(4)` → 32px, radius `theme.shape.borderRadius` → 8px
+- border: `theme.vars.palette.divider`, bg transparent
+- hover: bg `alpha(COLORS.cyan, 0.10)`, border `alpha(COLORS.cyan, 0.30)`, color `COLORS.cyan`
+- icon: ImageSearch 18px
+- Tooltip: "Generate prompt based on your image"
+
+**[+] Prompt Builder IconButton:**
+- `theme.spacing(4)` → 32px, radius `theme.shape.borderRadius` → 8px
+- bg: `theme.vars.palette.secondary.main` (cyan), color '#fff'
+- hover: bg `COLORS.cyanDk`, glow `0 0 12px ${alpha(COLORS.cyan, 0.30)}`
+- icon: Add 18px
+- Tooltip: "Open Prompt Builder"
+
+**Prompt Textarea:**
+- MUI TextField multiline, rows 4 min / 8 max
+- bg: `alpha(COLORS.ink, 0.40)` (dark)
+- border: `theme.vars.palette.divider`, focus: `primary.main`
+- radius: `theme.shape.borderRadius` → 8px
+- Placeholder changes with parallel switch state
+
+**Generate Button:**
+- full-width, height `theme.spacing(5)` → 40px
+- bg: `linear-gradient(135deg, COLORS.red, COLORS.redDk)`
+- icon: AutoAwesome 18px, color '#fff'
+- hover: glow `0 0 24px ${alpha(COLORS.red, 0.30)}`
+- loading: shimmer bg-position animation, 2s infinite
+- "Generate All" variant: dropdown arrow, menu with count
+
+**Scrollable Zone:**
+- `overflow-y: auto`, `flex: 1`, padding `theme.spacing(1)`
+
+**Accordion Section Pattern (shared):**
+- MUI Accordion, transparent bg, no border, no shadow, no `&:before`
+- Summary: min-height `theme.spacing(5)` → 40px, radius `theme.shape.borderRadius * 0.75`
+- Title: `subtitle2`, `text.secondary`
+- Count Badge: `overline`, bg `alpha(COLORS.cyan, 0.10)`, color `COLORS.cyan`, radius 6px
+- Sections: Saved Prompts, Slogan Pool, Artboards, Layers (conditional)
+
+**Context Switch (element selected):**
+- Generation Zone collapses to single row (48px): Model + BG + Generate
+- Element Properties panel appears between zones
+- Transition: `DURATION.default` + `EASING.standard`
+
+---
+
+### FD-4: Prompt Builder Dialog (8 Tabs)
+
+**Opened via:** [+] IconButton in RightPanel Generation Zone.
+
+**Dialog:**
+- MUI Dialog `maxWidth="md"` (900px), fullWidth
+- bg: `COLORS.inkPaper` (dark), radius 16px (MuiDialog override)
+- min-height 400px, max-height 80vh
+
+**Header:**
+- padding `theme.spacing(2.5, 3)` → 20px 24px
+- Title: `theme.typography.h4` (18px, 600)
+- Close: IconButton 32px
+
+**Tab Navigation:**
+- NOT MUI Tabs — custom text links with underline indicator
+- flex wrap, gap `theme.spacing(0.5)`
+- padding `theme.spacing(0, 3)`, border-bottom divider
+- Tab item: `subtitle2`, `text.secondary`, padding `theme.spacing(1.5, 2)`
+- Active: `secondary.main` (cyan) + 2px underline (`COLORS.cyan`)
+- Hover: `text.primary`
+
+**Tab Content:** padding `theme.spacing(3)`, min-height 220px
+
+**Tabs:**
+
+| Tab | Layout | Key Elements |
+|-----|--------|-------------|
+| **Concept** | Column, gap `theme.spacing(2.5)` | Prompt Title (TextField), Slogan Selector (Select — auto-fills Main Subject), Main Subject (multiline rows:3), 2-col grid: Content Type + Mood (both Select) |
+| **Context** | Stacked source sections | Each section: glass card (`alpha(COLORS.inkElevated, 0.40)`), radius 8px, padding 16px. Master checkbox + title header. Unchecked: opacity 0.45 + blur(1px). **Keywords**: wrapped Chips `size="small"`, outlined, border `alpha(COLORS.cyan, 0.20)`. **AI Research**: grid with per-field checkboxes (label `caption` right-aligned, value `body2`). Master ☑ toggles all sub-checkboxes, indeterminate when partial. **Reference Products**: 4-col grid, thumbs 56px, selected: cyan border + glow |
+| **Style** | 2-col: Style Category + Style | Select dropdowns + "+ Add Style" ghost button. Added styles as Chips: bg `alpha(COLORS.cyan, 0.10)`, color `COLORS.cyan`, deletable |
+| **Format** | 2×2 grid + full-width row | Orientation, Aspect Ratio, Detail Level, Rendering Style (all Select, height 40px) + Composition (full-width Select) |
+| **Color** | Flex wrap swatches | 40×40px, radius 8px, selected: border `COLORS.cyan` + glow. "+ Add Color" ghost btn. "🔬 From Research" ghost btn (cyan, pulls niche colors) |
+| **Background** | Select + preset chips | Background Type Select (Transparent/Solid/Gradient) + Preset Chips (Light Gray, Neon Pink, Neon Green, Transparent). Selected chip: bg `alpha(COLORS.cyan, 0.10)`, border `COLORS.cyan` |
+| **Text** | Select + preview | "Text Included?" (No/Slogan/Custom). Preview box: glass card, `body2` italic, `text.secondary` |
+| **Output** | 2×2 grid + MBA chip | Use, Avoid, Print Requirements, Final Feel (all Select). MBA Preset Chip: toggleable, bg `alpha(COLORS.successDk, 0.10)`, color `COLORS.successDk` when active |
+
+**Footer:**
+- padding `theme.spacing(2, 3)`, border-top divider
+- Cancel: ghost button, `text.secondary`
+- Generate Prompt: contained, bg `secondary.main` (cyan), hover `COLORS.cyanDk` + glow
+
+**Animations:**
+1. Tab content switch: `opacity 0→1` + `translateX(8px)→0`, `DURATION.fast`
+2. Tab underline: width 0→full, `DURATION.fast`
+3. Source section enable/disable: opacity + blur transition, `DURATION.default`
+4. Color swatch select: `scale(1.1)` + border, `DURATION.fast`
+5. Dialog enter: Fade + `translateY(16px)→0`, `DURATION.slow`
+
+---
+
+### FD-5: Direct Action Buttons (Flow Buttons)
+
+**Shared components:** `components/FlowButton/InlineFlowButton.tsx` + `BulkFlowButton.tsx`
+
+**Target Color Mapping (constant in `FlowButton/constants.ts`):**
+
+| Target | Icon | Color | Hover BG |
+|--------|------|-------|----------|
+| keywords | KeyOutlined | `COLORS.warningDk` | `alpha(COLORS.warningDk, 0.12)` |
+| slogans | LightbulbOutlined | `COLORS.cyan` | `alpha(COLORS.cyan, 0.10)` |
+| canvas | BrushOutlined | `COLORS.red` | `alpha(COLORS.red, 0.10)` |
+| listings | ArticleOutlined | `COLORS.successDk` | `alpha(COLORS.successDk, 0.10)` |
+| upload | CloudUploadOutlined | `COLORS.infoDk` | `alpha(COLORS.infoDk, 0.10)` |
+| detail | OpenInNewOutlined | `text.secondary` | `alpha('#fff', 0.06)` |
+
+**Inline Flow Button:**
+- `theme.spacing(3.5)` → 28px, radius `theme.shape.borderRadius * 0.75` → 6px
+- default: transparent bg, `text.disabled` color
+- hover: target hover bg + target color + `translateX(2px)` rightward nudge
+- Tooltip with action description
+
+**Bulk Flow Button:**
+- MUI Button `variant="outlined"` `size="small"`, full-width
+- height `theme.spacing(4)` → 32px, radius `theme.shape.borderRadius` → 8px
+- border + color: target color, icon as endIcon 16px
+- hover: target subtle bg + glow `0 0 12px ${alpha(targetColor, 0.15)}`
+- Appear animation: `translateY(4px)→0` + `opacity 0→1`, `DURATION.default`
+
+**Placement:**
+- Drawer Pipeline Cards: Inline per slogan/project row, Bulk under lists on selection
+- SloganGen IdeaCard: Inline [🎨→] next to Approve/Reject (only when approved)
+- Canvas Artboard: Context menu item "📋 Save to Listings" + Inline in RightPanel artboard row
+- All use same `InlineFlowButton` / `BulkFlowButton` components with `target` prop
 
 ---
 
@@ -1534,3 +1896,86 @@ Import from `../partials/BottomToolbar` for `CanvasTool` type in 3 hooks is a mi
 4. **Move `nameCounters` into hook state** (M5) — use `useRef` for the counter map to scope it per hook instance.
 5. **Extract `CanvasTool` type** to `types/index.ts` (m3).
 6. **Address hardcoded colors** (m2) — some are legitimate canvas defaults (shape fills), but the textarea border `#4A9EFF` and background `rgba(0,0,0,0.7)` in `useTextEditing` should use theme tokens.
+
+---
+
+### I) Frontend Redesign — Tech Design (2026-04-09)
+
+> Covers FD-0 through FD-5 from `/frontend-design` session. Frontend-only — no backend changes. No new API endpoints. No model changes.
+
+#### What Gets Rebuilt vs. Refactored
+
+| Component | Action | Lines Affected |
+|-----------|--------|---------------|
+| `CollectedProductsSection.tsx` (417 lines) | **Rebuild** → `ProductsGrid.tsx` inside PipelineCard | Replace carousel with grid + hover overlay |
+| `DrawerResearchSection.tsx` (337 lines) | **Refactor** → extract into PipelineCard wrapper | Keep research logic, replace Section wrapper |
+| `CollectedItemsSection.tsx` (263 lines) | **Refactor** → split slogans into PipelineCard, keywords into PipelineCard | Add Flow Buttons per slogan |
+| `DrawerDesignsSection.tsx` (177 lines) | **Refactor** → PipelineCard wrapper + Flow Buttons | Add project thumbnails + [📋→] buttons |
+| `NicheDetailDrawer.tsx` (196 lines) | **Refactor** → render PipelineCards instead of individual sections | Niche header stays, sections become cards |
+| `PromptBar.tsx` (350 lines) | **Remove** → merge into RightPanel | Generation controls move to RightPanel |
+| `RightPanel.tsx` (202 lines) | **Rebuild** → Generation Zone + Accordion Zone | Dream AI-style prompt center |
+| `PanelNoneState.tsx` (184 lines) | **Rebuild** → part of new RightPanel | Sections become Accordions |
+| `PromptBuilderDialog.tsx` (579 lines) | **Rebuild** → 8-tab tabbed dialog | MyDesigns-style tabs with POD data sources |
+| `usePromptBuilder.ts` (282 lines) | **Refactor** → adapt for 8-tab structure | Add tab state, per-field checkboxes for Context tab |
+| `IdeaCard.tsx` (474 lines) | **Minor** → swap brush icon for FlowButton | Use shared InlineFlowButton component |
+
+#### New Components (to create)
+
+```
+components/
+├── FlowButton/
+│   ├── InlineFlowButton.tsx        ← 28px icon button, target-colored
+│   ├── BulkFlowButton.tsx          ← outlined full-width button
+│   └── constants.ts                ← FLOW_TARGETS color/icon mapping
+│
+├── PipelineCard/
+│   ├── PipelineCard.tsx            ← glassmorphism card, stripe, expand/collapse
+│   ├── PipelineCardHeader.tsx      ← icon + title + badge + chevron
+│   └── types.ts                    ← PipelineCardState enum, PipelineCardProps
+│
+assets/
+└── icons/
+    ├── ResearchIcon.tsx            ← custom SVG for 🔬
+    ├── KeywordsIcon.tsx            ← custom SVG for 🔑
+    ├── ProductsIcon.tsx            ← custom SVG for ❤️
+    ├── SlogansIcon.tsx             ← custom SVG for 💡
+    ├── DesignsIcon.tsx             ← custom SVG for 🎨
+    ├── ListingsIcon.tsx            ← custom SVG for 📋
+    ├── UploadIcon.tsx              ← custom SVG for 📤
+    └── index.ts                    ← barrel export
+
+views/niches/list/partials/
+├── ProductsGrid.tsx                ← replaces CollectedProductsSection carousel
+└── ProductThumbnailCard.tsx        ← single product card with hover overlay
+
+views/designs/board/partials/
+├── GenerationZone.tsx              ← sticky prompt controls (was PromptBar)
+├── ParallelPromptsRow.tsx          ← switch + icon buttons
+├── AccordionSection.tsx            ← shared accordion pattern
+├── PromptBuilderDialog.tsx         ← REBUILT: 8 tabs
+└── promptBuilder/
+    ├── ConceptTab.tsx
+    ├── ContextTab.tsx              ← unique: keyword chips, research checkboxes, product grid
+    ├── StyleTab.tsx
+    ├── FormatTab.tsx
+    ├── ColorTab.tsx
+    ├── BackgroundTab.tsx
+    ├── TextTab.tsx
+    └── OutputTab.tsx
+```
+
+#### Tech Decisions (new)
+
+| Decision | Why |
+|----------|-----|
+| `PipelineCard` as shared component in `components/` | Reused 7× in drawer — one component, different content per card. Not feature-local |
+| `FlowButton` as shared component in `components/` | Used across drawer, SloganGen, Canvas, Listings. Must be consistent everywhere |
+| Custom SVG icons in `assets/icons/` | Pipeline steps need distinctive icons. Emoji placeholders not production-quality. MUI has no POD-specific icons |
+| PromptBar removed, not hidden | Generation controls are ONLY in RightPanel now. No duplicate state. PromptBar hooks merged into RightPanel hooks |
+| Prompt Builder 8 tabs as separate files | Each tab is 80-150 lines. One file would be 800+ lines. Single Responsibility |
+| Context tab per-field checkboxes | User requested granular control — not all research fields are relevant for every prompt. Master checkbox for quick toggle-all |
+| No new RTK Query endpoints | All data already fetched by existing queries (board, projects, keywords, research). No backend changes needed |
+
+#### Dependencies (no new packages)
+
+All required packages already installed: `@mui/material`, `react-konva`, `@dnd-kit/*`. No new npm installs needed for this redesign.

@@ -1,6 +1,8 @@
 # PROJ-19: Global Cloud Picker
 
-## Status: Planned
+## Status: Absorbed into PROJ-11
+
+> **NOTE (2026-04-08):** Cloud File Manager is now integrated directly into the PROJ-11 Listing/Publish area as "Cloud Storage" tab — a full folder browser alongside the server-side Collection Folder System. The CloudPicker as a standalone global component is no longer needed as a separate feature. See PROJ-11 spec for the dual file system design.
 **Created:** 2026-04-06
 **Last Updated:** 2026-04-06
 

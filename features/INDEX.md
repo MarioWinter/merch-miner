@@ -31,7 +31,7 @@
 | PROJ-17 | Deep Web Search (Vane + Crawl4ai) | In Review | [spec](PROJ-17-deep-web-search.md) | 2026-03-24 |
 | PROJ-18 | OpenClaw Agent (Multi-Agent System) | In Review | [spec](PROJ-18-openclaw-agent.md) | 2026-03-24 |
 
-| PROJ-19 | Global Cloud Picker | Planned | [spec](PROJ-19-global-cloud-picker.md) | 2026-04-06 |
+| PROJ-19 | ~~Global Cloud Picker~~ (absorbed into PROJ-11) | Absorbed | [spec](PROJ-19-global-cloud-picker.md) | 2026-04-06 |
 
 <!-- Add features above this line -->
 
