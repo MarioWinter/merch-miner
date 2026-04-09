@@ -1384,42 +1384,42 @@
 
 ### H1: Icon Infrastructure
 
-- [ ] Create `frontend-ui/src/assets/icons/` directory + `index.ts` barrel export
-- [ ] Base pattern: each icon = arrow function component accepting `SvgIconProps`, 24px viewBox, `currentColor`, 1.5px stroke, rounded caps
+- [x] Create `frontend-ui/src/assets/icons/` directory + `index.ts` barrel export
+- [x] Base pattern: each icon = arrow function component accepting `SvgIconProps`, 24px viewBox, `currentColor`, 1.5px stroke, rounded caps
 
 ### H2: Pipeline Step Icons
 
-- [ ] `ResearchIcon.tsx` — microscope/flask style (replaces 🔬). Check MUI `ScienceOutlined` first — create custom only if too generic
-- [ ] `KeywordsIcon.tsx` — key style (replaces 🔑). Check MUI `KeyOutlined` — likely sufficient, skip custom
-- [ ] `ProductsIcon.tsx` — heart/favorite style (replaces ❤️). Check MUI `FavoriteOutlined` — likely sufficient
-- [ ] `SlogansIcon.tsx` — lightbulb style (replaces 💡). Check MUI `LightbulbOutlined` — likely sufficient
-- [ ] `DesignsIcon.tsx` — brush/palette style (replaces 🎨). Check MUI `BrushOutlined` — likely sufficient
-- [ ] `ListingsIcon.tsx` — article/document style (replaces 📋). Check MUI `ArticleOutlined` — likely sufficient
-- [ ] `UploadIcon.tsx` — cloud upload style (replaces 📤). Check MUI `CloudUploadOutlined` — likely sufficient
-- [ ] Audit: after checking MUI, only create custom SVGs for icons that look too generic. Document decisions in `assets/icons/README.md`
+- [x] `ResearchIcon.tsx` — microscope/flask style (replaces 🔬). Check MUI `ScienceOutlined` first — create custom only if too generic
+- [x] `KeywordsIcon.tsx` — key style (replaces 🔑). Check MUI `KeyOutlined` — likely sufficient, skip custom
+- [x] `ProductsIcon.tsx` — heart/favorite style (replaces ❤️). Check MUI `FavoriteOutlined` — likely sufficient
+- [x] `SlogansIcon.tsx` — lightbulb style (replaces 💡). Check MUI `LightbulbOutlined` — likely sufficient
+- [x] `DesignsIcon.tsx` — brush/palette style (replaces 🎨). Check MUI `BrushOutlined` — likely sufficient
+- [x] `ListingsIcon.tsx` — article/document style (replaces 📋). Check MUI `ArticleOutlined` — likely sufficient
+- [x] `UploadIcon.tsx` — cloud upload style (replaces 📤). Check MUI `CloudUploadOutlined` — likely sufficient
+- [x] Audit: after checking MUI, only create custom SVGs for icons that look too generic. Document decisions in `assets/icons/README.md`
 
 ---
 
 ## Phase H3: Shared Components — Flow Buttons (FD-5)
 
-- [ ] Create `components/FlowButton/constants.ts` — `FLOW_TARGETS` mapping: target key → `{ icon, color }` using `COLORS.*` from constants.ts
-- [ ] Create `components/FlowButton/InlineFlowButton.tsx` — IconButton `theme.spacing(3.5)` (28px), radius `theme.shape.borderRadius * 0.75`, transparent bg, `text.disabled` default. Hover: target color + bg + `translateX(2px)`. Props: `target`, `tooltip`, `onClick`, `disabled?`
-- [ ] Create `components/FlowButton/BulkFlowButton.tsx` — MUI Button outlined small, full-width, height `theme.spacing(4)`, target color border/text, endIcon 16px. Hover: subtle bg + glow. Appear animation: `translateY(4px)→0 + opacity`. Props: `target`, `label`, `count?`, `onClick`, `disabled?`
-- [ ] Create `components/FlowButton/index.ts` — barrel export
-- [ ] All colors via `COLORS.*` and `theme.vars.palette.*` — zero hardcoded values
-- [ ] Light mode support via `theme.applyStyles('dark', {...})`
+- [x] Create `components/FlowButton/constants.ts` — `FLOW_TARGETS` mapping: target key → `{ icon, color }` using `COLORS.*` from constants.ts
+- [x] Create `components/FlowButton/InlineFlowButton.tsx` — IconButton `theme.spacing(3.5)` (28px), radius `theme.shape.borderRadius * 0.75`, transparent bg, `text.disabled` default. Hover: target color + bg + `translateX(2px)`. Props: `target`, `tooltip`, `onClick`, `disabled?`
+- [x] Create `components/FlowButton/BulkFlowButton.tsx` — MUI Button outlined small, full-width, height `theme.spacing(4)`, target color border/text, endIcon 16px. Hover: subtle bg + glow. Appear animation: `translateY(4px)→0 + opacity`. Props: `target`, `label`, `count?`, `onClick`, `disabled?`
+- [x] Create `components/FlowButton/index.ts` — barrel export
+- [x] All colors via `COLORS.*` and `theme.vars.palette.*` — zero hardcoded values
+- [x] Light mode support via `theme.applyStyles('dark', {...})`
 
 ---
 
 ## Phase H4: Shared Components — Pipeline Card (FD-1)
 
-- [ ] Create `components/PipelineCard/types.ts` — `PipelineCardState` enum (`done | active | pending`), `PipelineCardProps` interface
-- [ ] Create `components/PipelineCard/PipelineCardHeader.tsx` — icon (18px, state-colored) + title (`subtitle2`) + badge (`overline`, pill, state-colored bg/text) + chevron (ExpandMore 18px, rotates 180°). All tokens from theme/constants
-- [ ] Create `components/PipelineCard/PipelineCard.tsx` — glassmorphism container: bg `alpha(COLORS.inkPaper, 0.60)` + `blur(8px)`, border `divider`, radius `borderRadius * 1.5`. Left stripe 3px (done=successDk, active=cyan pulse, pending=snowDisabled). Expand/collapse via `max-height + opacity`, `DURATION.default + EASING.enter`. Hover: bg `COLORS.inkElevated` + `translateY(-1px)`
-- [ ] Active stripe pulse animation: `@keyframes pulseCyan`, 1.2s infinite
-- [ ] Badge count update animation: scale pop `1→1.15→1`
-- [ ] Light mode: `theme.applyStyles('dark', {...})` — paper bg, no blur, standard borders
-- [ ] Create `components/PipelineCard/index.ts` — barrel export
+- [x] Create `components/PipelineCard/types.ts` — `PipelineCardState` enum (`done | active | pending`), `PipelineCardProps` interface
+- [x] Create `components/PipelineCard/PipelineCardHeader.tsx` — icon (18px, state-colored) + title (`subtitle2`) + badge (`overline`, pill, state-colored bg/text) + chevron (ExpandMore 18px, rotates 180°). All tokens from theme/constants
+- [x] Create `components/PipelineCard/PipelineCard.tsx` — glassmorphism container: bg `alpha(COLORS.inkPaper, 0.60)` + `blur(8px)`, border `divider`, radius `borderRadius * 1.5`. Left stripe 3px (done=successDk, active=cyan pulse, pending=snowDisabled). Expand/collapse via `max-height + opacity`, `DURATION.default + EASING.enter`. Hover: bg `COLORS.inkElevated` + `translateY(-1px)`
+- [x] Active stripe pulse animation: `@keyframes pulseCyan`, 1.2s infinite
+- [x] Badge count update animation: scale pop `1→1.15→1`
+- [x] Light mode: `theme.applyStyles('dark', {...})` — paper bg, no blur, standard borders
+- [x] Create `components/PipelineCard/index.ts` — barrel export
 
 ---
 
