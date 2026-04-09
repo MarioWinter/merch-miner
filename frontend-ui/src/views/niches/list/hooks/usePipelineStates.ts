@@ -1,5 +1,7 @@
 import type { PipelineCardState } from '@/components/PipelineCard';
 import type { Niche } from '../types/index';
+import type { ListingCounts } from '../partials/ListingsPipelineContent';
+import type { UploadCounts } from '../partials/UploadPipelineContent';
 
 export interface PipelineStates {
   research: PipelineCardState;
@@ -22,6 +24,8 @@ export const usePipelineStates = (
     productCount: number;
     sloganCount: number;
     designProjectCount: number;
+    listingCounts?: ListingCounts;
+    uploadCounts?: UploadCounts;
   },
 ): PipelineStates => {
   if (!niche) {
@@ -51,9 +55,19 @@ export const usePipelineStates = (
   const slogans: PipelineCardState = counts.sloganCount > 0 ? 'done' : 'pending';
   const designs: PipelineCardState = counts.designProjectCount > 0 ? 'done' : 'pending';
 
-  // Listings + Upload are placeholders — always pending until PROJ-11
-  const listings: PipelineCardState = 'pending';
-  const upload: PipelineCardState = 'pending';
+  // Listings: done when any listing exists, pending otherwise
+  const listingTotal = counts.listingCounts
+    ? counts.listingCounts.draft + counts.listingCounts.ready + counts.listingCounts.published
+    : 0;
+  const listings: PipelineCardState = listingTotal > 0 ? 'done' : 'pending';
+
+  // Upload: active when pending uploads, done when all completed, pending otherwise
+  const uploadTotal = counts.uploadCounts
+    ? counts.uploadCounts.pending + counts.uploadCounts.completed + counts.uploadCounts.failed
+    : 0;
+  const upload: PipelineCardState = uploadTotal > 0
+    ? (counts.uploadCounts!.pending > 0 ? 'active' : 'done')
+    : 'pending';
 
   return { research, keywords, products, slogans, designs, listings, upload };
 };

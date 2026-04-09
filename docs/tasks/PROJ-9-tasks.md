@@ -1471,8 +1471,8 @@
 
 ### H5.7: Listings + Upload Pipeline Cards (placeholder)
 
-- [ ] Listings PipelineCard: count badge (draft/ready/published), expanded shows summary, [📋→ Open Publish] Flow Button. Content populated when PROJ-11 is built
-- [ ] Upload PipelineCard: count badge (pending/completed/failed), expanded shows summary. Content populated when PROJ-11/13 is built
+- [x] Listings PipelineCard: count badge (draft/ready/published), expanded shows summary, [📋→ Open Publish] Flow Button. Content populated when PROJ-11 is built
+- [x] Upload PipelineCard: count badge (pending/completed/failed), expanded shows summary. Content populated when PROJ-11/13 is built
 
 ---
 
@@ -1480,32 +1480,32 @@
 
 ### H6.1: Generation Zone (replaces PromptBar)
 
-- [ ] Create `views/designs/board/partials/GenerationZone.tsx` — sticky top, bg `COLORS.inkPaper`, padding `theme.spacing(2)`, border-bottom divider
-- [ ] Model selector: compact Select, height 32px, bg `COLORS.inkElevated`, radius 6px
-- [ ] BG Color selector: Select with colored dot (10px square, radius 2px) before label
-- [ ] Images slider: MUI Slider `size="small"`, color `secondary.main`, thumb 12px, range 1-8
-- [ ] Resolution display: `body2`, clickable → aspect ratio popover
+- [x] Create `views/designs/board/partials/GenerationZone.tsx` — sticky top, bg `COLORS.inkPaper`, padding `theme.spacing(2)`, border-bottom divider
+- [x] Model selector: compact Select, height 32px, bg `COLORS.inkElevated`, radius 6px
+- [x] BG Color selector: Select with colored dot (10px square, radius 2px) before label
+- [x] Images slider: MUI Slider `size="small"`, color `secondary.main`, thumb 12px, range 1-8
+- [x] Resolution display: `body2`, clickable → aspect ratio popover
 
 ### H6.2: Parallel Prompts Row
 
-- [ ] Create `views/designs/board/partials/ParallelPromptsRow.tsx` — Switch `size="small"` (checked: `secondary.main`) + label (`subtitle2`) + hint (caption, text.disabled, conditional)
-- [ ] [🖼] Analyze IconButton: 32px, border divider, transparent bg. Hover: cyan bg/border/color. Icon: ImageSearch 18px. Tooltip: "Generate prompt based on your image"
-- [ ] [+] Builder IconButton: 32px, bg `secondary.main` (cyan), color white. Hover: `COLORS.cyanDk` + glow. Icon: Add 18px. Tooltip: "Open Prompt Builder"
-- [ ] Textarea placeholder changes with switch state: "Describe your design..." / "Enter prompts (each line = separate image)..."
+- [x] Create `views/designs/board/partials/ParallelPromptsRow.tsx` — Switch `size="small"` (checked: `secondary.main`) + label (`subtitle2`) + hint (caption, text.disabled, conditional)
+- [x] [🖼] Analyze IconButton: 32px, border divider, transparent bg. Hover: cyan bg/border/color. Icon: ImageSearch 18px. Tooltip: "Generate prompt based on your image"
+- [x] [+] Builder IconButton: 32px, bg `secondary.main` (cyan), color white. Hover: `COLORS.cyanDk` + glow. Icon: Add 18px. Tooltip: "Open Prompt Builder"
+- [x] Textarea placeholder changes with switch state: "Describe your design..." / "Enter prompts (each line = separate image)..."
 
 ### H6.3: Prompt Textarea + Generate Button
 
-- [ ] Prompt Textarea: multiline rows 4/8, bg `alpha(COLORS.ink, 0.40)`, border divider, focus primary.main, radius 8px
-- [ ] Generate Button: full-width, height 40px, `linear-gradient(135deg, COLORS.red, COLORS.redDk)`, AutoAwesome 18px, hover glow. Loading: shimmer animation
-- [ ] "Generate All" variant: dropdown arrow, menu "Generate" / "Generate All (N)"
+- [x] Prompt Textarea: multiline rows 4/8, bg `alpha(COLORS.ink, 0.40)`, border divider, focus primary.main, radius 8px
+- [x] Generate Button: full-width, height 40px, `linear-gradient(135deg, COLORS.red, COLORS.redDk)`, AutoAwesome 18px, hover glow. Loading: shimmer animation
+- [x] "Generate All" variant: dropdown arrow, menu "Generate" / "Generate All (N)"
 
 ### H6.4: RightPanel Restructure
 
-- [ ] Rebuild `RightPanel.tsx` — two zones: GenerationZone (sticky) + scrollable accordion zone
-- [ ] Scrollable zone: `overflow-y: auto`, `flex: 1`, padding `theme.spacing(1)`
-- [ ] Accordion pattern (shared): MUI Accordion transparent, no border/shadow/`&:before`. Summary min-height 40px, radius 6px, hover `alpha('#fff', 0.04)`. Title `subtitle2` + Count Badge (`overline`, cyan)
-- [ ] Sections: Saved Prompts, Slogan Pool, Artboards, Layers (conditional on element selected)
-- [ ] Context switch: when element selected, Generation Zone collapses to single row (48px), Element Properties panel between zones. Transition `DURATION.default + EASING.standard`
+- [x] Rebuild `RightPanel.tsx` — two zones: GenerationZone (sticky) + scrollable accordion zone
+- [x] Scrollable zone: `overflow-y: auto`, `flex: 1`, padding `theme.spacing(1)`
+- [x] Accordion pattern (shared): MUI Accordion transparent, no border/shadow/`&:before`. Summary min-height 40px, radius 6px, hover `alpha('#fff', 0.04)`. Title `subtitle2` + Count Badge (`overline`, cyan)
+- [x] Sections: Saved Prompts, Slogan Pool, Artboards, Layers (conditional on element selected)
+- [x] Context switch: when element selected, Generation Zone collapses to single row (48px), Element Properties panel between zones. Transition `DURATION.default + EASING.standard`
 
 ### H6.5: Remove PromptBar
 

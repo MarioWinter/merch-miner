@@ -225,6 +225,8 @@ const DesignWorkspaceView = () => {
   const [prompt, setPrompt] = useState('');
   const [aiModel, setAiModel] = useState<DesignModel>('google/gemini-3.1-flash-preview-image-generation');
   const [bgColor, setBgColor] = useState<BackgroundColor>('light_gray');
+  const [imageCount, setImageCount] = useState(1);
+  const [isParallel, setIsParallel] = useState(false);
 
   // -- AI generation --
   const generation = useGeneration(projectId ?? '');
@@ -964,9 +966,28 @@ const DesignWorkspaceView = () => {
               onReorderElement={canvasElements.reorderElement}
               onDeleteElement={handleDeleteElement}
               selectedElementId={elementSelection.selectedElementId}
+              // Generation zone props
+              prompt={prompt}
+              onPromptChange={setPrompt}
+              model={aiModel}
+              onModelChange={setAiModel}
+              bgColor={bgColor}
+              onBgColorChange={setBgColor}
+              imageCount={imageCount}
+              onImageCountChange={setImageCount}
+              onGenerate={handleGenerate}
+              isGenerating={generation.isGenerating}
+              isParallel={isParallel}
+              onParallelToggle={setIsParallel}
+              onOpenPromptBuilder={handleOpenPromptBuilder}
+              onAnalyzeImage={handleAnalyzeImage}
+              isAnalyzingImage={imageAnalysis.isAnalyzing}
+              hasSelectedImage={hasSelectedImage}
+              // Phase G props
               ideas={boardData?.ideas}
               prompts={boardData?.prompts}
               artboards={artboardState.artboards}
+              selectedIds={artboardState.selectedIds}
               onAutoPromptFill={handleAutoPromptFill}
               onPromptClick={handlePromptClick}
               onAddReferenceArtboard={handleAddReferenceArtboard}

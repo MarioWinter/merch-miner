@@ -717,6 +717,21 @@
       "generating": "Generating...",
       "regenerate": "Regenerate"
     },
+    "generation": {
+      "zoneLabel": "Generation controls",
+      "images": "Images",
+      "imageCount": "Number of images",
+      "parallelSwitch": "Parallel prompts",
+      "parallelLabel": "Parallel Prompts",
+      "parallelHint": "Each new line = separate image",
+      "parallelPlaceholder": "Enter prompts (each line = separate image)...",
+      "singlePlaceholder": "Describe your design...",
+      "analyzeTooltip": "Generate prompt based on your image",
+      "analyzeUpload": "Upload an image to analyze",
+      "analyzeImage": "Analyze image",
+      "builderTooltip": "Open Prompt Builder",
+      "openBuilder": "Open Prompt Builder"
+    },
     "canvas": {
       "emptyTitle": "Drop images or create an AI Image Board",
       "emptyDescription": "Drag images from your desktop or use the toolbar to get started.",

@@ -32,6 +32,8 @@ import { ProductsGrid } from './ProductsGrid';
 import { SlogansPipelineContent } from './SlogansPipelineContent';
 import { DrawerKeywordsSection } from '@/views/amazon/keywords/drawer/DrawerKeywordsSection';
 import { DesignsPipelineContent } from './DesignsPipelineContent';
+import { ListingsPipelineContent } from './ListingsPipelineContent';
+import { UploadPipelineContent } from './UploadPipelineContent';
 
 interface NicheDetailDrawerProps {
   open: boolean;
@@ -207,21 +209,23 @@ export const NicheDetailDrawer = ({
                   <PipelineCard
                     state={states.listings}
                     icon={ArticleOutlinedIcon}
-                    title={t('publish.page.title')}
+                    title={t('niches.pipeline.listings.title', 'Listings')}
+                    badge={counts.listingCounts
+                      ? String(counts.listingCounts.draft + counts.listingCounts.ready + counts.listingCounts.published)
+                      : undefined}
                   >
-                    <Typography variant="body2" color="text.secondary">
-                      {t('publish.page.subtitle')}
-                    </Typography>
+                    <ListingsPipelineContent nicheId={niche.id} counts={counts.listingCounts} />
                   </PipelineCard>
 
                   <PipelineCard
                     state={states.upload}
                     icon={CloudUploadOutlinedIcon}
-                    title={t('sidebar.uploadRig', 'Upload')}
+                    title={t('niches.pipeline.upload.title', 'Upload')}
+                    badge={counts.uploadCounts
+                      ? String(counts.uploadCounts.pending + counts.uploadCounts.completed + counts.uploadCounts.failed)
+                      : undefined}
                   >
-                    <Typography variant="body2" color="text.secondary">
-                      {t('publish.page.subtitle')}
-                    </Typography>
+                    <UploadPipelineContent counts={counts.uploadCounts} />
                   </PipelineCard>
                 </PipelineSection>
               )}

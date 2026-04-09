@@ -3,12 +3,16 @@ import { useListIdeasQuery } from '@/store/ideaSlice';
 import { useListNicheKeywordsQuery } from '@/store/keywordSlice';
 import { useListProjectsQuery } from '@/store/designSlice';
 import type { DesignProjectListItem } from '@/views/designs/gallery/types';
+import type { ListingCounts } from '../partials/ListingsPipelineContent';
+import type { UploadCounts } from '../partials/UploadPipelineContent';
 
 interface DrawerPipelineCounts {
   keywordCount: number;
   productCount: number;
   sloganCount: number;
   designProjectCount: number;
+  listingCounts: ListingCounts | undefined;
+  uploadCounts: UploadCounts | undefined;
 }
 
 /**
@@ -38,5 +42,10 @@ export const useDrawerPipelineCounts = (nicheId: string): DrawerPipelineCounts =
     ? projectData.results.filter((p: DesignProjectListItem) => p.niche === nicheId).length
     : 0;
 
-  return { keywordCount, productCount, sloganCount, designProjectCount };
+  // Placeholder — real counts come from PROJ-11 RTK Query
+  const listingCounts: ListingCounts | undefined = undefined;
+  // Placeholder — real counts come from PROJ-11/13 RTK Query
+  const uploadCounts: UploadCounts | undefined = undefined;
+
+  return { keywordCount, productCount, sloganCount, designProjectCount, listingCounts, uploadCounts };
 };
