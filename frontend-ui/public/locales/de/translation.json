@@ -294,6 +294,17 @@
       "updateError": "Vorlage konnte nicht aktualisiert werden",
       "deleteSuccess": "Vorlage gelöscht",
       "deleteError": "Vorlage konnte nicht gelöscht werden"
+    },
+    "pipeline": {
+      "slogans": {
+        "empty": "Noch keine Slogans gesammelt",
+        "toCanvas": "An Design-Canvas senden",
+        "forgeSelected": "{{count}} zum Canvas schmieden"
+      },
+      "designs": {
+        "toListings": "An Listings senden",
+        "openCanvas": "Design-Canvas öffnen"
+      }
     }
   },
   "research": {

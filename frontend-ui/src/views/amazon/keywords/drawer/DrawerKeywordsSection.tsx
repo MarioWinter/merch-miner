@@ -4,7 +4,9 @@ import { styled } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
 import VpnKeyIcon from '@mui/icons-material/VpnKey';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
+import { BulkFlowButton } from '@/components/FlowButton';
 import {
   useListNicheKeywordsQuery,
   useListKeywordGroupsQuery,
@@ -29,6 +31,7 @@ interface DrawerKeywordsSectionProps {
 export const DrawerKeywordsSection = ({ nicheId }: DrawerKeywordsSectionProps) => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
+  const navigate = useNavigate();
 
   // Data
   const { data: keywordsData, isLoading: keywordsLoading } = useListNicheKeywordsQuery(
@@ -157,6 +160,18 @@ export const DrawerKeywordsSection = ({ nicheId }: DrawerKeywordsSectionProps) =
       <Box sx={{ mt: 2 }}>
         <ManualKeywordInput nicheId={nicheId} />
       </Box>
+
+      {/* Navigate to full keyword page */}
+      {keywords.length > 0 && (
+        <Box sx={{ mt: 2 }}>
+          <BulkFlowButton
+            target="keywords"
+            label={t('keywords.drawer.viewAll')}
+            count={keywords.length}
+            onClick={() => navigate(`/amazon/keywords?niche=${nicheId}`)}
+          />
+        </Box>
+      )}
     </Section>
   );
 };

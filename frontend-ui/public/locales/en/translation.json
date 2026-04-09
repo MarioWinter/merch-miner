@@ -237,7 +237,14 @@
         "keywordsExtractFailed": "Failed to copy keywords",
         "templateCreated": "Listing template created",
         "templateFailed": "Failed to create listing template",
-        "empty": "No products collected yet"
+        "empty": "No products collected yet",
+        "addProduct": "Add Product",
+        "selected": "{{count}} selected",
+        "sendToCanvas": "Send {{count}} to Canvas",
+        "sendToKeywords": "Send to Keywords",
+        "sendToSlogans": "Send to Slogans",
+        "sendToDesign": "Send to Canvas",
+        "viewDetail": "View Detail"
       }
     },
     "empty": {
@@ -294,6 +301,17 @@
       "updateError": "Failed to update template",
       "deleteSuccess": "Template deleted",
       "deleteError": "Failed to delete template"
+    },
+    "pipeline": {
+      "slogans": {
+        "empty": "No slogans collected yet",
+        "toCanvas": "Send to Design Canvas",
+        "forgeSelected": "Forge {{count}} to Canvas"
+      },
+      "designs": {
+        "toListings": "Send to Listings",
+        "openCanvas": "Open Design Canvas"
+      }
     }
   },
   "research": {
@@ -1558,7 +1576,8 @@
       "emptyGroup": "No keywords in this group",
       "ungrouped": "Ungrouped",
       "noKeywords": "No keywords collected yet",
-      "groupDeleted": "Group deleted (keywords kept)"
+      "groupDeleted": "Group deleted (keywords kept)",
+      "viewAll": "View All Keywords"
     },
     "errors": {
       "enrichFailed": "Failed to enrich keywords",

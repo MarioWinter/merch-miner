@@ -11,15 +11,27 @@ import { Box } from '@mui/material';
 import { COLORS } from '@/style/constants';
 import CloseIcon from '@mui/icons-material/Close';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import VpnKeyIcon from '@mui/icons-material/VpnKey';
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
+import BrushOutlinedIcon from '@mui/icons-material/BrushOutlined';
+import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
+import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import { useTranslation } from 'react-i18next';
 import type { DrawerMode } from '../hooks/useNicheDrawer';
 import { useNicheDetailDrawer } from '../hooks/useNicheDetailDrawer';
+import { usePipelineStates } from '../hooks/usePipelineStates';
+import { useDrawerPipelineCounts } from '../hooks/useDrawerPipelineCounts';
 import { DrawerCreateForm } from './DrawerCreateForm';
 import { DrawerEditForm } from './DrawerEditForm';
-import { DrawerResearchSection } from './DrawerResearchSection';
 import { DrawerConfirmDialogs } from './DrawerConfirmDialogs';
+import { PipelineCard } from '@/components/PipelineCard';
+import { ResearchCardContent } from './ResearchCardContent';
+import { ProductsGrid } from './ProductsGrid';
+import { SlogansPipelineContent } from './SlogansPipelineContent';
 import { DrawerKeywordsSection } from '@/views/amazon/keywords/drawer/DrawerKeywordsSection';
-import { DrawerDesignsSection } from './DrawerDesignsSection';
+import { DesignsPipelineContent } from './DesignsPipelineContent';
 
 interface NicheDetailDrawerProps {
   open: boolean;
@@ -58,6 +70,12 @@ const DrawerFooter = styled(Box)(({ theme }) => ({
   gap: theme.spacing(1),
 }));
 
+const PipelineSection = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: theme.spacing(0.5),
+}));
+
 export const NicheDetailDrawer = ({
   open,
   mode,
@@ -92,6 +110,10 @@ export const NicheDetailDrawer = ({
 
   const isCreate = mode === 'create';
   const isBusy = creating || updating || deleting || isFetching;
+  const nicheId = niche?.id ?? '';
+
+  const counts = useDrawerPipelineCounts(isCreate ? '' : nicheId);
+  const states = usePipelineStates(niche, counts);
 
   return (
     <>
@@ -127,9 +149,82 @@ export const NicheDetailDrawer = ({
                 niche={niche}
                 isFetching={isFetching}
               />
-              {niche && <DrawerResearchSection niche={niche} isBusy={isBusy} onDrawerClose={onClose} />}
-              {niche && <DrawerKeywordsSection nicheId={niche.id} />}
-              {niche && <DrawerDesignsSection nicheId={niche.id} />}
+
+              {niche && (
+                <PipelineSection>
+                  <PipelineCard
+                    state={states.research}
+                    icon={AutoAwesomeIcon}
+                    title={t('research.drawer.sectionTitle')}
+                    badge={states.research === 'done'
+                      ? `${niche.research_progress?.completed_nodes.length ?? 0}/${niche.research_progress?.total_nodes ?? 0}`
+                      : undefined}
+                  >
+                    <ResearchCardContent niche={niche} isBusy={isBusy} />
+                  </PipelineCard>
+
+                  <PipelineCard
+                    state={states.keywords}
+                    icon={VpnKeyIcon}
+                    title={t('keywords.drawer.sectionTitle')}
+                    badge={counts.keywordCount > 0 ? String(counts.keywordCount) : undefined}
+                  >
+                    <DrawerKeywordsSection nicheId={niche.id} />
+                  </PipelineCard>
+
+                  <PipelineCard
+                    state={states.products}
+                    icon={FavoriteIcon}
+                    title={t('niches.drawer.collectedProducts.title')}
+                    badge={counts.productCount > 0 ? String(counts.productCount) : undefined}
+                  >
+                    <ProductsGrid nicheId={niche.id} />
+                  </PipelineCard>
+
+                  <PipelineCard
+                    state={states.slogans}
+                    icon={LightbulbOutlinedIcon}
+                    title={t('niches.drawer.collectedSlogans')}
+                    badge={counts.sloganCount > 0 ? String(counts.sloganCount) : undefined}
+                  >
+                    <SlogansPipelineContent
+                      nicheId={niche.id}
+                      nicheName={niche.name}
+                      nicheIdForProject={niche.id}
+                      onDrawerClose={onClose}
+                    />
+                  </PipelineCard>
+
+                  <PipelineCard
+                    state={states.designs}
+                    icon={BrushOutlinedIcon}
+                    title={t('design.projects.drawerSection.title')}
+                    badge={counts.designProjectCount > 0 ? String(counts.designProjectCount) : undefined}
+                  >
+                    <DesignsPipelineContent nicheId={niche.id} />
+                  </PipelineCard>
+
+                  <PipelineCard
+                    state={states.listings}
+                    icon={ArticleOutlinedIcon}
+                    title={t('publish.page.title')}
+                  >
+                    <Typography variant="body2" color="text.secondary">
+                      {t('publish.page.subtitle')}
+                    </Typography>
+                  </PipelineCard>
+
+                  <PipelineCard
+                    state={states.upload}
+                    icon={CloudUploadOutlinedIcon}
+                    title={t('sidebar.uploadRig', 'Upload')}
+                  >
+                    <Typography variant="body2" color="text.secondary">
+                      {t('publish.page.subtitle')}
+                    </Typography>
+                  </PipelineCard>
+                </PipelineSection>
+              )}
             </>
           )}
         </DrawerBody>

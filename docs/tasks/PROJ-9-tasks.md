@@ -1427,47 +1427,47 @@
 
 ### H5.1: NicheDetailDrawer Restructure
 
-- [ ] Refactor `NicheDetailDrawer.tsx` — replace individual section renders with 7 PipelineCards in order: Research → Keywords → Products → Slogans → Designs → Listings → Upload. Keep niche header (name, status, round, edit) unchanged at top
-- [ ] Each PipelineCard receives: `state` (computed from data), `title`, `icon`, `badge` (count/score), `children` (expanded content)
-- [ ] Auto-expand logic: "active" card auto-expanded on drawer open. Done cards collapsed. Pending cards collapsed
+- [x] Refactor `NicheDetailDrawer.tsx` — replace individual section renders with 7 PipelineCards in order: Research → Keywords → Products → Slogans → Designs → Listings → Upload. Keep niche header (name, status, round, edit) unchanged at top
+- [x] Each PipelineCard receives: `state` (computed from data), `title`, `icon`, `badge` (count/score), `children` (expanded content)
+- [x] Auto-expand logic: "active" card auto-expanded on drawer open. Done cards collapsed. Pending cards collapsed
 
 ### H5.2: Research Pipeline Card
 
-- [ ] Refactor `DrawerResearchSection.tsx` — extract research state logic (idle/running/complete/failed) into PipelineCard expanded content
-- [ ] Compact summary (done state): score, product count, date, top vibes. [🔬 View] navigates to research page. [🔄] force refresh
-- [ ] Start state (no research): [🔬 Start] button + marketplace/product type dropdowns
-- [ ] Running state: ResearchProgressStepper (compact) + Stop button
+- [x] Refactor `DrawerResearchSection.tsx` — extract research state logic (idle/running/complete/failed) into PipelineCard expanded content
+- [x] Compact summary (done state): score, product count, date, top vibes. [🔬 View] navigates to research page. [🔄] force refresh
+- [x] Start state (no research): [🔬 Start] button + marketplace/product type dropdowns
+- [x] Running state: ResearchProgressStepper (compact) + Stop button
 
 ### H5.3: Keywords Pipeline Card
 
-- [ ] Create Keywords PipelineCard content — keyword count badge, top keywords preview in expanded state
-- [ ] [🔑 View] Flow Button → navigates to keyword page
+- [x] Create Keywords PipelineCard content — keyword count badge, top keywords preview in expanded state
+- [x] [🔑 View] Flow Button → navigates to keyword page
 
 ### H5.4: Products Grid (FD-2) — replaces Carousel
 
-- [ ] Create `views/niches/list/partials/ProductsGrid.tsx` — CSS Grid `repeat(3, 1fr)`, gap `theme.spacing(1.5)`
-- [ ] Create `views/niches/list/partials/ProductThumbnailCard.tsx` — bg `COLORS.inkElevated`, border `divider`, radius `borderRadius`, `aspect-ratio: 1/1`, `object-fit: cover`
-- [ ] Info bar: BSR (caption, TrendingUp 14px, color-coded by rank) + Price (caption, weight 600, right-aligned)
-- [ ] Hover action overlay: `alpha(COLORS.ink, 0.70)` + `blur(4px)`, opacity 0→1. 4 icon buttons (32px): 🔑 Keywords (warningDk), 💡 Slogan (cyan), 🎨 Canvas (red), 🔍 Detail (text.primary)
-- [ ] Multi-select: checkbox absolute top-left (20px), `COLORS.cyan` checked, opacity 0→1 on hover/when any selected
-- [ ] Bulk Action Button: outlined full-width, `alpha(COLORS.cyan, 0.30)` border, `COLORS.cyan` color. Slide-in animation
-- [ ] "Add Product" card: dashed border, AddCircleOutline 32px, hover cyan
+- [x] Create `views/niches/list/partials/ProductsGrid.tsx` — CSS Grid `repeat(3, 1fr)`, gap `theme.spacing(1.5)`
+- [x] Create `views/niches/list/partials/ProductThumbnailCard.tsx` — bg `COLORS.inkElevated`, border `divider`, radius `borderRadius`, `aspect-ratio: 1/1`, `object-fit: cover`
+- [x] Info bar: BSR (caption, TrendingUp 14px, color-coded by rank) + Price (caption, weight 600, right-aligned)
+- [x] Hover action overlay: `alpha(COLORS.ink, 0.70)` + `blur(4px)`, opacity 0→1. 4 icon buttons (32px): 🔑 Keywords (warningDk), 💡 Slogan (cyan), 🎨 Canvas (red), 🔍 Detail (text.primary)
+- [x] Multi-select: checkbox absolute top-left (20px), `COLORS.cyan` checked, opacity 0→1 on hover/when any selected
+- [x] Bulk Action Button: outlined full-width, `alpha(COLORS.cyan, 0.30)` border, `COLORS.cyan` color. Slide-in animation
+- [x] "Add Product" card: dashed border, AddCircleOutline 32px, hover cyan
 - [ ] Remove old `CollectedProductsSection.tsx` carousel components (`CarouselContainer`, `CardSlide`, `NavArrow`, `DotRow`)
 
 ### H5.5: Slogans Pipeline Card
 
-- [ ] Refactor `CollectedItemsSection.tsx` slogans section → PipelineCard expanded content
-- [ ] Each slogan row: text (`body2`, noWrap) + signal badge (Chip small) + InlineFlowButton `target="canvas"` [🎨→]
-- [ ] Bulk: [☑ Select All] + BulkFlowButton `target="canvas"` "Forge N → Design Canvas"
-- [ ] Keep existing `ProjectNamingDialog` integration
+- [x] Refactor `CollectedItemsSection.tsx` slogans section → PipelineCard expanded content
+- [x] Each slogan row: text (`body2`, noWrap) + signal badge (Chip small) + InlineFlowButton `target="canvas"` [🎨→]
+- [x] Bulk: [☑ Select All] + BulkFlowButton `target="canvas"` "Forge N → Design Canvas"
+- [x] Keep existing `ProjectNamingDialog` integration
 
 ### H5.6: Designs Pipeline Card
 
-- [ ] Refactor `DrawerDesignsSection.tsx` → PipelineCard expanded content
-- [ ] Project rows: FolderOutlined + name (`subtitle2`) + count badge + InlineFlowButton `target="listings"` [📋→]
-- [ ] Thumbnail row per project: max 4 thumbs (36×36px), indented under folder icon
-- [ ] "Open Canvas" ghost button at bottom
-- [ ] Skeleton loading state
+- [x] Refactor `DrawerDesignsSection.tsx` → PipelineCard expanded content
+- [x] Project rows: FolderOutlined + name (`subtitle2`) + count badge + InlineFlowButton `target="listings"` [📋→]
+- [x] Thumbnail row per project: max 4 thumbs (36×36px), indented under folder icon
+- [x] "Open Canvas" ghost button at bottom
+- [x] Skeleton loading state
 
 ### H5.7: Listings + Upload Pipeline Cards (placeholder)
 
