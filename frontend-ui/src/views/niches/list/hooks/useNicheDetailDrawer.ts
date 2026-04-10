@@ -43,7 +43,7 @@ export const useNicheDetailDrawer = ({
 }: UseNicheDetailDrawerOptions) => {
   const { t } = useTranslation();
 
-  const { data: niche, isFetching } = useGetNicheQuery(selectedId ?? '', {
+  const { data: niche, isFetching, isError: fetchError } = useGetNicheQuery(selectedId ?? '', {
     skip: mode !== 'edit' || !selectedId,
   });
   const { enqueueSnackbar } = useSnackbar();
@@ -185,6 +185,7 @@ export const useNicheDetailDrawer = ({
   return {
     niche,
     isFetching,
+    fetchError,
     createForm,
     editForm,
     handleCreate,

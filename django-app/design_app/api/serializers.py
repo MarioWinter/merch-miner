@@ -103,6 +103,9 @@ class DesignBoardSerializer(serializers.Serializer):
 
 # -- Generate Trigger --
 
+ASPECT_RATIO_CHOICES = ['1:1', '4:3', '3:4', '16:9', '9:16', '3:2', '2:3']
+
+
 class GenerateDesignSerializer(serializers.Serializer):
     """Trigger design generation (idea-scoped, optional project link)."""
 
@@ -115,6 +118,9 @@ class GenerateDesignSerializer(serializers.Serializer):
     )
     prompt = serializers.CharField(required=True, min_length=10)
     project_id = serializers.UUIDField(required=False, allow_null=True)
+    aspect_ratio = serializers.ChoiceField(
+        choices=ASPECT_RATIO_CHOICES, default='1:1', required=False,
+    )
 
 
 # -- Analyze Image --
@@ -352,6 +358,9 @@ class StandaloneGenerateSerializer(serializers.Serializer):
     prompt = serializers.CharField(required=True, min_length=10)
     project_id = serializers.UUIDField(required=False, allow_null=True)
     idea_id = serializers.UUIDField(required=False, allow_null=True)
+    aspect_ratio = serializers.ChoiceField(
+        choices=ASPECT_RATIO_CHOICES, default='1:1', required=False,
+    )
 
 
 class ProductAnalyzeImageSerializer(serializers.Serializer):
@@ -452,6 +461,9 @@ class BulkGenerateSerializer(serializers.Serializer):
         choices=Design.BackgroundColor.choices,
         default=Design.BackgroundColor.LIGHT_GRAY,
     )
+    aspect_ratio = serializers.ChoiceField(
+        choices=ASPECT_RATIO_CHOICES, default='1:1', required=False,
+    )
 
 
 # -- ProjectPrompt (G9) --
@@ -525,6 +537,9 @@ class GenerateFromPromptSerializer(serializers.Serializer):
     background_color = serializers.ChoiceField(
         choices=Design.BackgroundColor.choices,
         default=Design.BackgroundColor.LIGHT_GRAY,
+    )
+    aspect_ratio = serializers.ChoiceField(
+        choices=ASPECT_RATIO_CHOICES, default='1:1', required=False,
     )
 
 

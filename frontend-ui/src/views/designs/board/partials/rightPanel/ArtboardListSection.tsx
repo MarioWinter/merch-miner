@@ -2,6 +2,7 @@ import { Box, Stack, Tooltip, Typography } from '@mui/material';
 import { styled, alpha } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import { COLORS, DURATION, EASING } from '@/style/constants';
+import { InlineFlowButton } from '@/components/FlowButton';
 import type { ArtboardData } from '../../types';
 
 // -----------------------------------------------------------------
@@ -54,6 +55,7 @@ interface ArtboardListSectionProps {
   artboards: ArtboardData[];
   selectedIds: Set<string>;
   onSelectArtboard: (id: string) => void;
+  onSaveToListings?: (artboardId: string) => void;
 }
 
 // -----------------------------------------------------------------
@@ -64,6 +66,7 @@ const ArtboardListSection = ({
   artboards,
   selectedIds,
   onSelectArtboard,
+  onSaveToListings,
 }: ArtboardListSectionProps) => {
   const { t } = useTranslation();
 
@@ -110,6 +113,18 @@ const ArtboardListSection = ({
                 </Tooltip>
               )}
             </Box>
+            {ab.imageUrl && onSaveToListings && (
+              <Box
+                onClick={(e) => e.stopPropagation()}
+                sx={{ display: 'flex', alignItems: 'center' }}
+              >
+                <InlineFlowButton
+                  target="listings"
+                  tooltip={t('design.artboards.saveToListings', 'Save to Listings')}
+                  onClick={() => onSaveToListings(ab.id)}
+                />
+              </Box>
+            )}
           </ArtboardCardRoot>
         ))}
       </Stack>

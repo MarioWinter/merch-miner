@@ -730,7 +730,19 @@
       "analyzeUpload": "Upload an image to analyze",
       "analyzeImage": "Analyze image",
       "builderTooltip": "Open Prompt Builder",
-      "openBuilder": "Open Prompt Builder"
+      "openBuilder": "Open Prompt Builder",
+      "collapsed": "Generation",
+      "generateGroup": "Generate actions",
+      "generateAll": "Generate All ({{count}})",
+      "moreOptions": "More generate options",
+      "res": "Res.",
+      "resolution": "Resolution",
+      "mode": {
+        "label": "Mode",
+        "textToImage": "Text to Image",
+        "remixImage": "Image to Image (Remix Image)",
+        "editImage": "Image to Image (Edit Image)"
+      }
     },
     "canvas": {
       "emptyTitle": "Drop images or create an AI Image Board",
@@ -1391,7 +1403,7 @@
       "settings": "Project Settings",
       "canvasComingSoon": "Artboard Canvas coming soon",
       "canvasDescription": "The Konva.js-powered artboard will replace the old React Flow board.",
-      "openNicheDrawer": "Niche Details"
+      "openNicheDrawer": "Niche Pipeline"
     },
     "settings": {
       "title": "Processing Settings",

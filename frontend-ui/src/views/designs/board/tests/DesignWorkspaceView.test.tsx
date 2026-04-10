@@ -176,7 +176,7 @@ describe('DesignWorkspaceView', () => {
     expect(screen.getByLabelText('Back to Gallery')).toBeInTheDocument();
   });
 
-  it('renders prompt bar in canvas tab', () => {
+  it('renders right panel in canvas tab (GenerationZone lives inside)', () => {
     mockGetProjectQuery.mockReturnValue({
       data: makeProject(),
       isLoading: false,
@@ -187,7 +187,7 @@ describe('DesignWorkspaceView', () => {
     });
 
     renderWithProviders(<DesignWorkspaceView />);
-    expect(screen.getByLabelText(/open prompt bar/i)).toBeInTheDocument();
+    expect(screen.getByTestId('right-panel')).toBeInTheDocument();
   });
 
   it('renders settings icon button', () => {

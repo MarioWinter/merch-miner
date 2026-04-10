@@ -12,7 +12,7 @@ import {
   selectCollectedKeywords,
   removeKeyword,
 } from '@/store/collectedItemsSlice';
-import { useListIdeasQuery, useDeleteIdeaMutation } from '@/store/ideaSlice';
+import { useListIdeasQuery, useUpdateIdeaMutation } from '@/store/ideaSlice';
 import { InlineFlowButton, BulkFlowButton } from '@/components/FlowButton';
 import { ProjectNamingDialog } from '@/views/designs/board/partials/ProjectNamingDialog';
 
@@ -52,7 +52,7 @@ export const CollectedItemsSection = ({
 
   const selectableSlogans = slogans.filter((s) => s.isSelectable);
   const keywords = useSelector((s: RootState) => selectCollectedKeywords(s, nicheId));
-  const [deleteIdea] = useDeleteIdeaMutation();
+  const [updateIdea] = useUpdateIdeaMutation();
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -82,7 +82,7 @@ export const CollectedItemsSection = ({
 
   const handleRemoveSlogan = async (ideaId: string) => {
     try {
-      await deleteIdea({ id: ideaId }).unwrap();
+      await updateIdea({ id: ideaId, body: { niche: null } }).unwrap();
     } catch {
       enqueueSnackbar(t('ideas.notifications.deleteError'), { variant: 'error' });
     }

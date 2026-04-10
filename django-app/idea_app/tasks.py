@@ -236,7 +236,7 @@ async def _load_niche_profile(niche_id) -> dict | None:
 
     @sync_to_async
     def _load():
-        analysis = NicheAnalysis.objects.filter(niche_id=niche_id).order_by('-created_at').first()
+        analysis = NicheAnalysis.objects.filter(niche_id=niche_id, research__status='completed').order_by('-created_at').first()
         if not analysis:
             return None
         return {
@@ -264,7 +264,7 @@ async def _build_target_niches(target_niche_ids: list) -> list[dict]:
         result = []
         for niche in niches:
             profile = None
-            analysis = NicheAnalysis.objects.filter(niche=niche).order_by('-created_at').first()
+            analysis = NicheAnalysis.objects.filter(niche=niche, research__status='completed').order_by('-created_at').first()
             if analysis:
                 profile = {
                     'niche_summary': analysis.niche_summary,

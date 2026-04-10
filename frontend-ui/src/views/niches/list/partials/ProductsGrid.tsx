@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Box, Skeleton, Typography } from '@mui/material';
-import { styled, alpha } from '@mui/material/styles';
-import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import { styled } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
 import { useNavigate } from 'react-router-dom';
@@ -11,7 +10,6 @@ import {
   useExtractKeywordsMutation,
 } from '@/store/collectedProductsSlice';
 import { BulkFlowButton } from '@/components/FlowButton';
-import { COLORS, DURATION, EASING } from '@/style/constants';
 import ProductThumbnailCard from './ProductThumbnailCard';
 
 interface ProductsGridProps {
@@ -21,36 +19,13 @@ interface ProductsGridProps {
 // ── Styled Components ─────────────────────────────────────────────
 const GridContainer = styled(Box)(({ theme }) => ({
   display: 'grid',
-  gridTemplateColumns: 'repeat(3, 1fr)',
+  gridTemplateColumns: 'repeat(2, 1fr)',
   gap: theme.spacing(1.5),
-}));
-
-const AddCard = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  aspectRatio: '1 / 1',
-  borderRadius: theme.shape.borderRadius,
-  border: `1px dashed ${alpha('#fff', 0.12)}`,
-  cursor: 'pointer',
-  transition: `border-color ${DURATION.fast}ms ${EASING.standard}`,
-  '&:hover': {
-    borderColor: alpha(COLORS.cyan, 0.3),
-    '& .add-icon': {
-      color: COLORS.cyan,
-    },
-  },
-  ...theme.applyStyles('light', {
-    border: `1px dashed ${alpha(COLORS.ink, 0.12)}`,
-    '&:hover': {
-      borderColor: alpha(COLORS.teal, 0.3),
-    },
-  }),
 }));
 
 const SkeletonGrid = styled(Box)(({ theme }) => ({
   display: 'grid',
-  gridTemplateColumns: 'repeat(3, 1fr)',
+  gridTemplateColumns: 'repeat(2, 1fr)',
   gap: theme.spacing(1.5),
 }));
 
@@ -117,9 +92,16 @@ const ProductsGrid = ({ nicheId }: ProductsGridProps) => {
     }
   }, [selectedIds, removeProduct, nicheId, enqueueSnackbar, t]);
 
-  const handleAddProduct = useCallback(() => {
-    navigate(`/amazon/research?niche=${nicheId}`);
-  }, [navigate, nicheId]);
+  const handleRemoveSingle = useCallback(
+    async (collectedProductId: string) => {
+      try {
+        await removeProduct({ nicheId, collectedProductId }).unwrap();
+      } catch {
+        enqueueSnackbar(t('niches.drawer.collectedProducts.removeFailed'), { variant: 'error' });
+      }
+    },
+    [removeProduct, nicheId, enqueueSnackbar, t],
+  );
 
   // ── Loading ─────────────────────────────────────────────────────
   if (isLoading) {
@@ -162,17 +144,9 @@ const ProductsGrid = ({ nicheId }: ProductsGridProps) => {
             onSlogans={() => {/* TODO: PROJ-8 slogan flow */}}
             onCanvas={() => {/* TODO: PROJ-9 canvas flow */}}
             onDetail={() => handleDetail(cp.product.asin)}
+            onRemove={() => handleRemoveSingle(cp.id)}
           />
         ))}
-
-        {products.length < 6 && (
-          <AddCard onClick={handleAddProduct} role="button" aria-label={t('niches.drawer.collectedProducts.addProduct')}>
-            <AddCircleOutlineIcon
-              className="add-icon"
-              sx={{ fontSize: 32, color: 'text.disabled', transition: `color ${DURATION.fast}ms ${EASING.standard}` }}
-            />
-          </AddCard>
-        )}
       </GridContainer>
 
       {anySelected && (

@@ -4,6 +4,8 @@ import {
   CircularProgress,
   Drawer,
   IconButton,
+  Skeleton,
+  Stack,
   Typography,
 } from '@mui/material';
 import { alpha, styled } from '@mui/material/styles';
@@ -89,6 +91,7 @@ export const NicheDetailDrawer = ({
   const {
     niche,
     isFetching,
+    fetchError,
     createForm,
     editForm,
     handleCreate,
@@ -143,6 +146,17 @@ export const NicheDetailDrawer = ({
 
           {isCreate ? (
             <DrawerCreateForm form={createForm} onSubmit={handleCreate} />
+          ) : fetchError ? (
+            <Alert severity="error">
+              {t('niches.drawer.fetchError', 'Failed to load niche data. Please close and try again.')}
+            </Alert>
+          ) : !niche && isFetching ? (
+            <Stack spacing={2}>
+              <Skeleton variant="rounded" height={40} />
+              <Skeleton variant="rounded" height={40} />
+              <Skeleton variant="rounded" height={80} />
+              <Skeleton variant="rounded" height={120} />
+            </Stack>
           ) : (
             <>
               <DrawerEditForm
@@ -159,8 +173,10 @@ export const NicheDetailDrawer = ({
                     icon={AutoAwesomeIcon}
                     title={t('research.drawer.sectionTitle')}
                     badge={states.research === 'done'
-                      ? `${niche.research_progress?.completed_nodes.length ?? 0}/${niche.research_progress?.total_nodes ?? 0}`
-                      : undefined}
+                      ? t('common.done', 'Done')
+                      : states.research === 'active'
+                        ? `${niche.research_progress?.completed_nodes.length ?? 0}/${niche.research_progress?.total_nodes ?? 6}`
+                        : undefined}
                   >
                     <ResearchCardContent niche={niche} isBusy={isBusy} />
                   </PipelineCard>

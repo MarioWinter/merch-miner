@@ -77,5 +77,11 @@ export const DURATION = {
   slow: 300,
 } as const;
 
+export const SHADOW = {
+  card: '0 2px 8px rgba(0,0,0,0.5)',
+  cardLight: '0 2px 6px rgba(0,0,0,0.3)',
+  cardLightMode: '0 2px 8px rgba(0,0,0,0.15)',
+} as const;
+
 export const MONO_FONT_STACK =
   '"JetBrains Mono", "IBM Plex Mono", "Fira Code", ui-monospace, "Cascadia Code", "Courier New", monospace';

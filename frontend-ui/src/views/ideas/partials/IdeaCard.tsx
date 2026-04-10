@@ -19,12 +19,12 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import EditNoteIcon from '@mui/icons-material/EditNote';
-import BrushIcon from '@mui/icons-material/Brush';
 import LinkOffIcon from '@mui/icons-material/LinkOff';
 import { useTranslation } from 'react-i18next';
 import { useNavigate } from 'react-router-dom';
 import { useListNichesQuery } from '@/store/nicheSlice';
 import { COLORS } from '@/style/constants';
+import { InlineFlowButton } from '@/components/FlowButton';
 import { ProjectNamingDialog } from '../../designs/board/partials/ProjectNamingDialog';
 import { SignalTypeBadge } from './SignalTypeBadge';
 import { MarketConfidenceBadge } from './MarketConfidenceBadge';
@@ -248,16 +248,11 @@ export const IdeaCard = ({
             </Tooltip>
           )}
           {idea.status === 'approved' && (
-            <Tooltip title={t('design.board.jumpButton')}>
-              <IconButton
-                size="small"
-                onClick={() => setNamingDialogOpen(true)}
-                color="secondary"
-                aria-label={t('design.board.jumpButton')}
-              >
-                <BrushIcon sx={{ fontSize: 18 }} />
-              </IconButton>
-            </Tooltip>
+            <InlineFlowButton
+              target="canvas"
+              tooltip={t('design.board.jumpButton')}
+              onClick={() => setNamingDialogOpen(true)}
+            />
           )}
           <Box sx={{ flex: 1 }} />
           <Tooltip title={t('ideas.delete')}>

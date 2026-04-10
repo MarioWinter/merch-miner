@@ -1,11 +1,11 @@
 import { Stack, Typography } from '@mui/material';
-import { styled } from '@mui/material/styles';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import HourglassEmptyOutlinedIcon from '@mui/icons-material/HourglassEmptyOutlined';
 import CheckCircleOutlinedIcon from '@mui/icons-material/CheckCircleOutlined';
 import ErrorOutlineOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import { useTranslation } from 'react-i18next';
-import { COLORS, DURATION, EASING } from '@/style/constants';
+import { COLORS } from '@/style/constants';
+import { SummaryRow, CountValue } from '@/components/PipelineCard';
 
 // ── Types ─────────────────────────────────────────────────────────
 export interface UploadCounts {
@@ -17,23 +17,6 @@ export interface UploadCounts {
 interface UploadPipelineContentProps {
   counts?: UploadCounts;
 }
-
-// ── Styled ────────────────────────────────────────────────────────
-const SummaryRow = styled(Stack)(({ theme }) => ({
-  flexDirection: 'row',
-  alignItems: 'center',
-  gap: theme.spacing(1),
-  padding: theme.spacing(0.5, 1),
-  borderRadius: theme.shape.borderRadius * 0.75,
-  transition: `background-color ${DURATION.fast}ms ${EASING.standard}`,
-}));
-
-const CountValue = styled('span')(({ theme }) => ({
-  ...theme.typography.subtitle2,
-  fontWeight: 600,
-  minWidth: 20,
-  textAlign: 'right',
-}));
 
 // ── Component ─────────────────────────────────────────────────────
 export const UploadPipelineContent = ({ counts }: UploadPipelineContentProps) => {

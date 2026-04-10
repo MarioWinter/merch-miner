@@ -10,7 +10,7 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 
-def task_generate_design(run_id: str, project_id: str = None):
+def task_generate_design(run_id: str, project_id: str = None, aspect_ratio: str = '1:1'):
     """Generate a design image via OpenRouter.
 
     Called by django-rq worker-design queue.
@@ -38,6 +38,7 @@ def task_generate_design(run_id: str, project_id: str = None):
             prompt=run.prompt_used,
             model_name=run.model_name,
             output_dir=media_dir,
+            aspect_ratio=aspect_ratio,
         )
 
         # Read file and save to Design model

@@ -12,13 +12,13 @@ const mockUpdateNiche = vi.fn();
 const mockDeleteNiche = vi.fn();
 const mockGetNiche = vi.fn();
 
-// Mock ideaSlice — CollectedItemsSection uses useListIdeasQuery / useDeleteIdeaMutation
+// Mock ideaSlice — CollectedItemsSection uses useListIdeasQuery / useUpdateIdeaMutation
 vi.mock('../../../../store/ideaSlice', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../../store/ideaSlice')>();
   return {
     ...actual,
     useListIdeasQuery: () => ({ data: { results: [] }, isLoading: false }),
-    useDeleteIdeaMutation: () => [vi.fn(), { isLoading: false }],
+    useUpdateIdeaMutation: () => [vi.fn(), { isLoading: false }],
   };
 });
 

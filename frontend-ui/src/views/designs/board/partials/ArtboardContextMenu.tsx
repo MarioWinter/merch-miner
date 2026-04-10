@@ -7,6 +7,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import FlipToFrontIcon from '@mui/icons-material/FlipToFront';
 import FlipToBackIcon from '@mui/icons-material/FlipToBack';
 import ImageSearchIcon from '@mui/icons-material/ImageSearch';
+import { FLOW_TARGETS } from '@/components/FlowButton';
 
 // -----------------------------------------------------------------
 // Types
@@ -32,6 +33,8 @@ interface ArtboardContextMenuProps {
   onSendToBack: (id: string) => void;
   /** Phase G13: analyze image -> generate prompt */
   onAnalyzeImage?: (artboardId: string) => void;
+  /** Phase H8: save artboard to listings */
+  onSaveToListings?: (artboardId: string) => void;
 }
 
 // -----------------------------------------------------------------
@@ -49,6 +52,7 @@ const ArtboardContextMenu = ({
   onBringToFront,
   onSendToBack,
   onAnalyzeImage,
+  onSaveToListings,
 }: ArtboardContextMenuProps) => {
   const { t } = useTranslation();
 
@@ -71,6 +75,11 @@ const ArtboardContextMenu = ({
     if (artboardId && onAnalyzeImage) onAnalyzeImage(artboardId);
     onClose();
   }, [artboardId, onAnalyzeImage, onClose]);
+
+  const handleSaveToListings = useCallback(() => {
+    if (artboardId && onSaveToListings) onSaveToListings(artboardId);
+    onClose();
+  }, [artboardId, onSaveToListings, onClose]);
 
   const handleBringToFront = useCallback(() => {
     if (artboardId) onBringToFront(artboardId);
@@ -116,6 +125,19 @@ const ArtboardContextMenu = ({
           </ListItemIcon>
           <ListItemText>
             {t('design.contextMenu.analyzeImage', 'Analyze Image \u2192 Generate Prompt')}
+          </ListItemText>
+        </MenuItem>
+      )}
+
+      {hasImage && onSaveToListings && (
+        <MenuItem onClick={handleSaveToListings}>
+          <ListItemIcon>
+            <FLOW_TARGETS.listings.icon
+              sx={{ fontSize: 20, color: FLOW_TARGETS.listings.color }}
+            />
+          </ListItemIcon>
+          <ListItemText>
+            {t('design.contextMenu.saveToListings', 'Save to Listings')}
           </ListItemText>
         </MenuItem>
       )}

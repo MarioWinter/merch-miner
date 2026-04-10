@@ -299,6 +299,7 @@ class GenerateDesignView(APIView):
         queue = django_rq.get_queue('design')
         job = queue.enqueue(
             task_generate_design, str(run.id), project_id_str,
+            serializer.validated_data.get('aspect_ratio', '1:1'),
         )
         run.rq_job_id = job.id
         run.save(update_fields=['rq_job_id'])
@@ -994,7 +995,8 @@ class StandaloneGenerateView(APIView):
         job = queue.enqueue(
             task_generate_design,
             str(run.id),
-            str(project.id),  # Pass project_id for auto-linking
+            str(project.id),
+            serializer.validated_data.get('aspect_ratio', '1:1'),
         )
         run.rq_job_id = job.id
         run.save(update_fields=['rq_job_id'])
@@ -1380,6 +1382,7 @@ class BulkGenerateView(APIView):
                 task_generate_design,
                 str(run.id),
                 str(project.id),
+                serializer.validated_data.get('aspect_ratio', '1:1'),
             )
             run.rq_job_id = job.id
             run.save(update_fields=['rq_job_id'])
@@ -1519,6 +1522,7 @@ class GenerateFromPromptView(APIView):
             task_generate_design,
             str(run.id),
             str(project.id),
+            serializer.validated_data.get('aspect_ratio', '1:1'),
         )
         run.rq_job_id = job.id
         run.save(update_fields=['rq_job_id'])

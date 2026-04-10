@@ -1088,6 +1088,7 @@ Both paths inject the background color instruction as the final sentence of the 
 
 ## Supported Models (via OpenRouter)
 
+### Legacy Models (existing DB records)
 | Key | Model | Use Case |
 |-----|-------|----------|
 | `gemini_flash` | Google Gemini Flash (image gen) | Fast iteration |
@@ -1095,7 +1096,58 @@ Both paths inject the background color instruction as the final sentence of the 
 | `gpt_image` | OpenAI GPT Image | Creative styles |
 | `flux` | Black Forest Labs Flux | Photorealistic |
 
+### New Models (added 2026-04-09, migration 0006)
+| Key (full OpenRouter ID) | Frontend Label | Use Case |
+|--------------------------|---------------|----------|
+| `google/gemini-3.1-flash-preview-image-generation` | Nano Banana 2 | Fast iteration (default) |
+| `google/gemini-3-pro-preview-image-generation` | Nano Banana Pro | Higher quality |
+| `google/gemini-2.5-flash-preview-image-generation` | Nano Banana | Older Gemini flash |
+| `openai/gpt-5-image` | GPT-5 Image | Creative styles |
+| `openai/gpt-5-image-mini` | GPT-5 Mini | Budget creative |
+| `black-forest-labs/flux-1.1-pro` | Flux 1.1 Pro | Photorealistic |
+| `bytedance-seed/seedream-4.5` | Seedream 4.5 | Artistic/stylized |
+
+### Aspect Ratio (added 2026-04-09)
+All generate endpoints accept `aspect_ratio` parameter: `1:1`, `4:3`, `3:4`, `16:9`, `9:16`, `3:2`, `2:3`. Default: `1:1` (1024x1024).
+
 Image analysis (Gemini 3 Architect pipeline) also uses OpenRouter — same API key, Gemini model variant.
+
+---
+
+## Implementation Status (as of 2026-04-09)
+
+### Completed Phases
+| Phase | Description | Status |
+|-------|-------------|--------|
+| A1–A6 | Design Generation backend + frontend | Done |
+| B1–B5 | Post-Processing Editor + Cloud Manager | Done |
+| C1–C9 | Canvas Element Manipulation | Done |
+| G1–G13 | Design Board features (batch, prompts, slogans, artboards) | Done |
+| **H4** | PipelineCard shared component | Done |
+| **H5** | Drawer Pipeline Refactor (7 PipelineCards) | Done |
+| **H6** | RightPanel Redesign (GenerationZone + AccordionSection) | Done |
+| **H7** | Prompt Builder Dialog (8-tab redesign) | Done |
+| **H8** | Flow Button Integration | Done |
+
+### New Shared Components (2026-04-09)
+- `components/PipelineCard/` — PipelineCard, PipelineCardHeader, SummaryRow, CountValue
+- `components/CardOverlay/` — HoverOverlay, ActionPill, ProductImage (shared between Research + Drawer cards)
+- `components/FlowButton/` — InlineFlowButton, BulkFlowButton (pipeline navigation)
+- `style/constants.ts` — added `SHADOW` tokens (card, cardLight, cardLightMode)
+
+### Backend Changes (2026-04-09)
+- 7 new AI model choices (full OpenRouter IDs) + legacy compatibility
+- `aspect_ratio` parameter on all generate endpoints
+- Migration `0006_expand_model_choices` (model_name max_length 20→64)
+- Bugfix: `_load_niche_profile` + `_build_target_niches` filter `research__status='completed'`
+- Bugfix: `suggest-niches` excludes archived niches
+
+### Open Items
+- [ ] Image-to-Image mode: frontend UI exists (Mode select), backend NOT implemented
+- [ ] Preset save/load in Prompt Builder: needs backend persistence (source_config JSONField)
+- [ ] Text tool inline editing bug (textarea focus issue, from Phase C)
+- [ ] H9: i18n sync + tests + lint pass
+- [ ] Old CollectedProductsSection carousel components not yet deleted
 
 ---
 
@@ -1347,8 +1399,8 @@ views/design/
 │   │   ├── ArtboardCanvas.tsx           # Konva.js infinite canvas with artboards
 │   │   ├── Artboard.tsx                # Single artboard frame (image + label + selection)
 │   │   ├── ConnectionArrow.tsx         # Thin arrow between source → AI Image Board
-│   │   ├── PromptBar.tsx               # Bottom collapsible chat/prompt bar
-│   │   ├── RightPanel.tsx              # Always-visible right panel (280px) — properties + tools
+│   │   ├── GenerationZone.tsx           # Sticky generation controls (model, bg, mode, sliders, prompt, generate)
+│   │   ├── RightPanel.tsx              # Always-visible right panel (383px) — GenerationZone + accordion sections
 │   │   ├── BottomToolbar.tsx           # Cursor/move/shapes/brush/text/emoji/AI/undo/redo/zoom
 │   │   ├── ArtboardContextMenu.tsx     # Right-click menu: Add AI Board, Duplicate, Delete
 │   │   ├── ProjectNamingDialog.tsx     # Naming dialog for idea→project flow

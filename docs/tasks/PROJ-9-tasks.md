@@ -1509,11 +1509,11 @@
 
 ### H6.5: Remove PromptBar
 
-- [ ] Remove `PromptBar.tsx` (350 lines) — all functionality now in GenerationZone
-- [ ] Remove `usePromptBar.ts` hook — merge relevant state into `useGeneration` or GenerationZone local state
-- [ ] Update `DesignWorkspaceView.tsx` — remove PromptBar render, wire GenerationZone into RightPanel
-- [ ] Update any component that references PromptBar (ContextMenu, auto-prompt fill, etc.)
-- [ ] Verify: prompt text, model selection, BG color, generate action all work from RightPanel
+- [x] Remove `PromptBar.tsx` (350 lines) — all functionality now in GenerationZone
+- [x] Remove `usePromptBar.ts` hook — merge relevant state into `useGeneration` or GenerationZone local state
+- [x] Update `DesignWorkspaceView.tsx` — remove PromptBar render, wire GenerationZone into RightPanel
+- [x] Update any component that references PromptBar (ContextMenu, auto-prompt fill, etc.)
+- [x] Verify: prompt text, model selection, BG color, generate action all work from RightPanel
 
 ---
 
@@ -1521,54 +1521,77 @@
 
 ### H7.1: Dialog Shell + Tab Navigation
 
-- [ ] Rebuild `PromptBuilderDialog.tsx` — Dialog `maxWidth="md"`, bg `COLORS.inkPaper`, radius 16px, min-height 400px, max-height 80vh
-- [ ] Header: `h4` title + Close IconButton 32px
-- [ ] Custom tab navigation (NOT MUI Tabs): flex wrap text links, `subtitle2`, `text.secondary`. Active: `secondary.main` + 2px cyan underline. Tab content switch animation: `opacity + translateX(8px)→0`
-- [ ] Footer: Cancel (ghost) + Generate Prompt (contained, `secondary.main` cyan, hover glow)
-- [ ] 8 tabs: Concept, Context, Style, Format, Color, Background, Text, Output
+- [x] Rebuild `PromptBuilderDialog.tsx` — Dialog `maxWidth="md"`, bg `COLORS.inkPaper`, radius 16px, min-height 400px, max-height 80vh
+- [x] Header: `h4` title + Close IconButton 32px
+- [x] Custom tab navigation (NOT MUI Tabs): flex wrap text links, `subtitle2`, `text.secondary`. Active: `secondary.main` + 2px cyan underline. Tab content switch animation: `opacity + translateX(8px)→0`
+- [x] Footer: Cancel (ghost) + Generate Prompt (contained, `secondary.main` cyan, hover glow)
+- [x] 8 tabs: Concept, Context, Style, Format, Color, Background, Text, Output
 
 ### H7.2: Concept Tab
 
-- [ ] Create `promptBuilder/ConceptTab.tsx` — Prompt Title (TextField), Slogan Selector (Select from pool, auto-fills Main Subject), Main Subject (multiline rows:3), 2-col grid: Content Type + Mood (both Select)
+- [x] Create `promptBuilder/ConceptTab.tsx` — Prompt Title (TextField), Slogan Selector (Select from pool, auto-fills Main Subject), Main Subject (multiline rows:3), 2-col grid: Content Type + Mood (both Select)
 
 ### H7.3: Context Tab (unique — per-field checkboxes)
 
-- [ ] Create `promptBuilder/ContextTab.tsx` — stacked source sections, each in glass card (`alpha(COLORS.inkElevated, 0.40)`)
-- [ ] Keywords section: master checkbox, wrapped Chips `size="small"` outlined, border `alpha(COLORS.cyan, 0.20)`. Empty: "No keywords — run Keyword Research first"
-- [ ] AI Research section: master checkbox (indeterminate when partial) + **per-field checkboxes** (Visual Style, Vibe, Tone, Elements, Aesthetics, Layout). Grid: label caption right-aligned, value body2. Unchecked fields: dimmed opacity 0.45
-- [ ] Reference Products section: master checkbox, 4-col grid, thumbs 56px, selected: cyan border + glow
-- [ ] Disabled section (unchecked master): opacity 0.45 + blur(1px) on content
+- [x] Create `promptBuilder/ContextTab.tsx` — stacked source sections, each in glass card (`alpha(COLORS.inkElevated, 0.40)`)
+- [x] Keywords section: master checkbox, wrapped Chips `size="small"` outlined, border `alpha(COLORS.cyan, 0.20)`. Empty: "No keywords — run Keyword Research first"
+- [x] AI Research section: master checkbox (indeterminate when partial) + **per-field checkboxes** (Visual Style, Vibe, Tone, Elements, Aesthetics, Layout). Grid: label caption right-aligned, value body2. Unchecked fields: dimmed opacity 0.45
+- [x] Reference Products section: master checkbox, 4-col grid, thumbs 56px, selected: cyan border + glow
+- [x] Disabled section (unchecked master): opacity 0.45 + blur(1px) on content
 
 ### H7.4: Style + Format Tabs
 
-- [ ] Create `promptBuilder/StyleTab.tsx` — 2-col: Style Category + Style Select. "+ Add Style" ghost button. Added styles as deletable Chips (cyan)
-- [ ] Create `promptBuilder/FormatTab.tsx` — 2×2 grid: Orientation, Aspect Ratio, Detail Level, Rendering Style (all Select 40px). Full-width: Composition Select
+- [x] Create `promptBuilder/StyleTab.tsx` — 2-col: Style Category + Style Select. "+ Add Style" ghost button. Added styles as deletable Chips (cyan)
+- [x] Create `promptBuilder/FormatTab.tsx` — 2×2 grid: Orientation, Aspect Ratio, Detail Level, Rendering Style (all Select 40px). Full-width: Composition Select
 
 ### H7.5: Color + Background + Text Tabs
 
-- [ ] Create `promptBuilder/ColorTab.tsx` — flex wrap swatches 40px, radius 8px. Selected: cyan border + glow + scale(1.1). "+ Add Color" ghost. "🔬 From Research" ghost (cyan, pulls niche research colors)
-- [ ] Create `promptBuilder/BackgroundTab.tsx` — Background Type Select + Preset Chips (Light Gray, Neon Pink, Neon Green, Transparent). Selected: cyan bg + border
-- [ ] Create `promptBuilder/TextTab.tsx` — "Text Included?" Select (No/Slogan/Custom). Preview box: glass card, body2 italic, text.secondary
+- [x] Create `promptBuilder/ColorTab.tsx` — flex wrap swatches 40px, radius 8px. Selected: cyan border + glow + scale(1.1). "+ Add Color" ghost. "From Research" ghost (cyan, pulls niche research colors)
+- [x] Create `promptBuilder/BackgroundTab.tsx` — Background Type Select + Preset Chips (Light Gray, Neon Pink, Neon Green, Transparent). Selected: cyan bg + border
+- [x] Create `promptBuilder/TextTab.tsx` — "Text Included?" Select (No/Slogan/Custom). Preview box: glass card, body2 italic, text.secondary
 
 ### H7.6: Output Tab
 
-- [ ] Create `promptBuilder/OutputTab.tsx` — 2×2 grid: Use, Avoid, Print Requirements, Final Feel (all Select). MBA Preset Chip: toggleable, successDk when active
+- [x] Create `promptBuilder/OutputTab.tsx` — 2x2 grid: Use, Avoid, Print Requirements, Final Feel (all Select). MBA Preset Chip: toggleable, successDk when active
 
 ### H7.7: Hook Refactor
 
-- [ ] Refactor `usePromptBuilder.ts` — add tab state management, per-field checkbox state for Context tab, master/indeterminate logic
-- [ ] Prompt generation: collect enabled fields from all tabs → build prompt text → return to GenerationZone textarea
+- [x] Refactor `usePromptBuilderTabs.ts` — add tab state management for Color, Background, Text, Output tabs
+- [x] Prompt generation: collect enabled fields from all tabs → build prompt text → return generatedPrompt
 - [ ] Preset save/load: serialize all tab states into source_config JSONField
 
 ---
 
 ## Phase H8: Flow Button Integration (FD-5)
 
-- [ ] IdeaCard.tsx: replace brush IconButton with `InlineFlowButton target="canvas"`. Only visible when `idea.status === 'approved'`
-- [ ] Canvas ArtboardContextMenu: add "📋 Save to Listings" menu item using `FLOW_TARGETS.listings` color/icon
-- [ ] RightPanel ArtboardListSection: add `InlineFlowButton target="listings"` per artboard row (only when `design.status === 'approved'`)
-- [ ] Drawer Slogans PipelineCard: InlineFlowButton per slogan + BulkFlowButton under list
-- [ ] Drawer Designs PipelineCard: InlineFlowButton per project row
+- [x] IdeaCard.tsx: replace brush IconButton with `InlineFlowButton target="canvas"`. Only visible when `idea.status === 'approved'`
+- [x] Canvas ArtboardContextMenu: add "📋 Save to Listings" menu item using `FLOW_TARGETS.listings` color/icon
+- [x] RightPanel ArtboardListSection: add `InlineFlowButton target="listings"` per artboard row (only when `design.status === 'approved'`)
+- [x] Drawer Slogans PipelineCard: InlineFlowButton per slogan + BulkFlowButton under list
+- [x] Drawer Designs PipelineCard: InlineFlowButton per project row
+
+---
+
+## Phase H8b: Refactoring Pass + Bugfixes (2026-04-09)
+
+- [x] Extract shared `components/CardOverlay/` — HoverOverlay, ActionPill, ProductImage (used by ProductCard + ProductThumbnailCard)
+- [x] Extract shared `components/PipelineCard/SummaryRow.tsx` — SummaryRow + CountValue (used by ListingsPipelineContent + UploadPipelineContent)
+- [x] Add `SHADOW` tokens to `style/constants.ts` (card, cardLight, cardLightMode)
+- [x] Replace all hardcoded rgba/hex with `COLORS.*` + `alpha()` across H4–H8 files
+- [x] Refactor ProductCard (Research) to use shared CardOverlay components
+- [x] RightPanel width 280→383px, slider boxes 2-row layout, prompt textarea resizable
+- [x] Inline editable project name (click → InputBase → PATCH)
+- [x] NicheDetailDrawer: loading skeleton + error state for fetch failures
+- [x] Research badge: "Done" when complete, "N/6" only during progress
+- [x] ProductThumbnailCard: 2-col grid, 4:5 ratio, scale(1.6), ActionPill hover (Research style), MoreMenu, remove button
+- [x] Tooltip: "Niche Pipeline" (was "Niche Details"), Inventory2Outlined icon (was InfoOutlined)
+- [x] Backend: 7 new AI model choices + aspect_ratio parameter + migration 0006
+- [x] Backend bugfix: slogan adapt `_load_niche_profile` + `_build_target_niches` filter `research__status='completed'`
+- [x] Backend bugfix: `suggest-niches` excludes archived niches
+- [ ] Remove old `CollectedProductsSection.tsx` carousel components
+- [ ] Backend: Image-to-Image mode (frontend Mode select exists, backend only text-to-image)
+- [ ] Prompt Builder preset save/load (backend persistence via source_config JSONField)
+- [ ] Fix text tool inline editing bug (textarea focus issue, from Phase C)
 
 ---
 

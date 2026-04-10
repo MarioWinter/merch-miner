@@ -11,22 +11,63 @@ from PIL import Image
 
 logger = logging.getLogger(__name__)
 
-# OpenRouter model mapping
+# OpenRouter model mapping — legacy short names + new full IDs
 MODEL_MAP = {
+    # Legacy (kept for existing DB records)
     'gemini_flash': 'google/gemini-2.5-flash-image',
     'gemini_pro': 'google/gemini-3-pro-image-preview',
     'gpt_image': 'openai/gpt-image-1',
     'flux': 'black-forest-labs/flux-1.1-pro',
+    # New models (frontend sends full OpenRouter ID)
+    'google/gemini-3.1-flash-preview-image-generation': 'google/gemini-3.1-flash-preview-image-generation',
+    'google/gemini-3-pro-preview-image-generation': 'google/gemini-3-pro-preview-image-generation',
+    'google/gemini-2.5-flash-preview-image-generation': 'google/gemini-2.5-flash-preview-image-generation',
+    'openai/gpt-5-image': 'openai/gpt-5-image',
+    'openai/gpt-5-image-mini': 'openai/gpt-5-image-mini',
+    'black-forest-labs/flux-1.1-pro': 'black-forest-labs/flux-1.1-pro',
+    'bytedance-seed/seedream-4.5': 'bytedance-seed/seedream-4.5',
+}
+
+# Aspect ratio → pixel dimensions
+ASPECT_RATIO_DIMS = {
+    '1:1': (1024, 1024),
+    '4:3': (1365, 1024),
+    '3:4': (1024, 1365),
+    '16:9': (1820, 1024),
+    '9:16': (1024, 1820),
+    '3:2': (1536, 1024),
+    '2:3': (1024, 1536),
+}
+
+# Models that are Gemini-family (use modalities param)
+_GEMINI_MODELS = {
+    'gemini_flash', 'gemini_pro',
+    'google/gemini-3.1-flash-preview-image-generation',
+    'google/gemini-3-pro-preview-image-generation',
+    'google/gemini-2.5-flash-preview-image-generation',
+}
+
+# Models that are OpenAI-family (use size param)
+_OPENAI_MODELS = {
+    'gpt_image',
+    'openai/gpt-5-image',
+    'openai/gpt-5-image-mini',
 }
 
 
-def generate_image(prompt: str, model_name: str, output_dir: str = None) -> str:
+def generate_image(
+    prompt: str,
+    model_name: str,
+    output_dir: str = None,
+    aspect_ratio: str = '1:1',
+) -> str:
     """Generate an image via OpenRouter and save to disk.
 
     Args:
         prompt: Generation prompt text
-        model_name: One of ModelName choices (gemini_flash, etc.)
+        model_name: Model choice value (legacy short name or full OpenRouter ID)
         output_dir: Directory to save output. Defaults to tempdir.
+        aspect_ratio: Aspect ratio string like '1:1', '16:9', etc.
 
     Returns:
         Path to saved image file.
@@ -44,6 +85,8 @@ def generate_image(prompt: str, model_name: str, output_dir: str = None) -> str:
     model_id = MODEL_MAP.get(model_name)
     if not model_id:
         raise ValueError(f"Unknown model: {model_name}")
+
+    width, height = ASPECT_RATIO_DIMS.get(aspect_ratio, (1024, 1024))
 
     headers = {
         'Authorization': f'Bearer {api_key}',
@@ -63,14 +106,15 @@ def generate_image(prompt: str, model_name: str, output_dir: str = None) -> str:
     }
 
     # Model-specific params
-    if model_name in ('gemini_flash', 'gemini_pro'):
+    if model_name in _GEMINI_MODELS:
         payload['modalities'] = ['image', 'text']
-    elif model_name == 'gpt_image':
-        payload['size'] = '1024x1024'
+    elif model_name in _OPENAI_MODELS:
+        payload['size'] = f'{width}x{height}'
         payload['quality'] = 'high'
-    elif model_name == 'flux':
-        payload['width'] = 1024
-        payload['height'] = 1024
+    else:
+        # Flux, Seedream, etc.
+        payload['width'] = width
+        payload['height'] = height
 
     with httpx.Client(timeout=120.0) as client:
         resp = client.post(
@@ -106,7 +150,7 @@ def generate_image(prompt: str, model_name: str, output_dir: str = None) -> str:
     img = Image.open(BytesIO(image_data))
     img.save(output_path, 'PNG')
 
-    logger.info("Generated image: %s (model=%s)", output_path, model_name)
+    logger.info("Generated image: %s (model=%s, ratio=%s)", output_path, model_name, aspect_ratio)
     return output_path
 
 

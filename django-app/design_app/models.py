@@ -97,6 +97,14 @@ class DesignGenerationRun(models.Model):
         GEMINI_PRO = 'gemini_pro', 'Gemini Pro'
         GPT_IMAGE = 'gpt_image', 'GPT Image'
         FLUX = 'flux', 'Flux'
+        # New models (OpenRouter IDs)
+        NANO_BANANA_2 = 'google/gemini-3.1-flash-preview-image-generation', 'Nano Banana 2'
+        NANO_BANANA_PRO = 'google/gemini-3-pro-preview-image-generation', 'Nano Banana Pro'
+        NANO_BANANA = 'google/gemini-2.5-flash-preview-image-generation', 'Nano Banana'
+        GPT5_IMAGE = 'openai/gpt-5-image', 'GPT-5 Image'
+        GPT5_MINI = 'openai/gpt-5-image-mini', 'GPT-5 Mini'
+        FLUX_PRO = 'black-forest-labs/flux-1.1-pro', 'Flux 1.1 Pro'
+        SEEDREAM = 'bytedance-seed/seedream-4.5', 'Seedream 4.5'
 
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending'
@@ -114,7 +122,7 @@ class DesignGenerationRun(models.Model):
         db_index=True,
     )
     model_name = models.CharField(
-        max_length=20,
+        max_length=64,
         choices=ModelName.choices,
         db_index=True,
     )

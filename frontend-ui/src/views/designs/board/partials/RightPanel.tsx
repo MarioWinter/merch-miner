@@ -6,6 +6,7 @@ import type { ArtboardData, BackgroundColor, CanvasElement, DesignModel } from '
 import type { RightPanelState } from '../hooks/useRightPanelState';
 import type { ProjectIdea, ProjectPrompt } from '../../gallery/types';
 import GenerationZone from './GenerationZone';
+import type { GenerationMode, AspectRatio } from './GenerationZone';
 import PanelArtboardState from './rightPanel/PanelArtboardState';
 import PanelMultiState from './rightPanel/PanelMultiState';
 import PanelElementState from './rightPanel/PanelElementState';
@@ -19,7 +20,7 @@ import LayerPanel from './rightPanel/LayerPanel';
 // Constants
 // -----------------------------------------------------------------
 
-export const RIGHT_PANEL_WIDTH = 280;
+export const RIGHT_PANEL_WIDTH = 383;
 
 // -----------------------------------------------------------------
 // Styled
@@ -105,6 +106,11 @@ interface RightPanelProps {
   hasSelectedImage?: boolean;
   onGenerateAll?: () => void;
   parallelLineCount?: number;
+  // Mode + Resolution
+  generationMode?: GenerationMode;
+  onGenerationModeChange?: (mode: GenerationMode) => void;
+  aspectRatio?: AspectRatio;
+  onAspectRatioChange?: (ratio: AspectRatio) => void;
   // Phase G props
   projectId?: string;
   ideas?: ProjectIdea[];
@@ -156,6 +162,11 @@ const RightPanel = ({
   hasSelectedImage = false,
   onGenerateAll,
   parallelLineCount = 0,
+  // Mode + Resolution
+  generationMode = 'text_to_image',
+  onGenerationModeChange,
+  aspectRatio = '1:1',
+  onAspectRatioChange,
   // Phase G props
   projectId,
   ideas,
@@ -215,6 +226,10 @@ const RightPanel = ({
             hasSelectedImage={hasSelectedImage}
             onGenerateAll={onGenerateAll}
             parallelLineCount={parallelLineCount}
+            mode={generationMode}
+            onModeChange={onGenerationModeChange}
+            aspectRatio={aspectRatio}
+            onAspectRatioChange={onAspectRatioChange}
           />
         )
       )}

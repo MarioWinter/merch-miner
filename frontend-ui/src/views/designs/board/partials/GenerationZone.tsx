@@ -28,6 +28,26 @@ import ParallelPromptsRow from './ParallelPromptsRow';
 // Constants
 // -----------------------------------------------------------------
 
+export type GenerationMode = 'text_to_image' | 'image_to_image_remix' | 'image_to_image_edit';
+
+const MODE_OPTIONS: Array<{ value: GenerationMode; labelKey: string }> = [
+  { value: 'text_to_image', labelKey: 'design.generation.mode.textToImage' },
+  { value: 'image_to_image_remix', labelKey: 'design.generation.mode.remixImage' },
+  { value: 'image_to_image_edit', labelKey: 'design.generation.mode.editImage' },
+];
+
+export type AspectRatio = '1:1' | '4:3' | '3:4' | '16:9' | '9:16' | '3:2' | '2:3';
+
+const ASPECT_RATIO_OPTIONS: Array<{ value: AspectRatio; label: string; width: number; height: number }> = [
+  { value: '1:1', label: '1 : 1', width: 1024, height: 1024 },
+  { value: '4:3', label: '4 : 3', width: 1365, height: 1024 },
+  { value: '3:4', label: '3 : 4', width: 1024, height: 1365 },
+  { value: '16:9', label: '16 : 9', width: 1820, height: 1024 },
+  { value: '9:16', label: '9 : 16', width: 1024, height: 1820 },
+  { value: '3:2', label: '3 : 2', width: 1536, height: 1024 },
+  { value: '2:3', label: '2 : 3', width: 1024, height: 1536 },
+];
+
 const BG_COLOR_OPTIONS: Array<{ value: BackgroundColor; hex: string }> = [
   { value: 'light_gray', hex: '#D3D3D3' },
   { value: 'neon_pink', hex: '#FF6EC7' },
@@ -104,20 +124,37 @@ const ColorDot = styled('span')<{ $color: string }>(({ $color }) => ({
   backgroundColor: $color,
   marginRight: 6,
   verticalAlign: 'middle',
-  border: '1px solid rgba(255,255,255,0.15)',
+  border: `1px solid ${alpha(COLORS.snow, 0.15)}`,
   flexShrink: 0,
 }));
 
-const SliderRow = styled(Box)(({ theme }) => ({
+const SliderBox = styled(Box)(({ theme }) => ({
   display: 'flex',
-  alignItems: 'center',
-  gap: theme.spacing(1.5),
+  flexDirection: 'column',
+  gap: theme.spacing(0.5),
+  padding: theme.spacing(1, 1.25),
+  borderRadius: theme.shape.borderRadius,
+  border: `1px solid ${theme.vars.palette.divider}`,
+  backgroundColor: alpha(COLORS.inkElevated, 0.5),
+  ...theme.applyStyles('light', {
+    backgroundColor: alpha(COLORS.ash, 0.4),
+  }),
 }));
+
+const SliderLabel = styled(Typography)({
+  fontSize: '0.75rem',
+  fontWeight: 600,
+  flexShrink: 0,
+  whiteSpace: 'nowrap',
+});
 
 const PromptTextarea = styled(TextField)(({ theme }) => ({
   '& .MuiOutlinedInput-root': {
     backgroundColor: alpha(COLORS.ink, 0.4),
     borderRadius: theme.shape.borderRadius,
+    '& textarea': {
+      resize: 'vertical',
+    },
     '& fieldset': {
       borderColor: theme.vars.palette.divider,
     },
@@ -159,20 +196,11 @@ const GenerateBtn = styled(Button)(({ theme }) => ({
   },
 }));
 
-const ResolutionLabel = styled(Typography)(({ theme }) => ({
-  cursor: 'pointer',
-  fontSize: '0.75rem',
-  color: theme.vars.palette.text.secondary,
-  '&:hover': {
-    color: theme.vars.palette.text.primary,
-  },
-}));
-
 const SplitDropdownBtn = styled(Button)(() => ({
   width: 36,
   minWidth: 36,
   padding: 0,
-  borderLeft: `1px solid rgba(255,255,255,0.20) !important`,
+  borderLeft: `1px solid ${alpha(COLORS.snow, 0.20)} !important`,
 }));
 
 const SplitMenuPaper = styled(Paper)(({ theme }) => ({
@@ -189,36 +217,29 @@ const SplitMenuPaper = styled(Paper)(({ theme }) => ({
 // -----------------------------------------------------------------
 
 interface GenerationZoneProps {
-  /** Current prompt text */
   prompt: string;
   onPromptChange: (prompt: string) => void;
-  /** AI model */
   model: DesignModel;
   onModelChange: (model: DesignModel) => void;
-  /** Background color */
   bgColor: BackgroundColor;
   onBgColorChange: (color: BackgroundColor) => void;
-  /** Number of images to generate */
   imageCount: number;
   onImageCountChange: (count: number) => void;
-  /** Generate handler */
   onGenerate: () => void;
   isGenerating: boolean;
-  /** Parallel prompts mode */
   isParallel: boolean;
   onParallelToggle: (checked: boolean) => void;
-  /** Prompt Builder dialog */
   onOpenPromptBuilder?: () => void;
-  /** Image analysis */
   onAnalyzeImage?: () => void;
   isAnalyzingImage?: boolean;
   hasSelectedImage?: boolean;
-  /** Resolution display */
-  resolution?: string;
-  onResolutionClick?: () => void;
-  /** Generate All handler (parallel prompts mode) */
+  /** Generation mode */
+  mode?: GenerationMode;
+  onModeChange?: (mode: GenerationMode) => void;
+  /** Aspect ratio / resolution */
+  aspectRatio?: AspectRatio;
+  onAspectRatioChange?: (ratio: AspectRatio) => void;
   onGenerateAll?: () => void;
-  /** Number of parallel prompt lines (for "Generate All (N)" label) */
   parallelLineCount?: number;
   disabled?: boolean;
 }
@@ -244,8 +265,10 @@ const GenerationZone = ({
   onAnalyzeImage,
   isAnalyzingImage = false,
   hasSelectedImage = false,
-  resolution = '1024 x 1024',
-  onResolutionClick,
+  mode = 'text_to_image',
+  onModeChange,
+  aspectRatio = '1:1',
+  onAspectRatioChange,
   onGenerateAll,
   parallelLineCount = 0,
   disabled = false,
@@ -263,6 +286,16 @@ const GenerationZone = ({
     onBgColorChange(e.target.value as BackgroundColor);
   };
 
+  const handleModeChange = (e: SelectChangeEvent<unknown>) => {
+    onModeChange?.(e.target.value as GenerationMode);
+  };
+
+  const handleAspectRatioChange = (_: Event, value: number | number[]) => {
+    const idx = typeof value === 'number' ? value : value[0];
+    const opt = ASPECT_RATIO_OPTIONS[idx];
+    if (opt) onAspectRatioChange?.(opt.value);
+  };
+
   const handleSliderChange = (_: Event, value: number | number[]) => {
     const v = typeof value === 'number' ? value : value[0];
     setSliderValue(v);
@@ -273,15 +306,12 @@ const GenerationZone = ({
     onImageCountChange(v);
   };
 
+  const currentAspectIdx = ASPECT_RATIO_OPTIONS.findIndex((o) => o.value === aspectRatio);
+  const currentAspect = ASPECT_RATIO_OPTIONS[currentAspectIdx >= 0 ? currentAspectIdx : 0];
+
   const placeholderText = isParallel
-    ? t(
-        'design.generation.parallelPlaceholder',
-        'Enter prompts (each line = separate image)...',
-      )
-    : t(
-        'design.generation.singlePlaceholder',
-        'Describe your design...',
-      );
+    ? t('design.generation.parallelPlaceholder', 'Enter prompts (each line = separate image)...')
+    : t('design.generation.singlePlaceholder', 'Describe your design...');
 
   const generateLabel = isGenerating
     ? t('design.prompt.generating', 'Generating...')
@@ -289,6 +319,23 @@ const GenerationZone = ({
 
   return (
     <ZoneRoot aria-label={t('design.generation.zoneLabel', 'Generation controls')}>
+      {/* Mode selector — full width */}
+      {onModeChange && (
+        <FormControl size="small" fullWidth disabled={disabled || isGenerating}>
+          <CompactSelect
+            value={mode}
+            onChange={handleModeChange}
+            aria-label={t('design.generation.mode.label', 'Mode')}
+          >
+            {MODE_OPTIONS.map((opt) => (
+              <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: '0.8125rem' }}>
+                {t(opt.labelKey, opt.value)}
+              </MenuItem>
+            ))}
+          </CompactSelect>
+        </FormControl>
+      )}
+
       {/* Model + BG Color selectors */}
       <ControlsGrid>
         <FormControl size="small" fullWidth disabled={disabled || isGenerating}>
@@ -323,11 +370,7 @@ const GenerationZone = ({
             }}
           >
             {BG_COLOR_OPTIONS.map((opt) => (
-              <MenuItem
-                key={opt.value}
-                value={opt.value}
-                sx={{ fontSize: '0.8125rem' }}
-              >
+              <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: '0.8125rem' }}>
                 <ColorDot $color={opt.hex} />
                 {t(`design.background.${opt.value}`, opt.value)}
               </MenuItem>
@@ -336,37 +379,55 @@ const GenerationZone = ({
         </FormControl>
       </ControlsGrid>
 
-      {/* Images slider + resolution */}
-      <SliderRow>
-        <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
-          {t('design.generation.images', 'Images')}
-        </Typography>
-        <Slider
-          size="small"
-          color="secondary"
-          min={IMAGES_MIN}
-          max={IMAGES_MAX}
-          step={1}
-          value={sliderValue}
-          onChange={handleSliderChange}
-          onChangeCommitted={handleSliderCommit}
-          disabled={disabled || isGenerating}
-          valueLabelDisplay="auto"
-          aria-label={t('design.generation.imageCount', 'Number of images')}
-          sx={{
-            flex: 1,
-            '& .MuiSlider-thumb': { width: 12, height: 12 },
-          }}
-        />
-        <Typography variant="caption" color="text.secondary" sx={{ minWidth: 16, textAlign: 'center' }}>
-          {sliderValue}
-        </Typography>
-        {onResolutionClick && (
-          <ResolutionLabel variant="body2" onClick={onResolutionClick}>
-            {resolution}
-          </ResolutionLabel>
-        )}
-      </SliderRow>
+      {/* Images slider + Resolution slider — side by side */}
+      <ControlsGrid>
+        <SliderBox>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <SliderLabel color="text.secondary">
+              {t('design.generation.images', 'Images')}
+            </SliderLabel>
+            <Typography variant="caption" fontWeight={600}>
+              {sliderValue}
+            </Typography>
+          </Box>
+          <Slider
+            size="small"
+            color="secondary"
+            min={IMAGES_MIN}
+            max={IMAGES_MAX}
+            step={1}
+            value={sliderValue}
+            onChange={handleSliderChange}
+            onChangeCommitted={handleSliderCommit}
+            disabled={disabled || isGenerating}
+            aria-label={t('design.generation.imageCount', 'Number of images')}
+            sx={{ '& .MuiSlider-thumb': { width: 12, height: 12 } }}
+          />
+        </SliderBox>
+
+        <SliderBox>
+          <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <SliderLabel color="text.secondary">
+              {t('design.generation.res', 'Res.')}
+            </SliderLabel>
+            <Typography variant="caption" fontWeight={600} sx={{ whiteSpace: 'nowrap' }}>
+              {currentAspect.label} ({currentAspect.width}&times;{currentAspect.height})
+            </Typography>
+          </Box>
+          <Slider
+            size="small"
+            color="secondary"
+            min={0}
+            max={ASPECT_RATIO_OPTIONS.length - 1}
+            step={1}
+            value={currentAspectIdx >= 0 ? currentAspectIdx : 0}
+            onChange={handleAspectRatioChange}
+            disabled={disabled || isGenerating || !onAspectRatioChange}
+            aria-label={t('design.generation.resolution', 'Resolution')}
+            sx={{ '& .MuiSlider-thumb': { width: 12, height: 12 } }}
+          />
+        </SliderBox>
+      </ControlsGrid>
 
       {/* Parallel Prompts toggle + action buttons */}
       <ParallelPromptsRow
@@ -408,10 +469,7 @@ const GenerationZone = ({
             aria-label={generateLabel}
             sx={
               isGenerating
-                ? {
-                    backgroundSize: '200% 100%',
-                    animation: 'shimmer 2s infinite linear',
-                  }
+                ? { backgroundSize: '200% 100%', animation: 'shimmer 2s infinite linear' }
                 : undefined
             }
           >
@@ -438,7 +496,7 @@ const GenerationZone = ({
           </SplitDropdownBtn>
           <Popper
             open={splitMenuOpen}
-            anchorEl={splitAnchorRef.current}
+            anchorEl={splitAnchorEl}
             placement="bottom-end"
             transition
             disablePortal
@@ -447,11 +505,11 @@ const GenerationZone = ({
             {({ TransitionProps }) => (
               <Grow {...TransitionProps}>
                 <SplitMenuPaper>
-                  <ClickAwayListener onClickAway={() => setSplitMenuOpen(false)}>
+                  <ClickAwayListener onClickAway={() => setSplitAnchorEl(null)}>
                     <MenuList dense>
                       <MenuItem
                         onClick={() => {
-                          setSplitMenuOpen(false);
+                          setSplitAnchorEl(null);
                           onGenerate();
                         }}
                       >
@@ -459,7 +517,7 @@ const GenerationZone = ({
                       </MenuItem>
                       <MenuItem
                         onClick={() => {
-                          setSplitMenuOpen(false);
+                          setSplitAnchorEl(null);
                           onGenerateAll();
                         }}
                       >
@@ -483,10 +541,7 @@ const GenerationZone = ({
           aria-label={generateLabel}
           sx={
             isGenerating
-              ? {
-                  backgroundSize: '200% 100%',
-                  animation: 'shimmer 2s infinite linear',
-                }
+              ? { backgroundSize: '200% 100%', animation: 'shimmer 2s infinite linear' }
               : undefined
           }
         >

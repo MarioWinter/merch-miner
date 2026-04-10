@@ -14,7 +14,8 @@ import { SparkLineChart } from '@mui/x-charts/SparkLineChart';
 import { useSnackbar } from 'notistack';
 import { useTranslation } from 'react-i18next';
 import { useGetBSRHistoryQuery } from '../../../../store/researchSlice';
-import { MONO_FONT_STACK } from '../../../../style/constants';
+import { MONO_FONT_STACK, SHADOW } from '../../../../style/constants';
+import { HoverOverlay as SharedHoverOverlay, ActionPill, ProductImage as SharedProductImage } from '@/components/CardOverlay';
 import { MARKETPLACE_OPTIONS, type AmazonProduct } from '../types';
 
 interface ProductCardProps {
@@ -63,45 +64,12 @@ const ImageWrapper = styled(Box)({
   overflow: 'hidden',
 });
 
-const ProductImage = styled('img')(({ theme }) => ({
-  width: '100%',
-  height: '100%',
-  objectFit: 'cover',
-  objectPosition: 'center 30%',
-  display: 'block',
-  backgroundColor: theme.vars.palette.background.default,
-  transform: 'scale(1.6)',
-}));
-
-const HoverOverlay = styled(Box)(({ theme }) => ({
-  position: 'absolute',
-  inset: 0,
-  display: 'flex',
-  flexDirection: 'column',
-  justifyContent: 'space-between',
-  opacity: 0,
-  transition: 'opacity 150ms ease',
-  background: `linear-gradient(to bottom, ${theme.vars.palette.background.default}cc 0%, transparent 30%, transparent 50%, ${theme.vars.palette.background.default}ee 100%)`,
-  padding: theme.spacing(1),
-  '.MuiCard-root:hover &': {
-    opacity: 1,
-  },
-  '@media (hover: none)': {
-    opacity: 0.6,
-  },
-}));
-
-const ActionBar = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  justifyContent: 'center',
-  gap: theme.spacing(0.5),
-  backgroundColor: theme.vars.palette.background.paper,
-  borderRadius: 20,
-  padding: theme.spacing(0.5, 1.5),
-  boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
-  alignSelf: 'center',
-  width: 'fit-content',
-}));
+// Shared components from CardOverlay — aliased for local use
+const ProductImage = SharedProductImage;
+const HoverOverlay = styled(SharedHoverOverlay)({
+  '.MuiCard-root:hover &': { opacity: 1 },
+});
+const ActionBar = ActionPill;
 
 const AiBadge = styled(Box)(({ theme }) => ({
   position: 'absolute',
@@ -269,7 +237,7 @@ const ProductCard = ({
                 ? theme.vars.palette.error.main
                 : theme.vars.palette.text.secondary,
               backgroundColor: theme.vars.palette.background.paper,
-              boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+              boxShadow: SHADOW.cardLight,
             })}
           >
             {isFavorite ? (

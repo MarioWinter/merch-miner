@@ -456,10 +456,14 @@ class IdeaSuggestNichesView(APIView):
         from niche_app.models import Niche
         from niche_research_app.models import NicheAnalysis
 
-        # All workspace niches except source
+        # All active workspace niches except source
         niches = Niche.objects.filter(
             workspace_id=workspace_id,
-        ).exclude(id=idea.niche_id)
+        ).exclude(
+            id=idea.niche_id,
+        ).exclude(
+            status='archived',
+        )
 
         # Niches already successfully adapted from this idea
         existing_runs = IdeaAdaptationRun.objects.filter(

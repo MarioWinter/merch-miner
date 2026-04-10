@@ -112,7 +112,7 @@ const SearchBar = ({
   );
 
   const nicheTooltip = matchedNiche
-    ? `${matchedNiche.name} — Open Niche Drawer`
+    ? `${matchedNiche.name} — Niche Pipeline`
     : 'Niche not saved';
 
   return (

@@ -1,15 +1,15 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ArtboardData, BackgroundColor, DesignModel } from '../board/types';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Alert, Box, Button, IconButton, Skeleton, Tooltip, Typography } from '@mui/material';
+import { Alert, Box, Button, IconButton, InputBase, Skeleton, Tooltip, Typography } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import BuildOutlinedIcon from '@mui/icons-material/BuildOutlined';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
-import { useGetProjectQuery, useGetProjectBoardQuery, useDeleteDesignMutation } from '@/store/designSlice';
+import { useGetProjectQuery, useGetProjectBoardQuery, useDeleteDesignMutation, useUpdateProjectMutation } from '@/store/designSlice';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import useArtboardCanvas from '../board/hooks/useArtboardCanvas';
 import useArtboards from '../board/hooks/useArtboards';
@@ -23,11 +23,9 @@ import usePenTool from '../board/hooks/usePenTool';
 import useBrushTool from '../board/hooks/useBrushTool';
 import useEmojiPicker from '../board/hooks/useEmojiPicker';
 import rasterizeEmoji from '../board/utils/rasterizeEmoji';
-import usePromptBar from '../board/hooks/usePromptBar';
 import { useGeneration } from '../board/hooks/useGeneration';
 import ArtboardCanvas from '../board/partials/ArtboardCanvas';
 import BottomToolbar from '../board/partials/BottomToolbar';
-import { PromptBar } from '../board/partials/PromptBar';
 import type { CanvasTool } from '../board/partials/BottomToolbar';
 import RightPanel from '../board/partials/RightPanel';
 import NicheBindingSelector from '../board/partials/NicheBindingSelector';
@@ -90,6 +88,27 @@ const DesignWorkspaceView = () => {
     isLoading,
     isError,
   } = useGetProjectQuery(projectId ?? '', { skip: !projectId });
+  const [updateProject] = useUpdateProjectMutation();
+
+  // -- Inline project name editing --
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editingName, setEditingName] = useState('');
+
+  const handleStartEditName = () => {
+    setEditingName(project?.name ?? '');
+    setIsEditingName(true);
+  };
+
+  const handleSaveName = async () => {
+    const trimmed = editingName.trim();
+    setIsEditingName(false);
+    if (!trimmed || !projectId || trimmed === project?.name) return;
+    try {
+      await updateProject({ projectId, body: { name: trimmed } }).unwrap();
+    } catch {
+      enqueueSnackbar(t('design.workspace.renameError', 'Failed to rename project'), { variant: 'error' });
+    }
+  };
 
   const { data: boardData } = useGetProjectBoardQuery(
     { projectId: projectId ?? '' },
@@ -220,13 +239,14 @@ const DesignWorkspaceView = () => {
     selectedArtboardIdForElement: elementSelection.selectedArtboardIdForElement,
   });
 
-  // -- Prompt bar state --
-  const promptBar = usePromptBar(panelState.mode);
+  // -- Prompt state (GenerationZone in RightPanel owns the UI) --
   const [prompt, setPrompt] = useState('');
   const [aiModel, setAiModel] = useState<DesignModel>('google/gemini-3.1-flash-preview-image-generation');
   const [bgColor, setBgColor] = useState<BackgroundColor>('light_gray');
   const [imageCount, setImageCount] = useState(1);
   const [isParallel, setIsParallel] = useState(false);
+  const [generationMode, setGenerationMode] = useState<import('../board/partials/GenerationZone').GenerationMode>('text_to_image');
+  const [aspectRatio, setAspectRatio] = useState<import('../board/partials/GenerationZone').AspectRatio>('1:1');
 
   // -- AI generation --
   const generation = useGeneration(projectId ?? '');
@@ -246,8 +266,6 @@ const DesignWorkspaceView = () => {
       if (selectedAb.bgColorUsed) setBgColor(selectedAb.bgColorUsed);
     }
   }, [selectedAb]);
-
-  const isRegenerate = !!(selectedAb?.kind === 'ai' && selectedAb.imageUrl);
 
   // -- Update skeleton artboard when generation completes --
   const prevDesignCountRef = useRef(boardData?.designs?.length ?? 0);
@@ -516,13 +534,12 @@ const DesignWorkspaceView = () => {
   // -- Image analysis hook (G13) --
   const imageAnalysis = useImageAnalysis(projectId ?? '');
 
-  // Fill prompt bar when analysis completes
+  // Fill prompt when analysis completes
   useEffect(() => {
     if (imageAnalysis.lastPrompt) {
       setPrompt(imageAnalysis.lastPrompt);
-      promptBar.expand();
     }
-  }, [imageAnalysis.lastPrompt]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [imageAnalysis.lastPrompt]);
 
   const handleOpenPromptBuilder = useCallback(() => {
     promptBuilder.reset();
@@ -664,26 +681,20 @@ const DesignWorkspaceView = () => {
     canvasHook.fitToView(artboardBounds);
   }, [canvasHook, artboardBounds]);
 
-  const handleAiSparkle = useCallback(() => {
-    promptBar.expand();
-  }, [promptBar]);
-
   // Phase G: auto-prompt fill handler
   const handleAutoPromptFill = useCallback(
     (promptText: string) => {
       setPrompt(promptText);
-      promptBar.expand();
     },
-    [promptBar],
+    [],
   );
 
   // Phase G: prompt card click -> load into prompt bar
   const handlePromptClick = useCallback(
     (p: ProjectPrompt) => {
       setPrompt(p.prompt_text);
-      promptBar.expand();
     },
-    [promptBar],
+    [],
   );
 
   // Phase G: add reference artboard from slogan pool product
@@ -766,11 +777,10 @@ const DesignWorkspaceView = () => {
         background_color: bgColor,
         prompt,
       });
-      promptBar.collapse();
     } catch {
       artboardState.updateArtboard(skeletonAb.id, { isGenerating: false });
     }
-  }, [prompt, generation, artboardState, aiModel, bgColor, promptBar, pushHistory]);
+  }, [prompt, generation, artboardState, aiModel, bgColor, pushHistory]);
 
   // -- Loading --
   if (isLoading) {
@@ -822,9 +832,47 @@ const DesignWorkspaceView = () => {
           </IconButton>
         </Tooltip>
 
-        <Typography variant="h6" sx={{ fontWeight: 600 }} noWrap>
-          {project?.name ?? t('design.workspace.untitled')}
-        </Typography>
+        {isEditingName ? (
+          <InputBase
+            value={editingName}
+            onChange={(e) => setEditingName(e.target.value)}
+            onBlur={handleSaveName}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleSaveName();
+              if (e.key === 'Escape') setIsEditingName(false);
+            }}
+            autoFocus
+            sx={{
+              fontSize: '1.25rem',
+              fontWeight: 600,
+              px: 1,
+              py: 0.25,
+              borderRadius: 1,
+              border: '1px solid',
+              borderColor: 'divider',
+              minWidth: 120,
+              maxWidth: 280,
+            }}
+          />
+        ) : (
+          <Tooltip title={t('design.workspace.clickToRename', 'Click to rename')}>
+            <Typography
+              variant="h6"
+              sx={{
+                fontWeight: 600,
+                cursor: 'pointer',
+                px: 1,
+                py: 0.25,
+                borderRadius: 1,
+                '&:hover': { bgcolor: 'action.hover' },
+              }}
+              noWrap
+              onClick={handleStartEditName}
+            >
+              {project?.name ?? t('design.workspace.untitled')}
+            </Typography>
+          </Tooltip>
+        )}
 
         {project && (
           <>
@@ -834,13 +882,13 @@ const DesignWorkspaceView = () => {
               currentNicheName={project.niche_summary?.name ?? null}
             />
             {project.niche && (
-              <Tooltip title={t('design.workspace.openNicheDrawer', 'Niche Details')}>
+              <Tooltip title={t('design.workspace.openNicheDrawer', 'Niche Pipeline')}>
                 <IconButton
                   size="small"
                   onClick={() => setNicheDrawerOpen(true)}
-                  aria-label={t('design.workspace.openNicheDrawer', 'Niche Details')}
+                  aria-label={t('design.workspace.openNicheDrawer', 'Niche Pipeline')}
                 >
-                  <InfoOutlinedIcon sx={{ fontSize: 18 }} />
+                  <Inventory2OutlinedIcon sx={{ fontSize: 18 }} />
                 </IconButton>
               </Tooltip>
             )}
@@ -918,26 +966,6 @@ const DesignWorkspaceView = () => {
                 onBrushDrawEnd={brushTool.handleBrushEnd}
                 onAnalyzeImage={handleContextMenuAnalyze}
               />
-              <PromptBar
-                isExpanded={promptBar.isExpanded}
-                onExpand={promptBar.expand}
-                onCollapse={promptBar.collapse}
-                prompt={prompt}
-                onPromptChange={setPrompt}
-                model={aiModel}
-                onModelChange={setAiModel}
-                bgColor={bgColor}
-                onBgColorChange={setBgColor}
-                onGenerate={handleGenerate}
-                isGenerating={generation.isGenerating}
-                isRegenerate={isRegenerate}
-                sourceArtboard={panelState.artboard}
-                resultArtboards={[]}
-                onOpenPromptBuilder={handleOpenPromptBuilder}
-                onAnalyzeImage={handleAnalyzeImage}
-                isAnalyzingImage={imageAnalysis.isAnalyzing}
-                hasSelectedImage={hasSelectedImage}
-              />
               <BottomToolbar
                 zoom={canvasHook.state.zoom}
                 onZoomIn={() => canvasHook.zoomTo(canvasHook.state.zoom * 1.2)}
@@ -946,7 +974,7 @@ const DesignWorkspaceView = () => {
                 onZoomTo={canvasHook.zoomTo}
                 activeTool={activeTool}
                 onToolChange={setActiveTool}
-                onAiSparkle={handleAiSparkle}
+
                 onEmojiClick={emojiPicker.openPicker}
                 onUndo={handleCanvasUndo}
                 onRedo={handleCanvasRedo}
@@ -983,6 +1011,10 @@ const DesignWorkspaceView = () => {
               onAnalyzeImage={handleAnalyzeImage}
               isAnalyzingImage={imageAnalysis.isAnalyzing}
               hasSelectedImage={hasSelectedImage}
+              generationMode={generationMode}
+              onGenerationModeChange={setGenerationMode}
+              aspectRatio={aspectRatio}
+              onAspectRatioChange={setAspectRatio}
               // Phase G props
               ideas={boardData?.ideas}
               prompts={boardData?.prompts}

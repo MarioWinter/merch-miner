@@ -21,7 +21,7 @@ const StyledSummary = styled(AccordionSummary)(({ theme }) => ({
   padding: theme.spacing(0, 1),
   transition: 'background-color 150ms ease',
   '&:hover': {
-    backgroundColor: alpha('#fff', 0.04),
+    backgroundColor: alpha(COLORS.snow, 0.04),
   },
   '& .MuiAccordionSummary-content': {
     margin: '4px 0',

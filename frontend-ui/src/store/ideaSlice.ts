@@ -116,7 +116,7 @@ export const ideaApi = createApi({
       }),
       invalidatesTags: (_result, _error, { id }) => [
         { type: 'Idea', id },
-        { type: 'IdeaList', id: 'ALL' },
+        'IdeaList',
       ],
     }),
 

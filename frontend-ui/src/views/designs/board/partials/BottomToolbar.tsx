@@ -62,7 +62,7 @@ interface BottomToolbarProps {
   onZoomTo: (zoom: number) => void;
   activeTool: CanvasTool;
   onToolChange: (tool: CanvasTool) => void;
-  onAiSparkle: () => void;
+  onAiSparkle?: () => void;
   /** Called when Emoji button is clicked (one-shot action, not a tool mode) */
   onEmojiClick?: () => void;
   /** Undo handler */
@@ -174,14 +174,16 @@ const BottomToolbar = ({
         </ToolButton>
       </Tooltip>
 
-      <Tooltip title={t('design.toolbar.aiSparkle', 'AI Generate')}>
-        <AiSparkleButton
-          onClick={onAiSparkle}
-          aria-label={t('design.toolbar.aiSparkle', 'AI Generate')}
-        >
-          <AutoAwesomeIcon sx={{ fontSize: 18 }} />
-        </AiSparkleButton>
-      </Tooltip>
+      {onAiSparkle && (
+        <Tooltip title={t('design.toolbar.aiSparkle', 'AI Generate')}>
+          <AiSparkleButton
+            onClick={onAiSparkle}
+            aria-label={t('design.toolbar.aiSparkle', 'AI Generate')}
+          >
+            <AutoAwesomeIcon sx={{ fontSize: 18 }} />
+          </AiSparkleButton>
+        </Tooltip>
+      )}
 
       <ToolbarDivider orientation="vertical" flexItem />
 

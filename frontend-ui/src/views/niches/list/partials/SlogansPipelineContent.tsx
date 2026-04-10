@@ -5,7 +5,7 @@ import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
 import { COLORS, DURATION, EASING } from '@/style/constants';
-import { useListIdeasQuery, useDeleteIdeaMutation } from '@/store/ideaSlice';
+import { useListIdeasQuery, useUpdateIdeaMutation } from '@/store/ideaSlice';
 import { InlineFlowButton, BulkFlowButton } from '@/components/FlowButton';
 import { ProjectNamingDialog } from '@/views/designs/board/partials/ProjectNamingDialog';
 
@@ -50,7 +50,7 @@ export const SlogansPipelineContent = ({
     { nicheId, page_size: 100 },
     { skip: !nicheId },
   );
-  const [deleteIdea] = useDeleteIdeaMutation();
+  const [updateIdea] = useUpdateIdeaMutation();
 
   const slogans = (ideasData?.results ?? [])
     .filter((i) => i.is_manual || i.status === 'approved')
@@ -86,7 +86,7 @@ export const SlogansPipelineContent = ({
 
   const handleRemoveSlogan = async (ideaId: string) => {
     try {
-      await deleteIdea({ id: ideaId }).unwrap();
+      await updateIdea({ id: ideaId, body: { niche: null } }).unwrap();
     } catch {
       enqueueSnackbar(t('ideas.notifications.deleteError'), { variant: 'error' });
     }

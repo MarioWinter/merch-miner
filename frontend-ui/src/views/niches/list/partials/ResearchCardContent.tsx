@@ -52,8 +52,8 @@ const StartButton = styled(Button)(({ theme }) => ({
     animation: `${shimmer} 2s infinite linear`,
   },
   '&.Mui-disabled': {
-    color: 'rgba(255,255,255,0.3)',
-    background: 'rgba(255,255,255,0.08)',
+    color: alpha(COLORS.snow, 0.3),
+    background: alpha(COLORS.snow, 0.08),
   },
 }));
 
@@ -150,7 +150,7 @@ export const ResearchCardContent = ({ niche, isBusy }: ResearchCardContentProps)
             )}
             <Chip
               size="small"
-              label={`${researchProgress.completed_nodes.length}/${researchProgress.total_nodes}`}
+              label={`${researchProgress.completed_nodes.length} ${t('research.drawer.steps', 'steps')}`}
               sx={{
                 height: 24,
                 fontSize: '0.7rem',
