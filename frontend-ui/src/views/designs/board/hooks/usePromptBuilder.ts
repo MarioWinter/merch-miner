@@ -10,7 +10,8 @@ import {
 import { useListNicheKeywordsQuery } from '@/store/keywordSlice';
 import { researchApi } from '@/views/niches/research/services/researchApi';
 import type { NicheResearchRun } from '@/views/niches/research/types';
-import type { ProjectIdea, BuildPromptsBody } from '../../gallery/types';
+import type { ProjectIdea, ProjectReference, BuildPromptsBody } from '../../gallery/types';
+import type { ReferenceToggle } from '../partials/promptBuilder/ContextTab';
 
 // -----------------------------------------------------------------
 // Types
@@ -56,10 +57,44 @@ export const usePromptBuilder = (projectId: string, nicheId: string | null) => {
   // Track bulk slogans (when opened with multiple selected)
   const [bulkSloganIds, setBulkSloganIds] = useState<string[]>([]);
 
+  // Reference data for prompt building
+  const referenceTogglesRef = useRef<ReferenceToggle[]>([]);
+  const referencesRef = useRef<ProjectReference[]>([]);
+
   // Debounce timer for preview
   const previewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const hasNiche = Boolean(nicheId);
+
+  /** Update reference data before building (called from dialog) */
+  const setReferenceData = useCallback(
+    (toggles: ReferenceToggle[], refs: ProjectReference[]) => {
+      referenceTogglesRef.current = toggles;
+      referencesRef.current = refs;
+    },
+    [],
+  );
+
+  /** Resolve enabled references into image URLs and analysis texts */
+  const resolveReferences = useCallback(() => {
+    const imageUrls: string[] = [];
+    const analysisTexts: string[] = [];
+
+    for (const toggle of referenceTogglesRef.current) {
+      if (!toggle.enabled) continue;
+      const ref = referencesRef.current.find((r) => r.id === toggle.referenceId);
+      if (!ref) continue;
+
+      if (toggle.mode === 'image') {
+        imageUrls.push(ref.image_url);
+      } else if (toggle.mode === 'text') {
+        const pa = ref.prompt_analysis as Record<string, unknown> | null;
+        const text = pa?.summary as string ?? pa?.final_prompt as string ?? null;
+        if (text) analysisTexts.push(text);
+      }
+    }
+    return { imageUrls, analysisTexts };
+  }, []);
 
   // -- Fetch niche keywords (Gap 5) --
   const { data: keywordsData } = useListNicheKeywordsQuery(
@@ -177,6 +212,9 @@ export const usePromptBuilder = (projectId: string, nicheId: string | null) => {
   const buildAndSave = useCallback(async () => {
     const sloganIds = bulkSloganIds.length > 0 ? bulkSloganIds : (selectedSloganId ? [selectedSloganId] : [null]);
 
+    // Resolve enabled reference images/texts
+    const { imageUrls, analysisTexts } = resolveReferences();
+
     const allPrompts: Array<{
       prompt_text: string;
       sources: Record<string, boolean>;
@@ -191,6 +229,8 @@ export const usePromptBuilder = (projectId: string, nicheId: string | null) => {
         variants,
         ...(sId && { slogan_id: sId }),
         ...(imageUrl && { image_url: imageUrl }),
+        ...(imageUrls.length > 0 && { source_image_urls: imageUrls }),
+        ...(analysisTexts.length > 0 && { reference_analysis_texts: analysisTexts }),
       };
 
       try {
@@ -227,7 +267,7 @@ export const usePromptBuilder = (projectId: string, nicheId: string | null) => {
         variant: 'error',
       });
     }
-  }, [bulkSloganIds, selectedSloganId, sources, variants, imageUrl, buildPrompts, createPrompts, projectId, enqueueSnackbar, t]);
+  }, [bulkSloganIds, selectedSloganId, sources, variants, imageUrl, buildPrompts, createPrompts, projectId, enqueueSnackbar, t, resolveReferences]);
 
   // -- Open helpers --
   const openForSlogans = useCallback(
@@ -268,6 +308,7 @@ export const usePromptBuilder = (projectId: string, nicheId: string | null) => {
     researchPreview,
     isResearchLoading,
     // Actions
+    setReferenceData,
     toggleSource,
     setSelectedSloganId,
     setImageUrl,

@@ -11,6 +11,8 @@ from design_app.models import (
     DesignGenerationRun,
     DesignPipeline,
     DesignProcessingJob,
+    DesignProject,
+    ProjectReference,
 )
 
 pytestmark = pytest.mark.django_db
@@ -49,6 +51,15 @@ def design(workspace, idea):
         workspace=workspace,
         idea=idea,
         status=Design.Status.PENDING,
+    )
+
+
+@pytest.fixture
+def project(workspace, user):
+    return DesignProject.objects.create(
+        workspace=workspace,
+        name='Test Project',
+        created_by=user,
     )
 
 
@@ -344,3 +355,167 @@ class TestPipelineViews:
         )
         resp = auth_client.delete(f'/api/designs/pipelines/{p.id}/')
         assert resp.status_code == 204
+
+
+class TestProjectReferencesView:
+    """Tests for ProjectReferencesView — bulk add references."""
+
+    def test_add_manual_references(self, auth_client, project):
+        resp = auth_client.post(
+            f'/api/designs/projects/{project.id}/references/',
+            {
+                'image_urls': [
+                    {'url': 'https://example.com/img1.jpg', 'title': 'Ref 1'},
+                    {'url': 'https://example.com/img2.jpg', 'title': 'Ref 2'},
+                ],
+            },
+            format='json',
+        )
+        assert resp.status_code == 201
+        assert len(resp.data) == 2
+        assert resp.data[0]['image_url'] == 'https://example.com/img1.jpg'
+        assert resp.data[0]['title'] == 'Ref 1'
+        assert ProjectReference.objects.filter(project=project).count() == 2
+
+    def test_add_references_from_products(self, auth_client, project):
+        from scraper_app.models import AmazonProduct
+        p1 = AmazonProduct.objects.create(
+            title='Coffee Shirt',
+            asin='B001ABC',
+            thumbnail_url='https://images.amazon.com/1.jpg',
+        )
+        p2 = AmazonProduct.objects.create(
+            title='Dog Shirt',
+            asin='B002DEF',
+            thumbnail_url='https://images.amazon.com/2.jpg',
+        )
+        resp = auth_client.post(
+            f'/api/designs/projects/{project.id}/references/',
+            {'product_ids': [str(p1.id), str(p2.id)]},
+            format='json',
+        )
+        assert resp.status_code == 201
+        assert len(resp.data) == 2
+        # Verify source_product is linked
+        ref = ProjectReference.objects.get(
+            project=project, source_product=p1,
+        )
+        assert ref.asin == 'B001ABC'
+
+    def test_bulk_create_dedup_skips_existing(self, auth_client, project):
+        """Adding references with duplicate image_url should skip them."""
+        ProjectReference.objects.create(
+            project=project,
+            image_url='https://example.com/existing.jpg',
+            title='Existing',
+            position=0,
+        )
+        resp = auth_client.post(
+            f'/api/designs/projects/{project.id}/references/',
+            {
+                'image_urls': [
+                    {'url': 'https://example.com/existing.jpg', 'title': 'Dup'},
+                    {'url': 'https://example.com/new.jpg', 'title': 'New'},
+                ],
+            },
+            format='json',
+        )
+        assert resp.status_code == 201
+        # Should have 2 total: 1 existing + 1 new (dup skipped)
+        assert len(resp.data) == 2
+        assert ProjectReference.objects.filter(project=project).count() == 2
+
+    def test_missing_payload_returns_400(self, auth_client, project):
+        resp = auth_client.post(
+            f'/api/designs/projects/{project.id}/references/',
+            {},
+            format='json',
+        )
+        assert resp.status_code == 400
+
+    def test_workspace_isolation(self, auth_client, user):
+        """Cannot add references to project in another workspace."""
+        from workspace_app.models import Workspace
+        other_ws = Workspace.objects.create(
+            name='Other WS', slug='other-ref', owner=user,
+        )
+        other_proj = DesignProject.objects.create(
+            workspace=other_ws, name='Other Proj', created_by=user,
+        )
+        resp = auth_client.post(
+            f'/api/designs/projects/{other_proj.id}/references/',
+            {
+                'image_urls': [
+                    {'url': 'https://example.com/hack.jpg'},
+                ],
+            },
+            format='json',
+        )
+        assert resp.status_code == 404
+
+
+class TestProjectReferenceRemoveView:
+    """Tests for ProjectReferenceRemoveView — delete a reference."""
+
+    def test_delete_reference(self, auth_client, project):
+        ref = ProjectReference.objects.create(
+            project=project,
+            image_url='https://example.com/del.jpg',
+            position=0,
+        )
+        resp = auth_client.delete(
+            f'/api/designs/projects/{project.id}/references/{ref.id}/',
+        )
+        assert resp.status_code == 204
+        assert not ProjectReference.objects.filter(pk=ref.id).exists()
+
+    def test_delete_nonexistent_returns_404(self, auth_client, project):
+        fake_id = uuid.uuid4()
+        resp = auth_client.delete(
+            f'/api/designs/projects/{project.id}/references/{fake_id}/',
+        )
+        assert resp.status_code == 404
+
+    def test_workspace_isolation(self, auth_client, user):
+        from workspace_app.models import Workspace
+        other_ws = Workspace.objects.create(
+            name='Other', slug='other-del-ref', owner=user,
+        )
+        other_proj = DesignProject.objects.create(
+            workspace=other_ws, name='Other', created_by=user,
+        )
+        ref = ProjectReference.objects.create(
+            project=other_proj,
+            image_url='https://example.com/other.jpg',
+            position=0,
+        )
+        resp = auth_client.delete(
+            f'/api/designs/projects/{other_proj.id}/references/{ref.id}/',
+        )
+        assert resp.status_code == 404
+
+
+class TestProjectBoardReferences:
+    """Tests that ProjectBoardView includes references in response."""
+
+    def test_board_includes_references(self, auth_client, project):
+        ProjectReference.objects.create(
+            project=project,
+            image_url='https://example.com/board-ref.jpg',
+            title='Board Ref',
+            position=0,
+        )
+        resp = auth_client.get(
+            f'/api/designs/projects/{project.id}/board/',
+        )
+        assert resp.status_code == 200
+        assert 'references' in resp.data
+        assert len(resp.data['references']) == 1
+        assert resp.data['references'][0]['image_url'] == 'https://example.com/board-ref.jpg'
+
+    def test_board_empty_references(self, auth_client, project):
+        resp = auth_client.get(
+            f'/api/designs/projects/{project.id}/board/',
+        )
+        assert resp.status_code == 200
+        assert resp.data['references'] == []

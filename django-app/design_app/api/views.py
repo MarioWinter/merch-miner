@@ -15,6 +15,8 @@ from django.db.models import Count
 from design_app.api.serializers import (
     AddDesignsToProjectSerializer,
     AddIdeasToPoolSerializer,
+    AddManualReferencesSerializer,
+    AddReferencesFromProductsSerializer,
     AnalyzeImageSerializer,
     ApplyPipelineSerializer,
     BatchProcessSerializer,
@@ -37,6 +39,7 @@ from design_app.api.serializers import (
     ProductAnalyzeImageSerializer,
     ProjectIdeaSerializer,
     ProjectPromptSerializer,
+    ProjectReferenceSerializer,
     PromptPresetSerializer,
     StandaloneGenerateSerializer,
     UpdateProjectSerializer,
@@ -53,6 +56,7 @@ from design_app.models import (
     DesignProjectIdea,
     ProcessingSettings,
     ProjectPrompt,
+    ProjectReference,
     PromptPreset,
 )
 from design_app.tasks import (
@@ -934,6 +938,14 @@ class ProjectBoardView(APIView):
         )
         prompts_data = ProjectPromptSerializer(prompts, many=True).data
 
+        # References (I2)
+        references = (
+            ProjectReference.objects.filter(project=project)
+            .select_related('source_product')
+            .order_by('position', '-added_at')
+        )
+        references_data = ProjectReferenceSerializer(references, many=True).data
+
         data = {
             'project': DesignProjectSerializer(project).data,
             'designs': DesignSerializer(designs, many=True).data,
@@ -941,6 +953,7 @@ class ProjectBoardView(APIView):
             'idea_context': idea_context,
             'ideas': ideas_data,
             'prompts': prompts_data,
+            'references': references_data,
         }
 
         return Response(data)
@@ -981,6 +994,18 @@ class StandaloneGenerateView(APIView):
             from idea_app.models import Idea
             idea = get_object_or_404(Idea, pk=idea_id, workspace_id=ws_id)
 
+        # Validate multimodal support
+        source_image_url = serializer.validated_data.get('source_image_url', '')
+        if source_image_url:
+            from design_app.services.image_generator import MULTIMODAL_MODELS
+            model_key = serializer.validated_data['model']
+            if model_key not in MULTIMODAL_MODELS:
+                return Response(
+                    {'error': 'Selected model does not support image input. '
+                     'Use a multimodal model or remove the reference image.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         # Create generation run
         run = DesignGenerationRun.objects.create(
             idea=idea,
@@ -988,6 +1013,7 @@ class StandaloneGenerateView(APIView):
             status=DesignGenerationRun.Status.PENDING,
             triggered_by=request.user,
             prompt_used=serializer.validated_data['prompt'],
+            source_image_url=source_image_url,
         )
 
         # Enqueue to design worker
@@ -1287,6 +1313,143 @@ class ProjectIdeaRemoveView(APIView):
             DesignProjectIdea, project=project, idea_id=idea_id,
         )
         link.delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# -- ProjectReference (I2) --
+
+class ProjectReferencesView(APIView):
+    """POST /api/designs/projects/{id}/references/ — bulk add references."""
+
+    def post(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        project = get_object_or_404(
+            DesignProject, pk=pk, workspace_id=ws_id,
+        )
+
+        data = request.data
+
+        # Determine max existing position for auto-increment
+        max_pos = (
+            ProjectReference.objects.filter(project=project)
+            .order_by('-position')
+            .values_list('position', flat=True)
+            .first()
+        ) or 0
+
+
+        # Path 1: product_ids — bulk create from AmazonProduct records
+        if 'product_ids' in data:
+            serializer = AddReferencesFromProductsSerializer(data=data)
+            serializer.is_valid(raise_exception=True)
+
+            product_ids = serializer.validated_data['product_ids']
+
+            from scraper_app.models import AmazonProduct
+            products = AmazonProduct.objects.filter(
+                id__in=product_ids,
+            ).only('id', 'thumbnail_url', 'title', 'asin')
+
+            # Existing image_urls in project for dedup
+            existing_urls = set(
+                ProjectReference.objects.filter(project=project)
+                .values_list('image_url', flat=True)
+            )
+
+            refs_to_create = []
+            for product in products:
+                img_url = product.thumbnail_url or ''
+                if not img_url or img_url in existing_urls:
+                    continue
+                existing_urls.add(img_url)
+                max_pos += 1
+                refs_to_create.append(
+                    ProjectReference(
+                        project=project,
+                        source_product=product,
+                        image_url=img_url,
+                        title=product.title[:500] if product.title else '',
+                        asin=product.asin or '',
+                        position=max_pos,
+                    ),
+                )
+
+            if refs_to_create:
+                ProjectReference.objects.bulk_create(
+                    refs_to_create, ignore_conflicts=True,
+                )
+
+        # Path 2: image_urls — manual references
+        elif 'image_urls' in data:
+            serializer = AddManualReferencesSerializer(data=data)
+            serializer.is_valid(raise_exception=True)
+
+            items = serializer.validated_data['image_urls']
+
+            existing_urls = set(
+                ProjectReference.objects.filter(project=project)
+                .values_list('image_url', flat=True)
+            )
+
+            refs_to_create = []
+            for item in items:
+                url = item['url']
+                if url in existing_urls:
+                    continue
+                existing_urls.add(url)
+                max_pos += 1
+                refs_to_create.append(
+                    ProjectReference(
+                        project=project,
+                        image_url=url,
+                        title=item.get('title', ''),
+                        position=max_pos,
+                    ),
+                )
+
+            if refs_to_create:
+                ProjectReference.objects.bulk_create(
+                    refs_to_create, ignore_conflicts=True,
+                )
+
+        else:
+            return Response(
+                {'error': 'Provide either product_ids or image_urls.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Return all project references (not just created)
+        all_refs = (
+            ProjectReference.objects.filter(project=project)
+            .select_related('source_product')
+            .order_by('position', '-added_at')
+        )
+        return Response(
+            ProjectReferenceSerializer(all_refs, many=True).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ProjectReferenceRemoveView(APIView):
+    """DELETE /api/designs/projects/{id}/references/{refId}/ — remove ref."""
+
+    def delete(self, request, pk, ref_id):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        project = get_object_or_404(
+            DesignProject, pk=pk, workspace_id=ws_id,
+        )
+
+        ref = get_object_or_404(
+            ProjectReference, pk=ref_id, project=project,
+        )
+        ref.delete()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
 

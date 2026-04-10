@@ -142,13 +142,15 @@ export const designApi = createApi({
     // Trigger image analysis on an AmazonProduct (PROJ-7 integration)
     analyzeProductImage: builder.mutation<
       ProductAnalyzeResponse,
-      { productId: string; sourceImageUrl: string }
+      { productId: string; sourceImageUrl: string; projectId?: string }
     >({
       query: ({ productId, sourceImageUrl }) => ({
         url: `/api/products/${productId}/analyze-image/`,
         method: 'POST',
         data: { source_image_url: sourceImageUrl },
       }),
+      invalidatesTags: (_result, _error, { projectId }) =>
+        projectId ? [{ type: 'DesignProject', id: projectId }] : [],
     }),
 
     // Poll run status
@@ -644,6 +646,38 @@ export const designApi = createApi({
       }),
       invalidatesTags: [{ type: 'DesignProject', id: 'PRESETS' }],
     }),
+
+    // --- Phase I: Product-to-Canvas References ---
+
+    // Add product references to project
+    addReferencesToProject: builder.mutation<
+      { created: number; skipped: number },
+      { projectId: string; body: { product_ids: string[] } }
+    >({
+      query: ({ projectId, body }) => ({
+        url: `/api/designs/projects/${projectId}/references/`,
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: (_result, _error, { projectId }) => [
+        { type: 'DesignProject', id: projectId },
+        { type: 'DesignProjectList', id: 'LIST' },
+      ],
+    }),
+
+    // Remove a single reference from project
+    removeReferenceFromProject: builder.mutation<
+      void,
+      { projectId: string; referenceId: string }
+    >({
+      query: ({ projectId, referenceId }) => ({
+        url: `/api/designs/projects/${projectId}/references/${referenceId}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_result, _error, { projectId }) => [
+        { type: 'DesignProject', id: projectId },
+      ],
+    }),
   }),
 });
 
@@ -694,4 +728,7 @@ export const {
   useListPromptPresetsQuery,
   useCreatePromptPresetMutation,
   useDeletePromptPresetMutation,
+  // Phase I: References
+  useAddReferencesToProjectMutation,
+  useRemoveReferenceFromProjectMutation,
 } = designApi;

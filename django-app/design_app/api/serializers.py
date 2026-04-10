@@ -11,6 +11,7 @@ from design_app.models import (
     DesignProjectDesign,
     ProcessingSettings,
     ProjectPrompt,
+    ProjectReference,
     PromptPreset,
 )
 
@@ -20,13 +21,24 @@ from design_app.models import (
 class DesignGenerationRunSerializer(serializers.ModelSerializer):
     """Full generation run representation."""
 
+    reference_used = serializers.SerializerMethodField()
+
     class Meta:
         model = DesignGenerationRun
         fields = [
             'id', 'idea', 'model_name', 'status', 'triggered_by',
-            'prompt_used', 'created_at', 'completed_at', 'error_message',
+            'prompt_used', 'source_image_url',
+            'created_at', 'completed_at', 'error_message',
+            'reference_used',
         ]
         read_only_fields = fields
+
+    def get_reference_used(self, obj):
+        if not obj.source_image_url:
+            return None
+        from design_app.services.image_generator import MULTIMODAL_MODELS
+        mode = 'multimodal' if obj.model_name in MULTIMODAL_MODELS else 'text_analysis'
+        return {'image_url': obj.source_image_url, 'mode': mode}
 
 
 # -- Design --
@@ -361,6 +373,10 @@ class StandaloneGenerateSerializer(serializers.Serializer):
     aspect_ratio = serializers.ChoiceField(
         choices=ASPECT_RATIO_CHOICES, default='1:1', required=False,
     )
+    source_image_url = serializers.URLField(
+        required=False, allow_blank=True, default='',
+        max_length=2048,
+    )
 
 
 class ProductAnalyzeImageSerializer(serializers.Serializer):
@@ -582,3 +598,46 @@ class CreatePromptPresetSerializer(serializers.Serializer):
 
     name = serializers.CharField(max_length=100, min_length=1)
     source_config = serializers.DictField()
+
+
+# -- ProjectReference (I2) --
+
+class ProjectReferenceSerializer(serializers.ModelSerializer):
+    """Full reference representation."""
+
+    class Meta:
+        model = ProjectReference
+        fields = [
+            'id', 'project', 'source_product', 'image_url',
+            'title', 'asin', 'prompt_analysis', 'position', 'added_at',
+        ]
+        read_only_fields = [
+            'id', 'project', 'source_product', 'prompt_analysis', 'added_at',
+        ]
+
+
+class AddReferencesFromProductsSerializer(serializers.Serializer):
+    """Bulk add references from AmazonProduct IDs."""
+
+    product_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        min_length=1,
+        max_length=50,
+    )
+
+
+class ManualReferenceItemSerializer(serializers.Serializer):
+    """Single manual reference image."""
+
+    url = serializers.URLField(max_length=2048)
+    title = serializers.CharField(max_length=500, required=False, default='')
+
+
+class AddManualReferencesSerializer(serializers.Serializer):
+    """Bulk add manual image references."""
+
+    image_urls = serializers.ListField(
+        child=ManualReferenceItemSerializer(),
+        min_length=1,
+        max_length=50,
+    )

@@ -247,6 +247,7 @@ const DesignWorkspaceView = () => {
   const [isParallel, setIsParallel] = useState(false);
   const [generationMode, setGenerationMode] = useState<import('../board/partials/GenerationZone').GenerationMode>('text_to_image');
   const [aspectRatio, setAspectRatio] = useState<import('../board/partials/GenerationZone').AspectRatio>('1:1');
+  const [sourceImageUrl, setSourceImageUrl] = useState<string | null>(null);
 
   // -- AI generation --
   const generation = useGeneration(projectId ?? '');
@@ -697,6 +698,36 @@ const DesignWorkspaceView = () => {
     [],
   );
 
+  // Phase I: Use reference image as source for image-to-image generation
+  const handleUseAsReference = useCallback(
+    (imageUrl: string) => {
+      setGenerationMode('image_to_image');
+      setSourceImageUrl(imageUrl);
+      // Add as reference artboard so it appears on canvas
+      artboardState.addArtboard({
+        label: 'Reference',
+        kind: 'regular',
+        width: 280,
+        height: 280,
+        imageUrl,
+      });
+    },
+    [artboardState],
+  );
+
+  // Phase I7: Clear source image reference
+  const handleClearSourceImage = useCallback(() => {
+    setSourceImageUrl(null);
+  }, []);
+
+  // Phase I: Copy analysis text into prompt bar
+  const handleUseAsPrompt = useCallback(
+    (analysisText: string) => {
+      setPrompt(analysisText);
+    },
+    [],
+  );
+
   // Phase G: add reference artboard from slogan pool product
   const handleAddReferenceArtboard = useCallback(
     (imageUrl: string) => {
@@ -776,11 +807,14 @@ const DesignWorkspaceView = () => {
         model: aiModel,
         background_color: bgColor,
         prompt,
+        ...(sourceImageUrl ? { source_image_url: sourceImageUrl } : {}),
       });
+      // Clear source image after successful trigger
+      setSourceImageUrl(null);
     } catch {
       artboardState.updateArtboard(skeletonAb.id, { isGenerating: false });
     }
-  }, [prompt, generation, artboardState, aiModel, bgColor, pushHistory]);
+  }, [prompt, generation, artboardState, aiModel, bgColor, pushHistory, sourceImageUrl]);
 
   // -- Loading --
   if (isLoading) {
@@ -1027,6 +1061,12 @@ const DesignWorkspaceView = () => {
               onCreateSkeletonArtboards={handleCreateSkeletonArtboards}
               selectedArtboardId={artboardState.selectedIds?.[0]}
               projectId={projectId}
+              // Phase I: References
+              references={boardData?.references}
+              onUseAsReference={handleUseAsReference}
+              onUseAsPrompt={handleUseAsPrompt}
+              sourceImageUrl={sourceImageUrl}
+              onClearSourceImage={handleClearSourceImage}
             />
           </>
         ) : (

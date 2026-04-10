@@ -39,6 +39,7 @@ def task_generate_design(run_id: str, project_id: str = None, aspect_ratio: str 
             model_name=run.model_name,
             output_dir=media_dir,
             aspect_ratio=aspect_ratio,
+            source_image_url=run.source_image_url or '',
         )
 
         # Read file and save to Design model

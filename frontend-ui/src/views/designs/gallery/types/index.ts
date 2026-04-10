@@ -134,6 +134,10 @@ export interface BuildPromptsBody {
   slogan_id?: string;
   image_url?: string;
   variants: number;
+  /** Reference image URLs for multimodal generation */
+  source_image_urls?: string[];
+  /** Analysis text from reference images (text mode) */
+  reference_analysis_texts?: string[];
 }
 
 export interface BuildPromptsResponse {
@@ -143,6 +147,19 @@ export interface BuildPromptsResponse {
   }>;
 }
 
+/** A product reference image attached to a project (from AmazonProduct or manual). */
+export interface ProjectReference {
+  id: string;
+  project: string;
+  source_product: string | null;
+  image_url: string;
+  title: string;
+  asin: string;
+  prompt_analysis: Record<string, unknown> | null;
+  position: number;
+  added_at: string;
+}
+
 export interface ProjectBoardResponse {
   project: DesignProject;
   designs: import('../../board/types').Design[];
@@ -150,4 +167,5 @@ export interface ProjectBoardResponse {
   idea_context: IdeaContext | null;
   ideas: ProjectIdea[];
   prompts: ProjectPrompt[];
+  references: ProjectReference[];
 }

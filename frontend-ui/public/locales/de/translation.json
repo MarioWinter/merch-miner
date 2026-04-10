@@ -868,6 +868,27 @@
       "bulkGenerating": "{{count}} Designs werden generiert...",
       "imageAdded": "Bild als Referenz-Artboard hinzugefügt"
     },
+    "references": {
+      "title": "Referenzen",
+      "empty": "Referenzen aus der Nischen-Pipeline hinzufügen",
+      "useAsReference": "Als Referenz verwenden",
+      "analyze": "Analysieren",
+      "analyzing": "Wird analysiert...",
+      "useAsPrompt": "Als Prompt verwenden",
+      "remove": "Entfernen",
+      "removeError": "Referenz konnte nicht entfernt werden",
+      "analyzeSuccess": "Analyse abgeschlossen",
+      "analyzeError": "Analyse fehlgeschlagen",
+      "analyzeFailed": "Referenzbild konnte nicht analysiert werden",
+      "brokenImage": "Bild nicht verfügbar",
+      "thumbnail": "Referenz-Vorschaubild",
+      "untitled": "Ohne Titel",
+      "showAnalysis": "Analyse anzeigen",
+      "hideAnalysis": "Analyse ausblenden",
+      "alreadyAdded": "Dieses Bild wurde bereits als Referenz hinzugefügt",
+      "addedSuccess": "Referenzbild erfolgreich hinzugefügt",
+      "modelNoMultimodal": "Das ausgewählte Modell unterstützt keine Bildanalyse"
+    },
     "artboards": {
       "title": "Artboards",
       "empty": "Keine Artboards",

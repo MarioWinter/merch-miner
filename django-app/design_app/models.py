@@ -146,6 +146,12 @@ class DesignGenerationRun(models.Model):
         help_text='Saved prompt this run was generated from',
     )
     prompt_used = models.TextField(blank=True, default='')
+    source_image_url = models.URLField(
+        blank=True,
+        default='',
+        max_length=2048,
+        help_text='Reference image URL for multimodal generation',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     error_message = models.TextField(blank=True, default='')
@@ -508,3 +514,47 @@ class PromptPreset(models.Model):
 
     def __str__(self):
         return f"Preset: {self.name}"
+
+
+class ProjectReference(models.Model):
+    """A reference image attached to a design project (from product or manual)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.ForeignKey(
+        DesignProject,
+        on_delete=models.CASCADE,
+        related_name='references',
+        db_index=True,
+    )
+    source_product = models.ForeignKey(
+        'scraper_app.AmazonProduct',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='design_references',
+    )
+    image_url = models.URLField(max_length=2048)
+    title = models.CharField(max_length=500, blank=True, default='')
+    asin = models.CharField(max_length=20, blank=True, default='')
+    prompt_analysis = models.JSONField(
+        null=True,
+        blank=True,
+        default=None,
+        help_text='AI vision analysis of the reference image',
+    )
+    position = models.IntegerField(default=0)
+    added_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['position', '-added_at']
+        unique_together = ('project', 'image_url')
+        indexes = [
+            models.Index(
+                fields=['project'],
+                name='projref_project_idx',
+            ),
+        ]
+
+    def __str__(self):
+        label = self.title[:40] if self.title else self.asin or str(self.id)[:8]
+        return f"Ref: {label} → {self.project.name}"

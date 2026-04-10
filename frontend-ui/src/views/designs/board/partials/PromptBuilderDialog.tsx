@@ -11,8 +11,10 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CloseIcon from '@mui/icons-material/Close';
 import { useTranslation } from 'react-i18next';
 import { COLORS, DURATION, EASING } from '@/style/constants';
-import type { ProjectIdea, PromptPreset } from '../../gallery/types';
+import type { ProjectIdea, ProjectReference, PromptPreset } from '../../gallery/types';
 import type { SourceToggles } from '../hooks/usePromptBuilder';
+import type { DesignModel } from '../types';
+import { isMultimodalModel } from '../constants';
 import { usePromptBuilderTabs, TAB_KEYS } from '../hooks/usePromptBuilderTabs';
 import type { TabKey } from '../hooks/usePromptBuilderTabs';
 import ConceptTab from './promptBuilder/ConceptTab';
@@ -138,6 +140,8 @@ interface PromptBuilderDialogProps {
   open: boolean;
   onClose: () => void;
   ideas: ProjectIdea[];
+  references?: ProjectReference[];
+  selectedModel?: DesignModel;
   sources: SourceToggles;
   selectedSloganId: string | null;
   imageUrl: string | null;
@@ -180,6 +184,8 @@ const PromptBuilderDialog = ({
   open,
   onClose,
   ideas,
+  references = [],
+  selectedModel,
   isSaving,
   bulkSloganIds,
   nicheKeywords,
@@ -224,8 +230,12 @@ const PromptBuilderDialog = ({
             researchPreview={researchPreview}
             isResearchLoading={isResearchLoading}
             referenceProducts={referenceProducts}
+            references={references}
+            isMultimodalModel={selectedModel ? isMultimodalModel(selectedModel) : true}
             onChange={tabs.handleContextChange}
             onResearchFieldChange={tabs.handleResearchFieldChange}
+            onReferenceToggle={tabs.handleReferenceToggle}
+            onReferenceModeChange={tabs.handleReferenceModeChange}
           />
         );
       case 'style':

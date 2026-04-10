@@ -196,7 +196,7 @@ export const NichePipeline = ({
                     title={t('niches.drawer.collectedProducts.title')}
                     badge={counts.productCount > 0 ? String(counts.productCount) : undefined}
                   >
-                    <ProductsGrid nicheId={niche.id} />
+                    <ProductsGrid nicheId={niche.id} nicheName={niche.name} />
                   </PipelineCard>
 
                   <PipelineCard

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { COLORS, DURATION, EASING } from '@/style/constants';
 import type { ArtboardData, BackgroundColor, CanvasElement, DesignModel } from '../types';
 import type { RightPanelState } from '../hooks/useRightPanelState';
-import type { ProjectIdea, ProjectPrompt } from '../../gallery/types';
+import type { ProjectIdea, ProjectPrompt, ProjectReference } from '../../gallery/types';
 import GenerationZone from './GenerationZone';
 import type { GenerationMode, AspectRatio } from './GenerationZone';
 import PanelArtboardState from './rightPanel/PanelArtboardState';
@@ -14,6 +14,7 @@ import AccordionSection from './rightPanel/AccordionSection';
 import SloganPoolSection from './rightPanel/SloganPoolSection';
 import PromptListSection from './rightPanel/PromptListSection';
 import ArtboardListSection from './rightPanel/ArtboardListSection';
+import ReferencesSection from './rightPanel/ReferencesSection';
 import LayerPanel from './rightPanel/LayerPanel';
 
 // -----------------------------------------------------------------
@@ -125,6 +126,13 @@ interface RightPanelProps {
   onCreateSkeletonArtboards?: (
     items: Array<{ runId: string; label: string }>,
   ) => void;
+  // Phase I: References
+  references?: ProjectReference[];
+  onUseAsReference?: (imageUrl: string) => void;
+  onUseAsPrompt?: (analysisText: string) => void;
+  // Phase I7: Source image for generation
+  sourceImageUrl?: string | null;
+  onClearSourceImage?: () => void;
 }
 
 // -----------------------------------------------------------------
@@ -178,6 +186,13 @@ const RightPanel = ({
   onSelectArtboard,
   onPromptClick,
   onCreateSkeletonArtboards,
+  // Phase I: References
+  references,
+  onUseAsReference,
+  onUseAsPrompt,
+  // Phase I7: Source image for generation
+  sourceImageUrl,
+  onClearSourceImage,
 }: RightPanelProps) => {
   const { t } = useTranslation();
 
@@ -230,6 +245,8 @@ const RightPanel = ({
             onModeChange={onGenerationModeChange}
             aspectRatio={aspectRatio}
             onAspectRatioChange={onAspectRatioChange}
+            sourceImageUrl={sourceImageUrl}
+            onClearSourceImage={onClearSourceImage}
           />
         )
       )}
@@ -305,6 +322,21 @@ const RightPanel = ({
                 onAutoPromptFill={onAutoPromptFill}
                 onAddReferenceArtboard={onAddReferenceArtboard}
                 onCreateSkeletonArtboards={onCreateSkeletonArtboards}
+              />
+            </AccordionSection>
+          )}
+
+          {/* References */}
+          {projectId && references && onUseAsReference && onUseAsPrompt && (
+            <AccordionSection
+              title={t('design.references.title', 'References')}
+              count={references.length}
+            >
+              <ReferencesSection
+                projectId={projectId}
+                references={references}
+                onUseAsReference={onUseAsReference}
+                onUseAsPrompt={onUseAsPrompt}
               />
             </AccordionSection>
           )}

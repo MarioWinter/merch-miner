@@ -1,6 +1,18 @@
 import { useCallback } from 'react';
-import { Box, Checkbox, Grid, Typography } from '@mui/material';
+import {
+  Box,
+  Checkbox,
+  Collapse,
+  Grid,
+  ToggleButton,
+  ToggleButtonGroup,
+  Tooltip,
+  Typography,
+} from '@mui/material';
+import ImageIcon from '@mui/icons-material/Image';
+import TextSnippetIcon from '@mui/icons-material/TextSnippet';
 import { useTranslation } from 'react-i18next';
+import type { ProjectReference } from '@/views/designs/gallery/types';
 import {
   SectionCard,
   SectionHeader,
@@ -8,6 +20,9 @@ import {
   ResearchRow,
   ResearchLabel,
   ProductThumb,
+  ReferenceRow,
+  ReferenceThumb,
+  AnalysisPreview,
 } from './ContextTab.styles';
 
 // -----------------------------------------------------------------
@@ -23,6 +38,15 @@ export interface ResearchFields {
   layout: boolean;
 }
 
+/** Per-reference toggle state */
+export type ReferenceMode = 'image' | 'text';
+
+export interface ReferenceToggle {
+  referenceId: string;
+  enabled: boolean;
+  mode: ReferenceMode;
+}
+
 export interface ContextTabState {
   keywordsEnabled: boolean;
   selectedKeywords: string[];
@@ -30,6 +54,8 @@ export interface ContextTabState {
   researchFields: ResearchFields;
   productsEnabled: boolean;
   selectedProductIds: string[];
+  /** Per-reference enabled/mode toggles */
+  referenceToggles: ReferenceToggle[];
 }
 
 interface ResearchPreviewData {
@@ -53,8 +79,12 @@ interface ContextTabProps {
   researchPreview: ResearchPreviewData | null;
   isResearchLoading: boolean;
   referenceProducts: ReferenceProduct[];
+  references: ProjectReference[];
+  isMultimodalModel: boolean;
   onChange: (patch: Partial<ContextTabState>) => void;
   onResearchFieldChange: (field: keyof ResearchFields, value: boolean) => void;
+  onReferenceToggle: (referenceId: string, enabled: boolean) => void;
+  onReferenceModeChange: (referenceId: string, mode: ReferenceMode) => void;
 }
 
 // -----------------------------------------------------------------
@@ -84,8 +114,12 @@ const ContextTab = ({
   researchPreview,
   isResearchLoading,
   referenceProducts,
+  references,
+  isMultimodalModel,
   onChange,
   onResearchFieldChange,
+  onReferenceToggle,
+  onReferenceModeChange,
 }: ContextTabProps) => {
   const { t } = useTranslation();
 
@@ -141,6 +175,19 @@ const ContextTab = ({
       onChange({ productsEnabled: true, selectedProductIds: referenceProducts.map((p) => p.id) });
     }
   }, [state.productsEnabled, referenceProducts, onChange]);
+
+  // -- Reference Images --
+  const getRefToggle = useCallback(
+    (refId: string): ReferenceToggle | undefined =>
+      state.referenceToggles.find((rt) => rt.referenceId === refId),
+    [state.referenceToggles],
+  );
+
+  const getAnalysisText = useCallback((ref: ProjectReference): string | null => {
+    if (!ref.prompt_analysis || typeof ref.prompt_analysis !== 'object') return null;
+    const pa = ref.prompt_analysis as Record<string, unknown>;
+    return (pa.summary as string) ?? (pa.final_prompt as string) ?? null;
+  }, []);
 
   const getFieldValue = (dataKey: keyof ResearchPreviewData): string | null => {
     if (!researchPreview) return null;
@@ -216,6 +263,81 @@ const ContextTab = ({
               </Grid>
             ))}
           </Grid>
+        )}
+      </SectionCard>
+      {/* Reference Images */}
+      <SectionCard disabled={references.length === 0}>
+        <SectionHeader>
+          <Typography variant="subtitle2">
+            {t('design.promptBuilder.context.referenceImages', 'Reference Images')}
+          </Typography>
+        </SectionHeader>
+        {references.length === 0 ? (
+          <Typography variant="body2" color="text.disabled" sx={{ py: 1, pl: 4 }}>
+            {t('design.promptBuilder.context.noReferences', 'No reference images -- add from Niche Pipeline')}
+          </Typography>
+        ) : (
+          <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {references.map((ref) => {
+              const toggle = getRefToggle(ref.id);
+              const isEnabled = toggle?.enabled ?? false;
+              const mode = toggle?.mode ?? 'image';
+              const analysisText = getAnalysisText(ref);
+              const showTextPreview = isEnabled && mode === 'text' && analysisText;
+
+              return (
+                <Box key={ref.id}>
+                  <ReferenceRow sx={{ opacity: isEnabled ? 1 : 0.5 }}>
+                    <Checkbox
+                      checked={isEnabled}
+                      onChange={() => onReferenceToggle(ref.id, !isEnabled)}
+                      size="small"
+                      color="secondary"
+                      sx={{ p: 0 }}
+                      aria-label={t('design.promptBuilder.context.toggleReference', 'Toggle reference {{title}}', { title: ref.title })}
+                    />
+                    <ReferenceThumb src={ref.image_url} alt={ref.title || ''} loading="lazy" />
+                    <Tooltip title={ref.title} placement="top">
+                      <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }}>
+                        {ref.title || ref.asin || t('design.promptBuilder.context.untitledRef', 'Untitled')}
+                      </Typography>
+                    </Tooltip>
+                    <ToggleButtonGroup
+                      value={mode}
+                      exclusive
+                      size="small"
+                      onChange={(_, val) => {
+                        if (val) onReferenceModeChange(ref.id, val as ReferenceMode);
+                      }}
+                      aria-label={t('design.promptBuilder.context.refModeLabel', 'Reference mode')}
+                    >
+                      <ToggleButton
+                        value="image"
+                        disabled={!isMultimodalModel}
+                        sx={{ px: 1, py: 0.25 }}
+                        aria-label={t('design.promptBuilder.context.modeImage', 'Image (multimodal)')}
+                      >
+                        <ImageIcon sx={{ fontSize: 16 }} />
+                      </ToggleButton>
+                      <ToggleButton
+                        value="text"
+                        disabled={!analysisText}
+                        sx={{ px: 1, py: 0.25 }}
+                        aria-label={t('design.promptBuilder.context.modeText', 'Text Analysis')}
+                      >
+                        <TextSnippetIcon sx={{ fontSize: 16 }} />
+                      </ToggleButton>
+                    </ToggleButtonGroup>
+                  </ReferenceRow>
+                  <Collapse in={!!showTextPreview}>
+                    <AnalysisPreview variant="caption" color="text.secondary">
+                      {analysisText}
+                    </AnalysisPreview>
+                  </Collapse>
+                </Box>
+              );
+            })}
+          </Box>
         )}
       </SectionCard>
     </Box>

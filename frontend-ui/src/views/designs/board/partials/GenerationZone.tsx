@@ -5,6 +5,7 @@ import {
   ButtonGroup,
   ClickAwayListener,
   FormControl,
+  IconButton,
   Grow,
   MenuItem,
   MenuList,
@@ -19,6 +20,8 @@ import type { SelectChangeEvent } from '@mui/material';
 import { styled, alpha } from '@mui/material/styles';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
+import ImageIcon from '@mui/icons-material/Image';
+import CloseIcon from '@mui/icons-material/Close';
 import { useTranslation } from 'react-i18next';
 import { COLORS, DURATION, EASING } from '@/style/constants';
 import type { BackgroundColor, DesignModel } from '../types';
@@ -212,6 +215,20 @@ const SplitMenuPaper = styled(Paper)(({ theme }) => ({
   }),
 }));
 
+const ReferenceIndicator = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(1),
+  padding: theme.spacing(0.75, 1.25),
+  borderRadius: theme.shape.borderRadius,
+  backgroundColor: alpha(COLORS.cyan, 0.12),
+  border: `1px solid ${alpha(COLORS.cyan, 0.3)}`,
+  ...theme.applyStyles('light', {
+    backgroundColor: alpha(COLORS.cyan, 0.08),
+    border: `1px solid ${alpha(COLORS.cyan, 0.25)}`,
+  }),
+}));
+
 // -----------------------------------------------------------------
 // Props
 // -----------------------------------------------------------------
@@ -242,6 +259,9 @@ interface GenerationZoneProps {
   onGenerateAll?: () => void;
   parallelLineCount?: number;
   disabled?: boolean;
+  /** When set, generation uses this image as source (image-to-image) */
+  sourceImageUrl?: string | null;
+  onClearSourceImage?: () => void;
 }
 
 // -----------------------------------------------------------------
@@ -272,6 +292,8 @@ const GenerationZone = ({
   onGenerateAll,
   parallelLineCount = 0,
   disabled = false,
+  sourceImageUrl = null,
+  onClearSourceImage,
 }: GenerationZoneProps) => {
   const { t } = useTranslation();
   const [sliderValue, setSliderValue] = useState(imageCount);
@@ -439,6 +461,30 @@ const GenerationZone = ({
         hasSelectedImage={hasSelectedImage}
         disabled={disabled || isGenerating}
       />
+
+      {/* Reference image indicator */}
+      {sourceImageUrl && (
+        <ReferenceIndicator>
+          <ImageIcon sx={{ fontSize: 16, color: COLORS.cyan }} />
+          <Typography
+            variant="caption"
+            sx={{ flex: 1, color: COLORS.cyan, fontWeight: 500 }}
+            noWrap
+          >
+            {t('design.generation.withReference', 'Generating with reference image')}
+          </Typography>
+          {onClearSourceImage && (
+            <IconButton
+              size="small"
+              onClick={onClearSourceImage}
+              aria-label={t('design.generation.clearReference', 'Clear reference image')}
+              sx={{ p: 0.25 }}
+            >
+              <CloseIcon sx={{ fontSize: 14, color: COLORS.cyan }} />
+            </IconButton>
+          )}
+        </ReferenceIndicator>
+      )}
 
       {/* Prompt textarea */}
       <PromptTextarea

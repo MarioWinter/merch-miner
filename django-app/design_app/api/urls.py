@@ -33,6 +33,8 @@ from design_app.api.views import (
     ProjectListCreateView,
     ProjectPromptDetailView,
     ProjectPromptsView,
+    ProjectReferenceRemoveView,
+    ProjectReferencesView,
     ProjectUploadView,
     PromptPresetDeleteView,
     PromptPresetListCreateView,
@@ -192,6 +194,17 @@ urlpatterns = [
         'designs/projects/<uuid:pk>/ideas/<uuid:idea_id>/',
         ProjectIdeaRemoveView.as_view(),
         name='design-project-idea-remove',
+    ),
+    # Project References (I2)
+    path(
+        'designs/projects/<uuid:pk>/references/',
+        ProjectReferencesView.as_view(),
+        name='design-project-references',
+    ),
+    path(
+        'designs/projects/<uuid:pk>/references/<uuid:ref_id>/',
+        ProjectReferenceRemoveView.as_view(),
+        name='design-project-reference-remove',
     ),
     # Auto-Prompt (G3)
     path(

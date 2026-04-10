@@ -67,3 +67,31 @@ export const ProductThumb = styled('img')<{ selected?: boolean }>(({ selected })
     border: `2px solid ${alpha(COLORS.cyan, 0.5)}`,
   },
 }));
+
+export const ReferenceRow = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(1),
+  padding: theme.spacing(0.5, 0),
+  transition: `opacity ${DURATION.fast}ms ${EASING.standard}`,
+}));
+
+export const ReferenceThumb = styled('img')({
+  width: 40,
+  height: 40,
+  objectFit: 'cover',
+  borderRadius: 4,
+  flexShrink: 0,
+});
+
+export const AnalysisPreview = styled(Typography)(({ theme }) => ({
+  whiteSpace: 'pre-wrap',
+  wordBreak: 'break-word',
+  padding: theme.spacing(0.5, 0, 0, 5),
+  maxHeight: 80,
+  overflowY: 'auto',
+  display: '-webkit-box',
+  WebkitLineClamp: 4,
+  WebkitBoxOrient: 'vertical',
+  overflow: 'hidden',
+}));

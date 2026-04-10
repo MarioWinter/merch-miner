@@ -10,10 +10,13 @@ import {
   useExtractKeywordsMutation,
 } from '@/store/collectedProductsSlice';
 import { BulkFlowButton } from '@/components/FlowButton';
+import { ProjectNamingDialog } from '@/views/designs/board/partials/ProjectNamingDialog';
+import { useProductToCanvas } from '../hooks/useProductToCanvas';
 import ProductThumbnailCard from './ProductThumbnailCard';
 
 interface ProductsGridProps {
   nicheId: string;
+  nicheName?: string;
 }
 
 // ── Styled Components ─────────────────────────────────────────────
@@ -30,7 +33,7 @@ const SkeletonGrid = styled(Box)(({ theme }) => ({
 }));
 
 // ── Component ─────────────────────────────────────────────────────
-const ProductsGrid = ({ nicheId }: ProductsGridProps) => {
+const ProductsGrid = ({ nicheId, nicheName }: ProductsGridProps) => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
   const navigate = useNavigate();
@@ -40,6 +43,15 @@ const ProductsGrid = ({ nicheId }: ProductsGridProps) => {
   });
   const [removeProduct] = useRemoveCollectedProductMutation();
   const [extractKeywords] = useExtractKeywordsMutation();
+
+  const {
+    sendToCanvas,
+    dialogOpen,
+    closeDialog,
+    handleProjectSelected,
+    dialogNicheId,
+    dialogNicheName,
+  } = useProductToCanvas({ nicheId, nicheName });
 
   const products = collectedData?.results ?? [];
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -77,20 +89,6 @@ const ProductsGrid = ({ nicheId }: ProductsGridProps) => {
     },
     [navigate],
   );
-
-  const handleRemoveSelected = useCallback(async () => {
-    const ids = Array.from(selectedIds);
-    try {
-      await Promise.all(
-        ids.map((id) => removeProduct({ nicheId, collectedProductId: id }).unwrap()),
-      );
-      setSelectedIds(new Set());
-    } catch {
-      enqueueSnackbar(t('niches.drawer.collectedProducts.removeFailed'), {
-        variant: 'error',
-      });
-    }
-  }, [selectedIds, removeProduct, nicheId, enqueueSnackbar, t]);
 
   const handleRemoveSingle = useCallback(
     async (collectedProductId: string) => {
@@ -142,7 +140,8 @@ const ProductsGrid = ({ nicheId }: ProductsGridProps) => {
             onSelect={() => toggleSelect(cp.id)}
             onKeywords={() => handleKeywords(cp.id)}
             onSlogans={() => {/* TODO: PROJ-8 slogan flow */}}
-            onCanvas={() => {/* TODO: PROJ-9 canvas flow */}}
+            onCanvas={() => sendToCanvas([cp.product.id])}
+            hasImage={Boolean(cp.product.thumbnail_url)}
             onDetail={() => handleDetail(cp.product.asin)}
             onRemove={() => handleRemoveSingle(cp.id)}
           />
@@ -155,10 +154,23 @@ const ProductsGrid = ({ nicheId }: ProductsGridProps) => {
             target="canvas"
             label={t('niches.drawer.collectedProducts.sendToCanvas', { count: selectedIds.size })}
             count={selectedIds.size}
-            onClick={handleRemoveSelected}
+            onClick={() => {
+              const productIds = products
+                .filter((cp) => selectedIds.has(cp.id) && cp.product.thumbnail_url)
+                .map((cp) => cp.product.id);
+              if (productIds.length > 0) sendToCanvas(productIds);
+            }}
           />
         </Box>
       )}
+
+      <ProjectNamingDialog
+        open={dialogOpen}
+        onClose={closeDialog}
+        onProjectSelected={handleProjectSelected}
+        nicheName={dialogNicheName}
+        nicheId={dialogNicheId}
+      />
     </Box>
   );
 };

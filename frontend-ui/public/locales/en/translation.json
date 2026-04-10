@@ -244,7 +244,9 @@
         "sendToKeywords": "Send to Keywords",
         "sendToSlogans": "Send to Slogans",
         "sendToDesign": "Send to Canvas",
-        "viewDetail": "View Detail"
+        "viewDetail": "View Detail",
+        "addedToCanvas": "Added {{count}} reference(s) to {{project}}",
+        "addToCanvasFailed": "Failed to add references to canvas"
       }
     },
     "empty": {
@@ -742,7 +744,9 @@
         "textToImage": "Text to Image",
         "remixImage": "Image to Image (Remix Image)",
         "editImage": "Image to Image (Edit Image)"
-      }
+      },
+      "withReference": "Generating with reference image",
+      "clearReference": "Clear reference image"
     },
     "canvas": {
       "emptyTitle": "Drop images or create an AI Image Board",
@@ -968,6 +972,27 @@
       "analyzeImageUpload": "Upload an image to analyze",
       "bulkGenerating": "Generating {{count}} designs...",
       "imageAdded": "Image added as reference artboard"
+    },
+    "references": {
+      "title": "References",
+      "empty": "Add references from Niche Pipeline",
+      "useAsReference": "Use as Reference",
+      "analyze": "Analyze",
+      "useAsPrompt": "Use as Prompt",
+      "remove": "Remove",
+      "removeError": "Failed to remove reference",
+      "analyzeSuccess": "Analysis complete",
+      "analyzing": "Analyzing...",
+      "analyzeError": "Analysis failed",
+      "analyzeFailed": "Failed to analyze reference image",
+      "brokenImage": "Image unavailable",
+      "thumbnail": "Reference thumbnail",
+      "untitled": "Untitled",
+      "showAnalysis": "Show analysis",
+      "hideAnalysis": "Hide analysis",
+      "alreadyAdded": "This image is already added as a reference",
+      "addedSuccess": "Reference image added successfully",
+      "modelNoMultimodal": "Selected model does not support image analysis"
     },
     "artboards": {
       "title": "Artboards",

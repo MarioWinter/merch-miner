@@ -54,12 +54,26 @@ _OPENAI_MODELS = {
     'openai/gpt-5-image-mini',
 }
 
+# Models that support multimodal input (image + text)
+MULTIMODAL_MODELS = {
+    # Gemini models support vision natively
+    'gemini_flash', 'gemini_pro',
+    'google/gemini-3.1-flash-preview-image-generation',
+    'google/gemini-3-pro-preview-image-generation',
+    'google/gemini-2.5-flash-preview-image-generation',
+    # OpenAI models support image input
+    'gpt_image',
+    'openai/gpt-5-image',
+    'openai/gpt-5-image-mini',
+}
+
 
 def generate_image(
     prompt: str,
     model_name: str,
     output_dir: str = None,
     aspect_ratio: str = '1:1',
+    source_image_url: str = '',
 ) -> str:
     """Generate an image via OpenRouter and save to disk.
 
@@ -68,12 +82,15 @@ def generate_image(
         model_name: Model choice value (legacy short name or full OpenRouter ID)
         output_dir: Directory to save output. Defaults to tempdir.
         aspect_ratio: Aspect ratio string like '1:1', '16:9', etc.
+        source_image_url: Optional reference image URL for multimodal generation.
+            When provided, model must be in MULTIMODAL_MODELS.
 
     Returns:
         Path to saved image file.
 
     Raises:
-        ValueError: If API key missing or model unknown
+        ValueError: If API key missing, model unknown, or non-multimodal model
+            with source_image_url
         httpx.HTTPStatusError: On API error
     """
     api_key = settings.OPENROUTER_API_KEY
@@ -86,6 +103,10 @@ def generate_image(
     if not model_id:
         raise ValueError(f"Unknown model: {model_name}")
 
+    # Validate multimodal support
+    if source_image_url and model_name not in MULTIMODAL_MODELS:
+        raise ValueError("Model does not support image input")
+
     width, height = ASPECT_RATIO_DIMS.get(aspect_ratio, (1024, 1024))
 
     headers = {
@@ -95,12 +116,21 @@ def generate_image(
         'X-Title': 'Merch Miner Design Generator',
     }
 
+    # Build message content — multimodal array or plain text
+    if source_image_url:
+        content = [
+            {'type': 'text', 'text': prompt},
+            {'type': 'image_url', 'image_url': {'url': source_image_url}},
+        ]
+    else:
+        content = prompt
+
     payload = {
         'model': model_id,
         'messages': [
             {
                 'role': 'user',
-                'content': prompt,
+                'content': content,
             },
         ],
     }

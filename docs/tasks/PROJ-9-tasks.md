@@ -1631,95 +1631,95 @@
 
 ### I1: Backend — ProjectReference Model + Migration
 
-- [ ] Create `ProjectReference` model in `design_app/models.py`: UUID pk, project FK (CASCADE), source_product FK (SET_NULL, nullable), image_url URLField(2048), title CharField(500), asin CharField(20, blank), prompt_analysis JSONField(null), position IntegerField(0), added_at DateTimeField(auto_now_add)
-- [ ] Add unique constraint: `(project, image_url)`
-- [ ] Add index on `project` field
-- [ ] Register in `design_app/admin.py`
-- [ ] Run `makemigrations` + verify migration file
+- [x] Create `ProjectReference` model in `design_app/models.py`: UUID pk, project FK (CASCADE), source_product FK (SET_NULL, nullable), image_url URLField(2048), title CharField(500), asin CharField(20, blank), prompt_analysis JSONField(null), position IntegerField(0), added_at DateTimeField(auto_now_add)
+- [x] Add unique constraint: `(project, image_url)`
+- [x] Add index on `project` field
+- [x] Register in `design_app/admin.py`
+- [x] Run `makemigrations` + verify migration file
 
 ### I2: Backend — ProjectReference API (CRUD)
 
-- [ ] `ProjectReferenceSerializer`: id, project (read), source_product (read), image_url, title, asin, prompt_analysis (read), position, added_at
-- [ ] `POST /api/designs/projects/{id}/references/` — accepts `{ product_ids: [uuid] }`. Lookup each AmazonProduct, create ProjectReference with image_url/title/asin copied. Skip duplicates (same image_url in project). Return created refs
-- [ ] Also accept `{ image_urls: [{ url, title }] }` for manual image references (no product). Skip duplicates
-- [ ] `DELETE /api/designs/projects/{id}/references/{refId}/` — remove single reference. Workspace isolation check
-- [ ] Extend `ProjectBoardView.get()`: add `references` array to board response. Query `ProjectReference.objects.filter(project=project).order_by('position', '-added_at')`
-- [ ] URL routing in `design_app/api/urls.py`
+- [x] `ProjectReferenceSerializer`: id, project (read), source_product (read), image_url, title, asin, prompt_analysis (read), position, added_at
+- [x] `POST /api/designs/projects/{id}/references/` — accepts `{ product_ids: [uuid] }`. Lookup each AmazonProduct, create ProjectReference with image_url/title/asin copied. Skip duplicates (same image_url in project). Return created refs
+- [x] Also accept `{ image_urls: [{ url, title }] }` for manual image references (no product). Skip duplicates
+- [x] `DELETE /api/designs/projects/{id}/references/{refId}/` — remove single reference. Workspace isolation check
+- [x] Extend `ProjectBoardView.get()`: add `references` array to board response. Query `ProjectReference.objects.filter(project=project).order_by('position', '-added_at')`
+- [x] URL routing in `design_app/api/urls.py`
 
 ### I3: Backend — Multimodal Generation Support
 
-- [ ] Add `MULTIMODAL_MODELS` set in `image_generator.py` listing model IDs that support image+text input (Gemini models, GPT-4o models)
-- [ ] Extend `generate_image()`: new optional param `source_image_url`. When provided and model is in MULTIMODAL_MODELS → build content as array: `[{ type: "text", text: prompt }, { type: "image_url", image_url: { url: source_image_url } }]`
-- [ ] When `source_image_url` provided but model NOT in MULTIMODAL_MODELS → raise ValueError with message "Model does not support image input"
-- [ ] Extend `task_generate_design`: pass `source_image_url` from DesignGenerationRun to `generate_image()` if set
-- [ ] Add `source_image_url` field to DesignGenerationRun model if not already present (check — Design model has it, Run may not)
-- [ ] Add `reference_used` to generation run response: `{ image_url, mode: 'multimodal' | 'text_analysis' }`
-- [ ] Extend generation endpoint: accept optional `source_image_url` param. If model doesn't support multimodal and no `prompt_analysis` fallback → return 400 error
+- [x] Add `MULTIMODAL_MODELS` set in `image_generator.py` listing model IDs that support image+text input (Gemini models, GPT-4o models)
+- [x] Extend `generate_image()`: new optional param `source_image_url`. When provided and model is in MULTIMODAL_MODELS → build content as array: `[{ type: "text", text: prompt }, { type: "image_url", image_url: { url: source_image_url } }]`
+- [x] When `source_image_url` provided but model NOT in MULTIMODAL_MODELS → raise ValueError with message "Model does not support image input"
+- [x] Extend `task_generate_design`: pass `source_image_url` from DesignGenerationRun to `generate_image()` if set
+- [x] Add `source_image_url` field to DesignGenerationRun model if not already present (check — Design model has it, Run may not)
+- [x] Add `reference_used` to generation run response: `{ image_url, mode: 'multimodal' | 'text_analysis' }`
+- [x] Extend generation endpoint: accept optional `source_image_url` param. If model doesn't support multimodal and no `prompt_analysis` fallback → return 400 error
 
 ### I4: Frontend — Niche Pipeline Send Flow
 
-- [ ] Wire `onCanvas` handler in `ProductsGrid.tsx`: receive product, resolve project (0/1/N logic)
-- [ ] Create `useProductToCanvas` hook: takes nicheId, queries niche's DesignProjects. Returns `sendToCanvas(productIds[])` function
-- [ ] 0 projects → open ProjectNamingDialog (create mode, nicheId pre-set)
-- [ ] 1 project → call `addReferencesToProject` mutation directly
-- [ ] N projects → open ProjectNamingDialog (select mode, project list filtered by niche)
-- [ ] Wire `onCanvas` in `ProductThumbnailCard.tsx` context menu "Send to Canvas" item
-- [ ] Wire BulkFlowButton in ProductsGrid: collect selectedIds → same flow with bulk product_ids
-- [ ] After success: notistack "Added N reference(s) to [Project Name]". If new project → navigate to `/designs/{projectId}`
-- [ ] Hide "Send to Canvas" for products with no image (EC-46)
+- [x] Wire `onCanvas` handler in `ProductsGrid.tsx`: receive product, resolve project (0/1/N logic)
+- [x] Create `useProductToCanvas` hook: takes nicheId, queries niche's DesignProjects. Returns `sendToCanvas(productIds[])` function
+- [x] 0 projects → open ProjectNamingDialog (create mode, nicheId pre-set)
+- [x] 1 project → call `addReferencesToProject` mutation directly
+- [x] N projects → open ProjectNamingDialog (select mode, project list filtered by niche)
+- [x] Wire `onCanvas` in `ProductThumbnailCard.tsx` context menu "Send to Canvas" item
+- [x] Wire BulkFlowButton in ProductsGrid: collect selectedIds → same flow with bulk product_ids
+- [x] After success: notistack "Added N reference(s) to [Project Name]". If new project → navigate to `/designs/{projectId}`
+- [x] Hide "Send to Canvas" for products with no image (EC-46)
 
 ### I5: Frontend — RTK Query Endpoints
 
-- [ ] Add `addReferencesToProject` mutation in `designSlice.ts`: POST `/api/designs/projects/{id}/references/`, invalidates `DesignProject` tag
-- [ ] Add `removeReferenceFromProject` mutation: DELETE `/api/designs/projects/{id}/references/{refId}/`, invalidates `DesignProject` tag
-- [ ] Extend `ProjectBoardResponse` type: add `references: ProjectReference[]`
-- [ ] Add `ProjectReference` TypeScript interface in `gallery/types.ts`: id, image_url, title, asin, prompt_analysis, position, added_at, source_product
-- [ ] Add `analyzeProductImage` mutation: POST `/api/products/{id}/analyze-image/`, body `{ source_image_url }`. Invalidates `DesignProject` tag (so board refetches with updated prompt_analysis)
+- [x] Add `addReferencesToProject` mutation in `designSlice.ts`: POST `/api/designs/projects/{id}/references/`, invalidates `DesignProject` tag
+- [x] Add `removeReferenceFromProject` mutation: DELETE `/api/designs/projects/{id}/references/{refId}/`, invalidates `DesignProject` tag
+- [x] Extend `ProjectBoardResponse` type: add `references: ProjectReference[]`
+- [x] Add `ProjectReference` TypeScript interface in `gallery/types.ts`: id, image_url, title, asin, prompt_analysis, position, added_at, source_product
+- [x] Add `analyzeProductImage` mutation: POST `/api/products/{id}/analyze-image/`, body `{ source_image_url }`. Invalidates `DesignProject` tag (so board refetches with updated prompt_analysis)
 
 ### I6: Frontend — ReferencesSection Component
 
-- [ ] Create `ReferencesSection.tsx` in `rightPanel/`: uses AccordionSection pattern. Header: "References" + badge count. Props: projectId, references[], onUseAsReference, onAnalyze, onUseAsPrompt
-- [ ] Create `ReferenceCard.tsx`: thumbnail 48×48, title (truncated), ASIN chip (if present)
-- [ ] "Use as Reference" button per card: sets `sourceImageUrl` in generation context (lifted state in DesignWorkspaceView)
-- [ ] "Analyze" button: triggers `analyzeProductImage` mutation. Shows CircularProgress while pending. On complete: expand analysis text below thumbnail
-- [ ] "Use as Prompt" button (visible after analysis): copies `prompt_analysis` summary text into PromptBar textarea
-- [ ] Remove button (X icon): calls `removeReferenceFromProject` mutation
-- [ ] Empty state: "Add references from Niche Pipeline"
-- [ ] Max-height with scroll for 20+ references (EC-48)
-- [ ] Broken image placeholder for expired URLs (EC-45)
+- [x] Create `ReferencesSection.tsx` in `rightPanel/`: uses AccordionSection pattern. Header: "References" + badge count. Props: projectId, references[], onUseAsReference, onAnalyze, onUseAsPrompt
+- [x] Create `ReferenceCard.tsx`: thumbnail 48×48, title (truncated), ASIN chip (if present)
+- [x] "Use as Reference" button per card: sets `sourceImageUrl` in generation context (lifted state in DesignWorkspaceView)
+- [x] "Analyze" button: triggers `analyzeProductImage` mutation. Shows CircularProgress while pending. On complete: expand analysis text below thumbnail
+- [x] "Use as Prompt" button (visible after analysis): copies `prompt_analysis` summary text into PromptBar textarea
+- [x] Remove button (X icon): calls `removeReferenceFromProject` mutation
+- [x] Empty state: "Add references from Niche Pipeline"
+- [x] Max-height with scroll for 20+ references (EC-48)
+- [x] Broken image placeholder for expired URLs (EC-45)
 
 ### I7: Frontend — RightPanel + Workspace Integration
 
-- [ ] Add ReferencesSection to RightPanel between SloganPoolSection and ArtboardListSection
-- [ ] Add `sourceImageUrl` state to DesignWorkspaceView (lifted state for generation context)
-- [ ] Pass `sourceImageUrl` to GenerationZone: when set, show indicator "Generating with reference image"
-- [ ] Extend generation handler: include `source_image_url` in generation request body when set
-- [ ] After generation: clear `sourceImageUrl` state
-- [ ] Add ReferencesSection to PanelNoneState (same pattern as SloganPoolSection)
+- [x] Add ReferencesSection to RightPanel between SloganPoolSection and ArtboardListSection
+- [x] Add `sourceImageUrl` state to DesignWorkspaceView (lifted state for generation context)
+- [x] Pass `sourceImageUrl` to GenerationZone: when set, show indicator "Generating with reference image"
+- [x] Extend generation handler: include `source_image_url` in generation request body when set
+- [x] After generation: clear `sourceImageUrl` state
+- [x] Add ReferencesSection to PanelNoneState (same pattern as SloganPoolSection)
 
 ### I8: Frontend — Prompt Builder Context Tab Integration
 
-- [ ] Extend PromptBuilderDialog Context Tab: add "Reference Images" section at bottom
-- [ ] Show project references as thumbnail rows with per-reference on/off toggle
-- [ ] Toggle mode selector per reference: "Image (multimodal)" vs "Text Analysis" — default to Image
-- [ ] Show analysis text preview below thumbnail when available
-- [ ] When reference toggled ON with Image mode: add `source_image_urls[]` to build-prompts request
-- [ ] When reference toggled ON with Text mode: add analysis text to prompt sources
-- [ ] Auto-fallback: if model doesn't support multimodal → show info toast, switch to Text mode
+- [x] Extend PromptBuilderDialog Context Tab: add "Reference Images" section at bottom
+- [x] Show project references as thumbnail rows with per-reference on/off toggle
+- [x] Toggle mode selector per reference: "Image (multimodal)" vs "Text Analysis" — default to Image
+- [x] Show analysis text preview below thumbnail when available
+- [x] When reference toggled ON with Image mode: add `source_image_urls[]` to build-prompts request
+- [x] When reference toggled ON with Text mode: add analysis text to prompt sources
+- [x] Auto-fallback: if model doesn't support multimodal → show info toast, switch to Text mode
 
 ### I9: i18n
 
-- [ ] Add EN keys: `design.references.title`, `design.references.empty`, `design.references.useAsReference`, `design.references.analyze`, `design.references.analyzing`, `design.references.useAsPrompt`, `design.references.remove`, `design.references.alreadyAdded`, `design.references.addedSuccess`, `design.references.modelNoMultimodal`, `design.references.analyzeFailed`, `design.references.brokenImage`
-- [ ] Sync to DE, FR, IT, ES locales
+- [x] Add EN keys: `design.references.title`, `design.references.empty`, `design.references.useAsReference`, `design.references.analyze`, `design.references.analyzing`, `design.references.useAsPrompt`, `design.references.remove`, `design.references.alreadyAdded`, `design.references.addedSuccess`, `design.references.modelNoMultimodal`, `design.references.analyzeFailed`, `design.references.brokenImage`
+- [x] Sync to DE, FR, IT, ES locales
 
 ### I10: Tests
 
-- [ ] Backend: ProjectReference CRUD — create, bulk create, duplicate skip, delete, workspace isolation
-- [ ] Backend: Board endpoint includes references in response
-- [ ] Backend: `generate_image()` multimodal content array for MULTIMODAL_MODELS
-- [ ] Backend: `generate_image()` raises ValueError for non-multimodal model with source_image_url
-- [ ] Frontend: ReferencesSection renders references, empty state, badge count
-- [ ] Frontend: ReferenceCard actions: use, analyze, remove
-- [ ] Frontend: ProductsGrid send flow: single + bulk
-- [ ] `npm run lint` + `npx tsc --noEmit` clean
-- [ ] `ruff check django-app/` clean
+- [x] Backend: ProjectReference CRUD — create, bulk create, duplicate skip, delete, workspace isolation
+- [x] Backend: Board endpoint includes references in response
+- [x] Backend: `generate_image()` multimodal content array for MULTIMODAL_MODELS
+- [x] Backend: `generate_image()` raises ValueError for non-multimodal model with source_image_url
+- [x] Frontend: ReferencesSection renders references, empty state, badge count
+- [x] Frontend: ReferenceCard actions: use, analyze, remove
+- [x] Frontend: ProductsGrid send flow: single + bulk
+- [x] `npm run lint` + `npx tsc --noEmit` clean
+- [x] `ruff check django-app/` clean

@@ -11,11 +11,12 @@ import { styled } from '@mui/material/styles';
 import SearchIcon from '@mui/icons-material/Search';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useTranslation } from 'react-i18next';
-import type { ProjectIdea, ProjectPrompt } from '@/views/designs/gallery/types';
+import type { ProjectIdea, ProjectPrompt, ProjectReference } from '@/views/designs/gallery/types';
 import type { ArtboardData, BackgroundColor, DesignModel } from '../../types';
 import SloganPoolSection from './SloganPoolSection';
 import PromptListSection from './PromptListSection';
 import ArtboardListSection from './ArtboardListSection';
+import ReferencesSection from './ReferencesSection';
 
 // -----------------------------------------------------------------
 // Styled
@@ -58,6 +59,10 @@ interface PanelNoneStateProps {
   onCreateSkeletonArtboards?: (
     items: Array<{ runId: string; label: string }>,
   ) => void;
+  // Phase I: References
+  references?: ProjectReference[];
+  onUseAsReference?: (imageUrl: string) => void;
+  onUseAsPrompt?: (analysisText: string) => void;
 }
 
 // -----------------------------------------------------------------
@@ -77,11 +82,16 @@ const PanelNoneState = ({
   onSelectArtboard,
   onPromptClick,
   onCreateSkeletonArtboards,
+  // Phase I: References
+  references = [],
+  onUseAsReference,
+  onUseAsPrompt,
 }: PanelNoneStateProps) => {
   const { t } = useTranslation();
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
     slogans: true,
     prompts: true,
+    references: false,
     artboards: true,
   });
 
@@ -153,6 +163,29 @@ const PanelNoneState = ({
               prompts={prompts}
               onPromptClick={onPromptClick}
               onCreateSkeletonArtboards={onCreateSkeletonArtboards}
+            />
+          </AccordionDetails>
+        </SectionAccordion>
+      )}
+
+      {/* References */}
+      {projectId && onUseAsReference && onUseAsPrompt && (
+        <SectionAccordion
+          expanded={expandedSections.references}
+          onChange={() => toggleSection('references')}
+        >
+          <AccordionSummary expandIcon={<ExpandMoreIcon sx={{ fontSize: 16 }} />}>
+            <Typography variant="overline" color="text.secondary">
+              {t('design.references.title', 'References')}
+              {references.length > 0 && ` (${references.length})`}
+            </Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <ReferencesSection
+              projectId={projectId}
+              references={references}
+              onUseAsReference={onUseAsReference}
+              onUseAsPrompt={onUseAsPrompt}
             />
           </AccordionDetails>
         </SectionAccordion>

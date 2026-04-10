@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import type { ConceptTabState } from '../partials/promptBuilder/ConceptTab';
-import type { ContextTabState, ResearchFields } from '../partials/promptBuilder/ContextTab';
+import type { ContextTabState, ResearchFields, ReferenceMode, ReferenceToggle } from '../partials/promptBuilder/ContextTab';
 import type { StyleTabState, StyleEntry, StyleCategory } from '../partials/promptBuilder/StyleTab';
 import type { FormatTabState } from '../partials/promptBuilder/FormatTab';
 import type { ColorTabState } from '../partials/promptBuilder/ColorTab';
@@ -137,6 +137,7 @@ export const usePromptBuilderTabs = (
     },
     productsEnabled: false,
     selectedProductIds: [],
+    referenceToggles: [],
   });
 
   const handleContextChange = useCallback(
@@ -151,6 +152,37 @@ export const usePromptBuilderTabs = (
       setContextState((prev) => ({
         ...prev,
         researchFields: { ...prev.researchFields, [field]: value },
+      }));
+    },
+    [],
+  );
+
+  const handleReferenceToggle = useCallback(
+    (referenceId: string, enabled: boolean) => {
+      setContextState((prev) => {
+        const existing = prev.referenceToggles.find((rt) => rt.referenceId === referenceId);
+        if (existing) {
+          return {
+            ...prev,
+            referenceToggles: prev.referenceToggles.map((rt) =>
+              rt.referenceId === referenceId ? { ...rt, enabled } : rt,
+            ),
+          };
+        }
+        const newToggle: ReferenceToggle = { referenceId, enabled, mode: 'image' };
+        return { ...prev, referenceToggles: [...prev.referenceToggles, newToggle] };
+      });
+    },
+    [],
+  );
+
+  const handleReferenceModeChange = useCallback(
+    (referenceId: string, mode: ReferenceMode) => {
+      setContextState((prev) => ({
+        ...prev,
+        referenceToggles: prev.referenceToggles.map((rt) =>
+          rt.referenceId === referenceId ? { ...rt, mode } : rt,
+        ),
       }));
     },
     [],
@@ -287,6 +319,8 @@ export const usePromptBuilderTabs = (
     contextState,
     handleContextChange,
     handleResearchFieldChange,
+    handleReferenceToggle,
+    handleReferenceModeChange,
     // Style
     styleState,
     handleStyleChange,

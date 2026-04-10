@@ -30,6 +30,7 @@ interface ProductThumbnailCardProps {
   price: number | null;
   selected: boolean;
   anySelected: boolean;
+  hasImage?: boolean;
   onSelect: () => void;
   onKeywords: () => void;
   onSlogans: () => void;
@@ -109,6 +110,7 @@ const ProductThumbnailCard = ({
   price,
   selected,
   anySelected,
+  hasImage = true,
   onSelect,
   onKeywords,
   onSlogans,
@@ -215,10 +217,12 @@ const ProductThumbnailCard = ({
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
-        <MenuItem onClick={() => handleMenuAction(onCanvas)} dense>
-          <ListItemIcon><PaletteOutlinedIcon sx={{ fontSize: 16, color: COLORS.red }} /></ListItemIcon>
-          <ListItemText>{t('niches.drawer.collectedProducts.sendToDesign', 'Send to Canvas')}</ListItemText>
-        </MenuItem>
+        {hasImage && (
+          <MenuItem onClick={() => handleMenuAction(onCanvas)} dense>
+            <ListItemIcon><PaletteOutlinedIcon sx={{ fontSize: 16, color: COLORS.red }} /></ListItemIcon>
+            <ListItemText>{t('niches.drawer.collectedProducts.sendToDesign', 'Send to Canvas')}</ListItemText>
+          </MenuItem>
+        )}
         <MenuItem onClick={() => handleMenuAction(onRemove)} dense>
           <ListItemIcon><DeleteOutlineIcon sx={{ fontSize: 16, color: COLORS.errorDk }} /></ListItemIcon>
           <ListItemText>{t('niches.drawer.collectedProducts.remove', 'Remove')}</ListItemText>

@@ -82,6 +82,7 @@ export interface GenerateDesignBody {
   prompt: string;
   project_id?: string;
   idea_id?: string;
+  source_image_url?: string;
 }
 
 export interface AnalyzeImageBody {

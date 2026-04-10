@@ -10,6 +10,7 @@ from design_app.models import (
     DesignProjectIdea,
     ProcessingSettings,
     ProjectPrompt,
+    ProjectReference,
     PromptPreset,
 )
 
@@ -94,3 +95,12 @@ class PromptPresetAdmin(admin.ModelAdmin):
     search_fields = ('name',)
     readonly_fields = ('id', 'created_at')
     raw_id_fields = ('workspace', 'created_by')
+
+
+@admin.register(ProjectReference)
+class ProjectReferenceAdmin(admin.ModelAdmin):
+    list_display = ('id', 'project', 'title', 'asin', 'position', 'added_at')
+    list_filter = ('project',)
+    search_fields = ('title', 'asin', 'image_url')
+    readonly_fields = ('id', 'added_at')
+    raw_id_fields = ('project', 'source_product')
