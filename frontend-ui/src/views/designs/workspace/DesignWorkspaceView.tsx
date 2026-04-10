@@ -35,7 +35,7 @@ import { usePromptBuilder } from '../board/hooks/usePromptBuilder';
 import { useImageAnalysis } from '../board/hooks/useImageAnalysis';
 import DesignEditorView from '../editor/DesignEditorView';
 import ProcessingSettingsDialog from './ProcessingSettingsDialog';
-import { NicheDetailDrawer } from '../../niches/list/partials/NicheDetailDrawer';
+import { NichePipeline } from '../../niches/list/partials/NichePipeline';
 import type { ProjectPrompt } from '../gallery/types';
 import useWorkspaceTab from './hooks/useWorkspaceTab';
 import type { WorkspaceTab } from './hooks/useWorkspaceTab';
@@ -523,7 +523,7 @@ const DesignWorkspaceView = () => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [isDeletingFromServer, setIsDeletingFromServer] = useState(false);
   const [promptBuilderOpen, setPromptBuilderOpen] = useState(false);
-  const [nicheDrawerOpen, setNicheDrawerOpen] = useState(false);
+  const [nichePipelineOpen, setNichePipelineOpen] = useState(false);
 
   // -- Prompt Builder hook --
   const promptBuilder = usePromptBuilder(
@@ -885,7 +885,7 @@ const DesignWorkspaceView = () => {
               <Tooltip title={t('design.workspace.openNicheDrawer', 'Niche Pipeline')}>
                 <IconButton
                   size="small"
-                  onClick={() => setNicheDrawerOpen(true)}
+                  onClick={() => setNichePipelineOpen(true)}
                   aria-label={t('design.workspace.openNicheDrawer', 'Niche Pipeline')}
                 >
                   <Inventory2OutlinedIcon sx={{ fontSize: 18 }} />
@@ -1082,11 +1082,11 @@ const DesignWorkspaceView = () => {
         buildAndSave={promptBuilder.buildAndSave}
       />
       {project?.niche && (
-        <NicheDetailDrawer
-          open={nicheDrawerOpen}
+        <NichePipeline
+          open={nichePipelineOpen}
           mode="edit"
           selectedId={project.niche}
-          onClose={() => setNicheDrawerOpen(false)}
+          onClose={() => setNichePipelineOpen(false)}
         />
       )}
     </WorkspaceRoot>

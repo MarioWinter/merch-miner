@@ -2031,3 +2031,205 @@ views/designs/board/partials/
 #### Dependencies (no new packages)
 
 All required packages already installed: `@mui/material`, `react-konva`, `@dnd-kit/*`. No new npm installs needed for this redesign.
+
+---
+
+## Phase I: Product-to-Canvas Reference Pipeline
+
+> Added: 2026-04-10. Connects collected products from Niche Pipeline to the Design Workspace as reference images for AI generation context.
+
+### Overview
+
+Collected products in the Niche Pipeline have "Send to Canvas" actions that currently do nothing. This phase wires them up: product images are sent to a Design Project as **reference images**, displayed in a new **References AccordionSection** in the RightPanel, and usable as context for AI image generation.
+
+**Two generation modes with reference images:**
+
+- **Standard (multimodal):** Reference image is passed directly alongside the text prompt to the generation API (image + text → new image). Works with models that support multimodal input (Gemini, GPT-4o).
+- **Fallback (analyze-first):** User clicks "Analyze" → AI extracts a structured text description from the image (style, colors, composition, text elements) → user reviews/edits → generates as text-only prompt. For models without multimodal support or when user wants fine-grained control.
+
+### User Stories
+
+#### Sending Products to Canvas
+32i. As a member, I want to click "Send to Canvas" on a collected product in the Niche Pipeline, so the product image is added as a reference to my Design Project.
+33i. As a member, I want to select multiple products and send them all to the canvas at once, so I can gather design references efficiently.
+34i. As a member, I want the system to automatically use the niche's existing Design Project when I send a product, so I don't have to pick a project every time.
+35i. As a member, I want a project naming dialog to appear if my niche has no project yet, so a project is created before the reference is added.
+
+#### Viewing References in Design Workspace
+36i. As a member, I want a "References" section in the RightPanel that shows all reference images for my project, so I can see my design inspiration at a glance.
+37i. As a member, I want to remove a reference image from the project, so I can curate my reference collection.
+
+#### Using References for Generation
+38i. As a member, I want to select a reference image and generate a new design based on it, so the AI uses the product as visual inspiration (multimodal image+text).
+39i. As a member, I want to analyze a reference image to extract a text description, so I can edit and refine the prompt before generating (fallback mode).
+40i. As a member, I want the Prompt Builder Context Tab to show my reference images with toggles, so I can choose which references influence the generated prompt.
+
+### Acceptance Criteria
+
+#### Niche Pipeline → Project (Send Flow)
+
+- [ ] AC-135: "Send to Canvas" button on each product card in ProductsGrid opens the send flow. If the niche has exactly one DesignProject → reference is added directly (no dialog). If the niche has multiple projects → ProjectNamingDialog opens for selection. If the niche has zero projects → ProjectNamingDialog opens for creation.
+- [ ] AC-136: Multi-select checkboxes on ProductsGrid. When ≥1 product selected, a "Send N to Canvas" BulkFlowButton appears. Same project-resolution logic as single send.
+- [ ] AC-137: Sending a product creates a `ProjectReference` record linking the DesignProject to the product image URL, product title, product ASIN, and source niche. Backend endpoint: `POST /api/designs/projects/{projectId}/references/`.
+- [ ] AC-138: Duplicate prevention: if the same product image URL is already a reference in the target project → skip silently (no error, no duplicate). Notistack info: "Already added".
+- [ ] AC-139: After successful send, notistack success: "Added N reference(s) to [Project Name]". If project was just created → navigates to `/designs/{projectId}`.
+
+#### RightPanel — References AccordionSection
+
+- [ ] AC-140: New `ReferencesSection` AccordionSection in the RightPanel, positioned between Slogan Pool and Artboards sections. Header: "References" with badge count.
+- [ ] AC-141: Each reference displayed as a thumbnail row (48×48px image, product title truncated, ASIN chip). Hover: border highlight.
+- [ ] AC-142: Per-reference actions: "Use as Reference" button (selects image for multimodal generation), "Analyze" button (triggers AI analysis), "Remove" button (X icon, removes from project).
+- [ ] AC-143: "Use as Reference" sets the reference image as `source_image_url` on the current prompt context. When "Generate" is clicked, the image is sent as multimodal input alongside the text prompt to the generation API.
+- [ ] AC-144: "Analyze" button triggers `POST /api/products/{productId}/analyze-image/` with the product image URL. Polling until complete. Result shown inline as expandable text below the thumbnail. Result also cached on the product's `prompt_analysis` field (reused on next click).
+- [ ] AC-145: Analysis result can be "Use as Prompt" → copies the analysis text into the PromptBar textarea for user editing before generation. This is the fallback text-only mode.
+
+#### Prompt Builder Integration
+
+- [ ] AC-146: Prompt Builder Context Tab gains a "Reference Images" section showing all project references as thumbnail rows with individual on/off toggles per reference.
+- [ ] AC-147: When a reference is toggled ON and the selected model supports multimodal input → the image URL is included in the `build-prompts` request as `source_image_urls[]`. The backend passes images directly to the LLM as multimodal content.
+- [ ] AC-148: When a reference is toggled ON but the selected model does NOT support multimodal input → the system auto-triggers analysis (if not already cached) and includes the text description instead. Info toast: "Model doesn't support image input — using text analysis instead."
+- [ ] AC-149: When a reference has a cached `prompt_analysis` → the analysis text is shown as preview below the thumbnail in the Context Tab. User can toggle between "Use Image (multimodal)" and "Use Analysis Text" modes per reference.
+
+#### Backend — ProjectReference Model + API
+
+- [ ] AC-150: `ProjectReference` model: UUID pk, project FK (DesignProject), source_product FK (AmazonProduct, nullable), image_url URLField, title CharField, asin CharField(nullable), prompt_analysis JSONField(nullable), position IntegerField, added_at DateTimeField.
+- [ ] AC-151: `POST /api/designs/projects/{id}/references/` — add references. Body: `{ product_ids: [uuid] }` or `{ image_urls: [{ url, title }] }`. Returns created references.
+- [ ] AC-152: `DELETE /api/designs/projects/{id}/references/{refId}/` — remove a reference from project.
+- [ ] AC-153: `GET /api/designs/projects/{id}/board/` — existing board endpoint extended: response includes `references: [{ id, image_url, title, asin, prompt_analysis, position }]`.
+- [ ] AC-154: `POST /api/products/{id}/analyze-image/` — existing endpoint, no changes needed. Returns `prompt_analysis` JSON. Caches result on product record.
+
+#### Generation with Reference Images
+
+- [ ] AC-155: When `source_image_url` is set on a generation request and the model supports multimodal input → the image is sent as part of the LLM messages array (as `image_url` content block alongside the text prompt).
+- [ ] AC-156: When the model does not support multimodal input and `source_image_url` is set → generation falls back to text-only mode using `prompt_analysis` text. If no analysis exists → returns error: "Analyze the reference image first or use a multimodal model."
+- [ ] AC-157: Generation response includes `reference_used: { image_url, mode: 'multimodal' | 'text_analysis' }` so the UI can show which reference was used and how.
+
+#### i18n
+
+- [ ] AC-158: All new UI strings in EN locale: `design.references.title`, `design.references.empty`, `design.references.useAsReference`, `design.references.analyze`, `design.references.analyzing`, `design.references.useAsPrompt`, `design.references.remove`, `design.references.alreadyAdded`, `design.references.addedSuccess`, `design.references.modelNoMultimodal`
+- [ ] AC-159: All new keys synced to DE, FR, IT, ES locales.
+
+### Edge Cases
+
+- [ ] EC-45: Product image URL returns 404 or is expired (Amazon CDN) → reference still saved (URL stored). Thumbnail shows broken-image placeholder. Analyze button shows "Image not available" error.
+- [ ] EC-46: Send to Canvas when product has no image (image field null) → "Send to Canvas" button hidden/disabled for that product.
+- [ ] EC-47: Analyze returns error (LLM timeout, rate limit) → notistack error: "Analysis failed. Try again." Reference remains in list without analysis.
+- [ ] EC-48: Project has 20+ references → References section scrollable with max-height. No performance degradation.
+- [ ] EC-49: Same product sent to multiple projects → allowed. Each project gets its own `ProjectReference` record. Analysis cached on product level (shared).
+- [ ] EC-50: User deletes the source AmazonProduct after it was added as reference → `ProjectReference` remains (has `image_url` copy). `source_product` FK set to null (SET_NULL).
+- [ ] EC-51: Bulk send of 10+ products → all added in single API call. Backend creates references in bulk. Progress not shown (fast enough for ≤50 items).
+- [ ] EC-52: Generation with multimodal reference on a model that silently ignores images → design generated from text only. No error (model-dependent behavior — user should check result quality).
+
+### Design Decisions
+
+| Decision | Why |
+|----------|-----|
+| References in RightPanel only, not as canvas artboards | User requested: canvas reserved for AI-generated designs. References are context, not output |
+| Multimodal as standard, analyze as fallback | Modern models (Gemini, GPT-4o) handle image+text natively. Analysis is extra step only needed for older models or fine-grained control |
+| `ProjectReference` as own model (not reusing `DesignProjectIdea`) | Different entity: products vs. slogans. Different fields (image_url, asin). Clean separation |
+| Analysis cached on AmazonProduct.prompt_analysis | Avoids re-analyzing same product image across projects. One LLM call per product lifetime |
+| Bulk send in single API call | UX: user selects multiple products, one click. No per-product dialog flow |
+
+### Dependencies
+
+- Requires: PROJ-9 Phase G (Slogan Pool, Prompt Builder — for Context Tab integration)
+- Requires: PROJ-7 (Amazon Product Research — for AmazonProduct model + collected products)
+- Uses existing: `POST /api/products/{id}/analyze-image/` (design_app)
+- Uses existing: `ProjectNamingDialog` component
+
+### Tech Design (Solution Architect) — Phase I
+
+#### Data Model
+
+New model in `design_app`:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | UUID pk | Auto-generated |
+| `project` | FK → DesignProject | CASCADE, related_name=`references` |
+| `source_product` | FK → AmazonProduct | SET_NULL, nullable — survives product deletion |
+| `image_url` | URLField(max_length=2048) | Copy of product image — independent of product lifecycle |
+| `title` | CharField(max_length=500) | Product title at time of add |
+| `asin` | CharField(max_length=20, blank) | Amazon ASIN, nullable |
+| `prompt_analysis` | JSONField(null) | Cached from AmazonProduct.prompt_analysis when analyzed |
+| `position` | IntegerField(default=0) | Ordering within project |
+| `added_at` | DateTimeField(auto_now_add) | When reference was added |
+
+Unique constraint: `(project, image_url)` — prevents duplicates per project.
+
+Existing model change: `generate_image()` in `image_generator.py` needs multimodal content support — messages `content` field switches from string to array when `source_image_url` is provided.
+
+#### API Endpoints
+
+| Endpoint | Method | Behavior |
+|----------|--------|----------|
+| `/api/designs/projects/{id}/references/` | POST | Add references by `product_ids[]` or `image_urls[]`. Bulk create, skip duplicates. Returns created refs |
+| `/api/designs/projects/{id}/references/{refId}/` | DELETE | Remove single reference |
+| `/api/designs/projects/{id}/board/` | GET | **Extend existing** — add `references` array to response |
+| `/api/products/{id}/analyze-image/` | POST | **Existing** — no changes |
+
+No new Django app needed. All models + views in `design_app`.
+
+#### Component Structure
+
+```
+NichePipeline (existing)
++-- ProductsGrid (existing — wire onCanvas + bulk send)
+    +-- ProductThumbnailCard (existing — wire "Send to Canvas" menu item)
+
+DesignWorkspaceView (existing)
++-- RightPanel (existing)
+    +-- SloganPoolSection (existing)
+    +-- ReferencesSection (NEW)
+    |   +-- ReferenceCard (NEW — thumbnail, title, ASIN chip)
+    |   |   +-- "Use as Reference" button → sets source_image_url
+    |   |   +-- "Analyze" button → triggers analyze API
+    |   |   +-- "Use as Prompt" button (after analysis)
+    |   |   +-- Remove (X) button
+    |   +-- Empty state: "Add references from Niche Pipeline"
+    +-- ArtboardListSection (existing)
+
+PromptBuilderDialog (existing)
++-- Context Tab (existing — extend)
+    +-- Reference Images section (NEW)
+        +-- Toggle per reference (multimodal vs text-analysis)
+```
+
+#### Generation Flow with References
+
+```
+User clicks "Use as Reference" on a ReferenceCard
+  → source_image_url stored in generation context state
+  → User writes/edits prompt text
+  → User clicks "Generate"
+    → Backend checks: does model support multimodal?
+      YES → messages content = [{ type: text, text: prompt }, { type: image_url, image_url: { url } }]
+      NO  → check prompt_analysis exists?
+        YES → append analysis text to prompt, generate text-only
+        NO  → return error "Analyze first or use multimodal model"
+  → Image generated and returned as usual
+```
+
+#### Niche Pipeline Send Flow
+
+```
+User clicks "Send to Canvas" on product
+  → Check: how many DesignProjects linked to this niche?
+    0 projects → open ProjectNamingDialog (create new)
+    1 project  → add reference directly (no dialog)
+    N projects → open ProjectNamingDialog (select existing)
+  → POST /api/designs/projects/{id}/references/ with product_ids
+  → Notistack success
+  → If new project → navigate to /designs/{projectId}
+```
+
+#### Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| `ProjectReference` in design_app (not scraper_app) | References belong to design projects, not to the scraper domain. design_app owns all project-related models |
+| `image_url` stored as copy, not just FK | Amazon CDN URLs may expire. Having a copy ensures the reference persists even if product is deleted |
+| Multimodal detection via model name lookup | OpenRouter doesn't expose capability flags. Maintain a `MULTIMODAL_MODELS` set in image_generator.py with known multimodal model IDs |
+| Analysis cached on ProjectReference too (not only AmazonProduct) | Allows manual image uploads (no product) to also have analysis. Copy from product on first analyze |
+| AccordionSection reuse | `AccordionSection` component already exists in rightPanel. ReferencesSection follows same pattern as SloganPoolSection |
+| No WebSocket for analyze polling | Analysis takes 5-15s. Simple RTK Query polling (2s interval) with `pollingInterval` on the board query is sufficient |

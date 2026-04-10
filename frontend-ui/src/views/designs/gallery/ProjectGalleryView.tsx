@@ -134,7 +134,7 @@ const ProjectGalleryView = () => {
     return (
       <Box>
         <PageHeader>
-          <Typography variant="h1">{t('design.projects.title')}</Typography>
+          <Typography variant="h4" fontWeight={700}>{t('design.projects.title')}</Typography>
         </PageHeader>
         <EmptyRoot>
           <Typography variant="h5" color="text.secondary">
@@ -150,7 +150,7 @@ const ProjectGalleryView = () => {
     return (
       <Box>
         <PageHeader>
-          <Typography variant="h1">{t('design.projects.title')}</Typography>
+          <Typography variant="h4" fontWeight={700}>{t('design.projects.title')}</Typography>
         </PageHeader>
         <EmptyRoot>
           <ImageOutlinedIcon sx={{ fontSize: 64, color: 'text.disabled', mb: 2 }} />
@@ -183,7 +183,7 @@ const ProjectGalleryView = () => {
   return (
     <Box>
       <PageHeader>
-        <Typography variant="h1">{t('design.projects.title')}</Typography>
+        <Typography variant="h4" fontWeight={700}>{t('design.projects.title')}</Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
@@ -195,7 +195,7 @@ const ProjectGalleryView = () => {
 
       <Grid container spacing={3}>
         {projects.map((project) => (
-          <Grid key={project.id} size={{ xs: 6, sm: 4, md: 3, lg: 2 }}>
+          <Grid key={project.id} size={{ xs: 6, sm: 4, md: 3 }}>
             <ProjectCard
               project={project}
               onClick={handleCardClick}

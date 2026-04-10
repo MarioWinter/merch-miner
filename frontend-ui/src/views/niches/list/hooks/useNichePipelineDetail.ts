@@ -12,9 +12,9 @@ import {
 import { createNicheSchema, updateNicheSchema } from '../schemas/nicheSchema';
 import type { CreateNicheFormValues, UpdateNicheFormValues } from '../schemas/nicheSchema';
 import type { NicheUpdateBody } from '../types';
-import type { DrawerMode } from './useNicheDrawer';
+import type { DrawerMode } from './useNichePipeline';
 
-interface UseNicheDetailDrawerOptions {
+interface UseNichePipelineDetailOptions {
   mode: DrawerMode;
   selectedId: string | null;
   onClose: () => void;
@@ -36,11 +36,11 @@ const extractErrorMessage = (error: unknown): string | null => {
   return null;
 };
 
-export const useNicheDetailDrawer = ({
+export const useNichePipelineDetail = ({
   mode,
   selectedId,
   onClose,
-}: UseNicheDetailDrawerOptions) => {
+}: UseNichePipelineDetailOptions) => {
   const { t } = useTranslation();
 
   const { data: niche, isFetching, isError: fetchError } = useGetNicheQuery(selectedId ?? '', {

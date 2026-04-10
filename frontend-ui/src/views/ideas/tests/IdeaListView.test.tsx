@@ -6,7 +6,7 @@ const { fa } = vi.hoisted(() => ({
   fa: (n: string) => ({ reducerPath: n, reducer: () => ({}), middleware: () => (x: any) => (a: any) => x(a), util: { resetApiState: () => ({ type: 'noop' }) } }),
 }));
 vi.mock('@/store/nicheSlice', () => ({ nicheApi: fa('nicheApi'), useListNichesQuery: () => ({ data: { results: [] }, isLoading: false }), useGetNicheQuery: () => ({ data: null, isFetching: false }) }));
-vi.mock('@/views/niches/list/partials/NicheDetailDrawer', () => ({ NicheDetailDrawer: () => null }));
+vi.mock('@/views/niches/list/partials/NichePipeline', () => ({ NichePipeline: () => null }));
 vi.mock('@/store/researchSlice', () => ({ researchApi: fa('researchApi') }));
 vi.mock('@/store/designSlice', () => ({ designApi: fa('designApi') }));
 vi.mock('@/store/keywordSlice', () => ({ keywordApi: fa('keywordApi') }));
@@ -140,7 +140,7 @@ describe('IdeaListView', () => {
       isFetching: false,
     });
     renderWithProviders(<IdeaListView />);
-    expect(screen.getByText('Slogan Refinery')).toBeInTheDocument();
+    expect(screen.getByText('Slogan Factory')).toBeInTheDocument();
   });
 
   it('renders import button', () => {

@@ -833,7 +833,7 @@
     },
     "sloganPool": {
       "title": "Slogan-Pool",
-      "empty": "Keine Slogans — aus Slogan Refinery oder Nischen-Drawer hinzufügen",
+      "empty": "Slogans aus der Nischen-Pipeline oder der Slogan Factory hinzufügen",
       "selectSlogan": "Slogan auswählen",
       "refProducts": "Zur Leinwand hinzufügen",
       "details": "Details",
@@ -1294,7 +1294,7 @@
       "settings": "Projekteinstellungen",
       "canvasComingSoon": "Artboard Canvas kommt bald",
       "canvasDescription": "Der Konva.js-basierte Artboard ersetzt das alte React Flow Board.",
-      "openNicheDrawer": "Nischen-Details"
+      "openNicheDrawer": "Niche Pipeline"
     },
     "canvas": {
       "emptyTitle": "Bilder ablegen oder KI-Bildboard erstellen",

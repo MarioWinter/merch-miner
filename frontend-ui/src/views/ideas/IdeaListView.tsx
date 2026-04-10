@@ -31,7 +31,7 @@ import { ImportDialog } from './partials/ImportDialog';
 import { RejectIdeaWarningDialog } from './partials/RejectIdeaWarningDialog';
 import { useMockAdaptation } from './hooks/useMockAdaptation';
 import { MOCK_IDEAS } from './hooks/useMockIdeas';
-import { NicheDetailDrawer } from '../niches/list/partials/NicheDetailDrawer';
+import { NichePipeline } from '../niches/list/partials/NichePipeline';
 import type { Idea } from './types';
 
 const PAGE_SIZE = 20;
@@ -423,7 +423,7 @@ export const IdeaListView = () => {
       <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
 
       {/* Niche detail drawer (double-click on card) */}
-      <NicheDetailDrawer
+      <NichePipeline
         open={!!drawerNicheId}
         mode="edit"
         selectedId={drawerNicheId}

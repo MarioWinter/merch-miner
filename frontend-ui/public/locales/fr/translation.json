@@ -889,7 +889,7 @@
     },
     "sloganPool": {
       "title": "Pool de slogans",
-      "empty": "Aucun slogan — ajoutez depuis la Raffinerie de Slogans ou le Tiroir de Niche",
+      "empty": "Ajoutez des slogans depuis le Pipeline de Niche ou la Slogan Factory",
       "selectSlogan": "Sélectionner un slogan",
       "refProducts": "Ajouter au canevas",
       "details": "Détails",
@@ -1350,7 +1350,7 @@
       "settings": "Parametres du projet",
       "canvasComingSoon": "Artboard Canvas bientot disponible",
       "canvasDescription": "L'artboard Konva.js remplacera l'ancien React Flow.",
-      "openNicheDrawer": "Détails de la niche"
+      "openNicheDrawer": "Niche Pipeline"
     },
     "settings": {
       "title": "Parametres de traitement",

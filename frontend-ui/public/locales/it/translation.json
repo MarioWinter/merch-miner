@@ -809,7 +809,7 @@
     },
     "sloganPool": {
       "title": "Pool di slogan",
-      "empty": "Nessuno slogan — aggiungi dalla Raffineria Slogan o dal Cassetto Nicchia",
+      "empty": "Aggiungi slogan dalla Pipeline Nicchia o dalla Slogan Factory",
       "selectSlogan": "Seleziona slogan",
       "refProducts": "Aggiungi alla tela",
       "details": "Dettagli",
@@ -1270,7 +1270,7 @@
       "settings": "Impostazioni progetto",
       "canvasComingSoon": "Artboard Canvas in arrivo",
       "canvasDescription": "L'artboard Konva.js sostituira il vecchio React Flow.",
-      "openNicheDrawer": "Dettagli nicchia"
+      "openNicheDrawer": "Niche Pipeline"
     },
     "canvas": {
       "emptyTitle": "Rilascia immagini o crea una tavola IA",

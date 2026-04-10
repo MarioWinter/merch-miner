@@ -8,7 +8,7 @@ export interface DrawerState {
   selectedId: string | null;
 }
 
-export interface UseNicheDrawerReturn {
+export interface UseNichePipelineReturn {
   drawerState: DrawerState;
   openCreate: () => void;
   openEdit: (id: string) => void;
@@ -21,7 +21,7 @@ const INITIAL_STATE: DrawerState = {
   selectedId: null,
 };
 
-export const useNicheDrawer = (): UseNicheDrawerReturn => {
+export const useNichePipeline = (): UseNichePipelineReturn => {
   const [drawerState, setDrawerState] = useState<DrawerState>(INITIAL_STATE);
 
   const openCreate = useCallback(() => {

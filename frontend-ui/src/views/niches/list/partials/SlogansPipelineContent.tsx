@@ -92,7 +92,15 @@ export const SlogansPipelineContent = ({
     }
   };
 
-  const handleForge = () => {
+  const [forgeIds, setForgeIds] = useState<string[]>([]);
+
+  const handleForgeSingle = (ideaId: string) => {
+    setForgeIds([ideaId]);
+    setNamingDialogOpen(true);
+  };
+
+  const handleForgeBulk = () => {
+    setForgeIds(Array.from(selectedIds));
     setNamingDialogOpen(true);
   };
 
@@ -197,7 +205,7 @@ export const SlogansPipelineContent = ({
             <InlineFlowButton
               target="canvas"
               tooltip={t('niches.pipeline.slogans.toCanvas', 'Send to Design Canvas')}
-              onClick={handleForge}
+              onClick={() => handleForgeSingle(slogan.id)}
             />
           </SloganRow>
         ))}
@@ -212,7 +220,7 @@ export const SlogansPipelineContent = ({
               count: selectedIds.size,
             })}
             count={selectedIds.size}
-            onClick={handleForge}
+            onClick={handleForgeBulk}
           />
         </Box>
       )}
@@ -231,7 +239,7 @@ export const SlogansPipelineContent = ({
         }}
         nicheName={nicheName}
         nicheId={nicheIdForProject}
-        ideaIds={Array.from(selectedIds)}
+        ideaIds={forgeIds}
       />
     </Box>
   );

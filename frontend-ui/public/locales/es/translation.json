@@ -1270,7 +1270,7 @@
       "settings": "Configuracion del proyecto",
       "canvasComingSoon": "Artboard Canvas proximamente",
       "canvasDescription": "El artboard Konva.js reemplazara el antiguo React Flow.",
-      "openNicheDrawer": "Detalles del nicho"
+      "openNicheDrawer": "Niche Pipeline"
     },
     "canvas": {
       "emptyTitle": "Suelta imagenes o crea un tablero IA",

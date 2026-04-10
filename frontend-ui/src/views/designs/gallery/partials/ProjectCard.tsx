@@ -193,7 +193,7 @@ const ProjectCard = ({ project, onClick, onDelete }: ProjectCardProps) => {
               label={project.niche_name}
               size="small"
               sx={{
-                maxWidth: 100,
+                maxWidth: 140,
                 backgroundColor: (theme) => alpha(theme.palette.secondary.main, 0.12),
                 color: 'secondary.main',
               }}

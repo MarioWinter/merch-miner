@@ -45,7 +45,7 @@ import ProductTable from './partials/ProductTable';
 import LiveProgressBanner from './partials/LiveProgressBanner';
 import EmptyState from './partials/EmptyState';
 import StatisticsView from './partials/StatisticsView';
-import { NicheDetailDrawer } from '../../niches/list/partials/NicheDetailDrawer';
+import { NichePipeline } from '../../niches/list/partials/NichePipeline';
 
 const STORAGE_MARKETPLACE_KEY = 'mm-research-marketplace';
 
@@ -605,7 +605,7 @@ const AmazonResearchView = () => {
       )}
 
       {/* Niche Detail Drawer */}
-      <NicheDetailDrawer
+      <NichePipeline
         open={drawerOpen && !!activeNicheId}
         mode="edit"
         selectedId={activeNicheId}

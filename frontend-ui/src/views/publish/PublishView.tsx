@@ -67,7 +67,7 @@ const PublishView = () => {
       {/* Page Header */}
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
         <Box>
-          <Typography variant="h3">{t('publish.page.title')}</Typography>
+          <Typography variant="h4" fontWeight={700}>{t('publish.page.title')}</Typography>
           <Typography variant="body2" color="text.secondary">
             {t('publish.page.subtitle')}
           </Typography>

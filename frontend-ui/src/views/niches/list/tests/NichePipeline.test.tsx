@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../../../utils/test-utils';
-import { NicheDetailDrawer } from '../partials/NicheDetailDrawer';
+import { NichePipeline } from '../partials/NichePipeline';
 import collectedItemsReducer from '../../../../store/collectedItemsSlice';
 import type { Niche } from '../types';
 
@@ -88,7 +88,7 @@ const renderDrawer = (props: {
   onClose?: () => void;
 }) => {
   return renderWithProviders(
-    <NicheDetailDrawer
+    <NichePipeline
       open={props.open}
       mode={props.mode}
       selectedId={props.selectedId ?? null}
@@ -98,7 +98,7 @@ const renderDrawer = (props: {
   );
 };
 
-describe('NicheDetailDrawer — create mode', () => {
+describe('NichePipeline — create mode', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -160,7 +160,7 @@ describe('NicheDetailDrawer — create mode', () => {
   });
 });
 
-describe('NicheDetailDrawer — edit mode', () => {
+describe('NichePipeline — edit mode', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetNiche.mockReturnValue({ data: mockNiche, isFetching: false });

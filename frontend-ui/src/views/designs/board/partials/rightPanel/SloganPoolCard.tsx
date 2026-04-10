@@ -33,13 +33,6 @@ const CardRoot = styled(Box)(({ theme }) => ({
   },
 }));
 
-const ThumbnailImg = styled('img')({
-  width: 36,
-  height: 36,
-  objectFit: 'cover',
-  borderRadius: 4,
-  flexShrink: 0,
-});
 
 // -----------------------------------------------------------------
 // Props
@@ -51,7 +44,6 @@ interface SloganPoolCardProps {
   onToggleSelect: () => void;
   onAutoPrompt: () => void;
   onRemove: () => void;
-  onAddReferenceArtboard?: (imageUrl: string) => void;
   isAutoPrompting?: boolean;
   isGenerating?: boolean;
 }
@@ -66,17 +58,11 @@ const SloganPoolCard = ({
   onToggleSelect,
   onAutoPrompt,
   onRemove,
-  onAddReferenceArtboard,
   isAutoPrompting,
   isGenerating,
 }: SloganPoolCardProps) => {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
-
-  const refProducts = idea.reference_products ?? [];
-  const thumbnails = refProducts
-    .filter((p) => p.image)
-    .slice(0, 4);
 
   return (
     <CardRoot>
@@ -154,25 +140,6 @@ const SloganPoolCard = ({
               />
             )}
           </Stack>
-
-          {/* Reference thumbnails */}
-          {thumbnails.length > 0 && (
-            <Stack direction="row" spacing={0.5} sx={{ mt: 0.5 }}>
-              {thumbnails.map((p) => (
-                <Tooltip
-                  key={p.product_id}
-                  title={t('design.sloganPool.refProducts', 'Add to canvas')}
-                >
-                  <ThumbnailImg
-                    src={p.image}
-                    alt={p.title}
-                    onClick={() => onAddReferenceArtboard?.(p.image)}
-                    style={{ cursor: onAddReferenceArtboard ? 'pointer' : 'default' }}
-                  />
-                </Tooltip>
-              ))}
-            </Stack>
-          )}
 
           {/* Expandable details */}
           {(idea.why_it_works || idea.emotional_archetype || idea.pattern_used) && (

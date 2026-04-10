@@ -157,7 +157,7 @@ const SloganPoolSection = ({
         <Typography variant="caption" color="text.disabled">
           {t(
             'design.sloganPool.empty',
-            'No slogans -- add from Slogan Refinery or Niche Drawer',
+            'Add slogans from Niche Pipeline or Slogan Factory',
           )}
         </Typography>
       </SectionRoot>
@@ -175,7 +175,6 @@ const SloganPoolSection = ({
             onToggleSelect={() => toggleSelect(idea.id)}
             onAutoPrompt={() => handleAutoPrompt(idea.id)}
             onRemove={() => handleRemove(idea.id)}
-            onAddReferenceArtboard={onAddReferenceArtboard}
             isAutoPrompting={autoPromptingId === idea.id}
             isGenerating={generatingIds.has(idea.id)}
           />

@@ -21,8 +21,8 @@ import BrushOutlinedIcon from '@mui/icons-material/BrushOutlined';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
 import { useTranslation } from 'react-i18next';
-import type { DrawerMode } from '../hooks/useNicheDrawer';
-import { useNicheDetailDrawer } from '../hooks/useNicheDetailDrawer';
+import type { DrawerMode } from '../hooks/useNichePipeline';
+import { useNichePipelineDetail } from '../hooks/useNichePipelineDetail';
 import { usePipelineStates } from '../hooks/usePipelineStates';
 import { useDrawerPipelineCounts } from '../hooks/useDrawerPipelineCounts';
 import { DrawerCreateForm } from './DrawerCreateForm';
@@ -37,7 +37,7 @@ import { DesignsPipelineContent } from './DesignsPipelineContent';
 import { ListingsPipelineContent } from './ListingsPipelineContent';
 import { UploadPipelineContent } from './UploadPipelineContent';
 
-interface NicheDetailDrawerProps {
+interface NichePipelineProps {
   open: boolean;
   mode: DrawerMode;
   selectedId: string | null;
@@ -80,12 +80,12 @@ const PipelineSection = styled(Box)(({ theme }) => ({
   gap: theme.spacing(0.5),
 }));
 
-export const NicheDetailDrawer = ({
+export const NichePipeline = ({
   open,
   mode,
   selectedId,
   onClose,
-}: NicheDetailDrawerProps) => {
+}: NichePipelineProps) => {
   const { t } = useTranslation();
 
   const {
@@ -111,7 +111,7 @@ export const NicheDetailDrawer = ({
     setUnsavedDialogOpen,
     requestClose,
     discardAndClose,
-  } = useNicheDetailDrawer({ mode, selectedId, onClose });
+  } = useNichePipelineDetail({ mode, selectedId, onClose });
 
   const isCreate = mode === 'create';
   const isBusy = creating || updating || deleting || isFetching;

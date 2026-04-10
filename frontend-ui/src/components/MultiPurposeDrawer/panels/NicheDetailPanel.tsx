@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 /**
  * NicheDetailPanel wraps the existing Niche detail content.
  * When the MultiPurposeDrawer is opened with the "niche" panel active,
- * it delegates rendering to the existing NicheDetailDrawer internals.
+ * it delegates rendering to the existing NichePipeline internals.
  *
  * For MVP, this panel shows a placeholder directing users to open a niche.
  * The actual niche content is managed by NicheListView's drawer state.

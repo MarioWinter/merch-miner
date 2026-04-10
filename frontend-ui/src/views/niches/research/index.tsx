@@ -16,7 +16,7 @@ import { normalizePatternKey } from './partials/patternConfig';
 import { RelatedNiches } from './partials/RelatedNiches';
 import { ResearchErrorState } from './partials/ResearchErrorState';
 import { ResearchEmptyState } from './partials/ResearchEmptyState';
-import { NicheDetailDrawer } from '../list/partials/NicheDetailDrawer';
+import { NichePipeline } from '../list/partials/NichePipeline';
 import type { Marketplace, ProductType } from './types';
 
 const PageHeader = styled(Box)(({ theme }) => ({
@@ -218,7 +218,7 @@ const NicheResearchView = () => {
         </Stack>
       )}
 
-      <NicheDetailDrawer
+      <NichePipeline
         open={drawerOpen}
         mode="edit"
         selectedId={nicheId}

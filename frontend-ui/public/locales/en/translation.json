@@ -95,7 +95,7 @@
     "reports": "Reports",
     "niches": "Niche Claims",
     "research": "Product Drilling",
-    "slogans": "Slogan Refinery",
+    "slogans": "Slogan Factory",
     "designs": "Design Forge",
     "listings": "Listing Loadout",
     "amazonResearch": "Amazon Deep Dive",
@@ -540,7 +540,7 @@
     }
   },
   "ideas": {
-    "pageTitle": "Slogan Refinery",
+    "pageTitle": "Slogan Factory",
     "newIdea": "New Idea",
     "batchHint": "Enter slogans (one per line for batch input)...",
     "adapted": "adapted",
@@ -934,7 +934,7 @@
     },
     "sloganPool": {
       "title": "Slogan Pool",
-      "empty": "No slogans — add from Slogan Refinery or Niche Drawer",
+      "empty": "Add slogans from Niche Pipeline or Slogan Factory",
       "selectSlogan": "Select slogan",
       "refProducts": "Add to canvas",
       "details": "Details",

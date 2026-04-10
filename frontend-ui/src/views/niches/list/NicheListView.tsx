@@ -5,7 +5,7 @@ import AddIcon from '@mui/icons-material/Add';
 import { useTranslation } from 'react-i18next';
 import { useListNichesQuery, useDeleteNicheMutation } from '../../../store/nicheSlice';
 import { useNicheFilters } from './hooks/useNicheFilters';
-import { useNicheDrawer } from './hooks/useNicheDrawer';
+import { useNichePipeline } from './hooks/useNichePipeline';
 import { useNicheSelection } from './hooks/useNicheSelection';
 import { useInlineEdit } from './hooks/useInlineEdit';
 import { useInlineAdd } from './hooks/useInlineAdd';
@@ -13,7 +13,7 @@ import { NicheFilterToolbar } from './partials/NicheFilterToolbar';
 import { NicheTable } from './partials/NicheTable';
 import { TableSkeleton } from './partials/TableSkeleton';
 import { EmptyState } from './partials/EmptyState';
-import { NicheDetailDrawer } from './partials/NicheDetailDrawer';
+import { NichePipeline } from './partials/NichePipeline';
 import { BulkActionBar } from './partials/BulkActionBar';
 import { useSnackbar } from 'notistack';
 import type { NicheListParams } from './types';
@@ -80,7 +80,7 @@ const NicheListView = () => {
   const filterState = useNicheFilters();
   const { filters, setOrdering, resetFilters, setPage } = filterState;
 
-  const { drawerState, openCreate, openEdit, closeDrawer } = useNicheDrawer();
+  const { drawerState, openCreate, openEdit, closeDrawer } = useNichePipeline();
 
   const selection = useNicheSelection();
   const inlineEdit = useInlineEdit();
@@ -200,7 +200,7 @@ const NicheListView = () => {
         </PaginationRow>
       )}
 
-      <NicheDetailDrawer
+      <NichePipeline
         open={drawerState.open}
         mode={drawerState.mode}
         selectedId={drawerState.selectedId}

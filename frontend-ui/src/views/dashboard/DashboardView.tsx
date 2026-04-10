@@ -33,7 +33,7 @@ const DashboardView = () => {
 
   return (
     <Box>
-      <Typography variant="h4" sx={{ mb: 3 }}>
+      <Typography variant="h4" fontWeight={700} sx={{ mb: 3 }}>
         {t('dashboard.page.title')}
       </Typography>
 
