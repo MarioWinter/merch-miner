@@ -22,7 +22,6 @@ from design_app.api.serializers import (
     BatchProcessSerializer,
     BuildPromptsSerializer,
     BulkCreatePromptsSerializer,
-    BulkGenerateSerializer,
     CreateProjectSerializer,
     CreatePromptPresetSerializer,
     DesignPipelineSerializer,
@@ -281,13 +280,28 @@ class GenerateDesignView(APIView):
         from idea_app.models import Idea
         idea = get_object_or_404(Idea, pk=pk, workspace_id=ws_id)
 
+        mode = serializer.validated_data.get('mode', DesignGenerationRun.Mode.TEXT_TO_IMAGE)
+        source_image_url = serializer.validated_data.get('source_image_url', '')
+
+        # Validate multimodal support for i2i
+        if mode == DesignGenerationRun.Mode.IMAGE_TO_IMAGE:
+            from design_app.services.image_generator import MULTIMODAL_MODELS
+            if serializer.validated_data['model'] not in MULTIMODAL_MODELS:
+                return Response(
+                    {'error': 'Selected model does not support image input. '
+                     'Use a multimodal model for image-to-image generation.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         # Create generation run
         run = DesignGenerationRun.objects.create(
             idea=idea,
             model_name=serializer.validated_data['model'],
+            generation_mode=mode,
             status=DesignGenerationRun.Status.PENDING,
             triggered_by=request.user,
             prompt_used=serializer.validated_data['prompt'],
+            source_image_url=source_image_url,
         )
 
         # Resolve optional project_id
@@ -304,6 +318,7 @@ class GenerateDesignView(APIView):
         job = queue.enqueue(
             task_generate_design, str(run.id), project_id_str,
             serializer.validated_data.get('aspect_ratio', '1:1'),
+            mode,
         )
         run.rq_job_id = job.id
         run.save(update_fields=['rq_job_id'])
@@ -996,9 +1011,11 @@ class StandaloneGenerateView(APIView):
 
         # Validate multimodal support
         source_image_url = serializer.validated_data.get('source_image_url', '')
-        if source_image_url:
+        mode = serializer.validated_data.get('mode', DesignGenerationRun.Mode.TEXT_TO_IMAGE)
+        model_key = serializer.validated_data['model']
+
+        if source_image_url or mode == DesignGenerationRun.Mode.IMAGE_TO_IMAGE:
             from design_app.services.image_generator import MULTIMODAL_MODELS
-            model_key = serializer.validated_data['model']
             if model_key not in MULTIMODAL_MODELS:
                 return Response(
                     {'error': 'Selected model does not support image input. '
@@ -1010,6 +1027,7 @@ class StandaloneGenerateView(APIView):
         run = DesignGenerationRun.objects.create(
             idea=idea,
             model_name=serializer.validated_data['model'],
+            generation_mode=mode,
             status=DesignGenerationRun.Status.PENDING,
             triggered_by=request.user,
             prompt_used=serializer.validated_data['prompt'],
@@ -1023,6 +1041,7 @@ class StandaloneGenerateView(APIView):
             str(run.id),
             str(project.id),
             serializer.validated_data.get('aspect_ratio', '1:1'),
+            mode,
         )
         run.rq_job_id = job.id
         run.save(update_fields=['rq_job_id'])
@@ -1454,117 +1473,6 @@ class ProjectReferenceRemoveView(APIView):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-# -- Auto-Prompt (G3) --
-
-class AutoPromptView(APIView):
-    """GET /api/designs/projects/{id}/ideas/{ideaId}/auto-prompt/"""
-
-    def get(self, request, pk, idea_id):
-        ws_id = _require_workspace(request)
-        if not ws_id:
-            return _ws_error()
-
-        project = get_object_or_404(
-            DesignProject, pk=pk, workspace_id=ws_id,
-        )
-
-        from idea_app.models import Idea
-        idea = get_object_or_404(
-            Idea.objects.select_related('niche'),
-            pk=idea_id,
-            workspace_id=ws_id,
-        )
-
-        # Verify idea is in this project's pool
-        if not DesignProjectIdea.objects.filter(
-            project=project, idea=idea,
-        ).exists():
-            return Response(
-                {'error': 'Idea not in project pool.'},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        # Get reference products for prompt context
-        reference_analyses = _get_reference_products(idea)
-
-        from design_app.services.prompt_builder import build_from_idea
-        prompt = build_from_idea(idea, 'light_gray', reference_analyses or None)
-
-        return Response({'prompt': prompt})
-
-
-# -- Bulk Generate (G3) --
-
-class BulkGenerateView(APIView):
-    """POST /api/designs/projects/{id}/bulk-generate/"""
-
-    def post(self, request, pk):
-        ws_id = _require_workspace(request)
-        if not ws_id:
-            return _ws_error()
-
-        project = get_object_or_404(
-            DesignProject, pk=pk, workspace_id=ws_id,
-        )
-
-        serializer = BulkGenerateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        idea_ids = serializer.validated_data['idea_ids']
-        model_name = serializer.validated_data['model']
-        bg_color = serializer.validated_data['background_color']
-
-        from idea_app.models import Idea
-        ideas = Idea.objects.filter(
-            id__in=idea_ids, workspace_id=ws_id,
-        ).select_related('niche')
-
-        if ideas.count() == 0:
-            raise DRFValidationError({'idea_ids': 'No valid ideas found.'})
-
-        results = []
-        queue = django_rq.get_queue('design')
-
-        for idea in ideas:
-            # Build prompt
-            reference_analyses = _get_reference_products(idea)
-            from design_app.services.prompt_builder import build_from_idea
-            prompt = build_from_idea(idea, bg_color, reference_analyses or None)
-
-            # Create run
-            run = DesignGenerationRun.objects.create(
-                idea=idea,
-                model_name=model_name,
-                status=DesignGenerationRun.Status.PENDING,
-                triggered_by=request.user,
-                prompt_used=prompt,
-            )
-
-            # Enqueue
-            job = queue.enqueue(
-                task_generate_design,
-                str(run.id),
-                str(project.id),
-                serializer.validated_data.get('aspect_ratio', '1:1'),
-            )
-            run.rq_job_id = job.id
-            run.save(update_fields=['rq_job_id'])
-
-            # Auto-add idea to pool if not already there
-            DesignProjectIdea.objects.get_or_create(
-                project=project,
-                idea=idea,
-                defaults={'position': 0},
-            )
-
-            results.append({
-                'idea_id': str(idea.id),
-                'run_id': str(run.id),
-                'prompt_used': prompt,
-            })
-
-        return Response(results, status=status.HTTP_202_ACCEPTED)
-
 
 # -- ProjectPrompt CRUD (G9) --
 
@@ -1671,13 +1579,32 @@ class GenerateFromPromptView(APIView):
         serializer = GenerateFromPromptSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        mode = serializer.validated_data.get('mode', DesignGenerationRun.Mode.TEXT_TO_IMAGE)
+        source_image_url = serializer.validated_data.get('source_image_url', '')
+
+        # Use prompt's source_image_url as fallback for i2i
+        if not source_image_url and prompt.source_image_url:
+            source_image_url = prompt.source_image_url
+
+        # Validate multimodal support for i2i
+        if mode == DesignGenerationRun.Mode.IMAGE_TO_IMAGE:
+            from design_app.services.image_generator import MULTIMODAL_MODELS
+            if serializer.validated_data['model'] not in MULTIMODAL_MODELS:
+                return Response(
+                    {'error': 'Selected model does not support image input. '
+                     'Use a multimodal model for image-to-image generation.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         run = DesignGenerationRun.objects.create(
             idea=prompt.source_idea,
             project_prompt=prompt,
             model_name=serializer.validated_data['model'],
+            generation_mode=mode,
             status=DesignGenerationRun.Status.PENDING,
             triggered_by=request.user,
             prompt_used=prompt.prompt_text,
+            source_image_url=source_image_url,
         )
 
         queue = django_rq.get_queue('design')
@@ -1686,6 +1613,7 @@ class GenerateFromPromptView(APIView):
             str(run.id),
             str(project.id),
             serializer.validated_data.get('aspect_ratio', '1:1'),
+            mode,
         )
         run.rq_job_id = job.id
         run.save(update_fields=['rq_job_id'])

@@ -98,8 +98,8 @@
     "slogans": "Refinería de slogans",
     "designs": "Forja de diseños",
     "listings": "Listados",
-    "amazonResearch": "Análisis profundo de Amazon",
-    "keywords": "Banco de keywords",
+    "amazonResearch": "Investigación Amazon",
+    "keywords": "Keyword Drilling",
     "uploads": "Estación de subida",
     "kanban": "Kanban de equipo",
     "sections": {
@@ -805,7 +805,84 @@
       "vibe": "Vibra",
       "tone": "Tono",
       "aesthetics": "Estética",
-      "analyzeImage": "Analizar"
+      "analyzeImage": "Analizar",
+      "generatePrompt": "Generar prompt",
+      "promptTitle": "Título del prompt",
+      "promptTitlePlaceholder": "Dale un nombre a este prompt...",
+      "sloganSelector": "Eslogan del pool",
+      "mainSubject": "Sujeto principal",
+      "contentType": "Tipo de contenido",
+      "selectContentType": "Seleccionar tipo",
+      "mood": "Estado de ánimo",
+      "selectMood": "Seleccionar estado de ánimo",
+      "tabs": {
+        "label": "Pestañas del constructor de prompts",
+        "concept": "Concepto",
+        "context": "Contexto",
+        "style": "Estilo",
+        "format": "Formato",
+        "color": "Color",
+        "background": "Fondo",
+        "text": "Texto",
+        "output": "Salida"
+      },
+      "style": {
+        "category": "Categoría de estilo",
+        "selectCategory": "Seleccionar categoría",
+        "style": "Estilo",
+        "selectStyle": "Seleccionar estilo",
+        "addStyle": "+ Añadir estilo",
+        "empty": "Aún no se han añadido estilos. Selecciona una categoría y un estilo arriba."
+      },
+      "format": {
+        "composition": "Composición",
+        "selectComposition": "Seleccionar composición"
+      },
+      "color": {
+        "palette": "Paleta de colores",
+        "selectColor": "Seleccionar color {{color}}",
+        "addColor": "+ Añadir color",
+        "fromResearch": "Desde investigación",
+        "selected": "Colores seleccionados",
+        "empty": "No hay colores seleccionados. Haz clic en las muestras de arriba."
+      },
+      "background": {
+        "type": "Tipo de fondo",
+        "selectType": "Seleccionar tipo de fondo",
+        "presets": "Preajustes de fondo"
+      },
+      "text": {
+        "noSlogan": "Ningún eslogan seleccionado",
+        "enterCustom": "Introduce texto personalizado abajo",
+        "textIncluded": "¿Incluir texto?",
+        "selectMode": "Seleccionar opción de texto",
+        "customLabel": "Texto personalizado",
+        "customPlaceholder": "Escribe el texto a incluir en el diseño...",
+        "preview": "Vista previa del texto",
+        "noTextHint": "El diseño se generará sin superposición de texto."
+      },
+      "output": {
+        "mbaPreset": "Preajuste MBA",
+        "mbaPresetHint": "4500x5400, 300DPI, bordes sin costuras, sin sangrado"
+      },
+      "context": {
+        "toggleKeywords": "Activar/desactivar palabras clave",
+        "keywords": "Palabras clave",
+        "noKeywords": "Sin palabras clave — ejecuta primero la investigación de palabras clave",
+        "toggleResearch": "Activar/desactivar investigación IA",
+        "aiResearch": "Investigación IA",
+        "noResearch": "No hay datos de investigación disponibles",
+        "toggleProducts": "Activar/desactivar productos de referencia",
+        "referenceProducts": "Productos de referencia",
+        "noProducts": "No hay productos de referencia disponibles",
+        "referenceImages": "Imágenes de referencia",
+        "noReferences": "Sin imágenes de referencia — añade desde el Pipeline de Nicho",
+        "toggleReference": "Activar/desactivar referencia {{title}}",
+        "untitledRef": "Sin título",
+        "refModeLabel": "Modo de referencia",
+        "modeImage": "Imagen (multimodal)",
+        "modeText": "Análisis de texto"
+      }
     },
     "sloganPool": {
       "title": "Pool de eslóganes",
@@ -1444,6 +1521,35 @@
       "generating": "Generando...",
       "regenerate": "Regenerar"
     },
+    "generation": {
+      "zoneLabel": "Controles de generación",
+      "images": "Imágenes",
+      "imageCount": "Número de imágenes",
+      "parallelSwitch": "Prompts paralelos",
+      "parallelLabel": "Prompts paralelos",
+      "parallelHint": "Cada nueva línea = imagen separada",
+      "parallelPlaceholder": "Introduce prompts (cada línea = imagen separada)...",
+      "singlePlaceholder": "Describe tu diseño...",
+      "analyzeTooltip": "Generar prompt a partir de la imagen",
+      "analyzeUpload": "Sube una imagen para analizar",
+      "analyzeImage": "Analizar imagen",
+      "builderTooltip": "Abrir constructor de prompts",
+      "openBuilder": "Abrir constructor de prompts",
+      "collapsed": "Generación",
+      "generateGroup": "Acciones de generación",
+      "generateAll": "Generar todo ({{count}})",
+      "moreOptions": "Más opciones",
+      "res": "Res.",
+      "resolution": "Resolución",
+      "mode": {
+        "label": "Modo",
+        "textToImage": "Texto a imagen",
+        "remixImage": "Imagen a imagen (Remix)",
+        "editImage": "Imagen a imagen (Edición)"
+      },
+      "withReference": "Generando con imagen de referencia",
+      "clearReference": "Borrar imagen de referencia"
+    },
     "cloud": {
       "title": "Almacenamiento en la nube",
       "googleDrive": "Google Drive",
@@ -1485,7 +1591,7 @@
   },
   "keywords": {
     "page": {
-      "title": "Keyword Lode",
+      "title": "Keyword Drilling",
       "searchPlaceholder": "Buscar palabras clave..."
     },
     "source": {

@@ -100,22 +100,13 @@ const useArtboards = ({
   savedLayout,
   designs,
 }: UseArtboardsParams): UseArtboardsReturn => {
-  const [artboards, setArtboards] = useState<ArtboardData[]>([]);
-  const [edges, setEdges] = useState<BoardEdge[]>([]);
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const initializedRef = useRef(false);
-  const [updateProject] = useUpdateProjectMutation();
+  // -- Hydrate from savedLayout + designs (sync during render) --
+  const hydratedDesignsRef = useRef<typeof designs>(undefined);
 
-  // -- Hydrate from savedLayout + designs on first load --
-  useEffect(() => {
-    if (initializedRef.current) return;
-    if (!designs) return;
-
+  const hydrateDesigns = (dList: NonNullable<typeof designs>) => {
     const layoutNodes = savedLayout?.nodes ?? [];
     const nodeMap = new Map(layoutNodes.map((n) => [n.id, n]));
-
-    const hydrated: ArtboardData[] = designs.map((d, i) => {
+    return dList.map((d, i) => {
       const saved = nodeMap.get(d.id);
       const run = d.generation_run;
       const isAi = !!run && !d.is_manual;
@@ -171,14 +162,30 @@ const useArtboards = ({
         layers,
       };
     });
+  };
 
-    setArtboards(hydrated);
-
-    // Hydrate edges from saved layout
+  const [artboards, setArtboards] = useState<ArtboardData[]>(() => {
+    if (!designs) return [];
+    hydratedDesignsRef.current = designs;
+    return hydrateDesigns(designs);
+  });
+  const [edges, setEdges] = useState<BoardEdge[]>(() => {
     const savedEdges = savedLayout?.edges ?? [];
-    setEdges(savedEdges.map((e) => ({ source: e.source, target: e.target })));
+    return savedEdges.map((e) => ({ source: e.source, target: e.target }));
+  });
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [updateProject] = useUpdateProjectMutation();
 
-    initializedRef.current = true;
+  // Re-hydrate when designs change after initial render
+  useEffect(() => {
+    if (designs && designs !== hydratedDesignsRef.current) {
+      hydratedDesignsRef.current = designs;
+      setArtboards(hydrateDesigns(designs));
+      const savedEdges = savedLayout?.edges ?? [];
+      setEdges(savedEdges.map((e) => ({ source: e.source, target: e.target })));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [designs, savedLayout]);
 
   // -- Persist layout (debounced) --

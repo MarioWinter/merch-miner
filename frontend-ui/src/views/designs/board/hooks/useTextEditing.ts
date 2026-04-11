@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { alpha } from '@mui/material/styles';
+import { COLORS } from '@/style/constants';
 import type { CanvasElement, TextElementProps } from '../types';
 
 // -----------------------------------------------------------------
@@ -53,6 +55,8 @@ const useTextEditing = ({
   const editingElementIdRef = useRef<string | null>(null);
   const editingArtboardIdRef = useRef<string | null>(null);
   const onCommitRef = useRef(onCommit);
+  /** Teardown function for canvas focus-prevention listeners */
+  const canvasCleanupRef = useRef<(() => void) | null>(null);
   // Keep transform values in refs so startEditing always reads latest
   const zoomRef = useRef(zoom);
   const panXRef = useRef(panX);
@@ -65,6 +69,8 @@ const useTextEditing = ({
   });
 
   const cleanup = useCallback(() => {
+    canvasCleanupRef.current?.();
+    canvasCleanupRef.current = null;
     if (textareaRef.current?.parentElement) {
       textareaRef.current.parentElement.removeChild(textareaRef.current);
     }
@@ -147,10 +153,10 @@ const useTextEditing = ({
       textarea.style.textAlign = props.align;
       textarea.style.letterSpacing = `${(props.letterSpacing ?? 0) * z}px`;
       textarea.style.lineHeight = String(props.lineHeight ?? 1.2);
-      textarea.style.border = '2px solid #4A9EFF';
+      textarea.style.border = `2px solid ${COLORS.selection}`;
       textarea.style.borderRadius = '2px';
       textarea.style.outline = 'none';
-      textarea.style.background = 'rgba(0,0,0,0.7)';
+      textarea.style.background = alpha(COLORS.black, 0.7);
       textarea.style.padding = '2px 4px';
       textarea.style.resize = 'none';
       textarea.style.overflow = 'hidden';
@@ -161,6 +167,25 @@ const useTextEditing = ({
       // Prevent clicks on textarea from reaching Konva canvas (would trigger deselectAll)
       textarea.addEventListener('mousedown', (e) => e.stopPropagation());
       textarea.addEventListener('pointerdown', (e) => e.stopPropagation());
+
+      // When the user clicks the Konva canvas while the textarea is active, commit the
+      // text edit and let Konva handle the click normally. Without this, the canvas
+      // mousedown steals focus from the textarea before blur fires, causing a race.
+      const canvasEl = container.querySelector('canvas');
+      const handleCanvasMouseDown = () => {
+        if (textareaRef.current) {
+          // Commit immediately — the blur handler will no-op because cleanup already ran
+          stopEditingRef.current();
+        }
+      };
+      canvasEl?.addEventListener('mousedown', handleCanvasMouseDown, true);
+
+      // Store reference to remove listeners on cleanup
+      const cleanupCanvasListeners = () => {
+        canvasEl?.removeEventListener('mousedown', handleCanvasMouseDown, true);
+      };
+
+      canvasCleanupRef.current = cleanupCanvasListeners;
 
       container.appendChild(textarea);
       textareaRef.current = textarea;
@@ -217,6 +242,8 @@ const useTextEditing = ({
   // Clean up on unmount
   useEffect(() => {
     return () => {
+      canvasCleanupRef.current?.();
+      canvasCleanupRef.current = null;
       if (textareaRef.current?.parentElement) {
         textareaRef.current.parentElement.removeChild(textareaRef.current);
       }

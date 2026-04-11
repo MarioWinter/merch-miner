@@ -14,6 +14,7 @@ export const NAV_SECTIONS: NavSection[] = [
     sectionKey: 'controlRoom',
     items: [
       { labelKey: 'nav.dashboard', path: '/dashboard', iconName: 'DashboardOutlined' },
+      { labelKey: 'nav.kanban', path: '/kanban', iconName: 'ViewKanbanOutlined' },
       { labelKey: 'nav.reports', path: '/reports', iconName: 'BarChartOutlined' },
     ],
   },
@@ -25,6 +26,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { labelKey: 'nav.slogans', path: '/slogans', iconName: 'LightbulbOutlined' },
       { labelKey: 'nav.designBoard', path: '/designs', iconName: 'BrushOutlined' },
       { labelKey: 'nav.listings', path: '/listings', iconName: 'ArticleOutlined' },
+      { labelKey: 'nav.uploads', path: '/uploads', iconName: 'CloudUploadOutlined' },
     ],
   },
   {
@@ -34,13 +36,6 @@ export const NAV_SECTIONS: NavSection[] = [
       { labelKey: 'nav.keywords', path: '/amazon/keywords', iconName: 'VpnKeyOutlined' },
     ],
   },
-  {
-    sectionKey: 'surfaceOps',
-    items: [
-      { labelKey: 'nav.uploads', path: '/uploads', iconName: 'CloudUploadOutlined' },
-      { labelKey: 'nav.kanban', path: '/kanban', iconName: 'ViewKanbanOutlined' },
-    ],
-  },
 ];
 
-export const SECTION_KEYS = ['controlRoom', 'pipeline', 'drillingZone', 'surfaceOps'] as const;
+export const SECTION_KEYS = ['controlRoom', 'pipeline', 'drillingZone'] as const;

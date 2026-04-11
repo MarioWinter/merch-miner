@@ -10,7 +10,12 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 
-def task_generate_design(run_id: str, project_id: str = None, aspect_ratio: str = '1:1'):
+def task_generate_design(
+    run_id: str,
+    project_id: str = None,
+    aspect_ratio: str = '1:1',
+    mode: str = 'text_to_image',
+):
     """Generate a design image via OpenRouter.
 
     Called by django-rq worker-design queue.
@@ -40,6 +45,7 @@ def task_generate_design(run_id: str, project_id: str = None, aspect_ratio: str 
             output_dir=media_dir,
             aspect_ratio=aspect_ratio,
             source_image_url=run.source_image_url or '',
+            mode=run.generation_mode or mode,
         )
 
         # Read file and save to Design model
@@ -103,7 +109,7 @@ def task_generate_design(run_id: str, project_id: str = None, aspect_ratio: str 
             run._retried = True
             logger.info("Retrying generation: run=%s", run_id)
             try:
-                return task_generate_design(run_id, project_id)
+                return task_generate_design(run_id, project_id, aspect_ratio, mode)
             except Exception:
                 pass
 

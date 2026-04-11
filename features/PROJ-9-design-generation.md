@@ -139,12 +139,11 @@ These fields are read when a user opens `/design-board/:ideaId` and are used to 
 30. As a member, I want to position designs with Align-to-Top and configurable padding (default: 1 inch top/sides), so placement is consistent across my catalog.
 31. As a member, I want the target canvas size to be configurable for other marketplaces, so I'm not locked to MBA dimensions.
 
-### Upload-Ready Status & Drawer Integration
+### ~~Upload-Ready Status & Drawer Integration~~ — REMOVED (2026-04-10)
 
-30b. As a member, I want to toggle an approved design as "Ready for Upload" so it's clear which designs are finalized and can move to the Listing/Publish workflow.
-30c. As a member, I want to mark all designs in a project as "Ready for Upload" in one action, so I can batch-finalize an entire project.
-30d. As a member, I want to see individual design thumbnails with a status badge (WIP / Ready) in the Niche Drawer's "Design Projects" section, so I can tell at a glance which designs are upload-ready without opening the project.
-30e. As a member, I want to toggle the upload-ready status back to WIP if I change my mind, so the workflow is reversible.
+> **Removed:** `listing_ready` status on Design model is redundant. PROJ-11's DesignAsset + Collection Folder system replaces this — a design's existence as a DesignAsset in publish_app IS the "ready" signal. Design→Listing transition planned in PROJ-11 instead.
+
+~~30b–30e~~ — Moved to PROJ-11 scope (Design → Listing transition flow).
 
 ### Niche Drawer — Pipeline Status Redesign
 
@@ -228,8 +227,8 @@ Action buttons exist in **both** the Drawer pipeline cards AND the source views 
 
 54. As a member, I want to select multiple approved slogans in the Niche Drawer and send them to a new or existing Design Forge project in one action, so I can batch-generate designs from my slogan collection.
 55. As a member, I want to see all slogans assigned to a project as a "Slogan Pool" in the RightPanel, so I can manage which slogans I'm working on and see their context (signal type, confidence, reference products).
-56. As a member, I want to click "Auto-Prompt" on a slogan in the pool and get a ready-to-use AI generation prompt (built from slogan text + niche research data), so I don't have to write prompts from scratch.
-57. As a member, I want to select multiple slogans and click "Generate Selected" to bulk-generate one design per slogan automatically, so I can produce designs for my entire slogan batch in one action.
+56. As a member, I want to click "Insert" on a slogan in the pool to paste the slogan text into the PromptBar, so I can use it as a starting point and build a full prompt around it.
+57. As a member, I want to select a slogan from the pool via a dropdown in the Prompt Builder's Concept tab, so the slogan auto-fills the "Main Subject" field and I can combine it with style/format/output settings to build a complete prompt.
 58. As a member, I want to click a reference product thumbnail in a slogan's pool card and add it as a reference artboard on the canvas, so I can visually compare while generating.
 59. As a member, I want the existing IdeaCard brush button to add the slogan to the project's pool (not just pass as URL param), so the slogan context is permanently available in the Design Forge.
 
@@ -386,9 +385,9 @@ Each design image on the canvas is an "artboard" — a named, selectable, movabl
 ```
 
 - **Top zone:** Model selector dropdown, Background color, Images count slider, Resolution/Aspect ratio
-- **Prompt zone:** Multiline textarea (pre-filled from analysis or auto-prompt). [🖼 Analyze Image] button + [+ Prompt Builder] button (opens dialog with source toggles: Slogan, Keywords, Research, Image)
+- **Prompt zone:** Multiline textarea (pre-filled from slogan insert or Prompt Builder). [🖼 Analyze Image] button + [+ Prompt Builder] button (opens dialog with Concept tab Slogan Selector + source toggles: Keywords, Research, Image)
 - **Generate button:** Primary CTA below prompt. "Generate All" when multiple saved prompts exist
-- **Accordion sections below:** Saved Prompts, Slogan Pool, Artboards — collapsible, scrollable
+- **Accordion sections below:** Saved Prompts, Slogan Pool (Insert button per slogan → fills PromptBar), Artboards — collapsible, scrollable
 
 **Artboard selected:** Accordion sections shift. Element properties appear at top (Size, Layer, Color, Clip). Prompt zone stays accessible via scroll or collapse.
 
@@ -869,11 +868,7 @@ Custom icons must:
 
 ### Upload-Ready Status & Drawer Integration
 
-- [ ] AC-84: `Design.status` extended with `listing_ready` choice. Status flow: `pending → approved → listing_ready`. Toggle via `PATCH /api/designs/{id}/` with `{status: "listing_ready"}` or `{status: "approved"}` (reversible).
-- [ ] AC-85: "Ready for Upload" toggle button on each approved design in the Design Forge (Artboard Canvas). Only visible on designs with `status=approved` or `status=listing_ready`. Visual: filled icon when ready, outlined when WIP.
-- [ ] AC-86: "Mark All Ready" bulk action on project level: `POST /api/designs/projects/{id}/mark-all-ready/` — sets all approved designs in the project to `listing_ready`. Reverse: `POST /api/designs/projects/{id}/unmark-all-ready/`.
-- [ ] AC-87: Niche Drawer "Design Projects" section shows individual design thumbnails (not just project card). Each thumbnail has a status badge: green chip "Ready" for `listing_ready`, grey chip "WIP" for `approved`, no badge for `pending/rejected/failed`.
-- [ ] AC-88: Niche Drawer project summary shows count: "Bingo Caller Designs — 2 designs (1 ready)".
+- ~~AC-84 to AC-88~~ — REMOVED (2026-04-10). `listing_ready` status replaced by PROJ-11 DesignAsset + Collection system. Design→Listing transition planned in PROJ-11.
 
 ### Post-Processing Pipeline
 
@@ -924,20 +919,20 @@ Custom icons must:
 - [ ] AC-96: ProjectNamingDialog extended with `ideaIds` prop. On "Create new": creates project with slogans attached. On "Add to existing": adds slogans to chosen project's pool. After both: navigates to `/designs/:projectId`.
 
 #### Slogan Pool in RightPanel
-- [ ] AC-97: RightPanel "none" state (no artboard selected) shows SloganPoolSection when project has slogans. Lists each slogan as a card with: slogan text (truncated, tooltip full), signal_type badge, market_confidence badge, niche chip, reference product thumbnails (horizontal, max 4 visible), "Auto-Prompt" button, remove (✕) button.
-- [ ] AC-98: Each slogan card has a checkbox for bulk selection. "Generate Selected (N)" button appears when ≥1 checked.
+- [ ] AC-97: RightPanel "none" state (no artboard selected) shows SloganPoolSection when project has slogans. Lists each slogan as a card with: slogan text (truncated, tooltip full), signal_type badge, niche chip, reference product thumbnails (horizontal, max 4 visible), "Insert" button (inserts slogan text into PromptBar), remove (✕) button. No checkboxes, no bulk generate.
+- [ ] AC-98: "Insert" button on slogan card: client-side only — copies slogan_text into the PromptBar textarea as starting point. User edits and builds a full prompt around it. No server call needed.
 - [ ] AC-99: Reference product thumbnails clickable → adds product image as new artboard on canvas.
 - [ ] AC-100: Slogan card expandable: reveals why_it_works, emotional_archetype, pattern_used details.
 
-#### Auto-Prompt Generation
-- [ ] AC-101: "Auto-Prompt" button on slogan card: calls `GET /api/designs/projects/{id}/ideas/{ideaId}/auto-prompt/` which uses `prompt_builder.build_from_idea()` server-side. Returns `{prompt: string}`. Prompt fills the PromptBar text field. User can edit before clicking Generate.
-- [ ] AC-102: Auto-prompt fallback: if slogan has no niche research reference products, prompt is built from slogan metadata only (slogan_text + signal_type + emotional_archetype + pattern_used). No error, just simpler prompt.
+#### Slogan in Prompt Builder
+- [ ] AC-101: Prompt Builder Concept tab: "Slogan Selector" dropdown lists all slogans from the project's pool. Selecting a slogan auto-fills the "Main Subject" textarea with the slogan_text. User can edit before building the prompt.
+- [ ] AC-102: Slogan selection in Prompt Builder also pre-fills Context tab sources if the slogan's niche has research data (visual_style, vibe, tone toggled on by default). If no niche research → Context sources stay empty, no error.
 
-#### Bulk Design Generation
-- [ ] AC-103: "Generate Selected" button: `POST /api/designs/projects/{id}/bulk-generate/` with `{idea_ids, model, background_color}`. Creates one `DesignGenerationRun` per slogan. Auto-builds prompt per slogan via `prompt_builder.build_from_idea()`. Max 10 slogans per request.
-- [ ] AC-104: Each generated design auto-linked to its source idea via `Design.idea` FK. Auto-added to the project via `DesignProjectDesign`.
-- [ ] AC-105: Bulk generation progress: skeleton artboards appear on canvas (one per slogan). Each shows the slogan text as artboard label. Progress indicator per slogan card in RightPanel. Artboards fill in as generations complete (existing polling mechanism).
-- [ ] AC-106: IdeaCard brush button (Slogan Refinery) now passes `ideaIds=[thisIdeaId]` to ProjectNamingDialog. On create/add, slogan is added to project pool. Same flow as bulk, just with 1 slogan.
+#### Design-Idea Linking
+- [ ] AC-103: REMOVED — no bulk generate from Slogan Pool. Designs are generated individually via PromptBar or Prompt Builder.
+- [ ] AC-104: Each generated design auto-linked to its source idea via `Design.idea` FK (when prompt was built from a slogan). Auto-added to the project via `DesignProjectDesign`.
+- [ ] AC-105: REMOVED — no skeleton artboards from bulk generation. Artboards created one-at-a-time via normal Generate flow.
+- [ ] AC-106: IdeaCard brush button (Slogan Refinery) now passes `ideaIds=[thisIdeaId]` to ProjectNamingDialog. On create/add, slogan is added to project pool. Same flow as multi-select, just with 1 slogan.
 
 #### ProjectPrompt Model + Prompt Persistence
 - [ ] AC-107: `ProjectPrompt` model: UUID pk, project FK, prompt_text TextField, sources JSONField (which sources were used: `{slogan: bool, keywords: bool, research: bool, web_research: bool, image: bool}`), source_idea FK (nullable — which slogan this was built from), source_image_url URLField (nullable — reference image used), variant_index IntegerField (default=0 — for multi-variant batches), created_at, updated_at. Workspace isolation.
@@ -968,7 +963,7 @@ Custom icons must:
 - [ ] AC-125: Prompt Preview panel at bottom of dialog — live preview of the generated prompt text as user toggles sources on/off. Updates in real-time.
 - [ ] AC-126: "Variants" slider (1-5): generates N prompt variants from the same sources with different stylistic approaches. Each variant = a separate `ProjectPrompt` record.
 - [ ] AC-127: "Build Prompt(s)" button: calls server-side `prompt_builder` with selected sources → creates `ProjectPrompt` record(s) → prompts appear in RightPanel Prompts section. Dialog closes.
-- [ ] AC-128: Prompt Builder also available for Bulk: when multiple slogans selected in Slogan Pool → "Build Prompts for Selected" → Prompt Builder opens → selected sources apply to ALL selected slogans → one prompt per slogan generated → all saved to Prompts section.
+- [ ] AC-128: REMOVED — no bulk prompt builder from pool selection. Slogans are selected one at a time via the Concept tab dropdown. User builds one prompt per slogan manually via the Prompt Builder flow.
 
 #### Prompt Presets
 - [ ] AC-129: `PromptPreset` model: UUID pk, workspace FK, name CharField, source_config JSONField (which sources toggled on/off + any fixed parameters), created_by FK, created_at.
@@ -1073,8 +1068,8 @@ Both paths inject the background color instruction as the final sentence of the 
 | GET | `/api/designs/processing-jobs/{job_id}/` | Member | Poll batch job status |
 | POST | `/api/designs/projects/{id}/ideas/` | Member | Add slogans to project pool. Body: `{idea_ids: [...]}`. Idempotent |
 | DELETE | `/api/designs/projects/{id}/ideas/{ideaId}/` | Member | Remove slogan from project pool (M2M unlink) |
-| GET | `/api/designs/projects/{id}/ideas/{ideaId}/auto-prompt/` | Member | Auto-generate prompt from slogan via `prompt_builder.build_from_idea()` |
-| POST | `/api/designs/projects/{id}/bulk-generate/` | Member | Bulk generate: one design per slogan. Body: `{idea_ids, model, bg_color}`. Max 10 |
+| ~~GET~~ | ~~`/api/designs/projects/{id}/ideas/{ideaId}/auto-prompt/`~~ | ~~Member~~ | REMOVED — slogan insertion is client-side (no server call). Prompt building via Prompt Builder endpoint |
+| ~~POST~~ | ~~`/api/designs/projects/{id}/bulk-generate/`~~ | ~~Member~~ | REMOVED — no bulk generate from Slogan Pool. Designs generated individually via PromptBar/Prompt Builder |
 | POST | `/api/designs/projects/{id}/prompts/` | Member | Save prompt(s). Body: `{prompts: [{prompt_text, sources, source_idea?, variant_index?}]}` |
 | PATCH | `/api/designs/projects/{id}/prompts/{promptId}/` | Member | Edit saved prompt text |
 | DELETE | `/api/designs/projects/{id}/prompts/{promptId}/` | Member | Delete saved prompt |
@@ -1182,7 +1177,7 @@ Image analysis (Gemini 3 Architect pipeline) also uses OpenRouter — same API k
 ### Slogan → Design Forge Bulk Flow
 - [ ] EC-26: Slogan deleted from idea_app after added to project pool → CASCADE removes `DesignProjectIdea`. Frontend refreshes pool list. Already-generated designs from that slogan remain (Design.idea set to null via SET_NULL).
 - [ ] EC-27: Same slogan added to multiple projects → allowed by M2M. Each project has its own pool entry.
-- [ ] EC-28: Bulk generate with > 10 slogans → API returns 400 "Maximum 10 slogans per bulk request". Frontend disables "Generate Selected" button when selection > 10.
+- [ ] EC-28: REMOVED — no bulk generate from Slogan Pool. Designs generated one at a time via PromptBar or Prompt Builder.
 - [ ] EC-29: Auto-prompt for slogan with no niche research (no reference products) → fallback prompt built from slogan metadata only (slogan_text, signal_type, emotional_archetype, pattern_used). No error shown.
 - [ ] EC-30: Existing `?ideaId=` URL param → backward-compatible. idea_context still returned by API. Additionally, slogan is auto-added to project pool if not already there.
 - [ ] EC-31: Drawer "Forge N Slogans" with only pending/rejected slogans selected → action bar hidden (only approved slogans selectable).
@@ -1642,8 +1637,8 @@ New through table linking projects to their slogan pool:
 | POST | `/api/designs/projects/{id}/ideas/` | Add slogans to pool. Idempotent |
 | DELETE | `/api/designs/projects/{id}/ideas/{ideaId}/` | Remove from pool (M2M unlink) |
 | GET | `/api/designs/projects/{id}/board/` | Extended: response includes `ideas` array |
-| GET | `/api/designs/projects/{id}/ideas/{ideaId}/auto-prompt/` | Returns `{prompt}` via `prompt_builder.build_from_idea()` |
-| POST | `/api/designs/projects/{id}/bulk-generate/` | One run per idea. Max 10. Body: `{idea_ids, model, bg_color}` |
+| ~~GET~~ | ~~`/api/designs/projects/{id}/ideas/{ideaId}/auto-prompt/`~~ | REMOVED — slogan insertion is client-side |
+| ~~POST~~ | ~~`/api/designs/projects/{id}/bulk-generate/`~~ | REMOVED — no bulk generate from pool |
 
 #### Component Tree (New/Modified)
 
@@ -1663,20 +1658,20 @@ PanelNoneState (modified — renders SloganPoolSection)
 SloganPoolSection (NEW)
 ├── Slogan list header with count
 ├── SloganPoolCard (NEW, per slogan)
-│   ├── Checkbox (bulk select)
 │   ├── Slogan text (truncated + tooltip)
-│   ├── Badges: signal_type, market_confidence
+│   ├── Badges: signal_type
 │   ├── Niche chip
 │   ├── Reference product thumbnails (horizontal, max 4)
 │   │   └── Click → add as reference artboard on canvas
-│   ├── "Auto-Prompt" button → fills PromptBar
+│   ├── "Insert" button → inserts slogan text into PromptBar
 │   ├── Remove (✕) button
 │   └── Expandable: why_it_works, emotional_archetype, pattern_used
-└── "Generate Selected (N)" button
+└── (no Generate Selected button)
+
+PromptBuilderDialog (modified — Concept tab)
+└── Slogan Selector dropdown → lists pool slogans → auto-fills Main Subject
 
 DesignWorkspaceView (modified — reads boardData.ideas, passes to RightPanel)
-
-PromptBar (modified — accepts onAutoPromptFill callback)
 
 IdeaCard (modified — passes ideaIds=[thisIdeaId] to ProjectNamingDialog)
 ```
@@ -1686,11 +1681,10 @@ IdeaCard (modified — passes ideaIds=[thisIdeaId] to ProjectNamingDialog)
 | Decision | Why |
 |----------|-----|
 | M2M through table (not JSONField) | Referential integrity, queryable from both sides, CASCADE on idea delete, supports ordering |
-| Auto-prompt server-side | `prompt_builder.build_from_idea()` already exists. Needs niche research data only available on server |
-| Dedicated bulk-generate endpoint | Reduces HTTP overhead vs N sequential calls. Backend can batch-fetch ideas + references |
+| Slogan insert is client-side | No server call needed — just copies slogan_text into PromptBar textarea. Prompt building happens via Prompt Builder dialog if user wants enriched prompt |
+| Slogan Selector in Prompt Builder Concept tab | Provides structured prompt building from slogan + niche data. More control than raw text insert |
 | Slogan pool embedded in board response | Avoids extra roundtrip on page load. Pool always needed when board loads |
 | Selection state as local React state | Ephemeral — resets when drawer closes or page navigates. No Redux needed |
-| Max 10 per bulk request | Prevents overwhelming the generation queue. User can generate in batches |
 
 #### Dependencies (No new packages)
 

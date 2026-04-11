@@ -52,6 +52,8 @@ interface TextLayerProps {
     patch: Partial<Omit<CanvasElement, 'id' | 'type'>>,
   ) => void;
   onDragMove?: (artboardId: string, elementId: string, node: Konva.Node) => void;
+  /** When true, the element is being inline-edited via a DOM textarea — hide Konva text */
+  isBeingEdited?: boolean;
 }
 
 // -----------------------------------------------------------------
@@ -68,6 +70,7 @@ const TextLayer = ({
   onDoubleClick,
   onUpdate,
   onDragMove,
+  isBeingEdited = false,
 }: TextLayerProps) => {
   const nodeRef = useRef<Konva.Group>(null);
   const trRef = useRef<Konva.Transformer>(null);
@@ -192,8 +195,9 @@ const TextLayer = ({
         rotation={element.rotation}
         scaleX={element.scaleX}
         scaleY={element.scaleY}
-        opacity={element.opacity}
-        draggable={!element.locked && isSelected}
+        opacity={isBeingEdited ? 0 : element.opacity}
+        draggable={!element.locked && isSelected && !isBeingEdited}
+        listening={!isBeingEdited}
         onClick={handleClick}
         onTap={handleClick}
         onDblClick={handleDblClick}

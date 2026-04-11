@@ -318,11 +318,9 @@ export const EditorCanvas = ({
   const hasProcessedVersion = !!(image.processedUrl || (image.originalUrl && image.originalUrl !== image.previewUrl));
 
   // Reset toggle when switching images
-  const prevImageForToggle = useRef(image.id);
-  if (image.id !== prevImageForToggle.current) {
-    prevImageForToggle.current = image.id;
-    if (showOriginal) setShowOriginal(false);
-  }
+  useEffect(() => {
+    setShowOriginal(false);
+  }, [image.id]);
 
   // Load image — prefer processedUrl (applied result) > live preview > previewUrl
   // Live preview is only relevant BEFORE applying; after apply, processedUrl takes over.
@@ -335,6 +333,16 @@ export const EditorCanvas = ({
 
   // Dimension change tracking (for trim indicator)
   const [currentDims, setCurrentDims] = useState<{ width: number; height: number } | null>(null);
+
+  // Image dimensions for positioning — state for render, ref for effects.
+  const [originalDims, setOriginalDims] = useState<{ width: number; height: number; imageId: string } | null>(null);
+  // Ref mirror for use inside effects/callbacks that need sync reads
+  const originalDimsRef = useRef<{ width: number; height: number; imageId: string } | null>(null);
+  const updateOriginalDims = useCallback((d: { width: number; height: number; imageId: string }) => {
+    // eslint-disable-next-line react-hooks/immutability -- ref mirror must be updated alongside state
+    originalDimsRef.current = d;
+    setOriginalDims(d);
+  }, []);
 
   useEffect(() => {
     if (!imageSrc) return;
@@ -349,7 +357,7 @@ export const EditorCanvas = ({
       // Set dims BEFORE setHtmlImage so the re-render has correct positioning
       const newDims = { width: img.width, height: img.height, imageId: image.id };
       if (isNewImage || !originalDimsRef.current) {
-        originalDimsRef.current = newDims;
+        updateOriginalDims(newDims);
       }
       setCurrentDims({ width: img.width, height: img.height });
       setHtmlImage(img);
@@ -363,7 +371,7 @@ export const EditorCanvas = ({
       img.onload = null;
       img.onerror = null;
     };
-  }, [imageSrc, image.id, applyAutoFit]);
+  }, [imageSrc, image.id, applyAutoFit, updateOriginalDims]);
 
   // Keyboard navigation
   useEffect(() => {
@@ -412,18 +420,14 @@ export const EditorCanvas = ({
     isPanningRef.current = false;
   }, []);
 
-  // Image dimensions for positioning — set in onload before setHtmlImage.
-  // Using cached dims prevents jumping on live preview updates.
-  const originalDimsRef = useRef<{ width: number; height: number; imageId: string } | null>(null);
-
   // Center/fit image — always use the currently loaded image dimensions
   const handleCenterImage = useCallback(() => {
     if (!htmlImage) return;
     // Reset cached dims so positioning recalculates for current image
-    originalDimsRef.current = { width: htmlImage.width, height: htmlImage.height, imageId: image.id };
+    updateOriginalDims({ width: htmlImage.width, height: htmlImage.height, imageId: image.id });
     applyAutoFit(htmlImage.width, htmlImage.height);
-  }, [htmlImage, applyAutoFit, image.id]);
-  const dims = originalDimsRef.current
+  }, [htmlImage, applyAutoFit, image.id, updateOriginalDims]);
+  const dims = originalDims
     ?? (htmlImage ? { width: htmlImage.width, height: htmlImage.height, imageId: image.id } : null);
   const imgX = dims
     ? (stageSize.width - dims.width * zoom) / 2 + pan.x
@@ -749,13 +753,13 @@ export const EditorCanvas = ({
       </BgPreviewOverlay>
 
       {/* Dimension change indicator (visible after trim/resize) */}
-      {currentDims && originalDimsRef.current && (
-        currentDims.width !== originalDimsRef.current.width ||
-        currentDims.height !== originalDimsRef.current.height
+      {currentDims && originalDims && (
+        currentDims.width !== originalDims.width ||
+        currentDims.height !== originalDims.height
       ) && (
         <DimensionOverlay>
           <Typography variant="caption" color="text.secondary">
-            {originalDimsRef.current.width}×{originalDimsRef.current.height}
+            {originalDims.width}×{originalDims.height}
           </Typography>
           <Typography variant="caption" color="text.secondary">→</Typography>
           <Typography variant="caption" color="primary.main" fontWeight={600}>

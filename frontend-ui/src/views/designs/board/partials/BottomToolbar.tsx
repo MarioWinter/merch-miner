@@ -20,12 +20,14 @@ import {
   ZoomText,
   ToolbarDivider,
 } from './BottomToolbar.styles';
+import type { CanvasTool } from '../types';
 
 // -----------------------------------------------------------------
 // Re-exports (used by parent)
 // -----------------------------------------------------------------
 
 export { BOTTOM_TOOLBAR_HEIGHT } from './BottomToolbar.styles';
+export type { CanvasTool } from '../types';
 
 // -----------------------------------------------------------------
 // Constants
@@ -34,21 +36,6 @@ export { BOTTOM_TOOLBAR_HEIGHT } from './BottomToolbar.styles';
 const MIN_ZOOM = 0.1;
 const MAX_ZOOM = 5;
 const ZOOM_STEP = 0.1;
-
-// -----------------------------------------------------------------
-// Types
-// -----------------------------------------------------------------
-
-export type CanvasTool =
-  | 'cursor'
-  | 'rectangle'
-  | 'ellipse'
-  | 'triangle'
-  | 'line'
-  | 'pen'
-  | 'brush'
-  | 'text'
-  | 'emoji';
 
 // -----------------------------------------------------------------
 // Props

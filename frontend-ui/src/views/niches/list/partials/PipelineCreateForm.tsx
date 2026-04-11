@@ -3,12 +3,12 @@ import { Controller, type UseFormReturn, type SubmitHandler } from 'react-hook-f
 import { useTranslation } from 'react-i18next';
 import type { CreateNicheFormValues } from '../schemas/nicheSchema';
 
-interface DrawerCreateFormProps {
+interface PipelineCreateFormProps {
   form: UseFormReturn<CreateNicheFormValues>;
   onSubmit: SubmitHandler<CreateNicheFormValues>;
 }
 
-export const DrawerCreateForm = ({ form, onSubmit }: DrawerCreateFormProps) => {
+export const PipelineCreateForm = ({ form, onSubmit }: PipelineCreateFormProps) => {
   const { t } = useTranslation();
 
   return (

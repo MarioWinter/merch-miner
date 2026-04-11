@@ -1,42 +1,7 @@
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import type { ArtboardData, CanvasElement, CanvasElementType, CanvasElementPropsMap } from '../types';
 import type { BoardEdge } from './useArtboards';
-
-// -----------------------------------------------------------------
-// Constants
-// -----------------------------------------------------------------
-
-/** Auto-name counters per element type */
-const nameCounters: Record<CanvasElementType, number> = {
-  image: 0,
-  text: 0,
-  shape: 0,
-  brush: 0,
-  emoji: 0,
-};
-
-const TYPE_LABELS: Record<CanvasElementType, string> = {
-  image: 'Image',
-  text: 'Text',
-  shape: 'Shape',
-  brush: 'Drawing',
-  emoji: 'Emoji',
-};
-
-// -----------------------------------------------------------------
-// Helpers
-// -----------------------------------------------------------------
-
-const nextElementId = () =>
-  `el_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-
-const nextZIndex = (layers: CanvasElement[]): number =>
-  layers.length === 0 ? 1 : Math.max(...layers.map((l) => l.zIndex)) + 1;
-
-const autoName = (type: CanvasElementType): string => {
-  nameCounters[type] += 1;
-  return `${TYPE_LABELS[type]} ${nameCounters[type]}`;
-};
+import { nextElementId, nextZIndex, TYPE_LABELS, INITIAL_COUNTERS } from '../utils/elementHelpers';
 
 // -----------------------------------------------------------------
 // Types
@@ -95,6 +60,14 @@ const useCanvasElements = ({
   updateArtboard,
   pushSnapshot,
 }: UseCanvasElementsParams): UseCanvasElementsReturn => {
+  /** Auto-name counters scoped to this hook instance */
+  const nameCountersRef = useRef<Record<CanvasElementType, number>>({ ...INITIAL_COUNTERS });
+
+  const autoName = useCallback((type: CanvasElementType): string => {
+    nameCountersRef.current[type] += 1;
+    return `${TYPE_LABELS[type]} ${nameCountersRef.current[type]}`;
+  }, []);
+
   // -- Helpers --
 
   const findArtboard = useCallback(
@@ -151,7 +124,7 @@ const useCanvasElements = ({
 
       return element;
     },
-    [artboards, edges, findArtboard, pushSnapshot, updateArtboard],
+    [artboards, edges, autoName, findArtboard, pushSnapshot, updateArtboard],
   );
 
   // -- Remove element --

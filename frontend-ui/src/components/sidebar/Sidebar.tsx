@@ -208,6 +208,7 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
       sectionKey: 'controlRoom',
       items: [
         { label: t('nav.dashboard'), path: '/dashboard', icon: <DashboardOutlinedIcon sx={{ fontSize: 20 }} /> },
+        { label: t('nav.kanban'), path: '/kanban', icon: <ViewKanbanOutlinedIcon sx={{ fontSize: 20 }} /> },
       ],
     },
     {
@@ -224,13 +225,7 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
         { label: t('nav.slogans'), path: '/slogans', icon: <LightbulbOutlinedIcon sx={{ fontSize: 20 }} /> },
         { label: t('nav.designBoard'), path: '/designs', icon: <BrushOutlinedIcon sx={{ fontSize: 20 }} /> },
         { label: t('nav.listings'), path: '/publish', icon: <ArticleOutlinedIcon sx={{ fontSize: 20 }} /> },
-      ],
-    },
-    {
-      sectionKey: 'surfaceOps',
-      items: [
         { label: t('nav.uploads'), path: '/desktop-app', icon: <CloudUploadOutlinedIcon sx={{ fontSize: 20 }} /> },
-        { label: t('nav.kanban'), path: '/kanban', icon: <ViewKanbanOutlinedIcon sx={{ fontSize: 20 }} /> },
       ],
     },
   ];
@@ -239,7 +234,6 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
     controlRoom: t('nav.sections.controlRoom'),
     pipeline: t('nav.sections.pipeline'),
     drillingZone: t('nav.sections.drillingZone'),
-    surfaceOps: t('nav.sections.surfaceOps'),
   };
 
   const isActive = (path: string) => {

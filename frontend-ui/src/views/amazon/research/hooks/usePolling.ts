@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { usePollSearchStatusQuery } from '../../../../store/researchSlice';
 import type { AmazonProduct, ProductSearchStatus } from '../types';
 
@@ -16,11 +16,11 @@ const TERMINAL_STATUSES: ProductSearchStatus[] = ['completed', 'failed', 'cancel
 const usePolling = (cacheId: string | null): UsePollingReturn => {
   const shouldPoll = !!cacheId;
   const [stoppedPolling, setStoppedPolling] = useState(false);
-  const prevCacheIdRef = useRef<string | null>(null);
 
   // Reset stoppedPolling when cacheId changes (new search OR next page)
-  if (cacheId !== prevCacheIdRef.current) {
-    prevCacheIdRef.current = cacheId;
+  const [prevCacheId, setPrevCacheId] = useState(cacheId);
+  if (cacheId !== prevCacheId) {
+    setPrevCacheId(cacheId);
     if (stoppedPolling) {
       setStoppedPolling(false);
     }

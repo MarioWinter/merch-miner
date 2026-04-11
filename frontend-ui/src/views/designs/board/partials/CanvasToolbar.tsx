@@ -1,5 +1,6 @@
 import { Box, IconButton, Stack, Tooltip, Typography } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { alpha, styled } from '@mui/material/styles';
+import { COLORS } from '@/style/constants';
 import ZoomInIcon from '@mui/icons-material/ZoomIn';
 import ZoomOutIcon from '@mui/icons-material/ZoomOut';
 import FitScreenIcon from '@mui/icons-material/FitScreen';
@@ -29,14 +30,14 @@ const ToolbarRoot = styled(Box)(({ theme }) => ({
   alignItems: 'center',
   justifyContent: 'center',
   gap: theme.spacing(0.5),
-  background: 'rgba(11,39,49, 0.80)',
+  background: alpha(COLORS.inkPaper, 0.8),
   backdropFilter: 'blur(8px)',
-  border: '1px solid rgba(255,255,255,0.08)',
+  border: `1px solid ${alpha(COLORS.white, 0.08)}`,
   borderRadius: 8,
   padding: `0 ${theme.spacing(1.5)}`,
   ...theme.applyStyles('light', {
-    background: 'rgba(255,255,255, 0.80)',
-    border: '1px solid rgba(7,30,38,0.08)',
+    background: alpha(COLORS.white, 0.8),
+    border: `1px solid ${alpha(COLORS.ink, 0.08)}`,
   }),
 }));
 

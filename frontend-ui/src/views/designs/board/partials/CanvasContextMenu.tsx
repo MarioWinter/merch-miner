@@ -1,8 +1,9 @@
 import { useCallback, useRef } from 'react';
-import { Menu, MenuItem, ListItemIcon, ListItemText } from '@mui/material';
+import { Divider, Menu, MenuItem, ListItemIcon, ListItemText } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import AddPhotoAlternateIcon from '@mui/icons-material/AddPhotoAlternate';
 import ContentPasteIcon from '@mui/icons-material/ContentPaste';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
 // -----------------------------------------------------------------
 // Types
@@ -18,8 +19,12 @@ interface CanvasContextMenuProps {
   position: ContextMenuPosition | null;
   /** World coordinates where the user right-clicked */
   worldPosition: { x: number; y: number } | null;
+  /** Number of currently selected artboards (to show delete option) */
+  selectedCount?: number;
   onClose: () => void;
   onAddArtboard: (file: File, worldX: number, worldY: number) => void;
+  /** Delete currently selected artboards */
+  onDeleteSelected?: () => void;
 }
 
 // -----------------------------------------------------------------
@@ -29,8 +34,10 @@ interface CanvasContextMenuProps {
 const CanvasContextMenu = ({
   position,
   worldPosition,
+  selectedCount = 0,
   onClose,
   onAddArtboard,
+  onDeleteSelected,
 }: CanvasContextMenuProps) => {
   const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -51,6 +58,11 @@ const CanvasContextMenu = ({
     },
     [worldPosition, onAddArtboard, onClose],
   );
+
+  const handleDeleteSelected = useCallback(() => {
+    onDeleteSelected?.();
+    onClose();
+  }, [onDeleteSelected, onClose]);
 
   const handlePaste = useCallback(() => {
     // TODO: implement paste from clipboard
@@ -84,6 +96,22 @@ const CanvasContextMenu = ({
             {t('design.contextMenu.addArtboard', 'Add Artboard')}
           </ListItemText>
         </MenuItem>
+
+        {selectedCount > 0 && onDeleteSelected && (
+          <>
+            <Divider />
+            <MenuItem onClick={handleDeleteSelected}>
+              <ListItemIcon>
+                <DeleteOutlineIcon sx={{ fontSize: 20, color: 'error.main' }} />
+              </ListItemIcon>
+              <ListItemText sx={{ '& .MuiTypography-root': { color: 'error.main' } }}>
+                {selectedCount === 1
+                  ? t('design.contextMenu.deleteArtboard', 'Delete Artboard')
+                  : t('design.contextMenu.deleteArtboards', 'Delete {{count}} Artboards', { count: selectedCount })}
+              </ListItemText>
+            </MenuItem>
+          </>
+        )}
 
         <MenuItem onClick={handlePaste} disabled>
           <ListItemIcon>

@@ -41,11 +41,15 @@ interface SearchBarProps {
   onCancel?: () => void;
 }
 
-const ModeLabel = styled(Typography)(({ theme }) => ({
+const ModeLabel = styled(Typography, {
+  shouldForwardProp: (prop) => prop !== 'active',
+})<{ active?: boolean }>(({ theme, active }) => ({
   fontSize: '0.8125rem',
   fontWeight: 600,
   whiteSpace: 'nowrap',
-  color: theme.vars.palette.text.secondary,
+  color: active
+    ? theme.vars.palette.text.secondary
+    : theme.vars.palette.text.disabled,
 }));
 
 const SearchBar = ({
@@ -125,7 +129,7 @@ const SearchBar = ({
             color="secondary"
             aria-label="Toggle research mode"
           />
-          {isLive && <ModeLabel>Live Research</ModeLabel>}
+          <ModeLabel active={isLive}>Live Research</ModeLabel>
         </Stack>
 
         <Autocomplete

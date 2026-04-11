@@ -1,12 +1,14 @@
 import { Rect } from 'react-konva';
+import { alpha } from '@mui/material/styles';
+import { COLORS } from '@/style/constants';
 import type { RubberBandRect } from '../types';
 
 // -----------------------------------------------------------------
 // Constants
 // -----------------------------------------------------------------
 
-const FILL_COLOR = 'rgba(74, 158, 255, 0.08)';
-const STROKE_COLOR = '#4A9EFF';
+const FILL_COLOR = alpha(COLORS.selection, 0.08);
+const STROKE_COLOR = COLORS.selection;
 const STROKE_DASH = [4, 3];
 
 // -----------------------------------------------------------------

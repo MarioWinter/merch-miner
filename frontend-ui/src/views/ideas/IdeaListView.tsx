@@ -115,9 +115,12 @@ export const IdeaListView = () => {
   }, []);
 
   // DEV: always append mock ideas so we can preview styling
-  const rawIdeas = data?.results ?? [];
+  const rawIdeas = data?.results;
   const allIdeas = useMemo(
-    () => (import.meta.env.DEV ? [...rawIdeas, ...MOCK_IDEAS] : rawIdeas),
+    () => {
+      const ideas = rawIdeas ?? [];
+      return import.meta.env.DEV ? [...ideas, ...MOCK_IDEAS] : ideas;
+    },
     [rawIdeas],
   );
   const totalCount = import.meta.env.DEV ? allIdeas.length : (data?.count ?? 0);

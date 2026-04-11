@@ -36,7 +36,7 @@ vi.mock('../../../../store/keywordSlice', async (importOriginal) => {
   };
 });
 
-// Mock collectedProductsSlice — CollectedProductsSection uses backend API
+// Mock collectedProductsSlice
 vi.mock('../../../../store/collectedProductsSlice', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../../store/collectedProductsSlice')>();
   return {

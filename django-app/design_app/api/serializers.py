@@ -26,7 +26,7 @@ class DesignGenerationRunSerializer(serializers.ModelSerializer):
     class Meta:
         model = DesignGenerationRun
         fields = [
-            'id', 'idea', 'model_name', 'status', 'triggered_by',
+            'id', 'idea', 'model_name', 'generation_mode', 'status', 'triggered_by',
             'prompt_used', 'source_image_url',
             'created_at', 'completed_at', 'error_message',
             'reference_used',
@@ -133,6 +133,24 @@ class GenerateDesignSerializer(serializers.Serializer):
     aspect_ratio = serializers.ChoiceField(
         choices=ASPECT_RATIO_CHOICES, default='1:1', required=False,
     )
+    mode = serializers.ChoiceField(
+        choices=DesignGenerationRun.Mode.choices,
+        default=DesignGenerationRun.Mode.TEXT_TO_IMAGE,
+        required=False,
+    )
+    source_image_url = serializers.URLField(
+        required=False, allow_blank=True, default='',
+        max_length=2048,
+    )
+
+    def validate(self, attrs):
+        mode = attrs.get('mode', DesignGenerationRun.Mode.TEXT_TO_IMAGE)
+        source_url = attrs.get('source_image_url', '')
+        if mode == DesignGenerationRun.Mode.IMAGE_TO_IMAGE and not source_url:
+            raise serializers.ValidationError(
+                {'source_image_url': 'Required when mode is image_to_image.'},
+            )
+        return attrs
 
 
 # -- Analyze Image --
@@ -373,10 +391,24 @@ class StandaloneGenerateSerializer(serializers.Serializer):
     aspect_ratio = serializers.ChoiceField(
         choices=ASPECT_RATIO_CHOICES, default='1:1', required=False,
     )
+    mode = serializers.ChoiceField(
+        choices=DesignGenerationRun.Mode.choices,
+        default=DesignGenerationRun.Mode.TEXT_TO_IMAGE,
+        required=False,
+    )
     source_image_url = serializers.URLField(
         required=False, allow_blank=True, default='',
         max_length=2048,
     )
+
+    def validate(self, attrs):
+        mode = attrs.get('mode', DesignGenerationRun.Mode.TEXT_TO_IMAGE)
+        source_url = attrs.get('source_image_url', '')
+        if mode == DesignGenerationRun.Mode.IMAGE_TO_IMAGE and not source_url:
+            raise serializers.ValidationError(
+                {'source_image_url': 'Required when mode is image_to_image.'},
+            )
+        return attrs
 
 
 class ProductAnalyzeImageSerializer(serializers.Serializer):
@@ -460,27 +492,6 @@ class ProjectIdeaSerializer(serializers.Serializer):
         return obj.idea.designs.count()
 
 
-# -- Bulk Generate (G3) --
-
-class BulkGenerateSerializer(serializers.Serializer):
-    """Bulk generate designs for multiple ideas."""
-
-    idea_ids = serializers.ListField(
-        child=serializers.UUIDField(),
-        min_length=1,
-        max_length=10,
-    )
-    model = serializers.ChoiceField(
-        choices=DesignGenerationRun.ModelName.choices,
-    )
-    background_color = serializers.ChoiceField(
-        choices=Design.BackgroundColor.choices,
-        default=Design.BackgroundColor.LIGHT_GRAY,
-    )
-    aspect_ratio = serializers.ChoiceField(
-        choices=ASPECT_RATIO_CHOICES, default='1:1', required=False,
-    )
-
 
 # -- ProjectPrompt (G9) --
 
@@ -557,6 +568,24 @@ class GenerateFromPromptSerializer(serializers.Serializer):
     aspect_ratio = serializers.ChoiceField(
         choices=ASPECT_RATIO_CHOICES, default='1:1', required=False,
     )
+    mode = serializers.ChoiceField(
+        choices=DesignGenerationRun.Mode.choices,
+        default=DesignGenerationRun.Mode.TEXT_TO_IMAGE,
+        required=False,
+    )
+    source_image_url = serializers.URLField(
+        required=False, allow_blank=True, default='',
+        max_length=2048,
+    )
+
+    def validate(self, attrs):
+        mode = attrs.get('mode', DesignGenerationRun.Mode.TEXT_TO_IMAGE)
+        source_url = attrs.get('source_image_url', '')
+        if mode == DesignGenerationRun.Mode.IMAGE_TO_IMAGE and not source_url:
+            raise serializers.ValidationError(
+                {'source_image_url': 'Required when mode is image_to_image.'},
+            )
+        return attrs
 
 
 # -- Prompt Builder (G10) --

@@ -6,7 +6,7 @@ import type { DesignProjectListItem } from '@/views/designs/gallery/types';
 import type { ListingCounts } from '../partials/ListingsPipelineContent';
 import type { UploadCounts } from '../partials/UploadPipelineContent';
 
-interface DrawerPipelineCounts {
+interface PipelineCounts {
   keywordCount: number;
   productCount: number;
   sloganCount: number;
@@ -19,7 +19,7 @@ interface DrawerPipelineCounts {
  * Fetch all data needed to compute pipeline card badges and states.
  * Queries are skipped when nicheId is empty (create mode).
  */
-export const useDrawerPipelineCounts = (nicheId: string): DrawerPipelineCounts => {
+export const usePipelineCounts = (nicheId: string): PipelineCounts => {
   const skip = !nicheId;
 
   const { data: collectedData } = useGetCollectedProductsQuery(nicheId, { skip });

@@ -37,6 +37,9 @@ export const COLORS = {
   artboardDark:  '#1A1A2E',
   artboardLight: '#E8E8E8',
 
+  // Canvas selection / rubber-band
+  selection: '#4A9EFF',
+
   // Neutral
   white: '#FFFFFF',
   black: '#000000',

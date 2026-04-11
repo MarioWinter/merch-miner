@@ -20,7 +20,6 @@ import type { SelectChangeEvent } from '@mui/material';
 import { styled, alpha } from '@mui/material/styles';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
-import ImageIcon from '@mui/icons-material/Image';
 import CloseIcon from '@mui/icons-material/Close';
 import { useTranslation } from 'react-i18next';
 import { COLORS, DURATION, EASING } from '@/style/constants';
@@ -462,10 +461,22 @@ const GenerationZone = ({
         disabled={disabled || isGenerating}
       />
 
-      {/* Reference image indicator */}
+      {/* Reference image indicator with thumbnail */}
       {sourceImageUrl && (
         <ReferenceIndicator>
-          <ImageIcon sx={{ fontSize: 16, color: COLORS.cyan }} />
+          <Box
+            component="img"
+            src={sourceImageUrl}
+            alt=""
+            sx={{
+              width: 32,
+              height: 32,
+              borderRadius: 0.5,
+              objectFit: 'cover',
+              flexShrink: 0,
+              border: `1px solid ${alpha(COLORS.cyan, 0.4)}`,
+            }}
+          />
           <Typography
             variant="caption"
             sx={{ flex: 1, color: COLORS.cyan, fontWeight: 500 }}

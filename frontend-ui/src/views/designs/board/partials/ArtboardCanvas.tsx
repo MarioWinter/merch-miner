@@ -92,6 +92,8 @@ export interface ArtboardCanvasProps {
   onBrushDrawEnd?: () => void;
   /** Phase G13: analyze image from context menu */
   onAnalyzeImage?: (artboardId: string) => void;
+  /** Element currently being inline-edited (text editing) — hide from Konva render */
+  editingElementId?: string | null;
 }
 
 // -----------------------------------------------------------------
@@ -137,6 +139,7 @@ const ArtboardCanvas = ({
   onBrushDrawMove,
   onBrushDrawEnd,
   onAnalyzeImage,
+  editingElementId,
 }: ArtboardCanvasProps) => {
   const { t } = useTranslation();
   const { mode } = useColorScheme();
@@ -147,7 +150,6 @@ const ArtboardCanvas = ({
   const gridDots = useGridDots({ zoom, panX, panY, stageWidth, stageHeight });
   const bgColor = isDark ? COLORS.artboardDark : COLORS.artboardLight;
   const dotColor = isDark ? GRID_DOT_COLOR_DARK : GRID_DOT_COLOR_LIGHT;
-  const hasContent = artboards.length > 0;
 
   // -- Space key tracking for temporary pan mode --
   const [spaceHeld, setSpaceHeld] = useState(false);
@@ -283,6 +285,12 @@ const ArtboardCanvas = ({
     [resizeArtboard, moveArtboard],
   );
 
+  // -- Delete selected artboards (for context menu) --
+  const handleDeleteSelected = useCallback(() => {
+    const ids = Array.from(selectedIds);
+    if (ids.length > 0) removeArtboards(ids);
+  }, [selectedIds, removeArtboards]);
+
   // -- External file drop --
   const {
     isDraggingOver,
@@ -290,7 +298,6 @@ const ArtboardCanvas = ({
     handleDragEnter,
     handleDragLeave,
     handleDrop,
-    openFilePicker,
     fileInputRef,
     handleFileInputChange,
   } = useExternalDrop({ projectId, containerRef, screenToWorld, addArtboard, updateArtboard });
@@ -396,6 +403,7 @@ const ArtboardCanvas = ({
                 onShapeDrawStart={onShapeDrawStart}
                 onPenClick={onPenClick}
                 onBrushDrawStart={onBrushDrawStart}
+                editingElementId={editingElementId}
               />
             ))}
             <RubberBandSelection rect={rubberBand} zoom={zoom} />
@@ -431,8 +439,10 @@ const ArtboardCanvas = ({
       <CanvasContextMenu
         position={canvasMenu.position}
         worldPosition={canvasMenu.worldPosition}
+        selectedCount={selectedIds.size}
         onClose={closeCanvasMenu}
         onAddArtboard={handleAddArtboardFromFile}
+        onDeleteSelected={handleDeleteSelected}
       />
     </CanvasContainer>
   );

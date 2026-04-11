@@ -6,7 +6,7 @@ import ChangeHistoryIcon from '@mui/icons-material/ChangeHistory';
 import HorizontalRuleIcon from '@mui/icons-material/HorizontalRule';
 import GestureIcon from '@mui/icons-material/Gesture';
 import { useTranslation } from 'react-i18next';
-import type { CanvasTool } from './BottomToolbar';
+import type { CanvasTool } from '../types';
 
 // -----------------------------------------------------------------
 // Types

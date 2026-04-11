@@ -98,8 +98,8 @@
     "slogans": "Slogan Factory",
     "designs": "Design Forge",
     "listings": "Listing Loadout",
-    "amazonResearch": "Amazon Deep Dive",
-    "keywords": "Keyword Lode",
+    "amazonResearch": "Amazon Research",
+    "keywords": "Keyword Drilling",
     "uploads": "Upload Rig",
     "kanban": "Team Kanban",
     "sections": {
@@ -934,7 +934,84 @@
       "vibe": "Vibe",
       "tone": "Tone",
       "aesthetics": "Aesthetics",
-      "analyzeImage": "Analyze"
+      "analyzeImage": "Analyze",
+      "generatePrompt": "Generate Prompt",
+      "promptTitle": "Prompt Title",
+      "promptTitlePlaceholder": "Give this prompt a name...",
+      "sloganSelector": "Slogan from Pool",
+      "mainSubject": "Main Subject",
+      "contentType": "Content Type",
+      "selectContentType": "Select type",
+      "mood": "Mood",
+      "selectMood": "Select mood",
+      "tabs": {
+        "label": "Prompt builder tabs",
+        "concept": "Concept",
+        "context": "Context",
+        "style": "Style",
+        "format": "Format",
+        "color": "Color",
+        "background": "Background",
+        "text": "Text",
+        "output": "Output"
+      },
+      "style": {
+        "category": "Style Category",
+        "selectCategory": "Select category",
+        "style": "Style",
+        "selectStyle": "Select style",
+        "addStyle": "+ Add Style",
+        "empty": "No styles added yet. Select a category and style above."
+      },
+      "format": {
+        "composition": "Composition",
+        "selectComposition": "Select composition"
+      },
+      "color": {
+        "palette": "Color Palette",
+        "selectColor": "Select color {{color}}",
+        "addColor": "+ Add Color",
+        "fromResearch": "From Research",
+        "selected": "Selected Colors",
+        "empty": "No colors selected. Click swatches above to add colors to your prompt."
+      },
+      "background": {
+        "type": "Background Type",
+        "selectType": "Select background type",
+        "presets": "Background Presets"
+      },
+      "text": {
+        "noSlogan": "No slogan selected",
+        "enterCustom": "Enter custom text below",
+        "textIncluded": "Text Included?",
+        "selectMode": "Select text option",
+        "customLabel": "Custom Text",
+        "customPlaceholder": "Type the text to include in the design...",
+        "preview": "Text Preview",
+        "noTextHint": "Design will be generated without text overlay."
+      },
+      "output": {
+        "mbaPreset": "MBA Preset",
+        "mbaPresetHint": "4500x5400, 300DPI, seamless edges, no bleed"
+      },
+      "context": {
+        "toggleKeywords": "Toggle keywords",
+        "keywords": "Keywords",
+        "noKeywords": "No keywords -- run Keyword Research first",
+        "toggleResearch": "Toggle AI research",
+        "aiResearch": "AI Research",
+        "noResearch": "No research data available",
+        "toggleProducts": "Toggle reference products",
+        "referenceProducts": "Reference Products",
+        "noProducts": "No reference products available",
+        "referenceImages": "Reference Images",
+        "noReferences": "No reference images -- add from Niche Pipeline",
+        "toggleReference": "Toggle reference {{title}}",
+        "untitledRef": "Untitled",
+        "refModeLabel": "Reference mode",
+        "modeImage": "Image (multimodal)",
+        "modeText": "Text Analysis"
+      }
     },
     "sloganPool": {
       "title": "Slogan Pool",
@@ -1555,7 +1632,7 @@
   },
   "keywords": {
     "page": {
-      "title": "Keyword Lode",
+      "title": "Keyword Drilling",
       "searchPlaceholder": "Search keywords..."
     },
     "source": {

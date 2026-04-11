@@ -119,8 +119,7 @@ interface RightPanelProps {
   artboards?: ArtboardData[];
   selectedIds?: Set<string>;
   selectedArtboardId?: string;
-  onAutoPromptFill?: (prompt: string) => void;
-  onAddReferenceArtboard?: (imageUrl: string) => void;
+  onInsertSlogan?: (sloganText: string) => void;
   onSelectArtboard?: (id: string) => void;
   onPromptClick?: (prompt: ProjectPrompt) => void;
   onCreateSkeletonArtboards?: (
@@ -181,8 +180,7 @@ const RightPanel = ({
   prompts,
   artboards = [],
   selectedIds,
-  onAutoPromptFill,
-  onAddReferenceArtboard,
+  onInsertSlogan,
   onSelectArtboard,
   onPromptClick,
   onCreateSkeletonArtboards,
@@ -317,11 +315,7 @@ const RightPanel = ({
               <SloganPoolSection
                 projectId={projectId}
                 ideas={ideas}
-                model={model}
-                bgColor={bgColor}
-                onAutoPromptFill={onAutoPromptFill}
-                onAddReferenceArtboard={onAddReferenceArtboard}
-                onCreateSkeletonArtboards={onCreateSkeletonArtboards}
+                onInsertSlogan={onInsertSlogan}
               />
             </AccordionSection>
           )}

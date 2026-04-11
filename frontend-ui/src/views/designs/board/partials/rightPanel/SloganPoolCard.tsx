@@ -4,16 +4,14 @@ import {
   AccordionDetails,
   AccordionSummary,
   Box,
-  Checkbox,
   Chip,
-  CircularProgress,
   IconButton,
   Stack,
   Tooltip,
   Typography,
 } from '@mui/material';
 import { styled, alpha } from '@mui/material/styles';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import InputIcon from '@mui/icons-material/Input';
 import CloseIcon from '@mui/icons-material/Close';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useTranslation } from 'react-i18next';
@@ -33,19 +31,14 @@ const CardRoot = styled(Box)(({ theme }) => ({
   },
 }));
 
-
 // -----------------------------------------------------------------
 // Props
 // -----------------------------------------------------------------
 
 interface SloganPoolCardProps {
   idea: ProjectIdea;
-  isSelected: boolean;
-  onToggleSelect: () => void;
-  onAutoPrompt: () => void;
+  onInsertSlogan: (sloganText: string) => void;
   onRemove: () => void;
-  isAutoPrompting?: boolean;
-  isGenerating?: boolean;
 }
 
 // -----------------------------------------------------------------
@@ -54,12 +47,8 @@ interface SloganPoolCardProps {
 
 const SloganPoolCard = ({
   idea,
-  isSelected,
-  onToggleSelect,
-  onAutoPrompt,
+  onInsertSlogan,
   onRemove,
-  isAutoPrompting,
-  isGenerating,
 }: SloganPoolCardProps) => {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
@@ -67,14 +56,6 @@ const SloganPoolCard = ({
   return (
     <CardRoot>
       <Stack direction="row" alignItems="flex-start" spacing={0.5}>
-        <Checkbox
-          size="small"
-          checked={isSelected}
-          onChange={onToggleSelect}
-          sx={{ p: 0.25, mt: 0.25 }}
-          aria-label={t('design.sloganPool.selectSlogan', 'Select slogan')}
-        />
-
         <Box sx={{ flex: 1, minWidth: 0 }}>
           {/* Slogan text */}
           <Tooltip title={idea.slogan_text} placement="top">
@@ -98,31 +79,6 @@ const SloganPoolCard = ({
                     0.12,
                   ),
                   color: idea.signal_type === 'self' ? 'primary.main' : 'secondary.main',
-                }}
-              />
-            )}
-            {idea.market_confidence && (
-              <Chip
-                label={idea.market_confidence}
-                size="small"
-                sx={{
-                  height: 18,
-                  fontSize: '0.6rem',
-                  borderRadius: '4px',
-                  backgroundColor: alpha(
-                    idea.market_confidence === 'High'
-                      ? COLORS.successDk
-                      : idea.market_confidence === 'Medium'
-                        ? COLORS.warningDk
-                        : COLORS.snowMuted,
-                    0.12,
-                  ),
-                  color:
-                    idea.market_confidence === 'High'
-                      ? 'success.main'
-                      : idea.market_confidence === 'Medium'
-                        ? 'warning.main'
-                        : 'text.secondary',
                 }}
               />
             )}
@@ -185,25 +141,16 @@ const SloganPoolCard = ({
 
         {/* Actions column */}
         <Stack alignItems="center" spacing={0}>
-          {isGenerating ? (
-            <CircularProgress size={16} />
-          ) : (
-            <Tooltip title={t('design.sloganPool.autoPrompt', 'Auto-Prompt')}>
-              <IconButton
-                size="small"
-                onClick={onAutoPrompt}
-                disabled={isAutoPrompting}
-                sx={{ p: 0.5 }}
-                aria-label={t('design.sloganPool.autoPrompt', 'Auto-Prompt')}
-              >
-                {isAutoPrompting ? (
-                  <CircularProgress size={14} />
-                ) : (
-                  <AutoAwesomeIcon sx={{ fontSize: 16 }} />
-                )}
-              </IconButton>
-            </Tooltip>
-          )}
+          <Tooltip title={t('design.sloganPool.insert', 'Insert into prompt')}>
+            <IconButton
+              size="small"
+              onClick={() => onInsertSlogan(idea.slogan_text)}
+              sx={{ p: 0.5 }}
+              aria-label={t('design.sloganPool.insert', 'Insert into prompt')}
+            >
+              <InputIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
           <Tooltip title={t('design.sloganPool.remove', 'Remove')}>
             <IconButton
               size="small"

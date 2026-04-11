@@ -93,10 +93,10 @@ const ConceptTab = ({ state, ideas, onChange }: ConceptTabProps) => {
     const sloganId = e.target.value || null;
     onChange({ selectedSloganId: sloganId });
 
-    // Auto-fill Main Subject from selected slogan
+    // Auto-fill Main Subject from selected slogan (always replaces)
     if (sloganId) {
       const idea = ideas.find((i) => i.id === sloganId);
-      if (idea && !state.mainSubject) {
+      if (idea) {
         onChange({ mainSubject: idea.slogan_text });
       }
     }

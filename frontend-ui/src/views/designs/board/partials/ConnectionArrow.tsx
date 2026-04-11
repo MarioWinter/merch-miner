@@ -1,12 +1,13 @@
 import { Arrow } from 'react-konva';
+import { COLORS } from '@/style/constants';
 import type { ArtboardData } from '../types';
 
 // -----------------------------------------------------------------
 // Constants
 // -----------------------------------------------------------------
 
-const ARROW_COLOR_DARK = '#7BAAB8'; // text.secondary dark
-const ARROW_COLOR_LIGHT = '#3D6A7A'; // text.secondary light
+const ARROW_COLOR_DARK = COLORS.snowMuted; // text.secondary dark
+const ARROW_COLOR_LIGHT = COLORS.mist; // text.secondary light
 const ARROW_STROKE_WIDTH = 1;
 const ARROW_POINTER_LENGTH = 6;
 const ARROW_POINTER_WIDTH = 5;

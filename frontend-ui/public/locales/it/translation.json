@@ -98,8 +98,8 @@
     "slogans": "Raffineria di slogan",
     "designs": "Fucina di design",
     "listings": "Schede prodotto",
-    "amazonResearch": "Analisi approfondita Amazon",
-    "keywords": "Banca di keyword",
+    "amazonResearch": "Ricerca Amazon",
+    "keywords": "Keyword Drilling",
     "uploads": "Stazione upload",
     "kanban": "Kanban del team",
     "sections": {
@@ -805,7 +805,84 @@
       "vibe": "Atmosfera",
       "tone": "Tono",
       "aesthetics": "Estetica",
-      "analyzeImage": "Analizza"
+      "analyzeImage": "Analizza",
+      "generatePrompt": "Genera prompt",
+      "promptTitle": "Titolo del prompt",
+      "promptTitlePlaceholder": "Dai un nome a questo prompt...",
+      "sloganSelector": "Slogan dal pool",
+      "mainSubject": "Soggetto principale",
+      "contentType": "Tipo di contenuto",
+      "selectContentType": "Seleziona tipo",
+      "mood": "Umore",
+      "selectMood": "Seleziona umore",
+      "tabs": {
+        "label": "Schede del costruttore di prompt",
+        "concept": "Concetto",
+        "context": "Contesto",
+        "style": "Stile",
+        "format": "Formato",
+        "color": "Colore",
+        "background": "Sfondo",
+        "text": "Testo",
+        "output": "Output"
+      },
+      "style": {
+        "category": "Categoria di stile",
+        "selectCategory": "Seleziona categoria",
+        "style": "Stile",
+        "selectStyle": "Seleziona stile",
+        "addStyle": "+ Aggiungi stile",
+        "empty": "Nessuno stile aggiunto. Seleziona una categoria e uno stile sopra."
+      },
+      "format": {
+        "composition": "Composizione",
+        "selectComposition": "Seleziona composizione"
+      },
+      "color": {
+        "palette": "Tavolozza colori",
+        "selectColor": "Seleziona colore {{color}}",
+        "addColor": "+ Aggiungi colore",
+        "fromResearch": "Dalla ricerca",
+        "selected": "Colori selezionati",
+        "empty": "Nessun colore selezionato. Clicca sui campioni sopra."
+      },
+      "background": {
+        "type": "Tipo di sfondo",
+        "selectType": "Seleziona tipo di sfondo",
+        "presets": "Preset di sfondo"
+      },
+      "text": {
+        "noSlogan": "Nessuno slogan selezionato",
+        "enterCustom": "Inserisci testo personalizzato sotto",
+        "textIncluded": "Testo incluso?",
+        "selectMode": "Seleziona opzione testo",
+        "customLabel": "Testo personalizzato",
+        "customPlaceholder": "Digita il testo da includere nel design...",
+        "preview": "Anteprima testo",
+        "noTextHint": "Il design verrà generato senza sovrapposizione di testo."
+      },
+      "output": {
+        "mbaPreset": "Preset MBA",
+        "mbaPresetHint": "4500x5400, 300DPI, bordi senza cuciture, senza rifilo"
+      },
+      "context": {
+        "toggleKeywords": "Attiva/disattiva parole chiave",
+        "keywords": "Parole chiave",
+        "noKeywords": "Nessuna parola chiave — esegui prima la ricerca parole chiave",
+        "toggleResearch": "Attiva/disattiva ricerca IA",
+        "aiResearch": "Ricerca IA",
+        "noResearch": "Nessun dato di ricerca disponibile",
+        "toggleProducts": "Attiva/disattiva prodotti di riferimento",
+        "referenceProducts": "Prodotti di riferimento",
+        "noProducts": "Nessun prodotto di riferimento disponibile",
+        "referenceImages": "Immagini di riferimento",
+        "noReferences": "Nessuna immagine di riferimento — aggiungi dalla Pipeline Nicchia",
+        "toggleReference": "Attiva/disattiva riferimento {{title}}",
+        "untitledRef": "Senza titolo",
+        "refModeLabel": "Modalità di riferimento",
+        "modeImage": "Immagine (multimodale)",
+        "modeText": "Analisi testuale"
+      }
     },
     "sloganPool": {
       "title": "Pool di slogan",
@@ -1443,6 +1520,35 @@
       "generate": "Genera",
       "generating": "Generazione...",
       "regenerate": "Rigenera"
+    },
+    "generation": {
+      "zoneLabel": "Controlli di generazione",
+      "images": "Immagini",
+      "imageCount": "Numero di immagini",
+      "parallelSwitch": "Prompt paralleli",
+      "parallelLabel": "Prompt paralleli",
+      "parallelHint": "Ogni nuova riga = immagine separata",
+      "parallelPlaceholder": "Inserisci i prompt (ogni riga = immagine separata)...",
+      "singlePlaceholder": "Descrivi il tuo design...",
+      "analyzeTooltip": "Genera prompt dall'immagine",
+      "analyzeUpload": "Carica un'immagine da analizzare",
+      "analyzeImage": "Analizza immagine",
+      "builderTooltip": "Apri costruttore di prompt",
+      "openBuilder": "Apri costruttore di prompt",
+      "collapsed": "Generazione",
+      "generateGroup": "Azioni di generazione",
+      "generateAll": "Genera tutto ({{count}})",
+      "moreOptions": "Altre opzioni",
+      "res": "Ris.",
+      "resolution": "Risoluzione",
+      "mode": {
+        "label": "Modalità",
+        "textToImage": "Testo a immagine",
+        "remixImage": "Immagine a immagine (Remix)",
+        "editImage": "Immagine a immagine (Modifica)"
+      },
+      "withReference": "Generazione con immagine di riferimento",
+      "clearReference": "Rimuovi immagine di riferimento"
     },
     "cloud": {
       "title": "Archiviazione cloud",

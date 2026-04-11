@@ -25,9 +25,6 @@ import type {
   AddDesignsToProjectBody,
   ProjectBoardResponse,
   AddIdeasBody,
-  BulkGenerateBody,
-  BulkGenerateResult,
-  AutoPromptResponse,
   ProjectPrompt,
   CreatePromptsBody,
   BuildPromptsBody,
@@ -520,32 +517,6 @@ export const designApi = createApi({
       ],
     }),
 
-    // Auto-prompt for a single idea
-    autoPrompt: builder.query<
-      AutoPromptResponse,
-      { projectId: string; ideaId: string }
-    >({
-      query: ({ projectId, ideaId }) => ({
-        url: `/api/designs/projects/${projectId}/ideas/${ideaId}/auto-prompt/`,
-        method: 'GET',
-      }),
-    }),
-
-    // Bulk generate designs from multiple ideas
-    bulkGenerateDesigns: builder.mutation<
-      BulkGenerateResult[],
-      { projectId: string; body: BulkGenerateBody }
-    >({
-      query: ({ projectId, body }) => ({
-        url: `/api/designs/projects/${projectId}/bulk-generate/`,
-        method: 'POST',
-        data: body,
-      }),
-      invalidatesTags: (_result, _error, { projectId }) => [
-        { type: 'DesignProject', id: projectId },
-      ],
-    }),
-
     // Create prompts (bulk)
     createPrompts: builder.mutation<
       ProjectPrompt[],
@@ -628,7 +599,7 @@ export const designApi = createApi({
     // Create prompt preset
     createPromptPreset: builder.mutation<
       PromptPreset,
-      { name: string; source_config: Record<string, boolean> }
+      { name: string; source_config: Record<string, unknown> }
     >({
       query: (body) => ({
         url: '/api/designs/prompt-presets/',
@@ -718,8 +689,6 @@ export const {
   // Phase G: Slogan Pool + Prompt Builder
   useAddIdeasToProjectMutation,
   useRemoveIdeaFromProjectMutation,
-  useLazyAutoPromptQuery,
-  useBulkGenerateDesignsMutation,
   useCreatePromptsMutation,
   useUpdatePromptMutation,
   useDeletePromptMutation,

@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -67,22 +67,30 @@ const ProcessingSettingsDialog = ({ open, onClose }: ProcessingSettingsDialogPro
   const { data: settings, isLoading, error } = useGetProcessingSettingsQuery(undefined, { skip: !open });
   const [updateSettings, { isLoading: isSaving }] = useUpdateProcessingSettingsMutation();
 
-  // Local form state — sync from server data during render (no useEffect)
+  // Derive a stable key from settings to reset form state when server data changes
+  const settingsKey = useMemo(
+    () => (settings ? `${settings.bg_removal_provider}_${settings.upscale_provider}_${settings.upscale_auto_threshold}` : ''),
+    [settings],
+  );
+
+  // Local form state — re-initialized from server data via key change
   const [bgProvider, setBgProvider] = useState<'rembg' | 'api'>('rembg');
   const [bgApiKey, setBgApiKey] = useState('');
   const [upscaleProvider, setUpscaleProvider] = useState<'pica' | 'api' | 'auto'>('auto');
   const [upscaleApiKey, setUpscaleApiKey] = useState('');
   const [autoThreshold, setAutoThreshold] = useState(3000);
 
-  // Track which settings version we've synced to avoid re-syncing
-  const syncedSettingsRef = useRef<typeof settings>(undefined);
-  if (settings && settings !== syncedSettingsRef.current) {
-    syncedSettingsRef.current = settings;
-    setBgProvider(settings.bg_removal_provider);
-    setBgApiKey('');
-    setUpscaleProvider(settings.upscale_provider);
-    setUpscaleApiKey('');
-    setAutoThreshold(settings.upscale_auto_threshold);
+  // Sync server data into local form state when settings key changes
+  const [prevKey, setPrevKey] = useState(settingsKey);
+  if (settingsKey && settingsKey !== prevKey) {
+    setPrevKey(settingsKey);
+    if (settings) {
+      setBgProvider(settings.bg_removal_provider);
+      setBgApiKey('');
+      setUpscaleProvider(settings.upscale_provider);
+      setUpscaleApiKey('');
+      setAutoThreshold(settings.upscale_auto_threshold);
+    }
   }
 
   const handleSave = async () => {

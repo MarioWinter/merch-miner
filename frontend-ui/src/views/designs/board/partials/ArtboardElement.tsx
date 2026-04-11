@@ -4,6 +4,31 @@ import type Konva from 'konva';
 import type { CanvasElement } from '../types';
 
 // -----------------------------------------------------------------
+// Shift-key tracker hook (toggles keepRatio on Transformer)
+// -----------------------------------------------------------------
+
+const useShiftKey = () => {
+  const [shiftHeld, setShiftHeld] = useState(false);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') setShiftHeld(true);
+    };
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Shift') setShiftHeld(false);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
+  }, []);
+
+  return shiftHeld;
+};
+
+// -----------------------------------------------------------------
 // Props
 // -----------------------------------------------------------------
 
@@ -39,6 +64,7 @@ const ArtboardElement = ({
   const nodeRef = useRef<Konva.Group>(null);
   const trRef = useRef<Konva.Transformer>(null);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
+  const shiftHeld = useShiftKey();
 
   // Load image for image elements
   const imageSrc = element.type === 'image' ? (element.props as { src?: string }).src : undefined;
@@ -162,7 +188,7 @@ const ArtboardElement = ({
       {isSelected && (
         <Transformer
           ref={trRef}
-          keepRatio={!isFreeTransform}
+          keepRatio={!isFreeTransform && !shiftHeld}
           rotateEnabled={isFreeTransform}
           enabledAnchors={
             isFreeTransform

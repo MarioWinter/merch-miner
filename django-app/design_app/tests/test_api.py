@@ -357,6 +357,398 @@ class TestPipelineViews:
         assert resp.status_code == 204
 
 
+class TestPipelineViewsExtended:
+    """Extended pipeline CRUD tests — validation, workspace isolation, presets."""
+
+    def test_create_pipeline_with_multiple_tools(self, auth_client):
+        resp = auth_client.post(
+            '/api/designs/pipelines/',
+            {
+                'name': 'Full POD Pipeline',
+                'tools': [
+                    {'tool_name': 'bg_remove', 'params': {'model': 'birefnet-general-lite'}},
+                    {'tool_name': 'upscale', 'params': {'threshold': 3000}},
+                    {'tool_name': 'trim', 'params': {'padding': 10}},
+                ],
+                'is_preset': True,
+            },
+            format='json',
+        )
+        assert resp.status_code == 201
+        assert len(resp.data['tools']) == 3
+
+    def test_create_pipeline_empty_tools(self, auth_client):
+        """Empty tools array is valid — user may save and add later."""
+        resp = auth_client.post(
+            '/api/designs/pipelines/',
+            {'name': 'Empty', 'tools': []},
+            format='json',
+        )
+        assert resp.status_code == 201
+        assert resp.data['tools'] == []
+
+    def test_create_pipeline_missing_name(self, auth_client):
+        resp = auth_client.post(
+            '/api/designs/pipelines/',
+            {'tools': [{'tool_name': 'bg_remove', 'params': {}}]},
+            format='json',
+        )
+        assert resp.status_code == 400
+
+    def test_workspace_isolation_list(self, auth_client, user):
+        """Pipelines from another workspace don't appear in list."""
+        from workspace_app.models import Workspace, Membership
+        other_ws = Workspace.objects.create(
+            name='Other', slug='other-pipe-list', owner=user,
+        )
+        Membership.objects.create(
+            workspace=other_ws, user=user, role='admin', status='active',
+        )
+        DesignPipeline.objects.create(
+            workspace=other_ws, name='Other Pipeline',
+            tools=[], created_by=user,
+        )
+        resp = auth_client.get('/api/designs/pipelines/')
+        assert resp.status_code == 200
+        assert resp.data['count'] == 0
+
+    def test_workspace_isolation_update(self, auth_client, user):
+        """Cannot update pipeline in another workspace."""
+        from workspace_app.models import Workspace
+        other_ws = Workspace.objects.create(
+            name='Other', slug='other-pipe-upd', owner=user,
+        )
+        p = DesignPipeline.objects.create(
+            workspace=other_ws, name='Secret', tools=[], created_by=user,
+        )
+        resp = auth_client.patch(
+            f'/api/designs/pipelines/{p.id}/',
+            {'name': 'Hacked'},
+            format='json',
+        )
+        assert resp.status_code == 404
+
+    def test_workspace_isolation_delete(self, auth_client, user):
+        """Cannot delete pipeline in another workspace."""
+        from workspace_app.models import Workspace
+        other_ws = Workspace.objects.create(
+            name='Other', slug='other-pipe-del', owner=user,
+        )
+        p = DesignPipeline.objects.create(
+            workspace=other_ws, name='Protected', tools=[], created_by=user,
+        )
+        resp = auth_client.delete(f'/api/designs/pipelines/{p.id}/')
+        assert resp.status_code == 404
+
+    def test_update_tools(self, auth_client, workspace, user):
+        p = DesignPipeline.objects.create(
+            workspace=workspace, name='Flow', tools=[], created_by=user,
+        )
+        new_tools = [{'tool_name': 'trim', 'params': {'padding': 5}}]
+        resp = auth_client.patch(
+            f'/api/designs/pipelines/{p.id}/',
+            {'tools': new_tools},
+            format='json',
+        )
+        assert resp.status_code == 200
+        assert resp.data['tools'] == new_tools
+
+    def test_list_filters_by_workspace(self, auth_client, workspace, user):
+        """Only pipelines in the current workspace are returned."""
+        DesignPipeline.objects.create(
+            workspace=workspace, name='Mine', tools=[], created_by=user,
+        )
+        DesignPipeline.objects.create(
+            workspace=workspace, name='Also Mine', tools=[], created_by=user,
+        )
+        resp = auth_client.get('/api/designs/pipelines/')
+        assert resp.status_code == 200
+        assert resp.data['count'] == 2
+
+    def test_preset_flag(self, auth_client, workspace, user):
+        p = DesignPipeline.objects.create(
+            workspace=workspace, name='Preset', tools=[],
+            is_preset=False, created_by=user,
+        )
+        resp = auth_client.patch(
+            f'/api/designs/pipelines/{p.id}/',
+            {'is_preset': True},
+            format='json',
+        )
+        assert resp.status_code == 200
+        assert resp.data['is_preset'] is True
+
+
+class TestApplyPipelineView:
+    """Tests for POST /api/designs/apply-pipeline/."""
+
+    @patch('design_app.api.views.django_rq')
+    def test_apply_pipeline_creates_server_jobs(
+        self, mock_rq, auth_client, workspace, user, design,
+    ):
+        mock_queue = MagicMock()
+        mock_queue.enqueue.return_value = MagicMock(id='rq-pipe-1')
+        mock_rq.get_queue.return_value = mock_queue
+
+        pipeline = DesignPipeline.objects.create(
+            workspace=workspace,
+            name='BG + Upscale',
+            tools=[
+                {'tool_name': 'bg_remove', 'params': {}},
+                {'tool_name': 'upscale', 'params': {}},
+            ],
+            created_by=user,
+        )
+        resp = auth_client.post(
+            '/api/designs/apply-pipeline/',
+            {
+                'design_ids': [str(design.id)],
+                'pipeline_id': str(pipeline.id),
+            },
+            format='json',
+        )
+        assert resp.status_code == 200
+        assert len(resp.data['server_jobs']) == 2
+        assert DesignProcessingJob.objects.filter(design=design).count() == 2
+
+    @patch('design_app.api.views.django_rq')
+    def test_apply_pipeline_client_steps(
+        self, mock_rq, auth_client, workspace, user, design,
+    ):
+        """Client-side tools (e.g. trim, filters) returned as client_steps."""
+        mock_queue = MagicMock()
+        mock_queue.enqueue.return_value = MagicMock(id='rq-pipe-2')
+        mock_rq.get_queue.return_value = mock_queue
+
+        pipeline = DesignPipeline.objects.create(
+            workspace=workspace,
+            name='Mixed Pipeline',
+            tools=[
+                {'tool_name': 'bg_remove', 'params': {}},
+                {'tool_name': 'trim', 'params': {'padding': 10}},
+                {'tool_name': 'filters', 'params': {'brightness': 1.2}},
+            ],
+            created_by=user,
+        )
+        resp = auth_client.post(
+            '/api/designs/apply-pipeline/',
+            {
+                'design_ids': [str(design.id)],
+                'pipeline_id': str(pipeline.id),
+            },
+            format='json',
+        )
+        assert resp.status_code == 200
+        # 1 server job (bg_remove), 2 client steps (trim, filters)
+        assert len(resp.data['server_jobs']) == 1
+        assert len(resp.data['client_steps']) == 2
+        assert resp.data['client_steps'][0]['tool_name'] == 'trim'
+        assert resp.data['client_steps'][1]['tool_name'] == 'filters'
+
+    def test_apply_pipeline_invalid_design_ids(self, auth_client, workspace, user):
+        pipeline = DesignPipeline.objects.create(
+            workspace=workspace,
+            name='P',
+            tools=[{'tool_name': 'bg_remove', 'params': {}}],
+            created_by=user,
+        )
+        resp = auth_client.post(
+            '/api/designs/apply-pipeline/',
+            {
+                'design_ids': [str(uuid.uuid4())],
+                'pipeline_id': str(pipeline.id),
+            },
+            format='json',
+        )
+        assert resp.status_code == 400
+        assert 'not found' in resp.data['error'].lower()
+
+    def test_apply_pipeline_not_found(self, auth_client, design):
+        resp = auth_client.post(
+            '/api/designs/apply-pipeline/',
+            {
+                'design_ids': [str(design.id)],
+                'pipeline_id': str(uuid.uuid4()),
+            },
+            format='json',
+        )
+        assert resp.status_code == 404
+
+    @patch('design_app.api.views.django_rq')
+    def test_apply_pipeline_workspace_isolation(
+        self, mock_rq, auth_client, user, workspace,
+    ):
+        """Cannot apply pipeline from another workspace."""
+        from workspace_app.models import Workspace
+        other_ws = Workspace.objects.create(
+            name='Other', slug='other-apply', owner=user,
+        )
+        pipeline = DesignPipeline.objects.create(
+            workspace=other_ws, name='Other',
+            tools=[{'tool_name': 'bg_remove', 'params': {}}],
+            created_by=user,
+        )
+        from idea_app.models import Idea
+        idea = Idea.objects.create(
+            workspace=workspace, slogan_text='X', created_by=user,
+        )
+        d = Design.objects.create(workspace=workspace, idea=idea)
+
+        resp = auth_client.post(
+            '/api/designs/apply-pipeline/',
+            {
+                'design_ids': [str(d.id)],
+                'pipeline_id': str(pipeline.id),
+            },
+            format='json',
+        )
+        assert resp.status_code == 404
+
+    @patch('design_app.api.views.django_rq')
+    def test_apply_pipeline_all_client_side(
+        self, mock_rq, auth_client, workspace, user, design,
+    ):
+        """Pipeline with only client-side tools returns no server jobs."""
+        pipeline = DesignPipeline.objects.create(
+            workspace=workspace,
+            name='Client Only',
+            tools=[
+                {'tool_name': 'trim', 'params': {}},
+                {'tool_name': 'rotate', 'params': {'angle': 90}},
+            ],
+            created_by=user,
+        )
+        resp = auth_client.post(
+            '/api/designs/apply-pipeline/',
+            {
+                'design_ids': [str(design.id)],
+                'pipeline_id': str(pipeline.id),
+            },
+            format='json',
+        )
+        assert resp.status_code == 200
+        assert len(resp.data['server_jobs']) == 0
+        assert len(resp.data['client_steps']) == 2
+        # Queue is initialized but enqueue is never called for client-only tools
+        mock_queue = mock_rq.get_queue.return_value
+        mock_queue.enqueue.assert_not_called()
+
+
+class TestProcessingSettingsViewExtended:
+    """Extended ProcessingSettings tests — API keys, isolation, providers."""
+
+    def test_api_keys_write_only(self, auth_client, workspace):
+        """GET should not return raw API key values."""
+        from design_app.models import ProcessingSettings
+        ProcessingSettings.objects.create(
+            workspace=workspace,
+            bg_removal_api_key='secret-bg-key-123',
+            upscale_api_key='secret-up-key-456',
+        )
+        resp = auth_client.get('/api/designs/settings/')
+        assert resp.status_code == 200
+        assert 'bg_removal_api_key' not in resp.data
+        assert 'upscale_api_key' not in resp.data
+
+    def test_api_key_set_booleans(self, auth_client, workspace):
+        """_set booleans reflect whether keys are stored."""
+        resp = auth_client.get('/api/designs/settings/')
+        assert resp.status_code == 200
+        assert resp.data['bg_removal_api_key_set'] is False
+        assert resp.data['upscale_api_key_set'] is False
+
+    def test_patch_api_key_sets_flag(self, auth_client, workspace):
+        """PATCH with API key saves it, next GET shows _set=True."""
+        auth_client.get('/api/designs/settings/')  # ensure created
+        resp = auth_client.patch(
+            '/api/designs/settings/',
+            {'bg_removal_api_key': 'my-secret-key'},
+            format='json',
+        )
+        assert resp.status_code == 200
+        assert resp.data['bg_removal_api_key_set'] is True
+
+        # Verify persisted
+        resp2 = auth_client.get('/api/designs/settings/')
+        assert resp2.data['bg_removal_api_key_set'] is True
+        assert 'bg_removal_api_key' not in resp2.data
+
+    def test_patch_upscale_api_key(self, auth_client, workspace):
+        auth_client.get('/api/designs/settings/')
+        resp = auth_client.patch(
+            '/api/designs/settings/',
+            {'upscale_api_key': 'upscale-secret'},
+            format='json',
+        )
+        assert resp.status_code == 200
+        assert resp.data['upscale_api_key_set'] is True
+
+    def test_provider_switching(self, auth_client, workspace):
+        auth_client.get('/api/designs/settings/')
+        resp = auth_client.patch(
+            '/api/designs/settings/',
+            {'bg_removal_provider': 'api'},
+            format='json',
+        )
+        assert resp.status_code == 200
+        assert resp.data['bg_removal_provider'] == 'api'
+
+        resp2 = auth_client.patch(
+            '/api/designs/settings/',
+            {'bg_removal_provider': 'rembg'},
+            format='json',
+        )
+        assert resp2.data['bg_removal_provider'] == 'rembg'
+
+    def test_upscale_provider_switching(self, auth_client, workspace):
+        auth_client.get('/api/designs/settings/')
+        for provider in ('pica', 'api', 'auto'):
+            resp = auth_client.patch(
+                '/api/designs/settings/',
+                {'upscale_provider': provider},
+                format='json',
+            )
+            assert resp.status_code == 200
+            assert resp.data['upscale_provider'] == provider
+
+    def test_threshold_validation_valid(self, auth_client, workspace):
+        auth_client.get('/api/designs/settings/')
+        resp = auth_client.patch(
+            '/api/designs/settings/',
+            {'upscale_auto_threshold': 5000},
+            format='json',
+        )
+        assert resp.status_code == 200
+        assert resp.data['upscale_auto_threshold'] == 5000
+
+    def test_workspace_isolation(self, auth_client, user, workspace):
+        """Settings for another workspace are not accessible."""
+        from workspace_app.models import Workspace
+        from design_app.models import ProcessingSettings
+        other_ws = Workspace.objects.create(
+            name='Other', slug='other-settings', owner=user,
+        )
+        ProcessingSettings.objects.create(
+            workspace=other_ws,
+            bg_removal_provider='api',
+            bg_removal_api_key='secret',
+        )
+        # auth_client uses the first workspace — should get default settings
+        resp = auth_client.get('/api/designs/settings/')
+        assert resp.status_code == 200
+        assert resp.data['bg_removal_provider'] == 'rembg'
+        assert resp.data['bg_removal_api_key_set'] is False
+
+    def test_invalid_provider_rejected(self, auth_client, workspace):
+        auth_client.get('/api/designs/settings/')
+        resp = auth_client.patch(
+            '/api/designs/settings/',
+            {'bg_removal_provider': 'invalid_provider'},
+            format='json',
+        )
+        assert resp.status_code == 400
+
+
 class TestProjectReferencesView:
     """Tests for ProjectReferencesView — bulk add references."""
 
@@ -519,3 +911,118 @@ class TestProjectBoardReferences:
         )
         assert resp.status_code == 200
         assert resp.data['references'] == []
+
+
+class TestImageToImageGeneration:
+    """Tests for image-to-image generation mode."""
+
+    @patch('design_app.api.views.django_rq')
+    def test_i2i_standalone_generate(self, mock_rq, auth_client, project):
+        """Valid i2i request creates run with mode + source_image_url."""
+        mock_queue = MagicMock()
+        mock_queue.enqueue.return_value = MagicMock(id='rq-i2i-1')
+        mock_rq.get_queue.return_value = mock_queue
+
+        resp = auth_client.post(
+            '/api/designs/generate/',
+            {
+                'model': 'gemini_flash',
+                'prompt': 'Remix this design with brighter colors',
+                'mode': 'image_to_image',
+                'source_image_url': 'https://example.com/ref.png',
+                'project_id': str(project.id),
+            },
+            format='json',
+        )
+        assert resp.status_code == 202
+        assert resp.data['generation_mode'] == 'image_to_image'
+        assert resp.data['source_image_url'] == 'https://example.com/ref.png'
+
+        # Verify run was created correctly
+        run = DesignGenerationRun.objects.get(pk=resp.data['id'])
+        assert run.generation_mode == 'image_to_image'
+        assert run.source_image_url == 'https://example.com/ref.png'
+
+    def test_i2i_missing_source_url(self, auth_client, project):
+        """i2i mode without source_image_url returns 400."""
+        resp = auth_client.post(
+            '/api/designs/generate/',
+            {
+                'model': 'gemini_flash',
+                'prompt': 'Remix this design with brighter colors',
+                'mode': 'image_to_image',
+                'project_id': str(project.id),
+            },
+            format='json',
+        )
+        assert resp.status_code == 400
+        assert 'source_image_url' in str(resp.data)
+
+    def test_i2i_non_multimodal_model(self, auth_client, project):
+        """i2i with non-multimodal model returns 400."""
+        resp = auth_client.post(
+            '/api/designs/generate/',
+            {
+                'model': 'black-forest-labs/flux-1.1-pro',
+                'prompt': 'Remix this design with brighter colors',
+                'mode': 'image_to_image',
+                'source_image_url': 'https://example.com/ref.png',
+                'project_id': str(project.id),
+            },
+            format='json',
+        )
+        assert resp.status_code == 400
+        assert 'multimodal' in resp.data['error'].lower()
+
+    @patch('design_app.api.views.django_rq')
+    def test_t2i_default_mode(self, mock_rq, auth_client, project):
+        """Omitting mode defaults to text_to_image."""
+        mock_queue = MagicMock()
+        mock_queue.enqueue.return_value = MagicMock(id='rq-t2i-1')
+        mock_rq.get_queue.return_value = mock_queue
+
+        resp = auth_client.post(
+            '/api/designs/generate/',
+            {
+                'model': 'gemini_flash',
+                'prompt': 'A coffee-themed design with bold text',
+                'project_id': str(project.id),
+            },
+            format='json',
+        )
+        assert resp.status_code == 202
+        assert resp.data['generation_mode'] == 'text_to_image'
+
+    @patch('design_app.api.views.django_rq')
+    def test_i2i_idea_scoped_generate(self, mock_rq, auth_client, idea):
+        """i2i works via idea-scoped endpoint too."""
+        mock_queue = MagicMock()
+        mock_queue.enqueue.return_value = MagicMock(id='rq-i2i-2')
+        mock_rq.get_queue.return_value = mock_queue
+
+        resp = auth_client.post(
+            f'/api/ideas/{idea.id}/designs/generate/',
+            {
+                'model': 'gemini_flash',
+                'prompt': 'Remix this design with vintage style',
+                'mode': 'image_to_image',
+                'source_image_url': 'https://example.com/ref2.png',
+            },
+            format='json',
+        )
+        assert resp.status_code == 202
+        assert resp.data['generation_mode'] == 'image_to_image'
+
+    def test_i2i_idea_scoped_non_multimodal(self, auth_client, idea):
+        """i2i with non-multimodal model on idea endpoint returns 400."""
+        resp = auth_client.post(
+            f'/api/ideas/{idea.id}/designs/generate/',
+            {
+                'model': 'black-forest-labs/flux-1.1-pro',
+                'prompt': 'Remix this design with brighter colors',
+                'mode': 'image_to_image',
+                'source_image_url': 'https://example.com/ref.png',
+            },
+            format='json',
+        )
+        assert resp.status_code == 400

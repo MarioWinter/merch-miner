@@ -21,6 +21,7 @@
 - [ ] `NicheKeywordGroup` model: UUID pk, `niche` FK (CASCADE), `name` CharField(100), `position` PositiveIntegerField, `created_by` FK, `created_at`. `unique_together = [('niche', 'name')]`
 - [ ] `KeywordJSCache` model: UUID pk, `keyword` CharField(200), `marketplace` CharField(20), all 14 JS data fields (monthly_search_volume_exact/broad, monthly_trend, quarterly_trend, ppc_bid_exact/broad, sp_brand_ad_bid, ease_of_ranking_score, relevancy_score, organic_product_count, sponsored_product_count, dominant_category, recommended_promotions), `fetched_at` DateTimeField. `unique_together = [('keyword', 'marketplace')]`. Index on `fetched_at`
 - [ ] `NicheJSCallTracker` model: UUID pk, `niche` FK (unique), `called_at`, `keyword_used` CharField(200)
+- [ ] `KeywordProductCount` model (AC-4b): UUID pk, `keyword` CharField(200), `marketplace` CharField(20), `product_count` PositiveIntegerField, `fetched_at` DateTimeField. `unique_together = [('keyword', 'marketplace')]`. No auto-expiry — data always shown, refreshed only on explicit user action
 - [ ] Initial migration
 - [ ] Admin registration
 - [ ] `junglescout-python-client` in `requirements.txt`
@@ -36,6 +37,8 @@
 - [ ] Cost logging: log every JS API call in `SearchUsageLog` (for analytics)
 - [ ] `services/autocomplete_service.py`: reuse `research_app` suggestions endpoint (or call internally). Merge with DB results
 - [ ] `services/auto_import.py`: `post_save` signal on NicheResearch. When `status=completed` → auto-insert `top_focus_keywords` + `main_short_tail` from NicheKeywordAnalysis as `source=research`. Skip duplicates silently
+- [ ] `services/product_count_scraper.py` (AC-9b): lightweight Amazon Page 2 scraper. Fetches search results page via ScraperOps proxy, extracts result count from `div.sg-col-inner h2 span` header (parse "X-Y of **N** results for" → extract N). Uses Page 2 (not Page 1) because Amazon shows inflated count on Page 1. Upserts `KeywordProductCount` record
+- [ ] **PROJ-16 cross-reference** (AC-9d): PROJ-16 Scrapy Spider should extract result count from Page 2 HTML as side-effect during product scraping and upsert `KeywordProductCount`. Task tracked in PROJ-16 task file — add a note there when implementing
 
 ---
 
@@ -45,6 +48,8 @@
 - [ ] `POST /api/keywords/enrich/` — body: `{keywords: [...], marketplace}`. Check cache first (30d). Only call JS for uncached/expired. Return enriched data. Log in SearchUsageLog
 - [ ] `GET /api/keywords/{keyword}/history/` — params: marketplace, start_date, end_date. Call JS `historical_search_volume`. Return trend data for chart
 - [ ] `GET /api/keywords/export/` — same filters as search. StreamingHttpResponse CSV. Includes JS data where cached
+- [ ] `POST /api/keywords/product-count/` (AC-9b) — body: `{keyword, marketplace}`. Calls `product_count_scraper` service. Upserts `KeywordProductCount`. Returns `{keyword, marketplace, product_count, fetched_at}`. Uses ScraperOps proxy
+- [ ] Extend `GET /api/keywords/search/` response (AC-9c): include `amazon_product_count` + `product_count_fetched_at` per keyword from `KeywordProductCount` cache. Always show existing data regardless of age — no auto-refresh
 
 ---
 
@@ -71,7 +76,8 @@
 ## Phase 6: Serializers
 
 - [ ] `NicheKeywordSerializer` — all fields, nested `group` (id + name), nested `design_template` (id + slogan), `js_data` (from KeywordJSCache if available)
-- [ ] `KeywordSearchResultSerializer` — keyword, source, in_product_count, in_slogan_count, js_data (nullable)
+- [ ] `KeywordSearchResultSerializer` — keyword, source, in_product_count, in_slogan_count, js_data (nullable), amazon_product_count (nullable), product_count_fetched_at (nullable)
+- [ ] `KeywordProductCountSerializer` — keyword, marketplace, product_count, fetched_at
 - [ ] `KeywordJSCacheSerializer` — all 14 JS data fields + fetched_at
 - [ ] `NicheKeywordGroupSerializer` — id, name, position, keyword_count
 - [ ] `KeywordEnrichSerializer` — request: keywords list + marketplace. Response: enriched keyword data
@@ -81,22 +87,24 @@
 
 ## Phase 7: Frontend — State & Services
 
-- [ ] RTK Query `keywordApi` slice (`store/keywordSlice.ts`): searchKeywords, enrichKeywords, getHistory, exportCSV, listNicheKeywords, addKeyword, bulkAddKeywords, deleteKeyword, bulkDeleteKeywords, updateKeyword, listGroups, createGroup, updateGroup, deleteGroup
-- [ ] Cache tags: `NicheKeywords`, `KeywordGroups`, `KeywordSearch`
+- [ ] RTK Query `keywordApi` slice (`store/keywordSlice.ts`): searchKeywords, enrichKeywords, getHistory, exportCSV, scrapeProductCount, listNicheKeywords, addKeyword, bulkAddKeywords, deleteKeyword, bulkDeleteKeywords, updateKeyword, listGroups, createGroup, updateGroup, deleteGroup
+- [ ] Cache tags: `NicheKeywords`, `KeywordGroups`, `KeywordSearch`, `KeywordProductCount`
 - [ ] Register slice in `store/index.ts`
-- [ ] TypeScript types: NicheKeyword, NicheKeywordGroup, KeywordJSData, KeywordSearchResult, KeywordSource, KeywordHistoryPoint
+- [ ] TypeScript types: NicheKeyword, NicheKeywordGroup, KeywordJSData, KeywordSearchResult, KeywordSource, KeywordHistoryPoint, KeywordProductCount
 
 ---
 
 ## Phase 8: Frontend — Keyword Research Page
 
 - [ ] `KeywordResearchView.tsx`: full-page route `/keywords`. SearchBar + DataGrid + TrendChart + AddToNiche
-- [ ] `useKeywordSearch` hook: search query → merged results (DB + Autocomplete). Debounced 300ms
+- [ ] `useKeywordSearch` hook: search query → merged results (DB + Autocomplete). Search fires ONLY on Enter key or Search button click (AC-5b) — NOT on every keystroke. Autocomplete dropdown suggestions remain live (debounced 300ms). Same pattern as PROJ-7 `useProductSearch`
 - [ ] `useJSEnrich` hook: enrich selected keywords on-demand, loading states per row
 - [ ] `useKeywordExport` hook: trigger CSV export with current filters
-- [ ] `KeywordSearchBar.tsx`: MUI Autocomplete with Amazon suggestions (reuses PROJ-7 endpoint)
-- [ ] `KeywordTable.tsx`: MUI DataGrid with configurable columns. Default visible: keyword, source, search volume, CPC, in_products, in_slogans. Server-side sort + pagination
+- [ ] `KeywordSearchBar.tsx`: MUI Autocomplete with Amazon suggestions (reuses PROJ-7 endpoint). Includes Search button (primary, right of input). Search fires on Enter or button click (AC-5b)
+- [ ] `KeywordTable.tsx`: MUI DataGrid with configurable columns. Default visible: keyword, source, search volume, CPC, in_products, in_slogans. Server-side sort + pagination. Sticky header row — stays visible when scrolling (AC-5c)
 - [ ] `ColumnPicker.tsx`: MUI Popover with checkbox list for column visibility. Persisted to localStorage
+- [ ] `ProductCountColumn` in `KeywordTable.tsx` (AC-9c): "Amz Products" column displaying "> 526" format (like Flying Research). Shows cached data regardless of age. Empty/dash when no data exists
+- [ ] `ProductCountRefreshButton` per row (AC-9b): 🔄 icon button that triggers `scrapeProductCount` mutation. Loading spinner while scraping. On success → column updates with new count. On error → error toast, existing data stays visible
 - [ ] `EnrichButton.tsx`: per-row "Enrich" icon button + bulk "Enrich Selected" button. Loading spinner per row. Disabled when no JS API key configured
 - [ ] `TrendChart.tsx`: @mui/x-charts LineChart — 12 months historical search volume. Opens on keyword click. "Not enough data" fallback
 - [ ] `AddToNicheButton.tsx`: context-aware — when niche is active in Drawer: "Add X to {niche name}". Otherwise: MUI Menu with niche search/select. "Change Niche" fallback link
@@ -170,11 +178,15 @@
 - [ ] JS call tracker: first call creates record, second call blocked (returns cache)
 - [ ] Workspace isolation on all endpoints
 - [ ] Export CSV: correct columns, streams, includes JS data
+- [ ] Product count scrape API (AC-9b): scrapes Page 2, extracts count, upserts cache, returns data. Error handling (scrape fails, no results, bad HTML)
+- [ ] Product count in search response (AC-9c): search results include amazon_product_count + fetched_at from cache. Shows data regardless of age
+- [ ] KeywordProductCount model: unique constraint, upsert on re-scrape
 
 ### Frontend
 
 - [ ] KeywordResearchView: search renders merged results, source badges correct
 - [ ] EnrichButton: loading state, disabled when no API key
+- [ ] ProductCountColumn: renders "> N" format, shows dash when no data, refresh button triggers scrape with loading spinner
 - [ ] TrendChart: renders 12-month chart, "not enough data" fallback
 - [ ] AddToNicheButton: context-aware label, change niche works
 - [ ] ColumnPicker: toggle columns, persists to localStorage

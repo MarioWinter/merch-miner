@@ -23,11 +23,11 @@ const CommentInput = ({ value, onChange, onSubmit, isSubmitting }: CommentInputP
   const workspace = useAppSelector((s) =>
     s.workspace.workspaces.find((w) => w.id === activeWsId),
   );
-  const members = workspace?.members ?? [];
+  const members = workspace?.members;
 
   const filteredMembers = useMemo(
     () =>
-      members.filter((m) => {
+      (members ?? []).filter((m) => {
         const name = `${m.first_name} ${m.last_name} ${m.email}`.toLowerCase();
         return name.includes(mentionQuery.toLowerCase());
       }),

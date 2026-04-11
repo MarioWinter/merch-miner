@@ -1,7 +1,9 @@
 import { useCallback, useMemo, useRef } from 'react';
 import { Group, Rect, Text } from 'react-konva';
+import { alpha } from '@mui/material/styles';
 import type Konva from 'konva';
 import type { ArtboardData, CanvasElement } from '../types';
+import { COLORS } from '@/style/constants';
 import useSnapGuides from '../hooks/useSnapGuides';
 import SkeletonPulse from './SkeletonPulse';
 import SnapGuides from './SnapGuides';
@@ -19,13 +21,13 @@ import EmojiLayer from './layers/EmojiLayer';
 const LABEL_HEIGHT = 24;
 const LABEL_FONT_SIZE = 12;
 const LABEL_PADDING_TOP = 4;
-const SELECTION_STROKE = '#4A9EFF';
+const SELECTION_STROKE = COLORS.selection;
 const SELECTION_DASH = [6, 4];
 const HANDLE_SIZE = 8;
-const FRAME_SHADOW_COLOR = 'rgba(0,0,0,0.30)';
+const FRAME_SHADOW_COLOR = alpha(COLORS.black, 0.3);
 const FRAME_SHADOW_BLUR = 12;
 const FRAME_SHADOW_OFFSET = { x: 0, y: 4 };
-const AI_LABEL_COLOR = '#00C8D7';
+const AI_LABEL_COLOR = COLORS.cyan;
 
 // -----------------------------------------------------------------
 // Props
@@ -61,6 +63,8 @@ interface ArtboardProps {
   onPenClick?: (artboardId: string, localX: number, localY: number) => void;
   /** Called when brush draw starts on artboard */
   onBrushDrawStart?: (artboardId: string, localX: number, localY: number) => void;
+  /** Element currently being inline-edited (text editing) — hide from Konva render */
+  editingElementId?: string | null;
 }
 
 // Corner indices: 0=top-left, 1=top-right, 2=bottom-left, 3=bottom-right
@@ -101,6 +105,7 @@ const Artboard = ({
   onShapeDrawStart,
   onPenClick,
   onBrushDrawStart,
+  editingElementId,
 }: ArtboardProps) => {
   const groupRef = useRef<Konva.Group>(null);
 
@@ -342,7 +347,7 @@ const Artboard = ({
     [isShapeTool, isBrushTool, onShapeDrawStart, onBrushDrawStart, data.id, getLocalPos],
   );
 
-  const labelColor = data.kind === 'ai' ? AI_LABEL_COLOR : (isDark ? '#7BAAB8' : '#3D6A7A');
+  const labelColor = data.kind === 'ai' ? AI_LABEL_COLOR : (isDark ? COLORS.snowMuted : COLORS.mist);
   const labelPrefix = data.kind === 'ai' ? '\u2726 ' : '';
   const handles = getHandlePositions(data.width, data.height);
 
@@ -402,7 +407,7 @@ const Artboard = ({
           text="No image"
           fontSize={13}
           fontFamily="Inter, sans-serif"
-          fill="#999999"
+          fill={COLORS.snowDisabled}
         />
       )}
 
@@ -443,6 +448,7 @@ const Artboard = ({
                   key={el.id}
                   {...commonProps}
                   element={el as CanvasElement<'text'>}
+                  isBeingEdited={editingElementId === el.id}
                 />
               );
             }
@@ -513,7 +519,7 @@ const Artboard = ({
               y={pos.y}
               width={HANDLE_SIZE}
               height={HANDLE_SIZE}
-              fill="#FFFFFF"
+              fill={COLORS.white}
               stroke={SELECTION_STROKE}
               strokeWidth={1.5 / zoom}
               cornerRadius={2}

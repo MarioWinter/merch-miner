@@ -1,14 +1,19 @@
+import { useState } from 'react';
 import {
   Box,
   Button,
   CircularProgress,
   Dialog,
   IconButton,
+  MenuItem,
+  TextField,
   Typography,
 } from '@mui/material';
 import { styled, alpha } from '@mui/material/styles';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CloseIcon from '@mui/icons-material/Close';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
 import { useTranslation } from 'react-i18next';
 import { COLORS, DURATION, EASING } from '@/style/constants';
 import type { ProjectIdea, ProjectReference, PromptPreset } from '../../gallery/types';
@@ -97,6 +102,14 @@ const TabAnimationWrapper = styled(Box)<{ visible: number }>(({ visible }) => ({
   transition: `opacity ${DURATION.fast}ms ${EASING.standard}, transform ${DURATION.fast}ms ${EASING.standard}`,
 }));
 
+const PresetBar = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(1),
+  padding: theme.spacing(1.5, 3),
+  borderBottom: `1px solid ${theme.vars.palette.divider}`,
+}));
+
 const DialogFooter = styled(Box)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
@@ -151,7 +164,6 @@ interface PromptBuilderDialogProps {
   isSaving: boolean;
   hasNiche: boolean;
   presets: PromptPreset[];
-  bulkSloganIds: string[];
   nicheKeywords: string[];
   researchPreview: ResearchPreviewData | null;
   isResearchLoading: boolean;
@@ -171,8 +183,9 @@ interface PromptBuilderDialogProps {
     imageUrl: string | null,
     variants: number,
   ) => void;
-  applyPreset: (config: Record<string, boolean>) => void;
-  savePreset: (name: string) => Promise<void>;
+  applyPreset: (config: Record<string, unknown>) => void;
+  savePreset: (name: string, tabConfig: Record<string, unknown>) => Promise<void>;
+  deletePreset: (presetId: string) => Promise<void>;
   buildAndSave: () => Promise<void>;
 }
 
@@ -187,7 +200,7 @@ const PromptBuilderDialog = ({
   references = [],
   selectedModel,
   isSaving,
-  bulkSloganIds,
+  presets,
   nicheKeywords,
   researchPreview,
   isResearchLoading,
@@ -195,12 +208,38 @@ const PromptBuilderDialog = ({
   sloganText,
   referenceProducts = [],
   setSelectedSloganId,
+  savePreset,
+  deletePreset,
   buildAndSave,
 }: PromptBuilderDialogProps) => {
   const { t } = useTranslation();
 
-  const tabs = usePromptBuilderTabs(setSelectedSloganId, sloganText);
-  const isBulk = bulkSloganIds.length > 1;
+  const hasResearchData = Boolean(researchPreview);
+  const tabs = usePromptBuilderTabs(setSelectedSloganId, sloganText, hasResearchData);
+
+  // -- Preset state --
+  const [selectedPresetId, setSelectedPresetId] = useState<string>('');
+  const [presetName, setPresetName] = useState('');
+  const [showNameInput, setShowNameInput] = useState(false);
+
+  const handleLoadPreset = (presetId: string) => {
+    setSelectedPresetId(presetId);
+    const preset = presets.find((p) => p.id === presetId);
+    if (preset) tabs.loadTabConfig(preset.source_config);
+  };
+
+  const handleSavePreset = async () => {
+    if (!presetName.trim()) return;
+    await savePreset(presetName.trim(), tabs.getTabConfig() as unknown as Record<string, unknown>);
+    setPresetName('');
+    setShowNameInput(false);
+  };
+
+  const handleDeletePreset = async () => {
+    if (!selectedPresetId) return;
+    await deletePreset(selectedPresetId);
+    setSelectedPresetId('');
+  };
 
   const handleBuild = async () => {
     await buildAndSave();
@@ -290,9 +329,7 @@ const PromptBuilderDialog = ({
       <DialogHeader>
         <AutoAwesomeIcon sx={{ fontSize: 20, color: 'secondary.main', mr: 1 }} />
         <Typography id="prompt-builder-title" variant="h4" sx={{ flex: 1 }}>
-          {isBulk
-            ? t('design.promptBuilder.titleBulk', 'Building prompts for {{count}} slogans', { count: bulkSloganIds.length })
-            : t('design.promptBuilder.title', 'Prompt Builder')}
+          {t('design.promptBuilder.title', 'Prompt Builder')}
         </Typography>
         <IconButton onClick={onClose} size="small" aria-label={t('common.close', 'Close')} sx={{ width: 32, height: 32 }}>
           <CloseIcon sx={{ fontSize: 18 }} />
@@ -315,6 +352,78 @@ const PromptBuilderDialog = ({
           </TabItem>
         ))}
       </TabNavigation>
+
+      {/* Preset Bar */}
+      <PresetBar>
+        <TextField
+          select
+          size="small"
+          value={selectedPresetId}
+          onChange={(e) => handleLoadPreset(e.target.value)}
+          label={t('design.presets.select', 'Preset')}
+          sx={{ minWidth: 180, flex: 1, maxWidth: 280 }}
+        >
+          <MenuItem value="">
+            <em>{t('design.presets.none', 'None')}</em>
+          </MenuItem>
+          {presets.map((p) => (
+            <MenuItem key={p.id} value={p.id}>
+              {p.name}
+            </MenuItem>
+          ))}
+        </TextField>
+        {selectedPresetId && (
+          <IconButton
+            size="small"
+            onClick={() => void handleDeletePreset()}
+            aria-label={t('design.presets.delete', 'Delete preset')}
+            sx={{ color: 'text.secondary' }}
+          >
+            <DeleteOutlineIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        )}
+        {showNameInput ? (
+          <>
+            <TextField
+              size="small"
+              value={presetName}
+              onChange={(e) => setPresetName(e.target.value)}
+              placeholder={t('design.presets.namePlaceholder', 'Preset name')}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') void handleSavePreset();
+                if (e.key === 'Escape') setShowNameInput(false);
+              }}
+              autoFocus
+              sx={{ minWidth: 140 }}
+            />
+            <Button
+              size="small"
+              variant="outlined"
+              onClick={() => void handleSavePreset()}
+              disabled={!presetName.trim()}
+              sx={{ textTransform: 'none' }}
+            >
+              {t('common.save', 'Save')}
+            </Button>
+            <Button
+              size="small"
+              onClick={() => { setShowNameInput(false); setPresetName(''); }}
+              sx={{ color: 'text.secondary', textTransform: 'none' }}
+            >
+              {t('common.cancel', 'Cancel')}
+            </Button>
+          </>
+        ) : (
+          <Button
+            size="small"
+            startIcon={<SaveOutlinedIcon sx={{ fontSize: 16 }} />}
+            onClick={() => setShowNameInput(true)}
+            sx={{ color: 'text.secondary', textTransform: 'none' }}
+          >
+            {t('design.presets.saveAs', 'Save as Preset')}
+          </Button>
+        )}
+      </PresetBar>
 
       {/* Tab Content */}
       <TabContent role="tabpanel" id={`pb-tabpanel-${tabs.activeTab}`} aria-labelledby={`pb-tab-${tabs.activeTab}`}>

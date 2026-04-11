@@ -98,8 +98,8 @@
     "slogans": "Atelier de slogans",
     "designs": "Forge de design",
     "listings": "Fiches produit",
-    "amazonResearch": "Analyse approfondie Amazon",
-    "keywords": "Banque de mots-clés",
+    "amazonResearch": "Recherche Amazon",
+    "keywords": "Keyword Drilling",
     "uploads": "Station de téléchargement",
     "kanban": "Kanban d'équipe",
     "sections": {
@@ -699,6 +699,35 @@
       "generating": "Generation en cours...",
       "regenerate": "Regenerer"
     },
+    "generation": {
+      "zoneLabel": "Contrôles de génération",
+      "images": "Images",
+      "imageCount": "Nombre d'images",
+      "parallelSwitch": "Prompts parallèles",
+      "parallelLabel": "Prompts parallèles",
+      "parallelHint": "Chaque nouvelle ligne = image séparée",
+      "parallelPlaceholder": "Saisissez les prompts (chaque ligne = image séparée)...",
+      "singlePlaceholder": "Décrivez votre design...",
+      "analyzeTooltip": "Générer un prompt à partir de l'image",
+      "analyzeUpload": "Téléchargez une image à analyser",
+      "analyzeImage": "Analyser l'image",
+      "builderTooltip": "Ouvrir le constructeur de prompts",
+      "openBuilder": "Ouvrir le constructeur de prompts",
+      "collapsed": "Génération",
+      "generateGroup": "Actions de génération",
+      "generateAll": "Tout générer ({{count}})",
+      "moreOptions": "Plus d'options",
+      "res": "Rés.",
+      "resolution": "Résolution",
+      "mode": {
+        "label": "Mode",
+        "textToImage": "Texte vers image",
+        "remixImage": "Image vers image (Remix)",
+        "editImage": "Image vers image (Édition)"
+      },
+      "withReference": "Génération avec image de référence",
+      "clearReference": "Effacer l'image de référence"
+    },
     "canvas": {
       "emptyTitle": "Deposez des images ou creez un tableau IA",
       "emptyDescription": "Glissez des images ou utilisez la barre d'outils.",
@@ -885,7 +914,84 @@
       "vibe": "Ambiance",
       "tone": "Ton",
       "aesthetics": "Esthétique",
-      "analyzeImage": "Analyser"
+      "analyzeImage": "Analyser",
+      "generatePrompt": "Générer le prompt",
+      "promptTitle": "Titre du prompt",
+      "promptTitlePlaceholder": "Donnez un nom à ce prompt...",
+      "sloganSelector": "Slogan du pool",
+      "mainSubject": "Sujet principal",
+      "contentType": "Type de contenu",
+      "selectContentType": "Sélectionner le type",
+      "mood": "Ambiance",
+      "selectMood": "Sélectionner l'ambiance",
+      "tabs": {
+        "label": "Onglets du constructeur de prompts",
+        "concept": "Concept",
+        "context": "Contexte",
+        "style": "Style",
+        "format": "Format",
+        "color": "Couleur",
+        "background": "Arrière-plan",
+        "text": "Texte",
+        "output": "Sortie"
+      },
+      "style": {
+        "category": "Catégorie de style",
+        "selectCategory": "Sélectionner la catégorie",
+        "style": "Style",
+        "selectStyle": "Sélectionner le style",
+        "addStyle": "+ Ajouter un style",
+        "empty": "Aucun style ajouté. Sélectionnez une catégorie et un style ci-dessus."
+      },
+      "format": {
+        "composition": "Composition",
+        "selectComposition": "Sélectionner la composition"
+      },
+      "color": {
+        "palette": "Palette de couleurs",
+        "selectColor": "Sélectionner la couleur {{color}}",
+        "addColor": "+ Ajouter une couleur",
+        "fromResearch": "Depuis la recherche",
+        "selected": "Couleurs sélectionnées",
+        "empty": "Aucune couleur sélectionnée. Cliquez sur les pastilles ci-dessus."
+      },
+      "background": {
+        "type": "Type d'arrière-plan",
+        "selectType": "Sélectionner le type d'arrière-plan",
+        "presets": "Préréglages d'arrière-plan"
+      },
+      "text": {
+        "noSlogan": "Aucun slogan sélectionné",
+        "enterCustom": "Saisissez un texte personnalisé ci-dessous",
+        "textIncluded": "Texte inclus ?",
+        "selectMode": "Sélectionner l'option de texte",
+        "customLabel": "Texte personnalisé",
+        "customPlaceholder": "Saisissez le texte à inclure dans le design...",
+        "preview": "Aperçu du texte",
+        "noTextHint": "Le design sera généré sans superposition de texte."
+      },
+      "output": {
+        "mbaPreset": "Préréglage MBA",
+        "mbaPresetHint": "4500x5400, 300DPI, bords sans couture, sans fond perdu"
+      },
+      "context": {
+        "toggleKeywords": "Activer/désactiver les mots-clés",
+        "keywords": "Mots-clés",
+        "noKeywords": "Aucun mot-clé — lancez d'abord la recherche de mots-clés",
+        "toggleResearch": "Activer/désactiver la recherche IA",
+        "aiResearch": "Recherche IA",
+        "noResearch": "Aucune donnée de recherche disponible",
+        "toggleProducts": "Activer/désactiver les produits de référence",
+        "referenceProducts": "Produits de référence",
+        "noProducts": "Aucun produit de référence disponible",
+        "referenceImages": "Images de référence",
+        "noReferences": "Aucune image de référence — ajoutez depuis le Pipeline de Niche",
+        "toggleReference": "Activer/désactiver la référence {{title}}",
+        "untitledRef": "Sans titre",
+        "refModeLabel": "Mode de référence",
+        "modeImage": "Image (multimodal)",
+        "modeText": "Analyse textuelle"
+      }
     },
     "sloganPool": {
       "title": "Pool de slogans",
@@ -1498,7 +1604,7 @@
   },
   "keywords": {
     "page": {
-      "title": "Keyword Lode",
+      "title": "Keyword Drilling",
       "searchPlaceholder": "Rechercher des mots-cles..."
     },
     "source": {

@@ -12,7 +12,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useTranslation } from 'react-i18next';
 import type { ProjectIdea, ProjectPrompt, ProjectReference } from '@/views/designs/gallery/types';
-import type { ArtboardData, BackgroundColor, DesignModel } from '../../types';
+import type { ArtboardData } from '../../types';
 import SloganPoolSection from './SloganPoolSection';
 import PromptListSection from './PromptListSection';
 import ArtboardListSection from './ArtboardListSection';
@@ -50,10 +50,7 @@ interface PanelNoneStateProps {
   prompts?: ProjectPrompt[];
   artboards?: ArtboardData[];
   selectedIds?: Set<string>;
-  model?: DesignModel;
-  bgColor?: BackgroundColor;
-  onAutoPromptFill?: (prompt: string) => void;
-  onAddReferenceArtboard?: (imageUrl: string) => void;
+  onInsertSlogan?: (sloganText: string) => void;
   onSelectArtboard?: (id: string) => void;
   onPromptClick?: (prompt: ProjectPrompt) => void;
   onCreateSkeletonArtboards?: (
@@ -75,10 +72,7 @@ const PanelNoneState = ({
   prompts = [],
   artboards = [],
   selectedIds = new Set(),
-  model = 'google/gemini-3.1-flash-preview-image-generation',
-  bgColor = 'light_gray',
-  onAutoPromptFill,
-  onAddReferenceArtboard,
+  onInsertSlogan,
   onSelectArtboard,
   onPromptClick,
   onCreateSkeletonArtboards,
@@ -135,11 +129,7 @@ const PanelNoneState = ({
             <SloganPoolSection
               projectId={projectId}
               ideas={ideas}
-              model={model}
-              bgColor={bgColor}
-              onAutoPromptFill={onAutoPromptFill}
-              onAddReferenceArtboard={onAddReferenceArtboard}
-              onCreateSkeletonArtboards={onCreateSkeletonArtboards}
+              onInsertSlogan={onInsertSlogan}
             />
           </AccordionDetails>
         </SectionAccordion>

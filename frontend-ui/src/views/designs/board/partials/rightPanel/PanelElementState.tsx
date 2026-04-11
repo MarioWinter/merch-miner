@@ -10,43 +10,12 @@ import {
   Typography,
 } from '@mui/material';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import { styled } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import type { CanvasElement, ImageElementProps, EmojiElementProps } from '../../types';
 import TextProperties from './TextProperties';
 import ShapeProperties from './ShapeProperties';
 import BrushProperties from './BrushProperties';
-
-// -----------------------------------------------------------------
-// Styled
-// -----------------------------------------------------------------
-
-const Section = styled(Box)(({ theme }) => ({
-  padding: theme.spacing(2),
-}));
-
-const SectionLabel = styled(Typography)(({ theme }) => ({
-  marginBottom: theme.spacing(1.5),
-}));
-
-const FieldRow = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  gap: theme.spacing(1),
-  marginBottom: theme.spacing(1.5),
-}));
-
-const FieldLabel = styled(Typography)({
-  width: 32,
-  flexShrink: 0,
-});
-
-const SwitchRow = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  padding: theme.spacing(0.5, 0),
-}));
+import { Section, SectionLabel, FieldRow, FieldLabel, SwitchRow } from './ElementPanel.styles';
 
 // -----------------------------------------------------------------
 // Props

@@ -11,7 +11,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { useTranslation } from 'react-i18next';
 
-interface DrawerConfirmDialogsProps {
+interface PipelineConfirmDialogsProps {
   archiveDialogOpen: boolean;
   setArchiveDialogOpen: (open: boolean) => void;
   handleArchiveConfirm: () => void;
@@ -25,7 +25,7 @@ interface DrawerConfirmDialogsProps {
   handleLinkedIdeasCancel: () => void;
 }
 
-export const DrawerConfirmDialogs = ({
+export const PipelineConfirmDialogs = ({
   archiveDialogOpen,
   setArchiveDialogOpen,
   handleArchiveConfirm,
@@ -37,7 +37,7 @@ export const DrawerConfirmDialogs = ({
   linkedIdeaCount,
   handleArchiveWithIdeas,
   handleLinkedIdeasCancel,
-}: DrawerConfirmDialogsProps) => {
+}: PipelineConfirmDialogsProps) => {
   const { t } = useTranslation();
 
   return (

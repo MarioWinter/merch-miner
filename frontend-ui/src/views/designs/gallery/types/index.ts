@@ -85,11 +85,11 @@ export interface ProjectPrompt {
   updated_at: string;
 }
 
-/** A reusable prompt preset */
+/** A reusable prompt preset (source_config stores full tab states) */
 export interface PromptPreset {
   id: string;
   name: string;
-  source_config: Record<string, boolean>;
+  source_config: Record<string, unknown>;
   created_at: string;
 }
 
@@ -97,21 +97,6 @@ export interface AddIdeasBody {
   idea_ids: string[];
 }
 
-export interface BulkGenerateBody {
-  idea_ids: string[];
-  model: import('../../board/types').DesignModel;
-  background_color: import('../../board/types').BackgroundColor;
-}
-
-export interface BulkGenerateResult {
-  idea_id: string;
-  run_id: string;
-  prompt_used: string;
-}
-
-export interface AutoPromptResponse {
-  prompt: string;
-}
 
 export interface CreatePromptsBody {
   prompts: Array<{

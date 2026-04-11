@@ -74,6 +74,7 @@ def generate_image(
     output_dir: str = None,
     aspect_ratio: str = '1:1',
     source_image_url: str = '',
+    mode: str = 'text_to_image',
 ) -> str:
     """Generate an image via OpenRouter and save to disk.
 
@@ -84,13 +85,15 @@ def generate_image(
         aspect_ratio: Aspect ratio string like '1:1', '16:9', etc.
         source_image_url: Optional reference image URL for multimodal generation.
             When provided, model must be in MULTIMODAL_MODELS.
+        mode: 'text_to_image' or 'image_to_image'. In image_to_image mode the
+            reference image is weighted more heavily in the prompt.
 
     Returns:
         Path to saved image file.
 
     Raises:
-        ValueError: If API key missing, model unknown, or non-multimodal model
-            with source_image_url
+        ValueError: If API key missing, model unknown, non-multimodal model
+            with image_to_image mode, or missing source_image_url
         httpx.HTTPStatusError: On API error
     """
     api_key = settings.OPENROUTER_API_KEY
@@ -103,7 +106,18 @@ def generate_image(
     if not model_id:
         raise ValueError(f"Unknown model: {model_name}")
 
-    # Validate multimodal support
+    is_i2i = mode == 'image_to_image'
+
+    # Validate image_to_image requirements
+    if is_i2i and not source_image_url:
+        raise ValueError("source_image_url required for image_to_image mode")
+    if is_i2i and model_name not in MULTIMODAL_MODELS:
+        raise ValueError(
+            "Model does not support image input. "
+            "Select a multimodal model for image-to-image generation."
+        )
+
+    # Validate multimodal support for text_to_image with optional reference
     if source_image_url and model_name not in MULTIMODAL_MODELS:
         raise ValueError("Model does not support image input")
 
@@ -118,10 +132,24 @@ def generate_image(
 
     # Build message content — multimodal array or plain text
     if source_image_url:
-        content = [
-            {'type': 'text', 'text': prompt},
-            {'type': 'image_url', 'image_url': {'url': source_image_url}},
-        ]
+        if is_i2i:
+            # Image-to-image: reference image is primary, text guides the remix
+            i2i_prompt = (
+                "Create a new design inspired by the attached reference image. "
+                "Closely follow the visual style, composition, and mood of the "
+                "reference image. Apply the following modifications:\n\n"
+                f"{prompt}"
+            )
+            content = [
+                {'type': 'image_url', 'image_url': {'url': source_image_url}},
+                {'type': 'text', 'text': i2i_prompt},
+            ]
+        else:
+            # Text-to-image with optional reference: text is primary
+            content = [
+                {'type': 'text', 'text': prompt},
+                {'type': 'image_url', 'image_url': {'url': source_image_url}},
+            ]
     else:
         content = prompt
 

@@ -1,6 +1,6 @@
 import { Skeleton, Stack } from '@mui/material';
 
-export const DrawerSkeleton = () => (
+export const PipelineSkeleton = () => (
   <Stack spacing={2}>
     <Skeleton variant="rectangular" animation="wave" height={40} width="100%" sx={{ borderRadius: '8px' }} />
     <Skeleton variant="rectangular" animation="wave" height={80} width="100%" sx={{ borderRadius: '8px' }} />

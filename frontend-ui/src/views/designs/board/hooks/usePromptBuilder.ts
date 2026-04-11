@@ -6,11 +6,12 @@ import {
   useCreatePromptsMutation,
   useListPromptPresetsQuery,
   useCreatePromptPresetMutation,
+  useDeletePromptPresetMutation,
 } from '@/store/designSlice';
 import { useListNicheKeywordsQuery } from '@/store/keywordSlice';
 import { researchApi } from '@/views/niches/research/services/researchApi';
 import type { NicheResearchRun } from '@/views/niches/research/types';
-import type { ProjectIdea, ProjectReference, BuildPromptsBody } from '../../gallery/types';
+import type { ProjectReference, BuildPromptsBody } from '../../gallery/types';
 import type { ReferenceToggle } from '../partials/promptBuilder/ContextTab';
 
 // -----------------------------------------------------------------
@@ -45,6 +46,7 @@ export const usePromptBuilder = (projectId: string, nicheId: string | null) => {
   const [createPrompts, { isLoading: isSaving }] = useCreatePromptsMutation();
   const { data: presets = [] } = useListPromptPresetsQuery();
   const [createPreset] = useCreatePromptPresetMutation();
+  const [removePreset] = useDeletePromptPresetMutation();
 
   // -- Dialog state --
   const [sources, setSources] = useState<SourceToggles>({ ...DEFAULT_SOURCES });
@@ -185,27 +187,34 @@ export const usePromptBuilder = (projectId: string, nicheId: string | null) => {
     [buildPrompts, projectId],
   );
 
-  // -- Apply preset --
-  const applyPreset = useCallback(
-    (sourceConfig: Record<string, boolean>) => {
-      const merged = { ...DEFAULT_SOURCES, ...sourceConfig } as SourceToggles;
-      setSources(merged);
-      void fetchPreview(merged, selectedSloganId, imageUrl, variants);
-    },
-    [fetchPreview, selectedSloganId, imageUrl, variants],
-  );
+  // -- Apply preset (pass-through — dialog calls loadTabConfig directly) --
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const applyPreset = useCallback((_config: Record<string, unknown>) => undefined, []);
 
-  // -- Save preset --
+  // -- Save preset (receives full tab config from dialog) --
   const savePreset = useCallback(
-    async (name: string) => {
+    async (name: string, tabConfig: Record<string, unknown>) => {
       try {
-        await createPreset({ name, source_config: sources }).unwrap();
+        await createPreset({ name, source_config: tabConfig }).unwrap();
         enqueueSnackbar(t('design.presets.saved', 'Preset saved'), { variant: 'success' });
       } catch {
         enqueueSnackbar(t('design.presets.saveError', 'Failed to save preset'), { variant: 'error' });
       }
     },
-    [createPreset, sources, enqueueSnackbar, t],
+    [createPreset, enqueueSnackbar, t],
+  );
+
+  // -- Delete preset --
+  const deletePreset = useCallback(
+    async (presetId: string) => {
+      try {
+        await removePreset(presetId).unwrap();
+        enqueueSnackbar(t('design.presets.deleted', 'Preset deleted'), { variant: 'success' });
+      } catch {
+        enqueueSnackbar(t('design.presets.deleteError', 'Failed to delete preset'), { variant: 'error' });
+      }
+    },
+    [removePreset, enqueueSnackbar, t],
   );
 
   // -- Build & save prompts --
@@ -316,6 +325,7 @@ export const usePromptBuilder = (projectId: string, nicheId: string | null) => {
     fetchPreview,
     applyPreset,
     savePreset,
+    deletePreset,
     buildAndSave,
     openForSlogans,
     reset,

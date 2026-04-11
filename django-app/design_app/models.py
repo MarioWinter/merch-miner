@@ -112,6 +112,11 @@ class DesignGenerationRun(models.Model):
         COMPLETED = 'completed', 'Completed'
         FAILED = 'failed', 'Failed'
 
+    class Mode(models.TextChoices):
+        TEXT_TO_IMAGE = 'text_to_image', 'Text to Image'
+        IMAGE_TO_IMAGE_REMIX = 'image_to_image_remix', 'Image to Image (Remix)'
+        IMAGE_TO_IMAGE_EDIT = 'image_to_image_edit', 'Image to Image (Edit)'
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     idea = models.ForeignKey(
         'idea_app.Idea',
@@ -151,6 +156,13 @@ class DesignGenerationRun(models.Model):
         default='',
         max_length=2048,
         help_text='Reference image URL for multimodal generation',
+    )
+    generation_mode = models.CharField(
+        max_length=20,
+        choices=Mode.choices,
+        default=Mode.TEXT_TO_IMAGE,
+        db_index=True,
+        help_text='Generation mode: text_to_image or image_to_image',
     )
     created_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)

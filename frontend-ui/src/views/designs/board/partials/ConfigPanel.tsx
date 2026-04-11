@@ -7,7 +7,8 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { alpha, styled } from '@mui/material/styles';
+import { COLORS } from '@/style/constants';
 import CloseIcon from '@mui/icons-material/Close';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import HighlightOffIcon from '@mui/icons-material/HighlightOff';
@@ -47,7 +48,7 @@ const FullImage = styled('img')({
   maxHeight: 280,
   objectFit: 'contain',
   borderRadius: 8,
-  backgroundColor: 'rgba(0,0,0,0.1)',
+  backgroundColor: alpha(COLORS.black, 0.1),
   display: 'block',
 });
 

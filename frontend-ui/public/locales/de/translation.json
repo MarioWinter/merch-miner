@@ -98,8 +98,8 @@
     "slogans": "Sloganwerkstatt",
     "designs": "Designschmiede",
     "listings": "Listings",
-    "amazonResearch": "Amazon Tiefenanalyse",
-    "keywords": "Keyword-Fundus",
+    "amazonResearch": "Amazon Recherche",
+    "keywords": "Keyword Drilling",
     "uploads": "Upload-Station",
     "kanban": "Team Kanban",
     "sections": {
@@ -829,7 +829,84 @@
       "vibe": "Stimmung",
       "tone": "Ton",
       "aesthetics": "Ästhetik",
-      "analyzeImage": "Analysieren"
+      "analyzeImage": "Analysieren",
+      "generatePrompt": "Prompt generieren",
+      "promptTitle": "Prompt-Titel",
+      "promptTitlePlaceholder": "Gib diesem Prompt einen Namen...",
+      "sloganSelector": "Slogan aus Pool",
+      "mainSubject": "Hauptmotiv",
+      "contentType": "Inhaltstyp",
+      "selectContentType": "Typ auswählen",
+      "mood": "Stimmung",
+      "selectMood": "Stimmung auswählen",
+      "tabs": {
+        "label": "Prompt-Baukasten-Tabs",
+        "concept": "Konzept",
+        "context": "Kontext",
+        "style": "Stil",
+        "format": "Format",
+        "color": "Farbe",
+        "background": "Hintergrund",
+        "text": "Text",
+        "output": "Ausgabe"
+      },
+      "style": {
+        "category": "Stilkategorie",
+        "selectCategory": "Kategorie auswählen",
+        "style": "Stil",
+        "selectStyle": "Stil auswählen",
+        "addStyle": "+ Stil hinzufügen",
+        "empty": "Noch keine Stile hinzugefügt. Wähle oben eine Kategorie und einen Stil."
+      },
+      "format": {
+        "composition": "Komposition",
+        "selectComposition": "Komposition auswählen"
+      },
+      "color": {
+        "palette": "Farbpalette",
+        "selectColor": "Farbe {{color}} auswählen",
+        "addColor": "+ Farbe hinzufügen",
+        "fromResearch": "Aus Recherche",
+        "selected": "Ausgewählte Farben",
+        "empty": "Keine Farben ausgewählt. Klicke oben auf die Farbfelder."
+      },
+      "background": {
+        "type": "Hintergrundtyp",
+        "selectType": "Hintergrundtyp auswählen",
+        "presets": "Hintergrund-Vorlagen"
+      },
+      "text": {
+        "noSlogan": "Kein Slogan ausgewählt",
+        "enterCustom": "Eigenen Text unten eingeben",
+        "textIncluded": "Text enthalten?",
+        "selectMode": "Textoption auswählen",
+        "customLabel": "Eigener Text",
+        "customPlaceholder": "Text eingeben, der im Design erscheinen soll...",
+        "preview": "Textvorschau",
+        "noTextHint": "Design wird ohne Texteinblendung generiert."
+      },
+      "output": {
+        "mbaPreset": "MBA-Voreinstellung",
+        "mbaPresetHint": "4500x5400, 300DPI, nahtlose Kanten, kein Beschnitt"
+      },
+      "context": {
+        "toggleKeywords": "Keywords umschalten",
+        "keywords": "Keywords",
+        "noKeywords": "Keine Keywords — zuerst Keyword-Recherche starten",
+        "toggleResearch": "KI-Recherche umschalten",
+        "aiResearch": "KI-Recherche",
+        "noResearch": "Keine Recherche-Daten verfügbar",
+        "toggleProducts": "Referenzprodukte umschalten",
+        "referenceProducts": "Referenzprodukte",
+        "noProducts": "Keine Referenzprodukte verfügbar",
+        "referenceImages": "Referenzbilder",
+        "noReferences": "Keine Referenzbilder — aus Nischen-Pipeline hinzufügen",
+        "toggleReference": "Referenz {{title}} umschalten",
+        "untitledRef": "Ohne Titel",
+        "refModeLabel": "Referenzmodus",
+        "modeImage": "Bild (multimodal)",
+        "modeText": "Textanalyse"
+      }
     },
     "sloganPool": {
       "title": "Slogan-Pool",
@@ -1468,6 +1545,35 @@
       "generating": "Wird generiert...",
       "regenerate": "Regenerieren"
     },
+    "generation": {
+      "zoneLabel": "Generierungssteuerung",
+      "images": "Bilder",
+      "imageCount": "Bildanzahl",
+      "parallelSwitch": "Parallele Prompts",
+      "parallelLabel": "Parallele Prompts",
+      "parallelHint": "Jede neue Zeile = separates Bild",
+      "parallelPlaceholder": "Prompts eingeben (jede Zeile = separates Bild)...",
+      "singlePlaceholder": "Beschreibe dein Design...",
+      "analyzeTooltip": "Prompt aus Bild generieren",
+      "analyzeUpload": "Bild zum Analysieren hochladen",
+      "analyzeImage": "Bild analysieren",
+      "builderTooltip": "Prompt-Baukasten öffnen",
+      "openBuilder": "Prompt-Baukasten öffnen",
+      "collapsed": "Generierung",
+      "generateGroup": "Generierungsaktionen",
+      "generateAll": "Alle generieren ({{count}})",
+      "moreOptions": "Weitere Optionen",
+      "res": "Aufl.",
+      "resolution": "Auflösung",
+      "mode": {
+        "label": "Modus",
+        "textToImage": "Text zu Bild",
+        "remixImage": "Bild zu Bild (Remix)",
+        "editImage": "Bild zu Bild (Bearbeiten)"
+      },
+      "withReference": "Generierung mit Referenzbild",
+      "clearReference": "Referenzbild entfernen"
+    },
     "cloud": {
       "title": "Cloud-Speicher",
       "googleDrive": "Google Drive",
@@ -1509,7 +1615,7 @@
   },
   "keywords": {
     "page": {
-      "title": "Keyword Lode",
+      "title": "Keyword Drilling",
       "searchPlaceholder": "Keywords suchen..."
     },
     "source": {

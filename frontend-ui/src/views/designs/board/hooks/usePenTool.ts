@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CanvasElementType, ShapeElementProps } from '../types';
-import type { CanvasTool } from '../partials/BottomToolbar';
+import type { CanvasTool } from '../types';
 
 // -----------------------------------------------------------------
 // Constants

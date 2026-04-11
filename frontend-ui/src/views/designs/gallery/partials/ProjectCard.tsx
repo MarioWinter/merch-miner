@@ -53,7 +53,7 @@ const ThumbnailImage = styled('img')({
   objectFit: 'cover',
 });
 
-const MenuButton = styled(IconButton)(({ theme }) => ({
+const MenuButton = styled(IconButton)({
   position: 'absolute',
   top: 4,
   right: 4,
@@ -66,7 +66,7 @@ const MenuButton = styled(IconButton)(({ theme }) => ({
     backgroundColor: COLORS.inkElevated,
     color: COLORS.snow,
   },
-}));
+});
 
 const CardBody = styled(Box)(({ theme }) => ({
   padding: theme.spacing(1.5),

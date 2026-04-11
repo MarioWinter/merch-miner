@@ -24,10 +24,10 @@ import { useTranslation } from 'react-i18next';
 import type { DrawerMode } from '../hooks/useNichePipeline';
 import { useNichePipelineDetail } from '../hooks/useNichePipelineDetail';
 import { usePipelineStates } from '../hooks/usePipelineStates';
-import { useDrawerPipelineCounts } from '../hooks/useDrawerPipelineCounts';
-import { DrawerCreateForm } from './DrawerCreateForm';
-import { DrawerEditForm } from './DrawerEditForm';
-import { DrawerConfirmDialogs } from './DrawerConfirmDialogs';
+import { usePipelineCounts } from '../hooks/usePipelineCounts';
+import { PipelineCreateForm } from './PipelineCreateForm';
+import { PipelineEditForm } from './PipelineEditForm';
+import { PipelineConfirmDialogs } from './PipelineConfirmDialogs';
 import { PipelineCard } from '@/components/PipelineCard';
 import { ResearchCardContent } from './ResearchCardContent';
 import { ProductsGrid } from './ProductsGrid';
@@ -117,7 +117,7 @@ export const NichePipeline = ({
   const isBusy = creating || updating || deleting || isFetching;
   const nicheId = niche?.id ?? '';
 
-  const counts = useDrawerPipelineCounts(isCreate ? '' : nicheId);
+  const counts = usePipelineCounts(isCreate ? '' : nicheId);
   const states = usePipelineStates(niche, counts);
 
   return (
@@ -145,7 +145,7 @@ export const NichePipeline = ({
           )}
 
           {isCreate ? (
-            <DrawerCreateForm form={createForm} onSubmit={handleCreate} />
+            <PipelineCreateForm form={createForm} onSubmit={handleCreate} />
           ) : fetchError ? (
             <Alert severity="error">
               {t('niches.drawer.fetchError', 'Failed to load niche data. Please close and try again.')}
@@ -159,7 +159,7 @@ export const NichePipeline = ({
             </Stack>
           ) : (
             <>
-              <DrawerEditForm
+              <PipelineEditForm
                 form={editForm}
                 onSubmit={handleUpdate}
                 niche={niche}
@@ -293,7 +293,7 @@ export const NichePipeline = ({
         </DrawerFooter>
       </Drawer>
 
-      <DrawerConfirmDialogs
+      <PipelineConfirmDialogs
         archiveDialogOpen={archiveDialogOpen}
         setArchiveDialogOpen={setArchiveDialogOpen}
         handleArchiveConfirm={handleArchiveConfirm}

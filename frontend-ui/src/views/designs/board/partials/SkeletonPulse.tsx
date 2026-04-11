@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Group, Rect, Text } from 'react-konva';
 import type Konva from 'konva';
+import { COLORS } from '@/style/constants';
 
 const PULSE_MIN = 0.15;
 const PULSE_MAX = 0.35;
@@ -56,7 +57,7 @@ const SkeletonPulse = ({ width, height }: SkeletonPulseProps) => {
         y={0}
         width={width}
         height={height}
-        fill="#1A3A44"
+        fill={COLORS.inkElevated}
         cornerRadius={4}
         opacity={PULSE_MIN}
       />
@@ -68,7 +69,7 @@ const SkeletonPulse = ({ width, height }: SkeletonPulseProps) => {
         text="Generating..."
         fontSize={13}
         fontFamily="Inter, sans-serif"
-        fill="#00C8D7"
+        fill={COLORS.cyan}
         opacity={0.8}
       />
     </Group>

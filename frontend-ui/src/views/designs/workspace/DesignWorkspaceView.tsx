@@ -26,7 +26,7 @@ import rasterizeEmoji from '../board/utils/rasterizeEmoji';
 import { useGeneration } from '../board/hooks/useGeneration';
 import ArtboardCanvas from '../board/partials/ArtboardCanvas';
 import BottomToolbar from '../board/partials/BottomToolbar';
-import type { CanvasTool } from '../board/partials/BottomToolbar';
+import type { CanvasTool } from '../board/types';
 import RightPanel from '../board/partials/RightPanel';
 import NicheBindingSelector from '../board/partials/NicheBindingSelector';
 import ExportDialog from '../board/partials/ExportDialog';
@@ -217,20 +217,30 @@ const DesignWorkspaceView = () => {
         return;
       }
 
-      // Delete/Backspace: remove selected element
+      // Delete/Backspace: remove selected element or artboard(s)
       if ((e.key === 'Delete' || e.key === 'Backspace') && !isInput) {
         const elId = elementSelection.selectedElementId;
         const abId = elementSelection.selectedArtboardIdForElement;
-        if (!elId || !abId) return;
 
-        e.preventDefault();
-        canvasElements.removeElement(abId, elId);
-        elementSelection.deselectElement();
+        // Priority 1: delete selected element
+        if (elId && abId) {
+          e.preventDefault();
+          canvasElements.removeElement(abId, elId);
+          elementSelection.deselectElement();
+          return;
+        }
+
+        // Priority 2: delete selected artboard(s)
+        const selectedAbIds = Array.from(artboardState.selectedIds);
+        if (selectedAbIds.length > 0) {
+          e.preventDefault();
+          artboardState.removeArtboards(selectedAbIds);
+        }
       }
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [activeTab, elementSelection, canvasElements]);
+  }, [activeTab, elementSelection, canvasElements, artboardState]);
 
   const panelState = useRightPanelState({
     artboards: artboardState.artboards,
@@ -471,16 +481,20 @@ const DesignWorkspaceView = () => {
   );
 
   // Wrap artboard select to deselect element when clicking artboard background
+  // Skip element deselection while text editing is active (canvas clicks are suppressed)
   const handleArtboardSelectWithDeselect = useCallback(
     (id: string, additive: boolean) => {
-      elementSelection.deselectElement();
+      if (!isTextEditingRef.current) {
+        elementSelection.deselectElement();
+      }
       artboardState.selectArtboard(id, additive);
     },
     [elementSelection, artboardState],
   );
 
-  // Wrap deselectAll to also deselect element
+  // Wrap deselectAll to also deselect element — skip while text editing is active
   const handleDeselectAllWithElement = useCallback(() => {
+    if (isTextEditingRef.current) return;
     elementSelection.deselectElement();
     artboardState.deselectAll();
   }, [elementSelection, artboardState]);
@@ -682,10 +696,10 @@ const DesignWorkspaceView = () => {
     canvasHook.fitToView(artboardBounds);
   }, [canvasHook, artboardBounds]);
 
-  // Phase G: auto-prompt fill handler
-  const handleAutoPromptFill = useCallback(
-    (promptText: string) => {
-      setPrompt(promptText);
+  // Insert slogan text into prompt bar
+  const handleInsertSlogan = useCallback(
+    (sloganText: string) => {
+      setPrompt(sloganText);
     },
     [],
   );
@@ -703,16 +717,8 @@ const DesignWorkspaceView = () => {
     (imageUrl: string) => {
       setGenerationMode('image_to_image');
       setSourceImageUrl(imageUrl);
-      // Add as reference artboard so it appears on canvas
-      artboardState.addArtboard({
-        label: 'Reference',
-        kind: 'regular',
-        width: 280,
-        height: 280,
-        imageUrl,
-      });
     },
-    [artboardState],
+    [],
   );
 
   // Phase I7: Clear source image reference
@@ -999,6 +1005,7 @@ const DesignWorkspaceView = () => {
                 onBrushDrawMove={brushTool.handleBrushMove}
                 onBrushDrawEnd={brushTool.handleBrushEnd}
                 onAnalyzeImage={handleContextMenuAnalyze}
+                editingElementId={textEditing.editingElementId}
               />
               <BottomToolbar
                 zoom={canvasHook.state.zoom}
@@ -1054,7 +1061,7 @@ const DesignWorkspaceView = () => {
               prompts={boardData?.prompts}
               artboards={artboardState.artboards}
               selectedIds={artboardState.selectedIds}
-              onAutoPromptFill={handleAutoPromptFill}
+              onInsertSlogan={handleInsertSlogan}
               onPromptClick={handlePromptClick}
               onAddReferenceArtboard={handleAddReferenceArtboard}
               onSelectArtboard={handlePanelSelectArtboard}
@@ -1105,7 +1112,6 @@ const DesignWorkspaceView = () => {
         isSaving={promptBuilder.isSaving}
         hasNiche={promptBuilder.hasNiche}
         presets={promptBuilder.presets}
-        bulkSloganIds={promptBuilder.bulkSloganIds}
         nicheKeywords={promptBuilder.nicheKeywords}
         researchPreview={promptBuilder.researchPreview}
         isResearchLoading={promptBuilder.isResearchLoading}
@@ -1119,6 +1125,7 @@ const DesignWorkspaceView = () => {
         fetchPreview={promptBuilder.fetchPreview}
         applyPreset={promptBuilder.applyPreset}
         savePreset={promptBuilder.savePreset}
+        deletePreset={promptBuilder.deletePreset}
         buildAndSave={promptBuilder.buildAndSave}
       />
       {project?.niche && (

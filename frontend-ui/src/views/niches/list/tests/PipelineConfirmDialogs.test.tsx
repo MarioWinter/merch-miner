@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../../../utils/test-utils';
-import { DrawerConfirmDialogs } from '../partials/DrawerConfirmDialogs';
+import { PipelineConfirmDialogs } from '../partials/PipelineConfirmDialogs';
 
 const defaultProps = {
   archiveDialogOpen: false,
@@ -18,10 +18,10 @@ const defaultProps = {
   handleLinkedIdeasCancel: vi.fn(),
 };
 
-describe('DrawerConfirmDialogs — linked ideas dialog', () => {
+describe('PipelineConfirmDialogs — linked ideas dialog', () => {
   it('renders linked-ideas dialog when open', () => {
     renderWithProviders(
-      <DrawerConfirmDialogs
+      <PipelineConfirmDialogs
         {...defaultProps}
         linkedIdeasDialogOpen={true}
         linkedIdeaCount={7}
@@ -36,7 +36,7 @@ describe('DrawerConfirmDialogs — linked ideas dialog', () => {
   it('calls handleArchiveWithIdeas on confirm click', async () => {
     const handleArchiveWithIdeas = vi.fn();
     renderWithProviders(
-      <DrawerConfirmDialogs
+      <PipelineConfirmDialogs
         {...defaultProps}
         linkedIdeasDialogOpen={true}
         linkedIdeaCount={3}
@@ -51,7 +51,7 @@ describe('DrawerConfirmDialogs — linked ideas dialog', () => {
   it('calls handleLinkedIdeasCancel on cancel click', async () => {
     const handleLinkedIdeasCancel = vi.fn();
     renderWithProviders(
-      <DrawerConfirmDialogs
+      <PipelineConfirmDialogs
         {...defaultProps}
         linkedIdeasDialogOpen={true}
         linkedIdeaCount={3}
@@ -67,7 +67,7 @@ describe('DrawerConfirmDialogs — linked ideas dialog', () => {
 
   it('does not render linked-ideas dialog when closed', () => {
     renderWithProviders(
-      <DrawerConfirmDialogs
+      <PipelineConfirmDialogs
         {...defaultProps}
         linkedIdeasDialogOpen={false}
         linkedIdeaCount={5}

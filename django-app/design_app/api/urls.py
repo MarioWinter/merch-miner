@@ -5,10 +5,8 @@ from django.urls import path
 from design_app.api.views import (
     AnalyzeImageView,
     ApplyPipelineView,
-    AutoPromptView,
     BatchProcessView,
     BuildPromptsView,
-    BulkGenerateView,
     DesignBoardView,
     DesignDeleteVersionView,
     DesignDetailView,
@@ -205,18 +203,6 @@ urlpatterns = [
         'designs/projects/<uuid:pk>/references/<uuid:ref_id>/',
         ProjectReferenceRemoveView.as_view(),
         name='design-project-reference-remove',
-    ),
-    # Auto-Prompt (G3)
-    path(
-        'designs/projects/<uuid:pk>/ideas/<uuid:idea_id>/auto-prompt/',
-        AutoPromptView.as_view(),
-        name='design-project-auto-prompt',
-    ),
-    # Bulk Generate (G3)
-    path(
-        'designs/projects/<uuid:pk>/bulk-generate/',
-        BulkGenerateView.as_view(),
-        name='design-project-bulk-generate',
     ),
     # ProjectPrompt CRUD (G9)
     path(

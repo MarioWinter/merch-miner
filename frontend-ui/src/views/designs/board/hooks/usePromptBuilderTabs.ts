@@ -9,6 +9,21 @@ import type { TextTabState } from '../partials/promptBuilder/TextTab';
 import type { OutputTabState } from '../partials/promptBuilder/OutputTab';
 
 // -----------------------------------------------------------------
+// Tab config type (serialized preset shape)
+// -----------------------------------------------------------------
+
+export interface TabConfig {
+  concept: ConceptTabState;
+  context: ContextTabState;
+  style: StyleTabState;
+  format: FormatTabState;
+  color: ColorTabState;
+  background: BackgroundTabState;
+  text: TextTabState;
+  output: OutputTabState;
+}
+
+// -----------------------------------------------------------------
 // Tab key type
 // -----------------------------------------------------------------
 
@@ -97,6 +112,7 @@ const buildPromptText = (
 export const usePromptBuilderTabs = (
   setSelectedSloganId: (id: string | null) => void,
   sloganText?: string,
+  hasNicheResearch?: boolean,
 ) => {
   const [activeTab, setActiveTab] = useState<TabKey>('concept');
 
@@ -109,20 +125,7 @@ export const usePromptBuilderTabs = (
     mood: '',
   });
 
-  const handleConceptChange = useCallback(
-    (patch: Partial<ConceptTabState>) => {
-      setConceptState((prev) => {
-        const next = { ...prev, ...patch };
-        if ('selectedSloganId' in patch) {
-          setSelectedSloganId(patch.selectedSloganId ?? null);
-        }
-        return next;
-      });
-    },
-    [setSelectedSloganId],
-  );
-
-  // -- Context --
+  // -- Context (declared before concept handler — needed for AC-102 auto-toggle) --
   const [contextState, setContextState] = useState<ContextTabState>({
     keywordsEnabled: false,
     selectedKeywords: [],
@@ -139,6 +142,24 @@ export const usePromptBuilderTabs = (
     selectedProductIds: [],
     referenceToggles: [],
   });
+
+  const handleConceptChange = useCallback(
+    (patch: Partial<ConceptTabState>) => {
+      setConceptState((prev) => ({ ...prev, ...patch }));
+      if ('selectedSloganId' in patch) {
+        setSelectedSloganId(patch.selectedSloganId ?? null);
+        // AC-102: auto-toggle Context sources when slogan selected + niche has research
+        if (patch.selectedSloganId && hasNicheResearch) {
+          setContextState((ctx) => ({
+            ...ctx,
+            keywordsEnabled: true,
+            researchEnabled: true,
+          }));
+        }
+      }
+    },
+    [setSelectedSloganId, hasNicheResearch],
+  );
 
   const handleContextChange = useCallback(
     (patch: Partial<ContextTabState>) => {
@@ -292,6 +313,29 @@ export const usePromptBuilderTabs = (
     [],
   );
 
+  // -- Preset serialization --
+  const getTabConfig = useCallback((): TabConfig => ({
+    concept: conceptState,
+    context: contextState,
+    style: styleState,
+    format: formatState,
+    color: colorState,
+    background: backgroundState,
+    text: textState,
+    output: outputState,
+  }), [conceptState, contextState, styleState, formatState, colorState, backgroundState, textState, outputState]);
+
+  const loadTabConfig = useCallback((config: Record<string, unknown>) => {
+    if (config.concept) setConceptState((prev) => ({ ...prev, ...(config.concept as Partial<ConceptTabState>) }));
+    if (config.context) setContextState((prev) => ({ ...prev, ...(config.context as Partial<ContextTabState>) }));
+    if (config.style) setStyleState((prev) => ({ ...prev, ...(config.style as Partial<StyleTabState>) }));
+    if (config.format) setFormatState((prev) => ({ ...prev, ...(config.format as Partial<FormatTabState>) }));
+    if (config.color) setColorState((prev) => ({ ...prev, ...(config.color as Partial<ColorTabState>) }));
+    if (config.background) setBackgroundState((prev) => ({ ...prev, ...(config.background as Partial<BackgroundTabState>) }));
+    if (config.text) setTextState((prev) => ({ ...prev, ...(config.text as Partial<TextTabState>) }));
+    if (config.output) setOutputState((prev) => ({ ...prev, ...(config.output as Partial<OutputTabState>) }));
+  }, []);
+
   // -- Prompt generation (H7.7) --
   const generatedPrompt = useMemo(
     () =>
@@ -341,6 +385,9 @@ export const usePromptBuilderTabs = (
     // Output
     outputState,
     handleOutputChange,
+    // Preset serialization
+    getTabConfig,
+    loadTabConfig,
     // Generated prompt
     generatedPrompt,
   };

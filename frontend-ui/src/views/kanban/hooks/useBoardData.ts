@@ -33,11 +33,11 @@ export const useBoardData = ({ assigneeFilter, showArchived }: UseBoardDataOptio
     page_size: 200,
   });
 
-  const niches = data?.results ?? [];
+  const niches = data?.results;
   const totalCount = data?.count ?? 0;
 
   const columns = useMemo<ColumnData[]>(() => {
-    const filtered = niches.filter((n) => {
+    const filtered = (niches ?? []).filter((n) => {
       // Hide archived unless toggled
       if (n.status === 'archived' && !showArchived) return false;
       // Assignee filter

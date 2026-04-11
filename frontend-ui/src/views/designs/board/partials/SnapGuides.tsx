@@ -1,4 +1,5 @@
 import { Line } from 'react-konva';
+import { COLORS } from '@/style/constants';
 import type { SnapGuide } from '../hooks/useSnapGuides';
 
 // -----------------------------------------------------------------
@@ -6,7 +7,7 @@ import type { SnapGuide } from '../hooks/useSnapGuides';
 // -----------------------------------------------------------------
 
 /** Cyan guide color from design system secondary */
-const GUIDE_COLOR = '#00C8D7';
+const GUIDE_COLOR = COLORS.cyan;
 const GUIDE_STROKE_WIDTH = 1;
 const GUIDE_DASH = [4, 3];
 

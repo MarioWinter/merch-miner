@@ -6,45 +6,9 @@ import {
   TextField,
   Typography,
 } from '@mui/material';
-import { styled } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import type { CanvasElement, ShapeElementProps } from '../../types';
-
-// -----------------------------------------------------------------
-// Styled
-// -----------------------------------------------------------------
-
-const Section = styled(Box)(({ theme }) => ({
-  padding: theme.spacing(2),
-}));
-
-const SectionLabel = styled(Typography)(({ theme }) => ({
-  marginBottom: theme.spacing(1.5),
-}));
-
-const FieldRow = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  gap: theme.spacing(1),
-  marginBottom: theme.spacing(1.5),
-}));
-
-const FieldLabel = styled(Typography)({
-  width: 56,
-  flexShrink: 0,
-});
-
-const ColorInput = styled('input')({
-  width: 32,
-  height: 32,
-  padding: 0,
-  border: 'none',
-  borderRadius: 4,
-  cursor: 'pointer',
-  backgroundColor: 'transparent',
-  '&::-webkit-color-swatch-wrapper': { padding: 0 },
-  '&::-webkit-color-swatch': { border: '1px solid rgba(255,255,255,0.2)', borderRadius: 4 },
-});
+import { Section, SectionLabel, FieldRow, WideFieldLabel as FieldLabel, ColorInput } from './ElementPanel.styles';
 
 // -----------------------------------------------------------------
 // Props

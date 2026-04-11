@@ -13,9 +13,9 @@ import { useSelector } from 'react-redux';
 import type { RootState } from '../../../../store';
 import type { UpdateNicheFormValues } from '../schemas/nicheSchema';
 import type { Niche, NicheStatus, PotentialRating } from '../types';
-import { DrawerSkeleton } from './DrawerSkeleton';
+import { PipelineSkeleton } from './PipelineSkeleton';
 
-interface DrawerEditFormProps {
+interface PipelineEditFormProps {
   form: UseFormReturn<UpdateNicheFormValues>;
   onSubmit: SubmitHandler<UpdateNicheFormValues>;
   niche: Niche | undefined;
@@ -30,7 +30,7 @@ const NICHE_STATUSES: NicheStatus[] = [
 
 const POTENTIAL_RATINGS: (PotentialRating | '')[] = ['', 'good', 'very_good', 'rejected'];
 
-export const DrawerEditForm = ({ form, onSubmit, niche, isFetching }: DrawerEditFormProps) => {
+export const PipelineEditForm = ({ form, onSubmit, niche, isFetching }: PipelineEditFormProps) => {
   const { t } = useTranslation();
   const activeWorkspaceId = useSelector((s: RootState) => s.workspace.activeWorkspaceId);
   const workspaces = useSelector((s: RootState) => s.workspace.workspaces);
@@ -38,7 +38,7 @@ export const DrawerEditForm = ({ form, onSubmit, niche, isFetching }: DrawerEdit
 
   return (
     <Stack component="form" id="niche-edit-form" onSubmit={form.handleSubmit(onSubmit)} gap={2.5}>
-      {!niche && isFetching && <DrawerSkeleton />}
+      {!niche && isFetching && <PipelineSkeleton />}
       {niche && (
         <>
           <Controller

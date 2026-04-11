@@ -37,10 +37,15 @@ Researched keywords flow into the Niche Drawer where they can be organized into 
 ### Keyword Research (Page)
 1. As a member, I want a dedicated Keyword Research page where I can search for keywords and see data from multiple sources, so I can make informed decisions about which keywords to target.
 2. As a member, I want Amazon Autocomplete suggestions in the search field while typing, so I discover related keywords before even searching.
+2b. As a member, I want the search to only execute when I press Enter or click the Search button (not on every keystroke), so I control when the full search runs. Same pattern as PROJ-7 Product Research.
 3. As a member, I want search results to show own DB data first (free, instant), then Autocomplete keywords, so I see what I already have before paying for external data.
 4. As a member, I want to enrich individual keywords with JungleScout data (search volume, CPC, PPC, competition) on-demand via "Enrich with JungleScout" button, so I control costs.
 5. As a member, I want JungleScout data cached for 30 days per keyword, so repeated lookups don't waste API credits.
 6. As a member, I want a configurable column picker for the results table, so I see only the data I care about with sensible defaults.
+6b. As a member, I want the table header to stay visible (sticky) when I scroll through results, so I always know which column is which.
+6c. As a member, I want to see the Amazon product count per keyword in an "Amz Products" column (format: "> 526"), so I can gauge market saturation at a glance — like Flying Research.
+6d. As a member, I want a refresh button (🔄) per keyword row to live-scrape the current Amazon product count on-demand, so I can get fresh data when I need it.
+6e. As a member, I want existing product count data to always show (regardless of age) and only refresh when I explicitly click the refresh button, so I'm never missing data I already have.
 7. As a member, I want to click a keyword to see a Historical Search Volume trend chart (12 months), so I can evaluate if a keyword is growing or declining.
 8. As a member, I want to export the current keyword list as CSV (with all visible data including JS data if loaded), so I can analyze offline.
 9. As a member, I want to select keywords via checkboxes and see a context-aware "Add X Keywords to {active Niche}" button when a Niche is open in the Drawer, so I can collect keywords with one click.
@@ -80,11 +85,20 @@ Researched keywords flow into the Niche Drawer where they can be organized into 
 
 ### Keyword Research API
 
+- [ ] AC-4b: `KeywordProductCount` model: UUID pk, `keyword` CharField(200), `marketplace` CharField(20), `product_count` PositiveIntegerField, `fetched_at` DateTimeField. `unique_together = [('keyword', 'marketplace')]`. Stores Amazon product count per keyword. No auto-expiry — data shown regardless of age, refreshed only on explicit user action.
+
+### Keyword Research API
+
 - [ ] AC-5: `GET /api/keywords/search/` — params: `query` (required), `marketplace` (default: amazon_com), `page`, `page_size`. Returns merged results: own DB keywords matching query + Amazon Autocomplete suggestions. Each result tagged with source.
+- [ ] AC-5b: **Search trigger:** Search only fires on Enter key press or Search button click — NOT on every keystroke. Amazon Autocomplete suggestions in the dropdown remain live (debounced 300ms). Same pattern as PROJ-7 AC-18.
+- [ ] AC-5c: **Sticky table header:** Keyword results table has a sticky/fixed header row that stays visible when scrolling. MUI DataGrid `stickyHeader` or equivalent.
 - [ ] AC-6: `POST /api/keywords/enrich/` — body: `{keywords: ["kw1", "kw2"], marketplace}`. Checks `KeywordJSCache` first — only calls JS API for keywords without cache or cache >30 days. Returns enriched keyword data. Logged in `SearchUsageLog`.
 - [ ] AC-7: `GET /api/keywords/{keyword}/history/` — params: `marketplace`, `start_date`, `end_date`. Calls JS `historical_search_volume`. Returns trend data for chart. Cached in separate `KeywordHistoryCache` or reuses `KeywordJSCache` with extended fields.
 - [ ] AC-8: `GET /api/keywords/search/` response includes per keyword: `in_product_count` (how many AmazonProducts contain this keyword) and `in_slogan_count` (how many Ideas contain this keyword). Computed via DB COUNT.
 - [ ] AC-9: `GET /api/keywords/export/` — params: same as search + `format=csv`. Streams CSV with all visible columns including JS data if cached.
+- [ ] AC-9b: `POST /api/keywords/product-count/` — body: `{keyword, marketplace}`. Scrapes Amazon Page 2 for the keyword, extracts result count from `<h2>` header ("49-96 of **549** results for"). Uses Page 2 (not Page 1) because Amazon Bug shows inflated count on Page 1. Uses ScraperOps proxy (same as PROJ-16). Upserts `KeywordProductCount` record. Returns `{keyword, marketplace, product_count, fetched_at}`.
+- [ ] AC-9c: `GET /api/keywords/search/` response includes `amazon_product_count` (from `KeywordProductCount` cache) and `product_count_fetched_at` per keyword where available. Shows existing data regardless of age — no auto-refresh.
+- [ ] AC-9d: **PROJ-16 Scraper integration:** PROJ-16 Scrapy Spider extracts result count from Page 2 HTML (`div.sg-col-inner h2 span` → parse "X-Y of **N** results for" → extract N). Upserts `KeywordProductCount` for the search keyword. Automatic — no extra request, data captured as a side-effect of product scraping.
 
 ### Keyword Collection API (per Niche)
 
@@ -133,6 +147,7 @@ Researched keywords flow into the Niche Drawer where they can be organized into 
 | POST | `/api/keywords/enrich/` | Member | Enrich with JungleScout (on-demand, cached) |
 | GET | `/api/keywords/{keyword}/history/` | Member | Historical search volume chart |
 | GET | `/api/keywords/export/` | Member | CSV export |
+| POST | `/api/keywords/product-count/` | Member | On-demand Amazon product count scrape (Page 2) |
 | GET | `/api/niches/{id}/keywords/` | Member | List niche keywords |
 | POST | `/api/niches/{id}/keywords/` | Member | Add keyword to niche |
 | POST | `/api/niches/{id}/keywords/bulk-add/` | Member | Bulk add keywords |
@@ -157,6 +172,10 @@ Researched keywords flow into the Niche Drawer where they can be organized into 
 - [ ] EC-9: Export with 0 results → CSV with headers only.
 - [ ] EC-10: Very long keyword (>200 chars) → truncated to 200 with warning.
 - [ ] EC-11: Chat "Add keyword to niche" but niche name ambiguous (multiple matches) → Chat asks: "Which niche? Camping Dad or Camping Mom?"
+- [ ] EC-12: Amazon product count scrape fails (ScraperOps timeout, blocked, network error) → show error toast "Could not fetch product count". Existing cached data (if any) stays displayed.
+- [ ] EC-13: Amazon product count = 0 (no results for keyword) → display "> 0" in column. Valid data, not an error.
+- [ ] EC-14: Amazon Page 2 returns different HTML structure (no result count header) → parse returns null. Show "n/a" in column. Log warning for debugging.
+- [ ] EC-15: Keyword with special characters (quotes, ampersands) in Amazon search URL → URL-encode keyword before scraping.
 
 ## Environment Variables Required
 
@@ -207,7 +226,9 @@ Document in `django-app/env/.env.template`.
 
 ## Verification Steps
 
-1. Search "camping" → DB keywords appear instantly, Autocomplete suggestions appear after 300ms debounce
+1. Type "camping" → Autocomplete suggestions appear in dropdown (live, 300ms debounce). No table results yet
+1b. Press Enter or click Search button → full search executes, results table populates
+1c. Scroll results table → header row stays visible (sticky)
 2. Click "Enrich with JungleScout" on keyword → JS data loads (search volume, CPC, PPC, competition)
 3. Enrich same keyword again within 30 days → uses cache, no API call
 4. Enrich keyword after 30 days → makes new JS call, updates cache
@@ -223,6 +244,11 @@ Document in `django-app/env/.env.template`.
 14. Agent calls `keyword_search_js` → first call makes JS request, second call uses cache
 15. Delete keyword group → keywords become ungrouped (not deleted)
 16. Workspace isolation: keywords from other workspaces → 403
+17. "Amz Products" column shows "> 526" format for keywords with cached product count
+18. Click 🔄 refresh on a keyword → loading spinner → fresh product count scraped from Amazon Page 2 → column updates
+19. Keyword with no product count data → column shows empty/dash. Click 🔄 → first-time scrape → count appears
+20. PROJ-16 product research scrape completes → product count auto-captured from Page 2 → shows in Keyword Bank without manual refresh
+21. Product count scrape fails → error toast, existing cached data stays visible
 
 ---
 
