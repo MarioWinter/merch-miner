@@ -1153,8 +1153,7 @@
         "colorDefringe": "Remplacer la frange des bords par la couleur de design la plus proche",
         "edgeCleaner": "Lisser les bords denteles avec anti-aliasing",
         "bgRemove": "Suppression d'arriere-plan par IA (cote serveur)",
-        "aiUpscale": "Augmenter la resolution de l'image avec l'IA",
-        "compressor": "Reduire la taille du fichier sous la cible"
+        "aiUpscale": "Augmenter la resolution de l'image avec l'IA"
       },
       "resize": "Redimensionner",
       "resizeParams": {
@@ -1348,16 +1347,6 @@
         "magenta": "Magenta",
         "showOpaque": "Afficher les opaques"
       },
-      "compressor": "Compresseur",
-      "compressorParams": {
-        "maxSize": "Taille max (KB)",
-        "maxSizeHint": "Taille maximale cible du fichier en kilooctets",
-        "quality": "Qualite",
-        "format": "Format",
-        "png": "PNG",
-        "webp": "WebP",
-        "estimatedSize": "Estime"
-      },
       "move": "Deplacer",
       "eraser": "Gomme",
       "eraserParams": {
@@ -1400,7 +1389,19 @@
       "downloadZip": "Tout telecharger (ZIP)",
       "creatingZip": "Creation du ZIP...",
       "totalSize": "Total estime: {{size}}",
-      "imageCount": "{{count}} images"
+      "imageCount": "{{count}} images",
+      "compressionLevel": "Compression",
+      "compressionOff": "Désactivée",
+      "compressionLow": "Faible",
+      "compressionMedium": "Moyenne",
+      "compressionHigh": "Élevée",
+      "compressionVeryHigh": "Très élevée",
+      "preparingDownload": "Préparation du téléchargement",
+      "processingImage": "Traitement de votre image...",
+      "processingImages": "Traitement {{current}} sur {{total}}...",
+      "cancel": "Annuler",
+      "fileSize": "Taille",
+      "estimatedSize": "Env. {{size}}"
     },
     "contextMenu": {
       "addAiBoard": "Ajouter un tableau IA",

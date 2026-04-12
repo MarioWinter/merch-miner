@@ -101,6 +101,9 @@ const BrushLayer = ({
     });
   }, [artboardId, element.id, onUpdate]);
 
+  // Compute effective scale so Transformer handles stay visually consistent
+  const effectiveScale = Math.max(element.scaleX ?? 1, element.scaleY ?? 1, 1);
+
   if (!element.visible) return null;
 
   // Determine strokes to render: use subStrokes if present, otherwise single stroke
@@ -168,8 +171,8 @@ const BrushLayer = ({
                   'bottom-center',
                 ]
           }
-          borderStrokeWidth={1.5 / zoom}
-          anchorSize={8 / Math.max(zoom, 0.3)}
+          borderStrokeWidth={1.5 / zoom / effectiveScale}
+          anchorSize={8 / Math.max(zoom, 0.3) / effectiveScale}
           anchorCornerRadius={2}
           boundBoxFunc={(_, newBox) => ({
             ...newBox,

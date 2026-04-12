@@ -1643,3 +1643,181 @@
 - [x] Frontend: ProductsGrid send flow: single + bulk
 - [x] `npm run lint` + `npx tsc --noEmit` clean
 - [x] `ruff check django-app/` clean
+
+---
+
+## Phase J: Export Compression Refactor (AC-24, AC-30, AC-44, AC-62)
+
+> Compressor removed from pipeline. Compression = download-time via UPNG.js. ExportDialog removed. ReadyPixl-style inline controls + "Preparing Download" modal.
+
+### J1: Remove Compressor Pipeline Tool
+
+- [x] Remove `'compressor'` from `ToolName` type in `types/index.ts`
+- [x] Remove `'quality'` from `ToolCategory` type (no tools left in this category)
+- [x] Remove compressor entry from `TOOL_CATALOG` array
+- [x] Remove `quality` entry from `TOOL_CATEGORIES` array
+- [x] Remove `compressor` icon mapping from `ToolIcons.tsx`
+- [x] Remove `CompressorToolParams.tsx` file
+- [x] Remove compressor case from `ToolPanel.tsx` conditional rendering
+- [x] Remove `processCompressor()`, `CompressorParams`, `DEFAULT_COMPRESSOR_PARAMS`, `canvasToBlobWithFormat()` from `imageProcessing.ts`
+- [x] Remove compressor case + imports from `useClientProcessing.ts`
+- [x] Verify PipelineBar no longer renders empty "Quality" category section
+
+### J2: Remove ExportDialog
+
+- [x] Delete `ExportDialog.tsx` (editor version)
+- [x] Delete `useExportDialog.ts` hook
+- [x] Remove ExportDialog imports + state from `DesignEditorView.tsx`
+- [x] Remove "Advanced" / settings button from `ExportControls.tsx` (no dialog to open)
+
+### J3: Install UPNG.js + Compression Hook
+
+- [x] `npm install upng-js` in `frontend-ui/`
+- [x] Add `@types/upng-js` or create local type declaration if needed
+- [x] Create `useExportCompression.ts` hook:
+  - State: `isCompressing`, `progress` (0-1), `currentImageIndex`, `totalImages`, `cancelled`
+  - `compressImage(imageData, width, height, level)`: UPNG.encode with color count from level mapping (Off=skip, Low=4096, Medium=1024, High=256, Very High=128)
+  - `downloadCurrent(canvas, settings)`: compress → create Blob → trigger browser download via anchor
+  - `downloadAll(canvases[], settings)`: compress all → JSZip → trigger ZIP download. Progress updates per image
+  - `cancel()`: set cancelled flag, abort remaining images
+  - Reuse JSZip (already installed) for ZIP creation
+
+### J4: Refactor ExportControls (Inline Bottom Bar)
+
+- [x] Update `ExportSettings` type: `compression: number` → `compression: CompressionLevel` where `CompressionLevel = 'off' | 'low' | 'medium' | 'high' | 'very_high'`
+- [x] Replace compression slider with MUI `Select` dropdown (Off/Low/Medium/High/Very High)
+- [x] Keep: Format badge (PNG), DPI slider, Overwrite/New Version toggle, Download Current + Download All buttons, Close button
+- [x] Remove: Advanced settings button (ExportDialog gone)
+- [x] Wire Download Current → `useExportCompression.downloadCurrent()`
+- [x] Wire Download All → `useExportCompression.downloadAll()`
+- [x] Both buttons open PreparingDownloadModal on click
+
+### J5: Create PreparingDownloadModal
+
+- [x] Create `PreparingDownloadModal.tsx` in `editor/partials/`
+- [x] MUI Dialog, centered, ~400px width, dark theme consistent
+- [x] Content: circular spinner (animated), "Preparing Download" title, "Processing your image..." subtitle, compression level chip/badge (e.g. "Compression: Very High"), LinearProgress (determinate, value from hook progress), Cancel button
+- [x] Props: `open`, `onCancel`, `compressionLevel`, `progress` (0-100), `currentImage`, `totalImages`
+- [x] Cancel button calls `useExportCompression.cancel()` + closes modal
+
+### J6: Wire into DesignEditorView
+
+- [x] Import `PreparingDownloadModal` + `useExportCompression`
+- [x] Add PreparingDownloadModal to JSX (below ExportControls area)
+- [x] Connect ExportControls download handlers → hook → modal open/close
+- [x] Remove all ExportDialog references (imports, state, handlers, JSX)
+- [ ] Test: single image download with each compression level
+- [ ] Test: batch ZIP download (5+ images) with progress
+
+### J7: i18n
+
+- [x] Remove keys: `design.qc.compressor`, `design.qc.compressorDesc` (and any sub-keys) from all 5 locales
+- [x] Add keys to all 5 locales (EN, DE, FR, ES, IT):
+  - `design.export.compressionLevel` — "Compression"
+  - `design.export.compressionOff` — "Off"
+  - `design.export.compressionLow` — "Low"
+  - `design.export.compressionMedium` — "Medium"
+  - `design.export.compressionHigh` — "High"
+  - `design.export.compressionVeryHigh` — "Very High"
+  - `design.export.preparingDownload` — "Preparing Download"
+  - `design.export.processingImage` — "Processing your image..."
+  - `design.export.processingImages` — "Processing {{current}} of {{total}}..."
+  - `design.export.cancel` — "Cancel"
+
+### J8: Tests + Lint
+
+- [x] Unit test: `useExportCompression` — compressImage returns smaller Blob for each level (9 tests)
+- [x] Unit test: `PreparingDownloadModal` — renders spinner, title, progress, cancel button (9 tests)
+- [x] Unit test: `UnifiedBottomBar` — Info/Export mode switch, compression dropdown, resolution display (13 tests)
+- [x] Integration test: download flow — covered in UnifiedBottomBar tests (mode switch + button interactions)
+- [x] `npm run lint` clean (our files)
+- [x] `npx tsc --noEmit` clean
+- [ ] Manual test: download PNG with "Very High" → verify file size < 2MB for standard 4500x5400 POD design
+
+---
+
+## Phase K: Unified Bottom Bar — Info + Export (AC-30, AC-47)
+
+> Bottom bar always visible. Info Mode (default): PNG, resolution, file size. Export Mode (click Download): full controls + estimated size. Replaces toggle-based ExportControls.
+
+### K1: Populate Image Dimensions on Load
+
+- [x] In `handleFilesAdded` (DesignEditorView): after creating blob URL, load `Image()` element to read `naturalWidth`/`naturalHeight`. Update BatchImage with `width`/`height` once loaded
+- [x] For URL preloads (designs from server): map server-returned dimensions to BatchImage `width`/`height`
+- [x] Verify `fileSize` already set from `File.size` (already done in Phase J)
+
+### K2: Rename ExportControls → UnifiedBottomBar
+
+- [x] Rename `ExportControls.tsx` → `UnifiedBottomBar.tsx` (file + component + all imports)
+- [x] Add `mode` state: `'info' | 'export'` (default: `'info'`)
+- [x] **Info Mode render:** Format badge (PNG) | Separator | Resolution (JetBrains Mono, e.g. `4500×5400`) | Separator | File size (JetBrains Mono, e.g. `8.2 MB`) | Spacer | Download button (switches to Export Mode)
+- [x] **Export Mode render:** existing export controls (FORMAT, DPI, Compression dropdown, Overwrite/New toggle, Download Current, Download All ZIP, Close X)
+- [x] Add estimated compressed size display in Export Mode: green text `Est. ~2.3 MB` + savings badge `↓72%` — shown next to Compression dropdown
+- [x] Close X sets mode back to `'info'`
+- [x] Download button in Info Mode sets mode to `'export'`
+- [x] Props: remove `onClose`, add `currentImage: BatchImage | null`
+
+### K3: Remove Export Toggle from BatchThumbnailStrip
+
+- [x] Remove `showExportToggle` prop from BatchThumbnailStrip interface
+- [x] Remove `onToggleExport` prop from BatchThumbnailStrip interface
+- [x] Remove export toggle IconButton from BatchThumbnailStrip JSX
+- [x] Remove FileDownloadIcon import (if no longer used)
+
+### K4: Update DesignEditorView Integration
+
+- [x] Remove `showExport` state (`useState(false)`)
+- [x] Remove `setShowExport` toggle callback
+- [x] Remove `onToggleExport` prop from BatchThumbnailStrip usage
+- [x] Remove `showExportToggle` prop from BatchThumbnailStrip usage
+- [x] Remove conditional `{showExport && ...}` — UnifiedBottomBar is always rendered
+- [x] Import `UnifiedBottomBar` instead of `ExportControls`
+- [x] Pass `currentImage` to UnifiedBottomBar (for resolution + file size display)
+- [x] UnifiedBottomBar rendered inside StripWrapper, below ThumbnailRow (always)
+
+### K5: Update Tests
+
+- [x] Remove/update export toggle tests in `BatchThumbnailStrip.test.tsx`
+- [x] Add test: UnifiedBottomBar Info Mode renders resolution + file size when image selected
+- [x] Add test: UnifiedBottomBar Info Mode shows "—" when no image dimensions available
+- [x] Add test: clicking Download button switches to Export Mode
+- [x] Add test: clicking Close X returns to Info Mode
+- [x] Add test: estimated compressed size shown in Export Mode with correct savings %
+- [x] `npm run lint` + `npx tsc --noEmit` clean
+
+---
+
+## Phase L: Canvas Bugs — Transformer Handles + Aspect Ratio (AC-160, AC-161)
+
+> Bug fixes for Artboard Canvas: oversized selection handles on scaled elements + AI images displaying as square instead of target aspect ratio.
+
+### L1: Fix Transformer Handle Scaling (AC-160)
+
+- [x] `ArtboardElement.tsx`: compute `effectiveScale = Math.max(element.scaleX ?? 1, element.scaleY ?? 1, 1)`. Divide `anchorSize` and `borderStrokeWidth` by `effectiveScale` in addition to existing zoom division
+- [x] `ImageLayer.tsx`: same fix — divide `anchorSize` and `borderStrokeWidth` by element's max scale
+- [x] `EmojiLayer.tsx`: same fix
+- [x] `ShapeLayer.tsx`: same fix
+- [x] `TextLayer.tsx`: same fix
+- [x] `BrushLayer.tsx`: same fix
+- [ ] Manual test: select a 1024×1024 image scaled to 4500×5400 → handles should be same visual size as on an unscaled element
+
+### L2: Fix AI Image Aspect Ratio on Artboard (AC-161)
+
+- [x] When a processed/resized image is saved back to the server and the artboard element updates its URL, also update element `width`/`height` from the new image's natural dimensions (load Image() → naturalWidth/naturalHeight)
+- [x] Ensure artboard element displays correct aspect ratio (e.g. 5:6 for 4500×5400) instead of remaining square
+- [ ] Manual test: generate 1024×1024 image → open in Editor → Resize to 4500×5400 → save → switch to Canvas tab → artboard element shows 5:6 ratio
+
+### L3: Resolution Info Badge on Artboard Element
+
+- [x] Add small resolution overlay badge to image elements on the artboard (bottom-right corner of element)
+- [x] Display format: "4500×5400" in JetBrains Mono, ~10px font
+- [x] Semi-transparent dark background (matching existing overlay style: `rgba(11, 39, 49, 0.85)`, backdrop-filter blur)
+- [x] Badge visible on hover or always (decide based on visual clutter)
+- [x] Badge reads actual pixel dimensions from element `width × height` (after scale reset)
+
+### L4: Tests + Lint
+
+- [x] `npm run lint` clean
+- [x] `npx tsc --noEmit` clean
+- [ ] Manual test: scale multiple element types (image, text, shape) → all have correctly-sized handles
+- [ ] Manual test: resolution badge shows correct dimensions on image elements

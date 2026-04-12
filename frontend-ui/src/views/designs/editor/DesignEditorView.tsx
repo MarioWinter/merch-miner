@@ -9,8 +9,8 @@ import { PipelineBar } from './partials/PipelineBar';
 import { ToolPanel } from './partials/ToolPanel';
 import { EditorCanvas } from './partials/EditorCanvas';
 import { BatchThumbnailStrip } from './partials/BatchThumbnailStrip';
-import { ExportControls } from './partials/ExportControls';
-import { ExportDialog } from './partials/ExportDialog';
+import { UnifiedBottomBar } from './partials/UnifiedBottomBar';
+import { PreparingDownloadModal } from './partials/PreparingDownloadModal';
 import { DropZone } from './partials/DropZone';
 import { CloudManagerDialog } from './partials/CloudManagerDialog';
 import { useProcessing } from './hooks/useProcessing';
@@ -18,10 +18,11 @@ import { useClientProcessing } from './hooks/useClientProcessing';
 import { useLivePreview } from './hooks/useLivePreview';
 import { useEditorUpload } from './hooks/useEditorUpload';
 import useUndoRedo from './hooks/useUndoRedo';
+import { useExportCompression } from './hooks/useExportCompression';
 import { JobPollerManager } from './partials/JobPollerManager';
 import { useGetProjectBoardQuery, useDeleteDesignMutation, useSaveProcessedImageMutation, useDeleteDesignVersionMutation } from '@/store/designSlice';
 import ConfirmDialog from '@/components/ConfirmDialog';
-import type { PipelineTool, BatchImage, CanvasToolType, ExportSettings, ToolName } from './types';
+import type { PipelineTool, BatchImage, CanvasToolType, CompressionLevel, ExportSettings, ToolName } from './types';
 import { PICA_THRESHOLD_PX } from './hooks/usePicaUpscale';
 import type { UpscaleMode } from './hooks/usePicaUpscale';
 
@@ -127,9 +128,9 @@ const CanvasMain = styled(Box)(({ theme }) => ({
 }));
 
 const StripWrapper = styled(Box)(({ theme }) => ({
-  height: THUMBNAIL_STRIP_HEIGHT,
   flexShrink: 0,
   display: 'flex',
+  flexDirection: 'column',
   borderTop: '1px solid',
   borderColor: theme.vars.palette.divider,
   backgroundColor: COLORS.ink,
@@ -137,6 +138,11 @@ const StripWrapper = styled(Box)(({ theme }) => ({
     backgroundColor: COLORS.white,
   }),
 }));
+
+const ThumbnailRow = styled(Box)({
+  height: THUMBNAIL_STRIP_HEIGHT,
+  display: 'flex',
+});
 
 // -----------------------------------------------------------------
 // Component
@@ -150,6 +156,36 @@ const DesignEditorView = ({ projectId, initialImages }: DesignEditorViewProps) =
   // Pipeline state
   const [activePipeline, setActivePipeline] = useState<PipelineTool[]>([]);
 
+  // Helper: load dimensions + fileSize from a URL into a BatchImage
+  const loadImageMeta = useCallback((imageId: string, url: string) => {
+    const el = new Image();
+    el.crossOrigin = 'anonymous';
+    el.onload = () => {
+      setBatchImages((prev) =>
+        prev.map((bi) =>
+          bi.id === imageId
+            ? { ...bi, width: el.naturalWidth, height: el.naturalHeight }
+            : bi,
+        ),
+      );
+      // Also fetch fileSize if not already set (for server-loaded images)
+      fetch(url, { method: 'HEAD' })
+        .then((res) => {
+          const cl = res.headers.get('content-length');
+          if (cl) {
+            const size = parseInt(cl, 10);
+            setBatchImages((prev) =>
+              prev.map((bi) =>
+                bi.id === imageId && !bi.fileSize ? { ...bi, fileSize: size } : bi,
+              ),
+            );
+          }
+        })
+        .catch(() => { /* ignore — fileSize stays undefined */ });
+    };
+    el.src = url;
+  }, []);
+
   // Batch state — seed with initialImages from canvas tab on first render
   const [batchImages, setBatchImages] = useState<BatchImage[]>(() => {
     if (!initialImages || initialImages.length === 0) return [];
@@ -161,6 +197,16 @@ const DesignEditorView = ({ projectId, initialImages }: DesignEditorViewProps) =
       status: 'idle' as const,
     }));
   });
+
+  // Load dimensions for initial images
+  useEffect(() => {
+    if (!initialImages || initialImages.length === 0) return;
+    batchImages.forEach((img) => {
+      if (!img.width && img.previewUrl) loadImageMeta(img.id, img.previewUrl);
+    });
+    // Only run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   // Fetch project designs on mount — hydrate batch from persisted images
@@ -196,20 +242,20 @@ const DesignEditorView = ({ projectId, initialImages }: DesignEditorViewProps) =
     if (persisted.length > 0) {
       setBatchImages(persisted);
       hydratedRef.current = true;
+      // Load dimensions + fileSize for each persisted image
+      persisted.forEach((img) => loadImageMeta(img.id, img.previewUrl));
     }
-  }, [boardData, batchImages.length]);
+  }, [boardData, batchImages.length, loadImageMeta]);
 
   // Canvas tool state
   const [activeCanvasTool, setActiveCanvasTool] = useState<CanvasToolType>('move');
 
-  // Export controls visibility
-  const [showExport, setShowExport] = useState(false);
+  // Export compression state
+  const [exportCompressionLevel, setExportCompressionLevel] = useState<CompressionLevel>('medium');
+  const exportState = useExportCompression();
 
   // Cloud manager dialog
   const [cloudManagerOpen, setCloudManagerOpen] = useState(false);
-
-  // Export dialog
-  const [exportDialogOpen, setExportDialogOpen] = useState(false);
 
   // Derived — must be before hooks that depend on them
   const hasImages = batchImages.length > 0;
@@ -283,9 +329,13 @@ const DesignEditorView = ({ projectId, initialImages }: DesignEditorViewProps) =
     if (batchImages.length === 0) {
       setCurrentImageIndex(0);
     }
+
+    // Load natural dimensions for each image
+    newImages.forEach((img) => loadImageMeta(img.id, img.previewUrl));
+
     // Persist to backend — replaces blob URLs with server URLs on success
     uploadFiles(newImages);
-  }, [batchImages.length, uploadFiles]);
+  }, [batchImages.length, uploadFiles, loadImageMeta]);
 
   const handleBrowseClick = useCallback(() => {
     fileInputRef.current?.click();
@@ -469,6 +519,11 @@ const DesignEditorView = ({ projectId, initialImages }: DesignEditorViewProps) =
     if (clientTools.length > 0) {
       const results = await processBatch(batchImages, clientTools);
       setBatchImages(results);
+      // Reload dimensions after pipeline (resize/trim may change them)
+      results.forEach((img) => {
+        const url = img.processedUrl ?? img.previewUrl;
+        if (url) loadImageMeta(img.id, url);
+      });
 
       // Persist client-processed results to server
       for (const img of results) {
@@ -509,7 +564,7 @@ const DesignEditorView = ({ projectId, initialImages }: DesignEditorViewProps) =
         await startProcessing(designIds, steps);
       }
     }
-  }, [activePipeline, batchImages, currentImage, processBatch, startProcessing, undoRedo, saveProcessedImage, projectId, enqueueSnackbar, t]);
+  }, [activePipeline, batchImages, currentImage, processBatch, startProcessing, undoRedo, saveProcessedImage, projectId, enqueueSnackbar, t, loadImageMeta]);
 
   // --- Load server-job results back into batch images ---
   const handleJobUpdate = useCallback(
@@ -528,10 +583,13 @@ const DesignEditorView = ({ projectId, initialImages }: DesignEditorViewProps) =
                 : img,
             ),
           );
+          // Reload dimensions for the new result image
+          const batchImg = batchImages.find((img) => img.designId === job.designId);
+          if (batchImg) loadImageMeta(batchImg.id, resultFileUrl);
         }
       }
     },
-    [onJobUpdate, jobs],
+    [onJobUpdate, jobs, batchImages, loadImageMeta],
   );
 
   // --- Run single server tool on current image ---
@@ -555,24 +613,15 @@ const DesignEditorView = ({ projectId, initialImages }: DesignEditorViewProps) =
 
   const handleDownloadCurrent = useCallback((settings: ExportSettings) => {
     if (!currentImage) return;
-    // Client-side download; DPI/compression applied server-side in Phase B5
-    void settings;
-    const a = document.createElement('a');
-    a.href = currentImage.processedUrl ?? currentImage.previewUrl;
-    a.download = currentImage.name;
-    a.click();
-  }, [currentImage]);
+    setExportCompressionLevel(settings.compression);
+    void exportState.downloadCurrent(currentImage, settings.compression);
+  }, [currentImage, exportState]);
 
   const handleDownloadAll = useCallback((settings: ExportSettings) => {
-    // Download each image; ZIP generation deferred to Phase B5
-    void settings;
-    batchImages.forEach((img) => {
-      const a = document.createElement('a');
-      a.href = img.processedUrl ?? img.previewUrl;
-      a.download = img.name;
-      a.click();
-    });
-  }, [batchImages]);
+    if (batchImages.length === 0) return;
+    setExportCompressionLevel(settings.compression);
+    void exportState.downloadAll(batchImages, settings.compression);
+  }, [batchImages, exportState]);
 
   // --- Drop handler ---
 
@@ -672,28 +721,24 @@ const DesignEditorView = ({ projectId, initialImages }: DesignEditorViewProps) =
             )}
           </CanvasMain>
 
-          {/* Bottom thumbnail strip + export controls */}
+          {/* Bottom thumbnail strip + unified bottom bar */}
           {hasImages && (
             <StripWrapper>
-              <BatchThumbnailStrip
-                images={batchImages}
-                currentIndex={currentImageIndex}
-                onSelect={setCurrentImageIndex}
-                onToggleExport={() => setShowExport((p) => !p)}
-                showExportToggle
-                onAddMore={handleBrowseClick}
-                onOpenCloudManager={handleOpenCloudManager}
-              />
-              {showExport && (
-                <ExportControls
-                  currentImage={currentImage}
-                  totalImages={batchImages.length}
-                  onClose={() => setShowExport(false)}
-                  onDownloadCurrent={handleDownloadCurrent}
-                  onDownloadAll={handleDownloadAll}
-                  onOpenAdvanced={() => setExportDialogOpen(true)}
+              <ThumbnailRow>
+                <BatchThumbnailStrip
+                  images={batchImages}
+                  currentIndex={currentImageIndex}
+                  onSelect={setCurrentImageIndex}
+                  onAddMore={handleBrowseClick}
+                  onOpenCloudManager={handleOpenCloudManager}
                 />
-              )}
+              </ThumbnailRow>
+              <UnifiedBottomBar
+                currentImage={currentImage}
+                totalImages={batchImages.length}
+                onDownloadCurrent={handleDownloadCurrent}
+                onDownloadAll={handleDownloadAll}
+              />
             </StripWrapper>
           )}
         </CanvasArea>
@@ -708,14 +753,14 @@ const DesignEditorView = ({ projectId, initialImages }: DesignEditorViewProps) =
         getBatchFile={getBatchFile}
       />
 
-      {/* Advanced Export Dialog */}
-      <ExportDialog
-        open={exportDialogOpen}
-        onClose={() => setExportDialogOpen(false)}
-        currentImage={currentImage}
-        batchImages={batchImages}
-        onDownloadCurrent={handleDownloadCurrent}
-        onDownloadAll={handleDownloadAll}
+      {/* Preparing Download Modal */}
+      <PreparingDownloadModal
+        open={exportState.isCompressing}
+        onCancel={exportState.cancel}
+        compressionLevel={exportCompressionLevel}
+        progress={exportState.progress}
+        currentImage={exportState.currentImageIndex}
+        totalImages={exportState.totalImages}
       />
 
       {/* Delete from server confirmation */}

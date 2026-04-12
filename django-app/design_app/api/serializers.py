@@ -27,7 +27,7 @@ class DesignGenerationRunSerializer(serializers.ModelSerializer):
         model = DesignGenerationRun
         fields = [
             'id', 'idea', 'model_name', 'generation_mode', 'status', 'triggered_by',
-            'prompt_used', 'source_image_url',
+            'prompt_used', 'source_image_url', 'source_image_url_2',
             'created_at', 'completed_at', 'error_message',
             'reference_used',
         ]
@@ -118,6 +118,26 @@ class DesignBoardSerializer(serializers.Serializer):
 ASPECT_RATIO_CHOICES = ['1:1', '4:3', '3:4', '16:9', '9:16', '3:2', '2:3']
 
 
+def _validate_mode_image_urls(mode: str, source_url: str, source_url_2: str):
+    """Shared validation: image URLs required per generation mode."""
+    _IMAGE_MODES = {
+        DesignGenerationRun.Mode.IMAGE_TO_IMAGE,
+        DesignGenerationRun.Mode.IMAGE_TO_IMAGE_EDIT,
+    }
+    if mode in _IMAGE_MODES and not source_url:
+        raise serializers.ValidationError(
+            {'source_image_url': f'Required when mode is {mode}.'},
+        )
+    if mode == DesignGenerationRun.Mode.REMIX:
+        errors = {}
+        if not source_url:
+            errors['source_image_url'] = 'Required when mode is remix.'
+        if not source_url_2:
+            errors['source_image_url_2'] = 'Required when mode is remix.'
+        if errors:
+            raise serializers.ValidationError(errors)
+
+
 class GenerateDesignSerializer(serializers.Serializer):
     """Trigger design generation (idea-scoped, optional project link)."""
 
@@ -142,14 +162,16 @@ class GenerateDesignSerializer(serializers.Serializer):
         required=False, allow_blank=True, default='',
         max_length=2048,
     )
+    source_image_url_2 = serializers.URLField(
+        required=False, allow_blank=True, default='',
+        max_length=2048,
+    )
 
     def validate(self, attrs):
         mode = attrs.get('mode', DesignGenerationRun.Mode.TEXT_TO_IMAGE)
         source_url = attrs.get('source_image_url', '')
-        if mode == DesignGenerationRun.Mode.IMAGE_TO_IMAGE and not source_url:
-            raise serializers.ValidationError(
-                {'source_image_url': 'Required when mode is image_to_image.'},
-            )
+        source_url_2 = attrs.get('source_image_url_2', '')
+        _validate_mode_image_urls(mode, source_url, source_url_2)
         return attrs
 
 
@@ -400,14 +422,16 @@ class StandaloneGenerateSerializer(serializers.Serializer):
         required=False, allow_blank=True, default='',
         max_length=2048,
     )
+    source_image_url_2 = serializers.URLField(
+        required=False, allow_blank=True, default='',
+        max_length=2048,
+    )
 
     def validate(self, attrs):
         mode = attrs.get('mode', DesignGenerationRun.Mode.TEXT_TO_IMAGE)
         source_url = attrs.get('source_image_url', '')
-        if mode == DesignGenerationRun.Mode.IMAGE_TO_IMAGE and not source_url:
-            raise serializers.ValidationError(
-                {'source_image_url': 'Required when mode is image_to_image.'},
-            )
+        source_url_2 = attrs.get('source_image_url_2', '')
+        _validate_mode_image_urls(mode, source_url, source_url_2)
         return attrs
 
 
@@ -577,14 +601,16 @@ class GenerateFromPromptSerializer(serializers.Serializer):
         required=False, allow_blank=True, default='',
         max_length=2048,
     )
+    source_image_url_2 = serializers.URLField(
+        required=False, allow_blank=True, default='',
+        max_length=2048,
+    )
 
     def validate(self, attrs):
         mode = attrs.get('mode', DesignGenerationRun.Mode.TEXT_TO_IMAGE)
         source_url = attrs.get('source_image_url', '')
-        if mode == DesignGenerationRun.Mode.IMAGE_TO_IMAGE and not source_url:
-            raise serializers.ValidationError(
-                {'source_image_url': 'Required when mode is image_to_image.'},
-            )
+        source_url_2 = attrs.get('source_image_url_2', '')
+        _validate_mode_image_urls(mode, source_url, source_url_2)
         return attrs
 
 

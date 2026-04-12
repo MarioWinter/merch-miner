@@ -321,6 +321,138 @@ class TestGenerateImage:
         assert content[1]['type'] == 'image_url'
 
 
+class TestBuildContent:
+    """Tests for _build_content helper — verifies content arrays per mode."""
+
+    def test_text_to_image_no_image(self):
+        from design_app.services.image_generator import _build_content
+        result = _build_content('text_to_image', 'A cool design')
+        assert result == 'A cool design'
+
+    def test_text_to_image_with_optional_reference(self):
+        from design_app.services.image_generator import _build_content
+        result = _build_content(
+            'text_to_image', 'A cool design',
+            source_image_url='https://example.com/ref.jpg',
+        )
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0]['type'] == 'text'
+        assert result[0]['text'] == 'A cool design'
+        assert result[1]['type'] == 'image_url'
+
+    def test_image_to_image_prompt_dominates(self):
+        from design_app.services.image_generator import _build_content
+        result = _build_content(
+            'image_to_image', 'Make a cat design',
+            source_image_url='https://example.com/ref.jpg',
+        )
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0]['type'] == 'image_url'
+        assert result[0]['image_url']['url'] == 'https://example.com/ref.jpg'
+        assert result[1]['type'] == 'text'
+        assert 'style and mood guide' in result[1]['text']
+        assert 'follow the prompt for content' in result[1]['text']
+        assert 'Make a cat design' in result[1]['text']
+
+    def test_image_to_image_edit_image_dominates(self):
+        from design_app.services.image_generator import _build_content
+        result = _build_content(
+            'image_to_image_edit', 'Change the color to blue',
+            source_image_url='https://example.com/ref.jpg',
+        )
+        assert isinstance(result, list)
+        assert len(result) == 2
+        assert result[0]['type'] == 'image_url'
+        assert result[1]['type'] == 'text'
+        assert 'Stay very close' in result[1]['text']
+        assert 'minor modifications' in result[1]['text']
+        assert 'Change the color to blue' in result[1]['text']
+
+    def test_remix_two_images_plus_prompt(self):
+        from design_app.services.image_generator import _build_content
+        result = _build_content(
+            'remix', 'Blend these styles',
+            source_image_url='https://example.com/a.jpg',
+            source_image_url_2='https://example.com/b.jpg',
+        )
+        assert isinstance(result, list)
+        assert len(result) == 3
+        assert result[0]['type'] == 'image_url'
+        assert result[0]['image_url']['url'] == 'https://example.com/a.jpg'
+        assert result[1]['type'] == 'image_url'
+        assert result[1]['image_url']['url'] == 'https://example.com/b.jpg'
+        assert result[2]['type'] == 'text'
+        assert 'both reference images' in result[2]['text']
+        assert 'Blend these styles' in result[2]['text']
+
+
+class TestGenerateImageModeValidation:
+    """Tests for generate_image() validation across all 4 modes."""
+
+    def _patch_settings(self):
+        return patch(
+            'design_app.services.image_generator.settings',
+            OPENROUTER_API_KEY='test-key',
+            OPENROUTER_BASE_URL='https://openrouter.ai/api/v1',
+        )
+
+    def test_image_to_image_edit_missing_url_raises(self):
+        from design_app.services.image_generator import generate_image
+        with self._patch_settings():
+            with pytest.raises(ValueError, match='source_image_url required'):
+                generate_image(
+                    prompt='Edit this slightly',
+                    model_name='gemini_flash',
+                    mode='image_to_image_edit',
+                )
+
+    def test_image_to_image_edit_non_multimodal_raises(self):
+        from design_app.services.image_generator import generate_image
+        with self._patch_settings():
+            with pytest.raises(ValueError, match='does not support image input'):
+                generate_image(
+                    prompt='Edit this slightly',
+                    model_name='flux',
+                    mode='image_to_image_edit',
+                    source_image_url='https://example.com/ref.jpg',
+                )
+
+    def test_remix_missing_url_raises(self):
+        from design_app.services.image_generator import generate_image
+        with self._patch_settings():
+            with pytest.raises(ValueError, match='source_image_url required'):
+                generate_image(
+                    prompt='Mix these',
+                    model_name='gemini_flash',
+                    mode='remix',
+                )
+
+    def test_remix_missing_url_2_raises(self):
+        from design_app.services.image_generator import generate_image
+        with self._patch_settings():
+            with pytest.raises(ValueError, match='source_image_url_2 required'):
+                generate_image(
+                    prompt='Mix these',
+                    model_name='gemini_flash',
+                    mode='remix',
+                    source_image_url='https://example.com/a.jpg',
+                )
+
+    def test_remix_non_multimodal_raises(self):
+        from design_app.services.image_generator import generate_image
+        with self._patch_settings():
+            with pytest.raises(ValueError, match='does not support image input'):
+                generate_image(
+                    prompt='Mix these',
+                    model_name='flux',
+                    mode='remix',
+                    source_image_url='https://example.com/a.jpg',
+                    source_image_url_2='https://example.com/b.jpg',
+                )
+
+
 class TestBgRemoverService:
     """Tests for design_app.services.bg_remover."""
 

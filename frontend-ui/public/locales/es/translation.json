@@ -1044,8 +1044,7 @@
         "colorDefringe": "Reemplazar franja de borde con el color de diseno mas cercano",
         "edgeCleaner": "Suavizar bordes dentados con anti-aliasing",
         "bgRemove": "Eliminacion de fondo con IA (lado servidor)",
-        "aiUpscale": "Aumentar la resolucion de imagen con IA",
-        "compressor": "Reducir tamano de archivo por debajo del objetivo"
+        "aiUpscale": "Aumentar la resolucion de imagen con IA"
       },
       "resize": "Redimensionar",
       "trim": "Recortar",
@@ -1103,7 +1102,6 @@
       "edgeCleaner": "Limpiador de bordes",
       "bgRemove": "Eliminar fondo",
       "aiUpscale": "Escalado IA",
-      "compressor": "Compresor",
       "move": "Mover",
       "eraser": "Borrador",
       "wand": "Varita magica",
@@ -1243,15 +1241,6 @@
         "magenta": "Magenta",
         "showOpaque": "Mostrar opacos"
       },
-      "compressorParams": {
-        "maxSize": "Tamano maximo (KB)",
-        "maxSizeHint": "Tamano maximo objetivo en kilobytes",
-        "quality": "Calidad",
-        "format": "Formato",
-        "png": "PNG",
-        "webp": "WebP",
-        "estimatedSize": "Estimado"
-      },
       "eraserParams": {
         "size": "Tamano del pincel",
         "hardness": "Dureza"
@@ -1291,7 +1280,20 @@
       "downloadZip": "Descargar todo (ZIP)",
       "creatingZip": "Creando ZIP...",
       "totalSize": "Total estimado: {{size}}",
-      "imageCount": "{{count}} imagenes"
+      "imageCount": "{{count}} imagenes",
+      "compressionLevel": "Compresión",
+      "compressionOff": "Desactivada",
+      "compressionLow": "Baja",
+      "compressionMedium": "Media",
+      "compressionHigh": "Alta",
+      "compressionVeryHigh": "Muy alta",
+      "preparingDownload": "Preparando descarga",
+      "processingImage": "Procesando tu imagen...",
+      "processingImages": "Procesando {{current}} de {{total}}...",
+      "cancel": "Cancelar",
+      "fileSize": "Tamano",
+      "estimatedSize": "Aprox. {{size}}",
+      "closeExport": "Cerrar exportacion"
     },
     "contextMenu": {
       "addAiBoard": "Agregar tablero IA",

@@ -1026,3 +1026,234 @@ class TestImageToImageGeneration:
             format='json',
         )
         assert resp.status_code == 400
+
+
+class TestGenerationModesSerialization:
+    """Tests for all 4 generation modes: serializer + view validation."""
+
+    # -- Serializer validation --
+
+    def test_image_to_image_requires_source_url(self):
+        from design_app.api.serializers import GenerateDesignSerializer
+        s = GenerateDesignSerializer(data={
+            'model': 'gemini_flash',
+            'prompt': 'A beautiful coffee cup design',
+            'mode': 'image_to_image',
+        })
+        assert not s.is_valid()
+        assert 'source_image_url' in s.errors
+
+    def test_image_to_image_edit_requires_source_url(self):
+        from design_app.api.serializers import GenerateDesignSerializer
+        s = GenerateDesignSerializer(data={
+            'model': 'gemini_flash',
+            'prompt': 'Change background to blue please',
+            'mode': 'image_to_image_edit',
+        })
+        assert not s.is_valid()
+        assert 'source_image_url' in s.errors
+
+    def test_remix_requires_both_urls(self):
+        from design_app.api.serializers import GenerateDesignSerializer
+        s = GenerateDesignSerializer(data={
+            'model': 'gemini_flash',
+            'prompt': 'Mix these two designs together',
+            'mode': 'remix',
+        })
+        assert not s.is_valid()
+        assert 'source_image_url' in s.errors
+        assert 'source_image_url_2' in s.errors
+
+    def test_remix_requires_url_2(self):
+        from design_app.api.serializers import GenerateDesignSerializer
+        s = GenerateDesignSerializer(data={
+            'model': 'gemini_flash',
+            'prompt': 'Mix these two designs together',
+            'mode': 'remix',
+            'source_image_url': 'https://example.com/a.jpg',
+        })
+        assert not s.is_valid()
+        assert 'source_image_url_2' in s.errors
+
+    def test_remix_valid_with_both_urls(self):
+        from design_app.api.serializers import GenerateDesignSerializer
+        s = GenerateDesignSerializer(data={
+            'model': 'gemini_flash',
+            'prompt': 'Mix these two designs together',
+            'mode': 'remix',
+            'source_image_url': 'https://example.com/a.jpg',
+            'source_image_url_2': 'https://example.com/b.jpg',
+        })
+        assert s.is_valid(), s.errors
+
+    def test_text_to_image_valid_without_urls(self):
+        from design_app.api.serializers import GenerateDesignSerializer
+        s = GenerateDesignSerializer(data={
+            'model': 'gemini_flash',
+            'prompt': 'A beautiful sunset design for t-shirt',
+            'mode': 'text_to_image',
+        })
+        assert s.is_valid(), s.errors
+
+    def test_image_to_image_edit_valid(self):
+        from design_app.api.serializers import GenerateDesignSerializer
+        s = GenerateDesignSerializer(data={
+            'model': 'gemini_flash',
+            'prompt': 'Change the background to blue',
+            'mode': 'image_to_image_edit',
+            'source_image_url': 'https://example.com/ref.jpg',
+        })
+        assert s.is_valid(), s.errors
+
+    # -- Standalone serializer --
+
+    def test_standalone_remix_requires_both_urls(self):
+        from design_app.api.serializers import StandaloneGenerateSerializer
+        s = StandaloneGenerateSerializer(data={
+            'model': 'gemini_flash',
+            'prompt': 'Mix these two designs together',
+            'mode': 'remix',
+            'source_image_url': 'https://example.com/a.jpg',
+        })
+        assert not s.is_valid()
+        assert 'source_image_url_2' in s.errors
+
+    def test_standalone_remix_valid(self):
+        from design_app.api.serializers import StandaloneGenerateSerializer
+        s = StandaloneGenerateSerializer(data={
+            'model': 'gemini_flash',
+            'prompt': 'Mix these two designs together',
+            'mode': 'remix',
+            'source_image_url': 'https://example.com/a.jpg',
+            'source_image_url_2': 'https://example.com/b.jpg',
+        })
+        assert s.is_valid(), s.errors
+
+    # -- GenerateFromPrompt serializer --
+
+    def test_prompt_serializer_remix_requires_both(self):
+        from design_app.api.serializers import GenerateFromPromptSerializer
+        s = GenerateFromPromptSerializer(data={
+            'model': 'gemini_flash',
+            'mode': 'remix',
+            'source_image_url': 'https://example.com/a.jpg',
+        })
+        assert not s.is_valid()
+        assert 'source_image_url_2' in s.errors
+
+    def test_prompt_serializer_edit_valid(self):
+        from design_app.api.serializers import GenerateFromPromptSerializer
+        s = GenerateFromPromptSerializer(data={
+            'model': 'gemini_flash',
+            'mode': 'image_to_image_edit',
+            'source_image_url': 'https://example.com/ref.jpg',
+        })
+        assert s.is_valid(), s.errors
+
+    # -- View integration tests --
+
+    @patch('design_app.api.views.django_rq')
+    def test_edit_mode_idea_endpoint(self, mock_rq, auth_client, idea):
+        mock_queue = MagicMock()
+        mock_job = MagicMock()
+        mock_job.id = 'test-job-id'
+        mock_queue.enqueue.return_value = mock_job
+        mock_rq.get_queue.return_value = mock_queue
+
+        resp = auth_client.post(
+            f'/api/ideas/{idea.id}/designs/generate/',
+            {
+                'model': 'gemini_flash',
+                'prompt': 'Change the font to bold serif style',
+                'mode': 'image_to_image_edit',
+                'source_image_url': 'https://example.com/ref.png',
+            },
+            format='json',
+        )
+        assert resp.status_code == 202
+        assert resp.data['generation_mode'] == 'image_to_image_edit'
+
+    @patch('design_app.api.views.django_rq')
+    def test_remix_mode_idea_endpoint(self, mock_rq, auth_client, idea):
+        mock_queue = MagicMock()
+        mock_job = MagicMock()
+        mock_job.id = 'test-job-id'
+        mock_queue.enqueue.return_value = mock_job
+        mock_rq.get_queue.return_value = mock_queue
+
+        resp = auth_client.post(
+            f'/api/ideas/{idea.id}/designs/generate/',
+            {
+                'model': 'gemini_flash',
+                'prompt': 'Blend both reference designs into something new',
+                'mode': 'remix',
+                'source_image_url': 'https://example.com/a.png',
+                'source_image_url_2': 'https://example.com/b.png',
+            },
+            format='json',
+        )
+        assert resp.status_code == 202
+        assert resp.data['generation_mode'] == 'remix'
+        assert resp.data['source_image_url_2'] == 'https://example.com/b.png'
+
+    def test_remix_non_multimodal_returns_400(self, auth_client, idea):
+        resp = auth_client.post(
+            f'/api/ideas/{idea.id}/designs/generate/',
+            {
+                'model': 'black-forest-labs/flux-1.1-pro',
+                'prompt': 'Blend both reference designs into something new',
+                'mode': 'remix',
+                'source_image_url': 'https://example.com/a.png',
+                'source_image_url_2': 'https://example.com/b.png',
+            },
+            format='json',
+        )
+        assert resp.status_code == 400
+
+    def test_edit_non_multimodal_returns_400(self, auth_client, idea):
+        resp = auth_client.post(
+            f'/api/ideas/{idea.id}/designs/generate/',
+            {
+                'model': 'black-forest-labs/flux-1.1-pro',
+                'prompt': 'Change the background to blue please',
+                'mode': 'image_to_image_edit',
+                'source_image_url': 'https://example.com/ref.png',
+            },
+            format='json',
+        )
+        assert resp.status_code == 400
+
+    @patch('design_app.api.views.django_rq')
+    def test_remix_mode_standalone_endpoint(self, mock_rq, auth_client):
+        mock_queue = MagicMock()
+        mock_job = MagicMock()
+        mock_job.id = 'test-job-id'
+        mock_queue.enqueue.return_value = mock_job
+        mock_rq.get_queue.return_value = mock_queue
+
+        resp = auth_client.post(
+            '/api/designs/generate/',
+            {
+                'model': 'gemini_flash',
+                'prompt': 'Mix these two awesome reference designs',
+                'mode': 'remix',
+                'source_image_url': 'https://example.com/a.png',
+                'source_image_url_2': 'https://example.com/b.png',
+            },
+            format='json',
+        )
+        assert resp.status_code == 202
+        assert resp.data['generation_mode'] == 'remix'
+
+    def test_remix_standalone_missing_url_2(self, auth_client):
+        resp = auth_client.post(
+            '/api/designs/generate/',
+            {
+                'model': 'gemini_flash',
+                'prompt': 'Mix these two awesome reference designs',
+                'mode': 'remix',
+                'source_image_url': 'https://example.com/a.png',
+            },
+            format='json',
+        )
+        assert resp.status_code == 400

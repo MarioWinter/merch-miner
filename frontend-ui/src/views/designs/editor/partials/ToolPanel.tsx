@@ -45,7 +45,6 @@ import { ShrinkToolParams } from './toolParams/ShrinkToolParams';
 import { DefringeToolParams } from './toolParams/DefringeToolParams';
 import { EdgeCleanerToolParams } from './toolParams/EdgeCleanerToolParams';
 import { ColorDefringeToolParams } from './toolParams/ColorDefringeToolParams';
-import { CompressorToolParams } from './toolParams/CompressorToolParams';
 import { BgRemoveToolParams } from './toolParams/BgRemoveToolParams';
 import { UpscaleToolParams } from './toolParams/UpscaleToolParams';
 import { PipelinePresetDropdown } from './PipelinePresetDropdown';
@@ -260,12 +259,6 @@ const SortableToolCard = ({
               />
             ) : tool.name === 'color_defringe' ? (
               <ColorDefringeToolParams
-                params={tool.params}
-                onChange={(p) => onUpdateParams(tool.id, p)}
-                disabled={!tool.enabled}
-              />
-            ) : tool.name === 'compressor' ? (
-              <CompressorToolParams
                 params={tool.params}
                 onChange={(p) => onUpdateParams(tool.id, p)}
                 disabled={!tool.enabled}

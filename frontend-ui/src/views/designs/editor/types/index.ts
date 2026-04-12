@@ -4,7 +4,7 @@
 
 // --- Pipeline Tool Definitions ---
 
-export type ToolCategory = 'standard' | 'edge' | 'ai' | 'quality';
+export type ToolCategory = 'standard' | 'edge' | 'ai';
 
 export type ToolName =
   // Standard
@@ -24,9 +24,7 @@ export type ToolName =
   | 'edge_cleaner'
   // AI Processing
   | 'bg_remove'
-  | 'ai_upscale'
-  // Quality
-  | 'compressor';
+  | 'ai_upscale';
 
 export interface ToolDefinition {
   name: ToolName;
@@ -118,11 +116,12 @@ export interface CanvasToolState {
 
 export type ExportFormat = 'png' | 'jpeg' | 'webp';
 
+export type CompressionLevel = 'off' | 'low' | 'medium' | 'high' | 'very_high';
+
 export interface ExportSettings {
   format: ExportFormat;
   dpi: number;
-  /** For PNG: compression level (0-100). For JPEG/WebP: quality (0-100). */
-  compression: number;
+  compression: CompressionLevel;
   overwriteOriginal: boolean;
 }
 
@@ -147,13 +146,10 @@ export const TOOL_CATALOG: ToolDefinition[] = [
   // AI Processing
   { name: 'bg_remove', category: 'ai', labelKey: 'design.tools.bgRemove', iconName: 'ContentCut' },
   { name: 'ai_upscale', category: 'ai', labelKey: 'design.tools.aiUpscale', iconName: 'ZoomIn' },
-  // Quality
-  { name: 'compressor', category: 'quality', labelKey: 'design.tools.compressor', iconName: 'Compress' },
 ];
 
 export const TOOL_CATEGORIES: Array<{ key: ToolCategory; labelKey: string }> = [
   { key: 'standard', labelKey: 'design.pipeline.categories.standard' },
   { key: 'edge', labelKey: 'design.pipeline.categories.edge' },
   { key: 'ai', labelKey: 'design.pipeline.categories.ai' },
-  { key: 'quality', labelKey: 'design.pipeline.categories.quality' },
 ];

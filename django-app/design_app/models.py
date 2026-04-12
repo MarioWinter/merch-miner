@@ -114,8 +114,9 @@ class DesignGenerationRun(models.Model):
 
     class Mode(models.TextChoices):
         TEXT_TO_IMAGE = 'text_to_image', 'Text to Image'
-        IMAGE_TO_IMAGE_REMIX = 'image_to_image_remix', 'Image to Image (Remix)'
+        IMAGE_TO_IMAGE = 'image_to_image', 'Image to Image'
         IMAGE_TO_IMAGE_EDIT = 'image_to_image_edit', 'Image to Image (Edit)'
+        REMIX = 'remix', 'Remix'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     idea = models.ForeignKey(
@@ -156,6 +157,12 @@ class DesignGenerationRun(models.Model):
         default='',
         max_length=2048,
         help_text='Reference image URL for multimodal generation',
+    )
+    source_image_url_2 = models.URLField(
+        blank=True,
+        default='',
+        max_length=2048,
+        help_text='Second reference image URL for remix mode',
     )
     generation_mode = models.CharField(
         max_length=20,

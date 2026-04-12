@@ -30,8 +30,8 @@ vi.mock('../partials/BatchThumbnailStrip', () => ({
   BatchThumbnailStrip: () => <div data-testid="batch-strip">BatchThumbnailStrip</div>,
 }));
 
-vi.mock('../partials/ExportControls', () => ({
-  ExportControls: () => <div data-testid="export-controls">ExportControls</div>,
+vi.mock('../partials/UnifiedBottomBar', () => ({
+  UnifiedBottomBar: () => <div data-testid="unified-bottom-bar">UnifiedBottomBar</div>,
 }));
 
 vi.mock('../partials/ExportDialog', () => ({

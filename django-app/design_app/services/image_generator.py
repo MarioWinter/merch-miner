@@ -68,12 +68,73 @@ MULTIMODAL_MODELS = {
 }
 
 
+def _build_content(
+    mode: str,
+    prompt: str,
+    source_image_url: str = '',
+    source_image_url_2: str = '',
+):
+    """Build OpenRouter message content array based on generation mode.
+
+    Returns plain string for text_to_image (no image), or a multimodal
+    content list for image-based modes.
+    """
+    if mode == 'image_to_image':
+        # Prompt dominates — image is style/mood guide
+        text = (
+            "Use the reference image as a style and mood guide, but follow "
+            "the prompt for content. Generate a new design based on this "
+            "prompt:\n\n"
+            f"{prompt}"
+        )
+        return [
+            {'type': 'image_url', 'image_url': {'url': source_image_url}},
+            {'type': 'text', 'text': text},
+        ]
+
+    if mode == 'image_to_image_edit':
+        # Image dominates — prompt only tweaks
+        text = (
+            "Stay very close to the reference image. Only apply the "
+            "following minor modifications:\n\n"
+            f"{prompt}"
+        )
+        return [
+            {'type': 'image_url', 'image_url': {'url': source_image_url}},
+            {'type': 'text', 'text': text},
+        ]
+
+    if mode == 'remix':
+        # Mix both images + prompt
+        text = (
+            "Create a new design inspired by both reference images. "
+            "Blend the styles, elements, and mood from both images while "
+            "following this prompt:\n\n"
+            f"{prompt}"
+        )
+        return [
+            {'type': 'image_url', 'image_url': {'url': source_image_url}},
+            {'type': 'image_url', 'image_url': {'url': source_image_url_2}},
+            {'type': 'text', 'text': text},
+        ]
+
+    # text_to_image — may have optional reference image
+    if source_image_url:
+        return [
+            {'type': 'text', 'text': prompt},
+            {'type': 'image_url', 'image_url': {'url': source_image_url}},
+        ]
+
+    return prompt
+
+
 def generate_image(
     prompt: str,
     model_name: str,
     output_dir: str = None,
     aspect_ratio: str = '1:1',
     source_image_url: str = '',
+    source_image_url_2: str = '',
     mode: str = 'text_to_image',
 ) -> str:
     """Generate an image via OpenRouter and save to disk.
@@ -83,17 +144,17 @@ def generate_image(
         model_name: Model choice value (legacy short name or full OpenRouter ID)
         output_dir: Directory to save output. Defaults to tempdir.
         aspect_ratio: Aspect ratio string like '1:1', '16:9', etc.
-        source_image_url: Optional reference image URL for multimodal generation.
-            When provided, model must be in MULTIMODAL_MODELS.
-        mode: 'text_to_image' or 'image_to_image'. In image_to_image mode the
-            reference image is weighted more heavily in the prompt.
+        source_image_url: Reference image URL for multimodal generation.
+        source_image_url_2: Second reference image URL for remix mode.
+        mode: Generation mode — text_to_image, image_to_image,
+            image_to_image_edit, or remix.
 
     Returns:
         Path to saved image file.
 
     Raises:
         ValueError: If API key missing, model unknown, non-multimodal model
-            with image_to_image mode, or missing source_image_url
+            with image mode, or missing required image URLs
         httpx.HTTPStatusError: On API error
     """
     api_key = settings.OPENROUTER_API_KEY
@@ -106,19 +167,22 @@ def generate_image(
     if not model_id:
         raise ValueError(f"Unknown model: {model_name}")
 
-    is_i2i = mode == 'image_to_image'
+    _IMAGE_MODES = {'image_to_image', 'image_to_image_edit', 'remix'}
+    needs_image = mode in _IMAGE_MODES
 
-    # Validate image_to_image requirements
-    if is_i2i and not source_image_url:
-        raise ValueError("source_image_url required for image_to_image mode")
-    if is_i2i and model_name not in MULTIMODAL_MODELS:
+    # Validate image requirements per mode
+    if needs_image and not source_image_url:
+        raise ValueError(f"source_image_url required for {mode} mode")
+    if needs_image and model_name not in MULTIMODAL_MODELS:
         raise ValueError(
             "Model does not support image input. "
-            "Select a multimodal model for image-to-image generation."
+            "Select a multimodal model for image-based generation."
         )
+    if mode == 'remix' and not source_image_url_2:
+        raise ValueError("source_image_url_2 required for remix mode")
 
     # Validate multimodal support for text_to_image with optional reference
-    if source_image_url and model_name not in MULTIMODAL_MODELS:
+    if source_image_url and not needs_image and model_name not in MULTIMODAL_MODELS:
         raise ValueError("Model does not support image input")
 
     width, height = ASPECT_RATIO_DIMS.get(aspect_ratio, (1024, 1024))
@@ -130,28 +194,8 @@ def generate_image(
         'X-Title': 'Merch Miner Design Generator',
     }
 
-    # Build message content — multimodal array or plain text
-    if source_image_url:
-        if is_i2i:
-            # Image-to-image: reference image is primary, text guides the remix
-            i2i_prompt = (
-                "Create a new design inspired by the attached reference image. "
-                "Closely follow the visual style, composition, and mood of the "
-                "reference image. Apply the following modifications:\n\n"
-                f"{prompt}"
-            )
-            content = [
-                {'type': 'image_url', 'image_url': {'url': source_image_url}},
-                {'type': 'text', 'text': i2i_prompt},
-            ]
-        else:
-            # Text-to-image with optional reference: text is primary
-            content = [
-                {'type': 'text', 'text': prompt},
-                {'type': 'image_url', 'image_url': {'url': source_image_url}},
-            ]
-    else:
-        content = prompt
+    # Build message content based on mode
+    content = _build_content(mode, prompt, source_image_url, source_image_url_2)
 
     payload = {
         'model': model_id,

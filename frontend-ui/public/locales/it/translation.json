@@ -1044,8 +1044,7 @@
         "colorDefringe": "Sostituire la frangia dei bordi con il colore di design piu vicino",
         "edgeCleaner": "Levigare bordi frastagliati con anti-aliasing",
         "bgRemove": "Rimozione sfondo con IA (lato server)",
-        "aiUpscale": "Aumentare la risoluzione dell'immagine con IA",
-        "compressor": "Ridurre la dimensione del file sotto l'obiettivo"
+        "aiUpscale": "Aumentare la risoluzione dell'immagine con IA"
       },
       "resize": "Ridimensiona",
       "trim": "Ritaglia",
@@ -1103,7 +1102,6 @@
       "edgeCleaner": "Pulitore bordi",
       "bgRemove": "Rimuovi sfondo",
       "aiUpscale": "Upscale IA",
-      "compressor": "Compressore",
       "move": "Sposta",
       "eraser": "Gomma",
       "wand": "Bacchetta magica",
@@ -1243,15 +1241,6 @@
         "magenta": "Magenta",
         "showOpaque": "Mostra opaco"
       },
-      "compressorParams": {
-        "maxSize": "Dim. massima (KB)",
-        "maxSizeHint": "Dimensione massima del file in kilobyte",
-        "quality": "Qualita",
-        "format": "Formato",
-        "png": "PNG",
-        "webp": "WebP",
-        "estimatedSize": "Stimata"
-      },
       "eraserParams": {
         "size": "Dimensione pennello",
         "hardness": "Durezza"
@@ -1291,7 +1280,19 @@
       "downloadZip": "Scarica tutto (ZIP)",
       "creatingZip": "Creazione ZIP...",
       "totalSize": "Totale stimato: {{size}}",
-      "imageCount": "{{count}} immagini"
+      "imageCount": "{{count}} immagini",
+      "compressionLevel": "Compressione",
+      "compressionOff": "Disattivata",
+      "compressionLow": "Bassa",
+      "compressionMedium": "Media",
+      "compressionHigh": "Alta",
+      "compressionVeryHigh": "Molto alta",
+      "preparingDownload": "Preparazione download",
+      "processingImage": "Elaborazione immagine...",
+      "processingImages": "Elaborazione {{current}} di {{total}}...",
+      "cancel": "Annulla",
+      "fileSize": "Dimensione",
+      "estimatedSize": "Circa {{size}}"
     },
     "contextMenu": {
       "addAiBoard": "Aggiungi tavola IA",

@@ -122,7 +122,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   standard: COLORS.cyan,
   edge: COLORS.warningDk,
   ai: COLORS.red,
-  quality: COLORS.successDk,
 };
 
 const camelCase = (s: string): string =>

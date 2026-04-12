@@ -14,7 +14,6 @@ import PaletteOutlined from '@mui/icons-material/PaletteOutlined';
 import BlurLinearOutlined from '@mui/icons-material/BlurLinearOutlined';
 import WallpaperOutlined from '@mui/icons-material/WallpaperOutlined';
 import ZoomOutMapOutlined from '@mui/icons-material/ZoomOutMapOutlined';
-import FolderZipOutlined from '@mui/icons-material/FolderZipOutlined';
 import type { ToolName } from '../types';
 
 export const TOOL_ICON_MAP: Record<ToolName, SvgIconComponent> = {
@@ -33,5 +32,4 @@ export const TOOL_ICON_MAP: Record<ToolName, SvgIconComponent> = {
   edge_cleaner: BlurLinearOutlined,
   bg_remove: WallpaperOutlined,
   ai_upscale: ZoomOutMapOutlined,
-  compressor: FolderZipOutlined,
 };

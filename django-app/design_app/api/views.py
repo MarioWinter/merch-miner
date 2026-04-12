@@ -282,14 +282,20 @@ class GenerateDesignView(APIView):
 
         mode = serializer.validated_data.get('mode', DesignGenerationRun.Mode.TEXT_TO_IMAGE)
         source_image_url = serializer.validated_data.get('source_image_url', '')
+        source_image_url_2 = serializer.validated_data.get('source_image_url_2', '')
 
-        # Validate multimodal support for i2i
-        if mode == DesignGenerationRun.Mode.IMAGE_TO_IMAGE:
+        # Validate multimodal support for image-based modes
+        _IMAGE_MODES = {
+            DesignGenerationRun.Mode.IMAGE_TO_IMAGE,
+            DesignGenerationRun.Mode.IMAGE_TO_IMAGE_EDIT,
+            DesignGenerationRun.Mode.REMIX,
+        }
+        if mode in _IMAGE_MODES:
             from design_app.services.image_generator import MULTIMODAL_MODELS
             if serializer.validated_data['model'] not in MULTIMODAL_MODELS:
                 return Response(
                     {'error': 'Selected model does not support image input. '
-                     'Use a multimodal model for image-to-image generation.'},
+                     'Use a multimodal model for image-based generation.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -302,6 +308,7 @@ class GenerateDesignView(APIView):
             triggered_by=request.user,
             prompt_used=serializer.validated_data['prompt'],
             source_image_url=source_image_url,
+            source_image_url_2=source_image_url_2,
         )
 
         # Resolve optional project_id
@@ -1011,10 +1018,16 @@ class StandaloneGenerateView(APIView):
 
         # Validate multimodal support
         source_image_url = serializer.validated_data.get('source_image_url', '')
+        source_image_url_2 = serializer.validated_data.get('source_image_url_2', '')
         mode = serializer.validated_data.get('mode', DesignGenerationRun.Mode.TEXT_TO_IMAGE)
         model_key = serializer.validated_data['model']
 
-        if source_image_url or mode == DesignGenerationRun.Mode.IMAGE_TO_IMAGE:
+        _IMAGE_MODES = {
+            DesignGenerationRun.Mode.IMAGE_TO_IMAGE,
+            DesignGenerationRun.Mode.IMAGE_TO_IMAGE_EDIT,
+            DesignGenerationRun.Mode.REMIX,
+        }
+        if source_image_url or mode in _IMAGE_MODES:
             from design_app.services.image_generator import MULTIMODAL_MODELS
             if model_key not in MULTIMODAL_MODELS:
                 return Response(
@@ -1032,6 +1045,7 @@ class StandaloneGenerateView(APIView):
             triggered_by=request.user,
             prompt_used=serializer.validated_data['prompt'],
             source_image_url=source_image_url,
+            source_image_url_2=source_image_url_2,
         )
 
         # Enqueue to design worker
@@ -1581,18 +1595,24 @@ class GenerateFromPromptView(APIView):
 
         mode = serializer.validated_data.get('mode', DesignGenerationRun.Mode.TEXT_TO_IMAGE)
         source_image_url = serializer.validated_data.get('source_image_url', '')
+        source_image_url_2 = serializer.validated_data.get('source_image_url_2', '')
 
-        # Use prompt's source_image_url as fallback for i2i
+        # Use prompt's source_image_url as fallback for image modes
         if not source_image_url and prompt.source_image_url:
             source_image_url = prompt.source_image_url
 
-        # Validate multimodal support for i2i
-        if mode == DesignGenerationRun.Mode.IMAGE_TO_IMAGE:
+        # Validate multimodal support for image-based modes
+        _IMAGE_MODES = {
+            DesignGenerationRun.Mode.IMAGE_TO_IMAGE,
+            DesignGenerationRun.Mode.IMAGE_TO_IMAGE_EDIT,
+            DesignGenerationRun.Mode.REMIX,
+        }
+        if mode in _IMAGE_MODES:
             from design_app.services.image_generator import MULTIMODAL_MODELS
             if serializer.validated_data['model'] not in MULTIMODAL_MODELS:
                 return Response(
                     {'error': 'Selected model does not support image input. '
-                     'Use a multimodal model for image-to-image generation.'},
+                     'Use a multimodal model for image-based generation.'},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
@@ -1605,6 +1625,7 @@ class GenerateFromPromptView(APIView):
             triggered_by=request.user,
             prompt_used=prompt.prompt_text,
             source_image_url=source_image_url,
+            source_image_url_2=source_image_url_2,
         )
 
         queue = django_rq.get_queue('design')

@@ -45,6 +45,7 @@ def task_generate_design(
             output_dir=media_dir,
             aspect_ratio=aspect_ratio,
             source_image_url=run.source_image_url or '',
+            source_image_url_2=run.source_image_url_2 or '',
             mode=run.generation_mode or mode,
         )
 

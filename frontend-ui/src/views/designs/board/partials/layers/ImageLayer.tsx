@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Group, Image as KonvaImage, Transformer } from 'react-konva';
+import { Group, Image as KonvaImage, Rect, Text, Transformer } from 'react-konva';
 import type Konva from 'konva';
 import type { CanvasElement, ImageElementProps } from '../../types';
 
@@ -42,9 +42,10 @@ const ImageLayer = ({
   const trRef = useRef<Konva.Transformer>(null);
   const [image, setImage] = useState<HTMLImageElement | null>(null);
 
-  const { src } = element.props as ImageElementProps;
+  const imgProps = element.props as ImageElementProps;
+  const { src } = imgProps;
 
-  // Load image when src changes
+  // Load image when src changes; sync element dimensions to natural aspect ratio
   useEffect(() => {
     if (!src) {
       return;
@@ -56,7 +57,31 @@ const ImageLayer = ({
       img.crossOrigin = 'anonymous';
     }
     img.src = src;
-    img.onload = () => setImage(img);
+    img.onload = () => {
+      setImage(img);
+
+      const nw = img.naturalWidth;
+      const nh = img.naturalHeight;
+      const storedNw = imgProps.naturalWidth;
+      const storedNh = imgProps.naturalHeight;
+
+      // If natural dimensions changed (e.g. after resize in editor), update element
+      if (nw > 0 && nh > 0 && (nw !== storedNw || nh !== storedNh)) {
+        // Fit to current element bounds while preserving new aspect ratio
+        const ratio = nw / nh;
+        let newW = element.width;
+        let newH = element.width / ratio;
+        if (newH > element.height) {
+          newH = element.height;
+          newW = element.height * ratio;
+        }
+        onUpdate(artboardId, element.id, {
+          width: Math.round(newW),
+          height: Math.round(newH),
+          props: { ...imgProps, naturalWidth: nw, naturalHeight: nh },
+        });
+      }
+    };
     img.onerror = () => setImage(null);
 
     return () => {
@@ -64,6 +89,7 @@ const ImageLayer = ({
       img.onerror = null;
       setImage(null);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [src]);
 
   // Attach transformer when selected
@@ -134,6 +160,9 @@ const ImageLayer = ({
     node.scaleY(1);
   }, [artboardId, element.id, element.width, element.height, onUpdate]);
 
+  // Compute effective scale so Transformer handles stay visually consistent
+  const effectiveScale = Math.max(element.scaleX ?? 1, element.scaleY ?? 1, 1);
+
   if (!element.visible) return null;
 
   return (
@@ -164,6 +193,45 @@ const ImageLayer = ({
             height={element.height}
           />
         ) : null}
+
+        {/* Resolution badge (bottom-right) */}
+        {image && (() => {
+          const nw = imgProps.naturalWidth || image.naturalWidth;
+          const nh = imgProps.naturalHeight || image.naturalHeight;
+          if (!nw || !nh) return null;
+          const label = `${nw}\u00D7${nh}`;
+          // Compensate font size for element scale so badge stays ~10px visually
+          const scale = Math.max(element.scaleX ?? 1, element.scaleY ?? 1, 1);
+          const fontSize = 10 / scale;
+          const padX = 4 / scale;
+          const padY = 2 / scale;
+          const badgeW = label.length * fontSize * 0.62 + padX * 2;
+          const badgeH = fontSize + padY * 2;
+          const margin = 4 / scale;
+          return (
+            <Group
+              x={element.width - badgeW - margin}
+              y={element.height - badgeH - margin}
+              listening={false}
+            >
+              <Rect
+                width={badgeW}
+                height={badgeH}
+                fill="rgba(11, 39, 49, 0.85)"
+                cornerRadius={3 / scale}
+              />
+              <Text
+                text={label}
+                x={padX}
+                y={padY}
+                fontSize={fontSize}
+                fontFamily="'JetBrains Mono', monospace"
+                fill="#E8F4F8"
+                listening={false}
+              />
+            </Group>
+          );
+        })()}
       </Group>
 
       {isSelected && (
@@ -185,8 +253,8 @@ const ImageLayer = ({
                   'bottom-center',
                 ]
           }
-          borderStrokeWidth={1.5 / zoom}
-          anchorSize={8 / Math.max(zoom, 0.3)}
+          borderStrokeWidth={1.5 / zoom / effectiveScale}
+          anchorSize={8 / Math.max(zoom, 0.3) / effectiveScale}
           anchorCornerRadius={2}
           boundBoxFunc={(_, newBox) => ({
             ...newBox,

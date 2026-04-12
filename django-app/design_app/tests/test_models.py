@@ -147,6 +147,53 @@ class TestProcessingSettings:
             ProcessingSettings.objects.create(workspace=workspace)
 
 
+class TestGenerationModes:
+    def test_mode_choices(self):
+        choices = dict(DesignGenerationRun.Mode.choices)
+        assert 'text_to_image' in choices
+        assert 'image_to_image' in choices
+        assert 'image_to_image_edit' in choices
+        assert 'remix' in choices
+        assert len(choices) == 4
+
+    def test_create_remix_run(self, idea, user):
+        run = DesignGenerationRun.objects.create(
+            idea=idea,
+            model_name=DesignGenerationRun.ModelName.GEMINI_FLASH,
+            triggered_by=user,
+            prompt_used='Mix these',
+            generation_mode=DesignGenerationRun.Mode.REMIX,
+            source_image_url='https://example.com/a.jpg',
+            source_image_url_2='https://example.com/b.jpg',
+        )
+        run.refresh_from_db()
+        assert run.generation_mode == 'remix'
+        assert run.source_image_url == 'https://example.com/a.jpg'
+        assert run.source_image_url_2 == 'https://example.com/b.jpg'
+
+    def test_create_edit_run(self, idea, user):
+        run = DesignGenerationRun.objects.create(
+            idea=idea,
+            model_name=DesignGenerationRun.ModelName.GEMINI_FLASH,
+            triggered_by=user,
+            prompt_used='Change color',
+            generation_mode=DesignGenerationRun.Mode.IMAGE_TO_IMAGE_EDIT,
+            source_image_url='https://example.com/ref.jpg',
+        )
+        run.refresh_from_db()
+        assert run.generation_mode == 'image_to_image_edit'
+        assert run.source_image_url_2 == ''
+
+    def test_source_image_url_2_defaults_empty(self, idea, user):
+        run = DesignGenerationRun.objects.create(
+            idea=idea,
+            model_name=DesignGenerationRun.ModelName.GEMINI_FLASH,
+            triggered_by=user,
+            prompt_used='Simple text',
+        )
+        assert run.source_image_url_2 == ''
+
+
 class TestDesignPipeline:
     def test_create_pipeline(self, workspace, user):
         pipeline = DesignPipeline.objects.create(

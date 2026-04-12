@@ -2,7 +2,6 @@ import { useRef, useEffect } from 'react';
 import { Box, Tooltip, IconButton, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
-import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import AddIcon from '@mui/icons-material/Add';
 import CloudSyncIcon from '@mui/icons-material/CloudSync';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
@@ -107,16 +106,6 @@ const NavSection = styled(Box)({
   paddingLeft: 8,
 });
 
-const ExportToggle = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  padding: '0 8px',
-  borderLeft: '1px solid',
-  borderColor: theme.vars.palette.divider,
-  flexShrink: 0,
-  height: '100%',
-}));
-
 // -----------------------------------------------------------------
 // Props
 // -----------------------------------------------------------------
@@ -125,8 +114,6 @@ interface BatchThumbnailStripProps {
   images: BatchImage[];
   currentIndex: number;
   onSelect: (index: number) => void;
-  showExportToggle?: boolean;
-  onToggleExport?: () => void;
   /** Callback to open file picker for adding more images */
   onAddMore?: () => void;
   /** Callback to open Cloud Storage Manager dialog */
@@ -141,8 +128,6 @@ export const BatchThumbnailStrip = ({
   images,
   currentIndex,
   onSelect,
-  showExportToggle,
-  onToggleExport,
   onAddMore,
   onOpenCloudManager,
 }: BatchThumbnailStripProps) => {
@@ -234,16 +219,6 @@ export const BatchThumbnailStrip = ({
           </Tooltip>
         )}
       </ThumbnailList>
-
-      {showExportToggle && onToggleExport && (
-        <ExportToggle>
-          <Tooltip title={t('design.export.title')}>
-            <IconButton size="small" onClick={onToggleExport} aria-label={t('design.export.title')}>
-              <FileDownloadIcon sx={{ fontSize: 20 }} />
-            </IconButton>
-          </Tooltip>
-        </ExportToggle>
-      )}
     </StripRoot>
   );
 };

@@ -77,7 +77,7 @@ docker compose exec web python manage.py createsuperuser
 
 Single test: `docker compose exec web pytest path/to/test_file.py::TestClass::test_method`
 
-## PROJ-9 Design Editor — Pipeline Tools (16 Tools)
+## PROJ-9 Design Editor — Pipeline Tools (15 Tools) + Export Compression
 
 ### Standard (9 tools)
 | Tool | Purpose |
@@ -106,13 +106,14 @@ Single test: `docker compose exec web pytest path/to/test_file.py::TestClass::te
 | **BG Remove** | rembg (u2net) server-side background removal. Better than Color Removal for complex backgrounds |
 | **AI Upscale** | Increase resolution. Client: Pica.js (Lanczos) for ≥3000px. External API for smaller |
 
-### Quality (1 tool)
-| Tool | Purpose |
-|------|---------|
-| **Compressor** | Reduce PNG file size below target (e.g. <2MB). Quality slider with live size preview |
+### Export Compression (at download time — NOT a pipeline tool)
+| Control | Detail |
+|---------|--------|
+| **Compression Dropdown** | Off / Low / Medium / High / Very High — UPNG.js PNG quantization (32bit→8bit) in browser |
+| **"Preparing Download" Modal** | Spinner + compression badge + progress bar + cancel button (shown during compression/ZIP) |
 
 ### Typical POD Pipeline Order
-Color Removal → Speckle Remover → Transp. Cleaner → Defringe/Shrink → Trim → Resize & Reposition → Compressor
+Color Removal → Speckle Remover → Transp. Cleaner → Defringe/Shrink → Trim → Resize & Reposition → **Download with Compression**
 
 ## Architecture
 

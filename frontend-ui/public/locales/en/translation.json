@@ -1181,8 +1181,7 @@
         "colorDefringe": "Replace edge fringe with nearest design color",
         "edgeCleaner": "Smooth jagged edges with anti-aliasing",
         "bgRemove": "AI-powered background removal (server-side)",
-        "aiUpscale": "Increase image resolution with AI",
-        "compressor": "Reduce file size below target"
+        "aiUpscale": "Increase image resolution with AI"
       },
       "resize": "Resize & Reposition",
       "resizeParams": {
@@ -1376,16 +1375,6 @@
         "magenta": "Magenta",
         "showOpaque": "Show Opaque"
       },
-      "compressor": "Compressor",
-      "compressorParams": {
-        "maxSize": "Max Size (KB)",
-        "maxSizeHint": "Target maximum file size in kilobytes",
-        "quality": "Quality",
-        "format": "Format",
-        "png": "PNG",
-        "webp": "WebP",
-        "estimatedSize": "Estimated"
-      },
       "move": "Move",
       "eraser": "Eraser",
       "eraserParams": {
@@ -1428,7 +1417,20 @@
       "downloadZip": "Download All (ZIP)",
       "creatingZip": "Creating ZIP...",
       "totalSize": "Estimated total: {{size}}",
-      "imageCount": "{{count}} images"
+      "imageCount": "{{count}} images",
+      "compressionLevel": "Compression",
+      "compressionOff": "Off",
+      "compressionLow": "Low",
+      "compressionMedium": "Medium",
+      "compressionHigh": "High",
+      "compressionVeryHigh": "Very High",
+      "preparingDownload": "Preparing Download",
+      "processingImage": "Processing your image...",
+      "processingImages": "Processing {{current}} of {{total}}...",
+      "cancel": "Cancel",
+      "fileSize": "Size",
+      "estimatedSize": "Est. {{size}}",
+      "closeExport": "Close export"
     },
     "contextMenu": {
       "addAiBoard": "Add AI Image Board",

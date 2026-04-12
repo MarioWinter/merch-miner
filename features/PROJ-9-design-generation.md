@@ -130,9 +130,12 @@ These fields are read when a user opens `/design-board/:ideaId` and are used to 
 #### AI Processing & Export
 24. As a member, I want to choose my AI processing providers (BG Remove, Upscaling) in Settings — self-hosted or external API — so I control cost vs. speed.
 25. As a member, I want smart upscaling that uses client-side Pica.js for large images and AI upscaling only for low-res images, so I don't waste resources.
-26. As a member, I want to compress processed images to <2MB without losing print quality, so uploads to MBA are fast.
-27. As a member, I want to export with configurable format (PNG), DPI (300), and compression level, and download single images or all at once.
-28. As a member, I want to choose between overwriting the original file or creating a new version, so I don't lose my source material.
+26. As a member, I want images compressed at download time (not as a pipeline step), so I don't have to think about compression during editing.
+27. As a member, I want to choose a compression level (Off/Low/Medium/High/Very High) from a dropdown in the bottom bar, so I can balance file size vs. quality.
+28. As a member, I want to always see image resolution and file size in a bottom info bar, so I know what I'm working with at a glance.
+31. As a member, I want to click Download to expand export controls (DPI, compression, format) in the same bottom bar, so I don't need a separate panel.
+29. As a member, I want to see a "Preparing Download" modal with progress bar and compression level badge during download, so I know what's happening.
+30. As a member, I want to choose between overwriting the original file or creating a new version, so I don't lose my source material.
 
 #### Canvas & Positioning
 29. As a member, I want my designs automatically formatted to 4500x5400px at 300 DPI (MBA standard), so they're upload-ready without manual calculation.
@@ -417,8 +420,9 @@ Fixed horizontal bar below canvas. Left side: cursor tool, move tool, shape tool
 **Artboard Canvas Export:**
 - Export button in bottom toolbar or right panel
 - Export selected artboards or all artboards
-- Format: PNG (default), DPI: 300, with compression slider
+- Format: PNG (default), DPI: 300, compression dropdown (Off/Low/Medium/High/Very High via UPNG.js)
 - Download individual or all as ZIP
+- "Preparing Download" modal during compression/ZIP creation
 - Separate from Image Editor export (which exports processed pipeline results)
 
 ### Unified Design Workspace — Tab Mode Switch
@@ -464,8 +468,6 @@ Fixed horizontal bar below canvas. Left side: cursor tool, move tool, shape tool
 │ │ Defringe │ Shrink │ Color Defringe │ Edge Cleaner    │  │
 │ ├─AI PROCESSING────────────────────────────────────────┤  │
 │ │ BG Remove │ AI Upscale                               │  │
-│ ├─QUALITY──────────────────────────────────────────────┤  │
-│ │ Transp. Highlight │ Compressor                       │  │
 │ └──────────────────────────────────────────────────────┘  │
 ├──────────┬───────────────────────────────────┬───────────┤
 │ LEFT     │  CANVAS (Konva.js)                │           │
@@ -484,11 +486,13 @@ Fixed horizontal bar below canvas. Left side: cursor tool, move tool, shape tool
 │          │                                   │           │
 │ Reset All│                                   │           │
 │ Remove   ├───────────────────────────────────┤           │
-│          │ [■][□][□][✓][✓]... 23/100 │ Export│           │
+│          │ [■][□][□][✓][✓]... 23/100  [+][☁] │           │
+│          ├───────────────────────────────────┤           │
+│          │ PNG · 4500×5400 · 8.2 MB    [⬇ Download]     │
 └──────────┴───────────────────────────────────┴───────────┘
 ```
 
-**Pipeline Bar:** Top, collapsible. Active pipeline tools as colored pill-chips (drag-to-reorder, ✖ to remove). Expand to show available tools grouped with section labels: Standard, Edge Cleanup, AI Processing, Quality.
+**Pipeline Bar:** Top, collapsible. Active pipeline tools as colored pill-chips (drag-to-reorder, ✖ to remove). Expand to show available tools grouped with section labels: Standard, Edge Cleanup, AI Processing. (Quality category removed — Compressor moved to export-time, Transparency Highlighter moved to Standard.)
 
 **Left Panel (~280px):** Preset dropdown + Save. Stacked collapsible tool config cards (toggle on/off, expand/collapse, drag-to-reorder — synced with pill bar). Each card has tool-specific params (sliders, toggles, buttons). Bottom: Reset All / Remove All.
 
@@ -496,7 +500,7 @@ Fixed horizontal bar below canvas. Left side: cursor tool, move tool, shape tool
 
 **Bottom Thumbnail Strip:** Horizontal scrollable filmstrip. Click to navigate. Status dot per image (pending/processed/error). Current image highlighted. Export button integrated in strip area.
 
-**Export:** Button in bottom strip → inline export controls: format (PNG), DPI (300), compression slider with live file size, download single/all (zip), overwrite vs new version.
+**Unified Bottom Bar (always visible):** Two modes — **Info Mode** (default): PNG badge, resolution, file size, Download button. **Export Mode** (click Download): full controls — FORMAT, DPI, Compression dropdown (UPNG.js), estimated compressed size (green, ↓% saved), Overwrite/New Version, Download Current + Download All (ZIP), Close X. "Preparing Download" modal on download action. No export toggle in thumbnail strip.
 
 **Empty State:** Cyan dashed border drop zone (secondary #00C8D7), cloud icon, "Drop image here", "Browse Files" button.
 
@@ -829,7 +833,7 @@ Custom icons must:
 - [ ] AC-41: Connection arrows between source artboard and AI Image Board — thin 1px line, purely visual context.
 - [ ] AC-42: Drag external images from desktop onto canvas → creates new artboard at drop position.
 - [ ] AC-43: Canvas zoom: scroll wheel, pinch, +/- buttons. Grid dots visible at >30% zoom. Dark mode: `#1A1A2E` bg. Light mode: `#E8E8E8` bg. NO tools shown directly on artboards.
-- [ ] AC-62: Artboard Canvas has its own export: export selected or all artboards, PNG 300 DPI, compression slider, single or ZIP download. Separate from Editor pipeline export.
+- [ ] AC-62: Artboard Canvas has its own export: export selected or all artboards, PNG 300 DPI, compression dropdown (Off/Low/Medium/High/Very High via UPNG.js), single or ZIP download, "Preparing Download" modal. Separate from Editor pipeline export.
 - [ ] AC-63: Multi-select artboards (shift+click or drag-select) → "Open in Editor" in right panel → switches to Editor tab with selected images as batch. Context transfer only, no live binding.
 - [ ] AC-64: Both tab-modes are fully independent — Editor works without Canvas data, Canvas works without Editor. No cross-dependencies.
 
@@ -866,6 +870,12 @@ Custom icons must:
 - [ ] AC-82: Click layer in panel → selects corresponding element on canvas. Select element on canvas → highlights corresponding layer in panel. Bidirectional sync.
 - [ ] AC-83: Layer data persisted in `board_layout` JSONField (per-artboard `layers` array with type, position, properties). Restored on reload.
 
+#### Canvas Bugs (discovered 2026-04-12)
+
+- [ ] AC-160: Transformer handles (anchor points + border stroke) must account for element scale, not only canvas zoom. When an image is scaled up (e.g. 1024×1024 → 4500×5400 via scaleX/scaleY ~4.4x), handles and border stroke become disproportionately large. Fix: divide `anchorSize` and `borderStrokeWidth` by `Math.max(node.scaleX(), node.scaleY())` in addition to zoom. Affects all layer components: ArtboardElement, ImageLayer, EmojiLayer, ShapeLayer, TextLayer, BrushLayer.
+
+- [ ] AC-161: AI-generated images (natively 1024×1024 from OpenRouter) must display in the correct target aspect ratio on the artboard when resized. When user applies Resize tool to 4500×5400 (5:6 ratio), the artboard element should reflect the new aspect ratio — not remain square. Display actual target resolution as an info label on or near the element (e.g. small overlay badge "4500×5400" visible on hover or always).
+
 ### Upload-Ready Status & Drawer Integration
 
 - ~~AC-84 to AC-88~~ — REMOVED (2026-04-10). `listing_ready` status replaced by PROJ-11 DesignAsset + Collection system. Design→Listing transition planned in PROJ-11.
@@ -877,20 +887,26 @@ Custom icons must:
 - [ ] AC-21: Conditional logic in pipeline steps (e.g. "upscale only if <5000px").
 - [ ] AC-22: Client-side tools (Konva.js + Web Workers): Resize/Reposition, Color Removal/Adjustment, Trim, Rotate/Flip, Filters (brightness/contrast/saturation), Sprinkle Remover, Transparency Cleaner, Distress effects, Watermark (text+image).
 - [ ] AC-23: Edge Cleanup tools (client-side): Auto-Detect Defringe (suggests shrink value), Manual Shrink (0-5px slider + live preview), Color Defringe (replaces semi-transparent edge pixels with design color), Edge Cleaner (multi-step smoothing).
-- [ ] AC-24: Quality Control tools (client-side): Transparency Highlighter (visualizes hidden semi-transparent pixels), Built-in Compressor (<2MB without quality loss).
+- [ ] AC-24: Quality Control tools (client-side): Transparency Highlighter (visualizes hidden semi-transparent pixels). ~~Compressor removed from pipeline~~ — compression moved to download-time export (see AC-30).
 - [ ] AC-25: Manual Correction tools (Konva.js canvas): Eraser tool, Magic Wand (color similarity selection), per-image preview in batch before download.
 - [ ] AC-26: AI Background Removal: Default `rembg` (u2net model, self-hosted, ~3-8s/image). Optional external API (e.g. remove.bg). Provider configurable in Settings UI.
 - [ ] AC-27: AI Upscaling — Auto mode: ≥3000px → Pica.js (client-side, Lanczos), <3000px → external API (e.g. Deep-Image.ai). Provider configurable in Settings UI. User can override auto with fixed provider.
 - [ ] AC-28: Cloud Storage Manager: Google Drive + Microsoft OneDrive folder browser, image table with thumbnails, on-demand download, "Use for AI" import into editor, upload processed images back to cloud. Connection management in Settings (central + editor).
 - [ ] AC-29: Target canvas 4500x5400px at 300 DPI (MBA standard). Configurable for other marketplaces. Align-to-Top + configurable padding (default: 1 inch top/sides).
-- [ ] AC-30: Export: configurable format (PNG default), DPI (300), compression level. Download single or all. Option to overwrite original or create new version.
+- [ ] AC-30: Unified Bottom Bar — always visible below thumbnail strip, two modes:
+  - **Info Mode (default):** Format badge (PNG) · Resolution (e.g. 4500×5400) · File size (e.g. 8.2 MB). Right side: Download button that switches to Export Mode.
+  - **Export Mode (after clicking Download):** Full export controls — FORMAT (PNG), DPI slider (300), Compression dropdown (Off/Low/Medium/High/Very High via UPNG.js), estimated compressed size in green (e.g. "Est. ~2.3 MB ↓72%"), Overwrite/New Version toggle, Download Current + Download All (ZIP) buttons, Close X (returns to Info Mode).
+  - "Preparing Download" modal during compression/ZIP: spinner, title, compression level badge, progress bar, cancel button
+  - Compression applied at download time, NOT as pipeline step
+  - No export toggle button in thumbnail strip — bottom bar is always visible
+  - Future: same compression when saving to server or cloud (PROJ-11/PROJ-19)
 
 ### Editor Layout (ReadyPixl-inspired)
 
-- [ ] AC-44: Pipeline bar at top, collapsible. Active tools as colored pill-chips (drag-to-reorder, ✖ to remove). Expand to show available tools grouped with section labels (Standard, Edge Cleanup, AI Processing, Quality).
+- [ ] AC-44: Pipeline bar at top, collapsible. Active tools as colored pill-chips (drag-to-reorder, ✖ to remove). Expand to show available tools grouped with section labels (Standard, Edge Cleanup, AI Processing). ~~Quality category removed~~ — Compressor moved to export, Transparency Highlighter stays as standalone tool in Standard.
 - [ ] AC-45: Left panel (~280px): preset dropdown + Save, stacked collapsible tool config cards (toggle, expand/collapse, drag-to-reorder synced with pill bar), Reset All / Remove All at bottom.
 - [ ] AC-46: Canvas center (Konva.js): transparency checkerboard background. Top-left: compact batch nav overlay (< > N/Total 🗑 ALL). Top-right: floating mini-toolbar (Move, Eraser, Wand) — full params in left panel when active.
-- [ ] AC-47: Bottom thumbnail filmstrip: horizontal scrollable, click to navigate, status dot per image, current highlighted. Export button integrated in strip.
+- [ ] AC-47: Bottom thumbnail filmstrip: horizontal scrollable, click to navigate, status dot per image, current highlighted. Below strip: Unified Bottom Bar (always visible, Info Mode by default — see AC-30).
 - [ ] AC-48: Tool reorder via drag in both pill bar and left panel cards. Both synced.
 - [ ] AC-49: Canvas → Editor handoff via tab switch: multi-select artboards → "Open in Editor" → switches to Editor tab with images pre-loaded. Also via URL: `?tab=editor&images=id1,id2`.
 - [ ] AC-50: Empty state: cyan dashed border drop zone, cloud icon, "Drop image here", "Browse Files" button.
@@ -1237,8 +1253,8 @@ Image analysis (Gemini 3 Architect pipeline) also uses OpenRouter — same API k
   - Color Defringe — detects background color in edge, replaces semi-transparent edge pixels with nearest design color
   - Edge Cleaner — multi-step edge smoothing after BG removal
 - **Quality Control tools** (client-side):
-  - Transparency Highlighter — visualizes hidden semi-transparent pixels (read-only overlay, no edit)
-  - Built-in Compressor — reduce file size (<2MB) without losing print quality
+  - Transparency Highlighter — visualizes hidden semi-transparent pixels (read-only overlay, no edit). Moved from Quality category → Standard in pipeline bar.
+  - ~~Built-in Compressor~~ — REMOVED from pipeline. Compression now handled at download-time via UPNG.js (see Export section).
 - **Manual Correction tools** (client-side, Konva.js Canvas):
   - Eraser tool — manually remove pixels/areas
   - Magic Wand — area selection by color similarity
@@ -1266,7 +1282,7 @@ Image analysis (Gemini 3 Architect pipeline) also uses OpenRouter — same API k
   - One-time setup — configure pipeline parameters for one image, apply to all
   - Individual post-processing — click through individual images and correct before batch download
   - Progress tracked per image in batch view
-  - Export: format (PNG default), DPI (300 default), compression level, download single or all
+  - Unified Bottom Bar: always visible — Info Mode (PNG, resolution, file size) default, Export Mode (DPI, compression, estimated size, download) on click. "Preparing Download" modal with progress.
 - **Target Canvas:** 4500x5400px, 300 DPI (MBA standard). Configurable for other marketplaces.
 - **Reposition:** Align-to-Top + configurable padding (default: 1 inch top/sides). Snap-to-Top for smaller designs.
 - Tech stack reference: `reference_proj9_image_editor.md`
@@ -1324,7 +1340,7 @@ Document in `django-app/env/.env.template`. **Rotate the existing OpenRouter key
 14. Manual correction: eraser tool removes artifact on single image in batch.
 15. Transparency Highlighter shows semi-transparent pixels → user spots artifact.
 16. Edge cleanup: auto-defringe suggests 2px shrink → user confirms → clean edges.
-17. Export: PNG, 300 DPI, <2MB compression → download all as zip.
+17. Export: PNG, 300 DPI, compression "High" from dropdown → "Preparing Download" modal → download all as zip.
 18. AI BG Remove (rembg): solid background removed, transparent PNG created.
 19. AI Upscale (auto): <3000px image → API upscale; ≥3000px → Pica.js client-side.
 20. Canvas reposition: 4500x5400, Align-to-Top, 1 inch padding → MBA-ready.
@@ -1419,7 +1435,7 @@ views/design/
 │   │   ├── BatchThumbnailStrip.tsx     # Bottom thumbnail strip
 │   │   ├── TransparencyHighlighter.tsx # QC overlay
 │   │   ├── DefringeControls.tsx        # Edge cleanup slider + preview
-│   │   ├── ExportDialog.tsx            # Format, DPI, compression, download
+│   │   ├── PreparingDownloadModal.tsx   # Download progress modal (spinner, compression badge, progress bar, cancel)
 │   │   ├── CloudManagerDialog.tsx       # Google Drive + OneDrive folder browser, image table, upload
 │   │   └── CloudStorageSettings.tsx    # Connection management (reused in central + editor settings)
 │   └── types/
@@ -1454,7 +1470,7 @@ Phase B — Post-Processing:
     → Apply to batch → per-image progress
     → Manual correction on individual images
     → QC: transparency highlighter, edge cleanup
-    → Export: PNG, 300 DPI, <2MB, MBA-ready canvas
+    → Unified Bottom Bar: Info Mode (PNG, resolution, size) → click Download → Export Mode (DPI, compression, estimated size)
 ```
 
 ---
@@ -1509,6 +1525,7 @@ Phase B — Post-Processing:
 | `pica` | Client-side image upscaling (Lanczos filter) |
 | `tinycolor2` | Color manipulation for defringe/color tools |
 | `@fontsource/*` or Google Fonts API | Font loading for text tool |
+| `upng-js` | PNG quantization (color reduction) for export compression |
 
 ---
 
@@ -1808,6 +1825,252 @@ Image Analysis        → POST /designs/{id}/analyze-image/ (existing)
 | Prompt Builder does NOT auto-save | User may want to see the preview first, edit, then explicitly save. Frontend saves via separate POST |
 | 3 default presets seeded | Reduces friction for new users. Can be deleted/modified |
 | Prompt Preview is server-rendered | Live preview calls `build-prompts` on each toggle change (debounced 500ms). Ensures preview matches final output exactly |
+
+---
+
+### J) Export Compression Refactor — Tech Design
+
+> Added: 2026-04-11 | Covers AC-24 (updated), AC-30 (rewritten), AC-44 (updated), AC-62 (updated)
+
+#### What Changes
+
+| Before | After |
+|--------|-------|
+| Compressor = pipeline tool (quality category) | **Removed** from pipeline. Compression = download-time only |
+| ExportDialog = separate modal with format/DPI/quality | **Removed**. All controls inline in bottom bar |
+| Compression slider (0-100%) | Compression **dropdown**: Off / Low / Medium / High / Very High |
+| Canvas `toBlob()` only (limited for PNG) | **UPNG.js** for real PNG quantization (32bit → 8bit, ~60-70% smaller) |
+| No download feedback | **"Preparing Download" modal** with spinner, compression badge, progress bar, cancel |
+
+#### UPNG.js — How It Works
+
+Browser-native `canvas.toBlob('image/png')` ignores the `quality` parameter for PNG — PNG is always lossless. File sizes stay large (5-15MB for 4500x5400).
+
+**UPNG.js** solves this by performing **color quantization** in the browser:
+- Analyzes all pixel colors in the image
+- Reduces the color palette (e.g. 16M colors → 256 colors for "Very High")
+- Re-encodes as indexed PNG (8-bit palette instead of 32-bit RGBA)
+- Result: 60-70% smaller file, slight quality loss in gradients, invisible for POD text/graphic designs
+
+| Level | UPNG Colors | Typical Size Reduction | Use Case |
+|-------|-------------|----------------------|----------|
+| Off | — (raw canvas.toBlob) | 0% | Maximum quality, large file |
+| Low | 4096 colors | ~20-30% | Subtle reduction, near-lossless |
+| Medium | 1024 colors | ~40-50% | Good balance |
+| High | 256 colors | ~55-65% | Standard POD export |
+| Very High | 128 colors | ~65-75% | MBA upload (<2MB target) |
+
+Package: `upng-js` (npm), ~15KB gzipped, runs in main thread or Web Worker.
+
+#### Component Structure
+
+```
+Bottom Bar (ExportControls — refactored)
+├── Format Badge (PNG)
+├── DPI Slider (72-600, default 300)
+├── Compression Dropdown (Off/Low/Medium/High/Very High)
+├── Overwrite / New Version Toggle
+├── Download Current Button
+├── Download All (ZIP) Button
+└── Close Button
+
+Preparing Download Modal (new)
+├── Circular Spinner (animated)
+├── Title: "Preparing Download"
+├── Subtitle: "Processing your image..."
+├── Compression Badge (e.g. "Compression: Very High")
+├── LinearProgress Bar (determinate for batch/ZIP)
+└── Cancel Button
+```
+
+#### Data Flow
+
+```
+User clicks "Download Current" or "Download All"
+  → Show PreparingDownloadModal
+  → For each image:
+    1. Get canvas ImageData (raw pixels)
+    2. If compression != Off → UPNG.encode(imageData, width, height, colorCount)
+    3. If compression == Off → canvas.toBlob('image/png')
+    4. Create Blob
+  → If single: trigger browser download (anchor + blob URL)
+  → If all: JSZip.add each blob → generate ZIP → trigger download
+  → Update progress bar (N/total)
+  → On cancel: abort remaining, close modal
+  → On complete: close modal, notistack success
+```
+
+#### Files to Change
+
+| Action | File | What |
+|--------|------|------|
+| **Remove** | `CompressorToolParams.tsx` | Delete entire file |
+| **Remove** | `ExportDialog.tsx` | Delete entire file |
+| **Remove** | `useExportDialog.ts` | Delete entire file |
+| **Edit** | `types/index.ts` | Remove `compressor` from ToolName, remove `quality` from ToolCategory + TOOL_CATALOG + TOOL_CATEGORIES. Update ExportSettings type: `compression: number` → `compression: CompressionLevel` |
+| **Edit** | `useClientProcessing.ts` | Remove compressor case + imports |
+| **Edit** | `imageProcessing.ts` | Remove `processCompressor()`, `CompressorParams`, `canvasToBlobWithFormat()` |
+| **Edit** | `ToolPanel.tsx` | Remove compressor conditional |
+| **Edit** | `ToolIcons.tsx` | Remove compressor icon mapping |
+| **Edit** | `PipelineBar.tsx` | Quality category no longer rendered (no tools left in it) |
+| **Edit** | `ExportControls.tsx` | Refactor: compression slider → dropdown, remove advanced button, add UPNG.js compression logic |
+| **Create** | `PreparingDownloadModal.tsx` | New modal component |
+| **Create** | `useExportCompression.ts` | New hook: UPNG.js compression + download logic + progress tracking |
+| **Edit** | `DesignEditorView.tsx` | Remove ExportDialog refs, add PreparingDownloadModal |
+| **Edit** | i18n files (5 locales) | Remove `design.qc.compressor.*` keys, add `design.export.compression.*` + `design.export.preparing.*` keys |
+
+#### Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| UPNG.js (not pngquant WASM) | 15KB vs 1MB+. Fast enough for single-image download. No WASM compilation complexity |
+| Dropdown not slider | ReadyPixl pattern proven. 5 presets = zero guesswork. Slider was confusing ("what does 73% mean for PNG?") |
+| Compression at download-time | Pipeline should be non-destructive. Compression is a lossy export step, not an editing step |
+| No ExportDialog modal | ReadyPixl puts everything inline. One less click. Advanced settings (DPI, format) fit in bottom bar |
+| PreparingDownloadModal | Compression takes 1-3s per image. User needs feedback. ReadyPixl does the same |
+| Cancel support | Batch of 100 images at "Very High" = ~2 min. User must be able to abort |
+
+#### Dependencies
+
+| Package | Purpose |
+|---------|---------|
+| `upng-js` | PNG quantization (color reduction) in browser |
+
+No new backend packages. This is 100% frontend.
+
+---
+
+### K) Unified Bottom Bar (Info + Export) — Tech Design
+
+> Added: 2026-04-12 | Updates AC-30 (rewritten), AC-47 (updated)
+
+#### What Changes
+
+| Before (Phase J) | After (Phase K) |
+|-------------------|-----------------|
+| ExportControls shown/hidden via toggle button in thumbnail strip | **UnifiedBottomBar** always visible below thumbnails |
+| `showExport` state toggle in DesignEditorView | Removed — bar always rendered |
+| Export toggle button in BatchThumbnailStrip | Removed — no toggle needed |
+| Only export controls (no file info) | **Info Mode** (default): PNG badge, resolution, file size. **Export Mode** (click Download): full controls + estimated size |
+
+#### Component Structure
+
+```
+StripWrapper (column layout)
+├── ThumbnailRow (80px)
+│   └── BatchThumbnailStrip (thumbnails, add, cloud — NO export toggle)
+└── UnifiedBottomBar (48px, always visible)
+    ├── [Info Mode — default]
+    │   ├── Format Badge (PNG)
+    │   ├── Separator
+    │   ├── Resolution (e.g. 4500×5400) — JetBrains Mono
+    │   ├── Separator
+    │   ├── File Size (e.g. 8.2 MB) — JetBrains Mono
+    │   ├── Spacer
+    │   └── Download Button (→ switches to Export Mode)
+    │
+    └── [Export Mode — after clicking Download]
+        ├── Format Badge (PNG)
+        ├── Separator
+        ├── DPI Slider (72-600, default 300)
+        ├── Separator
+        ├── Compression Dropdown (Off/Low/Medium/High/Very High)
+        ├── Estimated Size Chip (green: "Est. ~2.3 MB ↓72%")
+        ├── Separator
+        ├── Overwrite / New Version Toggle
+        ├── Spacer
+        ├── Download Current Button
+        ├── Download All (ZIP) Button
+        └── Close X (→ returns to Info Mode)
+```
+
+#### Data: Populating width/height/fileSize on BatchImage
+
+- **File uploads:** `fileSize` already set from `File.size`. `width`/`height` need to be read from the image via `Image.onload` → `naturalWidth`/`naturalHeight`.
+- **URL preloads (from server):** Server already returns dimensions on design objects. Map to BatchImage on load.
+- **Approach:** In `handleFilesAdded`, after creating the blob URL, load an `Image()` element to read natural dimensions. Update the BatchImage with `width`/`height` once loaded.
+
+#### Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| Single component with mode state (not two components) | Same DOM position, shared styled components, smooth transition between modes |
+| Info Mode as default | User sees resolution + file size 100% of the time without any interaction |
+| Download button triggers mode switch (not separate toggle) | Fewer buttons, clear intent — "I want to download" = show me export options |
+| Image dimensions read client-side on load | Already have the HTMLImageElement — just read naturalWidth/naturalHeight. No backend call needed |
+| JetBrains Mono for numeric values | Design system convention — monospace for codes/measurements |
+
+#### Files to Change
+
+| Action | File | What |
+|--------|------|------|
+| **Rename** | `ExportControls.tsx` → `UnifiedBottomBar.tsx` | Add Info Mode, rename component |
+| **Edit** | `DesignEditorView.tsx` | Remove `showExport` state, remove conditional rendering, always render UnifiedBottomBar. Populate width/height on image load |
+| **Edit** | `BatchThumbnailStrip.tsx` | Remove `showExportToggle` + `onToggleExport` props and export toggle button |
+| **Edit** | `BatchThumbnailStrip.test.tsx` | Remove/update export toggle tests |
+| **Edit** | `EditorCanvas.tsx` | Expose dimensions callback so DesignEditorView can update BatchImage width/height |
+
+No new packages. No backend changes.
+
+---
+
+### L) Canvas Bugs — Transformer Handles + Aspect Ratio — Tech Design
+
+> Added: 2026-04-12 | Covers AC-160, AC-161
+
+#### Bug 1: Transformer Handles Too Large (AC-160)
+
+**Problem:** Konva `Transformer` props `anchorSize` and `borderStrokeWidth` only compensate for canvas zoom level, not for the element's own scale. When an image element has `scaleX: 4.4` (e.g. 1024→4500px), the handles and border are rendered at 4.4× their intended visual size.
+
+**Current pattern (6 files):**
+```
+anchorSize={8 / Math.max(zoom, 0.3)}
+borderStrokeWidth={1.5 / zoom}
+```
+
+**Fix:** Also divide by the element's maximum scale factor:
+```
+effectiveScale = Math.max(element.scaleX ?? 1, element.scaleY ?? 1, 1)
+anchorSize={8 / Math.max(zoom, 0.3) / effectiveScale}
+borderStrokeWidth={1.5 / zoom / effectiveScale}
+```
+
+**Files affected:**
+
+| File | Location |
+|------|----------|
+| `board/partials/ArtboardElement.tsx` | Transformer props (~line 207-208) |
+| `board/partials/layers/ImageLayer.tsx` | Transformer props (~line 188-189) |
+| `board/partials/layers/EmojiLayer.tsx` | Transformer props (~line 181-182) |
+| `board/partials/layers/ShapeLayer.tsx` | Transformer props (~line 230-231) |
+| `board/partials/layers/TextLayer.tsx` | Transformer props (~line 311-312) |
+| `board/partials/layers/BrushLayer.tsx` | Transformer props (~line 171-172) |
+
+#### Bug 2: AI Images Display as Square (AC-161)
+
+**Problem:** OpenRouter generates 1024×1024 images. When placed on the artboard, the element gets `width: 1024, height: 1024`. Even after the user resizes to 4500×5400 in the Image Editor, the artboard element doesn't update — it still shows a square.
+
+**Root cause:** The Editor tab processes the pixel data (new image file at 4500×5400), but the Artboard Canvas element's `width`/`height` properties are never updated to reflect the new aspect ratio.
+
+**Fix approach:**
+1. When a processed/resized image is saved back to the server, the artboard element should update its `width`/`height` to match the new image's natural dimensions
+2. Show a resolution info badge on the artboard element (bottom-right corner, small overlay) displaying actual pixel dimensions (e.g. "4500×5400")
+3. The badge should use JetBrains Mono, small font, semi-transparent background — consistent with existing overlay patterns (BatchNavOverlay, ZoomOverlay)
+
+**Data flow:** Editor saves processed image → server returns new URL + dimensions → artboard element updates `width`/`height` from natural image dimensions → Transformer and rendering reflect correct aspect ratio.
+
+#### Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| Divide by element scale, not replace zoom logic | Zoom compensation still needed — element scale is additional factor. Both must be accounted for |
+| Update element dimensions from natural image size | The element's `width`/`height` must match the actual image pixels for correct rendering. Scale factors reset to 1 after each transform |
+| Resolution badge as small overlay | Non-intrusive but always informative. Follows existing overlay pattern in the codebase |
+| Same fix in all 6 layer files | Consistent behavior across all element types. Could extract to shared util later but not needed for bug fix |
+
+#### Dependencies
+
+No new packages. No backend changes.
 
 ---
 

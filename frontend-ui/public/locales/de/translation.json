@@ -1068,8 +1068,7 @@
         "colorDefringe": "Kantensaum durch naechste Designfarbe ersetzen",
         "edgeCleaner": "Gezackte Kanten mit Anti-Aliasing glaetten",
         "bgRemove": "KI-gestuetzte Hintergrundentfernung (serverseitig)",
-        "aiUpscale": "Bildaufloesung mit KI erhoehen",
-        "compressor": "Dateigroesse unter Zielwert reduzieren"
+        "aiUpscale": "Bildaufloesung mit KI erhoehen"
       },
       "resize": "Groesse aendern",
       "trim": "Zuschneiden",
@@ -1127,7 +1126,6 @@
       "edgeCleaner": "Kantenreiniger",
       "bgRemove": "HG entfernen",
       "aiUpscale": "KI-Hochskalierung",
-      "compressor": "Kompressor",
       "move": "Verschieben",
       "eraser": "Radierer",
       "wand": "Zauberstab",
@@ -1267,15 +1265,6 @@
         "magenta": "Magenta",
         "showOpaque": "Deckend anzeigen"
       },
-      "compressorParams": {
-        "maxSize": "Max. Groesse (KB)",
-        "maxSizeHint": "Maximale Zieldateigroesse in Kilobyte",
-        "quality": "Qualitaet",
-        "format": "Format",
-        "png": "PNG",
-        "webp": "WebP",
-        "estimatedSize": "Geschaetzt"
-      },
       "eraserParams": {
         "size": "Pinselgroesse",
         "hardness": "Haerte"
@@ -1315,7 +1304,20 @@
       "downloadZip": "Alle herunterladen (ZIP)",
       "creatingZip": "ZIP wird erstellt...",
       "totalSize": "Geschaetzte Gesamtgroesse: {{size}}",
-      "imageCount": "{{count}} Bilder"
+      "imageCount": "{{count}} Bilder",
+      "compressionLevel": "Komprimierung",
+      "compressionOff": "Aus",
+      "compressionLow": "Niedrig",
+      "compressionMedium": "Mittel",
+      "compressionHigh": "Hoch",
+      "compressionVeryHigh": "Sehr Hoch",
+      "preparingDownload": "Download wird vorbereitet",
+      "processingImage": "Bild wird verarbeitet...",
+      "processingImages": "Verarbeite {{current}} von {{total}}...",
+      "cancel": "Abbrechen",
+      "fileSize": "Groesse",
+      "estimatedSize": "Ca. {{size}}",
+      "closeExport": "Export schliessen"
     },
     "contextMenu": {
       "addAiBoard": "KI-Bildboard hinzufuegen",

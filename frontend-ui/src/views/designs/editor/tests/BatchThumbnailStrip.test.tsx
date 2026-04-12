@@ -111,31 +111,6 @@ describe('BatchThumbnailStrip', () => {
     expect(screen.queryByLabelText('Add more images')).not.toBeInTheDocument();
   });
 
-  it('renders export toggle when showExportToggle and onToggleExport provided', () => {
-    renderWithProviders(
-      <BatchThumbnailStrip
-        {...defaultProps}
-        showExportToggle
-        onToggleExport={vi.fn()}
-      />,
-    );
-    expect(screen.getByLabelText('Export')).toBeInTheDocument();
-  });
-
-  it('calls onToggleExport when export button clicked', async () => {
-    const user = userEvent.setup();
-    const onToggleExport = vi.fn();
-    renderWithProviders(
-      <BatchThumbnailStrip
-        {...defaultProps}
-        showExportToggle
-        onToggleExport={onToggleExport}
-      />,
-    );
-    await user.click(screen.getByLabelText('Export'));
-    expect(onToggleExport).toHaveBeenCalled();
-  });
-
   it('renders cloud import button when onOpenCloudManager provided', () => {
     renderWithProviders(
       <BatchThumbnailStrip

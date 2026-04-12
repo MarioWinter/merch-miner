@@ -30,8 +30,6 @@ import {
   DEFAULT_EDGE_CLEANER_PARAMS,
   processColorDefringe,
   DEFAULT_COLOR_DEFRINGE_PARAMS,
-  processCompressor,
-  DEFAULT_COMPRESSOR_PARAMS,
   processPicaUpscale,
   DEFAULT_PICA_UPSCALE_PARAMS,
 } from '../utils/imageProcessing';
@@ -50,7 +48,6 @@ import type {
   DefringeParams,
   EdgeCleanerParams,
   ColorDefringeParams,
-  CompressorParams,
   TransparencyCleanerHighlightColor,
   PicaUpscaleParams,
 } from '../utils/imageProcessing';
@@ -245,17 +242,6 @@ const resolveColorDefringeParams = (params: Record<string, unknown>): ColorDefri
 });
 
 /**
- * Convert a PipelineTool's generic params into typed CompressorParams,
- * falling back to defaults for any missing fields.
- */
-const resolveCompressorParams = (params: Record<string, unknown>): CompressorParams => ({
-  maxSizeKb: (params.maxSizeKb as number) ?? DEFAULT_COMPRESSOR_PARAMS.maxSizeKb,
-  quality: (params.quality as number) ?? DEFAULT_COMPRESSOR_PARAMS.quality,
-  format:
-    (params.format as CompressorParams['format']) ?? DEFAULT_COMPRESSOR_PARAMS.format,
-});
-
-/**
  * Convert a PipelineTool's generic params into typed PicaUpscaleParams,
  * falling back to defaults for any missing fields.
  */
@@ -312,8 +298,6 @@ const executeClientTool = async (
       return processEdgeCleaner(source, resolveEdgeCleanerParams(tool.params));
     case 'color_defringe':
       return processColorDefringe(source, resolveColorDefringeParams(tool.params));
-    case 'compressor':
-      return processCompressor(source, resolveCompressorParams(tool.params));
     case 'ai_upscale':
       return processPicaUpscale(source, resolvePicaUpscaleParams(tool.params));
     default:
