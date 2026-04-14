@@ -426,7 +426,6 @@ const Artboard = ({
               artboardId: data.id,
               isSelected: elSelected,
               isFreeTransform: elFreeTransform,
-              zoom,
               onSelect: onElementSelect,
               onDoubleClick: onElementDoubleClick,
               onUpdate: handleElementDragEnd,

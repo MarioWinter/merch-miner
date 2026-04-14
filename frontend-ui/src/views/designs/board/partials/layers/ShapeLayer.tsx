@@ -12,7 +12,6 @@ interface ShapeLayerProps {
   artboardId: string;
   isSelected: boolean;
   isFreeTransform: boolean;
-  zoom: number;
   onSelect: (artboardId: string, elementId: string) => void;
   onDoubleClick: (artboardId: string, elementId: string) => void;
   onUpdate: (
@@ -32,7 +31,6 @@ const ShapeLayer = ({
   artboardId,
   isSelected,
   isFreeTransform,
-  zoom,
   onSelect,
   onDoubleClick,
   onUpdate,
@@ -108,9 +106,6 @@ const ShapeLayer = ({
     node.scaleX(1);
     node.scaleY(1);
   }, [artboardId, element.id, element.width, element.height, onUpdate]);
-
-  // Compute effective scale so Transformer handles stay visually consistent
-  const effectiveScale = Math.max(element.scaleX ?? 1, element.scaleY ?? 1, 1);
 
   if (!element.visible) return null;
 
@@ -230,8 +225,8 @@ const ShapeLayer = ({
                   'bottom-center',
                 ]
           }
-          borderStrokeWidth={1.5 / zoom / effectiveScale}
-          anchorSize={8 / Math.max(zoom, 0.3) / effectiveScale}
+          borderStrokeWidth={1.5}
+          anchorSize={8}
           anchorCornerRadius={2}
           boundBoxFunc={(_, newBox) => ({
             ...newBox,
