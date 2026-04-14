@@ -8,7 +8,16 @@ const { fa } = vi.hoisted(() => ({
 vi.mock('@/store/nicheSlice', () => ({ nicheApi: fa('nicheApi'), useListNichesQuery: () => ({ data: { results: [] }, isLoading: false }), useGetNicheQuery: () => ({ data: null, isFetching: false }) }));
 vi.mock('@/views/niches/list/partials/NichePipeline', () => ({ NichePipeline: () => null }));
 vi.mock('@/store/researchSlice', () => ({ researchApi: fa('researchApi') }));
-vi.mock('@/store/designSlice', () => ({ designApi: fa('designApi') }));
+vi.mock('@/store/designSlice', () => ({
+  designApi: {
+    ...fa('designApi'),
+    useLazyListDesignsQuery: () => [vi.fn().mockReturnValue({ unwrap: vi.fn().mockResolvedValue([]) })],
+  },
+  useListProjectsQuery: () => ({ data: { results: [] }, isLoading: false }),
+  useCreateProjectMutation: () => [vi.fn().mockReturnValue({ unwrap: vi.fn().mockResolvedValue({}) }), { isLoading: false }],
+  useAddIdeasToProjectMutation: () => [vi.fn().mockReturnValue({ unwrap: vi.fn().mockResolvedValue({}) }), { isLoading: false }],
+  useDeleteProjectMutation: () => [vi.fn(), { isLoading: false }],
+}));
 vi.mock('@/store/keywordSlice', () => ({ keywordApi: fa('keywordApi') }));
 vi.mock('@/store/publishSlice', () => ({ publishApi: fa('publishApi') }));
 vi.mock('@/store/dashboardSlice', () => ({ dashboardApi: fa('dashboardApi') }));
@@ -17,6 +26,13 @@ vi.mock('@/store/notificationSlice', () => ({ notificationApi: fa('notificationA
 vi.mock('@/store/searchSlice', () => ({ searchApi: fa('searchApi') }));
 vi.mock('@/store/agentSlice', () => ({ agentApi: fa('agentApi') }));
 vi.mock('@/store/collectedProductsSlice', () => ({ collectedProductsApi: fa('collectedProductsApi') }));
+
+// Mock DEV-only mock ideas to empty so tests control all data
+vi.mock('../hooks/useMockIdeas', () => ({ MOCK_IDEAS: [] }));
+// Mock useMockAdaptation hook used in IdeaListView
+vi.mock('../hooks/useMockAdaptation', () => ({
+  useMockAdaptation: () => ({ ideas: [], adaptation: null }),
+}));
 
 import { renderWithProviders } from '../../../utils/test-utils';
 import { IdeaListView } from '../IdeaListView';
@@ -265,12 +281,13 @@ describe('IdeaListView', () => {
   });
 
   it('renders pagination when page count > 1', () => {
-    const ideas = Array.from({ length: 5 }, (_, i) =>
+    // In DEV, totalCount = allIdeas.length, so we need >20 results to trigger pagination
+    const ideas = Array.from({ length: 21 }, (_, i) =>
       makeIdea({ id: `idea-${i}`, slogan_text: `Slogan ${i}` }),
     );
     mockListAllIdeas.mockReturnValue({
       data: {
-        count: 25, // More than PAGE_SIZE (20)
+        count: 21,
         next: 'next',
         previous: null,
         results: ideas,

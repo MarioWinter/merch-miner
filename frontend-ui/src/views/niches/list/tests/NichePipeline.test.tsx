@@ -48,6 +48,15 @@ vi.mock('../../../../store/collectedProductsSlice', async (importOriginal) => {
   };
 });
 
+// Mock designSlice — usePipelineCounts uses useListProjectsQuery
+vi.mock('../../../../store/designSlice', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../store/designSlice')>();
+  return {
+    ...actual,
+    useListProjectsQuery: () => ({ data: { results: [] }, isLoading: false }),
+  };
+});
+
 vi.mock('../../../../store/nicheSlice', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../../store/nicheSlice')>();
   return {

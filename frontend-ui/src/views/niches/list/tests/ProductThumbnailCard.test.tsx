@@ -135,11 +135,11 @@ describe('ProductThumbnailCard', () => {
 
   it('renders hover overlay with action buttons', () => {
     renderWithProviders(<ProductThumbnailCard {...defaultProps} />);
-    // Hover actions are always in DOM but opacity:0 by default
-    expect(screen.getByText('Keywords')).toBeInTheDocument();
-    expect(screen.getByText('Slogans')).toBeInTheDocument();
-    expect(screen.getByText('Detail')).toBeInTheDocument();
-    expect(screen.getByText('More')).toBeInTheDocument();
+    // Hover actions are icon-only buttons with aria-labels via Tooltip
+    expect(screen.getByTestId('SearchIcon')).toBeInTheDocument();
+    expect(screen.getByTestId('FormatQuoteIcon')).toBeInTheDocument();
+    expect(screen.getByTestId('OpenInNewIcon')).toBeInTheDocument();
+    expect(screen.getByTestId('MoreHorizIcon')).toBeInTheDocument();
   });
 
   it('renders BSR with green color for low BSR', () => {

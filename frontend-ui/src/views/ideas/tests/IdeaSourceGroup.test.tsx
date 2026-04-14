@@ -8,7 +8,16 @@ const { fa } = vi.hoisted(() => ({
 vi.mock('@/store/nicheSlice', () => ({ nicheApi: fa('nicheApi'), useListNichesQuery: () => ({ data: { results: [] }, isLoading: false }) }));
 vi.mock('@/store/ideaSlice', () => ({ ideaApi: fa('ideaApi') }));
 vi.mock('@/store/researchSlice', () => ({ researchApi: fa('researchApi') }));
-vi.mock('@/store/designSlice', () => ({ designApi: fa('designApi') }));
+vi.mock('@/store/designSlice', () => ({
+  designApi: {
+    ...fa('designApi'),
+    useLazyListDesignsQuery: () => [vi.fn().mockReturnValue({ unwrap: vi.fn().mockResolvedValue([]) })],
+  },
+  useListProjectsQuery: () => ({ data: { results: [] }, isLoading: false }),
+  useCreateProjectMutation: () => [vi.fn().mockReturnValue({ unwrap: vi.fn().mockResolvedValue({}) }), { isLoading: false }],
+  useAddIdeasToProjectMutation: () => [vi.fn().mockReturnValue({ unwrap: vi.fn().mockResolvedValue({}) }), { isLoading: false }],
+  useDeleteProjectMutation: () => [vi.fn(), { isLoading: false }],
+}));
 vi.mock('@/store/keywordSlice', () => ({ keywordApi: fa('keywordApi') }));
 vi.mock('@/store/publishSlice', () => ({ publishApi: fa('publishApi') }));
 vi.mock('@/store/dashboardSlice', () => ({ dashboardApi: fa('dashboardApi') }));

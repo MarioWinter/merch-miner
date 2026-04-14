@@ -97,6 +97,16 @@ vi.mock('../../../../store/collectedProductsSlice', async (importOriginal) => {
   };
 });
 
+// ── RTK Query mock — designSlice (used transitively via NichePipeline) ────
+vi.mock('../../../../store/designSlice', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../store/designSlice')>();
+  return {
+    ...actual,
+    useListProjectsQuery: () => ({ data: { results: [] }, isLoading: false }),
+    useAddReferencesToProjectMutation: () => [vi.fn().mockReturnValue({ unwrap: vi.fn() }), { isLoading: false }],
+  };
+});
+
 // ── Mock react-router-dom for navigation ───────────────────────────────────
 const mockNavigate = vi.fn();
 vi.mock('react-router-dom', async (importOriginal) => {
@@ -135,8 +145,9 @@ describe('AmazonResearchView', () => {
 
   it('defaults to DB Research mode', () => {
     renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
-    // In DB mode the "Live Research" label is not shown
-    expect(screen.queryByText('Live Research')).not.toBeInTheDocument();
+    // In DB mode the SearchBar always shows "Live Research" label (styled as disabled)
+    // but the subtitle next to "Amazon Research" is NOT shown
+    expect(screen.getByText('Live Research')).toBeInTheDocument();
     // The switch should be unchecked (DB mode = default)
     expect(screen.getByRole('switch')).not.toBeChecked();
   });
@@ -144,14 +155,14 @@ describe('AmazonResearchView', () => {
   it('toggles between DB Research and Live Research mode', async () => {
     renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
 
-    // DB mode: no "Live Research" label visible, switch unchecked
-    expect(screen.queryByText('Live Research')).not.toBeInTheDocument();
+    // DB mode: one "Live Research" label (SearchBar ModeLabel only)
+    expect(screen.getAllByText('Live Research')).toHaveLength(1);
 
     const toggle = screen.getByRole('switch');
     await userEvent.click(toggle);
 
-    // After toggle: "Live Research" label appears (SearchBar ModeLabel + subtitle)
-    expect(screen.getAllByText('Live Research').length).toBeGreaterThanOrEqual(1);
+    // After toggle: two "Live Research" labels (SearchBar ModeLabel + subtitle)
+    expect(screen.getAllByText('Live Research')).toHaveLength(2);
   });
 
   it('shows loading skeleton while fetching (loading state)', () => {
@@ -229,13 +240,13 @@ describe('AmazonResearchView', () => {
   it('mode label updates when toggling mode', async () => {
     renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
 
-    // Initially DB mode: no mode label text rendered
-    expect(screen.queryByText('Live Research')).not.toBeInTheDocument();
+    // Initially DB mode: one "Live Research" label (SearchBar only, styled disabled)
+    expect(screen.getAllByText('Live Research')).toHaveLength(1);
 
     const toggle = screen.getByRole('switch');
     await userEvent.click(toggle);
 
-    // After toggle, "Live Research" label present
-    expect(screen.getAllByText('Live Research').length).toBeGreaterThanOrEqual(1);
+    // After toggle, subtitle appears — two "Live Research" labels total
+    expect(screen.getAllByText('Live Research')).toHaveLength(2);
   });
 });

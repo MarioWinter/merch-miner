@@ -17,7 +17,7 @@ const { fa } = vi.hoisted(() => ({
 vi.mock('@/store/nicheSlice', () => ({ nicheApi: fa('nicheApi'), useListNichesQuery: () => ({ data: { results: [] }, isLoading: false }) }));
 vi.mock('@/store/ideaSlice', () => ({ ideaApi: fa('ideaApi') }));
 vi.mock('@/store/researchSlice', () => ({ researchApi: fa('researchApi') }));
-vi.mock('@/store/keywordSlice', () => ({ keywordApi: fa('keywordApi') }));
+vi.mock('@/store/keywordSlice', () => ({ keywordApi: fa('keywordApi'), useListNicheKeywordsQuery: () => ({ data: [] }) }));
 vi.mock('@/store/publishSlice', () => ({ publishApi: fa('publishApi') }));
 vi.mock('@/store/dashboardSlice', () => ({ dashboardApi: fa('dashboardApi') }));
 vi.mock('@/store/kanbanSlice', () => ({ kanbanApi: fa('kanbanApi') }));
@@ -44,6 +44,11 @@ vi.mock('@/store/designSlice', () => ({
   useGetProcessingJobQuery: () => ({ data: undefined }),
   useAnalyzeImageMutation: () => [vi.fn(), { isLoading: false }],
   useGetDesignsByIdsQuery: () => ({ data: [] }),
+  useBuildPromptsMutation: () => [vi.fn(), { isLoading: false }],
+  useCreatePromptsMutation: () => [vi.fn(), { isLoading: false }],
+  useListPromptPresetsQuery: () => ({ data: [] }),
+  useCreatePromptPresetMutation: () => [vi.fn(), { isLoading: false }],
+  useDeletePromptPresetMutation: () => [vi.fn(), { isLoading: false }],
 }));
 
 // Mock react-router-dom params
@@ -90,6 +95,12 @@ vi.mock('../../board/partials/ExportDialog', () => ({
 }));
 vi.mock('../../board/partials/RightPanel', () => ({
   default: () => <div data-testid="right-panel">Right Panel</div>,
+}));
+vi.mock('../../workspace/ProcessingSettingsDialog', () => ({
+  default: () => null,
+}));
+vi.mock('../../../niches/list/partials/NichePipeline', () => ({
+  NichePipeline: () => null,
 }));
 vi.mock('../../board/partials/BottomToolbar', () => ({
   default: () => <div data-testid="bottom-toolbar">Toolbar</div>,

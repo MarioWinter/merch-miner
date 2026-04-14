@@ -8,7 +8,13 @@ const { fa } = vi.hoisted(() => ({
 vi.mock('@/store/nicheSlice', () => ({ nicheApi: fa('nicheApi'), useListNichesQuery: () => ({ data: { results: [] }, isLoading: false }) }));
 vi.mock('@/store/ideaSlice', () => ({ ideaApi: fa('ideaApi') }));
 vi.mock('@/store/researchSlice', () => ({ researchApi: fa('researchApi') }));
-vi.mock('@/store/designSlice', () => ({ designApi: fa('designApi') }));
+vi.mock('@/store/designSlice', () => ({
+  designApi: fa('designApi'),
+  useListProjectsQuery: () => ({ data: { results: [] }, isLoading: false }),
+  useCreateProjectMutation: () => [vi.fn().mockReturnValue({ unwrap: vi.fn().mockResolvedValue({}) }), { isLoading: false }],
+  useAddIdeasToProjectMutation: () => [vi.fn().mockReturnValue({ unwrap: vi.fn().mockResolvedValue({}) }), { isLoading: false }],
+  useDeleteProjectMutation: () => [vi.fn(), { isLoading: false }],
+}));
 vi.mock('@/store/keywordSlice', () => ({ keywordApi: fa('keywordApi') }));
 vi.mock('@/store/publishSlice', () => ({ publishApi: fa('publishApi') }));
 vi.mock('@/store/dashboardSlice', () => ({ dashboardApi: fa('dashboardApi') }));
@@ -30,7 +36,7 @@ describe('ProjectCard', () => {
   it('renders project name', () => {
     const project = makeProjectListItem({ name: 'Summer Dogs' });
     renderWithProviders(
-      <ProjectCard project={project} onClick={vi.fn()} />,
+      <ProjectCard project={project} onClick={vi.fn()} onDelete={vi.fn()} />,
     );
     expect(screen.getByText('Summer Dogs')).toBeInTheDocument();
   });
@@ -38,7 +44,7 @@ describe('ProjectCard', () => {
   it('renders design count', () => {
     const project = makeProjectListItem({ design_count: 5 });
     renderWithProviders(
-      <ProjectCard project={project} onClick={vi.fn()} />,
+      <ProjectCard project={project} onClick={vi.fn()} onDelete={vi.fn()} />,
     );
     expect(screen.getByText('5 designs')).toBeInTheDocument();
   });
@@ -46,7 +52,7 @@ describe('ProjectCard', () => {
   it('renders singular design count', () => {
     const project = makeProjectListItem({ design_count: 1 });
     renderWithProviders(
-      <ProjectCard project={project} onClick={vi.fn()} />,
+      <ProjectCard project={project} onClick={vi.fn()} onDelete={vi.fn()} />,
     );
     expect(screen.getByText('1 design')).toBeInTheDocument();
   });
@@ -54,7 +60,7 @@ describe('ProjectCard', () => {
   it('renders niche chip when niche_name is present', () => {
     const project = makeProjectListItem({ niche_name: 'Funny Dogs' });
     renderWithProviders(
-      <ProjectCard project={project} onClick={vi.fn()} />,
+      <ProjectCard project={project} onClick={vi.fn()} onDelete={vi.fn()} />,
     );
     expect(screen.getByText('Funny Dogs')).toBeInTheDocument();
   });
@@ -62,7 +68,7 @@ describe('ProjectCard', () => {
   it('does not render niche chip when niche_name is null', () => {
     const project = makeProjectListItem({ niche_name: null });
     renderWithProviders(
-      <ProjectCard project={project} onClick={vi.fn()} />,
+      <ProjectCard project={project} onClick={vi.fn()} onDelete={vi.fn()} />,
     );
     // Should not have a chip element for niche
     expect(screen.queryByText('Funny Dogs')).not.toBeInTheDocument();
@@ -74,7 +80,7 @@ describe('ProjectCard', () => {
       name: 'Test Project',
     });
     renderWithProviders(
-      <ProjectCard project={project} onClick={vi.fn()} />,
+      <ProjectCard project={project} onClick={vi.fn()} onDelete={vi.fn()} />,
     );
     const img = screen.getByAltText('Test Project');
     expect(img).toHaveAttribute('src', 'https://example.com/thumb.png');
@@ -83,7 +89,7 @@ describe('ProjectCard', () => {
   it('renders placeholder icon when no thumbnail', () => {
     const project = makeProjectListItem({ thumbnail: null });
     renderWithProviders(
-      <ProjectCard project={project} onClick={vi.fn()} />,
+      <ProjectCard project={project} onClick={vi.fn()} onDelete={vi.fn()} />,
     );
     // MUI ImageOutlinedIcon is rendered as placeholder
     expect(screen.queryByRole('img')).not.toBeInTheDocument();
@@ -93,9 +99,9 @@ describe('ProjectCard', () => {
     const onClick = vi.fn();
     const project = makeProjectListItem({ id: 'proj-42' });
     renderWithProviders(
-      <ProjectCard project={project} onClick={onClick} />,
+      <ProjectCard project={project} onClick={onClick} onDelete={vi.fn()} />,
     );
-    fireEvent.click(screen.getByRole('button'));
+    fireEvent.click(screen.getByRole('button', { name: /open project/i }));
     expect(onClick).toHaveBeenCalledWith('proj-42');
   });
 
@@ -103,9 +109,9 @@ describe('ProjectCard', () => {
     const onClick = vi.fn();
     const project = makeProjectListItem({ id: 'proj-42' });
     renderWithProviders(
-      <ProjectCard project={project} onClick={onClick} />,
+      <ProjectCard project={project} onClick={onClick} onDelete={vi.fn()} />,
     );
-    fireEvent.keyDown(screen.getByRole('button'), { key: 'Enter' });
+    fireEvent.keyDown(screen.getByRole('button', { name: /open project/i }), { key: 'Enter' });
     expect(onClick).toHaveBeenCalledWith('proj-42');
   });
 
@@ -113,18 +119,18 @@ describe('ProjectCard', () => {
     const onClick = vi.fn();
     const project = makeProjectListItem({ id: 'proj-42' });
     renderWithProviders(
-      <ProjectCard project={project} onClick={onClick} />,
+      <ProjectCard project={project} onClick={onClick} onDelete={vi.fn()} />,
     );
-    fireEvent.keyDown(screen.getByRole('button'), { key: ' ' });
+    fireEvent.keyDown(screen.getByRole('button', { name: /open project/i }), { key: ' ' });
     expect(onClick).toHaveBeenCalledWith('proj-42');
   });
 
   it('has correct aria-label', () => {
     const project = makeProjectListItem({ name: 'My Cool Project' });
     renderWithProviders(
-      <ProjectCard project={project} onClick={vi.fn()} />,
+      <ProjectCard project={project} onClick={vi.fn()} onDelete={vi.fn()} />,
     );
-    expect(screen.getByRole('button')).toHaveAttribute(
+    expect(screen.getByRole('button', { name: /open project/i })).toHaveAttribute(
       'aria-label',
       'Open project My Cool Project',
     );

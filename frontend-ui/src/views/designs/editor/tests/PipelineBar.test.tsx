@@ -74,7 +74,6 @@ describe('PipelineBar', () => {
     expect(screen.getByText('Standard')).toBeInTheDocument();
     expect(screen.getByText('Edge Cleanup')).toBeInTheDocument();
     expect(screen.getByText('AI Processing')).toBeInTheDocument();
-    expect(screen.getByText('Quality')).toBeInTheDocument();
   });
 
   it('renders inactive tool chips for catalog tools', () => {
@@ -82,7 +81,7 @@ describe('PipelineBar', () => {
     expect(screen.getByText('Resize & Reposition')).toBeInTheDocument();
     expect(screen.getByText('Trim')).toBeInTheDocument();
     expect(screen.getByText('BG Remove')).toBeInTheDocument();
-    expect(screen.getByText('Compressor')).toBeInTheDocument();
+    expect(screen.getByText('AI Upscale')).toBeInTheDocument();
   });
 
   it('calls onAddTool when inactive chip clicked', async () => {

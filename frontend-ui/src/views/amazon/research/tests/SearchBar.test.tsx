@@ -87,14 +87,11 @@ describe('SearchBar', () => {
       <SearchBar {...baseProps} onSearch={onSearch} onKeywordChange={onKeywordChange} />,
     );
 
-    // Click search with empty input
+    // Search button is disabled when input is empty
     const searchBtn = screen.getByRole('button', { name: 'Search' });
-    await userEvent.click(searchBtn);
+    expect(searchBtn).toBeDisabled();
 
-    expect(onSearch).not.toHaveBeenCalled();
-    expect(onKeywordChange).not.toHaveBeenCalled();
-
-    // Type only spaces then press Enter
+    // Type only spaces then press Enter — should not submit
     const input = screen.getByPlaceholderText('Search keywords...');
     await userEvent.type(input, '   {Enter}');
 
@@ -108,10 +105,11 @@ describe('SearchBar', () => {
     expect(screen.getByText('Live Research')).toBeInTheDocument();
   });
 
-  it('does not show Live Research label when isLive is false', () => {
+  it('renders Live Research label in disabled style when isLive is false', () => {
     renderWithProviders(<SearchBar {...baseProps} isLive={false} />);
 
-    expect(screen.queryByText('Live Research')).not.toBeInTheDocument();
+    // Label is always rendered but styled as disabled when not active
+    expect(screen.getByText('Live Research')).toBeInTheDocument();
   });
 
   it('renders recent search chips when provided', () => {

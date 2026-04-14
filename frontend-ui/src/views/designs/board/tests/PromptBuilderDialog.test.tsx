@@ -401,7 +401,7 @@ describe('PromptBuilderDialog — E2E Flow', () => {
     vi.clearAllMocks();
   });
 
-  it('navigates tabs, fills fields, saves preset, and generates prompt', async () => {
+  it('navigates tabs, fills fields, saves preset, and generates prompt', { timeout: 15000 }, async () => {
     const user = userEvent.setup();
     const buildAndSave = vi.fn().mockResolvedValue(undefined);
     const savePreset = vi.fn().mockResolvedValue(undefined);

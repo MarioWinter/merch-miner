@@ -547,6 +547,10 @@
     "batchHint": "Enter slogans (one per line for batch input)...",
     "adapted": "adapted",
     "delete": "Delete",
+    "empty": {
+      "title": "No ideas yet",
+      "hint": "Create your first idea or run research to discover slogans."
+    },
     "status": {
       "pending": "Pending",
       "approved": "Approved",

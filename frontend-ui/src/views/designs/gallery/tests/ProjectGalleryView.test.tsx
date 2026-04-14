@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -21,10 +21,13 @@ vi.mock('@/store/collectedProductsSlice', () => ({ collectedProductsApi: fa('col
 const mockListProjectsQuery = vi.fn();
 const mockCreateProjectMutation = vi.fn();
 
+const mockDeleteProjectMutation = vi.fn();
+
 vi.mock('@/store/designSlice', () => ({
   designApi: fa('designApi'),
   useListProjectsQuery: () => mockListProjectsQuery(),
   useCreateProjectMutation: () => mockCreateProjectMutation(),
+  useDeleteProjectMutation: () => mockDeleteProjectMutation(),
 }));
 
 import { renderWithProviders } from '../../../../utils/test-utils';
@@ -33,6 +36,10 @@ import { makeProjectListItem } from '../../board/tests/fixtures';
 
 afterEach(() => {
   vi.clearAllMocks();
+});
+
+beforeEach(() => {
+  mockDeleteProjectMutation.mockReturnValue([vi.fn(), { isLoading: false }]);
 });
 
 describe('ProjectGalleryView', () => {
