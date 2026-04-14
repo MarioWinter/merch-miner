@@ -1706,8 +1706,8 @@
 - [x] Add PreparingDownloadModal to JSX (below ExportControls area)
 - [x] Connect ExportControls download handlers → hook → modal open/close
 - [x] Remove all ExportDialog references (imports, state, handlers, JSX)
-- [ ] Test: single image download with each compression level
-- [ ] Test: batch ZIP download (5+ images) with progress
+- [x] Test: single image download with each compression level
+- [x] Test: batch ZIP download (5+ images) with progress
 
 ### J7: i18n
 
@@ -1732,7 +1732,7 @@
 - [x] Integration test: download flow — covered in UnifiedBottomBar tests (mode switch + button interactions)
 - [x] `npm run lint` clean (our files)
 - [x] `npx tsc --noEmit` clean
-- [ ] Manual test: download PNG with "Very High" → verify file size < 2MB for standard 4500x5400 POD design
+- [x] Manual test: download PNG with "Very High" → verify file size < 2MB for standard 4500x5400 POD design
 
 ---
 
@@ -1799,13 +1799,13 @@
 - [x] `ShapeLayer.tsx`: same fix
 - [x] `TextLayer.tsx`: same fix
 - [x] `BrushLayer.tsx`: same fix
-- [ ] Manual test: select a 1024×1024 image scaled to 4500×5400 → handles should be same visual size as on an unscaled element
+- [x] Manual test: select a 1024×1024 image scaled to 4500×5400 → handles should be same visual size as on an unscaled element
 
 ### L2: Fix AI Image Aspect Ratio on Artboard (AC-161)
 
 - [x] When a processed/resized image is saved back to the server and the artboard element updates its URL, also update element `width`/`height` from the new image's natural dimensions (load Image() → naturalWidth/naturalHeight)
 - [x] Ensure artboard element displays correct aspect ratio (e.g. 5:6 for 4500×5400) instead of remaining square
-- [ ] Manual test: generate 1024×1024 image → open in Editor → Resize to 4500×5400 → save → switch to Canvas tab → artboard element shows 5:6 ratio
+- [x] Manual test: generate 1024×1024 image → open in Editor → Resize to 4500×5400 → save → switch to Canvas tab → artboard element shows 5:6 ratio
 
 ### L3: Resolution Info Badge on Artboard Element
 
@@ -1819,8 +1819,8 @@
 
 - [x] `npm run lint` clean
 - [x] `npx tsc --noEmit` clean
-- [ ] Manual test: scale multiple element types (image, text, shape) → all have correctly-sized handles
-- [ ] Manual test: resolution badge shows correct dimensions on image elements
+- [x] Manual test: scale multiple element types (image, text, shape) → all have correctly-sized handles
+- [x] Manual test: resolution badge shows correct dimensions on image elements
 
 ---
 
@@ -1850,8 +1850,8 @@
 - [x] Add useEffect that watches `artboardBounds` + `canvasHook.state.stageWidth/stageHeight`
 - [x] When all three are truthy and `hasFittedRef.current === false`: call `canvasHook.fitToView(artboardBounds)`, set ref to true
 - [x] Verify: opening a project with existing artboards shows all of them centered in viewport
-- [ ] Verify: adding a new artboard after load does NOT re-trigger auto-fit (EC-31)
-- [ ] Verify: opening a project with 0 artboards does not error (EC-30)
+- [x] Verify: adding a new artboard after load does NOT re-trigger auto-fit (EC-31)
+- [x] Verify: opening a project with 0 artboards does not error (EC-30)
 
 ### M4: Click-to-Navigate from Right Panel (AC-164)
 
@@ -1889,10 +1889,10 @@
 - [x] Manual test: open project with 2+ artboards → all visible on load (auto fit-to-view)
 - [x] Manual test: click artboard in Right Panel → canvas jumps to it
 - [x] Manual test: minimap shows all artboards + viewport rect
-- [ ] Manual test: click on minimap → canvas navigates to clicked position
-- [ ] Manual test: zoom in/out → minimap viewport rect updates proportionally
-- [ ] Manual test: empty project (0 artboards) → no minimap visible, no errors
-- [ ] Manual test: artboards spread far apart → minimap scales down, all rects visible (≥3px)
+- [x] Manual test: click on minimap → canvas navigates to clicked position
+- [x] Manual test: zoom in/out → minimap viewport rect updates proportionally
+- [x] Manual test: empty project (0 artboards) → no minimap visible, no errors
+- [x] Manual test: artboards spread far apart → minimap scales down, all rects visible (≥3px)
 - [x] Remove any debug console.logs added during M1
 
 ### M8: Artboard Auto-Resize to Image Dimensions (AC-169, EC-36, EC-37)
@@ -1995,13 +1995,13 @@
 
 ### N9: Tests + Cleanup
 
-- [ ] Unit test: `useEditorBatch` — add, remove, clear, count
-- [ ] Integration test: "Add to Editor" from PanelMultiState — verify snackbar + batch updated
-- [ ] Integration test: "Open in Editor" — verify tab switch + batch updated
-- [ ] Integration test: "Add to Canvas" — verify artboard created with correct dimensions
-- [ ] Verify: deleting artboard on Canvas does NOT affect Editor batch (AC-180)
-- [ ] Verify: removing image from Editor batch does NOT affect Canvas artboard (AC-180)
-- [ ] Verify: adding same artboard twice via "Add to Editor" → 2 items in batch (EC-51)
+- [x] Unit test: `useEditorBatch` — add, remove, clear, count
+- [x] Integration test: "Add to Editor" from PanelMultiState — verify snackbar + batch updated
+- [x] Integration test: "Open in Editor" — verify tab switch + batch updated
+- [x] Integration test: "Add to Canvas" — verify artboard created with correct dimensions
+- [x] Verify: deleting artboard on Canvas does NOT affect Editor batch (AC-180)
+- [x] Verify: removing image from Editor batch does NOT affect Canvas artboard (AC-180)
+- [x] Verify: adding same artboard twice via "Add to Editor" → 2 items in batch (EC-51)
 - [x] `npx tsc --noEmit` clean
 - [x] `npm run lint` clean
 - [x] Test file updated: `DesignEditorView.test.tsx` — `initialImages` → `editorBatch`
@@ -2039,7 +2039,7 @@
 - [x] After "Add Selected to Canvas": clear selection + snackbar "N images added to Canvas" (AC-188)
 - [x] `npx tsc --noEmit` clean
 - [x] `npm run lint` clean
-- [ ] Manual test: Shift+Click range select → "Add Selected to Canvas" → verify artboards created on Canvas
+- [x] Manual test: Shift+Click range select → "Add Selected to Canvas" → verify artboards created on Canvas
 
 ### N12: Canvas Stability Bug Fixes (AC-189 to AC-197, EC-61 to EC-68)
 
