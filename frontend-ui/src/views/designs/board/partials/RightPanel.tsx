@@ -76,6 +76,7 @@ interface RightPanelProps {
   panelState: RightPanelState;
   onUpdateArtboard: (id: string, patch: Partial<ArtboardData>) => void;
   onResizeArtboard: (id: string, width: number, height: number) => void;
+  onAddToEditor: (ids: string[]) => void;
   onOpenInEditor: (ids: string[]) => void;
   onDeleteSelected: (ids: string[]) => void;
   onExportSelected: (ids: string[]) => void;
@@ -142,6 +143,7 @@ const RightPanel = ({
   panelState,
   onUpdateArtboard,
   onResizeArtboard,
+  onAddToEditor,
   onOpenInEditor,
   onDeleteSelected,
   onExportSelected,
@@ -266,6 +268,7 @@ const RightPanel = ({
       {panelState.mode === 'multi' && (
         <PanelMultiState
           selectedArtboards={panelState.selectedArtboards}
+          onAddToEditor={onAddToEditor}
           onOpenInEditor={onOpenInEditor}
           onDeleteAll={onDeleteSelected}
           onExportSelected={onExportSelected}
@@ -283,6 +286,10 @@ const RightPanel = ({
             onSelectElement={onSelectElement}
             onUpdateElement={onUpdateElement}
             onReorderElement={onReorderElement}
+            onAddToEditor={onAddToEditor}
+            onOpenInEditor={onOpenInEditor}
+            onExportSelected={onExportSelected}
+            onDeleteSelected={onDeleteSelected}
           />
         )}
 

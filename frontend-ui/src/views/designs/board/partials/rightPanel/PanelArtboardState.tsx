@@ -6,6 +6,7 @@ import {
   MenuItem,
   Select,
   Slider,
+  Stack,
   Switch,
   TextField,
   Tooltip,
@@ -15,6 +16,10 @@ import { styled } from '@mui/material/styles';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import LinkIcon from '@mui/icons-material/Link';
 import LinkOffIcon from '@mui/icons-material/LinkOff';
+import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternateOutlined';
+import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
+import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useTranslation } from 'react-i18next';
 import type { ArtboardData, CanvasElement } from '../../types';
 import { ARTBOARD_PRESETS } from '../../types';
@@ -51,6 +56,21 @@ const SwitchRow = styled(Box)(({ theme }) => ({
   padding: theme.spacing(0.5, 0),
 }));
 
+const ToolbarButton = styled(IconButton)(({ theme }) => ({
+  width: 32,
+  height: 32,
+  color: theme.vars.palette.text.secondary,
+  '&:hover': {
+    color: theme.vars.palette.text.primary,
+  },
+}));
+
+const DeleteButton = styled(IconButton)(({ theme }) => ({
+  width: 32,
+  height: 32,
+  color: theme.vars.palette.error.main,
+}));
+
 // -----------------------------------------------------------------
 // Props
 // -----------------------------------------------------------------
@@ -67,6 +87,10 @@ interface PanelArtboardStateProps {
     patch: Partial<Omit<CanvasElement, 'id' | 'type'>>,
   ) => void;
   onReorderElement?: (artboardId: string, elementId: string, newIndex: number) => void;
+  onAddToEditor?: (ids: string[]) => void;
+  onOpenInEditor?: (ids: string[]) => void;
+  onExportSelected?: (ids: string[]) => void;
+  onDeleteSelected?: (ids: string[]) => void;
 }
 
 // -----------------------------------------------------------------
@@ -92,6 +116,10 @@ const PanelArtboardState = ({
   onSelectElement,
   onUpdateElement,
   onReorderElement,
+  onAddToEditor,
+  onOpenInEditor,
+  onExportSelected,
+  onDeleteSelected,
 }: PanelArtboardStateProps) => {
   const { t } = useTranslation();
   const [editingWidth, setEditingWidth] = useState<string | null>(null);
@@ -189,6 +217,40 @@ const PanelArtboardState = ({
           onKeyDown={(e) => e.key === 'Enter' && commitLabel()}
           placeholder={t('design.panel.namePlaceholder', 'Artboard name')}
         />
+
+        {/* Action toolbar */}
+        {(onAddToEditor || onOpenInEditor || onExportSelected || onDeleteSelected) && (
+          <Stack direction="row" sx={{ gap: 0.5, mt: 1 }}>
+            {onAddToEditor && (
+              <Tooltip title={t('design.panel.addToEditor', 'Add to Editor')}>
+                <ToolbarButton onClick={() => onAddToEditor([artboard.id])} aria-label={t('design.panel.addToEditor', 'Add to Editor')}>
+                  <AddPhotoAlternateOutlinedIcon sx={{ fontSize: 20 }} />
+                </ToolbarButton>
+              </Tooltip>
+            )}
+            {onOpenInEditor && (
+              <Tooltip title={t('design.panel.openInEditor', 'Open in Editor')}>
+                <ToolbarButton onClick={() => onOpenInEditor([artboard.id])} aria-label={t('design.panel.openInEditor', 'Open in Editor')}>
+                  <OpenInNewOutlinedIcon sx={{ fontSize: 20 }} />
+                </ToolbarButton>
+              </Tooltip>
+            )}
+            {onExportSelected && (
+              <Tooltip title={t('design.panel.exportSelected', 'Export')}>
+                <ToolbarButton onClick={() => onExportSelected([artboard.id])} aria-label={t('design.panel.exportSelected', 'Export')}>
+                  <FileDownloadOutlinedIcon sx={{ fontSize: 20 }} />
+                </ToolbarButton>
+              </Tooltip>
+            )}
+            {onDeleteSelected && (
+              <Tooltip title={t('design.panel.deleteAll', 'Delete')}>
+                <DeleteButton onClick={() => onDeleteSelected([artboard.id])} aria-label={t('design.panel.deleteAll', 'Delete')}>
+                  <DeleteOutlineIcon sx={{ fontSize: 20 }} />
+                </DeleteButton>
+              </Tooltip>
+            )}
+          </Stack>
+        )}
       </Section>
 
       <Divider />

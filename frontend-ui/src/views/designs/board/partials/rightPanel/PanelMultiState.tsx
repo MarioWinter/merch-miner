@@ -1,9 +1,10 @@
 import { useCallback } from 'react';
-import { Box, Button, Stack, Typography } from '@mui/material';
+import { Box, IconButton, Stack, Tooltip, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import OpenInNewIcon from '@mui/icons-material/OpenInNew';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternateOutlined';
+import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useTranslation } from 'react-i18next';
 import type { ArtboardData } from '../../types';
 
@@ -22,12 +23,28 @@ const InfoRow = styled(Box)(({ theme }) => ({
   padding: theme.spacing(1, 0),
 }));
 
+const ToolbarButton = styled(IconButton)(({ theme }) => ({
+  width: 32,
+  height: 32,
+  color: theme.vars.palette.text.secondary,
+  '&:hover': {
+    color: theme.vars.palette.text.primary,
+  },
+}));
+
+const DeleteButton = styled(IconButton)(({ theme }) => ({
+  width: 32,
+  height: 32,
+  color: theme.vars.palette.error.main,
+}));
+
 // -----------------------------------------------------------------
 // Props
 // -----------------------------------------------------------------
 
 interface PanelMultiStateProps {
   selectedArtboards: ArtboardData[];
+  onAddToEditor: (ids: string[]) => void;
   onOpenInEditor: (ids: string[]) => void;
   onDeleteAll: (ids: string[]) => void;
   onExportSelected: (ids: string[]) => void;
@@ -39,6 +56,7 @@ interface PanelMultiStateProps {
 
 const PanelMultiState = ({
   selectedArtboards,
+  onAddToEditor,
   onOpenInEditor,
   onDeleteAll,
   onExportSelected,
@@ -48,6 +66,10 @@ const PanelMultiState = ({
 
   const aiCount = selectedArtboards.filter((a) => a.kind === 'ai').length;
   const regularCount = selectedArtboards.length - aiCount;
+
+  const handleAddEditor = useCallback(() => {
+    onAddToEditor(ids);
+  }, [ids, onAddToEditor]);
 
   const handleOpenEditor = useCallback(() => {
     onOpenInEditor(ids);
@@ -84,40 +106,29 @@ const PanelMultiState = ({
             <Typography variant="body2">{aiCount}</Typography>
           </InfoRow>
         )}
-      </Section>
 
-      {/* Bulk actions */}
-      <Section>
-        <Stack spacing={1}>
-          <Button
-            variant="contained"
-            color="secondary"
-            startIcon={<OpenInNewIcon />}
-            onClick={handleOpenEditor}
-            fullWidth
-            size="small"
-          >
-            {t('design.panel.openInEditor', 'Open in Editor')}
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<FileDownloadOutlinedIcon />}
-            onClick={handleExport}
-            fullWidth
-            size="small"
-          >
-            {t('design.panel.exportSelected', 'Export Selected')}
-          </Button>
-          <Button
-            variant="outlined"
-            color="error"
-            startIcon={<DeleteOutlineIcon />}
-            onClick={handleDelete}
-            fullWidth
-            size="small"
-          >
-            {t('design.panel.deleteAll', 'Delete All')}
-          </Button>
+        {/* Action toolbar */}
+        <Stack direction="row" sx={{ gap: 0.5, mt: 1 }}>
+          <Tooltip title={t('design.panel.addToEditor', 'Add to Editor')}>
+            <ToolbarButton onClick={handleAddEditor} aria-label={t('design.panel.addToEditor', 'Add to Editor')}>
+              <AddPhotoAlternateOutlinedIcon sx={{ fontSize: 20 }} />
+            </ToolbarButton>
+          </Tooltip>
+          <Tooltip title={t('design.panel.openInEditor', 'Open in Editor')}>
+            <ToolbarButton onClick={handleOpenEditor} aria-label={t('design.panel.openInEditor', 'Open in Editor')}>
+              <OpenInNewOutlinedIcon sx={{ fontSize: 20 }} />
+            </ToolbarButton>
+          </Tooltip>
+          <Tooltip title={t('design.panel.exportSelected', 'Export')}>
+            <ToolbarButton onClick={handleExport} aria-label={t('design.panel.exportSelected', 'Export')}>
+              <FileDownloadOutlinedIcon sx={{ fontSize: 20 }} />
+            </ToolbarButton>
+          </Tooltip>
+          <Tooltip title={t('design.panel.deleteAll', 'Delete')}>
+            <DeleteButton onClick={handleDelete} aria-label={t('design.panel.deleteAll', 'Delete')}>
+              <DeleteOutlineIcon sx={{ fontSize: 20 }} />
+            </DeleteButton>
+          </Tooltip>
         </Stack>
       </Section>
     </Box>

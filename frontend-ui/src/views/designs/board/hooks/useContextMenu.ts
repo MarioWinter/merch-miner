@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import type { ArtboardData } from '../types';
+import { fitToMaxDimension } from '../utils/artboardSizing';
 
 // -----------------------------------------------------------------
 // Types
@@ -91,12 +92,27 @@ const useContextMenu = ({
   const handleAddArtboardFromFile = useCallback(
     (file: File, worldX: number, worldY: number) => {
       const previewUrl = URL.createObjectURL(file);
-      addArtboard({
-        x: worldX,
-        y: worldY,
-        label: file.name.replace(/\.[^.]+$/, ''),
-        imageUrl: previewUrl,
-      });
+      const img = new window.Image();
+      img.onload = () => {
+        const { width, height } = fitToMaxDimension(img.naturalWidth, img.naturalHeight);
+        addArtboard({
+          x: worldX,
+          y: worldY,
+          width,
+          height,
+          label: file.name.replace(/\.[^.]+$/, ''),
+          imageUrl: previewUrl,
+        });
+      };
+      img.onerror = () => {
+        addArtboard({
+          x: worldX,
+          y: worldY,
+          label: file.name.replace(/\.[^.]+$/, ''),
+          imageUrl: previewUrl,
+        });
+      };
+      img.src = previewUrl;
     },
     [addArtboard],
   );

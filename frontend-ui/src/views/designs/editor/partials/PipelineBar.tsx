@@ -268,7 +268,7 @@ export const PipelineBar = ({
                     if (isActive && activeTool) {
                       return (
                         <SortableActiveChip
-                          key={activeTool.id}
+                          key={toolDef.name}
                           tool={activeTool}
                           color={catColor}
                           label={label}

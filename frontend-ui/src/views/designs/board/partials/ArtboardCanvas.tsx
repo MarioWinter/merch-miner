@@ -14,6 +14,7 @@ import useRubberBand from '../hooks/useRubberBand';
 import Artboard from './Artboard';
 import ArtboardContextMenu from './ArtboardContextMenu';
 import CanvasContextMenu from './CanvasContextMenu';
+import CanvasMinimap from './CanvasMinimap';
 import ConnectionArrow from './ConnectionArrow';
 import RubberBandSelection from './RubberBandSelection';
 import ArtboardLabelEditor from './ArtboardLabelEditor';
@@ -57,8 +58,10 @@ export interface ArtboardCanvasProps {
   canvasState: CanvasState;
   containerRef: React.RefObject<HTMLDivElement | null>;
   setContainerRef: (node: HTMLDivElement | null) => void;
+  setStageRef?: (node: { x: () => number; y: () => number } | null) => void;
   handleWheel: (e: { evt: WheelEvent }) => void;
   setPan: (x: number, y: number) => void;
+  panTo: (worldX: number, worldY: number) => void;
   resizeArtboard: (id: string, width: number, height: number) => void;
   /** Element selection state */
   selectedElementId?: string | null;
@@ -92,6 +95,9 @@ export interface ArtboardCanvasProps {
   onBrushDrawEnd?: () => void;
   /** Phase G13: analyze image from context menu */
   onAnalyzeImage?: (artboardId: string) => void;
+  /** Phase N: transfer actions for context menu */
+  onAddToEditor?: (artboardIds: string[]) => void;
+  onOpenInEditor?: (artboardIds: string[]) => void;
   /** Element currently being inline-edited (text editing) — hide from Konva render */
   editingElementId?: string | null;
 }
@@ -120,8 +126,10 @@ const ArtboardCanvas = ({
   canvasState,
   containerRef,
   setContainerRef,
+  setStageRef,
   handleWheel,
   setPan,
+  panTo,
   resizeArtboard,
   selectedElementId,
   isFreeTransform,
@@ -139,12 +147,23 @@ const ArtboardCanvas = ({
   onBrushDrawMove,
   onBrushDrawEnd,
   onAnalyzeImage,
+  onAddToEditor,
+  onOpenInEditor,
   editingElementId,
 }: ArtboardCanvasProps) => {
   const { t } = useTranslation();
   const { mode } = useColorScheme();
   const isDark = mode !== 'light';
   const stageRef = useRef<Konva.Stage>(null);
+
+  // Sync Konva Stage ref to canvas hook so zoom reads live position during drag
+  const stageCallbackRef = useCallback(
+    (node: Konva.Stage | null) => {
+      (stageRef as React.MutableRefObject<Konva.Stage | null>).current = node;
+      setStageRef?.(node);
+    },
+    [setStageRef],
+  );
 
   const { zoom, panX, panY, stageWidth, stageHeight, showGrid } = canvasState;
   const gridDots = useGridDots({ zoom, panX, panY, stageWidth, stageHeight });
@@ -173,10 +192,15 @@ const ArtboardCanvas = ({
 
   const isPanMode = spaceHeld;
 
-  const screenToWorld = (screenX: number, screenY: number) => ({
-    x: (screenX - panX) / zoom,
-    y: (screenY - panY) / zoom,
-  });
+  // Use live Stage position (Konva may have moved it via drag before React state synced)
+  const screenToWorld = (screenX: number, screenY: number) => {
+    const livePanX = stageRef.current?.x() ?? panX;
+    const livePanY = stageRef.current?.y() ?? panY;
+    return {
+      x: (screenX - livePanX) / zoom,
+      y: (screenY - livePanY) / zoom,
+    };
+  };
 
   // -- Rubber-band selection --
   const {
@@ -331,7 +355,7 @@ const ArtboardCanvas = ({
 
       {stageWidth > 0 && stageHeight > 0 && (
         <Stage
-          ref={stageRef}
+          ref={stageCallbackRef}
           width={stageWidth}
           height={stageHeight}
           x={panX}
@@ -435,6 +459,8 @@ const ArtboardCanvas = ({
         onBringToFront={bringToFront}
         onSendToBack={sendToBack}
         onAnalyzeImage={onAnalyzeImage}
+        onAddToEditor={onAddToEditor}
+        onOpenInEditor={onOpenInEditor}
       />
       <CanvasContextMenu
         position={canvasMenu.position}
@@ -443,6 +469,17 @@ const ArtboardCanvas = ({
         onClose={closeCanvasMenu}
         onAddArtboard={handleAddArtboardFromFile}
         onDeleteSelected={handleDeleteSelected}
+      />
+
+      <CanvasMinimap
+        artboards={artboards}
+        selectedIds={selectedIds}
+        zoom={zoom}
+        panX={panX}
+        panY={panY}
+        stageWidth={stageWidth}
+        stageHeight={stageHeight}
+        onPanTo={panTo}
       />
     </CanvasContainer>
   );

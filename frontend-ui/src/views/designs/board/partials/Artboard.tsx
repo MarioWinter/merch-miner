@@ -363,13 +363,13 @@ const Artboard = ({
       onContextMenu={handleContextMenu}
       onMouseDown={handleMouseDown}
     >
-      {/* Label above frame */}
+      {/* Label above frame — constant screen size via inverse zoom */}
       <Text
         x={0}
-        y={-(LABEL_HEIGHT + LABEL_PADDING_TOP)}
+        y={-(LABEL_HEIGHT + LABEL_PADDING_TOP) / zoom}
         width={data.width}
         text={`${labelPrefix}${data.label}`}
-        fontSize={LABEL_FONT_SIZE / Math.max(zoom, 0.4)}
+        fontSize={LABEL_FONT_SIZE / zoom}
         fontFamily="Inter, sans-serif"
         fontStyle="600"
         fill={labelColor}

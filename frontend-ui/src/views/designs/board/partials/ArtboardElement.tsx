@@ -196,10 +196,6 @@ const ArtboardElement = ({
                   'top-right',
                   'bottom-left',
                   'bottom-right',
-                  'middle-left',
-                  'middle-right',
-                  'top-center',
-                  'bottom-center',
                 ]
           }
           borderStrokeWidth={1.5}

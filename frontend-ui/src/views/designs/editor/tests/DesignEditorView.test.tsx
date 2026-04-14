@@ -163,22 +163,22 @@ describe('DesignEditorView', () => {
     expect(fileInput.hidden).toBe(true);
   });
 
-  it('shows editor canvas when initialImages provided', () => {
+  it('shows editor canvas when editorBatch provided', () => {
     renderWithProviders(
       <DesignEditorView
         projectId="proj-1"
-        initialImages={[{ url: 'blob:http://localhost/test', name: 'test.png' }]}
+        editorBatch={[{ id: 'b1', url: 'blob:http://localhost/test', name: 'test.png' }]}
       />,
     );
     expect(screen.getByTestId('editor-canvas')).toBeInTheDocument();
     expect(screen.queryByTestId('drop-zone')).not.toBeInTheDocument();
   });
 
-  it('shows batch strip when initialImages provided', () => {
+  it('shows batch strip when editorBatch provided', () => {
     renderWithProviders(
       <DesignEditorView
         projectId="proj-1"
-        initialImages={[{ url: 'blob:http://localhost/test', name: 'test.png' }]}
+        editorBatch={[{ id: 'b1', url: 'blob:http://localhost/test', name: 'test.png' }]}
       />,
     );
     expect(screen.getByTestId('batch-strip')).toBeInTheDocument();

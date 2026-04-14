@@ -1,13 +1,13 @@
 import { useCallback, useRef, useState } from 'react';
 import { useUploadDesignToProjectMutation } from '@/store/designSlice';
 import type { ArtboardData } from '../types';
+import { DEFAULT_ARTBOARD_WIDTH, fitToMaxDimension } from '../utils/artboardSizing';
 
 // -----------------------------------------------------------------
 // Constants
 // -----------------------------------------------------------------
 
 const ACCEPTED_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/svg+xml']);
-const MAX_ARTBOARD_DIM = 600; // cap artboard to 600px in world space
 
 // -----------------------------------------------------------------
 // Types
@@ -47,20 +47,16 @@ interface UseExternalDropReturn {
 
 const isImageFile = (file: File): boolean => ACCEPTED_TYPES.has(file.type);
 
-/** Load an image to get its natural dimensions */
-const loadImageDimensions = (url: string): Promise<{ width: number; height: number }> =>
-  new Promise((resolve) => {
-    const img = new Image();
-    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
-    img.onerror = () => resolve({ width: 280, height: 280 }); // fallback
-    img.src = url;
-  });
-
-/** Scale dimensions to fit within MAX_ARTBOARD_DIM while preserving aspect ratio */
-const fitDimensions = (w: number, h: number): { width: number; height: number } => {
-  if (w <= MAX_ARTBOARD_DIM && h <= MAX_ARTBOARD_DIM) return { width: w, height: h };
-  const scale = Math.min(MAX_ARTBOARD_DIM / w, MAX_ARTBOARD_DIM / h);
-  return { width: Math.round(w * scale), height: Math.round(h * scale) };
+/** Get natural dimensions from a File using createImageBitmap (more reliable than Image+blobURL) */
+const getFileDimensions = async (file: File): Promise<{ width: number; height: number }> => {
+  try {
+    const bitmap = await createImageBitmap(file);
+    const { width, height } = bitmap;
+    bitmap.close();
+    return { width, height };
+  } catch {
+    return { width: DEFAULT_ARTBOARD_WIDTH, height: DEFAULT_ARTBOARD_WIDTH };
+  }
 };
 
 // -----------------------------------------------------------------
@@ -111,8 +107,8 @@ const useExternalDrop = ({
 
       for (const file of imageFiles) {
         const previewUrl = URL.createObjectURL(file);
-        const natural = await loadImageDimensions(previewUrl);
-        const { width, height } = fitDimensions(natural.width, natural.height);
+        const natural = await getFileDimensions(file);
+        const { width, height } = fitToMaxDimension(natural.width, natural.height);
         const label = file.name.replace(/\.[^.]+$/, '');
 
         // Instant preview with blob URL

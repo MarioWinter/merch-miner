@@ -8,12 +8,14 @@ import {
   Select,
   MenuItem,
   Chip,
+  Tooltip,
 } from '@mui/material';
 import { styled, alpha } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import DownloadIcon from '@mui/icons-material/Download';
 import FolderZipIcon from '@mui/icons-material/FolderZip';
 import CloseIcon from '@mui/icons-material/Close';
+import DashboardCustomizeOutlinedIcon from '@mui/icons-material/DashboardCustomizeOutlined';
 import type { BatchImage, CompressionLevel, ExportSettings } from '../types';
 import { COLORS, DURATION, EASING, MONO_FONT_STACK } from '@/style/constants';
 
@@ -227,6 +229,11 @@ interface UnifiedBottomBarProps {
   totalImages: number;
   onDownloadCurrent: (settings: ExportSettings) => void;
   onDownloadAll: (settings: ExportSettings) => void;
+  onAddToCanvas?: () => void;
+  /** Number of multi-selected images */
+  selectedCount?: number;
+  /** Add all selected images to canvas */
+  onAddSelectedToCanvas?: () => void;
 }
 
 // -----------------------------------------------------------------
@@ -238,6 +245,9 @@ export const UnifiedBottomBar = ({
   totalImages,
   onDownloadCurrent,
   onDownloadAll,
+  onAddToCanvas,
+  selectedCount = 0,
+  onAddSelectedToCanvas,
 }: UnifiedBottomBarProps) => {
   const { t } = useTranslation();
 
@@ -306,6 +316,39 @@ export const UnifiedBottomBar = ({
 
         {/* Spacer */}
         <Box sx={{ flex: 1 }} />
+
+        {/* Add selected to Canvas (multi-select) */}
+        {selectedCount > 0 && onAddSelectedToCanvas ? (
+          <>
+            <Chip
+              label={t('design.editor.nSelected', '{{count}} selected', { count: selectedCount })}
+              size="small"
+              color="secondary"
+              sx={{ fontSize: 11, fontWeight: 600, height: 24 }}
+            />
+            <ActionButton
+              variant="outlined"
+              color="secondary"
+              startIcon={<DashboardCustomizeOutlinedIcon />}
+              onClick={onAddSelectedToCanvas}
+            >
+              {t('design.editor.addSelectedToCanvas', 'Add Selected to Canvas')}
+            </ActionButton>
+          </>
+        ) : (
+          /* Add single to Canvas */
+          onAddToCanvas && (
+            <Tooltip title={t('design.editor.addToCanvas', 'Add to Canvas')}>
+              <IconButton
+                onClick={onAddToCanvas}
+                aria-label={t('design.editor.addToCanvas', 'Add to Canvas')}
+                sx={{ width: 32, height: 32 }}
+              >
+                <DashboardCustomizeOutlinedIcon sx={{ fontSize: 20 }} />
+              </IconButton>
+            </Tooltip>
+          )
+        )}
 
         {/* Download button switches to export mode */}
         <ActionButton

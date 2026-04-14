@@ -5,7 +5,7 @@
 - **New Django app:** `design_app` — Design generation, image analysis, post-processing pipeline
 - **DesignProject model:** Kittl-style project folders. Designs ↔ Projects = M2M. Optional niche binding. Board layout stored per project
 - **2 frontend routes:** `/designs` (Project Gallery) + `/designs/:projectId` (Unified Design Workspace with 2 tab-modes)
-- **Unified Design Workspace:** Tab 1 = Artboard Canvas (Konva.js), Tab 2 = Image Editor (Konva.js). Both independent, context-only transfer
+- **Unified Design Workspace:** Tab 1 = Artboard Canvas (Konva.js), Tab 2 = Image Editor (Konva.js). Fully decoupled — no shared image state, explicit "Add to Editor" / "Add to Canvas" actions only (Phase N)
 - ~~**React Flow (`@xyflow/react`):**~~ REMOVED — replaced by Konva.js artboard paradigm (decided 2026-03-31)
 - **Kittl-style Prompt Bar:** Collapsible chat-like bar. Collapsed = one-liner, Expanded = full editor with thumbnails + model/BG controls
 - **Board persistence:** `DesignProject.board_layout` JSONField — saves artboard positions + connections to backend
@@ -1821,3 +1821,273 @@
 - [x] `npx tsc --noEmit` clean
 - [ ] Manual test: scale multiple element types (image, text, shape) → all have correctly-sized handles
 - [ ] Manual test: resolution badge shows correct dimensions on image elements
+
+---
+
+## Phase M: Canvas Navigation & Orientation (AC-162 to AC-169)
+
+> Added: 2026-04-14
+
+### M1: ResizeObserver Timing Fix (AC-162)
+
+- [x] In `useArtboardCanvas.ts` useEffect: after creating ResizeObserver, check `if (containerRef.current)` and call `.observe()` immediately
+- [x] Verify: on fresh page load, `stageWidth` and `stageHeight` become non-zero within first render cycle
+- [x] Verify: Stage component renders (not blocked by `stageWidth > 0 && stageHeight > 0` guard)
+- [x] Debug: add temporary `console.log('Stage dims:', stageWidth, stageHeight)` to confirm dimensions are set, remove after verification
+- [x] Verify: artboards that exist in `artboardState.artboards` actually appear on the Konva canvas
+
+### M2: panTo Method (AC-168)
+
+- [x] Add `panTo(worldX, worldY)` method to `useArtboardCanvas` hook
+- [x] Method sets `panX = stageWidth/2 - worldX * zoom`, same for Y
+- [x] Add to `UseArtboardCanvasReturn` interface
+- [x] Add to return object
+- [x] Verify: calling `panTo(ab.x + ab.width/2, ab.y + ab.height/2)` centers the artboard on screen
+
+### M3: Auto Fit-to-View on Load (AC-163)
+
+- [x] In `DesignWorkspaceView.tsx`: add `hasFittedRef = useRef(false)`
+- [x] Add useEffect that watches `artboardBounds` + `canvasHook.state.stageWidth/stageHeight`
+- [x] When all three are truthy and `hasFittedRef.current === false`: call `canvasHook.fitToView(artboardBounds)`, set ref to true
+- [x] Verify: opening a project with existing artboards shows all of them centered in viewport
+- [ ] Verify: adding a new artboard after load does NOT re-trigger auto-fit (EC-31)
+- [ ] Verify: opening a project with 0 artboards does not error (EC-30)
+
+### M4: Click-to-Navigate from Right Panel (AC-164)
+
+- [x] Modify `handlePanelSelectArtboard` in `DesignWorkspaceView.tsx`
+- [x] After `artboardState.selectArtboard(id, false)`, find artboard by ID, call `canvasHook.fitToView(bounds)` — changed from panTo to fitToView for proper zoom
+- [x] Pass `canvasHook.panTo` as `panTo` prop through `ArtboardCanvas`
+- [x] Verify: clicking artboard entry in Right Panel's artboard list → canvas zooms to fit that artboard
+- [x] Verify: artboard selection highlight appears on the centered artboard
+
+### M5: Canvas Minimap Component (AC-165, AC-166, AC-167)
+
+- [x] Create `partials/CanvasMinimap.tsx` (≈160×110px overlay)
+- [x] Positioned `absolute`, bottom-right (bottom: 8px, right: 8px, zIndex: 20)
+- [x] Calculate combined world bounds from all artboards + current viewport
+- [x] Render each artboard as a small colored rectangle (selected = cyan, others = muted/transparent)
+- [x] Render viewport as red-bordered rectangle showing currently visible area
+- [x] Click handler: convert click position to world coordinates via scale/offset math, call `onPanTo(worldX, worldY)`
+- [x] Hide when `artboards.length === 0` (AC-167)
+- [x] Dark mode: ink background with 0.85 alpha + backdrop-blur. Light mode: white with 0.9 alpha
+- [x] Min rect size: 3px (EC-32 — artboards always visible even when very far apart)
+- [x] Import + render in `ArtboardCanvas.tsx` inside CanvasContainer, below context menus
+
+### M6: Integration + Wiring
+
+- [x] `ArtboardCanvas.tsx`: add `panTo` to props interface, destructure it
+- [x] `DesignWorkspaceView.tsx`: pass `panTo={canvasHook.panTo}` to ArtboardCanvas
+- [x] Minimap receives: `artboards`, `selectedIds`, `zoom`, `panX`, `panY`, `stageWidth`, `stageHeight`, `onPanTo`
+- [x] Verify: minimap updates live when panning/zooming the canvas
+- [x] Verify: minimap artboard highlight updates when selection changes
+
+### M7: Verification + Cleanup
+
+- [x] `npx tsc --noEmit` clean
+- [x] `npm run lint` clean
+- [x] Manual test: open project with 2+ artboards → all visible on load (auto fit-to-view)
+- [x] Manual test: click artboard in Right Panel → canvas jumps to it
+- [x] Manual test: minimap shows all artboards + viewport rect
+- [ ] Manual test: click on minimap → canvas navigates to clicked position
+- [ ] Manual test: zoom in/out → minimap viewport rect updates proportionally
+- [ ] Manual test: empty project (0 artboards) → no minimap visible, no errors
+- [ ] Manual test: artboards spread far apart → minimap scales down, all rects visible (≥3px)
+- [x] Remove any debug console.logs added during M1
+
+### M8: Artboard Auto-Resize to Image Dimensions (AC-169, EC-36, EC-37)
+
+- [x] In `useArtboards.ts`: add post-hydration useEffect with `resizedIdsRef` guard
+- [x] Detect artboards at default size (280×280) that have an `imageUrl`
+- [x] Preload image via `new Image()`, read `naturalWidth`/`naturalHeight` on load
+- [x] Update artboard `width`/`height` + image layer dimensions to match natural size
+- [x] Skip artboards already resized (ref guard) or with non-default dimensions (EC-37)
+- [x] Image load failure → artboard stays at 280×280, no error (EC-36)
+- [x] Verify: AI-generated 1024×1024 images → artboard resizes to 1024×1024
+- [x] Verify: upscaled 4500×5400 images → artboard resizes to 4500×5400
+- [x] `npx tsc --noEmit` clean
+- [x] `npm run lint` clean
+
+---
+
+## Phase N: Canvas ↔ Editor Decoupling (AC-170 to AC-197, EC-45 to EC-68)
+
+> Frontend-only. No backend changes. Decouples Artboard Canvas and Image Editor — zero shared image state, explicit transfer actions only. Includes multi-select (N10–N11) and canvas stability bug fixes (N12).
+
+### N1: useEditorBatch Hook (shared workspace-level state)
+
+- [x] Create `workspace/hooks/useEditorBatch.ts` — manages editor batch image array
+- [x] State: `editorBatch: Array<{ id, url, name, width?, height? }>`
+- [x] `addToEditorBatch(images)` — append new images, assign UUIDs
+- [x] `removeFromEditorBatch(id)` — remove single image by id
+- [x] `clearEditorBatch()` — clear all images
+- [x] `editorBatchCount` — derived count for badge
+- [x] Wire hook into `DesignWorkspaceView` — lift state to workspace level
+
+### N2: Remove Old Coupling (DesignWorkspaceView + DesignEditorView)
+
+- [x] Remove `editorInitialImages` state from `DesignWorkspaceView`
+- [x] Remove `handleOpenInEditor` that sets `editorInitialImages` + auto-switches tab
+- [x] Remove `?designs=xxx` URL param logic for editor tab (keep only `?tab=editor`)
+- [x] Remove `initialImages` prop from `DesignEditorView`
+- [x] `DesignEditorView` receives `editorBatch` + `onAddToCanvas` callbacks instead
+- [x] Editor's `batchImages` state syncs from `editorBatch` via useEffect (appends new items)
+- [x] Verify: Canvas drag-drop still creates artboards only (no editor side effects) — `useExternalDrop` unchanged
+- [x] `npx tsc --noEmit` clean after refactor
+
+### N3: RightPanel IconButton Toolbar (Single + Multi Select)
+
+- [x] Create `ToolbarButton` + `DeleteButton` styled components: 32px IconButtons with theme colors
+- [x] In `PanelArtboardState`: add icon toolbar under artboard label with 4 IconButtons:
+  - `AddPhotoAlternateOutlined` → tooltip "Add to Editor" → calls `onAddToEditor`
+  - `OpenInNewOutlined` → tooltip "Open in Editor" → calls `onOpenInEditor`
+  - `FileDownloadOutlined` → tooltip "Export" → calls `onExportSelected`
+  - `DeleteOutline` → tooltip "Delete" → calls `onDeleteSelected`, icon color `error.main`
+- [x] In `PanelMultiState`: replace existing full-width buttons with same icon toolbar pattern
+- [x] Icon colors: `text.secondary` default, `text.primary` on hover. Delete: `error.main`
+- [x] Add `onAddToEditor` + `onOpenInEditor` callback props to both panel components
+- [x] Wire through `RightPanel.tsx` — pass all 4 callbacks to both panels
+
+### N4: Context Menu — Transfer Actions
+
+- [x] Add `onAddToEditor` + `onOpenInEditor` callback props to `ArtboardContextMenu`
+- [x] Add "Add to Editor" menu item with `AddPhotoAlternateOutlined` icon — after "Save to Listings", with Divider
+- [x] Add "Open in Editor" menu item with `OpenInNewOutlined` icon — after "Add to Editor"
+- [x] Own Divider group separating transfer actions from Duplicate
+- [x] Both items only visible when artboard `hasImage`
+
+### N5: "Add to Editor" + "Open in Editor" Logic (DesignWorkspaceView)
+
+- [x] Implement `handleAddToEditor(artboardIds)` — extracts imageUrl+label from selected artboards, calls `addToEditorBatch`
+- [x] After adding: notistack snackbar "N images added to Editor" with `action` = "Open Editor" button that calls `setActiveTab('editor')`
+- [x] Tab does NOT switch automatically (AC-172)
+- [x] Refactor existing `handleOpenInEditor` — calls `addToEditorBatch` + `setActiveTab('editor')` (no `editorInitialImages`, no URL params)
+- [x] Pass both callbacks to RightPanel panels + ArtboardContextMenu
+- [x] Verify: added images appear in Editor batch when user manually switches tab
+- [x] Verify: Editor DropZone still works independently (can add more images after switching)
+
+### N6: Editor Independent Upload (verify isolation)
+
+- [x] Verify: Editor `DropZone` adds images to `editorBatch` only — no artboard creation on Canvas
+- [x] Verify: Editor "Browse Files" adds to `editorBatch` only
+- [x] Verify: `useEditorUpload` still calls `uploadDesign` for server persistence (unchanged)
+- [x] Verify: images uploaded in Editor are NOT visible on Canvas unless explicitly added
+
+### N7: "Add to Canvas" IconButton in Editor BottomBar
+
+- [x] Add `onAddToCanvas` callback prop to `DesignEditorView` — receives `{ url, name, width, height }`
+- [x] In `DesignWorkspaceView`: implement `handleAddToCanvas` — calls `artboardState.addArtboard` with image data
+- [x] Artboard placement: find rightmost existing artboard x + width + 40px gap. If no artboards, place at (0, 0) (EC-48)
+- [x] Artboard sizing: scaled to max 600px preserving aspect ratio (reuse `fitDimensions` logic from `useExternalDrop`)
+- [x] Add single IconButton in `UnifiedBottomBar` next to Download button — icon `DashboardCustomizeOutlined`, tooltip "Add to Canvas"
+- [x] No thumbnail overlay (56px thumbnails too small). No batch action (no multi-select in Editor yet)
+- [x] Notistack snackbar: "Image added to Canvas"
+- [x] Tab does NOT switch — user stays in Editor
+
+### N8: Editor Tab Badge (MUI Badge, batch count)
+
+- [x] In `DesignWorkspaceView`: wrap Editor `TabButton` with MUI `Badge`
+- [x] Badge content = `editorBatchCount` from `useEditorBatch`
+- [x] Badge hidden (`invisible={true}`) when count is 0
+- [x] Badge color: `secondary` (cyan `#00C8D7`)
+- [x] Badge position: top-right corner of TabButton
+- [x] Verify: badge updates immediately when images are added/removed
+
+### N9: Tests + Cleanup
+
+- [ ] Unit test: `useEditorBatch` — add, remove, clear, count
+- [ ] Integration test: "Add to Editor" from PanelMultiState — verify snackbar + batch updated
+- [ ] Integration test: "Open in Editor" — verify tab switch + batch updated
+- [ ] Integration test: "Add to Canvas" — verify artboard created with correct dimensions
+- [ ] Verify: deleting artboard on Canvas does NOT affect Editor batch (AC-180)
+- [ ] Verify: removing image from Editor batch does NOT affect Canvas artboard (AC-180)
+- [ ] Verify: adding same artboard twice via "Add to Editor" → 2 items in batch (EC-51)
+- [x] `npx tsc --noEmit` clean
+- [x] `npm run lint` clean
+- [x] Test file updated: `DesignEditorView.test.tsx` — `initialImages` → `editorBatch`
+- [x] Manual test: full flow — upload to Canvas → Add to Editor → process → Add to Canvas → verify artboards
+
+### N10: useEditorSelection Hook + BatchThumbnailStrip Multi-Select (AC-181 to AC-184, AC-186)
+
+- [x] Create `editor/hooks/useEditorSelection.ts`:
+  - `selectedIds: Set<string>` — selected image IDs
+  - `lastClickedIndex: number` — for Shift range calculation
+  - `toggleSelect(id, index)` — additive toggle single image
+  - `shiftSelect(index, images)` — range select from lastClickedIndex to clicked index (min→max)
+  - `selectAll(images)` — select all image IDs
+  - `deselectAll()` — clear selection set
+  - `isSelected(id)` — boolean check
+  - Auto-clean: useMemo intersection removes stale IDs when images change
+- [x] In `BatchThumbnailStrip`: add `$selected` prop to Thumbnail styled component — 2px border `secondary.main` (cyan) when selected, distinct from `$active` (coral for currently displayed)
+- [x] Add checkbox overlay per thumbnail: MUI Checkbox, size="small", position absolute top-left, semi-transparent bg. Visible on hover OR when image is selected (AC-182)
+- [x] Checkbox click → `onToggleSelect(id, index)` — toggles selection without changing displayed image (AC-183). `stopPropagation` prevents thumbnail navigation.
+- [x] Thumbnail click: if `e.shiftKey` → `onShiftSelect(index)` for range select (AC-181). Else → `onSelect(index)` as before (change displayed image)
+- [x] Add SelectAllToggle IconButton before ThumbnailList — toggles between `SelectAll` / `Deselect` icons based on whether all are selected (AC-186)
+- [x] New props on BatchThumbnailStrip: `selectedIds`, `onToggleSelect`, `onShiftSelect`, `onSelectAll`, `onDeselectAll` — all optional for backward compat
+- [x] Verify: selected (cyan) + active (coral) borders can coexist on same thumbnail (AC-184)
+- [x] `npx tsc --noEmit` clean
+
+### N11: UnifiedBottomBar Context-Aware + DesignEditorView Wiring (AC-185, AC-187, AC-188)
+
+- [x] In `UnifiedBottomBar`: add `selectedCount` + `onAddSelectedToCanvas` props
+- [x] When `selectedCount > 0`: replace single "Add to Canvas" IconButton with "N selected" Chip + "Add Selected to Canvas" Button (outlined, secondary)
+- [x] When `selectedCount === 0`: show existing single "Add to Canvas" IconButton (AC-185)
+- [x] In `DesignEditorView`: wire `useEditorSelection` hook
+- [x] Pass selection callbacks to `BatchThumbnailStrip`
+- [x] Pass `selectedCount` + `onAddSelectedToCanvas` to `UnifiedBottomBar`
+- [x] Implement `handleAddSelectedToCanvas`: loop selected IDs, collect image data (url, name, width, height), call `onAddToCanvas` per image (AC-187)
+- [x] After "Add Selected to Canvas": clear selection + snackbar "N images added to Canvas" (AC-188)
+- [x] `npx tsc --noEmit` clean
+- [x] `npm run lint` clean
+- [ ] Manual test: Shift+Click range select → "Add Selected to Canvas" → verify artboards created on Canvas
+
+### N12: Canvas Stability Bug Fixes (AC-189 to AC-197, EC-61 to EC-68)
+
+> All bugs discovered and fixed during Phase N implementation (2026-04-14). No new features — correctness fixes.
+
+#### Zoom-to-Cursor (AC-189, EC-61)
+- [x] `useArtboardCanvas.ts`: add `stageRef` + `setStageRef` to read live Konva Stage position
+- [x] `handleWheel` reads `stageRef.current.x()/y()` instead of stale React `panX`/`panY`
+- [x] `ArtboardCanvas.tsx`: `stageCallbackRef` syncs both local ref and canvas hook ref
+- [x] `DesignWorkspaceView.tsx`: wire `setStageRef` to ArtboardCanvas
+
+#### Drop Position Accuracy (AC-190, EC-62)
+- [x] `ArtboardCanvas.tsx`: `screenToWorld` reads live `stageRef.current.x()/y()` instead of React state
+- [x] Verified: drop after panning places artboard at correct world position
+
+#### Artboard Auto-Naming (AC-191)
+- [x] Create shared `nextArtboardLabel()` in `board/utils/artboardSizing.ts`
+- [x] `useArtboards.ts` `addArtboard`: uses `nextArtboardLabel(prev.map(ab => ab.label))`
+- [x] `useArtboards.ts` `hydrateDesigns`: uses `nextArtboardLabel(allLabels)` instead of `Artboard ${i+1}`
+
+#### Artboard Sizing on Drop (AC-192, EC-63)
+- [x] Create shared `fitToMaxDimension()` in `board/utils/artboardSizing.ts` (max 600px, aspect ratio)
+- [x] `useExternalDrop.ts`: replaced local `fitDimensions` + uses `createImageBitmap` for reliable file dimensions
+- [x] `useContextMenu.ts`: replaced inline sizing with `fitToMaxDimension`
+- [x] `DesignWorkspaceView.tsx` `handleAddToCanvas`: replaced inline sizing with `fitToMaxDimension`
+
+#### Re-Hydration Preserves Local State (AC-193, AC-194, EC-64, EC-65)
+- [x] `hydrateDesigns` accepts `existingArtboards` — looks up by both `ab.id` AND `ab.designId`
+- [x] Priority chain: existing in-memory > saved layout > defaults (no more 280px fallback for known artboards)
+- [x] `localOnly` filter excludes artboards whose `designId` matches a server design (no duplicates)
+- [x] Locally-added artboards (blob URLs uploading) preserved across re-hydrations
+
+#### Server-Side Deletion on Backspace/Delete (AC-195, EC-66)
+- [x] Keyboard handler calls `handleDeleteSelectedRef.current()` instead of direct `removeArtboards()`
+- [x] `handleDeleteSelected` shows confirm dialog for server-persisted designs, calls `DELETE /api/designs/{id}/`
+- [x] Ref pattern avoids dependency cycle in keyboard useEffect
+
+#### Aspect Ratio Lock (AC-196, EC-68)
+- [x] `ArtboardElement.tsx`: removed edge handles (`middle-left/right`, `top/bottom-center`) in normal mode
+- [x] Only 4 corner handles available in normal mode → enforces `keepRatio=true`
+- [x] Free-transform mode (double-click): all 8 handles, `keepRatio=false`
+
+#### Label Constant Screen Size (AC-197, EC-67)
+- [x] `Artboard.tsx`: label `fontSize` and `y`-offset divided by `zoom`
+- [x] Label stays ~12px visual size at all zoom levels
+
+#### Shared Util + Dedup
+- [x] Created `board/utils/artboardSizing.ts`: `MAX_ARTBOARD_DIM`, `DEFAULT_ARTBOARD_WIDTH/HEIGHT`, `fitToMaxDimension()`, `nextArtboardLabel()`
+- [x] Removed duplicated sizing logic from 4 files
+- [x] `npx tsc --noEmit` clean
+- [x] `npm run lint` clean

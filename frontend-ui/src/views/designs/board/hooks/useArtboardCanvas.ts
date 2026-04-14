@@ -33,6 +33,8 @@ interface UseArtboardCanvasReturn {
   containerRef: React.RefObject<HTMLDivElement | null>;
   /** Callback ref — attach to the container DOM element */
   setContainerRef: (node: HTMLDivElement | null) => void;
+  /** Attach Konva Stage ref so zoom reads live position (avoids stale pan during drag) */
+  setStageRef: (node: { x: () => number; y: () => number } | null) => void;
   /** Attach to Konva Stage onWheel */
   handleWheel: (e: { evt: WheelEvent }) => void;
   /** Programmatic zoom */
@@ -41,6 +43,8 @@ interface UseArtboardCanvasReturn {
   fitToView: (bounds: { x: number; y: number; width: number; height: number } | null) => void;
   /** Set pan offset directly (for Stage drag end) */
   setPan: (x: number, y: number) => void;
+  /** Pan so the given world point is centered on screen (keeps current zoom) */
+  panTo: (worldX: number, worldY: number) => void;
   /** Reset zoom + pan to default */
   resetView: () => void;
 }
@@ -69,6 +73,10 @@ const useArtboardCanvas = (): UseArtboardCanvasReturn => {
       setStageWidth(Math.round(width));
       setStageHeight(Math.round(height));
     });
+    // Container may already be mounted (callback ref fires before useEffect)
+    if (containerRef.current) {
+      roRef.current.observe(containerRef.current);
+    }
     return () => roRef.current?.disconnect();
   }, []);
 
@@ -79,6 +87,16 @@ const useArtboardCanvas = (): UseArtboardCanvasReturn => {
       roRef.current.disconnect();
       if (node) roRef.current.observe(node);
     }
+  }, []);
+
+  // Ref to the Konva Stage so we can read its actual position during zoom.
+  // Konva updates Stage.x()/y() during drag before React state syncs,
+  // so reading the ref avoids stale panX/panY in the zoom handler.
+  const stageRef = useRef<{ x: () => number; y: () => number } | null>(null);
+
+  /** Attach the Konva Stage ref so zoom can read live position */
+  const setStageRef = useCallback((node: { x: () => number; y: () => number } | null) => {
+    stageRef.current = node;
   }, []);
 
   // -- Wheel zoom (pinch-to-zoom on trackpad also fires wheel) --
@@ -111,15 +129,21 @@ const useArtboardCanvas = (): UseArtboardCanvasReturn => {
           newZoom = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, prevZoom * factor));
         }
 
+        // Read live Stage position (Konva may have moved it via drag before React state caught up)
+        const livePanX = stageRef.current?.x() ?? panX;
+        const livePanY = stageRef.current?.y() ?? panY;
+
         // Zoom towards pointer: adjust pan so the point under the cursor stays fixed
         const scaleRatio = newZoom / prevZoom;
-        setPanX((prev) => pointerX - scaleRatio * (pointerX - prev));
-        setPanY((prev) => pointerY - scaleRatio * (pointerY - prev));
+        const newPanX = pointerX - scaleRatio * (pointerX - livePanX);
+        const newPanY = pointerY - scaleRatio * (pointerY - livePanY);
+        setPanX(newPanX);
+        setPanY(newPanY);
 
         return newZoom;
       });
     },
-    [],
+    [panX, panY],
   );
 
   // -- Programmatic zoom --
@@ -177,6 +201,15 @@ const useArtboardCanvas = (): UseArtboardCanvasReturn => {
     setPanY(y);
   }, []);
 
+  // -- Pan to world point (center on screen, keep current zoom) --
+  const panTo = useCallback(
+    (worldX: number, worldY: number) => {
+      setPanX(stageWidth / 2 - worldX * zoom);
+      setPanY(stageHeight / 2 - worldY * zoom);
+    },
+    [stageWidth, stageHeight, zoom],
+  );
+
   // -- Reset --
   const resetView = useCallback(() => {
     setZoom(1);
@@ -190,10 +223,12 @@ const useArtboardCanvas = (): UseArtboardCanvasReturn => {
     state: { zoom, panX, panY, stageWidth, stageHeight, showGrid },
     containerRef,
     setContainerRef,
+    setStageRef,
     handleWheel,
     zoomTo,
     fitToView,
     setPan,
+    panTo,
     resetView,
   };
 };

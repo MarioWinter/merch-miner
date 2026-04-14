@@ -97,21 +97,19 @@ const CanvasContextMenu = ({
           </ListItemText>
         </MenuItem>
 
-        {selectedCount > 0 && onDeleteSelected && (
-          <>
-            <Divider />
-            <MenuItem onClick={handleDeleteSelected}>
-              <ListItemIcon>
-                <DeleteOutlineIcon sx={{ fontSize: 20, color: 'error.main' }} />
-              </ListItemIcon>
-              <ListItemText sx={{ '& .MuiTypography-root': { color: 'error.main' } }}>
-                {selectedCount === 1
-                  ? t('design.contextMenu.deleteArtboard', 'Delete Artboard')
-                  : t('design.contextMenu.deleteArtboards', 'Delete {{count}} Artboards', { count: selectedCount })}
-              </ListItemText>
-            </MenuItem>
-          </>
-        )}
+        {selectedCount > 0 && onDeleteSelected && [
+          <Divider key="delete-divider" />,
+          <MenuItem key="delete-selected" onClick={handleDeleteSelected}>
+            <ListItemIcon>
+              <DeleteOutlineIcon sx={{ fontSize: 20, color: 'error.main' }} />
+            </ListItemIcon>
+            <ListItemText sx={{ '& .MuiTypography-root': { color: 'error.main' } }}>
+              {selectedCount === 1
+                ? t('design.contextMenu.deleteArtboard', 'Delete Artboard')
+                : t('design.contextMenu.deleteArtboards', 'Delete {{count}} Artboards', { count: selectedCount })}
+            </ListItemText>
+          </MenuItem>,
+        ]}
 
         <MenuItem onClick={handlePaste} disabled>
           <ListItemIcon>

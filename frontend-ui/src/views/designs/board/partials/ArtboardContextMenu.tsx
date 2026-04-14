@@ -1,12 +1,14 @@
 import { useCallback } from 'react';
 import { Menu, MenuItem, ListItemIcon, ListItemText, Divider } from '@mui/material';
 import { useTranslation } from 'react-i18next';
+import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternateOutlined';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import FlipToFrontIcon from '@mui/icons-material/FlipToFront';
 import FlipToBackIcon from '@mui/icons-material/FlipToBack';
 import ImageSearchIcon from '@mui/icons-material/ImageSearch';
+import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import { FLOW_TARGETS } from '@/components/FlowButton';
 
 // -----------------------------------------------------------------
@@ -35,6 +37,10 @@ interface ArtboardContextMenuProps {
   onAnalyzeImage?: (artboardId: string) => void;
   /** Phase H8: save artboard to listings */
   onSaveToListings?: (artboardId: string) => void;
+  /** Phase N: add to editor batch without switching tab */
+  onAddToEditor?: (artboardIds: string[]) => void;
+  /** Phase N: add to editor batch and switch to editor tab */
+  onOpenInEditor?: (artboardIds: string[]) => void;
 }
 
 // -----------------------------------------------------------------
@@ -53,6 +59,8 @@ const ArtboardContextMenu = ({
   onSendToBack,
   onAnalyzeImage,
   onSaveToListings,
+  onAddToEditor,
+  onOpenInEditor,
 }: ArtboardContextMenuProps) => {
   const { t } = useTranslation();
 
@@ -80,6 +88,16 @@ const ArtboardContextMenu = ({
     if (artboardId && onSaveToListings) onSaveToListings(artboardId);
     onClose();
   }, [artboardId, onSaveToListings, onClose]);
+
+  const handleAddToEditor = useCallback(() => {
+    if (artboardId && onAddToEditor) onAddToEditor([artboardId]);
+    onClose();
+  }, [artboardId, onAddToEditor, onClose]);
+
+  const handleOpenInEditor = useCallback(() => {
+    if (artboardId && onOpenInEditor) onOpenInEditor([artboardId]);
+    onClose();
+  }, [artboardId, onOpenInEditor, onClose]);
 
   const handleBringToFront = useCallback(() => {
     if (artboardId) onBringToFront(artboardId);
@@ -138,6 +156,31 @@ const ArtboardContextMenu = ({
           </ListItemIcon>
           <ListItemText>
             {t('design.contextMenu.saveToListings', 'Save to Listings')}
+          </ListItemText>
+        </MenuItem>
+      )}
+
+      {hasImage && onAddToEditor && (
+        <>
+          <Divider />
+          <MenuItem onClick={handleAddToEditor}>
+            <ListItemIcon>
+              <AddPhotoAlternateOutlinedIcon sx={{ fontSize: 20 }} />
+            </ListItemIcon>
+            <ListItemText>
+              {t('design.contextMenu.addToEditor', 'Add to Editor')}
+            </ListItemText>
+          </MenuItem>
+        </>
+      )}
+
+      {hasImage && onOpenInEditor && (
+        <MenuItem onClick={handleOpenInEditor}>
+          <ListItemIcon>
+            <OpenInNewOutlinedIcon sx={{ fontSize: 20 }} />
+          </ListItemIcon>
+          <ListItemText>
+            {t('design.contextMenu.openInEditor', 'Open in Editor')}
           </ListItemText>
         </MenuItem>
       )}
