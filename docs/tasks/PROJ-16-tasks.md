@@ -49,6 +49,7 @@
 - [x] `AmazonSearchProductSpider`: 2-phase (search → detail), pagination, meta passing
 - [x] `AmazonProductSpider`: single ASIN detail scrape
 - [x] `DjangoORMPipeline`: update_or_create, keyword M2M, BSRSnapshot, auto-enroll target, error handling, job progress
+- [ ] **PROJ-10 cross-ref (AC-9d):** `AmazonSearchProductSpider` should extract result count from Page 2 HTML (`div.sg-col-inner h2 span` → parse "X-Y of **N** results for" → extract N) and upsert `keyword_app.KeywordProductCount` as side-effect during product scraping. No extra request needed — data captured from existing search pages
 
 ---
 

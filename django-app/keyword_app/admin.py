@@ -3,6 +3,7 @@ from django.contrib import admin
 from keyword_app.models import (
     KeywordHistoryCache,
     KeywordJSCache,
+    KeywordProductCount,
     NicheJSCallTracker,
     NicheKeyword,
     NicheKeywordGroup,
@@ -38,6 +39,13 @@ class KeywordJSCacheAdmin(admin.ModelAdmin):
 @admin.register(KeywordHistoryCache)
 class KeywordHistoryCacheAdmin(admin.ModelAdmin):
     list_display = ('keyword', 'marketplace', 'fetched_at')
+    list_filter = ('marketplace',)
+    search_fields = ('keyword',)
+
+
+@admin.register(KeywordProductCount)
+class KeywordProductCountAdmin(admin.ModelAdmin):
+    list_display = ('keyword', 'marketplace', 'product_count', 'fetched_at')
     list_filter = ('marketplace',)
     search_fields = ('keyword',)
 

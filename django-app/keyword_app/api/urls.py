@@ -4,6 +4,7 @@ from keyword_app.api.views import (
     KeywordEnrichView,
     KeywordExportView,
     KeywordHistoryView,
+    KeywordProductCountView,
     KeywordSearchView,
     NicheKeywordBulkAddView,
     NicheKeywordBulkDeleteView,
@@ -34,6 +35,11 @@ urlpatterns = [
         'keywords/export/',
         KeywordExportView.as_view(),
         name='keyword-export',
+    ),
+    path(
+        'keywords/product-count/',
+        KeywordProductCountView.as_view(),
+        name='keyword-product-count',
     ),
 
     # Niche Keywords CRUD

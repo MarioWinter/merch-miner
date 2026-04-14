@@ -165,6 +165,24 @@ class NicheJSCallTracker(models.Model):
         return f"JS Call: {self.niche} ({self.keyword_used})"
 
 
+class KeywordProductCount(models.Model):
+    """Amazon product count per keyword+marketplace. Refreshed on-demand only."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    keyword = models.CharField(max_length=200, db_index=True)
+    marketplace = models.CharField(max_length=20, db_index=True)
+    product_count = models.PositiveIntegerField()
+    fetched_at = models.DateTimeField(db_index=True)
+
+    class Meta:
+        unique_together = [('keyword', 'marketplace')]
+        verbose_name = 'Keyword Product Count'
+        verbose_name_plural = 'Keyword Product Counts'
+
+    def __str__(self):
+        return f"{self.keyword} ({self.marketplace}): {self.product_count}"
+
+
 class JSUsageLog(models.Model):
     """Tracks JungleScout API calls for cost analytics."""
 

@@ -2,6 +2,7 @@ from rest_framework import serializers
 
 from keyword_app.models import (
     KeywordJSCache,
+    KeywordProductCount,
     NicheKeyword,
     NicheKeywordGroup,
 )
@@ -141,6 +142,12 @@ class KeywordSearchResultSerializer(serializers.Serializer):
     in_product_count = serializers.IntegerField(default=0)
     in_slogan_count = serializers.IntegerField(default=0)
     js_data = KeywordJSDataSerializer(required=False, allow_null=True)
+    amazon_product_count = serializers.IntegerField(
+        required=False, allow_null=True, default=None,
+    )
+    product_count_fetched_at = serializers.DateTimeField(
+        required=False, allow_null=True, default=None,
+    )
 
 
 class KeywordEnrichRequestSerializer(serializers.Serializer):
@@ -161,3 +168,25 @@ class KeywordHistoryQuerySerializer(serializers.Serializer):
 class KeywordExportQuerySerializer(serializers.Serializer):
     query = serializers.CharField(max_length=200)
     marketplace = serializers.CharField(max_length=20, default='amazon_com')
+
+
+# ---- Product Count ----
+
+class KeywordProductCountSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = KeywordProductCount
+        fields = ('keyword', 'marketplace', 'product_count', 'fetched_at')
+        read_only_fields = fields
+
+
+class KeywordProductCountRequestSerializer(serializers.Serializer):
+    keyword = serializers.CharField(max_length=200)
+    marketplace = serializers.CharField(max_length=20, default='amazon_com')
+
+    def validate_keyword(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError('Keyword must not be empty.')
+        if len(value) > 200:
+            value = value[:200]
+        return value

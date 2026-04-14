@@ -23,6 +23,8 @@ from keyword_app.api.serializers import (
     KeywordExportQuerySerializer,
     KeywordHistoryQuerySerializer,
     KeywordJSDataSerializer,
+    KeywordProductCountRequestSerializer,
+    KeywordProductCountSerializer,
     KeywordSearchQuerySerializer,
     KeywordSearchResultSerializer,
     NicheKeywordBulkAddSerializer,
@@ -40,6 +42,10 @@ from keyword_app.services.junglescout_service import (
     get_cached_js_data,
     get_keyword_history,
     is_js_configured,
+)
+from keyword_app.services.product_count_scraper import (
+    get_cached_product_counts,
+    scrape_product_count,
 )
 
 logger = logging.getLogger(__name__)
@@ -197,6 +203,17 @@ class KeywordSearchView(APIView):
             cache_entry = js_cache.get(r['keyword'])
             r['js_data'] = KeywordJSDataSerializer(cache_entry).data if cache_entry else None
 
+        # Attach Amazon product count from KeywordProductCount cache (AC-9c)
+        product_count_cache = get_cached_product_counts(all_kws, marketplace)
+        for r in results:
+            pc = product_count_cache.get(r['keyword'])
+            if pc:
+                r['amazon_product_count'] = pc.product_count
+                r['product_count_fetched_at'] = pc.fetched_at
+            else:
+                r['amazon_product_count'] = None
+                r['product_count_fetched_at'] = None
+
         # Paginate
         start = (page - 1) * page_size
         end = start + page_size
@@ -336,13 +353,15 @@ class KeywordExportView(APIView):
                 seen.add(s)
                 results.append(s)
 
-        # Get JS cache for all keywords
+        # Get JS cache + product count cache for all keywords
         js_cache = get_cached_js_data(results, marketplace)
+        pc_cache = get_cached_product_counts(results, marketplace)
 
         # Stream CSV
         def csv_rows():
             header = [
-                'keyword', 'monthly_search_volume_exact', 'monthly_search_volume_broad',
+                'keyword', 'amazon_product_count', 'product_count_fetched_at',
+                'monthly_search_volume_exact', 'monthly_search_volume_broad',
                 'monthly_trend', 'quarterly_trend', 'ppc_bid_exact', 'ppc_bid_broad',
                 'sp_brand_ad_bid', 'ease_of_ranking_score', 'relevancy_score',
                 'organic_product_count', 'sponsored_product_count',
@@ -351,7 +370,10 @@ class KeywordExportView(APIView):
             yield header
             for kw in results:
                 js = js_cache.get(kw)
+                pc = pc_cache.get(kw)
                 row = [kw]
+                row.append(pc.product_count if pc else '')
+                row.append(pc.fetched_at.isoformat() if pc else '')
                 if js:
                     row.extend([
                         js.monthly_search_volume_exact or '',
@@ -771,3 +793,34 @@ class NicheKeywordGroupDetailView(APIView):
         NicheKeyword.objects.filter(group=group).update(group=None)
         group.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ==============================================================
+# Product Count Scraper (AC-9b)
+# ==============================================================
+
+class KeywordProductCountView(APIView):
+    """
+    POST /api/keywords/product-count/
+    On-demand Amazon product count scrape via ScraperOps proxy.
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = KeywordProductCountRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        keyword = serializer.validated_data['keyword']
+        marketplace = serializer.validated_data['marketplace']
+
+        try:
+            obj = scrape_product_count(keyword, marketplace)
+        except ValueError as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(KeywordProductCountSerializer(obj).data)
