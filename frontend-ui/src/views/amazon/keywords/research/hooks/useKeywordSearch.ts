@@ -1,41 +1,32 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
-import { useSearchKeywordsQuery } from '@/store/keywordSlice';
+import { useState, useMemo, useCallback } from 'react';
+import { useLazySearchKeywordsQuery } from '@/store/keywordSlice';
 import { useGetSuggestionsQuery } from '@/store/researchSlice';
 import type { KeywordSearchResult } from '../types';
 
-const DEBOUNCE_MS = 300;
+const AUTOCOMPLETE_MIN_CHARS = 2;
 
+/**
+ * Keyword search hook. Search fires ONLY on Enter key or Search button click (AC-5b).
+ * Autocomplete dropdown suggestions remain live (debounced via RTK Query skip logic).
+ * Same pattern as PROJ-7 useProductSearch.
+ */
 export const useKeywordSearch = () => {
   const [inputValue, setInputValue] = useState('');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [committedQuery, setCommittedQuery] = useState('');
   const [marketplace, setMarketplace] = useState('amazon_com');
   const [page, setPage] = useState(1);
   const pageSize = 25;
 
-  // Debounce search query
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setSearchQuery(inputValue);
-      setPage(1);
-    }, DEBOUNCE_MS);
-    return () => clearTimeout(timer);
-  }, [inputValue]);
+  // Lazy search — only fires when explicitly triggered
+  const [
+    triggerSearch,
+    { data: searchData, isLoading: isSearching, isFetching: isSearchFetching, error: searchError },
+  ] = useLazySearchKeywordsQuery();
 
-  // Main search query (DB + merged results)
-  const {
-    data: searchData,
-    isLoading: isSearching,
-    isFetching: isSearchFetching,
-    error: searchError,
-  } = useSearchKeywordsQuery(
-    { query: searchQuery, marketplace, page, page_size: pageSize },
-    { skip: !searchQuery },
-  );
-
-  // Amazon autocomplete suggestions for the search input
+  // Amazon autocomplete suggestions — live while typing (RTK Query handles debounce via skip)
   const { data: suggestions = [] } = useGetSuggestionsQuery(
     { q: inputValue, marketplace },
-    { skip: inputValue.length < 2 },
+    { skip: inputValue.length < AUTOCOMPLETE_MIN_CHARS },
   );
 
   const results: KeywordSearchResult[] = useMemo(
@@ -45,20 +36,40 @@ export const useKeywordSearch = () => {
 
   const totalCount = searchData?.count ?? 0;
 
-  const handleSearch = useCallback((value: string) => {
+  /** Update the text input without triggering search */
+  const handleInputChange = useCallback((value: string) => {
     setInputValue(value);
   }, []);
 
-  const handlePageChange = useCallback((newPage: number) => {
-    setPage(newPage);
-  }, []);
+  /** Execute search — called on Enter or Search button click */
+  const executeSearch = useCallback(
+    (query?: string) => {
+      const q = (query ?? inputValue).trim();
+      if (!q) return;
+      setCommittedQuery(q);
+      setPage(1);
+      triggerSearch({ query: q, marketplace, page: 1, page_size: pageSize });
+    },
+    [inputValue, marketplace, pageSize, triggerSearch],
+  );
+
+  const handlePageChange = useCallback(
+    (newPage: number) => {
+      setPage(newPage);
+      if (committedQuery) {
+        triggerSearch({ query: committedQuery, marketplace, page: newPage, page_size: pageSize });
+      }
+    },
+    [committedQuery, marketplace, pageSize, triggerSearch],
+  );
 
   return {
     inputValue,
-    searchQuery,
+    committedQuery,
     marketplace,
     setMarketplace,
-    handleSearch,
+    handleInputChange,
+    executeSearch,
     suggestions,
     results,
     totalCount,

@@ -1,8 +1,10 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Autocomplete,
+  Box,
   Button,
   Chip,
+  CircularProgress,
   IconButton,
   Stack,
   Switch,
@@ -15,6 +17,8 @@ import SearchIcon from '@mui/icons-material/Search';
 import StopCircleOutlinedIcon from '@mui/icons-material/StopCircleOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useGetSuggestionsQuery } from '../../../../store/researchSlice';
 import type { RecentSearch } from '../hooks/useRecentSearches';
 import type { Niche } from '../../../niches/list/types';
@@ -39,6 +43,12 @@ interface SearchBarProps {
   isSearching?: boolean;
   /** Called to cancel a running live search. */
   onCancel?: () => void;
+  /** Called to save an autocomplete suggestion as a keyword (AC-21). */
+  onSaveKeyword?: (keyword: string) => void;
+  /** Keywords currently being saved (loading state per keyword). */
+  savingKeywords?: Set<string>;
+  /** Keywords already saved in this session (show check icon). */
+  savedKeywords?: Set<string>;
 }
 
 const ModeLabel = styled(Typography, {
@@ -67,6 +77,9 @@ const SearchBar = ({
   onNicheIndicatorClick,
   isSearching = false,
   onCancel,
+  onSaveKeyword,
+  savingKeywords = new Set<string>(),
+  savedKeywords = new Set<string>(),
 }: SearchBarProps) => {
   const [inputValue, setInputValue] = useState(keyword);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -142,6 +155,45 @@ const SearchBar = ({
             if (typeof value === 'string' && value.trim()) {
               setInputValue(value);
             }
+          }}
+          renderOption={(props, option) => {
+            const { key, ...restProps } = props;
+            return (
+              <Box
+                component="li"
+                key={key}
+                {...restProps}
+                sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <Typography variant="body2" sx={{ flex: 1 }}>{option}</Typography>
+                {onSaveKeyword && matchedNiche && (
+                  savedKeywords.has(option) ? (
+                    <CheckCircleIcon
+                      sx={{ fontSize: 18, color: 'success.main', ml: 1 }}
+                    />
+                  ) : (
+                    <Tooltip title={`Save to ${matchedNiche.name}`}>
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSaveKeyword(option);
+                        }}
+                        disabled={savingKeywords.has(option)}
+                        aria-label={`Save "${option}" to keyword bank`}
+                        sx={{ ml: 1, p: 0.25 }}
+                      >
+                        {savingKeywords.has(option) ? (
+                          <CircularProgress size={16} />
+                        ) : (
+                          <AddCircleOutlineIcon sx={{ fontSize: 18 }} />
+                        )}
+                      </IconButton>
+                    </Tooltip>
+                  )
+                )}
+              </Box>
+            );
           }}
           renderInput={(params) => (
             <TextField

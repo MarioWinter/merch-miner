@@ -1369,7 +1369,7 @@
       "dpi": "DPI",
       "compression": "Compression",
       "compressionHint": "Plus bas = fichier plus petit, plus haut = meilleure qualite",
-      "estimatedSize": "Taille est.: {{size}}",
+      "estimatedSize": "Env. {{size}}",
       "downloadCurrent": "Telecharger l'actuel",
       "downloadAll": "Tout telecharger (ZIP)",
       "overwrite": "Ecraser l'original",
@@ -1385,7 +1385,7 @@
       "formatJpeg": "JPEG",
       "formatWebp": "WebP",
       "resolution": "Resolution",
-      "dimensions": "{{width}} \u00d7 {{height}} px",
+      "dimensions": "{{width}} × {{height}} px",
       "downloadZip": "Tout telecharger (ZIP)",
       "creatingZip": "Creation du ZIP...",
       "totalSize": "Total estime: {{size}}",
@@ -1400,8 +1400,7 @@
       "processingImage": "Traitement de votre image...",
       "processingImages": "Traitement {{current}} sur {{total}}...",
       "cancel": "Annuler",
-      "fileSize": "Taille",
-      "estimatedSize": "Env. {{size}}"
+      "fileSize": "Taille"
     },
     "contextMenu": {
       "addAiBoard": "Ajouter un tableau IA",
@@ -1606,7 +1605,8 @@
   "keywords": {
     "page": {
       "title": "Keyword Drilling",
-      "searchPlaceholder": "Rechercher des mots-cles..."
+      "searchPlaceholder": "Rechercher des mots-cles...",
+      "searchButton": "Rechercher"
     },
     "source": {
       "research": "Recherche",
@@ -1620,7 +1620,8 @@
       "bulkLabel": "Enrichir la selection",
       "loading": "Enrichissement...",
       "success": "Mots-cles enrichis",
-      "noApiKeyTooltip": "Configurez la cle API JungleScout dans les parametres"
+      "noApiKeyTooltip": "Configurez la cle API JungleScout dans les parametres",
+      "comingSoon": "JungleScout bientot disponible"
     },
     "table": {
       "col_keyword": "Mot-cle",
@@ -1640,13 +1641,16 @@
       "col_recommended_promotions": "Promotions",
       "col_in_product_count": "Dans produits",
       "col_in_slogan_count": "Dans slogans",
+      "col_amazon_product_count": "Produits Amz",
       "columnPicker": "Configurer les colonnes",
+      "refreshProductCount": "Actualiser le nombre de produits",
       "done": "Termine",
       "selected": "{{count}} selectionne(s)"
     },
     "trend": {
       "chartTitle": "Tendance du volume de recherche",
       "noData": "Pas assez de donnees",
+      "notConfigured": "Aucune donnee -- JungleScout non configure",
       "monthLabel": "Mois",
       "volumeLabel": "Volume de recherche"
     },
@@ -1678,7 +1682,11 @@
       "emptyGroup": "Aucun mot-cle dans ce groupe",
       "ungrouped": "Sans groupe",
       "noKeywords": "Aucun mot-cle collecte",
-      "groupDeleted": "Groupe supprime (mots-cles conserves)"
+      "groupDeleted": "Groupe supprime (mots-cles conserves)",
+      "viewAll": "Voir tous les mots-cles",
+      "reorderGroup": "Glisser pour reordonner",
+      "designTemplate": "Modele de design",
+      "noDesignTemplate": "Aucun modele assigne"
     },
     "errors": {
       "enrichFailed": "Impossible d'enrichir",
@@ -1688,7 +1696,30 @@
       "historyFailed": "Impossible de charger les tendances",
       "renameFailed": "Impossible de renommer",
       "deleteGroupFailed": "Impossible de supprimer le groupe",
-      "createGroupFailed": "Impossible de creer le groupe"
+      "createGroupFailed": "Impossible de creer le groupe",
+      "scrapeCountFailed": "Impossible de recuperer le nombre de produits"
+    },
+    "chipCloud": {
+      "shortTail": "Short-Tail",
+      "longTail": "Long-Tail",
+      "showAll": "+{{count}} de plus",
+      "showLess": "Afficher moins"
+    },
+    "sourceTabs": {
+      "all": "Tous",
+      "database": "Base de données",
+      "amazon": "Amazon",
+      "junglescout": "JungleScout",
+      "comingSoon": "Bientôt disponible"
+    },
+    "searchHistory": {
+      "clearAll": "Tout effacer",
+      "label": "Recherches récentes"
+    },
+    "actionBar": {
+      "selected": "{{count}} sélectionné(s)",
+      "addToNiche": "Ajouter à la niche",
+      "enrich": "Enrichir"
     }
   },
   "publish": {
@@ -2331,6 +2362,11 @@
       "success": "Slogan extrait : {{slogan}}",
       "error": "Echec de l'extraction du slogan",
       "noImage": "Aucune image produit disponible"
+    },
+    "keyword": {
+      "saved": "'{{keyword}}' enregistre dans {{niche}}",
+      "duplicate": "'{{keyword}}' deja dans la banque de mots-cles",
+      "saveFailed": "Echec de l'enregistrement du mot-cle"
     }
   }
 }

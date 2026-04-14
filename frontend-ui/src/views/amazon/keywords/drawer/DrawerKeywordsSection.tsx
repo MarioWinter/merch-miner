@@ -14,6 +14,7 @@ import {
   useCreateKeywordGroupMutation,
   useUpdateKeywordGroupMutation,
   useDeleteKeywordGroupMutation,
+  useUpdateKeywordMutation,
 } from '@/store/keywordSlice';
 import { KeywordGroupList } from './partials/KeywordGroupList';
 import { ManualKeywordInput } from './partials/ManualKeywordInput';
@@ -48,6 +49,7 @@ export const DrawerKeywordsSection = ({ nicheId }: DrawerKeywordsSectionProps) =
   const [createGroup, { isLoading: isCreatingGroup }] = useCreateKeywordGroupMutation();
   const [updateGroup] = useUpdateKeywordGroupMutation();
   const [deleteGroup] = useDeleteKeywordGroupMutation();
+  const [updateKeyword] = useUpdateKeywordMutation();
 
   // New group input
   const [showGroupInput, setShowGroupInput] = useState(false);
@@ -88,6 +90,32 @@ export const DrawerKeywordsSection = ({ nicheId }: DrawerKeywordsSectionProps) =
       }
     },
     [nicheId, deleteGroup, enqueueSnackbar, t],
+  );
+
+  const handleReorderGroup = useCallback(
+    async (groupId: string, newPosition: number) => {
+      try {
+        await updateGroup({ nicheId, groupId, body: { position: newPosition } }).unwrap();
+      } catch {
+        enqueueSnackbar(t('keywords.errors.renameFailed'), { variant: 'error' });
+      }
+    },
+    [nicheId, updateGroup, enqueueSnackbar, t],
+  );
+
+  const handleAssignDesignTemplate = useCallback(
+    async (keywordId: string, designTemplateId: string | null) => {
+      try {
+        await updateKeyword({
+          nicheId,
+          keywordId,
+          body: { design_template_id: designTemplateId },
+        }).unwrap();
+      } catch {
+        enqueueSnackbar(t('keywords.errors.addFailed'), { variant: 'error' });
+      }
+    },
+    [nicheId, updateKeyword, enqueueSnackbar, t],
   );
 
   const handleCreateGroup = useCallback(async () => {
@@ -150,10 +178,13 @@ export const DrawerKeywordsSection = ({ nicheId }: DrawerKeywordsSectionProps) =
       <KeywordGroupList
         groups={groups}
         keywords={keywords}
+        nicheId={nicheId}
         isLoading={isLoading}
         onDeleteKeyword={handleDeleteKeyword}
         onRenameGroup={handleRenameGroup}
         onDeleteGroup={handleDeleteGroup}
+        onReorderGroup={handleReorderGroup}
+        onAssignDesignTemplate={handleAssignDesignTemplate}
       />
 
       {/* Manual add input */}

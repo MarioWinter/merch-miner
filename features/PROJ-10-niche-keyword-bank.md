@@ -51,6 +51,13 @@ Researched keywords flow into the Niche Drawer where they can be organized into 
 9. As a member, I want to select keywords via checkboxes and see a context-aware "Add X Keywords to {active Niche}" button when a Niche is open in the Drawer, so I can collect keywords with one click.
 10. As a member, I want a "Change Niche" fallback next to the context button to assign keywords to a different niche than the active one.
 
+### UI Redesign — "Keyword Lode" (approved 2026-04-14)
+24. As a member, I want search results categorized into Short-Tail and Long-Tail keyword chip sections above the table, so I get a quick visual overview before diving into details.
+25. As a member, I want to click a keyword chip to filter the table to that keyword, so I can drill down quickly.
+26. As a member, I want Source Tabs (All / Database / Amazon Autocomplete / JungleScout) above the table to filter results by data source, so I can focus on one source at a time.
+27. As a member, I want to see my recent search terms as clickable chips below the search bar (like PROJ-7 Amazon Research), so I can quickly re-run previous searches.
+28. As a member, I want JungleScout columns to show a unified "—" placeholder with "Coming Soon" tooltip when not configured, so the table feels complete but not broken.
+
 ### Keyword Management (Drawer, per Niche)
 11. As a member, I want to see all collected keywords for a niche in the Drawer, organized by source (Research, Amazon, Web Search, Manual, JungleScout), so I have a full overview.
 12. As a member, I want to create keyword groups within a niche (e.g. "Primary", "Long-Tail", "Negative"), so I can organize keywords for different purposes.
@@ -99,6 +106,15 @@ Researched keywords flow into the Niche Drawer where they can be organized into 
 - [ ] AC-9b: `POST /api/keywords/product-count/` — body: `{keyword, marketplace}`. Scrapes Amazon Page 2 for the keyword, extracts result count from `<h2>` header ("49-96 of **549** results for"). Uses Page 2 (not Page 1) because Amazon Bug shows inflated count on Page 1. Uses ScraperOps proxy (same as PROJ-16). Upserts `KeywordProductCount` record. Returns `{keyword, marketplace, product_count, fetched_at}`.
 - [ ] AC-9c: `GET /api/keywords/search/` response includes `amazon_product_count` (from `KeywordProductCount` cache) and `product_count_fetched_at` per keyword where available. Shows existing data regardless of age — no auto-refresh.
 - [ ] AC-9d: **PROJ-16 Scraper integration:** PROJ-16 Scrapy Spider extracts result count from Page 2 HTML (`div.sg-col-inner h2 span` → parse "X-Y of **N** results for" → extract N). Upserts `KeywordProductCount` for the search keyword. Automatic — no extra request, data captured as a side-effect of product scraping.
+
+### UI Redesign — "Keyword Lode"
+
+- [ ] AC-31: **Keyword Chip Cloud:** Above the results table, two collapsible sections — "Short-Tail" (chips with `secondary.main` outline) and "Long-Tail" (chips with `info.subtle` background). Each chip: keyword text + Amz Product Count badge (e.g. `school bus driver · 549`). Clicking a chip filters the table. "Show all" link if >12 chips per section. Horizontal wrap layout.
+- [ ] AC-32: **Short/Long-Tail classification:** Keywords with ≤2 words = Short-Tail, ≥3 words = Long-Tail. Classification is client-side (no backend change).
+- [ ] AC-33: **Source Tabs:** MUI Tabs directly above the table: `All (57)` | `Database (12)` | `Amazon (45)` | `JungleScout` (disabled, "Coming Soon" MUI Badge). Tab labels include result count. Selecting a tab filters the table by source.
+- [ ] AC-34: **Improved Table Styling:** Sticky header with `background.elevated` (#0F3040). Row hover = `primary.subtle`. JungleScout columns visible but show "—" in `text.disabled` color with opacity 0.4. Tooltip on JS column headers: "JungleScout coming soon".
+- [ ] AC-35: **Floating Action Bar:** When keywords are selected via checkbox, a bar appears: "{count} selected" + "Add to Niche" button + "Enrich" button (disabled). Replaces inline action bar.
+- [ ] AC-36: **Search History:** Below the search input, show up to 10 recent search terms as small clickable `Chip` components (`variant="outlined"`, `size="small"`). Clicking re-fills the input and executes the search. Each chip has a "×" delete icon. "Clear all" link at the end. Persisted to `localStorage` key `mm-keyword-recent`. Same pattern as PROJ-7 `useRecentSearches` hook.
 
 ### Keyword Collection API (per Niche)
 
@@ -176,6 +192,9 @@ Researched keywords flow into the Niche Drawer where they can be organized into 
 - [ ] EC-13: Amazon product count = 0 (no results for keyword) → display "> 0" in column. Valid data, not an error.
 - [ ] EC-14: Amazon Page 2 returns different HTML structure (no result count header) → parse returns null. Show "n/a" in column. Log warning for debugging.
 - [ ] EC-15: Keyword with special characters (quotes, ampersands) in Amazon search URL → URL-encode keyword before scraping.
+- [ ] EC-16: All results are Short-Tail (≤2 words) → Long-Tail section hidden. Vice versa.
+- [ ] EC-17: Search history localStorage corrupted/invalid JSON → reset to empty array silently.
+- [ ] EC-18: Source tab filter returns 0 results → show EmptyState within the tab, not the full-page empty state.
 
 ## Environment Variables Required
 
@@ -223,6 +242,9 @@ Document in `django-app/env/.env.template`.
 | 9 | Drawer features | Keyword groups + Design template assignment + edit/delete/reorder |
 | 10 | Agent JS limit | Max 1 JS-Call per Niche-ID (main term only) |
 | 11 | Chat integration | Conversational keyword search + add commands |
+| 12 | UI redesign | "Keyword Lode" — Chip Cloud + Source Tabs + improved table (Flying Research inspired) |
+| 13 | Search history | Recent searches as chips below input, localStorage, same as PROJ-7 pattern |
+| 14 | Short/Long-Tail split | ≤2 words = Short-Tail, ≥3 words = Long-Tail (client-side) |
 
 ## Verification Steps
 
@@ -249,6 +271,17 @@ Document in `django-app/env/.env.template`.
 19. Keyword with no product count data → column shows empty/dash. Click 🔄 → first-time scrape → count appears
 20. PROJ-16 product research scrape completes → product count auto-captured from Page 2 → shows in Keyword Bank without manual refresh
 21. Product count scrape fails → error toast, existing cached data stays visible
+22. Search "school bus driver" → Short-Tail chips show "school bus driver" (2 words), Long-Tail shows "school bus driver gifts", "school bus driver appreciation" etc.
+23. Click Short-Tail chip "school bus driver" → table filters to show only that keyword
+24. Source Tabs show correct counts: All (15) | Database (3) | Amazon (12) | JungleScout (disabled)
+25. Click "Database" tab → table shows only DB-sourced keywords
+26. JungleScout tab disabled with "Coming Soon" badge
+27. JS columns (Volume, CPC, PPC etc.) show "—" placeholder with tooltip "JungleScout coming soon"
+28. Search "camping" → "camping" appears as recent search chip below search bar
+29. Search "hiking" → "hiking" + "camping" chips visible (newest first)
+30. Click "camping" chip → input fills + search re-executes
+31. Click "×" on "camping" chip → removed from history
+32. Click "Clear all" → all history chips removed
 
 ---
 

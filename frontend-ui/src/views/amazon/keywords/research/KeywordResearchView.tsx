@@ -2,15 +2,12 @@ import { useState, useCallback } from 'react';
 import {
   Box,
   Button,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
   Stack,
   Typography,
 } from '@mui/material';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import { useTranslation } from 'react-i18next';
+import MarketplaceSelect from '@/components/MarketplaceSelect';
 import { useKeywordSearch } from './hooks/useKeywordSearch';
 import { useJSEnrich } from './hooks/useJSEnrich';
 import { useKeywordExport } from './hooks/useKeywordExport';
@@ -25,22 +22,17 @@ import { EmptyState } from './partials/EmptyState';
 import { DEFAULT_COLUMN_VISIBILITY } from './types';
 import type { KeywordColumnVisibility } from './types';
 
-const MARKETPLACES = [
-  { value: 'amazon_com', labelKey: 'research.marketplace.amazon_com' },
-  { value: 'amazon_de', labelKey: 'research.marketplace.amazon_de' },
-  { value: 'amazon_co_uk', labelKey: 'research.marketplace.amazon_co_uk' },
-];
-
 const KeywordResearchView = () => {
   const { t } = useTranslation();
 
-  // Search state
+  // Search state — fires only on Enter/button click
   const {
     inputValue,
-    searchQuery,
+    committedQuery,
     marketplace,
     setMarketplace,
-    handleSearch,
+    handleInputChange,
+    executeSearch,
     suggestions,
     results,
     totalCount,
@@ -51,7 +43,7 @@ const KeywordResearchView = () => {
     isSearchFetching,
   } = useKeywordSearch();
 
-  // Enrich
+  // Enrich (always disabled for now)
   const { enrichSingle, enrichBulk, isBulkEnriching, isEnriching } = useJSEnrich(marketplace);
 
   // Export
@@ -79,7 +71,7 @@ const KeywordResearchView = () => {
   }, [selectedKeywords, enrichBulk]);
 
   const hasResults = results.length > 0;
-  const showEmptyState = searchQuery && !isSearching && !hasResults;
+  const showEmptyState = committedQuery && !isSearching && !hasResults;
 
   return (
     <Box>
@@ -98,8 +90,8 @@ const KeywordResearchView = () => {
             size="small"
             variant="outlined"
             startIcon={<FileDownloadIcon sx={{ fontSize: 16 }} />}
-            onClick={() => exportCSV(searchQuery, marketplace)}
-            disabled={isExporting || !searchQuery}
+            onClick={() => exportCSV(committedQuery, marketplace)}
+            disabled={isExporting || !committedQuery}
           >
             {t('keywords.export.buttonLabel')}
           </Button>
@@ -111,23 +103,12 @@ const KeywordResearchView = () => {
         <KeywordSearchBar
           value={inputValue}
           suggestions={suggestions}
-          onChange={handleSearch}
+          onChange={handleInputChange}
+          onSearch={executeSearch}
+          isSearching={isSearching || isSearchFetching}
         />
 
-        <FormControl size="small" sx={{ minWidth: 160 }}>
-          <InputLabel>{t('research.marketplace.label')}</InputLabel>
-          <Select
-            value={marketplace}
-            label={t('research.marketplace.label')}
-            onChange={(e) => setMarketplace(e.target.value)}
-          >
-            {MARKETPLACES.map((mp) => (
-              <MenuItem key={mp.value} value={mp.value}>
-                {t(mp.labelKey)}
-              </MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        <MarketplaceSelect value={marketplace} onChange={setMarketplace} />
 
         <ColumnPicker visibility={columnVisibility} onChange={setColumnVisibility} />
       </Stack>
@@ -155,7 +136,7 @@ const KeywordResearchView = () => {
 
       {/* Results or Empty State */}
       {showEmptyState ? (
-        <EmptyState hasQuery={!!searchQuery} />
+        <EmptyState hasQuery={!!committedQuery} />
       ) : (
         (hasResults || isSearching || isSearchFetching) && (
           <KeywordTable
@@ -176,7 +157,7 @@ const KeywordResearchView = () => {
       )}
 
       {/* Initial state — no search yet */}
-      {!searchQuery && !isSearching && <EmptyState hasQuery={false} />}
+      {!committedQuery && !isSearching && <EmptyState hasQuery={false} />}
 
       {/* Trend Chart Dialog */}
       <TrendChart

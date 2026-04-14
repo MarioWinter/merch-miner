@@ -1284,7 +1284,7 @@
       "dpi": "DPI",
       "compression": "Komprimierung",
       "compressionHint": "Niedriger = kleinere Datei, hoeher = bessere Qualitaet",
-      "estimatedSize": "Gesch. Groesse: {{size}}",
+      "estimatedSize": "Ca. {{size}}",
       "downloadCurrent": "Aktuelles herunterladen",
       "downloadAll": "Alle herunterladen (ZIP)",
       "overwrite": "Original ueberschreiben",
@@ -1300,7 +1300,7 @@
       "formatJpeg": "JPEG",
       "formatWebp": "WebP",
       "resolution": "Aufloesung",
-      "dimensions": "{{width}} \u00d7 {{height}} px",
+      "dimensions": "{{width}} × {{height}} px",
       "downloadZip": "Alle herunterladen (ZIP)",
       "creatingZip": "ZIP wird erstellt...",
       "totalSize": "Geschaetzte Gesamtgroesse: {{size}}",
@@ -1316,7 +1316,6 @@
       "processingImages": "Verarbeite {{current}} von {{total}}...",
       "cancel": "Abbrechen",
       "fileSize": "Groesse",
-      "estimatedSize": "Ca. {{size}}",
       "closeExport": "Export schliessen"
     },
     "contextMenu": {
@@ -1618,7 +1617,8 @@
   "keywords": {
     "page": {
       "title": "Keyword Drilling",
-      "searchPlaceholder": "Keywords suchen..."
+      "searchPlaceholder": "Keywords suchen...",
+      "searchButton": "Suchen"
     },
     "source": {
       "research": "Recherche",
@@ -1632,7 +1632,8 @@
       "bulkLabel": "Auswahl anreichern",
       "loading": "Wird angereichert...",
       "success": "Keywords angereichert",
-      "noApiKeyTooltip": "JungleScout API-Key in Einstellungen konfigurieren"
+      "noApiKeyTooltip": "JungleScout API-Key in Einstellungen konfigurieren",
+      "comingSoon": "JungleScout kommt bald"
     },
     "table": {
       "col_keyword": "Keyword",
@@ -1652,13 +1653,16 @@
       "col_recommended_promotions": "Aktionen",
       "col_in_product_count": "In Produkten",
       "col_in_slogan_count": "In Slogans",
+      "col_amazon_product_count": "Amz Produkte",
       "columnPicker": "Spalten konfigurieren",
+      "refreshProductCount": "Produktanzahl aktualisieren",
       "done": "Fertig",
       "selected": "{{count}} ausgewahlt"
     },
     "trend": {
       "chartTitle": "Suchvolumen-Trend",
       "noData": "Nicht genug Daten fur Trenddiagramm",
+      "notConfigured": "Keine Daten -- JungleScout nicht konfiguriert",
       "monthLabel": "Monat",
       "volumeLabel": "Suchvolumen"
     },
@@ -1690,7 +1694,11 @@
       "emptyGroup": "Keine Keywords in dieser Gruppe",
       "ungrouped": "Ohne Gruppe",
       "noKeywords": "Noch keine Keywords gesammelt",
-      "groupDeleted": "Gruppe geloscht (Keywords behalten)"
+      "groupDeleted": "Gruppe geloscht (Keywords behalten)",
+      "viewAll": "Alle Keywords anzeigen",
+      "reorderGroup": "Zum Sortieren ziehen",
+      "designTemplate": "Design-Vorlage",
+      "noDesignTemplate": "Keine Vorlage zugewiesen"
     },
     "errors": {
       "enrichFailed": "Keywords anreichern fehlgeschlagen",
@@ -1700,7 +1708,30 @@
       "historyFailed": "Trenddaten laden fehlgeschlagen",
       "renameFailed": "Gruppe umbenennen fehlgeschlagen",
       "deleteGroupFailed": "Gruppe loschen fehlgeschlagen",
-      "createGroupFailed": "Gruppe erstellen fehlgeschlagen"
+      "createGroupFailed": "Gruppe erstellen fehlgeschlagen",
+      "scrapeCountFailed": "Produktanzahl konnte nicht abgerufen werden"
+    },
+    "chipCloud": {
+      "shortTail": "Short-Tail",
+      "longTail": "Long-Tail",
+      "showAll": "+{{count}} mehr",
+      "showLess": "Weniger anzeigen"
+    },
+    "sourceTabs": {
+      "all": "Alle",
+      "database": "Datenbank",
+      "amazon": "Amazon",
+      "junglescout": "JungleScout",
+      "comingSoon": "Demnächst"
+    },
+    "searchHistory": {
+      "clearAll": "Alle löschen",
+      "label": "Letzte Suchen"
+    },
+    "actionBar": {
+      "selected": "{{count}} ausgewählt",
+      "addToNiche": "Zur Nische hinzufügen",
+      "enrich": "Anreichern"
     }
   },
   "search": {
@@ -2004,6 +2035,11 @@
       "success": "Slogan extrahiert: {{slogan}}",
       "error": "Slogan-Extraktion fehlgeschlagen",
       "noImage": "Kein Produktbild verfuegbar"
+    },
+    "keyword": {
+      "saved": "'{{keyword}}' in {{niche}} gespeichert",
+      "duplicate": "'{{keyword}}' bereits in Keyword-Bank",
+      "saveFailed": "Keyword konnte nicht gespeichert werden"
     }
   },
   "publish": {

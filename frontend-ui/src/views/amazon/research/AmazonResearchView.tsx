@@ -28,6 +28,7 @@ import {
   useCollectProductMutation,
   useRemoveCollectedProductMutation,
 } from '../../../store/collectedProductsSlice';
+import { useAddKeywordMutation } from '../../../store/keywordSlice';
 import useResearchMode from './hooks/useResearchMode';
 import useFilterState from './hooks/useFilterState';
 import useRecentSearches from './hooks/useRecentSearches';
@@ -86,6 +87,11 @@ const AmazonResearchView = () => {
   const [extractingAsin, setExtractingAsin] = useState<string | null>(null);
   const [extractSlogan] = useExtractSloganMutation();
   const [createNiche, { isLoading: creatingNiche }] = useCreateNicheMutation();
+
+  // Keyword save state (AC-21)
+  const [addKeywordMutation] = useAddKeywordMutation();
+  const [savingKeywords, setSavingKeywords] = useState<Set<string>>(new Set());
+  const [savedKeywords, setSavedKeywords] = useState<Set<string>>(new Set());
 
   // Auto-detect niche from searched keyword
   const { matchedNiche } = useActiveNiche(keyword);
@@ -315,6 +321,46 @@ const AmazonResearchView = () => {
     [handleSearch],
   );
 
+  // Save autocomplete suggestion to keyword bank (AC-21)
+  const handleSaveKeyword = useCallback(
+    async (kw: string) => {
+      if (!activeNicheId) return;
+      setSavingKeywords((prev) => new Set(prev).add(kw));
+      try {
+        await addKeywordMutation({
+          nicheId: activeNicheId,
+          body: { keyword: kw, source: 'amazon_search' },
+        }).unwrap();
+        setSavedKeywords((prev) => new Set(prev).add(kw));
+        enqueueSnackbar(
+          t('amazonResearch.keyword.saved', { keyword: kw, niche: matchedNiche?.name ?? '' }),
+          { variant: 'success' },
+        );
+      } catch (err) {
+        const error = err as { status?: number };
+        if (error?.status === 409) {
+          setSavedKeywords((prev) => new Set(prev).add(kw));
+          enqueueSnackbar(
+            t('amazonResearch.keyword.duplicate', { keyword: kw }),
+            { variant: 'info' },
+          );
+        } else {
+          enqueueSnackbar(
+            t('amazonResearch.keyword.saveFailed'),
+            { variant: 'error' },
+          );
+        }
+      } finally {
+        setSavingKeywords((prev) => {
+          const next = new Set(prev);
+          next.delete(kw);
+          return next;
+        });
+      }
+    },
+    [activeNicheId, matchedNiche, addKeywordMutation, enqueueSnackbar, t],
+  );
+
   // Niche indicator click handler
   const handleNicheIndicatorClick = useCallback(() => {
     if (matchedNiche) {
@@ -473,6 +519,9 @@ const AmazonResearchView = () => {
         onNicheIndicatorClick={handleNicheIndicatorClick}
         isSearching={isLive && (status === 'pending' || status === 'running')}
         onCancel={handleCancel}
+        onSaveKeyword={activeNicheId ? handleSaveKeyword : undefined}
+        savingKeywords={savingKeywords}
+        savedKeywords={savedKeywords}
       />
 
       <ControlsRow

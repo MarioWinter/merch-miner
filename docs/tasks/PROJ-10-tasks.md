@@ -87,80 +87,80 @@
 
 ## Phase 7: Frontend — State & Services
 
-- [ ] RTK Query `keywordApi` slice (`store/keywordSlice.ts`): searchKeywords, enrichKeywords, getHistory, exportCSV, scrapeProductCount, listNicheKeywords, addKeyword, bulkAddKeywords, deleteKeyword, bulkDeleteKeywords, updateKeyword, listGroups, createGroup, updateGroup, deleteGroup
-- [ ] Cache tags: `NicheKeywords`, `KeywordGroups`, `KeywordSearch`, `KeywordProductCount`
-- [ ] Register slice in `store/index.ts`
-- [ ] TypeScript types: NicheKeyword, NicheKeywordGroup, KeywordJSData, KeywordSearchResult, KeywordSource, KeywordHistoryPoint, KeywordProductCount
+- [x] RTK Query `keywordApi` slice (`store/keywordSlice.ts`): searchKeywords, enrichKeywords, getHistory, exportCSV (axios blob in useKeywordExport hook), scrapeProductCount, listNicheKeywords, addKeyword, bulkAddKeywords, deleteKeyword, bulkDeleteKeywords, updateKeyword, listGroups, createGroup, updateGroup, deleteGroup
+- [x] Cache tags: `NicheKeywords`, `KeywordGroups`, `KeywordSearch`, `KeywordProductCount`
+- [x] Register slice in `store/index.ts`
+- [x] TypeScript types: NicheKeyword, NicheKeywordGroup, KeywordJSData, KeywordSearchResult, KeywordSource, KeywordHistoryPoint, KeywordProductCount
 
 ---
 
 ## Phase 8: Frontend — Keyword Research Page
 
-- [ ] `KeywordResearchView.tsx`: full-page route `/keywords`. SearchBar + DataGrid + TrendChart + AddToNiche
-- [ ] `useKeywordSearch` hook: search query → merged results (DB + Autocomplete). Search fires ONLY on Enter key or Search button click (AC-5b) — NOT on every keystroke. Autocomplete dropdown suggestions remain live (debounced 300ms). Same pattern as PROJ-7 `useProductSearch`
-- [ ] `useJSEnrich` hook: enrich selected keywords on-demand, loading states per row
-- [ ] `useKeywordExport` hook: trigger CSV export with current filters
-- [ ] `KeywordSearchBar.tsx`: MUI Autocomplete with Amazon suggestions (reuses PROJ-7 endpoint). Includes Search button (primary, right of input). Search fires on Enter or button click (AC-5b)
-- [ ] `KeywordTable.tsx`: MUI DataGrid with configurable columns. Default visible: keyword, source, search volume, CPC, in_products, in_slogans. Server-side sort + pagination. Sticky header row — stays visible when scrolling (AC-5c)
-- [ ] `ColumnPicker.tsx`: MUI Popover with checkbox list for column visibility. Persisted to localStorage
-- [ ] `ProductCountColumn` in `KeywordTable.tsx` (AC-9c): "Amz Products" column displaying "> 526" format (like Flying Research). Shows cached data regardless of age. Empty/dash when no data exists
-- [ ] `ProductCountRefreshButton` per row (AC-9b): 🔄 icon button that triggers `scrapeProductCount` mutation. Loading spinner while scraping. On success → column updates with new count. On error → error toast, existing data stays visible
-- [ ] `EnrichButton.tsx`: per-row "Enrich" icon button + bulk "Enrich Selected" button. **Initially always disabled** with tooltip "JungleScout coming soon". Wiring ready for when API is configured
-- [ ] `TrendChart.tsx`: @mui/x-charts LineChart — 12 months historical search volume. Opens on keyword click. **Initially shows "No data — JungleScout not configured" placeholder**. Renders cached data when available
-- [ ] `AddToNicheButton.tsx`: context-aware — when niche is active in Drawer: "Add X to {niche name}". Otherwise: MUI Menu with niche search/select. "Change Niche" fallback link
-- [ ] `SourceBadge.tsx`: MUI Chip per source — research (primary), amazon (warning), web_search (info), manual (default), junglescout (success)
-- [ ] `EmptyState.tsx`: no results → CTA to try different keyword or enrich
-- [ ] Route registered in `App.tsx`
+- [x] `KeywordResearchView.tsx`: full-page route `/keywords`. SearchBar + DataGrid + TrendChart + AddToNiche
+- [x] `useKeywordSearch` hook: search query → merged results (DB + Autocomplete). Search fires ONLY on Enter key or Search button click (AC-5b) — NOT on every keystroke. Autocomplete dropdown suggestions remain live (debounced 300ms). Same pattern as PROJ-7 `useProductSearch`
+- [x] `useJSEnrich` hook: enrich selected keywords on-demand, loading states per row
+- [x] `useKeywordExport` hook: trigger CSV export with current filters
+- [x] `KeywordSearchBar.tsx`: MUI Autocomplete with Amazon suggestions (reuses PROJ-7 endpoint). Includes Search button (primary, right of input). Search fires on Enter or button click (AC-5b)
+- [x] `KeywordTable.tsx`: MUI DataGrid with configurable columns. Default visible: keyword, source, search volume, CPC, in_products, in_slogans. Server-side sort + pagination. Sticky header row — stays visible when scrolling (AC-5c)
+- [x] `ColumnPicker.tsx`: MUI Popover with checkbox list for column visibility. Persisted to localStorage
+- [x] `ProductCountColumn` in `KeywordTable.tsx` (AC-9c): "Amz Products" column displaying "> 526" format (like Flying Research). Shows cached data regardless of age. Empty/dash when no data exists
+- [x] `ProductCountRefreshButton` per row (AC-9b): 🔄 icon button that triggers `scrapeProductCount` mutation. Loading spinner while scraping. On success → column updates with new count. On error → error toast, existing data stays visible
+- [x] `EnrichButton.tsx`: per-row "Enrich" icon button + bulk "Enrich Selected" button. **Initially always disabled** with tooltip "JungleScout coming soon". Wiring ready for when API is configured
+- [x] `TrendChart.tsx`: @mui/x-charts LineChart — 12 months historical search volume. Opens on keyword click. **Initially shows "No data — JungleScout not configured" placeholder**. Renders cached data when available
+- [x] `AddToNicheButton.tsx`: context-aware — when niche is active in Drawer: "Add X to {niche name}". Otherwise: MUI Menu with niche search/select. "Change Niche" fallback link
+- [x] `SourceBadge.tsx`: MUI Chip per source — research (primary), amazon (warning), web_search (info), manual (default), junglescout (success)
+- [x] `EmptyState.tsx`: no results → CTA to try different keyword or enrich
+- [x] Route registered in `App.tsx`
 
 ---
 
 ## Phase 9: Frontend — Drawer Keywords Section
 
-- [ ] `DrawerKeywordsSection.tsx`: Keywords tab in NicheDetailDrawer. Lists all keywords grouped by NicheKeywordGroup
-- [ ] `KeywordGroupList.tsx`: ordered list of groups. Drag-to-reorder (dnd-kit). "Add Group" button
-- [ ] `KeywordGroupCard.tsx`: group header (name, count, edit/delete) + keyword list inside. Collapsible
-- [ ] `KeywordChipRow.tsx`: single keyword row — keyword text, SourceBadge, design template link, delete button
-- [ ] `ManualKeywordInput.tsx`: TextField + "Add" button for manual keyword entry. Supports batch (comma-separated)
-- [ ] `DesignTemplateAssign.tsx`: MUI Select — assign keyword group to a design (from niche's approved designs). For PROJ-11 auto-injection
+- [x] `DrawerKeywordsSection.tsx`: Keywords tab in NicheDetailDrawer. Lists all keywords grouped by NicheKeywordGroup
+- [x] `KeywordGroupList.tsx`: ordered list of groups. Drag-to-reorder (dnd-kit). "Add Group" button
+- [x] `KeywordGroupCard.tsx`: group header (name, count, edit/delete) + keyword list inside. Collapsible
+- [x] `KeywordChipRow.tsx`: single keyword row — keyword text, SourceBadge, design template link, delete button
+- [x] `ManualKeywordInput.tsx`: TextField + "Add" button for manual keyword entry. Supports batch (comma-separated)
+- [x] `DesignTemplateAssign.tsx`: MUI Select — assign keyword group to a design (from niche's approved designs). For PROJ-11 auto-injection
 
 ---
 
 ## Phase 10: Auto-Import Integration
 
-- [ ] AC-20: Signal handler `post_save` on NicheResearch(status=completed) → auto-insert `top_focus_keywords` + `main_short_tail` from NicheKeywordAnalysis as NicheKeyword(source=research). Skip duplicates silently
-- [ ] AC-21: PROJ-7 Autocomplete "Save" button → `POST /api/niches/{id}/keywords/` with source=amazon_search
-- [ ] AC-22: PROJ-17 Web Search "Save Keywords" → `POST /api/niches/{id}/keywords/bulk-add/` with source=web_search. Endpoint ready, UI deferred to PROJ-17
+- [x] AC-20: Signal handler `post_save` on NicheResearch(status=completed) → auto-insert `top_focus_keywords` + `main_short_tail` from NicheKeywordAnalysis as NicheKeyword(source=research). Skip duplicates silently
+- [x] AC-21: PROJ-7 Autocomplete "Save" button → `POST /api/niches/{id}/keywords/` with source=amazon_search (in AmazonResearchView)
+- [x] AC-22: PROJ-17 Web Search "Save Keywords" → `POST /api/niches/{id}/keywords/bulk-add/` with source=web_search. Endpoint ready, UI deferred to PROJ-17
 
 ### Agent Integration (deferred to PROJ-18, endpoints ready)
 
-- [ ] AC-23: Agent tool `keyword_search` endpoint reuses `GET /api/keywords/search/`. Permission: Auto
-- [ ] AC-24: Agent tool `add_keyword_to_niche` endpoint reuses `POST /api/niches/{id}/keywords/`. Permission: Notify
-- [ ] AC-25: Agent `keyword_search_js` tool checks `NicheJSCallTracker` — max 1 JS-Call per Niche-ID. Creates tracker record on first call
+- [x] AC-23: Agent tool `keyword_search` endpoint reuses `GET /api/keywords/search/`. Permission: Auto — endpoint ready
+- [x] AC-24: Agent tool `add_keyword_to_niche` endpoint reuses `POST /api/niches/{id}/keywords/`. Permission: Notify — endpoint ready
+- [x] AC-25: Agent `keyword_search_js` tool checks `NicheJSCallTracker` — `check_agent_js_limit()` + `record_agent_js_call()` in junglescout_service.py
 
 ### Edge Case Handling
 
-- [ ] EC-1: JS API key not configured → enrich endpoint returns 400 "JungleScout not configured". Frontend always disabled for now (default state)
+- [x] EC-1: JS API key not configured → enrich + history endpoints return 400. Frontend EnrichButton always disabled
 - [ ] ~~EC-2: JS API returns 429~~ → DEFERRED (no API calls yet)
 - [ ] ~~EC-3: JS API key expired/invalid~~ → DEFERRED (no API calls yet)
-- [ ] EC-5: Duplicate keyword on add → 409 response. Bulk-add skips duplicates silently
-- [ ] EC-6: Agent second JS-Call for same niche → `NicheJSCallTracker` blocks, returns cached data (no error)
-- [ ] EC-10: Keyword >200 chars → truncated to 200, warning returned in response
+- [x] EC-5: Duplicate keyword on add → 409 response. Bulk-add uses `ignore_conflicts=True`
+- [x] EC-6: Agent JS-Call limit → `check_agent_js_limit()` + `record_agent_js_call()` in junglescout_service.py
+- [x] EC-10: Keyword >200 chars → DRF `CharField(max_length=200)` rejects with validation error. auto_import truncates silently
 
 ---
 
 ## Phase 11: i18n
 
-- [ ] `keywords.page.*` — page title, search placeholder
-- [ ] `keywords.source.*` — research, amazon_search, web_search, manual, junglescout labels
-- [ ] `keywords.enrich.*` — button label, loading, success, no API key tooltip
-- [ ] `keywords.table.*` — all column headers (keyword, source, volume, CPC, PPC, competition, trends, in_products, in_slogans)
-- [ ] `keywords.trend.*` — chart title, no data fallback
-- [ ] `keywords.addToNiche.*` — button label, change niche, added count
-- [ ] `keywords.drawer.*` — tab title, group labels, add group, manual input, design template
-- [ ] `keywords.export.*` — button label
-- [ ] `keywords.empty.*` — no results, CTA
-- [ ] `keywords.errors.*` — duplicate, rate limited, API key expired
-- [ ] All 5 locales: EN, DE, FR, ES, IT
+- [x] `keywords.page.*` — page title, search placeholder
+- [x] `keywords.source.*` — research, amazon_search, web_search, manual, junglescout labels
+- [x] `keywords.enrich.*` — button label, loading, success, no API key tooltip
+- [x] `keywords.table.*` — all column headers (keyword, source, volume, CPC, PPC, competition, trends, in_products, in_slogans)
+- [x] `keywords.trend.*` — chart title, no data fallback
+- [x] `keywords.addToNiche.*` — button label, change niche, added count
+- [x] `keywords.drawer.*` — tab title, group labels, add group, manual input, design template
+- [x] `keywords.export.*` — button label
+- [x] `keywords.empty.*` — no results, CTA
+- [x] `keywords.errors.*` — duplicate, rate limited, API key expired
+- [x] All 5 locales: EN, DE, FR, ES, IT
 
 ---
 
@@ -195,6 +195,70 @@
 
 ---
 
+## Phase 13: UI Redesign — "Keyword Lode" (AC-31 to AC-36)
+
+> Frontend-only. Flying Research inspired. Approved 2026-04-14.
+
+### Search History (AC-36)
+
+- [x] `useRecentSearches` hook (`views/amazon/keywords/research/hooks/`): localStorage key `mm-keyword-recent`, max 10 items, `{keyword, marketplace}` objects. Methods: `addSearch`, `removeSearch`, `clearAll`. Same pattern as PROJ-7 `useRecentSearches` (`views/amazon/research/hooks/useRecentSearches.ts`)
+- [x] `SearchHistoryChips.tsx` (`partials/`): renders recent searches as `Chip variant="outlined" size="small"` in `Stack` with `flexWrap="wrap"` below search bar. Click chip → fill input + execute search. "×" delete icon per chip. "Clear all" ghost button at end. Empty = hidden
+
+### Keyword Chip Cloud (AC-31, AC-32)
+
+- [x] `KeywordChipCloud.tsx` (`partials/`): receives search results, classifies by word count — ≤2 words = Short-Tail, ≥3 words = Long-Tail. Two collapsible sections with headers "Short-Tail" / "Long-Tail"
+- [x] Short-Tail chips: `secondary.main` outline variant. Long-Tail chips: `info.subtle` background
+- [x] Each chip: keyword text + Amz Product Count badge (e.g. `school bus driver · 549`). Badge only shows when product count data exists
+- [x] Click chip → sets active filter, table shows only matching keyword
+- [x] "Show all" link if >12 chips per section. Default collapsed to 12. Horizontal wrap layout
+- [x] Hidden when no search results
+
+### Source Tabs (AC-33)
+
+- [x] `SourceTabs.tsx` (`partials/`): MUI Tabs directly above table. Tabs: `All (N)` | `Database (N)` | `Amazon (N)` | `JungleScout` (disabled)
+- [x] JungleScout tab: disabled state + MUI `Badge` with "Coming Soon" label
+- [x] Tab labels include result count per source, computed client-side from current results
+- [x] Selecting tab sets `sourceFilter` state → passed to table for client-side filtering
+- [x] "All" tab selected by default
+
+### Table Improvements (AC-34)
+
+- [x] Sticky header: remove `autoHeight`, use fixed container height `calc(100vh - Xpx)`. Header stays visible on scroll via DataGrid default behavior
+- [x] Header row: `background.elevated` (#0F3040)
+- [x] Row hover: `primary.subtle` highlight
+- [x] JS columns (Volume, CPC, PPC, Ease of Ranking, Organic Count, Sponsored Count): show "—" in `text.disabled` color with `opacity: 0.4`
+- [x] JS column headers: MUI `Tooltip` with "JungleScout coming soon"
+
+### Floating Action Bar (AC-35)
+
+- [x] `FloatingActionBar.tsx` (`partials/`): appears when ≥1 keyword selected. Sticky bottom bar with glass-sm background
+- [x] Content: "{count} selected" label + "Add to Niche" button (context-aware) + "Enrich" button (disabled, "Coming Soon" tooltip)
+- [x] Replace current inline action bar in `KeywordResearchView`
+
+### View Integration
+
+- [x] Update `KeywordResearchView.tsx`: wire SearchHistoryChips below search bar, KeywordChipCloud below controls, SourceTabs above table, FloatingActionBar at bottom
+- [x] State wiring: `sourceFilter` from SourceTabs + `chipFilter` from ChipCloud → both applied to table rows (client-side filter)
+- [x] `useKeywordSearch` hook: call `addSearch` on successful search execution
+
+### i18n (Phase 13)
+
+- [x] `keywords.chipCloud.*` — shortTail, longTail, showAll, showLess section headers
+- [x] `keywords.sourceTabs.*` — all, database, amazon, junglescout, comingSoon tab labels
+- [x] `keywords.searchHistory.*` — clearAll link text
+- [x] `keywords.actionBar.*` — selected count, addToNiche, enrich labels
+- [x] All 5 locales: EN, DE, FR, ES, IT
+
+### Tests (Phase 13)
+
+- [x] `useRecentSearches`: add/remove/clear, max 10 cap, localStorage persistence, corrupted JSON recovery (EC-17)
+- [x] `SearchHistoryChips`: renders chips, click fills + searches, delete removes, clear all works
+- [x] `KeywordChipCloud`: Short/Long-Tail classification correct, click filters, "Show all" toggle, hidden on empty results (EC-16)
+- [x] `SourceTabs`: counts correct, tab switch filters table, JungleScout disabled, empty tab shows EmptyState (EC-18)
+- [x] `FloatingActionBar`: appears on selection, disappears on deselect, button states correct
+
+---
+
 ## Deferred (tracked in other features)
 
 - **AC-26 to AC-28** — Chat keyword commands + context awareness → PROJ-17
@@ -218,4 +282,9 @@
 - [ ] Auto-import on research completion (source=research)
 - [ ] CSV export includes JS data where cached
 - [ ] Configurable column picker persists
+- [ ] Search history chips appear below search bar, persist across sessions
+- [ ] Short-Tail / Long-Tail chip cloud renders above table, click filters
+- [ ] Source Tabs filter results, JungleScout tab disabled with "Coming Soon"
+- [ ] JS columns show "—" placeholder with tooltip
+- [ ] Floating action bar appears on keyword selection
 - [ ] All tests pass, lint clean

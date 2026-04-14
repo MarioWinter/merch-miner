@@ -1260,7 +1260,7 @@
       "dpi": "DPI",
       "compression": "Compressione",
       "compressionHint": "Piu basso = file piu piccolo, piu alto = qualita migliore",
-      "estimatedSize": "Dim. stimata: {{size}}",
+      "estimatedSize": "Circa {{size}}",
       "downloadCurrent": "Scarica corrente",
       "downloadAll": "Scarica tutto (ZIP)",
       "overwrite": "Sovrascrivi originale",
@@ -1276,7 +1276,7 @@
       "formatJpeg": "JPEG",
       "formatWebp": "WebP",
       "resolution": "Risoluzione",
-      "dimensions": "{{width}} \u00d7 {{height}} px",
+      "dimensions": "{{width}} × {{height}} px",
       "downloadZip": "Scarica tutto (ZIP)",
       "creatingZip": "Creazione ZIP...",
       "totalSize": "Totale stimato: {{size}}",
@@ -1291,8 +1291,7 @@
       "processingImage": "Elaborazione immagine...",
       "processingImages": "Elaborazione {{current}} di {{total}}...",
       "cancel": "Annulla",
-      "fileSize": "Dimensione",
-      "estimatedSize": "Circa {{size}}"
+      "fileSize": "Dimensione"
     },
     "contextMenu": {
       "addAiBoard": "Aggiungi tavola IA",
@@ -1662,6 +1661,131 @@
       "success": "Slogan estratto: {{slogan}}",
       "error": "Estrazione slogan fallita",
       "noImage": "Nessuna immagine prodotto disponibile"
+    },
+    "keyword": {
+      "saved": "'{{keyword}}' salvato in {{niche}}",
+      "duplicate": "'{{keyword}}' gia presente nella banca parole chiave",
+      "saveFailed": "Impossibile salvare la parola chiave"
+    }
+  },
+  "keywords": {
+    "page": {
+      "title": "Keyword Drilling",
+      "searchPlaceholder": "Cerca parole chiave...",
+      "searchButton": "Cerca"
+    },
+    "source": {
+      "research": "Ricerca",
+      "amazon_search": "Amazon",
+      "web_search": "Ricerca web",
+      "manual": "Manuale",
+      "junglescout": "JungleScout"
+    },
+    "enrich": {
+      "buttonLabel": "Arricchisci",
+      "bulkLabel": "Arricchisci selezione",
+      "loading": "Arricchimento...",
+      "success": "Parole chiave arricchite",
+      "noApiKeyTooltip": "Configura la chiave API JungleScout nelle Impostazioni",
+      "comingSoon": "JungleScout in arrivo"
+    },
+    "table": {
+      "col_keyword": "Parola chiave",
+      "col_source": "Fonte",
+      "col_monthly_search_volume_exact": "Volume (esatto)",
+      "col_monthly_search_volume_broad": "Volume (ampio)",
+      "col_monthly_trend": "Trend mensile",
+      "col_quarterly_trend": "Trend trimestrale",
+      "col_ppc_bid_exact": "CPC (esatto)",
+      "col_ppc_bid_broad": "CPC (ampio)",
+      "col_sp_brand_ad_bid": "Offerta SP Brand",
+      "col_ease_of_ranking_score": "Facilita di ranking",
+      "col_relevancy_score": "Rilevanza",
+      "col_organic_product_count": "Conteggio organico",
+      "col_sponsored_product_count": "Conteggio sponsorizzato",
+      "col_dominant_category": "Categoria",
+      "col_recommended_promotions": "Promozioni",
+      "col_in_product_count": "Nei prodotti",
+      "col_in_slogan_count": "Negli slogan",
+      "col_amazon_product_count": "Prodotti Amz",
+      "columnPicker": "Configura colonne",
+      "refreshProductCount": "Aggiorna conteggio prodotti",
+      "done": "Fatto",
+      "selected": "{{count}} selezionato/i"
+    },
+    "trend": {
+      "chartTitle": "Trend volume di ricerca",
+      "noData": "Dati insufficienti per il grafico",
+      "notConfigured": "Nessun dato -- JungleScout non configurato",
+      "monthLabel": "Mese",
+      "volumeLabel": "Volume di ricerca"
+    },
+    "addToNiche": {
+      "buttonLabel": "Aggiungi {{count}} a {{niche}}",
+      "selectNiche": "Aggiungi {{count}} a nicchia...",
+      "changeNiche": "Cambia nicchia",
+      "noNiches": "Nessuna nicchia trovata",
+      "addedCount": "{{count}} parola/e chiave aggiunta/e"
+    },
+    "export": {
+      "buttonLabel": "Esporta CSV"
+    },
+    "empty": {
+      "noResults": "Nessuna parola chiave trovata",
+      "tryCta": "Prova un termine di ricerca diverso",
+      "startSearch": "Cerca parole chiave",
+      "searchHint": "Inserisci una parola chiave per cercare nel database e su Amazon"
+    },
+    "drawer": {
+      "sectionTitle": "Parole chiave",
+      "addGroup": "Aggiungi gruppo",
+      "groupNamePlaceholder": "Nome gruppo...",
+      "addButton": "Aggiungi",
+      "manualPlaceholder": "Aggiungi parole chiave (separate da virgole)...",
+      "deleteKeyword": "Rimuovi parola chiave",
+      "editGroup": "Rinomina gruppo",
+      "deleteGroup": "Elimina gruppo",
+      "emptyGroup": "Nessuna parola chiave in questo gruppo",
+      "ungrouped": "Senza gruppo",
+      "noKeywords": "Nessuna parola chiave raccolta",
+      "groupDeleted": "Gruppo eliminato (parole chiave conservate)",
+      "viewAll": "Vedi tutte le parole chiave",
+      "reorderGroup": "Trascina per riordinare",
+      "designTemplate": "Modello di design",
+      "noDesignTemplate": "Nessun modello assegnato"
+    },
+    "errors": {
+      "enrichFailed": "Impossibile arricchire",
+      "addFailed": "Impossibile aggiungere",
+      "deleteFailed": "Impossibile eliminare",
+      "exportFailed": "Impossibile esportare",
+      "historyFailed": "Impossibile caricare i trend",
+      "renameFailed": "Impossibile rinominare",
+      "deleteGroupFailed": "Impossibile eliminare il gruppo",
+      "createGroupFailed": "Impossibile creare il gruppo",
+      "scrapeCountFailed": "Impossibile ottenere il conteggio prodotti"
+    },
+    "chipCloud": {
+      "shortTail": "Short-Tail",
+      "longTail": "Long-Tail",
+      "showAll": "+{{count}} in più",
+      "showLess": "Mostra meno"
+    },
+    "sourceTabs": {
+      "all": "Tutti",
+      "database": "Database",
+      "amazon": "Amazon",
+      "junglescout": "JungleScout",
+      "comingSoon": "Prossimamente"
+    },
+    "searchHistory": {
+      "clearAll": "Cancella tutto",
+      "label": "Ricerche recenti"
+    },
+    "actionBar": {
+      "selected": "{{count}} selezionato/i",
+      "addToNiche": "Aggiungi alla nicchia",
+      "enrich": "Arricchisci"
     }
   },
   "common": {

@@ -1260,7 +1260,7 @@
       "dpi": "DPI",
       "compression": "Compresion",
       "compressionHint": "Menor = archivo mas pequeno, mayor = mejor calidad",
-      "estimatedSize": "Tamano est.: {{size}}",
+      "estimatedSize": "Aprox. {{size}}",
       "downloadCurrent": "Descargar actual",
       "downloadAll": "Descargar todo (ZIP)",
       "overwrite": "Sobrescribir original",
@@ -1276,7 +1276,7 @@
       "formatJpeg": "JPEG",
       "formatWebp": "WebP",
       "resolution": "Resolucion",
-      "dimensions": "{{width}} \u00d7 {{height}} px",
+      "dimensions": "{{width}} × {{height}} px",
       "downloadZip": "Descargar todo (ZIP)",
       "creatingZip": "Creando ZIP...",
       "totalSize": "Total estimado: {{size}}",
@@ -1292,7 +1292,6 @@
       "processingImages": "Procesando {{current}} de {{total}}...",
       "cancel": "Cancelar",
       "fileSize": "Tamano",
-      "estimatedSize": "Aprox. {{size}}",
       "closeExport": "Cerrar exportacion"
     },
     "contextMenu": {
@@ -1594,7 +1593,8 @@
   "keywords": {
     "page": {
       "title": "Keyword Drilling",
-      "searchPlaceholder": "Buscar palabras clave..."
+      "searchPlaceholder": "Buscar palabras clave...",
+      "searchButton": "Buscar"
     },
     "source": {
       "research": "Investigacion",
@@ -1608,7 +1608,8 @@
       "bulkLabel": "Enriquecer seleccion",
       "loading": "Enriqueciendo...",
       "success": "Palabras clave enriquecidas",
-      "noApiKeyTooltip": "Configure la clave API de JungleScout en Configuracion"
+      "noApiKeyTooltip": "Configure la clave API de JungleScout en Configuracion",
+      "comingSoon": "JungleScout proximamente"
     },
     "table": {
       "col_keyword": "Palabra clave",
@@ -1628,13 +1629,16 @@
       "col_recommended_promotions": "Promociones",
       "col_in_product_count": "En productos",
       "col_in_slogan_count": "En eslogan",
+      "col_amazon_product_count": "Productos Amz",
       "columnPicker": "Configurar columnas",
+      "refreshProductCount": "Actualizar cantidad de productos",
       "done": "Listo",
       "selected": "{{count}} seleccionado(s)"
     },
     "trend": {
       "chartTitle": "Tendencia del volumen de busqueda",
       "noData": "Datos insuficientes",
+      "notConfigured": "Sin datos -- JungleScout no configurado",
       "monthLabel": "Mes",
       "volumeLabel": "Volumen de busqueda"
     },
@@ -1666,7 +1670,11 @@
       "emptyGroup": "Sin palabras clave en este grupo",
       "ungrouped": "Sin grupo",
       "noKeywords": "Sin palabras clave recopiladas",
-      "groupDeleted": "Grupo eliminado (palabras clave conservadas)"
+      "groupDeleted": "Grupo eliminado (palabras clave conservadas)",
+      "viewAll": "Ver todas las palabras clave",
+      "reorderGroup": "Arrastrar para reordenar",
+      "designTemplate": "Plantilla de diseno",
+      "noDesignTemplate": "Sin plantilla asignada"
     },
     "errors": {
       "enrichFailed": "Error al enriquecer",
@@ -1676,7 +1684,30 @@
       "historyFailed": "Error al cargar tendencias",
       "renameFailed": "Error al renombrar",
       "deleteGroupFailed": "Error al eliminar grupo",
-      "createGroupFailed": "Error al crear grupo"
+      "createGroupFailed": "Error al crear grupo",
+      "scrapeCountFailed": "No se pudo obtener la cantidad de productos"
+    },
+    "chipCloud": {
+      "shortTail": "Short-Tail",
+      "longTail": "Long-Tail",
+      "showAll": "+{{count}} más",
+      "showLess": "Mostrar menos"
+    },
+    "sourceTabs": {
+      "all": "Todos",
+      "database": "Base de datos",
+      "amazon": "Amazon",
+      "junglescout": "JungleScout",
+      "comingSoon": "Próximamente"
+    },
+    "searchHistory": {
+      "clearAll": "Borrar todo",
+      "label": "Búsquedas recientes"
+    },
+    "actionBar": {
+      "selected": "{{count}} seleccionado(s)",
+      "addToNiche": "Agregar al nicho",
+      "enrich": "Enriquecer"
     }
   },
   "amazonResearch": {
@@ -1751,6 +1782,11 @@
       "success": "Slogan extraido: {{slogan}}",
       "error": "Error al extraer el slogan",
       "noImage": "No hay imagen del producto disponible"
+    },
+    "keyword": {
+      "saved": "'{{keyword}}' guardado en {{niche}}",
+      "duplicate": "'{{keyword}}' ya existe en el banco de palabras clave",
+      "saveFailed": "No se pudo guardar la palabra clave"
     }
   },
   "common": {

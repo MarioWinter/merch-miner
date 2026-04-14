@@ -7,6 +7,7 @@ import type {
   KeywordEnrichResult,
   KeywordHistoryPoint,
   KeywordHistoryParams,
+  KeywordProductCount,
   NicheKeywordListResponse,
   NicheKeywordListParams,
   NicheKeyword,
@@ -21,7 +22,7 @@ import type {
 export const keywordApi = createApi({
   reducerPath: 'keywordApi',
   baseQuery: axiosBaseQuery({ baseUrl: '' }),
-  tagTypes: ['NicheKeywords', 'KeywordGroups', 'KeywordSearch'],
+  tagTypes: ['NicheKeywords', 'KeywordGroups', 'KeywordSearch', 'KeywordProductCount'],
   endpoints: (builder) => ({
     // --- Keyword Research ---
 
@@ -49,6 +50,18 @@ export const keywordApi = createApi({
         method: 'GET',
         params,
       }),
+    }),
+
+    scrapeProductCount: builder.mutation<
+      KeywordProductCount,
+      { keyword: string; marketplace?: string }
+    >({
+      query: (body) => ({
+        url: '/api/keywords/product-count/',
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: ['KeywordProductCount', 'KeywordSearch'],
     }),
 
     // --- Niche Keywords CRUD ---
@@ -190,6 +203,7 @@ export const {
   useEnrichKeywordsMutation,
   useGetKeywordHistoryQuery,
   useLazyGetKeywordHistoryQuery,
+  useScrapeProductCountMutation,
   useListNicheKeywordsQuery,
   useAddKeywordMutation,
   useBulkAddKeywordsMutation,

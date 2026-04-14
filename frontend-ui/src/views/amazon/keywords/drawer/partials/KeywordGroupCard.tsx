@@ -14,8 +14,10 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import CheckIcon from '@mui/icons-material/Check';
 import CloseIcon from '@mui/icons-material/Close';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import { useTranslation } from 'react-i18next';
 import { KeywordChipRow } from './KeywordChipRow';
+import { DesignTemplateAssign } from './DesignTemplateAssign';
 import type { NicheKeyword, NicheKeywordGroup } from '../types';
 
 const GroupContainer = styled(Box)(({ theme }) => ({
@@ -30,20 +32,34 @@ const GroupHeader = styled(Stack)(({ theme }) => ({
   cursor: 'pointer',
 }));
 
+const DragHandle = styled(Box)({
+  display: 'flex',
+  alignItems: 'center',
+  cursor: 'grab',
+  flexShrink: 0,
+  '&:active': { cursor: 'grabbing' },
+});
+
 interface KeywordGroupCardProps {
   group: NicheKeywordGroup;
   keywords: NicheKeyword[];
+  nicheId: string;
   onDeleteKeyword: (id: string) => void;
   onRenameGroup: (groupId: string, name: string) => void;
   onDeleteGroup: (groupId: string) => void;
+  onAssignDesignTemplate: (keywordId: string, designTemplateId: string | null) => void;
+  dragHandleProps?: Record<string, unknown>;
 }
 
 export const KeywordGroupCard = ({
   group,
   keywords,
+  nicheId,
   onDeleteKeyword,
   onRenameGroup,
   onDeleteGroup,
+  onAssignDesignTemplate,
+  dragHandleProps,
 }: KeywordGroupCardProps) => {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(true);
@@ -63,9 +79,20 @@ export const KeywordGroupCard = ({
       <GroupHeader
         direction="row"
         alignItems="center"
-        spacing={1}
+        spacing={0.5}
         onClick={() => !isEditing && setExpanded((p) => !p)}
       >
+        {/* Drag handle */}
+        {dragHandleProps && (
+          <DragHandle
+            {...dragHandleProps}
+            onClick={(e: React.MouseEvent) => e.stopPropagation()}
+            aria-label={t('keywords.drawer.reorderGroup')}
+          >
+            <DragIndicatorIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+          </DragHandle>
+        )}
+
         <IconButton size="small" sx={{ p: 0 }}>
           {expanded ? <ExpandLessIcon sx={{ fontSize: 18 }} /> : <ExpandMoreIcon sx={{ fontSize: 18 }} />}
         </IconButton>
@@ -130,6 +157,13 @@ export const KeywordGroupCard = ({
               />
             ))
           )}
+
+          {/* Design template assignment for this group */}
+          <DesignTemplateAssign
+            nicheId={nicheId}
+            keywords={keywords}
+            onAssign={onAssignDesignTemplate}
+          />
         </Box>
       </Collapse>
     </GroupContainer>

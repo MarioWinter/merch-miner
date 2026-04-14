@@ -22,12 +22,21 @@ export interface KeywordJSData {
   fetched_at: string | null;
 }
 
+export interface KeywordProductCount {
+  keyword: string;
+  marketplace: string;
+  product_count: number;
+  fetched_at: string;
+}
+
 export interface KeywordSearchResult {
   keyword: string;
   source: KeywordSource;
   in_product_count: number;
   in_slogan_count: number;
   js_data: KeywordJSData | null;
+  amazon_product_count: number | null;
+  product_count_fetched_at: string | null;
 }
 
 export interface KeywordSearchResponse {
@@ -131,6 +140,7 @@ export interface UpdateGroupBody {
 export interface KeywordColumnVisibility {
   keyword: boolean;
   source: boolean;
+  amazon_product_count: boolean;
   monthly_search_volume_exact: boolean;
   ppc_bid_exact: boolean;
   ease_of_ranking_score: boolean;
@@ -151,6 +161,7 @@ export interface KeywordColumnVisibility {
 export const DEFAULT_COLUMN_VISIBILITY: KeywordColumnVisibility = {
   keyword: true,
   source: true,
+  amazon_product_count: true,
   monthly_search_volume_exact: true,
   ppc_bid_exact: true,
   ease_of_ranking_score: true,

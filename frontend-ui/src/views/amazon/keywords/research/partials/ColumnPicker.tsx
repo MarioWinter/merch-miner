@@ -8,7 +8,7 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import ViewColumnIcon from '@mui/icons-material/ViewColumn';
+import TuneIcon from '@mui/icons-material/Tune';
 import { useTranslation } from 'react-i18next';
 import type { KeywordColumnVisibility } from '../types';
 import { saveColumnVisibility } from '../utils/columnStorage';
@@ -16,6 +16,7 @@ import { saveColumnVisibility } from '../utils/columnStorage';
 const COLUMN_KEYS: (keyof KeywordColumnVisibility)[] = [
   'keyword',
   'source',
+  'amazon_product_count',
   'monthly_search_volume_exact',
   'ppc_bid_exact',
   'ease_of_ranking_score',
@@ -58,7 +59,7 @@ export const ColumnPicker = ({ visibility, onChange }: ColumnPickerProps) => {
         aria-label={t('keywords.table.columnPicker')}
         sx={{ borderRadius: '8px' }}
       >
-        <ViewColumnIcon sx={{ fontSize: 20 }} />
+        <TuneIcon sx={{ fontSize: 20 }} />
       </IconButton>
 
       <Popover

@@ -549,7 +549,9 @@
     "delete": "Delete",
     "empty": {
       "title": "No ideas yet",
-      "hint": "Create your first idea or run research to discover slogans."
+      "hint": "Create your first idea or run research to discover slogans.",
+      "cta": "Create Idea",
+      "selectNiche": "Select a niche to view ideas"
     },
     "status": {
       "pending": "Pending",
@@ -619,12 +621,6 @@
         "agent": "Agent",
         "quality_check": "Quality Check"
       }
-    },
-    "empty": {
-      "title": "No ideas yet",
-      "hint": "Create your first idea or run research to discover slogans.",
-      "cta": "Create Idea",
-      "selectNiche": "Select a niche to view ideas"
     },
     "bulk": {
       "selected": "{{count}} selected",
@@ -1109,8 +1105,6 @@
       "processingProgress": "Processing {{current}}/{{total}}: {{name}}",
       "uploadFailed": "Failed to upload \"{{name}}\"",
       "addMoreImages": "Add more images",
-      "previousImage": "Previous image",
-      "nextImage": "Next image",
       "serverProcessing": "Processing on server...",
       "showOriginal": "Show original",
       "showProcessed": "Show processed",
@@ -1203,8 +1197,8 @@
         "left": "Left",
         "right": "Right",
         "transparent": "Transparent",
-        "presetPod": "POD Standard (4500\u00d75400)",
-        "presetSquare": "Square (4500\u00d74500)",
+        "presetPod": "POD Standard (4500×5400)",
+        "presetSquare": "Square (4500×4500)",
         "presetCustom": "Custom"
       },
       "trim": "Trim",
@@ -1222,10 +1216,10 @@
         "rotation": "Rotation",
         "flipH": "Flip Horizontal",
         "flipV": "Flip Vertical",
-        "deg0": "0\u00b0",
-        "deg90": "90\u00b0",
-        "deg180": "180\u00b0",
-        "deg270": "270\u00b0"
+        "deg0": "0°",
+        "deg90": "90°",
+        "deg180": "180°",
+        "deg270": "270°"
       },
       "filters": "Filters",
       "colorAdjustmentParams": {
@@ -1311,7 +1305,7 @@
         "posBottomLeft": "Bottom Left",
         "posBottomRight": "Bottom Right",
         "posTile": "Tile (Repeat)",
-        "rotation": "Rotation (\u00b0)",
+        "rotation": "Rotation (°)",
         "tileSpacing": "Tile Spacing (px)"
       },
       "defringe": "Defringe",
@@ -1401,7 +1395,7 @@
       "dpi": "DPI",
       "compression": "Compression",
       "compressionHint": "Lower = smaller file, higher = better quality",
-      "estimatedSize": "Est. size: {{size}}",
+      "estimatedSize": "Est. {{size}}",
       "downloadCurrent": "Download Current",
       "downloadAll": "Download All (ZIP)",
       "overwrite": "Overwrite original",
@@ -1417,7 +1411,7 @@
       "formatJpeg": "JPEG",
       "formatWebp": "WebP",
       "resolution": "Resolution",
-      "dimensions": "{{width}} \u00d7 {{height}} px",
+      "dimensions": "{{width}} × {{height}} px",
       "downloadZip": "Download All (ZIP)",
       "creatingZip": "Creating ZIP...",
       "totalSize": "Estimated total: {{size}}",
@@ -1433,7 +1427,6 @@
       "processingImages": "Processing {{current}} of {{total}}...",
       "cancel": "Cancel",
       "fileSize": "Size",
-      "estimatedSize": "Est. {{size}}",
       "closeExport": "Close export"
     },
     "contextMenu": {
@@ -1639,7 +1632,8 @@
   "keywords": {
     "page": {
       "title": "Keyword Drilling",
-      "searchPlaceholder": "Search keywords..."
+      "searchPlaceholder": "Search keywords...",
+      "searchButton": "Search"
     },
     "source": {
       "research": "Research",
@@ -1653,7 +1647,8 @@
       "bulkLabel": "Enrich Selected",
       "loading": "Enriching...",
       "success": "Keywords enriched",
-      "noApiKeyTooltip": "Configure JungleScout API key in Settings"
+      "noApiKeyTooltip": "Configure JungleScout API key in Settings",
+      "comingSoon": "JungleScout coming soon"
     },
     "table": {
       "col_keyword": "Keyword",
@@ -1673,13 +1668,16 @@
       "col_recommended_promotions": "Promos",
       "col_in_product_count": "In Products",
       "col_in_slogan_count": "In Slogans",
+      "col_amazon_product_count": "Amz Products",
       "columnPicker": "Configure columns",
+      "refreshProductCount": "Refresh product count",
       "done": "Done",
       "selected": "{{count}} selected"
     },
     "trend": {
       "chartTitle": "Search Volume Trend",
       "noData": "Not enough data for trend chart",
+      "notConfigured": "No data -- JungleScout not configured",
       "monthLabel": "Month",
       "volumeLabel": "Search Volume"
     },
@@ -1712,7 +1710,10 @@
       "ungrouped": "Ungrouped",
       "noKeywords": "No keywords collected yet",
       "groupDeleted": "Group deleted (keywords kept)",
-      "viewAll": "View All Keywords"
+      "viewAll": "View All Keywords",
+      "reorderGroup": "Drag to reorder group",
+      "designTemplate": "Design Template",
+      "noDesignTemplate": "No template assigned"
     },
     "errors": {
       "enrichFailed": "Failed to enrich keywords",
@@ -1722,7 +1723,30 @@
       "historyFailed": "Failed to load trend data",
       "renameFailed": "Failed to rename group",
       "deleteGroupFailed": "Failed to delete group",
-      "createGroupFailed": "Failed to create group"
+      "createGroupFailed": "Failed to create group",
+      "scrapeCountFailed": "Could not fetch product count"
+    },
+    "chipCloud": {
+      "shortTail": "Short-Tail",
+      "longTail": "Long-Tail",
+      "showAll": "+{{count}} more",
+      "showLess": "Show less"
+    },
+    "sourceTabs": {
+      "all": "All",
+      "database": "Database",
+      "amazon": "Amazon",
+      "junglescout": "JungleScout",
+      "comingSoon": "Coming Soon"
+    },
+    "searchHistory": {
+      "clearAll": "Clear all",
+      "label": "Recent searches"
+    },
+    "actionBar": {
+      "selected": "{{count}} selected",
+      "addToNiche": "Add to Niche",
+      "enrich": "Enrich"
     }
   },
   "publish": {
@@ -2365,6 +2389,11 @@
       "success": "Slogan extracted: {{slogan}}",
       "error": "Failed to extract slogan",
       "noImage": "No product image available"
+    },
+    "keyword": {
+      "saved": "'{{keyword}}' saved to {{niche}}",
+      "duplicate": "'{{keyword}}' already in keyword bank",
+      "saveFailed": "Failed to save keyword"
     }
   }
 }
