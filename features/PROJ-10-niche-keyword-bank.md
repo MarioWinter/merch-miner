@@ -51,12 +51,15 @@ Researched keywords flow into the Niche Drawer where they can be organized into 
 9. As a member, I want to select keywords via checkboxes and see a context-aware "Add X Keywords to {active Niche}" button when a Niche is open in the Drawer, so I can collect keywords with one click.
 10. As a member, I want a "Change Niche" fallback next to the context button to assign keywords to a different niche than the active one.
 
-### UI Redesign — "Keyword Lode" (approved 2026-04-14)
+### UI Redesign — "Keyword Lode" (approved 2026-04-15)
 24. As a member, I want search results categorized into Short-Tail and Long-Tail keyword chip sections above the table, so I get a quick visual overview before diving into details.
 25. As a member, I want to click a keyword chip to filter the table to that keyword, so I can drill down quickly.
-26. As a member, I want Source Tabs (All / Database / Amazon Autocomplete / JungleScout) above the table to filter results by data source, so I can focus on one source at a time.
+26. As a member, when I search a keyword, I want to automatically see "After" suggestions ("keyword *") and "Before" suggestions ("* keyword") in separate tabs alongside regular suggestions, so I discover more keyword variations without manual work — like Flying Research.
 27. As a member, I want to see my recent search terms as clickable chips below the search bar (like PROJ-7 Amazon Research), so I can quickly re-run previous searches.
 28. As a member, I want JungleScout columns to show a unified "—" placeholder with "Coming Soon" tooltip when not configured, so the table feels complete but not broken.
+29. As a member, I want Synonyms/related words for my search term (via Datamuse API) in a dedicated tab, so I discover alternative terms I might not have thought of.
+30. As a member, I want all suggestion types (Suggestions, After, Before, Synonyms) displayed in the same DataGrid table with the same columns, so I can compare and select keywords across all sources uniformly.
+31. As a member, I want hover actions (Copy to clipboard + Search) on each keyword row, so I can quickly copy a keyword or use it as a new search term — like Flying Research.
 
 ### Keyword Management (Drawer, per Niche)
 11. As a member, I want to see all collected keywords for a niche in the Drawer, organized by source (Research, Amazon, Web Search, Manual, JungleScout), so I have a full overview.
@@ -109,12 +112,17 @@ Researched keywords flow into the Niche Drawer where they can be organized into 
 
 ### UI Redesign — "Keyword Lode"
 
-- [ ] AC-31: **Keyword Chip Cloud:** Above the results table, two collapsible sections — "Short-Tail" (chips with `secondary.main` outline) and "Long-Tail" (chips with `info.subtle` background). Each chip: keyword text + Amz Product Count badge (e.g. `school bus driver · 549`). Clicking a chip filters the table. "Show all" link if >12 chips per section. Horizontal wrap layout.
-- [ ] AC-32: **Short/Long-Tail classification:** Keywords with ≤2 words = Short-Tail, ≥3 words = Long-Tail. Classification is client-side (no backend change).
-- [ ] AC-33: **Source Tabs:** MUI Tabs directly above the table: `All (57)` | `Database (12)` | `Amazon (45)` | `JungleScout` (disabled, "Coming Soon" MUI Badge). Tab labels include result count. Selecting a tab filters the table by source.
-- [ ] AC-34: **Improved Table Styling:** Sticky header with `background.elevated` (#0F3040). Row hover = `primary.subtle`. JungleScout columns visible but show "—" in `text.disabled` color with opacity 0.4. Tooltip on JS column headers: "JungleScout coming soon".
-- [ ] AC-35: **Floating Action Bar:** When keywords are selected via checkbox, a bar appears: "{count} selected" + "Add to Niche" button + "Enrich" button (disabled). Replaces inline action bar.
-- [ ] AC-36: **Search History:** Below the search input, show up to 10 recent search terms as small clickable `Chip` components (`variant="outlined"`, `size="small"`). Clicking re-fills the input and executes the search. Each chip has a "×" delete icon. "Clear all" link at the end. Persisted to `localStorage` key `mm-keyword-recent`. Same pattern as PROJ-7 `useRecentSearches` hook.
+- [ ] AC-31: **Suggestion Tabs** replace old Source Tabs. MUI Tabs above the table: `All (N)` | `Suggestions (N)` | `After (N)` | `Before (N)` | `Synonyms (N)` | `JungleScout` 🔒 (disabled). Each tab filters the same DataGrid table. Count badges per tab. Source column in table shows `suggestion` / `after` / `before` / `synonym`.
+- [ ] AC-32: **Automatic generation** — on search execution, automatically fire in parallel: (a) standard autocomplete for "keyword", (b) autocomplete for "keyword " (trailing space = after/suffix suggestions), (c) autocomplete for " keyword" (leading space = before/prefix suggestions), (d) Datamuse API for synonyms/related words. All results merged into one dataset, each tagged with source. Deduplicate across sources — first occurrence wins.
+- [ ] AC-33: **Same table for all tabs** — ALL tab shows everything merged. Other tabs filter by source. Same DataGrid columns (keyword, source badge, amz products, volume, CPC etc.) for all tabs. No separate layouts.
+- [ ] AC-34: **Improved Table Styling:** Sticky header, alternating row backgrounds. Row hover = `primary.subtle`. JungleScout columns visible but show "—" in `text.disabled` at 40% opacity. Tooltip on JS column headers: "JungleScout coming soon".
+- [ ] AC-35: **Floating Action Bar:** When keywords are selected via checkbox, a sticky bottom bar appears: "{count} selected" + "Add to Niche" button + "Enrich" button (disabled). Glass-md background, slide-up animation.
+- [ ] AC-36: **Search History:** Below the search input, up to 10 recent searches as clickable chips. Click re-fills + executes search. "×" delete, "Clear all" link. localStorage `mm-keyword-recent`. Same pattern as PROJ-7.
+- [ ] AC-37: **Hover actions** — each table row shows on hover (right side): Copy to clipboard icon + Search icon (re-searches that keyword as new main term). Like Flying Research. Copy shows snackbar "Copied!".
+- [ ] AC-38: **Datamuse Synonyms** — Backend endpoint `GET /api/keywords/synonyms/?query=X` calls Datamuse API (`api.datamuse.com/words?ml=X`), returns related words. Cached in `SynonymCache` model (keyword → results JSON, no expiry — words don't change). English only. Max 20 results.
+- [ ] AC-39: **After suggestions** — on search, calls Amazon Autocomplete with "keyword " (keyword + trailing space). Returns suffix suggestions. Client-side, reuses existing autocomplete endpoint with modified query. Tagged as `source=after`.
+- [ ] AC-40: **Before suggestions** — on search, calls Amazon Autocomplete with " keyword" (leading space + keyword). Returns prefix suggestions. Client-side, reuses existing autocomplete endpoint. Tagged as `source=before`.
+- [ ] AC-41: **Keyword Chip Cloud** (kept from original): Above tabs, two collapsible sections — Short-Tail (≤2 words, `secondary.main` tint) and Long-Tail (≥3 words, `info.main` tint). Each chip: keyword + product count badge. Click filters table. "Show all" if >12. Computed from ALL results across all sources.
 
 ### Keyword Collection API (per Niche)
 
@@ -164,6 +172,7 @@ Researched keywords flow into the Niche Drawer where they can be organized into 
 | GET | `/api/keywords/{keyword}/history/` | Member | Historical search volume chart |
 | GET | `/api/keywords/export/` | Member | CSV export |
 | POST | `/api/keywords/product-count/` | Member | On-demand Amazon product count scrape (Page 2) |
+| GET | `/api/keywords/synonyms/` | Member | Datamuse synonyms/related words (cached) |
 | GET | `/api/niches/{id}/keywords/` | Member | List niche keywords |
 | POST | `/api/niches/{id}/keywords/` | Member | Add keyword to niche |
 | POST | `/api/niches/{id}/keywords/bulk-add/` | Member | Bulk add keywords |
@@ -192,9 +201,12 @@ Researched keywords flow into the Niche Drawer where they can be organized into 
 - [ ] EC-13: Amazon product count = 0 (no results for keyword) → display "> 0" in column. Valid data, not an error.
 - [ ] EC-14: Amazon Page 2 returns different HTML structure (no result count header) → parse returns null. Show "n/a" in column. Log warning for debugging.
 - [ ] EC-15: Keyword with special characters (quotes, ampersands) in Amazon search URL → URL-encode keyword before scraping.
-- [ ] EC-16: All results are Short-Tail (≤2 words) → Long-Tail section hidden. Vice versa.
+- [ ] EC-16: All results in one suggestion type → other tabs show (0) count, not hidden. Chip cloud section hidden if all short-tail or all long-tail.
 - [ ] EC-17: Search history localStorage corrupted/invalid JSON → reset to empty array silently.
-- [ ] EC-18: Source tab filter returns 0 results → show EmptyState within the tab, not the full-page empty state.
+- [ ] EC-18: Suggestion tab filter returns 0 results → show EmptyState within the tab, not the full-page empty state.
+- [ ] EC-19: Datamuse API unavailable (timeout, 5xx) → Synonyms tab shows (0), no error toast. Other tabs unaffected.
+- [ ] EC-20: Autocomplete returns same keyword for After/Before as regular Suggestions → deduplicate across sources, keep first occurrence (Suggestions > After > Before > Synonyms priority).
+- [ ] EC-21: Copy to clipboard fails (older browser, no HTTPS) → fallback: select text in a hidden textarea. Show "Copied!" snackbar on success.
 
 ## Environment Variables Required
 
@@ -242,9 +254,14 @@ Document in `django-app/env/.env.template`.
 | 9 | Drawer features | Keyword groups + Design template assignment + edit/delete/reorder |
 | 10 | Agent JS limit | Max 1 JS-Call per Niche-ID (main term only) |
 | 11 | Chat integration | Conversational keyword search + add commands |
-| 12 | UI redesign | "Keyword Lode" — Chip Cloud + Source Tabs + improved table (Flying Research inspired) |
+| 12 | UI redesign | "Keyword Lode" — Chip Cloud + Suggestion Tabs + improved table (Flying Research inspired) |
 | 13 | Search history | Recent searches as chips below input, localStorage, same as PROJ-7 pattern |
 | 14 | Short/Long-Tail split | ≤2 words = Short-Tail, ≥3 words = Long-Tail (client-side) |
+| 15 | Suggestion Tabs | Replace DB/AMZ Source Tabs with Suggestion-type tabs: All, Suggestions, After, Before, Synonyms, JS🔒 |
+| 16 | After/Before | Automatic — trailing/leading space triggers Amazon suffix/prefix suggestions. No manual modifier toggles |
+| 17 | Synonyms | Datamuse API (free, no key, EN only). Cached in DB permanently. Max 20 results |
+| 18 | Hover actions | Copy + Search icons per row on hover (Flying Research pattern) |
+| 19 | Deduplication | Same keyword across sources → keep first occurrence. Priority: Suggestions > After > Before > Synonyms |
 
 ## Verification Steps
 
@@ -271,17 +288,20 @@ Document in `django-app/env/.env.template`.
 19. Keyword with no product count data → column shows empty/dash. Click 🔄 → first-time scrape → count appears
 20. PROJ-16 product research scrape completes → product count auto-captured from Page 2 → shows in Keyword Bank without manual refresh
 21. Product count scrape fails → error toast, existing cached data stays visible
-22. Search "school bus driver" → Short-Tail chips show "school bus driver" (2 words), Long-Tail shows "school bus driver gifts", "school bus driver appreciation" etc.
-23. Click Short-Tail chip "school bus driver" → table filters to show only that keyword
-24. Source Tabs show correct counts: All (15) | Database (3) | Amazon (12) | JungleScout (disabled)
-25. Click "Database" tab → table shows only DB-sourced keywords
-26. JungleScout tab disabled with "Coming Soon" badge
-27. JS columns (Volume, CPC, PPC etc.) show "—" placeholder with tooltip "JungleScout coming soon"
-28. Search "camping" → "camping" appears as recent search chip below search bar
-29. Search "hiking" → "hiking" + "camping" chips visible (newest first)
-30. Click "camping" chip → input fills + search re-executes
-31. Click "×" on "camping" chip → removed from history
-32. Click "Clear all" → all history chips removed
+22. Search "school bus driver" → Short-Tail chips show "school bus driver", Long-Tail shows "school bus driver gifts" etc.
+23. Click Short-Tail chip → table filters to that keyword
+24. Suggestion Tabs show: All (57) | Suggestions (24) | After (15) | Before (12) | Synonyms (6) | JS 🔒
+25. Click "After" tab → table shows only suffix suggestions ("school bus driver gifts", "school bus driver shirt" etc.)
+26. Click "Before" tab → table shows prefix suggestions ("funny school bus driver", "best school bus driver" etc.)
+27. Click "Synonyms" tab → table shows Datamuse related words ("transit operator", "bus operator" etc.)
+28. All tabs use the same table with same columns — no layout change on tab switch
+29. JS columns show "—" placeholder with tooltip "JungleScout coming soon"
+30. Hover on keyword row → Copy + Search icons appear on right. Click Copy → "Copied!" snackbar. Click Search → re-searches that keyword
+31. Search "camping" → appears as recent search chip below search bar
+32. Search "hiking" → "hiking" + "camping" chips (newest first). Click → re-executes
+33. Click "×" on chip → removed. "Clear all" → all removed
+34. Datamuse API down → Synonyms tab shows (0), no error. Other tabs work normally
+35. Same keyword in Suggestions + After → deduplicated, shown once (Suggestions wins)
 
 ---
 
@@ -361,11 +381,14 @@ store/
 
 ```
 Keyword Research Page:
-  Search "camping" →
-    1. DB query (NicheKeyword + NicheKeywordAnalysis): instant, free
-    2. Amazon Autocomplete: 300ms debounce, cached 60s
-    → Merged results table (source-tagged)
+  Search "camping" → fires 4 requests in parallel:
+    1. Autocomplete "camping" → Suggestions (source=suggestion)
+    2. Autocomplete "camping " (trailing space) → After suggestions (source=after)
+    3. Autocomplete " camping" (leading space) → Before suggestions (source=before)
+    4. GET /api/keywords/synonyms/?query=camping → Datamuse (source=synonym)
+    → All merged + deduplicated → displayed in Suggestion Tabs
     → "Enrich" button per row → JS API (cached 30d) → adds search volume, CPC, etc.
+    → Hover: Copy + Search icons per row
     → Select keywords → "Add to {active Niche}" → POST /api/niches/{id}/keywords/
 
 Drawer Keywords Tab:

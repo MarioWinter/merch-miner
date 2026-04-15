@@ -1720,6 +1720,17 @@
       "selected": "{{count}} sélectionné(s)",
       "addToNiche": "Ajouter à la niche",
       "enrich": "Enrichir"
+    },
+    "multiplier": {
+      "title": "Multiplicateur de suggestions",
+      "prefixes": "Prefixes",
+      "suffixes": "Suffixes",
+      "generate": "Generer",
+      "generated": "{{count}} suggestions",
+      "addToResults": "Cliquer pour chercher"
+    },
+    "wordSuggestions": {
+      "title": "Idees de mots"
     }
   },
   "publish": {

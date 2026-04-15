@@ -1786,6 +1786,17 @@
       "selected": "{{count}} selezionato/i",
       "addToNiche": "Aggiungi alla nicchia",
       "enrich": "Arricchisci"
+    },
+    "multiplier": {
+      "title": "Moltiplicatore suggerimenti",
+      "prefixes": "Prefissi",
+      "suffixes": "Suffissi",
+      "generate": "Genera",
+      "generated": "{{count}} suggerimenti",
+      "addToResults": "Clicca per cercare"
+    },
+    "wordSuggestions": {
+      "title": "Idee di parole"
     }
   },
   "common": {

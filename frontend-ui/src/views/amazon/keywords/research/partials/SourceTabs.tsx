@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { Box, Chip, Tab, Tabs, Tooltip } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { alpha } from '@mui/material/styles';
 import LockIcon from '@mui/icons-material/Lock';
 import { useTranslation } from 'react-i18next';
 import type { KeywordSearchResult, KeywordSource } from '../types';
@@ -15,14 +15,6 @@ interface SourceTabsProps {
 
 const DATABASE_SOURCES: KeywordSource[] = ['research', 'web_search', 'manual'];
 const AMAZON_SOURCES: KeywordSource[] = ['amazon_search'];
-
-const CountChip = styled(Chip)({
-  height: 18,
-  fontSize: '0.6875rem',
-  fontWeight: 600,
-  marginLeft: 6,
-  background: 'rgba(255, 255, 255, 0.08)',
-});
 
 const tabSx = {
   minHeight: 40,
@@ -48,7 +40,17 @@ const computeCounts = (results: KeywordSearchResult[]) => {
 const TabLabel = ({ text, count }: { text: string; count: number }) => (
   <Box sx={{ display: 'flex', alignItems: 'center' }}>
     {text}
-    <CountChip label={count} size="small" />
+    <Chip
+      label={count}
+      size="small"
+      sx={(theme) => ({
+        height: 18,
+        fontSize: '0.6875rem',
+        fontWeight: 600,
+        ml: 0.75,
+        backgroundColor: alpha(theme.palette.text.primary, 0.08),
+      })}
+    />
   </Box>
 );
 
@@ -60,18 +62,17 @@ export const SourceTabs = ({ results, value, onChange }: SourceTabsProps) => {
     <Tabs
       value={value}
       onChange={(_, newValue: SourceFilter) => onChange(newValue)}
-      sx={{
+      sx={(theme) => ({
         minHeight: 40,
         mb: 0.5,
-        borderBottom: '1px solid rgba(255, 255, 255, 0.06)',
+        borderBottom: `1px solid ${theme.vars.palette.divider}`,
         '& .MuiTabs-indicator': {
           height: 2,
           borderRadius: '2px 2px 0 0',
-          background: (theme) =>
-            `linear-gradient(90deg, ${theme.vars.palette.primary.main}, ${theme.vars.palette.primary.light})`,
-          boxShadow: '0 0 8px rgba(255, 90, 79, 0.40)',
+          background: `linear-gradient(90deg, ${theme.vars.palette.primary.main}, ${theme.vars.palette.primary.light})`,
+          boxShadow: `0 0 8px ${alpha(theme.palette.primary.main, 0.40)}`,
         },
-      }}
+      })}
     >
       <Tab
         label={<TabLabel text={t('keywords.sourceTabs.all')} count={counts.all} />}

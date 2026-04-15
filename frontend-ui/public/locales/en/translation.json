@@ -1747,6 +1747,17 @@
       "selected": "{{count}} selected",
       "addToNiche": "Add to Niche",
       "enrich": "Enrich"
+    },
+    "multiplier": {
+      "title": "Suggestion Multiplier",
+      "prefixes": "Prefixes",
+      "suffixes": "Suffixes",
+      "generate": "Generate",
+      "generated": "{{count}} suggestions",
+      "addToResults": "Click to search"
+    },
+    "wordSuggestions": {
+      "title": "Word Ideas"
     }
   },
   "publish": {

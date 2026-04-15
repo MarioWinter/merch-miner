@@ -1732,6 +1732,17 @@
       "selected": "{{count}} ausgewählt",
       "addToNiche": "Zur Nische hinzufügen",
       "enrich": "Anreichern"
+    },
+    "multiplier": {
+      "title": "Vorschlag-Multiplikator",
+      "prefixes": "Praefixe",
+      "suffixes": "Suffixe",
+      "generate": "Generieren",
+      "generated": "{{count}} Vorschlaege",
+      "addToResults": "Klick zum Suchen"
+    },
+    "wordSuggestions": {
+      "title": "Wortideen"
     }
   },
   "search": {

@@ -1708,6 +1708,17 @@
       "selected": "{{count}} seleccionado(s)",
       "addToNiche": "Agregar al nicho",
       "enrich": "Enriquecer"
+    },
+    "multiplier": {
+      "title": "Multiplicador de sugerencias",
+      "prefixes": "Prefijos",
+      "suffixes": "Sufijos",
+      "generate": "Generar",
+      "generated": "{{count}} sugerencias",
+      "addToResults": "Clic para buscar"
+    },
+    "wordSuggestions": {
+      "title": "Ideas de palabras"
     }
   },
   "amazonResearch": {

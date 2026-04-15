@@ -1,12 +1,14 @@
 import { useState, useMemo } from 'react';
-import { Box, Button, Chip, Collapse, Stack, Typography } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { Box, Button, Chip, Collapse, Stack } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import BoltIcon from '@mui/icons-material/Bolt';
 import AllInclusiveIcon from '@mui/icons-material/AllInclusive';
 import { useTranslation } from 'react-i18next';
-import { EASING, DURATION } from '@/style/constants';
+import { SectionCard } from '@/components/SectionCard';
+import { SectionLabel } from '@/components/SectionLabel';
+import { EASING, DURATION, MONO_FONT_STACK } from '@/style/constants';
 import type { KeywordSearchResult } from '../types';
 
 const MAX_VISIBLE = 12;
@@ -22,74 +24,6 @@ interface ClassifiedKeyword {
   productCount: number | null;
 }
 
-const CloudSection = styled(Box)(({ theme }) => ({
-  padding: theme.spacing(1.5, 2),
-  borderRadius: 10,
-  background: 'rgba(11, 39, 49, 0.50)',
-  border: '1px solid rgba(255, 255, 255, 0.06)',
-  marginBottom: theme.spacing(1.5),
-}));
-
-const SectionLabel = styled(Typography)(({ theme }) => ({
-  fontSize: '0.6875rem',
-  fontWeight: 600,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  color: theme.vars.palette.text.disabled,
-  marginBottom: theme.spacing(1),
-  display: 'flex',
-  alignItems: 'center',
-  gap: theme.spacing(0.5),
-}));
-
-const ShortTailChip = styled(Chip, {
-  shouldForwardProp: (prop) => prop !== 'isActive',
-})<{ isActive: boolean }>(({ theme, isActive }) => ({
-  borderRadius: 8,
-  height: 28,
-  fontWeight: 500,
-  fontSize: '0.8125rem',
-  border: `1px solid ${isActive ? theme.vars.palette.secondary.main : 'rgba(0, 200, 215, 0.30)'}`,
-  background: isActive ? 'rgba(0, 200, 215, 0.15)' : 'transparent',
-  color: isActive ? theme.vars.palette.secondary.main : theme.vars.palette.text.primary,
-  transition: `all ${DURATION.fast}ms ${EASING.standard}`,
-  '&:hover': {
-    borderColor: theme.vars.palette.secondary.main,
-    background: 'rgba(0, 200, 215, 0.10)',
-    boxShadow: '0 0 12px rgba(0, 200, 215, 0.15)',
-  },
-  '& .MuiChip-label': {
-    display: 'flex',
-    alignItems: 'center',
-    gap: 6,
-  },
-}));
-
-const LongTailChip = styled(Chip, {
-  shouldForwardProp: (prop) => prop !== 'isActive',
-})<{ isActive: boolean }>(({ theme, isActive }) => ({
-  borderRadius: 8,
-  height: 28,
-  fontWeight: 500,
-  fontSize: '0.8125rem',
-  border: `1px solid ${isActive ? theme.vars.palette.info.main : 'rgba(56, 189, 248, 0.18)'}`,
-  background: isActive ? 'rgba(56, 189, 248, 0.15)' : 'rgba(56, 189, 248, 0.06)',
-  color: isActive ? theme.vars.palette.info.main : theme.vars.palette.text.primary,
-  transition: `all ${DURATION.fast}ms ${EASING.standard}`,
-  '&:hover': {
-    borderColor: theme.vars.palette.info.main,
-    background: 'rgba(56, 189, 248, 0.12)',
-    boxShadow: '0 0 12px rgba(56, 189, 248, 0.12)',
-  },
-}));
-
-const CountBadge = styled('span')(({ theme }) => ({
-  fontSize: '0.6875rem',
-  fontWeight: 600,
-  color: theme.vars.palette.text.disabled,
-  opacity: 0.8,
-}));
-
 const classifyKeywords = (results: KeywordSearchResult[]) => {
   const shortTail: ClassifiedKeyword[] = [];
   const longTail: ClassifiedKeyword[] = [];
@@ -100,31 +34,32 @@ const classifyKeywords = (results: KeywordSearchResult[]) => {
       keyword: r.keyword,
       productCount: r.amazon_product_count,
     };
-    if (wordCount <= 2) {
-      shortTail.push(item);
-    } else {
-      longTail.push(item);
-    }
+    if (wordCount <= 2) shortTail.push(item);
+    else longTail.push(item);
   }
 
   return { shortTail, longTail };
 };
 
-const ChipSection = ({
-  title,
-  icon,
-  items,
-  variant,
-  activeFilter,
-  onFilterChange,
-}: {
+interface ChipSectionProps {
   title: string;
   icon: React.ReactNode;
+  iconColor: string;
   items: ClassifiedKeyword[];
   variant: 'shortTail' | 'longTail';
   activeFilter: string | null;
   onFilterChange: (keyword: string | null) => void;
-}) => {
+}
+
+const ChipSection = ({
+  title,
+  icon,
+  iconColor,
+  items,
+  variant,
+  activeFilter,
+  onFilterChange,
+}: ChipSectionProps) => {
   const { t } = useTranslation();
   const [expanded, setExpanded] = useState(false);
   const hasMore = items.length > MAX_VISIBLE;
@@ -132,31 +67,88 @@ const ChipSection = ({
 
   if (items.length === 0) return null;
 
-  const ChipComponent = variant === 'shortTail' ? ShortTailChip : LongTailChip;
+  const isShort = variant === 'shortTail';
 
   return (
-    <CloudSection>
-      <SectionLabel>
-        {icon}
-        {title} ({items.length})
-      </SectionLabel>
+    <SectionCard sx={{ mb: 1.5 }}>
+      <SectionLabel icon={icon} label={title} count={items.length} iconColor={iconColor} />
       <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 0.75 }}>
         {visible.map((item) => {
           const isActive = activeFilter === item.keyword;
           return (
-            <ChipComponent
+            <Chip
               key={item.keyword}
-              isActive={isActive}
               size="small"
+              onClick={() => onFilterChange(isActive ? null : item.keyword)}
               label={
-                <>
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75 }}>
                   {item.keyword}
                   {item.productCount != null && (
-                    <CountBadge>{item.productCount.toLocaleString()}</CountBadge>
+                    <>
+                      <Box
+                        component="span"
+                        sx={{ color: 'text.disabled', fontSize: '0.6875rem' }}
+                      >
+                        ·
+                      </Box>
+                      <Box
+                        component="span"
+                        sx={{
+                          fontFamily: MONO_FONT_STACK,
+                          fontSize: '0.6875rem',
+                          fontWeight: 600,
+                          color: 'text.disabled',
+                        }}
+                      >
+                        {item.productCount.toLocaleString()}
+                      </Box>
+                    </>
                   )}
-                </>
+                </Box>
               }
-              onClick={() => onFilterChange(isActive ? null : item.keyword)}
+              sx={(theme) => ({
+                borderRadius: '8px',
+                height: 28,
+                fontWeight: 500,
+                fontSize: '0.8125rem',
+                cursor: 'pointer',
+                transition: `all ${DURATION.fast}ms ${EASING.standard}`,
+                backgroundColor: isActive
+                  ? alpha(
+                      isShort
+                        ? theme.palette.secondary.main
+                        : theme.palette.info.main,
+                      isShort ? 0.20 : 0.15,
+                    )
+                  : alpha(
+                      isShort
+                        ? theme.palette.secondary.main
+                        : theme.palette.info.main,
+                      isShort ? 0.10 : 0.08,
+                    ),
+                color: isActive
+                  ? isShort
+                    ? theme.vars.palette.secondary.main
+                    : theme.vars.palette.info.main
+                  : theme.vars.palette.text.primary,
+                border: `1px solid ${alpha(
+                  isShort
+                    ? theme.palette.secondary.main
+                    : theme.palette.info.main,
+                  isActive ? (isShort ? 0.30 : 0.18) : isShort ? 0.30 : 0.18,
+                )}`,
+                '&:hover': {
+                  borderColor: isShort
+                    ? theme.vars.palette.secondary.main
+                    : theme.vars.palette.info.main,
+                  backgroundColor: alpha(
+                    isShort
+                      ? theme.palette.secondary.main
+                      : theme.palette.info.main,
+                    isShort ? 0.15 : 0.12,
+                  ),
+                },
+              })}
             />
           );
         })}
@@ -187,7 +179,7 @@ const ChipSection = ({
           </Button>
         )}
       </Stack>
-    </CloudSection>
+    </SectionCard>
   );
 };
 
@@ -209,7 +201,8 @@ export const KeywordChipCloud = ({
       <Box sx={{ mb: 1 }}>
         <ChipSection
           title={t('keywords.chipCloud.shortTail')}
-          icon={<BoltIcon sx={{ fontSize: 14 }} />}
+          icon={<BoltIcon />}
+          iconColor="secondary.main"
           items={shortTail}
           variant="shortTail"
           activeFilter={activeFilter}
@@ -217,7 +210,8 @@ export const KeywordChipCloud = ({
         />
         <ChipSection
           title={t('keywords.chipCloud.longTail')}
-          icon={<AllInclusiveIcon sx={{ fontSize: 14 }} />}
+          icon={<AllInclusiveIcon />}
+          iconColor="info.main"
           items={longTail}
           variant="longTail"
           activeFilter={activeFilter}

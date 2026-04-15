@@ -43,6 +43,7 @@ from keyword_app.services.junglescout_service import (
     get_keyword_history,
     is_js_configured,
 )
+from keyword_app.services.datamuse_service import get_synonyms
 from keyword_app.services.product_count_scraper import (
     get_cached_product_counts,
     scrape_product_count,
@@ -824,3 +825,34 @@ class KeywordProductCountView(APIView):
             )
 
         return Response(KeywordProductCountSerializer(obj).data)
+
+
+# ==============================================================
+# Datamuse Synonyms (AC-38)
+# ==============================================================
+
+class KeywordSynonymsView(APIView):
+    """
+    GET /api/keywords/synonyms/?query=...
+    Returns related words from Datamuse API with DB caching.
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        query = request.query_params.get('query', '').strip()
+        if not query:
+            return Response(
+                {'error': 'query parameter is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if len(query) > 200:
+            return Response(
+                {'error': 'query must be 200 characters or fewer.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        words = get_synonyms(query)
+        return Response({'words': words})

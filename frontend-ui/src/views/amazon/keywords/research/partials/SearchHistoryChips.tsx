@@ -1,5 +1,5 @@
 import { Button, Chip, Stack } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { alpha, styled } from '@mui/material/styles';
 import HistoryIcon from '@mui/icons-material/History';
 import CloseIcon from '@mui/icons-material/Close';
 import ClearAllIcon from '@mui/icons-material/ClearAll';
@@ -19,13 +19,13 @@ const HistoryChip = styled(Chip)(({ theme }) => ({
   height: 28,
   fontSize: '0.8125rem',
   fontWeight: 500,
-  background: 'rgba(255, 255, 255, 0.04)',
-  border: `1px solid rgba(255, 255, 255, 0.08)`,
+  background: alpha(theme.palette.text.primary, 0.04),
+  border: `1px solid ${theme.vars.palette.divider}`,
   color: theme.vars.palette.text.secondary,
   transition: `all ${DURATION.fast}ms ${EASING.standard}`,
   '&:hover': {
-    background: 'rgba(255, 255, 255, 0.08)',
-    borderColor: 'rgba(255, 255, 255, 0.16)',
+    background: alpha(theme.palette.text.primary, 0.08),
+    borderColor: alpha(theme.palette.text.primary, 0.16),
     color: theme.vars.palette.text.primary,
   },
   '& .MuiChip-deleteIcon': {

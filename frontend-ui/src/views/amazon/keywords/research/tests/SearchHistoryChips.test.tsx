@@ -62,8 +62,8 @@ describe('SearchHistoryChips', () => {
         onClearAll={vi.fn()}
       />,
     );
-    // MUI Chip renders delete icon as a svg with data-testid="CancelIcon"
-    const deleteIcons = screen.getAllByTestId('CancelIcon');
+    // Custom CloseIcon used as deleteIcon
+    const deleteIcons = screen.getAllByTestId('CloseIcon');
     await user.click(deleteIcons[0]);
     expect(onRemove).toHaveBeenCalledWith(0);
   });

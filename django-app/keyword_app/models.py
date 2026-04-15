@@ -183,6 +183,25 @@ class KeywordProductCount(models.Model):
         return f"{self.keyword} ({self.marketplace}): {self.product_count}"
 
 
+class SynonymCache(models.Model):
+    """Cached Datamuse synonym/related-word results. No expiry — words don't change."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    keyword = models.CharField(max_length=200, unique=True, db_index=True)
+    results = models.JSONField(
+        default=list,
+        help_text='List of related words from Datamuse API',
+    )
+    fetched_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'Synonym Cache'
+        verbose_name_plural = 'Synonym Caches'
+
+    def __str__(self):
+        return f"Synonyms: {self.keyword} ({len(self.results)} words)"
+
+
 class JSUsageLog(models.Model):
     """Tracks JungleScout API calls for cost analytics."""
 

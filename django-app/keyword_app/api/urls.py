@@ -6,6 +6,7 @@ from keyword_app.api.views import (
     KeywordHistoryView,
     KeywordProductCountView,
     KeywordSearchView,
+    KeywordSynonymsView,
     NicheKeywordBulkAddView,
     NicheKeywordBulkDeleteView,
     NicheKeywordDetailView,
@@ -40,6 +41,11 @@ urlpatterns = [
         'keywords/product-count/',
         KeywordProductCountView.as_view(),
         name='keyword-product-count',
+    ),
+    path(
+        'keywords/synonyms/',
+        KeywordSynonymsView.as_view(),
+        name='keyword-synonyms',
     ),
 
     # Niche Keywords CRUD

@@ -8,6 +8,7 @@ from keyword_app.models import (
     NicheKeyword,
     NicheKeywordGroup,
     JSUsageLog,
+    SynonymCache,
 )
 
 
@@ -54,6 +55,13 @@ class KeywordProductCountAdmin(admin.ModelAdmin):
 class NicheJSCallTrackerAdmin(admin.ModelAdmin):
     list_display = ('niche', 'keyword_used', 'called_at')
     raw_id_fields = ('niche',)
+
+
+@admin.register(SynonymCache)
+class SynonymCacheAdmin(admin.ModelAdmin):
+    list_display = ('keyword', 'fetched_at')
+    search_fields = ('keyword',)
+    readonly_fields = ('id', 'results', 'fetched_at')
 
 
 @admin.register(JSUsageLog)

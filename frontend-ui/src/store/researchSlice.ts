@@ -153,6 +153,7 @@ export const researchApi = createApi({
 
 export const {
   useGetSuggestionsQuery,
+  useLazyGetSuggestionsQuery,
   useTriggerLiveSearchMutation,
   usePollSearchStatusQuery,
   useListProductsQuery,

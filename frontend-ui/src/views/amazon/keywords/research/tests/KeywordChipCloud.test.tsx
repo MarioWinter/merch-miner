@@ -46,8 +46,9 @@ describe('KeywordChipCloud', () => {
     renderWithProviders(
       <KeywordChipCloud results={results} activeFilter={null} onFilterChange={vi.fn()} />,
     );
-    // The chip label should contain "school bus driver · 549"
-    expect(screen.getByText(/school bus driver.*549/)).toBeInTheDocument();
+    // Keyword and product count rendered in separate elements within the chip
+    expect(screen.getByText('school bus driver')).toBeInTheDocument();
+    expect(screen.getByText('549')).toBeInTheDocument();
   });
 
   it('calls onFilterChange when chip is clicked', async () => {

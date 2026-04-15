@@ -195,67 +195,125 @@
 
 ---
 
-## Phase 13: UI Redesign — "Keyword Lode" (AC-31 to AC-36)
+## Phase 13: UI Redesign — "Keyword Lode" (AC-31 to AC-41)
 
-> Frontend-only. Flying Research inspired. Approved 2026-04-14.
+> Proposal A "Vertical Flow" approved 2026-04-15. Redesigned 2026-04-15: automatic After/Before/Synonyms tabs replace manual multiplier.
 
-### Search History (AC-36)
+### Design Rules (MANDATORY for all Phase 13 components)
 
-- [x] `useRecentSearches` hook (`views/amazon/keywords/research/hooks/`): localStorage key `mm-keyword-recent`, max 10 items, `{keyword, marketplace}` objects. Methods: `addSearch`, `removeSearch`, `clearAll`. Same pattern as PROJ-7 `useRecentSearches` (`views/amazon/research/hooks/useRecentSearches.ts`)
-- [x] `SearchHistoryChips.tsx` (`partials/`): renders recent searches as `Chip variant="outlined" size="small"` in `Stack` with `flexWrap="wrap"` below search bar. Click chip → fill input + execute search. "×" delete icon per chip. "Clear all" ghost button at end. Empty = hidden
+> **No hardcoded colors.** Use `theme.vars.palette.*` everywhere. Use `alpha()` from `@mui/material/styles` for opacity variants.
+> **Reuse existing patterns** from Niche Deep Research (`views/niches/research/partials/`):
+> - **Card pattern**: `background.paper` + `1px solid divider` + `borderRadius: 12` + `padding: spacing(2.5, 3)`
+> - **SectionLabel**: `overline` style (0.6875rem, 600, letterSpacing 0.08em, uppercase, `text.secondary`)
+> - **Icon Box**: 28x28px rounded box with `alpha(color, 0.14)` background
+> - **Chip tinting**: `alpha(color, 0.10)` background + `color` text, `alpha(color, 0.22)` border on active
+> - **Transitions**: `DURATION.fast` (150ms) for hover, `DURATION.slow` (300ms) for expand/collapse. Use `EASING.standard`
+> **Create shared components** where duplicated: `SectionCard` (base card wrapper), `SectionLabel` (overline header with icon)
 
-### Keyword Chip Cloud (AC-31, AC-32)
+### Phase 13a: Backend — Datamuse Synonyms (AC-38)
 
-- [x] `KeywordChipCloud.tsx` (`partials/`): receives search results, classifies by word count — ≤2 words = Short-Tail, ≥3 words = Long-Tail. Two collapsible sections with headers "Short-Tail" / "Long-Tail"
-- [x] Short-Tail chips: `secondary.main` outline variant. Long-Tail chips: `info.subtle` background
-- [x] Each chip: keyword text + Amz Product Count badge (e.g. `school bus driver · 549`). Badge only shows when product count data exists
-- [x] Click chip → sets active filter, table shows only matching keyword
-- [x] "Show all" link if >12 chips per section. Default collapsed to 12. Horizontal wrap layout
-- [x] Hidden when no search results
+- [x] `SynonymCache` model in `keyword_app`: UUID pk, `keyword` CharField(200, unique, db_index), `results` JSONField (list of words), `fetched_at` DateTimeField. No expiry — words don't change
+- [x] Migration for `SynonymCache`
+- [x] `services/datamuse_service.py`: calls `api.datamuse.com/words?ml={query}`, parses response, returns top 20 words. Checks `SynonymCache` first — if exists, return cache. If not, call API → store → return
+- [x] `GET /api/keywords/synonyms/` — params: `query` (required). Returns `{words: ["word1", "word2", ...]}`. Uses `datamuse_service`. Handles API timeout gracefully (returns empty list, no 500)
+- [x] Wire URL in `keyword_app/api/urls.py`
+- [x] Admin registration for `SynonymCache`
+- [x] Ruff lint clean
 
-### Source Tabs (AC-33)
+### Phase 13b: Frontend — Shared Components
 
-- [x] `SourceTabs.tsx` (`partials/`): MUI Tabs directly above table. Tabs: `All (N)` | `Database (N)` | `Amazon (N)` | `JungleScout` (disabled)
-- [x] JungleScout tab: disabled state + MUI `Badge` with "Coming Soon" label
-- [x] Tab labels include result count per source, computed client-side from current results
-- [x] Selecting tab sets `sourceFilter` state → passed to table for client-side filtering
-- [x] "All" tab selected by default
+- [ ] `components/SectionCard/index.tsx`: reusable card wrapper. Props: `children`, `sx`. Styled: `background.paper`, `1px solid divider`, `borderRadius: 12`, `padding: spacing(2.5, 3)`
+- [ ] `components/SectionLabel/index.tsx`: section header. Props: `icon`, `label`, `count` (optional), `children` (right-side actions), `iconColor` (palette path like "secondary.main" — resolves via `useTheme()`). Overline text style, icon in 28x28 icon-box
 
-### Table Improvements (AC-34)
+### Phase 13c: Frontend — Search History (AC-36)
 
-- [x] Sticky header: remove `autoHeight`, use fixed container height `calc(100vh - Xpx)`. Header stays visible on scroll via DataGrid default behavior
-- [x] Header row: `background.elevated` (#0F3040)
-- [x] Row hover: `primary.subtle` highlight
-- [x] JS columns (Volume, CPC, PPC, Ease of Ranking, Organic Count, Sponsored Count): show "—" in `text.disabled` color with `opacity: 0.4`
-- [x] JS column headers: MUI `Tooltip` with "JungleScout coming soon"
+- [ ] `useRecentSearches` hook: localStorage `mm-keyword-recent`, max 10, `{keyword, marketplace}`. Same pattern as PROJ-7
+- [ ] `SearchHistoryChips.tsx`: HistoryIcon prefix. Chips: `alpha(text.primary, 0.04)` fill + `divider` border. Hover: border brightens. "×" delete → `error.main` on hover. "Clear all" ghost button
 
-### Floating Action Bar (AC-35)
+### Phase 13d: Frontend — Search Hook Rewrite (AC-32, AC-39, AC-40)
 
-- [x] `FloatingActionBar.tsx` (`partials/`): appears when ≥1 keyword selected. Sticky bottom bar with glass-sm background
-- [x] Content: "{count} selected" label + "Add to Niche" button (context-aware) + "Enrich" button (disabled, "Coming Soon" tooltip)
-- [x] Replace current inline action bar in `KeywordResearchView`
+- [ ] Update `useKeywordSearch` hook: on `executeSearch()`, fire 4 parallel requests:
+  - Standard autocomplete for "keyword" → tagged `source=suggestion`
+  - Autocomplete for "keyword " (trailing space) → tagged `source=after`
+  - Autocomplete for " keyword" (leading space) → tagged `source=before`
+  - `GET /api/keywords/synonyms/?query=keyword` → tagged `source=synonym`
+- [ ] Merge all into one `results` array. Deduplicate by keyword — priority: suggestion > after > before > synonym (first occurrence wins)
+- [ ] Add RTK Query endpoint `getSynonyms` in `keywordSlice.ts` for the synonyms API
+- [ ] Types: update `KeywordSearchResult.source` to include `suggestion | after | before | synonym`
+- [ ] Expose `suggestionCounts` (per source type) for tab badges
 
-### View Integration
+### Phase 13e: Frontend — Suggestion Tabs (AC-31, AC-33)
 
-- [x] Update `KeywordResearchView.tsx`: wire SearchHistoryChips below search bar, KeywordChipCloud below controls, SourceTabs above table, FloatingActionBar at bottom
-- [x] State wiring: `sourceFilter` from SourceTabs + `chipFilter` from ChipCloud → both applied to table rows (client-side filter)
-- [x] `useKeywordSearch` hook: call `addSearch` on successful search execution
+- [ ] `SuggestionTabs.tsx` (replaces old `SourceTabs.tsx`): MUI Tabs with `sx` (no `styled(Tab)`)
+  - Tabs: `All (N)` | `Suggestions (N)` | `After (N)` | `Before (N)` | `Synonyms (N)` | `JungleScout` 🔒 (disabled)
+  - Count per tab as inline `Chip` (height 18, `alpha(text.primary, 0.08)` bg)
+  - JungleScout tab: disabled + `LockIcon` (12px, 50% opacity)
+  - Indicator: `primary.main` gradient, 2px height, glow shadow
+  - `tabSx` shared style: `minHeight: 40, textTransform: 'none', fontWeight: 500`
+- [ ] Selecting tab sets `suggestionFilter` state → passed to table for client-side filtering
 
-### i18n (Phase 13)
+### Phase 13f: Frontend — Keyword Chip Cloud (AC-41)
 
-- [x] `keywords.chipCloud.*` — shortTail, longTail, showAll, showLess section headers
-- [x] `keywords.sourceTabs.*` — all, database, amazon, junglescout, comingSoon tab labels
-- [x] `keywords.searchHistory.*` — clearAll link text
-- [x] `keywords.actionBar.*` — selected count, addToNiche, enrich labels
-- [x] All 5 locales: EN, DE, FR, ES, IT
+- [ ] `KeywordChipCloud.tsx`: wrap sections in `SectionCard`. Use `SectionLabel` with BoltIcon (Short-Tail) and AllInclusiveIcon (Long-Tail)
+- [ ] Short-Tail chips: `alpha(secondary.main, 0.10)` bg + `alpha(secondary.main, 0.30)` border. Active: `0.20` bg
+- [ ] Long-Tail chips: `alpha(info.main, 0.08)` bg + `alpha(info.main, 0.18)` border. Active: `0.15` bg
+- [ ] Product count badge: `MONO_FONT_STACK`, `text.disabled`, separated by `·`
+- [ ] Click → filter table. "Show all" if >12. Computed from ALL results across all sources
+- [ ] Hidden when no results
 
-### Tests (Phase 13)
+### Phase 13g: Frontend — Table Improvements (AC-34, AC-37)
 
-- [x] `useRecentSearches`: add/remove/clear, max 10 cap, localStorage persistence, corrupted JSON recovery (EC-17)
-- [x] `SearchHistoryChips`: renders chips, click fills + searches, delete removes, clear all works
-- [x] `KeywordChipCloud`: Short/Long-Tail classification correct, click filters, "Show all" toggle, hidden on empty results (EC-16)
-- [x] `SourceTabs`: counts correct, tab switch filters table, JungleScout disabled, empty tab shows EmptyState (EC-18)
-- [x] `FloatingActionBar`: appears on selection, disappears on deselect, button states correct
+- [ ] `KeywordTable.tsx`: fixed height container, `borderRadius: 10`, `1px solid divider` wrapper
+- [ ] Header: `background.paper`. Alternating rows: even = `alpha(text.primary, 0.015)`. Hover: `alpha(primary.main, 0.06)`. Selected: `alpha(primary.main, 0.10)`
+- [ ] JS columns: em-dash "—" in `text.disabled` at 40% opacity. Column headers: `description` prop
+- [ ] Product count column + refresh button (restore from Phase 8, was lost in git checkout)
+- [ ] **Hover actions (AC-37)**: new `actions` column (right-aligned, visible on row hover only). Two IconButtons:
+  - Copy icon → `navigator.clipboard.writeText(keyword)` → snackbar "Copied!"
+  - Search icon → calls `onSearchKeyword(keyword)` → re-executes search with that keyword as new main term
+- [ ] Source badge updated: shows `suggestion` / `after` / `before` / `synonym` (not `database` / `amazon`)
+
+### Phase 13h: Frontend — Floating Action Bar (AC-35)
+
+- [ ] `FloatingActionBar.tsx`: glass-md (`alpha(background.paper, 0.75)` + `backdropFilter: blur(16px)`). Sticky bottom
+- [ ] Slide-up animation: `keyframes` translateY(12px→0) + opacity, `DURATION.slow`
+- [ ] Content: coral dot + selected count + spacer + "Add to Niche" + "Enrich" (disabled/lock)
+
+### Phase 13i: Frontend — View Integration
+
+- [ ] Rewrite `KeywordResearchView.tsx`: wire all components in order:
+  - SearchBar + MarketplaceSelect + ColumnPicker
+  - SearchHistoryChips
+  - KeywordChipCloud
+  - SuggestionTabs
+  - KeywordTable
+  - FloatingActionBar
+  - TrendChart dialog
+- [ ] State wiring: `suggestionFilter` from SuggestionTabs + `chipFilter` from ChipCloud → both applied as client-side filters on results
+- [ ] `addSearch` called on successful search execution
+- [ ] Hover Search action → sets new input value + triggers `executeSearch`
+- [ ] Delete old files: `SuggestionMultiplier.tsx`, `WordSuggestions.tsx`, `useModifierSuggestions.ts`, old `SourceTabs.tsx` (replaced by `SuggestionTabs.tsx`)
+
+### Phase 13j: i18n
+
+- [ ] `keywords.chipCloud.*` — shortTail, longTail, showAll, showLess
+- [ ] `keywords.suggestionTabs.*` — all, suggestions, after, before, synonyms, junglescout, comingSoon
+- [ ] `keywords.searchHistory.*` — clearAll, label
+- [ ] `keywords.actionBar.*` — selected, addToNiche, enrich
+- [ ] `keywords.hover.*` — copy, search, copied
+- [ ] `keywords.source.*` — update: suggestion, after, before, synonym (replace database/amazon labels)
+- [ ] All 5 locales: EN, DE, FR, ES, IT
+
+### Phase 13k: Tests
+
+- [ ] **Backend**: `SynonymCache` model (unique keyword), synonyms endpoint (cache hit, cache miss, Datamuse timeout → empty list)
+- [ ] `useRecentSearches`: add/remove/clear, max 10, localStorage, corrupted JSON (EC-17)
+- [ ] `SearchHistoryChips`: render, click fills + searches, delete, clear all
+- [ ] `SuggestionTabs`: counts per source type, tab switch filters, JS disabled (EC-18), empty tab shows EmptyState
+- [ ] `KeywordChipCloud`: Short/Long-Tail classification, click filter, show all (EC-16)
+- [ ] `FloatingActionBar`: appears/disappears on selection, slide-up animation
+- [ ] `KeywordTable` hover actions: copy triggers clipboard + snackbar, search triggers new search
+- [ ] Deduplication: same keyword in suggestion + after → only one row shown (EC-20)
+- [ ] TypeScript + ESLint + Ruff: 0 errors
 
 ---
 
@@ -283,8 +341,12 @@
 - [ ] CSV export includes JS data where cached
 - [ ] Configurable column picker persists
 - [ ] Search history chips appear below search bar, persist across sessions
-- [ ] Short-Tail / Long-Tail chip cloud renders above table, click filters
-- [ ] Source Tabs filter results, JungleScout tab disabled with "Coming Soon"
+- [ ] Short-Tail / Long-Tail chip cloud renders above tabs, click filters
+- [ ] Suggestion Tabs: All / Suggestions / After / Before / Synonyms / JS🔒 — counts correct, filter works
+- [ ] After tab shows "keyword *" suffix suggestions, Before tab shows "* keyword" prefix suggestions
+- [ ] Synonyms tab shows Datamuse related words, cached in DB
+- [ ] Hover on row → Copy + Search icons. Copy → "Copied!" snackbar. Search → new search
+- [ ] Deduplication: same keyword across sources → shown once (suggestion wins)
 - [ ] JS columns show "—" placeholder with tooltip
 - [ ] Floating action bar appears on keyword selection
 - [ ] All tests pass, lint clean
