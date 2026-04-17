@@ -17,9 +17,8 @@ import FullscreenExitIcon from '@mui/icons-material/FullscreenExit';
 import GoogleIcon from '@mui/icons-material/Google';
 import CloudIcon from '@mui/icons-material/Cloud';
 import { useTranslation } from 'react-i18next';
-import useGoogleDrive from '../hooks/useGoogleDrive';
-import useOneDrive from '../hooks/useOneDrive';
-import type { CloudFile } from '../hooks/useGoogleDrive';
+import { useGoogleDrive, useOneDrive } from '@/components/CloudStorage';
+import type { CloudFile } from '@/components/CloudStorage';
 import { CloudProviderTab } from './CloudProviderTab';
 
 // -----------------------------------------------------------------

@@ -3,6 +3,7 @@
 import logging
 
 import django_rq
+from django.db import models
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status
@@ -18,6 +19,10 @@ from niche_app.models import Niche
 from publish_app.api.serializers import (
     BulkActionSerializer,
     CloudImportSerializer,
+    CollectionCreateSerializer,
+    CollectionSerializer,
+    CollectionTreeSerializer,
+    CollectionUpdateSerializer,
     DesignAssetSerializer,
     DesignAssetUpdateSerializer,
     DesignAssetUploadSerializer,
@@ -26,6 +31,7 @@ from publish_app.api.serializers import (
     ListingSerializer,
     ListingTranslateSerializer,
     ListingUpdateSerializer,
+    MoveAssetsSerializer,
     ProductLifecycleSerializer,
     UploadJobBatchSerializer,
     UploadJobCreateSerializer,
@@ -36,6 +42,7 @@ from publish_app.api.serializers import (
 )
 from publish_app.models import (
     DesignAsset,
+    DesignCollection,
     Listing,
     ProductLifecycle,
     UploadJob,
@@ -258,6 +265,246 @@ class ListingExportView(APIView):
 
 
 # ===========================================================================
+# Design Collection Views
+# ===========================================================================
+
+class CollectionListCreateView(APIView):
+    """GET /api/collections/ — root-level collections.
+    POST /api/collections/ — create folder.
+    """
+
+    def get(self, request):
+        ws_id = _get_workspace_id(request)
+        if not ws_id:
+            return _ws_error()
+
+        parent_id = request.query_params.get('parent')
+
+        qs = DesignCollection.objects.filter(workspace_id=ws_id)
+        if parent_id:
+            qs = qs.filter(parent_id=parent_id)
+        else:
+            qs = qs.filter(parent__isnull=True)
+
+        qs = qs.annotate(
+            _child_count=models.Count('children', distinct=True),
+            _asset_count=models.Count('assets', distinct=True),
+        ).order_by('position', 'name')
+
+        paginator = PublishPagination()
+        page = paginator.paginate_queryset(qs, request)
+        serializer = CollectionSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)
+
+    def post(self, request):
+        ws_id = _get_workspace_id(request)
+        if not ws_id:
+            return _ws_error()
+
+        serializer = CollectionCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        parent = None
+        if data.get('parent'):
+            parent = get_object_or_404(
+                DesignCollection, pk=data['parent'], workspace_id=ws_id,
+            )
+
+        # Auto-assign position: max position + 1 in same parent
+        max_pos = (
+            DesignCollection.objects
+            .filter(workspace_id=ws_id, parent=parent)
+            .aggregate(max_pos=models.Max('position'))['max_pos']
+        ) or 0
+
+        collection = DesignCollection.objects.create(
+            workspace_id=ws_id,
+            name=data['name'],
+            parent=parent,
+            position=max_pos + 1,
+            created_by=request.user,
+        )
+
+        return Response(
+            CollectionSerializer(collection).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class CollectionDetailView(APIView):
+    """GET /api/collections/{id}/ — detail with children + assets.
+    PATCH /api/collections/{id}/ — rename or move.
+    DELETE /api/collections/{id}/ — delete folder, bubble assets up.
+    """
+
+    def get(self, request, pk):
+        ws_id = _get_workspace_id(request)
+        if not ws_id:
+            return _ws_error()
+
+        collection = get_object_or_404(
+            DesignCollection.objects.annotate(
+                _child_count=models.Count('children', distinct=True),
+                _asset_count=models.Count('assets', distinct=True),
+            ),
+            pk=pk,
+            workspace_id=ws_id,
+        )
+
+        # Children folders
+        children = (
+            DesignCollection.objects
+            .filter(workspace_id=ws_id, parent=collection)
+            .annotate(
+                _child_count=models.Count('children', distinct=True),
+                _asset_count=models.Count('assets', distinct=True),
+            )
+            .order_by('position', 'name')
+        )
+
+        # Assets in this collection (paginated)
+        assets_qs = (
+            DesignAsset.objects
+            .filter(workspace_id=ws_id, collection=collection)
+            .select_related('niche', 'idea', 'listing', 'collection')
+            .order_by('-created_at')
+        )
+
+        paginator = PublishPagination()
+        assets_page = paginator.paginate_queryset(assets_qs, request)
+
+        return Response({
+            'collection': CollectionSerializer(collection).data,
+            'children': CollectionSerializer(children, many=True).data,
+            'assets': DesignAssetSerializer(assets_page, many=True).data,
+            'assets_count': paginator.page.paginator.count,
+            'assets_next': paginator.get_next_link(),
+            'assets_previous': paginator.get_previous_link(),
+        })
+
+    def patch(self, request, pk):
+        ws_id = _get_workspace_id(request)
+        if not ws_id:
+            return _ws_error()
+
+        collection = get_object_or_404(
+            DesignCollection, pk=pk, workspace_id=ws_id,
+        )
+
+        serializer = CollectionUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        if 'name' in data:
+            collection.name = data['name']
+
+        if 'parent' in data:
+            new_parent_id = data['parent']
+
+            if new_parent_id is None:
+                collection.parent = None
+            else:
+                # Prevent moving into self
+                if str(new_parent_id) == str(collection.pk):
+                    return Response(
+                        {'error': 'Cannot move collection into itself'},
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+
+                new_parent = get_object_or_404(
+                    DesignCollection, pk=new_parent_id, workspace_id=ws_id,
+                )
+
+                # Prevent circular references: walk up from new_parent
+                ancestor = new_parent
+                while ancestor is not None:
+                    if ancestor.pk == collection.pk:
+                        return Response(
+                            {'error': 'Circular reference: target is a descendant'},
+                            status=status.HTTP_400_BAD_REQUEST,
+                        )
+                    ancestor = ancestor.parent
+
+                collection.parent = new_parent
+
+        collection.save()
+
+        # Re-fetch with annotations
+        collection = DesignCollection.objects.annotate(
+            _child_count=models.Count('children', distinct=True),
+            _asset_count=models.Count('assets', distinct=True),
+        ).get(pk=pk)
+
+        return Response(CollectionSerializer(collection).data)
+
+    def delete(self, request, pk):
+        ws_id = _get_workspace_id(request)
+        if not ws_id:
+            return _ws_error()
+
+        collection = get_object_or_404(
+            DesignCollection, pk=pk, workspace_id=ws_id,
+        )
+
+        # Bubble assets up: move all assets in this collection (and descendants) to parent
+        target_parent = collection.parent
+
+        # Collect all descendant collection IDs (recursive)
+        descendant_ids = []
+        self._collect_descendants(collection, descendant_ids)
+
+        # Move all assets from this collection + descendants to the target parent
+        DesignAsset.objects.filter(
+            workspace_id=ws_id,
+            collection_id__in=[collection.pk] + descendant_ids,
+        ).update(collection=target_parent)
+
+        # Delete the collection (CASCADE will delete child collections via SET_NULL parent)
+        # Since parent is SET_NULL, children would become root — but we want them deleted.
+        # Delete descendants explicitly first, then the collection itself.
+        if descendant_ids:
+            DesignCollection.objects.filter(pk__in=descendant_ids).delete()
+        collection.delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    def _collect_descendants(self, collection, result):
+        """Iteratively collect all descendant collection IDs (BFS)."""
+        queue = list(
+            DesignCollection.objects.filter(parent=collection).values_list('pk', flat=True)
+        )
+        while queue:
+            current_id = queue.pop(0)
+            result.append(current_id)
+            children = list(
+                DesignCollection.objects.filter(parent_id=current_id).values_list('pk', flat=True)
+            )
+            queue.extend(children)
+
+
+class CollectionTreeView(APIView):
+    """GET /api/collections/tree/ — full folder tree for Tree Explorer."""
+
+    def get(self, request):
+        ws_id = _get_workspace_id(request)
+        if not ws_id:
+            return _ws_error()
+
+        # Get all collections for workspace, prefetch children recursively
+        root_collections = (
+            DesignCollection.objects
+            .filter(workspace_id=ws_id, parent__isnull=True)
+            .prefetch_related('children', 'children__children', 'children__children__children')
+            .annotate(_asset_count=models.Count('assets', distinct=True))
+            .order_by('position', 'name')
+        )
+
+        serializer = CollectionTreeSerializer(root_collections, many=True)
+        return Response(serializer.data)
+
+
+# ===========================================================================
 # Design Gallery Views
 # ===========================================================================
 
@@ -274,10 +521,16 @@ class DesignGalleryListView(APIView):
         qs = (
             DesignAsset.objects
             .filter(workspace_id=ws_id)
-            .select_related('niche', 'idea', 'listing')
+            .select_related('niche', 'idea', 'listing', 'collection')
         )
 
         # Filters
+        collection_param = request.query_params.get('collection')
+        if collection_param == 'root':
+            qs = qs.filter(collection__isnull=True)
+        elif collection_param:
+            qs = qs.filter(collection_id=collection_param)
+
         source = request.query_params.get('source')
         if source:
             qs = qs.filter(source=source)
@@ -498,6 +751,32 @@ class DesignGalleryBulkActionView(APIView):
             {'error': f'Unknown action: {action}'},
             status=status.HTTP_400_BAD_REQUEST,
         )
+
+
+class DesignGalleryMoveView(APIView):
+    """POST /api/designs/gallery/move/ — move assets to collection (or root)."""
+
+    def post(self, request):
+        ws_id = _get_workspace_id(request)
+        if not ws_id:
+            return _ws_error()
+
+        serializer = MoveAssetsSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        collection = None
+        if data.get('collection_id'):
+            collection = get_object_or_404(
+                DesignCollection, pk=data['collection_id'], workspace_id=ws_id,
+            )
+
+        updated = DesignAsset.objects.filter(
+            pk__in=data['asset_ids'],
+            workspace_id=ws_id,
+        ).update(collection=collection)
+
+        return Response({'moved': updated})
 
 
 # ===========================================================================

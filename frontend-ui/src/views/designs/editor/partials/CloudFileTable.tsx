@@ -15,7 +15,7 @@ import DownloadIcon from '@mui/icons-material/Download';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import ImageIcon from '@mui/icons-material/Image';
 import { useTranslation } from 'react-i18next';
-import type { CloudFile } from '../hooks/useGoogleDrive';
+import type { CloudFile } from '@/components/CloudStorage';
 
 // -----------------------------------------------------------------
 // Styled

@@ -18,12 +18,31 @@ import type {
   UploadTemplate,
   UploadTemplateCreateBody,
   LifecycleResponse,
+  DesignCollection,
+  CollectionDetail,
+  CollectionTreeNode,
+  CreateCollectionBody,
+  UpdateCollectionBody,
+  MoveAssetsBody,
+  ListCollectionsParams,
 } from '../views/publish/types';
 
 export const publishApi = createApi({
   reducerPath: 'publishApi',
   baseQuery: axiosBaseQuery({ baseUrl: '' }),
-  tagTypes: ['Listing', 'Gallery', 'GalleryList', 'UploadJob', 'UploadJobList', 'Template', 'TemplateList', 'Lifecycle'],
+  tagTypes: [
+    'Listing',
+    'Gallery',
+    'GalleryList',
+    'UploadJob',
+    'UploadJobList',
+    'Template',
+    'TemplateList',
+    'Lifecycle',
+    'Collection',
+    'CollectionList',
+    'CollectionTree',
+  ],
   endpoints: (builder) => ({
     // ---- Listing ----------------------------------------------------------
     generateListing: builder.mutation<Listing, { ideaId: string; body: GenerateListingBody }>({
@@ -97,7 +116,11 @@ export const publishApi = createApi({
         method: 'POST',
         data: formData,
       }),
-      invalidatesTags: [{ type: 'GalleryList', id: 'LIST' }],
+      invalidatesTags: [
+        { type: 'GalleryList', id: 'LIST' },
+        { type: 'CollectionList', id: 'LIST' },
+        { type: 'CollectionTree', id: 'TREE' },
+      ],
     }),
 
     importDrive: builder.mutation<DesignAsset[], ImportDriveBody>({
@@ -106,7 +129,11 @@ export const publishApi = createApi({
         method: 'POST',
         data: body,
       }),
-      invalidatesTags: [{ type: 'GalleryList', id: 'LIST' }],
+      invalidatesTags: [
+        { type: 'GalleryList', id: 'LIST' },
+        { type: 'CollectionList', id: 'LIST' },
+        { type: 'CollectionTree', id: 'TREE' },
+      ],
     }),
 
     deleteDesign: builder.mutation<void, string>({
@@ -114,7 +141,11 @@ export const publishApi = createApi({
         url: `/api/designs/gallery/${id}/`,
         method: 'DELETE',
       }),
-      invalidatesTags: [{ type: 'GalleryList', id: 'LIST' }],
+      invalidatesTags: [
+        { type: 'GalleryList', id: 'LIST' },
+        { type: 'CollectionList', id: 'LIST' },
+        { type: 'CollectionTree', id: 'TREE' },
+      ],
     }),
 
     updateDesign: builder.mutation<DesignAsset, { id: string; body: Partial<DesignAsset> }>({
@@ -132,7 +163,97 @@ export const publishApi = createApi({
         method: 'POST',
         data: body,
       }),
-      invalidatesTags: [{ type: 'GalleryList', id: 'LIST' }],
+      invalidatesTags: [
+        { type: 'GalleryList', id: 'LIST' },
+        { type: 'CollectionList', id: 'LIST' },
+        { type: 'CollectionTree', id: 'TREE' },
+      ],
+    }),
+
+    // ---- Collections ------------------------------------------------------
+    listCollections: builder.query<DesignCollection[], ListCollectionsParams | void>({
+      query: (params) => ({
+        url: '/api/collections/',
+        method: 'GET',
+        params: params ?? undefined,
+      }),
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.map(({ id }) => ({ type: 'Collection' as const, id })),
+              { type: 'CollectionList', id: 'LIST' },
+            ]
+          : [{ type: 'CollectionList', id: 'LIST' }],
+    }),
+
+    getCollection: builder.query<CollectionDetail, string>({
+      query: (id) => ({
+        url: `/api/collections/${id}/`,
+        method: 'GET',
+      }),
+      providesTags: (_r, _e, id) => [{ type: 'Collection', id }],
+    }),
+
+    getCollectionTree: builder.query<CollectionTreeNode[], void>({
+      query: () => ({
+        url: '/api/collections/tree/',
+        method: 'GET',
+      }),
+      providesTags: [{ type: 'CollectionTree', id: 'TREE' }],
+    }),
+
+    createCollection: builder.mutation<DesignCollection, CreateCollectionBody>({
+      query: (body) => ({
+        url: '/api/collections/',
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: [
+        { type: 'CollectionList', id: 'LIST' },
+        { type: 'CollectionTree', id: 'TREE' },
+      ],
+    }),
+
+    updateCollection: builder.mutation<
+      DesignCollection,
+      { id: string; body: UpdateCollectionBody }
+    >({
+      query: ({ id, body }) => ({
+        url: `/api/collections/${id}/`,
+        method: 'PATCH',
+        data: body,
+      }),
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: 'Collection', id },
+        { type: 'CollectionList', id: 'LIST' },
+        { type: 'CollectionTree', id: 'TREE' },
+      ],
+    }),
+
+    deleteCollection: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/api/collections/${id}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: [
+        { type: 'CollectionList', id: 'LIST' },
+        { type: 'CollectionTree', id: 'TREE' },
+        // Assets may move to parent on delete, refresh gallery
+        { type: 'GalleryList', id: 'LIST' },
+      ],
+    }),
+
+    moveAssets: builder.mutation<void, MoveAssetsBody>({
+      query: (body) => ({
+        url: '/api/designs/gallery/move/',
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: [
+        { type: 'GalleryList', id: 'LIST' },
+        { type: 'CollectionList', id: 'LIST' },
+        { type: 'CollectionTree', id: 'TREE' },
+      ],
     }),
 
     // ---- Upload Jobs ------------------------------------------------------
@@ -241,26 +362,39 @@ export const publishApi = createApi({
 });
 
 export const {
+  // Listing
   useGenerateListingMutation,
   useGetListingQuery,
   useUpdateListingMutation,
   useTranslateListingMutation,
   useTmCheckMutation,
   useLazyExportListingQuery,
+  // Gallery
   useListGalleryQuery,
   useUploadDesignMutation,
   useImportDriveMutation,
   useDeleteDesignMutation,
   useUpdateDesignMutation,
   useBulkActionMutation,
+  // Collections
+  useListCollectionsQuery,
+  useGetCollectionQuery,
+  useGetCollectionTreeQuery,
+  useCreateCollectionMutation,
+  useUpdateCollectionMutation,
+  useDeleteCollectionMutation,
+  useMoveAssetsMutation,
+  // Upload Jobs
   useCreateUploadJobMutation,
   useBatchUploadJobsMutation,
   useListUploadJobsQuery,
   useGetUploadJobQuery,
   useCancelUploadJobMutation,
+  // Templates
   useListTemplatesQuery,
   useCreateTemplateMutation,
   useUpdateTemplateMutation,
   useDeleteTemplateMutation,
+  // Lifecycle
   useGetLifecycleQuery,
 } = publishApi;

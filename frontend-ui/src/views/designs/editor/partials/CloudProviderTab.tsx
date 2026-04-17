@@ -3,7 +3,7 @@ import { styled } from '@mui/material/styles';
 import CloudOffIcon from '@mui/icons-material/CloudOff';
 import SettingsIcon from '@mui/icons-material/Settings';
 import { useTranslation } from 'react-i18next';
-import type { CloudFile, CloudFolder } from '../hooks/useGoogleDrive';
+import type { CloudFile, CloudFolder } from '@/components/CloudStorage';
 import { CloudFolderBrowser } from './CloudFolderBrowser';
 
 // -----------------------------------------------------------------

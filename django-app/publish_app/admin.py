@@ -2,11 +2,21 @@ from django.contrib import admin
 
 from publish_app.models import (
     DesignAsset,
+    DesignCollection,
     Listing,
     ProductLifecycle,
     UploadJob,
     UploadTemplate,
 )
+
+
+@admin.register(DesignCollection)
+class DesignCollectionAdmin(admin.ModelAdmin):
+    list_display = ['id', 'workspace', 'name', 'parent', 'position', 'created_by', 'created_at']
+    list_filter = ['workspace']
+    search_fields = ['name']
+    readonly_fields = ['id', 'created_at']
+    raw_id_fields = ['parent', 'workspace', 'created_by']
 
 
 @admin.register(Listing)

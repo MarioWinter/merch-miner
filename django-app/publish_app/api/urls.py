@@ -3,10 +3,14 @@
 from django.urls import path
 
 from publish_app.api.views import (
+    CollectionDetailView,
+    CollectionListCreateView,
+    CollectionTreeView,
     DesignGalleryBulkActionView,
     DesignGalleryDetailView,
     DesignGalleryImportView,
     DesignGalleryListView,
+    DesignGalleryMoveView,
     DesignGalleryUploadView,
     LifecycleUpdateView,
     ListingDetailView,
@@ -27,6 +31,23 @@ from publish_app.api.views import (
 )
 
 urlpatterns = [
+    # Collection endpoints
+    path(
+        'collections/',
+        CollectionListCreateView.as_view(),
+        name='collection-list-create',
+    ),
+    path(
+        'collections/tree/',
+        CollectionTreeView.as_view(),
+        name='collection-tree',
+    ),
+    path(
+        'collections/<uuid:pk>/',
+        CollectionDetailView.as_view(),
+        name='collection-detail',
+    ),
+
     # Listing endpoints
     path(
         'ideas/<uuid:pk>/listing/generate/',
@@ -79,6 +100,11 @@ urlpatterns = [
         'designs/gallery/bulk-action/',
         DesignGalleryBulkActionView.as_view(),
         name='design-gallery-bulk-action',
+    ),
+    path(
+        'designs/gallery/move/',
+        DesignGalleryMoveView.as_view(),
+        name='design-gallery-move',
     ),
     path(
         'designs/gallery/<uuid:pk>/',

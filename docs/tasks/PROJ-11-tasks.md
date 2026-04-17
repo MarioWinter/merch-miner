@@ -15,34 +15,34 @@
 
 ### A1: DesignCollection Model
 
-- [ ] `DesignCollection` model: UUID pk, `workspace` FK (CASCADE), `name` CharField(200), `parent` FK self (nullable, SET_NULL — root = null), `position` IntegerField(default=0), `created_by` FK User, `created_at`
-- [ ] Index on `(workspace, parent)` for folder listing queries
-- [ ] Add `collection` FK (nullable, SET_NULL) on existing `DesignAsset` model
-- [ ] Migration — **run via Docker**
-- [ ] Admin registration for DesignCollection
+- [x] `DesignCollection` model: UUID pk, `workspace` FK (CASCADE), `name` CharField(200), `parent` FK self (nullable, SET_NULL — root = null), `position` IntegerField(default=0), `created_by` FK User, `created_at`
+- [x] Index on `(workspace, parent)` for folder listing queries
+- [x] Add `collection` FK (nullable, SET_NULL) on existing `DesignAsset` model
+- [x] Migration — **run via Docker**
+- [x] Admin registration for DesignCollection
 
 ### A2: Collection API
 
-- [ ] `GET /api/collections/` — list root-level collections for workspace. Include child_count, asset_count
-- [ ] `GET /api/collections/{id}/` — collection detail: children folders + contained DesignAssets (paginated)
-- [ ] `POST /api/collections/` — create folder: `{name, parent?}`. Auto-assigns position. Workspace isolation
-- [ ] `PATCH /api/collections/{id}/` — rename or move: `{name?, parent?}`. Prevent circular references
-- [ ] `DELETE /api/collections/{id}/` — delete folder. Assets move to parent (or root). Recursive: child folders deleted, assets bubble up
-- [ ] `GET /api/collections/tree/` — full folder tree for Tree Explorer. Recursive serializer
-- [ ] `POST /api/designs/gallery/move/` — move assets to collection: `{asset_ids: [...], collection_id}`. Null = root
-- [ ] `CollectionSerializer` + `CollectionTreeSerializer`
-- [ ] Extend `DesignAssetSerializer` — include `collection` field
-- [ ] Extend `GET /api/designs/gallery/` — add `collection` filter param
-- [ ] URL registration in `publish_app/api/urls.py`
-- [ ] Workspace isolation on ALL new endpoints
+- [x] `GET /api/collections/` — list root-level collections for workspace. Include child_count, asset_count
+- [x] `GET /api/collections/{id}/` — collection detail: children folders + contained DesignAssets (paginated)
+- [x] `POST /api/collections/` — create folder: `{name, parent?}`. Auto-assigns position. Workspace isolation
+- [x] `PATCH /api/collections/{id}/` — rename or move: `{name?, parent?}`. Prevent circular references
+- [x] `DELETE /api/collections/{id}/` — delete folder. Assets move to parent (or root). Recursive: child folders deleted, assets bubble up
+- [x] `GET /api/collections/tree/` — full folder tree for Tree Explorer. Recursive serializer
+- [x] `POST /api/designs/gallery/move/` — move assets to collection: `{asset_ids: [...], collection_id}`. Null = root
+- [x] `CollectionSerializer` + `CollectionTreeSerializer`
+- [x] Extend `DesignAssetSerializer` — include `collection` field
+- [x] Extend `GET /api/designs/gallery/` — add `collection` filter param
+- [x] URL registration in `publish_app/api/urls.py`
+- [x] Workspace isolation on ALL new endpoints
 
 ### A3: Backend Tests
 
-- [ ] Collection CRUD: create, rename, move, delete (with asset bubbling)
-- [ ] Tree endpoint: correct hierarchy serialization
-- [ ] Asset move: bulk move to collection, move to root
-- [ ] Circular reference prevention
-- [ ] Workspace isolation
+- [x] Collection CRUD: create, rename, move, delete (with asset bubbling)
+- [x] Tree endpoint: correct hierarchy serialization
+- [x] Asset move: bulk move to collection, move to root
+- [x] Circular reference prevention
+- [x] Workspace isolation
 
 ---
 
@@ -50,13 +50,13 @@
 
 ### B1: Cloud Storage Hooks (extracted from PROJ-9)
 
-- [ ] Create `components/CloudStorage/hooks/useGoogleDrive.ts` — extract from PROJ-9 CloudManagerDialog
-- [ ] Create `components/CloudStorage/hooks/useOneDrive.ts` — extract from PROJ-9 CloudManagerDialog
-- [ ] Create `components/CloudStorage/CloudStorageSettings.tsx` — connect/disconnect, account email, status
-- [ ] Create `components/CloudStorage/index.ts` — barrel export
-- [ ] MSAL redirect bridge: `frontend-ui/public/auth-redirect.html`
-- [ ] Verify PROJ-9 Design Editor still works with extracted hooks
-- [ ] File filter: only PNG, JPG, JPEG, WebP, SVG. Max 25MB
+- [x] Create `components/CloudStorage/hooks/useGoogleDrive.ts` — extract from PROJ-9 CloudManagerDialog
+- [x] Create `components/CloudStorage/hooks/useOneDrive.ts` — extract from PROJ-9 CloudManagerDialog
+- [x] Create `components/CloudStorage/CloudStorageSettings.tsx` — connect/disconnect, account email, status
+- [x] Create `components/CloudStorage/index.ts` — barrel export
+- [x] MSAL redirect bridge: `frontend-ui/public/auth-redirect.html`
+- [x] Verify PROJ-9 Design Editor still works with extracted hooks
+- [x] File filter: only PNG, JPG, JPEG, WebP, SVG. Max 25MB
 
 ### B2: RTK Query — publishSlice Rebuild
 
@@ -71,45 +71,45 @@
 
 ### C1: Toolbar (FD-PROJ11-1)
 
-- [ ] Create `partials/toolbar/PublishToolbar.tsx` — 2-row layout
-- [ ] `SelectCounter.tsx` — checkbox + "0/11" + dropdown
-- [ ] Collections button → opens CollectionsDialog
-- [ ] Choose Action button → opens CommandPalette
-- [ ] View Toggle: ToggleButtonGroup (ViewList/GridView)
-- [ ] Search: TextField 240→320px focus, `COLORS.inkElevated` bg
-- [ ] Template, Upload, Publish buttons
-- [ ] `FileSystemTabs.tsx` — My Designs / Cloud Storage switcher, cyan underline slides, connection dot
-- [ ] `BreadcrumbNav.tsx` — folder path + cloud provider chip
-- [ ] `TransferPill.tsx` — "→3→" indicator between tabs
-- [ ] Tab-context button morphing (Collections↔Folders, Upload↔Import)
-- [ ] All tokens from theme/constants — zero hardcoded values
+- [x] Create `partials/toolbar/PublishToolbar.tsx` — 2-row layout
+- [x] `SelectCounter.tsx` — checkbox + "0/11" + dropdown
+- [x] Collections button → opens CollectionsDialog
+- [x] Choose Action button → opens CommandPalette
+- [x] View Toggle: ToggleButtonGroup (ViewList/GridView)
+- [x] Search: TextField 240→320px focus, `COLORS.inkElevated` bg
+- [x] Template, Upload, Publish buttons
+- [x] `FileSystemTabs.tsx` — My Designs / Cloud Storage switcher, cyan underline slides, connection dot
+- [x] `BreadcrumbNav.tsx` — folder path + cloud provider chip
+- [x] `TransferPill.tsx` — "→3→" indicator between tabs
+- [x] Tab-context button morphing (Collections↔Folders, Upload↔Import)
+- [x] All tokens from theme/constants — zero hardcoded values
 
 ### C2: Design Card Grid (FD-PROJ11-2)
 
-- [ ] `DesignCardGrid.tsx` — CSS Grid responsive, gap 20px
-- [ ] `DesignCard.tsx` — glassmorphism, contain thumbnail, glass info strip, hover lift + actions, selection checkbox
-- [ ] `DesignListRow.tsx` — 56px rows, list view variant
-- [ ] `CloudFileCard.tsx` — provider badge, import/preview/copy actions
-- [ ] `AddDesignsCard.tsx` — dashed + icon
-- [ ] Storage indicator
-- [ ] Staggered card enter animation
+- [x] `DesignCardGrid.tsx` — CSS Grid responsive, gap 20px
+- [x] `DesignCard.tsx` — glassmorphism, contain thumbnail, glass info strip, hover lift + actions, selection checkbox
+- [x] `DesignListRow.tsx` — 56px rows, list view variant
+- [x] `CloudFileCard.tsx` — provider badge, import/preview/copy actions
+- [x] `AddDesignsCard.tsx` — dashed + icon
+- [x] Storage indicator
+- [x] Staggered card enter animation
 
 ### C3: Selection System
 
-- [ ] `useDesignSelection.ts` — click/shift/lasso state
-- [ ] `useLassoSelect.ts` — rubber band mousedown/move/up + intersection
-- [ ] `LassoOverlay.tsx` — cyan dashed rectangle
-- [ ] Selection syncs toolbar counter + action bar
+- [x] `useDesignSelection.ts` — click/shift/lasso state
+- [x] `useLassoSelect.ts` — rubber band mousedown/move/up + intersection
+- [x] `LassoOverlay.tsx` — cyan dashed rectangle
+- [x] Selection syncs toolbar counter + action bar
 
 ### C4: Collections Dialog (FD-PROJ11-3)
 
-- [ ] `CollectionsDialog.tsx` — split-panel: tree (240px sunken) + folder grid
-- [ ] Header + toolbar (toggle + breadcrumb + search)
-- [ ] `FolderTree.tsx` — expand/collapse, selected cyan stripe, drop target
-- [ ] `FolderGrid.tsx` + `FolderCard.tsx` — folder cards with tab detail, Add Folder card
-- [ ] Inline rename on Add Folder
-- [ ] "Open Folder" footer button
-- [ ] Empty state + animations
+- [x] `CollectionsDialog.tsx` — split-panel: tree (240px sunken) + folder grid
+- [x] Header + toolbar (toggle + breadcrumb + search)
+- [x] `FolderTree.tsx` — expand/collapse, selected cyan stripe, drop target
+- [x] `FolderGrid.tsx` + `FolderCard.tsx` — folder cards with tab detail, Add Folder card
+- [x] Inline rename on Add Folder
+- [x] "Open Folder" footer button
+- [x] Empty state + animations
 
 ### C5: Command Palette (FD-PROJ11-4)
 

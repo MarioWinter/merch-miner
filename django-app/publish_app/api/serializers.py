@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from publish_app.models import (
     DesignAsset,
+    DesignCollection,
     Listing,
     ProductLifecycle,
     UploadJob,
@@ -107,13 +108,15 @@ class DesignAssetSerializer(serializers.ModelSerializer):
 
     has_listing = serializers.SerializerMethodField()
     niche_name = serializers.SerializerMethodField()
+    collection_name = serializers.SerializerMethodField()
 
     class Meta:
         model = DesignAsset
         fields = [
             'id', 'workspace', 'file_name', 'file', 'file_url', 'source',
             'source_file_id', 'thumbnail_url', 'dimensions', 'file_size',
-            'tags', 'listing', 'idea', 'niche', 'niche_name', 'round',
+            'tags', 'collection', 'collection_name', 'listing', 'idea',
+            'niche', 'niche_name', 'round',
             'has_listing', 'created_by', 'created_at',
         ]
         read_only_fields = [
@@ -127,6 +130,11 @@ class DesignAssetSerializer(serializers.ModelSerializer):
     def get_niche_name(self, obj):
         if obj.niche:
             return obj.niche.name
+        return None
+
+    def get_collection_name(self, obj):
+        if obj.collection:
+            return obj.collection.name
         return None
 
 
@@ -175,6 +183,84 @@ class BulkActionSerializer(serializers.Serializer):
         choices=['apply_template', 'apply_listing', 'delete'],
     )
     source_id = serializers.UUIDField(required=False, allow_null=True, default=None)
+
+
+# ---------------------------------------------------------------------------
+# Design Collection
+# ---------------------------------------------------------------------------
+
+class CollectionSerializer(serializers.ModelSerializer):
+    """Collection folder with child/asset counts."""
+
+    child_count = serializers.SerializerMethodField()
+    asset_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DesignCollection
+        fields = [
+            'id', 'workspace', 'name', 'parent', 'position',
+            'child_count', 'asset_count',
+            'created_by', 'created_at',
+        ]
+        read_only_fields = [
+            'id', 'workspace', 'position', 'created_by', 'created_at',
+        ]
+
+    def get_child_count(self, obj):
+        if hasattr(obj, '_child_count'):
+            return obj._child_count
+        return obj.children.count()
+
+    def get_asset_count(self, obj):
+        if hasattr(obj, '_asset_count'):
+            return obj._asset_count
+        return obj.assets.count()
+
+
+class CollectionCreateSerializer(serializers.Serializer):
+    """Create a collection folder."""
+
+    name = serializers.CharField(max_length=200)
+    parent = serializers.UUIDField(required=False, allow_null=True, default=None)
+
+
+class CollectionUpdateSerializer(serializers.Serializer):
+    """Rename or move a collection folder."""
+
+    name = serializers.CharField(max_length=200, required=False)
+    parent = serializers.UUIDField(required=False, allow_null=True)
+
+
+class CollectionTreeSerializer(serializers.ModelSerializer):
+    """Recursive tree serializer for folder explorer."""
+
+    children = serializers.SerializerMethodField()
+    asset_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DesignCollection
+        fields = ['id', 'name', 'parent', 'position', 'asset_count', 'children']
+
+    def get_children(self, obj):
+        # Use prefetched children if available, else query
+        children = obj.children.all()
+        return CollectionTreeSerializer(children, many=True, context=self.context).data
+
+    def get_asset_count(self, obj):
+        if hasattr(obj, '_asset_count'):
+            return obj._asset_count
+        return obj.assets.count()
+
+
+class MoveAssetsSerializer(serializers.Serializer):
+    """Move assets to a collection (or root)."""
+
+    asset_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        min_length=1,
+        max_length=100,
+    )
+    collection_id = serializers.UUIDField(required=False, allow_null=True, default=None)
 
 
 # ---------------------------------------------------------------------------

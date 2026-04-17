@@ -1,150 +1,217 @@
-import { useState, useCallback } from 'react';
-import { Box, Typography, Divider, Stack } from '@mui/material';
-import { useTranslation } from 'react-i18next';
-import { useDesignGallery } from './hooks/useDesignGallery';
-import { useListingEditor } from './hooks/useListingEditor';
-import { useUploadJobs } from './hooks/useUploadJobs';
+import { useState, useCallback, useMemo, useRef } from 'react';
+import { Box } from '@mui/material';
+import { styled } from '@mui/material/styles';
+import { useNavigate } from 'react-router-dom';
+import { useListGalleryQuery } from '@/store/publishSlice';
+import { useDesignSelection } from './hooks/useDesignSelection';
 import { useCommandPalette } from './hooks/useCommandPalette';
-import DesignGallerySection from './partials/DesignGallerySection';
-import ProductConfigSection from './partials/ProductConfigSection';
-import ListingEditorSection from './partials/ListingEditorSection';
-import UploadQueueSection from './partials/UploadQueueSection';
-import LifecycleChain from './partials/LifecycleChain';
-import CommandPalette from './partials/CommandPalette';
+import PublishToolbar from './partials/toolbar/PublishToolbar';
+import DesignCardGrid from './partials/grid/DesignCardGrid';
+import CollectionsDialog from './partials/collections/CollectionsDialog';
+import CommandPalette from './partials/command/CommandPalette';
 import ActionBar from './partials/ActionBar';
-import CloudImportDialog from './partials/CloudImportDialog';
-import UploadTemplateDropdown from './partials/UploadTemplateDropdown';
-import type { DesignAsset, PrintSide, MarketplaceConfig, UploadTemplate } from './types';
+import CloudStorageTab from './partials/cloud/CloudStorageTab';
+import EmptyState from './partials/EmptyState';
+import type { FileSystemTab, ViewMode, BreadcrumbSegment, GalleryListParams } from './types';
+
+// ---------------------------------------------------------------------------
+// Styled
+// ---------------------------------------------------------------------------
+
+const ViewRoot = styled(Box)({
+  display: 'flex',
+  flexDirection: 'column',
+  height: '100%',
+  position: 'relative',
+});
+
+const ContentArea = styled(Box)(({ theme }) => ({
+  flex: 1,
+  padding: theme.spacing(3),
+  overflowY: 'auto',
+}));
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
 const PublishView = () => {
-  const { t } = useTranslation();
+  const navigate = useNavigate();
 
-  // Selected design drives the listing editor context
-  const [selectedDesign, setSelectedDesign] = useState<DesignAsset | null>(null);
-  const [cloudImportOpen, setCloudImportOpen] = useState(false);
+  // Gallery query params
+  const [galleryParams, setGalleryParams] = useState<GalleryListParams>({
+    page: 1,
+    page_size: 24,
+    sort_by: 'newest',
+  });
+  const { data: galleryData, isLoading: isGalleryLoading } = useListGalleryQuery(galleryParams);
+  const designs = useMemo(() => galleryData?.results ?? [], [galleryData]);
+  const totalCount = galleryData?.count ?? 0;
 
-  // Product config state (local — saved via template)
-  const [productTypes, setProductTypes] = useState<string[]>(['standard_tshirt']);
-  const [fitTypes, setFitTypes] = useState<string[]>(['Adult Unisex']);
-  const [printSide, setPrintSide] = useState<PrintSide>('front');
-  const [marketplaces, setMarketplaces] = useState<MarketplaceConfig[]>([
-    { marketplace: 'amazon_com', price: '19.99', enabled: true },
-  ]);
+  // UI state
+  const [activeTab, setActiveTab] = useState<FileSystemTab>('my_designs');
+  const [viewMode, setViewMode] = useState<ViewMode>('grid');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [collectionsOpen, setCollectionsOpen] = useState(false);
+  const [, setCurrentCollection] = useState<string | null>(null);
 
-  // Hooks
-  const gallery = useDesignGallery();
-  const editor = useListingEditor(selectedDesign?.idea ?? null);
-  const uploadJobs = useUploadJobs();
+  // Selection
+  const orderedIds = useMemo(() => designs.map((d) => d.id), [designs]);
+  const selection = useDesignSelection({ orderedIds });
 
-  const handleDesignClick = useCallback((design: DesignAsset) => {
-    setSelectedDesign(design);
+  // Breadcrumbs
+  const breadcrumbs: BreadcrumbSegment[] = useMemo(() => {
+    const segments: BreadcrumbSegment[] = [{ id: null, label: 'Home' }];
+    // For now, just show root. When navigating collections, extend this.
+    return segments;
   }, []);
 
-  // PROJ-17 integration: open Chat with field context
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const handleImprove = useCallback((_fieldName: string, _value: string) => {
-    // Placeholder — will integrate when Chat is built
+  // Search filter
+  const handleSearchChange = useCallback((q: string) => {
+    setSearchQuery(q);
+    setGalleryParams((prev) => ({ ...prev, search: q || undefined, page: 1 }));
   }, []);
 
-  const handleApplyTemplate = useCallback((template: UploadTemplate) => {
-    setProductTypes(template.product_types);
-    setFitTypes(template.fit_types);
-    setPrintSide(template.print_side);
-    setMarketplaces(template.marketplaces);
+  // Collection filter
+  const handleBreadcrumbNavigate = useCallback((collectionId: string | null) => {
+    setCurrentCollection(collectionId);
+    setGalleryParams((prev) => ({
+      ...prev,
+      collection: collectionId ?? undefined,
+      page: 1,
+    }));
   }, []);
 
-  const commandPalette = useCommandPalette({
-    onCopyListing: editor.handleExport,
-    onBulkUpload: () => {
-      if (gallery.selectedIds.size > 0) {
-        // trigger batch upload flow
-      }
-    },
+  // Collection dialog result
+  const handleCollectionOpen = useCallback((collectionId: string | null) => {
+    setCollectionsOpen(false);
+    handleBreadcrumbNavigate(collectionId);
+  }, [handleBreadcrumbNavigate]);
+
+  // Command palette
+  const cmdPalette = useCommandPalette({
+    onEditBulk: () => navigate('/publish/edit'),
+    onDeleteListings: selection.clearSelection,
+    onMoveToCollection: () => setCollectionsOpen(true),
+    onDuplicate: () => {},
+    onTranslate: () => {},
+    onBulkTags: () => {},
+    onAiGenerate: () => {},
+    onDeleteFiles: () => {},
+    onDownload: () => {},
+    onExportXlsx: () => {},
+    onExportCsv: () => {},
+    onSendToCloud: () => {},
+    onImportCloud: () => setActiveTab('cloud_storage'),
+    onApplyTemplate: () => {},
+    onCopyListingFrom: () => {},
+    onCopyColorsFrom: () => {},
+    onCopyFitTypesFrom: () => {},
+    onCopyPricesFrom: () => {},
   });
 
+  // Container ref for lasso
+  const containerRef = useRef<HTMLDivElement>(null);
+
   return (
-    <Box sx={{ pb: 8 }}>
-      {/* Page Header */}
-      <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 4 }}>
-        <Box>
-          <Typography variant="h4" fontWeight={700}>{t('publish.page.title')}</Typography>
-          <Typography variant="body2" color="text.secondary">
-            {t('publish.page.subtitle')}
-          </Typography>
-        </Box>
-        <Box sx={{ display: 'flex', gap: 1 }}>
-          <UploadTemplateDropdown
-            currentConfig={{
-              brand_name: editor.form.getValues('brand_name') ?? '',
-              product_types: productTypes,
-              fit_types: fitTypes,
-              colors: [],
-              marketplaces,
-              print_side: printSide,
-            }}
-            onApplyTemplate={handleApplyTemplate}
+    <ViewRoot>
+      {/* Sticky Toolbar */}
+      <PublishToolbar
+        selectedCount={selection.selectionCount}
+        totalCount={totalCount}
+        hasSelection={selection.hasSelection}
+        onSelectAll={selection.handleSelectAll}
+        onSelectNone={selection.handleSelectNone}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        searchQuery={searchQuery}
+        onSearchChange={handleSearchChange}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+        breadcrumbs={breadcrumbs}
+        onBreadcrumbNavigate={handleBreadcrumbNavigate}
+        transferCount={selection.hasSelection ? selection.selectionCount : 0}
+        onTransferClick={() => {}}
+        onCollectionsOpen={() => setCollectionsOpen(true)}
+        onCommandPaletteOpen={() => cmdPalette.openPalette()}
+        onTemplateClick={() => {}}
+        onUploadClick={() => {}}
+        onPublishClick={() => {}}
+      />
+
+      {/* Content */}
+      <ContentArea ref={containerRef}>
+        {activeTab === 'my_designs' ? (
+          isGalleryLoading ? (
+            <DesignCardGrid
+              designs={[]}
+              viewMode={viewMode}
+              isLoading
+              isSelected={() => false}
+              hasSelection={false}
+              onSelect={() => {}}
+              onLassoSelect={() => {}}
+              onAddDesigns={() => {}}
+            />
+          ) : designs.length === 0 && !searchQuery ? (
+            <EmptyState
+              onUpload={() => {}}
+              onImport={() => setActiveTab('cloud_storage')}
+            />
+          ) : (
+            <DesignCardGrid
+              designs={designs}
+              viewMode={viewMode}
+              isLoading={false}
+              isSelected={selection.isSelected}
+              hasSelection={selection.hasSelection}
+              onSelect={selection.handleClick}
+              onLassoSelect={selection.addIds}
+              onAddDesigns={() => {}}
+              onDuplicate={() => {}}
+              onMove={() => setCollectionsOpen(true)}
+            />
+          )
+        ) : (
+          <CloudStorageTab
+            onManageConnections={() => {}}
           />
-        </Box>
-      </Box>
+        )}
+      </ContentArea>
 
-      <Stack spacing={6} divider={<Divider />}>
-        {/* Section 1: Design Gallery */}
-        <DesignGallerySection
-          gallery={gallery}
-          onDesignClick={handleDesignClick}
-          onImportCloud={() => setCloudImportOpen(true)}
-        />
+      {/* Collections Dialog */}
+      <CollectionsDialog
+        open={collectionsOpen}
+        onClose={() => setCollectionsOpen(false)}
+        onOpenFolder={handleCollectionOpen}
+      />
 
-        {/* Section 2: Product Configuration */}
-        <ProductConfigSection
-          selectedProductTypes={productTypes}
-          onProductTypesChange={setProductTypes}
-          selectedFitTypes={fitTypes}
-          onFitTypesChange={setFitTypes}
-          printSide={printSide}
-          onPrintSideChange={setPrintSide}
-          marketplaces={marketplaces}
-          onMarketplacesChange={setMarketplaces}
-        />
-
-        {/* Section 3: Listing Editor */}
-        <ListingEditorSection
-          editor={editor}
-          selectedDesignId={selectedDesign?.id}
-          onImprove={handleImprove}
-        />
-
-        {/* Section 4: Upload Queue */}
-        <UploadQueueSection uploadJobs={uploadJobs} />
-
-        {/* Section 5: Product Lifecycle */}
-        <LifecycleChain nicheId={selectedDesign?.niche ?? null} />
-      </Stack>
-
-      {/* Overlays */}
+      {/* Command Palette Overlay */}
       <CommandPalette
-        open={commandPalette.open}
-        onClose={() => commandPalette.setOpen(false)}
-        query={commandPalette.query}
-        onQueryChange={commandPalette.setQuery}
-        actions={commandPalette.filteredActions}
+        open={cmdPalette.open}
+        query={cmdPalette.query}
+        onQueryChange={cmdPalette.setQuery}
+        context={cmdPalette.context}
+        activeIndex={cmdPalette.activeIndex}
+        matched={cmdPalette.matched}
+        recentActions={cmdPalette.recentActions}
+        flatActions={cmdPalette.flatActions}
+        onKeyDown={cmdPalette.handleKeyDown}
+        onExecute={cmdPalette.executeAction}
+        onClose={cmdPalette.closePalette}
       />
 
+      {/* Bottom Action Bar */}
       <ActionBar
-        selectedCount={gallery.selectedIds.size}
-        onClear={gallery.clearSelection}
-        onBulkUpload={() => {
-          // batch upload flow
-        }}
-        onBulkDelete={gallery.handleBulkDelete}
-        isBulkProcessing={gallery.isBulkProcessing}
+        selectionCount={selection.selectionCount}
+        allSelected={selection.selectionCount === totalCount && totalCount > 0}
+        onEdit={() => navigate('/publish/edit')}
+        onToggleAll={selection.toggleAll}
+        onHistory={() => {}}
+        onBatchUpload={() => {}}
+        onDelete={() => {}}
       />
-
-      <CloudImportDialog
-        open={cloudImportOpen}
-        onClose={() => setCloudImportOpen(false)}
-      />
-    </Box>
+    </ViewRoot>
   );
 };
 

@@ -9,7 +9,7 @@ import type { CloudFile, CloudFolder } from './useGoogleDrive';
 const CLIENT_ID = import.meta.env.VITE_ONEDRIVE_CLIENT_ID ?? '';
 const SCOPES = ['Files.ReadWrite', 'User.Read'];
 const GRAPH_URL = 'https://graph.microsoft.com/v1.0';
-const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp'];
+const IMAGE_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'svg'];
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 
 // -----------------------------------------------------------------
@@ -166,7 +166,7 @@ const useOneDrive = () => {
     }));
   }, [graphFetch]);
 
-  // List images in a single folder (no recursion — user navigates manually)
+  // List images in a single folder (non-recursive, current folder only)
   const listImages = useCallback(async (
     folderId: string,
   ): Promise<CloudFile[]> => {
@@ -187,7 +187,7 @@ const useOneDrive = () => {
       files.push({
         id: item.id,
         name: item.name,
-        mimeType: item.file.mimeType ?? `image/${ext}`,
+        mimeType: item.file.mimeType ?? `image/${ext === 'svg' ? 'svg+xml' : ext}`,
         size: item.size ?? 0,
         folderPath: item.parentReference?.path ?? '/',
       });

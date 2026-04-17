@@ -10,8 +10,8 @@ import { styled } from '@mui/material/styles';
 import GoogleIcon from '@mui/icons-material/Google';
 import CloudIcon from '@mui/icons-material/Cloud';
 import { useTranslation } from 'react-i18next';
-import useGoogleDrive from '@/views/designs/editor/hooks/useGoogleDrive';
-import useOneDrive from '@/views/designs/editor/hooks/useOneDrive';
+import useGoogleDrive from './hooks/useGoogleDrive';
+import useOneDrive from './hooks/useOneDrive';
 
 // -----------------------------------------------------------------
 // Styled

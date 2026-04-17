@@ -113,9 +113,58 @@ export interface DesignAsset {
   listing: string | null;
   idea: string | null;
   niche: string | null;
+  collection: string | null;
   round: number;
   created_by: string;
   created_at: string;
+}
+
+// ---- Collection types -----------------------------------------------------
+
+export interface DesignCollection {
+  id: string;
+  name: string;
+  parent: string | null;
+  position: number;
+  child_count: number;
+  asset_count: number;
+  created_by: string;
+  created_at: string;
+}
+
+export interface CollectionDetail {
+  collection: DesignCollection;
+  children: DesignCollection[];
+  assets: DesignAsset[];
+  assets_count: number;
+  assets_next: string | null;
+  assets_previous: string | null;
+}
+
+export interface CollectionTreeNode {
+  id: string;
+  name: string;
+  children: CollectionTreeNode[];
+  asset_count: number;
+}
+
+export interface CreateCollectionBody {
+  name: string;
+  parent?: string | null;
+}
+
+export interface UpdateCollectionBody {
+  name?: string;
+  parent?: string | null;
+}
+
+export interface MoveAssetsBody {
+  asset_ids: string[];
+  collection_id: string | null;
+}
+
+export interface ListCollectionsParams {
+  parent?: string;
 }
 
 export interface LifecycleEntry {
@@ -165,6 +214,7 @@ export interface GalleryListParams {
   has_listing?: boolean;
   sort_by?: 'newest' | 'recently_edited';
   search?: string;
+  collection?: string;
 }
 
 export interface GalleryListResponse {
@@ -226,12 +276,28 @@ export interface UploadTemplateCreateBody {
 
 // ---- UI local types -------------------------------------------------------
 
+export type FileSystemTab = 'my_designs' | 'cloud_storage';
+export type ViewMode = 'grid' | 'list';
+
+export interface BreadcrumbSegment {
+  id: string | null;
+  label: string;
+}
+
+export interface SelectionState {
+  selectedIds: Set<string>;
+  lastClickedId: string | null;
+  anchorId: string | null;
+}
+
 export interface CommandAction {
   id: string;
   label: string;
   description: string;
   icon: string;
+  category: string;
   action: () => void;
+  disabled?: boolean;
 }
 
 export const LISTING_CHAR_LIMITS = {

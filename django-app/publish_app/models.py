@@ -4,6 +4,46 @@ from django.conf import settings
 from django.db import models
 
 
+class DesignCollection(models.Model):
+    """Server-side folder system for organizing DesignAssets (MyDesigns-style)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        'workspace_app.Workspace',
+        on_delete=models.CASCADE,
+        related_name='design_collections',
+        db_index=True,
+    )
+    name = models.CharField(max_length=200)
+    parent = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='children',
+        help_text='Parent folder. Null = root level.',
+    )
+    position = models.IntegerField(default=0)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='created_design_collections',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['position', 'name']
+        indexes = [
+            models.Index(
+                fields=['workspace', 'parent'],
+                name='collection_ws_parent_idx',
+            ),
+        ]
+
+    def __str__(self):
+        return f"Collection: {self.name}"
+
+
 class Listing(models.Model):
     """MBA listing linked to an Idea and optionally a DesignAsset."""
 
@@ -297,6 +337,14 @@ class DesignAsset(models.Model):
     tags = models.JSONField(default=list, blank=True)
 
     # Linking
+    collection = models.ForeignKey(
+        DesignCollection,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='assets',
+        help_text='Collection folder this asset belongs to. Null = root.',
+    )
     listing = models.ForeignKey(
         Listing,
         on_delete=models.SET_NULL,

@@ -13,7 +13,7 @@ import {
 import { styled } from '@mui/material/styles';
 import FolderOpenIcon from '@mui/icons-material/FolderOpen';
 import { useTranslation } from 'react-i18next';
-import type { CloudFile, CloudFolder } from '../hooks/useGoogleDrive';
+import type { CloudFile, CloudFolder } from '@/components/CloudStorage';
 import { CloudFileTable } from './CloudFileTable';
 
 // -----------------------------------------------------------------

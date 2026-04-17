@@ -35,7 +35,12 @@ const CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID ?? '';
 const API_KEY = import.meta.env.VITE_GOOGLE_API_KEY ?? '';
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/drive/v3/rest';
-const IMAGE_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
+const IMAGE_MIME_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/svg+xml',
+];
 const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB
 const TOKEN_KEY = 'merch_miner_gdrive_token';
 
@@ -213,7 +218,7 @@ const useGoogleDrive = () => {
     }));
   }, []);
 
-  // Recursively list images in a folder
+  // List images in a folder (non-recursive, current folder only)
   const listImages = useCallback(async (
     folderId: string,
     basePath = '',
@@ -221,7 +226,6 @@ const useGoogleDrive = () => {
     const mimeQuery = IMAGE_MIME_TYPES.map((m) => `mimeType='${m}'`).join(' or ');
     const files: CloudFile[] = [];
 
-    // Get images in this folder
     const imageResp = await gapi.client.drive.files.list({
       q: `'${folderId}' in parents and (${mimeQuery}) and trashed=false`,
       fields: 'files(id,name,mimeType,size,thumbnailLink,webContentLink)',
@@ -239,18 +243,6 @@ const useGoogleDrive = () => {
         folderPath: basePath || '/',
         webContentLink: f.webContentLink ?? undefined,
       });
-    }
-
-    // Recurse into subfolders
-    const folderResp = await gapi.client.drive.files.list({
-      q: `'${folderId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
-      fields: 'files(id,name)',
-      pageSize: 50,
-    });
-    for (const folder of folderResp.result.files ?? []) {
-      const subPath = basePath ? `${basePath}/${folder.name}` : (folder.name ?? '');
-      const subFiles = await listImages(folder.id ?? '', subPath);
-      files.push(...subFiles);
     }
 
     return files;
