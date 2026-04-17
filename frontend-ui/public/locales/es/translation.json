@@ -1601,7 +1601,12 @@
       "amazon_search": "Amazon",
       "web_search": "Busqueda web",
       "manual": "Manual",
-      "junglescout": "JungleScout"
+      "junglescout": "JungleScout",
+      "suggestion": "Sugerencia",
+      "after": "Despues",
+      "before": "Antes",
+      "synonym": "Sinonimo",
+      "listing": "Listing"
     },
     "enrich": {
       "buttonLabel": "Enriquecer",
@@ -1633,7 +1638,10 @@
       "columnPicker": "Configurar columnas",
       "refreshProductCount": "Actualizar cantidad de productos",
       "done": "Listo",
-      "selected": "{{count}} seleccionado(s)"
+      "selected": "{{count}} seleccionado(s)",
+      "copyKeyword": "Copiar palabra clave",
+      "copiedKeyword": "Copiado!",
+      "searchKeyword": "Buscar esta palabra clave"
     },
     "trend": {
       "chartTitle": "Tendencia del volumen de busqueda",
@@ -1697,6 +1705,16 @@
       "all": "Todos",
       "database": "Base de datos",
       "amazon": "Amazon",
+      "junglescout": "JungleScout",
+      "comingSoon": "Próximamente"
+    },
+    "suggestionTabs": {
+      "all": "Todos",
+      "listing": "Keywords de Listings",
+      "suggestions": "Sugerencias",
+      "after": "Después",
+      "before": "Antes",
+      "synonyms": "Sinónimos",
       "junglescout": "JungleScout",
       "comingSoon": "Próximamente"
     },

@@ -5,6 +5,24 @@ export type KeywordSource =
   | 'manual'
   | 'junglescout';
 
+/** Source types for keyword search/suggestion results (Phase 13d, 15c) */
+export type SuggestionSource = 'listing' | 'suggestion' | 'after' | 'before' | 'synonym';
+
+/** Per-source counts for tab badges */
+export interface SuggestionCounts {
+  all: number;
+  listing: number;
+  suggestion: number;
+  after: number;
+  before: number;
+  synonym: number;
+}
+
+/** Synonyms API response */
+export interface SynonymsResponse {
+  words: string[];
+}
+
 export interface KeywordJSData {
   monthly_search_volume_exact: number | null;
   monthly_search_volume_broad: number | null;
@@ -31,7 +49,7 @@ export interface KeywordProductCount {
 
 export interface KeywordSearchResult {
   keyword: string;
-  source: KeywordSource;
+  source: KeywordSource | SuggestionSource;
   in_product_count: number;
   in_slogan_count: number;
   js_data: KeywordJSData | null;

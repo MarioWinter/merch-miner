@@ -17,6 +17,7 @@ import type {
   NicheKeywordGroup,
   CreateGroupBody,
   UpdateGroupBody,
+  SynonymsResponse,
 } from '../views/amazon/keywords/research/types';
 
 export const keywordApi = createApi({
@@ -62,6 +63,14 @@ export const keywordApi = createApi({
         data: body,
       }),
       invalidatesTags: ['KeywordProductCount', 'KeywordSearch'],
+    }),
+
+    getSynonyms: builder.query<SynonymsResponse, { query: string }>({
+      query: ({ query }) => ({
+        url: '/api/keywords/synonyms/',
+        method: 'GET',
+        params: { query },
+      }),
     }),
 
     // --- Niche Keywords CRUD ---
@@ -204,6 +213,7 @@ export const {
   useGetKeywordHistoryQuery,
   useLazyGetKeywordHistoryQuery,
   useScrapeProductCountMutation,
+  useLazyGetSynonymsQuery,
   useListNicheKeywordsQuery,
   useAddKeywordMutation,
   useBulkAddKeywordsMutation,

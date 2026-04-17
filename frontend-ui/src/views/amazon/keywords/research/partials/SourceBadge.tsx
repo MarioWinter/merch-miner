@@ -1,17 +1,24 @@
 import { Chip } from '@mui/material';
 import { useTranslation } from 'react-i18next';
-import type { KeywordSource } from '../types';
+import type { KeywordSource, SuggestionSource } from '../types';
 
-const SOURCE_COLORS: Record<KeywordSource, 'primary' | 'warning' | 'info' | 'default' | 'success'> = {
+type BadgeSource = KeywordSource | SuggestionSource;
+
+const SOURCE_COLORS: Record<BadgeSource, 'primary' | 'warning' | 'info' | 'default' | 'success' | 'secondary'> = {
   research: 'primary',
   amazon_search: 'warning',
   web_search: 'info',
   manual: 'default',
   junglescout: 'success',
+  listing: 'success',
+  suggestion: 'primary',
+  after: 'warning',
+  before: 'info',
+  synonym: 'secondary',
 };
 
 interface SourceBadgeProps {
-  source: KeywordSource;
+  source: BadgeSource;
 }
 
 export const SourceBadge = ({ source }: SourceBadgeProps) => {
@@ -20,7 +27,7 @@ export const SourceBadge = ({ source }: SourceBadgeProps) => {
   return (
     <Chip
       label={t(`keywords.source.${source}`)}
-      color={SOURCE_COLORS[source]}
+      color={SOURCE_COLORS[source] ?? 'default'}
       size="small"
       variant="outlined"
       sx={{ borderRadius: '6px', height: 22, fontSize: '0.75rem' }}

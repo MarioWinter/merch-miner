@@ -2,6 +2,7 @@
 
 import csv
 import logging
+import re
 
 from django.db.models import Count
 from django.http import StreamingHttpResponse
@@ -9,6 +10,7 @@ from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from user_auth_app.api.authentication import CookieJWTAuthentication
@@ -123,7 +125,7 @@ class KeywordSearchView(APIView):
         results = []
         seen_keywords = set()
 
-        # Source 1: DB keywords (NicheKeyword + NicheKeywordAnalysis)
+        # Source 1: DB keywords (NicheKeyword)
         db_keywords = (
             NicheKeyword.objects
             .filter(
@@ -140,12 +142,12 @@ class KeywordSearchView(APIView):
                 seen_keywords.add(kw)
                 results.append({
                     'keyword': kw,
-                    'source': 'database',
+                    'source': 'listing',
                     'in_product_count': 0,
                     'in_slogan_count': 0,
                 })
 
-        # Also search NicheKeywordAnalysis all_keywords_flat
+        # Source 1b: NicheKeywordAnalysis all_keywords_flat
         from niche_research_app.models import NicheKeywordAnalysis
         analyses = NicheKeywordAnalysis.objects.filter(
             niche__workspace=membership.workspace,
@@ -157,56 +159,92 @@ class KeywordSearchView(APIView):
                     seen_keywords.add(kw)
                     results.append({
                         'keyword': kw,
-                        'source': 'research_analysis',
+                        'source': 'listing',
                         'in_product_count': 0,
                         'in_slogan_count': 0,
                     })
 
-        # Source 2: Amazon Autocomplete
-        autocomplete = get_autocomplete_suggestions(query, marketplace)
-        for suggestion in autocomplete:
-            if suggestion not in seen_keywords:
-                seen_keywords.add(suggestion)
+        # Source 1c: MetaKeyword (scraped listing meta keywords)
+        # MetaKeyword is not workspace-scoped — extracted from Amazon listings globally.
+        # This is acceptable: keywords like "funny camping" are universal, not workspace-specific.
+        from scraper_app.models import MetaKeyword, SearchKeywordResult
+        meta_kws = (
+            MetaKeyword.objects
+            .filter(keyword__icontains=query)
+            .order_by('-frequency')[:100]
+        )
+        for mk in meta_kws:
+            kw = mk.keyword
+            if kw not in seen_keywords:
+                seen_keywords.add(kw)
                 results.append({
-                    'keyword': suggestion,
-                    'source': 'autocomplete',
+                    'keyword': kw,
+                    'source': 'listing',
                     'in_product_count': 0,
                     'in_slogan_count': 0,
                 })
 
-        # Compute in_product_count and in_slogan_count for all result keywords
-        all_kws = [r['keyword'] for r in results]
-        if all_kws:
-            # Product count: AmazonProduct title contains keyword
+        # Source 1d: SearchKeywordResult (AI-extracted search keywords, workspace-scoped)
+        skr_qs = SearchKeywordResult.objects.filter(
+            all_keywords_flat__icontains=query,
+            search_cache__workspace=membership.workspace,
+        )[:20]
+        query_lower = query.lower()
+        for skr in skr_qs:
+            for kw_list in (skr.top_focus_keywords, skr.top_long_tail_keywords):
+                for item in (kw_list or []):
+                    # Items may be dicts with 'keyword' key or plain strings
+                    kw = item.get('keyword', '') if isinstance(item, dict) else str(item)
+                    if kw and query_lower in kw.lower() and kw not in seen_keywords:
+                        seen_keywords.add(kw)
+                        results.append({
+                            'keyword': kw,
+                            'source': 'listing',
+                            'in_product_count': 0,
+                            'in_slogan_count': 0,
+                        })
+
+        # Note: Amazon Autocomplete removed from this endpoint (Phase 15).
+        # Frontend calls /api/research/suggestions/ directly as Group 2 (source=suggestion).
+
+        # Paginate first, then enrich only the page (avoids N+1 on full result set)
+        total_count = len(results)
+        start = (page - 1) * page_size
+        end = start + page_size
+        page_results = results[start:end]
+
+        # Enrich only paginated keywords (BUG-2 fix: max page_size queries, not all)
+        page_kws = [r['keyword'] for r in page_results]
+        if page_kws:
             from scraper_app.models import AmazonProduct
+            from idea_app.models import Idea
+
             product_counts = {}
-            for kw in all_kws:
+            for kw in page_kws:
                 product_counts[kw] = AmazonProduct.objects.filter(
                     title__icontains=kw,
                 ).count()
 
-            # Slogan count: Idea slogan_text contains keyword
-            from idea_app.models import Idea
             slogan_counts = {}
-            for kw in all_kws:
+            for kw in page_kws:
                 slogan_counts[kw] = Idea.objects.filter(
                     workspace=membership.workspace,
                     slogan_text__icontains=kw,
                 ).count()
 
-            for r in results:
+            for r in page_results:
                 r['in_product_count'] = product_counts.get(r['keyword'], 0)
                 r['in_slogan_count'] = slogan_counts.get(r['keyword'], 0)
 
         # Attach JS data where cached
-        js_cache = get_cached_js_data(all_kws, marketplace)
-        for r in results:
+        js_cache = get_cached_js_data(page_kws, marketplace)
+        for r in page_results:
             cache_entry = js_cache.get(r['keyword'])
             r['js_data'] = KeywordJSDataSerializer(cache_entry).data if cache_entry else None
 
         # Attach Amazon product count from KeywordProductCount cache (AC-9c)
-        product_count_cache = get_cached_product_counts(all_kws, marketplace)
-        for r in results:
+        product_count_cache = get_cached_product_counts(page_kws, marketplace)
+        for r in page_results:
             pc = product_count_cache.get(r['keyword'])
             if pc:
                 r['amazon_product_count'] = pc.product_count
@@ -215,13 +253,8 @@ class KeywordSearchView(APIView):
                 r['amazon_product_count'] = None
                 r['product_count_fetched_at'] = None
 
-        # Paginate
-        start = (page - 1) * page_size
-        end = start + page_size
-        page_results = results[start:end]
-
         return Response({
-            'count': len(results),
+            'count': total_count,
             'page': page,
             'page_size': page_size,
             'results': KeywordSearchResultSerializer(page_results, many=True).data,
@@ -406,7 +439,8 @@ class KeywordExportView(APIView):
             (writer.writerow(row) for row in csv_rows()),
             content_type='text/csv',
         )
-        response['Content-Disposition'] = f'attachment; filename="keywords_{query}.csv"'
+        safe_query = re.sub(r'[^a-zA-Z0-9\s-]', '', query)[:50].strip()
+        response['Content-Disposition'] = f'attachment; filename="keywords_{safe_query}.csv"'
         return response
 
 
@@ -808,6 +842,8 @@ class KeywordProductCountView(APIView):
 
     authentication_classes = [CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'product_count_scrape'
 
     def post(self, request):
         serializer = KeywordProductCountRequestSerializer(data=request.data)

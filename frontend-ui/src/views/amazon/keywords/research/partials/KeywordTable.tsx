@@ -3,7 +3,10 @@ import { Box, CircularProgress, IconButton, Skeleton, Tooltip } from '@mui/mater
 import { alpha } from '@mui/material/styles';
 import { DataGrid, type GridColDef, type GridRowSelectionModel } from '@mui/x-data-grid';
 import RefreshIcon from '@mui/icons-material/Refresh';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import SearchIcon from '@mui/icons-material/Search';
 import { useTranslation } from 'react-i18next';
+import { useSnackbar } from 'notistack';
 import { MONO_FONT_STACK } from '@/style/constants';
 import { useScrapeProductCountMutation } from '@/store/keywordSlice';
 import type { KeywordSearchResult, KeywordColumnVisibility } from '../types';
@@ -23,12 +26,13 @@ interface KeywordTableProps {
   onEnrichSingle: (keyword: string) => void;
   isEnriching: (keyword: string) => boolean;
   onKeywordClick: (keyword: string) => void;
+  onSearchKeyword: (keyword: string) => void;
   marketplace: string;
 }
 
 const JsPlaceholder = () => (
   <Box sx={{ color: 'text.disabled', opacity: 0.4, fontFamily: MONO_FONT_STACK }}>
-    ---
+    &mdash;
   </Box>
 );
 
@@ -45,10 +49,20 @@ export const KeywordTable = ({
   onEnrichSingle,
   isEnriching,
   onKeywordClick,
+  onSearchKeyword,
   marketplace,
 }: KeywordTableProps) => {
   const { t } = useTranslation();
+  const { enqueueSnackbar } = useSnackbar();
   const [scrapeCount, { isLoading: isScraping }] = useScrapeProductCountMutation();
+
+  const handleCopyKeyword = useCallback(
+    (keyword: string) => {
+      navigator.clipboard.writeText(keyword);
+      enqueueSnackbar(t('keywords.table.copiedKeyword'), { variant: 'success' });
+    },
+    [enqueueSnackbar, t],
+  );
 
   const handleRefreshCount = useCallback(
     (keyword: string) => {
@@ -63,13 +77,57 @@ export const KeywordTable = ({
         field: 'keyword',
         headerName: t('keywords.table.col_keyword'),
         flex: 2,
-        minWidth: 200,
+        minWidth: 250,
+        cellClassName: 'keyword-cell',
         renderCell: (params) => (
           <Box
-            onClick={() => onKeywordClick(params.value)}
-            sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              width: '100%',
+            }}
           >
-            {params.value}
+            <Box
+              onClick={() => onKeywordClick(params.value)}
+              sx={{ cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+            >
+              {params.value}
+            </Box>
+            <Box
+              className="keyword-hover-actions"
+              sx={{ display: 'flex', alignItems: 'center', gap: 0.25, opacity: 0, transition: 'opacity 150ms ease' }}
+            >
+              <Tooltip title={t('keywords.table.copyKeyword')}>
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleCopyKeyword(params.row.keyword);
+                  }}
+                  sx={{ p: 0.25 }}
+                >
+                  <ContentCopyIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={t('keywords.table.searchKeyword')}>
+                <IconButton
+                  size="small"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onSearchKeyword(params.row.keyword);
+                  }}
+                  sx={{ p: 0.25 }}
+                >
+                  <SearchIcon sx={{ fontSize: 16 }} />
+                </IconButton>
+              </Tooltip>
+              <EnrichButton
+                keyword={params.row.keyword}
+                isEnriching={isEnriching(params.row.keyword)}
+                onEnrich={() => onEnrichSingle(params.row.keyword)}
+              />
+            </Box>
           </Box>
         ),
       },
@@ -92,7 +150,7 @@ export const KeywordTable = ({
                 &gt; {params.value.toLocaleString()}
               </Box>
             ) : (
-              <Box sx={{ color: 'text.disabled' }}>---</Box>
+              <Box sx={{ color: 'text.disabled' }}>&mdash;</Box>
             )}
             <Tooltip title={t('keywords.table.refreshProductCount')}>
               <IconButton
@@ -119,7 +177,7 @@ export const KeywordTable = ({
         headerName: t('keywords.table.col_monthly_search_volume_exact'),
         width: 130,
         type: 'number',
-        description: t('keywords.sourceTabs.comingSoon'),
+        description: t('keywords.suggestionTabs.comingSoon'),
         valueGetter: (_value, row) => row.js_data?.monthly_search_volume_exact ?? null,
         renderCell: (params) =>
           params.value != null ? (
@@ -133,7 +191,7 @@ export const KeywordTable = ({
         headerName: t('keywords.table.col_ppc_bid_exact'),
         width: 110,
         type: 'number',
-        description: t('keywords.sourceTabs.comingSoon'),
+        description: t('keywords.suggestionTabs.comingSoon'),
         valueGetter: (_value, row) => row.js_data?.ppc_bid_exact ?? null,
         renderCell: (params) =>
           params.value != null ? (
@@ -147,7 +205,7 @@ export const KeywordTable = ({
         headerName: t('keywords.table.col_ease_of_ranking_score'),
         width: 110,
         type: 'number',
-        description: t('keywords.sourceTabs.comingSoon'),
+        description: t('keywords.suggestionTabs.comingSoon'),
         valueGetter: (_value, row) => row.js_data?.ease_of_ranking_score ?? null,
         renderCell: (params) =>
           params.value != null ? (
@@ -161,7 +219,7 @@ export const KeywordTable = ({
         headerName: t('keywords.table.col_organic_product_count'),
         width: 110,
         type: 'number',
-        description: t('keywords.sourceTabs.comingSoon'),
+        description: t('keywords.suggestionTabs.comingSoon'),
         valueGetter: (_value, row) => row.js_data?.organic_product_count ?? null,
         renderCell: (params) =>
           params.value != null ? (
@@ -193,7 +251,7 @@ export const KeywordTable = ({
         headerName: t('keywords.table.col_monthly_trend'),
         width: 110,
         type: 'number',
-        description: t('keywords.sourceTabs.comingSoon'),
+        description: t('keywords.suggestionTabs.comingSoon'),
         valueGetter: (_value, row) => row.js_data?.monthly_trend ?? null,
         renderCell: (params) =>
           params.value != null ? (
@@ -207,7 +265,7 @@ export const KeywordTable = ({
         headerName: t('keywords.table.col_quarterly_trend'),
         width: 110,
         type: 'number',
-        description: t('keywords.sourceTabs.comingSoon'),
+        description: t('keywords.suggestionTabs.comingSoon'),
         valueGetter: (_value, row) => row.js_data?.quarterly_trend ?? null,
         renderCell: (params) =>
           params.value != null ? (
@@ -221,7 +279,7 @@ export const KeywordTable = ({
         headerName: t('keywords.table.col_monthly_search_volume_broad'),
         width: 130,
         type: 'number',
-        description: t('keywords.sourceTabs.comingSoon'),
+        description: t('keywords.suggestionTabs.comingSoon'),
         valueGetter: (_value, row) => row.js_data?.monthly_search_volume_broad ?? null,
         renderCell: (params) =>
           params.value != null ? (
@@ -235,7 +293,7 @@ export const KeywordTable = ({
         headerName: t('keywords.table.col_ppc_bid_broad'),
         width: 110,
         type: 'number',
-        description: t('keywords.sourceTabs.comingSoon'),
+        description: t('keywords.suggestionTabs.comingSoon'),
         valueGetter: (_value, row) => row.js_data?.ppc_bid_broad ?? null,
         renderCell: (params) =>
           params.value != null ? (
@@ -249,7 +307,7 @@ export const KeywordTable = ({
         headerName: t('keywords.table.col_sp_brand_ad_bid'),
         width: 120,
         type: 'number',
-        description: t('keywords.sourceTabs.comingSoon'),
+        description: t('keywords.suggestionTabs.comingSoon'),
         valueGetter: (_value, row) => row.js_data?.sp_brand_ad_bid ?? null,
         renderCell: (params) =>
           params.value != null ? (
@@ -263,7 +321,7 @@ export const KeywordTable = ({
         headerName: t('keywords.table.col_relevancy_score'),
         width: 110,
         type: 'number',
-        description: t('keywords.sourceTabs.comingSoon'),
+        description: t('keywords.suggestionTabs.comingSoon'),
         valueGetter: (_value, row) => row.js_data?.relevancy_score ?? null,
         renderCell: (params) =>
           params.value != null ? (
@@ -277,7 +335,7 @@ export const KeywordTable = ({
         headerName: t('keywords.table.col_sponsored_product_count'),
         width: 130,
         type: 'number',
-        description: t('keywords.sourceTabs.comingSoon'),
+        description: t('keywords.suggestionTabs.comingSoon'),
         valueGetter: (_value, row) => row.js_data?.sponsored_product_count ?? null,
         renderCell: (params) =>
           params.value != null ? (
@@ -290,7 +348,7 @@ export const KeywordTable = ({
         field: 'dominant_category',
         headerName: t('keywords.table.col_dominant_category'),
         width: 160,
-        description: t('keywords.sourceTabs.comingSoon'),
+        description: t('keywords.suggestionTabs.comingSoon'),
         valueGetter: (_value, row) => row.js_data?.dominant_category ?? '',
         renderCell: (params) =>
           params.value ? params.value : <JsPlaceholder />,
@@ -300,7 +358,7 @@ export const KeywordTable = ({
         headerName: t('keywords.table.col_recommended_promotions'),
         width: 130,
         type: 'number',
-        description: t('keywords.sourceTabs.comingSoon'),
+        description: t('keywords.suggestionTabs.comingSoon'),
         valueGetter: (_value, row) => row.js_data?.recommended_promotions ?? null,
         renderCell: (params) =>
           params.value != null ? (
@@ -309,28 +367,13 @@ export const KeywordTable = ({
             <JsPlaceholder />
           ),
       },
-      {
-        field: 'actions',
-        headerName: '',
-        width: 60,
-        sortable: false,
-        filterable: false,
-        renderCell: (params) => (
-          <EnrichButton
-            keyword={params.row.keyword}
-            isEnriching={isEnriching(params.row.keyword)}
-            onEnrich={() => onEnrichSingle(params.row.keyword)}
-          />
-        ),
-      },
     ];
 
     return allCols.filter((col) => {
-      if (col.field === 'actions') return true;
       const key = col.field as keyof KeywordColumnVisibility;
       return columnVisibility[key] !== false;
     });
-  }, [t, columnVisibility, onKeywordClick, onEnrichSingle, isEnriching, handleRefreshCount, isScraping]);
+  }, [t, columnVisibility, onKeywordClick, onSearchKeyword, onEnrichSingle, isEnriching, handleRefreshCount, isScraping, handleCopyKeyword]);
 
   const handleSelectionChange = useCallback(
     (model: GridRowSelectionModel) => {
@@ -399,6 +442,9 @@ export const KeywordTable = ({
           },
           '& .MuiDataGrid-cell': {
             borderBottom: `1px solid ${theme.vars.palette.divider}`,
+          },
+          '& .MuiDataGrid-row:hover .keyword-hover-actions': {
+            opacity: 1,
           },
         })}
       />

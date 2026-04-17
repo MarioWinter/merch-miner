@@ -1640,7 +1640,12 @@
       "amazon_search": "Amazon",
       "web_search": "Web Search",
       "manual": "Manual",
-      "junglescout": "JungleScout"
+      "junglescout": "JungleScout",
+      "suggestion": "Suggestion",
+      "after": "After",
+      "before": "Before",
+      "synonym": "Synonym",
+      "listing": "Listing"
     },
     "enrich": {
       "buttonLabel": "Enrich",
@@ -1672,7 +1677,10 @@
       "columnPicker": "Configure columns",
       "refreshProductCount": "Refresh product count",
       "done": "Done",
-      "selected": "{{count}} selected"
+      "selected": "{{count}} selected",
+      "copyKeyword": "Copy keyword",
+      "copiedKeyword": "Copied!",
+      "searchKeyword": "Search this keyword"
     },
     "trend": {
       "chartTitle": "Search Volume Trend",
@@ -1736,6 +1744,16 @@
       "all": "All",
       "database": "Database",
       "amazon": "Amazon",
+      "junglescout": "JungleScout",
+      "comingSoon": "Coming Soon"
+    },
+    "suggestionTabs": {
+      "all": "All",
+      "listing": "Listing Keywords",
+      "suggestions": "Suggestions",
+      "after": "After",
+      "before": "Before",
+      "synonyms": "Synonyms",
       "junglescout": "JungleScout",
       "comingSoon": "Coming Soon"
     },

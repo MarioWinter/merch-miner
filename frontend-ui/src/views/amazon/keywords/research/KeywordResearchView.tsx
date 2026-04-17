@@ -7,13 +7,10 @@ import { useKeywordSearch } from './hooks/useKeywordSearch';
 import { useJSEnrich } from './hooks/useJSEnrich';
 import { useKeywordExport } from './hooks/useKeywordExport';
 import { useRecentSearches } from './hooks/useRecentSearches';
-import { useModifierSuggestions } from './hooks/useModifierSuggestions';
 import { KeywordSearchBar } from './partials/KeywordSearchBar';
 import { SearchHistoryChips } from './partials/SearchHistoryChips';
-import { SuggestionMultiplier } from './partials/SuggestionMultiplier';
-import { WordSuggestions } from './partials/WordSuggestions';
 import { KeywordChipCloud } from './partials/KeywordChipCloud';
-import { SourceTabs, type SourceFilter } from './partials/SourceTabs';
+import { SuggestionTabs, type SuggestionFilter } from './partials/SuggestionTabs';
 import { KeywordTable } from './partials/KeywordTable';
 import { ColumnPicker } from './partials/ColumnPicker';
 import { FloatingActionBar } from './partials/FloatingActionBar';
@@ -21,10 +18,7 @@ import { TrendChart } from './partials/TrendChart';
 import { EmptyState } from './partials/EmptyState';
 import { loadColumnVisibility } from './utils/columnStorage';
 import { DEFAULT_COLUMN_VISIBILITY } from './types';
-import type { KeywordColumnVisibility, KeywordSearchResult, KeywordSource } from './types';
-
-const DATABASE_SOURCES: KeywordSource[] = ['research', 'web_search', 'manual'];
-const AMAZON_SOURCES: KeywordSource[] = ['amazon_search'];
+import type { KeywordColumnVisibility, KeywordSearchResult } from './types';
 
 const KeywordResearchView = () => {
   const { t } = useTranslation();
@@ -45,17 +39,11 @@ const KeywordResearchView = () => {
     handlePageChange,
     isSearching,
     isSearchFetching,
+    suggestionCounts,
   } = useKeywordSearch();
 
   // Recent searches
   const { searches, addSearch, removeSearch, clearAll } = useRecentSearches();
-
-  // Modifier suggestions
-  const {
-    suggestions: modifierSuggestions,
-    isGenerating: isGeneratingModifiers,
-    generate: generateModifiers,
-  } = useModifierSuggestions();
 
   // Enrich (always disabled)
   const { enrichSingle, isEnriching } = useJSEnrich(marketplace);
@@ -72,7 +60,7 @@ const KeywordResearchView = () => {
   const [selectedKeywords, setSelectedKeywords] = useState<string[]>([]);
 
   // Filters
-  const [sourceFilter, setSourceFilter] = useState<SourceFilter>('all');
+  const [sourceFilter, setSourceFilter] = useState<SuggestionFilter>('all');
   const [chipFilter, setChipFilter] = useState<string | null>(null);
 
   // Trend chart
@@ -98,25 +86,12 @@ const KeywordResearchView = () => {
     [executeSearch, inputValue, marketplace, addSearch],
   );
 
-  // Word click -> append to search bar
-  const handleWordClick = useCallback(
-    (word: string) => {
-      const newValue = inputValue.trim() ? `${inputValue.trim()} ${word}` : word;
-      handleInputChange(newValue);
-    },
-    [inputValue, handleInputChange],
-  );
+  const handleKeywordClick = useCallback((keyword: string) => {
+    setTrendKeyword(keyword);
+  }, []);
 
-  // Modifier generate
-  const handleModifierGenerate = useCallback(
-    (prefixes: string[], suffixes: string[]) => {
-      generateModifiers(committedQuery || inputValue, prefixes, suffixes, marketplace);
-    },
-    [generateModifiers, committedQuery, inputValue, marketplace],
-  );
-
-  // Add modifier suggestion to search
-  const handleAddModifierSuggestion = useCallback(
+  // Row action: re-execute search with the clicked keyword
+  const handleSearchKeyword = useCallback(
     (keyword: string) => {
       handleInputChange(keyword);
       executeSearch(keyword);
@@ -125,19 +100,13 @@ const KeywordResearchView = () => {
     [handleInputChange, executeSearch, addSearch, marketplace],
   );
 
-  const handleKeywordClick = useCallback((keyword: string) => {
-    setTrendKeyword(keyword);
-  }, []);
-
   // Client-side filtering
   const filteredResults = useMemo(() => {
     let filtered: KeywordSearchResult[] = results;
 
     // Source filter
-    if (sourceFilter === 'database') {
-      filtered = filtered.filter((r) => DATABASE_SOURCES.includes(r.source));
-    } else if (sourceFilter === 'amazon') {
-      filtered = filtered.filter((r) => AMAZON_SOURCES.includes(r.source));
+    if (sourceFilter !== 'all') {
+      filtered = filtered.filter((r) => r.source === sourceFilter);
     }
 
     // Chip filter
@@ -197,30 +166,6 @@ const KeywordResearchView = () => {
         onClearAll={clearAll}
       />
 
-      {/* Suggestion Multiplier */}
-      {(committedQuery || inputValue.trim()) && (
-        <Box sx={{ mb: 1.5 }}>
-          <SuggestionMultiplier
-            keyword={committedQuery || inputValue.trim()}
-            suggestions={modifierSuggestions}
-            isGenerating={isGeneratingModifiers}
-            onGenerate={handleModifierGenerate}
-            onAddSuggestion={handleAddModifierSuggestion}
-          />
-        </Box>
-      )}
-
-      {/* Word Suggestions */}
-      {suggestions.length > 0 && (
-        <Box sx={{ mb: 1.5 }}>
-          <WordSuggestions
-            suggestions={suggestions}
-            searchTerm={inputValue}
-            onWordClick={handleWordClick}
-          />
-        </Box>
-      )}
-
       {/* Chip Cloud */}
       <KeywordChipCloud
         results={results}
@@ -230,8 +175,8 @@ const KeywordResearchView = () => {
 
       {/* Source Tabs */}
       {hasResults && (
-        <SourceTabs
-          results={results}
+        <SuggestionTabs
+          counts={suggestionCounts}
           value={sourceFilter}
           onChange={setSourceFilter}
         />
@@ -255,6 +200,7 @@ const KeywordResearchView = () => {
             onEnrichSingle={enrichSingle}
             isEnriching={isEnriching}
             onKeywordClick={handleKeywordClick}
+            onSearchKeyword={handleSearchKeyword}
             marketplace={marketplace}
           />
         )

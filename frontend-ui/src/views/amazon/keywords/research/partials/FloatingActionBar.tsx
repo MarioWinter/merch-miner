@@ -82,7 +82,7 @@ export const FloatingActionBar = ({
         onClearSelection={onClearSelection}
       />
 
-      <Tooltip title={t('keywords.sourceTabs.comingSoon')}>
+      <Tooltip title={t('keywords.suggestionTabs.comingSoon')}>
         <span>
           <Button
             size="small"

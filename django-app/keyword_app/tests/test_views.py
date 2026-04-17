@@ -294,6 +294,95 @@ class TestKeywordSearch:
         assert resp.status_code == 200
         assert resp.data['count'] == 0
 
+    def test_meta_keyword_appears_in_search(self, api_client, niche):
+        """MetaKeyword results appear in search with source=listing."""
+        from scraper_app.models import MetaKeyword
+        MetaKeyword.objects.create(
+            keyword='camping gear ideas', type='long_tail', frequency=42,
+        )
+        resp = api_client.get('/api/keywords/search/?query=camping+gear')
+        assert resp.status_code == 200
+        keywords = [r['keyword'] for r in resp.data['results']]
+        assert 'camping gear ideas' in keywords
+
+    def test_search_keyword_result_appears(self, api_client, workspace, niche):
+        """SearchKeywordResult keywords appear when all_keywords_flat matches."""
+        from scraper_app.models import Keyword, ProductSearchCache, SearchKeywordResult
+        kw_obj = Keyword.objects.create(keyword='camping', marketplace='amazon_com')
+        cache = ProductSearchCache.objects.create(
+            keyword=kw_obj, workspace=workspace, status='completed',
+        )
+        SearchKeywordResult.objects.create(
+            search_cache=cache,
+            top_focus_keywords=['funny camping shirt', 'camping dad joke'],
+            top_long_tail_keywords=[{'keyword': 'best camping gifts for dad'}],
+            all_keywords_flat='funny camping shirt, camping dad joke, best camping gifts for dad',
+        )
+        resp = api_client.get('/api/keywords/search/?query=camping')
+        assert resp.status_code == 200
+        keywords = [r['keyword'] for r in resp.data['results']]
+        assert 'funny camping shirt' in keywords
+        assert 'best camping gifts for dad' in keywords
+
+    def test_search_keyword_result_workspace_scoping(self, api_client, other_workspace):
+        """SearchKeywordResult from another workspace is NOT returned."""
+        from scraper_app.models import Keyword, ProductSearchCache, SearchKeywordResult
+        kw_obj = Keyword.objects.create(keyword='hiking', marketplace='amazon_com')
+        other_cache = ProductSearchCache.objects.create(
+            keyword=kw_obj, workspace=other_workspace, status='completed',
+        )
+        SearchKeywordResult.objects.create(
+            search_cache=other_cache,
+            top_focus_keywords=['hiking secret keyword'],
+            top_long_tail_keywords=[],
+            all_keywords_flat='hiking secret keyword',
+        )
+        resp = api_client.get('/api/keywords/search/?query=hiking')
+        assert resp.status_code == 200
+        keywords = [r['keyword'] for r in resp.data['results']]
+        assert 'hiking secret keyword' not in keywords
+
+    def test_dedup_across_sources(self, api_client, niche, user):
+        """Same keyword in NicheKeyword + MetaKeyword appears only once."""
+        from scraper_app.models import MetaKeyword
+        NicheKeyword.objects.create(
+            niche=niche, keyword='camping humor', source='manual', created_by=user,
+        )
+        MetaKeyword.objects.create(
+            keyword='camping humor', type='short_tail', frequency=10,
+        )
+        resp = api_client.get('/api/keywords/search/?query=camping+humor')
+        assert resp.status_code == 200
+        matching = [r for r in resp.data['results'] if r['keyword'] == 'camping humor']
+        assert len(matching) == 1
+
+    @patch('keyword_app.api.views.get_autocomplete_suggestions')
+    def test_autocomplete_not_called(self, mock_autocomplete, api_client, niche, user):
+        """Search endpoint no longer calls autocomplete (removed in Phase 15)."""
+        NicheKeyword.objects.create(
+            niche=niche, keyword='camping test', source='manual', created_by=user,
+        )
+        resp = api_client.get('/api/keywords/search/?query=camping')
+        assert resp.status_code == 200
+        mock_autocomplete.assert_not_called()
+
+    def test_all_results_tagged_source_listing(self, api_client, niche, user):
+        """Every result in search response has source=listing."""
+        from scraper_app.models import MetaKeyword
+        NicheKeyword.objects.create(
+            niche=niche, keyword='camping dad', source='manual', created_by=user,
+        )
+        MetaKeyword.objects.create(
+            keyword='camping shirts', type='short_tail', frequency=5,
+        )
+        resp = api_client.get('/api/keywords/search/?query=camping')
+        assert resp.status_code == 200
+        for result in resp.data['results']:
+            assert result['source'] == 'listing', (
+                f"Expected source=listing, got source={result['source']} "
+                f"for keyword={result['keyword']}"
+            )
+
 
 # ==============================================================
 # Keyword Enrich
