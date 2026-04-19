@@ -25,6 +25,8 @@ import type {
   UpdateCollectionBody,
   MoveAssetsBody,
   ListCollectionsParams,
+  MbaColor,
+  GetListingParams,
 } from '../views/publish/types';
 
 export const publishApi = createApi({
@@ -42,6 +44,7 @@ export const publishApi = createApi({
     'Collection',
     'CollectionList',
     'CollectionTree',
+    'MbaColors',
   ],
   endpoints: (builder) => ({
     // ---- Listing ----------------------------------------------------------
@@ -51,15 +54,33 @@ export const publishApi = createApi({
         method: 'POST',
         data: body,
       }),
-      invalidatesTags: ['Listing'],
+      invalidatesTags: (result, _e, { ideaId, body }) => {
+        const tags: { type: 'Listing'; id: string }[] = [
+          { type: 'Listing', id: ideaId },
+          {
+            type: 'Listing',
+            id: `${ideaId}:${body.marketplace_type ?? 'mba'}`,
+          },
+        ];
+        if (result) {
+          tags.push({
+            type: 'Listing',
+            id: `${result.idea}:${result.marketplace_type}`,
+          });
+        }
+        return tags;
+      },
     }),
 
-    getListing: builder.query<Listing, string>({
-      query: (ideaId) => ({
+    getListing: builder.query<Listing, GetListingParams>({
+      query: ({ ideaId, marketplace_type }) => ({
         url: `/api/ideas/${ideaId}/listing/`,
         method: 'GET',
+        params: marketplace_type ? { marketplace_type } : undefined,
       }),
-      providesTags: (_r, _e, ideaId) => [{ type: 'Listing', id: ideaId }],
+      providesTags: (_r, _e, { ideaId, marketplace_type }) => [
+        { type: 'Listing', id: `${ideaId}:${marketplace_type ?? 'mba'}` },
+      ],
     }),
 
     updateListing: builder.mutation<Listing, { id: string; body: Partial<Listing> }>({
@@ -68,7 +89,16 @@ export const publishApi = createApi({
         method: 'PATCH',
         data: body,
       }),
-      invalidatesTags: (_r, _e, { id }) => [{ type: 'Listing', id }],
+      invalidatesTags: (result, _e, { id }) => {
+        const tags: { type: 'Listing'; id: string }[] = [{ type: 'Listing', id }];
+        if (result) {
+          tags.push({
+            type: 'Listing',
+            id: `${result.idea}:${result.marketplace_type}`,
+          });
+        }
+        return tags;
+      },
     }),
 
     translateListing: builder.mutation<Listing, { id: string; body: TranslateListingBody }>({
@@ -350,6 +380,15 @@ export const publishApi = createApi({
       invalidatesTags: [{ type: 'TemplateList', id: 'LIST' }],
     }),
 
+    // ---- MBA Colors -------------------------------------------------------
+    getMbaColors: builder.query<MbaColor[], void>({
+      query: () => ({
+        url: '/api/mba/colors/',
+        method: 'GET',
+      }),
+      providesTags: [{ type: 'MbaColors', id: 'LIST' }],
+    }),
+
     // ---- Product Lifecycle ------------------------------------------------
     getLifecycle: builder.query<LifecycleResponse, string>({
       query: (nicheId) => ({
@@ -365,12 +404,14 @@ export const {
   // Listing
   useGenerateListingMutation,
   useGetListingQuery,
+  useLazyGetListingQuery,
   useUpdateListingMutation,
   useTranslateListingMutation,
   useTmCheckMutation,
   useLazyExportListingQuery,
   // Gallery
   useListGalleryQuery,
+  useLazyListGalleryQuery,
   useUploadDesignMutation,
   useImportDriveMutation,
   useDeleteDesignMutation,
@@ -397,4 +438,6 @@ export const {
   useDeleteTemplateMutation,
   // Lifecycle
   useGetLifecycleQuery,
+  // MBA Colors
+  useGetMbaColorsQuery,
 } = publishApi;

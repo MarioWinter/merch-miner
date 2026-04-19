@@ -147,7 +147,16 @@ Opens when user clicks "Edit Designs" with selected designs. Single scrollable p
 
 - **"Options ⊙" per section:** Opens the Command Palette filtered to that section's actions (Copy from..., Apply to all, Reset). This is the central bulk-edit mechanism
 - **Horizontal Thumbnail Strip:** Navigate between designs with ← → arrows + "1 of 5" counter
-- **Marketplace Tabs:** Global / Mba / Displate (future marketplace support)
+- **Marketplace Tabs (Global/Mba/Displate) — Independent Listing Variants** (decided 2026-04-18):
+  - Each tab holds its OWN Listing record per design — NOT a filter/view over one shared listing.
+  - **Global**: for Spreadshirt + future simple-upload marketplaces. Schlanker Feld-Set.
+  - **Mba**: for Merch by Amazon. Full complex field set (Brand, Title, 5 Bullets, Description, Backend Keywords, per-region pricing).
+  - **Displate**: future placeholder.
+  - **Conversion via Options ⊙** (bidirectional, user-triggered):
+    - Global → MBA: maps Global text to Title/Brand/Bullet1 where possible, rest left empty.
+    - MBA → Global: maps MBA fields back to Global's simpler shape.
+    - If target tab already has data: confirmation dialog ("Overwrite existing MBA data?") — NO silent overwrite.
+  - **Data Model Impact**: `Listing` model gets `marketplace_type` field (choices: `global`, `mba`, `displate`). Multiple Listing rows per Design allowed (one per marketplace_type). See AC-1.
 - **Character counters:** Live count per field, amber at 90%, red at 100%
 - **Language tabs:** EN, DE, FR, IT, ES, JA with Auto-Translate toggle
 - **AI Generate:** One-click listing generation using slogan + design + keywords context
@@ -207,11 +216,23 @@ Opens when user clicks "Edit Designs" with selected designs. Single scrollable p
 ### Round System
 27. As a member, I want listings and uploads grouped by Round (Round 1, Round 2, etc.) matching the Niche round system, so I can track which batch of designs belongs to which campaign.
 
+### Per-Design Product Config Persistence (added 2026-04-18)
+28. As a member, I want product config (colors, fit types, print side, product types, marketplace pricing) to persist per design and per marketplace, so a page reload doesn't wipe my setup.
+29. As a member, I want to copy product config from a sibling design in the same Edit tab — scoped per section (Copy Colors From, Copy Fit Types From, Copy Prices From, Copy Product Types From) — so I don't reconfigure from scratch.
+30. As a member, I want each marketplace tab (Global / MBA / Displate) to keep its own product config per design, so MBA config doesn't leak into Displate.
+31. As a Desktop Upload App user (PROJ-13), I want per-design product config read from the backend, so the app knows which MBA variant matrix (product_types × fit_types × colors × marketplaces) to publish per design.
+
+### Listing Templates + MBA Defaults (added 2026-04-19)
+32. As a member, I want to save a Listing as a "Listing Template" (without a linked design), so I can reuse its text (brand, title, bullets, description, keywords) as the source for future convert operations.
+33. As a member, I want to list and delete my saved Listing Templates, so I can manage them over time.
+34. As a member, I want to designate one `UploadTemplate` per marketplace as the Default, so my configured colors / fit types / prices / product types are auto-applied when I convert a Listing from Global to MBA and the target design has no product config yet.
+35. As a member, I want my designated Default UploadTemplate to NOT overwrite a target's existing product config on Convert, so auto-fill never clobbers manual setup.
+
 ## Acceptance Criteria
 
 ### Models
 
-- [ ] AC-1: `Listing` model (updated): UUID pk, `idea` FK, `design` FK (nullable), `round` (PositiveIntegerField, default=1 — matches Niche.current_round), `brand_name` (max 50), `title` (max 60), `bullet_1..5` (max 256 each), `description` (max 2000), `backend_keywords` (max 500), `status` choices [draft, ready, published], `generated_by` choices [ai, manual], `availability` choices [public, private] default=public, `publish_mode` choices [live, draft] default=live, `language` (CharField, default='en'), `translations` (JSONField — {lang: {title, bullets, description}}), `created_at`, `updated_at`.
+- [ ] AC-1: `Listing` model (updated 2026-04-18): UUID pk, `idea` FK, `design` FK (nullable), `marketplace_type` choices [global, mba, displate] default=mba (added 2026-04-18 — enables independent listing variants per design per marketplace), `round` (PositiveIntegerField, default=1 — matches Niche.current_round), `brand_name` (max 50), `title` (max 60), `bullet_1..5` (max 256 each), `description` (max 2000), `backend_keywords` (max 500), `status` choices [draft, ready, published], `generated_by` choices [ai, manual], `availability` choices [public, private] default=public, `publish_mode` choices [live, draft] default=live, `language` (CharField, default='en'), `translations` (JSONField — {lang: {title, bullets, description}}), `created_at`, `updated_at`. **Unique constraint**: `(design, marketplace_type)` — one listing record per design per marketplace_type.
 
 - [ ] AC-2: `UploadTemplate` model: UUID pk, `workspace` FK, `name` (CharField 100), `brand_name` (CharField 50), `product_types` (JSONField — list of product type keys), `fit_types` (JSONField — list), `colors` (JSONField — list of MBA color codes), `marketplaces` (JSONField — list of {marketplace, price, enabled}), `print_side` choices [front, back, both] default=front, `created_by` FK, `created_at`, `updated_at`.
 
@@ -276,6 +297,47 @@ Opens when user clicks "Edit Designs" with selected designs. Single scrollable p
 - [ ] AC-35: Upload status visible inline: pending → uploading → completed (ASIN shown) / failed (error + screenshot).
 - [ ] AC-36: Design Gallery as card grid with import, sort, filter, bulk actions.
 
+### MBA Reference Data API
+
+- [ ] AC-37: `GET /api/mba/colors/` — returns canonical MBA garment color palette (added 2026-04-18). Response: array of `{ key, name, hex }` objects. No pagination, no workspace scope (global read-only list). Used by Edit Page ColorGrid component. Central source so frontend does not hardcode Amazon's color palette.
+
+### Per-Design Product Config Persistence (added 2026-04-18)
+
+> Motivation: D7 Copy-from-Design requires per-design product config. Today Colors / Fit Types / Print Side / Product Types / Marketplace Pricing live only in React state — reload wipes them. Also: Desktop Upload App (PROJ-13) needs per-design config to know which MBA variants to publish. Promoted to persistent backend model.
+
+- [ ] AC-38: `DesignProductConfig` model: UUID pk, `design` FK (DesignAsset, on_delete=CASCADE), `marketplace_type` choices [global, mba, displate] default=mba (same enum as Listing), `product_types` (JSONField default=list — list of product type keys like `t_shirt`, `hoodie`, `tank_top`), `fit_types` (JSONField default=list — e.g. `men`, `women`, `youth`), `print_side` choices [front, back, both] default=front, `colors` (JSONField default=list — list of MBA color keys matching AC-37 palette), `marketplaces` (JSONField default=list — list of `{marketplace, price, enabled}` entries, one per Amazon marketplace like `amazon.com`, `amazon.de`), `created_at`, `updated_at`. **Unique constraint**: `(design, marketplace_type)` — one config row per design per marketplace.
+- [ ] AC-39: `GET /api/designs/{design_id}/product-config/?marketplace_type=mba` — returns the config row for that `(design, marketplace_type)` pair. Default `marketplace_type=mba` if omitted. Returns 404 when no config exists (frontend falls back to empty defaults). Workspace isolation via `design.workspace`.
+- [ ] AC-40: `PATCH /api/designs/{design_id}/product-config/` — upserts (create if missing, update if exists). Body: `{marketplace_type, product_types?, fit_types?, print_side?, colors?, marketplaces?}`. `marketplace_type` required; other fields optional (partial update). Returns 200 with full updated record. Validates `marketplace_type` against enum, `colors[]` against MBA palette keys (AC-37), `marketplaces[*].price` as decimal > 0.
+- [ ] AC-41: `POST /api/designs/{design_id}/product-config/copy-from/` — copies config from a source design to this design. Body: `{source_design_id, marketplace_type, scope}` where `scope` ∈ `['all', 'colors', 'fit_types', 'print_side', 'product_types', 'marketplaces']`. `scope=all` copies every field; scalar scopes copy just that field. Upserts target config row. Returns 200 with full updated target record. Returns 404 if source has no config for `marketplace_type`. Both designs must belong to caller's workspace.
+- [ ] AC-42: Listing endpoints unchanged — `DesignProductConfig` is a sibling record, not a field on Listing. Generate/Save flows for `Listing` ignore product config.
+- [ ] AC-43: Frontend `useEditView` — `productConfig` sourced via RTK Query keyed on `(activeDesign.id, activeMarketplace)`. Setters trigger debounced `PATCH` (auto-save, same 1200ms pattern as listing). Switching active design or marketplace loads the matching row. Copy-from-Design dialog calls the copy-from endpoint instead of client-side state copy.
+- [ ] AC-44: Desktop Upload App (PROJ-13) reads `DesignProductConfig` via a listing's linked design to determine which MBA variant combinations to upload (product_types × fit_types × colors × marketplaces). Backend serializer exposes config when the App fetches an upload job's snapshot.
+
+### Listing Templates (added 2026-04-19)
+
+> Motivation: Users should be able to save standalone Listings (text only, no linked design) as reusable templates. Convert endpoint accepts them as source so a saved template can seed a brand-new target Listing.
+
+- [ ] AC-45: `Listing` model adds `is_template` BooleanField (default=False). Migration backfills existing rows to False.
+- [ ] AC-46: Model validation (`clean()` + serializer): when `is_template=True`, `design` must be NULL — raises ValidationError on save/POST if violated. When `is_template=False`, `design` remains optional (existing behavior).
+- [ ] AC-47: `GET /api/listings/templates/` — paginated list of `is_template=True` Listings in the caller's workspace (via `idea.niche.workspace` or however workspace is reachable from Listing). Supports `?marketplace_type=` filter. Ordered by `-created_at`.
+- [ ] AC-48: `POST /api/listings/templates/` — creates a Listing with `is_template=True, design=NULL`. Body accepts: `brand_name, title, bullet_1..5, description, backend_keywords, language, marketplace_type, idea` (idea FK required; a template is still linked to an Idea for context). Returns 201.
+- [ ] AC-49: `DELETE /api/listings/<id>/` — existing endpoint; must not 403 when the listing is a template. Workspace isolation still enforced.
+- [ ] AC-50: `POST /api/listings/convert/` — unchanged contract, but `source_listing_id` may now refer to a template (`is_template=True, design=NULL`). Existing null-design behavior (always create new target) remains — the target Listing inherits the source's `design=NULL` unless a design FK is provided (future extension). Target Listing has `is_template=False` by default (converting a template materializes a non-template listing).
+- [ ] AC-51: Regular listing list endpoints (`GET /api/ideas/<id>/listing/`) exclude templates from their default queryset so UI surfaces for active designs do not show templates.
+
+### Default UploadTemplate + Convert Auto-Apply (added 2026-04-19)
+
+> Motivation: When converting Global → MBA, the target design often has no `DesignProductConfig` yet. A workspace Default UploadTemplate (per marketplace) auto-fills colors / fit_types / print_side / product_types / marketplaces so the user does not redo per-design setup.
+
+- [ ] AC-52: `UploadTemplate` model adds `is_default` BooleanField (default=False) AND `marketplace_type` CharField choices `[global, mba, displate]` default=`mba`. Migration backfills existing rows: `is_default=False`, `marketplace_type='mba'`.
+- [ ] AC-53: DB-level partial unique index — at most one `UploadTemplate` per `(workspace, marketplace_type)` with `is_default=True`. Implement via Django `UniqueConstraint(fields=['workspace', 'marketplace_type'], condition=Q(is_default=True), name='upload_template_single_default')`.
+- [ ] AC-54: `PATCH /api/upload-templates/<id>/` — when body sets `is_default=True`, view wraps the update in an atomic transaction and clears `is_default` on every other `UploadTemplate` in the same `(workspace, marketplace_type)` set before saving the target. Prevents IntegrityError from the partial unique index.
+- [ ] AC-55: `POST /api/upload-templates/` — creation with `is_default=True` applies the same clear-then-set behavior.
+- [ ] AC-56: `GET /api/upload-templates/default/?marketplace_type=mba` — returns the single default template for the caller's workspace + marketplace_type, or 404 if none set. Used by frontend "Default Template" indicator.
+- [ ] AC-57: `POST /api/listings/convert/` — when `target_marketplace_type=mba` (or any supported marketplace) AND the target Listing has a linked design AND no `DesignProductConfig` exists for `(target.design, target_marketplace_type)`, then: (1) look up the workspace's default UploadTemplate matching `target_marketplace_type`; (2) if found, create a `DesignProductConfig` seeded from `default_template.colors / fit_types / print_side / product_types / marketplaces`; (3) if no default, leave product config empty (no row created). Convert response includes a `product_config_seeded: bool` flag indicating whether an auto-apply happened.
+- [ ] AC-58: Auto-apply on Convert is a READ-ONLY operation against `UploadTemplate` — it does not modify the template. The seeded `DesignProductConfig` is an independent row; future edits to the template do NOT propagate back.
+- [ ] AC-59: Convert to a target where `target.design` is NULL (null-design source+target) → skip product config auto-apply (no design to attach config to). Convert still succeeds.
+
 ## API Endpoints
 
 | Method | Path | Auth | Description |
@@ -300,6 +362,12 @@ Opens when user clicks "Edit Designs" with selected designs. Single scrollable p
 | PATCH | `/api/upload-jobs/{id}/` | Agent | Agent reports status |
 | GET/POST/PATCH/DELETE | `/api/upload-templates/` | Member | Template CRUD |
 | GET | `/api/niches/{id}/lifecycle/` | Member | Product lifecycle |
+| GET | `/api/designs/{id}/product-config/` | Member | Get per-design product config (query `marketplace_type`) |
+| PATCH | `/api/designs/{id}/product-config/` | Member | Upsert per-design product config |
+| POST | `/api/designs/{id}/product-config/copy-from/` | Member | Copy config from sibling design |
+| GET | `/api/listings/templates/` | Member | List workspace's Listing Templates |
+| POST | `/api/listings/templates/` | Member | Create a Listing Template (null-design) |
+| GET | `/api/upload-templates/default/` | Member | Get default UploadTemplate for `?marketplace_type=` |
 | WS | `/ws/upload-app/` | App | Desktop Upload App WebSocket |
 
 ## Frontend Design Decisions (2026-04-09 `/frontend-design` Session)
@@ -599,11 +667,13 @@ MUI Icons first. When no fitting MUI icon exists, create custom SVG icons in `fr
 
 **Section Specs:**
 
+> **MBA Tab only** (decided 2026-04-18): The 4 Product Config sections below (Products, Fit Type + Print, Colors, Marketplaces & Prices) render **only when Marketplace Tab = Mba**. Global and Displate tabs show their own (future) field sets. On Global/Displate a placeholder "Configuration for {marketplace} coming soon" is shown instead.
+
 **Products (MBA):** Horizontal scroll, product type cards 72px wide, product SVG icon 40px, `caption` label, count badge (18px pill, `COLORS.cyan` bg). Selected: `alpha(COLORS.cyan, 0.06)` bg, `COLORS.cyan` border. Thin scrollbar 3px.
 
 **Fit Type + Print:** 2-col grid. Checkboxes `secondary.main` (cyan). Radio `primary.main` (coral).
 
-**Colors:** Flex wrap, circles 36px, full border-radius. Selected: `COLORS.cyan` border + glow `alpha(COLORS.cyan, 0.30)` + `scale(1.1)`. Checkmark inside (white on dark colors, ink on light).
+**Colors:** Flex wrap, circles 36px, full border-radius. Selected: `COLORS.cyan` border + glow `alpha(COLORS.cyan, 0.30)` + `scale(1.1)`. Checkmark inside (white on dark colors, ink on light). **Palette source (decided 2026-04-18):** loaded from backend via `GET /api/mba/colors/` (AC-37) — NOT hardcoded in frontend. Amazon's canonical garment color list lives centrally so it can be updated without a frontend deploy.
 
 **Marketplaces & Prices:** 4-col grid (responsive 3→2). Per cell: marketplace label `caption`, checkbox + price input (32px, `COLORS.inkElevated` bg, 96px wide, right-aligned text), royalty display `caption text.disabled`.
 
@@ -644,6 +714,18 @@ MUI Icons first. When no fitting MUI icon exists, create custom SVG icons in `fr
 - [ ] EC-8: Multiple uploads for same design to different marketplaces → separate upload jobs, each gets own ASIN.
 - [ ] EC-9: Round 2 started → new designs/listings show as Round 2, old ones preserved as Round 1.
 - [ ] EC-10: ASIN captured but sales data not yet available → lifecycle shows ASIN + "Awaiting sales data".
+- [ ] EC-11: Design deleted while `DesignProductConfig` rows exist → cascade delete (FK on_delete=CASCADE, no orphans).
+- [ ] EC-12: User switches marketplace tab in Edit view → frontend refetches `DesignProductConfig` for the new `(design, marketplace_type)` pair. Empty/404 → fall back to empty defaults, no error toast.
+- [ ] EC-13: Copy-from source design has no config row for the active marketplace → endpoint returns 404, UI shows warning "Source has no config for {marketplace}". No target row written.
+- [ ] EC-14: Concurrent PATCH from two browser tabs on the same `(design, marketplace_type)` pair → last-write-wins (no optimistic locking for MVP; matches Listing auto-save semantics).
+- [ ] EC-15: Copy-from with `scope='colors'` on a source that has empty `colors=[]` → target's colors set to `[]` (copies the empty value, does not skip). Same rule for all scalar scopes.
+- [ ] EC-16: POST/PATCH `Listing` with `is_template=True` AND non-null `design` → 400 ValidationError "Template listings cannot be linked to a design". Prevents malformed templates.
+- [ ] EC-17: Delete the only default `UploadTemplate` in a `(workspace, marketplace_type)` set → no automatic promotion of a replacement. Next Convert to that marketplace seeds no ProductConfig (unchanged behavior, user must set a new default).
+- [ ] EC-18: Set `is_default=True` on an `UploadTemplate` when another already holds the flag for the same `(workspace, marketplace_type)` → previous default atomically cleared before the new one is saved. User sees exactly one default at all times.
+- [ ] EC-19: Convert to MBA where target design ALREADY has a `DesignProductConfig` → auto-apply skipped (AC-57 guard). Existing config is preserved, no overwrite.
+- [ ] EC-20: Convert to MBA where workspace has NO default `UploadTemplate` set for MBA → Convert succeeds but `product_config_seeded=False`. Frontend can surface a hint ("Set an MBA default to auto-fill config").
+- [ ] EC-21: Template Listing (is_template=True) cannot be edited to become a non-template (is_template flip to False would require design assignment; easier to disallow the flip). PATCH rejects `is_template` transitions with 400.
+- [ ] EC-22: `GET /api/ideas/<id>/listing/` returning template Listings would break Edit page — queryset must filter `is_template=False`. Covered by AC-51 but listed here for test coverage.
 
 ## Dependencies
 
@@ -895,3 +977,145 @@ store/
 | `gapi-script` or direct `<script>` | Google Drive API (if not already loaded) |
 
 > Check if PROJ-9 Design Editor already has these installed before adding.
+
+---
+
+## Tech Design Addendum — Per-Design Product Config (added 2026-04-18)
+
+> Scope: AC-38 to AC-44, EC-11 to EC-15, US 28–31. Persistence for Colors / Fit Types / Print Side / Product Types / Marketplace Pricing. Blocks D7 Copy-from-Design for non-listing scopes and PROJ-13 upload matrix.
+
+### A) Component Structure (Backend-Centric — No New UI)
+
+No new screens. Existing Edit view sections (`ProductTypeScroller`, `FitTypePrintSection`, `ColorGrid`, `MarketplacePricing`, `CopyFromDesignDialog`) now read/write backend state instead of local state.
+
+```
+useEditView (refactor)
++-- productConfig  ← RTK Query keyed on (activeDesignId, activeMarketplace)
++-- setters        ← debounced auto-save PATCH (1200ms, same as listing)
++-- applyCopy      ← POST /product-config/copy-from/ instead of local state copy
+```
+
+### B) Data Model (plain language)
+
+New model `DesignProductConfig` lives in `publish_app`. Sibling of `Listing` — both hang off a `DesignAsset`, keyed by `(design, marketplace_type)`.
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | UUID pk | |
+| `design` | FK → DesignAsset | `on_delete=CASCADE` (EC-11) |
+| `marketplace_type` | Choices `[global, mba, displate]` | default `mba`, same enum as Listing |
+| `product_types` | JSONField list | e.g. `['t_shirt', 'hoodie']` |
+| `fit_types` | JSONField list | e.g. `['men', 'women']` |
+| `print_side` | Choices `[front, back, both]` | default `front` |
+| `colors` | JSONField list | MBA color keys (validated against AC-37 palette) |
+| `marketplaces` | JSONField list | `[{marketplace, price, enabled}, ...]` |
+| `created_at`, `updated_at` | DateTime | |
+
+**Unique constraint:** `(design, marketplace_type)` — one row per pair. Upsert on PATCH.
+
+### C) API Endpoints
+
+| Method | Path | Behavior |
+|--------|------|----------|
+| GET | `/api/designs/{id}/product-config/?marketplace_type=mba` | Returns single config row. 404 when missing (frontend falls back to defaults). |
+| PATCH | `/api/designs/{id}/product-config/` | Upsert. `marketplace_type` required in body. Partial update for all other fields. |
+| POST | `/api/designs/{id}/product-config/copy-from/` | Copies from source design. Body: `{source_design_id, marketplace_type, scope}`. `scope` ∈ `[all, colors, fit_types, print_side, product_types, marketplaces]`. Returns target row. 404 when source has no matching config. |
+
+### D) Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| Separate model from `Listing` | Different lifecycle: product config is configured once per design; listing text is regenerated/edited. Keeps Listing serializer stable (AC-42). |
+| `(design, marketplace_type)` unique constraint | Mirrors Listing's constraint (F1). Same mental model: one row per marketplace variant. |
+| Upsert on PATCH (no explicit POST) | Simpler frontend auto-save path — one mutation regardless of row existence. |
+| Server-side copy endpoint (not client-side fetch+patch) | Atomic — source + target served in one transaction. Avoids race with other auto-saves. Mirrors future F3 Listing convert semantics. |
+| `colors[]` validated against MBA palette (AC-37) | Prevents drift between frontend MBA_COLORS and stored data. Rejects unknown color keys with 400. |
+| Last-write-wins on concurrent PATCH (EC-14) | Matches Listing auto-save behavior. Optimistic locking postponed until multi-tab editing is proven painful. |
+| RTK Query cache key `(designId, marketplace_type)` | Tab switch + design switch both trigger fresh query. Matches D7 Listing cache pattern. |
+
+### E) Infrastructure Changes
+
+| Change | Where |
+|--------|-------|
+| Migration for `DesignProductConfig` model | `publish_app/migrations/` |
+| URL registration | `publish_app/api/urls.py` (nested under `designs/{id}/product-config/`) |
+| RTK Query endpoints | `frontend-ui/src/store/publishSlice.ts` (3 new endpoints + `ProductConfig` tag) |
+| PROJ-13 contract note | Upload job snapshot now includes product config JSON — flagged in PROJ-13 spec when it lands |
+
+### F) New Packages
+None.
+
+---
+
+## Tech Design Addendum — Listing Templates + MBA Defaults (added 2026-04-19)
+
+> Scope: AC-45 to AC-59, EC-16 to EC-22, US 32–35. Extends existing `Listing` + `UploadTemplate` models with flags. No new models.
+
+### A) Component Structure (Backend Only — No New UI for MVP)
+
+No new screens. Extends existing `publish_app` endpoints. Frontend UI for Template management is deferred — API shipping first so Convert auto-apply works end-to-end via the Edit page.
+
+```
+publish_app/
++-- models.py
+|   +-- Listing           ← add is_template flag
+|   +-- UploadTemplate    ← add is_default + marketplace_type
++-- api/
+    +-- serializers.py    ← template validation + default-clearing logic
+    +-- views.py          ← 3 new views + Convert auto-apply integration
+    +-- urls.py           ← 3 new routes
+```
+
+### B) Data Model (plain language)
+
+**Listing — new field:**
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `is_template` | BooleanField | default=False; when True, `design` must be NULL (model.clean) |
+
+**UploadTemplate — new fields:**
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `is_default` | BooleanField | default=False; at most one True per `(workspace, marketplace_type)` |
+| `marketplace_type` | CharField choices `[global, mba, displate]` | default `mba`; mirrors Listing/DesignProductConfig enum |
+
+**Partial unique constraint:** `UniqueConstraint(fields=['workspace', 'marketplace_type'], condition=Q(is_default=True))` — prevents two defaults for the same marketplace via DB-level guard.
+
+### C) API Endpoints
+
+| Method | Path | Behavior |
+|--------|------|----------|
+| GET | `/api/listings/templates/` | Paginated list of `is_template=True` Listings in workspace. Filter: `?marketplace_type=`. |
+| POST | `/api/listings/templates/` | Create Listing with `is_template=True, design=NULL`. Validates design stays null. |
+| GET | `/api/upload-templates/default/?marketplace_type=mba` | Returns workspace's single default UploadTemplate for that marketplace, or 404. |
+| PATCH | `/api/upload-templates/<id>/` | Existing endpoint — extended: setting `is_default=True` atomically clears the flag on siblings with same `(workspace, marketplace_type)`. |
+| POST | `/api/upload-templates/` | Existing endpoint — same clear-then-set behavior when `is_default=True`. |
+| POST | `/api/listings/convert/` | Existing endpoint — extended: on convert with non-null target.design + no existing ProductConfig, auto-seeds from workspace default UploadTemplate (if any). Response includes `product_config_seeded: bool`. |
+
+### D) Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| `is_template` flag on Listing (not separate model) | Template Listings share 100% of fields with regular Listings. A flag is cheapest; no serializer duplication. FK already nullable — minimal migration. |
+| `is_default` on UploadTemplate (not new `MbaDefaults` model) | `UploadTemplate` already stores every field needed (colors, fit_types, colors, marketplaces, print_side, product_types). Adding a flag avoids duplicating the schema. User picks one of their templates — no new concept to learn. |
+| DB-level partial unique constraint | Single source of truth that "only one default per marketplace". Prevents drift even if serializer logic is bypassed (admin, shell). |
+| Atomic clear-then-set on `is_default=True` | Partial unique constraint would raise IntegrityError if we set the new flag before clearing the old. Transaction + clear-then-set keeps the invariant without losing DB-level guarantees. |
+| Auto-apply reads from UploadTemplate, never writes back | Convert seeds a NEW `DesignProductConfig` row from the template's values. Future edits to either side are independent — no surprise propagation. |
+| `product_config_seeded: bool` in Convert response | Lets frontend surface a hint when no default is set ("Set an MBA default to auto-fill"). No silent behavior difference. |
+| Template queryset filtered from regular listing endpoints | `GET /api/ideas/<id>/listing/` excludes `is_template=True` to keep Edit page UI clean. Templates only appear in dedicated template endpoints. |
+| Disallow `is_template` flip after creation | Flipping True→False would require assigning a design (constraint AC-46). Simpler to make `is_template` write-once at creation time. |
+
+### E) Infrastructure Changes
+
+| Change | Where |
+|--------|-------|
+| Migration: `Listing.is_template` | `publish_app/migrations/` |
+| Migration: `UploadTemplate.is_default` + `UploadTemplate.marketplace_type` + partial unique constraint | `publish_app/migrations/` |
+| URL registration | `publish_app/api/urls.py` — 3 new routes |
+| Convert view extended | `ListingConvertView` in `views.py` calls new seeding helper |
+
+### F) New Packages
+None.
+

@@ -9,6 +9,7 @@ export type GeneratedBy = 'ai' | 'manual';
 export type Availability = 'public' | 'private';
 export type PublishMode = 'live' | 'draft';
 export type PrintSide = 'front' | 'back' | 'both';
+export type MarketplaceType = 'global' | 'mba' | 'displate';
 export type DesignSource = 'upload' | 'google_drive' | 'onedrive' | 'generated';
 export type UploadJobStatus =
   | 'pending'
@@ -38,6 +39,7 @@ export interface Listing {
   idea: string;
   idea_text?: string;
   design: string | null;
+  marketplace_type: MarketplaceType;
   round: number;
   brand_name: string;
   title: string;
@@ -196,6 +198,12 @@ export interface GenerateListingBody {
   design_id?: string;
   extra_keywords?: string;
   language?: ListingLanguage;
+  marketplace_type?: MarketplaceType;
+}
+
+export interface GetListingParams {
+  ideaId: string;
+  marketplace_type?: MarketplaceType;
 }
 
 export interface TranslateListingBody {
@@ -351,3 +359,11 @@ export const MBA_FIT_TYPES = [
   'Girls',
   'Adult Unisex',
 ] as const;
+
+// ---- MBA Colors (from backend) -------------------------------------------
+
+export interface MbaColor {
+  key: string;
+  name: string;
+  hex: string;
+}

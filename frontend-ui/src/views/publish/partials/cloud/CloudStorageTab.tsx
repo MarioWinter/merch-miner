@@ -11,12 +11,16 @@ import type { CloudProvider } from './ProviderSwitcher';
 import CloudConnectionState from './CloudConnectionState';
 import CloudFileCard from '../grid/CloudFileCard';
 import TransferProgress from './TransferProgress';
+import CloudFolderBreadcrumbs from './CloudFolderBreadcrumbs';
+import type { CloudPathSegment } from './CloudFolderBreadcrumbs';
 
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
 interface CloudStorageTabProps {
+  activeProvider: CloudProvider;
+  onProviderChange: (p: CloudProvider) => void;
   onManageConnections: () => void;
 }
 
@@ -45,34 +49,45 @@ const FolderItem = styled(Box)(({ theme }) => ({
   },
 }));
 
+const BreadcrumbBar = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(1, 0),
+  marginBottom: theme.spacing(2),
+}));
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
 
-const CloudStorageTab = ({ onManageConnections }: CloudStorageTabProps) => {
+const CloudStorageTab = ({
+  activeProvider,
+  onProviderChange,
+  onManageConnections,
+}: CloudStorageTabProps) => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
 
   const gdrive = useGoogleDrive();
   const onedrive = useOneDrive();
 
-  const [activeProvider, setActiveProvider] = useState<CloudProvider>('google_drive');
   const [files, setFiles] = useState<CloudFile[]>([]);
   const [folders, setFolders] = useState<CloudFolder[]>([]);
+  const [, setFolderId] = useState<string | null>(null);
+  const [folderPath, setFolderPath] = useState<CloudPathSegment[]>([
+    { id: null, name: t('publish.cloud.root', { defaultValue: 'Root' }) },
+  ]);
   const [isLoadingFiles, setIsLoadingFiles] = useState(false);
   const [transferStates, setTransferStates] = useState<
     Record<string, 'idle' | 'transferring' | 'done'>
   >({});
 
   const [importDrive] = useImportDriveMutation();
-  const loadedFolderRef = useRef<string | null>(null);
 
   const provider = activeProvider === 'google_drive' ? gdrive : onedrive;
   const providerName = activeProvider === 'google_drive' ? 'Google Drive' : 'OneDrive';
 
-  // Load folder contents
+  // Load folder contents. If navigateSegment is provided we push/replace the path.
   const loadFolder = useCallback(
-    async (parentId: string | null) => {
+    async (parentId: string | null, navigateSegment?: CloudPathSegment) => {
       setIsLoadingFiles(true);
       try {
         const [folderList, fileList] = await Promise.all([
@@ -81,7 +96,10 @@ const CloudStorageTab = ({ onManageConnections }: CloudStorageTabProps) => {
         ]);
         setFolders(folderList);
         setFiles(fileList);
-        loadedFolderRef.current = parentId;
+        setFolderId(parentId);
+        if (navigateSegment) {
+          setFolderPath((prev) => [...prev, navigateSegment]);
+        }
       } catch {
         enqueueSnackbar(
           t('publish.cloud.loadError', { defaultValue: 'Failed to load folder' }),
@@ -94,7 +112,7 @@ const CloudStorageTab = ({ onManageConnections }: CloudStorageTabProps) => {
     [provider, enqueueSnackbar, t],
   );
 
-  // Auto-load root when connected
+  // Auto-load root when connected / when provider changes
   const lastConnectedProvider = useRef<string | null>(null);
   if (
     provider.isConnected &&
@@ -104,12 +122,23 @@ const CloudStorageTab = ({ onManageConnections }: CloudStorageTabProps) => {
     loadFolder(null);
   }
 
-  // Navigate into subfolder
+  // Navigate into subfolder — push to path
   const handleFolderClick = useCallback(
     (folder: CloudFolder) => {
-      loadFolder(folder.id);
+      loadFolder(folder.id, { id: folder.id, name: folder.name });
     },
     [loadFolder],
+  );
+
+  // Breadcrumb click — jump back to folder at index, truncate path
+  const handleBreadcrumbClick = useCallback(
+    (index: number) => {
+      const target = folderPath[index];
+      if (!target) return;
+      setFolderPath((prev) => prev.slice(0, index + 1));
+      loadFolder(target.id);
+    },
+    [folderPath, loadFolder],
   );
 
   // Import single file
@@ -152,14 +181,20 @@ const CloudStorageTab = ({ onManageConnections }: CloudStorageTabProps) => {
     }
   }, [files, enqueueSnackbar, t]);
 
-  // Provider switch
-  const handleProviderChange = useCallback((p: CloudProvider) => {
-    setActiveProvider(p);
-    setFiles([]);
-    setFolders([]);
-    setFolderId(null);
-    lastConnectedProvider.current = null;
-  }, []);
+  // Provider switch — reset both state and path
+  const handleProviderChange = useCallback(
+    (p: CloudProvider) => {
+      onProviderChange(p);
+      setFiles([]);
+      setFolders([]);
+      setFolderId(null);
+      setFolderPath([
+        { id: null, name: t('publish.cloud.root', { defaultValue: 'Root' }) },
+      ]);
+      lastConnectedProvider.current = null;
+    },
+    [onProviderChange, t],
+  );
 
   // Format file size
   const formatSize = useCallback((bytes: number) => {
@@ -188,6 +223,16 @@ const CloudStorageTab = ({ onManageConnections }: CloudStorageTabProps) => {
           onManageConnections={onManageConnections}
         />
       </Box>
+
+      {/* Breadcrumb — only when connected and path is populated */}
+      {provider.isConnected && folderPath.length > 0 && (
+        <BreadcrumbBar>
+          <CloudFolderBreadcrumbs
+            path={folderPath}
+            onNavigate={handleBreadcrumbClick}
+          />
+        </BreadcrumbBar>
+      )}
 
       {/* Connection states */}
       {connectionStatus ? (

@@ -2,14 +2,18 @@
 
 from rest_framework import serializers
 
+from publish_app.constants import MBA_COLORS
 from publish_app.models import (
     DesignAsset,
     DesignCollection,
+    DesignProductConfig,
     Listing,
     ProductLifecycle,
     UploadJob,
     UploadTemplate,
 )
+
+MBA_COLOR_KEYS = {entry['key'] for entry in MBA_COLORS}
 
 
 # ---------------------------------------------------------------------------
@@ -26,7 +30,8 @@ class ListingSerializer(serializers.ModelSerializer):
         model = Listing
         fields = [
             'id', 'workspace', 'idea', 'idea_slogan', 'design',
-            'design_file_name', 'round', 'brand_name', 'title',
+            'design_file_name', 'marketplace_type', 'round',
+            'brand_name', 'title',
             'bullet_1', 'bullet_2', 'bullet_3', 'bullet_4', 'bullet_5',
             'description', 'backend_keywords', 'status', 'generated_by',
             'availability', 'publish_mode', 'language', 'translations',
@@ -55,10 +60,21 @@ class ListingGenerateSerializer(serializers.Serializer):
         required=False, default='', allow_blank=True,
     )
     language = serializers.CharField(required=False, default='en')
+    marketplace_type = serializers.ChoiceField(
+        choices=Listing.MarketplaceType.choices,
+        required=False,
+        default=Listing.MarketplaceType.MBA,
+    )
 
 
 class ListingUpdateSerializer(serializers.ModelSerializer):
-    """Partial update for listings. Status reverts to draft on edit."""
+    """Partial update for listings. Status reverts to draft on edit.
+
+    Note: DRF auto-generates a UniqueTogetherValidator from the model's
+    UniqueConstraint on (design, marketplace_type). We strip it here so that
+    conflicts bubble up to the view as DB-level IntegrityError and can be
+    mapped to HTTP 409 (see ListingUpdateView.patch).
+    """
 
     class Meta:
         model = Listing
@@ -66,8 +82,10 @@ class ListingUpdateSerializer(serializers.ModelSerializer):
             'brand_name', 'title', 'bullet_1', 'bullet_2', 'bullet_3',
             'bullet_4', 'bullet_5', 'description', 'backend_keywords',
             'status', 'availability', 'publish_mode', 'design',
+            'marketplace_type',
         ]
         extra_kwargs = {field: {'required': False} for field in fields}
+        validators = []  # disable auto unique-together validator -> 409 at DB
 
 
 class ListingTranslateSerializer(serializers.Serializer):
@@ -268,16 +286,23 @@ class MoveAssetsSerializer(serializers.Serializer):
 # ---------------------------------------------------------------------------
 
 class UploadJobSerializer(serializers.ModelSerializer):
-    """Full upload job representation."""
+    """Full upload job representation.
+
+    AC-44: includes the ``DesignProductConfig`` for the job's design at the
+    job's marketplace type so the Desktop Upload App can determine the
+    MBA variant matrix (product_types x fit_types x colors x marketplaces).
+    """
 
     listing_title = serializers.SerializerMethodField()
     design_file_name = serializers.SerializerMethodField()
+    product_config = serializers.SerializerMethodField()
 
     class Meta:
         model = UploadJob
         fields = [
             'id', 'workspace', 'listing', 'listing_title', 'design',
-            'design_file_name', 'template', 'listing_snapshot', 'marketplace',
+            'design_file_name', 'template', 'listing_snapshot',
+            'product_config', 'marketplace',
             'status', 'asin', 'upload_date', 'error_message',
             'error_screenshot', 'retry_count', 'queued_at', 'started_at',
             'completed_at', 'created_by',
@@ -296,6 +321,22 @@ class UploadJobSerializer(serializers.ModelSerializer):
         if obj.design:
             return obj.design.file_name
         return None
+
+    def get_product_config(self, obj):
+        if not obj.design_id:
+            return None
+        marketplace_type = (
+            obj.listing.marketplace_type if obj.listing
+            else DesignProductConfig.MarketplaceType.MBA
+        )
+        config = (
+            DesignProductConfig.objects
+            .filter(design_id=obj.design_id, marketplace_type=marketplace_type)
+            .first()
+        )
+        if not config:
+            return None
+        return DesignProductConfigSerializer(config).data
 
 
 class UploadJobCreateSerializer(serializers.Serializer):
@@ -421,3 +462,163 @@ class LifecycleSalesUpdateSerializer(serializers.Serializer):
     reviews_rating = serializers.DecimalField(
         max_digits=3, decimal_places=2, required=False, allow_null=True,
     )
+
+
+# ---------------------------------------------------------------------------
+# Design Product Config (PROJ-11 F4)
+# ---------------------------------------------------------------------------
+
+COPY_SCOPE_CHOICES = [
+    'all', 'colors', 'fit_types', 'print_side', 'product_types', 'marketplaces',
+]
+
+# Fields eligible for copy-from scopes (excluding `all`).
+COPY_SCOPE_FIELDS = {
+    'colors', 'fit_types', 'print_side', 'product_types', 'marketplaces',
+}
+
+
+def _validate_marketplaces(value):
+    """Validate marketplaces[] JSON shape.
+
+    Each entry must be `{marketplace: str, price: Decimal > 0, enabled: bool}`.
+    Other keys are allowed (forward compat) but ignored for validation.
+    """
+    if not isinstance(value, list):
+        raise serializers.ValidationError('marketplaces must be a list.')
+
+    for i, entry in enumerate(value):
+        if not isinstance(entry, dict):
+            raise serializers.ValidationError(
+                f'marketplaces[{i}] must be an object.',
+            )
+
+        marketplace = entry.get('marketplace')
+        if not isinstance(marketplace, str) or not marketplace.strip():
+            raise serializers.ValidationError(
+                f'marketplaces[{i}].marketplace must be a non-empty string.',
+            )
+
+        price = entry.get('price')
+        if price is None:
+            raise serializers.ValidationError(
+                f'marketplaces[{i}].price is required.',
+            )
+        try:
+            price_val = float(price)
+        except (TypeError, ValueError):
+            raise serializers.ValidationError(
+                f'marketplaces[{i}].price must be a number.',
+            )
+        if price_val <= 0:
+            raise serializers.ValidationError(
+                f'marketplaces[{i}].price must be > 0.',
+            )
+
+        enabled = entry.get('enabled')
+        if not isinstance(enabled, bool):
+            raise serializers.ValidationError(
+                f'marketplaces[{i}].enabled must be a boolean.',
+            )
+    return value
+
+
+def _validate_colors_for_mba(colors, marketplace_type):
+    """Reject unknown color keys when marketplace_type=mba.
+
+    AC-40: colors[] is validated against the AC-37 MBA palette.
+    """
+    if marketplace_type != DesignProductConfig.MarketplaceType.MBA:
+        return colors
+    if not isinstance(colors, list):
+        raise serializers.ValidationError('colors must be a list.')
+    unknown = [c for c in colors if c not in MBA_COLOR_KEYS]
+    if unknown:
+        raise serializers.ValidationError(
+            f'Unknown MBA color keys: {sorted(set(unknown))}',
+        )
+    return colors
+
+
+class DesignProductConfigSerializer(serializers.ModelSerializer):
+    """Full representation of a DesignProductConfig row."""
+
+    class Meta:
+        model = DesignProductConfig
+        fields = [
+            'id', 'design', 'marketplace_type',
+            'product_types', 'fit_types', 'print_side',
+            'colors', 'marketplaces',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = [
+            'id', 'design', 'created_at', 'updated_at',
+        ]
+
+
+class DesignProductConfigUpsertSerializer(serializers.Serializer):
+    """Input for PATCH upsert. `marketplace_type` required; rest optional."""
+
+    marketplace_type = serializers.ChoiceField(
+        choices=DesignProductConfig.MarketplaceType.choices,
+    )
+    product_types = serializers.ListField(
+        child=serializers.CharField(max_length=50),
+        required=False,
+    )
+    fit_types = serializers.ListField(
+        child=serializers.CharField(max_length=50),
+        required=False,
+    )
+    print_side = serializers.ChoiceField(
+        choices=DesignProductConfig.PrintSide.choices,
+        required=False,
+    )
+    colors = serializers.ListField(
+        child=serializers.CharField(max_length=50),
+        required=False,
+    )
+    marketplaces = serializers.ListField(
+        child=serializers.DictField(),
+        required=False,
+    )
+
+    def validate_marketplaces(self, value):
+        return _validate_marketplaces(value)
+
+    def validate(self, attrs):
+        if 'colors' in attrs:
+            _validate_colors_for_mba(
+                attrs['colors'], attrs.get('marketplace_type'),
+            )
+        return attrs
+
+
+class DesignProductConfigCopyFromSerializer(serializers.Serializer):
+    """Input for copy-from: `{source_design_id, marketplace_type, scope}`."""
+
+    source_design_id = serializers.UUIDField()
+    marketplace_type = serializers.ChoiceField(
+        choices=DesignProductConfig.MarketplaceType.choices,
+    )
+    scope = serializers.ChoiceField(choices=COPY_SCOPE_CHOICES)
+
+
+# ---------------------------------------------------------------------------
+# Listing Conversion (PROJ-11 F3)
+# ---------------------------------------------------------------------------
+
+class ListingConvertSerializer(serializers.Serializer):
+    """Input for marketplace conversion.
+
+    ``source_listing_id``: UUID of the source Listing (any marketplace_type).
+    ``target_marketplace_type``: destination marketplace variant.
+    ``overwrite``: if True, updates an existing target Listing in-place;
+    if False, 409 when a target already exists.
+    """
+
+    source_listing_id = serializers.UUIDField()
+    target_marketplace_type = serializers.ChoiceField(
+        choices=Listing.MarketplaceType.choices,
+    )
+    overwrite = serializers.BooleanField(required=False, default=False)

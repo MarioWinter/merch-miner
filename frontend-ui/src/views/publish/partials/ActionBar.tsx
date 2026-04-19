@@ -1,17 +1,17 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Box,
-  Button,
+  Grow,
   IconButton,
   Menu,
   MenuItem,
   ListItemIcon,
   ListItemText,
+  Slide,
   Tooltip,
-  Typography,
   useMediaQuery,
 } from '@mui/material';
-import { alpha, styled, useTheme } from '@mui/material/styles';
+import { alpha, useTheme } from '@mui/material/styles';
 import EditOutlinedIcon from '@mui/icons-material/EditOutlined';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import RadioButtonUncheckedIcon from '@mui/icons-material/RadioButtonUnchecked';
@@ -27,6 +27,13 @@ import StraightenOutlinedIcon from '@mui/icons-material/StraightenOutlined';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import { useTranslation } from 'react-i18next';
 import { COLORS, DURATION, EASING } from '@/style/constants';
+import {
+  Dock,
+  ActionButton,
+  CounterText,
+  Separator,
+  STAGGER_STEP_MS,
+} from './ActionBar.styles';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -48,59 +55,28 @@ interface ActionBarProps {
 }
 
 // ---------------------------------------------------------------------------
-// Styled
+// Stagger helper — wraps a slot in Grow with a per-index entry delay.
+// Exit runs without delay so everything rides the outer Slide uniformly.
 // ---------------------------------------------------------------------------
 
-const Dock = styled(Box)(({ theme }) => ({
-  position: 'fixed',
-  bottom: theme.spacing(3),
-  left: '50%',
-  transform: 'translateX(-50%)',
-  backgroundColor: alpha(COLORS.inkPaper, 0.9),
-  backdropFilter: 'blur(20px)',
-  border: `1px solid ${alpha('#fff', 0.12)}`,
-  borderRadius: Number(theme.shape.borderRadius) * 1.5,
-  boxShadow: `0 8px 32px ${alpha(COLORS.ink, 0.5)}`,
-  padding: theme.spacing(1, 2),
-  display: 'flex',
-  alignItems: 'center',
-  gap: theme.spacing(1),
-  minWidth: theme.spacing(50),
-  maxWidth: theme.spacing(87.5),
-  zIndex: theme.zIndex.speedDial,
-  [theme.breakpoints.down('sm')]: {
-    minWidth: 'auto',
-    padding: theme.spacing(1),
-    gap: theme.spacing(0.5),
-  },
-}));
+interface StaggerSlotProps {
+  in: boolean;
+  index: number;
+  children: React.ReactElement;
+}
 
-const ActionButton = styled(Button)(({ theme }) => ({
-  height: theme.spacing(4),
-  fontSize: theme.typography.caption.fontSize,
-  fontWeight: 500,
-  color: theme.vars.palette.text.secondary,
-  borderRadius: Number(theme.shape.borderRadius) * 0.75,
-  transition: `all ${DURATION.fast}ms ${EASING.standard}`,
-  '& .MuiButton-startIcon': { '& > *': { fontSize: 16 } },
-  '&:hover': {
-    backgroundColor: alpha('#fff', 0.08),
-    color: theme.vars.palette.text.primary,
-  },
-}));
-
-const CounterText = styled(Typography)({
-  fontWeight: 600,
-  color: COLORS.cyan,
-  transition: `transform ${DURATION.fast}ms ${EASING.standard}`,
-});
-
-const Separator = styled(Box)(({ theme }) => ({
-  width: 1,
-  height: theme.spacing(3),
-  backgroundColor: alpha('#fff', 0.08),
-  flexShrink: 0,
-}));
+const StaggerSlot = ({ in: inProp, index, children }: StaggerSlotProps) => (
+  <Grow
+    in={inProp}
+    timeout={{ enter: DURATION.default, exit: DURATION.fast }}
+    style={{
+      transitionDelay: inProp ? `${index * STAGGER_STEP_MS}ms` : '0ms',
+      transformOrigin: 'bottom center',
+    }}
+  >
+    {children}
+  </Grow>
+);
 
 // ---------------------------------------------------------------------------
 // Component
@@ -127,6 +103,8 @@ const ActionBar = ({
   const [counterPop, setCounterPop] = useState(false);
   const prevCount = useRef(selectionCount);
 
+  const open = selectionCount > 0;
+
   // Counter pop animation — setTimeout avoids synchronous setState in effect
   useEffect(() => {
     if (selectionCount === prevCount.current || selectionCount === 0) {
@@ -147,194 +125,222 @@ const ActionBar = ({
     setMenuAnchor(null);
   }, []);
 
-  if (selectionCount === 0) return null;
+  let slotIdx = 0;
+  const nextIdx = () => slotIdx++;
 
   return (
-    <Dock
-      role="toolbar"
-      aria-label={t('publish.actionBar.label', { defaultValue: 'Selection actions' })}
+    <Slide
+      direction="up"
+      in={open}
+      mountOnEnter
+      unmountOnExit
+      timeout={{ enter: DURATION.slow, exit: DURATION.default }}
+      easing={{ enter: EASING.enter, exit: EASING.exit }}
     >
-      {/* Counter */}
-      <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, pr: 1 }}>
-        <CounterText
-          variant="subtitle2"
-          sx={{ transform: counterPop ? 'scale(1.15)' : 'scale(1)' }}
-        >
-          {selectionCount}
-        </CounterText>
-        <InfoOutlinedIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
-      </Box>
-
-      <Separator />
-
-      {/* Edit */}
-      {isCompact ? (
-        <Tooltip title={t('publish.actionBar.edit', { defaultValue: 'Edit' })}>
-          <IconButton
-            size="small"
-            onClick={onEdit}
-            sx={{ color: COLORS.cyan, '&:hover': { backgroundColor: alpha(COLORS.cyan, 0.12) } }}
-          >
-            <EditOutlinedIcon sx={{ fontSize: 16 }} />
-          </IconButton>
-        </Tooltip>
-      ) : (
-        <ActionButton
-          variant="text"
-          size="small"
-          startIcon={<EditOutlinedIcon />}
-          onClick={onEdit}
-          sx={{ color: COLORS.cyan, '&:hover': { backgroundColor: alpha(COLORS.cyan, 0.12) } }}
-        >
-          {t('publish.actionBar.edit', { defaultValue: 'Edit' })}
-        </ActionButton>
-      )}
-
-      {/* All/None toggle */}
-      {isCompact ? (
-        <Tooltip title={allSelected
-          ? t('publish.actionBar.selectNone', { defaultValue: 'None' })
-          : t('publish.actionBar.selectAll', { defaultValue: 'All' })}
-        >
-          <IconButton size="small" onClick={onToggleAll}>
-            {allSelected
-              ? <RadioButtonUncheckedIcon sx={{ fontSize: 16 }} />
-              : <CheckCircleOutlineIcon sx={{ fontSize: 16 }} />}
-          </IconButton>
-        </Tooltip>
-      ) : (
-        <ActionButton
-          variant="text"
-          size="small"
-          startIcon={allSelected ? <RadioButtonUncheckedIcon /> : <CheckCircleOutlineIcon />}
-          onClick={onToggleAll}
-        >
-          {allSelected
-            ? t('publish.actionBar.selectNone', { defaultValue: 'None' })
-            : t('publish.actionBar.selectAll', { defaultValue: 'All' })}
-        </ActionButton>
-      )}
-
-      {/* History */}
-      {isCompact ? (
-        <Tooltip title={t('publish.actionBar.history', { defaultValue: 'History' })}>
-          <IconButton size="small" onClick={onHistory}>
-            <HistoryOutlinedIcon sx={{ fontSize: 16 }} />
-          </IconButton>
-        </Tooltip>
-      ) : (
-        <ActionButton
-          variant="text"
-          size="small"
-          startIcon={<HistoryOutlinedIcon />}
-          onClick={onHistory}
-        >
-          {t('publish.actionBar.history', { defaultValue: 'History' })}
-        </ActionButton>
-      )}
-
-      {/* Batch upload */}
-      {isCompact ? (
-        <Tooltip title={t('publish.actionBar.batch', { defaultValue: 'Batch' })}>
-          <IconButton
-            size="small"
-            onClick={onBatchUpload}
-            sx={{ color: COLORS.successDk, '&:hover': { backgroundColor: alpha(COLORS.successDk, 0.1) } }}
-          >
-            <CloudUploadOutlinedIcon sx={{ fontSize: 16 }} />
-          </IconButton>
-        </Tooltip>
-      ) : (
-        <ActionButton
-          variant="text"
-          size="small"
-          startIcon={<CloudUploadOutlinedIcon />}
-          onClick={onBatchUpload}
-          sx={{ color: COLORS.successDk, '&:hover': { backgroundColor: alpha(COLORS.successDk, 0.1) } }}
-        >
-          {t('publish.actionBar.batch', { defaultValue: 'Batch' })}
-        </ActionButton>
-      )}
-
-      {/* Options dropdown */}
-      {isCompact ? (
-        <Tooltip title={t('publish.actionBar.options', { defaultValue: 'Options' })}>
-          <IconButton size="small" onClick={handleMenuOpen}>
-            <SettingsOutlinedIcon sx={{ fontSize: 16 }} />
-          </IconButton>
-        </Tooltip>
-      ) : (
-        <ActionButton
-          variant="text"
-          size="small"
-          startIcon={<SettingsOutlinedIcon />}
-          onClick={handleMenuOpen}
-        >
-          {t('publish.actionBar.options', { defaultValue: 'Options' })}
-        </ActionButton>
-      )}
-
-      <Menu
-        anchorEl={menuAnchor}
-        open={Boolean(menuAnchor)}
-        onClose={handleMenuClose}
-        anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
-        transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      <Dock
+        role="toolbar"
+        aria-label={t('publish.actionBar.label', { defaultValue: 'Selection actions' })}
       >
-        {onApplyTemplate && (
-          <MenuItem onClick={() => { onApplyTemplate(); handleMenuClose(); }}>
-            <ListItemIcon><DashboardCustomizeOutlinedIcon sx={{ fontSize: 18 }} /></ListItemIcon>
-            <ListItemText>{t('publish.actionBar.applyTemplate', { defaultValue: 'Apply Template' })}</ListItemText>
-          </MenuItem>
-        )}
-        {onCopyFrom && (
-          <MenuItem onClick={() => { onCopyFrom(); handleMenuClose(); }}>
-            <ListItemIcon><ContentCopyOutlinedIcon sx={{ fontSize: 18 }} /></ListItemIcon>
-            <ListItemText>{t('publish.actionBar.copyFrom', { defaultValue: 'Copy From...' })}</ListItemText>
-          </MenuItem>
-        )}
-        {onApplyColors && (
-          <MenuItem onClick={() => { onApplyColors(); handleMenuClose(); }}>
-            <ListItemIcon><PaletteOutlinedIcon sx={{ fontSize: 18 }} /></ListItemIcon>
-            <ListItemText>{t('publish.actionBar.applyColors', { defaultValue: 'Apply Colors' })}</ListItemText>
-          </MenuItem>
-        )}
-        {onApplyFitTypes && (
-          <MenuItem onClick={() => { onApplyFitTypes(); handleMenuClose(); }}>
-            <ListItemIcon><StraightenOutlinedIcon sx={{ fontSize: 18 }} /></ListItemIcon>
-            <ListItemText>{t('publish.actionBar.applyFitTypes', { defaultValue: 'Apply Fit Types' })}</ListItemText>
-          </MenuItem>
-        )}
-        {onExportSelected && (
-          <MenuItem onClick={() => { onExportSelected(); handleMenuClose(); }}>
-            <ListItemIcon><FileDownloadOutlinedIcon sx={{ fontSize: 18 }} /></ListItemIcon>
-            <ListItemText>{t('publish.actionBar.exportSelected', { defaultValue: 'Export Selected' })}</ListItemText>
-          </MenuItem>
-        )}
-      </Menu>
+        {/* Counter */}
+        <StaggerSlot in={open} index={nextIdx()}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.75, pr: 1 }}>
+            <CounterText
+              variant="subtitle2"
+              sx={{ transform: counterPop ? 'scale(1.15)' : 'scale(1)' }}
+            >
+              {selectionCount}
+            </CounterText>
+            <InfoOutlinedIcon sx={{ fontSize: 14, color: 'text.disabled' }} />
+          </Box>
+        </StaggerSlot>
 
-      <Separator />
+        <StaggerSlot in={open} index={nextIdx()}>
+          <Separator />
+        </StaggerSlot>
 
-      {/* Delete (far right) */}
-      <Tooltip title={t('publish.actionBar.delete', { defaultValue: 'Delete' })}>
-        <IconButton
-          size="small"
-          onClick={onDelete}
-          sx={{
-            width: 32,
-            height: 32,
-            color: 'text.disabled',
-            transition: `all ${DURATION.fast}ms ${EASING.standard}`,
-            '&:hover': {
-              color: 'error.main',
-              backgroundColor: alpha(COLORS.errorDk, 0.1),
-            },
-          }}
+        {/* Edit */}
+        <StaggerSlot in={open} index={nextIdx()}>
+          {isCompact ? (
+            <Tooltip title={t('publish.actionBar.edit', { defaultValue: 'Edit' })}>
+              <IconButton
+                size="small"
+                onClick={onEdit}
+                sx={{ color: COLORS.cyan, '&:hover': { backgroundColor: alpha(COLORS.cyan, 0.12) } }}
+              >
+                <EditOutlinedIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          ) : (
+            <ActionButton
+              variant="text"
+              size="small"
+              startIcon={<EditOutlinedIcon />}
+              onClick={onEdit}
+              sx={{ color: COLORS.cyan, '&:hover': { backgroundColor: alpha(COLORS.cyan, 0.12) } }}
+            >
+              {t('publish.actionBar.edit', { defaultValue: 'Edit' })}
+            </ActionButton>
+          )}
+        </StaggerSlot>
+
+        {/* All/None toggle */}
+        <StaggerSlot in={open} index={nextIdx()}>
+          {isCompact ? (
+            <Tooltip title={allSelected
+              ? t('publish.actionBar.selectNone', { defaultValue: 'None' })
+              : t('publish.actionBar.selectAll', { defaultValue: 'All' })}
+            >
+              <IconButton size="small" onClick={onToggleAll}>
+                {allSelected
+                  ? <RadioButtonUncheckedIcon sx={{ fontSize: 16 }} />
+                  : <CheckCircleOutlineIcon sx={{ fontSize: 16 }} />}
+              </IconButton>
+            </Tooltip>
+          ) : (
+            <ActionButton
+              variant="text"
+              size="small"
+              startIcon={allSelected ? <RadioButtonUncheckedIcon /> : <CheckCircleOutlineIcon />}
+              onClick={onToggleAll}
+            >
+              {allSelected
+                ? t('publish.actionBar.selectNone', { defaultValue: 'None' })
+                : t('publish.actionBar.selectAll', { defaultValue: 'All' })}
+            </ActionButton>
+          )}
+        </StaggerSlot>
+
+        {/* History */}
+        <StaggerSlot in={open} index={nextIdx()}>
+          {isCompact ? (
+            <Tooltip title={t('publish.actionBar.history', { defaultValue: 'History' })}>
+              <IconButton size="small" onClick={onHistory}>
+                <HistoryOutlinedIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          ) : (
+            <ActionButton
+              variant="text"
+              size="small"
+              startIcon={<HistoryOutlinedIcon />}
+              onClick={onHistory}
+            >
+              {t('publish.actionBar.history', { defaultValue: 'History' })}
+            </ActionButton>
+          )}
+        </StaggerSlot>
+
+        {/* Batch upload */}
+        <StaggerSlot in={open} index={nextIdx()}>
+          {isCompact ? (
+            <Tooltip title={t('publish.actionBar.batch', { defaultValue: 'Batch' })}>
+              <IconButton
+                size="small"
+                onClick={onBatchUpload}
+                sx={{ color: COLORS.successDk, '&:hover': { backgroundColor: alpha(COLORS.successDk, 0.1) } }}
+              >
+                <CloudUploadOutlinedIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          ) : (
+            <ActionButton
+              variant="text"
+              size="small"
+              startIcon={<CloudUploadOutlinedIcon />}
+              onClick={onBatchUpload}
+              sx={{ color: COLORS.successDk, '&:hover': { backgroundColor: alpha(COLORS.successDk, 0.1) } }}
+            >
+              {t('publish.actionBar.batch', { defaultValue: 'Batch' })}
+            </ActionButton>
+          )}
+        </StaggerSlot>
+
+        {/* Options dropdown */}
+        <StaggerSlot in={open} index={nextIdx()}>
+          {isCompact ? (
+            <Tooltip title={t('publish.actionBar.options', { defaultValue: 'Options' })}>
+              <IconButton size="small" onClick={handleMenuOpen}>
+                <SettingsOutlinedIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          ) : (
+            <ActionButton
+              variant="text"
+              size="small"
+              startIcon={<SettingsOutlinedIcon />}
+              onClick={handleMenuOpen}
+            >
+              {t('publish.actionBar.options', { defaultValue: 'Options' })}
+            </ActionButton>
+          )}
+        </StaggerSlot>
+
+        <Menu
+          anchorEl={menuAnchor}
+          open={Boolean(menuAnchor)}
+          onClose={handleMenuClose}
+          anchorOrigin={{ vertical: 'top', horizontal: 'center' }}
+          transformOrigin={{ vertical: 'bottom', horizontal: 'center' }}
         >
-          <DeleteOutlineIcon sx={{ fontSize: 18 }} />
-        </IconButton>
-      </Tooltip>
-    </Dock>
+          {onApplyTemplate && (
+            <MenuItem onClick={() => { onApplyTemplate(); handleMenuClose(); }}>
+              <ListItemIcon><DashboardCustomizeOutlinedIcon sx={{ fontSize: 18 }} /></ListItemIcon>
+              <ListItemText>{t('publish.actionBar.applyTemplate', { defaultValue: 'Apply Template' })}</ListItemText>
+            </MenuItem>
+          )}
+          {onCopyFrom && (
+            <MenuItem onClick={() => { onCopyFrom(); handleMenuClose(); }}>
+              <ListItemIcon><ContentCopyOutlinedIcon sx={{ fontSize: 18 }} /></ListItemIcon>
+              <ListItemText>{t('publish.actionBar.copyFrom', { defaultValue: 'Copy From...' })}</ListItemText>
+            </MenuItem>
+          )}
+          {onApplyColors && (
+            <MenuItem onClick={() => { onApplyColors(); handleMenuClose(); }}>
+              <ListItemIcon><PaletteOutlinedIcon sx={{ fontSize: 18 }} /></ListItemIcon>
+              <ListItemText>{t('publish.actionBar.applyColors', { defaultValue: 'Apply Colors' })}</ListItemText>
+            </MenuItem>
+          )}
+          {onApplyFitTypes && (
+            <MenuItem onClick={() => { onApplyFitTypes(); handleMenuClose(); }}>
+              <ListItemIcon><StraightenOutlinedIcon sx={{ fontSize: 18 }} /></ListItemIcon>
+              <ListItemText>{t('publish.actionBar.applyFitTypes', { defaultValue: 'Apply Fit Types' })}</ListItemText>
+            </MenuItem>
+          )}
+          {onExportSelected && (
+            <MenuItem onClick={() => { onExportSelected(); handleMenuClose(); }}>
+              <ListItemIcon><FileDownloadOutlinedIcon sx={{ fontSize: 18 }} /></ListItemIcon>
+              <ListItemText>{t('publish.actionBar.exportSelected', { defaultValue: 'Export Selected' })}</ListItemText>
+            </MenuItem>
+          )}
+        </Menu>
+
+        <StaggerSlot in={open} index={nextIdx()}>
+          <Separator />
+        </StaggerSlot>
+
+        {/* Delete (far right) */}
+        <StaggerSlot in={open} index={nextIdx()}>
+          <Tooltip title={t('publish.actionBar.delete', { defaultValue: 'Delete' })}>
+            <IconButton
+              size="small"
+              onClick={onDelete}
+              sx={{
+                width: 32,
+                height: 32,
+                color: 'text.disabled',
+                transition: `all ${DURATION.fast}ms ${EASING.standard}`,
+                '&:hover': {
+                  color: 'error.main',
+                  backgroundColor: alpha(COLORS.errorDk, 0.1),
+                },
+              }}
+            >
+              <DeleteOutlineIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </Tooltip>
+        </StaggerSlot>
+      </Dock>
+    </Slide>
   );
 };
 

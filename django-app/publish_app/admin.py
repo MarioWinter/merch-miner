@@ -3,6 +3,7 @@ from django.contrib import admin
 from publish_app.models import (
     DesignAsset,
     DesignCollection,
+    DesignProductConfig,
     Listing,
     ProductLifecycle,
     UploadJob,
@@ -48,6 +49,20 @@ class DesignAssetAdmin(admin.ModelAdmin):
     list_filter = ['source']
     search_fields = ['file_name']
     readonly_fields = ['id', 'created_at']
+
+
+@admin.register(DesignProductConfig)
+class DesignProductConfigAdmin(admin.ModelAdmin):
+    list_display = [
+        'id', 'design', 'marketplace_type', 'print_side', 'updated_at',
+    ]
+    list_filter = ['marketplace_type', 'print_side']
+    search_fields = ['design__file_name']
+    readonly_fields = [
+        'id', 'created_at', 'updated_at',
+        'product_types', 'fit_types', 'colors', 'marketplaces',
+    ]
+    raw_id_fields = ['design']
 
 
 @admin.register(ProductLifecycle)

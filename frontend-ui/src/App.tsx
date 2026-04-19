@@ -18,6 +18,7 @@ import ProjectGalleryView from './views/designs/gallery/ProjectGalleryView';
 import DesignWorkspaceView from './views/designs/workspace/DesignWorkspaceView';
 import KeywordResearchView from './views/amazon/keywords/research/KeywordResearchView';
 import PublishView from './views/publish/PublishView';
+import EditView from './views/publish/EditView';
 import DashboardView from './views/dashboard/DashboardView';
 import KanbanBoardView from './views/kanban/KanbanBoardView';
 import ProductDetailPage from './views/amazon/research/detail/ProductDetailPage';
@@ -52,6 +53,7 @@ const App = () => {
           <Route path="/designs" element={<ProjectGalleryView />} />
           <Route path="/designs/:projectId" element={<DesignWorkspaceView />} />
           <Route path="/publish" element={<PublishView />} />
+          <Route path="/publish/edit" element={<EditView />} />
           <Route path="/kanban" element={<KanbanBoardView />} />
 
           {/* Settings routes */}

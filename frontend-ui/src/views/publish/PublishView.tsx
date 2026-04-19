@@ -11,6 +11,8 @@ import CollectionsDialog from './partials/collections/CollectionsDialog';
 import CommandPalette from './partials/command/CommandPalette';
 import ActionBar from './partials/ActionBar';
 import CloudStorageTab from './partials/cloud/CloudStorageTab';
+import SendToCloudDialog from './partials/cloud/SendToCloudDialog';
+import type { CloudProvider } from './partials/cloud/ProviderSwitcher';
 import EmptyState from './partials/EmptyState';
 import type { FileSystemTab, ViewMode, BreadcrumbSegment, GalleryListParams } from './types';
 
@@ -53,6 +55,8 @@ const PublishView = () => {
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [searchQuery, setSearchQuery] = useState('');
   const [collectionsOpen, setCollectionsOpen] = useState(false);
+  const [sendToCloudOpen, setSendToCloudOpen] = useState(false);
+  const [cloudProvider, setCloudProvider] = useState<CloudProvider>('google_drive');
   const [, setCurrentCollection] = useState<string | null>(null);
 
   // Selection
@@ -88,9 +92,19 @@ const PublishView = () => {
     handleBreadcrumbNavigate(collectionId);
   }, [handleBreadcrumbNavigate]);
 
+  // Navigate to edit page with selected design IDs in query string
+  const navigateToEdit = useCallback(() => {
+    const selectedIds = Array.from(selection.selectedIds);
+    if (selectedIds.length === 0) {
+      navigate('/publish/edit');
+      return;
+    }
+    navigate(`/publish/edit?designs=${selectedIds.join(',')}`);
+  }, [navigate, selection.selectedIds]);
+
   // Command palette
   const cmdPalette = useCommandPalette({
-    onEditBulk: () => navigate('/publish/edit'),
+    onEditBulk: navigateToEdit,
     onDeleteListings: selection.clearSelection,
     onMoveToCollection: () => setCollectionsOpen(true),
     onDuplicate: () => {},
@@ -101,7 +115,7 @@ const PublishView = () => {
     onDownload: () => {},
     onExportXlsx: () => {},
     onExportCsv: () => {},
-    onSendToCloud: () => {},
+    onSendToCloud: () => setSendToCloudOpen(true),
     onImportCloud: () => setActiveTab('cloud_storage'),
     onApplyTemplate: () => {},
     onCopyListingFrom: () => {},
@@ -174,6 +188,8 @@ const PublishView = () => {
           )
         ) : (
           <CloudStorageTab
+            activeProvider={cloudProvider}
+            onProviderChange={setCloudProvider}
             onManageConnections={() => {}}
           />
         )}
@@ -184,6 +200,14 @@ const PublishView = () => {
         open={collectionsOpen}
         onClose={() => setCollectionsOpen(false)}
         onOpenFolder={handleCollectionOpen}
+      />
+
+      {/* Send to Cloud Dialog */}
+      <SendToCloudDialog
+        open={sendToCloudOpen}
+        onClose={() => setSendToCloudOpen(false)}
+        provider={cloudProvider}
+        selectedDesigns={designs.filter((d) => selection.isSelected(d.id))}
       />
 
       {/* Command Palette Overlay */}
@@ -205,7 +229,7 @@ const PublishView = () => {
       <ActionBar
         selectionCount={selection.selectionCount}
         allSelected={selection.selectionCount === totalCount && totalCount > 0}
-        onEdit={() => navigate('/publish/edit')}
+        onEdit={navigateToEdit}
         onToggleAll={selection.toggleAll}
         onHistory={() => {}}
         onBatchUpload={() => {}}

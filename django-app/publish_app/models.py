@@ -64,6 +64,11 @@ class Listing(models.Model):
         LIVE = 'live', 'Live'
         DRAFT = 'draft', 'Draft'
 
+    class MarketplaceType(models.TextChoices):
+        GLOBAL = 'global', 'Global'
+        MBA = 'mba', 'Merch by Amazon'
+        DISPLATE = 'displate', 'Displate'
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     workspace = models.ForeignKey(
         'workspace_app.Workspace',
@@ -83,6 +88,13 @@ class Listing(models.Model):
         null=True,
         blank=True,
         related_name='listings',
+    )
+    marketplace_type = models.CharField(
+        max_length=20,
+        choices=MarketplaceType.choices,
+        default=MarketplaceType.MBA,
+        db_index=True,
+        help_text='Marketplace variant. Each (design, marketplace_type) pair is unique.',
     )
     round = models.PositiveIntegerField(default=1)
 
@@ -137,6 +149,13 @@ class Listing(models.Model):
             models.Index(
                 fields=['idea'],
                 name='listing_idea_idx',
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['design', 'marketplace_type'],
+                name='listing_unique_design_marketplace',
+                # Postgres NULL != NULL => rows with design=NULL are not constrained
             ),
         ]
 
@@ -389,6 +408,87 @@ class DesignAsset(models.Model):
     # Max upload size: 25 MB
     MAX_FILE_SIZE = 25 * 1024 * 1024
     ALLOWED_TYPES = ['image/png', 'image/jpeg']
+
+
+class DesignProductConfig(models.Model):
+    """Per-design product configuration (Colors / Fit Types / Print Side /
+    Product Types / Marketplace Pricing).
+
+    Sibling of ``Listing`` — both hang off a ``DesignAsset`` and are keyed by
+    ``(design, marketplace_type)``. Stores the MBA variant matrix needed by
+    the Desktop Upload App (PROJ-13) and the Edit Page sections.
+
+    See PROJ-11 Tech Design Addendum: AC-38..AC-44, EC-11..EC-15.
+    """
+
+    class MarketplaceType(models.TextChoices):
+        GLOBAL = 'global', 'Global'
+        MBA = 'mba', 'Merch by Amazon'
+        DISPLATE = 'displate', 'Displate'
+
+    class PrintSide(models.TextChoices):
+        FRONT = 'front', 'Front'
+        BACK = 'back', 'Back'
+        BOTH = 'both', 'Both'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    design = models.ForeignKey(
+        'publish_app.DesignAsset',
+        on_delete=models.CASCADE,
+        related_name='product_configs',
+        db_index=True,
+    )
+    marketplace_type = models.CharField(
+        max_length=20,
+        choices=MarketplaceType.choices,
+        default=MarketplaceType.MBA,
+        db_index=True,
+    )
+    product_types = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='List of product type keys (e.g. t_shirt, hoodie, tank_top).',
+    )
+    fit_types = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='List of fit types (e.g. men, women, youth).',
+    )
+    print_side = models.CharField(
+        max_length=10,
+        choices=PrintSide.choices,
+        default=PrintSide.FRONT,
+    )
+    colors = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='List of MBA color keys (validated against MBA_COLORS palette).',
+    )
+    marketplaces = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='List of {marketplace, price, enabled} entries.',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+        indexes = [
+            models.Index(
+                fields=['design', 'marketplace_type'],
+                name='designcfg_design_mt_idx',
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['design', 'marketplace_type'],
+                name='design_product_config_unique',
+            ),
+        ]
+
+    def __str__(self):
+        return f"DesignProductConfig {str(self.id)[:8]} [{self.marketplace_type}]"
 
 
 class ProductLifecycle(models.Model):

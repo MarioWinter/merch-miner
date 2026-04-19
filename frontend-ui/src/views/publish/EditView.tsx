@@ -1,0 +1,266 @@
+import { Box, Stack, Typography } from '@mui/material';
+import { styled } from '@mui/material/styles';
+import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import { useEditView } from './hooks/useEditView';
+import EditPageHeader from './partials/edit/EditPageHeader';
+import MarketplaceTabs from './partials/edit/MarketplaceTabs';
+import ThumbnailStrip from './partials/edit/ThumbnailStrip';
+import ProductTypeScroller from './partials/edit/ProductTypeScroller';
+import FitTypePrintSection from './partials/edit/FitTypePrintSection';
+import ColorGrid from './partials/edit/ColorGrid';
+import MarketplacePricing from './partials/edit/MarketplacePricing';
+import MarketplacePlaceholder from './partials/edit/MarketplacePlaceholder';
+import ListingFieldsSection from './partials/edit/ListingFieldsSection';
+import ListingStateBanner from './partials/edit/ListingStateBanner';
+import OptionsTrademarksTabs from './partials/edit/OptionsTrademarksTabs';
+import DesignPreview from './partials/edit/DesignPreview';
+import UnsavedChangesBar from './partials/edit/UnsavedChangesBar';
+import CommandPalette from './partials/command/CommandPalette';
+import CopyFromDesignDialog from './partials/edit/CopyFromDesignDialog';
+import EmptyState from './partials/EmptyState';
+
+// ---------------------------------------------------------------------------
+// Styled
+// ---------------------------------------------------------------------------
+
+const ViewRoot = styled(Box)({
+  display: 'flex',
+  flexDirection: 'column',
+  height: '100%',
+  minHeight: 0,
+});
+
+const TabsBar = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  padding: theme.spacing(1.5, 3),
+  borderBottom: `1px solid ${theme.vars.palette.divider}`,
+}));
+
+const Layout = styled(Box)(({ theme }) => ({
+  flex: 1,
+  minHeight: 0,
+  display: 'grid',
+  gridTemplateColumns: '200px 1fr 300px',
+  overflow: 'hidden',
+  [theme.breakpoints.down('md')]: {
+    gridTemplateColumns: '1fr',
+    gridTemplateRows: 'auto 1fr auto',
+  },
+}));
+
+const CenterColumn = styled(Box)(({ theme }) => ({
+  overflowY: 'auto',
+  padding: theme.spacing(3),
+  minHeight: 0,
+}));
+
+const RightColumn = styled(Box)(({ theme }) => ({
+  borderLeft: `1px solid ${theme.vars.palette.divider}`,
+  padding: theme.spacing(3),
+  position: 'sticky',
+  top: 0,
+  alignSelf: 'start',
+  maxHeight: '100%',
+  overflowY: 'auto',
+  [theme.breakpoints.down('md')]: {
+    borderLeft: 'none',
+    borderTop: `1px solid ${theme.vars.palette.divider}`,
+    position: 'static',
+  },
+}));
+
+const EmptyWrap = styled(Box)({
+  flex: 1,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+});
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
+const EditView = () => {
+  const { t } = useTranslation();
+  const navigate = useNavigate();
+  const {
+    designIds,
+    designs,
+    activeDesign,
+    activeIndex,
+    setActiveIndex,
+    isLoading,
+    handleDesignIdsChange,
+    activeMarketplace,
+    setActiveMarketplace,
+    productConfig,
+    setProductTypes,
+    setFitTypes,
+    setPrintSide,
+    setColors,
+    setMarketplaces,
+    listingForm,
+    activeLang,
+    setActiveLang,
+    autoTranslate,
+    setAutoTranslate,
+    isDirty,
+    handleDiscardListing,
+    handleSaveListing,
+    handleGenerateListing,
+    // D7 listing state
+    listing,
+    isLoadingListing,
+    isFetchingListing,
+    listingError,
+    listingNotFound,
+    isGenerating,
+    cmdPalette,
+    // D7 copy-from-design
+    copyDialog,
+    isApplyingCopy,
+    closeCopyDialog,
+    applyCopy,
+  } = useEditView();
+
+  // Empty state — no ids in URL
+  if (designIds.length === 0) {
+    return (
+      <ViewRoot>
+        <EmptyWrap>
+          <Box sx={{ textAlign: 'center' }}>
+            <Typography variant="h5" color="text.secondary" gutterBottom>
+              {t('publish.edit.empty.title')}
+            </Typography>
+            <Typography variant="body2" color="text.disabled" sx={{ mb: 3 }}>
+              {t('publish.edit.empty.hint')}
+            </Typography>
+            <EmptyState
+              onUpload={() => navigate('/publish')}
+              onImport={() => navigate('/publish')}
+            />
+          </Box>
+        </EmptyWrap>
+      </ViewRoot>
+    );
+  }
+
+  const isMba = activeMarketplace === 'mba';
+
+  return (
+    <ViewRoot>
+      <EditPageHeader
+        designIds={designIds}
+        onDesignIdsChange={handleDesignIdsChange}
+      />
+
+      <UnsavedChangesBar
+        isDirty={isDirty}
+        onDiscard={handleDiscardListing}
+        onSave={handleSaveListing}
+      />
+
+      <TabsBar>
+        <MarketplaceTabs value={activeMarketplace} onChange={setActiveMarketplace} />
+      </TabsBar>
+
+      <Layout>
+        <ThumbnailStrip
+          designIds={designIds}
+          designs={designs}
+          activeIndex={activeIndex}
+          onActiveIndexChange={setActiveIndex}
+          isLoading={isLoading}
+        />
+
+        <CenterColumn>
+          {isMba ? (
+            <Stack gap={3}>
+              <ProductTypeScroller
+                selected={productConfig.productTypes}
+                onChange={setProductTypes}
+                onOptionsClick={cmdPalette.openPalette}
+              />
+              <FitTypePrintSection
+                selectedFits={productConfig.fitTypes}
+                onFitsChange={setFitTypes}
+                printSide={productConfig.printSide}
+                onPrintSideChange={setPrintSide}
+                onOptionsClick={cmdPalette.openPalette}
+              />
+              <ColorGrid
+                selected={productConfig.colors}
+                onChange={setColors}
+                onOptionsClick={cmdPalette.openPalette}
+              />
+              <MarketplacePricing
+                configs={productConfig.marketplaces}
+                onChange={setMarketplaces}
+                onOptionsClick={cmdPalette.openPalette}
+              />
+              <ListingStateBanner
+                isLoading={isLoadingListing}
+                isFetching={isFetchingListing}
+                notFound={listingNotFound}
+                hasError={Boolean(listingError)}
+                onGenerate={handleGenerateListing}
+                onRetry={handleGenerateListing}
+                isGenerating={isGenerating}
+                marketplace={activeMarketplace}
+              />
+              <ListingFieldsSection
+                control={listingForm.control}
+                activeLang={activeLang}
+                onLangChange={setActiveLang}
+                autoTranslate={autoTranslate}
+                onAutoTranslateChange={setAutoTranslate}
+                onOptionsClick={cmdPalette.openPalette}
+              />
+              <OptionsTrademarksTabs
+                control={listingForm.control}
+                listingId={listing?.id ?? activeDesign?.listing ?? undefined}
+                onOptionsClick={cmdPalette.openPalette}
+              />
+            </Stack>
+          ) : (
+            <MarketplacePlaceholder marketplace={activeMarketplace} />
+          )}
+        </CenterColumn>
+
+        <RightColumn>
+          <DesignPreview design={activeDesign} />
+        </RightColumn>
+      </Layout>
+
+      {/* D7: Copy-from-Design Dialog */}
+      <CopyFromDesignDialog
+        open={copyDialog.open}
+        scope={copyDialog.scope}
+        designs={designs}
+        activeDesignId={activeDesign?.id ?? null}
+        isApplying={isApplyingCopy}
+        onClose={closeCopyDialog}
+        onConfirm={applyCopy}
+      />
+
+      {/* Command Palette Overlay */}
+      <CommandPalette
+        open={cmdPalette.open}
+        query={cmdPalette.query}
+        onQueryChange={cmdPalette.setQuery}
+        context={cmdPalette.context}
+        activeIndex={cmdPalette.activeIndex}
+        matched={cmdPalette.matched}
+        recentActions={cmdPalette.recentActions}
+        flatActions={cmdPalette.flatActions}
+        onKeyDown={cmdPalette.handleKeyDown}
+        onExecute={cmdPalette.executeAction}
+        onClose={cmdPalette.closePalette}
+      />
+    </ViewRoot>
+  );
+};
+
+export default EditView;

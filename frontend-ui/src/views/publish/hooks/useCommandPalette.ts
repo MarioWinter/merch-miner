@@ -47,6 +47,31 @@ interface UseCommandPaletteOptions {
 const STORAGE_KEY = 'mm-command-recent';
 const MAX_RECENT = 3;
 
+// Map fine-grained SectionHeader contexts (e.g. 'bullet_1', 'brand',
+// 'print_side') onto the coarse action contexts that CommandActionDef
+// entries filter by. Keeps SectionHeader context strings descriptive while
+// palette filtering stays simple.
+const SECTION_CONTEXT_MAP: Record<string, string> = {
+  brand: 'listing',
+  title: 'listing',
+  bullet_1: 'listing',
+  bullet_2: 'listing',
+  bullet_3: 'listing',
+  bullet_4: 'listing',
+  bullet_5: 'listing',
+  description: 'listing',
+  keywords: 'listing',
+  availability: 'listing',
+  publish_mode: 'listing',
+  products: 'listing',
+  print_side: 'fit_types',
+};
+
+const normalizeContext = (ctx?: string): string | null => {
+  if (!ctx) return null;
+  return SECTION_CONTEXT_MAP[ctx] ?? ctx;
+};
+
 // ---------------------------------------------------------------------------
 // Fuzzy match — returns highlight ranges or null
 // ---------------------------------------------------------------------------
@@ -218,9 +243,11 @@ export const useCommandPalette = (options: UseCommandPaletteOptions) => {
     return () => document.removeEventListener('keydown', handler);
   }, []);
 
-  // Open with optional context
+  // Open with optional context. Fine-grained SectionHeader contexts are
+  // normalized to the coarse action-context taxonomy (listing / colors /
+  // fit_types / prices) so that D7 Options ⊙ clicks pre-filter the palette.
   const openPalette = useCallback((ctx?: string) => {
-    setContext(ctx ?? null);
+    setContext(normalizeContext(ctx));
     setOpen(true);
     setQuery('');
     setActiveState({ index: 0, key: '' });

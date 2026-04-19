@@ -1,6 +1,4 @@
-import { useCallback, useMemo } from 'react';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSnackbar } from 'notistack';
 import { useTranslation } from 'react-i18next';
 import {
@@ -11,18 +9,69 @@ import {
   useTmCheckMutation,
   useLazyExportListingQuery,
 } from '@/store/publishSlice';
-import { listingSchema, type ListingFormValues } from '../schemas/listingSchema';
-import type { ListingLanguage, TMCheckResult } from '../types';
+import type {
+  ListingLanguage,
+  MarketplaceType,
+  TMCheckResult,
+  Listing,
+} from '../types';
+import type { MbaListingFormValues } from '../schemas/mbaListingSchema';
 
-export const useListingEditor = (ideaId: string | null) => {
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+interface UseListingEditorArgs {
+  ideaId: string | null;
+  designId?: string | null;
+  marketplaceType: MarketplaceType;
+}
+
+type RtkError = { status?: number; data?: unknown };
+
+const isNotFound = (err: unknown): boolean =>
+  Boolean(err && typeof err === 'object' && (err as RtkError).status === 404);
+
+const AUTO_SAVE_DELAY_MS = 1200;
+
+// ---------------------------------------------------------------------------
+// Hook
+// ---------------------------------------------------------------------------
+
+/**
+ * D7 — Multi-marketplace listing editor.
+ *
+ * Resolves the Listing record for the given (idea, marketplace_type) pair and
+ * exposes save / generate / translate / tm-check / export handlers. Each
+ * marketplace tab maps to its own Listing row on the backend (see F1), so
+ * switching `marketplaceType` triggers a fresh query.
+ *
+ * Auto-save: when the form is marked dirty, we debounce a PATCH to the listing
+ * endpoint. Callers must provide the MBA form values (via `saveFormValues`) so
+ * auto-save can serialize the RHF state before calling the API.
+ */
+export const useListingEditor = ({
+  ideaId,
+  designId,
+  marketplaceType,
+}: UseListingEditorArgs) => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
 
+  // ---- Listing load -------------------------------------------------------
   const {
     data: listing,
     isLoading: isLoadingListing,
+    isFetching: isFetchingListing,
     error: listingError,
-  } = useGetListingQuery(ideaId ?? '', { skip: !ideaId });
+    refetch: refetchListing,
+  } = useGetListingQuery(
+    ideaId ? { ideaId, marketplace_type: marketplaceType } : { ideaId: '' },
+    { skip: !ideaId },
+  );
+
+  const listingNotFound = !listing && isNotFound(listingError);
+  const hasHardError = Boolean(listingError) && !listingNotFound;
 
   const [generateListing, { isLoading: isGenerating }] = useGenerateListingMutation();
   const [updateListing, { isLoading: isSaving }] = useUpdateListingMutation();
@@ -30,140 +79,289 @@ export const useListingEditor = (ideaId: string | null) => {
   const [tmCheck, { isLoading: isChecking }] = useTmCheckMutation();
   const [triggerExport] = useLazyExportListingQuery();
 
-  const form = useForm<ListingFormValues>({
-    resolver: zodResolver(listingSchema),
-    defaultValues: {
-      brand_name: '',
-      title: '',
-      bullet_1: '',
-      bullet_2: '',
-      bullet_3: '',
-      bullet_4: '',
-      bullet_5: '',
-      description: '',
-      backend_keywords: '',
-      availability: 'public',
-      publish_mode: 'live',
-    },
-    values: listing
-      ? {
-          brand_name: listing.brand_name,
-          title: listing.title,
-          bullet_1: listing.bullet_1,
-          bullet_2: listing.bullet_2,
-          bullet_3: listing.bullet_3,
-          bullet_4: listing.bullet_4,
-          bullet_5: listing.bullet_5,
-          description: listing.description,
-          backend_keywords: listing.backend_keywords,
-          availability: listing.availability,
-          publish_mode: listing.publish_mode,
-        }
-      : undefined,
-  });
+  // Track last-saved listing id so that rapid tab switches do not PATCH a
+  // stale record.
+  const latestListingIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    latestListingIdRef.current = listing?.id ?? null;
+  }, [listing?.id]);
 
+  // ---- Generate ----------------------------------------------------------
   const handleGenerate = useCallback(
-    async (designId?: string, extraKeywords?: string, language?: ListingLanguage) => {
-      if (!ideaId) return;
+    async (args?: { extraKeywords?: string; language?: ListingLanguage }) => {
+      if (!ideaId) return null;
       try {
-        await generateListing({
+        const created = await generateListing({
           ideaId,
-          body: { design_id: designId, extra_keywords: extraKeywords, language },
+          body: {
+            design_id: designId ?? undefined,
+            extra_keywords: args?.extraKeywords,
+            language: args?.language,
+            marketplace_type: marketplaceType,
+          },
         }).unwrap();
-        enqueueSnackbar(t('publish.listing.generateSuccess'), { variant: 'success' });
-      } catch {
-        enqueueSnackbar(t('publish.listing.generateError'), { variant: 'error' });
+        enqueueSnackbar(
+          t('publish.listing.generateSuccess', {
+            defaultValue: 'Listing generated',
+          }),
+          { variant: 'success' },
+        );
+        return created;
+      } catch (err) {
+        const status = (err as RtkError)?.status;
+        if (status === 409) {
+          enqueueSnackbar(
+            t('publish.listing.generateDuplicate', {
+              defaultValue: 'A listing for this marketplace already exists',
+            }),
+            { variant: 'warning' },
+          );
+        } else {
+          enqueueSnackbar(
+            t('publish.listing.generateError', {
+              defaultValue: 'Failed to generate listing',
+            }),
+            { variant: 'error' },
+          );
+        }
+        return null;
       }
     },
-    [ideaId, generateListing, enqueueSnackbar, t],
+    [ideaId, designId, marketplaceType, generateListing, enqueueSnackbar, t],
+  );
+
+  // ---- Save (manual) -----------------------------------------------------
+  const serializeFormValues = useCallback(
+    (values: MbaListingFormValues): Partial<Listing> => ({
+      brand_name: values.brand,
+      title: values.title,
+      bullet_1: values.bullet_1,
+      bullet_2: values.bullet_2,
+      bullet_3: values.bullet_3,
+      bullet_4: values.bullet_4,
+      bullet_5: values.bullet_5,
+      description: values.description,
+      backend_keywords: values.backend_keywords.join(', '),
+      availability: values.availability,
+      publish_mode: values.publish_mode,
+    }),
+    [],
   );
 
   const handleSave = useCallback(
-    async (values: ListingFormValues) => {
-      if (!listing) return;
+    async (values: MbaListingFormValues) => {
+      const targetId = latestListingIdRef.current;
+      if (!targetId) {
+        enqueueSnackbar(
+          t('publish.listing.saveNoListing', {
+            defaultValue: 'Generate a listing before saving',
+          }),
+          { variant: 'warning' },
+        );
+        return null;
+      }
       try {
-        await updateListing({ id: listing.id, body: values }).unwrap();
-        enqueueSnackbar(t('publish.listing.saveSuccess'), { variant: 'success' });
-      } catch {
-        enqueueSnackbar(t('publish.listing.saveError'), { variant: 'error' });
+        const updated = await updateListing({
+          id: targetId,
+          body: serializeFormValues(values),
+        }).unwrap();
+        enqueueSnackbar(
+          t('publish.listing.saveSuccess', { defaultValue: 'Listing saved' }),
+          { variant: 'success' },
+        );
+        return updated;
+      } catch (err) {
+        const status = (err as RtkError)?.status;
+        if (status === 409) {
+          enqueueSnackbar(
+            t('publish.listing.saveDuplicate', {
+              defaultValue: 'This marketplace already has a listing',
+            }),
+            { variant: 'error' },
+          );
+        } else {
+          enqueueSnackbar(
+            t('publish.listing.saveError', {
+              defaultValue: 'Failed to save listing',
+            }),
+            { variant: 'error' },
+          );
+        }
+        return null;
       }
     },
-    [listing, updateListing, enqueueSnackbar, t],
+    [updateListing, serializeFormValues, enqueueSnackbar, t],
   );
 
+  // ---- Auto-save (debounced) --------------------------------------------
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+
+  const scheduleAutoSave = useCallback(
+    (values: MbaListingFormValues, onSaved?: (l: Listing | null) => void) => {
+      if (autoSaveTimerRef.current) {
+        clearTimeout(autoSaveTimerRef.current);
+      }
+      if (!latestListingIdRef.current) return;
+      autoSaveTimerRef.current = setTimeout(async () => {
+        setIsAutoSaving(true);
+        const targetId = latestListingIdRef.current;
+        if (!targetId) {
+          setIsAutoSaving(false);
+          return;
+        }
+        try {
+          const updated = await updateListing({
+            id: targetId,
+            body: serializeFormValues(values),
+          }).unwrap();
+          onSaved?.(updated);
+        } catch {
+          // Failures surface via manual Save; keep auto-save silent so we
+          // don't spam the user during typing.
+          onSaved?.(null);
+        } finally {
+          setIsAutoSaving(false);
+        }
+      }, AUTO_SAVE_DELAY_MS);
+    },
+    [updateListing, serializeFormValues],
+  );
+
+  const cancelAutoSave = useCallback(() => {
+    if (autoSaveTimerRef.current) {
+      clearTimeout(autoSaveTimerRef.current);
+      autoSaveTimerRef.current = null;
+    }
+  }, []);
+
+  useEffect(() => cancelAutoSave, [cancelAutoSave]);
+
+  // ---- Translate --------------------------------------------------------
   const handleTranslate = useCallback(
     async (targetLanguages: ListingLanguage[]) => {
-      if (!listing) return;
+      const targetId = latestListingIdRef.current;
+      if (!targetId) return false;
       try {
         await translateListing({
-          id: listing.id,
+          id: targetId,
           body: { target_languages: targetLanguages },
         }).unwrap();
-        enqueueSnackbar(t('publish.translate.success'), { variant: 'success' });
+        enqueueSnackbar(
+          t('publish.translate.success', {
+            defaultValue: 'Translation started',
+          }),
+          { variant: 'success' },
+        );
+        return true;
       } catch {
-        enqueueSnackbar(t('publish.translate.error'), { variant: 'error' });
+        enqueueSnackbar(
+          t('publish.translate.error', {
+            defaultValue: 'Translation failed',
+          }),
+          { variant: 'error' },
+        );
+        return false;
       }
     },
-    [listing, translateListing, enqueueSnackbar, t],
+    [translateListing, enqueueSnackbar, t],
   );
 
+  // ---- TM Check ---------------------------------------------------------
   const handleTMCheck = useCallback(async (): Promise<TMCheckResult | null> => {
-    if (!listing) return null;
+    const targetId = latestListingIdRef.current;
+    if (!targetId) return null;
     try {
-      const result = await tmCheck(listing.id).unwrap();
+      const result = await tmCheck(targetId).unwrap();
       if (result.is_clean) {
-        enqueueSnackbar(t('publish.tm.clean'), { variant: 'success' });
+        enqueueSnackbar(
+          t('publish.tm.clean', { defaultValue: 'Trademark check passed' }),
+          { variant: 'success' },
+        );
       } else {
-        enqueueSnackbar(t('publish.tm.flagged'), { variant: 'warning' });
+        enqueueSnackbar(
+          t('publish.tm.flagged', { defaultValue: 'Trademark issues found' }),
+          { variant: 'warning' },
+        );
       }
       return result;
     } catch {
-      enqueueSnackbar(t('publish.tm.error'), { variant: 'error' });
+      enqueueSnackbar(
+        t('publish.tm.error', { defaultValue: 'Trademark check failed' }),
+        { variant: 'error' },
+      );
       return null;
     }
-  }, [listing, tmCheck, enqueueSnackbar, t]);
+  }, [tmCheck, enqueueSnackbar, t]);
 
+  // ---- Export (copy to clipboard) ---------------------------------------
   const handleExport = useCallback(async () => {
-    if (!listing) return;
+    const targetId = latestListingIdRef.current;
+    if (!targetId) return;
     try {
-      const result = await triggerExport(listing.id).unwrap();
-      await navigator.clipboard.writeText(result);
-      enqueueSnackbar(t('publish.listing.copied'), { variant: 'success' });
+      const result = await triggerExport(targetId).unwrap();
+      await navigator.clipboard.writeText(
+        typeof result === 'string' ? result : JSON.stringify(result),
+      );
+      enqueueSnackbar(
+        t('publish.listing.copied', { defaultValue: 'Copied to clipboard' }),
+        { variant: 'success' },
+      );
     } catch {
-      enqueueSnackbar(t('publish.listing.copyError'), { variant: 'error' });
+      enqueueSnackbar(
+        t('publish.listing.copyError', {
+          defaultValue: 'Failed to copy listing',
+        }),
+        { variant: 'error' },
+      );
     }
-  }, [listing, triggerExport, enqueueSnackbar, t]);
+  }, [triggerExport, enqueueSnackbar, t]);
 
   return useMemo(
     () => ({
-      listing,
+      // State
+      listing: listing ?? null,
       isLoadingListing,
-      listingError,
-      form,
+      isFetchingListing,
+      listingError: hasHardError ? listingError : null,
+      listingNotFound,
       isGenerating,
       isSaving,
+      isAutoSaving,
       isTranslating,
       isChecking,
+      // Actions
       handleGenerate,
       handleSave,
+      scheduleAutoSave,
+      cancelAutoSave,
       handleTranslate,
       handleTMCheck,
       handleExport,
+      refetchListing,
     }),
     [
       listing,
       isLoadingListing,
+      isFetchingListing,
+      hasHardError,
       listingError,
-      form,
+      listingNotFound,
       isGenerating,
       isSaving,
+      isAutoSaving,
       isTranslating,
       isChecking,
       handleGenerate,
       handleSave,
+      scheduleAutoSave,
+      cancelAutoSave,
       handleTranslate,
       handleTMCheck,
       handleExport,
+      refetchListing,
     ],
   );
 };
+
+export type UseListingEditorReturn = ReturnType<typeof useListingEditor>;

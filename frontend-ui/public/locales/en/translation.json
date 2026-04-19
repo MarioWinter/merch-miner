@@ -1948,6 +1948,138 @@
       "design": "Design",
       "noData": "No lifecycle data available",
       "awaitingSales": "Awaiting sales data"
+    },
+    "edit": {
+      "backToCollection": "Back to Collection",
+      "addDesigns": "Add Designs",
+      "shortcutGuide": "Shortcut Guide",
+      "shortcutsTitle": "Keyboard Shortcuts",
+      "shortcutsSoon": "Shortcuts coming soon",
+      "close": "Close",
+      "options": "Options",
+      "demo": {
+        "productsTitle": "Products"
+      },
+      "marketplace": {
+        "global": "Global",
+        "mba": "Mba",
+        "displate": "Displate"
+      },
+      "empty": {
+        "title": "No designs selected",
+        "hint": "Go back to the Publish page and select designs to edit.",
+        "back": "Back to Publish"
+      },
+      "thumbnails": {
+        "tagsLabel": "Design Tags",
+        "tagsPlaceholder": "Add tag...",
+        "tagsCounter": "{{count}}/{{max}}",
+        "load": "Load",
+        "clear": "Clear",
+        "counter": "{{current}} of {{total}}",
+        "previous": "Previous design",
+        "next": "Next design",
+        "activeBadge": "Design {{index}}",
+        "remove": "Remove tag"
+      },
+      "products": {
+        "title": "Products",
+        "productType": "Product type {{label}}",
+        "selectedCount": "{{count}} selected"
+      },
+      "fitPrint": {
+        "fitTitle": "Fit Type",
+        "printTitle": "Print Side",
+        "front": "Front",
+        "back": "Back"
+      },
+      "colors": {
+        "title": "Colors",
+        "loadError": "Failed to load colors.",
+        "retry": "Retry",
+        "empty": "No colors configured yet",
+        "swatch": "{{name}}"
+      },
+      "marketplaces": {
+        "title": "Marketplaces & Prices",
+        "price": "Price",
+        "royalty": "Royalty",
+        "enable": "Enable {{code}}"
+      },
+      "placeholder": {
+        "comingSoon": "Configuration for {{marketplace}} coming soon"
+      },
+      "fields": {
+        "sectionLabel": "Listing Fields",
+        "brand": "Brand",
+        "title": "Title",
+        "bullet": "Bullet {{n}}",
+        "description": "Description",
+        "aiImprove": "AI Improve"
+      },
+      "keywords": {
+        "title": "Backend Keywords",
+        "info": "Search terms used by Amazon indexing. Max 500 chars incl. separators.",
+        "addPlaceholder": "+ Add",
+        "addAria": "Add keyword",
+        "remove": "Remove keyword {{kw}}",
+        "kwFinder": "KW Finder",
+        "kwWorkbench": "KW Workbench"
+      },
+      "translation": {
+        "title": "Language",
+        "selectLanguage": "Select language",
+        "autoTranslate": "Auto Translate",
+        "translateTo": "Translate to…"
+      },
+      "options": {
+        "tab": "Options",
+        "tabsLabel": "Listing options and trademarks",
+        "availability": {
+          "title": "Availability",
+          "public": "Public",
+          "private": "Private"
+        },
+        "publishMode": {
+          "title": "Publish",
+          "live": "Live",
+          "draft": "Draft"
+        }
+      },
+      "trademarks": {
+        "tab": "Trademarks",
+        "runCheck": "Run TM Check",
+        "hint": "Run a trademark check against your listing content before publishing.",
+        "checkingTitle": "Running trademark check",
+        "cleanTitle": "Trademark check passed",
+        "cleanBody": "All clear — no trademark issues detected.",
+        "flaggedTitle": "Trademark issues found",
+        "flaggedBody": "The following terms may be trademarked. Review before publishing.",
+        "proceed": "Proceed Anyway",
+        "edit": "Edit fields",
+        "close": "Close",
+        "error": "Failed to run trademark check",
+        "noListing": "Save the listing first to run a trademark check."
+      },
+      "preview": {
+        "label": "Design preview",
+        "empty": "No design selected",
+        "error": "Preview unavailable"
+      },
+      "unsaved": {
+        "message": "Unsaved changes",
+        "discard": "Discard",
+        "save": "Save",
+        "autoSaving": "Saving...",
+        "autoSaved": "Saved"
+      },
+      "listingState": {
+        "generate": "Generate Listing",
+        "generating": "Generating...",
+        "notFound": "No listing for {{marketplace}} yet. Generate one or start typing to save.",
+        "error": "Failed to load listing for this marketplace.",
+        "retry": "Retry"
+      }
     }
   },
   "dashboard": {

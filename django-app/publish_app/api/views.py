@@ -3,9 +3,11 @@
 import logging
 
 import django_rq
-from django.db import models
+from django.db import IntegrityError, models, transaction
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_control
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import MultiPartParser
@@ -13,10 +15,13 @@ from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
+from publish_app.constants import MBA_COLORS
+
 from idea_app.models import Idea
 from keyword_app.models import NicheKeyword
 from niche_app.models import Niche
 from publish_app.api.serializers import (
+    COPY_SCOPE_FIELDS,
     BulkActionSerializer,
     CloudImportSerializer,
     CollectionCreateSerializer,
@@ -26,7 +31,11 @@ from publish_app.api.serializers import (
     DesignAssetSerializer,
     DesignAssetUpdateSerializer,
     DesignAssetUploadSerializer,
+    DesignProductConfigCopyFromSerializer,
+    DesignProductConfigSerializer,
+    DesignProductConfigUpsertSerializer,
     LifecycleSalesUpdateSerializer,
+    ListingConvertSerializer,
     ListingGenerateSerializer,
     ListingSerializer,
     ListingTranslateSerializer,
@@ -43,6 +52,7 @@ from publish_app.api.serializers import (
 from publish_app.models import (
     DesignAsset,
     DesignCollection,
+    DesignProductConfig,
     Listing,
     ProductLifecycle,
     UploadJob,
@@ -116,16 +126,37 @@ class ListingGenerateView(APIView):
         if auto_keywords:
             extra_kw = f"{auto_keywords}, {extra_kw}" if extra_kw else auto_keywords
 
-        # Create listing record first
-        listing = Listing.objects.create(
-            workspace_id=ws_id,
-            idea=idea,
-            design=design,
-            round=idea.niche.current_round if hasattr(idea.niche, 'current_round') else 1 if idea.niche else 1,
-            language=data.get('language', 'en'),
-            generated_by=Listing.GeneratedBy.AI,
-            status=Listing.Status.DRAFT,
+        marketplace_type = data.get(
+            'marketplace_type', Listing.MarketplaceType.MBA,
         )
+
+        # Create listing record first. Unique constraint on
+        # (design, marketplace_type) — return 409 on duplicate.
+        # Wrap in an atomic() savepoint so a caller-level transaction
+        # (e.g. pytest) is not left in a broken state on IntegrityError.
+        try:
+            with transaction.atomic():
+                listing = Listing.objects.create(
+                    workspace_id=ws_id,
+                    idea=idea,
+                    design=design,
+                    marketplace_type=marketplace_type,
+                    round=idea.niche.current_round if hasattr(idea.niche, 'current_round') else 1 if idea.niche else 1,
+                    language=data.get('language', 'en'),
+                    generated_by=Listing.GeneratedBy.AI,
+                    status=Listing.Status.DRAFT,
+                )
+        except IntegrityError:
+            return Response(
+                {
+                    'error': (
+                        f'Listing already exists for this design with '
+                        f'marketplace_type={marketplace_type}.'
+                    ),
+                    'code': 'duplicate_marketplace_type',
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
 
         # Enqueue AI generation
         queue = django_rq.get_queue('slogan')
@@ -145,16 +176,39 @@ class ListingGenerateView(APIView):
 
 
 class ListingDetailView(APIView):
-    """GET /api/ideas/{id}/listing/ -- get listing for idea."""
+    """GET /api/ideas/{id}/listing/ -- get listing for idea.
+
+    Supports `?marketplace_type=` query param to select the marketplace
+    variant. Defaults to `mba`. Invalid values return 400.
+    """
 
     def get(self, request, pk):
         ws_id = _get_workspace_id(request)
         if not ws_id:
             return _ws_error()
 
+        marketplace_type = request.query_params.get(
+            'marketplace_type', Listing.MarketplaceType.MBA,
+        )
+        valid_types = {c[0] for c in Listing.MarketplaceType.choices}
+        if marketplace_type not in valid_types:
+            return Response(
+                {
+                    'error': (
+                        f"Invalid marketplace_type '{marketplace_type}'. "
+                        f"Must be one of: {sorted(valid_types)}"
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         listing = (
             Listing.objects
-            .filter(idea_id=pk, workspace_id=ws_id)
+            .filter(
+                idea_id=pk,
+                workspace_id=ws_id,
+                marketplace_type=marketplace_type,
+            )
             .select_related('idea', 'design')
             .order_by('-created_at')
             .first()
@@ -189,7 +243,20 @@ class ListingUpdateView(APIView):
             if 'status' not in serializer.validated_data:
                 serializer.validated_data['status'] = Listing.Status.DRAFT
 
-        serializer.save()
+        try:
+            with transaction.atomic():
+                serializer.save()
+        except IntegrityError:
+            return Response(
+                {
+                    'error': (
+                        'Listing already exists for this design with the '
+                        'target marketplace_type.'
+                    ),
+                    'code': 'duplicate_marketplace_type',
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
         return Response(ListingSerializer(listing).data)
 
 
@@ -262,6 +329,212 @@ class ListingExportView(APIView):
         )
 
         return Response({'text': text, 'listing_id': str(listing.id)})
+
+
+# ---------------------------------------------------------------------------
+# Listing Conversion (PROJ-11 F3)
+# ---------------------------------------------------------------------------
+
+
+def _map_listing_fields(source, target_marketplace_type):
+    """Return a dict of field values mapped from ``source`` to the target.
+
+    Spec (PROJ-11 spec lines 156-158):
+    - Global -> MBA: Global text lands in Title/Brand/Bullet1 where data
+      maps, the rest is left empty.
+    - MBA -> Global: MBA fields map back to Global's simpler shape.
+
+    Global and MBA both use the same underlying ``Listing`` schema, so the
+    mapping difference is mainly in which fields are preserved vs cleared:
+    - On MBA -> Global: keep brand_name/title/description, drop the 5
+      bullets + backend_keywords (not part of Global's simpler shape).
+    - On Global -> MBA: keep brand_name/title, promote description to
+      bullet_1 when bullet_1 is empty, leave other bullets + backend_keywords
+      blank for the user to fill in.
+    - For any other direction (e.g. to Displate), do a straight field copy
+      so nothing is silently lost.
+    """
+    source_mt = source.marketplace_type
+    MarketplaceType = Listing.MarketplaceType
+
+    payload = {
+        'brand_name': source.brand_name,
+        'title': source.title,
+        'description': source.description,
+        'language': source.language,
+        'translations': dict(source.translations or {}),
+        'bullet_1': source.bullet_1,
+        'bullet_2': source.bullet_2,
+        'bullet_3': source.bullet_3,
+        'bullet_4': source.bullet_4,
+        'bullet_5': source.bullet_5,
+        'backend_keywords': source.backend_keywords,
+    }
+
+    if (
+        source_mt == MarketplaceType.GLOBAL
+        and target_marketplace_type == MarketplaceType.MBA
+    ):
+        # Global -> MBA: promote description into bullet_1 if bullet_1 empty.
+        # Drop bullets 2-5 and backend_keywords so the MBA variant starts
+        # with only the fields that cleanly map from Global.
+        if not payload['bullet_1'] and payload['description']:
+            payload['bullet_1'] = payload['description'][:256]
+        payload['bullet_2'] = ''
+        payload['bullet_3'] = ''
+        payload['bullet_4'] = ''
+        payload['bullet_5'] = ''
+        payload['backend_keywords'] = ''
+
+    elif (
+        source_mt == MarketplaceType.MBA
+        and target_marketplace_type == MarketplaceType.GLOBAL
+    ):
+        # MBA -> Global: keep brand/title/description. Drop the 5 bullets +
+        # backend_keywords (not part of Global's simpler shape).
+        payload['bullet_1'] = ''
+        payload['bullet_2'] = ''
+        payload['bullet_3'] = ''
+        payload['bullet_4'] = ''
+        payload['bullet_5'] = ''
+        payload['backend_keywords'] = ''
+
+    # Any other source/target combination -> straight copy of `payload`
+    # (e.g. conversions involving Displate are placeholders for now).
+
+    return payload
+
+
+class ListingConvertView(APIView):
+    """POST /api/listings/convert/ -- convert a Listing between marketplaces.
+
+    Body: ``{source_listing_id, target_marketplace_type, overwrite?: bool}``.
+
+    Behavior:
+    - If no Listing exists for ``(source.design, target_marketplace_type)``
+      -> create a new Listing, return 201.
+    - If a target exists and ``overwrite=false`` (default) -> 409, do nothing.
+    - If a target exists and ``overwrite=true`` -> update in place, return 200.
+
+    Workspace isolation: source must belong to the caller's workspace.
+    Cross-workspace source -> 404 (treat as not-found to avoid enumeration).
+
+    Marketplace_type stays tied to the Listing row (one row per
+    ``(design, marketplace_type)``). When the source has ``design=NULL``
+    the DB unique constraint allows multiple rows, so convert creates a new
+    NULL-design listing in the new marketplace_type.
+    """
+
+    def post(self, request):
+        ws_id = _get_workspace_id(request)
+        if not ws_id:
+            return _ws_error()
+
+        serializer = ListingConvertSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        source = get_object_or_404(
+            Listing.objects.select_related('idea', 'design'),
+            pk=data['source_listing_id'],
+            workspace_id=ws_id,
+        )
+
+        target_mt = data['target_marketplace_type']
+        overwrite = data['overwrite']
+
+        if target_mt == source.marketplace_type:
+            return Response(
+                {
+                    'error': (
+                        'target_marketplace_type must differ from source '
+                        f"marketplace_type ({source.marketplace_type})."
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        payload = _map_listing_fields(source, target_mt)
+
+        with transaction.atomic():
+            # Look up existing target Listing for this (design, target_mt)
+            # pair. When source.design is NULL we cannot upsert by design —
+            # always create a new row in that case (NULL != NULL in Postgres
+            # unique constraint semantics, mirroring ListingGenerateView).
+            existing = None
+            if source.design_id is not None:
+                existing = (
+                    Listing.objects
+                    .select_for_update()
+                    .filter(
+                        workspace_id=ws_id,
+                        design_id=source.design_id,
+                        marketplace_type=target_mt,
+                    )
+                    .first()
+                )
+
+            if existing and not overwrite:
+                return Response(
+                    {
+                        'error': (
+                            f'Listing already exists for this design with '
+                            f'marketplace_type={target_mt}. '
+                            f'Set overwrite=true to replace it.'
+                        ),
+                        'code': 'target_exists',
+                        'existing_listing_id': str(existing.id),
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
+
+            if existing and overwrite:
+                for field, value in payload.items():
+                    setattr(existing, field, value)
+                # Edits revert status to draft — matches ListingUpdateView.
+                existing.status = Listing.Status.DRAFT
+                existing.save(
+                    update_fields=list(payload.keys())
+                    + ['status', 'updated_at'],
+                )
+                return Response(
+                    ListingSerializer(existing).data,
+                    status=status.HTTP_200_OK,
+                )
+
+            # Create new target Listing. IntegrityError catch guards against
+            # a race where a concurrent request inserted the same pair
+            # between our SELECT and INSERT.
+            try:
+                with transaction.atomic():
+                    created = Listing.objects.create(
+                        workspace_id=ws_id,
+                        idea=source.idea,
+                        design=source.design,
+                        marketplace_type=target_mt,
+                        round=source.round,
+                        status=Listing.Status.DRAFT,
+                        generated_by=Listing.GeneratedBy.MANUAL,
+                        availability=source.availability,
+                        publish_mode=source.publish_mode,
+                        **payload,
+                    )
+            except IntegrityError:
+                return Response(
+                    {
+                        'error': (
+                            f'Listing already exists for this design with '
+                            f'marketplace_type={target_mt}.'
+                        ),
+                        'code': 'target_exists',
+                    },
+                    status=status.HTTP_409_CONFLICT,
+                )
+
+        return Response(
+            ListingSerializer(created).data,
+            status=status.HTTP_201_CREATED,
+        )
 
 
 # ===========================================================================
@@ -1136,3 +1409,216 @@ class LifecycleUpdateView(APIView):
 
         lifecycle.save(update_fields=update_fields)
         return Response(ProductLifecycleSerializer(lifecycle).data)
+
+
+# ===========================================================================
+# Design Product Config Views (PROJ-11 F4 / AC-38..AC-44)
+# ===========================================================================
+
+def _valid_marketplace_types():
+    return {c[0] for c in DesignProductConfig.MarketplaceType.choices}
+
+
+def _get_workspace_design(ws_id, design_id):
+    """Workspace-scoped DesignAsset lookup. Raises 404 on miss/cross-workspace.
+
+    Workspace isolation requirement: only returns designs in the caller's
+    workspace. Cross-workspace access yields 404 (treat as not-found to
+    avoid ID enumeration).
+    """
+    return get_object_or_404(
+        DesignAsset, pk=design_id, workspace_id=ws_id,
+    )
+
+
+class DesignProductConfigView(APIView):
+    """GET/PATCH /api/designs/{design_id}/product-config/.
+
+    GET: returns the config row for ``(design, marketplace_type)``. 404 when
+    no row exists (frontend falls back to empty defaults). Default
+    ``marketplace_type=mba`` when query param omitted.
+
+    PATCH: upsert semantics. ``marketplace_type`` required in body. Creates
+    the row on first call, updates on subsequent calls. Returns 200 with the
+    full record.
+    """
+
+    def get(self, request, design_id):
+        ws_id = _get_workspace_id(request)
+        if not ws_id:
+            return _ws_error()
+
+        marketplace_type = request.query_params.get(
+            'marketplace_type',
+            DesignProductConfig.MarketplaceType.MBA,
+        )
+        valid = _valid_marketplace_types()
+        if marketplace_type not in valid:
+            return Response(
+                {
+                    'error': (
+                        f"Invalid marketplace_type '{marketplace_type}'. "
+                        f"Must be one of: {sorted(valid)}"
+                    ),
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        design = _get_workspace_design(ws_id, design_id)
+
+        config = (
+            DesignProductConfig.objects
+            .filter(design=design, marketplace_type=marketplace_type)
+            .first()
+        )
+        if not config:
+            return Response(
+                {
+                    'error': (
+                        f'No product config for this design + '
+                        f'{marketplace_type}.'
+                    ),
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(DesignProductConfigSerializer(config).data)
+
+    def patch(self, request, design_id):
+        ws_id = _get_workspace_id(request)
+        if not ws_id:
+            return _ws_error()
+
+        design = _get_workspace_design(ws_id, design_id)
+
+        serializer = DesignProductConfigUpsertSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        marketplace_type = data.pop('marketplace_type')
+
+        defaults = {k: v for k, v in data.items() if v is not None}
+
+        with transaction.atomic():
+            config, _created = (
+                DesignProductConfig.objects
+                .select_for_update()
+                .get_or_create(
+                    design=design,
+                    marketplace_type=marketplace_type,
+                    defaults=defaults,
+                )
+            )
+            if not _created and defaults:
+                for field, value in defaults.items():
+                    setattr(config, field, value)
+                config.save(
+                    update_fields=list(defaults.keys()) + ['updated_at'],
+                )
+
+        config.refresh_from_db()
+        return Response(DesignProductConfigSerializer(config).data)
+
+
+class DesignProductConfigCopyFromView(APIView):
+    """POST /api/designs/{design_id}/product-config/copy-from/.
+
+    Copies a source design's config into the target design. Atomic: source
+    read + target upsert happen in one transaction to avoid races with the
+    frontend's auto-save PATCH.
+
+    Body: ``{source_design_id, marketplace_type, scope}`` where ``scope`` is
+    one of ``all, colors, fit_types, print_side, product_types, marketplaces``.
+
+    Workspace isolation: both source and target must be in the caller's
+    workspace. Cross-workspace returns 404 (source) or 403 if a cross-
+    workspace target was reachable via a direct URL (we catch that upstream
+    via the same workspace-scoped lookup).
+    """
+
+    def post(self, request, design_id):
+        ws_id = _get_workspace_id(request)
+        if not ws_id:
+            return _ws_error()
+
+        target_design = _get_workspace_design(ws_id, design_id)
+
+        serializer = DesignProductConfigCopyFromSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        if str(data['source_design_id']) == str(target_design.pk):
+            return Response(
+                {'error': 'source_design_id and target must differ.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        source_design = _get_workspace_design(ws_id, data['source_design_id'])
+        marketplace_type = data['marketplace_type']
+        scope = data['scope']
+
+        with transaction.atomic():
+            source = (
+                DesignProductConfig.objects
+                .filter(design=source_design, marketplace_type=marketplace_type)
+                .first()
+            )
+            if not source:
+                return Response(
+                    {
+                        'error': (
+                            f'Source design has no product config for '
+                            f'{marketplace_type}.'
+                        ),
+                        'code': 'source_config_missing',
+                    },
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            if scope == 'all':
+                copy_fields = list(COPY_SCOPE_FIELDS)
+            elif scope in COPY_SCOPE_FIELDS:
+                copy_fields = [scope]
+            else:  # Shouldn't hit — serializer validated the choice
+                return Response(
+                    {'error': f"Unknown scope '{scope}'."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            payload = {field: getattr(source, field) for field in copy_fields}
+
+            target, _created = (
+                DesignProductConfig.objects
+                .select_for_update()
+                .get_or_create(
+                    design=target_design,
+                    marketplace_type=marketplace_type,
+                    defaults=payload,
+                )
+            )
+            if not _created:
+                for field, value in payload.items():
+                    setattr(target, field, value)
+                target.save(
+                    update_fields=list(payload.keys()) + ['updated_at'],
+                )
+
+        target.refresh_from_db()
+        return Response(DesignProductConfigSerializer(target).data)
+
+
+# ===========================================================================
+# MBA Reference Data Views (AC-37)
+# ===========================================================================
+
+class MbaColorsView(APIView):
+    """GET /api/mba/colors/ -- canonical Amazon MBA garment color palette.
+
+    Returns a static list of `{key, name, hex}` objects sourced from
+    `publish_app.constants.MBA_COLORS`. Global read-only list (no workspace
+    scope, no pagination). Consumed by the Edit Page ColorGrid so the frontend
+    does not hardcode Amazon's palette.
+    """
+
+    @method_decorator(cache_control(public=True, max_age=3600))
+    def get(self, request):
+        return Response(MBA_COLORS)

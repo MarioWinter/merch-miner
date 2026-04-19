@@ -12,13 +12,17 @@ from publish_app.api.views import (
     DesignGalleryListView,
     DesignGalleryMoveView,
     DesignGalleryUploadView,
+    DesignProductConfigCopyFromView,
+    DesignProductConfigView,
     LifecycleUpdateView,
+    ListingConvertView,
     ListingDetailView,
     ListingExportView,
     ListingGenerateView,
     ListingTMCheckView,
     ListingTranslateView,
     ListingUpdateView,
+    MbaColorsView,
     NicheLifecycleView,
     UploadJobBatchCreateView,
     UploadJobCancelView,
@@ -58,6 +62,14 @@ urlpatterns = [
         'ideas/<uuid:pk>/listing/',
         ListingDetailView.as_view(),
         name='listing-detail',
+    ),
+    # Non-UUID listing routes — declare BEFORE `listings/<uuid:pk>/` even
+    # though the `uuid:` path converter is strict, so the route order stays
+    # explicit for future static segments.
+    path(
+        'listings/convert/',
+        ListingConvertView.as_view(),
+        name='listing-convert',
     ),
     path(
         'listings/<uuid:pk>/',
@@ -110,6 +122,18 @@ urlpatterns = [
         'designs/gallery/<uuid:pk>/',
         DesignGalleryDetailView.as_view(),
         name='design-gallery-detail',
+    ),
+
+    # Per-Design Product Config endpoints (F4 / AC-38..AC-44)
+    path(
+        'designs/<uuid:design_id>/product-config/',
+        DesignProductConfigView.as_view(),
+        name='design-product-config',
+    ),
+    path(
+        'designs/<uuid:design_id>/product-config/copy-from/',
+        DesignProductConfigCopyFromView.as_view(),
+        name='design-product-config-copy-from',
     ),
 
     # Upload Job endpoints
@@ -166,5 +190,12 @@ urlpatterns = [
         'lifecycle/<uuid:pk>/',
         LifecycleUpdateView.as_view(),
         name='lifecycle-update',
+    ),
+
+    # MBA Reference Data endpoints (AC-37)
+    path(
+        'mba/colors/',
+        MbaColorsView.as_view(),
+        name='mba-colors',
     ),
 ]
