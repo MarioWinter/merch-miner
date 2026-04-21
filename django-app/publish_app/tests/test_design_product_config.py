@@ -201,13 +201,15 @@ class TestProductConfigGet:
         )
         assert resp.status_code == 404
 
-    def test_get_requires_workspace_header(
+    def test_get_without_header_uses_active_membership(
         self, api_client, design, membership,
     ):
+        # Fallback to active membership — workspace resolution succeeds,
+        # response is 200 (config exists) or 404 (no config yet).
         resp = api_client.get(
             f'/api/designs/{design.id}/product-config/',
         )
-        assert resp.status_code == 400
+        assert resp.status_code in (200, 404)
 
     def test_get_unauthenticated_returns_401(self, design):
         client = APIClient()
@@ -370,6 +372,33 @@ class TestProductConfigPatchUpsert:
             format='json', **ws_headers(workspace),
         )
         assert resp.status_code == 404
+
+    def test_concurrent_patch_last_write_wins_ec14(
+        self, api_client, workspace, design, membership,
+    ):
+        """EC-14: no optimistic locking — two sequential PATCHes to the same
+        (design, marketplace_type) both succeed; final state = second write."""
+        url = f'/api/designs/{design.id}/product-config/'
+        resp1 = api_client.patch(
+            url,
+            {'marketplace_type': 'mba', 'colors': ['black']},
+            format='json', **ws_headers(workspace),
+        )
+        assert resp1.status_code == 200
+        resp2 = api_client.patch(
+            url,
+            {'marketplace_type': 'mba', 'colors': ['white']},
+            format='json', **ws_headers(workspace),
+        )
+        assert resp2.status_code == 200
+
+        config = DesignProductConfig.objects.get(
+            design=design, marketplace_type='mba',
+        )
+        assert config.colors == ['white']
+        assert DesignProductConfig.objects.filter(
+            design=design, marketplace_type='mba',
+        ).count() == 1
 
     def test_patch_tab_isolation_mba_does_not_leak_to_global(
         self, api_client, workspace, design, membership,

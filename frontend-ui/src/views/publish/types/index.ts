@@ -206,6 +206,16 @@ export interface GetListingParams {
   marketplace_type?: MarketplaceType;
 }
 
+export interface ConvertListingBody {
+  source_listing_id: string;
+  target_marketplace_type: MarketplaceType;
+  overwrite?: boolean;
+}
+
+export interface ConvertListingResponse extends Listing {
+  product_config_seeded?: boolean;
+}
+
 export interface TranslateListingBody {
   target_languages: ListingLanguage[];
 }
@@ -366,4 +376,48 @@ export interface MbaColor {
   key: string;
   name: string;
   hex: string;
+}
+
+// ---- Design Product Config (F4) -----------------------------------------
+
+export interface DesignProductConfig {
+  id: string;
+  design: string;
+  marketplace_type: MarketplaceType;
+  product_types: string[];
+  fit_types: string[];
+  print_side: PrintSide;
+  colors: string[];
+  marketplaces: MarketplaceConfig[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface GetProductConfigParams {
+  designId: string;
+  marketplace_type: MarketplaceType;
+}
+
+export interface UpdateProductConfigBody {
+  marketplace_type: MarketplaceType;
+  product_types?: string[];
+  fit_types?: string[];
+  print_side?: PrintSide;
+  colors?: string[];
+  marketplaces?: MarketplaceConfig[];
+}
+
+export type ProductConfigCopyScope =
+  | 'all'
+  | 'colors'
+  | 'fit_types'
+  | 'print_side'
+  | 'product_types'
+  | 'marketplaces';
+
+export interface CopyProductConfigFromBody {
+  designId: string;
+  source_design_id: string;
+  marketplace_type: MarketplaceType;
+  scope: ProductConfigCopyScope;
 }

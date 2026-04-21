@@ -36,7 +36,7 @@ const ActionRow = styled(Box, {
     : {
         border: '1px solid transparent',
         '&:hover': {
-          backgroundColor: alpha('#fff', 0.06),
+          backgroundColor: alpha(COLORS.white, 0.06),
         },
       }),
 }));

@@ -56,7 +56,7 @@ const OptionsButton = ({ onClick, ariaLabel }: OptionsButtonProps) => {
     onClick?.();
   }, [onClick]);
 
-  const label = t('publish.edit.options', { defaultValue: 'Options' });
+  const label = t('publish.edit.optionsButton', { defaultValue: 'Options' });
 
   return (
     <StyledButton

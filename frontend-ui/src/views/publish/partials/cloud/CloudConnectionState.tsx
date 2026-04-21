@@ -56,7 +56,7 @@ const CloudConnectionState = ({
             variant="rounded"
             sx={{
               aspectRatio: '1 / 1',
-              borderRadius: (theme) => Number(theme.shape.borderRadius) * 1.5,
+              borderRadius: (theme) => `${Number(theme.shape.borderRadius) * 1.5}px`,
             }}
           />
         ))}

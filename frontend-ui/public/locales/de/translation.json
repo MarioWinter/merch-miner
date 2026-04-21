@@ -2076,6 +2076,45 @@
       "title": "Veroeffentlichen",
       "subtitle": "Design-Auswahl, Listing-Editor und Upload-Warteschlange"
     },
+    "toolbar": {
+      "selectCounter": "Designs auswaehlen",
+      "selectAll": "Alle auswaehlen",
+      "selectNone": "Keine auswaehlen",
+      "collections": "Sammlungen",
+      "folders": "Ordner",
+      "chooseAction": "Aktion waehlen",
+      "search": "Suchen...",
+      "template": "Vorlage",
+      "upload": "Hochladen",
+      "import": "Importieren",
+      "publish": "Veroeffentlichen"
+    },
+    "tabs": {
+      "myDesigns": "Meine Designs",
+      "cloudStorage": "Cloud-Speicher"
+    },
+    "grid": {
+      "addDesigns": "Designs hinzufuegen",
+      "emptyTitle": "Noch keine Designs",
+      "emptyDescription": "Lade Designs hoch oder importiere sie, um zu starten.",
+      "storage": "{{used}} / {{total}} belegt"
+    },
+    "card": {
+      "select": "Design auswaehlen",
+      "duplicate": "Duplizieren",
+      "move": "Verschieben",
+      "addTags": "Tags hinzufuegen"
+    },
+    "collections": {
+      "title": "Sammlungen",
+      "home": "Start",
+      "recentlyUsed": "Zuletzt verwendet",
+      "searchFolders": "Ordner suchen...",
+      "openFolder": "Ordner oeffnen",
+      "addFolder": "Ordner hinzufuegen",
+      "folderName": "Ordnername",
+      "itemCount": "{{count}} Eintraege"
+    },
     "gallery": {
       "title": "Design-Galerie",
       "upload": "Hochladen",
@@ -2125,9 +2164,12 @@
       "generate": "Listing generieren",
       "generateSuccess": "Listing generiert",
       "generateError": "Listing konnte nicht generiert werden",
+      "generateDuplicate": "Fuer dieses Design existiert bereits ein Listing.",
       "save": "Listing speichern",
       "saveSuccess": "Listing gespeichert",
       "saveError": "Listing konnte nicht gespeichert werden",
+      "saveDuplicate": "Fuer dieses Design existiert bereits ein Listing.",
+      "saveNoListing": "Generiere zuerst ein Listing, bevor du speicherst.",
       "loadError": "Listing konnte nicht geladen werden",
       "noListing": "Waehle ein Design und generiere ein Listing, um zu starten.",
       "improve": "Mit KI verbessern",
@@ -2210,9 +2252,10 @@
       "deleteError": "Vorlage konnte nicht geloescht werden"
     },
     "command": {
-      "title": "Aktionen",
-      "searchPlaceholder": "Aktionen suchen...",
-      "noResults": "Keine passenden Aktionen",
+      "title": "Befehlspalette",
+      "searchPlaceholder": "Aktionen durchsuchen...",
+      "noResults": "Keine Aktionen gefunden",
+      "recent": "ZULETZT VERWENDET",
       "copyListing": "Listing kopieren",
       "copyListingDesc": "Aktuelles Listing auf andere ausgewaehlte Designs kopieren",
       "applyTemplate": "Vorlage anwenden",
@@ -2224,7 +2267,28 @@
       "applyProductSettings": "Produkteinstellungen anwenden",
       "applyProductSettingsDesc": "Alle Produkteinstellungen auf ausgewaehlte Designs kopieren",
       "bulkUpload": "Batch-Upload",
-      "bulkUploadDesc": "Upload-Jobs fuer alle ausgewaehlten Designs einreihen"
+      "bulkUploadDesc": "Upload-Jobs fuer alle ausgewaehlten Designs einreihen",
+      "editBulk": "In Batch bearbeiten",
+      "deleteListings": "Listings loeschen",
+      "moveCollection": "In Sammlung verschieben",
+      "duplicate": "Duplizieren",
+      "sortListings": "Listings sortieren",
+      "bulkSync": "Batch-Sync",
+      "translate": "Uebersetzen",
+      "bulkTags": "Batch-Tags",
+      "aiGenerate": "KI-Listing generieren",
+      "deleteFiles": "Dateien loeschen",
+      "download": "Herunterladen",
+      "exportXlsx": "Als XLSX exportieren",
+      "exportCsv": "Als CSV exportieren",
+      "sendCloud": "In Cloud senden",
+      "importCloud": "Aus Cloud importieren",
+      "copyListingFrom": "Listing kopieren von...",
+      "copyColorsFrom": "Farben kopieren von...",
+      "copyFitFrom": "Passformen kopieren von...",
+      "copyPricesFrom": "Preise kopieren von...",
+      "convertFromGlobal": "Aus Global konvertieren",
+      "convertFromMba": "Aus MBA konvertieren"
     },
     "actionBar": {
       "label": "Massenaktionen",
@@ -2232,7 +2296,69 @@
       "edit": "Bearbeiten",
       "uploadBatch": "Batch hochladen",
       "delete": "Loeschen",
-      "clear": "Aufheben"
+      "clear": "Aufheben",
+      "selectAll": "Alle",
+      "selectNone": "Keine",
+      "history": "Verlauf",
+      "batch": "Batch",
+      "options": "Optionen",
+      "applyTemplate": "Vorlage anwenden",
+      "copyFrom": "Kopieren von...",
+      "applyColors": "Farben anwenden",
+      "applyFitTypes": "Passformen anwenden",
+      "exportSelected": "Auswahl exportieren"
+    },
+    "cloud": {
+      "import": "Importieren",
+      "preview": "Vorschau",
+      "copyUrl": "URL kopieren",
+      "root": "Wurzel",
+      "folderNav": "Ordnernavigation",
+      "loadError": "Ordner konnte nicht geladen werden",
+      "emptyFolder": "Keine Bilder in diesem Ordner",
+      "urlCopied": "URL kopiert",
+      "importSuccess": "Datei erfolgreich importiert",
+      "importError": "Import fehlgeschlagen",
+      "notConnected": "Nicht mit {{provider}} verbunden",
+      "noSubfolders": "Keine Unterordner in {{folder}}",
+      "notConfigured": "{{provider}} nicht konfiguriert",
+      "configureHint": "Konfiguriere {{provider}} in den Einstellungen, um zu starten.",
+      "connectTitle": "Mit {{provider}} verbinden",
+      "connectDescription": "Melde dich bei {{provider}} an, um deine Designs zu durchsuchen und zu importieren.",
+      "connect": "Verbinden",
+      "manageConnections": "Verbindungen verwalten",
+      "sendTitle": "An {{provider}} senden",
+      "uploadTo": "Hochladen nach {{folder}}",
+      "sending": "Sende...",
+      "send": "Senden",
+      "sendSuccess": "{{count}} Datei(en) an {{provider}} gesendet",
+      "sendError": "Dateien konnten nicht gesendet werden",
+      "sendPartial": "{{sent}} von {{total}} Datei(en) gesendet. {{failed}} fehlgeschlagen."
+    },
+    "copyFrom": {
+      "noSources": "Keine anderen Designs zum Kopieren verfuegbar.",
+      "hasListing": "Hat Listing",
+      "applying": "Wende an...",
+      "apply": "Anwenden",
+      "success": "Listing kopiert - speichern, um zu uebernehmen.",
+      "error": "Quell-Listing konnte nicht geladen werden.",
+      "noListing": "Quell-Design hat keine verknuepfte Idee/Listing.",
+      "sourceNoConfig": "Quelle hat keine Konfiguration fuer {{marketplace}}."
+    },
+    "productConfig": {
+      "saveError": "Produktkonfiguration konnte nicht gespeichert werden.",
+      "loadError": "Produktkonfiguration konnte nicht geladen werden."
+    },
+    "convert": {
+      "success": "Listing zu {{target}} konvertiert",
+      "error": "Listing konnte nicht konvertiert werden",
+      "invalid": "Konvertierung fuer diesen Marktplatz nicht gueltig",
+      "sourceMissing": "Kein {{source}}-Listing zum Konvertieren. Generiere zuerst eines.",
+      "noIdea": "Waehle zuerst ein Design mit einer verknuepften Idee.",
+      "confirmTitle": "Vorhandenes {{target}}-Listing ueberschreiben?",
+      "confirmBody": "Ein {{target}}-Listing existiert bereits fuer dieses Design. Die Konvertierung aus {{source}} ersetzt dessen Inhalt. Dies kann nicht rueckgaengig gemacht werden.",
+      "confirmButton": "Ueberschreiben",
+      "cancelButton": "Abbrechen"
     },
     "lifecycle": {
       "title": "Produkt-Lebenszyklus",
@@ -2241,6 +2367,137 @@
       "design": "Design",
       "noData": "Keine Lebenszyklus-Daten verfuegbar",
       "awaitingSales": "Warte auf Verkaufsdaten"
+    },
+    "edit": {
+      "backToCollection": "Zurueck zur Sammlung",
+      "addDesigns": "Designs hinzufuegen",
+      "shortcutGuide": "Tastenkuerzel",
+      "shortcutsTitle": "Tastenkuerzel",
+      "shortcutsSoon": "Tastenkuerzel folgen bald",
+      "close": "Schliessen",
+      "optionsButton": "Optionen",
+      "demo": {
+        "productsTitle": "Produkte"
+      },
+      "marketplace": {
+        "global": "Global",
+        "mba": "Mba",
+        "displate": "Displate"
+      },
+      "empty": {
+        "title": "Keine Designs ausgewaehlt",
+        "hint": "Gehe zurueck zur Publish-Seite und waehle Designs zum Bearbeiten aus.",
+        "back": "Zurueck zu Publish"
+      },
+      "thumbnails": {
+        "tagsLabel": "Design-Tags",
+        "tagsPlaceholder": "Tag hinzufuegen...",
+        "tagsCounter": "{{count}}/{{max}}",
+        "load": "Laden",
+        "clear": "Leeren",
+        "counter": "{{current}} von {{total}}",
+        "previous": "Vorheriges Design",
+        "next": "Naechstes Design",
+        "activeBadge": "Design {{index}}",
+        "remove": "Tag entfernen"
+      },
+      "products": {
+        "title": "Produkte",
+        "productType": "Produkttyp {{label}}",
+        "selectedCount": "{{count}} ausgewaehlt"
+      },
+      "fitPrint": {
+        "fitTitle": "Passform",
+        "printTitle": "Druckseite",
+        "front": "Vorderseite",
+        "back": "Rueckseite"
+      },
+      "colors": {
+        "title": "Farben",
+        "loadError": "Farben konnten nicht geladen werden.",
+        "retry": "Erneut versuchen",
+        "swatch": "{{name}}"
+      },
+      "marketplaces": {
+        "title": "Marktplaetze & Preise",
+        "price": "Preis",
+        "royalty": "Tantieme",
+        "enable": "{{code}} aktivieren"
+      },
+      "placeholder": {
+        "comingSoon": "Konfiguration fuer {{marketplace}} kommt bald"
+      },
+      "fields": {
+        "sectionLabel": "Listing-Felder",
+        "brand": "Marke",
+        "title": "Titel",
+        "bullet": "Bullet {{n}}",
+        "description": "Beschreibung",
+        "aiImprove": "KI-Verbesserung"
+      },
+      "keywords": {
+        "title": "Backend-Keywords",
+        "info": "Suchbegriffe fuer die Amazon-Indexierung. Max. 500 Zeichen inkl. Trenner.",
+        "addPlaceholder": "+ Hinzufuegen",
+        "addAria": "Keyword hinzufuegen",
+        "remove": "Keyword {{kw}} entfernen",
+        "kwFinder": "KW Finder",
+        "kwWorkbench": "KW Workbench"
+      },
+      "translation": {
+        "title": "Sprache",
+        "selectLanguage": "Sprache auswaehlen",
+        "autoTranslate": "Auto-Uebersetzen",
+        "translateTo": "Uebersetzen in…"
+      },
+      "options": {
+        "tab": "Optionen",
+        "tabsLabel": "Listing-Optionen und Markenrechte",
+        "availability": {
+          "title": "Verfuegbarkeit",
+          "public": "Oeffentlich",
+          "private": "Privat"
+        },
+        "publishMode": {
+          "title": "Veroeffentlichen",
+          "live": "Live",
+          "draft": "Entwurf"
+        }
+      },
+      "trademarks": {
+        "tab": "Markenrechte",
+        "runCheck": "TM-Check ausfuehren",
+        "hint": "Fuehre vor der Veroeffentlichung einen Markenrechts-Check aus.",
+        "checkingTitle": "Markenrechts-Check laeuft",
+        "cleanTitle": "Markenrechts-Check bestanden",
+        "cleanBody": "Alles in Ordnung - keine Probleme erkannt.",
+        "flaggedTitle": "Markenrechts-Probleme gefunden",
+        "flaggedBody": "Die folgenden Begriffe koennten markenrechtlich geschuetzt sein. Vor dem Veroeffentlichen pruefen.",
+        "proceed": "Trotzdem fortfahren",
+        "edit": "Felder bearbeiten",
+        "close": "Schliessen",
+        "error": "Markenrechts-Check fehlgeschlagen",
+        "noListing": "Speichere das Listing zuerst, um einen Markenrechts-Check auszufuehren."
+      },
+      "preview": {
+        "label": "Design-Vorschau",
+        "empty": "Kein Design ausgewaehlt",
+        "error": "Vorschau nicht verfuegbar"
+      },
+      "unsaved": {
+        "message": "Nicht gespeicherte Aenderungen",
+        "discard": "Verwerfen",
+        "save": "Speichern",
+        "autoSaving": "Speichere...",
+        "autoSaved": "Gespeichert"
+      },
+      "listingState": {
+        "generate": "Listing generieren",
+        "generating": "Generiere...",
+        "notFound": "Noch kein Listing fuer {{marketplace}}. Generiere eines, um zu starten.",
+        "error": "Listing fuer diesen Marktplatz konnte nicht geladen werden.",
+        "retry": "Erneut versuchen"
+      }
     }
   },
   "dashboard": {

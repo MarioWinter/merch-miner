@@ -41,7 +41,7 @@ const FolderRow = styled(Box, {
   '&:hover': {
     backgroundColor: isSelected
       ? alpha(COLORS.cyan, 0.08)
-      : alpha('#fff', 0.04),
+      : alpha(COLORS.white, 0.04),
   },
 }));
 

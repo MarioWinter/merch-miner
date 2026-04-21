@@ -1783,6 +1783,45 @@
       "title": "Publish",
       "subtitle": "Design selection, listing editor, and upload queue"
     },
+    "toolbar": {
+      "selectCounter": "Select designs",
+      "selectAll": "Select All",
+      "selectNone": "Select None",
+      "collections": "Collections",
+      "folders": "Folders",
+      "chooseAction": "Choose Action",
+      "search": "Search...",
+      "template": "Template",
+      "upload": "Upload",
+      "import": "Import",
+      "publish": "Publish"
+    },
+    "tabs": {
+      "myDesigns": "My Designs",
+      "cloudStorage": "Cloud Storage"
+    },
+    "grid": {
+      "addDesigns": "Add Designs",
+      "emptyTitle": "No designs yet",
+      "emptyDescription": "Upload or import designs to get started.",
+      "storage": "{{used}} / {{total}} used"
+    },
+    "card": {
+      "select": "Select design",
+      "duplicate": "Duplicate",
+      "move": "Move",
+      "addTags": "Add Tags"
+    },
+    "collections": {
+      "title": "Collections",
+      "home": "Home",
+      "recentlyUsed": "Recently Used",
+      "searchFolders": "Search folders...",
+      "openFolder": "Open Folder",
+      "addFolder": "Add Folder",
+      "folderName": "Folder name",
+      "itemCount": "{{count}} items"
+    },
     "gallery": {
       "title": "Design Gallery",
       "upload": "Upload",
@@ -1832,9 +1871,12 @@
       "generate": "Generate Listing",
       "generateSuccess": "Listing generated",
       "generateError": "Failed to generate listing",
+      "generateDuplicate": "A listing already exists for this design.",
       "save": "Save Listing",
       "saveSuccess": "Listing saved",
       "saveError": "Failed to save listing",
+      "saveDuplicate": "A listing already exists for this design.",
+      "saveNoListing": "Generate a listing first before saving.",
       "loadError": "Failed to load listing",
       "noListing": "Select a design and generate a listing to get started.",
       "improve": "Improve with AI",
@@ -1917,9 +1959,10 @@
       "deleteError": "Failed to delete template"
     },
     "command": {
-      "title": "Actions",
-      "searchPlaceholder": "Search actions...",
-      "noResults": "No matching actions",
+      "title": "Command Palette",
+      "searchPlaceholder": "Search through actions...",
+      "noResults": "No actions found",
+      "recent": "RECENTLY USED",
       "copyListing": "Copy Listing",
       "copyListingDesc": "Copy current listing to other selected designs",
       "applyTemplate": "Apply Template",
@@ -1931,7 +1974,28 @@
       "applyProductSettings": "Apply Product Settings",
       "applyProductSettingsDesc": "Copy all product settings to selected designs",
       "bulkUpload": "Bulk Upload",
-      "bulkUploadDesc": "Queue upload jobs for all selected designs"
+      "bulkUploadDesc": "Queue upload jobs for all selected designs",
+      "editBulk": "Edit in Bulk",
+      "deleteListings": "Delete Listings",
+      "moveCollection": "Move to Collection",
+      "duplicate": "Duplicate",
+      "sortListings": "Sort Listings",
+      "bulkSync": "Bulk Sync",
+      "translate": "Translate",
+      "bulkTags": "Bulk Tags",
+      "aiGenerate": "AI Generate Listing",
+      "deleteFiles": "Delete Files",
+      "download": "Download",
+      "exportXlsx": "Export as XLSX",
+      "exportCsv": "Export as CSV",
+      "sendCloud": "Send to Cloud",
+      "importCloud": "Import from Cloud",
+      "copyListingFrom": "Copy Listing From...",
+      "copyColorsFrom": "Copy Colors From...",
+      "copyFitFrom": "Copy Fit Types From...",
+      "copyPricesFrom": "Copy Prices From...",
+      "convertFromGlobal": "Convert from Global",
+      "convertFromMba": "Convert from MBA"
     },
     "actionBar": {
       "label": "Bulk actions",
@@ -1939,7 +2003,69 @@
       "edit": "Edit",
       "uploadBatch": "Upload Batch",
       "delete": "Delete",
-      "clear": "Clear"
+      "clear": "Clear",
+      "selectAll": "All",
+      "selectNone": "None",
+      "history": "History",
+      "batch": "Batch",
+      "options": "Options",
+      "applyTemplate": "Apply Template",
+      "copyFrom": "Copy From...",
+      "applyColors": "Apply Colors",
+      "applyFitTypes": "Apply Fit Types",
+      "exportSelected": "Export Selected"
+    },
+    "cloud": {
+      "import": "Import",
+      "preview": "Preview",
+      "copyUrl": "Copy URL",
+      "root": "Root",
+      "folderNav": "Folder navigation",
+      "loadError": "Failed to load folder",
+      "emptyFolder": "No images in this folder",
+      "urlCopied": "URL copied",
+      "importSuccess": "File imported successfully",
+      "importError": "Import failed",
+      "notConnected": "Not connected to {{provider}}",
+      "noSubfolders": "No subfolders in {{folder}}",
+      "notConfigured": "{{provider}} not configured",
+      "configureHint": "Configure {{provider}} in settings to get started.",
+      "connectTitle": "Connect to {{provider}}",
+      "connectDescription": "Sign in to {{provider}} to browse and import your designs.",
+      "connect": "Connect",
+      "manageConnections": "Manage Connections",
+      "sendTitle": "Send to {{provider}}",
+      "uploadTo": "Upload to {{folder}}",
+      "sending": "Sending...",
+      "send": "Send",
+      "sendSuccess": "{{count}} file(s) sent to {{provider}}",
+      "sendError": "Failed to send files",
+      "sendPartial": "{{sent}} of {{total}} file(s) sent. {{failed}} failed."
+    },
+    "copyFrom": {
+      "noSources": "No other designs available to copy from.",
+      "hasListing": "Has listing",
+      "applying": "Applying...",
+      "apply": "Apply",
+      "success": "Listing copied - save to persist.",
+      "error": "Failed to load source listing.",
+      "noListing": "Source design has no linked idea/listing.",
+      "sourceNoConfig": "Source has no config for {{marketplace}}."
+    },
+    "productConfig": {
+      "saveError": "Failed to save product configuration.",
+      "loadError": "Failed to load product configuration."
+    },
+    "convert": {
+      "success": "Listing converted to {{target}}",
+      "error": "Failed to convert listing",
+      "invalid": "Conversion is not valid for this marketplace",
+      "sourceMissing": "No {{source}} listing to convert from. Generate one first.",
+      "noIdea": "Select a design with a linked idea first.",
+      "confirmTitle": "Overwrite existing {{target}} listing?",
+      "confirmBody": "A {{target}} listing already exists for this design. Converting from {{source}} will replace its content. This cannot be undone.",
+      "confirmButton": "Overwrite",
+      "cancelButton": "Cancel"
     },
     "lifecycle": {
       "title": "Product Lifecycle",
@@ -1956,7 +2082,7 @@
       "shortcutsTitle": "Keyboard Shortcuts",
       "shortcutsSoon": "Shortcuts coming soon",
       "close": "Close",
-      "options": "Options",
+      "optionsButton": "Options",
       "demo": {
         "productsTitle": "Products"
       },
@@ -1997,7 +2123,6 @@
         "title": "Colors",
         "loadError": "Failed to load colors.",
         "retry": "Retry",
-        "empty": "No colors configured yet",
         "swatch": "{{name}}"
       },
       "marketplaces": {
@@ -2076,7 +2201,7 @@
       "listingState": {
         "generate": "Generate Listing",
         "generating": "Generating...",
-        "notFound": "No listing for {{marketplace}} yet. Generate one or start typing to save.",
+        "notFound": "No listing for {{marketplace}} yet. Generate one to start editing.",
         "error": "Failed to load listing for this marketplace.",
         "retry": "Retry"
       }

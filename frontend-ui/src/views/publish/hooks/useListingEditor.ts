@@ -8,12 +8,14 @@ import {
   useTranslateListingMutation,
   useTmCheckMutation,
   useLazyExportListingQuery,
+  useConvertListingMutation,
 } from '@/store/publishSlice';
 import type {
   ListingLanguage,
   MarketplaceType,
   TMCheckResult,
   Listing,
+  ConvertListingResponse,
 } from '../types';
 import type { MbaListingFormValues } from '../schemas/mbaListingSchema';
 
@@ -78,6 +80,7 @@ export const useListingEditor = ({
   const [translateListing, { isLoading: isTranslating }] = useTranslateListingMutation();
   const [tmCheck, { isLoading: isChecking }] = useTmCheckMutation();
   const [triggerExport] = useLazyExportListingQuery();
+  const [convertListing, { isLoading: isConverting }] = useConvertListingMutation();
 
   // Track last-saved listing id so that rapid tab switches do not PATCH a
   // stale record.
@@ -294,6 +297,66 @@ export const useListingEditor = ({
     }
   }, [tmCheck, enqueueSnackbar, t]);
 
+  // ---- Convert (G3) -----------------------------------------------------
+  // Wraps POST /api/listings/convert/. Returns the new/updated Listing on
+  // success, `'conflict'` when the target marketplace already has a Listing
+  // (caller must confirm overwrite + retry with `overwrite=true`), or
+  // `null` on unexpected failure.
+  const handleConvert = useCallback(
+    async (args: {
+      sourceListingId: string;
+      targetMarketplaceType: MarketplaceType;
+      overwrite?: boolean;
+    }): Promise<ConvertListingResponse | 'conflict' | null> => {
+      try {
+        const converted = await convertListing({
+          source_listing_id: args.sourceListingId,
+          target_marketplace_type: args.targetMarketplaceType,
+          overwrite: args.overwrite ?? false,
+        }).unwrap();
+        enqueueSnackbar(
+          t('publish.convert.success', {
+            defaultValue: 'Listing converted to {{target}}',
+            target: args.targetMarketplaceType.toUpperCase(),
+          }),
+          { variant: 'success' },
+        );
+        return converted;
+      } catch (err) {
+        const status = (err as RtkError)?.status;
+        if (status === 409) {
+          return 'conflict';
+        }
+        if (status === 400) {
+          enqueueSnackbar(
+            t('publish.convert.invalid', {
+              defaultValue: 'Conversion is not valid for this marketplace',
+            }),
+            { variant: 'warning' },
+          );
+          return null;
+        }
+        if (status === 404) {
+          enqueueSnackbar(
+            t('publish.convert.sourceMissing', {
+              defaultValue: 'Source listing not found',
+            }),
+            { variant: 'error' },
+          );
+          return null;
+        }
+        enqueueSnackbar(
+          t('publish.convert.error', {
+            defaultValue: 'Failed to convert listing',
+          }),
+          { variant: 'error' },
+        );
+        return null;
+      }
+    },
+    [convertListing, enqueueSnackbar, t],
+  );
+
   // ---- Export (copy to clipboard) ---------------------------------------
   const handleExport = useCallback(async () => {
     const targetId = latestListingIdRef.current;
@@ -330,6 +393,7 @@ export const useListingEditor = ({
       isAutoSaving,
       isTranslating,
       isChecking,
+      isConverting,
       // Actions
       handleGenerate,
       handleSave,
@@ -338,6 +402,7 @@ export const useListingEditor = ({
       handleTranslate,
       handleTMCheck,
       handleExport,
+      handleConvert,
       refetchListing,
     }),
     [
@@ -352,6 +417,7 @@ export const useListingEditor = ({
       isAutoSaving,
       isTranslating,
       isChecking,
+      isConverting,
       handleGenerate,
       handleSave,
       scheduleAutoSave,
@@ -359,6 +425,7 @@ export const useListingEditor = ({
       handleTranslate,
       handleTMCheck,
       handleExport,
+      handleConvert,
       refetchListing,
     ],
   );

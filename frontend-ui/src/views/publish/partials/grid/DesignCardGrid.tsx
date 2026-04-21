@@ -22,6 +22,12 @@ interface DesignCardGridProps {
   onMove?: (id: string) => void;
   totalSize?: string;
   storageLimit?: string;
+  onEditSingle?: (id: string) => void;
+  onAddTags?: (id: string) => void;
+  onDeleteSingle?: (id: string) => void;
+  tagEditorDesignId?: string | null;
+  onTagsCommit?: (id: string, tags: string[]) => void;
+  onTagsCancel?: (id: string) => void;
 }
 
 const GridContainer = styled(Box)(({ theme }) => ({
@@ -63,6 +69,12 @@ const DesignCardGrid = ({
   onMove,
   totalSize,
   storageLimit,
+  onEditSingle,
+  onAddTags,
+  onDeleteSingle,
+  tagEditorDesignId,
+  onTagsCommit,
+  onTagsCancel,
 }: DesignCardGridProps) => {
   const { t } = useTranslation();
   const containerRef = useRef<HTMLDivElement>(null);
@@ -90,7 +102,7 @@ const DesignCardGrid = ({
             variant="rounded"
             sx={{
               aspectRatio: '1 / 1',
-              borderRadius: (theme) => Number(theme.shape.borderRadius) * 1.5,
+              borderRadius: (theme) => `${Number(theme.shape.borderRadius) * 1.5}px`,
             }}
           />
         ))}
@@ -153,6 +165,12 @@ const DesignCardGrid = ({
             onDuplicate={onDuplicate}
             onMove={onMove}
             index={idx}
+            onEditSingle={onEditSingle}
+            onAddTags={onAddTags}
+            onDeleteSingle={onDeleteSingle}
+            isEditingTags={tagEditorDesignId === design.id}
+            onTagsCommit={onTagsCommit}
+            onTagsCancel={onTagsCancel}
           />
         ))}
         <AddDesignsCard onClick={onAddDesigns} />

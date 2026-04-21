@@ -14,7 +14,7 @@ const CardRoot = styled(Box)(({ theme }) => ({
   alignItems: 'center',
   justifyContent: 'center',
   aspectRatio: '1 / 1',
-  border: `2px dashed ${alpha('#fff', 0.12)}`,
+  border: `2px dashed ${alpha(COLORS.white, 0.12)}`,
   borderRadius: Number(theme.shape.borderRadius) * 1.5,
   cursor: 'pointer',
   transition: `all ${DURATION.fast}ms ${EASING.standard}`,

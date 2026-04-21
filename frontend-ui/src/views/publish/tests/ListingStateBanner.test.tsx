@@ -40,7 +40,9 @@ describe('ListingStateBanner', () => {
     renderWithProviders(
       <ListingStateBanner {...defaultProps} notFound onGenerate={onGenerate} />,
     );
-    expect(screen.getByText(/No listing for mba yet/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/No listing for mba yet\. Generate one to start editing/i),
+    ).toBeInTheDocument();
     const btn = screen.getByRole('button', { name: /generate listing/i });
     await userEvent.click(btn);
     expect(onGenerate).toHaveBeenCalled();

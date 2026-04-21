@@ -21,6 +21,7 @@ const mockUpdateMutation = vi.fn();
 const mockTranslateMutation = vi.fn();
 const mockTmCheckMutation = vi.fn();
 const mockLazyExport = vi.fn();
+const mockConvertMutation = vi.fn();
 
 const mockGetListingResult: {
   data: Listing | null;
@@ -49,6 +50,7 @@ vi.mock('@/store/publishSlice', () => ({
   ],
   useTmCheckMutation: () => [mockTmCheckMutation, { isLoading: false }],
   useLazyExportListingQuery: () => [mockLazyExport, { isLoading: false }],
+  useConvertListingMutation: () => [mockConvertMutation, { isLoading: false }],
 }));
 
 import { useListingEditor } from '../hooks/useListingEditor';
@@ -334,6 +336,114 @@ describe('useListingEditor', () => {
       id: 'listing-mba-1',
       body: { target_languages: ['de', 'fr'] },
     });
+  });
+
+  it('handleConvert posts to /api/listings/convert/ and returns listing', async () => {
+    const converted = makeListing({
+      id: 'listing-global-1',
+      marketplace_type: 'global',
+    });
+    mockConvertMutation.mockReturnValue({
+      unwrap: () => Promise.resolve({ ...converted, product_config_seeded: false }),
+    });
+    const { result } = renderHook(() =>
+      useListingEditor({
+        ideaId: 'idea-1',
+        designId: 'design-1',
+        marketplaceType: 'global',
+      }),
+    );
+    let out: unknown;
+    await act(async () => {
+      out = await result.current.handleConvert({
+        sourceListingId: 'listing-mba-1',
+        targetMarketplaceType: 'global',
+        overwrite: false,
+      });
+    });
+    expect(mockConvertMutation).toHaveBeenCalledWith({
+      source_listing_id: 'listing-mba-1',
+      target_marketplace_type: 'global',
+      overwrite: false,
+    });
+    expect((out as { id: string }).id).toBe('listing-global-1');
+    expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
+      expect.stringContaining('Listing converted'),
+      { variant: 'success' },
+    );
+  });
+
+  it('handleConvert returns "conflict" on 409 without snackbar', async () => {
+    mockConvertMutation.mockReturnValue({
+      unwrap: () => Promise.reject({ status: 409 }),
+    });
+    const { result } = renderHook(() =>
+      useListingEditor({
+        ideaId: 'idea-1',
+        designId: 'design-1',
+        marketplaceType: 'mba',
+      }),
+    );
+    let out: unknown;
+    await act(async () => {
+      out = await result.current.handleConvert({
+        sourceListingId: 'listing-global-1',
+        targetMarketplaceType: 'mba',
+      });
+    });
+    expect(out).toBe('conflict');
+    // Conflict should be silent — parent handles confirm dialog.
+    expect(mockEnqueueSnackbar).not.toHaveBeenCalled();
+  });
+
+  it('handleConvert retries with overwrite=true', async () => {
+    mockConvertMutation.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve(makeListing({ id: 'listing-mba-1', marketplace_type: 'mba' })),
+    });
+    const { result } = renderHook(() =>
+      useListingEditor({
+        ideaId: 'idea-1',
+        designId: 'design-1',
+        marketplaceType: 'mba',
+      }),
+    );
+    await act(async () => {
+      await result.current.handleConvert({
+        sourceListingId: 'listing-global-1',
+        targetMarketplaceType: 'mba',
+        overwrite: true,
+      });
+    });
+    expect(mockConvertMutation).toHaveBeenCalledWith({
+      source_listing_id: 'listing-global-1',
+      target_marketplace_type: 'mba',
+      overwrite: true,
+    });
+  });
+
+  it('handleConvert surfaces generic error snackbar on 500', async () => {
+    mockConvertMutation.mockReturnValue({
+      unwrap: () => Promise.reject({ status: 500 }),
+    });
+    const { result } = renderHook(() =>
+      useListingEditor({
+        ideaId: 'idea-1',
+        designId: 'design-1',
+        marketplaceType: 'mba',
+      }),
+    );
+    await act(async () => {
+      const out = await result.current.handleConvert({
+        sourceListingId: 'listing-global-1',
+        targetMarketplaceType: 'mba',
+      });
+      expect(out).toBeNull();
+    });
+    expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to convert'),
+      { variant: 'error' },
+    );
   });
 
   it('handleTMCheck surfaces clean result', async () => {

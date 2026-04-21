@@ -14,6 +14,12 @@ interface FolderTreeProps {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   isLoading?: boolean;
+  /** Nodes whose id is in this set render greyed out and block selection. */
+  disabledIds?: Set<string>;
+  /** When true the root/Home entry is non-selectable. */
+  rootDisabled?: boolean;
+  /** Hide the "Recently Used" placeholder row (used in picker variants). */
+  hideRecentlyUsed?: boolean;
 }
 
 const TreeContainer = styled(Box)(({ theme }) => ({
@@ -51,7 +57,7 @@ const TreeItem = styled(Box, {
   '&:hover': {
     backgroundColor: isSelected
       ? alpha(COLORS.cyan, 0.08)
-      : alpha('#fff', 0.04),
+      : alpha(COLORS.white, 0.04),
   },
 }));
 
@@ -67,12 +73,14 @@ interface TreeNodeProps {
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   depth: number;
+  disabledIds?: Set<string>;
 }
 
-const TreeNode = ({ node, selectedId, onSelect, depth }: TreeNodeProps) => {
+const TreeNode = ({ node, selectedId, onSelect, depth, disabledIds }: TreeNodeProps) => {
   const [expanded, setExpanded] = useState(false);
   const hasChildren = node.children.length > 0;
   const isSelected = selectedId === node.id;
+  const isDisabled = Boolean(disabledIds?.has(node.id));
 
   const handleToggle = useCallback(
     (e: React.MouseEvent) => {
@@ -82,12 +90,19 @@ const TreeNode = ({ node, selectedId, onSelect, depth }: TreeNodeProps) => {
     [],
   );
 
+  const handleSelect = () => {
+    if (isDisabled) return;
+    onSelect(node.id);
+  };
+
   return (
     <>
       <TreeItem
         isSelected={isSelected}
         depth={depth}
-        onClick={() => onSelect(node.id)}
+        onClick={handleSelect}
+        sx={isDisabled ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
+        aria-disabled={isDisabled || undefined}
       >
         <ExpandIcon onClick={hasChildren ? handleToggle : undefined}>
           {hasChildren ? (
@@ -125,6 +140,7 @@ const TreeNode = ({ node, selectedId, onSelect, depth }: TreeNodeProps) => {
               selectedId={selectedId}
               onSelect={onSelect}
               depth={depth + 1}
+              disabledIds={disabledIds}
             />
           ))}
         </Collapse>
@@ -133,29 +149,41 @@ const TreeNode = ({ node, selectedId, onSelect, depth }: TreeNodeProps) => {
   );
 };
 
-const FolderTree = ({ tree, selectedId, onSelect, isLoading }: FolderTreeProps) => {
+const FolderTree = ({
+  tree,
+  selectedId,
+  onSelect,
+  isLoading,
+  disabledIds,
+  rootDisabled = false,
+  hideRecentlyUsed = false,
+}: FolderTreeProps) => {
   const { t } = useTranslation();
 
   return (
     <TreeContainer>
       {/* Recently Used */}
-      <TreeItem
-        isSelected={false}
-        depth={0}
-        sx={{ opacity: 0.6, cursor: 'default', mb: 0.5 }}
-      >
-        <ExpandIcon />
-        <HistoryOutlinedIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
-        <Typography variant="body2" color="text.disabled">
-          {t('publish.collections.recentlyUsed', { defaultValue: 'Recently Used' })}
-        </Typography>
-      </TreeItem>
+      {!hideRecentlyUsed && (
+        <TreeItem
+          isSelected={false}
+          depth={0}
+          sx={{ opacity: 0.6, cursor: 'default', mb: 0.5 }}
+        >
+          <ExpandIcon />
+          <HistoryOutlinedIcon sx={{ fontSize: 18, color: 'text.disabled' }} />
+          <Typography variant="body2" color="text.disabled">
+            {t('publish.collections.recentlyUsed', { defaultValue: 'Recently Used' })}
+          </Typography>
+        </TreeItem>
+      )}
 
       {/* Home (root) */}
       <TreeItem
         isSelected={selectedId === null}
         depth={0}
-        onClick={() => onSelect(null)}
+        onClick={rootDisabled ? undefined : () => onSelect(null)}
+        sx={rootDisabled ? { opacity: 0.4, cursor: 'not-allowed' } : undefined}
+        aria-disabled={rootDisabled || undefined}
       >
         <ExpandIcon />
         <FolderOutlinedIcon
@@ -187,6 +215,7 @@ const FolderTree = ({ tree, selectedId, onSelect, isLoading }: FolderTreeProps) 
             selectedId={selectedId}
             onSelect={onSelect}
             depth={1}
+            disabledIds={disabledIds}
           />
         ))
       )}

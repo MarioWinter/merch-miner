@@ -9,7 +9,7 @@ export const Dock = styled(Box)(({ theme }) => ({
   transform: 'translateX(-50%)',
   backgroundColor: alpha(COLORS.inkPaper, 0.9),
   backdropFilter: 'blur(20px)',
-  border: `1px solid ${alpha('#fff', 0.12)}`,
+  border: `1px solid ${alpha(COLORS.white, 0.12)}`,
   borderRadius: Number(theme.shape.borderRadius) * 1.5,
   boxShadow: `0 8px 32px ${alpha(COLORS.ink, 0.5)}`,
   padding: theme.spacing(1, 2),
@@ -35,7 +35,7 @@ export const ActionButton = styled(Button)(({ theme }) => ({
   transition: `all ${DURATION.fast}ms ${EASING.standard}`,
   '& .MuiButton-startIcon': { '& > *': { fontSize: 16 } },
   '&:hover': {
-    backgroundColor: alpha('#fff', 0.08),
+    backgroundColor: alpha(COLORS.white, 0.08),
     color: theme.vars.palette.text.primary,
   },
 }));
@@ -49,7 +49,7 @@ export const CounterText = styled(Typography)({
 export const Separator = styled(Box)(({ theme }) => ({
   width: 1,
   height: theme.spacing(3),
-  backgroundColor: alpha('#fff', 0.08),
+  backgroundColor: alpha(COLORS.white, 0.08),
   flexShrink: 0,
 }));
 

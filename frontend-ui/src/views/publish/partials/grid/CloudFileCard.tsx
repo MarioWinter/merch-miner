@@ -27,7 +27,7 @@ const CardRoot = styled(Box)(({ theme }) => ({
   cursor: 'pointer',
   transition: `all ${DURATION.fast}ms ${EASING.standard}`,
   '&:hover': {
-    borderColor: alpha('#fff', 0.16),
+    borderColor: alpha(COLORS.white, 0.16),
     transform: 'translateY(-2px)',
     boxShadow: `0 8px 24px ${alpha(COLORS.ink, 0.4)}`,
     '& .cloud-actions': { opacity: 1 },
@@ -86,7 +86,7 @@ const InfoStrip = styled(Box)(({ theme }) => ({
   padding: theme.spacing(1.25, 1.5),
   backgroundColor: alpha(COLORS.inkPaper, 0.85),
   backdropFilter: 'blur(12px)',
-  borderTop: `1px solid ${alpha('#fff', 0.06)}`,
+  borderTop: `1px solid ${alpha(COLORS.white, 0.06)}`,
 }));
 
 const CloudFileCard = ({

@@ -35,10 +35,11 @@ class ListingSerializer(serializers.ModelSerializer):
             'bullet_1', 'bullet_2', 'bullet_3', 'bullet_4', 'bullet_5',
             'description', 'backend_keywords', 'status', 'generated_by',
             'availability', 'publish_mode', 'language', 'translations',
-            'created_at', 'updated_at',
+            'is_template', 'created_at', 'updated_at',
         ]
         read_only_fields = [
-            'id', 'workspace', 'generated_by', 'created_at', 'updated_at',
+            'id', 'workspace', 'generated_by', 'is_template',
+            'created_at', 'updated_at',
         ]
 
     def get_idea_slogan(self, obj):
@@ -74,7 +75,14 @@ class ListingUpdateSerializer(serializers.ModelSerializer):
     UniqueConstraint on (design, marketplace_type). We strip it here so that
     conflicts bubble up to the view as DB-level IntegrityError and can be
     mapped to HTTP 409 (see ListingUpdateView.patch).
+
+    EC-21: ``is_template`` is write-once at creation. PATCH rejects any
+    attempt to flip it with a 400 ValidationError.
     """
+
+    # Accept `is_template` only so we can reject it with a clear 400 instead
+    # of silently ignoring it (which would happen if we just left it off).
+    is_template = serializers.BooleanField(required=False)
 
     class Meta:
         model = Listing
@@ -82,10 +90,73 @@ class ListingUpdateSerializer(serializers.ModelSerializer):
             'brand_name', 'title', 'bullet_1', 'bullet_2', 'bullet_3',
             'bullet_4', 'bullet_5', 'description', 'backend_keywords',
             'status', 'availability', 'publish_mode', 'design',
-            'marketplace_type',
+            'marketplace_type', 'is_template',
         ]
         extra_kwargs = {field: {'required': False} for field in fields}
         validators = []  # disable auto unique-together validator -> 409 at DB
+
+    def validate_is_template(self, value):
+        # EC-21: disallow flipping is_template after creation.
+        raise serializers.ValidationError(
+            'is_template is write-once at creation and cannot be changed.',
+        )
+
+    def validate(self, attrs):
+        # EC-16: if a caller passes both `design` and the instance is a
+        # template, reject. Templates must keep design=NULL.
+        instance = self.instance
+        new_design = attrs.get('design', getattr(instance, 'design', None))
+        is_template = getattr(instance, 'is_template', False)
+        if is_template and new_design is not None:
+            raise serializers.ValidationError(
+                {'design': 'Template listings cannot be linked to a design'},
+            )
+        return attrs
+
+
+class ListingTemplateCreateSerializer(serializers.ModelSerializer):
+    """Create a standalone Listing Template (is_template=True, design=None).
+
+    AC-48: body accepts ``brand_name, title, bullet_1..5, description,
+    backend_keywords, language, marketplace_type, idea``. ``idea`` is
+    required for workspace scoping. ``is_template`` and ``design`` are
+    forced server-side regardless of request body.
+
+    EC-16: if the caller sends ``design``, we reject with 400.
+    """
+
+    # Accept `design` only to detect and reject it -> 400 (EC-16).
+    design = serializers.PrimaryKeyRelatedField(
+        queryset=DesignAsset.objects.all(),
+        required=False,
+        allow_null=True,
+        default=None,
+    )
+
+    class Meta:
+        model = Listing
+        fields = [
+            'idea', 'marketplace_type', 'brand_name', 'title',
+            'bullet_1', 'bullet_2', 'bullet_3', 'bullet_4', 'bullet_5',
+            'description', 'backend_keywords', 'language', 'design',
+        ]
+        extra_kwargs = {
+            'idea': {'required': True},
+            'marketplace_type': {'required': False},
+        }
+
+    def validate(self, attrs):
+        # EC-16: templates may not reference a design. If the caller
+        # supplied any design value (even null), we coerce to null, but a
+        # non-null value is a user error and returns 400 with a clear msg.
+        design = attrs.get('design')
+        if design is not None:
+            raise serializers.ValidationError(
+                {'design': 'Template listings cannot be linked to a design'},
+            )
+        # Strip `design` from the payload; the view forces design=None.
+        attrs.pop('design', None)
+        return attrs
 
 
 class ListingTranslateSerializer(serializers.Serializer):
@@ -127,6 +198,8 @@ class DesignAssetSerializer(serializers.ModelSerializer):
     has_listing = serializers.SerializerMethodField()
     niche_name = serializers.SerializerMethodField()
     collection_name = serializers.SerializerMethodField()
+    file_url = serializers.SerializerMethodField()
+    thumbnail_url = serializers.SerializerMethodField()
 
     class Meta:
         model = DesignAsset
@@ -155,6 +228,24 @@ class DesignAssetSerializer(serializers.ModelSerializer):
             return obj.collection.name
         return None
 
+    def get_file_url(self, obj):
+        # Prefer stored URL (external sources); fall back to FileField URL.
+        if obj.file_url:
+            return obj.file_url
+        if obj.file:
+            try:
+                return obj.file.url
+            except ValueError:
+                return ''
+        return ''
+
+    def get_thumbnail_url(self, obj):
+        # No thumbnail pipeline yet — fall back to the full image URL so
+        # <img> tags render instead of showing the missing-image placeholder.
+        if obj.thumbnail_url:
+            return obj.thumbnail_url
+        return self.get_file_url(obj)
+
 
 class DesignAssetUploadSerializer(serializers.Serializer):
     """Direct file upload."""
@@ -170,12 +261,58 @@ class DesignAssetUploadSerializer(serializers.Serializer):
 
 
 class DesignAssetUpdateSerializer(serializers.ModelSerializer):
-    """Partial update: tags, linking."""
+    """Partial update: tags, linking.
+
+    AC-63 / EC-25 / EC-26 — tag validation rules:
+      * Each tag stripped of surrounding whitespace.
+      * Whitespace-only tags rejected.
+      * Per-tag max length 20 characters.
+      * Max 10 tags total per design.
+      * Duplicate tags deduplicated in order of first occurrence
+        (not treated as an error — client-side dedup is the first line
+        of defense, the serializer is defensive).
+    """
+
+    MAX_TAG_LENGTH = 20
+    MAX_TAG_COUNT = 10
 
     class Meta:
         model = DesignAsset
         fields = ['tags', 'niche', 'idea', 'listing']
         extra_kwargs = {field: {'required': False} for field in fields}
+
+    def validate_tags(self, value):
+        if not isinstance(value, list):
+            raise serializers.ValidationError('tags must be a list.')
+
+        cleaned = []
+        seen = set()
+        for i, raw in enumerate(value):
+            if not isinstance(raw, str):
+                raise serializers.ValidationError(
+                    f'tags[{i}] must be a string.',
+                )
+            tag = raw.strip()
+            if not tag:
+                raise serializers.ValidationError(
+                    f'tags[{i}] cannot be empty or whitespace-only.',
+                )
+            if len(tag) > self.MAX_TAG_LENGTH:
+                raise serializers.ValidationError(
+                    f'Tag too long (max {self.MAX_TAG_LENGTH} chars): '
+                    f'{tag[:30]!r}',
+                )
+            if tag in seen:
+                continue  # dedupe silently, keep first occurrence
+            seen.add(tag)
+            cleaned.append(tag)
+
+        if len(cleaned) > self.MAX_TAG_COUNT:
+            raise serializers.ValidationError(
+                f'Maximum {self.MAX_TAG_COUNT} tags allowed '
+                f'(got {len(cleaned)}).',
+            )
+        return cleaned
 
 
 class CloudImportSerializer(serializers.Serializer):
@@ -385,22 +522,26 @@ class UploadTemplateSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'workspace', 'name', 'brand_name', 'product_types',
             'fit_types', 'colors', 'marketplaces', 'print_side',
+            'marketplace_type', 'is_default',
             'created_by', 'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'workspace', 'created_by', 'created_at', 'updated_at']
 
 
 class UploadTemplateCreateSerializer(serializers.ModelSerializer):
-    """Create/update template."""
+    """Create/update template (AC-52: exposes marketplace_type + is_default)."""
 
     class Meta:
         model = UploadTemplate
         fields = [
             'name', 'brand_name', 'product_types', 'fit_types',
             'colors', 'marketplaces', 'print_side',
+            'marketplace_type', 'is_default',
         ]
         extra_kwargs = {
             'name': {'required': True},
+            'marketplace_type': {'required': False},
+            'is_default': {'required': False},
         }
 
 

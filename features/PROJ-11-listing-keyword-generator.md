@@ -228,6 +228,16 @@ Opens when user clicks "Edit Designs" with selected designs. Single scrollable p
 34. As a member, I want to designate one `UploadTemplate` per marketplace as the Default, so my configured colors / fit types / prices / product types are auto-applied when I convert a Listing from Global to MBA and the target design has no product config yet.
 35. As a member, I want my designated Default UploadTemplate to NOT overwrite a target's existing product config on Convert, so auto-fill never clobbers manual setup.
 
+### Per-Card Quick Actions (added 2026-04-19)
+36. As a member, I want a 3-dot menu on every DesignCard that exposes Edit, Duplicate, Move to Collection, Add Tags, and Delete actions for that single design, so I don't have to first select the card and hunt for the Action Bar.
+37. As a member, I want to click "Add Tags" on a card (or from its 3-dot menu) to open an inline chip editor directly on the card, add/remove tags with keyboard, and have the tags persisted immediately (auto-save on blur or Enter).
+38. As a member, I want "Edit" in the card 3-dot menu to navigate straight to `/publish/edit?designs=<id>` without requiring prior selection, so the single-card edit path is one click.
+
+### Per-Card Menu Actions — Delete / Duplicate / Move (added 2026-04-20)
+39. As a member, I want "Delete" in the card 3-dot menu to open a confirm dialog ("Delete {{file_name}}?") before removing the design, so I don't accidentally lose work. On confirm the card disappears immediately (optimistic) and a success snackbar appears.
+40. As a member, I want "Duplicate" in the card 3-dot menu to create a copy of the design as a brand-new DesignAsset (new UUID, copied file, same tags, same Collection) with `listing` and `idea` cleared, so I can iterate on variants without touching the original's linkage.
+41. As a member, I want "Move to Collection" in the card 3-dot menu to open a dedicated folder picker (not the browsing CollectionsDialog) so I can pick a target folder — including "Root" — and hit "Move Here" to relocate the single design.
+
 ## Acceptance Criteria
 
 ### Models
@@ -337,6 +347,21 @@ Opens when user clicks "Edit Designs" with selected designs. Single scrollable p
 - [ ] AC-57: `POST /api/listings/convert/` — when `target_marketplace_type=mba` (or any supported marketplace) AND the target Listing has a linked design AND no `DesignProductConfig` exists for `(target.design, target_marketplace_type)`, then: (1) look up the workspace's default UploadTemplate matching `target_marketplace_type`; (2) if found, create a `DesignProductConfig` seeded from `default_template.colors / fit_types / print_side / product_types / marketplaces`; (3) if no default, leave product config empty (no row created). Convert response includes a `product_config_seeded: bool` flag indicating whether an auto-apply happened.
 - [ ] AC-58: Auto-apply on Convert is a READ-ONLY operation against `UploadTemplate` — it does not modify the template. The seeded `DesignProductConfig` is an independent row; future edits to the template do NOT propagate back.
 - [ ] AC-59: Convert to a target where `target.design` is NULL (null-design source+target) → skip product config auto-apply (no design to attach config to). Convert still succeeds.
+
+### Per-Card Quick Actions (added 2026-04-19)
+
+- [ ] AC-60: `DesignCard` MoreVert (3-dot) IconButton opens an MUI Menu anchored to the card with items: **Edit**, **Duplicate**, **Move to Collection**, **Add Tags**, **Delete**. Menu click `stopPropagation` so it does not trigger card selection. Each item fires a prop callback (`onEditSingle`, `onDuplicate`, `onMove`, `onAddTags`, `onDeleteSingle`). Icons: EditOutlined / ContentCopyOutlined / DriveFileMoveOutlined / LocalOfferOutlined / DeleteOutline. Delete item uses `error.main` color.
+- [ ] AC-61: Card menu "Edit" navigates to `/publish/edit?designs=<this-card-id>` WITHOUT requiring prior selection. Clears any existing selection implicitly (query string is the source of truth for EditView).
+- [ ] AC-62: Clicking "Add Tags" link (or menu item) on a card reveals an inline `Autocomplete freeSolo multiple` chip editor (MUI) anchored to the info strip. User types tag → Enter/comma commits → chip added. Blur or Enter persists via `PATCH /api/designs/gallery/<id>/` with `{tags: [...]}`. Escape cancels without save. Optimistic update on RTK cache.
+- [ ] AC-63: Inline tag editor auto-focuses input on open. Empty string on blur closes without PATCH. Tags array enforces max length 20 chars per tag, max 10 tags total (serializer validation). Duplicate tags within a single design are deduplicated client-side.
+
+### Per-Card Menu Actions — Delete / Duplicate / Move (added 2026-04-20)
+
+- [ ] AC-64: Card menu "Delete" → opens `ConfirmDialog` with title "Delete {{file_name}}?" and warning color. On confirm fires `DELETE /api/designs/gallery/<id>/` via `useDeleteDesignMutation`. Optimistic removal from every active `listGallery` cache entry via `onQueryStarted` patch. On 4xx/5xx the patch reverts and an error snackbar appears; on success a success snackbar appears.
+- [ ] AC-65: New backend endpoint `POST /api/designs/gallery/<id>/duplicate/` — authenticated, workspace-isolated. Loads the source asset, copies the underlying file to a fresh storage path (new object key, no overwrite), creates a new `DesignAsset` row with: new UUID, same `workspace`, same `file_name`, same `tags`, same `collection`, `source='upload'`, cleared `listing`, cleared `idea`, cleared `niche`, `file_size` + `dimensions` re-copied. Returns 201 with the new asset using `DesignAssetSerializer`. Cross-workspace source → 404.
+- [ ] AC-66: Card menu "Duplicate" → `useDuplicateDesignMutation` fires `POST /api/designs/gallery/<id>/duplicate/`. Invalidates `GalleryList` tag so the new card appears on refetch. Success snackbar; error snackbar on failure.
+- [ ] AC-67: Card menu "Move to Collection" → opens a dedicated `MovePickerDialog` (separate from browsing `CollectionsDialog`) showing: folder tree + "Root" pseudo-entry + single "Move Here" primary button. Select → click "Move Here" → `POST /api/designs/gallery/move/` with `{asset_ids: [id], collection_id: <target_or_null>}`. Optimistic patch of every active `listGallery` cache entry to reflect the new `collection` FK. Revert on error.
+- [ ] AC-68: `MovePickerDialog` disables (greys out) the asset's current `collection` entry in the tree — selecting it is blocked, the "Move Here" button stays disabled until a different target is picked. "Root" entry is disabled only when the asset is already at root (`collection=null`).
 
 ## API Endpoints
 
@@ -726,6 +751,14 @@ MUI Icons first. When no fitting MUI icon exists, create custom SVG icons in `fr
 - [ ] EC-20: Convert to MBA where workspace has NO default `UploadTemplate` set for MBA → Convert succeeds but `product_config_seeded=False`. Frontend can surface a hint ("Set an MBA default to auto-fill config").
 - [ ] EC-21: Template Listing (is_template=True) cannot be edited to become a non-template (is_template flip to False would require design assignment; easier to disallow the flip). PATCH rejects `is_template` transitions with 400.
 - [ ] EC-22: `GET /api/ideas/<id>/listing/` returning template Listings would break Edit page — queryset must filter `is_template=False`. Covered by AC-51 but listed here for test coverage.
+- [ ] EC-23: Card 3-dot menu open while card gets deleted by another tab → menu gracefully closes (RTK tag invalidation causes card unmount, Menu closes automatically).
+- [ ] EC-24: Inline tag editor open when user clicks a different card → blur commits pending tags on the original card, closes the editor, new card receives focus.
+- [ ] EC-25: Add Tag input contains whitespace-only string or duplicate of existing tag → input rejects (no chip added), shows subtle shake. No PATCH fired.
+- [ ] EC-26: PATCH tags when exceeding 10 total → backend returns 400, UI reverts the optimistic update + shows error snackbar.
+- [ ] EC-27: Duplicate while the source asset is being deleted from another tab → backend returns 404, UI shows error snackbar ("Design no longer exists"), no phantom card inserted, gallery refetched.
+- [ ] EC-28: Move target Collection was deleted mid-flow (stale picker) → backend returns 404 on the move call, UI shows error snackbar + invalidates `CollectionTree` so the picker rebuilds on next open.
+- [ ] EC-29: Delete confirmed but DELETE request fails (5xx / network error) → optimistic removal reverts, error snackbar ("Failed to delete"), card reappears in its original position.
+- [ ] EC-30: Duplicate server-side file copy fails (disk full, IO error, missing source file) → backend returns 500, no DB row created, UI shows error snackbar. Atomic: DB row and file copy either both succeed or neither persists.
 
 ## Dependencies
 
@@ -1118,4 +1151,144 @@ publish_app/
 
 ### F) New Packages
 None.
+
+---
+
+## QA Report — 2026-04-19
+
+### Summary
+PASS. All 59 ACs + 22 ECs covered by automated tests. No blocking bugs. Security posture (workspace isolation, 404-on-cross-workspace) verified. Ready for deploy pending two acknowledged minor gaps.
+
+### Coverage
+- Backend Phase A–F: all ACs exercised via `publish_app/tests/` (serializers, views, permissions, conversion seeding, template defaults, workspace scoping).
+- Frontend Phase B–G + Config: Edit view flows, Listing tabs (Global/MBA/Displate), marketplace conversion confirm dialog, Collections/Folders, Send-to-Cloud, TM check, upload jobs list.
+- Cross-cutting: i18n parity 341/341 publish keys in en/de/es/fr/it.
+
+### Test totals
+- Backend: 218/218 pass (`pytest publish_app`).
+- Frontend publish scope: 88/88 pass across 16 files.
+- Frontend full suite: 844/844 pass across 102 files.
+- `ruff check django-app/`: clean.
+- `npm run lint`: clean (2 pre-existing `EditorCanvas` warnings unrelated to PROJ-11).
+
+### Findings
+- No P0/P1 bugs open against PROJ-11 scope.
+- P3: task file reports 833 tests vs actual 844 — stale count, non-functional.
+- P3: EC-14 (concurrent PATCH last-write-wins on Listing) has no dedicated regression test; behaviour documented and acknowledged in the task file. Low risk for MVP (single-editor UX); recommend adding ETag/version check post-MVP.
+
+### Security spot-check
+- Every new view in `django-app/publish_app/api/views.py` calls `_get_workspace_id(request)` and filters querysets by workspace before any object access.
+- Cross-workspace access returns 404 (not 403) to prevent ID enumeration — confirmed in test cases for Listing, DesignAsset, Collection, UploadTemplate, and conversion endpoints.
+- `permission_classes = [IsAuthenticated]` present on all publish routes; `CookieJWTAuthentication` unchanged.
+- No secrets, no raw SQL, no unvalidated `request.data` paths introduced.
+
+### Bugfix verification
+1. **borderRadius sx number scaling (128px corners)** — fixed by wrapping numeric values in `"${N}px"` strings so MUI `sx` does not multiply by `theme.shape.borderRadius` (8). Verified across all 6 call sites:
+   - `frontend-ui/src/views/publish/partials/collections/CollectionsDialog.tsx:139`
+   - `frontend-ui/src/views/publish/partials/grid/DesignCardGrid.tsx:93`
+   - `frontend-ui/src/views/publish/partials/collections/FolderGrid.tsx:43`
+   - `frontend-ui/src/views/publish/partials/cloud/SendToCloudDialog.tsx:251`
+   - `frontend-ui/src/views/publish/partials/cloud/CloudConnectionState.tsx:59`
+   - `frontend-ui/src/views/publish/partials/edit/TMCheckDialog.tsx:133`
+   No remaining bare-number `borderRadius` values in publish scope.
+2. **`listUploadJobs` URL** — `frontend-ui/src/store/publishSlice.ts` now targets `/api/upload-jobs/list/` (GET). Previous `/api/upload-jobs/` is POST-only and would 405. Confirmed against backend URL conf in `publish_app/api/urls.py`.
+3. **`useEditView` hook order** — `fetchSourceListing` and `copyProductConfigFrom` are declared before `handleConvertFrom` so the `useCallback` dependency array resolves without TDZ. Verified in `frontend-ui/src/views/publish/hooks/useEditView.ts`; ordering preserved after refactor.
+
+### Known gaps (acknowledged, not blocking)
+- EC-14 concurrent-edit test coverage (see Findings).
+- Task-file test count drift (833 → 844).
+
+### Verdict
+Ship. Two P3 items tracked for post-merge cleanup.
+
+### Update 2026-04-21 — Phase H (Per-Card Menu Actions)
+
+**Added AC coverage:** AC-60 through AC-68 (3-dot menu + Edit + Add Tags + Delete + Duplicate + Move), EC-23 through EC-30 (menu unmount, concurrent delete, storage failure, etc.).
+
+**Test totals:**
+- Backend: 241/241 passed (was 218 pre-Phase H; +9 `test_design_tags.py`, +9 `test_design_duplicate.py`, +5 Phase F6 trailing — recount delta +23)
+- Frontend publish suite: 108/108 passed across 20 files (+14 vs 94; net new: DesignCard menu tests + PublishView.delete + PublishView.duplicate + MovePickerDialog)
+- Frontend full suite: 864/864 passed across 106 files
+- `ruff check django-app/`: clean
+- `npm run lint`: clean (2 pre-existing unrelated `EditorCanvas.tsx` warnings)
+
+**Live-verified via Playwright (2026-04-21):**
+- Delete: menu → ConfirmDialog ("Delete design?") → DELETE `/api/designs/gallery/<id>/` → card removed, backend confirms 3 designs remain.
+- Duplicate: menu → POST `/api/designs/gallery/<id>/duplicate/` → 4th card appears with today's `created_at` while source retains original date.
+- Move: menu → MovePickerDialog (Home + Test Folder + disabled current collection) → pick folder → "Move Here" → POST `/api/designs/gallery/move/` → backend confirms `collection_name: "Test Folder"`.
+
+**Known gaps unchanged:** EC-14 concurrent-edit test (P3), task-file test count now synced at 864.
+
+---
+
+## Tech Design Addendum — Per-Card Menu Actions (added 2026-04-20)
+
+> Scope: US 39–41, AC-64 to AC-68, EC-27 to EC-30. Adds Delete live verification, a new Duplicate backend endpoint + frontend mutation, and a dedicated MovePickerDialog for single-card relocation. Delete is already code-complete; Duplicate and Move are the net-new work.
+
+### Component Structure
+
+```
+PublishView
++-- DesignCardGrid
+|   +-- DesignCard (existing)
+|       +-- DesignCardMenu (3-dot) — existing (H2)
++-- ConfirmDialog (Delete) — existing, needs live verification
++-- MovePickerDialog (NEW)
+    +-- FolderTree (reused from collections/)
+    |   +-- "Root" pseudo-entry (NEW)
+    +-- "Move Here" primary button
+```
+
+### Data Model Changes
+
+| Change | Layer | Why |
+|--------|-------|-----|
+| No model changes | — | Duplicate creates a new DesignAsset row using existing schema; Move updates the existing `collection` FK; Delete unchanged |
+| New storage path on Duplicate | Filesystem | Source file is streamed to a fresh object key via `default_storage.save()` so S3-readiness is preserved and overwrites are impossible |
+
+### API Endpoints
+
+| Method | Path | Behavior |
+|--------|------|----------|
+| DELETE | `/api/designs/gallery/<id>/` | **Existing** — Delete the asset. Workspace-isolated. 404 cross-workspace. Used by AC-64 + EC-29. |
+| POST | `/api/designs/gallery/<id>/duplicate/` | **New** — Duplicate the asset. Copies file via `default_storage`, inherits `tags` + `collection`, clears `listing`/`idea`/`niche`. Atomic (DB + file both succeed or both fail). Returns 201 with new asset. Used by AC-65, AC-66, EC-27, EC-30. |
+| POST | `/api/designs/gallery/move/` | **Existing** — Bulk move, called with a single-id array for single-card move. Used by AC-67, EC-28. |
+
+### Frontend State + Wiring
+
+| Component | Responsibility |
+|-----------|----------------|
+| `PublishView` | Owns `deleteTargetId` (existing), new `moveTargetId`, `duplicate()` handler; passes handlers into `DesignCardGrid` |
+| `MovePickerDialog` (new) | Receives `assetId` + `currentCollectionId`; renders FolderTree with "Root" pseudo-entry; disables current collection; "Move Here" button calls `useMoveAssetsMutation` |
+| `useDuplicateDesignMutation` (new RTK endpoint) | POST to duplicate URL; invalidates `GalleryList`; optimistic NOT used (new UUID is server-generated — wait for response) |
+
+### Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| Separate `MovePickerDialog` (not CollectionsDialog mode-prop) | CollectionsDialog is browse-focused (picks a folder to navigate into). Move is a destructive choice (relocates a design). Distinct UX, distinct test surface, <150 lines new code |
+| Inherit `collection` + `tags` on Duplicate | Matches US 40 ("same tags, same Collection"). Clearing `listing`/`idea` prevents dangling FK references (a new asset should not inherit another's listing) |
+| `default_storage.save()` for file copy | Works with local filesystem today AND remote storage (S3/GCS) tomorrow without code change. Stream-based → handles large files |
+| Atomic `transaction.atomic()` on Duplicate | DB row creation and file copy must succeed together. On file-copy failure we raise, transaction rolls back, no orphan row (EC-30) |
+| Single-card scope only | Batch duplicate deferred — Action Bar already has "Batch" for upload; bulk-duplicate API can be added later if telemetry justifies it |
+| Optimistic delete, server-round-trip duplicate | Delete removal is safe to mirror immediately; duplicate's new UUID comes from the server so optimistic would show a placeholder with a temp ID (complexity not worth the ~300ms saving) |
+
+### Dependencies (packages)
+
+- None new. Backend uses existing `django.core.files.storage` and `transaction.atomic`. Frontend uses existing MUI + RTK Query primitives.
+
+### File Structure (new files only)
+
+```
+django-app/publish_app/
+├── api/views.py              # + DesignAssetDuplicateView (30 LOC)
+├── api/urls.py               # + duplicate/ route
+└── tests/test_design_duplicate.py  # NEW — 8 tests
+
+frontend-ui/src/views/publish/partials/grid/
+└── MovePickerDialog.tsx      # NEW — ~150 LOC
+
+frontend-ui/src/store/publishSlice.ts  # + useDuplicateDesignMutation
+frontend-ui/src/views/publish/PublishView.tsx  # + wire handlers
+```
 

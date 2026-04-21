@@ -7,16 +7,18 @@ import { useTranslation } from 'react-i18next';
 import {
   useListGalleryQuery,
   useLazyGetListingQuery,
+  useCopyProductConfigFromMutation,
 } from '@/store/publishSlice';
 import { useCommandPalette } from './useCommandPalette';
 import { useListingEditor } from './useListingEditor';
+import { useProductConfig } from './useProductConfig';
 import type { MarketplaceTab } from '../partials/edit/MarketplaceTabs';
 import type { CopyScope } from '../partials/edit/CopyFromDesignDialog';
 import type {
   DesignAsset,
   Listing,
-  MarketplaceConfig,
   MarketplaceType,
+  ProductConfigCopyScope,
 } from '../types';
 import {
   mbaListingDefaultValues,
@@ -68,21 +70,28 @@ const listingToFormValues = (listing: Listing | null): MbaListingFormValues => {
 // D7: multi-marketplace-aware listing editor. Each `activeMarketplace` tab
 // owns its own Listing record on the backend (F1). Switching tabs loads the
 // matching Listing for the currently active design.
+// G-Config: product config (colors, fit types, print side, product types,
+// marketplace pricing) is persisted per (design, marketplace_type) pair via
+// the F4 endpoints — see useProductConfig.
 
-interface ProductConfigState {
-  productTypes: string[];
-  fitTypes: string[];
-  printSide: 'front' | 'back';
-  colors: string[];
-  marketplaces: MarketplaceConfig[];
-}
-
-const initialProductConfig: ProductConfigState = {
-  productTypes: [],
-  fitTypes: [],
-  printSide: 'front',
-  colors: [],
-  marketplaces: [],
+// Map CopyScope (frontend dialog) → backend scope keys for
+// `/api/designs/{id}/product-config/copy-from/`. `listing` is handled via
+// the listing editor path and is not a product-config scope.
+const mapCopyScopeToProductConfigScope = (
+  scope: CopyScope,
+): ProductConfigCopyScope | null => {
+  switch (scope) {
+    case 'colors':
+      return 'colors';
+    case 'fit_types':
+      return 'fit_types';
+    case 'prices':
+      return 'marketplaces';
+    // Product types do not have a dedicated CopyScope today, but keep the
+    // mapping side exhaustive so future additions compile-fail if missing.
+    default:
+      return null;
+  }
 };
 
 export const useEditView = () => {
@@ -98,11 +107,6 @@ export const useEditView = () => {
   const [activeIndex, setActiveIndex] = useState(0);
   const [activeMarketplace, setActiveMarketplace] =
     useState<MarketplaceTab>('mba');
-
-  // D4: local section state — to be lifted into react-hook-form in a later pass
-  const [productConfig, setProductConfig] = useState<ProductConfigState>(
-    initialProductConfig,
-  );
 
   // D5/D7: MBA listing form
   const listingForm = useForm<MbaListingFormValues>({
@@ -136,6 +140,14 @@ export const useEditView = () => {
   const listingEditor = useListingEditor({
     ideaId: activeIdeaId,
     designId: activeDesign?.id ?? null,
+    marketplaceType: activeMarketplace as MarketplaceType,
+  });
+
+  // ---- G-Config: product config (per-design, per-marketplace) -----------
+  // Replaces the old in-memory ProductConfigState. Flushes pending auto-saves
+  // on unmount, so switching design / marketplace tabs does not drop edits.
+  const productConfigHook = useProductConfig({
+    designId: activeDesign?.id,
     marketplaceType: activeMarketplace as MarketplaceType,
   });
 
@@ -210,16 +222,120 @@ export const useEditView = () => {
     [searchParams, setSearchParams],
   );
 
-  // ---- D7: Marketplace conversion (stub for G3) ------------------------
-  const handleConvertFrom = useCallback(
-    (_sourceMarketplace: MarketplaceType) => {
-      // G3: call POST /api/listings/convert/ — wiring deferred until F3 ships.
-      // Intentionally a no-op until backend endpoint lands.
-      void _sourceMarketplace;
-      void activeMarketplace;
+  // ---- G3: Marketplace conversion --------------------------------------
+  // User chooses "Convert from {source}" from the Command Palette. We need
+  // the source Listing id, so this first lazy-fetches the source listing
+  // for the active design + source marketplace, then calls POST
+  // /api/listings/convert/. If the target already exists (409) we stash the
+  // pending conversion and open a ConfirmDialog — on confirm we retry with
+  // `overwrite=true`.
+  const [pendingConvert, setPendingConvert] = useState<{
+    sourceMarketplace: MarketplaceType;
+    sourceListingId: string;
+  } | null>(null);
+
+  // Declared here (ahead of `handleConvertFrom`) so the RTK Query hooks are in
+  // scope before the callbacks that reference them. Temporal-dead-zone lookup
+  // in a deps array would otherwise crash the hook at render time.
+  const [fetchSourceListing] = useLazyGetListingQuery();
+  const [copyProductConfigFrom] = useCopyProductConfigFromMutation();
+
+  const executeConvert = useCallback(
+    async (args: {
+      sourceListingId: string;
+      sourceMarketplace: MarketplaceType;
+      overwrite: boolean;
+    }) => {
+      const result = await listingEditor.handleConvert({
+        sourceListingId: args.sourceListingId,
+        targetMarketplaceType: activeMarketplace as MarketplaceType,
+        overwrite: args.overwrite,
+      });
+      if (result === 'conflict') {
+        setPendingConvert({
+          sourceMarketplace: args.sourceMarketplace,
+          sourceListingId: args.sourceListingId,
+        });
+        return;
+      }
+      if (result) {
+        // Cache invalidation handles the refetch for the target tab.
+        // Reset local form against the fresh converted listing.
+        listingForm.reset(listingToFormValues(result));
+      }
     },
-    [activeMarketplace],
+    [listingEditor, activeMarketplace, listingForm],
   );
+
+  const handleConvertFrom = useCallback(
+    async (sourceMarketplace: MarketplaceType) => {
+      if (sourceMarketplace === activeMarketplace) return;
+      if (!activeIdeaId) {
+        enqueueSnackbar(
+          t('publish.convert.noIdea', {
+            defaultValue: 'Select a design with a linked idea first.',
+          }),
+          { variant: 'warning' },
+        );
+        return;
+      }
+      let sourceListing;
+      try {
+        sourceListing = await fetchSourceListing({
+          ideaId: activeIdeaId,
+          marketplace_type: sourceMarketplace,
+        }).unwrap();
+      } catch (err) {
+        const status = (err as { status?: number })?.status;
+        if (status === 404) {
+          enqueueSnackbar(
+            t('publish.convert.sourceMissing', {
+              defaultValue:
+                'No {{source}} listing to convert from. Generate one first.',
+              source: sourceMarketplace.toUpperCase(),
+            }),
+            { variant: 'warning' },
+          );
+        } else {
+          enqueueSnackbar(
+            t('publish.convert.error', {
+              defaultValue: 'Failed to convert listing',
+            }),
+            { variant: 'error' },
+          );
+        }
+        return;
+      }
+      await executeConvert({
+        sourceListingId: sourceListing.id,
+        sourceMarketplace,
+        overwrite: false,
+      });
+    },
+    [
+      activeMarketplace,
+      activeIdeaId,
+      fetchSourceListing,
+      executeConvert,
+      enqueueSnackbar,
+      t,
+    ],
+  );
+
+  const confirmConvertOverwrite = useCallback(async () => {
+    if (!pendingConvert) return;
+    const { sourceListingId, sourceMarketplace } = pendingConvert;
+    setPendingConvert(null);
+    await executeConvert({
+      sourceListingId,
+      sourceMarketplace,
+      overwrite: true,
+    });
+  }, [pendingConvert, executeConvert]);
+
+  const cancelConvertOverwrite = useCallback(() => {
+    setPendingConvert(null);
+  }, []);
 
   // ---- D7: Copy from design (bulk apply) --------------------------------
   // Scope 'listing' fetches the source design's Listing for the active
@@ -232,7 +348,6 @@ export const useEditView = () => {
     scope: CopyScope | null;
   }>({ open: false, scope: null });
   const [isApplyingCopy, setIsApplyingCopy] = useState(false);
-  const [fetchSourceListing] = useLazyGetListingQuery();
 
   const openCopyDialog = useCallback((scope: CopyScope) => {
     setCopyDialog({ open: true, scope });
@@ -244,34 +359,65 @@ export const useEditView = () => {
 
   const applyCopy = useCallback(
     async (sourceDesignId: string, scope: CopyScope) => {
-      if (scope !== 'listing') {
-        enqueueSnackbar(
-          t('publish.copyFrom.notAvailable', {
-            defaultValue:
-              'This scope is coming with per-design product config.',
-          }),
-          { variant: 'info' },
-        );
-        closeCopyDialog();
+      // Listing scope: lazy-fetch source listing + seed the RHF form. Not a
+      // product-config scope, so we don't call the copy-from endpoint.
+      if (scope === 'listing') {
+        const source = designs.find((d) => d.id === sourceDesignId);
+        if (!source?.idea) {
+          enqueueSnackbar(
+            t('publish.copyFrom.noListing', {
+              defaultValue: 'Source design has no linked idea/listing.',
+            }),
+            { variant: 'warning' },
+          );
+          return;
+        }
+        setIsApplyingCopy(true);
+        try {
+          const sourceListing = await fetchSourceListing({
+            ideaId: source.idea,
+            marketplace_type: activeMarketplace as MarketplaceType,
+          }).unwrap();
+          listingForm.reset(listingToFormValues(sourceListing));
+          enqueueSnackbar(
+            t('publish.copyFrom.success', {
+              defaultValue: 'Listing copied — save to persist.',
+            }),
+            { variant: 'success' },
+          );
+          closeCopyDialog();
+        } catch {
+          enqueueSnackbar(
+            t('publish.copyFrom.error', {
+              defaultValue: 'Failed to load source listing.',
+            }),
+            { variant: 'error' },
+          );
+        } finally {
+          setIsApplyingCopy(false);
+        }
         return;
       }
-      const source = designs.find((d) => d.id === sourceDesignId);
-      if (!source?.idea) {
-        enqueueSnackbar(
-          t('publish.copyFrom.noListing', {
-            defaultValue: 'Source design has no linked idea/listing.',
-          }),
-          { variant: 'warning' },
-        );
-        return;
-      }
+
+      // Product-config scope: call the backend copy-from endpoint, which
+      // atomically upserts the target config from the source row. RTK cache
+      // invalidation drives the UI refresh.
+      const targetDesignId = activeDesign?.id;
+      if (!targetDesignId) return;
+      const backendScope = mapCopyScopeToProductConfigScope(scope);
+      if (!backendScope) return;
+
       setIsApplyingCopy(true);
       try {
-        const sourceListing = await fetchSourceListing({
-          ideaId: source.idea,
+        // Flush any pending local auto-save first so we don't race the
+        // server-side copy.
+        await productConfigHook.flush();
+        await copyProductConfigFrom({
+          designId: targetDesignId,
+          source_design_id: sourceDesignId,
           marketplace_type: activeMarketplace as MarketplaceType,
+          scope: backendScope,
         }).unwrap();
-        listingForm.reset(listingToFormValues(sourceListing));
         enqueueSnackbar(
           t('publish.copyFrom.success', {
             defaultValue: 'Listing copied — save to persist.',
@@ -279,25 +425,39 @@ export const useEditView = () => {
           { variant: 'success' },
         );
         closeCopyDialog();
-      } catch {
-        enqueueSnackbar(
-          t('publish.copyFrom.error', {
-            defaultValue: 'Failed to load source listing.',
-          }),
-          { variant: 'error' },
-        );
+      } catch (err) {
+        const status = (err as { status?: number })?.status;
+        if (status === 404) {
+          enqueueSnackbar(
+            t('publish.copyFrom.sourceNoConfig', {
+              defaultValue: 'Source has no config for {{marketplace}}.',
+              marketplace: (activeMarketplace as string).toUpperCase(),
+            }),
+            { variant: 'warning' },
+          );
+        } else {
+          enqueueSnackbar(
+            t('publish.productConfig.saveError', {
+              defaultValue: 'Failed to save product configuration.',
+            }),
+            { variant: 'error' },
+          );
+        }
       } finally {
         setIsApplyingCopy(false);
       }
     },
     [
       designs,
+      activeDesign?.id,
       activeMarketplace,
       fetchSourceListing,
       listingForm,
       enqueueSnackbar,
       t,
       closeCopyDialog,
+      copyProductConfigFrom,
+      productConfigHook,
     ],
   );
 
@@ -325,28 +485,28 @@ export const useEditView = () => {
     onCopyColorsFrom: () => openCopyDialog('colors'),
     onCopyFitTypesFrom: () => openCopyDialog('fit_types'),
     onCopyPricesFrom: () => openCopyDialog('prices'),
+    onConvertFromGlobal: () => {
+      void handleConvertFrom('global');
+    },
+    onConvertFromMba: () => {
+      void handleConvertFrom('mba');
+    },
+    activeMarketplace,
   });
 
-  // ---- Section setters (D4 local state) ---------------------------------
-  const setProductTypes = useCallback((productTypes: string[]) => {
-    setProductConfig((prev) => ({ ...prev, productTypes }));
-  }, []);
-
-  const setFitTypes = useCallback((fitTypes: string[]) => {
-    setProductConfig((prev) => ({ ...prev, fitTypes }));
-  }, []);
-
-  const setPrintSide = useCallback((printSide: 'front' | 'back') => {
-    setProductConfig((prev) => ({ ...prev, printSide }));
-  }, []);
-
-  const setColors = useCallback((colors: string[]) => {
-    setProductConfig((prev) => ({ ...prev, colors }));
-  }, []);
-
-  const setMarketplaces = useCallback((marketplaces: MarketplaceConfig[]) => {
-    setProductConfig((prev) => ({ ...prev, marketplaces }));
-  }, []);
+  // ---- G-Config: section setters come from useProductConfig ------------
+  const {
+    config: productConfig,
+    isLoading: isLoadingProductConfig,
+    isFetching: isFetchingProductConfig,
+    loadError: productConfigError,
+    isAutoSaving: isAutoSavingProductConfig,
+    setProductTypes,
+    setFitTypes,
+    setPrintSide,
+    setColors,
+    setMarketplaces,
+  } = productConfigHook;
 
   return {
     // URL + gallery
@@ -360,8 +520,12 @@ export const useEditView = () => {
     // Tabs
     activeMarketplace,
     setActiveMarketplace,
-    // D4 product config
+    // G-Config product config (per-design, per-marketplace, RTK-backed)
     productConfig,
+    isLoadingProductConfig,
+    isFetchingProductConfig,
+    productConfigError,
+    isAutoSavingProductConfig,
     setProductTypes,
     setFitTypes,
     setPrintSide,
@@ -391,6 +555,11 @@ export const useEditView = () => {
     handleSaveListing,
     handleGenerateListing,
     handleConvertFrom,
+    // G3 convert conflict dialog
+    pendingConvert,
+    isConverting: listingEditor.isConverting,
+    confirmConvertOverwrite,
+    cancelConvertOverwrite,
     // D7 copy-from-design
     copyDialog,
     isApplyingCopy,

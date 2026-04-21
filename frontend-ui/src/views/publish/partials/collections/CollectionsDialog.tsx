@@ -11,7 +11,6 @@ import {
   InputAdornment,
   ToggleButton,
   ToggleButtonGroup,
-  Typography,
 } from '@mui/material';
 import { alpha, styled } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
@@ -136,15 +135,15 @@ const CollectionsDialog = ({ open, onClose, onOpenFolder }: CollectionsDialogPro
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: (theme) => Number(theme.shape.borderRadius) * 2,
+          borderRadius: (theme) => `${Number(theme.shape.borderRadius) * 2}px`,
           maxHeight: 600,
         },
       }}
     >
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Typography variant="h5">
+        <Box component="span" sx={{ typography: 'h5' }}>
           {t('publish.collections.title', { defaultValue: 'Collections' })}
-        </Typography>
+        </Box>
         <IconButton onClick={onClose} size="small" aria-label="Close">
           <CloseIcon />
         </IconButton>

@@ -99,14 +99,14 @@ const ProviderSwitcher = ({
       id: 'google_drive',
       label: 'Google Drive',
       icon: 'G',
-      color: '#4285F4',
+      color: COLORS.brandGoogleDrive,
       isConnected: googleConnected,
     },
     {
       id: 'onedrive',
       label: 'OneDrive',
       icon: 'O',
-      color: '#0078D4',
+      color: COLORS.brandOneDrive,
       isConnected: onedriveConnected,
     },
   ];

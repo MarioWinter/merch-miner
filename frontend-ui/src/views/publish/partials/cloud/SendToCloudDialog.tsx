@@ -77,7 +77,7 @@ const SendButton = styled(Button)(({ theme }) => ({
   },
   '&.Mui-disabled': {
     backgroundColor: alpha(COLORS.cyan, 0.18),
-    color: alpha('#fff', 0.4),
+    color: alpha(COLORS.white, 0.4),
   },
 }));
 
@@ -248,7 +248,7 @@ const SendToCloudDialog = ({
       slotProps={{
         paper: {
           sx: {
-            borderRadius: (theme) => Number(theme.shape.borderRadius) * 2,
+            borderRadius: (theme) => `${Number(theme.shape.borderRadius) * 2}px`,
             backgroundColor: (theme) =>
               alpha(theme.vars.palette.background.paper, 0.85),
             backdropFilter: 'blur(16px)',

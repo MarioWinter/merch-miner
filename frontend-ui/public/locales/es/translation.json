@@ -1818,6 +1818,435 @@
       "saveFailed": "No se pudo guardar la palabra clave"
     }
   },
+  "publish": {
+    "page": {
+      "title": "Publicar",
+      "subtitle": "Seleccion de disenos, editor de listados y cola de subida"
+    },
+    "toolbar": {
+      "selectCounter": "Seleccionar disenos",
+      "selectAll": "Seleccionar todo",
+      "selectNone": "No seleccionar nada",
+      "collections": "Colecciones",
+      "folders": "Carpetas",
+      "chooseAction": "Elegir accion",
+      "search": "Buscar...",
+      "template": "Plantilla",
+      "upload": "Subir",
+      "import": "Importar",
+      "publish": "Publicar"
+    },
+    "tabs": {
+      "myDesigns": "Mis disenos",
+      "cloudStorage": "Almacenamiento en la nube"
+    },
+    "grid": {
+      "addDesigns": "Agregar disenos",
+      "emptyTitle": "Aun no hay disenos",
+      "emptyDescription": "Sube o importa disenos para empezar.",
+      "storage": "{{used}} / {{total}} usado"
+    },
+    "card": {
+      "select": "Seleccionar diseno",
+      "duplicate": "Duplicar",
+      "move": "Mover",
+      "addTags": "Agregar etiquetas"
+    },
+    "collections": {
+      "title": "Colecciones",
+      "home": "Inicio",
+      "recentlyUsed": "Usados recientemente",
+      "searchFolders": "Buscar carpetas...",
+      "openFolder": "Abrir carpeta",
+      "addFolder": "Agregar carpeta",
+      "folderName": "Nombre de carpeta",
+      "itemCount": "{{count}} elementos"
+    },
+    "gallery": {
+      "title": "Galeria de disenos",
+      "upload": "Subir",
+      "importCloud": "Importar desde la nube",
+      "importCloudTitle": "Importar desde almacenamiento en la nube",
+      "importCloudHint": "Pega los IDs de archivo de Google Drive o OneDrive (uno por linea).",
+      "fileIdsLabel": "IDs de archivo",
+      "fileIdsPlaceholder": "Pega los IDs de archivo aqui, uno por linea...",
+      "fileIdsHelper": "Introduce los IDs de archivo de Google Drive o OneDrive",
+      "importButton": "Importar",
+      "importSuccess": "{{count}} diseno(s) importado(s)",
+      "importError": "No se pudieron importar los disenos",
+      "cancel": "Cancelar",
+      "selectAll": "Seleccionar todo",
+      "selectDesign": "Seleccionar diseno",
+      "delete": "Eliminar",
+      "hasListing": "Listado",
+      "noImage": "Sin imagen",
+      "search": "Buscar disenos...",
+      "sortBy": "Ordenar por",
+      "sortNewest": "Mas recientes",
+      "sortEdited": "Editados recientemente",
+      "loadError": "No se pudieron cargar los disenos"
+    },
+    "empty": {
+      "noDesigns": "Aun no hay disenos",
+      "hint": "Sube disenos o importalos desde la nube para empezar.",
+      "upload": "Subir diseno",
+      "import": "Importar desde la nube"
+    },
+    "product": {
+      "title": "Configuracion del producto",
+      "types": "Tipos de producto",
+      "fitType": "Tipo de ajuste",
+      "printSide": "Lado de impresion",
+      "front": "Frente",
+      "back": "Atras",
+      "both": "Ambos",
+      "colorsComingSoon": "Seleccion de colores disponible pronto"
+    },
+    "marketplace": {
+      "title": "Marketplaces y precios",
+      "price": "Precio"
+    },
+    "listing": {
+      "title": "Editor de listado",
+      "generate": "Generar listado",
+      "generateSuccess": "Listado generado",
+      "generateError": "No se pudo generar el listado",
+      "generateDuplicate": "Ya existe un listado para este diseno.",
+      "save": "Guardar listado",
+      "saveSuccess": "Listado guardado",
+      "saveError": "No se pudo guardar el listado",
+      "saveDuplicate": "Ya existe un listado para este diseno.",
+      "saveNoListing": "Genera un listado antes de guardar.",
+      "loadError": "No se pudo cargar el listado",
+      "noListing": "Selecciona un diseno y genera un listado para empezar.",
+      "improve": "Mejorar con IA",
+      "copied": "Listado copiado al portapapeles",
+      "copyError": "No se pudo copiar el listado",
+      "copyMBA": "Copiar para MBA",
+      "brandName": "Nombre de marca",
+      "titleField": "Titulo",
+      "bullet": "Punto clave",
+      "description": "Descripcion",
+      "keywords": "Palabras clave backend",
+      "addKeyword": "Agregar palabras clave (separadas por comas)...",
+      "add": "Agregar",
+      "kwFinder": "KW Finder",
+      "availability": "Disponibilidad",
+      "public": "Publico",
+      "private": "Privado",
+      "publishMode": "Modo de publicacion",
+      "live": "En vivo",
+      "draft": "Borrador"
+    },
+    "translate": {
+      "title": "Traducciones",
+      "autoTranslate": "Traduccion automatica",
+      "translateAll": "Traducir a todos",
+      "success": "Traducciones generadas",
+      "error": "No se pudo traducir el listado",
+      "notTranslated": "Aun no traducido. Haz clic en \"Traducir a todos\" para generar.",
+      "overLimit": "sobre el limite"
+    },
+    "tm": {
+      "check": "Comprobacion TM",
+      "clean": "No se encontraron problemas de marcas",
+      "flagged": "Posibles problemas de marcas encontrados",
+      "error": "La comprobacion de marcas fallo",
+      "cleanTitle": "Todo correcto",
+      "cleanMessage": "No se detectaron terminos registrados en tu listado.",
+      "flaggedTitle": "Advertencia de marca registrada",
+      "flaggedMessage": "Los siguientes terminos pueden estar registrados. Revisa antes de subir.",
+      "close": "Cerrar",
+      "edit": "Editar listado",
+      "proceedAnyway": "Continuar de todas formas"
+    },
+    "upload": {
+      "title": "Cola de subida",
+      "all": "Todos",
+      "status": {
+        "pending": "Pendiente",
+        "validating": "Validando",
+        "uploading": "Subiendo",
+        "completed": "Completado",
+        "failed": "Fallido",
+        "cancelled": "Cancelado"
+      },
+      "totalJobs": "{{count}} tareas",
+      "noJobs": "Aun no hay tareas de subida",
+      "loadError": "No se pudieron cargar las tareas de subida",
+      "desktopAppHint": "Las tareas se procesan mediante la app de escritorio. Inicia la app para procesar las tareas pendientes.",
+      "queued": "Tarea de subida en cola",
+      "queueError": "No se pudo poner en cola la tarea",
+      "batchQueued": "{{count}} tareas de subida en cola",
+      "batchError": "No se pudo poner en cola el lote",
+      "cancelled": "Tarea de subida cancelada",
+      "cancelError": "No se pudo cancelar la tarea",
+      "cancel": "Cancelar",
+      "retry": "Reintentar",
+      "viewScreenshot": "Ver captura de error"
+    },
+    "template": {
+      "button": "Plantillas",
+      "saveNew": "Guardar actual como plantilla",
+      "saveTitle": "Guardar plantilla",
+      "nameLabel": "Nombre de plantilla",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "empty": "No hay plantillas guardadas",
+      "saveSuccess": "Plantilla guardada",
+      "saveError": "No se pudo guardar la plantilla",
+      "deleteSuccess": "Plantilla eliminada",
+      "deleteError": "No se pudo eliminar la plantilla"
+    },
+    "command": {
+      "title": "Paleta de comandos",
+      "searchPlaceholder": "Buscar acciones...",
+      "noResults": "No se encontraron acciones",
+      "recent": "USADOS RECIENTEMENTE",
+      "copyListing": "Copiar listado",
+      "copyListingDesc": "Copiar el listado actual a otros disenos seleccionados",
+      "applyTemplate": "Aplicar plantilla",
+      "applyTemplateDesc": "Aplicar una plantilla guardada a los disenos seleccionados",
+      "applyColors": "Aplicar colores",
+      "applyColorsDesc": "Copiar ajustes de color a los disenos seleccionados",
+      "applyFitTypes": "Aplicar tipos de ajuste",
+      "applyFitTypesDesc": "Copiar ajustes de tipo a los disenos seleccionados",
+      "applyProductSettings": "Aplicar ajustes de producto",
+      "applyProductSettingsDesc": "Copiar todos los ajustes de producto a los disenos seleccionados",
+      "bulkUpload": "Subida masiva",
+      "bulkUploadDesc": "Poner en cola tareas de subida para todos los disenos seleccionados",
+      "editBulk": "Editar en lote",
+      "deleteListings": "Eliminar listados",
+      "moveCollection": "Mover a coleccion",
+      "duplicate": "Duplicar",
+      "sortListings": "Ordenar listados",
+      "bulkSync": "Sincronizacion masiva",
+      "translate": "Traducir",
+      "bulkTags": "Etiquetas en lote",
+      "aiGenerate": "Generar listado con IA",
+      "deleteFiles": "Eliminar archivos",
+      "download": "Descargar",
+      "exportXlsx": "Exportar como XLSX",
+      "exportCsv": "Exportar como CSV",
+      "sendCloud": "Enviar a la nube",
+      "importCloud": "Importar desde la nube",
+      "copyListingFrom": "Copiar listado desde...",
+      "copyColorsFrom": "Copiar colores desde...",
+      "copyFitFrom": "Copiar tipos de ajuste desde...",
+      "copyPricesFrom": "Copiar precios desde...",
+      "convertFromGlobal": "Convertir desde Global",
+      "convertFromMba": "Convertir desde MBA"
+    },
+    "actionBar": {
+      "label": "Acciones masivas",
+      "selected": "{{count}} seleccionado(s)",
+      "edit": "Editar",
+      "uploadBatch": "Subir lote",
+      "delete": "Eliminar",
+      "clear": "Limpiar",
+      "selectAll": "Todos",
+      "selectNone": "Ninguno",
+      "history": "Historial",
+      "batch": "Lote",
+      "options": "Opciones",
+      "applyTemplate": "Aplicar plantilla",
+      "copyFrom": "Copiar desde...",
+      "applyColors": "Aplicar colores",
+      "applyFitTypes": "Aplicar tipos de ajuste",
+      "exportSelected": "Exportar seleccion"
+    },
+    "cloud": {
+      "import": "Importar",
+      "preview": "Vista previa",
+      "copyUrl": "Copiar URL",
+      "root": "Raiz",
+      "folderNav": "Navegacion de carpetas",
+      "loadError": "No se pudo cargar la carpeta",
+      "emptyFolder": "No hay imagenes en esta carpeta",
+      "urlCopied": "URL copiada",
+      "importSuccess": "Archivo importado con exito",
+      "importError": "Error al importar",
+      "notConnected": "No conectado a {{provider}}",
+      "noSubfolders": "No hay subcarpetas en {{folder}}",
+      "notConfigured": "{{provider}} no configurado",
+      "configureHint": "Configura {{provider}} en los ajustes para empezar.",
+      "connectTitle": "Conectar a {{provider}}",
+      "connectDescription": "Inicia sesion en {{provider}} para explorar e importar tus disenos.",
+      "connect": "Conectar",
+      "manageConnections": "Gestionar conexiones",
+      "sendTitle": "Enviar a {{provider}}",
+      "uploadTo": "Subir a {{folder}}",
+      "sending": "Enviando...",
+      "send": "Enviar",
+      "sendSuccess": "{{count}} archivo(s) enviado(s) a {{provider}}",
+      "sendError": "Error al enviar archivos",
+      "sendPartial": "{{sent}} de {{total}} archivo(s) enviados. {{failed}} fallidos."
+    },
+    "copyFrom": {
+      "noSources": "No hay otros disenos disponibles para copiar.",
+      "hasListing": "Tiene listado",
+      "applying": "Aplicando...",
+      "apply": "Aplicar",
+      "success": "Listado copiado - guardar para conservar.",
+      "error": "No se pudo cargar el listado de origen.",
+      "noListing": "El diseno de origen no tiene idea/listado vinculado.",
+      "sourceNoConfig": "La fuente no tiene configuracion para {{marketplace}}."
+    },
+    "productConfig": {
+      "saveError": "No se pudo guardar la configuracion del producto.",
+      "loadError": "No se pudo cargar la configuracion del producto."
+    },
+    "convert": {
+      "success": "Listado convertido a {{target}}",
+      "error": "No se pudo convertir el listado",
+      "invalid": "La conversion no es valida para este marketplace",
+      "sourceMissing": "No hay listado {{source}} para convertir. Genera uno primero.",
+      "noIdea": "Selecciona primero un diseno con una idea vinculada.",
+      "confirmTitle": "Sobrescribir el listado {{target}} existente?",
+      "confirmBody": "Ya existe un listado {{target}} para este diseno. Convertir desde {{source}} reemplazara su contenido. Esta accion no se puede deshacer.",
+      "confirmButton": "Sobrescribir",
+      "cancelButton": "Cancelar"
+    },
+    "lifecycle": {
+      "title": "Ciclo de vida del producto",
+      "round": "Ronda {{round}}",
+      "niche": "Nicho",
+      "design": "Diseno",
+      "noData": "No hay datos de ciclo de vida disponibles",
+      "awaitingSales": "Esperando datos de ventas"
+    },
+    "edit": {
+      "backToCollection": "Volver a la coleccion",
+      "addDesigns": "Agregar disenos",
+      "shortcutGuide": "Guia de atajos",
+      "shortcutsTitle": "Atajos de teclado",
+      "shortcutsSoon": "Atajos proximamente",
+      "close": "Cerrar",
+      "optionsButton": "Opciones",
+      "demo": {
+        "productsTitle": "Productos"
+      },
+      "marketplace": {
+        "global": "Global",
+        "mba": "Mba",
+        "displate": "Displate"
+      },
+      "empty": {
+        "title": "No hay disenos seleccionados",
+        "hint": "Vuelve a la pagina Publish y selecciona disenos para editar.",
+        "back": "Volver a Publish"
+      },
+      "thumbnails": {
+        "tagsLabel": "Etiquetas del diseno",
+        "tagsPlaceholder": "Agregar etiqueta...",
+        "tagsCounter": "{{count}}/{{max}}",
+        "load": "Cargar",
+        "clear": "Limpiar",
+        "counter": "{{current}} de {{total}}",
+        "previous": "Diseno anterior",
+        "next": "Siguiente diseno",
+        "activeBadge": "Diseno {{index}}",
+        "remove": "Quitar etiqueta"
+      },
+      "products": {
+        "title": "Productos",
+        "productType": "Tipo de producto {{label}}",
+        "selectedCount": "{{count}} seleccionado(s)"
+      },
+      "fitPrint": {
+        "fitTitle": "Tipo de ajuste",
+        "printTitle": "Lado de impresion",
+        "front": "Frente",
+        "back": "Atras"
+      },
+      "colors": {
+        "title": "Colores",
+        "loadError": "No se pudieron cargar los colores.",
+        "retry": "Reintentar",
+        "swatch": "{{name}}"
+      },
+      "marketplaces": {
+        "title": "Marketplaces y precios",
+        "price": "Precio",
+        "royalty": "Regalia",
+        "enable": "Habilitar {{code}}"
+      },
+      "placeholder": {
+        "comingSoon": "Configuracion para {{marketplace}} disponible pronto"
+      },
+      "fields": {
+        "sectionLabel": "Campos del listado",
+        "brand": "Marca",
+        "title": "Titulo",
+        "bullet": "Punto clave {{n}}",
+        "description": "Descripcion",
+        "aiImprove": "Mejorar con IA"
+      },
+      "keywords": {
+        "title": "Palabras clave backend",
+        "info": "Terminos de busqueda para la indexacion de Amazon. Max 500 caracteres incluidos separadores.",
+        "addPlaceholder": "+ Agregar",
+        "addAria": "Agregar palabra clave",
+        "remove": "Quitar palabra clave {{kw}}",
+        "kwFinder": "KW Finder",
+        "kwWorkbench": "KW Workbench"
+      },
+      "translation": {
+        "title": "Idioma",
+        "selectLanguage": "Seleccionar idioma",
+        "autoTranslate": "Traduccion automatica",
+        "translateTo": "Traducir a…"
+      },
+      "options": {
+        "tab": "Opciones",
+        "tabsLabel": "Opciones de listado y marcas registradas",
+        "availability": {
+          "title": "Disponibilidad",
+          "public": "Publico",
+          "private": "Privado"
+        },
+        "publishMode": {
+          "title": "Publicar",
+          "live": "En vivo",
+          "draft": "Borrador"
+        }
+      },
+      "trademarks": {
+        "tab": "Marcas registradas",
+        "runCheck": "Ejecutar TM Check",
+        "hint": "Ejecuta una comprobacion de marcas en el contenido antes de publicar.",
+        "checkingTitle": "Ejecutando comprobacion de marcas",
+        "cleanTitle": "Comprobacion exitosa",
+        "cleanBody": "Todo correcto - sin problemas detectados.",
+        "flaggedTitle": "Problemas de marcas encontrados",
+        "flaggedBody": "Los siguientes terminos pueden estar registrados. Revisa antes de publicar.",
+        "proceed": "Continuar de todas formas",
+        "edit": "Editar campos",
+        "close": "Cerrar",
+        "error": "Error al ejecutar la comprobacion de marcas",
+        "noListing": "Guarda primero el listado para ejecutar la comprobacion."
+      },
+      "preview": {
+        "label": "Vista previa del diseno",
+        "empty": "No hay diseno seleccionado",
+        "error": "Vista previa no disponible"
+      },
+      "unsaved": {
+        "message": "Cambios no guardados",
+        "discard": "Descartar",
+        "save": "Guardar",
+        "autoSaving": "Guardando...",
+        "autoSaved": "Guardado"
+      },
+      "listingState": {
+        "generate": "Generar listado",
+        "generating": "Generando...",
+        "notFound": "Aun no hay listado para {{marketplace}}. Genera uno para empezar a editar.",
+        "error": "No se pudo cargar el listado para este marketplace.",
+        "retry": "Reintentar"
+      }
+    }
+  },
   "common": {
     "close": "Cerrar",
     "retry": "Reintentar",

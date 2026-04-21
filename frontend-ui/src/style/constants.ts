@@ -66,6 +66,10 @@ export const COLORS = {
   aiGlow30:        'rgba(0, 200, 215, 0.30)',
   aiGlow20:        'rgba(0, 200, 215, 0.20)',
   aiGlow10:        'rgba(0, 200, 215, 0.10)',
+
+  // Third-party brand colors (cloud storage providers)
+  brandGoogleDrive: '#4285F4',
+  brandOneDrive:    '#0078D4',
 } as const;
 
 export const EASING = {

@@ -42,6 +42,11 @@ interface UseCommandPaletteOptions {
   onCopyColorsFrom?: () => void;
   onCopyFitTypesFrom?: () => void;
   onCopyPricesFrom?: () => void;
+  onConvertFromGlobal?: () => void;
+  onConvertFromMba?: () => void;
+  /** Current marketplace tab — used to disable the conversion action whose
+   *  target equals the source (can't convert MBA → MBA). */
+  activeMarketplace?: 'global' | 'mba' | 'displate';
 }
 
 const STORAGE_KEY = 'mm-command-recent';
@@ -131,6 +136,28 @@ export const useCommandPalette = (options: UseCommandPaletteOptions) => {
       { id: 'copy-colors-from', label: t('publish.command.copyColorsFrom', { defaultValue: 'Copy Colors From...' }), icon: 'PaletteOutlined', category: 'TEMPLATES', column: 2, context: ['colors'], action: () => options.onCopyColorsFrom?.() },
       { id: 'copy-fit-from', label: t('publish.command.copyFitFrom', { defaultValue: 'Copy Fit Types From...' }), icon: 'StraightenOutlined', category: 'TEMPLATES', column: 2, context: ['fit_types'], action: () => options.onCopyFitTypesFrom?.() },
       { id: 'copy-prices-from', label: t('publish.command.copyPricesFrom', { defaultValue: 'Copy Prices From...' }), icon: 'AttachMoneyOutlined', category: 'TEMPLATES', column: 2, context: ['prices'], action: () => options.onCopyPricesFrom?.() },
+      // Column 0: CONVERT — target marketplace = current tab. Disabled when
+      // the active tab equals the source (nothing to convert from).
+      {
+        id: 'convert-from-global',
+        label: t('publish.command.convertFromGlobal', { defaultValue: 'Convert from Global' }),
+        icon: 'SwapHorizOutlined',
+        category: 'CONVERT',
+        column: 0,
+        context: ['mba'],
+        disabled: options.activeMarketplace === 'global',
+        action: () => options.onConvertFromGlobal?.(),
+      },
+      {
+        id: 'convert-from-mba',
+        label: t('publish.command.convertFromMba', { defaultValue: 'Convert from MBA' }),
+        icon: 'SwapHorizOutlined',
+        category: 'CONVERT',
+        column: 0,
+        context: ['global'],
+        disabled: options.activeMarketplace === 'mba',
+        action: () => options.onConvertFromMba?.(),
+      },
     ],
     [t, options],
   );

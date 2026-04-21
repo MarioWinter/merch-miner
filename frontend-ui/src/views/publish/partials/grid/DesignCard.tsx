@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Box, Checkbox, Chip, IconButton, Typography } from '@mui/material';
 import { alpha, styled, keyframes } from '@mui/material/styles';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
@@ -6,6 +7,8 @@ import MoreVertIcon from '@mui/icons-material/MoreVert';
 import { useTranslation } from 'react-i18next';
 import { COLORS, DURATION, EASING } from '@/style/constants';
 import type { DesignAsset } from '../../types';
+import DesignCardTagEditor from './DesignCardTagEditor';
+import DesignCardMenu from './DesignCardMenu';
 
 interface DesignCardProps {
   design: DesignAsset;
@@ -15,6 +18,12 @@ interface DesignCardProps {
   onDuplicate?: (id: string) => void;
   onMove?: (id: string) => void;
   index?: number;
+  onEditSingle?: (id: string) => void;
+  onAddTags?: (id: string) => void;
+  onDeleteSingle?: (id: string) => void;
+  isEditingTags?: boolean;
+  onTagsCommit?: (id: string, tags: string[]) => void;
+  onTagsCancel?: (id: string) => void;
 }
 
 const fadeInUp = keyframes`
@@ -44,7 +53,7 @@ const CardRoot = styled(Box, {
     boxShadow: `0 0 12px ${alpha(COLORS.cyan, 0.2)}`,
   }),
   '&:hover': {
-    borderColor: isSelected ? COLORS.cyan : alpha('#fff', 0.16),
+    borderColor: isSelected ? COLORS.cyan : alpha(COLORS.white, 0.16),
     transform: 'translateY(-2px)',
     boxShadow: `0 8px 24px ${alpha(COLORS.ink, 0.4)}`,
     '& .hover-actions': { opacity: 1 },
@@ -89,7 +98,7 @@ const SelectionCheckbox = styled(Checkbox, {
   '&.Mui-checked': {
     opacity: 1,
     backgroundColor: COLORS.cyan,
-    color: '#fff',
+    color: COLORS.white,
     boxShadow: `0 0 8px ${alpha(COLORS.cyan, 0.4)}`,
   },
 }));
@@ -118,7 +127,7 @@ const ActionIconButton = styled(IconButton)({
 const GlassInfoStrip = styled(Box)(({ theme }) => ({
   backgroundColor: alpha(COLORS.inkPaper, 0.85),
   backdropFilter: 'blur(12px)',
-  borderTop: `1px solid ${alpha('#fff', 0.06)}`,
+  borderTop: `1px solid ${alpha(COLORS.white, 0.06)}`,
   padding: theme.spacing(1.25, 1.5),
 }));
 
@@ -138,9 +147,17 @@ const DesignCard = ({
   onDuplicate,
   onMove,
   index = 0,
+  onEditSingle,
+  onAddTags,
+  onDeleteSingle,
+  isEditingTags = false,
+  onTagsCommit,
+  onTagsCancel,
 }: DesignCardProps) => {
   const { t } = useTranslation();
   const staggerDelay = Math.min(index * 30, 300);
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
+  const menuOpen = Boolean(menuAnchor);
 
   const handleCheckboxClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -149,6 +166,18 @@ const DesignCard = ({
 
   const handleCardClick = (e: React.MouseEvent) => {
     onSelect(design.id, e.shiftKey);
+  };
+
+  const handleMenuOpen = (e: React.MouseEvent<HTMLElement>) => {
+    e.stopPropagation();
+    setMenuAnchor(e.currentTarget);
+  };
+
+  const handleMenuClose = () => setMenuAnchor(null);
+
+  const handleAddTagsLinkClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onAddTags?.(design.id);
   };
 
   const formattedDate = new Date(design.created_at).toLocaleDateString(undefined, {
@@ -213,7 +242,7 @@ const DesignCard = ({
         )}
       </ThumbnailContainer>
 
-      <GlassInfoStrip>
+      <GlassInfoStrip onClick={(e) => isEditingTags && e.stopPropagation()}>
         <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Typography
             variant="subtitle2"
@@ -222,28 +251,75 @@ const DesignCard = ({
           >
             {design.file_name}
           </Typography>
-          <IconButton size="small" sx={{ p: 0.25 }} data-no-lasso>
+          <IconButton
+            size="small"
+            sx={{ p: 0.25 }}
+            data-no-lasso
+            onClick={handleMenuOpen}
+            aria-label={t('publish.card.menu.open', { defaultValue: 'Open card menu' })}
+            aria-haspopup="menu"
+            aria-expanded={menuOpen}
+          >
             <MoreVertIcon sx={{ fontSize: 18 }} />
           </IconButton>
         </Box>
-        <Box sx={{ display: 'flex', gap: 0.5, mt: 0.5, flexWrap: 'wrap' }}>
-          {design.tags.length > 0 ? (
-            design.tags.slice(0, 3).map((tag) => (
-              <TagChip key={tag} label={tag} size="small" />
-            ))
+        <Box sx={{ mt: 0.5, minHeight: 20 }}>
+          {isEditingTags ? (
+            <DesignCardTagEditor
+              initialTags={design.tags}
+              onCommit={(tags) => onTagsCommit?.(design.id, tags)}
+              onCancel={() => onTagsCancel?.(design.id)}
+            />
           ) : (
-            <Typography
-              variant="caption"
-              sx={{ color: COLORS.cyan, cursor: 'pointer' }}
-            >
-              {t('publish.card.addTags', { defaultValue: 'Add Tags' })}
-            </Typography>
+            <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+              {design.tags.length > 0 ? (
+                design.tags.slice(0, 3).map((tag) => (
+                  <TagChip key={tag} label={tag} size="small" />
+                ))
+              ) : (
+                <Typography
+                  variant="caption"
+                  role="button"
+                  tabIndex={0}
+                  onClick={handleAddTagsLinkClick}
+                  sx={{ color: COLORS.cyan, cursor: 'pointer' }}
+                >
+                  {t('publish.card.addTags', { defaultValue: 'Add Tags' })}
+                </Typography>
+              )}
+            </Box>
           )}
         </Box>
         <Typography variant="caption" color="text.disabled" sx={{ mt: 0.25, display: 'block' }}>
           {formattedDate}
         </Typography>
       </GlassInfoStrip>
+
+      <DesignCardMenu
+        anchorEl={menuAnchor}
+        open={menuOpen}
+        onClose={handleMenuClose}
+        onEdit={() => {
+          handleMenuClose();
+          onEditSingle?.(design.id);
+        }}
+        onDuplicate={() => {
+          handleMenuClose();
+          onDuplicate?.(design.id);
+        }}
+        onMove={() => {
+          handleMenuClose();
+          onMove?.(design.id);
+        }}
+        onAddTags={() => {
+          handleMenuClose();
+          onAddTags?.(design.id);
+        }}
+        onDelete={() => {
+          handleMenuClose();
+          onDeleteSingle?.(design.id);
+        }}
+      />
     </CardRoot>
   );
 };

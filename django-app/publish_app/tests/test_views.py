@@ -117,13 +117,17 @@ class TestListingGenerateView:
         assert resp.data['generated_by'] == 'ai'
         mock_queue.enqueue.assert_called_once()
 
-    def test_generate_listing_no_workspace(self, api_client, idea):
+    def test_generate_listing_without_header_uses_active_membership(
+        self, api_client, idea,
+    ):
+        # Fallback to auto-created personal workspace — idea is in a
+        # different workspace, so 404 (cross-workspace), NOT 400.
         resp = api_client.post(
             f'/api/ideas/{idea.id}/listing/generate/',
             {'language': 'en'},
             format='json',
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 404
 
 
 class TestListingDetailView:

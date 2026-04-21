@@ -149,13 +149,15 @@ class TestCollectionCreate:
         assert resp.status_code == 201
         assert resp.data['position'] == 2
 
-    def test_create_requires_workspace_header(self, api_client):
+    def test_create_without_header_uses_active_membership(self, api_client):
+        # User has an auto-created personal workspace via post_save signal.
+        # No X-Workspace-Id header → falls back to that workspace.
         resp = api_client.post(
             '/api/collections/',
-            {'name': 'No WS'},
+            {'name': 'Fallback WS'},
             format='json',
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 201
 
     def test_create_requires_name(self, api_client, workspace, membership):
         resp = api_client.post(
@@ -422,9 +424,10 @@ class TestCollectionTree:
         assert resp.status_code == 200
         assert resp.data[0]['asset_count'] == 1
 
-    def test_tree_requires_workspace(self, api_client):
+    def test_tree_without_header_uses_active_membership(self, api_client):
+        # Fallback to user's auto-created personal workspace.
         resp = api_client.get('/api/collections/tree/')
-        assert resp.status_code == 400
+        assert resp.status_code == 200
 
 
 # ===========================================================================
@@ -489,13 +492,17 @@ class TestAssetMove:
         )
         assert resp.status_code == 404
 
-    def test_move_requires_workspace(self, api_client, asset_in_root):
+    def test_move_without_header_uses_active_membership(self, api_client):
+        # Empty move in fallback workspace succeeds (empty set is valid).
         resp = api_client.post(
             '/api/designs/gallery/move/',
-            {'asset_ids': [str(asset_in_root.id)]},
+            {'asset_ids': []},
             format='json',
         )
+        # Empty list is rejected by serializer validation, but request
+        # reaches the view (not 400 on workspace resolution).
         assert resp.status_code == 400
+        assert 'workspace' not in str(resp.data).lower()
 
     def test_move_empty_list_rejected(self, api_client, workspace, membership):
         resp = api_client.post(

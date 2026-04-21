@@ -19,6 +19,7 @@ import UnsavedChangesBar from './partials/edit/UnsavedChangesBar';
 import CommandPalette from './partials/command/CommandPalette';
 import CopyFromDesignDialog from './partials/edit/CopyFromDesignDialog';
 import EmptyState from './partials/EmptyState';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 // ---------------------------------------------------------------------------
 // Styled
@@ -123,6 +124,11 @@ const EditView = () => {
     isApplyingCopy,
     closeCopyDialog,
     applyCopy,
+    // G3 convert conflict dialog
+    pendingConvert,
+    isConverting,
+    confirmConvertOverwrite,
+    cancelConvertOverwrite,
   } = useEditView();
 
   // Empty state — no ids in URL
@@ -210,19 +216,25 @@ const EditView = () => {
                 isGenerating={isGenerating}
                 marketplace={activeMarketplace}
               />
-              <ListingFieldsSection
-                control={listingForm.control}
-                activeLang={activeLang}
-                onLangChange={setActiveLang}
-                autoTranslate={autoTranslate}
-                onAutoTranslateChange={setAutoTranslate}
-                onOptionsClick={cmdPalette.openPalette}
-              />
-              <OptionsTrademarksTabs
-                control={listingForm.control}
-                listingId={listing?.id ?? activeDesign?.listing ?? undefined}
-                onOptionsClick={cmdPalette.openPalette}
-              />
+              {/* G1: hide editable form during initial load + 404 + hard error.
+                  Banner owns the skeleton/empty/error UI for those states. */}
+              {!isLoadingListing && !listingNotFound && !listingError && (
+                <>
+                  <ListingFieldsSection
+                    control={listingForm.control}
+                    activeLang={activeLang}
+                    onLangChange={setActiveLang}
+                    autoTranslate={autoTranslate}
+                    onAutoTranslateChange={setAutoTranslate}
+                    onOptionsClick={cmdPalette.openPalette}
+                  />
+                  <OptionsTrademarksTabs
+                    control={listingForm.control}
+                    listingId={listing?.id ?? activeDesign?.listing ?? undefined}
+                    onOptionsClick={cmdPalette.openPalette}
+                  />
+                </>
+              )}
             </Stack>
           ) : (
             <MarketplacePlaceholder marketplace={activeMarketplace} />
@@ -243,6 +255,34 @@ const EditView = () => {
         isApplying={isApplyingCopy}
         onClose={closeCopyDialog}
         onConfirm={applyCopy}
+      />
+
+      {/* G3: Convert overwrite confirmation */}
+      <ConfirmDialog
+        open={Boolean(pendingConvert)}
+        title={t('publish.convert.confirmTitle', {
+          defaultValue: 'Overwrite existing {{target}} listing?',
+          target: activeMarketplace.toUpperCase(),
+        })}
+        body={t('publish.convert.confirmBody', {
+          defaultValue:
+            'A {{target}} listing already exists for this design. Converting from {{source}} will replace its content. This cannot be undone.',
+          target: activeMarketplace.toUpperCase(),
+          source: pendingConvert?.sourceMarketplace.toUpperCase() ?? '',
+        })}
+        confirmLabel={t('publish.convert.confirmButton', {
+          defaultValue: 'Overwrite',
+        })}
+        cancelLabel={t('publish.convert.cancelButton', {
+          defaultValue: 'Cancel',
+        })}
+        confirmColor="warning"
+        showDeleteIcon={false}
+        isLoading={isConverting}
+        onConfirm={() => {
+          void confirmConvertOverwrite();
+        }}
+        onCancel={cancelConvertOverwrite}
       />
 
       {/* Command Palette Overlay */}

@@ -40,7 +40,7 @@ const CardRoot = styled(Box, {
     boxShadow: `0 0 8px ${alpha(COLORS.cyan, 0.2)}`,
   }),
   '&:hover': {
-    borderColor: isSelected ? COLORS.cyan : alpha('#fff', 0.16),
+    borderColor: isSelected ? COLORS.cyan : alpha(COLORS.white, 0.16),
     transform: 'translateY(-1px)',
   },
 }));
@@ -52,7 +52,7 @@ const AddCardRoot = styled(Box)(({ theme }) => ({
   justifyContent: 'center',
   gap: theme.spacing(1),
   padding: theme.spacing(2),
-  border: `2px dashed ${alpha('#fff', 0.12)}`,
+  border: `2px dashed ${alpha(COLORS.white, 0.12)}`,
   borderRadius: Number(theme.shape.borderRadius) * 1.5,
   cursor: 'pointer',
   transition: `all ${DURATION.fast}ms ${EASING.standard}`,

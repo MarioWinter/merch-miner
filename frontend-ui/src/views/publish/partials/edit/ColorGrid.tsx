@@ -6,7 +6,6 @@ import {
   Skeleton,
   Stack,
   Tooltip,
-  Typography,
 } from '@mui/material';
 import { alpha, styled } from '@mui/material/styles';
 import CheckIcon from '@mui/icons-material/Check';
@@ -140,12 +139,6 @@ const ColorGrid = ({ selected, onChange, onOptionsClick }: ColorGridProps) => {
         >
           {t('publish.edit.colors.loadError')}
         </Alert>
-      )}
-
-      {!isLoading && !isError && colors.length === 0 && (
-        <Typography variant="body2" color="text.disabled">
-          {t('publish.edit.colors.empty')}
-        </Typography>
       )}
 
       {!isLoading && !isError && colors.length > 0 && (

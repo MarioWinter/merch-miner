@@ -91,7 +91,7 @@ const ListingStateBanner = ({
         }
       >
         {t('publish.edit.listingState.notFound', {
-          defaultValue: 'No listing for {{marketplace}} yet. Generate one or start typing to save.',
+          defaultValue: 'No listing for {{marketplace}} yet. Generate one to start editing.',
           marketplace,
         })}
       </Alert>

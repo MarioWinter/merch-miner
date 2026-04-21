@@ -30,7 +30,11 @@ class ListingAdmin(admin.ModelAdmin):
 
 @admin.register(UploadTemplate)
 class UploadTemplateAdmin(admin.ModelAdmin):
-    list_display = ['id', 'workspace', 'name', 'print_side', 'created_at']
+    list_display = [
+        'id', 'workspace', 'name', 'marketplace_type', 'is_default',
+        'print_side', 'created_at',
+    ]
+    list_filter = ['marketplace_type', 'is_default', 'print_side']
     search_fields = ['name']
     readonly_fields = ['id', 'created_at', 'updated_at']
 

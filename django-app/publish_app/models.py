@@ -1,7 +1,9 @@
 import uuid
 
 from django.conf import settings
+from django.core.exceptions import ValidationError
 from django.db import models
+from django.db.models import Q
 
 
 class DesignCollection(models.Model):
@@ -136,6 +138,15 @@ class Listing(models.Model):
         blank=True,
         help_text='Per-language translations: {lang: {title, bullets, description}}',
     )
+    is_template = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text=(
+            'When True, this Listing is a reusable template (design must be '
+            'NULL). Templates are excluded from idea/listing default '
+            'querysets and surfaced via /api/listings/templates/.'
+        ),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -159,6 +170,18 @@ class Listing(models.Model):
             ),
         ]
 
+    def clean(self):
+        """Template listings cannot be linked to a design (EC-16).
+
+        Enforced at both model.clean() (admin, full_clean callers) and at
+        the serializer layer (API callers).
+        """
+        super().clean()
+        if self.is_template and self.design_id is not None:
+            raise ValidationError(
+                {'design': 'Template listings cannot be linked to a design'},
+            )
+
     def __str__(self):
         return f"Listing {str(self.id)[:8]} [{self.status}]"
 
@@ -170,6 +193,11 @@ class UploadTemplate(models.Model):
         FRONT = 'front', 'Front'
         BACK = 'back', 'Back'
         BOTH = 'both', 'Both'
+
+    class MarketplaceType(models.TextChoices):
+        GLOBAL = 'global', 'Global'
+        MBA = 'mba', 'Merch by Amazon'
+        DISPLATE = 'displate', 'Displate'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     workspace = models.ForeignKey(
@@ -205,6 +233,26 @@ class UploadTemplate(models.Model):
         choices=PrintSide.choices,
         default=PrintSide.FRONT,
     )
+    marketplace_type = models.CharField(
+        max_length=20,
+        choices=MarketplaceType.choices,
+        default=MarketplaceType.MBA,
+        db_index=True,
+        help_text=(
+            'Marketplace this template targets. Defaults map to MBA. Used '
+            'together with `is_default` to pick a workspace default per '
+            'marketplace.'
+        ),
+    )
+    is_default = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text=(
+            'When True, this template is the workspace default for its '
+            '(workspace, marketplace_type) pair. Exactly one default per '
+            'marketplace per workspace (enforced by partial unique index).'
+        ),
+    )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -219,6 +267,16 @@ class UploadTemplate(models.Model):
             models.Index(
                 fields=['workspace'],
                 name='uploadtpl_ws_idx',
+            ),
+        ]
+        constraints = [
+            # AC-53: at most one default UploadTemplate per
+            # (workspace, marketplace_type) set. Postgres partial unique
+            # index -- only rows with is_default=True are constrained.
+            models.UniqueConstraint(
+                fields=['workspace', 'marketplace_type'],
+                condition=Q(is_default=True),
+                name='upload_template_single_default',
             ),
         ]
 

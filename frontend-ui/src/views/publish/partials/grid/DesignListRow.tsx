@@ -28,7 +28,7 @@ const RowRoot = styled(Box, {
   '&:hover': {
     backgroundColor: isSelected
       ? alpha(COLORS.cyan, 0.08)
-      : alpha('#fff', 0.03),
+      : alpha(COLORS.white, 0.03),
   },
 }));
 

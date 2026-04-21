@@ -27,6 +27,12 @@ import type {
   ListCollectionsParams,
   MbaColor,
   GetListingParams,
+  ConvertListingBody,
+  ConvertListingResponse,
+  DesignProductConfig,
+  GetProductConfigParams,
+  UpdateProductConfigBody,
+  CopyProductConfigFromBody,
 } from '../views/publish/types';
 
 export const publishApi = createApi({
@@ -45,6 +51,7 @@ export const publishApi = createApi({
     'CollectionList',
     'CollectionTree',
     'MbaColors',
+    'ProductConfig',
   ],
   endpoints: (builder) => ({
     // ---- Listing ----------------------------------------------------------
@@ -124,6 +131,26 @@ export const publishApi = createApi({
       }),
     }),
 
+    // ---- Convert (G3) ----------------------------------------------------
+    // POST /api/listings/convert/ — creates or overwrites a Listing for the
+    // target marketplace_type based on a source Listing. 409 when the target
+    // already exists and `overwrite=false` — caller is expected to prompt the
+    // user and retry with `overwrite=true`.
+    convertListing: builder.mutation<ConvertListingResponse, ConvertListingBody>({
+      query: (body) => ({
+        url: '/api/listings/convert/',
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: (result) => {
+        if (!result) return [];
+        return [
+          { type: 'Listing', id: result.id },
+          { type: 'Listing', id: `${result.idea}:${result.marketplace_type}` },
+        ];
+      },
+    }),
+
     // ---- Design Gallery ---------------------------------------------------
     listGallery: builder.query<GalleryListResponse, GalleryListParams>({
       query: (params) => ({
@@ -178,13 +205,53 @@ export const publishApi = createApi({
       ],
     }),
 
+    // H6: duplicate an existing DesignAsset. Backend copies the file + DB row
+    // in a single atomic transaction (cross-workspace guard returns 404). We
+    // invalidate the gallery LIST tag so the new card appears in the UI.
+    duplicateDesign: builder.mutation<DesignAsset, string>({
+      query: (id) => ({
+        url: `/api/designs/gallery/${id}/duplicate/`,
+        method: 'POST',
+      }),
+      invalidatesTags: [{ type: 'GalleryList', id: 'LIST' }],
+    }),
+
     updateDesign: builder.mutation<DesignAsset, { id: string; body: Partial<DesignAsset> }>({
       query: ({ id, body }) => ({
         url: `/api/designs/gallery/${id}/`,
         method: 'PATCH',
         data: body,
       }),
-      invalidatesTags: (_r, _e, { id }) => [{ type: 'Gallery', id }],
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: 'Gallery', id },
+        { type: 'GalleryList', id: 'LIST' },
+      ],
+      // Optimistic update — walk every cached GalleryList query and patch the
+      // matching asset in place. On error we undo the patch so callers can
+      // surface a snackbar and the UI snaps back to server state.
+      async onQueryStarted({ id, body }, { dispatch, queryFulfilled, getState }) {
+        const state = getState() as { publishApi?: { queries?: Record<string, unknown> } };
+        const queries = state.publishApi?.queries ?? {};
+        const patches: { undo: () => void }[] = [];
+        for (const cacheKey of Object.keys(queries)) {
+          if (!cacheKey.startsWith('listGallery(')) continue;
+          const args = (queries[cacheKey] as { originalArgs?: GalleryListParams } | undefined)
+            ?.originalArgs;
+          if (!args) continue;
+          const patch = dispatch(
+            publishApi.util.updateQueryData('listGallery', args, (draft) => {
+              const hit = draft.results.find((d) => d.id === id);
+              if (hit) Object.assign(hit, body);
+            }),
+          );
+          patches.push(patch);
+        }
+        try {
+          await queryFulfilled;
+        } catch {
+          patches.forEach((p) => p.undo());
+        }
+      },
     }),
 
     bulkAction: builder.mutation<void, BulkActionBody>({
@@ -207,6 +274,8 @@ export const publishApi = createApi({
         method: 'GET',
         params: params ?? undefined,
       }),
+      transformResponse: (raw: DesignCollection[] | { results: DesignCollection[] }) =>
+        Array.isArray(raw) ? raw : raw.results,
       providesTags: (result) =>
         result
           ? [
@@ -307,7 +376,7 @@ export const publishApi = createApi({
 
     listUploadJobs: builder.query<UploadJobListResponse, UploadJobListParams>({
       query: (params) => ({
-        url: '/api/upload-jobs/',
+        url: '/api/upload-jobs/list/',
         method: 'GET',
         params,
       }),
@@ -389,6 +458,49 @@ export const publishApi = createApi({
       providesTags: [{ type: 'MbaColors', id: 'LIST' }],
     }),
 
+    // ---- Design Product Config (F4) --------------------------------------
+    // GET/PATCH/COPY-FROM /api/designs/{designId}/product-config/.
+    // Cache key pairs `(designId, marketplace_type)` so tab-switch and
+    // design-switch both trigger a fresh query.
+    getProductConfig: builder.query<DesignProductConfig, GetProductConfigParams>({
+      query: ({ designId, marketplace_type }) => ({
+        url: `/api/designs/${designId}/product-config/`,
+        method: 'GET',
+        params: { marketplace_type },
+      }),
+      providesTags: (_r, _e, { designId, marketplace_type }) => [
+        { type: 'ProductConfig', id: `${designId}:${marketplace_type}` },
+      ],
+    }),
+
+    updateProductConfig: builder.mutation<
+      DesignProductConfig,
+      { designId: string; body: UpdateProductConfigBody }
+    >({
+      query: ({ designId, body }) => ({
+        url: `/api/designs/${designId}/product-config/`,
+        method: 'PATCH',
+        data: body,
+      }),
+      invalidatesTags: (_r, _e, { designId, body }) => [
+        { type: 'ProductConfig', id: `${designId}:${body.marketplace_type}` },
+      ],
+    }),
+
+    copyProductConfigFrom: builder.mutation<
+      DesignProductConfig,
+      CopyProductConfigFromBody
+    >({
+      query: ({ designId, source_design_id, marketplace_type, scope }) => ({
+        url: `/api/designs/${designId}/product-config/copy-from/`,
+        method: 'POST',
+        data: { source_design_id, marketplace_type, scope },
+      }),
+      invalidatesTags: (_r, _e, { designId, marketplace_type }) => [
+        { type: 'ProductConfig', id: `${designId}:${marketplace_type}` },
+      ],
+    }),
+
     // ---- Product Lifecycle ------------------------------------------------
     getLifecycle: builder.query<LifecycleResponse, string>({
       query: (nicheId) => ({
@@ -409,6 +521,7 @@ export const {
   useTranslateListingMutation,
   useTmCheckMutation,
   useLazyExportListingQuery,
+  useConvertListingMutation,
   // Gallery
   useListGalleryQuery,
   useLazyListGalleryQuery,
@@ -417,6 +530,7 @@ export const {
   useDeleteDesignMutation,
   useUpdateDesignMutation,
   useBulkActionMutation,
+  useDuplicateDesignMutation,
   // Collections
   useListCollectionsQuery,
   useGetCollectionQuery,
@@ -440,4 +554,8 @@ export const {
   useGetLifecycleQuery,
   // MBA Colors
   useGetMbaColorsQuery,
+  // Design Product Config
+  useGetProductConfigQuery,
+  useUpdateProductConfigMutation,
+  useCopyProductConfigFromMutation,
 } = publishApi;

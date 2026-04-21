@@ -58,7 +58,7 @@ const ICON_MAP: Record<string, React.ReactNode> = {
 const PaletteContainer = styled(Box)(({ theme }) => ({
   backgroundColor: alpha(COLORS.inkPaper, 0.95),
   backdropFilter: 'blur(24px)',
-  border: `1px solid ${alpha('#fff', 0.1)}`,
+  border: `1px solid ${alpha(COLORS.white, 0.1)}`,
   borderRadius: Number(theme.shape.borderRadius) * 1.5,
   boxShadow: `0 16px 64px ${alpha(COLORS.ink, 0.6)}`,
   maxWidth: theme.spacing(112.5),
@@ -80,8 +80,8 @@ const SearchHeader = styled(Box)(({ theme }) => ({
 const ShortcutHint = styled(Box)(({ theme }) => ({
   fontSize: theme.typography.caption.fontSize,
   color: theme.vars.palette.text.disabled,
-  backgroundColor: alpha('#fff', 0.06),
-  border: `1px solid ${alpha('#fff', 0.08)}`,
+  backgroundColor: alpha(COLORS.white, 0.06),
+  border: `1px solid ${alpha(COLORS.white, 0.08)}`,
   borderRadius: 4,
   padding: theme.spacing(0.25, 0.75),
   whiteSpace: 'nowrap',

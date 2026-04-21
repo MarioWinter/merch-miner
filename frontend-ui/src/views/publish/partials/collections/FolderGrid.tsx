@@ -40,7 +40,7 @@ const FolderGrid = ({
             sx={{
               aspectRatio: '1 / 1',
               minHeight: 120,
-              borderRadius: (theme) => Number(theme.shape.borderRadius) * 1.5,
+              borderRadius: (theme) => `${Number(theme.shape.borderRadius) * 1.5}px`,
             }}
           />
         ))}

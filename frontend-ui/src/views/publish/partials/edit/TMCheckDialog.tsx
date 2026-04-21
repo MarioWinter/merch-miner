@@ -130,7 +130,7 @@ const TMCheckDialog = ({
       slotProps={{
         paper: {
           sx: {
-            borderRadius: (theme) => Number(theme.shape.borderRadius) * 2,
+            borderRadius: (theme) => `${Number(theme.shape.borderRadius) * 2}px`,
           },
         },
       }}

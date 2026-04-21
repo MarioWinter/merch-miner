@@ -1756,6 +1756,45 @@
       "title": "Publication",
       "subtitle": "Selection de designs, editeur de fiches et file d'attente"
     },
+    "toolbar": {
+      "selectCounter": "Selectionner les designs",
+      "selectAll": "Tout selectionner",
+      "selectNone": "Tout deselectionner",
+      "collections": "Collections",
+      "folders": "Dossiers",
+      "chooseAction": "Choisir une action",
+      "search": "Rechercher...",
+      "template": "Modele",
+      "upload": "Telecharger",
+      "import": "Importer",
+      "publish": "Publier"
+    },
+    "tabs": {
+      "myDesigns": "Mes designs",
+      "cloudStorage": "Stockage cloud"
+    },
+    "grid": {
+      "addDesigns": "Ajouter des designs",
+      "emptyTitle": "Aucun design",
+      "emptyDescription": "Telechargez ou importez des designs pour commencer.",
+      "storage": "{{used}} / {{total}} utilises"
+    },
+    "card": {
+      "select": "Selectionner le design",
+      "duplicate": "Dupliquer",
+      "move": "Deplacer",
+      "addTags": "Ajouter des tags"
+    },
+    "collections": {
+      "title": "Collections",
+      "home": "Accueil",
+      "recentlyUsed": "Utilises recemment",
+      "searchFolders": "Rechercher des dossiers...",
+      "openFolder": "Ouvrir le dossier",
+      "addFolder": "Ajouter un dossier",
+      "folderName": "Nom du dossier",
+      "itemCount": "{{count}} elements"
+    },
     "gallery": {
       "title": "Galerie de designs",
       "upload": "Telecharger",
@@ -1805,9 +1844,12 @@
       "generate": "Generer la fiche",
       "generateSuccess": "Fiche generee",
       "generateError": "Impossible de generer la fiche",
+      "generateDuplicate": "Une fiche existe deja pour ce design.",
       "save": "Enregistrer la fiche",
       "saveSuccess": "Fiche enregistree",
       "saveError": "Impossible d'enregistrer la fiche",
+      "saveDuplicate": "Une fiche existe deja pour ce design.",
+      "saveNoListing": "Generez d'abord une fiche avant d'enregistrer.",
       "loadError": "Impossible de charger la fiche",
       "noListing": "Selectionnez un design et generez une fiche pour commencer.",
       "improve": "Ameliorer avec l'IA",
@@ -1890,9 +1932,10 @@
       "deleteError": "Impossible de supprimer le modele"
     },
     "command": {
-      "title": "Actions",
+      "title": "Palette de commandes",
       "searchPlaceholder": "Rechercher des actions...",
-      "noResults": "Aucune action correspondante",
+      "noResults": "Aucune action trouvee",
+      "recent": "UTILISES RECEMMENT",
       "copyListing": "Copier la fiche",
       "copyListingDesc": "Copier la fiche actuelle vers les designs selectionnes",
       "applyTemplate": "Appliquer le modele",
@@ -1904,7 +1947,28 @@
       "applyProductSettings": "Appliquer les parametres produit",
       "applyProductSettingsDesc": "Copier tous les parametres produit vers les designs selectionnes",
       "bulkUpload": "Telechargement en lot",
-      "bulkUploadDesc": "Mettre en file les taches pour tous les designs selectionnes"
+      "bulkUploadDesc": "Mettre en file les taches pour tous les designs selectionnes",
+      "editBulk": "Edition en lot",
+      "deleteListings": "Supprimer les fiches",
+      "moveCollection": "Deplacer vers une collection",
+      "duplicate": "Dupliquer",
+      "sortListings": "Trier les fiches",
+      "bulkSync": "Synchronisation en lot",
+      "translate": "Traduire",
+      "bulkTags": "Tags en lot",
+      "aiGenerate": "Generer la fiche par IA",
+      "deleteFiles": "Supprimer les fichiers",
+      "download": "Telecharger",
+      "exportXlsx": "Exporter en XLSX",
+      "exportCsv": "Exporter en CSV",
+      "sendCloud": "Envoyer vers le cloud",
+      "importCloud": "Importer depuis le cloud",
+      "copyListingFrom": "Copier la fiche depuis...",
+      "copyColorsFrom": "Copier les couleurs depuis...",
+      "copyFitFrom": "Copier les coupes depuis...",
+      "copyPricesFrom": "Copier les prix depuis...",
+      "convertFromGlobal": "Convertir depuis Global",
+      "convertFromMba": "Convertir depuis MBA"
     },
     "actionBar": {
       "label": "Actions en lot",
@@ -1912,7 +1976,69 @@
       "edit": "Modifier",
       "uploadBatch": "Telecharger le lot",
       "delete": "Supprimer",
-      "clear": "Effacer"
+      "clear": "Effacer",
+      "selectAll": "Tous",
+      "selectNone": "Aucun",
+      "history": "Historique",
+      "batch": "Lot",
+      "options": "Options",
+      "applyTemplate": "Appliquer le modele",
+      "copyFrom": "Copier depuis...",
+      "applyColors": "Appliquer les couleurs",
+      "applyFitTypes": "Appliquer les coupes",
+      "exportSelected": "Exporter la selection"
+    },
+    "cloud": {
+      "import": "Importer",
+      "preview": "Apercu",
+      "copyUrl": "Copier l'URL",
+      "root": "Racine",
+      "folderNav": "Navigation des dossiers",
+      "loadError": "Impossible de charger le dossier",
+      "emptyFolder": "Aucune image dans ce dossier",
+      "urlCopied": "URL copiee",
+      "importSuccess": "Fichier importe avec succes",
+      "importError": "Echec de l'importation",
+      "notConnected": "Non connecte a {{provider}}",
+      "noSubfolders": "Aucun sous-dossier dans {{folder}}",
+      "notConfigured": "{{provider}} non configure",
+      "configureHint": "Configurez {{provider}} dans les parametres pour commencer.",
+      "connectTitle": "Se connecter a {{provider}}",
+      "connectDescription": "Connectez-vous a {{provider}} pour parcourir et importer vos designs.",
+      "connect": "Se connecter",
+      "manageConnections": "Gerer les connexions",
+      "sendTitle": "Envoyer vers {{provider}}",
+      "uploadTo": "Telecharger vers {{folder}}",
+      "sending": "Envoi en cours...",
+      "send": "Envoyer",
+      "sendSuccess": "{{count}} fichier(s) envoye(s) a {{provider}}",
+      "sendError": "Echec de l'envoi des fichiers",
+      "sendPartial": "{{sent}} sur {{total}} fichier(s) envoyes. {{failed}} echec(s)."
+    },
+    "copyFrom": {
+      "noSources": "Aucun autre design disponible pour la copie.",
+      "hasListing": "A une fiche",
+      "applying": "Application...",
+      "apply": "Appliquer",
+      "success": "Fiche copiee - enregistrer pour conserver.",
+      "error": "Impossible de charger la fiche source.",
+      "noListing": "Le design source n'a pas d'idee/fiche liee.",
+      "sourceNoConfig": "La source n'a pas de configuration pour {{marketplace}}."
+    },
+    "productConfig": {
+      "saveError": "Impossible d'enregistrer la configuration produit.",
+      "loadError": "Impossible de charger la configuration produit."
+    },
+    "convert": {
+      "success": "Fiche convertie vers {{target}}",
+      "error": "Impossible de convertir la fiche",
+      "invalid": "La conversion n'est pas valide pour cette place de marche",
+      "sourceMissing": "Aucune fiche {{source}} a convertir. Generez-en une d'abord.",
+      "noIdea": "Selectionnez d'abord un design avec une idee liee.",
+      "confirmTitle": "Ecraser la fiche {{target}} existante ?",
+      "confirmBody": "Une fiche {{target}} existe deja pour ce design. La conversion depuis {{source}} remplacera son contenu. Cette action est irreversible.",
+      "confirmButton": "Ecraser",
+      "cancelButton": "Annuler"
     },
     "lifecycle": {
       "title": "Cycle de vie produit",
@@ -1921,6 +2047,137 @@
       "design": "Design",
       "noData": "Aucune donnee de cycle de vie disponible",
       "awaitingSales": "En attente de donnees de vente"
+    },
+    "edit": {
+      "backToCollection": "Retour a la collection",
+      "addDesigns": "Ajouter des designs",
+      "shortcutGuide": "Guide des raccourcis",
+      "shortcutsTitle": "Raccourcis clavier",
+      "shortcutsSoon": "Raccourcis bientot disponibles",
+      "close": "Fermer",
+      "optionsButton": "Options",
+      "demo": {
+        "productsTitle": "Produits"
+      },
+      "marketplace": {
+        "global": "Global",
+        "mba": "Mba",
+        "displate": "Displate"
+      },
+      "empty": {
+        "title": "Aucun design selectionne",
+        "hint": "Retournez a la page Publish et selectionnez des designs a modifier.",
+        "back": "Retour a Publish"
+      },
+      "thumbnails": {
+        "tagsLabel": "Tags du design",
+        "tagsPlaceholder": "Ajouter un tag...",
+        "tagsCounter": "{{count}}/{{max}}",
+        "load": "Charger",
+        "clear": "Effacer",
+        "counter": "{{current}} sur {{total}}",
+        "previous": "Design precedent",
+        "next": "Design suivant",
+        "activeBadge": "Design {{index}}",
+        "remove": "Retirer le tag"
+      },
+      "products": {
+        "title": "Produits",
+        "productType": "Type de produit {{label}}",
+        "selectedCount": "{{count}} selectionne(s)"
+      },
+      "fitPrint": {
+        "fitTitle": "Type de coupe",
+        "printTitle": "Cote d'impression",
+        "front": "Avant",
+        "back": "Arriere"
+      },
+      "colors": {
+        "title": "Couleurs",
+        "loadError": "Impossible de charger les couleurs.",
+        "retry": "Reessayer",
+        "swatch": "{{name}}"
+      },
+      "marketplaces": {
+        "title": "Places de marche et prix",
+        "price": "Prix",
+        "royalty": "Redevance",
+        "enable": "Activer {{code}}"
+      },
+      "placeholder": {
+        "comingSoon": "Configuration pour {{marketplace}} bientot disponible"
+      },
+      "fields": {
+        "sectionLabel": "Champs de la fiche",
+        "brand": "Marque",
+        "title": "Titre",
+        "bullet": "Point cle {{n}}",
+        "description": "Description",
+        "aiImprove": "Ameliorer par IA"
+      },
+      "keywords": {
+        "title": "Mots-cles backend",
+        "info": "Termes de recherche utilises par l'indexation Amazon. Max 500 caracteres, separateurs inclus.",
+        "addPlaceholder": "+ Ajouter",
+        "addAria": "Ajouter un mot-cle",
+        "remove": "Retirer le mot-cle {{kw}}",
+        "kwFinder": "KW Finder",
+        "kwWorkbench": "KW Workbench"
+      },
+      "translation": {
+        "title": "Langue",
+        "selectLanguage": "Selectionner la langue",
+        "autoTranslate": "Traduction auto",
+        "translateTo": "Traduire en…"
+      },
+      "options": {
+        "tab": "Options",
+        "tabsLabel": "Options de fiche et marques deposees",
+        "availability": {
+          "title": "Disponibilite",
+          "public": "Public",
+          "private": "Prive"
+        },
+        "publishMode": {
+          "title": "Publier",
+          "live": "En ligne",
+          "draft": "Brouillon"
+        }
+      },
+      "trademarks": {
+        "tab": "Marques deposees",
+        "runCheck": "Lancer le TM Check",
+        "hint": "Verifiez les marques deposees dans votre fiche avant publication.",
+        "checkingTitle": "Verification des marques en cours",
+        "cleanTitle": "Verification reussie",
+        "cleanBody": "Tout est en ordre - aucun probleme detecte.",
+        "flaggedTitle": "Problemes de marques detectes",
+        "flaggedBody": "Les termes suivants peuvent etre proteges. Verifiez avant publication.",
+        "proceed": "Continuer quand meme",
+        "edit": "Modifier les champs",
+        "close": "Fermer",
+        "error": "Echec de la verification des marques",
+        "noListing": "Enregistrez d'abord la fiche pour executer la verification."
+      },
+      "preview": {
+        "label": "Apercu du design",
+        "empty": "Aucun design selectionne",
+        "error": "Apercu indisponible"
+      },
+      "unsaved": {
+        "message": "Modifications non enregistrees",
+        "discard": "Annuler",
+        "save": "Enregistrer",
+        "autoSaving": "Enregistrement...",
+        "autoSaved": "Enregistre"
+      },
+      "listingState": {
+        "generate": "Generer la fiche",
+        "generating": "Generation...",
+        "notFound": "Pas encore de fiche pour {{marketplace}}. Generez-en une pour commencer.",
+        "error": "Impossible de charger la fiche pour cette place de marche.",
+        "retry": "Reessayer"
+      }
     }
   },
   "dashboard": {

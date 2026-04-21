@@ -6,6 +6,7 @@ from publish_app.api.views import (
     CollectionDetailView,
     CollectionListCreateView,
     CollectionTreeView,
+    DesignAssetDuplicateView,
     DesignGalleryBulkActionView,
     DesignGalleryDetailView,
     DesignGalleryImportView,
@@ -19,6 +20,7 @@ from publish_app.api.views import (
     ListingDetailView,
     ListingExportView,
     ListingGenerateView,
+    ListingTemplateListCreateView,
     ListingTMCheckView,
     ListingTranslateView,
     ListingUpdateView,
@@ -30,6 +32,7 @@ from publish_app.api.views import (
     UploadJobDetailView,
     UploadJobListView,
     UploadJobStatusUpdateView,
+    UploadTemplateDefaultView,
     UploadTemplateDetailView,
     UploadTemplateListCreateView,
 )
@@ -70,6 +73,14 @@ urlpatterns = [
         'listings/convert/',
         ListingConvertView.as_view(),
         name='listing-convert',
+    ),
+    # Listing Templates (F5 / AC-47, AC-48). MUST be registered BEFORE
+    # `listings/<uuid:pk>/` so the static `/templates/` segment is matched
+    # first by Django's URL resolver.
+    path(
+        'listings/templates/',
+        ListingTemplateListCreateView.as_view(),
+        name='listing-templates',
     ),
     path(
         'listings/<uuid:pk>/',
@@ -123,6 +134,11 @@ urlpatterns = [
         DesignGalleryDetailView.as_view(),
         name='design-gallery-detail',
     ),
+    path(
+        'designs/gallery/<uuid:pk>/duplicate/',
+        DesignAssetDuplicateView.as_view(),
+        name='design-gallery-duplicate',
+    ),
 
     # Per-Design Product Config endpoints (F4 / AC-38..AC-44)
     path(
@@ -173,6 +189,13 @@ urlpatterns = [
         'upload-templates/',
         UploadTemplateListCreateView.as_view(),
         name='upload-template-list-create',
+    ),
+    # AC-56: `/default/` must be registered BEFORE `<uuid:pk>` so the static
+    # segment is matched first by Django's URL resolver.
+    path(
+        'upload-templates/default/',
+        UploadTemplateDefaultView.as_view(),
+        name='upload-template-default',
     ),
     path(
         'upload-templates/<uuid:pk>/',
