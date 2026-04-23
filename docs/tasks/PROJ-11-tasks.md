@@ -759,14 +759,16 @@
 
 ### M1: Service Module
 
-- [ ] Create `publish_app/services/ai_improve.py` with 4 pure functions:
-  - [ ] `build_prompt(listing, design, keyword_context, language) -> list[dict]` — system + user messages incl. vision image URL + existing text
-  - [ ] `call_llm(messages) -> dict` — invokes OpenRouter via existing client, uses `AI_IMPROVE_MODEL` env, JSON mode where supported, timeout `AI_IMPROVE_TIMEOUT_SECONDS`
-  - [ ] `validate_and_truncate(response_dict) -> (fields_dict, truncated_keys: list)` — parse 5 expected fields, truncate to serializer max_length
-  - [ ] `apply_to_listing(listing, fields) -> Listing` — uses ListingSerializer for validation, sets `generated_by='ai'`, reverts `status='draft'`
-- [ ] Handle LLM JSON parsing failures → raise `AIImproveError("LLM returned non-JSON response")`
-- [ ] Log LLM request + response to Langfuse (existing observability pattern from PROJ-6)
-- [ ] Respect `listing.language` for prompt localization
+> Completed 2026-04-23. Env vars accessed via `os.environ` with defaults inside `call_llm` — M4 will add explicit settings wiring. 30 tests in `test_ai_improve.py`.
+
+- [x] Create `publish_app/services/ai_improve.py` with 4 pure functions:
+  - [x] `build_prompt(listing, design, keyword_context, language) -> list[dict]` — system + multimodal user message with vision image URL (file.url → thumbnail_url fallback), existing listing copy, keyword_context hint, marketplace_type, localized language name via `LANGUAGE_NAMES` from translator
+  - [x] `call_llm(messages) -> dict` — OpenRouter via `ChatOpenAI` client (matches `niche_research_app/graph/llm.py` pattern), `AI_IMPROVE_MODEL` (default `anthropic/claude-3.5-sonnet`), `AI_IMPROVE_TIMEOUT_SECONDS` (default 60), JSON mode via `response_format`
+  - [x] `validate_and_truncate(response_dict) -> (fields_dict, truncated_keys: list)` — coerces 5 `EXPECTED_FIELDS` (title, bullet_1, bullet_2, description, keyword_context) to strings, truncates to `CHAR_LIMITS` from `translator.py`
+  - [x] `apply_to_listing(listing, fields) -> Listing` — validates via `ListingSerializer`, sets `generated_by='ai'`, reverts `status='draft'`, saves with `update_fields`, refreshes from DB
+- [x] Handle LLM JSON parsing failures → raise `AIImproveError("LLM returned non-JSON response")` (also wraps upstream exceptions + non-dict inputs)
+- [x] Log LLM request + response to Langfuse (trace + generation spans, mirrors `design_app/services/image_analyzer.py` pattern)
+- [x] Respect `listing.language` for prompt localization (unknown codes fall back to raw code so LLM still gets usable instruction)
 
 ### M2: View + URL
 
