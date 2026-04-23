@@ -1,13 +1,21 @@
 """AI Improve service for PROJ-11 (Listing).
 
-One-shot LLM rewrite of a Listing's user-facing copy. Vision model reads the
-linked DesignAsset image plus any existing text + ``keyword_context`` hints,
-returns 5 fields as JSON, which are truncated to serializer max_length before
-being applied via ``ListingSerializer``.
+Two-step LLM rewrite of a Listing's user-facing copy:
 
-Pure functions only -- no DB writes until ``apply_to_listing``. The view
-(Phase M2) composes these: ``build_prompt`` -> ``call_llm`` ->
-``validate_and_truncate`` -> ``apply_to_listing``.
+1. ``ensure_design_vision(design_asset)`` — one-shot vision pass over the
+   DesignAsset image. Result is cached in ``DesignAsset.vision_analysis`` so
+   subsequent AI-Improve calls for the same design are text-only (cheaper).
+2. ``build_prompt`` / ``call_llm`` — text-only completion that rewrites the
+   5 Listing fields using the cached vision dict as structured context.
+
+Model, temperature, max_tokens, and system prompt for each step are stored
+in ``ListingImproveNodeConfig`` (Django Admin editable, no redeploy needed).
+Code defaults are applied when a row is missing.
+
+Pure functions -- no DB writes until ``apply_to_listing`` (writes the
+listing) or ``ensure_design_vision`` (writes the design cache). The view
+(Phase M2) composes these: ``ensure_design_vision`` -> ``build_prompt`` ->
+``call_llm`` -> ``validate_and_truncate`` -> ``apply_to_listing``.
 
 See PROJ-11 AC-69..AC-72, EC-31..EC-33.
 """
@@ -16,13 +24,17 @@ from __future__ import annotations
 
 import json
 import logging
-import os
+from datetime import datetime, timezone
 from typing import Any
 
 from django.conf import settings
 from langchain_openai import ChatOpenAI
 
 from publish_app.models import Listing
+from publish_app.services.ai_improve_prompts import (
+    DEFAULT_AI_IMPROVE_PROMPT,
+    DEFAULT_DESIGN_VISION_PROMPT,
+)
 from publish_app.services.translator import CHAR_LIMITS, LANGUAGE_NAMES
 
 logger = logging.getLogger(__name__)
@@ -36,36 +48,36 @@ EXPECTED_FIELDS = (
     'keyword_context',
 )
 
-DEFAULT_MODEL = 'anthropic/claude-3.5-sonnet'
-DEFAULT_TIMEOUT_SECONDS = 60
+# Shape keys expected on ``DesignAsset.vision_analysis`` once populated.
+VISION_FIELDS = (
+    'description',
+    'visual_style',
+    'graphic_elements',
+    'layout_composition',
+    'dominant_colors',
+    'detected_text',
+)
 
-SYSTEM_PROMPT = """You are an expert copywriter for Amazon Merch on Demand (MBA) listings.
+# Node identifiers for ``ListingImproveNodeConfig``.
+NODE_AI_IMPROVE = 'ai_improve'
+NODE_DESIGN_VISION = 'design_vision'
 
-You will receive a design image plus optional existing listing text and a free-form
-``keyword_context`` hint from the seller. Your task: produce a full, high-converting
-MBA listing in the requested language.
-
-Hard rules:
-1. Return ONLY valid JSON with exactly these 5 keys: "title", "bullet_1", "bullet_2",
-   "description", "keyword_context".
-2. Respect Amazon character limits (given below). If you go over, the server will
-   truncate -- but prefer tight copy that stays within limits.
-3. ``keyword_context`` is an internal AI-input field (NOT shown to shoppers).
-   Return a comma-separated list of the strongest search keywords for this design,
-   in English even when the listing language is not English.
-4. Write the other 4 fields in the requested listing language. Preserve marketing
-   tone + emotional hook. Use idioms that fit the target market.
-5. If the image has visible text/slogan, feature it in the title when natural.
-6. Never invent brand names, claims, or guarantees. No emoji in title/bullets.
-
-Output shape (no prose, no markdown fence, just JSON):
-{
-  "title": "...",
-  "bullet_1": "...",
-  "bullet_2": "...",
-  "description": "...",
-  "keyword_context": "..."
-}"""
+# Code-level fallbacks when the DB config row is missing. Mirrors the pattern
+# in ``niche_research_app/graph/llm.py``.
+_NODE_DEFAULTS: dict[str, dict[str, Any]] = {
+    NODE_AI_IMPROVE: {
+        'model_name': 'openai/gpt-4.1-mini',
+        'temperature': 0.7,
+        'max_tokens': 2000,
+        'system_prompt': DEFAULT_AI_IMPROVE_PROMPT,
+    },
+    NODE_DESIGN_VISION: {
+        'model_name': 'openai/gpt-4.1-mini',
+        'temperature': 0.2,
+        'max_tokens': 1500,
+        'system_prompt': DEFAULT_DESIGN_VISION_PROMPT,
+    },
+}
 
 
 class AIImproveError(Exception):
@@ -76,37 +88,253 @@ class AIImproveError(Exception):
 
 
 # ---------------------------------------------------------------------------
-# build_prompt
+# LLM config lookup (DB-backed, with code fallback)
+# ---------------------------------------------------------------------------
+
+def _resolve_node_config(node_name: str) -> dict[str, Any]:
+    """Return resolved config dict for an AI Improve node.
+
+    Reads ``ListingImproveNodeConfig`` from DB and falls back to
+    ``_NODE_DEFAULTS[node_name]``. Never raises on missing row.
+    """
+    fallback = _NODE_DEFAULTS.get(node_name, {})
+    # Late import so migrations/test collection don't require the app's models
+    # to be loaded before AppConfig.ready runs.
+    from publish_app.models import ListingImproveNodeConfig
+
+    resolved = dict(fallback)
+    try:
+        row = ListingImproveNodeConfig.objects.get(node_name=node_name)
+    except ListingImproveNodeConfig.DoesNotExist:
+        logger.warning(
+            "No ListingImproveNodeConfig for node '%s', using code defaults.",
+            node_name,
+        )
+        return resolved
+
+    if row.model_name:
+        resolved['model_name'] = row.model_name
+    resolved['temperature'] = row.temperature
+    if row.max_tokens is not None:
+        resolved['max_tokens'] = row.max_tokens
+    if row.system_prompt:
+        resolved['system_prompt'] = row.system_prompt
+    return resolved
+
+
+def get_ai_improve_llm() -> tuple[ChatOpenAI, str]:
+    """Return ``(llm, system_prompt)`` for the text-only AI Improve rewrite.
+
+    Reads ``ListingImproveNodeConfig(node_name='ai_improve')`` from the DB
+    and falls back to the module-level defaults.
+    """
+    return _build_llm(NODE_AI_IMPROVE, json_mode=True)
+
+
+def get_design_vision_llm() -> tuple[ChatOpenAI, str]:
+    """Return ``(llm, system_prompt)`` for the one-shot design vision pass."""
+    return _build_llm(NODE_DESIGN_VISION, json_mode=True)
+
+
+def _safe_model_name(llm: Any) -> str:
+    """Return a JSON-safe string model name (LangChain attr may be missing)."""
+    raw = getattr(llm, 'model_name', '') or getattr(llm, 'model', '')
+    return str(raw) if isinstance(raw, (str, bytes)) else ''
+
+
+def _build_llm(node_name: str, *, json_mode: bool) -> tuple[ChatOpenAI, str]:
+    cfg = _resolve_node_config(node_name)
+
+    kwargs: dict[str, Any] = {
+        'model': cfg['model_name'],
+        'temperature': cfg['temperature'],
+        'api_key': settings.OPENROUTER_API_KEY,
+        'base_url': settings.OPENROUTER_BASE_URL,
+        'default_headers': {
+            'HTTP-Referer': settings.FRONTEND_URL,
+            'X-OpenRouter-Title': settings.COMPANY_NAME,
+        },
+    }
+    if cfg.get('max_tokens'):
+        kwargs['max_tokens'] = cfg['max_tokens']
+    if json_mode:
+        kwargs['model_kwargs'] = {'response_format': {'type': 'json_object'}}
+
+    return ChatOpenAI(**kwargs), cfg['system_prompt']
+
+
+# ---------------------------------------------------------------------------
+# ensure_design_vision -- cache-aware vision pass on the DesignAsset
+# ---------------------------------------------------------------------------
+
+def ensure_design_vision(design: Any) -> dict:
+    """Return the cached vision dict for a design, populating it on first call.
+
+    If ``design.vision_analysis`` is already a non-empty dict, it is returned
+    as-is (no LLM call). Otherwise a vision LLM call runs against the design
+    image URL, the result is persisted on the design, and the structured
+    dict is returned.
+
+    The returned dict always contains the ``VISION_FIELDS`` keys (with empty
+    strings / empty lists when the model omitted one). ``analyzed_at`` + the
+    model name are also included.
+
+    Args:
+        design: ``DesignAsset`` instance. Must not be ``None``.
+
+    Returns:
+        ``dict`` with the cached/just-computed analysis.
+
+    Raises:
+        AIImproveError: If the LLM call fails, returns non-JSON, or the
+            design has no resolvable image URL (no fallback possible when
+            we're explicitly running a vision pass).
+    """
+    existing = getattr(design, 'vision_analysis', None) or {}
+    if isinstance(existing, dict) and existing:
+        return existing
+
+    image_url = _resolve_image_url(design)
+    if not image_url:
+        raise AIImproveError(
+            'Cannot run vision analysis: design has no resolvable image URL',
+        )
+
+    llm, system_prompt = get_design_vision_llm()
+
+    messages = [
+        {'role': 'system', 'content': system_prompt},
+        {
+            'role': 'user',
+            'content': [
+                {
+                    'type': 'text',
+                    'text': 'Analyze this print-on-demand design image.',
+                },
+                {'type': 'image_url', 'image_url': {'url': image_url}},
+            ],
+        },
+    ]
+
+    langfuse = _get_langfuse()
+    generation = None
+    if langfuse:
+        try:
+            trace = langfuse.trace(
+                name='listing-ai-improve-vision',
+                tags=['publish_app', 'ai_improve', 'design_vision'],
+            )
+            generation = trace.generation(
+                name='design-vision-llm-call',
+                model=getattr(llm, 'model_name', ''),
+                input=messages,
+            )
+        except Exception:
+            logger.warning('Failed to init Langfuse trace for design vision')
+            generation = None
+
+    try:
+        response = llm.invoke(messages)
+    except Exception as exc:
+        if generation:
+            try:
+                generation.end(level='ERROR', status_message=str(exc)[:500])
+            except Exception:
+                pass
+        logger.exception('Design vision LLM invocation failed')
+        raise AIImproveError(f'Vision LLM call failed: {exc}') from exc
+    finally:
+        if langfuse:
+            try:
+                langfuse.flush()
+            except Exception:
+                logger.warning('Failed to flush Langfuse client')
+
+    content = getattr(response, 'content', '') or ''
+    if not isinstance(content, str):
+        content = str(content)
+
+    parsed = _parse_json(content.strip())
+    if parsed is None:
+        if generation:
+            try:
+                generation.end(
+                    output=content[:500],
+                    level='ERROR',
+                    status_message='Non-JSON response',
+                )
+            except Exception:
+                pass
+        raise AIImproveError('Design vision LLM returned non-JSON response')
+
+    if generation:
+        try:
+            generation.end(output=parsed)
+        except Exception:
+            logger.warning('Failed to end Langfuse generation span')
+
+    analysis = _normalize_vision_dict(
+        parsed, model_name=_safe_model_name(llm),
+    )
+
+    design.vision_analysis = analysis
+    design.save(update_fields=['vision_analysis'])
+    return analysis
+
+
+def _normalize_vision_dict(raw: dict, *, model_name: str) -> dict:
+    """Coerce vision LLM output into the canonical cache shape."""
+    normalized: dict[str, Any] = {
+        'analyzed_at': datetime.now(timezone.utc).isoformat(),
+        'model': model_name,
+    }
+
+    for key in VISION_FIELDS:
+        value = raw.get(key, '')
+        if key == 'dominant_colors':
+            if isinstance(value, list):
+                normalized[key] = [str(c) for c in value if c]
+            elif isinstance(value, str) and value:
+                normalized[key] = [value]
+            else:
+                normalized[key] = []
+        else:
+            normalized[key] = '' if value is None else str(value)
+
+    return normalized
+
+
+# ---------------------------------------------------------------------------
+# build_prompt -- text-only rewrite using the cached vision context
 # ---------------------------------------------------------------------------
 
 def build_prompt(
     listing: Listing,
-    design: Any,  # publish_app.models.DesignAsset (duck-typed to avoid import cycle noise)
+    vision_context: dict,
     keyword_context: str,
     language: str,
 ) -> list[dict]:
-    """Return LangChain-style message list for the LLM call.
+    """Return LangChain-style message list for the AI-Improve LLM call.
 
-    Vision input: design image URL.
-    Text input: existing listing copy + keyword_context hint + marketplace +
-    target language.
+    Text-only: the design image is represented via the structured
+    ``vision_context`` dict (produced by :func:`ensure_design_vision`).
 
     Args:
-        listing: ``Listing`` instance (source of existing copy + marketplace_type).
-        design: ``DesignAsset`` linked to the listing. Must not be ``None``
-            (the view guards this per EC-31).
+        listing: ``Listing`` instance (source of existing copy + marketplace).
+        vision_context: Dict from ``ensure_design_vision``. May be empty when
+            the caller chose not to run the vision pass -- the block is then
+            labelled ``(none)``.
         keyword_context: Free-form seller keywords hint. May be empty.
-        language: ISO language code (e.g. 'en', 'de'). Falls back to English
-            name for unknown codes so the LLM gets a usable instruction.
+        language: ISO language code (e.g. 'en', 'de'). Falls back to the raw
+            code for unknown values so the LLM still gets a usable instruction.
 
     Returns:
-        ``list[dict]`` with two messages (system + user). The user message uses
-        the OpenAI multimodal content array shape so the vision model sees the
-        design image plus the text hint.
+        ``list[dict]`` with two messages (system + user), each using the
+        standard OpenAI role/content shape.
     """
-    lang_name = LANGUAGE_NAMES.get(language, language or 'English')
+    _, system_prompt = get_ai_improve_llm()
 
-    image_url = _resolve_image_url(design)
+    lang_name = LANGUAGE_NAMES.get(language, language or 'English')
 
     char_limits_str = '\n'.join(
         f'- {field}: {CHAR_LIMITS[field]} chars'
@@ -122,38 +350,42 @@ def build_prompt(
         'keyword_context': listing.keyword_context or '',
     }
 
+    vision_block = _format_vision_block(vision_context)
+
     user_text = (
         f'Target listing language: {lang_name} ({language}).\n'
         f'Marketplace: {listing.marketplace_type}.\n\n'
         f'Character limits:\n{char_limits_str}\n\n'
+        f'Design analysis (from upstream vision model):\n'
+        f'{vision_block}\n\n'
         f'Seller keyword_context hint (may be empty):\n'
         f'{keyword_context or "(none)"}\n\n'
-        f'Existing listing copy (may be empty -- treat as generation from scratch '
-        f'when blank, or as a rewrite when populated):\n'
+        f'Existing listing copy (may be empty -- treat as generation from '
+        f'scratch when blank, or as a rewrite when populated):\n'
         f'{json.dumps(existing, ensure_ascii=False, indent=2)}\n\n'
         f'Return the 5-field JSON now.'
     )
 
-    user_content: list[dict]
-    if image_url:
-        user_content = [
-            {'type': 'text', 'text': user_text},
-            {'type': 'image_url', 'image_url': {'url': image_url}},
-        ]
-    else:
-        # Defensive: view guards against design=None, but a DesignAsset may
-        # still lack a usable URL. We fall back to text-only so the LLM can
-        # at least rewrite the copy.
-        logger.warning(
-            'AI Improve: design %s has no resolvable image URL; sending '
-            'text-only prompt.', getattr(design, 'id', '?'),
-        )
-        user_content = [{'type': 'text', 'text': user_text}]
-
     return [
-        {'role': 'system', 'content': SYSTEM_PROMPT},
-        {'role': 'user', 'content': user_content},
+        {'role': 'system', 'content': system_prompt},
+        {'role': 'user', 'content': user_text},
     ]
+
+
+def _format_vision_block(vision_context: dict) -> str:
+    """Render the vision dict as a readable key/value block for the prompt."""
+    if not isinstance(vision_context, dict) or not vision_context:
+        return '(none)'
+
+    lines: list[str] = []
+    for key in VISION_FIELDS:
+        value = vision_context.get(key, '')
+        if isinstance(value, list):
+            formatted = ', '.join(str(v) for v in value) if value else '(empty)'
+        else:
+            formatted = str(value) if value else '(empty)'
+        lines.append(f'- {key}: {formatted}')
+    return '\n'.join(lines)
 
 
 def _resolve_image_url(design: Any) -> str:
@@ -175,17 +407,17 @@ def _resolve_image_url(design: Any) -> str:
 
 
 # ---------------------------------------------------------------------------
-# call_llm
+# call_llm -- text-only rewrite (reads model + params from DB config)
 # ---------------------------------------------------------------------------
 
 def call_llm(messages: list[dict]) -> dict:
-    """Invoke OpenRouter (OpenAI-compatible) with JSON response format.
+    """Invoke OpenRouter (OpenAI-compatible) for the text-only AI Improve pass.
 
-    Reads model + timeout from env: ``AI_IMPROVE_MODEL`` +
-    ``AI_IMPROVE_TIMEOUT_SECONDS``. Falls back to module defaults when unset.
+    Reads model + temperature + max_tokens from ``ListingImproveNodeConfig``
+    (node ``ai_improve``). Falls back to the module-level defaults when the
+    DB row is missing.
 
-    Traces the call to Langfuse when configured (existing PROJ-6 pattern from
-    ``design_app/services/image_analyzer.py``).
+    Traces the call to Langfuse when configured (existing PROJ-6 pattern).
 
     Args:
         messages: Output of ``build_prompt`` -- system + user dicts.
@@ -198,24 +430,8 @@ def call_llm(messages: list[dict]) -> dict:
             upstream call fails for any reason. The view maps this to HTTP
             502 (EC-33) and leaves the listing untouched.
     """
-    model_name = os.environ.get('AI_IMPROVE_MODEL', DEFAULT_MODEL)
-    timeout_seconds = int(
-        os.environ.get('AI_IMPROVE_TIMEOUT_SECONDS', str(DEFAULT_TIMEOUT_SECONDS)),
-    )
-
-    llm = ChatOpenAI(
-        model=model_name,
-        api_key=settings.OPENROUTER_API_KEY,
-        base_url=settings.OPENROUTER_BASE_URL,
-        temperature=0.4,
-        timeout=timeout_seconds,
-        # OpenRouter passes this through to providers that support JSON mode.
-        model_kwargs={'response_format': {'type': 'json_object'}},
-        default_headers={
-            'HTTP-Referer': settings.FRONTEND_URL,
-            'X-OpenRouter-Title': settings.COMPANY_NAME,
-        },
-    )
+    llm, _ = get_ai_improve_llm()
+    model_name = getattr(llm, 'model_name', '')
 
     langfuse = _get_langfuse()
     generation = None
@@ -230,8 +446,7 @@ def call_llm(messages: list[dict]) -> dict:
                 model=model_name,
                 input=messages,
                 model_parameters={
-                    'temperature': 0.4,
-                    'timeout': timeout_seconds,
+                    'temperature': getattr(llm, 'temperature', None),
                 },
             )
         except Exception:

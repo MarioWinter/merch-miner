@@ -1,10 +1,14 @@
 """Unit tests for ``publish_app.services.ai_improve``.
 
-Covers the 4 pure functions (``build_prompt``, ``call_llm``,
-``validate_and_truncate``, ``apply_to_listing``). ``call_llm`` is always
-mocked -- no real OpenRouter calls from tests.
+Covers the pure functions (``build_prompt``, ``call_llm``,
+``validate_and_truncate``, ``apply_to_listing``) plus the cache-aware
+``ensure_design_vision`` and DB-backed ``get_ai_improve_llm`` /
+``get_design_vision_llm``. All LLM invocations are mocked -- no real
+OpenRouter calls from tests.
 
-Phase M1 scope (PROJ-11 AC-69..AC-72). View/throttle tests land in Phase M2+.
+Phase M1 extension (PROJ-11 AC-69..AC-72) -- cache on DesignAsset +
+ListingImproveNodeConfig-driven model lookup. View/throttle tests land in
+Phase M2+.
 """
 
 from __future__ import annotations
@@ -17,14 +21,20 @@ from django.contrib.auth import get_user_model
 
 from idea_app.models import Idea
 from niche_app.models import Niche
-from publish_app.models import DesignAsset, Listing
+from publish_app.models import DesignAsset, Listing, ListingImproveNodeConfig
 from publish_app.services import ai_improve
 from publish_app.services.ai_improve import (
     EXPECTED_FIELDS,
+    NODE_AI_IMPROVE,
+    NODE_DESIGN_VISION,
+    VISION_FIELDS,
     AIImproveError,
     apply_to_listing,
     build_prompt,
     call_llm,
+    ensure_design_vision,
+    get_ai_improve_llm,
+    get_design_vision_llm,
     validate_and_truncate,
 )
 from publish_app.services.translator import CHAR_LIMITS
@@ -93,15 +103,30 @@ def listing(workspace, idea, design):
     )
 
 
+@pytest.fixture
+def vision_context():
+    """Representative cached vision dict (shape returned by ensure_design_vision)."""
+    return {
+        'analyzed_at': '2026-04-23T10:00:00+00:00',
+        'model': 'openai/gpt-4.1-mini',
+        'description': 'Vintage cat silhouette on a cream background.',
+        'visual_style': 'retro, distressed',
+        'graphic_elements': 'cat silhouette, stars',
+        'layout_composition': 'centered text above cat',
+        'dominant_colors': ['#f5f0e6', '#1a1a1a'],
+        'detected_text': 'Cat Lovers Unite',
+    }
+
+
 # ---------------------------------------------------------------------------
-# build_prompt
+# build_prompt (text-only, vision_context dict)
 # ---------------------------------------------------------------------------
 
 class TestBuildPrompt:
-    def test_returns_system_plus_user_messages(self, listing, design):
+    def test_returns_system_plus_user_messages(self, listing, vision_context):
         messages = build_prompt(
             listing=listing,
-            design=design,
+            vision_context=vision_context,
             keyword_context='retro cat, vintage cat shirt',
             language='en',
         )
@@ -110,118 +135,204 @@ class TestBuildPrompt:
         assert messages[0]['role'] == 'system'
         assert messages[1]['role'] == 'user'
 
-    def test_user_message_includes_design_image_url(self, listing, design):
+    def test_user_message_is_text_only(self, listing, vision_context):
+        """No image_url parts -- vision context is embedded as text."""
         messages = build_prompt(
-            listing=listing, design=design,
+            listing=listing, vision_context=vision_context,
             keyword_context='', language='en',
         )
         content = messages[1]['content']
-        assert isinstance(content, list)
-        image_parts = [c for c in content if c.get('type') == 'image_url']
+        assert isinstance(content, str)
+
+    def test_user_message_includes_keyword_context_hint(self, listing, vision_context):
+        messages = build_prompt(
+            listing=listing, vision_context=vision_context,
+            keyword_context='retro cat, vintage cat shirt',
+            language='en',
+        )
+        text = messages[1]['content']
+        assert 'retro cat, vintage cat shirt' in text
+
+    def test_user_message_includes_existing_listing_copy(self, listing, vision_context):
+        messages = build_prompt(
+            listing=listing, vision_context=vision_context,
+            keyword_context='', language='en',
+        )
+        text = messages[1]['content']
+        assert 'Cat Lovers Unite' in text
+        assert 'Premium cotton tee' in text
+        assert 'For true cat enthusiasts.' in text
+
+    def test_user_message_includes_vision_block(self, listing, vision_context):
+        messages = build_prompt(
+            listing=listing, vision_context=vision_context,
+            keyword_context='', language='en',
+        )
+        text = messages[1]['content']
+        # Each vision field label shows up, plus some of the values.
+        for field in VISION_FIELDS:
+            assert field in text
+        assert 'Vintage cat silhouette' in text
+        assert '#f5f0e6' in text
+
+    def test_empty_vision_context_labelled_as_none(self, listing):
+        messages = build_prompt(
+            listing=listing, vision_context={},
+            keyword_context='', language='en',
+        )
+        text = messages[1]['content']
+        assert '(none)' in text
+
+    def test_localizes_language_label(self, listing, vision_context):
+        messages = build_prompt(
+            listing=listing, vision_context=vision_context,
+            keyword_context='', language='de',
+        )
+        text = messages[1]['content']
+        assert 'German' in text
+        assert '(de)' in text
+
+    def test_unknown_language_falls_back_to_code(self, listing, vision_context):
+        messages = build_prompt(
+            listing=listing, vision_context=vision_context,
+            keyword_context='', language='zz',
+        )
+        text = messages[1]['content']
+        assert '(zz)' in text
+
+    def test_char_limits_documented_in_prompt(self, listing, vision_context):
+        messages = build_prompt(
+            listing=listing, vision_context=vision_context,
+            keyword_context='', language='en',
+        )
+        text = messages[1]['content']
+        for field in EXPECTED_FIELDS:
+            limit = CHAR_LIMITS[field]
+            assert f'{field}: {limit} chars' in text
+
+    def test_empty_keyword_context_shown_as_none(self, listing, vision_context):
+        messages = build_prompt(
+            listing=listing, vision_context=vision_context,
+            keyword_context='', language='en',
+        )
+        text = messages[1]['content']
+        assert '(none)' in text
+
+
+# ---------------------------------------------------------------------------
+# ensure_design_vision (cache-aware)
+# ---------------------------------------------------------------------------
+
+class TestEnsureDesignVision:
+    @patch('publish_app.services.ai_improve.ChatOpenAI')
+    def test_cache_hit_skips_llm(self, mock_llm_cls, design):
+        """Non-empty vision_analysis -> return as-is, zero LLM calls."""
+        cached = {
+            'analyzed_at': '2026-01-01T00:00:00+00:00',
+            'model': 'openai/gpt-4.1-mini',
+            'description': 'cached',
+            'visual_style': 'retro',
+            'graphic_elements': '',
+            'layout_composition': '',
+            'dominant_colors': [],
+            'detected_text': '',
+        }
+        design.vision_analysis = cached
+        design.save(update_fields=['vision_analysis'])
+
+        result = ensure_design_vision(design)
+        assert result == cached
+        mock_llm_cls.assert_not_called()
+
+    @patch('publish_app.services.ai_improve.ChatOpenAI')
+    def test_cache_miss_runs_llm_and_persists(self, mock_llm_cls, design):
+        mock_response = MagicMock()
+        mock_response.content = json.dumps({
+            'description': 'Vintage cat silhouette on cream bg.',
+            'visual_style': 'retro, distressed',
+            'graphic_elements': 'cat, stars',
+            'layout_composition': 'centered text above cat',
+            'dominant_colors': ['#f5f0e6', '#1a1a1a'],
+            'detected_text': 'Cat Lovers Unite',
+        })
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value = mock_response
+        mock_llm_cls.return_value = mock_llm
+
+        result = ensure_design_vision(design)
+
+        assert result['description'] == 'Vintage cat silhouette on cream bg.'
+        assert result['dominant_colors'] == ['#f5f0e6', '#1a1a1a']
+        assert 'analyzed_at' in result
+        assert 'model' in result
+
+        design.refresh_from_db()
+        assert design.vision_analysis == result
+        mock_llm.invoke.assert_called_once()
+
+    @patch('publish_app.services.ai_improve.ChatOpenAI')
+    def test_cache_miss_sends_image_url_to_vision_model(self, mock_llm_cls, design):
+        mock_response = MagicMock()
+        mock_response.content = '{"description": "x", "visual_style": "", "graphic_elements": "", "layout_composition": "", "dominant_colors": [], "detected_text": ""}'
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value = mock_response
+        mock_llm_cls.return_value = mock_llm
+
+        ensure_design_vision(design)
+
+        messages = mock_llm.invoke.call_args.args[0]
+        user_content = messages[1]['content']
+        image_parts = [c for c in user_content if c.get('type') == 'image_url']
         assert len(image_parts) == 1
         assert image_parts[0]['image_url']['url'] == (
             'https://cdn.example.com/designs/cat.png'
         )
 
-    def test_user_message_includes_keyword_context_hint(self, listing, design):
-        messages = build_prompt(
-            listing=listing, design=design,
-            keyword_context='retro cat, vintage cat shirt',
-            language='en',
-        )
-        text_parts = [
-            c['text'] for c in messages[1]['content'] if c.get('type') == 'text'
-        ]
-        joined = '\n'.join(text_parts)
-        assert 'retro cat, vintage cat shirt' in joined
-
-    def test_user_message_includes_existing_listing_copy(self, listing, design):
-        messages = build_prompt(
-            listing=listing, design=design,
-            keyword_context='', language='en',
-        )
-        text = messages[1]['content'][0]['text']
-        assert 'Cat Lovers Unite' in text
-        assert 'Premium cotton tee' in text
-        assert 'For true cat enthusiasts.' in text
-
-    def test_localizes_language_label(self, listing, design):
-        messages = build_prompt(
-            listing=listing, design=design,
-            keyword_context='', language='de',
-        )
-        text = messages[1]['content'][0]['text']
-        assert 'German' in text
-        assert '(de)' in text
-
-    def test_unknown_language_falls_back_to_code(self, listing, design):
-        messages = build_prompt(
-            listing=listing, design=design,
-            keyword_context='', language='zz',
-        )
-        text = messages[1]['content'][0]['text']
-        # No crash, and the raw code is still passed so LLM can do something.
-        assert '(zz)' in text
-
-    def test_char_limits_documented_in_prompt(self, listing, design):
-        messages = build_prompt(
-            listing=listing, design=design,
-            keyword_context='', language='en',
-        )
-        text = messages[1]['content'][0]['text']
-        for field in EXPECTED_FIELDS:
-            limit = CHAR_LIMITS[field]
-            assert f'{field}: {limit} chars' in text
-
-    def test_empty_keyword_context_shown_as_none(self, listing, design):
-        messages = build_prompt(
-            listing=listing, design=design,
-            keyword_context='', language='en',
-        )
-        text = messages[1]['content'][0]['text']
-        assert '(none)' in text
-
-    def test_falls_back_to_thumbnail_when_file_url_empty(
-        self, workspace, idea, user,
-    ):
-        design = DesignAsset.objects.create(
-            workspace=workspace,
-            file_name='t.png',
-            file_url='',
-            thumbnail_url='https://cdn.example.com/thumb-only.png',
-            created_by=user,
-        )
-        listing = Listing.objects.create(
-            workspace=workspace, idea=idea, design=design,
-        )
-        messages = build_prompt(
-            listing=listing, design=design,
-            keyword_context='', language='en',
-        )
-        image_parts = [
-            c for c in messages[1]['content'] if c.get('type') == 'image_url'
-        ]
-        assert len(image_parts) == 1
-        assert image_parts[0]['image_url']['url'] == (
-            'https://cdn.example.com/thumb-only.png'
-        )
-
-    def test_no_image_url_sends_text_only(self, workspace, idea, user):
+    def test_no_image_url_raises(self, workspace, user):
         design = DesignAsset.objects.create(
             workspace=workspace, file_name='t.png', created_by=user,
         )
-        listing = Listing.objects.create(
-            workspace=workspace, idea=idea, design=design,
-        )
-        messages = build_prompt(
-            listing=listing, design=design,
-            keyword_context='', language='en',
-        )
-        content = messages[1]['content']
-        # No image parts at all -- text-only fallback
-        image_parts = [c for c in content if c.get('type') == 'image_url']
-        assert image_parts == []
-        assert content[0]['type'] == 'text'
+        with pytest.raises(AIImproveError, match='no resolvable image URL'):
+            ensure_design_vision(design)
+
+    @patch('publish_app.services.ai_improve.ChatOpenAI')
+    def test_non_json_response_raises(self, mock_llm_cls, design):
+        mock_response = MagicMock()
+        mock_response.content = 'Sorry I cannot analyze images today.'
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value = mock_response
+        mock_llm_cls.return_value = mock_llm
+
+        with pytest.raises(AIImproveError, match='non-JSON'):
+            ensure_design_vision(design)
+
+    @patch('publish_app.services.ai_improve.ChatOpenAI')
+    def test_upstream_exception_wrapped(self, mock_llm_cls, design):
+        mock_llm = MagicMock()
+        mock_llm.invoke.side_effect = RuntimeError('Openrouter 502')
+        mock_llm_cls.return_value = mock_llm
+
+        with pytest.raises(AIImproveError, match='Vision LLM call failed'):
+            ensure_design_vision(design)
+
+    @patch('publish_app.services.ai_improve.ChatOpenAI')
+    def test_dominant_colors_normalized_from_string(self, mock_llm_cls, design):
+        """Robustness: LLM sometimes returns a single string instead of list."""
+        mock_response = MagicMock()
+        mock_response.content = json.dumps({
+            'description': 'x',
+            'visual_style': '',
+            'graphic_elements': '',
+            'layout_composition': '',
+            'dominant_colors': '#ff0000',
+            'detected_text': '',
+        })
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value = mock_response
+        mock_llm_cls.return_value = mock_llm
+
+        result = ensure_design_vision(design)
+        assert result['dominant_colors'] == ['#ff0000']
 
 
 # ---------------------------------------------------------------------------
@@ -331,12 +442,12 @@ class TestValidateAndTruncate:
 
 
 # ---------------------------------------------------------------------------
-# call_llm (mocked)
+# call_llm (mocked, DB config)
 # ---------------------------------------------------------------------------
 
 class TestCallLlm:
     @patch('publish_app.services.ai_improve.ChatOpenAI')
-    def test_returns_parsed_json_on_happy_path(self, mock_llm_cls):
+    def test_returns_parsed_json_on_happy_path(self, mock_llm_cls, db):
         mock_response = MagicMock()
         mock_response.content = json.dumps({
             'title': 'Ok',
@@ -354,7 +465,7 @@ class TestCallLlm:
         assert result['keyword_context'] == 'k1, k2'
 
     @patch('publish_app.services.ai_improve.ChatOpenAI')
-    def test_non_json_response_raises_ai_improve_error(self, mock_llm_cls):
+    def test_non_json_response_raises_ai_improve_error(self, mock_llm_cls, db):
         mock_response = MagicMock()
         mock_response.content = 'Sorry, I cannot produce JSON today.'
         mock_llm = MagicMock()
@@ -365,7 +476,7 @@ class TestCallLlm:
             call_llm([])
 
     @patch('publish_app.services.ai_improve.ChatOpenAI')
-    def test_json_wrapped_in_text_still_parses(self, mock_llm_cls):
+    def test_json_wrapped_in_text_still_parses(self, mock_llm_cls, db):
         mock_response = MagicMock()
         mock_response.content = (
             'Here is the JSON you asked for:\n'
@@ -381,7 +492,9 @@ class TestCallLlm:
         assert result['title'] == 'T'
 
     @patch('publish_app.services.ai_improve.ChatOpenAI')
-    def test_upstream_exception_wrapped_in_ai_improve_error(self, mock_llm_cls):
+    def test_upstream_exception_wrapped_in_ai_improve_error(
+        self, mock_llm_cls, db,
+    ):
         mock_llm = MagicMock()
         mock_llm.invoke.side_effect = RuntimeError('Openrouter 502')
         mock_llm_cls.return_value = mock_llm
@@ -390,9 +503,37 @@ class TestCallLlm:
             call_llm([])
 
     @patch('publish_app.services.ai_improve.ChatOpenAI')
-    def test_reads_model_and_timeout_from_env(self, mock_llm_cls, monkeypatch):
-        monkeypatch.setenv('AI_IMPROVE_MODEL', 'openai/gpt-4.1-mini')
-        monkeypatch.setenv('AI_IMPROVE_TIMEOUT_SECONDS', '30')
+    def test_reads_model_from_db_config(self, mock_llm_cls, db):
+        """DB ListingImproveNodeConfig row wins over code defaults."""
+        ListingImproveNodeConfig.objects.update_or_create(
+            node_name=NODE_AI_IMPROVE,
+            defaults={
+                'model_name': 'anthropic/claude-3.5-sonnet',
+                'temperature': 0.9,
+                'max_tokens': 1234,
+                'system_prompt': 'Custom admin prompt.',
+            },
+        )
+        mock_response = MagicMock()
+        mock_response.content = '{"title": "", "bullet_1": "", "bullet_2": "", "description": "", "keyword_context": ""}'
+        mock_llm = MagicMock()
+        mock_llm.invoke.return_value = mock_response
+        mock_llm_cls.return_value = mock_llm
+
+        call_llm([])
+
+        kwargs = mock_llm_cls.call_args.kwargs
+        assert kwargs['model'] == 'anthropic/claude-3.5-sonnet'
+        assert kwargs['temperature'] == 0.9
+        assert kwargs['max_tokens'] == 1234
+
+    @patch('publish_app.services.ai_improve.ChatOpenAI')
+    def test_falls_back_to_code_defaults_when_config_missing(
+        self, mock_llm_cls, db,
+    ):
+        ListingImproveNodeConfig.objects.filter(
+            node_name=NODE_AI_IMPROVE,
+        ).delete()
 
         mock_response = MagicMock()
         mock_response.content = '{"title": "", "bullet_1": "", "bullet_2": "", "description": "", "keyword_context": ""}'
@@ -401,9 +542,57 @@ class TestCallLlm:
         mock_llm_cls.return_value = mock_llm
 
         call_llm([])
+
         kwargs = mock_llm_cls.call_args.kwargs
         assert kwargs['model'] == 'openai/gpt-4.1-mini'
-        assert kwargs['timeout'] == 30
+        assert kwargs['temperature'] == 0.7
+
+
+# ---------------------------------------------------------------------------
+# LLM factory helpers
+# ---------------------------------------------------------------------------
+
+class TestLlmFactoryHelpers:
+    @patch('publish_app.services.ai_improve.ChatOpenAI')
+    def test_get_ai_improve_llm_returns_llm_and_prompt(self, mock_llm_cls, db):
+        ListingImproveNodeConfig.objects.update_or_create(
+            node_name=NODE_AI_IMPROVE,
+            defaults={
+                'model_name': 'openai/gpt-4.1-mini',
+                'temperature': 0.7,
+                'max_tokens': 2000,
+                'system_prompt': 'Admin-overridden AI improve prompt.',
+            },
+        )
+        mock_llm_cls.return_value = MagicMock()
+        llm, prompt = get_ai_improve_llm()
+        assert llm is not None
+        assert prompt == 'Admin-overridden AI improve prompt.'
+        kwargs = mock_llm_cls.call_args.kwargs
+        assert kwargs['model'] == 'openai/gpt-4.1-mini'
+        # JSON mode is enforced for the text-only rewrite.
+        assert kwargs['model_kwargs'] == {
+            'response_format': {'type': 'json_object'},
+        }
+
+    @patch('publish_app.services.ai_improve.ChatOpenAI')
+    def test_get_design_vision_llm_uses_own_config_row(
+        self, mock_llm_cls, db,
+    ):
+        ListingImproveNodeConfig.objects.update_or_create(
+            node_name=NODE_DESIGN_VISION,
+            defaults={
+                'model_name': 'openai/gpt-4.1-mini',
+                'temperature': 0.1,
+                'max_tokens': 1500,
+                'system_prompt': 'Custom vision prompt.',
+            },
+        )
+        mock_llm_cls.return_value = MagicMock()
+        _, prompt = get_design_vision_llm()
+        assert prompt == 'Custom vision prompt.'
+        kwargs = mock_llm_cls.call_args.kwargs
+        assert kwargs['temperature'] == 0.1
 
 
 # ---------------------------------------------------------------------------

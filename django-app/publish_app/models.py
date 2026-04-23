@@ -6,6 +6,42 @@ from django.db import models
 from django.db.models import Q
 
 
+class ListingImproveNodeConfig(models.Model):
+    """LLM config per AI Improve node. Editable in Django Admin without redeploy.
+
+    Mirrors ``SloganNodeConfig`` (idea_app) + ``ResearchNodeConfig``
+    (niche_research_app). One row per logical ``node_name``:
+
+    - ``ai_improve``   — text completion that rewrites Listing copy (PROJ-11).
+    - ``design_vision`` — vision pass that builds the cached
+      ``DesignAsset.vision_analysis`` dict.
+
+    Seeded via migration ``0012_seed_listing_improve_node_config``.
+    """
+
+    class NodeName(models.TextChoices):
+        AI_IMPROVE = 'ai_improve', 'AI Improve'
+        DESIGN_VISION = 'design_vision', 'Design Vision'
+
+    node_name = models.CharField(
+        max_length=50,
+        choices=NodeName.choices,
+        unique=True,
+    )
+    model_name = models.CharField(max_length=100, default='openai/gpt-4.1-mini')
+    temperature = models.FloatField(default=0.7)
+    max_tokens = models.IntegerField(null=True, blank=True, default=2000)
+    system_prompt = models.TextField(blank=True, default='')
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Listing Improve Node Config'
+        verbose_name_plural = 'Listing Improve Node Configs'
+
+    def __str__(self):
+        return f"{self.get_node_name_display()} ({self.model_name})"
+
+
 class DesignCollection(models.Model):
     """Server-side folder system for organizing DesignAssets (MyDesigns-style)."""
 
@@ -359,7 +395,16 @@ class UploadJob(models.Model):
 
 
 class DesignAsset(models.Model):
-    """Design file from any source (upload, cloud, PROJ-9 generated)."""
+    """Design file from any source (upload, cloud, PROJ-9 generated).
+
+    ``vision_analysis`` caches a structured LLM description of the image so the
+    AI Improve pipeline (PROJ-11 Phase M) can reuse it across calls without a
+    repeated vision LLM cost. Empty dict means "not yet analyzed".
+
+    Tech debt: if the underlying ``file`` / ``file_url`` is replaced, the cache
+    is NOT automatically invalidated. Manual reset (``vision_analysis = {}``)
+    is required until a signal-based invalidator is added.
+    """
 
     class Source(models.TextChoices):
         UPLOAD = 'upload', 'Upload'
@@ -404,6 +449,17 @@ class DesignAsset(models.Model):
         help_text='File size in bytes',
     )
     tags = models.JSONField(default=list, blank=True)
+    vision_analysis = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            'Cached structured vision LLM analysis for AI Improve '
+            '(PROJ-11 Phase M). Empty dict = not yet analyzed. Shape: '
+            '{analyzed_at, model, description, visual_style, '
+            'graphic_elements, layout_composition, dominant_colors[], '
+            'detected_text}.'
+        ),
+    )
 
     # Linking
     collection = models.ForeignKey(

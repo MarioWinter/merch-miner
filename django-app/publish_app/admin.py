@@ -5,10 +5,26 @@ from publish_app.models import (
     DesignCollection,
     DesignProductConfig,
     Listing,
+    ListingImproveNodeConfig,
     ProductLifecycle,
     UploadJob,
     UploadTemplate,
 )
+
+
+@admin.register(ListingImproveNodeConfig)
+class ListingImproveNodeConfigAdmin(admin.ModelAdmin):
+    list_display = ('node_name', 'model_name', 'temperature', 'max_tokens', 'updated_at')
+    readonly_fields = ('updated_at',)
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        form.base_fields['system_prompt'].widget.attrs.update({
+            'rows': 30,
+            'cols': 120,
+            'style': 'font-family: monospace; width: 100%;',
+        })
+        return form
 
 
 @admin.register(DesignCollection)

@@ -759,13 +759,20 @@
 
 ### M1: Service Module
 
-> Completed 2026-04-23. Env vars accessed via `os.environ` with defaults inside `call_llm` — M4 will add explicit settings wiring. 30 tests in `test_ai_improve.py`.
+> Completed 2026-04-23. Extended same day: DB-backed LLM config via `ListingImproveNodeConfig` (Admin-editable, mirrors `SloganNodeConfig` / `ResearchNodeConfig`) + cached vision pass on `DesignAsset.vision_analysis`. Env-var path (M4) no longer needed — Admin-Config pattern replaces it. 40 tests in `test_ai_improve.py`.
 
-- [x] Create `publish_app/services/ai_improve.py` with 4 pure functions:
-  - [x] `build_prompt(listing, design, keyword_context, language) -> list[dict]` — system + multimodal user message with vision image URL (file.url → thumbnail_url fallback), existing listing copy, keyword_context hint, marketplace_type, localized language name via `LANGUAGE_NAMES` from translator
-  - [x] `call_llm(messages) -> dict` — OpenRouter via `ChatOpenAI` client (matches `niche_research_app/graph/llm.py` pattern), `AI_IMPROVE_MODEL` (default `anthropic/claude-3.5-sonnet`), `AI_IMPROVE_TIMEOUT_SECONDS` (default 60), JSON mode via `response_format`
-  - [x] `validate_and_truncate(response_dict) -> (fields_dict, truncated_keys: list)` — coerces 5 `EXPECTED_FIELDS` (title, bullet_1, bullet_2, description, keyword_context) to strings, truncates to `CHAR_LIMITS` from `translator.py`
+- [x] Create `publish_app/services/ai_improve.py` with pure functions:
+  - [x] `build_prompt(listing, vision_context, keyword_context, language) -> list[dict]` — system + text-only user message. Vision context is the cached dict from `ensure_design_vision` (no raw image URL in this call). Embeds existing listing copy, keyword_context hint, marketplace_type, localized language name via `LANGUAGE_NAMES` from translator
+  - [x] `ensure_design_vision(design_asset) -> dict` — cache-aware. Returns `DesignAsset.vision_analysis` when non-empty; otherwise runs the `design_vision` LLM node, normalizes output, persists via `update_fields=['vision_analysis']`, and returns the structured dict (`description`, `visual_style`, `graphic_elements`, `layout_composition`, `dominant_colors[]`, `detected_text`, `analyzed_at`, `model`)
+  - [x] `call_llm(messages) -> dict` — OpenRouter via `ChatOpenAI` client. Reads model + temperature + max_tokens + system_prompt from `ListingImproveNodeConfig(node_name='ai_improve')` (falls back to code defaults). JSON mode via `response_format`
+  - [x] `get_ai_improve_llm()` / `get_design_vision_llm()` — DB-backed factory helpers (mirrors `niche_research_app/graph/llm.py::get_llm_for_node`)
+  - [x] `validate_and_truncate(response_dict) -> (fields_dict, truncated_keys: list)` — coerces 5 `EXPECTED_FIELDS` to strings, truncates to `CHAR_LIMITS` from `translator.py`
   - [x] `apply_to_listing(listing, fields) -> Listing` — validates via `ListingSerializer`, sets `generated_by='ai'`, reverts `status='draft'`, saves with `update_fields`, refreshes from DB
+- [x] Default system prompts live in `publish_app/services/ai_improve_prompts.py` (kept out of service module so the seed migration can import without touching LangChain)
+- [x] New model `ListingImproveNodeConfig` (node_name, model_name, temperature, max_tokens, system_prompt, updated_at) + admin registration
+- [x] New field `DesignAsset.vision_analysis` (JSONField, default=dict). Invalidation on file replacement is manual (tech debt documented in model docstring)
+- [x] Migration `0011_listingimprovenodeconfig_designasset_vision` (CreateModel + AddField)
+- [x] Migration `0012_seed_listing_improve_node_config` (seeds `ai_improve` + `design_vision` rows with default prompts/models)
 - [x] Handle LLM JSON parsing failures → raise `AIImproveError("LLM returned non-JSON response")` (also wraps upstream exceptions + non-dict inputs)
 - [x] Log LLM request + response to Langfuse (trace + generation spans, mirrors `design_app/services/image_analyzer.py` pattern)
 - [x] Respect `listing.language` for prompt localization (unknown codes fall back to raw code so LLM still gets usable instruction)
@@ -786,9 +793,9 @@
 
 ### M4: Env Vars
 
-- [ ] Add `AI_IMPROVE_MODEL=anthropic/claude-3.5-sonnet` to `django-app/.env.template` + `django-app/.env`
-- [ ] Add `AI_IMPROVE_TIMEOUT_SECONDS=60` to same files
-- [ ] Document both in `## Environment Variables Required` section of spec
+> Superseded 2026-04-23 by M1 extension: LLM config now lives in `ListingImproveNodeConfig` (Admin-editable, DB-backed), matching the `SloganNodeConfig` / `ResearchNodeConfig` pattern. No env-var wiring needed. Seed migration `0012_seed_listing_improve_node_config` provides first-boot defaults.
+
+- [x] ~~Env-var wiring~~ → replaced by `ListingImproveNodeConfig` Admin-Config pattern (Q1=A decision)
 
 ### M5: Backend Tests
 
