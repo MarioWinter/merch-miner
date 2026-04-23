@@ -15,6 +15,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import UserRateThrottle
 from rest_framework.views import APIView
 
+from publish_app.catalogs import MBA_PRODUCT_CATALOG
 from publish_app.constants import MBA_COLORS
 
 from idea_app.models import Idea
@@ -2039,8 +2040,30 @@ class MbaColorsView(APIView):
     `publish_app.constants.MBA_COLORS`. Global read-only list (no workspace
     scope, no pagination). Consumed by the Edit Page ColorGrid so the frontend
     does not hardcode Amazon's palette.
+
+    Phase L (2026-04-23): kept as a deprecated alias of the full product
+    catalog endpoint. Frontend should switch to ``/api/mba/product-catalog/``.
     """
 
     @method_decorator(cache_control(public=True, max_age=3600))
     def get(self, request):
         return Response(MBA_COLORS)
+
+
+class MbaProductCatalogView(APIView):
+    """GET /api/mba/product-catalog/ -- canonical MBA product catalog (AC-37).
+
+    Returns the 17-entry ``MBA_PRODUCT_CATALOG`` as a JSON array. Each entry
+    describes a single MBA product: supported controls, per-product color
+    palette, fit types, print sides, marketplaces, default prices + royalty
+    formula per marketplace. Consumed by the Edit Page product scroller /
+    color grid / marketplace grid and by the Desktop Upload App.
+
+    Global read-only list — no workspace scope, no pagination. Response
+    carries ``Cache-Control: public, max-age=86400`` (24h) so the frontend
+    caches aggressively. Updates ship as a backend deploy + cache bust.
+    """
+
+    @method_decorator(cache_control(public=True, max_age=86400))
+    def get(self, request):
+        return Response(list(MBA_PRODUCT_CATALOG))

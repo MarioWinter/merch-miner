@@ -368,7 +368,7 @@ class TestUploadTemplateListCreateView:
                 'brand_name': 'TestBrand',
                 'products_config': [
                     {
-                        'product_type': 'standard_tshirt',
+                        'product_type': 't_shirt',
                         'enabled': True,
                         'fit_types': ['men'],
                         'print_side': 'front',
@@ -388,9 +388,7 @@ class TestUploadTemplateListCreateView:
         )
         assert resp.status_code == 201, resp.data
         assert resp.data['name'] == 'My Template'
-        assert resp.data['products_config'][0]['product_type'] == (
-            'standard_tshirt'
-        )
+        assert resp.data['products_config'][0]['product_type'] == 't_shirt'
 
     def test_list_templates(self, api_client, workspace, upload_template, membership):
         resp = api_client.get(

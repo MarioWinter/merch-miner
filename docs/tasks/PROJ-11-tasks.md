@@ -713,26 +713,32 @@
 
 ### L1: Catalog Data Module
 
-- [ ] Create `publish_app/catalogs/__init__.py` (new subpackage)
-- [ ] Create `publish_app/catalogs/mba_catalog.py` exporting `MBA_PRODUCT_CATALOG: tuple[dict, ...]`
-- [ ] Populate 17 product entries with: `key`, `label` (English base), `icon_key`, `supports`, `fit_types_options`, `print_side_options`, `colors_options` (key/name/hex), `marketplaces`, `default_prices`, `royalty_formula` (coef/base per marketplace)
+> Completed 2026-04-23. MVP ships EN labels only per the simplest i18n hook option.
+
+- [x] Create `publish_app/catalogs/__init__.py` (new subpackage)
+- [x] Create `publish_app/catalogs/mba_catalog.py` exporting `MBA_PRODUCT_CATALOG: tuple[dict, ...]`
+- [x] Populate 17 product entries with: `key`, `label` (English base), `icon_key`, `supports`, `fit_types_options`, `print_side_options`, `colors_options` (key/name/hex), `marketplaces`, `default_prices`, `royalty_formula` (coef/base per marketplace)
 - [ ] Verify all `icon_key` values match `PRODUCT_ICON_MAP` keys in frontend (cross-check after N1)
-- [ ] Use Amazon's published royalty formulas for `coef` + `base` (document source URL in module docstring)
-- [ ] Include i18n hook: `label` is a translation key OR translated via `Accept-Language` in view (decide — simplest: ship EN labels only for MVP, i18n client-side via `PRODUCT_LABEL_I18N` on frontend)
+- [x] Use Amazon's published royalty formulas for `coef` + `base` (documented in module docstring)
+- [x] Include i18n hook: EN labels only for MVP — frontend i18n via `PRODUCT_LABEL_I18N`
 
 ### L2: Endpoint View
 
-- [ ] Create `MbaProductCatalogView` (DRF APIView, GET-only, `permission_classes=[IsAuthenticated]`)
-- [ ] Flatten `MBA_PRODUCT_CATALOG` to JSON response (serializer optional — dict can be returned directly)
-- [ ] Add `Cache-Control: public, max-age=86400` response header (24h)
-- [ ] URL route: `GET /api/mba/product-catalog/`
-- [ ] Register in `publish_app/api/urls.py`
-- [ ] Remove legacy `/api/mba/colors/` view + route (superseded — or keep as deprecated alias for 1 release returning just the colors slice)
+> Completed 2026-04-23. Legacy `/api/mba/colors/` kept as deprecated alias (1 release grace period).
+
+- [x] Create `MbaProductCatalogView` (DRF APIView, GET-only, default `permission_classes` inherits IsAuthenticated)
+- [x] Return `MBA_PRODUCT_CATALOG` directly as JSON response (no serializer needed)
+- [x] Add `Cache-Control: public, max-age=86400` response header (24h)
+- [x] URL route: `GET /api/mba/product-catalog/`
+- [x] Register in `publish_app/api/urls.py` (skill forgot URL-register; added manually after skill)
+- [x] Keep legacy `/api/mba/colors/` view + route as deprecated alias for 1 release
 
 ### L3: Validation Helper
 
-- [ ] Create helper module `publish_app/catalogs/validators.py` exporting `get_product(key)`, `valid_color_keys(product_key)`, `valid_fit_types(product_key)`, `valid_marketplaces(product_key)`
-- [ ] Used by `DesignProductConfigSerializer` + `UploadTemplateSerializer` for AC-38 validation
+> Completed 2026-04-23. Catalog-referential checks now enforced in both serializers (layered on top of J2 MVP-safe validation).
+
+- [x] Create helper module `publish_app/catalogs/validators.py` exporting `get_product(key)`, `valid_color_keys(product_key)`, `valid_fit_types(product_key)`, `valid_print_sides(product_key)`, `valid_marketplaces(product_key)`, `CATALOG_KEYS` frozenset
+- [x] Used by `DesignProductConfigSerializer` + `UploadTemplateSerializer` for AC-38 validation (product_type ∈ CATALOG_KEYS, fit_types/colors/marketplaces/print_side subsets per product)
 
 ### L4: Backend Tests
 

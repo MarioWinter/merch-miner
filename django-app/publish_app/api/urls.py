@@ -23,6 +23,7 @@ from publish_app.api.views import (
     ListingTranslateView,
     ListingUpdateView,
     MbaColorsView,
+    MbaProductCatalogView,
     NicheLifecycleView,
     UploadJobBatchCreateView,
     UploadJobCancelView,
@@ -208,5 +209,10 @@ urlpatterns = [
         'mba/colors/',
         MbaColorsView.as_view(),
         name='mba-colors',
+    ),
+    path(
+        'mba/product-catalog/',
+        MbaProductCatalogView.as_view(),
+        name='mba-product-catalog',
     ),
 ]

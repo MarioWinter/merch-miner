@@ -288,14 +288,14 @@ class TestProductConfigPatchFullReplace:
             f'/api/designs/{design.id}/product-config/',
             {
                 'marketplace_type': 'mba',
-                'products_config': [_entry(product_type='hoodie')],
+                'products_config': [_entry(product_type='hoodie_pullover')],
             },
             format='json', **ws_headers(workspace),
         )
         assert resp.status_code == 200
         assert [
             e['product_type'] for e in resp.data['products_config']
-        ] == ['hoodie']
+        ] == ['hoodie_pullover']
         assert DesignProductConfig.objects.filter(
             design=design, marketplace_type='mba',
         ).count() == 1
@@ -574,7 +574,7 @@ class TestProductConfigPatchTargetedOp:
             {
                 'marketplace_type': 'mba',
                 'op': 'upsert_product',
-                'product_type': 'hoodie',
+                'product_type': 'hoodie_pullover',
                 'patch': {
                     'enabled': True,
                     'fit_types': ['women'],
@@ -593,8 +593,8 @@ class TestProductConfigPatchTargetedOp:
         )
         assert resp.status_code == 200, resp.data
         entries = {e['product_type']: e for e in resp.data['products_config']}
-        assert set(entries.keys()) == {'t_shirt', 'hoodie'}
-        assert entries['hoodie']['colors'] == ['red']
+        assert set(entries.keys()) == {'t_shirt', 'hoodie_pullover'}
+        assert entries['hoodie_pullover']['colors'] == ['red']
 
     def test_upsert_creates_row_when_missing(
         self, api_client, workspace, design, membership,

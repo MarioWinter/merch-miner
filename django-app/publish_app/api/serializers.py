@@ -2,6 +2,14 @@
 
 from rest_framework import serializers
 
+from publish_app.catalogs import (
+    CATALOG_KEYS,
+    get_product,
+    valid_color_keys,
+    valid_fit_types,
+    valid_marketplaces,
+    valid_print_sides,
+)
 from publish_app.constants import MBA_COLORS
 from publish_app.models import (
     DesignAsset,
@@ -627,14 +635,19 @@ class LifecycleSalesUpdateSerializer(serializers.Serializer):
 # Design Product Config (PROJ-11 F4 / Phase J2 — 2026-04-23)
 # ---------------------------------------------------------------------------
 #
-# Phase J2 scope (per user decisions 2026-04-23):
-# - Q1=A: MVP-safe validation only. Shape + types + `colors` (MBA) + price>=0.
-#   Full catalog-referential validation (catalog keys, per-product allowed
-#   values) lands in Phase L when MBA_PRODUCT_CATALOG exists.
-# - Q2=A: `_seed_product_config_from_default` stubbed to return None until
-#   Phase K3 (UploadTemplate shape alignment). `product_config_seeded=False`
-#   on every Convert response until then.
-# - Q3=A: Tests in test_design_product_config.py rewritten in same phase.
+# Phase J2 scope: shape/type validation (all marketplaces) + MBA color palette.
+# Phase L3 (2026-04-23): catalog-referential validation layered on TOP of J2
+# shape validation when ``marketplace_type == 'mba'``. Checks:
+#   - ``product_type``   ∈ MBA_PRODUCT_CATALOG
+#   - ``fit_types``      ⊆ catalog entry's ``fit_types_options``
+#   - ``print_side``     ∈ catalog entry's ``print_side_options``
+#   - ``colors``         ⊆ catalog entry's ``colors_options`` (by key)
+#   - ``marketplaces[*].marketplace`` ⊆ catalog entry's ``marketplaces``
+# Catalog lookups happen in-memory (see ``publish_app.catalogs.validators``)
+# so there is no DB round-trip per request.
+#
+# Non-MBA marketplace_type (``global`` / ``displate``): catalog does not
+# apply; only MVP-safe shape + type validation runs.
 
 # Entry field contract (per AC-38):
 #   {
@@ -659,12 +672,15 @@ COPY_SCOPE_CHOICES = ['all', *sorted(PRODUCT_ENTRY_SCOPE_FIELDS)]
 VALID_PRINT_SIDES = {c[0] for c in DesignProductConfig.PrintSide.choices}
 
 
-def _validate_entry_marketplaces(entries, entry_index):
+def _validate_entry_marketplaces(
+    entries, entry_index, *, allowed_marketplaces=None,
+):
     """Validate entry.marketplaces[] shape.
 
-    MVP-safe (J2 / Q1=A): each entry must be
+    Shape (J2): each entry must be
     ``{marketplace: str, price: number >= 0, enabled: bool}``.
-    Full marketplace-key catalog check lands in Phase L.
+    Catalog-referential check (L3): when ``allowed_marketplaces`` is given
+    (MBA path only), the ``marketplace`` value must be a member.
     """
     if not isinstance(entries, list):
         raise serializers.ValidationError(
@@ -679,6 +695,14 @@ def _validate_entry_marketplaces(entries, entry_index):
         if not isinstance(marketplace, str) or not marketplace.strip():
             raise serializers.ValidationError(
                 f'{prefix}.marketplace must be a non-empty string.',
+            )
+
+        # L3: catalog-referential check — marketplace must be in the
+        # product-specific allow-list when one is supplied.
+        if allowed_marketplaces is not None and marketplace not in allowed_marketplaces:
+            raise serializers.ValidationError(
+                f'{prefix}.marketplace {marketplace!r} is not supported for '
+                f'this product. Allowed: {sorted(allowed_marketplaces)}.',
             )
 
         price = entry.get('price')
@@ -701,11 +725,18 @@ def _validate_entry_marketplaces(entries, entry_index):
             )
 
 
-def _validate_entry_colors_for_mba(colors, marketplace_type, entry_index):
-    """Validate entry.colors[] is a list of strings; MBA palette when mba.
+def _validate_entry_colors_for_mba(
+    colors, marketplace_type, entry_index, *, allowed_colors=None,
+):
+    """Validate entry.colors[] shape + MBA palette.
 
-    Q1=A: only the MBA palette is enforced here. Per-product color-subset
-    filtering moves to Phase L via the catalog helper.
+    Shape (J2): list of strings. When ``marketplace_type='mba'`` the strings
+    must be valid MBA color keys.
+    L3: when ``allowed_colors`` is provided (per-product catalog subset), the
+    colors must also be within that subset. Falls back to the full MBA
+    palette when no product-specific list is given (e.g. MBA + unknown
+    product key path — the product-key check raises earlier with a clearer
+    error).
     """
     if not isinstance(colors, list):
         raise serializers.ValidationError(
@@ -717,7 +748,8 @@ def _validate_entry_colors_for_mba(colors, marketplace_type, entry_index):
         )
     if marketplace_type != DesignProductConfig.MarketplaceType.MBA:
         return
-    unknown = [c for c in colors if c not in MBA_COLOR_KEYS]
+    palette = allowed_colors if allowed_colors is not None else MBA_COLOR_KEYS
+    unknown = [c for c in colors if c not in palette]
     if unknown:
         raise serializers.ValidationError(
             f'products_config[{entry_index}].colors contains unknown MBA '
@@ -725,11 +757,22 @@ def _validate_entry_colors_for_mba(colors, marketplace_type, entry_index):
         )
 
 
-def _validate_entry_shape(entry, index, marketplace_type, *, require_all=True):
+def _validate_entry_shape(
+    entry, index, marketplace_type, *,
+    require_all=True, product_type_override=None,
+):
     """Validate one ``products_config`` entry.
 
     When ``require_all`` is False (targeted-op patch), missing keys are
     allowed. When True (full replace), any missing key is rejected.
+
+    L3 (AC-37/AC-38): when ``marketplace_type='mba'`` and the effective
+    ``product_type`` resolves to a known catalog key, per-product subsets are
+    enforced for ``fit_types`` / ``print_side`` / ``colors`` /
+    ``marketplaces[*].marketplace``. Unknown catalog keys raise 400.
+
+    ``product_type_override`` lets targeted-op callers pass the product key
+    from the outer body when the inner patch doesn't include it.
     """
     if not isinstance(entry, dict):
         raise serializers.ValidationError(
@@ -759,6 +802,22 @@ def _validate_entry_shape(entry, index, marketplace_type, *, require_all=True):
                 f'string.',
             )
 
+    # L3: resolve effective product key for catalog lookups. Patch bodies
+    # (targeted op) pass the key via override since it lives on the outer
+    # payload, not inside ``patch``.
+    effective_product_type = entry.get('product_type') or product_type_override
+    is_mba = marketplace_type == DesignProductConfig.MarketplaceType.MBA
+
+    catalog_entry = None
+    if is_mba and isinstance(effective_product_type, str):
+        catalog_entry = get_product(effective_product_type)
+        if catalog_entry is None:
+            raise serializers.ValidationError(
+                f'products_config[{index}].product_type '
+                f'{effective_product_type!r} is not a known MBA catalog key. '
+                f'Allowed: {sorted(CATALOG_KEYS)}.',
+            )
+
     if 'enabled' in entry and not isinstance(entry['enabled'], bool):
         raise serializers.ValidationError(
             f'products_config[{index}].enabled must be a boolean.',
@@ -771,6 +830,17 @@ def _validate_entry_shape(entry, index, marketplace_type, *, require_all=True):
                 f'products_config[{index}].fit_types must be a list of '
                 f'strings.',
             )
+        # L3: per-product subset check.
+        if catalog_entry is not None:
+            allowed_fits = valid_fit_types(effective_product_type)
+            unknown_fits = [f for f in ft if f not in allowed_fits]
+            if unknown_fits:
+                raise serializers.ValidationError(
+                    f'products_config[{index}].fit_types contains values not '
+                    f'allowed for product {effective_product_type!r}: '
+                    f'{sorted(set(unknown_fits))}. '
+                    f'Allowed: {sorted(allowed_fits)}.',
+                )
 
     if 'print_side' in entry:
         ps = entry['print_side']
@@ -779,14 +849,35 @@ def _validate_entry_shape(entry, index, marketplace_type, *, require_all=True):
                 f'products_config[{index}].print_side must be one of '
                 f'{sorted(VALID_PRINT_SIDES)}.',
             )
+        # L3: per-product subset check.
+        if catalog_entry is not None:
+            allowed_sides = valid_print_sides(effective_product_type)
+            if ps not in allowed_sides:
+                raise serializers.ValidationError(
+                    f'products_config[{index}].print_side {ps!r} is not '
+                    f'allowed for product {effective_product_type!r}. '
+                    f'Allowed: {sorted(allowed_sides)}.',
+                )
 
     if 'colors' in entry:
+        allowed_colors = (
+            valid_color_keys(effective_product_type)
+            if catalog_entry is not None else None
+        )
         _validate_entry_colors_for_mba(
             entry['colors'], marketplace_type, index,
+            allowed_colors=allowed_colors,
         )
 
     if 'marketplaces' in entry:
-        _validate_entry_marketplaces(entry['marketplaces'], index)
+        allowed_markets = (
+            valid_marketplaces(effective_product_type)
+            if catalog_entry is not None else None
+        )
+        _validate_entry_marketplaces(
+            entry['marketplaces'], index,
+            allowed_marketplaces=allowed_markets,
+        )
 
 
 def _validate_products_config(value, marketplace_type):
@@ -886,10 +977,13 @@ class DesignProductConfigUpsertSerializer(serializers.Serializer):
                 )
             # Validate patch fields match a partial entry shape (no
             # require_all). `product_type` inside `patch` is redundant; drop it.
+            # L3: pass the outer ``product_type`` so MBA catalog subsets apply
+            # even when the inner patch only contains scalar fields.
             patch = dict(attrs['patch'])
             patch.pop('product_type', None)
             _validate_entry_shape(
                 patch, 0, marketplace_type, require_all=False,
+                product_type_override=attrs['product_type'],
             )
             attrs['patch'] = patch
         return attrs
