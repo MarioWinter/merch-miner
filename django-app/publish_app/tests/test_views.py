@@ -406,6 +406,72 @@ class TestListingAIImproveView:
         # Isolation guard must fire before any pipeline work.
         ensure_mock.assert_not_called()
 
+    def test_returns_429_after_10_calls_per_minute(
+        self, api_client, workspace, listing, membership,
+    ):
+        """M3/M5: per-user throttle (`ai_improve` scope = 10/min).
+
+        Enforces the AC-72 rate cap. 10 consecutive POSTs succeed (200);
+        the 11th within the same minute window is rejected with 429
+        without invoking the pipeline. We override the throttle rate
+        locally (``AIImproveThrottle.THROTTLE_RATES``) because the global
+        ``disable_throttling`` fixture sets ``ai_improve: 10000/day`` for
+        every other test -- a production-like ``10/min`` rate only applies
+        here, and is scoped via ``patch.object``.
+        """
+        from django.core.cache import cache as django_cache
+
+        from publish_app.api.throttles import AIImproveThrottle
+
+        patches = self._patch_pipeline()
+        # Local ``10/min`` override (shadows the test fixture for this test
+        # only). ``patch.object`` restores the original dict on exit, so
+        # subsequent tests still see the high fixture rate.
+        with patch.object(
+            AIImproveThrottle,
+            'THROTTLE_RATES',
+            {'ai_improve': '10/min'},
+        ), patches['ensure_design_vision'] as ensure_mock, \
+                patches['build_prompt'], patches['call_llm'] as llm_mock, \
+                patches['validate_and_truncate']:
+            # Fresh throttle bucket for this user on this scope.
+            django_cache.clear()
+
+            # First 10 calls inside the window succeed.
+            for i in range(10):
+                resp = api_client.post(
+                    f'/api/listings/{listing.id}/ai-improve/',
+                    {},
+                    format='json',
+                    **ws_headers(workspace),
+                )
+                assert resp.status_code == 200, (
+                    f'call #{i + 1} unexpectedly blocked: {resp.status_code}'
+                )
+
+            # 11th call in the same minute -> 429. Pipeline must NOT run.
+            pipeline_calls_before = (
+                ensure_mock.call_count,
+                llm_mock.call_count,
+            )
+            resp = api_client.post(
+                f'/api/listings/{listing.id}/ai-improve/',
+                {},
+                format='json',
+                **ws_headers(workspace),
+            )
+
+            assert resp.status_code == 429
+            # DRF includes a Retry-After hint on throttled responses.
+            assert 'Retry-After' in resp.headers or 'retry-after' in {
+                k.lower() for k in resp.headers
+            }
+            # Throttle must short-circuit BEFORE the pipeline runs.
+            assert (
+                ensure_mock.call_count,
+                llm_mock.call_count,
+            ) == pipeline_calls_before
+
 
 # ---------------------------------------------------------------------------
 # Design Gallery API Tests

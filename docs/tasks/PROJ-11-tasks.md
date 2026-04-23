@@ -806,15 +806,17 @@
 
 ### M5: Backend Tests
 
-- [ ] `build_prompt` includes design image URL + keyword_context + existing text
-- [ ] `validate_and_truncate` caps Title at 60, Bullets at 256, Description at 2000 → truncated keys returned
-- [ ] `validate_and_truncate` returns empty truncated list when all fields within limit
-- [ ] Endpoint returns 400 when design is null
-- [ ] Endpoint returns 200 with updated listing when happy path
-- [ ] Endpoint returns 429 after 10 calls/min (throttle test with frozen clock)
-- [ ] Endpoint returns 502 when LLM raises; listing unchanged in DB
-- [ ] Workspace isolation: 404 on cross-workspace listing
-- [ ] Mock `call_llm` — never hit OpenRouter in tests
+> Completed 2026-04-23. Bullets 1-5, 7-9 already shipped with M1/M2/M3 (see `test_ai_improve.py` 40 tests + `test_views.py::TestListingAIImproveView` 4 tests). M5 only needed the 429 throttle test. Bullet 1 text is stale from the M1-V1 era (no raw image URL in AI-Improve call post-extension — `vision_context` dict is embedded as text; vision image URL lives in `ensure_design_vision` only) — corrected below.
+
+- [x] ~~`build_prompt` includes design image URL~~ + `keyword_context` + existing text (vision URL lives in `ensure_design_vision`, not AI-Improve prompt — covered by `TestBuildPrompt::test_user_message_includes_keyword_context_hint` + `test_user_message_includes_existing_listing_copy` + `test_user_message_includes_vision_block`)
+- [x] `validate_and_truncate` caps Title at 60, Bullets at 256, Description at 2000 → truncated keys returned (`test_truncates_{title,bullets,description}_over_*_chars`)
+- [x] `validate_and_truncate` returns empty truncated list when all fields within limit (`test_returns_all_5_fields_within_limits`)
+- [x] Endpoint returns 400 when design is null (`test_returns_400_when_design_is_null`)
+- [x] Endpoint returns 200 with updated listing when happy path (`test_happy_path_returns_updated_listing`)
+- [x] Endpoint returns 429 after 10 calls/min (`test_returns_429_after_10_calls_per_minute` — `patch.object(AIImproveThrottle, 'THROTTLE_RATES', {'ai_improve': '10/min'})` + cache clear; asserts pipeline short-circuits before `ensure_design_vision` / `call_llm`)
+- [x] Endpoint returns 502 when LLM raises; listing unchanged in DB (`test_returns_502_when_llm_raises_and_listing_unchanged`)
+- [x] Workspace isolation: 404 on cross-workspace listing (`test_returns_404_on_cross_workspace_listing`)
+- [x] Mock `call_llm` — never hit OpenRouter in tests (all 45 AI-Improve tests use `unittest.mock.patch`)
 
 ---
 
