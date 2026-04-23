@@ -32,11 +32,13 @@ class ListingAdmin(admin.ModelAdmin):
 class UploadTemplateAdmin(admin.ModelAdmin):
     list_display = [
         'id', 'workspace', 'name', 'marketplace_type', 'is_default',
-        'print_side', 'created_at',
+        'created_at',
     ]
-    list_filter = ['marketplace_type', 'is_default', 'print_side']
+    list_filter = ['marketplace_type', 'is_default']
     search_fields = ['name']
-    readonly_fields = ['id', 'created_at', 'updated_at']
+    readonly_fields = [
+        'id', 'created_at', 'updated_at', 'products_config',
+    ]
 
 
 @admin.register(UploadJob)

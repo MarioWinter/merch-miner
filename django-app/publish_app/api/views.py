@@ -330,20 +330,75 @@ def _seed_product_config_from_default(
     """Auto-seed a DesignProductConfig from the workspace's default
     UploadTemplate for ``(workspace, marketplace_type)`` (AC-57..AC-59).
 
-    PROJ-11 Phase J2 (2026-04-23) — **TEMPORARY STUB**.
-    Per user decision Q2=A: seeding is disabled until Phase K3 (UploadTemplate
-    shape alignment) lands. With ``DesignProductConfig.products_config`` and
-    UploadTemplate still on divergent shapes, we can't safely copy fields.
-    This helper returns ``None`` unconditionally, which makes every Convert
-    response report ``product_config_seeded=False``.
+    PROJ-11 Phase K3 (2026-04-23): UploadTemplate and DesignProductConfig
+    now share the ``products_config`` per-product shape (Phase K1), so the
+    template list is copied verbatim into the new row — no fan-out, no
+    shape translation.
 
-    Phase K3 will rewrite this helper to copy ``default_template.products_config``
-    verbatim into the new row (no fan-out) once UploadTemplate has the same
-    per-product shape.
+    Returns the created ``DesignProductConfig`` instance on success, or
+    ``None`` when:
+      - ``design`` is ``None`` (AC-59: no target design to hang a config on).
+      - A ``DesignProductConfig`` already exists for
+        ``(design, marketplace_type)`` (EC-19: never overwrite existing).
+      - No default ``UploadTemplate`` is set for
+        ``(workspace, marketplace_type)`` (EC-20).
+
+    Callers set ``product_config_seeded = seeded is not None`` on the
+    response body (AC-57 contract).
+
+    Must be called inside an open transaction — the caller's
+    ``transaction.atomic()`` block keeps the Convert + seed pair consistent.
     """
-    # Unused until K3 — kept to match the call sites in ListingConvertView.
-    del workspace_id, design, marketplace_type
-    return None
+    if design is None:
+        return None
+
+    # EC-19: never overwrite an existing config for this design.
+    already_exists = (
+        DesignProductConfig.objects
+        .filter(design=design, marketplace_type=marketplace_type)
+        .exists()
+    )
+    if already_exists:
+        return None
+
+    # EC-20: no default template for this marketplace -> no-op.
+    default_template = (
+        UploadTemplate.objects
+        .filter(
+            workspace_id=workspace_id,
+            marketplace_type=marketplace_type,
+            is_default=True,
+        )
+        .first()
+    )
+    if default_template is None:
+        return None
+
+    # Copy verbatim. Deep copy so mutations on either side stay isolated.
+    source_config = default_template.products_config or []
+    seeded_config = [
+        dict(entry) if isinstance(entry, dict) else entry
+        for entry in source_config
+    ]
+    # Also deep-copy nested marketplaces[] lists so the two rows don't alias.
+    for entry in seeded_config:
+        if not isinstance(entry, dict):
+            continue
+        if isinstance(entry.get('marketplaces'), list):
+            entry['marketplaces'] = [
+                dict(m) if isinstance(m, dict) else m
+                for m in entry['marketplaces']
+            ]
+        if isinstance(entry.get('fit_types'), list):
+            entry['fit_types'] = list(entry['fit_types'])
+        if isinstance(entry.get('colors'), list):
+            entry['colors'] = list(entry['colors'])
+
+    return DesignProductConfig.objects.create(
+        design=design,
+        marketplace_type=marketplace_type,
+        products_config=seeded_config,
+    )
 
 
 class ListingConvertView(APIView):

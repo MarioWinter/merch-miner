@@ -78,21 +78,55 @@ class TestListingModel:
 
 class TestUploadTemplateModel:
     def test_create_template(self, workspace, user):
+        products_config = [
+            {
+                'product_type': 'standard_tshirt',
+                'enabled': True,
+                'fit_types': ['men', 'women'],
+                'print_side': 'front',
+                'colors': ['black', 'white'],
+                'marketplaces': [
+                    {
+                        'marketplace': 'amazon.com',
+                        'price': '19.99',
+                        'enabled': True,
+                    },
+                ],
+            },
+            {
+                'product_type': 'hoodie',
+                'enabled': True,
+                'fit_types': ['men', 'women'],
+                'print_side': 'front',
+                'colors': ['black', 'white'],
+                'marketplaces': [
+                    {
+                        'marketplace': 'amazon.com',
+                        'price': '29.99',
+                        'enabled': True,
+                    },
+                ],
+            },
+        ]
         t = UploadTemplate.objects.create(
             workspace=workspace, name='Default', created_by=user,
-            product_types=['standard_tshirt', 'hoodie'],
-            fit_types=['men', 'women'],
-            colors=['black', 'white'],
-            marketplaces=[{'marketplace': 'amazon.com', 'price': '19.99', 'enabled': True}],
+            products_config=products_config,
         )
-        assert t.print_side == UploadTemplate.PrintSide.FRONT
-        assert len(t.product_types) == 2
+        assert len(t.products_config) == 2
+        assert t.products_config[0]['product_type'] == 'standard_tshirt'
+        assert t.products_config[1]['product_type'] == 'hoodie'
 
     def test_template_str(self, workspace, user):
         t = UploadTemplate.objects.create(
             workspace=workspace, name='My Template', created_by=user,
         )
         assert 'My Template' in str(t)
+
+    def test_template_empty_products_config_default(self, workspace, user):
+        t = UploadTemplate.objects.create(
+            workspace=workspace, name='Empty', created_by=user,
+        )
+        assert t.products_config == []
 
 
 class TestUploadJobModel:

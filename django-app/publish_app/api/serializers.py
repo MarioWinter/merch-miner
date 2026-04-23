@@ -501,34 +501,66 @@ class UploadJobStatusUpdateSerializer(serializers.Serializer):
 # ---------------------------------------------------------------------------
 
 class UploadTemplateSerializer(serializers.ModelSerializer):
-    """Full template representation."""
+    """Full template representation.
+
+    PROJ-11 Phase K2 (2026-04-23): exposes ``products_config`` (per-product
+    list) instead of the legacy flat fields. Same schema as
+    ``DesignProductConfigSerializer.products_config`` so Convert auto-apply
+    (AC-57) can copy the list verbatim.
+    """
 
     class Meta:
         model = UploadTemplate
         fields = [
-            'id', 'workspace', 'name', 'brand_name', 'product_types',
-            'fit_types', 'colors', 'marketplaces', 'print_side',
+            'id', 'workspace', 'name', 'brand_name', 'products_config',
             'marketplace_type', 'is_default',
             'created_by', 'created_at', 'updated_at',
         ]
-        read_only_fields = ['id', 'workspace', 'created_by', 'created_at', 'updated_at']
+        read_only_fields = [
+            'id', 'workspace', 'created_by', 'created_at', 'updated_at',
+        ]
 
 
 class UploadTemplateCreateSerializer(serializers.ModelSerializer):
-    """Create/update template (AC-52: exposes marketplace_type + is_default)."""
+    """Create/update template.
+
+    PROJ-11 Phase K2: accepts ``products_config`` (same per-product entry
+    contract as ``DesignProductConfig``). MVP-safe validation (Q1=A) —
+    shape + types + MBA color palette + price>=0. Full catalog-referential
+    validation lands in Phase L.
+    """
 
     class Meta:
         model = UploadTemplate
         fields = [
-            'name', 'brand_name', 'product_types', 'fit_types',
-            'colors', 'marketplaces', 'print_side',
+            'name', 'brand_name', 'products_config',
             'marketplace_type', 'is_default',
         ]
         extra_kwargs = {
             'name': {'required': True},
+            'brand_name': {'required': False},
+            'products_config': {'required': False},
             'marketplace_type': {'required': False},
             'is_default': {'required': False},
         }
+
+    def validate(self, attrs):
+        # Validate products_config shape against the effective marketplace_type
+        # (body value on write, or the existing row's value on PATCH).
+        products_config = attrs.get('products_config', None)
+        if products_config is None:
+            return attrs
+
+        effective_mt = attrs.get('marketplace_type')
+        if effective_mt is None:
+            instance = getattr(self, 'instance', None)
+            effective_mt = (
+                getattr(instance, 'marketplace_type', None)
+                or UploadTemplate.MarketplaceType.MBA
+            )
+
+        _validate_products_config(products_config, effective_mt)
+        return attrs
 
 
 # ---------------------------------------------------------------------------

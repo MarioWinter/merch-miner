@@ -189,12 +189,17 @@ class Listing(models.Model):
 
 
 class UploadTemplate(models.Model):
-    """Reusable product/marketplace config template."""
+    """Reusable product/marketplace config template.
 
-    class PrintSide(models.TextChoices):
-        FRONT = 'front', 'Front'
-        BACK = 'back', 'Back'
-        BOTH = 'both', 'Both'
+    PROJ-11 Phase K1 (2026-04-23): collapsed legacy flat fields
+    (``product_types``, ``fit_types``, ``print_side``, ``colors``,
+    ``marketplaces``) into a single ``products_config`` JSON list. Same
+    per-product shape as ``DesignProductConfig.products_config`` so the
+    Convert auto-apply path (AC-57) can copy the list verbatim without
+    fan-out.
+
+    See AC-38 / AC-57 + EC-35 (forward-only migration).
+    """
 
     class MarketplaceType(models.TextChoices):
         GLOBAL = 'global', 'Global'
@@ -210,30 +215,15 @@ class UploadTemplate(models.Model):
     )
     name = models.CharField(max_length=100)
     brand_name = models.CharField(max_length=50, blank=True, default='')
-    product_types = models.JSONField(
+    products_config = models.JSONField(
         default=list,
         blank=True,
-        help_text='List of product type keys (e.g. standard_tshirt, hoodie)',
-    )
-    fit_types = models.JSONField(
-        default=list,
-        blank=True,
-        help_text='List of fit types (e.g. men, women, youth)',
-    )
-    colors = models.JSONField(
-        default=list,
-        blank=True,
-        help_text='List of MBA color codes',
-    )
-    marketplaces = models.JSONField(
-        default=list,
-        blank=True,
-        help_text='List of {marketplace, price, enabled} objects',
-    )
-    print_side = models.CharField(
-        max_length=10,
-        choices=PrintSide.choices,
-        default=PrintSide.FRONT,
+        help_text=(
+            'Per-product configuration list. Each entry: '
+            '{product_type, enabled, fit_types, print_side, colors, '
+            'marketplaces[]}. Same shape as '
+            'DesignProductConfig.products_config (AC-38 / AC-57).'
+        ),
     )
     marketplace_type = models.CharField(
         max_length=20,

@@ -78,11 +78,21 @@ def ws_headers(workspace):
 def _make_template(workspace, user, **fields):
     defaults = dict(
         name='Tpl', brand_name='Brand',
-        product_types=['standard_tshirt'],
-        fit_types=['men'],
-        colors=['black'],
-        marketplaces=[
-            {'marketplace': 'amazon.com', 'price': '19.99', 'enabled': True},
+        products_config=[
+            {
+                'product_type': 'standard_tshirt',
+                'enabled': True,
+                'fit_types': ['men'],
+                'print_side': 'front',
+                'colors': ['black'],
+                'marketplaces': [
+                    {
+                        'marketplace': 'amazon.com',
+                        'price': '19.99',
+                        'enabled': True,
+                    },
+                ],
+            },
         ],
         marketplace_type=UploadTemplate.MarketplaceType.MBA,
         is_default=False,

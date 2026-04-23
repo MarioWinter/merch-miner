@@ -85,10 +85,22 @@ def upload_template(workspace, user):
     return UploadTemplate.objects.create(
         workspace=workspace, name='Standard',
         brand_name='CatBrand', created_by=user,
-        product_types=['standard_tshirt'],
-        fit_types=['men'],
-        colors=['black'],
-        marketplaces=[{'marketplace': 'amazon.com', 'price': '19.99', 'enabled': True}],
+        products_config=[
+            {
+                'product_type': 'standard_tshirt',
+                'enabled': True,
+                'fit_types': ['men'],
+                'print_side': 'front',
+                'colors': ['black'],
+                'marketplaces': [
+                    {
+                        'marketplace': 'amazon.com',
+                        'price': '19.99',
+                        'enabled': True,
+                    },
+                ],
+            },
+        ],
     )
 
 
@@ -354,13 +366,31 @@ class TestUploadTemplateListCreateView:
             {
                 'name': 'My Template',
                 'brand_name': 'TestBrand',
-                'product_types': ['standard_tshirt'],
+                'products_config': [
+                    {
+                        'product_type': 'standard_tshirt',
+                        'enabled': True,
+                        'fit_types': ['men'],
+                        'print_side': 'front',
+                        'colors': ['black'],
+                        'marketplaces': [
+                            {
+                                'marketplace': 'amazon.com',
+                                'price': 19.99,
+                                'enabled': True,
+                            },
+                        ],
+                    },
+                ],
             },
             format='json',
             **ws_headers(workspace),
         )
-        assert resp.status_code == 201
+        assert resp.status_code == 201, resp.data
         assert resp.data['name'] == 'My Template'
+        assert resp.data['products_config'][0]['product_type'] == (
+            'standard_tshirt'
+        )
 
     def test_list_templates(self, api_client, workspace, upload_template, membership):
         resp = api_client.get(

@@ -663,9 +663,9 @@
 - [x] Copy-from scalar scope + product_type: copies only one field, one product
 - [x] Copy-from scalar scope + no product_type: applies across all target entries
 - [x] Copy-from scalar scope + product_type missing on source → 404
-- [ ] Data migration test: legacy row → expanded per-product entries (deferred; migration verified manually via `showmigrations`)
-- [ ] EC-35: migration lossiness documented + tested (documented in migration file; test deferred)
-- [x] `pytest publish_app` green (259 passed)
+- [x] Data migration test: legacy row → expanded per-product entries — covered by `test_upload_template_migration.py` (0010 uses identical `migrate_products_config_forward` logic as 0009; 7 tests cover expand, empty, missing, non-string filter, deep-copy, non-dict filter, backward no-op)
+- [x] EC-35: migration lossiness documented + tested — `TestUploadTemplateMigrationBackward::test_backward_is_noop`
+- [x] `pytest publish_app` green (270 passed)
 
 ---
 
@@ -675,27 +675,35 @@
 
 ### K1: Model + Migration
 
-- [ ] Add `products_config` JSONField (default=list) to `UploadTemplate`
-- [ ] Data migration: collapse legacy `product_types` + shared `fit_types` / `print_side` / `colors` / `marketplaces` into per-product entries
-- [ ] Remove legacy columns `product_types`, `fit_types`, `print_side`, `colors`, `marketplaces` from `UploadTemplate`
-- [ ] Preserve: `name`, `brand_name`, `is_default`, `marketplace_type`, partial unique constraint
-- [ ] Run migration via Docker
+> Completed 2026-04-23 (bundled with K2+K3 per Q1=C, matches J1 pattern).
+
+- [x] Add `products_config` JSONField (default=list) to `UploadTemplate`
+- [x] Data migration: collapse legacy `product_types` + shared `fit_types` / `print_side` / `colors` / `marketplaces` into per-product entries (migration `0010_uploadtemplate_products_config.py`)
+- [x] Remove legacy columns `product_types`, `fit_types`, `print_side`, `colors`, `marketplaces` from `UploadTemplate`
+- [x] Preserve: `name`, `brand_name`, `is_default`, `marketplace_type`, partial unique constraint
+- [x] Run migration via Docker (`showmigrations` confirms `[X] 0010_uploadtemplate_products_config`)
 
 ### K2: Serializer + Validation
 
-- [ ] Rewrite `UploadTemplateSerializer` to accept `products_config` (same schema as DesignProductConfig)
-- [ ] Same catalog-referential validation as J2
+> Completed 2026-04-23. MVP-safe validation (shape/types/MBA colors/price ≥ 0) per J2 pattern. Full catalog-referential checks deferred to Phase L.
+
+- [x] Rewrite `UploadTemplateSerializer` to accept `products_config` (same schema as DesignProductConfig)
+- [ ] Same catalog-referential validation as J2 (deferred to Phase L alongside J2 equivalent)
 
 ### K3: Convert Auto-Apply Update
 
-- [ ] Rewrite seeding helper in `ListingConvertView`: read `default_template.products_config` → assign directly to new `DesignProductConfig.products_config` (no fan-out needed — shapes match)
-- [ ] `product_config_seeded` response flag behavior unchanged (AC-57)
+> Completed 2026-04-23. Temp-stub from J2 replaced with real implementation.
+
+- [x] Rewrite seeding helper in `ListingConvertView`: read `default_template.products_config` → assign directly to new `DesignProductConfig.products_config` (no fan-out needed — shapes match)
+- [x] `product_config_seeded` response flag behavior unchanged (AC-57)
 
 ### K4: Backend Tests
 
-- [ ] Update UploadTemplate CRUD tests to new shape
-- [ ] Convert + default template: target gets seeded with `products_config` copied verbatim
-- [ ] Template without default still seeds nothing (AC-57 unchanged)
+> Completed 2026-04-23.
+
+- [x] Update UploadTemplate CRUD tests to new shape (`test_upload_template_default.py`, `test_views.py` fixtures, `test_models.py` adjusted)
+- [x] Convert + default template: target gets seeded with `products_config` copied verbatim (`test_listing_convert.py` reinstated happy-path seed tests)
+- [x] Template without default still seeds nothing (AC-57 unchanged — existing test adjusted)
 
 ---
 
