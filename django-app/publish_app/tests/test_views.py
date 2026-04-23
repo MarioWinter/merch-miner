@@ -100,36 +100,6 @@ def ws_headers(workspace):
 # Listing API Tests
 # ---------------------------------------------------------------------------
 
-class TestListingGenerateView:
-    @patch('publish_app.api.views.django_rq')
-    def test_generate_listing(self, mock_rq, api_client, workspace, idea, membership):
-        mock_queue = MagicMock()
-        mock_rq.get_queue.return_value = mock_queue
-
-        resp = api_client.post(
-            f'/api/ideas/{idea.id}/listing/generate/',
-            {'language': 'en'},
-            format='json',
-            **ws_headers(workspace),
-        )
-        assert resp.status_code == 201
-        assert str(resp.data['idea']) == str(idea.id)
-        assert resp.data['generated_by'] == 'ai'
-        mock_queue.enqueue.assert_called_once()
-
-    def test_generate_listing_without_header_uses_active_membership(
-        self, api_client, idea,
-    ):
-        # Fallback to auto-created personal workspace — idea is in a
-        # different workspace, so 404 (cross-workspace), NOT 400.
-        resp = api_client.post(
-            f'/api/ideas/{idea.id}/listing/generate/',
-            {'language': 'en'},
-            format='json',
-        )
-        assert resp.status_code == 404
-
-
 class TestListingDetailView:
     def test_get_listing(self, api_client, workspace, listing, membership):
         resp = api_client.get(
@@ -191,29 +161,6 @@ class TestListingUpdateView:
         assert resp.data['keyword_context'] == 'new, hint, words'
         # EC-42: status must remain `ready`, NOT flip back to `draft`.
         assert resp.data['status'] == 'ready'
-
-
-class TestListingTMCheckView:
-    @patch('publish_app.services.tm_checker.check_listing_tm')
-    def test_tm_check(self, mock_check, api_client, workspace, listing, membership):
-        mock_check.return_value = ['catbrand']
-        resp = api_client.post(
-            f'/api/listings/{listing.id}/tm-check/',
-            **ws_headers(workspace),
-        )
-        assert resp.status_code == 200
-        assert resp.data['flagged_terms'] == ['catbrand']
-        mock_check.assert_called_once_with(listing)
-
-    def test_tm_check_returns_flagged(self, api_client, workspace, listing, membership):
-        with patch('publish_app.services.tm_checker.get_blacklisted_brands') as mock_bl:
-            mock_bl.return_value = {'catbrand'}
-            resp = api_client.post(
-                f'/api/listings/{listing.id}/tm-check/',
-                **ws_headers(workspace),
-            )
-            assert resp.status_code == 200
-            assert 'flagged_terms' in resp.data
 
 
 class TestListingExportView:

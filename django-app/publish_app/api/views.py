@@ -18,7 +18,6 @@ from rest_framework.views import APIView
 from publish_app.constants import MBA_COLORS
 
 from idea_app.models import Idea
-from keyword_app.models import NicheKeyword
 from niche_app.models import Niche
 from publish_app.api.serializers import (
     COPY_SCOPE_FIELDS,
@@ -36,7 +35,6 @@ from publish_app.api.serializers import (
     DesignProductConfigUpsertSerializer,
     LifecycleSalesUpdateSerializer,
     ListingConvertSerializer,
-    ListingGenerateSerializer,
     ListingSerializer,
     ListingTranslateSerializer,
     ListingUpdateSerializer,
@@ -100,94 +98,6 @@ def _ws_error():
 # ===========================================================================
 # Listing Views
 # ===========================================================================
-
-class ListingGenerateView(APIView):
-    """POST /api/ideas/{id}/listing/generate/ -- AI generate listing."""
-
-    throttle_classes = [LLMEndpointThrottle]
-
-    def post(self, request, pk):
-        ws_id = _get_workspace_id(request)
-        if not ws_id:
-            return _ws_error()
-
-        idea = get_object_or_404(
-            Idea.objects.select_related('niche'),
-            pk=pk,
-            workspace_id=ws_id,
-        )
-
-        serializer = ListingGenerateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-
-        design = None
-        if data.get('design_id'):
-            design = get_object_or_404(
-                DesignAsset, pk=data['design_id'], workspace_id=ws_id,
-            )
-
-        # Auto-inject PROJ-10 keywords from design_template
-        auto_keywords = ''
-        if design:
-            template_kws = NicheKeyword.objects.filter(
-                design_template_id=design.id,
-            ).values_list('keyword', flat=True)[:50]
-            if template_kws:
-                auto_keywords = ', '.join(template_kws)
-
-        extra_kw = data.get('extra_keywords', '')
-        if auto_keywords:
-            extra_kw = f"{auto_keywords}, {extra_kw}" if extra_kw else auto_keywords
-
-        marketplace_type = data.get(
-            'marketplace_type', Listing.MarketplaceType.MBA,
-        )
-
-        # Create listing record first. Unique constraint on
-        # (design, marketplace_type) — return 409 on duplicate.
-        # Wrap in an atomic() savepoint so a caller-level transaction
-        # (e.g. pytest) is not left in a broken state on IntegrityError.
-        try:
-            with transaction.atomic():
-                listing = Listing.objects.create(
-                    workspace_id=ws_id,
-                    idea=idea,
-                    design=design,
-                    marketplace_type=marketplace_type,
-                    round=idea.niche.current_round if hasattr(idea.niche, 'current_round') else 1 if idea.niche else 1,
-                    language=data.get('language', 'en'),
-                    generated_by=Listing.GeneratedBy.AI,
-                    status=Listing.Status.DRAFT,
-                )
-        except IntegrityError:
-            return Response(
-                {
-                    'error': (
-                        f'Listing already exists for this design with '
-                        f'marketplace_type={marketplace_type}.'
-                    ),
-                    'code': 'duplicate_marketplace_type',
-                },
-                status=status.HTTP_409_CONFLICT,
-            )
-
-        # Enqueue AI generation
-        queue = django_rq.get_queue('slogan')
-        queue.enqueue(
-            'publish_app.tasks.task_generate_listing',
-            listing_id=str(listing.id),
-            slogan_text=idea.slogan_text,
-            extra_keywords=extra_kw,
-            language=data.get('language', 'en'),
-            design_context=design.file_name if design else '',
-        )
-
-        return Response(
-            ListingSerializer(listing).data,
-            status=status.HTTP_201_CREATED,
-        )
-
 
 class ListingDetailView(APIView):
     """GET /api/ideas/{id}/listing/ -- get listing for idea.
@@ -326,22 +236,6 @@ class ListingTranslateView(APIView):
             {'message': 'Translation started', 'target_languages': target_langs},
             status=status.HTTP_202_ACCEPTED,
         )
-
-
-class ListingTMCheckView(APIView):
-    """POST /api/listings/{id}/tm-check/ -- trademark check."""
-
-    def post(self, request, pk):
-        ws_id = _get_workspace_id(request)
-        if not ws_id:
-            return _ws_error()
-
-        listing = get_object_or_404(Listing, pk=pk, workspace_id=ws_id)
-
-        from publish_app.services.tm_checker import check_listing_tm
-        flagged = check_listing_tm(listing)
-
-        return Response({'flagged_terms': flagged})
 
 
 class ListingExportView(APIView):
@@ -543,7 +437,7 @@ class ListingConvertView(APIView):
             # Look up existing target Listing for this (design, target_mt)
             # pair. When source.design is NULL we cannot upsert by design —
             # always create a new row in that case (NULL != NULL in Postgres
-            # unique constraint semantics, mirroring ListingGenerateView).
+            # unique constraint semantics).
             existing = None
             if source.design_id is not None:
                 existing = (

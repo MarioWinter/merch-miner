@@ -179,7 +179,7 @@ class TestListingTemplateCreate:
                 'title': 'Tpl Title',
                 'bullet_1': 'B1',
                 'description': 'Tpl Desc',
-                'backend_keywords': 'kw1, kw2',
+                'keyword_context': 'kw1, kw2',
                 'language': 'en',
             },
             format='json',

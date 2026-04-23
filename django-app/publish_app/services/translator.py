@@ -9,9 +9,19 @@ import logging
 from django.conf import settings
 from langchain_openai import ChatOpenAI
 
-from publish_app.services.listing_generator import CHAR_LIMITS
-
 logger = logging.getLogger(__name__)
+
+# MBA character limits (AC-1: 5 bullets -> 2; keyword_context replaces
+# backend_keywords as LLM-input hint). Previously lived in
+# listing_generator.py (removed 2026-04-22 per PROJ-11 I2).
+CHAR_LIMITS = {
+    'brand_name': 50,
+    'title': 60,
+    'bullet_1': 256,
+    'bullet_2': 256,
+    'description': 2000,
+    'keyword_context': 500,
+}
 
 LANGUAGE_NAMES = {
     'en': 'English',

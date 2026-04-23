@@ -19,9 +19,7 @@ from publish_app.api.views import (
     ListingConvertView,
     ListingDetailView,
     ListingExportView,
-    ListingGenerateView,
     ListingTemplateListCreateView,
-    ListingTMCheckView,
     ListingTranslateView,
     ListingUpdateView,
     MbaColorsView,
@@ -57,11 +55,6 @@ urlpatterns = [
 
     # Listing endpoints
     path(
-        'ideas/<uuid:pk>/listing/generate/',
-        ListingGenerateView.as_view(),
-        name='listing-generate',
-    ),
-    path(
         'ideas/<uuid:pk>/listing/',
         ListingDetailView.as_view(),
         name='listing-detail',
@@ -91,11 +84,6 @@ urlpatterns = [
         'listings/<uuid:pk>/translate/',
         ListingTranslateView.as_view(),
         name='listing-translate',
-    ),
-    path(
-        'listings/<uuid:pk>/tm-check/',
-        ListingTMCheckView.as_view(),
-        name='listing-tm-check',
     ),
     path(
         'listings/<uuid:pk>/export/',

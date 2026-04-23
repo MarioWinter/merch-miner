@@ -3,12 +3,12 @@
 Covers:
 - Unique constraint on (design, marketplace_type)
 - GET /api/ideas/{id}/listing/ marketplace_type filter
-- POST /api/ideas/{id}/listing/generate/ 409 on duplicate
 - PATCH /api/listings/{id}/ marketplace_type update
 - Serializer exposes marketplace_type
-"""
 
-from unittest.mock import MagicMock, patch
+Note: `POST /api/ideas/{id}/listing/generate/` 409-on-duplicate tests were
+removed with the endpoint itself (PROJ-11 Phase I2, 2026-04-23).
+"""
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -236,91 +236,6 @@ class TestListingDetailViewMarketplaceFilter:
     ):
         resp = api_client.get(
             f'/api/ideas/{idea.id}/listing/?marketplace_type=bogus',
-            **ws_headers(workspace),
-        )
-        assert resp.status_code == 400
-
-
-# ---------------------------------------------------------------------------
-# POST /api/ideas/{id}/listing/generate/ — duplicate -> 409
-# ---------------------------------------------------------------------------
-
-@pytest.mark.django_db
-class TestListingGenerateMarketplaceType:
-    @patch('publish_app.api.views.django_rq')
-    def test_generate_with_marketplace_type_global(
-        self, mock_rq, api_client, workspace, idea, design_asset, membership,
-    ):
-        mock_rq.get_queue.return_value = MagicMock()
-        resp = api_client.post(
-            f'/api/ideas/{idea.id}/listing/generate/',
-            {
-                'design_id': str(design_asset.id),
-                'marketplace_type': 'global',
-            },
-            format='json',
-            **ws_headers(workspace),
-        )
-        assert resp.status_code == 201
-        assert resp.data['marketplace_type'] == 'global'
-        assert Listing.objects.filter(
-            design=design_asset,
-            marketplace_type='global',
-        ).exists()
-
-    @patch('publish_app.api.views.django_rq')
-    def test_generate_duplicate_returns_409(
-        self, mock_rq, api_client, workspace, idea, design_asset, membership,
-    ):
-        mock_rq.get_queue.return_value = MagicMock()
-        Listing.objects.create(
-            workspace=workspace, idea=idea, design=design_asset,
-            marketplace_type=Listing.MarketplaceType.MBA,
-        )
-
-        resp = api_client.post(
-            f'/api/ideas/{idea.id}/listing/generate/',
-            {
-                'design_id': str(design_asset.id),
-                'marketplace_type': 'mba',
-            },
-            format='json',
-            **ws_headers(workspace),
-        )
-        assert resp.status_code == 409
-        assert resp.data['code'] == 'duplicate_marketplace_type'
-        # No new row created
-        assert Listing.objects.filter(
-            design=design_asset,
-            marketplace_type='mba',
-        ).count() == 1
-
-    @patch('publish_app.api.views.django_rq')
-    def test_generate_default_marketplace_type_is_mba(
-        self, mock_rq, api_client, workspace, idea, design_asset, membership,
-    ):
-        mock_rq.get_queue.return_value = MagicMock()
-        resp = api_client.post(
-            f'/api/ideas/{idea.id}/listing/generate/',
-            {'design_id': str(design_asset.id)},
-            format='json',
-            **ws_headers(workspace),
-        )
-        assert resp.status_code == 201
-        assert resp.data['marketplace_type'] == 'mba'
-
-    @patch('publish_app.api.views.django_rq')
-    def test_generate_invalid_marketplace_type_returns_400(
-        self, mock_rq, api_client, workspace, idea, design_asset, membership,
-    ):
-        mock_rq.get_queue.return_value = MagicMock()
-        resp = api_client.post(
-            f'/api/ideas/{idea.id}/listing/generate/',
-            {
-                'design_id': str(design_asset.id),
-                'marketplace_type': 'not_a_real_marketplace',
-            },
-            format='json',
             **ws_headers(workspace),
         )
         assert resp.status_code == 400

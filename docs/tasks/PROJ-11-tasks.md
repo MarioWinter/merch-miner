@@ -578,27 +578,27 @@
 
 ### I2: Remove `/listing/generate/` Endpoint
 
-- [ ] Delete view class `ListingGenerateView` (or function view) in `publish_app/api/views.py`
-- [ ] Remove URL route for `/api/ideas/{id}/listing/generate/`
-- [ ] Delete service module `publish_app/services/listing_generator.py`
-- [ ] Delete associated tests in `publish_app/tests/test_listing_generator.py`
-- [ ] Remove any references in admin / docstrings / comments
+- [x] Delete view class `ListingGenerateView` (or function view) in `publish_app/api/views.py`
+- [x] Remove URL route for `/api/ideas/{id}/listing/generate/`
+- [x] Delete service module `publish_app/services/listing_generator.py`
+- [x] Delete associated tests in `publish_app/tests/test_listing_generator.py`
+- [x] Remove any references in admin / docstrings / comments
 
 ### I3: Remove `/tm-check/` Endpoint
 
-- [ ] Delete view class `ListingTMCheckView` in `publish_app/api/views.py`
-- [ ] Remove URL route for `/api/listings/{id}/tm-check/`
-- [ ] Delete service module `publish_app/services/tm_checker.py`
-- [ ] Delete trademark fixture / seed data if any (`publish_app/fixtures/tm_terms.json` etc.)
-- [ ] Delete associated tests
+- [x] Delete view class `ListingTMCheckView` in `publish_app/api/views.py`
+- [x] Remove URL route for `/api/listings/{id}/tm-check/`
+- [x] Delete service module `publish_app/services/tm_checker.py`
+- [x] Delete trademark fixture / seed data if any (`publish_app/fixtures/tm_terms.json` etc.) — none existed
+- [x] Delete associated tests — removed `TMCheckSerializer` (last dead reference)
 
 ### I4: Backend Tests
 
-- [ ] Update `test_listing_serializer.py` — remove bullets 3-5 assertions, rename keyword field
-- [ ] New test: `keyword_context` PATCH does not revert status
-- [ ] New test: legacy `translations.bullets` array migrates to `bullet_1` + `bullet_2` (truncates over 2)
-- [ ] Delete tests for removed generate + tm-check endpoints
-- [ ] `pytest publish_app` — all green
+- [x] Update `test_listing_serializer.py` — remove bullets 3-5 assertions, rename keyword field — created new `test_listing_serializer.py` (13 tests) covering `ListingSerializer` / `ListingUpdateSerializer` / `ListingTemplateCreateSerializer` field shape + keyword_context rules; also fixed stale `backend_keywords` payload in `test_listing_templates.py`
+- [x] New test: `keyword_context` PATCH does not revert status — `TestListingUpdateView.test_keyword_context_patch_does_not_revert_status` in `test_views.py` (EC-42)
+- [x] New test: legacy `translations.bullets` array migrates to `bullet_1` + `bullet_2` (truncates over 2) — `test_listing_translations_migration.py` covers promote / truncate / no-op / stale-key / non-dict cases
+- [x] Delete tests for removed generate + tm-check endpoints — confirmed absent (removed in I2/I3)
+- [x] `pytest publish_app` — all green (248 passed)
 
 ---
 

@@ -53,21 +53,6 @@ class ListingSerializer(serializers.ModelSerializer):
         return None
 
 
-class ListingGenerateSerializer(serializers.Serializer):
-    """Input for AI listing generation."""
-
-    design_id = serializers.UUIDField(required=False, allow_null=True, default=None)
-    extra_keywords = serializers.CharField(
-        required=False, default='', allow_blank=True,
-    )
-    language = serializers.CharField(required=False, default='en')
-    marketplace_type = serializers.ChoiceField(
-        choices=Listing.MarketplaceType.choices,
-        required=False,
-        default=Listing.MarketplaceType.MBA,
-    )
-
-
 class ListingUpdateSerializer(serializers.ModelSerializer):
     """Partial update for listings. Status reverts to draft on edit.
 
@@ -186,15 +171,6 @@ class ListingExportSerializer(serializers.Serializer):
         choices=['plain_text', 'csv'],
         default='plain_text',
         required=False,
-    )
-
-
-class TMCheckSerializer(serializers.Serializer):
-    """Trademark check results."""
-
-    flagged_terms = serializers.ListField(
-        child=serializers.DictField(),
-        read_only=True,
     )
 
 
