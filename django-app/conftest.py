@@ -22,6 +22,7 @@ def disable_throttling(settings):
             'avatar': '10000/day',
             'invite': '10000/day',
             'semantic_search': '10000/day',
+            'ai_improve': '10000/day',
         },
     }
     # Force DRF to re-read settings (it caches on first access)

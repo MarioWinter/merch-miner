@@ -203,6 +203,211 @@ class TestListingTranslateView:
 
 
 # ---------------------------------------------------------------------------
+# AI Improve API Tests (PROJ-11 Phase M2)
+# ---------------------------------------------------------------------------
+
+class TestListingAIImproveView:
+    """POST /api/listings/{id}/ai-improve/ -- AC-69..AC-72, EC-31, EC-33."""
+
+    def _patch_pipeline(
+        self,
+        *,
+        vision_context=None,
+        llm_response=None,
+        validated_fields=None,
+        truncated=None,
+        llm_raises=False,
+    ):
+        """Build a stack of patches for the M1 pipeline helpers.
+
+        Returns a list of ``unittest.mock.patch`` objects that the caller
+        enters via ``ExitStack`` or ``contextlib.ExitStack``. All M1 helpers
+        are mocked so the view never hits OpenRouter.
+        """
+        vision_context = vision_context or {
+            'description': 'cat silhouette',
+            'visual_style': 'retro',
+            'graphic_elements': 'cat',
+            'layout_composition': 'centered',
+            'dominant_colors': ['#000'],
+            'detected_text': '',
+            'analyzed_at': '2026-04-23T10:00:00+00:00',
+            'model': 'openai/gpt-4.1-mini',
+        }
+        llm_response = llm_response or {
+            'title': 'New Title',
+            'bullet_1': 'New B1',
+            'bullet_2': 'New B2',
+            'description': 'New description.',
+            'keyword_context': 'new, kw',
+        }
+        validated_fields = validated_fields or llm_response
+        truncated = truncated if truncated is not None else []
+
+        call_llm_mock = (
+            MagicMock(side_effect=Exception('boom'))
+            if llm_raises
+            else MagicMock(return_value=llm_response)
+        )
+
+        return {
+            'ensure_design_vision': patch(
+                'publish_app.api.views.ensure_design_vision',
+                return_value=vision_context,
+            ),
+            'build_prompt': patch(
+                'publish_app.api.views.build_prompt',
+                return_value=[
+                    {'role': 'system', 'content': 'sys'},
+                    {'role': 'user', 'content': 'usr'},
+                ],
+            ),
+            'call_llm': patch(
+                'publish_app.api.views.call_llm',
+                new=call_llm_mock,
+            ),
+            'validate_and_truncate': patch(
+                'publish_app.api.views.validate_and_truncate',
+                return_value=(validated_fields, truncated),
+            ),
+        }
+
+    def test_happy_path_returns_updated_listing(
+        self, api_client, workspace, listing, membership,
+    ):
+        """AC-69..AC-72: 200 with {listing, truncated_fields}; persisted."""
+        patches = self._patch_pipeline(
+            validated_fields={
+                'title': 'AI Title',
+                'bullet_1': 'AI B1',
+                'bullet_2': 'AI B2',
+                'description': 'AI description of the design.',
+                'keyword_context': 'ai, kw, hints',
+            },
+            truncated=['description'],
+        )
+        with patches['ensure_design_vision'], patches['build_prompt'], \
+                patches['call_llm'], patches['validate_and_truncate']:
+            resp = api_client.post(
+                f'/api/listings/{listing.id}/ai-improve/',
+                {},
+                format='json',
+                **ws_headers(workspace),
+            )
+
+        assert resp.status_code == 200
+        assert 'listing' in resp.data
+        assert 'truncated_fields' in resp.data
+        assert resp.data['truncated_fields'] == ['description']
+        assert resp.data['listing']['title'] == 'AI Title'
+        assert resp.data['listing']['description'] == (
+            'AI description of the design.'
+        )
+        # apply_to_listing sets generated_by='ai' and reverts status to draft.
+        assert resp.data['listing']['generated_by'] == 'ai'
+        assert resp.data['listing']['status'] == 'draft'
+
+        # DB-level assertion that the save actually landed.
+        listing.refresh_from_db()
+        assert listing.title == 'AI Title'
+        assert listing.generated_by == Listing.GeneratedBy.AI
+
+    def test_returns_400_when_design_is_null(
+        self, api_client, workspace, idea, membership,
+    ):
+        """EC-31: AI Improve requires a linked design asset."""
+        orphan = Listing.objects.create(
+            workspace=workspace, idea=idea, design=None,
+            brand_name='X', title='X',
+        )
+        patches = self._patch_pipeline()
+        # None of the pipeline helpers should be called -- guard fires first.
+        with patches['ensure_design_vision'] as ensure_mock, \
+                patches['build_prompt'], patches['call_llm'], \
+                patches['validate_and_truncate']:
+            resp = api_client.post(
+                f'/api/listings/{orphan.id}/ai-improve/',
+                {},
+                format='json',
+                **ws_headers(workspace),
+            )
+
+        assert resp.status_code == 400
+        assert resp.data == {
+            'error': 'AI Improve requires a linked design asset',
+        }
+        ensure_mock.assert_not_called()
+
+    def test_returns_502_when_llm_raises_and_listing_unchanged(
+        self, api_client, workspace, listing, membership,
+    ):
+        """EC-33: LLM failure -> 502; listing row must be unchanged in DB."""
+        from publish_app.services.ai_improve import AIImproveError
+
+        # Snapshot the pre-call state for post-call equality assertions.
+        before = {
+            'title': listing.title,
+            'bullet_1': listing.bullet_1,
+            'bullet_2': listing.bullet_2,
+            'description': listing.description,
+            'keyword_context': listing.keyword_context,
+            'status': listing.status,
+            'generated_by': listing.generated_by,
+        }
+
+        patches = self._patch_pipeline()
+        # Swap in a raising call_llm that mimics the real service contract.
+        raising = patch(
+            'publish_app.api.views.call_llm',
+            side_effect=AIImproveError('LLM upstream call failed'),
+        )
+        with patches['ensure_design_vision'], patches['build_prompt'], \
+                raising, patches['validate_and_truncate']:
+            resp = api_client.post(
+                f'/api/listings/{listing.id}/ai-improve/',
+                {},
+                format='json',
+                **ws_headers(workspace),
+            )
+
+        assert resp.status_code == 502
+        # Q3=A: generic message; raw exception goes to the logs only.
+        assert resp.data == {'error': 'AI Improve LLM call failed'}
+
+        listing.refresh_from_db()
+        for key, value in before.items():
+            assert getattr(listing, key) == value, (
+                f'listing.{key} was modified despite 502'
+            )
+
+    def test_returns_404_on_cross_workspace_listing(
+        self, api_client, listing, membership,
+    ):
+        """Workspace isolation: listing belongs to ws A, request sent with ws B."""
+        other_user = User.objects.create_user(
+            email='ai-improve-other@example.com', password='pass',
+        )
+        other_ws = Workspace.objects.create(
+            name='Other AI WS', slug='other-ai-ws', owner=other_user,
+        )
+
+        patches = self._patch_pipeline()
+        with patches['ensure_design_vision'] as ensure_mock, \
+                patches['build_prompt'], patches['call_llm'], \
+                patches['validate_and_truncate']:
+            resp = api_client.post(
+                f'/api/listings/{listing.id}/ai-improve/',
+                {},
+                format='json',
+                HTTP_X_WORKSPACE_ID=str(other_ws.id),
+            )
+
+        assert resp.status_code == 404
+        # Isolation guard must fire before any pipeline work.
+        ensure_mock.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
 # Design Gallery API Tests
 # ---------------------------------------------------------------------------
 

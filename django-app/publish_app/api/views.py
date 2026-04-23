@@ -20,6 +20,15 @@ from publish_app.constants import MBA_COLORS
 
 from idea_app.models import Idea
 from niche_app.models import Niche
+from publish_app.api.throttles import AIImproveThrottle
+from publish_app.services.ai_improve import (
+    AIImproveError,
+    apply_to_listing,
+    build_prompt,
+    call_llm,
+    ensure_design_vision,
+    validate_and_truncate,
+)
 from publish_app.api.serializers import (
     PRODUCT_ENTRY_SCOPE_FIELDS,
     BulkActionSerializer,
@@ -258,6 +267,71 @@ class ListingExportView(APIView):
         )
 
         return Response({'text': text, 'listing_id': str(listing.id)})
+
+
+class ListingAIImproveView(APIView):
+    """POST /api/listings/{id}/ai-improve/ -- AI rewrite of listing copy.
+
+    Pipeline (see ``publish_app.services.ai_improve``):
+        1. ``ensure_design_vision`` (cached on DesignAsset)
+        2. ``build_prompt`` (text-only, vision context embedded)
+        3. ``call_llm`` (OpenRouter, model from ``ListingImproveNodeConfig``)
+        4. ``validate_and_truncate`` (coerce + cap to char limits)
+        5. ``apply_to_listing`` (persist; reverts status to ``draft``)
+
+    AC-69..AC-72. EC-31 (no design -> 400). EC-33 (LLM failure -> 502,
+    listing unchanged).
+    """
+
+    throttle_classes = [AIImproveThrottle]
+
+    def post(self, request, pk):
+        ws_id = _get_workspace_id(request)
+        if not ws_id:
+            return _ws_error()
+
+        # Workspace isolation via direct ``workspace_id`` FK on Listing.
+        # Cross-workspace -> 404 (matches other Listing views).
+        listing = get_object_or_404(
+            Listing.objects.select_related('design', 'idea'),
+            pk=pk,
+            workspace_id=ws_id,
+        )
+
+        # EC-31: AI Improve requires a linked design (we need the vision pass).
+        if listing.design is None:
+            return Response(
+                {'error': 'AI Improve requires a linked design asset'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            vision_context = ensure_design_vision(listing.design)
+            messages = build_prompt(
+                listing=listing,
+                vision_context=vision_context,
+                keyword_context=listing.keyword_context or '',
+                language=listing.language or 'en',
+            )
+            raw = call_llm(messages)
+            fields, truncated = validate_and_truncate(raw)
+            listing = apply_to_listing(listing, fields)
+        except AIImproveError:
+            # EC-33: upstream LLM failure. Log full exception for ops, but
+            # return a generic message to the client (listing unchanged).
+            logger.exception('AI Improve LLM pipeline failed for listing %s', pk)
+            return Response(
+                {'error': 'AI Improve LLM call failed'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        return Response(
+            {
+                'listing': ListingSerializer(listing).data,
+                'truncated_fields': truncated,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 # ---------------------------------------------------------------------------

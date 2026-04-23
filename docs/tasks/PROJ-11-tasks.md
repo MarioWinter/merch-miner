@@ -779,17 +779,24 @@
 
 ### M2: View + URL
 
-- [ ] Create `ListingAIImproveView` (DRF APIView, POST, `permission_classes=[IsAuthenticated]`, `throttle_classes=[AIImproveThrottle]`)
-- [ ] Workspace isolation: load Listing via `idea.niche.workspace` filter; 404 on mismatch
-- [ ] Guard: if `listing.design is None` → return 400 `{error: "AI Improve requires a linked design asset"}` (EC-31)
-- [ ] Response 200 shape: `{listing: {...}, truncated_fields: []}`
-- [ ] Response 502 on LLM failure (EC-33) — listing unchanged
-- [ ] URL route: `POST /api/listings/{id}/ai-improve/`
+> Completed 2026-04-23 (bundled with M3 per Q1=A).
+
+- [x] Create `ListingAIImproveView` (DRF APIView, POST, IsAuthenticated inherited, `throttle_classes=[AIImproveThrottle]`)
+- [x] Workspace isolation: load Listing via direct `workspace_id` FK filter (matches other Listing views); 404 on mismatch
+- [x] Guard: if `listing.design is None` → return 400 `{error: "AI Improve requires a linked design asset"}` (EC-31)
+- [x] Response 200 shape: `{listing: {...}, truncated_fields: []}`
+- [x] Response 502 on LLM failure (EC-33) — generic `{error: "AI Improve LLM call failed"}`, full exception logged via `logger.exception`; listing unchanged because pipeline raises BEFORE `apply_to_listing`
+- [x] URL route: `POST /api/listings/{id}/ai-improve/`
+- [x] Pipeline: `ensure_design_vision → build_prompt → call_llm → validate_and_truncate → apply_to_listing`
+- [x] 4 inline tests in `test_views.py::TestListingAIImproveView` (happy-path, 400 no-design, 502 LLM-raise w/ DB-unchanged assert, 404 cross-workspace)
 
 ### M3: Rate Limiting
 
-- [ ] Create `publish_app/api/throttles.py` with class `AIImproveThrottle(UserRateThrottle)` — `rate = '10/min'`, `scope = 'ai_improve'`
-- [ ] Add `DEFAULT_THROTTLE_RATES['ai_improve'] = '10/min'` in settings.py
+> Completed 2026-04-23 (bundled with M2).
+
+- [x] Create `publish_app/api/throttles.py` with class `AIImproveThrottle(UserRateThrottle)` — `scope = 'ai_improve'` (rate resolved from `DEFAULT_THROTTLE_RATES`)
+- [x] Add `DEFAULT_THROTTLE_RATES['ai_improve'] = '10/min'` in settings.py
+- [x] Tests auto-disable throttle via `conftest.py::disable_throttling` fixture (added `ai_improve: 10000/day` entry)
 
 ### M4: Env Vars
 

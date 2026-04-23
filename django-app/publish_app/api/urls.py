@@ -16,6 +16,7 @@ from publish_app.api.views import (
     DesignProductConfigCopyFromView,
     DesignProductConfigView,
     LifecycleUpdateView,
+    ListingAIImproveView,
     ListingConvertView,
     ListingDetailView,
     ListingExportView,
@@ -85,6 +86,11 @@ urlpatterns = [
         'listings/<uuid:pk>/translate/',
         ListingTranslateView.as_view(),
         name='listing-translate',
+    ),
+    path(
+        'listings/<uuid:pk>/ai-improve/',
+        ListingAIImproveView.as_view(),
+        name='listing-ai-improve',
     ),
     path(
         'listings/<uuid:pk>/export/',
