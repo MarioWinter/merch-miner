@@ -504,30 +504,27 @@ class DesignProductConfig(models.Model):
         default=MarketplaceType.MBA,
         db_index=True,
     )
-    product_types = models.JSONField(
+    # PROJ-11 Phase J1 (2026-04-23): collapsed legacy fields
+    # (`product_types`, `fit_types`, `print_side`, `colors`, `marketplaces`)
+    # into a single per-product JSON list. Each entry shape:
+    #   {
+    #     "product_type": str,   # catalog key (AC-37)
+    #     "enabled": bool,
+    #     "fit_types": [str],
+    #     "print_side": "front" | "back" | "both",
+    #     "colors": [str],
+    #     "marketplaces": [{"marketplace": str, "price": Decimal, "enabled": bool}],
+    #   }
+    # See AC-38 + EC-35 (forward-only migration; per-product divergence
+    # is lost on downgrade).
+    products_config = models.JSONField(
         default=list,
         blank=True,
-        help_text='List of product type keys (e.g. t_shirt, hoodie, tank_top).',
-    )
-    fit_types = models.JSONField(
-        default=list,
-        blank=True,
-        help_text='List of fit types (e.g. men, women, youth).',
-    )
-    print_side = models.CharField(
-        max_length=10,
-        choices=PrintSide.choices,
-        default=PrintSide.FRONT,
-    )
-    colors = models.JSONField(
-        default=list,
-        blank=True,
-        help_text='List of MBA color keys (validated against MBA_COLORS palette).',
-    )
-    marketplaces = models.JSONField(
-        default=list,
-        blank=True,
-        help_text='List of {marketplace, price, enabled} entries.',
+        help_text=(
+            'Per-product configuration list. Each entry: '
+            '{product_type, enabled, fit_types, print_side, colors, '
+            'marketplaces[]}. See AC-38.'
+        ),
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

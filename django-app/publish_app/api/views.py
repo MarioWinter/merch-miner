@@ -20,7 +20,7 @@ from publish_app.constants import MBA_COLORS
 from idea_app.models import Idea
 from niche_app.models import Niche
 from publish_app.api.serializers import (
-    COPY_SCOPE_FIELDS,
+    PRODUCT_ENTRY_SCOPE_FIELDS,
     BulkActionSerializer,
     CloudImportSerializer,
     CollectionCreateSerializer,
@@ -328,51 +328,22 @@ def _seed_product_config_from_default(
     workspace_id, design, marketplace_type,
 ):
     """Auto-seed a DesignProductConfig from the workspace's default
-    UploadTemplate for ``(workspace, marketplace_type)`` (AC-57, AC-58).
+    UploadTemplate for ``(workspace, marketplace_type)`` (AC-57..AC-59).
 
-    Read-only against UploadTemplate -- we copy field values into a fresh
-    DesignProductConfig row; later edits to either side are independent
-    (AC-58).
+    PROJ-11 Phase J2 (2026-04-23) — **TEMPORARY STUB**.
+    Per user decision Q2=A: seeding is disabled until Phase K3 (UploadTemplate
+    shape alignment) lands. With ``DesignProductConfig.products_config`` and
+    UploadTemplate still on divergent shapes, we can't safely copy fields.
+    This helper returns ``None`` unconditionally, which makes every Convert
+    response report ``product_config_seeded=False``.
 
-    Returns the created DesignProductConfig or ``None`` when any of:
-    - ``design`` is None (AC-59 -- no design to attach config to)
-    - A DesignProductConfig already exists for
-      ``(design, marketplace_type)`` (EC-19 -- never overwrite)
-    - No default UploadTemplate is set for the workspace + marketplace
-      (EC-20 -- skip silently, caller returns ``product_config_seeded=False``)
-
-    Caller is responsible for the enclosing transaction.
+    Phase K3 will rewrite this helper to copy ``default_template.products_config``
+    verbatim into the new row (no fan-out) once UploadTemplate has the same
+    per-product shape.
     """
-    if design is None:
-        return None
-
-    exists = DesignProductConfig.objects.filter(
-        design=design, marketplace_type=marketplace_type,
-    ).exists()
-    if exists:
-        return None
-
-    default_template = (
-        UploadTemplate.objects
-        .filter(
-            workspace_id=workspace_id,
-            marketplace_type=marketplace_type,
-            is_default=True,
-        )
-        .first()
-    )
-    if default_template is None:
-        return None
-
-    return DesignProductConfig.objects.create(
-        design=design,
-        marketplace_type=marketplace_type,
-        colors=list(default_template.colors or []),
-        fit_types=list(default_template.fit_types or []),
-        print_side=default_template.print_side,
-        product_types=list(default_template.product_types or []),
-        marketplaces=list(default_template.marketplaces or []),
-    )
+    # Unused until K3 — kept to match the call sites in ListingConvertView.
+    del workspace_id, design, marketplace_type
+    return None
 
 
 class ListingConvertView(APIView):
@@ -1697,6 +1668,29 @@ def _get_workspace_design(ws_id, design_id):
     )
 
 
+def _apply_upsert_product(
+    current_config, product_type, patch,
+):
+    """Merge-or-append one entry in a ``products_config`` list by product_type.
+
+    Returns the mutated list. Preserves order; new entries append at the end.
+    Existing entries keep keys not in ``patch`` (shallow merge on top-level
+    fields only).
+    """
+    new_list = []
+    replaced = False
+    for entry in current_config or []:
+        if isinstance(entry, dict) and entry.get('product_type') == product_type:
+            merged = {**entry, **patch, 'product_type': product_type}
+            new_list.append(merged)
+            replaced = True
+        else:
+            new_list.append(entry)
+    if not replaced:
+        new_list.append({'product_type': product_type, **patch})
+    return new_list
+
+
 class DesignProductConfigView(APIView):
     """GET/PATCH /api/designs/{design_id}/product-config/.
 
@@ -1704,9 +1698,16 @@ class DesignProductConfigView(APIView):
     no row exists (frontend falls back to empty defaults). Default
     ``marketplace_type=mba`` when query param omitted.
 
-    PATCH: upsert semantics. ``marketplace_type`` required in body. Creates
-    the row on first call, updates on subsequent calls. Returns 200 with the
-    full record.
+    PATCH (Phase J2): two body forms, both require ``marketplace_type``.
+
+    1. Full replace — ``{marketplace_type, products_config: [...]}``.
+       Wholesale overwrite of the per-product entry list. Creates the row on
+       first call; updates on subsequent calls.
+
+    2. Targeted op — ``{marketplace_type, op, product_type, patch}``.
+       Currently only ``op=upsert_product``. Merges ``patch`` into the
+       matching entry by ``product_type`` or appends a new entry when no
+       match exists (AC-40).
     """
 
     def get(self, request, design_id):
@@ -1760,29 +1761,103 @@ class DesignProductConfigView(APIView):
         serializer = DesignProductConfigUpsertSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
-        marketplace_type = data.pop('marketplace_type')
-
-        defaults = {k: v for k, v in data.items() if v is not None}
+        marketplace_type = data['marketplace_type']
 
         with transaction.atomic():
-            config, _created = (
+            config, created = (
                 DesignProductConfig.objects
                 .select_for_update()
                 .get_or_create(
                     design=design,
                     marketplace_type=marketplace_type,
-                    defaults=defaults,
+                    defaults={'products_config': []},
                 )
             )
-            if not _created and defaults:
-                for field, value in defaults.items():
-                    setattr(config, field, value)
+
+            if 'products_config' in data:
+                # Full replace.
+                config.products_config = data['products_config']
+            elif data.get('op') == serializer.OP_UPSERT_PRODUCT:
+                config.products_config = _apply_upsert_product(
+                    config.products_config,
+                    data['product_type'],
+                    data['patch'],
+                )
+            # else: get_or_create created an empty row — leave as-is.
+
+            if not created or 'products_config' in data or data.get('op'):
                 config.save(
-                    update_fields=list(defaults.keys()) + ['updated_at'],
+                    update_fields=['products_config', 'updated_at'],
                 )
 
         config.refresh_from_db()
         return Response(DesignProductConfigSerializer(config).data)
+
+
+def _copy_scalar_scope_to_target(
+    target_entries, source_entries, field, product_type,
+):
+    """Return new ``products_config`` list for target after a scalar copy.
+
+    - ``product_type`` given: find matching entry on source AND on target
+      (404 if either is missing — raises), copy just ``field``. Entries not
+      matching ``product_type`` are preserved on the target.
+    - ``product_type`` None: apply the field value from the *first* matching
+      source entry to all target entries. No-op when source is empty.
+    """
+    if product_type:
+        source_entry = next(
+            (
+                e for e in source_entries
+                if isinstance(e, dict) and e.get('product_type') == product_type
+            ),
+            None,
+        )
+        if source_entry is None or field not in source_entry:
+            raise _CopyFromNotFound(
+                f"Source has no entry for product_type='{product_type}' "
+                f"with field '{field}'.",
+            )
+        updated = []
+        matched = False
+        for entry in target_entries or []:
+            if (
+                isinstance(entry, dict)
+                and entry.get('product_type') == product_type
+            ):
+                updated.append({**entry, field: source_entry[field]})
+                matched = True
+            else:
+                updated.append(entry)
+        if not matched:
+            # Append a new entry with just the copied field scoped to this
+            # product_type. Defer shape completeness to a subsequent PATCH.
+            updated.append(
+                {'product_type': product_type, field: source_entry[field]},
+            )
+        return updated
+
+    # Apply-across-all: use the first source entry that carries this field.
+    source_entry = next(
+        (
+            e for e in source_entries
+            if isinstance(e, dict) and field in e
+        ),
+        None,
+    )
+    if source_entry is None:
+        raise _CopyFromNotFound(
+            f"Source has no entry carrying field '{field}'.",
+        )
+    value = source_entry[field]
+    return [
+        {**entry, field: value} if isinstance(entry, dict) else entry
+        for entry in (target_entries or [])
+    ]
+
+
+class _CopyFromNotFound(Exception):
+    """Internal signal -- source missing the requested data (maps to 404)."""
 
 
 class DesignProductConfigCopyFromView(APIView):
@@ -1792,13 +1867,18 @@ class DesignProductConfigCopyFromView(APIView):
     read + target upsert happen in one transaction to avoid races with the
     frontend's auto-save PATCH.
 
-    Body: ``{source_design_id, marketplace_type, scope}`` where ``scope`` is
-    one of ``all, colors, fit_types, print_side, product_types, marketplaces``.
+    Phase J3 body (AC-41):
+      ``{source_design_id, marketplace_type, scope, product_type?}``
+
+    ``scope`` values:
+      - ``all`` — copy the entire ``products_config`` list.
+      - ``fit_types`` / ``print_side`` / ``colors`` / ``marketplaces`` /
+        ``enabled`` — scalar scope. When ``product_type`` is provided, copy
+        that field for the matching entry only. When omitted, apply the
+        source value across all target entries.
 
     Workspace isolation: both source and target must be in the caller's
-    workspace. Cross-workspace returns 404 (source) or 403 if a cross-
-    workspace target was reachable via a direct URL (we catch that upstream
-    via the same workspace-scoped lookup).
+    workspace. Cross-workspace returns 404.
     """
 
     def post(self, request, design_id):
@@ -1821,6 +1901,7 @@ class DesignProductConfigCopyFromView(APIView):
         source_design = _get_workspace_design(ws_id, data['source_design_id'])
         marketplace_type = data['marketplace_type']
         scope = data['scope']
+        product_type = data.get('product_type') or None
 
         with transaction.atomic():
             source = (
@@ -1841,16 +1922,37 @@ class DesignProductConfigCopyFromView(APIView):
                 )
 
             if scope == 'all':
-                copy_fields = list(COPY_SCOPE_FIELDS)
-            elif scope in COPY_SCOPE_FIELDS:
-                copy_fields = [scope]
+                new_products_config = list(source.products_config or [])
+            elif scope in PRODUCT_ENTRY_SCOPE_FIELDS:
+                try:
+                    target_existing = (
+                        DesignProductConfig.objects
+                        .filter(
+                            design=target_design,
+                            marketplace_type=marketplace_type,
+                        )
+                        .values_list('products_config', flat=True)
+                        .first()
+                    ) or []
+                    new_products_config = _copy_scalar_scope_to_target(
+                        target_existing,
+                        source.products_config or [],
+                        scope,
+                        product_type,
+                    )
+                except _CopyFromNotFound as exc:
+                    return Response(
+                        {
+                            'error': str(exc),
+                            'code': 'source_scope_missing',
+                        },
+                        status=status.HTTP_404_NOT_FOUND,
+                    )
             else:  # Shouldn't hit — serializer validated the choice
                 return Response(
                     {'error': f"Unknown scope '{scope}'."},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
-
-            payload = {field: getattr(source, field) for field in copy_fields}
 
             target, _created = (
                 DesignProductConfig.objects
@@ -1858,14 +1960,13 @@ class DesignProductConfigCopyFromView(APIView):
                 .get_or_create(
                     design=target_design,
                     marketplace_type=marketplace_type,
-                    defaults=payload,
+                    defaults={'products_config': new_products_config},
                 )
             )
             if not _created:
-                for field, value in payload.items():
-                    setattr(target, field, value)
+                target.products_config = new_products_config
                 target.save(
-                    update_fields=list(payload.keys()) + ['updated_at'],
+                    update_fields=['products_config', 'updated_at'],
                 )
 
         target.refresh_from_db()

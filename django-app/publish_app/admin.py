@@ -58,13 +58,12 @@ class DesignAssetAdmin(admin.ModelAdmin):
 @admin.register(DesignProductConfig)
 class DesignProductConfigAdmin(admin.ModelAdmin):
     list_display = [
-        'id', 'design', 'marketplace_type', 'print_side', 'updated_at',
+        'id', 'design', 'marketplace_type', 'updated_at',
     ]
-    list_filter = ['marketplace_type', 'print_side']
+    list_filter = ['marketplace_type']
     search_fields = ['design__file_name']
     readonly_fields = [
-        'id', 'created_at', 'updated_at',
-        'product_types', 'fit_types', 'colors', 'marketplaces',
+        'id', 'created_at', 'updated_at', 'products_config',
     ]
     raw_id_fields = ['design']
 

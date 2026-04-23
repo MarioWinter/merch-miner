@@ -608,42 +608,64 @@
 
 ### J1: Model + Migration
 
-- [ ] Add `products_config` JSONField (default=list) to `DesignProductConfig`
-- [ ] Data migration: for each existing row, for each `product_type` in legacy `product_types[]`, emit one `products_config` entry copying shared `fit_types`, `print_side`, `colors`, `marketplaces` into that entry
-- [ ] Data migration: drop rows where legacy `product_types=[]` (nothing to migrate) OR emit empty `products_config=[]`
-- [ ] Remove legacy columns `product_types`, `fit_types`, `print_side`, `colors`, `marketplaces`
-- [ ] Verify unique constraint `(design, marketplace_type)` still enforced
-- [ ] Migration reversibility note: flat shape cannot be perfectly restored (per-product divergence lost). Document as forward-only
-- [ ] Run migration via Docker, verify with `showmigrations`
+- [x] Add `products_config` JSONField (default=list) to `DesignProductConfig`
+- [x] Data migration: for each existing row, for each `product_type` in legacy `product_types[]`, emit one `products_config` entry copying shared `fit_types`, `print_side`, `colors`, `marketplaces` into that entry
+- [x] Data migration: drop rows where legacy `product_types=[]` (nothing to migrate) OR emit empty `products_config=[]`
+- [x] Remove legacy columns `product_types`, `fit_types`, `print_side`, `colors`, `marketplaces`
+- [x] Verify unique constraint `(design, marketplace_type)` still enforced
+- [x] Migration reversibility note: flat shape cannot be perfectly restored (per-product divergence lost). Document as forward-only
+- [x] Run migration via Docker, verify with `showmigrations`
 
 ### J2: Serializer + Validation
 
-- [ ] Rewrite `DesignProductConfigSerializer` to accept `products_config` JSON
-- [ ] Per-entry validation: `product_type` exists in catalog (AC-37), `fit_types` ⊆ catalog.fit_types_options, `colors` ⊆ catalog.colors_options, `marketplaces[*].marketplace` ⊆ catalog.marketplaces, `marketplaces[*].price` ≥ 0
-- [ ] Targeted op support on PATCH: body `{marketplace_type, op: 'upsert_product', product_type, patch: {...}}` for single-product mutations (AC-40)
-- [ ] Full replace: body `{marketplace_type, products_config: [...]}` overwrites entire list
-- [ ] Reject body missing `marketplace_type` with 400
+> Completed 2026-04-23 (MVP-safe shape/type validation per Q1=A). Catalog-referential checks (`product_type` key, per-product `fit_types`/`colors`/`marketplaces` subsets) land in Phase L once `MBA_PRODUCT_CATALOG` exists. `_seed_product_config_from_default` temp-stubbed to return `None` until K3 (Q2=A).
+
+- [x] Rewrite `DesignProductConfigSerializer` to accept `products_config` JSON
+- [x] Per-entry MVP-safe validation: shape (dict with known keys), types (`enabled` bool, `fit_types`/`colors` str lists, `print_side` ∈ {front,back,both}), `colors` ⊆ `MBA_COLORS` when marketplace_type=mba, `marketplaces[*].price` ≥ 0, `marketplaces[*].enabled` bool
+- [ ] Full catalog-referential validation (Phase L): `product_type` exists in catalog (AC-37), `fit_types` ⊆ catalog.fit_types_options, `colors` ⊆ catalog.colors_options, `marketplaces[*].marketplace` ⊆ catalog.marketplaces
+- [x] Targeted op support on PATCH: body `{marketplace_type, op: 'upsert_product', product_type, patch: {...}}` for single-product mutations (AC-40)
+- [x] Full replace: body `{marketplace_type, products_config: [...]}` overwrites entire list
+- [x] Reject body missing `marketplace_type` with 400
+- [x] Reject duplicate `product_type` keys within a full-replace payload
+- [x] `_seed_product_config_from_default` temp-stubbed (Q2=A) — returns `None` until K3
 
 ### J3: Copy-From Endpoint Updates
 
-- [ ] Update `POST /api/designs/{id}/product-config/copy-from/` body to accept optional `product_type` (AC-41)
-- [ ] Scope behaviors:
-  - [ ] `scope=all` → copy entire `products_config`
-  - [ ] `scope=<field>` + `product_type` given → copy that field for the matching entry
-  - [ ] `scope=<field>` + no `product_type` → apply to all entries in target
-- [ ] 404 when source has no matching `products_config` for `marketplace_type`
-- [ ] Workspace isolation check on both source + target
+> Completed 2026-04-23 alongside J2.
+
+- [x] Update `POST /api/designs/{id}/product-config/copy-from/` body to accept optional `product_type` (AC-41)
+- [x] Scope behaviors:
+  - [x] `scope=all` → copy entire `products_config`
+  - [x] `scope=<field>` + `product_type` given → copy that field for the matching entry (scope ∈ `fit_types`/`print_side`/`colors`/`marketplaces`/`enabled`)
+  - [x] `scope=<field>` + no `product_type` → apply to all entries in target
+- [x] 404 when source has no matching `products_config` for `marketplace_type`
+- [x] 404 when scalar scope + product_type but source entry missing
+- [x] Legacy `scope=product_types` rejected with 400 (replaced by scope=all)
+- [x] Workspace isolation check on both source + target
 
 ### J4: Backend Tests
 
-- [ ] Serializer validation: unknown product key → 400
-- [ ] Serializer validation: fit_types contains key not in catalog → 400
-- [ ] Data migration test: legacy row → expanded per-product entries
-- [ ] Targeted op: `upsert_product` for existing product updates only that entry
-- [ ] Targeted op: `upsert_product` for new product appends entry
-- [ ] Copy-from scalar scope + product_type: copies only one field, one product
-- [ ] Copy-from scalar scope + no product_type: applies across all target entries
-- [ ] EC-35: migration lossiness documented + tested
+> Completed 2026-04-23 (Q3=A, test file fully rewritten).
+
+- [x] Serializer validation: duplicate product_type keys → 400
+- [x] Serializer validation: unknown per-entry key → 400
+- [x] Serializer validation: invalid `print_side` → 400
+- [x] Serializer validation: missing required entry keys (full-replace) → 400
+- [x] Serializer validation: missing `marketplace_type` → 400
+- [x] Serializer validation: both `products_config` + `op` in body → 400
+- [x] MBA color palette enforced on `products_config[*].colors`
+- [x] Zero price accepted (Q1=A: price ≥ 0, not > 0)
+- [x] Negative price rejected
+- [x] Targeted op: `upsert_product` for existing product updates only that entry
+- [x] Targeted op: `upsert_product` for new product appends entry
+- [x] Targeted op: `upsert_product` on missing design config creates row
+- [x] Targeted op: invalid patch (unknown MBA color) → 400
+- [x] Copy-from scalar scope + product_type: copies only one field, one product
+- [x] Copy-from scalar scope + no product_type: applies across all target entries
+- [x] Copy-from scalar scope + product_type missing on source → 404
+- [ ] Data migration test: legacy row → expanded per-product entries (deferred; migration verified manually via `showmigrations`)
+- [ ] EC-35: migration lossiness documented + tested (documented in migration file; test deferred)
+- [x] `pytest publish_app` green (259 passed)
 
 ---
 

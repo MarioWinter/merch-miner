@@ -477,6 +477,12 @@ class TestListingConvertValidation:
 # ---------------------------------------------------------------------------
 # F6: Convert auto-apply from default UploadTemplate (AC-57..AC-59, EC-19,
 # EC-20)
+#
+# PROJ-11 Phase J2 (2026-04-23): auto-apply is temporarily disabled via
+# `_seed_product_config_from_default` stub (Q2=A). The helper returns None
+# until Phase K3 aligns UploadTemplate to the `products_config` shape.
+# Every Convert response reports `product_config_seeded=False` until then.
+# Full seeding behavior tests will be reinstated in K3.
 # ---------------------------------------------------------------------------
 
 
@@ -503,10 +509,17 @@ def _make_default_template(workspace, user, **fields):
 
 @pytest.mark.django_db
 class TestListingConvertAutoApply:
-    def test_global_to_mba_seeds_product_config(
+    """Phase J2: seeding disabled. All responses -> product_config_seeded=False.
+
+    Tests here ensure the flag is present and always False, and that Convert
+    itself still succeeds regardless of default template / existing config
+    state. Field-level seeding will be re-tested in K3.
+    """
+
+    def test_global_to_mba_with_default_template_does_not_seed(
         self, api_client, workspace, user, idea, design, membership,
     ):
-        default_tpl = _make_default_template(workspace, user)
+        _make_default_template(workspace, user)
         source = _make_listing(
             workspace, idea, design, Listing.MarketplaceType.GLOBAL,
         )
@@ -525,35 +538,38 @@ class TestListingConvertAutoApply:
             **ws_headers(workspace),
         )
         assert resp.status_code == 201, resp.data
-        # AC-57: product_config_seeded=True
-        assert resp.data['product_config_seeded'] is True
-
-        # AC-57 field-by-field assertion: seeded config mirrors default.
-        cfg = DesignProductConfig.objects.get(
+        # J2/Q2=A: seeding temporarily stubbed to None.
+        assert resp.data['product_config_seeded'] is False
+        # No DesignProductConfig row was created.
+        assert not DesignProductConfig.objects.filter(
             design=design, marketplace_type='mba',
-        )
-        assert cfg.colors == default_tpl.colors
-        assert cfg.fit_types == default_tpl.fit_types
-        assert cfg.print_side == default_tpl.print_side
-        assert cfg.product_types == default_tpl.product_types
-        assert cfg.marketplaces == default_tpl.marketplaces
+        ).exists()
 
     def test_convert_with_existing_product_config_skips(
         self, api_client, workspace, user, idea, design, membership,
     ):
-        # EC-19: existing config is NEVER overwritten by auto-apply.
+        # EC-19: existing config is NEVER overwritten. J2: stub returns None
+        # even when config exists; existing row stays untouched regardless.
         _make_default_template(workspace, user)
         existing = DesignProductConfig.objects.create(
             design=design,
             marketplace_type='mba',
-            colors=['navy'],
-            fit_types=['youth'],
-            product_types=['long_sleeve'],
-            marketplaces=[
-                {'marketplace': 'amazon.co.uk', 'price': '21.00',
-                 'enabled': True},
+            products_config=[
+                {
+                    'product_type': 'long_sleeve',
+                    'enabled': True,
+                    'fit_types': ['youth'],
+                    'print_side': 'back',
+                    'colors': ['navy'],
+                    'marketplaces': [
+                        {
+                            'marketplace': 'amazon.co.uk',
+                            'price': 21.00,
+                            'enabled': True,
+                        },
+                    ],
+                },
             ],
-            print_side=DesignProductConfig.PrintSide.BACK,
         )
         source = _make_listing(
             workspace, idea, design, Listing.MarketplaceType.GLOBAL,
@@ -570,17 +586,16 @@ class TestListingConvertAutoApply:
         assert resp.status_code == 201
         assert resp.data['product_config_seeded'] is False
         existing.refresh_from_db()
-        # Existing config fields unchanged.
-        assert existing.colors == ['navy']
-        assert existing.fit_types == ['youth']
-        assert existing.product_types == ['long_sleeve']
-        assert existing.print_side == DesignProductConfig.PrintSide.BACK
+        # Existing products_config entry unchanged.
+        assert len(existing.products_config) == 1
+        assert existing.products_config[0]['product_type'] == 'long_sleeve'
+        assert existing.products_config[0]['colors'] == ['navy']
 
     def test_convert_without_default_succeeds_but_skips_seed(
         self, api_client, workspace, user, idea, design, membership,
     ):
-        # EC-20: no default template for marketplace -> Convert succeeds,
-        # product_config_seeded=False, no DesignProductConfig created.
+        # EC-20: no default template for marketplace -> Convert still
+        # succeeds, no DesignProductConfig created.
         source = _make_listing(
             workspace, idea, design, Listing.MarketplaceType.GLOBAL,
         )
@@ -623,48 +638,12 @@ class TestListingConvertAutoApply:
             marketplace_type='mba',
         ).exists()
 
-    def test_edit_default_template_after_seed_does_not_change_config(
-        self, api_client, workspace, user, idea, design, membership,
-    ):
-        # AC-58: auto-apply is read-only against UploadTemplate; later
-        # edits to the template must NOT propagate to the seeded config.
-        default_tpl = _make_default_template(workspace, user)
-        source = _make_listing(
-            workspace, idea, design, Listing.MarketplaceType.GLOBAL,
-        )
-        resp = api_client.post(
-            '/api/listings/convert/',
-            {
-                'source_listing_id': str(source.id),
-                'target_marketplace_type': 'mba',
-            },
-            format='json',
-            **ws_headers(workspace),
-        )
-        assert resp.status_code == 201
-        assert resp.data['product_config_seeded'] is True
-        cfg = DesignProductConfig.objects.get(
-            design=design, marketplace_type='mba',
-        )
-        original_colors = list(cfg.colors)
-
-        # Mutate the template AFTER the seed.
-        default_tpl.colors = ['red', 'green', 'blue']
-        default_tpl.fit_types = ['youth']
-        default_tpl.save(update_fields=['colors', 'fit_types', 'updated_at'])
-
-        cfg.refresh_from_db()
-        # DesignProductConfig unchanged.
-        assert cfg.colors == original_colors
-        assert cfg.fit_types == ['men', 'women']
-
     def test_deleting_sole_default_leaves_no_replacement(
         self, api_client, workspace, user, idea, design, membership,
     ):
         # EC-17: deleting the only default does NOT auto-promote another
-        # template. A subsequent Convert reports product_config_seeded=False.
+        # template.
         default_tpl = _make_default_template(workspace, user)
-        # A second non-default template exists in the same set.
         _make_default_template(
             workspace, user, name='Other', is_default=False,
         )
@@ -689,25 +668,19 @@ class TestListingConvertAutoApply:
         assert resp.status_code == 201
         assert resp.data['product_config_seeded'] is False
 
-    def test_overwrite_path_also_seeds_config(
+    def test_overwrite_path_also_reports_seeded_flag(
         self, api_client, workspace, user, idea, design, membership,
     ):
-        # Overwrite path triggers auto-apply when target design has no
-        # existing ProductConfig for the marketplace.
+        # Overwrite path must still emit product_config_seeded=False in J2.
         _make_default_template(workspace, user)
         source = _make_listing(
             workspace, idea, design, Listing.MarketplaceType.GLOBAL,
             brand_name='Fresh Brand', title='Fresh', description='Fresh Desc',
         )
-        # Pre-existing target Listing (no ProductConfig yet).
         _make_listing(
             workspace, idea, design, Listing.MarketplaceType.MBA,
             title='Stale',
         )
-        assert not DesignProductConfig.objects.filter(
-            design=design, marketplace_type='mba',
-        ).exists()
-
         resp = api_client.post(
             '/api/listings/convert/',
             {
@@ -719,15 +692,12 @@ class TestListingConvertAutoApply:
             **ws_headers(workspace),
         )
         assert resp.status_code == 200, resp.data
-        assert resp.data['product_config_seeded'] is True
-        assert DesignProductConfig.objects.filter(
-            design=design, marketplace_type='mba',
-        ).exists()
+        assert resp.data['product_config_seeded'] is False
 
     def test_product_config_seeded_flag_always_present(
         self, api_client, workspace, user, idea, design, membership,
     ):
-        # No default set -> create path must still include the flag.
+        # Contract: flag is always in the response body.
         source = _make_listing(
             workspace, idea, design, Listing.MarketplaceType.GLOBAL,
         )
