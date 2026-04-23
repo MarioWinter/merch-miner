@@ -742,12 +742,14 @@
 
 ### L4: Backend Tests
 
-- [ ] Endpoint returns 17 entries
-- [ ] Cache-Control header present
-- [ ] Auth required (401 when unauthenticated)
-- [ ] Shape assertion: every entry has required keys
-- [ ] Helper: unknown product key → raises / returns None per contract
-- [ ] Contract test: every `icon_key` matches the frontend `PRODUCT_ICON_MAP` keys list (maintained as JSON fixture)
+> Completed 2026-04-23. `publish_app/tests/test_mba_product_catalog.py` (9 tests, all green). Fixture for N1 contract: `publish_app/tests/fixtures/product_icon_map_keys.json`.
+
+- [x] Endpoint returns 17 entries
+- [x] Cache-Control header present
+- [x] Auth required (401 when unauthenticated)
+- [x] Shape assertion: every entry has required keys
+- [x] Helper: unknown product key → raises / returns None per contract
+- [x] Contract test: every `icon_key` matches the frontend `PRODUCT_ICON_MAP` keys list (maintained as JSON fixture)
 
 ---
 

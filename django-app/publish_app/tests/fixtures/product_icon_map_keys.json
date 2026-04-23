@@ -1,0 +1,22 @@
+{
+  "_comment": "Contract fixture for PROJ-11 L4 <-> N1. Lists every key expected in frontend-ui/src/components/ProductIcons/index.ts#PRODUCT_ICON_MAP. Keep this file in sync with MBA_PRODUCT_CATALOG[*].icon_key AND the frontend map. If a product is added/removed, update catalog + this fixture + frontend map in the same PR.",
+  "keys": [
+    "t_shirt",
+    "t_shirt_premium",
+    "t_shirt_heavyweight",
+    "v_neck",
+    "tank_top",
+    "long_sleeve",
+    "raglan",
+    "sweatshirt",
+    "hoodie_pullover",
+    "hoodie_zip",
+    "performance",
+    "baseball",
+    "trucker_hat",
+    "popsocket",
+    "phone_case",
+    "throw_pillow",
+    "tote_bag"
+  ]
+}
