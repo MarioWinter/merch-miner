@@ -256,10 +256,12 @@ class ListingUpdateView(APIView):
         serializer = ListingUpdateSerializer(listing, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
 
-        # Revert to draft on content edit (unless only status is being set)
+        # EC-42: Revert to draft on visible content edit (Brand / Title /
+        # Bullets / Description). `keyword_context` is explicitly excluded
+        # because it's AI-input guidance, not user-facing listing copy --
+        # editing it must not knock a Ready/Published listing back to draft.
         content_fields = {
-            'brand_name', 'title', 'bullet_1', 'bullet_2', 'bullet_3',
-            'bullet_4', 'bullet_5', 'description', 'backend_keywords',
+            'brand_name', 'title', 'bullet_1', 'bullet_2', 'description',
         }
         if content_fields.intersection(serializer.validated_data.keys()):
             if 'status' not in serializer.validated_data:
@@ -357,11 +359,7 @@ class ListingExportView(APIView):
             f"Title: {listing.title}\n"
             f"Bullet 1: {listing.bullet_1}\n"
             f"Bullet 2: {listing.bullet_2}\n"
-            f"Bullet 3: {listing.bullet_3}\n"
-            f"Bullet 4: {listing.bullet_4}\n"
-            f"Bullet 5: {listing.bullet_5}\n"
             f"Description: {listing.description}\n"
-            f"Backend Keywords: {listing.backend_keywords}\n"
         )
 
         return Response({'text': text, 'listing_id': str(listing.id)})
@@ -382,10 +380,10 @@ def _map_listing_fields(source, target_marketplace_type):
 
     Global and MBA both use the same underlying ``Listing`` schema, so the
     mapping difference is mainly in which fields are preserved vs cleared:
-    - On MBA -> Global: keep brand_name/title/description, drop the 5
-      bullets + backend_keywords (not part of Global's simpler shape).
+    - On MBA -> Global: keep brand_name/title/description, drop bullets +
+      keyword_context (not part of Global's simpler shape).
     - On Global -> MBA: keep brand_name/title, promote description to
-      bullet_1 when bullet_1 is empty, leave other bullets + backend_keywords
+      bullet_1 when bullet_1 is empty, leave bullet_2 + keyword_context
       blank for the user to fill in.
     - For any other direction (e.g. to Displate), do a straight field copy
       so nothing is silently lost.
@@ -401,10 +399,7 @@ def _map_listing_fields(source, target_marketplace_type):
         'translations': dict(source.translations or {}),
         'bullet_1': source.bullet_1,
         'bullet_2': source.bullet_2,
-        'bullet_3': source.bullet_3,
-        'bullet_4': source.bullet_4,
-        'bullet_5': source.bullet_5,
-        'backend_keywords': source.backend_keywords,
+        'keyword_context': source.keyword_context,
     }
 
     if (
@@ -412,28 +407,22 @@ def _map_listing_fields(source, target_marketplace_type):
         and target_marketplace_type == MarketplaceType.MBA
     ):
         # Global -> MBA: promote description into bullet_1 if bullet_1 empty.
-        # Drop bullets 2-5 and backend_keywords so the MBA variant starts
-        # with only the fields that cleanly map from Global.
+        # Drop bullet_2 and keyword_context so the MBA variant starts with
+        # only the fields that cleanly map from Global.
         if not payload['bullet_1'] and payload['description']:
             payload['bullet_1'] = payload['description'][:256]
         payload['bullet_2'] = ''
-        payload['bullet_3'] = ''
-        payload['bullet_4'] = ''
-        payload['bullet_5'] = ''
-        payload['backend_keywords'] = ''
+        payload['keyword_context'] = ''
 
     elif (
         source_mt == MarketplaceType.MBA
         and target_marketplace_type == MarketplaceType.GLOBAL
     ):
-        # MBA -> Global: keep brand/title/description. Drop the 5 bullets +
-        # backend_keywords (not part of Global's simpler shape).
+        # MBA -> Global: keep brand/title/description. Drop bullets +
+        # keyword_context (not part of Global's simpler shape).
         payload['bullet_1'] = ''
         payload['bullet_2'] = ''
-        payload['bullet_3'] = ''
-        payload['bullet_4'] = ''
-        payload['bullet_5'] = ''
-        payload['backend_keywords'] = ''
+        payload['keyword_context'] = ''
 
     # Any other source/target combination -> straight copy of `payload`
     # (e.g. conversions involving Displate are placeholders for now).
@@ -729,11 +718,8 @@ class ListingTemplateListCreateView(APIView):
             title=data.get('title', ''),
             bullet_1=data.get('bullet_1', ''),
             bullet_2=data.get('bullet_2', ''),
-            bullet_3=data.get('bullet_3', ''),
-            bullet_4=data.get('bullet_4', ''),
-            bullet_5=data.get('bullet_5', ''),
             description=data.get('description', ''),
-            backend_keywords=data.get('backend_keywords', ''),
+            keyword_context=data.get('keyword_context', ''),
             language=data.get('language', 'en'),
             generated_by=Listing.GeneratedBy.MANUAL,
             status=Listing.Status.DRAFT,
@@ -1300,9 +1286,9 @@ class DesignGalleryBulkActionView(APIView):
             for asset in assets:
                 if asset.listing_id:
                     target = Listing.objects.get(pk=asset.listing_id)
-                    for field in ['brand_name', 'title', 'bullet_1', 'bullet_2',
-                                  'bullet_3', 'bullet_4', 'bullet_5',
-                                  'description', 'backend_keywords']:
+                    for field in ['brand_name', 'title', 'bullet_1',
+                                  'bullet_2', 'description',
+                                  'keyword_context']:
                         setattr(target, field, getattr(source_listing, field))
                     target.status = Listing.Status.DRAFT
                     target.save()
@@ -1386,11 +1372,8 @@ class UploadJobCreateView(APIView):
             'title': listing.title,
             'bullet_1': listing.bullet_1,
             'bullet_2': listing.bullet_2,
-            'bullet_3': listing.bullet_3,
-            'bullet_4': listing.bullet_4,
-            'bullet_5': listing.bullet_5,
             'description': listing.description,
-            'backend_keywords': listing.backend_keywords,
+            'keyword_context': listing.keyword_context,
         }
 
         job = UploadJob.objects.create(
@@ -1455,11 +1438,8 @@ class UploadJobBatchCreateView(APIView):
                 'title': listing.title,
                 'bullet_1': listing.bullet_1,
                 'bullet_2': listing.bullet_2,
-                'bullet_3': listing.bullet_3,
-                'bullet_4': listing.bullet_4,
-                'bullet_5': listing.bullet_5,
                 'description': listing.description,
-                'backend_keywords': listing.backend_keywords,
+                'keyword_context': listing.keyword_context,
             }
 
             job = UploadJob(

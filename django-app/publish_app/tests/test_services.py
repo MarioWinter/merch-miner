@@ -54,7 +54,7 @@ def listing(workspace, idea):
         workspace=workspace, idea=idea,
         brand_name='CatCo', title='Cat Lovers Unite',
         bullet_1='Premium cotton', description='For cat enthusiasts',
-        backend_keywords='cat, lover, tshirt',
+        keyword_context='cat, lover, tshirt',
     )
 
 
@@ -144,11 +144,8 @@ class TestListingGenerator:
             "title": "Funny Cat T-Shirt",
             "bullet_1": "Soft cotton",
             "bullet_2": "Great gift",
-            "bullet_3": "Lightweight",
-            "bullet_4": "Machine washable",
-            "bullet_5": "Fun design",
             "description": "A fun cat tee",
-            "backend_keywords": "cat, funny, tshirt"
+            "keyword_context": "cat, funny, tshirt"
         }'''
         mock_llm = MagicMock()
         mock_llm.invoke.return_value = mock_response
@@ -165,7 +162,7 @@ class TestListingGenerator:
 
         mock_response = MagicMock()
         long_title = 'A' * 100
-        mock_response.content = f'{{"brand_name": "B", "title": "{long_title}", "bullet_1": "", "bullet_2": "", "bullet_3": "", "bullet_4": "", "bullet_5": "", "description": "", "backend_keywords": ""}}'
+        mock_response.content = f'{{"brand_name": "B", "title": "{long_title}", "bullet_1": "", "bullet_2": "", "description": "", "keyword_context": ""}}'
         mock_llm = MagicMock()
         mock_llm.invoke.return_value = mock_response
         mock_llm_cls.return_value = mock_llm
@@ -184,11 +181,7 @@ class TestTranslator:
             "title": "Katzenliebhaber vereint euch",
             "bullet_1": "Premium Baumwolle",
             "bullet_2": "",
-            "bullet_3": "",
-            "bullet_4": "",
-            "bullet_5": "",
             "description": "Fuer Katzen-Fans",
-            "backend_keywords": "katze, liebhaber",
             "over_limit_fields": []
         }'''
         mock_llm = MagicMock()

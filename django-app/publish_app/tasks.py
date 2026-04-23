@@ -30,11 +30,8 @@ def task_generate_listing(
         listing.title = result.get('title', '')
         listing.bullet_1 = result.get('bullet_1', '')
         listing.bullet_2 = result.get('bullet_2', '')
-        listing.bullet_3 = result.get('bullet_3', '')
-        listing.bullet_4 = result.get('bullet_4', '')
-        listing.bullet_5 = result.get('bullet_5', '')
         listing.description = result.get('description', '')
-        listing.backend_keywords = result.get('backend_keywords', '')
+        listing.keyword_context = result.get('keyword_context', '')
         listing.status = Listing.Status.DRAFT
         listing.save()
 

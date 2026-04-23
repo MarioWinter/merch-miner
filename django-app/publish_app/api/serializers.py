@@ -32,8 +32,8 @@ class ListingSerializer(serializers.ModelSerializer):
             'id', 'workspace', 'idea', 'idea_slogan', 'design',
             'design_file_name', 'marketplace_type', 'round',
             'brand_name', 'title',
-            'bullet_1', 'bullet_2', 'bullet_3', 'bullet_4', 'bullet_5',
-            'description', 'backend_keywords', 'status', 'generated_by',
+            'bullet_1', 'bullet_2',
+            'description', 'keyword_context', 'status', 'generated_by',
             'availability', 'publish_mode', 'language', 'translations',
             'is_template', 'created_at', 'updated_at',
         ]
@@ -84,11 +84,20 @@ class ListingUpdateSerializer(serializers.ModelSerializer):
     # of silently ignoring it (which would happen if we just left it off).
     is_template = serializers.BooleanField(required=False)
 
+    # EC-42: keyword_context is AI-input only, not user-facing listing copy.
+    # Explicit field decl keeps max_length=500 + allow_blank=True, and lets
+    # us document the non-status-reverting behavior in one place.
+    keyword_context = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=500,
+    )
+
     class Meta:
         model = Listing
         fields = [
-            'brand_name', 'title', 'bullet_1', 'bullet_2', 'bullet_3',
-            'bullet_4', 'bullet_5', 'description', 'backend_keywords',
+            'brand_name', 'title', 'bullet_1', 'bullet_2',
+            'description', 'keyword_context',
             'status', 'availability', 'publish_mode', 'design',
             'marketplace_type', 'is_template',
         ]
@@ -117,8 +126,8 @@ class ListingUpdateSerializer(serializers.ModelSerializer):
 class ListingTemplateCreateSerializer(serializers.ModelSerializer):
     """Create a standalone Listing Template (is_template=True, design=None).
 
-    AC-48: body accepts ``brand_name, title, bullet_1..5, description,
-    backend_keywords, language, marketplace_type, idea``. ``idea`` is
+    AC-48: body accepts ``brand_name, title, bullet_1, bullet_2, description,
+    keyword_context, language, marketplace_type, idea``. ``idea`` is
     required for workspace scoping. ``is_template`` and ``design`` are
     forced server-side regardless of request body.
 
@@ -137,12 +146,13 @@ class ListingTemplateCreateSerializer(serializers.ModelSerializer):
         model = Listing
         fields = [
             'idea', 'marketplace_type', 'brand_name', 'title',
-            'bullet_1', 'bullet_2', 'bullet_3', 'bullet_4', 'bullet_5',
-            'description', 'backend_keywords', 'language', 'design',
+            'bullet_1', 'bullet_2',
+            'description', 'keyword_context', 'language', 'design',
         ]
         extra_kwargs = {
             'idea': {'required': True},
             'marketplace_type': {'required': False},
+            'keyword_context': {'required': False, 'allow_blank': True},
         }
 
     def validate(self, attrs):

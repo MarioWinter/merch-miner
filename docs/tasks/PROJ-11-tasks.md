@@ -461,7 +461,7 @@
 
 ---
 
-## Phase H: Per-Card Quick Actions (added 2026-04-19)
+## Phase H: Frontend + Backend — Per-Card Quick Actions (added 2026-04-19)
 
 > Spec: US 36–38, AC-60 to AC-63, EC-23 to EC-26. Unblocks single-card edit path + tag editing. Existing MoreVert and "Add Tags" link are rendered but inert.
 
@@ -557,3 +557,422 @@
 
 - [x] Update `docs/tasks/PROJ-11-tasks.md` totals note — now `864/864` frontend, `241/241` backend
 - [x] Append H5-H7 tests to QA Report in spec
+
+---
+
+## Phase I: Backend — Listing Model Shrink + Rename (added 2026-04-23)
+
+> Scope: AC-1 rewrite. Drop `bullet_3`, `bullet_4`, `bullet_5`; rename `backend_keywords` → `keyword_context`; rewrite `translations` JSON shape. Delete removed endpoints (`/listing/generate/`, `/tm-check/`).
+
+### I1: Listing Model + Migration
+
+- [x] Remove fields `bullet_3`, `bullet_4`, `bullet_5` from `Listing` model
+- [x] Rename `backend_keywords` → `keyword_context` (Django RenameField, data preserved)
+- [x] Update `translations` JSONField comment + validator to new shape `{lang: {title, bullet_1, bullet_2, description}}`
+- [x] Django migration: generate with `makemigrations` — run via Docker (0007_listing_shrink_and_rename)
+- [x] Data migration for `translations`: for each Listing row with legacy `{bullets: [...]}` shape, map first two entries to `bullet_1` + `bullet_2` keys; drop the `bullets` array (0008_listing_translations_shape)
+- [x] Verify migration reversibility (for rollback safety) — `RunPython` with backward no-op (forward-only documented)
+- [x] Update `ListingSerializer` fields list (drop bullets 3-5, rename key)
+- [x] Update `ListingSerializer` validation: `keyword_context` `max_length=500`, not required, allows blank
+- [x] `keyword_context` updates do NOT revert `status` to `draft` (EC-42) — `ListingUpdateView.patch` content_fields set excludes keyword_context
+
+### I2: Remove `/listing/generate/` Endpoint
+
+- [ ] Delete view class `ListingGenerateView` (or function view) in `publish_app/api/views.py`
+- [ ] Remove URL route for `/api/ideas/{id}/listing/generate/`
+- [ ] Delete service module `publish_app/services/listing_generator.py`
+- [ ] Delete associated tests in `publish_app/tests/test_listing_generator.py`
+- [ ] Remove any references in admin / docstrings / comments
+
+### I3: Remove `/tm-check/` Endpoint
+
+- [ ] Delete view class `ListingTMCheckView` in `publish_app/api/views.py`
+- [ ] Remove URL route for `/api/listings/{id}/tm-check/`
+- [ ] Delete service module `publish_app/services/tm_checker.py`
+- [ ] Delete trademark fixture / seed data if any (`publish_app/fixtures/tm_terms.json` etc.)
+- [ ] Delete associated tests
+
+### I4: Backend Tests
+
+- [ ] Update `test_listing_serializer.py` — remove bullets 3-5 assertions, rename keyword field
+- [ ] New test: `keyword_context` PATCH does not revert status
+- [ ] New test: legacy `translations.bullets` array migrates to `bullet_1` + `bullet_2` (truncates over 2)
+- [ ] Delete tests for removed generate + tm-check endpoints
+- [ ] `pytest publish_app` — all green
+
+---
+
+## Phase J: Backend — DesignProductConfig Restructure (added 2026-04-23)
+
+> Scope: AC-38 rewrite. Collapse flat fields (`product_types`, `fit_types`, `print_side`, `colors`, `marketplaces`) into per-product JSON `products_config`.
+
+### J1: Model + Migration
+
+- [ ] Add `products_config` JSONField (default=list) to `DesignProductConfig`
+- [ ] Data migration: for each existing row, for each `product_type` in legacy `product_types[]`, emit one `products_config` entry copying shared `fit_types`, `print_side`, `colors`, `marketplaces` into that entry
+- [ ] Data migration: drop rows where legacy `product_types=[]` (nothing to migrate) OR emit empty `products_config=[]`
+- [ ] Remove legacy columns `product_types`, `fit_types`, `print_side`, `colors`, `marketplaces`
+- [ ] Verify unique constraint `(design, marketplace_type)` still enforced
+- [ ] Migration reversibility note: flat shape cannot be perfectly restored (per-product divergence lost). Document as forward-only
+- [ ] Run migration via Docker, verify with `showmigrations`
+
+### J2: Serializer + Validation
+
+- [ ] Rewrite `DesignProductConfigSerializer` to accept `products_config` JSON
+- [ ] Per-entry validation: `product_type` exists in catalog (AC-37), `fit_types` ⊆ catalog.fit_types_options, `colors` ⊆ catalog.colors_options, `marketplaces[*].marketplace` ⊆ catalog.marketplaces, `marketplaces[*].price` ≥ 0
+- [ ] Targeted op support on PATCH: body `{marketplace_type, op: 'upsert_product', product_type, patch: {...}}` for single-product mutations (AC-40)
+- [ ] Full replace: body `{marketplace_type, products_config: [...]}` overwrites entire list
+- [ ] Reject body missing `marketplace_type` with 400
+
+### J3: Copy-From Endpoint Updates
+
+- [ ] Update `POST /api/designs/{id}/product-config/copy-from/` body to accept optional `product_type` (AC-41)
+- [ ] Scope behaviors:
+  - [ ] `scope=all` → copy entire `products_config`
+  - [ ] `scope=<field>` + `product_type` given → copy that field for the matching entry
+  - [ ] `scope=<field>` + no `product_type` → apply to all entries in target
+- [ ] 404 when source has no matching `products_config` for `marketplace_type`
+- [ ] Workspace isolation check on both source + target
+
+### J4: Backend Tests
+
+- [ ] Serializer validation: unknown product key → 400
+- [ ] Serializer validation: fit_types contains key not in catalog → 400
+- [ ] Data migration test: legacy row → expanded per-product entries
+- [ ] Targeted op: `upsert_product` for existing product updates only that entry
+- [ ] Targeted op: `upsert_product` for new product appends entry
+- [ ] Copy-from scalar scope + product_type: copies only one field, one product
+- [ ] Copy-from scalar scope + no product_type: applies across all target entries
+- [ ] EC-35: migration lossiness documented + tested
+
+---
+
+## Phase K: Backend — UploadTemplate Shape Alignment (added 2026-04-23)
+
+> Scope: Option A — UploadTemplate mitmigriert auf `products_config` (same shape as DesignProductConfig). Convert-Auto-Apply (AC-57) seeds directly without fan-out.
+
+### K1: Model + Migration
+
+- [ ] Add `products_config` JSONField (default=list) to `UploadTemplate`
+- [ ] Data migration: collapse legacy `product_types` + shared `fit_types` / `print_side` / `colors` / `marketplaces` into per-product entries
+- [ ] Remove legacy columns `product_types`, `fit_types`, `print_side`, `colors`, `marketplaces` from `UploadTemplate`
+- [ ] Preserve: `name`, `brand_name`, `is_default`, `marketplace_type`, partial unique constraint
+- [ ] Run migration via Docker
+
+### K2: Serializer + Validation
+
+- [ ] Rewrite `UploadTemplateSerializer` to accept `products_config` (same schema as DesignProductConfig)
+- [ ] Same catalog-referential validation as J2
+
+### K3: Convert Auto-Apply Update
+
+- [ ] Rewrite seeding helper in `ListingConvertView`: read `default_template.products_config` → assign directly to new `DesignProductConfig.products_config` (no fan-out needed — shapes match)
+- [ ] `product_config_seeded` response flag behavior unchanged (AC-57)
+
+### K4: Backend Tests
+
+- [ ] Update UploadTemplate CRUD tests to new shape
+- [ ] Convert + default template: target gets seeded with `products_config` copied verbatim
+- [ ] Template without default still seeds nothing (AC-57 unchanged)
+
+---
+
+## Phase L: Backend — MBA Product Catalog (added 2026-04-23)
+
+> Scope: AC-37 (rewritten). Python constant + read-only endpoint. 17 product entries.
+
+### L1: Catalog Data Module
+
+- [ ] Create `publish_app/catalogs/__init__.py` (new subpackage)
+- [ ] Create `publish_app/catalogs/mba_catalog.py` exporting `MBA_PRODUCT_CATALOG: tuple[dict, ...]`
+- [ ] Populate 17 product entries with: `key`, `label` (English base), `icon_key`, `supports`, `fit_types_options`, `print_side_options`, `colors_options` (key/name/hex), `marketplaces`, `default_prices`, `royalty_formula` (coef/base per marketplace)
+- [ ] Verify all `icon_key` values match `PRODUCT_ICON_MAP` keys in frontend (cross-check after N1)
+- [ ] Use Amazon's published royalty formulas for `coef` + `base` (document source URL in module docstring)
+- [ ] Include i18n hook: `label` is a translation key OR translated via `Accept-Language` in view (decide — simplest: ship EN labels only for MVP, i18n client-side via `PRODUCT_LABEL_I18N` on frontend)
+
+### L2: Endpoint View
+
+- [ ] Create `MbaProductCatalogView` (DRF APIView, GET-only, `permission_classes=[IsAuthenticated]`)
+- [ ] Flatten `MBA_PRODUCT_CATALOG` to JSON response (serializer optional — dict can be returned directly)
+- [ ] Add `Cache-Control: public, max-age=86400` response header (24h)
+- [ ] URL route: `GET /api/mba/product-catalog/`
+- [ ] Register in `publish_app/api/urls.py`
+- [ ] Remove legacy `/api/mba/colors/` view + route (superseded — or keep as deprecated alias for 1 release returning just the colors slice)
+
+### L3: Validation Helper
+
+- [ ] Create helper module `publish_app/catalogs/validators.py` exporting `get_product(key)`, `valid_color_keys(product_key)`, `valid_fit_types(product_key)`, `valid_marketplaces(product_key)`
+- [ ] Used by `DesignProductConfigSerializer` + `UploadTemplateSerializer` for AC-38 validation
+
+### L4: Backend Tests
+
+- [ ] Endpoint returns 17 entries
+- [ ] Cache-Control header present
+- [ ] Auth required (401 when unauthenticated)
+- [ ] Shape assertion: every entry has required keys
+- [ ] Helper: unknown product key → raises / returns None per contract
+- [ ] Contract test: every `icon_key` matches the frontend `PRODUCT_ICON_MAP` keys list (maintained as JSON fixture)
+
+---
+
+## Phase M: Backend — AI-Improve Service + Endpoint (added 2026-04-23)
+
+> Scope: AC-69 to AC-72. Replaces removed AC-6 generate endpoint. Unified "generate or improve" via one LLM call.
+
+### M1: Service Module
+
+- [ ] Create `publish_app/services/ai_improve.py` with 4 pure functions:
+  - [ ] `build_prompt(listing, design, keyword_context, language) -> list[dict]` — system + user messages incl. vision image URL + existing text
+  - [ ] `call_llm(messages) -> dict` — invokes OpenRouter via existing client, uses `AI_IMPROVE_MODEL` env, JSON mode where supported, timeout `AI_IMPROVE_TIMEOUT_SECONDS`
+  - [ ] `validate_and_truncate(response_dict) -> (fields_dict, truncated_keys: list)` — parse 5 expected fields, truncate to serializer max_length
+  - [ ] `apply_to_listing(listing, fields) -> Listing` — uses ListingSerializer for validation, sets `generated_by='ai'`, reverts `status='draft'`
+- [ ] Handle LLM JSON parsing failures → raise `AIImproveError("LLM returned non-JSON response")`
+- [ ] Log LLM request + response to Langfuse (existing observability pattern from PROJ-6)
+- [ ] Respect `listing.language` for prompt localization
+
+### M2: View + URL
+
+- [ ] Create `ListingAIImproveView` (DRF APIView, POST, `permission_classes=[IsAuthenticated]`, `throttle_classes=[AIImproveThrottle]`)
+- [ ] Workspace isolation: load Listing via `idea.niche.workspace` filter; 404 on mismatch
+- [ ] Guard: if `listing.design is None` → return 400 `{error: "AI Improve requires a linked design asset"}` (EC-31)
+- [ ] Response 200 shape: `{listing: {...}, truncated_fields: []}`
+- [ ] Response 502 on LLM failure (EC-33) — listing unchanged
+- [ ] URL route: `POST /api/listings/{id}/ai-improve/`
+
+### M3: Rate Limiting
+
+- [ ] Create `publish_app/api/throttles.py` with class `AIImproveThrottle(UserRateThrottle)` — `rate = '10/min'`, `scope = 'ai_improve'`
+- [ ] Add `DEFAULT_THROTTLE_RATES['ai_improve'] = '10/min'` in settings.py
+
+### M4: Env Vars
+
+- [ ] Add `AI_IMPROVE_MODEL=anthropic/claude-3.5-sonnet` to `django-app/.env.template` + `django-app/.env`
+- [ ] Add `AI_IMPROVE_TIMEOUT_SECONDS=60` to same files
+- [ ] Document both in `## Environment Variables Required` section of spec
+
+### M5: Backend Tests
+
+- [ ] `build_prompt` includes design image URL + keyword_context + existing text
+- [ ] `validate_and_truncate` caps Title at 60, Bullets at 256, Description at 2000 → truncated keys returned
+- [ ] `validate_and_truncate` returns empty truncated list when all fields within limit
+- [ ] Endpoint returns 400 when design is null
+- [ ] Endpoint returns 200 with updated listing when happy path
+- [ ] Endpoint returns 429 after 10 calls/min (throttle test with frozen clock)
+- [ ] Endpoint returns 502 when LLM raises; listing unchanged in DB
+- [ ] Workspace isolation: 404 on cross-workspace listing
+- [ ] Mock `call_llm` — never hit OpenRouter in tests
+
+---
+
+## Phase N: Frontend — Product SVG Icons (added 2026-04-23)
+
+> Scope: AC-78 to AC-80. 17 custom React SVG components replacing the generic hanger icon.
+
+### N1: Icon Components
+
+- [ ] Create `frontend-ui/src/components/ProductIcons/` directory
+- [ ] One file per product (17 total): `TShirtIcon.tsx`, `TShirtPremiumIcon.tsx`, `TShirtHeavyweightIcon.tsx`, `VNeckIcon.tsx`, `TankTopIcon.tsx`, `LongSleeveIcon.tsx`, `RaglanIcon.tsx`, `SweatshirtIcon.tsx`, `HoodiePulloverIcon.tsx`, `HoodieZipIcon.tsx`, `PerformanceIcon.tsx`, `BaseballIcon.tsx`, `TruckerHatIcon.tsx`, `PopSocketIcon.tsx`, `PhoneCaseIcon.tsx`, `ThrowPillowIcon.tsx`, `ToteBagIcon.tsx`, `TumblerIcon.tsx`, `MugIcon.tsx`, `WaterBottleIcon.tsx`
+- [ ] Each component: arrow-function, props `{ size?: number; color?: string }`, default size 40, `currentColor` for stroke, `viewBox 0 0 40 40`
+- [ ] Line-based drawings, stroke-width 1.5–2px, matching Iconoir/Tabler style
+- [ ] Product-shaped silhouettes (not hangers) — reference Flying Upload screenshots
+- [ ] Export each as named export from its own file
+
+### N2: Icon Map
+
+- [ ] Create `frontend-ui/src/components/ProductIcons/index.ts` with barrel export
+- [ ] Export `PRODUCT_ICON_MAP: Record<string, FC<IconProps>>` keyed by catalog `icon_key` values
+- [ ] Export `IconProps` TypeScript interface
+- [ ] Keys must match `MBA_PRODUCT_CATALOG[*].icon_key` (L1 contract)
+
+### N3: Frontend Tests
+
+- [ ] One snapshot test per icon component (17 tests)
+- [ ] `PRODUCT_ICON_MAP` exports all 17 keys
+- [ ] Icon inherits theme color via `currentColor`
+- [ ] Contract test: every key in `PRODUCT_ICON_MAP` is also present in the backend catalog fixture
+
+---
+
+## Phase O: Frontend — State + Auto-Save Hybrid (added 2026-04-23)
+
+> Scope: AC-43 rewrite, AC-73 to AC-77. Refactor `useEditView` to 3 setter categories + manual save + offline queue.
+
+### O1: publishSlice RTK Query Endpoints
+
+- [ ] Add `getMbaProductCatalog` query endpoint (cached long TTL, tag `MbaCatalog`)
+- [ ] Add `aiImproveListing` mutation endpoint (POST `/ai-improve/`, invalidates `Listing`)
+- [ ] Remove `generateListing` mutation endpoint
+- [ ] Remove `tmCheckListing` mutation endpoint
+- [ ] Update `patchDesignProductConfig` mutation to accept targeted `op` payload (J2)
+- [ ] Update `copyFromDesignProductConfig` mutation to accept optional `product_type`
+
+### O2: useEditView Hook Refactor
+
+- [ ] Split setters into 3 factories:
+  - [ ] `controlSetters` — immediate PATCH on change (checkbox, radio, switch, color swatch, product toggle)
+  - [ ] `priceSetters` — 400ms debounced PATCH per (product, marketplace)
+  - [ ] `textSetters` — on-blur-if-dirty PATCH (Brand, Title, Bullet 1, Bullet 2, Description, Keyword Context)
+- [ ] Expose `isDirty: bool`, `isSaving: bool`, `saveError: Error | null`
+- [ ] Expose `manualSave()` — flushes blur-pending fields + waits for in-flight PATCHes
+- [ ] Expose `discard()` — confirmable reset to last-saved cache
+- [ ] Expose `focusedProduct: string | null` + `setFocusedProduct(key)`
+- [ ] Expose `royaltyFor(productKey, marketplace, price): number | null` pure function
+- [ ] Expose `aiImprove()` mutation trigger
+
+### O3: UnsavedChangesBanner Component
+
+- [ ] New component `views/publish/partials/editor/UnsavedChangesBanner.tsx`
+- [ ] Sticky top, `position: sticky; top: 0`, slide-in animation
+- [ ] States: Unsaved (amber) / Saving (spinner) / Saved (2s green toast, auto-hide) / Failed (red + Retry) / Offline (orange)
+- [ ] Save button → calls `manualSave()`
+- [ ] Discard button → `ConfirmDialog` "Discard unsaved changes?" → `discard()`
+- [ ] Offline chip shown when `navigator.onLine === false`
+
+### O4: Offline Queue Hook
+
+- [ ] New hook `useOfflineQueue` in `views/publish/hooks/`
+- [ ] Detects `offline` / `online` events
+- [ ] Queues pending PATCHes in a ref (non-persistent, MVP)
+- [ ] On `online`, replays queue in FIFO order via RTK mutation triggers
+- [ ] Exposes `queueLength: number`
+- [ ] Tests: offline → toggle control → queued; online event → flushed in order
+
+### O5: Concurrency Serialization
+
+- [ ] `useEditView` serializes PATCHes per `(listing_id)` and per `(design_id, marketplace_type)` via promise chain
+- [ ] Prevents client-side races (EC-38)
+
+### O6: Frontend Tests
+
+- [ ] Control click → immediate mutation fires
+- [ ] Price input → 4 keystrokes "1999" → 1 mutation 400ms after last keystroke
+- [ ] Text field blur with no change → no mutation
+- [ ] Text field blur with change → PATCH with partial body (only changed key)
+- [ ] manualSave flushes pending blur + shows "Saved ✓"
+- [ ] Discard reverts to last-saved RTK cache
+- [ ] Offline queue: offline → 3 toggles → queue=3 → online → 3 PATCHes fire in order
+
+---
+
+## Phase P: Frontend — Edit-Page Components (added 2026-04-23)
+
+> Scope: AC-38/43 frontend, AC-69 to AC-72 UI, AC-75. Rebuild Edit-page sub-components for per-product scope + AI button + removal of chips/TM.
+
+### P1: ProductTypeScroller Rebuild
+
+- [ ] Read catalog via `getMbaProductCatalog` query
+- [ ] Render 17 cards (via `PRODUCT_ICON_MAP`)
+- [ ] Active state: ring + count badge = number of enabled marketplaces for that product in `products_config`
+- [ ] Focused state: 2px ring when clicked
+- [ ] Click handler: toggle `enabled` in `products_config` + set `focusedProduct`
+- [ ] Tests: render 17 cards, click toggles enabled + focuses, count badge updates
+
+### P2: FitTypePrintSection Rebuild
+
+- [ ] Read `focusedProduct` entry from `products_config`
+- [ ] Render Fit Type checkboxes ONLY when catalog entry for focused product includes `fit_types` in `supports`
+- [ ] Render Print Side radios ONLY when catalog includes `print_side` in `supports`
+- [ ] Options come from catalog (`fit_types_options`, `print_side_options`)
+- [ ] Immediate PATCH via `controlSetters`
+- [ ] Tests: PopSocket → section hidden; T-Shirt → Men/Women/Youth/Girls/Adult Unisex visible
+
+### P3: ColorGrid Rebuild
+
+- [ ] Palette source: focused product's `colors_options` from catalog (not global)
+- [ ] Selected colors = focused product's entry `colors[]`
+- [ ] Click → toggle in `colors[]` → immediate PATCH via `controlSetters`
+- [ ] Tests: different products show different palettes
+
+### P4: MarketplacePricing Rebuild
+
+- [ ] Row per marketplace in catalog entry's `marketplaces`
+- [ ] Each row: checkbox (enabled) + price input + live royalty cell
+- [ ] Price input: 400ms debounce via `priceSetters`
+- [ ] Royalty cell: `royaltyFor(productKey, marketplace, price)` — green if positive, red if negative, "—" when price empty
+- [ ] Tests: entering "19.99" on amazon.com shows computed royalty; entering "5" shows negative royalty in red
+
+### P5: ListingField Refactor
+
+- [ ] Remove field-specific generate button (orphaned from removed AC-6)
+- [ ] Keep PROJ-17 hover Chat icon (AC-72)
+- [ ] On-blur-if-dirty PATCH via `textSetters`
+- [ ] Char counter thresholds unchanged (90% amber, 100% red)
+- [ ] Tests: blur without change → no PATCH; blur after edit → PATCH fires
+
+### P6: KeywordContextField (new, replaces KeywordChipsField)
+
+- [ ] New component `views/publish/partials/editor/KeywordContextField.tsx`
+- [ ] Multiline TextField, 4 rows default, `maxLength=500`
+- [ ] Char counter (same thresholds as other fields)
+- [ ] On-blur-if-dirty PATCH via `textSetters`
+- [ ] Tests: render, type, blur → PATCH with `keyword_context`
+
+### P7: AIImproveButton (new)
+
+- [ ] New component `views/publish/partials/editor/AIImproveButton.tsx`
+- [ ] MUI IconButton with `AutoFixHighOutlined` icon
+- [ ] Tooltip: `t('publish.ai_improve.tooltip')`
+- [ ] Click → `aiImprove()` mutation
+- [ ] Loading: icon replaced by CircularProgress, button disabled
+- [ ] Success: snackbar "Listing improved with AI"
+- [ ] Truncation warnings: render inline chip on each truncated field
+- [ ] Disabled state with tooltip "Create or convert listing first" when listing missing for tab (AC-71)
+- [ ] Tests: click → mutation fires → snackbar; truncated_fields → chips rendered
+
+### P8: Component Deletions
+
+- [ ] Delete `views/publish/partials/editor/KeywordChipsField.tsx` + its test file
+- [ ] Delete `views/publish/partials/editor/TMCheckDialog.tsx` + its test file
+- [ ] Remove imports + usages in parent components
+- [ ] Remove `KeywordChipsField` + `TMCheckDialog` types from `views/publish/types/index.ts`
+
+### P9: Options Tab Cleanup
+
+- [ ] Remove "Trademarks" tab from Options section MUI Tabs
+- [ ] Keep only Availability + Publish radio groups
+- [ ] Update tests
+
+---
+
+## Phase Q: Cross-cutting (Backend + Frontend) — i18n + Final Lint + QA (added 2026-04-23)
+
+> Scope: String cleanup across 5 locales + full suite pass.
+
+### Q1: i18n Keys — Remove
+
+- [ ] Remove `publish.tm_*` keys from `en.json`, `de.json`, `es.json`, `fr.json`, `it.json`
+- [ ] Remove `publish.bullet_3`, `publish.bullet_4`, `publish.bullet_5` keys
+- [ ] Remove `publish.backend_keywords` key
+- [ ] Remove `publish.kw_finder`, `publish.kw_workbench` keys
+- [ ] Remove `publish.ai_generate_listing` key
+
+### Q2: i18n Keys — Add
+
+- [ ] Add `publish.keyword_context.label` + `.placeholder` + `.helper`
+- [ ] Add `publish.ai_improve.tooltip` + `.button` + `.success_snackbar` + `.error_snackbar` + `.truncated_warning`
+- [ ] Add `publish.unsaved_banner.*` (unsaved, saving, saved, failed, offline)
+- [ ] Add `publish.royalty.*` (label, below_breakeven_tooltip)
+- [ ] Add `publish.products.{key}` labels for all 17 product types
+- [ ] Parity check: same key set across en/de/es/fr/it
+
+### Q3: Lint + Test Suite
+
+- [ ] `ruff check django-app/` — clean
+- [ ] `pytest publish_app` — all green
+- [ ] `npm run lint` — clean (no new warnings)
+- [ ] `npm run test:ci` — all green
+- [ ] Update totals in QA Report section (replace "864/864 frontend, 241/241 backend" with new totals)
+
+### Q4: QA Report Addendum
+
+- [ ] Write 2026-04-23 QA Report block under "## 2026-04-22 Edit-Page Rewrite — Open Items"
+- [ ] List all new ACs tested (AC-1 rewrite, AC-37 catalog, AC-38 restructure, AC-69 to AC-80)
+- [ ] Confirm removed code / endpoints / components (AC-6, AC-10, AC-34 + backing files)
+- [ ] Security spot-check: workspace isolation on new endpoints, throttle on `/ai-improve/`
+- [ ] Flip spec Status header back to PASS or flag remaining gaps
+
+### Q5: Spec + Docs Polish
+
+- [ ] Update `features/INDEX.md` — PROJ-11 status stays "In Review" until Q4 passes; bump updated date
+- [ ] Update `docs/tasks/PROJ-11-tasks.md` totals note
+- [ ] Add 2026-04-23 QA Report block to spec

@@ -12,17 +12,15 @@ from langchain_openai import ChatOpenAI
 
 logger = logging.getLogger(__name__)
 
-# MBA character limits
+# MBA character limits (AC-1: 5 bullets -> 2; keyword_context replaces
+# backend_keywords as LLM-input hint).
 CHAR_LIMITS = {
     'brand_name': 50,
     'title': 60,
     'bullet_1': 256,
     'bullet_2': 256,
-    'bullet_3': 256,
-    'bullet_4': 256,
-    'bullet_5': 256,
     'description': 2000,
-    'backend_keywords': 500,
+    'keyword_context': 500,
 }
 
 SYSTEM_PROMPT = """You are an expert Amazon Merch by Amazon (MBA) listing copywriter.
@@ -31,15 +29,15 @@ Generate a complete MBA listing optimized for search visibility and conversions.
 STRICT CHARACTER LIMITS (NEVER EXCEED):
 - Brand Name: 50 characters
 - Title: 60 characters
-- Bullet 1-5: 256 characters each
+- Bullet 1-2: 256 characters each
 - Description: 2000 characters
-- Backend Keywords: 500 characters
+- Keyword Context: 500 characters
 
 RULES:
 1. Title must include the main keyword/niche naturally
 2. Each bullet should highlight a unique benefit or use case
 3. Description should tell a story and include emotional hooks
-4. Backend keywords: comma-separated, no duplicates, no words already in title/bullets
+4. keyword_context is AI-guidance only: comma-separated hints
 5. Brand name should be catchy, memorable, and niche-relevant
 
 Return ONLY valid JSON with these exact keys:
@@ -48,11 +46,8 @@ Return ONLY valid JSON with these exact keys:
   "title": "...",
   "bullet_1": "...",
   "bullet_2": "...",
-  "bullet_3": "...",
-  "bullet_4": "...",
-  "bullet_5": "...",
   "description": "...",
-  "backend_keywords": "..."
+  "keyword_context": "..."
 }"""
 
 

@@ -1,9 +1,20 @@
 # PROJ-11: Publish (Listing + Upload Manager)
 
-**Status:** Planned
+**Status:** In Review
 **Priority:** P0 (MVP)
 **Created:** 2026-02-27
-**Updated:** 2026-03-26
+**Updated:** 2026-04-22
+
+> **2026-04-22 Edit-Page Cleanup (this round):**
+> - Listing reduziert auf 2 Bullets (bullet_3..5 raus)
+> - Keyword-Bank + Trademark-Check komplett aus Edit entfernt (eigenes Feature später)
+> - `backend_keywords` → `keyword_context` umbenannt (Zweck: AI-Input, kein Amazon Search Term)
+> - AI-Generate konsolidiert auf EINEN zentralen "AI Improve"-IconButton (ersetzt AC-6)
+> - `DesignProductConfig` restrukturiert: `fit_types` / `colors` / `print_side` / `marketplaces` jetzt **pro Produkt** (nicht global)
+> - Neuer `MBA Product Catalog`-Endpoint: Icons-Keys, Color-Palette, Default-Preise, Royalty-Formel pro Produkttyp
+> - Custom SVG Produkt-Icons (17 Produkte) statt generischem Kleiderbügel
+> - Royalty-Berechnung live im Frontend (nicht DB-persistiert)
+> - Auto-Save Hybrid-Modell: sofort bei Controls (Checkbox/Radio/Switch/Color/Price/Product), on-blur bei Text-Feldern; Save-Button + Unsaved-Banner bleiben als optionaler manueller Trigger
 
 ## Overview
 
@@ -106,23 +117,29 @@ Opens when user clicks "Edit Designs" with selected designs. Single scrollable p
 **Layout (Flying Upload inspired, our design system):**
 ```
 ┌─ Edit Listing ───────────────────────────────────┐
-│ [Global] [Mba] [Displate]     [+ Add] [Shortcuts]│
+│ [Global] [Mba] [Displate]  [✨ AI Improve] [+ Add]│
 ├──────────────────────────────────────────────────┤
 │ Design Tags (0/3) [+ Add]                        │
 │ ← [thumb][thumb][thumb][thumb] → 1 of 5          │
 ├──────────────────────────────────────────────────┤
-│ Products (74)                        Options ⊙   │
-│ [T-Shirt 7][Premium 2][Heavy 2][V-Neck 6]...    │
+│ Products (3)                         Options ⊙   │
+│ [🎽 T-Shirt][👔 Premium][👕 V-Neck][🎽 Tank]... │
+│  └ active: ring + count badge                    │
 ├──────────────────────────────────────────────────┤
+│ ── Config for active product: Standard T-Shirt ──│
+│                                                   │
 │ Fit Type ⊙              Print ⊙                 │
 │ ☑Men ☑Women ☐Youth     ● Front ☐ Back          │
 ├──────────────────────────────────────────────────┤
-│ Colors (14)                          Options ⊙   │
+│ Colors (4)                           Options ⊙   │
 │ (color circles grid with ✓ selection)            │
+│ (palette loaded from product catalog)            │
 ├──────────────────────────────────────────────────┤
-│ Marketplaces & Prices                Options ⊙   │
-│ Amazon.com ☑ 19.95  Amazon.co.uk ☑ 19.95  ...  │
-│ Royalty $4.85       Royalty £5.98               │
+│ Marketplaces & Prices (2)            Options ⊙   │
+│ ☑ amazon.com   USD [19.99]  Royalty $4.52       │
+│ ☑ amazon.co.uk GBP [19.99]  Royalty £5.98       │
+│ ☐ amazon.de    EUR [____]   Royalty —            │
+│ ... (royalty re-computes live on price input)    │
 ├──────────────────────────────────────────────────┤
 │ 🇬🇧EN 🇩🇪DE 🇫🇷FR 🇮🇹IT 🇪🇸ES 🇯🇵JA                    │
 │ [Auto Translate ●]  [Translate to All ▾]         │
@@ -138,12 +155,23 @@ Opens when user clicks "Edit Designs" with selected designs. Single scrollable p
 │ Description ⊙                                    │
 │ [School Bus Driver Funny I Feel Great...]        │
 │                                          532/2000 │
+│                                                   │
+│ Keyword Context ⊙  (AI input — not published)    │
+│ [school bus, yellow bus, driver, retirement...]  │
+│                                          124/500  │
 ├──────────────────────────────────────────────────┤
-│ [Options] [Trademarks]                            │
+│ [Options]                                         │
 │ Availability ⊙: ● Public ○ Private              │
 │ Publish ⊙: ● Live ○ Draft                       │
 └──────────────────────────────────────────────────┘
 ```
+
+- **Products section** is a horizontal scroller of ALL catalog products (~17). Each product is clickable (toggles `enabled` in config). Active product = ring + count badge (number of configured marketplaces). Clicking a selected product focuses it (its per-product config panels below update).
+- **Per-product config scope:** Fit Type, Print Side, Colors, and Marketplaces & Prices now render for the **currently focused product** (not globally). Switching product = panels re-render with that product's config row.
+- **AI Improve** (top-right IconButton): takes design image + `keyword_context` + current text fields → calls `POST /api/listings/{id}/ai-improve/` → overwrites Brand / Title / Bullet 1 / Bullet 2 / Description with AI output. Works for empty listings (generate-from-scratch) AND pre-filled listings (improve / rewrite).
+- **Keyword Context:** 500-char textarea. Not published — pure AI input. Used by AI Improve endpoint along with the design image.
+- **Royalty column:** live-computed in frontend from `price * royalty_formula.coef - royalty_formula.base` per (product, marketplace). No DB storage.
+- **Auto-save:** every toggle / price input / color / fit / product click → immediate PATCH. Every text field → PATCH on blur (only if dirty). Save-Button + "Unsaved changes"-Banner remain as optional manual trigger (for hesitant users).
 
 - **"Options ⊙" per section:** Opens the Command Palette filtered to that section's actions (Copy from..., Apply to all, Reset). This is the central bulk-edit mechanism
 - **Horizontal Thumbnail Strip:** Navigate between designs with ← → arrows + "1 of 5" counter
@@ -178,21 +206,23 @@ Opens when user clicks "Edit Designs" with selected designs. Single scrollable p
 4b. As a member, I want a "Choose Action" command palette (searchable, categorized: Listing, General, Files, Export, Image, Cloud) to perform any action on selected designs.
 
 ### Product Configuration
-5. As a member, I want to select product types from a visual grid (Standard T-Shirt, Premium, V-Neck, Tank Top, Long Sleeve, Hoodie, PopSockets, Phone Cases, Mugs, etc.) with count badges, so I see what's configured at a glance.
-6. As a member, I want to configure Fit Type (Men, Women, Youth, Girls, Adult Unisex), Print Side (Front/Back), and Colors from the full MBA color palette per design.
-7. As a member, I want to set Marketplaces & Prices per marketplace (Amazon.com, .co.uk, .de, .fr, .it, .es, .co.jp) with toggle on/off, price input, and royalty display.
+5. As a member, I want to select product types from a visual scroller of all ~17 MBA-relevant products (Standard T-Shirt, Premium T-Shirt, Heavyweight T-Shirt, V-Neck, Tank Top, Long Sleeve, Raglan, Sweatshirt, Pullover Hoodie, Zip Hoodie, Performance Shirt, Baseball Shirt, Trucker Hat, PopSocket, Phone Case, Throw Pillow, Tote Bag, Tumbler, Ceramic Mug, Water Bottle) with **product-shaped SVG icons** and count badges, so I see what's configured at a glance.
+6. As a member, I want Fit Type, Print Side, Colors, and Marketplaces & Prices configured **per selected product** (not globally), so a T-Shirt's colors / fit types / prices can differ from a Hoodie's.
+7. As a member, I want Colors, default Prices, and Royalty formulas loaded from a **central MBA Product Catalog** (backend), so I don't manually look up Amazon's royalty tables and colors stay in sync with Amazon changes.
+7b. As a member, I want Royalty values computed **live** next to each price input (`price × coef − base` per marketplace, from catalog), so I see my margin instantly as I type.
+7c. As a member, I want to focus one product at a time in the Products scroller, and have the Fit / Print / Colors / Marketplaces panels below show the config for that focused product, so my edits always target the product I clicked.
 
 ### Listing Editor
-8. As a member, I want to generate an MBA-ready listing (Brand, Title, Bullets 1-5, Description, Backend Keywords) via AI with one click, using slogan + design + keywords as context.
-9. As a member, I want live character counters on every field (Brand 50, Title 60, Bullets 256 each, Description 2000, Keywords 500) that turn amber at 90% and red at 100%.
+8. As a member, I want ONE central "AI Improve" IconButton in the Edit header that — given the design image, my Keyword Context, and any existing text fields — generates or improves Brand / Title / Bullet 1 / Bullet 2 / Description in a single call, so I don't juggle multiple AI buttons per field.
+8b. As a member, I want AI Improve to work on empty listings (generate from scratch) AND on pre-filled listings (improve / rewrite text copied from another design or niche), using the same button.
+9. As a member, I want live character counters on every field (Brand 50, Title 60, Bullet 1+2 256 each, Description 2000, Keyword Context 500) that turn amber at 90% and red at 100%.
 10. As a member, I want to hover over any listing field to see an "Improve" icon that opens Chat (PROJ-17) with that field as context for AI-powered refinement.
 11. As a member, I want Multi-Language listing tabs (EN, DE, FR, IT, ES, JA) with "Auto Translate" toggle and "Translate to All" button.
-12. As a member, I want to inject keywords from the Keyword Bank (PROJ-10) into backend keywords. If keywords are assigned to this design via design_template (PROJ-10), they are pre-selected.
 13. As a member, I want a "Copy for MBA" button that copies the formatted listing to clipboard for manual paste.
-14. As a member, I want the Keywords displayed as removable chips (like Flying Upload) with "+ Add" and "KW Finder" link to PROJ-10.
 
-### Trademark Check
-15. As a member, I want to run a TM Check on my listing text before uploading, so I don't accidentally use trademarked phrases.
+### Auto-Save
+14. As a member, I want my edits to auto-save so I don't have to click "Save" every time — immediate PATCH for any Control (Checkbox / Switch / Radio / Color Swatch / Product Toggle / Price Input), and on-blur PATCH for Text Fields (Brand, Title, Bullet 1, Bullet 2, Description, Keyword Context) when the value changed.
+14b. As a member, I want the existing "Save" button + "Unsaved changes" banner to remain as an optional manual trigger + fallback, so I can force-flush pending debounced saves and clearly see when a save is in-flight / failed.
 
 ### Bulk Operations
 16. As a member, I want a Command Palette (`Ctrl+K`) with searchable actions: copy/apply listings, copy/apply colors, copy/apply fit types, copy/apply product settings between designs.
@@ -242,7 +272,7 @@ Opens when user clicks "Edit Designs" with selected designs. Single scrollable p
 
 ### Models
 
-- [ ] AC-1: `Listing` model (updated 2026-04-18): UUID pk, `idea` FK, `design` FK (nullable), `marketplace_type` choices [global, mba, displate] default=mba (added 2026-04-18 — enables independent listing variants per design per marketplace), `round` (PositiveIntegerField, default=1 — matches Niche.current_round), `brand_name` (max 50), `title` (max 60), `bullet_1..5` (max 256 each), `description` (max 2000), `backend_keywords` (max 500), `status` choices [draft, ready, published], `generated_by` choices [ai, manual], `availability` choices [public, private] default=public, `publish_mode` choices [live, draft] default=live, `language` (CharField, default='en'), `translations` (JSONField — {lang: {title, bullets, description}}), `created_at`, `updated_at`. **Unique constraint**: `(design, marketplace_type)` — one listing record per design per marketplace_type.
+- [ ] AC-1: `Listing` model (updated 2026-04-22): UUID pk, `idea` FK, `design` FK (nullable), `marketplace_type` choices [global, mba, displate] default=mba, `round` (PositiveIntegerField, default=1 — matches Niche.current_round), `brand_name` (max 50), `title` (max 60), `bullet_1` (max 256), `bullet_2` (max 256), `description` (max 2000), `keyword_context` (max 500 — AI-input only, not published to Amazon; renamed from `backend_keywords` on 2026-04-22), `status` choices [draft, ready, published], `generated_by` choices [ai, manual], `availability` choices [public, private] default=public, `publish_mode` choices [live, draft] default=live, `language` (CharField, default='en'), `translations` (JSONField — {lang: {title, bullet_1, bullet_2, description}}), `created_at`, `updated_at`. **Unique constraint**: `(design, marketplace_type)` — one listing record per design per marketplace_type. **Migration (2026-04-22)**: drop `bullet_3`, `bullet_4`, `bullet_5`; rename `backend_keywords` → `keyword_context`; update `translations` JSON shape (legacy `bullets` array → `bullet_1` + `bullet_2` keys, data migration may truncate to first 2 entries).
 
 - [ ] AC-2: `UploadTemplate` model: UUID pk, `workspace` FK, `name` (CharField 100), `brand_name` (CharField 50), `product_types` (JSONField — list of product type keys), `fit_types` (JSONField — list), `colors` (JSONField — list of MBA color codes), `marketplaces` (JSONField — list of {marketplace, price, enabled}), `print_side` choices [front, back, both] default=front, `created_by` FK, `created_at`, `updated_at`.
 
@@ -254,12 +284,12 @@ Opens when user clicks "Edit Designs" with selected designs. Single scrollable p
 
 ### Listing API
 
-- [ ] AC-6: `POST /api/ideas/{id}/listing/generate/` — accepts `{design_id, extra_keywords, language}`. Creates Listing with AI. If design has PROJ-10 design_template keywords → auto-injected.
+- [ ] AC-6: ~~`POST /api/ideas/{id}/listing/generate/`~~ **REMOVED 2026-04-22.** Replaced by unified AC-64 `/ai-improve/` endpoint. Old generate endpoint was never tied to real Keyword-Bank integration (PROJ-10 coupling removed). Backwards-compat shim NOT required (endpoint was never used in prod — spec-only).
 - [ ] AC-7: `GET /api/ideas/{id}/listing/` — returns listing with lifecycle chain.
-- [ ] AC-8: `PATCH /api/listings/{id}/` — partial update. Status reverts to draft on edit.
-- [ ] AC-9: `POST /api/listings/{id}/translate/` — body: `{target_languages: ["de", "fr"]}`. AI translates listing fields. Stored in `translations` JSONField.
-- [ ] AC-10: `POST /api/listings/{id}/tm-check/` — checks title + bullets + description against TM database. Returns list of flagged terms.
-- [ ] AC-11: `GET /api/listings/{id}/export/` — plain-text MBA format.
+- [ ] AC-8: `PATCH /api/listings/{id}/` — partial update for Brand / Title / Bullet 1 / Bullet 2 / Description / Keyword Context + other fields. Status reverts to draft on edit. Used by frontend auto-save (on-blur for text fields, immediate for controls). Supports partial body: only dirty fields sent.
+- [ ] AC-9: `POST /api/listings/{id}/translate/` — body: `{target_languages: ["de", "fr"]}`. AI translates Title + Bullet 1 + Bullet 2 + Description. Stored in `translations` JSONField. `keyword_context` NOT translated (AI input only, English-optimized).
+- [ ] AC-10: ~~`POST /api/listings/{id}/tm-check/`~~ **REMOVED 2026-04-22.** Trademark-Check ist eigenes zukünftiges Feature mit eigener PROJ-ID. Keine Referenz mehr im Edit-Bereich, `Trademarks`-Tab entfernt, `TMCheckDialog`-Komponente gelöscht, `services/tm_checker.py` archiviert.
+- [ ] AC-11: `GET /api/listings/{id}/export/` — plain-text MBA format (Brand, Title, Bullet 1, Bullet 2, Description — no TM check, no keyword chips).
 
 ### Design Gallery API
 
@@ -303,25 +333,86 @@ Opens when user clicks "Edit Designs" with selected designs. Single scrollable p
 - [ ] AC-31: Bottom Action Bar on design selection with contextual bulk actions.
 - [ ] AC-32: Chat hover-icon ("Improve") on every listing text field → opens Chat with field context.
 - [ ] AC-33: MBA character counters: amber at 90%, red at 100%.
-- [ ] AC-34: Keyword chips (removable, + Add) with link to PROJ-10 KW Finder.
+- [ ] AC-34: ~~Keyword chips~~ **REMOVED 2026-04-22.** `keyword_context` rendert jetzt als einfaches Multiline-TextField mit Char-Counter (500). Keine Chips, keine KW-Finder/KW-Workbench Links, keine PROJ-10-Auto-Injection. Komponente `KeywordChipsField.tsx` gelöscht.
 - [ ] AC-35: Upload status visible inline: pending → uploading → completed (ASIN shown) / failed (error + screenshot).
 - [ ] AC-36: Design Gallery as card grid with import, sort, filter, bulk actions.
 
 ### MBA Reference Data API
 
-- [ ] AC-37: `GET /api/mba/colors/` — returns canonical MBA garment color palette (added 2026-04-18). Response: array of `{ key, name, hex }` objects. No pagination, no workspace scope (global read-only list). Used by Edit Page ColorGrid component. Central source so frontend does not hardcode Amazon's color palette.
+- [ ] AC-37: `GET /api/mba/product-catalog/` — returns canonical MBA product catalog (updated 2026-04-22, supersedes old colors-only endpoint). Response: array of product entries:
+  ```json
+  [
+    {
+      "key": "t_shirt",
+      "label": "Standard T-Shirt",
+      "icon_key": "t_shirt",
+      "supports": ["fit_types", "print_side", "colors"],
+      "fit_types_options": ["men", "women", "youth", "girls", "adult_unisex"],
+      "print_side_options": ["front", "back", "both"],
+      "colors_options": [
+        {"key": "black", "name": "Black", "hex": "#000000"},
+        {"key": "white", "name": "White", "hex": "#FFFFFF"}
+      ],
+      "marketplaces": ["amazon.com", "amazon.co.uk", "amazon.de", "amazon.fr", "amazon.it", "amazon.es", "amazon.co.jp"],
+      "default_prices": {
+        "amazon.com": 19.99, "amazon.co.uk": 19.99, "amazon.de": 18.99,
+        "amazon.fr": 18.99, "amazon.it": 18.99, "amazon.es": 18.99, "amazon.co.jp": 2580
+      },
+      "royalty_formula": {
+        "amazon.com": {"coef": 0.4, "base": 5.04},
+        "amazon.de":  {"coef": 0.4, "base": 5.34}
+      }
+    }
+  ]
+  ```
+  - 17 product keys covered: `t_shirt`, `t_shirt_premium`, `t_shirt_heavyweight`, `v_neck`, `tank_top`, `long_sleeve`, `raglan`, `sweatshirt`, `hoodie_pullover`, `hoodie_zip`, `performance`, `baseball`, `trucker_hat`, `popsocket`, `phone_case`, `throw_pillow`, `tote_bag`, `tumbler`, `mug`, `water_bottle` (final list finalized during implementation; Amazon-supported subset for MVP).
+  - `supports` flags which control types apply (shirt-class supports all; PopSocket supports only `colors`; Phone Case has product-specific controls deferred post-MVP).
+  - `colors_options` is per-product (different palettes per product).
+  - `royalty_formula` per (product, marketplace) — frontend computes `price × coef − base`, shows `$0.00` when price is empty or below threshold.
+  - No pagination, no workspace scope (global read-only list). Frontend caches response (long TTL). Icons are NOT served as URLs — `icon_key` maps to a frontend React SVG component.
 
 ### Per-Design Product Config Persistence (added 2026-04-18)
 
 > Motivation: D7 Copy-from-Design requires per-design product config. Today Colors / Fit Types / Print Side / Product Types / Marketplace Pricing live only in React state — reload wipes them. Also: Desktop Upload App (PROJ-13) needs per-design config to know which MBA variants to publish. Promoted to persistent backend model.
 
-- [ ] AC-38: `DesignProductConfig` model: UUID pk, `design` FK (DesignAsset, on_delete=CASCADE), `marketplace_type` choices [global, mba, displate] default=mba (same enum as Listing), `product_types` (JSONField default=list — list of product type keys like `t_shirt`, `hoodie`, `tank_top`), `fit_types` (JSONField default=list — e.g. `men`, `women`, `youth`), `print_side` choices [front, back, both] default=front, `colors` (JSONField default=list — list of MBA color keys matching AC-37 palette), `marketplaces` (JSONField default=list — list of `{marketplace, price, enabled}` entries, one per Amazon marketplace like `amazon.com`, `amazon.de`), `created_at`, `updated_at`. **Unique constraint**: `(design, marketplace_type)` — one config row per design per marketplace.
-- [ ] AC-39: `GET /api/designs/{design_id}/product-config/?marketplace_type=mba` — returns the config row for that `(design, marketplace_type)` pair. Default `marketplace_type=mba` if omitted. Returns 404 when no config exists (frontend falls back to empty defaults). Workspace isolation via `design.workspace`.
-- [ ] AC-40: `PATCH /api/designs/{design_id}/product-config/` — upserts (create if missing, update if exists). Body: `{marketplace_type, product_types?, fit_types?, print_side?, colors?, marketplaces?}`. `marketplace_type` required; other fields optional (partial update). Returns 200 with full updated record. Validates `marketplace_type` against enum, `colors[]` against MBA palette keys (AC-37), `marketplaces[*].price` as decimal > 0.
-- [ ] AC-41: `POST /api/designs/{design_id}/product-config/copy-from/` — copies config from a source design to this design. Body: `{source_design_id, marketplace_type, scope}` where `scope` ∈ `['all', 'colors', 'fit_types', 'print_side', 'product_types', 'marketplaces']`. `scope=all` copies every field; scalar scopes copy just that field. Upserts target config row. Returns 200 with full updated target record. Returns 404 if source has no config for `marketplace_type`. Both designs must belong to caller's workspace.
-- [ ] AC-42: Listing endpoints unchanged — `DesignProductConfig` is a sibling record, not a field on Listing. Generate/Save flows for `Listing` ignore product config.
-- [ ] AC-43: Frontend `useEditView` — `productConfig` sourced via RTK Query keyed on `(activeDesign.id, activeMarketplace)`. Setters trigger debounced `PATCH` (auto-save, same 1200ms pattern as listing). Switching active design or marketplace loads the matching row. Copy-from-Design dialog calls the copy-from endpoint instead of client-side state copy.
-- [ ] AC-44: Desktop Upload App (PROJ-13) reads `DesignProductConfig` via a listing's linked design to determine which MBA variant combinations to upload (product_types × fit_types × colors × marketplaces). Backend serializer exposes config when the App fetches an upload job's snapshot.
+- [ ] AC-38: `DesignProductConfig` model (restructured 2026-04-22): UUID pk, `design` FK (DesignAsset, on_delete=CASCADE), `marketplace_type` choices [global, mba, displate] default=mba (same enum as Listing), `products_config` (JSONField default=list — **per-product config objects**, see shape below), `created_at`, `updated_at`. **Unique constraint**: `(design, marketplace_type)` — one config row per design per marketplace.
+
+  **`products_config` shape:**
+  ```json
+  [
+    {
+      "product_type": "t_shirt",
+      "enabled": true,
+      "fit_types": ["men", "women"],
+      "print_side": "front",
+      "colors": ["black", "white"],
+      "marketplaces": [
+        {"marketplace": "amazon.com", "price": 19.99, "enabled": true},
+        {"marketplace": "amazon.de", "price": 18.99, "enabled": true}
+      ]
+    },
+    {
+      "product_type": "hoodie_pullover",
+      "enabled": true,
+      "fit_types": ["men"],
+      "print_side": "front",
+      "colors": ["black"],
+      "marketplaces": [...]
+    }
+  ]
+  ```
+  - `enabled=true` means the product is selected (has count badge, rendered in scroller as active). `enabled=false` rows allow preserving a user's draft config while hiding the product.
+  - `fit_types` / `print_side` / `colors` / `marketplaces` are independent per `product_type` — T-Shirt and Hoodie can have disjoint fit types / colors / prices.
+  - Per product, `marketplaces[].price` = decimal ≥ 0, `marketplaces[].enabled` = bool (toggle per marketplace).
+  - Server validates: `product_type` keys exist in `GET /api/mba/product-catalog/`; `fit_types` / `colors` / `marketplaces[].marketplace` values are subsets of the matching catalog entry's `*_options` (400 on unknown keys).
+  - **Migration (2026-04-22)**: existing rows with separate `product_types` / `fit_types` / `print_side` / `colors` / `marketplaces` fields are collapsed into `products_config` — data migration: for each selected `product_type` in legacy `product_types[]`, create one `products_config` entry with the shared legacy `fit_types` / `print_side` / `colors` / `marketplaces` values (lossy but acceptable — users reconfigure per-product after migration). Legacy fields dropped after migration.
+
+- [ ] AC-39: `GET /api/designs/{design_id}/product-config/?marketplace_type=mba` — returns the single config row for that `(design, marketplace_type)` pair. Default `marketplace_type=mba` if omitted. Returns 404 when no config exists (frontend falls back to empty defaults — `products_config=[]`). Workspace isolation via `design.workspace`.
+- [ ] AC-40: `PATCH /api/designs/{design_id}/product-config/` — upserts (create if missing, update if exists). Body: `{marketplace_type, products_config?}` OR targeted ops: `{marketplace_type, op: 'upsert_product', product_type, patch: {...}}` for single-product mutations (preferred to keep payload small when a single toggle changes). `marketplace_type` required. Returns 200 with full updated record. Validates catalog-referential integrity (AC-37). Upserts auto-create rows if the `(design, marketplace_type)` pair does not exist.
+- [ ] AC-41: `POST /api/designs/{design_id}/product-config/copy-from/` — copies config from a source design to this design. Body: `{source_design_id, marketplace_type, scope, product_type?}` where `scope` ∈ `['all', 'product_types', 'fit_types', 'print_side', 'colors', 'marketplaces']`. When `scope=all`: copies entire `products_config`. When scalar scope + `product_type` provided: copies just that field for the matching product entry (e.g., copy `marketplaces` prices for `t_shirt` only). When scalar scope + no `product_type`: applies to ALL product entries in the target. Upserts target config row. Returns 200 with full updated target record. Returns 404 if source has no config for `marketplace_type`. Both designs must belong to caller's workspace.
+- [ ] AC-42: Listing endpoints unchanged — `DesignProductConfig` is a sibling record, not a field on Listing. AI-Improve and Save flows for `Listing` ignore product config.
+- [ ] AC-43: Frontend `useEditView` — `productConfig` sourced via RTK Query keyed on `(activeDesign.id, activeMarketplace)`. Control-type setters (Checkbox / Switch / Radio / Color Swatch / Product Toggle / Price Input) trigger **immediate PATCH** (no debounce). Text-field setters (Brand / Title / Bullet 1 / Bullet 2 / Description / Keyword Context on the Listing) trigger **PATCH on blur** when dirty. Switching active design or marketplace loads the matching row. Copy-from-Design dialog calls the copy-from endpoint instead of client-side state copy. Save button remains as optional manual trigger (flushes any pending blur-pending field). `isDirty` indicator drives the "Unsaved changes" banner.
+- [ ] AC-44: Desktop Upload App (PROJ-13) reads `DesignProductConfig` via a listing's linked design to determine which MBA variant combinations to upload. For each `products_config[i]` with `enabled=true`, the App generates variants as `(product_type) × (fit_types[]) × (colors[]) × (marketplaces[].marketplace where enabled=true)` — fully per-product, not a global cartesian product. Backend serializer exposes config when the App fetches an upload job's snapshot.
 
 ### Listing Templates (added 2026-04-19)
 
@@ -330,7 +421,7 @@ Opens when user clicks "Edit Designs" with selected designs. Single scrollable p
 - [ ] AC-45: `Listing` model adds `is_template` BooleanField (default=False). Migration backfills existing rows to False.
 - [ ] AC-46: Model validation (`clean()` + serializer): when `is_template=True`, `design` must be NULL — raises ValidationError on save/POST if violated. When `is_template=False`, `design` remains optional (existing behavior).
 - [ ] AC-47: `GET /api/listings/templates/` — paginated list of `is_template=True` Listings in the caller's workspace (via `idea.niche.workspace` or however workspace is reachable from Listing). Supports `?marketplace_type=` filter. Ordered by `-created_at`.
-- [ ] AC-48: `POST /api/listings/templates/` — creates a Listing with `is_template=True, design=NULL`. Body accepts: `brand_name, title, bullet_1..5, description, backend_keywords, language, marketplace_type, idea` (idea FK required; a template is still linked to an Idea for context). Returns 201.
+- [ ] AC-48: `POST /api/listings/templates/` — creates a Listing with `is_template=True, design=NULL`. Body accepts: `brand_name, title, bullet_1, bullet_2, description, keyword_context, language, marketplace_type, idea` (idea FK required; a template is still linked to an Idea for context; field list updated 2026-04-22 — 5 bullets → 2, backend_keywords → keyword_context). Returns 201.
 - [ ] AC-49: `DELETE /api/listings/<id>/` — existing endpoint; must not 403 when the listing is a template. Workspace isolation still enforced.
 - [ ] AC-50: `POST /api/listings/convert/` — unchanged contract, but `source_listing_id` may now refer to a template (`is_template=True, design=NULL`). Existing null-design behavior (always create new target) remains — the target Listing inherits the source's `design=NULL` unless a design FK is provided (future extension). Target Listing has `is_template=False` by default (converting a template materializes a non-template listing).
 - [ ] AC-51: Regular listing list endpoints (`GET /api/ideas/<id>/listing/`) exclude templates from their default queryset so UI surfaces for active designs do not show templates.
@@ -363,16 +454,55 @@ Opens when user clicks "Edit Designs" with selected designs. Single scrollable p
 - [ ] AC-67: Card menu "Move to Collection" → opens a dedicated `MovePickerDialog` (separate from browsing `CollectionsDialog`) showing: folder tree + "Root" pseudo-entry + single "Move Here" primary button. Select → click "Move Here" → `POST /api/designs/gallery/move/` with `{asset_ids: [id], collection_id: <target_or_null>}`. Optimistic patch of every active `listGallery` cache entry to reflect the new `collection` FK. Revert on error.
 - [ ] AC-68: `MovePickerDialog` disables (greys out) the asset's current `collection` entry in the tree — selecting it is blocked, the "Move Here" button stays disabled until a different target is picked. "Root" entry is disabled only when the asset is already at root (`collection=null`).
 
+### Central AI Improve (added 2026-04-22)
+
+> Replaces removed AC-6 (`/listing/generate/`). Single unified endpoint for "generate from scratch" AND "improve existing" — same call, different input state.
+
+- [ ] AC-69: `POST /api/listings/{id}/ai-improve/` — authenticated, workspace-isolated. Body: `{}` (no required fields; endpoint reads current listing state + linked design image + `keyword_context`). Behavior:
+  - Loads the Listing by id (404 if not in caller's workspace via `idea.niche.workspace`).
+  - Loads the linked `Listing.design` (DesignAsset). If none, 400 "AI Improve requires a linked design asset".
+  - Builds an LLM prompt containing: design image URL (vision model input), `keyword_context` (guidance keywords), existing `brand_name` / `title` / `bullet_1` / `bullet_2` / `description` (empty OR pre-filled from a copy — both valid), `marketplace_type`, `language`.
+  - Calls OpenRouter vision-capable model (Claude 3.5 Sonnet or similar — configured via env).
+  - Response: `{brand_name, title, bullet_1, bullet_2, description}`. Updates the Listing via serializer validation (respects char limits — if the LLM returns over-limit text, the server truncates at max length and flags `truncated_fields: [...]` in response).
+  - Returns 200 with the updated Listing + `truncated_fields: []` (or list of truncated field keys).
+  - Rate-limit: max 10 calls per user per minute (DRF throttle).
+- [ ] AC-70: Frontend "AI Improve" IconButton in Edit header (top-right). Icon: `AutoFixHighOutlined` (MUI). Tooltip: "AI Improve listing". Click → spinner replaces icon, button disabled during call. Success: text fields animate to new values (cross-fade), snackbar "Listing improved with AI". `truncated_fields` → each truncated field shows inline warning chip "Truncated to {max} chars — review".
+- [ ] AC-71: "AI Improve" button respects the active marketplace tab — calls ai-improve on the Listing row matching `(design, marketplace_type)`. If that Listing does not exist yet, the button is disabled with tooltip "Create or convert listing first".
+- [ ] AC-72: Pre-existing PROJ-17 Chat per-field "Improve" hover-icon (US-10) remains unchanged and ORTHOGONAL to the central AI Improve button. Per-field hover → opens Chat for free-form field refinement. Central button → one-shot full-listing rewrite.
+
+### Auto-Save UX Rules (added 2026-04-22)
+
+- [ ] AC-73: Auto-save trigger matrix — the Edit page PATCHes automatically in two modes:
+  - **Immediate (no debounce)**: clicking a Checkbox (Fit Type, Marketplace enabled), Radio (Print Side, Availability, Publish Mode), Switch (Auto Translate), Color Swatch (select / deselect), Product toggle in Products scroller, Price input (on every keystroke IS too chatty — use 400ms debounce for price inputs only, since typing "19.99" would otherwise fire 4 PATCHes).
+  - **On Blur (dirty-only)**: Brand, Title, Bullet 1, Bullet 2, Description, Keyword Context TextFields — PATCH fires when the field loses focus AND the value differs from the last saved value. Clean fields on blur = no network call.
+- [ ] AC-74: Manual "Save" button in the Edit header remains visible. Clicking it: (a) flushes any pending debounced/blur-pending PATCH immediately, (b) shows spinner until all in-flight PATCHes settle, (c) shows "Saved" green check for 2s on success or error snackbar on failure.
+- [ ] AC-75: "Unsaved changes" banner: slides down from top of scroll container when any field is dirty OR any in-flight PATCH is pending. Disappears when all fields are clean AND no PATCH is in flight. Includes "Discard" button → reverts to last-saved state (reset RTK cache patch, confirm dialog "Discard unsaved changes?").
+- [ ] AC-76: Auto-save failure handling: any PATCH that returns 4xx/5xx → field reverts to last-saved value visually (Optimistic update rolled back), error snackbar "Save failed: {reason}", banner shows red "Save failed — retry" button. Retry button re-fires all dirty PATCHes.
+- [ ] AC-77: Network offline detection: `navigator.onLine === false` OR PATCH returns network error → banner switches to orange "Offline — changes saved locally". Queue dirty PATCHes client-side. On reconnect (`online` event) → auto-flush queue in order. No queue persistence across page reload (MVP — dirty state lost on reload while offline, acknowledged trade-off).
+
+### Product SVG Icons + Catalog Rendering (added 2026-04-22)
+
+- [ ] AC-78: Frontend ships 17 custom SVG React components under `frontend-ui/src/components/ProductIcons/`:
+  - `TShirtIcon.tsx`, `TShirtPremiumIcon.tsx`, `TShirtHeavyweightIcon.tsx`, `VNeckIcon.tsx`, `TankTopIcon.tsx`, `LongSleeveIcon.tsx`, `RaglanIcon.tsx`, `SweatshirtIcon.tsx`, `HoodiePulloverIcon.tsx`, `HoodieZipIcon.tsx`, `PerformanceIcon.tsx`, `BaseballIcon.tsx`, `TruckerHatIcon.tsx`, `PopSocketIcon.tsx`, `PhoneCaseIcon.tsx`, `ThrowPillowIcon.tsx`, `ToteBagIcon.tsx`, `TumblerIcon.tsx`, `MugIcon.tsx`, `WaterBottleIcon.tsx`
+  - Each exports a React SVG component (`({ size, color }) => <svg ... />`), sized 40px default, `currentColor` stroke (inherits theme palette).
+  - Icons are product-shaped (T-Shirt silhouette, Hoodie silhouette, PopSocket disc, Phone Case rectangle, Mug handle-shape, etc.) — NOT generic hangers.
+  - Index file `ProductIcons/index.ts` exports `PRODUCT_ICON_MAP: Record<string, FC<IconProps>>` keyed by `icon_key` from the catalog.
+  - Drawings: line-based, stroke-width 1.5–2px, matching the overall app icon style (Iconoir / Tabler feel).
+- [ ] AC-79: `ProductTypeScroller.tsx` maps each catalog entry's `icon_key` to the corresponding SVG component via `PRODUCT_ICON_MAP`. Unknown `icon_key` → fallback `CheckroomIcon` from `@mui/icons-material` + console warning.
+- [ ] AC-80: Design-system compliance: icon color uses `theme.vars.palette.text.primary` for inactive state, `theme.vars.palette.secondary.main` (cyan) for active/selected state. Selection ring + count badge continue to follow FD-PROJ11-7 spec.
+
 ## API Endpoints
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/api/ideas/{id}/listing/generate/` | Member | AI generate listing |
+| ~~POST~~ | ~~`/api/ideas/{id}/listing/generate/`~~ | — | **REMOVED 2026-04-22** — replaced by `ai-improve` |
+| POST | `/api/listings/{id}/ai-improve/` | Member | AI improve/generate listing (AC-69) |
 | GET | `/api/ideas/{id}/listing/` | Member | Get listing |
-| PATCH | `/api/listings/{id}/` | Member | Edit listing |
+| PATCH | `/api/listings/{id}/` | Member | Edit listing (used by auto-save) |
 | POST | `/api/listings/{id}/translate/` | Member | AI translate listing |
-| POST | `/api/listings/{id}/tm-check/` | Member | Trademark check |
+| ~~POST~~ | ~~`/api/listings/{id}/tm-check/`~~ | — | **REMOVED 2026-04-22** — future separate feature |
 | GET | `/api/listings/{id}/export/` | Member | Export MBA format |
+| GET | `/api/mba/product-catalog/` | Member | MBA product catalog (icons, colors, prices, royalty) |
 | GET | `/api/designs/gallery/` | Member | Design gallery |
 | POST | `/api/designs/gallery/upload/` | Member | Upload design |
 | POST | `/api/designs/gallery/import-drive/` | Member | Import from Drive/OneDrive |
@@ -673,7 +803,7 @@ MUI Icons first. When no fitting MUI icon exists, create custom SVG icons in `fr
 **Layout:** Fixed thumbnail strip (left 200px) + scrollable edit form (center) + sticky design preview (right 300px float).
 
 **Page Header:**
-- "← Back to Collection" ghost button + "[+ Add Designs]" outlined + "[Shortcut Guide]" text button
+- "← Back to Collection" ghost button + "[+ Add Designs]" outlined + **"[✨ AI Improve]" IconButton (top-right)** + "[Shortcut Guide]" text button + manual "Save" button (flushes pending PATCHes, shows spinner/check)
 
 **Marketplace Tabs (under header):**
 - MUI ToggleButtonGroup: [Global] [Mba] [Displate]. Active: `alpha(COLORS.red, 0.12)` bg, `COLORS.red` color. Height `theme.spacing(5)` → 40px
@@ -694,13 +824,15 @@ MUI Icons first. When no fitting MUI icon exists, create custom SVG icons in `fr
 
 > **MBA Tab only** (decided 2026-04-18): The 4 Product Config sections below (Products, Fit Type + Print, Colors, Marketplaces & Prices) render **only when Marketplace Tab = Mba**. Global and Displate tabs show their own (future) field sets. On Global/Displate a placeholder "Configuration for {marketplace} coming soon" is shown instead.
 
-**Products (MBA):** Horizontal scroll, product type cards 72px wide, product SVG icon 40px, `caption` label, count badge (18px pill, `COLORS.cyan` bg). Selected: `alpha(COLORS.cyan, 0.06)` bg, `COLORS.cyan` border. Thin scrollbar 3px.
+> **Per-product scope (decided 2026-04-22):** Fit Type + Print + Colors + Marketplaces & Prices are all scoped to the **currently focused product** from the Products scroller. Switching product = these 4 sections re-render with that product's `products_config[i]` entry. Section headers show "Config for active product: {label}".
 
-**Fit Type + Print:** 2-col grid. Checkboxes `secondary.main` (cyan). Radio `primary.main` (coral).
+**Products (MBA):** Horizontal scroll, product type cards 72px wide, **product-shaped SVG icon 40px** (custom `PRODUCT_ICON_MAP` per AC-78; 17 components like `TShirtIcon`, `HoodiePulloverIcon`, `PopSocketIcon`, etc. — NOT generic hangers). `caption` label. Count badge (18px pill, `COLORS.cyan` bg) showing number of enabled marketplaces for that product. Selected: `alpha(COLORS.cyan, 0.06)` bg, `COLORS.cyan` border + glow. Focused (= currently editing): 2px ring. Thin scrollbar 3px.
 
-**Colors:** Flex wrap, circles 36px, full border-radius. Selected: `COLORS.cyan` border + glow `alpha(COLORS.cyan, 0.30)` + `scale(1.1)`. Checkmark inside (white on dark colors, ink on light). **Palette source (decided 2026-04-18):** loaded from backend via `GET /api/mba/colors/` (AC-37) — NOT hardcoded in frontend. Amazon's canonical garment color list lives centrally so it can be updated without a frontend deploy.
+**Fit Type + Print (per-product):** 2-col grid. Checkboxes `secondary.main` (cyan). Radio `primary.main` (coral). Hidden/disabled when catalog entry for the focused product does not include `fit_types` / `print_side` in its `supports` array (e.g., PopSocket, Mug have no fit types).
 
-**Marketplaces & Prices:** 4-col grid (responsive 3→2). Per cell: marketplace label `caption`, checkbox + price input (32px, `COLORS.inkElevated` bg, 96px wide, right-aligned text), royalty display `caption text.disabled`.
+**Colors (per-product):** Flex wrap, circles 36px, full border-radius. Selected: `COLORS.cyan` border + glow `alpha(COLORS.cyan, 0.30)` + `scale(1.1)`. Checkmark inside (white on dark colors, ink on light). **Palette source (updated 2026-04-22):** loaded from the focused product's `colors_options` in `GET /api/mba/product-catalog/` (AC-37). Per-product palette — different products can expose different palettes.
+
+**Marketplaces & Prices (per-product):** 1-col list (or 2-col on wide screens). Per row: Checkbox + marketplace label `caption` + currency code + price input (32px, `COLORS.inkElevated` bg, 96px wide, right-aligned) + **live Royalty** display (`caption`, green if positive, amber if ≤ 0). Royalty recomputed on every price keystroke (debounced 100ms for UI update). Formula from catalog: `price × coef − base`. Empty price → Royalty = "—".
 
 **Language Tabs:** Flag + code chips. Active: `alpha(COLORS.cyan, 0.10)` bg, `COLORS.cyan` color, 1px `alpha(COLORS.cyan, 0.20)` border. Auto Translate Switch `secondary.main`. "Translate to All" Select dropdown.
 
@@ -708,11 +840,12 @@ MUI Icons first. When no fitting MUI icon exists, create custom SVG icons in `fr
 - Label `subtitle2` + InfoOutlined 14px + "Options ⊙" right-aligned
 - TextField outlined, bg `COLORS.inkElevated`, radius 8px, `body2` font
 - Char counter `caption`: normal `text.disabled`, ≥90% `COLORS.warningDk`, 100% `error.main`. Transition `DURATION.fast`
-- AI Improve icon: `opacity 0→1` on field hover, AutoFixHighOutlined 16px `COLORS.cyan`, opens PROJ-17 Chat
-- Layout: Brand+Title 2-col, Bullets 1+2 2-col, Bullets 3+4 2-col (or 5 full-width), Description full-width
-- Keywords: Chip container (removable chips `alpha('#fff', 0.08)` bg), inline "+ Add" input, "21/50" counter, "KW Finder | KW Workbench" links `COLORS.cyan`
+- Per-field "Improve" hover-icon (opens PROJ-17 Chat): `opacity 0→1` on field hover, AutoFixHighOutlined 16px `COLORS.cyan` — orthogonal to the header's central AI Improve button (AC-72)
+- Layout: Brand+Title 2-col, Bullet 1+Bullet 2 2-col, Description full-width, **Keyword Context** full-width multiline (4 rows, 500-char counter)
 
-**Options/Trademarks Tabs (bottom):** MUI Tabs, 2px `COLORS.red` indicator. Availability + Publish radio groups. TM Check button outlined `COLORS.warningDk`.
+**Options Tab (bottom):** MUI Tabs, 2px `COLORS.red` indicator. Availability + Publish radio groups. **Trademarks tab REMOVED 2026-04-22** — future separate feature, no TM UI in Edit page.
+
+**Unsaved-Changes Banner (auto-save UX):** sticky top, amber bg, shows while any field is dirty OR any PATCH in-flight. Contains "Discard" (revert optimistic changes, confirm dialog) and "Save" (manual flush) buttons. On all-saved → slides up, "Saved ✓" toast for 2s.
 
 **Design Preview (sticky right):** 300px width, `sticky top: 80px`, radius 12px, `contain`, meta info `caption text.disabled` ("4500x5400px / PNG / filename").
 
@@ -733,7 +866,7 @@ MUI Icons first. When no fitting MUI icon exists, create custom SVG icons in `fr
 - [ ] EC-2: MBA character limit exceeded → save as draft, highlight fields in red, block upload.
 - [ ] EC-3: Desktop App disconnected → jobs stay pending, UI shows connection status.
 - [ ] EC-4: Upload fails (CAPTCHA, form error) → status=failed, screenshot saved, retry available.
-- [ ] EC-5: TM Check finds flagged term → warning shown, user can proceed (soft block) or edit.
+- [ ] EC-5: ~~TM Check finds flagged term~~ **REMOVED 2026-04-22** — TM Check feature deferred to future separate PROJ.
 - [ ] EC-6: Auto-Translate produces text exceeding char limit → flag translated field, user must trim.
 - [ ] EC-7: Listing deleted after upload job created → `listing_snapshot` preserves data, job proceeds from snapshot.
 - [ ] EC-8: Multiple uploads for same design to different marketplaces → separate upload jobs, each gets own ASIN.
@@ -759,13 +892,25 @@ MUI Icons first. When no fitting MUI icon exists, create custom SVG icons in `fr
 - [ ] EC-28: Move target Collection was deleted mid-flow (stale picker) → backend returns 404 on the move call, UI shows error snackbar + invalidates `CollectionTree` so the picker rebuilds on next open.
 - [ ] EC-29: Delete confirmed but DELETE request fails (5xx / network error) → optimistic removal reverts, error snackbar ("Failed to delete"), card reappears in its original position.
 - [ ] EC-30: Duplicate server-side file copy fails (disk full, IO error, missing source file) → backend returns 500, no DB row created, UI shows error snackbar. Atomic: DB row and file copy either both succeed or neither persists.
+- [ ] EC-31: AI Improve called on a Listing without a linked design → 400 "AI Improve requires a linked design asset" + snackbar. Button should already be disabled per AC-71, but defensive guard handles edge (e.g., design deleted between page load and click).
+- [ ] EC-32: AI Improve returns text exceeding field max length → server truncates at max and flags `truncated_fields: [...]`. Frontend shows inline warning chip per truncated field. User can retry or edit manually.
+- [ ] EC-33: AI Improve LLM call fails (OpenRouter 5xx, timeout, rate-limit) → Listing fields NOT updated (server only writes on full success), snackbar "AI Improve failed — {reason}", button re-enabled for retry. User's existing text preserved.
+- [ ] EC-34: MBA Product Catalog endpoint returns 5xx or times out → frontend falls back to cached catalog response (stale-while-error). If no cache exists (first load ever), Edit page shows error state "Product catalog unavailable — retry". Product scroller empty.
+- [ ] EC-35: Migration from legacy `DesignProductConfig` (separate `fit_types`/`colors`/`product_types`/`marketplaces` fields) → per-product `products_config` — legacy rows are collapsed: for each `product_type` in legacy `product_types[]`, a `products_config` entry is created with the shared legacy values. Documented as lossy (users re-differentiate per-product post-migration).
+- [ ] EC-36: User focuses a product whose `products_config` entry does not yet exist (newly added to catalog, or first-time toggle) → frontend creates a new entry client-side with defaults from the catalog (`colors: []`, `fit_types: []`, `marketplaces: [from default_prices]`) and fires immediate PATCH to persist.
+- [ ] EC-37: User clicks a product in the Products scroller that is currently `enabled=false` → toggles `enabled=true`, focuses it, panels render with its config. Click again on an already-focused + enabled product → toggles `enabled=false`, focus moves to next enabled product (or clears focus if none).
+- [ ] EC-38: Auto-save text field PATCH races with a control-type PATCH on the same listing → last-write-wins on the server (matches AC-43 semantics). Frontend serializes its PATCHes per (listing_id) via a mutation queue to avoid local races.
+- [ ] EC-39: User edits text, switches marketplace tab before blurring → pending blur fires on tab switch (via `beforeunload`-style flush) and PATCHes to the ORIGINAL marketplace_type's Listing. Then new tab's Listing loads cleanly.
+- [ ] EC-40: Royalty formula returns negative value (price below break-even) → Royalty cell shows red "− $1.23" (negative royalty) + icon tooltip "Price below MBA break-even". Field still saves (user may be exploring pricing).
+- [ ] EC-41: AI Improve character limit on response — LLM occasionally returns 260-char bullets or 65-char titles. Server truncates WITHOUT re-prompting (LLM retry loop postponed post-MVP). User sees chip warning + can re-run for variation.
+- [ ] EC-42: `keyword_context` PATCH does not trigger `status` revert to `draft` — unlike other text fields, this is AI-input only. Server serializer allows `keyword_context` updates without status transition.
 
 ## Dependencies
 
 - PROJ-4 (Workspace & Membership)
 - PROJ-8 (Idea & Slogan Generation — idea must exist)
 - PROJ-9 (Design Generation — designs as input)
-- PROJ-10 (Keyword Bank — keyword injection, design_template auto-select)
+- ~~PROJ-10 (Keyword Bank)~~ **REMOVED 2026-04-22** — Keyword-Bank Integration aus Edit-Bereich entfernt. Zukünftige Wiederverbindung als eigenständiges Feature mit eigener PROJ-ID.
 - PROJ-13 (Desktop Upload App — executes upload jobs)
 - PROJ-15 (Vector DB — listing embeddings)
 - PROJ-17 (Chat — "Improve" hover integration, Web Search keywords)
@@ -788,23 +933,27 @@ ONEDRIVE_CLIENT_SECRET=
 
 ## Verification Steps
 
-1. Select approved design → click "Generate Listing" → AI produces Brand, Title, 5 Bullets, Description, Keywords. All fields within char limits.
-2. Hover over Title → "Improve" icon → Chat opens with title as context.
-3. Character counter turns amber at 90%, red at 100%.
-4. Click "Translate to All" → DE/FR/IT/ES/JA tabs populated. Auto-translated fields flagged if over limit.
-5. Inject keywords from PROJ-10 Keyword Bank → chips shown in Keywords field. Design template keywords pre-selected.
-6. Run TM Check → flagged terms highlighted with warning.
-7. Configure product types (T-Shirt, Hoodie) + colors + marketplaces + prices → saved on template.
-8. Save configuration as UploadTemplate → load on different design → settings applied.
-9. Queue upload job → status shows "pending". Desktop App connected → status transitions to "uploading" → "completed" with ASIN.
-10. Desktop App not connected → UI shows "Desktop App not connected" message. Jobs stay pending.
-11. Batch create jobs for 5 designs → 5 jobs created, each trackable independently.
-12. Upload fails → status=failed, error screenshot saved, retry available.
-13. Import design from Google Drive → file appears in Design Gallery with thumbnail.
-14. `Ctrl+K` → Command Palette opens → search "copy listing" → apply to selected designs.
-15. Product Lifecycle: Niche → Slogan → Design → Listing → ASIN → shows full chain.
-16. "Copy for MBA" → formatted listing text in clipboard.
-17. Workspace isolation: listings/designs from other workspaces → 403.
+1. Select approved design → click central "AI Improve" icon → AI produces Brand, Title, Bullet 1, Bullet 2, Description. All fields within char limits (or flagged `truncated_fields`).
+2. Pre-fill Bullet 1 with text from another design → click "AI Improve" → existing text is rewritten/improved (not re-generated from zero).
+3. Hover over Title field → per-field "Improve" hover-icon opens PROJ-17 Chat with title context (orthogonal to central button).
+4. Character counter turns amber at 90%, red at 100%.
+5. Click "Translate to All" → DE/FR/IT/ES/JA tabs populated with Title + Bullet 1 + Bullet 2 + Description translations. `keyword_context` NOT translated.
+6. Product scroller shows 17 product-shaped SVG icons (not hangers). Click T-Shirt → focus it → Fit / Print / Colors / Marketplace panels render T-Shirt's config.
+7. Switch focus to Hoodie → panels re-render Hoodie's independent config (different colors, different prices, different fit types).
+8. Enter price "19.99" on amazon.com for T-Shirt → Royalty column shows live computed value (e.g., "$2.95"). Enter price for amazon.de → EUR royalty computed independently.
+9. Auto-save: click a Color swatch → immediate PATCH (no save button click needed). Type in Title field → blur → PATCH on blur if dirty. "Unsaved changes" banner shows during in-flight PATCHes.
+10. Manual "Save" button flushes pending blur-pending text fields + shows spinner → "Saved ✓" on success.
+11. Network offline → banner switches to "Offline — changes saved locally" + queue PATCHes → reconnect → auto-flush.
+12. Save configuration as UploadTemplate → load on different design → settings applied per product.
+13. Queue upload job → status shows "pending". Desktop App connected → status transitions to "uploading" → "completed" with ASIN.
+14. Desktop App not connected → UI shows "Desktop App not connected" message. Jobs stay pending.
+15. Batch create jobs for 5 designs → 5 jobs created, each trackable independently.
+16. Upload fails → status=failed, error screenshot saved, retry available.
+17. Import design from Google Drive → file appears in Design Gallery with thumbnail.
+18. `Ctrl+K` → Command Palette opens → search "copy listing" → apply to selected designs.
+19. Product Lifecycle: Niche → Slogan → Design → Listing → ASIN → shows full chain.
+20. "Copy for MBA" → formatted listing text in clipboard (Brand, Title, Bullet 1, Bullet 2, Description — no TM check).
+21. Workspace isolation: listings/designs from other workspaces → 403.
 
 ---
 
@@ -939,15 +1088,17 @@ views/publish/
 │   │   ├── EditForm.tsx               # NEW: scrollable form assembly
 │   │   ├── DesignPreview.tsx          # NEW: sticky right preview image
 │   │   ├── MarketplaceTabs.tsx        # REBUILD: Global/Mba/Displate toggle
-│   │   ├── ProductTypeScroller.tsx    # REBUILD: horizontal scroll with count badges
-│   │   ├── ColorGrid.tsx             # REBUILD: circle swatches with checkmarks
-│   │   ├── MarketplacePricing.tsx     # REBUILD: per-marketplace grid
-│   │   ├── ListingField.tsx           # REBUILD: char counter + AI Improve hover + Options ⊙
-│   │   ├── KeywordChipsField.tsx      # REBUILD: removable chips + KW Finder link
+│   │   ├── ProductTypeScroller.tsx    # REBUILD: 17 custom SVG icons + per-product focus state
+│   │   ├── ColorGrid.tsx             # REBUILD: palette from focused product's colors_options
+│   │   ├── MarketplacePricing.tsx     # REBUILD: per-focused-product price + LIVE royalty column
+│   │   ├── ListingField.tsx           # REBUILD: char counter + PROJ-17 Chat hover + auto-save on-blur
+│   │   ├── KeywordContextField.tsx    # NEW 2026-04-22: 500-char multiline textarea (replaces KeywordChipsField)
+│   │   ├── AIImproveButton.tsx        # NEW 2026-04-22: central header IconButton → POST /ai-improve/
+│   │   ├── UnsavedChangesBanner.tsx   # NEW 2026-04-22: sticky banner + Save/Discard
 │   │   ├── TranslationTabs.tsx        # REBUILD: flag tabs + Auto Translate
 │   │   ├── OptionsButton.tsx          # NEW: "Options ⊙" → opens Command Palette filtered
 │   │   └── SectionHeader.tsx          # NEW: shared section header with title + info + Options ⊙
-│   ├── TMCheckDialog.tsx              # KEEP: trademark check
+│   ├── ~~TMCheckDialog.tsx~~          # DELETED 2026-04-22: TM check removed from Edit page
 │   ├── UploadQueueSection.tsx         # KEEP: upload job list
 │   ├── UploadJobRow.tsx               # KEEP: single job row
 │   └── UploadTemplateDropdown.tsx     # KEEP: template save/load
@@ -964,6 +1115,14 @@ components/
 │   │   └── useOneDrive.ts             # EXTRACT from PROJ-9 CloudManagerDialog
 │   ├── CloudStorageSettings.tsx       # NEW: reusable settings section (App Settings + inline)
 │   └── index.ts
+├── ProductIcons/                       # NEW 2026-04-22: 17 custom MBA product SVG icons
+│   ├── TShirtIcon.tsx / TShirtPremiumIcon.tsx / TShirtHeavyweightIcon.tsx
+│   ├── VNeckIcon.tsx / TankTopIcon.tsx / LongSleeveIcon.tsx / RaglanIcon.tsx
+│   ├── SweatshirtIcon.tsx / HoodiePulloverIcon.tsx / HoodieZipIcon.tsx
+│   ├── PerformanceIcon.tsx / BaseballIcon.tsx / TruckerHatIcon.tsx
+│   ├── PopSocketIcon.tsx / PhoneCaseIcon.tsx / ThrowPillowIcon.tsx
+│   ├── ToteBagIcon.tsx / TumblerIcon.tsx / MugIcon.tsx / WaterBottleIcon.tsx
+│   └── index.ts                        # exports PRODUCT_ICON_MAP: Record<icon_key, FC<IconProps>>
 
 store/
 └── publishSlice.ts                     # REBUILD: add collection endpoints, cloud state
@@ -1023,28 +1182,35 @@ No new screens. Existing Edit view sections (`ProductTypeScroller`, `FitTypePrin
 
 ```
 useEditView (refactor)
-+-- productConfig  ← RTK Query keyed on (activeDesignId, activeMarketplace)
-+-- setters        ← debounced auto-save PATCH (1200ms, same as listing)
-+-- applyCopy      ← POST /product-config/copy-from/ instead of local state copy
++-- productConfig    ← RTK Query keyed on (activeDesignId, activeMarketplace)
++-- productCatalog   ← RTK Query GET /api/mba/product-catalog/ (cached, stable)
++-- focusedProduct   ← local state: which product_type is currently edited
++-- controlSetters   ← IMMEDIATE PATCH (checkbox/radio/switch/color/product toggle)
++-- priceSetters     ← 400ms-debounced PATCH (avoid keystroke storm on "19.99")
++-- textSetters      ← on-blur-if-dirty PATCH (Brand / Title / Bullets / Desc / Keyword Context)
++-- manualSave       ← flush all pending blur-pending + show "Saved ✓"
++-- aiImprove        ← POST /api/listings/{id}/ai-improve/ → apply response to fields
++-- applyCopy        ← POST /product-config/copy-from/ instead of local state copy
++-- royaltyCompute   ← pure client function: (price, product, marketplace) → royalty
 ```
 
 ### B) Data Model (plain language)
 
 New model `DesignProductConfig` lives in `publish_app`. Sibling of `Listing` — both hang off a `DesignAsset`, keyed by `(design, marketplace_type)`.
 
+**Updated 2026-04-22** — `fit_types` / `print_side` / `colors` / `marketplaces` / `product_types` collapsed into a single `products_config` JSONField (per-product shape). See AC-38 for the new JSON schema.
+
 | Field | Type | Notes |
 |-------|------|-------|
 | `id` | UUID pk | |
 | `design` | FK → DesignAsset | `on_delete=CASCADE` (EC-11) |
 | `marketplace_type` | Choices `[global, mba, displate]` | default `mba`, same enum as Listing |
-| `product_types` | JSONField list | e.g. `['t_shirt', 'hoodie']` |
-| `fit_types` | JSONField list | e.g. `['men', 'women']` |
-| `print_side` | Choices `[front, back, both]` | default `front` |
-| `colors` | JSONField list | MBA color keys (validated against AC-37 palette) |
-| `marketplaces` | JSONField list | `[{marketplace, price, enabled}, ...]` |
+| `products_config` | JSONField list | **NEW 2026-04-22**: per-product config objects — each contains `product_type`, `enabled`, `fit_types`, `print_side`, `colors`, `marketplaces`. See AC-38 for exact shape. Replaces legacy flat fields. |
 | `created_at`, `updated_at` | DateTime | |
 
 **Unique constraint:** `(design, marketplace_type)` — one row per pair. Upsert on PATCH.
+
+**Server-side validation:** `products_config[*].product_type` ∈ catalog keys (AC-37); `fit_types[]` / `colors[]` / `marketplaces[*].marketplace` are subsets of the matching catalog entry's `*_options` arrays; `marketplaces[*].price` ≥ 0 decimal.
 
 ### C) API Endpoints
 
@@ -1062,7 +1228,9 @@ New model `DesignProductConfig` lives in `publish_app`. Sibling of `Listing` —
 | `(design, marketplace_type)` unique constraint | Mirrors Listing's constraint (F1). Same mental model: one row per marketplace variant. |
 | Upsert on PATCH (no explicit POST) | Simpler frontend auto-save path — one mutation regardless of row existence. |
 | Server-side copy endpoint (not client-side fetch+patch) | Atomic — source + target served in one transaction. Avoids race with other auto-saves. Mirrors future F3 Listing convert semantics. |
-| `colors[]` validated against MBA palette (AC-37) | Prevents drift between frontend MBA_COLORS and stored data. Rejects unknown color keys with 400. |
+| `products_config[*]` validated against MBA product catalog (AC-37) | Prevents drift between frontend catalog and stored data. Rejects unknown product/color/fit/marketplace keys with 400. |
+| Per-product JSON shape (not separate FK tables) | Simpler single-row upsert; no N+1 on load. Products list is bounded (~17 entries max per row), well within JSON-field query performance. |
+| Auto-save Hybrid (immediate controls / on-blur text) replaces blanket 1200ms debounce | Controls are single-click atomic intent (no "mid-change" state). Text fields benefit from debounce; on-blur is the natural commit point and avoids firing on every keystroke. Matches screenshot UX expectations (Flying Upload). |
 | Last-write-wins on concurrent PATCH (EC-14) | Matches Listing auto-save behavior. Optimistic locking postponed until multi-tab editing is proven painful. |
 | RTK Query cache key `(designId, marketplace_type)` | Tab switch + design switch both trigger fresh query. Matches D7 Listing cache pattern. |
 
@@ -1154,7 +1322,243 @@ None.
 
 ---
 
-## QA Report — 2026-04-19
+## Tech Design Addendum — Edit-Page Rewrite (added 2026-04-23)
+
+> Scope: AC-1 rewrite, AC-37 catalog, AC-38 restructure, AC-69 to AC-80 (AI Improve, Auto-Save, Product SVG Icons). Supersedes: AC-6, AC-10, AC-34. Requires data migration on two tables.
+
+### A) Component Structure — Edit Page (refactored shell)
+
+```
+EditView
++-- Header
+|   +-- Marketplace Tabs  (Global / Mba / Displate)
+|   +-- AI Improve IconButton        ← NEW (calls /ai-improve/)
+|   +-- Save Button                  ← NEW (manual flush + Saved indicator)
++-- UnsavedChangesBanner             ← NEW (sticky top, Save/Discard, offline state)
++-- ThumbnailStrip  (unchanged)
++-- Scrollable Form
+|   +-- ProductTypeScroller          ← REBUILD: 17 product-shaped SVG icons, focus state
+|   +-- [Per-focused-product panels]
+|   |   +-- FitTypePrintSection      ← REBUILD: per-product, hidden when catalog disallows
+|   |   +-- ColorGrid                ← REBUILD: palette from focused product's catalog entry
+|   |   +-- MarketplacePricing       ← REBUILD: per-product row list + LIVE royalty column
+|   +-- Language Tabs + Auto Translate
+|   +-- ListingFields
+|       +-- Brand / Title (auto-save on blur)
+|       +-- Bullet 1 / Bullet 2 (auto-save on blur — no Bullet 3/4/5)
+|       +-- Description (auto-save on blur)
+|       +-- KeywordContextField      ← NEW (500-char textarea, AI input only)
+|   +-- Options Tab (bottom)         ← Trademarks tab DELETED
++-- Design Preview (sticky, unchanged)
+```
+
+### B) Data Model — Migrations (plain language)
+
+**Three tables touched.** All migrations run in a single migration set per app for atomicity. Target: one Django migration file per change category.
+
+**B1 — Listing Model (shrink + rename)**
+
+| Change | Rationale | Risk |
+|--------|-----------|------|
+| Drop columns `bullet_3`, `bullet_4`, `bullet_5` | Bullets 3–5 never used in UI or AI flow. Data present = spec drift | Existing data in these columns lost (acceptable — spec was never implemented in prod) |
+| Rename column `backend_keywords` → `keyword_context` | Field is AI input only, not Amazon backend search terms. Old name misled consumers | Zero — Django rename migration preserves data |
+| Rewrite `translations` JSONField shape | Legacy shape `{lang: {title, bullets: [...]}}` → new shape `{lang: {title, bullet_1, bullet_2, description}}` | Data migration must truncate legacy `bullets` array to first 2 elements |
+| Drop `is_template=True` rows with `bullet_3..5` data? | No — template rows also lose bullets 3–5 (same truncation behavior) | Consistent with listings |
+
+**B2 — DesignProductConfig Model (flat → per-product)**
+
+| Change | Rationale | Risk |
+|--------|-----------|------|
+| Drop columns `product_types`, `fit_types`, `print_side`, `colors`, `marketplaces` | Replaced by single `products_config` JSON list (see AC-38) | Lossy data migration — see below |
+| Add column `products_config` (JSONField default=list) | Per-product config entries | None |
+| Data migration: for each legacy row, expand `product_types[]` into `products_config` entries, copying shared `fit_types`/`print_side`/`colors`/`marketplaces` into EACH entry | Users re-differentiate per-product after migration. Acceptable — product config is rarely finalized before this rewrite ships | EC-35 documents the lossy behavior |
+| Server-side validation adds catalog-referential integrity check | Prevents drift between frontend catalog and stored data | Migration-time check: only product_types in the catalog are migrated; unknown keys dropped + logged |
+
+**B3 — UploadTemplate Model (OPEN DECISION, see open items)**
+
+| Option | Pros | Cons |
+|--------|------|------|
+| A: Migrate UploadTemplate to same per-product shape | Consistent with DesignProductConfig; single mental model | Migration + tests; Template UI (future) rebuilt |
+| B: Keep UploadTemplate flat; Convert seeding fans out flat → per-product | Zero template migration | Two shapes in codebase; seeding logic duplicates per-product fan-out |
+| C: Deprecate UploadTemplate (defer post-MVP) | Simplest | Loses auto-apply feature for now |
+
+> **Recommendation:** Option A. Rationale: UploadTemplate and DesignProductConfig share their data model by design (template seeds a config). Two shapes create permanent debt. Migration effort is linear with DesignProductConfig — do both together.
+
+### C) MBA Product Catalog — Storage & Service
+
+The catalog (AC-37) describes all ~17 MBA products: which controls each product supports, color palette per product, default prices per marketplace, royalty formula per marketplace.
+
+**Storage options considered:**
+
+| Option | Pros | Cons | Chosen? |
+|--------|------|------|---------|
+| Python constant in module | Zero migration; easy diff in git; no DB round-trip | Requires backend deploy to change | ✅ Chosen |
+| Django model seeded via migration | Editable via admin | Over-engineered for bounded, rarely-changing data; schema complexity | ✗ |
+| JSON file on disk | Editable without deploy | Adds file I/O; harder to review changes | ✗ |
+
+**Location:** `publish_app/catalogs/mba_catalog.py` — a single module exporting `MBA_PRODUCT_CATALOG` (a Python tuple of product-entry dicts). Serializer flattens to JSON response. View adds a long `Cache-Control` header (24h) so the frontend caches aggressively. Updates ship as a code change + deploy.
+
+**Catalog Entry Shape (per AC-37):**
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `key` | string | Stable product identifier (`t_shirt`, `hoodie_pullover`, etc.) |
+| `label` | string | Display name (i18n-resolved on server using request `Accept-Language`) |
+| `icon_key` | string | Maps to frontend `PRODUCT_ICON_MAP` — NOT a URL |
+| `supports` | list[string] | Which control sections render (`fit_types`, `print_side`, `colors`) |
+| `fit_types_options` | list[string] | Available fit types for this product (empty for accessories) |
+| `print_side_options` | list[string] | Available print sides for this product |
+| `colors_options` | list[{key, name, hex}] | Per-product color palette |
+| `marketplaces` | list[string] | Amazon marketplaces this product ships on |
+| `default_prices` | dict[marketplace: decimal] | Default retail price per marketplace |
+| `royalty_formula` | dict[marketplace: {coef, base}] | Royalty = `price × coef − base` per marketplace |
+
+**Validation Role:** Any `DesignProductConfig.products_config` entry is server-validated against this catalog on PATCH. Unknown product keys / color keys / fit types / marketplaces → 400 with per-field errors.
+
+### D) AI-Improve Service
+
+Replaces the removed AC-6 (`/listing/generate/`). Single endpoint handles both "generate from empty" and "improve existing" — the LLM prompt varies only in how much text it receives as input.
+
+**Service layout:** `publish_app/services/ai_improve.py` with 4 pure functions plus the DRF view in `publish_app/api/views.py`.
+
+| Function | Responsibility |
+|----------|----------------|
+| `build_prompt(listing, design, keyword_context, language)` | Assemble system + user messages for LLM. Includes vision image URL + existing text + keyword hints |
+| `call_llm(messages)` | Invoke OpenRouter (via existing client). Uses vision-capable model (e.g., `anthropic/claude-3.5-sonnet` or configured via env `AI_IMPROVE_MODEL`) |
+| `validate_and_truncate(response_dict)` | Parse LLM JSON reply. Truncate each field at serializer max_length. Return `(fields, truncated_field_keys)` |
+| `apply_to_listing(listing, fields)` | PATCH Listing via serializer (same validation as manual edit). Updates `generated_by='ai'` and reverts status to `draft` |
+
+**Request / Response (AC-69):**
+
+| Direction | Shape |
+|-----------|-------|
+| Request | `POST /api/listings/{id}/ai-improve/` — no body required |
+| Response 200 | `{ listing: {...full serialized...}, truncated_fields: [] }` |
+| Response 400 | `{ error: "AI Improve requires a linked design asset" }` (EC-31) |
+| Response 429 | Rate limit (10/min/user — DRF UserRateThrottle scoped to this view) |
+| Response 502 | LLM upstream failed — listing unchanged (EC-33) |
+
+**Error Behavior:** The Listing is NEVER partially written. Either all 5 fields apply (after truncation) or the call is a no-op. Truncation is NOT an error — the frontend receives the list of truncated field keys and surfaces per-field warning chips (AC-70).
+
+**Rate-limit placement:** DRF `UserRateThrottle` subclass `AIImproveThrottle` with `rate='10/min'` and `scope='ai_improve'`. Settings entry added.
+
+**Env vars:**
+- `AI_IMPROVE_MODEL` (default: `anthropic/claude-3.5-sonnet`)
+- `AI_IMPROVE_TIMEOUT_SECONDS` (default: `60`)
+- Existing `OPENROUTER_API_KEY` reused.
+
+**Removed counterparts:**
+- `publish_app/services/listing_generator.py` — delete module (unused after AC-6 removal)
+- `publish_app/services/tm_checker.py` — delete module (unused after AC-10 removal)
+- Corresponding views + URL routes + tests deleted.
+
+### E) Auto-Save Trigger Matrix
+
+Single source of truth for how every editable control reaches the backend. Lives in `useEditView` hook as three setter factories.
+
+| Control Type | Examples | Trigger | Debounce | Endpoint |
+|--------------|----------|---------|----------|----------|
+| Binary toggle | Checkbox (Fit Type, Marketplace enabled), Radio (Print Side, Availability, Publish Mode), Switch (Auto Translate), Product on/off | **Immediate** — on `onChange` | None | Matches owner (Listing PATCH or DesignProductConfig PATCH) |
+| Visual selection | Color Swatch, Product focus-click | **Immediate** | None | DesignProductConfig PATCH |
+| Numeric input | Price input per marketplace | **Debounced** | 400 ms idle | DesignProductConfig PATCH (targeted `op: 'upsert_product'`) |
+| Free text | Brand, Title, Bullet 1, Bullet 2, Description, Keyword Context | **On Blur (dirty only)** | N/A | Listing PATCH (partial — only changed fields) |
+| Command invocation | AI Improve button, Save button, Translate-to-All button | **Immediate** | None | Dedicated endpoints |
+
+**Save button behavior (AC-74):** Flushes every pending `on blur` field (forces blur on focused field) + waits for all in-flight PATCHes → shows "Saved ✓" for 2s OR error state.
+
+**Offline handling (AC-77):** `navigator.onLine` + PATCH network errors → queue mutations client-side in a ref (non-persistent for MVP). `online` event → replay queue in order. Banner shifts from amber "Unsaved changes" to orange "Offline — changes will save on reconnect".
+
+**Failure rollback (AC-76):** On 4xx/5xx, RTK Query's `onQueryStarted` optimistic patch is reverted. Error snackbar names the field. Banner flips to red "Save failed — Retry".
+
+**Concurrency (EC-38, EC-14):** Frontend serializes PATCHes per `(listing_id)` and per `(design_id, marketplace_type)` via a promise chain in the hook. Server keeps last-write-wins semantics.
+
+### F) Frontend Component Structure (refactor, not new tree)
+
+Changes to existing `views/publish/partials/editor/`:
+
+| File | Action | Reason |
+|------|--------|--------|
+| `ProductTypeScroller.tsx` | Refactor | Per-product focus state, SVG icon map |
+| `ColorGrid.tsx` | Refactor | Palette source = focused product's catalog entry |
+| `MarketplacePricing.tsx` | Refactor | Per-product row list + live royalty column |
+| `FitTypePrintSection.tsx` | Refactor | Hidden when catalog says unsupported |
+| `ListingField.tsx` | Refactor | On-blur-if-dirty PATCH, keep per-field Chat hover |
+| `KeywordChipsField.tsx` | **Delete** | Replaced |
+| `KeywordContextField.tsx` | **New** | Plain 500-char textarea |
+| `AIImproveButton.tsx` | **New** | Header icon button + spinner + truncation warnings |
+| `UnsavedChangesBanner.tsx` | **New** | Sticky banner + Save/Discard/Offline state |
+| `TMCheckDialog.tsx` | **Delete** | Feature removed |
+
+New module `components/ProductIcons/` (AC-78): 17 SVG components + barrel export with `PRODUCT_ICON_MAP`. Shared globally (PROJ-13 Desktop App can reuse via shared package).
+
+New hook shape (AC-43 updated): `useEditView` exports 3 setter factories (`controlSetters`, `priceSetters`, `textSetters`) + `royaltyCompute` pure function + `aiImprove` mutation + `manualSave` flush.
+
+### G) Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| Python constant for MBA catalog (not DB model) | Bounded, rarely-changing data. Diffs reviewed in git. No admin UI needed. Deploy-to-change is acceptable at current Amazon update cadence |
+| Single `products_config` JSON (not separate FK table) | ~17 product entries max per row — well under JSON performance limits. One-row upsert is simpler than N+1 on load. Per-product queries rare (config is always loaded whole) |
+| Migrate UploadTemplate to same shape | Consistency over minimal diff. Two shapes = permanent code debt |
+| AI-Improve as single endpoint (generate + improve unified) | Same LLM call, same prompt scaffold. Splitting makes the prompt diverge and confuses users |
+| Truncate AI output server-side, never re-prompt | Simpler contract. User re-runs for variation. Retry loops are expensive + rarely necessary |
+| Rate-limit AI-Improve at 10/min/user | Cost protection. OpenRouter vision calls are ~10× non-vision price |
+| Auto-save hybrid (immediate controls / on-blur text) | Matches screenshot UX expectations. Blanket debounce creates weird "did it save?" feeling on toggles |
+| Offline queue non-persistent for MVP | Persistence adds storage management complexity. Acknowledged trade-off: offline tab reload = dirty state lost |
+| 17 custom SVG icons as React components (not sprite sheet) | Tree-shakable per product (PRODUCT_ICON_MAP exports). Themeable via `currentColor`. Matches existing app icon style (Iconoir/Tabler) |
+| Delete removed services outright (no dead code) | `listing_generator.py`, `tm_checker.py`, `KeywordChipsField.tsx`, `TMCheckDialog.tsx` — removal is atomic with AC changes |
+
+### H) Infrastructure Changes
+
+| Change | Where |
+|--------|-------|
+| Migration: Listing drop bullets 3–5, rename backend_keywords, rewrite translations JSON | `publish_app/migrations/` |
+| Migration: DesignProductConfig collapse fields into products_config + data migration | `publish_app/migrations/` |
+| Migration: UploadTemplate collapse fields → per-product shape (Option A) | `publish_app/migrations/` |
+| New catalog module `catalogs/mba_catalog.py` | `publish_app/catalogs/` |
+| New service `services/ai_improve.py` | `publish_app/services/` |
+| Delete service `services/listing_generator.py` | `publish_app/services/` |
+| Delete service `services/tm_checker.py` | `publish_app/services/` |
+| New view + URL for `/ai-improve/` | `publish_app/api/views.py` + `urls.py` |
+| New view + URL for `/mba/product-catalog/` | `publish_app/api/views.py` + `urls.py` |
+| Delete view + URL for `/listing/generate/` | `publish_app/api/views.py` + `urls.py` |
+| Delete view + URL for `/tm-check/` | `publish_app/api/views.py` + `urls.py` |
+| Env vars: `AI_IMPROVE_MODEL`, `AI_IMPROVE_TIMEOUT_SECONDS` | `django-app/.env.template` |
+| DRF throttle class `AIImproveThrottle` | `publish_app/api/throttles.py` |
+| i18n keys cleanup (tm_*, kw_finder_*, bullet_3..5 removed; keyword_context, ai_improve_* added) | `frontend-ui/src/i18n/locales/*.json` |
+
+### I) New Packages
+
+None. All dependencies already installed (OpenRouter client, DRF throttle machinery, MUI icons).
+
+---
+
+
+
+> The 2026-04-22 edit round (this block) **invalidates prior PASS status**. All ACs touched below require fresh implementation + QA before this section returns to PASS.
+
+**New ACs added (AC-69 to AC-80):** AI Improve endpoint + button (AC-69 to AC-72), Auto-save UX matrix (AC-73 to AC-77), Product SVG icons + catalog rendering (AC-78 to AC-80). None implemented yet.
+
+**Modified ACs:** AC-1 (Listing bullets 5→2 + rename backend_keywords → keyword_context), AC-37 (colors endpoint → product catalog endpoint), AC-38 (DesignProductConfig flat fields → per-product `products_config`), AC-39/40/41/43/44 (product-config API + frontend contract follow). Needs migration + re-test.
+
+**Removed ACs:** AC-6 (generate endpoint), AC-10 (tm-check endpoint), AC-34 (keyword chips). Backing code (`TMCheckDialog`, `KeywordChipsField`, `services/tm_checker.py`, generate view/route) must be deleted.
+
+**Migration impacts:**
+- `Listing` table: drop `bullet_3`, `bullet_4`, `bullet_5`; rename `backend_keywords` → `keyword_context`; rewrite `translations` JSON shape.
+- `DesignProductConfig` table: collapse 5 fields into single `products_config` JSON; data migration lossy (per AC-38, EC-35).
+- `UploadTemplate` table: follow DesignProductConfig shape change if it stores matching fields — **DECISION NEEDED** whether `UploadTemplate.colors/fit_types/product_types/marketplaces` also restructure, or whether templates stay in legacy shape and seed logic expands to per-product fan-out.
+- Tests: AC-1/AC-6/AC-10/AC-34 tests removed; new tests for AC-69–AC-80 required.
+
+**Frontend impacts:**
+- 17 new SVG icon components under `components/ProductIcons/`.
+- `ProductTypeScroller`, `ColorGrid`, `MarketplacePricing`, `FitTypePrintSection` rebuilt for per-product focus.
+- `useEditView` hook: replace single debounced setter with control/price/text setter matrix.
+- `ListingField` component: remove chip/finder logic, add on-blur-if-dirty PATCH.
+- i18n keys: `backend_keywords` → `keyword_context`, `ai_generate_listing` → `ai_improve_listing`, all `tm_*` keys removed, all 5 `bullet_*` keys reduced to `bullet_1` + `bullet_2`.
+
+---
+
+## QA Report — 2026-04-19 (STALE — see 2026-04-22 block above)
 
 ### Summary
 PASS. All 59 ACs + 22 ECs covered by automated tests. No blocking bugs. Security posture (workspace isolation, 404-on-cross-workspace) verified. Ready for deploy pending two acknowledged minor gaps.

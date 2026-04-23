@@ -105,11 +105,10 @@ class Listing(models.Model):
     title = models.CharField(max_length=60, blank=True, default='')
     bullet_1 = models.CharField(max_length=256, blank=True, default='')
     bullet_2 = models.CharField(max_length=256, blank=True, default='')
-    bullet_3 = models.CharField(max_length=256, blank=True, default='')
-    bullet_4 = models.CharField(max_length=256, blank=True, default='')
-    bullet_5 = models.CharField(max_length=256, blank=True, default='')
     description = models.TextField(max_length=2000, blank=True, default='')
-    backend_keywords = models.CharField(max_length=500, blank=True, default='')
+    # AC-1 (2026-04-22): renamed from `backend_keywords`. Now a hint field
+    # for AI Improve (LLM input) -- NOT Amazon backend search terms.
+    keyword_context = models.CharField(max_length=500, blank=True, default='')
 
     status = models.CharField(
         max_length=20,
@@ -136,7 +135,10 @@ class Listing(models.Model):
     translations = models.JSONField(
         default=dict,
         blank=True,
-        help_text='Per-language translations: {lang: {title, bullets, description}}',
+        help_text=(
+            'Per-language translations: '
+            '{lang: {title, bullet_1, bullet_2, description}}'
+        ),
     )
     is_template = models.BooleanField(
         default=False,

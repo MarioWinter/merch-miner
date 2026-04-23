@@ -33,11 +33,7 @@ Return ONLY valid JSON with these exact keys:
   "title": "...",
   "bullet_1": "...",
   "bullet_2": "...",
-  "bullet_3": "...",
-  "bullet_4": "...",
-  "bullet_5": "...",
   "description": "...",
-  "backend_keywords": "...",
   "over_limit_fields": ["field1", "field2"]
 }
 
@@ -73,15 +69,13 @@ def translate_listing(listing, target_language: str) -> dict:
         },
     )
 
+    # AC-1 (2026-04-22): keyword_context is NOT translated (AI input only,
+    # English-optimized). Translations are limited to the user-facing copy.
     source_fields = {
         'title': listing.title,
         'bullet_1': listing.bullet_1,
         'bullet_2': listing.bullet_2,
-        'bullet_3': listing.bullet_3,
-        'bullet_4': listing.bullet_4,
-        'bullet_5': listing.bullet_5,
         'description': listing.description,
-        'backend_keywords': listing.backend_keywords,
     }
 
     char_limits_str = '\n'.join(

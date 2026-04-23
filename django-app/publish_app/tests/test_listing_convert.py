@@ -116,9 +116,8 @@ def ws_headers(workspace):
 def _make_listing(workspace, idea, design, marketplace_type, **fields):
     defaults = dict(
         brand_name='Brand', title='Title',
-        bullet_1='B1', bullet_2='B2', bullet_3='B3',
-        bullet_4='B4', bullet_5='B5',
-        description='Desc', backend_keywords='kw1, kw2',
+        bullet_1='B1', bullet_2='B2',
+        description='Desc', keyword_context='kw1, kw2',
     )
     defaults.update(fields)
     return Listing.objects.create(
@@ -165,7 +164,7 @@ class TestListingConvertCreate:
             description='Global Desc',
             bullet_1='',  # empty -> description should be promoted
             bullet_2='unused',
-            backend_keywords='ignored',
+            keyword_context='ignored',
         )
         resp = api_client.post(
             '/api/listings/convert/',
@@ -178,17 +177,14 @@ class TestListingConvertCreate:
         )
         assert resp.status_code == 201
         # Global -> MBA mapping: brand/title/description kept, description
-        # promoted to bullet_1 when bullet_1 is empty, bullets 2-5 cleared,
-        # backend_keywords cleared.
+        # promoted to bullet_1 when bullet_1 is empty, bullet_2 cleared,
+        # keyword_context cleared.
         assert resp.data['brand_name'] == 'GlobalBrand'
         assert resp.data['title'] == 'Global Title'
         assert resp.data['description'] == 'Global Desc'
         assert resp.data['bullet_1'] == 'Global Desc'
         assert resp.data['bullet_2'] == ''
-        assert resp.data['bullet_3'] == ''
-        assert resp.data['bullet_4'] == ''
-        assert resp.data['bullet_5'] == ''
-        assert resp.data['backend_keywords'] == ''
+        assert resp.data['keyword_context'] == ''
 
     def test_convert_mba_to_global_mapping(
         self, api_client, workspace, idea, design, membership,
@@ -200,10 +196,7 @@ class TestListingConvertCreate:
             description='MBA Desc',
             bullet_1='MBA B1',
             bullet_2='MBA B2',
-            bullet_3='MBA B3',
-            bullet_4='MBA B4',
-            bullet_5='MBA B5',
-            backend_keywords='mba, keywords',
+            keyword_context='mba, keywords',
         )
         resp = api_client.post(
             '/api/listings/convert/',
@@ -221,8 +214,7 @@ class TestListingConvertCreate:
         assert resp.data['description'] == 'MBA Desc'
         assert resp.data['bullet_1'] == ''
         assert resp.data['bullet_2'] == ''
-        assert resp.data['bullet_5'] == ''
-        assert resp.data['backend_keywords'] == ''
+        assert resp.data['keyword_context'] == ''
 
     def test_convert_source_with_null_design_always_creates(
         self, api_client, workspace, idea, membership,
@@ -340,7 +332,7 @@ class TestListingConvertOverwrite:
             description='Stale Desc',
             bullet_1='Stale B1',
             bullet_2='Stale B2',
-            backend_keywords='stale, kw',
+            keyword_context='stale, kw',
             status=Listing.Status.PUBLISHED,
         )
 
@@ -365,9 +357,9 @@ class TestListingConvertOverwrite:
         assert existing.description == 'Fresh Desc'
         # Global -> MBA mapping: description promoted to bullet_1.
         assert existing.bullet_1 == 'Fresh Desc'
-        # Bullets 2-5 + backend_keywords cleared by the mapping.
+        # Bullet 2 + keyword_context cleared by the mapping.
         assert existing.bullet_2 == ''
-        assert existing.backend_keywords == ''
+        assert existing.keyword_context == ''
         # Status reverts to draft on overwrite edit.
         assert existing.status == Listing.Status.DRAFT
         # No extra listing was created.

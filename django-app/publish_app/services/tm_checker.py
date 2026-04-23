@@ -28,9 +28,6 @@ def check_listing_tm(listing) -> list[dict]:
         'title': listing.title,
         'bullet_1': listing.bullet_1,
         'bullet_2': listing.bullet_2,
-        'bullet_3': listing.bullet_3,
-        'bullet_4': listing.bullet_4,
-        'bullet_5': listing.bullet_5,
         'description': listing.description,
         'brand_name': listing.brand_name,
     }

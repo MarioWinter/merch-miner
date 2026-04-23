@@ -76,7 +76,7 @@ def listing(workspace, idea, design_asset):
         brand_name='CatBrand', title='Funny Cat T-Shirt',
         bullet_1='Super soft cotton', bullet_2='Great gift idea',
         description='A hilarious cat design',
-        backend_keywords='cat, funny, tshirt',
+        keyword_context='cat, funny, tshirt',
     )
 
 
@@ -169,6 +169,27 @@ class TestListingUpdateView:
             **ws_headers(workspace),
         )
         assert resp.status_code == 200
+        assert resp.data['status'] == 'ready'
+
+    def test_keyword_context_patch_does_not_revert_status(
+        self, api_client, workspace, listing, membership,
+    ):
+        """EC-42: editing keyword_context on a Ready listing must NOT
+        revert status to draft (unlike other content fields).
+        """
+        # First, mark listing as Ready.
+        listing.status = Listing.Status.READY
+        listing.save(update_fields=['status'])
+
+        resp = api_client.patch(
+            f'/api/listings/{listing.id}/',
+            {'keyword_context': 'new, hint, words'},
+            format='json',
+            **ws_headers(workspace),
+        )
+        assert resp.status_code == 200
+        assert resp.data['keyword_context'] == 'new, hint, words'
+        # EC-42: status must remain `ready`, NOT flip back to `draft`.
         assert resp.data['status'] == 'ready'
 
 
