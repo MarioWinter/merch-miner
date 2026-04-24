@@ -107,6 +107,11 @@ class Listing(models.Model):
         MBA = 'mba', 'Merch by Amazon'
         DISPLATE = 'displate', 'Displate'
 
+    class ColorMode(models.TextChoices):
+        BLACK = 'black', 'Black'
+        WHITE = 'white', 'White'
+        COLORFUL = 'colorful', 'Colorful'
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     workspace = models.ForeignKey(
         'workspace_app.Workspace',
@@ -145,6 +150,58 @@ class Listing(models.Model):
     # AC-1 (2026-04-22): renamed from `backend_keywords`. Now a hint field
     # for AI Improve (LLM input) -- NOT Amazon backend search terms.
     keyword_context = models.CharField(max_length=500, blank=True, default='')
+
+    # PROJ-11 Phase R (2026-04-24): marketplace-scoped fields for Global +
+    # Displate tabs. Per-field serializer gates enforce which marketplace
+    # each field is allowed on (AC-81 / AC-82 / AC-123 / AC-124). Model-level
+    # clean() is intentionally NOT used -- gates live at the API boundary so
+    # Django admin stays unconstrained for ops-debug workflows.
+    keywords = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            'Per-language keyword chips for Global/Displate listings. '
+            'Shape: {lang: [keyword, ...]} where lang in {en, de, fr, it, '
+            'es, ja}. Rejected on marketplace_type=mba via serializer gate '
+            '(AC-82).'
+        ),
+    )
+    type_flags = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            'List of fit-type flags from [men, women, youth]. Used by the '
+            'Basic export Type column. Global/Displate only (AC-81).'
+        ),
+    )
+    color_mode = models.CharField(
+        max_length=10,
+        choices=ColorMode.choices,
+        blank=True,
+        default='',
+        help_text=(
+            'Design color mode for Basic export Color column. '
+            'Global-only (AC-81 / AC-82).'
+        ),
+    )
+    background_color_hex = models.CharField(
+        max_length=7,
+        blank=True,
+        default='',
+        help_text=(
+            'Displate background color. Must match ^#[0-9A-Fa-f]{6}$ when '
+            'non-empty. Displate-only (AC-123).'
+        ),
+    )
+    category = models.CharField(
+        max_length=200,
+        blank=True,
+        default='',
+        help_text=(
+            'Listing category, set via Advanced Options modal. MBA + Global '
+            'only -- rejected on Displate (AC-81 / AC-82).'
+        ),
+    )
 
     status = models.CharField(
         max_length=20,

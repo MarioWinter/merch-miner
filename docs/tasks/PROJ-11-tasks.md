@@ -1108,43 +1108,43 @@
 
 ### R1: Migration — Listing new fields
 
-- [ ] Add field `keywords` (JSONField, default=dict) to `Listing` model
-- [ ] Add field `type_flags` (JSONField, default=list) to `Listing` model
-- [ ] Add field `color_mode` (CharField max_length=10, blank=True, default='', choices=[black, white, colorful]) to `Listing` model
-- [ ] Add field `background_color_hex` (CharField max_length=7, blank=True, default='') to `Listing` model
-- [ ] Add field `category` (CharField max_length=200, blank=True, default='') to `Listing` model
-- [ ] Generate migration `publish_app/migrations/00XX_listing_extend_global_displate_fields.py` with empty-default backfill
-- [ ] Run migration against local + CI DB; verify backfill on existing rows
+- [x] Add field `keywords` (JSONField, default=dict) to `Listing` model
+- [x] Add field `type_flags` (JSONField, default=list) to `Listing` model
+- [x] Add field `color_mode` (CharField max_length=10, blank=True, default='', choices=[black, white, colorful]) to `Listing` model
+- [x] Add field `background_color_hex` (CharField max_length=7, blank=True, default='') to `Listing` model
+- [x] Add field `category` (CharField max_length=200, blank=True, default='') to `Listing` model
+- [x] Generate migration `publish_app/migrations/0013_listing_extend_global_displate_fields.py` with empty-default backfill
+- [x] Run migration against local + CI DB; verify backfill on existing rows
 
 ### R2: Serializer gates (per-field marketplace_type validation)
 
-- [ ] Extend `ListingUpdateSerializer` with per-field `validate_<field>` methods enforcing the AC-82 matrix:
+- [x] Extend `ListingUpdateSerializer` with per-field `validate_<field>` methods enforcing the AC-82 matrix:
   - `keywords`: reject when `marketplace_type == 'mba'`
   - `type_flags`: reject when `marketplace_type == 'mba'`
   - `color_mode`: reject when `marketplace_type != 'global'`
   - `background_color_hex`: reject when `marketplace_type != 'displate'`
   - `category`: reject when `marketplace_type == 'displate'`
-- [ ] Hex validation regex `^#[0-9A-Fa-f]{6}$` on `background_color_hex`
-- [ ] Keyword-comma/semicolon rejection in `validate_keywords` (AC-110 backend guard)
-- [ ] Serializer output: hide fields on non-allowed marketplace_type responses (per-field `to_representation` or field-set per-tab)
+- [x] Hex validation regex `^#[0-9A-Fa-f]{6}$` on `background_color_hex`
+- [x] Keyword-comma/semicolon rejection in `validate_keywords` (AC-110 backend guard)
+- [x] Serializer output: hide fields on non-allowed marketplace_type responses (per-field `to_representation` or field-set per-tab)
 
 ### R3: Convert rule extension (AC-109)
 
-- [ ] Extend `ListingConvertView.convert()` to copy `brand_name` + `category` across tabs (respecting target's gate — drop `category` if target=displate)
-- [ ] Explicitly NOT copy `keywords`, `type_flags`, `color_mode`, `background_color_hex` (per AC-109)
-- [ ] Update `test_listing_convert.py` with new field transfer assertions
+- [x] Extend `ListingConvertView.convert()` to copy `brand_name` + `category` across tabs (respecting target's gate — drop `category` if target=displate)
+- [x] Explicitly NOT copy `keywords`, `type_flags`, `color_mode`, `background_color_hex` (per AC-109)
+- [x] Update `test_listing_convert.py` with new field transfer assertions
 
 ### R4: Tests
 
-- [ ] `tests/test_listing_schema_gates.py::test_mba_rejects_keywords` (400)
-- [ ] `tests/test_listing_schema_gates.py::test_global_accepts_keywords`
-- [ ] `tests/test_listing_schema_gates.py::test_displate_accepts_keywords`
-- [ ] `tests/test_listing_schema_gates.py::test_global_rejects_background_hex`
-- [ ] `tests/test_listing_schema_gates.py::test_displate_rejects_color_mode`
-- [ ] `tests/test_listing_schema_gates.py::test_displate_rejects_category`
-- [ ] `tests/test_listing_schema_gates.py::test_keywords_comma_rejected`
-- [ ] `tests/test_listing_schema_gates.py::test_hex_format_rejected`
-- [ ] Expected: `pytest publish_app/tests/test_listing_schema_gates.py` green
+- [x] `tests/test_listing_schema_gates.py::test_mba_rejects_keywords` (400)
+- [x] `tests/test_listing_schema_gates.py::test_global_accepts_keywords`
+- [x] `tests/test_listing_schema_gates.py::test_displate_accepts_keywords`
+- [x] `tests/test_listing_schema_gates.py::test_global_rejects_background_hex`
+- [x] `tests/test_listing_schema_gates.py::test_displate_rejects_color_mode`
+- [x] `tests/test_listing_schema_gates.py::test_displate_rejects_category`
+- [x] `tests/test_listing_schema_gates.py::test_keywords_comma_rejected`
+- [x] `tests/test_listing_schema_gates.py::test_hex_format_rejected`
+- [x] Expected: `pytest publish_app/tests/test_listing_schema_gates.py` green
 
 ---
 
@@ -1154,31 +1154,31 @@
 
 ### S1: Template stubs
 
-- [ ] Copy byte-exact `FlyingUploadMultiLanguageMBA.xlsx` from `/Users/mariomuller/Downloads/Excel Standard v2.3/` → `publish_app/catalogs/flyingupload_mba_template.xlsx`
-- [ ] Copy byte-exact `FlyingUploadBasicMultiLanguage.xlsx` → `publish_app/catalogs/flyingupload_basic_template.xlsx`
-- [ ] Add `publish_app/catalogs/flyingupload_maps.py` with `LANG_MAP`, `MARKETPLACE_MAP`, `FLYINGUPLOAD_PRODUCT_MAP`, `FIT_TYPE_MAP` constants (AC-120 version-pin comment at top)
-- [ ] Add loader fixture helper in tests for template-stub byte comparison
+- [x] Copy byte-exact `FlyingUploadMultiLanguageMBA.xlsx` from `/Users/mariomuller/Downloads/Excel Standard v2.3/` → `publish_app/catalogs/flyingupload_mba_template.xlsx`
+- [x] Copy byte-exact `FlyingUploadBasicMultiLanguage.xlsx` → `publish_app/catalogs/flyingupload_basic_template.xlsx`
+- [x] Add `publish_app/catalogs/flyingupload_maps.py` with `LANG_MAP`, `MARKETPLACE_MAP`, `FLYINGUPLOAD_PRODUCT_MAP`, `FIT_TYPE_MAP` constants (AC-120 version-pin comment at top)
+- [x] Add loader fixture helper in tests for template-stub byte comparison
 
 ### S2: Core export service — MBA
 
-- [ ] Create `publish_app/services/flyingupload_export.py` module scaffold
-- [ ] Implement `_color_mode_from_colors(color_keys)` (AC-93 V column derivation)
-- [ ] Implement `_safe_file_name(original, asset_uuid)` (AC-106 `<stem>-<uuid8>.<ext>` collision suffix)
-- [ ] Implement `_resolve_background_hex(design)` — looks up Displate listing's `background_color_hex` (AC-127)
-- [ ] Implement `build_mba_bundle(workspace_id, design_ids) -> (zip_bytes, preflight_summary)`:
+- [x] Create `publish_app/services/flyingupload_export.py` module scaffold
+- [x] Implement `_color_mode_from_colors(color_keys)` (AC-93 V column derivation) — implemented as `derive_color_mode` in `catalogs/flyingupload_maps.py`
+- [x] Implement `_safe_file_name(original, asset_uuid)` (AC-106 `<stem>-<uuid8>.<ext>` collision suffix)
+- [x] Implement `_resolve_background_hex(design)` — looks up Displate listing's `background_color_hex` (AC-127)
+- [x] Implement `build_mba_bundle(workspace_id, design_ids) -> (zip_bytes, preflight_summary)`:
   - Open template stub → copy → populate rows → save to BytesIO
   - Fan-out design × enabled products (AC-94)
   - Write 66 cols per AC-93 mapping (Image Path = `designs/<safe_name>`)
   - Fetch each referenced asset binary via `default_storage.open()` — skip on missing (AC-104 `image_unavailable`)
   - Pack XLSX + `designs/*` into ZIP (DEFLATED XLSX, STORED images)
   - Return (zip_bytes, summary)
-- [ ] Catalog-unknown product keys → row skipped + warning (AC-94, EC-48)
-- [ ] Over-10-colors → first 10 + preflight warning (EC-49)
-- [ ] `both` print_side → `front` + warning (EC-50)
+- [x] Catalog-unknown product keys → row skipped + warning (AC-94, EC-48)
+- [x] Over-10-colors → first 10 + preflight warning (EC-49)
+- [x] `both` print_side → `front` + warning (EC-50)
 
 ### S3: Core export service — Basic
 
-- [ ] Implement `build_basic_bundle(workspace_id, design_ids) -> (zip_bytes, preflight_summary)`:
+- [x] Implement `build_basic_bundle(workspace_id, design_ids) -> (zip_bytes, preflight_summary)`:
   - Open Basic stub → populate 9 cols per AC-96
   - 1 row per selected design (no fan-out)
   - `Type` column with `men→man, women→woman` legacy mapping
@@ -1187,51 +1187,51 @@
 
 ### S4: CSV format
 
-- [ ] Implement `build_mba_csv(workspace_id, design_ids) -> (csv_bytes, preflight_summary)`:
+- [x] Implement `build_mba_csv(workspace_id, design_ids) -> (csv_bytes, preflight_summary)`:
   - UTF-8 with BOM (`\xef\xbb\xbf` prefix)
   - RFC 4180 quoted-CSV via `csv.writer(quoting=csv.QUOTE_ALL)`
   - Same 66 columns as XLSX including empty gap columns
   - `Image Path` column = bare `file_name` (no `designs/` prefix, no ZIP) per AC-136
-- [ ] Implement `build_basic_csv(workspace_id, design_ids) -> (csv_bytes, preflight_summary)` — 9-col variant
-- [ ] Response: single `.csv` file, no ZIP wrap (AC-136)
+- [x] Implement `build_basic_csv(workspace_id, design_ids) -> (csv_bytes, preflight_summary)` — 9-col variant
+- [x] Response: single `.csv` file, no ZIP wrap (AC-136)
 
 ### S5: Preflight service
 
-- [ ] Implement `preflight(workspace_id, design_ids, template, format) -> summary_dict`:
+- [x] Implement `preflight(workspace_id, design_ids, template, format) -> summary_dict`:
   - Returns `{total_designs, ready_rows, skipped, warnings}` without generating bytes
   - Walks the same branches as `build_*_bundle` but skips the actual write steps
-- [ ] 500-design hard cap → 400 `max_500_designs_per_export` (AC-107, EC-61)
-- [ ] Size-estimate cap (sum of file_size) → 400 `estimated_archive_too_large` with top-10 breakdown (AC-107, EC-62)
+- [x] 500-design hard cap → 400 `max_500_designs_per_export` (AC-107, EC-61)
+- [x] Size-estimate cap (sum of file_size) → 400 `estimated_archive_too_large` with top-10 breakdown (AC-107, EC-62)
 
 ### S6: Size + streaming guardrails
 
-- [ ] Use `SpooledTemporaryFile(max_size=100MB)` for ZIP accumulation
-- [ ] Stream response via `FileResponse` with `streaming_content`
-- [ ] HTTP range support NOT required for MVP (archive is finite)
+- [x] Use `SpooledTemporaryFile(max_size=100MB)` for ZIP accumulation
+- [ ] Stream response via `FileResponse` with `streaming_content` — deferred to Phase T (endpoint layer)
+- [x] HTTP range support NOT required for MVP (archive is finite)
 
 ### S7: Tests
 
-- [ ] `tests/test_flyingupload_export_mba.py::test_sheet_name_and_headers`
-- [ ] `tests/test_flyingupload_export_mba.py::test_gap_columns_remain_empty` (B/W/BK)
-- [ ] `tests/test_flyingupload_export_mba.py::test_fan_out_one_row_per_enabled_product`
-- [ ] `tests/test_flyingupload_export_mba.py::test_image_path_relative_to_designs`
-- [ ] `tests/test_flyingupload_export_mba.py::test_brand_duplicated_to_all_6_language_columns`
-- [ ] `tests/test_flyingupload_export_mba.py::test_ja_language_maps_to_JP`
-- [ ] `tests/test_flyingupload_export_mba.py::test_amazon_com_maps_to_US`
-- [ ] `tests/test_flyingupload_export_mba.py::test_background_color_hex_from_displate_listing`
-- [ ] `tests/test_flyingupload_export_basic.py::test_9_columns_exact`
-- [ ] `tests/test_flyingupload_export_basic.py::test_men_maps_to_man`
-- [ ] `tests/test_flyingupload_export_basic.py::test_skips_missing_global_listing`
-- [ ] `tests/test_flyingupload_export_csv.py::test_utf8_bom_prefix`
-- [ ] `tests/test_flyingupload_export_csv.py::test_rfc4180_quoting`
-- [ ] `tests/test_flyingupload_export_csv.py::test_newlines_in_description_quoted`
-- [ ] `tests/test_flyingupload_preflight.py::test_ready_rows_post_fan_out`
-- [ ] `tests/test_flyingupload_preflight.py::test_no_listing_skip_reason`
-- [ ] `tests/test_flyingupload_preflight.py::test_no_enabled_products_skip_reason`
-- [ ] `tests/test_flyingupload_preflight.py::test_image_unavailable_skip_reason`
-- [ ] `tests/test_flyingupload_guards.py::test_max_500_cap`
-- [ ] `tests/test_flyingupload_guards.py::test_size_estimate_cap`
-- [ ] `tests/test_flyingupload_guards.py::test_filename_collision_suffix`
+- [x] `tests/test_flyingupload_export_mba.py::test_sheet_name_and_headers`
+- [x] `tests/test_flyingupload_export_mba.py::test_gap_columns_remain_empty` (B/W/BK)
+- [x] `tests/test_flyingupload_export_mba.py::test_fan_out_one_row_per_enabled_product`
+- [x] `tests/test_flyingupload_export_mba.py::test_image_path_relative_to_designs`
+- [x] `tests/test_flyingupload_export_mba.py::test_brand_duplicated_to_all_6_language_columns`
+- [x] `tests/test_flyingupload_export_mba.py::test_ja_language_maps_to_JP`
+- [x] `tests/test_flyingupload_export_mba.py::test_amazon_com_maps_to_US`
+- [x] `tests/test_flyingupload_export_mba.py::test_background_color_hex_from_displate_listing`
+- [x] `tests/test_flyingupload_export_basic.py::test_9_columns_exact`
+- [x] `tests/test_flyingupload_export_basic.py::test_men_maps_to_man`
+- [x] `tests/test_flyingupload_export_basic.py::test_skips_missing_global_listing`
+- [x] `tests/test_flyingupload_export_csv.py::test_utf8_bom_prefix`
+- [x] `tests/test_flyingupload_export_csv.py::test_rfc4180_quoting`
+- [x] `tests/test_flyingupload_export_csv.py::test_newlines_in_description_quoted`
+- [x] `tests/test_flyingupload_preflight.py::test_ready_rows_post_fan_out`
+- [x] `tests/test_flyingupload_preflight.py::test_no_listing_skip_reason`
+- [x] `tests/test_flyingupload_preflight.py::test_no_enabled_products_skip_reason`
+- [x] `tests/test_flyingupload_preflight.py::test_image_unavailable_skip_reason`
+- [x] `tests/test_flyingupload_guards.py::test_max_500_cap`
+- [x] `tests/test_flyingupload_guards.py::test_size_estimate_cap`
+- [x] `tests/test_flyingupload_guards.py::test_filename_collision_suffix`
 
 ---
 

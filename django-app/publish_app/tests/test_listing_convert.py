@@ -216,6 +216,137 @@ class TestListingConvertCreate:
         assert resp.data['bullet_2'] == ''
         assert resp.data['keyword_context'] == ''
 
+    def test_convert_copies_category_across_mba_global(
+        self, api_client, workspace, idea, design, membership,
+    ):
+        """AC-109: `category` is copied on MBA/Global convert."""
+        source = _make_listing(
+            workspace, idea, design, Listing.MarketplaceType.GLOBAL,
+            category='Apparel',
+        )
+        resp = api_client.post(
+            '/api/listings/convert/',
+            {
+                'source_listing_id': str(source.id),
+                'target_marketplace_type': 'mba',
+            },
+            format='json',
+            **ws_headers(workspace),
+        )
+        assert resp.status_code == 201, resp.data
+        # MBA output exposes `category` (AC-82 allow-list).
+        assert resp.data['category'] == 'Apparel'
+
+    def test_convert_drops_category_when_target_is_displate(
+        self, api_client, workspace, idea, design, membership,
+    ):
+        """AC-109: `category` is dropped when target is Displate
+        (serializer gate would reject it)."""
+        source = _make_listing(
+            workspace, idea, design, Listing.MarketplaceType.GLOBAL,
+            category='Apparel',
+        )
+        resp = api_client.post(
+            '/api/listings/convert/',
+            {
+                'source_listing_id': str(source.id),
+                'target_marketplace_type': 'displate',
+            },
+            format='json',
+            **ws_headers(workspace),
+        )
+        assert resp.status_code == 201, resp.data
+        # Displate does not expose `category` in the serializer output.
+        assert 'category' not in resp.data
+        # Verify at DB level.
+        new = Listing.objects.get(id=resp.data['id'])
+        assert new.category == ''
+
+    def test_convert_copies_brand_name(
+        self, api_client, workspace, idea, design, membership,
+    ):
+        """AC-109: `brand_name` always copies across tabs."""
+        source = _make_listing(
+            workspace, idea, design, Listing.MarketplaceType.MBA,
+            brand_name='BrandXYZ',
+        )
+        resp = api_client.post(
+            '/api/listings/convert/',
+            {
+                'source_listing_id': str(source.id),
+                'target_marketplace_type': 'global',
+            },
+            format='json',
+            **ws_headers(workspace),
+        )
+        assert resp.status_code == 201, resp.data
+        assert resp.data['brand_name'] == 'BrandXYZ'
+
+    def test_convert_does_not_copy_marketplace_scoped_fields(
+        self, api_client, workspace, idea, design, membership,
+    ):
+        """AC-109: `keywords`, `type_flags`, `color_mode`,
+        `background_color_hex` never cross the convert boundary. Target
+        gets model defaults (empty)."""
+        source = _make_listing(
+            workspace, idea, design, Listing.MarketplaceType.GLOBAL,
+            keywords={'en': ['alpha', 'beta']},
+            type_flags=['men', 'women'],
+            color_mode='black',
+        )
+        resp = api_client.post(
+            '/api/listings/convert/',
+            {
+                'source_listing_id': str(source.id),
+                'target_marketplace_type': 'displate',
+            },
+            format='json',
+            **ws_headers(workspace),
+        )
+        assert resp.status_code == 201, resp.data
+        # Displate target: keywords + type_flags allowed but start empty.
+        assert resp.data['keywords'] == {}
+        assert resp.data['type_flags'] == []
+        # Displate target: background_color_hex allowed but empty.
+        assert resp.data['background_color_hex'] == ''
+        # Source unchanged (convert leaves source untouched per AC-109).
+        source.refresh_from_db()
+        assert source.keywords == {'en': ['alpha', 'beta']}
+        assert source.type_flags == ['men', 'women']
+        assert source.color_mode == 'black'
+
+    def test_convert_to_mba_does_not_copy_keywords_or_color_mode(
+        self, api_client, workspace, idea, design, membership,
+    ):
+        """AC-109 + AC-82: converting to MBA must not copy
+        `keywords`/`type_flags`/`color_mode` (serializer would reject them
+        anyway). Target is a clean MBA listing."""
+        source = _make_listing(
+            workspace, idea, design, Listing.MarketplaceType.GLOBAL,
+            keywords={'en': ['x']},
+            type_flags=['youth'],
+            color_mode='white',
+        )
+        resp = api_client.post(
+            '/api/listings/convert/',
+            {
+                'source_listing_id': str(source.id),
+                'target_marketplace_type': 'mba',
+            },
+            format='json',
+            **ws_headers(workspace),
+        )
+        assert resp.status_code == 201, resp.data
+        # MBA output hides these fields entirely (AC-87).
+        assert 'keywords' not in resp.data
+        assert 'type_flags' not in resp.data
+        assert 'color_mode' not in resp.data
+        # Verify DB-level: target has empty defaults.
+        new = Listing.objects.get(id=resp.data['id'])
+        assert new.keywords == {}
+        assert new.type_flags == []
+        assert new.color_mode == ''
+
     def test_convert_source_with_null_design_always_creates(
         self, api_client, workspace, idea, membership,
     ):

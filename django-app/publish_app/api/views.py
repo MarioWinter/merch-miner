@@ -356,6 +356,14 @@ def _map_listing_fields(source, target_marketplace_type):
       blank for the user to fill in.
     - For any other direction (e.g. to Displate), do a straight field copy
       so nothing is silently lost.
+
+    PROJ-11 Phase R3 (2026-04-24 -- AC-109): marketplace-scoped fields never
+    cross the convert boundary. ``keywords`` / ``type_flags`` /
+    ``color_mode`` / ``background_color_hex`` stay on whichever tab they
+    were set on -- convert leaves them untouched on the source AND does not
+    initialize them on the target (they default to empty per AC-82).
+    ``brand_name`` and ``category`` ARE copied, with ``category`` dropped
+    when the target is Displate (serializer gate would reject it anyway).
     """
     source_mt = source.marketplace_type
     MarketplaceType = Listing.MarketplaceType
@@ -369,6 +377,14 @@ def _map_listing_fields(source, target_marketplace_type):
         'bullet_1': source.bullet_1,
         'bullet_2': source.bullet_2,
         'keyword_context': source.keyword_context,
+        # AC-109: `category` is copied across tabs (MBA + Global), but
+        # dropped when the target is Displate (serializer gate rejects it
+        # there).
+        'category': (
+            source.category
+            if target_marketplace_type != MarketplaceType.DISPLATE
+            else ''
+        ),
     }
 
     if (
@@ -395,6 +411,11 @@ def _map_listing_fields(source, target_marketplace_type):
 
     # Any other source/target combination -> straight copy of `payload`
     # (e.g. conversions involving Displate are placeholders for now).
+
+    # AC-109: `keywords` / `type_flags` / `color_mode` /
+    # `background_color_hex` are NOT in `payload` by design -- they are
+    # marketplace-scoped decorations that must not bleed across tabs. The
+    # target Listing gets the model defaults (empty dict/list/string).
 
     return payload
 

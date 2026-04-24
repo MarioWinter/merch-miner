@@ -1,5 +1,7 @@
 """DRF serializers for publish_app API."""
 
+import re
+
 from rest_framework import serializers
 
 from publish_app.catalogs import (
@@ -23,16 +25,66 @@ from publish_app.models import (
 
 MBA_COLOR_KEYS = {entry['key'] for entry in MBA_COLORS}
 
+# PROJ-11 Phase R (2026-04-24): keyword value validation.
+# AC-110: keyword values cannot contain `,` or `;` -- guarantees lossless
+# CSV/XLSX export (AC-93 / AC-96).
+_KEYWORD_FORBIDDEN_CHARS_RE = re.compile(r'[,;]')
+# AC-123: background_color_hex must match `^#RRGGBB$` when non-empty.
+_HEX_COLOR_RE = re.compile(r'^#[0-9A-Fa-f]{6}$')
+# AC-81: supported keyword languages.
+_KEYWORD_LANG_KEYS = {'en', 'de', 'fr', 'it', 'es', 'ja'}
+# AC-81: type_flags allowed values.
+_TYPE_FLAG_VALUES = {'men', 'women', 'youth'}
+
+
+def _gate_error(field, allowed):
+    """Build a consistent 400 error for per-field marketplace gates (AC-82).
+
+    ``allowed`` is a short label like ``'Global or Displate'``. Kept in one
+    place so QA has a stable message to assert on.
+    """
+    return serializers.ValidationError(
+        f'{field} only allowed on {allowed} listings',
+    )
+
 
 # ---------------------------------------------------------------------------
 # Listing
 # ---------------------------------------------------------------------------
 
 class ListingSerializer(serializers.ModelSerializer):
-    """Full listing representation."""
+    """Full listing representation.
+
+    PROJ-11 Phase R2 (2026-04-24): marketplace-scoped fields (``keywords``,
+    ``type_flags``, ``color_mode``, ``background_color_hex``, ``category``)
+    are hidden from the serialized output when the listing's
+    ``marketplace_type`` does not allow them (AC-87 / AC-82). The fields stay
+    on the Meta.fields list so they are included by default for the allowed
+    marketplace, and stripped per-tab in ``to_representation``.
+    """
 
     idea_slogan = serializers.SerializerMethodField()
     design_file_name = serializers.SerializerMethodField()
+
+    # Marketplace allow-lists per AC-82 / AC-124 -- single source of truth
+    # shared by the read-side (``to_representation``) and the write-side
+    # (``ListingUpdateSerializer`` per-field validators).
+    _FIELD_ALLOW_LISTS = {
+        'keywords': {
+            Listing.MarketplaceType.GLOBAL,
+            Listing.MarketplaceType.DISPLATE,
+        },
+        'type_flags': {
+            Listing.MarketplaceType.GLOBAL,
+            Listing.MarketplaceType.DISPLATE,
+        },
+        'color_mode': {Listing.MarketplaceType.GLOBAL},
+        'background_color_hex': {Listing.MarketplaceType.DISPLATE},
+        'category': {
+            Listing.MarketplaceType.GLOBAL,
+            Listing.MarketplaceType.MBA,
+        },
+    }
 
     class Meta:
         model = Listing
@@ -43,6 +95,8 @@ class ListingSerializer(serializers.ModelSerializer):
             'bullet_1', 'bullet_2',
             'description', 'keyword_context', 'status', 'generated_by',
             'availability', 'publish_mode', 'language', 'translations',
+            'keywords', 'type_flags', 'color_mode',
+            'background_color_hex', 'category',
             'is_template', 'created_at', 'updated_at',
         ]
         read_only_fields = [
@@ -60,6 +114,20 @@ class ListingSerializer(serializers.ModelSerializer):
             return obj.design.file_name
         return None
 
+    def to_representation(self, instance):
+        """Strip marketplace-scoped fields from listings that don't allow
+        them (AC-82 / AC-87). MBA listings never expose ``keywords``,
+        ``type_flags``, ``color_mode``, or ``background_color_hex``; Displate
+        listings never expose ``color_mode`` or ``category``; Global listings
+        never expose ``background_color_hex``.
+        """
+        data = super().to_representation(instance)
+        mt = instance.marketplace_type
+        for field, allowed in self._FIELD_ALLOW_LISTS.items():
+            if mt not in allowed:
+                data.pop(field, None)
+        return data
+
 
 class ListingUpdateSerializer(serializers.ModelSerializer):
     """Partial update for listings. Status reverts to draft on edit.
@@ -71,6 +139,13 @@ class ListingUpdateSerializer(serializers.ModelSerializer):
 
     EC-21: ``is_template`` is write-once at creation. PATCH rejects any
     attempt to flip it with a 400 ValidationError.
+
+    PROJ-11 Phase R2 (2026-04-24): per-field marketplace gates enforce which
+    marketplace each new field (``keywords``, ``type_flags``, ``color_mode``,
+    ``background_color_hex``, ``category``) is allowed on (AC-82 / AC-124).
+    ``keywords`` values additionally reject literal `,` and `;` characters
+    (AC-110) so CSV/XLSX export stays lossless. ``background_color_hex`` is
+    format-validated with ``^#[0-9A-Fa-f]{6}$`` when non-empty (AC-123).
     """
 
     # Accept `is_template` only so we can reject it with a clear 400 instead
@@ -86,6 +161,30 @@ class ListingUpdateSerializer(serializers.ModelSerializer):
         max_length=500,
     )
 
+    # Phase R2 new fields. Declared explicitly so the per-field validators
+    # below fire before the marketplace gate (DRF runs `validate_<field>`
+    # during `to_internal_value`).
+    keywords = serializers.JSONField(required=False)
+    type_flags = serializers.JSONField(required=False)
+    color_mode = serializers.ChoiceField(
+        choices=(
+            *Listing.ColorMode.choices,
+            ('', ''),  # allow clearing
+        ),
+        required=False,
+        allow_blank=True,
+    )
+    background_color_hex = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=7,
+    )
+    category = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        max_length=200,
+    )
+
     class Meta:
         model = Listing
         fields = [
@@ -97,15 +196,122 @@ class ListingUpdateSerializer(serializers.ModelSerializer):
             # the DE/FR/IT/ES/JA tabs can persist per-locale copy without
             # touching the top-level EN fields.
             'translations',
+            # Phase R (2026-04-24) -- Global + Displate scoped fields.
+            'keywords', 'type_flags', 'color_mode',
+            'background_color_hex', 'category',
         ]
         extra_kwargs = {field: {'required': False} for field in fields}
         validators = []  # disable auto unique-together validator -> 409 at DB
+
+    def _effective_marketplace_type(self):
+        """Resolve the effective marketplace_type for gate checks.
+
+        Per AC-82 gates apply against the listing's current
+        ``marketplace_type`` (the source-of-truth on the instance). PATCH may
+        include ``marketplace_type`` in the same payload -- in that case the
+        incoming value wins so gates match the post-save state.
+        """
+        incoming = self.initial_data.get('marketplace_type')
+        if incoming in {c[0] for c in Listing.MarketplaceType.choices}:
+            return incoming
+        instance = self.instance
+        if instance is not None:
+            return instance.marketplace_type
+        return None
 
     def validate_is_template(self, value):
         # EC-21: disallow flipping is_template after creation.
         raise serializers.ValidationError(
             'is_template is write-once at creation and cannot be changed.',
         )
+
+    def validate_keywords(self, value):
+        """AC-82 gate + AC-110 keyword-char validation.
+
+        Allowed marketplaces: ``global``, ``displate`` (AC-124).
+        Expected shape: ``{lang: [keyword, ...]}`` where ``lang`` is one of
+        ``en / de / fr / it / es / ja``. Each keyword string must not contain
+        `,` or `;` (AC-110 defense-in-depth against crafted API calls).
+        """
+        mt = self._effective_marketplace_type()
+        if mt == Listing.MarketplaceType.MBA:
+            raise _gate_error('keywords', 'Global or Displate')
+
+        if not isinstance(value, dict):
+            raise serializers.ValidationError(
+                'keywords must be an object keyed by language code.',
+            )
+
+        for lang, kw_list in value.items():
+            if lang not in _KEYWORD_LANG_KEYS:
+                raise serializers.ValidationError(
+                    f'keywords contains unsupported language {lang!r}. '
+                    f'Allowed: {sorted(_KEYWORD_LANG_KEYS)}.',
+                )
+            if not isinstance(kw_list, list):
+                raise serializers.ValidationError(
+                    f'keywords[{lang}] must be a list of strings.',
+                )
+            for i, kw in enumerate(kw_list):
+                if not isinstance(kw, str):
+                    raise serializers.ValidationError(
+                        f'keywords[{lang}][{i}] must be a string.',
+                    )
+                if _KEYWORD_FORBIDDEN_CHARS_RE.search(kw):
+                    raise serializers.ValidationError(
+                        'Keyword cannot contain `,` or `;`',
+                    )
+        return value
+
+    def validate_type_flags(self, value):
+        """AC-82 gate + shape validation. Allowed: ``global``, ``displate``."""
+        mt = self._effective_marketplace_type()
+        if mt == Listing.MarketplaceType.MBA:
+            raise _gate_error('type_flags', 'Global or Displate')
+
+        if not isinstance(value, list):
+            raise serializers.ValidationError('type_flags must be a list.')
+        unknown = [v for v in value if v not in _TYPE_FLAG_VALUES]
+        if unknown:
+            raise serializers.ValidationError(
+                f'type_flags contains unknown values {sorted(set(unknown))}. '
+                f'Allowed: {sorted(_TYPE_FLAG_VALUES)}.',
+            )
+        return value
+
+    def validate_color_mode(self, value):
+        """AC-82 gate. Allowed only on ``global``."""
+        mt = self._effective_marketplace_type()
+        # Empty string is the "cleared" sentinel -- allow on any marketplace
+        # so callers can reset a previously-set value even after a convert.
+        if value == '':
+            return value
+        if mt != Listing.MarketplaceType.GLOBAL:
+            raise _gate_error('color_mode', 'Global')
+        return value
+
+    def validate_background_color_hex(self, value):
+        """AC-82 gate + hex format check. Allowed only on ``displate``."""
+        mt = self._effective_marketplace_type()
+        if value == '':
+            return value
+        if mt != Listing.MarketplaceType.DISPLATE:
+            raise _gate_error('background_color_hex', 'Displate')
+        if not _HEX_COLOR_RE.match(value):
+            raise serializers.ValidationError(
+                'background_color_hex must match ^#RRGGBB (hex) format.',
+            )
+        return value
+
+    def validate_category(self, value):
+        """AC-82 gate. Allowed on ``global`` + ``mba``, rejected on
+        ``displate``."""
+        mt = self._effective_marketplace_type()
+        if value == '':
+            return value
+        if mt == Listing.MarketplaceType.DISPLATE:
+            raise _gate_error('category', 'MBA or Global')
+        return value
 
     def validate(self, attrs):
         # EC-16: if a caller passes both `design` and the instance is a
