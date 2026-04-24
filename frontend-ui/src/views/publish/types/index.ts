@@ -30,6 +30,16 @@ export interface ListingTranslation {
   description: string;
 }
 
+// Phase R (2026-04-24): per-language keyword chips for Global/Displate.
+// Shape: { lang: [keyword, ...] } where lang ∈ {en, de, fr, it, es, ja}.
+export type ListingKeywords = Partial<Record<ListingLanguage, string[]>>;
+
+// Phase U (2026-04-24): fit-type flags used by the Basic export Type column.
+export type ListingTypeFlag = 'men' | 'women' | 'youth';
+
+// Phase U (2026-04-24): design color mode used by the Basic export Color column.
+export type ListingColorMode = '' | 'black' | 'white' | 'colorful';
+
 export interface Listing {
   id: string;
   idea: string;
@@ -44,6 +54,13 @@ export interface Listing {
   description: string;
   // Phase I rename (2026-04-23): `backend_keywords` → `keyword_context`.
   keyword_context: string;
+  // Phase R/U (2026-04-24): Global + Displate marketplace-scoped fields.
+  // Each is `null` (or empty) when not applicable for the marketplace.
+  keywords?: ListingKeywords;
+  type_flags?: ListingTypeFlag[];
+  color_mode?: ListingColorMode;
+  background_color_hex?: string;
+  category?: string;
   status: ListingStatus;
   generated_by: GeneratedBy;
   availability: Availability;
@@ -318,6 +335,8 @@ export const LISTING_CHAR_LIMITS = {
   bullet_2: 256,
   description: 2000,
   keyword_context: 500,
+  // Phase U (AC-85): total keyword length per language = `keywords[lang].join(', ').length`.
+  keywords_per_language: 50,
 } as const;
 
 export const SUPPORTED_LANGUAGES: { code: ListingLanguage; label: string }[] = [

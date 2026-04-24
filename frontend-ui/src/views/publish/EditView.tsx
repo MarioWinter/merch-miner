@@ -16,6 +16,7 @@ import ListingFieldsSection from './partials/edit/ListingFieldsSection';
 import ListingStateBanner from './partials/edit/ListingStateBanner';
 import OptionsSection from './partials/edit/OptionsSection';
 import DesignPreview from './partials/edit/DesignPreview';
+import GlobalTabContent from './partials/global/GlobalTabContent';
 import UnsavedChangesBanner from './partials/editor/UnsavedChangesBanner';
 import CommandPalette from './partials/command/CommandPalette';
 import CopyFromDesignDialog from './partials/edit/CopyFromDesignDialog';
@@ -160,6 +161,7 @@ const EditView = () => {
   }
 
   const isMba = activeMarketplace === 'mba';
+  const isGlobal = activeMarketplace === 'global';
 
   return (
     <ViewRoot>

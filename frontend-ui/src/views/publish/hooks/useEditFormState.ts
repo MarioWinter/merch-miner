@@ -16,6 +16,10 @@ import {
 import { useAppSelector } from '@/store/hooks';
 import type {
   Listing,
+  ListingColorMode,
+  ListingKeywords,
+  ListingLanguage,
+  ListingTypeFlag,
   MarketplaceType,
   PrintSide,
   ProductConfigEntry,
@@ -490,6 +494,90 @@ export const useEditFormState = ({
     [flushTextField, flushTranslatedField],
   );
 
+  // ---- Global/Displate setters (Phase U / Phase V, immediate PATCH) -----
+  // Per AC-86 / AC-108, every add/remove/toggle on the Global + Displate
+  // tabs fires an atomic immediate PATCH -- no debounce. We funnel through
+  // the offline queue so a dropped connection still replays the write.
+  const patchListing = useCallback(
+    async (body: Partial<Listing>) => {
+      if (!listingId) return;
+      await enqueue({
+        kind: 'updateListing',
+        id: listingId,
+        body,
+      });
+    },
+    [listingId, enqueue],
+  );
+
+  const keywordsSetters = useMemo(
+    () => ({
+      /** Replace the full keyword array for a language -- used for bulk
+       *  ops (Import CSV, Copy-EN-to-all, Clear all). The merge semantics
+       *  are "clients sends the whole dict back" so siblings survive. */
+      setAll: (lang: ListingLanguage, keywords: string[]) => {
+        const existing = listing?.keywords ?? {};
+        const next: ListingKeywords = { ...existing, [lang]: keywords };
+        return patchListing({ keywords: next });
+      },
+      /** Append a single trimmed keyword to `lang`'s list. Idempotent --
+       *  skips case-insensitive duplicates (AC-84). Caller is responsible
+       *  for 50-char-total enforcement (AC-85); the hook is pure storage. */
+      commitChip: (lang: ListingLanguage, keyword: string) => {
+        const existing = listing?.keywords ?? {};
+        const current = existing[lang] ?? [];
+        const clean = keyword.trim();
+        if (!clean) return Promise.resolve();
+        const lower = clean.toLowerCase();
+        if (current.some((k) => k.toLowerCase() === lower)) {
+          return Promise.resolve();
+        }
+        const next: ListingKeywords = {
+          ...existing,
+          [lang]: [...current, clean],
+        };
+        return patchListing({ keywords: next });
+      },
+      /** Remove the chip at `idx` for `lang`. No-op when out of bounds. */
+      removeChip: (lang: ListingLanguage, idx: number) => {
+        const existing = listing?.keywords ?? {};
+        const current = existing[lang] ?? [];
+        if (idx < 0 || idx >= current.length) return Promise.resolve();
+        const nextList = current.filter((_, i) => i !== idx);
+        const next: ListingKeywords = { ...existing, [lang]: nextList };
+        return patchListing({ keywords: next });
+      },
+    }),
+    [listing?.keywords, patchListing],
+  );
+
+  const typeFlagsSetter = useCallback(
+    (flags: ListingTypeFlag[]) => patchListing({ type_flags: flags }),
+    [patchListing],
+  );
+
+  const colorModeSetter = useCallback(
+    (mode: ListingColorMode) => patchListing({ color_mode: mode }),
+    [patchListing],
+  );
+
+  const bgHexSetter = useCallback(
+    (hex: string) => patchListing({ background_color_hex: hex }),
+    [patchListing],
+  );
+
+  const categorySetter = useCallback(
+    (category: string) => patchListing({ category }),
+    [patchListing],
+  );
+
+  /** Batched brand + category -- used by AdvancedOptionsDialog Save (AC-132). */
+  const advancedOptionsSetter = useCallback(
+    (brand: string, category: string) =>
+      patchListing({ brand_name: brand, category }),
+    [patchListing],
+  );
+
   // ---- manualSave / discard --------------------------------------------
   const manualSave = useCallback(async () => {
     // Flush any timers that haven't fired.
@@ -577,6 +665,13 @@ export const useEditFormState = ({
     controlSetters,
     priceSetters,
     textSetters,
+    // Phase U/V (2026-04-24) -- Global + Displate setters (immediate PATCH)
+    keywordsSetters,
+    typeFlagsSetter,
+    colorModeSetter,
+    bgHexSetter,
+    categorySetter,
+    advancedOptionsSetter,
     // Manual save + discard
     manualSave,
     discard,
