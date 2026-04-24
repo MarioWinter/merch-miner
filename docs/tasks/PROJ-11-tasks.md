@@ -1241,40 +1241,40 @@
 
 ### T1: ExportLog model + migration
 
-- [ ] Create `ExportLog` model per Tech Design B) (workspace, created_by, template, format, design_ids, design_count, row_count, filename, output_size_bytes, created_at)
-- [ ] DB index `(workspace, -created_at)`
-- [ ] Append-only semantics (no UPDATE/DELETE paths in API)
-- [ ] Generate migration `00XX_exportlog.py`
+- [x] Create `ExportLog` model per Tech Design B) (workspace, created_by, template, format, design_ids, design_count, row_count, filename, output_size_bytes, created_at)
+- [x] DB index `(workspace, -created_at)`
+- [x] Append-only semantics (no UPDATE/DELETE paths in API)
+- [x] Generate migration `0014_exportlog.py`
 
 ### T2: API views
 
-- [ ] `FlyingUploadPreflightView` (POST `.../flyingupload/preflight/`) — wraps `services.flyingupload_export.preflight(...)`, returns summary JSON
-- [ ] `FlyingUploadExportView` (POST `.../flyingupload/`) — wraps `build_*_bundle` or `build_*_csv`, streams response, writes `ExportLog` on success
-- [ ] `ExportHistoryListView` (GET `.../history/`) — paginated ExportLog list, workspace-isolated, ordered `-created_at`, limit 50
+- [x] `FlyingUploadPreflightView` (POST `.../flyingupload/preflight/`) — wraps `services.flyingupload_export.preflight(...)`, returns summary JSON
+- [x] `FlyingUploadExportView` (POST `.../flyingupload/`) — wraps `build_*_bundle` or `build_*_csv`, streams response, writes `ExportLog` on success
+- [x] `ExportHistoryListView` (GET `.../history/`) — paginated ExportLog list, workspace-isolated, ordered `-created_at`, limit 50
 
 ### T3: Serializers
 
-- [ ] `ExportPreflightRequestSerializer` — validates body shape (template, design_ids or collection_id, format)
-- [ ] `ExportLogSerializer` — read-only, includes `created_by` nested user fields (id, first_name, last_name, avatar_url)
-- [ ] Reject unknown `template` / `format` values with 400
+- [x] `ExportPreflightRequestSerializer` — validates body shape (template, design_ids or collection_id, format)
+- [x] `ExportLogSerializer` — read-only, includes `created_by` nested user fields (id, first_name, last_name, avatar_url)
+- [x] Reject unknown `template` / `format` values with 400
 
 ### T4: URL registration
 
-- [ ] Register 3 new routes in `publish_app/api/urls.py`
-- [ ] All routes require `IsAuthenticated` + workspace-id header filter (404 on cross-workspace)
+- [x] Register 3 new routes in `publish_app/api/urls.py`
+- [x] All routes require `IsAuthenticated` + workspace-id header filter (404 on cross-workspace)
 
 ### T5: Tests
 
-- [ ] `tests/test_export_history.py::test_append_only_on_successful_export`
-- [ ] `tests/test_export_history.py::test_no_row_on_4xx_error`
-- [ ] `tests/test_export_history.py::test_no_row_on_5xx_error`
-- [ ] `tests/test_export_history.py::test_workspace_isolated_list`
-- [ ] `tests/test_export_history.py::test_ordered_newest_first`
-- [ ] `tests/test_export_history.py::test_cross_workspace_design_id_returns_404`
-- [ ] `tests/test_flyingupload_views.py::test_preflight_no_side_effects`
-- [ ] `tests/test_flyingupload_views.py::test_download_returns_zip_for_xlsx`
-- [ ] `tests/test_flyingupload_views.py::test_download_returns_plain_csv_for_csv`
-- [ ] `tests/test_flyingupload_views.py::test_content_disposition_rfc5987_for_unicode_workspace_name`
+- [x] `tests/test_export_history.py::test_append_only_on_successful_export`
+- [x] `tests/test_export_history.py::test_no_row_on_4xx_error`
+- [x] `tests/test_export_history.py::test_no_row_on_5xx_error`
+- [x] `tests/test_export_history.py::test_workspace_isolated_list`
+- [x] `tests/test_export_history.py::test_ordered_newest_first`
+- [x] `tests/test_export_history.py::test_cross_workspace_design_id_returns_404`
+- [x] `tests/test_flyingupload_views.py::test_preflight_no_side_effects`
+- [x] `tests/test_flyingupload_views.py::test_download_returns_zip_for_xlsx`
+- [x] `tests/test_flyingupload_views.py::test_download_returns_plain_csv_for_csv`
+- [x] `tests/test_flyingupload_views.py::test_content_disposition_rfc5987_for_unicode_workspace_name`
 
 ---
 

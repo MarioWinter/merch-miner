@@ -651,6 +651,91 @@ class DesignProductConfig(models.Model):
         return f"DesignProductConfig {str(self.id)[:8]} [{self.marketplace_type}]"
 
 
+class ExportLog(models.Model):
+    """Append-only audit log for FlyingUpload exports (PROJ-11 Phase T).
+
+    Covers AC-114 / AC-116 / AC-138 / EC-67 / EC-68.
+
+    Append-only semantics: rows are written at the END of a successful export
+    only. Failed exports (4xx/5xx) do NOT create a log row. ``design_ids`` is
+    denormalized so the log stays truthful even when a design is later deleted
+    (EC-68). There is no UPDATE path; admin can DELETE for GDPR/ops only.
+    """
+
+    class Template(models.TextChoices):
+        MBA = 'mba', 'Merch by Amazon'
+        BASIC = 'basic', 'Basic'
+
+    class Format(models.TextChoices):
+        XLSX = 'xlsx', 'XLSX (ZIP)'
+        CSV = 'csv', 'CSV'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        'workspace_app.Workspace',
+        on_delete=models.CASCADE,
+        related_name='export_logs',
+        db_index=True,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='created_export_logs',
+    )
+    template = models.CharField(
+        max_length=10,
+        choices=Template.choices,
+    )
+    format = models.CharField(
+        max_length=10,
+        choices=Format.choices,
+        default=Format.XLSX,
+    )
+    design_ids = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            'Denormalized list of DesignAsset UUIDs at export time. '
+            'Survives design deletion (EC-68).'
+        ),
+    )
+    design_count = models.IntegerField(
+        default=0,
+        help_text='Pre-fan-out selection size.',
+    )
+    row_count = models.IntegerField(
+        default=0,
+        help_text=(
+            'Post-fan-out XLSX row count. Equals design_count for Basic '
+            'and CSV variants.'
+        ),
+    )
+    filename = models.CharField(
+        max_length=200,
+        blank=True,
+        default='',
+        help_text='Filename as served in Content-Disposition.',
+    )
+    output_size_bytes = models.BigIntegerField(
+        null=True,
+        blank=True,
+        help_text='ZIP/CSV byte size (AC-138).',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(
+                fields=['workspace', '-created_at'],
+                name='exportlog_ws_created_idx',
+            ),
+        ]
+
+    def __str__(self):
+        return f"ExportLog {str(self.id)[:8]} [{self.template}/{self.format}]"
+
+
 class ProductLifecycle(models.Model):
     """Cross-cutting entity: Niche -> Idea -> Design -> Listing -> Upload -> Sales."""
 

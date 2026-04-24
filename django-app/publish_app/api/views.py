@@ -1,9 +1,11 @@
 """DRF views for publish_app API."""
 
 import logging
+from urllib.parse import quote
 
 import django_rq
 from django.db import IntegrityError, models, transaction
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -43,6 +45,8 @@ from publish_app.api.serializers import (
     DesignProductConfigCopyFromSerializer,
     DesignProductConfigSerializer,
     DesignProductConfigUpsertSerializer,
+    ExportLogSerializer,
+    ExportPreflightRequestSerializer,
     LifecycleSalesUpdateSerializer,
     ListingConvertSerializer,
     ListingSerializer,
@@ -61,11 +65,13 @@ from publish_app.models import (
     DesignAsset,
     DesignCollection,
     DesignProductConfig,
+    ExportLog,
     Listing,
     ProductLifecycle,
     UploadJob,
     UploadTemplate,
 )
+from publish_app.services import flyingupload_export
 from workspace_app.models import Membership
 
 logger = logging.getLogger(__name__)
@@ -2168,3 +2174,265 @@ class MbaProductCatalogView(APIView):
     @method_decorator(cache_control(public=True, max_age=86400))
     def get(self, request):
         return Response(list(MBA_PRODUCT_CATALOG))
+
+
+# ===========================================================================
+# FlyingUpload Export Views (PROJ-11 Phase T)
+# ===========================================================================
+
+def _resolve_design_ids(
+    *,
+    workspace_id: str,
+    design_ids: list | None,
+    collection_id: str | None,
+) -> list[str]:
+    """Turn a (design_ids, collection_id) input into a concrete UUID list.
+
+    Workspace-isolated. When ``design_ids`` is provided, cross-workspace IDs
+    are silently dropped (and the downstream preflight reports missing
+    designs as ``design_not_found``); if no valid IDs remain we return []
+    so the caller can raise 404.
+    """
+    if design_ids:
+        id_strs = [str(x) for x in design_ids]
+        valid = set(
+            str(x) for x in DesignAsset.objects
+            .filter(workspace_id=workspace_id, id__in=id_strs)
+            .values_list('id', flat=True)
+        )
+        # Preserve caller-provided ordering.
+        return [i for i in id_strs if i in valid]
+
+    if collection_id:
+        return list(
+            str(x) for x in DesignAsset.objects
+            .filter(
+                workspace_id=workspace_id,
+                collection_id=str(collection_id),
+            )
+            .values_list('id', flat=True)
+        )
+    return []
+
+
+def _export_error_response(exc: flyingupload_export.ExportError) -> Response:
+    """Map ExportError to a 400 JSON body (AC-107)."""
+    status_code = status.HTTP_400_BAD_REQUEST
+    if exc.code == 'estimated_archive_too_large':
+        status_code = status.HTTP_413_REQUEST_ENTITY_TOO_LARGE
+    return Response(
+        {
+            'error': str(exc) or exc.code,
+            'code': exc.code,
+            'details': exc.details,
+        },
+        status=status_code,
+    )
+
+
+def _build_content_disposition(filename: str) -> str:
+    """RFC 5987 Content-Disposition for Unicode-safe filenames.
+
+    Always emits both a 7-bit ``filename=`` fallback and a
+    ``filename*=UTF-8''`` parameter so clients on older HTTP libraries still
+    get a predictable name.
+    """
+    ascii_safe = filename.encode('ascii', errors='replace').decode('ascii')
+    ascii_safe = ascii_safe.replace('"', '_')
+    quoted = quote(filename, safe='')
+    return (
+        f'attachment; filename="{ascii_safe}"; '
+        f"filename*=UTF-8''{quoted}"
+    )
+
+
+def _slugify_workspace(name: str) -> str:
+    """Loose slug for filename embedding (keeps A-Z, 0-9, dash)."""
+    safe = ''.join(
+        ch if (ch.isalnum() or ch in ('-', '_')) else '-' for ch in (name or '')
+    ).strip('-')
+    return safe or 'workspace'
+
+
+class FlyingUploadPreflightView(APIView):
+    """POST /api/publish/export/flyingupload/preflight/ (AC-91, AC-111).
+
+    No side effects. Returns the same summary the download endpoint would
+    use. Accepts either ``design_ids`` or ``collection_id``.
+    """
+
+    def post(self, request):
+        ws_id = _get_workspace_id(request)
+        if not ws_id:
+            return _ws_error()
+
+        serializer = ExportPreflightRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        design_ids = _resolve_design_ids(
+            workspace_id=ws_id,
+            design_ids=data.get('design_ids'),
+            collection_id=data.get('collection_id'),
+        )
+        if not design_ids:
+            # Either the caller asked for IDs that don't exist in this
+            # workspace, or the collection was empty / cross-workspace.
+            return Response(
+                {'error': 'No matching designs in workspace.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            summary = flyingupload_export.preflight(
+                workspace_id=ws_id,
+                design_ids=design_ids,
+                template=data['template'],
+                fmt=data['format'],
+            )
+        except flyingupload_export.ExportError as exc:
+            return _export_error_response(exc)
+
+        return Response(summary, status=status.HTTP_200_OK)
+
+
+class FlyingUploadExportView(APIView):
+    """POST /api/publish/export/flyingupload/ (AC-111 + AC-116 + AC-136).
+
+    Streams ZIP (xlsx) or plain CSV (csv). Writes ``ExportLog`` at the end of
+    a successful export only -- failed exports (400, 413, 502) do NOT create
+    a log row.
+    """
+
+    def post(self, request):
+        ws_id = _get_workspace_id(request)
+        if not ws_id:
+            return _ws_error()
+
+        serializer = ExportPreflightRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        design_ids = _resolve_design_ids(
+            workspace_id=ws_id,
+            design_ids=data.get('design_ids'),
+            collection_id=data.get('collection_id'),
+        )
+        if not design_ids:
+            return Response(
+                {'error': 'No matching designs in workspace.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        template = data['template']
+        fmt = data['format']
+
+        try:
+            if template == ExportLog.Template.MBA:
+                if fmt == ExportLog.Format.XLSX:
+                    payload, summary = flyingupload_export.build_mba_bundle(
+                        ws_id, design_ids,
+                    )
+                else:
+                    payload, summary = flyingupload_export.build_mba_csv(
+                        ws_id, design_ids,
+                    )
+            else:  # basic
+                if fmt == ExportLog.Format.XLSX:
+                    payload, summary = flyingupload_export.build_basic_bundle(
+                        ws_id, design_ids,
+                    )
+                else:
+                    payload, summary = flyingupload_export.build_basic_csv(
+                        ws_id, design_ids,
+                    )
+        except flyingupload_export.ExportError as exc:
+            return _export_error_response(exc)
+        except Exception:  # pragma: no cover - defensive
+            logger.exception(
+                'FlyingUpload export failed for workspace %s (template=%s)',
+                ws_id, template,
+            )
+            return Response(
+                {'error': 'Export pipeline failed.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        # Filename: `<workspace_slug>_flyingupload_<template>_<ts>.<ext>`
+        # (AC-113).
+        ext = 'zip' if fmt == ExportLog.Format.XLSX else 'csv'
+        ws_name = ''
+        try:
+            from workspace_app.models import Workspace
+            ws_name = (
+                Workspace.objects
+                .filter(id=ws_id)
+                .values_list('name', flat=True)
+                .first()
+                or ''
+            )
+        except Exception:  # pragma: no cover - defensive
+            ws_name = ''
+        slug = _slugify_workspace(ws_name)
+        ts = timezone.now().strftime('%Y%m%d-%H%M%S')
+        filename = f'{slug}_flyingupload_{template}_{ts}.{ext}'
+
+        content_type = (
+            'application/zip' if fmt == ExportLog.Format.XLSX else 'text/csv'
+        )
+
+        # Write ExportLog INSIDE an atomic block, BEFORE streaming the body
+        # back -- AC-116 says the row is written at the END of a successful
+        # export. Build succeeded -> log it. A client disconnect during
+        # streaming does not undo the log row (EC-67).
+        with transaction.atomic():
+            ExportLog.objects.create(
+                workspace_id=ws_id,
+                created_by=request.user,
+                template=template,
+                format=fmt,
+                design_ids=design_ids,
+                design_count=len(design_ids),
+                row_count=int(summary.get('ready_rows') or 0),
+                filename=filename,
+                output_size_bytes=len(payload),
+            )
+
+        response = HttpResponse(payload, content_type=content_type)
+        response['Content-Disposition'] = _build_content_disposition(filename)
+        response['Content-Length'] = str(len(payload))
+        response['X-Export-Ready-Rows'] = str(summary.get('ready_rows') or 0)
+        response['X-Export-Total-Designs'] = str(
+            summary.get('total_designs') or 0,
+        )
+        return response
+
+
+class ExportHistoryListView(APIView):
+    """GET /api/publish/export/history/ -- last 50 ExportLog rows (AC-115).
+
+    Workspace-isolated. Paginated (PageNumberPagination). Server hard-caps
+    the queryset to 50 rows per workspace regardless of page-size query
+    params.
+    """
+
+    pagination_class = PublishPagination
+
+    def get(self, request):
+        ws_id = _get_workspace_id(request)
+        if not ws_id:
+            return _ws_error()
+
+        qs = (
+            ExportLog.objects
+            .filter(workspace_id=ws_id)
+            .select_related('created_by')
+            .order_by('-created_at')[:50]
+        )
+        # DRF PageNumberPagination wants a list or queryset; slicing is fine.
+        rows = list(qs)
+
+        paginator = self.pagination_class()
+        page = paginator.paginate_queryset(rows, request, view=self)
+        serializer = ExportLogSerializer(page, many=True)
+        return paginator.get_paginated_response(serializer.data)

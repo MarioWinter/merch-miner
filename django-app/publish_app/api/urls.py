@@ -15,6 +15,9 @@ from publish_app.api.views import (
     DesignGalleryUploadView,
     DesignProductConfigCopyFromView,
     DesignProductConfigView,
+    ExportHistoryListView,
+    FlyingUploadExportView,
+    FlyingUploadPreflightView,
     LifecycleUpdateView,
     ListingAIImproveView,
     ListingConvertView,
@@ -220,5 +223,22 @@ urlpatterns = [
         'mba/product-catalog/',
         MbaProductCatalogView.as_view(),
         name='mba-product-catalog',
+    ),
+
+    # FlyingUpload Export endpoints (PROJ-11 Phase T)
+    path(
+        'publish/export/flyingupload/preflight/',
+        FlyingUploadPreflightView.as_view(),
+        name='publish-export-preflight',
+    ),
+    path(
+        'publish/export/flyingupload/',
+        FlyingUploadExportView.as_view(),
+        name='publish-export-flyingupload',
+    ),
+    path(
+        'publish/export/history/',
+        ExportHistoryListView.as_view(),
+        name='publish-export-history',
     ),
 ]

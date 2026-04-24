@@ -17,6 +17,7 @@ from publish_app.models import (
     DesignAsset,
     DesignCollection,
     DesignProductConfig,
+    ExportLog,
     Listing,
     ProductLifecycle,
     UploadJob,
@@ -1263,3 +1264,79 @@ class ListingConvertSerializer(serializers.Serializer):
         choices=Listing.MarketplaceType.choices,
     )
     overwrite = serializers.BooleanField(required=False, default=False)
+
+
+# ---------------------------------------------------------------------------
+# FlyingUpload Export (PROJ-11 Phase T)
+# ---------------------------------------------------------------------------
+
+class ExportPreflightRequestSerializer(serializers.Serializer):
+    """Body validation for both preflight and download endpoints.
+
+    Accepts either ``design_ids`` (list of UUIDs) or ``collection_id`` (single
+    UUID). Exactly one must be provided. ``template`` / ``format`` are
+    strictly validated against the ExportLog choices (400 on unknown values).
+    AC-91 / AC-111.
+    """
+
+    template = serializers.ChoiceField(
+        choices=ExportLog.Template.choices,
+    )
+    format = serializers.ChoiceField(
+        choices=ExportLog.Format.choices,
+        required=False,
+        default=ExportLog.Format.XLSX,
+    )
+    design_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False,
+        allow_empty=False,
+        max_length=500,
+    )
+    collection_id = serializers.UUIDField(required=False, allow_null=True)
+
+    def validate(self, attrs):
+        design_ids = attrs.get('design_ids')
+        collection_id = attrs.get('collection_id')
+        if not design_ids and not collection_id:
+            raise serializers.ValidationError(
+                'Either design_ids or collection_id is required.',
+            )
+        if design_ids and collection_id:
+            raise serializers.ValidationError(
+                'Provide either design_ids or collection_id, not both.',
+            )
+        return attrs
+
+
+class ExportLogCreatedBySerializer(serializers.Serializer):
+    """Nested read-only user block for ExportLog history rows (AC-115)."""
+
+    id = serializers.IntegerField()
+    first_name = serializers.CharField()
+    last_name = serializers.CharField()
+    avatar_url = serializers.SerializerMethodField()
+
+    def get_avatar_url(self, obj):
+        return getattr(obj, 'avatar', '') or ''
+
+
+class ExportLogSerializer(serializers.ModelSerializer):
+    """Read-only list representation for /export/history/ (AC-115)."""
+
+    created_by = ExportLogCreatedBySerializer(read_only=True)
+
+    class Meta:
+        model = ExportLog
+        fields = [
+            'id',
+            'template',
+            'format',
+            'design_count',
+            'row_count',
+            'filename',
+            'output_size_bytes',
+            'created_by',
+            'created_at',
+        ]
+        read_only_fields = fields
