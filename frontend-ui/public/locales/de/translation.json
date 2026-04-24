@@ -2409,6 +2409,44 @@
       "confirmButton": "Überschreiben",
       "cancelButton": "Abbrechen"
     },
+    "export": {
+      "action": {
+        "xlsxMba": "Als XLSX exportieren (MBA)",
+        "xlsxBasic": "Als XLSX exportieren (Basic)",
+        "csv": "Als CSV exportieren"
+      },
+      "preflight": {
+        "title": "Bereit zum Export",
+        "loading": "Preflight laeuft…",
+        "readyRows": "{{count}} bereit",
+        "totalDesigns": "{{count}} gesamt",
+        "skippedCount": "{{count}} uebersprungen",
+        "warningsLabel": "Warnungen",
+        "skippedLabel": "Uebersprungene Designs",
+        "editN": "{{count}} bearbeiten",
+        "download": "Herunterladen",
+        "preparing": "Archiv wird vorbereitet — {{count}} Design(s)",
+        "downloadDisabledTooltip": "Keine exportierbaren Zeilen — jedem ausgewaehlten Design fehlt ein Listing oder es hat keine aktivierten Produkte"
+      },
+      "history": {
+        "title": "Export-Verlauf",
+        "empty": "Noch keine Exporte in diesem Workspace",
+        "openTooltip": "Export-Verlauf",
+        "rowBadge": "{{designs}} Designs · {{rows}} Zeilen",
+        "rerunTooltip": "Export erneut ausfuehren ({{timeAgo}})"
+      },
+      "errors": {
+        "generic": "Export fehlgeschlagen",
+        "timeout": "Export hat Zeitlimit ueberschritten — bitte erneut versuchen",
+        "max_500_designs_per_export": "Zu viele Designs — maximal 500 pro Export",
+        "estimated_archive_too_large": "Archiv wuerde das 2-GB-Limit uebersteigen — waehle weniger Designs",
+        "no_listing": "Design hat kein Listing",
+        "no_global_listing": "Design hat kein Global-Listing — erforderlich fuer Basic-Export",
+        "no_enabled_products": "Design hat keine aktivierten Produkte",
+        "image_unavailable": "Design-Bild ist nicht verfuegbar",
+        "catalog_unknown_product": "Produkttyp nicht im Katalog gefunden"
+      }
+    },
     "lifecycle": {
       "title": "Produkt-Lebenszyklus",
       "round": "Runde {{round}}",
@@ -2571,7 +2609,79 @@
         "retry": "Erneut versuchen"
       },
       "savedLabel": "Gespeichert",
-      "saveLabel": "Speichern"
+      "saveLabel": "Speichern",
+      "global": {
+        "sectionLabel": "Global-Listing",
+        "noListing": "Erstelle zuerst ein Global-Listing (Convert from MBA), bevor du Global-Felder bearbeitest.",
+        "keywords": {
+          "label": "Keywords",
+          "placeholder": "Keyword hinzufügen... (Enter oder Komma zum Übernehmen)",
+          "limitReached": "Limit erreicht",
+          "duplicate": "Bereits in der Liste",
+          "finderLink": "KW Finder",
+          "finderNoNiche": "Verknüpfe dieses Design zuerst mit einer Niche",
+          "workbenchLink": "KW Workbench",
+          "workbenchTooltip": "Kommt bald — mit PROJ-10 Keyword Bank"
+        },
+        "options": {
+          "sectionLabel": "Global-Listing-Optionen",
+          "types": {
+            "title": "Typen",
+            "men": "Herren",
+            "women": "Damen",
+            "youth": "Kinder"
+          },
+          "color": {
+            "title": "Farbe",
+            "black": "Schwarz",
+            "white": "Weiß",
+            "colorful": "Bunt"
+          }
+        },
+        "tagging": {
+          "button": "Tagging-Optionen",
+          "copyEn": "EN-Keywords in alle Sprachen kopieren",
+          "importCsv": "Keywords aus CSV importieren",
+          "clearAll": "Alle Keywords löschen",
+          "cancel": "Abbrechen",
+          "copyEnConfirm": "Kopieren",
+          "copyEnConfirmTitle": "EN-Keywords in alle Sprachen kopieren?",
+          "copyEnConfirmBody": "Ersetzt die Keyword-Listen für DE, FR, IT, ES, JA durch die EN-Liste. Vorhandene Einträge in diesen Sprachen werden überschrieben.",
+          "clearAllConfirm": "Alle löschen",
+          "clearAllConfirmTitle": "Alle Keywords löschen?",
+          "clearAllConfirmBody": "Entfernt jedes Keyword in allen Sprachen auf diesem Listing. Das kann nicht rückgängig gemacht werden."
+        },
+        "advanced": {
+          "trigger": "Erweiterte Optionen",
+          "title": "Erweiterte Optionen",
+          "brand": "Brand",
+          "category": "Category",
+          "cancel": "Abbrechen",
+          "save": "Speichern"
+        },
+        "import": {
+          "title": "Keywords aus CSV importieren ({{lang}})",
+          "hint": "Füge Keywords getrennt durch Komma, Semikolon oder Zeilenumbruch ein. Duplikate und Einträge, die das 50-Zeichen-Limit überschreiten, werden übersprungen.",
+          "placeholder": "hund, katze, vogel\nlustig, süß",
+          "summary": "{{accepted}} von {{total}} Keywords werden importiert — {{skipped}} übersprungen",
+          "preview": "Vorschau",
+          "cancel": "Abbrechen",
+          "import": "Importieren"
+        }
+      },
+      "displate": {
+        "sectionLabel": "Displate-Listing",
+        "noListing": "Erstelle zuerst ein Displate-Listing (Convert from MBA), bevor du Displate-Felder bearbeitest.",
+        "advanced": {
+          "trigger": "Erweiterte Optionen"
+        },
+        "bgColor": {
+          "title": "Hintergrundfarbe",
+          "hexInputLabel": "Hintergrundfarbe Hex",
+          "preview": "Hintergrundfarbe-Vorschau: {{hex}}",
+          "invalid": "Gib eine 6-stellige Hex-Farbe im Format #RRGGBB ein (z. B. #FF00AA)."
+        }
+      }
     },
     "ai_improve": {
       "truncatedChip": "KI gekürzt",

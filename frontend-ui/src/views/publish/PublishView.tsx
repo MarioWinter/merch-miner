@@ -19,6 +19,8 @@ import PublishToolbar from './partials/toolbar/PublishToolbar';
 import DesignCardGrid from './partials/grid/DesignCardGrid';
 import CollectionsDialog from './partials/collections/CollectionsDialog';
 import CommandPalette from './partials/command/CommandPalette';
+import ExportPreflightDialog from './partials/export/ExportPreflightDialog';
+import ExportHistoryDrawer from './partials/export/ExportHistoryDrawer';
 import ActionBar from './partials/ActionBar';
 import CloudStorageTab from './partials/cloud/CloudStorageTab';
 import SendToCloudDialog from './partials/cloud/SendToCloudDialog';
@@ -27,7 +29,14 @@ import TemplateLibraryDialog from './partials/toolbar/TemplateLibraryDialog';
 import PublishBatchDialog from './partials/toolbar/PublishBatchDialog';
 import type { CloudProvider } from './partials/cloud/ProviderSwitcher';
 import EmptyState from './partials/EmptyState';
-import type { FileSystemTab, ViewMode, BreadcrumbSegment, GalleryListParams } from './types';
+import type {
+  FileSystemTab,
+  ViewMode,
+  BreadcrumbSegment,
+  GalleryListParams,
+  FlyingUploadTemplate,
+  FlyingUploadFormat,
+} from './types';
 
 // ---------------------------------------------------------------------------
 // Styled
@@ -84,6 +93,15 @@ const PublishView = () => {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [moveTargetId, setMoveTargetId] = useState<string | null>(null);
+
+  // Phase W3/W5 — FlyingUpload export state. `exportRequest` is null when
+  // the preflight dialog is closed; setting it opens the dialog with the
+  // matching template+format pair. `historyOpen` gates the right drawer.
+  const [exportRequest, setExportRequest] = useState<{
+    template: FlyingUploadTemplate;
+    format: FlyingUploadFormat;
+  } | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   // Selection
   const orderedIds = useMemo(() => designs.map((d) => d.id), [designs]);
@@ -322,6 +340,17 @@ const PublishView = () => {
     );
   }, [selection.selectedIds, designs, enqueueSnackbar, t]);
 
+  // Phase W3 — open the ExportPreflightDialog with a template+format pair.
+  // Gated on `selectionCount >= 1` inside useCommandPalette via
+  // `exportSelectionCount`; this handler is a no-op guard only.
+  const openExport = useCallback(
+    (template: FlyingUploadTemplate, format: FlyingUploadFormat) => {
+      if (selection.selectionCount < 1) return;
+      setExportRequest({ template, format });
+    },
+    [selection.selectionCount],
+  );
+
   // Command palette — pass only handlers that actually do something.
   // Undefined handlers flag the action as "coming soon" in useCommandPalette
   // (disabled + label suffix) so clicking doesn't silently no-op.
@@ -332,6 +361,11 @@ const PublishView = () => {
     onImportCloud: () => setActiveTab('cloud_storage'),
     onDeleteFiles: handleBulkDeleteFiles,
     onDownload: handleBulkDownload,
+    // Phase W3 — 3 FlyingUpload export actions, gated on selection size.
+    onExportXlsxMba: () => openExport('mba', 'xlsx'),
+    onExportXlsxBasic: () => openExport('basic', 'xlsx'),
+    onExportCsvFlyingUpload: () => openExport('basic', 'csv'),
+    exportSelectionCount: selection.selectionCount,
     // The following actions are still not wired (need dedicated backend
     // endpoints or dialog UX) — leaving them undefined keeps the palette
     // honest: they render disabled, don't fire no-ops.
@@ -407,6 +441,7 @@ const PublishView = () => {
         onTemplateClick={() => setTemplateLibraryOpen(true)}
         onUploadClick={handleUploadClick}
         onPublishClick={() => setPublishBatchOpen(true)}
+        onHistoryClick={() => setHistoryOpen(true)}
       />
       <input
         ref={fileInputRef}
@@ -544,6 +579,23 @@ const PublishView = () => {
         onHistory={() => {}}
         onBatchUpload={() => {}}
         onDelete={() => {}}
+      />
+
+      {/* Phase W3 — Export preflight dialog (mount-on-open) */}
+      {exportRequest && (
+        <ExportPreflightDialog
+          open
+          template={exportRequest.template}
+          format={exportRequest.format}
+          designIds={Array.from(selection.selectedIds)}
+          onClose={() => setExportRequest(null)}
+        />
+      )}
+
+      {/* Phase W5 — Export history drawer (RTK query skip guarded by `open`) */}
+      <ExportHistoryDrawer
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
       />
     </ViewRoot>
   );

@@ -2,8 +2,6 @@
 
 from __future__ import annotations
 
-import pytest
-
 from publish_app.services.flyingupload_export import build_basic_bundle
 from publish_app.tests._flyingupload_factories import (
     fu_idea,  # noqa: F401

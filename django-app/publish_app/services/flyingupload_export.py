@@ -413,13 +413,18 @@ def _build_mba_row(
             price_by_mp[code] = mp.get('price')
     row[52] = ', '.join(enabled_codes)
 
-    # BB-BH Price per marketplace.
+    # BB-BH Price per marketplace. Template expects numeric cells -- coerce
+    # string prices (e.g. '19.99') to float so XLSX / FlyingUpload read them
+    # as numbers, not text.
     for idx, (code, _mp) in enumerate(PRICE_COLUMN_ORDER):
         value = price_by_mp.get(code)
         if value in (None, ''):
             row[53 + idx] = ''
         else:
-            row[53 + idx] = value
+            try:
+                row[53 + idx] = float(value)
+            except (TypeError, ValueError):
+                row[53 + idx] = value
 
     # BI Print side.
     print_side = product_entry.get('print_side') or 'front'

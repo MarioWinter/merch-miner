@@ -1332,6 +1332,7 @@ class ExportLogSerializer(serializers.ModelSerializer):
             'id',
             'template',
             'format',
+            'design_ids',
             'design_count',
             'row_count',
             'filename',

@@ -22,7 +22,7 @@
 | PROJ-8 | Idea & Slogan Generation (LangGraph) | In Review | [spec](PROJ-8-idea-slogan-generation.md) | 2026-02-27 |
 | PROJ-9 | Design Generation (OpenRouter) | In Review | [spec](PROJ-9-design-generation.md) | 2026-02-27 |
 | PROJ-10 | Keyword Research & Bank | In Review | [spec](PROJ-10-niche-keyword-bank.md) | 2026-02-27 |
-| PROJ-11 | Publish (Listing + Upload Manager) | In Progress | [spec](PROJ-11-listing-keyword-generator.md) | 2026-02-27 |
+| PROJ-11 | Publish (Listing + Upload Manager) | In Review | [spec](PROJ-11-listing-keyword-generator.md) | 2026-02-27 |
 | PROJ-12 | Dashboard & Analytics | In Review | [spec](PROJ-12-dashboard.md) | 2026-02-27 |
 | PROJ-13 | Desktop Upload App (Electron + Playwright) | In Progress | [spec](PROJ-13-marketplace-upload-manager.md) | 2026-02-27 |
 | PROJ-14 | Team Kanban & Collaboration | In Review | [spec](PROJ-14-team-kanban.md) | 2026-02-27 |

@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   Divider,
+  IconButton,
   TextField,
   ToggleButton,
   ToggleButtonGroup,
@@ -20,6 +21,7 @@ import FileUploadOutlinedIcon from '@mui/icons-material/FileUploadOutlined';
 import RocketLaunchOutlinedIcon from '@mui/icons-material/RocketLaunchOutlined';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import CloudDownloadOutlinedIcon from '@mui/icons-material/CloudDownloadOutlined';
+import HistoryOutlinedIcon from '@mui/icons-material/HistoryOutlined';
 import { useTranslation } from 'react-i18next';
 import { COLORS, DURATION, EASING } from '@/style/constants';
 import type { FileSystemTab, ViewMode, BreadcrumbSegment } from '../../types';
@@ -57,6 +59,9 @@ interface PublishToolbarProps {
   onTemplateClick: () => void;
   onUploadClick: () => void;
   onPublishClick: () => void;
+  /** W5 — open the Export History drawer. Optional so existing call sites
+   *  (e.g. EditView reuses the toolbar one day) keep compiling. */
+  onHistoryClick?: () => void;
 }
 
 const ToolbarRow = styled(Box)(({ theme }) => ({
@@ -124,6 +129,7 @@ const PublishToolbar = ({
   onTemplateClick,
   onUploadClick,
   onPublishClick,
+  onHistoryClick,
 }: PublishToolbarProps) => {
   const { t } = useTranslation();
   const [searchFocused, setSearchFocused] = useState(false);
@@ -178,6 +184,24 @@ const PublishToolbar = ({
         >
           {t('publish.toolbar.chooseAction', { defaultValue: 'Choose Action' })}
         </Button>
+        {onHistoryClick && (
+          <Tooltip
+            title={t('publish.export.history.openTooltip', {
+              defaultValue: 'Export history',
+            })}
+          >
+            <IconButton
+              size="small"
+              onClick={onHistoryClick}
+              data-testid="PublishToolbar-history"
+              aria-label={t('publish.export.history.openTooltip', {
+                defaultValue: 'Export history',
+              })}
+            >
+              <HistoryOutlinedIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
 
         {/* Center: separator + view + search */}
         <VerticalDivider orientation="vertical" />

@@ -17,9 +17,11 @@ import ListingStateBanner from './partials/edit/ListingStateBanner';
 import OptionsSection from './partials/edit/OptionsSection';
 import DesignPreview from './partials/edit/DesignPreview';
 import GlobalTabContent from './partials/global/GlobalTabContent';
+import DisplateTabContent from './partials/global/DisplateTabContent';
 import UnsavedChangesBanner from './partials/editor/UnsavedChangesBanner';
 import CommandPalette from './partials/command/CommandPalette';
 import CopyFromDesignDialog from './partials/edit/CopyFromDesignDialog';
+import ExportPreflightDialog from './partials/export/ExportPreflightDialog';
 import EmptyState from './partials/EmptyState';
 import ConfirmDialog from '@/components/ConfirmDialog';
 
@@ -131,6 +133,9 @@ const EditView = () => {
     isConverting,
     confirmConvertOverwrite,
     cancelConvertOverwrite,
+    // W4 export dialog state
+    exportRequest,
+    closeExportDialog,
   } = useEditView();
 
   // Phase P7 — last `truncated_fields` payload from the AI-Improve
@@ -162,7 +167,9 @@ const EditView = () => {
 
   const isMba = activeMarketplace === 'mba';
   const isGlobal = activeMarketplace === 'global';
+  const isDisplate = activeMarketplace === 'displate';
   const globalListing = isGlobal ? listing : null;
+  const displateListing = isDisplate ? listing : null;
 
   return (
     <ViewRoot>
@@ -294,6 +301,33 @@ const EditView = () => {
                 />
               )}
             </Stack>
+          ) : isDisplate ? (
+            <Stack gap={3}>
+              <ListingStateBanner
+                isLoading={isLoadingListing}
+                isFetching={isFetchingListing}
+                notFound={listingNotFound}
+                hasError={Boolean(listingError)}
+                onRetry={handleRetryListing}
+                marketplace={activeMarketplace}
+              />
+              {!isLoadingListing && !listingError && (
+                <DisplateTabContent
+                  listing={displateListing}
+                  activeLang={activeLang}
+                  onLangChange={setActiveLang}
+                  autoTranslate={autoTranslate}
+                  onAutoTranslateChange={setAutoTranslate}
+                  activeNicheId={activeDesign?.niche ?? null}
+                  textSetters={editFormState.textSetters}
+                  keywordsSetters={editFormState.keywordsSetters}
+                  typeFlagsSetter={editFormState.typeFlagsSetter}
+                  bgHexSetter={editFormState.bgHexSetter}
+                  advancedOptionsSetter={editFormState.advancedOptionsSetter}
+                  listingReady={Boolean(displateListing)}
+                />
+              )}
+            </Stack>
           ) : (
             <MarketplacePlaceholder marketplace={activeMarketplace} />
           )}
@@ -357,6 +391,20 @@ const EditView = () => {
         onExecute={cmdPalette.executeAction}
         onClose={cmdPalette.closePalette}
       />
+
+      {/* Phase W4 — Export preflight dialog. `currentDesignId` lets the
+          dialog suppress the "Edit 1" quick-fix when the only skipped row
+          is the design we are already editing (EC-81). */}
+      {exportRequest && (
+        <ExportPreflightDialog
+          open
+          template={exportRequest.template}
+          format={exportRequest.format}
+          designIds={designIds}
+          currentDesignId={activeDesign?.id ?? null}
+          onClose={closeExportDialog}
+        />
+      )}
     </ViewRoot>
   );
 };

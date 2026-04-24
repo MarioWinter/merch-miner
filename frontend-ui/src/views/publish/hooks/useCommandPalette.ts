@@ -34,6 +34,15 @@ interface UseCommandPaletteOptions {
   onDownload?: () => void;
   onExportXlsx?: () => void;
   onExportCsv?: () => void;
+  // Phase W3/W4 — FlyingUpload export palette actions. Each opens the
+  // ExportPreflightDialog with the caller-provided `template`+`format` pair.
+  onExportXlsxMba?: () => void;
+  onExportXlsxBasic?: () => void;
+  onExportCsvFlyingUpload?: () => void;
+  /** Selection size used to gate the 3 FlyingUpload export actions. Hidden
+   *  from other palette slots so the conversion actions keep their own
+   *  enablement rules. */
+  exportSelectionCount?: number;
   onSendToCloud?: () => void;
   onImportCloud?: () => void;
   onApplyTemplate?: () => void;
@@ -123,6 +132,43 @@ export const useCommandPalette = (options: UseCommandPaletteOptions) => {
       { id: 'download', label: t('publish.command.download', { defaultValue: 'Download' }), icon: 'FileDownloadOutlined', category: 'FILES', column: 1, disabled: !options.onDownload, action: () => options.onDownload?.() },
       { id: 'export-xlsx', label: t('publish.command.exportXlsx', { defaultValue: 'Export as XLSX' }), icon: 'TableChartOutlined', category: 'EXPORT', column: 1, disabled: !options.onExportXlsx, action: () => options.onExportXlsx?.() },
       { id: 'export-csv', label: t('publish.command.exportCsv', { defaultValue: 'Export as CSV' }), icon: 'DescriptionOutlined', category: 'EXPORT', column: 1, disabled: !options.onExportCsv, action: () => options.onExportCsv?.() },
+      // Phase W3/W4 — FlyingUpload export entries (AC-98, AC-137). Three
+      // distinct actions because template + format combinations drive the
+      // backend contract (mba+xlsx / basic+xlsx / basic+csv). Each is gated
+      // on `exportSelectionCount >= 1` (AC-99 / AC-139).
+      {
+        id: 'export-xlsx-mba',
+        label: t('publish.export.action.xlsxMba', { defaultValue: 'Export as XLSX (MBA)' }),
+        icon: 'TableChartOutlined',
+        category: 'EXPORT',
+        column: 1,
+        disabled:
+          !options.onExportXlsxMba ||
+          (options.exportSelectionCount ?? 0) < 1,
+        action: () => options.onExportXlsxMba?.(),
+      },
+      {
+        id: 'export-xlsx-basic',
+        label: t('publish.export.action.xlsxBasic', { defaultValue: 'Export as XLSX (Basic)' }),
+        icon: 'TableChartOutlined',
+        category: 'EXPORT',
+        column: 1,
+        disabled:
+          !options.onExportXlsxBasic ||
+          (options.exportSelectionCount ?? 0) < 1,
+        action: () => options.onExportXlsxBasic?.(),
+      },
+      {
+        id: 'export-csv-flyingupload',
+        label: t('publish.export.action.csv', { defaultValue: 'Export as CSV' }),
+        icon: 'DescriptionOutlined',
+        category: 'EXPORT',
+        column: 1,
+        disabled:
+          !options.onExportCsvFlyingUpload ||
+          (options.exportSelectionCount ?? 0) < 1,
+        action: () => options.onExportCsvFlyingUpload?.(),
+      },
       { id: 'send-cloud', label: t('publish.command.sendCloud', { defaultValue: 'Send to Cloud' }), icon: 'CloudUploadOutlined', category: 'CLOUD', column: 1, disabled: !options.onSendToCloud, action: () => options.onSendToCloud?.() },
       { id: 'import-cloud', label: t('publish.command.importCloud', { defaultValue: 'Import from Cloud' }), icon: 'CloudDownloadOutlined', category: 'CLOUD', column: 1, disabled: !options.onImportCloud, action: () => options.onImportCloud?.() },
       // Column 2: TEMPLATES

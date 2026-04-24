@@ -20,6 +20,9 @@ interface AdvancedOptionsDialogProps {
   open: boolean;
   defaultBrand: string;
   defaultCategory: string;
+  /** When true, hide the Category TextField -- used by the Displate tab
+   *  where AC-131 scopes Category to MBA/Global only. */
+  hideCategory?: boolean;
   isSaving?: boolean;
   onClose: () => void;
   onSave: (brand: string, category: string) => void | Promise<void>;
@@ -36,6 +39,7 @@ interface AdvancedOptionsDialogProps {
 const AdvancedOptionsDialogInner = ({
   defaultBrand,
   defaultCategory,
+  hideCategory = false,
   isSaving = false,
   onClose,
   onSave,
@@ -45,7 +49,10 @@ const AdvancedOptionsDialogInner = ({
   const [category, setCategory] = useState(defaultCategory);
 
   const handleSave = async () => {
-    await onSave(brand.trim(), category.trim());
+    // When category is hidden (Displate) the saved category stays as-is on
+    // the server -- we still send the seeded `defaultCategory` so we don't
+    // accidentally wipe a prior value.
+    await onSave(brand.trim(), hideCategory ? defaultCategory : category.trim());
   };
 
   return (
@@ -77,20 +84,22 @@ const AdvancedOptionsDialogInner = ({
             size="small"
             disabled={isSaving}
           />
-          <TextField
-            label={t('publish.edit.global.advanced.category', {
-              defaultValue: 'Category',
-            })}
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            inputProps={{
-              maxLength: 200,
-              'data-testid': 'AdvancedOptions-category',
-            }}
-            fullWidth
-            size="small"
-            disabled={isSaving}
-          />
+          {!hideCategory && (
+            <TextField
+              label={t('publish.edit.global.advanced.category', {
+                defaultValue: 'Category',
+              })}
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              inputProps={{
+                maxLength: 200,
+                'data-testid': 'AdvancedOptions-category',
+              }}
+              fullWidth
+              size="small"
+              disabled={isSaving}
+            />
+          )}
         </Stack>
       </DialogContent>
       <DialogActions>

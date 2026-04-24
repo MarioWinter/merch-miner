@@ -106,6 +106,20 @@ vi.mock('@/store/publishSlice', async (importOriginal) => {
       () => ({ unwrap: () => Promise.resolve({ imported_count: 0 }) }),
       { isLoading: false },
     ],
+    useListExportHistoryQuery: () => ({
+      data: undefined,
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    }),
+    usePreviewExportMutation: () => [
+      () => ({ unwrap: () => Promise.resolve({ total_designs: 0, ready_rows: 0, skipped: [], warnings: [] }) }),
+      { isLoading: false },
+    ],
+    useRunExportMutation: () => [
+      () => ({ unwrap: () => Promise.resolve({ blob: new Blob(), filename: 'e.zip' }) }),
+      { isLoading: false },
+    ],
   };
 });
 

@@ -16,6 +16,8 @@ import type { MarketplaceTab } from '../partials/edit/MarketplaceTabs';
 import type { CopyScope } from '../partials/edit/CopyFromDesignDialog';
 import type {
   DesignAsset,
+  FlyingUploadFormat,
+  FlyingUploadTemplate,
   Listing,
   MarketplaceType,
   ProductConfigCopyScope,
@@ -463,6 +465,22 @@ export const useEditView = () => {
     ],
   );
 
+  // ---- Phase W4 — FlyingUpload export state ----------------------------
+  // `exportRequest` is null when the preflight dialog is closed. Set it via
+  // the palette actions to open the dialog with the chosen template+format.
+  const [exportRequest, setExportRequest] = useState<{
+    template: FlyingUploadTemplate;
+    format: FlyingUploadFormat;
+  } | null>(null);
+  const closeExportDialog = useCallback(() => setExportRequest(null), []);
+  const openExport = useCallback(
+    (template: FlyingUploadTemplate, format: FlyingUploadFormat) => {
+      if (designIds.length < 1) return;
+      setExportRequest({ template, format });
+    },
+    [designIds.length],
+  );
+
   // ---- Command palette wiring ------------------------------------------
   const cmdPalette = useCommandPalette({
     onEditBulk: () => {},
@@ -477,6 +495,13 @@ export const useEditView = () => {
     onExportCsv: () => {
       void listingEditor.handleExport();
     },
+    // Phase W4 — 3 FlyingUpload export entries. `exportSelectionCount`
+    // mirrors the URL's design count, so the palette grays the actions when
+    // no designs are loaded in this editor session.
+    onExportXlsxMba: () => openExport('mba', 'xlsx'),
+    onExportXlsxBasic: () => openExport('basic', 'xlsx'),
+    onExportCsvFlyingUpload: () => openExport('basic', 'csv'),
+    exportSelectionCount: designIds.length,
     onSendToCloud: () => {},
     onImportCloud: () => {},
     onApplyTemplate: () => {},
@@ -545,6 +570,9 @@ export const useEditView = () => {
     applyCopy,
     // Command palette
     cmdPalette,
+    // ---- Phase W4 — FlyingUpload export dialog state --------------------
+    exportRequest,
+    closeExportDialog,
     // ---- Phase O2: auto-save hybrid state layer (namespaced so it doesn't
     // shadow legacy fields; Phase P components consume via this prop) ----
     editFormState,

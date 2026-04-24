@@ -288,21 +288,21 @@ describe('EditView — G1 listing state branching (MBA tab)', () => {
     expect(screen.getByTestId('OptionsSection')).toBeInTheDocument();
   });
 
-  it('renders placeholder (no banner) when Displate tab is active', () => {
-    // Phase U (2026-04-24): Global now has a real content component
-    // (GlobalTabContent), so the placeholder branch only fires for Displate.
+  it('renders DisplateTabContent (not ListingFieldsSection) on Displate tab', () => {
+    // Phase V (2026-04-24): Displate now has a real content component
+    // (DisplateTabContent). MarketplacePlaceholder only fires for unknown
+    // marketplace types.
     const design = makeDesign();
     const state = buildBaseState(design, {
       activeMarketplace: 'displate',
-      listingNotFound: true,
+      listing: makeListing({ marketplace_type: 'displate' }),
     });
     renderEditView(state);
 
-    const placeholder = screen.getByTestId('MarketplacePlaceholder');
-    expect(placeholder).toBeInTheDocument();
-    expect(placeholder).toHaveAttribute('data-marketplace', 'displate');
+    expect(screen.getByTestId('DisplateTabContent')).toBeInTheDocument();
     // The MBA-only banner/form branch is not rendered on non-MBA tabs.
     expect(screen.queryByTestId('ListingFieldsSection')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('MarketplacePlaceholder')).not.toBeInTheDocument();
   });
 
   it('renders GlobalTabContent (not placeholder, not ListingFieldsSection) on Global tab', () => {

@@ -2078,6 +2078,44 @@
       "confirmButton": "Overwrite",
       "cancelButton": "Cancel"
     },
+    "export": {
+      "action": {
+        "xlsxMba": "Export as XLSX (MBA)",
+        "xlsxBasic": "Export as XLSX (Basic)",
+        "csv": "Export as CSV"
+      },
+      "preflight": {
+        "title": "Ready to export",
+        "loading": "Running preflight…",
+        "readyRows": "{{count}} ready",
+        "totalDesigns": "{{count}} total",
+        "skippedCount": "{{count}} skipped",
+        "warningsLabel": "Warnings",
+        "skippedLabel": "Skipped designs",
+        "editN": "Edit {{count}}",
+        "download": "Download",
+        "preparing": "Preparing archive — {{count}} design(s)",
+        "downloadDisabledTooltip": "No exportable rows — every selected design is missing a listing or has no enabled products"
+      },
+      "history": {
+        "title": "Export History",
+        "empty": "No exports yet in this workspace",
+        "openTooltip": "Export history",
+        "rowBadge": "{{designs}} designs · {{rows}} rows",
+        "rerunTooltip": "Re-run export ({{timeAgo}})"
+      },
+      "errors": {
+        "generic": "Export failed",
+        "timeout": "Export timed out — please try again",
+        "max_500_designs_per_export": "Too many designs — maximum is 500 per export",
+        "estimated_archive_too_large": "Archive would exceed the 2 GB limit — pick fewer designs",
+        "no_listing": "Design has no listing",
+        "no_global_listing": "Design has no Global listing — required for Basic export",
+        "no_enabled_products": "Design has no enabled products",
+        "image_unavailable": "Design image is unavailable",
+        "catalog_unknown_product": "Product type not found in catalog"
+      }
+    },
     "lifecycle": {
       "title": "Product Lifecycle",
       "round": "Round {{round}}",
@@ -2220,7 +2258,79 @@
         "retry": "Retry"
       },
       "savedLabel": "Saved",
-      "saveLabel": "Save"
+      "saveLabel": "Save",
+      "global": {
+        "sectionLabel": "Global listing",
+        "noListing": "Generate a Global listing (Convert from MBA) before editing Global fields.",
+        "keywords": {
+          "label": "Keywords",
+          "placeholder": "Add keyword... (Enter or comma to commit)",
+          "limitReached": "Limit reached",
+          "duplicate": "Already in the list",
+          "finderLink": "KW Finder",
+          "finderNoNiche": "Link a niche to this design first",
+          "workbenchLink": "KW Workbench",
+          "workbenchTooltip": "Coming soon — ships with PROJ-10 Keyword Bank"
+        },
+        "options": {
+          "sectionLabel": "Global listing options",
+          "types": {
+            "title": "Types",
+            "men": "Men",
+            "women": "Women",
+            "youth": "Youth"
+          },
+          "color": {
+            "title": "Color",
+            "black": "Black",
+            "white": "White",
+            "colorful": "Colorful"
+          }
+        },
+        "tagging": {
+          "button": "Tagging Options",
+          "copyEn": "Copy EN keywords to all languages",
+          "importCsv": "Import keywords from CSV",
+          "clearAll": "Clear all keywords",
+          "cancel": "Cancel",
+          "copyEnConfirm": "Copy",
+          "copyEnConfirmTitle": "Copy EN keywords to all languages?",
+          "copyEnConfirmBody": "Replaces keyword lists for DE, FR, IT, ES, JA with the EN list. Existing entries in those languages will be overwritten.",
+          "clearAllConfirm": "Clear all",
+          "clearAllConfirmTitle": "Clear all keywords?",
+          "clearAllConfirmBody": "Removes every keyword across every language on this listing. This cannot be undone."
+        },
+        "advanced": {
+          "trigger": "Advanced Options",
+          "title": "Advanced Options",
+          "brand": "Brand",
+          "category": "Category",
+          "cancel": "Cancel",
+          "save": "Save"
+        },
+        "import": {
+          "title": "Import keywords from CSV ({{lang}})",
+          "hint": "Paste keywords separated by commas, semicolons, or newlines. Duplicates and entries that overflow the 50-character limit are skipped.",
+          "placeholder": "dog, cat, bird\nfunny, cute",
+          "summary": "{{accepted}} of {{total}} keywords will be imported — {{skipped}} skipped",
+          "preview": "Preview",
+          "cancel": "Cancel",
+          "import": "Import"
+        }
+      },
+      "displate": {
+        "sectionLabel": "Displate listing",
+        "noListing": "Generate a Displate listing (Convert from MBA) before editing Displate fields.",
+        "advanced": {
+          "trigger": "Advanced Options"
+        },
+        "bgColor": {
+          "title": "Background Color",
+          "hexInputLabel": "Background color hex",
+          "preview": "Background color preview: {{hex}}",
+          "invalid": "Enter a 6-digit hex color in the form #RRGGBB (e.g. #FF00AA)."
+        }
+      }
     },
     "ai_improve": {
       "truncatedChip": "AI truncated",

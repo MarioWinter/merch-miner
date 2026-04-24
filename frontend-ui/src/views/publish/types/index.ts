@@ -527,6 +527,9 @@ export interface ExportLog {
   format: FlyingUploadFormat;
   design_count: number;
   row_count: number;
+  // Denormalized list of UUIDs at export time (AC-114). Used by the History
+  // drawer hover tooltip and the Re-run flow (AC-140).
+  design_ids: string[];
   filename: string;
   output_size_bytes: number;
   created_at: string;
