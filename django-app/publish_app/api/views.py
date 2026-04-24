@@ -1008,6 +1008,12 @@ class DesignGalleryListView(APIView):
             for tag in tags.split(','):
                 qs = qs.filter(tags__contains=[tag.strip()])
 
+        # Full-text-ish search across file_name + tags JSON.
+        search = request.query_params.get('search')
+        if search:
+            from django.db.models import Q
+            qs = qs.filter(Q(file_name__icontains=search) | Q(tags__icontains=search))
+
         # Sort
         sort_by = request.query_params.get('sort_by', 'newest')
         if sort_by == 'recently_edited':

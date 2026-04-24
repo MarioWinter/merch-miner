@@ -30,7 +30,6 @@ interface UseCommandPaletteOptions {
   onBulkSync?: () => void;
   onTranslate?: () => void;
   onBulkTags?: () => void;
-  onAiGenerate?: () => void;
   onDeleteFiles?: () => void;
   onDownload?: () => void;
   onExportXlsx?: () => void;
@@ -61,11 +60,8 @@ const SECTION_CONTEXT_MAP: Record<string, string> = {
   title: 'listing',
   bullet_1: 'listing',
   bullet_2: 'listing',
-  bullet_3: 'listing',
-  bullet_4: 'listing',
-  bullet_5: 'listing',
   description: 'listing',
-  keywords: 'listing',
+  keyword_context: 'listing',
   availability: 'listing',
   publish_mode: 'listing',
   products: 'listing',
@@ -114,28 +110,27 @@ export const useCommandPalette = (options: UseCommandPaletteOptions) => {
   const actions: CommandActionDef[] = useMemo(
     () => [
       // Column 0: LISTING + GENERAL
-      { id: 'edit-bulk', label: t('publish.command.editBulk', { defaultValue: 'Edit in Bulk' }), icon: 'EditOutlined', category: 'LISTING', column: 0, context: ['listing'], action: () => options.onEditBulk?.() },
-      { id: 'delete-listings', label: t('publish.command.deleteListings', { defaultValue: 'Delete Listings' }), icon: 'DeleteOutline', category: 'LISTING', column: 0, context: ['listing'], action: () => options.onDeleteListings?.() },
-      { id: 'move-collection', label: t('publish.command.moveCollection', { defaultValue: 'Move to Collection' }), icon: 'DriveFileMoveOutlined', category: 'LISTING', column: 0, context: ['listing'], action: () => options.onMoveToCollection?.() },
-      { id: 'duplicate', label: t('publish.command.duplicate', { defaultValue: 'Duplicate' }), icon: 'ContentCopyOutlined', category: 'LISTING', column: 0, action: () => options.onDuplicate?.() },
-      { id: 'sort-listings', label: t('publish.command.sortListings', { defaultValue: 'Sort Listings' }), icon: 'SwapVertOutlined', category: 'LISTING', column: 0, action: () => options.onSortListings?.() },
-      { id: 'bulk-sync', label: t('publish.command.bulkSync', { defaultValue: 'Bulk Sync' }), icon: 'SyncOutlined', category: 'LISTING', column: 0, action: () => options.onBulkSync?.() },
-      { id: 'translate', label: t('publish.command.translate', { defaultValue: 'Translate' }), icon: 'TranslateOutlined', category: 'GENERAL', column: 0, context: ['listing'], action: () => options.onTranslate?.() },
-      { id: 'bulk-tags', label: t('publish.command.bulkTags', { defaultValue: 'Bulk Tags' }), icon: 'LabelOutlined', category: 'GENERAL', column: 0, action: () => options.onBulkTags?.() },
-      { id: 'ai-generate', label: t('publish.command.aiGenerate', { defaultValue: 'AI Generate Listing' }), icon: 'AutoAwesomeOutlined', category: 'GENERAL', column: 0, context: ['listing'], action: () => options.onAiGenerate?.() },
+      { id: 'edit-bulk', label: t('publish.command.editBulk', { defaultValue: 'Edit in Bulk' }), icon: 'EditOutlined', category: 'LISTING', column: 0, context: ['listing'], disabled: !options.onEditBulk, action: () => options.onEditBulk?.() },
+      { id: 'delete-listings', label: t('publish.command.deleteListings', { defaultValue: 'Delete Listings' }), icon: 'DeleteOutline', category: 'LISTING', column: 0, context: ['listing'], disabled: !options.onDeleteListings, action: () => options.onDeleteListings?.() },
+      { id: 'move-collection', label: t('publish.command.moveCollection', { defaultValue: 'Move to Collection' }), icon: 'DriveFileMoveOutlined', category: 'LISTING', column: 0, context: ['listing'], disabled: !options.onMoveToCollection, action: () => options.onMoveToCollection?.() },
+      { id: 'duplicate', label: t('publish.command.duplicate', { defaultValue: 'Duplicate' }), icon: 'ContentCopyOutlined', category: 'LISTING', column: 0, disabled: !options.onDuplicate, action: () => options.onDuplicate?.() },
+      { id: 'sort-listings', label: t('publish.command.sortListings', { defaultValue: 'Sort Listings' }), icon: 'SwapVertOutlined', category: 'LISTING', column: 0, disabled: !options.onSortListings, action: () => options.onSortListings?.() },
+      { id: 'bulk-sync', label: t('publish.command.bulkSync', { defaultValue: 'Bulk Sync' }), icon: 'SyncOutlined', category: 'LISTING', column: 0, disabled: !options.onBulkSync, action: () => options.onBulkSync?.() },
+      { id: 'translate', label: t('publish.command.translate', { defaultValue: 'Translate' }), icon: 'TranslateOutlined', category: 'GENERAL', column: 0, context: ['listing'], disabled: !options.onTranslate, action: () => options.onTranslate?.() },
+      { id: 'bulk-tags', label: t('publish.command.bulkTags', { defaultValue: 'Bulk Tags' }), icon: 'LabelOutlined', category: 'GENERAL', column: 0, disabled: !options.onBulkTags, action: () => options.onBulkTags?.() },
       // Column 1: FILES + EXPORT + CLOUD
-      { id: 'delete-files', label: t('publish.command.deleteFiles', { defaultValue: 'Delete Files' }), icon: 'DeleteOutline', category: 'FILES', column: 1, action: () => options.onDeleteFiles?.() },
-      { id: 'download', label: t('publish.command.download', { defaultValue: 'Download' }), icon: 'FileDownloadOutlined', category: 'FILES', column: 1, action: () => options.onDownload?.() },
-      { id: 'export-xlsx', label: t('publish.command.exportXlsx', { defaultValue: 'Export as XLSX' }), icon: 'TableChartOutlined', category: 'EXPORT', column: 1, action: () => options.onExportXlsx?.() },
-      { id: 'export-csv', label: t('publish.command.exportCsv', { defaultValue: 'Export as CSV' }), icon: 'DescriptionOutlined', category: 'EXPORT', column: 1, action: () => options.onExportCsv?.() },
-      { id: 'send-cloud', label: t('publish.command.sendCloud', { defaultValue: 'Send to Cloud' }), icon: 'CloudUploadOutlined', category: 'CLOUD', column: 1, action: () => options.onSendToCloud?.() },
-      { id: 'import-cloud', label: t('publish.command.importCloud', { defaultValue: 'Import from Cloud' }), icon: 'CloudDownloadOutlined', category: 'CLOUD', column: 1, action: () => options.onImportCloud?.() },
+      { id: 'delete-files', label: t('publish.command.deleteFiles', { defaultValue: 'Delete Files' }), icon: 'DeleteOutline', category: 'FILES', column: 1, disabled: !options.onDeleteFiles, action: () => options.onDeleteFiles?.() },
+      { id: 'download', label: t('publish.command.download', { defaultValue: 'Download' }), icon: 'FileDownloadOutlined', category: 'FILES', column: 1, disabled: !options.onDownload, action: () => options.onDownload?.() },
+      { id: 'export-xlsx', label: t('publish.command.exportXlsx', { defaultValue: 'Export as XLSX' }), icon: 'TableChartOutlined', category: 'EXPORT', column: 1, disabled: !options.onExportXlsx, action: () => options.onExportXlsx?.() },
+      { id: 'export-csv', label: t('publish.command.exportCsv', { defaultValue: 'Export as CSV' }), icon: 'DescriptionOutlined', category: 'EXPORT', column: 1, disabled: !options.onExportCsv, action: () => options.onExportCsv?.() },
+      { id: 'send-cloud', label: t('publish.command.sendCloud', { defaultValue: 'Send to Cloud' }), icon: 'CloudUploadOutlined', category: 'CLOUD', column: 1, disabled: !options.onSendToCloud, action: () => options.onSendToCloud?.() },
+      { id: 'import-cloud', label: t('publish.command.importCloud', { defaultValue: 'Import from Cloud' }), icon: 'CloudDownloadOutlined', category: 'CLOUD', column: 1, disabled: !options.onImportCloud, action: () => options.onImportCloud?.() },
       // Column 2: TEMPLATES
-      { id: 'apply-template', label: t('publish.command.applyTemplate', { defaultValue: 'Apply Template' }), icon: 'DashboardCustomizeOutlined', category: 'TEMPLATES', column: 2, action: () => options.onApplyTemplate?.() },
-      { id: 'copy-listing-from', label: t('publish.command.copyListingFrom', { defaultValue: 'Copy Listing From...' }), icon: 'ContentCopyOutlined', category: 'TEMPLATES', column: 2, context: ['listing'], action: () => options.onCopyListingFrom?.() },
-      { id: 'copy-colors-from', label: t('publish.command.copyColorsFrom', { defaultValue: 'Copy Colors From...' }), icon: 'PaletteOutlined', category: 'TEMPLATES', column: 2, context: ['colors'], action: () => options.onCopyColorsFrom?.() },
-      { id: 'copy-fit-from', label: t('publish.command.copyFitFrom', { defaultValue: 'Copy Fit Types From...' }), icon: 'StraightenOutlined', category: 'TEMPLATES', column: 2, context: ['fit_types'], action: () => options.onCopyFitTypesFrom?.() },
-      { id: 'copy-prices-from', label: t('publish.command.copyPricesFrom', { defaultValue: 'Copy Prices From...' }), icon: 'AttachMoneyOutlined', category: 'TEMPLATES', column: 2, context: ['prices'], action: () => options.onCopyPricesFrom?.() },
+      { id: 'apply-template', label: t('publish.command.applyTemplate', { defaultValue: 'Apply Template' }), icon: 'DashboardCustomizeOutlined', category: 'TEMPLATES', column: 2, disabled: !options.onApplyTemplate, action: () => options.onApplyTemplate?.() },
+      { id: 'copy-listing-from', label: t('publish.command.copyListingFrom', { defaultValue: 'Copy Listing From...' }), icon: 'ContentCopyOutlined', category: 'TEMPLATES', column: 2, context: ['listing'], disabled: !options.onCopyListingFrom, action: () => options.onCopyListingFrom?.() },
+      { id: 'copy-colors-from', label: t('publish.command.copyColorsFrom', { defaultValue: 'Copy Colors From...' }), icon: 'PaletteOutlined', category: 'TEMPLATES', column: 2, context: ['colors'], disabled: !options.onCopyColorsFrom, action: () => options.onCopyColorsFrom?.() },
+      { id: 'copy-fit-from', label: t('publish.command.copyFitFrom', { defaultValue: 'Copy Fit Types From...' }), icon: 'StraightenOutlined', category: 'TEMPLATES', column: 2, context: ['fit_types'], disabled: !options.onCopyFitTypesFrom, action: () => options.onCopyFitTypesFrom?.() },
+      { id: 'copy-prices-from', label: t('publish.command.copyPricesFrom', { defaultValue: 'Copy Prices From...' }), icon: 'AttachMoneyOutlined', category: 'TEMPLATES', column: 2, context: ['prices'], disabled: !options.onCopyPricesFrom, action: () => options.onCopyPricesFrom?.() },
       // Column 0: CONVERT — target marketplace = current tab. Disabled when
       // the active tab equals the source (nothing to convert from).
       {
@@ -145,7 +140,9 @@ export const useCommandPalette = (options: UseCommandPaletteOptions) => {
         category: 'CONVERT',
         column: 0,
         context: ['mba'],
-        disabled: options.activeMarketplace === 'global',
+        disabled:
+          !options.onConvertFromGlobal ||
+          options.activeMarketplace === 'global',
         action: () => options.onConvertFromGlobal?.(),
       },
       {
@@ -155,7 +152,9 @@ export const useCommandPalette = (options: UseCommandPaletteOptions) => {
         category: 'CONVERT',
         column: 0,
         context: ['global'],
-        disabled: options.activeMarketplace === 'mba',
+        disabled:
+          !options.onConvertFromMba ||
+          options.activeMarketplace === 'mba',
         action: () => options.onConvertFromMba?.(),
       },
     ],

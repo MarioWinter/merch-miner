@@ -174,6 +174,88 @@ class TestListingUpdateView:
         # EC-42: status must remain `ready`, NOT flip back to `draft`.
         assert resp.data['status'] == 'ready'
 
+    def test_ec14_concurrent_patches_last_write_wins(
+        self, api_client, workspace, listing, membership,
+    ):
+        """EC-14: two PATCHes targeting the same Listing from different
+        tabs (same user) must both succeed; the later one wins without
+        DB-level integrity errors or 409s. MVP has no optimistic locking —
+        this test locks in the documented last-write-wins semantics so a
+        future introduction of an ETag/version header is a visible breaking
+        change rather than silent."""
+        resp_a = api_client.patch(
+            f'/api/listings/{listing.id}/',
+            {'title': 'Tab A'},
+            format='json',
+            **ws_headers(workspace),
+        )
+        resp_b = api_client.patch(
+            f'/api/listings/{listing.id}/',
+            {'title': 'Tab B'},
+            format='json',
+            **ws_headers(workspace),
+        )
+        assert resp_a.status_code == 200
+        assert resp_b.status_code == 200
+        listing.refresh_from_db()
+        assert listing.title == 'Tab B'
+
+    def test_translations_patch_persists_and_does_not_revert_status(
+        self, api_client, workspace, listing, membership,
+    ):
+        """Round 5: per-language title/bullet/description edits PATCH into
+        the translations JSONField, preserve EN top-level copy, and must
+        NOT revert a Ready listing to draft (translations aren't one of the
+        five "content" fields — same rule as keyword_context / EC-42)."""
+        listing.status = Listing.Status.READY
+        listing.save(update_fields=['status'])
+
+        resp = api_client.patch(
+            f'/api/listings/{listing.id}/',
+            {
+                'translations': {
+                    'de': {
+                        'title': 'Deutsche Variante',
+                        'bullet_1': 'DE Bullet 1',
+                        'bullet_2': 'DE Bullet 2',
+                        'description': 'Deutsche Beschreibung',
+                    },
+                },
+            },
+            format='json',
+            **ws_headers(workspace),
+        )
+        assert resp.status_code == 200
+        assert resp.data['status'] == 'ready'
+        assert resp.data['translations']['de']['title'] == 'Deutsche Variante'
+        # EN top-level fields stay intact.
+        assert resp.data['title'] == 'Funny Cat T-Shirt'
+        assert resp.data['brand_name'] == 'CatBrand'
+
+    def test_ec14_concurrent_disjoint_field_patches_both_land(
+        self, api_client, workspace, listing, membership,
+    ):
+        """EC-14 companion: when Tab A PATCHes title and Tab B PATCHes
+        description — both land. The serializer-level partial update path
+        must not wipe fields it didn't touch."""
+        resp_a = api_client.patch(
+            f'/api/listings/{listing.id}/',
+            {'title': 'Shared Title'},
+            format='json',
+            **ws_headers(workspace),
+        )
+        resp_b = api_client.patch(
+            f'/api/listings/{listing.id}/',
+            {'description': 'Shared Description'},
+            format='json',
+            **ws_headers(workspace),
+        )
+        assert resp_a.status_code == 200
+        assert resp_b.status_code == 200
+        listing.refresh_from_db()
+        assert listing.title == 'Shared Title'
+        assert listing.description == 'Shared Description'
+
 
 class TestListingExportView:
     def test_export_listing(self, api_client, workspace, listing, membership):

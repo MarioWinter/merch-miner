@@ -31,11 +31,7 @@ const mockGetProductConfigQuery = vi.fn(() => ({
     id: 'cfg-1',
     design: 'design-1',
     marketplace_type: 'mba',
-    product_types: [],
-    fit_types: [],
-    print_side: 'front' as const,
-    colors: [],
-    marketplaces: [],
+    products_config: [],
     created_at: '',
     updated_at: '',
   },
@@ -56,11 +52,8 @@ const makeListing = (overrides: Partial<Listing> = {}): Listing => ({
   title: 'T',
   bullet_1: '',
   bullet_2: '',
-  bullet_3: '',
-  bullet_4: '',
-  bullet_5: '',
   description: '',
-  backend_keywords: '',
+  keyword_context: '',
   status: 'draft',
   generated_by: 'ai',
   availability: 'public',
@@ -109,15 +102,32 @@ vi.mock('@/store/publishSlice', () => ({
     error: null,
     refetch: vi.fn(),
   }),
-  useGenerateListingMutation: () => [vi.fn(), { isLoading: false }],
   useUpdateListingMutation: () => [vi.fn(), { isLoading: false }],
   useTranslateListingMutation: () => [vi.fn(), { isLoading: false }],
-  useTmCheckMutation: () => [vi.fn(), { isLoading: false }],
   useLazyExportListingQuery: () => [vi.fn(), { isLoading: false }],
   useConvertListingMutation: () => [vi.fn(), { isLoading: false }],
   useGetProductConfigQuery: (...args: unknown[]) =>
     mockGetProductConfigQuery(...(args as [])),
   useUpdateProductConfigMutation: () => [vi.fn(), { isLoading: false }],
+  // Phase O2 — useEditFormState wiring
+  useAiImproveListingMutation: () => [vi.fn(), { isLoading: false }],
+  useGetMbaProductCatalogQuery: () => ({ data: [], isLoading: false }),
+}));
+
+// Phase O4 — useEditFormState reads user + workspace ids from Redux to
+// scope the offline-queue storage key. Stub the typed hook so these
+// tests don't need a real Provider.
+vi.mock('@/store/hooks', () => ({
+  useAppSelector: (
+    selector: (state: {
+      auth: { user: { id: number } | null };
+      workspace: { activeWorkspaceId: string | null };
+    }) => unknown,
+  ) =>
+    selector({
+      auth: { user: { id: 1 } },
+      workspace: { activeWorkspaceId: 'ws-test' },
+    }),
 }));
 
 import { useEditView } from '../hooks/useEditView';

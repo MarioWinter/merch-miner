@@ -13,9 +13,30 @@ interface WorkspaceState {
   error: string | null;
 }
 
+const ACTIVE_WORKSPACE_STORAGE_KEY = 'mm.activeWorkspaceId';
+
+const readPersistedWorkspaceId = (): string | null => {
+  if (typeof window === 'undefined') return null;
+  try {
+    return window.localStorage.getItem(ACTIVE_WORKSPACE_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+};
+
+const persistWorkspaceId = (id: string | null) => {
+  if (typeof window === 'undefined') return;
+  try {
+    if (id) window.localStorage.setItem(ACTIVE_WORKSPACE_STORAGE_KEY, id);
+    else window.localStorage.removeItem(ACTIVE_WORKSPACE_STORAGE_KEY);
+  } catch {
+    /* quota / access denied — safe to ignore */
+  }
+};
+
 const initialState: WorkspaceState = {
   workspaces: [],
-  activeWorkspaceId: null,
+  activeWorkspaceId: readPersistedWorkspaceId(),
   loading: false,
   error: null,
 };
@@ -93,6 +114,7 @@ const workspaceSlice = createSlice({
   reducers: {
     setActiveWorkspace(state, action: PayloadAction<string>) {
       state.activeWorkspaceId = action.payload;
+      persistWorkspaceId(action.payload);
     },
     updateMemberAvatar(
       state,
@@ -115,8 +137,18 @@ const workspaceSlice = createSlice({
       .addCase(fetchWorkspaces.fulfilled, (state, action) => {
         state.loading = false;
         state.workspaces = action.payload;
-        if (!state.activeWorkspaceId && action.payload.length > 0) {
+        // Prefer a persisted id only if the user is still a member of that
+        // workspace — otherwise fall back to the first workspace in the
+        // response (and clear stale localStorage).
+        const persistedStillValid =
+          state.activeWorkspaceId !== null &&
+          action.payload.some((w) => w.id === state.activeWorkspaceId);
+        if (!persistedStillValid && action.payload.length > 0) {
           state.activeWorkspaceId = action.payload[0].id;
+          persistWorkspaceId(action.payload[0].id);
+        } else if (action.payload.length === 0) {
+          state.activeWorkspaceId = null;
+          persistWorkspaceId(null);
         }
       })
       .addCase(fetchWorkspaces.rejected, (state, action) => {
@@ -152,8 +184,13 @@ const workspaceSlice = createSlice({
           );
         }
       })
-      // Reset workspace state when the user logs out
-      .addCase(clearAuth, () => initialState);
+      // Reset workspace state when the user logs out.
+      // Also clear persisted id — otherwise the next user on the shared
+      // machine inherits the previous user's workspace pointer.
+      .addCase(clearAuth, () => {
+        persistWorkspaceId(null);
+        return { ...initialState, activeWorkspaceId: null };
+      });
   },
 });
 

@@ -43,8 +43,8 @@ vi.mock('../partials/edit/MarketplacePricing', () => ({
 vi.mock('../partials/edit/ListingFieldsSection', () => ({
   default: () => <div data-testid="ListingFieldsSection" />,
 }));
-vi.mock('../partials/edit/OptionsTrademarksTabs', () => ({
-  default: () => <div data-testid="OptionsTrademarksTabs" />,
+vi.mock('../partials/edit/OptionsSection', () => ({
+  default: () => <div data-testid="OptionsSection" />,
 }));
 vi.mock('../partials/edit/UnsavedChangesBar', () => ({
   default: () => <div data-testid="UnsavedChangesBar" />,
@@ -106,11 +106,8 @@ const makeListing = (overrides: Partial<Listing> = {}): Listing => ({
   title: 'Title',
   bullet_1: '',
   bullet_2: '',
-  bullet_3: '',
-  bullet_4: '',
-  bullet_5: '',
   description: '',
-  backend_keywords: '',
+  keyword_context: '',
   status: 'draft',
   generated_by: 'ai',
   availability: 'public',
@@ -147,18 +144,6 @@ const buildBaseState = (
   handleDesignIdsChange: vi.fn(),
   activeMarketplace: 'mba' as const,
   setActiveMarketplace: vi.fn(),
-  productConfig: {
-    productTypes: [],
-    fitTypes: [],
-    printSide: 'front' as const,
-    colors: [],
-    marketplaces: [],
-  },
-  setProductTypes: vi.fn(),
-  setFitTypes: vi.fn(),
-  setPrintSide: vi.fn(),
-  setColors: vi.fn(),
-  setMarketplaces: vi.fn(),
   listingForm: stubForm,
   activeLang: 'en' as const,
   setActiveLang: vi.fn(),
@@ -169,16 +154,13 @@ const buildBaseState = (
   isFetchingListing: false,
   listingError: null as unknown,
   listingNotFound: false,
-  isGenerating: false,
   isSaving: false,
   isAutoSaving: false,
   isTranslating: false,
-  isChecking: false,
-  handleTMCheck: vi.fn(),
   isDirty: false,
   handleDiscardListing: vi.fn(),
   handleSaveListing: vi.fn(),
-  handleGenerateListing: vi.fn(),
+  handleRetryListing: vi.fn(),
   handleConvertFrom: vi.fn(),
   copyDialog: { open: false, scope: null },
   isApplyingCopy: false,
@@ -198,6 +180,32 @@ const buildBaseState = (
     executeAction: vi.fn(),
     closePalette: vi.fn(),
     openPalette: vi.fn(),
+  },
+  // Phase P1/P2 — minimal editFormState stub (children are mocked so only
+  // the references need to resolve).
+  editFormState: {
+    focusedProduct: null,
+    setFocusedProduct: vi.fn(),
+    controlSetters: {
+      toggleProductEnabled: vi.fn(),
+      setFitTypes: vi.fn(),
+      setPrintSide: vi.fn(),
+      setColors: vi.fn(),
+      setMarketplaces: vi.fn(),
+    },
+    priceSetters: { setPrice: vi.fn() },
+    textSetters: { onChange: vi.fn(), onBlur: vi.fn() },
+    manualSave: vi.fn(),
+    discard: vi.fn(),
+    aiImprove: vi.fn(),
+    isImproving: false,
+    royaltyFor: vi.fn(),
+    isDirty: false,
+    isSaving: false,
+    saveError: null,
+    isOnline: true,
+    queueLength: 0,
+    textFields: [],
   },
   ...overrides,
 });
@@ -225,9 +233,9 @@ describe('EditView — G1 listing state branching (MBA tab)', () => {
 
     // Product config stays visible — only the listing-form subtree is hidden.
     expect(screen.getByTestId('ProductTypeScroller')).toBeInTheDocument();
-    expect(screen.getByTestId('ColorGrid')).toBeInTheDocument();
+    expect(screen.getByTestId('FitTypePrintSection')).toBeInTheDocument();
     expect(screen.queryByTestId('ListingFieldsSection')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('OptionsTrademarksTabs')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('OptionsSection')).not.toBeInTheDocument();
   });
 
   it('hides listing form when marketplace tab has no listing (404)', () => {
@@ -235,10 +243,10 @@ describe('EditView — G1 listing state branching (MBA tab)', () => {
     const state = buildBaseState(design, { listingNotFound: true });
     renderEditView(state);
 
-    // Banner CTA is visible (generate listing), but the form is hidden so the
-    // user explicitly opts into generation before editing.
+    // Banner shows a Convert-from-another-tab hint (Generate endpoint
+    // retired in P8). Form subtree stays hidden.
     expect(
-      screen.getByRole('button', { name: /generate listing/i }),
+      screen.getByText(/no listing for mba yet/i),
     ).toBeInTheDocument();
     expect(screen.queryByTestId('ListingFieldsSection')).not.toBeInTheDocument();
   });
@@ -260,7 +268,7 @@ describe('EditView — G1 listing state branching (MBA tab)', () => {
     renderEditView(state);
 
     expect(screen.getByTestId('ListingFieldsSection')).toBeInTheDocument();
-    expect(screen.getByTestId('OptionsTrademarksTabs')).toBeInTheDocument();
+    expect(screen.getByTestId('OptionsSection')).toBeInTheDocument();
   });
 
   it('renders placeholder (no banner) when non-MBA tab is active', () => {

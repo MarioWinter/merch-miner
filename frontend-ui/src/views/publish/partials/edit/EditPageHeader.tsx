@@ -2,6 +2,7 @@ import { useState } from 'react';
 import {
   Box,
   Button,
+  CircularProgress,
   Dialog,
   DialogContent,
   DialogTitle,
@@ -13,10 +14,16 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import AddIcon from '@mui/icons-material/Add';
 import KeyboardOutlinedIcon from '@mui/icons-material/KeyboardOutlined';
 import CloseIcon from '@mui/icons-material/Close';
+import CheckIcon from '@mui/icons-material/Check';
+import SaveOutlinedIcon from '@mui/icons-material/SaveOutlined';
+import BookmarkAddOutlinedIcon from '@mui/icons-material/BookmarkAddOutlined';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import CollectionsDialog from '../collections/CollectionsDialog';
 import { useAddDesignsFromCollection } from '../../hooks/useAddDesignsFromCollection';
+import AIImproveButton from '../editor/AIImproveButton';
+import SaveAsTemplateDialog from './SaveAsTemplateDialog';
+import type { AIImproveListingResponse, MarketplaceType } from '../../types';
 
 const HeaderRoot = styled(Box)(({ theme }) => ({
   display: 'flex',
@@ -36,14 +43,57 @@ const ActionGroup = styled(Box)(({ theme }) => ({
 interface EditPageHeaderProps {
   designIds: string[];
   onDesignIdsChange: (ids: string[]) => void;
+  // AC-70: central AI Improve IconButton lives in the header top-right.
+  aiImprove: () => Promise<AIImproveListingResponse | null>;
+  isImproving: boolean;
+  hasListing: boolean;
+  onTruncated?: (fields: string[]) => void;
+  // AC-74: manual Save button — flushes pending PATCHes and shows Saved ✓.
+  isDirty: boolean;
+  isSaving: boolean;
+  saveError: Error | null;
+  onSave: () => void | Promise<unknown>;
+  // Round-5 hotfix: entry point for creating an UploadTemplate from the
+  // active design's DesignProductConfig. Without this the PublishBatchDialog
+  // had no template to pick and the whole upload flow dead-ended.
+  activeDesignId: string | null;
+  activeMarketplace: MarketplaceType;
+  defaultBrandName?: string;
 }
 
-const EditPageHeader = ({ designIds, onDesignIdsChange }: EditPageHeaderProps) => {
+const EditPageHeader = ({
+  designIds,
+  onDesignIdsChange,
+  aiImprove,
+  isImproving,
+  hasListing,
+  onTruncated,
+  isDirty,
+  isSaving,
+  saveError,
+  onSave,
+  activeDesignId,
+  activeMarketplace,
+  defaultBrandName,
+}: EditPageHeaderProps) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [collectionsOpen, setCollectionsOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
   const { addDesignsFromCollection } = useAddDesignsFromCollection();
+
+  // AC-74: 2-second "Saved ✓" indicator after a successful manual save.
+  // Toggles on the isSaving true→false transition with no error.
+  const [showSaved, setShowSaved] = useState(false);
+  const [prevIsSaving, setPrevIsSaving] = useState(isSaving);
+  if (prevIsSaving !== isSaving) {
+    setPrevIsSaving(isSaving);
+    if (prevIsSaving && !isSaving && !saveError) {
+      setShowSaved(true);
+      setTimeout(() => setShowSaved(false), 2000);
+    }
+  }
 
   const handleBack = () => navigate('/publish');
 
@@ -52,6 +102,18 @@ const EditPageHeader = ({ designIds, onDesignIdsChange }: EditPageHeaderProps) =
     const nextIds = await addDesignsFromCollection(collectionId, designIds);
     if (nextIds !== designIds) onDesignIdsChange(nextIds);
   };
+
+  const saveDisabled = isSaving || (!isDirty && !saveError);
+  const saveIcon = isSaving ? (
+    <CircularProgress size={16} thickness={5} color="inherit" />
+  ) : showSaved ? (
+    <CheckIcon fontSize="small" />
+  ) : (
+    <SaveOutlinedIcon fontSize="small" />
+  );
+  const saveLabel = showSaved
+    ? t('publish.edit.savedLabel', { defaultValue: 'Saved' })
+    : t('publish.edit.saveLabel', { defaultValue: 'Save' });
 
   return (
     <HeaderRoot>
@@ -80,6 +142,35 @@ const EditPageHeader = ({ designIds, onDesignIdsChange }: EditPageHeaderProps) =
         >
           {t('publish.edit.shortcutGuide')}
         </Button>
+        <AIImproveButton
+          aiImprove={aiImprove}
+          isImproving={isImproving}
+          hasListing={hasListing}
+          onTruncated={onTruncated}
+        />
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<BookmarkAddOutlinedIcon />}
+          onClick={() => setSaveTemplateOpen(true)}
+          disabled={!activeDesignId}
+          data-testid="EditPageHeader-saveAsTemplate"
+        >
+          {t('publish.edit.saveTemplate.button', {
+            defaultValue: 'Save as Template',
+          })}
+        </Button>
+        <Button
+          variant="contained"
+          size="small"
+          color={showSaved ? 'success' : 'primary'}
+          startIcon={saveIcon}
+          disabled={saveDisabled}
+          onClick={() => void onSave()}
+          data-testid="EditPageHeader-saveButton"
+        >
+          {saveLabel}
+        </Button>
       </ActionGroup>
 
       <CollectionsDialog
@@ -87,6 +178,16 @@ const EditPageHeader = ({ designIds, onDesignIdsChange }: EditPageHeaderProps) =
         onClose={() => setCollectionsOpen(false)}
         onOpenFolder={handleCollectionSelected}
       />
+
+      {saveTemplateOpen && (
+        <SaveAsTemplateDialog
+          open
+          onClose={() => setSaveTemplateOpen(false)}
+          designId={activeDesignId}
+          marketplaceType={activeMarketplace}
+          defaultBrandName={defaultBrandName}
+        />
+      )}
 
       <Dialog
         open={shortcutsOpen}

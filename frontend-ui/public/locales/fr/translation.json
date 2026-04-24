@@ -1767,7 +1767,27 @@
       "template": "Modele",
       "upload": "Telecharger",
       "import": "Importer",
-      "publish": "Publier"
+      "publish": "Publier",
+      "uploadSuccess": "{{count}} design(s) uploaded",
+      "uploadError": "{{count}} upload(s) failed",
+      "templateDeleteConfirm": "Delete template ",
+      "templateDeleteSuccess": "Template deleted",
+      "templateDeleteError": "Failed to delete template",
+      "templateLibraryTitle": "Upload Templates",
+      "templateLoading": "Loading…",
+      "templateEmpty": "No upload templates yet. Save one from the Edit page to reuse product + pricing config across designs.",
+      "templateDelete": "Delete template",
+      "templateDefaultChip": "Default",
+      "templateBrand": "Brand: {{brand}}",
+      "publishNoSelectionHint": "Select at least one design to publish",
+      "publishSuccess": "{{count}} upload job(s) queued",
+      "publishError": "Failed to queue upload jobs",
+      "publishDialogTitle": "Publish {{count}} design(s)",
+      "publishNoSelection": "Select at least one design first.",
+      "publishNoTemplates": "No upload templates saved yet. Open a design and click \"Save as Template\" to create one.",
+      "publishPickTemplate": "Pick the UploadTemplate to use for every queued job (product types, fit, colors, marketplaces + prices).",
+      "publishSubmitting": "Queuing…",
+      "publishSubmit": "Queue upload jobs"
     },
     "tabs": {
       "myDesigns": "Mes designs",
@@ -1781,9 +1801,33 @@
     },
     "card": {
       "select": "Selectionner le design",
-      "duplicate": "Dupliquer",
+      "duplicate": {
+        "success": "Design duplicated",
+        "error404": "Design no longer exists",
+        "error": "Failed to duplicate design"
+      },
       "move": "Deplacer",
-      "addTags": "Ajouter des tags"
+      "addTags": "Ajouter des tags",
+      "delete": {
+        "success": "Design deleted",
+        "error": "Failed to delete design",
+        "title": "Delete design?",
+        "body": "This will permanently remove the design from your gallery.",
+        "confirm": "Delete"
+      },
+      "tagEditor": {
+        "error": "Failed to update tags",
+        "placeholder": "Add tag…",
+        "ariaLabel": "Edit design tags"
+      },
+      "menu": {
+        "edit": "Edit",
+        "duplicate": "Duplicate",
+        "move": "Move to Collection",
+        "addTags": "Add Tags",
+        "delete": "Delete",
+        "open": "Open card menu"
+      }
     },
     "collections": {
       "title": "Collections",
@@ -1968,7 +2012,12 @@
       "copyFitFrom": "Copier les coupes depuis...",
       "copyPricesFrom": "Copier les prix depuis...",
       "convertFromGlobal": "Convertir depuis Global",
-      "convertFromMba": "Convertir depuis MBA"
+      "convertFromMba": "Convertir depuis MBA",
+      "selectFirst": "Select at least one design first",
+      "deleteFilesConfirm": "Delete {{count}} design(s)? This cannot be undone.",
+      "deleteFilesSuccess": "{{count}} design(s) deleted",
+      "deleteFilesError": "{{count}} delete(s) failed",
+      "downloadSuccess": "{{count}} download(s) started"
     },
     "actionBar": {
       "label": "Actions en lot",
@@ -2079,7 +2128,14 @@
         "previous": "Design precedent",
         "next": "Design suivant",
         "activeBadge": "Design {{index}}",
-        "remove": "Retirer le tag"
+        "remove": "Retirer le tag",
+        "presetLoaded": "Preset loaded",
+        "presetEmpty": "Add tags before saving a preset",
+        "presetDuplicate": "Preset already saved",
+        "presetSaved": "Preset saved",
+        "saveCurrent": "Save current as preset",
+        "noPresets": "No saved presets yet",
+        "deletePreset": "Delete preset"
       },
       "products": {
         "title": "Produits",
@@ -2102,7 +2158,8 @@
         "title": "Places de marche et prix",
         "price": "Prix",
         "royalty": "Redevance",
-        "enable": "Activer {{code}}"
+        "enable": "Activer {{code}}",
+        "priceFor": "Price for {{code}}"
       },
       "placeholder": {
         "comingSoon": "Configuration pour {{marketplace}} bientot disponible"
@@ -2113,7 +2170,10 @@
         "title": "Titre",
         "bullet": "Point cle {{n}}",
         "description": "Description",
-        "aiImprove": "Ameliorer par IA"
+        "aiImprove": "Ameliorer par IA",
+        "openChat": "Open Chat for this field",
+        "keywordContext": "Keyword Context",
+        "keywordContextPlaceholder": "Free-form notes to steer AI Improve — brand tone, avoid-words, audience."
       },
       "keywords": {
         "title": "Mots-cles backend",
@@ -2128,7 +2188,8 @@
         "title": "Langue",
         "selectLanguage": "Selectionner la langue",
         "autoTranslate": "Traduction auto",
-        "translateTo": "Traduire en…"
+        "translateTo": "Traduire en…",
+        "notLocalized": "Brand is the same across languages — edit on the EN tab"
       },
       "options": {
         "tab": "Options",
@@ -2142,7 +2203,8 @@
           "title": "Publier",
           "live": "En ligne",
           "draft": "Brouillon"
-        }
+        },
+        "sectionLabel": "Listing options"
       },
       "trademarks": {
         "tab": "Marques deposees",
@@ -2169,7 +2231,17 @@
         "discard": "Annuler",
         "save": "Enregistrer",
         "autoSaving": "Enregistrement...",
-        "autoSaved": "Enregistre"
+        "autoSaved": "Enregistre",
+        "saving": "Saving...",
+        "saved": "Saved",
+        "failed": "Save failed",
+        "retry": "Retry",
+        "offline": "You are offline — changes will sync when you reconnect",
+        "offlineChip": "Offline",
+        "queued": "{{count}} queued",
+        "confirmDiscardTitle": "Discard unsaved changes?",
+        "confirmDiscardBody": "Your pending edits will be cleared. This cannot be undone.",
+        "cancel": "Cancel"
       },
       "listingState": {
         "generate": "Generer la fiche",
@@ -2177,7 +2249,26 @@
         "notFound": "Pas encore de fiche pour {{marketplace}}. Generez-en une pour commencer.",
         "error": "Impossible de charger la fiche pour cette place de marche.",
         "retry": "Reessayer"
-      }
+      },
+      "savedLabel": "Saved",
+      "saveLabel": "Save"
+    },
+    "ai_improve": {
+      "truncatedChip": "AI truncated",
+      "tooltipDisabled": "Create or convert listing first",
+      "tooltip": "Improve with AI",
+      "successSnackbar": "Listing improved with AI",
+      "errorSnackbar": "AI Improve failed — please try again",
+      "buttonLabel": "AI Improve listing"
+    },
+    "movePicker": {
+      "success": "Design moved",
+      "error404": "Destination no longer exists",
+      "error": "Failed to move design",
+      "title": "Move to Collection",
+      "readyHint": "Press Move Here to confirm",
+      "pickHint": "Select a folder from the tree",
+      "moveHere": "Move Here"
     }
   },
   "dashboard": {

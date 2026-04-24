@@ -1,14 +1,17 @@
 import { useCallback } from 'react';
 import { Box, Grid, Stack } from '@mui/material';
-import type { Control } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import type {
-  MbaListingFormValues,
-  MbaListingLanguage,
-} from '../../schemas/mbaListingSchema';
+import type { MbaListingLanguage } from '../../schemas/mbaListingSchema';
 import { MBA_LISTING_CHAR_LIMITS } from '../../schemas/mbaListingSchema';
+import type { Listing } from '../../types';
+import type {
+  TextField as ListingTextField,
+  TranslatableField,
+  UseEditFormStateReturn,
+} from '../../hooks/useEditFormState';
+import { TRANSLATABLE_FIELDS } from '../../hooks/useEditFormState';
 import ListingField from './ListingField';
-import KeywordChipsField from './KeywordChipsField';
+import KeywordContextField from '../editor/KeywordContextField';
 import TranslationTabs from './TranslationTabs';
 
 // ---------------------------------------------------------------------------
@@ -16,12 +19,18 @@ import TranslationTabs from './TranslationTabs';
 // ---------------------------------------------------------------------------
 
 interface ListingFieldsSectionProps {
-  control: Control<MbaListingFormValues>;
+  /** Server-side Listing — drives the controlled inputs and the
+   *  on-blur-if-dirty comparison inside `textSetters.onBlur`. */
+  listing: Listing | null;
+  textSetters: UseEditFormStateReturn['textSetters'];
   activeLang: MbaListingLanguage;
   onLangChange: (lang: MbaListingLanguage) => void;
   autoTranslate: boolean;
   onAutoTranslateChange: (v: boolean) => void;
-  onOptionsClick: (context: string) => void;
+  /** Phase P7 — list of field names the server truncated on the last
+   *  AI-Improve run. Renders an inline "AI truncated" chip on the
+   *  matching `ListingField`. */
+  truncatedFields?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -29,29 +38,68 @@ interface ListingFieldsSectionProps {
 // ---------------------------------------------------------------------------
 
 const ListingFieldsSection = ({
-  control,
+  listing,
+  textSetters,
   activeLang,
   onLangChange,
   autoTranslate,
   onAutoTranslateChange,
-  onOptionsClick,
+  truncatedFields,
 }: ListingFieldsSectionProps) => {
   const { t } = useTranslation();
 
-  const handleAiImprove = useCallback((value: string) => {
-    // PROJ-17 Chat wiring is deferred — stub for D5
-    console.log('[ListingFieldsSection] AI improve:', value);
-  }, []);
+  const handleTranslateToAll = useCallback(
+    (_targetLang: MbaListingLanguage) => {
+      // Real translate call happens elsewhere; kept as a stub wired via
+      // TranslationTabs so the component stays pure.
+      void _targetLang;
+    },
+    [],
+  );
 
-  const handleTranslateToAll = useCallback((targetLang: MbaListingLanguage) => {
-    // Real translate call happens in D6/D7 — log for D5
-    console.log('[ListingFieldsSection] translate to all:', targetLang);
-  }, []);
+  // Single factory for ListingField bindings so we don't repeat the
+  // field-name literal on both onChange and onBlur. Also flips the
+  // `truncated` chip on/off based on the last AI-Improve result.
+  //
+  // Per-language wire-up (Round 5): when `activeLang !== 'en'`, translatable
+  // fields (title / bullet_1 / bullet_2 / description) read from and write
+  // to `listing.translations[activeLang][field]`. Brand + keyword_context
+  // stay on the top-level regardless of language — per AC-9, keyword_context
+  // is AI-input-only (not translated), and brand_name is global on MBA.
+  const truncatedSet = new Set(truncatedFields ?? []);
+  const isEn = activeLang === 'en';
+  const translatable = (field: ListingTextField): field is TranslatableField =>
+    (TRANSLATABLE_FIELDS as readonly string[]).includes(field);
+  const bind = (field: ListingTextField, key: keyof Listing) => {
+    if (!isEn && translatable(field)) {
+      const tr =
+        (listing?.translations?.[activeLang] as
+          | Record<TranslatableField, string>
+          | undefined) ?? undefined;
+      return {
+        value: tr?.[field] ?? '',
+        onChange: (v: string) =>
+          textSetters.onChangeTranslated(activeLang, field, v),
+        onBlur: (v: string) =>
+          textSetters.onBlurTranslated(activeLang, field, v),
+        truncated: false,
+      };
+    }
+    return {
+      value: (listing?.[key] as string | undefined) ?? '',
+      onChange: (v: string) => textSetters.onChange(field, v),
+      onBlur: (v: string) => textSetters.onBlur(field, v),
+      truncated: truncatedSet.has(field),
+    };
+  };
 
   return (
-    <Box component="section" aria-label={t('publish.edit.fields.sectionLabel', {
-      defaultValue: 'Listing Fields',
-    })}>
+    <Box
+      component="section"
+      aria-label={t('publish.edit.fields.sectionLabel', {
+        defaultValue: 'Listing Fields',
+      })}
+    >
       <TranslationTabs
         activeLang={activeLang}
         onLangChange={onLangChange}
@@ -64,31 +112,26 @@ const ListingFieldsSection = ({
         <Grid container spacing={2}>
           <Grid size={{ xs: 12, md: 6 }}>
             <ListingField
-              name="brand"
-              control={control}
+              {...bind('brand_name', 'brand_name')}
               maxChars={MBA_LISTING_CHAR_LIMITS.brand}
               label={t('publish.edit.fields.brand', { defaultValue: 'Brand' })}
-              context="brand"
-              onOptionsClick={onOptionsClick}
-              onAiImprove={handleAiImprove}
+              disabled={!isEn}
+              disabledReason={t('publish.edit.translation.notLocalized', {
+                defaultValue: 'Brand is the same across languages — edit on the EN tab',
+              })}
             />
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
             <ListingField
-              name="title"
-              control={control}
+              {...bind('title', 'title')}
               maxChars={MBA_LISTING_CHAR_LIMITS.title}
               label={t('publish.edit.fields.title', { defaultValue: 'Title' })}
-              context="title"
-              onOptionsClick={onOptionsClick}
-              onAiImprove={handleAiImprove}
             />
           </Grid>
 
           <Grid size={{ xs: 12, md: 6 }}>
             <ListingField
-              name="bullet_1"
-              control={control}
+              {...bind('bullet_1', 'bullet_1')}
               maxChars={MBA_LISTING_CHAR_LIMITS.bullet_1}
               label={t('publish.edit.fields.bullet', {
                 defaultValue: 'Bullet {{n}}',
@@ -96,15 +139,11 @@ const ListingFieldsSection = ({
               })}
               multiline
               rows={2}
-              context="bullet_1"
-              onOptionsClick={onOptionsClick}
-              onAiImprove={handleAiImprove}
             />
           </Grid>
           <Grid size={{ xs: 12, md: 6 }}>
             <ListingField
-              name="bullet_2"
-              control={control}
+              {...bind('bullet_2', 'bullet_2')}
               maxChars={MBA_LISTING_CHAR_LIMITS.bullet_2}
               label={t('publish.edit.fields.bullet', {
                 defaultValue: 'Bullet {{n}}',
@@ -112,85 +151,28 @@ const ListingFieldsSection = ({
               })}
               multiline
               rows={2}
-              context="bullet_2"
-              onOptionsClick={onOptionsClick}
-              onAiImprove={handleAiImprove}
             />
           </Grid>
-
-          <Grid size={{ xs: 12, md: 6 }}>
-            <ListingField
-              name="bullet_3"
-              control={control}
-              maxChars={MBA_LISTING_CHAR_LIMITS.bullet_3}
-              label={t('publish.edit.fields.bullet', {
-                defaultValue: 'Bullet {{n}}',
-                n: 3,
-              })}
-              multiline
-              rows={2}
-              context="bullet_3"
-              onOptionsClick={onOptionsClick}
-              onAiImprove={handleAiImprove}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, md: 6 }}>
-            <ListingField
-              name="bullet_4"
-              control={control}
-              maxChars={MBA_LISTING_CHAR_LIMITS.bullet_4}
-              label={t('publish.edit.fields.bullet', {
-                defaultValue: 'Bullet {{n}}',
-                n: 4,
-              })}
-              multiline
-              rows={2}
-              context="bullet_4"
-              onOptionsClick={onOptionsClick}
-              onAiImprove={handleAiImprove}
-            />
-          </Grid>
-
-          <Grid size={{ xs: 12, md: 6 }}>
-            <ListingField
-              name="bullet_5"
-              control={control}
-              maxChars={MBA_LISTING_CHAR_LIMITS.bullet_5}
-              label={t('publish.edit.fields.bullet', {
-                defaultValue: 'Bullet {{n}}',
-                n: 5,
-              })}
-              multiline
-              rows={2}
-              context="bullet_5"
-              onOptionsClick={onOptionsClick}
-              onAiImprove={handleAiImprove}
-            />
-          </Grid>
-          <Grid size={{ xs: 12, md: 6 }} />
 
           <Grid size={{ xs: 12 }}>
             <ListingField
-              name="description"
-              control={control}
+              {...bind('description', 'description')}
               maxChars={MBA_LISTING_CHAR_LIMITS.description}
               label={t('publish.edit.fields.description', {
                 defaultValue: 'Description',
               })}
               multiline
               rows={8}
-              context="description"
-              onOptionsClick={onOptionsClick}
-              onAiImprove={handleAiImprove}
             />
           </Grid>
 
           <Grid size={{ xs: 12 }}>
-            <KeywordChipsField
-              name="backend_keywords"
-              control={control}
-              context="keywords"
-              onOptionsClick={onOptionsClick}
+            <KeywordContextField
+              {...bind('keyword_context', 'keyword_context')}
+              disabled={!isEn}
+              disabledReason={t('publish.edit.translation.notLocalized', {
+                defaultValue: 'Brand is the same across languages — edit on the EN tab',
+              })}
             />
           </Grid>
         </Grid>

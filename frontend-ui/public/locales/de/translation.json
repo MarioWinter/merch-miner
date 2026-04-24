@@ -2087,7 +2087,27 @@
       "template": "Vorlage",
       "upload": "Hochladen",
       "import": "Importieren",
-      "publish": "Veroeffentlichen"
+      "publish": "Veröffentlichen",
+      "uploadSuccess": "{{count}} design(s) uploaded",
+      "uploadError": "{{count}} upload(s) failed",
+      "templateDeleteConfirm": "Vorlage „{{name}}\" löschen? Dies kann nicht rückgängig gemacht werden.",
+      "templateDeleteSuccess": "Vorlage gelöscht",
+      "templateDeleteError": "Vorlage konnte nicht gelöscht werden",
+      "templateLibraryTitle": "Upload-Vorlagen",
+      "templateLoading": "Lädt …",
+      "templateEmpty": "Noch keine Upload-Vorlagen. Speichere eine aus dem Edit-Bereich, um Produkt- und Preis-Config wiederzuverwenden.",
+      "templateDelete": "Vorlage löschen",
+      "templateDefaultChip": "Standard",
+      "templateBrand": "Marke: {{brand}}",
+      "publishNoSelectionHint": "Wähle mindestens ein Design, um zu veröffentlichen",
+      "publishSuccess": "{{count}} Upload-Job(s) eingereiht",
+      "publishError": "Upload-Jobs konnten nicht eingereiht werden",
+      "publishDialogTitle": "{{count}} Design(s) veröffentlichen",
+      "publishNoSelection": "Bitte wähle zuerst ein Design aus.",
+      "publishNoTemplates": "Noch keine Vorlagen gespeichert. Öffne ein Design und klicke „Als Vorlage speichern\".",
+      "publishPickTemplate": "Wähle die UploadTemplate für alle Jobs (Produkttypen, Fit, Farben, Marktplätze + Preise).",
+      "publishSubmitting": "Wird eingereiht …",
+      "publishSubmit": "Upload-Jobs einreihen"
     },
     "tabs": {
       "myDesigns": "Meine Designs",
@@ -2101,9 +2121,33 @@
     },
     "card": {
       "select": "Design auswaehlen",
-      "duplicate": "Duplizieren",
+      "duplicate": {
+        "success": "Design duplicated",
+        "error404": "Design no longer exists",
+        "error": "Failed to duplicate design"
+      },
       "move": "Verschieben",
-      "addTags": "Tags hinzufuegen"
+      "addTags": "Tags hinzufuegen",
+      "delete": {
+        "success": "Design deleted",
+        "error": "Failed to delete design",
+        "title": "Delete design?",
+        "body": "This will permanently remove the design from your gallery.",
+        "confirm": "Delete"
+      },
+      "tagEditor": {
+        "error": "Failed to update tags",
+        "placeholder": "Add tag…",
+        "ariaLabel": "Edit design tags"
+      },
+      "menu": {
+        "edit": "Edit",
+        "duplicate": "Duplicate",
+        "move": "Move to Collection",
+        "addTags": "Add Tags",
+        "delete": "Delete",
+        "open": "Open card menu"
+      }
     },
     "collections": {
       "title": "Sammlungen",
@@ -2254,8 +2298,8 @@
     "command": {
       "title": "Befehlspalette",
       "searchPlaceholder": "Aktionen durchsuchen...",
-      "noResults": "Keine Aktionen gefunden",
-      "recent": "ZULETZT VERWENDET",
+      "noResults": "Keine Ergebnisse",
+      "recent": "Zuletzt verwendet",
       "copyListing": "Listing kopieren",
       "copyListingDesc": "Aktuelles Listing auf andere ausgewaehlte Designs kopieren",
       "applyTemplate": "Vorlage anwenden",
@@ -2268,27 +2312,32 @@
       "applyProductSettingsDesc": "Alle Produkteinstellungen auf ausgewaehlte Designs kopieren",
       "bulkUpload": "Batch-Upload",
       "bulkUploadDesc": "Upload-Jobs fuer alle ausgewaehlten Designs einreihen",
-      "editBulk": "In Batch bearbeiten",
-      "deleteListings": "Listings loeschen",
+      "editBulk": "Bulk bearbeiten",
+      "deleteListings": "Listings löschen",
       "moveCollection": "In Sammlung verschieben",
       "duplicate": "Duplizieren",
       "sortListings": "Listings sortieren",
-      "bulkSync": "Batch-Sync",
-      "translate": "Uebersetzen",
-      "bulkTags": "Batch-Tags",
+      "bulkSync": "Massensynchronisation",
+      "translate": "Übersetzen",
+      "bulkTags": "Massen-Tags",
       "aiGenerate": "KI-Listing generieren",
-      "deleteFiles": "Dateien loeschen",
+      "deleteFiles": "Dateien löschen",
       "download": "Herunterladen",
       "exportXlsx": "Als XLSX exportieren",
       "exportCsv": "Als CSV exportieren",
-      "sendCloud": "In Cloud senden",
-      "importCloud": "Aus Cloud importieren",
+      "sendCloud": "In die Cloud senden",
+      "importCloud": "Aus der Cloud importieren",
       "copyListingFrom": "Listing kopieren von...",
       "copyColorsFrom": "Farben kopieren von...",
       "copyFitFrom": "Passformen kopieren von...",
       "copyPricesFrom": "Preise kopieren von...",
-      "convertFromGlobal": "Aus Global konvertieren",
-      "convertFromMba": "Aus MBA konvertieren"
+      "convertFromGlobal": "Von Global konvertieren",
+      "convertFromMba": "Von MBA konvertieren",
+      "selectFirst": "Bitte wähle zuerst mindestens ein Design",
+      "deleteFilesConfirm": "{{count}} Design(s) löschen? Dies kann nicht rückgängig gemacht werden.",
+      "deleteFilesSuccess": "{{count}} Design(s) gelöscht",
+      "deleteFilesError": "{{count}} Löschvorgang/-vorgänge fehlgeschlagen",
+      "downloadSuccess": "{{count}} Download(s) gestartet"
     },
     "actionBar": {
       "label": "Massenaktionen",
@@ -2355,9 +2404,9 @@
       "invalid": "Konvertierung fuer diesen Marktplatz nicht gueltig",
       "sourceMissing": "Kein {{source}}-Listing zum Konvertieren. Generiere zuerst eines.",
       "noIdea": "Waehle zuerst ein Design mit einer verknuepften Idee.",
-      "confirmTitle": "Vorhandenes {{target}}-Listing ueberschreiben?",
-      "confirmBody": "Ein {{target}}-Listing existiert bereits fuer dieses Design. Die Konvertierung aus {{source}} ersetzt dessen Inhalt. Dies kann nicht rueckgaengig gemacht werden.",
-      "confirmButton": "Ueberschreiben",
+      "confirmTitle": "Bestehendes {{target}}-Listing überschreiben?",
+      "confirmBody": "Für dieses Design existiert bereits ein {{target}}-Listing. Von {{source}} zu konvertieren überschreibt dessen Inhalt. Dies kann nicht rückgängig gemacht werden.",
+      "confirmButton": "Überschreiben",
       "cancelButton": "Abbrechen"
     },
     "lifecycle": {
@@ -2369,12 +2418,12 @@
       "awaitingSales": "Warte auf Verkaufsdaten"
     },
     "edit": {
-      "backToCollection": "Zurueck zur Sammlung",
-      "addDesigns": "Designs hinzufuegen",
-      "shortcutGuide": "Tastenkuerzel",
-      "shortcutsTitle": "Tastenkuerzel",
-      "shortcutsSoon": "Tastenkuerzel folgen bald",
-      "close": "Schliessen",
+      "backToCollection": "Zurück zur Sammlung",
+      "addDesigns": "Designs hinzufügen",
+      "shortcutGuide": "Tastenkürzel",
+      "shortcutsTitle": "Tastenkürzel",
+      "shortcutsSoon": "Tastenkürzel-Referenz kommt bald.",
+      "close": "Schließen",
       "optionsButton": "Optionen",
       "demo": {
         "productsTitle": "Produkte"
@@ -2396,10 +2445,17 @@
         "load": "Laden",
         "clear": "Leeren",
         "counter": "{{current}} von {{total}}",
-        "previous": "Vorheriges Design",
-        "next": "Naechstes Design",
+        "previous": "Vorheriges",
+        "next": "Nächstes",
         "activeBadge": "Design {{index}}",
-        "remove": "Tag entfernen"
+        "remove": "Tag entfernen",
+        "presetLoaded": "Preset geladen",
+        "presetEmpty": "Füge zuerst Tags hinzu, bevor du ein Preset speicherst",
+        "presetDuplicate": "Dieses Preset ist bereits gespeichert",
+        "presetSaved": "Preset gespeichert",
+        "saveCurrent": "Aktuell als Preset speichern",
+        "noPresets": "Noch keine Presets gespeichert",
+        "deletePreset": "Preset löschen"
       },
       "products": {
         "title": "Produkte",
@@ -2422,7 +2478,8 @@
         "title": "Marktplaetze & Preise",
         "price": "Preis",
         "royalty": "Tantieme",
-        "enable": "{{code}} aktivieren"
+        "enable": "{{code}} aktivieren",
+        "priceFor": "Price for {{code}}"
       },
       "placeholder": {
         "comingSoon": "Konfiguration fuer {{marketplace}} kommt bald"
@@ -2433,7 +2490,10 @@
         "title": "Titel",
         "bullet": "Bullet {{n}}",
         "description": "Beschreibung",
-        "aiImprove": "KI-Verbesserung"
+        "aiImprove": "KI-Verbesserung",
+        "openChat": "Chat für dieses Feld öffnen",
+        "keywordContext": "Keyword-Kontext",
+        "keywordContextPlaceholder": "Freie Notizen für die KI — Markenton, vermeidbare Wörter, Zielgruppe."
       },
       "keywords": {
         "title": "Backend-Keywords",
@@ -2446,9 +2506,10 @@
       },
       "translation": {
         "title": "Sprache",
-        "selectLanguage": "Sprache auswaehlen",
-        "autoTranslate": "Auto-Uebersetzen",
-        "translateTo": "Uebersetzen in…"
+        "selectLanguage": "Sprache wählen",
+        "autoTranslate": "Auto-Übersetzen",
+        "translateTo": "Übersetzen nach …",
+        "notLocalized": "Markenname ist sprachübergreifend identisch — bitte auf dem EN-Tab bearbeiten"
       },
       "options": {
         "tab": "Optionen",
@@ -2462,7 +2523,8 @@
           "title": "Veroeffentlichen",
           "live": "Live",
           "draft": "Entwurf"
-        }
+        },
+        "sectionLabel": "Listing options"
       },
       "trademarks": {
         "tab": "Markenrechte",
@@ -2485,11 +2547,21 @@
         "error": "Vorschau nicht verfuegbar"
       },
       "unsaved": {
-        "message": "Nicht gespeicherte Aenderungen",
+        "message": "Nicht gespeicherte Änderungen",
         "discard": "Verwerfen",
         "save": "Speichern",
         "autoSaving": "Speichere...",
-        "autoSaved": "Gespeichert"
+        "autoSaved": "Gespeichert",
+        "saving": "Speichern …",
+        "saved": "Gespeichert",
+        "failed": "Speichern fehlgeschlagen",
+        "retry": "Erneut versuchen",
+        "offline": "Offline — Änderungen werden synchronisiert sobald du wieder online bist",
+        "offlineChip": "Offline",
+        "queued": "{{count}} in Warteschlange",
+        "confirmDiscardTitle": "Nicht gespeicherte Änderungen verwerfen?",
+        "confirmDiscardBody": "Deine offenen Änderungen werden gelöscht. Dies kann nicht rückgängig gemacht werden.",
+        "cancel": "Abbrechen"
       },
       "listingState": {
         "generate": "Listing generieren",
@@ -2497,7 +2569,26 @@
         "notFound": "Noch kein Listing fuer {{marketplace}}. Generiere eines, um zu starten.",
         "error": "Listing fuer diesen Marktplatz konnte nicht geladen werden.",
         "retry": "Erneut versuchen"
-      }
+      },
+      "savedLabel": "Gespeichert",
+      "saveLabel": "Speichern"
+    },
+    "ai_improve": {
+      "truncatedChip": "KI gekürzt",
+      "tooltipDisabled": "Erst Listing erstellen oder konvertieren",
+      "tooltip": "Mit KI verbessern",
+      "successSnackbar": "Listing mit KI verbessert",
+      "errorSnackbar": "KI-Verbesserung fehlgeschlagen — bitte erneut versuchen",
+      "buttonLabel": "Listing mit KI verbessern"
+    },
+    "movePicker": {
+      "success": "Design moved",
+      "error404": "Destination no longer exists",
+      "error": "Failed to move design",
+      "title": "Move to Collection",
+      "readyHint": "Press Move Here to confirm",
+      "pickHint": "Select a folder from the tree",
+      "moveHere": "Move Here"
     }
   },
   "dashboard": {
@@ -2662,7 +2753,7 @@
     }
   },
   "common": {
-    "close": "Schliessen",
+    "close": "Schließen",
     "retry": "Erneut versuchen",
     "cancel": "Abbrechen",
     "save": "Speichern"

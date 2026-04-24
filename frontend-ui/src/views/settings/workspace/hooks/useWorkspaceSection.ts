@@ -10,6 +10,7 @@ import {
 } from '../../../../store/workspaceSlice';
 import { workspaceService, type MemberRole } from '../../../../services/workspaceService';
 import { useAppDispatch, useAppSelector } from '../../../../store/hooks';
+import { publishApi } from '../../../../store/publishSlice';
 
 export const useWorkspaceSection = () => {
   const { t } = useTranslation();
@@ -81,6 +82,12 @@ export const useWorkspaceSection = () => {
   };
 
   const handleSelectWorkspace = (id: string) => {
+    if (id !== activeWorkspaceId) {
+      // See WorkspaceSelector for rationale — reset the whole publishApi
+      // cache on workspace change so we never serve workspace-A data under
+      // a workspace-B session.
+      dispatch(publishApi.util.resetApiState());
+    }
     dispatch(setActiveWorkspace(id));
   };
 

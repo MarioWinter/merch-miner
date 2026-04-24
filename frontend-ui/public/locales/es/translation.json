@@ -1834,7 +1834,27 @@
       "template": "Plantilla",
       "upload": "Subir",
       "import": "Importar",
-      "publish": "Publicar"
+      "publish": "Publicar",
+      "uploadSuccess": "{{count}} design(s) uploaded",
+      "uploadError": "{{count}} upload(s) failed",
+      "templateDeleteConfirm": "Delete template ",
+      "templateDeleteSuccess": "Template deleted",
+      "templateDeleteError": "Failed to delete template",
+      "templateLibraryTitle": "Upload Templates",
+      "templateLoading": "Loading…",
+      "templateEmpty": "No upload templates yet. Save one from the Edit page to reuse product + pricing config across designs.",
+      "templateDelete": "Delete template",
+      "templateDefaultChip": "Default",
+      "templateBrand": "Brand: {{brand}}",
+      "publishNoSelectionHint": "Select at least one design to publish",
+      "publishSuccess": "{{count}} upload job(s) queued",
+      "publishError": "Failed to queue upload jobs",
+      "publishDialogTitle": "Publish {{count}} design(s)",
+      "publishNoSelection": "Select at least one design first.",
+      "publishNoTemplates": "No upload templates saved yet. Open a design and click \"Save as Template\" to create one.",
+      "publishPickTemplate": "Pick the UploadTemplate to use for every queued job (product types, fit, colors, marketplaces + prices).",
+      "publishSubmitting": "Queuing…",
+      "publishSubmit": "Queue upload jobs"
     },
     "tabs": {
       "myDesigns": "Mis disenos",
@@ -1848,9 +1868,33 @@
     },
     "card": {
       "select": "Seleccionar diseno",
-      "duplicate": "Duplicar",
+      "duplicate": {
+        "success": "Design duplicated",
+        "error404": "Design no longer exists",
+        "error": "Failed to duplicate design"
+      },
       "move": "Mover",
-      "addTags": "Agregar etiquetas"
+      "addTags": "Agregar etiquetas",
+      "delete": {
+        "success": "Design deleted",
+        "error": "Failed to delete design",
+        "title": "Delete design?",
+        "body": "This will permanently remove the design from your gallery.",
+        "confirm": "Delete"
+      },
+      "tagEditor": {
+        "error": "Failed to update tags",
+        "placeholder": "Add tag…",
+        "ariaLabel": "Edit design tags"
+      },
+      "menu": {
+        "edit": "Edit",
+        "duplicate": "Duplicate",
+        "move": "Move to Collection",
+        "addTags": "Add Tags",
+        "delete": "Delete",
+        "open": "Open card menu"
+      }
     },
     "collections": {
       "title": "Colecciones",
@@ -2035,7 +2079,12 @@
       "copyFitFrom": "Copiar tipos de ajuste desde...",
       "copyPricesFrom": "Copiar precios desde...",
       "convertFromGlobal": "Convertir desde Global",
-      "convertFromMba": "Convertir desde MBA"
+      "convertFromMba": "Convertir desde MBA",
+      "selectFirst": "Select at least one design first",
+      "deleteFilesConfirm": "Delete {{count}} design(s)? This cannot be undone.",
+      "deleteFilesSuccess": "{{count}} design(s) deleted",
+      "deleteFilesError": "{{count}} delete(s) failed",
+      "downloadSuccess": "{{count}} download(s) started"
     },
     "actionBar": {
       "label": "Acciones masivas",
@@ -2146,7 +2195,14 @@
         "previous": "Diseno anterior",
         "next": "Siguiente diseno",
         "activeBadge": "Diseno {{index}}",
-        "remove": "Quitar etiqueta"
+        "remove": "Quitar etiqueta",
+        "presetLoaded": "Preset loaded",
+        "presetEmpty": "Add tags before saving a preset",
+        "presetDuplicate": "Preset already saved",
+        "presetSaved": "Preset saved",
+        "saveCurrent": "Save current as preset",
+        "noPresets": "No saved presets yet",
+        "deletePreset": "Delete preset"
       },
       "products": {
         "title": "Productos",
@@ -2169,7 +2225,8 @@
         "title": "Marketplaces y precios",
         "price": "Precio",
         "royalty": "Regalia",
-        "enable": "Habilitar {{code}}"
+        "enable": "Habilitar {{code}}",
+        "priceFor": "Price for {{code}}"
       },
       "placeholder": {
         "comingSoon": "Configuracion para {{marketplace}} disponible pronto"
@@ -2180,7 +2237,10 @@
         "title": "Titulo",
         "bullet": "Punto clave {{n}}",
         "description": "Descripcion",
-        "aiImprove": "Mejorar con IA"
+        "aiImprove": "Mejorar con IA",
+        "openChat": "Open Chat for this field",
+        "keywordContext": "Keyword Context",
+        "keywordContextPlaceholder": "Free-form notes to steer AI Improve — brand tone, avoid-words, audience."
       },
       "keywords": {
         "title": "Palabras clave backend",
@@ -2195,7 +2255,8 @@
         "title": "Idioma",
         "selectLanguage": "Seleccionar idioma",
         "autoTranslate": "Traduccion automatica",
-        "translateTo": "Traducir a…"
+        "translateTo": "Traducir a…",
+        "notLocalized": "Brand is the same across languages — edit on the EN tab"
       },
       "options": {
         "tab": "Opciones",
@@ -2209,7 +2270,8 @@
           "title": "Publicar",
           "live": "En vivo",
           "draft": "Borrador"
-        }
+        },
+        "sectionLabel": "Listing options"
       },
       "trademarks": {
         "tab": "Marcas registradas",
@@ -2236,7 +2298,17 @@
         "discard": "Descartar",
         "save": "Guardar",
         "autoSaving": "Guardando...",
-        "autoSaved": "Guardado"
+        "autoSaved": "Guardado",
+        "saving": "Saving...",
+        "saved": "Saved",
+        "failed": "Save failed",
+        "retry": "Retry",
+        "offline": "You are offline — changes will sync when you reconnect",
+        "offlineChip": "Offline",
+        "queued": "{{count}} queued",
+        "confirmDiscardTitle": "Discard unsaved changes?",
+        "confirmDiscardBody": "Your pending edits will be cleared. This cannot be undone.",
+        "cancel": "Cancel"
       },
       "listingState": {
         "generate": "Generar listado",
@@ -2244,7 +2316,26 @@
         "notFound": "Aun no hay listado para {{marketplace}}. Genera uno para empezar a editar.",
         "error": "No se pudo cargar el listado para este marketplace.",
         "retry": "Reintentar"
-      }
+      },
+      "savedLabel": "Saved",
+      "saveLabel": "Save"
+    },
+    "ai_improve": {
+      "truncatedChip": "AI truncated",
+      "tooltipDisabled": "Create or convert listing first",
+      "tooltip": "Improve with AI",
+      "successSnackbar": "Listing improved with AI",
+      "errorSnackbar": "AI Improve failed — please try again",
+      "buttonLabel": "AI Improve listing"
+    },
+    "movePicker": {
+      "success": "Design moved",
+      "error404": "Destination no longer exists",
+      "error": "Failed to move design",
+      "title": "Move to Collection",
+      "readyHint": "Press Move Here to confirm",
+      "pickHint": "Select a folder from the tree",
+      "moveHere": "Move Here"
     }
   },
   "common": {

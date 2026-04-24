@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Box, Stack, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
@@ -13,9 +14,9 @@ import MarketplacePricing from './partials/edit/MarketplacePricing';
 import MarketplacePlaceholder from './partials/edit/MarketplacePlaceholder';
 import ListingFieldsSection from './partials/edit/ListingFieldsSection';
 import ListingStateBanner from './partials/edit/ListingStateBanner';
-import OptionsTrademarksTabs from './partials/edit/OptionsTrademarksTabs';
+import OptionsSection from './partials/edit/OptionsSection';
 import DesignPreview from './partials/edit/DesignPreview';
-import UnsavedChangesBar from './partials/edit/UnsavedChangesBar';
+import UnsavedChangesBanner from './partials/editor/UnsavedChangesBanner';
 import CommandPalette from './partials/command/CommandPalette';
 import CopyFromDesignDialog from './partials/edit/CopyFromDesignDialog';
 import EmptyState from './partials/EmptyState';
@@ -96,12 +97,8 @@ const EditView = () => {
     handleDesignIdsChange,
     activeMarketplace,
     setActiveMarketplace,
-    productConfig,
-    setProductTypes,
-    setFitTypes,
-    setPrintSide,
-    setColors,
-    setMarketplaces,
+    // Phase P1/P2 — per-product control via editFormState.
+    editFormState,
     listingForm,
     activeLang,
     setActiveLang,
@@ -110,14 +107,18 @@ const EditView = () => {
     isDirty,
     handleDiscardListing,
     handleSaveListing,
-    handleGenerateListing,
+    handleRetryListing,
+    // Phase O3/Round-4: 5-state banner inputs (saving / failed / offline / queue)
+    isEditSaving,
+    editSaveError,
+    isEditOnline,
+    editQueueLength,
     // D7 listing state
     listing,
     isLoadingListing,
     isFetchingListing,
     listingError,
     listingNotFound,
-    isGenerating,
     cmdPalette,
     // D7 copy-from-design
     copyDialog,
@@ -130,6 +131,11 @@ const EditView = () => {
     confirmConvertOverwrite,
     cancelConvertOverwrite,
   } = useEditView();
+
+  // Phase P7 — last `truncated_fields` payload from the AI-Improve
+  // mutation. Drives the per-field "AI truncated" chip inside
+  // ListingFieldsSection. Cleared when the user runs AI-Improve again.
+  const [truncatedFields, setTruncatedFields] = useState<string[]>([]);
 
   // Empty state — no ids in URL
   if (designIds.length === 0) {
@@ -160,12 +166,27 @@ const EditView = () => {
       <EditPageHeader
         designIds={designIds}
         onDesignIdsChange={handleDesignIdsChange}
+        aiImprove={editFormState.aiImprove}
+        isImproving={editFormState.isImproving}
+        hasListing={Boolean(listing)}
+        onTruncated={setTruncatedFields}
+        isDirty={isDirty}
+        isSaving={isEditSaving}
+        saveError={editSaveError}
+        onSave={handleSaveListing}
+        activeDesignId={activeDesign?.id ?? null}
+        activeMarketplace={activeMarketplace}
+        defaultBrandName={listing?.brand_name ?? ''}
       />
 
-      <UnsavedChangesBar
+      <UnsavedChangesBanner
         isDirty={isDirty}
-        onDiscard={handleDiscardListing}
+        isSaving={isEditSaving}
+        saveError={editSaveError}
         onSave={handleSaveListing}
+        onDiscard={handleDiscardListing}
+        online={isEditOnline}
+        queueLength={editQueueLength}
       />
 
       <TabsBar>
@@ -185,54 +206,61 @@ const EditView = () => {
           {isMba ? (
             <Stack gap={3}>
               <ProductTypeScroller
-                selected={productConfig.productTypes}
-                onChange={setProductTypes}
-                onOptionsClick={cmdPalette.openPalette}
+                designId={activeDesign?.id ?? null}
+                marketplaceType={activeMarketplace as 'global' | 'mba' | 'displate'}
+                focusedProduct={editFormState.focusedProduct}
+                onFocusedProductChange={editFormState.setFocusedProduct}
+                toggleProductEnabled={
+                  editFormState.controlSetters.toggleProductEnabled
+                }
               />
               <FitTypePrintSection
-                selectedFits={productConfig.fitTypes}
-                onFitsChange={setFitTypes}
-                printSide={productConfig.printSide}
-                onPrintSideChange={setPrintSide}
-                onOptionsClick={cmdPalette.openPalette}
+                designId={activeDesign?.id ?? null}
+                marketplaceType={activeMarketplace as 'global' | 'mba' | 'displate'}
+                focusedProduct={editFormState.focusedProduct}
+                setFitTypes={editFormState.controlSetters.setFitTypes}
+                setPrintSide={editFormState.controlSetters.setPrintSide}
               />
               <ColorGrid
-                selected={productConfig.colors}
-                onChange={setColors}
-                onOptionsClick={cmdPalette.openPalette}
+                designId={activeDesign?.id ?? null}
+                marketplaceType={activeMarketplace as 'global' | 'mba' | 'displate'}
+                focusedProduct={editFormState.focusedProduct}
+                toggleColor={editFormState.controlSetters.toggleColor}
               />
               <MarketplacePricing
-                configs={productConfig.marketplaces}
-                onChange={setMarketplaces}
-                onOptionsClick={cmdPalette.openPalette}
+                designId={activeDesign?.id ?? null}
+                marketplaceType={activeMarketplace as 'global' | 'mba' | 'displate'}
+                focusedProduct={editFormState.focusedProduct}
+                setPrice={editFormState.priceSetters.setPrice}
+                setMarketplaceEnabled={
+                  editFormState.controlSetters.setMarketplaceEnabled
+                }
+                royaltyFor={editFormState.royaltyFor}
               />
               <ListingStateBanner
                 isLoading={isLoadingListing}
                 isFetching={isFetchingListing}
                 notFound={listingNotFound}
                 hasError={Boolean(listingError)}
-                onGenerate={handleGenerateListing}
-                onRetry={handleGenerateListing}
-                isGenerating={isGenerating}
+                onRetry={handleRetryListing}
                 marketplace={activeMarketplace}
               />
               {/* G1: hide editable form during initial load + 404 + hard error.
-                  Banner owns the skeleton/empty/error UI for those states. */}
+                  Banner owns the skeleton/empty/error UI for those states.
+                  Round-4: AI Improve + Save moved into EditPageHeader per
+                  AC-70 + AC-74. */}
               {!isLoadingListing && !listingNotFound && !listingError && (
                 <>
                   <ListingFieldsSection
-                    control={listingForm.control}
+                    listing={listing}
+                    textSetters={editFormState.textSetters}
                     activeLang={activeLang}
                     onLangChange={setActiveLang}
                     autoTranslate={autoTranslate}
                     onAutoTranslateChange={setAutoTranslate}
-                    onOptionsClick={cmdPalette.openPalette}
+                    truncatedFields={truncatedFields}
                   />
-                  <OptionsTrademarksTabs
-                    control={listingForm.control}
-                    listingId={listing?.id ?? activeDesign?.listing ?? undefined}
-                    onOptionsClick={cmdPalette.openPalette}
-                  />
+                  <OptionsSection control={listingForm.control} />
                 </>
               )}
             </Stack>

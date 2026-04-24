@@ -16,10 +16,8 @@ vi.mock('react-i18next', () => ({
 }));
 
 // RTK Query mock hooks
-const mockGenerateMutation = vi.fn();
 const mockUpdateMutation = vi.fn();
 const mockTranslateMutation = vi.fn();
-const mockTmCheckMutation = vi.fn();
 const mockLazyExport = vi.fn();
 const mockConvertMutation = vi.fn();
 
@@ -39,16 +37,11 @@ const mockGetListingResult: {
 
 vi.mock('@/store/publishSlice', () => ({
   useGetListingQuery: () => mockGetListingResult,
-  useGenerateListingMutation: () => [
-    mockGenerateMutation,
-    { isLoading: false },
-  ],
   useUpdateListingMutation: () => [mockUpdateMutation, { isLoading: false }],
   useTranslateListingMutation: () => [
     mockTranslateMutation,
     { isLoading: false },
   ],
-  useTmCheckMutation: () => [mockTmCheckMutation, { isLoading: false }],
   useLazyExportListingQuery: () => [mockLazyExport, { isLoading: false }],
   useConvertListingMutation: () => [mockConvertMutation, { isLoading: false }],
 }));
@@ -67,11 +60,8 @@ const makeListing = (overrides: Partial<Listing> = {}): Listing => ({
   title: 'Vintage Cat Shirt',
   bullet_1: 'B1',
   bullet_2: 'B2',
-  bullet_3: 'B3',
-  bullet_4: 'B4',
-  bullet_5: 'B5',
   description: 'Desc',
-  backend_keywords: 'cat, vintage',
+  keyword_context: 'cat, vintage',
   status: 'draft',
   generated_by: 'ai',
   availability: 'public',
@@ -88,11 +78,8 @@ const makeFormValues = () => ({
   title: 'Title A',
   bullet_1: 'B1',
   bullet_2: 'B2',
-  bullet_3: 'B3',
-  bullet_4: 'B4',
-  bullet_5: 'B5',
   description: 'Desc',
-  backend_keywords: ['cat', 'vintage'],
+  keyword_context: 'cat, vintage',
   translations: {},
   auto_translate: false,
   availability: 'public' as const,
@@ -115,7 +102,7 @@ describe('useListingEditor', () => {
     const { result } = renderHook(() =>
       useListingEditor({
         ideaId: null,
-        designId: null,
+
         marketplaceType: 'mba',
       }),
     );
@@ -128,7 +115,7 @@ describe('useListingEditor', () => {
     const { result } = renderHook(() =>
       useListingEditor({
         ideaId: 'idea-1',
-        designId: 'design-1',
+
         marketplaceType: 'mba',
       }),
     );
@@ -141,7 +128,7 @@ describe('useListingEditor', () => {
     const { result } = renderHook(() =>
       useListingEditor({
         ideaId: 'idea-1',
-        designId: 'design-1',
+
         marketplaceType: 'global',
       }),
     );
@@ -154,7 +141,7 @@ describe('useListingEditor', () => {
     const { result } = renderHook(() =>
       useListingEditor({
         ideaId: 'idea-1',
-        designId: 'design-1',
+
         marketplaceType: 'mba',
       }),
     );
@@ -162,51 +149,8 @@ describe('useListingEditor', () => {
     expect(result.current.listingError).toEqual({ status: 500, data: {} });
   });
 
-  it('handleGenerate passes marketplaceType to API', async () => {
-    mockGenerateMutation.mockReturnValue({
-      unwrap: () => Promise.resolve(makeListing({ marketplace_type: 'global' })),
-    });
-    const { result } = renderHook(() =>
-      useListingEditor({
-        ideaId: 'idea-1',
-        designId: 'design-1',
-        marketplaceType: 'global',
-      }),
-    );
-    await act(async () => {
-      await result.current.handleGenerate({ extraKeywords: 'summer' });
-    });
-    expect(mockGenerateMutation).toHaveBeenCalledWith({
-      ideaId: 'idea-1',
-      body: {
-        design_id: 'design-1',
-        extra_keywords: 'summer',
-        language: undefined,
-        marketplace_type: 'global',
-      },
-    });
-  });
-
-  it('handleGenerate shows duplicate warning on 409', async () => {
-    mockGenerateMutation.mockReturnValue({
-      unwrap: () => Promise.reject({ status: 409 }),
-    });
-    const { result } = renderHook(() =>
-      useListingEditor({
-        ideaId: 'idea-1',
-        designId: 'design-1',
-        marketplaceType: 'mba',
-      }),
-    );
-    await act(async () => {
-      const out = await result.current.handleGenerate();
-      expect(out).toBeNull();
-    });
-    expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
-      expect.stringContaining('already exists'),
-      { variant: 'warning' },
-    );
-  });
+  // handleGenerate tests removed — `generateListing` endpoint deleted in
+  // PROJ-11 Phase O1. Replacement flow is AI Improve (tested in Phase M).
 
   it('handleSave serializes form values and calls updateListing', async () => {
     mockGetListingResult.data = makeListing();
@@ -216,7 +160,7 @@ describe('useListingEditor', () => {
     const { result } = renderHook(() =>
       useListingEditor({
         ideaId: 'idea-1',
-        designId: 'design-1',
+
         marketplaceType: 'mba',
       }),
     );
@@ -229,7 +173,7 @@ describe('useListingEditor', () => {
       body: expect.objectContaining({
         brand_name: 'BrandX',
         title: 'Title A',
-        backend_keywords: 'cat, vintage',
+        keyword_context: 'cat, vintage',
         availability: 'public',
         publish_mode: 'live',
       }),
@@ -240,7 +184,7 @@ describe('useListingEditor', () => {
     const { result } = renderHook(() =>
       useListingEditor({
         ideaId: 'idea-1',
-        designId: 'design-1',
+
         marketplaceType: 'mba',
       }),
     );
@@ -249,7 +193,7 @@ describe('useListingEditor', () => {
       expect(out).toBeNull();
     });
     expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
-      expect.stringContaining('Generate a listing'),
+      expect.stringContaining('Create a listing'),
       { variant: 'warning' },
     );
     expect(mockUpdateMutation).not.toHaveBeenCalled();
@@ -263,7 +207,7 @@ describe('useListingEditor', () => {
     const { result } = renderHook(() =>
       useListingEditor({
         ideaId: 'idea-1',
-        designId: 'design-1',
+
         marketplaceType: 'mba',
       }),
     );
@@ -285,7 +229,7 @@ describe('useListingEditor', () => {
     const { result } = renderHook(() =>
       useListingEditor({
         ideaId: 'idea-1',
-        designId: 'design-1',
+
         marketplaceType: 'mba',
       }),
     );
@@ -306,7 +250,7 @@ describe('useListingEditor', () => {
     const { result } = renderHook(() =>
       useListingEditor({
         ideaId: 'idea-1',
-        designId: 'design-1',
+
         marketplaceType: 'mba',
       }),
     );
@@ -325,7 +269,7 @@ describe('useListingEditor', () => {
     const { result } = renderHook(() =>
       useListingEditor({
         ideaId: 'idea-1',
-        designId: 'design-1',
+
         marketplaceType: 'mba',
       }),
     );
@@ -349,7 +293,7 @@ describe('useListingEditor', () => {
     const { result } = renderHook(() =>
       useListingEditor({
         ideaId: 'idea-1',
-        designId: 'design-1',
+
         marketplaceType: 'global',
       }),
     );
@@ -380,7 +324,7 @@ describe('useListingEditor', () => {
     const { result } = renderHook(() =>
       useListingEditor({
         ideaId: 'idea-1',
-        designId: 'design-1',
+
         marketplaceType: 'mba',
       }),
     );
@@ -404,7 +348,7 @@ describe('useListingEditor', () => {
     const { result } = renderHook(() =>
       useListingEditor({
         ideaId: 'idea-1',
-        designId: 'design-1',
+
         marketplaceType: 'mba',
       }),
     );
@@ -429,7 +373,7 @@ describe('useListingEditor', () => {
     const { result } = renderHook(() =>
       useListingEditor({
         ideaId: 'idea-1',
-        designId: 'design-1',
+
         marketplaceType: 'mba',
       }),
     );
@@ -446,25 +390,6 @@ describe('useListingEditor', () => {
     );
   });
 
-  it('handleTMCheck surfaces clean result', async () => {
-    mockGetListingResult.data = makeListing();
-    mockTmCheckMutation.mockReturnValue({
-      unwrap: () => Promise.resolve({ is_clean: true, flagged_terms: [] }),
-    });
-    const { result } = renderHook(() =>
-      useListingEditor({
-        ideaId: 'idea-1',
-        designId: 'design-1',
-        marketplaceType: 'mba',
-      }),
-    );
-    await act(async () => {
-      const out = await result.current.handleTMCheck();
-      expect(out?.is_clean).toBe(true);
-    });
-    expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
-      expect.stringContaining('passed'),
-      { variant: 'success' },
-    );
-  });
+  // handleTMCheck test + stub removed — `tmCheck` endpoint deleted in O1
+  // and the handler stub was stripped in P8.
 });

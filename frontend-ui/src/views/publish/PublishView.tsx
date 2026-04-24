@@ -7,6 +7,7 @@ import { useTranslation } from 'react-i18next';
 import {
   useDeleteDesignMutation,
   useDuplicateDesignMutation,
+  useListCollectionsQuery,
   useListGalleryQuery,
   useUpdateDesignMutation,
   useUploadDesignMutation,
@@ -22,6 +23,8 @@ import ActionBar from './partials/ActionBar';
 import CloudStorageTab from './partials/cloud/CloudStorageTab';
 import SendToCloudDialog from './partials/cloud/SendToCloudDialog';
 import MovePickerDialog from './partials/grid/MovePickerDialog';
+import TemplateLibraryDialog from './partials/toolbar/TemplateLibraryDialog';
+import PublishBatchDialog from './partials/toolbar/PublishBatchDialog';
 import type { CloudProvider } from './partials/cloud/ProviderSwitcher';
 import EmptyState from './partials/EmptyState';
 import type { FileSystemTab, ViewMode, BreadcrumbSegment, GalleryListParams } from './types';
@@ -73,8 +76,10 @@ const PublishView = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [collectionsOpen, setCollectionsOpen] = useState(false);
   const [sendToCloudOpen, setSendToCloudOpen] = useState(false);
+  const [templateLibraryOpen, setTemplateLibraryOpen] = useState(false);
+  const [publishBatchOpen, setPublishBatchOpen] = useState(false);
   const [cloudProvider, setCloudProvider] = useState<CloudProvider>('google_drive');
-  const [, setCurrentCollection] = useState<string | null>(null);
+  const [currentCollection, setCurrentCollection] = useState<string | null>(null);
   const [tagEditorDesignId, setTagEditorDesignId] = useState<string | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -84,12 +89,25 @@ const PublishView = () => {
   const orderedIds = useMemo(() => designs.map((d) => d.id), [designs]);
   const selection = useDesignSelection({ orderedIds });
 
-  // Breadcrumbs
+  // Breadcrumbs — walk the collection tree from `currentCollection` up to
+  // root so the toolbar mirrors the active folder the gallery is filtered by.
+  const { data: allCollections } = useListCollectionsQuery();
   const breadcrumbs: BreadcrumbSegment[] = useMemo(() => {
     const segments: BreadcrumbSegment[] = [{ id: null, label: 'Home' }];
-    // For now, just show root. When navigating collections, extend this.
-    return segments;
-  }, []);
+    if (!currentCollection || !allCollections) return segments;
+    const byId = new Map(allCollections.map((c) => [c.id, c]));
+    const chain: BreadcrumbSegment[] = [];
+    let cursor: string | null | undefined = currentCollection;
+    // Guard against cycles in malformed data.
+    const seen = new Set<string>();
+    while (cursor && byId.has(cursor) && !seen.has(cursor)) {
+      seen.add(cursor);
+      const node = byId.get(cursor)!;
+      chain.unshift({ id: node.id, label: node.name });
+      cursor = node.parent ?? null;
+    }
+    return [...segments, ...chain];
+  }, [currentCollection, allCollections]);
 
   // Search filter
   const handleSearchChange = useCallback((q: string) => {
@@ -215,26 +233,108 @@ const PublishView = () => {
   const handleMoveClose = useCallback(() => setMoveTargetId(null), []);
   const handleMoveComplete = useCallback(() => setMoveTargetId(null), []);
 
-  // Command palette
+  // Bulk "Delete Files" — loop DELETE /api/designs/gallery/{id}/ over the
+  // current selection. Kept client-side-looped for MVP; a bulk endpoint
+  // would be a minor backend optimization, not a correctness upgrade.
+  const handleBulkDeleteFiles = useCallback(async () => {
+    const ids = Array.from(selection.selectedIds);
+    if (ids.length === 0) {
+      enqueueSnackbar(
+        t('publish.command.selectFirst', {
+          defaultValue: 'Select at least one design first',
+        }),
+        { variant: 'warning' },
+      );
+      return;
+    }
+    const ok = window.confirm(
+      t('publish.command.deleteFilesConfirm', {
+        defaultValue: 'Delete {{count}} design(s)? This cannot be undone.',
+        count: ids.length,
+      }),
+    );
+    if (!ok) return;
+    let successes = 0;
+    let failures = 0;
+    for (const id of ids) {
+      try {
+        await deleteDesign(id).unwrap();
+        successes += 1;
+      } catch {
+        failures += 1;
+      }
+    }
+    selection.handleSelectNone();
+    if (successes > 0) {
+      enqueueSnackbar(
+        t('publish.command.deleteFilesSuccess', {
+          defaultValue: '{{count}} design(s) deleted',
+          count: successes,
+        }),
+        { variant: 'success' },
+      );
+    }
+    if (failures > 0) {
+      enqueueSnackbar(
+        t('publish.command.deleteFilesError', {
+          defaultValue: '{{count}} delete(s) failed',
+          count: failures,
+        }),
+        { variant: 'error' },
+      );
+    }
+  }, [selection, deleteDesign, enqueueSnackbar, t]);
+
+  // Bulk "Download" — trigger browser download for each selected asset's
+  // underlying file via an `<a download>` anchor. Sequential + throttled so
+  // the browser doesn't nuke the download queue.
+  const handleBulkDownload = useCallback(async () => {
+    const ids = Array.from(selection.selectedIds);
+    if (ids.length === 0) {
+      enqueueSnackbar(
+        t('publish.command.selectFirst', {
+          defaultValue: 'Select at least one design first',
+        }),
+        { variant: 'warning' },
+      );
+      return;
+    }
+    const targets = designs.filter((d) => ids.includes(d.id));
+    for (const design of targets) {
+      if (!design.file_url) continue;
+      const a = document.createElement('a');
+      a.href = design.file_url;
+      a.download = design.file_name || 'design';
+      a.rel = 'noopener';
+      a.target = '_blank';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      // Small gap so Chrome/FF don't swallow parallel clicks.
+      await new Promise((r) => setTimeout(r, 80));
+    }
+    enqueueSnackbar(
+      t('publish.command.downloadSuccess', {
+        defaultValue: '{{count}} download(s) started',
+        count: targets.length,
+      }),
+      { variant: 'success' },
+    );
+  }, [selection.selectedIds, designs, enqueueSnackbar, t]);
+
+  // Command palette — pass only handlers that actually do something.
+  // Undefined handlers flag the action as "coming soon" in useCommandPalette
+  // (disabled + label suffix) so clicking doesn't silently no-op.
   const cmdPalette = useCommandPalette({
     onEditBulk: navigateToEdit,
-    onDeleteListings: selection.clearSelection,
     onMoveToCollection: () => setCollectionsOpen(true),
-    onDuplicate: () => {},
-    onTranslate: () => {},
-    onBulkTags: () => {},
-    onAiGenerate: () => {},
-    onDeleteFiles: () => {},
-    onDownload: () => {},
-    onExportXlsx: () => {},
-    onExportCsv: () => {},
     onSendToCloud: () => setSendToCloudOpen(true),
     onImportCloud: () => setActiveTab('cloud_storage'),
-    onApplyTemplate: () => {},
-    onCopyListingFrom: () => {},
-    onCopyColorsFrom: () => {},
-    onCopyFitTypesFrom: () => {},
-    onCopyPricesFrom: () => {},
+    onDeleteFiles: handleBulkDeleteFiles,
+    onDownload: handleBulkDownload,
+    // The following actions are still not wired (need dedicated backend
+    // endpoints or dialog UX) — leaving them undefined keeps the palette
+    // honest: they render disabled, don't fire no-ops.
   });
 
   // Container ref for lasso
@@ -304,9 +404,9 @@ const PublishView = () => {
         onTransferClick={() => {}}
         onCollectionsOpen={() => setCollectionsOpen(true)}
         onCommandPaletteOpen={() => cmdPalette.openPalette()}
-        onTemplateClick={() => {}}
+        onTemplateClick={() => setTemplateLibraryOpen(true)}
         onUploadClick={handleUploadClick}
-        onPublishClick={() => {}}
+        onPublishClick={() => setPublishBatchOpen(true)}
       />
       <input
         ref={fileInputRef}
@@ -388,6 +488,23 @@ const PublishView = () => {
         provider={cloudProvider}
         selectedDesigns={designs.filter((d) => selection.isSelected(d.id))}
       />
+
+      {/* Mount dialogs only when open so their RTK Query hooks don't fire
+          (or count as test warnings) while the dialog is closed. */}
+      {templateLibraryOpen && (
+        <TemplateLibraryDialog
+          open
+          onClose={() => setTemplateLibraryOpen(false)}
+        />
+      )}
+
+      {publishBatchOpen && (
+        <PublishBatchDialog
+          open
+          onClose={() => setPublishBatchOpen(false)}
+          selectedDesigns={designs.filter((d) => selection.isSelected(d.id))}
+        />
+      )}
 
       {/* Command Palette Overlay */}
       <CommandPalette

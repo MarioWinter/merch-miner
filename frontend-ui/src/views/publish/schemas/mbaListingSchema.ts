@@ -9,12 +9,8 @@ export const MBA_LISTING_CHAR_LIMITS = {
   title: 60,
   bullet_1: 256,
   bullet_2: 256,
-  bullet_3: 256,
-  bullet_4: 256,
-  bullet_5: 256,
   description: 2000,
-  // NOTE: applied to the *joined* backend_keywords string (sum of chips + separators)
-  backend_keywords: 500,
+  keyword_context: 500,
 } as const;
 
 export type MbaListingFieldName =
@@ -22,11 +18,8 @@ export type MbaListingFieldName =
   | 'title'
   | 'bullet_1'
   | 'bullet_2'
-  | 'bullet_3'
-  | 'bullet_4'
-  | 'bullet_5'
   | 'description'
-  | 'backend_keywords';
+  | 'keyword_context';
 
 // ---------------------------------------------------------------------------
 // Translation shape (per language)
@@ -50,23 +43,17 @@ export const mbaListingSchema = z.object({
   title: z.string().max(MBA_LISTING_CHAR_LIMITS.title).default(''),
   bullet_1: z.string().max(MBA_LISTING_CHAR_LIMITS.bullet_1).default(''),
   bullet_2: z.string().max(MBA_LISTING_CHAR_LIMITS.bullet_2).default(''),
-  bullet_3: z.string().max(MBA_LISTING_CHAR_LIMITS.bullet_3).default(''),
-  bullet_4: z.string().max(MBA_LISTING_CHAR_LIMITS.bullet_4).default(''),
-  bullet_5: z.string().max(MBA_LISTING_CHAR_LIMITS.bullet_5).default(''),
   description: z
     .string()
     .max(MBA_LISTING_CHAR_LIMITS.description)
     .default(''),
-  backend_keywords: z
-    .array(z.string().min(1))
-    .default([])
-    .refine(
-      (arr) => arr.join(', ').length <= MBA_LISTING_CHAR_LIMITS.backend_keywords,
-      { message: `Max ${MBA_LISTING_CHAR_LIMITS.backend_keywords} characters` },
-    ),
+  keyword_context: z
+    .string()
+    .max(MBA_LISTING_CHAR_LIMITS.keyword_context)
+    .default(''),
   translations: z.record(z.string(), translationEntrySchema).optional(),
   auto_translate: z.boolean().default(false),
-  // D6: Options/Trademarks tab settings
+  // D6: Options tab settings (Trademarks tab retired in P9).
   availability: z.enum(['public', 'private']).default('public'),
   publish_mode: z.enum(['live', 'draft']).default('live'),
 });
@@ -80,11 +67,8 @@ export const mbaListingDefaultValues: MbaListingFormValues = {
   title: '',
   bullet_1: '',
   bullet_2: '',
-  bullet_3: '',
-  bullet_4: '',
-  bullet_5: '',
   description: '',
-  backend_keywords: [],
+  keyword_context: '',
   translations: {},
   auto_translate: false,
   availability: 'public',

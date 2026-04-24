@@ -9,9 +9,7 @@ const defaultProps = {
   isFetching: false,
   notFound: false,
   hasError: false,
-  onGenerate: vi.fn(),
   onRetry: vi.fn(),
-  isGenerating: false,
   marketplace: 'mba',
 };
 
@@ -35,25 +33,15 @@ describe('ListingStateBanner', () => {
     expect(onRetry).toHaveBeenCalled();
   });
 
-  it('renders generate button on notFound', async () => {
-    const onGenerate = vi.fn();
-    renderWithProviders(
-      <ListingStateBanner {...defaultProps} notFound onGenerate={onGenerate} />,
-    );
+  it('renders a Convert-from-another-tab hint on notFound (no Generate CTA)', () => {
+    renderWithProviders(<ListingStateBanner {...defaultProps} notFound />);
     expect(
-      screen.getByText(/No listing for mba yet\. Generate one to start editing/i),
+      screen.getByText(/No listing for mba yet\. Convert from another marketplace/i),
     ).toBeInTheDocument();
-    const btn = screen.getByRole('button', { name: /generate listing/i });
-    await userEvent.click(btn);
-    expect(onGenerate).toHaveBeenCalled();
-  });
-
-  it('disables generate button while generating', () => {
-    renderWithProviders(
-      <ListingStateBanner {...defaultProps} notFound isGenerating />,
-    );
-    const btn = screen.getByRole('button', { name: /generating/i });
-    expect(btn).toBeDisabled();
+    // The Generate CTA was retired with the Generate endpoint (P8).
+    expect(
+      screen.queryByRole('button', { name: /generate listing/i }),
+    ).not.toBeInTheDocument();
   });
 
   it('renders nothing when listing loaded successfully', () => {

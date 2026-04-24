@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useMemo } from 'react';
 import {
   Alert,
   Box,
@@ -6,15 +6,19 @@ import {
   Skeleton,
   Stack,
   Tooltip,
+  Typography,
 } from '@mui/material';
 import { alpha, styled } from '@mui/material/styles';
 import CheckIcon from '@mui/icons-material/Check';
 import { useTranslation } from 'react-i18next';
 import tinycolor from 'tinycolor2';
+import { skipToken } from '@reduxjs/toolkit/query';
 import { COLORS, DURATION, EASING } from '@/style/constants';
-import { useGetMbaColorsQuery } from '@/store/publishSlice';
-import type { MbaColor } from '../../types';
-import SectionHeader from './SectionHeader';
+import {
+  useGetMbaProductCatalogQuery,
+  useGetProductConfigQuery,
+} from '@/store/publishSlice';
+import type { MarketplaceType, MbaColor } from '../../types';
 
 // ---------------------------------------------------------------------------
 // Styled
@@ -77,36 +81,73 @@ const isDarkColor = (hex: string): boolean => {
 // ---------------------------------------------------------------------------
 
 interface ColorGridProps {
-  selected: string[];
-  onChange: (keys: string[]) => void;
-  onOptionsClick: (context: string) => void;
+  designId: string | null;
+  marketplaceType: MarketplaceType;
+  focusedProduct: string | null;
+  /** Race-safe per-color toggle — derives next list from the latest
+   *  server state inside useEditFormState, not from a stale closure. */
+  toggleColor: (productKey: string, colorKey: string) => Promise<void> | void;
 }
 
-const ColorGrid = ({ selected, onChange, onOptionsClick }: ColorGridProps) => {
+const ColorGrid = ({
+  designId,
+  marketplaceType,
+  focusedProduct,
+  toggleColor,
+}: ColorGridProps) => {
   const { t } = useTranslation();
-  const { data, isLoading, isError, refetch } = useGetMbaColorsQuery();
-
-  const colors: MbaColor[] = useMemo(() => data ?? [], [data]);
-
-  const toggle = useCallback(
-    (key: string) => {
-      if (selected.includes(key)) {
-        onChange(selected.filter((k) => k !== key));
-      } else {
-        onChange([...selected, key]);
-      }
-    },
-    [selected, onChange],
+  const {
+    data: catalog,
+    isLoading,
+    isError,
+    refetch,
+  } = useGetMbaProductCatalogQuery();
+  const { data: productConfig } = useGetProductConfigQuery(
+    designId ? { designId, marketplace_type: marketplaceType } : skipToken,
   );
 
+  const { palette, selected } = useMemo(() => {
+    if (!focusedProduct) {
+      return { palette: [] as MbaColor[], selected: [] as string[] };
+    }
+    const catEntry = catalog?.find((c) => c.key === focusedProduct);
+    if (!catEntry || !catEntry.supports.includes('colors')) {
+      return { palette: [] as MbaColor[], selected: [] as string[] };
+    }
+    const cfgEntry = productConfig?.products_config?.find(
+      (e) => e.product_type === focusedProduct,
+    );
+    return {
+      palette: catEntry.colors_options,
+      selected: cfgEntry?.colors ?? [],
+    };
+  }, [catalog, productConfig?.products_config, focusedProduct]);
+
+  // Nothing focused OR the focused product doesn't support colors →
+  // render nothing. Prevents an empty section from eating vertical space.
+  if (!focusedProduct) return null;
+  const catalogEntry = catalog?.find((c) => c.key === focusedProduct);
+  const supportsColors =
+    catalogEntry?.supports.includes('colors') ?? false;
+  // While the catalog is still loading we can't know yet whether the focused
+  // product supports colors — render the loading skeleton rather than `null`.
+  if (!isLoading && catalogEntry && !supportsColors) return null;
+
+  const toggle = (key: string) => {
+    if (!focusedProduct) return;
+    void toggleColor(focusedProduct, key);
+  };
+
   return (
-    <Stack component="section" gap={0.5}>
-      <SectionHeader
-        title={t('publish.edit.colors.title')}
-        count={selected.length}
-        context="colors"
-        onOptionsClick={onOptionsClick}
-      />
+    <Stack
+      component="section"
+      gap={0.5}
+      data-testid="ColorGrid"
+      data-focused-product={focusedProduct}
+    >
+      <Typography variant="overline" color="text.secondary">
+        {t('publish.edit.colors.title', { defaultValue: 'Colors' })}
+      </Typography>
 
       {isLoading && (
         <SkeletonGrid aria-busy="true" aria-live="polite">
@@ -133,17 +174,24 @@ const ColorGrid = ({ selected, onChange, onOptionsClick }: ColorGridProps) => {
                 void refetch();
               }}
             >
-              {t('publish.edit.colors.retry')}
+              {t('publish.edit.colors.retry', { defaultValue: 'Retry' })}
             </Button>
           }
         >
-          {t('publish.edit.colors.loadError')}
+          {t('publish.edit.colors.loadError', {
+            defaultValue: 'Failed to load colors.',
+          })}
         </Alert>
       )}
 
-      {!isLoading && !isError && colors.length > 0 && (
-        <GridWrap role="group" aria-label={t('publish.edit.colors.title')}>
-          {colors.map((c) => {
+      {!isLoading && !isError && palette.length > 0 && (
+        <GridWrap
+          role="group"
+          aria-label={t('publish.edit.colors.title', {
+            defaultValue: 'Colors',
+          })}
+        >
+          {palette.map((c) => {
             const isSelected = selected.includes(c.key);
             const checkColor = isDarkColor(c.hex) ? COLORS.white : COLORS.ink;
             return (
@@ -154,7 +202,11 @@ const ColorGrid = ({ selected, onChange, onOptionsClick }: ColorGridProps) => {
                   hex={c.hex}
                   role="checkbox"
                   aria-checked={isSelected}
-                  aria-label={t('publish.edit.colors.swatch', { name: c.name })}
+                  aria-label={t('publish.edit.colors.swatch', {
+                    defaultValue: '{{name}}',
+                    name: c.name,
+                  })}
+                  data-testid={`ColorGrid-swatch-${c.key}`}
                   onClick={() => toggle(c.key)}
                 >
                   {isSelected && (

@@ -5,6 +5,15 @@ declare module '@mui/material/styles' {
   interface CssThemeVariables {
     enabled: true;
   }
+  // Register `orange` as a first-class palette color so consumers can read
+  // `theme.vars.palette.orange.main` (offline / degraded mode — distinct
+  // from amber `warning`). See docs/design-system.md §2.1.
+  interface Palette {
+    orange: Palette['primary'];
+  }
+  interface PaletteOptions {
+    orange?: PaletteOptions['primary'];
+  }
 }
 
 const theme = extendTheme({
@@ -59,6 +68,12 @@ const theme = extendTheme({
           main: COLORS.warningDk,
           dark: COLORS.warningDkShade,
         },
+        orange: {
+          main: COLORS.orange,
+          dark: COLORS.orangeShade,
+          light: COLORS.orangeLight,
+          contrastText: COLORS.white,
+        },
         error: {
           main: COLORS.errorDk,
           dark: COLORS.errorDkShade,
@@ -95,6 +110,12 @@ const theme = extendTheme({
         },
         warning: {
           main: COLORS.warningLight,
+        },
+        orange: {
+          main: COLORS.orangeShade,
+          dark: COLORS.orangeShade,
+          light: COLORS.orange,
+          contrastText: COLORS.white,
         },
         error: {
           main: COLORS.errorLight,

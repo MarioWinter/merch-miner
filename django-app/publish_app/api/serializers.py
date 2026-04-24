@@ -93,6 +93,10 @@ class ListingUpdateSerializer(serializers.ModelSerializer):
             'description', 'keyword_context',
             'status', 'availability', 'publish_mode', 'design',
             'marketplace_type', 'is_template',
+            # Round-5: per-language translations JSONField is PATCHable so
+            # the DE/FR/IT/ES/JA tabs can persist per-locale copy without
+            # touching the top-level EN fields.
+            'translations',
         ]
         extra_kwargs = {field: {'required': False} for field in fields}
         validators = []  # disable auto unique-together validator -> 409 at DB
@@ -901,7 +905,22 @@ class DesignProductConfigSerializer(serializers.ModelSerializer):
     """Full representation of a DesignProductConfig row.
 
     AC-38 (Phase J2): ``products_config`` is a list of per-product entries.
+
+    Round-4: legacy rows written before Phase-J2 (i.e. entries missing
+    ``marketplaces`` / ``colors`` / ``fit_types`` / ``print_side``) are
+    normalized on READ so the frontend never has to reach past an
+    ``undefined`` field. The stored data is left untouched — write-side
+    normalization would require a data migration, which EC-35 documents as
+    lossy. Emitting defaults is a cheap, non-breaking addition.
     """
+
+    _LEGACY_DEFAULTS = {
+        'enabled': False,
+        'marketplaces': [],
+        'colors': [],
+        'fit_types': [],
+        'print_side': 'front',
+    }
 
     class Meta:
         model = DesignProductConfig
@@ -913,6 +932,14 @@ class DesignProductConfigSerializer(serializers.ModelSerializer):
         read_only_fields = [
             'id', 'design', 'created_at', 'updated_at',
         ]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        entries = data.get('products_config') or []
+        data['products_config'] = [
+            {**self._LEGACY_DEFAULTS, **(e or {})} for e in entries
+        ]
+        return data
 
 
 class DesignProductConfigUpsertSerializer(serializers.Serializer):

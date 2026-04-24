@@ -68,6 +68,11 @@ STATUS COLORS
   warning.dark    #D97706
   warning.subtle  rgba(245,158,11, 0.12)
 
+  orange.main     #F97316   (orange) offline / degraded mode — distinct from amber warning
+  orange.dark     #EA580C
+  orange.light    #FB923C
+  orange.subtle   rgba(249,115,22, 0.12)
+
   error.main      #F43F3A   (destructive actions + validation errors ONLY — distinct from primary)
   error.dark      #D93530
   error.subtle    rgba(244,63,58, 0.12)
@@ -129,6 +134,7 @@ BORDERS
 STATUS (same hues, lighter backgrounds)
   success.main    #059669
   warning.main    #D97706
+  orange.main     #EA580C   (offline / degraded mode)
   error.main      #DC2626
   info.main       #0284C7
 ```
@@ -618,6 +624,9 @@ palette.secondary.main      = '#00C8D7'
 palette.secondary.dark      = '#00A8B5'
 palette.success.main        = '#22D3A3'
 palette.warning.main        = '#F59E0B'
+palette.orange.main         = '#F97316'   // offline / degraded mode — custom palette slot
+palette.orange.dark         = '#EA580C'
+palette.orange.light        = '#FB923C'
 palette.error.main          = '#F43F3A'   // FIX 1 — distinct from primary.main
 palette.info.main           = '#38BDF8'
 palette.text.primary        = '#E8F4F8'
@@ -632,6 +641,7 @@ palette.primary.dark        = '#E84B42'
 palette.secondary.main      = '#0097A7'
 palette.success.main        = '#059669'
 palette.warning.main        = '#D97706'
+palette.orange.main         = '#EA580C'   // offline / degraded mode (deeper for light bg)
 palette.error.main          = '#DC2626'
 palette.info.main           = '#0284C7'
 palette.text.primary        = '#071E26'

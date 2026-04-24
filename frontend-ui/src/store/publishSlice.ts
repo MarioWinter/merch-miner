@@ -2,9 +2,7 @@ import { createApi } from '@reduxjs/toolkit/query/react';
 import { axiosBaseQuery } from './axiosBaseQuery';
 import type {
   Listing,
-  GenerateListingBody,
   TranslateListingBody,
-  TMCheckResult,
   DesignAsset,
   GalleryListParams,
   GalleryListResponse,
@@ -25,7 +23,7 @@ import type {
   UpdateCollectionBody,
   MoveAssetsBody,
   ListCollectionsParams,
-  MbaColor,
+  MbaProductCatalogEntry,
   GetListingParams,
   ConvertListingBody,
   ConvertListingResponse,
@@ -33,6 +31,7 @@ import type {
   GetProductConfigParams,
   UpdateProductConfigBody,
   CopyProductConfigFromBody,
+  AIImproveListingResponse,
 } from '../views/publish/types';
 
 export const publishApi = createApi({
@@ -50,35 +49,11 @@ export const publishApi = createApi({
     'Collection',
     'CollectionList',
     'CollectionTree',
-    'MbaColors',
+    'MbaCatalog',
     'ProductConfig',
   ],
   endpoints: (builder) => ({
     // ---- Listing ----------------------------------------------------------
-    generateListing: builder.mutation<Listing, { ideaId: string; body: GenerateListingBody }>({
-      query: ({ ideaId, body }) => ({
-        url: `/api/ideas/${ideaId}/listing/generate/`,
-        method: 'POST',
-        data: body,
-      }),
-      invalidatesTags: (result, _e, { ideaId, body }) => {
-        const tags: { type: 'Listing'; id: string }[] = [
-          { type: 'Listing', id: ideaId },
-          {
-            type: 'Listing',
-            id: `${ideaId}:${body.marketplace_type ?? 'mba'}`,
-          },
-        ];
-        if (result) {
-          tags.push({
-            type: 'Listing',
-            id: `${result.idea}:${result.marketplace_type}`,
-          });
-        }
-        return tags;
-      },
-    }),
-
     getListing: builder.query<Listing, GetListingParams>({
       query: ({ ideaId, marketplace_type }) => ({
         url: `/api/ideas/${ideaId}/listing/`,
@@ -117,11 +92,25 @@ export const publishApi = createApi({
       invalidatesTags: (_r, _e, { id }) => [{ type: 'Listing', id }],
     }),
 
-    tmCheck: builder.mutation<TMCheckResult, string>({
+    // ---- AI Improve (AC-69..AC-72, Phase M) -----------------------------
+    // POST /api/listings/{id}/ai-improve/ — LLM rewrite of listing copy.
+    // Replaces the legacy Generate + TM-Check flow. Invalidates the Listing
+    // tag so getListing refetches with the new fields + status=draft.
+    aiImproveListing: builder.mutation<AIImproveListingResponse, string>({
       query: (id) => ({
-        url: `/api/listings/${id}/tm-check/`,
+        url: `/api/listings/${id}/ai-improve/`,
         method: 'POST',
       }),
+      invalidatesTags: (result, _e, id) => {
+        const tags: { type: 'Listing'; id: string }[] = [{ type: 'Listing', id }];
+        if (result) {
+          tags.push({
+            type: 'Listing',
+            id: `${result.listing.idea}:${result.listing.marketplace_type}`,
+          });
+        }
+        return tags;
+      },
     }),
 
     exportListing: builder.query<string, string>({
@@ -411,6 +400,10 @@ export const publishApi = createApi({
         url: '/api/upload-templates/',
         method: 'GET',
       }),
+      // Backend uses PublishPagination -> {count, next, previous, results}.
+      // Unwrap to a plain array so consumers can map/filter directly.
+      transformResponse: (raw: UploadTemplate[] | { results: UploadTemplate[] }) =>
+        Array.isArray(raw) ? raw : (raw?.results ?? []),
       providesTags: (result) =>
         result
           ? [
@@ -449,13 +442,21 @@ export const publishApi = createApi({
       invalidatesTags: [{ type: 'TemplateList', id: 'LIST' }],
     }),
 
-    // ---- MBA Colors -------------------------------------------------------
-    getMbaColors: builder.query<MbaColor[], void>({
+    // ---- MBA Product Catalog (AC-37, Phase L) ---------------------------
+    // GET /api/mba/product-catalog/ — 20 MBA product entries. Response
+    // carries Cache-Control: public, max-age=86400 so the browser cache does
+    // the heavy lifting; we still tag it with `MbaCatalog` so invalidations
+    // during a deploy can refetch on demand.
+    getMbaProductCatalog: builder.query<MbaProductCatalogEntry[], void>({
       query: () => ({
-        url: '/api/mba/colors/',
+        url: '/api/mba/product-catalog/',
         method: 'GET',
       }),
-      providesTags: [{ type: 'MbaColors', id: 'LIST' }],
+      // Long TTL — catalog rarely changes and updates ship as a backend
+      // deploy, so a long keep-unused lifespan avoids unnecessary fetches on
+      // tab-hops.
+      keepUnusedDataFor: 24 * 60 * 60,
+      providesTags: [{ type: 'MbaCatalog', id: 'LIST' }],
     }),
 
     // ---- Design Product Config (F4) --------------------------------------
@@ -491,10 +492,18 @@ export const publishApi = createApi({
       DesignProductConfig,
       CopyProductConfigFromBody
     >({
-      query: ({ designId, source_design_id, marketplace_type, scope }) => ({
+      query: ({
+        designId, source_design_id, marketplace_type, scope, product_type,
+      }) => ({
         url: `/api/designs/${designId}/product-config/copy-from/`,
         method: 'POST',
-        data: { source_design_id, marketplace_type, scope },
+        data: {
+          source_design_id,
+          marketplace_type,
+          scope,
+          // Optional per AC-41 — scopes a scalar copy to a single product.
+          ...(product_type ? { product_type } : {}),
+        },
       }),
       invalidatesTags: (_r, _e, { designId, marketplace_type }) => [
         { type: 'ProductConfig', id: `${designId}:${marketplace_type}` },
@@ -514,12 +523,11 @@ export const publishApi = createApi({
 
 export const {
   // Listing
-  useGenerateListingMutation,
   useGetListingQuery,
   useLazyGetListingQuery,
   useUpdateListingMutation,
   useTranslateListingMutation,
-  useTmCheckMutation,
+  useAiImproveListingMutation,
   useLazyExportListingQuery,
   useConvertListingMutation,
   // Gallery
@@ -552,8 +560,8 @@ export const {
   useDeleteTemplateMutation,
   // Lifecycle
   useGetLifecycleQuery,
-  // MBA Colors
-  useGetMbaColorsQuery,
+  // MBA Product Catalog
+  useGetMbaProductCatalogQuery,
   // Design Product Config
   useGetProductConfigQuery,
   useUpdateProductConfigMutation,

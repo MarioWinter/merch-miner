@@ -157,7 +157,15 @@ const TranslationTabs = ({
         })}
       >
         {MBA_LANGUAGES.map((lang) => (
-          <ToggleButton key={lang.code} value={lang.code} aria-label={lang.label}>
+          // Round-5: every language tab is enabled. Title + 2 bullets +
+          // description read/write from `translations[lang]`; brand +
+          // keyword_context stay global (disabled on the non-EN tabs with
+          // a helper-text explanation — see ListingFieldsSection).
+          <ToggleButton
+            key={lang.code}
+            value={lang.code}
+            aria-label={lang.label}
+          >
             <Flag aria-hidden>{lang.flag}</Flag>
             {lang.label}
           </ToggleButton>

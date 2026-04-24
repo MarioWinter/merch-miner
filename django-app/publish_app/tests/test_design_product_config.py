@@ -611,9 +611,18 @@ class TestProductConfigPatchTargetedOp:
             format='json', **ws_headers(workspace),
         )
         assert resp.status_code == 200, resp.data
-        assert resp.data['products_config'] == [
-            {'product_type': 't_shirt', 'enabled': True, 'colors': ['black']},
-        ]
+        # Round-4: serializer fills defaults on read so legacy/minimal rows
+        # come back fully-shaped — asserting the stored-shape subset here
+        # keeps the test stable across future serializer refinements.
+        assert len(resp.data['products_config']) == 1
+        entry = resp.data['products_config'][0]
+        assert entry['product_type'] == 't_shirt'
+        assert entry['enabled'] is True
+        assert entry['colors'] == ['black']
+        # Defaults filled in for legacy-missing fields.
+        assert entry['marketplaces'] == []
+        assert entry['fit_types'] == []
+        assert entry['print_side'] == 'front'
 
     def test_upsert_invalid_patch_colors_rejected(
         self, api_client, workspace, design, membership,

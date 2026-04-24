@@ -61,6 +61,12 @@ _BOTTLE_COLORS: tuple[dict[str, str], ...] = (
     {'key': 'silver', 'name': 'Silver', 'hex': '#C8CBCE'},
 )
 
+_TUMBLER_COLORS: tuple[dict[str, str], ...] = (
+    {'key': 'white', 'name': 'White', 'hex': '#FFFFFF'},
+    {'key': 'silver', 'name': 'Silver', 'hex': '#C8CBCE'},
+    {'key': 'black', 'name': 'Black', 'hex': '#000000'},
+)
+
 _MUG_COLORS: tuple[dict[str, str], ...] = (
     {'key': 'white', 'name': 'White', 'hex': '#FFFFFF'},
 )
@@ -116,7 +122,7 @@ def _royalty_uniform(
 
 
 # ---------------------------------------------------------------------------
-# Catalog (17 entries covering shirt + hat + accessory classes)
+# Catalog (20 entries covering shirt + hat + accessory + drinkware classes)
 # ---------------------------------------------------------------------------
 
 MBA_PRODUCT_CATALOG: tuple[dict, ...] = (
@@ -343,12 +349,48 @@ MBA_PRODUCT_CATALOG: tuple[dict, ...] = (
         'default_prices': _prices_uniform(_AMZ_US_UK_DE, 17.99),
         'royalty_formula': _royalty_uniform(_AMZ_US_UK_DE, 0.4, 6.12),
     },
+    {
+        'key': 'tumbler',
+        'label': 'Tumbler',
+        'icon_key': 'tumbler',
+        'supports': ['colors'],
+        'fit_types_options': list(_NO_FIT),
+        'print_side_options': ['front'],
+        'colors_options': [dict(c) for c in _TUMBLER_COLORS],
+        'marketplaces': list(_AMZ_US_ONLY),
+        'default_prices': _prices_uniform(_AMZ_US_ONLY, 24.99),
+        'royalty_formula': _royalty_uniform(_AMZ_US_ONLY, 0.4, 9.00),
+    },
+    {
+        'key': 'mug',
+        'label': 'Mug',
+        'icon_key': 'mug',
+        'supports': ['colors'],
+        'fit_types_options': list(_NO_FIT),
+        'print_side_options': ['front'],
+        'colors_options': [dict(c) for c in _MUG_COLORS],
+        'marketplaces': list(_AMZ_US_UK_DE),
+        'default_prices': _prices_uniform(_AMZ_US_UK_DE, 14.99),
+        'royalty_formula': _royalty_uniform(_AMZ_US_UK_DE, 0.4, 5.00),
+    },
+    {
+        'key': 'water_bottle',
+        'label': 'Water Bottle',
+        'icon_key': 'water_bottle',
+        'supports': ['colors'],
+        'fit_types_options': list(_NO_FIT),
+        'print_side_options': ['front'],
+        'colors_options': [dict(c) for c in _BOTTLE_COLORS],
+        'marketplaces': list(_AMZ_US_ONLY),
+        'default_prices': _prices_uniform(_AMZ_US_ONLY, 22.99),
+        'royalty_formula': _royalty_uniform(_AMZ_US_ONLY, 0.4, 8.00),
+    },
 )
 
 # Freeze catalog shape with an assertion at import time. Cheap guardrail so a
 # malformed edit raises early during Django startup instead of at request time.
-assert len(MBA_PRODUCT_CATALOG) == 17, (
-    f'MBA_PRODUCT_CATALOG must hold 17 entries (got {len(MBA_PRODUCT_CATALOG)}).'
+assert len(MBA_PRODUCT_CATALOG) == 20, (
+    f'MBA_PRODUCT_CATALOG must hold 20 entries (got {len(MBA_PRODUCT_CATALOG)}).'
 )
 _required_keys = {
     'key', 'label', 'icon_key', 'supports', 'fit_types_options',

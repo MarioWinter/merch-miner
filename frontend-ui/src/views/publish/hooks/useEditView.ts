@@ -10,8 +10,8 @@ import {
   useCopyProductConfigFromMutation,
 } from '@/store/publishSlice';
 import { useCommandPalette } from './useCommandPalette';
+import { useEditFormState } from './useEditFormState';
 import { useListingEditor } from './useListingEditor';
-import { useProductConfig } from './useProductConfig';
 import type { MarketplaceTab } from '../partials/edit/MarketplaceTabs';
 import type { CopyScope } from '../partials/edit/CopyFromDesignDialog';
 import type {
@@ -39,12 +39,6 @@ const parseDesignIds = (raw: string | null): string[] => {
     .filter(Boolean);
 };
 
-const parseBackendKeywords = (raw: string): string[] =>
-  raw
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean);
-
 const listingToFormValues = (listing: Listing | null): MbaListingFormValues => {
   if (!listing) return mbaListingDefaultValues;
   return {
@@ -52,11 +46,8 @@ const listingToFormValues = (listing: Listing | null): MbaListingFormValues => {
     title: listing.title ?? '',
     bullet_1: listing.bullet_1 ?? '',
     bullet_2: listing.bullet_2 ?? '',
-    bullet_3: listing.bullet_3 ?? '',
-    bullet_4: listing.bullet_4 ?? '',
-    bullet_5: listing.bullet_5 ?? '',
     description: listing.description ?? '',
-    backend_keywords: parseBackendKeywords(listing.backend_keywords ?? ''),
+    keyword_context: listing.keyword_context ?? '',
     translations: (listing.translations as MbaListingFormValues['translations']) ?? {},
     auto_translate: false,
     availability: (listing.availability ?? 'public') as MbaListingFormValues['availability'],
@@ -139,16 +130,19 @@ export const useEditView = () => {
   // ---- D7: listing editor (per-marketplace) -----------------------------
   const listingEditor = useListingEditor({
     ideaId: activeIdeaId,
-    designId: activeDesign?.id ?? null,
     marketplaceType: activeMarketplace as MarketplaceType,
   });
 
-  // ---- G-Config: product config (per-design, per-marketplace) -----------
-  // Replaces the old in-memory ProductConfigState. Flushes pending auto-saves
-  // on unmount, so switching design / marketplace tabs does not drop edits.
-  const productConfigHook = useProductConfig({
-    designId: activeDesign?.id,
+  // ---- Phase O2/P: auto-save hybrid state layer -------------------------
+  // Per-product control surface (controlSetters + textSetters + priceSetters)
+  // and offline queue. Superseded the legacy `useProductConfig` hook in Phase
+  // P1/P2 cleanup (2026-04-23). The offline queue handles pending-save
+  // flushing; there is no separate flush() to call on unmount.
+  const editFormState = useEditFormState({
+    designId: activeDesign?.id ?? null,
     marketplaceType: activeMarketplace as MarketplaceType,
+    listingId: listingEditor.listing?.id ?? null,
+    listing: listingEditor.listing,
   });
 
   // Sync server listing -> form on load / tab switch / design switch.
@@ -168,9 +162,15 @@ export const useEditView = () => {
 
   // ---- D7: auto-save on dirty form --------------------------------------
   const watchedValues = useWatch({ control: listingForm.control });
-  const isDirty = listingForm.formState.isDirty;
+  // RHF-tracked fields only drive the listingEditor auto-save path.
+  // Phase P moved primary text fields onto editFormState.textSetters so
+  // they PATCH on blur through the offline queue instead.
+  const isFormDirty = listingForm.formState.isDirty;
+  // UI banner signal combines both — text/price edits from editFormState
+  // should surface the unsaved-changes bar too.
+  const isDirty = isFormDirty || editFormState.isDirty;
   useEffect(() => {
-    if (!isDirty) return;
+    if (!isFormDirty) return;
     if (!listingEditor.listing) return;
     listingEditor.scheduleAutoSave(
       watchedValues as MbaListingFormValues,
@@ -183,27 +183,28 @@ export const useEditView = () => {
       },
     );
     return () => listingEditor.cancelAutoSave();
-  }, [watchedValues, isDirty, listingEditor, listingForm]);
+  }, [watchedValues, isFormDirty, listingEditor, listingForm]);
 
   // ---- Discard / Save (manual) ------------------------------------------
+  // AC-74: the Save button must flush ALL dirty buffers — the RHF form,
+  // pending-blur text fields on editFormState, AND debounced price PATCHes.
+  // Earlier round only reset RHF, which silently dropped pending text edits.
   const handleDiscardListing = useCallback(() => {
     listingForm.reset(listingToFormValues(listingEditor.listing));
-  }, [listingForm, listingEditor.listing]);
+    editFormState.discard();
+  }, [listingForm, listingEditor.listing, editFormState]);
 
   const handleSaveListing = useCallback(async () => {
     const values = listingForm.getValues();
-    const updated = await listingEditor.handleSave(values);
+    // Kick both pipelines in parallel — they target disjoint mutations.
+    const [updated] = await Promise.all([
+      listingEditor.handleSave(values),
+      editFormState.manualSave(),
+    ]);
     if (updated) {
       listingForm.reset(listingToFormValues(updated));
     }
-  }, [listingForm, listingEditor]);
-
-  const handleGenerateListing = useCallback(async () => {
-    const created = await listingEditor.handleGenerate();
-    if (created) {
-      listingForm.reset(listingToFormValues(created));
-    }
-  }, [listingEditor, listingForm]);
+  }, [listingForm, listingEditor, editFormState]);
 
   // ---- Design IDs <-> URL ----------------------------------------------
   const handleDesignIdsChange = useCallback(
@@ -410,8 +411,9 @@ export const useEditView = () => {
       setIsApplyingCopy(true);
       try {
         // Flush any pending local auto-save first so we don't race the
-        // server-side copy.
-        await productConfigHook.flush();
+        // server-side copy. The offline queue (Phase O4) drains through
+        // `manualSave`, which awaits every buffered PATCH before returning.
+        await editFormState.manualSave();
         await copyProductConfigFrom({
           designId: targetDesignId,
           source_design_id: sourceDesignId,
@@ -457,7 +459,7 @@ export const useEditView = () => {
       t,
       closeCopyDialog,
       copyProductConfigFrom,
-      productConfigHook,
+      editFormState,
     ],
   );
 
@@ -469,9 +471,6 @@ export const useEditView = () => {
     onDuplicate: () => {},
     onTranslate: () => listingEditor.handleTranslate([activeLang]),
     onBulkTags: () => {},
-    onAiGenerate: () => {
-      void handleGenerateListing();
-    },
     onDeleteFiles: () => {},
     onDownload: () => {},
     onExportXlsx: () => {},
@@ -494,20 +493,6 @@ export const useEditView = () => {
     activeMarketplace,
   });
 
-  // ---- G-Config: section setters come from useProductConfig ------------
-  const {
-    config: productConfig,
-    isLoading: isLoadingProductConfig,
-    isFetching: isFetchingProductConfig,
-    loadError: productConfigError,
-    isAutoSaving: isAutoSavingProductConfig,
-    setProductTypes,
-    setFitTypes,
-    setPrintSide,
-    setColors,
-    setMarketplaces,
-  } = productConfigHook;
-
   return {
     // URL + gallery
     designIds,
@@ -520,17 +505,6 @@ export const useEditView = () => {
     // Tabs
     activeMarketplace,
     setActiveMarketplace,
-    // G-Config product config (per-design, per-marketplace, RTK-backed)
-    productConfig,
-    isLoadingProductConfig,
-    isFetchingProductConfig,
-    productConfigError,
-    isAutoSavingProductConfig,
-    setProductTypes,
-    setFitTypes,
-    setPrintSide,
-    setColors,
-    setMarketplaces,
     // D5 listing form + language
     listingForm,
     activeLang,
@@ -543,18 +517,21 @@ export const useEditView = () => {
     isFetchingListing: listingEditor.isFetchingListing,
     listingError: listingEditor.listingError,
     listingNotFound: listingEditor.listingNotFound,
-    isGenerating: listingEditor.isGenerating,
+    handleRetryListing: listingEditor.refetchListing,
     isSaving: listingEditor.isSaving,
     isAutoSaving: listingEditor.isAutoSaving,
     isTranslating: listingEditor.isTranslating,
-    isChecking: listingEditor.isChecking,
-    handleTMCheck: listingEditor.handleTMCheck,
     // D6/D7 unsaved changes + save flow
     isDirty,
     handleDiscardListing,
     handleSaveListing,
-    handleGenerateListing,
     handleConvertFrom,
+    // Phase O3/Round-4: rich 5-state banner inputs + manual Save button
+    // (AC-74) inputs drawn from the editFormState composite.
+    isEditSaving: editFormState.isSaving,
+    editSaveError: editFormState.saveError,
+    isEditOnline: editFormState.isOnline,
+    editQueueLength: editFormState.queueLength,
     // G3 convert conflict dialog
     pendingConvert,
     isConverting: listingEditor.isConverting,
@@ -568,6 +545,9 @@ export const useEditView = () => {
     applyCopy,
     // Command palette
     cmdPalette,
+    // ---- Phase O2: auto-save hybrid state layer (namespaced so it doesn't
+    // shadow legacy fields; Phase P components consume via this prop) ----
+    editFormState,
   };
 };
 

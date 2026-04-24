@@ -53,6 +53,12 @@ export const COLORS = {
   errorDkShade:   '#D93530',
   infoDk:         '#38BDF8',
 
+  // Orange — distinct "offline / degraded" signal, warmer than amber warning.
+  // Used by the UnsavedChangesBanner offline variant + any degraded-mode chip.
+  orange:       '#F97316',
+  orangeShade:  '#EA580C',
+  orangeLight:  '#FB923C',
+
   // Status — light mode
   successLight: '#059669',
   warningLight: '#D97706',

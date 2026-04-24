@@ -1,7 +1,7 @@
 """Tests for MBA Product Catalog API + validator helpers (PROJ-11 Phase L4, AC-37).
 
 Covers:
-1. ``GET /api/mba/product-catalog/`` returns all 17 catalog entries.
+1. ``GET /api/mba/product-catalog/`` returns all 20 catalog entries.
 2. Response carries ``Cache-Control: public, max-age=86400`` (24h).
 3. Auth required — unauthenticated request returns 401.
 4. Shape assertion: every entry has the 10 required top-level keys.
@@ -72,20 +72,20 @@ def api_client(user):
 
 
 # ---------------------------------------------------------------------------
-# 1. Endpoint returns 17 entries
+# 1. Endpoint returns 20 entries
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.django_db
-def test_product_catalog_returns_17_entries(api_client):
+def test_product_catalog_returns_20_entries(api_client):
     url = reverse('mba-product-catalog')
     response = api_client.get(url)
 
     assert response.status_code == 200
     data = response.data
     assert isinstance(data, list)
-    assert len(data) == 17, (
-        f'Expected 17 catalog entries, got {len(data)}'
+    assert len(data) == 20, (
+        f'Expected 20 catalog entries, got {len(data)}'
     )
 
     # Keys must be unique across the catalog.

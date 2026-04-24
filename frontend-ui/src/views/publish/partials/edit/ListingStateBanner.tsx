@@ -1,6 +1,5 @@
 import { Alert, Button, Skeleton, Stack } from '@mui/material';
 import { useTranslation } from 'react-i18next';
-import AutoAwesomeOutlinedIcon from '@mui/icons-material/AutoAwesomeOutlined';
 import RefreshOutlinedIcon from '@mui/icons-material/RefreshOutlined';
 
 // ---------------------------------------------------------------------------
@@ -12,9 +11,7 @@ interface ListingStateBannerProps {
   isFetching: boolean;
   notFound: boolean;
   hasError: boolean;
-  onGenerate: () => void;
   onRetry: () => void;
-  isGenerating: boolean;
   marketplace: string;
 }
 
@@ -22,6 +19,11 @@ interface ListingStateBannerProps {
 // Component — renders a loading skeleton, 404 empty state, or error alert
 // for the listing section on the Edit page. Returns null when the listing
 // loaded successfully.
+//
+// The legacy "Generate Listing" CTA was retired with the Generate endpoint
+// (Phase O1 / P8). New listings are created via Convert from another
+// marketplace tab; the notFound state now surfaces that path as a hint
+// rather than a button.
 // ---------------------------------------------------------------------------
 
 const ListingStateBanner = ({
@@ -29,9 +31,7 @@ const ListingStateBanner = ({
   isFetching,
   notFound,
   hasError,
-  onGenerate,
   onRetry,
-  isGenerating,
   marketplace,
 }: ListingStateBannerProps) => {
   const { t } = useTranslation();
@@ -70,28 +70,10 @@ const ListingStateBanner = ({
 
   if (notFound) {
     return (
-      <Alert
-        severity="info"
-        action={
-          <Button
-            color="inherit"
-            size="small"
-            startIcon={<AutoAwesomeOutlinedIcon />}
-            onClick={onGenerate}
-            disabled={isGenerating}
-          >
-            {isGenerating
-              ? t('publish.edit.listingState.generating', {
-                  defaultValue: 'Generating...',
-                })
-              : t('publish.edit.listingState.generate', {
-                  defaultValue: 'Generate Listing',
-                })}
-          </Button>
-        }
-      >
+      <Alert severity="info">
         {t('publish.edit.listingState.notFound', {
-          defaultValue: 'No listing for {{marketplace}} yet. Generate one to start editing.',
+          defaultValue:
+            'No listing for {{marketplace}} yet. Convert from another marketplace tab to start editing.',
           marketplace,
         })}
       </Alert>

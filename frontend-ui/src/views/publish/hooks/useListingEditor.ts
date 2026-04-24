@@ -2,18 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSnackbar } from 'notistack';
 import { useTranslation } from 'react-i18next';
 import {
-  useGenerateListingMutation,
   useGetListingQuery,
   useUpdateListingMutation,
   useTranslateListingMutation,
-  useTmCheckMutation,
   useLazyExportListingQuery,
   useConvertListingMutation,
 } from '@/store/publishSlice';
 import type {
   ListingLanguage,
   MarketplaceType,
-  TMCheckResult,
   Listing,
   ConvertListingResponse,
 } from '../types';
@@ -25,7 +22,6 @@ import type { MbaListingFormValues } from '../schemas/mbaListingSchema';
 
 interface UseListingEditorArgs {
   ideaId: string | null;
-  designId?: string | null;
   marketplaceType: MarketplaceType;
 }
 
@@ -54,7 +50,6 @@ const AUTO_SAVE_DELAY_MS = 1200;
  */
 export const useListingEditor = ({
   ideaId,
-  designId,
   marketplaceType,
 }: UseListingEditorArgs) => {
   const { t } = useTranslation();
@@ -75,10 +70,8 @@ export const useListingEditor = ({
   const listingNotFound = !listing && isNotFound(listingError);
   const hasHardError = Boolean(listingError) && !listingNotFound;
 
-  const [generateListing, { isLoading: isGenerating }] = useGenerateListingMutation();
   const [updateListing, { isLoading: isSaving }] = useUpdateListingMutation();
   const [translateListing, { isLoading: isTranslating }] = useTranslateListingMutation();
-  const [tmCheck, { isLoading: isChecking }] = useTmCheckMutation();
   const [triggerExport] = useLazyExportListingQuery();
   const [convertListing, { isLoading: isConverting }] = useConvertListingMutation();
 
@@ -89,49 +82,6 @@ export const useListingEditor = ({
     latestListingIdRef.current = listing?.id ?? null;
   }, [listing?.id]);
 
-  // ---- Generate ----------------------------------------------------------
-  const handleGenerate = useCallback(
-    async (args?: { extraKeywords?: string; language?: ListingLanguage }) => {
-      if (!ideaId) return null;
-      try {
-        const created = await generateListing({
-          ideaId,
-          body: {
-            design_id: designId ?? undefined,
-            extra_keywords: args?.extraKeywords,
-            language: args?.language,
-            marketplace_type: marketplaceType,
-          },
-        }).unwrap();
-        enqueueSnackbar(
-          t('publish.listing.generateSuccess', {
-            defaultValue: 'Listing generated',
-          }),
-          { variant: 'success' },
-        );
-        return created;
-      } catch (err) {
-        const status = (err as RtkError)?.status;
-        if (status === 409) {
-          enqueueSnackbar(
-            t('publish.listing.generateDuplicate', {
-              defaultValue: 'A listing for this marketplace already exists',
-            }),
-            { variant: 'warning' },
-          );
-        } else {
-          enqueueSnackbar(
-            t('publish.listing.generateError', {
-              defaultValue: 'Failed to generate listing',
-            }),
-            { variant: 'error' },
-          );
-        }
-        return null;
-      }
-    },
-    [ideaId, designId, marketplaceType, generateListing, enqueueSnackbar, t],
-  );
 
   // ---- Save (manual) -----------------------------------------------------
   const serializeFormValues = useCallback(
@@ -140,11 +90,8 @@ export const useListingEditor = ({
       title: values.title,
       bullet_1: values.bullet_1,
       bullet_2: values.bullet_2,
-      bullet_3: values.bullet_3,
-      bullet_4: values.bullet_4,
-      bullet_5: values.bullet_5,
       description: values.description,
-      backend_keywords: values.backend_keywords.join(', '),
+      keyword_context: values.keyword_context,
       availability: values.availability,
       publish_mode: values.publish_mode,
     }),
@@ -157,7 +104,7 @@ export const useListingEditor = ({
       if (!targetId) {
         enqueueSnackbar(
           t('publish.listing.saveNoListing', {
-            defaultValue: 'Generate a listing before saving',
+            defaultValue: 'Create a listing first before saving.',
           }),
           { variant: 'warning' },
         );
@@ -270,33 +217,6 @@ export const useListingEditor = ({
     [translateListing, enqueueSnackbar, t],
   );
 
-  // ---- TM Check ---------------------------------------------------------
-  const handleTMCheck = useCallback(async (): Promise<TMCheckResult | null> => {
-    const targetId = latestListingIdRef.current;
-    if (!targetId) return null;
-    try {
-      const result = await tmCheck(targetId).unwrap();
-      if (result.is_clean) {
-        enqueueSnackbar(
-          t('publish.tm.clean', { defaultValue: 'Trademark check passed' }),
-          { variant: 'success' },
-        );
-      } else {
-        enqueueSnackbar(
-          t('publish.tm.flagged', { defaultValue: 'Trademark issues found' }),
-          { variant: 'warning' },
-        );
-      }
-      return result;
-    } catch {
-      enqueueSnackbar(
-        t('publish.tm.error', { defaultValue: 'Trademark check failed' }),
-        { variant: 'error' },
-      );
-      return null;
-    }
-  }, [tmCheck, enqueueSnackbar, t]);
-
   // ---- Convert (G3) -----------------------------------------------------
   // Wraps POST /api/listings/convert/. Returns the new/updated Listing on
   // success, `'conflict'` when the target marketplace already has a Listing
@@ -388,19 +308,15 @@ export const useListingEditor = ({
       isFetchingListing,
       listingError: hasHardError ? listingError : null,
       listingNotFound,
-      isGenerating,
       isSaving,
       isAutoSaving,
       isTranslating,
-      isChecking,
       isConverting,
       // Actions
-      handleGenerate,
       handleSave,
       scheduleAutoSave,
       cancelAutoSave,
       handleTranslate,
-      handleTMCheck,
       handleExport,
       handleConvert,
       refetchListing,
@@ -412,18 +328,14 @@ export const useListingEditor = ({
       hasHardError,
       listingError,
       listingNotFound,
-      isGenerating,
       isSaving,
       isAutoSaving,
       isTranslating,
-      isChecking,
       isConverting,
-      handleGenerate,
       handleSave,
       scheduleAutoSave,
       cancelAutoSave,
       handleTranslate,
-      handleTMCheck,
       handleExport,
       handleConvert,
       refetchListing,

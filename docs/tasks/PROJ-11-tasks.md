@@ -622,7 +622,7 @@
 
 - [x] Rewrite `DesignProductConfigSerializer` to accept `products_config` JSON
 - [x] Per-entry MVP-safe validation: shape (dict with known keys), types (`enabled` bool, `fit_types`/`colors` str lists, `print_side` ∈ {front,back,both}), `colors` ⊆ `MBA_COLORS` when marketplace_type=mba, `marketplaces[*].price` ≥ 0, `marketplaces[*].enabled` bool
-- [ ] Full catalog-referential validation (Phase L): `product_type` exists in catalog (AC-37), `fit_types` ⊆ catalog.fit_types_options, `colors` ⊆ catalog.colors_options, `marketplaces[*].marketplace` ⊆ catalog.marketplaces
+- [x] Full catalog-referential validation (Phase L): `product_type` exists in catalog (AC-37), `fit_types` ⊆ catalog.fit_types_options, `colors` ⊆ catalog.colors_options, `marketplaces[*].marketplace` ⊆ catalog.marketplaces — delivered in L3 via `validators.py`, wired into `DesignProductConfigSerializer`
 - [x] Targeted op support on PATCH: body `{marketplace_type, op: 'upsert_product', product_type, patch: {...}}` for single-product mutations (AC-40)
 - [x] Full replace: body `{marketplace_type, products_config: [...]}` overwrites entire list
 - [x] Reject body missing `marketplace_type` with 400
@@ -718,7 +718,7 @@
 - [x] Create `publish_app/catalogs/__init__.py` (new subpackage)
 - [x] Create `publish_app/catalogs/mba_catalog.py` exporting `MBA_PRODUCT_CATALOG: tuple[dict, ...]`
 - [x] Populate 17 product entries with: `key`, `label` (English base), `icon_key`, `supports`, `fit_types_options`, `print_side_options`, `colors_options` (key/name/hex), `marketplaces`, `default_prices`, `royalty_formula` (coef/base per marketplace)
-- [ ] Verify all `icon_key` values match `PRODUCT_ICON_MAP` keys in frontend (cross-check after N1)
+- [x] Verify all `icon_key` values match `PRODUCT_ICON_MAP` keys in frontend — enforced both server-side (`test_mba_product_catalog.py::test_catalog_icon_keys_match_frontend_product_icon_map_fixture`) and client-side (`ProductIcons.test.tsx::Backend catalog contract`)
 - [x] Use Amazon's published royalty formulas for `coef` + `base` (documented in module docstring)
 - [x] Include i18n hook: EN labels only for MVP — frontend i18n via `PRODUCT_LABEL_I18N`
 
@@ -744,7 +744,7 @@
 
 > Completed 2026-04-23. `publish_app/tests/test_mba_product_catalog.py` (9 tests, all green). Fixture for N1 contract: `publish_app/tests/fixtures/product_icon_map_keys.json`.
 
-- [x] Endpoint returns 17 entries
+- [x] Endpoint returns 20 entries
 - [x] Cache-Control header present
 - [x] Auth required (401 when unauthenticated)
 - [x] Shape assertion: every entry has required keys
@@ -822,30 +822,30 @@
 
 ## Phase N: Frontend — Product SVG Icons (added 2026-04-23)
 
-> Scope: AC-78 to AC-80. 17 custom React SVG components replacing the generic hanger icon.
+> Scope: AC-78 to AC-80. 20 custom React SVG components replacing the generic hanger icon.
 
 ### N1: Icon Components
 
-- [ ] Create `frontend-ui/src/components/ProductIcons/` directory
-- [ ] One file per product (17 total): `TShirtIcon.tsx`, `TShirtPremiumIcon.tsx`, `TShirtHeavyweightIcon.tsx`, `VNeckIcon.tsx`, `TankTopIcon.tsx`, `LongSleeveIcon.tsx`, `RaglanIcon.tsx`, `SweatshirtIcon.tsx`, `HoodiePulloverIcon.tsx`, `HoodieZipIcon.tsx`, `PerformanceIcon.tsx`, `BaseballIcon.tsx`, `TruckerHatIcon.tsx`, `PopSocketIcon.tsx`, `PhoneCaseIcon.tsx`, `ThrowPillowIcon.tsx`, `ToteBagIcon.tsx`, `TumblerIcon.tsx`, `MugIcon.tsx`, `WaterBottleIcon.tsx`
-- [ ] Each component: arrow-function, props `{ size?: number; color?: string }`, default size 40, `currentColor` for stroke, `viewBox 0 0 40 40`
-- [ ] Line-based drawings, stroke-width 1.5–2px, matching Iconoir/Tabler style
-- [ ] Product-shaped silhouettes (not hangers) — reference Flying Upload screenshots
-- [ ] Export each as named export from its own file
+- [x] Create `frontend-ui/src/components/ProductIcons/` directory
+- [x] One file per product (20 total, matching catalog icon_keys): `TShirtIcon.tsx`, `TShirtPremiumIcon.tsx`, `TShirtHeavyweightIcon.tsx`, `VNeckIcon.tsx`, `TankTopIcon.tsx`, `LongSleeveIcon.tsx`, `RaglanIcon.tsx`, `SweatshirtIcon.tsx`, `HoodiePulloverIcon.tsx`, `HoodieZipIcon.tsx`, `PerformanceIcon.tsx`, `BaseballIcon.tsx`, `TruckerHatIcon.tsx`, `PopSocketIcon.tsx`, `PhoneCaseIcon.tsx`, `ThrowPillowIcon.tsx`, `ToteBagIcon.tsx`, `TumblerIcon.tsx`, `MugIcon.tsx`, `WaterBottleIcon.tsx`
+- [x] Each component: arrow-function, props `{ size?: number; color?: string }`, default size 40, `currentColor` for stroke, `viewBox 0 0 40 40`
+- [x] Line-based drawings, stroke-width 1.75px, Iconoir/Tabler style
+- [x] Product-shaped silhouettes (not hangers)
+- [x] Export each as named export from its own file
 
 ### N2: Icon Map
 
-- [ ] Create `frontend-ui/src/components/ProductIcons/index.ts` with barrel export
-- [ ] Export `PRODUCT_ICON_MAP: Record<string, FC<IconProps>>` keyed by catalog `icon_key` values
-- [ ] Export `IconProps` TypeScript interface
-- [ ] Keys must match `MBA_PRODUCT_CATALOG[*].icon_key` (L1 contract)
+- [x] Create `frontend-ui/src/components/ProductIcons/index.ts` with barrel export
+- [x] Export `PRODUCT_ICON_MAP: Record<string, FC<IconProps>>` keyed by catalog `icon_key` values
+- [x] Export `IconProps` TypeScript interface
+- [x] Keys match `MBA_PRODUCT_CATALOG[*].icon_key` — verified against `product_icon_map_keys.json` fixture (20/20)
 
 ### N3: Frontend Tests
 
-- [ ] One snapshot test per icon component (17 tests)
-- [ ] `PRODUCT_ICON_MAP` exports all 17 keys
-- [ ] Icon inherits theme color via `currentColor`
-- [ ] Contract test: every key in `PRODUCT_ICON_MAP` is also present in the backend catalog fixture
+- [x] One snapshot test per icon component (20 tests)
+- [x] `PRODUCT_ICON_MAP` exports all 20 keys
+- [x] Icon inherits theme color via `currentColor` (+ size/color prop overrides)
+- [x] Contract test: every key in `PRODUCT_ICON_MAP` is also present in the backend catalog fixture (`product_icon_map_keys.json` — read via `fs` at test time)
 
 ---
 
@@ -855,58 +855,73 @@
 
 ### O1: publishSlice RTK Query Endpoints
 
-- [ ] Add `getMbaProductCatalog` query endpoint (cached long TTL, tag `MbaCatalog`)
-- [ ] Add `aiImproveListing` mutation endpoint (POST `/ai-improve/`, invalidates `Listing`)
-- [ ] Remove `generateListing` mutation endpoint
-- [ ] Remove `tmCheckListing` mutation endpoint
-- [ ] Update `patchDesignProductConfig` mutation to accept targeted `op` payload (J2)
-- [ ] Update `copyFromDesignProductConfig` mutation to accept optional `product_type`
+> Completed 2026-04-23. Types refactored for J2 shape (`DesignProductConfig.products_config`, discriminated upsert/replace/legacy union). Removed endpoint consumers stubbed — `handleGenerate` / `handleTMCheck` kept as no-ops until Phase O2 rewrites `useListingEditor` → `useEditView`; `TMCheckDialog.tsx` deleted; TM-Check button disabled in `OptionsTrademarksTabs`.
+
+- [x] Add `getMbaProductCatalog` query endpoint (`keepUnusedDataFor=24h`, tag `MbaCatalog`)
+- [x] Add `aiImproveListing` mutation endpoint (POST `/api/listings/{id}/ai-improve/`, invalidates `Listing` id + `{idea}:{marketplace_type}` pair)
+- [x] Remove `generateListing` mutation endpoint (+ `GenerateListingBody` import + `useGenerateListingMutation` export)
+- [x] Remove `tmCheck` mutation endpoint (+ `TMCheckResult` import + `useTmCheckMutation` export)
+- [x] Update `updateProductConfig` mutation body to accept targeted `op=upsert_product` payload (+ legacy flat shape kept `@deprecated` on the type for pre-O2 callers)
+- [x] Update `copyProductConfigFrom` mutation to forward optional `product_type`
 
 ### O2: useEditView Hook Refactor
 
-- [ ] Split setters into 3 factories:
-  - [ ] `controlSetters` — immediate PATCH on change (checkbox, radio, switch, color swatch, product toggle)
-  - [ ] `priceSetters` — 400ms debounced PATCH per (product, marketplace)
-  - [ ] `textSetters` — on-blur-if-dirty PATCH (Brand, Title, Bullet 1, Bullet 2, Description, Keyword Context)
-- [ ] Expose `isDirty: bool`, `isSaving: bool`, `saveError: Error | null`
-- [ ] Expose `manualSave()` — flushes blur-pending fields + waits for in-flight PATCHes
-- [ ] Expose `discard()` — confirmable reset to last-saved cache
-- [ ] Expose `focusedProduct: string | null` + `setFocusedProduct(key)`
-- [ ] Expose `royaltyFor(productKey, marketplace, price): number | null` pure function
-- [ ] Expose `aiImprove()` mutation trigger
+> Completed 2026-04-23. New hook `useEditFormState` added at `views/publish/hooks/useEditFormState.ts` (~270 lines) + pure helper `royaltyFor.ts`. Exposed through `useEditView` under a namespaced `editFormState` prop so Phase P can adopt without touching legacy paths. Frontend `Listing` type updated for Phase I backend shape (bullet_3..5 dropped, `backend_keywords` → `keyword_context`; legacy fields kept `@deprecated` optional for pre-O2 callers).
+
+- [x] Split setters into 3 factories:
+  - [x] `controlSetters` — immediate PATCH on change via `op=upsert_product` (toggleProductEnabled, setFitTypes, setPrintSide, setColors, setMarketplaces)
+  - [x] `priceSetters` — 400ms debounced PATCH per `(product, marketplace)` key
+  - [x] `textSetters` — on-blur-if-dirty PATCH (Brand, Title, Bullet 1, Bullet 2, Description, Keyword Context) via `onBlur` + buffered `onChange`
+- [x] Expose `isDirty: bool`, `isSaving: bool`, `saveError: Error | null`
+- [x] Expose `manualSave()` — flushes buffered text + pending debounced prices in parallel
+- [x] Expose `discard()` — clears buffered text + pending prices, cancels timers (no PATCH)
+- [x] Expose `focusedProduct: string | null` + `setFocusedProduct(key)`
+- [x] Expose `royaltyFor(productKey, marketplace, price): number | null` pure function (catalog-driven, clamps negative to 0)
+- [x] Expose `aiImprove()` mutation trigger
 
 ### O3: UnsavedChangesBanner Component
 
-- [ ] New component `views/publish/partials/editor/UnsavedChangesBanner.tsx`
-- [ ] Sticky top, `position: sticky; top: 0`, slide-in animation
-- [ ] States: Unsaved (amber) / Saving (spinner) / Saved (2s green toast, auto-hide) / Failed (red + Retry) / Offline (orange)
-- [ ] Save button → calls `manualSave()`
-- [ ] Discard button → `ConfirmDialog` "Discard unsaved changes?" → `discard()`
-- [ ] Offline chip shown when `navigator.onLine === false`
+> Completed 2026-04-23. New banner lives at `views/publish/partials/editor/UnsavedChangesBanner.tsx` and covers all 5 states via a priority ladder (offline > failed > saving > saved toast > unsaved). Variant drives colour via `variantPalette` map (warningDk/infoDk/successDk/errorDk/warningDkShade). Integration into `EditView` (swap of `UnsavedChangesBar` → `UnsavedChangesBanner`) lands with Phase P once `useEditFormState` is wired through `useEditView`. 11-test suite in `tests/UnsavedChangesBanner.test.tsx` (visibility, save/discard+ConfirmDialog, saving/failed/offline variants, 2s Saved auto-hide). i18n keys added under `publish.edit.unsaved.*`.
+
+- [x] New component `views/publish/partials/editor/UnsavedChangesBanner.tsx`
+- [x] Sticky top, `position: sticky; top: 0`, slide-in animation (MUI `Slide` direction=down, `DURATION.default`)
+- [x] States: Unsaved (amber) / Saving (spinner) / Saved (2s green toast, auto-hide) / Failed (red + Retry) / Offline (orange)
+- [x] Save button → calls `onSave()` (wired to `manualSave()` when composed into Edit page in Phase P)
+- [x] Discard button → `ConfirmDialog` "Discard unsaved changes?" → `onDiscard()` (wired to `discard()` in Phase P)
+- [x] Offline chip shown when `navigator.onLine === false` (also drives the dedicated "offline" variant when pending changes exist)
 
 ### O4: Offline Queue Hook
 
-- [ ] New hook `useOfflineQueue` in `views/publish/hooks/`
-- [ ] Detects `offline` / `online` events
-- [ ] Queues pending PATCHes in a ref (non-persistent, MVP)
-- [ ] On `online`, replays queue in FIFO order via RTK mutation triggers
-- [ ] Exposes `queueLength: number`
-- [ ] Tests: offline → toggle control → queued; online event → flushed in order
+> Completed 2026-04-23. New hook `useOfflineQueue<P>({ storageKey, executor, classifyError? })` at `views/publish/hooks/useOfflineQueue.ts` exposes `{ isOnline, queueLength, enqueue(payload): Promise<void> }`. Payload-based API (serializable, not closures) → queue survives page reloads via localStorage; hydrates on mount and auto-flushes when online. Online path pushes + flushes immediately; offline path buffers FIFO until the next `online` event. Failure handling: caller-provided `classifyError(err) → 'retry' | 'drop'` decides the per-op fate — `'retry'` leaves the op at head and halts flush (transient errors), `'drop'` shifts the op out permanently and keeps draining (non-transient errors like 4xx validation). Default: `'retry'` (conservative). Concurrent flushes coalesced via a running-flag ref. Storage key is scoped to `{userId}:{workspaceId}` (prefix `mm.publish.editFormQueue.v1`) so queues on shared machines can't leak across users or workspaces — passing `storageKey: null` makes the hook ref-only (no persist). Storage-key changes mid-life reset the in-memory queue and re-hydrate from the new scope's slot. Shared storage helpers live in `hooks/editQueueStorage.ts` (`PUBLISH_EDIT_QUEUE_KEY_PREFIX` + `buildPublishEditQueueKey` + `clearPublishEditQueues`). Logout cleanup: `clearPublishEditQueues()` wipes every `mm.publish.editFormQueue.v1:*` entry from localStorage and is invoked in both `clearAuth` dispatch sites — `ProfileMenu.handleSignOut` (user logout) and `authService.ts` 401 interceptor (refresh fail). Integrated into `useEditFormState` with a `QueuePayload` union (`updateProductConfig` | `updateListing`), an executor that re-dispatches through the existing RTK triggers, and a `classifyQueueError` that drops on HTTP 4xx and retries on 5xx / `'FETCH_ERROR'` / unknown shapes. `useEditFormState` reads `state.auth.user.id` + `state.workspace.activeWorkspaceId` via `useAppSelector` and re-exposes `isOnline` + `queueLength`. Banner integration: `UnsavedChangesBanner` accepts `queueLength?` (default 0), raises the `offline` variant whenever the queue has items (even without local dirty state, so a post-reload offline state still surfaces the banner), and renders a "N queued" chip (`publish.edit.unsaved.queued` key, `{{count}}` plural-ready). 10-test unit suite in `tests/useOfflineQueue.test.ts` (online fast-path, offline buffer + persist, FIFO flush, retry-on-failure, hydrate + auto-flush, hydrate while offline, isOnline reactivity, null key = ref-only, storage-key change resets + re-hydrates, classifyError=drop). Integration tests in `tests/useEditFormState.test.ts` cover the O6 FIFO scenario, per-(user, workspace) storage-key scoping, ref-only fallback when user id is missing, **4xx-drop** (attempted once → queue cleared), and **5xx-retry** (op stays queued until server recovers). 8-test suite in `tests/editQueueStorage.test.ts` covers key builder + `clearPublishEditQueues` (removes matching, leaves unrelated + bare-prefix keys alone). 3 banner tests (queue chip shown offline, post-reload visibility when queue > 0 and not dirty, chip omitted when queueLength=0). Full suite: **956/956** tests green, tsc clean, eslint clean.
+
+- [x] New hook `useOfflineQueue` in `views/publish/hooks/`
+- [x] Detects `offline` / `online` events
+- [x] Queues pending PATCHes in a ref + mirrored to `localStorage`; storage key scoped to `{userId}:{workspaceId}` (prefix `mm.publish.editFormQueue.v1`) with a null-key fallback for pre-auth bootstrap
+- [x] Storage-key change (user / workspace switch) resets in-memory queue + re-hydrates from the new scope's slot
+- [x] On `online`, replays queue in FIFO order via RTK mutation triggers
+- [x] Failure classifier: 4xx → drop (discard + keep draining); 5xx / network / unknown → retry (hold at head)
+- [x] Logout cleanup: `clearPublishEditQueues()` wipes every `mm.publish.editFormQueue.v1:*` entry; wired into `ProfileMenu.handleSignOut` + `authService.ts` 401 interceptor
+- [x] Exposes `queueLength: number` + surfaces it via `UnsavedChangesBanner` "N queued" chip (offline variant)
+- [x] Tests: offline → toggle control → queued; online event → flushed in order; retry-on-failure; hydrate-from-storage; per-scope storage key; null-key ref-only; storage-key change re-hydrates; 4xx drop vs 5xx retry; `clearPublishEditQueues` scoping
 
 ### O5: Concurrency Serialization
 
-- [ ] `useEditView` serializes PATCHes per `(listing_id)` and per `(design_id, marketplace_type)` via promise chain
-- [ ] Prevents client-side races (EC-38)
+> Completed 2026-04-23. Per-key promise chain lives in `useEditFormState.queueExecutor`. `perKeyChainsRef: Map<string, Promise<unknown>>` holds the tail promise for each bucket; `patchKeyOf(payload)` returns `pc:{designId}:{marketplace_type}` for `updateProductConfig` ops and `l:{listingId}` for `updateListing` ops (prefixes guarantee the buckets can't collide). Each executor call `.then`s off the current tail (swallowing prior rejections via `.catch(() => undefined)` so one failure doesn't poison later ops in the same bucket) and stores the new tail. Stored tail also swallows errors, and a `.then`-based cleanup removes the Map entry once this op becomes the tail and settles — bounded memory across long edit sessions. The chain layers on top of the O4 offline queue's global FIFO drain: the queue already orders all replay, but the chain makes the EC-38 guarantee explicit, payload-shape-aware, and stable even if any future caller reaches the executor directly. 3 new tests in `tests/useEditFormState.test.ts` cover: two same-listing blur PATCHes (second awaits first's resolution), two same-`(design, marketplace)` control PATCHes (second awaits first), and chain recovery after a 4xx drop (subsequent same-key PATCH still fires). Full suite: **959/959** tests green.
+
+- [x] `useEditFormState` serializes PATCHes per `(listing_id)` and per `(design_id, marketplace_type)` via promise chain
+- [x] Prevents client-side races (EC-38)
 
 ### O6: Frontend Tests
 
-- [ ] Control click → immediate mutation fires
-- [ ] Price input → 4 keystrokes "1999" → 1 mutation 400ms after last keystroke
-- [ ] Text field blur with no change → no mutation
-- [ ] Text field blur with change → PATCH with partial body (only changed key)
-- [ ] manualSave flushes pending blur + shows "Saved ✓"
-- [ ] Discard reverts to last-saved RTK cache
-- [ ] Offline queue: offline → 3 toggles → queue=3 → online → 3 PATCHes fire in order
+> Partially completed 2026-04-23. `views/publish/tests/useEditFormState.test.ts` (12 tests, all green) covers the O2 hook surface. Banner "Saved ✓" visual test shipped in `tests/UnsavedChangesBanner.test.tsx` (2s auto-hide + non-error guard). Offline queue tests land with O4.
+
+- [x] Control click → immediate mutation fires (`controlSetters.toggleProductEnabled` + `controlSetters.setColors`)
+- [x] Price input → 4 keystrokes "1999" → 1 mutation 400ms after last keystroke
+- [x] Text field blur with no change → no mutation
+- [x] Text field blur with change → PATCH with partial body (only changed key)
+- [x] manualSave flushes pending blur + pending debounced prices
+- [x] Discard clears buffered text + pending prices; no mutation fires after debounce window
+- [x] Offline queue: offline → 3 toggles → queue=3 → online → 3 PATCHes fire in order (Phase O4)
 
 ---
 
@@ -916,119 +931,540 @@
 
 ### P1: ProductTypeScroller Rebuild
 
-- [ ] Read catalog via `getMbaProductCatalog` query
-- [ ] Render 17 cards (via `PRODUCT_ICON_MAP`)
-- [ ] Active state: ring + count badge = number of enabled marketplaces for that product in `products_config`
-- [ ] Focused state: 2px ring when clicked
-- [ ] Click handler: toggle `enabled` in `products_config` + set `focusedProduct`
-- [ ] Tests: render 17 cards, click toggles enabled + focuses, count badge updates
+> Completed 2026-04-23 (+ cleanup pass same day). In-place rewrite at `partials/edit/ProductTypeScroller.tsx` (~180 lines). Reads `useGetMbaProductCatalogQuery` + `useGetProductConfigQuery` (skipToken when no `designId`) and renders one `ProductCard` per catalog entry (currently 20, catalog-driven). Icons via `PRODUCT_ICON_MAP` with a safety-net Box when catalog drifts ahead of the map. Two independent visual states: `enabled` (cyan 1px ring + cyan-tinted background + count badge) and `focused` (2px ring). `CountBadge` = count of enabled marketplaces in the matching `products_config` entry; hidden when zero. Click handler calls `onFocusedProductChange(key)` + `toggleProductEnabled(key, !current)` — focusing and toggling in one gesture. Legacy `onOptionsClick` prop dropped (Phase P9 removes the Options UI). EditView updated to pass new per-product props via `editFormState`. **Cleanup**: `useEditFormState` now reads `products_config` via RTK and auto-focuses the first enabled product when focus is null, resetting on `(designId, marketplaceType)` change (derived-during-render pattern matching `useSavedToast` to satisfy `react-hooks/set-state-in-effect`). The legacy `useProductConfig` hook + its test were deleted entirely; `useEditView` no longer exports the old flat-shape `productConfig`/`setColors`/`setMarketplaces`/etc. The `@deprecated` flat fields were dropped from `DesignProductConfig` + `UpdateProductConfigBody` types. `ColorGrid` + `MarketplacePricing` were removed from the EditView render pending P3/P4 rebuild (component files + isolated tests preserved). 7-test suite in `tests/ProductTypeScroller.test.tsx` + 3 auto-focus tests appended to `tests/useEditFormState.test.ts` (auto-focus on load, user override preserved, scope-change reset).
+
+- [x] Read catalog via `getMbaProductCatalog` query
+- [x] Render one card per catalog entry (20 today) via `PRODUCT_ICON_MAP`
+- [x] Active state: ring + count badge = number of enabled marketplaces for that product in `products_config`
+- [x] Focused state: 2px ring when clicked
+- [x] Click handler: toggle `enabled` in `products_config` + set `focusedProduct`
+- [x] Tests: render all cards, click toggles enabled + focuses, count badge updates
 
 ### P2: FitTypePrintSection Rebuild
 
-- [ ] Read `focusedProduct` entry from `products_config`
-- [ ] Render Fit Type checkboxes ONLY when catalog entry for focused product includes `fit_types` in `supports`
-- [ ] Render Print Side radios ONLY when catalog includes `print_side` in `supports`
-- [ ] Options come from catalog (`fit_types_options`, `print_side_options`)
-- [ ] Immediate PATCH via `controlSetters`
-- [ ] Tests: PopSocket → section hidden; T-Shirt → Men/Women/Youth/Girls/Adult Unisex visible
+> Completed 2026-04-23. In-place rewrite at `partials/edit/FitTypePrintSection.tsx` (~180 lines). Reads catalog + product config via RTK hooks. Returns `null` when `focusedProduct` is null OR when the focused product's catalog `supports` lacks both `'fit_types'` and `'print_side'` (e.g. PopSocket → `supports: ['colors']`). Fit column renders only when catalog includes `'fit_types'`; Print column only when `'print_side'`. When only one is supported, that column takes full 12-col width; when both are supported, 6+6 split. Options come from the catalog entry (`fit_types_options`, `print_side_options`) — per-product variation works without code changes. Immediate PATCH via `setFitTypes(focusedProduct, nextList)` and `setPrintSide(focusedProduct, side)` — the per-product `controlSetters` from `useEditFormState`. Legacy hard-coded `MBA_FIT_TYPES` + `'front'|'back'` constants no longer used; catalog is the single source of truth. 6-test suite in `tests/FitTypePrintSection.test.tsx` (no focus → null, PopSocket → hidden, T-Shirt → Men/Women/Youth/Girls/Adult Unisex visible, Throw Pillow → print visible + fit hidden, toggling fit calls `setFitTypes` with next list, selecting print side calls `setPrintSide`).
+
+- [x] Read `focusedProduct` entry from `products_config`
+- [x] Render Fit Type checkboxes ONLY when catalog entry for focused product includes `fit_types` in `supports`
+- [x] Render Print Side radios ONLY when catalog includes `print_side` in `supports`
+- [x] Options come from catalog (`fit_types_options`, `print_side_options`)
+- [x] Immediate PATCH via `controlSetters`
+- [x] Tests: PopSocket → section hidden; T-Shirt → Men/Women/Youth/Girls/Adult Unisex visible
 
 ### P3: ColorGrid Rebuild
 
-- [ ] Palette source: focused product's `colors_options` from catalog (not global)
-- [ ] Selected colors = focused product's entry `colors[]`
-- [ ] Click → toggle in `colors[]` → immediate PATCH via `controlSetters`
-- [ ] Tests: different products show different palettes
+> Completed 2026-04-23. In-place rewrite at `partials/edit/ColorGrid.tsx` (~230 lines). Reads catalog + product config via RTK (skipToken when no `designId`). Palette = `catalog[focusedProduct].colors_options` — different products show different palettes. Selected = `products_config[focusedProduct].colors`. Click toggles color in that list and calls `setColors(focusedProduct, next)` — immediate PATCH via `editFormState.controlSetters.setColors`. Returns `null` when no product is focused OR when the focused product's catalog `supports` lacks `'colors'` (defensive; all MBA products support colors today but catalog evolution is cheap). Loading (skeleton) + error (Alert + Retry) paths preserved. Re-added to `EditView.tsx`. 9-test suite in `tests/ColorGrid.test.tsx` (no-focus null, T-Shirt full palette, different products show different palettes, no-colors-support null, selected state reflects config, click toggles via setColors, switching focus swaps baseline, loading skeleton, error + retry).
+
+- [x] Palette source: focused product's `colors_options` from catalog (not global)
+- [x] Selected colors = focused product's entry `colors[]`
+- [x] Click → toggle in `colors[]` → immediate PATCH via `controlSetters`
+- [x] Tests: different products show different palettes
 
 ### P4: MarketplacePricing Rebuild
 
-- [ ] Row per marketplace in catalog entry's `marketplaces`
-- [ ] Each row: checkbox (enabled) + price input + live royalty cell
-- [ ] Price input: 400ms debounce via `priceSetters`
-- [ ] Royalty cell: `royaltyFor(productKey, marketplace, price)` — green if positive, red if negative, "—" when price empty
-- [ ] Tests: entering "19.99" on amazon.com shows computed royalty; entering "5" shows negative royalty in red
+> Completed 2026-04-23. In-place rewrite at `partials/edit/MarketplacePricing.tsx` (~230 lines). Reads catalog + product config via RTK (skipToken when no `designId`). Iterates over `catalog[focusedProduct].marketplaces`; one row per marketplace. Each row: checkbox (from `products_config` entry's `marketplaces[x].enabled`), controlled price input (local buffer scoped to `(designId, marketplaceType, focusedProduct)` so typing feels snappy while the 400ms hook-level debounce PATCHes), and a live royalty cell styled by tone. Royalty tone: `positive` (green, > 0), `negative` (red, < 0), `neutral` (muted, null or zero). Null display is `"—"`. **Merge fix**: the backend shallow-merges at entry level, so a one-item `marketplaces` PATCH was wiping siblings. `useEditFormState` now keeps a `productsConfigRef` (written via `useEffect` to satisfy `react-hooks/refs`) and merges single-row updates into the full list in both `priceSetters.setPrice` and the new `controlSetters.setMarketplaceEnabled(productKey, marketplace, enabled)`. `manualSave`'s price flush uses the same merge. `royaltyFor` (via `hooks/royaltyFor.ts`) no longer clamps negative values to 0 so the UI can surface losses; the single `clamps to 0` test flipped to `returns raw negative`. Re-added to `EditView.tsx` — all P1-P4 per-product sections now live again. 9-test suite in `tests/MarketplacePricing.test.tsx` (no-focus null, empty-marketplaces null, row-per-catalog-marketplace, state reflection, toggle, price keystrokes call setPrice, positive/negative/empty royalty + tone). Plus 2 new hook tests: priceSetters merges + setMarketplaceEnabled merges.
+
+- [x] Row per marketplace in catalog entry's `marketplaces`
+- [x] Each row: checkbox (enabled) + price input + live royalty cell
+- [x] Price input: 400ms debounce via `priceSetters` (merges into full marketplaces array)
+- [x] Royalty cell: `royaltyFor(productKey, marketplace, price)` — green if positive, red if negative, "—" when price empty
+- [x] Tests: entering "19.99" on amazon.com shows computed royalty; entering "5" shows negative royalty in red
 
 ### P5: ListingField Refactor
 
-- [ ] Remove field-specific generate button (orphaned from removed AC-6)
-- [ ] Keep PROJ-17 hover Chat icon (AC-72)
-- [ ] On-blur-if-dirty PATCH via `textSetters`
-- [ ] Char counter thresholds unchanged (90% amber, 100% red)
-- [ ] Tests: blur without change → no PATCH; blur after edit → PATCH fires
+> Completed 2026-04-23. In-place rewrite at `partials/edit/ListingField.tsx` (~190 lines). Decoupled from `react-hook-form`: new props `{ value, onChange(v), onBlur(v), maxChars, label, multiline?, rows?, errorMessage?, onOpenChat? }`. Local buffer synced with the server-provided `value` via derived-during-render + equality-guarded `setLastServerValue` — typing feels instant, scope/tab switches re-sync. Char counter thresholds unchanged (`getSeverity`: normal/amber ≥ floor(max*0.9) / red ≥ max). The orphaned per-field Generate button (from removed AC-6) is gone; the AC-72 PROJ-17 Chat hover icon survives — renamed from `onAiImprove` → `onOpenChat` with a `chat-open` class so it's orthogonal to the Phase P7 central AI-Improve button. `ListingFieldsSection.tsx` rewritten to bind each field via a tiny `bind(field, key)` factory that wires `(listing[key], textSetters.onChange(field, v), textSetters.onBlur(field, v))` — `brand_name`, `title`, `bullet_1`, `bullet_2`, `description`. Bullets 3-5 dropped (backend Phase I1 removed them). `KeywordChipsField` left in place for P6 to replace. `EditView.tsx` passes `listing` + `editFormState.textSetters` to the section; `listingForm.control` stays for the legacy chips field and translations. Tests: `tests/ListingField.test.tsx` rewritten (8 tests): render counter, keystroke onChange, blur without change → onBlur with unchanged value (hook layer owns the blur-if-dirty compare), blur after edit → onBlur with edited value, server-value re-sync on prop change, amber/red counter tiers, Chat hover icon click forwards buffer value, Chat icon omitted when no callback.
+
+- [x] Remove field-specific generate button (orphaned from removed AC-6)
+- [x] Keep PROJ-17 hover Chat icon (AC-72) — renamed `onOpenChat`
+- [x] On-blur-if-dirty PATCH via `textSetters` (hook-level compare; component always fires onBlur)
+- [x] Char counter thresholds unchanged (90% amber, 100% red)
+- [x] Tests: blur without change → no PATCH (hook-level); blur after edit → onBlur with new value
 
 ### P6: KeywordContextField (new, replaces KeywordChipsField)
 
-- [ ] New component `views/publish/partials/editor/KeywordContextField.tsx`
-- [ ] Multiline TextField, 4 rows default, `maxLength=500`
-- [ ] Char counter (same thresholds as other fields)
-- [ ] On-blur-if-dirty PATCH via `textSetters`
-- [ ] Tests: render, type, blur → PATCH with `keyword_context`
+> Completed 2026-04-23. New plain 500-char textarea at `partials/editor/KeywordContextField.tsx` (~160 lines). Controlled component — `{ value, onChange(v), onBlur(v), maxChars?, rows?, label?, placeholder? }` — mirroring the `ListingField` P5 pattern (local buffer + derived-during-render server re-sync). Default cap `500` and default `rows=4`; both overridable. Same 90% amber / 100% red char-counter thresholds. Label + placeholder come from `publish.edit.fields.keywordContext*` i18n keys. `ListingFieldsSection` swapped: `KeywordChipsField` import + render block replaced by `<KeywordContextField {...bind('keyword_context', 'keyword_context')} />`. The `control` prop (last remaining react-hook-form coupling inside the section) dropped since no field needs it anymore; `EditView.tsx` no longer passes `listingForm.control` down. `partials/edit/KeywordChipsField.tsx` **deleted** outright — no other consumer, no dedicated test file. 7-test suite in `tests/KeywordContextField.test.tsx` (default 500 maxLength + textarea shape, keystroke calls onChange + counter updates, blur fires onBlur with buffer value, blur after edit flows edited value, rerender with new server value re-syncs buffer, amber/red counter tiers, override maxChars).
+
+- [x] New component `views/publish/partials/editor/KeywordContextField.tsx`
+- [x] Multiline TextField, 4 rows default, `maxLength=500`
+- [x] Char counter (same thresholds as other fields)
+- [x] On-blur-if-dirty PATCH via `textSetters` (hook-level compare)
+- [x] Tests: render, type, blur → onBlur with buffered value; hook layer owns the `keyword_context` PATCH
 
 ### P7: AIImproveButton (new)
 
-- [ ] New component `views/publish/partials/editor/AIImproveButton.tsx`
-- [ ] MUI IconButton with `AutoFixHighOutlined` icon
-- [ ] Tooltip: `t('publish.ai_improve.tooltip')`
-- [ ] Click → `aiImprove()` mutation
-- [ ] Loading: icon replaced by CircularProgress, button disabled
-- [ ] Success: snackbar "Listing improved with AI"
-- [ ] Truncation warnings: render inline chip on each truncated field
-- [ ] Disabled state with tooltip "Create or convert listing first" when listing missing for tab (AC-71)
-- [ ] Tests: click → mutation fires → snackbar; truncated_fields → chips rendered
+> Completed 2026-04-23. New component at `partials/editor/AIImproveButton.tsx` (~120 lines). MUI `IconButton` (cyan) with `AutoFixHighOutlined` icon; wrapped in a span so the Tooltip still resolves when the button is disabled. Props: `{ aiImprove, isImproving, hasListing, onTruncated? }`. Click handler `await aiImprove()` — on success: enqueues a `success` snackbar ("Listing improved with AI") and calls `onTruncated(result.truncated_fields)` so the parent can flip per-field chips. On rejection: `error` snackbar, no truncation update. Loading state swaps the icon for `CircularProgress` (size 18, `color: inherit`) and disables click. Disabled when `hasListing=false` with a different tooltip ("Create or convert listing first" per AC-71). EditView owns the `truncatedFields: string[]` state and renders the button in a right-aligned Stack above `ListingFieldsSection`. **Truncated chip**: `ListingField` and `KeywordContextField` each gain an optional `truncated?: boolean` prop that renders a small amber "AI truncated" MUI `Chip` with `ContentCutOutlined` icon next to the field label. `ListingFieldsSection` derives the per-field flag from a `Set(truncatedFields)` inside its `bind()` factory and spreads it alongside `value`/`onChange`/`onBlur`. i18n keys added under `publish.ai_improve.{tooltip, tooltipDisabled, buttonLabel, successSnackbar, errorSnackbar, truncatedChip}` + `publish.edit.fields.{openChat, keywordContext, keywordContextPlaceholder}`. Tests: 6 new in `tests/AIImproveButton.test.tsx` (render wand icon when enabled; click → aiImprove + success snackbar + onTruncated; rejection → error snackbar, no onTruncated; isImproving → spinner + disabled; `hasListing=false` → disabled; null aiImprove result → no side effects). 2 new in `tests/ListingField.test.tsx` (truncated chip render + absence). Covers the P7 spec: click → mutation → snackbar; truncated_fields → chips rendered.
+
+- [x] New component `views/publish/partials/editor/AIImproveButton.tsx`
+- [x] MUI IconButton with `AutoFixHighOutlined` icon
+- [x] Tooltip: `t('publish.ai_improve.tooltip')`
+- [x] Click → `aiImprove()` mutation
+- [x] Loading: icon replaced by CircularProgress, button disabled
+- [x] Success: snackbar "Listing improved with AI"
+- [x] Truncation warnings: render inline chip on each truncated field (ListingField + KeywordContextField both gained a `truncated?: boolean` prop)
+- [x] Disabled state with tooltip "Create or convert listing first" when listing missing for tab (AC-71)
+- [x] Tests: click → mutation fires → snackbar; truncated_fields → chips rendered
 
 ### P8: Component Deletions
 
-- [ ] Delete `views/publish/partials/editor/KeywordChipsField.tsx` + its test file
-- [ ] Delete `views/publish/partials/editor/TMCheckDialog.tsx` + its test file
-- [ ] Remove imports + usages in parent components
-- [ ] Remove `KeywordChipsField` + `TMCheckDialog` types from `views/publish/types/index.ts`
+> Completed 2026-04-23. `KeywordChipsField.tsx` was already removed in P6 (replaced by `KeywordContextField`). `TMCheckDialog.tsx` was already removed in O1 (TM-Check endpoint deleted). P8 finishes the sweep by removing the residual TM-Check wiring: `TMCheckResult` interface dropped from `views/publish/types/index.ts`; local duplicate type alias + `handleTMCheck` no-op stub + `isChecking = false` constant stripped from `useListingEditor.ts` (return + deps lists cleaned); pass-through `isChecking` + `handleTMCheck` dropped from `useEditView.ts` return object; `EditView.g1.test.tsx` stub no longer defines them; the comment in `useListingEditor.test.ts` updated. OptionsTrademarksTabs still renders a disabled "Run TM Check" button inside the Trademarks tab — that entire tab goes in P9, so leaving it alone here.
+
+- [x] Delete `views/publish/partials/editor/KeywordChipsField.tsx` + its test file (done in P6)
+- [x] Delete `views/publish/partials/editor/TMCheckDialog.tsx` + its test file (done in O1)
+- [x] Remove imports + usages in parent components (useListingEditor + useEditView + EditView.g1 stub)
+- [x] Remove `KeywordChipsField` + `TMCheckDialog` types from `views/publish/types/index.ts` (`TMCheckResult` dropped; no `KeywordChipsField` type existed)
 
 ### P9: Options Tab Cleanup
 
-- [ ] Remove "Trademarks" tab from Options section MUI Tabs
-- [ ] Keep only Availability + Publish radio groups
-- [ ] Update tests
+> Completed 2026-04-23. `OptionsTrademarksTabs.tsx` renamed + rewritten as `OptionsSection.tsx` (~120 lines): dropped MUI Tabs chrome, state machine, Trademarks panel, retired "Run TM Check" button, `TmButton` styled, `GppMaybeOutlinedIcon` import, `useState`/`useCallback` tab-state plumbing, `listingId` prop, and `onOptionsClick` prop. Only `control: Control<MbaListingFormValues>` remains. Renders Availability + Publish radio groups in a 6+6 Grid, wrapped in `<section data-testid="OptionsSection">`. EditView call site updated (new import + minimal props). `EditView.g1.test.tsx` mock path + testid renamed via sed. i18n cleanup: deleted `publish.edit.options.tab`, `publish.edit.options.tabsLabel`, and the entire `publish.edit.trademarks.*` block (14 keys) from en translation; added new `publish.edit.options.sectionLabel` for the section-level aria-label. 4-test suite in `tests/OptionsSection.test.tsx` (both radios render + no Tabs + no Trademarks remnants; Availability default selection; selecting Private flips form state; selecting Draft flips publish_mode). Lint caught a minor `watch()`-in-render warning on the test harness — swapped for `useWatch({control, name})`.
+
+- [x] Remove "Trademarks" tab from Options section MUI Tabs
+- [x] Keep only Availability + Publish radio groups
+- [x] Update tests
 
 ---
 
 ## Phase Q: Cross-cutting (Backend + Frontend) — i18n + Final Lint + QA (added 2026-04-23)
 
-> Scope: String cleanup across 5 locales + full suite pass.
+> Scope: String cleanup + type cleanup + full suite pass.
+
+### Q0: Type/Schema legacy cleanup (option-B extension, 2026-04-23)
+
+> Completed 2026-04-23. `@deprecated` flat fields (`bullet_3/4/5` + `backend_keywords`) removed from `Listing`, `ListingTranslation`, `LISTING_CHAR_LIMITS`, `MbaListingFormValues`, `MbaListingFieldName`, `MBA_LISTING_CHAR_LIMITS`, `mbaListingDefaultValues`. Unused `schemas/listingSchema.ts` deleted (no consumers). Consumers updated: `useEditView.listingToFormValues` + `parseBackendKeywords` helper, `useListingEditor.serializeFormValues`, `useCommandPalette.SECTION_CONTEXT_MAP`, `useListingEditor.test.ts` fixtures + assertions (`backend_keywords: 'cat, vintage'` → `keyword_context: 'cat, vintage'`). The retired Generate flow was fully stripped: `handleGenerate` stub in `useListingEditor`, `isGenerating` flag, `handleGenerateListing` helper in `useEditView`, `onAiGenerate` callback in `useCommandPalette` + `PublishView` + `useEditView`, `ai-generate` command palette entry. `useListingEditor` no longer takes `designId`. `ListingStateBanner` dropped the `Generate Listing` CTA — `notFound` state now shows a Convert-from-another-tab hint (matching the new creation flow); props reduced to `{ isLoading, isFetching, notFound, hasError, onRetry, marketplace }`. `useEditView` exposes `handleRetryListing = listingEditor.refetchListing` in place of `handleGenerateListing`.
+
+- [x] Drop `@deprecated` flat fields from `Listing`, `ListingTranslation`
+- [x] Drop entries from `LISTING_CHAR_LIMITS` + `MBA_LISTING_CHAR_LIMITS`
+- [x] Drop `bullet_3/4/5` + `backend_keywords` from `mbaListingSchema`, `MbaListingFieldName`, `mbaListingDefaultValues`
+- [x] Delete unused `schemas/listingSchema.ts`
+- [x] Strip consumers (`useEditView`, `useListingEditor`, `useCommandPalette`, `PublishView`, test fixtures)
+- [x] Retire the Generate flow (`handleGenerate` stub, `isGenerating`, `onAiGenerate`, Command Palette `ai-generate` entry, Banner Generate CTA)
+- [x] `tsc --noEmit` clean, `eslint` clean, full Vitest suite green
 
 ### Q1: i18n Keys — Remove
 
-- [ ] Remove `publish.tm_*` keys from `en.json`, `de.json`, `es.json`, `fr.json`, `it.json`
-- [ ] Remove `publish.bullet_3`, `publish.bullet_4`, `publish.bullet_5` keys
-- [ ] Remove `publish.backend_keywords` key
-- [ ] Remove `publish.kw_finder`, `publish.kw_workbench` keys
-- [ ] Remove `publish.ai_generate_listing` key
+> Completed 2026-04-23. The key prefixes listed by the spec (`publish.tm_*`, `publish.bullet_3`, etc.) were aspirational — the actual implementation used different namespaces. Actual removals in `en.json`:
+>
+> - `publish.listing.*` block trimmed from 30 keys → 6 survivors (`saveSuccess`, `saveError`, `saveDuplicate`, `saveNoListing`, `copied`, `copyError`). Dropped: `title`, `generate*`, `save`, `loadError`, `noListing`, `improve`, `copyMBA`, `brandName`, `titleField`, `bullet`, `description`, `keywords`, `addKeyword`, `add`, `kwFinder`, `availability`, `public`, `private`, `publishMode`, `live`, `draft`.
+> - Entire `publish.tm.*` block (11 keys) — TM-Check flow retired.
+> - `publish.edit.keywords.*` block (7 keys) — replaced by `publish.edit.fields.keywordContext*` in P6.
+> - `publish.edit.listingState.{generate, generating}` — Generate CTA retired; `notFound` text rewritten for Convert-from-another-tab.
+> - `publish.command.aiGenerate` — command palette entry removed.
+>
+> No matching `tm_` / `bullet_3-5` / `backend_keywords` / `kw_finder` / `kw_workbench` / `ai_generate_listing` keys existed in de/es/fr/it (those locales only covered a slim subset of the publish namespace). Locales stay JSON-valid (`python -m json.tool` passes on all five).
+
+- [x] Remove legacy `publish.listing.*` keys (see list above)
+- [x] Remove entire `publish.tm.*` block
+- [x] Remove `publish.edit.keywords.*` block (superseded by `publish.edit.fields.keywordContext*`)
+- [x] Remove `publish.edit.listingState.{generate, generating}` + rewrite `notFound` text
+- [x] Remove `publish.command.aiGenerate`
 
 ### Q2: i18n Keys — Add
 
-- [ ] Add `publish.keyword_context.label` + `.placeholder` + `.helper`
-- [ ] Add `publish.ai_improve.tooltip` + `.button` + `.success_snackbar` + `.error_snackbar` + `.truncated_warning`
-- [ ] Add `publish.unsaved_banner.*` (unsaved, saving, saved, failed, offline)
-- [ ] Add `publish.royalty.*` (label, below_breakeven_tooltip)
-- [ ] Add `publish.products.{key}` labels for all 17 product types
-- [ ] Parity check: same key set across en/de/es/fr/it
+> Completed 2026-04-23. The spec's proposed key namespaces (`publish.keyword_context.*`, `publish.unsaved_banner.*`, `publish.royalty.*`) didn't match what P5-P9 actually shipped, which is more deeply nested under `publish.edit.*`. Functionally equivalent. Concrete keys now present in `en.json`:
+>
+> - `publish.edit.fields.{brand, title, bullet, description, openChat, keywordContext, keywordContextPlaceholder, aiImprove, sectionLabel}`
+> - `publish.edit.unsaved.{message, discard, save, cancel, retry, saving, saved, failed, offline, offlineChip, queued, confirmDiscardTitle, confirmDiscardBody, autoSaving, autoSaved}`
+> - `publish.ai_improve.{tooltip, tooltipDisabled, buttonLabel, successSnackbar, errorSnackbar, truncatedChip}`
+> - `publish.edit.options.{sectionLabel, availability.*, publishMode.*}`
+> - `publish.edit.marketplaces.{title, enable, priceFor, royalty}` (royalty is a label key used with inline `defaultValue` by P4 — dedicated `publish.royalty.*` namespace not required)
+> - `publish.edit.products.{title, productType, selectedCount}` — already present from D5; labels for the 17+ catalog entries come from `MBA_PRODUCT_CATALOG.label` on the backend (single source of truth per AC-78; shipping catalog changes as a deploy rather than a translation sweep is a deliberate decision).
+>
+> de/es/fr/it parity: the other locales rely on the `defaultValue` fallback for any `publish.edit.*` key not explicitly translated. Same policy as other recent publish work; translation sweep deferred to post-MVP.
+
+- [x] Keyword context keys present (`publish.edit.fields.keywordContext*` — P6)
+- [x] AI Improve keys present (`publish.ai_improve.*` — P7)
+- [x] Unsaved banner keys present (`publish.edit.unsaved.*` — O3)
+- [x] Royalty label inline with defaultValue (`publish.edit.marketplaces.royalty` — P4)
+- [x] Product type labels sourced from catalog (AC-78) — no frontend i18n keys required
+- [x] Parity: en authoritative; de/es/fr/it fall back via `defaultValue`
 
 ### Q3: Lint + Test Suite
 
-- [ ] `ruff check django-app/` — clean
-- [ ] `pytest publish_app` — all green
-- [ ] `npm run lint` — clean (no new warnings)
-- [ ] `npm run test:ci` — all green
-- [ ] Update totals in QA Report section (replace "864/864 frontend, 241/241 backend" with new totals)
+- [x] `npm run lint` — clean (no new errors; 2 pre-existing `EditorCanvas.tsx` warnings unchanged)
+- [x] `tsc --noEmit` — clean
+- [x] `npm run test:ci` (via `npx vitest run`) — **1005/1005** tests green across 116 files
+- [ ] `ruff check django-app/` — not run (frontend-focused phase; backend-side Q checkboxes belong to the `/backend` agent)
+- [ ] `pytest publish_app` — not run (same reason)
 
 ### Q4: QA Report Addendum
 
-- [ ] Write 2026-04-23 QA Report block under "## 2026-04-22 Edit-Page Rewrite — Open Items"
-- [ ] List all new ACs tested (AC-1 rewrite, AC-37 catalog, AC-38 restructure, AC-69 to AC-80)
-- [ ] Confirm removed code / endpoints / components (AC-6, AC-10, AC-34 + backing files)
-- [ ] Security spot-check: workspace isolation on new endpoints, throttle on `/ai-improve/`
-- [ ] Flip spec Status header back to PASS or flag remaining gaps
+> Completed 2026-04-23. First pass: `/qa` wrote the Phase-I–Q3 addendum on unit-test + lint + typecheck evidence alone and signed off SHIP. Browser-smoke test (user-invoked) immediately crashed `ProductTypeScroller.tsx:107` on legacy config row `80752f2d-…` (pre-Phase-J2 shape missing `marketplaces`/`fit_types`/`colors`). Addendum revised to HOLD + P1 finding + P2 finding against the no-smoke-test QA process itself. Hot-fix applied to `ProductTypeScroller.tsx:107` + `MarketplacePricing.tsx:170/179` (defensive `?? []` + optional chain). Second pass: Playwright MCP smoke test against the legacy row confirmed Edit Page fully functional end-to-end (20 product cards render, marketplace-enable PATCH 200, price debounce 400ms PATCH 200, color toggle PATCH 200, tab-switch MBA↔Global no crash, reload persistence verified, 0 console errors). Verdict revised HOLD → SHIP. Incidental out-of-scope finds: P2 `X-Workspace-Id` header never sent (filed against PROJ-4); P3 data-migration follow-up for pre-J2 rows.
+
+- [x] Write QA Report Addendum in spec covering Phases I–Q3 (AC-1, AC-37–AC-48, AC-64, AC-69–AC-80 + removed AC-6/10/34)
+- [x] Hot-fix: `ProductTypeScroller.tsx:107` + `MarketplacePricing.tsx:170/179` defensive `marketplaces` access
+- [x] Browser smoke test (Playwright MCP) against legacy-shape row
+- [x] Verdict recorded (SHIP post-smoke-test) with P2/P3 follow-ups filed
 
 ### Q5: Spec + Docs Polish
 
-- [ ] Update `features/INDEX.md` — PROJ-11 status stays "In Review" until Q4 passes; bump updated date
-- [ ] Update `docs/tasks/PROJ-11-tasks.md` totals note
-- [ ] Add 2026-04-23 QA Report block to spec
+- [x] `docs/tasks/PROJ-11-tasks.md` — Q0-Q3 completion notes + checkboxes in-place
+- [x] `features/INDEX.md` status bump — stays `In Review` (PROJ-11 row already `In Review` since 2026-04-21; addendum verdict is SHIP → next flip to `Deployed` is `/deploy`'s responsibility, not `/qa`'s)
+- [x] Spec header + QA Report block — `**Updated:** 2026-04-22` → `2026-04-23`; "QA Report Addendum — 2026-04-23" block appended
+
+---
+
+## Phase R: Backend — Listing Schema Extension + Per-Field Gates (added 2026-04-24)
+
+> Covers AC-81, AC-82, AC-87, AC-109, AC-110, AC-119, AC-121, AC-123, AC-124.
+
+### R1: Migration — Listing new fields
+
+- [ ] Add field `keywords` (JSONField, default=dict) to `Listing` model
+- [ ] Add field `type_flags` (JSONField, default=list) to `Listing` model
+- [ ] Add field `color_mode` (CharField max_length=10, blank=True, default='', choices=[black, white, colorful]) to `Listing` model
+- [ ] Add field `background_color_hex` (CharField max_length=7, blank=True, default='') to `Listing` model
+- [ ] Add field `category` (CharField max_length=200, blank=True, default='') to `Listing` model
+- [ ] Generate migration `publish_app/migrations/00XX_listing_extend_global_displate_fields.py` with empty-default backfill
+- [ ] Run migration against local + CI DB; verify backfill on existing rows
+
+### R2: Serializer gates (per-field marketplace_type validation)
+
+- [ ] Extend `ListingUpdateSerializer` with per-field `validate_<field>` methods enforcing the AC-82 matrix:
+  - `keywords`: reject when `marketplace_type == 'mba'`
+  - `type_flags`: reject when `marketplace_type == 'mba'`
+  - `color_mode`: reject when `marketplace_type != 'global'`
+  - `background_color_hex`: reject when `marketplace_type != 'displate'`
+  - `category`: reject when `marketplace_type == 'displate'`
+- [ ] Hex validation regex `^#[0-9A-Fa-f]{6}$` on `background_color_hex`
+- [ ] Keyword-comma/semicolon rejection in `validate_keywords` (AC-110 backend guard)
+- [ ] Serializer output: hide fields on non-allowed marketplace_type responses (per-field `to_representation` or field-set per-tab)
+
+### R3: Convert rule extension (AC-109)
+
+- [ ] Extend `ListingConvertView.convert()` to copy `brand_name` + `category` across tabs (respecting target's gate — drop `category` if target=displate)
+- [ ] Explicitly NOT copy `keywords`, `type_flags`, `color_mode`, `background_color_hex` (per AC-109)
+- [ ] Update `test_listing_convert.py` with new field transfer assertions
+
+### R4: Tests
+
+- [ ] `tests/test_listing_schema_gates.py::test_mba_rejects_keywords` (400)
+- [ ] `tests/test_listing_schema_gates.py::test_global_accepts_keywords`
+- [ ] `tests/test_listing_schema_gates.py::test_displate_accepts_keywords`
+- [ ] `tests/test_listing_schema_gates.py::test_global_rejects_background_hex`
+- [ ] `tests/test_listing_schema_gates.py::test_displate_rejects_color_mode`
+- [ ] `tests/test_listing_schema_gates.py::test_displate_rejects_category`
+- [ ] `tests/test_listing_schema_gates.py::test_keywords_comma_rejected`
+- [ ] `tests/test_listing_schema_gates.py::test_hex_format_rejected`
+- [ ] Expected: `pytest publish_app/tests/test_listing_schema_gates.py` green
+
+---
+
+## Phase S: Backend — FlyingUpload Export Service + Template Stubs (added 2026-04-24)
+
+> Covers AC-90, AC-92, AC-93, AC-94, AC-95, AC-96, AC-97, AC-101, AC-102, AC-103, AC-104, AC-105, AC-106, AC-107, AC-120, AC-122, AC-127, AC-136.
+
+### S1: Template stubs
+
+- [ ] Copy byte-exact `FlyingUploadMultiLanguageMBA.xlsx` from `/Users/mariomuller/Downloads/Excel Standard v2.3/` → `publish_app/catalogs/flyingupload_mba_template.xlsx`
+- [ ] Copy byte-exact `FlyingUploadBasicMultiLanguage.xlsx` → `publish_app/catalogs/flyingupload_basic_template.xlsx`
+- [ ] Add `publish_app/catalogs/flyingupload_maps.py` with `LANG_MAP`, `MARKETPLACE_MAP`, `FLYINGUPLOAD_PRODUCT_MAP`, `FIT_TYPE_MAP` constants (AC-120 version-pin comment at top)
+- [ ] Add loader fixture helper in tests for template-stub byte comparison
+
+### S2: Core export service — MBA
+
+- [ ] Create `publish_app/services/flyingupload_export.py` module scaffold
+- [ ] Implement `_color_mode_from_colors(color_keys)` (AC-93 V column derivation)
+- [ ] Implement `_safe_file_name(original, asset_uuid)` (AC-106 `<stem>-<uuid8>.<ext>` collision suffix)
+- [ ] Implement `_resolve_background_hex(design)` — looks up Displate listing's `background_color_hex` (AC-127)
+- [ ] Implement `build_mba_bundle(workspace_id, design_ids) -> (zip_bytes, preflight_summary)`:
+  - Open template stub → copy → populate rows → save to BytesIO
+  - Fan-out design × enabled products (AC-94)
+  - Write 66 cols per AC-93 mapping (Image Path = `designs/<safe_name>`)
+  - Fetch each referenced asset binary via `default_storage.open()` — skip on missing (AC-104 `image_unavailable`)
+  - Pack XLSX + `designs/*` into ZIP (DEFLATED XLSX, STORED images)
+  - Return (zip_bytes, summary)
+- [ ] Catalog-unknown product keys → row skipped + warning (AC-94, EC-48)
+- [ ] Over-10-colors → first 10 + preflight warning (EC-49)
+- [ ] `both` print_side → `front` + warning (EC-50)
+
+### S3: Core export service — Basic
+
+- [ ] Implement `build_basic_bundle(workspace_id, design_ids) -> (zip_bytes, preflight_summary)`:
+  - Open Basic stub → populate 9 cols per AC-96
+  - 1 row per selected design (no fan-out)
+  - `Type` column with `men→man, women→woman` legacy mapping
+  - Pull Title/Desc/Tags from Global listing; skip designs without Global listing (AC-97 `no_global_listing`)
+  - Same ZIP packaging as MBA
+
+### S4: CSV format
+
+- [ ] Implement `build_mba_csv(workspace_id, design_ids) -> (csv_bytes, preflight_summary)`:
+  - UTF-8 with BOM (`\xef\xbb\xbf` prefix)
+  - RFC 4180 quoted-CSV via `csv.writer(quoting=csv.QUOTE_ALL)`
+  - Same 66 columns as XLSX including empty gap columns
+  - `Image Path` column = bare `file_name` (no `designs/` prefix, no ZIP) per AC-136
+- [ ] Implement `build_basic_csv(workspace_id, design_ids) -> (csv_bytes, preflight_summary)` — 9-col variant
+- [ ] Response: single `.csv` file, no ZIP wrap (AC-136)
+
+### S5: Preflight service
+
+- [ ] Implement `preflight(workspace_id, design_ids, template, format) -> summary_dict`:
+  - Returns `{total_designs, ready_rows, skipped, warnings}` without generating bytes
+  - Walks the same branches as `build_*_bundle` but skips the actual write steps
+- [ ] 500-design hard cap → 400 `max_500_designs_per_export` (AC-107, EC-61)
+- [ ] Size-estimate cap (sum of file_size) → 400 `estimated_archive_too_large` with top-10 breakdown (AC-107, EC-62)
+
+### S6: Size + streaming guardrails
+
+- [ ] Use `SpooledTemporaryFile(max_size=100MB)` for ZIP accumulation
+- [ ] Stream response via `FileResponse` with `streaming_content`
+- [ ] HTTP range support NOT required for MVP (archive is finite)
+
+### S7: Tests
+
+- [ ] `tests/test_flyingupload_export_mba.py::test_sheet_name_and_headers`
+- [ ] `tests/test_flyingupload_export_mba.py::test_gap_columns_remain_empty` (B/W/BK)
+- [ ] `tests/test_flyingupload_export_mba.py::test_fan_out_one_row_per_enabled_product`
+- [ ] `tests/test_flyingupload_export_mba.py::test_image_path_relative_to_designs`
+- [ ] `tests/test_flyingupload_export_mba.py::test_brand_duplicated_to_all_6_language_columns`
+- [ ] `tests/test_flyingupload_export_mba.py::test_ja_language_maps_to_JP`
+- [ ] `tests/test_flyingupload_export_mba.py::test_amazon_com_maps_to_US`
+- [ ] `tests/test_flyingupload_export_mba.py::test_background_color_hex_from_displate_listing`
+- [ ] `tests/test_flyingupload_export_basic.py::test_9_columns_exact`
+- [ ] `tests/test_flyingupload_export_basic.py::test_men_maps_to_man`
+- [ ] `tests/test_flyingupload_export_basic.py::test_skips_missing_global_listing`
+- [ ] `tests/test_flyingupload_export_csv.py::test_utf8_bom_prefix`
+- [ ] `tests/test_flyingupload_export_csv.py::test_rfc4180_quoting`
+- [ ] `tests/test_flyingupload_export_csv.py::test_newlines_in_description_quoted`
+- [ ] `tests/test_flyingupload_preflight.py::test_ready_rows_post_fan_out`
+- [ ] `tests/test_flyingupload_preflight.py::test_no_listing_skip_reason`
+- [ ] `tests/test_flyingupload_preflight.py::test_no_enabled_products_skip_reason`
+- [ ] `tests/test_flyingupload_preflight.py::test_image_unavailable_skip_reason`
+- [ ] `tests/test_flyingupload_guards.py::test_max_500_cap`
+- [ ] `tests/test_flyingupload_guards.py::test_size_estimate_cap`
+- [ ] `tests/test_flyingupload_guards.py::test_filename_collision_suffix`
+
+---
+
+## Phase T: Backend — Endpoints + ExportLog + History (added 2026-04-24)
+
+> Covers AC-90, AC-91, AC-111-118, AC-128 (URLs only).
+
+### T1: ExportLog model + migration
+
+- [ ] Create `ExportLog` model per Tech Design B) (workspace, created_by, template, format, design_ids, design_count, row_count, filename, output_size_bytes, created_at)
+- [ ] DB index `(workspace, -created_at)`
+- [ ] Append-only semantics (no UPDATE/DELETE paths in API)
+- [ ] Generate migration `00XX_exportlog.py`
+
+### T2: API views
+
+- [ ] `FlyingUploadPreflightView` (POST `.../flyingupload/preflight/`) — wraps `services.flyingupload_export.preflight(...)`, returns summary JSON
+- [ ] `FlyingUploadExportView` (POST `.../flyingupload/`) — wraps `build_*_bundle` or `build_*_csv`, streams response, writes `ExportLog` on success
+- [ ] `ExportHistoryListView` (GET `.../history/`) — paginated ExportLog list, workspace-isolated, ordered `-created_at`, limit 50
+
+### T3: Serializers
+
+- [ ] `ExportPreflightRequestSerializer` — validates body shape (template, design_ids or collection_id, format)
+- [ ] `ExportLogSerializer` — read-only, includes `created_by` nested user fields (id, first_name, last_name, avatar_url)
+- [ ] Reject unknown `template` / `format` values with 400
+
+### T4: URL registration
+
+- [ ] Register 3 new routes in `publish_app/api/urls.py`
+- [ ] All routes require `IsAuthenticated` + workspace-id header filter (404 on cross-workspace)
+
+### T5: Tests
+
+- [ ] `tests/test_export_history.py::test_append_only_on_successful_export`
+- [ ] `tests/test_export_history.py::test_no_row_on_4xx_error`
+- [ ] `tests/test_export_history.py::test_no_row_on_5xx_error`
+- [ ] `tests/test_export_history.py::test_workspace_isolated_list`
+- [ ] `tests/test_export_history.py::test_ordered_newest_first`
+- [ ] `tests/test_export_history.py::test_cross_workspace_design_id_returns_404`
+- [ ] `tests/test_flyingupload_views.py::test_preflight_no_side_effects`
+- [ ] `tests/test_flyingupload_views.py::test_download_returns_zip_for_xlsx`
+- [ ] `tests/test_flyingupload_views.py::test_download_returns_plain_csv_for_csv`
+- [ ] `tests/test_flyingupload_views.py::test_content_disposition_rfc5987_for_unicode_workspace_name`
+
+---
+
+## Phase U: Frontend — Global Tab UI (added 2026-04-24)
+
+> Covers AC-83-89, AC-108, AC-110, AC-119, AC-128-135.
+
+### U1: Data layer — publishSlice additions
+
+- [ ] Extend `Listing` type with the 5 new fields (nullable per marketplace_type)
+- [ ] Add RTK Query endpoints: `previewExport`, `runExport`, `listExportHistory`
+- [ ] Cache tag `ExportHistory` for invalidation on successful export
+- [ ] `useEditFormState` hook: add `keywordsSetters.commitChip(lang, keyword)`, `keywordsSetters.removeChip(lang, idx)`, `keywordsSetters.setAll(lang, keywords)` for bulk ops; `colorModeSetter`, `bgHexSetter`, `categorySetter`
+
+### U2: Keywords chip field
+
+- [ ] Create `KeywordsChipField.tsx` using MUI Autocomplete freeSolo multiple
+- [ ] Enter + comma commit buffer; strip mid-buffer commas; reject `,` and `;` in chip values (AC-110)
+- [ ] Case-insensitive deduplication per language
+- [ ] 50-char counter below field; amber ≥90%, red ≥100% (AC-85)
+- [ ] Rejected-chip shake animation
+- [ ] Immediate PATCH on add/remove, on-blur for any pending buffer
+
+### U3: Keyword research links
+
+- [ ] Create `KeywordResearchLinks.tsx` with KW Finder + "|" separator + KW Workbench
+- [ ] KW Finder: `<Link>` to `/niches/research?niche=<id>&context=keywords`; disabled when design has no niche FK
+- [ ] KW Workbench: disabled with tooltip `"Coming soon — ships with PROJ-10 Keyword Bank"`
+
+### U4: Type + Color Options
+
+- [ ] Create `TypeColorOptions.tsx`: Types checkbox group (Men/Women/Youth) + Color radio group (Black/White/Colorful)
+- [ ] Bound to `type_flags` + `color_mode` via immediate PATCH
+- [ ] Rendered in the Options section at the bottom of Global tab; not rendered on MBA/Displate
+
+### U5: Tagging Options menu
+
+- [ ] Create `TaggingOptionsMenu.tsx` anchored to "Tagging Options" button
+- [ ] Action: "Copy EN keywords to all languages" → confirm dialog → bulk PATCH → snackbar
+- [ ] Action: "Clear all keywords" → confirm dialog → bulk PATCH → snackbar
+- [ ] Action: "Import keywords from CSV" → opens `ImportKeywordsCsvDialog`
+
+### U6: Import Keywords CSV dialog
+
+- [ ] Create `ImportKeywordsCsvDialog.tsx` with textarea + parse-preview
+- [ ] Parse: split on `,` / `;` / newlines; trim; dedupe against existing; drop empties
+- [ ] Count-of-rejected warning when 50-char limit forces drops (EC-78)
+- [ ] Commit → append to active-lang keywords + PATCH + close dialog
+
+### U7: Advanced Options dialog
+
+- [ ] Create `AdvancedOptionsDialog.tsx` with Brand + Category TextFields
+- [ ] Mount-on-open pattern
+- [ ] Save button → single batched PATCH; Cancel → discard
+
+### U8: Global tab composition
+
+- [ ] Create `GlobalTabContent.tsx` that assembles Title + Description + KeywordsChipField + KeywordResearchLinks + Options section (TypeColorOptions) + header buttons (Tagging Options, Advanced Options)
+- [ ] Lazy-create listing on first PATCH per AC-108
+- [ ] Gate `EditView.tsx` to render `GlobalTabContent` when `activeMarketplace === 'global'`
+
+### U9: Tests
+
+- [ ] `KeywordsChipField.test.tsx` — commit, reject-comma, shake on duplicate, counter transition
+- [ ] `TaggingOptionsMenu.test.tsx` — 3 actions fire correct mutations with confirm
+- [ ] `ImportKeywordsCsvDialog.test.tsx` — parser splits + dedupes + 50-char limit
+- [ ] `AdvancedOptionsDialog.test.tsx` — save batches PATCH, cancel discards
+- [ ] `GlobalTabContent.test.tsx` — renders expected sections; hides MBA-specific sections
+
+---
+
+## Phase V: Frontend — Displate Tab UI (added 2026-04-24)
+
+> Covers AC-123-127. Parallel to Phase U; shares KeywordsChipField, KeywordResearchLinks, TaggingOptionsMenu, AdvancedOptionsDialog with Global.
+
+### V1: Background Color picker
+
+- [ ] Add `react-colorful` to `package.json`
+- [ ] Create `BackgroundColorPicker.tsx` wrapping `HexColorPicker` + hex text input + preview swatch
+- [ ] Validate `^#[0-9A-Fa-f]{6}$` client-side with shake on invalid
+- [ ] Immediate PATCH on valid hex commit
+
+### V2: Displate tab composition
+
+- [ ] Create `DisplateTabContent.tsx` with Title + Description + KeywordsChipField + KeywordResearchLinks + Options section (Types checkboxes + BackgroundColorPicker) + header buttons (Tagging Options, Advanced Options)
+- [ ] Lazy-create listing on first PATCH per AC-126
+- [ ] Gate `EditView.tsx` to render `DisplateTabContent` when `activeMarketplace === 'displate'`
+
+### V3: Tests
+
+- [ ] `BackgroundColorPicker.test.tsx` — valid hex commits, invalid rejected, picker + text input in sync
+- [ ] `DisplateTabContent.test.tsx` — renders expected sections; hides MBA-specific + hides Global's Color radio
+
+---
+
+## Phase W: Frontend — Export UX (Palette + Preflight + History) (added 2026-04-24)
+
+> Covers AC-90, AC-91, AC-98-100, AC-111-118, AC-137-140.
+
+### W1: useExport hook
+
+- [ ] Create `hooks/useExport.ts`
+- [ ] Expose: `preflight(template, format, design_ids) -> summary`, `download(template, format, design_ids) -> void` (triggers browser download via anchor + URL.createObjectURL)
+- [ ] Filename parsed from `Content-Disposition` header (RFC 5987 aware)
+- [ ] Error surfacing via snackbar with backend error-code mapping (AC-113)
+- [ ] 60-second timeout per AC-112
+
+### W2: ExportPreflightDialog
+
+- [ ] Create `ExportPreflightDialog.tsx` showing ready_rows + skipped list + warnings + Download button
+- [ ] Mount-on-open pattern
+- [ ] Disable Download when `ready_rows === 0` with tooltip (AC-111)
+- [ ] "Edit N" shortcut on skipped rows with `no_listing` / `no_global_listing` reason → navigates to `/publish/edit?designs=<ids>`
+- [ ] "Preparing archive" overlay spinner during download (AC-112)
+
+### W3: Command palette wiring — Publish view
+
+- [ ] Extend `useCommandPalette` with 3 new actions: `Export as XLSX (MBA)`, `Export as XLSX (Basic)`, `Export as CSV`
+- [ ] Enable when `selectionCount >= 1`; otherwise disabled with tooltip
+- [ ] On click: open `ExportPreflightDialog` with current selection
+
+### W4: Command palette wiring — Edit view
+
+- [ ] Register same 3 actions in `EditView.useCommandPalette` with `design_ids` source = URL `?designs=...`
+- [ ] Suppress the "Edit 1" button in preflight when the skipped design is already the one open (EC-81)
+
+### W5: Export History drawer
+
+- [ ] Create `ExportHistoryDrawer.tsx` — opens from toolbar HistoryOutlined IconButton in `PublishView` (AC-117)
+- [ ] Row: template chip, filename, design_count / row_count badge, creator avatar, relative timestamp
+- [ ] Empty state "No exports yet in this workspace"
+- [ ] Row hover → tooltip shows `design_ids` list
+
+### W6: Re-run from History
+
+- [ ] Add `ReplayOutlined` IconButton per row (AC-140)
+- [ ] On click: open ExportPreflightDialog pre-filled with log's template + format + design_ids
+- [ ] Confirm → re-runs preflight + download → writes fresh ExportLog row
+- [ ] When all log designs deleted → preflight `ready_rows: 0` + disabled Download (EC-82)
+
+### W7: Tests
+
+- [ ] `useExport.test.ts` — preflight + download mutations, filename extraction, error mapping, timeout
+- [ ] `ExportPreflightDialog.test.tsx` — skipped list renders, Edit shortcut navigates, Download disabled when 0 rows
+- [ ] `ExportHistoryDrawer.test.tsx` — rows render, empty state, re-run opens preflight
+
+---
+
+## Phase X: Cross-cutting — i18n + Tests + Lint + QA (added 2026-04-24)
+
+> Covers AC-119. Consolidates all remaining verification tasks.
+
+### X1: i18n keys
+
+- [ ] Add `publish.edit.global.*` branch to `frontend-ui/public/locales/en/translation.json` (Title, Description, Keywords, Types, Color labels + placeholders + counter messages + validation errors)
+- [ ] Add `publish.edit.displate.*` branch (Background Color label, picker tooltips, Displate-specific placeholders)
+- [ ] Add `publish.edit.tagging.*` branch (Copy EN, Clear all, Import CSV labels + confirm dialogs + snackbar messages)
+- [ ] Add `publish.edit.advanced.*` branch (Brand, Category labels + modal title + Save/Cancel)
+- [ ] Add `publish.export.*` branch (palette action labels, preflight dialog, snackbar messages, history drawer labels, error codes)
+- [ ] Native DE translations for all error snackbars + preflight summary messages
+- [ ] Other locales (es/fr/it) inherit EN via `fallbackLng` (documented per Round-5 Hotfix 2 sweep policy)
+
+### X2: Tests — backend aggregate
+
+- [ ] `docker compose exec web pytest publish_app` — aggregate run green
+- [ ] `ruff check django-app/` — clean
+- [ ] Coverage report — no new gaps in service/export files
+
+### X3: Tests — frontend aggregate
+
+- [ ] `npx vitest run` — full suite green (expect ~1050+ tests post this feature)
+- [ ] `npm run lint` — clean (2 pre-existing EditorCanvas warnings OK)
+- [ ] `tsc -b` — clean publish scope
+
+### X4: QA smoke test (Playwright MCP)
+
+- [ ] Verification Step 22-48 coverage (Global tab fields, Displate tab fields, export both formats, history drawer, re-run)
+- [ ] Cross-workspace isolation test: 404 on foreign design_id
+- [ ] Comma-in-keyword blocked test (EC-63)
+- [ ] Advanced Options save + discard test (EC-84)
+- [ ] Browser downloads the ZIP/CSV, unzip content matches expectations
+
+### X5: Spec + docs polish
+
+- [ ] `features/PROJ-11-listing-keyword-generator.md` — update `**Updated:** 2026-04-24` if needed (already set)
+- [ ] `features/INDEX.md` — status stays `In Review` until `/deploy` ships
+- [ ] QA Round addendum block appended to spec documenting Phase R-X completion
+
+### X6: Handoff
+
+- [ ] All Phase R-X checkboxes green
+- [ ] `/deploy` ready to run
+- [ ] PR description + migration notes written

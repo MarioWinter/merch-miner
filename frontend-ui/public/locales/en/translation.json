@@ -1794,7 +1794,27 @@
       "template": "Template",
       "upload": "Upload",
       "import": "Import",
-      "publish": "Publish"
+      "publish": "Publish",
+      "uploadSuccess": "{{count}} design(s) uploaded",
+      "uploadError": "{{count}} upload(s) failed",
+      "templateDeleteConfirm": "Delete template \"{{name}}\"? This cannot be undone.",
+      "templateDeleteSuccess": "Template deleted",
+      "templateDeleteError": "Failed to delete template",
+      "templateLibraryTitle": "Upload Templates",
+      "templateLoading": "Loading…",
+      "templateEmpty": "No upload templates yet. Save one from the Edit page to reuse product + pricing config across designs.",
+      "templateDelete": "Delete template",
+      "templateDefaultChip": "Default",
+      "templateBrand": "Brand: {{brand}}",
+      "publishNoSelectionHint": "Select at least one design to publish",
+      "publishSuccess": "{{count}} upload job(s) queued",
+      "publishError": "Failed to queue upload jobs",
+      "publishDialogTitle": "Publish {{count}} design(s)",
+      "publishNoSelection": "Select at least one design first.",
+      "publishNoTemplates": "No upload templates saved yet. Open a design and click \"Save as Template\" to create one.",
+      "publishPickTemplate": "Pick the UploadTemplate to use for every queued job (product types, fit, colors, marketplaces + prices).",
+      "publishSubmitting": "Queuing…",
+      "publishSubmit": "Queue upload jobs"
     },
     "tabs": {
       "myDesigns": "My Designs",
@@ -1808,9 +1828,33 @@
     },
     "card": {
       "select": "Select design",
-      "duplicate": "Duplicate",
+      "duplicate": {
+        "success": "Design duplicated",
+        "error404": "Design no longer exists",
+        "error": "Failed to duplicate design"
+      },
       "move": "Move",
-      "addTags": "Add Tags"
+      "addTags": "Add Tags",
+      "delete": {
+        "success": "Design deleted",
+        "error": "Failed to delete design",
+        "title": "Delete design?",
+        "body": "This will permanently remove the design from your gallery.",
+        "confirm": "Delete"
+      },
+      "tagEditor": {
+        "error": "Failed to update tags",
+        "placeholder": "Add tag…",
+        "ariaLabel": "Edit design tags"
+      },
+      "menu": {
+        "edit": "Edit",
+        "duplicate": "Duplicate",
+        "move": "Move to Collection",
+        "addTags": "Add Tags",
+        "delete": "Delete",
+        "open": "Open card menu"
+      }
     },
     "collections": {
       "title": "Collections",
@@ -1867,36 +1911,12 @@
       "price": "Price"
     },
     "listing": {
-      "title": "Listing Editor",
-      "generate": "Generate Listing",
-      "generateSuccess": "Listing generated",
-      "generateError": "Failed to generate listing",
-      "generateDuplicate": "A listing already exists for this design.",
-      "save": "Save Listing",
       "saveSuccess": "Listing saved",
       "saveError": "Failed to save listing",
       "saveDuplicate": "A listing already exists for this design.",
-      "saveNoListing": "Generate a listing first before saving.",
-      "loadError": "Failed to load listing",
-      "noListing": "Select a design and generate a listing to get started.",
-      "improve": "Improve with AI",
+      "saveNoListing": "Create a listing first before saving.",
       "copied": "Listing copied to clipboard",
-      "copyError": "Failed to copy listing",
-      "copyMBA": "Copy for MBA",
-      "brandName": "Brand Name",
-      "titleField": "Title",
-      "bullet": "Bullet Point",
-      "description": "Description",
-      "keywords": "Backend Keywords",
-      "addKeyword": "Add keywords (comma-separated)...",
-      "add": "Add",
-      "kwFinder": "KW Finder",
-      "availability": "Availability",
-      "public": "Public",
-      "private": "Private",
-      "publishMode": "Publish Mode",
-      "live": "Live",
-      "draft": "Draft"
+      "copyError": "Failed to copy listing"
     },
     "translate": {
       "title": "Translations",
@@ -1906,19 +1926,6 @@
       "error": "Failed to translate listing",
       "notTranslated": "Not yet translated. Click \"Translate to All\" to generate.",
       "overLimit": "over limit"
-    },
-    "tm": {
-      "check": "TM Check",
-      "clean": "No trademark issues found",
-      "flagged": "Potential trademark issues found",
-      "error": "Trademark check failed",
-      "cleanTitle": "All Clear",
-      "cleanMessage": "No trademarked terms were detected in your listing.",
-      "flaggedTitle": "Trademark Warning",
-      "flaggedMessage": "The following terms may be trademarked. Review before uploading.",
-      "close": "Close",
-      "edit": "Edit Listing",
-      "proceedAnyway": "Proceed Anyway"
     },
     "upload": {
       "title": "Upload Queue",
@@ -1983,7 +1990,6 @@
       "bulkSync": "Bulk Sync",
       "translate": "Translate",
       "bulkTags": "Bulk Tags",
-      "aiGenerate": "AI Generate Listing",
       "deleteFiles": "Delete Files",
       "download": "Download",
       "exportXlsx": "Export as XLSX",
@@ -1995,7 +2001,12 @@
       "copyFitFrom": "Copy Fit Types From...",
       "copyPricesFrom": "Copy Prices From...",
       "convertFromGlobal": "Convert from Global",
-      "convertFromMba": "Convert from MBA"
+      "convertFromMba": "Convert from MBA",
+      "selectFirst": "Select at least one design first",
+      "deleteFilesConfirm": "Delete {{count}} design(s)? This cannot be undone.",
+      "deleteFilesSuccess": "{{count}} design(s) deleted",
+      "deleteFilesError": "{{count}} delete(s) failed",
+      "downloadSuccess": "{{count}} download(s) started"
     },
     "actionBar": {
       "label": "Bulk actions",
@@ -2106,7 +2117,14 @@
         "previous": "Previous design",
         "next": "Next design",
         "activeBadge": "Design {{index}}",
-        "remove": "Remove tag"
+        "remove": "Remove tag",
+        "presetLoaded": "Preset loaded",
+        "presetEmpty": "Add tags before saving a preset",
+        "presetDuplicate": "Preset already saved",
+        "presetSaved": "Preset saved",
+        "saveCurrent": "Save current as preset",
+        "noPresets": "No saved presets yet",
+        "deletePreset": "Delete preset"
       },
       "products": {
         "title": "Products",
@@ -2129,7 +2147,8 @@
         "title": "Marketplaces & Prices",
         "price": "Price",
         "royalty": "Royalty",
-        "enable": "Enable {{code}}"
+        "enable": "Enable {{code}}",
+        "priceFor": "Price for {{code}}"
       },
       "placeholder": {
         "comingSoon": "Configuration for {{marketplace}} coming soon"
@@ -2140,26 +2159,28 @@
         "title": "Title",
         "bullet": "Bullet {{n}}",
         "description": "Description",
-        "aiImprove": "AI Improve"
+        "aiImprove": "AI Improve",
+        "openChat": "Open Chat for this field",
+        "keywordContext": "Keyword Context",
+        "keywordContextPlaceholder": "Free-form notes to steer AI Improve — brand tone, avoid-words, audience."
       },
-      "keywords": {
-        "title": "Backend Keywords",
-        "info": "Search terms used by Amazon indexing. Max 500 chars incl. separators.",
-        "addPlaceholder": "+ Add",
-        "addAria": "Add keyword",
-        "remove": "Remove keyword {{kw}}",
-        "kwFinder": "KW Finder",
-        "kwWorkbench": "KW Workbench"
+      "ai_improve": {
+        "tooltip": "Improve with AI",
+        "tooltipDisabled": "Create or convert listing first",
+        "buttonLabel": "AI Improve listing",
+        "successSnackbar": "Listing improved with AI",
+        "errorSnackbar": "AI Improve failed — please try again",
+        "truncatedChip": "AI truncated"
       },
       "translation": {
         "title": "Language",
         "selectLanguage": "Select language",
         "autoTranslate": "Auto Translate",
-        "translateTo": "Translate to…"
+        "translateTo": "Translate to…",
+        "notLocalized": "Brand is the same across languages — edit on the EN tab"
       },
       "options": {
-        "tab": "Options",
-        "tabsLabel": "Listing options and trademarks",
+        "sectionLabel": "Listing options",
         "availability": {
           "title": "Availability",
           "public": "Public",
@@ -2171,21 +2192,6 @@
           "draft": "Draft"
         }
       },
-      "trademarks": {
-        "tab": "Trademarks",
-        "runCheck": "Run TM Check",
-        "hint": "Run a trademark check against your listing content before publishing.",
-        "checkingTitle": "Running trademark check",
-        "cleanTitle": "Trademark check passed",
-        "cleanBody": "All clear — no trademark issues detected.",
-        "flaggedTitle": "Trademark issues found",
-        "flaggedBody": "The following terms may be trademarked. Review before publishing.",
-        "proceed": "Proceed Anyway",
-        "edit": "Edit fields",
-        "close": "Close",
-        "error": "Failed to run trademark check",
-        "noListing": "Save the listing first to run a trademark check."
-      },
       "preview": {
         "label": "Design preview",
         "empty": "No design selected",
@@ -2195,16 +2201,43 @@
         "message": "Unsaved changes",
         "discard": "Discard",
         "save": "Save",
+        "cancel": "Cancel",
+        "retry": "Retry",
+        "saving": "Saving...",
+        "saved": "Saved",
+        "failed": "Save failed",
+        "offline": "You are offline — changes will sync when you reconnect",
+        "offlineChip": "Offline",
+        "queued": "{{count}} queued",
+        "confirmDiscardTitle": "Discard unsaved changes?",
+        "confirmDiscardBody": "Your pending edits will be cleared. This cannot be undone.",
         "autoSaving": "Saving...",
         "autoSaved": "Saved"
       },
       "listingState": {
-        "generate": "Generate Listing",
-        "generating": "Generating...",
-        "notFound": "No listing for {{marketplace}} yet. Generate one to start editing.",
+        "notFound": "No listing for {{marketplace}} yet. Convert from another marketplace tab to start editing.",
         "error": "Failed to load listing for this marketplace.",
         "retry": "Retry"
-      }
+      },
+      "savedLabel": "Saved",
+      "saveLabel": "Save"
+    },
+    "ai_improve": {
+      "truncatedChip": "AI truncated",
+      "tooltipDisabled": "Create or convert listing first",
+      "tooltip": "Improve with AI",
+      "successSnackbar": "Listing improved with AI",
+      "errorSnackbar": "AI Improve failed — please try again",
+      "buttonLabel": "AI Improve listing"
+    },
+    "movePicker": {
+      "success": "Design moved",
+      "error404": "Destination no longer exists",
+      "error": "Failed to move design",
+      "title": "Move to Collection",
+      "readyHint": "Press Move Here to confirm",
+      "pickHint": "Select a folder from the tree",
+      "moveHere": "Move Here"
     }
   },
   "dashboard": {

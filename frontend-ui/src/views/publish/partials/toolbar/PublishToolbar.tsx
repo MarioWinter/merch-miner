@@ -6,6 +6,7 @@ import {
   TextField,
   ToggleButton,
   ToggleButtonGroup,
+  Tooltip,
   InputAdornment,
 } from '@mui/material';
 import { alpha, styled } from '@mui/material/styles';
@@ -222,6 +223,9 @@ const PublishToolbar = ({
 
         {/* Right group */}
         <Box sx={{ flex: 1 }} />
+        {/* Round-5: Template + Publish wired to real dialogs.
+            Template → TemplateLibraryDialog (list + delete). Publish →
+            PublishBatchDialog (pick template + POST /upload-jobs/batch/). */}
         <Button
           variant="outlined"
           size="small"
@@ -240,14 +244,27 @@ const PublishToolbar = ({
         >
           {uploadLabel}
         </Button>
-        <PublishButton
-          variant="contained"
-          size="small"
-          startIcon={<RocketLaunchOutlinedIcon />}
-          onClick={onPublishClick}
+        <Tooltip
+          title={
+            hasSelection
+              ? ''
+              : t('publish.toolbar.publishNoSelectionHint', {
+                  defaultValue: 'Select at least one design to publish',
+                })
+          }
         >
-          {t('publish.toolbar.publish', { defaultValue: 'Publish' })}
-        </PublishButton>
+          <span>
+            <PublishButton
+              variant="contained"
+              size="small"
+              startIcon={<RocketLaunchOutlinedIcon />}
+              disabled={!hasSelection}
+              onClick={onPublishClick}
+            >
+              {t('publish.toolbar.publish', { defaultValue: 'Publish' })}
+            </PublishButton>
+          </span>
+        </Tooltip>
       </Row1>
 
       {/* Row 2: File System Tabs + Breadcrumbs */}

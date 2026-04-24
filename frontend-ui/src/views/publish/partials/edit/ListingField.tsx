@@ -1,12 +1,18 @@
-import { useCallback } from 'react';
-import { Box, IconButton, TextField, Tooltip, Typography } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { useState } from 'react';
+import {
+  Box,
+  Chip,
+  IconButton,
+  Stack,
+  TextField,
+  Tooltip,
+  Typography,
+} from '@mui/material';
+import { alpha, styled } from '@mui/material/styles';
 import AutoFixHighOutlinedIcon from '@mui/icons-material/AutoFixHighOutlined';
-import { Controller, type Control, type FieldPath } from 'react-hook-form';
+import ContentCutOutlinedIcon from '@mui/icons-material/ContentCutOutlined';
 import { useTranslation } from 'react-i18next';
 import { COLORS, DURATION, EASING } from '@/style/constants';
-import type { MbaListingFormValues } from '../../schemas/mbaListingSchema';
-import SectionHeader from './SectionHeader';
 
 // ---------------------------------------------------------------------------
 // Styled
@@ -16,7 +22,7 @@ const FieldWrapper = styled(Box)({
   position: 'relative',
   display: 'flex',
   flexDirection: 'column',
-  '&:hover .ai-improve, &:focus-within .ai-improve': {
+  '&:hover .chat-open, &:focus-within .chat-open': {
     opacity: 1,
   },
 });
@@ -52,7 +58,30 @@ const CharCounter = styled(Typography, {
   transition: `color ${DURATION.fast}ms ${EASING.standard}`,
 }));
 
-const AiImproveButton = styled(IconButton)(({ theme }) => ({
+// Inline warning chip shown after AI-Improve truncates this field
+// server-side (Phase M). Amber tone to match the character-count
+// `amber` branch — this is a soft warning, not an error.
+const TruncatedChip = styled(Chip)(({ theme }) => ({
+  height: 20,
+  backgroundColor: alpha(COLORS.warningDk, 0.16),
+  color: COLORS.warningDk,
+  borderRadius: 6,
+  fontSize: 10,
+  fontWeight: 600,
+  '& .MuiChip-icon': {
+    color: COLORS.warningDk,
+    fontSize: 12,
+    marginLeft: theme.spacing(0.75),
+  },
+  '& .MuiChip-label': {
+    paddingInline: theme.spacing(0.75),
+  },
+}));
+
+// Hover-only Chat icon — opens PROJ-17 Chat with the field value as context
+// (AC-72). Orthogonal to the header's central AI Improve button (Phase P7):
+// per-field free-form refinement vs. one-shot full-listing rewrite.
+const ChatHoverButton = styled(IconButton)(({ theme }) => ({
   position: 'absolute',
   top: theme.spacing(0.5),
   right: theme.spacing(0.5),
@@ -75,34 +104,38 @@ const getSeverity = (length: number, max: number): CounterSeverity => {
   return 'normal';
 };
 
-// Narrow to just the string-valued fields of the listing form.
-type StringFieldName = Extract<
-  FieldPath<MbaListingFormValues>,
-  | 'brand'
-  | 'title'
-  | 'bullet_1'
-  | 'bullet_2'
-  | 'bullet_3'
-  | 'bullet_4'
-  | 'bullet_5'
-  | 'description'
->;
-
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
 interface ListingFieldProps {
-  name: StringFieldName;
-  control: Control<MbaListingFormValues>;
+  /** Current server-side value (from the Listing record). Buffers locally
+   *  until the user blurs; re-syncs when the server value changes. */
+  value: string;
+  /** Called on every keystroke with the buffered value. Parent wires
+   *  this to `textSetters.onChange(field, value)`. */
+  onChange: (value: string) => void;
+  /** Called on blur with the final buffered value. Parent wires this to
+   *  `textSetters.onBlur(field, value)` — the hook PATCHes if dirty. */
+  onBlur: (value: string) => void;
   maxChars: number;
   label: string;
   multiline?: boolean;
   rows?: number;
-  context: string;
-  onOptionsClick?: (context: string) => void;
-  infoTooltip?: string;
-  onAiImprove?: (value: string) => void;
+  /** Inline error from schema validation (if any). */
+  errorMessage?: string;
+  /** AC-72: optional per-field Chat hover icon. Click forwards the current
+   *  buffered value so Chat opens with that context. PROJ-17 will wire
+   *  the actual Chat modal; until then this is a caller-provided stub. */
+  onOpenChat?: (value: string) => void;
+  /** Phase P7: surface an "AI truncated" chip when the last AI-Improve
+   *  run had to shorten this field to fit its max-chars budget. */
+  truncated?: boolean;
+  /** Disabled with a tooltip — used by non-EN tabs on fields that are not
+   *  translated (brand_name, keyword_context). */
+  disabled?: boolean;
+  /** Tooltip shown while the field is disabled. */
+  disabledReason?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -110,83 +143,104 @@ interface ListingFieldProps {
 // ---------------------------------------------------------------------------
 
 const ListingField = ({
-  name,
-  control,
+  value,
+  onChange,
+  onBlur,
   maxChars,
   label,
   multiline = false,
   rows,
-  context,
-  onOptionsClick,
-  infoTooltip,
-  onAiImprove,
+  errorMessage,
+  onOpenChat,
+  truncated = false,
+  disabled = false,
+  disabledReason,
 }: ListingFieldProps) => {
   const { t } = useTranslation();
 
-  const handleOptionsClick = useCallback(
-    (ctx: string) => {
-      onOptionsClick?.(ctx);
-    },
-    [onOptionsClick],
-  );
+  // Local buffer so typing feels instant even before the debounced /
+  // on-blur PATCH commits. Re-sync whenever the server value changes
+  // (tab switch, external edit, successful save). Derived-during-render
+  // + equality-guarded per `react-hooks/set-state-in-effect`.
+  const [buffer, setBuffer] = useState(value);
+  const [lastServerValue, setLastServerValue] = useState(value);
+  if (lastServerValue !== value) {
+    setLastServerValue(value);
+    setBuffer(value);
+  }
 
-  const improveLabel = t('publish.edit.fields.aiImprove', {
-    defaultValue: 'AI Improve',
+  const length = buffer.length;
+  const severity = getSeverity(length, maxChars);
+  const isOver = severity === 'red';
+
+  const chatLabel = t('publish.edit.fields.openChat', {
+    defaultValue: 'Open Chat for this field',
+  });
+
+  const handleChange = (next: string) => {
+    setBuffer(next);
+    onChange(next);
+  };
+
+  const handleBlur = () => {
+    onBlur(buffer);
+  };
+
+  const truncatedLabel = t('publish.ai_improve.truncatedChip', {
+    defaultValue: 'AI truncated',
   });
 
   return (
     <FieldWrapper>
-      <SectionHeader
-        title={label}
-        infoTooltip={infoTooltip}
-        context={context}
-        onOptionsClick={onOptionsClick ? handleOptionsClick : undefined}
-      />
+      <Stack direction="row" alignItems="center" gap={1}>
+        <Typography
+          variant="overline"
+          color="text.secondary"
+          component="label"
+        >
+          {label}
+        </Typography>
+        {truncated && (
+          <TruncatedChip
+            size="small"
+            icon={<ContentCutOutlinedIcon />}
+            label={truncatedLabel}
+            data-testid="ListingField-truncatedChip"
+          />
+        )}
+      </Stack>
 
-      <Controller
-        name={name}
-        control={control}
-        render={({ field, fieldState: { error } }) => {
-          const value = field.value ?? '';
-          const length = value.length;
-          const severity = getSeverity(length, maxChars);
-          const isOver = severity === 'red';
-
-          return (
-            <>
-              <InputWrapper>
-                <StyledTextField
-                  {...field}
-                  value={value}
-                  fullWidth
-                  variant="outlined"
-                  size="small"
-                  multiline={multiline}
-                  rows={multiline ? (rows ?? 3) : undefined}
-                  error={Boolean(error) || isOver}
-                  helperText={error?.message}
-                  inputProps={{ 'aria-label': label }}
-                />
-                {onAiImprove && (
-                  <Tooltip title={improveLabel} arrow placement="top">
-                    <AiImproveButton
-                      className="ai-improve"
-                      size="small"
-                      onClick={() => onAiImprove(value)}
-                      aria-label={improveLabel}
-                    >
-                      <AutoFixHighOutlinedIcon sx={{ fontSize: 16 }} />
-                    </AiImproveButton>
-                  </Tooltip>
-                )}
-              </InputWrapper>
-              <CharCounter variant="caption" severity={severity}>
-                {length}/{maxChars}
-              </CharCounter>
-            </>
-          );
-        }}
-      />
+      <InputWrapper>
+        <StyledTextField
+          value={buffer}
+          onChange={(e) => handleChange(e.target.value)}
+          onBlur={handleBlur}
+          fullWidth
+          variant="outlined"
+          size="small"
+          multiline={multiline}
+          rows={multiline ? (rows ?? 3) : undefined}
+          error={Boolean(errorMessage) || isOver}
+          helperText={errorMessage ?? (disabled ? disabledReason : undefined)}
+          disabled={disabled}
+          inputProps={{ 'aria-label': label }}
+        />
+        {onOpenChat && (
+          <Tooltip title={chatLabel} arrow placement="top">
+            <ChatHoverButton
+              className="chat-open"
+              size="small"
+              onClick={() => onOpenChat(buffer)}
+              aria-label={chatLabel}
+            >
+              <AutoFixHighOutlinedIcon sx={{ fontSize: 16 }} />
+            </ChatHoverButton>
+          </Tooltip>
+        )}
+      </InputWrapper>
+      <CharCounter variant="caption" severity={severity}>
+        {length}/{maxChars}
+      </CharCounter>
     </FieldWrapper>
   );
 };

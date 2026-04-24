@@ -27,11 +27,7 @@ export interface ListingTranslation {
   title: string;
   bullet_1: string;
   bullet_2: string;
-  bullet_3: string;
-  bullet_4: string;
-  bullet_5: string;
   description: string;
-  backend_keywords: string;
 }
 
 export interface Listing {
@@ -45,11 +41,9 @@ export interface Listing {
   title: string;
   bullet_1: string;
   bullet_2: string;
-  bullet_3: string;
-  bullet_4: string;
-  bullet_5: string;
   description: string;
-  backend_keywords: string;
+  // Phase I rename (2026-04-23): `backend_keywords` → `keyword_context`.
+  keyword_context: string;
   status: ListingStatus;
   generated_by: GeneratedBy;
   availability: Availability;
@@ -220,11 +214,6 @@ export interface TranslateListingBody {
   target_languages: ListingLanguage[];
 }
 
-export interface TMCheckResult {
-  flagged_terms: { term: string; field: string; position: number }[];
-  is_clean: boolean;
-}
-
 export interface GalleryListParams {
   page?: number;
   page_size?: number;
@@ -262,7 +251,11 @@ export interface CreateUploadJobBody {
 
 export interface BatchUploadJobBody {
   design_ids: string[];
-  template_id: string;
+  template_id?: string;
+  /** Target marketplace string (e.g. "amazon.com"). Required by the backend
+   *  UploadJobBatchSerializer — one marketplace per batch. Multi-marketplace
+   *  fan-out happens by queuing the batch multiple times (one per target). */
+  marketplace: string;
 }
 
 export interface UploadJobListParams {
@@ -284,12 +277,12 @@ export interface LifecycleResponse {
 
 export interface UploadTemplateCreateBody {
   name: string;
-  brand_name: string;
-  product_types: string[];
-  fit_types: string[];
-  colors: string[];
-  marketplaces: MarketplaceConfig[];
-  print_side: PrintSide;
+  brand_name?: string;
+  // Phase K2 (2026-04-23): per-product config replaces the legacy flat
+  // product_types/fit_types/colors/marketplaces/print_side fields.
+  products_config?: ProductConfigEntry[];
+  marketplace_type?: MarketplaceType;
+  is_default?: boolean;
 }
 
 // ---- UI local types -------------------------------------------------------
@@ -323,11 +316,8 @@ export const LISTING_CHAR_LIMITS = {
   title: 60,
   bullet_1: 256,
   bullet_2: 256,
-  bullet_3: 256,
-  bullet_4: 256,
-  bullet_5: 256,
   description: 2000,
-  backend_keywords: 500,
+  keyword_context: 500,
 } as const;
 
 export const SUPPORTED_LANGUAGES: { code: ListingLanguage; label: string }[] = [
@@ -380,15 +370,28 @@ export interface MbaColor {
 
 // ---- Design Product Config (F4) -----------------------------------------
 
+// Per-product entry stored in `DesignProductConfig.products_config` (AC-38 J2).
+// One entry per MBA product catalog key.
+export interface ProductConfigMarketplaceEntry {
+  marketplace: string;
+  price: number;
+  enabled: boolean;
+}
+
+export interface ProductConfigEntry {
+  product_type: string;
+  enabled: boolean;
+  fit_types: string[];
+  print_side: PrintSide;
+  colors: string[];
+  marketplaces: ProductConfigMarketplaceEntry[];
+}
+
 export interface DesignProductConfig {
   id: string;
   design: string;
   marketplace_type: MarketplaceType;
-  product_types: string[];
-  fit_types: string[];
-  print_side: PrintSide;
-  colors: string[];
-  marketplaces: MarketplaceConfig[];
+  products_config: ProductConfigEntry[];
   created_at: string;
   updated_at: string;
 }
@@ -398,21 +401,28 @@ export interface GetProductConfigParams {
   marketplace_type: MarketplaceType;
 }
 
+// PATCH body — backend accepts either a full-replace `products_config`
+// array (AC-38) or a targeted `op=upsert_product` payload (AC-40). The two
+// shapes are mutually exclusive; the serializer rejects bodies that mix
+// both forms.
 export interface UpdateProductConfigBody {
   marketplace_type: MarketplaceType;
-  product_types?: string[];
-  fit_types?: string[];
-  print_side?: PrintSide;
-  colors?: string[];
-  marketplaces?: MarketplaceConfig[];
+  // ---- Full-replace form (AC-38) ----
+  products_config?: ProductConfigEntry[];
+  // ---- Targeted upsert form (AC-40) ----
+  op?: 'upsert_product';
+  product_type?: string;
+  patch?: Partial<Omit<ProductConfigEntry, 'product_type'>>;
 }
 
+// Copy-from scope enum aligned with backend ``COPY_SCOPE_CHOICES`` (AC-41 Phase L3):
+// ``'all'`` wholesale or a single entry field.
 export type ProductConfigCopyScope =
   | 'all'
   | 'colors'
+  | 'enabled'
   | 'fit_types'
   | 'print_side'
-  | 'product_types'
   | 'marketplaces';
 
 export interface CopyProductConfigFromBody {
@@ -420,4 +430,33 @@ export interface CopyProductConfigFromBody {
   source_design_id: string;
   marketplace_type: MarketplaceType;
   scope: ProductConfigCopyScope;
+  // Optional — scopes a scalar copy to a single product entry (AC-41).
+  product_type?: string;
+}
+
+// ---- MBA Product Catalog (AC-37, Phase L) --------------------------------
+
+export interface MbaProductCatalogRoyalty {
+  coef: number;
+  base: number;
+}
+
+export interface MbaProductCatalogEntry {
+  key: string;
+  label: string;
+  icon_key: string;
+  supports: string[];
+  fit_types_options: string[];
+  print_side_options: PrintSide[];
+  colors_options: MbaColor[];
+  marketplaces: string[];
+  default_prices: Record<string, number>;
+  royalty_formula: Record<string, MbaProductCatalogRoyalty>;
+}
+
+// ---- AI Improve (AC-69..AC-72, Phase M) ---------------------------------
+
+export interface AIImproveListingResponse {
+  listing: Listing;
+  truncated_fields: string[];
 }

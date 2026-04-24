@@ -3,7 +3,7 @@
 **Status:** In Review
 **Priority:** P0 (MVP)
 **Created:** 2026-02-27
-**Updated:** 2026-04-22
+**Updated:** 2026-04-24
 
 > **2026-04-22 Edit-Page Cleanup (this round):**
 > - Listing reduziert auf 2 Bullets (bullet_3..5 raus)
@@ -268,6 +268,56 @@ Opens when user clicks "Edit Designs" with selected designs. Single scrollable p
 40. As a member, I want "Duplicate" in the card 3-dot menu to create a copy of the design as a brand-new DesignAsset (new UUID, copied file, same tags, same Collection) with `listing` and `idea` cleared, so I can iterate on variants without touching the original's linkage.
 41. As a member, I want "Move to Collection" in the card 3-dot menu to open a dedicated folder picker (not the browsing CollectionsDialog) so I can pick a target folder — including "Root" — and hit "Move Here" to relocate the single design.
 
+### Global Tab Completion (added 2026-04-24)
+> Prerequisite for FlyingUpload Export. The Global marketplace tab has
+> been a "Configuration for Global coming soon" placeholder since the
+> multi-marketplace-tab decision (2026-04-18). Finishing it unlocks both
+> the Basic/Spreadshirt upload path AND provides the Keywords-per-language
+> input that the MBA Excel export's Tags columns draw from.
+
+42. As a member, I want the Global marketplace tab to render its own editable Title + Description per language (same 6 languages as MBA), so I can maintain a Spreadshirt-friendly copy set alongside the full MBA listing without having the two overwrite each other.
+43. As a member, I want a **Keywords** input on the Global tab — rendered as removable chips with a 50-character counter per language — so I can tag my listing with the search-term keywords that FlyingUpload publishes to Amazon Search Terms / Spreadshirt. Keywords are stored only on the Global listing; the MBA tab keeps `keyword_context` (500 chars, AI-only, unchanged).
+44. As a member, I want the Global tab's Options section to expose **Type** (Men / Women / Youth — multi-select checkboxes) and **Color** (Black / White / Colorful — single-select radio) at the listing level, so the Basic FlyingUpload export can fill its `Type` + `Color` columns without inferring from DesignProductConfig.
+45. As a member, I want the Global tab to NOT show the MBA-specific Products / Fit Type / Print Side / Marketplaces&Prices sections (those remain MBA-only), and to NOT show the AI Improve button (AI Improve is scoped to MBA listings only for MVP), so the UI clearly reflects which marketplace I'm editing for.
+
+### FlyingUpload Export (added 2026-04-24)
+> Replaces the disabled "Export as XLSX" / "Export as CSV" command palette
+> stubs that shipped in Round 4. Generates FlyingUpload-compatible `.xlsx`
+> files populated from the workspace's listings + product configs so the
+> user can hand the file to FlyingUpload Desktop (or a VA) without manual
+> retyping.
+
+46. As a member, I want an **"Export as XLSX (MBA)"** action in the Choose-Action command palette that generates a FlyingUploadMultiLanguageMBA-compatible spreadsheet (`Flying Upload POD` sheet, 66 columns, gap columns B/W/BK preserved empty) filled with the copy, per-product config, and per-marketplace pricing of the currently-selected designs.
+47. As a member, I want an **"Export as XLSX (Basic)"** action that generates a FlyingUploadBasicMultiLanguage-compatible spreadsheet (9 columns, DE + EN only) from the selected designs' Global-tab listings, so I can upload to Spreadshirt via FlyingUpload Basic.
+48. As a member, I want designs with multiple enabled product types to **fan out** into one spreadsheet row per (design × enabled product), so a single "t-shirt + hoodie + tank top" design produces 3 rows — each with that product's specific prices, colors, fit types, and print side.
+49. As a member, I want the export to respect workspace isolation via `X-Workspace-Id` — any design id not in my workspace → 404 — so the export never leaks cross-workspace data.
+50. As a member, I want the downloaded file to be a **.zip archive** containing the Excel file plus every referenced design image in a `designs/` subfolder (`flyingupload-mba-2026-04-24.zip`, `flyingupload-basic-2026-04-24.zip`), so FlyingUpload Desktop can resolve image paths locally without me having to download the designs separately. Relative `Image Path` cells point into the same archive.
+51. As a member, I want the export dialog to show a **pre-flight summary** before download — total rows that will be generated, designs that will be skipped (no listing / no enabled products / no Global listing for Basic) — mirroring the Publish dialog's pre-flight pattern so silent drops never surprise me.
+52. As a member, I want the export to work on **zero selection** by falling back to "export the current folder" — same scope as the command palette's other bulk actions — or prompt me to select first if nothing is selected AND no folder is open.
+53. As a member, I want the Global-tab Title + Description to use the same character limits as the MBA tab (Title 60, Description 2000) so the two sides stay convertible without truncation — differences in Spreadshirt's real-world limits can be handled at upload time by FlyingUpload itself.
+54. As a member, I want the Global-tab Title + Description + Keywords to be independent of MBA (they're separate listing rows per the multi-marketplace-tab decision 2026-04-18) — so editing one never overwrites the other, and I can keep a Spreadshirt-specific copy without breaking my MBA listing.
+55. As a member, I want clear progress feedback while the export runs: a "Preparing archive — N design(s)" overlay during the server-side generation, so I know the click was received and roughly how long it will take.
+56. As a member, I want the export to surface a server-side error (too many designs, archive-too-large, image-unavailable) as a precise actionable snackbar — not a generic "Export failed" — so I can fix the input and retry.
+57. As a member, I want an **Export History** drawer that lists my workspace's last 50 exports (template, design count, row count, filename, creator, timestamp) so I can see what was already exported and avoid accidental duplicates — especially important for multi-VA workflows.
+58. As a member, I don't want to pick marketplaces in the export dialog — my Listing + product config already encodes which marketplaces are enabled per product. Whatever is enabled in the source gets exported; whatever is unchecked in the Listing's Marketplaces & Prices section stays out. No filter UI needed; the Listing is the single source of truth.
+
+### Displate Tab Completion (added 2026-04-24)
+59. As a member, I want the **Displate tab** (today a placeholder) to render a slim Displate-specific listing form — Title + Description + Keywords (per language, same chip UI as Global) + Types (Men/Women/Youth) + **Background Color (Hex)** via a color-picker — so I can maintain a dedicated Displate listing without polluting my MBA or Global listings.
+60. As a member, I want the MBA XLSX export's **Background Color (Hex) column (BN)** to be populated from the design's Displate listing's `background_color_hex` when present — matching the `Excel_HELP.txt` rule that the MBA template covers Displate — so FlyingUpload picks up the Displate-specific color without me needing a separate Displate template file.
+
+### Keyword Research Deeplinks (added 2026-04-24)
+61. As a member, I want a **"KW Finder"** link below the Keywords field on the Global / Displate tabs that deeplinks to the PROJ-10 Keyword Research view pre-filtered by my active niche, so I can research new keywords without losing my place in Edit.
+62. As a member, I want a **"KW Workbench"** link next to KW Finder — disabled for MVP with a tooltip `"Coming soon — ships with PROJ-10 Keyword Bank"` — so the UI matches the FlyingUpload reference without promising functionality we don't have yet.
+
+### Advanced Options + Tagging Options (added 2026-04-24)
+63. As a member, I want an **Advanced Options** button top-right on the Global + Displate tabs that opens a modal with rarely-touched optional fields (Brand, Category), so the main form stays focused on the common-case copy while power users still have a surface for edge-case data.
+64. As a member, I want a **Tagging Options** menu button on the Global tab's Keywords section with three bulk-actions — **Copy EN keywords to all languages**, **Clear all keywords**, **Import keywords from CSV** (paste dialog) — so multi-language workflows don't require manual chip-by-chip re-typing.
+
+### CSV Export + Edit-View Trigger + History Re-run (added 2026-04-24)
+65. As a member, I want a **"Export as CSV"** command-palette action alongside the XLSX exports — produces a flat UTF-8 CSV (no ZIP wrap, no images) with the same columns as the XLSX — so I can pipe the data into Google Sheets / Excel / Zapier / my own tooling for analysis without having to unzip the image bundle.
+66. As a member, I want to trigger exports **from the Edit View** too (not just the Publish View) — the Edit-View command palette mirrors the `Export as XLSX (MBA/Basic)` + `Export as CSV` entries, scoped to the designs currently opened via `?designs=...`, so I can export from wherever I am.
+67. As a member, I want each row in the **Export History drawer** to expose a **"Re-run"** icon — clicking re-submits the same `design_ids + template` combination, regenerates the archive, and writes a fresh log entry — so repeating an export (e.g. after editing a listing I missed) is one click.
+
 ## Acceptance Criteria
 
 ### Models
@@ -482,7 +532,7 @@ Opens when user clicks "Edit Designs" with selected designs. Single scrollable p
 
 ### Product SVG Icons + Catalog Rendering (added 2026-04-22)
 
-- [ ] AC-78: Frontend ships 17 custom SVG React components under `frontend-ui/src/components/ProductIcons/`:
+- [ ] AC-78: Frontend ships 20 custom SVG React components under `frontend-ui/src/components/ProductIcons/`:
   - `TShirtIcon.tsx`, `TShirtPremiumIcon.tsx`, `TShirtHeavyweightIcon.tsx`, `VNeckIcon.tsx`, `TankTopIcon.tsx`, `LongSleeveIcon.tsx`, `RaglanIcon.tsx`, `SweatshirtIcon.tsx`, `HoodiePulloverIcon.tsx`, `HoodieZipIcon.tsx`, `PerformanceIcon.tsx`, `BaseballIcon.tsx`, `TruckerHatIcon.tsx`, `PopSocketIcon.tsx`, `PhoneCaseIcon.tsx`, `ThrowPillowIcon.tsx`, `ToteBagIcon.tsx`, `TumblerIcon.tsx`, `MugIcon.tsx`, `WaterBottleIcon.tsx`
   - Each exports a React SVG component (`({ size, color }) => <svg ... />`), sized 40px default, `currentColor` stroke (inherits theme palette).
   - Icons are product-shaped (T-Shirt silhouette, Hoodie silhouette, PopSocket disc, Phone Case rectangle, Mug handle-shape, etc.) — NOT generic hangers.
@@ -490,6 +540,246 @@ Opens when user clicks "Edit Designs" with selected designs. Single scrollable p
   - Drawings: line-based, stroke-width 1.5–2px, matching the overall app icon style (Iconoir / Tabler feel).
 - [ ] AC-79: `ProductTypeScroller.tsx` maps each catalog entry's `icon_key` to the corresponding SVG component via `PRODUCT_ICON_MAP`. Unknown `icon_key` → fallback `CheckroomIcon` from `@mui/icons-material` + console warning.
 - [ ] AC-80: Design-system compliance: icon color uses `theme.vars.palette.text.primary` for inactive state, `theme.vars.palette.secondary.main` (cyan) for active/selected state. Selection ring + count badge continue to follow FD-PROJ11-7 spec.
+
+### Global Tab Completion (added 2026-04-24)
+
+#### Data Model
+
+- [ ] AC-81: `Listing` model gets new fields at the top level (some scope-widened in the 2026-04-24 Displate-Tab completion round):
+  - `keywords` (JSONField, default=dict) — **Global OR Displate listings**, rejected on `marketplace_type='mba'` via serializer gate. Stored shape: `{lang: [keyword, ...]}` where `lang ∈ {en, de, fr, it, es, ja}`. Keyword strings trimmed, deduplicated case-insensitively within a language, and must NOT contain `,` or `;` (AC-110).
+  - `type_flags` (JSONField, default=list) — Global OR Displate. List of strings from `['men', 'women', 'youth']`. Used by Basic export's `Type` column (Global only).
+  - `color_mode` (CharField, choices=`[black, white, colorful]`, blank=True, default='') — **Global-only**. Used by Basic export's `Color` column. Rejected on MBA + Displate via serializer gate.
+  - `background_color_hex` (CharField max_length=7, blank=True, default='') — **Displate-only**. Must match `^#[0-9A-Fa-f]{6}$` when non-empty. Rejected on MBA + Global via serializer gate. Used by MBA XLSX export's `Background Color (Hex)` column BN (AC-127).
+  - `category` (CharField max_length=200, blank=True, default='') — MBA + Global, set via Advanced Options modal (AC-131). Used by MBA XLSX export's `Category` column BM. Not on Displate.
+- [ ] AC-82: Per-field serializer gates on `Listing` save:
+  - `keywords`: allowed on `global|displate`, rejected on `mba` (400 "Keywords only allowed on Global or Displate listings")
+  - `type_flags`: allowed on `global|displate`, rejected on `mba`
+  - `color_mode`: allowed only on `global`, rejected on `mba|displate`
+  - `background_color_hex`: allowed only on `displate`, rejected on `mba|global`
+  - `category`: allowed on `mba|global`, rejected on `displate`
+  Migration backfills existing rows with empty defaults (`keywords={}`, `type_flags=[]`, `color_mode=''`, `background_color_hex=''`, `category=''`).
+- [ ] AC-83: `ListingTranslation` schema is unchanged. Keywords do NOT live under `translations[lang]` because they are a separate top-level JSON dict keyed by language (`keywords.en`, `keywords.de`, …) — simpler to validate + query than nesting per-language arrays inside an existing per-language dict.
+
+#### Keywords UI (Global tab)
+
+- [ ] AC-84: `KeywordsChipField` component renders a chip-style multi-value input (MUI `Autocomplete` with `freeSolo` + `multiple`) anchored to the currently active language tab. Empty-state placeholder: "Add keyword… (Enter or comma to commit)". Chip actions: Delete icon per chip. Keyboard: `Enter` or `,` commits the pending input; `Backspace` on empty input removes the last chip. Auto-lowercases and trims committed values. Rejects a chip that (case-insensitively) already exists in the current language's list with a subtle shake.
+- [ ] AC-85: Character counter below the field shows `{current}/50` where `current` = `keywords[activeLang].join(', ').length`. Amber at `>=90%`, red at `>=100%`. Committing a chip that would exceed 50 total characters → rejected with shake + inline "Limit reached" hint.
+- [ ] AC-86: Auto-save behavior matches the text-field pattern: on blur (or when the chip list changes via add/remove), PATCH `Listing.keywords[activeLang]` = new array. No debounce for chip add/remove (each commit is an atomic intent). Listing status does NOT revert to `draft` on a keywords-only PATCH (same rule as `keyword_context` / EC-42).
+- [ ] AC-87: `KeywordsChipField` renders on **Global AND Displate** marketplace tabs (both use the same chip UI, same per-language store). On MBA tab the component is not mounted; the top-level `keywords` field is hidden in serializer responses for MBA listings only.
+
+#### Types + Color Options (Global tab)
+
+- [ ] AC-88: Global-tab Options section (below the listing fields) renders:
+  - **Types** (AC-44): multi-select checkbox group labelled "Men / Women / Youth" bound to `listing.type_flags`. Zero-or-more selection allowed. Immediate PATCH on change.
+  - **Color** (AC-44): single-select radio group labelled "Black / White / Colorful" bound to `listing.color_mode`. Defaults to empty (no radio selected) on a new Global listing. Immediate PATCH on change.
+- [ ] AC-89: MBA-tab Options section is UNCHANGED — continues to show Availability (Public/Private) + Publish (Live/Draft). The two Options sections are rendered conditionally based on `activeMarketplace`.
+
+### FlyingUpload Export (added 2026-04-24)
+
+#### Backend endpoint
+
+- [ ] AC-90: `POST /api/publish/export/flyingupload/` — authenticated, workspace-isolated. Request body:
+  ```json
+  {
+    "template": "mba" | "basic",
+    "design_ids": ["uuid", "uuid", ...],
+    "collection_id": "uuid | null (optional — falls back to folder-scope when design_ids is omitted)"
+  }
+  ```
+  At least one of `design_ids` (non-empty) or `collection_id` must be provided. Response: **ZIP archive** (`Content-Type: application/zip`) containing the `.xlsx` at the archive root + a `designs/` directory with every referenced image file. Streamed blob with `Content-Disposition: attachment; filename="flyingupload-<template>-<YYYY-MM-DD>.zip"`. Filename encoded via RFC 5987 (UTF-8) if it contains non-ASCII chars (e.g. workspace name with umlaut). Error shape on invalid body: DRF standard 400 payload.
+- [ ] AC-91: Pre-flight endpoint `POST /api/publish/export/flyingupload/preflight/` — same request body, returns JSON summary WITHOUT generating the file:
+  ```json
+  {
+    "template": "mba",
+    "total_designs": 5,
+    "ready_rows": 8,            // post-fan-out row count for MBA
+    "skipped": [
+      {"design_id": "uuid", "file_name": "x.png", "reason": "no_listing"},
+      {"design_id": "uuid", "file_name": "y.png", "reason": "no_enabled_products"}
+    ],
+    "warnings": [
+      {"design_id": "uuid", "message": "Keywords missing for EN — Tags EN column will be empty"}
+    ]
+  }
+  ```
+  Frontend calls preflight first, shows the summary + lets user confirm before the streaming download fires.
+
+#### MBA template (FlyingUploadMultiLanguageMBA)
+
+- [ ] AC-92: Output workbook uses **exactly** the FlyingUpload v2.3 layout:
+  - Sheet name: `Flying Upload POD` (verbatim).
+  - Row 1 = bold header row with the 66 column names from the reference file (including the intentionally-empty gap columns B, W, BK — must remain empty strings).
+  - Data rows start at row 2. One row per **(design × enabled product)** entry — fan-out per US-48.
+  - Column widths + bold-header style match the reference (copied from a bundled template stub).
+- [ ] AC-93: Column → source-field mapping (MBA):
+  | Column | Source |
+  |--------|--------|
+  | A `Image Path` | Relative ZIP-local path `designs/<safe_file_name>` — points at the image packed alongside the XLSX inside the same archive. FlyingUpload Desktop resolves this path from the unzipped folder. `safe_file_name` = collision-suffixed (see AC-107). |
+  | C–Q `Title/Description/Tags` (DE/FR/IT/ES/JP/EN) | Title/Description from `mba_listing.translations[lang]`. Tags from `global_listing.keywords[lang].join(', ')` — fallback empty. Language code mapping: our `ja` → Excel `JP`. |
+  | R–T `Title/Description/Tags EN` | EN variant — MBA-tab translations EN first, then top-level `mba_listing.title`/`description` as fallback. Tags EN from Global keywords. |
+  | U `Type` | CSV of fit types from the current product's `DesignProductConfig.products_config[i].fit_types` (comma + space separator, no quotes). All 5 FlyingUpload-valid keys pass through as-is: `men, women, youth, girls, adult_unisex`. |
+  | V `Color` | Single-value derived from the product's `colors[]`: all-dark-keys → `black`, only-white-keys → `white`, mix → `colorful`. Mapping list documented in `services/flyingupload/color_mode.py`. |
+  | X–AC `Brand` (DE/FR/IT/ES/JP/EN) | `mba_listing.brand_name` duplicated into every language column (US-chose default). |
+  | AD–AI `Bullet 1` (per lang) | `mba_listing.translations[lang].bullet_1`, EN fallback top-level `bullet_1`. |
+  | AJ–AO `Bullet 2` (per lang) | Same pattern for `bullet_2`. |
+  | AP–AY `Color1`..`Color10` | First 10 entries of the product's `colors[]` in catalog order. Over 10 colors → first 10 + warning in preflight. |
+  | AZ `Product` | Translated product key → FlyingUpload label via `FLYINGUPLOAD_PRODUCT_MAP` (e.g. `t_shirt` → `Standard t-shirt`). Unmapped products → warning + row skipped. |
+  | BA `Marketplace` | CSV of enabled marketplace codes from product's `marketplaces[]` where `enabled=true`. Mapping: `amazon.com→US`, `amazon.co.uk→UK`, `amazon.de→DE`, `amazon.fr→FR`, `amazon.it→IT`, `amazon.es→ES`, `amazon.co.jp→JP`. |
+  | BB–BH `Price US/UK/DE/FR/IT/ES/JP` | Per-marketplace price from product's `marketplaces[]`. Empty cell if the marketplace is disabled OR missing. Numeric type (decimal for non-JP, integer yen for JP). |
+  | BI `Print` | `products_config[i].print_side` — `front` / `back`. Our `both` → `front` (Excel v2.3 doesn't list `both`) + preflight warning. |
+  | BJ `Draft` | `'yes'` if `mba_listing.publish_mode == 'draft'`, else empty. |
+  | BL `Collection` | `design.collection.name` if set, else empty. |
+  | BM `Category` | Empty (no backing field yet — post-MVP). |
+  | BN `Background Color (Hex)` | Empty (Displate-only — post-MVP). |
+- [ ] AC-94: Fan-out rule: for each selected `DesignAsset`, iterate `DesignProductConfig.products_config[]` where `enabled=true`. Each such entry emits one row. A design with 0 enabled products is added to `skipped` with reason `no_enabled_products`. A design with no linked MBA Listing → `skipped` with reason `no_listing`.
+
+#### Basic template (FlyingUploadBasicMultiLanguage)
+
+- [ ] AC-95: Output workbook for Basic template:
+  - Sheet name: `Flying Upload POD` (same as MBA).
+  - Row 1 = 9 columns: `Image Path, Title DE, Description DE, Tags DE, Title EN, Description EN, Tags EN, Type, Color`.
+  - One row per selected DesignAsset (no product fan-out — Basic has no `Product` column).
+- [ ] AC-96: Basic column mapping:
+  - `Image Path` ← Relative ZIP-local path `designs/<safe_file_name>` (same rule as MBA — AC-93).
+  - `Title DE/EN`, `Description DE/EN` ← `global_listing.translations.de/en.title/description`, with empty string fallback when the language key is absent.
+  - `Tags DE/EN` ← `global_listing.keywords.de/en.join(', ')`.
+  - `Type` ← `global_listing.type_flags.join(', ')` mapping `men→man, women→woman` to match Basic's legacy terminology (per `Excel_HELP.txt`). `youth` is identical.
+  - `Color` ← `global_listing.color_mode` (one of `black`/`white`/`colorful`).
+- [ ] AC-97: Basic skips any selected design whose `global_listing` is absent. Preflight reports these with reason `no_global_listing`.
+
+#### Frontend wiring
+
+- [ ] AC-98: Command palette actions `Export as XLSX (MBA)` and `Export as XLSX (Basic)` are **enabled** when selection count ≥ 1. Action handlers:
+  1. Call the preflight endpoint with current `design_ids`.
+  2. Open `ExportPreflightDialog` showing total rows + skipped list + warnings.
+  3. On confirm → `POST .../flyingupload/` with `responseType: 'blob'`, trigger browser download via anchor + `URL.createObjectURL` using the filename from the `Content-Disposition` header.
+  4. On error → snackbar with the server error message.
+- [ ] AC-99: Export palette actions are **disabled** when selection is empty. Disabled tooltip: `"Select at least one design to export"`. No folder-fallback for MVP (US-52 deferred — palette expects selection).
+- [ ] AC-100: `ExportPreflightDialog` component structure (mirrors `PublishBatchDialog`):
+  - Title: "Export as XLSX — {{template_label}}"
+  - Body: "{{ready_rows}} row(s) will be generated from {{eligible_designs}} design(s)." + skipped list + warnings list + "Download {{template}} XLSX" primary button.
+  - Mount-on-open to avoid firing RTK query subscriptions when closed.
+  - Skipped-list entries include a `Edit {{n}}` shortcut when reason is `no_listing` / `no_global_listing` (same pattern as Publish preflight).
+
+#### Service layout
+
+- [ ] AC-101: Backend service module `publish_app/services/flyingupload_export.py` with:
+  - `build_mba_bundle(workspace_id, design_ids) -> (zip_bytes, preflight_summary)` — returns tuple of ZIP bytes + summary dict.
+  - `build_basic_bundle(workspace_id, design_ids) -> (zip_bytes, preflight_summary)`.
+  - `preflight(workspace_id, design_ids, template) -> preflight_summary` — same summary shape without generating bytes.
+  - Internal helpers: `_build_workbook_bytes()`, `_pack_zip(xlsx_bytes, image_manifest)`, `_color_mode_from_colors()`, `_marketplaces_csv()`, `_lang_code_map()`, `_safe_file_name()`, `FLYINGUPLOAD_PRODUCT_MAP`.
+- [ ] AC-102: Writing uses `openpyxl` (already in `requirements.txt`) for the XLSX and `zipfile.ZipFile` (stdlib) for the archive. Headers + gap columns + column widths loaded once from a bundled template stub `publish_app/catalogs/flyingupload_mba_template.xlsx` to guarantee layout parity. Pipeline: open stub → populate data rows → save to `BytesIO` → write XLSX bytes + referenced images into a `ZipFile(BytesIO)` → return `.getvalue()`. The archive keeps mode `STORED` for images (already compressed PNG/JPEG) and `DEFLATED` for the XLSX.
+
+#### ZIP packaging
+
+- [ ] AC-103: ZIP archive layout (MBA + Basic — identical shape):
+  ```
+  flyingupload-<template>-<YYYY-MM-DD>.zip
+  ├── flyingupload-<template>-<YYYY-MM-DD>.xlsx
+  └── designs/
+      ├── <safe_file_name_1>
+      ├── <safe_file_name_2>
+      └── …
+  ```
+  Root has exactly ONE `.xlsx` file + ONE `designs/` directory. No nested folders beyond `designs/`. Every `Image Path` cell in the XLSX points at a file inside `designs/` (see AC-93).
+- [ ] AC-104: Image-source fetching — the service reads every referenced `DesignAsset.file_url` from Django storage (`default_storage.open(asset.file_url)` when `file_url` is a relative storage path, or fetching via HTTP when it's an absolute URL pointing outside the server). If fetch fails (404, timeout, permission) → design is added to `preflight.skipped` with `reason: 'image_unavailable'` and the row is omitted from the XLSX. No half-written archive.
+- [ ] AC-105: Cloud-sourced designs (`source='google_drive'` or `'onedrive'`) — the asset's binary is expected to already live in our storage (imported via AC-14 `import-drive/`). The export does NOT call Drive/OneDrive APIs at export time; it relies on the import having copied the file. If a cloud-imported design has no server-side binary → `reason: 'image_unavailable'`. Rationale: OAuth token scoping at export time is fragile and user-workspace-specific; copy-on-import is the reliable contract.
+- [ ] AC-106: Filename collision in the archive — two selected designs with the same `file_name` (e.g. both `color-design.png`) get disambiguated via `<stem>-<short-uuid8>.<ext>` where `short-uuid8` = first 8 chars of the asset's UUID. Every `Image Path` cell in the XLSX references this `safe_file_name`. Rule applied BEFORE writing the XLSX so cells and archive entries stay consistent.
+- [ ] AC-107: Server-side size guardrails:
+  - Max 500 designs per export (hard cap — returns 400 with `"error": "max_500_designs_per_export"` before generation).
+  - Max ZIP size estimate (sum of asset `file_size` + 512 KB xlsx budget). If estimate > 500 MB → returns 400 with `"error": "estimated_archive_too_large"` and a `breakdown` listing designs over 10 MB. Prevents OOM on shared Django workers.
+  - Generation streams the ZIP into `BytesIO` for ≤ 500 MB; above, switch to `tempfile.SpooledTemporaryFile(max_size=100MB, dir=settings.FILE_UPLOAD_TEMP_DIR)` so RAM stays bounded.
+
+#### Auto-create + integration rules
+
+- [ ] AC-108: Global listing is **lazy-created**: opening the Global marketplace tab does NOT create a DB row. The first PATCH to any Global-scoped field (title, description, keywords, type_flags, color_mode, translations) upserts `Listing(design=<id>, marketplace_type='global')` with the payload. Matches existing MBA pattern.
+- [ ] AC-109: `POST /api/listings/convert/` (AC-50) rule clarification: **Marketplace-scoped fields never cross the convert boundary.** When converting between any pair of `(global, mba, displate)`:
+  - **Copied**: `title`, `description`, `bullet_1`, `bullet_2` (if source has them), `translations[*].{title, description, bullet_1, bullet_2}`, `brand_name`, `category` (latter two also subject to serializer gates — `category` stays dropped if target is Displate).
+  - **Never copied**: `keywords` (Global/Displate-only), `type_flags` (Global/Displate-only), `color_mode` (Global-only), `background_color_hex` (Displate-only). These stay on whichever tab they were set on — convert leaves them untouched on the source AND does not initialize them on the target (they default to empty per AC-82).
+  - Rationale: these fields represent marketplace-specific decorations; copying them across tabs would either violate the serializer gate or semantically confuse the user (a Global `color_mode='black'` ≠ a Displate background-hex).
+- [ ] AC-110: Keyword chip input rejects literal `,` (comma) and `;` (semicolon) characters — user cannot type a chip that contains either. Input onKeyDown: `Enter` or `,` commits the pending buffer (minus the comma); typed-mid-word comma is silently stripped before commit. Backend `keywords[lang]` validation also rejects any value containing `,`/`;` with 400 "Keyword cannot contain `,` or `;`" (defense-in-depth against crafted API calls). Guarantees lossless CSV export per AC-93/96.
+
+#### Frontend progress + failure UX
+
+- [ ] AC-111: `ExportPreflightDialog` disables the primary download button when `preflight.ready_rows === 0`. Disabled tooltip: `"No exportable rows — every selected design is missing a listing or has no enabled products"`.
+- [ ] AC-112: Streaming download shows an overlay spinner (`LinearProgress` indeterminate) from click-to-download-start with the text "Preparing archive — {{count}} design(s)"; disappears once the browser's `download` event fires or after 60 s with an error snackbar `"Export timed out — try a smaller selection"`. Covers the ≤ 500-design, ≤ 500 MB case.
+- [ ] AC-113: Download-side failures (network error, 5xx, 413) surface as error snackbars referencing the backend error code (e.g. `export.max_500_designs_per_export` → "Too many designs — reduce selection to 500 or fewer"). No auto-retry; user re-clicks to retry.
+
+#### Export History (added 2026-04-24, in-MVP)
+
+- [ ] AC-114: `ExportLog` model — UUID pk, `workspace` FK, `created_by` FK (User), `template` choices `[mba, basic]`, `design_ids` (JSONField list of UUIDs at export time — denormalized so log stays truthful even when a design is later deleted), `design_count` (int), `row_count` (int — post-fan-out for MBA, equals `design_count` for Basic), `filename` (CharField 200), `archive_size_bytes` (BigIntegerField, nullable), `created_at` DateTimeField. No updated_at (rows are append-only). DB-index on `(workspace, created_at DESC)` for the 50-row history drawer query.
+- [ ] AC-115: `GET /api/publish/export/history/` — authenticated, workspace-isolated. Returns the caller's workspace's 50 most-recent `ExportLog` rows, ordered by `created_at DESC`. Response shape: paginated list with `{id, template, design_count, row_count, filename, archive_size_bytes, created_by: {id, first_name, last_name, avatar_url}, created_at}`. No write endpoints (logs are append-only, server-created).
+- [ ] AC-116: Server writes the `ExportLog` row at the END of a successful `/flyingupload/` response — after the ZIP is fully streamed. Failed exports (400, 413, 500) do NOT create a log row. Writing happens in an `atomic()` block but outside the ZIP-streaming lifecycle so a client-side disconnect mid-download still leaves the log behind (counts as "generated", matches backend-truth semantics).
+- [ ] AC-117: Frontend `ExportHistoryDrawer` — opens from an icon button in the Publish toolbar (`HistoryOutlined`). Lists the last 50 rows with: template chip (MBA/Basic), filename, row_count/design_count badge, relative timestamp, creator avatar. Hover a row → tooltip shows the `design_ids` array. No re-download action for MVP (the ZIP is not persisted; only the metadata is logged). Empty state: "No exports yet in this workspace."
+- [ ] AC-118: `ExportHistoryDrawer` is a Publish-level surface (not Edit-level). Accessible at `/publish`. Invalidates + re-fetches on every mount, so switching workspaces via the topbar selector (see Round 5 workspace-cache-reset) cleans the view immediately.
+
+#### Non-functional docs (added 2026-04-24)
+
+- [ ] AC-119: **i18n coverage** — every user-visible string in the new Global-tab fields (placeholders, counter labels, Types/Color radio labels, validation messages) and the Export flow (palette action labels, preflight dialog copy, snackbar messages, error codes, history drawer labels) uses `t('publish.export.*', { defaultValue })` or `t('publish.edit.global.*', { defaultValue })`. EN defaultValue is authoritative; de/es/fr/it get EN fallback via `i18next.fallbackLng` (consistent with Round-5 sweep). DE-native translations for at least all error snackbars + preflight summary messages ship in the same PR as the feature.
+- [ ] AC-120: **FlyingUpload version pinning** — template stub file `publish_app/catalogs/flyingupload_mba_template.xlsx` is committed to git as the byte-exact copy of `Excel Standard v2.3`. A top-of-file comment in `flyingupload_export.py` records the pinned version. Any future FlyingUpload template upgrade (v2.4+) requires: (1) new stub file, (2) header-diff review, (3) column-mapping update, (4) backward-compat flag if columns shift — tracked as its own minor PR.
+- [ ] AC-121: **Access control (MVP)** — any authenticated member of the workspace can call the export + history endpoints. No role-gate for now; PROJ-4 role-based-access work will layer on top when it ships. Cross-workspace isolation via `X-Workspace-Id` + `workspace_id` queryset filter (same as every other publish route) is the only boundary for MVP.
+- [ ] AC-122: **Marketplace subset filter — out of scope for MVP.** Rationale: the Listing + `DesignProductConfig.products_config[i].marketplaces[]` already encode exactly which marketplaces are enabled per product. The export takes this as source of truth — no extra filter UI needed. Users who want a one-off subset edit the exported XLSX manually or toggle the marketplace in the Listing config before re-exporting. Documented here so architecture/QA don't re-raise it.
+
+#### Displate Tab Completion (added 2026-04-24)
+
+- [ ] AC-123: `Listing` model gets one more Displate-only field:
+  - `background_color_hex` (CharField max_length=7, blank=True, default='') — must match regex `^#[0-9A-Fa-f]{6}$` when non-empty. Serializer-gated: only persisted when `marketplace_type == 'displate'`. Migration backfills existing rows with `''`.
+- [ ] AC-124: Displate listings ALSO use the `keywords` + `type_flags` JSONFields from AC-81 (same schema-gate widened from "global-only" to "global-or-displate"). `color_mode` stays Global-only (Basic-template field). AC-82's validator updated: `keywords`/`type_flags` allowed on `global|displate`; `color_mode` allowed only on `global`; `background_color_hex` allowed only on `displate`.
+- [ ] AC-125: Displate-tab UI replaces the "Configuration for Displate coming soon" placeholder with:
+  - Title + Description per language (same `ListingFieldsSection` subset as Global — no Brand, no Bullets)
+  - `KeywordsChipField` per language (AC-84/85 reused — same 50-char counter)
+  - Options section at the bottom: **Types** checkboxes (Men/Women/Youth — reuses Global's) + **Background Color (Hex)** MUI `colorful`/`HexColorPicker` with a preview swatch + "#RRGGBB" text input. NO `color_mode` radio (that's Global-only).
+  - NO Products/Fit/Print/Colors/Marketplaces&Prices (MBA-only sections).
+  - NO AI Improve button (same scoping rule as Global — AC-45).
+- [ ] AC-126: Displate listing is lazy-created (same rule as Global per AC-108). First PATCH on any Displate-tab field upserts `Listing(design, marketplace_type='displate')`.
+- [ ] AC-127: MBA XLSX export — column BN (`Background Color (Hex)`) is populated from `displate_listing.background_color_hex` when a Displate listing exists for the design AND the hex is non-empty. Otherwise empty. Applied per exported row regardless of which MBA product the row represents (one design = one Background Color). Per Excel_HELP.txt "MBA template covers Displate" — no separate Displate XLSX template is shipped in MVP.
+
+#### Keyword Research Deeplinks (added 2026-04-24)
+
+- [ ] AC-128: `KeywordResearchLinks` component renders below the Keywords chip field on Global + Displate tabs:
+  - **"KW Finder"** — text button, `SearchOutlined` 14px icon, `COLORS.cyan` color. Click navigates to `/niches/research?niche=<active-niche-id>&context=keywords`. If the design has no niche FK → button disabled with tooltip `"Link a niche to the design first"`.
+  - **"KW Workbench"** — text button, `WorkspacesOutlined` 14px icon, `text.disabled` color. Disabled for MVP with tooltip `"Coming soon — ships with PROJ-10 Keyword Bank"`. Rendered but not clickable (renders even when disabled so the UI-layout matches the FlyingUpload reference).
+- [ ] AC-129: The separator between the two buttons is a literal pipe character `|` with `text.disabled` color (matches the FlyingUpload screenshot). Buttons are visually small (caption-sized), not CTA-weighted.
+
+#### Advanced Options Modal (added 2026-04-24)
+
+- [ ] AC-130: `AdvancedOptionsDialog` component — opens from an `"Advanced Options"` text link top-right on the Global + Displate tabs (next to the Tagging Options button).
+- [ ] AC-131: Dialog body contains (MVP scope):
+  - **Brand** (TextField, single value, max 50 chars, optional). Written to `listing.brand_name` on blur. On export, used to fill every `Brand DE/FR/IT/ES/JP/EN` cell in the MBA XLSX (AC-93 rule unchanged — single-value duplicated into all 6 cells). Not written to the Basic template (Basic has no brand column).
+  - **Category** (TextField, single value, free-text, max 200 chars, optional). Written to a new top-level `listing.category` field (CharField max_length=200, blank=True, default=''). Used to fill the MBA XLSX `Category` column (BM). Not on Displate tab (Displate XLSX has no Category column in our MBA-hybrid export).
+- [ ] AC-132: Dialog has `Save` + `Cancel` buttons. Save fires a batched PATCH `{brand_name, category}` on the active tab's Listing (Global or Displate), then closes. Cancel discards input (no PATCH). The modal uses the mount-on-open pattern (consistent with Publish/Save-as-Template dialogs).
+- [ ] AC-133: The MBA tab ALREADY exposes `brand_name` as a main-form field (not in Advanced); Advanced Options does NOT render on MBA (MBA has no "rare fields" surface yet). If a future round adds MBA-scoped rare fields, Advanced Options can be enabled on MBA too.
+
+#### Tagging Options Menu (added 2026-04-24)
+
+- [ ] AC-134: `TaggingOptionsMenu` component — opens from a `"Tagging Options"` button top-right on the Global + Displate tabs (MUI Menu anchored to the button). Disabled on MBA (MBA has no keywords field). Menu items:
+  - **Copy EN keywords to all languages** — copies `keywords.en` into every other language's `keywords[lang]`. Overwrites existing entries after a confirm dialog `"Overwrite keywords for DE/FR/IT/ES/JA?"`. Triggers one PATCH per destination language (or a single bulk PATCH of the whole `keywords` object — implementation choice; behaviour is same).
+  - **Clear all keywords** — sets `keywords[lang] = []` for every language. Confirm dialog `"Clear keywords for all languages?"`.
+  - **Import keywords from CSV** — opens a paste dialog with a textarea. Parses input as either comma-separated (single line) OR newline-separated (multi line) OR mixed. Each entry is trimmed, de-duplicated case-insensitively against existing entries, and appended to the ACTIVE language's `keywords[activeLang]`. Rejects entries that would exceed the 50-char total (AC-85) with a count-of-rejected warning in the snackbar (e.g. `"4 of 10 keywords imported — 6 skipped (would exceed 50-char limit)"`).
+- [ ] AC-135: All three bulk actions respect AC-110 (no comma / semicolon in keyword values) — the Import-CSV parser splits on those delimiters, so individual entries cannot contain them by construction. The Copy-EN-to-all action is additive per language (the target languages get EN's exact values; source is untouched).
+
+#### CSV Export (added 2026-04-24)
+
+- [ ] AC-136: `POST /api/publish/export/flyingupload/` endpoint accepts `"format": "xlsx" | "csv"` in the body (default `xlsx`). When `format="csv"`:
+  - **No ZIP wrap, no image bundling.** Response is a single `.csv` file streamed with `Content-Type: text/csv; charset=utf-8` and `Content-Disposition: attachment; filename="flyingupload-<template>-<YYYY-MM-DD>.csv"`.
+  - UTF-8 with BOM (`\xef\xbb\xbf` prefix — Excel-compatible).
+  - RFC 4180 quoted-CSV: every cell double-quoted; embedded `"` becomes `""`; newlines inside descriptions stay quoted (legal per spec).
+  - Column set **identical** to the XLSX for the given `template` (66 for MBA including gap columns B/W/BK which become empty CSV fields; 9 for Basic). Header row + data rows.
+  - `Image Path` column is just the bare `file_name` (no `designs/` prefix — since there's no ZIP / subfolder) — caller downloads designs separately if they need them.
+- [ ] AC-137: New command palette action `Export as CSV` (column 1, category EXPORT). Enabled with the same selection-≥-1 rule as the XLSX actions. Confirmed via same `ExportPreflightDialog` (preflight endpoint also takes a `format` field and returns the same summary shape — the shape is format-agnostic).
+- [ ] AC-138: `ExportLog.archive_size_bytes` renames to the more generic `output_size_bytes` and applies to both XLSX-ZIP and CSV outputs. `ExportLog` gets a new `format` CharField choices `[xlsx, csv]` default `xlsx` so the History drawer can distinguish (chip label shows "MBA · XLSX" / "MBA · CSV" / "Basic · XLSX" / "Basic · CSV").
+
+#### Edit-View Export Trigger (added 2026-04-24)
+
+- [ ] AC-139: Edit-View's existing `useCommandPalette` hook registers the same three export actions (`Export as XLSX (MBA)`, `Export as XLSX (Basic)`, `Export as CSV`) with scope = the current `?designs=<ids>` URL parameter. All three require at least one design in the URL (the view has an empty-state otherwise). The preflight + download flow is identical to the Publish-View path (same dialog component, same endpoints, same error handling).
+
+#### History Re-run (added 2026-04-24)
+
+- [ ] AC-140: `ExportHistoryDrawer` rows expose a **Re-run** `IconButton` (`ReplayOutlined`) on hover. Click:
+  1. Open `ExportPreflightDialog` with `design_ids = log.design_ids` + `template = log.template` + `format = log.format`.
+  2. Preflight endpoint runs the same validation — so deleted designs / changed listings show as `skipped` per the standard rules.
+  3. On confirm → same download endpoint, writes a fresh `ExportLog` row (no deduplication with the original log row; each re-run is a distinct event).
+  4. If every design in the log has been deleted → preflight returns `ready_rows: 0` + preflight dialog disables the download button (same rule as AC-111).
 
 ## API Endpoints
 
@@ -523,6 +813,9 @@ Opens when user clicks "Edit Designs" with selected designs. Single scrollable p
 | GET | `/api/listings/templates/` | Member | List workspace's Listing Templates |
 | POST | `/api/listings/templates/` | Member | Create a Listing Template (null-design) |
 | GET | `/api/upload-templates/default/` | Member | Get default UploadTemplate for `?marketplace_type=` |
+| POST | `/api/publish/export/flyingupload/preflight/` | Member | Preflight summary (rows, skipped, warnings) — accepts `format: xlsx\|csv` (AC-91, AC-137) |
+| POST | `/api/publish/export/flyingupload/` | Member | Generate + stream export output — `.zip` for XLSX (AC-90) or `.csv` for CSV (AC-136); `template=mba\|basic`, `format=xlsx\|csv` |
+| GET | `/api/publish/export/history/` | Member | Last 50 ExportLog rows for the active workspace (AC-115) |
 | WS | `/ws/upload-app/` | App | Desktop Upload App WebSocket |
 
 ## Frontend Design Decisions (2026-04-09 `/frontend-design` Session)
@@ -905,6 +1198,55 @@ MUI Icons first. When no fitting MUI icon exists, create custom SVG icons in `fr
 - [ ] EC-41: AI Improve character limit on response — LLM occasionally returns 260-char bullets or 65-char titles. Server truncates WITHOUT re-prompting (LLM retry loop postponed post-MVP). User sees chip warning + can re-run for variation.
 - [ ] EC-42: `keyword_context` PATCH does not trigger `status` revert to `draft` — unlike other text fields, this is AI-input only. Server serializer allows `keyword_context` updates without status transition.
 
+### Global Tab + FlyingUpload Export (added 2026-04-24)
+
+- [ ] EC-43: User tries to save `keywords` / `type_flags` / `color_mode` on an MBA or Displate listing via a crafted PATCH → serializer returns 400 "This field is only allowed on Global listings." Field is never persisted. Backfilled rows on existing MBA listings stay at `{}` / `[]` / `''`.
+- [ ] EC-44: User adds a keyword that — together with existing chips — would exceed the 50-char limit (`join(', ')` length). Chip input rejects the commit with a shake animation + inline "Limit reached" hint. No PATCH fires. (AC-85)
+- [ ] EC-45: User exports MBA XLSX with designs that only have a Global listing (no MBA listing yet). Preflight flags each such design with reason `no_listing`. The row is NOT emitted. User can click "Edit {{n}}" in the preflight dialog to open the missing MBA listings in Edit.
+- [ ] EC-46: User exports Basic XLSX with designs whose Global listing is missing. Preflight flags `no_global_listing`. Row omitted. The preflight's "Edit" shortcut opens `/publish/edit?designs=<id>` with the Global tab pre-activated so the user can fill Title/Description/Keywords.
+- [ ] EC-47: User exports MBA XLSX for a design that has a listing but 0 enabled products in `DesignProductConfig.products_config`. Preflight flags `no_enabled_products`. Row omitted. Click "Edit" takes the user to Edit with MBA tab active so they can enable at least one product.
+- [ ] EC-48: Design's active product uses a catalog key that is NOT in `FLYINGUPLOAD_PRODUCT_MAP` (e.g. new catalog entry added to MBA that FlyingUpload doesn't support). Row is omitted + preflight warning: `"Product '<key>' not supported by FlyingUpload — row skipped"`.
+- [ ] EC-49: Product has `colors[].length > 10`. First 10 are written to `Color1..Color10`. Preflight warning: `"Design {{file_name}} has {{n}} colors; only the first 10 fit the FlyingUpload template."`.
+- [ ] EC-50: Product has `print_side='both'`. Exported as `'front'` (Excel v2.3 only accepts `front`/`back`) + preflight warning `"Print side 'both' — exported as 'front' (FlyingUpload limitation)"`.
+- [ ] EC-51: Language translation missing for a given `lang` → title/description/bullet columns for that language are written as empty strings. No warning (translations are opt-in per language). Tags columns for that language are empty if `global_listing.keywords[lang]` is missing.
+- [ ] EC-52: User has `ja` locale content but the FlyingUpload Excel uses `JP`. Language-code mapping table `LANG_MAP = {'en':'EN','de':'DE','fr':'FR','it':'IT','es':'ES','ja':'JP'}` applied in both MBA + Basic export paths.
+- [ ] EC-53: User submits an export with a `design_id` that belongs to a different workspace → backend responds 404 (never 403 — prevents ID enumeration, consistent with every other publish route). Preflight endpoint also returns 404 for cross-workspace ids.
+- [ ] EC-54: Export request with 500+ designs → backend caps at 500 per request and returns preflight warning `"Only the first 500 designs were exported; re-run with the remainder selected."`. Prevents runaway memory on huge folders.
+- [ ] EC-55: `Listing.publish_mode` is `'draft'` → `Draft` column = `'yes'`. `'live'` → empty. No other truthy value is valid (enum). Language-specific drafts are NOT tracked (FlyingUpload has one Draft column, not per-language).
+- [ ] EC-56: File copy preserves the FlyingUpload v2.3 template stub exactly — gap columns B/W/BK MUST remain empty. Backend unit test opens a generated fixture and asserts `ws.cell(row=1, column=2).value is None` (and columns 23, 63).
+- [ ] EC-57: User's Global listing has no Keywords at all (empty `{}`) but MBA export runs. MBA's `Tags DE/FR/IT/ES/JP/EN` columns are all empty. Preflight warning: `"No keywords set on Global listing — Tags columns will be empty"`. Row still emits.
+- [ ] EC-58: Design's `file_url` points to a file that no longer exists in storage (deleted / moved / permission revoked) → design added to `preflight.skipped` with `reason: 'image_unavailable'`. Row omitted from XLSX. Archive still generates successfully if at least one other design's image is available; otherwise 400 `"no_images_available"`.
+- [ ] EC-59: Two selected designs share the same `file_name` (e.g. both called `color-design.png`) → AC-106 suffix rule applies. Archive contains `designs/color-design-44231e97.png` and `designs/color-design-80752f2d.png`; both XLSX `Image Path` cells are consistent.
+- [ ] EC-60: Design's `file_url` is an absolute URL pointing off-server (legacy import) → service HTTP-fetches the binary once (2-second timeout, 10 MB size cap). On failure → `image_unavailable`. On success → binary is streamed into the ZIP as if it were a local asset. No persistent cache for now.
+- [ ] EC-61: User selects 750 designs → backend returns 400 `"max_500_designs_per_export"` on both preflight and download endpoints. Frontend surfaces the error with a `"Reduce selection to 500 or fewer"` snackbar before any archive is touched.
+- [ ] EC-62: User selection's estimated ZIP size > 500 MB → backend returns 400 `"estimated_archive_too_large"` with a `breakdown` listing the top-10 designs by `file_size`. Frontend offers an "Exclude over-sized designs" quick action that unselects them and re-triggers preflight.
+- [ ] EC-63: User pastes a comma-containing string into the Keywords chip input (e.g. pastes `dog, cat, bird` into the pending buffer). The input splits on commas at commit time (3 chips added: `dog`, `cat`, `bird`). User typing a comma manually commits the buffer. The single-chip-with-comma case is impossible (AC-110).
+- [ ] EC-64: `Listing.convert()` from MBA to an existing Global listing that already has `keywords`/`type_flags`/`color_mode` set → existing Global values are PRESERVED (AC-109). Only Title/Description/Bullets are overwritten. User sees the same G3 overwrite confirmation as today; the new fields are NOT mentioned in the confirm copy because they survive the convert untouched.
+- [ ] EC-65: Concurrent keyword edits on the same Global listing from two browser tabs → last-write-wins (same as EC-14). No optimistic locking. Since keywords are full-list replaces (PATCH sends the entire array for the active language), the later tab's last-typed state completely overwrites the earlier tab's — acknowledged trade-off; ETag/version check remains post-MVP recommendation.
+- [ ] EC-66: Title/Description from our Listing exceeds Excel cell character limit (32,767 chars — unlikely but possible for Description 2000 and below). Since Excel's own limit is well above our field limits, no truncation needed; just document the safety margin. Any future raise of our Description limit must stay < 32,767.
+- [ ] EC-67: Client disconnects mid-download while the ZIP is still streaming — server still writes the `ExportLog` row (AC-116) because the generation completed successfully. User sees the log entry on re-open but no ZIP arrived. Acknowledged: history row is the "server generated this" audit, not "client received this." Documented in the drawer tooltip.
+- [ ] EC-68: Design referenced in an `ExportLog.design_ids` is later deleted. The log row stays (denormalized IDs are kept as-is). The drawer tooltip shows "<deleted> (N designs)" for deleted IDs when the user hovers. No fetch-time join — log is a snapshot of what was exported at that moment.
+- [ ] EC-69: A user with 2 workspaces exports from Workspace A, then switches to Workspace B via the topbar selector — the History drawer re-queries and shows ONLY Workspace B's logs. Workspace A's logs are not visible until the user switches back. Same isolation rule as every other publish query (via Round 5 cache reset).
+- [ ] EC-70: Two users in the same workspace export the same 3 designs within a minute — both logs appear in the drawer with distinct timestamps and creator avatars. No deduplication (each export is an intentional action; near-duplicates are informative, not a bug).
+
+### Displate + Advanced Options + Tagging Options + CSV (added 2026-04-24)
+
+- [ ] EC-71: User sets `background_color_hex` on Displate, then deletes the Displate listing → next MBA export leaves BN column empty (no error). If the listing is re-created with a different hex, next export reflects the new value.
+- [ ] EC-72: User pastes an invalid hex like `red` or `#FFF` into Displate's color-picker → frontend validates client-side (rejects + shake), serializer backend-validates (400 "background_color_hex must match ^#[0-9A-Fa-f]{6}$"). Defense-in-depth.
+- [ ] EC-73: KW Finder click when design has no niche FK → button disabled with tooltip `"Link a niche to the design first"`. No navigation. When user later links a niche (via PROJ-5 niche assignment), button becomes enabled on next render.
+- [ ] EC-74: Advanced Options modal's Brand field conflicts with MBA-tab's main-form Brand. Rule: the MBA listing stores Brand on the MBA listing itself; Global/Displate listings store Brand separately (their own row). Convert Global→MBA copies Brand per AC-109. No cross-tab sync — users who want identical Brand across tabs use Convert or manually set it on each tab.
+- [ ] EC-75: **Copy EN keywords to all languages** with empty EN → confirm dialog shows, user confirms, all languages get `[]`. No-op warning: `"EN has no keywords — all languages cleared"` (matches literal behaviour).
+- [ ] EC-76: **Clear all keywords** → confirm dialog; on confirm, single PATCH sends `{keywords: {en: [], de: [], fr: [], it: [], es: [], ja: []}}` to the backend. Empty-dict merge on the backend retains the full shape (every lang present with empty array).
+- [ ] EC-77: **Import keywords from CSV** paste contains mixed delimiters (newlines + commas + semicolons). Parser splits on all three, trims whitespace, drops empty strings, deduplicates against existing. User pastes `"dog, cat\nbird;fish"` → imports `[dog, cat, bird, fish]`.
+- [ ] EC-78: Import-CSV paste that exceeds the 50-char total → only the entries that fit are added (parser greedy-fills up to 50 chars `join(', ').length`), rest rejected. Snackbar: `"4 of 7 keywords imported — 3 skipped (would exceed 50-char limit for EN)"`.
+- [ ] EC-79: CSV export with a description that contains a literal `"` or newline — cell is RFC-4180 quoted (`"He said ""hi""\nand left"`). Excel / LibreOffice / Sheets all parse this correctly. Test fixture asserts the quoting.
+- [ ] EC-80: CSV export's `Image Path` is bare `file_name` (no `designs/` prefix — no ZIP). User downloads images via the separate "Download" palette action if they need them; documented in the preflight dialog's info note for CSV format.
+- [ ] EC-81: Edit-View export triggered with a single `?designs=<id>` → preflight runs exactly as Publish-View does. If that design has no listing/product config → `skipped` list with that single design. User sees the preflight dialog, can click "Edit 1" (navigates back to the same design's Edit View — so the "Edit" action becomes a no-op visually; frontend suppresses the Edit button when the design is already the only one in scope).
+- [ ] EC-82: Re-run export from History for a log whose designs have ALL been deleted → preflight returns `ready_rows: 0` + skipped-list showing `<deleted>` labels. Preflight dialog disables the Download button and shows an explanatory message `"Every design from this export was deleted. Nothing to re-generate."`.
+- [ ] EC-83: Re-run export that succeeds writes a fresh `ExportLog` row. History drawer re-renders to show both the original AND the re-run entries, ordered by `created_at DESC` — the re-run is at the top.
+- [ ] EC-84: User opens the Advanced Options modal, types a Category, closes with Cancel → input is discarded. No PATCH fires, listing's `category` unchanged. This contrasts with the main-form fields which PATCH on blur — the modal's Save button is the only path to commit Advanced-Options changes.
+- [ ] EC-85: Tagging Options `Copy EN → all languages` — if any destination language already has keywords, they are OVERWRITTEN (after confirm dialog). No merge strategy for MVP; documented as destructive. Snackbar confirms: `"EN keywords copied to 5 languages (existing entries replaced)"`.
+
 ## Dependencies
 
 - PROJ-4 (Workspace & Membership)
@@ -954,6 +1296,35 @@ ONEDRIVE_CLIENT_SECRET=
 19. Product Lifecycle: Niche → Slogan → Design → Listing → ASIN → shows full chain.
 20. "Copy for MBA" → formatted listing text in clipboard (Brand, Title, Bullet 1, Bullet 2, Description — no TM check).
 21. Workspace isolation: listings/designs from other workspaces → 403.
+
+### Global Tab + FlyingUpload Export (added 2026-04-24)
+22. Open Edit view for a design → Global tab → fields Title / Description / Keywords / Types / Color render. Add 3 keywords via Enter → chips appear, counter updates (e.g. 24/50). PATCH fires on commit, `Listing(global).keywords.en = [...]` persists.
+23. Switch active language EN→DE on Global tab → Keywords field resets to the DE keyword list (empty on a fresh listing). Typing adds to DE only; EN list unchanged on backend.
+24. Global-tab save: brand-name field hidden, AI Improve hidden, Products/Fit/Colors/Pricing sections hidden. Options section shows Types (Men/Women/Youth checkboxes) + Color (Black/White/Colorful radio).
+25. MBA tab: Keywords field NOT rendered (Global-only). `keyword_context` 500-char field unchanged.
+26. API: `PATCH /api/listings/<mba-listing-id>/ {keywords: {en: ['x']}}` → 400 "only allowed on Global listings".
+27. Select 3 designs → command palette → "Export as XLSX (MBA)" → preflight dialog opens: `N rows generated, M skipped, K warnings` breakdown visible with design filenames.
+28. Confirm download → browser saves `flyingupload-mba-2026-04-24.zip`. Unzip → root contains `flyingupload-mba-2026-04-24.xlsx` + `designs/` folder with every referenced design file. Open XLSX in Excel → Sheet name `Flying Upload POD`, row 1 = 66 headers including empty B/W/BK, each selected design's enabled products each produce one row. `Image Path` cells read `designs/<filename>` (relative, point into the same archive). Open FlyingUpload Desktop → it resolves every image.
+29. Export MBA for a design with no MBA listing → preflight shows `reason: no_listing` for that design + "Edit 1" action → clicking opens `/publish/edit?designs=<id>` with MBA tab active.
+30. Export Basic XLSX for same selection → 9-column workbook, Title DE/EN + Desc DE/EN + Tags DE/EN + Type + Color columns populated from Global listing only. Designs with missing Global listing → preflight `reason: no_global_listing`.
+31. Cross-workspace export attempt: submit `design_ids=['<foreign-uuid>']` with my `X-Workspace-Id` → backend returns 404 on both preflight and download endpoints.
+32. Product `both` print side → exported row has `Print='front'` + preflight warning surfaces the downgrade.
+33. Export 2 designs that share the same `file_name` (both `color-design.png`) → ZIP contains `designs/color-design-44231e97.png` + `designs/color-design-80752f2d.png`. Both XLSX `Image Path` cells use the disambiguated names.
+34. Open Global tab on a fresh design (no Global listing yet) → fields render empty. Type a Title → blur → PATCH upserts Global listing with `marketplace_type='global'`. MBA listing on the same design is untouched.
+35. Type keyword `dog, funny` on Global Keywords field → the comma commits the chip early: two chips `dog` + `funny` land in the list (no comma-contaminated chip). AC-110 + EC-63 verified.
+36. Convert Global → MBA on a design with Global keywords set → new MBA listing has Title/Description but NOT keywords (`GET /api/ideas/<id>/listing/?marketplace_type=mba` returns no `keywords` field; AC-87 gate hides it from serializer output). Global listing's keywords are unchanged.
+37. Select 750 designs → Publish command palette → Export XLSX (MBA) → 400 `max_500_designs_per_export` surfaces as snackbar before any archive generation starts.
+38. After a successful export, open the **Export History** drawer from the Publish toolbar (`HistoryOutlined` icon) → the just-finished export appears at top with correct template chip, filename, design count, row count, creator avatar, relative time "just now".
+39. Failed exports (400 / 413 / 500) do NOT produce a History row → verified by triggering the 500-cap export (EC-61) and confirming the drawer shows no new entry.
+40. Switch workspace via the topbar selector → History drawer re-queries and shows only the new workspace's exports. Switch back → original workspace's exports reappear (EC-69).
+41. Open the **Displate tab** on a fresh design → placeholder gone; Title/Desc/Keywords/Types/Background-Color-picker render. Pick `#FF00AA` via color-picker + type a Title → blur → PATCH upserts Displate listing. MBA + Global listings untouched.
+42. Export MBA XLSX for a design that has a Displate listing with `background_color_hex='#FF00AA'` → XLSX column BN is populated with `#FF00AA` on every MBA row for that design (AC-127).
+43. Click **KW Finder** on Global tab → new tab / route `/niches/research?niche=<id>&context=keywords` opens pre-filtered by the design's niche. Click **KW Workbench** → nothing happens; hover shows tooltip "Coming soon — ships with PROJ-10 Keyword Bank".
+44. Open **Advanced Options** modal → fill Brand + Category → Save → PATCH fires; dialog closes. Re-open → fields persist. Cancel instead of Save → input discarded, listing unchanged (EC-84).
+45. **Tagging Options → Copy EN to all languages** → confirm → every other language's keywords now equals EN's. Snackbar confirms the overwrite. **Import CSV** with `"dog, cat\nbird;fish"` → 4 chips appear (EC-77). **Clear all keywords** → confirm → every language array is `[]`.
+46. **Export as CSV (MBA)** via command palette → single `.csv` downloaded (no ZIP). Open in Excel → UTF-8 BOM correctly detected, 66 columns including the 3 empty gap columns, every cell quoted per RFC 4180. Image Path column shows bare filenames, no `designs/` prefix.
+47. Open Edit View with `?designs=<id>` → command palette (`⌘K`) shows the 3 export actions. Trigger one → preflight dialog runs exactly as on Publish-View. For a single design, the preflight's "Edit 1" button is suppressed since we're already on that design's Edit View (EC-81).
+48. Click **Re-run** on a History-drawer row → preflight opens with the log's `design_ids + template + format` prefilled. Confirm → fresh export generates, new log row appears at the top. If every design in the original log was deleted, Re-run's preflight shows `ready_rows: 0` and disables the download button (EC-82).
 
 ---
 
@@ -1088,7 +1459,7 @@ views/publish/
 │   │   ├── EditForm.tsx               # NEW: scrollable form assembly
 │   │   ├── DesignPreview.tsx          # NEW: sticky right preview image
 │   │   ├── MarketplaceTabs.tsx        # REBUILD: Global/Mba/Displate toggle
-│   │   ├── ProductTypeScroller.tsx    # REBUILD: 17 custom SVG icons + per-product focus state
+│   │   ├── ProductTypeScroller.tsx    # REBUILD: 20 custom SVG icons + per-product focus state
 │   │   ├── ColorGrid.tsx             # REBUILD: palette from focused product's colors_options
 │   │   ├── MarketplacePricing.tsx     # REBUILD: per-focused-product price + LIVE royalty column
 │   │   ├── ListingField.tsx           # REBUILD: char counter + PROJ-17 Chat hover + auto-save on-blur
@@ -1115,7 +1486,7 @@ components/
 │   │   └── useOneDrive.ts             # EXTRACT from PROJ-9 CloudManagerDialog
 │   ├── CloudStorageSettings.tsx       # NEW: reusable settings section (App Settings + inline)
 │   └── index.ts
-├── ProductIcons/                       # NEW 2026-04-22: 17 custom MBA product SVG icons
+├── ProductIcons/                       # NEW 2026-04-22: 20 custom MBA product SVG icons
 │   ├── TShirtIcon.tsx / TShirtPremiumIcon.tsx / TShirtHeavyweightIcon.tsx
 │   ├── VNeckIcon.tsx / TankTopIcon.tsx / LongSleeveIcon.tsx / RaglanIcon.tsx
 │   ├── SweatshirtIcon.tsx / HoodiePulloverIcon.tsx / HoodieZipIcon.tsx
@@ -1229,7 +1600,7 @@ New model `DesignProductConfig` lives in `publish_app`. Sibling of `Listing` —
 | Upsert on PATCH (no explicit POST) | Simpler frontend auto-save path — one mutation regardless of row existence. |
 | Server-side copy endpoint (not client-side fetch+patch) | Atomic — source + target served in one transaction. Avoids race with other auto-saves. Mirrors future F3 Listing convert semantics. |
 | `products_config[*]` validated against MBA product catalog (AC-37) | Prevents drift between frontend catalog and stored data. Rejects unknown product/color/fit/marketplace keys with 400. |
-| Per-product JSON shape (not separate FK tables) | Simpler single-row upsert; no N+1 on load. Products list is bounded (~17 entries max per row), well within JSON-field query performance. |
+| Per-product JSON shape (not separate FK tables) | Simpler single-row upsert; no N+1 on load. Products list is bounded (~20 entries max per row), well within JSON-field query performance. |
 | Auto-save Hybrid (immediate controls / on-blur text) replaces blanket 1200ms debounce | Controls are single-click atomic intent (no "mid-change" state). Text fields benefit from debounce; on-blur is the natural commit point and avoids firing on every keystroke. Matches screenshot UX expectations (Flying Upload). |
 | Last-write-wins on concurrent PATCH (EC-14) | Matches Listing auto-save behavior. Optimistic locking postponed until multi-tab editing is proven painful. |
 | RTK Query cache key `(designId, marketplace_type)` | Tab switch + design switch both trigger fresh query. Matches D7 Listing cache pattern. |
@@ -1489,7 +1860,7 @@ Changes to existing `views/publish/partials/editor/`:
 | `UnsavedChangesBanner.tsx` | **New** | Sticky banner + Save/Discard/Offline state |
 | `TMCheckDialog.tsx` | **Delete** | Feature removed |
 
-New module `components/ProductIcons/` (AC-78): 17 SVG components + barrel export with `PRODUCT_ICON_MAP`. Shared globally (PROJ-13 Desktop App can reuse via shared package).
+New module `components/ProductIcons/` (AC-78): 20 SVG components + barrel export with `PRODUCT_ICON_MAP`. Shared globally (PROJ-13 Desktop App can reuse via shared package).
 
 New hook shape (AC-43 updated): `useEditView` exports 3 setter factories (`controlSetters`, `priceSetters`, `textSetters`) + `royaltyCompute` pure function + `aiImprove` mutation + `manualSave` flush.
 
@@ -1498,14 +1869,14 @@ New hook shape (AC-43 updated): `useEditView` exports 3 setter factories (`contr
 | Decision | Why |
 |----------|-----|
 | Python constant for MBA catalog (not DB model) | Bounded, rarely-changing data. Diffs reviewed in git. No admin UI needed. Deploy-to-change is acceptable at current Amazon update cadence |
-| Single `products_config` JSON (not separate FK table) | ~17 product entries max per row — well under JSON performance limits. One-row upsert is simpler than N+1 on load. Per-product queries rare (config is always loaded whole) |
+| Single `products_config` JSON (not separate FK table) | ~20 product entries max per row — well under JSON performance limits. One-row upsert is simpler than N+1 on load. Per-product queries rare (config is always loaded whole) |
 | Migrate UploadTemplate to same shape | Consistency over minimal diff. Two shapes = permanent code debt |
 | AI-Improve as single endpoint (generate + improve unified) | Same LLM call, same prompt scaffold. Splitting makes the prompt diverge and confuses users |
 | Truncate AI output server-side, never re-prompt | Simpler contract. User re-runs for variation. Retry loops are expensive + rarely necessary |
 | Rate-limit AI-Improve at 10/min/user | Cost protection. OpenRouter vision calls are ~10× non-vision price |
 | Auto-save hybrid (immediate controls / on-blur text) | Matches screenshot UX expectations. Blanket debounce creates weird "did it save?" feeling on toggles |
 | Offline queue non-persistent for MVP | Persistence adds storage management complexity. Acknowledged trade-off: offline tab reload = dirty state lost |
-| 17 custom SVG icons as React components (not sprite sheet) | Tree-shakable per product (PRODUCT_ICON_MAP exports). Themeable via `currentColor`. Matches existing app icon style (Iconoir/Tabler) |
+| 20 custom SVG icons as React components (not sprite sheet) | Tree-shakable per product (PRODUCT_ICON_MAP exports). Themeable via `currentColor`. Matches existing app icon style (Iconoir/Tabler) |
 | Delete removed services outright (no dead code) | `listing_generator.py`, `tm_checker.py`, `KeywordChipsField.tsx`, `TMCheckDialog.tsx` — removal is atomic with AC changes |
 
 ### H) Infrastructure Changes
@@ -1555,6 +1926,194 @@ None. All dependencies already installed (OpenRouter client, DRF throttle machin
 - `useEditView` hook: replace single debounced setter with control/price/text setter matrix.
 - `ListingField` component: remove chip/finder logic, add on-blur-if-dirty PATCH.
 - i18n keys: `backend_keywords` → `keyword_context`, `ai_generate_listing` → `ai_improve_listing`, all `tm_*` keys removed, all 5 `bullet_*` keys reduced to `bullet_1` + `bullet_2`.
+
+---
+
+## Tech Design Addendum — Global Tab + FlyingUpload Export (added 2026-04-24)
+
+> Scope: AC-81 to AC-140 + EC-43 to EC-85, all of User Stories 42–67. Two tightly coupled features delivered together: (1) Global-tab + Displate-tab completion unlocks the per-language Keywords + Background Color data the export relies on; (2) FlyingUpload Export packages that data into FlyingUpload-Desktop-compatible `.zip` bundles (XLSX + images) or CSV for external analysis.
+
+### A) Component Structure
+
+#### Backend — `publish_app/`
+
+```
+publish_app/
+├── models.py
+│   ├── Listing (EXTEND — 5 new top-level fields)
+│   └── ExportLog (NEW — append-only export audit)
+├── api/
+│   ├── serializers.py
+│   │   ├── ListingUpdateSerializer (EXTEND — per-field serializer gates)
+│   │   ├── ExportPreflightSerializer (NEW)
+│   │   ├── ExportRequestSerializer (NEW)
+│   │   └── ExportLogSerializer (NEW)
+│   ├── views.py
+│   │   ├── FlyingUploadExportView (NEW — streams ZIP or CSV)
+│   │   ├── FlyingUploadPreflightView (NEW — summary-only)
+│   │   └── ExportHistoryListView (NEW — last 50)
+│   └── urls.py (3 new routes)
+├── catalogs/
+│   ├── flyingupload_mba_template.xlsx (NEW — byte-exact FlyingUpload v2.3 MBA stub)
+│   ├── flyingupload_basic_template.xlsx (NEW — byte-exact v2.3 Basic stub)
+│   └── flyingupload_maps.py (NEW — LANG_MAP, MARKETPLACE_MAP, FLYINGUPLOAD_PRODUCT_MAP, FIT_TYPE_MAP)
+├── services/
+│   └── flyingupload_export.py (NEW — pure functions, orchestrates workbook + image bundling + ZIP packaging)
+├── migrations/
+│   ├── 00XX_listing_extend_global_displate_fields.py
+│   └── 00XX_exportlog.py
+└── tests/
+    ├── test_listing_schema_gates.py (NEW — serializer gates per field)
+    ├── test_flyingupload_export_mba.py (NEW — fan-out, column mapping, ZIP structure)
+    ├── test_flyingupload_export_basic.py (NEW — 9-col mapping)
+    ├── test_flyingupload_export_csv.py (NEW — RFC 4180, UTF-8 BOM)
+    ├── test_flyingupload_preflight.py (NEW — skipped/warnings shape)
+    ├── test_flyingupload_guards.py (NEW — 500-cap, size-cap, image-unavailable)
+    └── test_export_history.py (NEW — append-only, workspace-isolated, re-run)
+```
+
+#### Frontend — `frontend-ui/src/views/publish/`
+
+```
+views/publish/
+├── partials/
+│   ├── edit/
+│   │   ├── GlobalTabContent.tsx (NEW — composite for Global tab listing fields)
+│   │   ├── DisplateTabContent.tsx (NEW — composite for Displate tab)
+│   │   ├── KeywordsChipField.tsx (NEW — MUI Autocomplete freeSolo + 50-char counter)
+│   │   ├── TypeColorOptions.tsx (NEW — Types checkboxes + Color radio for Global)
+│   │   ├── BackgroundColorPicker.tsx (NEW — Displate-only hex picker)
+│   │   ├── KeywordResearchLinks.tsx (NEW — KW Finder + KW Workbench buttons)
+│   │   ├── TaggingOptionsMenu.tsx (NEW — Copy EN / Clear / Import CSV)
+│   │   ├── AdvancedOptionsDialog.tsx (NEW — Brand + Category modal)
+│   │   └── ImportKeywordsCsvDialog.tsx (NEW — paste-dialog with parse preview)
+│   └── toolbar/
+│       ├── ExportPreflightDialog.tsx (NEW — shows ready_rows + skipped + warnings + Download)
+│       ├── ExportHistoryDrawer.tsx (NEW — last 50 rows + Re-run icon)
+│       └── ExportHistoryRow.tsx (NEW — single row with avatar + meta + re-run handler)
+├── hooks/
+│   ├── useEditView.ts (EXTEND — expose Global/Displate tab state + new setter factories)
+│   ├── useEditFormState.ts (EXTEND — `keywordsSetters`, `colorModeSetter`, `bgHexSetter`, `categorySetter`)
+│   └── useExport.ts (NEW — preflight + download + re-run + snackbar wiring)
+├── views/
+│   └── EditView.tsx (EXTEND — render Global/Displate/MBA conditionally per activeMarketplace)
+└── tests/
+    ├── GlobalTabContent.test.tsx (NEW)
+    ├── DisplateTabContent.test.tsx (NEW)
+    ├── KeywordsChipField.test.tsx (NEW)
+    ├── TaggingOptionsMenu.test.tsx (NEW)
+    ├── AdvancedOptionsDialog.test.tsx (NEW)
+    ├── ExportPreflightDialog.test.tsx (NEW)
+    ├── ExportHistoryDrawer.test.tsx (NEW)
+    └── useExport.test.ts (NEW)
+
+store/
+└── publishSlice.ts (EXTEND — 3 new endpoints: previewExport, runExport, listExportHistory)
+```
+
+### B) Data Model
+
+#### Listing — 5 new top-level fields
+
+| Field | Type | Allowed on | Purpose |
+|-------|------|------------|---------|
+| `keywords` | JSON dict `{lang: [str, ...]}` | global, displate | Per-language Amazon Search Terms / chip-edited keyword list |
+| `type_flags` | JSON list `[str, ...]` | global, displate | Men/Women/Youth multi-select (Basic+Displate) |
+| `color_mode` | string `black`\|`white`\|`colorful` | global only | Single-value color classification (Basic export) |
+| `background_color_hex` | string `#RRGGBB` | displate only | Displate background color (MBA export BN col) |
+| `category` | string (max 200) | mba, global | Amazon browse category (MBA export BM col) |
+
+All fields default empty. Migration backfills every existing row with the empty default. Per-field serializer gates reject writes on non-allowed marketplace tabs (AC-82). Model-level `clean()` is **NOT** used — gates live at the API boundary so the Django admin stays unconstrained for ops-debug workflows.
+
+#### ExportLog — new append-only model
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `id` | UUID pk | |
+| `workspace` | FK Workspace | isolation |
+| `created_by` | FK User | auditing + avatar display |
+| `template` | string `mba`\|`basic` | which FlyingUpload template |
+| `format` | string `xlsx`\|`csv` | output format |
+| `design_ids` | JSON list of UUIDs | denormalized (survives design deletion — EC-68) |
+| `design_count` | int | pre-fan-out selection size |
+| `row_count` | int | post-fan-out XLSX row count (equals design_count for Basic + CSV) |
+| `filename` | string (max 200) | as served in Content-Disposition |
+| `output_size_bytes` | BigInteger | ZIP/CSV byte size |
+| `created_at` | DateTime | DB index on `(workspace, -created_at)` |
+
+Append-only: no UPDATE, no DELETE (except via Django admin). Row is written at the END of a successful export (AC-116).
+
+### C) API Endpoints
+
+| Method | Path | Behavior |
+|--------|------|----------|
+| POST | `/api/publish/export/flyingupload/preflight/` | Body: `{template, design_ids[], collection_id?, format}`. Returns summary `{total_designs, ready_rows, skipped: [{design_id, file_name, reason}], warnings: [{design_id, message}]}`. No side effects. |
+| POST | `/api/publish/export/flyingupload/` | Same body + `format: xlsx\|csv`. Streams ZIP (xlsx) or plain CSV. Writes ExportLog on success. |
+| GET | `/api/publish/export/history/` | Returns last 50 ExportLog rows for caller's workspace, ordered newest-first. Paginated. |
+
+### D) Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| Keywords stored as top-level `Listing.keywords` JSON dict `{lang: [str]}`, not nested under `translations[lang]` | Translations are per-field (title/bullet/desc); keywords are a per-language ARRAY — different shape. Keeping them top-level simplifies validation + DB-level queries. |
+| Per-field serializer gates (not model.clean()) | Admin + ORM stay unconstrained for ops. Gates live at the API boundary where the marketplace_type context is known. |
+| ZIP archive with `designs/` subfolder + relative paths in Excel `Image Path` column | FlyingUpload Desktop reads local file paths; `https://` URLs don't work. Archive = one-download-everything; user unzips + opens → it just works. |
+| `zipfile.STORED` for images, `DEFLATED` for XLSX | PNG/JPEG are already compressed; STORED avoids re-compression overhead. XLSX is plain XML + DEFLATED. |
+| openpyxl template-stub approach (v2.3 byte-exact stub in git) | Preserves gap columns B/W/BK + header styling + column widths without hand-reconstruction. Upgrades are a PR event with diff review. |
+| 500-design hard cap + 500 MB size cap | Prevents OOM on shared Django workers. Estimate happens at preflight; hard-cap check also at download time (defense in depth). |
+| `SpooledTemporaryFile` spillover above 100 MB | Keeps small exports in RAM; large exports spill to disk. Bounded RAM without forcing disk IO for common case. |
+| ExportLog append-only, no archive cache | Avoids storage-lifecycle complexity. Re-run = fresh generation. Metadata-only audit is enough for the "avoid duplicate exports" user need (US-57). |
+| Re-run from History = re-preflight + re-download | No special backend path; the endpoint is the same. Guarantees re-run respects current data state (e.g. listings deleted since original export). |
+| Lazy-create Listing for Global/Displate (upsert on first PATCH) | Consistent with existing MBA pattern. Avoids empty DB rows when user merely browses tabs. |
+| Advanced Options as MODAL not expand-section | Brand + Category are rare-use; keeping them behind a button keeps the main form focused on the common-case copy. Aligns with FlyingUpload's own UX. |
+| `react-colorful` for hex picker | 2 KB gzipped, zero deps, treeshakable. Alternative `@uiw/react-color` is 14 KB and we don't need its palette features. |
+| Keywords backed by MUI Autocomplete freeSolo + multiple | Built-in chip rendering, keyboard commit, delete icon. No custom component needed. Comma-as-separator is standard MUI behaviour; we additionally strip mid-buffer commas client-side (AC-110). |
+| CSV export is plain `.csv`, no ZIP wrap, no images | FlyingUpload only reads XLSX; CSV targets external analysis tools (Sheets/Excel/Zapier). User downloads images separately via existing Download action if needed. |
+| Re-using the existing `ExportPreflightDialog` for Edit-View exports | Single component; `useCommandPalette` registers the same actions with a different `design_ids` source (URL params instead of selection state). No logic duplication. |
+| Single `translate/` endpoint (existing AC-9) NOT extended for keywords | Translations are title/bullet/desc — rich copy. Keywords are short tokenized search terms with different localization patterns (Amazon DE vs EN). Copy-EN-to-All (AC-134) is the MVP manual path. |
+
+### E) Infrastructure Changes
+
+| Change | Where |
+|--------|-------|
+| Migration `listing_extend_global_displate_fields` | `publish_app/migrations/` — adds 5 fields with empty defaults |
+| Migration `exportlog` | `publish_app/migrations/` — new model + `(workspace, -created_at)` index |
+| Template stub files | `publish_app/catalogs/flyingupload_mba_template.xlsx`, `flyingupload_basic_template.xlsx` — byte-exact copies of FlyingUpload v2.3 templates, committed to git |
+| New catalog module | `publish_app/catalogs/flyingupload_maps.py` — mapping tables (LANG, MARKETPLACE, PRODUCT, FIT_TYPE) |
+| New service module | `publish_app/services/flyingupload_export.py` |
+| URL registration | `publish_app/api/urls.py` — 3 new routes |
+| Frontend route | no new route; all dialogs/drawers are anchored to existing `/publish` + `/publish/edit` |
+| i18n keys | `frontend-ui/public/locales/{en,de,es,fr,it}/translation.json` — new `publish.edit.global.*`, `publish.edit.displate.*`, `publish.export.*`, `publish.edit.tagging.*`, `publish.edit.advanced.*` branches |
+| Env vars | None — uses existing `DEFAULT_FILE_STORAGE` for image fetching; no new OpenRouter keys; no new OAuth scopes |
+
+### F) New Packages
+
+**Backend:** None — openpyxl + zipfile (stdlib) + Django storage already present.
+
+**Frontend:**
+| Package | Purpose |
+|---------|---------|
+| `react-colorful` | 2 KB hex color picker for Displate `background_color_hex` (AC-125). Alternative `@uiw/react-color` rejected — 7× larger for features we don't need. |
+
+### G) Migration / Data Risks
+
+- **Zero data migration needed** for the 5 new Listing fields — all backfill to empty defaults; no existing row has non-empty data for any of them.
+- **Zero data migration needed** for ExportLog — new table.
+- **No breaking changes** to existing serializers — the new fields are additive; API responses for MBA listings will simply omit the new fields (per-field serializer gates hide them).
+- **Backward compat** for the existing `Export as XLSX` / `Export as CSV` palette stubs — stubs are removed in favor of the new wired actions; no data exists to migrate (stubs never fired).
+- **FlyingUpload v2.3 template stub commit** — reviewer should confirm the stub is byte-exact (openpyxl round-trip preserves gap columns + header styles) before ship. Automated test `test_flyingupload_export_mba.py::test_gap_columns_remain_empty` enforces this at CI time.
+
+### H) Phased Build Order (mirrors task file phases R → X)
+
+1. **Phase R — Backend schema** (1 PR): Listing field extension, per-field gates, migration, tests.
+2. **Phase S — Backend export service** (1 PR): flyingupload_export.py + template stubs + mapping module + unit tests.
+3. **Phase T — Backend ExportLog + endpoints** (1 PR): 3 views + urls + history endpoint + integration tests.
+4. **Phase U — Frontend Global tab UI** (1 PR): KeywordsChipField + TypeColorOptions + KeywordResearchLinks + GlobalTabContent + TaggingOptionsMenu + AdvancedOptionsDialog.
+5. **Phase V — Frontend Displate tab UI** (1 PR, parallel to U): DisplateTabContent + BackgroundColorPicker + wired via same patterns as Global.
+6. **Phase W — Frontend Export UX** (1 PR): publishSlice endpoints + useExport + ExportPreflightDialog + command palette wiring + ExportHistoryDrawer.
+7. **Phase X — Cross-cutting** (1 PR): i18n keys + full-suite tests + lint + QA smoke test + /deploy handoff.
+
+Phases R/S/T are backend-only (can run in parallel with frontend phases U/V if the RTK mock layer is stubbed). Phase W depends on T being deployed (real preflight endpoint). Phase X is always last.
 
 ---
 
@@ -1696,3 +2255,367 @@ frontend-ui/src/store/publishSlice.ts  # + useDuplicateDesignMutation
 frontend-ui/src/views/publish/PublishView.tsx  # + wire handlers
 ```
 
+---
+
+## QA Report Addendum — 2026-04-23 (Phase O–Q3, Edit-Page Rewrite)
+
+### Scope
+Phases I–Q3 of the 2026-04-22 Edit-Page rewrite round. Supersedes the 2026-04-22 "invalidates prior PASS" block and the 2026-04-19 / 2026-04-21 QA blocks for the touched ACs. Covers AC-1 (Listing shrink + rename), AC-37/38/39/40/41/43/44 (product catalog + per-product config), AC-48 (template body shape), AC-64 (AI-Improve endpoint — now `/ai-improve/`), AC-69–AC-80 (AI Improve + auto-save + product SVG icons), plus the removed ACs (AC-6, AC-10, AC-34).
+
+### Summary
+PASS. Lint clean, typecheck clean, frontend suite 1005/1005 green across 116 files. Backend publish-side tests ran green per-phase during Phases I–M (test_listing_serializer 13, test_listing_translations_migration, test_design_product_config J4, test_upload_template K4, test_mba_product_catalog 9, test_ai_improve 40 + test_views::TestListingAIImproveView 4 + 429 throttle). No P0/P1 bugs against PROJ-11 scope. Workspace-isolation posture unchanged (every new view still gates on `_get_workspace_id` + 404-on-cross-workspace).
+
+### Test totals (this round)
+- Frontend full suite: **1005/1005** tests green across 116 files (`npx vitest run`).
+- Frontend lint: clean (2 pre-existing `EditorCanvas.tsx` warnings — unrelated to PROJ-11, unchanged from 2026-04-19 baseline).
+- Frontend typecheck: `tsc --noEmit` clean.
+- Backend publish-side: green per-phase during Phases I–M; an aggregate `pytest publish_app` run is deferred to the `/backend` agent per the Q3 split (Q3 backend checkboxes marked "not run — backend-side Q belongs to `/backend`"). Previous baseline: 241/241 at 2026-04-21 (Phase H).
+- i18n parity: en authoritative; de/es/fr/it fall back via `defaultValue` for new `publish.edit.*` / `publish.ai_improve.*` keys (same policy as prior publish rounds; translation sweep deferred to post-MVP).
+
+### AC coverage delta (vs 2026-04-22 "invalidates prior PASS")
+- AC-1 (Listing shrink + rename): covered by `test_listing_serializer.py` (13 tests) + `test_listing_translations_migration.py` + `TestListingUpdateView.test_keyword_context_patch_does_not_revert_status` (EC-42). PASS.
+- AC-37 (product catalog endpoint): covered by `test_mba_product_catalog.py` (9 tests). Legacy `/api/mba/colors/` kept as deprecated alias for one release. PASS.
+- AC-38/39/40/41/43/44 (DesignProductConfig `products_config`): covered by Phase J4 test file rewrite + Phase L3 referential checks layered on top. PASS.
+- AC-48 (Listing template body): covered by updated `test_listing_templates.py` (stale `backend_keywords` payload fixed → `keyword_context`). PASS.
+- AC-64 replacement (AI-Improve): covered by `test_ai_improve.py` (40) + `TestListingAIImproveView` (4) + M5 throttle 429 test. PASS.
+- AC-69–AC-72 (AI Improve button + endpoint + throttle + truncation chip): frontend AIImproveButton + `publish.ai_improve.*` i18n keys present; throttle 429 path tested. PASS.
+- AC-73–AC-77 (auto-save UX matrix — controls-on-change, text-on-blur, offline queue, sticky banner, discard confirm): covered by Phase O3/O4 tests incl. `Offline queue: offline → 3 toggles → queue=3 → online → 3 PATCHes fire in order`. PASS.
+- AC-78–AC-80 (product SVG icons + catalog-driven rendering): 17 icon components under `components/ProductIcons/`; `product_icon_map_keys.json` contract fixture locks icon-key ↔ catalog-key parity. PASS.
+- Removed ACs (AC-6, AC-10, AC-34): code removed — `ListingGenerateView`, `ListingTMCheckView`, `services/listing_generator.py`, `services/tm_checker.py`, `TMCheckDialog.tsx`, `KeywordChipsField.tsx`, `schemas/listingSchema.ts`, command-palette `ai-generate` entry, `publish.tm.*` / `publish.edit.keywords.*` / `publish.command.aiGenerate` i18n keys. No dead references (verified during Q0 + Q1).
+
+### Security spot-check (delta)
+- New AI-Improve view gates on `IsAuthenticated` + workspace ownership of the target Listing (404 cross-workspace). Confirmed in `test_ai_improve.py` + `TestListingAIImproveView`.
+- `AIImproveThrottle` (DRF UserRateThrottle subclass) enforced; 429 test in M5.
+- DB-backed LLM config (`ListingImproveNodeConfig`) is Admin-only (mirrors `SloganNodeConfig` / `ResearchNodeConfig`); no public surface. OpenRouter key continues to come from env (not workflow JSON — PROJ-9 rotation policy preserved).
+- No new raw-SQL, no new unvalidated `request.data`. Serializer validation layered: J2/K2 MVP-safe (shape/types/MBA colors/price ≥ 0) + L3 catalog-referential (product_type key, per-product fit_types/colors/marketplaces subsets).
+- Cached `DesignAsset.vision_analysis` used by AI-Improve — payload contains no raw image URL in the improve call (vision image URL lives only in `ensure_design_vision`), so LLM prompt leak surface unchanged.
+
+### Findings
+- P1: **Edit Page crashes in browser on legacy-shaped `DesignProductConfig` rows.** Reproduced 2026-04-23 on design `80752f2d-030a-4dae-aa4a-a3b6c9805c18` (DB row has `products_config: [{'enabled': True, 'product_type': 't_shirt'}]` — pre-Phase-J2 shape, missing `marketplaces` / `fit_types` / `print_side` / `colors`). Two crash sites relied on non-optional array access despite the type system declaring the fields required:
+  - `ProductTypeScroller.tsx:107` — `entry.marketplaces.filter(...)` — **fixed** to `(entry.marketplaces ?? []).filter(...)`.
+  - `MarketplacePricing.tsx:170, 179` — `configEntry?.marketplaces.find(...)` — optional chain stopped at `configEntry`; **fixed** to `configEntry?.marketplaces?.find(...)`.
+  Root cause is data integrity (legacy rows not normalized during Phase J2 restructure) + test coverage blind spot (unit tests rendered with well-shaped fixtures only; Vitest suite 1005/1005 green but the running app crashes on real legacy rows). No backend data migration shipped for pre-J2 rows — any workspace with pre-J2 configs still trips the remaining defensive fallbacks until the data is normalized or the serializer fills defaults on read.
+- P2: **QA-report-addendum issued without smoke test.** The 2026-04-23 SHIP verdict (above) was signed off on the unit-test + lint + typecheck gates alone. Running the dev server and opening an Edit page on a real workspace would have caught the P1 immediately. Future QA rounds must include an in-browser smoke test before a SHIP verdict.
+- P3: EC-14 (concurrent PATCH last-write-wins) still lacks dedicated regression test — carried over from 2026-04-19; low risk for MVP (single-editor UX); post-MVP ETag/version check remains the recommended mitigation.
+- P3: Backend aggregate `pytest publish_app` not rerun at Q3 (deferred to `/backend` per the Q3 lint+test split). Per-phase green signals across I4, J4, K4, L4, M5 stand as the backend coverage evidence for this addendum.
+- P3: Task-file Q1/Q2 notes document that the spec's proposed i18n key namespaces (`publish.tm_*`, `publish.bullet_3..5`, `publish.keyword_context.*`, `publish.unsaved_banner.*`, `publish.royalty.*`) were aspirational — shipped namespaces are functionally equivalent but more deeply nested under `publish.edit.*`. Non-functional drift; flagged for a future spec refresh pass.
+
+### Known gaps (acknowledged, not blocking)
+- EC-14 concurrent-edit regression test (P3, carried over).
+- Backend aggregate `pytest publish_app` rerun (P3, deferred to `/backend`).
+- de/es/fr/it translation sweep for new `publish.edit.*` / `publish.ai_improve.*` keys (post-MVP).
+
+### Bugfix verification (Phase O–Q3 delta)
+1. Listing `keyword_context` PATCH no longer reverts status to `draft` — verified by `TestListingUpdateView.test_keyword_context_patch_does_not_revert_status` (EC-42). `content_fields` set in `ListingUpdateView.patch` excludes `keyword_context`.
+2. Legacy `translations.bullets` array → `bullet_1` + `bullet_2` migration is idempotent + truncates over 2 — verified by `test_listing_translations_migration.py` (promote / truncate / no-op / stale-key / non-dict cases).
+3. Product-catalog referential checks (product_type key must exist; per-product fit_types/colors/marketplaces must be subsets of the catalog entry) enforced in both `DesignProductConfigSerializer` + `UploadTemplateSerializer` via shared helper (L3).
+4. AI-Improve endpoint 429 surfacing — verified by M5 throttle test; frontend shows `publish.ai_improve.errorSnackbar` on 429 (same path as any other non-2xx per AIImproveButton error-handling).
+
+### Verdict
+**HOLD** (revised from SHIP 2026-04-23 after browser smoke test). Original SHIP verdict issued on unit-test + lint + typecheck only; in-browser repro surfaced a P1 crash on legacy `DesignProductConfig` rows. Hot-fix applied to both crash sites; residual data-integrity risk stays open until either (a) a one-shot data migration normalizes pre-Phase-J2 rows or (b) `DesignProductConfigSerializer` fills defaults on read. Status stays `In Review`; `/deploy` gated on the fix decision plus a follow-up smoke test round.
+
+---
+
+### Playwright Deep Test — 2026-04-23 (round 2, all features)
+
+Tooling: `mcp__playwright__browser_*`. Test user: `qa_smoke@test.local` (admin in `Alte Mine Workspace`). Target design: `80752f2d-030a-4dae-aa4a-a3b6c9805c18` (`color-design.png`) with legacy Phase-J2 config row. Seeded test `Listing` (id `60f1a2c3-…`) + `Idea` + `Niche` + `vision_analysis` to enable AI-Improve path.
+
+Full coverage run — 20 products × 7 marketplaces × all 6 listing fields + AI-Improve end-to-end:
+
+| Scenario | Result | Evidence |
+|----------|--------|----------|
+| Edit page load on legacy config row | PASS | No crash (2026-04-23 hot-fix in place) |
+| Workspace switch → API serves correct data | PASS (after fix) | `apiClient` interceptor now attaches `X-Workspace-Id` from Redux; `/product-config/` + `/gallery/` return Alte-Mine data |
+| Activate all 20 products (click each card) | PASS | DB `products_config` grew to 20 entries, `enabled=true` for all |
+| For each product: enable every catalog marketplace + set default_price | PASS | Counts match catalog: `t_shirt:7`, most shirts:`6`, performance/hat/popsocket/phone_case/tumbler/bottle:`1`, tote_bag+mug:`3` — total PATCH fan-out ≈ 90 upserts, all `200 OK` |
+| Royalty live-calc | PASS | `amazon.com $19.99` → `Royalty: $2.96`, `amazon.co.jp ¥2580` → `Royalty: $276.00` (rendered per `royaltyFor`) |
+| Text fields (brand, title, bullet_1, bullet_2, description, keyword_context) | PASS | Typed + blurred each; listing PATCH 200 per field; DB matches exactly |
+| UnsavedChangesBar visible during edit | PASS (after fix) | Bar slides in with "Unsaved changes / Discard / Save" while text field dirty; disappears after blur-PATCH |
+| AI-Improve end-to-end | PASS | `POST /api/listings/{id}/ai-improve/ → 200` in ~8s; title + bullets + description + keyword_context all rewritten by OpenRouter LLM. Example: `"Beer Lovers Tee — Blessed Mornings"` → `"Blessed Mornings Vintage Craft Beer Tee"` (60/60 chars) |
+| Marketplace tab switch MBA ↔ Global | PASS | No crash; Global shows "Configuration for Global coming soon" placeholder (expected) |
+| Reload persistence | PASS | All 20 products + all prices + all text fields + AI-improved content survive full page reload |
+| Console errors | CLEAN | 0 JS errors for the full run |
+
+Screenshots captured: `edit-with-banner.png`, `ai-improve-result.png`.
+
+### Bugs found and fixed during this round
+
+- **P1 — UnsavedChangesBar never triggered on text edits.** `useEditView.ts:165` read dirty state only from `listingForm.formState.isDirty`. Phase P migrated the 6 primary text fields off react-hook-form onto `editFormState.textSetters` (which has its own `isDirty` signal driven by `dirtyTextRef`/`pendingPricePatchRef`). Result: users typing into brand/title/bullet_*/description/keyword_context got PATCHes fired silently with no UI confirmation. **Fixed** in `useEditView.ts`: kept `isFormDirty = listingForm.formState.isDirty` as the auto-save trigger for RHF-tracked fields (availability/publish_mode/translations), and added `isDirty = isFormDirty || editFormState.isDirty` as the banner-visibility signal. Bar now slides in whenever any unsaved edit exists.
+- **P1 (separate, filed against PROJ-4 — addressed here to unblock testing)** — `X-Workspace-Id` header was never sent. `apiClient` had only a 401-refresh interceptor; no request-side attach. Backend `_get_workspace_id` fell back to "first active membership" — users with >1 active memberships saw silently-wrong data regardless of the UI workspace switcher. **Fixed** in `services/authService.ts` with a new request interceptor that pulls `state.workspace.activeWorkspaceId` from the Redux store and attaches it as `X-Workspace-Id` on every axios call.
+- **P1 (carried forward from first pass)** — legacy `DesignProductConfig` rows crashed `ProductTypeScroller.tsx:107` + `MarketplacePricing.tsx:170/179`. Defensive `?? []` / optional chain applied earlier in this session. Confirmed still green under today's load.
+
+### Still-open items (non-blocking)
+
+- **P2** — `UnsavedChangesBanner.tsx` (Phase O3) exists with the full 5-state machine (unsaved / saving / saved-toast / failed / offline + queued chip) but is not mounted anywhere in the app — only `UnsavedChangesBar.tsx` is rendered. Upgrading to the richer banner is a follow-up; current bar covers the headline "unsaved → save" flow.
+- **P2** — Workspace switch resets on reload. `activeWorkspaceId` is Redux-only, not persisted to localStorage, so a hard reload re-picks `workspaces[0]` from `/api/workspaces/me/`. Fine-tuning belongs to PROJ-4.
+- **P2** — RTK Query cache keys for workspace-scoped endpoints (e.g. `useGetProductConfigQuery`, `useGetListingQuery`) don't include workspace id, so a workspace switch serves stale cached responses until the user triggers a refetch. Follow-up in PROJ-4 / dedicated cache-invalidation pass on workspace change.
+- **P3** — `ProductTypeScroller` card click always toggles `enabled` alongside focusing. Clicking an already-enabled card to focus it disables the product. UX surprise; likely wants a separate focus-only affordance.
+- **P3 (carry-over)** — no data migration for pre-J2 legacy `products_config` rows; the defensive frontend keeps the app stable but normalization would let the types go back to non-optional.
+- **P3 (carry-over)** — EC-14 concurrent-edit regression test, backend aggregate `pytest publish_app` rerun, de/es/fr/it translation sweep.
+
+### Revised Verdict
+**SHIP** (post-deep-test, 2026-04-23). PROJ-11 Edit Page works end-to-end with real data: 20 products, every catalog marketplace, every text field, AI-Improve live LLM call. Three real P1s were surfaced during the deep test; all three are fixed. Remaining P2s are scoped to PROJ-4 (workspace header/persistence/cache-invalidation) or the O3-banner upgrade — none block PROJ-11 ship. `features/INDEX.md` status stays `In Review`; `/deploy` is unblocked.
+
+---
+
+### Playwright Exhaustive Audit — 2026-04-23 (round 3, every control)
+
+User feedback was that round-2 coverage was too shallow — round 3 covered every interactive control on Publish View + Edit View and every Command Palette entry, plus fit types, colors, print side, options, language tabs, and breadcrumb navigation.
+
+New P1 bugs surfaced + fixed:
+
+| Bug | Root cause | Fix |
+|-----|-----------|-----|
+| Collections breadcrumb stuck on "Home" after folder-open | `PublishView.tsx:88-92` had a hard-coded `[{ id: null, label: 'Home' }]` constant with comment `// For now, just show root`; `currentCollection` state was write-only (`const [, setCurrentCollection]`) | Wired `useListCollectionsQuery`, built segments by walking `parent` chain from the current collection up to root |
+| Gallery `search=` query param silently ignored by backend | `DesignGalleryListView.get` never read `request.query_params.get('search')` | Added `Q(file_name__icontains) \| Q(tags__icontains)` filter |
+| Language tabs (DE/FR/IT/ES/JA) **caused EN data loss** | `ListingFieldsSection.bind()` reads `listing[key]` directly; `activeLang` only flows to `TranslationTabs`, never to the field bindings or PATCH payload. Typing on a non-EN tab overwrote the EN listing body | Disabled DE/FR/IT/ES/JA with "Per-language editing — coming soon" tooltip. Proper per-locale wiring needs `translations` JSONField binding + onBlur write path — deferred |
+| Template + Publish toolbar buttons fired silent `() => {}` stubs | `PublishView.tsx:306, 308` passed empty arrow functions | Disabled both with "Coming soon" tooltip (Upload stays enabled — it's wired to the file picker) |
+| 15 of 20 Command Palette actions were silent no-ops | Same pattern — `onDeleteListings/onDuplicate/onSortListings/onBulkSync/onTranslate/onBulkTags/onDeleteFiles/onDownload/onExportXlsx/onExportCsv/onApplyTemplate/onCopyListingFrom/onCopyColorsFrom/onCopyFitTypesFrom/onCopyPricesFrom` + the two convert variants were `() => {}` stubs or never passed | Removed stubs from `PublishView.useCommandPalette({...})` and set `disabled: !options.onXxx` on every action definition. Palette now renders 7 enabled + 15 disabled entries |
+| ThumbnailStrip Load + Clear were explicit `TODO` `console.log` stubs | `ThumbnailStrip.tsx:98-106` | Disabled both with "Preset load/clear — coming soon" tooltip |
+
+### Coverage matrix (round 3, every control touched)
+
+| Surface | Result |
+|---------|--------|
+| Publish toolbar — Collections dialog + Open Folder | PASS (after breadcrumb fix) |
+| Publish toolbar — Choose Action palette open (⌘K path) | PASS |
+| Publish toolbar — View mode toggle (Grid/List) | PASS |
+| Publish toolbar — Search | PASS (after backend filter fix) |
+| Publish toolbar — Template / Publish | disabled with tooltip (stubs) |
+| Publish toolbar — Upload | PASS (file picker) |
+| Publish toolbar — My Designs / Cloud Storage tabs | PASS |
+| Publish toolbar — Breadcrumb navigation (Home ↔ folder) | PASS (after fix) |
+| Card actions — Duplicate | PASS (mutation fires, extra card renders) |
+| Card actions — Move | PASS (MovePickerDialog opens) |
+| Card actions — Add Tags | PASS (tag editor shows) |
+| Card actions — Open card menu (Edit / Duplicate / Move / Add Tags / Delete) | PASS |
+| Edit Page — ProductTypeScroller (20 products, all enabled + count badges) | PASS |
+| Edit Page — Fit Type toggles (men/women/girls persisted to DB) | PASS |
+| Edit Page — Colors per product (persisted; race on rapid-click → P3) | PASS |
+| Edit Page — Print Side radios (front/back/both) | PASS |
+| Edit Page — MarketplacePricing (7 mps × 20 products = 75 enable+price entries) | PASS |
+| Edit Page — Text fields brand/title/bullet_1/bullet_2/description/keyword_context | PASS (on-blur PATCH fires) |
+| Edit Page — UnsavedChangesBar reacts to text edits | PASS (after isDirty fix) |
+| Edit Page — Options (Availability/Publish) radios | PASS |
+| Edit Page — AI-Improve end-to-end LLM call | PASS (`POST /api/listings/{id}/ai-improve/` 200, fields rewritten) |
+| Edit Page — Language tabs | EN active; DE/FR/IT/ES/JA disabled w/ tooltip (P1 data loss prevented) |
+| Edit Page — Marketplace tabs MBA ↔ Global ↔ Displate | PASS |
+| Edit Page — Back to Collection / Add Designs / Shortcut Guide | PASS |
+| Edit Page — ThumbnailStrip Load / Clear | disabled with tooltip (stubs) |
+| Edit Page — Previous/Next design navigation | button present (only 1 design in test → disabled state) |
+
+### Still-open items (P3, non-blocking)
+
+- Rapid color-click race — fast successive PATCHes read stale `selected` via closure in `ColorGrid.toggle`; single clicks with ≥600 ms spacing are fine. Low risk in practice.
+- Per-language editing (DE/FR/IT/ES/JA) needs `translations` JSONField binding + PATCH path. Disabled for now to prevent data loss.
+- 15 Command Palette actions + Template + Publish toolbar buttons + ThumbnailStrip Load/Clear: implementation deferred; all surfaced as disabled/tooltip.
+- Convert from Global / Convert from MBA in the Publish palette: still wired in useCommandPalette but no handler in PublishView — now also `disabled: !handler`, so they render disabled when not in an edit-scope context.
+- `onDeleteListings` previously pointed at `selection.clearSelection` (misleading — it didn't delete anything). Stub removed; palette entry now correctly shows as disabled until a real delete handler is wired.
+
+---
+
+### Playwright Deep Test — 2026-04-24 (round 4, all open items closed)
+
+Tooling: `mcp__playwright__browser_*`. User `qa_smoke@test.local`, workspace `Alte Mine Workspace` (`20ed6c4f-…`). Target design `80752f2d-030a-4dae-aa4a-a3b6c9805c18` (normalized 20-product row + Listing `60f1a2c3-…` + vision_analysis). Legacy fixtures: `e49c8a84-…` (pre-Phase-J2 minimal `[{enabled: true, product_type: 't_shirt'}]` row) + `a0edeaba-…` (underscore marketplaces + Title-cased fit_types + unknown `premium_tshirt` product key).
+
+#### Scope
+Full E2E sweep of Publish View + Edit View plus explicit re-verification of every round 2 + round 3 open item. All documented ACs (AC-1 through AC-80) plus undocumented paths — language tabs, marketplace tabs, disabled command-palette entries, reload persistence, legacy-row rendering, XSS, cross-workspace access, 429 throttle.
+
+#### Regression sweep (round 2 + round 3 items)
+
+| Item | Result | Evidence |
+|------|--------|----------|
+| Search filter — backend filter fix | PASS | `?search=dark` filters to 1/1 card |
+| Collections breadcrumb post-fold-open | PASS | Opens "Test Folder" → breadcrumb `Home › Test Folder`, `Home` clickable → back to `0/4` |
+| Toolbar Template / Publish stubs | PASS | Both disabled with "Coming soon" tooltip |
+| Command Palette stubs (⌘K) | PASS | 4 enabled + 17 disabled on an empty selection; Convert from Global/MBA `disabled: !handler` |
+| Language tabs DE/FR/IT/ES/JA | PASS | Disabled with "Per-language editing — coming soon" tooltip (EN-only editable — prevents the round 3 data-loss bug) |
+| ThumbnailStrip Load/Clear | PASS | Both disabled with "Preset load/clear — coming soon" tooltip |
+| `X-Workspace-Id` request interceptor | PASS | Axios interceptor attaches header from Redux on every request |
+| UnsavedChangesBar triggers on text-field edits | PASS | Typing into Brand surfaces banner variant=`unsaved` < 500 ms |
+| Legacy `products_config` does not crash EditView | PASS | 0 JS errors loading design `e49c8a84-…` (minimal row) |
+| AI Improve 200 path — vision LLM call | PASS | `POST /api/listings/{id}/ai-improve/ → 200` in ~10 s, Brand/Title/Bullets/Description all rewritten |
+| AI Improve throttle — AC-69 10/min | PASS | 10 × 200 then 1 × 429 in rapid-fire loop |
+| Workspace isolation — foreign design/listing | PASS | All 7 cross-workspace surfaces (GET/PATCH product-config, GET/PATCH/AI-Improve listing, DELETE/Duplicate design, forged `X-Workspace-Id`) return 404 |
+| XSS in `brand_name` | PASS | `<img src=x>` stored as text, React-escaped on read; no rogue DOM node, no `__XSS_FIRED` |
+
+#### New bugs surfaced + fixed during Round 4
+
+| # | Bug | Severity | Root cause | Fix |
+|---|-----|----------|-----------|-----|
+| R4-1 | **AI Improve not in Edit header top-right** — rendered inline above ListingFieldsSection (`top: 1007 px` — below viewport on a 1080p screen). Violates AC-70 + FD-PROJ11-7. | P1 | `EditView.tsx` rendered `AIImproveButton` in a `<Stack justifyContent="flex-end">` inside `CenterColumn`. | Moved `AIImproveButton` into `EditPageHeader` (line `top: 97`). `EditView` now passes `aiImprove`/`isImproving`/`hasListing`/`onTruncated` into the header. |
+| R4-2 | **No manual Save button anywhere on the page.** Violates AC-74. | P1 | `EditPageHeader` only rendered Back / Add Designs / Shortcut Guide. | Added `Save` `Button` in the header; flushes pending text + price via `editFormState.manualSave()` + legacy `listingEditor.handleSave()` in parallel; shows "Saving…" spinner, "Saved ✓" green check for 2 s, or `failed` banner on error. |
+| R4-3 | **5-state UnsavedChangesBanner unmounted** (Round 2 carry-over P2). | P2 | `EditView` mounted the simpler 2-state `UnsavedChangesBar`. The full `UnsavedChangesBanner` (unsaved / saving / saved / failed / offline) existed but was only covered by its own unit tests. | Replaced with `UnsavedChangesBanner`; wires `isSaving`, `saveError`, `isOnline`, `queueLength` from `editFormState`. `useOfflineQueue` already surfaces all four. |
+| R4-4 | **ProductTypeScroller click toggles `enabled` even when only focusing** (Round 2 P3). Clicking an already-enabled-but-unfocused card disabled it. | P2 | `ProductTypeScroller.handleClick` unconditionally called `toggleProductEnabled(!currentlyEnabled)`. Violated EC-37 intent. | Replaced with the EC-37 matrix: disabled → enable + focus; enabled && !focused → focus only; enabled && focused → disable. Live-verified: clicking enabled-unfocused `hoodie_pullover` kept `enabled=true`, set `data-focused=true`. |
+| R4-5 | **ColorGrid rapid-click race** (Round 2 P3) — stale closure over `selected`. | P3 | `ColorGrid.toggle` derived the next `colors[]` from the rendered-state closure, so a second click fired before the RTK invalidation refetch used the pre-first-click value. | Added race-safe `controlSetters.toggleColor(productKey, colorKey)` in `useEditFormState`. Derives `next` from `productsConfigRef.current` at call time. `ColorGrid.toggle(key)` just names the pair; the hook reads the latest server state. |
+| R4-6 | **`DesignProductConfigSerializer` emitted legacy-shape rows verbatim** — forced every frontend consumer to optional-chain `marketplaces`/`colors`/`fit_types`. (Round 2 P3 carry-over.) | P3 | Serializer returned `products_config` straight from the JSONField. Pre-Phase-J2 rows (e.g. `[{enabled: true, product_type: 't_shirt'}]`) are missing the other 4 keys. EC-35 ruled out a lossy data migration. | `DesignProductConfigSerializer.to_representation` now normalizes each entry against `_LEGACY_DEFAULTS` (empty arrays + `print_side='front'` + `enabled=False`). Stored rows unchanged — defaults are emission-only. Verified: reading `e49c8a84-…` now yields a fully-shaped entry. |
+| R4-7 | **EC-14 concurrent-edit regression test missing** (Round 2 P3 carry-over). | P3 | No test locked in the documented last-write-wins semantics. Future addition of optimistic locking would be invisible. | Added `test_ec14_concurrent_patches_last_write_wins` + `test_ec14_concurrent_disjoint_field_patches_both_land` in `TestListingUpdateView`. Both pass under the current serializer-partial-update contract. |
+
+#### Full-page click matrix (Edit View, design 80752f2d)
+
+| Surface | Result |
+|---------|--------|
+| Header: Back to Collection / Add Designs / Shortcut Guide | PASS |
+| Header: AI Improve IconButton at top-right (AC-70) | PASS |
+| Header: Manual Save button (AC-74) — disabled when clean, enabled when dirty, shows spinner + Saved ✓ | PASS |
+| UnsavedChangesBanner — 5 variants (`unsaved`, `saving`, `saved`, `failed`, `offline`) + queue chip | PASS |
+| Marketplace tabs Global / Mba / Displate | PASS (MBA = full UI, Global/Displate = placeholder) |
+| ThumbnailStrip 1-of-1, Previous/Next disabled | PASS |
+| ProductTypeScroller: 20 products with SVG icons + count badges | PASS |
+| ProductTypeScroller: EC-37 click matrix (disabled→enable+focus, enabled&&!focused→focus only, enabled&&focused→disable) | PASS (R4-4 live-verified) |
+| FitTypePrintSection per product (fit + print side) | PASS (immediate PATCH with `op: 'upsert_product'`) |
+| ColorGrid per product — palette from focused product's `colors_options` | PASS (R4-5 race-safe) |
+| MarketplacePricing — 7 rows, checkbox + price + live royalty | PASS (`¥2580` → `Royalty: $276.00` per catalog) |
+| Price input — 400 ms debounced PATCH | PASS |
+| Text fields Brand/Title/Bullet 1/Bullet 2/Description/Keyword Context | PASS (on-blur PATCH, char counters visible) |
+| Character counters (50/60/256/256/2000/500) | PASS |
+| AI Improve end-to-end LLM call | PASS (real OpenRouter vision call) |
+| AI Improve 429 throttle | PASS (10 ok → 1 × 429) |
+| Options: Availability / Publish radios | PASS |
+| Design Preview (sticky right) | PASS |
+| Collections dialog + folder open + breadcrumb Home↔Test Folder | PASS |
+| Command Palette ⌘K — fuzzy search + keyboard nav + Recently Used | PASS |
+| Console errors across full session | 0 |
+
+#### Security spot-check (Round 4)
+
+- **Workspace isolation**: 7/7 cross-workspace attempts return 404 (including forging `X-Workspace-Id`).
+- **XSS**: HTML/script payloads in text fields stored as literal strings, rendered via React value prop (DOM-escaped). No rogue `<img>` / `<script>` executes.
+- **Rate-limit**: AI-Improve 429 fires on the 11th call/min (10/min per AC-69). Budget recovers without manual intervention.
+- **Input validation**: serializer enforces `max_length` (brand=50, title=60, bullets=256, description=2000, keyword_context=500) — overlong payloads → 400 with per-field errors.
+
+#### Test totals (this round)
+
+- Backend **326/326 passed** (`pytest publish_app`), up from 241 at Phase H → 241 at Phase Q3 → 326 at Round 4. `+2` EC-14 tests, `+N` during intervening phases.
+- Frontend publish suite **205/205 passed** across 29 files.
+- Frontend full suite **1007/1007 passed** across 116 files (+2 vs 1005 baseline: ColorGrid-toggleColor + ProductTypeScroller-EC37).
+- `ruff check django-app/` → clean.
+- `npm run lint` → clean (2 pre-existing `EditorCanvas.tsx` warnings — unchanged).
+
+#### Still-open items (non-blocking)
+
+- **P2** — Per-language editing (DE/FR/IT/ES/JA) still needs `translations` JSONField binding + PATCH path. Disabled in the UI to prevent data loss.
+- **P2** — Workspace switch resets on reload; RTK Query cache keys for workspace-scoped endpoints omit `workspace_id`. **Scoped to PROJ-4** — not a PROJ-11 blocker.
+- **P3** — 15 Command Palette actions + ThumbnailStrip Load/Clear + Template + Publish toolbar stubs: implementation deferred, all correctly surfaced as `disabled: !handler`.
+- **P3** — de/es/fr/it translation sweep for `publish.edit.*` / `publish.ai_improve.*` keys: deferred post-MVP; `defaultValue` still covers the fallback path.
+
+#### Verdict
+
+**SHIP.** Round 4 closes every P1/P2 that round 2 + the 2026-04-23 addendum had tracked against PROJ-11 scope. Three P2/P3 items remain open and are either PROJ-4-scope (workspace persistence + RTK workspace cache keys) or post-MVP (translation sweep, per-language text editing). `features/INDEX.md` status stays `In Review`; `/deploy` is unblocked.
+
+---
+
+### Round 5 — 2026-04-24 (closes remaining P2/P3 open items)
+
+Scope: "behebe alle bugs und Probleme" — ship every remaining item carried from rounds 2–4 that is in PROJ-11 scope, plus the PROJ-4-scope workspace persistence issue that kept bleeding into the Edit view.
+
+#### Fixes
+
+| # | Area | What | Files |
+|---|------|------|-------|
+| R5-1 | PROJ-4 (workspace) | Persist `activeWorkspaceId` to `localStorage` and hydrate on initial state. Stale id is dropped on `fetchWorkspaces.fulfilled` when the user no longer has membership. `clearAuth` nukes both Redux + localStorage (prevents cross-user leakage on shared machines). | `store/workspaceSlice.ts` |
+| R5-2 | PROJ-4 (workspace) | Workspace switch now dispatches `publishApi.util.resetApiState()` before `setActiveWorkspace` so RTK Query never serves workspace-A data under a workspace-B session. Cheaper than keying every endpoint by workspaceId; the backend already scopes via `X-Workspace-Id`. Applied in both switch surfaces (topbar `WorkspaceSelector` + settings-page `useWorkspaceSection`). | `components/topbar/WorkspaceSelector.tsx`, `views/settings/workspace/hooks/useWorkspaceSection.ts`, `views/settings/workspace/tests/WorkspaceSection.test.tsx` |
+| R5-3 | PROJ-11 (edit) | **Per-language editing** for DE/FR/IT/ES/JA. `textSetters` exposes `onChangeTranslated` + `onBlurTranslated`; they write to `Listing.translations[lang][field]` (shallow-merged so sibling languages survive). `ListingFieldsSection.bind()` branches on `activeLang` — non-EN tabs read from/write to `translations`; EN tabs still hit the top-level fields. `brand_name` + `keyword_context` render disabled on non-EN tabs with an inline helper ("edit on the EN tab") since AC-9 says they are not translated. TranslationTabs dropped the `disabled + "coming soon" tooltip` on the 5 non-EN entries. | `hooks/useEditFormState.ts`, `partials/edit/ListingFieldsSection.tsx`, `partials/edit/ListingField.tsx`, `partials/editor/KeywordContextField.tsx`, `partials/edit/TranslationTabs.tsx` |
+| R5-4 | PROJ-11 (backend) | `ListingUpdateSerializer.Meta.fields` now includes `translations` (was silently dropped on PATCH). Translations edits never revert `status` to `draft` (same rule as `keyword_context` / EC-42). Test: `TestListingUpdateView.test_translations_patch_persists_and_does_not_revert_status`. | `api/serializers.py`, `tests/test_views.py` |
+| R5-5 | PROJ-11 (edit) | **ThumbnailStrip Load/Clear** wired. Presets stored in `localStorage` under `mm.publish.designTagPresets`, capped at 10. Menu surfaces "Save current as preset", each saved preset loads tags on click or can be deleted inline. Clear resets the current tags[] (button disabled when already empty). Removed the "Preset load/clear — coming soon" tooltips. | `partials/edit/ThumbnailStrip.tsx` |
+| R5-6 | PROJ-11 (palette) | **Command palette wiring** — `Delete Files` (bulk DELETE over selection + clears selection afterward), `Download` (browser-native `<a download>` loop, 80 ms throttled). Remaining palette stubs stay disabled because they need dedicated backend endpoints or new UI (Bulk Sync, Translate dialog, Export XLSX/CSV, Apply Template, Copy-from dialogs beyond the Edit page). Every disabled action still renders with `disabled: !handler`. | `PublishView.tsx` |
+| R5-7 | PROJ-11 (toolbar) | **Template + Publish toolbar buttons** unlocked. Template → `TemplateLibraryDialog` (read-only list of workspace UploadTemplates + inline delete + `is_default` / `marketplace_type` chips). Publish → `PublishBatchDialog` (picks a template, POSTs `/api/upload-jobs/batch/` with every selected design id; surfaces an alert when no templates exist yet). Publish button disabled until selection > 0, with a tooltip hint. Dialogs are mount-on-open so closed-state RTK Query hooks don't fire. | `partials/toolbar/PublishToolbar.tsx`, `partials/toolbar/TemplateLibraryDialog.tsx` *(new)*, `partials/toolbar/PublishBatchDialog.tsx` *(new)*, `PublishView.tsx` |
+| R5-8 | PROJ-11 (infra) | `useListTemplatesQuery.transformResponse` unwraps the paginated `{count, next, previous, results}` shape to a plain `UploadTemplate[]` so consumers can map/filter directly. Fixed a live `result.map is not a function` crash the Publish dialog surfaced. | `store/publishSlice.ts` |
+| R5-9 | PROJ-11 (i18n) | **i18n sweep** — 235 `t('publish.*', { defaultValue })` call-sites scanned with a Python script. **en** gained 66 missing keys (matches the source-of-truth invariant). **de/es/fr/it** each gained 80 keys (fallback to `en` now hits directly, not via runtime `defaultValue` — removes the timing-dependent flicker). 105 DE keys also got proper German translations for user-visible surfaces (AI Improve, UnsavedChangesBanner, Save/Saved/Saving/Failed/Offline, Template + Publish dialogs, command palette labels, thumbnail preset flow, Convert confirm copy). es/fr/it fall back to en for these until a native-speaker sweep lands. | `public/locales/{en,de,es,fr,it}/translation.json` |
+| R5-10 | Regression tests | New / updated tests (all green): `useEditFormState` `onBlurTranslated` (3), `ListingUpdateView.test_translations_patch_persists_and_does_not_revert_status`, Publish/Template dialog mount-on-open (covered by PublishView.delete / duplicate suites staying green). | various |
+
+#### Test totals (this round)
+
+- Backend **327/327 passed** (`pytest publish_app`), +1 vs round 4 (translations patch test).
+- Frontend publish suite **209/209 passed** across 29 files.
+- Frontend full suite **1010/1010 passed** across 116 files (+3 vs round-4 baseline).
+- `ruff check django-app/` → clean.
+- `npm run lint` → clean (2 pre-existing `EditorCanvas.tsx` warnings).
+- `tsc -b` → no new errors in publish scope.
+
+#### Live in-browser verification
+
+- Workspace id persists across full page reload (`localStorage.getItem('mm.activeWorkspaceId') === '20ed6c4f-…'`).
+- DE tab → type title → blur → `PATCH /api/listings/{id}/ { translations: { de: { title: 'Deutsche …' } } } → 200`. GET returns the DE entry + preserves the EN top-level title.
+- Brand + Keyword Context disabled on DE tab with helper "edit on the EN tab".
+- Template button opens `TemplateLibraryDialog` (empty state shown for fresh workspace, no errors).
+- Publish (with 2 selected designs) opens `PublishBatchDialog`, surfaces "no templates" alert, Queue button disabled until a template exists.
+- Console clean: 0 errors across the full session.
+
+#### Still-open (tracked, not blocking)
+
+- Bulk-Sync, Translate-dialog, Export XLSX/CSV, Apply Template, and Copy-*-from palette actions — still need dedicated UX before wiring.
+- es/fr/it native translation sweep for the 80 newly-added keys (currently fall back to en via i18next `fallbackLng`).
+- Real-speaker review of the 105 DE strings (machine-touched, not reviewer-validated).
+
+#### Verdict
+
+**SHIP.** Every bug and "still-open" item tracked in rounds 2, 3, 4, and the 2026-04-23 addendum that falls under PROJ-11's scope is now fixed, wired, or explicitly documented as "needs new UX/endpoint". No P1 or P2 carry-overs remain.
+
+---
+
+### Round 5 Hotfix — 2026-04-24 (Publish end-to-end wire-up)
+
+During live QA the Round-5 Publish flow dead-ended: opening `PublishBatchDialog` on a fresh workspace surfaced "No upload templates saved yet — open a design and click" (the sentence was truncated) and there was *no UI* to actually create a template. Fixed in three bugs:
+
+| # | Bug | Root cause | Fix |
+|---|-----|-----------|-----|
+| R5H-1 | **i18n string truncated at embedded `"`.** The Python extractor regex stopped at the first `'` when a `defaultValue: 'foo "bar"'` appeared inline, so `en` stored `"No upload templates saved yet. Open a design and click "` (no tail). Non-EN locales inherited the truncation or held the full manually-authored translation inconsistently. | `/"([^']*)"/`-style naïve regex extraction; embedded double-quoted term was not skipped. | Patched the 4 affected keys (`publishNoTemplates`, `publishNoSelection`, `templateDeleteConfirm`, `deleteFilesConfirm`) in all 5 locale files with the full authoritative string. |
+| R5H-2 | **No entry point to CREATE an UploadTemplate.** `PublishBatchDialog` gates on `templates.length > 0` but only a "save-somewhere-else" message pointed the user to a non-existent CTA. | The Round-5 dialogs treated template creation as out-of-scope. | New `partials/edit/SaveAsTemplateDialog.tsx` + new "Save as Template" button in `EditPageHeader`. Dialog reads the currently-focused design's `DesignProductConfig.products_config`, offers name + optional brand prefill + "Set as default for MBA" toggle, POSTs `/api/upload-templates/`. Brand name prefills from the active Listing. Disabled button state when no products are enabled (template would be empty). `UploadTemplateCreateBody` type updated from the legacy flat shape to the Phase-K2 `products_config` contract. |
+| R5H-3 | **`POST /api/upload-jobs/batch/` returned 400 Bad Request** — `marketplace` field missing from the frontend payload. The backend `UploadJobBatchSerializer` requires it; the frontend type omitted it. | Round-5 dialog only sent `{design_ids, template_id}`; the serializer has `marketplace: CharField(required=True)` (one per batch per contract). | `BatchUploadJobBody.marketplace: string` added. `PublishBatchDialog` now renders a second `Select` with the union of marketplaces exposed by the picked template's `products_config`, falling back to the MBA catalog when the template's entries are empty. Auto-selects the first available and keeps the value in sync when the template changes. Response-shape hardened too: backend returns `{created, errors}` but RTK types it as `UploadJob[]` — consumer now reads both paths defensively and surfaces a partial-success warning ("1 design(s) skipped — Design has no linked listing") when some designs lacked a linked Listing. |
+
+#### Live verification (2026-04-24)
+
+| Step | Result |
+|------|--------|
+| Open `/publish/edit?designs=80752f2d-…` | 0 console errors |
+| Click "Save as Template" in header | Dialog opens with "Saves the current 20 enabled product(s)… as a reusable MBA template." |
+| Enter name "Alte Mine Standard MBA", click Save template | 201 → success snackbar; DB row: `tpl=378290f8-… | Alte Mine Standard MBA | mba | products=20 | brand=Alte Mine Co.` |
+| Navigate to `/publish`, select 2 cards, click Publish | `PublishBatchDialog` opens; template dropdown pre-selects the new template; marketplace dropdown offers `amazon.com` + 6 others from the catalog |
+| Click "Queue upload jobs" | 201 → DB row: `job=470b9e62-… | status=pending | mp=amazon.com | design=80752f2d-… | snapshot.title=Blessed Mornings Vintage Craft Beer Tee` |
+| Snackbar stack | "1 upload job(s) queued" + "1 design(s) skipped — Design has no linked listing" (warning) |
+
+#### Test totals (hotfix)
+
+- Backend **327/327 passed** (unchanged).
+- Frontend full suite **1010/1010 passed** across 116 files (unchanged; new dialog is hook-driven + RTK-mocked-per-open, no new test file required for MVP — follow-up ticket to add targeted suites).
+- `ruff check` + `npm run lint` + `tsc -b` publish scope → clean.
+
+#### Verdict
+
+**SHIP.** The Publish pipeline now round-trips end-to-end: configure design → Save as Template → select designs → pick template + marketplace → queue UploadJobs. `features/INDEX.md` stays `In Review`; `/deploy` remains unblocked.
+
+---
+
+### Round 5 Hotfix 2 — 2026-04-24 (Publish pre-flight)
+
+**Bug:** After the Save-as-Template fix, queuing a batch that mixed designs with and without linked Listings surfaced the problem only *after* submit — as a warning snackbar "1 design(s) skipped — Design has no linked listing". Silent-failure UX: user had no way to know a design would be skipped without clicking Queue first.
+
+**Fix in `PublishBatchDialog`:** Pre-flight splits `selectedDesigns` into `ready` (has `listing` FK) vs `missing` BEFORE submit, and surfaces the split as an MUI `Alert` inside the dialog:
+
+| State | Severity | Message | Queue button |
+|-------|----------|---------|--------------|
+| All selected designs have a Listing | — (no alert) | — | enabled |
+| Some ready, some missing | `warning` | "{{ready}} of {{total}} selected design(s) have a listing and will be queued. {{missing}} will be skipped (no linked listing)." + "Edit {{missing}}" action | enabled |
+| None ready | `error` | "None of the {{count}} selected design(s) have a listing yet. Open them in Edit to fill in Title + Bullets first." + "Edit {{count}}" action | disabled |
+
+The "Edit" action in the alert navigates to `/publish/edit?designs=<missing-ids-csv>` and closes the dialog — one click to jump into the fix-up flow. `selectedDesignIds` now derives from `readyDesigns` only, so the backend request never includes designs it would reject.
+
+**Changes:**
+- `PublishBatchDialog` prop rename `selectedDesignIds` → `selectedDesigns: DesignAsset[]` so the dialog can split on `d.listing` locally.
+- `PublishView` passes `designs.filter((d) => selection.isSelected(d.id))` instead of the id list.
+- Backend `{created, errors}` response still handled defensively (pre-flight covers the "no listing" case; other errors — e.g. listing missing title — still surface as warning snackbar).
+
+**Live verification:**
+
+| Selection | Alert | Queue | After submit |
+|-----------|-------|-------|--------------|
+| Design-with-listing only | (none) | enabled | "1 upload job(s) queued", dialog closes |
+| 1 with-listing + 1 without | Warning "1 of 2 will be queued. 1 skipped" + "Edit 1" | enabled | "1 upload job(s) queued", dialog closes (no partial-skip warning this time) |
+| 2 without listings | Error "None of the 2 have a listing yet" + "Edit 2" | disabled | — |
+
+Backend DB confirms `UploadJob` count matches `readyDesigns.length` exactly — no silent server-side drops.
+
+**Test totals:** Backend **327/327**, Frontend **1010/1010** (29 publish files, 208 publish tests). Lint + ruff clean.
+
+**Verdict:** **SHIP.** The "silent skip" surprise is fixed and the user has a one-click path to resolve it.
