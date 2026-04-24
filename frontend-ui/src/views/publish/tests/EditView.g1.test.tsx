@@ -59,6 +59,9 @@ vi.mock('../partials/edit/MarketplacePlaceholder', () => ({
     <div data-testid="MarketplacePlaceholder" data-marketplace={marketplace} />
   ),
 }));
+vi.mock('../partials/global/GlobalTabContent', () => ({
+  default: () => <div data-testid="GlobalTabContent" />,
+}));
 vi.mock('../partials/command/CommandPalette', () => ({
   default: () => null,
 }));
@@ -182,7 +185,9 @@ const buildBaseState = (
     openPalette: vi.fn(),
   },
   // Phase P1/P2 — minimal editFormState stub (children are mocked so only
-  // the references need to resolve).
+  // the references need to resolve). Phase U (2026-04-24) added the
+  // Global/Displate setters; the fixture mirrors them so Global-tab tests
+  // can reuse this base without runtime "is not a function" errors.
   editFormState: {
     focusedProduct: null,
     setFocusedProduct: vi.fn(),
@@ -195,6 +200,18 @@ const buildBaseState = (
     },
     priceSetters: { setPrice: vi.fn() },
     textSetters: { onChange: vi.fn(), onBlur: vi.fn() },
+    // Phase U additions -- keep setters as vi.fn() so both the
+    // MBA-only branch AND the new Global-tab branch resolve cleanly.
+    keywordsSetters: {
+      commitChip: vi.fn(),
+      removeChip: vi.fn(),
+      setAll: vi.fn(),
+    },
+    typeFlagsSetter: vi.fn(),
+    colorModeSetter: vi.fn(),
+    bgHexSetter: vi.fn(),
+    categorySetter: vi.fn(),
+    advancedOptionsSetter: vi.fn(),
     manualSave: vi.fn(),
     discard: vi.fn(),
     aiImprove: vi.fn(),
@@ -271,18 +288,33 @@ describe('EditView — G1 listing state branching (MBA tab)', () => {
     expect(screen.getByTestId('OptionsSection')).toBeInTheDocument();
   });
 
-  it('renders placeholder (no banner) when non-MBA tab is active', () => {
+  it('renders placeholder (no banner) when Displate tab is active', () => {
+    // Phase U (2026-04-24): Global now has a real content component
+    // (GlobalTabContent), so the placeholder branch only fires for Displate.
     const design = makeDesign();
     const state = buildBaseState(design, {
-      activeMarketplace: 'global',
+      activeMarketplace: 'displate',
       listingNotFound: true,
     });
     renderEditView(state);
 
     const placeholder = screen.getByTestId('MarketplacePlaceholder');
     expect(placeholder).toBeInTheDocument();
-    expect(placeholder).toHaveAttribute('data-marketplace', 'global');
+    expect(placeholder).toHaveAttribute('data-marketplace', 'displate');
     // The MBA-only banner/form branch is not rendered on non-MBA tabs.
+    expect(screen.queryByTestId('ListingFieldsSection')).not.toBeInTheDocument();
+  });
+
+  it('renders GlobalTabContent (not placeholder, not ListingFieldsSection) on Global tab', () => {
+    const design = makeDesign();
+    const state = buildBaseState(design, {
+      activeMarketplace: 'global',
+      listing: makeListing({ marketplace_type: 'global' }),
+    });
+    renderEditView(state);
+
+    expect(screen.getByTestId('GlobalTabContent')).toBeInTheDocument();
+    expect(screen.queryByTestId('MarketplacePlaceholder')).not.toBeInTheDocument();
     expect(screen.queryByTestId('ListingFieldsSection')).not.toBeInTheDocument();
   });
 

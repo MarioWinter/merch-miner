@@ -479,3 +479,68 @@ export interface AIImproveListingResponse {
   listing: Listing;
   truncated_fields: string[];
 }
+
+// ---- FlyingUpload Export (Phase U1, 2026-04-24) --------------------------
+
+export type FlyingUploadTemplate = 'mba' | 'basic';
+export type FlyingUploadFormat = 'xlsx' | 'csv';
+
+export interface FlyingUploadExportBody {
+  template: FlyingUploadTemplate;
+  format: FlyingUploadFormat;
+  design_ids?: string[];
+  collection_id?: string;
+}
+
+export interface FlyingUploadPreviewSkipped {
+  design_id: string;
+  reason: string;
+}
+
+export interface FlyingUploadPreviewWarning {
+  code: string;
+  detail?: unknown;
+}
+
+export interface FlyingUploadPreviewResponse {
+  total_designs: number;
+  ready_rows: number;
+  skipped: FlyingUploadPreviewSkipped[];
+  warnings: FlyingUploadPreviewWarning[];
+}
+
+export interface FlyingUploadExportResult {
+  blob: Blob;
+  filename: string;
+}
+
+export interface ExportLogAuthor {
+  id: string;
+  first_name: string;
+  last_name: string;
+  avatar_url: string;
+}
+
+export interface ExportLog {
+  id: string;
+  template: FlyingUploadTemplate;
+  format: FlyingUploadFormat;
+  design_count: number;
+  row_count: number;
+  filename: string;
+  output_size_bytes: number;
+  created_at: string;
+  created_by: ExportLogAuthor;
+}
+
+export interface ExportHistoryParams {
+  page?: number;
+  page_size?: number;
+}
+
+export interface ExportHistoryResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: ExportLog[];
+}

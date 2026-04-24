@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Alert,
   Box,
@@ -92,25 +92,20 @@ interface ImportKeywordsCsvDialogProps {
 
 // ---------------------------------------------------------------------------
 // Component — AC-134 "Import keywords from CSV" + EC-78
+//
+// Mount-on-open: the outer wrapper unmounts when `open=false`, so `useState`
+// always re-seeds on re-open without needing a setState-in-effect reset.
 // ---------------------------------------------------------------------------
 
-const ImportKeywordsCsvDialog = ({
-  open,
+const ImportKeywordsCsvDialogInner = ({
   activeLang,
   existingKeywords,
   isSaving = false,
   onClose,
   onCommit,
-}: ImportKeywordsCsvDialogProps) => {
+}: Omit<ImportKeywordsCsvDialogProps, 'open'>) => {
   const { t } = useTranslation();
   const [raw, setRaw] = useState('');
-
-  useEffect(() => {
-    if (open) setRaw('');
-  }, [open]);
-
-  // Mount-on-open.
-  if (!open) return null;
 
   const result = useMemo(
     () => parseInput(raw, existingKeywords),
@@ -136,7 +131,7 @@ const ImportKeywordsCsvDialog = ({
 
   return (
     <Dialog
-      open={open}
+      open
       onClose={onClose}
       maxWidth="sm"
       fullWidth
@@ -211,6 +206,15 @@ const ImportKeywordsCsvDialog = ({
       </DialogActions>
     </Dialog>
   );
+};
+
+// Mount-on-open wrapper — re-mount resets local state without setState-in-effect.
+const ImportKeywordsCsvDialog = ({
+  open,
+  ...rest
+}: ImportKeywordsCsvDialogProps) => {
+  if (!open) return null;
+  return <ImportKeywordsCsvDialogInner {...rest} />;
 };
 
 export default ImportKeywordsCsvDialog;

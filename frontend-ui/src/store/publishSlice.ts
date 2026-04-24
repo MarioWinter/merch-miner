@@ -32,7 +32,13 @@ import type {
   UpdateProductConfigBody,
   CopyProductConfigFromBody,
   AIImproveListingResponse,
+  FlyingUploadExportBody,
+  FlyingUploadPreviewResponse,
+  FlyingUploadExportResult,
+  ExportHistoryParams,
+  ExportHistoryResponse,
 } from '../views/publish/types';
+import type { BlobResult } from './axiosBaseQuery';
 
 export const publishApi = createApi({
   reducerPath: 'publishApi',
@@ -51,6 +57,7 @@ export const publishApi = createApi({
     'CollectionTree',
     'MbaCatalog',
     'ProductConfig',
+    'ExportHistory',
   ],
   endpoints: (builder) => ({
     // ---- Listing ----------------------------------------------------------
@@ -518,6 +525,48 @@ export const publishApi = createApi({
       }),
       providesTags: (_r, _e, nicheId) => [{ type: 'Lifecycle', id: nicheId }],
     }),
+
+    // ---- FlyingUpload Export (Phase U1, 2026-04-24) ----------------------
+    // Preflight preview — returns ready_rows + skipped design list without
+    // actually generating the file. Read-only, no cache invalidation.
+    previewExport: builder.mutation<
+      FlyingUploadPreviewResponse,
+      FlyingUploadExportBody
+    >({
+      query: (body) => ({
+        url: '/api/publish/export/flyingupload/preflight/',
+        method: 'POST',
+        data: body,
+      }),
+    }),
+
+    // Run the export — backend streams a binary ZIP/CSV/XLSX. We request
+    // `responseType: 'blob'` through axiosBaseQuery, which parses
+    // Content-Disposition and yields `{ blob, filename }` for the caller to
+    // pipe into a download anchor. Invalidates the ExportHistory list so the
+    // History drawer picks up the new row on next open.
+    runExport: builder.mutation<FlyingUploadExportResult, FlyingUploadExportBody>({
+      query: (body) => ({
+        url: '/api/publish/export/flyingupload/',
+        method: 'POST',
+        data: body,
+        responseType: 'blob',
+      }),
+      transformResponse: (raw: BlobResult) => ({
+        blob: raw.blob,
+        filename: raw.filename,
+      }),
+      invalidatesTags: [{ type: 'ExportHistory', id: 'LIST' }],
+    }),
+
+    listExportHistory: builder.query<ExportHistoryResponse, ExportHistoryParams | void>({
+      query: (params) => ({
+        url: '/api/publish/export/history/',
+        method: 'GET',
+        params: params ?? undefined,
+      }),
+      providesTags: [{ type: 'ExportHistory', id: 'LIST' }],
+    }),
   }),
 });
 
@@ -566,4 +615,8 @@ export const {
   useGetProductConfigQuery,
   useUpdateProductConfigMutation,
   useCopyProductConfigFromMutation,
+  // FlyingUpload Export (Phase U1)
+  usePreviewExportMutation,
+  useRunExportMutation,
+  useListExportHistoryQuery,
 } = publishApi;

@@ -1,4 +1,4 @@
-import { Box, Stack } from '@mui/material';
+import { Box, Grid, Stack } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import ConfirmDialog from '@/components/ConfirmDialog';
@@ -9,8 +9,17 @@ import type {
   ListingTypeFlag,
   MbaColor,
 } from '../../types';
-import type { UseEditFormStateReturn } from '../../hooks/useEditFormState';
+import { LISTING_CHAR_LIMITS } from '../../types';
+import type {
+  TextField as ListingTextField,
+  TranslatableField,
+  UseEditFormStateReturn,
+} from '../../hooks/useEditFormState';
+import { TRANSLATABLE_FIELDS } from '../../hooks/useEditFormState';
+import type { MbaListingLanguage } from '../../schemas/mbaListingSchema';
 import { useGlobalTabActions } from '../../hooks/useGlobalTabActions';
+import ListingField from '../edit/ListingField';
+import TranslationTabs from '../edit/TranslationTabs';
 import KeywordsChipField from './KeywordsChipField';
 import KeywordResearchLinks from './KeywordResearchLinks';
 import TypeColorOptions from './TypeColorOptions';
@@ -22,11 +31,18 @@ import AdvancedOptionsDialog from './AdvancedOptionsDialog';
 // Styled
 // ---------------------------------------------------------------------------
 
-const SectionHeader = styled(Box)(({ theme }) => ({
+const HeaderRow = styled(Box)(({ theme }) => ({
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'flex-end',
   gap: theme.spacing(1),
+}));
+
+const HeaderDivider = styled('span')(({ theme }) => ({
+  width: 1,
+  height: theme.spacing(2.5),
+  backgroundColor: theme.vars.palette.divider,
+  display: 'inline-block',
 }));
 
 // Per AC-88, Global Options section sits below the listing fields -- this
@@ -36,26 +52,42 @@ const OptionsWrapper = styled(Box)(({ theme }) => ({
   borderTop: `1px solid ${theme.vars.palette.divider}`,
 }));
 
+const AdvancedOptionsTriggerButton = styled('button')(({ theme }) => ({
+  background: 'none',
+  border: 'none',
+  padding: theme.spacing(0.25, 1),
+  cursor: 'pointer',
+  font: 'inherit',
+  color: theme.vars.palette.primary.main,
+  '&:disabled': {
+    color: theme.vars.palette.text.disabled,
+    cursor: 'not-allowed',
+  },
+  '&:hover:not(:disabled)': {
+    textDecoration: 'underline',
+  },
+}));
+
 // ---------------------------------------------------------------------------
 // Props
 // ---------------------------------------------------------------------------
 
-// Reuse the same "bind" shape that ListingFieldsSection builds so the parent
-// can feed one consistent source of truth. `colorOptions` is reserved for
-// future use (Global may eventually support a palette); today it maps 1:1
-// with ListingColorMode so we leave it unused but typed for V-tab parity.
 export interface GlobalTabContentProps {
   listing: Listing | null;
   activeLang: ListingLanguage;
+  onLangChange: (lang: ListingLanguage) => void;
+  autoTranslate: boolean;
+  onAutoTranslateChange: (value: boolean) => void;
   /** Inherited niche UUID for the design -- drives KW Finder deeplink. */
   activeNicheId: string | null;
+  textSetters: UseEditFormStateReturn['textSetters'];
   keywordsSetters: UseEditFormStateReturn['keywordsSetters'];
   typeFlagsSetter: UseEditFormStateReturn['typeFlagsSetter'];
   colorModeSetter: UseEditFormStateReturn['colorModeSetter'];
   advancedOptionsSetter: UseEditFormStateReturn['advancedOptionsSetter'];
-  /** Disable every mutating control when no listing exists yet (lazy-create
-   *  TBD per AC-108 -- currently the Listing must be generated via AI
-   *  Improve or Convert before Global fields become editable). */
+  /** Disable every mutating control when no Global listing exists yet (per
+   *  AC-108 the first PATCH should lazy-create the row; until that lands we
+   *  gate the UI so the user understands they need to Convert-from-MBA). */
   listingReady: boolean;
   /** Reserved for a future Global-level palette picker. */
   colorOptions?: MbaColor[];
@@ -63,12 +95,25 @@ export interface GlobalTabContentProps {
 
 // ---------------------------------------------------------------------------
 // Component — Phase U8 composition
+//
+// Renders the full Global marketplace tab: Translation tabs + Title +
+// Description (AC-42) + Keywords chip field (AC-84/85) + KW research links
+// (AC-128/129) + Options section (Types + Color -- AC-88) + header buttons
+// (Tagging Options -- AC-134, Advanced Options -- AC-130).
+//
+// Intentionally does NOT render Brand / Bullets / keyword_context / MBA
+// product config / AI Improve (AC-45). Brand lives inside the Advanced
+// Options modal (AC-131).
 // ---------------------------------------------------------------------------
 
 const GlobalTabContent = ({
   listing,
   activeLang,
+  onLangChange,
+  autoTranslate,
+  onAutoTranslateChange,
   activeNicheId,
+  textSetters,
   keywordsSetters,
   typeFlagsSetter,
   colorModeSetter,
@@ -90,10 +135,37 @@ const GlobalTabContent = ({
   const disabledReason = disabledBecauseNoListing
     ? t('publish.edit.global.noListing', {
         defaultValue:
-          'Generate a listing (AI Improve or Convert) before editing Global fields.',
+          'Generate a Global listing (Convert from MBA) before editing Global fields.',
       })
     : undefined;
 
+  // ---- Title + Description bindings (language-aware, mirrors the MBA
+  //      ListingFieldsSection pattern but scoped to just these 2 fields) ----
+  const isEn = activeLang === 'en';
+  const translatable = (field: ListingTextField): field is TranslatableField =>
+    (TRANSLATABLE_FIELDS as readonly string[]).includes(field);
+  const bind = (field: ListingTextField, key: keyof Listing) => {
+    if (!isEn && translatable(field)) {
+      const tr =
+        (listing?.translations?.[activeLang] as
+          | Record<TranslatableField, string>
+          | undefined) ?? undefined;
+      return {
+        value: tr?.[field] ?? '',
+        onChange: (v: string) =>
+          textSetters.onChangeTranslated(activeLang, field, v),
+        onBlur: (v: string) =>
+          textSetters.onBlurTranslated(activeLang, field, v),
+      };
+    }
+    return {
+      value: (listing?.[key] as string | undefined) ?? '',
+      onChange: (v: string) => textSetters.onChange(field, v),
+      onBlur: (v: string) => textSetters.onBlur(field, v),
+    };
+  };
+
+  // ---- Handlers -------------------------------------------------------
   const handleCommit = async (kw: string) => {
     await keywordsSetters.commitChip(activeLang, kw);
   };
@@ -113,25 +185,71 @@ const GlobalTabContent = ({
   };
 
   return (
-    <Box data-testid="GlobalTabContent">
-      <SectionHeader>
+    <Box
+      component="section"
+      data-testid="GlobalTabContent"
+      aria-label={t('publish.edit.global.sectionLabel', {
+        defaultValue: 'Global listing',
+      })}
+    >
+      {/* Header -- Tagging Options menu + Advanced Options text link */}
+      <HeaderRow>
         <TaggingOptionsMenu
           disabled={disabledBecauseNoListing}
           onCopyEnToAll={handleTagging.copyEn}
           onClearAll={handleTagging.clearAll}
           onImportCsv={handleTagging.importCsv}
         />
-        <Box>
-          {/* AC-130 -- Advanced Options text link next to Tagging Options. */}
-          <TaggingOptionsMenuDivider />
-        </Box>
-        <AdvancedOptionsTrigger
-          disabled={disabledBecauseNoListing}
+        <HeaderDivider aria-hidden />
+        <AdvancedOptionsTriggerButton
+          type="button"
           onClick={actions.openAdvanced}
-        />
-      </SectionHeader>
+          disabled={disabledBecauseNoListing}
+          data-testid="AdvancedOptionsTrigger"
+        >
+          {t('publish.edit.global.advanced.trigger', {
+            defaultValue: 'Advanced Options',
+          })}
+        </AdvancedOptionsTriggerButton>
+      </HeaderRow>
 
-      <Stack gap={3} sx={{ mt: 2 }}>
+      {/* Translation tabs -- shared with the MBA tab UX */}
+      <TranslationTabs
+        activeLang={activeLang as MbaListingLanguage}
+        onLangChange={(lang) => onLangChange(lang as ListingLanguage)}
+        autoTranslate={autoTranslate}
+        onAutoTranslateChange={onAutoTranslateChange}
+        onTranslateToAll={() => undefined}
+      />
+
+      <Stack gap={3}>
+        {/* Title + Description (AC-42 + AC-53 -- MBA limits 60 / 2000) */}
+        <Grid container spacing={2}>
+          <Grid size={{ xs: 12 }}>
+            <ListingField
+              {...bind('title', 'title')}
+              maxChars={LISTING_CHAR_LIMITS.title}
+              label={t('publish.edit.fields.title', { defaultValue: 'Title' })}
+              disabled={disabledBecauseNoListing}
+              disabledReason={disabledReason}
+            />
+          </Grid>
+          <Grid size={{ xs: 12 }}>
+            <ListingField
+              {...bind('description', 'description')}
+              maxChars={LISTING_CHAR_LIMITS.description}
+              label={t('publish.edit.fields.description', {
+                defaultValue: 'Description',
+              })}
+              multiline
+              rows={8}
+              disabled={disabledBecauseNoListing}
+              disabledReason={disabledReason}
+            />
+          </Grid>
+        </Grid>
+
+        {/* Keywords chip field + research deep-links */}
         <Box>
           <KeywordsChipField
             value={keywordsForLang}
@@ -144,6 +262,7 @@ const GlobalTabContent = ({
           <KeywordResearchLinks nicheId={activeNicheId} />
         </Box>
 
+        {/* Options -- Types + Color (Global-only) */}
         <OptionsWrapper>
           <TypeColorOptions
             typeFlags={typeFlags}
@@ -219,54 +338,3 @@ const GlobalTabContent = ({
 };
 
 export default GlobalTabContent;
-
-// ---------------------------------------------------------------------------
-// Sub-components (kept colocated — small, single-use)
-// ---------------------------------------------------------------------------
-
-const TaggingOptionsMenuDivider = styled('span')(({ theme }) => ({
-  width: 1,
-  height: theme.spacing(2.5),
-  backgroundColor: theme.vars.palette.divider,
-  display: 'inline-block',
-}));
-
-interface AdvancedOptionsTriggerProps {
-  disabled: boolean;
-  onClick: () => void;
-}
-
-const AdvancedOptionsTriggerButton = styled('button')(({ theme }) => ({
-  background: 'none',
-  border: 'none',
-  padding: theme.spacing(0.25, 1),
-  cursor: 'pointer',
-  font: 'inherit',
-  color: theme.vars.palette.primary.main,
-  '&:disabled': {
-    color: theme.vars.palette.text.disabled,
-    cursor: 'not-allowed',
-  },
-  '&:hover:not(:disabled)': {
-    textDecoration: 'underline',
-  },
-}));
-
-const AdvancedOptionsTrigger = ({
-  disabled,
-  onClick,
-}: AdvancedOptionsTriggerProps) => {
-  const { t } = useTranslation();
-  return (
-    <AdvancedOptionsTriggerButton
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      data-testid="AdvancedOptionsTrigger"
-    >
-      {t('publish.edit.global.advanced.trigger', {
-        defaultValue: 'Advanced Options',
-      })}
-    </AdvancedOptionsTriggerButton>
-  );
-};

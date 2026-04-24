@@ -149,7 +149,7 @@ export const useGlobalTabActions = ({
     [
       keywordsSetters,
       activeLang,
-      listing?.keywords,
+      listing,
       enqueueSnackbar,
       t,
       closeImport,

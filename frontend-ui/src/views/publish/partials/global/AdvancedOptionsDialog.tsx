@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
   Button,
   CircularProgress,
@@ -27,30 +27,22 @@ interface AdvancedOptionsDialogProps {
 
 // ---------------------------------------------------------------------------
 // Component — AC-130 / AC-131 / AC-132
+//
+// Mount-on-open: parent gates render via `open` and a `key={id}` further up
+// the tree, so local state ALWAYS initializes from the seed on each open
+// cycle. This avoids the setState-in-effect anti-pattern.
 // ---------------------------------------------------------------------------
 
-const AdvancedOptionsDialog = ({
-  open,
+const AdvancedOptionsDialogInner = ({
   defaultBrand,
   defaultCategory,
   isSaving = false,
   onClose,
   onSave,
-}: AdvancedOptionsDialogProps) => {
+}: Omit<AdvancedOptionsDialogProps, 'open'>) => {
   const { t } = useTranslation();
   const [brand, setBrand] = useState(defaultBrand);
   const [category, setCategory] = useState(defaultCategory);
-
-  // Reset inputs every time the dialog opens (mount-on-open pattern).
-  useEffect(() => {
-    if (open) {
-      setBrand(defaultBrand);
-      setCategory(defaultCategory);
-    }
-  }, [open, defaultBrand, defaultCategory]);
-
-  // Mount-on-open: return null when closed so the form state resets cleanly.
-  if (!open) return null;
 
   const handleSave = async () => {
     await onSave(brand.trim(), category.trim());
@@ -58,7 +50,7 @@ const AdvancedOptionsDialog = ({
 
   return (
     <Dialog
-      open={open}
+      open
       onClose={onClose}
       maxWidth="sm"
       fullWidth
@@ -118,6 +110,12 @@ const AdvancedOptionsDialog = ({
       </DialogActions>
     </Dialog>
   );
+};
+
+// Mount-on-open wrapper: unmount + remount resets the inner `useState` seed.
+const AdvancedOptionsDialog = ({ open, ...rest }: AdvancedOptionsDialogProps) => {
+  if (!open) return null;
+  return <AdvancedOptionsDialogInner {...rest} />;
 };
 
 export default AdvancedOptionsDialog;

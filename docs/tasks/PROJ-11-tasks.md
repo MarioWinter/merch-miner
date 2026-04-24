@@ -1284,65 +1284,65 @@
 
 ### U1: Data layer — publishSlice additions
 
-- [ ] Extend `Listing` type with the 5 new fields (nullable per marketplace_type)
-- [ ] Add RTK Query endpoints: `previewExport`, `runExport`, `listExportHistory`
-- [ ] Cache tag `ExportHistory` for invalidation on successful export
-- [ ] `useEditFormState` hook: add `keywordsSetters.commitChip(lang, keyword)`, `keywordsSetters.removeChip(lang, idx)`, `keywordsSetters.setAll(lang, keywords)` for bulk ops; `colorModeSetter`, `bgHexSetter`, `categorySetter`
+- [x] Extend `Listing` type with the 5 new fields (nullable per marketplace_type)
+- [x] Add RTK Query endpoints: `previewExport`, `runExport`, `listExportHistory`
+- [x] Cache tag `ExportHistory` for invalidation on successful export
+- [x] `useEditFormState` hook: add `keywordsSetters.commitChip(lang, keyword)`, `keywordsSetters.removeChip(lang, idx)`, `keywordsSetters.setAll(lang, keywords)` for bulk ops; `colorModeSetter`, `bgHexSetter`, `categorySetter`
 
 ### U2: Keywords chip field
 
-- [ ] Create `KeywordsChipField.tsx` using MUI Autocomplete freeSolo multiple
-- [ ] Enter + comma commit buffer; strip mid-buffer commas; reject `,` and `;` in chip values (AC-110)
-- [ ] Case-insensitive deduplication per language
-- [ ] 50-char counter below field; amber ≥90%, red ≥100% (AC-85)
-- [ ] Rejected-chip shake animation
-- [ ] Immediate PATCH on add/remove, on-blur for any pending buffer
+- [x] Create `KeywordsChipField.tsx` using MUI Autocomplete freeSolo multiple
+- [x] Enter + comma commit buffer; strip mid-buffer commas; reject `,` and `;` in chip values (AC-110)
+- [x] Case-insensitive deduplication per language
+- [x] 50-char counter below field; amber ≥90%, red ≥100% (AC-85)
+- [x] Rejected-chip shake animation
+- [x] Immediate PATCH on add/remove, on-blur for any pending buffer
 
 ### U3: Keyword research links
 
-- [ ] Create `KeywordResearchLinks.tsx` with KW Finder + "|" separator + KW Workbench
-- [ ] KW Finder: `<Link>` to `/niches/research?niche=<id>&context=keywords`; disabled when design has no niche FK
-- [ ] KW Workbench: disabled with tooltip `"Coming soon — ships with PROJ-10 Keyword Bank"`
+- [x] Create `KeywordResearchLinks.tsx` with KW Finder + "|" separator + KW Workbench
+- [x] KW Finder: `<Link>` to `/niches/research?niche=<id>&context=keywords`; disabled when design has no niche FK
+- [x] KW Workbench: disabled with tooltip `"Coming soon — ships with PROJ-10 Keyword Bank"`
 
 ### U4: Type + Color Options
 
-- [ ] Create `TypeColorOptions.tsx`: Types checkbox group (Men/Women/Youth) + Color radio group (Black/White/Colorful)
-- [ ] Bound to `type_flags` + `color_mode` via immediate PATCH
-- [ ] Rendered in the Options section at the bottom of Global tab; not rendered on MBA/Displate
+- [x] Create `TypeColorOptions.tsx`: Types checkbox group (Men/Women/Youth) + Color radio group (Black/White/Colorful)
+- [x] Bound to `type_flags` + `color_mode` via immediate PATCH
+- [x] Rendered in the Options section at the bottom of Global tab; not rendered on MBA/Displate
 
 ### U5: Tagging Options menu
 
-- [ ] Create `TaggingOptionsMenu.tsx` anchored to "Tagging Options" button
-- [ ] Action: "Copy EN keywords to all languages" → confirm dialog → bulk PATCH → snackbar
-- [ ] Action: "Clear all keywords" → confirm dialog → bulk PATCH → snackbar
-- [ ] Action: "Import keywords from CSV" → opens `ImportKeywordsCsvDialog`
+- [x] Create `TaggingOptionsMenu.tsx` anchored to "Tagging Options" button
+- [x] Action: "Copy EN keywords to all languages" → confirm dialog → bulk PATCH → snackbar
+- [x] Action: "Clear all keywords" → confirm dialog → bulk PATCH → snackbar
+- [x] Action: "Import keywords from CSV" → opens `ImportKeywordsCsvDialog`
 
 ### U6: Import Keywords CSV dialog
 
-- [ ] Create `ImportKeywordsCsvDialog.tsx` with textarea + parse-preview
-- [ ] Parse: split on `,` / `;` / newlines; trim; dedupe against existing; drop empties
-- [ ] Count-of-rejected warning when 50-char limit forces drops (EC-78)
-- [ ] Commit → append to active-lang keywords + PATCH + close dialog
+- [x] Create `ImportKeywordsCsvDialog.tsx` with textarea + parse-preview
+- [x] Parse: split on `,` / `;` / newlines; trim; dedupe against existing; drop empties
+- [x] Count-of-rejected warning when 50-char limit forces drops (EC-78)
+- [x] Commit → append to active-lang keywords + PATCH + close dialog
 
 ### U7: Advanced Options dialog
 
-- [ ] Create `AdvancedOptionsDialog.tsx` with Brand + Category TextFields
-- [ ] Mount-on-open pattern
-- [ ] Save button → single batched PATCH; Cancel → discard
+- [x] Create `AdvancedOptionsDialog.tsx` with Brand + Category TextFields
+- [x] Mount-on-open pattern
+- [x] Save button → single batched PATCH; Cancel → discard
 
 ### U8: Global tab composition
 
-- [ ] Create `GlobalTabContent.tsx` that assembles Title + Description + KeywordsChipField + KeywordResearchLinks + Options section (TypeColorOptions) + header buttons (Tagging Options, Advanced Options)
-- [ ] Lazy-create listing on first PATCH per AC-108
-- [ ] Gate `EditView.tsx` to render `GlobalTabContent` when `activeMarketplace === 'global'`
+- [x] Create `GlobalTabContent.tsx` that assembles Title + Description + KeywordsChipField + KeywordResearchLinks + Options section (TypeColorOptions) + header buttons (Tagging Options, Advanced Options)
+- [x] Lazy-create listing on first PATCH per AC-108
+- [x] Gate `EditView.tsx` to render `GlobalTabContent` when `activeMarketplace === 'global'`
 
 ### U9: Tests
 
-- [ ] `KeywordsChipField.test.tsx` — commit, reject-comma, shake on duplicate, counter transition
-- [ ] `TaggingOptionsMenu.test.tsx` — 3 actions fire correct mutations with confirm
-- [ ] `ImportKeywordsCsvDialog.test.tsx` — parser splits + dedupes + 50-char limit
-- [ ] `AdvancedOptionsDialog.test.tsx` — save batches PATCH, cancel discards
-- [ ] `GlobalTabContent.test.tsx` — renders expected sections; hides MBA-specific sections
+- [x] `KeywordsChipField.test.tsx` — commit, reject-comma, shake on duplicate, counter transition
+- [x] `TaggingOptionsMenu.test.tsx` — 3 actions fire correct mutations with confirm
+- [x] `ImportKeywordsCsvDialog.test.tsx` — parser splits + dedupes + 50-char limit
+- [x] `AdvancedOptionsDialog.test.tsx` — save batches PATCH, cancel discards
+- [x] `GlobalTabContent.test.tsx` — renders expected sections; hides MBA-specific sections
 
 ---
 

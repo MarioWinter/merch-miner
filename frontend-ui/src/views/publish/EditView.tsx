@@ -162,6 +162,7 @@ const EditView = () => {
 
   const isMba = activeMarketplace === 'mba';
   const isGlobal = activeMarketplace === 'global';
+  const globalListing = isGlobal ? listing : null;
 
   return (
     <ViewRoot>
@@ -264,6 +265,33 @@ const EditView = () => {
                   />
                   <OptionsSection control={listingForm.control} />
                 </>
+              )}
+            </Stack>
+          ) : isGlobal ? (
+            <Stack gap={3}>
+              <ListingStateBanner
+                isLoading={isLoadingListing}
+                isFetching={isFetchingListing}
+                notFound={listingNotFound}
+                hasError={Boolean(listingError)}
+                onRetry={handleRetryListing}
+                marketplace={activeMarketplace}
+              />
+              {!isLoadingListing && !listingError && (
+                <GlobalTabContent
+                  listing={globalListing}
+                  activeLang={activeLang}
+                  onLangChange={setActiveLang}
+                  autoTranslate={autoTranslate}
+                  onAutoTranslateChange={setAutoTranslate}
+                  activeNicheId={activeDesign?.niche ?? null}
+                  textSetters={editFormState.textSetters}
+                  keywordsSetters={editFormState.keywordsSetters}
+                  typeFlagsSetter={editFormState.typeFlagsSetter}
+                  colorModeSetter={editFormState.colorModeSetter}
+                  advancedOptionsSetter={editFormState.advancedOptionsSetter}
+                  listingReady={Boolean(globalListing)}
+                />
               )}
             </Stack>
           ) : (
