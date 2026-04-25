@@ -111,6 +111,45 @@ class TestAsinCsvUpload:
         assert 'invalid ASIN' in content
 
 
+    def test_xlsx_upload_creates_targets(self, admin_client, scrape_tiers):
+        """Excel (.xlsx) upload parsed via openpyxl."""
+        from openpyxl import Workbook
+
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['asin', 'marketplace', 'tier'])
+        ws.append(['B0TEST1234', 'amazon_com', 'Tier 1'])
+        ws.append(['B0TEST6789', 'amazon_com', ''])
+        ws.append([None, None, None])  # empty row -> skipped
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        buf.name = 'asins.xlsx'
+
+        admin_client.post(self.UPLOAD_URL, {'csv_file': buf})
+
+        assert ScheduledScrapeTarget.objects.count() == 2
+        assert ScheduledScrapeTarget.objects.get(asin='B0TEST1234').tier.name == 'Tier 1'
+
+    def test_xlsx_zero_pads_numeric_asin(self, admin_client, scrape_tiers):
+        """Numeric ASIN cells are zero-padded to 10 chars (Excel strips leading zeros)."""
+        from openpyxl import Workbook
+
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['asin', 'marketplace'])
+        # Excel sees this as int 451526538 (9 digits) -- expect zfill to 0451526538
+        ws.append([451526538, 'amazon_com'])
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        buf.name = 'numeric.xlsx'
+
+        admin_client.post(self.UPLOAD_URL, {'csv_file': buf})
+
+        assert ScheduledScrapeTarget.objects.filter(asin='0451526538').exists()
+
+
 # ---------------------------------------------------------------------------
 # Keyword CSV Upload
 # ---------------------------------------------------------------------------

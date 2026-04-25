@@ -40,11 +40,62 @@ def _tier_from_bsr_or_fallback(asin=None, marketplace=None):
 
 
 # ---------------------------------------------------------------------------
-# CSV Upload Form
+# CSV / XLSX Upload Form + Parser
 # ---------------------------------------------------------------------------
 
 class CsvUploadForm(forms.Form):
-    csv_file = forms.FileField(label='CSV File')
+    csv_file = forms.FileField(
+        label='CSV or Excel File',
+        widget=forms.ClearableFileInput(attrs={'accept': '.csv,.xlsx'}),
+    )
+
+
+def _parse_uploaded_file(uploaded_file):
+    """Parse uploaded CSV or XLSX file into (rows_list, headers_set).
+
+    Detects format via filename extension. xlsx → openpyxl first sheet.
+    Returns (rows, headers) or raises ValueError with user-facing message.
+    """
+    name = (uploaded_file.name or '').lower()
+    if name.endswith('.xlsx'):
+        from openpyxl import load_workbook
+
+        try:
+            wb = load_workbook(filename=uploaded_file, read_only=True, data_only=True)
+        except Exception as exc:
+            raise ValueError(f"Could not read Excel file: {exc}") from exc
+        ws = wb.active
+        rows_iter = ws.iter_rows(values_only=True)
+        try:
+            header_row = next(rows_iter)
+        except StopIteration:
+            raise ValueError("Excel sheet is empty.") from None
+        headers_list = [str(h).strip() if h is not None else '' for h in header_row]
+        rows = []
+        for raw in rows_iter:
+            if all(v is None or str(v).strip() == '' for v in raw):
+                continue
+            row = {}
+            for i, value in enumerate(raw):
+                if i >= len(headers_list) or not headers_list[i]:
+                    continue
+                if value is None:
+                    cell = ''
+                elif isinstance(value, int) and headers_list[i] == 'asin':
+                    cell = str(value).zfill(10)
+                else:
+                    cell = str(value).strip()
+                row[headers_list[i]] = cell
+            rows.append(row)
+        return rows, set(h for h in headers_list if h)
+
+    try:
+        decoded = uploaded_file.read().decode('utf-8')
+    except UnicodeDecodeError as exc:
+        raise ValueError("File is not valid UTF-8.") from exc
+    reader = csv.DictReader(io.StringIO(decoded))
+    rows = list(reader)
+    return rows, set(reader.fieldnames or [])
 
 
 # ---------------------------------------------------------------------------
@@ -322,22 +373,19 @@ class ScheduledScrapeTargetAdmin(admin.ModelAdmin):
         if request.method == 'POST':
             form = CsvUploadForm(request.POST, request.FILES)
             if form.is_valid():
-                csv_file = request.FILES['csv_file']
+                uploaded = request.FILES['csv_file']
                 try:
-                    decoded = csv_file.read().decode('utf-8')
-                except UnicodeDecodeError:
-                    self.message_user(request, "File is not valid UTF-8.", messages.ERROR)
+                    rows, headers = _parse_uploaded_file(uploaded)
+                except ValueError as exc:
+                    self.message_user(request, str(exc), messages.ERROR)
                     return HttpResponseRedirect(
                         reverse('admin:scraper_app_scheduledscrapetarget_changelist')
                     )
 
-                reader = csv.DictReader(io.StringIO(decoded))
-                headers = set(reader.fieldnames or [])
-
                 if csv_type == 'asin':
-                    count, errors = self._process_asin_csv(reader, headers)
+                    count, errors = self._process_asin_csv(rows, headers)
                 else:
-                    count, errors = self._process_keyword_csv(reader, headers)
+                    count, errors = self._process_keyword_csv(rows, headers)
 
                 if errors:
                     self.message_user(
