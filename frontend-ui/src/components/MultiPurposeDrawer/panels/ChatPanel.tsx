@@ -37,7 +37,6 @@ import ContextChip from './ContextChip';
 import ChatControls from './ChatControls';
 import ChatMessageList from './ChatMessageList';
 import RecentChats from './RecentChats';
-import SessionTagManager from './SessionTagManager';
 
 const PanelRoot = styled(Box)({
   display: 'flex',
@@ -179,15 +178,6 @@ const ChatPanel = () => {
         </Stack>
 
         <ContextChip />
-
-        {/* Tags for active session */}
-        {session && activeSessionId && (
-          <SessionTagManager
-            sessionId={activeSessionId}
-            currentTags={session.tags ?? []}
-            readOnly={!!isReadOnly}
-          />
-        )}
 
         {/* Controls collapse */}
         <Collapse in={showControls}>

@@ -28,7 +28,7 @@
 | PROJ-14 | Team Kanban & Collaboration | In Review | [spec](PROJ-14-team-kanban.md) | 2026-02-27 |
 | PROJ-15 | Vector Database (AI Memory) | In Review | [spec](PROJ-15-vector-database.md) | 2026-03-24 |
 | PROJ-16 | Amazon Product Scraper (Scrapy) — P0 | Deployed | [spec](PROJ-16-amazon-product-scraper.md) | 2026-02-27 |
-| PROJ-17 | Deep Web Search (Vane + Crawl4ai) | In Review | [spec](PROJ-17-deep-web-search.md) | 2026-03-24 |
+| PROJ-17 | Deep Web Search (Vane + Crawl4ai) | Planned | [spec](PROJ-17-deep-web-search.md) | 2026-03-24 |
 | PROJ-18 | OpenClaw Agent (Multi-Agent System) | In Review | [spec](PROJ-18-openclaw-agent.md) | 2026-03-24 |
 
 | PROJ-19 | ~~Global Cloud Picker~~ (absorbed into PROJ-11) | Absorbed | [spec](PROJ-19-global-cloud-picker.md) | 2026-04-06 |

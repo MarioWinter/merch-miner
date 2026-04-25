@@ -2,7 +2,6 @@ import { ToggleButton, ToggleButtonGroup, Stack, Typography } from '@mui/materia
 import { styled } from '@mui/material/styles';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
-import SearchOutlinedIcon from '@mui/icons-material/SearchOutlined';
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
 import { useTranslation } from 'react-i18next';
 import type { DrawerPanel } from '@/types/search';
@@ -11,7 +10,6 @@ import HealthStatusDot from './HealthStatusDot';
 interface DrawerSegmentsProps {
   activePanel: DrawerPanel;
   onChange: (panel: DrawerPanel) => void;
-  showNiche: boolean;
 }
 
 const SegmentGroup = styled(ToggleButtonGroup)(({ theme }) => ({
@@ -31,7 +29,7 @@ const SegmentGroup = styled(ToggleButtonGroup)(({ theme }) => ({
   },
 }));
 
-const DrawerSegments = ({ activePanel, onChange, showNiche }: DrawerSegmentsProps) => {
+const DrawerSegments = ({ activePanel, onChange }: DrawerSegmentsProps) => {
   const { t } = useTranslation();
 
   const handleChange = (_: React.MouseEvent<HTMLElement>, value: DrawerPanel | null) => {
@@ -47,24 +45,16 @@ const DrawerSegments = ({ activePanel, onChange, showNiche }: DrawerSegmentsProp
         size="small"
         aria-label={t('search.drawer.segments')}
       >
-        {showNiche && (
-          <ToggleButton value="niche" aria-label={t('search.drawer.nicheDetail')}>
-            <InfoOutlinedIcon sx={{ fontSize: 18 }} />
-            <Typography variant="body2" component="span">
-              {t('search.drawer.nicheDetail')}
-            </Typography>
-          </ToggleButton>
-        )}
+        <ToggleButton value="niche" aria-label={t('search.drawer.nicheDetail')}>
+          <InfoOutlinedIcon sx={{ fontSize: 18 }} />
+          <Typography variant="body2" component="span">
+            {t('search.drawer.nicheDetail')}
+          </Typography>
+        </ToggleButton>
         <ToggleButton value="chat" aria-label={t('search.drawer.chat')}>
           <ChatOutlinedIcon sx={{ fontSize: 18 }} />
           <Typography variant="body2" component="span">
             {t('search.drawer.chat')}
-          </Typography>
-        </ToggleButton>
-        <ToggleButton value="search" aria-label={t('search.drawer.search')}>
-          <SearchOutlinedIcon sx={{ fontSize: 18 }} />
-          <Typography variant="body2" component="span">
-            {t('search.drawer.search')}
           </Typography>
         </ToggleButton>
         <ToggleButton value="agent" aria-label={t('agent.tab.label')}>

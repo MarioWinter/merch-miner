@@ -2577,10 +2577,6 @@
       "sharedBy": "Shared by {{name}}",
       "readOnly": "This shared session is read-only."
     },
-    "tags": {
-      "label": "Tags",
-      "updateError": "Failed to update tags."
-    },
     "health": {
       "online": "Online",
       "offline": "Offline",

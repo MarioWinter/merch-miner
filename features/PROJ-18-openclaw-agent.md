@@ -3,6 +3,7 @@
 **Status:** Planned
 **Priority:** P0 (MVP)
 **Created:** 2026-03-24
+**Last Updated:** 2026-04-25 (Cross-references aligned with PROJ-17 Pattern B Hybrid)
 
 ## Overview
 
@@ -11,6 +12,8 @@ Autonomous multi-agent system that automates the full POD creative pipeline: Res
 The system consists of an **Orchestrator Agent** that plans and delegates to **6 specialized Sub-Agents**, each with their own tool set, system prompt, and LLM model. All agents are sandboxed — they can only access registered internal tools (PROJ-5 through PROJ-17) and the Vector DB. No external access beyond registered APIs.
 
 Communication happens through a dedicated **Agent tab** in the multi-purpose right drawer (shared with PROJ-5 Niche Detail and PROJ-17 Chat). The Agent tab is a **resizable Command Center** with workflow stepper, agent log, approval controls, and budget indicator.
+
+**Pattern B Hybrid (per PROJ-17):** Agent workflows can also be triggered **directly from the Chat tab** via the Mode-Dropdown (`Auto / Web-Search / Agent`). When triggered from chat, an inline **WorkflowCard** appears in the chat stream with a mini-stepper, inline approval-cards, and a "→ Open Command Center" link to switch to the Agent tab for full control. The Agent tab remains the source of truth for batch operations, settings, knowledge docs, and full-detail logs.
 
 A **3-layer knowledge system** enables the agent to improve over time: (1) System Prompt (base workflow rules), (2) Knowledge Docs (user-created explicit knowledge), (3) implicit learning from user approvals/rejections — all stored in DB + Vector DB (PROJ-15).
 
@@ -54,7 +57,7 @@ Each Sub-Agent: own System Prompt (~800 tokens) + own Tool set (4-6 tools) + own
 ### Models
 
 - [ ] AC-1: `AgentConfig` model: UUID pk, `workspace` FK, `agent_type` choices [orchestrator, research, ideation, design, listing, publishing, search], `display_name` (CharField 50 — user-customizable name, e.g. "Julian", "Rex", "Nova". Defaults: "Orchestrator", "Research Agent" etc.), `personality` (TextField, blank=True — custom personality description injected into system prompt, e.g. "Freundlich, direkt, nutzt Humor. Spricht den User mit Du an."), `avatar_emoji` (CharField 5, default per type — e.g. "🤖" for orchestrator, "🔬" for research, "🎨" for design), `model_name` (CharField 100 — OpenRouter model ID), `temperature` (FloatField, default 0.3), `system_prompt` (TextField), `max_tokens` (IntegerField, nullable), `updated_at`. One row per agent type per workspace. Editable via Admin + Agent Settings UI. Fallback to code defaults if no DB record.
-- [ ] AC-2: `AgentSession` model: UUID pk, `workspace` FK, `created_by` FK (User), `title` (CharField 200, auto-generated), `status` choices [idle, running, paused, completed, failed, cancelled], `niche_context` FK (Niche, nullable), `workflow_template` (CharField 50, nullable — template key), `autonomy_preset` (CharField 20, default="assisted"), `is_shared` (BooleanField, default=False), `current_step` (CharField 100, blank=True), `total_steps` (IntegerField, default=0), `completed_steps` (IntegerField, default=0), `error_message` (TextField, blank=True), `created_at`, `updated_at`, `completed_at` (nullable).
+- [ ] AC-2: `AgentSession` model: UUID pk, `workspace` FK, `created_by` FK (User), `title` (CharField 200, auto-generated), `status` choices [idle, running, paused, completed, failed, cancelled], `niche_context` FK (Niche, nullable), `workflow_template` (CharField 50, nullable — template key), `autonomy_preset` (CharField 20, default="assisted"), `is_shared` (BooleanField, default=False), `current_step` (CharField 100, blank=True), `total_steps` (IntegerField, default=0), `completed_steps` (IntegerField, default=0), `error_message` (TextField, blank=True), `source` choices [agent_tab, chat_command, batch_api] (default="agent_tab" — tracks where the session was triggered from for analytics + UI hints), `created_at`, `updated_at`, `completed_at` (nullable). **Note:** PROJ-17 `ChatMessage.agent_session` FK references this model — when triggered via chat, `source='chat_command'`.
 - [ ] AC-3: `AgentMessage` model: UUID pk, `session` FK (AgentSession, on_delete=CASCADE), `role` choices [user, agent, system, approval_request, approval_response], `content` (TextField), `agent_type` (CharField 50, blank=True — which sub-agent sent this), `tool_calls` (JSONField, default=list — [{tool_name, args, result, status}]), `created_at`.
 - [ ] AC-4: `AgentActionLog` model: UUID pk, `session` FK (AgentSession), `workspace` FK, `user` FK, `agent_type` (CharField 50), `action` (CharField 100 — tool name called), `target_object_type` (CharField 50, blank=True — e.g. "niche", "idea", "design"), `target_object_id` (UUID, nullable), `status` choices [started, completed, failed, skipped, awaiting_approval, approved, rejected], `cost_estimate` (DecimalField, nullable — estimated API cost), `error_message` (TextField, blank=True), `created_at`, `completed_at` (nullable).
 - [ ] AC-5: `ToolPermission` model: UUID pk, `workspace` FK, `user` FK, `tool_name` (CharField 100), `permission_level` choices [auto, notify, approve], `updated_at`. `unique_together = [('workspace', 'user', 'tool_name')]`. Defaults seeded on first agent use.
@@ -183,7 +186,7 @@ Each Sub-Agent: own System Prompt (~800 tokens) + own Tool set (4-6 tools) + own
 
 ### Agent Command Center (Frontend)
 
-- [ ] AC-49: Agent tab in multi-purpose drawer as 3rd segment: `[📋 Niche] [💬 Chat] [🤖 Agent]`.
+- [ ] AC-49: Agent tab in multi-purpose drawer as 3rd segment: `[📋 Niche] [💬 Chat] [🤖 Agent]`. Tab shows full Command Center; the Chat tab can render inline `WorkflowCard` components linked to AgentSessions (Pattern B Hybrid, see PROJ-17 AC-42–45).
 - [ ] AC-50: Resizable drawer — drag handle on left edge. Default 480px. Responsive layout:
   - **480px (default):** Single-column — compact header (Budget + Autonomy Preset + Niche Chip) → Workflow Stepper → Agent Log → Chat Input + Controls (Pause/Resume/Stop)
   - **>768px:** Split View — left: Stepper + Status, right: Agent Log + Chat
@@ -442,7 +445,7 @@ Document in `django-app/env/.env.template`.
 - PROJ-13 (Marketplace Upload Manager — Publishing Agent tools)
 - PROJ-14 (Team Kanban — Publishing Agent tools)
 - PROJ-15 (Vector Database — Knowledge system, semantic search, implicit learning)
-- PROJ-17 (Deep Web Search — Search Agent tools, shared drawer UI)
+- PROJ-17 (Deep Web Search — Search Agent tools, shared drawer UI, Pattern B Hybrid: AgentSession can be triggered from chat → inline WorkflowCard)
 
 ## Infrastructure
 
@@ -476,6 +479,8 @@ Document in `django-app/env/.env.template`.
 | 20 | Team visibility | Private + explicit sharing | Consistent with PROJ-17 |
 | 21 | Onboarding | Instant use + optional guided setup | Low barrier, optional depth |
 | 22 | Controls | Stop + Pause + Resume | Full user control |
+| 23 | Chat-Trigger | AgentSession can be created from PROJ-17 Chat (Mode-Dropdown=Agent) → renders inline WorkflowCard | Pattern B Hybrid: single conversation locus, full power in Agent tab |
+| 24 | Source tracking | `AgentSession.source` field [agent_tab, chat_command, batch_api] | Analytics + UI hints (e.g. "Open in Chat" link if source=chat_command) |
 
 ## Future Enhancements (not MVP)
 

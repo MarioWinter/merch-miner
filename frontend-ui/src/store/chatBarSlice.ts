@@ -33,7 +33,7 @@ const initialState: ChatBarState = {
   barExpanded: false,
   barHidden: false,
   drawerOpen: false,
-  activePanel: 'niche',
+  activePanel: 'chat',
   activeSessionId: null,
   nicheContext: null,
   searching: false,

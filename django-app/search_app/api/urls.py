@@ -6,8 +6,6 @@ from search_app.api.views import (
     ChatSessionMessagesView,
     ChatSessionShareView,
     ChatSessionUnshareView,
-    ChatTagDeleteView,
-    ChatTagListCreateView,
     CrawlStatusView,
     SaveToNicheView,
     SearchHealthView,
@@ -40,18 +38,6 @@ urlpatterns = [
         'chat/sessions/<uuid:session_id>/unshare/',
         ChatSessionUnshareView.as_view(),
         name='chat-session-unshare',
-    ),
-
-    # Tags
-    path(
-        'chat/tags/',
-        ChatTagListCreateView.as_view(),
-        name='chat-tag-list-create',
-    ),
-    path(
-        'chat/tags/<uuid:tag_id>/',
-        ChatTagDeleteView.as_view(),
-        name='chat-tag-delete',
     ),
 
     # Search / Crawl

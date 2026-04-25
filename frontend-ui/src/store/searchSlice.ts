@@ -5,14 +5,12 @@ import type {
   ChatSessionDetail,
   ChatSessionListResponse,
   ChatMessage,
-  ChatTag,
   WebSearchResult,
   SearchHealth,
   CreateSessionBody,
   SendMessageBody,
   TriggerCrawlBody,
   SaveToNicheBody,
-  CreateTagBody,
   UpdateSessionBody,
   SessionListParams,
 } from '../types/search';
@@ -20,7 +18,7 @@ import type {
 export const searchApi = createApi({
   reducerPath: 'searchApi',
   baseQuery: axiosBaseQuery({ baseUrl: '' }),
-  tagTypes: ['ChatSessions', 'ChatMessages', 'CrawlJobs', 'ChatTags', 'SearchHealth'],
+  tagTypes: ['ChatSessions', 'ChatMessages', 'CrawlJobs', 'SearchHealth'],
   endpoints: (builder) => ({
     // --- Sessions ---
     listSessions: builder.query<ChatSessionListResponse, SessionListParams | void>({
@@ -133,32 +131,6 @@ export const searchApi = createApi({
       }),
     }),
 
-    // --- Tags ---
-    listTags: builder.query<ChatTag[], void>({
-      query: () => ({
-        url: '/api/chat/tags/',
-        method: 'GET',
-      }),
-      providesTags: [{ type: 'ChatTags', id: 'LIST' }],
-    }),
-
-    createTag: builder.mutation<ChatTag, CreateTagBody>({
-      query: (body) => ({
-        url: '/api/chat/tags/',
-        method: 'POST',
-        data: body,
-      }),
-      invalidatesTags: [{ type: 'ChatTags', id: 'LIST' }],
-    }),
-
-    deleteTag: builder.mutation<void, string>({
-      query: (id) => ({
-        url: `/api/chat/tags/${id}/`,
-        method: 'DELETE',
-      }),
-      invalidatesTags: [{ type: 'ChatTags', id: 'LIST' }],
-    }),
-
     // --- Health ---
     healthCheck: builder.query<SearchHealth, void>({
       query: () => ({
@@ -181,8 +153,5 @@ export const {
   useTriggerCrawlMutation,
   useGetCrawlStatusQuery,
   useSaveToNicheMutation,
-  useListTagsQuery,
-  useCreateTagMutation,
-  useDeleteTagMutation,
   useHealthCheckQuery,
 } = searchApi;

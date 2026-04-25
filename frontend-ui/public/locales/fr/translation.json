@@ -2498,10 +2498,6 @@
       "sharedBy": "Partage par {{name}}",
       "readOnly": "Cette session partagee est en lecture seule."
     },
-    "tags": {
-      "label": "Tags",
-      "updateError": "Echec de la mise a jour des tags."
-    },
     "health": {
       "online": "En ligne",
       "offline": "Hors ligne",

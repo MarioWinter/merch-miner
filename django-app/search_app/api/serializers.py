@@ -3,24 +3,8 @@ from rest_framework import serializers
 from search_app.models import (
     ChatMessage,
     ChatSession,
-    ChatTag,
     WebSearchResult,
 )
-
-
-class ChatTagSerializer(serializers.ModelSerializer):
-    """Serializer for ChatTag (list, create, delete)."""
-
-    class Meta:
-        model = ChatTag
-        fields = ['id', 'name', 'color', 'is_system', 'created_at']
-        read_only_fields = ['id', 'is_system', 'created_at']
-
-
-class ChatTagCreateSerializer(serializers.Serializer):
-    """Input serializer for creating a custom tag."""
-    name = serializers.CharField(max_length=50)
-    color = serializers.CharField(max_length=7, default='#6B7280')
 
 
 class ChatMessageSerializer(serializers.ModelSerializer):
@@ -38,7 +22,6 @@ class ChatMessageSerializer(serializers.ModelSerializer):
 class ChatSessionListSerializer(serializers.ModelSerializer):
     """Serializer for listing chat sessions (compact)."""
 
-    tags = ChatTagSerializer(many=True, read_only=True)
     message_count = serializers.SerializerMethodField()
     shared_by = serializers.SerializerMethodField()
     niche_context_name = serializers.SerializerMethodField()
@@ -48,7 +31,7 @@ class ChatSessionListSerializer(serializers.ModelSerializer):
         model = ChatSession
         fields = [
             'id', 'title', 'is_shared', 'niche_context_id',
-            'niche_context_name', 'tags', 'message_count', 'shared_by',
+            'niche_context_name', 'message_count', 'shared_by',
             'created_at', 'updated_at',
         ]
         read_only_fields = fields
@@ -77,7 +60,6 @@ class ChatSessionListSerializer(serializers.ModelSerializer):
 class ChatSessionDetailSerializer(serializers.ModelSerializer):
     """Serializer for session detail (includes messages)."""
 
-    tags = ChatTagSerializer(many=True, read_only=True)
     messages = serializers.SerializerMethodField()
     message_count = serializers.SerializerMethodField()
     shared_by = serializers.SerializerMethodField()
@@ -88,7 +70,7 @@ class ChatSessionDetailSerializer(serializers.ModelSerializer):
         model = ChatSession
         fields = [
             'id', 'title', 'is_shared', 'niche_context_id',
-            'niche_context_name', 'tags', 'messages', 'message_count',
+            'niche_context_name', 'messages', 'message_count',
             'shared_by', 'created_at', 'updated_at',
         ]
         read_only_fields = fields
@@ -126,12 +108,8 @@ class ChatSessionCreateSerializer(serializers.Serializer):
 
 
 class ChatSessionUpdateSerializer(serializers.Serializer):
-    """Input serializer for PATCH update (title, tags)."""
+    """Input serializer for PATCH update (title only)."""
     title = serializers.CharField(max_length=200, required=False)
-    tag_ids = serializers.ListField(
-        child=serializers.UUIDField(),
-        required=False,
-    )
 
 
 class SendMessageSerializer(serializers.Serializer):

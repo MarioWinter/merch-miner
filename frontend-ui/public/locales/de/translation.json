@@ -1823,10 +1823,6 @@
       "sharedBy": "Geteilt von {{name}}",
       "readOnly": "Diese geteilte Session ist schreibgeschutzt."
     },
-    "tags": {
-      "label": "Tags",
-      "updateError": "Tags aktualisieren fehlgeschlagen."
-    },
     "health": {
       "online": "Online",
       "offline": "Offline",

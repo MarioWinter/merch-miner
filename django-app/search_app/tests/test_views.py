@@ -7,7 +7,6 @@ from rest_framework.test import APIClient
 from search_app.models import (
     ChatMessage,
     ChatSession,
-    ChatTag,
     WebSearchResult,
 )
 from workspace_app.models import Membership, Workspace
@@ -64,21 +63,6 @@ def session(workspace, user):
     )
 
 
-@pytest.fixture
-def tag(workspace, user):
-    return ChatTag.objects.create(
-        workspace=workspace, name='Custom', color='#FF0000', created_by=user,
-    )
-
-
-@pytest.fixture
-def system_tag(workspace, user):
-    return ChatTag.objects.create(
-        workspace=workspace, name='Research', color='#3B82F6',
-        is_system=True, created_by=user,
-    )
-
-
 def _headers(workspace):
     return {'HTTP_X_WORKSPACE_ID': str(workspace.id)}
 
@@ -128,15 +112,6 @@ class TestChatSessionListCreate:
         assert resp.status_code == 200
         assert resp.data['count'] == 1
 
-    def test_filter_by_tag(self, api_client, workspace, session, tag):
-        session.tags.add(tag)
-        resp = api_client.get(
-            f'/api/chat/sessions/?tag_id={tag.id}',
-            **_headers(workspace),
-        )
-        assert resp.status_code == 200
-        assert resp.data['count'] == 1
-
     def test_workspace_isolation(self, api_client, workspace, other_workspace, other_user):
         ChatSession.objects.create(
             workspace=other_workspace, created_by=other_user, title='Other WS Session',
@@ -168,16 +143,6 @@ class TestChatSessionDetail:
         )
         assert resp.status_code == 200
         assert resp.data['title'] == 'Updated Title'
-
-    def test_patch_tags(self, api_client, workspace, session, tag):
-        resp = api_client.patch(
-            f'/api/chat/sessions/{session.id}/',
-            {'tag_ids': [str(tag.id)]},
-            format='json',
-            **_headers(workspace),
-        )
-        assert resp.status_code == 200
-        assert len(resp.data['tags']) == 1
 
     def test_delete_session(self, api_client, workspace, session):
         resp = api_client.delete(
@@ -366,51 +331,6 @@ class TestSaveToNiche:
         assert resp.data['saved'] is True
         niche.refresh_from_db()
         assert 'Camping Guide' in niche.notes
-
-
-@pytest.mark.django_db
-class TestChatTags:
-    def test_list_tags(self, api_client, workspace, tag, system_tag):
-        resp = api_client.get(
-            '/api/chat/tags/',
-            **_headers(workspace),
-        )
-        assert resp.status_code == 200
-        assert len(resp.data) == 2
-
-    def test_create_tag(self, api_client, workspace):
-        resp = api_client.post(
-            '/api/chat/tags/',
-            {'name': 'NewTag', 'color': '#AABBCC'},
-            format='json',
-            **_headers(workspace),
-        )
-        assert resp.status_code == 201
-        assert resp.data['name'] == 'NewTag'
-        assert resp.data['is_system'] is False
-
-    def test_create_duplicate_tag(self, api_client, workspace, tag):
-        resp = api_client.post(
-            '/api/chat/tags/',
-            {'name': 'Custom'},
-            format='json',
-            **_headers(workspace),
-        )
-        assert resp.status_code == 409
-
-    def test_delete_custom_tag(self, api_client, workspace, tag):
-        resp = api_client.delete(
-            f'/api/chat/tags/{tag.id}/',
-            **_headers(workspace),
-        )
-        assert resp.status_code == 204
-
-    def test_cannot_delete_system_tag(self, api_client, workspace, system_tag):
-        resp = api_client.delete(
-            f'/api/chat/tags/{system_tag.id}/',
-            **_headers(workspace),
-        )
-        assert resp.status_code == 403
 
 
 @pytest.mark.django_db

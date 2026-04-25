@@ -7,18 +7,9 @@ export type MessageType =
   | 'search_query'
   | 'search_result'
   | 'crawl_request'
-  | 'crawl_result'
-  | 'agent_message';
+  | 'crawl_result';
 export type CrawlStatus = 'pending' | 'running' | 'completed' | 'failed';
 export type ContentType = 'snippet' | 'full_crawl';
-
-export interface ChatTag {
-  id: string;
-  name: string;
-  color: string;
-  is_system: boolean;
-  created_at: string;
-}
 
 export interface ChatSessionNicheContext {
   id: string;
@@ -30,7 +21,6 @@ export interface ChatSession {
   title: string;
   is_shared: boolean;
   niche_context: ChatSessionNicheContext | null;
-  tags: ChatTag[];
   message_count: number;
   shared_by: string | null;
   created_by: string;
@@ -109,22 +99,15 @@ export interface SaveToNicheBody {
   save_as: 'keywords' | 'notes';
 }
 
-export interface CreateTagBody {
-  name: string;
-  color: string;
-}
-
 export interface UpdateSessionBody {
-  tag_ids?: string[];
   title?: string;
 }
 
 export interface SessionListParams {
   shared?: boolean;
   niche_id?: string;
-  tag_id?: string;
   page?: number;
   page_size?: number;
 }
 
-export type DrawerPanel = 'niche' | 'chat' | 'search' | 'agent';
+export type DrawerPanel = 'niche' | 'chat' | 'agent';

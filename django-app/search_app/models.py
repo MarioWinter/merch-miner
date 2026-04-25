@@ -4,47 +4,6 @@ from django.conf import settings
 from django.db import models
 
 
-class ChatTag(models.Model):
-    """Workspace-scoped tag for categorizing chat sessions."""
-
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    workspace = models.ForeignKey(
-        'workspace_app.Workspace',
-        on_delete=models.CASCADE,
-        related_name='chat_tags',
-        db_index=True,
-    )
-    name = models.CharField(max_length=50)
-    color = models.CharField(max_length=7, default='#6B7280')
-    is_system = models.BooleanField(
-        default=False,
-        help_text='System tags are auto-created and cannot be deleted.',
-    )
-    created_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name='created_chat_tags',
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        unique_together = [('workspace', 'name')]
-        ordering = ['name']
-
-    def __str__(self):
-        return f"{self.name} ({self.workspace})"
-
-
-# Default system tags seeded per workspace
-DEFAULT_TAGS = [
-    {'name': 'Research', 'color': '#3B82F6'},
-    {'name': 'Keywords', 'color': '#10B981'},
-    {'name': 'Competitors', 'color': '#F59E0B'},
-    {'name': 'Ideas', 'color': '#8B5CF6'},
-    {'name': 'General', 'color': '#6B7280'},
-]
-
-
 class ChatSession(models.Model):
     """Persistent chat session for web search conversations."""
 
@@ -73,11 +32,6 @@ class ChatSession(models.Model):
         null=True,
         blank=True,
         related_name='chat_sessions',
-    )
-    tags = models.ManyToManyField(
-        ChatTag,
-        blank=True,
-        related_name='sessions',
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -112,7 +66,6 @@ class ChatMessage(models.Model):
         SEARCH_RESULT = 'search_result', 'Search Result'
         CRAWL_REQUEST = 'crawl_request', 'Crawl Request'
         CRAWL_RESULT = 'crawl_result', 'Crawl Result'
-        AGENT_MESSAGE = 'agent_message', 'Agent Message'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     session = models.ForeignKey(

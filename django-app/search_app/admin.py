@@ -3,17 +3,9 @@ from django.contrib import admin
 from search_app.models import (
     ChatMessage,
     ChatSession,
-    ChatTag,
     SearchUsageLog,
     WebSearchResult,
 )
-
-
-@admin.register(ChatTag)
-class ChatTagAdmin(admin.ModelAdmin):
-    list_display = ['name', 'workspace', 'color', 'is_system', 'created_at']
-    list_filter = ['is_system', 'workspace']
-    search_fields = ['name']
 
 
 class ChatMessageInline(admin.TabularInline):

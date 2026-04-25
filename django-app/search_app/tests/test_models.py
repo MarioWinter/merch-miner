@@ -4,7 +4,6 @@ from django.contrib.auth import get_user_model
 from search_app.models import (
     ChatMessage,
     ChatSession,
-    ChatTag,
     SearchUsageLog,
     WebSearchResult,
 )
@@ -25,29 +24,6 @@ def workspace(db, user):
         workspace=ws, user=user, role='admin', status='active',
     )
     return ws
-
-
-@pytest.mark.django_db
-class TestChatTag:
-    def test_create_tag(self, workspace, user):
-        tag = ChatTag.objects.create(
-            workspace=workspace,
-            name='Research',
-            color='#3B82F6',
-            created_by=user,
-        )
-        assert tag.name == 'Research'
-        assert tag.color == '#3B82F6'
-        assert not tag.is_system
-
-    def test_unique_together(self, workspace, user):
-        ChatTag.objects.create(
-            workspace=workspace, name='Test', created_by=user,
-        )
-        with pytest.raises(Exception):
-            ChatTag.objects.create(
-                workspace=workspace, name='Test', created_by=user,
-            )
 
 
 @pytest.mark.django_db

@@ -18,8 +18,6 @@ from search_app.api.serializers import (
     ChatSessionDetailSerializer,
     ChatSessionListSerializer,
     ChatSessionUpdateSerializer,
-    ChatTagCreateSerializer,
-    ChatTagSerializer,
     SaveToNicheSerializer,
     SendMessageSerializer,
     TriggerCrawlSerializer,
@@ -28,7 +26,6 @@ from search_app.api.serializers import (
 from search_app.models import (
     ChatMessage,
     ChatSession,
-    ChatTag,
     WebSearchResult,
 )
 from search_app.services.context_builder import build_system_instructions
@@ -81,7 +78,6 @@ class ChatSessionListCreateView(APIView):
 
         shared = request.query_params.get('shared')
         niche_id = request.query_params.get('niche_id')
-        tag_id = request.query_params.get('tag_id')
 
         qs = ChatSession.objects.filter(workspace=workspace)
 
@@ -93,15 +89,10 @@ class ChatSessionListCreateView(APIView):
             qs = qs.filter(created_by=request.user) | qs.filter(is_shared=True)
             qs = qs.distinct()
 
-        # Filters (AC-46)
         if niche_id:
             qs = qs.filter(niche_context_id=niche_id)
-        if tag_id:
-            qs = qs.filter(tags__id=tag_id)
 
-        qs = qs.select_related('created_by', 'niche_context').prefetch_related(
-            'tags'
-        ).annotate(
+        qs = qs.select_related('created_by', 'niche_context').annotate(
             _message_count=Count('messages')
         ).order_by('-updated_at')
 
@@ -159,7 +150,7 @@ class ChatSessionDetailView(APIView):
         try:
             session = ChatSession.objects.select_related(
                 'created_by', 'niche_context'
-            ).prefetch_related('tags', 'messages').get(
+            ).prefetch_related('messages').get(
                 pk=session_id, workspace=workspace,
             )
         except ChatSession.DoesNotExist:
@@ -203,13 +194,6 @@ class ChatSessionDetailView(APIView):
         if 'title' in data:
             session.title = data['title']
             session.save(update_fields=['title', 'updated_at'])
-
-        if 'tag_ids' in data:
-            # Validate all tags belong to workspace
-            tags = ChatTag.objects.filter(
-                id__in=data['tag_ids'], workspace=workspace,
-            )
-            session.tags.set(tags)
 
         return Response(ChatSessionDetailSerializer(session).data)
 
@@ -707,85 +691,6 @@ class SaveToNicheView(APIView):
             {'error': f'Unknown save_as value: {save_as}'},
             status=status.HTTP_400_BAD_REQUEST,
         )
-
-
-class ChatTagListCreateView(APIView):
-    """GET /api/chat/tags/ -- list workspace tags.
-    POST /api/chat/tags/ -- create custom tag.
-    """
-
-    authentication_classes = [CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        workspace, err = _resolve_workspace(request)
-        if err:
-            return err
-
-        tags = ChatTag.objects.filter(workspace=workspace).order_by('name')
-        serializer = ChatTagSerializer(tags, many=True)
-        return Response(serializer.data)
-
-    def post(self, request):
-        workspace, err = _resolve_workspace(request)
-        if err:
-            return err
-
-        serializer = ChatTagCreateSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
-
-        # Check uniqueness
-        if ChatTag.objects.filter(
-            workspace=workspace, name=data['name'],
-        ).exists():
-            return Response(
-                {'error': f'Tag "{data["name"]}" already exists in this workspace.'},
-                status=status.HTTP_409_CONFLICT,
-            )
-
-        tag = ChatTag.objects.create(
-            workspace=workspace,
-            name=data['name'],
-            color=data.get('color', '#6B7280'),
-            is_system=False,
-            created_by=request.user,
-        )
-
-        return Response(
-            ChatTagSerializer(tag).data,
-            status=status.HTTP_201_CREATED,
-        )
-
-
-class ChatTagDeleteView(APIView):
-    """DELETE /api/chat/tags/{id}/ -- delete custom tag."""
-
-    authentication_classes = [CookieJWTAuthentication]
-    permission_classes = [IsAuthenticated]
-
-    def delete(self, request, tag_id):
-        workspace, err = _resolve_workspace(request)
-        if err:
-            return err
-
-        try:
-            tag = ChatTag.objects.get(pk=tag_id, workspace=workspace)
-        except ChatTag.DoesNotExist:
-            return Response(
-                {'error': 'Tag not found.'},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        # AC-47: system tags cannot be deleted
-        if tag.is_system:
-            return Response(
-                {'error': 'System tags cannot be deleted.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        tag.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class SearchHealthView(APIView):

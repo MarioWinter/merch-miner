@@ -8,7 +8,6 @@ import { closeDrawer, setActivePanel } from '@/store/chatBarSlice';
 import type { DrawerPanel } from '@/types/search';
 import DrawerSegments from './DrawerSegments';
 import ChatPanel from './panels/ChatPanel';
-import SearchResultsPanel from './panels/SearchResultsPanel';
 import NicheDetailPanel from './panels/NicheDetailPanel';
 import AgentPanel from './panels/AgentPanel';
 
@@ -36,10 +35,10 @@ const MultiPurposeDrawer = () => {
   const dispatch = useAppDispatch();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
-  const { drawerOpen, activePanel, nicheContext } = useAppSelector((s) => s.chatBar);
+  const { drawerOpen, activePanel } = useAppSelector((s) => s.chatBar);
 
   // Preserve scroll positions per panel
-  const scrollRefs = useRef<Record<DrawerPanel, number>>({ niche: 0, chat: 0, search: 0, agent: 0 });
+  const scrollRefs = useRef<Record<DrawerPanel, number>>({ niche: 0, chat: 0, agent: 0 });
 
   const handlePanelChange = (panel: DrawerPanel) => {
     // Save current scroll position
@@ -58,8 +57,6 @@ const MultiPurposeDrawer = () => {
   const handleClose = () => {
     dispatch(closeDrawer());
   };
-
-  const showNicheTab = !!nicheContext;
 
   return (
     <Drawer
@@ -83,7 +80,6 @@ const MultiPurposeDrawer = () => {
         <DrawerSegments
           activePanel={activePanel}
           onChange={handlePanelChange}
-          showNiche={showNicheTab}
         />
         <IconButton
           size="small"
@@ -98,7 +94,6 @@ const MultiPurposeDrawer = () => {
       <PanelContainer id="mpd-panel-container">
         {activePanel === 'niche' && <NicheDetailPanel />}
         {activePanel === 'chat' && <ChatPanel />}
-        {activePanel === 'search' && <SearchResultsPanel />}
         {activePanel === 'agent' && <AgentPanel />}
       </PanelContainer>
     </Drawer>
