@@ -15,8 +15,13 @@ logger = logging.getLogger(__name__)
 
 
 class SemanticSearchThrottle(UserRateThrottle):
-    """30 req/min per user -- protects OpenRouter embedding cost."""
+    """30 req/min per user -- burst protection for OpenRouter embedding cost."""
     scope = 'semantic_search'
+
+
+class SemanticSearchDailyThrottle(UserRateThrottle):
+    """500 req/day per user -- daily budget cap for OpenRouter embedding cost."""
+    scope = 'semantic_search_daily'
 
 
 def _resolve_workspace(request):
@@ -45,7 +50,7 @@ class SemanticSearchView(APIView):
 
     authentication_classes = [CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
-    throttle_classes = [SemanticSearchThrottle]
+    throttle_classes = [SemanticSearchThrottle, SemanticSearchDailyThrottle]
 
     def post(self, request):
         workspace, err = _resolve_workspace(request)
@@ -87,7 +92,7 @@ class NicheSimilarView(APIView):
 
     authentication_classes = [CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
-    throttle_classes = [SemanticSearchThrottle]
+    throttle_classes = [SemanticSearchThrottle, SemanticSearchDailyThrottle]
 
     def get(self, request, niche_id):
         workspace, err = _resolve_workspace(request)
@@ -153,7 +158,7 @@ class IdeaSimilarView(APIView):
 
     authentication_classes = [CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
-    throttle_classes = [SemanticSearchThrottle]
+    throttle_classes = [SemanticSearchThrottle, SemanticSearchDailyThrottle]
 
     def get(self, request, idea_id):
         workspace, err = _resolve_workspace(request)
@@ -174,7 +179,7 @@ class NicheRelatedContentView(APIView):
 
     authentication_classes = [CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
-    throttle_classes = [SemanticSearchThrottle]
+    throttle_classes = [SemanticSearchThrottle, SemanticSearchDailyThrottle]
 
     def get(self, request, niche_id):
         workspace, err = _resolve_workspace(request)

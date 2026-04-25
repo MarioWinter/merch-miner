@@ -399,6 +399,7 @@ REST_FRAMEWORK = {
         'avatar': '50/hour',
         'invite': '20/hour',
         'semantic_search': '30/minute',
+        'semantic_search_daily': '500/day',
         'product_count_scrape': '10/hour',
         'ai_improve': '10/min',
     },

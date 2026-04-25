@@ -388,7 +388,7 @@ vector_app/
 
 #### AC-17: Retry with exponential backoff (10s, 30s, 90s)
 - [x] `RETRY_DELAYS = [10, 30, 90]` in `tasks.py`
-- [ ] BUG: Retry uses `time.sleep()` inside the worker thread (recursive call with sleep). This blocks the django-rq worker for up to 130s total (10+30+90). Should use django-rq's built-in retry/schedule mechanism instead, or at minimum re-enqueue with a delay rather than sleeping synchronously. See BUG-1.
+- [x] FIXED (2026-04-24): Retry now uses `queue.enqueue_in(timedelta(seconds=delay), ...)` for non-blocking re-enqueue via rq-scheduler. Worker is never blocked. See BUG-1.
 
 #### AC-18: WebSearchResult chunking (1500 tokens, 5% overlap)
 - [x] `chunking.py` implements `chunk_text()` with correct defaults
@@ -501,7 +501,7 @@ vector_app/
 - [x] XSS: backend-only feature, no HTML rendering
 
 #### Rate Limiting
-- [ ] BUG: No rate limiting on semantic search endpoint. The search endpoint calls OpenRouter API (costs money per call). An authenticated user could abuse this with rapid requests. See BUG-3.
+- [x] FIXED (2026-04-24): `SemanticSearchThrottle` (30/min) + `SemanticSearchDailyThrottle` (500/day) applied to all 4 endpoints. See BUG-3.
 
 #### Secrets Exposure
 - [x] `OPENROUTER_API_KEY` read from env var, never hardcoded
@@ -536,17 +536,11 @@ vector_app/
 
 ### Bugs Found
 
-#### BUG-1: Worker-blocking retry via time.sleep()
+#### BUG-1: Worker-blocking retry via time.sleep() — **FIXED 2026-04-24**
 - **Severity:** Medium
-- **Location:** `django-app/vector_app/tasks.py`, lines 56-57
-- **Steps to Reproduce:**
-  1. OpenRouter API goes down
-  2. A Niche is saved, triggering embedding job
-  3. Job fails, calls `time.sleep(10)` then retries recursively
-  4. After 3 failures: worker thread blocked for 10+30+90 = 130 seconds total
-- **Expected:** Job should be re-enqueued with a scheduled delay, not blocking the worker thread
-- **Actual:** Recursive `time.sleep()` calls block the django-rq worker for up to 130s, preventing other jobs from executing on that worker
-- **Priority:** Fix before deployment (affects worker throughput under OpenRouter outages)
+- **Location:** `django-app/vector_app/tasks.py`
+- **Fix:** Replaced recursive `time.sleep()` + call with `django_rq.get_queue('default').enqueue_in(timedelta(seconds=delay), create_or_update_embedding, ...)`. Worker is no longer blocked; retries are scheduled via rq-scheduler.
+- **Verified:** `app_scheduler` container processes delayed jobs.
 
 #### BUG-2: Implicit workspace fallback without X-Workspace-Id header
 - **Severity:** Low
@@ -559,16 +553,10 @@ vector_app/
 - **Actual:** Silently uses first found workspace, could return unexpected results
 - **Priority:** Fix in next sprint (low risk, only affects multi-workspace users)
 
-#### BUG-3: No rate limiting on semantic search endpoint
+#### BUG-3: No rate limiting on semantic search endpoint — **FIXED 2026-04-24**
 - **Severity:** Medium
-- **Location:** `django-app/vector_app/api/views.py`, `SemanticSearchView`
-- **Steps to Reproduce:**
-  1. Authenticated user sends 1000 rapid `POST /api/search/semantic/` requests
-  2. Each request calls OpenRouter embeddings API ($0.02/1M tokens, but adds up)
-  3. No throttle blocks the requests
-- **Expected:** DRF throttle class on the semantic search endpoint (e.g. `UserRateThrottle` with reasonable limit)
-- **Actual:** No throttle_classes set on view; relies on global DRF throttle which may not exist or may be too permissive
-- **Priority:** Fix before deployment (cost exposure risk)
+- **Location:** `django-app/vector_app/api/views.py` + `core/settings.py`
+- **Fix:** Added `SemanticSearchThrottle` (scope `semantic_search`, 30/min) + `SemanticSearchDailyThrottle` (scope `semantic_search_daily`, 500/day). Applied to all 4 endpoints (`SemanticSearch`, `NicheSimilar`, `IdeaSimilar`, `NicheRelatedContent`). Rates configured in `DEFAULT_THROTTLE_RATES`.
 
 #### BUG-4: MMR search loads full embedding vectors into Python memory
 - **Severity:** Low
@@ -597,10 +585,11 @@ vector_app/
 - **Acceptance Criteria:** 25/28 passed (3 deferred -- Idea/Listing/ChatMessage/WebSearchResult models not yet built, documented and acceptable)
 - **Edge Cases:** 12/12 handled
 - **Bugs Found:** 5 total (0 critical, 2 medium, 3 low)
-- **Security:** Mostly clean. Rate limiting gap (BUG-3) is the main concern.
+- **Bugs Fixed:** BUG-1 + BUG-3 resolved 2026-04-24 (non-blocking retry + rate limiting).
+- **Security:** Clean after BUG-3 fix.
 - **Test Coverage:** 5 test files with 24+ test cases covering models, services, tasks, API, and chunking
-- **Production Ready:** YES (conditional)
-- **Recommendation:** Fix BUG-1 (worker blocking) and BUG-3 (rate limiting) before deployment. BUG-2, BUG-4, BUG-5 are acceptable for MVP.
+- **Production Ready:** YES
+- **Recommendation:** BUG-2, BUG-4, BUG-5 acceptable for MVP. Ready for main merge + deploy.
 
 ### Cross-Browser / Responsive
 - N/A -- PROJ-15 is a backend-only feature with no frontend UI.
