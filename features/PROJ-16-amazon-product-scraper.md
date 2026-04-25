@@ -1,9 +1,9 @@
 # PROJ-16: Amazon Product Scraper (Scrapy)
 
-**Status:** In Review (Phase 8 — 1 High + 2 Medium bugs open)
+**Status:** Deployed (Phases 1–16 complete; AC-9d cross-ref to PROJ-10 deferred)
 **Priority:** P0 (MVP — required for PROJ-7 Live Research + PROJ-6 Niche Deep Research)
 **Created:** 2026-02-27
-**Updated:** 2026-03-29
+**Updated:** 2026-04-25
 **Deployed:** 2026-03-15
 
 ## Overview
@@ -11,6 +11,8 @@
 Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. Runs as django-rq background jobs. Four operating modes: **Live Research** (UI-triggered, single keyword, search+detail), **Search Page Only** (PROJ-6 Niche Research, search pages only — no detail follow), **Scheduled Scrape** (tier-based, Admin-managed), and **BSR History Tracking** (daily lightweight snapshot). Proxy via ScraperOps SDK. Managed and monitored entirely through Django Admin. No n8n dependency; no feature flag.
 
 **Update 2026-03-29:** Added **Amazon Sort Selection & Pre-filtered Scraping** — spiders now support Amazon's `s` (sort) parameter (Best Sellers, Featured, Newest, Price, Avg Review), `low-price`/`high-price` range filtering, and `bbn` (browse node) for category-specific pre-filtered pages. Browse nodes default-mapped per product type via `PRODUCT_TYPE_SPIDER_KWARGS`, overridable by user. Configurable in Frontend (PROJ-7) and Django Admin. `pages_total` max raised to 400. **MBA product types expanded from 6 to 15** with real Amazon URL parameters. `pullover` replaced by `sweatshirt`.
+
+**Update 2026-04-25:** Admin upload accepts **`.xlsx`** in addition to CSV (parsed via `openpyxl`). Numeric ASIN cells auto-padded to 10 chars to compensate Excel's leading-zero stripping. **`OneShot` `ScrapeTier`** seeded on dev + prod for one-time scrapes (`bsr_min=0, bsr_max=0, interval_days=36500`) — never auto-selected, only via explicit `tier=OneShot` in upload.
 
 ## User Stories
 
@@ -51,9 +53,11 @@ Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. 
 
 ### Scheduled Scrape Mode
 - [x] AC-8: Admin CSV upload (ASIN CSV + Keyword CSV). Tier column optional.
+- [x] AC-8b: Excel (`.xlsx`) upload supported alongside CSV (parsed via `openpyxl`, first sheet, header row 1, empty rows skipped). Numeric ASIN cells zero-padded to 10 chars to compensate Excel's leading-zero stripping.
 - [x] AC-9: Uploaded ASINs/keywords added to `ScheduledScrapeTarget`; tier auto-assigned by BSR.
 - [x] AC-10: django-rq cron job (`schedule_scrape_runner`) runs hourly; enqueues due targets.
 - [x] AC-11: Each target re-scraped at tier interval; BSR changes → tier auto-updates.
+- [x] AC-11b: One-shot scraping supported via `OneShot` `ScrapeTier` (`bsr_min=0, bsr_max=0, interval_days=36500`). Excluded from automatic BSR-based tier selection by design (no real BSR=0 product). Activated only when explicitly named in CSV/XLSX upload.
 
 ### BSR History Tracking
 - [x] AC-12: After every scrape, `BSRSnapshot` record written per ASIN (BSR, rating, price, timestamp).

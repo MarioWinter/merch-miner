@@ -341,3 +341,17 @@
 - [x] Backend tests: 34 new tests passing
 - [x] Frontend tests: ControlsRow tests passing
 - [x] Full QA pass pending
+
+---
+
+## Phase 17: Excel Upload + OneShot Tier (2026-04-25)
+
+- [x] AC-8b: `_parse_uploaded_file()` helper in `scraper_app/admin.py` detects `.xlsx` via filename extension, parses first sheet via `openpyxl` (read_only, data_only). CSV path unchanged
+- [x] AC-8b: Empty Excel rows (all-None) skipped during parse
+- [x] AC-8b: Numeric ASIN cells zfill'd to 10 chars (compensates Excel's leading-zero stripping for ISBN-style ASINs)
+- [x] AC-8b: `CsvUploadForm` updated — label "CSV or Excel File", `accept=".csv,.xlsx"` on file input
+- [x] AC-8b: Admin template (`templates/admin/scraper_app/csv_upload.html`) doc updated for both formats + German Excel `;` caveat + ASIN cell-format-as-text recommendation
+- [x] AC-11b: `OneShot` `ScrapeTier` seeded on dev + prod (`bsr_min=0, bsr_max=0, interval_days=36500`) — practical "scrape once, never re-scrape" via explicit `tier=OneShot` reference
+- [x] Tests: `test_xlsx_upload_creates_targets`, `test_xlsx_zero_pads_numeric_asin` in `test_admin.py`
+- [x] Lint clean: `ruff check django-app/`
+- [ ] AC-9d (PROJ-10 cross-ref): still deferred — extract result count from search Page 2 HTML and upsert `keyword_app.KeywordProductCount` as scrape side-effect (saves a dedicated ScraperOps call per keyword)
