@@ -4,13 +4,16 @@ import {
   IconButton,
   List,
   ListItemButton,
+  ListItemIcon,
   ListItemText,
   Skeleton,
   Stack,
   Typography,
 } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { styled, alpha } from '@mui/material/styles';
 import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
+// TagChipRow removed in PROJ-17 Phase 2 cleanup (ChatSession.tags M2M dropped).
 import { useTranslation } from 'react-i18next';
 import { useListSessionsQuery } from '@/store/searchSlice';
 import type { ChatSession } from '@/types/search';
@@ -21,19 +24,39 @@ interface RecentChatsProps {
 }
 
 const SessionItem = styled(ListItemButton)(({ theme }) => ({
-  borderRadius: theme.shape.borderRadius,
-  padding: `${theme.spacing(1)} ${theme.spacing(1.5)}`,
+  position: 'relative',
+  borderRadius: 8,
+  padding: `${theme.spacing(1)} ${theme.spacing(1.25)} ${theme.spacing(1)} ${theme.spacing(1.5)}`,
   marginBottom: theme.spacing(0.5),
+  alignItems: 'flex-start',
+  gap: theme.spacing(1),
+  transition: 'background-color 120ms ease',
+  '&:hover': {
+    backgroundColor: alpha(theme.palette.primary.main, 0.06),
+  },
   '&.Mui-selected': {
-    backgroundColor: 'rgba(255, 90, 79, 0.08)',
+    backgroundColor: alpha(theme.palette.primary.main, 0.1),
+    '&::before': {
+      content: '""',
+      position: 'absolute',
+      left: 0,
+      top: 6,
+      bottom: 6,
+      width: 3,
+      borderRadius: '0 2px 2px 0',
+      backgroundColor: theme.vars.palette.primary.main,
+    },
+    '&:hover': {
+      backgroundColor: alpha(theme.palette.primary.main, 0.14),
+    },
   },
 }));
 
-const TagChipRow = styled(Stack)({
-  flexDirection: 'row',
-  flexWrap: 'wrap',
-  gap: 4,
-});
+const ChatIconBox = styled(ListItemIcon)(({ theme }) => ({
+  minWidth: 0,
+  marginTop: 2,
+  color: theme.vars.palette.text.secondary,
+}));
 
 const RecentChats = ({ onSelect, activeSessionId }: RecentChatsProps) => {
   const { t } = useTranslation();
@@ -43,7 +66,7 @@ const RecentChats = ({ onSelect, activeSessionId }: RecentChatsProps) => {
     return (
       <Box sx={{ px: 1, py: 1 }}>
         {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} variant="rounded" height={44} sx={{ mb: 0.5, borderRadius: 2 }} />
+          <Skeleton key={i} variant="rounded" height={48} sx={{ mb: 0.5, borderRadius: 2 }} />
         ))}
       </Box>
     );
@@ -62,70 +85,73 @@ const RecentChats = ({ onSelect, activeSessionId }: RecentChatsProps) => {
   }
 
   return (
-    <List dense disablePadding>
-      {sessions.map((session) => (
-        <SessionItem
-          key={session.id}
-          selected={session.id === activeSessionId}
-          onClick={() => onSelect(session)}
-        >
-          <ListItemText
-            primary={
-              <Stack direction="row" alignItems="center" gap={0.5}>
-                <Typography variant="body2" fontWeight={500} noWrap sx={{ flex: 1 }}>
-                  {session.title || t('search.sessions.untitled')}
-                </Typography>
-                {session.is_shared && (
-                  <IconButton size="small" tabIndex={-1} sx={{ p: 0 }}>
-                    <ShareOutlinedIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
-                  </IconButton>
-                )}
-              </Stack>
-            }
-            secondary={
-              <Stack gap={0.25}>
+    <List dense disablePadding sx={{ px: 0.5, py: 0.5 }}>
+      {sessions.map((session) => {
+        const selected = session.id === activeSessionId;
+        return (
+          <SessionItem
+            key={session.id}
+            selected={selected}
+            onClick={() => onSelect(session)}
+          >
+            <ChatIconBox>
+              <ChatBubbleOutlineIcon sx={{ fontSize: 16 }} />
+            </ChatIconBox>
+            <ListItemText
+              sx={{ my: 0 }}
+              primary={
                 <Stack direction="row" alignItems="center" gap={0.5}>
-                  {session.niche_context && (
-                    <Chip
-                      label={session.niche_context.name}
-                      size="small"
-                      variant="outlined"
-                      color="secondary"
-                      sx={{ fontSize: '0.6875rem', height: 20 }}
-                    />
+                  <Typography
+                    variant="body2"
+                    fontWeight={selected ? 600 : 500}
+                    noWrap
+                    sx={{ flex: 1, fontSize: '0.8125rem', lineHeight: 1.4 }}
+                  >
+                    {session.title || t('search.sessions.untitled')}
+                  </Typography>
+                  {session.is_shared && (
+                    <IconButton size="small" tabIndex={-1} sx={{ p: 0 }}>
+                      <ShareOutlinedIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
+                    </IconButton>
                   )}
-                  <Typography variant="caption" color="text.disabled">
-                    {new Date(session.updated_at).toLocaleDateString()}
-                  </Typography>
                 </Stack>
-                {session.tags.length > 0 && (
-                  <TagChipRow>
-                    {session.tags.map((tag) => (
+              }
+              secondary={
+                <Stack gap={0.25} sx={{ mt: 0.25 }}>
+                  <Stack direction="row" alignItems="center" gap={0.75} flexWrap="wrap">
+                    {session.niche_context && (
                       <Chip
-                        key={tag.id}
-                        label={tag.name}
+                        label={session.niche_context.name}
                         size="small"
-                        sx={{
-                          fontSize: '0.625rem',
-                          height: 18,
-                          bgcolor: tag.color,
-                          color: '#fff',
-                        }}
+                        variant="outlined"
+                        color="secondary"
+                        sx={{ fontSize: '0.6875rem', height: 18, '& .MuiChip-label': { px: 0.75 } }}
                       />
-                    ))}
-                  </TagChipRow>
-                )}
-                {session.shared_by && (
-                  <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-                    {t('search.sessions.sharedBy', { name: session.shared_by })}
-                  </Typography>
-                )}
-              </Stack>
-            }
-            slotProps={{ primary: { noWrap: true } }}
-          />
-        </SessionItem>
-      ))}
+                    )}
+                    <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6875rem' }}>
+                      {new Date(session.updated_at).toLocaleDateString()}
+                    </Typography>
+                  </Stack>
+                  {/* Tags removed in PROJ-17 Phase 2 cleanup — ChatSession.tags M2M dropped. */}
+                  {session.shared_by && (
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{ fontStyle: 'italic', fontSize: '0.6875rem' }}
+                    >
+                      {t('search.sessions.sharedBy', { name: session.shared_by })}
+                    </Typography>
+                  )}
+                </Stack>
+              }
+              slotProps={{
+                primary: { noWrap: true, component: 'div' },
+                secondary: { component: 'div' },
+              }}
+            />
+          </SessionItem>
+        );
+      })}
     </List>
   );
 };

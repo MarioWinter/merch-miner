@@ -68,10 +68,10 @@ User asks question → Vane searches → synthesized answer + source URLs (strea
 
 ### Models
 
-- [ ] AC-1: `ChatSession` model: UUID pk, `workspace` FK, `created_by` FK (User), `title` (CharField 200, **auto-generated from first 100 chars of first user message**), `is_shared` (BooleanField, default=False), `niche_context` FK (Niche, nullable, **only set if user explicitly opted-in**), `created_at`, `updated_at`. **No tags M2M.**
-- [ ] AC-2: `ChatMessage` model: UUID pk, `session` FK (CASCADE), `role` choices [user, assistant, system], `content` (TextField), `message_type` choices [search_query, search_result, crawl_request, crawl_result, **workflow_trigger, workflow_card**], `sources` (JSONField, default=list), `search_mode` (CharField, nullable), `search_sources` (JSONField, nullable), `model_used` (CharField 100, blank=True), **`agent_session` FK (`agent_app.AgentSession`, nullable, on_delete=SET_NULL — only set for `workflow_trigger` / `workflow_card` types)**, `created_at`.
-- [ ] AC-3: `WebSearchResult` model: UUID pk, `workspace` FK, `chat_message` FK (nullable, on_delete=SET_NULL), `url` (URLField), `title` (CharField 500), `content` (TextField — full crawled Markdown), `content_type` choices [snippet, full_crawl], `crawl_status` choices [pending, running, completed, failed], `error_message` (TextField, blank=True), `metadata` (JSONField — page metadata, word count, favicon URL, etc.), `created_at`.
-- [ ] AC-4: `SearchUsageLog` model: UUID pk, `workspace` FK, `user` FK, `action` choices [search, deep_crawl], `query` (TextField, blank=True), `url` (URLField, blank=True), `model_used` (CharField 100), `tokens_used` (IntegerField, nullable), `created_at`. For PROJ-12 Analytics tracking.
+- [x] AC-1: `ChatSession` model: UUID pk, `workspace` FK, `created_by` FK (User), `title` (CharField 200, **auto-generated from first 100 chars of first user message**), `is_shared` (BooleanField, default=False), `niche_context` FK (Niche, nullable, **only set if user explicitly opted-in**), `created_at`, `updated_at`. **No tags M2M.**
+- [x] AC-2: `ChatMessage` model: UUID pk, `session` FK (CASCADE), `role` choices [user, assistant, system], `content` (TextField), `message_type` choices [search_query, search_result, crawl_request, crawl_result, **workflow_trigger, workflow_card**], `sources` (JSONField, default=list), `search_mode` (CharField, nullable), `search_sources` (JSONField, nullable), `model_used` (CharField 100, blank=True), **`agent_session` FK (`agent_app.AgentSession`, nullable, on_delete=SET_NULL — only set for `workflow_trigger` / `workflow_card` types)**, `created_at`.
+- [x] AC-3: `WebSearchResult` model: UUID pk, `workspace` FK, `chat_message` FK (nullable, on_delete=SET_NULL), `url` (URLField), `title` (CharField 500), `content` (TextField — full crawled Markdown), `content_type` choices [snippet, full_crawl], `crawl_status` choices [pending, running, completed, failed], `error_message` (TextField, blank=True), `metadata` (JSONField — page metadata, word count, favicon URL, etc.), `created_at`.
+- [x] AC-4: `SearchUsageLog` model: UUID pk, `workspace` FK, `user` FK, `action` choices [search, deep_crawl], `query` (TextField, blank=True), `url` (URLField, blank=True), `model_used` (CharField 100), `tokens_used` (IntegerField, nullable), `created_at`. For PROJ-12 Analytics tracking.
 
 ### Vane Integration (Backend)
 
@@ -95,37 +95,37 @@ User asks question → Vane searches → synthesized answer + source URLs (strea
 - [ ] AC-16: `GET /api/chat/sessions/{id}/` — session detail with all messages.
 - [ ] AC-17: `POST /api/chat/sessions/{id}/messages/` — send message (blocking). Body: `{content, search_mode, search_sources, model, mode_override}`. Returns assistant message with sources.
 - [ ] AC-18: `GET /api/chat/sessions/{id}/messages/stream/?content=...&search_mode=...` — **separate SSE endpoint** for streaming. Returns `text/event-stream` with chunked events: `init`, `sources`, `chunk`, `done`. Uses `EventSource` API on frontend. Backend uses `StreamingHttpResponse`.
-- [ ] AC-19: `POST /api/chat/sessions/{id}/share/` — sets `is_shared=True`.
-- [ ] AC-20: `POST /api/chat/sessions/{id}/unshare/` — sets `is_shared=False`.
+- [x] AC-19: `POST /api/chat/sessions/{id}/share/` — sets `is_shared=True`.
+- [x] AC-20: `POST /api/chat/sessions/{id}/unshare/` — sets `is_shared=False`.
 - [ ] AC-21: `POST /api/search/crawl/` — body: `{url, chat_message_id (optional)}`. Enqueues Crawl4ai job. Returns WebSearchResult with `status=pending`.
-- [ ] AC-22: `GET /api/search/crawl/{id}/status/` — poll crawl job status.
-- [ ] AC-23: `POST /api/search/results/{id}/save-to-niche/` — body: `{niche_id, save_as: "keywords" | "notes", selected_text: "..."}`. **Keywords are extracted from `selected_text` (manually marked snippet from frontend), each line/comma-separated entry creates a `NicheKeyword` with `source='web_search'`. Notes append `selected_text` to `Niche.notes`.**
-- [ ] AC-24: `PATCH /api/chat/sessions/{id}/` — update `title` only. (No tag updates — tags removed.)
+- [x] AC-22: `GET /api/search/crawl/{id}/status/` — poll crawl job status.
+- [x] AC-23: `POST /api/search/results/{id}/save-to-niche/` — body: `{niche_id, save_as: "keywords" | "notes", selected_text: "..."}`. **Keywords are extracted from `selected_text` (manually marked snippet from frontend), each line/comma-separated entry creates a `NicheKeyword` with `source='web_search'`. Notes append `selected_text` to `Niche.notes`.**
+- [x] AC-24: `PATCH /api/chat/sessions/{id}/` — update `title` only. (No tag updates — tags removed.)
 
 ### Floating Bottom Chat-Bar (Frontend)
 
-- [ ] AC-25: Persistent `position: fixed; bottom: 0; left: 50%; transform: translateX(-50%)` chat-bar at **bottom-center** of screen. Visible on all pages (except login/register). Glasmorphism style: `backgroundColor: alpha(white, 0.85)` light / `alpha(inkPaper, 0.75)` dark, `backdropFilter: blur(16px)` — matches Topbar.
-- [ ] AC-26: **Default state: collapsed.** Only a small transparent chevron-up icon (~32×24px) sits centered at bottom edge.
-- [ ] AC-27: Click chevron-up → bar **slides up** (CSS transition) into expanded state: `TextField` + Mode-Dropdown (`Auto / Web-Search / Agent`) + Send IconButton.
-- [ ] AC-28: Expanded bar has chevron-down icon top-center → click to collapse back to indicator.
-- [ ] AC-29: Submitting a message **opens the Right Drawer with Chat panel active** (if not already open) and creates/uses the active session.
-- [ ] AC-30: Bar state (collapsed/expanded) persisted in `localStorage` per browser tab (per-tab via Redux, not cross-tab synced).
+- [x] AC-25: Persistent `position: fixed; bottom: 0; left: 50%; transform: translateX(-50%)` chat-bar at **bottom-center** of screen. Visible on all pages (except login/register). Glasmorphism style: `backgroundColor: alpha(white, 0.85)` light / `alpha(inkPaper, 0.75)` dark, `backdropFilter: blur(16px)` — matches Topbar.
+- [x] AC-26: **Default state: collapsed.** Only a small transparent chevron-up icon (~32×24px) sits centered at bottom edge.
+- [x] AC-27: Click chevron-up → bar **slides up** (CSS transition) into expanded state: `TextField` + Mode-Dropdown (`Auto / Web-Search / Agent`) + Send IconButton. (Note: ModeDropdown UI lives in Phase 4 — bar surface + slide-up done.)
+- [x] AC-28: Expanded bar has chevron-down icon top-center → click to collapse back to indicator.
+- [x] AC-29: Submitting a message **opens the Right Drawer with Chat panel active** (if not already open) and creates/uses the active session.
+- [x] AC-30: Bar state (collapsed/expanded) persisted in `localStorage` per browser tab (per-tab via Redux, not cross-tab synced).
 
 ### Multi-Purpose Right Drawer (Frontend)
 
-- [ ] AC-31: Single right drawer **resizable** between 480px (default) → 768px (split-view) → 1200px (full command center, NotebookLM-style). Drag-handle on left edge of drawer. Width persisted in `localStorage`.
-- [ ] AC-32: Header contains `ToggleButtonGroup exclusive` with 3 segments: `[📋 Niche] [💬 Chat] [🤖 Agent]`. Icons: `InfoOutlined` / `ChatOutlined` / `SmartToyOutlined`.
-- [ ] AC-33: Switching segments swaps content. Drawer stays open. Each panel maintains scroll position.
-- [ ] AC-34: **`SearchResultsPanel.tsx` removed** — search results render inline inside `ChatPanel.tsx` as bubbles + Source-Cards (see AC-38).
-- [ ] AC-35: Niche-Tab: existing NicheDetailDrawer content wrapped as `NicheDetailPanel.tsx` inside MultiPurposeDrawer.
-- [ ] AC-36: Agent-Tab: PROJ-18 AgentPanel (resizable layout per PROJ-18 AC-50).
+- [x] AC-31: Single right drawer **resizable** between 480px (default) → 768px (split-view) → 1200px (full command center, NotebookLM-style). Drag-handle on left edge of drawer. Width persisted in `localStorage`.
+- [x] AC-32: Header contains `ToggleButtonGroup exclusive` with 3 segments: `[📋 Niche] [💬 Chat] [🤖 Agent]`. Icons: `InfoOutlined` / `ChatOutlined` / `SmartToyOutlined`.
+- [x] AC-33: Switching segments swaps content. Drawer stays open. Each panel maintains scroll position.
+- [x] AC-34: **`SearchResultsPanel.tsx` removed** — search results render inline inside `ChatPanel.tsx` as bubbles + Source-Cards (see AC-38).
+- [x] AC-35: Niche-Tab: existing NicheDetailDrawer content wrapped as `NicheDetailPanel.tsx` inside MultiPurposeDrawer.
+- [x] AC-36: Agent-Tab: PROJ-18 AgentPanel (resizable layout per PROJ-18 AC-50).
 
 ### Chat Panel (Frontend)
 
 - [ ] AC-37: `ChatPanel.tsx` shows: active session messages (scrollable, latest at bottom), input bar with Mode-Dropdown + Model picker + Search Mode toggle (Speed/Balanced/Quality) + Source toggles (web/academic/discussions). Read-only mode for shared sessions where viewer is not owner.
-- [ ] AC-38: Each AI message bubble shows **Source Cards in Perplexity-Style**: Favicon (32×32) + Domain + Title + 1-line Snippet + actions: `[🌐 Deep Crawl]` `[💾 Save Keywords]` `[📝 Save Notes]`. Stacked below the AI answer text.
-- [ ] AC-39: When User scrolls **up** during a streaming response → auto-scroll **disengages**. Stream continues unaffected. A "**↓ Jump to latest**" floating button appears bottom-right of message-list. Click → re-engages auto-scroll, jumps to bottom.
-- [ ] AC-40: When User manually scrolls back to bottom (within ~50px) → auto-scroll re-engages automatically, "Jump to latest" button disappears.
+- [x] AC-38: Each AI message bubble shows **Source Cards in Perplexity-Style**: Favicon (32×32) + Domain + Title + 1-line Snippet + actions: `[🌐 Deep Crawl]` `[💾 Save Keywords]` `[📝 Save Notes]`. Stacked below the AI answer text.
+- [x] AC-39: When User scrolls **up** during a streaming response → auto-scroll **disengages**. Stream continues unaffected. A "**↓ Jump to latest**" floating button appears bottom-right of message-list. Click → re-engages auto-scroll, jumps to bottom.
+- [x] AC-40: When User manually scrolls back to bottom (within ~50px) → auto-scroll re-engages automatically, "Jump to latest" button disappears.
 - [ ] AC-41: Mode-Dropdown in chat input: `Auto` (default — LLM classifier decides Vane vs. Agent), `Web-Search` (force Vane), `Agent` (force PROJ-18). Auto classifier uses lightweight LLM (gpt-4.1-mini, ~50 tokens) for routing.
 
 ### Workflow-Card (Frontend, NEW for Pattern B)
@@ -158,7 +158,7 @@ User asks question → Vane searches → synthesized answer + source URLs (strea
 ### Health Check
 
 - [ ] AC-57: `GET /api/search/health/` — pings Vane (`VANE_API_URL`) + Crawl4ai (`CRAWL4AI_API_URL`). Returns `{vane: "online"|"offline", crawl4ai: "online"|"offline"}`.
-- [ ] AC-58: Frontend polls health endpoint **every 5 minutes** (low frequency — services are stable infra). Status indicator dot in chat-bar + drawer header: green (all online), yellow (partial), red (all offline).
+- [x] AC-58: Frontend polls health endpoint **every 5 minutes** (low frequency — services are stable infra). Status indicator dot in chat-bar + drawer header: green (all online), yellow (partial), red (all offline).
 - [ ] AC-59: When a service is offline, related UI actions disabled with tooltip. "Deep Crawl" disabled when Crawl4ai offline. Search disabled when Vane offline. Agent (PROJ-18) remains functional regardless.
 
 ### Usage Tracking

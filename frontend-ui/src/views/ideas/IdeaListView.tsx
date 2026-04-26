@@ -13,6 +13,8 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import BugReportIcon from '@mui/icons-material/BugReport';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import { useTranslation } from 'react-i18next';
+import { useAppDispatch } from '@/store/hooks';
+import { openNicheEdit } from '@/store/chatBarSlice';
 import { useListAllIdeasQuery } from '@/store/ideaSlice';
 import { useIdeaFilters } from './hooks/useIdeaFilters';
 import { useIdeaInlineAdd } from './hooks/useInlineAdd';
@@ -31,7 +33,6 @@ import { ImportDialog } from './partials/ImportDialog';
 import { RejectIdeaWarningDialog } from './partials/RejectIdeaWarningDialog';
 import { useMockAdaptation } from './hooks/useMockAdaptation';
 import { MOCK_IDEAS } from './hooks/useMockIdeas';
-import { NichePipeline } from '../niches/list/partials/NichePipeline';
 import type { Idea } from './types';
 
 const PAGE_SIZE = 20;
@@ -71,6 +72,7 @@ const EmptyHint = styled(Box)(({ theme }) => ({
 
 export const IdeaListView = () => {
   const { t } = useTranslation();
+  const dispatch = useAppDispatch();
 
   // Filters
   const filterState = useIdeaFilters();
@@ -99,11 +101,10 @@ export const IdeaListView = () => {
   const [improveIdea, setImproveIdea] = useState<Idea | null>(null);
   const [importOpen, setImportOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [drawerNicheId, setDrawerNicheId] = useState<string | null>(null);
 
   const handleOpenDrawer = useCallback((idea: Idea) => {
-    if (idea.niche) setDrawerNicheId(idea.niche);
-  }, []);
+    if (idea.niche) dispatch(openNicheEdit(idea.niche));
+  }, [dispatch]);
 
   const toggleSelect = useCallback((id: string) => {
     setSelectedIds((prev) => {
@@ -424,14 +425,6 @@ export const IdeaListView = () => {
 
       {/* Import dialog */}
       <ImportDialog open={importOpen} onClose={() => setImportOpen(false)} />
-
-      {/* Niche detail drawer (double-click on card) */}
-      <NichePipeline
-        open={!!drawerNicheId}
-        mode="edit"
-        selectedId={drawerNicheId}
-        onClose={() => setDrawerNicheId(null)}
-      />
 
       {/* Reject idea warning (when idea has approved design) */}
       <RejectIdeaWarningDialog

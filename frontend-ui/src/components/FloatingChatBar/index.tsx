@@ -1,100 +1,103 @@
 import { useCallback, useRef, useEffect } from 'react';
-import { Box, Fade, Slide } from '@mui/material';
+import { Box, Fade, IconButton } from '@mui/material';
 import { styled, alpha } from '@mui/material/styles';
-import KeyboardArrowUpIcon from '@mui/icons-material/KeyboardArrowUp';
+import KeyboardArrowDownIcon from '@mui/icons-material/KeyboardArrowDown';
+import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   expandBar,
   collapseBar,
-  hideBar,
-  showBar,
   openDrawer,
   setActiveSession,
   setSearching,
 } from '@/store/chatBarSlice';
 import { useCreateSessionMutation, useSendMessageMutation } from '@/store/searchSlice';
 import { useSearchHealth } from '../MultiPurposeDrawer/hooks/useSearchHealth';
+import { useSendMessageStream } from '@/hooks/useSendMessageStream';
 import ChatBarInput from './ChatBarInput';
-import { EASING, DURATION } from '@/style/constants';
+import ChevronIndicator from './ChevronIndicator';
+import { COLORS, EASING, DURATION } from '@/style/constants';
 
-const BAR_HEIGHT = 52;
-const BAR_MAX_WIDTH = 560;
+const BAR_MAX_WIDTH = 600;
 
 const BarContainer = styled(Box)(({ theme }) => ({
   position: 'fixed',
-  bottom: theme.spacing(3),
+  bottom: theme.spacing(2),
   left: '50%',
   transform: 'translateX(-50%)',
   zIndex: theme.zIndex.speedDial,
   width: '90%',
   maxWidth: BAR_MAX_WIDTH,
   [theme.breakpoints.down('sm')]: {
-    width: 'calc(100% - 32px)',
-    bottom: theme.spacing(2),
-  },
-}));
-
-const BarSurface = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  height: BAR_HEIGHT,
-  padding: `0 ${theme.spacing(2)}`,
-  borderRadius: 26,
-  backgroundColor: alpha(theme.palette.background.paper, 0.85),
-  backdropFilter: 'blur(16px)',
-  border: `1px solid ${alpha(theme.palette.divider, 1)}`,
-  boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.3)}`,
-  transition: `all ${DURATION.default}ms ${EASING.standard}`,
-  cursor: 'pointer',
-  '&:hover': {
-    boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.45)}`,
+    width: 'calc(100% - 24px)',
+    bottom: theme.spacing(1.5),
   },
 }));
 
 const ExpandedSurface = styled(Box)(({ theme }) => ({
   display: 'flex',
-  alignItems: 'center',
-  minHeight: BAR_HEIGHT,
-  padding: `${theme.spacing(1)} ${theme.spacing(2)}`,
-  borderRadius: 26,
-  backgroundColor: alpha(theme.palette.background.paper, 0.9),
+  flexDirection: 'column',
+  padding: `${theme.spacing(0.5)} ${theme.spacing(1)} ${theme.spacing(1)} ${theme.spacing(1)}`,
+  borderRadius: 22,
+  backgroundColor: alpha(COLORS.white, 0.85),
   backdropFilter: 'blur(16px)',
-  border: `1px solid ${alpha(theme.palette.divider, 1)}`,
-  boxShadow: `0 8px 32px ${alpha(theme.palette.common.black, 0.3)}`,
+  WebkitBackdropFilter: 'blur(16px)',
+  border: `1px solid ${theme.vars.palette.divider}`,
+  boxShadow: `0 8px 32px ${alpha(COLORS.ink, 0.3)}`,
+  transition: `all ${DURATION.default}ms ${EASING.standard}`,
+  ...theme.applyStyles('dark', {
+    backgroundColor: alpha(COLORS.inkPaper, 0.75),
+  }),
 }));
 
-const HoverTrigger = styled(Box)(({ theme }) => ({
-  position: 'fixed',
-  bottom: 0,
-  left: '50%',
-  transform: 'translateX(-50%)',
-  width: 80,
-  height: 24,
+const CollapseHandle = styled(Box)(({ theme }) => ({
   display: 'flex',
-  alignItems: 'flex-end',
   justifyContent: 'center',
-  cursor: 'pointer',
-  zIndex: theme.zIndex.speedDial - 1,
-  color: theme.vars.palette.text.secondary,
-  opacity: 0,
-  transition: `opacity ${DURATION.fast}ms ${EASING.enter}`,
-  '&:hover': { opacity: 1 },
+  alignItems: 'center',
+  gap: theme.spacing(0.25),
+  height: 20,
 }));
 
 const FloatingChatBar = () => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const { enqueueSnackbar } = useSnackbar();
-  const { barExpanded, barHidden, nicheContext, searching, searchMode, searchSources, selectedModel } =
-    useAppSelector((s) => s.chatBar);
+  const {
+    barExpanded,
+    drawerOpen,
+    activePanel,
+    nicheContext,
+    searching,
+    searchMode,
+    searchSources,
+    selectedModel,
+    modeOverride,
+    activeSessionId,
+  } = useAppSelector((s) => s.chatBar);
   const { vaneOnline } = useSearchHealth();
 
   const [createSession] = useCreateSessionMutation();
   const [sendMessage] = useSendMessageMutation();
+  const { start: startStream } = useSendMessageStream({
+    sessionId: activeSessionId,
+    onDone: () => dispatch(setSearching(false)),
+  });
   const containerRef = useRef<HTMLDivElement>(null);
+
+  // Restore persisted bar state on mount
+  useEffect(() => {
+    const persisted = localStorage.getItem('chatBar.expanded');
+    if (persisted === 'true') {
+      dispatch(expandBar());
+    }
+  }, [dispatch]);
+
+  // Persist bar state on change
+  useEffect(() => {
+    localStorage.setItem('chatBar.expanded', String(barExpanded));
+  }, [barExpanded]);
 
   // Click outside to collapse
   useEffect(() => {
@@ -112,7 +115,6 @@ const FloatingChatBar = () => {
     async (message: string) => {
       dispatch(setSearching(true));
       try {
-        // Create session if none active
         const session = await createSession({
           niche_context: nicheContext?.id,
           title: message.slice(0, 100),
@@ -122,76 +124,116 @@ const FloatingChatBar = () => {
         dispatch(openDrawer('chat'));
         dispatch(collapseBar());
 
-        // Send message
-        await sendMessage({
-          sessionId: session.id,
-          body: {
+        // PROJ-17 Phase 4 Step 6: Agent → classic POST (no SSE for agent workflows).
+        // Auto + Web-Search → SSE stream.
+        if (modeOverride === 'agent') {
+          await sendMessage({
+            sessionId: session.id,
+            body: {
+              content: message,
+              search_mode: searchMode,
+              search_sources: searchSources,
+              model: selectedModel,
+              mode_override: modeOverride,
+            },
+          }).unwrap();
+          dispatch(setSearching(false));
+        } else {
+          startStream({
             content: message,
-            search_mode: searchMode,
-            search_sources: searchSources,
-            model: selectedModel,
-          },
-        }).unwrap();
+            mode_override: modeOverride,
+            niche_id: nicheContext?.id ?? null,
+            sessionIdOverride: session.id,
+          });
+          // searching cleared by useSendMessageStream onDone callback
+        }
       } catch {
         enqueueSnackbar(t('search.chat.sendError'), { variant: 'error' });
-      } finally {
         dispatch(setSearching(false));
       }
     },
-    [dispatch, createSession, sendMessage, nicheContext, searchMode, searchSources, selectedModel, enqueueSnackbar, t],
+    [
+      dispatch,
+      createSession,
+      sendMessage,
+      startStream,
+      nicheContext,
+      searchMode,
+      searchSources,
+      selectedModel,
+      modeOverride,
+      enqueueSnackbar,
+      t,
+    ],
   );
 
-  const handleDismiss = useCallback(() => {
-    dispatch(hideBar());
-  }, [dispatch]);
+  const handleExpand = useCallback(() => dispatch(expandBar()), [dispatch]);
+  const handleCollapse = useCallback(() => dispatch(collapseBar()), [dispatch]);
+  const handleOpenChat = useCallback(() => dispatch(openDrawer('chat')), [dispatch]);
 
-  const handleReveal = useCallback(() => {
-    dispatch(showBar());
-  }, [dispatch]);
+  // PROJ-17 fix: hide bar VISUALLY when drawer is open on chat panel — drawer
+  // owns its own input. We do NOT unmount because that would kill the active
+  // EventSource (useSendMessageStream lives in this component's tree and the
+  // stream might still be flushing chunks the user just kicked off).
+  const hiddenForDrawer = drawerOpen && activePanel === 'chat';
+
+  // Default-collapsed state: only the chevron indicator at bottom-center.
+  // Even when hidden for drawer, we keep an invisible mount alive so the
+  // streaming EventSource started by handleSend doesn't get torn down.
+  if (!barExpanded) {
+    if (hiddenForDrawer) {
+      return <Box sx={{ display: 'none' }} aria-hidden="true" />;
+    }
+    return (
+      <ChevronIndicator
+        onClick={handleExpand}
+        ariaLabel={t('search.chatBar.expand')}
+      />
+    );
+  }
+
+  // Expanded state: full input bar with close-chevron at top.
+  // Fade animates opacity only — does NOT inject a transform like Slide
+  // would, which previously clobbered the BarContainer's `translateX(-50%)`
+  // centering and pushed the bar off to the left.
+  // Fade only animates between visible expanded states; when hiddenForDrawer
+  // we just keep BarContainer mounted but display:none — avoids an animation
+  // race with the in-flight EventSource that would re-trigger renders.
+  if (hiddenForDrawer) {
+    return <Box sx={{ display: 'none' }} aria-hidden="true" />;
+  }
 
   return (
-    <>
-      {/* Hidden state: hover trigger */}
-      {barHidden && (
-        <HoverTrigger onClick={handleReveal} aria-label={t('search.chatBar.reveal')}>
-          <KeyboardArrowUpIcon sx={{ fontSize: 20 }} />
-        </HoverTrigger>
-      )}
-
-      {/* Visible states */}
-      {!barHidden && (
-        <Slide direction="up" in={!barHidden} timeout={DURATION.slow}>
-          <BarContainer ref={containerRef}>
-            {!barExpanded ? (
-              <Fade in={!barExpanded} timeout={DURATION.fast}>
-                <BarSurface
-                  onClick={() => dispatch(expandBar())}
-                  role="button"
-                  tabIndex={0}
-                  aria-label={t('search.chatBar.expand')}
-                  onKeyDown={(e: React.KeyboardEvent) => {
-                    if (e.key === 'Enter' || e.key === ' ') dispatch(expandBar());
-                  }}
-                >
-                  <Box component="span" sx={{ color: 'text.secondary', fontSize: '0.8125rem', fontWeight: 500 }}>
-                    {t('search.chatBar.placeholder')}
-                  </Box>
-                </BarSurface>
-              </Fade>
-            ) : (
-              <ExpandedSurface>
-                <ChatBarInput
-                  onSend={handleSend}
-                  onDismiss={handleDismiss}
-                  sending={searching}
-                  disabled={!vaneOnline}
-                />
-              </ExpandedSurface>
-            )}
-          </BarContainer>
-        </Slide>
-      )}
-    </>
+    <Fade in={barExpanded} timeout={DURATION.default}>
+      <BarContainer ref={containerRef}>
+        <ExpandedSurface>
+          <CollapseHandle>
+            <IconButton
+              size="small"
+              onClick={handleOpenChat}
+              aria-label={t('search.chatBar.openChat')}
+              sx={{ p: 0.25, color: 'text.secondary' }}
+            >
+              <ChatOutlinedIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={handleCollapse}
+              aria-label={t('search.chatBar.collapse')}
+              sx={{ p: 0.25, color: 'text.secondary' }}
+            >
+              <KeyboardArrowDownIcon sx={{ fontSize: 18 }} />
+            </IconButton>
+          </CollapseHandle>
+          <ChatBarInput
+            onSend={handleSend}
+            onDismiss={handleCollapse}
+            sending={searching}
+            disabled={!vaneOnline}
+          />
+        </ExpandedSurface>
+      </BarContainer>
+    </Fade>
   );
 };
 

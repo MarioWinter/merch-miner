@@ -7,11 +7,11 @@ import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { closeDrawer, setActivePanel } from '@/store/chatBarSlice';
 import type { DrawerPanel } from '@/types/search';
 import DrawerSegments from './DrawerSegments';
+import DrawerResizeHandle from './DrawerResizeHandle';
+import { useDrawerResize } from './hooks/useDrawerResize';
 import ChatPanel from './panels/ChatPanel';
-import NicheDetailPanel from './panels/NicheDetailPanel';
+import NichePipeline from './panels/NichePipeline';
 import AgentPanel from './panels/AgentPanel';
-
-const DRAWER_WIDTH = 480;
 
 const DrawerHeader = styled(Box)(({ theme }) => ({
   display: 'flex',
@@ -36,18 +36,17 @@ const MultiPurposeDrawer = () => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const { drawerOpen, activePanel } = useAppSelector((s) => s.chatBar);
+  const { width, onPointerDown, onPointerMove, onPointerUp } = useDrawerResize();
 
   // Preserve scroll positions per panel
   const scrollRefs = useRef<Record<DrawerPanel, number>>({ niche: 0, chat: 0, agent: 0 });
 
   const handlePanelChange = (panel: DrawerPanel) => {
-    // Save current scroll position
     const container = document.getElementById('mpd-panel-container');
     if (container) {
       scrollRefs.current[activePanel] = container.scrollTop;
     }
     dispatch(setActivePanel(panel));
-    // Restore scroll for new panel
     requestAnimationFrame(() => {
       const el = document.getElementById('mpd-panel-container');
       if (el) el.scrollTop = scrollRefs.current[panel] ?? 0;
@@ -66,16 +65,37 @@ const MultiPurposeDrawer = () => {
       variant={isMobile ? 'temporary' : 'persistent'}
       slotProps={{
         paper: {
+          id: 'mpd-drawer-paper',
           sx: {
-            width: isMobile ? '100%' : DRAWER_WIDTH,
+            width: isMobile ? '100%' : width,
             display: 'flex',
             flexDirection: 'column',
             top: isMobile ? 0 : 56,
             height: isMobile ? '100%' : 'calc(100% - 56px)',
+            transition: 'width 200ms ease',
+            // 1200px Full Command Center: 3-column NotebookLM layout
+            ...(width >= 1200 && !isMobile
+              ? {
+                  '& [data-mpd-layout="full"]': {
+                    display: 'grid',
+                    gridTemplateColumns: '280px 1fr 320px',
+                    gap: 0,
+                  },
+                }
+              : {}),
           },
         },
       }}
     >
+      {/* Drag-handle on left edge (only on desktop) */}
+      {!isMobile && (
+        <DrawerResizeHandle
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+        />
+      )}
+
       <DrawerHeader>
         <DrawerSegments
           activePanel={activePanel}
@@ -91,8 +111,8 @@ const MultiPurposeDrawer = () => {
         </IconButton>
       </DrawerHeader>
 
-      <PanelContainer id="mpd-panel-container">
-        {activePanel === 'niche' && <NicheDetailPanel />}
+      <PanelContainer id="mpd-panel-container" data-mpd-width={width}>
+        {activePanel === 'niche' && <NichePipeline />}
         {activePanel === 'chat' && <ChatPanel />}
         {activePanel === 'agent' && <AgentPanel />}
       </PanelContainer>

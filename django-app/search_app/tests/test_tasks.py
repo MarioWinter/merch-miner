@@ -85,3 +85,49 @@ class TestLogSearchUsage:
         assert SearchUsageLog.objects.filter(
             workspace=workspace, action='search',
         ).count() == 1
+
+    def test_log_search_usage_with_zero_tokens(self, workspace, user):
+        """tokens_used=0 → log entry created with 0 (not skipped)."""
+        log_search_usage(
+            workspace_id=str(workspace.id),
+            user_id=user.id,
+            action='search',
+            query='zero tokens query',
+            tokens_used=0,
+        )
+        log = SearchUsageLog.objects.get(query='zero tokens query')
+        assert log.tokens_used == 0
+        assert log.action == 'search'
+
+    def test_log_search_usage_per_deep_crawl(self, workspace, user):
+        """action='deep_crawl' → log entry with correct action type + url."""
+        log_search_usage(
+            workspace_id=str(workspace.id),
+            user_id=user.id,
+            action='deep_crawl',
+            url='https://example.com/article',
+        )
+        log = SearchUsageLog.objects.get(action='deep_crawl')
+        assert log.url == 'https://example.com/article'
+        assert log.query == ''
+        assert log.tokens_used is None
+
+    @patch('search_app.tasks.SearchUsageLog')
+    def test_log_search_usage_swallows_db_errors(self, mock_log_cls):
+        """Verifies fire-and-forget: any DB exception is swallowed.
+
+        Mocks the model to raise on create — task must not propagate.
+        """
+        mock_log_cls.objects.create.side_effect = Exception("DB down")
+        try:
+            log_search_usage(
+                workspace_id='00000000-0000-0000-0000-000000000000',
+                user_id=1,
+                action='search',
+                query='ghost',
+            )
+        except Exception as e:  # pragma: no cover
+            pytest.fail(
+                f"log_search_usage should swallow errors, got: {e!r}",
+            )
+        mock_log_cls.objects.create.assert_called_once()

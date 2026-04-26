@@ -10,13 +10,29 @@ from search_app.models import (
 class ChatMessageSerializer(serializers.ModelSerializer):
     """Serializer for ChatMessage (read-only, nested in session detail)."""
 
+    agent_session = serializers.SerializerMethodField()
+
     class Meta:
         model = ChatMessage
         fields = [
             'id', 'role', 'content', 'message_type', 'sources',
-            'search_mode', 'search_sources', 'model_used', 'created_at',
+            'search_mode', 'search_sources', 'model_used',
+            'agent_session', 'created_at',
         ]
         read_only_fields = fields
+
+    def get_agent_session(self, obj):
+        """Return nested {id, status, current_step} when agent_session is set."""
+        if not obj.agent_session_id:
+            return None
+        sess = obj.agent_session
+        return {
+            'id': str(sess.id),
+            'status': sess.status,
+            'current_step': sess.current_step,
+            'completed_steps': sess.completed_steps,
+            'total_steps': sess.total_steps,
+        }
 
 
 class ChatSessionListSerializer(serializers.ModelSerializer):
@@ -42,9 +58,16 @@ class ChatSessionListSerializer(serializers.ModelSerializer):
         return obj.messages.count()
 
     def get_shared_by(self, obj):
-        if obj.is_shared:
-            return getattr(obj.created_by, 'email', str(obj.created_by))
-        return None
+        # Only surface `shared_by` to *non-owner* viewers — the owner of a
+        # shared session is never read-only and must not see a "Shared by X"
+        # banner when looking at their own session.
+        if not obj.is_shared:
+            return None
+        request = self.context.get('request') if hasattr(self, 'context') else None
+        viewer = getattr(request, 'user', None) if request else None
+        if viewer and viewer.is_authenticated and obj.created_by_id == viewer.id:
+            return None
+        return getattr(obj.created_by, 'email', str(obj.created_by))
 
     def get_niche_context_name(self, obj):
         if obj.niche_context:
@@ -86,9 +109,16 @@ class ChatSessionDetailSerializer(serializers.ModelSerializer):
         return obj.messages.count()
 
     def get_shared_by(self, obj):
-        if obj.is_shared:
-            return getattr(obj.created_by, 'email', str(obj.created_by))
-        return None
+        # Only surface `shared_by` to *non-owner* viewers — the owner of a
+        # shared session is never read-only and must not see a "Shared by X"
+        # banner when looking at their own session.
+        if not obj.is_shared:
+            return None
+        request = self.context.get('request') if hasattr(self, 'context') else None
+        viewer = getattr(request, 'user', None) if request else None
+        if viewer and viewer.is_authenticated and obj.created_by_id == viewer.id:
+            return None
+        return getattr(obj.created_by, 'email', str(obj.created_by))
 
     def get_niche_context_name(self, obj):
         if obj.niche_context:
@@ -113,7 +143,7 @@ class ChatSessionUpdateSerializer(serializers.Serializer):
 
 
 class SendMessageSerializer(serializers.Serializer):
-    """Input serializer for sending a message (triggers Vane search)."""
+    """Input serializer for sending a message (triggers Vane search or Agent workflow)."""
     content = serializers.CharField()
     search_mode = serializers.ChoiceField(
         choices=['speed', 'balanced', 'quality'],
@@ -125,6 +155,11 @@ class SendMessageSerializer(serializers.Serializer):
     )
     model = serializers.CharField(max_length=100, required=False, default='')
     system_instructions = serializers.CharField(required=False, default='')
+    mode_override = serializers.ChoiceField(
+        choices=['auto', 'web_search', 'agent'],
+        default='auto',
+        help_text='Pattern B: auto = LLM classifier, web_search = force Vane, agent = force PROJ-18.',
+    )
 
 
 class TriggerCrawlSerializer(serializers.Serializer):
@@ -134,9 +169,16 @@ class TriggerCrawlSerializer(serializers.Serializer):
 
 
 class SaveToNicheSerializer(serializers.Serializer):
-    """Input serializer for saving search result to a niche."""
+    """Input serializer for saving search result to a niche.
+
+    selected_text is a manually-marked snippet from the frontend. For 'keywords',
+    it is split by comma/newline → one NicheKeyword per token (web_search source).
+    For 'notes', it is appended to Niche.notes (with source URL prefix).
+    If selected_text is empty, falls back to result.title.
+    """
     niche_id = serializers.UUIDField()
     save_as = serializers.ChoiceField(choices=['keywords', 'notes'])
+    selected_text = serializers.CharField(required=False, default='', allow_blank=True)
 
 
 class WebSearchResultSerializer(serializers.ModelSerializer):

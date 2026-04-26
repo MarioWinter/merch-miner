@@ -4,7 +4,7 @@ import { styled } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import type { AgentMessage } from '../types';
 import AgentMessageBubble from './AgentMessageBubble';
-import ApprovalCard from './ApprovalCard';
+import ApprovalCard from '../../ApprovalCard';
 
 const LogContainer = styled(Box)({
   flex: 1,

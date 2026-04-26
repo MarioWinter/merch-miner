@@ -9,6 +9,8 @@ import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
 import { useGetProjectQuery, useGetProjectBoardQuery, useUpdateProjectMutation } from '@/store/designSlice';
+import { useAppDispatch } from '@/store/hooks';
+import { openNicheEdit } from '@/store/chatBarSlice';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import useArtboards from '../board/hooks/useArtboards';
 import useRightPanelState from '../board/hooks/useRightPanelState';
@@ -20,7 +22,6 @@ import ExportDialog from '../board/partials/ExportDialog';
 import PromptBuilderDialog from '../board/partials/PromptBuilderDialog';
 import DesignEditorView from '../editor/DesignEditorView';
 import ProcessingSettingsDialog from './ProcessingSettingsDialog';
-import { NichePipeline } from '../../niches/list/partials/NichePipeline';
 import type { ProjectPrompt } from '../gallery/types';
 import useWorkspaceTab from './hooks/useWorkspaceTab';
 import type { WorkspaceTab } from './hooks/useWorkspaceTab';
@@ -69,6 +70,7 @@ const DesignWorkspaceView = () => {
   const { projectId } = useParams<{ projectId: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
+  const dispatch = useAppDispatch();
   const { activeTab, setActiveTab } = useWorkspaceTab();
   const { enqueueSnackbar } = useSnackbar();
 
@@ -150,7 +152,12 @@ const DesignWorkspaceView = () => {
 
   // -- Dialog state --
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [nichePipelineOpen, setNichePipelineOpen] = useState(false);
+
+  const handleOpenNichePipeline = () => {
+    if (project?.niche) {
+      dispatch(openNicheEdit(project.niche));
+    }
+  };
 
   // -- Actions (delete, export, transfer, analyze, panel) --
   const actions = useWorkspaceActions({
@@ -225,7 +232,7 @@ const DesignWorkspaceView = () => {
             <NicheBindingSelector projectId={projectId} currentNicheId={project.niche} currentNicheName={project.niche_summary?.name ?? null} />
             {project.niche && (
               <Tooltip title={t('design.workspace.openNicheDrawer', 'Niche Pipeline')}>
-                <IconButton size="small" onClick={() => setNichePipelineOpen(true)} aria-label={t('design.workspace.openNicheDrawer', 'Niche Pipeline')}>
+                <IconButton size="small" onClick={handleOpenNichePipeline} aria-label={t('design.workspace.openNicheDrawer', 'Niche Pipeline')}>
                   <Inventory2OutlinedIcon sx={{ fontSize: 18 }} />
                 </IconButton>
               </Tooltip>
@@ -412,9 +419,6 @@ const DesignWorkspaceView = () => {
         deletePreset={gen.promptBuilder.deletePreset}
         buildAndSave={gen.promptBuilder.buildAndSave}
       />
-      {project?.niche && (
-        <NichePipeline open={nichePipelineOpen} mode="edit" selectedId={project.niche} onClose={() => setNichePipelineOpen(false)} />
-      )}
     </WorkspaceRoot>
   );
 };

@@ -123,6 +123,34 @@ class CollectedProduct(models.Model):
         return f"Collected {self.product} for {self.niche}"
 
 
+class NicheNote(models.Model):
+    """A free-form text snippet attached to a Niche (e.g. saved from web search results)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    niche = models.ForeignKey(
+        'Niche',
+        on_delete=models.CASCADE,
+        related_name='notes_collection',
+        db_index=True,
+    )
+    text = models.TextField()
+    source_url = models.URLField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='created_niche_notes',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        preview = self.text[:50]
+        return f"Note ({self.niche}): {preview}"
+
+
 class NicheFilterTemplate(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(

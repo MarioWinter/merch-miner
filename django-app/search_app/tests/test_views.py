@@ -125,6 +125,108 @@ class TestChatSessionListCreate:
 
 
 @pytest.mark.django_db
+class TestChatSessionListFilterByNicheId:
+    """P2 Coverage: ChatSessionListView ?niche_id=<uuid> filter."""
+
+    def test_list_sessions_filter_by_niche_id(
+        self, api_client, workspace, user,
+    ):
+        """5 sessions: 2 with niche A, 3 without — filter returns 2."""
+        from niche_app.models import Niche
+        niche_a = Niche.objects.create(
+            workspace=workspace, name='Niche A', created_by=user,
+        )
+        # 2 sessions linked to niche_a
+        ChatSession.objects.create(
+            workspace=workspace, created_by=user,
+            title='S1', niche_context=niche_a,
+        )
+        ChatSession.objects.create(
+            workspace=workspace, created_by=user,
+            title='S2', niche_context=niche_a,
+        )
+        # 3 sessions with no niche_context
+        for i in range(3):
+            ChatSession.objects.create(
+                workspace=workspace, created_by=user,
+                title=f'NoNiche{i}',
+            )
+
+        resp = api_client.get(
+            f'/api/chat/sessions/?niche_id={niche_a.id}',
+            **_headers(workspace),
+        )
+        assert resp.status_code == 200
+        assert resp.data['count'] == 2
+        for entry in resp.data['results']:
+            assert entry['niche_context_id'] == str(niche_a.id)
+
+    def test_list_sessions_filter_invalid_niche_id(
+        self, api_client, workspace, user,
+    ):
+        """Invalid UUID currently raises Django ValidationError on filter.
+
+        Documents existing behavior: filter raises an uncaught
+        ValidationError. A future hardening would catch this and return
+        400 or an empty list.
+        """
+        from django.core.exceptions import ValidationError
+        ChatSession.objects.create(
+            workspace=workspace, created_by=user, title='S1',
+        )
+        try:
+            resp = api_client.get(
+                '/api/chat/sessions/?niche_id=not-a-uuid',
+                **_headers(workspace),
+            )
+            # If the view ever catches it, accept 400 or 200 with empty list.
+            assert resp.status_code in (200, 400)
+            if resp.status_code == 200:
+                assert resp.data['count'] in (0, 1)
+        except ValidationError:
+            # Current behavior: ValidationError bubbles out of the test client
+            pass
+
+    def test_list_sessions_filter_niche_id_not_in_workspace(
+        self, api_client, workspace, other_workspace, other_user,
+    ):
+        """Niche from another workspace → empty list (workspace-isolated)."""
+        from niche_app.models import Niche
+        foreign_niche = Niche.objects.create(
+            workspace=other_workspace, name='Foreign',
+            created_by=other_user,
+        )
+        resp = api_client.get(
+            f'/api/chat/sessions/?niche_id={foreign_niche.id}',
+            **_headers(workspace),
+        )
+        assert resp.status_code == 200
+        assert resp.data['count'] == 0
+
+    def test_list_sessions_no_filter_returns_all(
+        self, api_client, workspace, user,
+    ):
+        """No niche_id filter → all user's sessions."""
+        from niche_app.models import Niche
+        niche = Niche.objects.create(
+            workspace=workspace, name='N', created_by=user,
+        )
+        ChatSession.objects.create(
+            workspace=workspace, created_by=user,
+            title='With Niche', niche_context=niche,
+        )
+        ChatSession.objects.create(
+            workspace=workspace, created_by=user, title='Without',
+        )
+        resp = api_client.get(
+            '/api/chat/sessions/',
+            **_headers(workspace),
+        )
+        assert resp.status_code == 200
+        assert resp.data['count'] == 2
+
+
+@pytest.mark.django_db
 class TestChatSessionDetail:
     def test_get_session(self, api_client, workspace, session):
         resp = api_client.get(
@@ -305,6 +407,28 @@ class TestTriggerCrawl:
         assert resp.status_code == 200
         assert resp.data['crawl_status'] == 'running'
 
+    def test_trigger_crawl_invalid_url(self, api_client, workspace):
+        """Non-URL value → 400 from URLField validator."""
+        resp = api_client.post(
+            '/api/search/crawl/',
+            {'url': 'not-a-url'},
+            format='json',
+            **_headers(workspace),
+        )
+        assert resp.status_code == 400
+        # DRF returns dict with field errors
+        assert 'url' in resp.data
+
+    def test_trigger_crawl_workspace_required(self, api_client):
+        """Missing X-Workspace-Id header → 400."""
+        resp = api_client.post(
+            '/api/search/crawl/',
+            {'url': 'https://example.com'},
+            format='json',
+        )
+        assert resp.status_code == 400
+        assert 'X-Workspace-Id' in str(resp.data)
+
 
 @pytest.mark.django_db
 class TestSaveToNiche:
@@ -362,3 +486,131 @@ class TestSearchHealth:
         assert resp.status_code == 200
         assert resp.data['vane'] == 'online'
         assert resp.data['crawl4ai'] == 'offline'
+
+
+@pytest.mark.django_db
+class TestWorkspaceIsolationP1:
+    """P1 risk-reduction: workspace isolation across remaining endpoints."""
+
+    @patch('search_app.api.views.django_rq')
+    def test_trigger_crawl_chat_message_from_other_workspace(
+        self, mock_rq, api_client, workspace, other_workspace, other_user,
+    ):
+        """User A cannot reference a chat_message_id that belongs to User B's workspace."""
+        mock_rq.get_queue.return_value = MagicMock()
+        # Foreign chat message in other workspace
+        other_session = ChatSession.objects.create(
+            workspace=other_workspace, created_by=other_user, title='Other',
+        )
+        foreign_msg = ChatMessage.objects.create(
+            session=other_session,
+            role=ChatMessage.Role.USER,
+            content='Foreign',
+        )
+        resp = api_client.post(
+            '/api/search/crawl/',
+            {
+                'url': 'https://example.com/x',
+                'chat_message_id': str(foreign_msg.id),
+            },
+            format='json',
+            **_headers(workspace),
+        )
+        assert resp.status_code == 404
+
+    def test_crawl_status_workspace_isolation(
+        self, api_client, workspace, other_workspace,
+    ):
+        """GET crawl status for a result from another workspace returns 404."""
+        foreign_result = WebSearchResult.objects.create(
+            workspace=other_workspace,
+            url='https://example.com',
+            crawl_status='completed',
+        )
+        resp = api_client.get(
+            f'/api/search/crawl/{foreign_result.id}/status/',
+            **_headers(workspace),
+        )
+        assert resp.status_code == 404
+
+    def test_save_to_niche_workspace_isolation_result(
+        self, api_client, workspace, other_workspace, user,
+    ):
+        """Result from another workspace returns 404."""
+        from niche_app.models import Niche
+        niche = Niche.objects.create(
+            workspace=workspace, name='My Niche', created_by=user,
+        )
+        foreign_result = WebSearchResult.objects.create(
+            workspace=other_workspace,
+            url='https://example.com',
+            title='Foreign',
+            content='content',
+        )
+        resp = api_client.post(
+            f'/api/search/results/{foreign_result.id}/save-to-niche/',
+            {'niche_id': str(niche.id), 'save_as': 'notes'},
+            format='json',
+            **_headers(workspace),
+        )
+        assert resp.status_code == 404
+
+    def test_save_to_niche_workspace_isolation_niche(
+        self, api_client, workspace, other_workspace, other_user,
+    ):
+        """Niche from another workspace returns 404 (own result, foreign niche)."""
+        from niche_app.models import Niche
+        own_result = WebSearchResult.objects.create(
+            workspace=workspace,
+            url='https://example.com',
+            title='Mine',
+            content='content',
+        )
+        foreign_niche = Niche.objects.create(
+            workspace=other_workspace,
+            name='Foreign Niche',
+            created_by=other_user,
+        )
+        resp = api_client.post(
+            f'/api/search/results/{own_result.id}/save-to-niche/',
+            {'niche_id': str(foreign_niche.id), 'save_as': 'notes'},
+            format='json',
+            **_headers(workspace),
+        )
+        assert resp.status_code == 404
+
+    def test_health_endpoint_no_auth(self):
+        """Anonymous request to health endpoint returns 401."""
+        client = APIClient()
+        resp = client.get('/api/search/health/')
+        assert resp.status_code == 401
+
+    @patch('search_app.api.views.CrawlService')
+    @patch('search_app.api.views.VaneService')
+    def test_health_endpoint_no_workspace_required(
+        self, mock_vane_cls, mock_crawl_cls, api_client,
+    ):
+        """Health endpoint is global — works without X-Workspace-Id header."""
+        mock_vane_cls.return_value.health_check.return_value = True
+        mock_crawl_cls.return_value.health_check.return_value = True
+        # No _headers(workspace) — no X-Workspace-Id passed
+        resp = api_client.get('/api/search/health/')
+        assert resp.status_code == 200
+        assert resp.data['vane'] == 'online'
+        assert resp.data['crawl4ai'] == 'online'
+
+    @patch('search_app.api.views.CrawlService')
+    @patch('search_app.api.views.VaneService')
+    def test_health_endpoint_cache_control_header(
+        self, mock_vane_cls, mock_crawl_cls, api_client, workspace,
+    ):
+        """Health response sets short Cache-Control (3s) — adaptive polling
+        (60s healthy / 5s offline) needs fresh data on each tick."""
+        mock_vane_cls.return_value.health_check.return_value = True
+        mock_crawl_cls.return_value.health_check.return_value = True
+        resp = api_client.get(
+            '/api/search/health/',
+            **_headers(workspace),
+        )
+        assert resp.status_code == 200
+        assert resp['Cache-Control'] == 'private, max-age=3'

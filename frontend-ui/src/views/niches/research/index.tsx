@@ -5,6 +5,8 @@ import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import IconButton from '@mui/material/IconButton';
 import { useTranslation } from 'react-i18next';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useAppDispatch } from '@/store/hooks';
+import { openNicheEdit } from '@/store/chatBarSlice';
 import { useNicheResearch } from './hooks/useNicheResearch';
 import { ResearchTriggerButton } from './partials/ResearchTriggerButton';
 import { ResearchProgress } from './partials/ResearchProgress';
@@ -16,7 +18,6 @@ import { normalizePatternKey } from './partials/patternConfig';
 import { RelatedNiches } from './partials/RelatedNiches';
 import { ResearchErrorState } from './partials/ResearchErrorState';
 import { ResearchEmptyState } from './partials/ResearchEmptyState';
-import { NichePipeline } from '../list/partials/NichePipeline';
 import type { Marketplace, ProductType } from './types';
 
 const PageHeader = styled(Box)(({ theme }) => ({
@@ -31,13 +32,12 @@ const PageHeader = styled(Box)(({ theme }) => ({
 const NicheResearchView = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const [searchParams] = useSearchParams();
   const nicheId = searchParams.get('nicheId');
   const nicheName = searchParams.get('nicheName') ?? '';
   const initialMarketplace = searchParams.get('marketplace') as Marketplace | null;
   const initialProductType = searchParams.get('product_type') as ProductType | null;
-
-  const [drawerOpen, setDrawerOpen] = useState(false);
 
   const [showHint, setShowHint] = useState(
     () => localStorage.getItem('research_dblclick_hint_seen') !== 'true',
@@ -49,8 +49,8 @@ const NicheResearchView = () => {
       localStorage.setItem('research_dblclick_hint_seen', 'true');
       setShowHint(false);
     }
-    setDrawerOpen(true);
-  }, [nicheId, showHint]);
+    dispatch(openNicheEdit(nicheId));
+  }, [dispatch, nicheId, showHint]);
 
   const {
     data,
@@ -217,13 +217,6 @@ const NicheResearchView = () => {
           <RelatedNiches niches={data.related_niches} />
         </Stack>
       )}
-
-      <NichePipeline
-        open={drawerOpen}
-        mode="edit"
-        selectedId={nicheId}
-        onClose={() => setDrawerOpen(false)}
-      />
     </Box>
   );
 };

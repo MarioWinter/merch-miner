@@ -1,4 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useAppDispatch } from '@/store/hooks';
+import { openNicheEdit } from '@/store/chatBarSlice';
 import {
   Box,
   Button,
@@ -46,7 +48,6 @@ import ProductTable from './partials/ProductTable';
 import LiveProgressBanner from './partials/LiveProgressBanner';
 import EmptyState from './partials/EmptyState';
 import StatisticsView from './partials/StatisticsView';
-import { NichePipeline } from '../../niches/list/partials/NichePipeline';
 
 const STORAGE_MARKETPLACE_KEY = 'mm-research-marketplace';
 
@@ -56,6 +57,7 @@ const getInitialMarketplace = (): string =>
 const AmazonResearchView = () => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
+  const dispatch = useAppDispatch();
 
   const { filters, enabled, setFilter, setEnabled, resetFilters, activeFilterCount } =
     useFilterState();
@@ -75,9 +77,6 @@ const AmazonResearchView = () => {
   const [allLiveProducts, setAllLiveProducts] = useState<AmazonProduct[]>([]);
   const [canLoadMore, setCanLoadMore] = useState(false);
   const sentinelRef = useRef<HTMLDivElement | null>(null);
-
-  // Drawer state
-  const [drawerOpen, setDrawerOpen] = useState(false);
 
   // "Save as Niche" dialog state
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -364,11 +363,11 @@ const AmazonResearchView = () => {
   // Niche indicator click handler
   const handleNicheIndicatorClick = useCallback(() => {
     if (matchedNiche) {
-      setDrawerOpen(true);
+      dispatch(openNicheEdit(matchedNiche.id));
     } else {
       setSaveDialogOpen(true);
     }
-  }, [matchedNiche]);
+  }, [dispatch, matchedNiche]);
 
   // Save keyword as new niche
   const handleSaveAsNiche = useCallback(async () => {
@@ -391,8 +390,8 @@ const AmazonResearchView = () => {
       enqueueSnackbar(t('amazonResearch.niche.notSaved'), { variant: 'warning' });
       return;
     }
-    setDrawerOpen(true);
-  }, [activeNicheId, enqueueSnackbar, t]);
+    dispatch(openNicheEdit(activeNicheId));
+  }, [activeNicheId, dispatch, enqueueSnackbar, t]);
 
   // Toggle favorite (collect/remove product via backend API)
   const handleToggleFavorite = useCallback(
@@ -652,14 +651,6 @@ const AmazonResearchView = () => {
           )}
         </>
       )}
-
-      {/* Niche Detail Drawer */}
-      <NichePipeline
-        open={drawerOpen && !!activeNicheId}
-        mode="edit"
-        selectedId={activeNicheId}
-        onClose={() => setDrawerOpen(false)}
-      />
 
       {/* Save as Niche Dialog */}
       <Dialog

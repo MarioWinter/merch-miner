@@ -5,6 +5,7 @@ import SendIcon from '@mui/icons-material/Send';
 import CloseIcon from '@mui/icons-material/Close';
 import { useTranslation } from 'react-i18next';
 import HealthStatusDot from '../MultiPurposeDrawer/HealthStatusDot';
+import ModeDropdown from '../MultiPurposeDrawer/panels/ModeDropdown';
 
 interface ChatBarInputProps {
   onSend: (message: string) => void;
@@ -16,7 +17,7 @@ interface ChatBarInputProps {
 const InputRow = styled(Stack)(({ theme }) => ({
   flexDirection: 'row',
   alignItems: 'center',
-  gap: theme.spacing(1),
+  gap: theme.spacing(0.75),
   width: '100%',
 }));
 
@@ -49,6 +50,7 @@ const ChatBarInput = ({ onSend, onDismiss, sending, disabled }: ChatBarInputProp
   return (
     <InputRow>
       <HealthStatusDot />
+      <ModeDropdown compact />
       <TextField
         inputRef={inputRef}
         value={value}

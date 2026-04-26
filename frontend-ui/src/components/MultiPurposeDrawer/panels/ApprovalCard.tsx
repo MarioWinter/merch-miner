@@ -2,7 +2,7 @@ import { Card, CardContent, Typography, Stack, Button, Chip, Box } from '@mui/ma
 import { styled } from '@mui/material/styles';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { useTranslation } from 'react-i18next';
-import type { AgentMessage } from '../types';
+import type { AgentMessage } from './AgentPanel/types';
 
 const ApprovalRoot = styled(Card)(({ theme }) => ({
   border: `1px solid ${theme.vars.palette.warning.main}`,
@@ -17,6 +17,8 @@ interface ApprovalCardProps {
   onReject: (actionLogId: string) => void;
   approving: boolean;
   rejecting: boolean;
+  /** Compact layout for inline use inside WorkflowCard (smaller paddings, full width). */
+  compact?: boolean;
 }
 
 const ApprovalCard = ({
@@ -25,6 +27,7 @@ const ApprovalCard = ({
   onReject,
   approving,
   rejecting,
+  compact = false,
 }: ApprovalCardProps) => {
   const { t } = useTranslation();
 
@@ -37,18 +40,27 @@ const ApprovalCard = ({
   const toolName = message.tool_calls[0]?.tool_name ?? '';
   const costEstimate = message.tool_calls[0]?.args?.cost_estimate as string | undefined;
 
+  const padding = compact ? 1 : 1.5;
+
   return (
-    <ApprovalRoot elevation={0}>
-      <CardContent sx={{ p: 1.5, '&:last-child': { pb: 1.5 } }}>
-        <Stack gap={1}>
+    <ApprovalRoot
+      elevation={0}
+      sx={compact ? { maxWidth: '100%' } : undefined}
+      role="region"
+      aria-label={t('agent.approval.title')}
+    >
+      <CardContent sx={{ p: padding, '&:last-child': { pb: padding } }}>
+        <Stack gap={compact ? 0.75 : 1}>
           <Stack direction="row" alignItems="center" gap={0.5}>
             <WarningAmberIcon color="warning" sx={{ fontSize: 16 }} />
-            <Typography variant="subtitle2" color="warning.main">
+            <Typography variant="subtitle2" color="warning.main" sx={{ fontSize: compact ? '0.75rem' : undefined }}>
               {t('agent.approval.title')}
             </Typography>
           </Stack>
 
-          <Typography variant="body2">{message.content}</Typography>
+          <Typography variant="body2" sx={{ fontSize: compact ? '0.75rem' : undefined }}>
+            {message.content}
+          </Typography>
 
           <Stack direction="row" alignItems="center" gap={1} flexWrap="wrap">
             {toolName && (

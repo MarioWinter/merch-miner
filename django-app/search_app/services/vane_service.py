@@ -26,6 +26,9 @@ class VaneServiceError(Exception):
 class VaneService:
     """Client for Vane (Perplexica) POST /api/search endpoint."""
 
+    # In-process cache for provider lookups (UUIDs change per Vane instance).
+    _providers_cache: Optional[dict] = None
+
     def __init__(self):
         self.base_url = getattr(settings, 'VANE_API_URL', '')
         self.default_model = getattr(
@@ -38,6 +41,86 @@ class VaneService:
         self.openrouter_base_url = getattr(
             settings, 'OPENROUTER_BASE_URL', 'https://openrouter.ai/api/v1',
         )
+
+    def _resolve_provider_models(
+        self, chat_model_name: Optional[str] = None,
+    ) -> Optional[dict]:
+        """Look up provider UUIDs + model keys from Vane /api/providers.
+
+        Returns dict like:
+            {
+              'chatModel': {'providerId': '<uuid>', 'key': 'openai/gpt-4.1-mini'},
+              'embeddingModel': {'providerId': '<uuid>', 'key': 'openai/text-embedding-3-small'},
+            }
+        Or None if Vane's setup is incomplete / lookup fails.
+        Cached at class-level after first successful resolve.
+        """
+        if VaneService._providers_cache:
+            return VaneService._providers_cache
+        if not self.base_url:
+            return None
+        try:
+            with httpx.Client(timeout=5.0) as client:
+                resp = client.get(
+                    f"{self.base_url.rstrip('/')}/api/providers",
+                )
+                resp.raise_for_status()
+                data = resp.json()
+        except Exception:
+            logger.warning('Failed to fetch /api/providers from Vane.', exc_info=True)
+            return None
+
+        target_chat_name = (chat_model_name or self.default_model).lower()
+        target_embed_name = self.embedding_model.lower()
+
+        chat_match = None
+        embed_match = None
+        for provider in data.get('providers', []):
+            for cm in provider.get('chatModels', []):
+                name = (cm.get('name') or '').lower()
+                key = (cm.get('key') or '').lower()
+                if target_chat_name in name or target_chat_name in key:
+                    chat_match = {
+                        'providerId': provider['id'], 'key': cm['key'],
+                    }
+                    break
+            for em in provider.get('embeddingModels', []):
+                name = (em.get('name') or '').lower()
+                key = (em.get('key') or '').lower()
+                if target_embed_name in name or target_embed_name in key:
+                    embed_match = {
+                        'providerId': provider['id'], 'key': em['key'],
+                    }
+                    break
+
+        # Fallback to first available chat / embedding model if specific match fails
+        if not chat_match:
+            for provider in data.get('providers', []):
+                if provider.get('chatModels'):
+                    cm = provider['chatModels'][0]
+                    chat_match = {
+                        'providerId': provider['id'], 'key': cm['key'],
+                    }
+                    break
+        if not embed_match:
+            for provider in data.get('providers', []):
+                if provider.get('embeddingModels'):
+                    em = provider['embeddingModels'][0]
+                    embed_match = {
+                        'providerId': provider['id'], 'key': em['key'],
+                    }
+                    break
+
+        if not chat_match or not embed_match:
+            logger.warning(
+                'Vane providers incomplete: chat=%s embed=%s',
+                bool(chat_match), bool(embed_match),
+            )
+            return None
+
+        result = {'chatModel': chat_match, 'embeddingModel': embed_match}
+        VaneService._providers_cache = result
+        return result
 
     def _build_payload(
         self,
@@ -60,37 +143,34 @@ class VaneService:
         }
         optimization_mode = mode_map.get(mode, 'balanced')
 
-        chat_model = model or self.default_model
-
+        # Newer Vane (Perplexica) requires `chatModel.providerId` (UUID from
+        # /api/providers) + `chatModel.key` (model identifier). The legacy
+        # `provider: "custom_openai"` schema is rejected as "Invalid provider id".
         payload = {
-            'chatModel': {
-                'provider': 'custom_openai',
-                'model': chat_model,
-                'customOpenAIBaseURL': self.openrouter_base_url,
-                'customOpenAIKey': self.openrouter_api_key,
-            },
-            'embeddingModel': {
-                'provider': 'custom_openai',
-                'model': self.embedding_model,
-                'customOpenAIBaseURL': self.openrouter_base_url,
-                'customOpenAIKey': self.openrouter_api_key,
-            },
             'focusMode': 'webSearch',
             'query': query,
             'optimizationMode': optimization_mode,
         }
+        provider_models = self._resolve_provider_models(model)
+        if provider_models:
+            payload['chatModel'] = provider_models['chatModel']
+            payload['embeddingModel'] = provider_models['embeddingModel']
 
         # Map source filters
         if sources:
-            # Vane uses focusMode for source types
+            # Vane uses focusMode for the high-level mode + explicit `sources`
+            # array for the engine selection.
             source_map = {
                 'web': 'webSearch',
                 'academic': 'academicSearch',
                 'discussions': 'redditSearch',
             }
-            # Use first source as primary focus mode
             primary = sources[0] if sources else 'web'
             payload['focusMode'] = source_map.get(primary, 'webSearch')
+            # Pass sources through verbatim — Vane validates against engines.
+            payload['sources'] = list(sources)
+        else:
+            payload['sources'] = ['web']
 
         # Conversation history for follow-up queries
         if history:
@@ -191,6 +271,10 @@ class VaneService:
         payload = self._build_payload(
             query, mode, sources, history, system_instructions, model,
         )
+        # Newer Vane requires explicit `stream: true` flag — without it the
+        # endpoint returns a single JSON blob (`Content-Type: application/json`)
+        # instead of `text/event-stream`.
+        payload['stream'] = True
         url = f"{self.base_url.rstrip('/')}/api/search"
 
         try:
@@ -248,6 +332,17 @@ class VaneService:
             raise
         except Exception as e:
             raise VaneServiceError(f"Vane stream failed: {e}")
+
+    @staticmethod
+    def estimate_tokens(text: str) -> int:
+        """Rough token estimate for usage logging.
+
+        Uses ~4 chars per token heuristic. Not exact, but good enough for
+        SearchUsageLog reporting (PROJ-12). Avoids adding tiktoken dep.
+        """
+        if not text:
+            return 0
+        return max(1, len(text) // 4)
 
     def health_check(self) -> bool:
         """Ping Vane to check if it's online. Returns True if healthy."""

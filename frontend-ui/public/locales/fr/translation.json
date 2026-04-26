@@ -2444,7 +2444,9 @@
       "send": "Envoyer",
       "dismiss": "Masquer la barre de chat",
       "reveal": "Afficher la barre de chat",
-      "expand": "Ouvrir la recherche"
+      "expand": "Ouvrir la recherche",
+      "collapse": "Réduire",
+      "openChat": "Ouvrir le panneau de chat"
     },
     "drawer": {
       "segments": "Panneaux",
@@ -2471,7 +2473,9 @@
     },
     "context": {
       "label": "Contexte: {{name}}",
-      "removeTooltip": "Supprimer le contexte"
+      "removeTooltip": "Supprimer le contexte",
+      "useAsContext": "Utiliser cette Niche comme contexte du chat",
+      "toggleLabel": "Basculer le contexte de niche"
     },
     "results": {
       "aiAnswer": "Reponse IA",
@@ -2511,12 +2515,60 @@
       "keywords": "Enregistrer les mots-cles",
       "vectorDbSaved": "Sauvegarde auto dans Vector DB",
       "saved": "Enregistre dans {{name}}.",
-      "error": "Echec de l'enregistrement."
+      "error": "Echec de l'enregistrement.",
+      "toKeywords": "Enregistrer comme mots-cles",
+      "toNotes": "Enregistrer comme note",
+      "success": "Enregistre dans {{name}}.",
+      "selectNiche": "Aucune niche active — choisissez une destination.",
+      "toolbarLabel": "Barre de sauvegarde de selection",
+      "toNichePicker": "Choisir une niche pour enregistrer",
+      "notes": "Enregistrer comme note",
+      "successKeywords": "{{count}} mots-cles enregistres",
+      "allDuplicates": "Tous les mots-cles existent deja",
+      "successNote": "Note enregistree",
+      "errorGeneric": "Impossible d'enregistrer le snippet",
+      "modal": {
+        "title": "Enregistrer dans une niche",
+        "description": "Choisissez une niche pour enregistrer ce {{type}} :",
+        "nichePlaceholder": "Rechercher des niches...",
+        "save": "Enregistrer",
+        "cancel": "Annuler",
+        "noNiches": "Aucune niche trouvee dans cet espace"
+      }
     },
     "empty": {
       "noSessions": "Aucune session de chat. Lancez une recherche!",
       "noResults": "Aucun resultat",
       "firstSearchHint": "Posez une question pour rechercher le web avec l'IA."
+    },
+    "mode": {
+      "label": "Mode",
+      "auto": "Auto",
+      "webSearch": "Recherche Web",
+      "agent": "Agent",
+      "tooltip": "Auto choisit entre recherche web et agent selon votre message."
+    },
+    "workflow": {
+      "openCommandCenter": "Ouvrir le Command Center",
+      "stepperLabel": "Étapes du workflow",
+      "approvalPending": "Approbation requise",
+      "progress": "{{completed}}/{{total}} étapes",
+      "status": {
+        "idle": "Prêt",
+        "running": "En cours",
+        "paused": "En pause",
+        "completed": "Terminé",
+        "failed": "Échoué",
+        "cancelled": "Annulé"
+      }
+    },
+    "scroll": {
+      "jumpToLatest": "Aller au plus récent"
+    },
+    "stream": {
+      "streaming": "Réponse en streaming...",
+      "error": "Échec du streaming. Veuillez réessayer.",
+      "connectionLost": "Connexion perdue. Veuillez réessayer."
     }
   },
   "agent": {

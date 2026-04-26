@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../../../utils/test-utils';
+import chatBarReducer from '../../../../store/chatBarSlice';
 import NicheListView from '../NicheListView';
 import type { Niche, NicheListResponse } from '../types';
 
@@ -185,13 +186,26 @@ describe('NicheListView', () => {
     expect(screen.getByText('Dog Lover Gifts')).toBeInTheDocument();
   });
 
-  it('clicking page-header "+ New Niche" opens drawer', async () => {
-    renderWithProviders(<NicheListView />);
-    // The header button has aria-label="New Niche"; click the first matching button
+  it('clicking page-header "+ New Niche" dispatches openDrawer(niche) + create mode', async () => {
+    // PROJ-17 AC-35: drawer is now MPDrawer (global) — NicheListView no longer mounts a local <Drawer>.
+    // Clicking "+ New Niche" dispatches Redux actions; assert store state instead of DOM.
+    const { store } = renderWithProviders(<NicheListView />, {
+      reducers: { chatBar: chatBarReducer },
+    });
     const buttons = screen.getAllByRole('button', { name: /new niche/i });
     await userEvent.click(buttons[0]);
-    // Drawer renders with role="presentation"
-    expect(await screen.findByRole('presentation')).toBeInTheDocument();
+    const state = store.getState() as ReturnType<typeof store.getState> & {
+      chatBar: {
+        drawerOpen: boolean;
+        activePanel: string;
+        nicheMode: string;
+        activeNicheId: string | null;
+      };
+    };
+    expect(state.chatBar.drawerOpen).toBe(true);
+    expect(state.chatBar.activePanel).toBe('niche');
+    expect(state.chatBar.nicheMode).toBe('create');
+    expect(state.chatBar.activeNicheId).toBeNull();
   });
 
   it('BulkActionBar is hidden when no rows are selected', () => {

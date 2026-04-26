@@ -11,6 +11,7 @@ import ColorModeToggle from './ColorModeToggle';
 import ProfileMenu from './ProfileMenu';
 import WorkspaceSelector from './WorkspaceSelector';
 import NotificationBell from '../NotificationBell';
+import HealthStatusDot from '../MultiPurposeDrawer/HealthStatusDot';
 import { COLORS, DURATION, EASING } from '@/style/constants';
 
 const TopbarRoot = styled(AppBar)(({ theme }) => ({
@@ -76,6 +77,9 @@ const Topbar = () => {
 
         {/* Right actions */}
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          <Box sx={{ px: 1, display: 'flex', alignItems: 'center' }}>
+            <HealthStatusDot />
+          </Box>
           <LanguageMenu />
           <ColorModeToggle />
           <NotificationBell />

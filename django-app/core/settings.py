@@ -259,6 +259,13 @@ RQ_QUEUES = {
         'DEFAULT_TIMEOUT': 3600,
         'REDIS_CLIENT_KWARGS': {},
     },
+    'search': {
+        'HOST': os.environ.get("REDIS_HOST", default="redis"),
+        'PORT': os.environ.get("REDIS_PORT", default=6379),
+        'DB': os.environ.get("REDIS_DB", default=0),
+        'DEFAULT_TIMEOUT': 300,
+        'REDIS_CLIENT_KWARGS': {},
+    },
 }
 
 # Scraper settings
@@ -287,6 +294,10 @@ VANE_API_URL = os.environ.get('VANE_API_URL', '')
 CRAWL4AI_API_URL = os.environ.get('CRAWL4AI_API_URL', '')
 VANE_DEFAULT_MODEL = os.environ.get('VANE_DEFAULT_MODEL', 'gpt-4.1-mini')
 VANE_EMBEDDING_MODEL = os.environ.get('VANE_EMBEDDING_MODEL', 'text-embedding-3-small')
+
+# Feature flag — gates Vector DB embedding signal (PROJ-15 dependency).
+# Default true locally, set false in prod until PROJ-15 backfill is complete.
+VECTOR_DB_ENABLED = os.environ.get('VECTOR_DB_ENABLED', 'true').lower() in ('true', '1', 'yes')
 
 # ----------------------------------------
 # Langfuse Observability

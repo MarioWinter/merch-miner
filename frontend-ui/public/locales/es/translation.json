@@ -2343,5 +2343,133 @@
     "retry": "Reintentar",
     "cancel": "Cancelar",
     "save": "Guardar"
+  },
+  "search": {
+    "chatBar": {
+      "placeholder": "Search the web or ask a question...",
+      "send": "Send",
+      "dismiss": "Dismiss chat bar",
+      "reveal": "Show chat bar",
+      "expand": "Open search",
+      "collapse": "Colapsar",
+      "openChat": "Abrir panel de chat"
+    },
+    "drawer": {
+      "segments": "Drawer panels",
+      "nicheDetail": "Niche",
+      "chat": "Chat",
+      "search": "Search",
+      "close": "Close drawer",
+      "noNicheSelected": "No niche selected",
+      "selectNicheHint": "Open a niche from the list to see its details here."
+    },
+    "chat": {
+      "model": "Model",
+      "mode": "Mode",
+      "modeSpeed": "Speed",
+      "modeBalanced": "Balanced",
+      "modeQuality": "Quality",
+      "sources": "Sources",
+      "source_web": "Web",
+      "source_academic": "Academic",
+      "source_discussions": "Discussions",
+      "sendError": "Failed to send message. Please try again.",
+      "loadMore": "Load older messages",
+      "toggleControls": "Toggle search controls"
+    },
+    "context": {
+      "label": "Context: {{name}}",
+      "removeTooltip": "Remove niche context",
+      "useAsContext": "Usar este Nicho como contexto del chat",
+      "toggleLabel": "Alternar contexto de nicho"
+    },
+    "results": {
+      "aiAnswer": "AI Answer",
+      "sources": "Sources",
+      "noSources": "No sources found for this query.",
+      "deepCrawl": "Deep Crawl"
+    },
+    "crawl": {
+      "pending": "Pending",
+      "running": "Crawling...",
+      "completed": "Crawled",
+      "failed": "Failed",
+      "error": "Failed to start deep crawl.",
+      "retry": "Retry"
+    },
+    "sessions": {
+      "recentChats": "Recent Chats",
+      "untitled": "Untitled Chat",
+      "share": "Share with workspace",
+      "unshare": "Stop sharing",
+      "shared": "Session shared with workspace.",
+      "unshared": "Session is now private.",
+      "shareError": "Failed to update sharing.",
+      "sharedBy": "Shared by {{name}}",
+      "readOnly": "This shared session is read-only."
+    },
+    "health": {
+      "online": "Online",
+      "offline": "Offline",
+      "tooltip": "Vane: {{vane}} | Crawl4ai: {{crawl4ai}}",
+      "vaneOffline": "Web search is currently unavailable.",
+      "crawl4aiOffline": "Deep Crawl is currently unavailable.",
+      "allOffline": "Search services are offline."
+    },
+    "save": {
+      "toNiche": "Guardar en {{name}}",
+      "keywords": "Guardar palabras clave",
+      "vectorDbSaved": "Guardado automáticamente en Vector DB",
+      "saved": "Guardado en {{name}}.",
+      "error": "Error al guardar.",
+      "toKeywords": "Guardar como palabras clave",
+      "toNotes": "Guardar como nota",
+      "success": "Guardado en {{name}}.",
+      "selectNiche": "No hay nicho activo — elige un destino.",
+      "toolbarLabel": "Barra de guardar selección",
+      "toNichePicker": "Elegir un nicho para guardar",
+      "notes": "Guardar como nota",
+      "successKeywords": "{{count}} palabras clave guardadas",
+      "allDuplicates": "Todas las palabras clave ya existen",
+      "successNote": "Nota guardada",
+      "errorGeneric": "No se pudo guardar el fragmento",
+      "modal": {
+        "title": "Guardar en nicho",
+        "description": "Elige un nicho para guardar este {{type}}:",
+        "nichePlaceholder": "Buscar nichos...",
+        "save": "Guardar",
+        "cancel": "Cancelar",
+        "noNiches": "No se encontraron nichos en este workspace"
+      }
+    },
+    "empty": {
+      "noSessions": "No chat sessions yet. Start a search!",
+      "noResults": "No search results",
+      "firstSearchHint": "Type a question in the chat bar to search the web with AI."
+    },
+    "mode": {
+      "label": "Modo",
+      "auto": "Auto",
+      "webSearch": "Búsqueda web",
+      "agent": "Agente",
+      "tooltip": "Auto elige entre búsqueda web y agente según tu mensaje."
+    },
+    "workflow": {
+      "openCommandCenter": "Abrir Command Center",
+      "stepperLabel": "Pasos del workflow",
+      "approvalPending": "Aprobación requerida",
+      "progress": "{{completed}}/{{total}} pasos",
+      "status": {
+        "idle": "Inactivo",
+        "running": "En ejecución",
+        "paused": "En pausa",
+        "completed": "Completado",
+        "failed": "Fallido",
+        "cancelled": "Cancelado"
+      }
+    },
+    "scroll": {
+      "jumpToLatest": "Ir al más reciente"
+    }
   }
 }

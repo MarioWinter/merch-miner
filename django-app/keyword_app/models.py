@@ -39,6 +39,7 @@ class NicheKeyword(models.Model):
         AMAZON_SEARCH = 'amazon_search', 'Amazon Search'
         WEB_SEARCH = 'web_search', 'Web Search'
         MANUAL = 'manual', 'Manual'
+        MANUAL_SNIPPET = 'manual_snippet', 'Manual Snippet'
         JUNGLESCOUT = 'junglescout', 'JungleScout'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

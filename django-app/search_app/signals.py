@@ -1,6 +1,7 @@
 import logging
 
 import django_rq
+from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db.models.signals import post_save
 from django.dispatch import receiver
@@ -20,12 +21,22 @@ def enqueue_embedding_on_crawl_complete(sender, instance, **kwargs):
 
     Only triggers when content_type is full_crawl and status is completed,
     or for snippets that have content. Delegates to vector_app task.
+
+    Gated by `settings.VECTOR_DB_ENABLED` (EC-15) — set to false in prod
+    until PROJ-15 backfill is complete.
     """
+    if not getattr(settings, 'VECTOR_DB_ENABLED', False):
+        logger.debug(
+            "VECTOR_DB_ENABLED is false — skipping embedding for WebSearchResult %s",
+            instance.pk,
+        )
+        return
+
     if instance.crawl_status == WebSearchResult.CrawlStatus.COMPLETED and instance.content:
         try:
             from vector_app.tasks import create_or_update_embedding
             ct = ContentType.objects.get_for_model(WebSearchResult)
-            queue = django_rq.get_queue('default')
+            queue = django_rq.get_queue('search')
             queue.enqueue(
                 create_or_update_embedding,
                 content_type_id=ct.id,

@@ -11,9 +11,13 @@ import type {
   SendMessageBody,
   TriggerCrawlBody,
   SaveToNicheBody,
+  SaveSnippetBody,
+  SaveSnippetResponse,
   UpdateSessionBody,
   SessionListParams,
 } from '../types/search';
+import { keywordApi } from './keywordSlice';
+import { nicheApi } from './nicheSlice';
 
 export const searchApi = createApi({
   reducerPath: 'searchApi',
@@ -129,6 +133,49 @@ export const searchApi = createApi({
         method: 'POST',
         data: body,
       }),
+      // Cross-API invalidation (RTK tags don't span APIs) — refresh keyword list + niche detail
+      async onQueryStarted({ body }, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(
+            keywordApi.util.invalidateTags([
+              { type: 'NicheKeywords', id: `NICHE_${body.niche_id}` },
+            ]),
+          );
+          dispatch(
+            nicheApi.util.invalidateTags([{ type: 'Niche', id: body.niche_id }]),
+          );
+        } catch {
+          /* mutation failed -- nothing to invalidate */
+        }
+      },
+    }),
+
+    // PROJ-17 AC-50–53: niche-scoped save-snippet endpoint (no result_id required).
+    saveSnippetToNiche: builder.mutation<
+      SaveSnippetResponse,
+      { nicheId: string; body: SaveSnippetBody }
+    >({
+      query: ({ nicheId, body }) => ({
+        url: `/api/niches/${nicheId}/save-snippet/`,
+        method: 'POST',
+        data: body,
+      }),
+      async onQueryStarted({ nicheId }, { dispatch, queryFulfilled }) {
+        try {
+          await queryFulfilled;
+          dispatch(
+            keywordApi.util.invalidateTags([
+              { type: 'NicheKeywords', id: `NICHE_${nicheId}` },
+            ]),
+          );
+          dispatch(
+            nicheApi.util.invalidateTags([{ type: 'Niche', id: nicheId }]),
+          );
+        } catch {
+          /* mutation failed -- nothing to invalidate */
+        }
+      },
     }),
 
     // --- Health ---
@@ -153,5 +200,6 @@ export const {
   useTriggerCrawlMutation,
   useGetCrawlStatusQuery,
   useSaveToNicheMutation,
+  useSaveSnippetToNicheMutation,
   useHealthCheckQuery,
 } = searchApi;

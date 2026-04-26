@@ -1769,7 +1769,9 @@
       "send": "Senden",
       "dismiss": "Chatleiste ausblenden",
       "reveal": "Chatleiste anzeigen",
-      "expand": "Suche offnen"
+      "expand": "Suche offnen",
+      "collapse": "Einklappen",
+      "openChat": "Chat-Panel offnen"
     },
     "drawer": {
       "segments": "Drawer-Bereiche",
@@ -1796,7 +1798,9 @@
     },
     "context": {
       "label": "Kontext: {{name}}",
-      "removeTooltip": "Nischen-Kontext entfernen"
+      "removeTooltip": "Nischen-Kontext entfernen",
+      "useAsContext": "Diese Nische als Chat-Kontext verwenden",
+      "toggleLabel": "Nischen-Kontext umschalten"
     },
     "results": {
       "aiAnswer": "KI-Antwort",
@@ -1836,12 +1840,60 @@
       "keywords": "Keywords speichern",
       "vectorDbSaved": "Automatisch in Vector DB gespeichert",
       "saved": "Gespeichert in {{name}}.",
-      "error": "Speichern fehlgeschlagen."
+      "error": "Speichern fehlgeschlagen.",
+      "toKeywords": "Als Keywords speichern",
+      "toNotes": "Als Notiz speichern",
+      "success": "Gespeichert in {{name}}.",
+      "selectNiche": "Keine Niche aktiv — wähle ein Ziel zum Speichern.",
+      "toolbarLabel": "Auswahl-Speicher-Toolbar",
+      "toNichePicker": "Niche zum Speichern auswählen",
+      "notes": "Als Notiz speichern",
+      "successKeywords": "{{count}} Keywords gespeichert",
+      "allDuplicates": "Alle Keywords waren bereits vorhanden",
+      "successNote": "Notiz gespeichert",
+      "errorGeneric": "Snippet konnte nicht gespeichert werden",
+      "modal": {
+        "title": "In Niche speichern",
+        "description": "Wähle eine Niche, um dieses {{type}} zu speichern:",
+        "nichePlaceholder": "Niches suchen...",
+        "save": "Speichern",
+        "cancel": "Abbrechen",
+        "noNiches": "Keine Niches in diesem Workspace gefunden"
+      }
     },
     "empty": {
       "noSessions": "Noch keine Chat-Sessions. Starte eine Suche!",
       "noResults": "Keine Suchergebnisse",
       "firstSearchHint": "Stelle eine Frage in der Chatleiste, um das Web mit KI zu durchsuchen."
+    },
+    "mode": {
+      "label": "Modus",
+      "auto": "Auto",
+      "webSearch": "Web-Suche",
+      "agent": "Agent",
+      "tooltip": "Auto entscheidet je nach Nachricht zwischen Web-Suche und Agent."
+    },
+    "workflow": {
+      "openCommandCenter": "Command Center öffnen",
+      "stepperLabel": "Workflow-Schritte",
+      "approvalPending": "Bestätigung erforderlich",
+      "progress": "{{completed}}/{{total}} Schritte",
+      "status": {
+        "idle": "Bereit",
+        "running": "Läuft",
+        "paused": "Pausiert",
+        "completed": "Abgeschlossen",
+        "failed": "Fehlgeschlagen",
+        "cancelled": "Abgebrochen"
+      }
+    },
+    "scroll": {
+      "jumpToLatest": "Zum Neuesten springen"
+    },
+    "stream": {
+      "streaming": "Antwort wird gestreamt...",
+      "error": "Streaming fehlgeschlagen. Bitte erneut versuchen.",
+      "connectionLost": "Verbindung verloren. Bitte erneut versuchen."
     }
   },
   "agent": {

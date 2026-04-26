@@ -13,7 +13,7 @@ from rest_framework.viewsets import ModelViewSet
 from user_auth_app.api.authentication import CookieJWTAuthentication
 from workspace_app.models import Membership
 from scraper_app.models import AmazonProduct
-from niche_app.models import Niche, NicheFilterTemplate, CollectedProduct
+from niche_app.models import Niche, NicheFilterTemplate, CollectedProduct, NicheNote
 from niche_app.api.filters import NicheFilter
 from niche_app.api.permissions import IsWorkspaceMember, IsNicheOwnerOrAdmin
 from niche_app.api.serializers import (
@@ -23,6 +23,7 @@ from niche_app.api.serializers import (
     NicheFilterTemplateSerializer,
     CollectedProductSerializer,
     CollectedProductCreateSerializer,
+    SaveSnippetSerializer,
 )
 
 User = get_user_model()
@@ -454,4 +455,120 @@ class CollectedProductViewSet(ModelViewSet):
         return Response(
             CollectedProductSerializer(collected).data,
             status=status.HTTP_200_OK,
+        )
+
+
+class SaveSnippetView(APIView):
+    """
+    POST /api/niches/{niche_id}/save-snippet/
+
+    Save a manually selected text snippet to a Niche either as keywords
+    (split by newline + comma into NicheKeyword rows) or as a NicheNote.
+
+    Body: {selected_text: str, save_as: 'keywords' | 'notes'}
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def _resolve_membership(self, request):
+        workspace_id = request.headers.get('X-Workspace-Id')
+        if workspace_id:
+            return _get_membership_for_workspace(request.user, workspace_id)
+        return _get_active_membership(request.user)
+
+    def _get_niche_for_user(self, request, niche_id):
+        """Return Niche if user is active member of its workspace, else None."""
+        try:
+            niche = Niche.objects.select_related('workspace').get(id=niche_id)
+        except Niche.DoesNotExist:
+            return None
+        is_member = Membership.objects.filter(
+            user=request.user,
+            workspace=niche.workspace,
+            status=Membership.Status.ACTIVE,
+        ).exists()
+        if not is_member:
+            return None
+        return niche
+
+    def post(self, request, niche_id):
+        niche = self._get_niche_for_user(request, niche_id)
+        if not niche:
+            return Response(
+                {'error': 'Niche not found or not accessible.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = SaveSnippetSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        selected_text = serializer.validated_data['selected_text']
+        save_as = serializer.validated_data['save_as']
+        # Normalize empty string -> None; only used for notes
+        source_url = serializer.validated_data.get('source_url') or None
+
+        if save_as == 'keywords':
+            # source_url is irrelevant for keywords -- not stored on NicheKeyword
+            return self._save_as_keywords(niche, selected_text, request.user)
+        return self._save_as_note(niche, selected_text, request.user, source_url)
+
+    def _save_as_keywords(self, niche, selected_text, user):
+        from keyword_app.models import NicheKeyword
+
+        # Split by newline + comma; strip and dedupe
+        raw_tokens = []
+        for line in selected_text.split('\n'):
+            for token in line.split(','):
+                cleaned = token.strip()
+                if cleaned:
+                    raw_tokens.append(cleaned)
+
+        # Dedupe while preserving order (case-insensitive)
+        seen = set()
+        ordered_tokens = []
+        for token in raw_tokens:
+            key = token.lower()
+            if key not in seen:
+                seen.add(key)
+                ordered_tokens.append(token)
+
+        created_count = 0
+        skipped_count = 0
+        with transaction.atomic():
+            # Pre-load existing keywords for this niche (case-insensitive dedupe)
+            existing_lower = {
+                kw.lower()
+                for kw in NicheKeyword.objects
+                .filter(niche=niche)
+                .values_list('keyword', flat=True)
+            }
+            for token in ordered_tokens:
+                if token.lower() in existing_lower:
+                    skipped_count += 1
+                    continue
+                NicheKeyword.objects.create(
+                    niche=niche,
+                    keyword=token,
+                    source=NicheKeyword.Source.MANUAL_SNIPPET,
+                    created_by=user,
+                )
+                existing_lower.add(token.lower())
+                created_count += 1
+
+        return Response(
+            {'created': created_count, 'skipped': skipped_count},
+            status=status.HTTP_201_CREATED if created_count > 0 else status.HTTP_200_OK,
+        )
+
+    def _save_as_note(self, niche, selected_text, user, source_url=None):
+        note = NicheNote.objects.create(
+            niche=niche,
+            text=selected_text,
+            source_url=source_url,
+            created_by=user,
+        )
+        return Response(
+            {'note_id': str(note.id), 'created': 1},
+            status=status.HTTP_201_CREATED,
         )

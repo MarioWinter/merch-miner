@@ -60,6 +60,10 @@ services:
     volumes:
       - ./django-app:/app
 
+  worker-search:
+    volumes:
+      - ./django-app:/app
+
   scheduler:
     volumes:
       - ./django-app:/app

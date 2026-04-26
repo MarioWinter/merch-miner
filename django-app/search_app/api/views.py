@@ -7,8 +7,25 @@ from django.http import StreamingHttpResponse
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticated
+from rest_framework.renderers import BaseRenderer, JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
+
+
+class EventStreamRenderer(BaseRenderer):
+    """Allow DRF content negotiation to accept `Accept: text/event-stream`.
+
+    SSE views return `StreamingHttpResponse` directly; this renderer is just
+    needed so DRF's `perform_content_negotiation` doesn't raise 406.
+    """
+
+    media_type = 'text/event-stream'
+    format = 'sse'
+    charset = 'utf-8'
+
+    def render(self, data, accepted_media_type=None, renderer_context=None):
+        # Not actually used — views return StreamingHttpResponse directly.
+        return data
 
 from user_auth_app.api.authentication import CookieJWTAuthentication
 from workspace_app.models import Membership
@@ -30,6 +47,10 @@ from search_app.models import (
 )
 from search_app.services.context_builder import build_system_instructions
 from search_app.services.crawl_service import CrawlService
+from search_app.services.mode_classifier import (
+    ModeClassifierError,
+    classify_mode,
+)
 from search_app.services.vane_service import VaneService, VaneServiceError
 from search_app.tasks import execute_crawl, log_search_usage
 
@@ -215,10 +236,14 @@ class ChatSessionDetailView(APIView):
 class ChatSessionMessagesView(APIView):
     """POST /api/chat/sessions/{id}/messages/ -- send message, triggers Vane search.
     GET /api/chat/sessions/{id}/messages/ -- paginated messages (older than 50).
+
+    POST `?stream=true` returns SSE — needs EventStreamRenderer to pass DRF
+    content negotiation when Accept: text/event-stream.
     """
 
     authentication_classes = [CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
+    renderer_classes = [JSONRenderer, EventStreamRenderer]
 
     def get(self, request, session_id):
         """Load older messages (EC-9: pagination beyond latest 50)."""
@@ -286,6 +311,28 @@ class ChatSessionMessagesView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
+        # Pattern B Mode Classifier (AC-41 + EC-16):
+        # mode_override='auto' → run LLM classifier to decide Vane vs. Agent.
+        # mode_override='web_search'|'agent' → respect user's choice.
+        mode_override = data.get('mode_override', 'auto')
+        resolved_mode = mode_override
+        classifier_result = None
+        if mode_override == 'auto':
+            try:
+                classifier_result = classify_mode(
+                    user_message=data['content'],
+                    niche_context_name=(
+                        session.niche_context.name
+                        if session.niche_context else None
+                    ),
+                )
+                resolved_mode = classifier_result['mode']
+            except ModeClassifierError as e:
+                logger.warning(
+                    "Mode classifier failed, falling back to web_search: %s", e,
+                )
+                resolved_mode = 'web_search'
+
         # Create user message
         user_msg = ChatMessage.objects.create(
             session=session,
@@ -295,6 +342,14 @@ class ChatSessionMessagesView(APIView):
             search_mode=data.get('search_mode', 'balanced'),
             search_sources=data.get('search_sources', ['web']),
         )
+
+        # Agent route (EC-16): create AgentSession + workflow_card ChatMessage,
+        # return early. Frontend polls AgentSession status.
+        if resolved_mode == 'agent':
+            return self._handle_agent_route(
+                request, workspace, session, user_msg, data,
+                classifier_result,
+            )
 
         # Auto-set title from first query
         if not session.title:
@@ -459,6 +514,295 @@ class ChatSessionMessagesView(APIView):
         response['X-Accel-Buffering'] = 'no'
         return response
 
+    def _handle_agent_route(
+        self, request, workspace, session, user_msg, data,
+        classifier_result,
+    ):
+        """Pattern B (EC-16): user message routes to PROJ-18 Agent.
+
+        Creates an AgentSession via the agent_app ORM, then a
+        `workflow_card` ChatMessage referencing it. Frontend renders an
+        inline WorkflowCard with mini-stepper + approval buttons.
+        """
+        try:
+            from agent_app.models import AgentSession, SessionStatus
+        except ImportError:
+            logger.error("agent_app not installed — cannot route to agent.")
+            # EC-17: graceful fallback — system message + return
+            sys_msg = ChatMessage.objects.create(
+                session=session,
+                role=ChatMessage.Role.SYSTEM,
+                content='Agent unavailable. Please retry with Web-Search mode.',
+                message_type=ChatMessage.MessageType.SEARCH_RESULT,
+            )
+            from search_app.api.serializers import ChatMessageSerializer
+            return Response(
+                {
+                    'user_message': ChatMessageSerializer(user_msg).data,
+                    'assistant_message': ChatMessageSerializer(sys_msg).data,
+                    'mode': 'web_search',
+                    'fallback_reason': 'agent_app unavailable',
+                },
+                status=status.HTTP_201_CREATED,
+            )
+
+        try:
+            agent_session = AgentSession.objects.create(
+                workspace=workspace,
+                created_by=request.user,
+                title=data['content'][:200],
+                status=SessionStatus.IDLE,
+                niche_context=session.niche_context,
+            )
+        except Exception:
+            logger.error("Failed to create AgentSession.", exc_info=True)
+            return Response(
+                {'error': 'Failed to start agent workflow.'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        # Create workflow_card ChatMessage referencing the new AgentSession
+        workflow_msg = ChatMessage.objects.create(
+            session=session,
+            role=ChatMessage.Role.ASSISTANT,
+            content=(
+                classifier_result.get('reason', '')
+                if classifier_result else 'Agent workflow started.'
+            ),
+            message_type=ChatMessage.MessageType.WORKFLOW_CARD,
+            agent_session=agent_session,
+            model_used=(
+                'gpt-4.1-mini-classifier'
+                if classifier_result else 'manual'
+            ),
+        )
+        session.save(update_fields=['updated_at'])
+
+        from search_app.api.serializers import ChatMessageSerializer
+        return Response(
+            {
+                'user_message': ChatMessageSerializer(user_msg).data,
+                'assistant_message': ChatMessageSerializer(workflow_msg).data,
+                'mode': 'agent',
+                'agent_session_id': str(agent_session.id),
+                'classifier': classifier_result,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ChatSessionMessageStreamView(APIView):
+    """GET /api/chat/sessions/{id}/messages/stream/?content=...&search_mode=...
+
+    Separate SSE endpoint (AC-18) so the frontend can use the native
+    `EventSource` API (which only supports GET).
+
+    Query params:
+        content: required user message text
+        search_mode: speed|balanced|quality (default balanced)
+        search_sources: comma-separated (web,academic,discussions)
+        model: optional OpenRouter model override
+
+    Yields SSE events: init, sources, response (chunks), done.
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+    renderer_classes = [EventStreamRenderer, JSONRenderer]
+
+    def get(self, request, session_id):
+        # EventSource cannot send custom headers — resolve workspace from the
+        # session itself + verify user has active membership there.
+        try:
+            session = ChatSession.objects.select_related(
+                'niche_context', 'workspace'
+            ).get(pk=session_id)
+        except ChatSession.DoesNotExist:
+            return Response(
+                {'error': 'Session not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        membership_exists = Membership.objects.filter(
+            user=request.user,
+            status=Membership.Status.ACTIVE,
+            workspace=session.workspace,
+        ).exists()
+        if not membership_exists:
+            return Response(
+                {'error': 'Session not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        workspace = session.workspace
+
+        if session.created_by != request.user:
+            return Response(
+                {'error': 'Cannot send messages to a session you do not own.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        content = request.query_params.get('content', '').strip()
+        if not content:
+            return Response(
+                {'error': 'content query parameter is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        search_mode = request.query_params.get('search_mode', 'balanced')
+        if search_mode not in ('speed', 'balanced', 'quality'):
+            search_mode = 'balanced'
+
+        sources_raw = request.query_params.get('search_sources', 'web')
+        search_sources = [
+            s.strip() for s in sources_raw.split(',')
+            if s.strip() in ('web', 'academic', 'discussions')
+        ] or ['web']
+
+        model = request.query_params.get('model') or None
+
+        # Persist the user message
+        user_msg = ChatMessage.objects.create(
+            session=session,
+            role=ChatMessage.Role.USER,
+            content=content,
+            message_type=ChatMessage.MessageType.SEARCH_QUERY,
+            search_mode=search_mode,
+            search_sources=search_sources,
+        )
+
+        # Auto-set title from first query
+        if not session.title:
+            session.title = content[:200]
+            session.save(update_fields=['title', 'updated_at'])
+
+        # Build conversation history
+        history = []
+        prev_messages = session.messages.exclude(
+            pk=user_msg.pk
+        ).order_by('created_at')[:20]
+        for msg in prev_messages:
+            history.append({'role': msg.role, 'content': msg.content})
+
+        system_instructions = ''
+        if session.niche_context:
+            system_instructions = build_system_instructions(
+                session.niche_context,
+            )
+
+        vane = VaneService()
+        user_id = request.user.id
+        workspace_id = str(workspace.id)
+
+        def event_stream():
+            """Generator yielding SSE events. Persists assistant message at done.
+
+            Emits proper SSE event-named frames (`event: <name>\\ndata: {...}\\n\\n`)
+            so the frontend's `EventSource.addEventListener('init'|'chunk'|...)`
+            named listeners fire. Also normalises field names + maps Vane's
+            `response` chunks to the frontend's `chunk` event.
+            """
+            yield (
+                f"event: init\ndata: {json.dumps({'message_id': str(user_msg.pk), 'session_id': str(session.pk), 'mode': 'web_search'})}\n\n"
+            )
+
+            final_answer = ''
+            final_sources: list = []
+
+            try:
+                for event in vane.search_stream(
+                    query=content,
+                    mode=search_mode,
+                    sources=search_sources,
+                    history=history,
+                    system_instructions=system_instructions,
+                    model=model,
+                ):
+                    # Vane events arrive as `data: {"type": "<X>", ...}\n\n`.
+                    # Re-emit with proper SSE event names + frontend-shaped payloads.
+                    try:
+                        event_data = json.loads(
+                            event.replace('data: ', '', 1).strip()
+                        )
+                    except (json.JSONDecodeError, ValueError):
+                        continue
+
+                    vane_type = event_data.get('type', '')
+
+                    if vane_type == 'response':
+                        chunk_text = event_data.get('data', '')
+                        final_answer += chunk_text
+                        if chunk_text:
+                            yield (
+                                f"event: chunk\ndata: {json.dumps({'text': chunk_text})}\n\n"
+                            )
+                    elif vane_type == 'sources':
+                        srcs = event_data.get('data', []) or []
+                        if isinstance(srcs, list):
+                            final_sources = srcs
+                            yield (
+                                f"event: sources\ndata: {json.dumps({'sources': srcs})}\n\n"
+                            )
+                    elif vane_type == 'done':
+                        # Vane's done has the full answer + sources — replace
+                        # accumulated values to ensure consistency.
+                        final_answer = event_data.get('answer', final_answer)
+                        final_sources = event_data.get('sources', final_sources)
+                    # else: init / unknown — frontend's init already fired above
+            except VaneServiceError as e:
+                yield (
+                    f"event: error\ndata: {json.dumps({'error': str(e)})}\n\n"
+                )
+                return
+
+            # Persist assistant message after stream completes
+            if final_answer:
+                assistant_msg = ChatMessage.objects.create(
+                    session=session,
+                    role=ChatMessage.Role.ASSISTANT,
+                    content=final_answer,
+                    message_type=ChatMessage.MessageType.SEARCH_RESULT,
+                    sources=final_sources,
+                    search_mode=search_mode,
+                    search_sources=search_sources,
+                    model_used=model or vane.default_model,
+                )
+                session.save(update_fields=['updated_at'])
+                # Frontend listens for `done` (not `persisted`) — emit final marker.
+                try:
+                    total_tokens = int(
+                        VaneService.estimate_tokens(content + final_answer)
+                    )
+                except (TypeError, ValueError):
+                    total_tokens = 0
+                yield (
+                    f"event: done\ndata: {json.dumps({'message_id': str(assistant_msg.pk), 'total_tokens': total_tokens})}\n\n"
+                )
+
+                # Log usage with rough token count
+                try:
+                    queue = django_rq.get_queue('default')
+                    queue.enqueue(
+                        log_search_usage,
+                        workspace_id=workspace_id,
+                        user_id=user_id,
+                        action='search',
+                        query=content,
+                        model_used=model or vane.default_model,
+                        tokens_used=VaneService.estimate_tokens(
+                            content + final_answer,
+                        ),
+                    )
+                except Exception:
+                    pass
+
+        response = StreamingHttpResponse(
+            event_stream(),
+            content_type='text/event-stream',
+        )
+        response['Cache-Control'] = 'no-cache'
+        response['X-Accel-Buffering'] = 'no'
+        return response
+
 
 class ChatSessionShareView(APIView):
     """POST /api/chat/sessions/{id}/share/ -- share session with workspace."""
@@ -551,9 +895,9 @@ class TriggerCrawlView(APIView):
             crawl_status=WebSearchResult.CrawlStatus.PENDING,
         )
 
-        # Enqueue crawl job
+        # Enqueue crawl job on the dedicated `search` queue (AC-11)
         try:
-            queue = django_rq.get_queue('default')
+            queue = django_rq.get_queue('search')
             queue.enqueue(execute_crawl, str(result.pk))
         except Exception:
             logger.error("Failed to enqueue crawl job", exc_info=True)
@@ -641,15 +985,20 @@ class SaveToNicheView(APIView):
             )
 
         save_as = data['save_as']
+        selected_text = (data.get('selected_text') or '').strip()
+        # Fallback to result title when no manual snippet was selected
+        text = selected_text or (result.title or '').strip()
 
         if save_as == 'notes':
-            # Append to niche notes
+            if not text:
+                return Response(
+                    {'error': 'No text to save (provide selected_text or result must have title).'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             separator = '\n\n---\n\n' if niche.notes else ''
             source_info = f"**Source:** [{result.title or result.url}]({result.url})\n\n"
-            content_preview = result.content[:2000] if result.content else result.title
-            niche.notes += f"{separator}{source_info}{content_preview}"
+            niche.notes += f"{separator}{source_info}{text[:5000]}"
             niche.save(update_fields=['notes', 'updated_at'])
-
             return Response({
                 'saved': True,
                 'save_as': 'notes',
@@ -658,34 +1007,57 @@ class SaveToNicheView(APIView):
             })
 
         elif save_as == 'keywords':
-            # Save to keyword_app (PROJ-10) if available
+            # Split selected_text by comma OR newline → one NicheKeyword per token
+            import re
+            tokens = [
+                t.strip() for t in re.split(r'[,\n]+', text)
+                if t.strip()
+            ]
+            if not tokens:
+                return Response(
+                    {'error': 'No keyword tokens found in selected_text.'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             try:
                 from keyword_app.models import NicheKeyword
-                keyword = NicheKeyword.objects.create(
-                    workspace=workspace,
-                    niche=niche,
-                    keyword=result.title[:200] if result.title else result.url[:200],
-                    source='web_search',
-                    notes=f"From: {result.url}",
-                )
-                return Response({
-                    'saved': True,
-                    'save_as': 'keywords',
-                    'niche_id': str(niche.id),
-                    'niche_name': niche.name,
-                    'keyword_id': str(keyword.id),
-                })
             except ImportError:
                 return Response(
                     {'error': 'Keyword app not available.'},
                     status=status.HTTP_501_NOT_IMPLEMENTED,
                 )
-            except Exception as e:
-                logger.error("Failed to save keyword: %s", e)
-                return Response(
-                    {'error': f'Failed to save keyword: {e}'},
-                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                )
+
+            created, skipped = 0, 0
+            created_ids = []
+            for token in tokens:
+                kw_text = token[:200]
+                if NicheKeyword.objects.filter(
+                    niche=niche, keyword__iexact=kw_text,
+                ).exists():
+                    skipped += 1
+                    continue
+                try:
+                    kw = NicheKeyword.objects.create(
+                        niche=niche,
+                        keyword=kw_text,
+                        source='web_search',
+                        created_by=request.user,
+                    )
+                    created += 1
+                    created_ids.append(str(kw.id))
+                except Exception as e:
+                    logger.warning("Failed to save keyword '%s': %s", kw_text, e)
+                    skipped += 1
+
+            return Response({
+                'saved': True,
+                'save_as': 'keywords',
+                'niche_id': str(niche.id),
+                'niche_name': niche.name,
+                'created': created,
+                'skipped': skipped,
+                'created_ids': created_ids,
+            })
 
         return Response(
             {'error': f'Unknown save_as value: {save_as}'},
@@ -694,7 +1066,11 @@ class SaveToNicheView(APIView):
 
 
 class SearchHealthView(APIView):
-    """GET /api/search/health/ -- check Vane + Crawl4ai status."""
+    """GET /api/search/health/ -- check Vane + Crawl4ai status.
+
+    Frontend uses adaptive polling: 60s when healthy, 5s when offline.
+    Cache-Control set short so the offline-recovery flow isn't blocked by HTTP cache.
+    """
 
     authentication_classes = [CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -706,7 +1082,11 @@ class SearchHealthView(APIView):
         vane_status = 'online' if vane.health_check() else 'offline'
         crawl_status = 'online' if crawl.health_check() else 'offline'
 
-        return Response({
+        response = Response({
             'vane': vane_status,
             'crawl4ai': crawl_status,
         })
+        # Short cache (3s) — long enough to dedupe burst polls, short enough
+        # to allow 5s offline-recovery polling to surface state changes quickly.
+        response['Cache-Control'] = 'private, max-age=3'
+        return response

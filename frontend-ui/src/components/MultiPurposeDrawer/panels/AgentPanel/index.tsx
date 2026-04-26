@@ -4,7 +4,8 @@ import { styled } from '@mui/material/styles';
 import SendIcon from '@mui/icons-material/Send';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
-import { useAppSelector } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { setActiveAgentSessionId } from '@/store/chatBarSlice';
 import { useListTemplatesQuery } from '@/store/agentSlice';
 import useAgentSession from './hooks/useAgentSession';
 import useAgentControls from './hooks/useAgentControls';
@@ -32,9 +33,13 @@ const InputBar = styled(Box)(({ theme }) => ({
 const AgentPanel = () => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
+  const dispatch = useAppDispatch();
   const nicheContext = useAppSelector((s) => s.chatBar.nicheContext);
 
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  // Active agent session is managed in Redux so external triggers (WorkflowCard
+  // "Open Command Center") can switch it without parent re-mounts.
+  const activeSessionId = useAppSelector((s) => s.chatBar.activeAgentSessionId);
+
   const [showSettings, setShowSettings] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [inputValue, setInputValue] = useState('');
@@ -73,12 +78,12 @@ const AgentPanel = () => {
           workflow_template: templateKey,
           niche_context: nicheContext?.id,
         });
-        setActiveSessionId(session.id);
+        dispatch(setActiveAgentSessionId(session.id));
       } catch {
         enqueueSnackbar(t('agent.header.startError'), { variant: 'error' });
       }
     },
-    [createSession, nicheContext, enqueueSnackbar, t],
+    [createSession, nicheContext, enqueueSnackbar, t, dispatch],
   );
 
   const handleSend = useCallback(async () => {
@@ -91,7 +96,7 @@ const AgentPanel = () => {
           niche_context: nicheContext?.id,
           title: content.slice(0, 100),
         });
-        setActiveSessionId(session.id);
+        dispatch(setActiveAgentSessionId(session.id));
         setInputValue('');
         // Send message after session is created
         // RTK Query will handle via the session detail refetch
@@ -107,7 +112,7 @@ const AgentPanel = () => {
     } catch {
       enqueueSnackbar(t('agent.log.sendError'), { variant: 'error' });
     }
-  }, [inputValue, activeSessionId, createSession, sendMessage, nicheContext, enqueueSnackbar, t]);
+  }, [inputValue, activeSessionId, createSession, sendMessage, nicheContext, enqueueSnackbar, t, dispatch]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {

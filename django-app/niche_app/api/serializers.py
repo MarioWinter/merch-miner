@@ -205,3 +205,18 @@ class CollectedProductSerializer(serializers.ModelSerializer):
 class CollectedProductCreateSerializer(serializers.Serializer):
     asin = serializers.CharField(max_length=20)
     marketplace = serializers.ChoiceField(choices=MarketplaceChoices.choices)
+
+
+class SaveSnippetSerializer(serializers.Serializer):
+    """Validate body of POST /api/niches/{id}/save-snippet/."""
+
+    SAVE_AS_CHOICES = (('keywords', 'Keywords'), ('notes', 'Notes'))
+
+    selected_text = serializers.CharField(min_length=1, max_length=5000, trim_whitespace=False)
+    save_as = serializers.ChoiceField(choices=SAVE_AS_CHOICES)
+    source_url = serializers.URLField(required=False, allow_null=True, allow_blank=True)
+
+    def validate_selected_text(self, value):
+        if not value or not value.strip():
+            raise serializers.ValidationError('selected_text must not be empty.')
+        return value

@@ -2523,7 +2523,9 @@
       "send": "Send",
       "dismiss": "Dismiss chat bar",
       "reveal": "Show chat bar",
-      "expand": "Open search"
+      "expand": "Open search",
+      "collapse": "Collapse",
+      "openChat": "Open chat panel"
     },
     "drawer": {
       "segments": "Drawer panels",
@@ -2550,7 +2552,9 @@
     },
     "context": {
       "label": "Context: {{name}}",
-      "removeTooltip": "Remove niche context"
+      "removeTooltip": "Remove niche context",
+      "useAsContext": "Use this Niche as chat context",
+      "toggleLabel": "Toggle niche context"
     },
     "results": {
       "aiAnswer": "AI Answer",
@@ -2590,12 +2594,60 @@
       "keywords": "Save Keywords",
       "vectorDbSaved": "Auto-saved to Vector DB",
       "saved": "Saved to {{name}}.",
-      "error": "Failed to save."
+      "error": "Failed to save.",
+      "toKeywords": "Save as Keywords",
+      "toNotes": "Save as Notes",
+      "success": "Saved to {{name}}.",
+      "selectNiche": "No niche selected — choose where to save.",
+      "toolbarLabel": "Save selection toolbar",
+      "toNichePicker": "Pick a niche to save to",
+      "notes": "Save as Notes",
+      "successKeywords": "{{count}} keywords saved",
+      "allDuplicates": "All keywords already exist",
+      "successNote": "Note saved",
+      "errorGeneric": "Could not save snippet",
+      "modal": {
+        "title": "Save to Niche",
+        "description": "Choose a niche to save this {{type}} to:",
+        "nichePlaceholder": "Search niches...",
+        "save": "Save",
+        "cancel": "Cancel",
+        "noNiches": "No niches found in this workspace"
+      }
     },
     "empty": {
       "noSessions": "No chat sessions yet. Start a search!",
       "noResults": "No search results",
       "firstSearchHint": "Type a question in the chat bar to search the web with AI."
+    },
+    "mode": {
+      "label": "Mode",
+      "auto": "Auto",
+      "webSearch": "Web Search",
+      "agent": "Agent",
+      "tooltip": "Auto routes between web search and agent based on your message."
+    },
+    "workflow": {
+      "openCommandCenter": "Open Command Center",
+      "stepperLabel": "Workflow steps",
+      "approvalPending": "Approval needed",
+      "progress": "{{completed}}/{{total}} steps",
+      "status": {
+        "idle": "Idle",
+        "running": "Running",
+        "paused": "Paused",
+        "completed": "Completed",
+        "failed": "Failed",
+        "cancelled": "Cancelled"
+      }
+    },
+    "scroll": {
+      "jumpToLatest": "Jump to latest"
+    },
+    "stream": {
+      "streaming": "Streaming response...",
+      "error": "Streaming failed. Please try again.",
+      "connectionLost": "Connection lost. Please retry."
     }
   },
   "agent": {

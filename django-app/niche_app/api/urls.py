@@ -6,6 +6,7 @@ from niche_app.api.views import (
     NicheBulkActionView,
     NicheFilterTemplateViewSet,
     CollectedProductViewSet,
+    SaveSnippetView,
 )
 
 router = DefaultRouter()
@@ -25,6 +26,11 @@ collected_router.register(
 
 urlpatterns = [
     path('niches/bulk/', NicheBulkActionView.as_view(), name='niche-bulk'),
+    path(
+        'niches/<uuid:niche_id>/save-snippet/',
+        SaveSnippetView.as_view(),
+        name='niche-save-snippet',
+    ),
     # collected-products must use a MORE SPECIFIC prefix to avoid shadowing niches/<pk>/
     path(
         'niches/<uuid:niche_id>/collected-products/',

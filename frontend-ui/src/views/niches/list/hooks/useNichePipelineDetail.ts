@@ -12,10 +12,10 @@ import {
 import { createNicheSchema, updateNicheSchema } from '../schemas/nicheSchema';
 import type { CreateNicheFormValues, UpdateNicheFormValues } from '../schemas/nicheSchema';
 import type { NicheUpdateBody } from '../types';
-import type { DrawerMode } from './useNichePipeline';
+import type { NicheMode } from '@/store/chatBarSlice';
 
 interface UseNichePipelineDetailOptions {
-  mode: DrawerMode;
+  mode: NicheMode;
   selectedId: string | null;
   onClose: () => void;
 }

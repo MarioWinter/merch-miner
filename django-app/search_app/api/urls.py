@@ -4,6 +4,7 @@ from search_app.api.views import (
     ChatSessionDetailView,
     ChatSessionListCreateView,
     ChatSessionMessagesView,
+    ChatSessionMessageStreamView,
     ChatSessionShareView,
     ChatSessionUnshareView,
     CrawlStatusView,
@@ -28,6 +29,11 @@ urlpatterns = [
         'chat/sessions/<uuid:session_id>/messages/',
         ChatSessionMessagesView.as_view(),
         name='chat-session-messages',
+    ),
+    path(
+        'chat/sessions/<uuid:session_id>/messages/stream/',
+        ChatSessionMessageStreamView.as_view(),
+        name='chat-session-message-stream',
     ),
     path(
         'chat/sessions/<uuid:session_id>/share/',

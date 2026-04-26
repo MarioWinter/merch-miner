@@ -66,6 +66,8 @@ class ChatMessage(models.Model):
         SEARCH_RESULT = 'search_result', 'Search Result'
         CRAWL_REQUEST = 'crawl_request', 'Crawl Request'
         CRAWL_RESULT = 'crawl_result', 'Crawl Result'
+        WORKFLOW_TRIGGER = 'workflow_trigger', 'Workflow Trigger'
+        WORKFLOW_CARD = 'workflow_card', 'Workflow Card'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     session = models.ForeignKey(
@@ -98,6 +100,14 @@ class ChatMessage(models.Model):
         help_text='Array of source types: web, academic, discussions.',
     )
     model_used = models.CharField(max_length=100, blank=True, default='')
+    agent_session = models.ForeignKey(
+        'agent_app.AgentSession',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='triggered_chat_messages',
+        help_text='Set for workflow_trigger / workflow_card messages — links to PROJ-18 AgentSession.',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

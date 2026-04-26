@@ -2,6 +2,7 @@ import { Box, Typography } from '@mui/material';
 import { styled, alpha } from '@mui/material/styles';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import rehypeSanitize from 'rehype-sanitize';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { useTranslation } from 'react-i18next';
 
@@ -67,7 +68,9 @@ const VaneAnswer = ({ content, modelUsed }: VaneAnswerProps) => {
         )}
       </Box>
       <AnswerRoot>
-        <Markdown remarkPlugins={[remarkGfm]}>{content}</Markdown>
+        <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
+          {content}
+        </Markdown>
       </AnswerRoot>
     </Box>
   );
