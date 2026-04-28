@@ -13,10 +13,16 @@ import {
   setActiveSession,
   setSearching,
 } from '@/store/chatBarSlice';
-import { useCreateSessionMutation, useSendMessageMutation } from '@/store/searchSlice';
-import { useSearchHealth } from '../MultiPurposeDrawer/hooks/useSearchHealth';
+import {
+  useCreateSessionMutation,
+  useSendMessageMutation,
+} from '@/store/searchSlice';
 import { useSendMessageStream } from '@/hooks/useSendMessageStream';
-import ChatBarInput from './ChatBarInput';
+import { useSearchHealth } from '../MultiPurposeDrawer/hooks/useSearchHealth';
+import ChatInputBar, {
+  type ChatInputBarHandle,
+  type ChatInputBarSubmitPayload,
+} from '../MultiPurposeDrawer/panels/ChatInputBar';
 import ChevronIndicator from './ChevronIndicator';
 import { COLORS, EASING, DURATION } from '@/style/constants';
 
@@ -62,21 +68,24 @@ const CollapseHandle = styled(Box)(({ theme }) => ({
 
 const FloatingChatBar = () => {
   const { t } = useTranslation();
-  const dispatch = useAppDispatch();
   const { enqueueSnackbar } = useSnackbar();
+  const dispatch = useAppDispatch();
   const {
     barExpanded,
     drawerOpen,
     activePanel,
-    nicheContext,
+    activeSessionId,
     searching,
-    searchMode,
     searchSources,
     selectedModel,
     modeOverride,
-    activeSessionId,
   } = useAppSelector((s) => s.chatBar);
+  const isStreaming = useAppSelector(
+    (s) => s.chatBar.streamingAssistantMessage.isStreaming,
+  );
   const { vaneOnline } = useSearchHealth();
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<ChatInputBarHandle>(null);
 
   const [createSession] = useCreateSessionMutation();
   const [sendMessage] = useSendMessageMutation();
@@ -84,7 +93,6 @@ const FloatingChatBar = () => {
     sessionId: activeSessionId,
     onDone: () => dispatch(setSearching(false)),
   });
-  const containerRef = useRef<HTMLDivElement>(null);
 
   // Restore persisted bar state on mount
   useEffect(() => {
@@ -99,11 +107,28 @@ const FloatingChatBar = () => {
     localStorage.setItem('chatBar.expanded', String(barExpanded));
   }, [barExpanded]);
 
-  // Click outside to collapse
+  // Click outside to collapse — but ignore clicks inside any Portal-rendered
+  // popover that belongs to the bar (Mode/Sources/Model, @-mention picker,
+  // /-command palette, /help dialog, and any MUI Menu/Popover/Modal). These
+  // render into document.body via Portal so the bar's containerRef does not
+  // contain them, and we'd otherwise collapse on every interaction.
   useEffect(() => {
     if (!barExpanded) return;
     const handler = (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        const target = e.target as HTMLElement | null;
+        if (
+          target?.closest('[data-testid="mention-picker"]') ||
+          target?.closest('[data-testid="command-palette"]') ||
+          target?.closest('.MuiPopover-root') ||
+          target?.closest('.MuiMenu-root') ||
+          target?.closest('.MuiModal-root') ||
+          target?.closest('.MuiDialog-root') ||
+          target?.closest('.MuiBackdrop-root') ||
+          target?.closest('.notistack-SnackbarContainer')
+        ) {
+          return;
+        }
         dispatch(collapseBar());
       }
     };
@@ -111,27 +136,40 @@ const FloatingChatBar = () => {
     return () => document.removeEventListener('mousedown', handler);
   }, [barExpanded, dispatch]);
 
-  const handleSend = useCallback(
-    async (message: string) => {
+  const handleExpand = useCallback(() => dispatch(expandBar()), [dispatch]);
+  const handleCollapse = useCallback(() => dispatch(collapseBar()), [dispatch]);
+  const handleOpenChat = useCallback(() => dispatch(openDrawer('chat')), [dispatch]);
+
+  // PROJ-20 Phase 3.7 — submit flow.
+  // Mirrors ChatPanel.handleSubmit: agent → POST mutation, auto/web → SSE.
+  // Chip is captured at submit time via `payload.chip` (EC-10).
+  const handleSubmit = useCallback(
+    async (payload: ChatInputBarSubmitPayload) => {
+      const trimmed = payload.text.trim();
+      if (!trimmed || searching || !vaneOnline || isStreaming) return;
+
+      const niche_id = payload.chip?.niche_id ?? null;
+
       dispatch(setSearching(true));
+      inputRef.current?.clear();
+
       try {
-        const session = await createSession({
-          niche_context: nicheContext?.id,
-          title: message.slice(0, 100),
-        }).unwrap();
+        let sessionId = activeSessionId;
+        if (!sessionId) {
+          const newSession = await createSession({
+            niche_context: niche_id ?? undefined,
+            title: trimmed.slice(0, 100),
+          }).unwrap();
+          sessionId = newSession.id;
+          dispatch(setActiveSession(sessionId));
+          dispatch(openDrawer('chat'));
+        }
 
-        dispatch(setActiveSession(session.id));
-        dispatch(openDrawer('chat'));
-        dispatch(collapseBar());
-
-        // PROJ-17 Phase 4 Step 6: Agent → classic POST (no SSE for agent workflows).
-        // Auto + Web-Search → SSE stream.
         if (modeOverride === 'agent') {
           await sendMessage({
-            sessionId: session.id,
+            sessionId,
             body: {
-              content: message,
-              search_mode: searchMode,
+              content: trimmed,
               search_sources: searchSources,
               model: selectedModel,
               mode_override: modeOverride,
@@ -140,10 +178,10 @@ const FloatingChatBar = () => {
           dispatch(setSearching(false));
         } else {
           startStream({
-            content: message,
+            content: trimmed,
             mode_override: modeOverride,
-            niche_id: nicheContext?.id ?? null,
-            sessionIdOverride: session.id,
+            niche_id,
+            sessionIdOverride: sessionId,
           });
           // searching cleared by useSendMessageStream onDone callback
         }
@@ -153,23 +191,21 @@ const FloatingChatBar = () => {
       }
     },
     [
+      searching,
+      vaneOnline,
+      isStreaming,
+      activeSessionId,
+      searchSources,
+      selectedModel,
+      modeOverride,
       dispatch,
       createSession,
       sendMessage,
       startStream,
-      nicheContext,
-      searchMode,
-      searchSources,
-      selectedModel,
-      modeOverride,
       enqueueSnackbar,
       t,
     ],
   );
-
-  const handleExpand = useCallback(() => dispatch(expandBar()), [dispatch]);
-  const handleCollapse = useCallback(() => dispatch(collapseBar()), [dispatch]);
-  const handleOpenChat = useCallback(() => dispatch(openDrawer('chat')), [dispatch]);
 
   // PROJ-17 fix: hide bar VISUALLY when drawer is open on chat panel — drawer
   // owns its own input. We do NOT unmount because that would kill the active
@@ -225,10 +261,11 @@ const FloatingChatBar = () => {
               <KeyboardArrowDownIcon sx={{ fontSize: 18 }} />
             </IconButton>
           </CollapseHandle>
-          <ChatBarInput
-            onSend={handleSend}
-            onDismiss={handleCollapse}
-            sending={searching}
+          <ChatInputBar
+            ref={inputRef}
+            appearance="floating"
+            onSubmit={handleSubmit}
+            isSending={searching || isStreaming}
             disabled={!vaneOnline}
           />
         </ExpandedSurface>

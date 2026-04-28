@@ -1,12 +1,14 @@
 import json
 import logging
+import secrets
 
 import django_rq
+from django.conf import settings
 from django.db.models import Count
 from django.http import StreamingHttpResponse
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.renderers import BaseRenderer, JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -35,6 +37,7 @@ from search_app.api.serializers import (
     ChatSessionDetailSerializer,
     ChatSessionListSerializer,
     ChatSessionUpdateSerializer,
+    PublicChatSessionSerializer,
     SaveToNicheSerializer,
     SendMessageSerializer,
     TriggerCrawlSerializer,
@@ -648,9 +651,23 @@ class ChatSessionMessageStreamView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        search_mode = request.query_params.get('search_mode', 'balanced')
+        # Cleanup 2026-04-28: `search_mode` is the Vane optimization knob
+        # (speed/balanced/quality). The frontend used to overload this with
+        # routing intent ('web_search'/'agent') — those values fell through
+        # to 'balanced'. We now accept an explicit `optimization_mode` (and
+        # keep `search_mode` as a fallback for backward compatibility).
+        search_mode = (
+            request.query_params.get('optimization_mode')
+            or request.query_params.get('search_mode')
+            or 'balanced'
+        )
         if search_mode not in ('speed', 'balanced', 'quality'):
             search_mode = 'balanced'
+
+        # Cleanup 2026-04-28: read mode_override for logging — stream view
+        # always handles Chat (Vane) mode; Agent mode goes via POST. We accept
+        # the param for analytics + future per-message routing.
+        mode_override = request.query_params.get('mode_override') or 'chat'
 
         sources_raw = request.query_params.get('search_sources', 'web')
         search_sources = [
@@ -659,6 +676,12 @@ class ChatSessionMessageStreamView(APIView):
         ] or ['web']
 
         model = request.query_params.get('model') or None
+
+        # Cleanup 2026-04-28: read per-message niche_id query param. If
+        # provided, override session.niche_context for THIS request only.
+        # This lets follow-up messages re-target a niche without creating a
+        # new session.
+        per_message_niche_id = request.query_params.get('niche_id') or None
 
         # Persist the user message
         user_msg = ChatMessage.objects.create(
@@ -683,11 +706,23 @@ class ChatSessionMessageStreamView(APIView):
         for msg in prev_messages:
             history.append({'role': msg.role, 'content': msg.content})
 
+        # Cleanup 2026-04-28: prefer per-message niche_id query param if it
+        # resolves to a workspace-scoped niche; otherwise fall back to the
+        # niche stored on the session at create-time.
+        from niche_app.models import Niche
         system_instructions = ''
-        if session.niche_context:
-            system_instructions = build_system_instructions(
-                session.niche_context,
-            )
+        niche_for_context = None
+        if per_message_niche_id:
+            try:
+                niche_for_context = Niche.objects.get(
+                    pk=per_message_niche_id, workspace=workspace,
+                )
+            except (Niche.DoesNotExist, ValueError, TypeError):
+                niche_for_context = None
+        if niche_for_context is None:
+            niche_for_context = session.niche_context
+        if niche_for_context:
+            system_instructions = build_system_instructions(niche_for_context)
 
         vane = VaneService()
         user_id = request.user.id
@@ -804,8 +839,19 @@ class ChatSessionMessageStreamView(APIView):
         return response
 
 
-class ChatSessionShareView(APIView):
-    """POST /api/chat/sessions/{id}/share/ -- share session with workspace."""
+class ChatSessionShareCreateView(APIView):
+    """POST /api/chat/sessions/{id}/share/ -- generate (or return) public share-link.
+
+    PROJ-20 AC-30 / Phase 1.3:
+    - Generates `secrets.token_urlsafe(32)` and persists to `ChatSession.share_token`
+      on first call; sets `is_shared=True`.
+    - Idempotent: subsequent calls return the SAME token (no regeneration) so the
+      "Copy share link" UI never invalidates a previously distributed URL.
+    - Returns `{share_token, public_url, is_shared, id}`. `public_url` is built
+      from the request host (preferred) or falls back to `settings.FRONTEND_URL`.
+    - Workspace-membership check: only the session owner can create a share-link.
+      Cross-workspace returns 404 (info-leak prevention) — matches Phase 1.2.
+    """
 
     authentication_classes = [CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -825,9 +871,64 @@ class ChatSessionShareView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        session.is_shared = True
-        session.save(update_fields=['is_shared', 'updated_at'])
-        return Response({'id': str(session.id), 'is_shared': True})
+        # Idempotency: only generate a token if one isn't already set.
+        update_fields = []
+        if not session.share_token:
+            session.share_token = secrets.token_urlsafe(32)
+            update_fields.append('share_token')
+        if not session.is_shared:
+            session.is_shared = True
+            update_fields.append('is_shared')
+        if update_fields:
+            update_fields.append('updated_at')
+            session.save(update_fields=update_fields)
+
+        # Build the public URL. Prefer the request host (works behind Caddy +
+        # in dev with build_absolute_uri) and fall back to FRONTEND_URL.
+        relative_path = f'/shared/chat/{session.share_token}'
+        try:
+            public_url = request.build_absolute_uri(relative_path)
+        except Exception:
+            public_url = (
+                f"{getattr(settings, 'FRONTEND_URL', '').rstrip('/')}{relative_path}"
+            )
+
+        return Response({
+            'id': str(session.id),
+            'is_shared': True,
+            'share_token': session.share_token,
+            'public_url': public_url,
+        })
+
+
+class ChatSessionPublicFetchView(APIView):
+    """GET /api/chat/sessions/shared/<token>/ -- public read-only fetch of a chat.
+
+    PROJ-20 AC-30 / Phase 1.3:
+    - NO authentication required — this is the public viewer endpoint.
+    - Returns the session + ordered messages + sources via
+      `PublicChatSessionSerializer` (read-only, excludes owner email + internal fields).
+    - 404 if the token is unknown OR `is_shared=False` (revoked).
+    """
+
+    authentication_classes = []
+    permission_classes = [AllowAny]
+
+    def get(self, request, token):
+        try:
+            session = ChatSession.objects.select_related(
+                'niche_context'
+            ).prefetch_related('messages').get(
+                share_token=token, is_shared=True,
+            )
+        except ChatSession.DoesNotExist:
+            return Response(
+                {'error': 'Shared chat not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        serializer = PublicChatSessionSerializer(session)
+        return Response(serializer.data)
 
 
 class ChatSessionUnshareView(APIView):
@@ -854,6 +955,45 @@ class ChatSessionUnshareView(APIView):
         session.is_shared = False
         session.save(update_fields=['is_shared', 'updated_at'])
         return Response({'id': str(session.id), 'is_shared': False})
+
+
+class ChatMessageDestroyView(APIView):
+    """DELETE /api/chat/messages/{message_id}/ -- delete a single chat message.
+
+    Used by the AC-30 Regenerate flow (PROJ-20): the previous AI message must be
+    deleted before re-streaming. Cross-workspace access returns 404 to match the
+    info-leak-prevention convention used elsewhere in this file.
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, message_id):
+        try:
+            message = ChatMessage.objects.select_related(
+                'session', 'session__workspace',
+            ).get(pk=message_id)
+        except ChatMessage.DoesNotExist:
+            return Response(
+                {'error': 'Message not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Workspace-membership check via message.session.workspace.
+        # Return 404 (not 403) to avoid leaking existence of foreign messages.
+        membership_exists = Membership.objects.filter(
+            user=request.user,
+            status=Membership.Status.ACTIVE,
+            workspace=message.session.workspace,
+        ).exists()
+        if not membership_exists:
+            return Response(
+                {'error': 'Message not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        message.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class TriggerCrawlView(APIView):

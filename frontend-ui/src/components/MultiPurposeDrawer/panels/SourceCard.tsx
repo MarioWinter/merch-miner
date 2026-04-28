@@ -17,11 +17,15 @@ import CrawlStatusBadge from './CrawlStatusBadge';
 interface SourceCardProps {
   source: SourceItem;
   messageId?: string;
+  /** PROJ-20 Phase 4.2: 0-indexed position used as the citation jump target (`[N]` → idx N-1). */
+  sourceIndex?: number;
   crawlResultId?: string;
   onSaveKeywords?: (url: string, snippet: string) => void;
   onSaveNotes?: (url: string, snippet: string) => void;
 }
 
+// Per AC-26: 1s primary-color border highlight that fades back. Triggered by
+// CitationLink toggling the `citation-flash` class on this root element.
 const CardRoot = styled(Box)(({ theme }) => ({
   padding: `${theme.spacing(1)} ${theme.spacing(1.25)}`,
   borderRadius: 10,
@@ -30,10 +34,16 @@ const CardRoot = styled(Box)(({ theme }) => ({
   display: 'flex',
   flexDirection: 'column',
   gap: theme.spacing(0.5),
-  transition: 'border-color 120ms ease, background-color 120ms ease',
+  transition:
+    'border-color 1000ms ease, box-shadow 1000ms ease, background-color 120ms ease',
   '&:hover': {
     borderColor: alpha(theme.palette.primary.main, 0.4),
     backgroundColor: alpha(theme.palette.background.paper, 0.75),
+  },
+  '&.citation-flash': {
+    borderColor: theme.vars.palette.primary.main,
+    boxShadow: `0 0 0 2px ${alpha(theme.palette.primary.main, 0.4)}`,
+    transition: 'border-color 80ms ease, box-shadow 80ms ease',
   },
 }));
 
@@ -62,6 +72,7 @@ const getFaviconUrl = (url: string): string => {
 const SourceCard = ({
   source,
   messageId,
+  sourceIndex,
   crawlResultId,
   onSaveKeywords,
   onSaveNotes,
@@ -69,7 +80,7 @@ const SourceCard = ({
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
   const { crawl4aiOnline } = useSearchHealth();
-  const nicheContext = useAppSelector((s) => s.chatBar.nicheContext);
+  const inputChip = useAppSelector((s) => s.chatBar.inputChip);
 
   const [triggerCrawl] = useTriggerCrawlMutation();
   const [localCrawlId, setLocalCrawlId] = useState<string | null>(crawlResultId ?? null);
@@ -99,7 +110,11 @@ const SourceCard = ({
   };
 
   return (
-    <CardRoot data-source-url={source.url}>
+    <CardRoot
+      data-source-url={source.url}
+      data-message-id={messageId}
+      data-source-index={sourceIndex}
+    >
       {/* Header: favicon + domain + status */}
       <Stack direction="row" alignItems="center" gap={1}>
         <FaviconAvatar
@@ -191,8 +206,8 @@ const SourceCard = ({
         {onSaveKeywords && (
           <Tooltip
             title={
-              nicheContext
-                ? t('search.save.toNiche', { name: nicheContext.name })
+              inputChip
+                ? t('search.save.toNiche', { name: inputChip.niche_name })
                 : t('search.save.toNichePicker')
             }
             placement="top"

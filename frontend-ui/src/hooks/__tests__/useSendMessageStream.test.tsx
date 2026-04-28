@@ -145,10 +145,20 @@ beforeEach(() => {
   MockEventSource.reset();
   mockEnqueueSnackbar.mockReset();
   mockInvalidateTags.mockClear();
+  // The hook batches `chunk` dispatches via requestAnimationFrame. jsdom
+  // queues rAF via setTimeout, which would not fire inside a synchronous
+  // act() block — so we run rAF callbacks synchronously in tests. Production
+  // still gets per-frame batching.
+  vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((cb) => {
+    cb(0);
+    return 0;
+  });
+  vi.spyOn(globalThis, 'cancelAnimationFrame').mockImplementation(() => undefined);
 });
 
 afterEach(() => {
   vi.clearAllMocks();
+  vi.restoreAllMocks();
 });
 
 describe('useSendMessageStream', () => {
@@ -156,14 +166,17 @@ describe('useSendMessageStream', () => {
     const { result } = renderStreamHook();
 
     act(() => {
-      result.current.start({ content: 'hello world', mode_override: 'auto' });
+      result.current.start({ content: 'hello world', mode_override: 'chat' });
     });
 
     expect(MockEventSource.instances).toHaveLength(1);
     const es = MockEventSource.instances[0];
     expect(es.url).toContain(`/api/chat/sessions/${SESSION_ID}/messages/stream/`);
     expect(es.url).toContain('content=hello+world');
-    expect(es.url).toContain('search_mode=auto');
+    // Cleanup 2026-04-28: mode_override is sent verbatim ('chat'/'agent');
+    // backend reads optimization_mode separately (defaults to 'balanced').
+    expect(es.url).toContain('mode_override=chat');
+    expect(es.url).not.toContain('search_mode=');
     expect(es.withCredentials).toBe(true);
   });
 
@@ -173,14 +186,14 @@ describe('useSendMessageStream', () => {
     act(() => {
       result.current.start({
         content: 'q',
-        mode_override: 'web_search',
+        mode_override: 'chat',
         niche_id: 'niche-42',
       });
     });
 
     const es = MockEventSource.instances[0];
     expect(es.url).toContain('niche_id=niche-42');
-    expect(es.url).toContain('search_mode=web_search');
+    expect(es.url).toContain('mode_override=chat');
   });
 
   it('omits niche_id from URL when null', () => {
@@ -380,6 +393,29 @@ describe('useSendMessageStream', () => {
 
     expect(MockEventSource.instances).toHaveLength(2);
     expect(first.closed).toBe(true);
+    expect(MockEventSource.instances[1].closed).toBe(false);
+  });
+
+  it('cross-instance: second hook starting a stream closes the first hook’s stream', () => {
+    // Mirrors the production layout where FloatingChatBar and ChatPanel each
+    // own a useSendMessageStream instance. A new stream from instance B must
+    // close instance A's EventSource so chunks don't dispatch into a stale
+    // streaming message.
+    const { result: hookA } = renderStreamHook();
+    const { result: hookB } = renderStreamHook();
+
+    act(() => {
+      hookA.current.start({ content: 'from A' });
+    });
+    const esA = MockEventSource.instances[0];
+    expect(esA.closed).toBe(false);
+
+    act(() => {
+      hookB.current.start({ content: 'from B' });
+    });
+
+    expect(MockEventSource.instances).toHaveLength(2);
+    expect(esA.closed).toBe(true);
     expect(MockEventSource.instances[1].closed).toBe(false);
   });
 

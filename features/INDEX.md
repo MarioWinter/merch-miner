@@ -32,7 +32,10 @@
 | PROJ-18 | OpenClaw Agent (Multi-Agent System) | In Review | [spec](PROJ-18-openclaw-agent.md) | 2026-03-24 |
 
 | PROJ-19 | ~~Global Cloud Picker~~ (absorbed into PROJ-11) | Absorbed | [spec](PROJ-19-global-cloud-picker.md) | 2026-04-06 |
+| PROJ-20 | Chat UX Perplexity-Parity | In Progress | [spec](PROJ-20-chat-ux-perplexity-parity.md) | 2026-04-26 |
+| PROJ-21 | Chat Attachments + Document RAG + Agentic Tool-Use | Deferred (Post-MVP) | [spec](PROJ-21-chat-attachments-rag.md) | 2026-04-26 |
+| PROJ-22 | Server-Migration auf VC 8-32 + Mono-Repo Infrastruktur | Planned | [spec](PROJ-22-server-migration-mono-repo.md) | 2026-04-28 |
 
 <!-- Add features above this line -->
 
-## Next Available ID: PROJ-20
+## Next Available ID: PROJ-23

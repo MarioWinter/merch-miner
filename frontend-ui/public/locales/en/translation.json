@@ -2525,7 +2525,75 @@
       "reveal": "Show chat bar",
       "expand": "Open search",
       "collapse": "Collapse",
-      "openChat": "Open chat panel"
+      "openChat": "Open chat panel",
+      "helper": "@ niches · / commands · Shift+Enter new line",
+      "mode": "Mode",
+      "sources": "Sources",
+      "model": "Model",
+      "attachComingSoon": "Coming in Phase 7",
+      "removeChip": "Remove niche context",
+      "contextUpdated": "Context: {{name}}",
+      "contextDeleted": "Niche \"{{name}}\" was deleted — context cleared",
+      "mentionPicker": {
+        "ariaLabel": "Niche mention picker",
+        "loading": "Loading…",
+        "empty": "No matches for \"{{query}}\"",
+        "noNiches": "No niches yet",
+        "createNiche": "+ New niche",
+        "createNicheStubMsg": "Niche-Create modal will open here in a later phase"
+      },
+      "modePopover": {
+        "ariaLabel": "Mode override",
+        "vaneOffline": "Chat unavailable — Vane offline",
+        "chat": {
+          "description": "Direct AI chat with web search results"
+        },
+        "agent": {
+          "description": "Multi-step research with workflows"
+        }
+      },
+      "sourcesPopover": {
+        "ariaLabel": "Search sources",
+        "atLeastOne": "At least one source must be enabled"
+      },
+      "modelPopover": {
+        "ariaLabel": "Model picker",
+        "searchPlaceholder": "Search models…",
+        "providerOpenrouter": "OpenRouter",
+        "noResults": "No models match \"{{query}}\""
+      }
+    },
+    "commands": {
+      "ariaLabel": "Slash command palette",
+      "empty": "No matching commands",
+      "chat": {
+        "description": "Switch to Chat mode",
+        "snackbar": "Mode: Chat"
+      },
+      "agent": {
+        "description": "Switch to Agent mode",
+        "snackbar": "Mode: Agent"
+      },
+      "niche": {
+        "description": "Open the niche-mention picker",
+        "snackbar": "Open the @-mention picker"
+      },
+      "clearContext": {
+        "description": "Remove the active niche chip",
+        "snackbar": "Context cleared"
+      },
+      "model": {
+        "description": "Open the model picker",
+        "snackbar": "Model picker — coming in next phase"
+      },
+      "help": {
+        "description": "Show the list of all commands",
+        "snackbar": "Help",
+        "title": "Commands",
+        "commandHeader": "Command",
+        "descriptionHeader": "Description",
+        "exampleHeader": "Example"
+      }
     },
     "drawer": {
       "segments": "Drawer panels",
@@ -2538,10 +2606,6 @@
     },
     "chat": {
       "model": "Model",
-      "mode": "Mode",
-      "modeSpeed": "Speed",
-      "modeBalanced": "Balanced",
-      "modeQuality": "Quality",
       "sources": "Sources",
       "source_web": "Web",
       "source_academic": "Academic",
@@ -2561,6 +2625,15 @@
       "sources": "Sources",
       "noSources": "No sources found for this query.",
       "deepCrawl": "Deep Crawl"
+    },
+    "citation": {
+      "openSource": "Open source {{n}}",
+      "unknownDomain": "Source"
+    },
+    "codeBlock": {
+      "copy": "Copy code",
+      "copied": "Copied",
+      "plain": "text"
     },
     "crawl": {
       "pending": "Pending",
@@ -2622,10 +2695,9 @@
     },
     "mode": {
       "label": "Mode",
-      "auto": "Auto",
-      "webSearch": "Web Search",
+      "chat": "Chat",
       "agent": "Agent",
-      "tooltip": "Auto routes between web search and agent based on your message."
+      "tooltip": "Chat is direct Vane web-search; Agent runs a multi-step workflow."
     },
     "workflow": {
       "openCommandCenter": "Open Command Center",
@@ -2647,7 +2719,8 @@
     "stream": {
       "streaming": "Streaming response...",
       "error": "Streaming failed. Please try again.",
-      "connectionLost": "Connection lost. Please retry."
+      "connectionLost": "Connection lost. Please retry.",
+      "timeout": "Search timed out. Please try again."
     }
   },
   "agent": {

@@ -34,7 +34,7 @@ const AgentPanel = () => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
   const dispatch = useAppDispatch();
-  const nicheContext = useAppSelector((s) => s.chatBar.nicheContext);
+  const inputChip = useAppSelector((s) => s.chatBar.inputChip);
 
   // Active agent session is managed in Redux so external triggers (WorkflowCard
   // "Open Command Center") can switch it without parent re-mounts.
@@ -76,14 +76,14 @@ const AgentPanel = () => {
       try {
         const session = await createSession({
           workflow_template: templateKey,
-          niche_context: nicheContext?.id,
+          niche_context: inputChip?.niche_id,
         });
         dispatch(setActiveAgentSessionId(session.id));
       } catch {
         enqueueSnackbar(t('agent.header.startError'), { variant: 'error' });
       }
     },
-    [createSession, nicheContext, enqueueSnackbar, t, dispatch],
+    [createSession, inputChip, enqueueSnackbar, t, dispatch],
   );
 
   const handleSend = useCallback(async () => {
@@ -93,7 +93,7 @@ const AgentPanel = () => {
     if (!activeSessionId) {
       try {
         const session = await createSession({
-          niche_context: nicheContext?.id,
+          niche_context: inputChip?.niche_id,
           title: content.slice(0, 100),
         });
         dispatch(setActiveAgentSessionId(session.id));
@@ -112,7 +112,7 @@ const AgentPanel = () => {
     } catch {
       enqueueSnackbar(t('agent.log.sendError'), { variant: 'error' });
     }
-  }, [inputValue, activeSessionId, createSession, sendMessage, nicheContext, enqueueSnackbar, t, dispatch]);
+  }, [inputValue, activeSessionId, createSession, sendMessage, inputChip, enqueueSnackbar, t, dispatch]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {

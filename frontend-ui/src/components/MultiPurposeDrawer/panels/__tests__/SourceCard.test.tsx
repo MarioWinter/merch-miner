@@ -3,6 +3,9 @@
  *
  * Strategy: stub searchSlice mutations + queries via vi.mock so we can drive
  * crawl trigger + crawl status updates without hitting the network.
+ *
+ * Phase 2 rename: legacy `nicheContext { id, name }` →
+ * new `inputChip { niche_id, niche_name }`.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
@@ -44,7 +47,10 @@ import { render } from '@testing-library/react';
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import enTranslation from '../../../../../public/locales/en/translation.json';
-import chatBarReducer, { setNicheContext } from '@/store/chatBarSlice';
+import chatBarReducer, {
+  setInputChip,
+  type InputChip,
+} from '@/store/chatBarSlice';
 import theme from '@/style/theme';
 import SourceCard from '../SourceCard';
 import type { SourceItem } from '@/types/search';
@@ -59,24 +65,24 @@ if (!i18n.isInitialized) {
   });
 }
 
-const buildStore = (nicheContext?: { id: string; name: string } | null) => {
+const buildStore = (inputChip?: InputChip | null) => {
   const store = configureStore({ reducer: { chatBar: chatBarReducer } });
-  if (nicheContext !== undefined) {
-    store.dispatch(setNicheContext(nicheContext));
+  if (inputChip !== undefined) {
+    store.dispatch(setInputChip(inputChip));
   }
   return store;
 };
 
 interface RenderOpts {
   source: SourceItem;
-  nicheContext?: { id: string; name: string } | null;
+  inputChip?: InputChip | null;
   onSaveKeywords?: (url: string, snippet: string) => void;
   onSaveNotes?: (url: string, snippet: string) => void;
   crawlResultId?: string;
 }
 
 const renderCard = (opts: RenderOpts) => {
-  const store = buildStore(opts.nicheContext);
+  const store = buildStore(opts.inputChip);
   const Wrapper = ({ children }: { children: ReactNode }) => (
     <Provider store={store}>
       <CssVarsProvider theme={theme} defaultMode="dark">
@@ -151,7 +157,9 @@ describe('SourceCard', () => {
   it('clicking Deep Crawl button triggers useTriggerCrawlMutation', async () => {
     const user = userEvent.setup();
     renderCard({ source: baseSource });
-    const btn = screen.getByLabelText('Deep Crawl');
+    // MUI Tooltip wraps the IconButton in a <span aria-label="Deep Crawl">,
+    // so two elements share the label. Use role=button to disambiguate.
+    const btn = screen.getByRole('button', { name: 'Deep Crawl' });
     await user.click(btn);
     expect(mockTriggerCrawl).toHaveBeenCalledWith({
       url: baseSource.url,
@@ -172,7 +180,7 @@ describe('SourceCard', () => {
       statusColor: 'warning',
     });
     renderCard({ source: baseSource });
-    expect(screen.getByLabelText('Deep Crawl')).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Deep Crawl' })).toBeDisabled();
   });
 
   it('Save Keywords button calls onSaveKeywords handler', async () => {
@@ -181,9 +189,9 @@ describe('SourceCard', () => {
     renderCard({
       source: baseSource,
       onSaveKeywords,
-      nicheContext: { id: 'n1', name: 'Cats' },
+      inputChip: { niche_id: 'n1', niche_name: 'Cats' },
     });
-    const btn = screen.getByLabelText('Save Keywords');
+    const btn = screen.getByRole('button', { name: 'Save Keywords' });
     await user.click(btn);
     expect(onSaveKeywords).toHaveBeenCalledWith(baseSource.url, baseSource.snippet);
   });
@@ -192,14 +200,16 @@ describe('SourceCard', () => {
     const onSaveNotes = vi.fn();
     const user = userEvent.setup();
     renderCard({ source: baseSource, onSaveNotes });
-    const btn = screen.getByLabelText(/notes/i);
+    const btn = screen.getByRole('button', { name: /notes/i });
     await user.click(btn);
     expect(onSaveNotes).toHaveBeenCalledWith(baseSource.url, baseSource.snippet);
   });
 
   it('Save Keywords button NOT rendered when onSaveKeywords prop missing', () => {
     renderCard({ source: baseSource });
-    expect(screen.queryByLabelText('Save Keywords')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Save Keywords' }),
+    ).not.toBeInTheDocument();
   });
 
   it('crawl status "pending" shows pending badge', () => {

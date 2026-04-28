@@ -15,6 +15,8 @@ import type {
   SaveSnippetResponse,
   UpdateSessionBody,
   SessionListParams,
+  CreateShareLinkResponse,
+  PublicChatSession,
 } from '../types/search';
 import { keywordApi } from './keywordSlice';
 import { nicheApi } from './nicheSlice';
@@ -108,6 +110,42 @@ export const searchApi = createApi({
       ],
     }),
 
+    // PROJ-20 Phase 2: delete a single ChatMessage (used by Regenerate flow).
+    // Backend returns 204 No Content on success → resolve as `void`.
+    deleteMessage: builder.mutation<void, string>({
+      query: (messageId) => ({
+        url: `/api/chat/messages/${messageId}/`,
+        method: 'DELETE',
+      }),
+      // We don't know the sessionId here, but the assistant message was attached
+      // to the active session — invalidate the LIST tag to refresh counts and
+      // let the caller manually refetch the session detail if needed.
+      invalidatesTags: [{ type: 'ChatSessions', id: 'LIST' }],
+    }),
+
+    // PROJ-20 Phase 1.3 / Phase 2: create (or re-fetch) a public share-link for a session.
+    // Backend is idempotent — repeated calls return the same token/url.
+    createShareLink: builder.mutation<CreateShareLinkResponse, string>({
+      query: (sessionId) => ({
+        url: `/api/chat/sessions/${sessionId}/share/`,
+        method: 'POST',
+      }),
+      invalidatesTags: (_r, _e, sessionId) => [
+        { type: 'ChatSessions', id: sessionId },
+        { type: 'ChatSessions', id: 'LIST' },
+      ],
+    }),
+
+    // PROJ-20 Phase 1.3 / Phase 2: public read-only fetch by share-token.
+    // No auth required — endpoint accepts AllowAny on the backend. The cookie
+    // may still be sent by axios; backend ignores it for this view.
+    getPublicSession: builder.query<PublicChatSession, string>({
+      query: (token) => ({
+        url: `/api/chat/sessions/shared/${token}/`,
+        method: 'GET',
+      }),
+    }),
+
     // --- Crawl ---
     triggerCrawl: builder.mutation<WebSearchResult, TriggerCrawlBody>({
       query: (body) => ({
@@ -197,6 +235,9 @@ export const {
   useShareSessionMutation,
   useUnshareSessionMutation,
   useSendMessageMutation,
+  useDeleteMessageMutation,
+  useCreateShareLinkMutation,
+  useGetPublicSessionQuery,
   useTriggerCrawlMutation,
   useGetCrawlStatusQuery,
   useSaveToNicheMutation,

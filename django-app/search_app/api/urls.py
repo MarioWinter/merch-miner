@@ -1,11 +1,13 @@
 from django.urls import path
 
 from search_app.api.views import (
+    ChatMessageDestroyView,
     ChatSessionDetailView,
     ChatSessionListCreateView,
     ChatSessionMessagesView,
     ChatSessionMessageStreamView,
-    ChatSessionShareView,
+    ChatSessionPublicFetchView,
+    ChatSessionShareCreateView,
     ChatSessionUnshareView,
     CrawlStatusView,
     SaveToNicheView,
@@ -37,13 +39,23 @@ urlpatterns = [
     ),
     path(
         'chat/sessions/<uuid:session_id>/share/',
-        ChatSessionShareView.as_view(),
+        ChatSessionShareCreateView.as_view(),
         name='chat-session-share',
     ),
     path(
         'chat/sessions/<uuid:session_id>/unshare/',
         ChatSessionUnshareView.as_view(),
         name='chat-session-unshare',
+    ),
+    path(
+        'chat/sessions/shared/<str:token>/',
+        ChatSessionPublicFetchView.as_view(),
+        name='chat-session-public-fetch',
+    ),
+    path(
+        'chat/messages/<uuid:message_id>/',
+        ChatMessageDestroyView.as_view(),
+        name='chat-message-destroy',
     ),
 
     # Search / Crawl

@@ -1,23 +1,19 @@
-import { useState, useCallback } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   Box,
   Button,
-  CircularProgress,
   Collapse,
   Divider,
   IconButton,
   Stack,
-  TextField,
   Typography,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import SendIcon from '@mui/icons-material/Send';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
 import ShareIcon from '@mui/icons-material/Share';
 import HistoryIcon from '@mui/icons-material/History';
-import TuneIcon from '@mui/icons-material/Tune';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -41,11 +37,12 @@ import type {
   SaveSnippetKeywordsResponse,
   SaveSnippetNotesResponse,
 } from '@/types/search';
-import ContextChip from './ContextChip';
-import ChatControls from './ChatControls';
+import ChatInputBar, {
+  type ChatInputBarHandle,
+  type ChatInputBarSubmitPayload,
+} from './ChatInputBar';
 import ChatMessageList from './ChatMessageList';
 import RecentChats from './RecentChats';
-import ModeDropdown from './ModeDropdown';
 import SaveToNicheModal from './SaveToNicheModal';
 
 interface ModalState {
@@ -69,11 +66,11 @@ const PanelRoot = styled(Box)({
   overflow: 'hidden',
 });
 
+// PROJ-20 Phase 3.7 — input area no longer needs the legacy TextField+Send
+// row. ChatInputBar is the entire input surface; the wrapper just adds
+// vertical padding above the message list separator.
 const InputArea = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  gap: theme.spacing(0.75),
-  padding: `${theme.spacing(1.25)} ${theme.spacing(1.5)}`,
+  padding: theme.spacing(1, 1.5, 1.25),
   borderTop: `1px solid ${theme.vars.palette.divider}`,
   backgroundColor: theme.vars.palette.background.paper,
   flexShrink: 0,
@@ -83,18 +80,24 @@ const ChatPanel = () => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
   const dispatch = useAppDispatch();
-  const { activeSessionId, nicheContext, searching, searchMode, searchSources, selectedModel, modeOverride } =
-    useAppSelector((s) => s.chatBar);
+  const {
+    activeSessionId,
+    searching,
+    searchSources,
+    selectedModel,
+    modeOverride,
+    inputChip,
+  } = useAppSelector((s) => s.chatBar);
   const { vaneOnline } = useSearchHealth();
 
-  const [message, setMessage] = useState('');
+  const inputRef = useRef<ChatInputBarHandle>(null);
   const [showRecent, setShowRecent] = useState(!activeSessionId);
-  const [showControls, setShowControls] = useState(false);
   const [modal, setModal] = useState<ModalState>(INITIAL_MODAL);
 
-  const { data: session, isLoading: sessionLoading } = useGetSessionQuery(activeSessionId ?? '', {
-    skip: !activeSessionId,
-  });
+  const { data: session, isLoading: sessionLoading } = useGetSessionQuery(
+    activeSessionId ?? '',
+    { skip: !activeSessionId },
+  );
 
   const [createSession] = useCreateSessionMutation();
   const [sendMessage] = useSendMessageMutation();
@@ -112,64 +115,75 @@ const ChatPanel = () => {
     (s) => s.chatBar.streamingAssistantMessage.isStreaming,
   );
 
-  const handleSend = useCallback(async () => {
-    const trimmed = message.trim();
-    if (!trimmed || searching || !vaneOnline) return;
+  // PROJ-20 Phase 3.7 — chip + text are read at submit time from the
+  // ChatInputBar imperative handle (EC-10). We still consult the Redux
+  // `modeOverride`, `searchSources`, `selectedModel` because those are
+  // session-level controls toggled outside the input bar.
+  const handleSubmit = useCallback(
+    async (payload: ChatInputBarSubmitPayload) => {
+      const trimmed = payload.text.trim();
+      if (!trimmed || searching || !vaneOnline || isStreaming) return;
 
-    dispatch(setSearching(true));
-    setMessage('');
+      const niche_id = payload.chip?.niche_id ?? null;
 
-    try {
-      let sessionId = activeSessionId;
-      if (!sessionId) {
-        const newSession = await createSession({
-          niche_context: nicheContext?.id,
-          title: trimmed.slice(0, 100),
-        }).unwrap();
-        sessionId = newSession.id;
-        dispatch(setActiveSession(sessionId));
-        dispatch(openDrawer('chat'));
-      }
+      dispatch(setSearching(true));
+      inputRef.current?.clear();
 
-      // PROJ-17 Phase 4 Step 6: Agent → classic POST. Auto/Web → SSE stream.
-      // EC-7: starting a new stream auto-cancels any active stream.
-      if (modeOverride === 'agent') {
-        await sendMessage({
-          sessionId,
-          body: {
+      try {
+        let sessionId = activeSessionId;
+        if (!sessionId) {
+          const newSession = await createSession({
+            niche_context: niche_id ?? undefined,
+            title: trimmed.slice(0, 100),
+          }).unwrap();
+          sessionId = newSession.id;
+          dispatch(setActiveSession(sessionId));
+          dispatch(openDrawer('chat'));
+        }
+
+        // PROJ-17 Phase 4 Step 6: Agent → classic POST. Auto/Web → SSE stream.
+        // EC-7: starting a new stream auto-cancels any active stream.
+        if (modeOverride === 'agent') {
+          await sendMessage({
+            sessionId,
+            body: {
+              content: trimmed,
+              search_sources: searchSources,
+              model: selectedModel,
+              mode_override: modeOverride,
+            },
+          }).unwrap();
+          dispatch(setSearching(false));
+        } else {
+          startStream({
             content: trimmed,
-            search_mode: searchMode,
-            search_sources: searchSources,
-            model: selectedModel,
             mode_override: modeOverride,
-          },
-        }).unwrap();
+            niche_id,
+            sessionIdOverride: sessionId,
+          });
+          // searching cleared by useSendMessageStream onDone callback
+        }
+      } catch {
+        enqueueSnackbar(t('search.chat.sendError'), { variant: 'error' });
         dispatch(setSearching(false));
-      } else {
-        startStream({
-          content: trimmed,
-          mode_override: modeOverride,
-          niche_id: nicheContext?.id ?? null,
-          sessionIdOverride: sessionId,
-        });
-        // searching cleared by useSendMessageStream onDone callback
       }
-    } catch {
-      enqueueSnackbar(t('search.chat.sendError'), { variant: 'error' });
-      dispatch(setSearching(false));
-    }
-  }, [
-    message, searching, vaneOnline, activeSessionId, nicheContext, searchMode,
-    searchSources, selectedModel, modeOverride, dispatch, createSession,
-    sendMessage, startStream, enqueueSnackbar, t,
-  ]);
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
+    },
+    [
+      searching,
+      vaneOnline,
+      isStreaming,
+      activeSessionId,
+      searchSources,
+      selectedModel,
+      modeOverride,
+      dispatch,
+      createSession,
+      sendMessage,
+      startStream,
+      enqueueSnackbar,
+      t,
+    ],
+  );
 
   const handleSelectSession = (s: ChatSession) => {
     dispatch(setActiveSession(s.id));
@@ -184,7 +198,7 @@ const ChatPanel = () => {
       if (!trimmed) return;
 
       // No active niche context → open picker modal
-      if (!nicheContext) {
+      if (!inputChip) {
         setModal({ open: true, selectedText: trimmed, saveAs, sourceUrl });
         return;
       }
@@ -192,7 +206,7 @@ const ChatPanel = () => {
       // Active niche context → save directly
       try {
         const result = await saveSnippet({
-          nicheId: nicheContext.id,
+          nicheId: inputChip.niche_id,
           body: {
             selected_text: trimmed,
             save_as: saveAs,
@@ -220,7 +234,7 @@ const ChatPanel = () => {
         enqueueSnackbar(t('search.save.errorGeneric'), { variant: 'error' });
       }
     },
-    [nicheContext, saveSnippet, enqueueSnackbar, t],
+    [inputChip, saveSnippet, enqueueSnackbar, t],
   );
 
   const handleSaveSelectionAsKeywords = useCallback(
@@ -285,23 +299,8 @@ const ChatPanel = () => {
                 )}
               </IconButton>
             )}
-            <IconButton
-              size="small"
-              onClick={() => setShowControls((v) => !v)}
-              aria-label={t('search.chat.toggleControls')}
-              sx={{ color: 'text.secondary', borderRadius: 1.5 }}
-            >
-              <TuneIcon sx={{ fontSize: 18 }} />
-            </IconButton>
           </Stack>
         </Stack>
-
-        <ContextChip />
-
-        {/* Controls collapse */}
-        <Collapse in={showControls}>
-          <ChatControls />
-        </Collapse>
       </Stack>
 
       <Divider />
@@ -326,38 +325,16 @@ const ChatPanel = () => {
         onSaveSelectionAsNotes={handleSaveSelectionAsNotes}
       />
 
-      {/* Input area */}
+      {/* Input area — PROJ-20 Phase 3.7 unified ChatInputBar */}
       {!isReadOnly && (
         <InputArea>
-          <ModeDropdown compact />
-          <TextField
-            value={message}
-            onChange={(e) => setMessage(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder={
-              !vaneOnline
-                ? t('search.health.vaneOffline')
-                : isStreaming
-                  ? t('search.stream.streaming')
-                  : t('search.chatBar.placeholder')
-            }
-            variant="outlined"
-            size="small"
-            fullWidth
-            disabled={!vaneOnline || searching || isStreaming}
-            slotProps={{
-              input: { sx: { fontSize: '0.8125rem', borderRadius: '20px' } },
-            }}
+          <ChatInputBar
+            ref={inputRef}
+            appearance="panel"
+            onSubmit={handleSubmit}
+            isSending={searching || isStreaming}
+            disabled={!vaneOnline}
           />
-          <IconButton
-            onClick={handleSend}
-            disabled={!message.trim() || searching || isStreaming || !vaneOnline}
-            color="primary"
-            size="small"
-            aria-label={t('search.chatBar.send')}
-          >
-            {searching || isStreaming ? <CircularProgress size={18} /> : <SendIcon sx={{ fontSize: 20 }} />}
-          </IconButton>
         </InputArea>
       )}
 

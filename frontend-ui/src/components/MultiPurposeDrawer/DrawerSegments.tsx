@@ -1,7 +1,7 @@
 import { ToggleButton, ToggleButtonGroup, Stack, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
-import ChatOutlinedIcon from '@mui/icons-material/ChatOutlined';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
 import { useTranslation } from 'react-i18next';
 import type { DrawerPanel } from '@/types/search';
@@ -52,7 +52,7 @@ const DrawerSegments = ({ activePanel, onChange }: DrawerSegmentsProps) => {
           </Typography>
         </ToggleButton>
         <ToggleButton value="chat" aria-label={t('search.drawer.chat')}>
-          <ChatOutlinedIcon sx={{ fontSize: 18 }} />
+          <ChatBubbleOutlineIcon sx={{ fontSize: 18 }} />
           <Typography variant="body2" component="span">
             {t('search.drawer.chat')}
           </Typography>

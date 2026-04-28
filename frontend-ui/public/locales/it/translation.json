@@ -2350,7 +2350,83 @@
       "reveal": "Show chat bar",
       "expand": "Open search",
       "collapse": "Comprimi",
-      "openChat": "Apri pannello chat"
+      "openChat": "Apri pannello chat",
+      "helper": "@ nicchie · / comandi · Shift+Enter nuova riga",
+      "mode": "Modo",
+      "modeAuto": "Auto",
+      "sources": "Fonti",
+      "model": "Modello",
+      "attachComingSoon": "Disponibile in Fase 7",
+      "removeChip": "Rimuovi contesto di nicchia",
+      "contextUpdated": "Contesto: {{name}}",
+      "contextDeleted": "La nicchia \"{{name}}\" è stata eliminata — contesto rimosso",
+      "mentionPicker": {
+        "ariaLabel": "Selettore di menzioni di nicchia",
+        "loading": "Caricamento…",
+        "empty": "Nessun risultato per \"{{query}}\"",
+        "noNiches": "Nessuna nicchia ancora",
+        "createNiche": "+ Nuova nicchia",
+        "createNicheStubMsg": "Il modale di creazione nicchia si aprirà qui in una fase successiva"
+      },
+      "modePopover": {
+        "ariaLabel": "Override modalità",
+        "vaneOffline": "Ricerca Web e Agente non disponibili — Vane offline",
+        "auto": {
+          "description": "Sceglie automaticamente la modalità migliore per domanda"
+        },
+        "webSearch": {
+          "description": "Cerca nel web con fonti citate"
+        },
+        "agent": {
+          "description": "Workflow agente multi-step"
+        }
+      },
+      "sourcesPopover": {
+        "ariaLabel": "Fonti di ricerca",
+        "atLeastOne": "Almeno una fonte deve restare attiva"
+      },
+      "modelPopover": {
+        "ariaLabel": "Selettore modello",
+        "searchPlaceholder": "Cerca modelli…",
+        "providerOpenrouter": "OpenRouter",
+        "noResults": "Nessun modello corrisponde a \"{{query}}\""
+      }
+    },
+    "commands": {
+      "ariaLabel": "Palette dei comandi",
+      "empty": "Nessun comando corrispondente",
+      "auto": {
+        "description": "Passa al routing Auto",
+        "snackbar": "Modalità: Auto"
+      },
+      "web": {
+        "description": "Passa alla modalità Ricerca web",
+        "snackbar": "Modalità: Ricerca web"
+      },
+      "agent": {
+        "description": "Passa alla modalità Agente",
+        "snackbar": "Modalità: Agente"
+      },
+      "niche": {
+        "description": "Apri il selettore di menzioni di nicchia",
+        "snackbar": "Apri selettore @"
+      },
+      "clearContext": {
+        "description": "Rimuovi il chip della nicchia attiva",
+        "snackbar": "Contesto rimosso"
+      },
+      "model": {
+        "description": "Apri il selettore di modello",
+        "snackbar": "Selettore di modello — fase successiva"
+      },
+      "help": {
+        "description": "Mostra l'elenco dei comandi",
+        "snackbar": "Aiuto",
+        "title": "Comandi",
+        "commandHeader": "Comando",
+        "descriptionHeader": "Descrizione",
+        "exampleHeader": "Esempio"
+      }
     },
     "drawer": {
       "segments": "Drawer panels",
@@ -2363,10 +2439,6 @@
     },
     "chat": {
       "model": "Model",
-      "mode": "Mode",
-      "modeSpeed": "Speed",
-      "modeBalanced": "Balanced",
-      "modeQuality": "Quality",
       "sources": "Sources",
       "source_web": "Web",
       "source_academic": "Academic",
@@ -2386,6 +2458,15 @@
       "sources": "Sources",
       "noSources": "No sources found for this query.",
       "deepCrawl": "Deep Crawl"
+    },
+    "citation": {
+      "openSource": "Apri fonte {{n}}",
+      "unknownDomain": "Fonte"
+    },
+    "codeBlock": {
+      "copy": "Copia codice",
+      "copied": "Copiato",
+      "plain": "testo"
     },
     "crawl": {
       "pending": "Pending",
@@ -2468,6 +2549,9 @@
     },
     "scroll": {
       "jumpToLatest": "Vai al più recente"
+    },
+    "stream": {
+      "timeout": "Ricerca scaduta. Riprova."
     }
   }
 }

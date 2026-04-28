@@ -2,9 +2,6 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Avatar, Box, Button, Stack, Typography, Skeleton } from '@mui/material';
 import { styled, alpha, keyframes } from '@mui/material/styles';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import Markdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import rehypeSanitize from 'rehype-sanitize';
 import { useTranslation } from 'react-i18next';
 import type { ChatMessage } from '@/types/search';
 import { useAppSelector } from '@/store/hooks';
@@ -12,6 +9,11 @@ import JumpToLatestButton from './JumpToLatestButton';
 import SourceCard from './SourceCard';
 import WorkflowCard from './WorkflowCard';
 import SaveSnippetToolbar from './SaveSnippetToolbar';
+import MarkdownAnswer from './partials/MarkdownAnswer';
+
+// Stable id used for the in-flight streaming bubble's citation lookup so
+// SourceCards rendered for the streaming message can be linked from `[N]`.
+const STREAMING_MESSAGE_ID = 'streaming';
 
 interface ChatMessageListProps {
   messages: ChatMessage[];
@@ -75,46 +77,14 @@ const UserBubble = styled(Box)(({ theme }) => ({
   boxShadow: `0 1px 2px ${alpha('#000', 0.15)}`,
 }));
 
-/** Left-side bubble — paper bg + subtle border, ChatGPT/Perplexity-style. */
+/** Left-side bubble — paper bg + subtle border, ChatGPT/Perplexity-style.
+ *  Markdown styling lives inside MarkdownAnswer (Phase 4.3). */
 const AssistantBubble = styled(Box)(({ theme }) => ({
   maxWidth: 'calc(100% - 40px)',
   padding: `${theme.spacing(1.25)} ${theme.spacing(1.5)}`,
   borderRadius: '4px 14px 14px 14px',
   backgroundColor: theme.vars.palette.background.paper,
   border: `1px solid ${theme.vars.palette.divider}`,
-  fontSize: '0.875rem',
-  lineHeight: 1.55,
-  wordBreak: 'break-word',
-  color: theme.vars.palette.text.primary,
-  // Markdown styling
-  '& > *:first-of-type': { marginTop: 0 },
-  '& > *:last-child': { marginBottom: 0 },
-  '& p': { margin: `${theme.spacing(0.5)} 0` },
-  '& a': { color: theme.vars.palette.secondary.main, textDecoration: 'underline' },
-  '& code': {
-    fontFamily: '"JetBrains Mono", monospace',
-    fontSize: '0.8125rem',
-    backgroundColor: alpha(theme.palette.common.black, 0.18),
-    padding: '2px 5px',
-    borderRadius: 4,
-  },
-  '& pre': {
-    backgroundColor: alpha(theme.palette.common.black, 0.22),
-    padding: theme.spacing(1.25),
-    borderRadius: 8,
-    overflowX: 'auto',
-    margin: `${theme.spacing(0.75)} 0`,
-    '& code': { backgroundColor: 'transparent', padding: 0 },
-  },
-  '& ul, & ol': { paddingLeft: theme.spacing(2.5), margin: `${theme.spacing(0.5)} 0` },
-  '& li': { marginBottom: theme.spacing(0.25) },
-  '& h1, & h2, & h3, & h4': { margin: `${theme.spacing(1)} 0 ${theme.spacing(0.5)}` },
-  '& blockquote': {
-    margin: `${theme.spacing(0.5)} 0`,
-    padding: `${theme.spacing(0.25)} ${theme.spacing(1.5)}`,
-    borderLeft: `3px solid ${theme.vars.palette.divider}`,
-    color: theme.vars.palette.text.secondary,
-  },
 }));
 
 /** Small AI avatar to the left of assistant bubbles — ChatGPT-style. */
@@ -296,9 +266,11 @@ const ChatMessageList = ({
                 ) : (
                   <AssistantContent>
                     <AssistantBubble>
-                      <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
-                        {msg.content}
-                      </Markdown>
+                      <MarkdownAnswer
+                        content={msg.content}
+                        sources={msg.sources ?? []}
+                        messageId={msg.id}
+                      />
                     </AssistantBubble>
                     {/* AC-38: Sources inline below AI bubble (Perplexity-style cards) */}
                     {msg.sources && msg.sources.length > 0 && (
@@ -308,6 +280,7 @@ const ChatMessageList = ({
                             key={`${msg.id}-${src.url}-${idx}`}
                             source={src}
                             messageId={msg.id}
+                            sourceIndex={idx}
                             onSaveKeywords={onSaveKeywords}
                             onSaveNotes={onSaveNotes}
                           />
@@ -333,9 +306,11 @@ const ChatMessageList = ({
               </AssistantAvatar>
               <AssistantContent>
                 <AssistantBubble aria-live="polite" aria-label={t('search.stream.streaming')}>
-                  <Markdown remarkPlugins={[remarkGfm]} rehypePlugins={[rehypeSanitize]}>
-                    {streamingMessage.content}
-                  </Markdown>
+                  <MarkdownAnswer
+                    content={streamingMessage.content}
+                    sources={streamingMessage.sources}
+                    messageId={streamingMessage.id ?? STREAMING_MESSAGE_ID}
+                  />
                   <TypingCursor aria-hidden="true" />
                 </AssistantBubble>
                 {streamingMessage.sources.length > 0 && (
@@ -344,7 +319,8 @@ const ChatMessageList = ({
                       <SourceCard
                         key={`stream-${src.url}-${idx}`}
                         source={src}
-                        messageId={streamingMessage.id ?? 'streaming'}
+                        messageId={streamingMessage.id ?? STREAMING_MESSAGE_ID}
+                        sourceIndex={idx}
                         onSaveKeywords={onSaveKeywords}
                         onSaveNotes={onSaveNotes}
                       />

@@ -614,3 +614,258 @@ class TestWorkspaceIsolationP1:
         )
         assert resp.status_code == 200
         assert resp['Cache-Control'] == 'private, max-age=3'
+
+
+@pytest.mark.django_db
+class TestChatMessageDestroy:
+    """PROJ-20 Phase 1.2: DELETE /api/chat/messages/<uuid>/
+
+    Used by AC-30 Regenerate flow — frontend deletes the previous AI message
+    before re-streaming a new one. Cross-workspace returns 404 to match the
+    info-leak-prevention convention used elsewhere in this file.
+    """
+
+    def test_destroy_own_message_returns_204(
+        self, api_client, session,
+    ):
+        msg = ChatMessage.objects.create(
+            session=session,
+            role=ChatMessage.Role.ASSISTANT,
+            content='to be deleted',
+        )
+        resp = api_client.delete(f'/api/chat/messages/{msg.id}/')
+        assert resp.status_code == 204
+        assert not ChatMessage.objects.filter(pk=msg.pk).exists()
+
+    def test_destroy_does_not_require_workspace_header(
+        self, api_client, session,
+    ):
+        """Endpoint resolves workspace from message.session.workspace —
+        X-Workspace-Id header is not required (parity with SSE stream view)."""
+        msg = ChatMessage.objects.create(
+            session=session,
+            role=ChatMessage.Role.ASSISTANT,
+            content='to be deleted',
+        )
+        # Note: no _headers(workspace)
+        resp = api_client.delete(f'/api/chat/messages/{msg.id}/')
+        assert resp.status_code == 204
+
+    def test_destroy_cross_workspace_returns_404(
+        self, api_client, other_workspace, other_user,
+    ):
+        """User without active membership in the message's workspace gets 404
+        (info-leak prevention) instead of 403."""
+        foreign_session = ChatSession.objects.create(
+            workspace=other_workspace,
+            created_by=other_user,
+            title='Foreign session',
+        )
+        foreign_msg = ChatMessage.objects.create(
+            session=foreign_session,
+            role=ChatMessage.Role.ASSISTANT,
+            content='foreign',
+        )
+        resp = api_client.delete(f'/api/chat/messages/{foreign_msg.id}/')
+        assert resp.status_code == 404
+        # Foreign message must remain intact
+        assert ChatMessage.objects.filter(pk=foreign_msg.pk).exists()
+
+    def test_destroy_missing_message_returns_404(self, api_client):
+        import uuid as _uuid
+        bogus = _uuid.uuid4()
+        resp = api_client.delete(f'/api/chat/messages/{bogus}/')
+        assert resp.status_code == 404
+
+    def test_destroy_unauthenticated_returns_401(self, db, session):
+        msg = ChatMessage.objects.create(
+            session=session,
+            role=ChatMessage.Role.ASSISTANT,
+            content='hi',
+        )
+        client = APIClient()  # no force_authenticate
+        resp = client.delete(f'/api/chat/messages/{msg.id}/')
+        assert resp.status_code == 401
+
+    def test_destroy_workspace_member_can_delete_others_message(
+        self, api_client, workspace, user, other_user,
+    ):
+        """Any active workspace member can delete a message in that workspace
+        (no created_by ownership check) — needed so a workspace owner can
+        regenerate a teammate's shared chat. Membership is the boundary."""
+        # other_user is also an active member of `workspace`
+        Membership.objects.create(
+            workspace=workspace, user=other_user,
+            role='member', status='active',
+        )
+        # other_user owns the session, but `user` (current api_client) deletes
+        teammate_session = ChatSession.objects.create(
+            workspace=workspace, created_by=other_user, title='Teammate',
+        )
+        teammate_msg = ChatMessage.objects.create(
+            session=teammate_session,
+            role=ChatMessage.Role.ASSISTANT,
+            content='teammate msg',
+        )
+        resp = api_client.delete(f'/api/chat/messages/{teammate_msg.id}/')
+        assert resp.status_code == 204
+
+
+@pytest.mark.django_db
+class TestChatSessionShareCreate:
+    """PROJ-20 Phase 1.3: POST /api/chat/sessions/<uuid>/share/
+
+    AC-30 Share button. Generates a public share-link, idempotent on re-call.
+    """
+
+    def test_share_create_returns_token_and_public_url(
+        self, api_client, workspace, session,
+    ):
+        resp = api_client.post(
+            f'/api/chat/sessions/{session.id}/share/',
+            **_headers(workspace),
+        )
+        assert resp.status_code == 200
+        assert resp.data['is_shared'] is True
+        # Token must be present, non-empty, URL-safe length-ish
+        token = resp.data['share_token']
+        assert isinstance(token, str)
+        assert len(token) >= 32
+        # Public URL contains the token + the public viewer path
+        public_url = resp.data['public_url']
+        assert isinstance(public_url, str)
+        assert token in public_url
+        assert '/shared/chat/' in public_url
+        # DB row reflects state
+        session.refresh_from_db()
+        assert session.share_token == token
+        assert session.is_shared is True
+
+    def test_share_create_is_idempotent(
+        self, api_client, workspace, session,
+    ):
+        """Calling share twice returns the SAME token — never regenerates."""
+        first = api_client.post(
+            f'/api/chat/sessions/{session.id}/share/',
+            **_headers(workspace),
+        )
+        assert first.status_code == 200
+        first_token = first.data['share_token']
+
+        second = api_client.post(
+            f'/api/chat/sessions/{session.id}/share/',
+            **_headers(workspace),
+        )
+        assert second.status_code == 200
+        assert second.data['share_token'] == first_token
+        assert second.data['public_url'] == first.data['public_url']
+        # Still exactly one share_token in DB
+        session.refresh_from_db()
+        assert session.share_token == first_token
+
+    def test_share_create_cross_workspace_returns_404(
+        self, api_client, other_workspace, other_user,
+    ):
+        """Share-create against a session in another workspace returns 404."""
+        foreign_session = ChatSession.objects.create(
+            workspace=other_workspace,
+            created_by=other_user,
+            title='Foreign session',
+        )
+        # Caller (user) sends X-Workspace-Id of OWN workspace, but session_id
+        # belongs to other_workspace — view filters by workspace+owner → 404.
+        resp = api_client.post(
+            f'/api/chat/sessions/{foreign_session.id}/share/',
+            **_headers(other_workspace),
+        )
+        # User is not a member of other_workspace → workspace resolution 403
+        # OR session ownership check 404. Either is acceptable info-leak prevention.
+        assert resp.status_code in (403, 404)
+        # Foreign session must remain un-shared
+        foreign_session.refresh_from_db()
+        assert foreign_session.share_token is None
+        assert foreign_session.is_shared is False
+
+
+@pytest.mark.django_db
+class TestChatSessionPublicFetch:
+    """PROJ-20 Phase 1.3: GET /api/chat/sessions/shared/<token>/
+
+    Public, no auth. 404 if token unknown OR is_shared=False.
+    """
+
+    def test_public_fetch_with_valid_token_returns_200(
+        self, api_client, workspace, session,
+    ):
+        # Set up a shared session with a couple of messages
+        ChatMessage.objects.create(
+            session=session, role='user', content='Hello?',
+        )
+        ChatMessage.objects.create(
+            session=session, role='assistant', content='Hi there!',
+            sources=[{'title': 'S', 'url': 'https://x.test', 'snippet': 'snip'}],
+        )
+        # Generate share-link via the share endpoint to mirror real flow
+        share_resp = api_client.post(
+            f'/api/chat/sessions/{session.id}/share/',
+            **_headers(workspace),
+        )
+        token = share_resp.data['share_token']
+
+        # Public fetch — use a brand-new unauthenticated client
+        public_client = APIClient()
+        resp = public_client.get(f'/api/chat/sessions/shared/{token}/')
+        assert resp.status_code == 200
+        # Payload shape
+        assert resp.data['id'] == str(session.id)
+        assert resp.data['title'] == 'Test Session'
+        assert 'messages' in resp.data
+        assert isinstance(resp.data['messages'], list)
+        assert len(resp.data['messages']) == 2
+        # Messages chronological — user first, assistant second
+        assert resp.data['messages'][0]['role'] == 'user'
+        assert resp.data['messages'][1]['role'] == 'assistant'
+        # Sources surfaced on the assistant message
+        assert resp.data['messages'][1]['sources'][0]['url'] == 'https://x.test'
+        # Internal/operator fields must NOT be in the public payload
+        assert 'created_by' not in resp.data
+        assert 'workspace' not in resp.data
+        assert 'share_token' not in resp.data
+        assert 'is_shared' not in resp.data
+
+    def test_public_fetch_no_auth_required(
+        self, api_client, workspace, session,
+    ):
+        """Endpoint must respond 200 to a fully-anonymous client."""
+        share_resp = api_client.post(
+            f'/api/chat/sessions/{session.id}/share/',
+            **_headers(workspace),
+        )
+        token = share_resp.data['share_token']
+
+        anon = APIClient()  # no force_authenticate, no cookies, no headers
+        resp = anon.get(f'/api/chat/sessions/shared/{token}/')
+        assert resp.status_code == 200
+
+    def test_public_fetch_with_unknown_token_returns_404(self):
+        anon = APIClient()
+        resp = anon.get('/api/chat/sessions/shared/this-token-does-not-exist-xyz/')
+        assert resp.status_code == 404
+
+    def test_public_fetch_with_is_shared_false_returns_404(
+        self, api_client, workspace, session,
+    ):
+        """Token exists in DB but is_shared was flipped off → 404 (revoked)."""
+        share_resp = api_client.post(
+            f'/api/chat/sessions/{session.id}/share/',
+            **_headers(workspace),
+        )
+        token = share_resp.data['share_token']
+        # Revoke
+        session.refresh_from_db()
+        session.is_shared = False
+        session.save(update_fields=['is_shared', 'updated_at'])
+
+        anon = APIClient()
+        resp = anon.get(f'/api/chat/sessions/shared/{token}/')
+        assert resp.status_code == 404

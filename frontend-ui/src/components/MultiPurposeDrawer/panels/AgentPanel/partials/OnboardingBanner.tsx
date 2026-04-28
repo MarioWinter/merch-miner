@@ -1,5 +1,5 @@
 import { Alert, AlertTitle, Button, Stack } from '@mui/material';
-import SmartToyIcon from '@mui/icons-material/SmartToy';
+import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
 import { useTranslation } from 'react-i18next';
 
 const ONBOARDING_KEY = 'mm-agent-onboarding-dismissed';
@@ -23,7 +23,7 @@ const OnboardingBanner = ({ onSetup, onDismiss }: OnboardingBannerProps) => {
   return (
     <Alert
       severity="info"
-      icon={<SmartToyIcon />}
+      icon={<SmartToyOutlinedIcon />}
       onClose={handleDismiss}
       sx={{ mx: 2, mt: 2, borderRadius: 2 }}
     >

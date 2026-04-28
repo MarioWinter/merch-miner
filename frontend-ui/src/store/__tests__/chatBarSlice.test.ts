@@ -9,9 +9,8 @@ import chatBarReducer, {
   setDrawerWidth,
   setActiveSession,
   setActiveAgentSessionId,
-  setNicheContext,
+  setInputChip,
   setSearching,
-  setSearchMode,
   setSearchSources,
   setSelectedModel,
   setModeOverride,
@@ -40,18 +39,26 @@ describe('chatBarSlice', () => {
     expect(s.activePanel).toBe('chat');
     expect(s.activeSessionId).toBeNull();
     expect(s.activeAgentSessionId).toBeNull();
-    expect(s.nicheContext).toBeNull();
+    expect(s.inputChip).toBeNull();
     expect(s.searching).toBe(false);
-    expect(s.searchMode).toBe('balanced');
     expect(s.searchSources).toEqual(['web']);
     expect(s.selectedModel).toBe('gpt-4.1-mini');
-    expect(s.modeOverride).toBe('auto');
+    // PROJ-20 refactor: ModeOverride is now binary 'chat' | 'agent'; default is 'chat'.
+    expect(s.modeOverride).toBe('chat');
     expect(s.streamingAssistantMessage).toEqual({
       id: null,
       content: '',
       sources: [],
       isStreaming: false,
     });
+  });
+
+  // PROJ-20 Phase 2: searchMode + setSearchMode were removed; routing is now
+  // governed exclusively by `modeOverride` (chat / agent — binary surface).
+  it('does not expose a `searchMode` field on initial state', () => {
+    const store = createStore();
+    const s = getChatBar(store);
+    expect(s).not.toHaveProperty('searchMode');
   });
 
   describe('bar/drawer toggles', () => {
@@ -88,8 +95,8 @@ describe('chatBarSlice', () => {
 
     it('setActivePanel switches the active panel', () => {
       const store = createStore();
-      store.dispatch(setActivePanel('history'));
-      expect(getChatBar(store).activePanel).toBe('history');
+      store.dispatch(setActivePanel('niche'));
+      expect(getChatBar(store).activePanel).toBe('niche');
     });
 
     it('setDrawerWidth snaps to allowed values', () => {
@@ -116,20 +123,22 @@ describe('chatBarSlice', () => {
       expect(getChatBar(store).activeAgentSessionId).toBe('agent-1');
     });
 
-    it('setNicheContext stores id and name', () => {
+    it('setInputChip stores niche_id and niche_name', () => {
       const store = createStore();
-      store.dispatch(setNicheContext({ id: 'n1', name: 'Camping Dad' }));
-      expect(getChatBar(store).nicheContext).toEqual({
-        id: 'n1',
-        name: 'Camping Dad',
+      store.dispatch(
+        setInputChip({ niche_id: 'n1', niche_name: 'Camping Dad' }),
+      );
+      expect(getChatBar(store).inputChip).toEqual({
+        niche_id: 'n1',
+        niche_name: 'Camping Dad',
       });
     });
 
-    it('setNicheContext(null) clears the context', () => {
+    it('setInputChip(null) clears the chip', () => {
       const store = createStore();
-      store.dispatch(setNicheContext({ id: 'n1', name: 'X' }));
-      store.dispatch(setNicheContext(null));
-      expect(getChatBar(store).nicheContext).toBeNull();
+      store.dispatch(setInputChip({ niche_id: 'n1', niche_name: 'X' }));
+      store.dispatch(setInputChip(null));
+      expect(getChatBar(store).inputChip).toBeNull();
     });
   });
 
@@ -138,12 +147,6 @@ describe('chatBarSlice', () => {
       const store = createStore();
       store.dispatch(setSearching(true));
       expect(getChatBar(store).searching).toBe(true);
-    });
-
-    it('setSearchMode updates mode', () => {
-      const store = createStore();
-      store.dispatch(setSearchMode('quality'));
-      expect(getChatBar(store).searchMode).toBe('quality');
     });
 
     it('setSearchSources replaces sources array', () => {
@@ -158,14 +161,13 @@ describe('chatBarSlice', () => {
       expect(getChatBar(store).selectedModel).toBe('claude-opus-4');
     });
 
-    it('setModeOverride switches between auto/web_search/agent', () => {
+    it('setModeOverride switches between chat/agent', () => {
+      // PROJ-20 refactor: ModeOverride is now binary 'chat' | 'agent'.
       const store = createStore();
       store.dispatch(setModeOverride('agent'));
       expect(getChatBar(store).modeOverride).toBe('agent');
-      store.dispatch(setModeOverride('web_search'));
-      expect(getChatBar(store).modeOverride).toBe('web_search');
-      store.dispatch(setModeOverride('auto'));
-      expect(getChatBar(store).modeOverride).toBe('auto');
+      store.dispatch(setModeOverride('chat'));
+      expect(getChatBar(store).modeOverride).toBe('chat');
     });
   });
 

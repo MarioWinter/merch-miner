@@ -2,8 +2,16 @@
 
 export type SearchMode = 'speed' | 'balanced' | 'quality';
 export type SearchSource = 'web' | 'academic' | 'discussions';
-/** PROJ-17 AC-41: forces routing decision. `auto` → LLM classifier; others bypass classifier. */
-export type ModeOverride = 'auto' | 'web_search' | 'agent';
+/**
+ * PROJ-20 refactor (2026-04-28): user-driven simplification — Mode is now a
+ * binary surface (`chat` ↔ `agent`) bidirectionally bound to the drawer Tabs.
+ * The legacy `'auto'` LLM-classifier routing is gone from the frontend; the
+ * backend SSE endpoint still accepts the old enum (`web_search` / `agent`),
+ * so the wire mapping happens at submit time:
+ *   - `'chat'`  → backend `'web_search'`
+ *   - `'agent'` → backend `'agent'`
+ */
+export type ModeOverride = 'chat' | 'agent';
 export type MessageRole = 'user' | 'assistant' | 'system';
 export type MessageType =
   | 'search_query'
@@ -180,4 +188,35 @@ export interface SSEDoneEvent {
 
 export interface SSEErrorEvent {
   error: string;
+}
+
+// PROJ-20 Phase 1.3 / Phase 2: share-link + public-fetch payloads
+
+/** Response from POST /api/chat/sessions/{id}/share/ — returns the (idempotent) share token + absolute URL. */
+export interface CreateShareLinkResponse {
+  id: string;
+  is_shared: boolean;
+  share_token: string;
+  public_url: string;
+}
+
+/** Read-only message shape returned by GET /api/chat/sessions/shared/{token}/ (PublicChatMessageSerializer). */
+export interface PublicChatMessage {
+  id: string;
+  role: MessageRole;
+  content: string;
+  message_type: MessageType;
+  sources: SourceItem[];
+  model_used: string;
+  created_at: string;
+}
+
+/** Read-only session payload returned by GET /api/chat/sessions/shared/{token}/ (PublicChatSessionSerializer). */
+export interface PublicChatSession {
+  id: string;
+  title: string;
+  niche_context_name: string | null;
+  messages: PublicChatMessage[];
+  created_at: string;
+  updated_at: string;
 }

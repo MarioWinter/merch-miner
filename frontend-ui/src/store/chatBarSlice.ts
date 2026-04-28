@@ -2,14 +2,18 @@ import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type {
   DrawerPanel,
   ModeOverride,
-  SearchMode,
   SearchSource,
   SourceItem,
 } from '../types/search';
 
-interface NicheContext {
-  id: string;
-  name: string;
+/**
+ * PROJ-20 AC-12/AC-45: niche-context chip rendered atomically inside the
+ * ChatInputBar textarea. Replaces legacy `nicheContext` with the same shape
+ * (`niche_id` / `niche_name`) — chip is the single source of truth on send.
+ */
+export interface InputChip {
+  niche_id: string;
+  niche_name: string;
 }
 
 /** Drawer width steps (px) — single-column / split-view / NotebookLM full command center */
@@ -43,21 +47,26 @@ interface ChatBarState {
   activeSessionId: string | null;
   /** Active agent session id (set when WorkflowCard "Open Command Center" link clicked → AgentPanel scrolls to it) */
   activeAgentSessionId: string | null;
-  /** Niche context for the current chat */
-  nicheContext: NicheContext | null;
+  /**
+   * PROJ-20 AC-12/AC-45: niche-context chip — drives `niche_id` on send.
+   * Renamed from legacy `nicheContext` (same shape `{niche_id, niche_name}`).
+   */
+  inputChip: InputChip | null;
   /** PROJ-17 AC-35: id of the niche shown in the Niche panel (null = create mode). */
   activeNicheId: string | null;
   /** PROJ-17 AC-35: niche panel mode — 'create' shows form, 'edit' loads pipeline. */
   nicheMode: NicheMode;
   /** Whether a search is currently in progress */
   searching: boolean;
-  /** Current search mode */
-  searchMode: SearchMode;
   /** Current search sources */
   searchSources: SearchSource[];
   /** Selected LLM model */
   selectedModel: string;
-  /** PROJ-17 AC-41: routing override (auto = LLM classifier, web_search = force Vane, agent = force PROJ-18) */
+  /**
+   * PROJ-20 refactor (2026-04-28): binary Chat/Agent surface — bidirectionally
+   * bound to `activePanel` ('chat'/'agent' tabs). Replaces the legacy auto/
+   * web_search/agent triad. 'niche' tab is independent (does not touch mode).
+   */
   modeOverride: ModeOverride;
   /** PROJ-17 Phase 4 Step 6: live SSE streaming bubble state */
   streamingAssistantMessage: StreamingAssistantMessage;
@@ -77,14 +86,13 @@ const initialState: ChatBarState = {
   activePanel: 'chat',
   activeSessionId: null,
   activeAgentSessionId: null,
-  nicheContext: null,
+  inputChip: null,
   activeNicheId: null,
   nicheMode: 'edit',
   searching: false,
-  searchMode: 'balanced',
   searchSources: ['web'],
   selectedModel: 'gpt-4.1-mini',
-  modeOverride: 'auto',
+  modeOverride: 'chat',
   streamingAssistantMessage: INITIAL_STREAM,
 };
 
@@ -102,6 +110,10 @@ const chatBarSlice = createSlice({
       state.drawerOpen = true;
       if (action.payload) {
         state.activePanel = action.payload;
+        // PROJ-20 refactor (2026-04-28): tab → mode bidirectional sync.
+        if (action.payload === 'chat') state.modeOverride = 'chat';
+        else if (action.payload === 'agent') state.modeOverride = 'agent';
+        // 'niche' tab is independent — leave modeOverride untouched.
       }
     },
     closeDrawer(state) {
@@ -109,6 +121,10 @@ const chatBarSlice = createSlice({
     },
     setActivePanel(state, action: PayloadAction<DrawerPanel>) {
       state.activePanel = action.payload;
+      // PROJ-20 refactor (2026-04-28): tab → mode bidirectional sync.
+      if (action.payload === 'chat') state.modeOverride = 'chat';
+      else if (action.payload === 'agent') state.modeOverride = 'agent';
+      // 'niche' leaves modeOverride untouched.
     },
     setDrawerWidth(state, action: PayloadAction<DrawerWidth>) {
       state.drawerWidth = action.payload;
@@ -119,8 +135,11 @@ const chatBarSlice = createSlice({
     setActiveAgentSessionId(state, action: PayloadAction<string | null>) {
       state.activeAgentSessionId = action.payload;
     },
-    setNicheContext(state, action: PayloadAction<NicheContext | null>) {
-      state.nicheContext = action.payload;
+    /**
+     * PROJ-20 AC-12/AC-45: set the atomic niche-chip. `null` clears the chip.
+     */
+    setInputChip(state, action: PayloadAction<InputChip | null>) {
+      state.inputChip = action.payload;
     },
     setActiveNicheId(state, action: PayloadAction<string | null>) {
       state.activeNicheId = action.payload;
@@ -150,9 +169,6 @@ const chatBarSlice = createSlice({
     setSearching(state, action: PayloadAction<boolean>) {
       state.searching = action.payload;
     },
-    setSearchMode(state, action: PayloadAction<SearchMode>) {
-      state.searchMode = action.payload;
-    },
     setSearchSources(state, action: PayloadAction<SearchSource[]>) {
       state.searchSources = action.payload;
     },
@@ -161,6 +177,13 @@ const chatBarSlice = createSlice({
     },
     setModeOverride(state, action: PayloadAction<ModeOverride>) {
       state.modeOverride = action.payload;
+      // PROJ-20 refactor (2026-04-28): mode → tab bidirectional sync. Only
+      // sync when we're already on a chat/agent tab — leaving 'niche' alone
+      // means selecting a mode while editing a niche won't yank the user
+      // away from the niche surface.
+      if (state.activePanel === 'chat' || state.activePanel === 'agent') {
+        state.activePanel = action.payload;
+      }
     },
     // --- PROJ-17 Phase 4 Step 6: SSE streaming reducers ---
     setStreamingAssistantMessage(
@@ -210,13 +233,12 @@ export const {
   setDrawerWidth,
   setActiveSession,
   setActiveAgentSessionId,
-  setNicheContext,
+  setInputChip,
   setActiveNicheId,
   setNicheMode,
   openNicheCreate,
   openNicheEdit,
   setSearching,
-  setSearchMode,
   setSearchSources,
   setSelectedModel,
   setModeOverride,

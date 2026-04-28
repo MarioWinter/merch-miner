@@ -131,6 +131,54 @@ class ChatSessionDetailSerializer(serializers.ModelSerializer):
         return None
 
 
+class PublicChatMessageSerializer(serializers.ModelSerializer):
+    """Read-only message serializer for public-shared sessions.
+
+    Excludes any internal/operator fields. Only renders what a public viewer
+    needs to read the conversation: role, content, message_type, sources,
+    model_used, created_at.
+    """
+
+    class Meta:
+        model = ChatMessage
+        fields = [
+            'id', 'role', 'content', 'message_type', 'sources',
+            'model_used', 'created_at',
+        ]
+        read_only_fields = fields
+
+
+class PublicChatSessionSerializer(serializers.ModelSerializer):
+    """Read-only public serializer for shared chat sessions.
+
+    PROJ-20 Phase 1.3: returned by `GET /api/chat/sessions/shared/<token>/`.
+    Excludes `created_by`, `workspace`, `share_token`, `niche_context_id`, and
+    any other internal/operator fields. The public viewer only needs the title,
+    timestamps, and the ordered list of messages with their sources.
+    """
+
+    messages = serializers.SerializerMethodField()
+    niche_context_name = serializers.SerializerMethodField()
+
+    class Meta:
+        model = ChatSession
+        fields = [
+            'id', 'title', 'niche_context_name',
+            'messages', 'created_at', 'updated_at',
+        ]
+        read_only_fields = fields
+
+    def get_messages(self, obj):
+        # Public viewers see ALL messages in chronological order (oldest first).
+        qs = obj.messages.order_by('created_at')
+        return PublicChatMessageSerializer(qs, many=True).data
+
+    def get_niche_context_name(self, obj):
+        if obj.niche_context:
+            return obj.niche_context.name
+        return None
+
+
 class ChatSessionCreateSerializer(serializers.Serializer):
     """Input serializer for creating a chat session."""
     title = serializers.CharField(max_length=200, required=False, default='')

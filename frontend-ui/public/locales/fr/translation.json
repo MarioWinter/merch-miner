@@ -2446,7 +2446,83 @@
       "reveal": "Afficher la barre de chat",
       "expand": "Ouvrir la recherche",
       "collapse": "Réduire",
-      "openChat": "Ouvrir le panneau de chat"
+      "openChat": "Ouvrir le panneau de chat",
+      "helper": "@ niches · / commandes · Shift+Enter nouvelle ligne",
+      "mode": "Mode",
+      "modeAuto": "Auto",
+      "sources": "Sources",
+      "model": "Modèle",
+      "attachComingSoon": "Disponible en Phase 7",
+      "removeChip": "Supprimer le contexte de niche",
+      "contextUpdated": "Contexte : {{name}}",
+      "contextDeleted": "La niche \"{{name}}\" a été supprimée — contexte effacé",
+      "mentionPicker": {
+        "ariaLabel": "Sélecteur de mentions de niche",
+        "loading": "Chargement…",
+        "empty": "Aucun résultat pour \"{{query}}\"",
+        "noNiches": "Aucune niche pour le moment",
+        "createNiche": "+ Nouvelle niche",
+        "createNicheStubMsg": "La fenêtre de création de niche s'ouvrira ici dans une phase ultérieure"
+      },
+      "modePopover": {
+        "ariaLabel": "Surcharge de mode",
+        "vaneOffline": "Recherche Web et Agent indisponibles — Vane hors ligne",
+        "auto": {
+          "description": "Choisit automatiquement le meilleur mode par question"
+        },
+        "webSearch": {
+          "description": "Rechercher sur le web avec sources citées"
+        },
+        "agent": {
+          "description": "Workflow d'agent multi-étapes"
+        }
+      },
+      "sourcesPopover": {
+        "ariaLabel": "Sources de recherche",
+        "atLeastOne": "Au moins une source doit rester active"
+      },
+      "modelPopover": {
+        "ariaLabel": "Sélecteur de modèle",
+        "searchPlaceholder": "Rechercher des modèles…",
+        "providerOpenrouter": "OpenRouter",
+        "noResults": "Aucun modèle ne correspond à \"{{query}}\""
+      }
+    },
+    "commands": {
+      "ariaLabel": "Palette de commandes",
+      "empty": "Aucune commande correspondante",
+      "auto": {
+        "description": "Passer en routage Auto",
+        "snackbar": "Mode : Auto"
+      },
+      "web": {
+        "description": "Passer en mode Recherche web",
+        "snackbar": "Mode : Recherche web"
+      },
+      "agent": {
+        "description": "Passer en mode Agent",
+        "snackbar": "Mode : Agent"
+      },
+      "niche": {
+        "description": "Ouvrir le sélecteur de mentions de niche",
+        "snackbar": "Ouvrir le sélecteur @"
+      },
+      "clearContext": {
+        "description": "Supprimer la puce de niche active",
+        "snackbar": "Contexte effacé"
+      },
+      "model": {
+        "description": "Ouvrir le sélecteur de modèle",
+        "snackbar": "Sélecteur de modèle — phase suivante"
+      },
+      "help": {
+        "description": "Afficher la liste des commandes",
+        "snackbar": "Aide",
+        "title": "Commandes",
+        "commandHeader": "Commande",
+        "descriptionHeader": "Description",
+        "exampleHeader": "Exemple"
+      }
     },
     "drawer": {
       "segments": "Panneaux",
@@ -2459,10 +2535,6 @@
     },
     "chat": {
       "model": "Modele",
-      "mode": "Mode",
-      "modeSpeed": "Rapide",
-      "modeBalanced": "Equilibre",
-      "modeQuality": "Qualite",
       "sources": "Sources",
       "source_web": "Web",
       "source_academic": "Academique",
@@ -2482,6 +2554,15 @@
       "sources": "Sources",
       "noSources": "Aucune source trouvee.",
       "deepCrawl": "Deep Crawl"
+    },
+    "citation": {
+      "openSource": "Ouvrir la source {{n}}",
+      "unknownDomain": "Source"
+    },
+    "codeBlock": {
+      "copy": "Copier le code",
+      "copied": "Copie",
+      "plain": "texte"
     },
     "crawl": {
       "pending": "En attente",
@@ -2568,7 +2649,8 @@
     "stream": {
       "streaming": "Réponse en streaming...",
       "error": "Échec du streaming. Veuillez réessayer.",
-      "connectionLost": "Connexion perdue. Veuillez réessayer."
+      "connectionLost": "Connexion perdue. Veuillez réessayer.",
+      "timeout": "Recherche expirée. Veuillez réessayer."
     }
   },
   "agent": {

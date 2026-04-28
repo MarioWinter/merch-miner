@@ -26,6 +26,14 @@ class ChatSession(models.Model):
         help_text='Auto-generated from first query if not set.',
     )
     is_shared = models.BooleanField(default=False, db_index=True)
+    share_token = models.CharField(
+        max_length=64,
+        unique=True,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='Random token used to access the shared chat via public URL.',
+    )
     niche_context = models.ForeignKey(
         'niche_app.Niche',
         on_delete=models.SET_NULL,

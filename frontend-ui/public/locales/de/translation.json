@@ -1771,7 +1771,75 @@
       "reveal": "Chatleiste anzeigen",
       "expand": "Suche offnen",
       "collapse": "Einklappen",
-      "openChat": "Chat-Panel offnen"
+      "openChat": "Chat-Panel offnen",
+      "helper": "@ Nischen · / Befehle · Shift+Enter neue Zeile",
+      "mode": "Modus",
+      "sources": "Quellen",
+      "model": "Modell",
+      "attachComingSoon": "Kommt in Phase 7",
+      "removeChip": "Nischenkontext entfernen",
+      "contextUpdated": "Kontext: {{name}}",
+      "contextDeleted": "Nische \"{{name}}\" wurde gelöscht — Kontext entfernt",
+      "mentionPicker": {
+        "ariaLabel": "Nischen-Erwähnungsauswahl",
+        "loading": "Lädt…",
+        "empty": "Keine Treffer für \"{{query}}\"",
+        "noNiches": "Keine Nischen vorhanden",
+        "createNiche": "+ Neue Nische erstellen",
+        "createNicheStubMsg": "Niche-Create-Modal wird in einer späteren Phase hier geöffnet"
+      },
+      "modePopover": {
+        "ariaLabel": "Modus-Override",
+        "vaneOffline": "Chat nicht verfügbar — Vane offline",
+        "chat": {
+          "description": "Direkter KI-Chat mit Web-Suchergebnissen"
+        },
+        "agent": {
+          "description": "Mehrstufige Recherche mit Workflows"
+        }
+      },
+      "sourcesPopover": {
+        "ariaLabel": "Suchquellen",
+        "atLeastOne": "Mindestens eine Quelle muss aktiv bleiben"
+      },
+      "modelPopover": {
+        "ariaLabel": "Modell-Picker",
+        "searchPlaceholder": "Modelle suchen…",
+        "providerOpenrouter": "OpenRouter",
+        "noResults": "Keine Modelle passen zu \"{{query}}\""
+      }
+    },
+    "commands": {
+      "ariaLabel": "Slash-Command-Palette",
+      "empty": "Keine passenden Befehle",
+      "chat": {
+        "description": "Chat-Modus aktivieren",
+        "snackbar": "Modus: Chat"
+      },
+      "agent": {
+        "description": "Agent-Modus aktivieren",
+        "snackbar": "Modus: Agent"
+      },
+      "niche": {
+        "description": "Nischen-Erwähnungs-Picker öffnen",
+        "snackbar": "@-Picker öffnen"
+      },
+      "clearContext": {
+        "description": "Aktiven Nischen-Chip entfernen",
+        "snackbar": "Kontext entfernt"
+      },
+      "model": {
+        "description": "Modell-Picker öffnen",
+        "snackbar": "Modell-Picker — kommt in der nächsten Phase"
+      },
+      "help": {
+        "description": "Liste aller Befehle anzeigen",
+        "snackbar": "Hilfe",
+        "title": "Befehle",
+        "commandHeader": "Befehl",
+        "descriptionHeader": "Beschreibung",
+        "exampleHeader": "Beispiel"
+      }
     },
     "drawer": {
       "segments": "Drawer-Bereiche",
@@ -1784,10 +1852,6 @@
     },
     "chat": {
       "model": "Modell",
-      "mode": "Modus",
-      "modeSpeed": "Schnell",
-      "modeBalanced": "Ausgewogen",
-      "modeQuality": "Qualitat",
       "sources": "Quellen",
       "source_web": "Web",
       "source_academic": "Akademisch",
@@ -1807,6 +1871,15 @@
       "sources": "Quellen",
       "noSources": "Keine Quellen fur diese Anfrage gefunden.",
       "deepCrawl": "Deep Crawl"
+    },
+    "citation": {
+      "openSource": "Quelle {{n}} öffnen",
+      "unknownDomain": "Quelle"
+    },
+    "codeBlock": {
+      "copy": "Code kopieren",
+      "copied": "Kopiert",
+      "plain": "text"
     },
     "crawl": {
       "pending": "Wartend",
@@ -1868,10 +1941,9 @@
     },
     "mode": {
       "label": "Modus",
-      "auto": "Auto",
-      "webSearch": "Web-Suche",
+      "chat": "Chat",
       "agent": "Agent",
-      "tooltip": "Auto entscheidet je nach Nachricht zwischen Web-Suche und Agent."
+      "tooltip": "Chat ist direkte Vane-Websuche; Agent führt einen mehrstufigen Workflow aus."
     },
     "workflow": {
       "openCommandCenter": "Command Center öffnen",
@@ -1893,7 +1965,8 @@
     "stream": {
       "streaming": "Antwort wird gestreamt...",
       "error": "Streaming fehlgeschlagen. Bitte erneut versuchen.",
-      "connectionLost": "Verbindung verloren. Bitte erneut versuchen."
+      "connectionLost": "Verbindung verloren. Bitte erneut versuchen.",
+      "timeout": "Suche hat zu lange gedauert. Bitte erneut versuchen."
     }
   },
   "agent": {
