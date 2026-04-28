@@ -169,16 +169,49 @@ class PublicChatMessageSerializer(serializers.ModelSerializer):
 
     Excludes any internal/operator fields. Only renders what a public viewer
     needs to read the conversation: role, content, message_type, sources,
-    model_used, created_at.
+    model_used, attachments, created_at.
+
+    BUG-3 fix (2026-04-28): include image attachments so the public viewer
+    can render the same conversation the owner sees. Attachment file URLs
+    are static-file paths under MEDIA_URL and are accessible without auth —
+    the share-token itself gates the conversation, so anyone with the link
+    is intended to see the full thread (text + sources + images).
     """
+
+    attachments = serializers.SerializerMethodField()
 
     class Meta:
         model = ChatMessage
         fields = [
             'id', 'role', 'content', 'message_type', 'sources',
-            'model_used', 'created_at',
+            'model_used', 'attachments', 'created_at',
         ]
         read_only_fields = fields
+
+    def get_attachments(self, obj):
+        try:
+            attachments = list(obj.attachments.all())
+        except (AttributeError, Exception):  # noqa: BLE001
+            return []
+        out = []
+        for a in attachments:
+            try:
+                url = a.file.url if a.file and not a.purged_at else None
+            except (ValueError, AttributeError):
+                url = None
+            out.append({
+                'id': str(a.id),
+                'filename': a.original_filename,
+                'mime_type': a.mime_type,
+                'size': a.size_bytes,
+                'thumbnail_url': url,
+                'attachment_type': a.attachment_type,
+                'purged_at': (
+                    a.purged_at.isoformat() if a.purged_at else None
+                ),
+                'created_at': a.created_at.isoformat(),
+            })
+        return out
 
 
 class PublicChatSessionSerializer(serializers.ModelSerializer):

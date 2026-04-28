@@ -217,6 +217,8 @@ export interface PublicChatMessage {
   message_type: MessageType;
   sources: SourceItem[];
   model_used: string;
+  /** PROJ-20 BUG-3 fix — image attachments included in public viewer. */
+  attachments?: ChatAttachment[];
   created_at: string;
 }
 

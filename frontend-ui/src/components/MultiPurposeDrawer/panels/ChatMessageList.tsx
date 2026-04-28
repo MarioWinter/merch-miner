@@ -151,8 +151,14 @@ const ChatMessageList = ({
   sessionId, onRegenerate, onSaveAnswer,
 }: ChatMessageListProps) => {
   const { t } = useTranslation();
-  const scrollRef = useRef<HTMLDivElement>(null);
+  // BUG-2 fix (2026-04-28): a useRef + useEffect pair was prone to HMR
+  // staleness — when ChatMessageList re-mounted via Vite HMR, the previous
+  // effect's cleanup sometimes ran AFTER the new effect attached its
+  // listener, leaving the live ScrollContainer without a working handler.
+  // Use a callback-ref instead: attach/detach the listener inline with the
+  // node lifecycle so HMR fast-refresh can never desync the two.
   const bottomRef = useRef<HTMLDivElement>(null);
+  const scrollElRef = useRef<HTMLDivElement | null>(null);
 
   // AC-39/40: auto-scroll engaged by default, disengages on user scroll-up
   const [autoScroll, setAutoScroll] = useState(true);
@@ -164,26 +170,26 @@ const ChatMessageList = ({
   const showStreamingBubble =
     streamingMessage.isStreaming && streamingMessage.content !== '';
 
-  const isAtBottom = useCallback(() => {
-    const el = scrollRef.current;
-    if (!el) return true;
-    const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-    return distance <= AUTO_SCROLL_THRESHOLD;
-  }, []);
-
-  // Track user scroll → toggle autoScroll based on bottom-proximity. We only
-  // flip state when the value would actually change, otherwise streaming
-  // chunks would loop the bottom-tracking effect at chunk-rate (50+/sec).
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const handler = () => {
-      const atBottom = isAtBottom();
-      setAutoScroll((prev) => (prev === atBottom ? prev : atBottom));
+  const setScrollRef = useCallback((node: HTMLDivElement | null) => {
+    // Detach from previous element (HMR may keep an old node alive briefly).
+    const prev = scrollElRef.current;
+    if (prev && (prev as unknown as { __mmHandler?: EventListener }).__mmHandler) {
+      const h = (prev as unknown as { __mmHandler?: EventListener }).__mmHandler;
+      if (h) prev.removeEventListener('scroll', h);
+      delete (prev as unknown as { __mmHandler?: EventListener }).__mmHandler;
+    }
+    scrollElRef.current = node;
+    if (!node) return;
+    const handler: EventListener = () => {
+      const el = scrollElRef.current;
+      if (!el) return;
+      const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
+      const atBottom = distance <= AUTO_SCROLL_THRESHOLD;
+      setAutoScroll((curr) => (curr === atBottom ? curr : atBottom));
     };
-    el.addEventListener('scroll', handler, { passive: true });
-    return () => el.removeEventListener('scroll', handler);
-  }, [isAtBottom]);
+    (node as unknown as { __mmHandler?: EventListener }).__mmHandler = handler;
+    node.addEventListener('scroll', handler, { passive: true });
+  }, []);
 
   // Scroll to bottom on new messages or streaming chunk — only if autoScroll
   // engaged. Use 'auto' (instant) to avoid kicking off smooth-scroll
@@ -204,7 +210,7 @@ const ChatMessageList = ({
   if (isLoading && messages.length === 0) {
     return (
       <Wrapper>
-        <ScrollContainer ref={scrollRef}>
+        <ScrollContainer ref={setScrollRef}>
           {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton
               key={i}
@@ -240,7 +246,7 @@ const ChatMessageList = ({
 
   return (
     <Wrapper data-auto-scroll={autoScroll ? 'true' : 'false'}>
-      <ScrollContainer ref={scrollRef}>
+      <ScrollContainer ref={setScrollRef}>
         {hasMore && (
           <Button
             size="small"
@@ -373,7 +379,7 @@ const ChatMessageList = ({
       {/* AC-50–53: floating toolbar on text selection inside assistant bubbles + source snippets */}
       {(onSaveSelectionAsKeywords || onSaveSelectionAsNotes) && (
         <SaveSnippetToolbar
-          containerRef={scrollRef}
+          containerRef={scrollElRef}
           onSaveKeywords={(text, sourceUrl) =>
             onSaveSelectionAsKeywords?.(text, sourceUrl)
           }

@@ -16,6 +16,7 @@ import LanguageIcon from '@mui/icons-material/Language';
 import { Link } from '@mui/material';
 import { useGetPublicSessionQuery } from '@/store/searchSlice';
 import MarkdownAnswer from '@/components/MultiPurposeDrawer/panels/partials/MarkdownAnswer';
+import UserAttachments from '@/components/MultiPurposeDrawer/panels/partials/UserAttachments';
 import type { SourceItem } from '@/types/search';
 
 /**
@@ -234,7 +235,10 @@ const SharedChatView = () => {
             {data.messages.map((msg) => {
               if (msg.role === 'user') {
                 return (
-                  <Stack key={msg.id} direction="row" justifyContent="flex-end">
+                  <Stack key={msg.id} alignItems="flex-end" gap={0.5}>
+                    {msg.attachments && msg.attachments.length > 0 && (
+                      <UserAttachments attachments={msg.attachments} />
+                    )}
                     <UserBubble>{msg.content}</UserBubble>
                   </Stack>
                 );

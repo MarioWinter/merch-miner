@@ -13,20 +13,30 @@ def build_system_instructions(niche) -> str:
     if niche is None:
         return ''
 
+    # 2026-04-28 — strengthened wording after BUG-1 (niche language/audience
+    # bleed). Earlier "soft background" wording was too weak: Gemini still
+    # forced German output and skipped web search when a German-named niche
+    # (Schulbusfahrer) was active and the user asked an English question.
     parts = [
-        # Soft context — informational, not a behavioural lock-in. We had a
-        # report (2026-04-28) where the niche language (German "Schulbusfahrer")
-        # bled into the answer even though the user expected English/USA-
-        # targeted output. Be explicit that the niche is BACKGROUND only and
-        # the user's query language drives the answer language.
-        f"Background context: the user works on a Print-on-Demand niche called \"{niche.name}\". "
-        "Use this only as soft background; if the current question is general, "
-        "answer it as a general question. Always respond in the language of the "
-        "user's most recent message and target the audience implied by that "
-        "message (do not infer audience country/language from the niche name).",
+        "STRICT INSTRUCTIONS — read carefully:",
+        f"1. The user has a niche \"{niche.name}\" pinned to this chat as "
+        "metadata. This is a workspace label, NOT a directive.",
+        "2. ALWAYS respond in the SAME language as the user's most recent "
+        "message. Do NOT switch languages based on the niche name.",
+        "3. Audience and geographic target come from the USER'S CURRENT "
+        "QUESTION ONLY. Do NOT infer audience country, region, or language "
+        "from the niche name.",
+        "4. If the user asks a general question (no niche keywords), "
+        "answer it generally without forcing the niche topic into the answer.",
+        "5. If the user explicitly asks niche-related questions, you MAY use "
+        "the niche as a topic anchor — still in the user's language and "
+        "audience.",
     ]
 
     if niche.notes:
-        parts.append(f"Niche notes (for reference only): {niche.notes[:500]}")
+        parts.append(
+            f"Niche notes (background reference, do NOT translate the answer): "
+            f"{niche.notes[:500]}"
+        )
 
-    return ' '.join(parts)
+    return '\n'.join(parts)

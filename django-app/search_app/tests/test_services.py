@@ -17,11 +17,12 @@ class TestContextBuilder:
         niche.notes = ''
         result = build_system_instructions(niche)
         assert 'Camping Dad' in result
-        # PROJ-20 follow-up 2026-04-28 — niche is now soft background only;
-        # the prompt explicitly tells the LLM not to lock in the niche
-        # language/audience.
-        assert 'Background context' in result
-        assert 'do not infer audience country/language' in result
+        # BUG-1 mitigation 2026-04-28 — strict wording prevents niche language
+        # / audience bleed. Verify the key safety clauses are present.
+        assert 'STRICT INSTRUCTIONS' in result
+        assert 'SAME language' in result
+        assert 'workspace label, NOT a directive' in result
+        assert 'Do NOT infer audience' in result
 
     def test_with_niche_notes(self):
         niche = MagicMock()
