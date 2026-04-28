@@ -271,7 +271,7 @@ const ChatPanel = () => {
   // then re-stream from the prior user prompt with the same mode/sources/model.
   // EC-7: if delete fails, do NOT start the new stream; show an error toast.
   const handleRegenerate = useCallback(
-    async (assistantMessage: ChatMessage, priorUserContent: string) => {
+    async (assistantMessage: ChatMessage, priorUserMessage: ChatMessage) => {
       if (!activeSessionId) return;
       try {
         await deleteMessage(assistantMessage.id).unwrap();
@@ -282,6 +282,12 @@ const ChatPanel = () => {
         return;
       }
       const niche_id = inputChip?.niche_id ?? null;
+      const priorUserContent = priorUserMessage.content;
+      // Carry the original user message's attachments through Regenerate so
+      // vision-mode answers don't hallucinate when the user re-runs an image
+      // query. Without this, the new SSE call drops attachment_ids and the
+      // backend falls back to text-only mode against the same prompt.
+      const attachment_ids = priorUserMessage.attachments?.map((a) => a.id) ?? [];
       if (modeOverride === 'agent') {
         try {
           await sendMessage({
@@ -302,6 +308,7 @@ const ChatPanel = () => {
           mode_override: modeOverride,
           niche_id,
           sessionIdOverride: activeSessionId,
+          attachment_ids: attachment_ids.length > 0 ? attachment_ids : undefined,
         });
       }
     },

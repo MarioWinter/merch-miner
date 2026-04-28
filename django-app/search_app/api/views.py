@@ -717,11 +717,15 @@ class ChatSessionMessageStreamView(APIView):
                 search_mode=search_mode,
                 search_sources=search_sources,
             )
-            # Link the attachments to the just-persisted user message so
-            # chat-history rendering can surface thumbnails.
+            # Link freshly-uploaded attachments to the just-persisted user
+            # message so chat-history rendering can surface thumbnails. On
+            # Regenerate the same attachment ids are re-sent — those records
+            # are already pointed at the original user message, so leave
+            # them alone to keep the prior bubble's thumbnails intact.
             for att in attachments:
-                att.message_id = user_msg.pk
-                att.save(update_fields=['message'])
+                if att.message_id is None:
+                    att.message_id = user_msg.pk
+                    att.save(update_fields=['message'])
 
             if not session.title:
                 session.title = content[:200]

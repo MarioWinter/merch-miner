@@ -1,9 +1,11 @@
 # PROJ-18: OpenClaw Agent (Multi-Agent System)
 
-**Status:** Planned
+**Status:** In Progress
 **Priority:** P0 (MVP)
 **Created:** 2026-03-24
-**Last Updated:** 2026-04-25 (Cross-references aligned with PROJ-17 Pattern B Hybrid)
+**Last Updated:** 2026-04-28 — Two updates:
+> 1. Status synced with INDEX/PRD; Tasks file brought to 100% spec parity (AC-22, AC-29, AC-43, AC-63, AC-64; EC-6, EC-7, EC-9, EC-11, EC-12, EC-14, EC-15)
+> 2. **Metis-Pattern Self-Improvement Layer** added — AC-65..80, EC-18..23, Decisions 25-32. New models: Skill, SkillVersion, WorkspaceMemory, UserProfile, AgentWorkspaceConfig. New services: skill_manager, reflection_service, user_profile_service. Inspired by [Nous Research's Hermes Agent](https://github.com/nousresearch/hermes-agent), adapted to multi-tenant Postgres.
 
 ## Overview
 
@@ -116,7 +118,23 @@ Each Sub-Agent: own System Prompt (~800 tokens) + own Tool set (4-6 tools) + own
 - [ ] AC-27: **Layer 1 — System Prompt:** stored in `AgentConfig.system_prompt` per agent type. `personality` field is injected at the top of the system prompt at runtime: "Your name is {display_name}. {personality}". Editable via Admin + Agent Settings UI. Contains workflow rules, best practices, constraints.
 - [ ] AC-28: **Layer 2 — Knowledge Docs:** `KnowledgeDoc` CRUD. User creates via Agent-Tab Knowledge UI or via chat command ("Merke dir: ..."). Agent calls `save_knowledge` tool to extract and store. All docs embedded in Vector DB (PROJ-15).
 - [ ] AC-29: **Layer 3 — Implicit Learning:** Agent queries Vector DB before decisions — searches for past approvals/rejections, similar workflow outcomes, user feedback patterns on similar niches/designs/slogans.
-- [ ] AC-30: Before each Sub-Agent executes, it loads: System Prompt (Layer 1) + top 5 relevant Knowledge Docs via Vector Search (Layer 2) + top 5 relevant past experiences via Vector Search (Layer 3).
+- [ ] AC-30: Before each Sub-Agent executes, it loads: System Prompt (Layer 1) + top 5 relevant Knowledge Docs via Vector Search (Layer 2) + top 5 relevant past experiences via Vector Search (Layer 3) + active `WorkspaceMemory` content (Layer 4, AC-66) + caller's `UserProfile` (Layer 5, AC-67) + top 3 relevant Skills (Layer 6, AC-65).
+
+### Self-Improvement Layer — Metis Pattern (Backend)
+
+> **Named after Metis, Greek goddess of practical wisdom (mêtis = applied cunning intelligence across domains). Inspired by [Nous Research's Hermes Agent](https://github.com/nousresearch/hermes-agent).** The 3-layer Knowledge System above (Prompt + Docs + Implicit Vector Search) is **library-style** — unbounded, retrieved on demand. The Metis insight: a small **char-limited working memory** that the agent must actively curate creates emergent prioritization, and **auto-generated Skills** (procedural memory) compound expertise across sessions. We adopt the pattern but adapt it to multi-tenant Postgres.
+
+- [ ] AC-65: **`Skill` model** — UUID pk, `workspace` FK (CASCADE, **workspace-scoped only — no cross-workspace sharing in MVP**), `name` (CharField 200), `description` (TextField, 1-2 sentences), `content_md` (TextField — the reusable prompt), `version` (IntegerField, default=1, bumped on each edit), `trigger_type` choices [`auto_complex_task`, `auto_error_recovery`, `user_correction`, `manual`], `applicable_agent_types` (JSONField, list of agent_type values), `success_count` + `error_count` (IntegerField, default=0 — tracked at use-time), `last_used_at` (nullable), `created_by_session` FK (AgentSession, SET_NULL), `created_by` FK (User), `created_at`, `updated_at`. Embedded in Vector DB on save (PROJ-15) for retrieval.
+- [ ] AC-66: **`WorkspaceMemory` model** — UUID pk, `workspace` OneToOne FK (one row per workspace), `content_md` TextField with `MaxLengthValidator(2200)` enforced both at form/serializer level AND in DB constraint (`max_length=2200`). `last_consolidated_at` (nullable), `last_consolidated_session` FK (AgentSession, SET_NULL). The hard 2200-char limit is **load-bearing** — it forces the consolidation service (AC-69) to delete old entries to make room for new ones, which is the mechanism that creates curated working memory rather than unbounded log.
+- [ ] AC-67: **`UserProfile` model** — UUID pk, `workspace` FK, `user` FK, `content_md` TextField with `MaxLengthValidator(1375)`, `dialect_reasoning` (TextField — the multi-pass dialectic state for next consolidation), `last_dialectic_at` (nullable), `dialect_cadence_sessions` (IntegerField, default=2, configurable 1-5 per user), `created_at`, `updated_at`. `unique_together = [('workspace', 'user')]`. Stored locally (no Honcho-SaaS dependency); algorithm follows Honcho's documented dialectic reasoning (initial assessment → self-audit for gaps → reconciliation pass for contradictions).
+- [ ] AC-68: **`services/skill_manager.py`** — CRUD operations + `find_relevant_skills(agent_type, task_description, k=3)` via Vector DB similarity search + `record_skill_outcome(skill_id, success: bool)` to update success/error counters + `patch_skill(skill_id, patch_md)` for iterative improvement (bumps version, doesn't replace).
+- [ ] AC-69: **`services/reflection_service.py`** — runs as django-rq job on `agent` queue. Triggered after each `AgentSession.status='completed'` IF the workspace has reached its `reflection_cadence_sessions` threshold (default 1 = after every session, configurable per workspace). Steps: (a) summarize session outcomes, (b) propose updates to `WorkspaceMemory.content_md` with hard char-limit enforcement (must delete or compress old entries to make room), (c) extract candidate Skills (see AC-71), (d) trigger `UserProfileService` dialectic update for the session-owner.
+- [ ] AC-70: **`services/user_profile_service.py`** — Honcho-style dialectic. After each session (or every `dialect_cadence_sessions` for the user), runs 3-pass reasoning: (1) **initial assessment** — what does this session reveal about user style/priorities? (2) **self-audit** — gaps in current `UserProfile.content_md`? (3) **reconciliation** — contradictions with prior profile? Updates `content_md` (max 1375 chars) and `dialect_reasoning` (unbounded — internal scratchpad).
+- [ ] AC-71: **Skill auto-creation rules.** A new Skill is proposed by the reflection service when ANY of: (a) session completed with **>5 tool calls** AND no errors, (b) session recovered from an error (i.e. RetryPolicy fired but final status=completed), (c) user explicitly corrected the agent (detected via approval_response with rejection + follow-up content). Created Skills are workspace-scoped, version=1, trigger_type set per rule.
+- [ ] AC-72: **Skill iterative improvement.** When a Skill is loaded into context (via `find_relevant_skills`) and the resulting session ends in error, the reflection service runs a **patch step**: prompts a Skill-Refinement sub-agent to produce a `patch_md` that fixes the failure mode. `skill_manager.patch_skill()` applies and bumps version. Old versions are kept (immutable history) via separate `SkillVersion` snapshot model.
+- [ ] AC-73: **Sub-Agent return-value filtering** (token-saving — Metis-style). When Orchestrator delegates to a Sub-Agent, only the Sub-Agent's **final result string** is appended to Orchestrator state — intermediate tool calls, reasoning steps, and partial outputs are persisted to `AgentMessage` rows (still visible in UI) but NOT loaded into Orchestrator's LLM context for the next turn. Saves ~70% of tokens on multi-step pipelines.
+- [ ] AC-74: **Context loading order extended.** Pre-task assembly (replaces AC-30 single-pass): (1) System Prompt + Personality, (2) `WorkspaceMemory.content_md` verbatim (~800 tokens), (3) `UserProfile.content_md` for the requesting user (~500 tokens), (4) Top-3 Skills via Vector similarity to current task (limit per skill: 1500 chars), (5) Top-5 Knowledge Docs via Vector Search, (6) Top-5 Implicit Learning entries. Total Layer-1+2+3 budget kept under 12k tokens to preserve room for tool calls and LLM reasoning.
+- [ ] AC-75: **Reflection cadence per workspace** — new `AgentWorkspaceConfig` settings row (or extend existing settings model): `reflection_cadence_sessions` (default 1), `skill_creation_min_tool_calls` (default 5), `memory_char_limit` (default 2200, configurable 1500-4000), `profile_char_limit` (default 1375, configurable 1000-2500). Editable in Agent Settings UI by workspace admin only.
 
 ### Batch Operations (Backend)
 
@@ -183,6 +201,19 @@ Each Sub-Agent: own System Prompt (~800 tokens) + own Tool set (4-6 tools) + own
 | POST | `/api/agent/knowledge/` | Member | Create knowledge doc |
 | PATCH | `/api/agent/knowledge/{id}/` | Member | Update knowledge doc |
 | DELETE | `/api/agent/knowledge/{id}/` | Member | Delete knowledge doc |
+| GET | `/api/agent/skills/` | Member | List skills (filter by `agent_type`, `trigger_type`) |
+| POST | `/api/agent/skills/` | Member | Manually create skill (trigger_type=`manual`) |
+| GET | `/api/agent/skills/{id}/` | Member | Skill detail + version history |
+| PATCH | `/api/agent/skills/{id}/` | Member | Update skill — bumps version, snapshots prior |
+| DELETE | `/api/agent/skills/{id}/` | Member | Delete skill (soft delete — versions retained) |
+| GET | `/api/agent/skills/{id}/versions/` | Member | List `SkillVersion` snapshots |
+| GET | `/api/agent/memory/` | Member | Get current workspace memory (singleton) |
+| PATCH | `/api/agent/memory/` | Member | Manually edit `content_md` — char-limit enforced |
+| GET | `/api/agent/profile/` | Member | Get caller's UserProfile in this workspace |
+| PATCH | `/api/agent/profile/` | Member | Manually edit profile — char-limit enforced |
+| GET | `/api/agent/workspace-config/` | Admin | Get reflection cadence + char-limits |
+| PATCH | `/api/agent/workspace-config/` | Admin | Update reflection cadence + char-limits |
+| POST | `/api/agent/sessions/{id}/reflect/` | Member | Manual trigger reflection on completed session |
 
 ### Agent Command Center (Frontend)
 
@@ -234,6 +265,14 @@ Each Sub-Agent: own System Prompt (~800 tokens) + own Tool set (4-6 tools) + own
 | Search | "Radar" | 🔍 |
 - [ ] AC-56: Batch view: when batch operation running, show list of niches with individual progress indicators.
 
+### Self-Improvement UI (Frontend)
+
+- [ ] AC-76: **Skills tab in AgentSettingsPage** — new tab `[Agent | Permissions | Knowledge | Templates | Skills | Memory | Profile]`. Lists all `Skill` rows for the workspace with columns: name, description, applicable agents (chips), trigger_type badge, success_count / error_count, version, last_used_at, "View versions" link.
+- [ ] AC-77: **Skill detail view** — full `content_md` rendered as syntax-highlighted Markdown (read-only), version history timeline (each version = collapsible diff vs prior), edit-button opens a Markdown editor with patch-or-replace toggle. Manual creation form for trigger_type=`manual`.
+- [ ] AC-78: **Memory tab** — single textarea showing `WorkspaceMemory.content_md` with **live char-counter (X / 2200)**, color-coded warning (>1900 yellow, >2100 red). Save button blocked when over limit. Read-only by default; edit requires explicit "Edit memory" mode toggle to discourage casual edits.
+- [ ] AC-79: **Profile tab** — caller's own `UserProfile.content_md` shown in editable Markdown textarea with char-counter (X / 1375). Below textarea: collapsible "Dialect reasoning" section (read-only, shows last `dialect_reasoning` for transparency — what did the agent infer?). "Reset profile" button with confirm.
+- [ ] AC-80: **Reflection-status indicator** in AgentHeader — shows "Last reflection: {timeAgo}" + "Sessions until next: {N}" when workspace has cadence > 1. Click → opens Memory tab with last consolidation diff highlighted.
+
 ### Onboarding (Frontend)
 
 - [ ] AC-57: First-time Agent tab open → optional onboarding banner: "Set up your agent — configure autonomy level and preferences". Dismissable. Links to guided setup.
@@ -270,6 +309,12 @@ Each Sub-Agent: own System Prompt (~800 tokens) + own Tool set (4-6 tools) + own
 - [ ] EC-15: Orchestrator's Sub-Agent call times out (>10 min for one Sub-Agent) → Orchestrator logs timeout, moves to next step or asks user depending on error config.
 - [ ] EC-16: "Merke dir" chat command → agent extracts knowledge, creates KnowledgeDoc with source=chat_command, confirms: "Saved: {title}". Embedded in Vector DB.
 - [ ] EC-17: No Knowledge Docs and no past experience (fresh workspace) → agent operates on System Prompt only. Performance improves as data accumulates.
+- [ ] EC-18: **WorkspaceMemory char-limit hit during reflection.** Reflection service computes a candidate update that exceeds 2200 chars → it MUST first delete or compress old entries (LRU + relevance-weighted eviction) to make room. If still over after compression, abort the update, log warning, leave existing memory untouched.
+- [ ] EC-19: **Skill version conflict** — two parallel sessions both trigger `patch_skill()` on the same Skill. Use optimistic concurrency: each PATCH includes `expected_version`, server returns 409 if mismatch → reflection service retries by re-reading and re-patching against new version.
+- [ ] EC-20: **UserProfile dialectic produces contradiction** — initial assessment says "user prefers humor", reconciliation pass detects prior profile says "user prefers minimal/no humor". Resolution: weight recent evidence > old evidence, append a `dialect_reasoning` note explaining the shift, update `content_md` to reflect new state with timestamp marker.
+- [ ] EC-21: **Reflection task fails mid-consolidation** (LLM timeout / 402 / disk-full) → wrap entire reflection in DB transaction; on any exception, rollback. `WorkspaceMemory` + `UserProfile` + new Skill rows must all commit atomically or none. Retry job once after 5 min; on second failure, log to `AgentActionLog` with status=failed and surface in UI as "Reflection skipped — will retry next session".
+- [ ] EC-22: **Skill marked for deletion but referenced by `applicable_agent_types`** → soft-delete (set `deleted_at`), version-freeze (no further patches allowed), exclude from `find_relevant_skills()`. Old AgentMessage rows that reference the Skill keep working via the SkillVersion snapshot.
+- [ ] EC-23: **Fresh workspace** — no Skills, empty WorkspaceMemory, empty UserProfile. Agent operates on Layer 1+2+3 only (existing 3-layer Knowledge System) and starts populating new layers from session 1 onwards. No degraded behavior — Metis layers are additive.
 
 ## Tech Design (Solution Architect)
 
@@ -283,10 +328,13 @@ Each Sub-Agent: own System Prompt (~800 tokens) + own Tool set (4-6 tools) + own
 agent_app/
 ├── models.py                           # AgentConfig, AgentSession, AgentMessage,
 │                                       #   AgentActionLog, ToolPermission, AutonomyPreset,
-│                                       #   KnowledgeDoc, WorkflowTemplate
+│                                       #   KnowledgeDoc, WorkflowTemplate,
+│                                       #   Skill, SkillVersion, WorkspaceMemory,
+│                                       #   UserProfile, AgentWorkspaceConfig
 ├── api/
 │   ├── views.py                        # Session CRUD, messages, controls (pause/resume/stop),
-│   │                                   #   approval, config, permissions, presets, templates, knowledge
+│   │                                   #   approval, config, permissions, presets, templates,
+│   │                                   #   knowledge, skills, memory, profile, workspace-config
 │   ├── serializers.py                  # All serializers
 │   └── urls.py                         # URL routing
 ├── agents/
@@ -297,6 +345,8 @@ agent_app/
 │   ├── listing_agent.py                # Listing Sub-Agent (PROJ-11 tools)
 │   ├── publishing_agent.py             # Publishing Sub-Agent (PROJ-13/14 tools)
 │   ├── search_agent.py                 # Search Sub-Agent (PROJ-15/17 tools)
+│   ├── reflection_agent.py             # Metis-pattern: post-session consolidation sub-agent
+│   ├── skill_refiner_agent.py          # Metis-pattern: skill-patch sub-agent (on error)
 │   └── tools/
 │       ├── research_tools.py           # 8 tools: create_niche, trigger_deep_research, etc.
 │       ├── ideation_tools.py           # 7 tools: create_idea, trigger_adaptation, etc.
@@ -306,10 +356,13 @@ agent_app/
 │       └── search_tools.py             # 6 tools: semantic_search, web_search, etc.
 ├── services/
 │   ├── permission_checker.py           # Check ToolPermission before tool execution
-│   ├── knowledge_loader.py             # Load System Prompt + Knowledge Docs + Implicit Learning
+│   ├── knowledge_loader.py             # Load 6 layers: prompt + docs + implicit + memory + profile + skills
 │   ├── collision_detector.py           # Check for active sessions on same niche
-│   └── cost_tracker.py                 # Estimate + track costs per tool call
-├── tasks.py                            # django-rq: run_agent_workflow, batch execution
+│   ├── cost_tracker.py                 # Estimate + track costs per tool call
+│   ├── skill_manager.py                # Metis: Skill CRUD + Vector retrieval + patch + outcome tracking
+│   ├── reflection_service.py           # Metis: post-session consolidation (memory + skills)
+│   └── user_profile_service.py         # Metis: dialectic user-modeling (3-pass)
+├── tasks.py                            # django-rq: run_agent_workflow, batch, run_reflection
 ├── admin.py
 └── tests/
 ```
@@ -481,6 +534,14 @@ Document in `django-app/env/.env.template`.
 | 22 | Controls | Stop + Pause + Resume | Full user control |
 | 23 | Chat-Trigger | AgentSession can be created from PROJ-17 Chat (Mode-Dropdown=Agent) → renders inline WorkflowCard | Pattern B Hybrid: single conversation locus, full power in Agent tab |
 | 24 | Source tracking | `AgentSession.source` field [agent_tab, chat_command, batch_api] | Analytics + UI hints (e.g. "Open in Chat" link if source=chat_command) |
+| 25 | Self-Improvement | Metis-Pattern: Skills + WorkspaceMemory + UserProfile + Reflection | Compound expertise across sessions; char-limited memory forces curation; vendor-agnostic (no LLM-vendor lock-in — works with any OpenRouter model, including Nous Hermes models if user chooses them) |
+| 26 | Memory storage | Postgres with `MaxLengthValidator` (Option B from review 2026-04-28), NOT files-on-disk | Multi-tenant safe (workspace-scoped via FK), backup with rest of DB, audit-trail; trade-off: agent must respect validator instead of OS-level file size |
+| 27 | Reflection cadence | Per N sessions (default 1), NOT per N messages | Cleaner for POD-workflow rhythm; reflection runs as separate django-rq job after `AgentSession.status='completed'` |
+| 28 | User-Profile | Honcho-style dialectic, **locally built** (no Honcho-SaaS dependency) | Avoids vendor lock-in + data residency concerns; algorithm publicly documented, can be replaced with Honcho API later if desired |
+| 29 | Skill scope | Workspace-scoped only (no cross-workspace sharing in MVP) | Privacy + simpler MVP; cross-workspace skill marketplace deferred to Future Enhancements |
+| 30 | Skill versioning | Patch-or-replace with immutable `SkillVersion` snapshots | Iterative refinement (Metis-pattern) without losing history; supports rollback |
+| 31 | Sub-Agent return filter | Only final result returned to Orchestrator state, not trace (intermediate steps still in DB for UI) | ~70% token savings on multi-step pipelines; technique documented in [Nous Hermes Agent](https://github.com/nousresearch/hermes-agent) |
+| 32 | Context layer count | 6 layers loaded pre-task: Prompt + KnowledgeDocs + Implicit + WorkspaceMemory + UserProfile + Skills | 12k-token budget cap to leave room for tool calls + reasoning |
 
 ## Future Enhancements (not MVP)
 

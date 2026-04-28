@@ -33,7 +33,7 @@ interface ChatMessageListProps {
    *  under each assistant bubble. Toolbar is hidden when these are absent
    *  (e.g. on the read-only public-share viewer). */
   sessionId?: string;
-  onRegenerate?: (assistantMessage: ChatMessage, priorUserContent: string) => void;
+  onRegenerate?: (assistantMessage: ChatMessage, priorUserMessage: ChatMessage) => void;
   onSaveAnswer?: (assistantMessage: ChatMessage) => void;
 }
 
@@ -265,11 +265,11 @@ const ChatMessageList = ({
           // For assistant bubbles, look back for the most recent user message
           // to drive Regenerate. Walking the array backwards from idx-1
           // tolerates mixed message types (e.g. workflow cards in between).
-          let priorUserContent: string | null = null;
+          let priorUserMessage: ChatMessage | null = null;
           if (msg.role === 'assistant') {
             for (let i = idx - 1; i >= 0; i -= 1) {
               if (messages[i].role === 'user') {
-                priorUserContent = messages[i].content;
+                priorUserMessage = messages[i];
                 break;
               }
             }
@@ -313,10 +313,10 @@ const ChatMessageList = ({
                         sessionId={sessionId}
                         isOwnMessageStreaming={false}
                         isAnyStreamActive={streamingMessage.isStreaming}
-                        canRegenerate={priorUserContent !== null}
+                        canRegenerate={priorUserMessage !== null}
                         onRegenerate={() =>
-                          priorUserContent &&
-                          onRegenerate(msg, priorUserContent)
+                          priorUserMessage &&
+                          onRegenerate(msg, priorUserMessage)
                         }
                         onSaveAnswer={() => onSaveAnswer(msg)}
                       />
