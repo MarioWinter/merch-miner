@@ -13,6 +13,7 @@ import {
   setActiveSession,
   setSearching,
 } from '@/store/chatBarSlice';
+import { clearAttachments } from '@/store/attachmentsSlice';
 import {
   useCreateSessionMutation,
   useSendMessageMutation,
@@ -91,8 +92,12 @@ const FloatingChatBar = () => {
   const [sendMessage] = useSendMessageMutation();
   const { start: startStream } = useSendMessageStream({
     sessionId: activeSessionId,
-    onDone: () => dispatch(setSearching(false)),
+    onDone: () => {
+      dispatch(setSearching(false));
+      dispatch(clearAttachments());
+    },
   });
+  const attachmentUploads = useAppSelector((s) => s.attachments.uploads);
 
   // Restore persisted bar state on mount
   useEffect(() => {
@@ -177,11 +182,15 @@ const FloatingChatBar = () => {
           }).unwrap();
           dispatch(setSearching(false));
         } else {
+          const attachment_ids = attachmentUploads
+            .filter((u) => u.status === 'completed' && u.serverId)
+            .map((u) => u.serverId as string);
           startStream({
             content: trimmed,
             mode_override: modeOverride,
             niche_id,
             sessionIdOverride: sessionId,
+            attachment_ids,
           });
           // searching cleared by useSendMessageStream onDone callback
         }
@@ -198,6 +207,7 @@ const FloatingChatBar = () => {
       searchSources,
       selectedModel,
       modeOverride,
+      attachmentUploads,
       dispatch,
       createSession,
       sendMessage,

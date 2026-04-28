@@ -45,24 +45,30 @@ const CitationLink = ({ index, domain, messageId }: CitationLinkProps) => {
   const handleClick = useCallback(
     (e: React.MouseEvent) => {
       e.preventDefault();
+      // Notify SourceList for the same message to auto-expand if collapsed.
+      window.dispatchEvent(
+        new CustomEvent('chat-citation-click', {
+          detail: { messageId, index },
+        }),
+      );
       const selector = `[data-message-id="${CSS.escape(messageId)}"][data-source-index="${index - 1}"]`;
-      const target = document.querySelector<HTMLElement>(selector);
-      if (!target) return;
-
-      // Determine if already in viewport; per EC-6 we still flash even if no
-      // scroll is needed.
-      const rect = target.getBoundingClientRect();
-      const inViewport =
-        rect.top >= 0 &&
-        rect.bottom <=
-          (window.innerHeight || document.documentElement.clientHeight);
-      if (!inViewport) {
-        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-      target.classList.add(FLASH_CLASS);
+      // Defer scroll/flash so the auto-expand Collapse can render first.
       window.setTimeout(() => {
-        target.classList.remove(FLASH_CLASS);
-      }, FLASH_MS);
+        const target = document.querySelector<HTMLElement>(selector);
+        if (!target) return;
+        const rect = target.getBoundingClientRect();
+        const inViewport =
+          rect.top >= 0 &&
+          rect.bottom <=
+            (window.innerHeight || document.documentElement.clientHeight);
+        if (!inViewport) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+        target.classList.add(FLASH_CLASS);
+        window.setTimeout(() => {
+          target.classList.remove(FLASH_CLASS);
+        }, FLASH_MS);
+      }, 50);
     },
     [index, messageId],
   );

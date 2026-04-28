@@ -125,6 +125,7 @@ INSTALLED_APPS = [
     'kanban_app',
     'search_app',
     'agent_app',
+    'chat_attachments_app',
 ]
 
 # django-allauth settings

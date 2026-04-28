@@ -11,7 +11,8 @@ COPY . .
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         bash postgresql-client ffmpeg \
-        gcc libpq-dev && \
+        gcc libpq-dev \
+        libmagic1 && \
     pip install --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt && \
     apt-get purge -y gcc && \

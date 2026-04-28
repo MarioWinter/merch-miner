@@ -3,6 +3,7 @@ import authReducer from './authSlice';
 import workspaceReducer from './workspaceSlice';
 import collectedItemsReducer from './collectedItemsSlice';
 import chatBarReducer from './chatBarSlice';
+import attachmentsReducer from './attachmentsSlice';
 import { nicheApi } from './nicheSlice';
 import { researchApi } from './researchSlice';
 import { ideaApi } from './ideaSlice';
@@ -22,6 +23,7 @@ export const store = configureStore({
     workspace: workspaceReducer,
     collectedItems: collectedItemsReducer,
     chatBar: chatBarReducer,
+    attachments: attachmentsReducer,
     [nicheApi.reducerPath]: nicheApi.reducer,
     [researchApi.reducerPath]: researchApi.reducer,
     [ideaApi.reducerPath]: ideaApi.reducer,

@@ -24,6 +24,8 @@ const { mockUseSearchHealth } = vi.hoisted(() => ({
 vi.mock('@/store/searchSlice', () => ({
   searchApi: {
     reducerPath: 'searchApi',
+    reducer: () => ({}),
+    middleware: () => (x: unknown) => (a: unknown) => (x as (a: unknown) => unknown)(a),
     util: { invalidateTags: vi.fn(() => ({ type: 'noop' })) },
   },
   useCreateSessionMutation: () => [vi.fn(), { isLoading: false }],
@@ -65,6 +67,13 @@ vi.mock('../../MultiPurposeDrawer/hooks/useSearchHealth', () => ({
   useSearchHealth: () => mockUseSearchHealth(),
 }));
 
+// Phase 7: short-circuit the attachment service to keep the test from
+// pulling in the global store (which triggers all RTK Query middleware).
+vi.mock('@/services/chatAttachmentService', () => ({
+  uploadChatAttachments: vi.fn(),
+  deleteChatAttachment: vi.fn(),
+}));
+
 // ---- imports of code under test ----
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
@@ -76,6 +85,7 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import enTranslation from '../../../../public/locales/en/translation.json';
 import chatBarReducer from '@/store/chatBarSlice';
+import attachmentsReducer from '@/store/attachmentsSlice';
 import theme from '@/style/theme';
 import FloatingChatBar from '../index';
 
@@ -103,7 +113,7 @@ vi.mock('notistack', async (importOriginal) => {
 // ---- store factory ----
 const buildStore = () =>
   configureStore({
-    reducer: { chatBar: chatBarReducer },
+    reducer: { chatBar: chatBarReducer, attachments: attachmentsReducer },
   });
 
 const renderBar = () => {

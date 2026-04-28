@@ -82,6 +82,9 @@ urlpatterns = [
     # Deep Web Search (Chat + Crawl) API
     path('api/', include('search_app.api.urls')),
 
+    # Chat Attachments (PROJ-20 Phase 7)
+    path('api/', include('chat_attachments_app.api.urls')),
+
     # OpenClaw Agent (Multi-Agent System) API
     path('api/', include('agent_app.api.urls')),
 ]

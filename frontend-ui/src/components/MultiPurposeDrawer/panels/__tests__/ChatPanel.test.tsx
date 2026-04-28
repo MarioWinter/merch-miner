@@ -27,6 +27,8 @@ const {
   mockShareSession,
   mockUnshareSession,
   mockSaveSnippet,
+  mockDeleteMessage,
+  mockCreateShareLink,
   mockGetSession,
   mockListSessions,
   mockListNiches,
@@ -41,6 +43,8 @@ const {
   mockShareSession: vi.fn(),
   mockUnshareSession: vi.fn(),
   mockSaveSnippet: vi.fn(),
+  mockDeleteMessage: vi.fn(),
+  mockCreateShareLink: vi.fn(),
   mockGetSession: vi.fn(),
   mockListSessions: vi.fn(),
   mockListNiches: vi.fn(),
@@ -70,6 +74,8 @@ vi.mock('@/store/searchSlice', () => ({
   useShareSessionMutation: () => [mockShareSession, { isLoading: false }],
   useUnshareSessionMutation: () => [mockUnshareSession, { isLoading: false }],
   useSaveSnippetToNicheMutation: () => [mockSaveSnippet, { isLoading: false }],
+  useDeleteMessageMutation: () => [mockDeleteMessage, { isLoading: false }],
+  useCreateShareLinkMutation: () => [mockCreateShareLink, { isLoading: false }],
   useHealthCheckQuery: () => mockHealthCheck(),
 }));
 
@@ -174,6 +180,7 @@ import chatBarReducer, {
   setInputChip,
   type InputChip,
 } from '@/store/chatBarSlice';
+import attachmentsReducer from '@/store/attachmentsSlice';
 import theme from '@/style/theme';
 import ChatPanel from '../ChatPanel';
 
@@ -210,6 +217,7 @@ const buildStore = (preload?: {
   const store = configureStore({
     reducer: {
       chatBar: chatBarReducer,
+      attachments: attachmentsReducer,
     },
   });
   if (preload?.activeSessionId !== undefined) {
@@ -405,21 +413,24 @@ describe('ChatPanel', () => {
     );
   });
 
-  it('shared session: shows read-only notice and hides input', () => {
+  it('shared session: owner keeps full input + toolbar (not read-only)', () => {
+    // PROJ-20 follow-up — sharing a session must NOT lock the OWNER out of
+    // their own toolbar/input. The public read-only view lives at
+    // `/shared/chat/:token` (SharedChatView), not the drawer.
     mockGetSession.mockReturnValue({
       data: {
         id: 'sess-1',
         messages: [],
         is_shared: true,
-        shared_by: { id: 1, email: 'other@x.com', name: 'Other' },
+        shared_by: { id: 1, email: 'me@x.com', name: 'Me' },
       },
       isLoading: false,
     });
     renderPanel({ activeSessionId: 'sess-1' });
     expect(
-      screen.getByText('This shared session is read-only.'),
-    ).toBeInTheDocument();
-    expect(screen.queryByTestId('chat-input-bar-stub')).not.toBeInTheDocument();
+      screen.queryByText('This shared session is read-only.'),
+    ).not.toBeInTheDocument();
+    expect(screen.getByTestId('chat-input-bar-stub')).toBeInTheDocument();
   });
 
   it('send error: error snackbar on send failure (agent mode)', async () => {

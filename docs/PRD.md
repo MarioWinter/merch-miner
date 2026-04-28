@@ -41,7 +41,7 @@ Eliminates spreadsheet chaos and tool-switching by connecting niche data, AI-gen
 | P0 (MVP) | PROJ-17: Deep Web Search (Vane + Crawl4ai) | Planned |
 | P0 (MVP) | PROJ-18: OpenClaw Agent (LangGraph Multi-Agent) | In Progress |
 | P1 | PROJ-19: Global Cloud Picker (OneDrive + Google Drive) | Planned |
-| P0 (MVP) | PROJ-20: Chat UX Perplexity-Parity | Planned |
+| P0 (MVP) | PROJ-20: Chat UX Perplexity-Parity | In Review |
 | P1 (Post-MVP) | PROJ-21: Chat Attachments + Document RAG + Agentic Tool-Use | Deferred |
 | P0 (MVP) | PROJ-22: Server-Migration auf VC 8-32 + Mono-Repo Infrastruktur | Planned |
 

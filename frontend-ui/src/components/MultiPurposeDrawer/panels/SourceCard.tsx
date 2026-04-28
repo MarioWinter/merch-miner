@@ -26,11 +26,13 @@ interface SourceCardProps {
 
 // Per AC-26: 1s primary-color border highlight that fades back. Triggered by
 // CitationLink toggling the `citation-flash` class on this root element.
+// Color tokens follow design system: dark surface tokens, NOT washed-out
+// alpha-on-paper which renders as light grey in dark mode.
 const CardRoot = styled(Box)(({ theme }) => ({
   padding: `${theme.spacing(1)} ${theme.spacing(1.25)}`,
   borderRadius: 10,
   border: `1px solid ${theme.vars.palette.divider}`,
-  backgroundColor: alpha(theme.palette.background.paper, 0.55),
+  backgroundColor: alpha(theme.palette.common.black, 0.25),
   display: 'flex',
   flexDirection: 'column',
   gap: theme.spacing(0.5),
@@ -38,7 +40,7 @@ const CardRoot = styled(Box)(({ theme }) => ({
     'border-color 1000ms ease, box-shadow 1000ms ease, background-color 120ms ease',
   '&:hover': {
     borderColor: alpha(theme.palette.primary.main, 0.4),
-    backgroundColor: alpha(theme.palette.background.paper, 0.75),
+    backgroundColor: alpha(theme.palette.common.black, 0.35),
   },
   '&.citation-flash': {
     borderColor: theme.vars.palette.primary.main,

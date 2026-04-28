@@ -22,6 +22,7 @@ import EditView from './views/publish/EditView';
 import DashboardView from './views/dashboard/DashboardView';
 import KanbanBoardView from './views/kanban/KanbanBoardView';
 import ProductDetailPage from './views/amazon/research/detail/ProductDetailPage';
+import SharedChatView from './views/shared/SharedChatView';
 
 
 const App = () => {
@@ -38,6 +39,9 @@ const App = () => {
       <Route path="/password-reset" element={<PasswordResetPage />} />
       <Route path="/password-reset/confirm" element={<PasswordConfirmPage />} />
       <Route path="/workspaces/invite/accept" element={<InviteAcceptView />} />
+
+      {/* PROJ-20 Phase 5.6 — public read-only chat viewer (no auth) */}
+      <Route path="/shared/chat/:token" element={<SharedChatView />} />
 
       {/* Protected routes — all wrapped with AppLayout */}
       <Route element={<PrivateRoute />}>

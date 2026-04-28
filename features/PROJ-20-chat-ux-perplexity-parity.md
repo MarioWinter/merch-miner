@@ -1,9 +1,9 @@
 # PROJ-20: Chat UX Perplexity-Parity
 
-**Status:** Planned
+**Status:** In Review
 **Priority:** P0 (MVP — UX-Polish on PROJ-17)
 **Created:** 2026-04-26
-**Last Updated:** 2026-04-26
+**Last Updated:** 2026-04-28
 
 ## Overview
 

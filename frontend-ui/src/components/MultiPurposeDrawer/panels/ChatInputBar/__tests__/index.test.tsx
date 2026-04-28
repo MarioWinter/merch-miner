@@ -71,12 +71,14 @@ vi.mock('@/store/collectedProductsSlice', () => ({
 
 import { renderWithProviders } from '@/utils/test-utils';
 import chatBarReducer from '@/store/chatBarSlice';
+import attachmentsReducer from '@/store/attachmentsSlice';
 import ChatInputBar from '../index';
 
 // PROJ-20 Phase 3.4: ChatInputBar now reads `s.chatBar.inputChip` and
 // dispatches setInputChip via the new useNicheChipSync wiring. Inject the
 // chatBar reducer into every render.
-const reducers = { chatBar: chatBarReducer };
+// Phase 7: also include the attachments slice for AttachmentBar/Button.
+const reducers = { chatBar: chatBarReducer, attachments: attachmentsReducer };
 
 describe('ChatInputBar (Phase 3.1 scaffold)', () => {
   it('renders without crashing in panel appearance', () => {

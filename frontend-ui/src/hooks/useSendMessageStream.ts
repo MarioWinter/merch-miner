@@ -59,6 +59,10 @@ interface StartArgs {
   /** Optional override — useful right after creating a session when the
    *  hook's bound sessionId hasn't propagated yet. */
   sessionIdOverride?: string;
+  /** PROJ-20 Phase 7 — image attachment ids returned by the upload endpoint.
+   *  When present the backend routes through the Vision path (OpenRouter
+   *  direct) instead of Vane. */
+  attachment_ids?: string[];
 }
 
 interface UseSendMessageStreamReturn {
@@ -80,12 +84,15 @@ interface UseSendMessageStreamReturn {
  */
 const buildStreamUrl = (
   sessionId: string,
-  { content, mode_override, niche_id }: StartArgs,
+  { content, mode_override, niche_id, attachment_ids }: StartArgs,
 ): string => {
   const params = new URLSearchParams();
   params.set('content', content);
   if (mode_override) params.set('mode_override', mode_override);
   if (niche_id) params.set('niche_id', niche_id);
+  if (attachment_ids && attachment_ids.length > 0) {
+    params.set('attachment_ids', attachment_ids.join(','));
+  }
   return `/api/chat/sessions/${sessionId}/messages/stream/?${params.toString()}`;
 };
 
@@ -240,6 +247,14 @@ export const useSendMessageStream = ({
             content: '',
           }),
         );
+        // Phase 7.6 — surface the vision-model fallback so users know we
+        // swapped their selected (non-vision) model out for this request.
+        if (data.vision_fallback && data.model_used) {
+          enqueueSnackbar(
+            t('search.attachments.visionFallback', { model: data.model_used }),
+            { variant: 'info' },
+          );
+        }
       });
 
       es.addEventListener('sources', (event) => {

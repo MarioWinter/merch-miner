@@ -6,10 +6,12 @@ import { useTranslation } from 'react-i18next';
 import type { ChatMessage } from '@/types/search';
 import { useAppSelector } from '@/store/hooks';
 import JumpToLatestButton from './JumpToLatestButton';
-import SourceCard from './SourceCard';
 import WorkflowCard from './WorkflowCard';
 import SaveSnippetToolbar from './SaveSnippetToolbar';
 import MarkdownAnswer from './partials/MarkdownAnswer';
+import MessageActionToolbar from './partials/MessageActionToolbar';
+import SourceList from './partials/SourceList';
+import UserAttachments from './partials/UserAttachments';
 
 // Stable id used for the in-flight streaming bubble's citation lookup so
 // SourceCards rendered for the streaming message can be linked from `[N]`.
@@ -27,6 +29,12 @@ interface ChatMessageListProps {
    *  (defined when selection lives inside a SourceCard; undefined for assistant bubble text). */
   onSaveSelectionAsKeywords?: (selectedText: string, sourceUrl?: string) => void;
   onSaveSelectionAsNotes?: (selectedText: string, sourceUrl?: string) => void;
+  /** PROJ-20 Phase 5 — Action Toolbar callbacks. Required to render the toolbar
+   *  under each assistant bubble. Toolbar is hidden when these are absent
+   *  (e.g. on the read-only public-share viewer). */
+  sessionId?: string;
+  onRegenerate?: (assistantMessage: ChatMessage, priorUserContent: string) => void;
+  onSaveAnswer?: (assistantMessage: ChatMessage) => void;
 }
 
 /** Distance from bottom (px) within which we consider the user "at the bottom" and re-engage auto-scroll. */
@@ -140,6 +148,7 @@ const ChatMessageList = ({
   messages, isLoading, hasMore, onLoadMore,
   onSaveKeywords, onSaveNotes,
   onSaveSelectionAsKeywords, onSaveSelectionAsNotes,
+  sessionId, onRegenerate, onSaveAnswer,
 }: ChatMessageListProps) => {
   const { t } = useTranslation();
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -230,7 +239,7 @@ const ChatMessageList = ({
   }
 
   return (
-    <Wrapper>
+    <Wrapper data-auto-scroll={autoScroll ? 'true' : 'false'}>
       <ScrollContainer ref={scrollRef}>
         {hasMore && (
           <Button
@@ -242,10 +251,23 @@ const ChatMessageList = ({
           </Button>
         )}
 
-        {messages.map((msg) => {
+        {messages.map((msg, idx) => {
           const role: 'user' | 'assistant' = msg.role === 'user' ? 'user' : 'assistant';
           const isWorkflow =
             msg.message_type === 'workflow_card' && msg.agent_session;
+
+          // For assistant bubbles, look back for the most recent user message
+          // to drive Regenerate. Walking the array backwards from idx-1
+          // tolerates mixed message types (e.g. workflow cards in between).
+          let priorUserContent: string | null = null;
+          if (msg.role === 'assistant') {
+            for (let i = idx - 1; i >= 0; i -= 1) {
+              if (messages[i].role === 'user') {
+                priorUserContent = messages[i].content;
+                break;
+              }
+            }
+          }
 
           return (
             <Box key={msg.id}>
@@ -257,7 +279,12 @@ const ChatMessageList = ({
                 )}
 
                 {msg.role === 'user' ? (
-                  <UserBubble>{msg.content}</UserBubble>
+                  <Stack alignItems="flex-end" gap={0.5} sx={{ maxWidth: '85%' }}>
+                    {msg.attachments && msg.attachments.length > 0 && (
+                      <UserAttachments attachments={msg.attachments} />
+                    )}
+                    <UserBubble>{msg.content}</UserBubble>
+                  </Stack>
                 ) : isWorkflow && msg.agent_session ? (
                   /* AC-42: Workflow-Card inline; takes full row width. */
                   <Box sx={{ flex: 1, minWidth: 0 }}>
@@ -272,20 +299,32 @@ const ChatMessageList = ({
                         messageId={msg.id}
                       />
                     </AssistantBubble>
-                    {/* AC-38: Sources inline below AI bubble (Perplexity-style cards) */}
+                    {/* PROJ-20 Phase 5 — Action Toolbar (AC-30 to AC-34) */}
+                    {sessionId && onRegenerate && onSaveAnswer && (
+                      <MessageActionToolbar
+                        messageId={msg.id}
+                        content={msg.content}
+                        sessionId={sessionId}
+                        isOwnMessageStreaming={false}
+                        isAnyStreamActive={streamingMessage.isStreaming}
+                        canRegenerate={priorUserContent !== null}
+                        onRegenerate={() =>
+                          priorUserContent &&
+                          onRegenerate(msg, priorUserContent)
+                        }
+                        onSaveAnswer={() => onSaveAnswer(msg)}
+                      />
+                    )}
+                    {/* AC-38: Sources collapsed by default below AI bubble
+                     *  (Perplexity-style trigger). Auto-expands when a
+                     *  citation `[N]` in the same message is clicked. */}
                     {msg.sources && msg.sources.length > 0 && (
-                      <Stack gap={0.5}>
-                        {msg.sources.map((src, idx) => (
-                          <SourceCard
-                            key={`${msg.id}-${src.url}-${idx}`}
-                            source={src}
-                            messageId={msg.id}
-                            sourceIndex={idx}
-                            onSaveKeywords={onSaveKeywords}
-                            onSaveNotes={onSaveNotes}
-                          />
-                        ))}
-                      </Stack>
+                      <SourceList
+                        sources={msg.sources}
+                        messageId={msg.id}
+                        onSaveKeywords={onSaveKeywords}
+                        onSaveNotes={onSaveNotes}
+                      />
                     )}
                   </AssistantContent>
                 )}
@@ -314,18 +353,12 @@ const ChatMessageList = ({
                   <TypingCursor aria-hidden="true" />
                 </AssistantBubble>
                 {streamingMessage.sources.length > 0 && (
-                  <Stack gap={0.5}>
-                    {streamingMessage.sources.map((src, idx) => (
-                      <SourceCard
-                        key={`stream-${src.url}-${idx}`}
-                        source={src}
-                        messageId={streamingMessage.id ?? STREAMING_MESSAGE_ID}
-                        sourceIndex={idx}
-                        onSaveKeywords={onSaveKeywords}
-                        onSaveNotes={onSaveNotes}
-                      />
-                    ))}
-                  </Stack>
+                  <SourceList
+                    sources={streamingMessage.sources}
+                    messageId={streamingMessage.id ?? STREAMING_MESSAGE_ID}
+                    onSaveKeywords={onSaveKeywords}
+                    onSaveNotes={onSaveNotes}
+                  />
                 )}
               </AssistantContent>
             </MessageRow>

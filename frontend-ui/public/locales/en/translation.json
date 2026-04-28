@@ -2624,7 +2624,9 @@
       "aiAnswer": "AI Answer",
       "sources": "Sources",
       "noSources": "No sources found for this query.",
-      "deepCrawl": "Deep Crawl"
+      "deepCrawl": "Deep Crawl",
+      "sourceCount_one": "{{count}} source",
+      "sourceCount_other": "{{count}} sources"
     },
     "citation": {
       "openSource": "Open source {{n}}",
@@ -2652,7 +2654,8 @@
       "unshared": "Session is now private.",
       "shareError": "Failed to update sharing.",
       "sharedBy": "Shared by {{name}}",
-      "readOnly": "This shared session is read-only."
+      "readOnly": "This shared session is read-only.",
+      "newChat": "New chat"
     },
     "health": {
       "online": "Online",
@@ -2721,6 +2724,44 @@
       "error": "Streaming failed. Please try again.",
       "connectionLost": "Connection lost. Please retry.",
       "timeout": "Search timed out. Please try again."
+    },
+    "actions": {
+      "toolbarLabel": "Message actions",
+      "copy": "Copy message",
+      "copied": "Copied",
+      "copySuccess": "Copied to clipboard",
+      "copyError": "Could not copy to clipboard",
+      "copyFallbackWarning": "Copied via legacy fallback — secure clipboard unavailable",
+      "regenerate": "Regenerate response",
+      "regenerateBusy": "Wait for current response to finish",
+      "regenerateUnavailable": "No prior question to regenerate",
+      "regenerateError": "Could not regenerate response",
+      "share": "Share",
+      "shareSuccess": "Share link copied",
+      "shareError": "Could not generate share link",
+      "save": "Save answer to niche"
+    },
+    "shared": {
+      "pageTitle": "Shared chat",
+      "notFound": "This chat is not (or no longer) shared",
+      "notFoundDetail": "The link may have been revoked or never existed.",
+      "loading": "Loading shared chat…",
+      "emptyMessage": "This chat has no messages yet.",
+      "sharedNotice": "This is a public, read-only view of a shared chat."
+    },
+    "attachments": {
+      "upload": "Upload images",
+      "dropHere": "Drop images here",
+      "removeImage": "Remove image",
+      "error": {
+        "tooLarge": "\"{{name}}\" exceeds 10 MB",
+        "invalidType": "\"{{name}}\" is not a JPEG/PNG/WebP image",
+        "tooMany": "Up to {{max}} images per message",
+        "totalTooLarge": "Total upload size exceeds 25 MB",
+        "uploadFailed": "Upload failed. Please try again."
+      },
+      "visionFallback": "Switched to {{model}} for image support",
+      "purgedPlaceholder": "[Image purged]"
     }
   },
   "agent": {

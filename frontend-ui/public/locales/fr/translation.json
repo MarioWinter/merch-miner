@@ -2553,7 +2553,9 @@
       "aiAnswer": "Reponse IA",
       "sources": "Sources",
       "noSources": "Aucune source trouvee.",
-      "deepCrawl": "Deep Crawl"
+      "deepCrawl": "Deep Crawl",
+      "sourceCount_one": "{{count}} source",
+      "sourceCount_other": "{{count}} sources"
     },
     "citation": {
       "openSource": "Ouvrir la source {{n}}",
@@ -2581,7 +2583,8 @@
       "unshared": "Session privee.",
       "shareError": "Echec du partage.",
       "sharedBy": "Partage par {{name}}",
-      "readOnly": "Cette session partagee est en lecture seule."
+      "readOnly": "Cette session partagee est en lecture seule.",
+      "newChat": "Nouveau chat"
     },
     "health": {
       "online": "En ligne",
@@ -2651,6 +2654,44 @@
       "error": "Échec du streaming. Veuillez réessayer.",
       "connectionLost": "Connexion perdue. Veuillez réessayer.",
       "timeout": "Recherche expirée. Veuillez réessayer."
+    },
+    "actions": {
+      "toolbarLabel": "Actions du message",
+      "copy": "Copier le message",
+      "copied": "Copié",
+      "copySuccess": "Copié dans le presse-papiers",
+      "copyError": "Impossible de copier dans le presse-papiers",
+      "copyFallbackWarning": "Copié via méthode héritée — presse-papiers sécurisé indisponible",
+      "regenerate": "Régénérer la réponse",
+      "regenerateBusy": "Attendez la fin de la réponse actuelle",
+      "regenerateUnavailable": "Aucune question précédente à régénérer",
+      "regenerateError": "Impossible de régénérer la réponse",
+      "share": "Partager",
+      "shareSuccess": "Lien de partage copié",
+      "shareError": "Impossible de générer le lien de partage",
+      "save": "Enregistrer la réponse dans la niche"
+    },
+    "shared": {
+      "pageTitle": "Chat partagé",
+      "notFound": "Ce chat nest pas (ou plus) partagé",
+      "notFoundDetail": "Le lien a peut-être été révoqué ou na jamais existé.",
+      "loading": "Chargement du chat partagé…",
+      "emptyMessage": "Ce chat na pas encore de messages.",
+      "sharedNotice": "Ceci est une vue publique en lecture seule dun chat partagé."
+    },
+    "attachments": {
+      "upload": "Téléverser des images",
+      "dropHere": "Déposez les images ici",
+      "removeImage": "Supprimer limage",
+      "error": {
+        "tooLarge": "\"{{name}}\" dépasse 10 Mo",
+        "invalidType": "\"{{name}}\" nest pas JPEG/PNG/WebP",
+        "tooMany": "Maximum {{max}} images par message",
+        "totalTooLarge": "La taille totale dépasse 25 Mo",
+        "uploadFailed": "Échec du téléversement. Réessayez."
+      },
+      "visionFallback": "Passé à {{model}} pour le support dimage",
+      "purgedPlaceholder": "[Image supprimée]"
     }
   },
   "agent": {

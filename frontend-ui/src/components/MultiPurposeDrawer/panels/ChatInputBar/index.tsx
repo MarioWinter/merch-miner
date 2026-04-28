@@ -15,6 +15,7 @@ import ModePopoverButton from './partials/ModePopoverButton';
 import SourcesPopoverButton from './partials/SourcesPopoverButton';
 import ModelPopoverButton from './partials/ModelPopoverButton';
 import AttachmentButton from './partials/AttachmentButton';
+import AttachmentBar from './partials/AttachmentBar';
 import SendButton from './partials/SendButton';
 import HelperHint from './partials/HelperHint';
 import SmartTextarea, {
@@ -29,6 +30,7 @@ import HelpCommandsPopup from './partials/HelpCommandsPopup';
 import { useMentionTrigger } from './hooks/useMentionTrigger';
 import { useCommandTrigger } from './hooks/useCommandTrigger';
 import { useNicheChipSync } from './hooks/useNicheChipSync';
+import { useAttachmentUpload } from './hooks/useAttachmentUpload';
 import { useListNichesQuery } from '@/store/nicheSlice';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setInputChip } from '@/store/chatBarSlice';
@@ -107,6 +109,12 @@ const Shell = styled(Box, {
   '&:focus-within': {
     borderColor: theme.vars.palette.primary.main,
   },
+  // Phase 7.5 — drag-over visual feedback when files are dragged over.
+  '&[data-drag-over="true"]': {
+    borderColor: theme.vars.palette.primary.main,
+    borderStyle: 'dashed',
+    backgroundColor: alpha(theme.palette.primary.main, 0.08),
+  },
 }));
 
 const ActionBar = styled(Stack)(({ theme }) => ({
@@ -134,6 +142,11 @@ const ChatInputBar = forwardRef<ChatInputBarHandle, ChatInputBarProps>(
   const isStreaming = useAppSelector(
     (s) => s.chatBar.streamingAssistantMessage.isStreaming,
   );
+  // Phase 7.5 — drag/drop + paste + uploading-state for the Send button.
+  const { upload } = useAttachmentUpload();
+  const uploads = useAppSelector((s) => s.attachments.uploads);
+  const hasInflightUpload = uploads.some((u) => u.status === 'uploading');
+  const [isDragOver, setIsDragOver] = useState(false);
 
   // PROJ-20 Phase 3.7 — expose imperative handle so parent surfaces can
   // capture chip/text at submit time (EC-10) and clear/focus the input.
@@ -275,11 +288,61 @@ const ChatInputBar = forwardRef<ChatInputBarHandle, ChatInputBarProps>(
     getCommandContext,
   });
 
-  const sendDisabled = disabled || isSending || isStreaming;
+  // Send is gated on any in-flight upload — server requires `attachment_ids`
+  // for completed cards only, so we hold the user back until the upload
+  // round-trip resolves.
+  const sendDisabled =
+    disabled || isSending || isStreaming || hasInflightUpload;
+
+  // Phase 7.5 — drag-and-drop image upload onto the Shell.
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    if (!Array.from(e.dataTransfer.items ?? []).some(
+      (item) => item.kind === 'file',
+    )) return;
+    e.preventDefault();
+    setIsDragOver(true);
+  }, []);
+  const handleDragLeave = useCallback(() => setIsDragOver(false), []);
+  const handleDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      setIsDragOver(false);
+      const files = Array.from(e.dataTransfer.files ?? []).filter((f) =>
+        f.type.startsWith('image/'),
+      );
+      if (files.length > 0) void upload(files);
+    },
+    [upload],
+  );
+
+  // Phase 7.5 — paste-from-clipboard images.
+  const handlePaste = useCallback(
+    (e: React.ClipboardEvent) => {
+      const items = Array.from(e.clipboardData?.items ?? []);
+      const files = items
+        .filter((it) => it.kind === 'file' && it.type.startsWith('image/'))
+        .map((it) => it.getAsFile())
+        .filter((f): f is File => f !== null);
+      if (files.length > 0) {
+        e.preventDefault();
+        void upload(files);
+      }
+    },
+    [upload],
+  );
 
   return (
     <Box data-testid="chat-input-bar" sx={{ width: '100%' }}>
-      <Shell appearance={appearance} data-appearance={appearance}>
+      <Shell
+        appearance={appearance}
+        data-appearance={appearance}
+        data-drag-over={isDragOver ? 'true' : undefined}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onPaste={handlePaste}
+      >
+        <AttachmentBar />
         <SmartTextarea
           ref={textareaRef}
           appearance={appearance}

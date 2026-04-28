@@ -2458,7 +2458,9 @@
       "aiAnswer": "AI Answer",
       "sources": "Sources",
       "noSources": "No sources found for this query.",
-      "deepCrawl": "Deep Crawl"
+      "deepCrawl": "Deep Crawl",
+      "sourceCount_one": "{{count}} fuente",
+      "sourceCount_other": "{{count}} fuentes"
     },
     "citation": {
       "openSource": "Abrir fuente {{n}}",
@@ -2486,7 +2488,8 @@
       "unshared": "Session is now private.",
       "shareError": "Failed to update sharing.",
       "sharedBy": "Shared by {{name}}",
-      "readOnly": "This shared session is read-only."
+      "readOnly": "This shared session is read-only.",
+      "newChat": "Nuevo chat"
     },
     "health": {
       "online": "Online",
@@ -2553,6 +2556,44 @@
     },
     "stream": {
       "timeout": "La búsqueda agotó el tiempo. Inténtalo de nuevo."
+    },
+    "actions": {
+      "toolbarLabel": "Acciones de mensaje",
+      "copy": "Copiar mensaje",
+      "copied": "Copiado",
+      "copySuccess": "Copiado al portapapeles",
+      "copyError": "No se pudo copiar al portapapeles",
+      "copyFallbackWarning": "Copiado mediante método legado — portapapeles seguro no disponible",
+      "regenerate": "Regenerar respuesta",
+      "regenerateBusy": "Espere a que termine la respuesta actual",
+      "regenerateUnavailable": "No hay pregunta previa para regenerar",
+      "regenerateError": "No se pudo regenerar la respuesta",
+      "share": "Compartir",
+      "shareSuccess": "Enlace de compartir copiado",
+      "shareError": "No se pudo generar el enlace",
+      "save": "Guardar respuesta en nicho"
+    },
+    "shared": {
+      "pageTitle": "Chat compartido",
+      "notFound": "Este chat no está (o ya no está) compartido",
+      "notFoundDetail": "El enlace puede haber sido revocado o nunca existió.",
+      "loading": "Cargando chat compartido…",
+      "emptyMessage": "Este chat aún no tiene mensajes.",
+      "sharedNotice": "Esta es una vista pública de solo lectura de un chat compartido."
+    },
+    "attachments": {
+      "upload": "Subir imágenes",
+      "dropHere": "Suelta imágenes aquí",
+      "removeImage": "Eliminar imagen",
+      "error": {
+        "tooLarge": "\"{{name}}\" supera 10 MB",
+        "invalidType": "\"{{name}}\" no es JPEG/PNG/WebP",
+        "tooMany": "Máximo {{max}} imágenes por mensaje",
+        "totalTooLarge": "El tamaño total supera 25 MB",
+        "uploadFailed": "Carga fallida. Inténtalo de nuevo."
+      },
+      "visionFallback": "Cambiado a {{model}} para soporte de imagen",
+      "purgedPlaceholder": "[Imagen eliminada]"
     }
   }
 }

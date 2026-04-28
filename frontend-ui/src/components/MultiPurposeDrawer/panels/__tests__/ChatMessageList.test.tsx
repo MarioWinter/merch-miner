@@ -40,6 +40,10 @@ vi.mock('../SourceCard', () => ({
   ),
 }));
 
+// PROJ-20 — SourceList wraps SourceCards in a Collapse trigger. Tests assert
+// rendering of the inner cards plus the trigger; render the real component
+// (it only depends on SourceCard which is already mocked above).
+
 vi.mock('../WorkflowCard', () => ({
   default: () => <div data-testid="workflow-card-mock" />,
 }));
@@ -61,6 +65,13 @@ vi.mock('../JumpToLatestButton', () => ({
         jump
       </button>
     ) : null,
+}));
+
+// PROJ-20 Phase 5 — toolbar pulls in searchSlice (RTK Query) which fails to
+// load in jsdom without the full store wired up. Stub it so ChatMessageList
+// tests stay focused on rendering + scroll behavior.
+vi.mock('../partials/MessageActionToolbar', () => ({
+  default: () => <div data-testid="message-action-toolbar-mock" />,
 }));
 
 // ---- imports of code under test ----
@@ -234,7 +245,7 @@ describe('ChatMessageList', () => {
     expect(screen.getByTestId('workflow-card-mock')).toBeInTheDocument();
   });
 
-  it('renders SourceCards inline below assistant bubble when sources are present', () => {
+  it('renders collapsed SourceList trigger with count; cards mount on expand', () => {
     const messages: ChatMessage[] = [
       buildMessage({
         id: 'm1',
@@ -247,6 +258,12 @@ describe('ChatMessageList', () => {
       }),
     ];
     renderList({ messages });
+    // Collapsed: count text visible, no SourceCard mounted yet.
+    const trigger = screen.getByRole('button', { name: /sources?/i });
+    expect(trigger).toBeInTheDocument();
+    expect(screen.queryAllByTestId('source-card-mock').length).toBe(0);
+    // Expand — cards now mount.
+    fireEvent.click(trigger);
     const cards = screen.getAllByTestId('source-card-mock');
     expect(cards.length).toBe(2);
     expect(cards[0].getAttribute('data-url')).toBe('https://a.example');

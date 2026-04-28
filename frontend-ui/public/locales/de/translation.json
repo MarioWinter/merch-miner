@@ -1870,7 +1870,9 @@
       "aiAnswer": "KI-Antwort",
       "sources": "Quellen",
       "noSources": "Keine Quellen fur diese Anfrage gefunden.",
-      "deepCrawl": "Deep Crawl"
+      "deepCrawl": "Deep Crawl",
+      "sourceCount_one": "{{count}} Quelle",
+      "sourceCount_other": "{{count}} Quellen"
     },
     "citation": {
       "openSource": "Quelle {{n}} öffnen",
@@ -1898,7 +1900,8 @@
       "unshared": "Session ist jetzt privat.",
       "shareError": "Teilen aktualisieren fehlgeschlagen.",
       "sharedBy": "Geteilt von {{name}}",
-      "readOnly": "Diese geteilte Session ist schreibgeschutzt."
+      "readOnly": "Diese geteilte Session ist schreibgeschutzt.",
+      "newChat": "Neuer Chat"
     },
     "health": {
       "online": "Online",
@@ -1967,6 +1970,44 @@
       "error": "Streaming fehlgeschlagen. Bitte erneut versuchen.",
       "connectionLost": "Verbindung verloren. Bitte erneut versuchen.",
       "timeout": "Suche hat zu lange gedauert. Bitte erneut versuchen."
+    },
+    "actions": {
+      "toolbarLabel": "Nachrichten-Aktionen",
+      "copy": "Nachricht kopieren",
+      "copied": "Kopiert",
+      "copySuccess": "In Zwischenablage kopiert",
+      "copyError": "Kopieren in Zwischenablage fehlgeschlagen",
+      "copyFallbackWarning": "Über Legacy-Fallback kopiert — sichere Zwischenablage nicht verfügbar",
+      "regenerate": "Antwort regenerieren",
+      "regenerateBusy": "Warte bis aktuelle Antwort fertig ist",
+      "regenerateUnavailable": "Keine vorherige Frage zum Regenerieren",
+      "regenerateError": "Antwort konnte nicht regeneriert werden",
+      "share": "Teilen",
+      "shareSuccess": "Share-Link kopiert",
+      "shareError": "Share-Link konnte nicht erstellt werden",
+      "save": "Antwort in Nische speichern"
+    },
+    "shared": {
+      "pageTitle": "Geteilter Chat",
+      "notFound": "Dieser Chat ist nicht (mehr) freigegeben",
+      "notFoundDetail": "Der Link wurde möglicherweise widerrufen oder hat nie existiert.",
+      "loading": "Geteilter Chat wird geladen…",
+      "emptyMessage": "Dieser Chat hat noch keine Nachrichten.",
+      "sharedNotice": "Dies ist eine öffentliche, schreibgeschützte Ansicht eines geteilten Chats."
+    },
+    "attachments": {
+      "upload": "Bilder hochladen",
+      "dropHere": "Bilder hier ablegen",
+      "removeImage": "Bild entfernen",
+      "error": {
+        "tooLarge": "\"{{name}}\" überschreitet 10 MB",
+        "invalidType": "\"{{name}}\" ist kein JPEG/PNG/WebP",
+        "tooMany": "Maximal {{max}} Bilder pro Nachricht",
+        "totalTooLarge": "Gesamtgröße überschreitet 25 MB",
+        "uploadFailed": "Upload fehlgeschlagen. Bitte erneut versuchen."
+      },
+      "visionFallback": "Auf {{model}} gewechselt für Bild-Support",
+      "purgedPlaceholder": "[Bild gelöscht]"
     }
   },
   "agent": {

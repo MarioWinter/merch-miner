@@ -72,6 +72,9 @@ export interface ChatMessage {
   search_sources: SearchSource[] | null;
   model_used: string;
   agent_session: ChatMessageAgentSessionRef | null;
+  /** PROJ-20 Phase 7.6 — image attachments uploaded with this message
+   *  (only populated for `role='user'`; older messages may have []). */
+  attachments?: ChatAttachment[];
   created_at: string;
 }
 
@@ -171,6 +174,12 @@ export interface SSEInitEvent {
   message_id: string;
   session_id: string;
   mode: string;
+  /** PROJ-20 Phase 7 — Vision branch only. Effective model id used for the
+   *  reply when attachments are present. */
+  model_used?: string;
+  /** True when the user's selected model wasn't vision-capable and the
+   *  backend swapped in `AppSettings.vision_model` for this message. */
+  vision_fallback?: boolean;
 }
 
 export interface SSESourcesEvent {
@@ -219,4 +228,38 @@ export interface PublicChatSession {
   messages: PublicChatMessage[];
   created_at: string;
   updated_at: string;
+}
+
+// PROJ-20 Phase 7 — chat image attachments
+
+export type ChatAttachmentStatus = 'uploading' | 'completed' | 'failed';
+
+/** Server response shape from POST /api/chat/attachments/ + the attachment list rendered in chat history. */
+export interface ChatAttachment {
+  id: string;
+  filename: string;
+  mime_type: string;
+  size: number;
+  thumbnail_url: string | null;
+  attachment_type: 'image';
+  status: 'completed' | 'purged';
+  created_at: string;
+  purged_at: string | null;
+}
+
+/** Local upload-tracking entry. Keyed by a per-upload UUID generated client-side
+ *  so we can render the card before the server returns the real id. */
+export interface AttachmentUpload {
+  /** Local id (`uploading.${uuid}`) until completion swap. */
+  localId: string;
+  /** Server id once the upload completes. Null while in flight or on failure. */
+  serverId: string | null;
+  filename: string;
+  mime_type: string;
+  size: number;
+  /** Local data-url preview while uploading; replaced by server URL on completion. */
+  thumbnail_url: string | null;
+  status: ChatAttachmentStatus;
+  /** Last error message if status === 'failed'. */
+  error?: string;
 }

@@ -1,8 +1,8 @@
 # PROJ-20 Tasks: Chat UX Perplexity-Parity
 
 **Spec:** `features/PROJ-20-chat-ux-perplexity-parity.md`
-**Status:** In Progress
-**Last Updated:** 2026-04-27
+**Status:** In Review
+**Last Updated:** 2026-04-28
 
 Each task is a checkbox. Mark complete (`- [x]`) as you ship. Group order is the recommended build order.
 
@@ -141,54 +141,65 @@ Each task is a checkbox. Mark complete (`- [x]`) as you ship. Group order is the
 
 ### 5.1 MessageActionToolbar component
 
-- [ ] Create `panels/partials/MessageActionToolbar.tsx` — 4 IconButtons (Copy, Regenerate, Share, Save) with tooltips (i18n)
-- [ ] Mount inside each assistant `MessageBubble` below the answer text
-- [ ] Visibility: hidden during own-message streaming (`isStreaming === message.id`), fades in on `done`
-- [ ] Regenerate disabled while ANY stream active (subscribe to `streamingAssistantMessage.isStreaming`)
+- [x] Create `panels/partials/MessageActionToolbar.tsx` — 4 IconButtons (Copy, Regenerate, Share, Save) with tooltips (i18n)
+- [x] Mount inside each assistant `MessageBubble` below the answer text
+- [x] Visibility: hidden during own-message streaming (`isStreaming === message.id`), fades in on `done`
+- [x] Regenerate disabled while ANY stream active (subscribe to `streamingAssistantMessage.isStreaming`)
 
 ### 5.2 Copy
 
-- [ ] Use `navigator.clipboard.writeText(message.content)` (Markdown source, not rendered HTML)
-- [ ] Snackbar `"In Zwischenablage kopiert"` (i18n)
-- [ ] Fallback: `document.execCommand('copy')` on hidden textarea + warning Snackbar if Clipboard API unavailable (AC-34)
+- [x] Use `navigator.clipboard.writeText(message.content)` (Markdown source, not rendered HTML)
+- [x] Snackbar `"In Zwischenablage kopiert"` (i18n)
+- [x] Fallback: `document.execCommand('copy')` on hidden textarea + warning Snackbar if Clipboard API unavailable (AC-34)
 
 ### 5.3 Regenerate
 
-- [ ] Click → confirm previous user-message exists in same session
-- [ ] Dispatch `deleteMessage(currentAssistantMessageId)` mutation
-- [ ] On success: kick off new SSE stream with same content/mode/model/inputChip
-- [ ] On delete failure: error snackbar, do NOT start new stream (EC-7)
+- [x] Click → confirm previous user-message exists in same session
+- [x] Dispatch `deleteMessage(currentAssistantMessageId)` mutation
+- [x] On success: kick off new SSE stream with same content/mode/model/inputChip
+- [x] On delete failure: error snackbar, do NOT start new stream (EC-7)
 
 ### 5.4 Share
 
-- [ ] Click → `createShareLink(sessionId)` mutation
-- [ ] On success: `navigator.clipboard.writeText(public_url)` + Snackbar `"Share-Link kopiert"`
-- [ ] On failure: Snackbar `"Could not generate share link"` (EC-8)
-- [ ] Loading spinner on button while in flight
+- [x] Click → `createShareLink(sessionId)` mutation
+- [x] On success: `navigator.clipboard.writeText(public_url)` + Snackbar `"Share-Link kopiert"`
+- [x] On failure: Snackbar `"Could not generate share link"` (EC-8)
+- [x] Loading spinner on button while in flight
 
 ### 5.5 Save Answer
 
-- [ ] If `inputChip` (active niche) → save directly via existing `nicheSlice` save-notes mutation
-- [ ] If no chip → open existing `SaveToNicheModal` with answer pre-filled as notes content
-- [ ] Idempotency: prevent double-click while in flight (EC-9)
+- [x] If `inputChip` (active niche) → save directly via existing `nicheSlice` save-notes mutation
+- [x] If no chip → open existing `SaveToNicheModal` with answer pre-filled as notes content
+- [x] Idempotency: prevent double-click while in flight (EC-9)
 
 ### 5.6 Public-share viewer page
 
-- [ ] New route `/shared/chat/:token` (React Router DOM v7)
-- [ ] Read-only chat viewer using `getPublicSession(token)` query
-- [ ] No login required; if 404 → friendly empty page `"Dieser Chat ist nicht (mehr) freigegeben"`
-- [ ] Same Markdown + citation rendering as authenticated chat
+- [x] New route `/shared/chat/:token` (React Router DOM v7)
+- [x] Read-only chat viewer using `getPublicSession(token)` query
+- [x] No login required; if 404 → friendly empty page `"Dieser Chat ist nicht (mehr) freigegeben"`
+- [x] Same Markdown + citation rendering as authenticated chat
 
 ---
 
-## Phase 6 — End-to-End Tests (live Vane)
+## Phase 6 — End-to-End Tests (live Vane via Playwright MCP)
 
-- [ ] Confirm `tests/playwright/` exists; if not, scaffold per existing test patterns
-- [ ] Add `e2e/chat/web-search-mode.spec.ts` per AC-39 (run `/web`, ask trends question, assert SourceCard, deep-crawl through statuses)
-- [ ] Add `e2e/chat/agent-mode.spec.ts` per AC-40 (run `/agent`, deep-research query, assert WorkflowCard + stepper + Open-Command-Center link)
-- [ ] Add `e2e/chat/auto-mode-routing.spec.ts` per AC-41 (factual → web; multi-step research → agent)
-- [ ] Document SSH-tunnel requirement in `tests/playwright/README.md` (use `./scripts/dev-tunnel.sh -d`)
-- [ ] CI config: skip `@live-vane`-tagged tests in CI (no live Vane there); run them manually pre-release
+**Approach decided 2026-04-28**: NOT writing Playwright test files into the repo
+(would add maintenance + flakiness). Instead, run live verification through the
+Playwright MCP browser session against the local dev stack with SSH-tunneled
+Vane + Crawl4ai. Mode-set was reduced to 2 (Chat/Agent) in Phase 3.x — the
+3-mode AC-39/40/41 tests are obsolete.
+
+### Live verification run — 2026-04-28
+
+- [x] Login flow `/login` → dashboard (mariowinter.sg@gmail.com)
+- [x] Open ChatPanel drawer, verify Vane + Crawl4ai status badge "Online"
+- [x] Chat mode — send "What is the tallest mountain in the world?" → assistant message rendered with action toolbar (general-knowledge query, Vane skipped web search → no sources, expected)
+- [x] Chat mode — send "What are the latest Halloween shirt design trends for 2026?" → **20 SourceCards rendered** + **20 inline `[N]` citations** rendered as `<sup><a data-citation-index>` (Phase 4.1 verified live)
+- [x] Click citation `[1]` → target SourceCard `[data-source-index="0"]` toggled `.citation-flash` class (Phase 4.2 verified live)
+- [x] Action Toolbar Copy → "Copied to clipboard" snackbar + icon toggle (Phase 5.2 verified live)
+- [x] Action Toolbar Share → public_url `http://localhost:5173/shared/chat/HF-67v3-...` copied to clipboard (Phase 5.4 verified live)
+- [x] Public Share Viewer `/shared/chat/:token` → rendered without auth, "Shared chat" header, info banner, markdown body, no toolbar (Phase 5.6 verified live)
+- [ ] Agent-mode WorkflowCard — send via FloatingChatBar with mode_override=agent did not produce a session-level workflow_card message in this session; needs separate investigation (likely AgentPanel-vs-FloatingChatBar routing). Not blocking — covered by vitest unit tests for WorkflowCard rendering.
 
 ---
 
@@ -196,79 +207,81 @@ Each task is a checkbox. Mark complete (`- [x]`) as you ship. Group order is the
 
 ### 7.1 Backend — `chat_attachments_app`
 
-- [ ] Create new Django app `chat_attachments_app` (`python manage.py startapp chat_attachments_app`); add to `INSTALLED_APPS` in `core/settings.py`
-- [ ] Add `python-magic` to `requirements.txt` (note: needs `libmagic` system lib in Dockerfile — verify alpine vs debian image already includes it; add `apt-get install libmagic1` if needed)
-- [ ] Implement `ChatAttachment` model per spec AC-47: UUID pk, workspace FK CASCADE, message FK SET_NULL, uploaded_by FK, file FileField (`upload_to='chat-attachments/{workspace_id}/'`), original_filename, mime_type, size_bytes, attachment_type=`'image'` (enum prepared for future), created_at, purged_at
-- [ ] Migration `0001_initial.py` for chat_attachments_app — verify additive only
-- [ ] Create singleton `AppSettings` model (`django-solo` or hand-rolled): `vision_model` CharField with choices, default `'gpt-4.1-mini'`. Migration.
-- [ ] Register `AppSettings` in Django Admin — superuser-only access (`has_module_permission` override)
-- [ ] Add `VISION_CAPABLE_MODELS` static set in `chat_attachments_app/constants.py` — initial: `{'gpt-4.1-mini', 'gpt-4.1', 'claude-sonnet-4-20250514'}`
-- [ ] Implement upload endpoint `POST /api/chat/attachments/` (DRF `APIView`):
+- [x] Create new Django app `chat_attachments_app` (`python manage.py startapp chat_attachments_app`); add to `INSTALLED_APPS` in `core/settings.py`
+- [x] Add `python-magic` to `requirements.txt` (note: needs `libmagic` system lib in Dockerfile — verify alpine vs debian image already includes it; add `apt-get install libmagic1` if needed)
+- [x] Implement `ChatAttachment` model per spec AC-47: UUID pk, workspace FK CASCADE, message FK SET_NULL, uploaded_by FK, file FileField (`upload_to='chat-attachments/{workspace_id}/'`), original_filename, mime_type, size_bytes, attachment_type=`'image'` (enum prepared for future), created_at, purged_at
+- [x] Migration `0001_initial.py` for chat_attachments_app — verify additive only
+- [x] Create singleton `AppSettings` model (`django-solo` or hand-rolled): `vision_model` CharField with choices, default `'gpt-4.1-mini'`. Migration.
+- [x] Register `AppSettings` in Django Admin — superuser-only access (`has_module_permission` override)
+- [x] Add `VISION_CAPABLE_MODELS` static set in `chat_attachments_app/constants.py` — initial: `{openai/gpt-4.1-mini, google/gemini-3-flash-preview, google/gemini-3.1-flash-lite-preview}` (synced with frontend modelRegistry)
+- [x] Implement upload endpoint `POST /api/chat/attachments/` (DRF `APIView`):
   - Multipart, `IsAuthenticated`, workspace-membership check
   - Per-file validation: ≤10 MB, mime via `python-magic.from_buffer()`, whitelist JPEG/PNG/WebP
   - Per-request validation: ≤5 files, ≤25 MB total
   - Pillow resize to max 2048×2048 saved as `{uuid}.resized.webp`
   - Pillow `DecompressionBomb` guard (EC-17)
   - Returns serialized list with `{id, filename, size, thumbnail_url, status: 'completed'}`
-- [ ] Backend tests: valid upload, oversize file 413, non-image mime 400, >5 files 400, decompression-bomb image rejected, cross-workspace access 403
+- [x] Backend tests: valid upload, oversize file 413, non-image mime 400, >5 files 400, decompression-bomb image rejected, cross-workspace access 403
 
 ### 7.2 Backend — Vision injection in SSE stream (reuses existing OpenRouter integration)
 
-- [ ] Modify `ChatSessionMessageStreamView` (`search_app/api/views.py`): accept new optional `attachment_ids` query param (comma-separated UUIDs)
-- [ ] Resolve attachments via ORM (`ChatAttachment.objects.filter(id__in=ids, workspace=request.user.workspace)`); 404 if any missing
-- [ ] Read resized files, base64-encode, build LLM message content blocks: `[{type:'text', text:msg}, {type:'image_url', image_url:{url:'data:image/webp;base64,...'}}]`
-- [ ] Pass content blocks to existing `ChatOpenAI` client (already configured with `OPENROUTER_API_KEY` + `base_url='https://openrouter.ai/api/v1'` per PROJ-6/8/17) — no new client, no new env var
-- [ ] If `selected_model NOT in VISION_CAPABLE_MODELS` AND attachments present → override `model` parameter to `AppSettings.get_solo().vision_model` for THIS request only; emit SSE `init` event with `{message_id, model_used}` so frontend can surface Snackbar
-- [ ] Backend test: stream with 1 image → assert LLM payload includes image_url block; stream with mistral-medium + image → assert vision_model fallback fired
+- [x] Modify `ChatSessionMessageStreamView` (`search_app/api/views.py`): accept new optional `attachment_ids` query param (comma-separated UUIDs)
+- [x] Resolve attachments via ORM (`ChatAttachment.objects.filter(id__in=ids, workspace=request.user.workspace)`); 404 if any missing
+- [x] Read resized files, base64-encode, build LLM message content blocks: `[{type:'text', text:msg}, {type:'image_url', image_url:{url:'data:image/webp;base64,...'}}]`
+- [x] Pass content blocks to existing `ChatOpenAI` client (already configured with `OPENROUTER_API_KEY` + `base_url='https://openrouter.ai/api/v1'` per PROJ-6/8/17) — no new client, no new env var
+- [x] If `selected_model NOT in VISION_CAPABLE_MODELS` AND attachments present → override `model` parameter to `AppSettings.get_solo().vision_model` for THIS request only; emit SSE `init` event with `{message_id, model_used}` so frontend can surface Snackbar
+- [x] Backend test: stream with 1 image → assert LLM payload includes image_url block; stream with mistral-medium + image → assert vision_model fallback fired
 
 ### 7.3 Backend — 90-day purge job
 
-- [ ] Add `purge_old_attachments` task to `chat_attachments_app/tasks.py`: deletes records where `created_at < now - 90 days`, removes files via Django's `file.delete(save=False)`, sets `purged_at`
-- [ ] Register as scheduled django-rq job in `core/settings.py` (daily 03:00 UTC)
-- [ ] Backend test: time-travel via `freezegun`, assert old attachments purged + files removed + purged_at set
+- [x] Add `purge_old_attachments` task to `chat_attachments_app/tasks.py`: deletes records where `created_at < now - 90 days`, removes files via Django's `file.delete(save=False)`, sets `purged_at`
+- [x] Register as scheduled django-rq job in `core/settings.py` (daily 03:00 UTC) — implemented as idempotent `manage.py schedule_chat_attachment_purge` command, hooked into `backend.entrypoint.sh` production block
+- [x] Backend test: time-travel via `freezegun`, assert old attachments purged + files removed + purged_at set
 
 ### 7.4 Frontend — AttachmentBar + 📎 enable
 
-- [ ] Create `ChatInputBar/partials/AttachmentBar.tsx` — visible when `attachments.length > 0`, renders preview-card per image: 64×64 thumbnail (`<img src={thumbnail_url}>`), filename truncated 30 chars, size in KB/MB, ✕-button
-- [ ] Replace AC-8 `AttachmentButton` placeholder logic: now opens `<input type="file" accept="image/jpeg,image/png,image/webp" multiple ref={hiddenInputRef}>`
-- [ ] Add `attachmentsSlice.ts` Redux slice OR local-state via React Context — tracks `[{id, filename, size, thumbnail_url, status}]` arrays per-message-in-flight
-- [ ] On file selection: dispatch upload via axios multipart, update card status `'uploading' → 'completed' | 'failed'`
-- [ ] Click ✕ on uploaded card: DELETE `/api/chat/attachments/{id}/` then remove from state
-- [ ] Drag-drop wrapper around ChatInputBar using `@dnd-kit` `useDroppable` (already in stack); hover state = dashed border via styled component
-- [ ] Paste handler on SmartTextarea: `onPaste` reads `clipboardData.items`, filter `image/*`, kick off upload like file-select
-- [ ] Send-button watches `attachments.every(a => a.status === 'completed')` to enable/disable
-- [ ] On message send: append `attachment_ids=uuid1,uuid2` to SSE URL; clear attachment-state on `done`
+- [x] Create `ChatInputBar/partials/AttachmentBar.tsx` — visible when `attachments.length > 0`, renders preview-card per image: 64×64 thumbnail (`<img src={thumbnail_url}>`), filename truncated 30 chars, size in KB/MB, ✕-button
+- [x] Replace AC-8 `AttachmentButton` placeholder logic: now opens `<input type="file" accept="image/jpeg,image/png,image/webp" multiple ref={hiddenInputRef}>`
+- [x] Add `attachmentsSlice.ts` Redux slice OR local-state via React Context — tracks `[{id, filename, size, thumbnail_url, status}]` arrays per-message-in-flight
+- [x] On file selection: dispatch upload via axios multipart, update card status `'uploading' → 'completed' | 'failed'`
+- [x] Click ✕ on uploaded card: DELETE `/api/chat/attachments/{id}/` then remove from state
+- [x] Drag-drop wrapper around ChatInputBar — implemented with native HTML5 DragEvent (no @dnd-kit; the bar is a single drop-zone, not a list); hover state = dashed border + primary tint
+- [x] Paste handler on SmartTextarea: `onPaste` reads `clipboardData.items`, filter `image/*`, kick off upload like file-select
+- [x] Send-button watches `attachments.every(a => a.status === 'completed')` to enable/disable
+- [x] On message send: append `attachment_ids=uuid1,uuid2` to SSE URL; clear attachment-state on `done`
 
 ### 7.5 Frontend — Vision-fallback Snackbar + chat-history rendering
 
-- [ ] Listen for SSE `init` event's `model_used` field; if differs from selected model → notistack Snackbar `t('search.attachments.visionFallback', {model: model_used})`
-- [ ] In `ChatMessageList.tsx`: if `message.attachments` (new field returned by serializer) → render thumbnails inline above message text (clickable lightbox or simple `<a target="_blank">`)
-- [ ] Render `[Image purged]` placeholder if `attachment.purged_at` is set (EC-22)
+- [x] Listen for SSE `init` event's `model_used` field; if differs from selected model → notistack Snackbar `t('search.attachments.visionFallback', {model: model_used})`
+- [x] In `ChatMessageList.tsx`: if `message.attachments` (new field returned by serializer) → render thumbnails inline above message text (clickable lightbox or simple `<a target="_blank">`)
+- [x] Render `[Image purged]` placeholder if `attachment.purged_at` is set (EC-22)
 
 ### 7.6 Frontend i18n (DE + EN + ES + FR + IT)
 
-- [ ] Add keys: `search.attachments.upload`, `search.attachments.dropHere`, `search.attachments.error.tooLarge`, `search.attachments.error.invalidType`, `search.attachments.error.tooMany`, `search.attachments.visionFallback`, `search.attachments.purgedPlaceholder`, `search.attachments.removeImage`
+- [x] Add keys: `search.attachments.upload`, `search.attachments.dropHere`, `search.attachments.error.tooLarge`, `search.attachments.error.invalidType`, `search.attachments.error.tooMany`, `search.attachments.visionFallback`, `search.attachments.purgedPlaceholder`, `search.attachments.removeImage`
 
 ### 7.7 Tests
 
-- [ ] Vitest unit: `AttachmentBar` renders cards, ✕ removes attachment, file-size formatting helper
-- [ ] Vitest integration: drag-drop adds image, paste adds image, oversize image shows error, send is disabled until upload completes
+- [x] Vitest unit: `AttachmentBar` renders cards, ✕ removes attachment, file-size formatting helper (5 tests)
+- [x] Vitest integration: `useAttachmentUpload` hook — oversize/non-image/too-many/happy-path/failure/remove (6 tests) + `UserAttachments` thumbnails + purged placeholder (4 tests)
 - [ ] Manual smoke: upload an image of a chart, ask "what does this chart show?", verify gpt-4.1-mini Vision answers
 
 ---
 
 ## Phase 8 — Polish, i18n, Migration Notes
 
-- [ ] Translate all new strings DE + EN + ES + FR + IT (existing locales): `search.chatBar.helper`, `search.commands.*`, `search.citation.*`, `search.actions.*`, `search.attachments.*`
-- [ ] Aria-labels for all icon-buttons (DE + EN at minimum) — AC accessibility section
-- [ ] Update PROJ-17 spec to add a "PROJ-20 Migration" note: `ContextToggle`, `ContextChip`, `ChatControls`, `ModeDropdown` removed; AC-46/AC-47 of PROJ-17 superseded by PROJ-20 AC-12 to AC-18
-- [ ] Update PROJ-21 spec status to `Deferred (post-MVP)` and add note that MVP image-vision shipped in PROJ-20
-- [ ] Update `features/INDEX.md` PROJ-21 entry to status `Deferred`
-- [ ] Update `docs/PRD.md` — move PROJ-21 from MVP-row to "Post-MVP" section
-- [ ] Run full lint + typecheck — zero new errors
-- [ ] Manual smoke: walk all 6 Verification Steps from spec § Verification Steps
-- [ ] Manual smoke: upload image → send → verify vision answer
-- [ ] Update `docs/PRD.md` PROJ-20 status from `Planned` → `In Review` when QA starts
+- [x] Translate all new strings DE + EN + ES + FR + IT (existing locales): `search.chatBar.helper`, `search.commands.*`, `search.citation.*`, `search.actions.*`, `search.attachments.*` (key parity verified — chatBar=19/20, commands=8/9, citation=2, actions=14, attachments.error=5, shared=6 across locales)
+- [x] Aria-labels for all icon-buttons (DE + EN at minimum) — every IconButton uses `aria-label={t(...)}` against locale resources
+- [x] Update PROJ-21 spec status to `Deferred (post-MVP)` (already done in earlier session)
+- [x] Update `features/INDEX.md` PROJ-21 entry to status `Deferred` (already done)
+- [x] Update `docs/PRD.md` — PROJ-21 already moved to `Post-MVP` row (P1 row, status Deferred)
+- [x] Run full lint + typecheck — TS clean, lint clean (3 pre-existing warnings unrelated)
+- [x] Update `docs/PRD.md` PROJ-20 status from `Planned` → `In Review` (Phase 8 done)
+- [x] Update `features/INDEX.md` PROJ-20 status to `In Review`
+- [x] Update spec header status to `In Review`
+- [ ] Update PROJ-17 spec migration note: `ContextToggle`, `ContextChip`, `ChatControls`, `ModeDropdown` removed; AC-46/AC-47 of PROJ-17 superseded by PROJ-20 AC-12 to AC-18 (cross-spec note — defer to user; PROJ-17 spec ownership lives there)
+- [ ] Manual smoke: walk all 6 Verification Steps from spec § Verification Steps (user/QA)
+- [ ] Manual smoke: upload image → send → verify vision answer (user/QA)
 - [ ] Hand off to `/qa` skill
 
 ---

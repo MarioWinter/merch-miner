@@ -677,11 +677,140 @@ class ChatSessionMessageStreamView(APIView):
 
         model = request.query_params.get('model') or None
 
+        # PROJ-20 Phase 7.3 — image attachments routed through the Vision
+        # path (OpenRouter direct, no Vane). Comma-separated UUIDs.
+        attachment_ids_raw = request.query_params.get('attachment_ids', '')
+        attachment_ids = [
+            s.strip() for s in attachment_ids_raw.split(',') if s.strip()
+        ]
+
         # Cleanup 2026-04-28: read per-message niche_id query param. If
         # provided, override session.niche_context for THIS request only.
         # This lets follow-up messages re-target a niche without creating a
         # new session.
         per_message_niche_id = request.query_params.get('niche_id') or None
+
+        # PROJ-20 Phase 7.3 — Vision branch. If the request carries
+        # attachment_ids the message goes through OpenRouter directly with
+        # image content blocks; Vane is bypassed (no native vision support).
+        if attachment_ids:
+            from chat_attachments_app.vision import (
+                AttachmentResolutionError,
+                build_vision_content_blocks,
+                resolve_attachments,
+                resolve_vision_model,
+                stream_vision_chunks,
+            )
+            try:
+                attachments = resolve_attachments(attachment_ids, workspace)
+            except AttachmentResolutionError as exc:
+                return Response(
+                    {'error': str(exc)},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+            user_msg = ChatMessage.objects.create(
+                session=session,
+                role=ChatMessage.Role.USER,
+                content=content,
+                message_type=ChatMessage.MessageType.SEARCH_QUERY,
+                search_mode=search_mode,
+                search_sources=search_sources,
+            )
+            # Link the attachments to the just-persisted user message so
+            # chat-history rendering can surface thumbnails.
+            for att in attachments:
+                att.message_id = user_msg.pk
+                att.save(update_fields=['message'])
+
+            if not session.title:
+                session.title = content[:200]
+                session.save(update_fields=['title', 'updated_at'])
+
+            history = []
+            prev_messages = session.messages.exclude(
+                pk=user_msg.pk
+            ).order_by('created_at')[:20]
+            for msg in prev_messages:
+                history.append({'role': msg.role, 'content': msg.content})
+
+            from niche_app.models import Niche as _Niche
+            system_instructions = ''
+            niche_for_context = None
+            if per_message_niche_id:
+                try:
+                    niche_for_context = _Niche.objects.get(
+                        pk=per_message_niche_id, workspace=workspace,
+                    )
+                except (_Niche.DoesNotExist, ValueError, TypeError):
+                    niche_for_context = None
+            if niche_for_context is None:
+                niche_for_context = session.niche_context
+            if niche_for_context:
+                system_instructions = build_system_instructions(niche_for_context)
+
+            effective_model, fallback_fired = resolve_vision_model(model)
+            content_blocks = build_vision_content_blocks(content, attachments)
+
+            def vision_event_stream():
+                yield (
+                    'event: init\n'
+                    'data: ' + json.dumps({
+                        'message_id': str(user_msg.pk),
+                        'session_id': str(session.pk),
+                        'mode': 'vision',
+                        'model_used': effective_model,
+                        'vision_fallback': fallback_fired,
+                    }) + '\n\n'
+                )
+                final_answer = ''
+                try:
+                    for chunk_text in stream_vision_chunks(
+                        user_content_blocks=content_blocks,
+                        history=history,
+                        model=effective_model,
+                        system_instructions=system_instructions,
+                    ):
+                        final_answer += chunk_text
+                        yield (
+                            'event: chunk\n'
+                            'data: ' + json.dumps({'text': chunk_text}) + '\n\n'
+                        )
+                except Exception as exc:  # noqa: BLE001 - user-facing error
+                    logger.exception('Vision stream failed')
+                    yield (
+                        'event: error\n'
+                        'data: ' + json.dumps({'error': str(exc)}) + '\n\n'
+                    )
+                    return
+
+                if final_answer:
+                    assistant_msg = ChatMessage.objects.create(
+                        session=session,
+                        role=ChatMessage.Role.ASSISTANT,
+                        content=final_answer,
+                        message_type=ChatMessage.MessageType.SEARCH_RESULT,
+                        sources=[],
+                        search_mode=search_mode,
+                        search_sources=search_sources,
+                        model_used=effective_model,
+                    )
+                    session.save(update_fields=['updated_at'])
+                    yield (
+                        'event: done\n'
+                        'data: ' + json.dumps({
+                            'message_id': str(assistant_msg.pk),
+                            'total_tokens': 0,
+                        }) + '\n\n'
+                    )
+
+            response = StreamingHttpResponse(
+                vision_event_stream(),
+                content_type='text/event-stream',
+            )
+            response['Cache-Control'] = 'no-cache'
+            response['X-Accel-Buffering'] = 'no'
+            return response
 
         # Persist the user message
         user_msg = ChatMessage.objects.create(

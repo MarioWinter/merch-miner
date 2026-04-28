@@ -11,13 +11,14 @@ class ChatMessageSerializer(serializers.ModelSerializer):
     """Serializer for ChatMessage (read-only, nested in session detail)."""
 
     agent_session = serializers.SerializerMethodField()
+    attachments = serializers.SerializerMethodField()
 
     class Meta:
         model = ChatMessage
         fields = [
             'id', 'role', 'content', 'message_type', 'sources',
             'search_mode', 'search_sources', 'model_used',
-            'agent_session', 'created_at',
+            'agent_session', 'attachments', 'created_at',
         ]
         read_only_fields = fields
 
@@ -33,6 +34,38 @@ class ChatMessageSerializer(serializers.ModelSerializer):
             'completed_steps': sess.completed_steps,
             'total_steps': sess.total_steps,
         }
+
+    def get_attachments(self, obj):
+        """PROJ-20 Phase 7.6 — return image attachments linked to this message.
+
+        We rely on the reverse-related-manager `attachments` set up by
+        `chat_attachments_app.models.ChatAttachment.message`. Each entry
+        carries enough info for the frontend thumbnail + purged-placeholder
+        render path.
+        """
+        try:
+            attachments = list(obj.attachments.all())
+        except (AttributeError, Exception):  # noqa: BLE001 - relation may not exist
+            return []
+        out = []
+        for a in attachments:
+            try:
+                url = a.file.url if a.file and not a.purged_at else None
+            except (ValueError, AttributeError):
+                url = None
+            out.append({
+                'id': str(a.id),
+                'filename': a.original_filename,
+                'mime_type': a.mime_type,
+                'size': a.size_bytes,
+                'thumbnail_url': url,
+                'attachment_type': a.attachment_type,
+                'purged_at': (
+                    a.purged_at.isoformat() if a.purged_at else None
+                ),
+                'created_at': a.created_at.isoformat(),
+            })
+        return out
 
 
 class ChatSessionListSerializer(serializers.ModelSerializer):

@@ -14,6 +14,7 @@ import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
 import ShareIcon from '@mui/icons-material/Share';
 import HistoryIcon from '@mui/icons-material/History';
+import AddIcon from '@mui/icons-material/Add';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -22,6 +23,7 @@ import {
   setSearching,
   openDrawer,
 } from '@/store/chatBarSlice';
+import { clearAttachments } from '@/store/attachmentsSlice';
 import {
   useGetSessionQuery,
   useCreateSessionMutation,
@@ -29,10 +31,12 @@ import {
   useShareSessionMutation,
   useUnshareSessionMutation,
   useSaveSnippetToNicheMutation,
+  useDeleteMessageMutation,
 } from '@/store/searchSlice';
 import { useSearchHealth } from '../hooks/useSearchHealth';
 import { useSendMessageStream } from '@/hooks/useSendMessageStream';
 import type {
+  ChatMessage,
   ChatSession,
   SaveSnippetKeywordsResponse,
   SaveSnippetNotesResponse,
@@ -104,13 +108,24 @@ const ChatPanel = () => {
   const [shareSession] = useShareSessionMutation();
   const [unshareSession] = useUnshareSessionMutation();
   const [saveSnippet] = useSaveSnippetToNicheMutation();
+  const [deleteMessage] = useDeleteMessageMutation();
   const { start: startStream } = useSendMessageStream({
     sessionId: activeSessionId,
-    onDone: () => dispatch(setSearching(false)),
+    onDone: () => {
+      dispatch(setSearching(false));
+      // Phase 7 — release attachments after the message persisted.
+      dispatch(clearAttachments());
+    },
   });
+  // Phase 7 — pull completed attachment ids at submit-time so they ride along
+  // with the SSE URL.
+  const attachmentUploads = useAppSelector((s) => s.attachments.uploads);
 
   const messages = session?.messages ?? [];
-  const isReadOnly = session?.is_shared && session?.shared_by !== null;
+  // The drawer ChatPanel only ever serves the OWNER's sessions. The public
+  // read-only view lives at `/shared/chat/:token` (SharedChatView). Sharing
+  // a session must NOT lock the owner out of their own toolbar/input.
+  const isReadOnly = false;
   const isStreaming = useAppSelector(
     (s) => s.chatBar.streamingAssistantMessage.isStreaming,
   );
@@ -155,11 +170,15 @@ const ChatPanel = () => {
           }).unwrap();
           dispatch(setSearching(false));
         } else {
+          const attachment_ids = attachmentUploads
+            .filter((u) => u.status === 'completed' && u.serverId)
+            .map((u) => u.serverId as string);
           startStream({
             content: trimmed,
             mode_override: modeOverride,
             niche_id,
             sessionIdOverride: sessionId,
+            attachment_ids,
           });
           // searching cleared by useSendMessageStream onDone callback
         }
@@ -176,6 +195,7 @@ const ChatPanel = () => {
       searchSources,
       selectedModel,
       modeOverride,
+      attachmentUploads,
       dispatch,
       createSession,
       sendMessage,
@@ -247,6 +267,86 @@ const ChatPanel = () => {
     [handleSaveSelection],
   );
 
+  // PROJ-20 Phase 5.3 — Regenerate: delete the current assistant message,
+  // then re-stream from the prior user prompt with the same mode/sources/model.
+  // EC-7: if delete fails, do NOT start the new stream; show an error toast.
+  const handleRegenerate = useCallback(
+    async (assistantMessage: ChatMessage, priorUserContent: string) => {
+      if (!activeSessionId) return;
+      try {
+        await deleteMessage(assistantMessage.id).unwrap();
+      } catch {
+        enqueueSnackbar(t('search.actions.regenerateError'), {
+          variant: 'error',
+        });
+        return;
+      }
+      const niche_id = inputChip?.niche_id ?? null;
+      if (modeOverride === 'agent') {
+        try {
+          await sendMessage({
+            sessionId: activeSessionId,
+            body: {
+              content: priorUserContent,
+              search_sources: searchSources,
+              model: selectedModel,
+              mode_override: modeOverride,
+            },
+          }).unwrap();
+        } catch {
+          enqueueSnackbar(t('search.chat.sendError'), { variant: 'error' });
+        }
+      } else {
+        startStream({
+          content: priorUserContent,
+          mode_override: modeOverride,
+          niche_id,
+          sessionIdOverride: activeSessionId,
+        });
+      }
+    },
+    [
+      activeSessionId,
+      deleteMessage,
+      enqueueSnackbar,
+      t,
+      inputChip,
+      modeOverride,
+      searchSources,
+      selectedModel,
+      sendMessage,
+      startStream,
+    ],
+  );
+
+  // PROJ-20 Phase 5.5 — Save answer to a niche. With active chip → direct save.
+  // Without chip → open existing SaveToNicheModal pre-filled with the answer.
+  const handleSaveAnswer = useCallback(
+    async (assistantMessage: ChatMessage) => {
+      const trimmed = assistantMessage.content.trim();
+      if (!trimmed) return;
+      if (!inputChip) {
+        setModal({
+          open: true,
+          selectedText: trimmed,
+          saveAs: 'notes',
+          sourceUrl: undefined,
+        });
+        return;
+      }
+      try {
+        await saveSnippet({
+          nicheId: inputChip.niche_id,
+          body: { selected_text: trimmed, save_as: 'notes' },
+        }).unwrap();
+        enqueueSnackbar(t('search.save.successNote'), { variant: 'success' });
+      } catch {
+        enqueueSnackbar(t('search.save.errorGeneric'), { variant: 'error' });
+      }
+    },
+    [inputChip, saveSnippet, enqueueSnackbar, t],
+  );
+
   const handleShare = async () => {
     if (!activeSessionId) return;
     try {
@@ -285,6 +385,21 @@ const ChatPanel = () => {
             {t('search.sessions.recentChats')}
           </Button>
           <Stack direction="row" gap={0.25}>
+            <IconButton
+              size="small"
+              onClick={() => {
+                dispatch(setActiveSession(null));
+                dispatch(clearAttachments());
+                inputRef.current?.clear();
+                setShowRecent(false);
+                inputRef.current?.focus();
+              }}
+              aria-label={t('search.sessions.newChat')}
+              title={t('search.sessions.newChat')}
+              sx={{ borderRadius: 1.5 }}
+            >
+              <AddIcon sx={{ fontSize: 20 }} />
+            </IconButton>
             {activeSessionId && (
               <IconButton
                 size="small"
@@ -323,6 +438,9 @@ const ChatPanel = () => {
         }}
         onSaveSelectionAsKeywords={handleSaveSelectionAsKeywords}
         onSaveSelectionAsNotes={handleSaveSelectionAsNotes}
+        sessionId={activeSessionId ?? undefined}
+        onRegenerate={isReadOnly ? undefined : handleRegenerate}
+        onSaveAnswer={isReadOnly ? undefined : handleSaveAnswer}
       />
 
       {/* Input area — PROJ-20 Phase 3.7 unified ChatInputBar */}

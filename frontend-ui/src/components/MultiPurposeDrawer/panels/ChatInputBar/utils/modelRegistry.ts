@@ -19,16 +19,15 @@ export interface ModelEntry {
 }
 
 export const MODELS: ReadonlyArray<ModelEntry> = [
-  { value: 'gpt-4.1-mini', label: 'GPT-4.1 Mini', provider: 'OpenRouter' },
-  { value: 'gpt-4.1', label: 'GPT-4.1', provider: 'OpenRouter' },
+  { value: 'openai/gpt-4.1-mini', label: 'GPT-4.1 Mini', provider: 'OpenRouter' },
   {
-    value: 'claude-sonnet-4-20250514',
-    label: 'Claude Sonnet 4',
+    value: 'google/gemini-3-flash-preview',
+    label: 'Gemini 3 Flash (Preview)',
     provider: 'OpenRouter',
   },
   {
-    value: 'mistral-medium-latest',
-    label: 'Mistral Medium',
+    value: 'google/gemini-3.1-flash-lite-preview',
+    label: 'Gemini 3.1 Flash Lite (Preview)',
     provider: 'OpenRouter',
   },
 ];

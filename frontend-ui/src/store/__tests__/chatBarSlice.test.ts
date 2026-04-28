@@ -42,7 +42,7 @@ describe('chatBarSlice', () => {
     expect(s.inputChip).toBeNull();
     expect(s.searching).toBe(false);
     expect(s.searchSources).toEqual(['web']);
-    expect(s.selectedModel).toBe('gpt-4.1-mini');
+    expect(s.selectedModel).toBe('openai/gpt-4.1-mini');
     // PROJ-20 refactor: ModeOverride is now binary 'chat' | 'agent'; default is 'chat'.
     expect(s.modeOverride).toBe('chat');
     expect(s.streamingAssistantMessage).toEqual({

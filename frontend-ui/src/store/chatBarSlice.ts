@@ -91,7 +91,7 @@ const initialState: ChatBarState = {
   nicheMode: 'edit',
   searching: false,
   searchSources: ['web'],
-  selectedModel: 'gpt-4.1-mini',
+  selectedModel: 'openai/gpt-4.1-mini',
   modeOverride: 'chat',
   streamingAssistantMessage: INITIAL_STREAM,
 };
