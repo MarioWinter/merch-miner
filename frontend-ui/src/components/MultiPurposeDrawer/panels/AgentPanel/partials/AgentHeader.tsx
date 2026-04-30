@@ -20,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 import { useGetConfigQuery } from '@/store/agentSlice';
 import type { AgentSessionDetail } from '../types';
 import { AGENT_DEFAULTS } from '../types';
+import ReflectionStatus from './ReflectionStatus';
 
 const HeaderRoot = styled(Box)(({ theme }) => ({
   padding: theme.spacing(1.5, 2),
@@ -61,6 +62,9 @@ interface AgentHeaderProps {
    *  shared session). Adds a "Read-only — Shared by ..." chip and suppresses
    *  pause/resume/stop. */
   readOnly?: boolean;
+  /** AC-80: invoked when user clicks the ReflectionStatus chip — parent
+   *  should open AgentSettingsPage on the Memory tab. */
+  onOpenMemory?: () => void;
 }
 
 const AgentHeader = ({
@@ -78,6 +82,7 @@ const AgentHeader = ({
   budgetPercent,
   isOwner = true,
   readOnly = false,
+  onOpenMemory,
 }: AgentHeaderProps) => {
   const { t } = useTranslation();
   const { data: configs } = useGetConfigQuery();
@@ -170,6 +175,7 @@ const AgentHeader = ({
               </Tooltip>
             </>
           )}
+          <ReflectionStatus onOpenMemory={onOpenMemory} />
           {isOwner && (
             <Tooltip
               title={t(isShared ? 'agent.header.unshare' : 'agent.header.share')}

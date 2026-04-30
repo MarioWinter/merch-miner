@@ -2019,18 +2019,23 @@
       "pause": "Workflow pausieren",
       "resume": "Workflow fortsetzen",
       "stop": "Workflow stoppen",
-      "share": "Session teilen",
+      "share": "Mit Workspace teilen",
+      "unshare": "Freigabe aufheben",
       "paused": "Workflow pausiert",
       "resumed": "Workflow fortgesetzt",
       "stopped": "Workflow gestoppt",
       "shared": "Session mit Workspace geteilt",
-      "unshared": "Session nicht mehr geteilt",
-      "pauseError": "Fehler beim Pausieren",
-      "resumeError": "Fehler beim Fortsetzen",
-      "stopError": "Fehler beim Stoppen",
-      "shareError": "Fehler beim Teilen",
-      "unshareError": "Fehler beim Aufheben der Freigabe",
-      "startError": "Fehler beim Starten der Agent-Session"
+      "unshared": "Freigabe aufgehoben",
+      "pauseError": "Pausieren fehlgeschlagen",
+      "resumeError": "Fortsetzen fehlgeschlagen",
+      "stopError": "Stoppen fehlgeschlagen",
+      "shareError": "Teilen fehlgeschlagen",
+      "unshareError": "Freigabe aufheben fehlgeschlagen",
+      "startError": "Agent-Session konnte nicht gestartet werden"
+    },
+    "share": {
+      "readOnly": "Nur Lesen — geteilt von {{name}}",
+      "sharedBy": "Geteilt von {{name}}"
     },
     "stepper": {
       "title": "Workflow-Fortschritt",
@@ -2047,9 +2052,9 @@
     "log": {
       "empty": "Noch keine Nachrichten",
       "loadMore": "Frühere Nachrichten laden",
-      "sendError": "Fehler beim Senden",
+      "sendError": "Senden fehlgeschlagen",
       "startPrompt": "Starte einen Workflow oder gib einen Befehl ein",
-      "inputPlaceholder": "Sag dem Agent was er tun soll...",
+      "inputPlaceholder": "Sag dem Agent, was er tun soll...",
       "send": "Senden"
     },
     "approval": {
@@ -2059,8 +2064,8 @@
       "reject": "Ablehnen",
       "approved": "Aktion genehmigt",
       "rejected": "Aktion abgelehnt",
-      "approveError": "Fehler bei Genehmigung",
-      "rejectError": "Fehler bei Ablehnung"
+      "approveError": "Genehmigung fehlgeschlagen",
+      "rejectError": "Ablehnung fehlgeschlagen"
     },
     "quickAction": {
       "title": "Schnellaktionen"
@@ -2095,7 +2100,13 @@
       "save": "Speichern",
       "cancel": "Abbrechen",
       "edit": "Bearbeiten",
-      "delete": "Löschen"
+      "delete": "Löschen",
+      "preview": "Vorschau",
+      "hidePreview": "Vorschau ausblenden",
+      "saved": "Wissensdokument gespeichert",
+      "saveError": "Speichern fehlgeschlagen",
+      "deleted": "Wissensdokument gelöscht",
+      "deleteError": "Löschen fehlgeschlagen"
     },
     "templates": {
       "title": "Workflow-Vorlagen",
@@ -2103,10 +2114,17 @@
       "keyPlaceholder": "Vorlagen-Key (z.B. quick_design)",
       "actionPlaceholder": "Aktion",
       "addStep": "Schritt hinzufügen",
+      "removeStep": "Schritt entfernen",
+      "dragHandle": "Zum Umsortieren ziehen",
       "save": "Speichern",
       "cancel": "Abbrechen",
       "delete": "Löschen",
-      "empty": "Keine eigenen Vorlagen"
+      "add": "Vorlage hinzufügen",
+      "empty": "Keine eigenen Vorlagen",
+      "saved": "Vorlage gespeichert",
+      "saveError": "Speichern fehlgeschlagen",
+      "deleted": "Vorlage gelöscht",
+      "deleteError": "Löschen fehlgeschlagen"
     },
     "collision": {
       "title": "Kollisionswarnung",
@@ -2118,7 +2136,24 @@
       "title": "Agent einrichten",
       "message": "Konfiguriere Autonomie-Level und Präferenzen für deinen KI-Assistenten.",
       "setup": "Konfigurieren",
-      "skip": "Überspringen"
+      "skip": "Überspringen",
+      "flowTitle": "Schnelles Setup",
+      "step1": "Autonomie",
+      "step2": "Nische",
+      "step3": "Wissen",
+      "step1Hint": "Wie autonom soll dein Agent sein?",
+      "step2Hint": "Wähle eine Standard-Nische (optional).",
+      "step3Hint": "Füge ein Wissensdokument hinzu, das der Agent kennen soll (optional).",
+      "choosePreset": "Autonomie-Preset wählen",
+      "skipNiche": "Überspringen — später wählen",
+      "next": "Weiter",
+      "back": "Zurück",
+      "finish": "Fertig",
+      "close": "Schließen",
+      "presetActivated": "Autonomie-Preset aktiviert",
+      "presetError": "Preset konnte nicht aktiviert werden",
+      "docSaved": "Wissensdokument gespeichert",
+      "docError": "Speichern fehlgeschlagen"
     },
     "budget": {
       "label": "Budget",
@@ -2152,6 +2187,79 @@
     "shared": {
       "badge": "Geteilt von {{username}}",
       "readOnly": "Nur Lesen (geteilte Session)"
+    },
+    "skills": {
+      "title": "Skills",
+      "empty": "Noch keine Skills. Skills werden automatisch generiert, während der Agent lernt.",
+      "description": "Beschreibung",
+      "name": "Name",
+      "agents": "Agenten",
+      "trigger": "Trigger",
+      "successCount": "Erfolge",
+      "errorCount": "Fehler",
+      "version": "v{{version}}",
+      "lastUsed": "Zuletzt verwendet",
+      "lastUsedNever": "Nie",
+      "viewVersions": "Versionen anzeigen",
+      "showDeleted": "Gelöschte anzeigen",
+      "edit": "Skill bearbeiten",
+      "delete": "Skill löschen",
+      "deleted": "Skill gelöscht",
+      "deleteError": "Löschen fehlgeschlagen",
+      "saved": "Skill gespeichert",
+      "saveError": "Speichern fehlgeschlagen",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "back": "Zurück",
+      "patchMode": "Patch (Anhängen/Diff)",
+      "replaceMode": "Ersetzen (Vollständiger Inhalt)",
+      "patchSummary": "Zusammenfassung der Änderung",
+      "versionHistory": "Versionsverlauf",
+      "versionConflict": "Skill wurde durch Reflektion aktualisiert. Neu laden?",
+      "reload": "Neu laden",
+      "trigger_auto_complex_task": "Auto: Komplexe Aufgabe",
+      "trigger_auto_error_recovery": "Auto: Fehlerbehebung",
+      "trigger_user_correction": "Nutzerkorrektur",
+      "trigger_manual": "Manuell"
+    },
+    "memory": {
+      "title": "Workspace-Gedächtnis",
+      "description": "Kompakte Zusammenfassung dessen, was der Agent über diesen Workspace gelernt hat.",
+      "charCounter": "{{count}} / {{limit}}",
+      "overLimit": "Über dem Limit von {{limit}} Zeichen",
+      "edit": "Gedächtnis bearbeiten",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "saved": "Gedächtnis gespeichert",
+      "saveError": "Speichern fehlgeschlagen",
+      "lastConsolidated": "Zuletzt konsolidiert: {{when}}",
+      "lastConsolidatedNever": "Noch nicht konsolidiert",
+      "empty": "Gedächtnis ist leer. Der Agent füllt es nach abgeschlossenen Sessions."
+    },
+    "profile": {
+      "title": "Dein Profil",
+      "description": "Was der Agent über deine Arbeitsweise abgeleitet hat.",
+      "charCounter": "{{count}} / {{limit}}",
+      "overLimit": "Über dem Limit von {{limit}} Zeichen",
+      "save": "Speichern",
+      "saved": "Profil gespeichert",
+      "saveError": "Speichern fehlgeschlagen",
+      "reset": "Profil zurücksetzen",
+      "resetConfirm": "Profil zurücksetzen? Der Agent muss deine Präferenzen neu lernen.",
+      "resetCancel": "Abbrechen",
+      "resetConfirmAction": "Zurücksetzen",
+      "dialectReasoning": "Dialektisches Reasoning",
+      "dialectReasoningHint": "Nur Lesen — letzte 3-Pass-Analyse, mit der der Agent dieses Profil aktualisiert hat.",
+      "dialectReasoningEmpty": "Noch keine Analyse. Wird nach dem nächsten dialektischen Durchgang erstellt.",
+      "lastDialectic": "Letztes Update: {{when}}",
+      "lastDialecticNever": "Noch nicht ermittelt",
+      "empty": "Profil ist leer. Der Agent füllt es nach einigen Sessions."
+    },
+    "reflection": {
+      "lastReflection": "Letzte Reflektion: {{when}}",
+      "lastReflectionNever": "Noch keine Reflektion",
+      "untilNext": "Sessions bis zur nächsten: {{count}}",
+      "viewMemory": "Gedächtnis anzeigen"
     }
   },
   "amazonResearch": {

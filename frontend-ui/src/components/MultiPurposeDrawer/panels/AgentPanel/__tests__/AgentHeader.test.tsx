@@ -16,8 +16,16 @@ import userEvent from '@testing-library/user-event';
 // (pulled in transitively via axiosBaseQuery → authService → store) can
 // still call `.middleware` / `.reducer` without crashing.
 /* eslint-disable @typescript-eslint/no-explicit-any */
-const { mockUseGetConfigQuery } = vi.hoisted(() => ({
-  mockUseGetConfigQuery: vi.fn(() => ({ data: undefined })),
+const {
+  mockUseGetConfigQuery,
+  mockUseGetMemoryQuery,
+  mockUseGetWorkspaceConfigQuery,
+  mockUseListSessionsQuery,
+} = vi.hoisted(() => ({
+  mockUseGetConfigQuery: vi.fn((..._args: unknown[]) => ({ data: undefined })),
+  mockUseGetMemoryQuery: vi.fn((..._args: unknown[]) => ({ data: undefined })),
+  mockUseGetWorkspaceConfigQuery: vi.fn((..._args: unknown[]) => ({ data: undefined })),
+  mockUseListSessionsQuery: vi.fn((..._args: unknown[]) => ({ data: undefined })),
 }));
 
 vi.mock('@/store/agentSlice', () => ({
@@ -31,6 +39,10 @@ vi.mock('@/store/agentSlice', () => ({
     },
   },
   useGetConfigQuery: (...args: unknown[]) => mockUseGetConfigQuery(...args),
+  useGetMemoryQuery: (...args: unknown[]) => mockUseGetMemoryQuery(...args),
+  useGetWorkspaceConfigQuery: (...args: unknown[]) =>
+    mockUseGetWorkspaceConfigQuery(...args),
+  useListSessionsQuery: (...args: unknown[]) => mockUseListSessionsQuery(...args),
 }));
 /* eslint-enable @typescript-eslint/no-explicit-any */
 

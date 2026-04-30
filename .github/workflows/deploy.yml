@@ -25,7 +25,7 @@ jobs:
             set -e
             DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
-            cd /home/dev/merch-miner
+            cd /srv/merch-miner
             git fetch origin main && git reset --hard origin/main
             $DC pull
             # 1. Start web + redis + frontend + caddy (entrypoint runs migrate, collectstatic, loaddata, setup_scheduler)

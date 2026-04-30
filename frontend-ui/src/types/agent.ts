@@ -373,6 +373,157 @@ export interface PersonalityPreset {
   text: string;
 }
 
+// ---------------------------------------------------------------------------
+// PROJ-18 Phase 14 — Self-Improvement Layer (Metis Pattern)
+// ---------------------------------------------------------------------------
+
+export type SkillTriggerType =
+  | 'auto_complex_task'
+  | 'auto_error_recovery'
+  | 'user_correction'
+  | 'manual';
+
+export interface Skill {
+  id: string;
+  name: string;
+  description: string;
+  content_md: string;
+  version: number;
+  trigger_type: SkillTriggerType;
+  applicable_agent_types: AgentType[];
+  success_count: number;
+  error_count: number;
+  last_used_at: string | null;
+  deleted_at: string | null;
+  created_by_session: string | null;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+  /** Computed by serializer. */
+  version_count: number;
+  /** Computed: deleted_at is null. */
+  is_active: boolean;
+}
+
+export interface SkillVersion {
+  id: string;
+  version: number;
+  content_md: string;
+  patch_summary: string;
+  created_at: string;
+}
+
+export interface SkillListResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: Skill[];
+}
+
+export interface SkillVersionListResponse {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: SkillVersion[];
+}
+
+export interface CreateSkillBody {
+  name: string;
+  description?: string;
+  content_md: string;
+  applicable_agent_types?: AgentType[] | string[];
+  patch_summary?: string;
+}
+
+export interface PatchSkillBody {
+  patch_md: string;
+  expected_version: number;
+  patch_summary?: string;
+}
+
+export interface SkillVersionConflictError {
+  error: 'version_conflict';
+  detail: string;
+  current_version: number;
+  expected_version: number;
+}
+
+export interface ListSkillsParams {
+  agent_type?: AgentType | string;
+  trigger_type?: SkillTriggerType;
+  include_deleted?: boolean;
+  page?: number;
+  page_size?: number;
+}
+
+export interface WorkspaceMemory {
+  id: string;
+  content_md: string;
+  last_consolidated_at: string | null;
+  last_consolidated_session: string | null;
+  /** Computed: length of content_md. */
+  char_count: number;
+  /** Computed from AgentWorkspaceConfig.memory_char_limit (default 2200). */
+  char_limit: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PatchMemoryBody {
+  content_md: string;
+}
+
+export interface UserProfile {
+  id: string;
+  content_md: string;
+  last_dialectic_at: string | null;
+  dialect_cadence_sessions: number;
+  /** Read-only scratchpad — only present when ?include_reasoning=true. */
+  dialect_reasoning?: string;
+  /** Computed: length of content_md. */
+  char_count: number;
+  /** Computed from AgentWorkspaceConfig.profile_char_limit (default 1375). */
+  char_limit: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PatchProfileBody {
+  content_md?: string;
+  dialect_cadence_sessions?: number;
+}
+
+export interface AgentWorkspaceConfig {
+  id: string;
+  reflection_cadence_sessions: number;
+  skill_creation_min_tool_calls: number;
+  memory_char_limit: number;
+  profile_char_limit: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface PatchWorkspaceConfigBody {
+  reflection_cadence_sessions?: number;
+  skill_creation_min_tool_calls?: number;
+  memory_char_limit?: number;
+  profile_char_limit?: number;
+}
+
+export interface ReflectionTriggerResponse {
+  detail: string;
+  session_id: string;
+}
+
+/** Phase 14 — char-limit safety thresholds (frontend-only constants). */
+export const MEMORY_CHAR_LIMIT_DEFAULT = 2200;
+export const MEMORY_CHAR_WARN = 1900;
+export const MEMORY_CHAR_CRITICAL = 2100;
+
+export const PROFILE_CHAR_LIMIT_DEFAULT = 1375;
+export const PROFILE_CHAR_WARN = 1200;
+export const PROFILE_CHAR_CRITICAL = 1330;
+
 export const PERSONALITY_PRESETS: PersonalityPreset[] = [
   {
     agent_type: 'orchestrator',

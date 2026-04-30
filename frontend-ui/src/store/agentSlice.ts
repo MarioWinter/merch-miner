@@ -22,6 +22,19 @@ import type {
   SessionListParams,
   AgentMessage,
   AgentDashboardSummary,
+  Skill,
+  SkillListResponse,
+  SkillVersionListResponse,
+  CreateSkillBody,
+  PatchSkillBody,
+  ListSkillsParams,
+  WorkspaceMemory,
+  PatchMemoryBody,
+  UserProfile,
+  PatchProfileBody,
+  AgentWorkspaceConfig,
+  PatchWorkspaceConfigBody,
+  ReflectionTriggerResponse,
 } from '@/types/agent';
 
 export const agentApi = createApi({
@@ -36,6 +49,11 @@ export const agentApi = createApi({
     'Templates',
     'Knowledge',
     'AgentDashboard',
+    'Skills',
+    'SkillVersions',
+    'Memory',
+    'Profile',
+    'WorkspaceConfig',
   ],
   endpoints: (builder) => ({
     // --- Sessions ---
@@ -301,6 +319,154 @@ export const agentApi = createApi({
       }),
       providesTags: [{ type: 'AgentDashboard', id: 'SUMMARY' }],
     }),
+
+    // ── Phase 14 — Self-Improvement Layer (Metis Pattern) ──
+
+    // Skills
+    listSkills: builder.query<SkillListResponse, ListSkillsParams | void>({
+      query: (params) => ({
+        url: '/api/agent/skills/',
+        method: 'GET',
+        params: params ?? undefined,
+      }),
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.results.map(({ id }) => ({
+                type: 'Skills' as const,
+                id,
+              })),
+              { type: 'Skills', id: 'LIST' },
+            ]
+          : [{ type: 'Skills', id: 'LIST' }],
+    }),
+
+    getSkill: builder.query<Skill, string>({
+      query: (id) => ({
+        url: `/api/agent/skills/${id}/`,
+        method: 'GET',
+      }),
+      providesTags: (_r, _e, id) => [{ type: 'Skills', id }],
+    }),
+
+    createSkill: builder.mutation<Skill, CreateSkillBody>({
+      query: (body) => ({
+        url: '/api/agent/skills/',
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: [{ type: 'Skills', id: 'LIST' }],
+    }),
+
+    patchSkill: builder.mutation<
+      Skill,
+      { id: string; body: PatchSkillBody }
+    >({
+      query: ({ id, body }) => ({
+        url: `/api/agent/skills/${id}/`,
+        method: 'PATCH',
+        data: body,
+      }),
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: 'Skills', id },
+        { type: 'Skills', id: 'LIST' },
+        { type: 'SkillVersions', id },
+      ],
+    }),
+
+    deleteSkill: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/api/agent/skills/${id}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_r, _e, id) => [
+        { type: 'Skills', id },
+        { type: 'Skills', id: 'LIST' },
+      ],
+    }),
+
+    getSkillVersions: builder.query<SkillVersionListResponse, string>({
+      query: (id) => ({
+        url: `/api/agent/skills/${id}/versions/`,
+        method: 'GET',
+      }),
+      providesTags: (_r, _e, id) => [{ type: 'SkillVersions', id }],
+    }),
+
+    // Memory (singleton per workspace)
+    getMemory: builder.query<WorkspaceMemory, void>({
+      query: () => ({
+        url: '/api/agent/memory/',
+        method: 'GET',
+      }),
+      providesTags: [{ type: 'Memory', id: 'SINGLETON' }],
+    }),
+
+    patchMemory: builder.mutation<WorkspaceMemory, PatchMemoryBody>({
+      query: (body) => ({
+        url: '/api/agent/memory/',
+        method: 'PATCH',
+        data: body,
+      }),
+      invalidatesTags: [{ type: 'Memory', id: 'SINGLETON' }],
+    }),
+
+    // Profile (caller's profile in current workspace)
+    getProfile: builder.query<UserProfile, { include_reasoning?: boolean } | void>({
+      query: (params) => ({
+        url: '/api/agent/profile/',
+        method: 'GET',
+        params: params?.include_reasoning ? { include_reasoning: 'true' } : undefined,
+      }),
+      providesTags: [{ type: 'Profile', id: 'ME' }],
+    }),
+
+    patchProfile: builder.mutation<UserProfile, PatchProfileBody>({
+      query: (body) => ({
+        url: '/api/agent/profile/',
+        method: 'PATCH',
+        data: body,
+      }),
+      invalidatesTags: [{ type: 'Profile', id: 'ME' }],
+    }),
+
+    // Workspace tuning knobs (admin only)
+    getWorkspaceConfig: builder.query<AgentWorkspaceConfig, void>({
+      query: () => ({
+        url: '/api/agent/workspace-config/',
+        method: 'GET',
+      }),
+      providesTags: [{ type: 'WorkspaceConfig', id: 'SINGLETON' }],
+    }),
+
+    patchWorkspaceConfig: builder.mutation<
+      AgentWorkspaceConfig,
+      PatchWorkspaceConfigBody
+    >({
+      query: (body) => ({
+        url: '/api/agent/workspace-config/',
+        method: 'PATCH',
+        data: body,
+      }),
+      invalidatesTags: [
+        { type: 'WorkspaceConfig', id: 'SINGLETON' },
+        { type: 'Memory', id: 'SINGLETON' },
+        { type: 'Profile', id: 'ME' },
+      ],
+    }),
+
+    // Manual reflection trigger
+    triggerReflection: builder.mutation<ReflectionTriggerResponse, string>({
+      query: (sessionId) => ({
+        url: `/api/agent/sessions/${sessionId}/reflect/`,
+        method: 'POST',
+      }),
+      invalidatesTags: [
+        { type: 'Memory', id: 'SINGLETON' },
+        { type: 'Profile', id: 'ME' },
+        { type: 'Skills', id: 'LIST' },
+      ],
+    }),
   }),
 });
 
@@ -333,4 +499,18 @@ export const {
   useUpdateKnowledgeMutation,
   useDeleteKnowledgeMutation,
   useGetDashboardSummaryQuery,
+  // Phase 14 — Self-Improvement Layer
+  useListSkillsQuery,
+  useGetSkillQuery,
+  useCreateSkillMutation,
+  usePatchSkillMutation,
+  useDeleteSkillMutation,
+  useGetSkillVersionsQuery,
+  useGetMemoryQuery,
+  usePatchMemoryMutation,
+  useGetProfileQuery,
+  usePatchProfileMutation,
+  useGetWorkspaceConfigQuery,
+  usePatchWorkspaceConfigMutation,
+  useTriggerReflectionMutation,
 } = agentApi;

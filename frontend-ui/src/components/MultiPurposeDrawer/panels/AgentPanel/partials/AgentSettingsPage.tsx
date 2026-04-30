@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   Stack,
   Typography,
@@ -24,6 +24,28 @@ import PermissionEditor from './PermissionEditor';
 import PresetSelector from './PresetSelector';
 import KnowledgeDocList from './KnowledgeDocList';
 import TemplateEditor from './TemplateEditor';
+import SkillList from './SkillList';
+import MemoryEditor from './MemoryEditor';
+import UserProfileEditor from './UserProfileEditor';
+
+export type AgentSettingsTab =
+  | 'agent'
+  | 'permissions'
+  | 'knowledge'
+  | 'templates'
+  | 'skills'
+  | 'memory'
+  | 'profile';
+
+const TAB_KEYS: AgentSettingsTab[] = [
+  'agent',
+  'permissions',
+  'knowledge',
+  'templates',
+  'skills',
+  'memory',
+  'profile',
+];
 
 const SettingsRoot = styled(Box)({
   display: 'flex',
@@ -50,9 +72,16 @@ const AGENT_TYPES: AgentType[] = [
 interface AgentSettingsPageProps {
   onBack: () => void;
   activePresetName: string;
+  /** Optional initial tab to land on (e.g. when ReflectionStatus deep-links
+   *  to the Memory tab). Defaults to 'agent'. */
+  initialTab?: AgentSettingsTab;
 }
 
-const AgentSettingsPage = ({ onBack, activePresetName }: AgentSettingsPageProps) => {
+const AgentSettingsPage = ({
+  onBack,
+  activePresetName,
+  initialTab = 'agent',
+}: AgentSettingsPageProps) => {
   const { t } = useTranslation();
   const {
     configs,
@@ -66,9 +95,19 @@ const AgentSettingsPage = ({ onBack, activePresetName }: AgentSettingsPageProps)
     activatePreset,
   } = useAgentSettings();
 
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState(() => {
+    const idx = TAB_KEYS.indexOf(initialTab);
+    return idx === -1 ? 0 : idx;
+  });
   const [selectedAgent, setSelectedAgent] = useState<AgentType>('orchestrator');
   const [editState, setEditState] = useState<Record<string, string>>({});
+
+  // Allow external triggers (e.g. ReflectionStatus chip clicks while the
+  // settings page is already mounted) to switch tabs without re-mounting.
+  useEffect(() => {
+    const idx = TAB_KEYS.indexOf(initialTab);
+    if (idx !== -1) setTab(idx);
+  }, [initialTab]);
 
   const currentConfig = configs.find((c) => c.agent_type === selectedAgent);
 
@@ -124,6 +163,9 @@ const AgentSettingsPage = ({ onBack, activePresetName }: AgentSettingsPageProps)
         <Tab label={t('agent.settings.permissions')} />
         <Tab label={t('agent.knowledge.title')} />
         <Tab label={t('agent.templates.title')} />
+        <Tab label={t('agent.skills.title')} />
+        <Tab label={t('agent.memory.title')} />
+        <Tab label={t('agent.profile.title')} />
       </Tabs>
 
       <ScrollArea>
@@ -246,6 +288,9 @@ const AgentSettingsPage = ({ onBack, activePresetName }: AgentSettingsPageProps)
 
         {tab === 2 && <KnowledgeDocList />}
         {tab === 3 && <TemplateEditor />}
+        {tab === 4 && <SkillList />}
+        {tab === 5 && <MemoryEditor />}
+        {tab === 6 && <UserProfileEditor />}
       </ScrollArea>
     </SettingsRoot>
   );

@@ -21,7 +21,9 @@ import QuickActionBar from './partials/QuickActionBar';
 import OnboardingBanner from './partials/OnboardingBanner';
 import OnboardingFlow from './partials/OnboardingFlow';
 import BatchView from './partials/BatchView';
-import AgentSettingsPage from './partials/AgentSettingsPage';
+import AgentSettingsPage, {
+  type AgentSettingsTab,
+} from './partials/AgentSettingsPage';
 
 const PanelRoot = styled(Box)({
   display: 'flex',
@@ -47,6 +49,7 @@ const AgentPanel = () => {
   const activeSessionId = useAppSelector((s) => s.chatBar.activeAgentSessionId);
 
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<AgentSettingsTab>('agent');
   const [showOnboarding, setShowOnboarding] = useState(true);
   const [onboardingFlowOpen, setOnboardingFlowOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
@@ -156,6 +159,7 @@ const AgentPanel = () => {
       <AgentSettingsPage
         onBack={() => setShowSettings(false)}
         activePresetName={activeSession?.autonomy_preset ?? 'assisted'}
+        initialTab={settingsTab}
       />
     );
   }
@@ -175,7 +179,14 @@ const AgentPanel = () => {
         onStop={stop}
         onShare={share}
         onUnshare={unshare}
-        onSettings={() => setShowSettings(true)}
+        onSettings={() => {
+          setSettingsTab('agent');
+          setShowSettings(true);
+        }}
+        onOpenMemory={() => {
+          setSettingsTab('memory');
+          setShowSettings(true);
+        }}
         onClearNiche={() => {
           // Clearing the chip clears the niche-context binding for new sessions.
           // The active session's niche_context is immutable (server-side state).

@@ -39,7 +39,7 @@
 
 ### Workflow Fixes (code changes)
 - [x] Fix `ci.yml` — rewrite backend job: native Python 3.12 + GHA postgres service (removes `supabase-net` dependency, adds `ruff` install)
-- [x] Fix `deploy.yml` — correct path (`/home/dev/merch-miner`) + prod compose flags (`-f docker-compose.yml -f docker-compose.prod.yml up -d`) + GHCR login step
+- [x] Fix `deploy.yml` — correct path (`/srv/merch-miner`) + prod compose flags (`-f docker-compose.yml -f docker-compose.prod.yml up -d`) + GHCR login step
 - [x] BUG-1 fixed — `.env.template` `BACKEND_IMAGE` now uses correct `ghcr.io/mariowinter/merch-miner/backend:latest`
 - [x] BUG-3 fixed — `worker` service `env_file` present in `docker-compose.prod.yml` (Docker Compose v2 merges list fields from base)
 - [x] BUG-4 fixed — `backend.entrypoint.sh` runs only `migrate`, not `makemigrations`
@@ -58,7 +58,7 @@
 ### Verification
 - [x] Push to feature branch → `ci.yml` runs; both backend + frontend jobs pass
 - [x] Merge to `main` → `docker-publish.yml` pushes backend image to GHCR
-- [x] GHCR push → `deploy.yml` SSHs to `/home/dev/merch-miner` and deploys cleanly
+- [x] GHCR push → `deploy.yml` SSHs to `/srv/merch-miner` and deploys cleanly
 - [x] `https://miner.mariowinter.com/api/` → Django API responds
 - [x] `https://merch-miner.mariowinter.com/` → React SPA loads
 

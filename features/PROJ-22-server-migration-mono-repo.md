@@ -1,9 +1,9 @@
 # PROJ-22: Server-Migration auf VC 8-32 + Mono-Repo Infrastruktur
 
-**Status:** Planned
+**Status:** In Progress
 **Priority:** P0 (Infrastructure — blockiert PROJ-21 RAG)
 **Created:** 2026-04-28
-**Last Updated:** 2026-04-28
+**Last Updated:** 2026-04-30 — Server-Inventur durchgeführt + Migrations-Entscheidungen finalisiert (siehe "Pre-Migration-Inventur 2026-04-30" + Decisions Log #9-#14)
 
 ## Overview
 
@@ -12,6 +12,77 @@ Migration von Strato VPS VC4-8 (4 vCPU, 8 GB RAM, €15/mo) auf **VC 8-32** (8 v
 Parallel: **Mono-Repo-Restrukturierung** der merch-miner-spezifischen Infrastruktur. Vane (mit unserem PR #1118 Patch) + SearXNG + Crawl4ai wandern aus `/home/dev/local-ai-packaged/` in das merch-miner-Repo unter `infra/`. **Shared Infrastruktur (Supabase, Langfuse, n8n, Caddy) bleibt im localai-stack-Repo** — das ist Cross-Project (auch für künftige Projekte).
 
 Migration via Branch `feat/PROJ-22-server-migration` — purely additive (existing app code unverändert, alter Server läuft weiter bis Cutover). Soft cutover mit 1-2 Wochen Parallel-Run für Rollback-Sicherheit.
+
+## Pre-Migration-Inventur (2026-04-30)
+
+### Alter Server `213.165.95.5` (Strato VC4-8)
+- **OS:** Ubuntu 24.04.4 LTS · **Hostname:** `ubuntu` · **Docker:** 29.3.0
+- **RAM:** 7.7 GB total / 6.7 GB used (am Limit, kein Swap)
+- **Disk:** 232 GB / 75% voll (`/var/lib/docker` = 175 GB → primarily Langfuse ClickHouse + Supabase logs)
+- **Repos in `/home/dev/`:** `merch-miner/` (5 MB, branch `main`, alles committed), `local-ai-packaged/`, `self-hosting-ai-winterkit/` (NICHT migrieren), `videoflix-backend-main/` (NICHT migrieren), `backups/`
+- **33 Container running** — 8 merch-miner (`app_*`), 25 localai-stack (Supabase 12, Langfuse 4, n8n, Vane, Crawl4ai, SearXNG, Caddy, Redis, MinIO, ClickHouse)
+- **⚠️ Probleme:** `supabase-storage` + `supabase-pooler` im Restart-Loop (RAM-Pressure)
+- **App-Daten in `merch_miner` schema:** 1 User, 1 Niche, 1 Workspace, AmazonProducts ~1.4 MB → Test/Dev-Daten, kein Production-Volumen
+- **Postgres-Instanzen:** `supabase-db` (postgres:15.8) → `_supabase` 2.1 GB (Vector-Embeddings + Langfuse) + `merch_miner` schema. `localai-postgres-1` (postgres:17) für Langfuse separat.
+- **Caddy-Domains:** `miner.mariowinter.com` → backend (web:8000), `merch-miner.mariowinter.com` → frontend, plus localai-stack Subdomains (`langfuse.*`, `searxng.*`, n8n etc.)
+- **Docker-Images:** Pulled von `ghcr.io/mariowinter/merch-miner/{backend,frontend}:latest` (CI/CD-Pipeline pusht dort)
+
+### Neuer Server `212.132.102.96` (Strato VC 8-32)
+- **OS:** Ubuntu 24.04.4 LTS · **Hostname:** `ubuntu` (wird zu `merch-miner` umbenannt)
+- **RAM:** 31 GB total / 690 MB used · **Kein Swap** (wird konfiguriert)
+- **Disk:** 464 GB SSD / 1% used (2.2 GB) — fully blank
+- **CPU:** 8 vCPU
+- **Vorinstalliert:** git, curl, wget, rsync, ufw (inactive), vim, htop
+- **Fehlt:** Docker, docker-compose, autossh
+- **Verzeichnisse `/srv` + `/opt` + `/home`** alle leer
+- **Nur root user** — `dev` User existiert nicht
+- **UFW** binary present aber nicht aktiv
+
+## Migration-Entscheidungen (finalisiert 2026-04-30)
+
+| Entscheidung | Wert | Begründung |
+|--------------|------|------------|
+| Verzeichnis-Konvention | `/srv/merch-miner/` + `/srv/local-ai-packaged/` | FHS-Standard, sauber von `/home` getrennt, single backup mount-point |
+| Hostname (neu) | `merch-miner` | Disambiguierung vs. altem `ubuntu`-Host in Logs/SSH-Prompts |
+| User-Strategie | Root-only, gehärtet (SSH key-only, no PasswordAuth, UFW) | Solo-Dev-Setup, dev-User-Komplexität bringt nur Wert bei Multi-User-SSH |
+| Migrations-Scope | NUR `merch-miner` + `local-ai-packaged` | `self-hosting-ai-winterkit` (alte Version) + `videoflix-backend-main` (fremdes Projekt) bleiben auf altem Server zurück bzw. werden nicht mehr betrieben |
+| DB-Strategie | Kompletter `pg_dump` aller relevanten DBs | Saubere Reproduktion inkl. Vector-Embeddings, kein "frisch neu generieren" |
+| Migrations-Modus | Schritt-für-Schritt mit User-Approval pro Phase | Volle Kontrolle, jederzeit Rollback |
+
+## Migrations-Strategie (finalisiert 2026-04-30)
+
+**Code-Stand:** Neuer Server bekommt 1:1 den Stand vom alten Server (= `main` Branch = Commit `4552aa4`, Docker Images von GHCR `:latest` aus diesem Commit). PROJ-15 / PROJ-16 / PROJ-18 (alle aktuell auf `feature/create-new-features` mit ~22 Commits Vorsprung) werden **NICHT** im Rahmen der Migration deployed. Diese kommen erst später nach abgeschlossener Feature-Entwicklung via normalem PR → main → CI/CD-Build → `docker compose pull` auf neuem Server.
+
+**Migrations-Tools-Persistenz (Option Z):** Bootstrap-Script + Migration-Scripts leben **lokal auf dem Mac** unter `/Users/mariomuller/dev/merch-miner/scripts/migration/` (gitignored). Sie werden per `scp`/`rsync` direkt auf den neuen Server transferiert wenn benötigt. Begründung: keine Verschmutzung des `main`-Branch (der dem Server-Stand entsprechen muss); keine Verschmutzung des feature-Branch mit Infra-Tooling; nach erfolgreicher Migration können sie ggf. später als separater PR ins Repo wandern.
+
+**Repos auf neuem Server:**
+- `merch-miner` → `git clone https://github.com/MarioWinter/merch-miner.git /srv/merch-miner` (via neuem Deploy-Key)
+- `local-ai-packaged` → `git clone <github-url> /srv/local-ai-packaged` (via neuem Deploy-Key, URL beim Phase-0-Check ermitteln)
+- Branch auf beiden: `main` (= alter Server-Stand)
+
+**Sensitive Files via SSH-Transfer (NICHT in Git):**
+- `/home/dev/merch-miner/.env` → `/srv/merch-miner/.env` (rsync)
+- `/home/dev/local-ai-packaged/.env` → `/srv/local-ai-packaged/.env` (rsync) — **kritisch**: enthält `N8N_ENCRYPTION_KEY`, ohne den n8n alle gespeicherten Credentials nicht mehr entschlüsseln kann
+- Vane custom-build PR #1118 patches (falls außerhalb Repo)
+
+**Daten via SSH-Streaming:**
+- Postgres: `pg_dump --format=custom` auf altem Server | `pg_restore` auf neuem Server (gestreamt durch SSH)
+- ClickHouse (Langfuse Events): entweder `clickhouse-backup` Tool oder Volume-rsync
+- MinIO storage (Langfuse Media): Volume-rsync
+- App-Volumes (`django-app_media_volume` = 4 KB, `django-app_caddy_data` = TLS certs): rsync
+- **TLS-Certs Strategie:** Caddy-Volume `caddy_data` per rsync mitnehmen → existing Let's Encrypt Certs werden übernommen → umgeht LE Rate-Limit (5/Domain/Woche)
+
+**SSH-Deploy-Key Strategie:**
+- Auf neuem Server NEUEN Key generieren: `ssh-keygen -t ed25519 -C "merch-miner-prod-deploy" -f /root/.ssh/github_deploy`
+- Public Key zeigen → User fügt manuell bei GitHub als Deploy-Key in beiden Repos ein
+- Read-only reicht für `git pull` (kein push vom Server aus)
+
+**DNS-Strategie:**
+- DNS-Records werden vom User manuell beim Provider umgestellt (out of automation scope)
+- 24h vor Cutover: TTL aller relevanten Records auf 300s setzen → schneller Switch
+- Zu ändernde Records nach Phase 0 als komplette Liste an User übergeben
+
+**Wartungsfenster:** Flexibel, kein Zeitdruck. Soft-Cutover mit 1-2 Wochen Parallel-Run für Rollback-Sicherheit.
 
 ## Dependencies
 
@@ -34,8 +105,8 @@ Migration via Branch `feat/PROJ-22-server-migration` — purely additive (existi
 ### Phase 1 — Branch + Mono-Repo-Strukturierung
 
 - [ ] AC-1: Branch `feat/PROJ-22-server-migration` aus `main` erstellt. Alle Phase-1+2-Arbeit landet hier — `main` bleibt unbroken.
-- [ ] AC-2: `infra/` Verzeichnis im merch-miner-Repo angelegt mit Subdirs:
-  - `infra/vane/config.toml` (kopiert von `/home/dev/local-ai-packaged/vane/config.toml`)
+- [ ] AC-2: `infra/` Verzeichnis im merch-miner-Repo angelegt mit Subdirs (Configs werden vom alten Server `213.165.95.5:/home/dev/local-ai-packaged/` per `scp`/`rsync` kopiert):
+  - `infra/vane/config.toml`
   - `infra/vane/setup-providers.sh` (re-register OpenRouter via API — siehe `memory/project_vane_custom_build.md`)
   - `infra/vane/Dockerfile.pr-1118` (eigenes Build-Recipe falls upstream PR #1118 nicht merged ist beim Migrations-Zeitpunkt)
   - `infra/vane/README.md`
@@ -48,11 +119,14 @@ Migration via Branch `feat/PROJ-22-server-migration` — purely additive (existi
 ### Phase 2 — Bootstrap + Migration Scripts
 
 - [ ] AC-6: `scripts/bootstrap-server.sh` — vollautomatisches Setup für fresh Strato-VPS:
-  - SSH-Key validation
+  - SSH-Key validation (key bereits hochgeladen via Strato-Panel oder per `ssh-copy-id`)
+  - Hostname auf `merch-miner` setzen (`hostnamectl set-hostname merch-miner`)
   - Swap-File 4GB (essential auf 32GB-System für safety net)
-  - Docker + docker compose v2 installation
-  - UFW firewall (22, 80, 443, optional dev-ports gated by env)
-  - Git-clone beide Repos (`merch-miner` + `local-ai-packaged`)
+  - Docker + docker compose v2 installation (offizielles Repo)
+  - SSH-Hardening: `PasswordAuthentication no`, `PermitRootLogin prohibit-password`
+  - UFW firewall enable (22, 80, 443, optional dev-ports gated by env)
+  - Verzeichnis-Setup: `mkdir -p /srv/merch-miner /srv/local-ai-packaged`
+  - Git-clone beide Repos in `/srv/`
   - Prompt für `.env` (interactive) ODER copy von secrets-vault
   - `docker compose up -d` für beide Stacks
   - Health-checks
@@ -155,6 +229,18 @@ Migration via Branch `feat/PROJ-22-server-migration` — purely additive (existi
 | 6 | Branch `feat/PROJ-22-server-migration` purely additive | Alter Server läuft weiter auf `main` während Migration. Hotfixes auf main werden ggf. in Branch rebased |
 | 7 | Git-Tags `v-pre-migration` + `v-post-migration` | Eindeutige Rollback-Punkte, einfach in Incident-Response |
 | 8 | Vane custom-build (PR #1118) wird gleich von Anfang an mitmigriert | Aktuell auf altem Server gerade gebaut. Bauen auf neuem Server analog. Falls PR merged: switch zu `vane:latest` |
+| 9 | Verzeichnis-Konvention `/srv/merch-miner/` + `/srv/local-ai-packaged/` | FHS-Standard für Service-Daten. Sauberer als alter `/home/dev/...` Pfad. Single backup mount-point. (Entscheidung 2026-04-30) |
+| 10 | Hostname `merch-miner` (nicht `mm-prod-01`) | User-Präferenz. Klar, eindeutig, keine Abkürzung. Wird via `hostnamectl set-hostname` gesetzt. |
+| 11 | Root-only User-Strategie (kein dev-User) | Solo-Dev-Setup. SSH-key-only + `PasswordAuthentication no` + `PermitRootLogin prohibit-password` + UFW = ausreichendes Härtungs-Niveau. Dev-User-Komplexität nur bei Multi-User-SSH wertvoll. |
+| 12 | NUR `merch-miner` + `local-ai-packaged` migrieren | `self-hosting-ai-winterkit` ist alte localai-Version (deprecated), `videoflix-backend-main` ist fremdes Projekt — beide bleiben auf altem Server zurück oder werden nicht mehr betrieben. |
+| 13 | Kompletter `pg_dump` ALLER DBs (auch `_supabase` 2.1 GB inkl. Vector-Embeddings) | Saubere 1:1-Reproduktion. Kein "Embeddings frisch generieren" → spart LLM-API-Kosten und Rebuild-Zeit. |
+| 14 | Schritt-für-Schritt-Modus mit User-Approval pro Phase | Volle Kontrolle, jederzeit Rollback. Autonome Ausführung verworfen. |
+| 15 | Migration findet auf `feature/create-new-features` Branch statt, KEINE Änderung an `main` | `main` muss exakt dem alten-Server-Stand entsprechen (= Code den der neue Server clont). Migrations-Tools nicht in main → kein Code-Drift. |
+| 16 | Migrations-Scripts lokal auf Mac (Option Z), gitignored | Migrations-Tooling gehört nicht in den Production-Code. Saubere Trennung. Kann später optional separat ins Repo wandern. |
+| 17 | Caddy `caddy_data` Volume per rsync mitnehmen | Existing Let's Encrypt Certs auf neuem Server wiederverwenden → umgeht LE Rate-Limit (5 Certs/Domain/Woche). Certs sind domain-bound, nicht IP-bound. |
+| 18 | Neuer SSH-Deploy-Key auf neuem Server (kein Key-Transfer vom alten) | Best Practice: keine Key-Wiederverwendung über Server hinweg. User trägt Public-Key bei GitHub manuell als Deploy-Key in beiden Repos ein. |
+| 19 | `.env` Files (inkl. `N8N_ENCRYPTION_KEY`) per rsync vom alten Server | n8n-Credentials sind verschlüsselt mit `N8N_ENCRYPTION_KEY` in DB → ohne Key-Transfer wären alle gespeicherten n8n-Credentials nach Migration unbrauchbar. |
+| 20 | Code-Stand der Migration = `main` (4552aa4), NICHT `feature/create-new-features` | Saubere 1:1 Migration. PROJ-15/16/18 später separat deployen via normalem CI/CD-Flow nach Feature-Abschluss. |
 
 ## Out of Scope (deferred)
 

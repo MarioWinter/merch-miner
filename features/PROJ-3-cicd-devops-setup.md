@@ -65,7 +65,7 @@ Three scoped goals:
 
 ### Auto-deploy — `deploy.yml`
 - [x] Triggers after `docker-publish.yml` succeeds on `main`
-- [x] SSH into `/home/dev/merch-miner`, runs `git fetch origin main && git reset --hard origin/main` + `docker compose -f docker-compose.yml -f docker-compose.prod.yml pull && up -d --remove-orphans` (no `--build`; `git reset` required — compose files + Caddyfile live in repo)
+- [x] SSH into `/srv/merch-miner`, runs `git fetch origin main && git reset --hard origin/main` + `docker compose -f docker-compose.yml -f docker-compose.prod.yml pull && up -d --remove-orphans` (no `--build`; `git reset` required — compose files + Caddyfile live in repo)
 - [x] Runs `manage.py migrate --no-input` + `collectstatic --no-input` post-deploy
 - [x] Deploys only if publish workflow concluded `success`
 
@@ -128,7 +128,7 @@ Three scoped goals:
 ## Technical Requirements
 - GitHub Actions runners: `ubuntu-latest`
 - Registry: GitHub Container Registry (GHCR) — free, no extra account needed
-- Production app path: `/home/dev/merch-miner`
+- Production app path: `/srv/merch-miner`
 - Django version check: CI uses native Python 3.12 + GHA postgres service (not Docker Compose — avoids `supabase-net` dependency on runner)
 - Frontend Node version: 20 LTS
 - All compose files: Docker Compose v2 syntax (`services:` top-level, no `version:` field)
@@ -168,7 +168,7 @@ Three scoped goals:
 ---
 
 ## Known Production Details
-- Server path: `/home/dev/merch-miner` ✅ confirmed
+- Server path: `/srv/merch-miner` ✅ confirmed
 - Domains: `miner.mariowinter.com` (API) / `merch-miner.mariowinter.com` (SPA) ✅ confirmed
 - TLS: terminated by Haupt-Caddy (external to this stack — Caddyfile uses `:80`) ✅ confirmed
 - DB: Supabase PostgreSQL in `localai` stack, accessed via `supabase-net` ✅ confirmed
@@ -358,7 +358,7 @@ No new database tables. No new Django models. No frontend state changes. This is
 Production flow:
 1. Push to `main` triggers `ci.yml` (tests) in parallel with `docker-publish.yml` (image build)
 2. `docker-publish.yml` builds backend image (`django-app/backend.Dockerfile`) and frontend image (`frontend-ui/Dockerfile` target `prod`) and pushes both to GHCR
-3. `deploy.yml` triggers on `docker-publish.yml` success; SSHs to `/home/dev/merch-miner`; runs `git pull --ff-only` then `docker compose -f docker-compose.yml -f docker-compose.prod.yml pull && up -d`
+3. `deploy.yml` triggers on `docker-publish.yml` success; SSHs to `/srv/merch-miner`; runs `git pull --ff-only` then `docker compose -f docker-compose.yml -f docker-compose.prod.yml pull && up -d`
 4. `docker-compose.prod.yml` overrides `web` and `worker` with `image: ghcr.io/mariowinter/merch-miner/backend:latest` and `frontend` with `image: ghcr.io/mariowinter/merch-miner/frontend:latest`; adds `caddy: caddy:2-alpine`; uses `merch_net` + `supabase-net` external networks
 5. Root `Caddyfile` routes `miner.mariowinter.com:80` (API+static/media) and `merch-miner.mariowinter.com:80` (SPA) through to services
 
@@ -396,7 +396,7 @@ Local development flow:
 | # | Criterion | Status | Notes |
 |---|-----------|--------|-------|
 | DEP-1 | Triggers after `docker-publish.yml` succeeds on `main` | PASS | `workflow_run` + `conclusion == 'success'` + `branches: [main]` |
-| DEP-2 | SSH path `/home/dev/merch-miner` correct | PASS | Confirmed in diff |
+| DEP-2 | SSH path `/srv/merch-miner` correct | PASS | Confirmed in diff |
 | DEP-3 | Runs `docker compose pull` then `up -d` (no `--build`) | PASS | `pull` + `up -d --remove-orphans` — no `--build` flag |
 | DEP-4 | Runs `migrate` + `collectstatic` post-deploy | PASS | Both exec commands present |
 | DEP-5 | Production does NOT use `--build` | PASS | Verified |
@@ -480,7 +480,7 @@ The original acceptance criterion in the spec states the deploy should work via 
 Additionally, the acceptance criterion in the spec (line 68) explicitly says the deploy runs `git pull + docker compose ... up --build` but the implemented deploy does NOT use `--build` (correct). However, the spec criterion still documents `--build` which is now stale.
 
 **Steps to reproduce:**
-1. Make a local modification on the server in `/home/dev/merch-miner`
+1. Make a local modification on the server in `/srv/merch-miner`
 2. Push a commit to `main` on GitHub
 3. `deploy.yml` runs `git pull --ff-only` — fails with "not possible to fast-forward"
 4. Deploy exits non-zero but old containers still run — no alert

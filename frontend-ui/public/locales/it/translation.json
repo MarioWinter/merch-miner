@@ -2594,5 +2594,257 @@
       "visionFallback": "Passato a {{model}} per il supporto immagini",
       "purgedPlaceholder": "[Immagine eliminata]"
     }
+  },
+  "agent": {
+    "tab": {
+      "label": "Agente",
+      "pageTitle": "Agente OpenClaw"
+    },
+    "header": {
+      "pause": "Metti in pausa",
+      "resume": "Riprendi workflow",
+      "stop": "Ferma workflow",
+      "share": "Condividi con lo spazio",
+      "unshare": "Interrompi condivisione",
+      "paused": "Workflow in pausa",
+      "resumed": "Workflow ripreso",
+      "stopped": "Workflow fermato",
+      "shared": "Sessione condivisa con lo spazio",
+      "unshared": "Condivisione interrotta",
+      "pauseError": "Errore nella pausa",
+      "resumeError": "Errore nella ripresa",
+      "stopError": "Errore nell'arresto",
+      "shareError": "Errore nella condivisione",
+      "unshareError": "Errore nell'interruzione",
+      "startError": "Errore nell'avvio della sessione"
+    },
+    "share": {
+      "readOnly": "Sola lettura — condiviso da {{name}}",
+      "sharedBy": "Condiviso da {{name}}"
+    },
+    "stepper": {
+      "title": "Progresso workflow",
+      "steps": "passi",
+      "status": {
+        "idle": "Inattivo",
+        "running": "In esecuzione",
+        "paused": "In pausa",
+        "completed": "Completato",
+        "failed": "Fallito",
+        "cancelled": "Annullato"
+      }
+    },
+    "log": {
+      "empty": "Nessun messaggio",
+      "loadMore": "Carica messaggi precedenti",
+      "sendError": "Errore nell'invio",
+      "startPrompt": "Avvia un workflow o digita un comando",
+      "inputPlaceholder": "Dì all'agente cosa fare...",
+      "send": "Invia"
+    },
+    "approval": {
+      "title": "Approvazione richiesta",
+      "cost": "Costo stim.",
+      "approve": "Approva",
+      "reject": "Rifiuta",
+      "approved": "Azione approvata",
+      "rejected": "Azione rifiutata",
+      "approveError": "Errore nell'approvazione",
+      "rejectError": "Errore nel rifiuto"
+    },
+    "quickAction": {
+      "title": "Azioni rapide"
+    },
+    "batch": {
+      "title": "Progresso batch",
+      "empty": "Nessuna sessione batch"
+    },
+    "settings": {
+      "title": "Impostazioni agente",
+      "agentConfig": "Agenti",
+      "permissions": "Permessi",
+      "personalityPresets": "Preset personalità",
+      "name": "Nome visualizzato",
+      "avatar": "Emoji",
+      "personality": "Personalità",
+      "model": "Modello",
+      "temperature": "Temp",
+      "save": "Salva",
+      "tool": "Strumento",
+      "permissionLevel": "Livello",
+      "auto": "Auto",
+      "notify": "Notifica",
+      "approveLevel": "Approva",
+      "autonomyPreset": "Preset autonomia"
+    },
+    "knowledge": {
+      "title": "Documenti di conoscenza",
+      "titlePlaceholder": "Titolo",
+      "contentPlaceholder": "Contenuto (Markdown supportato)",
+      "empty": "Nessun documento",
+      "save": "Salva",
+      "cancel": "Annulla",
+      "edit": "Modifica",
+      "delete": "Elimina",
+      "preview": "Anteprima",
+      "hidePreview": "Nascondi anteprima",
+      "saved": "Documento salvato",
+      "saveError": "Errore nel salvataggio",
+      "deleted": "Documento eliminato",
+      "deleteError": "Errore nell'eliminazione"
+    },
+    "templates": {
+      "title": "Modelli workflow",
+      "namePlaceholder": "Nome modello",
+      "keyPlaceholder": "Chiave modello (es. quick_design)",
+      "actionPlaceholder": "Azione",
+      "addStep": "Aggiungi passo",
+      "removeStep": "Rimuovi passo",
+      "dragHandle": "Trascina per riordinare",
+      "save": "Salva",
+      "cancel": "Annulla",
+      "delete": "Elimina",
+      "add": "Aggiungi modello",
+      "empty": "Nessun modello personalizzato",
+      "saved": "Modello salvato",
+      "saveError": "Errore nel salvataggio",
+      "deleted": "Modello eliminato",
+      "deleteError": "Errore nell'eliminazione"
+    },
+    "collision": {
+      "title": "Avviso di collisione",
+      "message": "{{username}} sta già lavorando su \"{{nicheName}}\". Continuare comunque?",
+      "continue": "Continua",
+      "cancel": "Annulla"
+    },
+    "onboarding": {
+      "title": "Configura il tuo agente",
+      "message": "Configura il livello di autonomia e le preferenze del tuo assistente IA.",
+      "setup": "Configura",
+      "skip": "Salta",
+      "flowTitle": "Configurazione rapida",
+      "step1": "Autonomia",
+      "step2": "Nicchia",
+      "step3": "Conoscenza",
+      "step1Hint": "Quanto autonomo vuoi che sia il tuo agente?",
+      "step2Hint": "Scegli una nicchia di default (opzionale).",
+      "step3Hint": "Aggiungi un documento che l'agente deve ricordare (opzionale).",
+      "choosePreset": "Scegli preset di autonomia",
+      "skipNiche": "Salta — scegli dopo",
+      "next": "Avanti",
+      "back": "Indietro",
+      "finish": "Fine",
+      "close": "Chiudi",
+      "presetActivated": "Preset attivato",
+      "presetError": "Errore nell'attivazione",
+      "docSaved": "Documento salvato",
+      "docError": "Errore nel salvataggio"
+    },
+    "budget": {
+      "label": "Budget",
+      "exhausted": "Budget dell'agente esaurito. Ricarica l'API key.",
+      "warning": "Budget dell'agente al {{percent}}% della soglia"
+    },
+    "personality": {
+      "projektleiter": "Capo progetto",
+      "creativeDirector": "Direttore creativo",
+      "minimalist": "Minimalista",
+      "analyst": "Analista",
+      "scout": "Esploratore",
+      "texter": "Copywriter",
+      "brainstormer": "Brainstormer",
+      "artDirector": "Direttore artistico",
+      "experimentator": "Sperimentatore",
+      "seoProfi": "Pro SEO",
+      "copywriter": "Copywriter",
+      "koordinator": "Coordinatore",
+      "rechercheur": "Ricercatore"
+    },
+    "names": {
+      "chief": "Chief",
+      "scout": "Scout",
+      "muse": "Muse",
+      "pixel": "Pixel",
+      "scribe": "Scribe",
+      "launch": "Launch",
+      "radar": "Radar"
+    },
+    "shared": {
+      "badge": "Condiviso da {{username}}",
+      "readOnly": "Sola lettura (sessione condivisa)"
+    },
+    "skills": {
+      "title": "Competenze",
+      "empty": "Nessuna competenza. Vengono generate automaticamente quando l'agente impara.",
+      "description": "Descrizione",
+      "name": "Nome",
+      "agents": "Agenti",
+      "trigger": "Trigger",
+      "successCount": "Successi",
+      "errorCount": "Errori",
+      "version": "v{{version}}",
+      "lastUsed": "Ultimo utilizzo",
+      "lastUsedNever": "Mai",
+      "viewVersions": "Vedi versioni",
+      "showDeleted": "Mostra eliminate",
+      "edit": "Modifica competenza",
+      "delete": "Elimina competenza",
+      "deleted": "Competenza eliminata",
+      "deleteError": "Errore nell'eliminazione",
+      "saved": "Competenza salvata",
+      "saveError": "Errore nel salvataggio",
+      "save": "Salva",
+      "cancel": "Annulla",
+      "back": "Indietro",
+      "patchMode": "Patch (aggiungi/diff)",
+      "replaceMode": "Sostituisci (contenuto completo)",
+      "patchSummary": "Riassunto modifica",
+      "versionHistory": "Cronologia versioni",
+      "versionConflict": "La competenza è stata aggiornata dalla riflessione. Ricaricare?",
+      "reload": "Ricarica",
+      "trigger_auto_complex_task": "Auto: Compito complesso",
+      "trigger_auto_error_recovery": "Auto: Recupero errore",
+      "trigger_user_correction": "Correzione utente",
+      "trigger_manual": "Manuale"
+    },
+    "memory": {
+      "title": "Memoria spazio",
+      "description": "Riassunto compatto di ciò che l'agente ha imparato su questo spazio.",
+      "charCounter": "{{count}} / {{limit}}",
+      "overLimit": "Oltre il limite di {{limit}} caratteri",
+      "edit": "Modifica memoria",
+      "save": "Salva",
+      "cancel": "Annulla",
+      "saved": "Memoria salvata",
+      "saveError": "Errore nel salvataggio",
+      "lastConsolidated": "Ultimo consolidamento: {{when}}",
+      "lastConsolidatedNever": "Non ancora consolidata",
+      "empty": "Memoria vuota. L'agente la riempirà dopo le sessioni."
+    },
+    "profile": {
+      "title": "Il tuo profilo",
+      "description": "Ciò che l'agente ha dedotto sul tuo modo di lavorare.",
+      "charCounter": "{{count}} / {{limit}}",
+      "overLimit": "Oltre il limite di {{limit}} caratteri",
+      "save": "Salva",
+      "saved": "Profilo salvato",
+      "saveError": "Errore nel salvataggio",
+      "reset": "Reimposta profilo",
+      "resetConfirm": "Reimpostare il tuo profilo? L'agente dovrà reimparare le tue preferenze.",
+      "resetCancel": "Annulla",
+      "resetConfirmAction": "Reimposta",
+      "dialectReasoning": "Ragionamento dialettico",
+      "dialectReasoningHint": "Sola lettura — ultimo ragionamento a 3 passi usato per aggiornare questo profilo.",
+      "dialectReasoningEmpty": "Nessun ragionamento. Generato dopo la prossima passata dialettica.",
+      "lastDialectic": "Ultimo aggiornamento: {{when}}",
+      "lastDialecticNever": "Non ancora dedotto",
+      "empty": "Profilo vuoto. L'agente lo riempirà dopo alcune sessioni."
+    },
+    "reflection": {
+      "lastReflection": "Ultima riflessione: {{when}}",
+      "lastReflectionNever": "Nessuna riflessione",
+      "untilNext": "Sessioni alla prossima: {{count}}",
+      "viewMemory": "Vedi memoria"
+    }
   }
 }

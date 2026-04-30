@@ -231,7 +231,7 @@
 
 ## Phase 7: Deploy
 
-- [ ] Vane + Crawl4ai im Server-Stack laufen (Verify mit `docker ps` auf 213.165.95.5)
+- [ ] Vane + Crawl4ai im Server-Stack laufen (Verify mit `docker ps` auf 212.132.102.96)
 - [ ] Server `.env`: `VANE_API_URL=http://vane:3000`, `CRAWL4AI_API_URL=http://crawl4ai:11235`
 - [ ] Server `.env`: `VECTOR_DB_ENABLED=false` (bis PROJ-15 backfill durch)
 - [ ] CI passes (Tests + Lint)

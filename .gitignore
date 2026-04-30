@@ -142,3 +142,4 @@ celerybeat-schedule.*
 *.sln
 *.sw?
 sftp-config.json
+/scripts/migration/
