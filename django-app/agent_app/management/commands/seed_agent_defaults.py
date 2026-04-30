@@ -2,8 +2,8 @@
 
 from django.core.management.base import BaseCommand
 
-from agent_app.constants import AGENT_DEFAULTS, SYSTEM_PRESETS, SYSTEM_TEMPLATES
-from agent_app.models import AgentConfig, AgentType, AutonomyPreset, WorkflowTemplate
+from agent_app.constants import SYSTEM_PRESETS, SYSTEM_TEMPLATES
+from agent_app.models import AGENT_DEFAULTS, AgentConfig, AgentType, AutonomyPreset, WorkflowTemplate
 from workspace_app.models import Workspace
 
 

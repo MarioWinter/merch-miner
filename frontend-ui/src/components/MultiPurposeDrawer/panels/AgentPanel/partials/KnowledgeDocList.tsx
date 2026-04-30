@@ -10,13 +10,18 @@ import {
   Skeleton,
   Box,
   Tooltip,
+  Collapse,
 } from '@mui/material';
+import { styled } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import EditIcon from '@mui/icons-material/Edit';
 import SaveIcon from '@mui/icons-material/Save';
 import CloseIcon from '@mui/icons-material/Close';
+import VisibilityIcon from '@mui/icons-material/Visibility';
 import { useTranslation } from 'react-i18next';
+import { useSnackbar } from 'notistack';
+import ReactMarkdown from 'react-markdown';
 import {
   useListKnowledgeQuery,
   useCreateKnowledgeMutation,
@@ -25,8 +30,29 @@ import {
 } from '@/store/agentSlice';
 import type { KnowledgeDoc } from '../types';
 
+const MarkdownPreview = styled(Box)(({ theme }) => ({
+  fontSize: '0.8125rem',
+  color: theme.vars.palette.text.secondary,
+  '& p': { margin: theme.spacing(0.25, 0) },
+  '& ul, & ol': { paddingLeft: theme.spacing(2.5), margin: theme.spacing(0.25, 0) },
+  '& code': {
+    fontFamily: 'JetBrains Mono, monospace',
+    fontSize: '0.75rem',
+    padding: '1px 4px',
+    borderRadius: 3,
+    backgroundColor: theme.vars.palette.action.hover,
+  },
+  '& h1, & h2, & h3, & h4': {
+    fontSize: '0.875rem',
+    fontWeight: 600,
+    margin: theme.spacing(0.5, 0, 0.25),
+  },
+  '& a': { color: theme.vars.palette.primary.main },
+}));
+
 const KnowledgeDocList = () => {
   const { t } = useTranslation();
+  const { enqueueSnackbar } = useSnackbar();
   const { data: docs, isLoading } = useListKnowledgeQuery();
   const [createDoc] = useCreateKnowledgeMutation();
   const [updateDoc] = useUpdateKnowledgeMutation();
@@ -38,6 +64,16 @@ const KnowledgeDocList = () => {
   const [creating, setCreating] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newContent, setNewContent] = useState('');
+  const [previewIds, setPreviewIds] = useState<Set<string>>(new Set());
+
+  const togglePreview = useCallback((id: string) => {
+    setPreviewIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   const handleStartEdit = useCallback((doc: KnowledgeDoc) => {
     setEditingId(doc.id);
@@ -47,17 +83,42 @@ const KnowledgeDocList = () => {
 
   const handleSaveEdit = useCallback(async () => {
     if (!editingId) return;
-    await updateDoc({ id: editingId, body: { title: editTitle, content: editContent } });
-    setEditingId(null);
-  }, [editingId, editTitle, editContent, updateDoc]);
+    try {
+      await updateDoc({
+        id: editingId,
+        body: { title: editTitle, content: editContent },
+      }).unwrap();
+      enqueueSnackbar(t('agent.knowledge.saved'), { variant: 'success' });
+      setEditingId(null);
+    } catch {
+      enqueueSnackbar(t('agent.knowledge.saveError'), { variant: 'error' });
+    }
+  }, [editingId, editTitle, editContent, updateDoc, enqueueSnackbar, t]);
 
   const handleCreate = useCallback(async () => {
     if (!newTitle.trim()) return;
-    await createDoc({ title: newTitle, content: newContent });
-    setNewTitle('');
-    setNewContent('');
-    setCreating(false);
-  }, [newTitle, newContent, createDoc]);
+    try {
+      await createDoc({ title: newTitle, content: newContent }).unwrap();
+      enqueueSnackbar(t('agent.knowledge.saved'), { variant: 'success' });
+      setNewTitle('');
+      setNewContent('');
+      setCreating(false);
+    } catch {
+      enqueueSnackbar(t('agent.knowledge.saveError'), { variant: 'error' });
+    }
+  }, [newTitle, newContent, createDoc, enqueueSnackbar, t]);
+
+  const handleDelete = useCallback(
+    async (id: string) => {
+      try {
+        await deleteDoc(id).unwrap();
+        enqueueSnackbar(t('agent.knowledge.deleted'), { variant: 'success' });
+      } catch {
+        enqueueSnackbar(t('agent.knowledge.deleteError'), { variant: 'error' });
+      }
+    },
+    [deleteDoc, enqueueSnackbar, t],
+  );
 
   if (isLoading) {
     return (
@@ -164,27 +225,49 @@ const KnowledgeDocList = () => {
                   <Typography variant="body2" sx={{ fontWeight: 500 }}>
                     {doc.title}
                   </Typography>
-                  <Typography
-                    variant="caption"
-                    color="text.secondary"
-                    sx={{
-                      display: '-webkit-box',
-                      WebkitLineClamp: 2,
-                      WebkitBoxOrient: 'vertical',
-                      overflow: 'hidden',
-                    }}
-                  >
-                    {doc.content}
-                  </Typography>
+                  {!previewIds.has(doc.id) && (
+                    <Typography
+                      variant="caption"
+                      color="text.secondary"
+                      sx={{
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                      }}
+                    >
+                      {doc.content}
+                    </Typography>
+                  )}
+                  <Collapse in={previewIds.has(doc.id)} unmountOnExit>
+                    <MarkdownPreview sx={{ mt: 0.5 }}>
+                      <ReactMarkdown>{doc.content}</ReactMarkdown>
+                    </MarkdownPreview>
+                  </Collapse>
                 </Box>
                 <Stack direction="row" gap={0.25}>
+                  <Tooltip
+                    title={
+                      previewIds.has(doc.id)
+                        ? t('agent.knowledge.hidePreview')
+                        : t('agent.knowledge.preview')
+                    }
+                  >
+                    <IconButton
+                      size="small"
+                      onClick={() => togglePreview(doc.id)}
+                      aria-label={t('agent.knowledge.preview')}
+                    >
+                      <VisibilityIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Tooltip>
                   <Tooltip title={t('agent.knowledge.edit')}>
                     <IconButton size="small" onClick={() => handleStartEdit(doc)}>
                       <EditIcon sx={{ fontSize: 16 }} />
                     </IconButton>
                   </Tooltip>
                   <Tooltip title={t('agent.knowledge.delete')}>
-                    <IconButton size="small" onClick={() => deleteDoc(doc.id)}>
+                    <IconButton size="small" onClick={() => handleDelete(doc.id)}>
                       <DeleteOutlineIcon sx={{ fontSize: 16 }} />
                     </IconButton>
                   </Tooltip>

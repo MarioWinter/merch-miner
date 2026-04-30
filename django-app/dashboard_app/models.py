@@ -22,6 +22,11 @@ class ActivityEvent(models.Model):
         LISTING_PUBLISHED = 'listing_published', 'Listing Published'
         UPLOAD_COMPLETED = 'upload_completed', 'Upload Completed'
         UPLOAD_FAILED = 'upload_failed', 'Upload Failed'
+        # PROJ-18 AC-64 — agent events
+        AGENT_SESSION_STARTED = 'agent_session_started', 'Agent Session Started'
+        AGENT_SESSION_COMPLETED = 'agent_session_completed', 'Agent Session Completed'
+        AGENT_SESSION_FAILED = 'agent_session_failed', 'Agent Session Failed'
+        AGENT_AWAITING_APPROVAL = 'agent_awaiting_approval', 'Agent Awaiting Approval'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     workspace = models.ForeignKey(

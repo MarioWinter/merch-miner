@@ -24,6 +24,7 @@ EMBEDDABLE_MODELS = {
     'scraper_app.amazonproduct': 'amazon_product',
     'search_app.websearchresult': 'web_search',
     'agent_app.knowledgedoc': 'knowledge_doc',
+    'agent_app.skill': 'skill',
     # Future: idea, listing, chat_message
 }
 

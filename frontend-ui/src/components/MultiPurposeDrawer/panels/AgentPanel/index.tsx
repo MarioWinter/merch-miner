@@ -1,12 +1,16 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Box, TextField, IconButton, Stack, Typography, Skeleton } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import SendIcon from '@mui/icons-material/Send';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { setActiveAgentSessionId } from '@/store/chatBarSlice';
-import { useListTemplatesQuery } from '@/store/agentSlice';
+import { setActiveAgentSessionId, setInputChip } from '@/store/chatBarSlice';
+import {
+  useListTemplatesQuery,
+  useListSessionsQuery,
+  useGetDashboardSummaryQuery,
+} from '@/store/agentSlice';
 import useAgentSession from './hooks/useAgentSession';
 import useAgentControls from './hooks/useAgentControls';
 import useApproval from './hooks/useApproval';
@@ -15,6 +19,8 @@ import WorkflowStepper from './partials/WorkflowStepper';
 import AgentLog from './partials/AgentLog';
 import QuickActionBar from './partials/QuickActionBar';
 import OnboardingBanner from './partials/OnboardingBanner';
+import OnboardingFlow from './partials/OnboardingFlow';
+import BatchView from './partials/BatchView';
 import AgentSettingsPage from './partials/AgentSettingsPage';
 
 const PanelRoot = styled(Box)({
@@ -42,6 +48,7 @@ const AgentPanel = () => {
 
   const [showSettings, setShowSettings] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(true);
+  const [onboardingFlowOpen, setOnboardingFlowOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
 
   const {
@@ -54,16 +61,39 @@ const AgentPanel = () => {
   } = useAgentSession({ activeSessionId });
 
   const { data: templates, isLoading: templatesLoading } = useListTemplatesQuery();
+  const { data: dashboardSummary } = useGetDashboardSummaryQuery();
+
+  // AC-56: surface batch siblings when the active session is part of a batch.
+  const batchId = activeSession?.batch_id ?? null;
+  const { data: batchSessionsResp, isLoading: batchLoading } = useListSessionsQuery(
+    batchId ? { batch_id: batchId } : undefined,
+    { skip: !batchId, pollingInterval: batchId ? 5_000 : 0 },
+  );
+  const batchSiblings = batchSessionsResp?.results ?? [];
 
   const {
     pause,
     resume,
     stop,
     share,
+    unshare,
     pausing,
     resuming,
     stopping,
   } = useAgentControls(activeSessionId);
+
+  // AC-60/AC-61: derive ownership + read-only flags so non-owners viewing a
+  // shared session don't see Pause/Resume/Stop/Share controls (server would
+  // 404 anyway; UI invariant must match).
+  const currentUser = useAppSelector((s) => s.auth.user);
+  const { isOwner, readOnly } = useMemo(() => {
+    if (!activeSession) return { isOwner: true, readOnly: false };
+    const owner = activeSession.created_by_email === currentUser?.email;
+    return {
+      isOwner: owner,
+      readOnly: !owner && activeSession.is_shared,
+    };
+  }, [activeSession, currentUser?.email]);
 
   const { approve, reject, approving, rejecting } = useApproval(activeSessionId);
 
@@ -144,14 +174,19 @@ const AgentPanel = () => {
         onResume={resume}
         onStop={stop}
         onShare={share}
+        onUnshare={unshare}
         onSettings={() => setShowSettings(true)}
         onClearNiche={() => {
-          /* niche context managed by parent */
+          // Clearing the chip clears the niche-context binding for new sessions.
+          // The active session's niche_context is immutable (server-side state).
+          dispatch(setInputChip(null));
         }}
         pausing={pausing}
         resuming={resuming}
         stopping={stopping}
-        budgetPercent={0}
+        budgetPercent={dashboardSummary?.budget_pct ?? 0}
+        isOwner={isOwner}
+        readOnly={readOnly}
       />
 
       {workflowSteps.length > 0 && activeSession && (
@@ -163,12 +198,27 @@ const AgentPanel = () => {
         />
       )}
 
+      {batchId && batchSiblings.length > 1 && (
+        <BatchView
+          sessions={batchSiblings}
+          loading={batchLoading}
+          onSelectSession={(id) => dispatch(setActiveAgentSessionId(id))}
+        />
+      )}
+
       {isIdle && showOnboarding && (
         <OnboardingBanner
-          onSetup={() => setShowSettings(true)}
+          onSetup={() => setOnboardingFlowOpen(true)}
           onDismiss={() => setShowOnboarding(false)}
         />
       )}
+
+      <OnboardingFlow
+        open={onboardingFlowOpen}
+        onClose={() => setOnboardingFlowOpen(false)}
+        onComplete={() => setShowOnboarding(false)}
+      />
+
 
       {isIdle && !sessionLoading && (
         <QuickActionBar

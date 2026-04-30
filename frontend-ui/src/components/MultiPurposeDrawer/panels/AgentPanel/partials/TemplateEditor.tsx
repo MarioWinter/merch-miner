@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
   Stack,
   Typography,
@@ -8,22 +8,36 @@ import {
   CardContent,
   IconButton,
   Chip,
-  MenuItem,
-  Select,
   Skeleton,
   Box,
   Tooltip,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import { useTranslation } from 'react-i18next';
+import { useSnackbar } from 'notistack';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  arrayMove,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 import {
   useListTemplatesQuery,
   useCreateTemplateMutation,
   useDeleteTemplateMutation,
 } from '@/store/agentSlice';
 import type { AgentType, WorkflowStep } from '../types';
+import SortableStepRow from './SortableStepRow';
 
 const AGENT_TYPES: AgentType[] = [
   'research',
@@ -34,8 +48,13 @@ const AGENT_TYPES: AgentType[] = [
   'search',
 ];
 
+interface IndexedStep extends WorkflowStep {
+  _id: string;
+}
+
 const TemplateEditor = () => {
   const { t } = useTranslation();
+  const { enqueueSnackbar } = useSnackbar();
   const { data: templates, isLoading } = useListTemplatesQuery();
   const [createTemplate] = useCreateTemplateMutation();
   const [deleteTemplate] = useDeleteTemplateMutation();
@@ -43,12 +62,24 @@ const TemplateEditor = () => {
   const [creating, setCreating] = useState(false);
   const [name, setName] = useState('');
   const [key, setKey] = useState('');
-  const [steps, setSteps] = useState<WorkflowStep[]>([]);
+  const [steps, setSteps] = useState<IndexedStep[]>([]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  const stepIds = useMemo(() => steps.map((s) => s._id), [steps]);
 
   const addStep = useCallback(() => {
     setSteps((prev) => [
       ...prev,
-      { agent_type: 'research', action: '', description: '' },
+      {
+        _id: `step-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+        agent_type: 'research',
+        action: '',
+        description: '',
+      },
     ]);
   }, []);
 
@@ -65,14 +96,46 @@ const TemplateEditor = () => {
     setSteps((prev) => prev.filter((_, i) => i !== idx));
   }, []);
 
+  const handleDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    setSteps((prev) => {
+      const oldIndex = prev.findIndex((s) => s._id === active.id);
+      const newIndex = prev.findIndex((s) => s._id === over.id);
+      if (oldIndex < 0 || newIndex < 0) return prev;
+      return arrayMove(prev, oldIndex, newIndex);
+    });
+  }, []);
+
   const handleCreate = useCallback(async () => {
     if (!name.trim() || !key.trim() || steps.length === 0) return;
-    await createTemplate({ name, key, steps });
-    setName('');
-    setKey('');
-    setSteps([]);
-    setCreating(false);
-  }, [name, key, steps, createTemplate]);
+    try {
+      const stepsPayload: WorkflowStep[] = steps.map(({ _id: _omit, ...rest }) => {
+        void _omit;
+        return rest;
+      });
+      await createTemplate({ name, key, steps: stepsPayload }).unwrap();
+      enqueueSnackbar(t('agent.templates.saved'), { variant: 'success' });
+      setName('');
+      setKey('');
+      setSteps([]);
+      setCreating(false);
+    } catch {
+      enqueueSnackbar(t('agent.templates.saveError'), { variant: 'error' });
+    }
+  }, [name, key, steps, createTemplate, enqueueSnackbar, t]);
+
+  const handleDelete = useCallback(
+    async (id: string) => {
+      try {
+        await deleteTemplate(id).unwrap();
+        enqueueSnackbar(t('agent.templates.deleted'), { variant: 'success' });
+      } catch {
+        enqueueSnackbar(t('agent.templates.deleteError'), { variant: 'error' });
+      }
+    },
+    [deleteTemplate, enqueueSnackbar, t],
+  );
 
   if (isLoading) {
     return (
@@ -87,10 +150,12 @@ const TemplateEditor = () => {
   return (
     <Stack gap={1.5} sx={{ p: 2 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <Typography variant="subtitle2">
-          {t('agent.templates.title')}
-        </Typography>
-        <IconButton size="small" onClick={() => setCreating(true)}>
+        <Typography variant="subtitle2">{t('agent.templates.title')}</Typography>
+        <IconButton
+          size="small"
+          onClick={() => setCreating(true)}
+          aria-label={t('agent.templates.add')}
+        >
           <AddIcon sx={{ fontSize: 18 }} />
         </IconButton>
       </Stack>
@@ -113,35 +178,28 @@ const TemplateEditor = () => {
                 onChange={(e) => setKey(e.target.value)}
                 fullWidth
               />
-              {steps.map((step, idx) => (
-                <Stack key={idx} direction="row" gap={0.5} alignItems="center">
-                  <DragIndicatorIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
-                  <Select
-                    size="small"
-                    value={step.agent_type}
-                    onChange={(e) =>
-                      updateStep(idx, 'agent_type', e.target.value)
-                    }
-                    sx={{ minWidth: 100 }}
-                  >
-                    {AGENT_TYPES.map((at) => (
-                      <MenuItem key={at} value={at}>
-                        {at}
-                      </MenuItem>
+
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragEnd={handleDragEnd}
+              >
+                <SortableContext items={stepIds} strategy={verticalListSortingStrategy}>
+                  <Stack gap={0.5}>
+                    {steps.map((step, idx) => (
+                      <SortableStepRow
+                        key={step._id}
+                        id={step._id}
+                        step={step}
+                        agentTypes={AGENT_TYPES}
+                        onUpdate={(field, value) => updateStep(idx, field, value)}
+                        onRemove={() => removeStep(idx)}
+                      />
                     ))}
-                  </Select>
-                  <TextField
-                    size="small"
-                    placeholder={t('agent.templates.actionPlaceholder')}
-                    value={step.action}
-                    onChange={(e) => updateStep(idx, 'action', e.target.value)}
-                    sx={{ flex: 1 }}
-                  />
-                  <IconButton size="small" onClick={() => removeStep(idx)}>
-                    <DeleteOutlineIcon sx={{ fontSize: 16 }} />
-                  </IconButton>
-                </Stack>
-              ))}
+                  </Stack>
+                </SortableContext>
+              </DndContext>
+
               <Button
                 size="small"
                 startIcon={<AddIcon sx={{ fontSize: 16 }} />}
@@ -157,7 +215,7 @@ const TemplateEditor = () => {
                   size="small"
                   variant="contained"
                   onClick={handleCreate}
-                  disabled={!name.trim() || steps.length === 0}
+                  disabled={!name.trim() || !key.trim() || steps.length === 0}
                 >
                   {t('agent.templates.save')}
                 </Button>
@@ -191,12 +249,12 @@ const TemplateEditor = () => {
                   )}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  {tpl.steps.map((s) => s.description || s.action).join(' \u2192 ')}
+                  {tpl.steps.map((s) => s.description || s.action).join(' → ')}
                 </Typography>
               </Box>
               {!tpl.is_system && (
                 <Tooltip title={t('agent.templates.delete')}>
-                  <IconButton size="small" onClick={() => deleteTemplate(tpl.id)}>
+                  <IconButton size="small" onClick={() => handleDelete(tpl.id)}>
                     <DeleteOutlineIcon sx={{ fontSize: 16 }} />
                   </IconButton>
                 </Tooltip>

@@ -1,5 +1,5 @@
 import { ToggleButton, ToggleButtonGroup, Stack, Typography } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { styled, alpha } from '@mui/material/styles';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
@@ -24,7 +24,7 @@ const SegmentGroup = styled(ToggleButtonGroup)(({ theme }) => ({
     color: theme.vars.palette.text.secondary,
     '&.Mui-selected': {
       color: theme.vars.palette.primary.main,
-      backgroundColor: `rgba(255, 90, 79, 0.12)`,
+      backgroundColor: alpha(theme.palette.primary.main, 0.12),
     },
   },
 }));

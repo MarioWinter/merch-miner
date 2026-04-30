@@ -282,6 +282,8 @@ OPENROUTER_BASE_URL = os.environ.get(
 )
 OPENROUTER_AGENT_API_KEY = os.environ.get('OPENROUTER_AGENT_API_KEY', '')
 AGENT_BUDGET_WARNING_THRESHOLD = os.environ.get('AGENT_BUDGET_WARNING_THRESHOLD', '')
+# EC-15: Per-sub-agent timeout for orchestrator delegate calls (seconds, default 10 min)
+AGENT_SUBAGENT_TIMEOUT_SEC = int(os.environ.get('AGENT_SUBAGENT_TIMEOUT_SEC', '600'))
 
 # ----------------------------------------
 # SearXNG (web search for niche research)

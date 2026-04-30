@@ -10,7 +10,8 @@ import type {
   KnowledgeDoc,
   WorkflowTemplate,
   CreateSessionBody,
-  BatchCreateBody,
+  BatchSessionCreateRequest,
+  BatchSessionCreateResponse,
   SendMessageBody,
   UpdateConfigBody,
   UpdatePermissionsBody,
@@ -20,7 +21,8 @@ import type {
   UpdateKnowledgeBody,
   SessionListParams,
   AgentMessage,
-} from '../components/MultiPurposeDrawer/panels/AgentPanel/types';
+  AgentDashboardSummary,
+} from '@/types/agent';
 
 export const agentApi = createApi({
   reducerPath: 'agentApi',
@@ -33,6 +35,7 @@ export const agentApi = createApi({
     'Presets',
     'Templates',
     'Knowledge',
+    'AgentDashboard',
   ],
   endpoints: (builder) => ({
     // --- Sessions ---
@@ -71,7 +74,7 @@ export const agentApi = createApi({
       invalidatesTags: [{ type: 'AgentSessions', id: 'LIST' }],
     }),
 
-    batchCreate: builder.mutation<AgentSession[], BatchCreateBody>({
+    batchCreateSessions: builder.mutation<BatchSessionCreateResponse, BatchSessionCreateRequest>({
       query: (body) => ({
         url: '/api/agent/sessions/batch/',
         method: 'POST',
@@ -289,6 +292,15 @@ export const agentApi = createApi({
       }),
       invalidatesTags: [{ type: 'Knowledge', id: 'LIST' }],
     }),
+
+    // --- Dashboard ---
+    getDashboardSummary: builder.query<AgentDashboardSummary, void>({
+      query: () => ({
+        url: '/api/agent/dashboard/summary/',
+        method: 'GET',
+      }),
+      providesTags: [{ type: 'AgentDashboard', id: 'SUMMARY' }],
+    }),
   }),
 });
 
@@ -296,7 +308,7 @@ export const {
   useListSessionsQuery,
   useGetSessionQuery,
   useCreateSessionMutation,
-  useBatchCreateMutation,
+  useBatchCreateSessionsMutation,
   useSendMessageMutation,
   usePauseSessionMutation,
   useResumeSessionMutation,
@@ -320,4 +332,5 @@ export const {
   useCreateKnowledgeMutation,
   useUpdateKnowledgeMutation,
   useDeleteKnowledgeMutation,
+  useGetDashboardSummaryQuery,
 } = agentApi;

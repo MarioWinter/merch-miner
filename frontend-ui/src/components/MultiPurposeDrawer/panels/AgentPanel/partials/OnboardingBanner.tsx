@@ -1,8 +1,9 @@
 import { Alert, AlertTitle, Button, Stack } from '@mui/material';
 import SmartToyOutlinedIcon from '@mui/icons-material/SmartToyOutlined';
 import { useTranslation } from 'react-i18next';
+import { ONBOARDING_DONE_KEY } from './OnboardingFlow';
 
-const ONBOARDING_KEY = 'mm-agent-onboarding-dismissed';
+const ONBOARDING_DISMISSED_KEY = 'mm-agent-onboarding-dismissed';
 
 interface OnboardingBannerProps {
   onSetup: () => void;
@@ -12,11 +13,15 @@ interface OnboardingBannerProps {
 const OnboardingBanner = ({ onSetup, onDismiss }: OnboardingBannerProps) => {
   const { t } = useTranslation();
 
-  const dismissed = localStorage.getItem(ONBOARDING_KEY) === 'true';
+  // AC-59: Banner is non-blocking. We hide it as soon as either the user
+  // dismisses it OR completes the guided onboarding flow.
+  const dismissed =
+    localStorage.getItem(ONBOARDING_DISMISSED_KEY) === 'true' ||
+    localStorage.getItem(ONBOARDING_DONE_KEY) === 'true';
   if (dismissed) return null;
 
   const handleDismiss = () => {
-    localStorage.setItem(ONBOARDING_KEY, 'true');
+    localStorage.setItem(ONBOARDING_DISMISSED_KEY, 'true');
     onDismiss();
   };
 

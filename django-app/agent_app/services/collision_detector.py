@@ -5,7 +5,7 @@ from datetime import timedelta
 
 from django.utils import timezone
 
-from agent_app.models import AgentSession, SessionStatus
+from agent_app.models import AgentMessage, AgentSession, MessageRole, SessionStatus
 
 logger = logging.getLogger(__name__)
 
@@ -60,3 +60,34 @@ def check_niche_collision(workspace, niche, exclude_session_id=None):
             })
 
     return collisions
+
+
+def warn_and_pause(session, collisions: list[dict]) -> None:
+    """Emit a collision warning message and pause the session (AC-35).
+
+    The agent halts until the user explicitly resumes (or sends a confirmation
+    message that clears the warning).
+    """
+    if not collisions:
+        return
+
+    summary = '\n'.join(f"- {c['message']}" for c in collisions)
+    content = (
+        "Collision detected on this niche:\n"
+        f"{summary}\n\n"
+        "Workflow paused. Please resume to continue, or stop the session."
+    )
+
+    AgentMessage.objects.create(
+        session=session,
+        role=MessageRole.SYSTEM,
+        agent_type='orchestrator',
+        content=content,
+    )
+
+    if session.status not in (SessionStatus.PAUSED, SessionStatus.CANCELLED):
+        session.status = SessionStatus.PAUSED
+        session.error_message = content[:2000]
+        session.save(update_fields=['status', 'error_message', 'updated_at'])
+
+    logger.info("Session %s paused due to collision: %s", session.id, summary)

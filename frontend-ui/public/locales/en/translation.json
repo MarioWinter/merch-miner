@@ -2773,7 +2773,8 @@
       "pause": "Pause workflow",
       "resume": "Resume workflow",
       "stop": "Stop workflow",
-      "share": "Share session",
+      "share": "Share with workspace",
+      "unshare": "Stop sharing",
       "paused": "Workflow paused",
       "resumed": "Workflow resumed",
       "stopped": "Workflow stopped",
@@ -2785,6 +2786,10 @@
       "shareError": "Failed to share session",
       "unshareError": "Failed to unshare session",
       "startError": "Failed to start agent session"
+    },
+    "share": {
+      "readOnly": "Read-only — Shared by {{name}}",
+      "sharedBy": "Shared by {{name}}"
     },
     "stepper": {
       "title": "Workflow Progress",
@@ -2849,7 +2854,13 @@
       "save": "Save",
       "cancel": "Cancel",
       "edit": "Edit",
-      "delete": "Delete"
+      "delete": "Delete",
+      "preview": "Preview",
+      "hidePreview": "Hide preview",
+      "saved": "Knowledge doc saved",
+      "saveError": "Failed to save knowledge doc",
+      "deleted": "Knowledge doc deleted",
+      "deleteError": "Failed to delete knowledge doc"
     },
     "templates": {
       "title": "Workflow Templates",
@@ -2857,10 +2868,17 @@
       "keyPlaceholder": "Template key (e.g. quick_design)",
       "actionPlaceholder": "Action",
       "addStep": "Add step",
+      "removeStep": "Remove step",
+      "dragHandle": "Drag to reorder step",
       "save": "Save",
       "cancel": "Cancel",
       "delete": "Delete",
-      "empty": "No custom templates"
+      "add": "Add template",
+      "empty": "No custom templates",
+      "saved": "Template saved",
+      "saveError": "Failed to save template",
+      "deleted": "Template deleted",
+      "deleteError": "Failed to delete template"
     },
     "collision": {
       "title": "Collision Warning",
@@ -2872,7 +2890,24 @@
       "title": "Set up your agent",
       "message": "Configure autonomy level and preferences for your AI assistant.",
       "setup": "Configure",
-      "skip": "Skip"
+      "skip": "Skip",
+      "flowTitle": "Quick Setup",
+      "step1": "Autonomy",
+      "step2": "Niche",
+      "step3": "Knowledge",
+      "step1Hint": "How autonomous should your agent be?",
+      "step2Hint": "Pick a default niche to focus on (optional).",
+      "step3Hint": "Add a quick knowledge doc the agent should remember (optional).",
+      "choosePreset": "Choose autonomy preset",
+      "skipNiche": "Skip — choose later",
+      "next": "Next",
+      "back": "Back",
+      "finish": "Finish",
+      "close": "Close",
+      "presetActivated": "Autonomy preset activated",
+      "presetError": "Failed to activate preset",
+      "docSaved": "Knowledge doc saved",
+      "docError": "Failed to save knowledge doc"
     },
     "budget": {
       "label": "Budget",
