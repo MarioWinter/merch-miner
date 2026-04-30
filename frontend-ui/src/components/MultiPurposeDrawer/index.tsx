@@ -1,13 +1,22 @@
 import { useRef } from 'react';
-import { Box, Drawer, IconButton, useMediaQuery } from '@mui/material';
+import { Box, Drawer, IconButton, Stack, Tooltip, useMediaQuery } from '@mui/material';
 import { styled, useTheme } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
+import HistoryIcon from '@mui/icons-material/History';
+import AddIcon from '@mui/icons-material/Add';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { closeDrawer, setActivePanel } from '@/store/chatBarSlice';
+import {
+  closeDrawer,
+  setActivePanel,
+  setRecentChatsOverlayOpen,
+  startNewChat,
+} from '@/store/chatBarSlice';
+import { clearAttachments } from '@/store/attachmentsSlice';
 import type { DrawerPanel } from '@/types/search';
 import DrawerSegments from './DrawerSegments';
 import DrawerResizeHandle from './DrawerResizeHandle';
+import RecentChatsOverlay from './RecentChatsOverlay';
 import { useDrawerResize } from './hooks/useDrawerResize';
 import ChatPanel from './panels/ChatPanel';
 import NichePipeline from './panels/NichePipeline';
@@ -101,20 +110,54 @@ const MultiPurposeDrawer = () => {
           activePanel={activePanel}
           onChange={handlePanelChange}
         />
-        <IconButton
-          size="small"
-          onClick={handleClose}
-          aria-label={t('search.drawer.close')}
-          sx={{ borderRadius: 2 }}
-        >
-          <CloseIcon sx={{ fontSize: 18 }} />
-        </IconButton>
+        <Stack direction="row" alignItems="center" gap={0.25}>
+          {activePanel === 'chat' && (
+            <>
+              <Tooltip title={t('search.sessions.recentChats')}>
+                <IconButton
+                  size="small"
+                  onClick={() => dispatch(setRecentChatsOverlayOpen(true))}
+                  aria-label={t('search.sessions.recentChats')}
+                  sx={{ borderRadius: 1.5 }}
+                >
+                  <HistoryIcon sx={{ fontSize: 18 }} />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={t('search.sessions.newChat')}>
+                <IconButton
+                  size="small"
+                  onClick={() => {
+                    dispatch(startNewChat());
+                    dispatch(clearAttachments());
+                  }}
+                  aria-label={t('search.sessions.newChat')}
+                  sx={{ borderRadius: 1.5 }}
+                >
+                  <AddIcon sx={{ fontSize: 20 }} />
+                </IconButton>
+              </Tooltip>
+            </>
+          )}
+          <IconButton
+            size="small"
+            onClick={handleClose}
+            aria-label={t('search.drawer.close')}
+            sx={{ borderRadius: 2 }}
+          >
+            <CloseIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Stack>
       </DrawerHeader>
 
-      <PanelContainer id="mpd-panel-container" data-mpd-width={width}>
+      <PanelContainer
+        id="mpd-panel-container"
+        data-mpd-width={width}
+        sx={{ position: 'relative' }}
+      >
         {activePanel === 'niche' && <NichePipeline />}
         {activePanel === 'chat' && <ChatPanel />}
         {activePanel === 'agent' && <AgentPanel />}
+        {activePanel === 'chat' && <RecentChatsOverlay />}
       </PanelContainer>
     </Drawer>
   );

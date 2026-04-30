@@ -1033,6 +1033,17 @@ class SkillsListCreateView(APIView):
 
         agent_type = request.query_params.get('agent_type')
         if agent_type:
+            if agent_type not in AgentType.values:
+                return Response(
+                    {
+                        'error': 'invalid_agent_type',
+                        'detail': (
+                            f"Unknown agent_type '{agent_type}'. "
+                            f"Valid values: {sorted(AgentType.values)}."
+                        ),
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
             # JSON contains lookup — works on PG.
             qs = qs.filter(applicable_agent_types__contains=[agent_type])
 
@@ -1040,7 +1051,8 @@ class SkillsListCreateView(APIView):
         if trigger:
             qs = qs.filter(trigger_type=trigger)
 
-        qs = qs.order_by('-updated_at')
+        # P2 #1 — N+1 fix: annotate version_count once on the queryset.
+        qs = qs.annotate(_version_count=Count('versions')).order_by('-updated_at')
         paginator = AgentPagination()
         page = paginator.paginate_queryset(qs, request)
         return paginator.get_paginated_response(
@@ -1091,7 +1103,14 @@ class SkillDetailView(APIView):
             return None, None, Response(
                 {'error': 'No workspace'}, status=status.HTTP_403_FORBIDDEN,
             )
-        skill = get_object_or_404(Skill, id=skill_id, workspace=workspace)
+        # P2 #4 — soft-deleted skills are 404 by default. Pass
+        # ``?include_deleted=true`` to surface them (audit / restore UI).
+        qs = Skill.objects.filter(id=skill_id, workspace=workspace)
+        if request.query_params.get('include_deleted', '').lower() not in (
+            '1', 'true', 'yes',
+        ):
+            qs = qs.filter(deleted_at__isnull=True)
+        skill = get_object_or_404(qs)
         return workspace, skill, None
 
     def get(self, request, skill_id):
@@ -1154,7 +1173,15 @@ class SkillVersionsListView(APIView):
         workspace = _get_workspace(request.user)
         if not workspace:
             return Response({'error': 'No workspace'}, status=status.HTTP_403_FORBIDDEN)
-        skill = get_object_or_404(Skill, id=skill_id, workspace=workspace)
+        # P2 #4 — soft-deleted skills are 404 by default. The version
+        # history remains accessible with ``?include_deleted=true`` so
+        # admins can audit deleted skills.
+        skill_qs = Skill.objects.filter(id=skill_id, workspace=workspace)
+        if request.query_params.get('include_deleted', '').lower() not in (
+            '1', 'true', 'yes',
+        ):
+            skill_qs = skill_qs.filter(deleted_at__isnull=True)
+        skill = get_object_or_404(skill_qs)
         rows = SkillVersion.objects.filter(skill=skill).order_by('-version')
         paginator = AgentPagination()
         page = paginator.paginate_queryset(rows, request)
@@ -1390,6 +1417,29 @@ class ReflectionTriggerView(APIView):
             return Response(
                 {'error': 'Session must be completed to reflect.'},
                 status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # P2 #5 — dedup: if the workspace memory was last consolidated
+        # against this same session, refuse to re-trigger. Prevents
+        # accidental duplicate Skill creation / memory eviction churn
+        # when the user double-clicks the Reflect button.
+        existing_memory = WorkspaceMemory.objects.filter(
+            workspace=workspace,
+        ).only('last_consolidated_session_id').first()
+        if (
+            existing_memory is not None
+            and existing_memory.last_consolidated_session_id == session.id
+        ):
+            return Response(
+                {
+                    'error': 'already_reflected',
+                    'detail': (
+                        'This session has already been consolidated into '
+                        'workspace memory.'
+                    ),
+                    'session_id': str(session.pk),
+                },
+                status=status.HTTP_409_CONFLICT,
             )
 
         from agent_app.services.reflection_service import run_reflection

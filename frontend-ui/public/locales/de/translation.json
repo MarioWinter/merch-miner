@@ -2234,7 +2234,8 @@
       "saveError": "Speichern fehlgeschlagen",
       "lastConsolidated": "Zuletzt konsolidiert: {{when}}",
       "lastConsolidatedNever": "Noch nicht konsolidiert",
-      "empty": "Gedächtnis ist leer. Der Agent füllt es nach abgeschlossenen Sessions."
+      "empty": "Gedächtnis ist leer. Der Agent füllt es nach abgeschlossenen Sessions.",
+      "draftRestored": "Nicht gespeicherter Entwurf wiederhergestellt"
     },
     "profile": {
       "title": "Dein Profil",

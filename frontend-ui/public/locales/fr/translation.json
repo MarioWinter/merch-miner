@@ -2918,7 +2918,8 @@
       "saveError": "Échec de l'enregistrement",
       "lastConsolidated": "Dernière consolidation : {{when}}",
       "lastConsolidatedNever": "Pas encore consolidée",
-      "empty": "Mémoire vide. L'agent commencera à la remplir après les sessions."
+      "empty": "Mémoire vide. L'agent commencera à la remplir après les sessions.",
+      "draftRestored": "Brouillon non enregistré restauré"
     },
     "profile": {
       "title": "Votre profil",

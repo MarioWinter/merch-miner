@@ -3,7 +3,7 @@
 **Status:** Planned
 **Priority:** P0 (MVP)
 **Created:** 2026-03-24
-**Last Updated:** 2026-04-25 (Spec-Review with user)
+**Last Updated:** 2026-04-30 — Drawer-UX-Polish-Pass (siehe Sektion "Drawer UX Polish 2026-04-30" + Decisions Log #11-#15)
 
 ## Overview
 
@@ -114,7 +114,7 @@ User asks question → Vane searches → synthesized answer + source URLs (strea
 ### Multi-Purpose Right Drawer (Frontend)
 
 - [x] AC-31: Single right drawer **resizable** between 480px (default) → 768px (split-view) → 1200px (full command center, NotebookLM-style). Drag-handle on left edge of drawer. Width persisted in `localStorage`.
-- [x] AC-32: Header contains `ToggleButtonGroup exclusive` with 3 segments: `[📋 Niche] [💬 Chat] [🤖 Agent]`. Icons: `InfoOutlined` / `ChatOutlined` / `SmartToyOutlined`.
+- [x] AC-32: Header contains MUI `Tabs` with 3 segments: `[📋 Niche] [💬 Chat] [🤖 Agent]`. Icons: `CategoryOutlined` / `ChatBubbleOutline` / `SmartToyOutlined`. (Refactor 2026-04-30: ToggleButtonGroup → Tabs, Niche-Icon InfoOutlined → CategoryOutlined für klarere "Markt-Kategorie"-Semantik.)
 - [x] AC-33: Switching segments swaps content. Drawer stays open. Each panel maintains scroll position.
 - [x] AC-34: **`SearchResultsPanel.tsx` removed** — search results render inline inside `ChatPanel.tsx` as bubbles + Source-Cards (see AC-38).
 - [x] AC-35: Niche-Tab: existing NicheDetailDrawer content wrapped as `NicheDetailPanel.tsx` inside MultiPurposeDrawer.
@@ -151,7 +151,7 @@ User asks question → Vane searches → synthesized answer + source URLs (strea
 
 ### Chat History & Sharing
 
-- [ ] AC-54: Chat sessions persisted in DB. Chat-Panel header shows "Recent Chats" dropdown (last 10 sessions, clickable to resume).
+- [x] AC-54: Chat sessions persisted in DB. **Drawer header (right of segments, before X) hat 2 Icon-Buttons: 🕐 Recent Chats (öffnet Full-Panel-Overlay statt Inline-Dropdown) + ➕ New Chat.** Inline "Recent Chats" Dropdown im ChatPanel-Content entfernt 2026-04-30 für mehr Platz + bessere Lesbarkeit. Overlay-Close via X-Button oder Escape-Key.
 - [ ] AC-55: "Share" button per active session → `POST /api/chat/sessions/{id}/share/`. Shared sessions appear in teammates' lists with "Shared by {username}" badge.
 - [ ] AC-56: Shared sessions are **read-only** for non-owners. They can still trigger Deep-Crawl on sources (creates their own WebSearchResult). They cannot send messages or share/unshare.
 
@@ -267,6 +267,27 @@ Document in `.env.dev.template` + `.env.prod.template`.
 | 19 | Markdown render | react-markdown + remark-gfm + rehype-sanitize | GFM features + security |
 | 20 | i18n | All 5 locales (EN/DE/FR/ES/IT) | Aligned with rest of app |
 | 21 | ChatSession ↔ AgentSession link | FK on `ChatMessage.agent_session` (not on session itself) | One ChatSession can trigger multiple workflows over time |
+| 22 | Drawer-Segmente: Tabs statt ToggleButtonGroup (2026-04-30) | MUI `Tabs` mit roter Underline-Indicator; konsistent mit AgentSettingsPage 7-Tab-Layout | Bessere Visual-Hierarchy, weniger Button-Clutter |
+| 23 | Niche-Icon: `CategoryOutlined` (2026-04-30) | War `InfoOutlinedIcon` (generisches "i") — jetzt 3 layered shapes für "Markt-Kategorie/Nische" | Semantisch klarer für POD-Niche-Begriff |
+| 24 | Recent Chats als Full-Panel Overlay (2026-04-30) | War Inline-Dropdown im ChatPanel-Content; jetzt Overlay über das ganze Drawer-Panel via 🕐-Icon im Drawer-Header. ESC schließt. | Mehr Platz für Chat-Liste, sauberer Content-Area, kein Crowding |
+| 25 | Drawer-Header-Icons (2026-04-30) | 🕐 History + ➕ New Chat + ✕ Close — alle im Drawer-Header rechts statt im ChatPanel-Body. Nur sichtbar wenn `activePanel === 'chat'` | Action-Buttons gehören in Header (Konvention); ChatPanel-Body bleibt für Messages |
+| 26 | `HealthStatusDot` aus Drawer-Header entfernt (2026-04-30) | War redundant — der Status-Dot ist bereits im PageHeader (top-right) | Weniger doppelter UI-Noise |
+| 27 | localStorage-Persistenz für Niche-Tab-Kontext (2026-04-30) | `chatBarSlice` persistiert `activeNicheId` + `nicheMode` in `localStorage` (key `merchminer.chatBar.persisted`); auf Reload wird letzte Niche auto-geladen. Stale-ID (404/archived) → 1500ms-Delay → fallback zu create-mode. | UX: User klickt Niche-Tab und sieht zuletzt offene Niche, nicht leeres Form |
+| 28 | `startNewChat` Reducer + RTK-Cache-Bleed Fix (2026-04-30) | Klick auf ➕-Button im Header dispatched neue Action `startNewChat()` die `activeSessionId`, `streamingAssistantMessage`, `inputChip`, `searching`, `recentChatsOverlayOpen` resetet. Plus: ChatPanel `messages` sind jetzt gated auf `activeSessionId` (RTK Query behält cached data trotz `skip: true`, das hat Messages aus letzter Session "geleakt"). | Vorher: Click + zeigte alte Messages weiter; jetzt sauberer Wechsel |
+
+## Drawer UX Polish 2026-04-30
+
+Diese Sektion fasst die UX-Polish-Änderungen vom 2026-04-30 zusammen — alle in Decisions #22-#28 dokumentiert. Konkret betroffen:
+
+**Files refactored:**
+- `frontend-ui/src/components/MultiPurposeDrawer/index.tsx` — Header mit 3 Icon-Buttons (History/Add/Close)
+- `frontend-ui/src/components/MultiPurposeDrawer/DrawerSegments.tsx` — ToggleButtonGroup → Tabs, HealthStatusDot raus
+- `frontend-ui/src/components/MultiPurposeDrawer/RecentChatsOverlay.tsx` — NEU: Full-Panel-Overlay
+- `frontend-ui/src/components/MultiPurposeDrawer/panels/ChatPanel.tsx` — Inline-Header weg, RTK-Cache-Bleed Fix für `messages`
+- `frontend-ui/src/components/MultiPurposeDrawer/panels/NichePipeline.tsx` — useEffect mit 1500ms-Delay-Fallback bei stale Niche-ID
+- `frontend-ui/src/store/chatBarSlice.ts` — localStorage I/O + `setRecentChatsOverlayOpen` + `startNewChat` Action
+
+**Tests:** 270/270 grün, browser-verified mit Playwright.
 
 ## Tech Design (Solution Architect)
 

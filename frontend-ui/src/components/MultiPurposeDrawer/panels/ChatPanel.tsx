@@ -1,20 +1,13 @@
 import { useCallback, useRef, useState } from 'react';
 import {
   Box,
-  Button,
-  Collapse,
-  Divider,
   IconButton,
   Stack,
   Typography,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
 import ShareIcon from '@mui/icons-material/Share';
-import HistoryIcon from '@mui/icons-material/History';
-import AddIcon from '@mui/icons-material/Add';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -37,7 +30,6 @@ import { useSearchHealth } from '../hooks/useSearchHealth';
 import { useSendMessageStream } from '@/hooks/useSendMessageStream';
 import type {
   ChatMessage,
-  ChatSession,
   SaveSnippetKeywordsResponse,
   SaveSnippetNotesResponse,
 } from '@/types/search';
@@ -46,7 +38,6 @@ import ChatInputBar, {
   type ChatInputBarSubmitPayload,
 } from './ChatInputBar';
 import ChatMessageList from './ChatMessageList';
-import RecentChats from './RecentChats';
 import SaveToNicheModal from './SaveToNicheModal';
 
 interface ModalState {
@@ -95,7 +86,6 @@ const ChatPanel = () => {
   const { vaneOnline } = useSearchHealth();
 
   const inputRef = useRef<ChatInputBarHandle>(null);
-  const [showRecent, setShowRecent] = useState(!activeSessionId);
   const [modal, setModal] = useState<ModalState>(INITIAL_MODAL);
 
   const { data: session, isLoading: sessionLoading } = useGetSessionQuery(
@@ -121,7 +111,10 @@ const ChatPanel = () => {
   // with the SSE URL.
   const attachmentUploads = useAppSelector((s) => s.attachments.uploads);
 
-  const messages = session?.messages ?? [];
+  // Gate on activeSessionId — RTK Query keeps previous data even when
+  // `skip: true` flips back; without this gate the previous session's
+  // messages bleed through after "+ New chat" clears the active id.
+  const messages = activeSessionId ? session?.messages ?? [] : [];
   // The drawer ChatPanel only ever serves the OWNER's sessions. The public
   // read-only view lives at `/shared/chat/:token` (SharedChatView). Sharing
   // a session must NOT lock the owner out of their own toolbar/input.
@@ -204,11 +197,6 @@ const ChatPanel = () => {
       t,
     ],
   );
-
-  const handleSelectSession = (s: ChatSession) => {
-    dispatch(setActiveSession(s.id));
-    setShowRecent(false);
-  };
 
   // AC-50–53: Save selected text either directly (when niche context active)
   // or via SaveToNicheModal (when no context — user picks niche).
@@ -371,69 +359,28 @@ const ChatPanel = () => {
 
   return (
     <PanelRoot>
-      {/* Header area */}
-      <Stack gap={1} sx={{ px: 2, pt: 1.25, pb: 1, flexShrink: 0 }}>
-        <Stack direction="row" alignItems="center" justifyContent="space-between" gap={1}>
-          <Button
+      {/* Per-session toolbar — only Share button (history + new-chat moved to drawer header). */}
+      {activeSessionId && (
+        <Stack
+          direction="row"
+          alignItems="center"
+          justifyContent="flex-end"
+          sx={{ px: 1.5, pt: 0.75, pb: 0.5, flexShrink: 0 }}
+        >
+          <IconButton
             size="small"
-            onClick={() => setShowRecent((v) => !v)}
-            startIcon={<HistoryIcon sx={{ fontSize: 16 }} />}
-            endIcon={showRecent ? <ExpandLessIcon sx={{ fontSize: 16 }} /> : <ExpandMoreIcon sx={{ fontSize: 16 }} />}
-            sx={{
-              textTransform: 'none',
-              fontSize: '0.8125rem',
-              fontWeight: 500,
-              color: 'text.secondary',
-              height: 32,
-              px: 1,
-              minWidth: 0,
-            }}
+            onClick={handleShare}
+            aria-label={t('search.sessions.share')}
+            sx={{ borderRadius: 1.5 }}
           >
-            {t('search.sessions.recentChats')}
-          </Button>
-          <Stack direction="row" gap={0.25}>
-            <IconButton
-              size="small"
-              onClick={() => {
-                dispatch(setActiveSession(null));
-                dispatch(clearAttachments());
-                inputRef.current?.clear();
-                setShowRecent(false);
-                inputRef.current?.focus();
-              }}
-              aria-label={t('search.sessions.newChat')}
-              title={t('search.sessions.newChat')}
-              sx={{ borderRadius: 1.5 }}
-            >
-              <AddIcon sx={{ fontSize: 20 }} />
-            </IconButton>
-            {activeSessionId && (
-              <IconButton
-                size="small"
-                onClick={handleShare}
-                aria-label={t('search.sessions.share')}
-                sx={{ borderRadius: 1.5 }}
-              >
-                {session?.is_shared ? (
-                  <ShareIcon sx={{ fontSize: 18, color: 'primary.main' }} />
-                ) : (
-                  <ShareOutlinedIcon sx={{ fontSize: 18 }} />
-                )}
-              </IconButton>
+            {session?.is_shared ? (
+              <ShareIcon sx={{ fontSize: 18, color: 'primary.main' }} />
+            ) : (
+              <ShareOutlinedIcon sx={{ fontSize: 18 }} />
             )}
-          </Stack>
+          </IconButton>
         </Stack>
-      </Stack>
-
-      <Divider />
-
-      {/* Recent chats dropdown */}
-      <Collapse in={showRecent}>
-        <Box sx={{ maxHeight: 240, overflowY: 'auto', px: 1, py: 0.5 }}>
-          <RecentChats onSelect={handleSelectSession} activeSessionId={activeSessionId} />
-        </Box>
-        <Divider />
-      </Collapse>
+      )}
 
       {/* Message list */}
       <ChatMessageList

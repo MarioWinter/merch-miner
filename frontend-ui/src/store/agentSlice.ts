@@ -282,6 +282,12 @@ export const agentApi = createApi({
         url: '/api/agent/knowledge/',
         method: 'GET',
       }),
+      // Backend uses DRF pagination → returns {count, results, ...}.
+      // Unwrap to a plain array so consumers can `.map()` directly.
+      transformResponse: (
+        response: KnowledgeDoc[] | { results: KnowledgeDoc[] },
+      ): KnowledgeDoc[] =>
+        Array.isArray(response) ? response : (response?.results ?? []),
       providesTags: [{ type: 'Knowledge', id: 'LIST' }],
     }),
 

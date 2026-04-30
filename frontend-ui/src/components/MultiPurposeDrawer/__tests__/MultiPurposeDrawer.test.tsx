@@ -26,6 +26,10 @@ vi.mock('../HealthStatusDot', () => ({
   default: () => null,
 }));
 
+vi.mock('../RecentChatsOverlay', () => ({
+  default: () => null,
+}));
+
 vi.mock('../panels/NichePipeline', () => ({
   default: () => <div data-testid="niche-panel-mock" />,
 }));
@@ -156,15 +160,13 @@ describe('MultiPurposeDrawer', () => {
     expect(screen.getByTestId('chat-panel-mock')).toBeInTheDocument();
   });
 
-  it('renders all three drawer segment buttons (Niche / Chat / Agent)', () => {
+  it('renders all three drawer segment tabs (Niche / Chat / Agent)', () => {
     renderDrawer({ drawerOpen: true, activePanel: 'chat' });
-    // DrawerSegments uses aria-labels keyed off i18n: search.drawer.nicheDetail,
-    // search.drawer.chat, agent.tab.label
-    expect(screen.getAllByRole('button').length).toBeGreaterThanOrEqual(3);
-    // Just assert the 3 toggle buttons via their visible text labels
+    // DrawerSegments uses MUI Tabs (role="tab") with i18n labels:
+    // search.drawer.nicheDetail, search.drawer.chat, agent.tab.label
+    expect(screen.getAllByRole('tab').length).toBeGreaterThanOrEqual(3);
     expect(screen.getByText(/niche/i)).toBeInTheDocument();
     expect(screen.getByText(/chat/i)).toBeInTheDocument();
-    // Agent tab — match against i18n value "Agent" or "OpenClaw"
     const agentTab = screen.queryByLabelText(/agent/i);
     expect(agentTab).toBeTruthy();
   });

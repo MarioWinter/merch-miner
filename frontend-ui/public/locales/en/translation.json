@@ -2988,7 +2988,8 @@
       "saveError": "Failed to save memory",
       "lastConsolidated": "Last consolidated: {{when}}",
       "lastConsolidatedNever": "Not yet consolidated",
-      "empty": "Memory is empty. The agent will start filling it after sessions complete."
+      "empty": "Memory is empty. The agent will start filling it after sessions complete.",
+      "draftRestored": "Restored unsaved memory draft"
     },
     "profile": {
       "title": "Your Profile",

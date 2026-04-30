@@ -2,7 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.contrib.postgres.indexes import GinIndex
-from django.core.validators import MaxLengthValidator, MaxValueValidator, MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
 
@@ -688,11 +688,13 @@ class WorkspaceMemory(models.Model):
         related_name='agent_memory',
     )
     content_md = models.TextField(
-        max_length=DEFAULT_MEMORY_CHAR_LIMIT,
-        validators=[MaxLengthValidator(DEFAULT_MEMORY_CHAR_LIMIT)],
         blank=True,
         default='',
-        help_text='Compact Markdown summary of what the agent has learned about the workspace.',
+        help_text=(
+            'Compact Markdown summary of what the agent has learned about '
+            'the workspace. Char-limit is enforced at the view layer using '
+            'AgentWorkspaceConfig.memory_char_limit (admin-tunable).'
+        ),
     )
     last_consolidated_at = models.DateTimeField(null=True, blank=True)
     last_consolidated_session = models.ForeignKey(
@@ -729,11 +731,13 @@ class UserProfile(models.Model):
         related_name='agent_profiles',
     )
     content_md = models.TextField(
-        max_length=DEFAULT_PROFILE_CHAR_LIMIT,
-        validators=[MaxLengthValidator(DEFAULT_PROFILE_CHAR_LIMIT)],
         blank=True,
         default='',
-        help_text='Compact Markdown profile that the agent has inferred about this user.',
+        help_text=(
+            'Compact Markdown profile that the agent has inferred about this '
+            'user. Char-limit is enforced at the view layer using '
+            'AgentWorkspaceConfig.profile_char_limit (admin-tunable).'
+        ),
     )
     dialect_reasoning = models.TextField(
         blank=True,

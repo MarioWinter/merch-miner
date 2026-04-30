@@ -2342,6 +2342,21 @@
     "cancel": "Annulla",
     "save": "Salva"
   },
+  "dashboard": {
+    "agent": {
+      "title": "Attività dell'agente",
+      "activeWorkflows": "Flussi attivi",
+      "successRate": "Tasso di successo",
+      "budgetUsage": "Utilizzo budget",
+      "agentType": "Agente",
+      "runs": "Esecuzioni",
+      "cost": "Costo",
+      "lastCompleted": "Ultimo: {{niche}} ({{template}}, {{duration}}min)"
+    },
+    "placeholder": {
+      "agentNotConfigured": "Agente non configurato"
+    }
+  },
   "search": {
     "chatBar": {
       "placeholder": "Search the web or ask a question...",

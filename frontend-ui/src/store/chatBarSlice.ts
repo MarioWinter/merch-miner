@@ -70,6 +70,8 @@ interface ChatBarState {
   modeOverride: ModeOverride;
   /** PROJ-17 Phase 4 Step 6: live SSE streaming bubble state */
   streamingAssistantMessage: StreamingAssistantMessage;
+  /** Whether the chat-history overlay (full-panel) is open. Triggered from drawer header icon. */
+  recentChatsOverlayOpen: boolean;
 }
 
 const INITIAL_STREAM: StreamingAssistantMessage = {
@@ -79,6 +81,49 @@ const INITIAL_STREAM: StreamingAssistantMessage = {
   isStreaming: false,
 };
 
+/**
+ * Persisted slice keys (localStorage). Read on hydration, written on each
+ * relevant action so a reload preserves the last-opened niche, etc.
+ * Wrapped in try/catch — Safari private mode + SSR-safety guards.
+ */
+const STORAGE_KEY = 'merchminer.chatBar.persisted';
+
+interface PersistedFields {
+  activeNicheId: string | null;
+  nicheMode: NicheMode;
+}
+
+const readPersisted = (): Partial<PersistedFields> => {
+  if (typeof window === 'undefined' || !window.localStorage) return {};
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw) as Partial<PersistedFields>;
+    return {
+      activeNicheId:
+        typeof parsed.activeNicheId === 'string' ? parsed.activeNicheId : null,
+      nicheMode: parsed.nicheMode === 'create' ? 'create' : 'edit',
+    };
+  } catch {
+    return {};
+  }
+};
+
+const writePersisted = (state: ChatBarState): void => {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    const payload: PersistedFields = {
+      activeNicheId: state.activeNicheId,
+      nicheMode: state.nicheMode,
+    };
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  } catch {
+    /* quota / privacy — ignore */
+  }
+};
+
+const persisted = readPersisted();
+
 const initialState: ChatBarState = {
   barExpanded: false,
   drawerOpen: false,
@@ -87,13 +132,14 @@ const initialState: ChatBarState = {
   activeSessionId: null,
   activeAgentSessionId: null,
   inputChip: null,
-  activeNicheId: null,
-  nicheMode: 'edit',
+  activeNicheId: persisted.activeNicheId ?? null,
+  nicheMode: persisted.nicheMode ?? 'edit',
   searching: false,
   searchSources: ['web'],
   selectedModel: 'openai/gpt-4.1-mini',
   modeOverride: 'chat',
   streamingAssistantMessage: INITIAL_STREAM,
+  recentChatsOverlayOpen: false,
 };
 
 const chatBarSlice = createSlice({
@@ -143,9 +189,11 @@ const chatBarSlice = createSlice({
     },
     setActiveNicheId(state, action: PayloadAction<string | null>) {
       state.activeNicheId = action.payload;
+      writePersisted(state);
     },
     setNicheMode(state, action: PayloadAction<NicheMode>) {
       state.nicheMode = action.payload;
+      writePersisted(state);
     },
     /**
      * PROJ-17 AC-35: open the Niche panel in create mode.
@@ -156,6 +204,7 @@ const chatBarSlice = createSlice({
       state.nicheMode = 'create';
       state.activePanel = 'niche';
       state.drawerOpen = true;
+      writePersisted(state);
     },
     /**
      * PROJ-17 AC-35: open the Niche panel in edit mode for a specific niche.
@@ -165,6 +214,7 @@ const chatBarSlice = createSlice({
       state.nicheMode = 'edit';
       state.activePanel = 'niche';
       state.drawerOpen = true;
+      writePersisted(state);
     },
     setSearching(state, action: PayloadAction<boolean>) {
       state.searching = action.payload;
@@ -221,6 +271,23 @@ const chatBarSlice = createSlice({
     clearStreamingMessage(state) {
       state.streamingAssistantMessage = INITIAL_STREAM;
     },
+    setRecentChatsOverlayOpen(state, action: PayloadAction<boolean>) {
+      state.recentChatsOverlayOpen = action.payload;
+    },
+    /**
+     * Start a fresh chat session — clears active session, streaming state,
+     * niche chip, search flag, attachments-overlay and switches to chat tab.
+     * Triggered by the "+" icon in the drawer header.
+     */
+    startNewChat(state) {
+      state.activeSessionId = null;
+      state.streamingAssistantMessage = INITIAL_STREAM;
+      state.inputChip = null;
+      state.searching = false;
+      state.recentChatsOverlayOpen = false;
+      state.activePanel = 'chat';
+      state.drawerOpen = true;
+    },
   },
 });
 
@@ -247,6 +314,8 @@ export const {
   appendStreamingSources,
   setStreamingActive,
   clearStreamingMessage,
+  setRecentChatsOverlayOpen,
+  startNewChat,
 } = chatBarSlice.actions;
 
 export default chatBarSlice.reducer;

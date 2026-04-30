@@ -17,9 +17,10 @@ import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import BrushOutlinedIcon from '@mui/icons-material/BrushOutlined';
 import ArticleOutlinedIcon from '@mui/icons-material/ArticleOutlined';
 import CloudUploadOutlinedIcon from '@mui/icons-material/CloudUploadOutlined';
+import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { closeDrawer } from '@/store/chatBarSlice';
+import { closeDrawer, openNicheCreate } from '@/store/chatBarSlice';
 import { useNichePipelineDetail } from '@/views/niches/list/hooks/useNichePipelineDetail';
 import { usePipelineStates } from '@/views/niches/list/hooks/usePipelineStates';
 import { usePipelineCounts } from '@/views/niches/list/hooks/usePipelineCounts';
@@ -95,6 +96,10 @@ const NichePipeline = () => {
     dispatch(closeDrawer());
   };
 
+  // Auto-fallback: persisted niche-id is invalid (404 / archived) → reset to
+  // create mode so user isn't stuck staring at an error after a niche is gone.
+  // Slight delay so the user sees the error alert briefly before reset.
+
   const {
     niche,
     isFetching,
@@ -119,6 +124,14 @@ const NichePipeline = () => {
     requestClose,
     discardAndClose,
   } = useNichePipelineDetail({ mode, selectedId, onClose: handleClose });
+
+  // Stale persisted niche-id (404 / archived). Reset to create mode after a
+  // short pause so the alert is visible momentarily.
+  useEffect(() => {
+    if (!fetchError || mode !== 'edit') return;
+    const id = setTimeout(() => dispatch(openNicheCreate()), 1500);
+    return () => clearTimeout(id);
+  }, [fetchError, mode, dispatch]);
 
   const isCreate = mode === 'create';
   const isBusy = creating || updating || deleting || isFetching;

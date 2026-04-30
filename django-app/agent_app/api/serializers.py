@@ -10,6 +10,7 @@ from agent_app.models import (
     AgentConfig,
     AgentMessage,
     AgentSession,
+    AgentType,
     AgentWorkspaceConfig,
     AutonomyPreset,
     KnowledgeDoc,
@@ -452,6 +453,13 @@ class SkillSerializer(serializers.ModelSerializer):
         ]
 
     def get_version_count(self, obj):
+        # P2 #1 — prefer the annotation set by SkillsListCreateView to
+        # avoid N+1 queries when serializing a paginated list. Falls back
+        # to a per-object count for create/update/detail responses where
+        # the annotation is not available.
+        annotated = getattr(obj, '_version_count', None)
+        if annotated is not None:
+            return annotated
         return obj.versions.count() if obj.pk else 0
 
     def get_is_active(self, obj):
@@ -465,7 +473,7 @@ class SkillCreateSerializer(serializers.Serializer):
     description = serializers.CharField(allow_blank=True, default='')
     content_md = serializers.CharField()
     applicable_agent_types = serializers.ListField(
-        child=serializers.CharField(),
+        child=serializers.ChoiceField(choices=AgentType.choices),
         required=False,
         default=list,
     )

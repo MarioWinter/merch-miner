@@ -279,10 +279,9 @@ beforeEach(() => {
 });
 
 describe('ChatPanel', () => {
-  it('renders the input bar and recent-chats toggle', () => {
+  it('renders the input bar (history button moved to drawer header)', () => {
     renderPanel();
     expect(screen.getByTestId('chat-input-bar-stub')).toBeInTheDocument();
-    expect(screen.getByText('Recent Chats')).toBeInTheDocument();
   });
 
   it('renders messages from the active session', () => {

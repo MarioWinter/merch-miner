@@ -29,7 +29,7 @@
 | PROJ-15 | Vector Database (AI Memory) | In Review | [spec](PROJ-15-vector-database.md) | 2026-03-24 |
 | PROJ-16 | Amazon Product Scraper (Scrapy) — P0 | Deployed | [spec](PROJ-16-amazon-product-scraper.md) | 2026-02-27 |
 | PROJ-17 | Deep Web Search (Vane + Crawl4ai) | Planned | [spec](PROJ-17-deep-web-search.md) | 2026-03-24 |
-| PROJ-18 | OpenClaw Agent (Multi-Agent System) | In Progress | [spec](PROJ-18-openclaw-agent.md) | 2026-03-24 |
+| PROJ-18 | OpenClaw Agent (Multi-Agent System) | In Review | [spec](PROJ-18-openclaw-agent.md) | 2026-03-24 |
 
 | PROJ-19 | ~~Global Cloud Picker~~ (absorbed into PROJ-11) | Absorbed | [spec](PROJ-19-global-cloud-picker.md) | 2026-04-06 |
 | PROJ-20 | Chat UX Perplexity-Parity | In Review | [spec](PROJ-20-chat-ux-perplexity-parity.md) | 2026-04-26 |

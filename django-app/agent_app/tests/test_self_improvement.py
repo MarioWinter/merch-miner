@@ -207,33 +207,42 @@ class TestSkillEmbeddingLifecycle:
 
 
 class TestWorkspaceMemoryCharLimit:
-    def test_full_clean_rejects_over_limit(self, workspace):
-        mem = WorkspaceMemory(
-            workspace=workspace,
-            content_md='x' * (DEFAULT_MEMORY_CHAR_LIMIT + 1),
-        )
-        with pytest.raises(ValidationError):
-            mem.full_clean()
+    """Char-limit is enforced at the view layer using
+    ``AgentWorkspaceConfig.memory_char_limit`` (admin-tunable). The model
+    no longer hard-caps the column so that an admin who raises the limit
+    is not blocked by stale model-level validators.
+    """
 
-    def test_db_max_length_rejects_over_limit_via_full_clean(self, workspace):
-        """The model has both ``max_length`` and a MaxLengthValidator —
-        full_clean catches both. (PostgreSQL TextField is unconstrained at
-        the DB layer, so the validator is the actual gatekeeper.)
+    def test_view_rejects_over_default_limit(self, api_client, workspace):
+        """View-layer enforcement at the default limit (2200)."""
+        url = '/api/agent/memory/'
+        resp = api_client.patch(url, {
+            'content_md': 'x' * (DEFAULT_MEMORY_CHAR_LIMIT + 1),
+        }, format='json')
+        assert resp.status_code == 400
+        assert resp.data['error'] == 'memory_char_limit_exceeded'
+        assert resp.data['limit'] == DEFAULT_MEMORY_CHAR_LIMIT
+
+    def test_at_limit_is_allowed(self, api_client, workspace):
+        """At-limit content is accepted by the view."""
+        url = '/api/agent/memory/'
+        resp = api_client.patch(url, {
+            'content_md': 'x' * DEFAULT_MEMORY_CHAR_LIMIT,
+        }, format='json')
+        assert resp.status_code == 200, resp.data
+
+    def test_model_full_clean_no_longer_blocks_over_default(self, workspace):
+        """The DB-level column constraint was removed — ``full_clean`` no
+        longer raises for content over the default. This is required so
+        that an admin-raised limit (e.g. 4000) is not silently rejected
+        at the model layer.
         """
         mem = WorkspaceMemory(
             workspace=workspace,
-            content_md='x' * 2201,  # one over the default
+            content_md='x' * (DEFAULT_MEMORY_CHAR_LIMIT + 500),
         )
-        with pytest.raises(ValidationError) as exc_info:
-            mem.full_clean()
-        assert 'content_md' in exc_info.value.message_dict
-
-    def test_at_limit_is_allowed(self, workspace):
-        mem = WorkspaceMemory(
-            workspace=workspace,
-            content_md='x' * DEFAULT_MEMORY_CHAR_LIMIT,
-        )
-        mem.full_clean()  # no raise
+        # Must not raise — char-limit enforcement is the view's job.
+        mem.full_clean()
 
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -242,14 +251,27 @@ class TestWorkspaceMemoryCharLimit:
 
 
 class TestUserProfileDialectic:
-    def test_profile_full_clean_rejects_over_limit(self, workspace, user):
+    def test_profile_view_rejects_over_default_limit(
+        self, api_client, workspace, user,
+    ):
+        """View-layer enforcement using AgentWorkspaceConfig.profile_char_limit."""
+        url = '/api/agent/profile/'
+        resp = api_client.patch(url, {
+            'content_md': 'y' * (DEFAULT_PROFILE_CHAR_LIMIT + 1),
+        }, format='json')
+        assert resp.status_code == 400
+        assert resp.data['error'] == 'profile_char_limit_exceeded'
+
+    def test_profile_full_clean_no_longer_blocks_over_default(
+        self, workspace, user,
+    ):
+        """DB-level cap removed so an admin-raised limit is not blocked."""
         profile = UserProfile(
             workspace=workspace,
             user=user,
-            content_md='y' * (DEFAULT_PROFILE_CHAR_LIMIT + 1),
+            content_md='y' * (DEFAULT_PROFILE_CHAR_LIMIT + 500),
         )
-        with pytest.raises(ValidationError):
-            profile.full_clean()
+        profile.full_clean()  # must not raise
 
     def test_dialect_reasoning_unbounded(self, workspace, user):
         """Dialect reasoning is the unbounded scratchpad — no validator."""
@@ -701,9 +723,14 @@ class TestEC22SoftDeleteVersionsAccessible:
         )
         soft_delete_skill(skill_id=str(skill.pk))
 
-        # The versions endpoint must still return the SkillVersion rows.
+        # P2 #4 — by default soft-deleted skills are hidden (404). The
+        # versions audit chain remains accessible with the explicit
+        # ``include_deleted=true`` opt-in (used by the audit / restore UI).
         url = f'/api/agent/skills/{skill.pk}/versions/'
-        resp = api_client.get(url)
+        resp_default = api_client.get(url)
+        assert resp_default.status_code == 404
+
+        resp = api_client.get(url + '?include_deleted=true')
         assert resp.status_code == 200
         results = resp.data.get('results', resp.data)
         # Audit chain: v1 (initial), v2 (patch).
@@ -767,3 +794,161 @@ class TestEC23FreshWorkspaceGracefulAbsence:
             )
         rendered = render_context_as_prompt(ctx)
         assert isinstance(rendered, str)
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  QA Coverage Gaps — admin-raised char-limit + soft-delete + reflect dedup
+# ═══════════════════════════════════════════════════════════════════════════
+
+
+class TestQAAdminRaisedCharLimits:
+    """P0 #2 — admin-raised limits in AgentWorkspaceConfig must NOT be
+    rejected by stale model-level validators on ``content_md``. Previously
+    the column hard-capped at the default and any admin-raised limit was
+    silently invalidated by ``model.full_clean()``.
+    """
+
+    def test_admin_raised_memory_limit_lets_user_save_2800_chars(
+        self, api_client, workspace,
+    ):
+        cfg = AgentWorkspaceConfig.objects.create(
+            workspace=workspace,
+            memory_char_limit=3000,
+        )
+        big = 'm' * 2800  # > default 2200, < admin-raised 3000
+        resp = api_client.patch('/api/agent/memory/', {
+            'content_md': big,
+        }, format='json')
+        assert resp.status_code == 200, resp.data
+        mem = WorkspaceMemory.objects.get(workspace=workspace)
+        assert len(mem.content_md) == 2800
+        # Sanity — config is what gated it.
+        cfg.refresh_from_db()
+        assert cfg.memory_char_limit == 3000
+
+    def test_admin_raised_profile_limit_lets_user_save_2000_chars(
+        self, api_client, workspace, user,
+    ):
+        AgentWorkspaceConfig.objects.create(
+            workspace=workspace,
+            profile_char_limit=2200,
+        )
+        big = 'p' * 2000  # > default 1375, < admin-raised 2200
+        resp = api_client.patch('/api/agent/profile/', {
+            'content_md': big,
+        }, format='json')
+        assert resp.status_code == 200, resp.data
+        profile = UserProfile.objects.get(workspace=workspace, user=user)
+        assert len(profile.content_md) == 2000
+
+
+class TestQASoftDeletedSkillLeak:
+    """P2 #4 — GET / PATCH on a soft-deleted skill returns 404 by default.
+    With ``?include_deleted=true`` it returns 200 with ``is_active=False``.
+    """
+
+    def test_soft_deleted_skill_get_returns_404_by_default(
+        self, api_client, workspace, user,
+    ):
+        from agent_app.services.skill_manager import (
+            create_skill,
+            soft_delete_skill,
+        )
+
+        skill = create_skill(
+            workspace=workspace, name='Soon-to-be-deleted',
+            description='', content_md='body', created_by=user,
+        )
+        soft_delete_skill(skill_id=str(skill.pk))
+
+        url = f'/api/agent/skills/{skill.pk}/'
+        resp = api_client.get(url)
+        assert resp.status_code == 404
+
+        # Opt-in flag surfaces the deleted row.
+        resp_inc = api_client.get(url + '?include_deleted=true')
+        assert resp_inc.status_code == 200
+        assert resp_inc.data['is_active'] is False
+        assert resp_inc.data['deleted_at'] is not None
+
+    def test_soft_deleted_skill_patch_returns_404(
+        self, api_client, workspace, user,
+    ):
+        from agent_app.services.skill_manager import (
+            create_skill,
+            soft_delete_skill,
+        )
+
+        skill = create_skill(
+            workspace=workspace, name='Patch-after-delete',
+            description='', content_md='v1', created_by=user,
+        )
+        soft_delete_skill(skill_id=str(skill.pk))
+
+        resp = api_client.patch(
+            f'/api/agent/skills/{skill.pk}/',
+            {'patch_md': 'v2', 'expected_version': 1, 'patch_summary': 'x'},
+            format='json',
+        )
+        assert resp.status_code == 404
+
+
+class TestQAReflectionDedup:
+    """P2 #5 — re-trigger reflection on a session whose result is already
+    consolidated into WorkspaceMemory returns 409 ``already_reflected``.
+    """
+
+    def test_already_reflected_session_returns_409(
+        self, api_client, workspace, user, completed_session,
+    ):
+        # Simulate a prior successful reflection: WorkspaceMemory has
+        # ``last_consolidated_session`` pointing at this session.
+        WorkspaceMemory.objects.create(
+            workspace=workspace,
+            content_md='already consolidated',
+            last_consolidated_at=timezone.now(),
+            last_consolidated_session=completed_session,
+        )
+        url = f'/api/agent/sessions/{completed_session.pk}/reflect/'
+        resp = api_client.post(url, {}, format='json')
+        assert resp.status_code == 409
+        assert resp.data['error'] == 'already_reflected'
+
+
+class TestQASkillCreateAgentTypeValidation:
+    """P1 #2 — POST /api/agent/skills/ with an invalid agent_type returns 400."""
+
+    def test_post_invalid_agent_type_returns_400(
+        self, api_client, workspace, user,
+    ):
+        from workspace_app.models import Membership
+
+        # Promote user to admin (manual skill create requires admin).
+        Membership.objects.filter(user=user, workspace=workspace).update(
+            role='admin',
+        )
+        resp = api_client.post('/api/agent/skills/', {
+            'name': 'Skill X',
+            'description': '',
+            'content_md': 'body',
+            'applicable_agent_types': ['not_a_real_agent_type'],
+        }, format='json')
+        assert resp.status_code == 400
+        assert 'applicable_agent_types' in resp.data
+
+
+class TestQASkillsListAgentTypeValidation:
+    """P1 #1 — GET /api/agent/skills/?agent_type=<bad> returns 400."""
+
+    def test_get_invalid_agent_type_returns_400(
+        self, api_client, workspace,
+    ):
+        resp = api_client.get('/api/agent/skills/?agent_type=lol_invalid')
+        assert resp.status_code == 400
+        assert resp.data['error'] == 'invalid_agent_type'
+
+    def test_get_valid_agent_type_returns_200(
+        self, api_client, workspace,
+    ):
+        resp = api_client.get('/api/agent/skills/?agent_type=research')
+        assert resp.status_code == 200

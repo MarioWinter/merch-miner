@@ -6,7 +6,7 @@
  * - Color-coded char-counter (warn / critical / over-limit).
  * - Save disabled when content exceeds char_limit.
  */
-import { useEffect, useMemo, useState, useCallback } from 'react';
+import { useEffect, useMemo, useState, useCallback, useRef } from 'react';
 import {
   Stack,
   Typography,
@@ -76,6 +76,9 @@ const computeTone = (
   return 'normal';
 };
 
+const draftStorageKey = (memoryId: string | undefined): string | null =>
+  memoryId ? `memoryEditor.draft.${memoryId}` : null;
+
 const MemoryEditor = () => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
@@ -85,12 +88,51 @@ const MemoryEditor = () => {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState('');
 
-  // When fresh data arrives and we're not editing, sync the local draft
+  // Latest values held in refs so the cleanup effect always sees current
+  // state without re-running on every keystroke.
+  const draftRef = useRef(draft);
+  const editingRef = useRef(editing);
+  const memoryIdRef = useRef<string | undefined>(memory?.id);
+  const memoryContentRef = useRef<string>(memory?.content_md ?? '');
+
   useEffect(() => {
-    if (memory && !editing) {
+    draftRef.current = draft;
+  }, [draft]);
+  useEffect(() => {
+    editingRef.current = editing;
+  }, [editing]);
+  useEffect(() => {
+    memoryIdRef.current = memory?.id;
+    memoryContentRef.current = memory?.content_md ?? '';
+  }, [memory?.id, memory?.content_md]);
+
+  // When fresh data arrives and we're not editing, sync the local draft.
+  // If a stored draft exists for this memory id (e.g. user switched tabs
+  // mid-edit), restore it and re-enter edit mode.
+  useEffect(() => {
+    if (!memory || editing) return;
+    const key = draftStorageKey(memory.id);
+    const stored = key ? window.localStorage.getItem(key) : null;
+    if (stored !== null && stored !== (memory.content_md ?? '')) {
+      setDraft(stored);
+      setEditing(true);
+      enqueueSnackbar(t('agent.memory.draftRestored'), { variant: 'info' });
+    } else {
       setDraft(memory.content_md ?? '');
     }
-  }, [memory, editing]);
+  }, [memory, editing, enqueueSnackbar, t]);
+
+  // On unmount: persist any unsaved draft to localStorage so the user does
+  // not silently lose work when switching tabs.
+  useEffect(() => {
+    return () => {
+      const key = draftStorageKey(memoryIdRef.current);
+      if (!key) return;
+      if (editingRef.current && draftRef.current !== memoryContentRef.current) {
+        window.localStorage.setItem(key, draftRef.current);
+      }
+    };
+  }, []);
 
   const charLimit = memory?.char_limit ?? MEMORY_CHAR_LIMIT_DEFAULT;
   const charCount = draft.length;
@@ -100,20 +142,27 @@ const MemoryEditor = () => {
   );
   const overLimit = charCount > charLimit;
 
+  const clearStoredDraft = useCallback(() => {
+    const key = draftStorageKey(memory?.id);
+    if (key) window.localStorage.removeItem(key);
+  }, [memory?.id]);
+
   const handleSave = useCallback(async () => {
     try {
       await patchMemory({ content_md: draft }).unwrap();
       enqueueSnackbar(t('agent.memory.saved'), { variant: 'success' });
+      clearStoredDraft();
       setEditing(false);
     } catch {
       enqueueSnackbar(t('agent.memory.saveError'), { variant: 'error' });
     }
-  }, [draft, patchMemory, enqueueSnackbar, t]);
+  }, [draft, patchMemory, enqueueSnackbar, t, clearStoredDraft]);
 
   const handleCancel = useCallback(() => {
     setDraft(memory?.content_md ?? '');
+    clearStoredDraft();
     setEditing(false);
-  }, [memory]);
+  }, [memory, clearStoredDraft]);
 
   if (isLoading) {
     return (

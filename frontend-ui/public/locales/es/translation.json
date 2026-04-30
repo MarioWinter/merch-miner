@@ -2344,6 +2344,21 @@
     "cancel": "Cancelar",
     "save": "Guardar"
   },
+  "dashboard": {
+    "agent": {
+      "title": "Actividad del agente",
+      "activeWorkflows": "Flujos activos",
+      "successRate": "Tasa de éxito",
+      "budgetUsage": "Uso del presupuesto",
+      "agentType": "Agente",
+      "runs": "Ejecuciones",
+      "cost": "Coste",
+      "lastCompleted": "Último: {{niche}} ({{template}}, {{duration}}min)"
+    },
+    "placeholder": {
+      "agentNotConfigured": "Agente sin configurar"
+    }
+  },
   "search": {
     "chatBar": {
       "placeholder": "Search the web or ask a question...",
@@ -2820,7 +2835,8 @@
       "saveError": "Error al guardar",
       "lastConsolidated": "Última consolidación: {{when}}",
       "lastConsolidatedNever": "Aún no consolidada",
-      "empty": "Memoria vacía. El agente la llenará tras completar sesiones."
+      "empty": "Memoria vacía. El agente la llenará tras completar sesiones.",
+      "draftRestored": "Borrador no guardado restaurado"
     },
     "profile": {
       "title": "Tu perfil",
