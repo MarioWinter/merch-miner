@@ -35,7 +35,8 @@
 | PROJ-20 | Chat UX Perplexity-Parity | In Review | [spec](PROJ-20-chat-ux-perplexity-parity.md) | 2026-04-26 |
 | PROJ-21 | Chat Attachments + Document RAG + Agentic Tool-Use | Deferred (Post-MVP) | [spec](PROJ-21-chat-attachments-rag.md) | 2026-04-26 |
 | PROJ-22 | Server-Migration auf VC 8-32 + Mono-Repo Infrastruktur | Planned | [spec](PROJ-22-server-migration-mono-repo.md) | 2026-04-28 |
+| PROJ-23 | Selector Health Check Spider | In Review | [spec](PROJ-23-selector-health-check.md) | 2026-05-01 |
 
 <!-- Add features above this line -->
 
-## Next Available ID: PROJ-23
+## Next Available ID: PROJ-24

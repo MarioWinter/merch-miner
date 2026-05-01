@@ -1,8 +1,14 @@
 import uuid
-from django.core.validators import MaxValueValidator, MinValueValidator
+from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
 from django.utils import timezone
 from datetime import timedelta
+
+
+ASIN_REGEX_VALIDATOR = RegexValidator(
+    regex=r'^[A-Z0-9]{10}$',
+    message='ASIN must be exactly 10 uppercase alphanumeric characters.',
+)
 
 
 class MarketplaceChoices(models.TextChoices):
@@ -549,3 +555,117 @@ class ScheduledScrapeTarget(models.Model):
         if new_tier and new_tier != self.tier:
             self.tier = new_tier
             self.save(update_fields=['tier', 'next_scrape_at'])
+
+
+# ---------------------------------------------------------------------------
+# PROJ-23: Selector Health Check
+# ---------------------------------------------------------------------------
+
+class CanaryAsin(models.Model):
+    """Reference Amazon product monitored periodically to detect selector drift."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    asin = models.CharField(
+        max_length=10,
+        validators=[ASIN_REGEX_VALIDATOR],
+        help_text='10-char Amazon ASIN (uppercase alphanumeric).',
+    )
+    marketplace = models.CharField(
+        max_length=20,
+        choices=MarketplaceChoices.choices,
+        db_index=True,
+    )
+    label = models.CharField(
+        max_length=200,
+        blank=True,
+        default='',
+        help_text='Free text label, e.g. "MBA T-Shirt EN with BSR".',
+    )
+    active = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text='Inactive canaries are skipped by the weekly scheduler.',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('asin', 'marketplace')
+        ordering = ['marketplace', 'asin']
+        verbose_name = 'Canary ASIN'
+        verbose_name_plural = 'Canary ASINs'
+
+    def __str__(self):
+        return f"{self.asin} ({self.marketplace}) — {self.label}" if self.label else (
+            f"{self.asin} ({self.marketplace})"
+        )
+
+    def save(self, *args, **kwargs):
+        if self.asin:
+            self.asin = self.asin.strip().upper()
+        super().save(*args, **kwargs)
+
+
+class SelectorHealthCheck(models.Model):
+    """One row per audit run for a CanaryAsin.
+
+    Stores per-field selector results (OK / EMPTY / INFO) plus a snapshot of the
+    raw HTML on disk. Files are pruned after RETENTION runs per (asin,marketplace);
+    rows remain but `html_path` is nulled when their snapshot is deleted.
+    """
+
+    class TriggeredBy(models.TextChoices):
+        SCHEDULE = 'schedule', 'Schedule'
+        ADMIN = 'admin', 'Admin'
+        CLI = 'cli', 'CLI'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    canary = models.ForeignKey(
+        CanaryAsin,
+        on_delete=models.CASCADE,
+        related_name='health_checks',
+        db_index=True,
+    )
+    run_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    html_path = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Path relative to MEDIA_ROOT; nulled when snapshot is pruned.',
+    )
+    html_size_bytes = models.IntegerField(null=True, blank=True)
+    results = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text='{"title": "OK", "brand": "OK", "bsr": "INFO", ...}',
+    )
+    passed = models.BooleanField(
+        default=False,
+        db_index=True,
+        help_text='True iff zero EMPTY entries in results.',
+    )
+    triggered_by = models.CharField(
+        max_length=20,
+        choices=TriggeredBy.choices,
+        default=TriggeredBy.SCHEDULE,
+        db_index=True,
+    )
+    error_message = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Populated on spider/HTTP failure.',
+    )
+
+    class Meta:
+        ordering = ['-run_at']
+        verbose_name = 'Selector Health Check'
+        verbose_name_plural = 'Selector Health Checks'
+
+    def __str__(self):
+        status = 'PASS' if self.passed else 'FAIL'
+        return f"HealthCheck[{status}] {self.canary} @ {self.run_at:%Y-%m-%d %H:%M}"
+
+    @property
+    def failed_field_count(self):
+        if not isinstance(self.results, dict):
+            return 0
+        return sum(1 for v in self.results.values() if v == 'EMPTY')

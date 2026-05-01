@@ -5,15 +5,19 @@ import re
 
 from django import forms
 from django.contrib import admin, messages
+from django.db import models
 from django.http import HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils import timezone
+from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 
 from scraper_app.models import (
     AmazonProduct,
     BrandBlacklist,
     BSRSnapshot,
+    CanaryAsin,
     Keyword,
     MarketplaceChoices,
     MetaKeyword,
@@ -22,6 +26,7 @@ from scraper_app.models import (
     ScrapeJob,
     ScrapeTier,
     ScheduledScrapeTarget,
+    SelectorHealthCheck,
 )
 
 
@@ -690,3 +695,154 @@ def _custom_get_urls(self):
 
 
 admin.AdminSite.get_urls = _custom_get_urls
+
+
+# ---------------------------------------------------------------------------
+# CanaryAsin & SelectorHealthCheck Admin (PROJ-23)
+# ---------------------------------------------------------------------------
+
+@admin.register(CanaryAsin)
+class CanaryAsinAdmin(admin.ModelAdmin):
+    list_display = [
+        'asin', 'marketplace', 'label', 'active',
+        'last_check_at', 'last_status',
+    ]
+    list_filter = ['active', 'marketplace']
+    list_editable = ['active']
+    search_fields = ['asin', 'label']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    ordering = ['marketplace', 'asin']
+    actions = ['run_health_check_now']
+
+    def get_queryset(self, request):
+        # Prefetch latest health check per canary to avoid N+1.
+        qs = super().get_queryset(request)
+        latest_subq = SelectorHealthCheck.objects.filter(
+            canary=models.OuterRef('pk'),
+        ).order_by('-run_at')
+        return qs.annotate(
+            _latest_run_at=models.Subquery(latest_subq.values('run_at')[:1]),
+            _latest_passed=models.Subquery(latest_subq.values('passed')[:1]),
+        )
+
+    def last_check_at(self, obj):
+        return getattr(obj, '_latest_run_at', None) or '-'
+    last_check_at.short_description = 'Last Check'
+    last_check_at.admin_order_field = '_latest_run_at'
+
+    def last_status(self, obj):
+        passed = getattr(obj, '_latest_passed', None)
+        if passed is None:
+            return mark_safe('<span style="color:#888;">never run</span>')
+        if passed:
+            return mark_safe(
+                '<span style="background:#1b5e20;color:#fff;padding:2px 8px;border-radius:4px;">PASS</span>'
+            )
+        return mark_safe(
+            '<span style="background:#b00020;color:#fff;padding:2px 8px;border-radius:4px;">FAIL</span>'
+        )
+    last_status.short_description = 'Last Status'
+
+    @admin.action(description='Run health check now')
+    def run_health_check_now(self, request, queryset):
+        import django_rq
+
+        from scraper_app.tasks import run_selector_health_check
+
+        queue = django_rq.get_queue('scraper')
+        new_check_ids = []
+        for canary in queryset:
+            try:
+                queue.enqueue(
+                    run_selector_health_check,
+                    canary_id=str(canary.id),
+                    triggered_by=SelectorHealthCheck.TriggeredBy.ADMIN,
+                )
+                # AC-14: surface the SelectorHealthCheck IDs after the spider runs.
+                # We don't have the row yet (it's created inside the task),
+                # so we report the queued canary instead.
+                new_check_ids.append(canary.asin)
+            except Exception as exc:
+                self.message_user(
+                    request,
+                    f"Failed to enqueue {canary.asin}: {exc}",
+                    messages.ERROR,
+                )
+        if new_check_ids:
+            self.message_user(
+                request,
+                f"Enqueued health check for: {', '.join(new_check_ids)}",
+                messages.SUCCESS,
+            )
+
+
+@admin.register(SelectorHealthCheck)
+class SelectorHealthCheckAdmin(admin.ModelAdmin):
+    list_display = [
+        'canary', 'run_at', 'passed_badge',
+        'failed_field_count_display', 'html_size_kb',
+        'triggered_by',
+    ]
+    list_filter = ['passed', 'triggered_by', 'canary__marketplace']
+    search_fields = ['canary__asin', 'canary__label']
+    readonly_fields = [
+        'id', 'canary', 'run_at', 'html_path', 'snapshot_link',
+        'html_size_bytes', 'results', 'passed',
+        'triggered_by', 'error_message',
+    ]
+    fieldsets = (
+        (None, {
+            'fields': (
+                'id', 'canary', 'run_at', 'passed', 'triggered_by',
+            ),
+        }),
+        ('Results', {
+            'fields': ('results', 'error_message'),
+        }),
+        ('Snapshot', {
+            'fields': ('html_path', 'snapshot_link', 'html_size_bytes'),
+        }),
+    )
+    ordering = ['-run_at']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('canary')
+
+    def passed_badge(self, obj):
+        if obj.passed:
+            return mark_safe(
+                '<span style="background:#1b5e20;color:#fff;padding:2px 8px;border-radius:4px;">PASS</span>'
+            )
+        return mark_safe(
+            '<span style="background:#b00020;color:#fff;padding:2px 8px;border-radius:4px;">FAIL</span>'
+        )
+    passed_badge.short_description = 'Status'
+    passed_badge.admin_order_field = 'passed'
+
+    def failed_field_count_display(self, obj):
+        return obj.failed_field_count
+    failed_field_count_display.short_description = 'EMPTY fields'
+
+    def html_size_kb(self, obj):
+        if obj.html_size_bytes is None:
+            return '-'
+        return f"{obj.html_size_bytes / 1024:.1f} KB"
+    html_size_kb.short_description = 'Snapshot Size'
+
+    def snapshot_link(self, obj):
+        """Render a download link to the HTML snapshot if file still on disk."""
+        from django.conf import settings as dj_settings
+        from pathlib import Path
+
+        if not obj.html_path:
+            return mark_safe('<em>file pruned</em>')
+        absolute_path = Path(dj_settings.MEDIA_ROOT) / obj.html_path
+        if not absolute_path.exists():
+            return mark_safe('<em>file pruned</em>')
+        url = f"{dj_settings.MEDIA_URL}{obj.html_path}"
+        return format_html('<a href="{}" target="_blank">Download HTML</a>', url)
+    snapshot_link.short_description = 'Snapshot File'
+
+    def has_add_permission(self, request):
+        # Health checks are produced by the scheduler/admin actions, never created manually.
+        return False

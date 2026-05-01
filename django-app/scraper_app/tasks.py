@@ -3,6 +3,7 @@ import os
 import signal
 import subprocess
 from datetime import timedelta
+from pathlib import Path
 
 import django_rq
 from django.conf import settings
@@ -11,11 +12,13 @@ from django.utils import timezone
 from scraper_app.models import (
     PRODUCT_TYPE_SPIDER_KWARGS,
     AmazonProduct,
+    CanaryAsin,
     Keyword,
     ProductSearchCache,
     ScheduledScrapeTarget,
     ScrapeJob,
     ScrapeTier,
+    SelectorHealthCheck,
 )
 
 logger = logging.getLogger(__name__)
@@ -549,4 +552,211 @@ def schedule_scrape_runner():
             )
 
     logger.info("schedule_scrape_runner enqueued %d jobs", enqueued)
+    return enqueued
+
+
+# ---------------------------------------------------------------------------
+# PROJ-23: Selector Health Check
+# ---------------------------------------------------------------------------
+
+DEFAULT_HEALTH_CHECK_RETENTION = 12
+
+
+def _prune_snapshots(asin: str, marketplace: str, keep: int = DEFAULT_HEALTH_CHECK_RETENTION):
+    """Keep newest `keep` snapshot files for (asin, marketplace); delete the rest.
+
+    Wrapped in try/except so retention failures NEVER cascade into the
+    health-check job result (AC-9 from edge-cases section).
+    Sets `html_path=NULL` on SelectorHealthCheck rows whose snapshot was pruned.
+    """
+    try:
+        snapshot_dir = Path(settings.MEDIA_ROOT) / 'snapshots' / marketplace
+        if not snapshot_dir.exists():
+            return 0
+
+        # Match files for this specific ASIN only (other ASINs share the dir).
+        files = sorted(
+            snapshot_dir.glob(f"{asin}_*.html"),
+            key=lambda p: p.stat().st_mtime,
+            reverse=True,  # newest first
+        )
+
+        if len(files) <= keep:
+            return 0
+
+        to_delete = files[keep:]
+        deleted_relative_paths = []
+        for path in to_delete:
+            try:
+                relative = str(path.relative_to(settings.MEDIA_ROOT))
+                path.unlink()
+                deleted_relative_paths.append(relative)
+            except OSError as exc:
+                logger.warning(
+                    "Snapshot retention: failed to delete %s: %s", path, exc,
+                )
+
+        if deleted_relative_paths:
+            updated = SelectorHealthCheck.objects.filter(
+                html_path__in=deleted_relative_paths,
+            ).update(html_path=None)
+            logger.info(
+                "Pruned %d snapshots for %s/%s (rows updated: %d)",
+                len(deleted_relative_paths), marketplace, asin, updated,
+            )
+            return len(deleted_relative_paths)
+        return 0
+
+    except Exception:
+        logger.warning(
+            "Snapshot retention failed for %s/%s — continuing.",
+            marketplace, asin, exc_info=True,
+        )
+        return 0
+
+
+def _run_audit_on_file(absolute_path: Path, marketplace: str) -> dict:
+    """Load snapshot file and run the selector audit. Local import to keep
+    the tasks module light when audit isn't needed (worker startup cost)."""
+    from scraper_app.audit import run_audit
+
+    html = absolute_path.read_text(encoding='utf-8', errors='replace')
+    return run_audit(html, marketplace)
+
+
+def run_selector_health_check(canary_id, triggered_by='schedule'):
+    """Run a selector health-check for one CanaryAsin.
+
+    1. Create SelectorHealthCheck row up-front (passed=False placeholder).
+    2. Spawn `amazon_html_snapshot` spider (subprocess, same pattern as production
+       scrapers) — it writes the raw HTML and updates the row with html_path/size
+       OR error_message.
+    3. After spider exits: re-fetch the row; if snapshot present, run audit and
+       persist `results` + `passed`.
+    4. Prune old snapshots (best-effort, non-fatal).
+    """
+    try:
+        canary = CanaryAsin.objects.get(id=canary_id)
+    except CanaryAsin.DoesNotExist:
+        logger.error("CanaryAsin %s not found — skipping health check.", canary_id)
+        return None
+
+    health_check = SelectorHealthCheck.objects.create(
+        canary=canary,
+        triggered_by=triggered_by,
+        passed=False,
+        results={},
+    )
+
+    cmd = [
+        'scrapy', 'crawl', 'amazon_html_snapshot',
+        '-a', f'asin={canary.asin}',
+        '-a', f'marketplace={canary.marketplace}',
+        '-a', f'health_check_id={health_check.id}',
+    ]
+
+    try:
+        proc = subprocess.Popen(
+            cmd,
+            cwd=SCRAPY_PROJECT_DIR,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env=_scrapy_env(),
+        )
+        stdout, stderr = proc.communicate()
+
+        stdout_text = stdout.decode('utf-8', errors='replace') if stdout else ''
+        stderr_text = stderr.decode('utf-8', errors='replace') if stderr else ''
+        if stdout_text:
+            logger.info("Snapshot spider stdout:\n%s", stdout_text[-2000:])
+        if stderr_text:
+            logger.info("Snapshot spider stderr:\n%s", stderr_text[-2000:])
+
+        # Re-fetch — spider has updated either html_path/html_size_bytes OR error_message.
+        health_check.refresh_from_db()
+
+        if not health_check.html_path:
+            # No snapshot saved → spider failed (HTTP error, network, write error).
+            if not health_check.error_message:
+                # Fallback: if the spider neither wrote a path nor reported an
+                # error_message (e.g. process crash), capture stderr tail so the
+                # admin sees something actionable (AC-19).
+                health_check.error_message = (
+                    stderr_text[-500:] if stderr_text else
+                    f"Spider exited rc={proc.returncode} with no snapshot."
+                )
+            health_check.passed = False
+            health_check.save(update_fields=['passed', 'error_message'])
+            logger.warning(
+                "Health check FAILED for canary=%s (label=%s): %s",
+                canary.asin, canary.label or '-', health_check.error_message,
+            )
+            return health_check
+
+        # We have a snapshot — run the audit.
+        try:
+            absolute_path = Path(settings.MEDIA_ROOT) / health_check.html_path
+            results = _run_audit_on_file(absolute_path, canary.marketplace)
+        except Exception as exc:
+            logger.exception("Audit failed for health_check=%s", health_check.id)
+            health_check.error_message = f"Audit error: {exc}"
+            health_check.passed = False
+            health_check.save(update_fields=['passed', 'error_message'])
+            return health_check
+
+        # `passed` iff zero EMPTY entries. INFO does NOT flip the flag.
+        passed = not any(v == 'EMPTY' for v in results.values())
+        health_check.results = results
+        health_check.passed = passed
+        health_check.save(update_fields=['results', 'passed'])
+
+        if not passed:
+            failed_fields = [k for k, v in results.items() if v == 'EMPTY']
+            logger.warning(
+                "Health check FAILED for canary=%s (label=%s): empty fields=%s",
+                canary.asin, canary.label or '-', failed_fields,
+            )
+        else:
+            logger.info(
+                "Health check PASSED for canary=%s (label=%s)",
+                canary.asin, canary.label or '-',
+            )
+
+    except Exception as exc:
+        logger.exception("Unexpected error in run_selector_health_check id=%s", canary_id)
+        health_check.error_message = f"Task error: {exc}"
+        health_check.passed = False
+        health_check.save(update_fields=['passed', 'error_message'])
+
+    # Retention runs inline, best-effort.
+    retention = getattr(
+        settings, 'SELECTOR_HEALTH_CHECK_RETENTION', DEFAULT_HEALTH_CHECK_RETENTION,
+    )
+    _prune_snapshots(canary.asin, canary.marketplace, keep=retention)
+
+    return health_check
+
+
+def schedule_health_check_runner():
+    """Cron-tick: enqueue one health-check job per active CanaryAsin.
+
+    Mirrors `schedule_scrape_runner` — run by rq-scheduler on the configured cron.
+    Uses the `scraper` queue so health checks share the rate-limit budget with
+    production scrapes (visible in the same monitoring).
+    """
+    queue = django_rq.get_queue('scraper')
+    enqueued = 0
+    for canary in CanaryAsin.objects.filter(active=True):
+        try:
+            queue.enqueue(
+                run_selector_health_check,
+                canary_id=str(canary.id),
+                triggered_by='schedule',
+            )
+            enqueued += 1
+        except Exception:
+            logger.exception(
+                "Failed to enqueue health check for canary %s", canary.id,
+            )
+    logger.info("schedule_health_check_runner enqueued %d jobs", enqueued)
     return enqueued

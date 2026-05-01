@@ -274,6 +274,18 @@ SCRAPEOPS_API_KEY = os.environ.get('SCRAPEOPS_API_KEY', '')
 SCRAPY_CONCURRENT_REQUESTS = int(os.environ.get('SCRAPY_CONCURRENT_REQUESTS', 1))
 
 # ----------------------------------------
+# Selector Health Check (PROJ-23)
+# ----------------------------------------
+# Maximum HTML snapshots to keep on disk per (asin, marketplace).
+SELECTOR_HEALTH_CHECK_RETENTION = int(
+    os.environ.get('SELECTOR_HEALTH_CHECK_RETENTION', '12'),
+)
+# Cron expression for the weekly health-check runner. Default: Mon 04:00 UTC.
+SELECTOR_HEALTH_CHECK_SCHEDULE_CRON = os.environ.get(
+    'SELECTOR_HEALTH_CHECK_SCHEDULE_CRON', '0 4 * * 1',
+)
+
+# ----------------------------------------
 # OpenRouter (LLM API via OpenAI-compatible endpoint)
 # ----------------------------------------
 OPENROUTER_API_KEY = os.environ.get('OPENROUTER_API_KEY', '')
