@@ -87,7 +87,7 @@ export const useAtomicChip = (
         // caret has somewhere to sit and the user can keep typing.
         if (!chip.nextSibling || chip.nextSibling.nodeType !== Node.TEXT_NODE) {
           const space = document.createTextNode(' ');
-          chip.parentNode.insertBefore(space, chip.nextSibling);
+          chip.parentNode?.insertBefore(space, chip.nextSibling);
           placeCaretAfter(space);
         } else {
           placeCaretAfter(chip);

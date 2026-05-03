@@ -1,10 +1,11 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Box, IconButton, Stack, Tooltip, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternateOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
 import { useTranslation } from 'react-i18next';
 import type { ArtboardData } from '../../types';
 
@@ -48,6 +49,10 @@ interface PanelMultiStateProps {
   onOpenInEditor: (ids: string[]) => void;
   onDeleteAll: (ids: string[]) => void;
   onExportSelected: (ids: string[]) => void;
+  /** PROJ-9 Phase O — resolves selected artboard IDs to approved design IDs eligible for Listings. */
+  getSendableDesignIds?: (artboardIds: string[]) => string[];
+  /** PROJ-9 Phase O — sends the approved design IDs to Listings. */
+  onSendToListings?: (designIds: string[]) => void;
 }
 
 // -----------------------------------------------------------------
@@ -60,12 +65,19 @@ const PanelMultiState = ({
   onOpenInEditor,
   onDeleteAll,
   onExportSelected,
+  getSendableDesignIds,
+  onSendToListings,
 }: PanelMultiStateProps) => {
   const { t } = useTranslation();
   const ids = selectedArtboards.map((a) => a.id);
 
   const aiCount = selectedArtboards.filter((a) => a.kind === 'ai').length;
   const regularCount = selectedArtboards.length - aiCount;
+
+  const sendableDesignIds = useMemo(
+    () => (getSendableDesignIds ? getSendableDesignIds(ids) : []),
+    [getSendableDesignIds, ids],
+  );
 
   const handleAddEditor = useCallback(() => {
     onAddToEditor(ids);
@@ -82,6 +94,14 @@ const PanelMultiState = ({
   const handleExport = useCallback(() => {
     onExportSelected(ids);
   }, [ids, onExportSelected]);
+
+  const handleSendToListings = useCallback(() => {
+    onSendToListings?.(sendableDesignIds);
+  }, [onSendToListings, sendableDesignIds]);
+
+  const sendTooltip = sendableDesignIds.length === 0
+    ? t('designs.sendToListings.noEligibleInSelection', 'No approved designs in selection')
+    : t('designs.sendToListings.sendCount', { count: sendableDesignIds.length });
 
   return (
     <Box>
@@ -124,6 +144,19 @@ const PanelMultiState = ({
               <FileDownloadOutlinedIcon sx={{ fontSize: 20 }} />
             </ToolbarButton>
           </Tooltip>
+          {onSendToListings && (
+            <Tooltip title={sendTooltip}>
+              <span>
+                <ToolbarButton
+                  onClick={handleSendToListings}
+                  disabled={sendableDesignIds.length === 0}
+                  aria-label={t('designs.sendToListings.cta', 'Send to Listings')}
+                >
+                  <SendOutlinedIcon sx={{ fontSize: 20 }} />
+                </ToolbarButton>
+              </span>
+            </Tooltip>
+          )}
           <Tooltip title={t('design.panel.deleteAll', 'Delete')}>
             <DeleteButton onClick={handleDelete} aria-label={t('design.panel.deleteAll', 'Delete')}>
               <DeleteOutlineIcon sx={{ fontSize: 20 }} />

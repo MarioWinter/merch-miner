@@ -106,6 +106,12 @@ const ChatPanel = () => {
       // Phase 7 — release attachments after the message persisted.
       dispatch(clearAttachments());
     },
+    // Mirror the onDone reset on Vane 500 / connection-loss / silence-timeout
+    // so the panel doesn't stay locked at `searching = true`.
+    onError: () => {
+      dispatch(setSearching(false));
+      dispatch(clearAttachments());
+    },
   });
   // Phase 7 — pull completed attachment ids at submit-time so they ride along
   // with the SSE URL.
@@ -172,6 +178,7 @@ const ChatPanel = () => {
             niche_id,
             sessionIdOverride: sessionId,
             attachment_ids,
+            model: selectedModel,
           });
           // searching cleared by useSendMessageStream onDone callback
         }

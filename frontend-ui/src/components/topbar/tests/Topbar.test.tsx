@@ -23,7 +23,7 @@ describe('Topbar — avatar initial derivation', () => {
   it('shows first_name initial (M) when first_name is set, not email initial (b)', async () => {
     const { store } = renderWithProviders(<Topbar />);
     await act(async () => {
-      store.dispatch(setUser({ id: 1, email: 'bob@example.com', first_name: 'Mario', avatar_url: null }));
+      store.dispatch(setUser({ id: 1, email: 'bob@example.com', first_name: 'Mario', avatar_url: null, is_staff: false, is_superuser: false }));
     });
     // 'M' from first_name should appear; 'B' from email should not be the initial
     expect(screen.getByText('M')).toBeInTheDocument();
@@ -32,7 +32,7 @@ describe('Topbar — avatar initial derivation', () => {
   it('falls back to email initial when first_name is empty string', async () => {
     const { store } = renderWithProviders(<Topbar />);
     await act(async () => {
-      store.dispatch(setUser({ id: 2, email: 'zoe@example.com', first_name: '', avatar_url: null }));
+      store.dispatch(setUser({ id: 2, email: 'zoe@example.com', first_name: '', avatar_url: null, is_staff: false, is_superuser: false }));
     });
     expect(screen.getByText('Z')).toBeInTheDocument();
   });
@@ -50,7 +50,7 @@ describe('Topbar — avatar initial derivation', () => {
   it('renders avatar img when avatar_url is set on user', async () => {
     const { store } = renderWithProviders(<Topbar />);
     await act(async () => {
-      store.dispatch(setUser({ id: 3, email: 'alice@x.com', first_name: 'Alice', avatar_url: '/media/avatars/user_3/avatar.jpg' }));
+      store.dispatch(setUser({ id: 3, email: 'alice@x.com', first_name: 'Alice', avatar_url: '/media/avatars/user_3/avatar.jpg', is_staff: false, is_superuser: false }));
     });
     const img = screen.getByRole('img');
     expect(img).toHaveAttribute('src', '/media/avatars/user_3/avatar.jpg');

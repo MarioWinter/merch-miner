@@ -3,7 +3,7 @@ import { styled, alpha } from '@mui/material/styles';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import type { SvgIconComponent } from '@mui/icons-material';
 import type { PipelineCardState } from './types';
-import { COLORS, DURATION, EASING } from '../../style/constants';
+import { COLORS, DURATION, EASING, radius } from '../../style/constants';
 
 // ── State color map ───────────────────────────────────────────────
 const STATE_COLOR: Record<PipelineCardState, string> = {
@@ -23,7 +23,7 @@ const BadgePill = styled('span', {
     justifyContent: 'center',
     minWidth: 24,
     padding: theme.spacing(0, 0.75),
-    borderRadius: theme.shape.borderRadius * 0.75,
+    borderRadius: radius(theme, 0.75),
     backgroundColor: alpha(color, 0.12),
     color,
     ...theme.typography.overline,

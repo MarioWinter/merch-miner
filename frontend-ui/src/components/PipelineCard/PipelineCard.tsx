@@ -3,7 +3,7 @@ import { Box, Collapse } from '@mui/material';
 import { styled, alpha } from '@mui/material/styles';
 import type { PipelineCardProps, PipelineCardState } from './types';
 import PipelineCardHeader from './PipelineCardHeader';
-import { COLORS, DURATION, EASING } from '../../style/constants';
+import { COLORS, DURATION, EASING, radius } from '../../style/constants';
 
 // ── Stripe color per state ────────────────────────────────────────
 const STRIPE_COLOR: Record<PipelineCardState, string> = {
@@ -17,7 +17,7 @@ const CardRoot = styled(Box, {
   shouldForwardProp: (p) => p !== 'cardState',
 })<{ cardState: PipelineCardState }>(({ theme, cardState }) => ({
   position: 'relative',
-  borderRadius: theme.shape.borderRadius * 1.5,
+  borderRadius: radius(theme, 1.5),
   border: `1px solid ${theme.vars.palette.divider}`,
   padding: theme.spacing(1.5, 2),
   paddingLeft: theme.spacing(2.75), // extra space for left stripe
@@ -44,7 +44,7 @@ const CardRoot = styled(Box, {
     bottom: 0,
     width: 3,
     backgroundColor: STRIPE_COLOR[cardState],
-    borderRadius: `${theme.shape.borderRadius * 1.5}px 0 0 ${theme.shape.borderRadius * 1.5}px`,
+    borderRadius: `${radius(theme, 1.5)}px 0 0 ${radius(theme, 1.5)}px`,
     ...(cardState === 'active' && {
       animation: 'pulseCyan 1.2s infinite',
     }),

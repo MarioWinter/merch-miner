@@ -20,6 +20,7 @@ import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternate
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
 import { useTranslation } from 'react-i18next';
 import type { ArtboardData, CanvasElement } from '../../types';
 import { ARTBOARD_PRESETS } from '../../types';
@@ -91,6 +92,10 @@ interface PanelArtboardStateProps {
   onOpenInEditor?: (ids: string[]) => void;
   onExportSelected?: (ids: string[]) => void;
   onDeleteSelected?: (ids: string[]) => void;
+  /** PROJ-9 Phase O — resolves selected artboard IDs to approved design IDs eligible for Listings. */
+  getSendableDesignIds?: (artboardIds: string[]) => string[];
+  /** PROJ-9 Phase O — sends the approved design IDs to Listings. */
+  onSendToListings?: (designIds: string[]) => void;
 }
 
 // -----------------------------------------------------------------
@@ -120,8 +125,14 @@ const PanelArtboardState = ({
   onOpenInEditor,
   onExportSelected,
   onDeleteSelected,
+  getSendableDesignIds,
+  onSendToListings,
 }: PanelArtboardStateProps) => {
   const { t } = useTranslation();
+  const sendableDesignIds = getSendableDesignIds ? getSendableDesignIds([artboard.id]) : [];
+  const sendTooltip = sendableDesignIds.length === 0
+    ? t('designs.sendToListings.notApprovedTooltip', 'Only approved designs can be sent.')
+    : t('designs.sendToListings.cta', 'Send to Listings');
   const [editingWidth, setEditingWidth] = useState<string | null>(null);
   const [editingHeight, setEditingHeight] = useState<string | null>(null);
   const [lockAspect, setLockAspect] = useState(true);
@@ -240,6 +251,19 @@ const PanelArtboardState = ({
                 <ToolbarButton onClick={() => onExportSelected([artboard.id])} aria-label={t('design.panel.exportSelected', 'Export')}>
                   <FileDownloadOutlinedIcon sx={{ fontSize: 20 }} />
                 </ToolbarButton>
+              </Tooltip>
+            )}
+            {onSendToListings && (
+              <Tooltip title={sendTooltip}>
+                <span>
+                  <ToolbarButton
+                    onClick={() => onSendToListings(sendableDesignIds)}
+                    disabled={sendableDesignIds.length === 0}
+                    aria-label={t('designs.sendToListings.cta', 'Send to Listings')}
+                  >
+                    <SendOutlinedIcon sx={{ fontSize: 20 }} />
+                  </ToolbarButton>
+                </span>
               </Tooltip>
             )}
             {onDeleteSelected && (

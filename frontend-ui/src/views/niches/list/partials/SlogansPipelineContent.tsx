@@ -4,7 +4,7 @@ import { alpha, styled } from '@mui/material/styles';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
-import { COLORS, DURATION, EASING } from '@/style/constants';
+import { COLORS, DURATION, EASING, radius } from "@/style/constants";
 import { useListIdeasQuery, useUpdateIdeaMutation } from '@/store/ideaSlice';
 import { InlineFlowButton, BulkFlowButton } from '@/components/FlowButton';
 import { ProjectNamingDialog } from '@/views/designs/board/partials/ProjectNamingDialog';
@@ -21,7 +21,7 @@ interface SlogansPipelineContentProps {
 const SloganRow = styled(Stack)(({ theme }) => ({
   alignItems: 'center',
   padding: theme.spacing(0.5, 0),
-  borderRadius: theme.shape.borderRadius * 0.75,
+  borderRadius: radius(theme, 0.75),
   transition: `background-color ${DURATION.fast}ms ${EASING.standard}`,
   '&:hover': {
     backgroundColor: alpha(theme.palette.common.white, 0.04),

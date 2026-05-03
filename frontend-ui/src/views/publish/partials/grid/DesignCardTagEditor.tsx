@@ -29,7 +29,7 @@ const EditorRoot = styled('div')({
   width: '100%',
 });
 
-const CompactAutocomplete = styled(Autocomplete<string, true, false, true>)({
+const CompactAutocomplete = styled(Autocomplete<string, true, true, true>)({
   '& .MuiOutlinedInput-root': {
     padding: 2,
     minHeight: 28,

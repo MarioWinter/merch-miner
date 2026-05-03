@@ -548,6 +548,23 @@ class DesignAsset(models.Model):
         blank=True,
         related_name='design_assets',
     )
+    # PROJ-9 Phase O (2026-05-03): bridge from Design Forge to Publish.
+    # Set by ``POST /api/design-assets/from-design/`` so we can dedup and
+    # surface a "In Listings" indicator on Design cards. SET_NULL so the
+    # asset survives source-Design deletion (it owns its own copied file).
+    design_origin = models.ForeignKey(
+        'design_app.Design',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='derived_assets',
+        db_index=True,
+        help_text=(
+            'Source Design this asset was generated from via "Send to '
+            'Listings" (PROJ-9 Phase O). Null = uploaded/imported asset '
+            'or source Design was deleted.'
+        ),
+    )
     round = models.PositiveIntegerField(default=1)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

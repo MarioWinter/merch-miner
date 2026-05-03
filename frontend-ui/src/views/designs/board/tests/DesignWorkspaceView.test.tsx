@@ -18,7 +18,13 @@ vi.mock('@/store/nicheSlice', () => ({ nicheApi: fa('nicheApi'), useListNichesQu
 vi.mock('@/store/ideaSlice', () => ({ ideaApi: fa('ideaApi') }));
 vi.mock('@/store/researchSlice', () => ({ researchApi: fa('researchApi') }));
 vi.mock('@/store/keywordSlice', () => ({ keywordApi: fa('keywordApi'), useListNicheKeywordsQuery: () => ({ data: [] }) }));
-vi.mock('@/store/publishSlice', () => ({ publishApi: fa('publishApi') }));
+vi.mock('@/store/publishSlice', () => ({
+  publishApi: fa('publishApi'),
+  useSendDesignsToListingsMutation: () => [vi.fn(() => ({ unwrap: () => Promise.resolve({ created: [], skipped_duplicates: [], rejected_ineligible: [] }) })), { isLoading: false }],
+  sendDesignsInChunks: vi.fn(() => Promise.resolve({ created: [], skipped_duplicates: [], rejected_ineligible: [] })),
+  SEND_TO_LISTINGS_BULK_THRESHOLD: 50,
+  SEND_TO_LISTINGS_CHUNK_SIZE: 50,
+}));
 vi.mock('@/store/dashboardSlice', () => ({ dashboardApi: fa('dashboardApi') }));
 vi.mock('@/store/kanbanSlice', () => ({ kanbanApi: fa('kanbanApi') }));
 vi.mock('@/store/notificationSlice', () => ({ notificationApi: fa('notificationApi') }));
@@ -34,6 +40,10 @@ vi.mock('@/store/designSlice', () => ({
   designApi: fa('designApi'),
   useGetProjectQuery: (...args: any[]) => mockGetProjectQuery(...args),
   useGetProjectBoardQuery: (...args: any[]) => mockGetProjectBoardQuery(...args),
+  useLazyGetProjectBoardQuery: () => [
+    () => ({ unwrap: () => Promise.resolve({ designs: [] }) }),
+    {},
+  ],
   useGenerateDesignForProjectMutation: () => [vi.fn(), { isLoading: false }],
   useGetRunStatusQuery: () => ({ data: undefined }),
   useUpdateProjectMutation: () => [vi.fn(), { isLoading: false }],

@@ -299,31 +299,75 @@
 
 ## Phase 13: DB Search — Virtualized Infinite Scroll (AC-57 to AC-63, EC-31 to EC-34)
 
-> DB mode shows thousands of products. Initial load = 100, then load 50 more on scroll. React Virtualized for smooth scrolling through large result sets.
+> DB mode shows thousands of products. Initial load = 100, then load 50 more on scroll. **`react-virtuoso`** locked as virtualization library per ADR-002 (`docs/architecture-decisions.md`). Smooth 60fps scrolling, bounded RAM.
 
 ### Backend
-- [ ] Increase `max_value` on `page_size` serializer field from 100 → 200 (allows initial 100-fetch)
-- [ ] Confirm offset pagination works correctly for infinite scroll (no duplicate/skip issues when products are inserted between page fetches)
+- [x] Increase `max_value` on `page_size` serializer field from 100 → 200 (allows initial 100-fetch)
+- [x] Confirm offset pagination works correctly for infinite scroll (no duplicate/skip issues when products are inserted between page fetches)
 
 ### Frontend — State Hook
-- [ ] Create `useDbInfiniteScroll` hook: manages page counter, accumulated products array, loading flag, `hasMore` flag, `isFetchingNext` flag
-- [ ] Initial fetch: `page_size=100, page=1` on search submit (AC-57)
-- [ ] `loadNextPage()`: increments page, fetches with `page_size=50`, appends results (dedupe by ASIN) (AC-58)
-- [ ] End detection: if returned count < `page_size` → set `hasMore=false`, stop scroll loading (AC-59)
-- [ ] Small result set: if initial fetch returns < 100 → `hasMore=false` immediately, no scroll trigger (EC-31)
-- [ ] Search/filter reset: new keyword or filter change resets accumulated products, page counter, scroll position to top (AC-62)
-- [ ] Request deduplication: only one fetch in-flight at a time. Fast scroll events ignored while `isFetchingNext=true` (EC-32)
-- [ ] Filter change cancellation: if filter changes while next page is loading → abort in-flight request (AbortController or RTK Query abort), reset, new search with `page=1` (EC-33)
+- [x] Create `useDbInfiniteScroll` hook: manages page counter, accumulated products array, loading flag, `hasMore` flag, `isFetchingNext` flag
+- [x] Initial fetch: `page_size=100, page=1` on search submit (AC-57)
+- [x] `loadNextPage()`: increments page, fetches with `page_size=50`, appends results (dedupe by ASIN) (AC-58)
+- [x] End detection: if returned count < `page_size` → set `hasMore=false`, stop scroll loading (AC-59)
+- [x] Small result set: if initial fetch returns < 100 → `hasMore=false` immediately, no scroll trigger (EC-31)
+- [x] Search/filter reset: new keyword or filter change resets accumulated products, page counter, scroll position to top (AC-62)
+- [x] Request deduplication: only one fetch in-flight at a time. Fast scroll events ignored while `isFetchingNext=true` (EC-32)
+- [x] Filter change cancellation: if filter changes while next page is loading → abort in-flight request (AbortController or RTK Query abort), reset, new search with `page=1` (EC-33)
 
 ### Frontend — RTK Query Changes
-- [ ] Current `useListProductsQuery` returns single-page results. Add `useLazyListProductsQuery` for imperative fetching inside the hook (trigger on scroll, not on param change)
+- [x] Current `useListProductsQuery` returns single-page results. Add `useLazyListProductsQuery` for imperative fetching inside the hook (trigger on scroll, not on param change)
 
 ### Frontend — Virtualized Rendering
-- [ ] Install `react-virtuoso` — lightweight virtualizer with grid support and MUI compatibility
-- [ ] Replace `ProductGrid.tsx` flex-wrap grid with `VirtuosoGrid` — renders only visible cards + buffer (overscan ~5 rows). Smooth 60fps scrolling (AC-60)
-- [ ] `ProductTable.tsx` (List view): wrap `DataGrid` rows with virtualized container or use DataGrid's built-in row virtualization. Confirm both view modes work with infinite scroll (AC-63)
-- [ ] `endReached` callback from Virtuoso → calls `loadNextPage()` from hook
+- [x] Install `react-virtuoso` — lightweight virtualizer with grid support and MUI compatibility
+- [x] Replace `ProductGrid.tsx` flex-wrap grid with `VirtuosoGrid` — renders only visible cards + buffer (overscan ~5 rows). Smooth 60fps scrolling (AC-60)
+- [x] `ProductTable.tsx` (List view): keep MUI `DataGrid` — it has built-in row virtualization (do NOT double-wrap with Virtuoso per ADR-002). Wire DataGrid `onRowsScrollEnd` (or scroll-listener on viewport) → `loadNextPage()` from hook (AC-63)
+- [x] `endReached` callback from `<VirtuosoGrid>` → calls `loadNextPage()` from hook (Grid view only)
+- [x] Configure `<VirtuosoGrid>`: `data={products}`, `endReached={loadNextPage}`, `increaseViewportBy={400}` (preload buffer ~1 viewport ahead), `components={{ ScrollSeekPlaceholder, Footer: SkeletonRow }}`
+- [x] Apply MUI-styled `List` + `Item` slot components for VirtuosoGrid to preserve current card grid responsive layout (`xs=12 sm=6 md=4 lg=3`)
 
 ### Frontend — Loading & UX
-- [ ] Loading indicator: skeleton cards (same wave style as Live mode) appended at bottom while next page loads. Removed when products arrive (AC-61)
-- [ ] Scroll position preserved when switching between Grid ↔ List view within same search
+- [x] Loading indicator: skeleton cards (same wave style as Live mode) appended at bottom while next page loads via `Footer` slot. Removed when products arrive (AC-61)
+- [x] Scroll position preserved when switching between Grid ↔ List view within same search (Virtuoso `restoreStateFrom` / DataGrid scroll persistence)
+- [x] Browser tab hidden during scroll loading → in-flight fetch completes normally; products appended when tab regains focus. Use `document.visibilityState` listener to delay scroll-trigger until visible (EC-34)
+
+### Frontend — Cleanup (Remove Old Pagination UI)
+- [x] `AmazonResearchView.tsx`: remove `const [page, setPage] = useState(0)` — page state moves into `useDbInfiniteScroll`
+- [x] `AmazonResearchView.tsx`: remove `<TablePagination>` block (currently lines ~621-628) — replaced by infinite scroll
+- [x] `AmazonResearchView.tsx`: replace direct `useListProductsQuery` call with `useDbInfiniteScroll` hook
+- [x] `AmazonResearchView.tsx`: replace hardcoded `page_size: 50` (line ~131) — page sizes now managed inside the hook (100 initial / 50 subsequent)
+- [x] Verify: no unused imports remain (`TablePagination`, `useListProductsQuery` if direct usage gone)
+
+### Frontend — Tests
+- [x] Create `frontend-ui/src/views/amazon/research/hooks/__tests__/useDbInfiniteScroll.test.ts`
+- [x] Test: initial fetch uses `page_size=100`
+- [x] Test: `loadNextPage()` uses `page_size=50` and increments page counter
+- [x] Test: dedupe by ASIN — duplicate products from overlapping pages not appended twice
+- [x] Test: end detection — `result_count < page_size` sets `hasMore=false`
+- [x] Test: small result set (<100) sets `hasMore=false` immediately (EC-31)
+- [x] Test: rapid `loadNextPage` calls with `isFetchingNext=true` are ignored — single in-flight (EC-32)
+- [x] Test: filter change while loading aborts in-flight + resets to page 1 (EC-33)
+- [x] Test: tab visibility — `loadNextPage` deferred when `document.visibilityState === 'hidden'` (EC-34)
+- [x] Update `frontend-ui/src/views/amazon/research/tests/AmazonResearchView.test.tsx` — assert no `<TablePagination>` rendered, assert `<VirtuosoGrid>` present in grid mode
+- [x] Add integration test: search → initial 100 products → scroll triggers `endReached` → mock returns 50 more → assert appended
+
+### Backend — Tests
+- [x] Verify existing pagination tests still pass with `max_value=200`
+- [x] Add test: `page_size=100` request returns 100 results (was capped before)
+- [x] Add test: `page_size=200` request accepted (Headroom check)
+
+### Verification
+- [x] `cd frontend-ui && npm run lint` → Phase 13 paths 0 errors (14 pre-existing errors in other files — unrelated)
+- [x] `npx tsc --noEmit` → typecheck passes
+- [x] `npx vitest run useDbInfiniteScroll AmazonResearchView` → 19/19 green (10 hook + 9 view)
+- [x] `docker compose exec web pytest django-app/research_app/tests/` → 30/30 in test_list_products.py green (Phase 13 backend)
+- [x] Manual QA (Playwright): search "t-shirt" → AC-57 confirmed via network: `page=1&page_size=100`. Result count 89 (< 100) → AC-59/EC-31 path: `hasMore=false`, no second fetch. AC-60: only 9 cards in DOM (windowing works, total=89). Scroll mid-page → re-windowing confirmed (DOM cards change set as scroll position changes).
+- [x] Manual QA (Playwright): DOM-Bounded check — at scrollY=0: 9 cards in DOM; at scrollY=2000: 18 cards in DOM (buffer expansion only, never all 89). Bounded behavior verified.
+- [ ] Manual QA: change filter mid-scroll → in-flight request cancelled, results reset (EC-33) — covered by Vitest EC-33 unit test (mocked AbortController)
+- [ ] Manual QA: hide tab via Cmd+Tab during scroll → no fetch fires; bring tab back → next page loads (EC-34) — covered by Vitest EC-34 unit test (mocked `document.visibilityState`)
+- [x] **3 Live-Bugs found + fixed** during Playwright QA: (1) `react-virtuoso` not installed in Docker frontend container; (2) `VirtuosoGrid` `data` prop wrong API (replaced with `totalCount` + `itemContent(index)` via `products[index]`); (3) `VirtuosoList` styled component had `shouldForwardProp: prop !== 'children'` filter that blocked children rendering — removed.
+- [x] **Filter-only search amendment** (user request, AC-64..AC-67 + EC-35..EC-36): Search button always enabled in DB mode; keyword optional. `useDbInfiniteScroll` hook simplified `shouldQueryDb` (drops `!!keyword` requirement). Hook reset-key compare replaced with monotonic fetchId counter (StrictMode-safe). Live-verified with empty keyword + default filters → 89 products rendered.
+- [x] **Backend range-filter NULL bug found + fixed** (AC-64a): `bsr_min/max`, `reviews_min/max`, `price_min/max` filters previously excluded NULL values. With 82/89 t-shirts having NULL `bsr`, enabling the BSR filter at default full range silently returned 0 results. Fixed via `Q(field__gte=N) | Q(field__isnull=True)`. 30/30 backend list-products tests still pass.
+- [x] **UI cleanup** (user request 2026-05-02): Removed per-filter enable/disable Switches from `RangeSliderFilter` for BSR/Reviews/Price (always-on now). Slider component simplified, no `enabled`/`onEnabledChange` props. `DEFAULT_FILTER_ENABLED.bsr_min/max + reviews_min/max + price_min/max + hide_official_brands` flipped to `true`. `DEFAULT_FILTERS.hide_official_brands` flipped to `true`. Tests updated: 123/123 amazon-research tests still pass.
+- [x] **Empty-keyword recent-search bug** (user-reported 2026-05-02): Filter-only search via empty keyword polluted recent-search history with an empty chip. Fixed in `useRecentSearches.ts`: (1) `addSearch` early-returns on empty/whitespace keyword; (2) `readFromStorage` filters legacy empty entries on load AND persists the cleanup back to localStorage. Live-verified: empty chip removed from history, new empty searches don't add entries.
+- [ ] All AC-57 to AC-63 + EC-31 to EC-34 checkboxes ticked in `features/PROJ-7-amazon-product-research.md` (handled by `/qa` skill)

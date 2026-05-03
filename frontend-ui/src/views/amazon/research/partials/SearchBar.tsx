@@ -49,6 +49,12 @@ interface SearchBarProps {
   savingKeywords?: Set<string>;
   /** Keywords already saved in this session (show check icon). */
   savedKeywords?: Set<string>;
+  /**
+   * Whether Search submission is allowed in DB mode without keyword.
+   * When the parent has at least one filter active, this is true → empty-keyword search is allowed.
+   * In Live mode the parent always passes false (Live needs a keyword).
+   */
+  allowEmptyKeyword?: boolean;
 }
 
 const ModeLabel = styled(Typography, {
@@ -80,6 +86,7 @@ const SearchBar = ({
   onSaveKeyword,
   savingKeywords = new Set<string>(),
   savedKeywords = new Set<string>(),
+  allowEmptyKeyword = false,
 }: SearchBarProps) => {
   const [inputValue, setInputValue] = useState(keyword);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -102,12 +109,14 @@ const SearchBar = ({
     { skip: debouncedQuery.length < 2 },
   );
 
+  const canSubmit = inputValue.trim().length > 0 || allowEmptyKeyword;
+
   const handleSearch = useCallback(() => {
-    if (inputValue.trim()) {
-      onKeywordChange(inputValue.trim());
-      onSearch(inputValue.trim());
-    }
-  }, [inputValue, onKeywordChange, onSearch]);
+    if (!canSubmit) return;
+    const trimmed = inputValue.trim();
+    onKeywordChange(trimmed);
+    onSearch(trimmed);
+  }, [canSubmit, inputValue, onKeywordChange, onSearch]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -237,7 +246,7 @@ const SearchBar = ({
             color="primary"
             startIcon={<SearchIcon />}
             onClick={handleSearch}
-            disabled={!inputValue.trim()}
+            disabled={!canSubmit}
             aria-label="Search"
             sx={{
               minWidth: 110,

@@ -120,7 +120,8 @@ const PublishView = () => {
     const seen = new Set<string>();
     while (cursor && byId.has(cursor) && !seen.has(cursor)) {
       seen.add(cursor);
-      const node = byId.get(cursor)!;
+      const node = byId.get(cursor);
+      if (!node) break;
       chain.unshift({ id: node.id, label: node.name });
       cursor = node.parent ?? null;
     }

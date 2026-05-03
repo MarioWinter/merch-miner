@@ -7,6 +7,7 @@ from publish_app.api.views import (
     CollectionListCreateView,
     CollectionTreeView,
     DesignAssetDuplicateView,
+    DesignAssetFromDesignView,
     DesignGalleryBulkActionView,
     DesignGalleryDetailView,
     DesignGalleryImportView,
@@ -136,6 +137,13 @@ urlpatterns = [
         'designs/gallery/<uuid:pk>/duplicate/',
         DesignAssetDuplicateView.as_view(),
         name='design-gallery-duplicate',
+    ),
+
+    # Send Designs to Listings bridge (PROJ-9 Phase O / AC-164).
+    path(
+        'design-assets/from-design/',
+        DesignAssetFromDesignView.as_view(),
+        name='design-asset-from-design',
     ),
 
     # Per-Design Product Config endpoints (F4 / AC-38..AC-44)

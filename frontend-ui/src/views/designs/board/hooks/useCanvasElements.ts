@@ -100,7 +100,7 @@ const useCanvasElements = ({
 
       pushSnapshot(artboards, edges);
 
-      const element: CanvasElement<T> = {
+      const element = {
         id: nextElementId(),
         type,
         x: overrides?.x ?? 0,
@@ -116,7 +116,7 @@ const useCanvasElements = ({
         zIndex: nextZIndex(ab.layers),
         name: overrides?.name ?? autoName(type),
         props,
-      };
+      } as CanvasElement<T>;
 
       updateArtboard(artboardId, {
         layers: [...ab.layers, element as CanvasElement],

@@ -5,16 +5,14 @@ import { alpha, styled } from '@mui/material/styles';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '../../../style/constants';
+import GlobalFooter from '../../../components/GlobalFooter/GlobalFooter';
 
 const AuthBackground = styled(Box)(({ theme }) => ({
   minHeight: '100vh',
   display: 'flex',
   flexDirection: 'column',
-  alignItems: 'center',
-  justifyContent: 'center',
+  alignItems: 'stretch',
   backgroundColor: COLORS.ashDefault,
-  paddingLeft: theme.spacing(2),
-  paddingRight: theme.spacing(2),
   position: 'relative',
   overflow: 'hidden',
   ...theme.applyStyles('dark', {
@@ -60,6 +58,20 @@ const LogoSquare = styled(Box)(({ theme }) => ({
   lineHeight: 1,
 }));
 
+const AuthContent = styled(Box)(({ theme }) => ({
+  flex: 1,
+  display: 'flex',
+  flexDirection: 'column',
+  alignItems: 'center',
+  justifyContent: 'center',
+  paddingLeft: theme.spacing(2),
+  paddingRight: theme.spacing(2),
+  paddingTop: theme.spacing(4),
+  paddingBottom: theme.spacing(4),
+  position: 'relative',
+  zIndex: 1,
+}));
+
 const AuthPaper = styled(Paper)(({ theme }) => ({
   width: '100%',
   maxWidth: 440,
@@ -86,21 +98,25 @@ const AuthLayout = ({ children }: AuthLayoutProps) => {
 
   return (
     <AuthBackground>
-      {/* Logo + Wordmark */}
-      <Stack direction="row" alignItems="center" sx={{ gap: 1.5, mb: 4, zIndex: 1 }}>
-        <LogoSquare aria-hidden="true">M</LogoSquare>
-        <Typography
-          variant="h5"
-          sx={{ fontWeight: 700, color: 'text.primary', letterSpacing: '-0.02em' }}
-        >
-          {t('app.name')}
-        </Typography>
-      </Stack>
+      <AuthContent>
+        {/* Logo + Wordmark */}
+        <Stack direction="row" alignItems="center" sx={{ gap: 1.5, mb: 4 }}>
+          <LogoSquare aria-hidden="true">M</LogoSquare>
+          <Typography
+            variant="h5"
+            sx={{ fontWeight: 700, color: 'text.primary', letterSpacing: '-0.02em' }}
+          >
+            {t('app.name')}
+          </Typography>
+        </Stack>
 
-      {/* Auth Card */}
-      <AuthPaper elevation={0}>
-        {children}
-      </AuthPaper>
+        {/* Auth Card */}
+        <AuthPaper elevation={0}>
+          {children}
+        </AuthPaper>
+      </AuthContent>
+
+      <GlobalFooter />
     </AuthBackground>
   );
 };

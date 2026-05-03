@@ -10,7 +10,6 @@ import {
 import { styled } from '@mui/material/styles';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
-import BugReportIcon from '@mui/icons-material/BugReport';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '@/store/hooks';
@@ -31,8 +30,6 @@ import { AdaptationProgress } from './partials/AdaptationProgress';
 import { ImproveDialog } from './partials/ImproveDialog';
 import { ImportDialog } from './partials/ImportDialog';
 import { RejectIdeaWarningDialog } from './partials/RejectIdeaWarningDialog';
-import { useMockAdaptation } from './hooks/useMockAdaptation';
-import { MOCK_IDEAS } from './hooks/useMockIdeas';
 import type { Idea } from './types';
 
 const PAGE_SIZE = 20;
@@ -84,7 +81,6 @@ export const IdeaListView = () => {
   const actions = useIdeaActions();
   const rejectWarning = useRejectWithDesignWarning(actions.reject);
   const adaptation = useAdaptation();
-  const mockAdaptation = useMockAdaptation();
 
   // Data
   const { data, isLoading, isError, isFetching } = useListAllIdeasQuery({
@@ -115,16 +111,8 @@ export const IdeaListView = () => {
     });
   }, []);
 
-  // DEV: always append mock ideas so we can preview styling
-  const rawIdeas = data?.results;
-  const allIdeas = useMemo(
-    () => {
-      const ideas = rawIdeas ?? [];
-      return import.meta.env.DEV ? [...ideas, ...MOCK_IDEAS] : ideas;
-    },
-    [rawIdeas],
-  );
-  const totalCount = import.meta.env.DEV ? allIdeas.length : (data?.count ?? 0);
+  const allIdeas = data?.results ?? [];
+  const totalCount = data?.count ?? 0;
 
   // Group ideas: niche-less at top, source groups, orphan adapted
   const { nicheLessIdeas, sourceIdeas, adaptedBySource, orphanIdeas } = useMemo(() => {
@@ -218,23 +206,6 @@ export const IdeaListView = () => {
       {adaptation.run && (
         <Box sx={{ mb: 2 }}>
           <AdaptationProgress run={adaptation.run} />
-        </Box>
-      )}
-
-      {/* DEV MOCK: Simulated LangGraph run — remove before production */}
-      {import.meta.env.DEV && (
-        <Box sx={{ mb: 2 }}>
-          <Button
-            variant="outlined"
-            size="small"
-            color="warning"
-            startIcon={<BugReportIcon sx={{ fontSize: 18 }} />}
-            onClick={mockAdaptation.active ? mockAdaptation.stop : mockAdaptation.start}
-            sx={{ mb: 1 }}
-          >
-            {mockAdaptation.active ? 'Stop Mock Run' : 'Mock Adaptation Run'}
-          </Button>
-          {mockAdaptation.run && <AdaptationProgress run={mockAdaptation.run} />}
         </Box>
       )}
 

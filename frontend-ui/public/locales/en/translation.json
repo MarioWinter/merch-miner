@@ -1629,6 +1629,25 @@
       "importFromCloud": "Import from Cloud"
     }
   },
+  "designs": {
+    "sendToListings": {
+      "cta": "Send to Listings",
+      "successCount": "{{created}} sent to Listings, {{skipped}} already there.",
+      "bulkConfirm": "You're sending {{count}} designs — proceed?",
+      "openInPublish": "Open in Publish",
+      "alreadyInListings": "In Listings",
+      "bulkTooLarge": "Maximum is 50 designs per request.",
+      "noEligible": "No approved designs to send.",
+      "noEligibleInSelection": "No approved designs in selection",
+      "notApprovedTooltip": "Only approved designs can be sent.",
+      "sendCount_one": "Send {{count}} approved design to Listings",
+      "sendCount_other": "Send {{count}} approved designs to Listings",
+      "partialFailure_one": "{{failed}} design failed to send.",
+      "partialFailure_other": "{{failed}} designs failed to send.",
+      "confirm": "Send",
+      "retry": "Retry"
+    }
+  },
   "keywords": {
     "page": {
       "title": "Keyword Drilling",
@@ -2515,7 +2534,9 @@
     "close": "Close",
     "retry": "Retry",
     "cancel": "Cancel",
-    "save": "Save"
+    "save": "Save",
+    "back": "Back",
+    "unexpectedError": "Unexpected error"
   },
   "search": {
     "chatBar": {
@@ -3095,5 +3116,104 @@
       "duplicate": "'{{keyword}}' already in keyword bank",
       "saveFailed": "Failed to save keyword"
     }
+  },
+  "legal": {
+    "translation_disclaimer": "This is a translation. In the event of a dispute, the German version shall prevail.",
+    "imprint": {
+      "title": "Imprint",
+      "operator": {
+        "heading": "Information pursuant to Section 5 TMG",
+        "body": "Mario Winter\nAußenliegend 4\n61209 Echzell\nDeutschland"
+      },
+      "contact": {
+        "heading": "Contact",
+        "phone_line": "Phone: <a>+49 1601546188</a>",
+        "email_line": "Email: <a>mariowinter.sg@gmail.com</a>"
+      },
+      "languages": {
+        "heading": "Available languages",
+        "body": "This website is available in the following languages: German, English, French, Spanish and Italian."
+      },
+      "vat": {
+        "heading": "VAT identification number",
+        "body": "VAT ID pursuant to Section 27 a of the German Value Added Tax Act: DE327848620"
+      },
+      "dsa": {
+        "heading": "Point of contact pursuant to Art. 12 DSA",
+        "body": "Point of contact for authorities and users pursuant to Art. 11, 12 of the Digital Services Act (DSA):\n\nMario Winter\nAußenliegend 4\n61209 Echzell\nDeutschland\n\nPhone: +49 1601546188\nEmail: mariowinter.sg@gmail.com\n\nCommunication may be conducted in German or English."
+      },
+      "disclaimer": {
+        "heading": "Disclaimer",
+        "content_heading": "Liability for content",
+        "content_body": "As a service provider, we are responsible for our own content on these pages in accordance with general laws pursuant to Section 7(1) TMG. However, pursuant to Sections 8 to 10 TMG, we as a service provider are not obliged to monitor transmitted or stored third-party information or to investigate circumstances that indicate illegal activity. Obligations to remove or block the use of information under general laws remain unaffected. Liability in this respect, however, is only possible from the moment of knowledge of a specific infringement. Upon becoming aware of any such infringements, we will remove the content concerned without undue delay.",
+        "links_heading": "Liability for links",
+        "links_body": "Our website contains links to external third-party websites over whose content we have no influence. For this reason, we cannot accept any liability for these external contents. The respective provider or operator of the linked pages is always responsible for their content. The linked pages were checked for possible legal violations at the time of linking. Illegal contents were not recognisable at the time of linking. However, permanent monitoring of the content of the linked pages is not reasonable without concrete evidence of an infringement. Upon becoming aware of any infringements, we will remove such links without undue delay.",
+        "copyright_heading": "Copyright",
+        "copyright_body": "The content and works on these pages created by the site operators are subject to German copyright law. Reproduction, adaptation, distribution and any kind of exploitation outside the limits of copyright law require the written consent of the respective author or creator. Downloads and copies of this site are only permitted for private, non-commercial use. Insofar as the content on this site was not created by the operator, the copyrights of third parties are respected. In particular, third-party content is identified as such. Should you nevertheless become aware of a copyright infringement, we kindly ask you to notify us. Upon becoming aware of any infringements, we will remove such content without undue delay."
+      }
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "section_overview": {
+        "heading": "1. Privacy at a glance",
+        "subheading": "General information",
+        "body": "The following information provides a simple overview of what happens to your personal data when you visit this website. Personal data is any data with which you can be personally identified. For detailed information on the subject of data protection, please refer to our privacy policy listed below this text."
+      },
+      "responsible_party": {
+        "heading": "Information about the controller",
+        "body": "The controller responsible for data processing on this website is:\n\nMario Winter\nAußenliegend 4\n61209 Echzell\nDeutschland",
+        "contact_phone": "Phone: <a>+49 1601546188</a>",
+        "contact_email": "Email: <a>mariowinter.sg@gmail.com</a>"
+      },
+      "hosting": {
+        "heading": "2. Hosting (Strato)",
+        "body": "We host the content of our website with Strato AG, Otto-Ostrowski-Straße 7, 10249 Berlin (\"Strato\"). When you visit our website, Strato records various log files including your IP addresses. The use of Strato is based on Art. 6(1)(f) GDPR. We have a legitimate interest in presenting our website as reliably as possible. We have concluded a data processing agreement (DPA) with Strato.",
+        "link": "Further information: <a>https://www.strato.de/datenschutz/</a>"
+      },
+      "supabase": {
+        "heading": "Database & Storage (Supabase / PostgreSQL)",
+        "body": "We store application data (workspaces, niches, designs, listings) in a self-hosted PostgreSQL database based on the Supabase platform. The database runs on our own infrastructure in Germany (Strato); no data is transferred to Supabase Inc. The data is stored to fulfil our contractual obligations pursuant to Art. 6(1)(b) GDPR and on the basis of our legitimate interest in technically reliable provisioning of the application (Art. 6(1)(f) GDPR)."
+      },
+      "jwt_auth": {
+        "heading": "Authentication (JWT cookie)",
+        "body": "To authenticate registered users, we use an HttpOnly cookie containing a signed JWT token. The cookie is technically necessary for the login state and is set on the basis of Section 25(2) No. 2 TDDDG and Art. 6(1)(b) GDPR (performance of a contract). It contains no tracking information and is used exclusively for session and access control. The cookie is deleted upon logout."
+      },
+      "langfuse": {
+        "heading": "LLM observability (Langfuse, self-hosted)",
+        "body": "We use Langfuse to ensure quality and analyse errors in our AI-powered features. Langfuse runs on our own infrastructure (Strato, Germany) and logs inputs and responses of the AI models including metadata (latency, token consumption, model name). No data is transferred to third parties. The legal basis is our legitimate interest in the error-free and secure provisioning of the AI features (Art. 6(1)(f) GDPR)."
+      },
+      "openrouter": {
+        "heading": "LLM API (OpenRouter)",
+        "body": "For AI-powered features (e.g. niche research, slogan and design generation), we transfer the inputs necessary to process your request to OpenRouter, Inc. (1111B S Governors Ave #6589, Dover, DE 19904, USA). OpenRouter forwards these requests to the respective model providers. A transfer to the USA takes place. The legal basis is Art. 6(1)(b) GDPR (performance of a contract). The data transfer to the USA is based on the EU Commission's Standard Contractual Clauses. No content beyond the data necessary to answer the respective request is transferred to OpenRouter."
+      },
+      "n8n": {
+        "heading": "Workflow automation (n8n, self-hosted)",
+        "body": "For internal automation tasks (data collection, AI pipelines), we operate our own instance of the open-source software n8n on our infrastructure (Strato, Germany). No data is transferred to n8n GmbH or other third parties. The legal basis for the processing is Art. 6(1)(b) GDPR (performance of a contract) and Art. 6(1)(f) GDPR (legitimate interest in efficient provisioning of the application)."
+      },
+      "onedrive": {
+        "heading": "Cloud storage import: OneDrive",
+        "body": "Optionally, we offer you the possibility to import content from your personal Microsoft OneDrive into Merch Miner. The provider is Microsoft Ireland Operations Limited, One Microsoft Place, South County Business Park, Leopardstown, Dublin 18, Ireland. The connection to OneDrive is established exclusively after your explicit consent (OAuth authorisation). Microsoft may collect connection data including your IP address. The legal basis is Art. 6(1)(a) GDPR; consent can be revoked at any time. Microsoft is certified under the EU-US Data Privacy Framework."
+      },
+      "google_drive": {
+        "heading": "Cloud storage import: Google Drive",
+        "body": "Optionally, we offer you the possibility to import content from your personal Google Drive into Merch Miner. The provider is Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland. The connection to Google Drive is established exclusively after your explicit consent (OAuth authorisation). Google may collect connection data including your IP address. The legal basis is Art. 6(1)(a) GDPR; consent can be revoked at any time. Google is certified under the EU-US Data Privacy Framework."
+      },
+      "user_rights": {
+        "heading": "Your rights as a data subject",
+        "body": "You have the right at any time to obtain free information about your stored personal data, its origin and recipients, and the purpose of the data processing. You also have the right to request the correction, deletion or restriction of the processing of this data. If you have given consent to the processing of your data, you can revoke this consent at any time with effect for the future. The lawfulness of the data processing carried out until the revocation remains unaffected by the revocation. In addition, you have the right to data portability pursuant to Art. 20 GDPR.",
+        "complaint": "In the event of breaches of data protection law, you have the right to lodge a complaint with the competent supervisory authority, in particular in the Member State of your habitual residence, place of work or place of the alleged infringement."
+      },
+      "contact": {
+        "heading": "Contact",
+        "body": "If you have any questions about data protection or wish to exercise your rights, you can reach us at <a>mariowinter.sg@gmail.com</a>."
+      }
+    }
+  },
+  "footer": {
+    "imprint": "Imprint",
+    "privacy": "Privacy",
+    "copyright": "© 2026 - Merch Miner",
+    "aria": "Site footer",
+    "legalNavLabel": "Legal"
   }
 }

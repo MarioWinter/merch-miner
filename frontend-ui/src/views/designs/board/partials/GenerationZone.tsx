@@ -22,7 +22,7 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import CloseIcon from '@mui/icons-material/Close';
 import { useTranslation } from 'react-i18next';
-import { COLORS, DURATION, EASING } from '@/style/constants';
+import { COLORS, DURATION, EASING, radius } from '@/style/constants';
 import type { BackgroundColor, DesignModel } from '../types';
 import ParallelPromptsRow from './ParallelPromptsRow';
 
@@ -108,7 +108,7 @@ const CompactSelect = styled(Select)(({ theme }) => ({
   height: 32,
   fontSize: '0.8125rem',
   backgroundColor: COLORS.inkElevated,
-  borderRadius: theme.shape.borderRadius * 0.75,
+  borderRadius: radius(theme, 0.75),
   '& .MuiSelect-select': {
     paddingTop: 4,
     paddingBottom: 4,

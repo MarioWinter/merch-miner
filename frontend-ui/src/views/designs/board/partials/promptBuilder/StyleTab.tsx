@@ -78,7 +78,7 @@ const StyledSelect = styled(Select)(({ theme }) => ({
   ...theme.applyStyles('light', {
     backgroundColor: alpha(COLORS.ash, 0.5),
   }),
-})) as typeof Select;
+})) as unknown as typeof Select;
 
 const AddButton = styled(Button)(({ theme }) => ({
   color: theme.vars.palette.text.secondary,

@@ -149,7 +149,7 @@ class ProductFilterSerializer(serializers.Serializer):
         default='',
     )
     page = serializers.IntegerField(required=False, min_value=1, default=1)
-    page_size = serializers.IntegerField(required=False, min_value=1, max_value=100, default=50)
+    page_size = serializers.IntegerField(required=False, min_value=1, max_value=200, default=50)
 
     def validate(self, data):
         bsr_min = data.get('bsr_min')

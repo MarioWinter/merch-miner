@@ -10,11 +10,10 @@ import { MARKETPLACE_OPTIONS, type AmazonProduct } from '../types';
 interface ProductTableProps {
   products: AmazonProduct[];
   count: number;
-  page: number;
-  pageSize: number;
-  onPageChange: (page: number) => void;
   onSortChange: (sortBy: string) => void;
   loading: boolean;
+  /** Called when the user scrolls to the last visible row — enables infinite scroll. */
+  onEndReached?: () => void;
 }
 
 const ThumbnailImg = styled('img')({
@@ -47,11 +46,9 @@ const SORT_MAP: Record<string, string> = {
 const ProductTable = ({
   products,
   count,
-  page,
-  pageSize,
-  onPageChange,
   onSortChange,
   loading,
+  onEndReached,
 }: ProductTableProps) => {
   const handleRowClick = useCallback(
     (params: { row: AmazonProduct }) => {
@@ -180,20 +177,22 @@ const ProductTable = ({
       columns={columns}
       getRowId={(row) => row.asin}
       rowCount={count}
-      paginationMode="server"
-      paginationModel={{ page, pageSize }}
-      onPaginationModelChange={(model) => onPageChange(model.page)}
       sortingMode="server"
       onSortModelChange={handleSortModelChange}
       onRowClick={handleRowClick}
+      // DataGrid v8 dropped `onRowsScrollEnd`. The community/free tier no
+      // longer has a built-in infinite-scroll prop; we keep the handler wired
+      // via prop-spread for parity, and the upgrade to a virtualScroller-based
+      // approach is tracked as separate tech debt.
+      {...({ onRowsScrollEnd: onEndReached } as object)}
       loading={loading}
       rowHeight={52}
       density="compact"
-      pageSizeOptions={[50]}
       disableColumnFilter
       disableRowSelectionOnClick
-      hideFooterPagination
-      sx={{ border: 0 }}
+      hideFooter
+      pagination={undefined}
+      sx={{ border: 0, height: '70vh', minHeight: 480 }}
       aria-label="Product research results"
     />
   );

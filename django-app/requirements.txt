@@ -1,6 +1,6 @@
-Django>=5.2,<5.3
+Django>=5.2.13,<5.3
 django-allauth==65.9.0
-cryptography>=42.0.0 
+cryptography>=42.0.0
 djangorestframework==3.16.0
 django-cors-headers==4.7.0
 psycopg2-binary==2.9.10
@@ -9,12 +9,17 @@ redis==6.2.0
 django-redis==5.4.0
 django-rq==3.0.1
 rq-scheduler>=0.13
-djangorestframework_simplejwt==5.5.0
+djangorestframework_simplejwt>=5.5.1
+# pin PyJWT explicit — CVE-2026-32597 fix; requires simplejwt >=5.5.1 (5.5.0 caps pyjwt<2.10)
+pyjwt>=2.12.0
 python-dotenv==1.1.0
-requests==2.32.3
+# requests bumped to 2.32.5+ for langchain-community 0.4.x compat (see below)
 httpx>=0.27
-pillow==11.3.0
-moviepy==2.2.1
+# pillow >=12.1.1 — fixes CVE-2026-25990 (PSD oob write) + CVE-2026-40192
+# (FITS DoS). The previous moviepy<12 cap was removed by deleting the legacy
+# `content` Django app (Videoflix-Streaming-Heritage); ffmpeg subprocess covers
+# any remaining video-conversion needs.
+pillow>=12.1.1
 openpyxl==3.1.5
 python-magic==0.4.27
 pytest==8.4.1
@@ -23,10 +28,18 @@ coverage==7.10.0
 scrapy>=2.11
 scrapeops-scrapy>=0.5
 scrapeops-scrapy-proxy-sdk>=0.5
-langchain-core>=0.3
-langchain-openai>=0.3
-langchain-community>=0.3
-langgraph>=0.4
+# pin lxml explicit (transitive via scrapy/parsel) — CVE-2026-41066 fix
+lxml>=6.1.0
+# langchain ecosystem on 1.x — fixes CVE-2026-34070 (load_prompt path traversal
+# in 0.3.x). Our LangGraph workflows (PROJ-6/8/18) only use stable core APIs
+# (messages, runnables, tools, ChatOpenAI, StateGraph) which are unchanged
+# between 0.3 and 1.x.
+langchain-core>=1.2.22
+langchain-openai>=1.0
+langchain-community>=0.4
+langgraph>=1.0.1,<2.0
+# requests >=2.32.5 required by langchain-community 0.3.29+ / 0.4.x
+requests>=2.32.5
 langgraph-checkpoint-postgres>=2.0
 psycopg[binary]>=3.1
 langfuse>=4.0

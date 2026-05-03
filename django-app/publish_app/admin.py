@@ -67,10 +67,14 @@ class UploadJobAdmin(admin.ModelAdmin):
 
 @admin.register(DesignAsset)
 class DesignAssetAdmin(admin.ModelAdmin):
-    list_display = ['id', 'workspace', 'file_name', 'source', 'file_size', 'created_at']
+    list_display = [
+        'id', 'workspace', 'file_name', 'source', 'design_origin',
+        'file_size', 'created_at',
+    ]
     list_filter = ['source']
     search_fields = ['file_name']
     readonly_fields = ['id', 'created_at']
+    raw_id_fields = ['design_origin']
 
 
 @admin.register(DesignProductConfig)

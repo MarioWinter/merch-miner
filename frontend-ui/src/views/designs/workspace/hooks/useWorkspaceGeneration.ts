@@ -116,7 +116,7 @@ const useWorkspaceGeneration = ({
   }, []);
 
   const handleUseAsReference = useCallback((imageUrl: string) => {
-    setGenerationMode('image_to_image');
+    setGenerationMode('image_to_image_remix');
     setSourceImageUrl(imageUrl);
   }, []);
 

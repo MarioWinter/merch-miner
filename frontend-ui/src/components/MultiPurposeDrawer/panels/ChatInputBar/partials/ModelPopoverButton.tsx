@@ -130,7 +130,9 @@ const ModelPopoverButton = () => {
         transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         slotProps={{
           paper: {
-            'data-testid': 'chat-input-model-popover',
+            // data-testid is forwarded to the Paper root by MUI even though
+            // it's not in the slotProps type — keeps test selectors working.
+            ...({ 'data-testid': 'chat-input-model-popover' } as object),
             sx: { mt: -0.5, borderRadius: 2 },
           },
         }}

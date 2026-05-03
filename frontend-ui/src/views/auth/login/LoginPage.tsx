@@ -22,6 +22,8 @@ import GoogleButton from '../partials/GoogleButton';
 import { authService } from '../../../services/authService';
 import { useAppDispatch } from '../../../store/hooks';
 import { setUser, setError } from '../../../store/authSlice';
+import { useFeatureFlag } from '../../../hooks/useFeatureFlag';
+import { FEATURE_FLAGS } from '../../../constants/featureFlags';
 
 const LoginPage = () => {
   const { t } = useTranslation();
@@ -29,6 +31,7 @@ const LoginPage = () => {
   const dispatch = useAppDispatch();
   const { enqueueSnackbar } = useSnackbar();
   const [loading, setLoading] = useState(false);
+  const registrationEnabled = useFeatureFlag(FEATURE_FLAGS.REGISTRATION_ENABLED);
 
   const {
     control,
@@ -44,7 +47,16 @@ const LoginPage = () => {
     dispatch(setError(null));
     try {
       const data = await authService.login(values);
-      dispatch(setUser({ id: data.user.id, email: data.user.email, first_name: data.user.first_name ?? '', avatar_url: data.user.avatar_url ?? null }));
+      dispatch(
+        setUser({
+          id: data.user.id,
+          email: data.user.email,
+          first_name: data.user.first_name ?? '',
+          avatar_url: data.user.avatar_url ?? null,
+          is_staff: data.user.is_staff ?? false,
+          is_superuser: data.user.is_superuser ?? false,
+        }),
+      );
       enqueueSnackbar(t('login.success'), { variant: 'success' });
       navigate('/', { replace: true });
     } catch {
@@ -157,20 +169,22 @@ const LoginPage = () => {
         </Stack>
       </Box>
 
-      <Typography
-        variant="body2"
-        align="center"
-        sx={{ mt: 3, color: 'text.secondary' }}
-      >
-        {t('auth.noAccount')}{' '}
-        <Link
-          component={RouterLink}
-          to="/register"
-          sx={{ color: 'primary.main', fontWeight: 600 }}
+      {registrationEnabled && (
+        <Typography
+          variant="body2"
+          align="center"
+          sx={{ mt: 3, color: 'text.secondary' }}
         >
-          {t('auth.signUpLink')}
-        </Link>
-      </Typography>
+          {t('auth.noAccount')}{' '}
+          <Link
+            component={RouterLink}
+            to="/register"
+            sx={{ color: 'primary.main', fontWeight: 600 }}
+          >
+            {t('auth.signUpLink')}
+          </Link>
+        </Typography>
+      )}
     </AuthLayout>
   );
 };

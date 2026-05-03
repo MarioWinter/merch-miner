@@ -221,7 +221,7 @@ const ModePopoverButton = () => {
         transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         slotProps={{
           paper: {
-            'data-testid': 'chat-input-mode-popover',
+            ...({ 'data-testid': 'chat-input-mode-popover' } as object),
             sx: { mt: -0.5, borderRadius: 2 },
           },
         }}

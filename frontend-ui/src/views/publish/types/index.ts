@@ -547,3 +547,30 @@ export interface ExportHistoryResponse {
   previous: string | null;
   results: ExportLog[];
 }
+
+// ---- Send-to-Listings (PROJ-9 Phase O) ------------------------------------
+
+export interface DesignAssetFromDesignBody {
+  design_ids: string[];
+}
+
+export interface DesignAssetFromDesignRejected {
+  id: string;
+  reason: 'not_approved' | 'no_image' | string;
+}
+
+export interface DesignAssetFromDesignFailed {
+  id: string;
+  error: string;
+}
+
+/**
+ * Response from POST /api/design-assets/from-design/.
+ * 200 = full success. 207 = partial success (`failed` non-empty).
+ */
+export interface DesignAssetFromDesignResponse {
+  created: string[];
+  skipped_duplicates: string[];
+  rejected_ineligible: DesignAssetFromDesignRejected[];
+  failed?: DesignAssetFromDesignFailed[];
+}

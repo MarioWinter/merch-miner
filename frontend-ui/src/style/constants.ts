@@ -1,3 +1,5 @@
+import type { Theme } from '@mui/material/styles';
+
 export const COLORS = {
   // Teal-black (ink) — dark bg + light-mode text base
   ink:          '#071E26',
@@ -98,3 +100,11 @@ export const SHADOW = {
 
 export const MONO_FONT_STACK =
   '"JetBrains Mono", "IBM Plex Mono", "Fira Code", ui-monospace, "Cascadia Code", "Courier New", monospace';
+
+// MUI v7 typed `theme.shape.borderRadius` as `number | string`. Multiplying it
+// directly (e.g. `theme.shape.borderRadius * 0.75`) is a TS2362 error.
+// Use this helper in styled() callbacks instead.
+export const radius = (theme: Theme, factor: number = 1): number => {
+  const r = theme.shape.borderRadius;
+  return (typeof r === 'number' ? r : parseFloat(r)) * factor;
+};

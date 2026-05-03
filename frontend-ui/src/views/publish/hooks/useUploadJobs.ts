@@ -47,9 +47,13 @@ export const useUploadJobs = () => {
   );
 
   const handleBatch = useCallback(
-    async (designIds: string[], templateId: string) => {
+    async (designIds: string[], templateId: string, marketplace: string) => {
       try {
-        const jobs = await batchJobs({ design_ids: designIds, template_id: templateId }).unwrap();
+        const jobs = await batchJobs({
+          design_ids: designIds,
+          template_id: templateId,
+          marketplace,
+        }).unwrap();
         enqueueSnackbar(t('publish.upload.batchQueued', { count: jobs.length }), {
           variant: 'success',
         });

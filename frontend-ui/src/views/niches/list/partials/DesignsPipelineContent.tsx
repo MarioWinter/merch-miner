@@ -1,3 +1,4 @@
+import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Button, Skeleton, Stack, Typography } from '@mui/material';
 import { alpha, styled } from '@mui/material/styles';
@@ -5,9 +6,12 @@ import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import { useTranslation } from 'react-i18next';
-import { useListProjectsQuery } from '@/store/designSlice';
-import { COLORS, DURATION, EASING } from '@/style/constants';
+import { useSnackbar } from 'notistack';
+import { useListProjectsQuery, useLazyGetProjectBoardQuery } from '@/store/designSlice';
+import { COLORS, DURATION, EASING, radius } from '@/style/constants';
 import { InlineFlowButton } from '@/components/FlowButton';
+import useSendDesignsToListings from '@/hooks/useSendDesignsToListings';
+import BulkConfirmDialog from '@/views/designs/workspace/partials/BulkConfirmDialog';
 import type { DesignProjectListItem } from '@/views/designs/gallery/types';
 
 // ── Props ──────────────────────────────────────────────────────────
@@ -19,7 +23,7 @@ interface DesignsPipelineContentProps {
 const ProjectRow = styled(Stack)(({ theme }) => ({
   alignItems: 'center',
   padding: theme.spacing(0.75, 1),
-  borderRadius: theme.shape.borderRadius * 0.75,
+  borderRadius: radius(theme, 0.75),
   cursor: 'pointer',
   transition: `background-color ${DURATION.fast}ms ${EASING.standard}`,
   '&:hover': {
@@ -39,7 +43,7 @@ const ThumbnailStrip = styled(Stack)(({ theme }) => ({
 const Thumb = styled(Box)(({ theme }) => ({
   width: 36,
   height: 36,
-  borderRadius: theme.shape.borderRadius * 0.75,
+  borderRadius: radius(theme, 0.75),
   overflow: 'hidden',
   flexShrink: 0,
   display: 'flex',
@@ -64,7 +68,7 @@ const CountBadge = styled('span')(({ theme }) => ({
   minWidth: 20,
   height: 20,
   padding: theme.spacing(0, 0.5),
-  borderRadius: theme.shape.borderRadius * 0.5,
+  borderRadius: radius(theme, 0.5),
   backgroundColor: alpha(COLORS.cyan, 0.12),
   color: COLORS.cyan,
   ...theme.typography.overline,
@@ -77,8 +81,12 @@ const CountBadge = styled('span')(({ theme }) => ({
 export const DesignsPipelineContent = ({ nicheId }: DesignsPipelineContentProps) => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { enqueueSnackbar } = useSnackbar();
 
   const { data: projectData, isLoading } = useListProjectsQuery();
+  const [fetchProjectBoard] = useLazyGetProjectBoardQuery();
+  const sendToListings = useSendDesignsToListings();
+  const [sendingProjectId, setSendingProjectId] = useState<string | null>(null);
 
   const nicheProjects = (projectData?.results ?? []).filter(
     (p: DesignProjectListItem) => p.niche === nicheId,
@@ -87,6 +95,24 @@ export const DesignsPipelineContent = ({ nicheId }: DesignsPipelineContentProps)
   const handleProjectClick = (projectId: string) => {
     navigate(`/designs/${projectId}`);
   };
+
+  const handleSendProject = useCallback(
+    async (projectId: string) => {
+      setSendingProjectId(projectId);
+      try {
+        const board = await fetchProjectBoard({ projectId }).unwrap();
+        const approvedIds = (board.designs ?? [])
+          .filter((d) => d.status === 'approved')
+          .map((d) => d.id);
+        await sendToListings.send(approvedIds);
+      } catch {
+        enqueueSnackbar(t('common.unexpectedError', 'Unexpected error'), { variant: 'error' });
+      } finally {
+        setSendingProjectId(null);
+      }
+    },
+    [fetchProjectBoard, sendToListings, enqueueSnackbar, t],
+  );
 
   // ── Loading skeleton ─────────────────────────────────────────────
   if (isLoading) {
@@ -156,8 +182,12 @@ export const DesignsPipelineContent = ({ nicheId }: DesignsPipelineContentProps)
 
               <InlineFlowButton
                 target="listings"
-                tooltip={t('niches.pipeline.designs.toListings', 'Send to Listings')}
-                onClick={() => navigate(`/listings?project=${project.id}`)}
+                tooltip={t('designs.sendToListings.cta', 'Send to Listings')}
+                onClick={(e) => {
+                  e?.stopPropagation();
+                  void handleSendProject(project.id);
+                }}
+                disabled={sendingProjectId === project.id || sendToListings.isSending}
               />
             </ProjectRow>
 
@@ -196,6 +226,14 @@ export const DesignsPipelineContent = ({ nicheId }: DesignsPipelineContentProps)
       >
         {t('niches.pipeline.designs.openCanvas', 'Open Design Canvas')}
       </Button>
+
+      <BulkConfirmDialog
+        open={Boolean(sendToListings.pendingConfirm)}
+        count={sendToListings.pendingConfirm?.designIds.length ?? 0}
+        isSending={sendToListings.isSending}
+        onConfirm={() => { void sendToListings.confirmPending(); }}
+        onCancel={sendToListings.cancelPending}
+      />
     </Box>
   );
 };

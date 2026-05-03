@@ -154,7 +154,7 @@ const useGoogleDrive = () => {
             // Persist token
             const tokenData = {
               access_token: response.access_token,
-              expires_at: Date.now() + (response.expires_in ?? 3600) * 1000,
+              expires_at: Date.now() + Number(response.expires_in ?? 3600) * 1000,
             };
             localStorage.setItem(TOKEN_KEY, JSON.stringify(tokenData));
             resolve();

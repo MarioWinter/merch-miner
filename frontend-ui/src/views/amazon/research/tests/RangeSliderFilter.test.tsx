@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../../../utils/test-utils';
 import RangeSliderFilter from '../partials/RangeSliderFilter';
 
@@ -10,8 +9,6 @@ const baseProps = {
   min: 1,
   max: 500000,
   step: 1000,
-  enabled: true,
-  onEnabledChange: vi.fn(),
   onChange: vi.fn(),
 };
 
@@ -22,50 +19,18 @@ describe('RangeSliderFilter', () => {
 
   it('renders label text', () => {
     renderWithProviders(<RangeSliderFilter {...baseProps} />);
-
     expect(screen.getByText('BSR Range')).toBeInTheDocument();
   });
 
-  it('renders enable/disable toggle switch', () => {
+  it('does not render an enable/disable toggle switch (filter is always-on)', () => {
     renderWithProviders(<RangeSliderFilter {...baseProps} />);
-
-    expect(
-      screen.getByLabelText('Enable BSR Range filter'),
-    ).toBeInTheDocument();
-  });
-
-  it('toggle switch reflects enabled prop as checked', () => {
-    renderWithProviders(<RangeSliderFilter {...baseProps} enabled={true} />);
-
-    const toggle = screen.getByRole('switch');
-    expect(toggle).toBeChecked();
-  });
-
-  it('toggle switch reflects disabled state when enabled is false', () => {
-    renderWithProviders(<RangeSliderFilter {...baseProps} enabled={false} />);
-
-    const toggle = screen.getByRole('switch');
-    expect(toggle).not.toBeChecked();
-  });
-
-  it('calls onEnabledChange when toggle is clicked', async () => {
-    const onEnabledChange = vi.fn();
-    renderWithProviders(
-      <RangeSliderFilter {...baseProps} enabled={false} onEnabledChange={onEnabledChange} />,
-    );
-
-    const toggle = screen.getByRole('switch');
-    await userEvent.click(toggle);
-
-    expect(onEnabledChange).toHaveBeenCalledWith(true);
+    expect(screen.queryByRole('switch')).toBeNull();
   });
 
   it('displays formatted min and max values', () => {
     renderWithProviders(
       <RangeSliderFilter {...baseProps} value={[100, 50000]} />,
     );
-
-    // Default formatValue uses toLocaleString()
     expect(screen.getByText('100 - 50,000')).toBeInTheDocument();
   });
 
@@ -81,24 +46,11 @@ describe('RangeSliderFilter', () => {
         formatValue={(v) => `$${v}`}
       />,
     );
-
     expect(screen.getByText('$5 - $80')).toBeInTheDocument();
   });
 
-  it('slider is disabled when enabled prop is false', () => {
-    renderWithProviders(<RangeSliderFilter {...baseProps} enabled={false} />);
-
-    const sliders = screen.getAllByRole('slider');
-    // All slider thumbs should be disabled
-    sliders.forEach((s) => {
-      expect(s).toBeDisabled();
-    });
-  });
-
-  it('slider is active when enabled prop is true', () => {
-    renderWithProviders(<RangeSliderFilter {...baseProps} enabled={true} />);
-
-    // MUI Slider renders two thumbs for a range slider
+  it('slider is interactive (always-on)', () => {
+    renderWithProviders(<RangeSliderFilter {...baseProps} />);
     const sliders = screen.getAllByRole('slider');
     expect(sliders.length).toBeGreaterThanOrEqual(1);
     sliders.forEach((s) => {
@@ -107,13 +59,7 @@ describe('RangeSliderFilter', () => {
   });
 
   it('renders with different label correctly', () => {
-    renderWithProviders(
-      <RangeSliderFilter {...baseProps} label="Reviews" />,
-    );
-
+    renderWithProviders(<RangeSliderFilter {...baseProps} label="Reviews" />);
     expect(screen.getByText('Reviews')).toBeInTheDocument();
-    expect(
-      screen.getByLabelText('Enable Reviews filter'),
-    ).toBeInTheDocument();
   });
 });

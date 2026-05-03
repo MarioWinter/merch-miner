@@ -198,7 +198,7 @@ export const useEditFormState = ({
       // for the caller + offline-queue classifier.
       const next = prev
         .catch(() => undefined)
-        .then(() => {
+        .then((): Promise<unknown> => {
           if (payload.kind === 'updateProductConfig') {
             return updateProductConfig({
               designId: payload.designId,

@@ -40,9 +40,6 @@ urlpatterns = [
     # allauth internal URLs (needed for OAuth state/session handling)
     path('accounts/', include('allauth.urls')),
 
-    # Content API
-    path('api/', include('content.api.urls')),
-
     # User profile (api/users/me/)
     path('api/', include(api_urls)),
 

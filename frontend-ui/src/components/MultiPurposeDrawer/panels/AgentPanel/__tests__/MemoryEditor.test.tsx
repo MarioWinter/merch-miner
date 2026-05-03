@@ -4,7 +4,7 @@
  * Focus: char-counter color-coding + save-disable when over limit + edit toggle.
  */
 import { describe, it, expect, vi } from 'vitest';
-import { screen, within } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */

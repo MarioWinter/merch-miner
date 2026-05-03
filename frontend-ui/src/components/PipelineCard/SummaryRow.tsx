@@ -1,6 +1,6 @@
 import { Stack } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { DURATION, EASING } from '@/style/constants';
+import { DURATION, EASING, radius } from '@/style/constants';
 
 /**
  * Shared summary row for pipeline content cards (Listings, Upload, etc.).
@@ -11,7 +11,7 @@ export const SummaryRow = styled(Stack)(({ theme }) => ({
   alignItems: 'center',
   gap: theme.spacing(1),
   padding: theme.spacing(0.5, 1),
-  borderRadius: theme.shape.borderRadius * 0.75,
+  borderRadius: radius(theme, 0.75),
   transition: `background-color ${DURATION.fast}ms ${EASING.standard}`,
 }));
 

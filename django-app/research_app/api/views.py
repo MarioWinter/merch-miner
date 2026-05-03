@@ -148,31 +148,36 @@ def _build_product_queryset(filters):
             rank=SearchRank(search_vector, search_query),
         ).filter(search=search_query)
 
-    # Range filters — only applied if param present
+    # Range filters — only applied if param present.
+    # Treat NULL as "unknown — matches any range" so products without that
+    # data point are not silently excluded when the user enables the filter
+    # at default full range.
+    from django.db.models import Q
+
     bsr_min = filters.get('bsr_min')
     if bsr_min is not None:
-        qs = qs.filter(bsr__gte=bsr_min)
+        qs = qs.filter(Q(bsr__gte=bsr_min) | Q(bsr__isnull=True))
     bsr_max = filters.get('bsr_max')
     if bsr_max is not None:
-        qs = qs.filter(bsr__lte=bsr_max)
+        qs = qs.filter(Q(bsr__lte=bsr_max) | Q(bsr__isnull=True))
 
     rating_min = filters.get('rating_min')
     if rating_min is not None:
-        qs = qs.filter(rating__gte=rating_min)
+        qs = qs.filter(Q(rating__gte=rating_min) | Q(rating__isnull=True))
 
     reviews_min = filters.get('reviews_min')
     if reviews_min is not None:
-        qs = qs.filter(reviews_count__gte=reviews_min)
+        qs = qs.filter(Q(reviews_count__gte=reviews_min) | Q(reviews_count__isnull=True))
     reviews_max = filters.get('reviews_max')
     if reviews_max is not None:
-        qs = qs.filter(reviews_count__lte=reviews_max)
+        qs = qs.filter(Q(reviews_count__lte=reviews_max) | Q(reviews_count__isnull=True))
 
     price_min = filters.get('price_min')
     if price_min is not None:
-        qs = qs.filter(price__gte=price_min)
+        qs = qs.filter(Q(price__gte=price_min) | Q(price__isnull=True))
     price_max = filters.get('price_max')
     if price_max is not None:
-        qs = qs.filter(price__lte=price_max)
+        qs = qs.filter(Q(price__lte=price_max) | Q(price__isnull=True))
 
     date_from = filters.get('date_from')
     if date_from is not None:
@@ -877,6 +882,7 @@ class UseAsTemplateView(APIView):
             is_manual=True,
             source_product_url=product.product_url or '',
             status=Idea.Status.APPROVED,
+            created_by=request.user,
         )
 
         # Create Listing draft pre-populated from product

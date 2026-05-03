@@ -12,13 +12,11 @@ import {
   DialogTitle,
   Skeleton,
   Stack,
-  TablePagination,
   Typography,
 } from '@mui/material';
 import { useSnackbar } from 'notistack';
 import { useTranslation } from 'react-i18next';
 import {
-  useListProductsQuery,
   useTriggerLiveSearchMutation,
   usePollSearchStatusExtendedQuery,
   useCancelLiveSearchMutation,
@@ -36,6 +34,7 @@ import useFilterState from './hooks/useFilterState';
 import useRecentSearches from './hooks/useRecentSearches';
 import usePolling from './hooks/usePolling';
 import useActiveNiche from './hooks/useActiveNiche';
+import useDbInfiniteScroll from './hooks/useDbInfiniteScroll';
 import { LIVE_SORT_OPTIONS, PRODUCT_TYPE_BROWSE_NODES } from './types';
 import type { ResearchFilters, SearchKeywordResult, AmazonProduct } from './types';
 import type { ResultsTab } from './partials/ResultsToolbar';
@@ -68,7 +67,6 @@ const AmazonResearchView = () => {
   const [hasSearched, setHasSearched] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [layout, setLayout] = useState<'grid' | 'list'>('grid');
-  const [page, setPage] = useState(0);
   const [cacheId, setCacheId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ResultsTab>('products');
 
@@ -121,14 +119,12 @@ const AmazonResearchView = () => {
     localStorage.setItem(STORAGE_MARKETPLACE_KEY, filters.marketplace);
   }, [filters.marketplace]);
 
-  // DB mode query params
+  // DB mode query params (paginated fields owned by useDbInfiniteScroll)
   const buildQueryParams = useCallback(() => {
     const params: Record<string, unknown> = {
       keyword,
       marketplace: filters.marketplace,
       sort_by: filters.sort_by,
-      page: page + 1,
-      page_size: 50,
     };
     if (filters.product_type) params.product_type = filters.product_type;
     if (enabled.bsr_min) {
@@ -152,16 +148,30 @@ const AmazonResearchView = () => {
     if (enabled.date_from && filters.date_from) params.date_from = filters.date_from;
     if (enabled.date_to && filters.date_to) params.date_to = filters.date_to;
     return params;
-  }, [keyword, filters, enabled, page]);
+  }, [keyword, filters, enabled]);
 
-  const dbQueryParams = buildQueryParams();
-  const shouldQueryDb = !isLive && hasSearched && !!keyword;
+  // AC-64/AC-66 (filter-only search): in DB mode the keyword is optional.
+  // marketplace + product_type + sort are always-applied parameters — sufficient on their own.
+  const shouldQueryDb = !isLive && hasSearched;
+
+  // Stable signature: any change here resets the infinite scroll + triggers page-1 fetch.
+  const dbResetKey = useMemo(
+    () => JSON.stringify(buildQueryParams()),
+    [buildQueryParams],
+  );
 
   const {
-    data: dbData,
-    isLoading: dbLoading,
-    isFetching: dbFetching,
-  } = useListProductsQuery(dbQueryParams, { skip: !shouldQueryDb });
+    products: dbProducts,
+    totalCount: dbTotalCount,
+    isLoadingInitial: dbLoading,
+    isFetchingNext: dbFetchingNext,
+    hasMore: dbHasMore,
+    loadNextPage: loadNextDbPage,
+  } = useDbInfiniteScroll({
+    buildBaseParams: buildQueryParams,
+    enabled: shouldQueryDb,
+    resetKey: dbResetKey,
+  });
 
   // Live mode
   const [triggerLiveSearch] = useTriggerLiveSearchMutation();
@@ -253,7 +263,6 @@ const AmazonResearchView = () => {
     async (kw: string) => {
       setKeyword(kw);
       setHasSearched(true);
-      setPage(0);
       addSearch(kw, filters.marketplace);
 
       if (isLive) {
@@ -298,7 +307,6 @@ const AmazonResearchView = () => {
   const handleSortChange = useCallback(
     (sortBy: string) => {
       setFilter('sort_by', sortBy);
-      setPage(0);
     },
     [setFilter],
   );
@@ -306,7 +314,6 @@ const AmazonResearchView = () => {
   const handleFilterChange = useCallback(
     <K extends keyof ResearchFilters>(key: K, value: ResearchFilters[K]) => {
       setFilter(key, value);
-      if (key !== 'sort_by') setPage(0);
     },
     [setFilter],
   );
@@ -477,9 +484,9 @@ const AmazonResearchView = () => {
   );
 
   // Determine displayed products
-  const products = isLive ? allLiveProducts : dbData?.results ?? [];
-  const totalCount = isLive ? allLiveProducts.length : (dbData?.count ?? 0);
-  const loading = isLive ? (isPolling && allLiveProducts.length === 0) : dbLoading || dbFetching;
+  const products = isLive ? allLiveProducts : dbProducts;
+  const totalCount = isLive ? allLiveProducts.length : dbTotalCount;
+  const loading = isLive ? (isPolling && allLiveProducts.length === 0) : dbLoading;
 
   // Build active filter summary for results header
   const activeFilterSummary = useMemo(() => {
@@ -521,6 +528,7 @@ const AmazonResearchView = () => {
         onSaveKeyword={activeNicheId ? handleSaveKeyword : undefined}
         savingKeywords={savingKeywords}
         savedKeywords={savedKeywords}
+        allowEmptyKeyword={!isLive}
       />
 
       <ControlsRow
@@ -536,7 +544,6 @@ const AmazonResearchView = () => {
         open={advancedOpen}
         isLive={isLive}
         filters={filters}
-        enabled={enabled}
         onFilterChange={handleFilterChange}
         onEnabledChange={setEnabled}
       />
@@ -605,29 +612,28 @@ const AmazonResearchView = () => {
               onToggleFavorite={handleToggleFavorite}
               onExtractSlogan={handleExtractSlogan}
               onDoubleClick={handleCardDoubleClick}
+              onEndReached={!isLive ? loadNextDbPage : undefined}
+              isFetchingNext={!isLive && dbFetchingNext}
+              hasMore={!isLive && dbHasMore}
             />
           ) : (
             <ProductTable
               products={products}
               count={totalCount}
-              page={page}
-              pageSize={50}
-              onPageChange={setPage}
               onSortChange={handleSortChange}
               loading={loading}
+              onEndReached={!isLive ? loadNextDbPage : undefined}
             />
           )}
 
-          {!isLive && totalCount > 50 && (
-            <TablePagination
-              component="div"
-              count={totalCount}
-              page={page}
-              rowsPerPage={50}
-              rowsPerPageOptions={[50]}
-              onPageChange={(_, newPage) => setPage(newPage)}
-              sx={{ mt: 2 }}
-            />
+          {/* DB-mode list-view skeleton footer while next page loads */}
+          {!isLive && layout === 'list' && dbFetchingNext && (
+            <Stack alignItems="center" sx={{ py: 3 }}>
+              <CircularProgress size={28} />
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                {t('amazonResearch.infiniteScroll.loadingMore', 'Loading more products...')}
+              </Typography>
+            </Stack>
           )}
 
           {/* Infinite scroll sentinel + loading indicator (live mode) */}

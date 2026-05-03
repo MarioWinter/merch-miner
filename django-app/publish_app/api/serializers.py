@@ -546,6 +546,50 @@ class BulkActionSerializer(serializers.Serializer):
 
 
 # ---------------------------------------------------------------------------
+# Send Designs to Listings (PROJ-9 Phase O — AC-164/AC-167)
+# ---------------------------------------------------------------------------
+
+class DesignAssetFromDesignInputSerializer(serializers.Serializer):
+    """Input payload for ``POST /api/design-assets/from-design/``.
+
+    Min length 1 enforced here (empty list -> 400 validation error).
+    The bulk soft cap (max 50) is enforced in the view so the response can
+    use the spec-mandated body ``{error: 'bulk_too_large', max: 50}`` rather
+    than DRF's generic ``max_length`` message (AC-167).
+    """
+
+    design_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        min_length=1,
+        allow_empty=False,
+    )
+
+
+class _RejectedIneligibleSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    reason = serializers.CharField()
+
+
+class _FailedItemSerializer(serializers.Serializer):
+    id = serializers.UUIDField()
+    error = serializers.CharField()
+
+
+class DesignAssetFromDesignResultSerializer(serializers.Serializer):
+    """Response shape for ``POST /api/design-assets/from-design/``.
+
+    ``failed`` is only populated when one or more per-design copies raised a
+    storage/IO exception, in which case the view returns 207 Multi-Status
+    (AC-165 / EC-55).
+    """
+
+    created = serializers.ListField(child=serializers.UUIDField())
+    skipped_duplicates = serializers.ListField(child=serializers.UUIDField())
+    rejected_ineligible = _RejectedIneligibleSerializer(many=True)
+    failed = _FailedItemSerializer(many=True, required=False)
+
+
+# ---------------------------------------------------------------------------
 # Design Collection
 # ---------------------------------------------------------------------------
 

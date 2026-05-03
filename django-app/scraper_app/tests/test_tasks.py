@@ -432,7 +432,7 @@ class TestCancelScrapeJob:
             cancel_scrape_job(job.id, 'user')
 
         cache.refresh_from_db()
-        assert cache.status == ProductSearchCache.Status.FAILED
+        assert cache.status == ProductSearchCache.Status.CANCELLED
 
 
 # ---------------------------------------------------------------------------

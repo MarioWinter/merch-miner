@@ -17,7 +17,15 @@ interface UseRecentSearchesReturn {
 const readFromStorage = (): RecentSearch[] => {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as RecentSearch[]) : [];
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as RecentSearch[];
+    // Drop any legacy empty-keyword entries that may have leaked into storage.
+    const cleaned = parsed.filter((s) => s.keyword?.trim().length > 0);
+    // Persist cleanup so legacy empties don't linger across reloads.
+    if (cleaned.length !== parsed.length) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cleaned));
+    }
+    return cleaned;
   } catch {
     return [];
   }
@@ -31,6 +39,8 @@ const useRecentSearches = (): UseRecentSearchesReturn => {
   const [searches, setSearches] = useState<RecentSearch[]>(readFromStorage);
 
   const addSearch = useCallback((keyword: string, marketplace: string) => {
+    // Filter-only searches (empty keyword) must not pollute history.
+    if (!keyword || keyword.trim().length === 0) return;
     setSearches((prev) => {
       const filtered = prev.filter(
         (s) => !(s.keyword === keyword && s.marketplace === marketplace),

@@ -23,7 +23,10 @@ import {
 // Styled
 // ---------------------------------------------------------------------------
 
-const Root = styled(Stack)(({ theme }) => ({
+// styled('section') keeps the semantic tag without going through Stack's
+// `component` prop (not surfaced via styled() wrappers in MUI v7).
+const Root = styled('section')(({ theme }) => ({
+  display: 'flex',
   flexDirection: 'row',
   alignItems: 'center',
   justifyContent: 'space-between',
@@ -145,7 +148,7 @@ const TranslationTabs = ({
   );
 
   return (
-    <Root component="section" aria-label={t('publish.edit.translation.title', {
+    <Root aria-label={t('publish.edit.translation.title', {
       defaultValue: 'Language',
     })}>
       <LangGroup

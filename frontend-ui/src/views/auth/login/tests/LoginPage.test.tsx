@@ -3,12 +3,17 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../../../utils/test-utils';
 import LoginPage from '../LoginPage';
+import { useFeatureFlag } from '../../../../hooks/useFeatureFlag';
 
 vi.mock('../../../../services/authService', () => ({
   authService: {
     login: vi.fn(),
     googleLoginUrl: vi.fn(() => '/api/auth/google/'),
   },
+}));
+
+vi.mock('../../../../hooks/useFeatureFlag', () => ({
+  useFeatureFlag: vi.fn(() => true),
 }));
 
 const mockNavigate = vi.fn();
@@ -22,7 +27,11 @@ function renderLoginPage() {
 }
 
 describe('LoginPage', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    vi.clearAllMocks();
+    // Default: registration enabled (existing tests rely on link being present-or-irrelevant)
+    vi.mocked(useFeatureFlag).mockReturnValue(true);
+  });
 
   it('renders email/password form and Google button', () => {
     renderLoginPage();
@@ -45,7 +54,7 @@ describe('LoginPage', () => {
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true }));
     expect(store.getState().auth.isAuthenticated).toBe(true);
-    expect(store.getState().auth.user).toEqual({ id: 1, email: 'test@example.com', first_name: 'Test', avatar_url: null });
+    expect(store.getState().auth.user).toEqual({ id: 1, email: 'test@example.com', first_name: 'Test', avatar_url: null, is_staff: false, is_superuser: false });
   });
 
   it('shows error snackbar and dispatches setError on failed login', async () => {
@@ -87,5 +96,23 @@ describe('LoginPage', () => {
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     expect(screen.getByRole('progressbar')).toBeInTheDocument();
+  });
+
+  // PROJ-24 AC-21 — register link gating via REGISTRATION_ENABLED feature flag
+  it('hides register link when REGISTRATION_ENABLED flag is off', () => {
+    vi.mocked(useFeatureFlag).mockReturnValue(false);
+    renderLoginPage();
+
+    expect(screen.queryByRole('link', { name: /sign up/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/don't have an account/i)).not.toBeInTheDocument();
+  });
+
+  it('shows register link when REGISTRATION_ENABLED flag is on', () => {
+    vi.mocked(useFeatureFlag).mockReturnValue(true);
+    renderLoginPage();
+
+    const signUpLink = screen.getByRole('link', { name: /sign up/i });
+    expect(signUpLink).toBeInTheDocument();
+    expect(signUpLink).toHaveAttribute('href', '/register');
   });
 });

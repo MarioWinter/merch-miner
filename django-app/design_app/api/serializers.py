@@ -49,6 +49,11 @@ class DesignSerializer(serializers.ModelSerializer):
     generation_run = DesignGenerationRunSerializer(read_only=True)
     idea_summary = serializers.SerializerMethodField()
     project_ids = serializers.SerializerMethodField()
+    # PROJ-9 Phase O / AC-171: "In Listings" indicator. Populated via an
+    # ``Exists()`` annotation on the queryset (see design_app.api.views).
+    # Defaults to False when the queryset is not annotated (e.g. detail view
+    # bypasses for now -- frontend only needs this on list endpoints).
+    has_design_asset = serializers.BooleanField(read_only=True, default=False)
 
     class Meta:
         model = Design
@@ -57,7 +62,7 @@ class DesignSerializer(serializers.ModelSerializer):
             'image_file', 'status', 'is_manual', 'background_color',
             'source_image_url', 'prompt_analysis',
             'upscaled_file', 'bg_removed_file', 'processed_file', 'created_at',
-            'project_ids',
+            'project_ids', 'has_design_asset',
         ]
         read_only_fields = fields
 

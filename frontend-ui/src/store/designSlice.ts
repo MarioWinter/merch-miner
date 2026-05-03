@@ -682,6 +682,7 @@ export const {
   useAddDesignsToProjectMutation,
   useRemoveDesignFromProjectMutation,
   useGetProjectBoardQuery,
+  useLazyGetProjectBoardQuery,
   useUploadDesignToProjectMutation,
   // Processing Settings
   useGetProcessingSettingsQuery,

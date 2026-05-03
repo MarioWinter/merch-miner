@@ -39,7 +39,7 @@ const IMAGE_HEIGHT = 220;
 const SPARKLINE_HEIGHT = 20;
 const INFO_HEIGHT = 96;
 
-const CARD_WIDTH = 200;
+const CARD_WIDTH = 215;
 
 const StyledCard = styled(Card)(({ theme }) => ({
   width: CARD_WIDTH,

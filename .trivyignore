@@ -1,0 +1,11 @@
+# Trivy CVE suppressions for confirmed false-positives.
+# Re-evaluate quarterly.
+
+# -- Scrapy ----------------------------------------------------------------
+# CVE-2017-14158 — Scrapy DoS via memory exhaustion
+# CONFIRMED FALSE-POSITIVE per OSV: the advisory's affected range is
+#   `introduced=0`, `last_affected=1.4` (commit 5f69ec98).
+# We run Scrapy 2.14+, which is well past the fix. Trivy matches by package
+# name without honoring the upstream version bound.
+# Source: https://api.osv.dev/v1/vulns/CVE-2017-14158
+CVE-2017-14158

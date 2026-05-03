@@ -112,7 +112,6 @@ INSTALLED_APPS = [
     'user_auth_app',
     'workspace_app',
     'niche_app',
-    'content.apps.ContentConfig',
     'scraper_app',
     'niche_research_app',
     'research_app',

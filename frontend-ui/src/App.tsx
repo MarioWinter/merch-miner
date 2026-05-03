@@ -23,6 +23,10 @@ import DashboardView from './views/dashboard/DashboardView';
 import KanbanBoardView from './views/kanban/KanbanBoardView';
 import ProductDetailPage from './views/amazon/research/detail/ProductDetailPage';
 import SharedChatView from './views/shared/SharedChatView';
+import ImprintPage from './views/legal/imprint/ImprintPage';
+import PrivacyPage from './views/legal/privacy/PrivacyPage';
+import { getStaticFlag } from './utils/getStaticFlag';
+import { FEATURE_FLAGS } from './constants/featureFlags';
 
 
 const App = () => {
@@ -30,15 +34,25 @@ const App = () => {
     hydrateAuth();
   }, []);
 
+  // PROJ-24 AC-22 — gate /register route via static flag (admin-override exempt per AC-20d).
+  // Static evaluation at module/component-construction time → Vite tree-shakes when off.
+  const registrationEnabled = getStaticFlag(FEATURE_FLAGS.REGISTRATION_ENABLED);
+
   return (
     <Routes>
       {/* Public auth routes */}
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+      {registrationEnabled && (
+        <Route path="/register" element={<RegisterPage />} />
+      )}
       <Route path="/activate" element={<ActivatePage />} />
       <Route path="/password-reset" element={<PasswordResetPage />} />
       <Route path="/password-reset/confirm" element={<PasswordConfirmPage />} />
       <Route path="/workspaces/invite/accept" element={<InviteAcceptView />} />
+
+      {/* PROJ-24 — public legal pages (no auth) */}
+      <Route path="/legal/imprint" element={<ImprintPage />} />
+      <Route path="/legal/privacy" element={<PrivacyPage />} />
 
       {/* PROJ-20 Phase 5.6 — public read-only chat viewer (no auth) */}
       <Route path="/shared/chat/:token" element={<SharedChatView />} />

@@ -78,21 +78,35 @@ const parseCSV = (file: File): Promise<ImportIdeaItem[]> =>
   });
 
 const parseXLSX = async (file: File): Promise<ImportIdeaItem[]> => {
-  const XLSX = await import('xlsx');
-  const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: 'array' });
-  const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-  const rows = XLSX.utils.sheet_to_json<Record<string, string>>(firstSheet);
+  // read-excel-file (no known CVEs) — replaced sheetjs/xlsx@0.18.5 which has
+  // unfixable HIGH-severity prototype-pollution + ReDoS advisories.
+  // `readSheet` returns the raw 2D row array of the first sheet, which is what
+  // we want here (the default `readXlsxFile` returns Sheet[] with metadata).
+  const { readSheet } = await import('read-excel-file/browser');
+  const rows = await readSheet(file);
+  if (rows.length === 0) return [];
 
+  // First row is header. Map to lowercase keys for case-insensitive lookup.
+  const header = rows[0].map((cell) => String(cell ?? '').trim().toLowerCase());
   const items: ImportIdeaItem[] = [];
-  for (const row of rows) {
-    const sloganText = row.slogan_text || row.slogan || row.text || '';
+  for (let i = 1; i < rows.length; i += 1) {
+    const row = rows[i];
+    const get = (...keys: string[]): string => {
+      for (const k of keys) {
+        const idx = header.indexOf(k);
+        if (idx !== -1) {
+          const v = row[idx];
+          if (v != null) return String(v);
+        }
+      }
+      return '';
+    };
+    const sloganText = get('slogan_text', 'slogan', 'text');
     if (sloganText.trim()) {
+      const nicheName = get('niche_name', 'niche');
       items.push({
         slogan_text: sloganText.trim(),
-        ...(row.niche_name || row.niche
-          ? { niche_name: (row.niche_name || row.niche || '').trim() }
-          : {}),
+        ...(nicheName ? { niche_name: nicheName.trim() } : {}),
       });
     }
   }

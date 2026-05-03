@@ -248,25 +248,26 @@ export const DEFAULT_FILTERS: ResearchFilters = {
   date_to: '',
   product_type: 't_shirt',
   subcategory: '',
-  hide_official_brands: false,
+  hide_official_brands: true,
   exclude_words: '',
   sort_by: 'bsr_asc',
   live_sort_by: 'featured-rank',
 };
 
 export const DEFAULT_FILTER_ENABLED: FilterEnabled = {
-  bsr_min: false,
-  bsr_max: false,
+  // Range filters are always-on (UI no longer has per-filter Switch toggles).
+  bsr_min: true,
+  bsr_max: true,
   rating_min: false,
-  reviews_min: false,
-  reviews_max: false,
-  price_min: false,
-  price_max: false,
+  reviews_min: true,
+  reviews_max: true,
+  price_min: true,
+  price_max: true,
   date_from: false,
   date_to: false,
   product_type: false,
   subcategory: false,
-  hide_official_brands: false,
+  hide_official_brands: true,
   exclude_words: false,
 };
 

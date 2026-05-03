@@ -28,6 +28,14 @@ const FRAME_SHADOW_COLOR = alpha(COLORS.black, 0.3);
 const FRAME_SHADOW_BLUR = 12;
 const FRAME_SHADOW_OFFSET = { x: 0, y: 4 };
 const AI_LABEL_COLOR = COLORS.cyan;
+// PROJ-9 Phase O — In-Listings indicator chip (Konva primitives, drawn at
+// constant screen size by inverse-zooming).
+const CHIP_MARGIN = 8;
+const CHIP_HEIGHT = 22;
+const CHIP_PADDING_X = 8;
+const CHIP_FONT_SIZE = 11;
+const CHIP_BG = alpha(COLORS.cyan, 0.85);
+const CHIP_FG = COLORS.ink;
 
 // -----------------------------------------------------------------
 // Props
@@ -65,6 +73,10 @@ interface ArtboardProps {
   onBrushDrawStart?: (artboardId: string, localX: number, localY: number) => void;
   /** Element currently being inline-edited (text editing) — hide from Konva render */
   editingElementId?: string | null;
+  /** PROJ-9 Phase O — true when at least one DesignAsset already exists for the linked design. */
+  hasDesignAsset?: boolean;
+  /** PROJ-9 Phase O — localized label rendered inside the In-Listings chip. */
+  inListingsLabel?: string;
 }
 
 // Corner indices: 0=top-left, 1=top-right, 2=bottom-left, 3=bottom-right
@@ -106,6 +118,8 @@ const Artboard = ({
   onPenClick,
   onBrushDrawStart,
   editingElementId,
+  hasDesignAsset = false,
+  inListingsLabel,
 }: ArtboardProps) => {
   const groupRef = useRef<Konva.Group>(null);
 
@@ -117,7 +131,7 @@ const Artboard = ({
   });
 
   const handleElementDragMove = useCallback(
-    (artboardId: string, elementId: string, node: Konva.Node) => {
+    (_artboardId: string, elementId: string, node: Konva.Node) => {
       const el = (data.layers ?? []).find((l) => l.id === elementId);
       if (!el) return;
 
@@ -159,7 +173,7 @@ const Artboard = ({
   }, []);
 
   const handleClick = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
+    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
       e.cancelBubble = true;
 
       // When text tool is active, insert text at click position
@@ -180,7 +194,9 @@ const Artboard = ({
         }
       }
 
-      onSelect(data.id, e.evt.shiftKey);
+      // shiftKey only exists on MouseEvent (touch events have no modifier keys).
+      const additive = 'shiftKey' in e.evt && e.evt.shiftKey;
+      onSelect(data.id, additive);
     },
     [data.id, onSelect, activeTool, onTextInsert, onPenClick, getLocalPos],
   );
@@ -206,7 +222,7 @@ const Artboard = ({
   );
 
   const handleLabelDblClick = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
+    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
       e.cancelBubble = true;
       onDoubleClickLabel(data.id);
     },
@@ -544,6 +560,33 @@ const Artboard = ({
           opacity={0.5}
           listening={false}
         />
+      )}
+
+      {/* PROJ-9 Phase O — In-Listings indicator chip (top-right) */}
+      {hasDesignAsset && inListingsLabel && (
+        <Group
+          x={data.width - (CHIP_PADDING_X * 2 + CHIP_FONT_SIZE * 0.6 * inListingsLabel.length + CHIP_MARGIN) / zoom}
+          y={CHIP_MARGIN / zoom}
+          listening={false}
+        >
+          <Rect
+            x={0}
+            y={0}
+            width={(CHIP_PADDING_X * 2 + CHIP_FONT_SIZE * 0.6 * inListingsLabel.length) / zoom}
+            height={CHIP_HEIGHT / zoom}
+            fill={CHIP_BG}
+            cornerRadius={CHIP_HEIGHT / 2 / zoom}
+          />
+          <Text
+            x={CHIP_PADDING_X / zoom}
+            y={(CHIP_HEIGHT - CHIP_FONT_SIZE) / 2 / zoom}
+            text={inListingsLabel}
+            fontSize={CHIP_FONT_SIZE / zoom}
+            fontFamily="Inter, sans-serif"
+            fontStyle="600"
+            fill={CHIP_FG}
+          />
+        </Group>
       )}
     </Group>
   );

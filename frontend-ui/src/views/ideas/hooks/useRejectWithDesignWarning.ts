@@ -36,8 +36,8 @@ export const useRejectWithDesignWarning = (
       setIsChecking(true);
       triggerListDesigns(idea.id)
         .unwrap()
-        .then((designs) => {
-          const hasApproved = designs.some((d) => d.status === 'approved');
+        .then((response) => {
+          const hasApproved = response.results.some((d) => d.status === 'approved');
           if (hasApproved) {
             setPendingIdea(idea);
             setWarningOpen(true);

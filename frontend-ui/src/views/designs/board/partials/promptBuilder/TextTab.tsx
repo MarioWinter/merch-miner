@@ -48,7 +48,7 @@ const StyledSelect = styled(Select)(({ theme }) => ({
   ...theme.applyStyles('light', {
     backgroundColor: alpha(COLORS.ash, 0.5),
   }),
-})) as typeof Select;
+})) as unknown as typeof Select;
 
 const PreviewBox = styled(Box)(({ theme }) => ({
   backgroundColor: alpha(COLORS.ink, 0.4),

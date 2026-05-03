@@ -8,9 +8,13 @@ interface ChevronIndicatorProps {
   ariaLabel: string;
 }
 
+// `--footer-offset` is set by AppLayout and reflects the currently-visible
+// height of the global footer. When the footer scrolls below the fold the
+// variable falls to 0 and the chevron sits flush with the viewport bottom;
+// when the footer is on screen the chevron rides on top of it.
 const IndicatorRoot = styled(Box)(({ theme }) => ({
   position: 'fixed',
-  bottom: 0,
+  bottom: 'var(--footer-offset, 0px)',
   left: '50%',
   transform: 'translateX(-50%)',
   width: 64,

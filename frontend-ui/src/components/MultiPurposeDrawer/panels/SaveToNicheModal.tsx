@@ -52,14 +52,14 @@ const PreviewBlock = styled(Box)(({ theme }) => ({
 }));
 
 const isKeywordsResponse = (
-  res: SaveSnippetResponse,
+  _res: SaveSnippetResponse,
   saveAs: 'keywords' | 'notes',
-): res is SaveSnippetKeywordsResponse => saveAs === 'keywords';
+): _res is SaveSnippetKeywordsResponse => saveAs === 'keywords';
 
 const isNotesResponse = (
-  res: SaveSnippetResponse,
+  _res: SaveSnippetResponse,
   saveAs: 'keywords' | 'notes',
-): res is SaveSnippetNotesResponse => saveAs === 'notes';
+): _res is SaveSnippetNotesResponse => saveAs === 'notes';
 
 const SaveToNicheModal = ({
   open,

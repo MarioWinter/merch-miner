@@ -1,13 +1,13 @@
 import { IconButton, Tooltip } from '@mui/material';
 import { styled, alpha } from '@mui/material/styles';
 import { FLOW_TARGETS, type FlowTarget } from './constants';
-import { DURATION, EASING } from '../../style/constants';
+import { DURATION, EASING, radius } from '../../style/constants';
 
 // ── Props ──────────────────────────────────────────────────────────
 interface InlineFlowButtonProps {
   target: FlowTarget;
   tooltip: string;
-  onClick: () => void;
+  onClick: (event?: React.MouseEvent<HTMLButtonElement>) => void;
   disabled?: boolean;
 }
 
@@ -17,7 +17,7 @@ const StyledIconButton = styled(IconButton, {
 })<{ targetColor: string }>(({ theme, targetColor }) => ({
   width: theme.spacing(3.5),
   height: theme.spacing(3.5),
-  borderRadius: theme.shape.borderRadius * 0.75,
+  borderRadius: radius(theme, 0.75),
   backgroundColor: 'transparent',
   color: theme.vars.palette.text.disabled,
   transition: [

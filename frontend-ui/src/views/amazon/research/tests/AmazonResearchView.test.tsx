@@ -16,22 +16,33 @@ const emptyResponse: ProductListResponse = {
   previous: null,
 };
 
-let mockListProductsResult: {
-  data?: ProductListResponse;
-  isLoading: boolean;
-  isFetching: boolean;
-} = { isLoading: false, isFetching: false, data: emptyResponse };
+// Lazy DB query — controlled per-test via mockLazyResponse
+let mockLazyResponse: ProductListResponse = emptyResponse;
+const mockLazyTrigger = vi.fn();
 
 vi.mock('../../../../store/researchSlice', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../../store/researchSlice')>();
   return {
     ...actual,
-    useListProductsQuery: () => mockListProductsResult,
+    useLazyListProductsQuery: () => [
+      (params: Record<string, unknown>) => {
+        mockLazyTrigger(params);
+        const promise = Promise.resolve(mockLazyResponse);
+        (promise as { unwrap?: () => Promise<ProductListResponse> }).unwrap = () =>
+          Promise.resolve(mockLazyResponse);
+        (promise as { abort?: () => void }).abort = () => undefined;
+        return promise;
+      },
+    ],
     useTriggerLiveSearchMutation: () => [mockTriggerLiveSearch, { isLoading: false }],
     useGetSuggestionsQuery: () => ({ data: [], isLoading: false }),
     usePollSearchStatusQuery: () => ({ data: undefined, isLoading: false }),
     usePollSearchStatusExtendedQuery: () => ({ data: undefined, isLoading: false }),
     useGetBSRHistoryQuery: () => ({ data: [], isLoading: false }),
+    useCancelLiveSearchMutation: () => [
+      vi.fn().mockReturnValue({ unwrap: vi.fn() }),
+      { isLoading: false },
+    ],
   };
 });
 
@@ -126,11 +137,7 @@ describe('AmazonResearchView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
-    mockListProductsResult = {
-      isLoading: false,
-      isFetching: false,
-      data: emptyResponse,
-    };
+    mockLazyResponse = emptyResponse;
   });
 
   it('renders without crash', () => {
@@ -165,47 +172,40 @@ describe('AmazonResearchView', () => {
     expect(screen.getAllByText('Live Research')).toHaveLength(2);
   });
 
-  it('shows loading skeleton while fetching (loading state)', () => {
-    mockListProductsResult = { isLoading: true, isFetching: true, data: undefined };
+  it('renders no TablePagination element (replaced by infinite scroll)', () => {
     renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
-
-    // The view shows skeletons when loading && !hasSearched
-    const skeletons = document.querySelectorAll('.MuiSkeleton-root');
-    expect(skeletons.length).toBeGreaterThan(0);
+    // TablePagination MUI class hook
+    expect(document.querySelector('.MuiTablePagination-root')).toBeNull();
   });
 
   it('switches between Grid/List view', { timeout: 15000 }, async () => {
     // Need products to see the layout toggle
-    mockListProductsResult = {
-      isLoading: false,
-      isFetching: false,
-      data: {
-        count: 1,
-        results: [
-          {
-            id: 'prod-001',
-            asin: 'B09TEST001',
-            title: 'Test Product',
-            brand: 'TestBrand',
-            bsr: 1000,
-            rating: 4.0,
-            reviews_count: 50,
-            price: 14.99,
-            product_type: 't_shirt',
-            subcategory: 'Novelty',
-            listed_date: '2025-01-01',
-            thumbnail_url: '',
-            bullet_1: '',
-            bullet_2: '',
-            description: '',
-            marketplace: 'amazon_com',
-            scraped_at: '2026-03-01T00:00:00Z',
-            bsr_categories: [],
-          },
-        ],
-        next: null,
-        previous: null,
-      },
+    mockLazyResponse = {
+      count: 1,
+      results: [
+        {
+          id: 'prod-001',
+          asin: 'B09TEST001',
+          title: 'Test Product',
+          brand: 'TestBrand',
+          bsr: 1000,
+          rating: 4.0,
+          reviews_count: 50,
+          price: 14.99,
+          product_type: 't_shirt',
+          subcategory: 'Novelty',
+          listed_date: '2025-01-01',
+          thumbnail_url: '',
+          bullet_1: '',
+          bullet_2: '',
+          description: '',
+          marketplace: 'amazon_com',
+          scraped_at: '2026-03-01T00:00:00Z',
+          bsr_categories: [],
+        },
+      ],
+      next: null,
+      previous: null,
     };
 
     renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
@@ -248,5 +248,47 @@ describe('AmazonResearchView', () => {
 
     // After toggle, subtitle appears — two "Live Research" labels total
     expect(screen.getAllByText('Live Research')).toHaveLength(2);
+  });
+
+  it('initial DB search fetches with page_size=100 (integration)', async () => {
+    mockLazyResponse = {
+      count: 100,
+      results: Array.from({ length: 100 }, (_, i) => ({
+        id: `prod-${i}`,
+        asin: `B${String(i).padStart(9, '0')}`,
+        title: `Test ${i}`,
+        brand: 'Brand',
+        bsr: 1000,
+        rating: 4.0,
+        reviews_count: 50,
+        price: 14.99,
+        product_type: 't_shirt',
+        subcategory: 'Novelty',
+        listed_date: '2025-01-01',
+        thumbnail_url: '',
+        bullet_1: '',
+        bullet_2: '',
+        description: '',
+        marketplace: 'amazon_com',
+        scraped_at: '2026-03-01T00:00:00Z',
+        bsr_categories: [],
+      })),
+      next: null,
+      previous: null,
+    };
+
+    renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
+
+    const searchInput = screen.getByPlaceholderText('Search keywords...');
+    await userEvent.type(searchInput, 'hiking');
+    const searchBtn = screen.getByRole('button', { name: 'Search' });
+    await userEvent.click(searchBtn);
+
+    // The lazy trigger must have been called with the initial page_size=100 contract
+    await vi.waitFor(() => {
+      expect(mockLazyTrigger).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 1, page_size: 100, keyword: 'hiking' }),
+      );
+    });
   });
 });

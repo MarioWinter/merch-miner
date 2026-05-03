@@ -157,6 +157,7 @@ export const {
   useTriggerLiveSearchMutation,
   usePollSearchStatusQuery,
   useListProductsQuery,
+  useLazyListProductsQuery,
   useGetBSRHistoryQuery,
   useGetBSRHistoryFullQuery,
   useGetProductDetailQuery,

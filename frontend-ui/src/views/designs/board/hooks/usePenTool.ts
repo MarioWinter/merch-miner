@@ -36,6 +36,7 @@ interface UsePenToolReturn {
   handlePenClick: (artboardId: string, localX: number, localY: number) => void;
   handlePenMove: (localX: number, localY: number) => void;
   handlePenFinish: () => void;
+  resetPen: () => void;
 }
 
 // -----------------------------------------------------------------

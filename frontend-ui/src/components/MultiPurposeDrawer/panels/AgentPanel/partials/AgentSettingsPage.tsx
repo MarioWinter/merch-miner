@@ -104,8 +104,11 @@ const AgentSettingsPage = ({
 
   // Allow external triggers (e.g. ReflectionStatus chip clicks while the
   // settings page is already mounted) to switch tabs without re-mounting.
+  // Legitimate prop-driven state sync — refactoring to key-based remount
+  // would re-fetch heavy data unnecessarily.
   useEffect(() => {
     const idx = TAB_KEYS.indexOf(initialTab);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (idx !== -1) setTab(idx);
   }, [initialTab]);
 

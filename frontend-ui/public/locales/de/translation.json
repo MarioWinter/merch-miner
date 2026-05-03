@@ -1614,6 +1614,25 @@
       "importFromCloud": "Aus Cloud importieren"
     }
   },
+  "designs": {
+    "sendToListings": {
+      "cta": "An Listings senden",
+      "successCount": "{{created}} an Listings gesendet, {{skipped}} bereits dort.",
+      "bulkConfirm": "Du sendest {{count}} Designs — fortfahren?",
+      "openInPublish": "In Publish öffnen",
+      "alreadyInListings": "In Listings",
+      "bulkTooLarge": "Maximum sind 50 Designs pro Anfrage.",
+      "noEligible": "Keine freigegebenen Designs zum Senden.",
+      "noEligibleInSelection": "Keine freigegebenen Designs in Auswahl",
+      "notApprovedTooltip": "Nur freigegebene Designs können gesendet werden.",
+      "sendCount_one": "{{count}} freigegebenes Design an Listings senden",
+      "sendCount_other": "{{count}} freigegebene Designs an Listings senden",
+      "partialFailure_one": "{{failed}} Design konnte nicht gesendet werden.",
+      "partialFailure_other": "{{failed}} Designs konnten nicht gesendet werden.",
+      "confirm": "Senden",
+      "retry": "Wiederholen"
+    }
+  },
   "keywords": {
     "page": {
       "title": "Keyword Drilling",
@@ -3137,6 +3156,107 @@
     "close": "Schließen",
     "retry": "Erneut versuchen",
     "cancel": "Abbrechen",
-    "save": "Speichern"
+    "save": "Speichern",
+    "back": "Zurück",
+    "unexpectedError": "Unerwarteter Fehler"
+  },
+  "legal": {
+    "translation_disclaimer": "Dies ist die Originalfassung. Bei Streitfällen ist die deutsche Version maßgeblich.",
+    "imprint": {
+      "title": "Impressum",
+      "operator": {
+        "heading": "Angaben gemäß § 5 TMG",
+        "body": "Mario Winter\nAußenliegend 4\n61209 Echzell\nDeutschland"
+      },
+      "contact": {
+        "heading": "Kontakt",
+        "phone_line": "Telefon: <a>+49 1601546188</a>",
+        "email_line": "E-Mail: <a>mariowinter.sg@gmail.com</a>"
+      },
+      "languages": {
+        "heading": "Verfügbare Sprachen",
+        "body": "Diese Website ist in folgenden Sprachen verfügbar: Deutsch, Englisch, Französisch, Spanisch und Italienisch."
+      },
+      "vat": {
+        "heading": "Umsatzsteuer-Identifikationsnummer",
+        "body": "Umsatzsteuer-ID gemäß § 27 a Umsatzsteuergesetz: DE327848620"
+      },
+      "dsa": {
+        "heading": "Kontaktstelle gemäß Art. 12 DSA",
+        "body": "Kontaktstelle für Behörden und Nutzer gemäß Art. 11, 12 Digital Services Act (DSA):\n\nMario Winter\nAußenliegend 4\n61209 Echzell\nDeutschland\n\nTelefon: +49 1601546188\nE-Mail: mariowinter.sg@gmail.com\n\nDie Kommunikation kann auf Deutsch oder Englisch erfolgen."
+      },
+      "disclaimer": {
+        "heading": "Haftungsausschluss",
+        "content_heading": "Haftung für Inhalte",
+        "content_body": "Als Diensteanbieter sind wir gemäß § 7 Abs.1 TMG für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 TMG sind wir als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen. Verpflichtungen zur Entfernung oder Sperrung der Nutzung von Informationen nach den allgemeinen Gesetzen bleiben hiervon unberührt. Eine diesbezügliche Haftung ist jedoch erst ab dem Zeitpunkt der Kenntnis einer konkreten Rechtsverletzung möglich. Bei Bekanntwerden von entsprechenden Rechtsverletzungen werden wir diese Inhalte umgehend entfernen.",
+        "links_heading": "Haftung für Links",
+        "links_body": "Unser Angebot enthält Links zu externen Websites Dritter, auf deren Inhalte wir keinen Einfluss haben. Deshalb können wir für diese fremden Inhalte auch keine Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber der Seiten verantwortlich. Die verlinkten Seiten wurden zum Zeitpunkt der Verlinkung auf mögliche Rechtsverstöße überprüft. Rechtswidrige Inhalte waren zum Zeitpunkt der Verlinkung nicht erkennbar. Eine permanente inhaltliche Kontrolle der verlinkten Seiten ist jedoch ohne konkrete Anhaltspunkte einer Rechtsverletzung nicht zumutbar. Bei Bekanntwerden von Rechtsverletzungen werden wir derartige Links umgehend entfernen.",
+        "copyright_heading": "Urheberrecht",
+        "copyright_body": "Die durch die Seitenbetreiber erstellten Inhalte und Werke auf diesen Seiten unterliegen dem deutschen Urheberrecht. Die Vervielfältigung, Bearbeitung, Verbreitung und jede Art der Verwertung außerhalb der Grenzen des Urheberrechtes bedürfen der schriftlichen Zustimmung des jeweiligen Autors bzw. Erstellers. Downloads und Kopien dieser Seite sind nur für den privaten, nicht kommerziellen Gebrauch gestattet. Soweit die Inhalte auf dieser Seite nicht vom Betreiber erstellt wurden, werden die Urheberrechte Dritter beachtet. Insbesondere werden Inhalte Dritter als solche gekennzeichnet. Sollten Sie trotzdem auf eine Urheberrechtsverletzung aufmerksam werden, bitten wir um einen entsprechenden Hinweis. Bei Bekanntwerden von Rechtsverletzungen werden wir derartige Inhalte umgehend entfernen."
+      }
+    },
+    "privacy": {
+      "title": "Datenschutzerklärung",
+      "section_overview": {
+        "heading": "1. Datenschutz auf einen Blick",
+        "subheading": "Allgemeine Hinweise",
+        "body": "Die folgenden Hinweise geben einen einfachen Überblick darüber, was mit Ihren personenbezogenen Daten passiert, wenn Sie diese Website besuchen. Personenbezogene Daten sind alle Daten, mit denen Sie persönlich identifiziert werden können. Ausführliche Informationen zum Thema Datenschutz entnehmen Sie unserer unter diesem Text aufgeführten Datenschutzerklärung."
+      },
+      "responsible_party": {
+        "heading": "Hinweis zur verantwortlichen Stelle",
+        "body": "Die verantwortliche Stelle für die Datenverarbeitung auf dieser Website ist:\n\nMario Winter\nAußenliegend 4\n61209 Echzell\nDeutschland",
+        "contact_phone": "Telefon: <a>+49 1601546188</a>",
+        "contact_email": "E-Mail: <a>mariowinter.sg@gmail.com</a>"
+      },
+      "hosting": {
+        "heading": "2. Hosting (Strato)",
+        "body": "Wir hosten die Inhalte unserer Website bei der Strato AG, Otto-Ostrowski-Straße 7, 10249 Berlin („Strato“). Wenn Sie unsere Website besuchen, erfasst Strato verschiedene Logfiles einschließlich Ihrer IP-Adressen. Die Verwendung von Strato erfolgt auf Grundlage von Art. 6 Abs. 1 lit. f DSGVO. Wir haben ein berechtigtes Interesse an einer möglichst zuverlässigen Darstellung unserer Website. Wir haben mit Strato einen Vertrag über Auftragsverarbeitung (AVV) geschlossen.",
+        "link": "Weitere Informationen: <a>https://www.strato.de/datenschutz/</a>"
+      },
+      "supabase": {
+        "heading": "Datenbank & Storage (Supabase / PostgreSQL)",
+        "body": "Anwendungsdaten (Workspaces, Niches, Designs, Listings) speichern wir in einer selbst gehosteten PostgreSQL-Datenbank auf Basis der Supabase-Plattform. Die Datenbank läuft auf unserer eigenen Infrastruktur in Deutschland (Strato), es findet keine Datenübertragung an Supabase Inc. statt. Die Speicherung erfolgt zur Vertragserfüllung gemäß Art. 6 Abs. 1 lit. b DSGVO sowie auf Grundlage unseres berechtigten Interesses an einer technisch zuverlässigen Bereitstellung der Anwendung (Art. 6 Abs. 1 lit. f DSGVO)."
+      },
+      "jwt_auth": {
+        "heading": "Authentifizierung (JWT-Cookie)",
+        "body": "Zur Authentifizierung registrierter Nutzer verwenden wir ein HttpOnly-Cookie mit einem signierten JWT-Token. Das Cookie ist technisch notwendig für den Login-Status und wird auf Grundlage von § 25 Abs. 2 Nr. 2 TDDDG sowie Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung) gesetzt. Es enthält keine Tracking-Informationen und wird ausschließlich zur Sitzungs- und Zugriffskontrolle verwendet. Das Cookie wird mit dem Logout gelöscht."
+      },
+      "langfuse": {
+        "heading": "LLM-Observability (Langfuse, selbst gehostet)",
+        "body": "Zur Qualitätssicherung und Fehleranalyse unserer KI-gestützten Funktionen setzen wir Langfuse ein. Langfuse läuft auf unserer eigenen Infrastruktur (Strato, Deutschland) und protokolliert Eingaben und Antworten der KI-Modelle einschließlich Metadaten (Latenz, Token-Verbrauch, Modellname). Eine Übermittlung an Dritte findet nicht statt. Rechtsgrundlage ist unser berechtigtes Interesse an einer fehlerfreien und sicheren Bereitstellung der KI-Funktionen (Art. 6 Abs. 1 lit. f DSGVO)."
+      },
+      "openrouter": {
+        "heading": "LLM-API (OpenRouter)",
+        "body": "Für KI-gestützte Funktionen (z.B. Niche-Recherche, Slogan- und Design-Generierung) übermitteln wir die zur Bearbeitung Ihrer Anfrage notwendigen Eingaben an OpenRouter, Inc. (1111B S Governors Ave #6589, Dover, DE 19904, USA). OpenRouter leitet diese Anfragen an die jeweiligen Modellanbieter weiter. Eine Übermittlung in die USA findet statt. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung). Die Datenübertragung in die USA wird auf die Standardvertragsklauseln der EU-Kommission gestützt. Es werden keine Inhalte über die zur Beantwortung der jeweiligen Anfrage notwendigen Daten hinaus an OpenRouter übermittelt."
+      },
+      "n8n": {
+        "heading": "Workflow-Automation (n8n, selbst gehostet)",
+        "body": "Für interne Automatisierungen (Datenerfassung, KI-Pipelines) betreiben wir eine eigene Instanz der Open-Source-Software n8n auf unserer Infrastruktur (Strato, Deutschland). Es findet keine Datenübertragung an n8n GmbH oder andere Dritte statt. Rechtsgrundlage für die Verarbeitung ist Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung) bzw. Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einer effizienten Bereitstellung der Anwendung)."
+      },
+      "onedrive": {
+        "heading": "Cloud-Storage-Import: OneDrive",
+        "body": "Optional bieten wir Ihnen die Möglichkeit, Inhalte aus Ihrem persönlichen Microsoft OneDrive in Merch Miner zu importieren. Anbieter ist die Microsoft Ireland Operations Limited, One Microsoft Place, South County Business Park, Leopardstown, Dublin 18, Irland. Die Verbindung zu OneDrive wird ausschließlich nach Ihrer ausdrücklichen Einwilligung (OAuth-Autorisierung) hergestellt. Microsoft kann hierbei Verbindungsdaten einschließlich Ihrer IP-Adresse erfassen. Rechtsgrundlage ist Art. 6 Abs. 1 lit. a DSGVO; die Einwilligung ist jederzeit widerrufbar. Microsoft ist nach dem EU-US Data Privacy Framework zertifiziert."
+      },
+      "google_drive": {
+        "heading": "Cloud-Storage-Import: Google Drive",
+        "body": "Optional bieten wir Ihnen die Möglichkeit, Inhalte aus Ihrem persönlichen Google Drive in Merch Miner zu importieren. Anbieter ist die Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland. Die Verbindung zu Google Drive wird ausschließlich nach Ihrer ausdrücklichen Einwilligung (OAuth-Autorisierung) hergestellt. Google kann hierbei Verbindungsdaten einschließlich Ihrer IP-Adresse erfassen. Rechtsgrundlage ist Art. 6 Abs. 1 lit. a DSGVO; die Einwilligung ist jederzeit widerrufbar. Google ist nach dem EU-US Data Privacy Framework zertifiziert."
+      },
+      "user_rights": {
+        "heading": "Ihre Rechte als betroffene Person",
+        "body": "Sie haben jederzeit das Recht auf unentgeltliche Auskunft über Ihre gespeicherten personenbezogenen Daten, deren Herkunft und Empfänger sowie den Zweck der Datenverarbeitung. Sie haben außerdem das Recht auf Berichtigung, Löschung oder Einschränkung der Verarbeitung dieser Daten. Wenn Sie eine Einwilligung zur Datenverarbeitung erteilt haben, können Sie diese Einwilligung jederzeit für die Zukunft widerrufen. Die Rechtmäßigkeit der bis zum Widerruf erfolgten Datenverarbeitung bleibt vom Widerruf unberührt. Darüber hinaus haben Sie das Recht auf Datenübertragbarkeit gemäß Art. 20 DSGVO.",
+        "complaint": "Im Falle datenschutzrechtlicher Verstöße steht Ihnen ein Beschwerderecht bei der zuständigen Aufsichtsbehörde zu, insbesondere in dem Mitgliedstaat ihres gewöhnlichen Aufenthalts, ihres Arbeitsplatzes oder des Orts des mutmaßlichen Verstoßes."
+      },
+      "contact": {
+        "heading": "Kontakt",
+        "body": "Bei Fragen zum Datenschutz oder zur Ausübung Ihrer Rechte erreichen Sie uns unter <a>mariowinter.sg@gmail.com</a>."
+      }
+    }
+  },
+  "footer": {
+    "imprint": "Impressum",
+    "privacy": "Datenschutz",
+    "copyright": "© 2026 - Merch Miner",
+    "aria": "Seitenfußzeile",
+    "legalNavLabel": "Rechtliches"
   }
 }

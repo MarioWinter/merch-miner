@@ -90,7 +90,9 @@ const UserProfileEditor = () => {
   const [showReasoning, setShowReasoning] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
 
+  // Sync local draft when fresh profile data arrives from the server.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (profile) setDraft(profile.content_md ?? '');
   }, [profile]);
 

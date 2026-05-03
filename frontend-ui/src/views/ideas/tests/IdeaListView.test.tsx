@@ -27,13 +27,6 @@ vi.mock('@/store/searchSlice', () => ({ searchApi: fa('searchApi') }));
 vi.mock('@/store/agentSlice', () => ({ agentApi: fa('agentApi') }));
 vi.mock('@/store/collectedProductsSlice', () => ({ collectedProductsApi: fa('collectedProductsApi') }));
 
-// Mock DEV-only mock ideas to empty so tests control all data
-vi.mock('../hooks/useMockIdeas', () => ({ MOCK_IDEAS: [] }));
-// Mock useMockAdaptation hook used in IdeaListView
-vi.mock('../hooks/useMockAdaptation', () => ({
-  useMockAdaptation: () => ({ ideas: [], adaptation: null }),
-}));
-
 import { renderWithProviders } from '../../../utils/test-utils';
 import { IdeaListView } from '../IdeaListView';
 import { makeIdea, makeOrphanIdea, makeAdaptedIdea } from './fixtures';

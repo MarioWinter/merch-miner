@@ -37,6 +37,8 @@ import type {
   FlyingUploadExportResult,
   ExportHistoryParams,
   ExportHistoryResponse,
+  DesignAssetFromDesignBody,
+  DesignAssetFromDesignResponse,
 } from '../views/publish/types';
 import type { BlobResult } from './axiosBaseQuery';
 
@@ -567,8 +569,92 @@ export const publishApi = createApi({
       }),
       providesTags: [{ type: 'ExportHistory', id: 'LIST' }],
     }),
+
+    // ---- Send Designs to Listings (PROJ-9 Phase O, AC-168) ---------------
+    // POST /api/design-assets/from-design/ — creates DesignAsset rows from
+    // approved Design ids. Backend chunks at 50 (HTTP 400 on excess); the
+    // frontend chunking is handled by `sendDesignsInChunks` below.
+    //
+    // Tag invalidation: refresh open Publish gallery (Gallery+GalleryList) +
+    // Listing tags so any open Publish view re-fetches.
+    sendDesignsToListings: builder.mutation<
+      DesignAssetFromDesignResponse,
+      DesignAssetFromDesignBody
+    >({
+      query: (body) => ({
+        url: '/api/design-assets/from-design/',
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: [
+        { type: 'GalleryList', id: 'LIST' },
+        { type: 'Listing', id: 'LIST' },
+      ],
+    }),
   }),
 });
+
+// ---------------------------------------------------------------------------
+// Helper — chunk send-to-listings requests at 50 (mirrors backend cap, AC-167)
+// ---------------------------------------------------------------------------
+
+const SEND_CHUNK_SIZE = 50;
+
+/**
+ * Aggregates per-chunk responses into a single shape. Pure function — easy to
+ * test. Does NOT touch the network; pass it pre-fetched chunk responses.
+ */
+export const aggregateSendResults = (
+  chunks: DesignAssetFromDesignResponse[],
+): DesignAssetFromDesignResponse => {
+  const created: string[] = [];
+  const skipped_duplicates: string[] = [];
+  const rejected_ineligible: DesignAssetFromDesignResponse['rejected_ineligible'] = [];
+  const failed: NonNullable<DesignAssetFromDesignResponse['failed']> = [];
+  for (const c of chunks) {
+    created.push(...c.created);
+    skipped_duplicates.push(...c.skipped_duplicates);
+    rejected_ineligible.push(...c.rejected_ineligible);
+    if (c.failed?.length) failed.push(...c.failed);
+  }
+  return {
+    created,
+    skipped_duplicates,
+    rejected_ineligible,
+    ...(failed.length ? { failed } : {}),
+  };
+};
+
+export type SendInChunksRunner = (
+  body: DesignAssetFromDesignBody,
+) => Promise<DesignAssetFromDesignResponse>;
+
+/**
+ * Splits `design_ids` at SEND_CHUNK_SIZE and runs the supplied mutation
+ * sequentially, aggregating responses. The runner is the
+ * `sendDesignsToListings.unwrap()` callback from the RTK hook.
+ *
+ * Sequential (not parallel) — keeps backend load predictable + lets the user
+ * cancel mid-flight in a future iteration without orphaned requests.
+ */
+export const sendDesignsInChunks = async (
+  designIds: string[],
+  runner: SendInChunksRunner,
+): Promise<DesignAssetFromDesignResponse> => {
+  if (designIds.length === 0) {
+    return { created: [], skipped_duplicates: [], rejected_ineligible: [] };
+  }
+  const chunks: DesignAssetFromDesignResponse[] = [];
+  for (let i = 0; i < designIds.length; i += SEND_CHUNK_SIZE) {
+    const slice = designIds.slice(i, i + SEND_CHUNK_SIZE);
+    const result = await runner({ design_ids: slice });
+    chunks.push(result);
+  }
+  return aggregateSendResults(chunks);
+};
+
+export const SEND_TO_LISTINGS_CHUNK_SIZE = SEND_CHUNK_SIZE;
+export const SEND_TO_LISTINGS_BULK_THRESHOLD = SEND_CHUNK_SIZE;
 
 export const {
   // Listing
@@ -619,4 +705,6 @@ export const {
   usePreviewExportMutation,
   useRunExportMutation,
   useListExportHistoryQuery,
+  // Send Designs to Listings (PROJ-9 Phase O)
+  useSendDesignsToListingsMutation,
 } = publishApi;

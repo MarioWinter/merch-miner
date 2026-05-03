@@ -385,6 +385,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "last_name",
             "date_joined",
             "avatar_url",
+            "is_staff",
+            "is_superuser",
         )
         read_only_fields = fields
 

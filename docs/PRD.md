@@ -44,6 +44,7 @@ Eliminates spreadsheet chaos and tool-switching by connecting niche data, AI-gen
 | P0 (MVP) | PROJ-20: Chat UX Perplexity-Parity | In Review |
 | P1 (Post-MVP) | PROJ-21: Chat Attachments + Document RAG + Agentic Tool-Use | Deferred |
 | P0 (MVP) | PROJ-22: Server-Migration auf VC 8-32 + Mono-Repo Infrastruktur | Planned |
+| P0 (MVP) | PROJ-24: Legal Pages + Global Footer + Feature Flag System | Planned |
 
 ## Success Metrics
 

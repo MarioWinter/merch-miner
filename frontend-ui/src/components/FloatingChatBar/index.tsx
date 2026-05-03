@@ -28,10 +28,12 @@ import ChevronIndicator from './ChevronIndicator';
 import { COLORS, EASING, DURATION } from '@/style/constants';
 
 const BAR_MAX_WIDTH = 600;
-
+// `--footer-offset` is set by AppLayout. When the footer is on screen the bar
+// rides above it; when the footer is below the fold the variable is 0 and the
+// bar sits near the viewport bottom (with the spacing gap below).
 const BarContainer = styled(Box)(({ theme }) => ({
   position: 'fixed',
-  bottom: theme.spacing(2),
+  bottom: `calc(var(--footer-offset, 0px) + ${theme.spacing(2)})`,
   left: '50%',
   transform: 'translateX(-50%)',
   zIndex: theme.zIndex.speedDial,
@@ -39,7 +41,7 @@ const BarContainer = styled(Box)(({ theme }) => ({
   maxWidth: BAR_MAX_WIDTH,
   [theme.breakpoints.down('sm')]: {
     width: 'calc(100% - 24px)',
-    bottom: theme.spacing(1.5),
+    bottom: `calc(var(--footer-offset, 0px) + ${theme.spacing(1.5)})`,
   },
 }));
 
@@ -93,6 +95,13 @@ const FloatingChatBar = () => {
   const { start: startStream } = useSendMessageStream({
     sessionId: activeSessionId,
     onDone: () => {
+      dispatch(setSearching(false));
+      dispatch(clearAttachments());
+    },
+    // Without this the bar stays locked (`searching = true`) after a Vane
+    // 500 / connection-loss / silence-timeout, so the user can't send another
+    // message until they reload. Mirror the onDone reset on every error path.
+    onError: () => {
       dispatch(setSearching(false));
       dispatch(clearAttachments());
     },
@@ -191,6 +200,7 @@ const FloatingChatBar = () => {
             niche_id,
             sessionIdOverride: sessionId,
             attachment_ids,
+            model: selectedModel,
           });
           // searching cleared by useSendMessageStream onDone callback
         }

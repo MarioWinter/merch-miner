@@ -3,6 +3,10 @@ name: CI
 on:
   pull_request:
     branches: [main]
+  # Also run on push to main so docker-publish can be gated on CI success
+  # (without this, a direct merge would skip tests entirely).
+  push:
+    branches: [main]
 
 jobs:
   backend:

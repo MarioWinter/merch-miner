@@ -125,10 +125,19 @@ A dedicated research page (inspired by MerchMatrix / Flying Research) for search
 - [ ] AC-57: **Initial load:** DB Research search returns first 100 products (`page_size=100, page=1`). No upfront full-count query.
 - [ ] AC-58: **Scroll-triggered loading:** When user scrolls near bottom of product list → next page fetched with `page_size=50`. Products appended to existing list (deduplicated by ID).
 - [ ] AC-59: **End detection:** If returned results count < `page_size` → no more pages. Scroll loading stops.
-- [ ] AC-60: **Virtualized rendering:** Product card grid uses `react-virtuoso` (or `@tanstack/react-virtual`) to render only visible cards + buffer. Smooth 60fps scrolling through thousands of products.
+- [ ] AC-60: **Virtualized rendering:** Product card grid uses **`react-virtuoso`** (`<VirtuosoGrid>` component) to render only visible cards + buffer (`overscan` ~5 rows). DOM stays flat (~30 nodes regardless of total count) — RAM stays bounded, scroll stays at 60fps even with 10.000+ accumulated products. Library locked to Virtuoso (vs. TanStack Virtual): VirtuosoGrid is purpose-built for responsive card layouts, ~3x less wiring code, no manual `endReached`-trigger needed (built-in). Trade-off: ~20kB larger bundle than TanStack — acceptable for the dev-velocity gain on this and future virtualized lists. See ADR-002 (architecture-decisions.md) for the cross-cutting pattern.
 - [ ] AC-61: **Loading indicator:** Skeleton cards (same style as Live mode) shown at bottom while next page loads. Removed once products arrive.
 - [ ] AC-62: **Search reset:** New keyword search or filter change resets accumulated products, page counter, and scroll position.
-- [ ] AC-63: **View mode compatible:** Virtualized scroll works in both Grid and List view modes.
+- [ ] AC-63: **View mode compatible:** Virtualized scroll works in both Grid and List view modes. Grid view uses `<VirtuosoGrid>`. List view continues to use MUI `DataGrid` (which has built-in row virtualization) — only the `endReached`-equivalent (DataGrid's `onRowsScrollEnd` or scroll-listener) needs wiring to the same `loadNextPage()` from `useDbInfiniteScroll`. No double-virtualization.
+
+#### Filter-Only Search (amendment 2026-05-01)
+- [ ] AC-64: **DB mode without keyword:** In DB Research mode, the user MAY trigger a search with empty keyword field. Backend `/api/research/products/` already accepts requests without `keyword` param — frontend must allow submitting with no keyword.
+- [ ] AC-64a: **Backend range-filter NULL handling:** Range filters (`bsr_min`/`max`, `reviews_min`/`max`, `price_min`/`max`) match products with NULL values for that field. Reason: 92% of T-shirts in DB have NULL `bsr` and NULL `reviews_count` — strict `.filter(bsr__gte=N)` excluded them silently when user enabled the filter at default full range, returning 0 results unexpectedly. Implemented as `Q(field__gte=N) | Q(field__isnull=True)`.
+- [ ] AC-65: **Search button enable rule:** In DB mode, `Search` button is **always enabled** (keyword optional). In Live mode, keyword stays mandatory (Amazon scrape needs a search term). Marketplace + Product Type + Sort are always-sent params — sufficient as scope.
+- [ ] AC-66: **Hook gate update:** `shouldQueryDb` simplifies to `!isLive && hasSearched` (drops `!!keyword`). The keyword is passed in the API params when present, omitted/empty otherwise.
+- [ ] AC-67: **Empty-keyword UX:** Results header reads "X results (filter only)" when keyword is empty, or "X results for \"keyword\"" when keyword is set. `Copy ASINs` and CSV export work identically.
+- [ ] EC-35: Empty-result set with no keyword → empty state reads "No products match your filters" instead of "No products found for this keyword". CTA "Adjust filters" or "Try Live Research".
+- [ ] EC-36: User searches by keyword, then clears keyword field → next Enter / Search-click triggers a fresh page-1 fetch using whatever filters are active (`resetKey` includes empty keyword + filter state).
 
 ## API Endpoints
 

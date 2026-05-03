@@ -121,7 +121,7 @@ const SourcesPopoverButton = () => {
         transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         slotProps={{
           paper: {
-            'data-testid': 'chat-input-sources-popover',
+            ...({ 'data-testid': 'chat-input-sources-popover' } as object),
             sx: { mt: -0.5, borderRadius: 2 },
           },
         }}

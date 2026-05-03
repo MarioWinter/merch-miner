@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Alert, Badge, Box, Button, IconButton, InputBase, Skeleton, Tooltip, Typography } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -12,6 +12,7 @@ import { useGetProjectQuery, useGetProjectBoardQuery, useUpdateProjectMutation }
 import { useAppDispatch } from '@/store/hooks';
 import { openNicheEdit } from '@/store/chatBarSlice';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import useSendDesignsToListings from '@/hooks/useSendDesignsToListings';
 import useArtboards from '../board/hooks/useArtboards';
 import useRightPanelState from '../board/hooks/useRightPanelState';
 import ArtboardCanvas from '../board/partials/ArtboardCanvas';
@@ -29,6 +30,7 @@ import useEditorBatch from './hooks/useEditorBatch';
 import useWorkspaceCanvas from './hooks/useWorkspaceCanvas';
 import useWorkspaceGeneration from './hooks/useWorkspaceGeneration';
 import useWorkspaceActions from './hooks/useWorkspaceActions';
+import BulkConfirmDialog from './partials/BulkConfirmDialog';
 import {
   WorkspaceRoot,
   HeaderBar,
@@ -149,6 +151,41 @@ const DesignWorkspaceView = () => {
 
   // -- Editor batch state --
   const editorBatchHook = useEditorBatch();
+
+  // -- PROJ-9 Phase O — Send to Listings (selection-driven via right panel) -
+  const sendToListings = useSendDesignsToListings({
+    onSuccess: () => artboardState.deselectAll(),
+  });
+  const boardDesigns = boardData?.designs;
+  const designsByArtboardId = useMemo(() => {
+    const map = new Map<string, { id: string; status: string; has_design_asset?: boolean }>();
+    if (!boardDesigns) return map;
+    const byId = new Map(boardDesigns.map((d) => [d.id, d]));
+    for (const ab of artboardState.artboards) {
+      if (ab.designId && byId.has(ab.designId)) map.set(ab.id, byId.get(ab.designId)!);
+    }
+    return map;
+  }, [artboardState.artboards, boardDesigns]);
+  const hasDesignAssetByArtboard = useCallback(
+    (artboardId: string) => Boolean(designsByArtboardId.get(artboardId)?.has_design_asset),
+    [designsByArtboardId],
+  );
+  const getSendableDesignIds = useCallback(
+    (artboardIds: string[]) => {
+      const result: string[] = [];
+      for (const id of artboardIds) {
+        const design = designsByArtboardId.get(id);
+        if (design?.status === 'approved') result.push(design.id);
+      }
+      return result;
+    },
+    [designsByArtboardId],
+  );
+  const handleSendToListings = useCallback(
+    (designIds: string[]) => { void sendToListings.send(designIds); },
+    [sendToListings],
+  );
+  const inListingsLabel = t('designs.sendToListings.alreadyInListings', 'In Listings');
 
   // -- Dialog state --
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -305,6 +342,8 @@ const DesignWorkspaceView = () => {
                 onAddToEditor={actions.handleAddToEditor}
                 onOpenInEditor={actions.handleOpenInEditor}
                 editingElementId={canvas.textEditing.editingElementId}
+                hasDesignAsset={hasDesignAssetByArtboard}
+                inListingsLabel={inListingsLabel}
               />
               <BottomToolbar
                 zoom={canvas.canvasHook.state.zoom}
@@ -329,6 +368,8 @@ const DesignWorkspaceView = () => {
               onOpenInEditor={actions.handleOpenInEditor}
               onDeleteSelected={actions.handleDeleteSelected}
               onExportSelected={actions.handleExportSelected}
+              getSendableDesignIds={getSendableDesignIds}
+              onSendToListings={handleSendToListings}
               onUpdateElement={canvas.handleElementUpdate}
               onSelectElement={canvas.handleElementSelect}
               onReorderElement={canvas.canvasElements.reorderElement}
@@ -360,7 +401,6 @@ const DesignWorkspaceView = () => {
               selectedIds={artboardState.selectedIds}
               onInsertSlogan={gen.handleInsertSlogan}
               onPromptClick={handlePromptClick}
-              onAddReferenceArtboard={actions.handleAddReferenceArtboard}
               onSelectArtboard={actions.handlePanelSelectArtboard}
               onCreateSkeletonArtboards={gen.handleCreateSkeletonArtboards}
               selectedArtboardId={artboardState.selectedIds.size > 0 ? [...artboardState.selectedIds][0] : undefined}
@@ -390,6 +430,13 @@ const DesignWorkspaceView = () => {
         isLoading={actions.isDeletingFromServer}
       />
       <ProcessingSettingsDialog open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      <BulkConfirmDialog
+        open={Boolean(sendToListings.pendingConfirm)}
+        count={sendToListings.pendingConfirm?.designIds.length ?? 0}
+        isSending={sendToListings.isSending}
+        onConfirm={() => { void sendToListings.confirmPending(); }}
+        onCancel={sendToListings.cancelPending}
+      />
       <PromptBuilderDialog
         open={gen.promptBuilderOpen}
         onClose={gen.handleClosePromptBuilder}

@@ -100,6 +100,10 @@ export interface ArtboardCanvasProps {
   onOpenInEditor?: (artboardIds: string[]) => void;
   /** Element currently being inline-edited (text editing) — hide from Konva render */
   editingElementId?: string | null;
+  /** PROJ-9 Phase O — returns true when at least one DesignAsset already exists for the artboard's design. */
+  hasDesignAsset?: (artboardId: string) => boolean;
+  /** PROJ-9 Phase O — localized label rendered inside the In-Listings chip. */
+  inListingsLabel?: string;
 }
 
 // -----------------------------------------------------------------
@@ -150,6 +154,8 @@ const ArtboardCanvas = ({
   onAddToEditor,
   onOpenInEditor,
   editingElementId,
+  hasDesignAsset,
+  inListingsLabel,
 }: ArtboardCanvasProps) => {
   const { t } = useTranslation();
   const { mode } = useColorScheme();
@@ -428,6 +434,8 @@ const ArtboardCanvas = ({
                 onPenClick={onPenClick}
                 onBrushDrawStart={onBrushDrawStart}
                 editingElementId={editingElementId}
+                hasDesignAsset={hasDesignAsset?.(ab.id) ?? false}
+                inListingsLabel={inListingsLabel}
               />
             ))}
             <RubberBandSelection rect={rubberBand} zoom={zoom} />

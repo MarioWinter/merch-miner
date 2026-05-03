@@ -90,7 +90,7 @@ const ArtboardElement = ({
   }, [isSelected]);
 
   const handleClick = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
+    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
       e.cancelBubble = true;
       if (element.locked) return;
       onSelect(artboardId, element.id);
@@ -99,7 +99,7 @@ const ArtboardElement = ({
   );
 
   const handleDblClick = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
+    (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
       e.cancelBubble = true;
       if (element.locked) return;
       onDoubleClick(artboardId, element.id);

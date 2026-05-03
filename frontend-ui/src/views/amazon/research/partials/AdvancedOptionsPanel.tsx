@@ -13,7 +13,7 @@ import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
 import dayjs from 'dayjs';
-import type { ResearchFilters, FilterEnabled, FilterKey } from '../types';
+import type { ResearchFilters, FilterKey } from '../types';
 import RangeSliderFilter from './RangeSliderFilter';
 import StarRatingFilter from './StarRatingFilter';
 
@@ -21,7 +21,6 @@ interface AdvancedOptionsPanelProps {
   open: boolean;
   isLive: boolean;
   filters: ResearchFilters;
-  enabled: FilterEnabled;
   onFilterChange: <K extends keyof ResearchFilters>(key: K, value: ResearchFilters[K]) => void;
   onEnabledChange: (key: FilterKey, value: boolean) => void;
 }
@@ -37,7 +36,6 @@ const AdvancedOptionsPanel = ({
   open,
   isLive,
   filters,
-  enabled,
   onFilterChange,
   onEnabledChange,
 }: AdvancedOptionsPanelProps) => (
@@ -62,11 +60,6 @@ const AdvancedOptionsPanel = ({
             min={1}
             max={500000}
             step={1000}
-            enabled={enabled.bsr_min}
-            onEnabledChange={(v) => {
-              onEnabledChange('bsr_min', v);
-              onEnabledChange('bsr_max', v);
-            }}
             onChange={([min, max]) => {
               onFilterChange('bsr_min', min);
               onFilterChange('bsr_max', max);
@@ -80,11 +73,6 @@ const AdvancedOptionsPanel = ({
             min={0}
             max={10000}
             step={100}
-            enabled={enabled.reviews_min}
-            onEnabledChange={(v) => {
-              onEnabledChange('reviews_min', v);
-              onEnabledChange('reviews_max', v);
-            }}
             onChange={([min, max]) => {
               onFilterChange('reviews_min', min);
               onFilterChange('reviews_max', max);
@@ -97,11 +85,6 @@ const AdvancedOptionsPanel = ({
             min={1}
             max={100}
             step={1}
-            enabled={enabled.price_min}
-            onEnabledChange={(v) => {
-              onEnabledChange('price_min', v);
-              onEnabledChange('price_max', v);
-            }}
             onChange={([min, max]) => {
               onFilterChange('price_min', min);
               onFilterChange('price_max', max);

@@ -1,3 +1,5 @@
+import type { CanvasElement } from './elements';
+
 export type DesignModel =
   | 'google/gemini-2.5-flash-preview-image-generation'
   | 'google/gemini-3.1-flash-preview-image-generation'
@@ -46,7 +48,15 @@ export interface Design {
   prompt_analysis: Record<string, unknown>;
   upscaled_file: string;
   bg_removed_file: string;
+  /** Latest editor-pipeline output (processed via tools like Trim, Resize, Defringe, etc.). */
+  processed_file: string;
   created_at: string;
+  /**
+   * PROJ-9 Phase O — true when at least one non-deleted DesignAsset exists
+   * with `design_origin=<this.id>`. Backend annotates list endpoints; falls
+   * back to `false` for single-design write responses.
+   */
+  has_design_asset?: boolean;
 }
 
 export interface ReferenceProduct {

@@ -50,7 +50,7 @@ const listingToFormValues = (listing: Listing | null): MbaListingFormValues => {
     bullet_2: listing.bullet_2 ?? '',
     description: listing.description ?? '',
     keyword_context: listing.keyword_context ?? '',
-    translations: (listing.translations as MbaListingFormValues['translations']) ?? {},
+    translations: (listing.translations as unknown as MbaListingFormValues['translations']) ?? {},
     auto_translate: false,
     availability: (listing.availability ?? 'public') as MbaListingFormValues['availability'],
     publish_mode: (listing.publish_mode ?? 'live') as MbaListingFormValues['publish_mode'],
@@ -102,8 +102,12 @@ export const useEditView = () => {
     useState<MarketplaceTab>('mba');
 
   // D5/D7: MBA listing form
+  // The zod resolver's inferred input type allows optional strings (z.string()
+  // is `string | undefined` in v4), which is structurally narrower than
+  // `MbaListingFormValues`. Cast at the resolver boundary so RHF's generic
+  // form type stays the strict, post-parse shape we use elsewhere.
   const listingForm = useForm<MbaListingFormValues>({
-    resolver: zodResolver(mbaListingSchema),
+    resolver: zodResolver(mbaListingSchema) as never,
     defaultValues: mbaListingDefaultValues,
     mode: 'onChange',
   });

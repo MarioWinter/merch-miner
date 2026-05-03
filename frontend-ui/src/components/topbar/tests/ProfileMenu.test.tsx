@@ -69,7 +69,7 @@ describe('ProfileMenu', () => {
 
   it('clears auth state after sign-out is clicked', async () => {
     const { store } = renderMenu('A');
-    store.dispatch(setUser({ id: 1, email: 'alice@x.com', first_name: 'Alice', avatar_url: null }));
+    store.dispatch(setUser({ id: 1, email: 'alice@x.com', first_name: 'Alice', avatar_url: null, is_staff: false, is_superuser: false }));
 
     const avatar = screen.getByLabelText('Profile');
     fireEvent.click(avatar);

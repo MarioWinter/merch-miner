@@ -114,10 +114,13 @@ const MemoryEditor = () => {
     const key = draftStorageKey(memory.id);
     const stored = key ? window.localStorage.getItem(key) : null;
     if (stored !== null && stored !== (memory.content_md ?? '')) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDraft(stored);
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setEditing(true);
       enqueueSnackbar(t('agent.memory.draftRestored'), { variant: 'info' });
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDraft(memory.content_md ?? '');
     }
   }, [memory, editing, enqueueSnackbar, t]);

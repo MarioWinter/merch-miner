@@ -80,6 +80,10 @@ interface RightPanelProps {
   onOpenInEditor: (ids: string[]) => void;
   onDeleteSelected: (ids: string[]) => void;
   onExportSelected: (ids: string[]) => void;
+  /** PROJ-9 Phase O — resolves selected artboard IDs to approved design IDs eligible for Listings. */
+  getSendableDesignIds?: (artboardIds: string[]) => string[];
+  /** PROJ-9 Phase O — sends the approved design IDs to Listings. */
+  onSendToListings?: (designIds: string[]) => void;
   onUpdateElement?: (
     artboardId: string,
     elementId: string,
@@ -147,6 +151,8 @@ const RightPanel = ({
   onOpenInEditor,
   onDeleteSelected,
   onExportSelected,
+  getSendableDesignIds,
+  onSendToListings,
   onUpdateElement,
   onSelectElement,
   onReorderElement,
@@ -272,6 +278,8 @@ const RightPanel = ({
           onOpenInEditor={onOpenInEditor}
           onDeleteAll={onDeleteSelected}
           onExportSelected={onExportSelected}
+          getSendableDesignIds={getSendableDesignIds}
+          onSendToListings={onSendToListings}
         />
       )}
 
@@ -290,6 +298,8 @@ const RightPanel = ({
             onOpenInEditor={onOpenInEditor}
             onExportSelected={onExportSelected}
             onDeleteSelected={onDeleteSelected}
+            getSendableDesignIds={getSendableDesignIds}
+            onSendToListings={onSendToListings}
           />
         )}
 

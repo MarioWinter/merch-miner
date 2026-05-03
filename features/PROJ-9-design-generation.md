@@ -3378,3 +3378,203 @@ All visual checks performed in-browser at localhost:5173. Each view loaded, inte
 - **Remaining Issues:** 3 low/medium pre-existing items (none introduced this session)
 - **Production Ready:** YES -- all critical and high bugs from previous QA report resolved. Zero lint errors, zero test failures. Remaining items are low-priority pre-existing issues.
 - **Recommendation:** Ready to merge. Address KNOWN-2 (cross-hook ref) and KNOWN-3 (text tool) in a future sprint.
+
+---
+
+## Phase O: Send Designs to Listings (Bridge to PROJ-11)
+
+> Added: 2026-05-03. Direct selection-based handoff from Design Workspace + Project Gallery into Publish/Listings without download → reupload roundtrip.
+
+### Overview
+
+Designs (PROJ-9) and DesignAssets (PROJ-11) are two separate models with no bridge today. The only way to use a generated Design as a listing image is to download it and re-upload via the Publish gallery. This phase wires up a server-side bridge: selected Designs are copied into DesignAsset records (`source='generated'`, new `design_origin` FK), inheriting the source Design's `idea` + `niche` so the asset surfaces in the right Niche Pipeline automatically.
+
+The dead stub at `views/niches/list/partials/DesignsPipelineContent.tsx:157` ("Send to Listings" → `navigate('/listings?project=…')` — param ignored) is replaced by this same flow, project-scoped.
+
+**Decisions captured from `/requirements`:**
+
+- Selection UI: both Workspace (per-artboard checkbox in Select Mode) and Project Gallery (whole-project bulk action).
+- After-send: snackbar with optional "Open in Publish" link; user stays on Designs view.
+- Only DesignAssets are created; Listings are NOT auto-created (clean separation, user creates Listings manually in Publish-Edit).
+- DesignAsset gets a `design_origin` FK back to the source Design (dedup, traceability, "In Listings" badge).
+- Re-send of the same Design → silently skipped (dedup), counted in snackbar as "already in Listings".
+- Auto-fill `idea` + `niche` from `Design.idea` chain.
+- Approval gate: only `Design.status='approved'` is sendable.
+- Bulk: soft cap 50 with confirm modal; backend chunks at 50.
+
+### User Stories
+
+- As a member, I want a multi-select mode on the Design Workspace canvas, so I can pick approved designs and send them to Listings without leaving the page.
+- As a member, I want a "Send N to Listings" bulk action, so I avoid one-by-one workflows.
+- As a member, I want a "Send all approved to Listings" action on each Project Gallery card, so I can ship a whole project at once.
+- As a member, I want the new DesignAsset to inherit the source Design's idea + niche, so it shows up in the right Niche Pipeline without manual tagging.
+- As a member, I want already-sent designs to be marked visually, so I don't accidentally re-send them.
+- As a member, I want a snackbar with an "Open in Publish" link after sending, so I can jump to the Publish view if I want — but I'm not forced to.
+- As a member, I want only approved designs to be sendable, so half-baked drafts don't clutter Publish.
+
+### Acceptance Criteria
+
+#### Selection UI — Workspace + Project Gallery
+
+- [ ] AC-160: Design Workspace gains a "Select Mode" toggle in the canvas toolbar. When active: every artboard shows a top-left checkbox; clicking the artboard body toggles selection (no longer enters edit/transform); a sticky bottom action bar exposes selection count and a "Send to Listings" CTA. Toggle off → returns to default canvas behavior, selection cleared.
+- [ ] AC-161: Project Gallery (`/designs`) ProjectCard hover overlay gains a paper-plane icon button "Send all approved to Listings". Click → confirm if >50 designs (per AC-167); on success → same snackbar as AC-169.
+- [ ] AC-162: "Send to Listings" CTA is enabled only when ≥1 approved design is selected. Pending/rejected designs are visually marked as ineligible in Select Mode (greyed checkbox + tooltip "Only approved designs can be sent"). Backend filter is the source of truth (AC-165).
+
+#### Backend — Model + Endpoint
+
+- [ ] AC-163: New model field `DesignAsset.design_origin` — FK to `design_app.Design`, nullable, `on_delete=SET_NULL`, `db_index=True`. Used for dedup queries + "In Listings" indicator.
+- [ ] AC-164: New endpoint `POST /api/design-assets/from-design/`. Auth required (`CookieJWTAuthentication` + `IsAuthenticated`), workspace-isolated (current workspace from session/header). Body: `{ design_ids: [uuid, ...] }`. Response: `{ created: [<asset_id>, ...], skipped_duplicates: [<design_id>, ...], rejected_ineligible: [{ id, reason }, ...] }`.
+- [ ] AC-165: Backend filters in this order: (1) workspace isolation — designs not in the user's workspace are silently dropped (NOT included in any response array, treated as if never sent); (2) approval gate — `Design.status='approved'` only, others go to `rejected_ineligible` with `reason='not_approved'`; (3) image presence — designs with empty `image_file` go to `rejected_ineligible` with `reason='no_image'`; (4) dedup — designs whose `design_origin` already has a non-deleted DesignAsset go to `skipped_duplicates`.
+- [ ] AC-166: For each eligible design, the backend creates a new DesignAsset with: `source='generated'`, `design_origin=<design.id>`, `idea=<design.idea>` (if present), `niche=<design.idea.niche>` (if idea has niche), `workspace=<request workspace>`, `file=<copy of design.image_file>`. File copy via `default_storage.save(new_path, ContentFile(design.image_file.read()))` — storage-backend agnostic, no temp file in request cycle, no symlink/hardlink.
+- [ ] AC-167: Bulk soft cap — when `len(design_ids) > 50` the endpoint returns HTTP 400 with body `{ error: 'bulk_too_large', max: 50 }`. Frontend pre-checks and shows a confirm modal at >50; on confirm, sends in chunks of 50, aggregating responses for the final snackbar.
+
+#### Frontend — Mutation + Snackbar
+
+- [ ] AC-168: New RTK Query mutation `sendDesignsToListings` in `publishSlice.ts`, args `{ design_ids: string[] }`, success invalidates tags `[DesignAssets, Listing]` so an open Publish view refreshes.
+- [ ] AC-169: On success snackbar variant=success: `t('designs.sendToListings.successCount', { created, skipped })` rendered as e.g. "5 sent to Listings, 2 already there." Snackbar action button "Open in Publish" → `navigate('/publish')`. On error: variant=error with backend error message; selection is preserved (user can retry).
+- [ ] AC-170: After success: Select Mode is exited automatically; selection state is cleared; user stays on the current Designs view. No automatic navigation.
+
+#### Already-Sent Indicator
+
+- [ ] AC-171: Design cards (Workspace artboards + Project Gallery thumbnails) show a small chip "In Listings" when a non-deleted DesignAsset with `design_origin=<this.id>` exists. The flag is delivered via existing design-list serializer extended with a `has_design_asset: bool` SerializerMethodField. No extra round-trip per card.
+
+#### Niche-Drawer Stub Replacement
+
+- [ ] AC-172: `views/niches/list/partials/DesignsPipelineContent.tsx:157` "Send to Listings" inline button no longer navigates. Click → calls `sendDesignsToListings` with all approved designs in the project (frontend collects ids). Snackbar matches AC-169. Confirms at >50 per AC-167.
+
+#### i18n
+
+- [ ] AC-173: New EN keys: `designs.sendToListings.cta`, `designs.sendToListings.selectModeToggle`, `designs.sendToListings.successCount`, `designs.sendToListings.bulkConfirm`, `designs.sendToListings.openInPublish`, `designs.sendToListings.alreadyInListings`, `designs.sendToListings.bulkTooLarge`, `designs.sendToListings.noEligible`, `designs.sendToListings.notApprovedTooltip`. All synced to DE/FR/IT/ES.
+
+### Edge Cases
+
+- [ ] EC-53: User selects 0 approved designs (only pending/rejected) → CTA stays disabled. If invoked via keyboard accessibility anyway, snackbar variant=warning: `t('designs.sendToListings.noEligible')`.
+- [ ] EC-54: User sends a Design whose `image_file` is missing (orphan record) → backend includes it in `rejected_ineligible` with `reason='no_image'`. Snackbar mentions: "1 design had no image file."
+- [ ] EC-55: Storage error during file copy (S3 rate limit / disk full) → endpoint returns 207 Multi-Status with per-design outcomes. Frontend shows partial-success snackbar with retry action; failed ids stay selected so the user can retry without re-picking.
+- [ ] EC-56: User deletes the source Design after sending → `DesignAsset.design_origin` becomes NULL (SET_NULL). The DesignAsset still functions in Publish (it owns a copied file). The "In Listings" chip is irrelevant at that point because the source Design card no longer exists.
+- [ ] EC-57: User selects 73 designs → frontend confirm modal: `t('designs.sendToListings.bulkConfirm', { count: 73 })` "You're sending 73 designs — proceed?". On confirm: backend called in 2 chunks (50 + 23); per-chunk responses aggregated for the snackbar (e.g. "65 sent to Listings, 8 already there.").
+- [ ] EC-58: Workspace isolation — user without active membership tries the endpoint directly → 403. UI never exposes the path (button hidden in views via standard membership checks).
+- [ ] EC-59: Double-click race — second send fires while the first is still pending → frontend disables the CTA while the mutation is `loading`. If somehow both fire, the second is fully deduped (everything in `skipped_duplicates`); snackbar shows "0 sent, N already there." Idempotent, no harm.
+- [ ] EC-60: User sends, then immediately deletes one of the just-created DesignAssets in Publish, then re-sends the same source Design → because `is_deleted=true` rows do not block dedup (`DesignAsset.objects.filter(design_origin=X, is_deleted=False)`), the second send succeeds and creates a fresh asset. Documented behavior, not a bug.
+
+### Dependencies
+
+- PROJ-9 (Design Forge — Design model, workspace, gallery, approval status)
+- PROJ-11 (Publish — DesignAsset model with `idea`/`niche`/`source` fields already in place; `source='generated'` enum value already declared but currently unused)
+
+### Tech Design (Phase O)
+
+> Added: 2026-05-03 by `/architecture`. PM-readable design — implementation lives in `docs/tasks/PROJ-9-tasks.md` Phase O.
+
+#### Component Tree (Frontend)
+
+```
+Design Workspace (/designs/:projectId)
+├── CanvasToolbar (existing)
+│   └── SelectModeToggle (NEW) — flips canvas into multi-select mode
+├── ArtboardCanvas (existing)
+│   └── Artboard / ArtboardElement (existing, extended)
+│       ├── SelectionCheckbox (NEW, visible only in Select Mode)
+│       └── InListingsChip (NEW, visible when design.has_design_asset)
+└── BulkActionBar (NEW, sticky-bottom, visible only in Select Mode)
+    ├── SelectionCount
+    ├── SendToListingsCTA (NEW)
+    └── BulkConfirmDialog (NEW, opens when selection > 50)
+
+Project Gallery (/designs)
+└── ProjectCard (existing)
+    └── HoverOverlay
+        └── SendAllToListingsButton (NEW, paper-plane icon)
+
+Niche Drawer › DesignsPipelineContent.tsx
+└── "Send to Listings" button (REWIRE — direct mutation call instead of navigate)
+```
+
+#### Data Model Changes
+
+| Change | Where | Detail |
+|---|---|---|
+| ADD field | `publish_app.DesignAsset.design_origin` | FK → `design_app.Design`, nullable, `on_delete=SET_NULL`, `db_index=True` |
+| Migration | `publish_app/migrations/00XX_designasset_design_origin.py` | Auto-generated. Nullable → no data migration. |
+| EXTEND serializer | `design_app.api.serializers.DesignSerializer` | Add `has_design_asset: bool` `SerializerMethodField`. Queryset uses `prefetch_related('design_assets')` to avoid N+1. |
+| No new model | — | Listings are NOT auto-created (per AC). DesignCollection unchanged. |
+
+#### API Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/design-assets/from-design/` | Bulk-create DesignAssets from Design ids |
+
+- **Auth:** `CookieJWTAuthentication` + `IsAuthenticated`, workspace-scoped
+- **Body:** `{ design_ids: ["<uuid>", ...] }` — max 50 per request
+- **Success (200):** `{ created: [<asset_id>], skipped_duplicates: [<design_id>], rejected_ineligible: [{ id, reason }] }`
+- **Partial (207):** same shape, plus `failed: [{ id, error }]` when storage copy fails per-design
+- **Reject (400):** `{ error: 'bulk_too_large', max: 50 }` when request exceeds cap
+
+#### Tech Decisions
+
+| Decision | Why |
+|---|---|
+| File copy via `default_storage.save()` (not symlink/hardlink) | Storage-backend agnostic (local FS, S3, GCS). Two records own physical files independently so deletion of either doesn't break the other. |
+| `design_origin` FK with `SET_NULL` on delete | Keeps DesignAsset functional even if source Design is deleted. Loses traceability gracefully, prevents cascade-deletion of legitimate assets. |
+| `has_design_asset` via `Exists()` subquery annotation, not nested prefetch | Returns boolean directly from SQL, no DesignAsset objects loaded into RAM. Scales linearly with the design count regardless of how many assets each design has. |
+| Soft cap 50 enforced **both** frontend (UX) and backend (security) | Frontend prevents accidental huge sends; backend prevents API abuse. Frontend chunks at 50 with user confirmation. |
+| RTK invalidation tags `[DesignAssets, Listing]` | Refreshes Publish view if open. `Listing` tag is defensive (no listings are created today; future-proof if AC changes). |
+| Select Mode = component-local state, not Redux | Selection is ephemeral and page-scoped. No persistence value. Keeps Redux surface tight. |
+| Approval gate enforced **server-side** primarily, mirrored client-side as UX hint | Server is source of truth; client filtering is purely cosmetic. Prevents bypass via direct API calls. |
+| Per-design atomic transactions (not single big transaction) | If 1 of 50 fails (e.g. storage hiccup), other 49 still succeed → 207 Multi-Status. Better UX than all-or-nothing. |
+| `file_size` + `dimensions` populated from source Design at copy time | The source already has these (Pillow on generation). Re-deriving on Asset side wastes I/O. |
+| `vision_analysis` NOT carried over | Vision cache is for the Asset's role in Publish (PROJ-11 Phase M). Re-analyze on demand if needed — different use-case. |
+
+#### Edge Case Notes (post-code-inspection adjustments)
+
+- **EC-60** (soft-delete edge): `DesignAsset` has **no** `is_deleted` field today — hard delete only. The behavior described in the spec still holds because dedup query `DesignAsset.objects.filter(design_origin=X).exists()` simply returns false after a hard delete, so a re-send creates a fresh asset. EC-60 stays valid; the wording in Phase O Overview about `is_deleted=False` does not apply to current code.
+
+#### File Structure
+
+```
+django-app/
+├── publish_app/
+│   ├── migrations/00XX_designasset_design_origin.py    (NEW)
+│   ├── models.py                                        (EDIT: add FK)
+│   ├── api/
+│   │   ├── serializers.py                               (EDIT: input serializer)
+│   │   ├── views.py                                     (EDIT: new view)
+│   │   └── urls.py                                      (EDIT: new route)
+│   └── tests/
+│       └── test_design_asset_from_design.py             (NEW)
+└── design_app/
+    └── api/
+        ├── serializers.py                               (EDIT: has_design_asset field)
+        └── views.py                                     (EDIT: prefetch design_assets)
+
+frontend-ui/src/
+├── store/
+│   └── publishSlice.ts                                  (EDIT: sendDesignsToListings mutation)
+├── views/designs/
+│   ├── workspace/
+│   │   ├── DesignWorkspaceView.tsx                      (EDIT: wire Select Mode)
+│   │   ├── partials/
+│   │   │   ├── SelectModeToggle.tsx                     (NEW)
+│   │   │   ├── BulkActionBar.tsx                        (NEW)
+│   │   │   ├── BulkConfirmDialog.tsx                    (NEW)
+│   │   │   └── Artboard.tsx                             (EDIT: checkbox + chip)
+│   │   ├── hooks/
+│   │   │   └── useSelectMode.ts                         (NEW)
+│   │   └── tests/
+│   │       └── useSelectMode.test.ts                    (NEW)
+│   └── gallery/
+│       └── ProjectGalleryView.tsx                       (EDIT: hover action)
+└── views/niches/list/partials/
+    └── DesignsPipelineContent.tsx                       (EDIT: rewire button)
+
+frontend-ui/public/locales/{en,de,fr,it,es}/translation.json (EDIT: designs.sendToListings.*)
+```
+
+#### Dependencies (Packages)
+
+No new packages required. Uses existing stack: MUI v7, RTK Query, notistack, DRF, Django `default_storage`.
+
+#### Implementation Status
+
+_To be filled by `/backend` + `/frontend`. See `docs/tasks/PROJ-9-tasks.md` Phase O for the executable checklist._

@@ -2091,3 +2091,143 @@
 - [x] Removed duplicated sizing logic from 4 files
 - [x] `npx tsc --noEmit` clean
 - [x] `npm run lint` clean
+
+---
+
+## Phase O: Send Designs to Listings — Bridge to PROJ-11 (AC-160 to AC-173, EC-53 to EC-60)
+
+> Added: 2026-05-03. See `features/PROJ-9-design-generation.md` "Phase O" for spec + tech design.
+
+### Phase O1: Backend — Model + Migration (AC-163)
+
+- [x] `publish_app/models.py`: add `DesignAsset.design_origin` FK to `design_app.Design`, `null=True`, `blank=True`, `on_delete=models.SET_NULL`, `related_name='derived_assets'`, `db_index=True`
+- [x] Run `python manage.py makemigrations publish_app` → review generated migration (should be a single AddField op, no data migration)
+- [x] Run `python manage.py migrate publish_app` locally + verify schema in Postgres (`\d publish_app_designasset`)
+- [x] Update `publish_app/admin.py` if `DesignAsset` is registered — add `design_origin` to `list_display` / `raw_id_fields` for debug visibility
+
+### Phase O2: Backend — DesignAssetFromDesignView (AC-164, AC-165, AC-166, AC-167)
+
+- [x] `publish_app/api/serializers.py`: add `DesignAssetFromDesignInputSerializer` (`design_ids: list[UUID]`, `min_length=1`). Bulk cap is enforced in the view to control the exact error body shape (AC-167).
+- [x] `publish_app/api/serializers.py`: add `DesignAssetFromDesignResultSerializer`
+- [x] `publish_app/api/views.py`: add `DesignAssetFromDesignView(APIView)`
+- [x] View: explicit `Membership` check on the requested workspace (defensive — `_get_workspace_id` only trusts the header). Returns 403 on missing active membership (EC-58).
+- [x] View: filter `Design.objects.filter(id__in=design_ids, workspace_id=ws_id)` with `select_related('idea', 'idea__niche')`
+- [x] View: per design, classify (approval → image presence → dedup) and copy via `default_storage.open` + `ContentFile` inside a per-design `transaction.atomic()` block; storage errors per-design go to `failed`
+- [x] View response: 200 vs 207 Multi-Status when `failed` is non-empty
+- [x] `publish_app/api/urls.py`: register `path('design-assets/from-design/', ...)`
+
+### Phase O3: Backend — has_design_asset on Design list views (AC-171)
+
+- [x] `design_app/api/views.py`: add module-level `_annotate_has_design_asset(qs)` helper using `Exists(DesignAsset.objects.filter(design_origin=OuterRef('pk')))`. Lazy import of `publish_app.models.DesignAsset` keeps import order one-way.
+- [x] Wire annotation into list-style endpoints:
+  - [x] `DesignBoardView` (GET `/api/ideas/{id}/design-board/`)
+  - [x] `DesignListView` (GET `/api/ideas/{id}/designs/`)
+  - [x] `DesignListByIdsView` (GET `/api/designs/?ids=...`)
+  - [x] `RunStatusView` (GET `/api/designs/runs/{run_id}/` — completed designs)
+  - [x] `ProjectDetailView` (GET `/api/designs/projects/{id}/` — project designs)
+- [x] `design_app/api/serializers.py`: `has_design_asset = serializers.BooleanField(read_only=True, default=False)` already in `DesignSerializer`. `default=False` covers single-instance write responses (POST/PATCH) where the queryset isn't annotated — the user just touched the design, "in Listings" is naturally false.
+- [x] Single-design write responses (DesignDetailView PATCH, BatchProcess responses, etc.) intentionally fall back to the serializer default — no annotation needed for those paths.
+
+### Phase O4: Backend — Tests (AC-160 to AC-173 coverage) — 18 tests, all green
+
+- [x] `publish_app/tests/test_design_asset_from_design.py` (new)
+- [x] Happy path: single approved → 1 asset, correct origin/idea/niche/source/file_size
+- [x] Happy path: bulk of 5 → 5 assets
+- [x] Happy path: design without idea → asset has idea=None, niche=None
+- [x] Happy path: idea without niche → asset has idea set, niche=None
+- [x] Approval gate (parametrized over pending/rejected/failed) → all 3 → `rejected_ineligible.reason='not_approved'`
+- [x] Image presence: design without image_file → `reason='no_image'`
+- [x] Dedup: re-send same design → `skipped_duplicates`, no 2nd asset
+- [x] EC-60 edge: hard-delete the asset, re-send → new asset created
+- [x] Workspace isolation: foreign-workspace design silently dropped (not in any response array)
+- [x] Bulk cap: 51 ids → 400 `{error:'bulk_too_large', max:50}`
+- [x] Bulk cap: 50 ids accepted (foreign-workspace ids drop silently)
+- [x] Bulk cap: empty `design_ids` → 400 validation error
+- [x] Auth: anonymous → 401/403
+- [x] Auth: authenticated but no active membership in target workspace → 403 (EC-58)
+- [x] Partial failure: storage error on 2nd item → 207 with `created=[d1]`, `failed=[d2]`
+- [x] `has_design_asset` annotation flips false → true after send (verified via `/api/designs/?ids=...` list endpoint)
+- [x] `docker compose exec web pytest publish_app/tests/test_design_asset_from_design.py -v` → 18 passed
+- [x] Full sweep `pytest design_app/ publish_app/` → 543 passed, no regressions
+
+### Phase O5: Frontend — RTK Mutation (AC-168) ✅
+
+- [x] `store/publishSlice.ts`: add `sendDesignsToListings` mutation, args `{ design_ids: string[] }`, `invalidatesTags: [{ type: 'GalleryList', id: 'LIST' }, { type: 'Listing', id: 'LIST' }]`
+- [x] Type the response shape `{ created: string[]; skipped_duplicates: string[]; rejected_ineligible: { id: string; reason: string }[]; failed?: { id: string; error: string }[] }`
+- [x] `sendDesignsInChunks(design_ids, runner)` helper splits at 50 and aggregates responses (sequential, not parallel)
+- [x] Pure `aggregateSendResults(chunks)` extractor for unit testing
+- [x] Constants exported: `SEND_TO_LISTINGS_CHUNK_SIZE`, `SEND_TO_LISTINGS_BULK_THRESHOLD`
+
+### Phase O6: Frontend — Send to Listings via existing canvas selection (AC-160, AC-162, AC-167, AC-169, AC-170) ✅ — **REFACTORED 2026-05-03**
+
+> **Major design pivot 2026-05-03 (after first impl):** the originally-spec'd separate "Select Mode" (toggle button + Konva checkbox + body-click selection + sticky BulkActionBar) was **scrapped** because the canvas already has rubber-band + shift-click multi-selection, and the right-panel SELECTION section (`PanelMultiState`/`PanelArtboardState`) already exposes per-selection actions (Add to Editor, Open in Editor, Export, Delete). Adding a parallel selection mechanism was redundant. Send-to-Listings is now a **5th icon button in the existing SELECTION action toolbar** in the right panel.
+
+- [x] `views/designs/board/partials/rightPanel/PanelMultiState.tsx` — added Send `<ToolbarButton>` between Export and Delete; uses `getSendableDesignIds(artboardIds)` to resolve approved design IDs from selection; tooltip shows "Send N approved designs to Listings" or "No approved designs in selection" (disabled state).
+- [x] `views/designs/board/partials/rightPanel/PanelArtboardState.tsx` — same Send button for the single-artboard selection panel (AC-160 still applies to single-select).
+- [x] `views/designs/board/partials/RightPanel.tsx` — forwards `getSendableDesignIds` + `onSendToListings` props to both panels.
+- [x] `views/designs/workspace/DesignWorkspaceView.tsx` — wires `useSendDesignsToListings({ onSuccess: () => artboardState.deselectAll() })`; computes `designsByArtboardId` map; exports `getSendableDesignIds` (filters to `status==='approved'`) + `handleSendToListings` to RightPanel.
+- [x] `views/designs/workspace/partials/BulkConfirmDialog.tsx` — kept (used for >50 confirm).
+- [x] Shared hook `frontend-ui/src/hooks/useSendDesignsToListings.tsx` (NEW) handles chunking + snackbar + retry + confirm. Reused by O6, O7, O9.
+- [x] Snackbar conditional persistence:
+  - [x] `created > 0` → `success`, **`persist: true`**, action buttons "Open in Publish" + Close
+  - [x] `created === 0 && skipped > 0` → `info`, auto-close
+  - [x] `failed.length > 0` (207) → `warning`, **`persist: true`**, action "Retry" (via performSendRef) + Close
+  - [x] empty input → `warning`, auto-close
+
+**Removed during refactor (no longer needed):**
+- `useSelectMode.ts` hook + test
+- `SelectModeToggle.tsx` component
+- `BulkActionBar.tsx` component + test
+- Konva checkbox + ineligibility veil + select-mode-specific selection ring + native-tooltip-via-stage-container in `Artboard.tsx`
+- All select-mode props in `Artboard.tsx` + `ArtboardCanvas.tsx`
+- i18n keys: `selectModeToggle`, `selectedCount_*`, `ineligibleCount_*` (replaced by `sendCount_*` + `noEligibleInSelection`)
+
+### Phase O7: Frontend — Project Gallery Bulk Action (AC-161) ✅
+
+- [x] `views/designs/gallery/partials/ProjectCard.tsx` — paper-plane `<SendButton>` (styled IconButton) top-left of thumbnail, hover-fade-in like the existing menu button. `aria-label={t('designs.sendToListings.cta')}`.
+- [x] `views/designs/gallery/ProjectGalleryView.tsx` — `useLazyGetProjectBoardQuery` fetches the board on click, filters approved designs, calls `useSendDesignsToListings.send()`. **Adjustment:** uses `project.design_count === 0` as the disabled signal (per Decision 3 — no Project serializer extension); when `design_count > 0` the button stays enabled and click validates by fetching the board.
+- [x] Confirm modal at > 50 reused via shared `<BulkConfirmDialog>` rendered in `ProjectGalleryView`.
+
+### Phase O8: Frontend — In-Listings Indicator (AC-171) ✅
+
+- [x] `Design` type in `views/designs/board/types/index.ts` extended with `has_design_asset?: boolean`. **Adjustment:** path is `board/types/index.ts` (no `designs/types/` exists).
+- [x] Artboard renders Konva-drawn pill (`Group` with rounded `Rect` + `Text`) top-right when `hasDesignAsset === true`. **Adjustment:** Konva primitives instead of MUI `<Chip>` (Konva canvas constraint, see O6).
+- [x] Project Card footer aggregate intentionally omitted (Decision 3).
+
+### Phase O9: Frontend — Niche-Drawer Stub Replacement (AC-172) ✅
+
+- [x] `views/niches/list/partials/DesignsPipelineContent.tsx` — removed `navigate('/listings?project=...')`. Click handler now lazily fetches the project board, filters approved designs, calls `useSendDesignsToListings.send()`.
+- [x] Reuses `<BulkConfirmDialog>` for > 50 case.
+- [x] Tooltip text via `t('designs.sendToListings.cta')`.
+- [x] `InlineFlowButton` interface widened: `onClick: (event?: React.MouseEvent<HTMLButtonElement>) => void` so the handler can `stopPropagation()` on the wrapping ProjectRow.
+
+### Phase O10: i18n (AC-173) ✅
+
+- [x] EN keys added to `frontend-ui/public/locales/en/translation.json` under top-level `designs.sendToListings.*` (kept separate from existing `design.*` namespace per spec wording). 9 spec'd keys + extras (`confirm`, `retry`, `partialFailure`, `selectedCount`, `ineligibleCount`) for the bar/dialog/snackbar.
+- [x] Translated to `de`, `fr`, `it`, `es` (45+ strings; pluralization via `_one` / `_other` for the count keys).
+- [x] Added `common.unexpectedError` to all 5 locales for the catch-all error toast in `useSendDesignsToListings`.
+
+### Phase O11: Tests (Frontend) ✅ — **REFACTORED 2026-05-03**
+
+- [x] `views/designs/workspace/partials/tests/PanelMultiStateSend.test.tsx` (4 tests) — Send button rendered when callback provided, hidden when omitted, disabled when sendable list empty, calls callback with **design IDs** (resolved via `getSendableDesignIds`) NOT artboard IDs.
+- [x] `views/designs/workspace/partials/tests/BulkConfirmDialog.test.tsx` (5 tests) — kept from first impl.
+- [x] `views/niches/list/partials/tests/DesignsPipelineContent.test.tsx` (2 tests) — Send button calls mutation with approved IDs and does NOT navigate to `/listings`.
+- [x] **Deleted:** `useSelectMode.test.ts` (7 tests) and `BulkActionBar.test.tsx` (6 tests) — those features were removed in the refactor.
+- [x] `DesignWorkspaceView.test.tsx` + `ProjectGalleryView.test.tsx` — kept, mocks updated for `useSendDesignsToListingsMutation` + `useLazyGetProjectBoardQuery`.
+- [x] `npm run test:ci` → 1375 passed, 0 failed (net +4: added 4, removed 13 obsolete from earlier impl).
+
+### Phase O12: Verification + Handoff
+
+- [x] `npx tsc --noEmit` clean
+- [x] `npm run lint` clean for Phase O changes (14 pre-existing errors in AgentPanel/EditorCanvas/ExportPreflightDialog remain — none touched in this phase)
+- [x] `npm run test:ci` clean — 1375 passed (after refactor)
+- [ ] `docker compose exec web pytest publish_app/ design_app/ -q` clean (backend O1–O4 already verified at 543 tests on 2026-05-03; not re-run here)
+- [ ] Manual smoke test (user to perform):
+  - [ ] Generate 3 designs, approve 2, leave 1 pending
+  - [ ] Workspace Select Mode → check all 3 → only 2 eligible → click Send → snackbar "2 sent, 0 already there." → Open in Publish → see both assets in Gallery, source=generated, idea + niche populated
+  - [ ] Re-send the same 2 → snackbar "0 sent, 2 already there." → no duplicates
+  - [ ] Hard-delete one DesignAsset in Publish → re-send that Design → new asset created
+  - [ ] Project Gallery hover → "Send all approved" → same outcome for project's approved designs
+  - [ ] Niche-Drawer "Send to Listings" → works (no longer navigates)
+- [ ] Update `features/INDEX.md` PROJ-9 status if all phases done (stays "In Progress" until QA)
+- [ ] Handoff: `/qa` for Phase O regression + acceptance audit

@@ -1589,6 +1589,25 @@
       "importFromCloud": "Importa dal cloud"
     }
   },
+  "designs": {
+    "sendToListings": {
+      "cta": "Invia agli annunci",
+      "successCount": "{{created}} inviati agli annunci, {{skipped}} già presenti.",
+      "bulkConfirm": "Stai inviando {{count}} design — procedere?",
+      "openInPublish": "Apri in Publish",
+      "alreadyInListings": "Negli annunci",
+      "bulkTooLarge": "Massimo 50 design per richiesta.",
+      "noEligible": "Nessun design approvato da inviare.",
+      "noEligibleInSelection": "Nessun design approvato nella selezione",
+      "notApprovedTooltip": "Solo i design approvati possono essere inviati.",
+      "sendCount_one": "Invia {{count}} design approvato agli annunci",
+      "sendCount_other": "Invia {{count}} design approvati agli annunci",
+      "partialFailure_one": "{{failed}} design non è stato inviato.",
+      "partialFailure_other": "{{failed}} design non sono stati inviati.",
+      "confirm": "Invia",
+      "retry": "Riprova"
+    }
+  },
   "amazonResearch": {
     "detail": {
       "breadcrumb": "Amazon Research",
@@ -2340,7 +2359,9 @@
     "close": "Chiudi",
     "retry": "Riprova",
     "cancel": "Annulla",
-    "save": "Salva"
+    "save": "Salva",
+    "back": "Indietro",
+    "unexpectedError": "Errore inatteso"
   },
   "dashboard": {
     "agent": {
@@ -2861,5 +2882,104 @@
       "untilNext": "Sessioni alla prossima: {{count}}",
       "viewMemory": "Vedi memoria"
     }
+  },
+  "legal": {
+    "translation_disclaimer": "Questa è una traduzione. In caso di controversia, prevarrà la versione tedesca.",
+    "imprint": {
+      "title": "Note legali",
+      "operator": {
+        "heading": "Informazioni ai sensi del § 5 TMG",
+        "body": "Mario Winter\nAußenliegend 4\n61209 Echzell\nDeutschland"
+      },
+      "contact": {
+        "heading": "Contatto",
+        "phone_line": "Telefono: <a>+49 1601546188</a>",
+        "email_line": "E-mail: <a>mariowinter.sg@gmail.com</a>"
+      },
+      "languages": {
+        "heading": "Lingue disponibili",
+        "body": "Questo sito è disponibile nelle seguenti lingue: tedesco, inglese, francese, spagnolo e italiano."
+      },
+      "vat": {
+        "heading": "Numero di partita IVA",
+        "body": "Numero di identificazione IVA ai sensi del § 27 a della legge tedesca sull'IVA: DE327848620"
+      },
+      "dsa": {
+        "heading": "Punto di contatto ai sensi dell'art. 12 DSA",
+        "body": "Punto di contatto per autorità e utenti ai sensi degli artt. 11 e 12 del Digital Services Act (DSA):\n\nMario Winter\nAußenliegend 4\n61209 Echzell\nDeutschland\n\nTelefono: +49 1601546188\nE-mail: mariowinter.sg@gmail.com\n\nLa comunicazione può avvenire in tedesco o in inglese."
+      },
+      "disclaimer": {
+        "heading": "Esclusione di responsabilità",
+        "content_heading": "Responsabilità per i contenuti",
+        "content_body": "In qualità di fornitori di servizi siamo responsabili dei contenuti propri presenti su queste pagine ai sensi del § 7, comma 1, TMG, conformemente alle leggi generali. Ai sensi dei §§ 8-10 TMG, tuttavia, in qualità di fornitori di servizi non siamo tenuti a sorvegliare le informazioni di terzi trasmesse o memorizzate né a indagare circostanze che indichino un'attività illecita. Restano impregiudicati gli obblighi di rimozione o di blocco dell'utilizzo di informazioni in base alle leggi generali. Una responsabilità in tal senso, tuttavia, sussiste solo a partire dal momento in cui si ha conoscenza di una concreta violazione del diritto. Non appena verremo a conoscenza di tali violazioni, rimuoveremo immediatamente i relativi contenuti.",
+        "links_heading": "Responsabilità per i link",
+        "links_body": "La nostra offerta contiene link a siti web esterni di terzi, sui cui contenuti non abbiamo alcuna influenza. Per questo motivo non possiamo assumere alcuna garanzia per tali contenuti di terzi. Per i contenuti delle pagine collegate è sempre responsabile il rispettivo fornitore o gestore delle pagine. Le pagine collegate sono state controllate al momento del collegamento per verificare eventuali violazioni di legge. Al momento del collegamento non erano riconoscibili contenuti illegali. Tuttavia, un controllo permanente dei contenuti delle pagine collegate non è ragionevolmente esigibile in assenza di indizi concreti di una violazione. Non appena verremo a conoscenza di violazioni, rimuoveremo immediatamente tali link.",
+        "copyright_heading": "Diritto d'autore",
+        "copyright_body": "I contenuti e le opere create dai gestori del sito su queste pagine sono soggetti al diritto d'autore tedesco. La riproduzione, l'elaborazione, la diffusione e qualsiasi forma di sfruttamento al di fuori dei limiti del diritto d'autore richiedono il consenso scritto del rispettivo autore o creatore. Download e copie di questo sito sono consentiti solo per uso privato e non commerciale. Nella misura in cui i contenuti di questo sito non siano stati creati dal gestore, vengono rispettati i diritti d'autore di terzi. In particolare, i contenuti di terzi sono identificati come tali. Qualora dovesse comunque venire a conoscenza di una violazione del diritto d'autore, La preghiamo di segnalarcelo. Non appena verremo a conoscenza di violazioni, rimuoveremo immediatamente tali contenuti."
+      }
+    },
+    "privacy": {
+      "title": "Informativa sulla privacy",
+      "section_overview": {
+        "heading": "1. Protezione dei dati a colpo d'occhio",
+        "subheading": "Indicazioni generali",
+        "body": "Le seguenti indicazioni offrono una panoramica semplice di ciò che accade ai Suoi dati personali quando visita questo sito web. I dati personali sono tutti i dati che consentono di identificarLa personalmente. Per informazioni dettagliate sulla protezione dei dati, La preghiamo di consultare l'informativa sulla privacy riportata sotto questo testo."
+      },
+      "responsible_party": {
+        "heading": "Indicazioni sul titolare del trattamento",
+        "body": "Il titolare del trattamento dei dati su questo sito web è:\n\nMario Winter\nAußenliegend 4\n61209 Echzell\nDeutschland",
+        "contact_phone": "Telefono: <a>+49 1601546188</a>",
+        "contact_email": "E-mail: <a>mariowinter.sg@gmail.com</a>"
+      },
+      "hosting": {
+        "heading": "2. Hosting (Strato)",
+        "body": "Ospitiamo i contenuti del nostro sito web presso Strato AG, Otto-Ostrowski-Straße 7, 10249 Berlino («Strato»). Quando visita il nostro sito, Strato registra diversi file di log, comprese le Sue indirizzi IP. L'utilizzo di Strato si basa sull'art. 6, paragrafo 1, lettera f), del RGPD. Abbiamo un legittimo interesse a presentare il nostro sito nel modo più affidabile possibile. Abbiamo concluso con Strato un contratto di responsabile del trattamento (DPA).",
+        "link": "Ulteriori informazioni: <a>https://www.strato.de/datenschutz/</a>"
+      },
+      "supabase": {
+        "heading": "Database e archiviazione (Supabase / PostgreSQL)",
+        "body": "Conserviamo i dati applicativi (workspace, niche, design, listing) in un database PostgreSQL self-hosted basato sulla piattaforma Supabase. Il database viene eseguito sulla nostra infrastruttura in Germania (Strato); non viene effettuata alcuna trasmissione di dati a Supabase Inc. La conservazione avviene per l'esecuzione del contratto ai sensi dell'art. 6, paragrafo 1, lettera b), del RGPD nonché sulla base del nostro legittimo interesse a una messa a disposizione tecnicamente affidabile dell'applicazione (art. 6, paragrafo 1, lettera f), del RGPD)."
+      },
+      "jwt_auth": {
+        "heading": "Autenticazione (cookie JWT)",
+        "body": "Per autenticare gli utenti registrati utilizziamo un cookie HttpOnly contenente un token JWT firmato. Il cookie è tecnicamente necessario per lo stato di accesso e viene impostato sulla base del § 25, comma 2, n. 2, TDDDG, nonché dell'art. 6, paragrafo 1, lettera b), del RGPD (esecuzione del contratto). Non contiene informazioni di tracciamento e viene utilizzato esclusivamente per il controllo della sessione e dell'accesso. Il cookie viene eliminato al logout."
+      },
+      "langfuse": {
+        "heading": "Osservabilità degli LLM (Langfuse, self-hosted)",
+        "body": "Per garantire la qualità e analizzare gli errori delle nostre funzioni basate sull'IA utilizziamo Langfuse. Langfuse viene eseguito sulla nostra infrastruttura (Strato, Germania) e registra gli input e le risposte dei modelli di IA, compresi i metadati (latenza, consumo di token, nome del modello). Non viene effettuata alcuna trasmissione a terzi. La base giuridica è il nostro legittimo interesse a una messa a disposizione priva di errori e sicura delle funzioni di IA (art. 6, paragrafo 1, lettera f), del RGPD)."
+      },
+      "openrouter": {
+        "heading": "API LLM (OpenRouter)",
+        "body": "Per le funzioni basate sull'IA (ad es. ricerca di nicchie, generazione di slogan e di design) trasmettiamo gli input necessari per l'elaborazione della Sua richiesta a OpenRouter, Inc. (1111B S Governors Ave #6589, Dover, DE 19904, USA). OpenRouter inoltra tali richieste ai rispettivi fornitori dei modelli. Avviene un trasferimento negli Stati Uniti. La base giuridica è l'art. 6, paragrafo 1, lettera b), del RGPD (esecuzione del contratto). Il trasferimento dei dati negli Stati Uniti si basa sulle clausole contrattuali tipo della Commissione europea. A OpenRouter non vengono trasmessi contenuti che vadano oltre i dati necessari per rispondere alla rispettiva richiesta."
+      },
+      "n8n": {
+        "heading": "Automazione dei workflow (n8n, self-hosted)",
+        "body": "Per le automazioni interne (raccolta dati, pipeline di IA) gestiamo una nostra istanza del software open source n8n sulla nostra infrastruttura (Strato, Germania). Non avviene alcuna trasmissione di dati a n8n GmbH o ad altri terzi. La base giuridica del trattamento è l'art. 6, paragrafo 1, lettera b), del RGPD (esecuzione del contratto) nonché l'art. 6, paragrafo 1, lettera f), del RGPD (legittimo interesse a una messa a disposizione efficiente dell'applicazione)."
+      },
+      "onedrive": {
+        "heading": "Importazione da cloud storage: OneDrive",
+        "body": "In via opzionale Le offriamo la possibilità di importare contenuti dal Suo Microsoft OneDrive personale in Merch Miner. Il fornitore è Microsoft Ireland Operations Limited, One Microsoft Place, South County Business Park, Leopardstown, Dublino 18, Irlanda. Il collegamento a OneDrive viene stabilito esclusivamente previo Suo consenso esplicito (autorizzazione OAuth). In tale contesto, Microsoft può raccogliere dati di connessione, compreso il Suo indirizzo IP. La base giuridica è l'art. 6, paragrafo 1, lettera a), del RGPD; il consenso può essere revocato in qualsiasi momento. Microsoft è certificata in base al EU-US Data Privacy Framework."
+      },
+      "google_drive": {
+        "heading": "Importazione da cloud storage: Google Drive",
+        "body": "In via opzionale Le offriamo la possibilità di importare contenuti dal Suo Google Drive personale in Merch Miner. Il fornitore è Google Ireland Limited, Gordon House, Barrow Street, Dublino 4, Irlanda. Il collegamento a Google Drive viene stabilito esclusivamente previo Suo consenso esplicito (autorizzazione OAuth). In tale contesto, Google può raccogliere dati di connessione, compreso il Suo indirizzo IP. La base giuridica è l'art. 6, paragrafo 1, lettera a), del RGPD; il consenso può essere revocato in qualsiasi momento. Google è certificata in base al EU-US Data Privacy Framework."
+      },
+      "user_rights": {
+        "heading": "I Suoi diritti come interessato",
+        "body": "Ha in qualsiasi momento il diritto di ottenere gratuitamente informazioni sui Suoi dati personali memorizzati, sulla loro origine e sui destinatari, nonché sulla finalità del trattamento. Ha inoltre il diritto di ottenere la rettifica, la cancellazione o la limitazione del trattamento di tali dati. Se ha prestato il consenso al trattamento dei dati, può revocarlo in qualsiasi momento con effetto per il futuro. La liceità del trattamento effettuato fino alla revoca rimane impregiudicata. Inoltre, ha diritto alla portabilità dei dati ai sensi dell'art. 20 del RGPD.",
+        "complaint": "In caso di violazioni della normativa sulla protezione dei dati Le spetta il diritto di presentare reclamo all'autorità di controllo competente, in particolare nello Stato membro della Sua residenza abituale, del Suo luogo di lavoro o del luogo della presunta violazione."
+      },
+      "contact": {
+        "heading": "Contatto",
+        "body": "Per qualsiasi domanda relativa alla protezione dei dati o per esercitare i Suoi diritti può contattarci all'indirizzo <a>mariowinter.sg@gmail.com</a>."
+      }
+    }
+  },
+  "footer": {
+    "imprint": "Note legali",
+    "privacy": "Privacy",
+    "copyright": "© 2026 - Merch Miner",
+    "aria": "Piè di pagina",
+    "legalNavLabel": "Legale"
   }
 }

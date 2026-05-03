@@ -39,6 +39,8 @@ from publish_app.api.serializers import (
     CollectionSerializer,
     CollectionTreeSerializer,
     CollectionUpdateSerializer,
+    DesignAssetFromDesignInputSerializer,
+    DesignAssetFromDesignResultSerializer,
     DesignAssetSerializer,
     DesignAssetUpdateSerializer,
     DesignAssetUploadSerializer,
@@ -1256,6 +1258,169 @@ class DesignAssetDuplicateView(APIView):
             DesignAssetSerializer(new_asset, context={'request': request}).data,
             status=status.HTTP_201_CREATED,
         )
+
+
+class DesignAssetFromDesignView(APIView):
+    """POST /api/design-assets/from-design/ -- bulk-create DesignAssets from
+    Design Forge ``Design`` rows (PROJ-9 Phase O bridge).
+
+    Covers AC-164 / AC-165 / AC-166 / AC-167 + EC-53..EC-60.
+
+    Filter order (AC-165):
+      1. Workspace isolation -- foreign-workspace ids silently dropped.
+      2. Approval gate -- only ``status='approved'`` is sent. Others go to
+         ``rejected_ineligible`` with ``reason='not_approved'``.
+      3. Image presence -- empty ``image_file`` -> ``rejected_ineligible``
+         with ``reason='no_image'``.
+      4. Dedup -- if a non-deleted ``DesignAsset.design_origin == design.id``
+         already exists, the design id goes to ``skipped_duplicates``.
+
+    Per-design transactions: each eligible design is copied in its own
+    ``transaction.atomic()`` block so a single storage failure doesn't roll
+    back successful copies. When ``failed`` is non-empty the response status
+    flips to 207 Multi-Status (EC-55).
+    """
+
+    def post(self, request):
+        from django.core.files.base import ContentFile
+        from django.core.files.storage import default_storage
+
+        ws_id = _get_workspace_id(request)
+        if not ws_id:
+            return _ws_error()
+
+        # EC-58: explicit membership check. ``_get_workspace_id`` only
+        # *trusts* the X-Workspace-Id header without verifying membership;
+        # we require an active membership in the requested workspace to
+        # prevent cross-workspace data access via header spoofing.
+        if not Membership.objects.filter(
+            user=request.user,
+            workspace_id=ws_id,
+            status=Membership.Status.ACTIVE,
+        ).exists():
+            return Response(
+                {'error': 'No active membership in this workspace.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = DesignAssetFromDesignInputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        design_ids = serializer.validated_data['design_ids']
+
+        # AC-167: bulk soft cap. Spec mandates exact body shape, so we don't
+        # let DRF's generic max_length handler emit it.
+        if len(design_ids) > 50:
+            return Response(
+                {'error': 'bulk_too_large', 'max': 50},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Deferred import: design_app references publish_app via the new FK,
+        # so a top-level import would create a circular dep at module load.
+        from design_app.models import Design
+
+        # AC-165(1): workspace isolation. Anything not in this workspace
+        # silently disappears -- treated as if never sent.
+        designs_qs = (
+            Design.objects
+            .filter(id__in=design_ids, workspace_id=ws_id)
+            .select_related('idea', 'idea__niche')
+        )
+        designs_by_id = {str(d.id): d for d in designs_qs}
+
+        created = []
+        skipped_duplicates = []
+        rejected_ineligible = []
+        failed = []
+
+        for raw_id in design_ids:
+            sid = str(raw_id)
+            design = designs_by_id.get(sid)
+            if design is None:
+                # Workspace isolation drop -- not in any response array.
+                continue
+
+            # AC-165(2): approval gate.
+            if design.status != Design.Status.APPROVED:
+                rejected_ineligible.append({'id': sid, 'reason': 'not_approved'})
+                continue
+
+            # AC-165(3): image presence.
+            if not design.image_file or not design.image_file.name:
+                rejected_ineligible.append({'id': sid, 'reason': 'no_image'})
+                continue
+
+            # AC-165(4): dedup against non-deleted DesignAssets. DesignAsset
+            # has no soft-delete column today, so a hard-delete naturally
+            # frees the slot for a fresh send (EC-60 / Tech Design note).
+            if DesignAsset.objects.filter(design_origin=design).exists():
+                skipped_duplicates.append(sid)
+                continue
+
+            # Per-design atomic copy. AC-166: storage-backend agnostic file
+            # copy via ``default_storage.save`` so S3/local/GCS all work.
+            try:
+                with transaction.atomic():
+                    with default_storage.open(design.image_file.name, 'rb') as src_fh:
+                        content = ContentFile(src_fh.read())
+
+                    derived_idea = design.idea
+                    derived_niche = (
+                        design.idea.niche if design.idea_id and design.idea.niche_id
+                        else None
+                    )
+
+                    # Reuse Design.image_file metadata for file_size /
+                    # dimensions (Pillow has already run on the source).
+                    try:
+                        file_size = design.image_file.size
+                    except (OSError, ValueError):
+                        # Treat metadata failure as the same class of error
+                        # as the copy itself -- 207 path, not a hard 500.
+                        raise
+                    dimensions = {}
+                    if isinstance(design.prompt_analysis, dict):
+                        dim = design.prompt_analysis.get('dimensions')
+                        if isinstance(dim, dict) and 'width' in dim and 'height' in dim:
+                            dimensions = {'width': dim['width'], 'height': dim['height']}
+
+                    # Derive a sensible file_name. Source Design.image_file
+                    # is stored at e.g. ``designs/generated/2026/05/abc.png``
+                    # -- the basename is what users see in the gallery.
+                    src_name = design.image_file.name.rsplit('/', 1)[-1]
+
+                    new_asset = DesignAsset(
+                        workspace_id=ws_id,
+                        file_name=src_name,
+                        source=DesignAsset.Source.GENERATED,
+                        design_origin=design,
+                        idea=derived_idea,
+                        niche=derived_niche,
+                        dimensions=dimensions,
+                        file_size=file_size,
+                        created_by=request.user,
+                    )
+                    new_asset.file.save(src_name, content, save=False)
+                    new_asset.save()
+            except (IOError, OSError, ValueError) as exc:
+                logger.exception(
+                    'DesignAssetFromDesign copy failed for design %s: %s',
+                    sid, exc,
+                )
+                failed.append({'id': sid, 'error': str(exc)})
+                continue
+
+            created.append(str(new_asset.id))
+
+        body = {
+            'created': created,
+            'skipped_duplicates': skipped_duplicates,
+            'rejected_ineligible': rejected_ineligible,
+        }
+        if failed:
+            body['failed'] = failed
+            return Response(body, status=status.HTTP_207_MULTI_STATUS)
+        return Response(body, status=status.HTTP_200_OK)
 
 
 class DesignGalleryBulkActionView(APIView):

@@ -16,11 +16,12 @@ def _url(asin):
 
 
 @pytest.fixture
-def niche(workspace):
+def niche(workspace, user):
     from niche_app.models import Niche
     return Niche.objects.create(
         workspace=workspace,
         name='Test Niche',
+        created_by=user,
     )
 
 
@@ -63,12 +64,13 @@ class TestUseAsTemplatePermissions:
         assert resp.status_code == 403
 
     def test_niche_in_other_workspace_returns_404(
-        self, auth_client, membership, product, other_workspace
+        self, auth_client, membership, product, other_workspace, other_user
     ):
         from niche_app.models import Niche
         other_niche = Niche.objects.create(
             workspace=other_workspace,
             name='Other Niche',
+            created_by=other_user,
         )
         resp = auth_client.post(
             _url(product.asin),

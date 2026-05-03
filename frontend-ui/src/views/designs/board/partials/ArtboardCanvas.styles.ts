@@ -1,5 +1,6 @@
 import { Box } from '@mui/material';
 import { styled } from '@mui/material/styles';
+import { radius } from '@/style/constants';
 
 export const CanvasContainer = styled(Box)({
   width: '100%',
@@ -23,7 +24,7 @@ export const EmptyOverlay = styled(Box)(({ theme }) => ({
   zIndex: 5,
   color: theme.vars.palette.text.disabled,
   padding: theme.spacing(6),
-  borderRadius: theme.shape.borderRadius * 3,
+  borderRadius: radius(theme, 3),
   border: `2px dashed ${theme.vars.palette.secondary.main}`,
   backgroundColor: 'rgba(0, 200, 215, 0.04)',
   pointerEvents: 'auto',

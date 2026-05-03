@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Box, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, Tooltip } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import OptionsButton from './OptionsButton';
@@ -8,7 +8,11 @@ import OptionsButton from './OptionsButton';
 // Styled
 // ---------------------------------------------------------------------------
 
-const HeaderRoot = styled(Stack)(({ theme }) => ({
+// styled('header') keeps the semantic tag without going through Stack's
+// `component` prop (which is no longer surfaced once styled() wraps it
+// in MUI v7's stricter typing).
+const HeaderRoot = styled('header')(({ theme }) => ({
+  display: 'flex',
   flexDirection: 'row',
   alignItems: 'center',
   justifyContent: 'space-between',
@@ -25,12 +29,18 @@ const TitleGroup = styled(Box)(({ theme }) => ({
   minWidth: 0,
 }));
 
-const TitleText = styled(Typography)(({ theme }) => ({
+// Use styled('h3'/'span') directly so the semantic HTML tag is built into
+// the styled component — avoids fighting MUI v7's stricter Typography typing
+// where `component` prop overrides aren't surfaced through styled() wrappers.
+const TitleText = styled('h3')(({ theme }) => ({
+  ...theme.typography.subtitle2,
+  margin: 0,
   color: theme.vars.palette.text.primary,
   lineHeight: 1.2,
 }));
 
-const CountText = styled(Typography)(({ theme }) => ({
+const CountText = styled('span')(({ theme }) => ({
+  ...theme.typography.subtitle2,
   color: theme.vars.palette.text.disabled,
   marginLeft: theme.spacing(0.25),
 }));
@@ -67,15 +77,11 @@ const SectionHeader = ({
   const showOptions = Boolean(context && onOptionsClick);
 
   return (
-    <HeaderRoot component="header" aria-label={title}>
+    <HeaderRoot aria-label={title}>
       <TitleGroup>
-        <TitleText variant="subtitle2" component="h3">
-          {title}
-        </TitleText>
+        <TitleText>{title}</TitleText>
         {typeof count === 'number' && (
-          <CountText variant="subtitle2" component="span">
-            ({count})
-          </CountText>
+          <CountText>({count})</CountText>
         )}
         {infoTooltip && (
           <Tooltip title={infoTooltip} arrow placement="top">

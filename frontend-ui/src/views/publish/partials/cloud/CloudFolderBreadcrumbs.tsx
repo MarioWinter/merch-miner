@@ -80,7 +80,7 @@ const CloudFolderBreadcrumbs = ({
           ) : (
             <CrumbLink
               key={`${segment.id ?? 'root'}-${idx}`}
-              component="button"
+              {...({ component: 'button' } as { component: 'button' })}
               variant="body2"
               underline="hover"
               onClick={() => onNavigate(idx)}

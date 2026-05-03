@@ -10,7 +10,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from django.db.models import Count
+from django.db.models import Count, Exists, OuterRef
 
 from design_app.api.serializers import (
     AddDesignsToProjectSerializer,
@@ -108,6 +108,22 @@ class DesignPagination(PageNumberPagination):
     max_page_size = 100
 
 
+def _annotate_has_design_asset(qs):
+    """Annotate ``has_design_asset`` (PROJ-9 Phase O AC-171).
+
+    Uses an ``Exists`` subquery so the boolean is computed in SQL without
+    loading any DesignAsset rows into Python. Importing DesignAsset lazily
+    here keeps the design_app -> publish_app dependency one-way at import
+    time (publish_app already imports design_app for the FK).
+    """
+    from publish_app.models import DesignAsset
+    return qs.annotate(
+        has_design_asset=Exists(
+            DesignAsset.objects.filter(design_origin=OuterRef('pk')),
+        ),
+    )
+
+
 # -- Board Context --
 
 class DesignBoardView(APIView):
@@ -129,10 +145,12 @@ class DesignBoardView(APIView):
         reference_products = _get_reference_products(idea)
 
         # Get existing designs
-        designs = Design.objects.filter(
-            idea=idea,
-            workspace_id=ws_id,
-        ).select_related('generation_run').order_by('-created_at')
+        designs = _annotate_has_design_asset(
+            Design.objects.filter(
+                idea=idea,
+                workspace_id=ws_id,
+            ).select_related('generation_run'),
+        ).order_by('-created_at')
 
         board_data = {
             'idea_id': str(idea.id),
@@ -222,10 +240,12 @@ class DesignListView(APIView):
         if not ws_id:
             return _ws_error()
 
-        designs = Design.objects.filter(
-            idea_id=pk,
-            workspace_id=ws_id,
-        ).select_related('generation_run').order_by('-created_at')
+        designs = _annotate_has_design_asset(
+            Design.objects.filter(
+                idea_id=pk,
+                workspace_id=ws_id,
+            ).select_related('generation_run'),
+        ).order_by('-created_at')
 
         paginator = DesignPagination()
         page = paginator.paginate_queryset(designs, request)
@@ -253,12 +273,11 @@ class DesignListByIdsView(APIView):
         if len(id_list) > 100:
             raise DRFValidationError({'ids': 'Maximum 100 IDs per request.'})
 
-        designs = (
+        designs = _annotate_has_design_asset(
             Design.objects.filter(id__in=id_list, workspace_id=ws_id)
             .select_related('generation_run', 'idea')
-            .prefetch_related('projects')
-            .order_by('-created_at')
-        )
+            .prefetch_related('projects'),
+        ).order_by('-created_at')
 
         serializer = DesignSerializer(designs, many=True)
         return Response(serializer.data)
@@ -468,7 +487,7 @@ class RunStatusView(APIView):
 
         # Include generated designs if completed
         if run.status == DesignGenerationRun.Status.COMPLETED:
-            designs = run.designs.all()
+            designs = _annotate_has_design_asset(run.designs.all())
             data['designs'] = DesignSerializer(designs, many=True).data
 
         return Response(data)
@@ -910,14 +929,13 @@ class ProjectBoardView(APIView):
         )
 
         # Get project designs
-        designs = (
+        designs = _annotate_has_design_asset(
             Design.objects.filter(
                 design_projects_through__project=project,
             )
             .select_related('generation_run', 'idea')
-            .prefetch_related('projects')
-            .order_by('-created_at')
-        )
+            .prefetch_related('projects'),
+        ).order_by('-created_at')
 
         # Optional idea context overlay
         idea_context = None

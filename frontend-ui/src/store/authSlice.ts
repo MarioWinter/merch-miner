@@ -5,6 +5,10 @@ export interface AuthUser {
   email: string;
   first_name: string;
   avatar_url: string | null;
+  // PROJ-24 — read-only flags from the backend serializer; drive the
+  // admin-override branch in `useFeatureFlag`.
+  is_staff: boolean;
+  is_superuser: boolean;
 }
 
 export interface AuthState {

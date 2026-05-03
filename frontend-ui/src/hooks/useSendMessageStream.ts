@@ -50,6 +50,13 @@ interface UseSendMessageStreamOptions {
   sessionId: string | null;
   /** Called once the stream completes successfully with the persisted message id. */
   onDone?: (messageId: string) => void;
+  /**
+   * Called whenever the stream ends in any non-success state — SSE error event,
+   * connection-level error, or silence timeout. Consumers use this to release
+   * UI flags (e.g. `searching`) that would otherwise stay locked because
+   * `onDone` never fires. The hook still surfaces a notistack snackbar.
+   */
+  onError?: () => void;
 }
 
 interface StartArgs {
@@ -63,6 +70,11 @@ interface StartArgs {
    *  When present the backend routes through the Vision path (OpenRouter
    *  direct) instead of Vane. */
   attachment_ids?: string[];
+  /** OpenRouter model id (e.g. `openai/gpt-4.1-mini`). Forwarded to the
+   *  stream endpoint, which passes it to Vane via `chatModel`. Without this
+   *  Vane silently falls back to its first registered chat model — i.e.
+   *  the user's model selection has no effect on the answer. */
+  model?: string | null;
 }
 
 interface UseSendMessageStreamReturn {
@@ -84,7 +96,7 @@ interface UseSendMessageStreamReturn {
  */
 const buildStreamUrl = (
   sessionId: string,
-  { content, mode_override, niche_id, attachment_ids }: StartArgs,
+  { content, mode_override, niche_id, attachment_ids, model }: StartArgs,
 ): string => {
   const params = new URLSearchParams();
   params.set('content', content);
@@ -93,6 +105,7 @@ const buildStreamUrl = (
   if (attachment_ids && attachment_ids.length > 0) {
     params.set('attachment_ids', attachment_ids.join(','));
   }
+  if (model) params.set('model', model);
   return `/api/chat/sessions/${sessionId}/messages/stream/?${params.toString()}`;
 };
 
@@ -118,6 +131,7 @@ let activeEventSource: EventSource | null = null;
 export const useSendMessageStream = ({
   sessionId,
   onDone,
+  onError,
 }: UseSendMessageStreamOptions): UseSendMessageStreamReturn => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
@@ -192,8 +206,9 @@ export const useSendMessageStream = ({
       closeStream();
       dispatch(clearStreamingMessage());
       enqueueSnackbar(t('search.stream.timeout'), { variant: 'error' });
+      onError?.();
     }, STREAM_SILENCE_TIMEOUT_MS);
-  }, [closeStream, dispatch, enqueueSnackbar, t]);
+  }, [closeStream, dispatch, enqueueSnackbar, t, onError]);
 
   const stop = useCallback(() => {
     closeStream();
@@ -301,6 +316,7 @@ export const useSendMessageStream = ({
         enqueueSnackbar(data?.error ?? t('search.stream.connectionLost'), {
           variant: 'error',
         });
+        onError?.();
       });
 
       // Connection-level error fallback (no `data` payload — onerror handler)
@@ -309,9 +325,10 @@ export const useSendMessageStream = ({
         closeStream();
         dispatch(clearStreamingMessage());
         enqueueSnackbar(t('search.stream.connectionLost'), { variant: 'error' });
+        onError?.();
       };
     },
-    [sessionId, closeStream, scheduleFlush, armSilenceTimer, dispatch, enqueueSnackbar, t, onDone],
+    [sessionId, closeStream, scheduleFlush, armSilenceTimer, dispatch, enqueueSnackbar, t, onDone, onError],
   );
 
   // Cleanup on unmount or session change

@@ -17,7 +17,8 @@ jobs:
         with:
           python-version: '3.12'
 
-      - run: pip install bandit
+      # Pin bandit version for reproducibility — bumping is intentional, not implicit.
+      - run: pip install 'bandit==1.8.0'
 
       - name: Run bandit
         run: bandit -r django-app/ -x django-app/env,django-app/.venv,django-app/user_auth_app/tests,django-app/core/tests --severity-level medium
@@ -61,3 +62,5 @@ jobs:
           format: table
           severity: HIGH,CRITICAL
           exit-code: '1'
+          # `.trivyignore` at repo root holds justified non-exploitable findings.
+          trivyignores: ./.trivyignore
