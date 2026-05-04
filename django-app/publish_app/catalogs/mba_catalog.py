@@ -387,11 +387,13 @@ MBA_PRODUCT_CATALOG: tuple[dict, ...] = (
     },
 )
 
-# Freeze catalog shape with an assertion at import time. Cheap guardrail so a
-# malformed edit raises early during Django startup instead of at request time.
-assert len(MBA_PRODUCT_CATALOG) == 20, (
-    f'MBA_PRODUCT_CATALOG must hold 20 entries (got {len(MBA_PRODUCT_CATALOG)}).'
-)
+# Freeze catalog shape at import time. Cheap guardrail so a malformed edit
+# raises early during Django startup instead of at request time. Uses raise
+# instead of assert so it survives `python -O`.
+if len(MBA_PRODUCT_CATALOG) != 20:
+    raise RuntimeError(
+        f'MBA_PRODUCT_CATALOG must hold 20 entries (got {len(MBA_PRODUCT_CATALOG)}).'
+    )
 _required_keys = {
     'key', 'label', 'icon_key', 'supports', 'fit_types_options',
     'print_side_options', 'colors_options', 'marketplaces',
@@ -399,8 +401,9 @@ _required_keys = {
 }
 for _entry in MBA_PRODUCT_CATALOG:
     _missing = _required_keys - set(_entry.keys())
-    assert not _missing, (
-        f'MBA_PRODUCT_CATALOG entry {_entry.get("key")!r} missing keys: '
-        f'{sorted(_missing)}'
-    )
+    if _missing:
+        raise RuntimeError(
+            f'MBA_PRODUCT_CATALOG entry {_entry.get("key")!r} missing keys: '
+            f'{sorted(_missing)}'
+        )
 del _entry, _missing, _required_keys

@@ -889,9 +889,11 @@ _MBA_HEADER = [
     'Print', 'Draft', '',
     'Collection', 'Category', 'Background Color (Hex)',
 ]
-assert len(_MBA_HEADER) == _MBA_HEADER_COUNT, (
-    f'MBA header count drift: {len(_MBA_HEADER)} != {_MBA_HEADER_COUNT}'
-)
+# Module-level guardrails — use raise so they survive `python -O`.
+if len(_MBA_HEADER) != _MBA_HEADER_COUNT:
+    raise RuntimeError(
+        f'MBA header count drift: {len(_MBA_HEADER)} != {_MBA_HEADER_COUNT}'
+    )
 
 _BASIC_HEADER = [
     'Image Path',
@@ -899,7 +901,10 @@ _BASIC_HEADER = [
     'Title EN', 'Description EN', 'Tags EN',
     'Type', 'Color',
 ]
-assert len(_BASIC_HEADER) == _BASIC_HEADER_COUNT
+if len(_BASIC_HEADER) != _BASIC_HEADER_COUNT:
+    raise RuntimeError(
+        f'BASIC header count drift: {len(_BASIC_HEADER)} != {_BASIC_HEADER_COUNT}'
+    )
 
 
 def _bare_file_name(safe_name: str) -> str:

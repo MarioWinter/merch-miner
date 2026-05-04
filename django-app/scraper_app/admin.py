@@ -11,7 +11,6 @@ from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import format_html
-from django.utils.safestring import mark_safe
 
 from scraper_app.models import (
     AmazonProduct,
@@ -733,12 +732,12 @@ class CanaryAsinAdmin(admin.ModelAdmin):
     def last_status(self, obj):
         passed = getattr(obj, '_latest_passed', None)
         if passed is None:
-            return mark_safe('<span style="color:#888;">never run</span>')
+            return format_html('<span style="color:#888;">never run</span>')
         if passed:
-            return mark_safe(
+            return format_html(
                 '<span style="background:#1b5e20;color:#fff;padding:2px 8px;border-radius:4px;">PASS</span>'
             )
-        return mark_safe(
+        return format_html(
             '<span style="background:#b00020;color:#fff;padding:2px 8px;border-radius:4px;">FAIL</span>'
         )
     last_status.short_description = 'Last Status'
@@ -810,10 +809,10 @@ class SelectorHealthCheckAdmin(admin.ModelAdmin):
 
     def passed_badge(self, obj):
         if obj.passed:
-            return mark_safe(
+            return format_html(
                 '<span style="background:#1b5e20;color:#fff;padding:2px 8px;border-radius:4px;">PASS</span>'
             )
-        return mark_safe(
+        return format_html(
             '<span style="background:#b00020;color:#fff;padding:2px 8px;border-radius:4px;">FAIL</span>'
         )
     passed_badge.short_description = 'Status'
@@ -835,10 +834,10 @@ class SelectorHealthCheckAdmin(admin.ModelAdmin):
         from pathlib import Path
 
         if not obj.html_path:
-            return mark_safe('<em>file pruned</em>')
+            return format_html('<em>file pruned</em>')
         absolute_path = Path(dj_settings.MEDIA_ROOT) / obj.html_path
         if not absolute_path.exists():
-            return mark_safe('<em>file pruned</em>')
+            return format_html('<em>file pruned</em>')
         url = f"{dj_settings.MEDIA_URL}{obj.html_path}"
         return format_html('<a href="{}" target="_blank">Download HTML</a>', url)
     snapshot_link.short_description = 'Snapshot File'

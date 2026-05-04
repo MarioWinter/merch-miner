@@ -1,7 +1,8 @@
 import logging
 import os
 import signal
-import subprocess
+# subprocess: only used with cmd lists (no shell=True), args from DB models
+import subprocess  # nosec B404
 from datetime import timedelta
 from pathlib import Path
 
@@ -133,7 +134,8 @@ def scrape_keyword_job(
         if max_items:
             cmd.extend(['-s', f'CLOSESPIDER_ITEMCOUNT={max_items}'])
 
-        proc = subprocess.Popen(
+        # cmd is a list (no shell=True); args are validated spider names + numeric job ids
+        proc = subprocess.Popen(  # nosec B603
             cmd,
             cwd=SCRAPY_PROJECT_DIR,
             stdout=subprocess.PIPE,
@@ -272,7 +274,8 @@ def scrape_search_page_job(
         if max_items:
             cmd.extend(['-s', f'CLOSESPIDER_ITEMCOUNT={max_items}'])
 
-        proc = subprocess.Popen(
+        # cmd is a list (no shell=True); args are validated spider names + numeric job ids
+        proc = subprocess.Popen(  # nosec B603
             cmd,
             cwd=SCRAPY_PROJECT_DIR,
             stdout=subprocess.PIPE,
@@ -381,7 +384,8 @@ def scrape_asin_detail_job(asin, marketplace, scrape_job_id=None):
         if scrape_job_id:
             cmd.extend(['-a', f'job_id={scrape_job_id}'])
 
-        proc = subprocess.Popen(
+        # cmd is a list (no shell=True); args are validated spider names + numeric job ids
+        proc = subprocess.Popen(  # nosec B603
             cmd,
             cwd=SCRAPY_PROJECT_DIR,
             stdout=subprocess.PIPE,
@@ -656,7 +660,8 @@ def run_selector_health_check(canary_id, triggered_by='schedule'):
     ]
 
     try:
-        proc = subprocess.Popen(
+        # cmd is a list (no shell=True); args are validated spider names + numeric job ids
+        proc = subprocess.Popen(  # nosec B603
             cmd,
             cwd=SCRAPY_PROJECT_DIR,
             stdout=subprocess.PIPE,

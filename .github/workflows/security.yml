@@ -6,6 +6,9 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   bandit:
     name: Python SAST (bandit)
@@ -21,7 +24,10 @@ jobs:
       - run: pip install 'bandit==1.8.0'
 
       - name: Run bandit
-        run: bandit -r django-app/ -x django-app/env,django-app/.venv,django-app/user_auth_app/tests,django-app/core/tests --severity-level medium
+        # Config in django-app/bandit.yaml: excludes env/.venv/tests, skips B110
+        # (try/except/pass — accepted fail-soft pattern for telemetry/cleanup).
+        # Severity LOW catches everything that's not pre-suppressed.
+        run: bandit -r django-app/ -c django-app/bandit.yaml --severity-level low
 
   npm-audit:
     name: NPM Audit

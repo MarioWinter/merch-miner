@@ -8,6 +8,11 @@ on:
   push:
     branches: [main]
 
+# Opt actions/* (Node 20) into Node 24 ahead of the Sept 2026 enforced cutover.
+# Same effect as upgrading actions/checkout v4→v5 etc., but no version-bump risk.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   backend:
     name: Backend Tests
@@ -59,6 +64,9 @@ jobs:
           DB_HOST: localhost
           DB_PORT: 5432
           REDIS_LOCATION: redis://localhost:6379/1
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          REDIS_DB: 0
 
       - name: Run pytest
         working-directory: django-app
@@ -71,6 +79,12 @@ jobs:
           DB_HOST: localhost
           DB_PORT: 5432
           REDIS_LOCATION: redis://localhost:6379/1
+          # RQ_QUEUES reads REDIS_HOST/PORT/DB independently of REDIS_LOCATION;
+          # without these, post_save signal handlers (e.g. vector_app.signals)
+          # try to enqueue against hostname "redis" and fail with DNS errors.
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          REDIS_DB: 0
 
       - name: Lint (ruff)
         run: ruff check django-app/
