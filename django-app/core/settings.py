@@ -42,6 +42,12 @@ else:
         'http://localhost:5173',
     ]
 CORS_ALLOW_CREDENTIALS = True
+
+# Whitelist custom request headers for CORS preflight. django-cors-headers'
+# default list does not include `x-workspace-id`, which the frontend sends
+# on every authenticated request to scope queries to the active workspace.
+from corsheaders.defaults import default_headers  # noqa: E402
+CORS_ALLOW_HEADERS = (*default_headers, 'x-workspace-id')
 CSRF_COOKIE_SAMESITE = None if not DEBUG else 'Lax'
 CSRF_COOKIE_SECURE = not DEBUG
 SESSION_COOKIE_SAMESITE = None if not DEBUG else 'Lax'
