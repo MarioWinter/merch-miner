@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.2.1](https://github.com/MarioWinter/merch-miner/compare/v0.2.0...v0.2.1) (2026-05-04)
+
+
+### Bug Fixes
+
+* **auth:** real client IP for throttle + raise anon limit + dedicated login throttle ([#36](https://github.com/MarioWinter/merch-miner/issues/36)) ([dc51f1f](https://github.com/MarioWinter/merch-miner/commit/dc51f1fdb06ba317c7c5661840e08367c1619192))
+
 ## [0.2.0](https://github.com/MarioWinter/merch-miner/compare/v0.1.0...v0.2.0) (2026-05-04)
 
 
