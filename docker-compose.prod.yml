@@ -40,6 +40,42 @@ services:
       - default
       - supabase-net
 
+  worker-slogan:
+    image: ghcr.io/mariowinter/merch-miner/backend:latest
+    env_file: ./.env
+    restart: unless-stopped
+    networks:
+      - default
+      - supabase-net
+
+  worker-design:
+    image: ghcr.io/mariowinter/merch-miner/backend:latest
+    env_file: ./.env
+    # design queue tasks (BG-Remove, Upscale, Generate) write to FileFields
+    # backed by MEDIA_ROOT — needs RW access to the same volume as web.
+    volumes:
+      - media_volume:/app/media
+    restart: unless-stopped
+    networks:
+      - default
+      - supabase-net
+
+  worker-agent:
+    image: ghcr.io/mariowinter/merch-miner/backend:latest
+    env_file: ./.env
+    restart: unless-stopped
+    networks:
+      - default
+      - supabase-net
+
+  worker-search:
+    image: ghcr.io/mariowinter/merch-miner/backend:latest
+    env_file: ./.env
+    restart: unless-stopped
+    networks:
+      - default
+      - supabase-net
+
   scheduler:
     image: ghcr.io/mariowinter/merch-miner/backend:latest
     entrypoint: ["./worker.entrypoint.sh"]
