@@ -5,6 +5,8 @@ interface ImportMetaEnv {
   readonly APP_VERSION: string
   /** ISO 8601 UTC timestamp injected by Vite at build time. */
   readonly BUILD_DATE: string
+  /** Full CHANGELOG.md content injected by Vite at build time. */
+  readonly CHANGELOG: string
   /** Backend base URL — set per environment. */
   readonly VITE_API_URL?: string
   /** OneDrive (MSAL public client) — frontend-only OAuth flow. */

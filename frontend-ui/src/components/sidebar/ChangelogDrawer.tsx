@@ -3,10 +3,13 @@ import { styled } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
 import ReactMarkdown from 'react-markdown';
 import { useTranslation } from 'react-i18next';
-// Vite raw import — CHANGELOG.md is read once at build time and inlined.
-// release-please updates the file on every Release PR merge, so the next
-// deploy automatically ships the latest history. No runtime fetch, no CORS.
-import changelogMd from '../../../../CHANGELOG.md?raw';
+
+// CHANGELOG.md is read by vite.config.ts at build time and injected via
+// `define`. Source-of-truth lives at repo root; vite tries both repo-root
+// and `frontend-ui/CHANGELOG.md` to support host-fs dev + Docker contexts.
+// release-please updates the file on every Release PR merge → next deploy
+// ships the latest history. No runtime fetch, no CORS.
+const changelogMd = import.meta.env.CHANGELOG || '# Changelog\n\nNo entries yet.\n';
 
 const DRAWER_WIDTH = 480;
 
