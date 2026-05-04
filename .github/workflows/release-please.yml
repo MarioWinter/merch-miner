@@ -1,0 +1,24 @@
+name: Release Please
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      # Reads conventional commits since the last tag, opens (or updates) a
+      # release PR with version bump + CHANGELOG.md. When the release PR is
+      # merged, it tags the commit and creates a GitHub Release.
+      # Config: release-please-config.json + .release-please-manifest.json
+      - uses: googleapis/release-please-action@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}

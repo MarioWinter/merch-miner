@@ -25,6 +25,7 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { useTranslation } from 'react-i18next';
 import { COLORS, DURATION, EASING } from '@/style/constants';
+import VersionBadge from './VersionBadge';
 
 export const EXPANDED_WIDTH = 220;
 export const COLLAPSED_WIDTH = 60;
@@ -334,6 +335,9 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
           </Box>
         ))}
       </NavScrollBox>
+
+      {/* Version badge (click → popover with build date + changelog link) */}
+      <VersionBadge collapsed={effectiveCollapsed} />
 
       {/* Sidebar toggle — round button with cutout ring */}
       <ToggleWrap className="sidebar-toggle" $visible={!collapsed}>
