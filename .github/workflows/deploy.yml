@@ -31,6 +31,19 @@ jobs:
             DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
             cd /srv/merch-miner
+            # -1. Sanity: refuse to deploy if .env still holds dev-only hostnames.
+            #     `host.docker.internal` works on Docker-for-Mac/Windows but is
+            #     unreliable on Linux servers — services routed via this host
+            #     silently degrade (e.g. /api/search/health/ shows offline).
+            #     Re-create containers with --force-recreate after fixing .env;
+            #     `docker compose restart` does NOT reload env_file values.
+            if grep -qE '^(VANE_API_URL|CRAWL4AI_API_URL|SEARXNG_BASE_URL)=.*host\.docker\.internal' .env; then
+              echo "ERROR: .env contains 'host.docker.internal' for inter-container service URL."
+              grep -nE '^(VANE_API_URL|CRAWL4AI_API_URL|SEARXNG_BASE_URL)=' .env
+              echo "Fix: copy values from .env.prod.template (e.g. VANE_API_URL=http://vane:3000)."
+              echo "Then restart with: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --force-recreate web worker worker-research worker-search worker-design worker-agent worker-slogan"
+              exit 1
+            fi
             # 0. Pre-deploy DB snapshot (kept on /srv/merch-miner/backups/, last 14 retained)
             #    Web entrypoint runs `migrate` on startup; if that breaks something
             #    we want a recent dump to restore from.
