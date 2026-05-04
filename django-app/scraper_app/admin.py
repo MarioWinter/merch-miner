@@ -21,6 +21,7 @@ from scraper_app.models import (
     MarketplaceChoices,
     MetaKeyword,
     ProductSearchCache,
+    ScraperConfig,
     SearchKeywordResult,
     ScrapeJob,
     ScrapeTier,
@@ -844,4 +845,37 @@ class SelectorHealthCheckAdmin(admin.ModelAdmin):
 
     def has_add_permission(self, request):
         # Health checks are produced by the scheduler/admin actions, never created manually.
+        return False
+
+
+# ---------------------------------------------------------------------------
+# ScraperConfig Admin (singleton — concurrency knobs)
+# ---------------------------------------------------------------------------
+
+@admin.register(ScraperConfig)
+class ScraperConfigAdmin(admin.ModelAdmin):
+    list_display = [
+        'concurrent_requests',
+        'concurrent_requests_per_domain',
+        'download_delay_ms',
+    ]
+    fieldsets = (
+        (None, {
+            'fields': (
+                'concurrent_requests',
+                'concurrent_requests_per_domain',
+                'download_delay_ms',
+            ),
+            'description': (
+                'Singleton row — applied to every Scrapy spider invocation. '
+                'Changes take effect on the NEXT spider spawn.'
+            ),
+        }),
+    )
+
+    def has_add_permission(self, request):
+        # Singleton: allow add only when no row exists.
+        return not ScraperConfig.objects.exists()
+
+    def has_delete_permission(self, request, obj=None):
         return False

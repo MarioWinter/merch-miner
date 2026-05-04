@@ -2,10 +2,9 @@ import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '@/utils/test-utils';
-import { SearchHistoryChips } from '../partials/SearchHistoryChips';
-import type { RecentKeywordSearch } from '../hooks/useRecentSearches';
+import { SearchHistoryChips, type RecentSearchEntry } from '@/components/SearchHistory/SearchHistoryChips';
 
-const mockSearches: RecentKeywordSearch[] = [
+const mockSearches: RecentSearchEntry[] = [
   { keyword: 'funny shirts', marketplace: 'amazon_com' },
   { keyword: 'cat lover', marketplace: 'amazon_de' },
 ];

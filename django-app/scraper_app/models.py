@@ -411,6 +411,45 @@ PRODUCT_TYPE_SPIDER_KWARGS = {
 }
 
 
+class ScraperConfig(models.Model):
+    """Singleton — admin-configurable Scrapy concurrency settings.
+
+    Loaded by `scraper_app.tasks` on each spider spawn and injected as `-s KEY=VAL`
+    flags into the `scrapy crawl` invocation. The env-var defaults in
+    `scrapy_app/settings.py` remain as a safety net for direct CLI invocations.
+    """
+
+    concurrent_requests = models.PositiveIntegerField(
+        default=40,
+        help_text='Scrapy CONCURRENT_REQUESTS — global concurrent downloader slots.',
+    )
+    concurrent_requests_per_domain = models.PositiveIntegerField(
+        default=40,
+        help_text='Scrapy CONCURRENT_REQUESTS_PER_DOMAIN — usually equal to CONCURRENT_REQUESTS for amazon.*.',
+    )
+    download_delay_ms = models.PositiveIntegerField(
+        default=0,
+        help_text='Scrapy DOWNLOAD_DELAY in milliseconds (converted to seconds at spawn).',
+    )
+
+    class Meta:
+        verbose_name = 'Scraper Config'
+        verbose_name_plural = 'Scraper Config'
+
+    def __str__(self):
+        return (
+            f"ScraperConfig(concurrent={self.concurrent_requests}, "
+            f"per_domain={self.concurrent_requests_per_domain}, "
+            f"delay={self.download_delay_ms}ms)"
+        )
+
+    @classmethod
+    def load(cls):
+        """Return the singleton row, creating it with defaults on first call."""
+        obj, _ = cls.objects.get_or_create(pk=1)
+        return obj
+
+
 class BrandBlacklist(models.Model):
     """Trademarked/blocked brands that should be filtered from research."""
 

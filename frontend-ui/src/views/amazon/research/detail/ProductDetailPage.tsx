@@ -4,24 +4,30 @@ import {
   Box,
   Breadcrumbs,
   Button,
+  CircularProgress,
   IconButton,
   Link,
   Skeleton,
   Stack,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import BrushOutlinedIcon from '@mui/icons-material/BrushOutlined';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import ArticleIcon from '@mui/icons-material/Article';
-import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { useSnackbar } from 'notistack';
 import { useTranslation } from 'react-i18next';
-import { useUseAsTemplateMutation } from '../../../../store/researchSlice';
+import {
+  useRescrapeProductMutation,
+  useUseAsTemplateMutation,
+} from '../../../../store/researchSlice';
 import { MARKETPLACE_OPTIONS } from '../types';
 import useProductDetail from './hooks/useProductDetail';
 import useAnalyzeDesign from '../hooks/useAnalyzeDesign';
+import { getMainBsr } from '../utils/getMainBsr';
 import KPIRow from './partials/KPIRow';
 import ProductInfoSection from './partials/ProductInfoSection';
 import PriceHistorySection from './partials/PriceHistorySection';
@@ -40,6 +46,8 @@ const ProductDetailPage = () => {
   const { t } = useTranslation();
   const [triggerUseAsTemplate, { isLoading: templateLoading }] =
     useUseAsTemplateMutation();
+  const [triggerRescrape, { isLoading: rescrapeLoading }] =
+    useRescrapeProductMutation();
   const { analyzeDesign, isAnalyzing, analyzingProductId } = useAnalyzeDesign();
 
   const {
@@ -83,6 +91,23 @@ const ProductDetailPage = () => {
       'noopener',
     );
   }, [product]);
+
+  const handleRescrape = useCallback(async () => {
+    if (!product) return;
+    try {
+      await triggerRescrape({
+        asin: product.asin,
+        marketplace: product.marketplace,
+      }).unwrap();
+      enqueueSnackbar(t('amazonResearch.detail.rescrapeStarted'), {
+        variant: 'info',
+      });
+    } catch {
+      enqueueSnackbar(t('amazonResearch.detail.rescrapeError'), {
+        variant: 'error',
+      });
+    }
+  }, [product, triggerRescrape, enqueueSnackbar, t]);
 
   // 404 state (EC-16)
   if (is404) {
@@ -157,7 +182,7 @@ const ProductDetailPage = () => {
       {/* KPI Row */}
       <Box sx={{ mb: 3 }}>
         <KPIRow
-          bsr={product.bsr}
+          bsr={getMainBsr(product)}
           price={product.price}
           reviewsCount={product.reviews_count}
           rating={product.rating}
@@ -165,66 +190,84 @@ const ProductDetailPage = () => {
         />
       </Box>
 
-      {/* Product Info + BSR Chart */}
+      {/* Product Info + BSR Chart — action row sits in right column above BSR chart */}
       <Box sx={{ mb: 3 }}>
         <ProductInfoSection
           product={product}
           bsrSnapshots={bsrSnapshots}
           bsrSummary={bsrSummary}
           bsrCategories={product.bsr_categories}
+          headerActions={
+            <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
+              <Tooltip title={t('amazonResearch.detail.openInAmazon')}>
+                <IconButton
+                  size="medium"
+                  color="secondary"
+                  onClick={handleOpenAmazon}
+                  aria-label={t('amazonResearch.detail.openInAmazon')}
+                >
+                  <OpenInNewIcon />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title={t('amazonResearch.detail.useAsTemplate')}>
+                <span>
+                  <IconButton
+                    size="medium"
+                    color="primary"
+                    onClick={handleUseAsTemplate}
+                    disabled={templateLoading}
+                    aria-label={t('amazonResearch.detail.useAsTemplate')}
+                  >
+                    <ArticleIcon />
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip
+                title={
+                  product.prompt_analysis
+                    ? t('design.analyze.reused')
+                    : t('design.analyze.button')
+                }
+              >
+                <span>
+                  <IconButton
+                    size="medium"
+                    color="secondary"
+                    onClick={handleAnalyzeDesign}
+                    disabled={isAnalyzing && analyzingProductId === product.id}
+                    aria-label={t('design.analyze.button')}
+                  >
+                    {isAnalyzing && analyzingProductId === product.id ? (
+                      <CircularProgress size={20} color="inherit" />
+                    ) : product.prompt_analysis ? (
+                      <CheckCircleOutlineIcon />
+                    ) : (
+                      <BrushOutlinedIcon />
+                    )}
+                  </IconButton>
+                </span>
+              </Tooltip>
+              <Tooltip title={t('amazonResearch.detail.rescrapeButton')}>
+                <span>
+                  <IconButton
+                    size="medium"
+                    color="secondary"
+                    onClick={handleRescrape}
+                    disabled={rescrapeLoading}
+                    aria-label={t('amazonResearch.detail.rescrapeButton')}
+                  >
+                    {rescrapeLoading ? (
+                      <CircularProgress size={20} color="inherit" />
+                    ) : (
+                      <RefreshIcon />
+                    )}
+                  </IconButton>
+                </span>
+              </Tooltip>
+            </Stack>
+          }
         />
       </Box>
-
-      {/* Actions Row */}
-      <Stack
-        direction={{ xs: 'column', sm: 'row' }}
-        spacing={2}
-        sx={{ mb: 3 }}
-      >
-        <Button
-          variant="outlined"
-          color="secondary"
-          startIcon={<OpenInNewIcon sx={{ fontSize: 18 }} />}
-          onClick={handleOpenAmazon}
-        >
-          {t('amazonResearch.detail.openInAmazon')}
-        </Button>
-        <Button
-          variant="contained"
-          startIcon={<ArticleIcon sx={{ fontSize: 18 }} />}
-          onClick={handleUseAsTemplate}
-          disabled={templateLoading}
-        >
-          {t('amazonResearch.detail.useAsTemplate')}
-        </Button>
-        <Button
-          variant="contained"
-          color="secondary"
-          startIcon={
-            product.prompt_analysis ? (
-              <CheckCircleOutlineIcon sx={{ fontSize: 18 }} />
-            ) : (
-              <BrushOutlinedIcon sx={{ fontSize: 18 }} />
-            )
-          }
-          onClick={handleAnalyzeDesign}
-          disabled={isAnalyzing && analyzingProductId === product.id}
-        >
-          {product.prompt_analysis
-            ? t('design.analyze.reused')
-            : isAnalyzing && analyzingProductId === product.id
-              ? t('design.analyze.started')
-              : t('design.analyze.button')}
-        </Button>
-        <Button
-          variant="outlined"
-          color="secondary"
-          startIcon={<BookmarkBorderIcon sx={{ fontSize: 18 }} />}
-          disabled
-        >
-          {t('amazonResearch.detail.saveKeywords')}
-        </Button>
-      </Stack>
 
       {/* Keywords */}
       <Box sx={{ mb: 3 }}>

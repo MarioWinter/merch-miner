@@ -14,6 +14,8 @@ interface ProductInfoSectionProps {
   bsrSnapshots: BSRSnapshot[];
   bsrSummary: BSRSummary | null;
   bsrCategories: BSRCategory[] | undefined;
+  /** Optional action row rendered above the BSR chart in the right column. */
+  headerActions?: React.ReactNode;
 }
 
 const ProductImg = styled('img')(({ theme }) => ({
@@ -43,6 +45,7 @@ const ProductInfoSection = ({
   bsrSnapshots,
   bsrSummary,
   bsrCategories,
+  headerActions,
 }: ProductInfoSectionProps) => {
   const { t } = useTranslation();
   const [descExpanded, setDescExpanded] = useState(false);
@@ -53,23 +56,27 @@ const ProductInfoSection = ({
 
   return (
     <Grid container spacing={3}>
-      {/* Left column: image + product info */}
+      {/* Left column: image + product info. Action row sits inline to the
+          right of the image — between the image and the BSR History column. */}
       <Grid size={{ xs: 12, md: 5 }}>
         <Stack spacing={2}>
-          {/* EC-18: No thumbnail placeholder */}
-          {product.thumbnail_url ? (
-            <ProductImg
-              src={product.thumbnail_url}
-              alt={product.title}
-              loading="lazy"
-            />
-          ) : (
-            <PlaceholderBox>
-              <Typography variant="body2" color="text.disabled">
-                {t('amazonResearch.detail.noImage')}
-              </Typography>
-            </PlaceholderBox>
-          )}
+          <Stack direction="row" spacing={2} alignItems="flex-start">
+            {/* EC-18: No thumbnail placeholder */}
+            {product.thumbnail_url ? (
+              <ProductImg
+                src={product.thumbnail_url}
+                alt={product.title}
+                loading="lazy"
+              />
+            ) : (
+              <PlaceholderBox>
+                <Typography variant="body2" color="text.disabled">
+                  {t('amazonResearch.detail.noImage')}
+                </Typography>
+              </PlaceholderBox>
+            )}
+            {headerActions}
+          </Stack>
 
           <Typography variant="h4" sx={{ fontWeight: 600 }}>
             {product.title}
@@ -165,7 +172,7 @@ const ProductInfoSection = ({
         </Stack>
       </Grid>
 
-      {/* Right column: BSR chart + subcategory ranks + BSR summary */}
+      {/* Right column: BSR chart + subcategory ranks + summary */}
       <Grid size={{ xs: 12, md: 7 }}>
         <BSRChart
           snapshots={bsrSnapshots}

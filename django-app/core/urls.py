@@ -84,6 +84,9 @@ urlpatterns = [
 
     # OpenClaw Agent (Multi-Agent System) API
     path('api/', include('agent_app.api.urls')),
+
+    # Scraper API (rescrape, etc.)
+    path('api/', include('scraper_app.api.urls')),
 ]
 
 if settings.DEBUG:

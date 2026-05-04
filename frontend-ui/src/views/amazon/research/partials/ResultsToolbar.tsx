@@ -1,6 +1,4 @@
-import { useCallback } from 'react';
 import {
-  Button,
   Stack,
   ToggleButton,
   ToggleButtonGroup,
@@ -8,24 +6,16 @@ import {
 } from '@mui/material';
 import GridViewIcon from '@mui/icons-material/GridView';
 import ViewListIcon from '@mui/icons-material/ViewList';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import BarChartIcon from '@mui/icons-material/BarChart';
 import ViewModuleIcon from '@mui/icons-material/ViewModule';
-import { useSnackbar } from 'notistack';
-import { apiClient } from '../../../../services/authService';
-import type { AmazonProduct } from '../types';
 
 export type ResultsTab = 'products' | 'keywords';
 
 interface ResultsToolbarProps {
   count: number;
   keyword: string;
-  isLive: boolean;
   layout: 'grid' | 'list';
   onLayoutChange: (layout: 'grid' | 'list') => void;
-  products: AmazonProduct[];
-  buildQueryParams: () => Record<string, unknown>;
   activeTab: ResultsTab;
   onTabChange: (tab: ResultsTab) => void;
   activeFilterSummary?: string;
@@ -34,48 +24,12 @@ interface ResultsToolbarProps {
 const ResultsToolbar = ({
   count,
   keyword,
-  isLive,
   layout,
   onLayoutChange,
-  products,
-  buildQueryParams,
   activeTab,
   onTabChange,
   activeFilterSummary,
 }: ResultsToolbarProps) => {
-  const { enqueueSnackbar } = useSnackbar();
-
-  const handleCopyAsins = useCallback(async () => {
-    const asins = products.map((p) => p.asin).join(', ');
-    try {
-      await navigator.clipboard.writeText(asins);
-      enqueueSnackbar('ASINs copied to clipboard', { variant: 'success' });
-    } catch {
-      enqueueSnackbar('Failed to copy ASINs', { variant: 'error' });
-    }
-  }, [products, enqueueSnackbar]);
-
-  const handleExportCSV = useCallback(async () => {
-    try {
-      const params = buildQueryParams();
-      const response = await apiClient.get('/api/research/products/export/', {
-        params,
-        responseType: 'blob',
-      });
-      const url = window.URL.createObjectURL(new Blob([response.data]));
-      const link = document.createElement('a');
-      link.href = url;
-      link.setAttribute('download', 'research-export.csv');
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      window.URL.revokeObjectURL(url);
-      enqueueSnackbar('CSV exported', { variant: 'success' });
-    } catch {
-      enqueueSnackbar('Export failed', { variant: 'error' });
-    }
-  }, [buildQueryParams, enqueueSnackbar]);
-
   return (
     <Stack
       direction="row"
@@ -133,31 +87,6 @@ const ResultsToolbar = ({
         </ToggleButtonGroup>
       )}
 
-      {!isLive && activeTab === 'products' && (
-        <>
-          <Button
-            variant="outlined"
-            color="secondary"
-            size="small"
-            startIcon={<ContentCopyIcon sx={{ fontSize: 16 }} />}
-            onClick={handleCopyAsins}
-            disabled={products.length === 0}
-            aria-label={`Copy ${products.length} ASINs`}
-          >
-            Copy {products.length} ASINs
-          </Button>
-          <Button
-            variant="outlined"
-            size="small"
-            startIcon={<FileDownloadIcon sx={{ fontSize: 16 }} />}
-            onClick={handleExportCSV}
-            disabled={count === 0}
-            aria-label="Export CSV"
-          >
-            Export CSV
-          </Button>
-        </>
-      )}
     </Stack>
   );
 };
