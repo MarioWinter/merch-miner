@@ -167,3 +167,51 @@ def test_task_creates_row_even_when_spider_crashes(canary, tmp_path, settings):
     assert hc is not None
     assert hc.passed is False
     assert hc.error_message and 'subprocess explosion' in hc.error_message
+
+
+# ---------------------------------------------------------------------------
+# Sorry/Dogs-of-Amazon page → flag as canary-replace, NOT selector drift
+# ---------------------------------------------------------------------------
+
+def test_task_sorry_page_does_not_trigger_drift_alarm(canary, tmp_path, settings):
+    """Canary points to a deleted product → fail with 'replace canary' message,
+    NOT with a misleading list of EMPTY selectors."""
+    settings.MEDIA_ROOT = str(tmp_path)
+
+    sorry_html = """
+    <html><body><div id="g">
+      <a href="/dogsofamazon" target="_blank"><img id="d" alt="Dogs of Amazon"></a>
+    </div></body></html>
+    """
+
+    def fake_popen(*args, **kwargs):
+        cmd = args[0] if args else kwargs.get('args', [])
+        hc_id = None
+        for item in cmd:
+            if isinstance(item, str) and item.startswith('health_check_id='):
+                hc_id = item.split('=', 1)[1]
+                break
+
+        snapshot_dir = Path(settings.MEDIA_ROOT) / 'snapshots' / 'amazon_com'
+        snapshot_dir.mkdir(parents=True, exist_ok=True)
+        snapshot_path = snapshot_dir / f"{canary.asin}_synthetic.html"
+        snapshot_path.write_text(sorry_html, encoding='utf-8')
+
+        if hc_id:
+            SelectorHealthCheck.objects.filter(id=hc_id).update(
+                html_path=str(snapshot_path.relative_to(settings.MEDIA_ROOT)),
+                html_size_bytes=len(sorry_html.encode('utf-8')),
+            )
+        proc = MagicMock()
+        proc.communicate.return_value = (b'', b'')
+        proc.returncode = 0
+        return proc
+
+    with patch('scraper_app.tasks.subprocess.Popen', side_effect=fake_popen):
+        hc = run_selector_health_check(str(canary.id), triggered_by='schedule')
+
+    assert hc.passed is False
+    assert hc.error_message and 'unavailable' in hc.error_message.lower()
+    assert canary.asin in hc.error_message
+    # Audit must NOT have been run — results should still be the empty placeholder.
+    assert hc.results == {}

@@ -115,8 +115,17 @@ class DjangoORMPipeline:
     # ------------------------------------------------------------------
 
     def _handle_error_item(self, item):
+        failed_selector = item.get('failed_selector', '')
+
+        # Treat 'product_unavailable' as a recoverable state, not a selector
+        # bug: Amazon returned the Sorry/Dogs-of-Amazon page → flag the row
+        # but don't pollute the scrape_job error_log with a "selector failure".
+        if failed_selector == 'product_unavailable':
+            self._mark_product_unavailable(item)
+            return
+
         error_entry = (
-            f"SELECTOR_ERROR: {item['failed_selector']} | "
+            f"SELECTOR_ERROR: {failed_selector} | "
             f"URL: {item['url']} | "
             f"Marketplace: {item['marketplace']} | "
             f"Status: {item['response_status']} | "
@@ -130,6 +139,51 @@ class DjangoORMPipeline:
                 self.scrape_job.save(update_fields=['error_log'])
             except Exception:
                 logger.exception("Failed to save error to ScrapeJob")
+
+    def _mark_product_unavailable(self, item):
+        """Set is_available=False + first-detection timestamp on existing AmazonProduct.
+
+        - Preserves original `unavailable_since` across re-detections (UI filter "deleted in last N days" stays stable).
+        - No-op if no row exists yet (we don't create stub rows for missing ASINs).
+        """
+        url = item.get('url', '')
+        marketplace = item.get('marketplace', '')
+        # Reuse the same parser as the spider so URL-shape changes stay localized.
+        from scraper_app.scrapy_app.spiders.mixins import ProductDetailMixin
+        asin = ProductDetailMixin._extract_asin_from_url(url)
+        if not asin:
+            logger.warning("product_unavailable item missing parseable ASIN: url=%s", url)
+            return
+
+        try:
+            product = self.AmazonProduct.objects.filter(
+                asin=asin, marketplace=marketplace,
+            ).first()
+        except Exception:
+            logger.exception("Lookup failed for unavailable product asin=%s", asin)
+            return
+
+        if product is None:
+            logger.info(
+                "Skip unavailable flag — no stored AmazonProduct for asin=%s mp=%s",
+                asin, marketplace,
+            )
+            return
+
+        update_fields = []
+        if product.is_available:
+            product.is_available = False
+            update_fields.append('is_available')
+        if product.unavailable_since is None:
+            product.unavailable_since = self.timezone.now()
+            update_fields.append('unavailable_since')
+
+        if update_fields:
+            product.save(update_fields=update_fields)
+            logger.info(
+                "Marked unavailable: asin=%s mp=%s since=%s",
+                asin, marketplace, product.unavailable_since,
+            )
 
     def _upsert_product(self, item):
         """PATCH semantics: get_or_create + only update fields where item value is not None."""
@@ -176,6 +230,18 @@ class DjangoORMPipeline:
         # Always update scraped_at
         product.scraped_at = self.timezone.now()
         changed_fields.append('scraped_at')
+
+        # Recovery: a previously-unavailable product is reachable again. Clear
+        # the flags so it surfaces in the UI again. We deliberately reset both
+        # fields so the audit trail is consistent (no orphan unavailable_since).
+        if not product.is_available:
+            product.is_available = True
+            product.unavailable_since = None
+            changed_fields.extend(['is_available', 'unavailable_since'])
+            logger.info(
+                "Recovered: asin=%s mp=%s now reachable again",
+                product.asin, product.marketplace,
+            )
 
         if changed_fields:
             product.save(update_fields=changed_fields)

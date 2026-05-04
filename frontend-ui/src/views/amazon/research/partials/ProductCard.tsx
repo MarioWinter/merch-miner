@@ -10,10 +10,8 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import BrushOutlinedIcon from '@mui/icons-material/BrushOutlined';
 import CircularProgress from '@mui/material/CircularProgress';
 import StarIcon from '@mui/icons-material/Star';
-import { SparkLineChart } from '@mui/x-charts/SparkLineChart';
 import { useSnackbar } from 'notistack';
 import { useTranslation } from 'react-i18next';
-import { useGetBSRHistoryQuery } from '../../../../store/researchSlice';
 import { MONO_FONT_STACK, SHADOW } from '../../../../style/constants';
 import { HoverOverlay as SharedHoverOverlay, ActionPill, ProductImage as SharedProductImage } from '@/components/CardOverlay';
 import { MARKETPLACE_OPTIONS, type AmazonProduct } from '../types';
@@ -34,9 +32,8 @@ interface ProductCardProps {
   hasDesignAnalysis?: boolean;
 }
 
-const CARD_HEIGHT = 340;
+const CARD_HEIGHT = 320;
 const IMAGE_HEIGHT = 220;
-const SPARKLINE_HEIGHT = 20;
 const INFO_HEIGHT = 96;
 
 const CARD_WIDTH = 215;
@@ -83,15 +80,6 @@ const AiBadge = styled(Box)(({ theme }) => ({
   alignItems: 'center',
   justifyContent: 'center',
 }));
-
-const SparklineRow = styled(Box)({
-  height: SPARKLINE_HEIGHT,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  overflow: 'hidden',
-  padding: '0 14px',
-});
 
 const InfoArea = styled(Box)(({ theme }) => ({
   height: INFO_HEIGHT,
@@ -158,15 +146,6 @@ const ProductCard = ({
     return broadest.rank;
   })();
   const bsrColor = getBsrThemeColor(mainBsr);
-
-  const isValidAsin = /^[A-Z0-9]{10}$/.test(product.asin);
-  const { data: bsrHistory } = useGetBSRHistoryQuery(
-    { asin: product.asin, marketplace: product.marketplace },
-    { skip: !isValidAsin },
-  );
-
-  const sparkData =
-    bsrHistory && bsrHistory.length >= 2 ? bsrHistory.map((s) => s.bsr) : null;
 
   const handleCopyAsin = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -308,22 +287,6 @@ const ProductCard = ({
           </AiBadge>
         )}
       </ImageWrapper>
-
-      {/* BSR Sparkline row */}
-      <SparklineRow>
-        {sparkData ? (
-          <SparkLineChart
-            data={sparkData}
-            height={SPARKLINE_HEIGHT}
-            color="var(--mui-palette-secondary-main)"
-            showHighlight
-            showTooltip
-            aria-label="BSR trend"
-          />
-        ) : (
-          <Box sx={{ height: SPARKLINE_HEIGHT }} />
-        )}
-      </SparklineRow>
 
       {/* Info area: 3 dense rows like Flying Research */}
       <InfoArea>

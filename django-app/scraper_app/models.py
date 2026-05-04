@@ -97,6 +97,17 @@ class AmazonProduct(models.Model):
         help_text='Gemini 3 Architect 7-step image analysis output',
     )
     scraped_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    is_available = models.BooleanField(
+        default=True,
+        db_index=True,
+        help_text='False once Amazon serves the Sorry/Dogs-of-Amazon page for this ASIN.',
+    )
+    unavailable_since = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='First time we detected the product as unavailable. Stable across re-scrapes; cleared on recovery.',
+    )
     keywords = models.ManyToManyField(Keyword, related_name='products', blank=True)
     meta_keywords = models.ManyToManyField('MetaKeyword', related_name='products', blank=True)
 

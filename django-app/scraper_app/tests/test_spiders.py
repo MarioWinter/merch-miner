@@ -209,3 +209,56 @@ class TestBuildSearchUrlSortAndFilter:
         # Base URL still correct
         assert 's?k=funny+cat' in url
         assert 'page=1' in url
+
+
+# ----------------------------------------------------------------------
+# Sorry/Dogs-of-Amazon page detection
+# ----------------------------------------------------------------------
+
+
+class TestSorryPageDetection:
+    """Amazon serves HTTP 200 with a 'Dogs of Amazon' page for deleted ASINs.
+
+    Spider must recognize this signature WITHOUT triggering the 3x retry loop
+    (would burn ScrapeOps credits) and yield a `product_unavailable` error so
+    the pipeline can flag the row instead of treating it as selector drift.
+    """
+
+    SORRY_BODY = b'''
+    <html><body><div id="g">
+      <div><a href="/"><img alt="Sorry! We couldn't find that page."></a></div>
+      <a href="/dogsofamazon" target="_blank" rel="noopener noreferrer">
+        <img id="d" alt="Dogs of Amazon">
+      </a>
+    </div></body></html>
+    '''
+
+    REAL_PRODUCT_BODY = b'<html><body><span id="productTitle">Real product</span></body></html>'
+
+    def _make_response(self, body: bytes, url: str = 'https://www.amazon.com/dp/B0DEAD12345/'):
+        from scrapy.http import HtmlResponse, Request
+        request = Request(url=url, meta={'asin': 'B0DEAD12345', 'marketplace': 'amazon_com'})
+        return HtmlResponse(url=url, request=request, body=body, encoding='utf-8')
+
+    def test_dogsofamazon_link_detected(self):
+        response = self._make_response(self.SORRY_BODY)
+        assert ProductDetailMixin._is_product_unavailable_page(response) is True
+
+    def test_real_product_not_flagged(self):
+        response = self._make_response(self.REAL_PRODUCT_BODY)
+        assert ProductDetailMixin._is_product_unavailable_page(response) is False
+
+    def test_parse_yields_unavailable_no_retry(self):
+        """parse_product_data yields product_unavailable + does NOT enqueue retry."""
+        from scraper_app.scrapy_app.spiders.amazon_product import AmazonProductSpider
+
+        spider = AmazonProductSpider(asin='B0DEAD12345')
+        response = self._make_response(self.SORRY_BODY)
+
+        results = list(spider.parse_product_data(response))
+
+        assert len(results) == 1
+        item = results[0]
+        assert item['failed_selector'] == 'product_unavailable'
+        assert item['marketplace'] == 'amazon_com'
+        assert 'B0DEAD12345' in item['error_message']
