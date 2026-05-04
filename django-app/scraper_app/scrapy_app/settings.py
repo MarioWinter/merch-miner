@@ -25,6 +25,12 @@ ITEM_PIPELINES = {
 }
 
 CONCURRENT_REQUESTS = int(os.environ.get('SCRAPY_CONCURRENT_REQUESTS', 1))
+# Scrapy throttles per-domain to 8 by default — useless against amazon.* where
+# nearly every request shares the same host. Default per-domain to the global
+# value so SCRAPY_CONCURRENT_REQUESTS actually takes effect.
+CONCURRENT_REQUESTS_PER_DOMAIN = int(
+    os.environ.get('SCRAPY_CONCURRENT_REQUESTS_PER_DOMAIN', CONCURRENT_REQUESTS)
+)
 LOG_LEVEL = 'INFO'
 
 # Timeout for individual requests
