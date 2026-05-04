@@ -619,15 +619,6 @@ def _prune_snapshots(asin: str, marketplace: str, keep: int = DEFAULT_HEALTH_CHE
         return 0
 
 
-def _run_audit_on_file(absolute_path: Path, marketplace: str) -> dict:
-    """Load snapshot file and run the selector audit. Local import to keep
-    the tasks module light when audit isn't needed (worker startup cost)."""
-    from scraper_app.audit import run_audit
-
-    html = absolute_path.read_text(encoding='utf-8', errors='replace')
-    return run_audit(html, marketplace)
-
-
 def run_selector_health_check(canary_id, triggered_by='schedule'):
     """Run a selector health-check for one CanaryAsin.
 
@@ -698,10 +689,38 @@ def run_selector_health_check(canary_id, triggered_by='schedule'):
             )
             return health_check
 
-        # We have a snapshot — run the audit.
+        # Sorry/Dogs-of-Amazon page check BEFORE selector audit. A canary that
+        # points to a deleted product would otherwise trigger a false-positive
+        # "selector drift" alarm (every selector returns EMPTY on the error page).
+        # Mark the row as failed but with an actionable error message so the
+        # operator replaces the canary instead of chasing nonexistent drift.
         try:
             absolute_path = Path(settings.MEDIA_ROOT) / health_check.html_path
-            results = _run_audit_on_file(absolute_path, canary.marketplace)
+            html = absolute_path.read_text(encoding='utf-8', errors='replace')
+        except Exception as exc:
+            logger.exception("Snapshot read failed for health_check=%s", health_check.id)
+            health_check.error_message = f"Snapshot read error: {exc}"
+            health_check.passed = False
+            health_check.save(update_fields=['passed', 'error_message'])
+            return health_check
+
+        if '/dogsofamazon' in html:
+            health_check.error_message = (
+                f"Canary product unavailable on Amazon (Sorry-page). "
+                f"Replace canary ASIN {canary.asin} ({canary.label or '-'})."
+            )
+            health_check.passed = False
+            health_check.save(update_fields=['passed', 'error_message'])
+            logger.warning(
+                "Health check SKIPPED — canary %s is a deleted product. %s",
+                canary.asin, health_check.error_message,
+            )
+            return health_check
+
+        # We have a snapshot — run the audit.
+        try:
+            from scraper_app.audit import run_audit
+            results = run_audit(html, canary.marketplace)
         except Exception as exc:
             logger.exception("Audit failed for health_check=%s", health_check.id)
             health_check.error_message = f"Audit error: {exc}"

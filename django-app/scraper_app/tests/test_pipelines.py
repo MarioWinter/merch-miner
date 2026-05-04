@@ -669,3 +669,99 @@ class TestPipelineMetaKeywordIntegration:
         assert len(pipe.scraped_product_pks) == 1
         product = AmazonProduct.objects.get(asin="B0TEST12345")
         assert product.pk in pipe.scraped_product_pks
+
+
+# ------------------------------------------------------------------
+# product_unavailable handling (Sorry/Dogs-of-Amazon page)
+# ------------------------------------------------------------------
+
+
+class TestPipelineProductUnavailable:
+    def test_marks_existing_product_unavailable(self, pipeline, scrape_tiers):
+        """First Sorry-page detect: is_available=False + unavailable_since=now."""
+        pipe, spider = pipeline
+        product = AmazonProduct.objects.create(
+            asin="B0DEAD12345", marketplace="amazon_com", title="Old product",
+        )
+        assert product.is_available is True
+        assert product.unavailable_since is None
+
+        item = make_error_item(
+            failed_selector="product_unavailable",
+            url="https://www.amazon.com/dp/B0DEAD12345/",
+            error_message="Amazon returned Sorry-page (deleted product) for ASIN B0DEAD12345",
+        )
+        pipe.process_item(item, spider)
+
+        product.refresh_from_db()
+        assert product.is_available is False
+        assert product.unavailable_since is not None
+
+    def test_preserves_unavailable_since_on_redetect(self, pipeline, scrape_tiers):
+        """Second Sorry-page detect must NOT overwrite unavailable_since."""
+        from django.utils import timezone
+        from datetime import timedelta
+
+        pipe, spider = pipeline
+        original_ts = timezone.now() - timedelta(days=5)
+        product = AmazonProduct.objects.create(
+            asin="B0DEAD12345",
+            marketplace="amazon_com",
+            is_available=False,
+            unavailable_since=original_ts,
+        )
+
+        item = make_error_item(
+            failed_selector="product_unavailable",
+            url="https://www.amazon.com/dp/B0DEAD12345/",
+        )
+        pipe.process_item(item, spider)
+
+        product.refresh_from_db()
+        assert product.is_available is False
+        assert product.unavailable_since == original_ts  # not overwritten
+
+    def test_skips_when_no_existing_product(self, pipeline, scrape_tiers):
+        """No stub row created for an unavailable ASIN we never scraped before."""
+        pipe, spider = pipeline
+        item = make_error_item(
+            failed_selector="product_unavailable",
+            url="https://www.amazon.com/dp/B0NEVER0000/",
+        )
+        pipe.process_item(item, spider)
+
+        assert AmazonProduct.objects.filter(asin="B0NEVER0000").count() == 0
+
+    def test_no_error_log_pollution(self, pipeline, scrape_tiers, scrape_job):
+        """product_unavailable goes to flag, NOT scrape_job.error_log (selector_drift channel)."""
+        pipe, spider = pipeline
+        AmazonProduct.objects.create(asin="B0DEAD12345", marketplace="amazon_com")
+
+        item = make_error_item(
+            failed_selector="product_unavailable",
+            url="https://www.amazon.com/dp/B0DEAD12345/",
+        )
+        pipe.process_item(item, spider)
+
+        scrape_job.refresh_from_db()
+        assert not (scrape_job.error_log or '').strip()
+
+    def test_recovery_clears_flags(self, pipeline, scrape_tiers):
+        """Successful re-scrape resets is_available + unavailable_since."""
+        from django.utils import timezone
+
+        pipe, spider = pipeline
+        AmazonProduct.objects.create(
+            asin="B0DEAD12345",
+            marketplace="amazon_com",
+            is_available=False,
+            unavailable_since=timezone.now(),
+        )
+
+        item = make_product_item(asin="B0DEAD12345", title="Back from the dead")
+        pipe.process_item(item, spider)
+
+        product = AmazonProduct.objects.get(asin="B0DEAD12345")
+        assert product.is_available is True
+        assert product.unavailable_since is None
+        assert product.title == "Back from the dead"

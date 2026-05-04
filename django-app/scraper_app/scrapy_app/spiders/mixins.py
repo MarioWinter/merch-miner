@@ -33,6 +33,27 @@ class ProductDetailMixin:
         meta_asin = response.meta.get('asin')
         retry_count = response.meta.get('retry_count', 0)
 
+        # --- Sorry/404 page detection (BEFORE selector checks) ---
+        # Amazon serves HTTP 200 for deleted ASINs with a generic error page
+        # featuring 'Dogs of Amazon'. The /dogsofamazon link is the most
+        # reliable signature — same across marketplaces, even when localized.
+        # Yield as 'product_unavailable' so the pipeline can flag the existing
+        # AmazonProduct row instead of triggering a 3x retry on a dead URL.
+        if self._is_product_unavailable_page(response):
+            self.logger.info(
+                "Amazon Sorry-page detected on %s (asin=%s)", response.url, meta_asin,
+            )
+            yield ScrapeErrorItem(
+                failed_selector='product_unavailable',
+                url=response.url,
+                marketplace=marketplace,
+                response_status=response.status,
+                error_message=(
+                    f"Amazon returned Sorry-page (deleted product) for ASIN {meta_asin or 'unknown'}"
+                ),
+            )
+            return
+
         selectors = get_selectors(marketplace)
         detail = selectors['detail']
 
@@ -165,6 +186,16 @@ class ProductDetailMixin:
         )
 
     # --- Helper methods ---
+
+    @staticmethod
+    def _is_product_unavailable_page(response) -> bool:
+        """Return True if Amazon returned the 'Sorry' / Dogs-of-Amazon error page.
+
+        The /dogsofamazon link is rendered only on Amazon's generic 'product not
+        found' page and is identical across marketplaces, so we use it as the
+        primary signature. Bytes comparison avoids the cost of decoding the body.
+        """
+        return b'/dogsofamazon' in response.body
 
     @staticmethod
     def _extract_asin_from_url(url):
