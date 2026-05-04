@@ -33,4 +33,9 @@ class RealIPMiddleware:
             real_ip = xff.split(',')[0].strip()
             if real_ip:
                 request.META['REMOTE_ADDR'] = real_ip
+                # Drop the XFF header so DRF's SimpleRateThrottle.get_ident()
+                # falls through to REMOTE_ADDR. Without this, DRF would use
+                # the raw XFF string as throttle key (since NUM_PROXIES is
+                # None by default) and bypass the IP we just resolved.
+                del request.META['HTTP_X_FORWARDED_FOR']
         return self.get_response(request)
