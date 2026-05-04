@@ -8,7 +8,7 @@ from core.middleware import RealIPMiddleware
 
 
 def test_real_ip_overrides_remote_addr_from_xff():
-    """X-Forwarded-For first IP becomes REMOTE_ADDR."""
+    """X-Forwarded-For first IP becomes REMOTE_ADDR + XFF is dropped."""
     rf = RequestFactory()
     request = rf.get('/', HTTP_X_FORWARDED_FOR='203.0.113.42, 172.20.0.4')
     request.META['REMOTE_ADDR'] = '172.20.0.4'  # the proxy's view
@@ -18,6 +18,9 @@ def test_real_ip_overrides_remote_addr_from_xff():
     mw(request)
 
     assert request.META['REMOTE_ADDR'] == '203.0.113.42'
+    # XFF must be dropped so DRF SimpleRateThrottle falls back to REMOTE_ADDR
+    # (DRF reads XFF directly when NUM_PROXIES is unset, ignoring REMOTE_ADDR).
+    assert 'HTTP_X_FORWARDED_FOR' not in request.META
 
 
 def test_real_ip_no_xff_keeps_remote_addr():
