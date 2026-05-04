@@ -18,6 +18,7 @@ from scraper_app.models import (
     ProductSearchCache,
     ScheduledScrapeTarget,
     ScrapeJob,
+    ScraperConfig,
     ScrapeTier,
     SelectorHealthCheck,
 )
@@ -34,6 +35,24 @@ def _scrapy_env():
     existing = env.get('PYTHONPATH', '')
     env['PYTHONPATH'] = f"{SCRAPY_PROJECT_DIR}:{existing}" if existing else SCRAPY_PROJECT_DIR
     return env
+
+
+def _scrapy_concurrency_settings():
+    """Return `-s KEY=VAL` flags from the ScraperConfig singleton.
+
+    Failure to load (e.g. DB transient error) MUST NOT block scraping — fall
+    back to env-var defaults baked into `scrapy_app/settings.py`.
+    """
+    try:
+        cfg = ScraperConfig.load()
+    except Exception:
+        logger.warning("ScraperConfig.load() failed — falling back to env defaults", exc_info=True)
+        return []
+    return [
+        '-s', f'CONCURRENT_REQUESTS={cfg.concurrent_requests}',
+        '-s', f'CONCURRENT_REQUESTS_PER_DOMAIN={cfg.concurrent_requests_per_domain}',
+        '-s', f'DOWNLOAD_DELAY={cfg.download_delay_ms / 1000:.3f}',
+    ]
 
 
 CACHE_TTL_HOURS = 24
@@ -133,6 +152,9 @@ def scrape_keyword_job(
                 cmd.extend(['-a', f'{key}={value}'])
         if max_items:
             cmd.extend(['-s', f'CLOSESPIDER_ITEMCOUNT={max_items}'])
+
+        # Inject admin-configured concurrency (overrides env-var defaults).
+        cmd.extend(_scrapy_concurrency_settings())
 
         # cmd is a list (no shell=True); args are validated spider names + numeric job ids
         proc = subprocess.Popen(  # nosec B603
@@ -274,6 +296,9 @@ def scrape_search_page_job(
         if max_items:
             cmd.extend(['-s', f'CLOSESPIDER_ITEMCOUNT={max_items}'])
 
+        # Inject admin-configured concurrency (overrides env-var defaults).
+        cmd.extend(_scrapy_concurrency_settings())
+
         # cmd is a list (no shell=True); args are validated spider names + numeric job ids
         proc = subprocess.Popen(  # nosec B603
             cmd,
@@ -383,6 +408,9 @@ def scrape_asin_detail_job(asin, marketplace, scrape_job_id=None):
         ]
         if scrape_job_id:
             cmd.extend(['-a', f'job_id={scrape_job_id}'])
+
+        # Inject admin-configured concurrency (overrides env-var defaults).
+        cmd.extend(_scrapy_concurrency_settings())
 
         # cmd is a list (no shell=True); args are validated spider names + numeric job ids
         proc = subprocess.Popen(  # nosec B603
@@ -649,6 +677,8 @@ def run_selector_health_check(canary_id, triggered_by='schedule'):
         '-a', f'marketplace={canary.marketplace}',
         '-a', f'health_check_id={health_check.id}',
     ]
+    # Inject admin-configured concurrency (overrides env-var defaults).
+    cmd.extend(_scrapy_concurrency_settings())
 
     try:
         # cmd is a list (no shell=True); args are validated spider names + numeric job ids
