@@ -1,3 +1,14 @@
+# Global options — must be the first block.
+{
+    # Trust the localai-stack ingress Caddy (172.20.0.0/16, merch_net) and the
+    # internal docker network (172.21.0.0/16) as proxies. Without this, Caddy
+    # v2.7+ overrides X-Forwarded-For with the immediate peer's IP — which
+    # breaks DRF throttling (every request keyed by Caddy's container IP).
+    servers {
+        trusted_proxies static 172.20.0.0/16 172.21.0.0/16
+    }
+}
+
 miner.mariowinter.com:80 {
     handle /static/* {
         root * /srv
