@@ -148,6 +148,17 @@ export const researchApi = createApi({
         method: 'POST',
       }),
     }),
+
+    rescrapeProduct: builder.mutation<
+      { job_id: string; rq_job_id: string },
+      { asin: string; marketplace?: string }
+    >({
+      query: ({ asin, marketplace = 'amazon_com' }) => ({
+        url: `/api/scraper/products/${asin}/rescrape/`,
+        method: 'POST',
+        data: { marketplace },
+      }),
+    }),
   }),
 });
 
@@ -167,4 +178,5 @@ export const {
   useUseAsTemplateMutation,
   usePollSearchStatusExtendedQuery,
   useCancelLiveSearchMutation,
+  useRescrapeProductMutation,
 } = researchApi;

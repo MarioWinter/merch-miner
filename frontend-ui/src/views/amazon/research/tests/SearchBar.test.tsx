@@ -22,9 +22,6 @@ const baseProps = {
   marketplace: 'amazon_com',
   onKeywordChange: vi.fn(),
   onSearch: vi.fn(),
-  recentSearches: [] as { keyword: string; marketplace: string }[],
-  onRecentClick: vi.fn(),
-  onRecentRemove: vi.fn(),
   matchedNiche: null,
   hasSearched: false,
   onNicheIndicatorClick: vi.fn(),
@@ -112,53 +109,9 @@ describe('SearchBar', () => {
     expect(screen.getByText('Live Research')).toBeInTheDocument();
   });
 
-  it('renders recent search chips when provided', () => {
-    const recentSearches = [
-      { keyword: 'hiking shirt', marketplace: 'amazon_com' },
-      { keyword: 'funny cat', marketplace: 'amazon_de' },
-    ];
-    renderWithProviders(<SearchBar {...baseProps} recentSearches={recentSearches} />);
-
-    expect(screen.getByText('hiking shirt')).toBeInTheDocument();
-    expect(screen.getByText('funny cat')).toBeInTheDocument();
-  });
-
-  it('does not render recent search section when list is empty', () => {
-    renderWithProviders(<SearchBar {...baseProps} recentSearches={[]} />);
-
-    expect(screen.queryByLabelText(/Recent search/)).not.toBeInTheDocument();
-  });
-
-  it('clicking a recent search chip calls onRecentClick', async () => {
-    const onRecentClick = vi.fn();
-    const recentSearches = [
-      { keyword: 'hiking shirt', marketplace: 'amazon_com' },
-    ];
-    renderWithProviders(
-      <SearchBar {...baseProps} recentSearches={recentSearches} onRecentClick={onRecentClick} />,
-    );
-
-    await userEvent.click(screen.getByText('hiking shirt'));
-
-    expect(onRecentClick).toHaveBeenCalledWith('hiking shirt', 'amazon_com');
-  });
-
-  it('deleting a recent search chip calls onRecentRemove with index', async () => {
-    const onRecentRemove = vi.fn();
-    const recentSearches = [
-      { keyword: 'hiking shirt', marketplace: 'amazon_com' },
-      { keyword: 'funny cat', marketplace: 'amazon_de' },
-    ];
-    renderWithProviders(
-      <SearchBar {...baseProps} recentSearches={recentSearches} onRecentRemove={onRecentRemove} />,
-    );
-
-    // Delete the second chip (index 1)
-    const deleteButtons = screen.getAllByTestId('CloseIcon');
-    await userEvent.click(deleteButtons[1]);
-
-    expect(onRecentRemove).toHaveBeenCalledWith(1);
-  });
+  // Recent-search rendering moved out of SearchBar into <SearchHistoryChips>
+  // (rendered by AmazonResearchView right below SearchBar). See
+  // src/components/SearchHistory/ tests for those interactions.
 
   it('syncs input value when keyword prop changes', () => {
     const { rerender } = renderWithProviders(

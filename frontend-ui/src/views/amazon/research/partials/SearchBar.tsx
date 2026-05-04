@@ -3,7 +3,6 @@ import {
   Autocomplete,
   Box,
   Button,
-  Chip,
   CircularProgress,
   IconButton,
   Stack,
@@ -15,12 +14,10 @@ import {
 import { styled } from '@mui/material/styles';
 import SearchIcon from '@mui/icons-material/Search';
 import StopCircleOutlinedIcon from '@mui/icons-material/StopCircleOutlined';
-import CloseIcon from '@mui/icons-material/Close';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useGetSuggestionsQuery } from '../../../../store/researchSlice';
-import type { RecentSearch } from '../hooks/useRecentSearches';
 import type { Niche } from '../../../niches/list/types';
 
 interface SearchBarProps {
@@ -30,9 +27,6 @@ interface SearchBarProps {
   marketplace: string;
   onKeywordChange: (keyword: string) => void;
   onSearch: (keyword: string) => void;
-  recentSearches: RecentSearch[];
-  onRecentClick: (keyword: string, marketplace: string) => void;
-  onRecentRemove: (index: number) => void;
   /** The auto-detected niche matching the searched keyword (null if none). */
   matchedNiche: Niche | null;
   /** Whether a search has been submitted at least once. */
@@ -75,9 +69,6 @@ const SearchBar = ({
   marketplace,
   onKeywordChange,
   onSearch,
-  recentSearches,
-  onRecentClick,
-  onRecentRemove,
   matchedNiche,
   hasSearched,
   onNicheIndicatorClick,
@@ -126,15 +117,6 @@ const SearchBar = ({
       }
     },
     [handleSearch],
-  );
-
-  const handleRecentChipClick = useCallback(
-    (kw: string, mp: string) => {
-      // Only fill the input — do NOT trigger search
-      setInputValue(kw);
-      onRecentClick(kw, mp);
-    },
-    [onRecentClick],
   );
 
   const nicheTooltip = matchedNiche
@@ -262,22 +244,6 @@ const SearchBar = ({
         )}
       </Stack>
 
-      {recentSearches.length > 0 && (
-        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-          {recentSearches.map((item, idx) => (
-            <Chip
-              key={`${item.keyword}-${item.marketplace}`}
-              label={item.keyword}
-              size="small"
-              onClick={() => handleRecentChipClick(item.keyword, item.marketplace)}
-              onDelete={() => onRecentRemove(idx)}
-              deleteIcon={<CloseIcon sx={{ fontSize: 14 }} />}
-              variant="outlined"
-              aria-label={`Recent search: ${item.keyword}`}
-            />
-          ))}
-        </Stack>
-      )}
     </Stack>
   );
 };

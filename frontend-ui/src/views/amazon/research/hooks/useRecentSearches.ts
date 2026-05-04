@@ -12,6 +12,7 @@ interface UseRecentSearchesReturn {
   searches: RecentSearch[];
   addSearch: (keyword: string, marketplace: string) => void;
   removeSearch: (index: number) => void;
+  clearAll: () => void;
 }
 
 const readFromStorage = (): RecentSearch[] => {
@@ -59,7 +60,12 @@ const useRecentSearches = (): UseRecentSearchesReturn => {
     });
   }, []);
 
-  return { searches, addSearch, removeSearch };
+  const clearAll = useCallback(() => {
+    writeToStorage([]);
+    setSearches([]);
+  }, []);
+
+  return { searches, addSearch, removeSearch, clearAll };
 };
 
 export default useRecentSearches;

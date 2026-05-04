@@ -32,6 +32,7 @@ import { useAddKeywordMutation } from '../../../store/keywordSlice';
 import useResearchMode from './hooks/useResearchMode';
 import useFilterState from './hooks/useFilterState';
 import useRecentSearches from './hooks/useRecentSearches';
+import { SearchHistoryChips } from '@/components/SearchHistory/SearchHistoryChips';
 import usePolling from './hooks/usePolling';
 import useActiveNiche from './hooks/useActiveNiche';
 import useDbInfiniteScroll from './hooks/useDbInfiniteScroll';
@@ -61,7 +62,7 @@ const AmazonResearchView = () => {
   const { filters, enabled, setFilter, setEnabled, resetFilters, activeFilterCount } =
     useFilterState();
   const { mode, isLive, toggleMode } = useResearchMode(resetFilters);
-  const { searches, addSearch, removeSearch } = useRecentSearches();
+  const { searches, addSearch, removeSearch, clearAll: clearRecentSearches } = useRecentSearches();
 
   const [keyword, setKeyword] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
@@ -517,9 +518,6 @@ const AmazonResearchView = () => {
         marketplace={filters.marketplace}
         onKeywordChange={setKeyword}
         onSearch={handleSearch}
-        recentSearches={searches}
-        onRecentClick={handleRecentClick}
-        onRecentRemove={removeSearch}
         matchedNiche={matchedNiche}
         hasSearched={hasSearched}
         onNicheIndicatorClick={handleNicheIndicatorClick}
@@ -529,6 +527,14 @@ const AmazonResearchView = () => {
         savingKeywords={savingKeywords}
         savedKeywords={savedKeywords}
         allowEmptyKeyword={!isLive}
+      />
+
+      <SearchHistoryChips
+        searches={searches}
+        onSelect={handleRecentClick}
+        onRemove={removeSearch}
+        onClearAll={clearRecentSearches}
+        i18nNamespace="amazonResearch.searchHistory"
       />
 
       <ControlsRow
@@ -562,11 +568,8 @@ const AmazonResearchView = () => {
         <ResultsToolbar
           count={totalCount}
           keyword={keyword}
-          isLive={isLive}
           layout={layout}
           onLayoutChange={setLayout}
-          products={products}
-          buildQueryParams={buildQueryParams}
           activeTab={activeTab}
           onTabChange={setActiveTab}
           activeFilterSummary={activeFilterSummary}

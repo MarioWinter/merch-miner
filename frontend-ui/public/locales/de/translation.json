@@ -2283,6 +2283,10 @@
     }
   },
   "amazonResearch": {
+    "searchHistory": {
+      "label": "Kürzliche Amazon-Suchen",
+      "clearAll": "Verlauf leeren"
+    },
     "detail": {
       "breadcrumb": "Amazon Research",
       "notFound": "Produkt nicht gefunden",
@@ -2292,6 +2296,9 @@
       "useAsTemplate": "Als Listing-Vorlage nutzen",
       "saveKeywords": "Keywords speichern",
       "selectNicheFirst": "Waehle zuerst eine Nische",
+      "rescrapeButton": "Produkt-Daten aktualisieren",
+      "rescrapeStarted": "Scrape gestartet — bitte in ~30s die Seite aktualisieren.",
+      "rescrapeError": "Fehler beim Aktualisieren.",
       "readMore": "Mehr lesen",
       "showLess": "Weniger anzeigen",
       "noImage": "Kein Bild verfuegbar",
@@ -2310,6 +2317,7 @@
       "longTail": "Long-Tail",
       "copyAllKeywords": "Alle Keywords kopieren",
       "keywordsCopied": "{{count}} Keywords kopiert",
+      "searchKeyword": "Dieses Keyword suchen",
       "similarDesigns": "Aehnliche Designs",
       "sameBrand": "Gleiche Marke",
       "noSimilar": "Keine aehnlichen Produkte gefunden",

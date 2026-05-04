@@ -8,7 +8,7 @@ import { useJSEnrich } from './hooks/useJSEnrich';
 import { useKeywordExport } from './hooks/useKeywordExport';
 import { useRecentSearches } from './hooks/useRecentSearches';
 import { KeywordSearchBar } from './partials/KeywordSearchBar';
-import { SearchHistoryChips } from './partials/SearchHistoryChips';
+import { SearchHistoryChips } from '@/components/SearchHistory/SearchHistoryChips';
 import { KeywordChipCloud } from './partials/KeywordChipCloud';
 import { SuggestionTabs, type SuggestionFilter } from './partials/SuggestionTabs';
 import { KeywordTable } from './partials/KeywordTable';

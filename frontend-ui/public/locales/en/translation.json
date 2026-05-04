@@ -3039,6 +3039,10 @@
     }
   },
   "amazonResearch": {
+    "searchHistory": {
+      "label": "Recent Amazon searches",
+      "clearAll": "Clear history"
+    },
     "detail": {
       "breadcrumb": "Amazon Research",
       "notFound": "Product not found",
@@ -3048,6 +3052,9 @@
       "useAsTemplate": "Use as Listing Template",
       "saveKeywords": "Save Keywords",
       "selectNicheFirst": "Select a niche first",
+      "rescrapeButton": "Refresh product data",
+      "rescrapeStarted": "Scrape started — please refresh the page in ~30s.",
+      "rescrapeError": "Failed to refresh.",
       "readMore": "Read more",
       "showLess": "Show less",
       "noImage": "No image available",
@@ -3066,6 +3073,7 @@
       "longTail": "Long-Tail",
       "copyAllKeywords": "Copy all keywords",
       "keywordsCopied": "{{count}} keywords copied",
+      "searchKeyword": "Search this keyword",
       "similarDesigns": "Similar Designs",
       "sameBrand": "Same Brand",
       "noSimilar": "No similar products found",

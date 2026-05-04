@@ -5,13 +5,20 @@ import CloseIcon from '@mui/icons-material/Close';
 import ClearAllIcon from '@mui/icons-material/ClearAll';
 import { useTranslation } from 'react-i18next';
 import { EASING, DURATION } from '@/style/constants';
-import type { RecentKeywordSearch } from '../hooks/useRecentSearches';
+
+export interface RecentSearchEntry {
+  keyword: string;
+  marketplace: string;
+}
 
 interface SearchHistoryChipsProps {
-  searches: RecentKeywordSearch[];
+  searches: RecentSearchEntry[];
   onSelect: (keyword: string, marketplace: string) => void;
   onRemove: (index: number) => void;
   onClearAll: () => void;
+  /** i18n key namespace: defaults to `keywords.searchHistory`. Pass own
+   *  namespace if you keep separate translations per view. */
+  i18nNamespace?: string;
 }
 
 const HistoryChip = styled(Chip)(({ theme }) => ({
@@ -43,6 +50,7 @@ export const SearchHistoryChips = ({
   onSelect,
   onRemove,
   onClearAll,
+  i18nNamespace = 'keywords.searchHistory',
 }: SearchHistoryChipsProps) => {
   const { t } = useTranslation();
 
@@ -54,7 +62,7 @@ export const SearchHistoryChips = ({
       alignItems="center"
       sx={{ flexWrap: 'wrap', gap: 0.75, mb: 2 }}
       role="list"
-      aria-label={t('keywords.searchHistory.label')}
+      aria-label={t(`${i18nNamespace}.label`)}
     >
       <HistoryIcon sx={{ fontSize: 16, color: 'text.disabled', mr: 0.25 }} />
       {searches.map((search, index) => (
@@ -80,7 +88,7 @@ export const SearchHistoryChips = ({
           '&:hover': { color: 'text.secondary' },
         }}
       >
-        {t('keywords.searchHistory.clearAll')}
+        {t(`${i18nNamespace}.clearAll`)}
       </Button>
     </Stack>
   );

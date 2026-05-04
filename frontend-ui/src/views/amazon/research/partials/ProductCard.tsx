@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 import { MONO_FONT_STACK, SHADOW } from '../../../../style/constants';
 import { HoverOverlay as SharedHoverOverlay, ActionPill, ProductImage as SharedProductImage } from '@/components/CardOverlay';
 import { MARKETPLACE_OPTIONS, type AmazonProduct } from '../types';
+import { getMainBsr } from '../utils/getMainBsr';
 
 interface ProductCardProps {
   product: AmazonProduct;
@@ -139,12 +140,7 @@ const ProductCard = ({
   const { t } = useTranslation();
   // Show the broadest/main category BSR (highest rank = first in Amazon DOM order)
   // After scraper fix, bsr_categories[0] is "Clothing, Shoes & Jewelry" (broadest)
-  // Fallback: pick the entry with the highest rank (broadest category)
-  const mainBsr = (() => {
-    if (!product.bsr_categories?.length) return product.bsr;
-    const broadest = product.bsr_categories.reduce((a, b) => (a.rank > b.rank ? a : b));
-    return broadest.rank;
-  })();
+  const mainBsr = getMainBsr(product);
   const bsrColor = getBsrThemeColor(mainBsr);
 
   const handleCopyAsin = (e: React.MouseEvent) => {
