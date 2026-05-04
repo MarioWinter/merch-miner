@@ -19,6 +19,7 @@ def disable_throttling(settings):
         'DEFAULT_THROTTLE_RATES': {
             'anon': '10000/day',
             'user': '10000/day',
+            'login': '10000/day',
             'avatar': '10000/day',
             'invite': '10000/day',
             'semantic_search': '10000/day',

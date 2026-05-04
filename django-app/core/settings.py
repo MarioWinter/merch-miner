@@ -162,6 +162,9 @@ ACCOUNT_LOGIN_METHODS = {'email'}
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'password1*', 'password2*']
 
 MIDDLEWARE = [
+    # Must run before throttle / audit code so REMOTE_ADDR carries the real
+    # client IP rather than the Caddy proxy container IP.
+    'core.middleware.RealIPMiddleware',
     'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -425,8 +428,14 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        'anon': '500/hour' if DEBUG else '20/hour',
-        'user': '10000/day' if DEBUG else '1000/day',
+        # `anon` covers all unauthenticated traffic. 20/hour was too low for
+        # real-world UX: a single deploy's brief offline window cascades to a
+        # 1-hour lockout once the frontend's poll endpoints retry.
+        'anon': '500/hour' if DEBUG else '100/hour',
+        'user': '10000/day' if DEBUG else '5000/day',
+        # Dedicated burst-protection on the login endpoint — protects against
+        # brute-force without punishing legit "forgot pw + 3 retries" UX.
+        'login': '10/min',
         'avatar': '50/hour',
         'invite': '20/hour',
         'semantic_search': '30/minute',

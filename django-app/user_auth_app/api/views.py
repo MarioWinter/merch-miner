@@ -7,7 +7,7 @@ from django.utils.http import urlsafe_base64_decode, urlsafe_base64_encode
 from rest_framework import status, viewsets
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.throttling import UserRateThrottle
+from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken, TokenError
 
@@ -129,10 +129,20 @@ class ActivateView(APIView):
             )
 
 
+class LoginRateThrottle(AnonRateThrottle):
+    """Tight burst-protection on the login endpoint.
+
+    Uses the `login` scope (rate set in settings.DEFAULT_THROTTLE_RATES)
+    so brute-force attempts are capped without affecting other anon traffic.
+    """
+    scope = 'login'
+
+
 class LoginView(APIView):
     """Handle user login and set JWT tokens in cookies."""
 
     permission_classes = [AllowAny]
+    throttle_classes = [LoginRateThrottle]
 
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
