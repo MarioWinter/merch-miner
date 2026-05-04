@@ -53,7 +53,10 @@ const ProductDetailPage = () => {
   } = useProductDetail(asin ?? '');
 
   const handleBack = useCallback(() => {
-    navigate(-1);
+    // Explicit target instead of navigate(-1): history is empty on direct
+    // URL access / reload, and the previous entry could also be a Drawer
+    // route rather than the research list. Same target as the breadcrumb.
+    navigate('/amazon/research');
   }, [navigate]);
 
   const handleUseAsTemplate = useCallback(async () => {
