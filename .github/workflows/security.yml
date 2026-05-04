@@ -68,5 +68,11 @@ jobs:
           format: table
           severity: HIGH,CRITICAL
           exit-code: '1'
-          # `.trivyignore` at repo root holds justified non-exploitable findings.
+          # ignore-unfixed: skip findings where upstream (e.g. Debian) hasn't
+          # released a patch yet. They're also flagged as 'fix_deferred' or
+          # 'will_not_fix' — there's nothing we can do but wait. As soon as a
+          # Fixed Version appears, Trivy will surface them again.
+          ignore-unfixed: true
+          # `.trivyignore` at repo root holds justified non-exploitable findings
+          # that DO have an upstream fix but we keep deliberately suppressed.
           trivyignores: ./.trivyignore
