@@ -14,6 +14,7 @@ python manage.py collectstatic --noinput
 if [ "$DJANGO_ENV" = "production" ]; then
   python manage.py loaddata default_tiers || true
   python manage.py setup_scheduler || true
+  python manage.py schedule_chat_attachment_purge || true
 fi
 
 if [ -n "$DJANGO_SUPERUSER_PASSWORD" ]; then

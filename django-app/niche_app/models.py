@@ -60,6 +60,10 @@ class Niche(models.Model):
         default=0,
         help_text='Number of research retries for this niche (max 3)',
     )
+    current_round = models.PositiveIntegerField(
+        default=1,
+        help_text='Current active round for the niche',
+    )
     position = models.PositiveIntegerField(default=0)
     assigned_to = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -85,6 +89,66 @@ class Niche(models.Model):
 
     def __str__(self):
         return self.name
+
+    def get_embedding_text(self):
+        """Return text to embed for vector search."""
+        parts = [self.name]
+        if self.notes:
+            parts.append(self.notes)
+        return ' '.join(parts)
+
+
+class CollectedProduct(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    niche = models.ForeignKey(
+        'Niche',
+        on_delete=models.CASCADE,
+        related_name='collected_products',
+        db_index=True,
+    )
+    product = models.ForeignKey(
+        'scraper_app.AmazonProduct',
+        on_delete=models.CASCADE,
+        related_name='collected_by_niches',
+    )
+    collected_at = models.DateTimeField(auto_now_add=True)
+    extracted_keywords = models.JSONField(default=list, blank=True)
+    listing_template = models.JSONField(default=dict, blank=True)
+
+    class Meta:
+        unique_together = ('niche', 'product')
+        ordering = ['-collected_at']
+
+    def __str__(self):
+        return f"Collected {self.product} for {self.niche}"
+
+
+class NicheNote(models.Model):
+    """A free-form text snippet attached to a Niche (e.g. saved from web search results)."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    niche = models.ForeignKey(
+        'Niche',
+        on_delete=models.CASCADE,
+        related_name='notes_collection',
+        db_index=True,
+    )
+    text = models.TextField()
+    source_url = models.URLField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='created_niche_notes',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        preview = self.text[:50]
+        return f"Note ({self.niche}): {preview}"
 
 
 class NicheFilterTemplate(models.Model):

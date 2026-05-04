@@ -8,6 +8,16 @@
 - Use the component patterns defined in the design system (cards, buttons, badges, drawers, status chips) before inventing new ones.
 - Dark mode is default; implement light mode support via useColorScheme().
 - Never deviate from design system tokens without explicit user approval.
+- **No hardcoded colors:** NEVER use hex/rgb/rgba values directly in components. Always use `theme.vars.palette.*` or design system tokens. If a color doesn't exist in the palette, add it to `docs/design-system.md` + MUI theme first.
+
+## Component Reuse (MANDATORY)
+- Before building ANY new component, check if a similar one already exists:
+  1. Check `frontend-ui/src/components/` (global reusable components)
+  2. Check `frontend-ui/src/views/*/partials/` (feature-local components)
+- If a global component fits → use it directly
+- If a feature-local component fits and could be reused → promote it to `components/` first, then use it
+- Only build from scratch if nothing similar exists
+- New components that will be reused across features → put in `components/` from the start
 
 ## MUI v7 First (MANDATORY)
 - Before ANY UI component, check if MUI has it. Use @mui/mcp for API lookup.

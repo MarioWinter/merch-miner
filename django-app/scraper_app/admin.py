@@ -5,15 +5,18 @@ import re
 
 from django import forms
 from django.contrib import admin, messages
+from django.db import models
 from django.http import HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils import timezone
+from django.utils.html import format_html
 
 from scraper_app.models import (
     AmazonProduct,
     BrandBlacklist,
     BSRSnapshot,
+    CanaryAsin,
     Keyword,
     MarketplaceChoices,
     MetaKeyword,
@@ -22,6 +25,7 @@ from scraper_app.models import (
     ScrapeJob,
     ScrapeTier,
     ScheduledScrapeTarget,
+    SelectorHealthCheck,
 )
 
 
@@ -40,11 +44,62 @@ def _tier_from_bsr_or_fallback(asin=None, marketplace=None):
 
 
 # ---------------------------------------------------------------------------
-# CSV Upload Form
+# CSV / XLSX Upload Form + Parser
 # ---------------------------------------------------------------------------
 
 class CsvUploadForm(forms.Form):
-    csv_file = forms.FileField(label='CSV File')
+    csv_file = forms.FileField(
+        label='CSV or Excel File',
+        widget=forms.ClearableFileInput(attrs={'accept': '.csv,.xlsx'}),
+    )
+
+
+def _parse_uploaded_file(uploaded_file):
+    """Parse uploaded CSV or XLSX file into (rows_list, headers_set).
+
+    Detects format via filename extension. xlsx → openpyxl first sheet.
+    Returns (rows, headers) or raises ValueError with user-facing message.
+    """
+    name = (uploaded_file.name or '').lower()
+    if name.endswith('.xlsx'):
+        from openpyxl import load_workbook
+
+        try:
+            wb = load_workbook(filename=uploaded_file, read_only=True, data_only=True)
+        except Exception as exc:
+            raise ValueError(f"Could not read Excel file: {exc}") from exc
+        ws = wb.active
+        rows_iter = ws.iter_rows(values_only=True)
+        try:
+            header_row = next(rows_iter)
+        except StopIteration:
+            raise ValueError("Excel sheet is empty.") from None
+        headers_list = [str(h).strip() if h is not None else '' for h in header_row]
+        rows = []
+        for raw in rows_iter:
+            if all(v is None or str(v).strip() == '' for v in raw):
+                continue
+            row = {}
+            for i, value in enumerate(raw):
+                if i >= len(headers_list) or not headers_list[i]:
+                    continue
+                if value is None:
+                    cell = ''
+                elif isinstance(value, int) and headers_list[i] == 'asin':
+                    cell = str(value).zfill(10)
+                else:
+                    cell = str(value).strip()
+                row[headers_list[i]] = cell
+            rows.append(row)
+        return rows, set(h for h in headers_list if h)
+
+    try:
+        decoded = uploaded_file.read().decode('utf-8')
+    except UnicodeDecodeError as exc:
+        raise ValueError("File is not valid UTF-8.") from exc
+    reader = csv.DictReader(io.StringIO(decoded))
+    rows = list(reader)
+    return rows, set(reader.fieldnames or [])
 
 
 # ---------------------------------------------------------------------------
@@ -55,14 +110,32 @@ class CsvUploadForm(forms.Form):
 class ScrapeJobAdmin(admin.ModelAdmin):
     list_display = [
         'get_target', 'marketplace', 'mode', 'product_type_filter', 'status',
-        'pages_total', 'max_items', 'get_progress', 'products_scraped', 'get_error_count',
+        'get_sort_by', 'browse_node',
+        'pages_total', 'start_page', 'max_items', 'get_progress', 'products_scraped', 'get_error_count',
         'started_at', 'finished_at',
     ]
-    list_filter = ['status', 'mode', 'marketplace', 'product_type_filter']
+    list_filter = ['status', 'mode', 'marketplace', 'product_type_filter', 'sort_by']
     readonly_fields = [
         'id', 'rq_job_id', 'pid', 'error_log', 'cancelled_by',
         'started_at', 'finished_at', 'pages_done', 'products_scraped',
     ]
+    fieldsets = (
+        (None, {
+            'fields': (
+                'mode', 'keyword', 'asin', 'marketplace', 'product_type_filter',
+                'status', 'pages_total', 'start_page', 'max_items',
+            ),
+        }),
+        ('Search Filters', {
+            'fields': ('sort_by', 'price_min', 'price_max', 'browse_node'),
+        }),
+        ('Progress & Metadata', {
+            'fields': (
+                'id', 'rq_job_id', 'pid', 'pages_done', 'products_scraped',
+                'error_log', 'cancelled_by', 'started_at', 'finished_at',
+            ),
+        }),
+    )
     actions = ['start_pending_jobs', 'stop_running_jobs', 'cancel_pending_jobs', 'retry_failed_jobs']
 
     def get_target(self, obj):
@@ -76,6 +149,11 @@ class ScrapeJobAdmin(admin.ModelAdmin):
     def get_error_count(self, obj):
         return obj.error_count
     get_error_count.short_description = 'Errors'
+
+    def get_sort_by(self, obj):
+        return obj.get_sort_by_display() if obj.sort_by else '-'
+    get_sort_by.short_description = 'Sort'
+    get_sort_by.admin_order_field = 'sort_by'
 
     @admin.action(description='Start selected pending jobs')
     def start_pending_jobs(self, request, queryset):
@@ -94,6 +172,8 @@ class ScrapeJobAdmin(admin.ModelAdmin):
                 spider_kwargs['max_pages'] = job.pages_total
                 if job.max_items:
                     spider_kwargs['max_items'] = job.max_items
+                # Remove browse_node from spider_kwargs to avoid conflict with explicit kwarg
+                spider_kwargs.pop('browse_node', None)
                 # Choose spider based on mode
                 task_func = scrape_search_page_job if job.mode == ScrapeJob.Mode.SEARCH_PAGE_ONLY else scrape_keyword_job
                 rq_job = queue.enqueue(
@@ -101,6 +181,11 @@ class ScrapeJobAdmin(admin.ModelAdmin):
                     keyword_str=job.keyword.keyword,
                     marketplace=job.marketplace,
                     scrape_job_id=str(job.id),
+                    sort_by=job.sort_by or '',
+                    price_min=job.price_min,
+                    price_max=job.price_max,
+                    browse_node=job.browse_node or '',
+                    start_page=job.start_page,
                     **spider_kwargs,
                 )
             elif job.asin:
@@ -161,8 +246,13 @@ class ScrapeJobAdmin(admin.ModelAdmin):
                 marketplace=job.marketplace,
                 status=ScrapeJob.Status.PENDING,
                 pages_total=job.pages_total,
+                start_page=job.start_page,
                 max_items=job.max_items,
                 product_type_filter=job.product_type_filter,
+                sort_by=job.sort_by,
+                price_min=job.price_min,
+                price_max=job.price_max,
+                browse_node=job.browse_node,
             )
             if job.keyword:
                 spider_kwargs = {}
@@ -171,12 +261,19 @@ class ScrapeJobAdmin(admin.ModelAdmin):
                 spider_kwargs['max_pages'] = job.pages_total
                 if job.max_items:
                     spider_kwargs['max_items'] = job.max_items
+                # Remove browse_node from spider_kwargs to avoid conflict with explicit kwarg
+                spider_kwargs.pop('browse_node', None)
                 task_func = scrape_search_page_job if job.mode == ScrapeJob.Mode.SEARCH_PAGE_ONLY else scrape_keyword_job
                 rq_job = queue.enqueue(
                     task_func,
                     keyword_str=job.keyword.keyword,
                     marketplace=job.marketplace,
                     scrape_job_id=str(new_job.id),
+                    sort_by=job.sort_by or '',
+                    price_min=job.price_min,
+                    price_max=job.price_max,
+                    browse_node=job.browse_node or '',
+                    start_page=job.start_page,
                     **spider_kwargs,
                 )
             elif job.asin:
@@ -280,22 +377,19 @@ class ScheduledScrapeTargetAdmin(admin.ModelAdmin):
         if request.method == 'POST':
             form = CsvUploadForm(request.POST, request.FILES)
             if form.is_valid():
-                csv_file = request.FILES['csv_file']
+                uploaded = request.FILES['csv_file']
                 try:
-                    decoded = csv_file.read().decode('utf-8')
-                except UnicodeDecodeError:
-                    self.message_user(request, "File is not valid UTF-8.", messages.ERROR)
+                    rows, headers = _parse_uploaded_file(uploaded)
+                except ValueError as exc:
+                    self.message_user(request, str(exc), messages.ERROR)
                     return HttpResponseRedirect(
                         reverse('admin:scraper_app_scheduledscrapetarget_changelist')
                     )
 
-                reader = csv.DictReader(io.StringIO(decoded))
-                headers = set(reader.fieldnames or [])
-
                 if csv_type == 'asin':
-                    count, errors = self._process_asin_csv(reader, headers)
+                    count, errors = self._process_asin_csv(rows, headers)
                 else:
-                    count, errors = self._process_keyword_csv(reader, headers)
+                    count, errors = self._process_keyword_csv(rows, headers)
 
                 if errors:
                     self.message_user(
@@ -492,7 +586,7 @@ class KeywordAdmin(admin.ModelAdmin):
 
 @admin.register(ProductSearchCache)
 class ProductSearchCacheAdmin(admin.ModelAdmin):
-    list_display = ['keyword', 'status', 'last_scraped_at']
+    list_display = ['keyword', 'sort_by', 'price_min', 'price_max', 'browse_node', 'status', 'last_scraped_at']
     list_filter = ['status']
 
 
@@ -600,3 +694,154 @@ def _custom_get_urls(self):
 
 
 admin.AdminSite.get_urls = _custom_get_urls
+
+
+# ---------------------------------------------------------------------------
+# CanaryAsin & SelectorHealthCheck Admin (PROJ-23)
+# ---------------------------------------------------------------------------
+
+@admin.register(CanaryAsin)
+class CanaryAsinAdmin(admin.ModelAdmin):
+    list_display = [
+        'asin', 'marketplace', 'label', 'active',
+        'last_check_at', 'last_status',
+    ]
+    list_filter = ['active', 'marketplace']
+    list_editable = ['active']
+    search_fields = ['asin', 'label']
+    readonly_fields = ['id', 'created_at', 'updated_at']
+    ordering = ['marketplace', 'asin']
+    actions = ['run_health_check_now']
+
+    def get_queryset(self, request):
+        # Prefetch latest health check per canary to avoid N+1.
+        qs = super().get_queryset(request)
+        latest_subq = SelectorHealthCheck.objects.filter(
+            canary=models.OuterRef('pk'),
+        ).order_by('-run_at')
+        return qs.annotate(
+            _latest_run_at=models.Subquery(latest_subq.values('run_at')[:1]),
+            _latest_passed=models.Subquery(latest_subq.values('passed')[:1]),
+        )
+
+    def last_check_at(self, obj):
+        return getattr(obj, '_latest_run_at', None) or '-'
+    last_check_at.short_description = 'Last Check'
+    last_check_at.admin_order_field = '_latest_run_at'
+
+    def last_status(self, obj):
+        passed = getattr(obj, '_latest_passed', None)
+        if passed is None:
+            return format_html('<span style="color:#888;">never run</span>')
+        if passed:
+            return format_html(
+                '<span style="background:#1b5e20;color:#fff;padding:2px 8px;border-radius:4px;">PASS</span>'
+            )
+        return format_html(
+            '<span style="background:#b00020;color:#fff;padding:2px 8px;border-radius:4px;">FAIL</span>'
+        )
+    last_status.short_description = 'Last Status'
+
+    @admin.action(description='Run health check now')
+    def run_health_check_now(self, request, queryset):
+        import django_rq
+
+        from scraper_app.tasks import run_selector_health_check
+
+        queue = django_rq.get_queue('scraper')
+        new_check_ids = []
+        for canary in queryset:
+            try:
+                queue.enqueue(
+                    run_selector_health_check,
+                    canary_id=str(canary.id),
+                    triggered_by=SelectorHealthCheck.TriggeredBy.ADMIN,
+                )
+                # AC-14: surface the SelectorHealthCheck IDs after the spider runs.
+                # We don't have the row yet (it's created inside the task),
+                # so we report the queued canary instead.
+                new_check_ids.append(canary.asin)
+            except Exception as exc:
+                self.message_user(
+                    request,
+                    f"Failed to enqueue {canary.asin}: {exc}",
+                    messages.ERROR,
+                )
+        if new_check_ids:
+            self.message_user(
+                request,
+                f"Enqueued health check for: {', '.join(new_check_ids)}",
+                messages.SUCCESS,
+            )
+
+
+@admin.register(SelectorHealthCheck)
+class SelectorHealthCheckAdmin(admin.ModelAdmin):
+    list_display = [
+        'canary', 'run_at', 'passed_badge',
+        'failed_field_count_display', 'html_size_kb',
+        'triggered_by',
+    ]
+    list_filter = ['passed', 'triggered_by', 'canary__marketplace']
+    search_fields = ['canary__asin', 'canary__label']
+    readonly_fields = [
+        'id', 'canary', 'run_at', 'html_path', 'snapshot_link',
+        'html_size_bytes', 'results', 'passed',
+        'triggered_by', 'error_message',
+    ]
+    fieldsets = (
+        (None, {
+            'fields': (
+                'id', 'canary', 'run_at', 'passed', 'triggered_by',
+            ),
+        }),
+        ('Results', {
+            'fields': ('results', 'error_message'),
+        }),
+        ('Snapshot', {
+            'fields': ('html_path', 'snapshot_link', 'html_size_bytes'),
+        }),
+    )
+    ordering = ['-run_at']
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).select_related('canary')
+
+    def passed_badge(self, obj):
+        if obj.passed:
+            return format_html(
+                '<span style="background:#1b5e20;color:#fff;padding:2px 8px;border-radius:4px;">PASS</span>'
+            )
+        return format_html(
+            '<span style="background:#b00020;color:#fff;padding:2px 8px;border-radius:4px;">FAIL</span>'
+        )
+    passed_badge.short_description = 'Status'
+    passed_badge.admin_order_field = 'passed'
+
+    def failed_field_count_display(self, obj):
+        return obj.failed_field_count
+    failed_field_count_display.short_description = 'EMPTY fields'
+
+    def html_size_kb(self, obj):
+        if obj.html_size_bytes is None:
+            return '-'
+        return f"{obj.html_size_bytes / 1024:.1f} KB"
+    html_size_kb.short_description = 'Snapshot Size'
+
+    def snapshot_link(self, obj):
+        """Render a download link to the HTML snapshot if file still on disk."""
+        from django.conf import settings as dj_settings
+        from pathlib import Path
+
+        if not obj.html_path:
+            return format_html('<em>file pruned</em>')
+        absolute_path = Path(dj_settings.MEDIA_ROOT) / obj.html_path
+        if not absolute_path.exists():
+            return format_html('<em>file pruned</em>')
+        url = f"{dj_settings.MEDIA_URL}{obj.html_path}"
+        return format_html('<a href="{}" target="_blank">Download HTML</a>', url)
+    snapshot_link.short_description = 'Snapshot File'
+
+    def has_add_permission(self, request):
+        # Health checks are produced by the scheduler/admin actions, never created manually.
+        return False

@@ -25,7 +25,8 @@ def auto_create_personal_workspace(sender, instance, created, **kwargs):
     for _ in range(10):
         if not Workspace.objects.filter(slug=slug).exists():
             break
-        slug = f"{base_slug}-{''.join(random.choices(string.ascii_lowercase + string.digits, k=4))}"
+        # slug suffix only (collision avoidance), not security-sensitive
+        slug = f"{base_slug}-{''.join(random.choices(string.ascii_lowercase + string.digits, k=4))}"  # nosec B311
     else:
         raise RuntimeError("Could not generate unique slug after 10 attempts.")
 

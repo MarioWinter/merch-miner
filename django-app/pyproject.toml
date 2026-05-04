@@ -12,6 +12,10 @@ markers = [
     "slow: Slow running tests",
 ]
 
+[tool.ruff.lint.per-file-ignores]
+"**/tests/**/test_*.py" = ["F811"]
+"**/tests/**/*_test.py" = ["F811"]
+
 [tool.coverage.run]
 source = ["."]
 omit = [

@@ -3,9 +3,10 @@ import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../../../utils/test-utils';
 import AmazonResearchView from '../AmazonResearchView';
+import collectedItemsReducer from '../../../../store/collectedItemsSlice';
 import type { ProductListResponse } from '../types';
 
-// ── RTK Query mock ──────────────────────────────────────────────────────────
+// ── RTK Query mock — researchSlice ─────────────────────────────────────────
 const mockTriggerLiveSearch = vi.fn().mockReturnValue({ unwrap: vi.fn() });
 
 const emptyResponse: ProductListResponse = {
@@ -15,119 +16,199 @@ const emptyResponse: ProductListResponse = {
   previous: null,
 };
 
-let mockListProductsResult: {
-  data?: ProductListResponse;
-  isLoading: boolean;
-  isFetching: boolean;
-} = { isLoading: false, isFetching: false, data: emptyResponse };
+// Lazy DB query — controlled per-test via mockLazyResponse
+let mockLazyResponse: ProductListResponse = emptyResponse;
+const mockLazyTrigger = vi.fn();
 
 vi.mock('../../../../store/researchSlice', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../../store/researchSlice')>();
   return {
     ...actual,
-    useListProductsQuery: () => mockListProductsResult,
+    useLazyListProductsQuery: () => [
+      (params: Record<string, unknown>) => {
+        mockLazyTrigger(params);
+        const promise = Promise.resolve(mockLazyResponse);
+        (promise as { unwrap?: () => Promise<ProductListResponse> }).unwrap = () =>
+          Promise.resolve(mockLazyResponse);
+        (promise as { abort?: () => void }).abort = () => undefined;
+        return promise;
+      },
+    ],
     useTriggerLiveSearchMutation: () => [mockTriggerLiveSearch, { isLoading: false }],
     useGetSuggestionsQuery: () => ({ data: [], isLoading: false }),
     usePollSearchStatusQuery: () => ({ data: undefined, isLoading: false }),
+    usePollSearchStatusExtendedQuery: () => ({ data: undefined, isLoading: false }),
+    useGetBSRHistoryQuery: () => ({ data: [], isLoading: false }),
+    useCancelLiveSearchMutation: () => [
+      vi.fn().mockReturnValue({ unwrap: vi.fn() }),
+      { isLoading: false },
+    ],
   };
 });
 
-// Mock niche slice used by ProductGrid
+// ── RTK Query mock — nicheSlice ────────────────────────────────────────────
 vi.mock('../../../../store/nicheSlice', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../../store/nicheSlice')>();
   return {
     ...actual,
+    useListNichesQuery: () => ({ data: { results: [] }, isLoading: false }),
+    useGetNicheQuery: () => ({ data: undefined, isLoading: false }),
     useCreateNicheMutation: () => [vi.fn(), { isLoading: false }],
+    useUpdateNicheMutation: () => [vi.fn(), { isLoading: false }],
+    useDeleteNicheMutation: () => [vi.fn(), { isLoading: false }],
+    useBulkNicheActionMutation: () => [vi.fn(), { isLoading: false }],
+    useListFilterTemplatesQuery: () => ({ data: [], isLoading: false }),
+    useCreateFilterTemplateMutation: () => [vi.fn(), { isLoading: false }],
+    useUpdateFilterTemplateMutation: () => [vi.fn(), { isLoading: false }],
+    useDeleteFilterTemplateMutation: () => [vi.fn(), { isLoading: false }],
   };
 });
+
+// ── RTK Query mock — ideaSlice ─────────────────────────────────────────────
+vi.mock('../../../../store/ideaSlice', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../store/ideaSlice')>();
+  return {
+    ...actual,
+    useExtractSloganMutation: () => [vi.fn().mockReturnValue({ unwrap: vi.fn() }), { isLoading: false }],
+    useListIdeasQuery: () => ({ data: { results: [] }, isLoading: false }),
+    useCreateIdeaMutation: () => [vi.fn(), { isLoading: false }],
+    useUpdateIdeaMutation: () => [vi.fn(), { isLoading: false }],
+    useDeleteIdeaMutation: () => [vi.fn(), { isLoading: false }],
+    useBulkUpdateStatusMutation: () => [vi.fn(), { isLoading: false }],
+    useTriggerAdaptationMutation: () => [vi.fn(), { isLoading: false }],
+    useGetAdaptationRunQuery: () => ({ data: undefined, isLoading: false }),
+    useImproveIdeaMutation: () => [vi.fn(), { isLoading: false }],
+    useRegenerateIdeaMutation: () => [vi.fn(), { isLoading: false }],
+    useSuggestNichesQuery: () => ({ data: [], isLoading: false }),
+  };
+});
+
+// ── RTK Query mock — keywordSlice (used by DrawerKeywordsSection) ──────────
+vi.mock('../../../../store/keywordSlice', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../store/keywordSlice')>();
+  return {
+    ...actual,
+    useListNicheKeywordsQuery: () => ({ data: { results: [] }, isLoading: false }),
+    useListKeywordGroupsQuery: () => ({ data: { results: [] }, isLoading: false }),
+    useDeleteKeywordMutation: () => [vi.fn(), { isLoading: false }],
+    useCreateKeywordGroupMutation: () => [vi.fn(), { isLoading: false }],
+    useUpdateKeywordGroupMutation: () => [vi.fn(), { isLoading: false }],
+    useDeleteKeywordGroupMutation: () => [vi.fn(), { isLoading: false }],
+  };
+});
+
+// ── RTK Query mock — collectedProductsSlice ───────────────────────────────
+vi.mock('../../../../store/collectedProductsSlice', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../store/collectedProductsSlice')>();
+  return {
+    ...actual,
+    useGetCollectedProductsQuery: () => ({ data: { results: [] }, isLoading: false }),
+    useCollectProductMutation: () => [vi.fn().mockReturnValue({ unwrap: vi.fn() }), { isLoading: false }],
+    useRemoveCollectedProductMutation: () => [vi.fn().mockReturnValue({ unwrap: vi.fn() }), { isLoading: false }],
+  };
+});
+
+// ── RTK Query mock — designSlice (used transitively via NichePipeline) ────
+vi.mock('../../../../store/designSlice', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../store/designSlice')>();
+  return {
+    ...actual,
+    useListProjectsQuery: () => ({ data: { results: [] }, isLoading: false }),
+    useAddReferencesToProjectMutation: () => [vi.fn().mockReturnValue({ unwrap: vi.fn() }), { isLoading: false }],
+  };
+});
+
+// ── Mock react-router-dom for navigation ───────────────────────────────────
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
+// ── Reducers needed by selectors (collectedItemsSlice) ─────────────────────
+const extraReducers = {
+  collectedItems: collectedItemsReducer,
+};
 
 describe('AmazonResearchView', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
-    mockListProductsResult = {
-      isLoading: false,
-      isFetching: false,
-      data: emptyResponse,
-    };
+    mockLazyResponse = emptyResponse;
   });
 
   it('renders without crash', () => {
-    renderWithProviders(<AmazonResearchView />);
+    renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
     expect(screen.getByText('Amazon Research')).toBeInTheDocument();
   });
 
   it('shows empty state when no search has been performed', () => {
-    renderWithProviders(<AmazonResearchView />);
+    renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
     expect(screen.getByText('Search a keyword to get started')).toBeInTheDocument();
   });
 
   it('defaults to DB Research mode', () => {
-    renderWithProviders(<AmazonResearchView />);
-    // In DB mode the "Live Research" label is not shown
-    expect(screen.queryByText('Live Research')).not.toBeInTheDocument();
+    renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
+    // In DB mode the SearchBar always shows "Live Research" label (styled as disabled)
+    // but the subtitle next to "Amazon Research" is NOT shown
+    expect(screen.getByText('Live Research')).toBeInTheDocument();
     // The switch should be unchecked (DB mode = default)
     expect(screen.getByRole('switch')).not.toBeChecked();
   });
 
   it('toggles between DB Research and Live Research mode', async () => {
-    renderWithProviders(<AmazonResearchView />);
+    renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
 
-    // DB mode: no "Live Research" label visible, switch unchecked
-    expect(screen.queryByText('Live Research')).not.toBeInTheDocument();
+    // DB mode: one "Live Research" label (SearchBar ModeLabel only)
+    expect(screen.getAllByText('Live Research')).toHaveLength(1);
 
     const toggle = screen.getByRole('switch');
     await userEvent.click(toggle);
 
-    // After toggle: "Live Research" label appears (SearchBar ModeLabel + subtitle)
-    expect(screen.getAllByText('Live Research').length).toBeGreaterThanOrEqual(1);
+    // After toggle: two "Live Research" labels (SearchBar ModeLabel + subtitle)
+    expect(screen.getAllByText('Live Research')).toHaveLength(2);
   });
 
-  it('shows loading skeleton while fetching (loading state)', () => {
-    mockListProductsResult = { isLoading: true, isFetching: true, data: undefined };
-    renderWithProviders(<AmazonResearchView />);
-
-    // The view shows skeletons when loading && !hasSearched
-    // Since hasSearched is initially false and loading is true, skeletons render
-    // Actually the condition is `loading && !hasSearched` which is true
-    // Skeletons render as rectangular spans
-    const skeletons = document.querySelectorAll('.MuiSkeleton-root');
-    expect(skeletons.length).toBeGreaterThan(0);
+  it('renders no TablePagination element (replaced by infinite scroll)', () => {
+    renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
+    // TablePagination MUI class hook
+    expect(document.querySelector('.MuiTablePagination-root')).toBeNull();
   });
 
   it('switches between Grid/List view', { timeout: 15000 }, async () => {
     // Need products to see the layout toggle
-    mockListProductsResult = {
-      isLoading: false,
-      isFetching: false,
-      data: {
-        count: 1,
-        results: [
-          {
-            asin: 'B09TEST001',
-            title: 'Test Product',
-            brand: 'TestBrand',
-            bsr: 1000,
-            rating: 4.0,
-            reviews_count: 50,
-            price: 14.99,
-            product_type: 't_shirt',
-            subcategory: 'Novelty',
-            listed_date: '2025-01-01',
-            thumbnail_url: '',
-            bullet_1: '',
-            bullet_2: '',
-            description: '',
-            marketplace: 'amazon_com',
-            scraped_at: '2026-03-01T00:00:00Z',
-          },
-        ],
-        next: null,
-        previous: null,
-      },
+    mockLazyResponse = {
+      count: 1,
+      results: [
+        {
+          id: 'prod-001',
+          asin: 'B09TEST001',
+          title: 'Test Product',
+          brand: 'TestBrand',
+          bsr: 1000,
+          rating: 4.0,
+          reviews_count: 50,
+          price: 14.99,
+          product_type: 't_shirt',
+          subcategory: 'Novelty',
+          listed_date: '2025-01-01',
+          thumbnail_url: '',
+          bullet_1: '',
+          bullet_2: '',
+          description: '',
+          marketplace: 'amazon_com',
+          scraped_at: '2026-03-01T00:00:00Z',
+          bsr_categories: [],
+        },
+      ],
+      next: null,
+      previous: null,
     };
 
-    renderWithProviders(<AmazonResearchView />);
+    renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
 
     // Trigger a search to show results
     const searchInput = screen.getByPlaceholderText('Search keywords...');
@@ -149,7 +230,7 @@ describe('AmazonResearchView', () => {
   });
 
   it('shows advanced options panel toggle', async () => {
-    renderWithProviders(<AmazonResearchView />);
+    renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
 
     const advancedBtn = screen.getByRole('button', { name: /toggle advanced options/i });
     expect(advancedBtn).toBeInTheDocument();
@@ -157,15 +238,57 @@ describe('AmazonResearchView', () => {
   });
 
   it('mode label updates when toggling mode', async () => {
-    renderWithProviders(<AmazonResearchView />);
+    renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
 
-    // Initially DB mode: no mode label text rendered
-    expect(screen.queryByText('Live Research')).not.toBeInTheDocument();
+    // Initially DB mode: one "Live Research" label (SearchBar only, styled disabled)
+    expect(screen.getAllByText('Live Research')).toHaveLength(1);
 
     const toggle = screen.getByRole('switch');
     await userEvent.click(toggle);
 
-    // After toggle, "Live Research" label present
-    expect(screen.getAllByText('Live Research').length).toBeGreaterThanOrEqual(1);
+    // After toggle, subtitle appears — two "Live Research" labels total
+    expect(screen.getAllByText('Live Research')).toHaveLength(2);
+  });
+
+  it('initial DB search fetches with page_size=100 (integration)', async () => {
+    mockLazyResponse = {
+      count: 100,
+      results: Array.from({ length: 100 }, (_, i) => ({
+        id: `prod-${i}`,
+        asin: `B${String(i).padStart(9, '0')}`,
+        title: `Test ${i}`,
+        brand: 'Brand',
+        bsr: 1000,
+        rating: 4.0,
+        reviews_count: 50,
+        price: 14.99,
+        product_type: 't_shirt',
+        subcategory: 'Novelty',
+        listed_date: '2025-01-01',
+        thumbnail_url: '',
+        bullet_1: '',
+        bullet_2: '',
+        description: '',
+        marketplace: 'amazon_com',
+        scraped_at: '2026-03-01T00:00:00Z',
+        bsr_categories: [],
+      })),
+      next: null,
+      previous: null,
+    };
+
+    renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
+
+    const searchInput = screen.getByPlaceholderText('Search keywords...');
+    await userEvent.type(searchInput, 'hiking');
+    const searchBtn = screen.getByRole('button', { name: 'Search' });
+    await userEvent.click(searchBtn);
+
+    // The lazy trigger must have been called with the initial page_size=100 contract
+    await vi.waitFor(() => {
+      expect(mockLazyTrigger).toHaveBeenCalledWith(
+        expect.objectContaining({ page: 1, page_size: 100, keyword: 'hiking' }),
+      );
+    });
   });
 });

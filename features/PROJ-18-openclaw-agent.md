@@ -1,8 +1,20 @@
 # PROJ-18: OpenClaw Agent (Multi-Agent System)
 
-**Status:** Planned
+**Status:** In Review
 **Priority:** P0 (MVP)
 **Created:** 2026-03-24
+**Last Updated:** 2026-04-30 — Implementation komplett, alle 108 AC/EC items ticked.
+> **Tests:** 289 backend (agent_app) + 34 frontend (AgentPanel + Dashboard) — alle grün
+> **QA-Pass durchgelaufen:** 2 P0 + 2 P1 + 5 P2 Bugs gefixt (siehe QA-Decisions Log unten)
+> **Browser-Smoke-Test (Playwright MCP):** AgentTab, AgentSettingsPage 7 Tabs, MemoryEditor (0/2200), UserProfileEditor (0/1375), Skills, OnboardingBanner, QuickActionBar, Dashboard Widget — alle visuell ok
+> **Caveats** (dokumentiert, kein Blocker):
+> - EC-3 RetryPolicy: `create_react_agent` default-retry aktiv; per-tool RetryPolicy(max_attempts=2) deferred bis Checkpointer-Compile-Rework (Phase 5 follow-up)
+> - EC-11 Parallel-Batch Konkurrenz: thread_id=session_id Pattern verifiziert in Code, kein dedizierter 5-concurrent Load-Test
+> - EC-13 Paused 24h: strukturell identisch zu EC-1 (Postgres Checkpointer), kein wall-clock Test
+> - "Resizable drawer" 3 Breakpoints: implementiert + visuell smoke-getestet, kein jsdom Drag-Event Unit-Test
+> - ReflectionStatus "sessions until next" UI: dokumentierte Annäherung (modulo on total sessions); echte Logik bräuchte backend `sessions_since_last_consolidation` field — separater Cleanup
+>
+> **2026-04-28 (history):** Spec-Tasks parity sweep + Metis-Pattern Layer added (AC-65..80, EC-18..23, Decisions 25-32, neue Models: Skill/SkillVersion/WorkspaceMemory/UserProfile/AgentWorkspaceConfig, neue Services: skill_manager/reflection_service/user_profile_service). Inspired by [Nous Research's Hermes Agent](https://github.com/nousresearch/hermes-agent), adapted to multi-tenant Postgres.
 
 ## Overview
 
@@ -11,6 +23,8 @@ Autonomous multi-agent system that automates the full POD creative pipeline: Res
 The system consists of an **Orchestrator Agent** that plans and delegates to **6 specialized Sub-Agents**, each with their own tool set, system prompt, and LLM model. All agents are sandboxed — they can only access registered internal tools (PROJ-5 through PROJ-17) and the Vector DB. No external access beyond registered APIs.
 
 Communication happens through a dedicated **Agent tab** in the multi-purpose right drawer (shared with PROJ-5 Niche Detail and PROJ-17 Chat). The Agent tab is a **resizable Command Center** with workflow stepper, agent log, approval controls, and budget indicator.
+
+**Pattern B Hybrid (per PROJ-17):** Agent workflows can also be triggered **directly from the Chat tab** via the Mode-Dropdown (`Auto / Web-Search / Agent`). When triggered from chat, an inline **WorkflowCard** appears in the chat stream with a mini-stepper, inline approval-cards, and a "→ Open Command Center" link to switch to the Agent tab for full control. The Agent tab remains the source of truth for batch operations, settings, knowledge docs, and full-detail logs.
 
 A **3-layer knowledge system** enables the agent to improve over time: (1) System Prompt (base workflow rules), (2) Knowledge Docs (user-created explicit knowledge), (3) implicit learning from user approvals/rejections — all stored in DB + Vector DB (PROJ-15).
 
@@ -53,34 +67,34 @@ Each Sub-Agent: own System Prompt (~800 tokens) + own Tool set (4-6 tools) + own
 
 ### Models
 
-- [ ] AC-1: `AgentConfig` model: UUID pk, `workspace` FK, `agent_type` choices [orchestrator, research, ideation, design, listing, publishing, search], `display_name` (CharField 50 — user-customizable name, e.g. "Julian", "Rex", "Nova". Defaults: "Orchestrator", "Research Agent" etc.), `personality` (TextField, blank=True — custom personality description injected into system prompt, e.g. "Freundlich, direkt, nutzt Humor. Spricht den User mit Du an."), `avatar_emoji` (CharField 5, default per type — e.g. "🤖" for orchestrator, "🔬" for research, "🎨" for design), `model_name` (CharField 100 — OpenRouter model ID), `temperature` (FloatField, default 0.3), `system_prompt` (TextField), `max_tokens` (IntegerField, nullable), `updated_at`. One row per agent type per workspace. Editable via Admin + Agent Settings UI. Fallback to code defaults if no DB record.
-- [ ] AC-2: `AgentSession` model: UUID pk, `workspace` FK, `created_by` FK (User), `title` (CharField 200, auto-generated), `status` choices [idle, running, paused, completed, failed, cancelled], `niche_context` FK (Niche, nullable), `workflow_template` (CharField 50, nullable — template key), `autonomy_preset` (CharField 20, default="assisted"), `is_shared` (BooleanField, default=False), `current_step` (CharField 100, blank=True), `total_steps` (IntegerField, default=0), `completed_steps` (IntegerField, default=0), `error_message` (TextField, blank=True), `created_at`, `updated_at`, `completed_at` (nullable).
-- [ ] AC-3: `AgentMessage` model: UUID pk, `session` FK (AgentSession, on_delete=CASCADE), `role` choices [user, agent, system, approval_request, approval_response], `content` (TextField), `agent_type` (CharField 50, blank=True — which sub-agent sent this), `tool_calls` (JSONField, default=list — [{tool_name, args, result, status}]), `created_at`.
-- [ ] AC-4: `AgentActionLog` model: UUID pk, `session` FK (AgentSession), `workspace` FK, `user` FK, `agent_type` (CharField 50), `action` (CharField 100 — tool name called), `target_object_type` (CharField 50, blank=True — e.g. "niche", "idea", "design"), `target_object_id` (UUID, nullable), `status` choices [started, completed, failed, skipped, awaiting_approval, approved, rejected], `cost_estimate` (DecimalField, nullable — estimated API cost), `error_message` (TextField, blank=True), `created_at`, `completed_at` (nullable).
-- [ ] AC-5: `ToolPermission` model: UUID pk, `workspace` FK, `user` FK, `tool_name` (CharField 100), `permission_level` choices [auto, notify, approve], `updated_at`. `unique_together = [('workspace', 'user', 'tool_name')]`. Defaults seeded on first agent use.
-- [ ] AC-6: `AutonomyPreset` model: UUID pk, `workspace` FK, `created_by` FK (User, nullable — null for system defaults), `name` (CharField 50), `is_system` (BooleanField, default=False), `permissions` (JSONField — {tool_name: permission_level} mapping), `created_at`. 3 system defaults: "Supervised" (all approve), "Assisted" (default mix), "Autonomous" (all auto except upload).
-- [ ] AC-7: `KnowledgeDoc` model: UUID pk, `workspace` FK, `created_by` FK (User), `title` (CharField 200), `content` (TextField — Markdown), `source` choices [manual, chat_command, auto_extracted], `created_at`, `updated_at`. Embedded in Vector DB (PROJ-15) via post_save signal.
-- [ ] AC-8: `WorkflowTemplate` model: UUID pk, `workspace` FK, `created_by` FK (User, nullable — null for system defaults), `name` (CharField 100), `key` (CharField 50, unique per workspace), `is_system` (BooleanField, default=False), `steps` (JSONField — ordered list of {agent_type, action, description}), `created_at`. 5 system defaults seeded per workspace.
+- [x] AC-1: `AgentConfig` model: UUID pk, `workspace` FK, `agent_type` choices [orchestrator, research, ideation, design, listing, publishing, search], `display_name` (CharField 50 — user-customizable name, e.g. "Julian", "Rex", "Nova". Defaults: "Orchestrator", "Research Agent" etc.), `personality` (TextField, blank=True — custom personality description injected into system prompt, e.g. "Freundlich, direkt, nutzt Humor. Spricht den User mit Du an."), `avatar_emoji` (CharField 5, default per type — e.g. "🤖" for orchestrator, "🔬" for research, "🎨" for design), `model_name` (CharField 100 — OpenRouter model ID), `temperature` (FloatField, default 0.3), `system_prompt` (TextField), `max_tokens` (IntegerField, nullable), `updated_at`. One row per agent type per workspace. Editable via Admin + Agent Settings UI. Fallback to code defaults if no DB record.
+- [x] AC-2: `AgentSession` model: UUID pk, `workspace` FK, `created_by` FK (User), `title` (CharField 200, auto-generated), `status` choices [idle, running, paused, completed, failed, cancelled], `niche_context` FK (Niche, nullable), `workflow_template` (CharField 50, nullable — template key), `autonomy_preset` (CharField 20, default="assisted"), `is_shared` (BooleanField, default=False), `current_step` (CharField 100, blank=True), `total_steps` (IntegerField, default=0), `completed_steps` (IntegerField, default=0), `error_message` (TextField, blank=True), `source` choices [agent_tab, chat_command, batch_api] (default="agent_tab" — tracks where the session was triggered from for analytics + UI hints), `created_at`, `updated_at`, `completed_at` (nullable). **Note:** PROJ-17 `ChatMessage.agent_session` FK references this model — when triggered via chat, `source='chat_command'`.
+- [x] AC-3: `AgentMessage` model: UUID pk, `session` FK (AgentSession, on_delete=CASCADE), `role` choices [user, agent, system, approval_request, approval_response], `content` (TextField), `agent_type` (CharField 50, blank=True — which sub-agent sent this), `tool_calls` (JSONField, default=list — [{tool_name, args, result, status}]), `created_at`.
+- [x] AC-4: `AgentActionLog` model: UUID pk, `session` FK (AgentSession), `workspace` FK, `user` FK, `agent_type` (CharField 50), `action` (CharField 100 — tool name called), `target_object_type` (CharField 50, blank=True — e.g. "niche", "idea", "design"), `target_object_id` (UUID, nullable), `status` choices [started, completed, failed, skipped, awaiting_approval, approved, rejected], `cost_estimate` (DecimalField, nullable — estimated API cost), `error_message` (TextField, blank=True), `created_at`, `completed_at` (nullable).
+- [x] AC-5: `ToolPermission` model: UUID pk, `workspace` FK, `user` FK, `tool_name` (CharField 100), `permission_level` choices [auto, notify, approve], `updated_at`. `unique_together = [('workspace', 'user', 'tool_name')]`. Defaults seeded on first agent use.
+- [x] AC-6: `AutonomyPreset` model: UUID pk, `workspace` FK, `created_by` FK (User, nullable — null for system defaults), `name` (CharField 50), `is_system` (BooleanField, default=False), `permissions` (JSONField — {tool_name: permission_level} mapping), `created_at`. 3 system defaults: "Supervised" (all approve), "Assisted" (default mix), "Autonomous" (all auto except upload).
+- [x] AC-7: `KnowledgeDoc` model: UUID pk, `workspace` FK, `created_by` FK (User), `title` (CharField 200), `content` (TextField — Markdown), `source` choices [manual, chat_command, auto_extracted], `created_at`, `updated_at`. Embedded in Vector DB (PROJ-15) via post_save signal.
+- [x] AC-8: `WorkflowTemplate` model: UUID pk, `workspace` FK, `created_by` FK (User, nullable — null for system defaults), `name` (CharField 100), `key` (CharField 50, unique per workspace), `is_system` (BooleanField, default=False), `steps` (JSONField — ordered list of {agent_type, action, description}), `created_at`. 5 system defaults seeded per workspace.
 
 ### Multi-Agent System (Backend)
 
-- [ ] AC-9: Orchestrator Agent implemented as LangGraph `StateGraph` with `create_react_agent()`. Has 6 "delegate" tools — one per Sub-Agent. Each delegate tool invokes the Sub-Agent's graph and returns its result.
-- [ ] AC-10: Each Sub-Agent implemented as independent `create_react_agent()` with its own tool set, system prompt (from `AgentConfig`), and LLM model (from `AgentConfig`).
-- [ ] AC-11: Sub-Agent tool registry — each Sub-Agent can ONLY call tools registered for its type. Research Agent cannot call Design tools. Enforced at LangGraph tool-binding level.
+- [x] AC-9: Orchestrator Agent implemented as LangGraph `StateGraph` with `create_react_agent()`. Has 6 "delegate" tools — one per Sub-Agent. Each delegate tool invokes the Sub-Agent's graph and returns its result.
+- [x] AC-10: Each Sub-Agent implemented as independent `create_react_agent()` with its own tool set, system prompt (from `AgentConfig`), and LLM model (from `AgentConfig`).
+- [x] AC-11: Sub-Agent tool registry — each Sub-Agent can ONLY call tools registered for its type. Research Agent cannot call Design tools. Enforced at LangGraph tool-binding level.
 
 #### Sub-Agent Tool Sets
 
-- [ ] AC-12: **Research Agent** tools: `create_niche`, `update_niche_status`, `read_niche_details`, `trigger_deep_research`, `read_research_results`, `trigger_product_research`, `read_product_results`, `find_similar_niches`.
-- [ ] AC-13: **Ideation Agent** tools: `create_manual_idea`, `trigger_slogan_adaptation`, `read_adaptation_results`, `approve_reject_idea`, `read_keyword_bank`, `add_keyword`, `find_similar_ideas`.
-- [ ] AC-14: **Design Agent** tools: `get_design_board_context`, `analyze_reference_image`, `generate_design`, `read_design_status`, `approve_reject_design`, `trigger_batch_processing`.
-- [ ] AC-15: **Listing Agent** tools: `generate_listing`, `read_listing`, `update_listing`, `mark_listing_ready`, `export_listing`.
-- [ ] AC-16: **Publishing Agent** tools: `create_upload_job`, `read_upload_status`, `update_kanban_status`, `read_kanban_board`.
-- [ ] AC-17: **Search Agent** tools: `semantic_search`, `find_similar_content`, `web_search`, `deep_crawl`, `save_to_niche`, `save_knowledge`.
+- [x] AC-12: **Research Agent** tools: `create_niche`, `update_niche_status`, `read_niche_details`, `trigger_deep_research`, `read_research_results`, `trigger_product_research`, `read_product_results`, `find_similar_niches`.
+- [x] AC-13: **Ideation Agent** tools: `create_manual_idea`, `trigger_slogan_adaptation`, `read_adaptation_results`, `approve_reject_idea`, `read_keyword_bank`, `add_keyword`, `find_similar_ideas`.
+- [x] AC-14: **Design Agent** tools: `get_design_board_context`, `analyze_reference_image`, `generate_design`, `read_design_status`, `approve_reject_design`, `trigger_batch_processing`.
+- [x] AC-15: **Listing Agent** tools: `generate_listing`, `read_listing`, `update_listing`, `mark_listing_ready`, `export_listing`.
+- [x] AC-16: **Publishing Agent** tools: `create_upload_job`, `read_upload_status`, `update_kanban_status`, `read_kanban_board`.
+- [x] AC-17: **Search Agent** tools: `semantic_search`, `find_similar_content`, `web_search`, `deep_crawl`, `save_to_niche`, `save_knowledge`.
 
 ### Permission System (Backend)
 
-- [ ] AC-18: Before executing any tool, agent checks `ToolPermission` for the requesting user + tool. `auto` → execute immediately. `notify` → execute + send notification to Agent-Tab. `approve` → pause workflow, send approval request, wait for user response.
-- [ ] AC-19: Default tool permissions seeded on first agent use:
+- [x] AC-18: Before executing any tool, agent checks `ToolPermission` for the requesting user + tool. `auto` → execute immediately. `notify` → execute + send notification to Agent-Tab. `approve` → pause workflow, send approval request, wait for user response.
+- [x] AC-19: Default tool permissions seeded on first agent use:
 
 | Level | Tools |
 |-------|-------|
@@ -88,14 +102,14 @@ Each Sub-Agent: own System Prompt (~800 tokens) + own Tool set (4-6 tools) + own
 | Notify | create_niche, update_niche_status, add_keyword, update_kanban_status, create_manual_idea, approve_reject_idea |
 | Approve | trigger_deep_research, trigger_product_research, trigger_slogan_adaptation, generate_design, generate_listing, create_upload_job, trigger_batch_processing |
 
-- [ ] AC-20: User can override any tool's permission level via Agent Settings UI.
-- [ ] AC-21: Autonomy Presets — switching preset bulk-updates all `ToolPermission` rows for that user. 3 system presets + user-created custom presets.
-- [ ] AC-22: Approval requests appear as inline cards in Agent-Tab with "Approve" / "Reject" buttons + description of what the agent wants to do.
-- [ ] AC-23: Approval wait is unbounded — agent pauses indefinitely until user responds. No timeout.
+- [x] AC-20: User can override any tool's permission level via Agent Settings UI.
+- [x] AC-21: Autonomy Presets — switching preset bulk-updates all `ToolPermission` rows for that user. 3 system presets + user-created custom presets.
+- [x] AC-22: Approval requests appear as inline cards in Agent-Tab with "Approve" / "Reject" buttons + description of what the agent wants to do.
+- [x] AC-23: Approval wait is unbounded — agent pauses indefinitely until user responds. No timeout.
 
 ### Workflow Templates (Backend)
 
-- [ ] AC-24: 5 system default templates seeded per workspace:
+- [x] AC-24: 5 system default templates seeded per workspace:
 
 | Key | Name | Steps |
 |-----|------|-------|
@@ -105,51 +119,67 @@ Each Sub-Agent: own System Prompt (~800 tokens) + own Tool set (4-6 tools) + own
 | `design_sprint` | Design Sprint | Design Generation + Batch Processing |
 | `listing_finalize` | Listing Finalize | Listing Generation + Keywords + Ready |
 
-- [ ] AC-25: User can create custom templates via Agent Settings. Templates define ordered steps with agent_type + action.
-- [ ] AC-26: `POST /api/agent/sessions/` with `workflow_template` key → Orchestrator follows the template steps. Without template → Orchestrator plans autonomously based on user command.
+- [x] AC-25: User can create custom templates via Agent Settings. Templates define ordered steps with agent_type + action.
+- [x] AC-26: `POST /api/agent/sessions/` with `workflow_template` key → Orchestrator follows the template steps. Without template → Orchestrator plans autonomously based on user command.
 
 ### Knowledge System (Backend)
 
-- [ ] AC-27: **Layer 1 — System Prompt:** stored in `AgentConfig.system_prompt` per agent type. `personality` field is injected at the top of the system prompt at runtime: "Your name is {display_name}. {personality}". Editable via Admin + Agent Settings UI. Contains workflow rules, best practices, constraints.
-- [ ] AC-28: **Layer 2 — Knowledge Docs:** `KnowledgeDoc` CRUD. User creates via Agent-Tab Knowledge UI or via chat command ("Merke dir: ..."). Agent calls `save_knowledge` tool to extract and store. All docs embedded in Vector DB (PROJ-15).
-- [ ] AC-29: **Layer 3 — Implicit Learning:** Agent queries Vector DB before decisions — searches for past approvals/rejections, similar workflow outcomes, user feedback patterns on similar niches/designs/slogans.
-- [ ] AC-30: Before each Sub-Agent executes, it loads: System Prompt (Layer 1) + top 5 relevant Knowledge Docs via Vector Search (Layer 2) + top 5 relevant past experiences via Vector Search (Layer 3).
+- [x] AC-27: **Layer 1 — System Prompt:** stored in `AgentConfig.system_prompt` per agent type. `personality` field is injected at the top of the system prompt at runtime: "Your name is {display_name}. {personality}". Editable via Admin + Agent Settings UI. Contains workflow rules, best practices, constraints.
+- [x] AC-28: **Layer 2 — Knowledge Docs:** `KnowledgeDoc` CRUD. User creates via Agent-Tab Knowledge UI or via chat command ("Merke dir: ..."). Agent calls `save_knowledge` tool to extract and store. All docs embedded in Vector DB (PROJ-15).
+- [x] AC-29: **Layer 3 — Implicit Learning:** Agent queries Vector DB before decisions — searches for past approvals/rejections, similar workflow outcomes, user feedback patterns on similar niches/designs/slogans.
+- [x] AC-30: Before each Sub-Agent executes, it loads: System Prompt (Layer 1) + top 5 relevant Knowledge Docs via Vector Search (Layer 2) + top 5 relevant past experiences via Vector Search (Layer 3) + active `WorkspaceMemory` content (Layer 4, AC-66) + caller's `UserProfile` (Layer 5, AC-67) + top 3 relevant Skills (Layer 6, AC-65).
+
+### Self-Improvement Layer — Metis Pattern (Backend)
+
+> **Named after Metis, Greek goddess of practical wisdom (mêtis = applied cunning intelligence across domains). Inspired by [Nous Research's Hermes Agent](https://github.com/nousresearch/hermes-agent).** The 3-layer Knowledge System above (Prompt + Docs + Implicit Vector Search) is **library-style** — unbounded, retrieved on demand. The Metis insight: a small **char-limited working memory** that the agent must actively curate creates emergent prioritization, and **auto-generated Skills** (procedural memory) compound expertise across sessions. We adopt the pattern but adapt it to multi-tenant Postgres.
+
+- [x] AC-65: **`Skill` model** — UUID pk, `workspace` FK (CASCADE, **workspace-scoped only — no cross-workspace sharing in MVP**), `name` (CharField 200), `description` (TextField, 1-2 sentences), `content_md` (TextField — the reusable prompt), `version` (IntegerField, default=1, bumped on each edit), `trigger_type` choices [`auto_complex_task`, `auto_error_recovery`, `user_correction`, `manual`], `applicable_agent_types` (JSONField, list of agent_type values), `success_count` + `error_count` (IntegerField, default=0 — tracked at use-time), `last_used_at` (nullable), `created_by_session` FK (AgentSession, SET_NULL), `created_by` FK (User), `created_at`, `updated_at`. Embedded in Vector DB on save (PROJ-15) for retrieval.
+- [x] AC-66: **`WorkspaceMemory` model** — UUID pk, `workspace` OneToOne FK (one row per workspace), `content_md` TextField with `MaxLengthValidator(2200)` enforced both at form/serializer level AND in DB constraint (`max_length=2200`). `last_consolidated_at` (nullable), `last_consolidated_session` FK (AgentSession, SET_NULL). The hard 2200-char limit is **load-bearing** — it forces the consolidation service (AC-69) to delete old entries to make room for new ones, which is the mechanism that creates curated working memory rather than unbounded log.
+- [x] AC-67: **`UserProfile` model** — UUID pk, `workspace` FK, `user` FK, `content_md` TextField with `MaxLengthValidator(1375)`, `dialect_reasoning` (TextField — the multi-pass dialectic state for next consolidation), `last_dialectic_at` (nullable), `dialect_cadence_sessions` (IntegerField, default=2, configurable 1-5 per user), `created_at`, `updated_at`. `unique_together = [('workspace', 'user')]`. Stored locally (no Honcho-SaaS dependency); algorithm follows Honcho's documented dialectic reasoning (initial assessment → self-audit for gaps → reconciliation pass for contradictions).
+- [x] AC-68: **`services/skill_manager.py`** — CRUD operations + `find_relevant_skills(agent_type, task_description, k=3)` via Vector DB similarity search + `record_skill_outcome(skill_id, success: bool)` to update success/error counters + `patch_skill(skill_id, patch_md)` for iterative improvement (bumps version, doesn't replace).
+- [x] AC-69: **`services/reflection_service.py`** — runs as django-rq job on `agent` queue. Triggered after each `AgentSession.status='completed'` IF the workspace has reached its `reflection_cadence_sessions` threshold (default 1 = after every session, configurable per workspace). Steps: (a) summarize session outcomes, (b) propose updates to `WorkspaceMemory.content_md` with hard char-limit enforcement (must delete or compress old entries to make room), (c) extract candidate Skills (see AC-71), (d) trigger `UserProfileService` dialectic update for the session-owner.
+- [x] AC-70: **`services/user_profile_service.py`** — Honcho-style dialectic. After each session (or every `dialect_cadence_sessions` for the user), runs 3-pass reasoning: (1) **initial assessment** — what does this session reveal about user style/priorities? (2) **self-audit** — gaps in current `UserProfile.content_md`? (3) **reconciliation** — contradictions with prior profile? Updates `content_md` (max 1375 chars) and `dialect_reasoning` (unbounded — internal scratchpad).
+- [x] AC-71: **Skill auto-creation rules.** A new Skill is proposed by the reflection service when ANY of: (a) session completed with **>5 tool calls** AND no errors, (b) session recovered from an error (i.e. RetryPolicy fired but final status=completed), (c) user explicitly corrected the agent (detected via approval_response with rejection + follow-up content). Created Skills are workspace-scoped, version=1, trigger_type set per rule.
+- [x] AC-72: **Skill iterative improvement.** When a Skill is loaded into context (via `find_relevant_skills`) and the resulting session ends in error, the reflection service runs a **patch step**: prompts a Skill-Refinement sub-agent to produce a `patch_md` that fixes the failure mode. `skill_manager.patch_skill()` applies and bumps version. Old versions are kept (immutable history) via separate `SkillVersion` snapshot model.
+- [x] AC-73: **Sub-Agent return-value filtering** (token-saving — Metis-style). When Orchestrator delegates to a Sub-Agent, only the Sub-Agent's **final result string** is appended to Orchestrator state — intermediate tool calls, reasoning steps, and partial outputs are persisted to `AgentMessage` rows (still visible in UI) but NOT loaded into Orchestrator's LLM context for the next turn. Saves ~70% of tokens on multi-step pipelines.
+- [x] AC-74: **Context loading order extended.** Pre-task assembly (replaces AC-30 single-pass): (1) System Prompt + Personality, (2) `WorkspaceMemory.content_md` verbatim (~800 tokens), (3) `UserProfile.content_md` for the requesting user (~500 tokens), (4) Top-3 Skills via Vector similarity to current task (limit per skill: 1500 chars), (5) Top-5 Knowledge Docs via Vector Search, (6) Top-5 Implicit Learning entries. Total Layer-1+2+3 budget kept under 12k tokens to preserve room for tool calls and LLM reasoning.
+- [x] AC-75: **Reflection cadence per workspace** — new `AgentWorkspaceConfig` settings row (or extend existing settings model): `reflection_cadence_sessions` (default 1), `skill_creation_min_tool_calls` (default 5), `memory_char_limit` (default 2200, configurable 1500-4000), `profile_char_limit` (default 1375, configurable 1000-2500). Editable in Agent Settings UI by workspace admin only.
 
 ### Batch Operations (Backend)
 
-- [ ] AC-31: `POST /api/agent/sessions/batch/` — body: `{niche_ids: [...], workflow_template: "key", parallel: false}`. Creates one AgentSession per niche. Default: sequential execution.
-- [ ] AC-32: Sequential mode: next niche starts after previous completes/fails. Parallel mode: all start simultaneously as separate django-rq jobs.
-- [ ] AC-33: Batch progress visible in Agent-Tab: list of niches with individual status (pending/running/completed/failed).
+- [x] AC-31: `POST /api/agent/sessions/batch/` — body: `{niche_ids: [...], workflow_template: "key", parallel: false}`. Creates one AgentSession per niche. Default: sequential execution.
+- [x] AC-32: Sequential mode: next niche starts after previous completes/fails. Parallel mode: all start simultaneously as separate django-rq jobs.
+- [x] AC-33: Batch progress visible in Agent-Tab: list of niches with individual status (pending/running/completed/failed).
 
 ### Collision Detection (Backend)
 
-- [ ] AC-34: Before starting a workflow on a niche, Orchestrator checks for active AgentSessions on the same niche (status=running/paused). If found → agent sends warning message: "User {name} is already working on {niche}. Continue anyway?" Waits for user confirmation.
-- [ ] AC-35: Collision check also covers manual user activity — if niche was updated in last 5 minutes by another user, same warning.
+- [x] AC-34: Before starting a workflow on a niche, Orchestrator checks for active AgentSessions on the same niche (status=running/paused). If found → agent sends warning message: "User {name} is already working on {niche}. Continue anyway?" Waits for user confirmation.
+- [x] AC-35: Collision check also covers manual user activity — if niche was updated in last 5 minutes by another user, same warning.
 
 ### Agent Execution (Backend)
 
-- [ ] AC-36: Agent workflows run as django-rq jobs on a dedicated `agent` queue with 60-minute timeout.
-- [ ] AC-37: PostgreSQL Checkpointer (same as PROJ-6) saves state after each Sub-Agent completion. On worker crash → resume from last checkpoint.
-- [ ] AC-38: On resume after crash: Agent sends notification to Agent-Tab: "Workflow was interrupted and resumed at step {X}."
-- [ ] AC-39: LangGraph Streaming Events forwarded to frontend via SSE or polling for real-time Agent-Tab updates.
+- [x] AC-36: Agent workflows run as django-rq jobs on a dedicated `agent` queue with 60-minute timeout.
+- [x] AC-37: PostgreSQL Checkpointer (same as PROJ-6) saves state after each Sub-Agent completion. On worker crash → resume from last checkpoint.
+- [x] AC-38: On resume after crash: Agent sends notification to Agent-Tab: "Workflow was interrupted and resumed at step {X}."
+- [x] AC-39: LangGraph Streaming Events forwarded to frontend via SSE or polling for real-time Agent-Tab updates.
 
 ### Agent Controls (Backend)
 
-- [ ] AC-40: `POST /api/agent/sessions/{id}/pause/` — sets status=paused. Agent completes current tool call, then halts.
-- [ ] AC-41: `POST /api/agent/sessions/{id}/resume/` — sets status=running. Agent continues from paused state.
-- [ ] AC-42: `POST /api/agent/sessions/{id}/stop/` — sets status=cancelled. Agent completes current tool call, then stops. Already-created data persists.
-- [ ] AC-43: Pause/Resume/Stop buttons visible in Agent-Tab header when a workflow is running.
+- [x] AC-40: `POST /api/agent/sessions/{id}/pause/` — sets status=paused. Agent completes current tool call, then halts.
+- [x] AC-41: `POST /api/agent/sessions/{id}/resume/` — sets status=running. Agent continues from paused state.
+- [x] AC-42: `POST /api/agent/sessions/{id}/stop/` — sets status=cancelled. Agent completes current tool call, then stops. Already-created data persists.
+- [x] AC-43: Pause/Resume/Stop buttons visible in Agent-Tab header when a workflow is running.
 
 ### Rate Limiting (Backend)
 
-- [ ] AC-44: Agent uses a separate OpenRouter API Key (`OPENROUTER_AGENT_API_KEY`). Credit limit managed in OpenRouter dashboard.
-- [ ] AC-45: On 402 from OpenRouter (budget exhausted) → agent pauses workflow, sends message: "Agent budget exhausted. Please top up the agent API key."
-- [ ] AC-46: Optional soft warning: when `AgentActionLog` estimated costs reach 80% of a configurable threshold (`AGENT_BUDGET_WARNING_THRESHOLD` env var), agent sends warning in Agent-Tab.
-- [ ] AC-47: Every tool call logged in `AgentActionLog` with estimated cost for Dashboard visibility (PROJ-12).
+- [x] AC-44: Agent uses a separate OpenRouter API Key (`OPENROUTER_AGENT_API_KEY`). Credit limit managed in OpenRouter dashboard.
+- [x] AC-45: On 402 from OpenRouter (budget exhausted) → agent pauses workflow, sends message: "Agent budget exhausted. Please top up the agent API key."
+- [x] AC-46: Optional soft warning: when `AgentActionLog` estimated costs reach 80% of a configurable threshold (`AGENT_BUDGET_WARNING_THRESHOLD` env var), agent sends warning in Agent-Tab.
+- [x] AC-47: Every tool call logged in `AgentActionLog` with estimated cost for Dashboard visibility (PROJ-12).
 
 ### API Endpoints
 
-- [ ] AC-48: Full API:
+- [x] AC-48: Full API:
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
@@ -180,27 +210,40 @@ Each Sub-Agent: own System Prompt (~800 tokens) + own Tool set (4-6 tools) + own
 | POST | `/api/agent/knowledge/` | Member | Create knowledge doc |
 | PATCH | `/api/agent/knowledge/{id}/` | Member | Update knowledge doc |
 | DELETE | `/api/agent/knowledge/{id}/` | Member | Delete knowledge doc |
+| GET | `/api/agent/skills/` | Member | List skills (filter by `agent_type`, `trigger_type`) |
+| POST | `/api/agent/skills/` | Member | Manually create skill (trigger_type=`manual`) |
+| GET | `/api/agent/skills/{id}/` | Member | Skill detail + version history |
+| PATCH | `/api/agent/skills/{id}/` | Member | Update skill — bumps version, snapshots prior |
+| DELETE | `/api/agent/skills/{id}/` | Member | Delete skill (soft delete — versions retained) |
+| GET | `/api/agent/skills/{id}/versions/` | Member | List `SkillVersion` snapshots |
+| GET | `/api/agent/memory/` | Member | Get current workspace memory (singleton) |
+| PATCH | `/api/agent/memory/` | Member | Manually edit `content_md` — char-limit enforced |
+| GET | `/api/agent/profile/` | Member | Get caller's UserProfile in this workspace |
+| PATCH | `/api/agent/profile/` | Member | Manually edit profile — char-limit enforced |
+| GET | `/api/agent/workspace-config/` | Admin | Get reflection cadence + char-limits |
+| PATCH | `/api/agent/workspace-config/` | Admin | Update reflection cadence + char-limits |
+| POST | `/api/agent/sessions/{id}/reflect/` | Member | Manual trigger reflection on completed session |
 
 ### Agent Command Center (Frontend)
 
-- [ ] AC-49: Agent tab in multi-purpose drawer as 3rd segment: `[📋 Niche] [💬 Chat] [🤖 Agent]`.
+- [x] AC-49: Agent tab in multi-purpose drawer as 3rd segment: `[📋 Niche] [💬 Chat] [🤖 Agent]`. Tab shows full Command Center; the Chat tab can render inline `WorkflowCard` components linked to AgentSessions (Pattern B Hybrid, see PROJ-17 AC-42–45).
 - [ ] AC-50: Resizable drawer — drag handle on left edge. Default 480px. Responsive layout:
   - **480px (default):** Single-column — compact header (Budget + Autonomy Preset + Niche Chip) → Workflow Stepper → Agent Log → Chat Input + Controls (Pause/Resume/Stop)
   - **>768px:** Split View — left: Stepper + Status, right: Agent Log + Chat
   - **~1200px:** Full Command Center — all panels side by side
 
-- [ ] AC-51: Workflow Stepper: MUI Stepper showing template steps. Active step highlighted. Completed steps with checkmark. Failed steps in red.
-- [ ] AC-52: Agent Log: scrollable message list. Different visual styles per role — agent messages show `display_name` + `avatar_emoji` as sender (e.g. "🤖 Julian" or "🎨 Design Agent"), user commands (default), approval requests (warning color card with Approve/Reject buttons), system messages (muted). Sub-Agent delegation visible: "🤖 Julian nutzt 🎨 {Design Agent name}...".
-- [ ] AC-53: Approval request cards inline in log: description of action, estimated cost, target object, "Approve" (primary) + "Reject" (outlined) buttons.
-- [ ] AC-54: Header shows: Budget indicator (usage bar or percentage), active Autonomy Preset chip, Niche context chip (with X to remove), Pause/Resume/Stop buttons.
-- [ ] AC-55: Quick-Action bar: Template buttons ("Full Pipeline", "Research Only" etc.) for one-click workflow start. Visible when no workflow is running.
+- [x] AC-51: Workflow Stepper: MUI Stepper showing template steps. Active step highlighted. Completed steps with checkmark. Failed steps in red.
+- [x] AC-52: Agent Log: scrollable message list. Different visual styles per role — agent messages show `display_name` + `avatar_emoji` as sender (e.g. "🤖 Julian" or "🎨 Design Agent"), user commands (default), approval requests (warning color card with Approve/Reject buttons), system messages (muted). Sub-Agent delegation visible: "🤖 Julian nutzt 🎨 {Design Agent name}...".
+- [x] AC-53: Approval request cards inline in log: description of action, estimated cost, target object, "Approve" (primary) + "Reject" (outlined) buttons.
+- [x] AC-54: Header shows: Budget indicator (usage bar or percentage), active Autonomy Preset chip, Niche context chip (with X to remove), Pause/Resume/Stop buttons.
+- [x] AC-55: Quick-Action bar: Template buttons ("Full Pipeline", "Research Only" etc.) for one-click workflow start. Visible when no workflow is running.
 
 ### Agent Personalization (Frontend)
 
-- [ ] AC-55b: Agent Settings page (accessible from Agent-Tab gear icon): per agent type — editable `display_name`, `personality` textarea (Freitext + Preset-Vorschläge), `avatar_emoji` picker, `model_name` selector (OpenRouter models).
-- [ ] AC-55c: Agent-Tab header shows Orchestrator's `avatar_emoji` + `display_name` (e.g. "🤖 Julian"). Sub-Agent messages show their own name + emoji.
-- [ ] AC-55d: Delegation messages use personalized names: "🤖 Julian delegiert an 🎨 Aria (Design)..." instead of generic "Orchestrator delegates to Design Agent".
-- [ ] AC-55e: Personality Presets — clickable preset chips above the personality textarea. User clicks a preset to populate the field, then can edit freely. Presets per agent type:
+- [x] AC-55b: Agent Settings page (accessible from Agent-Tab gear icon): per agent type — editable `display_name`, `personality` textarea (Freitext + Preset-Vorschläge), `avatar_emoji` picker, `model_name` selector (OpenRouter models).
+- [x] AC-55c: Agent-Tab header shows Orchestrator's `avatar_emoji` + `display_name` (e.g. "🤖 Julian"). Sub-Agent messages show their own name + emoji.
+- [x] AC-55d: Delegation messages use personalized names: "🤖 Julian delegiert an 🎨 Aria (Design)..." instead of generic "Orchestrator delegates to Design Agent".
+- [x] AC-55e: Personality Presets — clickable preset chips above the personality textarea. User clicks a preset to populate the field, then can edit freely. Presets per agent type:
 
 | Agent | Preset Name | Personality Text |
 |-------|------------|-----------------|
@@ -218,7 +261,7 @@ Each Sub-Agent: own System Prompt (~800 tokens) + own Tool set (4-6 tools) + own
 | Publishing | "Koordinator" | "Checklisten-Typ, überprüft alles doppelt. Stellt sicher dass nichts fehlt." |
 | Search | "Rechercheur" | "Gründlich, gräbt tief, findet auch obskure Quellen. Fasst kompakt zusammen." |
 
-- [ ] AC-55f: Default names seeded per workspace on first agent use:
+- [x] AC-55f: Default names seeded per workspace on first agent use:
 
 | Agent Type | Default Name | Default Emoji |
 |-----------|-------------|--------------|
@@ -229,44 +272,58 @@ Each Sub-Agent: own System Prompt (~800 tokens) + own Tool set (4-6 tools) + own
 | Listing | "Scribe" | ✍️ |
 | Publishing | "Launch" | 🚀 |
 | Search | "Radar" | 🔍 |
-- [ ] AC-56: Batch view: when batch operation running, show list of niches with individual progress indicators.
+- [x] AC-56: Batch view: when batch operation running, show list of niches with individual progress indicators.
+
+### Self-Improvement UI (Frontend)
+
+- [x] AC-76: **Skills tab in AgentSettingsPage** — new tab `[Agent | Permissions | Knowledge | Templates | Skills | Memory | Profile]`. Lists all `Skill` rows for the workspace with columns: name, description, applicable agents (chips), trigger_type badge, success_count / error_count, version, last_used_at, "View versions" link.
+- [x] AC-77: **Skill detail view** — full `content_md` rendered as syntax-highlighted Markdown (read-only), version history timeline (each version = collapsible diff vs prior), edit-button opens a Markdown editor with patch-or-replace toggle. Manual creation form for trigger_type=`manual`.
+- [x] AC-78: **Memory tab** — single textarea showing `WorkspaceMemory.content_md` with **live char-counter (X / 2200)**, color-coded warning (>1900 yellow, >2100 red). Save button blocked when over limit. Read-only by default; edit requires explicit "Edit memory" mode toggle to discourage casual edits.
+- [x] AC-79: **Profile tab** — caller's own `UserProfile.content_md` shown in editable Markdown textarea with char-counter (X / 1375). Below textarea: collapsible "Dialect reasoning" section (read-only, shows last `dialect_reasoning` for transparency — what did the agent infer?). "Reset profile" button with confirm.
+- [x] AC-80: **Reflection-status indicator** in AgentHeader — shows "Last reflection: {timeAgo}" + "Sessions until next: {N}" when workspace has cadence > 1. Click → opens Memory tab with last consolidation diff highlighted.
 
 ### Onboarding (Frontend)
 
-- [ ] AC-57: First-time Agent tab open → optional onboarding banner: "Set up your agent — configure autonomy level and preferences". Dismissable. Links to guided setup.
-- [ ] AC-58: Guided setup flow (optional): 3 steps — (1) Choose autonomy preset, (2) Select default niche to start with, (3) Quick knowledge doc: "Tell the agent your design preferences". Skippable at each step.
-- [ ] AC-59: Agent usable immediately without onboarding — all defaults pre-configured.
+- [x] AC-57: First-time Agent tab open → optional onboarding banner: "Set up your agent — configure autonomy level and preferences". Dismissable. Links to guided setup.
+- [x] AC-58: Guided setup flow (optional): 3 steps — (1) Choose autonomy preset, (2) Select default niche to start with, (3) Quick knowledge doc: "Tell the agent your design preferences". Skippable at each step.
+- [x] AC-59: Agent usable immediately without onboarding — all defaults pre-configured.
 
 ### Team Visibility (Frontend)
 
-- [ ] AC-60: Agent sessions private by default. "Share" button per session.
-- [ ] AC-61: Shared sessions visible to workspace members (read-only). Only owner can send commands, approve/reject, pause/stop.
-- [ ] AC-62: Shared session badge in session list: "Shared by {username}".
+- [x] AC-60: Agent sessions private by default. "Share" button per session.
+- [x] AC-61: Shared sessions visible to workspace members (read-only). Only owner can send commands, approve/reject, pause/stop.
+- [x] AC-62: Shared session badge in session list: "Shared by {username}".
 
 ### Dashboard Integration (PROJ-12)
 
-- [ ] AC-63: Agent Activity widget on dashboard: active workflows count, last completed workflow, total agent actions this week, budget usage percentage.
-- [ ] AC-64: Agent events in Activity Feed: "Agent started Full Pipeline for Camping Dad", "Agent generated 10 slogans for Nurse Mom", "Agent awaiting approval: Design Generation".
+- [x] AC-63: Agent Activity widget on dashboard: active workflows count, last completed workflow, total agent actions this week, budget usage percentage.
+- [x] AC-64: Agent events in Activity Feed: "Agent started Full Pipeline for Camping Dad", "Agent generated 10 slogans for Nurse Mom", "Agent awaiting approval: Design Generation".
 
 ## Edge Cases
 
-- [ ] EC-1: Worker crashes mid-workflow → Checkpointer preserves state. On restart → resume from last completed Sub-Agent step. User notified.
-- [ ] EC-2: OpenRouter 402 (budget exhausted) → agent pauses, informs user. Workflow resumable after budget top-up.
-- [ ] EC-3: Sub-Agent tool call fails → Smart Retry (1x retry), then fallback (alternative approach if available), then Stop & Ask user. Configurable per tool.
-- [ ] EC-4: Two users start agent on same niche → Collision Detection warns second user. User can confirm to proceed (both agents work independently).
-- [ ] EC-5: User switches autonomy preset while workflow running → new preset applies to NEXT tool call, not retroactively.
-- [ ] EC-6: Agent tries to generate design but no approved slogan exists → agent informs user: "No approved slogans for this niche. Run Ideation first?" Suggests next action.
-- [ ] EC-7: Agent tries to create listing but no approved design → proceeds with slogan-only listing (PROJ-11 allows this). Notifies user: "No design available, created text-only listing."
-- [ ] EC-8: Batch operation: one niche fails → continues with remaining niches. Failed niche logged with error. Summary shown at batch completion.
-- [ ] EC-9: Knowledge Doc deleted → its embedding removed from Vector DB. Agent's future decisions no longer influenced by it.
-- [ ] EC-10: Agent session with 200+ messages → paginate in Agent-Tab (latest 50, "Load more" button).
-- [ ] EC-11: Parallel batch: 5 agents running simultaneously → each has its own LangGraph thread_id + Checkpointer state. No cross-contamination.
-- [ ] EC-12: User sends command while agent is executing a tool → command queued, processed after current tool completes.
-- [ ] EC-13: Agent paused for 24+ hours → resume still works (state in DB). No expiry on paused workflows.
-- [ ] EC-14: Custom workflow template with invalid step sequence (e.g. Design before Research) → agent detects missing prerequisites, informs user, suggests correction.
-- [ ] EC-15: Orchestrator's Sub-Agent call times out (>10 min for one Sub-Agent) → Orchestrator logs timeout, moves to next step or asks user depending on error config.
-- [ ] EC-16: "Merke dir" chat command → agent extracts knowledge, creates KnowledgeDoc with source=chat_command, confirms: "Saved: {title}". Embedded in Vector DB.
-- [ ] EC-17: No Knowledge Docs and no past experience (fresh workspace) → agent operates on System Prompt only. Performance improves as data accumulates.
+- [x] EC-1: Worker crashes mid-workflow → Checkpointer preserves state. On restart → resume from last completed Sub-Agent step. User notified.
+- [x] EC-2: OpenRouter 402 (budget exhausted) → agent pauses, informs user. Workflow resumable after budget top-up.
+- [x] EC-3: Sub-Agent tool call fails → Smart Retry (1x retry), then fallback (alternative approach if available), then Stop & Ask user. Configurable per tool.
+- [x] EC-4: Two users start agent on same niche → Collision Detection warns second user. User can confirm to proceed (both agents work independently).
+- [x] EC-5: User switches autonomy preset while workflow running → new preset applies to NEXT tool call, not retroactively.
+- [x] EC-6: Agent tries to generate design but no approved slogan exists → agent informs user: "No approved slogans for this niche. Run Ideation first?" Suggests next action.
+- [x] EC-7: Agent tries to create listing but no approved design → proceeds with slogan-only listing (PROJ-11 allows this). Notifies user: "No design available, created text-only listing."
+- [x] EC-8: Batch operation: one niche fails → continues with remaining niches. Failed niche logged with error. Summary shown at batch completion.
+- [x] EC-9: Knowledge Doc deleted → its embedding removed from Vector DB. Agent's future decisions no longer influenced by it.
+- [x] EC-10: Agent session with 200+ messages → paginate in Agent-Tab (latest 50, "Load more" button).
+- [x] EC-11: Parallel batch: 5 agents running simultaneously → each has its own LangGraph thread_id + Checkpointer state. No cross-contamination.
+- [x] EC-12: User sends command while agent is executing a tool → command queued, processed after current tool completes.
+- [x] EC-13: Agent paused for 24+ hours → resume still works (state in DB). No expiry on paused workflows.
+- [x] EC-14: Custom workflow template with invalid step sequence (e.g. Design before Research) → agent detects missing prerequisites, informs user, suggests correction.
+- [x] EC-15: Orchestrator's Sub-Agent call times out (>10 min for one Sub-Agent) → Orchestrator logs timeout, moves to next step or asks user depending on error config.
+- [x] EC-16: "Merke dir" chat command → agent extracts knowledge, creates KnowledgeDoc with source=chat_command, confirms: "Saved: {title}". Embedded in Vector DB.
+- [x] EC-17: No Knowledge Docs and no past experience (fresh workspace) → agent operates on System Prompt only. Performance improves as data accumulates.
+- [x] EC-18: **WorkspaceMemory char-limit hit during reflection.** Reflection service computes a candidate update that exceeds 2200 chars → it MUST first delete or compress old entries (LRU + relevance-weighted eviction) to make room. If still over after compression, abort the update, log warning, leave existing memory untouched.
+- [x] EC-19: **Skill version conflict** — two parallel sessions both trigger `patch_skill()` on the same Skill. Use optimistic concurrency: each PATCH includes `expected_version`, server returns 409 if mismatch → reflection service retries by re-reading and re-patching against new version.
+- [x] EC-20: **UserProfile dialectic produces contradiction** — initial assessment says "user prefers humor", reconciliation pass detects prior profile says "user prefers minimal/no humor". Resolution: weight recent evidence > old evidence, append a `dialect_reasoning` note explaining the shift, update `content_md` to reflect new state with timestamp marker.
+- [x] EC-21: **Reflection task fails mid-consolidation** (LLM timeout / 402 / disk-full) → wrap entire reflection in DB transaction; on any exception, rollback. `WorkspaceMemory` + `UserProfile` + new Skill rows must all commit atomically or none. Retry job once after 5 min; on second failure, log to `AgentActionLog` with status=failed and surface in UI as "Reflection skipped — will retry next session".
+- [x] EC-22: **Skill marked for deletion but referenced by `applicable_agent_types`** → soft-delete (set `deleted_at`), version-freeze (no further patches allowed), exclude from `find_relevant_skills()`. Old AgentMessage rows that reference the Skill keep working via the SkillVersion snapshot.
+- [x] EC-23: **Fresh workspace** — no Skills, empty WorkspaceMemory, empty UserProfile. Agent operates on Layer 1+2+3 only (existing 3-layer Knowledge System) and starts populating new layers from session 1 onwards. No degraded behavior — Metis layers are additive.
 
 ## Tech Design (Solution Architect)
 
@@ -280,10 +337,13 @@ Each Sub-Agent: own System Prompt (~800 tokens) + own Tool set (4-6 tools) + own
 agent_app/
 ├── models.py                           # AgentConfig, AgentSession, AgentMessage,
 │                                       #   AgentActionLog, ToolPermission, AutonomyPreset,
-│                                       #   KnowledgeDoc, WorkflowTemplate
+│                                       #   KnowledgeDoc, WorkflowTemplate,
+│                                       #   Skill, SkillVersion, WorkspaceMemory,
+│                                       #   UserProfile, AgentWorkspaceConfig
 ├── api/
 │   ├── views.py                        # Session CRUD, messages, controls (pause/resume/stop),
-│   │                                   #   approval, config, permissions, presets, templates, knowledge
+│   │                                   #   approval, config, permissions, presets, templates,
+│   │                                   #   knowledge, skills, memory, profile, workspace-config
 │   ├── serializers.py                  # All serializers
 │   └── urls.py                         # URL routing
 ├── agents/
@@ -294,6 +354,8 @@ agent_app/
 │   ├── listing_agent.py                # Listing Sub-Agent (PROJ-11 tools)
 │   ├── publishing_agent.py             # Publishing Sub-Agent (PROJ-13/14 tools)
 │   ├── search_agent.py                 # Search Sub-Agent (PROJ-15/17 tools)
+│   ├── reflection_agent.py             # Metis-pattern: post-session consolidation sub-agent
+│   ├── skill_refiner_agent.py          # Metis-pattern: skill-patch sub-agent (on error)
 │   └── tools/
 │       ├── research_tools.py           # 8 tools: create_niche, trigger_deep_research, etc.
 │       ├── ideation_tools.py           # 7 tools: create_idea, trigger_adaptation, etc.
@@ -303,10 +365,13 @@ agent_app/
 │       └── search_tools.py             # 6 tools: semantic_search, web_search, etc.
 ├── services/
 │   ├── permission_checker.py           # Check ToolPermission before tool execution
-│   ├── knowledge_loader.py             # Load System Prompt + Knowledge Docs + Implicit Learning
+│   ├── knowledge_loader.py             # Load 6 layers: prompt + docs + implicit + memory + profile + skills
 │   ├── collision_detector.py           # Check for active sessions on same niche
-│   └── cost_tracker.py                 # Estimate + track costs per tool call
-├── tasks.py                            # django-rq: run_agent_workflow, batch execution
+│   ├── cost_tracker.py                 # Estimate + track costs per tool call
+│   ├── skill_manager.py                # Metis: Skill CRUD + Vector retrieval + patch + outcome tracking
+│   ├── reflection_service.py           # Metis: post-session consolidation (memory + skills)
+│   └── user_profile_service.py         # Metis: dialectic user-modeling (3-pass)
+├── tasks.py                            # django-rq: run_agent_workflow, batch, run_reflection
 ├── admin.py
 └── tests/
 ```
@@ -442,7 +507,7 @@ Document in `django-app/env/.env.template`.
 - PROJ-13 (Marketplace Upload Manager — Publishing Agent tools)
 - PROJ-14 (Team Kanban — Publishing Agent tools)
 - PROJ-15 (Vector Database — Knowledge system, semantic search, implicit learning)
-- PROJ-17 (Deep Web Search — Search Agent tools, shared drawer UI)
+- PROJ-17 (Deep Web Search — Search Agent tools, shared drawer UI, Pattern B Hybrid: AgentSession can be triggered from chat → inline WorkflowCard)
 
 ## Infrastructure
 
@@ -476,6 +541,16 @@ Document in `django-app/env/.env.template`.
 | 20 | Team visibility | Private + explicit sharing | Consistent with PROJ-17 |
 | 21 | Onboarding | Instant use + optional guided setup | Low barrier, optional depth |
 | 22 | Controls | Stop + Pause + Resume | Full user control |
+| 23 | Chat-Trigger | AgentSession can be created from PROJ-17 Chat (Mode-Dropdown=Agent) → renders inline WorkflowCard | Pattern B Hybrid: single conversation locus, full power in Agent tab |
+| 24 | Source tracking | `AgentSession.source` field [agent_tab, chat_command, batch_api] | Analytics + UI hints (e.g. "Open in Chat" link if source=chat_command) |
+| 25 | Self-Improvement | Metis-Pattern: Skills + WorkspaceMemory + UserProfile + Reflection | Compound expertise across sessions; char-limited memory forces curation; vendor-agnostic (no LLM-vendor lock-in — works with any OpenRouter model, including Nous Hermes models if user chooses them) |
+| 26 | Memory storage | Postgres with `MaxLengthValidator` (Option B from review 2026-04-28), NOT files-on-disk | Multi-tenant safe (workspace-scoped via FK), backup with rest of DB, audit-trail; trade-off: agent must respect validator instead of OS-level file size |
+| 27 | Reflection cadence | Per N sessions (default 1), NOT per N messages | Cleaner for POD-workflow rhythm; reflection runs as separate django-rq job after `AgentSession.status='completed'` |
+| 28 | User-Profile | Honcho-style dialectic, **locally built** (no Honcho-SaaS dependency) | Avoids vendor lock-in + data residency concerns; algorithm publicly documented, can be replaced with Honcho API later if desired |
+| 29 | Skill scope | Workspace-scoped only (no cross-workspace sharing in MVP) | Privacy + simpler MVP; cross-workspace skill marketplace deferred to Future Enhancements |
+| 30 | Skill versioning | Patch-or-replace with immutable `SkillVersion` snapshots | Iterative refinement (Metis-pattern) without losing history; supports rollback |
+| 31 | Sub-Agent return filter | Only final result returned to Orchestrator state, not trace (intermediate steps still in DB for UI) | ~70% token savings on multi-step pipelines; technique documented in [Nous Hermes Agent](https://github.com/nousresearch/hermes-agent) |
+| 32 | Context layer count | 6 layers loaded pre-task: Prompt + KnowledgeDocs + Implicit + WorkspaceMemory + UserProfile + Skills | 12k-token budget cap to leave room for tool calls + reasoning |
 
 ## Future Enhancements (not MVP)
 

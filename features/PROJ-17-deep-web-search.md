@@ -3,373 +3,448 @@
 **Status:** Planned
 **Priority:** P0 (MVP)
 **Created:** 2026-03-24
+**Last Updated:** 2026-04-30 — Drawer-UX-Polish-Pass (siehe Sektion "Drawer UX Polish 2026-04-30" + Decisions Log #11-#15)
 
 ## Overview
 
-In-app deep web search powered by two external services: **Vane** (formerly Perplexica — AI-powered search engine with LLM answer synthesis) and **Crawl4ai** (deep URL crawler with JavaScript rendering). Both run as external services in the localai-Stack.
+In-app Deep Web Search powered by two external services in the localai-stack:
+- **Vane** (formerly Perplexica) — AI answering engine with SearXNG + LLM synthesis
+- **Crawl4ai** — Chromium-based deep URL extractor (Markdown output)
 
-The UI consists of two parts: a **floating bottom chat-bar** (centered, always accessible) as input, and a **multi-purpose right drawer** as output. The drawer uses a `ToggleButtonGroup exclusive` (segmented button) to switch between panels: Niche Detail, Chat, and Search Results. The drawer is shared with existing features (PROJ-5 NicheDetailDrawer) — one drawer, multiple views.
+The UI uses **Pattern B Hybrid**: a global **Floating Chat-Bar** (bottom-center, glasmorphism, default-collapsed with chevron-up indicator) as quick-access input, plus a **Multi-Purpose Right Drawer** with three tabs: `[📋 Niche] [💬 Chat] [🤖 Agent]`.
 
-Search results are automatically stored in the Vector DB (PROJ-15). The system suggests where results should flow based on the user's current page context (e.g. "Save to Niche: Camping Dad?"). Chat history is persistent and private by default, with explicit sharing to workspace.
+The **Chat Tab** is the "Frontdoor" — a Mode-Dropdown (`Auto / Web-Search / Agent`) classifies whether the user wants Vane (web search) or PROJ-18 Agent. When an Agent workflow is triggered from chat, an inline **Workflow-Card** with mini-stepper, approval-buttons and a "→ Open Command Center" link appears in the message stream. The full Agent control surface lives in the Agent Tab.
+
+The Drawer is **resizable** (480 → 768 → 1200px) — the 1200px Full-Mode is a NotebookLM-style command center with side-by-side panels.
+
+Crawl results are stored in DB and (via feature-flag `VECTOR_DB_ENABLED`) embedded into PROJ-15 Vector DB for semantic search across the workspace.
 
 ## External Services
 
 ### Vane (formerly Perplexica)
-- **What:** AI answering engine — takes a question, searches via SearXNG, LLM synthesizes answer with cited sources
-- **Docker:** `itzcrazykns1337/vane:latest` (default port 3000, actual port configured via `VANE_API_URL` env var)
+- **What:** AI answering engine — searches via SearXNG, LLM synthesizes answer with cited sources
+- **Docker:** `itzcrazykns1337/vane:latest` (port 3000 frontend, port 8080 backend)
 - **API:** `POST /api/search` with chatModel, embeddingModel, sources, query, optimizationMode
-- **Modes:** Speed, Balanced, Quality
-- **Sources:** `web`, `academic`, `discussions`
+- **Modes:** Speed / Balanced / Quality
+- **Sources:** `web` / `academic` / `discussions`
 - **Streaming:** SSE (init → sources → response chunks → done)
 - **Conversation History:** supports follow-up questions via message pairs
 - **Location:** localai-stack (external to Merch Miner)
-- **Needs:** own embedding model + chat LLM (both via OpenRouter)
 
 ### Crawl4ai
-- **What:** URL-based deep content extractor — opens pages in Chromium, extracts full content as Markdown
-- **Docker:** `unclecode/crawl4ai:latest` (default port 11235, actual port configured via `CRAWL4AI_API_URL` env var)
+- **What:** URL deep content extractor — opens pages in Chromium, extracts full content as Markdown
+- **Docker:** `unclecode/crawl4ai:latest` (port 11235)
 - **API:** FastAPI REST endpoints for HTML extraction, screenshots, JS execution
 - **Cannot search** — needs concrete URL(s) as input
-- **Features:** JavaScript rendering, anti-bot detection, LLM-based structured extraction, BFS deep crawling
 - **Location:** localai-stack (external to Merch Miner)
 
 ### How they work together
 ```
-User asks question → Vane searches → synthesized answer + source URLs
+User asks question → Vane searches → synthesized answer + source URLs (streamed via SSE)
                                       ↓
                      User clicks "Deep Crawl" on interesting source
                                       ↓
-                     Crawl4ai extracts full page content as Markdown
+                     Crawl4ai extracts full page content as Markdown (django-rq job)
                                       ↓
-                     Content → Vector DB (PROJ-15) for future retrieval
+                     Content → DB + (if VECTOR_DB_ENABLED) Vector DB (PROJ-15)
 ```
 
 ## User Stories
 
-1. As a member, I want to search the web from within Merch Miner without switching to external tools, so my research stays in one place.
-2. As a member, I want to see AI-synthesized answers with cited sources, so I get quick insights without reading entire articles.
-3. As a member, I want to deep-crawl interesting source URLs to extract the full content, so valuable information is stored for later use.
-4. As a member, I want a floating chat bar available on every page, so I can search from anywhere without navigating away.
-5. As a member, I want the chat to know which niche I'm currently viewing, so search results are automatically contextualized.
-6. As a member, I want to save search results to a specific niche or keyword bank with one click, so findings flow into my pipeline.
-7. As a member, I want my chat history saved and searchable, so I can revisit past research.
-8. As a member, I want to tag and categorize my chats, so I can filter and find them later.
-9. As a member, I want chats automatically assigned to the niche I was researching, so I don't have to organize manually.
-10. As a member, I want to share a chat with my workspace team, so they benefit from my research.
-11. As a member, I want to see if search services are online before I use them, so I'm not surprised by errors.
-12. As a member, I want to switch between Niche Detail, Chat, and Search panels in the same drawer, so I can work without clutter.
+1. As a member, I want to search the web from within Merch Miner without switching tools, so my research stays in one place.
+2. As a member, I want to see AI-synthesized answers with cited sources, so I get quick insights without reading full articles.
+3. As a member, I want answers to stream word-by-word, so I can start reading immediately and scroll back without breaking the stream.
+4. As a member, I want to deep-crawl interesting source URLs to extract the full content, so valuable info is stored for later use.
+5. As a member, I want a floating chat-bar at the bottom that stays out of the way when I don't need it, so my workspace stays clean.
+6. As a member, I want to opt-in a current niche as context for my chat, so search results are tailored when I want it.
+7. As a member, I want to manually mark text snippets in crawled content and save them as keywords on a niche, so I curate quality.
+8. As a member, I want my chat history saved per workspace, so I can revisit past research.
+9. As a member, I want to share a chat with my workspace team, so they benefit from my research (read-only for them).
+10. As a member, I want to trigger a PROJ-18 Agent workflow from chat with a single command, so I don't have to switch tabs.
+11. As a member, I want to see service health (Vane / Crawl4ai online?) so I know what works before I click.
+12. As a member, I want to expand the drawer into a full command center (1200px), so I can see workflow + chat + details side-by-side like Notebook LM.
 
 ## Acceptance Criteria
 
 ### Models
 
-- [ ] AC-1: `ChatSession` model: UUID pk, `workspace` FK, `created_by` FK (User), `title` (CharField 200, auto-generated from first query), `is_shared` (BooleanField, default=False), `niche_context` FK (Niche, nullable — auto-assigned from active niche context at session creation), `tags` M2M (ChatTag, blank=True), `created_at`, `updated_at`.
-- [ ] AC-1b: `ChatTag` model: UUID pk, `workspace` FK, `name` (CharField 50), `color` (CharField 7, default="#6B7280" — hex color for chip display), `created_by` FK (User), `created_at`. `unique_together = [('workspace', 'name')]`. Default tags seeded per workspace: "Research", "Keywords", "Competitors", "Ideas", "General".
-- [ ] AC-2: `ChatMessage` model: UUID pk, `session` FK (ChatSession, on_delete=CASCADE), `role` choices [user, assistant, system], `content` (TextField), `message_type` choices [search_query, search_result, crawl_request, crawl_result, agent_message], `sources` (JSONField, default=list — array of {title, url, snippet}), `search_mode` (CharField, nullable — speed/balanced/quality), `search_sources` (JSONField, nullable — [web, academic, discussions]), `model_used` (CharField 100, blank=True), `created_at`.
-- [ ] AC-3: `WebSearchResult` model: UUID pk, `workspace` FK, `chat_message` FK (ChatMessage, nullable, on_delete=SET_NULL), `url` (URLField), `title` (CharField 500), `content` (TextField — full crawled Markdown content), `content_type` choices [snippet, full_crawl], `crawl_status` choices [pending, running, completed, failed], `error_message` (TextField, blank=True), `metadata` (JSONField — page metadata, word count, etc.), `created_at`.
-- [ ] AC-4: `SearchUsageLog` model: UUID pk, `workspace` FK, `user` FK, `action` choices [search, deep_crawl], `query` (TextField, blank=True), `url` (URLField, blank=True), `model_used` (CharField 100), `tokens_used` (IntegerField, nullable), `created_at`. For PROJ-15 Analytics tracking.
+- [x] AC-1: `ChatSession` model: UUID pk, `workspace` FK, `created_by` FK (User), `title` (CharField 200, **auto-generated from first 100 chars of first user message**), `is_shared` (BooleanField, default=False), `niche_context` FK (Niche, nullable, **only set if user explicitly opted-in**), `created_at`, `updated_at`. **No tags M2M.**
+- [x] AC-2: `ChatMessage` model: UUID pk, `session` FK (CASCADE), `role` choices [user, assistant, system], `content` (TextField), `message_type` choices [search_query, search_result, crawl_request, crawl_result, **workflow_trigger, workflow_card**], `sources` (JSONField, default=list), `search_mode` (CharField, nullable), `search_sources` (JSONField, nullable), `model_used` (CharField 100, blank=True), **`agent_session` FK (`agent_app.AgentSession`, nullable, on_delete=SET_NULL — only set for `workflow_trigger` / `workflow_card` types)**, `created_at`.
+- [x] AC-3: `WebSearchResult` model: UUID pk, `workspace` FK, `chat_message` FK (nullable, on_delete=SET_NULL), `url` (URLField), `title` (CharField 500), `content` (TextField — full crawled Markdown), `content_type` choices [snippet, full_crawl], `crawl_status` choices [pending, running, completed, failed], `error_message` (TextField, blank=True), `metadata` (JSONField — page metadata, word count, favicon URL, etc.), `created_at`.
+- [x] AC-4: `SearchUsageLog` model: UUID pk, `workspace` FK, `user` FK, `action` choices [search, deep_crawl], `query` (TextField, blank=True), `url` (URLField, blank=True), `model_used` (CharField 100), `tokens_used` (IntegerField, nullable), `created_at`. For PROJ-12 Analytics tracking.
 
 ### Vane Integration (Backend)
 
-- [ ] AC-5: `SearchService` class in `search_app/services.py` with method `search(query, mode='balanced', sources=['web'], history=[], system_instructions=None)`. Calls Vane `POST /api/search` endpoint. Returns synthesized answer + sources list.
-- [ ] AC-6: Streaming support — `search_stream()` method returns SSE generator. Frontend receives chunks in real-time via Django StreamingHttpResponse or WebSocket.
-- [ ] AC-7: Default chat LLM: `gpt-4.1-mini` via OpenRouter. User can select from available OpenRouter models via settings or in-chat model picker.
-- [ ] AC-8: Default embedding model: `text-embedding-3-small` via OpenRouter (same as PROJ-15).
+- [ ] AC-5: `SearchService.search(query, mode, sources, history, system_instructions)` in `search_app/services/vane_service.py`. Calls Vane `POST /api/search`. Returns synthesized answer + sources list (blocking).
+- [ ] AC-6: `SearchService.search_stream()` — SSE generator yielding (event_type, payload) tuples. Used by separate streaming endpoint.
+- [ ] AC-7: Default chat LLM: `gpt-4.1-mini` via OpenRouter (env `VANE_DEFAULT_MODEL`). User can select from available OpenRouter models via in-chat model picker.
+- [ ] AC-8: Default embedding model: `text-embedding-3-small` (env `VANE_EMBEDDING_MODEL`, same as PROJ-15).
 - [ ] AC-9: Conversation history passed to Vane on follow-up queries — enables contextual refinement.
 
 ### Crawl4ai Integration (Backend)
 
-- [ ] AC-10: `CrawlService` class in `search_app/services.py` with method `crawl_url(url)`. Calls Crawl4ai REST API on port 11235. Returns Markdown content + metadata.
-- [ ] AC-11: Crawl jobs run as django-rq tasks (async). `WebSearchResult.crawl_status` tracks progress (pending → running → completed/failed).
-- [ ] AC-12: Completed crawl content is automatically sent to PROJ-15 Vector DB via `post_save` signal on `WebSearchResult` (content_type=`web_search`, chunked at 1500 tokens with 5% overlap).
-- [ ] AC-13: "Market Research" source type auto-triggers Crawl4ai on Top-3 source URLs from Vane results. Other modes: manual "Deep Crawl" button per source.
+- [ ] AC-10: `CrawlService.crawl_url(url)` in `search_app/services/crawl_service.py`. Calls Crawl4ai REST API. Returns Markdown content + metadata (title, word_count, favicon URL).
+- [ ] AC-11: Crawl jobs run as django-rq tasks on the **`search` queue** (new `worker-search` container, 5-min timeout). `WebSearchResult.crawl_status` tracks progress.
+- [ ] AC-12: Completed crawl content optionally embedded into PROJ-15 Vector DB via `post_save` signal on `WebSearchResult`. **Gated by env flag `VECTOR_DB_ENABLED` (default `true` locally, `false` in prod until PROJ-15 fully deployed).** Chunked at 1500 tokens with 5% overlap.
+- [ ] AC-13: Manual "Deep Crawl" button per source. (No auto-crawl modes for MVP — POD presets are future.)
 
 ### API Endpoints
 
-- [ ] AC-14: `POST /api/chat/sessions/` — create new chat session. Optional `niche_context` FK.
-- [ ] AC-15: `GET /api/chat/sessions/` — list user's sessions (paginated, ordered by updated_at desc). `?shared=true` returns workspace-shared sessions.
+- [ ] AC-14: `POST /api/chat/sessions/` — create session. Optional `niche_context` FK.
+- [ ] AC-15: `GET /api/chat/sessions/` — list user's sessions (paginated, ordered by updated_at desc). `?shared=true` returns workspace-shared. `?niche_id=` filters by niche.
 - [ ] AC-16: `GET /api/chat/sessions/{id}/` — session detail with all messages.
-- [ ] AC-17: `POST /api/chat/sessions/{id}/messages/` — send message (triggers Vane search). Body: `{content, search_mode, search_sources, model}`. Returns assistant message with sources. Supports streaming via `?stream=true`.
-- [ ] AC-18: `POST /api/chat/sessions/{id}/share/` — sets `is_shared=True`. Workspace members can now see this session.
-- [ ] AC-19: `POST /api/chat/sessions/{id}/unshare/` — sets `is_shared=False`.
-- [ ] AC-20: `POST /api/search/crawl/` — body: `{url, chat_message_id (optional)}`. Enqueues Crawl4ai job. Returns WebSearchResult with status=pending.
-- [ ] AC-21: `GET /api/search/crawl/{id}/status/` — poll crawl job status.
-- [ ] AC-22: `POST /api/search/results/{id}/save-to-niche/` — body: `{niche_id, save_as: "keywords" | "notes"}`. Extracts relevant data from WebSearchResult and saves to target niche (keywords → PROJ-10 Keyword Bank, notes → Niche.notes append).
+- [ ] AC-17: `POST /api/chat/sessions/{id}/messages/` — send message (blocking). Body: `{content, search_mode, search_sources, model, mode_override}`. Returns assistant message with sources.
+- [ ] AC-18: `GET /api/chat/sessions/{id}/messages/stream/?content=...&search_mode=...` — **separate SSE endpoint** for streaming. Returns `text/event-stream` with chunked events: `init`, `sources`, `chunk`, `done`. Uses `EventSource` API on frontend. Backend uses `StreamingHttpResponse`.
+- [x] AC-19: `POST /api/chat/sessions/{id}/share/` — sets `is_shared=True`.
+- [x] AC-20: `POST /api/chat/sessions/{id}/unshare/` — sets `is_shared=False`.
+- [ ] AC-21: `POST /api/search/crawl/` — body: `{url, chat_message_id (optional)}`. Enqueues Crawl4ai job. Returns WebSearchResult with `status=pending`.
+- [x] AC-22: `GET /api/search/crawl/{id}/status/` — poll crawl job status.
+- [x] AC-23: `POST /api/search/results/{id}/save-to-niche/` — body: `{niche_id, save_as: "keywords" | "notes", selected_text: "..."}`. **Keywords are extracted from `selected_text` (manually marked snippet from frontend), each line/comma-separated entry creates a `NicheKeyword` with `source='web_search'`. Notes append `selected_text` to `Niche.notes`.**
+- [x] AC-24: `PATCH /api/chat/sessions/{id}/` — update `title` only. (No tag updates — tags removed.)
 
 ### Floating Bottom Chat-Bar (Frontend)
 
-- [ ] AC-23: Persistent `position: fixed` bar at bottom center of screen. Visible on all pages. Slim, horizontal, modern transparent design.
-- [ ] AC-24: Click on bar → expands upward (CSS transition) into input area with text field + send button.
-- [ ] AC-25: Dismiss: click outside or close button → bar animates downward and disappears completely.
-- [ ] AC-26: Hidden state: hovering near bottom screen edge reveals an upward arrow indicator in a modern transparent style. Click → chat bar reappears.
-- [ ] AC-27: Submitting a message opens the Right Drawer with Chat panel active (if not already open).
+- [x] AC-25: Persistent `position: fixed; bottom: 0; left: 50%; transform: translateX(-50%)` chat-bar at **bottom-center** of screen. Visible on all pages (except login/register). Glasmorphism style: `backgroundColor: alpha(white, 0.85)` light / `alpha(inkPaper, 0.75)` dark, `backdropFilter: blur(16px)` — matches Topbar.
+- [x] AC-26: **Default state: collapsed.** Only a small transparent chevron-up icon (~32×24px) sits centered at bottom edge.
+- [x] AC-27: Click chevron-up → bar **slides up** (CSS transition) into expanded state: `TextField` + Mode-Dropdown (`Auto / Web-Search / Agent`) + Send IconButton. (Note: ModeDropdown UI lives in Phase 4 — bar surface + slide-up done.)
+- [x] AC-28: Expanded bar has chevron-down icon top-center → click to collapse back to indicator.
+- [x] AC-29: Submitting a message **opens the Right Drawer with Chat panel active** (if not already open) and creates/uses the active session.
+- [x] AC-30: Bar state (collapsed/expanded) persisted in `localStorage` per browser tab (per-tab via Redux, not cross-tab synced).
 
 ### Multi-Purpose Right Drawer (Frontend)
 
-- [ ] AC-28: Single right drawer (480px) shared between panels. Header contains `ToggleButtonGroup exclusive` with segments: Niche Detail (existing) | Chat | Search.
-- [ ] AC-29: Segmented buttons use icons + short labels. Icons: `InfoOutlined` (Niche) | `ChatOutlined` (Chat) | `SearchOutlined` (Search).
-- [ ] AC-30: Switching segments swaps the drawer content. Drawer stays open. Each panel maintains its own scroll position.
-- [ ] AC-31: Chat panel shows: active session messages (scrollable), model picker dropdown, search mode toggle (Speed/Balanced/Quality), source toggles (web/academic/discussions).
-- [ ] AC-32: Search results panel shows: Vane answer with Markdown rendering, source cards with title + URL + snippet + "Deep Crawl" button, crawl status indicators per source.
+- [x] AC-31: Single right drawer **resizable** between 480px (default) → 768px (split-view) → 1200px (full command center, NotebookLM-style). Drag-handle on left edge of drawer. Width persisted in `localStorage`.
+- [x] AC-32: Header contains MUI `Tabs` with 3 segments: `[📋 Niche] [💬 Chat] [🤖 Agent]`. Icons: `CategoryOutlined` / `ChatBubbleOutline` / `SmartToyOutlined`. (Refactor 2026-04-30: ToggleButtonGroup → Tabs, Niche-Icon InfoOutlined → CategoryOutlined für klarere "Markt-Kategorie"-Semantik.)
+- [x] AC-33: Switching segments swaps content. Drawer stays open. Each panel maintains scroll position.
+- [x] AC-34: **`SearchResultsPanel.tsx` removed** — search results render inline inside `ChatPanel.tsx` as bubbles + Source-Cards (see AC-38).
+- [x] AC-35: Niche-Tab: existing NicheDetailDrawer content wrapped as `NicheDetailPanel.tsx` inside MultiPurposeDrawer.
+- [x] AC-36: Agent-Tab: PROJ-18 AgentPanel (resizable layout per PROJ-18 AC-50).
 
-### Context Awareness (Frontend)
+### Chat Panel (Frontend)
 
-- [ ] AC-33: When user has a Niche open (NicheDetailDrawer was active), switching to Chat panel shows sticky context chip: "Context: {Niche Name}" with X to remove.
-- [ ] AC-34: Sticky context is passed as `system_instructions` to Vane: "The user is researching the niche: {niche_name}. Tailor your search results to this context."
-- [ ] AC-35: Context chip persists across messages within the session. Removing it (X click) clears context for subsequent messages in that session.
+- [ ] AC-37: `ChatPanel.tsx` shows: active session messages (scrollable, latest at bottom), input bar with Mode-Dropdown + Model picker + Search Mode toggle (Speed/Balanced/Quality) + Source toggles (web/academic/discussions). Read-only mode for shared sessions where viewer is not owner.
+- [x] AC-38: Each AI message bubble shows **Source Cards in Perplexity-Style**: Favicon (32×32) + Domain + Title + 1-line Snippet + actions: `[🌐 Deep Crawl]` `[💾 Save Keywords]` `[📝 Save Notes]`. Stacked below the AI answer text.
+- [x] AC-39: When User scrolls **up** during a streaming response → auto-scroll **disengages**. Stream continues unaffected. A "**↓ Jump to latest**" floating button appears bottom-right of message-list. Click → re-engages auto-scroll, jumps to bottom.
+- [x] AC-40: When User manually scrolls back to bottom (within ~50px) → auto-scroll re-engages automatically, "Jump to latest" button disappears.
+- [ ] AC-41: Mode-Dropdown in chat input: `Auto` (default — LLM classifier decides Vane vs. Agent), `Web-Search` (force Vane), `Agent` (force PROJ-18). Auto classifier uses lightweight LLM (gpt-4.1-mini, ~50 tokens) for routing.
 
-### Smart Suggest (Frontend)
+### Workflow-Card (Frontend, NEW for Pattern B)
 
-- [ ] AC-36: Each search result and crawl result shows contextual quick-action buttons: "Save to {active niche}" (if context set), "Save Keywords", "Save to Vector DB" (always).
-- [ ] AC-37: "Save to {niche}" button calls `POST /api/search/results/{id}/save-to-niche/` with the context niche. Success → notistack confirmation.
-- [ ] AC-38: All search results (Vane answers) and crawl results are automatically stored in Vector DB (PROJ-15) via ChatMessage and WebSearchResult post_save signals. Quick-action "Save to Vector DB" button is always shown as already-saved indicator (checkmark).
+- [ ] AC-42: When `ChatMessage.message_type == 'workflow_card'` → render `WorkflowCard.tsx` instead of normal text bubble. Inline in chat stream.
+- [ ] AC-43: WorkflowCard shows: Mini-Stepper (workflow steps with checkmarks for completed, spinner for running, dots for pending), live-updated via PROJ-18 Agent polling/SSE. Inline ApprovalCard if approval pending. "→ Open Command Center" link.
+- [ ] AC-44: "Open Command Center" link switches drawer to Agent-Tab + scrolls to the corresponding AgentSession.
+- [ ] AC-45: Approval buttons inside WorkflowCard call PROJ-18 approval endpoint directly. No need to switch to Agent-Tab for simple approve/reject.
+
+### Niche Context
+
+- [ ] AC-46: Chat-Panel header has a Toggle: "Use current Niche as context" (only visible when user has a Niche in NicheDetail tab). **Default OFF.**
+- [ ] AC-47: When toggled ON, chip shows "Context: {Niche Name}" with X to remove. Context persists across messages within the session until removed or session ends.
+- [ ] AC-48: Context passed as `system_instructions` to Vane: "The user is researching the niche: {niche_name}. Tailor your search results to this context."
+- [ ] AC-49: Context chip also persists for Agent-mode commands — passed as niche_context to AgentSession.
+
+### Save-to-Niche (Manual Snippet Selection)
+
+- [ ] AC-50: In a crawled WebSearchResult, User can **select text** with mouse → toolbar pops up with `[💾 Save as Keywords]` `[📝 Save as Notes]` buttons.
+- [ ] AC-51: "Save as Keywords" splits selected text by commas/newlines, creates one `NicheKeyword` per token (source='web_search', niche=current_context_or_picker). Notistack confirmation.
+- [ ] AC-52: "Save as Notes" appends selected text to `Niche.notes` with timestamp + source URL prefix.
+- [ ] AC-53: If no Niche-Context is active, modal asks: "Save to which niche?" with searchable Niche-Picker.
 
 ### Chat History & Sharing
 
-- [ ] AC-39: Chat sessions persisted in DB. User sees "Recent Chats" list in Chat panel header (last 10, clickable to resume).
-- [ ] AC-40: "Share" button per session → `POST /api/chat/sessions/{id}/share/`. Shared sessions appear in teammates' session lists with "Shared by {username}" badge.
-- [ ] AC-41: Shared sessions are read-only for non-owners. Owner can unshare.
-
-### Chat Categorization & Tagging
-
-- [ ] AC-42: Chat sessions are auto-assigned to the active niche context at creation time (`niche_context` FK). Sessions without niche context → categorized as "General".
-- [ ] AC-43: User can add/remove tags on any session they own. Tags displayed as colored MUI Chips on session list items.
-- [ ] AC-44: `GET /api/chat/tags/` — list all workspace tags. `POST /api/chat/tags/` — create custom tag (name + color). `DELETE /api/chat/tags/{id}/` — delete custom tag (removes from all sessions).
-- [ ] AC-45: `PATCH /api/chat/sessions/{id}/` — update tags (`tag_ids` array) and/or title.
-- [ ] AC-46: Session list filterable by niche (`?niche_id=`) and by tag (`?tag_id=`). Both filters combinable.
-- [ ] AC-47: Default tags ("Research", "Keywords", "Competitors", "Ideas", "General") auto-created on workspace creation. Not deletable (system tags). Custom tags deletable.
-- [ ] AC-48: Chat panel "Recent Chats" list shows: title, niche name chip (if set), tag chips, timestamp, shared badge.
+- [x] AC-54: Chat sessions persisted in DB. **Drawer header (right of segments, before X) hat 2 Icon-Buttons: 🕐 Recent Chats (öffnet Full-Panel-Overlay statt Inline-Dropdown) + ➕ New Chat.** Inline "Recent Chats" Dropdown im ChatPanel-Content entfernt 2026-04-30 für mehr Platz + bessere Lesbarkeit. Overlay-Close via X-Button oder Escape-Key.
+- [ ] AC-55: "Share" button per active session → `POST /api/chat/sessions/{id}/share/`. Shared sessions appear in teammates' lists with "Shared by {username}" badge.
+- [ ] AC-56: Shared sessions are **read-only** for non-owners. They can still trigger Deep-Crawl on sources (creates their own WebSearchResult). They cannot send messages or share/unshare.
 
 ### Health Check
 
-- [ ] AC-49: `GET /api/search/health/` — pings Vane (`VANE_API_URL`) + Crawl4ai (`CRAWL4AI_API_URL`). Returns `{vane: "online"|"offline", crawl4ai: "online"|"offline"}`.
-- [ ] AC-50: Frontend polls health endpoint every 60 seconds. Status indicator dot in chat-bar and drawer header: green (all online), yellow (partial), red (all offline).
-- [ ] AC-51: When a service is offline, its related UI actions are disabled with tooltip explanation. "Deep Crawl" button disabled when Crawl4ai offline. Search disabled when Vane offline. Agent chat (PROJ-18) remains functional regardless.
+- [ ] AC-57: `GET /api/search/health/` — pings Vane (`VANE_API_URL`) + Crawl4ai (`CRAWL4AI_API_URL`). Returns `{vane: "online"|"offline", crawl4ai: "online"|"offline"}`.
+- [x] AC-58: Frontend polls health endpoint **every 5 minutes** (low frequency — services are stable infra). Status indicator dot in chat-bar + drawer header: green (all online), yellow (partial), red (all offline).
+- [ ] AC-59: When a service is offline, related UI actions disabled with tooltip. "Deep Crawl" disabled when Crawl4ai offline. Search disabled when Vane offline. Agent (PROJ-18) remains functional regardless.
 
 ### Usage Tracking
 
-- [ ] AC-52: Every search and crawl action creates a `SearchUsageLog` entry (user, workspace, action type, query/url, model, tokens).
-- [ ] AC-53: Usage data available to PROJ-15 Analytics for reporting.
+- [ ] AC-60: Every search and crawl action creates a `SearchUsageLog` entry (user, workspace, action type, query/url, model, tokens).
+- [ ] AC-61: Usage data available to PROJ-12 Analytics for reporting.
 
 ## API Endpoints
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
 | POST | `/api/chat/sessions/` | Member | Create chat session |
-| GET | `/api/chat/sessions/` | Member | List user's sessions |
+| GET | `/api/chat/sessions/` | Member | List user's sessions (`?shared`, `?niche_id`) |
 | GET | `/api/chat/sessions/{id}/` | Member | Session detail + messages |
-| POST | `/api/chat/sessions/{id}/messages/` | Member | Send message (triggers search) |
+| PATCH | `/api/chat/sessions/{id}/` | Member | Update session title |
+| POST | `/api/chat/sessions/{id}/messages/` | Member | Send message (blocking) |
+| GET | `/api/chat/sessions/{id}/messages/stream/` | Member | Send message (SSE streaming) |
 | POST | `/api/chat/sessions/{id}/share/` | Member | Share session with workspace |
 | POST | `/api/chat/sessions/{id}/unshare/` | Member | Unshare session |
 | POST | `/api/search/crawl/` | Member | Trigger Crawl4ai deep crawl |
 | GET | `/api/search/crawl/{id}/status/` | Member | Poll crawl status |
-| POST | `/api/search/results/{id}/save-to-niche/` | Member | Save result to niche |
-| GET | `/api/chat/tags/` | Member | List workspace tags |
-| POST | `/api/chat/tags/` | Member | Create custom tag |
-| DELETE | `/api/chat/tags/{id}/` | Member | Delete custom tag |
-| PATCH | `/api/chat/sessions/{id}/` | Member | Update session (tags, title) |
+| POST | `/api/search/results/{id}/save-to-niche/` | Member | Save snippet to niche (keywords or notes) |
 | GET | `/api/search/health/` | Member | Service health check |
 
 ## Edge Cases
 
-- [ ] EC-1: Vane down → search disabled, health dot yellow/red, tooltip "Web Search unavailable". Chat drawer remains open, Agent (PROJ-18) still works.
-- [ ] EC-2: Crawl4ai down → "Deep Crawl" buttons disabled, tooltip "Deep Crawl unavailable". Search results (Vane snippets) still shown normally.
-- [ ] EC-3: Both services down → health dot red, search + crawl disabled. Agent chat (PROJ-18) still functional. User sees banner "Search services offline".
-- [ ] EC-4: Vane returns 0 sources → show "No results found. Try different keywords or search mode." No error.
-- [ ] EC-5: Crawl4ai fails on URL (403, anti-bot block) → `WebSearchResult.crawl_status=failed`, error message shown inline. User can retry.
-- [ ] EC-6: Crawl4ai returns extremely large page (>50,000 tokens) → content truncated to 50,000 tokens with note. Chunking in PROJ-15 handles the rest.
-- [ ] EC-7: User sends message while previous search still streaming → queue message, process sequentially. Show "Searching..." indicator.
-- [ ] EC-8: User switches drawer panel while search is running → search continues in background. Switching back shows accumulated results.
-- [ ] EC-9: Chat session with 100+ messages → paginate messages (load latest 50, "Load more" button). Older messages lazy-loaded.
-- [ ] EC-10: Shared session viewed by teammate → read-only. Teammate cannot send messages or modify. Can "Deep Crawl" sources (creates their own WebSearchResult).
-- [ ] EC-11: Niche context niche gets deleted → context chip removed, session continues without context.
-- [ ] EC-12: Bottom chat-bar on mobile (<600px) → full-width bar, drawer opens as full-screen overlay instead of side panel.
-- [ ] EC-13: Multiple browser tabs open → each tab has its own chat-bar state (localStorage sync not required for MVP).
+- [ ] EC-1: Vane down → search disabled, health dot red, tooltip "Web Search unavailable". Drawer remains open. Agent (PROJ-18) still works.
+- [ ] EC-2: Crawl4ai down → "Deep Crawl" buttons disabled, tooltip. Search results (Vane snippets) still shown normally.
+- [ ] EC-3: Both services down → red dot, search + crawl disabled. Banner "Search services offline".
+- [ ] EC-4: Vane returns 0 sources → "No results found. Try different keywords or search mode." No error.
+- [ ] EC-5: Crawl4ai fails on URL (403, anti-bot block) → `crawl_status=failed`, error message inline. User can retry.
+- [ ] EC-6: Crawl4ai returns extremely large page (>50k tokens) → content truncated to 50k tokens with note. Chunking in PROJ-15 handles the rest.
+- [ ] EC-7: User sends message while previous SSE stream still running → previous stream is cancelled (frontend closes EventSource), new stream starts.
+- [ ] EC-8: User scrolls up during streaming → auto-scroll disengages, "Jump to latest" appears. User can read older messages while stream continues.
+- [ ] EC-9: User clicks "Jump to latest" → smooth scroll to bottom + auto-scroll re-engages.
+- [ ] EC-10: Chat session with 100+ messages → paginate (latest 50 returned by API, "Load more" loads older).
+- [ ] EC-11: Shared session viewed by teammate → read-only. Teammate can Deep-Crawl sources but cannot send messages.
+- [ ] EC-12: `niche_context` Niche gets deleted → context chip removed (FK SET_NULL), session continues without context.
+- [ ] EC-13: Bottom chat-bar on mobile (<600px) → full-width bar, drawer opens as full-screen overlay.
+- [ ] EC-14: Multiple browser tabs open → each tab has its own chat-bar state via Redux (no cross-tab sync for MVP).
+- [ ] EC-15: `VECTOR_DB_ENABLED=false` → crawl content stored in DB but **not** embedded. Save-to-Vector-DB indicator shown as "queued — vector DB disabled". Backfill possible later via management command.
+- [ ] EC-16: Mode-Dropdown set to `Auto` and classifier returns Agent route → trigger PROJ-18 AgentSession via API, then create `workflow_card` ChatMessage referencing it.
+- [ ] EC-17: Mode-Dropdown set to `Agent` but PROJ-18 unavailable → fallback to Web-Search with notistack warning.
+- [ ] EC-18: User selects text snippet for "Save as Keywords" but no Niche-Context active → modal opens with searchable Niche-Picker.
 
 ## Environment Variables Required
 
 ```
-# New:
-VANE_API_URL=                          # Vane (Perplexica) API in localai-stack (e.g. http://vane:3000 — actual host:port depends on your setup)
-CRAWL4AI_API_URL=                      # Crawl4ai API in localai-stack (e.g. http://crawl4ai:11235 — actual host:port depends on your setup)
-VANE_DEFAULT_MODEL=gpt-4.1-mini        # Default chat LLM for Vane
-VANE_EMBEDDING_MODEL=text-embedding-3-small  # Embedding model for Vane
+# Vane + Crawl4ai
+VANE_API_URL=                          # e.g. http://vane:3000 in prod, http://host.docker.internal:3000 with SSH tunnel locally
+CRAWL4AI_API_URL=                      # e.g. http://crawl4ai:11235 in prod
+VANE_DEFAULT_MODEL=gpt-4.1-mini
+VANE_EMBEDDING_MODEL=text-embedding-3-small
 
-# Existing (shared):
-OPENROUTER_API_KEY=                    # Shared with PROJ-6, PROJ-9, PROJ-15
+# Vector DB Feature Flag (PROJ-15 stub)
+VECTOR_DB_ENABLED=true                 # Set false in prod until PROJ-15 backfill complete
+
+# Existing (shared with PROJ-6, PROJ-9, PROJ-15)
+OPENROUTER_API_KEY=
 OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
 ```
 
-Document in `django-app/env/.env.template`.
+Document in `.env.dev.template` + `.env.prod.template`.
 
 ## Dependencies
 
+**Requires:**
 - PROJ-4 (Workspace & Membership — workspace FK, member auth)
 - PROJ-5 (Niche model — context awareness, save-to-niche)
-- PROJ-10 (Niche Keyword Bank — save keywords from search results)
-- PROJ-15 (Vector Database — embeddings for ChatMessage + WebSearchResult)
-- PROJ-18 (Agent — shares the drawer Chat panel, Agent messages in same ChatSession)
+- PROJ-10 (NicheKeyword model — `source='web_search'` already supported)
+- PROJ-15 (Vector Database — embeddings via post_save signal, **gated by VECTOR_DB_ENABLED flag**)
+- PROJ-18 (OpenClaw Agent — Workflow-Card renders AgentSession references, Agent-Tab in same drawer)
+
+**Consumed by:**
+- PROJ-12 (Dashboard & Analytics — reads `SearchUsageLog` for dashboard widgets)
 
 ## Infrastructure Requirements
 
-Both Vane and Crawl4ai must be running in the localai-stack before PROJ-17 can function. Setup assistance needed for:
-1. Vane Docker container + SearXNG configuration (JSON format + Wolfram Alpha engine enabled)
-2. Crawl4ai Docker container
-3. Network connectivity between Merch Miner stack and localai-stack
-
-## Future Enhancements (not MVP)
-
-- POD-specific search modes (Trend Search, Market Research, Keyword Research) as prompt presets on top of Vane
-- Crawl4ai AdaptiveCrawler for auto-following links (deep site crawling)
-- LightRAG for knowledge graph extraction from crawled content
-- Real-time WebSocket for streaming instead of SSE polling
-- Voice input for chat-bar
-
-## Tech Design (Solution Architect)
-
-> Decided: 2026-03-27 | Approved by user.
-
-### A) Backend Architecture
-
-**New Django app:** `search_app`
-
-```
-search_app/
-├── models.py                           # ChatSession, ChatTag, ChatMessage,
-│                                       #   WebSearchResult, SearchUsageLog
-├── api/
-│   ├── views.py                        # Chat CRUD, message send (+ Vane), crawl trigger,
-│   │                                   #   save-to-niche, health check, tags CRUD
-│   ├── serializers.py                  # All serializers
-│   └── urls.py                         # URL routing
-├── services/
-│   ├── vane_service.py                 # Vane API client (search + search_stream)
-│   ├── crawl_service.py                # Crawl4ai API client (crawl_url)
-│   └── context_builder.py             # Build system_instructions from niche context
-├── tasks.py                            # django-rq: crawl jobs, usage logging
-├── admin.py
-└── tests/
-```
-
-**Registered in:** `core/settings.py` INSTALLED_APPS, `core/urls.py`
-
----
-
-### B) Frontend Architecture
-
-**Global components** (available on all pages):
-
-```
-components/
-├── FloatingChatBar/
-│   ├── index.tsx                       # Fixed bottom bar + expand animation
-│   └── ChatBarInput.tsx                # TextField + send button + dismiss
-│
-└── MultiPurposeDrawer/
-    ├── index.tsx                       # Shared 480px drawer shell + ToggleButtonGroup
-    ├── DrawerSegments.tsx              # Segment definitions: Niche | Chat | Search
-    └── panels/
-        ├── NicheDetailPanel.tsx        # Existing NicheDetailDrawer content (wrapped)
-        ├── ChatPanel.tsx               # Chat session UI
-        │   ├── ChatMessageList.tsx     # Scrollable message list + Markdown rendering
-        │   ├── ChatControls.tsx        # Model picker, search mode, source toggles
-        │   ├── RecentChats.tsx         # Last 10 sessions, clickable
-        │   ├── ContextChip.tsx         # Sticky niche context chip with X
-        │   └── SessionTagManager.tsx   # Tag chips + add/remove
-        └── SearchResultsPanel.tsx      # Vane answer + source cards
-            ├── VaneAnswer.tsx          # Markdown-rendered AI answer
-            ├── SourceCard.tsx          # Title + URL + snippet + Deep Crawl button
-            └── CrawlStatusBadge.tsx    # pending/running/completed/failed
-
-store/
-├── searchSlice.ts                      # RTK Query: sessions, messages, crawl, tags, health
-└── chatBarSlice.ts                     # UI state: bar expanded/hidden, active session
-```
-
----
-
-### C) Tech Decisions
-
-| Decision | Why |
-|----------|-----|
-| `search_app` separate from `vector_app` | Search is user-facing (chat UI, crawl). Vector DB is infrastructure (embeddings, indexing). Different concerns |
-| Vane as external service (not embedded) | Runs in localai-stack. Merch Miner stays slim. REST API ready |
-| Crawl4ai as external service | Same rationale. Chromium-based crawler = heavy, stays external |
-| Floating chat-bar (global component) | Available on every page. No navigation needed. Modern UX pattern |
-| Multi-purpose drawer (shared shell) | One drawer, 3 panels (Niche/Chat/Search). Reuses existing NicheDetailDrawer. No drawer-per-feature bloat |
-| SSE streaming for Vane responses | Real-time answer chunks. Better UX than waiting for full response. Django StreamingHttpResponse |
-| Crawl jobs via django-rq | Crawl4ai can take 10-30s. Don't block HTTP request. Poll status |
-| ChatMessage stores sources as JSONField | Flexible per-message source list. No separate Source model needed |
-| Auto Vector DB storage via post_save | All search results automatically available for PROJ-15/18. Zero friction |
-| Health check polling (60s) | Proactive service status. User knows before clicking. Low overhead |
-
----
-
-### D) Infrastructure Changes
-
-| Change | Where |
-|--------|-------|
-| `search_app` registered | `INSTALLED_APPS` + `core/urls.py` |
-| 4 new env vars | `VANE_API_URL`, `CRAWL4AI_API_URL`, `VANE_DEFAULT_MODEL`, `VANE_EMBEDDING_MODEL` |
-| MultiPurposeDrawer replaces NicheDetailDrawer | `frontend-ui/src/components/` — wraps existing drawer content |
-
----
-
-### E) New Packages
-
-**Backend:**
-
-| Package | Purpose |
-|---------|---------|
-| `httpx` | Async HTTP client for Vane + Crawl4ai API calls (already installed from PROJ-7) |
-
-**Frontend:**
-
-| Package | Purpose |
-|---------|---------|
-| `react-markdown` | Render Vane AI answers as Markdown in Chat panel |
-| `remark-gfm` | GitHub Flavored Markdown support (tables, links) |
-
----
-
-## Verification Steps
-
-1. Click floating chat-bar → expands into input field. Type "camping trends" → send → drawer opens with Chat panel
-2. Vane returns AI-synthesized answer with 5 cited sources. Answer rendered as Markdown
-3. Click "Deep Crawl" on a source → status: pending → running → completed. Full Markdown content visible
-4. Crawled content auto-stored in Vector DB (PROJ-15) — confirm via `embedding_stats`
-5. Niche "Camping Dad" open → switch to Chat → sticky context chip "Context: Camping Dad" shown
-6. Search with context → Vane receives system instruction with niche name
-7. "Save to Camping Dad" button on result → keywords saved to PROJ-10 Keyword Bank (source=web_search)
-8. Create new chat session → send 3 messages → close drawer → reopen → "Recent Chats" shows session → click to resume
-9. "Share" button → session appears in teammate's session list with "Shared by {username}" badge. Read-only for teammate
-10. Add tag "Research" to session → tag chip visible in session list. Filter by tag works
-11. Search mode toggle: Speed vs Balanced vs Quality → different response quality/latency
-12. Source toggles: web / academic / discussions → Vane searches only selected sources
-13. Model picker: switch from gpt-4.1-mini to different model → response uses selected model
-14. Health check: Vane online → green dot. Crawl4ai offline → yellow dot, "Deep Crawl" disabled with tooltip
-15. Both services offline → red dot, search disabled, banner "Search services offline"
-16. Dismiss chat-bar → hover near bottom edge → arrow indicator → click → bar reappears
-17. Workspace isolation: other workspace's sessions not visible
-18. 100+ messages in session → only latest 50 shown, "Load more" button loads older
-
----
+- Vane + Crawl4ai must be running in localai-stack (internal Docker network only — no public exposure)
+- For local dev: SSH tunnel from Mac to server forwards Mac:3000 → vane:3000 + Mac:11235 → crawl4ai:11235 (helper script in `scripts/dev-tunnel.sh`)
+- New Docker service `worker-search` (`search` queue, 5-min timeout) added to `docker-compose.yml`
+- New Caddy route NOT needed (services stay internal)
 
 ## Decisions Log
 
 | # | Topic | Decision | Rationale |
 |---|-------|----------|-----------|
-| 1 | Vane integration | External service in localai-stack | Consistent architecture, Merch Miner stays slim |
-| 2 | Crawl4ai integration | External service in localai-stack | Same as Vane, REST API ready |
-| 3 | Chat modes | Search + Agent + Context-Aware | Best UX, knows where user is |
-| 4 | Results flow | Smart Suggest + auto Vector DB | Minimal friction, context-based suggestions |
-| 5 | Chat history | Persistent private + explicit sharing | Privacy default, conscious sharing |
-| 6 | Search types | Vane native modes for MVP | Simpler, POD-presets later |
-| 7 | Crawl4ai usage | Manual + Top-3 auto for Market Research | Balance between coverage and cost |
-| 8 | POD modes | Native Vane only for MVP | YAGNI, add presets when needed |
-| 9 | UI layout | Bottom bar (input) + multi-purpose drawer (output), segmented button | Modern UX, reuses existing drawer |
-| 10 | Context handling | Sticky niche context with visible chip + X | Zero friction, always visible |
-| 11 | Vane embedding | text-embedding-3-small via OpenRouter | Same as PROJ-15, consistent |
-| 12 | Vane chat LLM | Default gpt-4.1-mini, switchable | Fast + cheap default, flexibility |
-| 13 | Rate limiting | Tracking only, no limits for MVP | Data first, limits with monetization |
-| 14 | Error handling | Graceful degradation + health check indicator | Proactive UX, no surprises |
+| 1 | Vane integration | External service in localai-stack | Internal-only, no public exposure |
+| 2 | Crawl4ai integration | External service in localai-stack | Same as Vane |
+| 3 | UI Pattern | Pattern B Hybrid (Chat as Frontdoor + Agent-Tab as Detail) | Single-input UX + power features in dedicated tab |
+| 4 | Drawer tabs | Niche / Chat / Agent (Search-Panel removed) | Sources inline in Chat, less mental overhead |
+| 5 | Floating bar | Bottom-center + default-collapsed + glasmorphism | Matches Topbar, low UI noise, quick access |
+| 6 | Drawer resize | 480 → 768 → 1200 (NotebookLM Full-Mode) | Adapts to use case |
+| 7 | Streaming | SSE on separate endpoint | Clean separation, browser handles reconnect |
+| 8 | Auto-scroll | Disengage on user scroll up + "Jump to latest" button | Lets user read while stream continues |
+| 9 | Search results display | Inline in Chat with Perplexity-Style cards (Favicon + 1-line) | Single locus, no panel-switching |
+| 10 | Crawl queue | Dedicated `worker-search` (5-min timeout) | Isolated from agent + default queues |
+| 11 | Vector DB integration | Gated by `VECTOR_DB_ENABLED` flag | PROJ-17 deployable independently of PROJ-15 backfill |
+| 12 | Workflow cards | `ChatMessage.message_type='workflow_card'` + `agent_session` FK | Pattern B inline workflow rendering |
+| 13 | Mode classifier | LLM classifier (gpt-4.1-mini, ~50 tokens) | Auto-route Web vs. Agent transparently |
+| 14 | Tag system | NOT in MVP | YAGNI — niche_context is enough |
+| 15 | Sharing | Private default + explicit Share + read-only for others | Privacy by default, conscious sharing |
+| 16 | Session title | First 100 chars of first user message | Simple, fast, free |
+| 17 | Health check polling | 5 minutes | Stable infra, no need for 60s |
+| 18 | Keyword extraction | Manual text-selection by user | User-curated quality |
+| 19 | Markdown render | react-markdown + remark-gfm + rehype-sanitize | GFM features + security |
+| 20 | i18n | All 5 locales (EN/DE/FR/ES/IT) | Aligned with rest of app |
+| 21 | ChatSession ↔ AgentSession link | FK on `ChatMessage.agent_session` (not on session itself) | One ChatSession can trigger multiple workflows over time |
+| 22 | Drawer-Segmente: Tabs statt ToggleButtonGroup (2026-04-30) | MUI `Tabs` mit roter Underline-Indicator; konsistent mit AgentSettingsPage 7-Tab-Layout | Bessere Visual-Hierarchy, weniger Button-Clutter |
+| 23 | Niche-Icon: `CategoryOutlined` (2026-04-30) | War `InfoOutlinedIcon` (generisches "i") — jetzt 3 layered shapes für "Markt-Kategorie/Nische" | Semantisch klarer für POD-Niche-Begriff |
+| 24 | Recent Chats als Full-Panel Overlay (2026-04-30) | War Inline-Dropdown im ChatPanel-Content; jetzt Overlay über das ganze Drawer-Panel via 🕐-Icon im Drawer-Header. ESC schließt. | Mehr Platz für Chat-Liste, sauberer Content-Area, kein Crowding |
+| 25 | Drawer-Header-Icons (2026-04-30) | 🕐 History + ➕ New Chat + ✕ Close — alle im Drawer-Header rechts statt im ChatPanel-Body. Nur sichtbar wenn `activePanel === 'chat'` | Action-Buttons gehören in Header (Konvention); ChatPanel-Body bleibt für Messages |
+| 26 | `HealthStatusDot` aus Drawer-Header entfernt (2026-04-30) | War redundant — der Status-Dot ist bereits im PageHeader (top-right) | Weniger doppelter UI-Noise |
+| 27 | localStorage-Persistenz für Niche-Tab-Kontext (2026-04-30) | `chatBarSlice` persistiert `activeNicheId` + `nicheMode` in `localStorage` (key `merchminer.chatBar.persisted`); auf Reload wird letzte Niche auto-geladen. Stale-ID (404/archived) → 1500ms-Delay → fallback zu create-mode. | UX: User klickt Niche-Tab und sieht zuletzt offene Niche, nicht leeres Form |
+| 28 | `startNewChat` Reducer + RTK-Cache-Bleed Fix (2026-04-30) | Klick auf ➕-Button im Header dispatched neue Action `startNewChat()` die `activeSessionId`, `streamingAssistantMessage`, `inputChip`, `searching`, `recentChatsOverlayOpen` resetet. Plus: ChatPanel `messages` sind jetzt gated auf `activeSessionId` (RTK Query behält cached data trotz `skip: true`, das hat Messages aus letzter Session "geleakt"). | Vorher: Click + zeigte alte Messages weiter; jetzt sauberer Wechsel |
+
+## Drawer UX Polish 2026-04-30
+
+Diese Sektion fasst die UX-Polish-Änderungen vom 2026-04-30 zusammen — alle in Decisions #22-#28 dokumentiert. Konkret betroffen:
+
+**Files refactored:**
+- `frontend-ui/src/components/MultiPurposeDrawer/index.tsx` — Header mit 3 Icon-Buttons (History/Add/Close)
+- `frontend-ui/src/components/MultiPurposeDrawer/DrawerSegments.tsx` — ToggleButtonGroup → Tabs, HealthStatusDot raus
+- `frontend-ui/src/components/MultiPurposeDrawer/RecentChatsOverlay.tsx` — NEU: Full-Panel-Overlay
+- `frontend-ui/src/components/MultiPurposeDrawer/panels/ChatPanel.tsx` — Inline-Header weg, RTK-Cache-Bleed Fix für `messages`
+- `frontend-ui/src/components/MultiPurposeDrawer/panels/NichePipeline.tsx` — useEffect mit 1500ms-Delay-Fallback bei stale Niche-ID
+- `frontend-ui/src/store/chatBarSlice.ts` — localStorage I/O + `setRecentChatsOverlayOpen` + `startNewChat` Action
+
+**Tests:** 270/270 grün, browser-verified mit Playwright.
+
+## Tech Design (Solution Architect)
+
+> Decided: 2026-03-27 | Re-aligned: 2026-04-25 (Pattern B + Spec-Review)
+
+### A) Backend Architecture
+
+**Django app:** `search_app` (already exists)
+
+```
+search_app/
+├── models.py                           # ChatSession, ChatMessage, WebSearchResult, SearchUsageLog
+│                                       #   (NO ChatTag — removed)
+├── api/
+│   ├── views.py                        # Chat CRUD, message send (blocking + SSE),
+│   │                                   #   crawl trigger, save-to-niche, health, share/unshare
+│   ├── serializers.py                  # All serializers
+│   └── urls.py                         # URL routing
+├── services/
+│   ├── vane_service.py                 # Vane API client (search + search_stream)
+│   ├── crawl_service.py                # Crawl4ai API client (crawl_url)
+│   ├── context_builder.py              # Build system_instructions from niche context
+│   └── mode_classifier.py              # Auto-mode LLM classifier (Web vs. Agent routing)
+├── tasks.py                            # django-rq: crawl jobs (search queue)
+├── signals.py                          # post_save → optional Vector DB embedding (gated)
+├── admin.py
+└── tests/
+```
+
+**Registered in:** `core/settings.py INSTALLED_APPS`, `core/urls.py`.
+
+### B) Frontend Architecture
+
+**Global components:**
+
+```
+components/
+├── FloatingChatBar/
+│   ├── index.tsx                       # Bottom-center, glasmorphism, default-collapsed
+│   ├── ChatBarInput.tsx                # Expanded form: TextField + Mode-Dropdown + Send
+│   └── ChevronIndicator.tsx            # Default-state chevron-up trigger
+│
+└── MultiPurposeDrawer/
+    ├── index.tsx                       # Resizable shell (480/768/1200) + ToggleButtonGroup
+    ├── DrawerSegments.tsx              # 3 segments: Niche | Chat | Agent
+    ├── DrawerResizeHandle.tsx          # Drag-handle on left edge
+    ├── HealthStatusDot.tsx             # 5-min poll status indicator
+    ├── hooks/
+    │   ├── useSearchHealth.ts          # 5-min health poll
+    │   └── useDrawerResize.ts          # Resize state + localStorage persist
+    └── panels/
+        ├── NicheDetailPanel.tsx        # Wrapped existing NicheDetailDrawer content
+        ├── ChatPanel.tsx               # Chat (with inline Sources + WorkflowCards)
+        │   ├── ChatMessageList.tsx     # Scrollable, Markdown, Auto-Scroll-Disengage
+        │   ├── ChatInputBar.tsx        # Input + Mode-Dropdown + Model picker + toggles
+        │   ├── ContextChip.tsx         # Sticky niche context (opt-in toggle)
+        │   ├── ContextToggle.tsx       # "Use current Niche as context" switch
+        │   ├── RecentChats.tsx         # Last 10 sessions
+        │   ├── ModeDropdown.tsx        # Auto / Web-Search / Agent
+        │   ├── JumpToLatestButton.tsx  # Floating button on disengaged scroll
+        │   ├── WorkflowCard.tsx        # Inline AgentSession card (NEW)
+        │   ├── ApprovalCard.tsx        # Inline approval button card (NEW)
+        │   ├── VaneAnswer.tsx          # Markdown rendering (react-markdown + gfm + sanitize)
+        │   └── SourceCard.tsx          # Perplexity-style with Favicon
+        ├── AgentPanel/                 # PROJ-18 (existing)
+        └── (NO SearchResultsPanel — removed)
+
+components/SaveSnippetToolbar/          # Pop-up on text selection in CrawlResult
+└── index.tsx                           # Save as Keywords / Save as Notes
+
+store/
+├── searchSlice.ts                      # RTK Query: sessions, messages, crawl, health, save-to-niche
+└── chatBarSlice.ts                     # UI state: collapsed/expanded, active session, drawer width
+```
+
+### C) Tech Decisions (Updated 2026-04-25)
+
+| Decision | Why |
+|----------|-----|
+| `search_app` separate from `vector_app` | Search = user-facing chat. Vector = infrastructure. Different concerns |
+| Vane + Crawl4ai as external services in localai-stack | No public exposure, internal Docker network only |
+| Pattern B Hybrid (Chat as Frontdoor + Agent-Tab as Detail) | Single-input UX + power features in dedicated tab |
+| Floating Bar = bottom-center, default-collapsed, glasmorphism | Matches Topbar style, low UI noise, quick access |
+| Drawer 3 tabs: Niche / Chat / Agent (no Search tab) | Search results inline in Chat, less mental overhead |
+| Resizable 480 → 768 → 1200 (NotebookLM Full-Mode) | Adapts to use case from compact to power-user |
+| SSE streaming via separate endpoint (`/messages/stream/`) | Clean separation from blocking POST. Browser EventSource handles reconnect |
+| Auto-Scroll-Disengage on user scroll up | Lets user read while stream continues — no broken UX |
+| Crawl jobs on dedicated `worker-search` queue | Isolated from `agent` and `default` queues — no blocking |
+| Vector DB integration gated by feature flag | PROJ-17 deployable independently of PROJ-15 backfill status |
+| ChatMessage `agent_session` FK + `workflow_card` type | Pattern B inline workflow cards reference AgentSession |
+| Mode-Dropdown LLM classifier (gpt-4.1-mini, ~50 tokens) | Auto-route Web vs. Agent without manual selection |
+| No Tag system in MVP | YAGNI — niche_context is enough categorization for MVP |
+| Health check polling 5-min | Vane + Crawl4ai are stable infra — 60s polling overkill |
+| Manual keyword extraction (text-selection) | User-curated quality > auto-LLM-extraction noise |
+| `react-markdown` + `remark-gfm` + `rehype-sanitize` | Tables, GFM features + security against HTML injection |
+| All 5 i18n locales (EN/DE/FR/ES/IT) | Aligned with rest of app |
+
+### D) Infrastructure Changes
+
+| Change | Where |
+|--------|-------|
+| `search_app` registered | `INSTALLED_APPS` + `core/urls.py` (already done) |
+| 5 env vars | `VANE_API_URL`, `CRAWL4AI_API_URL`, `VANE_DEFAULT_MODEL`, `VANE_EMBEDDING_MODEL`, `VECTOR_DB_ENABLED` |
+| New `worker-search` Docker service | `docker-compose.yml` — `python manage.py rqworker search` |
+| New RQ queue | `RQ_QUEUES['search']` in `settings.py` (5-min timeout) |
+| SSH-Tunnel helper script for local dev | `scripts/dev-tunnel.sh` |
+| MultiPurposeDrawer replaces NicheDetailDrawer | `frontend-ui/src/components/` (already wrapped) |
+
+### E) New Packages
+
+**Backend:** none (all already installed: `httpx`, `langchain-openai` for classifier).
+
+**Frontend:**
+
+| Package | Purpose |
+|---------|---------|
+| `react-markdown` | Render Vane answers + crawl content (already installed) |
+| `remark-gfm` | GFM tables, strikethrough, task lists (already installed) |
+| `rehype-sanitize` | Sanitize HTML in markdown output (NEW) |
+
+## Verification Steps
+
+1. Floating bar default-collapsed → click chevron-up → bar expands → glasmorphism style matches Topbar
+2. Type "camping trends" in floating bar → submit → drawer opens with Chat panel active
+3. Vane streams answer word-by-word via SSE; sources appear as Perplexity-Style cards with favicons
+4. While streaming, scroll up → auto-scroll disengages, "Jump to latest" button appears
+5. Click "Jump to latest" → smooth scroll to bottom, button disappears, auto-scroll re-engages
+6. Click "Deep Crawl" on source → status pending → running → completed. Markdown content stored
+7. Crawl content embedded into Vector DB (if `VECTOR_DB_ENABLED=true`)
+8. Mark text snippet in crawled content → toolbar appears → "Save as Keywords" → keywords saved to current Niche-Context (or Niche-Picker modal)
+9. Niche "Camping Dad" open in NicheDetail-Tab → switch to Chat-Tab → toggle "Use as context" ON → context chip appears
+10. Send message with context → Vane receives `system_instructions` with niche name
+11. Mode-Dropdown set to "Agent" → send command "Recherchiere Camping Dad Trends" → AgentSession created → WorkflowCard inline in chat with mini-stepper
+12. Click "Open Command Center" in WorkflowCard → drawer switches to Agent-Tab, scrolls to session
+13. Approve approval-card inside WorkflowCard → PROJ-18 endpoint called → workflow continues
+14. Drawer drag-handle → resize from 480 → 768 → 1200px. Width persisted in localStorage
+15. 1200px Full-Mode shows NotebookLM-style 3-column layout (state | conversation | active detail)
+16. Health: Vane online → green dot. Crawl4ai offline → yellow dot, "Deep Crawl" disabled
+17. Both services offline → red dot, banner "Search services offline"
+18. Share session → teammate sees in their list with "Shared by {username}", read-only
+19. Workspace isolation: other workspace's sessions not visible
+20. 100+ messages → paginate (latest 50, "Load more" loads older)
+
+## Future Enhancements (not MVP)
+
+- POD-specific search modes (Trend Search, Market Research) as prompt presets
+- Crawl4ai AdaptiveCrawler for auto-following links
+- LightRAG for knowledge graph extraction
+- WebSocket alternative if multi-user live-collaboration becomes needed
+- Voice input for chat-bar
+- Tag system for chat sessions (deferred from MVP — currently filter only via `niche_context`)
+- Chat session export (PDF, Markdown)
+
+## QA Test Results
+
+_To be added by /qa_
+
+## Deployment
+
+_To be added by /deploy_

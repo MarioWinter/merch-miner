@@ -98,8 +98,8 @@
     "slogans": "Sloganwerkstatt",
     "designs": "Designschmiede",
     "listings": "Listings",
-    "amazonResearch": "Amazon Tiefenanalyse",
-    "keywords": "Keyword-Fundus",
+    "amazonResearch": "Amazon Recherche",
+    "keywords": "Keyword Drilling",
     "uploads": "Upload-Station",
     "kanban": "Team Kanban",
     "sections": {
@@ -107,7 +107,9 @@
       "pipeline": "Pipeline",
       "drillingZone": "Bohrzone",
       "surfaceOps": "Oberfläche"
-    }
+    },
+    "designBoard": "Design Forge",
+    "imageEditor": "Bildbearbeitung"
   },
   "invite": {
     "successTitle": "Du bist dem Workspace beigetreten!",
@@ -182,7 +184,7 @@
       "colDeepDrill": "Deep Drill",
       "deepDrill": {
         "idle": "Deep Drill starten",
-        "running": "Deep Drill läuft\u2026",
+        "running": "Deep Drill läuft…",
         "completed": "Ergebnisse ansehen",
         "failed": "Deep Drill fehlgeschlagen — erneut versuchen",
         "bulkLabel": "Deep Drill ({{count}})",
@@ -208,6 +210,9 @@
       "archiveConfirmBody": "Die Nische wird aus der Liste ausgeblendet, aber nicht gelöscht.",
       "archiveConfirm": "Archivieren",
       "archiveCancel": "Abbrechen",
+      "archiveLinkedIdeasTitle": "Nische hat verknüpfte Ideen",
+      "archiveLinkedIdeasBody": "Diese Nische hat {{count}} verknüpfte Idee(n). Beim Archivieren werden auch alle verknüpften Ideen archiviert.",
+      "archiveLinkedIdeasConfirm": "Alle archivieren",
       "unsavedChangesTitle": "Ungespeicherte Änderungen",
       "unsavedChangesBody": "Du hast ungespeicherte Änderungen. Verwerfen?",
       "discardChanges": "Verwerfen",
@@ -215,7 +220,25 @@
       "collectedSlogans": "Gesammelte Slogans",
       "collectedKeywords": "Gesammelte Keywords",
       "copyAll": "Alle kopieren",
-      "copiedAll": "Alles in die Zwischenablage kopiert"
+      "copiedAll": "Alles in die Zwischenablage kopiert",
+      "collectedProducts": {
+        "title": "Gesammelte Produkte",
+        "clearAll": "Alle entfernen",
+        "previous": "Vorheriges Produkt",
+        "next": "Nächstes Produkt",
+        "counter": "{{current}} von {{total}}",
+        "extractKeywords": "Keywords extrahieren",
+        "useAsTemplate": "Als Listing-Vorlage verwenden",
+        "openDetail": "Detailseite öffnen",
+        "openAmazon": "Auf Amazon öffnen",
+        "remove": "Entfernen",
+        "removeTooltip": "Aus gesammelten Produkten entfernen",
+        "keywordsExtracted": "Keywords in die Zwischenablage kopiert",
+        "keywordsExtractFailed": "Keywords konnten nicht kopiert werden",
+        "templateCreated": "Listing-Vorlage erstellt",
+        "templateFailed": "Listing-Vorlage konnte nicht erstellt werden",
+        "empty": "Noch keine Produkte gesammelt"
+      }
     },
     "empty": {
       "noNiches": "Noch keine Nischen",
@@ -248,7 +271,9 @@
       "archiveSuccess": "Nische archiviert",
       "createError": "Nische konnte nicht erstellt werden",
       "updateError": "Nische konnte nicht aktualisiert werden",
-      "archiveError": "Nische konnte nicht archiviert werden"
+      "archiveError": "Nische konnte nicht archiviert werden",
+      "archiveWithIdeasSuccess": "Nische und verknüpfte Ideen archiviert",
+      "archiveBlocked": "Archivierung abgebrochen — Ideen sind noch mit dieser Nische verknüpft"
     },
     "inlineAdd": {
       "addNiche": "+ Nische hinzufügen…",
@@ -269,12 +294,23 @@
       "updateError": "Vorlage konnte nicht aktualisiert werden",
       "deleteSuccess": "Vorlage gelöscht",
       "deleteError": "Vorlage konnte nicht gelöscht werden"
+    },
+    "pipeline": {
+      "slogans": {
+        "empty": "Noch keine Slogans gesammelt",
+        "toCanvas": "An Design-Canvas senden",
+        "forgeSelected": "{{count}} zum Canvas schmieden"
+      },
+      "designs": {
+        "toListings": "An Listings senden",
+        "openCanvas": "Design-Canvas öffnen"
+      }
     }
   },
   "research": {
     "triggerButton": "KI-Recherche",
     "stopButton": "Recherche stoppen",
-    "running": "Recherche läuft\u2026",
+    "running": "Recherche läuft…",
     "progressTitle": "KI-Recherche läuft",
     "progressHint": "Das kann einige Minuten dauern. Du kannst die Seite verlassen und zurückkehren.",
     "steps": {
@@ -495,5 +531,2732 @@
       "noWorkspace": "Kein Workspace gefunden",
       "activeWorkspace": "Aktiver Workspace"
     }
+  },
+  "ideas": {
+    "pageTitle": "Slogan-Werkstatt",
+    "newIdea": "Neue Idee",
+    "batchHint": "Slogans eingeben (einer pro Zeile)...",
+    "adapted": "adaptiert",
+    "delete": "Loeschen",
+    "status": {
+      "pending": "Ausstehend",
+      "approved": "Genehmigt",
+      "rejected": "Abgelehnt",
+      "for_review": "Zur Pruefung"
+    },
+    "signal": {
+      "self": "SELF",
+      "other": "OTHER"
+    },
+    "confidence": {
+      "high": "Hoch",
+      "medium": "Mittel",
+      "low": "Niedrig"
+    },
+    "adapt": {
+      "button": "Adaptieren",
+      "modalTitle": "Ziel-Nischen waehlen",
+      "source": "Quelle",
+      "selectTargets": "Ziel-Nischen",
+      "autoSelect": "Top 5 automatisch",
+      "confirm": "Adaptieren",
+      "cancel": "Abbrechen",
+      "progress": "Adaptionsfortschritt",
+      "currentNode": "Aktiv: {{node}}",
+      "noCompatible": "Keine kompatiblen Nischen gefunden",
+      "started": "Adaption gestartet",
+      "completed": "Adaption abgeschlossen",
+      "failed": "Adaption fehlgeschlagen",
+      "error": "Adaption konnte nicht gestartet werden",
+      "adaptAll": "Alle kompatiblen adaptieren",
+      "runStatus": {
+        "pending": "Ausstehend",
+        "running": "Laeuft",
+        "completed": "Abgeschlossen",
+        "failed": "Fehlgeschlagen"
+      }
+    },
+    "improve": {
+      "button": "Verbessern",
+      "dialogTitle": "Slogan verbessern",
+      "feedbackPlaceholder": "Optionales Feedback fuer die KI...",
+      "variantsCount": "{{count}} Varianten erzeugt",
+      "selectVariant": "Auswaehlen",
+      "cancel": "Abbrechen",
+      "success": "Verbesserte Varianten erzeugt",
+      "error": "Slogan konnte nicht verbessert werden"
+    },
+    "regenerate": {
+      "button": "Regenerieren",
+      "confirm": "Neuen Slogan generieren?",
+      "success": "Slogan regeneriert",
+      "error": "Slogan konnte nicht regeneriert werden"
+    },
+    "extract": {
+      "button": "Slogan extrahieren",
+      "success": "Slogan extrahiert und als Idee gespeichert",
+      "error": "Slogan konnte nicht extrahiert werden",
+      "bulkLabel": "Slogans extrahieren ({{count}})"
+    },
+    "history": {
+      "title": "Verlauf",
+      "qualityChecked": "Von Quality Check geaendert",
+      "actor": {
+        "user": "Benutzer",
+        "agent": "Agent",
+        "quality_check": "Quality Check"
+      }
+    },
+    "empty": {
+      "title": "Noch keine Ideen",
+      "hint": "Erstelle deine erste Idee oder starte eine Recherche.",
+      "cta": "Idee erstellen",
+      "selectNiche": "Waehle eine Nische, um Ideen anzuzeigen"
+    },
+    "bulk": {
+      "selected": "{{count}} ausgewaehlt",
+      "selectIdea": "Idee auswaehlen",
+      "approve": "Genehmigen",
+      "reject": "Ablehnen",
+      "clear": "Auswahl aufheben",
+      "updateSuccess": "{{count}} Ideen aktualisiert",
+      "updateError": "Ideen konnten nicht aktualisiert werden"
+    },
+    "niche": {
+      "noResearchWarning": "Einige Nischen haben keine Recherche-Daten - Ergebnisse koennten schlechter sein.",
+      "alreadyAdapted": "Bereits adaptiert",
+      "researchDone": "Deep Drill Analyse abgeschlossen — vollständige Daten verfügbar",
+      "noResearch": "Keine Deep Drill Analyse — Adaptionsqualität kann eingeschränkt sein"
+    },
+    "notifications": {
+      "createSuccess": "{{count}} Idee(n) erstellt",
+      "createError": "Idee konnte nicht erstellt werden",
+      "updateError": "Idee konnte nicht aktualisiert werden",
+      "deleteSuccess": "Idee geloescht",
+      "deleteError": "Idee konnte nicht geloescht werden",
+      "loadError": "Ideen konnten nicht geladen werden"
+    },
+    "filter": {
+      "allNiches": "Alle Nischen",
+      "allStatuses": "Alle Status",
+      "allSignals": "Alle Signale",
+      "noNiche": "Keine Nische",
+      "clearFilters": "Filter löschen",
+      "ordering_newest": "Neueste zuerst",
+      "ordering_oldest": "Älteste zuerst",
+      "ordering_text_asc": "Text A-Z",
+      "ordering_text_desc": "Text Z-A"
+    },
+    "noNicheChip": "Keine Nische",
+    "noNicheTooltip": "Weise eine Nische zu, bevor du adaptierst",
+    "inlineAdd": {
+      "placeholder": "Neuen Slogan hinzufügen...",
+      "batchHint": "Shift+Enter für neue Zeile. Jede Zeile erstellt eine eigene Idee."
+    },
+    "import": {
+      "button": "Import",
+      "title": "Ideen importieren",
+      "dropHint": "CSV oder XLSX Datei hierher ziehen oder klicken",
+      "preview": "Vorschau",
+      "confirm": "Importieren",
+      "success": "{{count}} Ideen importiert",
+      "warnings": "Import mit Warnungen abgeschlossen",
+      "noData": "Keine gültigen Daten in Datei gefunden",
+      "tooMany": "Max. {{max}} Einträge erlaubt. Datei gekürzt.",
+      "parseError": "Datei konnte nicht gelesen werden",
+      "andMore": "und {{count}} weitere",
+      "reset": "Zurücksetzen"
+    },
+    "sourceGroup": {
+      "adapted": "adaptiert",
+      "expand": "Gruppe öffnen",
+      "collapse": "Gruppe schließen"
+    },
+    "filterTemplate": {
+      "button": "Vorlagen",
+      "save": "Speichern",
+      "saveFilters": "Aktuelle Filter speichern",
+      "updateCurrent": "Aktuelle Vorlage aktualisieren",
+      "delete": "Vorlage löschen",
+      "loading": "Laden...",
+      "empty": "Keine gespeicherten Vorlagen",
+      "namePlaceholder": "Vorlagenname...",
+      "saveSuccess": "Filtervorlage gespeichert",
+      "saveError": "Vorlage konnte nicht gespeichert werden",
+      "updateSuccess": "Vorlage aktualisiert",
+      "updateError": "Vorlage konnte nicht aktualisiert werden",
+      "deleteSuccess": "Vorlage gelöscht",
+      "deleteError": "Vorlage konnte nicht gelöscht werden"
+    },
+    "rejectWarning": {
+      "title": "Idee hat genehmigtes Design",
+      "body": "Diese Idee hat ein genehmigtes Design. Das Ablehnen der Idee löscht das Design nicht, aber es wird nicht mehr mit der Pipeline verknüpft sein. Fortfahren?",
+      "confirm": "Idee ablehnen",
+      "cancel": "Abbrechen"
+    }
+  },
+  "design": {
+    "board": {
+      "title": "Design Forge",
+      "prompt": "Prompt",
+      "promptPlaceholder": "Beschreibe das Design, das du generieren moechtest...",
+      "promptRequired": "Bitte gib zuerst einen Prompt ein",
+      "generate": "Design generieren",
+      "generating": "Wird generiert...",
+      "generateError": "Design konnte nicht generiert werden",
+      "generationFailed": "Designgenerierung fehlgeschlagen",
+      "retry": "Erneut versuchen",
+      "references": "Referenzbilder",
+      "noReferences": "Keine Referenzbilder verfuegbar",
+      "usePrompt": "Prompt verwenden",
+      "useThisPrompt": "Diesen Prompt im Editor verwenden",
+      "goBack": "Zurueck",
+      "loadError": "Design Forge konnte nicht geladen werden",
+      "analysisBreakdown": "7-Schritte-Analyse",
+      "jumpButton": "Design Forge oeffnen",
+      "analysisStep": {
+        "text_dna": "Text-DNA",
+        "visual": "Visuelle Analyse",
+        "spatial": "Raeumliches Layout",
+        "style": "Stil",
+        "color": "Farbpalette",
+        "tech": "Technisch",
+        "final_prompt": "Finaler Prompt"
+      },
+      "noImage": "Kein Bild verfuegbar",
+      "externalImage": "Externes Bild",
+      "openInEditor": "Im Editor oeffnen",
+      "referenceDetails": "Referenz-Details",
+      "designDetails": "Design-Details",
+      "nodeDetails": "Node-Details",
+      "visualStyle": "Visueller Stil",
+      "graphicElements": "Grafische Elemente",
+      "tone": "Tonfall",
+      "vibe": "Stimmung",
+      "zoomIn": "Vergroessern",
+      "zoomOut": "Verkleinern",
+      "fitView": "Ansicht anpassen",
+      "addHub": "Generierungs-Hub hinzufuegen",
+      "addImage": "Bild hinzufuegen",
+      "toggleMinimap": "Minimap umschalten",
+      "nodeCount": "{{count}} Nodes",
+      "nodeCount_one": "{{count}} Node",
+      "cancel": "Abbrechen",
+      "dropImages": "Bilder hier ablegen",
+      "regenerate": "Regenerieren"
+    },
+    "model": {
+      "label": "KI-Modell",
+      "placeholder": "Modell auswählen"
+    },
+    "background": {
+      "label": "Hintergrundfarbe",
+      "light_gray": "Hellgrau",
+      "neon_pink": "Neonpink",
+      "neon_green": "Neongruen"
+    },
+    "status": {
+      "pending": "Ausstehend",
+      "approved": "Genehmigt",
+      "rejected": "Abgelehnt",
+      "failed": "Fehlgeschlagen"
+    },
+    "gallery": {
+      "title": "Generierte Designs",
+      "approve": "Genehmigen",
+      "reject": "Ablehnen",
+      "download": "Herunterladen",
+      "delete": "Loeschen",
+      "approved": "Design genehmigt",
+      "rejected": "Design abgelehnt",
+      "deleted": "Design geloescht",
+      "approveError": "Design konnte nicht genehmigt werden",
+      "rejectError": "Design konnte nicht abgelehnt werden",
+      "deleteError": "Design konnte nicht geloescht werden",
+      "imageAlt": "Generiertes Design",
+      "noImage": "Kein Bild"
+    },
+    "empty": {
+      "noDesigns": "Noch keine Designs",
+      "cta": "Generiere dein erstes Design mit dem Prompt-Editor"
+    },
+    "batch": {
+      "selectedCount": "{{count}} ausgewaehlt",
+      "processButton": "Hochskalieren + BG entfernen",
+      "started": "Batch-Verarbeitung gestartet",
+      "triggerError": "Batch-Verarbeitung konnte nicht gestartet werden",
+      "jobFailed": "{{type}} fehlgeschlagen",
+      "upscale": "Hochskalieren",
+      "bg_remove": "BG entfernen",
+      "failure": "Batch-Verarbeitung fehlgeschlagen",
+      "jobCompleted": "Verarbeitungsjob abgeschlossen"
+    },
+    "analyze": {
+      "button": "Bild analysieren",
+      "started": "Bildanalyse gestartet",
+      "success": "Design analysiert - Prompt bereit",
+      "error": "Bildanalyse fehlgeschlagen",
+      "reused": "Analyse bereit"
+    },
+    "promptBuilder": {
+      "openButton": "Prompt erstellen",
+      "title": "Prompt-Baukasten",
+      "titleBulk": "Prompts für {{count}} Slogans erstellen",
+      "slogan": "Slogan",
+      "selectSlogan": "Slogan auswählen",
+      "bulkSelected": "{{count}} Slogans ausgewählt",
+      "keywords": "Keywords",
+      "noNicheKeywords": "Nische verknüpfen, um Keywords zu aktivieren",
+      "research": "KI-Recherche",
+      "noResearch": "Keine Recherche-Daten verfügbar",
+      "webResearch": "Web-Recherche",
+      "notAvailable": "Nicht verfügbar — zuerst Deep Web Search ausführen",
+      "image": "Referenzbild",
+      "uploadImage": "Bild hochladen",
+      "variants": "Varianten",
+      "preview": "Prompt-Vorschau",
+      "variantLabel": "Variante {{n}}",
+      "noPreview": "Quellen aktivieren, um eine Vorschau zu sehen",
+      "build": "Prompt(s) erstellen",
+      "buildBulk": "{{count}} Prompt(s) erstellen",
+      "buildError": "Prompts konnten nicht erstellt werden",
+      "buildSuccess": "{{count}} Prompt(s) gespeichert",
+      "saveError": "Prompts konnten nicht gespeichert werden",
+      "noKeywordsFound": "Keine Keywords für diese Nische gefunden",
+      "noResearchData": "Zuerst KI-Recherche ausführen",
+      "visualStyle": "Visueller Stil",
+      "graphicElements": "Grafik",
+      "vibe": "Stimmung",
+      "tone": "Ton",
+      "aesthetics": "Ästhetik",
+      "analyzeImage": "Analysieren",
+      "generatePrompt": "Prompt generieren",
+      "promptTitle": "Prompt-Titel",
+      "promptTitlePlaceholder": "Gib diesem Prompt einen Namen...",
+      "sloganSelector": "Slogan aus Pool",
+      "mainSubject": "Hauptmotiv",
+      "contentType": "Inhaltstyp",
+      "selectContentType": "Typ auswählen",
+      "mood": "Stimmung",
+      "selectMood": "Stimmung auswählen",
+      "tabs": {
+        "label": "Prompt-Baukasten-Tabs",
+        "concept": "Konzept",
+        "context": "Kontext",
+        "style": "Stil",
+        "format": "Format",
+        "color": "Farbe",
+        "background": "Hintergrund",
+        "text": "Text",
+        "output": "Ausgabe"
+      },
+      "style": {
+        "category": "Stilkategorie",
+        "selectCategory": "Kategorie auswählen",
+        "style": "Stil",
+        "selectStyle": "Stil auswählen",
+        "addStyle": "+ Stil hinzufügen",
+        "empty": "Noch keine Stile hinzugefügt. Wähle oben eine Kategorie und einen Stil."
+      },
+      "format": {
+        "composition": "Komposition",
+        "selectComposition": "Komposition auswählen"
+      },
+      "color": {
+        "palette": "Farbpalette",
+        "selectColor": "Farbe {{color}} auswählen",
+        "addColor": "+ Farbe hinzufügen",
+        "fromResearch": "Aus Recherche",
+        "selected": "Ausgewählte Farben",
+        "empty": "Keine Farben ausgewählt. Klicke oben auf die Farbfelder."
+      },
+      "background": {
+        "type": "Hintergrundtyp",
+        "selectType": "Hintergrundtyp auswählen",
+        "presets": "Hintergrund-Vorlagen"
+      },
+      "text": {
+        "noSlogan": "Kein Slogan ausgewählt",
+        "enterCustom": "Eigenen Text unten eingeben",
+        "textIncluded": "Text enthalten?",
+        "selectMode": "Textoption auswählen",
+        "customLabel": "Eigener Text",
+        "customPlaceholder": "Text eingeben, der im Design erscheinen soll...",
+        "preview": "Textvorschau",
+        "noTextHint": "Design wird ohne Texteinblendung generiert."
+      },
+      "output": {
+        "mbaPreset": "MBA-Voreinstellung",
+        "mbaPresetHint": "4500x5400, 300DPI, nahtlose Kanten, kein Beschnitt"
+      },
+      "context": {
+        "toggleKeywords": "Keywords umschalten",
+        "keywords": "Keywords",
+        "noKeywords": "Keine Keywords — zuerst Keyword-Recherche starten",
+        "toggleResearch": "KI-Recherche umschalten",
+        "aiResearch": "KI-Recherche",
+        "noResearch": "Keine Recherche-Daten verfügbar",
+        "toggleProducts": "Referenzprodukte umschalten",
+        "referenceProducts": "Referenzprodukte",
+        "noProducts": "Keine Referenzprodukte verfügbar",
+        "referenceImages": "Referenzbilder",
+        "noReferences": "Keine Referenzbilder — aus Nischen-Pipeline hinzufügen",
+        "toggleReference": "Referenz {{title}} umschalten",
+        "untitledRef": "Ohne Titel",
+        "refModeLabel": "Referenzmodus",
+        "modeImage": "Bild (multimodal)",
+        "modeText": "Textanalyse"
+      }
+    },
+    "sloganPool": {
+      "title": "Slogan-Pool",
+      "empty": "Slogans aus der Nischen-Pipeline oder der Slogan Factory hinzufügen",
+      "selectSlogan": "Slogan auswählen",
+      "refProducts": "Zur Leinwand hinzufügen",
+      "details": "Details",
+      "autoPrompt": "Auto-Prompt",
+      "remove": "Entfernen",
+      "removeError": "Entfernen fehlgeschlagen",
+      "autoPromptError": "Auto-Prompt fehlgeschlagen",
+      "maxBulk": "Max. 10 pro Stapel",
+      "generateSelected": "Ausgewählte generieren ({{count}})"
+    },
+    "prompts": {
+      "title": "Prompts",
+      "empty": "Keine gespeicherten Prompts",
+      "edit": "Bearbeiten",
+      "delete": "Löschen",
+      "generated": "Generiert",
+      "editError": "Aktualisierung fehlgeschlagen",
+      "deleteError": "Löschen fehlgeschlagen",
+      "generateAll": "Alle generieren ({{count}})"
+    },
+    "presets": {
+      "title": "Vorlagen",
+      "namePlaceholder": "Vorlagenname",
+      "save": "Als Vorlage speichern",
+      "saved": "Vorlage gespeichert",
+      "saveError": "Vorlage konnte nicht gespeichert werden"
+    },
+    "actions": {
+      "analyzeImage": "Bild analysieren",
+      "analyzeImageTooltip": "Ausgewähltes Bild analysieren, um einen Prompt zu generieren",
+      "analyzeImageUpload": "Bild zum Analysieren hochladen",
+      "bulkGenerating": "{{count}} Designs werden generiert...",
+      "imageAdded": "Bild als Referenz-Artboard hinzugefügt"
+    },
+    "references": {
+      "title": "Referenzen",
+      "empty": "Referenzen aus der Nischen-Pipeline hinzufügen",
+      "useAsReference": "Als Referenz verwenden",
+      "analyze": "Analysieren",
+      "analyzing": "Wird analysiert...",
+      "useAsPrompt": "Als Prompt verwenden",
+      "remove": "Entfernen",
+      "removeError": "Referenz konnte nicht entfernt werden",
+      "analyzeSuccess": "Analyse abgeschlossen",
+      "analyzeError": "Analyse fehlgeschlagen",
+      "analyzeFailed": "Referenzbild konnte nicht analysiert werden",
+      "brokenImage": "Bild nicht verfügbar",
+      "thumbnail": "Referenz-Vorschaubild",
+      "untitled": "Ohne Titel",
+      "showAnalysis": "Analyse anzeigen",
+      "hideAnalysis": "Analyse ausblenden",
+      "alreadyAdded": "Dieses Bild wurde bereits als Referenz hinzugefügt",
+      "addedSuccess": "Referenzbild erfolgreich hinzugefügt",
+      "modelNoMultimodal": "Das ausgewählte Modell unterstützt keine Bildanalyse"
+    },
+    "artboards": {
+      "title": "Artboards",
+      "empty": "Keine Artboards",
+      "prompt": "Prompt"
+    },
+    "editor": {
+      "title": "Bildbearbeitung",
+      "dropHint": "Bilder hier ablegen oder Dateien durchsuchen",
+      "browseFiles": "Dateien durchsuchen",
+      "batchCount": "{{current}} / {{total}}",
+      "batchCountLabel": "Bild {{current}} von {{total}}",
+      "deleteImage": "Bild entfernen",
+      "deleteAll": "Alle entfernen",
+      "previousImage": "Vorheriges Bild",
+      "nextImage": "Naechstes Bild",
+      "noImages": "Keine Bilder geladen",
+      "noImagesCta": "Bilder hierher ziehen oder auf Dateien durchsuchen klicken",
+      "processing": "Verarbeitung...",
+      "processAll": "Alle verarbeiten",
+      "exportCurrent": "Aktuelles exportieren",
+      "exportAll": "Alle exportieren (ZIP)",
+      "resetAll": "Alles zuruecksetzen",
+      "removeAll": "Alle Tools entfernen",
+      "loadError": "Designs konnten nicht geladen werden",
+      "centerImage": "Bild zentrieren & einpassen",
+      "canvasToolbar": "Canvas-Werkzeuge",
+      "removeFromBatch": "Aus Stapel entfernen",
+      "deletePermanently": "Endgueltig loeschen",
+      "deleteServerDialogTitle": "Design loeschen",
+      "deleteServerDialogBody": "\"{{name}}\" wird endgueltig vom Server geloescht. Dies kann nicht rueckgaengig gemacht werden.",
+      "deleteServerConfirm": "Loeschen",
+      "deleteServerCancel": "Abbrechen",
+      "deleteServerSuccess": "Design geloescht",
+      "deleteServerError": "Design konnte nicht geloescht werden",
+      "processingComplete": "Alle Bilder erfolgreich verarbeitet",
+      "processingPartialFail": "{{count}} Bild(er) fehlgeschlagen",
+      "applyPipeline": "Pipeline anwenden",
+      "applying": "Wird angewendet...",
+      "cancelProcessing": "Abbrechen",
+      "processingProgress": "Verarbeite {{current}}/{{total}}: {{name}}",
+      "uploadFailed": "Upload von \"{{name}}\" fehlgeschlagen",
+      "addMoreImages": "Weitere Bilder hinzufuegen",
+      "serverProcessing": "Wird auf Server verarbeitet...",
+      "showOriginal": "Original anzeigen",
+      "showProcessed": "Verarbeitet anzeigen",
+      "bgPreview": {
+        "transparent": "Transparent (Schachbrett)",
+        "black": "Schwarzer Hintergrund",
+        "white": "Weisser Hintergrund",
+        "gray": "Grauer Hintergrund",
+        "custom": "Eigene Farbe"
+      }
+    },
+    "pipeline": {
+      "title": "Pipeline",
+      "addTool": "Tool hinzufuegen",
+      "collapse": "Pipeline einklappen",
+      "expand": "Pipeline ausklappen",
+      "activePipeline": "Aktive Pipeline",
+      "availableTools": "Verfuegbare Tools",
+      "presets": "Vorlagen",
+      "savePreset": "Vorlage speichern",
+      "loadPreset": "Vorlage laden",
+      "deletePreset": "Vorlage loeschen",
+      "presetName": "Vorlagenname",
+      "presetSaved": "Pipeline-Vorlage gespeichert",
+      "presetDeleted": "Pipeline-Vorlage geloescht",
+      "presetSaveError": "Vorlage konnte nicht gespeichert werden",
+      "presetDeleteError": "Vorlage konnte nicht geloescht werden",
+      "noPresets": "Keine gespeicherten Vorlagen",
+      "noTools": "Keine Tools in der Pipeline",
+      "noToolsCta": "Waehle Tools aus der Leiste oben, um deine Pipeline zu erstellen",
+      "removeTool": "Tool entfernen",
+      "toggleTool": "Tool umschalten",
+      "dragToReorder": "Zum Sortieren ziehen",
+      "toggleTooltips": "Tool-Beschreibungen anzeigen",
+      "categories": {
+        "standard": "Standard",
+        "edge": "Kantenbereinigung",
+        "ai": "KI-Verarbeitung",
+        "quality": "Qualitaet"
+      },
+      "presetUpdated": "Pipeline-Vorlage aktualisiert",
+      "toolCatalog": "Tool-Katalog",
+      "selectToolsHint": "Waehle Tools aus der Leiste oben"
+    },
+    "tools": {
+      "tooltip": {
+        "resize": "Design auf Ziel-Canvas skalieren und positionieren (z.B. 4500x5400 fuer MBA)",
+        "trim": "Transparente oder leere Raender automatisch zuschneiden",
+        "rotate": "90/180/270 Grad drehen und horizontal/vertikal spiegeln",
+        "filters": "Helligkeit, Kontrast, Saettigung und Farbton anpassen",
+        "distress": "Vintage-Koernung, Kratzer und Kantenabnutzung hinzufuegen",
+        "colorRemoval": "Hintergrundfarbe zu transparent entfernen",
+        "speckleRemover": "Isolierte Pixelartefakte entfernen",
+        "transparencyCleaner": "Halbtransparente Pixel bereinigen oder hervorheben",
+        "watermark": "Text-Wasserzeichen mit Position und Kachelung hinzufuegen",
+        "defringe": "Farbsaeume an Designkanten entfernen",
+        "shrink": "N Pixel von sichtbaren Designkanten abtragen",
+        "colorDefringe": "Kantensaum durch naechste Designfarbe ersetzen",
+        "edgeCleaner": "Gezackte Kanten mit Anti-Aliasing glaetten",
+        "bgRemove": "KI-gestuetzte Hintergrundentfernung (serverseitig)",
+        "aiUpscale": "Bildaufloesung mit KI erhoehen"
+      },
+      "resize": "Groesse aendern",
+      "trim": "Zuschneiden",
+      "rotate": "Drehen",
+      "filters": "Filter",
+      "distress": "Distress",
+      "colorRemoval": "Farbentfernung",
+      "colorRemovalParams": {
+        "mode": "Erkennungsmodus",
+        "auto": "Auto",
+        "manual": "Manuell",
+        "targetColor": "Zielfarbe",
+        "detectedColor": "Erkannte Farbe",
+        "autoDetectHint": "Automatisch von Bildkanten erkannt",
+        "tolerance": "Toleranz",
+        "contiguous": "Zusammenhaengend",
+        "contiguousHint": "Nur verbundene Bereiche von Kanten entfernen",
+        "softEdge": "Weiche Kante",
+        "softEdgeHint": "Sanfter Uebergang an der Farbgrenze",
+        "edgeRefinement": "KANTENVERFEINERUNG",
+        "fillHoles": "Loecher fuellen",
+        "fillHolesHint": "Kleine Luecken in Design-Elementen reparieren",
+        "deepClean": "Tiefenreinigung",
+        "deepCleanHint": "Multi-Pass: auch eingefangenen HG zwischen Elementen entfernen",
+        "edgeTrim": "Kantenbeschnitt",
+        "edgeFeather": "Kantenweichzeichnung",
+        "colorsSection": "FARBEN",
+        "colorN": "Farbe {{n}}",
+        "addColor": "Farbe hinzufuegen",
+        "removeColor": "Farbe entfernen",
+        "hdMode": "HD-Modus",
+        "hdOn": "An",
+        "hdOff": "Aus",
+        "hdHint": "Kleine Bilder vor der Verarbeitung 2× hochskalieren fuer bessere Praezision"
+      },
+      "speckleRemover": "Fleckenentferner",
+      "transparencyCleaner": "Transp.-Reiniger",
+      "transparencyCleanerParams": {
+        "mode": "Modus",
+        "delete": "Loeschen",
+        "view": "Ansicht",
+        "threshold": "Alpha-Schwellenwert",
+        "thresholdHint": "Pixel mit Alpha unter diesem Wert werden vollstaendig transparent",
+        "highlightColor": "Hervorhebungsfarbe",
+        "color_pink": "Pink",
+        "color_green": "Gruen",
+        "color_cyan": "Cyan",
+        "color_magenta": "Magenta",
+        "visibility": "Sichtbarkeit"
+      },
+      "watermark": "Wasserzeichen",
+      "defringe": "Defringe",
+      "shrink": "Schrumpfen",
+      "colorDefringe": "Farb-Defringe",
+      "edgeCleaner": "Kantenreiniger",
+      "bgRemove": "HG entfernen",
+      "aiUpscale": "KI-Hochskalierung",
+      "move": "Verschieben",
+      "eraser": "Radierer",
+      "wand": "Zauberstab",
+      "resizeParams": {
+        "sizePreset": "Groessen-Preset",
+        "targetWidth": "Zielbreite",
+        "targetHeight": "Zielhoehe",
+        "alignY": "Vertikale Ausrichtung",
+        "alignX": "Horizontale Ausrichtung",
+        "padding": "Abstand (px)",
+        "bgColor": "Hintergrundfuellung",
+        "maintainAspectRatio": "Seitenverhaeltnis beibehalten",
+        "top": "Oben",
+        "center": "Mitte",
+        "bottom": "Unten",
+        "left": "Links",
+        "right": "Rechts",
+        "transparent": "Transparent",
+        "presetPod": "POD Standard (4500×5400)",
+        "presetSquare": "Quadratisch (4500×4500)",
+        "presetCustom": "Benutzerdefiniert"
+      },
+      "trimParams": {
+        "trimMode": "Zuschnittmodus",
+        "transparent": "Transparent",
+        "autoDetect": "Auto-Erkennung",
+        "threshold": "Schwellenwert",
+        "alphaThreshold": "Alpha-Schwellenwert",
+        "colorTolerance": "Farbtoleranz",
+        "padding": "Abstand (px)"
+      },
+      "rotateFlipParams": {
+        "rotation": "Drehung",
+        "flipH": "Horizontal spiegeln",
+        "flipV": "Vertikal spiegeln",
+        "deg0": "0°",
+        "deg90": "90°",
+        "deg180": "180°",
+        "deg270": "270°"
+      },
+      "colorAdjustmentParams": {
+        "brightness": "Helligkeit",
+        "contrast": "Kontrast",
+        "saturation": "Saettigung",
+        "hueShift": "Farbtonverschiebung",
+        "reset": "Alles zuruecksetzen"
+      },
+      "distressParams": {
+        "intensity": "Intensitaet",
+        "grainAmount": "Koernung",
+        "scratches": "Kratzer",
+        "edgeWear": "Kantenabnutzung",
+        "seed": "Seed",
+        "randomize": "Zufaellig",
+        "reset": "Alles zuruecksetzen"
+      },
+      "speckleRemoverParams": {
+        "minSize": "Mindestgroesse (px)",
+        "minSizeHint": "Pixelgruppen kleiner als dieser Wert werden entfernt",
+        "connectivity": "Konnektivitaet",
+        "fourWay": "4-Wege",
+        "eightWay": "8-Wege",
+        "alphaThreshold": "Alpha-Schwellenwert"
+      },
+      "watermarkParams": {
+        "text": "Wasserzeichen-Text",
+        "textPlaceholder": "Wasserzeichen-Text eingeben...",
+        "fontSize": "Schriftgroesse",
+        "color": "Farbe",
+        "opacity": "Deckkraft",
+        "position": "Position",
+        "posCenter": "Mitte",
+        "posTopLeft": "Oben links",
+        "posTopRight": "Oben rechts",
+        "posBottomLeft": "Unten links",
+        "posBottomRight": "Unten rechts",
+        "posTile": "Kacheln (Wiederholen)",
+        "rotation": "Drehung (°)",
+        "tileSpacing": "Kachelabstand (px)"
+      },
+      "defringeParams": {
+        "autoDetect": "Auto-Erkennung",
+        "shrinkPx": "Schrumpfen (px)",
+        "edgeThreshold": "Kantenschwellenwert",
+        "autoDetected": "Wert wird automatisch basierend auf Kantenanalyse berechnet"
+      },
+      "shrinkParams": {
+        "amount": "Schrumpfbetrag (px)",
+        "amountHint": "Anzahl der Kantenpixel pro Durchlauf",
+        "alphaThreshold": "Alpha-Schwellenwert"
+      },
+      "colorDefringeParams": {
+        "edgeWidth": "Kantenbreite (px)",
+        "edgeWidthHint": "Wie viele Pixel von der Kante verarbeitet werden",
+        "alphaThreshold": "Alpha-Schwellenwert",
+        "colorTolerance": "Farbtoleranz",
+        "colorToleranceHint": "Wie aggressiv Kantenfarben ersetzt werden (0 = keine, 100 = voll)"
+      },
+      "edgeCleanerParams": {
+        "passes": "Durchlaeufe",
+        "strength": "Staerke",
+        "alphaThreshold": "Alpha-Schwellenwert",
+        "alphaThresholdHint": "Pixel mit Alpha unter diesem Wert gelten als transparent fuer Kantenerkennung"
+      },
+      "bgRemoveParams": {
+        "serverInfo": "Wird auf dem Server mit KI-Modell verarbeitet",
+        "description": "KI-Hintergrundentfernung fuer komplexe Hintergruende. Verarbeitung dauert einige Sekunden.",
+        "model": "Modell",
+        "runNow": "Hintergrund entfernen",
+        "processing": "Wird verarbeitet..."
+      },
+      "upscaleParams": {
+        "mode": "Hochskalierungsmodus",
+        "modeAuto": "Auto",
+        "modeClient": "Client",
+        "modeServer": "Server",
+        "autoClientHint": "Bild ist gross genug — Pica.js wird verwendet (clientseitig, sofort)",
+        "autoServerHint": "Bild ist klein — KI-Upscale-API wird verwendet (serverseitig)",
+        "currentSize": "Aktuell: {{w}} x {{h}} px",
+        "targetDimensions": "Zielabmessungen",
+        "width": "Breite",
+        "height": "Hoehe",
+        "filter": "Resampling-Filter",
+        "filterLanczos3": "Lanczos3 (hoechste Qualitaet)",
+        "filterLanczos2": "Lanczos2 (schnell)",
+        "filterMks2013": "MKS 2013 (scharf + Groessenaenderung)",
+        "runNow": "Jetzt hochskalieren",
+        "processing": "Wird hochskaliert...",
+        "thresholdInfo": "Auto-Modus: Pica.js fuer Bilder >= {{threshold}}px, KI-API fuer kleinere",
+        "compare": "Original vergleichen"
+      },
+      "transparencyHighlighter": "Transp.-Hervorhebung",
+      "transparencyHighlighterParams": {
+        "highlightColor": "Hervorhebungsfarbe",
+        "red": "Rot",
+        "yellow": "Gelb",
+        "magenta": "Magenta",
+        "showOpaque": "Deckend anzeigen"
+      },
+      "eraserParams": {
+        "size": "Pinselgroesse",
+        "hardness": "Haerte"
+      },
+      "magicWandParams": {
+        "tolerance": "Toleranz",
+        "contiguous": "Zusammenhaengend",
+        "contiguousHint": "Nur verbundene Pixel aehnlicher Farbe auswaehlen",
+        "action": "Aktion",
+        "actionDelete": "Loeschen",
+        "actionSelect": "Auswaehlen"
+      }
+    },
+    "export": {
+      "title": "Export",
+      "format": "Format",
+      "dpi": "DPI",
+      "compression": "Komprimierung",
+      "compressionHint": "Niedriger = kleinere Datei, hoeher = bessere Qualitaet",
+      "estimatedSize": "Ca. {{size}}",
+      "downloadCurrent": "Aktuelles herunterladen",
+      "downloadAll": "Alle herunterladen (ZIP)",
+      "overwrite": "Original ueberschreiben",
+      "newVersion": "Neue Version erstellen",
+      "titleCount": "{{count}} Artboard exportieren",
+      "formatPng": "PNG-Datei",
+      "formatZip": "PNG-Dateien als ZIP",
+      "quality": "Qualitaet",
+      "exporting": "Wird exportiert...",
+      "download": "Herunterladen",
+      "advanced": "Erweiterter Export",
+      "formatPngShort": "PNG",
+      "formatJpeg": "JPEG",
+      "formatWebp": "WebP",
+      "resolution": "Aufloesung",
+      "dimensions": "{{width}} × {{height}} px",
+      "downloadZip": "Alle herunterladen (ZIP)",
+      "creatingZip": "ZIP wird erstellt...",
+      "totalSize": "Geschaetzte Gesamtgroesse: {{size}}",
+      "imageCount": "{{count}} Bilder",
+      "compressionLevel": "Komprimierung",
+      "compressionOff": "Aus",
+      "compressionLow": "Niedrig",
+      "compressionMedium": "Mittel",
+      "compressionHigh": "Hoch",
+      "compressionVeryHigh": "Sehr Hoch",
+      "preparingDownload": "Download wird vorbereitet",
+      "processingImage": "Bild wird verarbeitet...",
+      "processingImages": "Verarbeite {{current}} von {{total}}...",
+      "cancel": "Abbrechen",
+      "fileSize": "Groesse",
+      "closeExport": "Export schliessen"
+    },
+    "contextMenu": {
+      "addAiBoard": "KI-Bildboard hinzufuegen",
+      "duplicate": "Duplizieren",
+      "bringToFront": "In den Vordergrund",
+      "sendToBack": "In den Hintergrund",
+      "delete": "Loeschen",
+      "addArtboard": "Artboard hinzufuegen",
+      "paste": "Einfuegen"
+    },
+    "projects": {
+      "title": "Design Forge",
+      "createButton": "Neues Projekt",
+      "createSuccess": "Projekt erstellt",
+      "createError": "Projekt konnte nicht erstellt werden",
+      "loadError": "Projekte konnten nicht geladen werden",
+      "emptyTitle": "Noch keine Projekte",
+      "emptyCta": "Erstelle dein erstes Designprojekt, um loszulegen",
+      "openProject": "Projekt oeffnen",
+      "designCount": "{{count}} Designs",
+      "designCount_one": "{{count}} Design",
+      "menuLabel": "Projektaktionen",
+      "deleteProject": "Projekt loeschen",
+      "deleteDialogTitle": "Projekt loeschen",
+      "deleteDialogBody": "Moechten Sie \"{{name}}\" wirklich loeschen? Alle Designs werden dauerhaft entfernt.",
+      "deleteConfirm": "Loeschen",
+      "deleteCancel": "Abbrechen",
+      "deleteSuccess": "Projekt geloescht",
+      "deleteError": "Projekt konnte nicht geloescht werden",
+      "createDialog": {
+        "title": "Designprojekt erstellen",
+        "nameLabel": "Projektname",
+        "namePlaceholder": "z.B. Sommerkollektion 2026",
+        "nicheLabel": "Mit Nische verknuepfen (optional)",
+        "nichePlaceholder": "Nische auswaehlen...",
+        "confirm": "Erstellen",
+        "cancel": "Abbrechen"
+      },
+      "namingDialog": {
+        "title": "Projekt benennen",
+        "nicheOption": "Nach Nische benennen",
+        "sloganOption": "Nach Slogan benennen",
+        "customOption": "Eigenen Namen eingeben",
+        "existingProjectOption": "Zu bestehendem Projekt hinzufuegen",
+        "placeholder": "Projektname eingeben...",
+        "confirm": "Projekt erstellen",
+        "cancel": "Abbrechen"
+      },
+      "nicheBinding": {
+        "label": "Verknuepfte Nische",
+        "placeholder": "Nische auswaehlen...",
+        "none": "Keine Nische verknuepft",
+        "linked": "Verknuepft mit {{niche}}",
+        "unlink": "Nische trennen",
+        "linkSuccess": "Nische mit Projekt verknuepft",
+        "unlinkSuccess": "Nische vom Projekt getrennt",
+        "linkError": "Nischen-Verknuepfung konnte nicht aktualisiert werden"
+      },
+      "drawerSection": {
+        "title": "Designprojekte",
+        "emptyTitle": "Keine Designprojekte verknuepft",
+        "emptyCta": "Verknuepfe ein Projekt aus der Design Forge",
+        "openBoard": "Board oeffnen",
+        "designCount": "{{count}} Designs",
+        "designCount_one": "{{count}} Design"
+      }
+    },
+    "workspace": {
+      "loadError": "Projekt konnte nicht geladen werden",
+      "backToGallery": "Zurueck zur Galerie",
+      "untitled": "Unbenanntes Projekt",
+      "tabCanvas": "Artboard Canvas",
+      "tabEditor": "Bildbearbeitung",
+      "settings": "Projekteinstellungen",
+      "canvasComingSoon": "Artboard Canvas kommt bald",
+      "canvasDescription": "Der Konva.js-basierte Artboard ersetzt das alte React Flow Board.",
+      "openNicheDrawer": "Niche Pipeline"
+    },
+    "canvas": {
+      "emptyTitle": "Bilder ablegen oder KI-Bildboard erstellen",
+      "emptyDescription": "Ziehe Bilder vom Desktop oder nutze die Toolbar.",
+      "dropHint": "Bilder ablegen, um Artboards zu erstellen",
+      "browseFiles": "Dateien durchsuchen",
+      "deleteDialogTitle": "Designs loeschen",
+      "deleteDialogBody": "{{count}} Design(s) werden dauerhaft vom Server geloescht. Dies kann nicht rueckgaengig gemacht werden.",
+      "deleteConfirm": "Loeschen",
+      "deleteCancel": "Abbrechen",
+      "deleteSuccess": "Designs geloescht",
+      "deleteError": "Designs konnten nicht geloescht werden",
+      "text": {
+        "fontFamily": "Schriftart",
+        "fontSize": "Groesse",
+        "bold": "Fett",
+        "italic": "Kursiv",
+        "color": "Farbe",
+        "align": "Ausrichtung",
+        "letterSpacing": "Zeichenabstand",
+        "lineHeight": "Zeilenhoehe",
+        "outline": "Umriss",
+        "shadow": "Schatten",
+        "arc": "Gebogener Text",
+        "arcAngle": "Bogenwinkel",
+        "strokeWidth": "Strichstaerke",
+        "shadowBlur": "Weichzeichnung",
+        "shadowOffset": "Versatz",
+        "placeholder": "Hier tippen"
+      },
+      "shapes": {
+        "fill": "Fuellung",
+        "stroke": "Kontur",
+        "strokeWidth": "Strichstaerke",
+        "cornerRadius": "Eckenradius",
+        "pen": "Stift",
+        "rectangle": "Rechteck",
+        "ellipse": "Ellipse",
+        "triangle": "Dreieck",
+        "line": "Linie"
+      },
+      "brush": {
+        "color": "Farbe",
+        "size": "Pinselgroesse",
+        "smoothing": "Glaettung"
+      },
+      "layers": {
+        "title": "Ebenen",
+        "empty": "Keine Ebenen",
+        "visible": "Sichtbarkeit umschalten",
+        "lock": "Sperre umschalten",
+        "rename": "Ebene umbenennen"
+      }
+    },
+    "settings": {
+      "title": "Verarbeitungseinstellungen",
+      "loadError": "Einstellungen konnten nicht geladen werden",
+      "saveSuccess": "Einstellungen gespeichert",
+      "saveError": "Einstellungen konnten nicht gespeichert werden",
+      "bgRemovalSection": "HINTERGRUNDENTFERNUNG",
+      "upscaleSection": "HOCHSKALIERUNG",
+      "provider": "Anbieter",
+      "selfHosted": "selbst gehostet",
+      "externalApi": "Externe API",
+      "apiKey": "API-Schluessel",
+      "apiKeyPlaceholder": "API-Schluessel eingeben...",
+      "apiKeySet": "Schluessel ist gesetzt (leer lassen zum Behalten)",
+      "apiKeyKept": "Bestehender Schluessel wird beibehalten",
+      "autoThreshold": "Auto-Schwellwert",
+      "autoThresholdHint": "Bilder unter dieser Groesse nutzen API, darueber Pica.js (clientseitig)"
+    },
+    "toolbar": {
+      "ariaLabel": "Canvas-Werkzeugleiste",
+      "cursor": "Zeiger",
+      "move": "Verschieben",
+      "shapes": "Formen",
+      "rectangle": "Rechteck",
+      "ellipse": "Ellipse",
+      "triangle": "Dreieck",
+      "line": "Linie",
+      "brush": "Pinsel",
+      "text": "Text",
+      "emoji": "Emoji",
+      "aiSparkle": "KI-Generierung",
+      "undo": "Rueckgaengig",
+      "redo": "Wiederholen",
+      "zoomIn": "Vergroessern",
+      "zoomOut": "Verkleinern",
+      "fitToView": "Ansicht anpassen"
+    },
+    "panel": {
+      "ariaLabel": "Eigenschaftenpanel",
+      "project": "Projekt",
+      "artboardProperties": "Artboard",
+      "aiImageBoard": "KI-Bildboard",
+      "multiSelect": "{{count}} Ausgewaehlt",
+      "searchPlaceholder": "Projekt durchsuchen...",
+      "projectColors": "Projektfarben",
+      "noColors": "Noch keine Farben extrahiert",
+      "name": "Name",
+      "namePlaceholder": "Artboard-Name",
+      "size": "Groesse",
+      "lockAspect": "Seitenverhaeltnis sperren",
+      "unlockAspect": "Seitenverhaeltnis entsperren",
+      "layer": "Ebene",
+      "opacity": "Op",
+      "opacityLabel": "Deckkraft",
+      "color": "Farbe",
+      "bgColor": "Hintergrundfarbe",
+      "clipContent": "Inhalt beschneiden",
+      "toolsLabel": "Werkzeuge",
+      "selection": "Auswahl",
+      "artboards": "Artboards",
+      "aiBoards": "KI-Boards",
+      "openInEditor": "Im Editor oeffnen",
+      "exportSelected": "Auswahl exportieren",
+      "deleteAll": "Alle loeschen",
+      "elementName": "Name",
+      "elementNamePlaceholder": "Elementname",
+      "deleteElement": "Element loeschen",
+      "position": "Position",
+      "elementSize": "Groesse",
+      "originalSize": "Originalgroesse",
+      "rotation": "Drehung",
+      "rotationDeg": "Grad",
+      "elementOpacity": "Deckkraft",
+      "visible": "Sichtbar",
+      "locked": "Gesperrt",
+      "emojiPreview": "Emoji",
+      "tools": {
+        "regenerate": "Regenerieren",
+        "aiImageBoard": "KI-Board",
+        "flatten": "Zusammenfuegen",
+        "upscale": "Hochskalieren",
+        "reframe": "Reframe",
+        "bgRemove": "HG entfernen"
+      }
+    },
+    "prompt": {
+      "expandBar": "Prompt-Leiste oeffnen",
+      "placeholder": "Beschreibe, was du erstellen moechtest...",
+      "header": "KI-Bildboard bearbeiten",
+      "close": "Prompt-Leiste schliessen",
+      "sourceThumbnail": "Quellbild",
+      "resultThumbnail": "Ergebnisbild",
+      "inputPlaceholder": "Beschreibe das Design, das du generieren moechtest...",
+      "inputLabel": "Design-Prompt",
+      "builder": "Prompt-Baukasten",
+      "generate": "Generieren",
+      "generating": "Wird generiert...",
+      "regenerate": "Regenerieren"
+    },
+    "generation": {
+      "zoneLabel": "Generierungssteuerung",
+      "images": "Bilder",
+      "imageCount": "Bildanzahl",
+      "parallelSwitch": "Parallele Prompts",
+      "parallelLabel": "Parallele Prompts",
+      "parallelHint": "Jede neue Zeile = separates Bild",
+      "parallelPlaceholder": "Prompts eingeben (jede Zeile = separates Bild)...",
+      "singlePlaceholder": "Beschreibe dein Design...",
+      "analyzeTooltip": "Prompt aus Bild generieren",
+      "analyzeUpload": "Bild zum Analysieren hochladen",
+      "analyzeImage": "Bild analysieren",
+      "builderTooltip": "Prompt-Baukasten öffnen",
+      "openBuilder": "Prompt-Baukasten öffnen",
+      "collapsed": "Generierung",
+      "generateGroup": "Generierungsaktionen",
+      "generateAll": "Alle generieren ({{count}})",
+      "moreOptions": "Weitere Optionen",
+      "res": "Aufl.",
+      "resolution": "Auflösung",
+      "mode": {
+        "label": "Modus",
+        "textToImage": "Text zu Bild",
+        "remixImage": "Bild zu Bild (Remix)",
+        "editImage": "Bild zu Bild (Bearbeiten)"
+      },
+      "withReference": "Generierung mit Referenzbild",
+      "clearReference": "Referenzbild entfernen"
+    },
+    "cloud": {
+      "title": "Cloud-Speicher",
+      "googleDrive": "Google Drive",
+      "oneDrive": "OneDrive",
+      "connect": "Verbinden",
+      "connecting": "Verbindung wird hergestellt...",
+      "connected": "Verbunden",
+      "disconnect": "Trennen",
+      "disconnectedHint": "Verbinde deinen Cloud-Speicher, um Bilder zu durchsuchen und zu importieren",
+      "browseFiles": "Dateien durchsuchen",
+      "selectedFiles_one": "{{count}} ausgewaehlt",
+      "selectedFiles_other": "{{count}} ausgewaehlt",
+      "noFiles": "Keine Dateien gefunden",
+      "download": "Herunterladen",
+      "useForAi": "Fuer KI verwenden",
+      "uploadToBatch": "Aus Stapel hochladen",
+      "uploadToCloud": "Stapelbilder in diesen Ordner hochladen",
+      "selectFolder": "Ordner auswaehlen",
+      "notConfigured": "Nicht konfiguriert",
+      "notConfiguredHint": "Fuege die erforderlichen API-Schluessel in deinen Umgebungsvariablen hinzu, um diesen Anbieter zu aktivieren",
+      "authError": "Authentifizierung fehlgeschlagen",
+      "fetchError": "Dateien konnten nicht geladen werden",
+      "uploading": "Wird hochgeladen...",
+      "uploadSuccess": "Upload abgeschlossen",
+      "uploadError": "Upload fehlgeschlagen",
+      "fileCount_one": "{{count}} Bild",
+      "fileCount_other": "{{count}} Bilder",
+      "folderPath": "Ordner",
+      "fileName": "Datei",
+      "fileSize": "Groesse",
+      "selectAll": "Alle auswaehlen",
+      "deselectAll": "Alle abwaehlen",
+      "noImages": "Keine Bilder in diesem Ordner gefunden",
+      "breadcrumbRoot": "Mein Laufwerk",
+      "fullscreen": "Vollbild",
+      "exitFullscreen": "Vollbild beenden",
+      "importFromCloud": "Aus Cloud importieren"
+    }
+  },
+  "designs": {
+    "sendToListings": {
+      "cta": "An Listings senden",
+      "successCount": "{{created}} an Listings gesendet, {{skipped}} bereits dort.",
+      "bulkConfirm": "Du sendest {{count}} Designs — fortfahren?",
+      "openInPublish": "In Publish öffnen",
+      "alreadyInListings": "In Listings",
+      "bulkTooLarge": "Maximum sind 50 Designs pro Anfrage.",
+      "noEligible": "Keine freigegebenen Designs zum Senden.",
+      "noEligibleInSelection": "Keine freigegebenen Designs in Auswahl",
+      "notApprovedTooltip": "Nur freigegebene Designs können gesendet werden.",
+      "sendCount_one": "{{count}} freigegebenes Design an Listings senden",
+      "sendCount_other": "{{count}} freigegebene Designs an Listings senden",
+      "partialFailure_one": "{{failed}} Design konnte nicht gesendet werden.",
+      "partialFailure_other": "{{failed}} Designs konnten nicht gesendet werden.",
+      "confirm": "Senden",
+      "retry": "Wiederholen"
+    }
+  },
+  "keywords": {
+    "page": {
+      "title": "Keyword Drilling",
+      "searchPlaceholder": "Keywords suchen...",
+      "searchButton": "Suchen"
+    },
+    "source": {
+      "research": "Recherche",
+      "amazon_search": "Amazon",
+      "web_search": "Websuche",
+      "manual": "Manuell",
+      "junglescout": "JungleScout",
+      "suggestion": "Vorschlag",
+      "after": "Nachgestellt",
+      "before": "Vorangestellt",
+      "synonym": "Synonym",
+      "listing": "Listing"
+    },
+    "enrich": {
+      "buttonLabel": "Anreichern",
+      "bulkLabel": "Auswahl anreichern",
+      "loading": "Wird angereichert...",
+      "success": "Keywords angereichert",
+      "noApiKeyTooltip": "JungleScout API-Key in Einstellungen konfigurieren",
+      "comingSoon": "JungleScout kommt bald"
+    },
+    "table": {
+      "col_keyword": "Keyword",
+      "col_source": "Quelle",
+      "col_monthly_search_volume_exact": "Volumen (Exakt)",
+      "col_monthly_search_volume_broad": "Volumen (Breit)",
+      "col_monthly_trend": "Monatstrend",
+      "col_quarterly_trend": "Quartalstrend",
+      "col_ppc_bid_exact": "CPC (Exakt)",
+      "col_ppc_bid_broad": "CPC (Breit)",
+      "col_sp_brand_ad_bid": "SP Brand Gebot",
+      "col_ease_of_ranking_score": "Ranking-Leichtigkeit",
+      "col_relevancy_score": "Relevanz",
+      "col_organic_product_count": "Organische Anzahl",
+      "col_sponsored_product_count": "Gesponserte Anzahl",
+      "col_dominant_category": "Kategorie",
+      "col_recommended_promotions": "Aktionen",
+      "col_in_product_count": "In Produkten",
+      "col_in_slogan_count": "In Slogans",
+      "col_amazon_product_count": "Amz Produkte",
+      "columnPicker": "Spalten konfigurieren",
+      "refreshProductCount": "Produktanzahl aktualisieren",
+      "done": "Fertig",
+      "selected": "{{count}} ausgewahlt",
+      "copyKeyword": "Keyword kopieren",
+      "copiedKeyword": "Kopiert!",
+      "searchKeyword": "Dieses Keyword suchen"
+    },
+    "trend": {
+      "chartTitle": "Suchvolumen-Trend",
+      "noData": "Nicht genug Daten fur Trenddiagramm",
+      "notConfigured": "Keine Daten -- JungleScout nicht konfiguriert",
+      "monthLabel": "Monat",
+      "volumeLabel": "Suchvolumen"
+    },
+    "addToNiche": {
+      "buttonLabel": "{{count}} zu {{niche}} hinzufugen",
+      "selectNiche": "{{count}} zu Nische hinzufugen...",
+      "changeNiche": "Nische wechseln",
+      "noNiches": "Keine Nischen gefunden",
+      "addedCount": "{{count}} Keyword(s) hinzugefugt"
+    },
+    "export": {
+      "buttonLabel": "CSV exportieren"
+    },
+    "empty": {
+      "noResults": "Keine Keywords gefunden",
+      "tryCta": "Versuche einen anderen Suchbegriff oder reichere Keywords an",
+      "startSearch": "Keywords suchen",
+      "searchHint": "Keyword eingeben, um Datenbank und Amazon zu durchsuchen"
+    },
+    "drawer": {
+      "sectionTitle": "Keywords",
+      "addGroup": "Gruppe hinzufugen",
+      "groupNamePlaceholder": "Gruppenname...",
+      "addButton": "Hinzufugen",
+      "manualPlaceholder": "Keywords hinzufugen (kommagetrennt)...",
+      "deleteKeyword": "Keyword entfernen",
+      "editGroup": "Gruppe umbenennen",
+      "deleteGroup": "Gruppe loschen",
+      "emptyGroup": "Keine Keywords in dieser Gruppe",
+      "ungrouped": "Ohne Gruppe",
+      "noKeywords": "Noch keine Keywords gesammelt",
+      "groupDeleted": "Gruppe geloscht (Keywords behalten)",
+      "viewAll": "Alle Keywords anzeigen",
+      "reorderGroup": "Zum Sortieren ziehen",
+      "designTemplate": "Design-Vorlage",
+      "noDesignTemplate": "Keine Vorlage zugewiesen"
+    },
+    "errors": {
+      "enrichFailed": "Keywords anreichern fehlgeschlagen",
+      "addFailed": "Keywords hinzufugen fehlgeschlagen",
+      "deleteFailed": "Keyword loschen fehlgeschlagen",
+      "exportFailed": "Keywords exportieren fehlgeschlagen",
+      "historyFailed": "Trenddaten laden fehlgeschlagen",
+      "renameFailed": "Gruppe umbenennen fehlgeschlagen",
+      "deleteGroupFailed": "Gruppe loschen fehlgeschlagen",
+      "createGroupFailed": "Gruppe erstellen fehlgeschlagen",
+      "scrapeCountFailed": "Produktanzahl konnte nicht abgerufen werden"
+    },
+    "chipCloud": {
+      "shortTail": "Short-Tail",
+      "longTail": "Long-Tail",
+      "showAll": "+{{count}} mehr",
+      "showLess": "Weniger anzeigen"
+    },
+    "sourceTabs": {
+      "all": "Alle",
+      "database": "Datenbank",
+      "amazon": "Amazon",
+      "junglescout": "JungleScout",
+      "comingSoon": "Demnächst"
+    },
+    "suggestionTabs": {
+      "all": "Alle",
+      "listing": "Listing Keywords",
+      "suggestions": "Vorschläge",
+      "after": "Nachgestellt",
+      "before": "Vorangestellt",
+      "synonyms": "Synonyme",
+      "junglescout": "JungleScout",
+      "comingSoon": "Demnächst"
+    },
+    "searchHistory": {
+      "clearAll": "Alle löschen",
+      "label": "Letzte Suchen"
+    },
+    "actionBar": {
+      "selected": "{{count}} ausgewählt",
+      "addToNiche": "Zur Nische hinzufügen",
+      "enrich": "Anreichern"
+    },
+    "multiplier": {
+      "title": "Vorschlag-Multiplikator",
+      "prefixes": "Praefixe",
+      "suffixes": "Suffixe",
+      "generate": "Generieren",
+      "generated": "{{count}} Vorschlaege",
+      "addToResults": "Klick zum Suchen"
+    },
+    "wordSuggestions": {
+      "title": "Wortideen"
+    }
+  },
+  "search": {
+    "chatBar": {
+      "placeholder": "Web durchsuchen oder Frage stellen...",
+      "send": "Senden",
+      "dismiss": "Chatleiste ausblenden",
+      "reveal": "Chatleiste anzeigen",
+      "expand": "Suche offnen",
+      "collapse": "Einklappen",
+      "openChat": "Chat-Panel offnen",
+      "helper": "@ Nischen · / Befehle · Shift+Enter neue Zeile",
+      "mode": "Modus",
+      "sources": "Quellen",
+      "model": "Modell",
+      "attachComingSoon": "Kommt in Phase 7",
+      "removeChip": "Nischenkontext entfernen",
+      "contextUpdated": "Kontext: {{name}}",
+      "contextDeleted": "Nische \"{{name}}\" wurde gelöscht — Kontext entfernt",
+      "mentionPicker": {
+        "ariaLabel": "Nischen-Erwähnungsauswahl",
+        "loading": "Lädt…",
+        "empty": "Keine Treffer für \"{{query}}\"",
+        "noNiches": "Keine Nischen vorhanden",
+        "createNiche": "+ Neue Nische erstellen",
+        "createNicheStubMsg": "Niche-Create-Modal wird in einer späteren Phase hier geöffnet"
+      },
+      "modePopover": {
+        "ariaLabel": "Modus-Override",
+        "vaneOffline": "Chat nicht verfügbar — Vane offline",
+        "chat": {
+          "description": "Direkter KI-Chat mit Web-Suchergebnissen"
+        },
+        "agent": {
+          "description": "Mehrstufige Recherche mit Workflows"
+        }
+      },
+      "sourcesPopover": {
+        "ariaLabel": "Suchquellen",
+        "atLeastOne": "Mindestens eine Quelle muss aktiv bleiben"
+      },
+      "modelPopover": {
+        "ariaLabel": "Modell-Picker",
+        "searchPlaceholder": "Modelle suchen…",
+        "providerOpenrouter": "OpenRouter",
+        "noResults": "Keine Modelle passen zu \"{{query}}\""
+      }
+    },
+    "commands": {
+      "ariaLabel": "Slash-Command-Palette",
+      "empty": "Keine passenden Befehle",
+      "chat": {
+        "description": "Chat-Modus aktivieren",
+        "snackbar": "Modus: Chat"
+      },
+      "agent": {
+        "description": "Agent-Modus aktivieren",
+        "snackbar": "Modus: Agent"
+      },
+      "niche": {
+        "description": "Nischen-Erwähnungs-Picker öffnen",
+        "snackbar": "@-Picker öffnen"
+      },
+      "clearContext": {
+        "description": "Aktiven Nischen-Chip entfernen",
+        "snackbar": "Kontext entfernt"
+      },
+      "model": {
+        "description": "Modell-Picker öffnen",
+        "snackbar": "Modell-Picker — kommt in der nächsten Phase"
+      },
+      "help": {
+        "description": "Liste aller Befehle anzeigen",
+        "snackbar": "Hilfe",
+        "title": "Befehle",
+        "commandHeader": "Befehl",
+        "descriptionHeader": "Beschreibung",
+        "exampleHeader": "Beispiel"
+      }
+    },
+    "drawer": {
+      "segments": "Drawer-Bereiche",
+      "nicheDetail": "Nische",
+      "chat": "Chat",
+      "search": "Suche",
+      "close": "Drawer schliessen",
+      "noNicheSelected": "Keine Nische ausgewahlt",
+      "selectNicheHint": "Offne eine Nische aus der Liste, um Details hier zu sehen."
+    },
+    "chat": {
+      "model": "Modell",
+      "sources": "Quellen",
+      "source_web": "Web",
+      "source_academic": "Akademisch",
+      "source_discussions": "Diskussionen",
+      "sendError": "Nachricht senden fehlgeschlagen.",
+      "loadMore": "Altere Nachrichten laden",
+      "toggleControls": "Sucheinstellungen ein-/ausblenden"
+    },
+    "context": {
+      "label": "Kontext: {{name}}",
+      "removeTooltip": "Nischen-Kontext entfernen",
+      "useAsContext": "Diese Nische als Chat-Kontext verwenden",
+      "toggleLabel": "Nischen-Kontext umschalten"
+    },
+    "results": {
+      "aiAnswer": "KI-Antwort",
+      "sources": "Quellen",
+      "noSources": "Keine Quellen fur diese Anfrage gefunden.",
+      "deepCrawl": "Deep Crawl",
+      "sourceCount_one": "{{count}} Quelle",
+      "sourceCount_other": "{{count}} Quellen"
+    },
+    "citation": {
+      "openSource": "Quelle {{n}} öffnen",
+      "unknownDomain": "Quelle"
+    },
+    "codeBlock": {
+      "copy": "Code kopieren",
+      "copied": "Kopiert",
+      "plain": "text"
+    },
+    "crawl": {
+      "pending": "Wartend",
+      "running": "Crawlt...",
+      "completed": "Gecrawlt",
+      "failed": "Fehlgeschlagen",
+      "error": "Deep Crawl konnte nicht gestartet werden.",
+      "retry": "Erneut versuchen"
+    },
+    "sessions": {
+      "recentChats": "Letzte Chats",
+      "untitled": "Unbenannter Chat",
+      "share": "Mit Workspace teilen",
+      "unshare": "Teilen beenden",
+      "shared": "Session mit Workspace geteilt.",
+      "unshared": "Session ist jetzt privat.",
+      "shareError": "Teilen aktualisieren fehlgeschlagen.",
+      "sharedBy": "Geteilt von {{name}}",
+      "readOnly": "Diese geteilte Session ist schreibgeschutzt.",
+      "newChat": "Neuer Chat"
+    },
+    "health": {
+      "online": "Online",
+      "offline": "Offline",
+      "tooltip": "Vane: {{vane}} | Crawl4ai: {{crawl4ai}}",
+      "vaneOffline": "Websuche ist derzeit nicht verfugbar.",
+      "crawl4aiOffline": "Deep Crawl ist derzeit nicht verfugbar.",
+      "allOffline": "Suchdienste sind offline."
+    },
+    "save": {
+      "toNiche": "Speichern in {{name}}",
+      "keywords": "Keywords speichern",
+      "vectorDbSaved": "Automatisch in Vector DB gespeichert",
+      "saved": "Gespeichert in {{name}}.",
+      "error": "Speichern fehlgeschlagen.",
+      "toKeywords": "Als Keywords speichern",
+      "toNotes": "Als Notiz speichern",
+      "success": "Gespeichert in {{name}}.",
+      "selectNiche": "Keine Niche aktiv — wähle ein Ziel zum Speichern.",
+      "toolbarLabel": "Auswahl-Speicher-Toolbar",
+      "toNichePicker": "Niche zum Speichern auswählen",
+      "notes": "Als Notiz speichern",
+      "successKeywords": "{{count}} Keywords gespeichert",
+      "allDuplicates": "Alle Keywords waren bereits vorhanden",
+      "successNote": "Notiz gespeichert",
+      "errorGeneric": "Snippet konnte nicht gespeichert werden",
+      "modal": {
+        "title": "In Niche speichern",
+        "description": "Wähle eine Niche, um dieses {{type}} zu speichern:",
+        "nichePlaceholder": "Niches suchen...",
+        "save": "Speichern",
+        "cancel": "Abbrechen",
+        "noNiches": "Keine Niches in diesem Workspace gefunden"
+      }
+    },
+    "empty": {
+      "noSessions": "Noch keine Chat-Sessions. Starte eine Suche!",
+      "noResults": "Keine Suchergebnisse",
+      "firstSearchHint": "Stelle eine Frage in der Chatleiste, um das Web mit KI zu durchsuchen."
+    },
+    "mode": {
+      "label": "Modus",
+      "chat": "Chat",
+      "agent": "Agent",
+      "tooltip": "Chat ist direkte Vane-Websuche; Agent führt einen mehrstufigen Workflow aus."
+    },
+    "workflow": {
+      "openCommandCenter": "Command Center öffnen",
+      "stepperLabel": "Workflow-Schritte",
+      "approvalPending": "Bestätigung erforderlich",
+      "progress": "{{completed}}/{{total}} Schritte",
+      "status": {
+        "idle": "Bereit",
+        "running": "Läuft",
+        "paused": "Pausiert",
+        "completed": "Abgeschlossen",
+        "failed": "Fehlgeschlagen",
+        "cancelled": "Abgebrochen"
+      }
+    },
+    "scroll": {
+      "jumpToLatest": "Zum Neuesten springen"
+    },
+    "stream": {
+      "streaming": "Antwort wird gestreamt...",
+      "error": "Streaming fehlgeschlagen. Bitte erneut versuchen.",
+      "connectionLost": "Verbindung verloren. Bitte erneut versuchen.",
+      "timeout": "Suche hat zu lange gedauert. Bitte erneut versuchen."
+    },
+    "actions": {
+      "toolbarLabel": "Nachrichten-Aktionen",
+      "copy": "Nachricht kopieren",
+      "copied": "Kopiert",
+      "copySuccess": "In Zwischenablage kopiert",
+      "copyError": "Kopieren in Zwischenablage fehlgeschlagen",
+      "copyFallbackWarning": "Über Legacy-Fallback kopiert — sichere Zwischenablage nicht verfügbar",
+      "regenerate": "Antwort regenerieren",
+      "regenerateBusy": "Warte bis aktuelle Antwort fertig ist",
+      "regenerateUnavailable": "Keine vorherige Frage zum Regenerieren",
+      "regenerateError": "Antwort konnte nicht regeneriert werden",
+      "share": "Teilen",
+      "shareSuccess": "Share-Link kopiert",
+      "shareError": "Share-Link konnte nicht erstellt werden",
+      "save": "Antwort in Nische speichern"
+    },
+    "shared": {
+      "pageTitle": "Geteilter Chat",
+      "notFound": "Dieser Chat ist nicht (mehr) freigegeben",
+      "notFoundDetail": "Der Link wurde möglicherweise widerrufen oder hat nie existiert.",
+      "loading": "Geteilter Chat wird geladen…",
+      "emptyMessage": "Dieser Chat hat noch keine Nachrichten.",
+      "sharedNotice": "Dies ist eine öffentliche, schreibgeschützte Ansicht eines geteilten Chats."
+    },
+    "attachments": {
+      "upload": "Bilder hochladen",
+      "dropHere": "Bilder hier ablegen",
+      "removeImage": "Bild entfernen",
+      "error": {
+        "tooLarge": "\"{{name}}\" überschreitet 10 MB",
+        "invalidType": "\"{{name}}\" ist kein JPEG/PNG/WebP",
+        "tooMany": "Maximal {{max}} Bilder pro Nachricht",
+        "totalTooLarge": "Gesamtgröße überschreitet 25 MB",
+        "uploadFailed": "Upload fehlgeschlagen. Bitte erneut versuchen."
+      },
+      "visionFallback": "Auf {{model}} gewechselt für Bild-Support",
+      "purgedPlaceholder": "[Bild gelöscht]"
+    }
+  },
+  "agent": {
+    "tab": {
+      "label": "Agent",
+      "pageTitle": "OpenClaw Agent"
+    },
+    "header": {
+      "pause": "Workflow pausieren",
+      "resume": "Workflow fortsetzen",
+      "stop": "Workflow stoppen",
+      "share": "Mit Workspace teilen",
+      "unshare": "Freigabe aufheben",
+      "paused": "Workflow pausiert",
+      "resumed": "Workflow fortgesetzt",
+      "stopped": "Workflow gestoppt",
+      "shared": "Session mit Workspace geteilt",
+      "unshared": "Freigabe aufgehoben",
+      "pauseError": "Pausieren fehlgeschlagen",
+      "resumeError": "Fortsetzen fehlgeschlagen",
+      "stopError": "Stoppen fehlgeschlagen",
+      "shareError": "Teilen fehlgeschlagen",
+      "unshareError": "Freigabe aufheben fehlgeschlagen",
+      "startError": "Agent-Session konnte nicht gestartet werden"
+    },
+    "share": {
+      "readOnly": "Nur Lesen — geteilt von {{name}}",
+      "sharedBy": "Geteilt von {{name}}"
+    },
+    "stepper": {
+      "title": "Workflow-Fortschritt",
+      "steps": "Schritte",
+      "status": {
+        "idle": "Bereit",
+        "running": "Läuft",
+        "paused": "Pausiert",
+        "completed": "Abgeschlossen",
+        "failed": "Fehlgeschlagen",
+        "cancelled": "Abgebrochen"
+      }
+    },
+    "log": {
+      "empty": "Noch keine Nachrichten",
+      "loadMore": "Frühere Nachrichten laden",
+      "sendError": "Senden fehlgeschlagen",
+      "startPrompt": "Starte einen Workflow oder gib einen Befehl ein",
+      "inputPlaceholder": "Sag dem Agent, was er tun soll...",
+      "send": "Senden"
+    },
+    "approval": {
+      "title": "Genehmigung erforderlich",
+      "cost": "Gesch. Kosten",
+      "approve": "Genehmigen",
+      "reject": "Ablehnen",
+      "approved": "Aktion genehmigt",
+      "rejected": "Aktion abgelehnt",
+      "approveError": "Genehmigung fehlgeschlagen",
+      "rejectError": "Ablehnung fehlgeschlagen"
+    },
+    "quickAction": {
+      "title": "Schnellaktionen"
+    },
+    "batch": {
+      "title": "Batch-Fortschritt",
+      "empty": "Keine Batch-Sessions"
+    },
+    "settings": {
+      "title": "Agent-Einstellungen",
+      "agentConfig": "Agenten",
+      "permissions": "Berechtigungen",
+      "personalityPresets": "Persönlichkeits-Vorlagen",
+      "name": "Anzeigename",
+      "avatar": "Emoji",
+      "personality": "Persönlichkeit",
+      "model": "Modell",
+      "temperature": "Temp",
+      "save": "Speichern",
+      "tool": "Tool",
+      "permissionLevel": "Stufe",
+      "auto": "Auto",
+      "notify": "Benachrichtigen",
+      "approveLevel": "Genehmigen",
+      "autonomyPreset": "Autonomie-Preset"
+    },
+    "knowledge": {
+      "title": "Wissensdokumente",
+      "titlePlaceholder": "Titel",
+      "contentPlaceholder": "Inhalt (Markdown unterstützt)",
+      "empty": "Noch keine Wissensdokumente",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "edit": "Bearbeiten",
+      "delete": "Löschen",
+      "preview": "Vorschau",
+      "hidePreview": "Vorschau ausblenden",
+      "saved": "Wissensdokument gespeichert",
+      "saveError": "Speichern fehlgeschlagen",
+      "deleted": "Wissensdokument gelöscht",
+      "deleteError": "Löschen fehlgeschlagen"
+    },
+    "templates": {
+      "title": "Workflow-Vorlagen",
+      "namePlaceholder": "Vorlagenname",
+      "keyPlaceholder": "Vorlagen-Key (z.B. quick_design)",
+      "actionPlaceholder": "Aktion",
+      "addStep": "Schritt hinzufügen",
+      "removeStep": "Schritt entfernen",
+      "dragHandle": "Zum Umsortieren ziehen",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "delete": "Löschen",
+      "add": "Vorlage hinzufügen",
+      "empty": "Keine eigenen Vorlagen",
+      "saved": "Vorlage gespeichert",
+      "saveError": "Speichern fehlgeschlagen",
+      "deleted": "Vorlage gelöscht",
+      "deleteError": "Löschen fehlgeschlagen"
+    },
+    "collision": {
+      "title": "Kollisionswarnung",
+      "message": "{{username}} arbeitet bereits an \"{{nicheName}}\". Trotzdem fortfahren?",
+      "continue": "Fortfahren",
+      "cancel": "Abbrechen"
+    },
+    "onboarding": {
+      "title": "Agent einrichten",
+      "message": "Konfiguriere Autonomie-Level und Präferenzen für deinen KI-Assistenten.",
+      "setup": "Konfigurieren",
+      "skip": "Überspringen",
+      "flowTitle": "Schnelles Setup",
+      "step1": "Autonomie",
+      "step2": "Nische",
+      "step3": "Wissen",
+      "step1Hint": "Wie autonom soll dein Agent sein?",
+      "step2Hint": "Wähle eine Standard-Nische (optional).",
+      "step3Hint": "Füge ein Wissensdokument hinzu, das der Agent kennen soll (optional).",
+      "choosePreset": "Autonomie-Preset wählen",
+      "skipNiche": "Überspringen — später wählen",
+      "next": "Weiter",
+      "back": "Zurück",
+      "finish": "Fertig",
+      "close": "Schließen",
+      "presetActivated": "Autonomie-Preset aktiviert",
+      "presetError": "Preset konnte nicht aktiviert werden",
+      "docSaved": "Wissensdokument gespeichert",
+      "docError": "Speichern fehlgeschlagen"
+    },
+    "budget": {
+      "label": "Budget",
+      "exhausted": "Agent-Budget erschöpft. Bitte API-Key aufladen.",
+      "warning": "Agent-Budget bei {{percent}}% der Schwelle"
+    },
+    "personality": {
+      "projektleiter": "Projektleiter",
+      "creativeDirector": "Creative Director",
+      "minimalist": "Minimalist",
+      "analyst": "Analyst",
+      "scout": "Scout",
+      "texter": "Texter",
+      "brainstormer": "Brainstormer",
+      "artDirector": "Art Director",
+      "experimentator": "Experimentator",
+      "seoProfi": "SEO-Profi",
+      "copywriter": "Copywriter",
+      "koordinator": "Koordinator",
+      "rechercheur": "Rechercheur"
+    },
+    "names": {
+      "chief": "Chief",
+      "scout": "Scout",
+      "muse": "Muse",
+      "pixel": "Pixel",
+      "scribe": "Scribe",
+      "launch": "Launch",
+      "radar": "Radar"
+    },
+    "shared": {
+      "badge": "Geteilt von {{username}}",
+      "readOnly": "Nur Lesen (geteilte Session)"
+    },
+    "skills": {
+      "title": "Skills",
+      "empty": "Noch keine Skills. Skills werden automatisch generiert, während der Agent lernt.",
+      "description": "Beschreibung",
+      "name": "Name",
+      "agents": "Agenten",
+      "trigger": "Trigger",
+      "successCount": "Erfolge",
+      "errorCount": "Fehler",
+      "version": "v{{version}}",
+      "lastUsed": "Zuletzt verwendet",
+      "lastUsedNever": "Nie",
+      "viewVersions": "Versionen anzeigen",
+      "showDeleted": "Gelöschte anzeigen",
+      "edit": "Skill bearbeiten",
+      "delete": "Skill löschen",
+      "deleted": "Skill gelöscht",
+      "deleteError": "Löschen fehlgeschlagen",
+      "saved": "Skill gespeichert",
+      "saveError": "Speichern fehlgeschlagen",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "back": "Zurück",
+      "patchMode": "Patch (Anhängen/Diff)",
+      "replaceMode": "Ersetzen (Vollständiger Inhalt)",
+      "patchSummary": "Zusammenfassung der Änderung",
+      "versionHistory": "Versionsverlauf",
+      "versionConflict": "Skill wurde durch Reflektion aktualisiert. Neu laden?",
+      "reload": "Neu laden",
+      "trigger_auto_complex_task": "Auto: Komplexe Aufgabe",
+      "trigger_auto_error_recovery": "Auto: Fehlerbehebung",
+      "trigger_user_correction": "Nutzerkorrektur",
+      "trigger_manual": "Manuell"
+    },
+    "memory": {
+      "title": "Workspace-Gedächtnis",
+      "description": "Kompakte Zusammenfassung dessen, was der Agent über diesen Workspace gelernt hat.",
+      "charCounter": "{{count}} / {{limit}}",
+      "overLimit": "Über dem Limit von {{limit}} Zeichen",
+      "edit": "Gedächtnis bearbeiten",
+      "save": "Speichern",
+      "cancel": "Abbrechen",
+      "saved": "Gedächtnis gespeichert",
+      "saveError": "Speichern fehlgeschlagen",
+      "lastConsolidated": "Zuletzt konsolidiert: {{when}}",
+      "lastConsolidatedNever": "Noch nicht konsolidiert",
+      "empty": "Gedächtnis ist leer. Der Agent füllt es nach abgeschlossenen Sessions.",
+      "draftRestored": "Nicht gespeicherter Entwurf wiederhergestellt"
+    },
+    "profile": {
+      "title": "Dein Profil",
+      "description": "Was der Agent über deine Arbeitsweise abgeleitet hat.",
+      "charCounter": "{{count}} / {{limit}}",
+      "overLimit": "Über dem Limit von {{limit}} Zeichen",
+      "save": "Speichern",
+      "saved": "Profil gespeichert",
+      "saveError": "Speichern fehlgeschlagen",
+      "reset": "Profil zurücksetzen",
+      "resetConfirm": "Profil zurücksetzen? Der Agent muss deine Präferenzen neu lernen.",
+      "resetCancel": "Abbrechen",
+      "resetConfirmAction": "Zurücksetzen",
+      "dialectReasoning": "Dialektisches Reasoning",
+      "dialectReasoningHint": "Nur Lesen — letzte 3-Pass-Analyse, mit der der Agent dieses Profil aktualisiert hat.",
+      "dialectReasoningEmpty": "Noch keine Analyse. Wird nach dem nächsten dialektischen Durchgang erstellt.",
+      "lastDialectic": "Letztes Update: {{when}}",
+      "lastDialecticNever": "Noch nicht ermittelt",
+      "empty": "Profil ist leer. Der Agent füllt es nach einigen Sessions."
+    },
+    "reflection": {
+      "lastReflection": "Letzte Reflektion: {{when}}",
+      "lastReflectionNever": "Noch keine Reflektion",
+      "untilNext": "Sessions bis zur nächsten: {{count}}",
+      "viewMemory": "Gedächtnis anzeigen"
+    }
+  },
+  "amazonResearch": {
+    "detail": {
+      "breadcrumb": "Amazon Research",
+      "notFound": "Produkt nicht gefunden",
+      "notFoundDescription": "Das Produkt mit ASIN \"{{asin}}\" wurde nicht gefunden.",
+      "backToResearch": "Zurueck zur Suche",
+      "openInAmazon": "Auf Amazon oeffnen",
+      "useAsTemplate": "Als Listing-Vorlage nutzen",
+      "saveKeywords": "Keywords speichern",
+      "selectNicheFirst": "Waehle zuerst eine Nische",
+      "readMore": "Mehr lesen",
+      "showLess": "Weniger anzeigen",
+      "noImage": "Kein Bild verfuegbar",
+      "bsrHistory": "BSR Verlauf (90 Tage)",
+      "noBsrData": "Keine BSR-Daten verfuegbar",
+      "subcategoryRanks": "Unterkategorie-Raenge",
+      "overall": "Gesamt",
+      "current": "Aktuell",
+      "average": "Durchschnitt",
+      "median": "Median",
+      "priceHistory": "Preisverlauf",
+      "noPriceData": "Kein Preisverlauf verfuegbar",
+      "keywords": "Keywords",
+      "noKeywords": "Keine Keywords verfuegbar",
+      "shortTail": "Short-Tail",
+      "longTail": "Long-Tail",
+      "copyAllKeywords": "Alle Keywords kopieren",
+      "keywordsCopied": "{{count}} Keywords kopiert",
+      "similarDesigns": "Aehnliche Designs",
+      "sameBrand": "Gleiche Marke",
+      "noSimilar": "Keine aehnlichen Produkte gefunden",
+      "noSameBrand": "Keine anderen Produkte dieser Marke",
+      "kpiBsr": "BSR",
+      "kpiPrice": "PREIS",
+      "kpiReviews": "BEWERTUNGEN",
+      "kpiRating": "RATING",
+      "trendUp": "Steigend",
+      "trendDown": "Fallend",
+      "trendStable": "Stabil"
+    },
+    "statistics": {
+      "runSearchFirst": "Suche zuerst starten",
+      "runSearchHint": "Keyword-Statistiken erscheinen nach Abschluss einer Suche",
+      "noKeywordData": "Keine Keyword-Daten verfuegbar",
+      "noKeywordHint": "Versuche eine andere Suche oder warte auf Ergebnisse",
+      "focusKeywords": "Focus Keywords",
+      "longTailKeywords": "Long-Tail Keywords"
+    },
+    "toolbar": {
+      "products": "Produkte",
+      "keywords": "Keywords"
+    },
+    "niche": {
+      "selectLabel": "Aktive Nische",
+      "none": "Keine Nische",
+      "selectFirst": "Bitte zuerst eine Nische auswaehlen",
+      "openDrawer": "Nischen-Details oeffnen",
+      "notSaved": "Nische noch nicht gespeichert — bitte zuerst speichern",
+      "created": "'{{name}}' als Nische gespeichert",
+      "createError": "Nische konnte nicht erstellt werden",
+      "saveDialogTitle": "Nische nicht gefunden",
+      "saveDialogText": "'{{keyword}}' ist noch nicht als Nische gespeichert. Moechtest du sie speichern?",
+      "cancel": "Abbrechen",
+      "saveAsNiche": "Als Nische speichern"
+    },
+    "favorite": {
+      "added": "Produkt zu {{niche}} hinzugefuegt"
+    },
+    "extract": {
+      "success": "Slogan extrahiert: {{slogan}}",
+      "error": "Slogan-Extraktion fehlgeschlagen",
+      "noImage": "Kein Produktbild verfuegbar"
+    },
+    "keyword": {
+      "saved": "'{{keyword}}' in {{niche}} gespeichert",
+      "duplicate": "'{{keyword}}' bereits in Keyword-Bank",
+      "saveFailed": "Keyword konnte nicht gespeichert werden"
+    }
+  },
+  "publish": {
+    "page": {
+      "title": "Veroeffentlichen",
+      "subtitle": "Design-Auswahl, Listing-Editor und Upload-Warteschlange"
+    },
+    "toolbar": {
+      "selectCounter": "Designs auswaehlen",
+      "selectAll": "Alle auswaehlen",
+      "selectNone": "Keine auswaehlen",
+      "collections": "Sammlungen",
+      "folders": "Ordner",
+      "chooseAction": "Aktion waehlen",
+      "search": "Suchen...",
+      "template": "Vorlage",
+      "upload": "Hochladen",
+      "import": "Importieren",
+      "publish": "Veröffentlichen",
+      "uploadSuccess": "{{count}} design(s) uploaded",
+      "uploadError": "{{count}} upload(s) failed",
+      "templateDeleteConfirm": "Vorlage „{{name}}\" löschen? Dies kann nicht rückgängig gemacht werden.",
+      "templateDeleteSuccess": "Vorlage gelöscht",
+      "templateDeleteError": "Vorlage konnte nicht gelöscht werden",
+      "templateLibraryTitle": "Upload-Vorlagen",
+      "templateLoading": "Lädt …",
+      "templateEmpty": "Noch keine Upload-Vorlagen. Speichere eine aus dem Edit-Bereich, um Produkt- und Preis-Config wiederzuverwenden.",
+      "templateDelete": "Vorlage löschen",
+      "templateDefaultChip": "Standard",
+      "templateBrand": "Marke: {{brand}}",
+      "publishNoSelectionHint": "Wähle mindestens ein Design, um zu veröffentlichen",
+      "publishSuccess": "{{count}} Upload-Job(s) eingereiht",
+      "publishError": "Upload-Jobs konnten nicht eingereiht werden",
+      "publishDialogTitle": "{{count}} Design(s) veröffentlichen",
+      "publishNoSelection": "Bitte wähle zuerst ein Design aus.",
+      "publishNoTemplates": "Noch keine Vorlagen gespeichert. Öffne ein Design und klicke „Als Vorlage speichern\".",
+      "publishPickTemplate": "Wähle die UploadTemplate für alle Jobs (Produkttypen, Fit, Farben, Marktplätze + Preise).",
+      "publishSubmitting": "Wird eingereiht …",
+      "publishSubmit": "Upload-Jobs einreihen"
+    },
+    "tabs": {
+      "myDesigns": "Meine Designs",
+      "cloudStorage": "Cloud-Speicher"
+    },
+    "grid": {
+      "addDesigns": "Designs hinzufuegen",
+      "emptyTitle": "Noch keine Designs",
+      "emptyDescription": "Lade Designs hoch oder importiere sie, um zu starten.",
+      "storage": "{{used}} / {{total}} belegt"
+    },
+    "card": {
+      "select": "Design auswaehlen",
+      "duplicate": {
+        "success": "Design duplicated",
+        "error404": "Design no longer exists",
+        "error": "Failed to duplicate design"
+      },
+      "move": "Verschieben",
+      "addTags": "Tags hinzufuegen",
+      "delete": {
+        "success": "Design deleted",
+        "error": "Failed to delete design",
+        "title": "Delete design?",
+        "body": "This will permanently remove the design from your gallery.",
+        "confirm": "Delete"
+      },
+      "tagEditor": {
+        "error": "Failed to update tags",
+        "placeholder": "Add tag…",
+        "ariaLabel": "Edit design tags"
+      },
+      "menu": {
+        "edit": "Edit",
+        "duplicate": "Duplicate",
+        "move": "Move to Collection",
+        "addTags": "Add Tags",
+        "delete": "Delete",
+        "open": "Open card menu"
+      }
+    },
+    "collections": {
+      "title": "Sammlungen",
+      "home": "Start",
+      "recentlyUsed": "Zuletzt verwendet",
+      "searchFolders": "Ordner suchen...",
+      "openFolder": "Ordner oeffnen",
+      "addFolder": "Ordner hinzufuegen",
+      "folderName": "Ordnername",
+      "itemCount": "{{count}} Eintraege"
+    },
+    "gallery": {
+      "title": "Design-Galerie",
+      "upload": "Hochladen",
+      "importCloud": "Aus Cloud importieren",
+      "importCloudTitle": "Aus Cloud-Speicher importieren",
+      "importCloudHint": "Datei-IDs von Google Drive oder OneDrive einfuegen (eine pro Zeile).",
+      "fileIdsLabel": "Datei-IDs",
+      "fileIdsPlaceholder": "Datei-IDs hier einfuegen, eine pro Zeile...",
+      "fileIdsHelper": "Google Drive oder OneDrive Datei-IDs eingeben",
+      "importButton": "Importieren",
+      "importSuccess": "{{count}} Design(s) importiert",
+      "importError": "Designs konnten nicht importiert werden",
+      "cancel": "Abbrechen",
+      "selectAll": "Alle auswaehlen",
+      "selectDesign": "Design auswaehlen",
+      "delete": "Loeschen",
+      "hasListing": "Listing",
+      "noImage": "Kein Bild",
+      "search": "Designs suchen...",
+      "sortBy": "Sortieren nach",
+      "sortNewest": "Neueste",
+      "sortEdited": "Zuletzt bearbeitet",
+      "loadError": "Designs konnten nicht geladen werden"
+    },
+    "empty": {
+      "noDesigns": "Noch keine Designs",
+      "hint": "Lade Designs hoch oder importiere sie aus dem Cloud-Speicher.",
+      "upload": "Design hochladen",
+      "import": "Aus Cloud importieren"
+    },
+    "product": {
+      "title": "Produktkonfiguration",
+      "types": "Produkttypen",
+      "fitType": "Passform",
+      "printSide": "Druckseite",
+      "front": "Vorderseite",
+      "back": "Rueckseite",
+      "both": "Beide",
+      "colorsComingSoon": "Farbauswahl kommt bald"
+    },
+    "marketplace": {
+      "title": "Marktplaetze & Preise",
+      "price": "Preis"
+    },
+    "listing": {
+      "title": "Listing-Editor",
+      "generate": "Listing generieren",
+      "generateSuccess": "Listing generiert",
+      "generateError": "Listing konnte nicht generiert werden",
+      "generateDuplicate": "Fuer dieses Design existiert bereits ein Listing.",
+      "save": "Listing speichern",
+      "saveSuccess": "Listing gespeichert",
+      "saveError": "Listing konnte nicht gespeichert werden",
+      "saveDuplicate": "Fuer dieses Design existiert bereits ein Listing.",
+      "saveNoListing": "Generiere zuerst ein Listing, bevor du speicherst.",
+      "loadError": "Listing konnte nicht geladen werden",
+      "noListing": "Waehle ein Design und generiere ein Listing, um zu starten.",
+      "improve": "Mit KI verbessern",
+      "copied": "Listing in Zwischenablage kopiert",
+      "copyError": "Listing konnte nicht kopiert werden",
+      "copyMBA": "Fuer MBA kopieren",
+      "brandName": "Markenname",
+      "titleField": "Titel",
+      "bullet": "Bullet Point",
+      "description": "Beschreibung",
+      "keywords": "Backend-Keywords",
+      "addKeyword": "Keywords hinzufuegen (kommagetrennt)...",
+      "add": "Hinzufuegen",
+      "kwFinder": "KW Finder",
+      "availability": "Verfuegbarkeit",
+      "public": "Oeffentlich",
+      "private": "Privat",
+      "publishMode": "Veroeffentlichungsmodus",
+      "live": "Live",
+      "draft": "Entwurf"
+    },
+    "translate": {
+      "title": "Uebersetzungen",
+      "autoTranslate": "Auto-Uebersetzen",
+      "translateAll": "In alle uebersetzen",
+      "success": "Uebersetzungen generiert",
+      "error": "Listing konnte nicht uebersetzt werden",
+      "notTranslated": "Noch nicht uebersetzt. Klicke auf \"In alle uebersetzen\".",
+      "overLimit": "ueber Limit"
+    },
+    "tm": {
+      "check": "Markencheck",
+      "clean": "Keine Markenrechtsprobleme gefunden",
+      "flagged": "Moegliche Markenrechtsprobleme gefunden",
+      "error": "Markencheck fehlgeschlagen",
+      "cleanTitle": "Alles in Ordnung",
+      "cleanMessage": "Keine markenrechtlich geschuetzten Begriffe in deinem Listing erkannt.",
+      "flaggedTitle": "Markenrechtswarnung",
+      "flaggedMessage": "Die folgenden Begriffe koennten markenrechtlich geschuetzt sein. Vor dem Upload pruefen.",
+      "close": "Schliessen",
+      "edit": "Listing bearbeiten",
+      "proceedAnyway": "Trotzdem fortfahren"
+    },
+    "upload": {
+      "title": "Upload-Warteschlange",
+      "all": "Alle",
+      "status": {
+        "pending": "Ausstehend",
+        "validating": "Wird validiert",
+        "uploading": "Wird hochgeladen",
+        "completed": "Abgeschlossen",
+        "failed": "Fehlgeschlagen",
+        "cancelled": "Abgebrochen"
+      },
+      "totalJobs": "{{count}} Jobs",
+      "noJobs": "Noch keine Upload-Jobs",
+      "loadError": "Upload-Jobs konnten nicht geladen werden",
+      "desktopAppHint": "Upload-Jobs werden von der Desktop-Upload-App verarbeitet. Starte die App, um ausstehende Jobs zu verarbeiten.",
+      "queued": "Upload-Job eingereiht",
+      "queueError": "Upload-Job konnte nicht eingereiht werden",
+      "batchQueued": "{{count}} Upload-Jobs eingereiht",
+      "batchError": "Batch-Upload konnte nicht eingereiht werden",
+      "cancelled": "Upload-Job abgebrochen",
+      "cancelError": "Upload-Job konnte nicht abgebrochen werden",
+      "cancel": "Abbrechen",
+      "retry": "Erneut versuchen",
+      "viewScreenshot": "Fehler-Screenshot ansehen"
+    },
+    "template": {
+      "button": "Vorlagen",
+      "saveNew": "Aktuelles als Vorlage speichern",
+      "saveTitle": "Vorlage speichern",
+      "nameLabel": "Vorlagenname",
+      "cancel": "Abbrechen",
+      "save": "Speichern",
+      "empty": "Keine gespeicherten Vorlagen",
+      "saveSuccess": "Vorlage gespeichert",
+      "saveError": "Vorlage konnte nicht gespeichert werden",
+      "deleteSuccess": "Vorlage geloescht",
+      "deleteError": "Vorlage konnte nicht geloescht werden"
+    },
+    "command": {
+      "title": "Befehlspalette",
+      "searchPlaceholder": "Aktionen durchsuchen...",
+      "noResults": "Keine Ergebnisse",
+      "recent": "Zuletzt verwendet",
+      "copyListing": "Listing kopieren",
+      "copyListingDesc": "Aktuelles Listing auf andere ausgewaehlte Designs kopieren",
+      "applyTemplate": "Vorlage anwenden",
+      "applyTemplateDesc": "Gespeicherte Vorlage auf ausgewaehlte Designs anwenden",
+      "applyColors": "Farben anwenden",
+      "applyColorsDesc": "Farbeinstellungen auf ausgewaehlte Designs kopieren",
+      "applyFitTypes": "Passformen anwenden",
+      "applyFitTypesDesc": "Passform-Einstellungen auf ausgewaehlte Designs kopieren",
+      "applyProductSettings": "Produkteinstellungen anwenden",
+      "applyProductSettingsDesc": "Alle Produkteinstellungen auf ausgewaehlte Designs kopieren",
+      "bulkUpload": "Batch-Upload",
+      "bulkUploadDesc": "Upload-Jobs fuer alle ausgewaehlten Designs einreihen",
+      "editBulk": "Bulk bearbeiten",
+      "deleteListings": "Listings löschen",
+      "moveCollection": "In Sammlung verschieben",
+      "duplicate": "Duplizieren",
+      "sortListings": "Listings sortieren",
+      "bulkSync": "Massensynchronisation",
+      "translate": "Übersetzen",
+      "bulkTags": "Massen-Tags",
+      "aiGenerate": "KI-Listing generieren",
+      "deleteFiles": "Dateien löschen",
+      "download": "Herunterladen",
+      "exportXlsx": "Als XLSX exportieren",
+      "exportCsv": "Als CSV exportieren",
+      "sendCloud": "In die Cloud senden",
+      "importCloud": "Aus der Cloud importieren",
+      "copyListingFrom": "Listing kopieren von...",
+      "copyColorsFrom": "Farben kopieren von...",
+      "copyFitFrom": "Passformen kopieren von...",
+      "copyPricesFrom": "Preise kopieren von...",
+      "convertFromGlobal": "Von Global konvertieren",
+      "convertFromMba": "Von MBA konvertieren",
+      "selectFirst": "Bitte wähle zuerst mindestens ein Design",
+      "deleteFilesConfirm": "{{count}} Design(s) löschen? Dies kann nicht rückgängig gemacht werden.",
+      "deleteFilesSuccess": "{{count}} Design(s) gelöscht",
+      "deleteFilesError": "{{count}} Löschvorgang/-vorgänge fehlgeschlagen",
+      "downloadSuccess": "{{count}} Download(s) gestartet"
+    },
+    "actionBar": {
+      "label": "Massenaktionen",
+      "selected": "{{count}} ausgewaehlt",
+      "edit": "Bearbeiten",
+      "uploadBatch": "Batch hochladen",
+      "delete": "Loeschen",
+      "clear": "Aufheben",
+      "selectAll": "Alle",
+      "selectNone": "Keine",
+      "history": "Verlauf",
+      "batch": "Batch",
+      "options": "Optionen",
+      "applyTemplate": "Vorlage anwenden",
+      "copyFrom": "Kopieren von...",
+      "applyColors": "Farben anwenden",
+      "applyFitTypes": "Passformen anwenden",
+      "exportSelected": "Auswahl exportieren"
+    },
+    "cloud": {
+      "import": "Importieren",
+      "preview": "Vorschau",
+      "copyUrl": "URL kopieren",
+      "root": "Wurzel",
+      "folderNav": "Ordnernavigation",
+      "loadError": "Ordner konnte nicht geladen werden",
+      "emptyFolder": "Keine Bilder in diesem Ordner",
+      "urlCopied": "URL kopiert",
+      "importSuccess": "Datei erfolgreich importiert",
+      "importError": "Import fehlgeschlagen",
+      "notConnected": "Nicht mit {{provider}} verbunden",
+      "noSubfolders": "Keine Unterordner in {{folder}}",
+      "notConfigured": "{{provider}} nicht konfiguriert",
+      "configureHint": "Konfiguriere {{provider}} in den Einstellungen, um zu starten.",
+      "connectTitle": "Mit {{provider}} verbinden",
+      "connectDescription": "Melde dich bei {{provider}} an, um deine Designs zu durchsuchen und zu importieren.",
+      "connect": "Verbinden",
+      "manageConnections": "Verbindungen verwalten",
+      "sendTitle": "An {{provider}} senden",
+      "uploadTo": "Hochladen nach {{folder}}",
+      "sending": "Sende...",
+      "send": "Senden",
+      "sendSuccess": "{{count}} Datei(en) an {{provider}} gesendet",
+      "sendError": "Dateien konnten nicht gesendet werden",
+      "sendPartial": "{{sent}} von {{total}} Datei(en) gesendet. {{failed}} fehlgeschlagen."
+    },
+    "copyFrom": {
+      "noSources": "Keine anderen Designs zum Kopieren verfuegbar.",
+      "hasListing": "Hat Listing",
+      "applying": "Wende an...",
+      "apply": "Anwenden",
+      "success": "Listing kopiert - speichern, um zu uebernehmen.",
+      "error": "Quell-Listing konnte nicht geladen werden.",
+      "noListing": "Quell-Design hat keine verknuepfte Idee/Listing.",
+      "sourceNoConfig": "Quelle hat keine Konfiguration fuer {{marketplace}}."
+    },
+    "productConfig": {
+      "saveError": "Produktkonfiguration konnte nicht gespeichert werden.",
+      "loadError": "Produktkonfiguration konnte nicht geladen werden."
+    },
+    "convert": {
+      "success": "Listing zu {{target}} konvertiert",
+      "error": "Listing konnte nicht konvertiert werden",
+      "invalid": "Konvertierung fuer diesen Marktplatz nicht gueltig",
+      "sourceMissing": "Kein {{source}}-Listing zum Konvertieren. Generiere zuerst eines.",
+      "noIdea": "Waehle zuerst ein Design mit einer verknuepften Idee.",
+      "confirmTitle": "Bestehendes {{target}}-Listing überschreiben?",
+      "confirmBody": "Für dieses Design existiert bereits ein {{target}}-Listing. Von {{source}} zu konvertieren überschreibt dessen Inhalt. Dies kann nicht rückgängig gemacht werden.",
+      "confirmButton": "Überschreiben",
+      "cancelButton": "Abbrechen"
+    },
+    "export": {
+      "action": {
+        "xlsxMba": "Als XLSX exportieren (MBA)",
+        "xlsxBasic": "Als XLSX exportieren (Basic)",
+        "csv": "Als CSV exportieren"
+      },
+      "preflight": {
+        "title": "Bereit zum Export",
+        "loading": "Preflight laeuft…",
+        "readyRows": "{{count}} bereit",
+        "totalDesigns": "{{count}} gesamt",
+        "skippedCount": "{{count}} uebersprungen",
+        "warningsLabel": "Warnungen",
+        "skippedLabel": "Uebersprungene Designs",
+        "editN": "{{count}} bearbeiten",
+        "download": "Herunterladen",
+        "preparing": "Archiv wird vorbereitet — {{count}} Design(s)",
+        "downloadDisabledTooltip": "Keine exportierbaren Zeilen — jedem ausgewaehlten Design fehlt ein Listing oder es hat keine aktivierten Produkte"
+      },
+      "history": {
+        "title": "Export-Verlauf",
+        "empty": "Noch keine Exporte in diesem Workspace",
+        "openTooltip": "Export-Verlauf",
+        "rowBadge": "{{designs}} Designs · {{rows}} Zeilen",
+        "rerunTooltip": "Export erneut ausfuehren ({{timeAgo}})"
+      },
+      "errors": {
+        "generic": "Export fehlgeschlagen",
+        "timeout": "Export hat Zeitlimit ueberschritten — bitte erneut versuchen",
+        "max_500_designs_per_export": "Zu viele Designs — maximal 500 pro Export",
+        "estimated_archive_too_large": "Archiv wuerde das 2-GB-Limit uebersteigen — waehle weniger Designs",
+        "no_listing": "Design hat kein Listing",
+        "no_global_listing": "Design hat kein Global-Listing — erforderlich fuer Basic-Export",
+        "no_enabled_products": "Design hat keine aktivierten Produkte",
+        "image_unavailable": "Design-Bild ist nicht verfuegbar",
+        "catalog_unknown_product": "Produkttyp nicht im Katalog gefunden"
+      }
+    },
+    "lifecycle": {
+      "title": "Produkt-Lebenszyklus",
+      "round": "Runde {{round}}",
+      "niche": "Nische",
+      "design": "Design",
+      "noData": "Keine Lebenszyklus-Daten verfuegbar",
+      "awaitingSales": "Warte auf Verkaufsdaten"
+    },
+    "edit": {
+      "backToCollection": "Zurück zur Sammlung",
+      "addDesigns": "Designs hinzufügen",
+      "shortcutGuide": "Tastenkürzel",
+      "shortcutsTitle": "Tastenkürzel",
+      "shortcutsSoon": "Tastenkürzel-Referenz kommt bald.",
+      "close": "Schließen",
+      "optionsButton": "Optionen",
+      "demo": {
+        "productsTitle": "Produkte"
+      },
+      "marketplace": {
+        "global": "Global",
+        "mba": "Mba",
+        "displate": "Displate"
+      },
+      "empty": {
+        "title": "Keine Designs ausgewaehlt",
+        "hint": "Gehe zurueck zur Publish-Seite und waehle Designs zum Bearbeiten aus.",
+        "back": "Zurueck zu Publish"
+      },
+      "thumbnails": {
+        "tagsLabel": "Design-Tags",
+        "tagsPlaceholder": "Tag hinzufuegen...",
+        "tagsCounter": "{{count}}/{{max}}",
+        "load": "Laden",
+        "clear": "Leeren",
+        "counter": "{{current}} von {{total}}",
+        "previous": "Vorheriges",
+        "next": "Nächstes",
+        "activeBadge": "Design {{index}}",
+        "remove": "Tag entfernen",
+        "presetLoaded": "Preset geladen",
+        "presetEmpty": "Füge zuerst Tags hinzu, bevor du ein Preset speicherst",
+        "presetDuplicate": "Dieses Preset ist bereits gespeichert",
+        "presetSaved": "Preset gespeichert",
+        "saveCurrent": "Aktuell als Preset speichern",
+        "noPresets": "Noch keine Presets gespeichert",
+        "deletePreset": "Preset löschen"
+      },
+      "products": {
+        "title": "Produkte",
+        "productType": "Produkttyp {{label}}",
+        "selectedCount": "{{count}} ausgewaehlt"
+      },
+      "fitPrint": {
+        "fitTitle": "Passform",
+        "printTitle": "Druckseite",
+        "front": "Vorderseite",
+        "back": "Rueckseite"
+      },
+      "colors": {
+        "title": "Farben",
+        "loadError": "Farben konnten nicht geladen werden.",
+        "retry": "Erneut versuchen",
+        "swatch": "{{name}}"
+      },
+      "marketplaces": {
+        "title": "Marktplaetze & Preise",
+        "price": "Preis",
+        "royalty": "Tantieme",
+        "enable": "{{code}} aktivieren",
+        "priceFor": "Price for {{code}}"
+      },
+      "placeholder": {
+        "comingSoon": "Konfiguration fuer {{marketplace}} kommt bald"
+      },
+      "fields": {
+        "sectionLabel": "Listing-Felder",
+        "brand": "Marke",
+        "title": "Titel",
+        "bullet": "Bullet {{n}}",
+        "description": "Beschreibung",
+        "aiImprove": "KI-Verbesserung",
+        "openChat": "Chat für dieses Feld öffnen",
+        "keywordContext": "Keyword-Kontext",
+        "keywordContextPlaceholder": "Freie Notizen für die KI — Markenton, vermeidbare Wörter, Zielgruppe."
+      },
+      "keywords": {
+        "title": "Backend-Keywords",
+        "info": "Suchbegriffe fuer die Amazon-Indexierung. Max. 500 Zeichen inkl. Trenner.",
+        "addPlaceholder": "+ Hinzufuegen",
+        "addAria": "Keyword hinzufuegen",
+        "remove": "Keyword {{kw}} entfernen",
+        "kwFinder": "KW Finder",
+        "kwWorkbench": "KW Workbench"
+      },
+      "translation": {
+        "title": "Sprache",
+        "selectLanguage": "Sprache wählen",
+        "autoTranslate": "Auto-Übersetzen",
+        "translateTo": "Übersetzen nach …",
+        "notLocalized": "Markenname ist sprachübergreifend identisch — bitte auf dem EN-Tab bearbeiten"
+      },
+      "options": {
+        "tab": "Optionen",
+        "tabsLabel": "Listing-Optionen und Markenrechte",
+        "availability": {
+          "title": "Verfuegbarkeit",
+          "public": "Oeffentlich",
+          "private": "Privat"
+        },
+        "publishMode": {
+          "title": "Veroeffentlichen",
+          "live": "Live",
+          "draft": "Entwurf"
+        },
+        "sectionLabel": "Listing options"
+      },
+      "trademarks": {
+        "tab": "Markenrechte",
+        "runCheck": "TM-Check ausfuehren",
+        "hint": "Fuehre vor der Veroeffentlichung einen Markenrechts-Check aus.",
+        "checkingTitle": "Markenrechts-Check laeuft",
+        "cleanTitle": "Markenrechts-Check bestanden",
+        "cleanBody": "Alles in Ordnung - keine Probleme erkannt.",
+        "flaggedTitle": "Markenrechts-Probleme gefunden",
+        "flaggedBody": "Die folgenden Begriffe koennten markenrechtlich geschuetzt sein. Vor dem Veroeffentlichen pruefen.",
+        "proceed": "Trotzdem fortfahren",
+        "edit": "Felder bearbeiten",
+        "close": "Schliessen",
+        "error": "Markenrechts-Check fehlgeschlagen",
+        "noListing": "Speichere das Listing zuerst, um einen Markenrechts-Check auszufuehren."
+      },
+      "preview": {
+        "label": "Design-Vorschau",
+        "empty": "Kein Design ausgewaehlt",
+        "error": "Vorschau nicht verfuegbar"
+      },
+      "unsaved": {
+        "message": "Nicht gespeicherte Änderungen",
+        "discard": "Verwerfen",
+        "save": "Speichern",
+        "autoSaving": "Speichere...",
+        "autoSaved": "Gespeichert",
+        "saving": "Speichern …",
+        "saved": "Gespeichert",
+        "failed": "Speichern fehlgeschlagen",
+        "retry": "Erneut versuchen",
+        "offline": "Offline — Änderungen werden synchronisiert sobald du wieder online bist",
+        "offlineChip": "Offline",
+        "queued": "{{count}} in Warteschlange",
+        "confirmDiscardTitle": "Nicht gespeicherte Änderungen verwerfen?",
+        "confirmDiscardBody": "Deine offenen Änderungen werden gelöscht. Dies kann nicht rückgängig gemacht werden.",
+        "cancel": "Abbrechen"
+      },
+      "listingState": {
+        "generate": "Listing generieren",
+        "generating": "Generiere...",
+        "notFound": "Noch kein Listing fuer {{marketplace}}. Generiere eines, um zu starten.",
+        "error": "Listing fuer diesen Marktplatz konnte nicht geladen werden.",
+        "retry": "Erneut versuchen"
+      },
+      "savedLabel": "Gespeichert",
+      "saveLabel": "Speichern",
+      "global": {
+        "sectionLabel": "Global-Listing",
+        "noListing": "Erstelle zuerst ein Global-Listing (Convert from MBA), bevor du Global-Felder bearbeitest.",
+        "keywords": {
+          "label": "Keywords",
+          "placeholder": "Keyword hinzufügen... (Enter oder Komma zum Übernehmen)",
+          "limitReached": "Limit erreicht",
+          "duplicate": "Bereits in der Liste",
+          "finderLink": "KW Finder",
+          "finderNoNiche": "Verknüpfe dieses Design zuerst mit einer Niche",
+          "workbenchLink": "KW Workbench",
+          "workbenchTooltip": "Kommt bald — mit PROJ-10 Keyword Bank"
+        },
+        "options": {
+          "sectionLabel": "Global-Listing-Optionen",
+          "types": {
+            "title": "Typen",
+            "men": "Herren",
+            "women": "Damen",
+            "youth": "Kinder"
+          },
+          "color": {
+            "title": "Farbe",
+            "black": "Schwarz",
+            "white": "Weiß",
+            "colorful": "Bunt"
+          }
+        },
+        "tagging": {
+          "button": "Tagging-Optionen",
+          "copyEn": "EN-Keywords in alle Sprachen kopieren",
+          "importCsv": "Keywords aus CSV importieren",
+          "clearAll": "Alle Keywords löschen",
+          "cancel": "Abbrechen",
+          "copyEnConfirm": "Kopieren",
+          "copyEnConfirmTitle": "EN-Keywords in alle Sprachen kopieren?",
+          "copyEnConfirmBody": "Ersetzt die Keyword-Listen für DE, FR, IT, ES, JA durch die EN-Liste. Vorhandene Einträge in diesen Sprachen werden überschrieben.",
+          "clearAllConfirm": "Alle löschen",
+          "clearAllConfirmTitle": "Alle Keywords löschen?",
+          "clearAllConfirmBody": "Entfernt jedes Keyword in allen Sprachen auf diesem Listing. Das kann nicht rückgängig gemacht werden."
+        },
+        "advanced": {
+          "trigger": "Erweiterte Optionen",
+          "title": "Erweiterte Optionen",
+          "brand": "Brand",
+          "category": "Category",
+          "cancel": "Abbrechen",
+          "save": "Speichern"
+        },
+        "import": {
+          "title": "Keywords aus CSV importieren ({{lang}})",
+          "hint": "Füge Keywords getrennt durch Komma, Semikolon oder Zeilenumbruch ein. Duplikate und Einträge, die das 50-Zeichen-Limit überschreiten, werden übersprungen.",
+          "placeholder": "hund, katze, vogel\nlustig, süß",
+          "summary": "{{accepted}} von {{total}} Keywords werden importiert — {{skipped}} übersprungen",
+          "preview": "Vorschau",
+          "cancel": "Abbrechen",
+          "import": "Importieren"
+        }
+      },
+      "displate": {
+        "sectionLabel": "Displate-Listing",
+        "noListing": "Erstelle zuerst ein Displate-Listing (Convert from MBA), bevor du Displate-Felder bearbeitest.",
+        "advanced": {
+          "trigger": "Erweiterte Optionen"
+        },
+        "bgColor": {
+          "title": "Hintergrundfarbe",
+          "hexInputLabel": "Hintergrundfarbe Hex",
+          "preview": "Hintergrundfarbe-Vorschau: {{hex}}",
+          "invalid": "Gib eine 6-stellige Hex-Farbe im Format #RRGGBB ein (z. B. #FF00AA)."
+        }
+      }
+    },
+    "ai_improve": {
+      "truncatedChip": "KI gekürzt",
+      "tooltipDisabled": "Erst Listing erstellen oder konvertieren",
+      "tooltip": "Mit KI verbessern",
+      "successSnackbar": "Listing mit KI verbessert",
+      "errorSnackbar": "KI-Verbesserung fehlgeschlagen — bitte erneut versuchen",
+      "buttonLabel": "Listing mit KI verbessern"
+    },
+    "movePicker": {
+      "success": "Design moved",
+      "error404": "Destination no longer exists",
+      "error": "Failed to move design",
+      "title": "Move to Collection",
+      "readyHint": "Press Move Here to confirm",
+      "pickHint": "Select a folder from the tree",
+      "moveHere": "Move Here"
+    }
+  },
+  "dashboard": {
+    "page": {
+      "title": "Dashboard"
+    },
+    "kpi": {
+      "research": "Recherche",
+      "design": "Design",
+      "publish": "Veroeffentlicht",
+      "live": "Live",
+      "designsApproved": "Designs genehmigt",
+      "listingsReady": "Listings bereit"
+    },
+    "funnel": {
+      "title": "Pipeline-Trichter",
+      "research": "Recherche",
+      "design": "Design",
+      "publish": "Veroeffentlicht",
+      "live": "Live"
+    },
+    "activity": {
+      "title": "Letzte Aktivitaet",
+      "empty": "Keine aktuelle Aktivitaet"
+    },
+    "stuck": {
+      "title": "Blockierte Nischen",
+      "empty": "Keine blockierten Nischen",
+      "daysStuck": "{{days}}T blockiert"
+    },
+    "agent": {
+      "title": "Agent-Aktivitaet",
+      "activeWorkflows": "Aktive Workflows",
+      "successRate": "Erfolgsrate",
+      "budgetUsage": "Budget-Nutzung",
+      "agentType": "Agent",
+      "runs": "Durchlaeufe",
+      "cost": "Kosten",
+      "lastCompleted": "Letzter: {{niche}} ({{template}}, {{duration}}min)"
+    },
+    "search": {
+      "title": "Such-Aktivitaet",
+      "searchesPerDay": "Suchen / Tag",
+      "crawlCount": "Crawls",
+      "crawlSuccessRate": "Erfolgsrate",
+      "topQueries": "Top-Anfragen"
+    },
+    "analytics": {
+      "sectionTitle": "Analytics",
+      "dateRange": "Zeitraum",
+      "from": "Von",
+      "to": "Bis",
+      "weekLabel": "Woche",
+      "noData": "Keine Daten fuer diesen Zeitraum",
+      "designsTitle": "Designs nach Modell / Woche",
+      "listingsTitle": "Listings / Woche",
+      "listingsReady": "Bereit",
+      "listingsPublished": "Veroeffentlicht"
+    },
+    "export": {
+      "tooltip": "CSV exportieren"
+    },
+    "placeholder": {
+      "agentNotConfigured": "Agent nicht eingerichtet",
+      "searchNotConfigured": "Suche nicht verbunden"
+    },
+    "error": {
+      "loadFailed": "Dashboard-Daten konnten nicht geladen werden"
+    }
+  },
+  "kanban": {
+    "board": {
+      "title": "Team Kanban",
+      "columnResearch": "Recherche",
+      "columnDesign": "Design",
+      "columnPublish": "Veroeffentlichen",
+      "columnLive": "Live",
+      "columnDone": "Fertig",
+      "dragError": "Status konnte nicht aktualisiert werden. Karte zurueckgesetzt.",
+      "loadError": "Board-Daten konnten nicht geladen werden.",
+      "maxWarning": "Zeige erste 200 Nischen. Archiviere oder filtere, um mehr zu sehen."
+    },
+    "card": {
+      "status": {
+        "data_entry": "Dateneingabe",
+        "deep_research": "Tiefenrecherche",
+        "niche_with_potential": "Potenzial",
+        "to_designer": "Zum Designer",
+        "upload": "Upload",
+        "start_ads": "Werbung starten",
+        "pending": "Ausstehend",
+        "winner": "Gewinner",
+        "loser": "Verlierer",
+        "archived": "Archiviert"
+      }
+    },
+    "modal": {
+      "designs": "Designs",
+      "designStatus": {
+        "approved": "Genehmigt",
+        "rejected": "Abgelehnt",
+        "pending": "Ausstehend"
+      },
+      "approve": "Genehmigen",
+      "reject": "Ablehnen",
+      "delete": "Loeschen",
+      "send": "Senden",
+      "feedbackPlaceholder": "Grund fuer Ablehnung...",
+      "approveError": "Design konnte nicht genehmigt werden.",
+      "rejectError": "Design konnte nicht abgelehnt werden.",
+      "deleteError": "Design konnte nicht geloescht werden."
+    },
+    "comments": {
+      "title": "Kommentare",
+      "cardLevel": "Karten-Kommentare",
+      "placeholder": "Kommentar schreiben... (@ zum Erwaehnen)",
+      "mentionHint": "Mitglieder suchen...",
+      "send": "Senden",
+      "createError": "Kommentar konnte nicht gepostet werden.",
+      "deleteError": "Kommentar konnte nicht geloescht werden."
+    },
+    "round": {
+      "history": "Rundenverlauf",
+      "newRound": "Neue Runde",
+      "newSuccess": "Neue Runde gestartet.",
+      "newError": "Neue Runde konnte nicht gestartet werden.",
+      "mustBeDone": "Nische muss in der Fertig-Spalte sein, um eine neue Runde zu starten.",
+      "noHistory": "Noch keine Rundendaten.",
+      "ideas": "Ideen",
+      "designs": "Designs",
+      "approved": "genehmigt",
+      "listings": "Listings"
+    },
+    "upload": {
+      "title": "Designs hochladen",
+      "dropHint": "Dateien hierher ziehen oder klicken zum Hochladen",
+      "success": "{{count}} Design(s) hochgeladen.",
+      "error": "Upload fehlgeschlagen."
+    },
+    "trash": {
+      "title": "Papierkorb",
+      "restore": "Wiederherstellen",
+      "restoreSuccess": "Design wiederhergestellt.",
+      "restoreError": "Design konnte nicht wiederhergestellt werden.",
+      "empty": "Papierkorb ist leer.",
+      "expiresIn": "Laeuft ab in {{days}} Tagen"
+    },
+    "filter": {
+      "allMembers": "Alle Mitglieder",
+      "showArchived": "Archivierte anzeigen"
+    },
+    "empty": {
+      "column": "Keine Nischen in dieser Spalte",
+      "designs": "Noch keine Designs",
+      "comments": "Noch keine Kommentare"
+    },
+    "notifications": {
+      "title": "Benachrichtigungen",
+      "bell": "Benachrichtigungen",
+      "markAllRead": "Alle als gelesen markieren",
+      "empty": "Keine Benachrichtigungen"
+    }
+  },
+  "common": {
+    "close": "Schließen",
+    "retry": "Erneut versuchen",
+    "cancel": "Abbrechen",
+    "save": "Speichern",
+    "back": "Zurück",
+    "unexpectedError": "Unerwarteter Fehler"
+  },
+  "legal": {
+    "translation_disclaimer": "Dies ist die Originalfassung. Bei Streitfällen ist die deutsche Version maßgeblich.",
+    "imprint": {
+      "title": "Impressum",
+      "operator": {
+        "heading": "Angaben gemäß § 5 TMG",
+        "body": "Mario Winter\nAußenliegend 4\n61209 Echzell\nDeutschland"
+      },
+      "contact": {
+        "heading": "Kontakt",
+        "phone_line": "Telefon: <a>+49 1601546188</a>",
+        "email_line": "E-Mail: <a>mariowinter.sg@gmail.com</a>"
+      },
+      "languages": {
+        "heading": "Verfügbare Sprachen",
+        "body": "Diese Website ist in folgenden Sprachen verfügbar: Deutsch, Englisch, Französisch, Spanisch und Italienisch."
+      },
+      "vat": {
+        "heading": "Umsatzsteuer-Identifikationsnummer",
+        "body": "Umsatzsteuer-ID gemäß § 27 a Umsatzsteuergesetz: DE327848620"
+      },
+      "dsa": {
+        "heading": "Kontaktstelle gemäß Art. 12 DSA",
+        "body": "Kontaktstelle für Behörden und Nutzer gemäß Art. 11, 12 Digital Services Act (DSA):\n\nMario Winter\nAußenliegend 4\n61209 Echzell\nDeutschland\n\nTelefon: +49 1601546188\nE-Mail: mariowinter.sg@gmail.com\n\nDie Kommunikation kann auf Deutsch oder Englisch erfolgen."
+      },
+      "disclaimer": {
+        "heading": "Haftungsausschluss",
+        "content_heading": "Haftung für Inhalte",
+        "content_body": "Als Diensteanbieter sind wir gemäß § 7 Abs.1 TMG für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 TMG sind wir als Diensteanbieter jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen. Verpflichtungen zur Entfernung oder Sperrung der Nutzung von Informationen nach den allgemeinen Gesetzen bleiben hiervon unberührt. Eine diesbezügliche Haftung ist jedoch erst ab dem Zeitpunkt der Kenntnis einer konkreten Rechtsverletzung möglich. Bei Bekanntwerden von entsprechenden Rechtsverletzungen werden wir diese Inhalte umgehend entfernen.",
+        "links_heading": "Haftung für Links",
+        "links_body": "Unser Angebot enthält Links zu externen Websites Dritter, auf deren Inhalte wir keinen Einfluss haben. Deshalb können wir für diese fremden Inhalte auch keine Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber der Seiten verantwortlich. Die verlinkten Seiten wurden zum Zeitpunkt der Verlinkung auf mögliche Rechtsverstöße überprüft. Rechtswidrige Inhalte waren zum Zeitpunkt der Verlinkung nicht erkennbar. Eine permanente inhaltliche Kontrolle der verlinkten Seiten ist jedoch ohne konkrete Anhaltspunkte einer Rechtsverletzung nicht zumutbar. Bei Bekanntwerden von Rechtsverletzungen werden wir derartige Links umgehend entfernen.",
+        "copyright_heading": "Urheberrecht",
+        "copyright_body": "Die durch die Seitenbetreiber erstellten Inhalte und Werke auf diesen Seiten unterliegen dem deutschen Urheberrecht. Die Vervielfältigung, Bearbeitung, Verbreitung und jede Art der Verwertung außerhalb der Grenzen des Urheberrechtes bedürfen der schriftlichen Zustimmung des jeweiligen Autors bzw. Erstellers. Downloads und Kopien dieser Seite sind nur für den privaten, nicht kommerziellen Gebrauch gestattet. Soweit die Inhalte auf dieser Seite nicht vom Betreiber erstellt wurden, werden die Urheberrechte Dritter beachtet. Insbesondere werden Inhalte Dritter als solche gekennzeichnet. Sollten Sie trotzdem auf eine Urheberrechtsverletzung aufmerksam werden, bitten wir um einen entsprechenden Hinweis. Bei Bekanntwerden von Rechtsverletzungen werden wir derartige Inhalte umgehend entfernen."
+      }
+    },
+    "privacy": {
+      "title": "Datenschutzerklärung",
+      "section_overview": {
+        "heading": "1. Datenschutz auf einen Blick",
+        "subheading": "Allgemeine Hinweise",
+        "body": "Die folgenden Hinweise geben einen einfachen Überblick darüber, was mit Ihren personenbezogenen Daten passiert, wenn Sie diese Website besuchen. Personenbezogene Daten sind alle Daten, mit denen Sie persönlich identifiziert werden können. Ausführliche Informationen zum Thema Datenschutz entnehmen Sie unserer unter diesem Text aufgeführten Datenschutzerklärung."
+      },
+      "responsible_party": {
+        "heading": "Hinweis zur verantwortlichen Stelle",
+        "body": "Die verantwortliche Stelle für die Datenverarbeitung auf dieser Website ist:\n\nMario Winter\nAußenliegend 4\n61209 Echzell\nDeutschland",
+        "contact_phone": "Telefon: <a>+49 1601546188</a>",
+        "contact_email": "E-Mail: <a>mariowinter.sg@gmail.com</a>"
+      },
+      "hosting": {
+        "heading": "2. Hosting (Strato)",
+        "body": "Wir hosten die Inhalte unserer Website bei der Strato AG, Otto-Ostrowski-Straße 7, 10249 Berlin („Strato“). Wenn Sie unsere Website besuchen, erfasst Strato verschiedene Logfiles einschließlich Ihrer IP-Adressen. Die Verwendung von Strato erfolgt auf Grundlage von Art. 6 Abs. 1 lit. f DSGVO. Wir haben ein berechtigtes Interesse an einer möglichst zuverlässigen Darstellung unserer Website. Wir haben mit Strato einen Vertrag über Auftragsverarbeitung (AVV) geschlossen.",
+        "link": "Weitere Informationen: <a>https://www.strato.de/datenschutz/</a>"
+      },
+      "supabase": {
+        "heading": "Datenbank & Storage (Supabase / PostgreSQL)",
+        "body": "Anwendungsdaten (Workspaces, Niches, Designs, Listings) speichern wir in einer selbst gehosteten PostgreSQL-Datenbank auf Basis der Supabase-Plattform. Die Datenbank läuft auf unserer eigenen Infrastruktur in Deutschland (Strato), es findet keine Datenübertragung an Supabase Inc. statt. Die Speicherung erfolgt zur Vertragserfüllung gemäß Art. 6 Abs. 1 lit. b DSGVO sowie auf Grundlage unseres berechtigten Interesses an einer technisch zuverlässigen Bereitstellung der Anwendung (Art. 6 Abs. 1 lit. f DSGVO)."
+      },
+      "jwt_auth": {
+        "heading": "Authentifizierung (JWT-Cookie)",
+        "body": "Zur Authentifizierung registrierter Nutzer verwenden wir ein HttpOnly-Cookie mit einem signierten JWT-Token. Das Cookie ist technisch notwendig für den Login-Status und wird auf Grundlage von § 25 Abs. 2 Nr. 2 TDDDG sowie Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung) gesetzt. Es enthält keine Tracking-Informationen und wird ausschließlich zur Sitzungs- und Zugriffskontrolle verwendet. Das Cookie wird mit dem Logout gelöscht."
+      },
+      "langfuse": {
+        "heading": "LLM-Observability (Langfuse, selbst gehostet)",
+        "body": "Zur Qualitätssicherung und Fehleranalyse unserer KI-gestützten Funktionen setzen wir Langfuse ein. Langfuse läuft auf unserer eigenen Infrastruktur (Strato, Deutschland) und protokolliert Eingaben und Antworten der KI-Modelle einschließlich Metadaten (Latenz, Token-Verbrauch, Modellname). Eine Übermittlung an Dritte findet nicht statt. Rechtsgrundlage ist unser berechtigtes Interesse an einer fehlerfreien und sicheren Bereitstellung der KI-Funktionen (Art. 6 Abs. 1 lit. f DSGVO)."
+      },
+      "openrouter": {
+        "heading": "LLM-API (OpenRouter)",
+        "body": "Für KI-gestützte Funktionen (z.B. Niche-Recherche, Slogan- und Design-Generierung) übermitteln wir die zur Bearbeitung Ihrer Anfrage notwendigen Eingaben an OpenRouter, Inc. (1111B S Governors Ave #6589, Dover, DE 19904, USA). OpenRouter leitet diese Anfragen an die jeweiligen Modellanbieter weiter. Eine Übermittlung in die USA findet statt. Rechtsgrundlage ist Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung). Die Datenübertragung in die USA wird auf die Standardvertragsklauseln der EU-Kommission gestützt. Es werden keine Inhalte über die zur Beantwortung der jeweiligen Anfrage notwendigen Daten hinaus an OpenRouter übermittelt."
+      },
+      "n8n": {
+        "heading": "Workflow-Automation (n8n, selbst gehostet)",
+        "body": "Für interne Automatisierungen (Datenerfassung, KI-Pipelines) betreiben wir eine eigene Instanz der Open-Source-Software n8n auf unserer Infrastruktur (Strato, Deutschland). Es findet keine Datenübertragung an n8n GmbH oder andere Dritte statt. Rechtsgrundlage für die Verarbeitung ist Art. 6 Abs. 1 lit. b DSGVO (Vertragserfüllung) bzw. Art. 6 Abs. 1 lit. f DSGVO (berechtigtes Interesse an einer effizienten Bereitstellung der Anwendung)."
+      },
+      "onedrive": {
+        "heading": "Cloud-Storage-Import: OneDrive",
+        "body": "Optional bieten wir Ihnen die Möglichkeit, Inhalte aus Ihrem persönlichen Microsoft OneDrive in Merch Miner zu importieren. Anbieter ist die Microsoft Ireland Operations Limited, One Microsoft Place, South County Business Park, Leopardstown, Dublin 18, Irland. Die Verbindung zu OneDrive wird ausschließlich nach Ihrer ausdrücklichen Einwilligung (OAuth-Autorisierung) hergestellt. Microsoft kann hierbei Verbindungsdaten einschließlich Ihrer IP-Adresse erfassen. Rechtsgrundlage ist Art. 6 Abs. 1 lit. a DSGVO; die Einwilligung ist jederzeit widerrufbar. Microsoft ist nach dem EU-US Data Privacy Framework zertifiziert."
+      },
+      "google_drive": {
+        "heading": "Cloud-Storage-Import: Google Drive",
+        "body": "Optional bieten wir Ihnen die Möglichkeit, Inhalte aus Ihrem persönlichen Google Drive in Merch Miner zu importieren. Anbieter ist die Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Irland. Die Verbindung zu Google Drive wird ausschließlich nach Ihrer ausdrücklichen Einwilligung (OAuth-Autorisierung) hergestellt. Google kann hierbei Verbindungsdaten einschließlich Ihrer IP-Adresse erfassen. Rechtsgrundlage ist Art. 6 Abs. 1 lit. a DSGVO; die Einwilligung ist jederzeit widerrufbar. Google ist nach dem EU-US Data Privacy Framework zertifiziert."
+      },
+      "user_rights": {
+        "heading": "Ihre Rechte als betroffene Person",
+        "body": "Sie haben jederzeit das Recht auf unentgeltliche Auskunft über Ihre gespeicherten personenbezogenen Daten, deren Herkunft und Empfänger sowie den Zweck der Datenverarbeitung. Sie haben außerdem das Recht auf Berichtigung, Löschung oder Einschränkung der Verarbeitung dieser Daten. Wenn Sie eine Einwilligung zur Datenverarbeitung erteilt haben, können Sie diese Einwilligung jederzeit für die Zukunft widerrufen. Die Rechtmäßigkeit der bis zum Widerruf erfolgten Datenverarbeitung bleibt vom Widerruf unberührt. Darüber hinaus haben Sie das Recht auf Datenübertragbarkeit gemäß Art. 20 DSGVO.",
+        "complaint": "Im Falle datenschutzrechtlicher Verstöße steht Ihnen ein Beschwerderecht bei der zuständigen Aufsichtsbehörde zu, insbesondere in dem Mitgliedstaat ihres gewöhnlichen Aufenthalts, ihres Arbeitsplatzes oder des Orts des mutmaßlichen Verstoßes."
+      },
+      "contact": {
+        "heading": "Kontakt",
+        "body": "Bei Fragen zum Datenschutz oder zur Ausübung Ihrer Rechte erreichen Sie uns unter <a>mariowinter.sg@gmail.com</a>."
+      }
+    }
+  },
+  "footer": {
+    "imprint": "Impressum",
+    "privacy": "Datenschutz",
+    "copyright": "© 2026 - Merch Miner",
+    "aria": "Seitenfußzeile",
+    "legalNavLabel": "Rechtliches"
   }
 }

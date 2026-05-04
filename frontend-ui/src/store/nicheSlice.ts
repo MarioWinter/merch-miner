@@ -64,20 +64,23 @@ export const nicheApi = createApi({
       ],
     }),
 
-    deleteNiche: builder.mutation<void, string>({
-      query: (id) => ({
-        url: `/api/niches/${id}/`,
+    deleteNiche: builder.mutation<
+      void,
+      { id: string; confirmArchiveIdeas?: boolean }
+    >({
+      query: ({ id, confirmArchiveIdeas }) => ({
+        url: `/api/niches/${id}/${confirmArchiveIdeas ? '?confirm_archive_ideas=true' : ''}`,
         method: 'DELETE',
       }),
-      invalidatesTags: (_result, _error, id) => [
+      invalidatesTags: (_result, _error, { id }) => [
         { type: 'Niche', id },
         { type: 'NicheList', id: 'LIST' },
       ],
     }),
 
     bulkNicheAction: builder.mutation<NicheBulkResponse, NicheBulkPayload>({
-      query: (body) => ({
-        url: '/api/niches/bulk/',
+      query: ({ confirmArchiveIdeas, ...body }) => ({
+        url: `/api/niches/bulk/${confirmArchiveIdeas ? '?confirm_archive_ideas=true' : ''}`,
         method: 'POST',
         data: body,
       }),

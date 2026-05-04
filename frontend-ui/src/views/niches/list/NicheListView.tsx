@@ -4,8 +4,9 @@ import { styled } from '@mui/material/styles';
 import AddIcon from '@mui/icons-material/Add';
 import { useTranslation } from 'react-i18next';
 import { useListNichesQuery, useDeleteNicheMutation } from '../../../store/nicheSlice';
+import { useAppDispatch } from '@/store/hooks';
+import { openNicheCreate, openNicheEdit } from '@/store/chatBarSlice';
 import { useNicheFilters } from './hooks/useNicheFilters';
-import { useNicheDrawer } from './hooks/useNicheDrawer';
 import { useNicheSelection } from './hooks/useNicheSelection';
 import { useInlineEdit } from './hooks/useInlineEdit';
 import { useInlineAdd } from './hooks/useInlineAdd';
@@ -13,7 +14,6 @@ import { NicheFilterToolbar } from './partials/NicheFilterToolbar';
 import { NicheTable } from './partials/NicheTable';
 import { TableSkeleton } from './partials/TableSkeleton';
 import { EmptyState } from './partials/EmptyState';
-import { NicheDetailDrawer } from './partials/NicheDetailDrawer';
 import { BulkActionBar } from './partials/BulkActionBar';
 import { useSnackbar } from 'notistack';
 import type { NicheListParams } from './types';
@@ -74,13 +74,20 @@ const ErrorBox = styled(Box)(({ theme }) => ({
 const NicheListView = () => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
+  const dispatch = useAppDispatch();
 
   const sidebarCollapsed = useSidebarCollapsed();
 
   const filterState = useNicheFilters();
   const { filters, setOrdering, resetFilters, setPage } = filterState;
 
-  const { drawerState, openCreate, openEdit, closeDrawer } = useNicheDrawer();
+  const handleOpenCreate = () => {
+    dispatch(openNicheCreate());
+  };
+
+  const handleOpenEdit = (id: string) => {
+    dispatch(openNicheEdit(id));
+  };
 
   const selection = useNicheSelection();
   const inlineEdit = useInlineEdit();
@@ -118,7 +125,7 @@ const NicheListView = () => {
 
   const handleArchive = async (id: string) => {
     try {
-      await deleteNiche(id).unwrap();
+      await deleteNiche({ id }).unwrap();
       enqueueSnackbar(t('niches.notifications.archiveSuccess'), { variant: 'success' });
     } catch {
       enqueueSnackbar(t('niches.notifications.archiveError'), { variant: 'error' });
@@ -144,7 +151,7 @@ const NicheListView = () => {
           variant="contained"
           color="primary"
           startIcon={<AddIcon />}
-          onClick={openCreate}
+          onClick={handleOpenCreate}
           aria-label={t('niches.newNiche')}
         >
           {t('niches.newNiche')}
@@ -169,7 +176,7 @@ const NicheListView = () => {
       {showEmpty && (
         <EmptyState
           hasFilters={hasFilters}
-          onNewNiche={openCreate}
+          onNewNiche={handleOpenCreate}
           onClearFilters={resetFilters}
         />
       )}
@@ -180,7 +187,7 @@ const NicheListView = () => {
           ordering={filters.ordering}
           onOrderingChange={setOrdering}
           selection={selection}
-          onRowClick={openEdit}
+          onRowClick={handleOpenEdit}
           onArchive={handleArchive}
           inlineEdit={inlineEdit}
           inlineAdd={inlineAdd}
@@ -199,13 +206,6 @@ const NicheListView = () => {
           />
         </PaginationRow>
       )}
-
-      <NicheDetailDrawer
-        open={drawerState.open}
-        mode={drawerState.mode}
-        selectedId={drawerState.selectedId}
-        onClose={closeDrawer}
-      />
 
       <BulkActionBar selection={selection} sidebarCollapsed={sidebarCollapsed} />
     </Box>

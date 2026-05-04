@@ -87,13 +87,25 @@ describe('useFilterState', () => {
     expect(result.current.activeFilterCount).toBe(1);
   });
 
-  it('changing a value without enabling it does not count as active', () => {
+  it('always-on range filter (e.g. reviews_min) counts immediately when value differs from default', () => {
+    // Range filters are always-on as of the UI cleanup that removed per-filter Switches.
+    // This test pins the new behavior: changing a value on an always-on filter is enough.
     const { result } = renderHook(() => useFilterState());
 
     act(() => {
       result.current.setFilter('reviews_min', 100);
     });
 
+    expect(result.current.activeFilterCount).toBe(1);
+  });
+
+  it('toggle-gated filter (e.g. rating_min) requires both enable and non-default value', () => {
+    const { result } = renderHook(() => useFilterState());
+
+    act(() => {
+      result.current.setFilter('rating_min', 4);
+    });
+    // rating_min default-enabled is false → still 0 even though value changed.
     expect(result.current.activeFilterCount).toBe(0);
   });
 });

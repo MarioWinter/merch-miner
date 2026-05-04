@@ -1,6 +1,6 @@
 # PROJ-6: Niche Deep Research (LangGraph)
 
-**Status:** Ready to Deploy
+**Status:** Deployed
 **Priority:** P0 (MVP)
 **Created:** 2026-02-27
 **Updated:** 2026-03-21

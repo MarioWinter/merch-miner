@@ -6,6 +6,9 @@ on:
     types: [completed]
     branches: [main]
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   deploy:
     name: Deploy to Production
@@ -20,23 +23,51 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           envs: GHCR_TOKEN,GHCR_USER
-          command_timeout: 5m
+          # 15min timeout: image-pull on first deploy after long quiet period
+          # can take a while; web entrypoint also runs migrations + collectstatic.
+          command_timeout: 15m
           script: |
             set -e
             DC="docker compose -f docker-compose.yml -f docker-compose.prod.yml"
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
-            cd /home/dev/merch-miner
+            cd /srv/merch-miner
+            # 0. Pre-deploy DB snapshot (kept on /srv/merch-miner/backups/, last 14 retained)
+            #    Web entrypoint runs `migrate` on startup; if that breaks something
+            #    we want a recent dump to restore from.
+            mkdir -p backups
+            STAMP=$(date -u +'%Y%m%d-%H%M%S')
+            BACKUP_FILE="backups/pre-deploy-${STAMP}.sql.gz"
+            if docker exec supabase-db pg_dump -U merch_miner_user -d merch_miner_db --schema=merch_miner --format=plain 2>/dev/null | gzip > "$BACKUP_FILE"; then
+              echo "DB snapshot: $BACKUP_FILE ($(du -h "$BACKUP_FILE" | cut -f1))"
+              # Retain only the 14 most recent dumps
+              ls -1t backups/pre-deploy-*.sql.gz 2>/dev/null | tail -n +15 | xargs -r rm --
+            else
+              echo "WARN: pg_dump failed (supabase-db unreachable?). Continuing — entrypoint migrations are reversible."
+              rm -f "$BACKUP_FILE"
+            fi
             git fetch origin main && git reset --hard origin/main
             $DC pull
             # 1. Start web + redis + frontend + caddy (entrypoint runs migrate, collectstatic, loaddata, setup_scheduler)
             $DC up -d web redis frontend caddy
-            # 2. Wait for web to be ready (gunicorn responding)
+            # 2. Wait for web to be ready (gunicorn responding) — capped at ~5 min
             echo "Waiting for web..."
-            until $DC exec -T web python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/admin/login/')" 2>/dev/null; do sleep 3; done
-            echo "Web ready."
-            # 3. Start workers
+            ATTEMPTS=0
+            until $DC exec -T web python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/admin/login/')" 2>/dev/null; do
+              ATTEMPTS=$((ATTEMPTS+1))
+              if [ $ATTEMPTS -gt 100 ]; then
+                echo "ERROR: web not responsive after ~5 min — aborting deploy."
+                $DC logs --tail=80 web
+                exit 1
+              fi
+              sleep 3
+            done
+            echo "Web ready (after ${ATTEMPTS} checks)."
+            # 3. Start workers + scheduler + everything else
             $DC up -d --remove-orphans
-            echo "Deployed $(date)"
+            # 4. Final health check — confirm all services reached desired state
+            sleep 5
+            $DC ps
+            echo "Deployed $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
         env:
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           GHCR_USER: ${{ secrets.GHCR_USER }}

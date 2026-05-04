@@ -2,6 +2,7 @@ import axios from 'axios';
 import { store } from '../store';
 import { clearAuth, setLoading, setUser } from '../store/authSlice';
 import { nicheApi } from '../store/nicheSlice';
+import { clearPublishEditQueues } from '../views/publish/hooks/editQueueStorage';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '';
 
@@ -9,6 +10,20 @@ export const apiClient = axios.create({
   baseURL: BASE_URL,
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
+});
+
+// --- Workspace header interceptor ---
+// Every protected endpoint reads `X-Workspace-Id` (see `_get_workspace_id`
+// in publish_app/api/views.py). Without it the backend falls back to the
+// user's first active membership — which silently serves the wrong data
+// when the user has memberships in multiple workspaces.
+apiClient.interceptors.request.use((config) => {
+  const wsId = store.getState().workspace.activeWorkspaceId;
+  if (wsId) {
+    config.headers = config.headers ?? {};
+    config.headers['X-Workspace-Id'] = wsId;
+  }
+  return config;
 });
 
 // --- Token refresh queue ---
@@ -57,6 +72,7 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError);
+        clearPublishEditQueues();
         store.dispatch(nicheApi.util.resetApiState());
         store.dispatch(clearAuth());
         if (window.location.pathname !== '/login') {
@@ -137,7 +153,16 @@ export const hydrateAuth = async () => {
   store.dispatch(setLoading(true));
   try {
     const data = await authService.getMe();
-    store.dispatch(setUser({ id: data.id, email: data.email, first_name: data.first_name ?? '', avatar_url: data.avatar_url ?? null }));
+    store.dispatch(
+      setUser({
+        id: data.id,
+        email: data.email,
+        first_name: data.first_name ?? '',
+        avatar_url: data.avatar_url ?? null,
+        is_staff: data.is_staff ?? false,
+        is_superuser: data.is_superuser ?? false,
+      }),
+    );
   } catch {
     // No active session — stay unauthenticated
   } finally {

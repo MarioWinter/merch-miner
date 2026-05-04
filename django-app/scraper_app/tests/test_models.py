@@ -248,7 +248,12 @@ class TestScrapeJobProductTypeFilter:
 
     def test_valid_choices(self):
         """product_type_filter accepts all defined choices."""
-        valid = ['', 't_shirt', 'hoodie', 'pullover', 'zip_hoodie', 'long_sleeve', 'tank_top']
+        valid = [
+            '', 't_shirt', 'premium_shirt', 'comfort_colors', 'v_neck',
+            'long_sleeve', 'raglan', 'sweatshirt', 'hoodie',
+            'performance_polo', 'zip_hoodie', 'popsocket', 'phone_case',
+            'tote_bag', 'tumbler', 'ceramic_mug', 'tank_top',
+        ]
         for choice in valid:
             job = ScrapeJob.objects.create(
                 mode=ScrapeJob.Mode.LIVE,
@@ -413,3 +418,162 @@ class TestSearchKeywordResult:
         with pytest.raises(IntegrityError):
             with transaction.atomic():
                 SearchKeywordResult.objects.create(search_cache=cache)
+
+
+# ------------------------------------------------------------------
+# ScrapeJob sort_by / price_min / price_max / browse_node (Phase 14)
+# ------------------------------------------------------------------
+
+
+class TestScrapeJobSortAndFilterFields:
+    def test_sort_by_default_empty(self):
+        job = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.LIVE,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+        )
+        assert job.sort_by == ''
+
+    def test_sort_by_valid_choices(self):
+        valid = [
+            '', 'exact-aware-popularity-rank', 'featured-rank',
+            'date-desc-rank', 'price-asc-rank', 'price-desc-rank', 'review-rank',
+        ]
+        for choice in valid:
+            job = ScrapeJob.objects.create(
+                mode=ScrapeJob.Mode.LIVE,
+                marketplace=MarketplaceChoices.AMAZON_COM,
+                sort_by=choice,
+            )
+            job.refresh_from_db()
+            assert job.sort_by == choice
+            job.delete()
+
+    def test_price_min_max_stored(self):
+        from decimal import Decimal
+        job = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.LIVE,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+            price_min=Decimal('9.99'),
+            price_max=Decimal('29.99'),
+        )
+        job.refresh_from_db()
+        assert job.price_min == Decimal('9.99')
+        assert job.price_max == Decimal('29.99')
+
+    def test_price_min_max_default_null(self):
+        job = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.LIVE,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+        )
+        assert job.price_min is None
+        assert job.price_max is None
+
+    def test_browse_node_default_empty(self):
+        job = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.LIVE,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+        )
+        assert job.browse_node == ''
+
+    def test_browse_node_stored(self):
+        job = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.LIVE,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+            browse_node='12035955011',
+        )
+        job.refresh_from_db()
+        assert job.browse_node == '12035955011'
+
+    def test_pages_total_default_2(self):
+        job = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.LIVE,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+        )
+        assert job.pages_total == 2
+
+    def test_pages_total_max_400_accepted(self):
+        job = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.LIVE,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+            pages_total=400,
+        )
+        job.refresh_from_db()
+        assert job.pages_total == 400
+
+    def test_pages_total_max_validator(self):
+        from django.core.exceptions import ValidationError
+        job = ScrapeJob(
+            mode=ScrapeJob.Mode.LIVE,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+            pages_total=401,
+        )
+        with pytest.raises(ValidationError):
+            job.full_clean()
+
+    def test_pages_total_min_validator(self):
+        from django.core.exceptions import ValidationError
+        job = ScrapeJob(
+            mode=ScrapeJob.Mode.LIVE,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+            pages_total=0,
+        )
+        with pytest.raises(ValidationError):
+            job.full_clean()
+
+
+# ------------------------------------------------------------------
+# ProductSearchCache extended cache key fields (Phase 14)
+# ------------------------------------------------------------------
+
+
+class TestProductSearchCacheExtendedFields:
+    def test_sort_by_default_empty(self, keyword):
+        job = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.LIVE,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+        )
+        cache = ProductSearchCache.objects.create(
+            keyword=keyword, scrape_job=job,
+        )
+        assert cache.sort_by == ''
+        assert cache.price_min is None
+        assert cache.price_max is None
+        assert cache.browse_node == ''
+
+    def test_extended_fields_stored(self, keyword):
+        from decimal import Decimal
+        job = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.LIVE,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+        )
+        cache = ProductSearchCache.objects.create(
+            keyword=keyword, scrape_job=job,
+            sort_by='date-desc-rank',
+            price_min=Decimal('5.00'),
+            price_max=Decimal('25.00'),
+            browse_node='12035955011',
+        )
+        cache.refresh_from_db()
+        assert cache.sort_by == 'date-desc-rank'
+        assert cache.price_min == Decimal('5.00')
+        assert cache.price_max == Decimal('25.00')
+        assert cache.browse_node == '12035955011'
+
+    def test_different_sort_creates_separate_cache(self, keyword):
+        """Two caches with same keyword but different sort_by are separate rows."""
+        job1 = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.LIVE,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+        )
+        job2 = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.LIVE,
+            marketplace=MarketplaceChoices.AMAZON_COM,
+        )
+        c1 = ProductSearchCache.objects.create(
+            keyword=keyword, scrape_job=job1, sort_by='',
+        )
+        c2 = ProductSearchCache.objects.create(
+            keyword=keyword, scrape_job=job2, sort_by='date-desc-rank',
+        )
+        assert c1.pk != c2.pk
+        assert ProductSearchCache.objects.filter(keyword=keyword).count() == 2

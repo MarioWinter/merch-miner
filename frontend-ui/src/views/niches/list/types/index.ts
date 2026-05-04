@@ -81,6 +81,7 @@ export interface NicheBulkPayload {
   ids: string[];
   action: BulkAction;
   assigned_to?: string;
+  confirmArchiveIdeas?: boolean;
 }
 
 export interface NicheBulkResponse {

@@ -12,6 +12,7 @@ import { useAppDispatch } from '../../store/hooks';
 import { clearAuth } from '../../store/authSlice';
 import { nicheApi } from '../../store/nicheSlice';
 import { authService } from '../../services/authService';
+import { clearPublishEditQueues } from '../../views/publish/hooks/editQueueStorage';
 
 const StyledAvatar = styled(Avatar)({
   width: 32,
@@ -57,6 +58,7 @@ const ProfileMenu = ({ initial, avatarUrl }: ProfileMenuProps) => {
     } catch {
       // proceed even on backend failure
     } finally {
+      clearPublishEditQueues();
       dispatch(nicheApi.util.resetApiState());
       dispatch(clearAuth());
       navigate('/login', { replace: true });

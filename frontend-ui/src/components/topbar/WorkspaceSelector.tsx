@@ -7,6 +7,7 @@ import CheckIcon from '@mui/icons-material/Check';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '../../store/hooks';
 import { fetchWorkspaces, setActiveWorkspace } from '../../store/workspaceSlice';
+import { publishApi } from '../../store/publishSlice';
 
 const WorkspaceSelectorButton = styled(Button)(({ theme }) => ({
   borderRadius: '999px',
@@ -54,6 +55,14 @@ const WorkspaceSelector = () => {
   };
 
   const handleSelect = (id: string) => {
+    if (id !== activeWorkspaceId) {
+      // Clear every RTK Query cache entry on workspace change so stale
+      // workspace-A data can't bleed into the workspace-B view. Cheaper
+      // than keying every endpoint on workspace_id — the backend already
+      // scopes via X-Workspace-Id, the cache just mirrors whichever was
+      // most recently requested.
+      dispatch(publishApi.util.resetApiState());
+    }
     dispatch(setActiveWorkspace(id));
     handleClose();
   };

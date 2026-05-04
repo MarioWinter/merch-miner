@@ -1,11 +1,6 @@
-import { useEffect, useState } from 'react';
-import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
-import { Box, Button, CircularProgress, Typography } from '@mui/material';
-import LogoutIcon from '@mui/icons-material/Logout';
-import { hydrateAuth, authService } from './services/authService';
-import { clearAuth } from './store/authSlice';
-import { nicheApi } from './store/nicheSlice';
-import { useAppDispatch, useAppSelector } from './store/hooks';
+import { useEffect } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { hydrateAuth } from './services/authService';
 import PrivateRoute from './components/PrivateRoute';
 import AppLayout from './components/AppLayout';
 import LoginPage from './views/auth/login/LoginPage';
@@ -18,48 +13,20 @@ import InviteAcceptView from './views/invite/InviteAcceptView';
 import NicheListView from './views/niches/list/NicheListView';
 import NicheResearchView from './views/niches/research';
 import AmazonResearchView from './views/amazon/research/AmazonResearchView';
-
-// Placeholder — replaced when dashboard is built (PROJ-12)
-const DashboardPlaceholder = () => {
-  const dispatch = useAppDispatch();
-  const navigate = useNavigate();
-  const user = useAppSelector((state) => state.auth.user);
-  const [loggingOut, setLoggingOut] = useState(false);
-
-  const handleLogout = async () => {
-    setLoggingOut(true);
-    try {
-      await authService.logout();
-    } catch {
-      // proceed even if backend call fails
-    } finally {
-      dispatch(nicheApi.util.resetApiState());
-      dispatch(clearAuth());
-      navigate('/login', { replace: true });
-    }
-  };
-
-  return (
-    <Box sx={{ p: 5 }}>
-      <Typography variant="h5" gutterBottom>
-        Dashboard
-      </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Authenticated{user ? ` as ${user.email}` : ''}. Dashboard coming soon (PROJ-12).
-      </Typography>
-      <Button
-        variant="outlined"
-        color="error"
-        startIcon={loggingOut ? <CircularProgress size={16} color="inherit" /> : <LogoutIcon />}
-        onClick={handleLogout}
-        disabled={loggingOut}
-        aria-label="Log out"
-      >
-        {loggingOut ? 'Logging out…' : 'Log out'}
-      </Button>
-    </Box>
-  );
-}
+import IdeaListView from './views/ideas/IdeaListView';
+import ProjectGalleryView from './views/designs/gallery/ProjectGalleryView';
+import DesignWorkspaceView from './views/designs/workspace/DesignWorkspaceView';
+import KeywordResearchView from './views/amazon/keywords/research/KeywordResearchView';
+import PublishView from './views/publish/PublishView';
+import EditView from './views/publish/EditView';
+import DashboardView from './views/dashboard/DashboardView';
+import KanbanBoardView from './views/kanban/KanbanBoardView';
+import ProductDetailPage from './views/amazon/research/detail/ProductDetailPage';
+import SharedChatView from './views/shared/SharedChatView';
+import ImprintPage from './views/legal/imprint/ImprintPage';
+import PrivacyPage from './views/legal/privacy/PrivacyPage';
+import { getStaticFlag } from './utils/getStaticFlag';
+import { FEATURE_FLAGS } from './constants/featureFlags';
 
 
 const App = () => {
@@ -67,24 +34,45 @@ const App = () => {
     hydrateAuth();
   }, []);
 
+  // PROJ-24 AC-22 — gate /register route via static flag (admin-override exempt per AC-20d).
+  // Static evaluation at module/component-construction time → Vite tree-shakes when off.
+  const registrationEnabled = getStaticFlag(FEATURE_FLAGS.REGISTRATION_ENABLED);
+
   return (
     <Routes>
       {/* Public auth routes */}
       <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+      {registrationEnabled && (
+        <Route path="/register" element={<RegisterPage />} />
+      )}
       <Route path="/activate" element={<ActivatePage />} />
       <Route path="/password-reset" element={<PasswordResetPage />} />
       <Route path="/password-reset/confirm" element={<PasswordConfirmPage />} />
       <Route path="/workspaces/invite/accept" element={<InviteAcceptView />} />
 
+      {/* PROJ-24 — public legal pages (no auth) */}
+      <Route path="/legal/imprint" element={<ImprintPage />} />
+      <Route path="/legal/privacy" element={<PrivacyPage />} />
+
+      {/* PROJ-20 Phase 5.6 — public read-only chat viewer (no auth) */}
+      <Route path="/shared/chat/:token" element={<SharedChatView />} />
+
       {/* Protected routes — all wrapped with AppLayout */}
       <Route element={<PrivateRoute />}>
         <Route element={<AppLayout />}>
-          <Route path="/" element={<DashboardPlaceholder />} />
-          <Route path="/dashboard" element={<DashboardPlaceholder />} />
+          <Route path="/" element={<DashboardView />} />
+          <Route path="/dashboard" element={<DashboardView />} />
           <Route path="/niches" element={<NicheListView />} />
           <Route path="/niches/research" element={<NicheResearchView />} />
           <Route path="/amazon/research" element={<AmazonResearchView />} />
+          <Route path="/amazon/research/product/:asin" element={<ProductDetailPage />} />
+          <Route path="/amazon/keywords" element={<KeywordResearchView />} />
+          <Route path="/slogans" element={<IdeaListView />} />
+          <Route path="/designs" element={<ProjectGalleryView />} />
+          <Route path="/designs/:projectId" element={<DesignWorkspaceView />} />
+          <Route path="/publish" element={<PublishView />} />
+          <Route path="/publish/edit" element={<EditView />} />
+          <Route path="/kanban" element={<KanbanBoardView />} />
 
           {/* Settings routes */}
           <Route path="/settings" element={<SettingsLayout />}>

@@ -252,7 +252,7 @@ jobs:
           envs: GHCR_TOKEN,GHCR_USER
           script: |
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
-            cd /home/dev/merch-miner
+            cd /srv/merch-miner
             git fetch origin main && git reset --hard origin/main
             docker compose -f docker-compose.yml -f docker-compose.prod.yml pull
             docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --remove-orphans
@@ -265,8 +265,8 @@ jobs:
 ```
 
 **Server setup prerequisites:**
-- App cloned at `/home/dev/merch-miner` with `origin` remote pointing to GitHub
-- `.env` file present at `/home/dev/merch-miner/.env`
+- App cloned at `/srv/merch-miner` with `origin` remote pointing to GitHub
+- `.env` file present at `/srv/merch-miner/.env`
 - External Docker networks created: `docker network create merch_net` and `supabase-net` (from localai stack)
 - `GHCR_TOKEN` = GitHub PAT with `read:packages` scope; `GHCR_USER` = GitHub username
 

@@ -45,6 +45,76 @@ def test_user_profile_get_authenticated():
 
 
 @pytest.mark.django_db
+def test_user_profile_includes_admin_flags():
+    """PROJ-24 AC-20b: /api/users/me/ must include is_staff + is_superuser as bools."""
+    user = User.objects.create_user(
+        email="regular@test.com",
+        password="TestPassword123!",
+        username="regular@test.com",
+        is_active=True,
+    )
+    client = auth_client(user)
+    url = reverse("user-profile")
+    response = client.get(url)
+
+    assert response.status_code == 200
+    profile = response.json()
+    assert "is_staff" in profile
+    assert "is_superuser" in profile
+    assert isinstance(profile["is_staff"], bool)
+    assert isinstance(profile["is_superuser"], bool)
+    assert profile["is_staff"] is False
+    assert profile["is_superuser"] is False
+
+
+@pytest.mark.django_db
+def test_user_profile_admin_flags_true_for_staff():
+    """PROJ-24 AC-20b: is_staff=True user → response shows is_staff: true."""
+    user = User.objects.create_user(
+        email="staff@test.com",
+        password="TestPassword123!",
+        username="staff@test.com",
+        is_active=True,
+        is_staff=True,
+    )
+    client = auth_client(user)
+    url = reverse("user-profile")
+    response = client.get(url)
+
+    assert response.status_code == 200
+    profile = response.json()
+    assert profile["is_staff"] is True
+    assert profile["is_superuser"] is False
+
+
+@pytest.mark.django_db
+def test_user_profile_admin_flags_readonly():
+    """PROJ-24 AC-20b: is_staff + is_superuser must NEVER be settable via PATCH."""
+    user = User.objects.create_user(
+        email="readonly@test.com",
+        password="TestPassword123!",
+        username="readonly@test.com",
+        is_active=True,
+        is_staff=False,
+        is_superuser=False,
+    )
+    client = auth_client(user)
+    url = reverse("user-profile")
+    response = client.patch(
+        url,
+        {"is_staff": True, "is_superuser": True, "first_name": "Updated"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    user.refresh_from_db()
+    # Privilege escalation must be impossible.
+    assert user.is_staff is False
+    assert user.is_superuser is False
+    assert user.first_name == "Updated"
+
+
+@pytest.mark.django_db
 def test_user_profile_get_unauthenticated():
     """Unauthenticated request to profile endpoint returns 401."""
     api_client = APIClient()

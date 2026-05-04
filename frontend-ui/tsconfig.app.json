@@ -5,7 +5,7 @@
     "useDefineForClassFields": true,
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
-    "types": ["vite/client"],
+    "types": ["vite/client", "gapi", "gapi.auth2", "gapi.client.drive-v3", "google.accounts"],
     "skipLibCheck": true,
 
     /* Bundler mode */
@@ -27,5 +27,13 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/**/*.test.tsx",
+    "src/**/tests/**",
+    "src/**/__tests__/**",
+    "src/utils/test-utils.tsx",
+    "src/setupTests.ts"
+  ]
 }

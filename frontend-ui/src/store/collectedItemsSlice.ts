@@ -1,6 +1,13 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
 import type { RootState } from './index';
 
+/**
+ * CollectedItems state.
+ * - Slogans: tracked here for optimistic UI, but persisted via ideaApi mutations.
+ *   The toggleSlogan action is dispatched alongside the RTK mutation in components.
+ * - Keywords: Redux-only (persist to Keyword Bank in PROJ-10).
+ * - Products: moved to collectedProductsApi (RTK Query, backend-persisted).
+ */
 interface CollectedItems {
   slogans: string[];
   keywords: string[];
@@ -61,6 +68,13 @@ const collectedItemsSlice = createSlice({
       const idx = items.slogans.indexOf(value);
       if (idx >= 0) items.slogans.splice(idx, 1);
     },
+    rollbackSlogan(state, action: PayloadAction<ItemPayload>) {
+      const { nicheId, value } = action.payload;
+      const items = state.byNicheId[nicheId];
+      if (!items) return;
+      const idx = items.slogans.indexOf(value);
+      if (idx >= 0) items.slogans.splice(idx, 1);
+    },
     removeKeyword(state, action: PayloadAction<ItemPayload>) {
       const { nicheId, value } = action.payload;
       const items = state.byNicheId[nicheId];
@@ -74,8 +88,14 @@ const collectedItemsSlice = createSlice({
   },
 });
 
-export const { toggleSlogan, toggleKeyword, removeSlogan, removeKeyword, clearAll } =
-  collectedItemsSlice.actions;
+export const {
+  toggleSlogan,
+  toggleKeyword,
+  removeSlogan,
+  rollbackSlogan,
+  removeKeyword,
+  clearAll,
+} = collectedItemsSlice.actions;
 
 export const selectCollectedSlogans = (state: RootState, nicheId: string): string[] =>
   state.collectedItems.byNicheId[nicheId]?.slogans ?? [];

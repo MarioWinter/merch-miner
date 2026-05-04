@@ -1,0 +1,395 @@
+import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import type { Listing } from '../types';
+
+// ---- Mocks ----
+
+const mockEnqueueSnackbar = vi.fn();
+vi.mock('notistack', () => ({
+  useSnackbar: () => ({ enqueueSnackbar: mockEnqueueSnackbar }),
+}));
+
+const stableT = (key: string, opts?: { defaultValue?: string }) =>
+  opts?.defaultValue ?? key;
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({ t: stableT }),
+}));
+
+// RTK Query mock hooks
+const mockUpdateMutation = vi.fn();
+const mockTranslateMutation = vi.fn();
+const mockLazyExport = vi.fn();
+const mockConvertMutation = vi.fn();
+
+const mockGetListingResult: {
+  data: Listing | null;
+  isLoading: boolean;
+  isFetching: boolean;
+  error: unknown;
+  refetch: () => void;
+} = {
+  data: null,
+  isLoading: false,
+  isFetching: false,
+  error: null,
+  refetch: vi.fn(),
+};
+
+vi.mock('@/store/publishSlice', () => ({
+  useGetListingQuery: () => mockGetListingResult,
+  useUpdateListingMutation: () => [mockUpdateMutation, { isLoading: false }],
+  useTranslateListingMutation: () => [
+    mockTranslateMutation,
+    { isLoading: false },
+  ],
+  useLazyExportListingQuery: () => [mockLazyExport, { isLoading: false }],
+  useConvertListingMutation: () => [mockConvertMutation, { isLoading: false }],
+}));
+
+import { useListingEditor } from '../hooks/useListingEditor';
+
+// ---- Fixtures ----
+
+const makeListing = (overrides: Partial<Listing> = {}): Listing => ({
+  id: 'listing-mba-1',
+  idea: 'idea-1',
+  design: 'design-1',
+  marketplace_type: 'mba',
+  round: 1,
+  brand_name: 'BrandX',
+  title: 'Vintage Cat Shirt',
+  bullet_1: 'B1',
+  bullet_2: 'B2',
+  description: 'Desc',
+  keyword_context: 'cat, vintage',
+  status: 'draft',
+  generated_by: 'ai',
+  availability: 'public',
+  publish_mode: 'live',
+  language: 'en',
+  translations: {},
+  created_at: '',
+  updated_at: '',
+  ...overrides,
+});
+
+const makeFormValues = () => ({
+  brand: 'BrandX',
+  title: 'Title A',
+  bullet_1: 'B1',
+  bullet_2: 'B2',
+  description: 'Desc',
+  keyword_context: 'cat, vintage',
+  translations: {},
+  auto_translate: false,
+  availability: 'public' as const,
+  publish_mode: 'live' as const,
+});
+
+// ---- Tests ----
+
+describe('useListingEditor', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+    mockGetListingResult.data = null;
+    mockGetListingResult.isLoading = false;
+    mockGetListingResult.isFetching = false;
+    mockGetListingResult.error = null;
+  });
+
+  it('skips query when ideaId is null', () => {
+    const { result } = renderHook(() =>
+      useListingEditor({
+        ideaId: null,
+
+        marketplaceType: 'mba',
+      }),
+    );
+    expect(result.current.listing).toBeNull();
+    expect(result.current.listingNotFound).toBe(false);
+  });
+
+  it('exposes listing when loaded', () => {
+    mockGetListingResult.data = makeListing();
+    const { result } = renderHook(() =>
+      useListingEditor({
+        ideaId: 'idea-1',
+
+        marketplaceType: 'mba',
+      }),
+    );
+    expect(result.current.listing?.id).toBe('listing-mba-1');
+    expect(result.current.listing?.marketplace_type).toBe('mba');
+  });
+
+  it('reports notFound on 404 error', () => {
+    mockGetListingResult.error = { status: 404, data: {} };
+    const { result } = renderHook(() =>
+      useListingEditor({
+        ideaId: 'idea-1',
+
+        marketplaceType: 'global',
+      }),
+    );
+    expect(result.current.listingNotFound).toBe(true);
+    expect(result.current.listingError).toBeNull();
+  });
+
+  it('reports hard error on non-404', () => {
+    mockGetListingResult.error = { status: 500, data: {} };
+    const { result } = renderHook(() =>
+      useListingEditor({
+        ideaId: 'idea-1',
+
+        marketplaceType: 'mba',
+      }),
+    );
+    expect(result.current.listingNotFound).toBe(false);
+    expect(result.current.listingError).toEqual({ status: 500, data: {} });
+  });
+
+  // handleGenerate tests removed — `generateListing` endpoint deleted in
+  // PROJ-11 Phase O1. Replacement flow is AI Improve (tested in Phase M).
+
+  it('handleSave serializes form values and calls updateListing', async () => {
+    mockGetListingResult.data = makeListing();
+    mockUpdateMutation.mockReturnValue({
+      unwrap: () => Promise.resolve(makeListing({ title: 'Updated' })),
+    });
+    const { result } = renderHook(() =>
+      useListingEditor({
+        ideaId: 'idea-1',
+
+        marketplaceType: 'mba',
+      }),
+    );
+    await act(async () => {
+      const updated = await result.current.handleSave(makeFormValues());
+      expect(updated?.title).toBe('Updated');
+    });
+    expect(mockUpdateMutation).toHaveBeenCalledWith({
+      id: 'listing-mba-1',
+      body: expect.objectContaining({
+        brand_name: 'BrandX',
+        title: 'Title A',
+        keyword_context: 'cat, vintage',
+        availability: 'public',
+        publish_mode: 'live',
+      }),
+    });
+  });
+
+  it('handleSave warns when no listing loaded', async () => {
+    const { result } = renderHook(() =>
+      useListingEditor({
+        ideaId: 'idea-1',
+
+        marketplaceType: 'mba',
+      }),
+    );
+    await act(async () => {
+      const out = await result.current.handleSave(makeFormValues());
+      expect(out).toBeNull();
+    });
+    expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
+      expect.stringContaining('Create a listing'),
+      { variant: 'warning' },
+    );
+    expect(mockUpdateMutation).not.toHaveBeenCalled();
+  });
+
+  it('scheduleAutoSave debounces and calls updateListing', async () => {
+    mockGetListingResult.data = makeListing();
+    mockUpdateMutation.mockReturnValue({
+      unwrap: () => Promise.resolve(makeListing({ title: 'auto' })),
+    });
+    const { result } = renderHook(() =>
+      useListingEditor({
+        ideaId: 'idea-1',
+
+        marketplaceType: 'mba',
+      }),
+    );
+
+    act(() => {
+      result.current.scheduleAutoSave(makeFormValues());
+    });
+    expect(mockUpdateMutation).not.toHaveBeenCalled();
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+
+    expect(mockUpdateMutation).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancelAutoSave prevents pending save', async () => {
+    mockGetListingResult.data = makeListing();
+    const { result } = renderHook(() =>
+      useListingEditor({
+        ideaId: 'idea-1',
+
+        marketplaceType: 'mba',
+      }),
+    );
+
+    act(() => {
+      result.current.scheduleAutoSave(makeFormValues());
+      result.current.cancelAutoSave();
+    });
+
+    await act(async () => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(mockUpdateMutation).not.toHaveBeenCalled();
+  });
+
+  it('scheduleAutoSave skips when no listing loaded', () => {
+    mockGetListingResult.data = null;
+    const { result } = renderHook(() =>
+      useListingEditor({
+        ideaId: 'idea-1',
+
+        marketplaceType: 'mba',
+      }),
+    );
+    act(() => {
+      result.current.scheduleAutoSave(makeFormValues());
+    });
+    vi.advanceTimersByTime(2000);
+    expect(mockUpdateMutation).not.toHaveBeenCalled();
+  });
+
+  it('handleTranslate calls translate mutation with target listing id', async () => {
+    mockGetListingResult.data = makeListing();
+    mockTranslateMutation.mockReturnValue({
+      unwrap: () => Promise.resolve({}),
+    });
+    const { result } = renderHook(() =>
+      useListingEditor({
+        ideaId: 'idea-1',
+
+        marketplaceType: 'mba',
+      }),
+    );
+    await act(async () => {
+      await result.current.handleTranslate(['de', 'fr']);
+    });
+    expect(mockTranslateMutation).toHaveBeenCalledWith({
+      id: 'listing-mba-1',
+      body: { target_languages: ['de', 'fr'] },
+    });
+  });
+
+  it('handleConvert posts to /api/listings/convert/ and returns listing', async () => {
+    const converted = makeListing({
+      id: 'listing-global-1',
+      marketplace_type: 'global',
+    });
+    mockConvertMutation.mockReturnValue({
+      unwrap: () => Promise.resolve({ ...converted, product_config_seeded: false }),
+    });
+    const { result } = renderHook(() =>
+      useListingEditor({
+        ideaId: 'idea-1',
+
+        marketplaceType: 'global',
+      }),
+    );
+    let out: unknown;
+    await act(async () => {
+      out = await result.current.handleConvert({
+        sourceListingId: 'listing-mba-1',
+        targetMarketplaceType: 'global',
+        overwrite: false,
+      });
+    });
+    expect(mockConvertMutation).toHaveBeenCalledWith({
+      source_listing_id: 'listing-mba-1',
+      target_marketplace_type: 'global',
+      overwrite: false,
+    });
+    expect((out as { id: string }).id).toBe('listing-global-1');
+    expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
+      expect.stringContaining('Listing converted'),
+      { variant: 'success' },
+    );
+  });
+
+  it('handleConvert returns "conflict" on 409 without snackbar', async () => {
+    mockConvertMutation.mockReturnValue({
+      unwrap: () => Promise.reject({ status: 409 }),
+    });
+    const { result } = renderHook(() =>
+      useListingEditor({
+        ideaId: 'idea-1',
+
+        marketplaceType: 'mba',
+      }),
+    );
+    let out: unknown;
+    await act(async () => {
+      out = await result.current.handleConvert({
+        sourceListingId: 'listing-global-1',
+        targetMarketplaceType: 'mba',
+      });
+    });
+    expect(out).toBe('conflict');
+    // Conflict should be silent — parent handles confirm dialog.
+    expect(mockEnqueueSnackbar).not.toHaveBeenCalled();
+  });
+
+  it('handleConvert retries with overwrite=true', async () => {
+    mockConvertMutation.mockReturnValue({
+      unwrap: () =>
+        Promise.resolve(makeListing({ id: 'listing-mba-1', marketplace_type: 'mba' })),
+    });
+    const { result } = renderHook(() =>
+      useListingEditor({
+        ideaId: 'idea-1',
+
+        marketplaceType: 'mba',
+      }),
+    );
+    await act(async () => {
+      await result.current.handleConvert({
+        sourceListingId: 'listing-global-1',
+        targetMarketplaceType: 'mba',
+        overwrite: true,
+      });
+    });
+    expect(mockConvertMutation).toHaveBeenCalledWith({
+      source_listing_id: 'listing-global-1',
+      target_marketplace_type: 'mba',
+      overwrite: true,
+    });
+  });
+
+  it('handleConvert surfaces generic error snackbar on 500', async () => {
+    mockConvertMutation.mockReturnValue({
+      unwrap: () => Promise.reject({ status: 500 }),
+    });
+    const { result } = renderHook(() =>
+      useListingEditor({
+        ideaId: 'idea-1',
+
+        marketplaceType: 'mba',
+      }),
+    );
+    await act(async () => {
+      const out = await result.current.handleConvert({
+        sourceListingId: 'listing-global-1',
+        targetMarketplaceType: 'mba',
+      });
+      expect(out).toBeNull();
+    });
+    expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to convert'),
+      { variant: 'error' },
+    );
+  });
+
+  // handleTMCheck test + stub removed — `tmCheck` endpoint deleted in O1
+  // and the handler stub was stripped in P8.
+});

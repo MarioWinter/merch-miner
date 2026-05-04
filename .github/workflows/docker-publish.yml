@@ -1,11 +1,20 @@
 name: Docker Publish
 
 on:
-  push:
+  # Trigger only after CI passed on main — avoids publishing broken images.
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [main]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   build-and-push:
+    # `workflow_run` events fire on both success and failure; gate explicitly
+    # on success so a red CI does not produce a published image.
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     name: Build & Push to GHCR
     runs-on: ubuntu-latest
     permissions:
@@ -14,6 +23,10 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Build the exact commit that CI just verified (not whatever HEAD
+          # happens to be by the time the workflow_run event fires).
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -48,12 +61,17 @@ jobs:
   build-and-push-frontend:
     name: Build & Push Frontend to GHCR
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
     permissions:
       contents: read
       packages: write
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Build the exact commit that CI just verified (not whatever HEAD
+          # happens to be by the time the workflow_run event fires).
+          ref: ${{ github.event.workflow_run.head_sha }}
 
       - name: Log in to GHCR
         uses: docker/login-action@v3

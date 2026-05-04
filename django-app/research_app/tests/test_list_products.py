@@ -55,6 +55,34 @@ class TestProductListBasic:
         assert len(data['results']) == 2
         assert data['previous'] is not None
 
+    def test_pagination_page_size_100_returns_100(self, auth_client):
+        """page_size=100 returns 100 results (Phase 13 initial infinite-scroll fetch)."""
+        for i in range(120):
+            make_product(asin=f'B0P100{i:04d}', bsr=i + 1)
+
+        resp = auth_client.get(URL, {'page_size': 100})
+        assert resp.status_code == 200
+        data = resp.data
+        assert data['count'] == 120
+        assert len(data['results']) == 100
+        assert data['next'] is not None
+
+    def test_pagination_page_size_200_accepted(self, auth_client):
+        """page_size=200 is accepted by serializer (Phase 13 max_value bumped to 200)."""
+        for i in range(10):
+            make_product(asin=f'B0P200{i:04d}', bsr=i + 1)
+
+        resp = auth_client.get(URL, {'page_size': 200})
+        assert resp.status_code == 200
+        # Only 10 products exist, but request is accepted (no 400)
+        assert resp.data['count'] == 10
+        assert len(resp.data['results']) == 10
+
+    def test_pagination_page_size_201_rejected(self, auth_client):
+        """page_size=201 exceeds max_value=200 and returns 400."""
+        resp = auth_client.get(URL, {'page_size': 201})
+        assert resp.status_code == 400
+
 
 class TestProductListBSRFilter:
     def test_bsr_range_filter(self, auth_client):

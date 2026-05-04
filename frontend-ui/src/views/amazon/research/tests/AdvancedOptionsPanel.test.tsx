@@ -2,13 +2,12 @@ import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { renderWithProviders } from '../../../../utils/test-utils';
 import AdvancedOptionsPanel from '../partials/AdvancedOptionsPanel';
-import { DEFAULT_FILTERS, DEFAULT_FILTER_ENABLED } from '../types';
+import { DEFAULT_FILTERS } from '../types';
 
 const baseProps = {
   open: true,
   isLive: false,
   filters: { ...DEFAULT_FILTERS },
-  enabled: { ...DEFAULT_FILTER_ENABLED },
   onFilterChange: vi.fn(),
   onEnabledChange: vi.fn(),
 };
@@ -96,11 +95,14 @@ describe('AdvancedOptionsPanel', () => {
     }
   });
 
-  it('renders BSR, Reviews, and Price range slider filters', () => {
+  it('renders BSR, Reviews, and Price range slider filters (no enable toggles — always-on)', () => {
     renderWithProviders(<AdvancedOptionsPanel {...baseProps} />);
 
-    expect(screen.getByLabelText('Enable BSR Range filter')).toBeInTheDocument();
-    expect(screen.getByLabelText('Enable Reviews filter')).toBeInTheDocument();
-    expect(screen.getByLabelText('Enable Price ($) filter')).toBeInTheDocument();
+    // The three range filters render their labels and sliders, but no Switch toggles.
+    expect(screen.getByText('BSR Range')).toBeInTheDocument();
+    expect(screen.getByText('Reviews')).toBeInTheDocument();
+    expect(screen.getByText('Price ($)')).toBeInTheDocument();
+    // No filter-enable switches anywhere in the panel.
+    expect(screen.queryByRole('switch')).toBeNull();
   });
 });

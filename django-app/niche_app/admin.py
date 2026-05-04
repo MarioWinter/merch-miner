@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Niche, NicheFilterTemplate
+from .models import Niche, NicheFilterTemplate, NicheNote
 
 
 @admin.register(Niche)
@@ -18,3 +18,12 @@ class NicheFilterTemplateAdmin(admin.ModelAdmin):
     search_fields = ('name',)
     readonly_fields = ('id', 'created_at', 'updated_at')
     raw_id_fields = ('user',)
+
+
+@admin.register(NicheNote)
+class NicheNoteAdmin(admin.ModelAdmin):
+    list_display = ('niche', 'created_by', 'created_at', 'updated_at')
+    list_filter = ('created_by',)
+    search_fields = ('text', 'niche__name')
+    readonly_fields = ('id', 'created_at', 'updated_at')
+    raw_id_fields = ('niche', 'created_by')

@@ -19,7 +19,7 @@ def test_authentication_invalid_jwt_format(client):
     api_client = APIClient()
     api_client.cookies['access_token'] = 'invalid.jwt.format'
     
-    url = reverse('video-list')
+    url = reverse('auth_me')
     response = api_client.get(url)
     
     assert response.status_code == 401
@@ -47,7 +47,7 @@ def test_authentication_expired_jwt(client):
     api_client = APIClient()
     api_client.cookies['access_token'] = expired_token
     
-    url = reverse('video-list')
+    url = reverse('auth_me')
     response = api_client.get(url)
     
     assert response.status_code == 401
@@ -58,7 +58,7 @@ def test_authentication_malformed_cookie(client):
     api_client = APIClient()
     api_client.cookies['access_token'] = 'definitely_not_a_jwt'
     
-    url = reverse('video-list')
+    url = reverse('auth_me')
     response = api_client.get(url)
     
     assert response.status_code == 401
@@ -69,7 +69,7 @@ def test_authentication_empty_cookie(client):
     api_client = APIClient()
     api_client.cookies['access_token'] = ''
     
-    url = reverse('video-list')
+    url = reverse('auth_me')
     response = api_client.get(url)
     
     assert response.status_code == 401
@@ -79,7 +79,7 @@ def test_authentication_missing_cookie(client):
     """Test authentication with missing cookie."""
     api_client = APIClient()
     
-    url = reverse('video-list')
+    url = reverse('auth_me')
     response = api_client.get(url)
     
     assert response.status_code == 401
@@ -98,7 +98,7 @@ def test_authentication_jwt_for_nonexistent_user(client):
     api_client = APIClient()
     api_client.cookies['access_token'] = fake_token
     
-    url = reverse('video-list')
+    url = reverse('auth_me')
     response = api_client.get(url)
     
     assert response.status_code == 401
@@ -119,7 +119,7 @@ def test_authentication_jwt_for_inactive_user(client):
     api_client = APIClient()
     api_client.cookies['access_token'] = access_token
     
-    url = reverse('video-list')
+    url = reverse('auth_me')
     response = api_client.get(url)
     
     assert response.status_code == 401
@@ -145,7 +145,7 @@ def test_authentication_jwt_with_wrong_secret(client):
     api_client = APIClient()
     api_client.cookies['access_token'] = wrong_secret_token
     
-    url = reverse('video-list')
+    url = reverse('auth_me')
     response = api_client.get(url)
     
     assert response.status_code == 401
@@ -168,7 +168,7 @@ def test_authentication_blacklisted_access_token(client):
     api_client = APIClient()
     api_client.cookies['access_token'] = access_token
     
-    url = reverse('video-list')
+    url = reverse('auth_me')
     response = api_client.get(url)
     
     assert response.status_code in [200, 401]
@@ -249,7 +249,7 @@ def test_multiple_concurrent_sessions(client):
     api_client2 = APIClient()
     api_client2.cookies['access_token'] = access_token2
     
-    url = reverse('video-list')
+    url = reverse('auth_me')
     
     response1 = api_client1.get(url)
     response2 = api_client2.get(url)

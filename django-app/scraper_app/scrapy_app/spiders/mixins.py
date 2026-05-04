@@ -212,12 +212,25 @@ class ProductDetailMixin:
 
     @staticmethod
     def _extract_rating_count(response, detail):
-        """Extract review/rating count as integer."""
-        text = (response.css(detail['rating_count']).get('') or '').strip()
-        if text:
-            cleaned = re.sub(r'[^\d]', '', text)
-            if cleaned:
-                return int(cleaned)
+        """Extract review/rating count as integer.
+
+        Tries multiple selectors in order:
+        1. #acrCustomerReviewText aria-label  ("14 Reviews")
+        2. #acrCustomerReviewText text         ("(14)")
+        3. span[data-hook=total-review-count]  ("14 global ratings")
+        4. div[data-hook=total-review-count]   (legacy fallback)
+
+        Returns first successfully parsed integer, or None.
+        """
+        selectors = detail['rating_count']
+        if isinstance(selectors, str):
+            selectors = [selectors]
+        for selector in selectors:
+            text = (response.css(selector).get('') or '').strip()
+            if text:
+                cleaned = re.sub(r'[^\d]', '', text)
+                if cleaned:
+                    return int(cleaned)
         return None
 
     @staticmethod
@@ -233,7 +246,28 @@ class ProductDetailMixin:
         """
         bsr_categories = []
 
-        # --- Format 1: ul.zg_hrsr (sidebar list) ---
+        # --- Format 1: ul.zg_hrsr (sidebar/inline list) ---
+        # First: extract main category from parent text BEFORE the ul.zg_hrsr
+        # HTML: "#1,316,741 in Clothing, Shoes & Jewelry (See Top 100...)" <ul class="zg_hrsr">...</ul>
+        zg_parent = response.css('ul.zg_hrsr')
+        if zg_parent:
+            parent_el = zg_parent[0].xpath('..')
+            if parent_el:
+                parent_texts = parent_el.css('::text').getall()
+                parent_text = ' '.join(t.strip() for t in parent_texts if t.strip())
+                # Extract main category: "#N in CategoryName (See Top 100..."
+                main_match = re.search(r'#([\d,]+)\s+in\s+([^()\n]+?)(?:\s*\(|$)', parent_text)
+                if main_match:
+                    rank = int(main_match.group(1).replace(',', ''))
+                    cat_name = main_match.group(2).strip()
+                    if cat_name:
+                        bsr_categories.append({
+                            'rank': rank,
+                            'category': cat_name,
+                            'category_url': '',
+                        })
+
+        # Then: extract subcategories from ul.zg_hrsr li items
         bsr_items = response.css(detail['bsr_list'])
         for item in bsr_items:
             texts = item.css('::text').getall()
@@ -241,14 +275,25 @@ class ProductDetailMixin:
             rank_match = re.search(r'#([\d,]+)', full_text)
             if rank_match:
                 rank = int(rank_match.group(1).replace(',', ''))
-                cat_link = item.css('a')
-                cat_name = (cat_link.css('::text').get('') or '').strip()
-                cat_url = cat_link.attrib.get('href', '')
-                bsr_categories.append({
-                    'rank': rank,
-                    'category': cat_name,
-                    'category_url': cat_url,
-                })
+                # Extract category name from "in CategoryName" text
+                in_match = re.search(r'in\s+(.+?)$', full_text)
+                if in_match:
+                    cat_name = in_match.group(1).strip()
+                else:
+                    cat_link = item.css('a')
+                    cat_name = (cat_link.css('::text').get('') or '').strip()
+                cat_url = ''
+                for a in item.css('a'):
+                    link_text = (a.css('::text').get('') or '').strip()
+                    if link_text and not link_text.startswith('See Top 100'):
+                        cat_url = a.attrib.get('href', '')
+                        break
+                if cat_name and not any(c['category'] == cat_name for c in bsr_categories):
+                    bsr_categories.append({
+                        'rank': rank,
+                        'category': cat_name,
+                        'category_url': cat_url,
+                    })
 
         # --- Format 2: Product Details table (any table with BSR row) ---
         # Catches both #productDetails_detailBullets_sections1 and
@@ -271,26 +316,32 @@ class ProductDetailMixin:
                         rank_match = re.search(r'#([\d,]+)', full_text)
                         if rank_match:
                             rank = int(rank_match.group(1).replace(',', ''))
-                            cat_link = li.css('a')
-                            cat_name = (cat_link.css('::text').get('') or '').strip()
-                            cat_url = cat_link.attrib.get('href', '')
-                            # Skip "See Top 100" links — use the last link as category
-                            if cat_name.startswith('See Top 100'):
-                                all_links = li.css('a')
-                                if len(all_links) > 1:
-                                    cat_link = all_links[-1]
-                                    cat_name = (cat_link.css('::text').get('') or '').strip()
-                                    cat_url = cat_link.attrib.get('href', '')
-                                else:
-                                    # Extract category from "in CategoryName" text
-                                    in_match = re.search(r'in\s+(.+?)(?:\s*\(|$)', full_text)
-                                    cat_name = in_match.group(1).strip() if in_match else cat_name
-                                    cat_url = ''
-                            bsr_categories.append({
-                                'rank': rank,
-                                'category': cat_name,
-                                'category_url': cat_url,
-                            })
+                            # Extract category name from "in CategoryName" text
+                            in_match = re.search(r'in\s+(.+?)(?:\s*\(|$)', full_text)
+                            if in_match:
+                                cat_name = in_match.group(1).strip()
+                            else:
+                                # Fallback: use the first non-"See Top 100" link text
+                                cat_name = ''
+                                for a in li.css('a'):
+                                    link_text = (a.css('::text').get('') or '').strip()
+                                    if link_text and not link_text.startswith('See Top 100'):
+                                        cat_name = link_text
+                                        break
+                            # Get URL from non-"See Top 100" link if available
+                            cat_url = ''
+                            for a in li.css('a'):
+                                href = a.attrib.get('href', '')
+                                link_text = (a.css('::text').get('') or '').strip()
+                                if href and not link_text.startswith('See Top 100'):
+                                    cat_url = href
+                                    break
+                            if cat_name:
+                                bsr_categories.append({
+                                    'rank': rank,
+                                    'category': cat_name,
+                                    'category_url': cat_url,
+                                })
                 else:
                     # Fallback: flat text parsing (original productDetails format)
                     cell_texts = value_cell.css('::text').getall()
@@ -322,35 +373,33 @@ class ProductDetailMixin:
                 break
 
         # --- Format 3: Detail Bullets wrapper ---
+        # Handles both #detailBullets_feature_div and inline BSR with nested ul.zg_hrsr
         if not bsr_categories:
-            bullets = response.css('#detailBullets_feature_div li')
-            for bullet in bullets:
+            # Try the detail bullets section
+            bsr_containers = response.css('#detailBullets_feature_div li')
+            for bullet in bsr_containers:
                 bullet_text = ' '.join(bullet.css('::text').getall())
-                if 'best sellers rank' in bullet_text.lower() or 'ranking' in bullet_text.lower():
-                    for match in re.finditer(r'#([\d,]+)\s+in\s+([^()\n]+?)(?:\s*\(|$)', bullet_text):
-                        rank = int(match.group(1).replace(',', ''))
-                        cat_name = match.group(2).strip()
+                if 'best sellers rank' not in bullet_text.lower() and 'ranking' not in bullet_text.lower():
+                    continue
+                # Parse ALL "#N in Category" patterns from the full text
+                for match in re.finditer(r'#([\d,]+)\s+in\s+([^()\n]+?)(?:\s*\(|$)', bullet_text):
+                    rank = int(match.group(1).replace(',', ''))
+                    cat_name = match.group(2).strip()
+                    if cat_name and not any(c['category'] == cat_name for c in bsr_categories):
+                        # Find URL for this category from links
+                        cat_url = ''
+                        for link in bullet.css('a'):
+                            link_text = (link.css('::text').get('') or '').strip()
+                            if link_text and not link_text.startswith('See Top 100'):
+                                if link_text == cat_name:
+                                    cat_url = link.attrib.get('href', '')
+                                    break
                         bsr_categories.append({
                             'rank': rank,
                             'category': cat_name,
-                            'category_url': '',
+                            'category_url': cat_url,
                         })
-                    # Also check links within the bullet
-                    for link in bullet.css('a'):
-                        link_text = (link.css('::text').get('') or '').strip()
-                        link_href = link.attrib.get('href', '')
-                        if link_text and '/bestsellers/' in link_href:
-                            rank_pattern = re.search(
-                                r'#([\d,]+)\s+in\s+' + re.escape(link_text),
-                                bullet_text,
-                            )
-                            if rank_pattern and not any(c['category'] == link_text for c in bsr_categories):
-                                rank = int(rank_pattern.group(1).replace(',', ''))
-                                bsr_categories.append({
-                                    'rank': rank,
-                                    'category': link_text,
-                                    'category_url': link_href,
-                                })
+                break
 
         # --- Format 4: Raw text search as last resort ---
         if not bsr_categories:
@@ -482,8 +531,8 @@ class ProductDetailMixin:
             ('tee shirt', 't_shirt'),
             ('tee', 't_shirt'),
             ('hoodie', 'hoodie'),
-            ('pullover', 'pullover'),
-            ('sweatshirt', 'pullover'),
+            ('pullover', 'sweatshirt'),
+            ('sweatshirt', 'sweatshirt'),
         ]
 
         for suffix, product_type in type_mapping:
@@ -516,11 +565,34 @@ class SearchPageMixin:
     def _build_search_url(self, page=1):
         """Build Amazon search URL with keyword + product_type_filter params."""
         base_url = get_base_url(self.marketplace)
-        search_url = f"{base_url}/s?k={quote_plus(self.keyword)}&page={page}"
+
+        # When keyword is empty (browse-node-only scrape), omit &k= param
+        if self.keyword:
+            search_url = f"{base_url}/s?k={quote_plus(self.keyword)}&page={page}"
+        else:
+            search_url = f"{base_url}/s?page={page}"
+
         if self.search_index:
             search_url += f"&i={self.search_index}"
         if self.seller_filter:
             search_url += f"&rh=p_6:{self.seller_filter}"
+
+        sort_by = getattr(self, "sort_by", None)
+        if sort_by:
+            search_url += f"&s={sort_by}"
+
+        price_min = getattr(self, "price_min", None)
+        if price_min is not None and price_min != "":
+            search_url += f"&low-price={price_min}"
+
+        price_max = getattr(self, "price_max", None)
+        if price_max is not None and price_max != "":
+            search_url += f"&high-price={price_max}"
+
+        browse_node = getattr(self, "browse_node", None)
+        if browse_node:
+            search_url += f"&bbn={browse_node}"
+
         return search_url
 
     def _increment_pages_done(self):
@@ -668,13 +740,14 @@ class SearchPageMixin:
         }
 
     def _get_pagination_requests(self, response, callback):
-        """Generate pagination requests for pages 2..max_pages (only on page 1)."""
+        """Generate pagination requests for remaining pages (only on first page)."""
         page = response.meta["page"]
         keyword = response.meta["keyword"]
         marketplace = response.meta["marketplace"]
         job_id = response.meta.get("job_id")
 
-        if page != 1:
+        start_page = getattr(self, "start_page", 1)
+        if page != start_page:
             return
 
         selectors = get_selectors(marketplace)
@@ -688,10 +761,10 @@ class SearchPageMixin:
             except ValueError:
                 continue
 
-        last_page = max(numeric_pages) if numeric_pages else 1
-        last_page = min(last_page, self.max_pages)
+        last_page = max(numeric_pages) if numeric_pages else start_page
+        last_page = min(last_page, start_page + self.max_pages - 1)
 
-        for next_page in range(2, last_page + 1):
+        for next_page in range(start_page + 1, last_page + 1):
             next_url = self._build_search_url(page=next_page)
             yield scrapy.Request(
                 url=next_url,

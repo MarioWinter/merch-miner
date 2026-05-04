@@ -95,11 +95,11 @@
     "reports": "Reports",
     "niches": "Niche Claims",
     "research": "Product Drilling",
-    "slogans": "Slogan Refinery",
+    "slogans": "Slogan Factory",
     "designs": "Design Forge",
     "listings": "Listing Loadout",
-    "amazonResearch": "Amazon Deep Dive",
-    "keywords": "Keyword Lode",
+    "amazonResearch": "Amazon Research",
+    "keywords": "Keyword Drilling",
     "uploads": "Upload Rig",
     "kanban": "Team Kanban",
     "sections": {
@@ -107,7 +107,9 @@
       "pipeline": "Pipeline",
       "drillingZone": "Drilling Zone",
       "surfaceOps": "Surface Ops"
-    }
+    },
+    "designBoard": "Design Forge",
+    "imageEditor": "Image Editor"
   },
   "invite": {
     "successTitle": "You've joined the workspace!",
@@ -182,9 +184,9 @@
       "unassigned": "Unassigned",
       "deepDrill": {
         "idle": "Start Deep Drill",
-        "running": "Deep Drill running\u2026",
+        "running": "Deep Drill running…",
         "completed": "View Results",
-        "failed": "Deep Drill failed \u2014 retry",
+        "failed": "Deep Drill failed — retry",
         "bulkLabel": "Deep Drill ({{count}})",
         "bulkDisabled": "Coming soon"
       }
@@ -208,6 +210,9 @@
       "archiveConfirmBody": "The niche will be hidden from the list but not deleted.",
       "archiveConfirm": "Archive",
       "archiveCancel": "Cancel",
+      "archiveLinkedIdeasTitle": "Niche has linked ideas",
+      "archiveLinkedIdeasBody": "This niche has {{count}} linked idea(s). Archiving the niche will also archive all linked ideas.",
+      "archiveLinkedIdeasConfirm": "Archive all",
       "unsavedChangesTitle": "Unsaved changes",
       "unsavedChangesBody": "You have unsaved changes. Discard them?",
       "discardChanges": "Discard",
@@ -215,7 +220,34 @@
       "collectedSlogans": "Collected Slogans",
       "collectedKeywords": "Collected Keywords",
       "copyAll": "Copy All",
-      "copiedAll": "All copied to clipboard"
+      "copiedAll": "All copied to clipboard",
+      "collectedProducts": {
+        "title": "Collected Products",
+        "clearAll": "Clear All",
+        "previous": "Previous product",
+        "next": "Next product",
+        "counter": "{{current}} of {{total}}",
+        "extractKeywords": "Extract Keywords",
+        "useAsTemplate": "Use as Listing Template",
+        "openDetail": "Open Detail Page",
+        "openAmazon": "Open on Amazon",
+        "remove": "Remove",
+        "removeTooltip": "Remove from collected products",
+        "keywordsExtracted": "Keywords copied to clipboard",
+        "keywordsExtractFailed": "Failed to copy keywords",
+        "templateCreated": "Listing template created",
+        "templateFailed": "Failed to create listing template",
+        "empty": "No products collected yet",
+        "addProduct": "Add Product",
+        "selected": "{{count}} selected",
+        "sendToCanvas": "Send {{count}} to Canvas",
+        "sendToKeywords": "Send to Keywords",
+        "sendToSlogans": "Send to Slogans",
+        "sendToDesign": "Send to Canvas",
+        "viewDetail": "View Detail",
+        "addedToCanvas": "Added {{count}} reference(s) to {{project}}",
+        "addToCanvasFailed": "Failed to add references to canvas"
+      }
     },
     "empty": {
       "noNiches": "No niches yet",
@@ -248,7 +280,9 @@
       "archiveSuccess": "Niche archived",
       "createError": "Failed to create niche",
       "updateError": "Failed to update niche",
-      "archiveError": "Failed to archive niche"
+      "archiveError": "Failed to archive niche",
+      "archiveWithIdeasSuccess": "Niche and linked ideas archived",
+      "archiveBlocked": "Archive cancelled — ideas still linked to this niche"
     },
     "inlineAdd": {
       "addNiche": "+ Add niche…",
@@ -269,6 +303,17 @@
       "updateError": "Failed to update template",
       "deleteSuccess": "Template deleted",
       "deleteError": "Failed to delete template"
+    },
+    "pipeline": {
+      "slogans": {
+        "empty": "No slogans collected yet",
+        "toCanvas": "Send to Design Canvas",
+        "forgeSelected": "Forge {{count}} to Canvas"
+      },
+      "designs": {
+        "toListings": "Send to Listings",
+        "openCanvas": "Open Design Canvas"
+      }
     }
   },
   "research": {
@@ -495,5 +540,2680 @@
       "noWorkspace": "No workspace found",
       "activeWorkspace": "Active workspace"
     }
+  },
+  "ideas": {
+    "pageTitle": "Slogan Factory",
+    "newIdea": "New Idea",
+    "batchHint": "Enter slogans (one per line for batch input)...",
+    "adapted": "adapted",
+    "delete": "Delete",
+    "empty": {
+      "title": "No ideas yet",
+      "hint": "Create your first idea or run research to discover slogans.",
+      "cta": "Create Idea",
+      "selectNiche": "Select a niche to view ideas"
+    },
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "for_review": "For Review"
+    },
+    "signal": {
+      "self": "SELF",
+      "other": "OTHER"
+    },
+    "confidence": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "adapt": {
+      "button": "Adapt",
+      "modalTitle": "Select Target Niches",
+      "source": "Source",
+      "selectTargets": "Target niches",
+      "autoSelect": "Auto-Select Top 5",
+      "confirm": "Adapt",
+      "cancel": "Cancel",
+      "progress": "Adaptation Progress",
+      "currentNode": "Running: {{node}}",
+      "noCompatible": "No compatible niches found",
+      "started": "Adaptation started",
+      "completed": "Adaptation completed",
+      "failed": "Adaptation failed",
+      "error": "Failed to start adaptation",
+      "adaptAll": "Adapt to All Compatible",
+      "runStatus": {
+        "pending": "Pending",
+        "running": "Running",
+        "completed": "Completed",
+        "failed": "Failed"
+      }
+    },
+    "improve": {
+      "button": "Improve",
+      "dialogTitle": "Improve Slogan",
+      "feedbackPlaceholder": "Optional feedback for the AI...",
+      "variantsCount": "{{count}} variants generated",
+      "selectVariant": "Select",
+      "cancel": "Cancel",
+      "success": "Improved variants generated",
+      "error": "Failed to improve slogan"
+    },
+    "regenerate": {
+      "button": "Regenerate",
+      "confirm": "Generate a new slogan?",
+      "success": "Slogan regenerated",
+      "error": "Failed to regenerate slogan"
+    },
+    "extract": {
+      "button": "Extract Slogan",
+      "success": "Slogan extracted and saved as idea",
+      "error": "Failed to extract slogan",
+      "bulkLabel": "Extract Slogans ({{count}})"
+    },
+    "history": {
+      "title": "History",
+      "qualityChecked": "Modified by Quality Check",
+      "actor": {
+        "user": "User",
+        "agent": "Agent",
+        "quality_check": "Quality Check"
+      }
+    },
+    "bulk": {
+      "selected": "{{count}} selected",
+      "selectIdea": "Select idea",
+      "approve": "Approve",
+      "reject": "Reject",
+      "clear": "Clear selection",
+      "updateSuccess": "{{count}} ideas updated",
+      "updateError": "Failed to update ideas"
+    },
+    "niche": {
+      "noResearchWarning": "Some niches have no research data - results may be lower quality.",
+      "alreadyAdapted": "Already adapted",
+      "researchDone": "Deep Drill research completed — full data available",
+      "noResearch": "No Deep Drill research — adaptation quality may be limited"
+    },
+    "notifications": {
+      "createSuccess": "{{count}} idea(s) created",
+      "createError": "Failed to create idea",
+      "updateError": "Failed to update idea",
+      "deleteSuccess": "Idea deleted",
+      "deleteError": "Failed to delete idea",
+      "loadError": "Failed to load ideas"
+    },
+    "filter": {
+      "allNiches": "All Niches",
+      "allStatuses": "All Statuses",
+      "allSignals": "All Signals",
+      "noNiche": "No Niche",
+      "clearFilters": "Clear filters",
+      "ordering_newest": "Newest first",
+      "ordering_oldest": "Oldest first",
+      "ordering_text_asc": "Text A-Z",
+      "ordering_text_desc": "Text Z-A"
+    },
+    "noNicheChip": "No niche",
+    "noNicheTooltip": "Assign a niche before adapting",
+    "inlineAdd": {
+      "placeholder": "Add new slogan...",
+      "batchHint": "Shift+Enter for new line. Each line creates a separate idea."
+    },
+    "import": {
+      "button": "Import",
+      "title": "Import Ideas",
+      "dropHint": "Drop a CSV or XLSX file here, or click to browse",
+      "preview": "Preview",
+      "confirm": "Import",
+      "success": "{{count}} ideas imported",
+      "warnings": "Import completed with warnings",
+      "noData": "No valid data found in file",
+      "tooMany": "Max {{max}} items allowed. File truncated.",
+      "parseError": "Failed to parse file",
+      "andMore": "and {{count}} more",
+      "reset": "Reset"
+    },
+    "sourceGroup": {
+      "adapted": "adapted",
+      "expand": "Expand group",
+      "collapse": "Collapse group"
+    },
+    "filterTemplate": {
+      "button": "Templates",
+      "save": "Save",
+      "saveFilters": "Save current filters",
+      "updateCurrent": "Update current template",
+      "delete": "Delete template",
+      "loading": "Loading...",
+      "empty": "No saved templates",
+      "namePlaceholder": "Template name...",
+      "saveSuccess": "Filter template saved",
+      "saveError": "Failed to save template",
+      "updateSuccess": "Template updated",
+      "updateError": "Failed to update template",
+      "deleteSuccess": "Template deleted",
+      "deleteError": "Failed to delete template"
+    },
+    "rejectWarning": {
+      "title": "Idea Has Approved Design",
+      "body": "This idea has an approved design. Rejecting the idea will not delete the design, but it will no longer be linked to the pipeline. Continue?",
+      "confirm": "Reject Idea",
+      "cancel": "Cancel"
+    }
+  },
+  "design": {
+    "prompt": {
+      "expandBar": "Open prompt bar",
+      "placeholder": "Describe what you want to create...",
+      "header": "Edit AI Image Board",
+      "close": "Close prompt bar",
+      "sourceThumbnail": "Source image",
+      "resultThumbnail": "Result image",
+      "inputPlaceholder": "Describe the design you want to generate...",
+      "inputLabel": "Design prompt",
+      "builder": "Prompt builder",
+      "generate": "Generate",
+      "generating": "Generating...",
+      "regenerate": "Regenerate"
+    },
+    "generation": {
+      "zoneLabel": "Generation controls",
+      "images": "Images",
+      "imageCount": "Number of images",
+      "parallelSwitch": "Parallel prompts",
+      "parallelLabel": "Parallel Prompts",
+      "parallelHint": "Each new line = separate image",
+      "parallelPlaceholder": "Enter prompts (each line = separate image)...",
+      "singlePlaceholder": "Describe your design...",
+      "analyzeTooltip": "Generate prompt based on your image",
+      "analyzeUpload": "Upload an image to analyze",
+      "analyzeImage": "Analyze image",
+      "builderTooltip": "Open Prompt Builder",
+      "openBuilder": "Open Prompt Builder",
+      "collapsed": "Generation",
+      "generateGroup": "Generate actions",
+      "generateAll": "Generate All ({{count}})",
+      "moreOptions": "More generate options",
+      "res": "Res.",
+      "resolution": "Resolution",
+      "mode": {
+        "label": "Mode",
+        "textToImage": "Text to Image",
+        "remixImage": "Image to Image (Remix Image)",
+        "editImage": "Image to Image (Edit Image)"
+      },
+      "withReference": "Generating with reference image",
+      "clearReference": "Clear reference image"
+    },
+    "canvas": {
+      "emptyTitle": "Drop images or create an AI Image Board",
+      "emptyDescription": "Drag images from your desktop or use the toolbar to get started.",
+      "dropHint": "Drop images to create artboards",
+      "browseFiles": "Browse Files",
+      "deleteDialogTitle": "Delete Designs",
+      "deleteDialogBody": "{{count}} design(s) will be permanently deleted from the server. This cannot be undone.",
+      "deleteConfirm": "Delete",
+      "deleteCancel": "Cancel",
+      "deleteSuccess": "Designs deleted",
+      "deleteError": "Failed to delete designs",
+      "text": {
+        "fontFamily": "Font",
+        "fontSize": "Size",
+        "bold": "Bold",
+        "italic": "Italic",
+        "color": "Color",
+        "align": "Alignment",
+        "letterSpacing": "Letter Spacing",
+        "lineHeight": "Line Height",
+        "outline": "Outline",
+        "shadow": "Shadow",
+        "arc": "Curved Text",
+        "arcAngle": "Arc Angle",
+        "strokeWidth": "Stroke Width",
+        "shadowBlur": "Blur",
+        "shadowOffset": "Offset",
+        "placeholder": "Type here"
+      },
+      "shapes": {
+        "fill": "Fill",
+        "stroke": "Stroke",
+        "strokeWidth": "Stroke Width",
+        "cornerRadius": "Corner Radius",
+        "pen": "Pen",
+        "rectangle": "Rectangle",
+        "ellipse": "Ellipse",
+        "triangle": "Triangle",
+        "line": "Line"
+      },
+      "brush": {
+        "color": "Color",
+        "size": "Brush Size",
+        "smoothing": "Smoothing"
+      },
+      "layers": {
+        "title": "Layers",
+        "empty": "No layers",
+        "visible": "Toggle visibility",
+        "lock": "Toggle lock",
+        "rename": "Rename layer"
+      }
+    },
+    "board": {
+      "title": "Design Forge",
+      "prompt": "Prompt",
+      "promptPlaceholder": "Describe the design you want to generate...",
+      "promptRequired": "Please enter a prompt first",
+      "generate": "Generate Design",
+      "generating": "Generating...",
+      "generateError": "Failed to generate design",
+      "generationFailed": "Design generation failed",
+      "retry": "Retry",
+      "references": "Reference Images",
+      "noReferences": "No reference images available",
+      "usePrompt": "Use Prompt",
+      "useThisPrompt": "Use this prompt in the editor",
+      "goBack": "Back",
+      "loadError": "Failed to load design board",
+      "analysisBreakdown": "7-Step Analysis Breakdown",
+      "jumpButton": "Open Design Forge",
+      "analysisStep": {
+        "text_dna": "Text DNA",
+        "visual": "Visual Analysis",
+        "spatial": "Spatial Layout",
+        "style": "Style",
+        "color": "Color Palette",
+        "tech": "Technical",
+        "final_prompt": "Final Prompt"
+      },
+      "noImage": "No image available",
+      "externalImage": "External image",
+      "openInEditor": "Open in Editor",
+      "referenceDetails": "Reference Details",
+      "designDetails": "Design Details",
+      "nodeDetails": "Node Details",
+      "visualStyle": "Visual Style",
+      "graphicElements": "Graphic Elements",
+      "tone": "Tone",
+      "vibe": "Vibe",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "fitView": "Fit to view",
+      "addHub": "Add Generate Hub",
+      "addImage": "Add image",
+      "toggleMinimap": "Toggle minimap",
+      "nodeCount": "{{count}} nodes",
+      "nodeCount_one": "{{count}} node",
+      "cancel": "Cancel",
+      "dropImages": "Drop images here",
+      "regenerate": "Regenerate"
+    },
+    "model": {
+      "label": "AI Model",
+      "placeholder": "Select model"
+    },
+    "background": {
+      "label": "Background Color",
+      "light_gray": "Light Gray",
+      "neon_pink": "Neon Pink",
+      "neon_green": "Neon Green"
+    },
+    "status": {
+      "pending": "Pending",
+      "approved": "Approved",
+      "rejected": "Rejected",
+      "failed": "Failed"
+    },
+    "gallery": {
+      "title": "Generated Designs",
+      "approve": "Approve",
+      "reject": "Reject",
+      "download": "Download",
+      "delete": "Delete",
+      "approved": "Design approved",
+      "rejected": "Design rejected",
+      "deleted": "Design deleted",
+      "approveError": "Failed to approve design",
+      "rejectError": "Failed to reject design",
+      "deleteError": "Failed to delete design",
+      "imageAlt": "Generated design",
+      "noImage": "No image"
+    },
+    "empty": {
+      "noDesigns": "No designs yet",
+      "cta": "Generate your first design using the prompt editor"
+    },
+    "batch": {
+      "selectedCount": "{{count}} selected",
+      "processButton": "Upscale + Remove BG",
+      "started": "Batch processing started",
+      "triggerError": "Failed to start batch processing",
+      "jobFailed": "{{type}} failed",
+      "upscale": "Upscale",
+      "bg_remove": "BG Remove",
+      "failure": "Batch processing failed",
+      "jobCompleted": "Processing job completed"
+    },
+    "analyze": {
+      "button": "Analyze Design",
+      "started": "Image analysis started",
+      "success": "Design analyzed - prompt ready for Design Forge",
+      "error": "Failed to analyze image",
+      "reused": "Analysis ready"
+    },
+    "promptBuilder": {
+      "openButton": "Build Prompt",
+      "title": "Prompt Builder",
+      "titleBulk": "Building prompts for {{count}} slogans",
+      "slogan": "Slogan",
+      "selectSlogan": "Select slogan",
+      "bulkSelected": "{{count}} slogans selected",
+      "keywords": "Keywords",
+      "noNicheKeywords": "Link a niche to enable keywords",
+      "research": "AI Research",
+      "noResearch": "No research data available",
+      "webResearch": "Web Research",
+      "notAvailable": "Not available — run Deep Web Search first",
+      "image": "Reference Image",
+      "uploadImage": "Upload Image",
+      "variants": "Variants",
+      "preview": "Prompt Preview",
+      "variantLabel": "Variant {{n}}",
+      "noPreview": "Toggle sources to see a preview",
+      "build": "Build Prompt(s)",
+      "buildBulk": "Build {{count}} Prompt(s)",
+      "buildError": "Failed to build prompts",
+      "buildSuccess": "{{count}} prompt(s) saved",
+      "saveError": "Failed to save prompts",
+      "noKeywordsFound": "No keywords found for this niche",
+      "noResearchData": "Run AI Research first to enable this source",
+      "visualStyle": "Visual Style",
+      "graphicElements": "Graphics",
+      "vibe": "Vibe",
+      "tone": "Tone",
+      "aesthetics": "Aesthetics",
+      "analyzeImage": "Analyze",
+      "generatePrompt": "Generate Prompt",
+      "promptTitle": "Prompt Title",
+      "promptTitlePlaceholder": "Give this prompt a name...",
+      "sloganSelector": "Slogan from Pool",
+      "mainSubject": "Main Subject",
+      "contentType": "Content Type",
+      "selectContentType": "Select type",
+      "mood": "Mood",
+      "selectMood": "Select mood",
+      "tabs": {
+        "label": "Prompt builder tabs",
+        "concept": "Concept",
+        "context": "Context",
+        "style": "Style",
+        "format": "Format",
+        "color": "Color",
+        "background": "Background",
+        "text": "Text",
+        "output": "Output"
+      },
+      "style": {
+        "category": "Style Category",
+        "selectCategory": "Select category",
+        "style": "Style",
+        "selectStyle": "Select style",
+        "addStyle": "+ Add Style",
+        "empty": "No styles added yet. Select a category and style above."
+      },
+      "format": {
+        "composition": "Composition",
+        "selectComposition": "Select composition"
+      },
+      "color": {
+        "palette": "Color Palette",
+        "selectColor": "Select color {{color}}",
+        "addColor": "+ Add Color",
+        "fromResearch": "From Research",
+        "selected": "Selected Colors",
+        "empty": "No colors selected. Click swatches above to add colors to your prompt."
+      },
+      "background": {
+        "type": "Background Type",
+        "selectType": "Select background type",
+        "presets": "Background Presets"
+      },
+      "text": {
+        "noSlogan": "No slogan selected",
+        "enterCustom": "Enter custom text below",
+        "textIncluded": "Text Included?",
+        "selectMode": "Select text option",
+        "customLabel": "Custom Text",
+        "customPlaceholder": "Type the text to include in the design...",
+        "preview": "Text Preview",
+        "noTextHint": "Design will be generated without text overlay."
+      },
+      "output": {
+        "mbaPreset": "MBA Preset",
+        "mbaPresetHint": "4500x5400, 300DPI, seamless edges, no bleed"
+      },
+      "context": {
+        "toggleKeywords": "Toggle keywords",
+        "keywords": "Keywords",
+        "noKeywords": "No keywords -- run Keyword Research first",
+        "toggleResearch": "Toggle AI research",
+        "aiResearch": "AI Research",
+        "noResearch": "No research data available",
+        "toggleProducts": "Toggle reference products",
+        "referenceProducts": "Reference Products",
+        "noProducts": "No reference products available",
+        "referenceImages": "Reference Images",
+        "noReferences": "No reference images -- add from Niche Pipeline",
+        "toggleReference": "Toggle reference {{title}}",
+        "untitledRef": "Untitled",
+        "refModeLabel": "Reference mode",
+        "modeImage": "Image (multimodal)",
+        "modeText": "Text Analysis"
+      }
+    },
+    "sloganPool": {
+      "title": "Slogan Pool",
+      "empty": "Add slogans from Niche Pipeline or Slogan Factory",
+      "selectSlogan": "Select slogan",
+      "refProducts": "Add to canvas",
+      "details": "Details",
+      "autoPrompt": "Auto-Prompt",
+      "remove": "Remove",
+      "removeError": "Failed to remove",
+      "autoPromptError": "Auto-prompt failed",
+      "maxBulk": "Max 10 per batch",
+      "generateSelected": "Generate Selected ({{count}})"
+    },
+    "prompts": {
+      "title": "Prompts",
+      "empty": "No saved prompts",
+      "edit": "Edit",
+      "delete": "Delete",
+      "generated": "Generated",
+      "editError": "Failed to update",
+      "deleteError": "Failed to delete",
+      "generateAll": "Generate All ({{count}})"
+    },
+    "presets": {
+      "title": "Presets",
+      "namePlaceholder": "Preset name",
+      "save": "Save as Preset",
+      "saved": "Preset saved",
+      "saveError": "Failed to save preset"
+    },
+    "actions": {
+      "analyzeImage": "Analyze Image",
+      "analyzeImageTooltip": "Analyze selected image to generate a prompt",
+      "analyzeImageUpload": "Upload an image to analyze",
+      "bulkGenerating": "Generating {{count}} designs...",
+      "imageAdded": "Image added as reference artboard"
+    },
+    "references": {
+      "title": "References",
+      "empty": "Add references from Niche Pipeline",
+      "useAsReference": "Use as Reference",
+      "analyze": "Analyze",
+      "useAsPrompt": "Use as Prompt",
+      "remove": "Remove",
+      "removeError": "Failed to remove reference",
+      "analyzeSuccess": "Analysis complete",
+      "analyzing": "Analyzing...",
+      "analyzeError": "Analysis failed",
+      "analyzeFailed": "Failed to analyze reference image",
+      "brokenImage": "Image unavailable",
+      "thumbnail": "Reference thumbnail",
+      "untitled": "Untitled",
+      "showAnalysis": "Show analysis",
+      "hideAnalysis": "Hide analysis",
+      "alreadyAdded": "This image is already added as a reference",
+      "addedSuccess": "Reference image added successfully",
+      "modelNoMultimodal": "Selected model does not support image analysis"
+    },
+    "artboards": {
+      "title": "Artboards",
+      "empty": "No artboards",
+      "prompt": "Prompt"
+    },
+    "editor": {
+      "title": "Image Editor",
+      "dropHint": "Drop images here or browse to add files",
+      "browseFiles": "Browse Files",
+      "batchCount": "{{current}} / {{total}}",
+      "batchCountLabel": "Image {{current}} of {{total}}",
+      "deleteImage": "Remove image",
+      "deleteAll": "Remove all",
+      "previousImage": "Previous image",
+      "nextImage": "Next image",
+      "noImages": "No images loaded",
+      "noImagesCta": "Drag and drop images here or click Browse Files to get started",
+      "processing": "Processing...",
+      "processAll": "Process All",
+      "exportCurrent": "Export Current",
+      "exportAll": "Export All (ZIP)",
+      "resetAll": "Reset All",
+      "removeAll": "Remove All Tools",
+      "loadError": "Failed to load designs",
+      "centerImage": "Center & fit image",
+      "canvasToolbar": "Canvas tools",
+      "processingComplete": "All images processed successfully",
+      "processingPartialFail": "{{count}} image(s) failed processing",
+      "applyPipeline": "Apply Pipeline",
+      "applying": "Applying...",
+      "cancelProcessing": "Cancel",
+      "processingProgress": "Processing {{current}}/{{total}}: {{name}}",
+      "uploadFailed": "Failed to upload \"{{name}}\"",
+      "addMoreImages": "Add more images",
+      "serverProcessing": "Processing on server...",
+      "showOriginal": "Show original",
+      "showProcessed": "Show processed",
+      "bgPreview": {
+        "transparent": "Transparent (checkerboard)",
+        "black": "Black background",
+        "white": "White background",
+        "gray": "Gray background",
+        "custom": "Custom color"
+      },
+      "removeFromBatch": "Remove from batch",
+      "deletePermanently": "Delete permanently",
+      "deleteProcessed": "Delete processed version",
+      "deleteOriginal": "Delete original",
+      "deleteVersionSuccess": "Version deleted",
+      "deleteVersionError": "Delete failed",
+      "revertSuccess": "Reverted to original",
+      "revertError": "Revert failed",
+      "deleteServerDialogTitle": "Delete Design",
+      "deleteServerDialogBody": "\"{{name}}\" will be permanently deleted from the server. This cannot be undone.",
+      "deleteServerConfirm": "Delete",
+      "deleteServerCancel": "Cancel",
+      "deleteServerSuccess": "Design deleted",
+      "deleteServerError": "Failed to delete design"
+    },
+    "pipeline": {
+      "title": "Pipeline",
+      "addTool": "Add Tool",
+      "collapse": "Collapse pipeline",
+      "expand": "Expand pipeline",
+      "activePipeline": "Active Pipeline",
+      "availableTools": "Available Tools",
+      "presets": "Presets",
+      "savePreset": "Save Preset",
+      "loadPreset": "Load Preset",
+      "deletePreset": "Delete Preset",
+      "presetName": "Preset Name",
+      "presetSaved": "Pipeline preset saved",
+      "presetUpdated": "Pipeline preset updated",
+      "presetDeleted": "Pipeline preset deleted",
+      "presetSaveError": "Failed to save preset",
+      "presetDeleteError": "Failed to delete preset",
+      "noPresets": "No saved presets",
+      "noTools": "No tools in pipeline",
+      "noToolsCta": "Select tools from the bar above to build your pipeline",
+      "removeTool": "Remove tool",
+      "toggleTool": "Toggle tool",
+      "dragToReorder": "Drag to reorder",
+      "toolCatalog": "Tool Catalog",
+      "selectToolsHint": "Select tools from the bar above",
+      "toggleTooltips": "Show tool descriptions",
+      "categories": {
+        "standard": "Standard",
+        "edge": "Edge Cleanup",
+        "ai": "AI Processing",
+        "quality": "Quality"
+      }
+    },
+    "tools": {
+      "tooltip": {
+        "resize": "Scale and position design on target canvas (e.g. 4500x5400 for MBA)",
+        "trim": "Auto-crop transparent or empty borders",
+        "rotate": "Rotate 90/180/270 and flip horizontal/vertical",
+        "filters": "Adjust brightness, contrast, saturation, hue",
+        "distress": "Add vintage grain, scratches, and edge wear",
+        "colorRemoval": "Remove background color to transparent",
+        "speckleRemover": "Remove isolated pixel artifacts",
+        "transparencyCleaner": "Clean or highlight semi-transparent pixels",
+        "watermark": "Add text watermark with position and tiling",
+        "defringe": "Remove color halos at design edges",
+        "shrink": "Erode N pixels from visible design edges",
+        "colorDefringe": "Replace edge fringe with nearest design color",
+        "edgeCleaner": "Smooth jagged edges with anti-aliasing",
+        "bgRemove": "AI-powered background removal (server-side)",
+        "aiUpscale": "Increase image resolution with AI"
+      },
+      "resize": "Resize & Reposition",
+      "resizeParams": {
+        "sizePreset": "Size Preset",
+        "targetWidth": "Target Width",
+        "targetHeight": "Target Height",
+        "alignY": "Vertical Align",
+        "alignX": "Horizontal Align",
+        "padding": "Padding (px)",
+        "bgColor": "Background Fill",
+        "maintainAspectRatio": "Maintain Aspect Ratio",
+        "top": "Top",
+        "center": "Center",
+        "bottom": "Bottom",
+        "left": "Left",
+        "right": "Right",
+        "transparent": "Transparent",
+        "presetPod": "POD Standard (4500×5400)",
+        "presetSquare": "Square (4500×4500)",
+        "presetCustom": "Custom"
+      },
+      "trim": "Trim",
+      "trimParams": {
+        "trimMode": "Trim Mode",
+        "transparent": "Transparent",
+        "autoDetect": "Auto-Detect",
+        "threshold": "Threshold",
+        "alphaThreshold": "Alpha Threshold",
+        "colorTolerance": "Color Tolerance",
+        "padding": "Padding (px)"
+      },
+      "rotate": "Rotate",
+      "rotateFlipParams": {
+        "rotation": "Rotation",
+        "flipH": "Flip Horizontal",
+        "flipV": "Flip Vertical",
+        "deg0": "0°",
+        "deg90": "90°",
+        "deg180": "180°",
+        "deg270": "270°"
+      },
+      "filters": "Filters",
+      "colorAdjustmentParams": {
+        "brightness": "Brightness",
+        "contrast": "Contrast",
+        "saturation": "Saturation",
+        "hueShift": "Hue Shift",
+        "reset": "Reset All"
+      },
+      "distress": "Distress",
+      "distressParams": {
+        "intensity": "Intensity",
+        "grainAmount": "Grain Amount",
+        "scratches": "Scratches",
+        "edgeWear": "Edge Wear",
+        "seed": "Seed",
+        "randomize": "Randomize",
+        "reset": "Reset All"
+      },
+      "colorRemoval": "Color Removal",
+      "colorRemovalParams": {
+        "mode": "Detection Mode",
+        "auto": "Auto",
+        "manual": "Manual",
+        "targetColor": "Target Color",
+        "detectedColor": "Detected Color",
+        "autoDetectHint": "Auto-detected from image edges",
+        "tolerance": "Tolerance",
+        "contiguous": "Contiguous",
+        "contiguousHint": "Only remove connected regions from edges",
+        "softEdge": "Soft Edge",
+        "softEdgeHint": "Gradual transparency near color boundary",
+        "edgeRefinement": "EDGE REFINEMENT",
+        "fillHoles": "Fill Holes",
+        "fillHolesHint": "Repair small gaps inside design elements",
+        "deepClean": "Deep Clean",
+        "deepCleanHint": "Multi-pass: also remove trapped BG between design elements",
+        "edgeTrim": "Edge Trim",
+        "edgeFeather": "Edge Feather",
+        "colorsSection": "COLORS",
+        "colorN": "Color {{n}}",
+        "addColor": "Add Color",
+        "removeColor": "Remove Color",
+        "hdMode": "HD Mode",
+        "hdOn": "On",
+        "hdOff": "Off",
+        "hdHint": "Upscale small images 2× before processing for better precision"
+      },
+      "speckleRemover": "Speckle Remover",
+      "speckleRemoverParams": {
+        "minSize": "Min Size (px)",
+        "minSizeHint": "Pixel groups smaller than this are removed",
+        "connectivity": "Connectivity",
+        "fourWay": "4-way",
+        "eightWay": "8-way",
+        "alphaThreshold": "Alpha Threshold"
+      },
+      "transparencyCleaner": "Transp. Cleaner",
+      "transparencyCleanerParams": {
+        "mode": "Mode",
+        "delete": "Delete",
+        "view": "View",
+        "threshold": "Alpha Threshold",
+        "thresholdHint": "Pixels with alpha below this become fully transparent",
+        "highlightColor": "Highlight Color",
+        "color_pink": "Pink",
+        "color_green": "Green",
+        "color_cyan": "Cyan",
+        "color_magenta": "Magenta",
+        "visibility": "Visibility"
+      },
+      "watermark": "Watermark",
+      "watermarkParams": {
+        "text": "Watermark Text",
+        "textPlaceholder": "Enter watermark text...",
+        "fontSize": "Font Size",
+        "color": "Color",
+        "opacity": "Opacity",
+        "position": "Position",
+        "posCenter": "Center",
+        "posTopLeft": "Top Left",
+        "posTopRight": "Top Right",
+        "posBottomLeft": "Bottom Left",
+        "posBottomRight": "Bottom Right",
+        "posTile": "Tile (Repeat)",
+        "rotation": "Rotation (°)",
+        "tileSpacing": "Tile Spacing (px)"
+      },
+      "defringe": "Defringe",
+      "defringeParams": {
+        "autoDetect": "Auto-Detect",
+        "shrinkPx": "Shrink (px)",
+        "edgeThreshold": "Edge Threshold",
+        "autoDetected": "Value is auto-calculated based on edge analysis"
+      },
+      "shrink": "Shrink",
+      "shrinkParams": {
+        "amount": "Shrink Amount (px)",
+        "amountHint": "Number of edge pixels to remove per iteration",
+        "alphaThreshold": "Alpha Threshold"
+      },
+      "colorDefringe": "Color Defringe",
+      "colorDefringeParams": {
+        "edgeWidth": "Edge Width (px)",
+        "edgeWidthHint": "How many pixels from the edge to process",
+        "alphaThreshold": "Alpha Threshold",
+        "colorTolerance": "Color Tolerance",
+        "colorToleranceHint": "How aggressively to replace edge colors (0 = none, 100 = full)"
+      },
+      "edgeCleaner": "Edge Cleaner",
+      "edgeCleanerParams": {
+        "passes": "Passes",
+        "strength": "Strength",
+        "alphaThreshold": "Alpha Threshold",
+        "alphaThresholdHint": "Pixels with alpha below this are considered transparent for edge detection"
+      },
+      "bgRemove": "BG Remove",
+      "bgRemoveParams": {
+        "serverInfo": "Processed on server using AI model",
+        "description": "AI background removal for complex backgrounds. Processing takes a few seconds.",
+        "model": "Model",
+        "runNow": "Remove Background",
+        "processing": "Processing..."
+      },
+      "aiUpscale": "AI Upscale",
+      "upscaleParams": {
+        "mode": "Upscale Mode",
+        "modeAuto": "Auto",
+        "modeClient": "Client",
+        "modeServer": "Server",
+        "autoClientHint": "Image is large enough — using Pica.js (client-side, instant)",
+        "autoServerHint": "Image is small — using AI upscale API (server-side)",
+        "currentSize": "Current: {{w}} x {{h}} px",
+        "targetDimensions": "Target Dimensions",
+        "width": "Width",
+        "height": "Height",
+        "filter": "Resampling Filter",
+        "filterLanczos3": "Lanczos3 (highest quality)",
+        "filterLanczos2": "Lanczos2 (fast)",
+        "filterMks2013": "MKS 2013 (sharp + resize)",
+        "runNow": "Upscale Now",
+        "processing": "Upscaling...",
+        "thresholdInfo": "Auto mode: Pica.js for images >= {{threshold}}px, AI API for smaller",
+        "compare": "Compare Original"
+      },
+      "transparencyHighlighter": "Transp. Highlighter",
+      "transparencyHighlighterParams": {
+        "highlightColor": "Highlight Color",
+        "red": "Red",
+        "yellow": "Yellow",
+        "magenta": "Magenta",
+        "showOpaque": "Show Opaque"
+      },
+      "move": "Move",
+      "eraser": "Eraser",
+      "eraserParams": {
+        "size": "Brush Size",
+        "hardness": "Hardness"
+      },
+      "wand": "Magic Wand",
+      "magicWandParams": {
+        "tolerance": "Tolerance",
+        "contiguous": "Contiguous",
+        "contiguousHint": "Only select connected pixels of similar color",
+        "action": "Action",
+        "actionDelete": "Delete",
+        "actionSelect": "Select"
+      }
+    },
+    "export": {
+      "title": "Export",
+      "format": "Format",
+      "dpi": "DPI",
+      "compression": "Compression",
+      "compressionHint": "Lower = smaller file, higher = better quality",
+      "estimatedSize": "Est. {{size}}",
+      "downloadCurrent": "Download Current",
+      "downloadAll": "Download All (ZIP)",
+      "overwrite": "Overwrite original",
+      "newVersion": "Create new version",
+      "titleCount": "Export {{count}} Artboard",
+      "formatPng": "PNG file",
+      "formatZip": "PNG files bundled as ZIP",
+      "quality": "Quality",
+      "exporting": "Exporting...",
+      "download": "Download",
+      "advanced": "Advanced Export",
+      "formatPngShort": "PNG",
+      "formatJpeg": "JPEG",
+      "formatWebp": "WebP",
+      "resolution": "Resolution",
+      "dimensions": "{{width}} × {{height}} px",
+      "downloadZip": "Download All (ZIP)",
+      "creatingZip": "Creating ZIP...",
+      "totalSize": "Estimated total: {{size}}",
+      "imageCount": "{{count}} images",
+      "compressionLevel": "Compression",
+      "compressionOff": "Off",
+      "compressionLow": "Low",
+      "compressionMedium": "Medium",
+      "compressionHigh": "High",
+      "compressionVeryHigh": "Very High",
+      "preparingDownload": "Preparing Download",
+      "processingImage": "Processing your image...",
+      "processingImages": "Processing {{current}} of {{total}}...",
+      "cancel": "Cancel",
+      "fileSize": "Size",
+      "closeExport": "Close export"
+    },
+    "contextMenu": {
+      "addAiBoard": "Add AI Image Board",
+      "duplicate": "Duplicate",
+      "bringToFront": "Bring to Front",
+      "sendToBack": "Send to Back",
+      "delete": "Delete",
+      "addArtboard": "Add Artboard",
+      "paste": "Paste"
+    },
+    "projects": {
+      "title": "Design Forge",
+      "createButton": "New Project",
+      "createSuccess": "Project created",
+      "createError": "Failed to create project",
+      "loadError": "Failed to load projects",
+      "emptyTitle": "No projects yet",
+      "emptyCta": "Create your first design project to get started",
+      "openProject": "Open project",
+      "designCount": "{{count}} designs",
+      "designCount_one": "{{count}} design",
+      "menuLabel": "Project actions",
+      "deleteProject": "Delete Project",
+      "deleteDialogTitle": "Delete Project",
+      "deleteDialogBody": "Are you sure you want to delete \"{{name}}\"? All designs in this project will be permanently removed.",
+      "deleteConfirm": "Delete",
+      "deleteCancel": "Cancel",
+      "deleteSuccess": "Project deleted",
+      "deleteError": "Failed to delete project",
+      "createDialog": {
+        "title": "Create Design Project",
+        "nameLabel": "Project Name",
+        "namePlaceholder": "e.g. Summer Collection 2026",
+        "nicheLabel": "Link to Niche (optional)",
+        "nichePlaceholder": "Select a niche...",
+        "confirm": "Create",
+        "cancel": "Cancel"
+      },
+      "namingDialog": {
+        "title": "Name Your Project",
+        "nicheOption": "Name after niche",
+        "sloganOption": "Name after slogan",
+        "customOption": "Enter custom name",
+        "existingProjectOption": "Add to existing project",
+        "placeholder": "Enter project name...",
+        "confirm": "Create Project",
+        "cancel": "Cancel"
+      },
+      "nicheBinding": {
+        "label": "Linked Niche",
+        "placeholder": "Select a niche...",
+        "none": "No niche linked",
+        "linked": "Linked to {{niche}}",
+        "unlink": "Unlink niche",
+        "linkSuccess": "Niche linked to project",
+        "unlinkSuccess": "Niche unlinked from project",
+        "linkError": "Failed to update niche binding"
+      },
+      "drawerSection": {
+        "title": "Design Projects",
+        "emptyTitle": "No design projects linked",
+        "emptyCta": "Link a project from the Design Forge",
+        "openBoard": "Open Board",
+        "designCount": "{{count}} designs",
+        "designCount_one": "{{count}} design"
+      }
+    },
+    "workspace": {
+      "loadError": "Failed to load project",
+      "backToGallery": "Back to Gallery",
+      "untitled": "Untitled Project",
+      "tabCanvas": "Artboard Canvas",
+      "tabEditor": "Image Editor",
+      "settings": "Project Settings",
+      "canvasComingSoon": "Artboard Canvas coming soon",
+      "canvasDescription": "The Konva.js-powered artboard will replace the old React Flow board.",
+      "openNicheDrawer": "Niche Pipeline"
+    },
+    "settings": {
+      "title": "Processing Settings",
+      "loadError": "Failed to load settings",
+      "saveSuccess": "Settings saved",
+      "saveError": "Failed to save settings",
+      "bgRemovalSection": "BACKGROUND REMOVAL",
+      "upscaleSection": "UPSCALING",
+      "provider": "Provider",
+      "selfHosted": "self-hosted",
+      "externalApi": "External API",
+      "apiKey": "API Key",
+      "apiKeyPlaceholder": "Enter API key...",
+      "apiKeySet": "Key is set (leave empty to keep)",
+      "apiKeyKept": "Existing key will be kept",
+      "autoThreshold": "Auto Threshold",
+      "autoThresholdHint": "Images below this size use API, above use Pica.js (client-side)"
+    },
+    "toolbar": {
+      "ariaLabel": "Canvas toolbar",
+      "cursor": "Cursor",
+      "move": "Move",
+      "shapes": "Shapes",
+      "rectangle": "Rectangle",
+      "ellipse": "Ellipse",
+      "triangle": "Triangle",
+      "line": "Line",
+      "brush": "Brush",
+      "text": "Text",
+      "emoji": "Emoji",
+      "aiSparkle": "AI Generate",
+      "undo": "Undo",
+      "redo": "Redo",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "fitToView": "Fit to view"
+    },
+    "panel": {
+      "ariaLabel": "Properties panel",
+      "project": "Project",
+      "artboardProperties": "Artboard",
+      "aiImageBoard": "AI Image Board",
+      "multiSelect": "{{count}} Selected",
+      "searchPlaceholder": "Search project...",
+      "projectColors": "Project Colors",
+      "noColors": "No colors extracted yet",
+      "name": "Name",
+      "namePlaceholder": "Artboard name",
+      "size": "Size",
+      "lockAspect": "Lock aspect ratio",
+      "unlockAspect": "Unlock aspect ratio",
+      "layer": "Layer",
+      "opacity": "Op",
+      "opacityLabel": "Opacity",
+      "color": "Color",
+      "bgColor": "Background color",
+      "clipContent": "Clip Content",
+      "toolsLabel": "Tools",
+      "selection": "Selection",
+      "artboards": "Artboards",
+      "aiBoards": "AI Boards",
+      "openInEditor": "Open in Editor",
+      "exportSelected": "Export Selected",
+      "deleteAll": "Delete All",
+      "elementName": "Name",
+      "elementNamePlaceholder": "Element name",
+      "deleteElement": "Delete Element",
+      "position": "Position",
+      "elementSize": "Size",
+      "originalSize": "Original Size",
+      "rotation": "Rotation",
+      "rotationDeg": "Deg",
+      "elementOpacity": "Opacity",
+      "visible": "Visible",
+      "locked": "Locked",
+      "emojiPreview": "Emoji",
+      "tools": {
+        "regenerate": "Regenerate",
+        "aiImageBoard": "AI Board",
+        "flatten": "Flatten",
+        "upscale": "Upscale",
+        "reframe": "Reframe",
+        "bgRemove": "BG Remove"
+      }
+    },
+    "cloud": {
+      "title": "Cloud Storage",
+      "googleDrive": "Google Drive",
+      "oneDrive": "OneDrive",
+      "connect": "Connect",
+      "connecting": "Connecting...",
+      "connected": "Connected",
+      "disconnect": "Disconnect",
+      "disconnectedHint": "Connect your cloud storage to browse and import images",
+      "browseFiles": "Browse Files",
+      "selectedFiles_one": "{{count}} selected",
+      "selectedFiles_other": "{{count}} selected",
+      "noFiles": "No files found",
+      "download": "Download",
+      "useForAi": "Use for AI",
+      "uploadToBatch": "Upload from Batch",
+      "uploadToCloud": "Upload batch images to this folder",
+      "selectFolder": "Select folder",
+      "notConfigured": "Not Configured",
+      "notConfiguredHint": "Add the required API keys in your environment variables to enable this provider",
+      "authError": "Authentication failed",
+      "fetchError": "Failed to load files",
+      "uploading": "Uploading...",
+      "uploadSuccess": "Upload complete",
+      "uploadError": "Upload failed",
+      "fileCount_one": "{{count}} image",
+      "fileCount_other": "{{count}} images",
+      "folderPath": "Folder",
+      "fileName": "File",
+      "fileSize": "Size",
+      "selectAll": "Select all",
+      "deselectAll": "Deselect all",
+      "noImages": "No images found in this folder",
+      "breadcrumbRoot": "My Drive",
+      "fullscreen": "Fullscreen",
+      "exitFullscreen": "Exit fullscreen",
+      "importFromCloud": "Import from Cloud"
+    }
+  },
+  "designs": {
+    "sendToListings": {
+      "cta": "Send to Listings",
+      "successCount": "{{created}} sent to Listings, {{skipped}} already there.",
+      "bulkConfirm": "You're sending {{count}} designs — proceed?",
+      "openInPublish": "Open in Publish",
+      "alreadyInListings": "In Listings",
+      "bulkTooLarge": "Maximum is 50 designs per request.",
+      "noEligible": "No approved designs to send.",
+      "noEligibleInSelection": "No approved designs in selection",
+      "notApprovedTooltip": "Only approved designs can be sent.",
+      "sendCount_one": "Send {{count}} approved design to Listings",
+      "sendCount_other": "Send {{count}} approved designs to Listings",
+      "partialFailure_one": "{{failed}} design failed to send.",
+      "partialFailure_other": "{{failed}} designs failed to send.",
+      "confirm": "Send",
+      "retry": "Retry"
+    }
+  },
+  "keywords": {
+    "page": {
+      "title": "Keyword Drilling",
+      "searchPlaceholder": "Search keywords...",
+      "searchButton": "Search"
+    },
+    "source": {
+      "research": "Research",
+      "amazon_search": "Amazon",
+      "web_search": "Web Search",
+      "manual": "Manual",
+      "junglescout": "JungleScout",
+      "suggestion": "Suggestion",
+      "after": "After",
+      "before": "Before",
+      "synonym": "Synonym",
+      "listing": "Listing"
+    },
+    "enrich": {
+      "buttonLabel": "Enrich",
+      "bulkLabel": "Enrich Selected",
+      "loading": "Enriching...",
+      "success": "Keywords enriched",
+      "noApiKeyTooltip": "Configure JungleScout API key in Settings",
+      "comingSoon": "JungleScout coming soon"
+    },
+    "table": {
+      "col_keyword": "Keyword",
+      "col_source": "Source",
+      "col_monthly_search_volume_exact": "Volume (Exact)",
+      "col_monthly_search_volume_broad": "Volume (Broad)",
+      "col_monthly_trend": "Monthly Trend",
+      "col_quarterly_trend": "Quarterly Trend",
+      "col_ppc_bid_exact": "CPC (Exact)",
+      "col_ppc_bid_broad": "CPC (Broad)",
+      "col_sp_brand_ad_bid": "SP Brand Bid",
+      "col_ease_of_ranking_score": "Ease of Rank",
+      "col_relevancy_score": "Relevancy",
+      "col_organic_product_count": "Organic Count",
+      "col_sponsored_product_count": "Sponsored Count",
+      "col_dominant_category": "Category",
+      "col_recommended_promotions": "Promos",
+      "col_in_product_count": "In Products",
+      "col_in_slogan_count": "In Slogans",
+      "col_amazon_product_count": "Amz Products",
+      "columnPicker": "Configure columns",
+      "refreshProductCount": "Refresh product count",
+      "done": "Done",
+      "selected": "{{count}} selected",
+      "copyKeyword": "Copy keyword",
+      "copiedKeyword": "Copied!",
+      "searchKeyword": "Search this keyword"
+    },
+    "trend": {
+      "chartTitle": "Search Volume Trend",
+      "noData": "Not enough data for trend chart",
+      "notConfigured": "No data -- JungleScout not configured",
+      "monthLabel": "Month",
+      "volumeLabel": "Search Volume"
+    },
+    "addToNiche": {
+      "buttonLabel": "Add {{count}} to {{niche}}",
+      "selectNiche": "Add {{count}} to niche...",
+      "changeNiche": "Change Niche",
+      "noNiches": "No niches found",
+      "addedCount": "{{count}} keyword(s) added"
+    },
+    "export": {
+      "buttonLabel": "Export CSV"
+    },
+    "empty": {
+      "noResults": "No keywords found",
+      "tryCta": "Try a different search term or enrich keywords",
+      "startSearch": "Search for keywords",
+      "searchHint": "Enter a keyword to search across your database and Amazon"
+    },
+    "drawer": {
+      "sectionTitle": "Keywords",
+      "addGroup": "Add Group",
+      "groupNamePlaceholder": "Group name...",
+      "addButton": "Add",
+      "manualPlaceholder": "Add keywords (comma-separated)...",
+      "deleteKeyword": "Remove keyword",
+      "editGroup": "Rename group",
+      "deleteGroup": "Delete group",
+      "emptyGroup": "No keywords in this group",
+      "ungrouped": "Ungrouped",
+      "noKeywords": "No keywords collected yet",
+      "groupDeleted": "Group deleted (keywords kept)",
+      "viewAll": "View All Keywords",
+      "reorderGroup": "Drag to reorder group",
+      "designTemplate": "Design Template",
+      "noDesignTemplate": "No template assigned"
+    },
+    "errors": {
+      "enrichFailed": "Failed to enrich keywords",
+      "addFailed": "Failed to add keywords",
+      "deleteFailed": "Failed to delete keyword",
+      "exportFailed": "Failed to export keywords",
+      "historyFailed": "Failed to load trend data",
+      "renameFailed": "Failed to rename group",
+      "deleteGroupFailed": "Failed to delete group",
+      "createGroupFailed": "Failed to create group",
+      "scrapeCountFailed": "Could not fetch product count"
+    },
+    "chipCloud": {
+      "shortTail": "Short-Tail",
+      "longTail": "Long-Tail",
+      "showAll": "+{{count}} more",
+      "showLess": "Show less"
+    },
+    "sourceTabs": {
+      "all": "All",
+      "database": "Database",
+      "amazon": "Amazon",
+      "junglescout": "JungleScout",
+      "comingSoon": "Coming Soon"
+    },
+    "suggestionTabs": {
+      "all": "All",
+      "listing": "Listing Keywords",
+      "suggestions": "Suggestions",
+      "after": "After",
+      "before": "Before",
+      "synonyms": "Synonyms",
+      "junglescout": "JungleScout",
+      "comingSoon": "Coming Soon"
+    },
+    "searchHistory": {
+      "clearAll": "Clear all",
+      "label": "Recent searches"
+    },
+    "actionBar": {
+      "selected": "{{count}} selected",
+      "addToNiche": "Add to Niche",
+      "enrich": "Enrich"
+    },
+    "multiplier": {
+      "title": "Suggestion Multiplier",
+      "prefixes": "Prefixes",
+      "suffixes": "Suffixes",
+      "generate": "Generate",
+      "generated": "{{count}} suggestions",
+      "addToResults": "Click to search"
+    },
+    "wordSuggestions": {
+      "title": "Word Ideas"
+    }
+  },
+  "publish": {
+    "page": {
+      "title": "Publish",
+      "subtitle": "Design selection, listing editor, and upload queue"
+    },
+    "toolbar": {
+      "selectCounter": "Select designs",
+      "selectAll": "Select All",
+      "selectNone": "Select None",
+      "collections": "Collections",
+      "folders": "Folders",
+      "chooseAction": "Choose Action",
+      "search": "Search...",
+      "template": "Template",
+      "upload": "Upload",
+      "import": "Import",
+      "publish": "Publish",
+      "uploadSuccess": "{{count}} design(s) uploaded",
+      "uploadError": "{{count}} upload(s) failed",
+      "templateDeleteConfirm": "Delete template \"{{name}}\"? This cannot be undone.",
+      "templateDeleteSuccess": "Template deleted",
+      "templateDeleteError": "Failed to delete template",
+      "templateLibraryTitle": "Upload Templates",
+      "templateLoading": "Loading…",
+      "templateEmpty": "No upload templates yet. Save one from the Edit page to reuse product + pricing config across designs.",
+      "templateDelete": "Delete template",
+      "templateDefaultChip": "Default",
+      "templateBrand": "Brand: {{brand}}",
+      "publishNoSelectionHint": "Select at least one design to publish",
+      "publishSuccess": "{{count}} upload job(s) queued",
+      "publishError": "Failed to queue upload jobs",
+      "publishDialogTitle": "Publish {{count}} design(s)",
+      "publishNoSelection": "Select at least one design first.",
+      "publishNoTemplates": "No upload templates saved yet. Open a design and click \"Save as Template\" to create one.",
+      "publishPickTemplate": "Pick the UploadTemplate to use for every queued job (product types, fit, colors, marketplaces + prices).",
+      "publishSubmitting": "Queuing…",
+      "publishSubmit": "Queue upload jobs"
+    },
+    "tabs": {
+      "myDesigns": "My Designs",
+      "cloudStorage": "Cloud Storage"
+    },
+    "grid": {
+      "addDesigns": "Add Designs",
+      "emptyTitle": "No designs yet",
+      "emptyDescription": "Upload or import designs to get started.",
+      "storage": "{{used}} / {{total}} used"
+    },
+    "card": {
+      "select": "Select design",
+      "duplicate": {
+        "success": "Design duplicated",
+        "error404": "Design no longer exists",
+        "error": "Failed to duplicate design"
+      },
+      "move": "Move",
+      "addTags": "Add Tags",
+      "delete": {
+        "success": "Design deleted",
+        "error": "Failed to delete design",
+        "title": "Delete design?",
+        "body": "This will permanently remove the design from your gallery.",
+        "confirm": "Delete"
+      },
+      "tagEditor": {
+        "error": "Failed to update tags",
+        "placeholder": "Add tag…",
+        "ariaLabel": "Edit design tags"
+      },
+      "menu": {
+        "edit": "Edit",
+        "duplicate": "Duplicate",
+        "move": "Move to Collection",
+        "addTags": "Add Tags",
+        "delete": "Delete",
+        "open": "Open card menu"
+      }
+    },
+    "collections": {
+      "title": "Collections",
+      "home": "Home",
+      "recentlyUsed": "Recently Used",
+      "searchFolders": "Search folders...",
+      "openFolder": "Open Folder",
+      "addFolder": "Add Folder",
+      "folderName": "Folder name",
+      "itemCount": "{{count}} items"
+    },
+    "gallery": {
+      "title": "Design Gallery",
+      "upload": "Upload",
+      "importCloud": "Import from Cloud",
+      "importCloudTitle": "Import from Cloud Storage",
+      "importCloudHint": "Paste file IDs from Google Drive or OneDrive (one per line).",
+      "fileIdsLabel": "File IDs",
+      "fileIdsPlaceholder": "Paste file IDs here, one per line...",
+      "fileIdsHelper": "Enter Google Drive or OneDrive file IDs",
+      "importButton": "Import",
+      "importSuccess": "{{count}} design(s) imported",
+      "importError": "Failed to import designs",
+      "cancel": "Cancel",
+      "selectAll": "Select All",
+      "selectDesign": "Select design",
+      "delete": "Delete",
+      "hasListing": "Listing",
+      "noImage": "No image",
+      "search": "Search designs...",
+      "sortBy": "Sort by",
+      "sortNewest": "Newest",
+      "sortEdited": "Recently edited",
+      "loadError": "Failed to load designs"
+    },
+    "empty": {
+      "noDesigns": "No designs yet",
+      "hint": "Upload designs or import from cloud storage to get started.",
+      "upload": "Upload Design",
+      "import": "Import from Cloud"
+    },
+    "product": {
+      "title": "Product Configuration",
+      "types": "Product Types",
+      "fitType": "Fit Type",
+      "printSide": "Print Side",
+      "front": "Front",
+      "back": "Back",
+      "both": "Both",
+      "colorsComingSoon": "Color selection coming soon"
+    },
+    "marketplace": {
+      "title": "Marketplaces & Pricing",
+      "price": "Price"
+    },
+    "listing": {
+      "saveSuccess": "Listing saved",
+      "saveError": "Failed to save listing",
+      "saveDuplicate": "A listing already exists for this design.",
+      "saveNoListing": "Create a listing first before saving.",
+      "copied": "Listing copied to clipboard",
+      "copyError": "Failed to copy listing"
+    },
+    "translate": {
+      "title": "Translations",
+      "autoTranslate": "Auto-Translate",
+      "translateAll": "Translate to All",
+      "success": "Translations generated",
+      "error": "Failed to translate listing",
+      "notTranslated": "Not yet translated. Click \"Translate to All\" to generate.",
+      "overLimit": "over limit"
+    },
+    "upload": {
+      "title": "Upload Queue",
+      "all": "All",
+      "status": {
+        "pending": "Pending",
+        "validating": "Validating",
+        "uploading": "Uploading",
+        "completed": "Completed",
+        "failed": "Failed",
+        "cancelled": "Cancelled"
+      },
+      "totalJobs": "{{count}} jobs",
+      "noJobs": "No upload jobs yet",
+      "loadError": "Failed to load upload jobs",
+      "desktopAppHint": "Upload jobs are processed by the Desktop Upload App. Start the app to begin processing pending jobs.",
+      "queued": "Upload job queued",
+      "queueError": "Failed to queue upload job",
+      "batchQueued": "{{count}} upload jobs queued",
+      "batchError": "Failed to queue batch upload",
+      "cancelled": "Upload job cancelled",
+      "cancelError": "Failed to cancel upload job",
+      "cancel": "Cancel",
+      "retry": "Retry",
+      "viewScreenshot": "View error screenshot"
+    },
+    "template": {
+      "button": "Templates",
+      "saveNew": "Save Current as Template",
+      "saveTitle": "Save Template",
+      "nameLabel": "Template name",
+      "cancel": "Cancel",
+      "save": "Save",
+      "empty": "No saved templates",
+      "saveSuccess": "Template saved",
+      "saveError": "Failed to save template",
+      "deleteSuccess": "Template deleted",
+      "deleteError": "Failed to delete template"
+    },
+    "command": {
+      "title": "Command Palette",
+      "searchPlaceholder": "Search through actions...",
+      "noResults": "No actions found",
+      "recent": "RECENTLY USED",
+      "copyListing": "Copy Listing",
+      "copyListingDesc": "Copy current listing to other selected designs",
+      "applyTemplate": "Apply Template",
+      "applyTemplateDesc": "Apply a saved template to selected designs",
+      "applyColors": "Apply Colors",
+      "applyColorsDesc": "Copy color settings to selected designs",
+      "applyFitTypes": "Apply Fit Types",
+      "applyFitTypesDesc": "Copy fit type settings to selected designs",
+      "applyProductSettings": "Apply Product Settings",
+      "applyProductSettingsDesc": "Copy all product settings to selected designs",
+      "bulkUpload": "Bulk Upload",
+      "bulkUploadDesc": "Queue upload jobs for all selected designs",
+      "editBulk": "Edit in Bulk",
+      "deleteListings": "Delete Listings",
+      "moveCollection": "Move to Collection",
+      "duplicate": "Duplicate",
+      "sortListings": "Sort Listings",
+      "bulkSync": "Bulk Sync",
+      "translate": "Translate",
+      "bulkTags": "Bulk Tags",
+      "deleteFiles": "Delete Files",
+      "download": "Download",
+      "exportXlsx": "Export as XLSX",
+      "exportCsv": "Export as CSV",
+      "sendCloud": "Send to Cloud",
+      "importCloud": "Import from Cloud",
+      "copyListingFrom": "Copy Listing From...",
+      "copyColorsFrom": "Copy Colors From...",
+      "copyFitFrom": "Copy Fit Types From...",
+      "copyPricesFrom": "Copy Prices From...",
+      "convertFromGlobal": "Convert from Global",
+      "convertFromMba": "Convert from MBA",
+      "selectFirst": "Select at least one design first",
+      "deleteFilesConfirm": "Delete {{count}} design(s)? This cannot be undone.",
+      "deleteFilesSuccess": "{{count}} design(s) deleted",
+      "deleteFilesError": "{{count}} delete(s) failed",
+      "downloadSuccess": "{{count}} download(s) started"
+    },
+    "actionBar": {
+      "label": "Bulk actions",
+      "selected": "{{count}} selected",
+      "edit": "Edit",
+      "uploadBatch": "Upload Batch",
+      "delete": "Delete",
+      "clear": "Clear",
+      "selectAll": "All",
+      "selectNone": "None",
+      "history": "History",
+      "batch": "Batch",
+      "options": "Options",
+      "applyTemplate": "Apply Template",
+      "copyFrom": "Copy From...",
+      "applyColors": "Apply Colors",
+      "applyFitTypes": "Apply Fit Types",
+      "exportSelected": "Export Selected"
+    },
+    "cloud": {
+      "import": "Import",
+      "preview": "Preview",
+      "copyUrl": "Copy URL",
+      "root": "Root",
+      "folderNav": "Folder navigation",
+      "loadError": "Failed to load folder",
+      "emptyFolder": "No images in this folder",
+      "urlCopied": "URL copied",
+      "importSuccess": "File imported successfully",
+      "importError": "Import failed",
+      "notConnected": "Not connected to {{provider}}",
+      "noSubfolders": "No subfolders in {{folder}}",
+      "notConfigured": "{{provider}} not configured",
+      "configureHint": "Configure {{provider}} in settings to get started.",
+      "connectTitle": "Connect to {{provider}}",
+      "connectDescription": "Sign in to {{provider}} to browse and import your designs.",
+      "connect": "Connect",
+      "manageConnections": "Manage Connections",
+      "sendTitle": "Send to {{provider}}",
+      "uploadTo": "Upload to {{folder}}",
+      "sending": "Sending...",
+      "send": "Send",
+      "sendSuccess": "{{count}} file(s) sent to {{provider}}",
+      "sendError": "Failed to send files",
+      "sendPartial": "{{sent}} of {{total}} file(s) sent. {{failed}} failed."
+    },
+    "copyFrom": {
+      "noSources": "No other designs available to copy from.",
+      "hasListing": "Has listing",
+      "applying": "Applying...",
+      "apply": "Apply",
+      "success": "Listing copied - save to persist.",
+      "error": "Failed to load source listing.",
+      "noListing": "Source design has no linked idea/listing.",
+      "sourceNoConfig": "Source has no config for {{marketplace}}."
+    },
+    "productConfig": {
+      "saveError": "Failed to save product configuration.",
+      "loadError": "Failed to load product configuration."
+    },
+    "convert": {
+      "success": "Listing converted to {{target}}",
+      "error": "Failed to convert listing",
+      "invalid": "Conversion is not valid for this marketplace",
+      "sourceMissing": "No {{source}} listing to convert from. Generate one first.",
+      "noIdea": "Select a design with a linked idea first.",
+      "confirmTitle": "Overwrite existing {{target}} listing?",
+      "confirmBody": "A {{target}} listing already exists for this design. Converting from {{source}} will replace its content. This cannot be undone.",
+      "confirmButton": "Overwrite",
+      "cancelButton": "Cancel"
+    },
+    "export": {
+      "action": {
+        "xlsxMba": "Export as XLSX (MBA)",
+        "xlsxBasic": "Export as XLSX (Basic)",
+        "csv": "Export as CSV"
+      },
+      "preflight": {
+        "title": "Ready to export",
+        "loading": "Running preflight…",
+        "readyRows": "{{count}} ready",
+        "totalDesigns": "{{count}} total",
+        "skippedCount": "{{count}} skipped",
+        "warningsLabel": "Warnings",
+        "skippedLabel": "Skipped designs",
+        "editN": "Edit {{count}}",
+        "download": "Download",
+        "preparing": "Preparing archive — {{count}} design(s)",
+        "downloadDisabledTooltip": "No exportable rows — every selected design is missing a listing or has no enabled products"
+      },
+      "history": {
+        "title": "Export History",
+        "empty": "No exports yet in this workspace",
+        "openTooltip": "Export history",
+        "rowBadge": "{{designs}} designs · {{rows}} rows",
+        "rerunTooltip": "Re-run export ({{timeAgo}})"
+      },
+      "errors": {
+        "generic": "Export failed",
+        "timeout": "Export timed out — please try again",
+        "max_500_designs_per_export": "Too many designs — maximum is 500 per export",
+        "estimated_archive_too_large": "Archive would exceed the 2 GB limit — pick fewer designs",
+        "no_listing": "Design has no listing",
+        "no_global_listing": "Design has no Global listing — required for Basic export",
+        "no_enabled_products": "Design has no enabled products",
+        "image_unavailable": "Design image is unavailable",
+        "catalog_unknown_product": "Product type not found in catalog"
+      }
+    },
+    "lifecycle": {
+      "title": "Product Lifecycle",
+      "round": "Round {{round}}",
+      "niche": "Niche",
+      "design": "Design",
+      "noData": "No lifecycle data available",
+      "awaitingSales": "Awaiting sales data"
+    },
+    "edit": {
+      "backToCollection": "Back to Collection",
+      "addDesigns": "Add Designs",
+      "shortcutGuide": "Shortcut Guide",
+      "shortcutsTitle": "Keyboard Shortcuts",
+      "shortcutsSoon": "Shortcuts coming soon",
+      "close": "Close",
+      "optionsButton": "Options",
+      "demo": {
+        "productsTitle": "Products"
+      },
+      "marketplace": {
+        "global": "Global",
+        "mba": "Mba",
+        "displate": "Displate"
+      },
+      "empty": {
+        "title": "No designs selected",
+        "hint": "Go back to the Publish page and select designs to edit.",
+        "back": "Back to Publish"
+      },
+      "thumbnails": {
+        "tagsLabel": "Design Tags",
+        "tagsPlaceholder": "Add tag...",
+        "tagsCounter": "{{count}}/{{max}}",
+        "load": "Load",
+        "clear": "Clear",
+        "counter": "{{current}} of {{total}}",
+        "previous": "Previous design",
+        "next": "Next design",
+        "activeBadge": "Design {{index}}",
+        "remove": "Remove tag",
+        "presetLoaded": "Preset loaded",
+        "presetEmpty": "Add tags before saving a preset",
+        "presetDuplicate": "Preset already saved",
+        "presetSaved": "Preset saved",
+        "saveCurrent": "Save current as preset",
+        "noPresets": "No saved presets yet",
+        "deletePreset": "Delete preset"
+      },
+      "products": {
+        "title": "Products",
+        "productType": "Product type {{label}}",
+        "selectedCount": "{{count}} selected"
+      },
+      "fitPrint": {
+        "fitTitle": "Fit Type",
+        "printTitle": "Print Side",
+        "front": "Front",
+        "back": "Back"
+      },
+      "colors": {
+        "title": "Colors",
+        "loadError": "Failed to load colors.",
+        "retry": "Retry",
+        "swatch": "{{name}}"
+      },
+      "marketplaces": {
+        "title": "Marketplaces & Prices",
+        "price": "Price",
+        "royalty": "Royalty",
+        "enable": "Enable {{code}}",
+        "priceFor": "Price for {{code}}"
+      },
+      "placeholder": {
+        "comingSoon": "Configuration for {{marketplace}} coming soon"
+      },
+      "fields": {
+        "sectionLabel": "Listing Fields",
+        "brand": "Brand",
+        "title": "Title",
+        "bullet": "Bullet {{n}}",
+        "description": "Description",
+        "aiImprove": "AI Improve",
+        "openChat": "Open Chat for this field",
+        "keywordContext": "Keyword Context",
+        "keywordContextPlaceholder": "Free-form notes to steer AI Improve — brand tone, avoid-words, audience."
+      },
+      "ai_improve": {
+        "tooltip": "Improve with AI",
+        "tooltipDisabled": "Create or convert listing first",
+        "buttonLabel": "AI Improve listing",
+        "successSnackbar": "Listing improved with AI",
+        "errorSnackbar": "AI Improve failed — please try again",
+        "truncatedChip": "AI truncated"
+      },
+      "translation": {
+        "title": "Language",
+        "selectLanguage": "Select language",
+        "autoTranslate": "Auto Translate",
+        "translateTo": "Translate to…",
+        "notLocalized": "Brand is the same across languages — edit on the EN tab"
+      },
+      "options": {
+        "sectionLabel": "Listing options",
+        "availability": {
+          "title": "Availability",
+          "public": "Public",
+          "private": "Private"
+        },
+        "publishMode": {
+          "title": "Publish",
+          "live": "Live",
+          "draft": "Draft"
+        }
+      },
+      "preview": {
+        "label": "Design preview",
+        "empty": "No design selected",
+        "error": "Preview unavailable"
+      },
+      "unsaved": {
+        "message": "Unsaved changes",
+        "discard": "Discard",
+        "save": "Save",
+        "cancel": "Cancel",
+        "retry": "Retry",
+        "saving": "Saving...",
+        "saved": "Saved",
+        "failed": "Save failed",
+        "offline": "You are offline — changes will sync when you reconnect",
+        "offlineChip": "Offline",
+        "queued": "{{count}} queued",
+        "confirmDiscardTitle": "Discard unsaved changes?",
+        "confirmDiscardBody": "Your pending edits will be cleared. This cannot be undone.",
+        "autoSaving": "Saving...",
+        "autoSaved": "Saved"
+      },
+      "listingState": {
+        "notFound": "No listing for {{marketplace}} yet. Convert from another marketplace tab to start editing.",
+        "error": "Failed to load listing for this marketplace.",
+        "retry": "Retry"
+      },
+      "savedLabel": "Saved",
+      "saveLabel": "Save",
+      "global": {
+        "sectionLabel": "Global listing",
+        "noListing": "Generate a Global listing (Convert from MBA) before editing Global fields.",
+        "keywords": {
+          "label": "Keywords",
+          "placeholder": "Add keyword... (Enter or comma to commit)",
+          "limitReached": "Limit reached",
+          "duplicate": "Already in the list",
+          "finderLink": "KW Finder",
+          "finderNoNiche": "Link a niche to this design first",
+          "workbenchLink": "KW Workbench",
+          "workbenchTooltip": "Coming soon — ships with PROJ-10 Keyword Bank"
+        },
+        "options": {
+          "sectionLabel": "Global listing options",
+          "types": {
+            "title": "Types",
+            "men": "Men",
+            "women": "Women",
+            "youth": "Youth"
+          },
+          "color": {
+            "title": "Color",
+            "black": "Black",
+            "white": "White",
+            "colorful": "Colorful"
+          }
+        },
+        "tagging": {
+          "button": "Tagging Options",
+          "copyEn": "Copy EN keywords to all languages",
+          "importCsv": "Import keywords from CSV",
+          "clearAll": "Clear all keywords",
+          "cancel": "Cancel",
+          "copyEnConfirm": "Copy",
+          "copyEnConfirmTitle": "Copy EN keywords to all languages?",
+          "copyEnConfirmBody": "Replaces keyword lists for DE, FR, IT, ES, JA with the EN list. Existing entries in those languages will be overwritten.",
+          "clearAllConfirm": "Clear all",
+          "clearAllConfirmTitle": "Clear all keywords?",
+          "clearAllConfirmBody": "Removes every keyword across every language on this listing. This cannot be undone."
+        },
+        "advanced": {
+          "trigger": "Advanced Options",
+          "title": "Advanced Options",
+          "brand": "Brand",
+          "category": "Category",
+          "cancel": "Cancel",
+          "save": "Save"
+        },
+        "import": {
+          "title": "Import keywords from CSV ({{lang}})",
+          "hint": "Paste keywords separated by commas, semicolons, or newlines. Duplicates and entries that overflow the 50-character limit are skipped.",
+          "placeholder": "dog, cat, bird\nfunny, cute",
+          "summary": "{{accepted}} of {{total}} keywords will be imported — {{skipped}} skipped",
+          "preview": "Preview",
+          "cancel": "Cancel",
+          "import": "Import"
+        }
+      },
+      "displate": {
+        "sectionLabel": "Displate listing",
+        "noListing": "Generate a Displate listing (Convert from MBA) before editing Displate fields.",
+        "advanced": {
+          "trigger": "Advanced Options"
+        },
+        "bgColor": {
+          "title": "Background Color",
+          "hexInputLabel": "Background color hex",
+          "preview": "Background color preview: {{hex}}",
+          "invalid": "Enter a 6-digit hex color in the form #RRGGBB (e.g. #FF00AA)."
+        }
+      }
+    },
+    "ai_improve": {
+      "truncatedChip": "AI truncated",
+      "tooltipDisabled": "Create or convert listing first",
+      "tooltip": "Improve with AI",
+      "successSnackbar": "Listing improved with AI",
+      "errorSnackbar": "AI Improve failed — please try again",
+      "buttonLabel": "AI Improve listing"
+    },
+    "movePicker": {
+      "success": "Design moved",
+      "error404": "Destination no longer exists",
+      "error": "Failed to move design",
+      "title": "Move to Collection",
+      "readyHint": "Press Move Here to confirm",
+      "pickHint": "Select a folder from the tree",
+      "moveHere": "Move Here"
+    }
+  },
+  "dashboard": {
+    "page": {
+      "title": "Dashboard"
+    },
+    "kpi": {
+      "research": "Research",
+      "design": "Design",
+      "publish": "Publish",
+      "live": "Live",
+      "designsApproved": "Designs Approved",
+      "listingsReady": "Listings Ready"
+    },
+    "funnel": {
+      "title": "Pipeline Funnel",
+      "research": "Research",
+      "design": "Design",
+      "publish": "Publish",
+      "live": "Live"
+    },
+    "activity": {
+      "title": "Recent Activity",
+      "empty": "No recent activity"
+    },
+    "stuck": {
+      "title": "Stuck Niches",
+      "empty": "No stuck niches",
+      "daysStuck": "{{days}}d stuck"
+    },
+    "agent": {
+      "title": "Agent Activity",
+      "activeWorkflows": "Active Workflows",
+      "successRate": "Success Rate",
+      "budgetUsage": "Budget Usage",
+      "agentType": "Agent",
+      "runs": "Runs",
+      "cost": "Cost",
+      "lastCompleted": "Last: {{niche}} ({{template}}, {{duration}}min)"
+    },
+    "search": {
+      "title": "Search Activity",
+      "searchesPerDay": "Searches / day",
+      "crawlCount": "Crawls",
+      "crawlSuccessRate": "Success Rate",
+      "topQueries": "Top Queries"
+    },
+    "analytics": {
+      "sectionTitle": "Analytics",
+      "dateRange": "Date range",
+      "from": "From",
+      "to": "To",
+      "weekLabel": "Week",
+      "noData": "No data for this period",
+      "designsTitle": "Designs by Model / Week",
+      "listingsTitle": "Listings / Week",
+      "listingsReady": "Ready",
+      "listingsPublished": "Published"
+    },
+    "export": {
+      "tooltip": "Export CSV"
+    },
+    "placeholder": {
+      "agentNotConfigured": "Agent not set up",
+      "searchNotConfigured": "Search not connected"
+    },
+    "error": {
+      "loadFailed": "Failed to load dashboard data"
+    }
+  },
+  "kanban": {
+    "board": {
+      "title": "Team Kanban",
+      "columnResearch": "Research",
+      "columnDesign": "Design",
+      "columnPublish": "Publish",
+      "columnLive": "Live",
+      "columnDone": "Done",
+      "dragError": "Failed to update status. Card reverted.",
+      "loadError": "Failed to load board data.",
+      "maxWarning": "Showing first 200 niches. Archive or filter to see more."
+    },
+    "card": {
+      "status": {
+        "data_entry": "Data Entry",
+        "deep_research": "Deep Research",
+        "niche_with_potential": "Potential",
+        "to_designer": "To Designer",
+        "upload": "Upload",
+        "start_ads": "Start Ads",
+        "pending": "Pending",
+        "winner": "Winner",
+        "loser": "Loser",
+        "archived": "Archived"
+      }
+    },
+    "modal": {
+      "designs": "Designs",
+      "designStatus": {
+        "approved": "Approved",
+        "rejected": "Rejected",
+        "pending": "Pending"
+      },
+      "approve": "Approve",
+      "reject": "Reject",
+      "delete": "Delete",
+      "send": "Send",
+      "feedbackPlaceholder": "Reason for rejection...",
+      "approveError": "Failed to approve design.",
+      "rejectError": "Failed to reject design.",
+      "deleteError": "Failed to delete design."
+    },
+    "comments": {
+      "title": "Comments",
+      "cardLevel": "Card Comments",
+      "placeholder": "Write a comment... (@ to mention)",
+      "mentionHint": "Search members...",
+      "send": "Send",
+      "createError": "Failed to post comment.",
+      "deleteError": "Failed to delete comment."
+    },
+    "round": {
+      "history": "Round History",
+      "newRound": "New Round",
+      "newSuccess": "New round started.",
+      "newError": "Failed to start new round.",
+      "mustBeDone": "Niche must be in Done column to start a new round.",
+      "noHistory": "No round data yet.",
+      "ideas": "ideas",
+      "designs": "designs",
+      "approved": "approved",
+      "listings": "listings"
+    },
+    "upload": {
+      "title": "Upload Designs",
+      "dropHint": "Drop files here or click to upload",
+      "success": "{{count}} design(s) uploaded.",
+      "error": "Upload failed."
+    },
+    "trash": {
+      "title": "Trash",
+      "restore": "Restore",
+      "restoreSuccess": "Design restored.",
+      "restoreError": "Failed to restore design.",
+      "empty": "Trash is empty.",
+      "expiresIn": "Expires in {{days}} days"
+    },
+    "filter": {
+      "allMembers": "All Members",
+      "showArchived": "Show Archived"
+    },
+    "empty": {
+      "column": "No niches in this column",
+      "designs": "No designs yet",
+      "comments": "No comments yet"
+    },
+    "notifications": {
+      "title": "Notifications",
+      "bell": "Notifications",
+      "markAllRead": "Mark all read",
+      "empty": "No notifications"
+    }
+  },
+  "common": {
+    "close": "Close",
+    "retry": "Retry",
+    "cancel": "Cancel",
+    "save": "Save",
+    "back": "Back",
+    "unexpectedError": "Unexpected error"
+  },
+  "search": {
+    "chatBar": {
+      "placeholder": "Search the web or ask a question...",
+      "send": "Send",
+      "dismiss": "Dismiss chat bar",
+      "reveal": "Show chat bar",
+      "expand": "Open search",
+      "collapse": "Collapse",
+      "openChat": "Open chat panel",
+      "helper": "@ niches · / commands · Shift+Enter new line",
+      "mode": "Mode",
+      "sources": "Sources",
+      "model": "Model",
+      "attachComingSoon": "Coming in Phase 7",
+      "removeChip": "Remove niche context",
+      "contextUpdated": "Context: {{name}}",
+      "contextDeleted": "Niche \"{{name}}\" was deleted — context cleared",
+      "mentionPicker": {
+        "ariaLabel": "Niche mention picker",
+        "loading": "Loading…",
+        "empty": "No matches for \"{{query}}\"",
+        "noNiches": "No niches yet",
+        "createNiche": "+ New niche",
+        "createNicheStubMsg": "Niche-Create modal will open here in a later phase"
+      },
+      "modePopover": {
+        "ariaLabel": "Mode override",
+        "vaneOffline": "Chat unavailable — Vane offline",
+        "chat": {
+          "description": "Direct AI chat with web search results"
+        },
+        "agent": {
+          "description": "Multi-step research with workflows"
+        }
+      },
+      "sourcesPopover": {
+        "ariaLabel": "Search sources",
+        "atLeastOne": "At least one source must be enabled"
+      },
+      "modelPopover": {
+        "ariaLabel": "Model picker",
+        "searchPlaceholder": "Search models…",
+        "providerOpenrouter": "OpenRouter",
+        "noResults": "No models match \"{{query}}\""
+      }
+    },
+    "commands": {
+      "ariaLabel": "Slash command palette",
+      "empty": "No matching commands",
+      "chat": {
+        "description": "Switch to Chat mode",
+        "snackbar": "Mode: Chat"
+      },
+      "agent": {
+        "description": "Switch to Agent mode",
+        "snackbar": "Mode: Agent"
+      },
+      "niche": {
+        "description": "Open the niche-mention picker",
+        "snackbar": "Open the @-mention picker"
+      },
+      "clearContext": {
+        "description": "Remove the active niche chip",
+        "snackbar": "Context cleared"
+      },
+      "model": {
+        "description": "Open the model picker",
+        "snackbar": "Model picker — coming in next phase"
+      },
+      "help": {
+        "description": "Show the list of all commands",
+        "snackbar": "Help",
+        "title": "Commands",
+        "commandHeader": "Command",
+        "descriptionHeader": "Description",
+        "exampleHeader": "Example"
+      }
+    },
+    "drawer": {
+      "segments": "Drawer panels",
+      "nicheDetail": "Niche",
+      "chat": "Chat",
+      "search": "Search",
+      "close": "Close drawer",
+      "noNicheSelected": "No niche selected",
+      "selectNicheHint": "Open a niche from the list to see its details here."
+    },
+    "chat": {
+      "model": "Model",
+      "sources": "Sources",
+      "source_web": "Web",
+      "source_academic": "Academic",
+      "source_discussions": "Discussions",
+      "sendError": "Failed to send message. Please try again.",
+      "loadMore": "Load older messages",
+      "toggleControls": "Toggle search controls"
+    },
+    "context": {
+      "label": "Context: {{name}}",
+      "removeTooltip": "Remove niche context",
+      "useAsContext": "Use this Niche as chat context",
+      "toggleLabel": "Toggle niche context"
+    },
+    "results": {
+      "aiAnswer": "AI Answer",
+      "sources": "Sources",
+      "noSources": "No sources found for this query.",
+      "deepCrawl": "Deep Crawl",
+      "sourceCount_one": "{{count}} source",
+      "sourceCount_other": "{{count}} sources"
+    },
+    "citation": {
+      "openSource": "Open source {{n}}",
+      "unknownDomain": "Source"
+    },
+    "codeBlock": {
+      "copy": "Copy code",
+      "copied": "Copied",
+      "plain": "text"
+    },
+    "crawl": {
+      "pending": "Pending",
+      "running": "Crawling...",
+      "completed": "Crawled",
+      "failed": "Failed",
+      "error": "Failed to start deep crawl.",
+      "retry": "Retry"
+    },
+    "sessions": {
+      "recentChats": "Recent Chats",
+      "untitled": "Untitled Chat",
+      "share": "Share with workspace",
+      "unshare": "Stop sharing",
+      "shared": "Session shared with workspace.",
+      "unshared": "Session is now private.",
+      "shareError": "Failed to update sharing.",
+      "sharedBy": "Shared by {{name}}",
+      "readOnly": "This shared session is read-only.",
+      "newChat": "New chat"
+    },
+    "health": {
+      "online": "Online",
+      "offline": "Offline",
+      "tooltip": "Vane: {{vane}} | Crawl4ai: {{crawl4ai}}",
+      "vaneOffline": "Web search is currently unavailable.",
+      "crawl4aiOffline": "Deep Crawl is currently unavailable.",
+      "allOffline": "Search services are offline."
+    },
+    "save": {
+      "toNiche": "Save to {{name}}",
+      "keywords": "Save Keywords",
+      "vectorDbSaved": "Auto-saved to Vector DB",
+      "saved": "Saved to {{name}}.",
+      "error": "Failed to save.",
+      "toKeywords": "Save as Keywords",
+      "toNotes": "Save as Notes",
+      "success": "Saved to {{name}}.",
+      "selectNiche": "No niche selected — choose where to save.",
+      "toolbarLabel": "Save selection toolbar",
+      "toNichePicker": "Pick a niche to save to",
+      "notes": "Save as Notes",
+      "successKeywords": "{{count}} keywords saved",
+      "allDuplicates": "All keywords already exist",
+      "successNote": "Note saved",
+      "errorGeneric": "Could not save snippet",
+      "modal": {
+        "title": "Save to Niche",
+        "description": "Choose a niche to save this {{type}} to:",
+        "nichePlaceholder": "Search niches...",
+        "save": "Save",
+        "cancel": "Cancel",
+        "noNiches": "No niches found in this workspace"
+      }
+    },
+    "empty": {
+      "noSessions": "No chat sessions yet. Start a search!",
+      "noResults": "No search results",
+      "firstSearchHint": "Type a question in the chat bar to search the web with AI."
+    },
+    "mode": {
+      "label": "Mode",
+      "chat": "Chat",
+      "agent": "Agent",
+      "tooltip": "Chat is direct Vane web-search; Agent runs a multi-step workflow."
+    },
+    "workflow": {
+      "openCommandCenter": "Open Command Center",
+      "stepperLabel": "Workflow steps",
+      "approvalPending": "Approval needed",
+      "progress": "{{completed}}/{{total}} steps",
+      "status": {
+        "idle": "Idle",
+        "running": "Running",
+        "paused": "Paused",
+        "completed": "Completed",
+        "failed": "Failed",
+        "cancelled": "Cancelled"
+      }
+    },
+    "scroll": {
+      "jumpToLatest": "Jump to latest"
+    },
+    "stream": {
+      "streaming": "Streaming response...",
+      "error": "Streaming failed. Please try again.",
+      "connectionLost": "Connection lost. Please retry.",
+      "timeout": "Search timed out. Please try again."
+    },
+    "actions": {
+      "toolbarLabel": "Message actions",
+      "copy": "Copy message",
+      "copied": "Copied",
+      "copySuccess": "Copied to clipboard",
+      "copyError": "Could not copy to clipboard",
+      "copyFallbackWarning": "Copied via legacy fallback — secure clipboard unavailable",
+      "regenerate": "Regenerate response",
+      "regenerateBusy": "Wait for current response to finish",
+      "regenerateUnavailable": "No prior question to regenerate",
+      "regenerateError": "Could not regenerate response",
+      "share": "Share",
+      "shareSuccess": "Share link copied",
+      "shareError": "Could not generate share link",
+      "save": "Save answer to niche"
+    },
+    "shared": {
+      "pageTitle": "Shared chat",
+      "notFound": "This chat is not (or no longer) shared",
+      "notFoundDetail": "The link may have been revoked or never existed.",
+      "loading": "Loading shared chat…",
+      "emptyMessage": "This chat has no messages yet.",
+      "sharedNotice": "This is a public, read-only view of a shared chat."
+    },
+    "attachments": {
+      "upload": "Upload images",
+      "dropHere": "Drop images here",
+      "removeImage": "Remove image",
+      "error": {
+        "tooLarge": "\"{{name}}\" exceeds 10 MB",
+        "invalidType": "\"{{name}}\" is not a JPEG/PNG/WebP image",
+        "tooMany": "Up to {{max}} images per message",
+        "totalTooLarge": "Total upload size exceeds 25 MB",
+        "uploadFailed": "Upload failed. Please try again."
+      },
+      "visionFallback": "Switched to {{model}} for image support",
+      "purgedPlaceholder": "[Image purged]"
+    }
+  },
+  "agent": {
+    "tab": {
+      "label": "Agent",
+      "pageTitle": "OpenClaw Agent"
+    },
+    "header": {
+      "pause": "Pause workflow",
+      "resume": "Resume workflow",
+      "stop": "Stop workflow",
+      "share": "Share with workspace",
+      "unshare": "Stop sharing",
+      "paused": "Workflow paused",
+      "resumed": "Workflow resumed",
+      "stopped": "Workflow stopped",
+      "shared": "Session shared with workspace",
+      "unshared": "Session unshared",
+      "pauseError": "Failed to pause workflow",
+      "resumeError": "Failed to resume workflow",
+      "stopError": "Failed to stop workflow",
+      "shareError": "Failed to share session",
+      "unshareError": "Failed to unshare session",
+      "startError": "Failed to start agent session"
+    },
+    "share": {
+      "readOnly": "Read-only — Shared by {{name}}",
+      "sharedBy": "Shared by {{name}}"
+    },
+    "stepper": {
+      "title": "Workflow Progress",
+      "steps": "steps",
+      "status": {
+        "idle": "Idle",
+        "running": "Running",
+        "paused": "Paused",
+        "completed": "Completed",
+        "failed": "Failed",
+        "cancelled": "Cancelled"
+      }
+    },
+    "log": {
+      "empty": "No messages yet",
+      "loadMore": "Load earlier messages",
+      "sendError": "Failed to send message",
+      "startPrompt": "Start a workflow or type a command",
+      "inputPlaceholder": "Tell the agent what to do...",
+      "send": "Send"
+    },
+    "approval": {
+      "title": "Approval Required",
+      "cost": "Est. cost",
+      "approve": "Approve",
+      "reject": "Reject",
+      "approved": "Action approved",
+      "rejected": "Action rejected",
+      "approveError": "Failed to approve action",
+      "rejectError": "Failed to reject action"
+    },
+    "quickAction": {
+      "title": "Quick Actions"
+    },
+    "batch": {
+      "title": "Batch Progress",
+      "empty": "No batch sessions"
+    },
+    "settings": {
+      "title": "Agent Settings",
+      "agentConfig": "Agents",
+      "permissions": "Permissions",
+      "personalityPresets": "Personality presets",
+      "name": "Display name",
+      "avatar": "Emoji",
+      "personality": "Personality",
+      "model": "Model",
+      "temperature": "Temp",
+      "save": "Save",
+      "tool": "Tool",
+      "permissionLevel": "Level",
+      "auto": "Auto",
+      "notify": "Notify",
+      "approveLevel": "Approve",
+      "autonomyPreset": "Autonomy Preset"
+    },
+    "knowledge": {
+      "title": "Knowledge Docs",
+      "titlePlaceholder": "Title",
+      "contentPlaceholder": "Content (Markdown supported)",
+      "empty": "No knowledge docs yet",
+      "save": "Save",
+      "cancel": "Cancel",
+      "edit": "Edit",
+      "delete": "Delete",
+      "preview": "Preview",
+      "hidePreview": "Hide preview",
+      "saved": "Knowledge doc saved",
+      "saveError": "Failed to save knowledge doc",
+      "deleted": "Knowledge doc deleted",
+      "deleteError": "Failed to delete knowledge doc"
+    },
+    "templates": {
+      "title": "Workflow Templates",
+      "namePlaceholder": "Template name",
+      "keyPlaceholder": "Template key (e.g. quick_design)",
+      "actionPlaceholder": "Action",
+      "addStep": "Add step",
+      "removeStep": "Remove step",
+      "dragHandle": "Drag to reorder step",
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "add": "Add template",
+      "empty": "No custom templates",
+      "saved": "Template saved",
+      "saveError": "Failed to save template",
+      "deleted": "Template deleted",
+      "deleteError": "Failed to delete template"
+    },
+    "collision": {
+      "title": "Collision Warning",
+      "message": "{{username}} is already working on \"{{nicheName}}\". Continue anyway?",
+      "continue": "Continue",
+      "cancel": "Cancel"
+    },
+    "onboarding": {
+      "title": "Set up your agent",
+      "message": "Configure autonomy level and preferences for your AI assistant.",
+      "setup": "Configure",
+      "skip": "Skip",
+      "flowTitle": "Quick Setup",
+      "step1": "Autonomy",
+      "step2": "Niche",
+      "step3": "Knowledge",
+      "step1Hint": "How autonomous should your agent be?",
+      "step2Hint": "Pick a default niche to focus on (optional).",
+      "step3Hint": "Add a quick knowledge doc the agent should remember (optional).",
+      "choosePreset": "Choose autonomy preset",
+      "skipNiche": "Skip — choose later",
+      "next": "Next",
+      "back": "Back",
+      "finish": "Finish",
+      "close": "Close",
+      "presetActivated": "Autonomy preset activated",
+      "presetError": "Failed to activate preset",
+      "docSaved": "Knowledge doc saved",
+      "docError": "Failed to save knowledge doc"
+    },
+    "budget": {
+      "label": "Budget",
+      "exhausted": "Agent budget exhausted. Please top up the agent API key.",
+      "warning": "Agent budget at {{percent}}% of threshold"
+    },
+    "personality": {
+      "projektleiter": "Project Lead",
+      "creativeDirector": "Creative Director",
+      "minimalist": "Minimalist",
+      "analyst": "Analyst",
+      "scout": "Scout",
+      "texter": "Copywriter",
+      "brainstormer": "Brainstormer",
+      "artDirector": "Art Director",
+      "experimentator": "Experimentalist",
+      "seoProfi": "SEO Pro",
+      "copywriter": "Copywriter",
+      "koordinator": "Coordinator",
+      "rechercheur": "Researcher"
+    },
+    "names": {
+      "chief": "Chief",
+      "scout": "Scout",
+      "muse": "Muse",
+      "pixel": "Pixel",
+      "scribe": "Scribe",
+      "launch": "Launch",
+      "radar": "Radar"
+    },
+    "shared": {
+      "badge": "Shared by {{username}}",
+      "readOnly": "Read-only (shared session)"
+    },
+    "skills": {
+      "title": "Skills",
+      "empty": "No skills yet. Skills are auto-generated as the agent learns.",
+      "description": "Description",
+      "name": "Name",
+      "agents": "Agents",
+      "trigger": "Trigger",
+      "successCount": "Successes",
+      "errorCount": "Errors",
+      "version": "v{{version}}",
+      "lastUsed": "Last used",
+      "lastUsedNever": "Never",
+      "viewVersions": "View versions",
+      "showDeleted": "Show deleted",
+      "edit": "Edit skill",
+      "delete": "Delete skill",
+      "deleted": "Skill deleted",
+      "deleteError": "Failed to delete skill",
+      "saved": "Skill saved",
+      "saveError": "Failed to save skill",
+      "save": "Save",
+      "cancel": "Cancel",
+      "back": "Back",
+      "patchMode": "Patch (append/diff)",
+      "replaceMode": "Replace (full content)",
+      "patchSummary": "Change summary",
+      "versionHistory": "Version history",
+      "versionConflict": "Skill was updated by reflection. Reload to see latest?",
+      "reload": "Reload",
+      "trigger_auto_complex_task": "Auto: Complex Task",
+      "trigger_auto_error_recovery": "Auto: Error Recovery",
+      "trigger_user_correction": "User Correction",
+      "trigger_manual": "Manual"
+    },
+    "memory": {
+      "title": "Workspace Memory",
+      "description": "Compact summary the agent has learned about this workspace.",
+      "charCounter": "{{count}} / {{limit}}",
+      "overLimit": "Over the {{limit}} character limit",
+      "edit": "Edit memory",
+      "save": "Save",
+      "cancel": "Cancel",
+      "saved": "Memory saved",
+      "saveError": "Failed to save memory",
+      "lastConsolidated": "Last consolidated: {{when}}",
+      "lastConsolidatedNever": "Not yet consolidated",
+      "empty": "Memory is empty. The agent will start filling it after sessions complete.",
+      "draftRestored": "Restored unsaved memory draft"
+    },
+    "profile": {
+      "title": "Your Profile",
+      "description": "What the agent has inferred about how you work.",
+      "charCounter": "{{count}} / {{limit}}",
+      "overLimit": "Over the {{limit}} character limit",
+      "save": "Save",
+      "saved": "Profile saved",
+      "saveError": "Failed to save profile",
+      "reset": "Reset profile",
+      "resetConfirm": "Reset your profile? The agent will need to re-learn your preferences.",
+      "resetCancel": "Cancel",
+      "resetConfirmAction": "Reset",
+      "dialectReasoning": "Dialect reasoning",
+      "dialectReasoningHint": "Read-only — last 3-pass reasoning the agent used to update this profile.",
+      "dialectReasoningEmpty": "No reasoning yet. Generated after the next dialectic pass.",
+      "lastDialectic": "Last update: {{when}}",
+      "lastDialecticNever": "Not yet inferred",
+      "empty": "Profile is empty. The agent will fill it after a few sessions."
+    },
+    "reflection": {
+      "lastReflection": "Last reflection: {{when}}",
+      "lastReflectionNever": "No reflection yet",
+      "untilNext": "Sessions until next: {{count}}",
+      "viewMemory": "View memory"
+    }
+  },
+  "amazonResearch": {
+    "detail": {
+      "breadcrumb": "Amazon Research",
+      "notFound": "Product not found",
+      "notFoundDescription": "The product with ASIN \"{{asin}}\" could not be found.",
+      "backToResearch": "Back to research",
+      "openInAmazon": "Open in Amazon",
+      "useAsTemplate": "Use as Listing Template",
+      "saveKeywords": "Save Keywords",
+      "selectNicheFirst": "Select a niche first",
+      "readMore": "Read more",
+      "showLess": "Show less",
+      "noImage": "No image available",
+      "bsrHistory": "BSR History (90 days)",
+      "noBsrData": "No BSR data available",
+      "subcategoryRanks": "Subcategory Ranks",
+      "overall": "Overall",
+      "current": "Current",
+      "average": "Average",
+      "median": "Median",
+      "priceHistory": "Price History",
+      "noPriceData": "No price history available",
+      "keywords": "Keywords",
+      "noKeywords": "No keywords available",
+      "shortTail": "Short-Tail",
+      "longTail": "Long-Tail",
+      "copyAllKeywords": "Copy all keywords",
+      "keywordsCopied": "{{count}} keywords copied",
+      "similarDesigns": "Similar Designs",
+      "sameBrand": "Same Brand",
+      "noSimilar": "No similar products found",
+      "noSameBrand": "No other products from this brand",
+      "kpiBsr": "BSR",
+      "kpiPrice": "PRICE",
+      "kpiReviews": "REVIEWS",
+      "kpiRating": "RATING",
+      "trendUp": "Improving",
+      "trendDown": "Declining",
+      "trendStable": "Stable"
+    },
+    "statistics": {
+      "runSearchFirst": "Run a search first",
+      "runSearchHint": "Keyword statistics will appear after a search completes",
+      "noKeywordData": "No keyword data available",
+      "noKeywordHint": "Try a different search or wait for results to complete",
+      "focusKeywords": "Focus Keywords",
+      "longTailKeywords": "Long-Tail Keywords"
+    },
+    "toolbar": {
+      "products": "Products",
+      "keywords": "Keywords"
+    },
+    "niche": {
+      "selectLabel": "Active Niche",
+      "none": "No niche",
+      "selectFirst": "Select a niche first",
+      "openDrawer": "Open niche details",
+      "notSaved": "Niche not saved yet — save it first",
+      "created": "'{{name}}' saved as niche",
+      "createError": "Failed to create niche",
+      "saveDialogTitle": "Niche not found",
+      "saveDialogText": "'{{keyword}}' is not saved as a niche yet. Would you like to save it?",
+      "cancel": "Cancel",
+      "saveAsNiche": "Save as Niche"
+    },
+    "favorite": {
+      "added": "Product collected to {{niche}}"
+    },
+    "extract": {
+      "success": "Slogan extracted: {{slogan}}",
+      "error": "Failed to extract slogan",
+      "noImage": "No product image available"
+    },
+    "keyword": {
+      "saved": "'{{keyword}}' saved to {{niche}}",
+      "duplicate": "'{{keyword}}' already in keyword bank",
+      "saveFailed": "Failed to save keyword"
+    }
+  },
+  "legal": {
+    "translation_disclaimer": "This is a translation. In the event of a dispute, the German version shall prevail.",
+    "imprint": {
+      "title": "Imprint",
+      "operator": {
+        "heading": "Information pursuant to Section 5 TMG",
+        "body": "Mario Winter\nAußenliegend 4\n61209 Echzell\nDeutschland"
+      },
+      "contact": {
+        "heading": "Contact",
+        "phone_line": "Phone: <a>+49 1601546188</a>",
+        "email_line": "Email: <a>mariowinter.sg@gmail.com</a>"
+      },
+      "languages": {
+        "heading": "Available languages",
+        "body": "This website is available in the following languages: German, English, French, Spanish and Italian."
+      },
+      "vat": {
+        "heading": "VAT identification number",
+        "body": "VAT ID pursuant to Section 27 a of the German Value Added Tax Act: DE327848620"
+      },
+      "dsa": {
+        "heading": "Point of contact pursuant to Art. 12 DSA",
+        "body": "Point of contact for authorities and users pursuant to Art. 11, 12 of the Digital Services Act (DSA):\n\nMario Winter\nAußenliegend 4\n61209 Echzell\nDeutschland\n\nPhone: +49 1601546188\nEmail: mariowinter.sg@gmail.com\n\nCommunication may be conducted in German or English."
+      },
+      "disclaimer": {
+        "heading": "Disclaimer",
+        "content_heading": "Liability for content",
+        "content_body": "As a service provider, we are responsible for our own content on these pages in accordance with general laws pursuant to Section 7(1) TMG. However, pursuant to Sections 8 to 10 TMG, we as a service provider are not obliged to monitor transmitted or stored third-party information or to investigate circumstances that indicate illegal activity. Obligations to remove or block the use of information under general laws remain unaffected. Liability in this respect, however, is only possible from the moment of knowledge of a specific infringement. Upon becoming aware of any such infringements, we will remove the content concerned without undue delay.",
+        "links_heading": "Liability for links",
+        "links_body": "Our website contains links to external third-party websites over whose content we have no influence. For this reason, we cannot accept any liability for these external contents. The respective provider or operator of the linked pages is always responsible for their content. The linked pages were checked for possible legal violations at the time of linking. Illegal contents were not recognisable at the time of linking. However, permanent monitoring of the content of the linked pages is not reasonable without concrete evidence of an infringement. Upon becoming aware of any infringements, we will remove such links without undue delay.",
+        "copyright_heading": "Copyright",
+        "copyright_body": "The content and works on these pages created by the site operators are subject to German copyright law. Reproduction, adaptation, distribution and any kind of exploitation outside the limits of copyright law require the written consent of the respective author or creator. Downloads and copies of this site are only permitted for private, non-commercial use. Insofar as the content on this site was not created by the operator, the copyrights of third parties are respected. In particular, third-party content is identified as such. Should you nevertheless become aware of a copyright infringement, we kindly ask you to notify us. Upon becoming aware of any infringements, we will remove such content without undue delay."
+      }
+    },
+    "privacy": {
+      "title": "Privacy Policy",
+      "section_overview": {
+        "heading": "1. Privacy at a glance",
+        "subheading": "General information",
+        "body": "The following information provides a simple overview of what happens to your personal data when you visit this website. Personal data is any data with which you can be personally identified. For detailed information on the subject of data protection, please refer to our privacy policy listed below this text."
+      },
+      "responsible_party": {
+        "heading": "Information about the controller",
+        "body": "The controller responsible for data processing on this website is:\n\nMario Winter\nAußenliegend 4\n61209 Echzell\nDeutschland",
+        "contact_phone": "Phone: <a>+49 1601546188</a>",
+        "contact_email": "Email: <a>mariowinter.sg@gmail.com</a>"
+      },
+      "hosting": {
+        "heading": "2. Hosting (Strato)",
+        "body": "We host the content of our website with Strato AG, Otto-Ostrowski-Straße 7, 10249 Berlin (\"Strato\"). When you visit our website, Strato records various log files including your IP addresses. The use of Strato is based on Art. 6(1)(f) GDPR. We have a legitimate interest in presenting our website as reliably as possible. We have concluded a data processing agreement (DPA) with Strato.",
+        "link": "Further information: <a>https://www.strato.de/datenschutz/</a>"
+      },
+      "supabase": {
+        "heading": "Database & Storage (Supabase / PostgreSQL)",
+        "body": "We store application data (workspaces, niches, designs, listings) in a self-hosted PostgreSQL database based on the Supabase platform. The database runs on our own infrastructure in Germany (Strato); no data is transferred to Supabase Inc. The data is stored to fulfil our contractual obligations pursuant to Art. 6(1)(b) GDPR and on the basis of our legitimate interest in technically reliable provisioning of the application (Art. 6(1)(f) GDPR)."
+      },
+      "jwt_auth": {
+        "heading": "Authentication (JWT cookie)",
+        "body": "To authenticate registered users, we use an HttpOnly cookie containing a signed JWT token. The cookie is technically necessary for the login state and is set on the basis of Section 25(2) No. 2 TDDDG and Art. 6(1)(b) GDPR (performance of a contract). It contains no tracking information and is used exclusively for session and access control. The cookie is deleted upon logout."
+      },
+      "langfuse": {
+        "heading": "LLM observability (Langfuse, self-hosted)",
+        "body": "We use Langfuse to ensure quality and analyse errors in our AI-powered features. Langfuse runs on our own infrastructure (Strato, Germany) and logs inputs and responses of the AI models including metadata (latency, token consumption, model name). No data is transferred to third parties. The legal basis is our legitimate interest in the error-free and secure provisioning of the AI features (Art. 6(1)(f) GDPR)."
+      },
+      "openrouter": {
+        "heading": "LLM API (OpenRouter)",
+        "body": "For AI-powered features (e.g. niche research, slogan and design generation), we transfer the inputs necessary to process your request to OpenRouter, Inc. (1111B S Governors Ave #6589, Dover, DE 19904, USA). OpenRouter forwards these requests to the respective model providers. A transfer to the USA takes place. The legal basis is Art. 6(1)(b) GDPR (performance of a contract). The data transfer to the USA is based on the EU Commission's Standard Contractual Clauses. No content beyond the data necessary to answer the respective request is transferred to OpenRouter."
+      },
+      "n8n": {
+        "heading": "Workflow automation (n8n, self-hosted)",
+        "body": "For internal automation tasks (data collection, AI pipelines), we operate our own instance of the open-source software n8n on our infrastructure (Strato, Germany). No data is transferred to n8n GmbH or other third parties. The legal basis for the processing is Art. 6(1)(b) GDPR (performance of a contract) and Art. 6(1)(f) GDPR (legitimate interest in efficient provisioning of the application)."
+      },
+      "onedrive": {
+        "heading": "Cloud storage import: OneDrive",
+        "body": "Optionally, we offer you the possibility to import content from your personal Microsoft OneDrive into Merch Miner. The provider is Microsoft Ireland Operations Limited, One Microsoft Place, South County Business Park, Leopardstown, Dublin 18, Ireland. The connection to OneDrive is established exclusively after your explicit consent (OAuth authorisation). Microsoft may collect connection data including your IP address. The legal basis is Art. 6(1)(a) GDPR; consent can be revoked at any time. Microsoft is certified under the EU-US Data Privacy Framework."
+      },
+      "google_drive": {
+        "heading": "Cloud storage import: Google Drive",
+        "body": "Optionally, we offer you the possibility to import content from your personal Google Drive into Merch Miner. The provider is Google Ireland Limited, Gordon House, Barrow Street, Dublin 4, Ireland. The connection to Google Drive is established exclusively after your explicit consent (OAuth authorisation). Google may collect connection data including your IP address. The legal basis is Art. 6(1)(a) GDPR; consent can be revoked at any time. Google is certified under the EU-US Data Privacy Framework."
+      },
+      "user_rights": {
+        "heading": "Your rights as a data subject",
+        "body": "You have the right at any time to obtain free information about your stored personal data, its origin and recipients, and the purpose of the data processing. You also have the right to request the correction, deletion or restriction of the processing of this data. If you have given consent to the processing of your data, you can revoke this consent at any time with effect for the future. The lawfulness of the data processing carried out until the revocation remains unaffected by the revocation. In addition, you have the right to data portability pursuant to Art. 20 GDPR.",
+        "complaint": "In the event of breaches of data protection law, you have the right to lodge a complaint with the competent supervisory authority, in particular in the Member State of your habitual residence, place of work or place of the alleged infringement."
+      },
+      "contact": {
+        "heading": "Contact",
+        "body": "If you have any questions about data protection or wish to exercise your rights, you can reach us at <a>mariowinter.sg@gmail.com</a>."
+      }
+    }
+  },
+  "footer": {
+    "imprint": "Imprint",
+    "privacy": "Privacy",
+    "copyright": "© 2026 - Merch Miner",
+    "aria": "Site footer",
+    "legalNavLabel": "Legal"
   }
 }

@@ -4,7 +4,6 @@ import type { AmazonProduct, ProductSearchStatus } from '../types';
 
 interface UsePollingReturn {
   status: ProductSearchStatus | null;
-  pagesDone: number;
   productsScraped: number;
   products: AmazonProduct[];
   errorLog: string | null;
@@ -12,14 +11,20 @@ interface UsePollingReturn {
 }
 
 const POLL_INTERVAL = 3000;
-const TERMINAL_STATUSES: ProductSearchStatus[] = ['completed', 'failed'];
+const TERMINAL_STATUSES: ProductSearchStatus[] = ['completed', 'failed', 'cancelled'];
 
-// When cacheId changes (e.g. recent chip click), RTK Query automatically
-// unsubscribes from the previous cache key and subscribes to the new one,
-// so explicit cancellation of the old poll is not needed.
 const usePolling = (cacheId: string | null): UsePollingReturn => {
   const shouldPoll = !!cacheId;
   const [stoppedPolling, setStoppedPolling] = useState(false);
+
+  // Reset stoppedPolling when cacheId changes (new search OR next page)
+  const [prevCacheId, setPrevCacheId] = useState(cacheId);
+  if (cacheId !== prevCacheId) {
+    setPrevCacheId(cacheId);
+    if (stoppedPolling) {
+      setStoppedPolling(false);
+    }
+  }
 
   const { data, isLoading } = usePollSearchStatusQuery(cacheId ?? '', {
     skip: !shouldPoll,
@@ -32,18 +37,24 @@ const usePolling = (cacheId: string | null): UsePollingReturn => {
   if (isTerminal && !stoppedPolling) {
     setStoppedPolling(true);
   }
-  // Reset when cacheId changes (new search)
-  if (!shouldPoll && stoppedPolling) {
-    setStoppedPolling(false);
+
+  // When cacheId is null (e.g. after cancel), return empty state
+  if (!shouldPoll) {
+    return {
+      status: null,
+      productsScraped: 0,
+      products: [],
+      errorLog: null,
+      isPolling: false,
+    };
   }
 
   return {
     status: data?.status ?? null,
-    pagesDone: data?.pages_done ?? 0,
     productsScraped: data?.products_scraped ?? 0,
     products: data?.products ?? [],
     errorLog: data?.error_log ?? null,
-    isPolling: shouldPoll && !isTerminal && (isLoading || !!data),
+    isPolling: !isTerminal && (isLoading || !!data),
   };
 };
 

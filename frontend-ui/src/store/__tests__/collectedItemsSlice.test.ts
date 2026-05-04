@@ -105,7 +105,7 @@ describe('collectedItemsSlice', () => {
       expect(selectCollectedSlogans(getState(store), 'nope')).toEqual([]);
     });
 
-    it('selectCollectedCount returns correct total', () => {
+    it('selectCollectedCount returns correct total (slogans + keywords)', () => {
       const store = createStore();
       store.dispatch(toggleSlogan({ nicheId: 'n1', value: 'a' }));
       store.dispatch(toggleSlogan({ nicheId: 'n1', value: 'b' }));

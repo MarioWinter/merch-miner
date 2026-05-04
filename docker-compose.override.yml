@@ -9,7 +9,7 @@ volumes:
 
 services:
   db:
-    image: postgres:16
+    image: pgvector/pgvector:pg16
     container_name: app_db
     environment:
       POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
@@ -47,6 +47,23 @@ services:
     volumes:
       - ./django-app:/app
 
+  worker-slogan:
+    volumes:
+      - ./django-app:/app
+
+  worker-design:
+    volumes:
+      - ./django-app:/app
+      - ./media:/app/media
+
+  worker-agent:
+    volumes:
+      - ./django-app:/app
+
+  worker-search:
+    volumes:
+      - ./django-app:/app
+
   scheduler:
     volumes:
       - ./django-app:/app
@@ -59,3 +76,4 @@ services:
       - dev_node_modules:/app/node_modules
     environment:
       VITE_PROXY_TARGET: http://web:8000
+      VITE_ONEDRIVE_CLIENT_ID: ${VITE_ONEDRIVE_CLIENT_ID:-}

@@ -23,9 +23,10 @@ from scraper_app.models import (
     MarketplaceChoices,
     PRODUCT_TYPE_SPIDER_KWARGS,
     ProductSearchCache,
+    SearchKeywordResult,
     ScrapeJob,
 )
-from scraper_app.tasks import get_or_create_keyword_cache, scrape_keyword_job
+from scraper_app.tasks import cancel_scrape_job, get_or_create_keyword_cache, scrape_keyword_job
 from user_auth_app.api.authentication import CookieJWTAuthentication
 from workspace_app.models import Membership
 
@@ -33,8 +34,13 @@ from research_app.api.serializers import (
     AmazonProductSerializer,
     BSRSnapshotSerializer,
     LiveSearchSerializer,
+    PriceHistorySerializer,
+    ProductDetailSerializer,
     ProductFilterSerializer,
+    SimilarProductSerializer,
     SuggestionsQuerySerializer,
+    UseAsTemplateSerializer,
+    compute_bsr_summary,
 )
 
 logger = logging.getLogger(__name__)
@@ -142,31 +148,36 @@ def _build_product_queryset(filters):
             rank=SearchRank(search_vector, search_query),
         ).filter(search=search_query)
 
-    # Range filters — only applied if param present
+    # Range filters — only applied if param present.
+    # Treat NULL as "unknown — matches any range" so products without that
+    # data point are not silently excluded when the user enables the filter
+    # at default full range.
+    from django.db.models import Q
+
     bsr_min = filters.get('bsr_min')
     if bsr_min is not None:
-        qs = qs.filter(bsr__gte=bsr_min)
+        qs = qs.filter(Q(bsr__gte=bsr_min) | Q(bsr__isnull=True))
     bsr_max = filters.get('bsr_max')
     if bsr_max is not None:
-        qs = qs.filter(bsr__lte=bsr_max)
+        qs = qs.filter(Q(bsr__lte=bsr_max) | Q(bsr__isnull=True))
 
     rating_min = filters.get('rating_min')
     if rating_min is not None:
-        qs = qs.filter(rating__gte=rating_min)
+        qs = qs.filter(Q(rating__gte=rating_min) | Q(rating__isnull=True))
 
     reviews_min = filters.get('reviews_min')
     if reviews_min is not None:
-        qs = qs.filter(reviews_count__gte=reviews_min)
+        qs = qs.filter(Q(reviews_count__gte=reviews_min) | Q(reviews_count__isnull=True))
     reviews_max = filters.get('reviews_max')
     if reviews_max is not None:
-        qs = qs.filter(reviews_count__lte=reviews_max)
+        qs = qs.filter(Q(reviews_count__lte=reviews_max) | Q(reviews_count__isnull=True))
 
     price_min = filters.get('price_min')
     if price_min is not None:
-        qs = qs.filter(price__gte=price_min)
+        qs = qs.filter(Q(price__gte=price_min) | Q(price__isnull=True))
     price_max = filters.get('price_max')
     if price_max is not None:
-        qs = qs.filter(price__lte=price_max)
+        qs = qs.filter(Q(price__lte=price_max) | Q(price__isnull=True))
 
     date_from = filters.get('date_from')
     if date_from is not None:
@@ -266,9 +277,15 @@ class LiveSearchView(APIView):
         serializer = LiveSearchSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        keyword_str = serializer.validated_data['keyword']
+        keyword_str = serializer.validated_data.get('keyword', '').strip()
         marketplace = serializer.validated_data['marketplace']
         product_type = serializer.validated_data.get('product_type', '')
+        sort_by = serializer.validated_data.get('sort_by', '')
+        price_min = serializer.validated_data.get('price_min')
+        price_max = serializer.validated_data.get('price_max')
+        browse_node = serializer.validated_data.get('browse_node', '').strip()
+        pages_total = serializer.validated_data.get('pages_total', 2)
+        start_page = serializer.validated_data.get('start_page', 1)
 
         workspace = _resolve_workspace(request)
         if not workspace:
@@ -278,7 +295,12 @@ class LiveSearchView(APIView):
             )
 
         # Dedup: check existing pending/completed cache
-        existing_cache, is_new = get_or_create_keyword_cache(keyword_str, marketplace)
+        existing_cache, is_new = get_or_create_keyword_cache(
+            keyword_str, marketplace,
+            sort_by=sort_by, price_min=price_min,
+            price_max=price_max, browse_node=browse_node,
+            product_type_filter=product_type,
+        )
         if existing_cache and not is_new:
             return Response({
                 'cache_id': str(existing_cache.id),
@@ -296,6 +318,12 @@ class LiveSearchView(APIView):
             marketplace=marketplace,
             status=ScrapeJob.Status.PENDING,
             product_type_filter=product_type,
+            sort_by=sort_by,
+            price_min=price_min,
+            price_max=price_max,
+            browse_node=browse_node,
+            pages_total=pages_total,
+            start_page=start_page,
         )
 
         search_cache = ProductSearchCache.objects.create(
@@ -303,6 +331,11 @@ class LiveSearchView(APIView):
             scrape_job=scrape_job,
             workspace=workspace,
             status=ProductSearchCache.Status.PENDING,
+            sort_by=sort_by,
+            price_min=price_min,
+            price_max=price_max,
+            browse_node=browse_node,
+            product_type_filter=product_type,
         )
 
         # Build spider kwargs
@@ -310,13 +343,22 @@ class LiveSearchView(APIView):
         if product_type and product_type in PRODUCT_TYPE_SPIDER_KWARGS:
             spider_kwargs.update(PRODUCT_TYPE_SPIDER_KWARGS[product_type])
 
+        # Override browse_node if explicitly set by user
+        if browse_node:
+            spider_kwargs['browse_node'] = browse_node
+
         queue = django_rq.get_queue('scraper')
         rq_job = queue.enqueue(
             scrape_keyword_job,
             keyword_str=keyword_str,
             marketplace=marketplace,
             scrape_job_id=str(scrape_job.id),
-            **spider_kwargs,
+            sort_by=sort_by,
+            price_min=price_min,
+            price_max=price_max,
+            browse_node=spider_kwargs.get('browse_node', ''),
+            start_page=start_page,
+            **{k: v for k, v in spider_kwargs.items() if k != 'browse_node'},
         )
         scrape_job.rq_job_id = rq_job.id
         scrape_job.save(update_fields=['rq_job_id'])
@@ -366,9 +408,13 @@ class SearchStatusView(APIView):
             'pages_done': scrape_job.pages_done if scrape_job else 0,
             'products_scraped': scrape_job.products_scraped if scrape_job else 0,
             'error_log': scrape_job.error_log if scrape_job else '',
+            'sort_by': search_cache.sort_by,
+            'price_min': str(search_cache.price_min) if search_cache.price_min is not None else None,
+            'price_max': str(search_cache.price_max) if search_cache.price_max is not None else None,
+            'browse_node': search_cache.browse_node,
         }
 
-        # On completion include first page of products
+        # On completion include first page of products + keyword results
         if search_cache.status == ProductSearchCache.Status.COMPLETED and search_cache.keyword:
             products = (
                 AmazonProduct.objects
@@ -380,7 +426,59 @@ class SearchStatusView(APIView):
             )
             result['products'] = AmazonProductSerializer(products, many=True).data
 
+            # Include SearchKeywordResult if available
+            try:
+                kw_result = search_cache.keyword_result
+                result['keyword_result'] = {
+                    'top_focus_keywords': kw_result.top_focus_keywords,
+                    'top_long_tail_keywords': kw_result.top_long_tail_keywords,
+                }
+            except SearchKeywordResult.DoesNotExist:
+                result['keyword_result'] = None
+
         return Response(result)
+
+
+class SearchCancelView(APIView):
+    """POST /api/research/search/{cache_id}/cancel/ — cancel a live search job."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, cache_id):
+        try:
+            search_cache = ProductSearchCache.objects.select_related(
+                'scrape_job', 'workspace',
+            ).get(id=cache_id)
+        except ProductSearchCache.DoesNotExist:
+            return Response(
+                {'error': 'Search cache not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Workspace ownership check
+        workspace = _resolve_workspace(request)
+        if not workspace:
+            return Response(
+                {'error': 'No active workspace membership.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        if search_cache.workspace_id and search_cache.workspace_id != workspace.id:
+            return Response(
+                {'error': 'Access denied.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        scrape_job = search_cache.scrape_job
+        if not scrape_job:
+            return Response({'status': search_cache.status})
+
+        # Only cancel if job is still cancellable
+        if scrape_job.status in (ScrapeJob.Status.PENDING, ScrapeJob.Status.RUNNING):
+            cancel_scrape_job(scrape_job.id, cancelled_by='user')
+            scrape_job.refresh_from_db()
+
+        return Response({'status': scrape_job.status})
 
 
 class ProductListView(APIView):
@@ -512,8 +610,8 @@ class BSRHistoryView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        cutoff = timezone.now() - timedelta(days=30)
-        snapshots = (
+        cutoff = timezone.now() - timedelta(days=90)
+        snapshots = list(
             BSRSnapshot.objects
             .filter(
                 product__asin=asin,
@@ -523,4 +621,289 @@ class BSRHistoryView(APIView):
             .order_by('recorded_at')
         )
 
-        return Response(BSRSnapshotSerializer(snapshots, many=True).data)
+        summary = compute_bsr_summary(snapshots)
+
+        return Response({
+            'snapshots': BSRSnapshotSerializer(snapshots, many=True).data,
+            'summary': summary,
+        })
+
+
+def _validate_asin(asin):
+    """Return error Response if ASIN invalid, else None."""
+    if not re.match(r'^[A-Z0-9]{10}$', asin):
+        return Response(
+            {'error': 'Invalid ASIN format. Must be 10 alphanumeric characters.'},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+    return None
+
+
+def _get_product_or_404(asin, marketplace=None):
+    """Return (product, None) or (None, error_response)."""
+    filters = {'asin': asin}
+    if marketplace:
+        filters['marketplace'] = marketplace
+    try:
+        product = AmazonProduct.objects.get(**filters)
+        return product, None
+    except AmazonProduct.DoesNotExist:
+        return None, Response(
+            {'error': 'Product not found.'},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except AmazonProduct.MultipleObjectsReturned:
+        # ASIN without marketplace may match multiple — get first
+        product = AmazonProduct.objects.filter(**filters).first()
+        return product, None
+
+
+class ProductDetailView(APIView):
+    """GET /api/research/products/{asin}/ — single product with meta_keywords."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, asin):
+        err = _validate_asin(asin)
+        if err:
+            return err
+
+        marketplace = request.query_params.get('marketplace')
+
+        filters = {'asin': asin}
+        if marketplace:
+            if marketplace not in dict(MarketplaceChoices.choices):
+                return Response(
+                    {'error': f'Invalid marketplace: {marketplace}'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            filters['marketplace'] = marketplace
+
+        product = (
+            AmazonProduct.objects
+            .prefetch_related('meta_keywords')
+            .filter(**filters)
+            .first()
+        )
+        if not product:
+            return Response(
+                {'error': 'Product not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(ProductDetailSerializer(product).data)
+
+
+class SimilarProductsView(APIView):
+    """GET /api/research/products/{asin}/similar/ — products with overlapping meta_keywords."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, asin):
+        err = _validate_asin(asin)
+        if err:
+            return err
+
+        marketplace = request.query_params.get('marketplace')
+
+        filters = {'asin': asin}
+        if marketplace:
+            filters['marketplace'] = marketplace
+
+        product = (
+            AmazonProduct.objects
+            .prefetch_related('meta_keywords')
+            .filter(**filters)
+            .first()
+        )
+        if not product:
+            return Response(
+                {'error': 'Product not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Get meta_keyword IDs for this product
+        keyword_ids = list(product.meta_keywords.values_list('id', flat=True))
+        if not keyword_ids:
+            return Response([])
+
+        # Find products sharing meta_keywords in same marketplace, exclude self
+        from django.db.models import Count
+
+        similar = (
+            AmazonProduct.objects
+            .filter(
+                meta_keywords__id__in=keyword_ids,
+                marketplace=product.marketplace,
+            )
+            .exclude(id=product.id)
+            .annotate(shared_count=Count('meta_keywords'))
+            .order_by('-shared_count')[:20]
+        )
+
+        return Response(SimilarProductSerializer(similar, many=True).data)
+
+
+class SameBrandView(APIView):
+    """GET /api/research/products/{asin}/same-brand/ — products with same brand + marketplace."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, asin):
+        err = _validate_asin(asin)
+        if err:
+            return err
+
+        marketplace = request.query_params.get('marketplace')
+
+        filters = {'asin': asin}
+        if marketplace:
+            filters['marketplace'] = marketplace
+
+        product = AmazonProduct.objects.filter(**filters).first()
+        if not product:
+            return Response(
+                {'error': 'Product not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if not product.brand:
+            return Response([])
+
+        same_brand = (
+            AmazonProduct.objects
+            .filter(brand=product.brand, marketplace=product.marketplace)
+            .exclude(id=product.id)
+            .order_by('bsr')[:20]
+        )
+
+        return Response(SimilarProductSerializer(same_brand, many=True).data)
+
+
+class PriceHistoryView(APIView):
+    """GET /api/research/products/{asin}/price-history/ — price snapshots for last 90 days."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, asin):
+        err = _validate_asin(asin)
+        if err:
+            return err
+
+        marketplace = request.query_params.get('marketplace')
+        if not marketplace:
+            return Response(
+                {'error': 'marketplace query param is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if marketplace not in dict(MarketplaceChoices.choices):
+            return Response(
+                {'error': f'Invalid marketplace: {marketplace}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        product_exists = AmazonProduct.objects.filter(
+            asin=asin, marketplace=marketplace,
+        ).exists()
+        if not product_exists:
+            return Response(
+                {'error': 'Product not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        cutoff = timezone.now() - timedelta(days=90)
+        snapshots = (
+            BSRSnapshot.objects
+            .filter(
+                product__asin=asin,
+                product__marketplace=marketplace,
+                recorded_at__gte=cutoff,
+                price__isnull=False,
+            )
+            .order_by('recorded_at')
+        )
+
+        return Response(PriceHistorySerializer(snapshots, many=True).data)
+
+
+class UseAsTemplateView(APIView):
+    """POST /api/research/products/{asin}/use-as-template/ — create Listing draft from product."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, asin):
+        err = _validate_asin(asin)
+        if err:
+            return err
+
+        serializer = UseAsTemplateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        niche_id = serializer.validated_data['niche_id']
+
+        workspace = _resolve_workspace(request)
+        if not workspace:
+            return Response(
+                {'error': 'No active workspace membership.'},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # Verify niche belongs to workspace
+        from niche_app.models import Niche
+
+        try:
+            niche = Niche.objects.get(id=niche_id, workspace=workspace)
+        except Niche.DoesNotExist:
+            return Response(
+                {'error': 'Niche not found or not in your workspace.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Get product
+        product = AmazonProduct.objects.filter(asin=asin).first()
+        if not product:
+            return Response(
+                {'error': 'Product not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Create a placeholder Idea for the Listing (manual, from product copy)
+        from idea_app.models import Idea
+
+        idea = Idea.objects.create(
+            workspace=workspace,
+            niche=niche,
+            slogan_text=product.title[:200] if product.title else 'Template from research',
+            is_manual=True,
+            source_product_url=product.product_url or '',
+            status=Idea.Status.APPROVED,
+            created_by=request.user,
+        )
+
+        # Create Listing draft pre-populated from product
+        from publish_app.models import Listing
+
+        listing = Listing.objects.create(
+            workspace=workspace,
+            idea=idea,
+            brand_name=product.brand[:50] if product.brand else '',
+            title=product.title[:60] if product.title else '',
+            bullet_1=product.bullet_1[:256] if product.bullet_1 else '',
+            bullet_2=product.bullet_2[:256] if product.bullet_2 else '',
+            description=product.description[:2000] if product.description else '',
+            status=Listing.Status.DRAFT,
+            generated_by=Listing.GeneratedBy.MANUAL,
+        )
+
+        return Response(
+            {
+                'listing_id': str(listing.id),
+                'idea_id': str(idea.id),
+            },
+            status=status.HTTP_201_CREATED,
+        )

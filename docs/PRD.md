@@ -29,7 +29,7 @@ Eliminates spreadsheet chaos and tool-switching by connecting niche data, AI-gen
 | P0 (MVP) | PROJ-5: Niche List | Deployed |
 | P0 (MVP) | PROJ-6: Niche Deep Research (LangGraph) | Ready to Deploy |
 | P0 (MVP) | PROJ-7: Amazon Product Research | In Progress |
-| P0 (MVP) | PROJ-8: Idea & Slogan Generation (LangGraph) | In Progress |
+| P0 (MVP) | PROJ-8: Idea & Slogan Generation (LangGraph) | In Review |
 | P0 (MVP) | PROJ-9: Design Generation + Post-Processing (OpenRouter) | In Progress |
 | P1 | PROJ-10: Keyword Research & Bank (JungleScout) | In Progress |
 | P0 (MVP) | PROJ-11: Publish (Listing + Upload Manager) | In Progress |
@@ -38,8 +38,13 @@ Eliminates spreadsheet chaos and tool-switching by connecting niche data, AI-gen
 | P1 | PROJ-14: Team Kanban & Collaboration | In Progress |
 | P0 (MVP) | PROJ-15: Vector Database (AI Memory — pgvector) | In Progress |
 | P0 (MVP) | PROJ-16: Amazon Product Scraper (Scrapy) | In Review |
-| P0 (MVP) | PROJ-17: Deep Web Search (Vane + Crawl4ai) | In Progress |
+| P0 (MVP) | PROJ-17: Deep Web Search (Vane + Crawl4ai) | Planned |
 | P0 (MVP) | PROJ-18: OpenClaw Agent (LangGraph Multi-Agent) | In Progress |
+| P1 | PROJ-19: Global Cloud Picker (OneDrive + Google Drive) | Planned |
+| P0 (MVP) | PROJ-20: Chat UX Perplexity-Parity | In Review |
+| P1 (Post-MVP) | PROJ-21: Chat Attachments + Document RAG + Agentic Tool-Use | Deferred |
+| P0 (MVP) | PROJ-22: Server-Migration auf VC 8-32 + Mono-Repo Infrastruktur | Planned |
+| P0 (MVP) | PROJ-24: Legal Pages + Global Footer + Feature Flag System | Planned |
 
 ## Success Metrics
 

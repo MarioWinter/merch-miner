@@ -57,7 +57,7 @@ class TestBSRHistoryData:
 
         resp = auth_client.get(_url(product.asin), {'marketplace': 'amazon_com'})
         assert resp.status_code == 200
-        data = resp.data
+        data = resp.data['snapshots']
         assert len(data) == 3
         # Ordered ascending by recorded_at
         bsr_values = [s['bsr'] for s in data]
@@ -67,17 +67,17 @@ class TestBSRHistoryData:
         """Product exists but has no BSR snapshots."""
         resp = auth_client.get(_url(product.asin), {'marketplace': 'amazon_com'})
         assert resp.status_code == 200
-        assert resp.data == []
+        assert resp.data['snapshots'] == []
 
-    def test_only_returns_last_30_days(self, auth_client, product):
-        """Snapshots older than 30 days are excluded."""
+    def test_only_returns_last_90_days(self, auth_client, product):
+        """Snapshots older than 90 days are excluded."""
         now = timezone.now()
 
         old = BSRSnapshot.objects.create(
             product=product, bsr=9000,
         )
         BSRSnapshot.objects.filter(id=old.id).update(
-            recorded_at=now - timedelta(days=35),
+            recorded_at=now - timedelta(days=95),
         )
 
         BSRSnapshot.objects.create(
@@ -86,7 +86,7 @@ class TestBSRHistoryData:
 
         resp = auth_client.get(_url(product.asin), {'marketplace': 'amazon_com'})
         assert resp.status_code == 200
-        data = resp.data
+        data = resp.data['snapshots']
         assert len(data) == 1
         assert data[0]['bsr'] == 5000
 
@@ -97,8 +97,14 @@ class TestBSRHistoryData:
         )
 
         resp = auth_client.get(_url(product.asin), {'marketplace': 'amazon_com'})
-        snapshot = resp.data[0]
+        snapshot = resp.data['snapshots'][0]
         assert 'bsr' in snapshot
         assert 'rating' in snapshot
         assert 'price' in snapshot
         assert 'recorded_at' in snapshot
+
+    def test_response_has_summary(self, auth_client, product):
+        """Response includes summary dict."""
+        resp = auth_client.get(_url(product.asin), {'marketplace': 'amazon_com'})
+        assert resp.status_code == 200
+        assert 'summary' in resp.data

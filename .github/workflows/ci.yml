@@ -3,6 +3,15 @@ name: CI
 on:
   pull_request:
     branches: [main]
+  # Also run on push to main so docker-publish can be gated on CI success
+  # (without this, a direct merge would skip tests entirely).
+  push:
+    branches: [main]
+
+# Opt actions/* (Node 20) into Node 24 ahead of the Sept 2026 enforced cutover.
+# Same effect as upgrading actions/checkout v4→v5 etc., but no version-bump risk.
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   backend:
@@ -11,7 +20,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_DB: test_db
           POSTGRES_USER: test
@@ -55,6 +64,9 @@ jobs:
           DB_HOST: localhost
           DB_PORT: 5432
           REDIS_LOCATION: redis://localhost:6379/1
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          REDIS_DB: 0
 
       - name: Run pytest
         working-directory: django-app
@@ -67,6 +79,16 @@ jobs:
           DB_HOST: localhost
           DB_PORT: 5432
           REDIS_LOCATION: redis://localhost:6379/1
+          # RQ_QUEUES reads REDIS_HOST/PORT/DB independently of REDIS_LOCATION;
+          # without these, post_save signal handlers (e.g. vector_app.signals)
+          # try to enqueue against hostname "redis" and fail with DNS errors.
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          REDIS_DB: 0
+          # Dummy LLM key so services that pre-validate the env var don't raise
+          # before HTTP-level mocks take effect (e.g. mode_classifier tests).
+          # All real network calls in tests are mocked.
+          OPENROUTER_API_KEY: sk-test-dummy-key-for-ci-only
 
       - name: Lint (ruff)
         run: ruff check django-app/

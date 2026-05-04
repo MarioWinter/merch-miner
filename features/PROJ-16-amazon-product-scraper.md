@@ -1,14 +1,18 @@
 # PROJ-16: Amazon Product Scraper (Scrapy)
 
-**Status:** In Review (Phase 8 — 1 High + 2 Medium bugs open)
+**Status:** Deployed (Phases 1–16 complete; AC-9d cross-ref to PROJ-10 deferred)
 **Priority:** P0 (MVP — required for PROJ-7 Live Research + PROJ-6 Niche Deep Research)
 **Created:** 2026-02-27
-**Updated:** 2026-03-16
+**Updated:** 2026-04-25
 **Deployed:** 2026-03-15
 
 ## Overview
 
 Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. Runs as django-rq background jobs. Four operating modes: **Live Research** (UI-triggered, single keyword, search+detail), **Search Page Only** (PROJ-6 Niche Research, search pages only — no detail follow), **Scheduled Scrape** (tier-based, Admin-managed), and **BSR History Tracking** (daily lightweight snapshot). Proxy via ScraperOps SDK. Managed and monitored entirely through Django Admin. No n8n dependency; no feature flag.
+
+**Update 2026-03-29:** Added **Amazon Sort Selection & Pre-filtered Scraping** — spiders now support Amazon's `s` (sort) parameter (Best Sellers, Featured, Newest, Price, Avg Review), `low-price`/`high-price` range filtering, and `bbn` (browse node) for category-specific pre-filtered pages. Browse nodes default-mapped per product type via `PRODUCT_TYPE_SPIDER_KWARGS`, overridable by user. Configurable in Frontend (PROJ-7) and Django Admin. `pages_total` max raised to 400. **MBA product types expanded from 6 to 15** with real Amazon URL parameters. `pullover` replaced by `sweatshirt`.
+
+**Update 2026-04-25:** Admin upload accepts **`.xlsx`** in addition to CSV (parsed via `openpyxl`). Numeric ASIN cells auto-padded to 10 chars to compensate Excel's leading-zero stripping. **`OneShot` `ScrapeTier`** seeded on dev + prod for one-time scrapes (`bsr_min=0, bsr_max=0, interval_days=36500`) — never auto-selected, only via explicit `tier=OneShot` in upload.
 
 ## User Stories
 
@@ -20,79 +24,137 @@ Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. 
 6. As an admin, I want to start, stop, and restart individual scrape jobs from the Admin, so I can recover from failures without code changes.
 7. As a system, when an ASIN is discovered via Live Research, I want it automatically added to the scheduled tracking pool (tier assigned by current BSR), so all researched products are continuously monitored.
 8. As a system (PROJ-6 LangGraph), I want a fast search-page-only scrape that collects title, ASIN, price, rating, reviews, brand, and thumbnail from Amazon search results without following to detail pages, so AI niche analysis can run quickly on listing-level data.
+9. As a user, I want to select an Amazon sort order (Best Sellers, Featured, Newest, Price, Avg Review) when triggering a Live Research scrape, so I can discover top-performing or trending products in a niche — not just relevance-ranked results.
+10. As a user, I want to set a price range (min/max) for my scrape, so Amazon pre-filters results and I only get products within my target price window (e.g. $13–$30 for MBA t-shirts).
+11. As a user, I want the scraper to use the correct Amazon browse node for my product type by default (e.g. Novelty T-Shirts node for t_shirt), with the option to override it, so I get category-specific pre-filtered results instead of broad search results.
 
 ## Acceptance Criteria
 
 ### Live Research Mode
-- [ ] AC-1: `POST /api/research/search/` → creates `ProductSearchCache` (status=pending) → enqueues `scrape_keyword_job` via django-rq → returns `cache_id`.
-- [ ] AC-2: Spider scrapes Amazon search results pages (max 4 pages per keyword) + detail pages for each ASIN found → full product data stored in `AmazonProduct`.
-- [ ] AC-3: Each ASIN is linked to the search keyword via the `keywords` M2M field (one `AmazonProduct` record per ASIN; no duplicates).
-- [ ] AC-4: On completion: `ProductSearchCache.status` = completed; all discovered ASINs auto-enrolled in scheduled tracking (tier assigned by BSR).
-- [ ] AC-5: If `ProductSearchCache` for keyword+marketplace already exists with status=pending → return existing cache_id; no duplicate job.
-- [ ] AC-6: If completed scrape < 24h old → return cached results immediately; no new scrape triggered.
+- [x] AC-1: `POST /api/research/search/` → creates `ProductSearchCache` (status=pending) → enqueues `scrape_keyword_job` via django-rq → returns `cache_id`.
+- [x] AC-2: Spider scrapes Amazon search results pages (max 4 pages per keyword) + detail pages for each ASIN found → full product data stored in `AmazonProduct`.
+- [x] AC-3: Each ASIN is linked to the search keyword via the `keywords` M2M field (one `AmazonProduct` record per ASIN; no duplicates).
+- [x] AC-4: On completion: `ProductSearchCache.status` = completed; all discovered ASINs auto-enrolled in scheduled tracking (tier assigned by BSR).
+- [x] AC-5: If `ProductSearchCache` for keyword+marketplace already exists with status=pending → return existing cache_id; no duplicate job.
+- [x] AC-6: If completed scrape < 24h old → return cached results immediately; no new scrape triggered.
 
 ### Search Page Only Mode (PROJ-6 Niche Research)
-- [ ] AC-7a: `AmazonSearchPageSpider` scrapes Amazon search results pages only (max 4 pages per keyword). No follow to detail pages.
-- [ ] AC-7b: Extracts from search result cards: ASIN, title, brand, price, rating, reviews_count, thumbnail, product URL, sponsored detection.
-- [ ] AC-7c: Data stored via `update_or_create(asin, marketplace)`. Detail-only fields remain NULL.
-- [ ] AC-7d: `ScrapeJob.mode = search_page_only`. Same Admin parameters as search+detail spider.
-- [ ] AC-7e: `ProductSearchCache` created for dedup guard + 24h cache.
-- [ ] AC-7f: Keyword M2M linking: discovered ASINs linked to search keyword.
-- [ ] AC-7g: Auto-enroll in `ScheduledScrapeTarget` (idempotent). BSR NULL → Tier 3.
-- [ ] AC-7h: No `BSRSnapshot` created (BSR not on search pages).
-- [ ] AC-7i: `scrape_search_page_job` task runs spider via subprocess.
-- [ ] AC-7j: Admin actions: start, stop, cancel, retry — identical to other modes.
-- [ ] AC-7k: Boilerplate bullet filtering not applicable (no bullets on search pages).
+- [x] AC-7a: `AmazonSearchPageSpider` scrapes Amazon search results pages only (max 4 pages per keyword). No follow to detail pages.
+- [x] AC-7b: Extracts from search result cards: ASIN, title, brand, price, rating, reviews_count, thumbnail, product URL, sponsored detection.
+- [x] AC-7c: Data stored via `update_or_create(asin, marketplace)`. Detail-only fields remain NULL.
+- [x] AC-7d: `ScrapeJob.mode = search_page_only`. Same Admin parameters as search+detail spider.
+- [x] AC-7e: `ProductSearchCache` created for dedup guard + 24h cache.
+- [x] AC-7f: Keyword M2M linking: discovered ASINs linked to search keyword.
+- [x] AC-7g: Auto-enroll in `ScheduledScrapeTarget` (idempotent). BSR NULL → Tier 3.
+- [x] AC-7h: No `BSRSnapshot` created (BSR not on search pages).
+- [x] AC-7i: `scrape_search_page_job` task runs spider via subprocess.
+- [x] AC-7j: Admin actions: start, stop, cancel, retry — identical to other modes.
+- [x] AC-7k: Boilerplate bullet filtering not applicable (no bullets on search pages).
 
 ### Scheduled Scrape Mode
-- [ ] AC-8: Admin CSV upload (ASIN CSV + Keyword CSV). Tier column optional.
-- [ ] AC-9: Uploaded ASINs/keywords added to `ScheduledScrapeTarget`; tier auto-assigned by BSR.
-- [ ] AC-10: django-rq cron job (`schedule_scrape_runner`) runs hourly; enqueues due targets.
-- [ ] AC-11: Each target re-scraped at tier interval; BSR changes → tier auto-updates.
+- [x] AC-8: Admin CSV upload (ASIN CSV + Keyword CSV). Tier column optional.
+- [x] AC-8b: Excel (`.xlsx`) upload supported alongside CSV (parsed via `openpyxl`, first sheet, header row 1, empty rows skipped). Numeric ASIN cells zero-padded to 10 chars to compensate Excel's leading-zero stripping.
+- [x] AC-9: Uploaded ASINs/keywords added to `ScheduledScrapeTarget`; tier auto-assigned by BSR.
+- [x] AC-10: django-rq cron job (`schedule_scrape_runner`) runs hourly; enqueues due targets.
+- [x] AC-11: Each target re-scraped at tier interval; BSR changes → tier auto-updates.
+- [x] AC-11b: One-shot scraping supported via `OneShot` `ScrapeTier` (`bsr_min=0, bsr_max=0, interval_days=36500`). Excluded from automatic BSR-based tier selection by design (no real BSR=0 product). Activated only when explicitly named in CSV/XLSX upload.
 
 ### BSR History Tracking
-- [ ] AC-12: After every scrape, `BSRSnapshot` record written per ASIN (BSR, rating, price, timestamp).
-- [ ] AC-13: Daily BSR snapshots via direct ASIN detail page scrape (not keyword search).
-- [ ] AC-14: BSR snapshots retained indefinitely.
+- [x] AC-12: After every scrape, `BSRSnapshot` record written per ASIN (BSR, rating, price, timestamp).
+- [x] AC-13: Daily BSR snapshots via direct ASIN detail page scrape (not keyword search).
+- [x] AC-14: BSR snapshots retained indefinitely.
 
 ### MetaKeyword Extraction
-- [ ] AC-15a: Post-scrape keyword extraction runs over all products of the run.
-- [ ] AC-15b: Per-product basis: `title + brand + bullet_1 + bullet_2 + description` (non-NULL fields).
-- [ ] AC-15c: PATCH semantics: skip re-calculation if existing data basis is richer.
-- [ ] AC-15d: Tokenization: normalize, stopwords, junk words (ported from n8n).
-- [ ] AC-15e: Short-tail: single tokens, noun-likelihood heuristic, top 10 per product.
-- [ ] AC-15f: Long-tail: 2-3 word n-grams, ≥1 noun-like token, top 10 per product.
-- [ ] AC-15g: Generic word filter: ≥80% frequency excluded.
-- [ ] AC-15h: `MetaKeyword` get_or_create, frequency overwritten.
-- [ ] AC-15i: M2M links: AmazonProduct.meta_keywords + MetaKeyword.search_keywords.
-- [ ] AC-15j: `SearchKeywordResult` created: top_focus_keywords, top_long_tail_keywords, all_keywords_flat.
-- [ ] AC-15k: Extraction runs on every spider mode, respecting data basis guard.
+- [x] AC-15a: Post-scrape keyword extraction runs over all products of the run.
+- [x] AC-15b: Per-product basis: `title + brand + bullet_1 + bullet_2 + description` (non-NULL fields).
+- [x] AC-15c: PATCH semantics: skip re-calculation if existing data basis is richer.
+- [x] AC-15d: Tokenization: normalize, stopwords, junk words (ported from n8n).
+- [x] AC-15e: Short-tail: single tokens, noun-likelihood heuristic, top 10 per product.
+- [x] AC-15f: Long-tail: 2-3 word n-grams, ≥1 noun-like token, top 10 per product.
+- [x] AC-15g: Generic word filter: ≥80% frequency excluded.
+- [x] AC-15h: `MetaKeyword` get_or_create, frequency overwritten.
+- [x] AC-15i: M2M links: AmazonProduct.meta_keywords + MetaKeyword.search_keywords.
+- [x] AC-15j: `SearchKeywordResult` created: top_focus_keywords, top_long_tail_keywords, all_keywords_flat.
+- [x] AC-15k: Extraction runs on every spider mode, respecting data basis guard.
 
 ### Pipeline PATCH Semantics
-- [ ] AC-16a: All modes use `get_or_create(asin, marketplace)` + only update non-None fields.
-- [ ] AC-16b: `product.save(update_fields=[...])` for efficiency.
+- [x] AC-16a: All modes use `get_or_create(asin, marketplace)` + only update non-None fields.
+- [x] AC-16b: `product.save(update_fields=[...])` for efficiency.
 
 ### Scraper Technical
-- [ ] AC-17: ScraperOps SDK for proxy rotation.
-- [ ] AC-18: 3 retries on critical selector failure; BSR non-critical (NULL allowed).
-- [ ] AC-19: Failed jobs logged to `ScrapeJob.error_log`.
-- [ ] AC-20: 6 marketplaces supported.
-- [ ] AC-21: Marketplace-specific CSS selector overrides.
-- [ ] AC-22: `CONCURRENT_REQUESTS` configurable.
-- [ ] AC-23: Subprocess execution (not CrawlerProcess). `SelectReactor`.
-- [ ] AC-24: BSR extraction: 4 fallback formats.
-- [ ] AC-25: `product_type` auto-detected from title suffix.
-- [ ] AC-26: `listed_date` extraction (3 sources + 4 date format parsers).
-- [ ] AC-27: Boilerplate bullet filtering.
-- [ ] AC-28: `PRODUCT_TYPE_SPIDER_KWARGS` mapping for MBA search filtering.
-- [ ] AC-29: `max_items` → `CLOSESPIDER_ITEMCOUNT`.
+- [x] AC-17: ScraperOps SDK for proxy rotation.
+- [x] AC-18: 3 retries on critical selector failure; BSR non-critical (NULL allowed).
+- [x] AC-19: Failed jobs logged to `ScrapeJob.error_log`.
+- [x] AC-20: 6 marketplaces supported.
+- [x] AC-21: Marketplace-specific CSS selector overrides.
+- [x] AC-22: `CONCURRENT_REQUESTS` configurable.
+- [x] AC-23: Subprocess execution (not CrawlerProcess). `SelectReactor`.
+- [x] AC-24: BSR extraction: 4 fallback formats.
+- [x] AC-25: `product_type` auto-detected from title suffix.
+- [x] AC-26: `listed_date` extraction (3 sources + 4 date format parsers).
+- [x] AC-27: Boilerplate bullet filtering.
+- [x] AC-28: `PRODUCT_TYPE_SPIDER_KWARGS` mapping for MBA search filtering.
+- [x] AC-29: `max_items` → `CLOSESPIDER_ITEMCOUNT`.
+
+### Sort Selection & Pre-filtered Scraping (Update 2026-03-29)
+
+#### Sort Selection
+- [x] AC-35: `ScrapeJob.sort_by` CharField with choices: `''` (Relevance/default), `exact-aware-popularity-rank` (Best Sellers), `featured-rank` (Featured), `date-desc-rank` (Newest Arrivals), `price-asc-rank` (Price Low→High), `price-desc-rank` (Price High→Low), `review-rank` (Avg Customer Review). Default: `''`.
+- [x] AC-36: `SearchPageMixin._build_search_url()` appends `&s={sort_by}` to Amazon URL when `sort_by` is not empty.
+- [x] AC-37: Sort selection available in Django Admin on `ScrapeJob` (dropdown field + list_filter).
+- [x] AC-38: Sort selection available in PROJ-7 Frontend via `POST /api/research/search/` (`sort_by` optional param).
+
+#### Price Range Filtering
+- [x] AC-39: `ScrapeJob.price_min` DecimalField(10,2, nullable). `ScrapeJob.price_max` DecimalField(10,2, nullable).
+- [x] AC-40: `SearchPageMixin._build_search_url()` appends `&low-price={price_min}&high-price={price_max}` when set. Either or both can be set independently.
+- [x] AC-41: API validation: if both set, `price_min < price_max`. If only one set, no validation needed.
+- [x] AC-42: Price range available in Django Admin and PROJ-7 Frontend.
+
+#### Browse Node (Category Pre-filter)
+- [x] AC-43: `ScrapeJob.browse_node` CharField(20, nullable). Stores Amazon browse node number (e.g. `12035955011` for Novelty T-Shirts).
+- [x] AC-44: `PRODUCT_TYPE_SPIDER_KWARGS` extended with `browse_node` per product type. Default mapping for MBA product types (e.g. `t_shirt → bbn=12035955011`).
+- [x] AC-45: `SearchPageMixin._build_search_url()` appends `&bbn={browse_node}` when set.
+- [x] AC-46: Browse node auto-populated from `PRODUCT_TYPE_SPIDER_KWARGS` when `product_type_filter` is set. User can override via API param or Admin field.
+
+#### Cache Key Extension
+- [x] AC-47: `ProductSearchCache` dedup and 24h cache key includes `sort_by + price_min + price_max + browse_node` in addition to `keyword + marketplace + product_type_filter`. Different sort/filter combos = different cache entries.
+
+#### Pages Total & Start Page
+- [x] AC-48: `ScrapeJob.pages_total` max value raised to 400. Default remains 2. Configurable per-scrape in Admin. Frontend always sends `pages_total=1` (Infinite Scroll).
+- [x] AC-49: `ScrapeJob.start_page` PositiveIntegerField (default=1). Spider starts scraping from this Amazon page number. Configurable in Admin and API.
+- [x] AC-50: Spider pagination uses `start_page` as first page, generates pages `start_page+1` to `start_page + pages_total - 1`.
+
+#### Cancel / Stop Live Research
+- [x] AC-51: `POST /api/research/search/{cache_id}/cancel/` endpoint. Calls `cancel_scrape_job()` (PID kill + RQ removal). Idempotent for already-finished jobs.
+- [x] AC-52: `ProductSearchCache.Status.CANCELLED` choice added. `cancel_scrape_job()` sets cache status to `cancelled` (not `failed`).
+- [x] AC-53: Frontend: Search button toggles to red "Stop" button when live search is running. Clicking Stop cancels the job and resets UI to initial state (no error message, no stale progress).
+
+#### Infinite Scroll (Live Mode — Frontend)
+- [x] AC-54: First live search sends `start_page=1, pages_total=1`. Products displayed when job completes.
+- [x] AC-55: When user scrolls to bottom of product list AND previous job is completed → new job triggered with `start_page=N+1, pages_total=1`.
+- [x] AC-56: Products accumulated across pages (deduplicated by ASIN). New keyword search resets to page 1.
+- [x] AC-57: If scrape returns 0 new products → infinite scroll stops (end of results).
+
+#### Frontend Defaults (not exposed in UI)
+- [x] AC-58: `price_min=13, price_max=100` hardcoded in frontend, sent to API on every live search. Not shown in UI.
+- [x] AC-59: `browse_node` auto-resolved from `PRODUCT_TYPE_BROWSE_NODES[product_type]` in frontend. Not shown in UI.
+- [x] AC-60: Live sort default: `featured-rank` (Featured).
+
+#### Skeleton Cards (Live Progress)
+- [x] AC-61: During pending/running, skeleton cards shown instead of loading bar. Cards simulate upcoming product cards (wave animation).
+- [x] AC-62: Skeleton count reduces as real products load. Max 8 skeletons displayed.
+
+#### Product Type Expansion (15 MBA Types)
+- [x] AC-63: `AmazonProduct.ProductType` + `ScrapeJob.ProductTypeFilter` expanded from 6 to 15 MBA types. `pullover` removed, `sweatshirt` added.
+- [x] AC-64: `PRODUCT_TYPE_SPIDER_KWARGS` contains all 15 types with correct `search_index`, `browse_node`, `hidden_keywords`, `seller_filter` from real Amazon URLs.
+- [x] AC-65: Frontend: 16 product type options with custom SVG icons in dropdown.
 
 ### Django Admin
-- [ ] AC-30: `ScrapeJob` list view: keyword/asin, marketplace, mode, status, progress, max_items, products, errors, timestamps.
-- [ ] AC-31: Admin actions: start, stop (kills PID), cancel, retry. Live Research stoppable from PROJ-7 UI.
-- [ ] AC-32: `ScrapeTier` inline editable: BSR min/max, interval_days.
-- [ ] AC-33: Custom Admin page: queue health dashboard.
-- [ ] AC-34: CSV upload as Admin action on `ScheduledScrapeTarget`.
+- [x] AC-30: `ScrapeJob` list view: keyword/asin, marketplace, mode, status, progress, max_items, products, errors, timestamps.
+- [x] AC-31: Admin actions: start, stop (kills PID), cancel, retry. Live Research stoppable from PROJ-7 UI.
+- [x] AC-32: `ScrapeTier` inline editable: BSR min/max, interval_days.
+- [x] AC-33: Custom Admin page: queue health dashboard.
+- [x] AC-34: CSV upload as Admin action on `ScheduledScrapeTarget`.
 
 ## API Endpoints
 
@@ -100,7 +162,7 @@ Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. 
 
 | Method | Path | Description |
 |--------|------|-------------|
-| POST | `/api/research/search/` | Triggers Live Research scrape job |
+| POST | `/api/research/search/` | Triggers Live Research scrape job. Accepts optional: `sort_by`, `price_min`, `price_max`, `browse_node` |
 | GET | `/api/research/search/{cache_id}/status/` | Poll job status |
 | POST | `/api/research/search/{cache_id}/cancel/` | Cancel running Live Research (PROJ-7 calls this) |
 
@@ -122,7 +184,7 @@ Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. 
 | rating | FloatField | |
 | reviews_count | IntegerField | |
 | listed_date | DateField(nullable) | Extracted from "Date First Available" |
-| product_type | CharField choices [t_shirt, hoodie, pullover, zip_hoodie, long_sleeve, tank_top, other] | db_index=True. Auto-detected from title suffix |
+| product_type | CharField choices [t_shirt, premium_shirt, comfort_colors, v_neck, long_sleeve, raglan, sweatshirt, hoodie, performance_polo, zip_hoodie, popsocket, phone_case, tote_bag, tumbler, ceramic_mug, tank_top, other] | db_index=True. Auto-detected from title suffix. 15 MBA types + other |
 | thumbnail_url | URLField(max_length=2048) | |
 | product_url | URLField(max_length=2048) | |
 | seller_name | CharField(200) | |
@@ -147,6 +209,10 @@ Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. 
 |-------|------|-------|
 | id | UUID | PK |
 | keyword | ForeignKey(Keyword) | |
+| sort_by | CharField(50, default='') | Part of cache key |
+| price_min | DecimalField(10,2, nullable) | Part of cache key |
+| price_max | DecimalField(10,2, nullable) | Part of cache key |
+| browse_node | CharField(20, nullable) | Part of cache key |
 | last_scraped_at | DateTimeField(nullable) | |
 | status | CharField choices [pending, completed, failed] | |
 
@@ -185,8 +251,12 @@ Standalone Scrapy-based scraper engine replacing all n8n scraping dependencies. 
 | asin | CharField(20) | For ASIN-based jobs (blank default) |
 | marketplace | CharField | db_index=True |
 | status | CharField choices [pending, running, completed, failed, cancelled] | db_index=True |
-| product_type_filter | CharField choices ['', t_shirt, hoodie, pullover, zip_hoodie, long_sleeve, tank_top] | Maps to `PRODUCT_TYPE_SPIDER_KWARGS` for MBA search filtering |
-| pages_total | IntegerField | Default 4 |
+| product_type_filter | CharField choices ['', t_shirt, premium_shirt, comfort_colors, v_neck, long_sleeve, raglan, sweatshirt, hoodie, performance_polo, zip_hoodie, popsocket, phone_case, tote_bag, tumbler, ceramic_mug, tank_top] | Maps to `PRODUCT_TYPE_SPIDER_KWARGS` for MBA search filtering. 16 options + ALL (empty) |
+| sort_by | CharField choices ['', exact-aware-popularity-rank, featured-rank, date-desc-rank, price-asc-rank, price-desc-rank, review-rank] | Amazon `s` param. Default: '' (Relevance) |
+| price_min | DecimalField(10,2, nullable) | Amazon `low-price` param |
+| price_max | DecimalField(10,2, nullable) | Amazon `high-price` param |
+| browse_node | CharField(20, nullable) | Amazon `bbn` param. Auto-populated from PRODUCT_TYPE_SPIDER_KWARGS, user-overridable |
+| pages_total | IntegerField | Default 2, max 400 |
 | max_items | PositiveIntegerField(nullable) | Limits products via `CLOSESPIDER_ITEMCOUNT`. NULL = no limit |
 | pages_done | IntegerField | |
 | products_scraped | IntegerField | |
@@ -272,12 +342,18 @@ django-rq cron (hourly)
 14. Detail-scrape after search_page_only → MetaKeywords re-calculated with better basis (title+brand+bullets+description replaces title+brand only).
 15. MetaKeyword deduplication → `get_or_create(keyword, type)` ensures no duplicate keyword records; frequency overwritten with latest count.
 16. search_page_only products have NULL bullets/description → MetaKeyword extraction uses only title+brand; still produces useful short-tail + long-tail keywords for PROJ-6 AI analysis.
+17. Best Sellers / Featured sort returns many branded products → BrandBlacklist (480+ brands) filters them; `brand_filtered_count` on ScrapeJob tracks how many were filtered. No code change needed — existing brand_filter.py handles this.
+18. Same keyword scraped with different sort_by → separate ProductSearchCache entries (cache key includes sort_by). Both results coexist; no data conflict.
+19. Sort scrape without keyword (browse-node-only) → Spider must accept `keyword=''`; URL built without `&k=` param; only `&bbn=` + `&s=` + `&rh=` params.
+20. User sets price_min > price_max → API validation rejects with 400; ScrapeJob not created.
+21. Browse node override conflicts with product_type default → user override wins. If `browse_node` explicitly set in API request, ignore the default from `PRODUCT_TYPE_SPIDER_KWARGS`.
+22. pages_total set to 400 → spider respects it but Amazon may return fewer pages. `pages_done` tracks actual pages scraped. No error if Amazon returns less than requested.
 
 ## Django Admin Views
 
 | Model | Admin Features |
 |-------|---------------|
-| `ScrapeJob` | List with filters (status, mode, marketplace, product_type_filter); actions: start pending, stop running, cancel pending, retry failed. Shows product_type_filter + max_items columns |
+| `ScrapeJob` | List with filters (status, mode, marketplace, product_type_filter, sort_by); actions: start pending, stop running, cancel pending, retry failed. Shows product_type_filter + sort_by + price_min/max + browse_node + max_items columns |
 | `ScrapeTier` | Inline editable (bsr_min, bsr_max, interval_days) |
 | `ScheduledScrapeTarget` | List with filters; CSV upload action; toggle active |
 | `AmazonProduct` | List with filters (marketplace, product_type); search by ASIN, title, brand, bullet_1, bullet_2. Fieldsets for bullets/description, media, other |
@@ -839,6 +915,117 @@ No data migration needed — new models start empty. Existing data unaffected.
 
 ---
 
+## Tech Design Update: Sort Selection & Pre-filtered Scraping
+
+**Architect:** Claude Opus 4.6
+**Date:** 2026-03-29
+**Scope:** Add Amazon sort selection, price range filtering, and browse node support to all search spiders
+
+### What Changes and Why
+
+The deployed scraper builds search URLs with only `?k={keyword}&i={search_index}&rh=p_6:{seller}`. Amazon's pre-filtered pages (Best Sellers, Featured, New Arrivals) and price range filtering require additional URL parameters: `s` (sort), `low-price`/`high-price`, and `bbn` (browse node). Adding these lets users discover top-performing products beyond relevance-ranked results.
+
+### Change 1: ScrapeJob Model — 4 New Fields
+
+| Field | Type | Purpose |
+|-------|------|---------|
+| `sort_by` | CharField(50, choices, default='') | Amazon `s` parameter. 7 options: Relevance, Best Sellers, Featured, Newest, Price asc/desc, Avg Review |
+| `price_min` | DecimalField(10,2, nullable) | Amazon `low-price` parameter |
+| `price_max` | DecimalField(10,2, nullable) | Amazon `high-price` parameter |
+| `browse_node` | CharField(20, blank, default='') | Amazon `bbn` parameter. Auto-populated from `PRODUCT_TYPE_SPIDER_KWARGS`, user-overridable |
+
+`pages_total` max validation raised to 400 (default stays 2).
+
+### Change 2: ProductSearchCache — Extended Cache Key
+
+4 new fields mirroring ScrapeJob: `sort_by`, `price_min`, `price_max`, `browse_node`.
+
+`get_or_create_keyword_cache()` must include these in its dedup + 24h lookup. Without this, a "Best Sellers" search would return cached "Relevance" results.
+
+### Change 3: PRODUCT_TYPE_SPIDER_KWARGS — Browse Node Mapping
+
+Each product type gets a default `browse_node`. User can override via API param or Admin field. Override takes precedence over mapping default.
+
+### MBA Product Type Mapping (Complete)
+
+15 MBA product types extracted from real Amazon search URLs (2026-03-29). All use `seller_filter: ATVPDKIKX0DER` (Amazon as seller = MBA products).
+
+| Key | Label | search_index | browse_node | hidden_keywords |
+|-----|-------|-------------|-------------|-----------------|
+| t_shirt | T-Shirt (Standard) | fashion-novelty | 12035955011 | Lightweight, Classic fit, Double-needle sleeve and bottom hem -Longsleeve -Raglan -Vneck -Tanktop |
+| premium_shirt | Premium Shirt | fashion-novelty | 12035955011 | This premium t-shirt is made of lightweight fine jersey fabric Mens fit runs small size up for a looser fit |
+| comfort_colors | Comfort Colors | fashion-mens | (none) | Merch on Demand Comfort Colors Heavyweight T Shirt |
+| v_neck | V-Neck | fashion-novelty | (none) | v-neck Lightweight, Classic fit, Double-needle sleeve and bottom hem |
+| long_sleeve | Long Sleeve | fashion-novelty | 12035955011 | "Lightweight, Classic fit, Double-needle sleeve and bottom hem" "long sleeve" |
+| raglan | Raglan | fashion-novelty | 12035955011 | (empty — "raglan" used as search term) |
+| sweatshirt | Sweatshirt | fashion-novelty | 12035955011 | "8.5 oz, Classic fit, Twill-taped neck" "sweatshirt" -hoodie |
+| hoodie | Hoodie | fashion | (none) | 8.5 oz, Classic fit, Twill-taped neck hoodie |
+| performance_polo | Performance Polo | fashion-mens | (none) | Merch on Demand Performance Polo Shirt |
+| zip_hoodie | Zip Hoodie | fashion-mens | (none) | Merch on Demand Performance Quarter Zip Top |
+| popsocket | PopSocket | mobile | (none) | (empty — "popsocket" used as search term) |
+| phone_case | Phone Case | mobile | (none) | Two-part protective case made from a premium scratch-resistant polycarbonate shell and shock absorbent TPU liner protects against drops |
+| tote_bag | Tote Bag | fashion-womens | (none) | Graphic Tote |
+| tumbler | Tumbler | kitchen | (none) | Merch on Demand Stainless Steel Insulated Tumbler |
+| ceramic_mug | Ceramic Mug | kitchen | (none) | Merch on Demand Ceramic Coffee Mug |
+| tank_top | Tank Top | fashion-novelty | (none) | Tank Top |
+
+**Note:** `pullover` removed (replaced by `sweatshirt`). Old `pullover` DB values orphaned but harmless.
+
+### Change 4: SearchPageMixin._build_search_url() — Extended URL Builder
+
+Current URL pattern:
+```
+{base}/s?k={keyword}&page={page}&i={search_index}&rh=p_6:{seller}
+```
+
+New URL pattern:
+```
+{base}/s?k={keyword}&page={page}&i={search_index}&rh=p_6:{seller}&s={sort_by}&low-price={price_min}&high-price={price_max}&bbn={browse_node}
+```
+
+Each new param appended only when set (not empty/null). `keyword` can be empty for browse-node-only scrapes.
+
+### Change 5: Task Functions — Pass New Spider Args
+
+`scrape_keyword_job()` and `scrape_search_page_job()` pass `sort_by`, `price_min`, `price_max`, `browse_node` as `-a` args to subprocess. Same pattern as existing `search_index`/`seller_filter` passthrough.
+
+### Change 6: API — LiveSearchSerializer Extension
+
+New optional fields: `sort_by`, `price_min`, `price_max`, `browse_node`, `pages_total`.
+Validation: `price_min < price_max` when both set. `pages_total` max 400.
+`LiveSearchView` passes new params to ScrapeJob creation + spider_kwargs.
+
+### Change 7: Django Admin — New Fields Exposed
+
+`ScrapeJob` admin: `sort_by` + `browse_node` in `list_filter`, `price_min`/`price_max` + `browse_node` in fieldsets. Manual job creation includes all new fields.
+
+### Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| Sort choices as CharField (not IntegerField enum) | Amazon `s` param values are strings; storing as-is avoids mapping layer |
+| Browse node as CharField (not ForeignKey) | Amazon node IDs are opaque numbers; no Django model needed. Simple string field + dict mapping |
+| Cache key includes sort+price+node | Without this, different filter combos return wrong cached results. Critical for correctness |
+| Default browse_node from PRODUCT_TYPE_SPIDER_KWARGS | Users get category-specific results automatically; power users can override. Best of both worlds |
+| pages_total max 400 (not unlimited) | Amazon caps search results at ~400 pages. Higher values waste requests |
+| Keyword optional (empty string allowed) | Browse-node-only scrape (no keyword) returns category browsing results. Common Amazon use case |
+
+### File Changes Summary
+
+| File | Change |
+|------|--------|
+| `scraper_app/models.py` | ScrapeJob: 4 new fields + SortBy choices. ProductSearchCache: 4 new fields. PRODUCT_TYPE_SPIDER_KWARGS: 15 MBA types with real Amazon URL params. ProductType/ProductTypeFilter expanded from 6 to 15. `pullover` removed → `sweatshirt`. pages_total validator |
+| `scraper_app/scrapy_app/spiders/mixins.py` | SearchPageMixin._build_search_url(): append &s=, &low-price=, &high-price=, &bbn= |
+| `scraper_app/scrapy_app/spiders/amazon_search_product.py` | __init__: accept sort_by, price_min, price_max, browse_node args |
+| `scraper_app/scrapy_app/spiders/amazon_search_page.py` | __init__: accept sort_by, price_min, price_max, browse_node args |
+| `scraper_app/tasks.py` | get_or_create_keyword_cache(): extended cache key. scrape_keyword_job/scrape_search_page_job: pass new spider_kwargs |
+| `scraper_app/admin.py` | ScrapeJob: new fields in list_display, list_filter, fieldsets. Start/retry actions pass new kwargs |
+| `research_app/api/serializers.py` | LiveSearchSerializer: sort_by, price_min, price_max, browse_node, pages_total fields + validation |
+| `research_app/api/views.py` | LiveSearchView: pass new params to ScrapeJob + spider_kwargs. Cache key extended |
+| `scraper_app/migrations/` | New migration for ScrapeJob + ProductSearchCache fields |
+
+---
+
 ## QA Test Results
 
 **QA Engineer:** Claude Sonnet 4.6
@@ -1240,3 +1427,162 @@ bigrams = _build_ngrams(long_tail_filtered, 2)       # "for the" is valid output
 | BUG-P8-02 | High | **FIXED** — removed `if bsr is not None` guard; `get_tier_for_bsr(None)` returns Tier 3 |
 | BUG-P8-03 | Low | **FIXED** — per-product capped at 30 via `.most_common(30)` |
 | BUG-P8-04 | Medium | **FIXED** — noun guard: `_noun_score(t) >= 0.3` required for at least 1 token per n-gram |
+
+---
+
+## QA Test Results — Phases 9-16 (Sort Selection & Pre-filtered Scraping)
+
+**Auditor:** Claude Opus 4.6 (Static Code Audit)
+**Date:** 2026-03-29
+**Scope:** AC-35 through AC-65 — Sort Selection, Price Range, Browse Node, Cache Key Extension, Pages Total/Start Page, Cancel/Stop, Infinite Scroll, Frontend Defaults, Skeleton Cards, Product Type Expansion
+**Method:** Static code audit against spec. No runtime tests (backend requires Docker).
+
+---
+
+### AC-by-AC Audit
+
+| AC | Description | Status | Notes |
+|----|-------------|--------|-------|
+| AC-35 | `ScrapeJob.sort_by` CharField with 7 choices (Relevance default) | **PASS** | `ScrapeJob.SortBy` has all 7 values with correct Amazon `s` param strings. Default `''` = Relevance. |
+| AC-36 | `_build_search_url()` appends `&s={sort_by}` when not empty | **PASS** | `mixins.py:580-582` — `getattr(self, "sort_by", None)` + `if sort_by: search_url += f"&s={sort_by}"`. |
+| AC-37 | Sort in Django Admin (dropdown + list_filter) | **PASS** | `admin.py:62` — `sort_by` in `list_filter`. Field in `fieldsets` "Search Filters" group. `get_sort_by` display method. |
+| AC-38 | Sort via `POST /api/research/search/` (`sort_by` optional param) | **PASS** | `LiveSearchSerializer` has `sort_by` ChoiceField (optional, allow_blank, default=''). `LiveSearchView.post()` passes to `scrape_keyword_job()`. |
+| AC-39 | `ScrapeJob.price_min/price_max` DecimalField(10,2, nullable) | **PASS** | Both are `DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)`. |
+| AC-40 | URL appends `&low-price=`/`&high-price=` when set. Either or both independent | **PASS** | `mixins.py:584-590` — each checked independently with `is not None and != ""`. |
+| AC-41 | API validation: price_min < price_max when both set | **PASS** | `LiveSearchSerializer.validate()` line 71: `if price_min is not None and price_max is not None and price_min >= price_max: raise`. |
+| AC-42 | Price range in Admin + Frontend | **PASS** | Admin: `fieldsets` "Search Filters" includes `price_min`, `price_max`. Frontend: hardcoded `price_min=13, price_max=100` sent on every live search. |
+| AC-43 | `ScrapeJob.browse_node` CharField(20) | **PASS** | `CharField(max_length=20, blank=True, default='')`. Uses empty string instead of NULL (Django best practice for CharField). |
+| AC-44 | `PRODUCT_TYPE_SPIDER_KWARGS` with `browse_node` per type | **PASS** | All 16 types have `browse_node` key. 5 types have non-empty browse nodes; 11 have `''`. |
+| AC-45 | URL appends `&bbn={browse_node}` when set | **PASS** | `mixins.py:593-594` — `if browse_node: search_url += f"&bbn={browse_node}"`. |
+| AC-46 | Browse node auto-populated from PRODUCT_TYPE_SPIDER_KWARGS, user-overridable | **PASS** | `tasks.py:95-98` auto-populates in task. `views.py:339-341` user override wins. |
+| AC-47 | Cache key includes `sort_by + price_min + price_max + browse_node + product_type_filter` | **FAIL** | Cache key in `get_or_create_keyword_cache()` does NOT include `product_type_filter`. `ProductSearchCache` model has no `product_type_filter` field. See **BUG-P16-01**. |
+| AC-48 | `pages_total` max 400, default 2 | **PASS** | `ScrapeJob.pages_total` has `MaxValueValidator(400)`, default 2. `LiveSearchSerializer.pages_total` has `max_value=400, default=2`. |
+| AC-49 | `start_page` PositiveIntegerField, default 1, configurable | **PASS** | `ScrapeJob.start_page` with `MinValueValidator(1)`, default 1. `LiveSearchSerializer.start_page` min_value=1, default=1. |
+| AC-50 | Spider pagination uses `start_page` as first page | **PASS** | `_get_pagination_requests()` uses `start_page` for guard and range calculation. `start_requests()` uses `self.start_page`. |
+| AC-51 | `POST .../cancel/` endpoint, calls `cancel_scrape_job()`, idempotent | **PASS** | `SearchCancelView` checks pending/running before cancelling. Returns current status for already-finished jobs. |
+| AC-52 | `ProductSearchCache.Status.CANCELLED` + `cancel_scrape_job()` sets cancelled | **PASS** | `CANCELLED = 'cancelled'` in both `ScrapeJob.Status` and `ProductSearchCache.Status`. `cancel_scrape_job()` sets both. |
+| AC-53 | Frontend: Search toggles to red Stop button | **PASS** | `SearchBar.tsx:167-197` — conditional render: `isSearching && onCancel ? Stop : Search`. Stop is `color="error"` with `StopCircleOutlinedIcon`. |
+| AC-54 | First live search sends `start_page=1, pages_total=1` | **PASS** | `triggerLivePage()` always sends `pages_total: 1, start_page: startPage`. `handleSearch` calls with `startPage=1`. |
+| AC-55 | Scroll to bottom + completed triggers next page | **PASS** | `IntersectionObserver` on sentinel. Checks `isLive && status === 'completed' && canLoadMore && !isPolling`. Triggers `triggerLivePage(keyword, nextPage)`. |
+| AC-56 | Products accumulated, deduplicated by ASIN. New keyword resets | **PASS** | `useEffect` deduplicates by ASIN set. `handleSearch` calls `setAllLiveProducts([])` + `setCurrentPage(1)`. |
+| AC-57 | 0 new products stops infinite scroll | **PASS** | In accumulator effect: `if (newProducts.length === 0) { setCanLoadMore(false); }`. Also handles `liveProducts.length === 0`. |
+| AC-58 | `price_min=13, price_max=100` hardcoded | **PASS** | `AmazonResearchView.tsx:205-206` — `price_min: 13, price_max: 100`. |
+| AC-59 | `browse_node` auto-resolved from `PRODUCT_TYPE_BROWSE_NODES` | **PASS** | Line 197: `PRODUCT_TYPE_BROWSE_NODES[filters.product_type]`. Map has all 16 types. |
+| AC-60 | Live sort default: `featured-rank` | **PASS** | `DEFAULT_FILTERS.live_sort_by = 'featured-rank'`. |
+| AC-61 | Skeleton cards during pending/running (no loading bar) | **PASS** | `LiveProgressBanner.tsx` renders `Grid` of `SkeletonCard` with `Skeleton variant="wave"` for pending/running. No `LinearProgress` or loading bar. |
+| AC-62 | Skeleton count reduces as real products load. Max 8 | **PASS** | `SKELETON_COUNT = 8`. Remaining = `Math.max(0, productsScraped - loadedCount)`. Count capped at `SKELETON_COUNT`. |
+| AC-63 | 15 MBA types + other. `pullover` removed, `sweatshirt` added | **PASS** | `AmazonProduct.ProductType` has 16 MBA types + `OTHER` (17 total). `pullover` removed with migration note. `ScrapeJob.ProductTypeFilter` has `ALL` + 16 types. Note: spec text says "15 MBA types" but model table lists 16 — spec text is the minor error; code matches the model table. |
+| AC-64 | `PRODUCT_TYPE_SPIDER_KWARGS` with correct params for all types | **PASS** | 16 entries with `search_index`, `browse_node`, `hidden_keywords`, `seller_filter`. Values match real Amazon MBA search URLs. |
+| AC-65 | Frontend: 16 product type options with custom SVG icons | **PASS** | `PRODUCT_TYPE_OPTIONS` has 16 entries. `ProductTypeIcons.tsx` exports 16 SVG icon components. `PRODUCT_TYPE_ICON_MAP` in `ControlsRow.tsx` maps all 16. |
+
+---
+
+### Bugs Found
+
+#### BUG-P16-01: Cache key missing `product_type_filter` (Medium)
+
+**Severity:** Medium
+**Priority:** P2
+**Location:** `django-app/scraper_app/tasks.py:get_or_create_keyword_cache()` + `django-app/scraper_app/models.py:ProductSearchCache`
+
+**Description:** AC-47 states the cache key should include `product_type_filter` in addition to `keyword + marketplace + sort_by + price_min + price_max + browse_node`. The `ProductSearchCache` model has no `product_type_filter` field, and `get_or_create_keyword_cache()` does not filter on it. Multiple product types that share the same browse_node (e.g., `hoodie`, `v_neck`, `popsocket` all have `browse_node=''`) would incorrectly share a single cache entry despite having different `hidden_keywords` and `search_index` parameters that produce entirely different Amazon search results.
+
+**Steps to Reproduce:**
+1. Search for "funny" with `product_type=hoodie` (browse_node='', search_index='fashion')
+2. Wait for completion
+3. Search for "funny" with `product_type=popsocket` (browse_node='', search_index='mobile')
+4. Within 24h, the second search returns the cached hoodie results instead of triggering a new popsocket scrape
+
+**Fix:** Add `product_type_filter` CharField to `ProductSearchCache` model. Include it in the `filter_kwargs` of `get_or_create_keyword_cache()`. Create a migration.
+
+---
+
+#### BUG-P16-02: Infinite scroll polling broken on page 2+ (High)
+
+**Severity:** High
+**Priority:** P1
+**Location:** `frontend-ui/src/views/amazon/research/hooks/usePolling.ts`
+
+**Description:** `usePolling` uses a `stoppedPolling` state flag to stop RTK Query polling when a terminal status (completed/failed/cancelled) is reached. However, the reset logic on line 35 (`if (!shouldPoll && stoppedPolling) { setStoppedPolling(false); }`) only fires when `cacheId` is null. When infinite scroll triggers a new cacheId (page 2), `shouldPoll` stays `true`, so `stoppedPolling` is never reset. This causes `pollingInterval: 0` for the new cacheId, meaning RTK Query fetches once but never polls, breaking the pending->running->completed progression for page 2+.
+
+**Steps to Reproduce:**
+1. Perform a live search (page 1 loads successfully)
+2. Scroll to bottom, triggering page 2 (new cacheId)
+3. Observe: page 2 data never arrives because polling stops after one fetch
+
+**Fix:** Track the cacheId value in a ref and reset `stoppedPolling` when it changes:
+```ts
+const prevCacheIdRef = useRef(cacheId);
+if (cacheId !== prevCacheIdRef.current) {
+  prevCacheIdRef.current = cacheId;
+  setStoppedPolling(false);
+}
+```
+
+---
+
+#### BUG-P16-03: `SearchBar` disabled state incorrect for empty keyword after cancel (Low)
+
+**Severity:** Low
+**Priority:** P3
+**Location:** `frontend-ui/src/views/amazon/research/partials/SearchBar.tsx:184`
+
+**Description:** The Search button is disabled when `!inputValue.trim()`. After cancelling a live search, `handleCancel` sets `cacheId` to null but does not clear the keyword. The Search button remains enabled with the old keyword text, which is correct. However, if the user manually clears the input field and the `isSearching` prop becomes false (after cancel), the button shows "Search" but is disabled -- this is correct behavior but the `Mui-disabled` styling override on line 188-191 makes the disabled button look almost identical to the enabled state (same color, just 0.5 opacity). This could confuse users.
+
+**Not a functional bug** -- more of a UX polish issue. Noting for awareness.
+
+---
+
+### Security Audit (Red-Team)
+
+| Check | Status | Notes |
+|-------|--------|-------|
+| Auth on cancel endpoint | PASS | `SearchCancelView` has `CookieJWTAuthentication` + `IsAuthenticated`. |
+| Workspace isolation on cancel | PASS | Checks `search_cache.workspace_id != workspace.id` before cancelling. |
+| Workspace isolation on status | PASS | Same ownership check in `SearchStatusView`. |
+| Input validation on sort_by | PASS | `LiveSearchSerializer.sort_by` uses `ChoiceField` with enum choices — only valid Amazon `s` param values accepted. |
+| Input validation on browse_node | PASS | `CharField(max_length=20)` — numeric-only Amazon browse node IDs fit. No SQL injection vector (ORM parameterized). |
+| Input validation on price_min/price_max | PASS | `DecimalField(max_digits=10, decimal_places=2)` with cross-field validation. |
+| Price range bypass | PASS | Both API and model enforce decimal precision. Negative values not explicitly blocked by serializer but DRF DecimalField rejects non-numeric. |
+| PID kill race condition | PASS (acceptable) | `cancel_scrape_job()` catches `ProcessLookupError` for already-finished processes. |
+| RQ job removal error handling | PASS | Catches generic `Exception` when removing from queue. |
+| Command injection via spider args | PASS | Spider args passed via list to `subprocess.Popen()` (not shell=True). No injection vector. |
+| Cache poisoning via workspace | PASS | `ProductSearchCache.workspace` is SET_NULL FK — other workspaces cannot see cache entries they did not create (status endpoint checks ownership). |
+| New model fields writable only via pipeline (not API) | PASS | `sort_by`, `price_min`, `price_max`, `browse_node` on `ScrapeJob` are set by the API view, not by user-submitted spider kwargs. |
+
+---
+
+### Test Results Summary
+
+| Suite | Result |
+|-------|--------|
+| Frontend build (`npm run build`) | PASS |
+| Frontend lint (`npm run lint`) | PASS (2 pre-existing warnings in kanban, unrelated) |
+| Frontend tests (`npm run test:ci`) | PASS (all tests pass) |
+| Backend lint (`ruff check django-app/`) | PASS (all checks passed) |
+| Backend tests | NOT RUN (requires Docker + PostgreSQL) |
+
+---
+
+### Regression Check
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| PROJ-7 Live Research (existing flow) | PASS | `LiveSearchView` is backward-compatible; new optional params have defaults. |
+| PROJ-6 `scrape_search_page_job` | PASS | Task signature extended with keyword args that default to empty/None. |
+| Existing Admin actions (start/stop/cancel/retry) | PASS | Admin actions pass new fields (`sort_by`, `price_min`, `price_max`, `browse_node`, `start_page`) through to task functions. |
+| ProductSearchCache dedup (BUG-01/02 fixes) | PARTIAL | Extended cache key works for sort/price/browse_node, but missing `product_type_filter` (BUG-P16-01). |
+| Search Page Only spider | PASS | `AmazonSearchPageSpider.__init__` accepts all new args identically to `AmazonSearchProductSpider`. |
+| SearchPageMixin pagination | PASS | `start_page` logic is in the shared mixin; both spiders benefit. |
+
+---
+
+### Production Readiness Decision
+
+**NOT READY** — 1 High bug must be fixed before deployment.
+
+| Bug | Severity | Status |
+|-----|----------|--------|
+| BUG-P16-01 | Medium | **OPEN** — Cache key missing `product_type_filter`. Multiple product types with same browse_node share cache incorrectly. |
+| BUG-P16-02 | High | **OPEN** — Infinite scroll polling broken on page 2+. `stoppedPolling` not reset when `cacheId` changes. |
+| BUG-P16-03 | Low | **NOTED** — Disabled Search button styling too similar to enabled state. UX polish, not blocking. |

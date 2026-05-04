@@ -1,18 +1,27 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import {
   Autocomplete,
+  Box,
   Button,
   Chip,
+  CircularProgress,
+  IconButton,
   Stack,
   Switch,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import SearchIcon from '@mui/icons-material/Search';
+import StopCircleOutlinedIcon from '@mui/icons-material/StopCircleOutlined';
 import CloseIcon from '@mui/icons-material/Close';
+import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useGetSuggestionsQuery } from '../../../../store/researchSlice';
 import type { RecentSearch } from '../hooks/useRecentSearches';
+import type { Niche } from '../../../niches/list/types';
 
 interface SearchBarProps {
   isLive: boolean;
@@ -24,13 +33,39 @@ interface SearchBarProps {
   recentSearches: RecentSearch[];
   onRecentClick: (keyword: string, marketplace: string) => void;
   onRecentRemove: (index: number) => void;
+  /** The auto-detected niche matching the searched keyword (null if none). */
+  matchedNiche: Niche | null;
+  /** Whether a search has been submitted at least once. */
+  hasSearched: boolean;
+  /** Called when the niche indicator is clicked. */
+  onNicheIndicatorClick: () => void;
+  /** Whether a live search is currently running. */
+  isSearching?: boolean;
+  /** Called to cancel a running live search. */
+  onCancel?: () => void;
+  /** Called to save an autocomplete suggestion as a keyword (AC-21). */
+  onSaveKeyword?: (keyword: string) => void;
+  /** Keywords currently being saved (loading state per keyword). */
+  savingKeywords?: Set<string>;
+  /** Keywords already saved in this session (show check icon). */
+  savedKeywords?: Set<string>;
+  /**
+   * Whether Search submission is allowed in DB mode without keyword.
+   * When the parent has at least one filter active, this is true → empty-keyword search is allowed.
+   * In Live mode the parent always passes false (Live needs a keyword).
+   */
+  allowEmptyKeyword?: boolean;
 }
 
-const ModeLabel = styled(Typography)(({ theme }) => ({
+const ModeLabel = styled(Typography, {
+  shouldForwardProp: (prop) => prop !== 'active',
+})<{ active?: boolean }>(({ theme, active }) => ({
   fontSize: '0.8125rem',
   fontWeight: 600,
   whiteSpace: 'nowrap',
-  color: theme.vars.palette.text.secondary,
+  color: active
+    ? theme.vars.palette.text.secondary
+    : theme.vars.palette.text.disabled,
 }));
 
 const SearchBar = ({
@@ -43,6 +78,15 @@ const SearchBar = ({
   recentSearches,
   onRecentClick,
   onRecentRemove,
+  matchedNiche,
+  hasSearched,
+  onNicheIndicatorClick,
+  isSearching = false,
+  onCancel,
+  onSaveKeyword,
+  savingKeywords = new Set<string>(),
+  savedKeywords = new Set<string>(),
+  allowEmptyKeyword = false,
 }: SearchBarProps) => {
   const [inputValue, setInputValue] = useState(keyword);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -65,12 +109,14 @@ const SearchBar = ({
     { skip: debouncedQuery.length < 2 },
   );
 
+  const canSubmit = inputValue.trim().length > 0 || allowEmptyKeyword;
+
   const handleSearch = useCallback(() => {
-    if (inputValue.trim()) {
-      onKeywordChange(inputValue.trim());
-      onSearch(inputValue.trim());
-    }
-  }, [inputValue, onKeywordChange, onSearch]);
+    if (!canSubmit) return;
+    const trimmed = inputValue.trim();
+    onKeywordChange(trimmed);
+    onSearch(trimmed);
+  }, [canSubmit, inputValue, onKeywordChange, onSearch]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -82,6 +128,19 @@ const SearchBar = ({
     [handleSearch],
   );
 
+  const handleRecentChipClick = useCallback(
+    (kw: string, mp: string) => {
+      // Only fill the input — do NOT trigger search
+      setInputValue(kw);
+      onRecentClick(kw, mp);
+    },
+    [onRecentClick],
+  );
+
+  const nicheTooltip = matchedNiche
+    ? `${matchedNiche.name} — Niche Pipeline`
+    : 'Niche not saved';
+
   return (
     <Stack spacing={1.5}>
       <Stack direction="row" spacing={2} alignItems="center">
@@ -92,7 +151,7 @@ const SearchBar = ({
             color="secondary"
             aria-label="Toggle research mode"
           />
-          {isLive && <ModeLabel>Live Research</ModeLabel>}
+          <ModeLabel active={isLive}>Live Research</ModeLabel>
         </Stack>
 
         <Autocomplete
@@ -103,9 +162,47 @@ const SearchBar = ({
           onInputChange={handleInputChange}
           onChange={(_, value) => {
             if (typeof value === 'string' && value.trim()) {
-              onKeywordChange(value.trim());
-              onSearch(value.trim());
+              setInputValue(value);
             }
+          }}
+          renderOption={(props, option) => {
+            const { key, ...restProps } = props;
+            return (
+              <Box
+                component="li"
+                key={key}
+                {...restProps}
+                sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
+                <Typography variant="body2" sx={{ flex: 1 }}>{option}</Typography>
+                {onSaveKeyword && matchedNiche && (
+                  savedKeywords.has(option) ? (
+                    <CheckCircleIcon
+                      sx={{ fontSize: 18, color: 'success.main', ml: 1 }}
+                    />
+                  ) : (
+                    <Tooltip title={`Save to ${matchedNiche.name}`}>
+                      <IconButton
+                        size="small"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSaveKeyword(option);
+                        }}
+                        disabled={savingKeywords.has(option)}
+                        aria-label={`Save "${option}" to keyword bank`}
+                        sx={{ ml: 1, p: 0.25 }}
+                      >
+                        {savingKeywords.has(option) ? (
+                          <CircularProgress size={16} />
+                        ) : (
+                          <AddCircleOutlineIcon sx={{ fontSize: 18 }} />
+                        )}
+                      </IconButton>
+                    </Tooltip>
+                  )
+                )}
+              </Box>
+            );
           }}
           renderInput={(params) => (
             <TextField
@@ -119,16 +216,50 @@ const SearchBar = ({
           sx={{ flex: 1 }}
         />
 
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<SearchIcon />}
-          onClick={handleSearch}
-          aria-label="Search"
-          sx={{ minWidth: 110 }}
-        >
-          Search
-        </Button>
+        {hasSearched && (
+          <Tooltip title={nicheTooltip}>
+            <IconButton
+              size="small"
+              onClick={onNicheIndicatorClick}
+              aria-label={nicheTooltip}
+              sx={{ color: matchedNiche ? 'success.main' : 'text.disabled' }}
+            >
+              <Inventory2OutlinedIcon sx={{ fontSize: 22 }} />
+            </IconButton>
+          </Tooltip>
+        )}
+
+        {isSearching && onCancel ? (
+          <Button
+            variant="contained"
+            color="error"
+            startIcon={<StopCircleOutlinedIcon />}
+            onClick={onCancel}
+            aria-label="Stop search"
+            sx={{ minWidth: 110 }}
+          >
+            Stop
+          </Button>
+        ) : (
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<SearchIcon />}
+            onClick={handleSearch}
+            disabled={!canSubmit}
+            aria-label="Search"
+            sx={{
+              minWidth: 110,
+              '&.Mui-disabled': {
+                backgroundColor: (theme) => theme.vars.palette.primary.dark,
+                color: (theme) => theme.vars.palette.primary.contrastText,
+                opacity: 0.5,
+              },
+            }}
+          >
+            Search
+          </Button>
+        )}
       </Stack>
 
       {recentSearches.length > 0 && (
@@ -138,7 +269,7 @@ const SearchBar = ({
               key={`${item.keyword}-${item.marketplace}`}
               label={item.keyword}
               size="small"
-              onClick={() => onRecentClick(item.keyword, item.marketplace)}
+              onClick={() => handleRecentChipClick(item.keyword, item.marketplace)}
               onDelete={() => onRecentRemove(idx)}
               deleteIcon={<CloseIcon sx={{ fontSize: 14 }} />}
               variant="outlined"

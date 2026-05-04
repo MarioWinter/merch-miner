@@ -1,3 +1,5 @@
+import type { Theme } from '@mui/material/styles';
+
 export const COLORS = {
   // Teal-black (ink) — dark bg + light-mode text base
   ink:          '#071E26',
@@ -33,6 +35,13 @@ export const COLORS = {
   tealDk: '#00838F',
   tealLt: '#00BCD4',
 
+  // Artboard canvas backgrounds (Design Board zoom canvas)
+  artboardDark:  '#1A1A2E',
+  artboardLight: '#E8E8E8',
+
+  // Canvas selection / rubber-band
+  selection: '#4A9EFF',
+
   // Neutral
   white: '#FFFFFF',
   black: '#000000',
@@ -45,6 +54,12 @@ export const COLORS = {
   errorDk:        '#F43F3A',
   errorDkShade:   '#D93530',
   infoDk:         '#38BDF8',
+
+  // Orange — distinct "offline / degraded" signal, warmer than amber warning.
+  // Used by the UnsavedChangesBanner offline variant + any degraded-mode chip.
+  orange:       '#F97316',
+  orangeShade:  '#EA580C',
+  orangeLight:  '#FB923C',
 
   // Status — light mode
   successLight: '#059669',
@@ -59,6 +74,10 @@ export const COLORS = {
   aiGlow30:        'rgba(0, 200, 215, 0.30)',
   aiGlow20:        'rgba(0, 200, 215, 0.20)',
   aiGlow10:        'rgba(0, 200, 215, 0.10)',
+
+  // Third-party brand colors (cloud storage providers)
+  brandGoogleDrive: '#4285F4',
+  brandOneDrive:    '#0078D4',
 } as const;
 
 export const EASING = {
@@ -73,5 +92,19 @@ export const DURATION = {
   slow: 300,
 } as const;
 
+export const SHADOW = {
+  card: '0 2px 8px rgba(0,0,0,0.5)',
+  cardLight: '0 2px 6px rgba(0,0,0,0.3)',
+  cardLightMode: '0 2px 8px rgba(0,0,0,0.15)',
+} as const;
+
 export const MONO_FONT_STACK =
   '"JetBrains Mono", "IBM Plex Mono", "Fira Code", ui-monospace, "Cascadia Code", "Courier New", monospace';
+
+// MUI v7 typed `theme.shape.borderRadius` as `number | string`. Multiplying it
+// directly (e.g. `theme.shape.borderRadius * 0.75`) is a TS2362 error.
+// Use this helper in styled() callbacks instead.
+export const radius = (theme: Theme, factor: number = 1): number => {
+  const r = theme.shape.borderRadius;
+  return (typeof r === 'number' ? r : parseFloat(r)) * factor;
+};

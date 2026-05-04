@@ -1,5 +1,6 @@
 """Shared fixtures for niche_research_app tests."""
 
+import asyncio
 
 import pytest
 from rest_framework.test import APIClient
@@ -18,6 +19,32 @@ from niche_research_app.models import (
 from scraper_app.models import AmazonProduct, Keyword
 from user_auth_app.models import User
 from workspace_app.models import Membership, Workspace
+
+
+# ---------------------------------------------------------------------------
+# Asyncio loop hygiene — Python 3.12 deprecates `asyncio.get_event_loop()`
+# returning an implicit loop. Without a fresh loop per test, full-suite runs
+# leak/close the implicit loop, causing
+# "RuntimeError: There is no current event loop in thread 'MainThread'" in
+# every subsequent niche-research test. Isolated runs work because each pytest
+# session starts with a clean implicit loop.
+#
+# This autouse fixture provides a fresh, owned loop per test — invisible to
+# test bodies that still use `asyncio.get_event_loop().run_until_complete(...)`.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _isolated_event_loop():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    try:
+        yield loop
+    finally:
+        try:
+            loop.close()
+        finally:
+            asyncio.set_event_loop(None)
 
 
 # ---------------------------------------------------------------------------

@@ -15,6 +15,15 @@ vi.mock('../../../../services/workspaceService', () => ({
   },
 }));
 
+// Round-5: workspace-switch side effect imports publishApi transitively,
+// which pulls every RTK Query slice. Mock just the cache-reset util used
+// by useWorkspaceSection.
+vi.mock('../../../../store/publishSlice', () => ({
+  publishApi: {
+    util: { resetApiState: () => ({ type: '__noop__' }) },
+  },
+}));
+
 const mockGetMyWorkspaces = vi.mocked(workspaceService.getMyWorkspaces);
 const mockInviteMember = vi.mocked(workspaceService.inviteMember);
 

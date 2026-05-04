@@ -111,6 +111,45 @@ class TestAsinCsvUpload:
         assert 'invalid ASIN' in content
 
 
+    def test_xlsx_upload_creates_targets(self, admin_client, scrape_tiers):
+        """Excel (.xlsx) upload parsed via openpyxl."""
+        from openpyxl import Workbook
+
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['asin', 'marketplace', 'tier'])
+        ws.append(['B0TEST1234', 'amazon_com', 'Tier 1'])
+        ws.append(['B0TEST6789', 'amazon_com', ''])
+        ws.append([None, None, None])  # empty row -> skipped
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        buf.name = 'asins.xlsx'
+
+        admin_client.post(self.UPLOAD_URL, {'csv_file': buf})
+
+        assert ScheduledScrapeTarget.objects.count() == 2
+        assert ScheduledScrapeTarget.objects.get(asin='B0TEST1234').tier.name == 'Tier 1'
+
+    def test_xlsx_zero_pads_numeric_asin(self, admin_client, scrape_tiers):
+        """Numeric ASIN cells are zero-padded to 10 chars (Excel strips leading zeros)."""
+        from openpyxl import Workbook
+
+        wb = Workbook()
+        ws = wb.active
+        ws.append(['asin', 'marketplace'])
+        # Excel sees this as int 451526538 (9 digits) -- expect zfill to 0451526538
+        ws.append([451526538, 'amazon_com'])
+        buf = io.BytesIO()
+        wb.save(buf)
+        buf.seek(0)
+        buf.name = 'numeric.xlsx'
+
+        admin_client.post(self.UPLOAD_URL, {'csv_file': buf})
+
+        assert ScheduledScrapeTarget.objects.filter(asin='0451526538').exists()
+
+
 # ---------------------------------------------------------------------------
 # Keyword CSV Upload
 # ---------------------------------------------------------------------------
@@ -337,7 +376,7 @@ class TestScrapeJobActions:
 
         # Verify spider_kwargs include hoodie filter
         call_kwargs = mock_queue.enqueue.call_args.kwargs
-        assert call_kwargs['search_index'] == 'fashion-novelty'
+        assert call_kwargs['search_index'] == 'fashion'
         assert call_kwargs['max_items'] == 30
 
     @patch('django_rq.get_queue')
@@ -535,3 +574,99 @@ class TestMetaKeywordAdmin:
         assert response.status_code == 200
         content = response.content.decode()
         assert 'cat' in content
+
+
+# ---------------------------------------------------------------------------
+# Admin actions: sort_by + browse_node passing (Phase 14)
+# ---------------------------------------------------------------------------
+
+
+class TestAdminSortAndBrowseNodeActions:
+    @patch('django_rq.get_queue')
+    def test_start_pending_passes_sort_by_and_browse_node(self, mock_get_queue, admin_client):
+        """Start action forwards sort_by + browse_node to enqueue kwargs."""
+        mock_queue = MagicMock()
+        mock_rq_job = MagicMock()
+        mock_rq_job.id = 'rq-sort-start-001'
+        mock_queue.enqueue.return_value = mock_rq_job
+        mock_get_queue.return_value = mock_queue
+
+        kw = _make_keyword('sort start test')
+        job = _make_scrape_job(
+            keyword=kw, status=ScrapeJob.Status.PENDING,
+            sort_by='date-desc-rank', browse_node='12035955011',
+        )
+
+        changelist_url = reverse('admin:scraper_app_scrapejob_changelist')
+        admin_client.post(changelist_url, {
+            'action': 'start_pending_jobs',
+            '_selected_action': [str(job.id)],
+        })
+
+        mock_queue.enqueue.assert_called_once()
+        call_kwargs = mock_queue.enqueue.call_args.kwargs
+        assert call_kwargs['sort_by'] == 'date-desc-rank'
+        assert call_kwargs['browse_node'] == '12035955011'
+
+    @patch('django_rq.get_queue')
+    def test_start_pending_passes_price_filters(self, mock_get_queue, admin_client):
+        """Start action forwards price_min/price_max to enqueue kwargs."""
+        from decimal import Decimal
+        mock_queue = MagicMock()
+        mock_rq_job = MagicMock()
+        mock_rq_job.id = 'rq-price-start-001'
+        mock_queue.enqueue.return_value = mock_rq_job
+        mock_get_queue.return_value = mock_queue
+
+        kw = _make_keyword('price start test')
+        job = _make_scrape_job(
+            keyword=kw, status=ScrapeJob.Status.PENDING,
+            price_min=Decimal('10.00'), price_max=Decimal('30.00'),
+        )
+
+        changelist_url = reverse('admin:scraper_app_scrapejob_changelist')
+        admin_client.post(changelist_url, {
+            'action': 'start_pending_jobs',
+            '_selected_action': [str(job.id)],
+        })
+
+        call_kwargs = mock_queue.enqueue.call_args.kwargs
+        assert call_kwargs['price_min'] == Decimal('10.00')
+        assert call_kwargs['price_max'] == Decimal('30.00')
+
+    @patch('django_rq.get_queue')
+    def test_retry_copies_sort_by_and_browse_node(self, mock_get_queue, admin_client):
+        """Retry action copies sort_by + browse_node to new job and passes to enqueue."""
+        mock_queue = MagicMock()
+        mock_rq_job = MagicMock()
+        mock_rq_job.id = 'rq-sort-retry-001'
+        mock_queue.enqueue.return_value = mock_rq_job
+        mock_get_queue.return_value = mock_queue
+
+        kw = _make_keyword('sort retry test')
+        failed_job = _make_scrape_job(
+            keyword=kw, status=ScrapeJob.Status.FAILED,
+            sort_by='exact-aware-popularity-rank',
+            browse_node='12035955011',
+        )
+
+        changelist_url = reverse('admin:scraper_app_scrapejob_changelist')
+        admin_client.post(changelist_url, {
+            'action': 'retry_failed_jobs',
+            '_selected_action': [str(failed_job.id)],
+        })
+
+        mock_queue.enqueue.assert_called_once()
+
+        # New job has same fields
+        new_job = ScrapeJob.objects.filter(
+            status=ScrapeJob.Status.PENDING, keyword=kw,
+        ).first()
+        assert new_job is not None
+        assert new_job.sort_by == 'exact-aware-popularity-rank'
+        assert new_job.browse_node == '12035955011'
+
+        # Enqueue kwargs have the values
+        call_kwargs = mock_queue.enqueue.call_args.kwargs
+        assert call_kwargs['sort_by'] == 'exact-aware-popularity-rank'
+        assert call_kwargs['browse_node'] == '12035955011'

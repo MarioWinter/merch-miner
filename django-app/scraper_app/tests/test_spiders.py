@@ -19,11 +19,11 @@ class TestDetectProductType:
     def test_long_sleeve(self):
         assert ProductDetailMixin._detect_product_type("Bus Driver Long Sleeve") == 'long_sleeve'
 
-    def test_pullover(self):
-        assert ProductDetailMixin._detect_product_type("Bus Driver Pullover") == 'pullover'
+    def test_pullover_maps_to_sweatshirt(self):
+        assert ProductDetailMixin._detect_product_type("Bus Driver Pullover") == 'sweatshirt'
 
-    def test_sweatshirt_maps_to_pullover(self):
-        assert ProductDetailMixin._detect_product_type("Bus Driver Sweatshirt") == 'pullover'
+    def test_sweatshirt(self):
+        assert ProductDetailMixin._detect_product_type("Bus Driver Sweatshirt") == 'sweatshirt'
 
     def test_unknown_returns_other(self):
         assert ProductDetailMixin._detect_product_type("Bus Driver Mug") == 'other'
@@ -114,3 +114,98 @@ class TestAmazonSearchPageSpider:
         assert AmazonSearchPageSpider._detect_product_type_from_title("Cool Hoodie") == "hoodie"
         assert AmazonSearchPageSpider._detect_product_type_from_title(None) == "other"
         assert AmazonSearchPageSpider._detect_product_type_from_title("") == "other"
+
+
+# ------------------------------------------------------------------
+# SearchPageMixin._build_search_url — Sort & Filter params (Phase 14)
+# ------------------------------------------------------------------
+
+
+class TestBuildSearchUrlSortAndFilter:
+    """Tests for _build_search_url with sort_by, price_min, price_max, browse_node."""
+
+    def _make_spider(self, **overrides):
+        defaults = {
+            'keyword': 'funny cat',
+            'marketplace': 'amazon_com',
+            'search_index': None,
+            'seller_filter': None,
+            'sort_by': None,
+            'price_min': None,
+            'price_max': None,
+            'browse_node': None,
+        }
+        defaults.update(overrides)
+
+        class FakeSpider(SearchPageMixin):
+            pass
+        spider = FakeSpider()
+        for k, v in defaults.items():
+            setattr(spider, k, v)
+        return spider
+
+    def test_sort_by_adds_s_param(self):
+        spider = self._make_spider(sort_by='exact-aware-popularity-rank')
+        url = spider._build_search_url(page=1)
+        assert '&s=exact-aware-popularity-rank' in url
+
+    def test_price_min_adds_low_price(self):
+        spider = self._make_spider(price_min='9.99')
+        url = spider._build_search_url(page=1)
+        assert '&low-price=9.99' in url
+
+    def test_price_max_adds_high_price(self):
+        spider = self._make_spider(price_max='29.99')
+        url = spider._build_search_url(page=1)
+        assert '&high-price=29.99' in url
+
+    def test_price_min_and_max_combined(self):
+        spider = self._make_spider(price_min='10', price_max='30')
+        url = spider._build_search_url(page=1)
+        assert '&low-price=10' in url
+        assert '&high-price=30' in url
+
+    def test_browse_node_adds_bbn(self):
+        spider = self._make_spider(browse_node='12035955011')
+        url = spider._build_search_url(page=1)
+        assert '&bbn=12035955011' in url
+
+    def test_empty_keyword_with_browse_node_no_k_param(self):
+        """Empty keyword + browse_node → no &k= in URL."""
+        spider = self._make_spider(keyword='', browse_node='12035955011')
+        url = spider._build_search_url(page=1)
+        assert '&k=' not in url and 's?k=' not in url
+        assert '&bbn=12035955011' in url
+        assert 'page=1' in url
+
+    def test_all_params_combined(self):
+        spider = self._make_spider(
+            keyword='funny cat',
+            search_index='fashion-novelty',
+            seller_filter='ATVPDKIKX0DER',
+            sort_by='date-desc-rank',
+            price_min='5',
+            price_max='50',
+            browse_node='12035955011',
+        )
+        url = spider._build_search_url(page=2)
+        assert 's?k=funny+cat' in url
+        assert 'page=2' in url
+        assert 'i=fashion-novelty' in url
+        assert 'p_6:ATVPDKIKX0DER' in url
+        assert '&s=date-desc-rank' in url
+        assert '&low-price=5' in url
+        assert '&high-price=50' in url
+        assert '&bbn=12035955011' in url
+
+    def test_no_new_params_backwards_compatible(self):
+        """No sort/price/browse_node → URL unchanged from before."""
+        spider = self._make_spider()
+        url = spider._build_search_url(page=1)
+        assert '&s=' not in url
+        assert '&low-price=' not in url
+        assert '&high-price=' not in url
+        assert '&bbn=' not in url
+        # Base URL still correct
+        assert 's?k=funny+cat' in url
+        assert 'page=1' in url

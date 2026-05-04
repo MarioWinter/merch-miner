@@ -27,6 +27,7 @@ BACKGROUND
   paper           #0B2731   Cards, panels, sidebars
   elevated        #0F3040   Hover surfaces, dropdowns
   sunken          #051820   Input fills, code blocks
+  artboard        #1A1A2E   Design Board zoom canvas (warmer than page bg)
 
 SURFACE OVERLAYS (glassmorphism)
   glass-sm        rgba(11,39,49, 0.60) + blur(8px)
@@ -67,6 +68,11 @@ STATUS COLORS
   warning.dark    #D97706
   warning.subtle  rgba(245,158,11, 0.12)
 
+  orange.main     #F97316   (orange) offline / degraded mode — distinct from amber warning
+  orange.dark     #EA580C
+  orange.light    #FB923C
+  orange.subtle   rgba(249,115,22, 0.12)
+
   error.main      #F43F3A   (destructive actions + validation errors ONLY — distinct from primary)
   error.dark      #D93530
   error.subtle    rgba(244,63,58, 0.12)
@@ -95,6 +101,7 @@ BACKGROUND
   paper           #FFFFFF   Cards, panels
   elevated        #F7FBFC   Hover surfaces
   sunken          #E8F0F3   Input fills
+  artboard        #E8E8E8   Design Board zoom canvas (neutral gray)
 
 SURFACE OVERLAYS
   glass-sm        rgba(255,255,255, 0.70) + blur(8px)
@@ -127,6 +134,7 @@ BORDERS
 STATUS (same hues, lighter backgrounds)
   success.main    #059669
   warning.main    #D97706
+  orange.main     #EA580C   (offline / degraded mode)
   error.main      #DC2626
   info.main       #0284C7
 ```
@@ -581,7 +589,7 @@ Pages using this layout:
 | PROJ-5 Niche List | Table + right drawer | Niche row cards, stage chips, filter toolbar |
 | PROJ-6 Research | Niche detail + job progress | Progress stepper, research result cards |
 | PROJ-7 Amazon Research | Search bar + results table | BSR badges, dense data table, KPI row |
-| PROJ-8 Slogans | Split: niches left / slogans right | Slogan cards with approve/reject actions |
+| PROJ-8 Slogans | Full-width list + filter toolbar | Inline add bar, source groups (collapsed), inline edit, CSV import, filter templates |
 | PROJ-9 Design Gen | Grid of design previews | Design cards, regenerate button, approve flow |
 | PROJ-10 Keyword Bank | Searchable tag cloud | Keyword chips, filter sidebar, copy batch |
 | PROJ-11 Listings | Form + preview panel | Multi-field form, keyword tag input, copy button |
@@ -616,6 +624,9 @@ palette.secondary.main      = '#00C8D7'
 palette.secondary.dark      = '#00A8B5'
 palette.success.main        = '#22D3A3'
 palette.warning.main        = '#F59E0B'
+palette.orange.main         = '#F97316'   // offline / degraded mode — custom palette slot
+palette.orange.dark         = '#EA580C'
+palette.orange.light        = '#FB923C'
 palette.error.main          = '#F43F3A'   // FIX 1 — distinct from primary.main
 palette.info.main           = '#38BDF8'
 palette.text.primary        = '#E8F4F8'
@@ -630,6 +641,7 @@ palette.primary.dark        = '#E84B42'
 palette.secondary.main      = '#0097A7'
 palette.success.main        = '#059669'
 palette.warning.main        = '#D97706'
+palette.orange.main         = '#EA580C'   // offline / degraded mode (deeper for light bg)
 palette.error.main          = '#DC2626'
 palette.info.main           = '#0284C7'
 palette.text.primary        = '#071E26'

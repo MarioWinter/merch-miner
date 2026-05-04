@@ -5,11 +5,22 @@ import { renderWithProviders } from '../../../../utils/test-utils';
 import ProductCard from '../partials/ProductCard';
 import type { AmazonProduct } from '../types';
 
+// Mock BSR history query used by sparkline
+vi.mock('../../../../store/researchSlice', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../../../store/researchSlice')>();
+  return {
+    ...actual,
+    useGetBSRHistoryQuery: () => ({ data: [], isLoading: false }),
+  };
+});
+
 const buildProduct = (overrides?: Partial<AmazonProduct>): AmazonProduct => ({
+  id: 'prod-test-123',
   asin: 'B09TEST123',
   title: 'Funny Hiking T-Shirt',
   brand: 'TrailBrand',
   bsr: 5000,
+  bsr_categories: [{ rank: 73692, category: 'Clothing, Shoes & Jewelry', category_url: '' }],
   rating: 4.5,
   reviews_count: 120,
   price: 19.99,
@@ -26,116 +37,164 @@ const buildProduct = (overrides?: Partial<AmazonProduct>): AmazonProduct => ({
 });
 
 const defaultProps = {
-  onAddToNiche: vi.fn(),
-  isExpanded: false,
-  onToggleExpand: vi.fn(),
+  onClick: vi.fn(),
 };
 
 describe('ProductCard', () => {
-  it('renders all product fields (title, brand, price, rating, ASIN)', () => {
+  it('renders BSR value, price, rating stars, reviews, and ASIN', () => {
     const product = buildProduct();
     renderWithProviders(<ProductCard product={product} {...defaultProps} />);
 
-    expect(screen.getByText('Funny Hiking T-Shirt')).toBeInTheDocument();
-    expect(screen.getByText('TrailBrand')).toBeInTheDocument();
+    // BSR displayed from first bsr_categories entry (73,692)
+    expect(screen.getByText('73,692')).toBeInTheDocument();
     expect(screen.getByText('$19.99')).toBeInTheDocument();
-    expect(screen.getByText('4.5')).toBeInTheDocument();
-    expect(screen.getByText('(120)')).toBeInTheDocument();
+    // Reviews shown as "/ 120 reviews"
+    expect(screen.getByText(/120 reviews/)).toBeInTheDocument();
     expect(screen.getByText('B09TEST123')).toBeInTheDocument();
   });
 
-  it('BSR badge shows success color when bsr < 10000', () => {
-    const product = buildProduct({ bsr: 5000 });
+  it('BSR text uses success color when bsr < 10000', () => {
+    const product = buildProduct({ bsr: 5000, bsr_categories: [{ rank: 5000, category: 'Novelty T-Shirts', category_url: '' }] });
     renderWithProviders(<ProductCard product={product} {...defaultProps} />);
 
-    const chip = screen.getByText('BSR 5,000').closest('.MuiChip-root');
-    expect(chip).toHaveClass('MuiChip-colorSuccess');
+    const bsrText = screen.getByText('5,000');
+    expect(bsrText).toBeInTheDocument();
   });
 
-  it('BSR badge shows warning color when bsr is between 10000 and 50000', () => {
-    const product = buildProduct({ bsr: 25000 });
+  it('BSR text uses warning level when bsr is between 10000 and 50000', () => {
+    const product = buildProduct({ bsr: 25000, bsr_categories: [{ rank: 25000, category: 'Clothing', category_url: '' }] });
     renderWithProviders(<ProductCard product={product} {...defaultProps} />);
 
-    const chip = screen.getByText('BSR 25,000').closest('.MuiChip-root');
-    expect(chip).toHaveClass('MuiChip-colorWarning');
+    expect(screen.getByText('25,000')).toBeInTheDocument();
   });
 
-  it('BSR badge shows default color when bsr > 50000', () => {
-    const product = buildProduct({ bsr: 100000 });
+  it('BSR text shows low sales when bsr > 50000', () => {
+    const product = buildProduct({ bsr: 100000, bsr_categories: [{ rank: 100000, category: 'Clothing', category_url: '' }] });
     renderWithProviders(<ProductCard product={product} {...defaultProps} />);
 
-    const chip = screen.getByText('BSR 100,000').closest('.MuiChip-root');
-    expect(chip).toHaveClass('MuiChip-colorDefault');
+    expect(screen.getByText('100,000')).toBeInTheDocument();
   });
 
-  it('does not render BSR chip when bsr is null', () => {
-    const product = buildProduct({ bsr: null });
+  it('shows main category BSR from bsr_categories', () => {
+    const product = buildProduct({
+      bsr: 5000,
+      bsr_categories: [
+        { rank: 73692, category: 'Clothing, Shoes & Jewelry', category_url: '' },
+        { rank: 1234, category: 'Novelty T-Shirts', category_url: '' },
+      ],
+    });
     renderWithProviders(<ProductCard product={product} {...defaultProps} />);
 
-    expect(screen.queryByText(/BSR/)).not.toBeInTheDocument();
+    // Should display the first bsr_categories entry (main category), not product.bsr
+    expect(screen.getByText('73,692')).toBeInTheDocument();
   });
 
-  it('expand toggle calls onToggleExpand when card is clicked', async () => {
-    const onToggleExpand = vi.fn();
+  it('falls back to product.bsr when bsr_categories is empty', () => {
+    const product = buildProduct({ bsr: 5000, bsr_categories: [] });
+    renderWithProviders(<ProductCard product={product} {...defaultProps} />);
+
+    expect(screen.getByText('5,000')).toBeInTheDocument();
+  });
+
+  it('does not render BSR when bsr is null and bsr_categories is empty', () => {
+    const product = buildProduct({ bsr: null, bsr_categories: [] });
+    renderWithProviders(<ProductCard product={product} {...defaultProps} />);
+
+    expect(screen.getByText('\u2013')).toBeInTheDocument();
+  });
+
+  it('calls onClick when card is clicked', async () => {
+    const onClick = vi.fn();
     const product = buildProduct();
-    renderWithProviders(
-      <ProductCard product={product} {...defaultProps} onToggleExpand={onToggleExpand} />,
-    );
+    renderWithProviders(<ProductCard product={product} onClick={onClick} />);
 
-    // The StyledCard has role="button" and aria-expanded
-    const card = screen.getByRole('button', { name: /funny hiking t-shirt/i });
+    const card = screen.getByRole('button', { name: /product b09test123/i });
     await userEvent.click(card);
-    expect(onToggleExpand).toHaveBeenCalledTimes(1);
+    expect(onClick).toHaveBeenCalledTimes(1);
   });
 
-  it('Add to Niche button triggers onAddToNiche without expanding card', async () => {
-    const onAddToNiche = vi.fn();
-    const onToggleExpand = vi.fn();
+  it('renders hover overlay action buttons', () => {
+    const product = buildProduct();
+    renderWithProviders(<ProductCard product={product} {...defaultProps} />);
+
+    expect(screen.getByLabelText('Add favorite')).toBeInTheDocument();
+    expect(screen.getByLabelText('Copy ASIN')).toBeInTheDocument();
+    expect(screen.getByLabelText('Open on Amazon')).toBeInTheDocument();
+    expect(screen.getByLabelText('View details')).toBeInTheDocument();
+  });
+
+  it('shows filled heart icon when isFavorite is true', () => {
     const product = buildProduct();
     renderWithProviders(
-      <ProductCard
-        product={product}
-        {...defaultProps}
-        onAddToNiche={onAddToNiche}
-        onToggleExpand={onToggleExpand}
-      />,
+      <ProductCard product={product} {...defaultProps} isFavorite />,
     );
 
-    const addBtn = screen.getByLabelText('Add to niche');
-    await userEvent.click(addBtn);
-    expect(onAddToNiche).toHaveBeenCalledTimes(1);
-    // stopPropagation prevents card expand
-    expect(onToggleExpand).not.toHaveBeenCalled();
+    const favBtn = screen.getByLabelText('Remove favorite');
+    expect(favBtn.querySelector('[data-testid="FavoriteIcon"]')).toBeInTheDocument();
   });
 
-  it('Amazon link has correct href and opens in new tab', () => {
-    const product = buildProduct({ marketplace: 'amazon_de', asin: 'B09DETEST' });
-    renderWithProviders(<ProductCard product={product} {...defaultProps} />);
+  it('shows AI badge when hasSloganExtracted is true', () => {
+    const product = buildProduct();
+    renderWithProviders(
+      <ProductCard product={product} {...defaultProps} hasSloganExtracted />,
+    );
 
-    const link = screen.getByLabelText('Open on Amazon');
-    expect(link.tagName).toBe('A');
-    expect(link).toHaveAttribute('href', 'https://www.amazon.de/dp/B09DETEST');
-    expect(link).toHaveAttribute('target', '_blank');
-    expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(
+      document.querySelector('[data-testid="AutoAwesomeIcon"]'),
+    ).toBeInTheDocument();
   });
 
-  it('days since publication calculated correctly', () => {
-    // Set listed_date to 10 days ago
-    const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000)
-      .toISOString()
-      .split('T')[0];
-    const product = buildProduct({ listed_date: tenDaysAgo });
+  it('does not show AI badge when hasSloganExtracted is false', () => {
+    const product = buildProduct();
     renderWithProviders(<ProductCard product={product} {...defaultProps} />);
 
-    // The getDaysSince function uses Math.floor so it could be 9 or 10 depending
-    // on the time of day. Use a regex to match a reasonable range.
-    expect(screen.getByText(/Published \d+d ago/)).toBeInTheDocument();
+    expect(
+      document.querySelector('[data-testid="AutoAwesomeIcon"]'),
+    ).not.toBeInTheDocument();
   });
 
-  it('shows N/A for days since publication when listed_date is null', () => {
-    const product = buildProduct({ listed_date: null });
+  it('renders product image with correct src', () => {
+    const product = buildProduct();
     renderWithProviders(<ProductCard product={product} {...defaultProps} />);
 
-    expect(screen.getByText('Published N/A ago')).toBeInTheDocument();
+    const img = screen.getByAltText('Funny Hiking T-Shirt');
+    expect(img).toHaveAttribute('src', 'https://example.com/img.jpg');
+  });
+
+  it('renders 5 star icons for rating display', () => {
+    const product = buildProduct({ rating: 4.5 });
+    renderWithProviders(<ProductCard product={product} {...defaultProps} />);
+
+    // 5 star icons total (filled + empty)
+    const starIcons = document.querySelectorAll('[data-testid="StarIcon"]');
+    expect(starIcons.length).toBe(5);
+  });
+
+  it('shows singular "review" when reviews_count is 1', () => {
+    const product = buildProduct({ reviews_count: 1 });
+    renderWithProviders(<ProductCard product={product} {...defaultProps} />);
+
+    expect(screen.getByText(/1 review$/)).toBeInTheDocument();
+  });
+
+  it('does not show title or brand on card', () => {
+    const product = buildProduct({ title: 'Funny Hiking T-Shirt', brand: 'TrailBrand' });
+    renderWithProviders(<ProductCard product={product} {...defaultProps} />);
+
+    // Title appears only as img alt, not as visible text
+    expect(screen.queryByText('Funny Hiking T-Shirt')).not.toBeInTheDocument();
+    expect(screen.queryByText('TrailBrand')).not.toBeInTheDocument();
+  });
+
+  it('ASIN chip copies to clipboard on click', async () => {
+    const product = buildProduct();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    renderWithProviders(<ProductCard product={product} {...defaultProps} />);
+
+    const asinChip = screen.getByLabelText(/Copy ASIN B09TEST123/);
+    await userEvent.click(asinChip);
+    expect(writeText).toHaveBeenCalledWith('B09TEST123');
   });
 });

@@ -1,59 +1,156 @@
-import { useState, useCallback, Fragment } from 'react';
-import { Grid } from '@mui/material';
-import { useSnackbar } from 'notistack';
-import { useCreateNicheMutation } from '../../../../store/nicheSlice';
+import { forwardRef, useCallback, useMemo } from 'react';
+import { Box, Skeleton, Stack } from '@mui/material';
+import { styled } from '@mui/material/styles';
+import { VirtuosoGrid } from 'react-virtuoso';
 import type { AmazonProduct } from '../types';
 import ProductCard from './ProductCard';
-import ProductDetailPanel from './ProductDetailPanel';
 
 interface ProductGridProps {
   products: AmazonProduct[];
-  keyword: string;
+  favoriteAsins?: Set<string>;
+  extractedAsins?: Set<string>;
+  extractingAsin?: string | null;
+  onToggleFavorite?: (product: AmazonProduct) => void;
+  onExtractSlogan?: (product: AmazonProduct) => void;
+  onDoubleClick?: (product: AmazonProduct) => void;
+  /** Called when the user scrolls to the end — only when `hasMore` is true. */
+  onEndReached?: () => void;
+  /** Show skeleton row footer while next page is loading. */
+  isFetchingNext?: boolean;
+  /** When false the footer skeleton is never rendered. */
+  hasMore?: boolean;
 }
 
-const ProductGrid = ({ products, keyword }: ProductGridProps) => {
-  const [expandedAsin, setExpandedAsin] = useState<string | null>(null);
-  const { enqueueSnackbar } = useSnackbar();
-  const [createNiche] = useCreateNicheMutation();
+// ProductCard has a fixed width of 215px; we use auto-fill grid so as many
+// cards as fit per row are rendered. minmax(235px, 1fr) leaves a small gutter
+// around the card and lets cells stretch to fill available row space.
+const GRID_MIN_COL = 235;
 
-  const handleToggleExpand = useCallback((asin: string) => {
-    setExpandedAsin((prev) => (prev === asin ? null : asin));
+/**
+ * Virtuoso `List` slot — CSS Grid container with auto-fill columns.
+ * Replaces the previous breakpoint-stepped flex-wrap (which capped at 5 cards
+ * even on ultra-wide displays) with viewport-driven density.
+ */
+const VirtuosoList = styled('div')(({ theme }) => ({
+  display: 'grid',
+  gridTemplateColumns: `repeat(auto-fill, minmax(${GRID_MIN_COL}px, 1fr))`,
+  gap: theme.spacing(2),
+  justifyItems: 'center',
+}));
+
+/**
+ * Virtuoso `Item` slot — each grid cell. Cards center inside the cell.
+ */
+const VirtuosoItem = styled('div')({
+  display: 'flex',
+  justifyContent: 'center',
+  width: '100%',
+});
+
+/**
+ * Skeleton card — matches ProductCard fixed 370px height so layout doesn't jump
+ * while the next page loads.
+ */
+const SkeletonCard = () => (
+  <Box sx={{ width: 215 }}>
+    <Skeleton
+      variant="rectangular"
+      animation="wave"
+      sx={{ height: 340, borderRadius: 2 }}
+    />
+  </Box>
+);
+
+const SkeletonList = forwardRef<HTMLDivElement, { count?: number }>(
+  ({ count = 4 }, ref) => (
+    <VirtuosoList ref={ref}>
+      {Array.from({ length: count }).map((_, i) => (
+        <VirtuosoItem key={`skeleton-${i}`}>
+          <SkeletonCard />
+        </VirtuosoItem>
+      ))}
+    </VirtuosoList>
+  ),
+);
+SkeletonList.displayName = 'SkeletonList';
+
+const ProductGrid = ({
+  products,
+  favoriteAsins,
+  extractedAsins,
+  extractingAsin,
+  onToggleFavorite,
+  onExtractSlogan,
+  onDoubleClick,
+  onEndReached,
+  isFetchingNext = false,
+  hasMore = false,
+}: ProductGridProps) => {
+  const handleCardClick = useCallback((asin: string) => {
+    window.open(`/amazon/research/product/${asin}`, '_blank', 'noopener');
   }, []);
 
-  const handleAddToNiche = useCallback(
-    async (kw: string) => {
-      try {
-        await createNiche({ name: kw }).unwrap();
-        enqueueSnackbar('Added to niche list', { variant: 'success' });
-      } catch {
-        enqueueSnackbar('Failed to add niche', { variant: 'error' });
-      }
+  const itemContent = useCallback(
+    (index: number) => {
+      const product = products[index];
+      if (!product) return null;
+      return (
+        <ProductCard
+          product={product}
+          onClick={() => handleCardClick(product.asin)}
+          onDoubleClick={onDoubleClick ? () => onDoubleClick(product) : undefined}
+          isFavorite={favoriteAsins?.has(product.asin)}
+          onToggleFavorite={onToggleFavorite ? () => onToggleFavorite(product) : undefined}
+          hasSloganExtracted={extractedAsins?.has(product.asin)}
+          onExtractSlogan={onExtractSlogan ? () => onExtractSlogan(product) : undefined}
+          isExtracting={extractingAsin === product.asin}
+        />
+      );
     },
-    [createNiche, enqueueSnackbar],
+    [
+      products,
+      handleCardClick,
+      onDoubleClick,
+      favoriteAsins,
+      onToggleFavorite,
+      extractedAsins,
+      onExtractSlogan,
+      extractingAsin,
+    ],
   );
 
-  const expandedProduct = products.find((p) => p.asin === expandedAsin);
+  // Footer skeleton row (visible while the next page is loading).
+  const Footer = useCallback(
+    () =>
+      isFetchingNext && hasMore ? (
+        <Stack direction="row" gap={2} flexWrap="wrap" justifyContent="center" sx={{ pt: 2 }}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <SkeletonCard key={`footer-skel-${i}`} />
+          ))}
+        </Stack>
+      ) : null,
+    [isFetchingNext, hasMore],
+  );
+
+  const components = useMemo(
+    () => ({
+      List: VirtuosoList,
+      Item: VirtuosoItem,
+      Footer,
+    }),
+    [Footer],
+  );
 
   return (
-    <Grid container spacing={2}>
-      {products.map((product) => (
-        <Fragment key={product.asin}>
-          <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
-            <ProductCard
-              product={product}
-              onAddToNiche={() => handleAddToNiche(keyword)}
-              isExpanded={expandedAsin === product.asin}
-              onToggleExpand={() => handleToggleExpand(product.asin)}
-            />
-          </Grid>
-          {expandedAsin === product.asin && expandedProduct && (
-            <Grid size={{ xs: 12 }}>
-              <ProductDetailPanel product={expandedProduct} keyword={keyword} />
-            </Grid>
-          )}
-        </Fragment>
-      ))}
-    </Grid>
+    <VirtuosoGrid
+      totalCount={products.length}
+      data-testid="product-virtuoso-grid"
+      useWindowScroll
+      increaseViewportBy={400}
+      endReached={onEndReached}
+      itemContent={itemContent}
+      components={components}
+    />
   );
 };
 

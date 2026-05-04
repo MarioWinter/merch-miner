@@ -10,9 +10,13 @@ import GridViewIcon from '@mui/icons-material/GridView';
 import ViewListIcon from '@mui/icons-material/ViewList';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
+import BarChartIcon from '@mui/icons-material/BarChart';
+import ViewModuleIcon from '@mui/icons-material/ViewModule';
 import { useSnackbar } from 'notistack';
 import { apiClient } from '../../../../services/authService';
-import type { AmazonProduct, ResearchFilters } from '../types';
+import type { AmazonProduct } from '../types';
+
+export type ResultsTab = 'products' | 'keywords';
 
 interface ResultsToolbarProps {
   count: number;
@@ -21,7 +25,10 @@ interface ResultsToolbarProps {
   layout: 'grid' | 'list';
   onLayoutChange: (layout: 'grid' | 'list') => void;
   products: AmazonProduct[];
-  filters: ResearchFilters;
+  buildQueryParams: () => Record<string, unknown>;
+  activeTab: ResultsTab;
+  onTabChange: (tab: ResultsTab) => void;
+  activeFilterSummary?: string;
 }
 
 const ResultsToolbar = ({
@@ -31,7 +38,10 @@ const ResultsToolbar = ({
   layout,
   onLayoutChange,
   products,
-  filters,
+  buildQueryParams,
+  activeTab,
+  onTabChange,
+  activeFilterSummary,
 }: ResultsToolbarProps) => {
   const { enqueueSnackbar } = useSnackbar();
 
@@ -47,7 +57,7 @@ const ResultsToolbar = ({
 
   const handleExportCSV = useCallback(async () => {
     try {
-      const params: Record<string, unknown> = { ...filters };
+      const params = buildQueryParams();
       const response = await apiClient.get('/api/research/products/export/', {
         params,
         responseType: 'blob',
@@ -64,7 +74,7 @@ const ResultsToolbar = ({
     } catch {
       enqueueSnackbar('Export failed', { variant: 'error' });
     }
-  }, [filters, enqueueSnackbar]);
+  }, [buildQueryParams, enqueueSnackbar]);
 
   return (
     <Stack
@@ -73,28 +83,57 @@ const ResultsToolbar = ({
       spacing={2}
       sx={{ mt: 2, mb: 2 }}
     >
+      {/* Products / Keywords toggle */}
+      <ToggleButtonGroup
+        value={activeTab}
+        exclusive
+        onChange={(_, val) => val && onTabChange(val)}
+        size="small"
+        aria-label="Results view toggle"
+      >
+        <ToggleButton value="products" aria-label="Products view">
+          <ViewModuleIcon sx={{ fontSize: 18, mr: 0.5 }} />
+          Products
+        </ToggleButton>
+        <ToggleButton value="keywords" aria-label="Keywords view">
+          <BarChartIcon sx={{ fontSize: 18, mr: 0.5 }} />
+          Keywords
+        </ToggleButton>
+      </ToggleButtonGroup>
+
       <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
         {count > 0
           ? `${count.toLocaleString()} results${keyword ? ` for "${keyword}"` : ''}`
           : 'No results'}
+        {activeFilterSummary && (
+          <Typography
+            component="span"
+            variant="body2"
+            sx={{ ml: 1, color: 'secondary.main' }}
+          >
+            {activeFilterSummary}
+          </Typography>
+        )}
       </Typography>
 
-      <ToggleButtonGroup
-        value={layout}
-        exclusive
-        onChange={(_, val) => val && onLayoutChange(val)}
-        size="small"
-        aria-label="Layout toggle"
-      >
-        <ToggleButton value="grid" aria-label="Grid view">
-          <GridViewIcon sx={{ fontSize: 18 }} />
-        </ToggleButton>
-        <ToggleButton value="list" aria-label="List view">
-          <ViewListIcon sx={{ fontSize: 18 }} />
-        </ToggleButton>
-      </ToggleButtonGroup>
+      {activeTab === 'products' && (
+        <ToggleButtonGroup
+          value={layout}
+          exclusive
+          onChange={(_, val) => val && onLayoutChange(val)}
+          size="small"
+          aria-label="Layout toggle"
+        >
+          <ToggleButton value="grid" aria-label="Grid view">
+            <GridViewIcon sx={{ fontSize: 18 }} />
+          </ToggleButton>
+          <ToggleButton value="list" aria-label="List view">
+            <ViewListIcon sx={{ fontSize: 18 }} />
+          </ToggleButton>
+        </ToggleButtonGroup>
+      )}
 
-      {!isLive && (
+      {!isLive && activeTab === 'products' && (
         <>
           <Button
             variant="outlined"
@@ -103,9 +142,9 @@ const ResultsToolbar = ({
             startIcon={<ContentCopyIcon sx={{ fontSize: 16 }} />}
             onClick={handleCopyAsins}
             disabled={products.length === 0}
-            aria-label="Copy all ASINs"
+            aria-label={`Copy ${products.length} ASINs`}
           >
-            Copy ASINs
+            Copy {products.length} ASINs
           </Button>
           <Button
             variant="outlined"

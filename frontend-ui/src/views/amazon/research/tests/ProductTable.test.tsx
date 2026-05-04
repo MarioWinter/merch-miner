@@ -4,7 +4,14 @@ import { renderWithProviders } from '../../../../utils/test-utils';
 import ProductTable from '../partials/ProductTable';
 import type { AmazonProduct } from '../types';
 
-// ── RTK Query mocks (ProductDetailPanel dependencies) ────────────────────────
+// ── Router mock ─────────────────────────────────────────────────────────────
+const mockNavigate = vi.fn();
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('react-router-dom')>();
+  return { ...actual, useNavigate: () => mockNavigate };
+});
+
+// ── RTK Query mocks ─────────────────────────────────────────────────────────
 vi.mock('../../../../store/researchSlice', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../../store/researchSlice')>();
   return {
@@ -13,19 +20,14 @@ vi.mock('../../../../store/researchSlice', async (importOriginal) => {
   };
 });
 
-vi.mock('../../../../store/nicheSlice', async (importOriginal) => {
-  const actual = await importOriginal<typeof import('../../../../store/nicheSlice')>();
-  return {
-    ...actual,
-    useCreateNicheMutation: () => [vi.fn(), { isLoading: false }],
-  };
-});
 
 const buildProduct = (overrides?: Partial<AmazonProduct>): AmazonProduct => ({
+  id: 'prod-test-123',
   asin: 'B09TEST123',
   title: 'Funny Hiking T-Shirt',
   brand: 'TrailBrand',
   bsr: 5000,
+  bsr_categories: [{ rank: 73692, category: 'Clothing, Shoes & Jewelry', category_url: '' }],
   rating: 4.5,
   reviews_count: 120,
   price: 19.99,
@@ -43,7 +45,6 @@ const buildProduct = (overrides?: Partial<AmazonProduct>): AmazonProduct => ({
 
 const baseProps = {
   products: [] as AmazonProduct[],
-  keyword: 'hiking',
   count: 0,
   page: 0,
   pageSize: 50,
