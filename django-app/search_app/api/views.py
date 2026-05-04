@@ -13,25 +13,6 @@ from rest_framework.renderers import BaseRenderer, JSONRenderer
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-
-class EventStreamRenderer(BaseRenderer):
-    """Allow DRF content negotiation to accept `Accept: text/event-stream`.
-
-    SSE views return `StreamingHttpResponse` directly; this renderer is just
-    needed so DRF's `perform_content_negotiation` doesn't raise 406.
-    """
-
-    media_type = 'text/event-stream'
-    format = 'sse'
-    charset = 'utf-8'
-
-    def render(self, data, accepted_media_type=None, renderer_context=None):
-        # Not actually used — views return StreamingHttpResponse directly.
-        return data
-
-from user_auth_app.api.authentication import CookieJWTAuthentication
-from workspace_app.models import Membership
-
 from search_app.api.serializers import (
     ChatSessionCreateSerializer,
     ChatSessionDetailSerializer,
@@ -56,6 +37,24 @@ from search_app.services.mode_classifier import (
 )
 from search_app.services.vane_service import VaneService, VaneServiceError
 from search_app.tasks import execute_crawl, log_search_usage
+from user_auth_app.api.authentication import CookieJWTAuthentication
+from workspace_app.models import Membership
+
+
+class EventStreamRenderer(BaseRenderer):
+    """Allow DRF content negotiation to accept `Accept: text/event-stream`.
+
+    SSE views return `StreamingHttpResponse` directly; this renderer is just
+    needed so DRF's `perform_content_negotiation` doesn't raise 406.
+    """
+
+    media_type = 'text/event-stream'
+    format = 'sse'
+    charset = 'utf-8'
+
+    def render(self, data, accepted_media_type=None, renderer_context=None):
+        # Not actually used — views return StreamingHttpResponse directly.
+        return data
 
 logger = logging.getLogger(__name__)
 
@@ -663,11 +662,6 @@ class ChatSessionMessageStreamView(APIView):
         )
         if search_mode not in ('speed', 'balanced', 'quality'):
             search_mode = 'balanced'
-
-        # Cleanup 2026-04-28: read mode_override for logging — stream view
-        # always handles Chat (Vane) mode; Agent mode goes via POST. We accept
-        # the param for analytics + future per-message routing.
-        mode_override = request.query_params.get('mode_override') or 'chat'
 
         sources_raw = request.query_params.get('search_sources', 'web')
         search_sources = [

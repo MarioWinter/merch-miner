@@ -92,7 +92,6 @@ def generate_listing(
     from publish_app.models import DesignAsset, Listing
 
     workspace_id = _get_workspace_id(config)
-    user_id = _get_user_id(config)
     session_id = _get_session_id(config)
 
     try:

@@ -15,7 +15,6 @@ from agent_app.models import (
     AutonomyPreset,
     KnowledgeDoc,
     Skill,
-    SkillTriggerType,
     SkillVersion,
     ToolPermission,
     UserProfile,

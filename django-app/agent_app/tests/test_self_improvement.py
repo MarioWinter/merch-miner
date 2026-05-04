@@ -22,13 +22,9 @@ Vector DB mocking strategy:
 
 from __future__ import annotations
 
-import uuid
-from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
-from django.core.exceptions import ValidationError
-from django.db import transaction
 from django.utils import timezone
 from rest_framework.test import APIClient
 

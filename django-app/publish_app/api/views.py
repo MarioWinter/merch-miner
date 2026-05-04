@@ -40,7 +40,6 @@ from publish_app.api.serializers import (
     CollectionTreeSerializer,
     CollectionUpdateSerializer,
     DesignAssetFromDesignInputSerializer,
-    DesignAssetFromDesignResultSerializer,
     DesignAssetSerializer,
     DesignAssetUpdateSerializer,
     DesignAssetUploadSerializer,

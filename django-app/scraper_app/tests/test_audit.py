@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-import pytest
 
 from scraper_app.audit import run_audit
 

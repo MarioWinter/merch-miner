@@ -161,7 +161,7 @@ class TestSessionListCreate:
         )
 
         resp = api_client.post(
-            f'/api/agent/sessions/?override=true',
+            '/api/agent/sessions/?override=true',
             {'niche_context': str(niche.id)},
             format='json',
         )

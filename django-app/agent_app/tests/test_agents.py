@@ -40,7 +40,6 @@ from agent_app.models import (
     AgentActionLog,
     AgentMessage,
     AgentSession,
-    AgentType,
     MessageRole,
     SessionStatus,
 )

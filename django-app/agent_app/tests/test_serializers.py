@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import uuid
-from decimal import Decimal
 
 import pytest
 
@@ -27,7 +26,6 @@ from agent_app.models import (
     AutonomyPreset,
     KnowledgeDoc,
     MessageRole,
-    SessionStatus,
     ToolPermission,
     WorkflowTemplate,
 )

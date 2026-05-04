@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
-from typing import Optional
 
 import django_rq
 from django.db import transaction

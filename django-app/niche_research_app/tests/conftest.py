@@ -6,6 +6,20 @@ import pytest
 from rest_framework.test import APIClient
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from niche_app.models import Niche
+from niche_research_app.models import (
+    NicheAnalysis,
+    NicheKeywordAnalysis,
+    NicheProductEmotionalAnalysis,
+    NicheProductVisionAnalysis,
+    NicheResearch,
+    NicheResearchProduct,
+    ResearchNodeConfig,
+)
+from scraper_app.models import AmazonProduct, Keyword
+from user_auth_app.models import User
+from workspace_app.models import Membership, Workspace
+
 
 # ---------------------------------------------------------------------------
 # Asyncio loop hygiene — Python 3.12 deprecates `asyncio.get_event_loop()`
@@ -31,20 +45,6 @@ def _isolated_event_loop():
             loop.close()
         finally:
             asyncio.set_event_loop(None)
-
-from niche_app.models import Niche
-from niche_research_app.models import (
-    NicheAnalysis,
-    NicheKeywordAnalysis,
-    NicheProductEmotionalAnalysis,
-    NicheProductVisionAnalysis,
-    NicheResearch,
-    NicheResearchProduct,
-    ResearchNodeConfig,
-)
-from scraper_app.models import AmazonProduct, Keyword
-from user_auth_app.models import User
-from workspace_app.models import Membership, Workspace
 
 
 # ---------------------------------------------------------------------------
