@@ -2,11 +2,25 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import { readFileSync } from 'fs'
+
+// Read version from package.json — kept in sync by release-please.
+const pkg = JSON.parse(
+  readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8'),
+) as { version: string }
+const buildDate = new Date().toISOString()
 
 // https://vite.dev/config/
 export default defineConfig({
   envDir: path.resolve(__dirname, '..'),
   plugins: [react()],
+  // Version + build timestamp inlined at build time — readable in app via
+  // `import.meta.env.APP_VERSION` and `import.meta.env.BUILD_DATE`.
+  // Vite's `define` requires JSON.stringify so the literal becomes a string.
+  define: {
+    'import.meta.env.APP_VERSION': JSON.stringify(pkg.version),
+    'import.meta.env.BUILD_DATE': JSON.stringify(buildDate),
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
