@@ -85,6 +85,10 @@ jobs:
           REDIS_HOST: localhost
           REDIS_PORT: 6379
           REDIS_DB: 0
+          # Dummy LLM key so services that pre-validate the env var don't raise
+          # before HTTP-level mocks take effect (e.g. mode_classifier tests).
+          # All real network calls in tests are mocked.
+          OPENROUTER_API_KEY: sk-test-dummy-key-for-ci-only
 
       - name: Lint (ruff)
         run: ruff check django-app/
