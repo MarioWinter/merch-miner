@@ -167,6 +167,7 @@ django-rq processes async tasks (n8n triggers, design generation). Redis serves 
 - **Branching:** One PROJ = one branch = one PR. Branch name `feature/PROJ-X-shortname`, off `main`.
 - **Mini-fixes outside any PROJ:** Branch `fix/short-description` off `main`. No spec needed when `/requirements` + `/architecture` would be overkill (typo, env tweak, infra hot-patch).
 - **Branch lifecycle:** Branches are auto-deleted on merge (GitHub setting). Don't reuse a merged branch; start fresh from `main`.
+- **Release cadence:** Code PRs (`feat:`/`fix:`) get merged immediately — that ships the code via the deploy chain. The auto-opened `chore(main): release X.Y.Z` PR from release-please is **NOT merged on every code merge**. It accumulates all changes in a single open PR. Default cadence: **merge the release PR on Mondays** (or whenever an intentional version bump makes sense). This produces clean, batched version tags instead of `v0.2.0 → v0.2.1 → v0.2.2` churn from sequential bug-fix PRs.
 - **MUI first:** Check MUI before building any UI component
 - **MUI v7 only:** Use components from `@mui/material` and icons from `@mui/icons-material`; avoid custom re-implementations for standard controls.
 - **No deprecated APIs:** Never use `GridLegacy`/`Grid2`, `Hidden`, `InputProps`, `@mui/lab` imports, or `createMuiTheme`; use v7 patterns (`Grid size={{...}}`, `slotProps`, `sx` breakpoints).
