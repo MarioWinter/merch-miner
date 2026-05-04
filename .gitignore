@@ -2,6 +2,12 @@
 .playwright-mcp/
 snapshot-*.md
 
+# ── Build staging copies ───────────────────────────────
+# CI copies repo-root CHANGELOG.md into frontend-ui/ for the docker build
+# context; the source-of-truth lives at the root and shouldn't be duplicated
+# in git.
+frontend-ui/CHANGELOG.md
+
 # ── Environment Variables ──────────────────────────────
 .env
 .env.prod

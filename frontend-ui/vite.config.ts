@@ -10,6 +10,29 @@ const pkg = JSON.parse(
 ) as { version: string }
 const buildDate = new Date().toISOString()
 
+// Read CHANGELOG.md content for in-app rendering. Source-of-truth lives at
+// repo root, but it must be reachable from three different runtimes:
+//   1. Local host (`npm run dev` outside Docker) — `../CHANGELOG.md`
+//   2. Production image build (docker context = frontend-ui/, CI pre-copies)
+//      — `./CHANGELOG.md`
+//   3. Dev container (compose mounts repo-root file at `/changelog.md`
+//      OUTSIDE /app to avoid bind-mount nesting on macOS virtiofs)
+//      — `/changelog.md`
+const changelogCandidates = [
+  path.resolve(__dirname, '..', 'CHANGELOG.md'),
+  path.resolve(__dirname, 'CHANGELOG.md'),
+  '/changelog.md',
+]
+let changelogMd = '# Changelog\n\nNo entries available in this build.\n'
+for (const candidate of changelogCandidates) {
+  try {
+    changelogMd = readFileSync(candidate, 'utf-8')
+    break
+  } catch {
+    // try next
+  }
+}
+
 // https://vite.dev/config/
 export default defineConfig({
   envDir: path.resolve(__dirname, '..'),
@@ -20,6 +43,7 @@ export default defineConfig({
   define: {
     'import.meta.env.APP_VERSION': JSON.stringify(pkg.version),
     'import.meta.env.BUILD_DATE': JSON.stringify(buildDate),
+    'import.meta.env.CHANGELOG': JSON.stringify(changelogMd),
   },
   resolve: {
     alias: {

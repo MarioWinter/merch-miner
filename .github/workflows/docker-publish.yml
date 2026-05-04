@@ -92,6 +92,11 @@ jobs:
             type=sha,prefix=,suffix=,format=short
             type=raw,value=latest
 
+      # CHANGELOG.md is repo-root, but the docker build context is
+      # frontend-ui/. Copy it in so vite.config.ts can read it during build.
+      - name: Stage CHANGELOG.md into frontend build context
+        run: cp CHANGELOG.md frontend-ui/CHANGELOG.md
+
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
