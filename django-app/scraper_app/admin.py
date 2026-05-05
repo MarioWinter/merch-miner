@@ -1,9 +1,7 @@
-import csv
-import io
 import os
-import re
 
 from django import forms
+from django.conf import settings
 from django.contrib import admin, messages
 from django.db import models
 from django.http import HttpResponseRedirect
@@ -16,6 +14,7 @@ from scraper_app.models import (
     AmazonProduct,
     BrandBlacklist,
     BSRSnapshot,
+    BulkScrapeBatch,
     CanaryAsin,
     Keyword,
     MarketplaceChoices,
@@ -28,6 +27,7 @@ from scraper_app.models import (
     ScheduledScrapeTarget,
     SelectorHealthCheck,
 )
+from scraper_app.parsers import ASIN_PATTERN, _parse_uploaded_file
 
 
 def _tier_from_bsr_or_fallback(asin=None, marketplace=None):
@@ -53,54 +53,6 @@ class CsvUploadForm(forms.Form):
         label='CSV or Excel File',
         widget=forms.ClearableFileInput(attrs={'accept': '.csv,.xlsx'}),
     )
-
-
-def _parse_uploaded_file(uploaded_file):
-    """Parse uploaded CSV or XLSX file into (rows_list, headers_set).
-
-    Detects format via filename extension. xlsx → openpyxl first sheet.
-    Returns (rows, headers) or raises ValueError with user-facing message.
-    """
-    name = (uploaded_file.name or '').lower()
-    if name.endswith('.xlsx'):
-        from openpyxl import load_workbook
-
-        try:
-            wb = load_workbook(filename=uploaded_file, read_only=True, data_only=True)
-        except Exception as exc:
-            raise ValueError(f"Could not read Excel file: {exc}") from exc
-        ws = wb.active
-        rows_iter = ws.iter_rows(values_only=True)
-        try:
-            header_row = next(rows_iter)
-        except StopIteration:
-            raise ValueError("Excel sheet is empty.") from None
-        headers_list = [str(h).strip() if h is not None else '' for h in header_row]
-        rows = []
-        for raw in rows_iter:
-            if all(v is None or str(v).strip() == '' for v in raw):
-                continue
-            row = {}
-            for i, value in enumerate(raw):
-                if i >= len(headers_list) or not headers_list[i]:
-                    continue
-                if value is None:
-                    cell = ''
-                elif isinstance(value, int) and headers_list[i] == 'asin':
-                    cell = str(value).zfill(10)
-                else:
-                    cell = str(value).strip()
-                row[headers_list[i]] = cell
-            rows.append(row)
-        return rows, set(h for h in headers_list if h)
-
-    try:
-        decoded = uploaded_file.read().decode('utf-8')
-    except UnicodeDecodeError as exc:
-        raise ValueError("File is not valid UTF-8.") from exc
-    reader = csv.DictReader(io.StringIO(decoded))
-    rows = list(reader)
-    return rows, set(reader.fieldnames or [])
 
 
 # ---------------------------------------------------------------------------
@@ -308,7 +260,6 @@ class ScrapeTierAdmin(admin.ModelAdmin):
 # ---------------------------------------------------------------------------
 
 VALID_MARKETPLACES = {c.value for c in MarketplaceChoices}
-ASIN_PATTERN = re.compile(r'^[A-Z0-9]{10}$')
 
 
 @admin.register(ScheduledScrapeTarget)
@@ -878,4 +829,206 @@ class ScraperConfigAdmin(admin.ModelAdmin):
         return not ScraperConfig.objects.exists()
 
     def has_delete_permission(self, request, obj=None):
+        return False
+
+
+# ---------------------------------------------------------------------------
+# BulkScrapeBatch Admin (PROJ-25 Phase B — placeholder, full UX in Phase E)
+# ---------------------------------------------------------------------------
+
+
+class BulkScrapeUploadForm(forms.Form):
+    csv_file = forms.FileField(
+        label='CSV or Excel File',
+        widget=forms.ClearableFileInput(attrs={'accept': '.csv,.xlsx'}),
+    )
+    name = forms.CharField(
+        max_length=200,
+        label='Batch name',
+        help_text='Free-text label, e.g. "MBA seed batch 2026-05-05".',
+    )
+    marketplace = forms.ChoiceField(
+        choices=MarketplaceChoices.choices,
+        initial=MarketplaceChoices.AMAZON_COM,
+        label='Marketplace',
+    )
+    force_rescrape = forms.BooleanField(
+        required=False,
+        initial=False,
+        label='Re-scrape even if product was updated within last 30 days',
+    )
+
+
+@admin.register(BulkScrapeBatch)
+class BulkScrapeBatchAdmin(admin.ModelAdmin):
+    list_display = [
+        'name', 'marketplace', 'status',
+        'total_count', 'pending_count', 'running_count',
+        'done_count', 'failed_count', 'created_at',
+    ]
+    list_filter = ['status', 'marketplace']
+    readonly_fields = [
+        'id', 'errors',
+        'total_count', 'pending_count', 'running_count',
+        'done_count', 'failed_count',
+        'started_at', 'finished_at', 'created_at',
+        'created_by', 'source_filename',
+    ]
+    fieldsets = (
+        (None, {
+            'fields': (
+                'id', 'name', 'source_filename', 'marketplace',
+                'force_rescrape', 'status', 'created_by',
+            ),
+        }),
+        ('Counts', {
+            'fields': (
+                'total_count', 'pending_count', 'running_count',
+                'done_count', 'failed_count',
+            ),
+        }),
+        ('Lifecycle', {
+            'fields': ('created_at', 'started_at', 'finished_at'),
+        }),
+        ('Errors / Audit', {
+            'fields': ('errors',),
+        }),
+    )
+
+    # Phase B: NO custom actions, NO 5 Start/Pause/Resume/Cancel/Retry buttons —
+    # those land in Phase E. Upload form is reachable via a button on the
+    # changelist (added through change_list_template + get_urls).
+
+    change_list_template = 'admin/scraper_app/bulkscrapebatch_changelist.html'
+
+    def get_urls(self):
+        custom_urls = [
+            path(
+                'upload/',
+                self.admin_site.admin_view(self.upload_view),
+                name='scraper_app_bulkscrapebatch_upload',
+            ),
+        ]
+        return custom_urls + super().get_urls()
+
+    def upload_view(self, request):
+        if request.method == 'POST':
+            form = BulkScrapeUploadForm(request.POST, request.FILES)
+            if form.is_valid():
+                upload = request.FILES['csv_file']
+                name = form.cleaned_data['name']
+                marketplace = form.cleaned_data['marketplace']
+                force_rescrape = form.cleaned_data['force_rescrape']
+
+                # Determine extension before creating the batch row so we know
+                # the on-disk filename. Fall back to '.csv' if missing.
+                lower = (upload.name or '').lower()
+                if lower.endswith('.xlsx'):
+                    ext = 'xlsx'
+                elif lower.endswith('.csv'):
+                    ext = 'csv'
+                else:
+                    self.message_user(
+                        request,
+                        f"Unsupported file type: {upload.name}. Use .csv or .xlsx.",
+                        messages.ERROR,
+                    )
+                    return TemplateResponse(
+                        request,
+                        'admin/scraper_app/bulkscrapebatch_upload.html',
+                        {
+                            **self.admin_site.each_context(request),
+                            'title': 'Upload bulk ASIN batch',
+                            'form': form,
+                            'opts': self.model._meta,
+                        },
+                    )
+
+                # EC-17: catch disk-full / permission errors at file-write time.
+                bulk_dir = os.path.join(settings.MEDIA_ROOT, 'bulk_uploads')
+                try:
+                    os.makedirs(bulk_dir, exist_ok=True)
+                except OSError as exc:
+                    self.message_user(
+                        request,
+                        f"Could not create upload directory: {exc}",
+                        messages.ERROR,
+                    )
+                    return TemplateResponse(
+                        request,
+                        'admin/scraper_app/bulkscrapebatch_upload.html',
+                        {
+                            **self.admin_site.each_context(request),
+                            'title': 'Upload bulk ASIN batch',
+                            'form': form,
+                            'opts': self.model._meta,
+                        },
+                    )
+
+                # Generate the batch UUID first so the on-disk filename is
+                # stable and predictable for the parser job.
+                import uuid as _uuid
+                batch_id = _uuid.uuid4()
+                target_path = os.path.join(bulk_dir, f"{batch_id}.{ext}")
+                try:
+                    with open(target_path, 'wb') as out:
+                        for chunk in upload.chunks():
+                            out.write(chunk)
+                except OSError as exc:
+                    self.message_user(
+                        request,
+                        f"Could not write upload to disk: {exc}",
+                        messages.ERROR,
+                    )
+                    return TemplateResponse(
+                        request,
+                        'admin/scraper_app/bulkscrapebatch_upload.html',
+                        {
+                            **self.admin_site.each_context(request),
+                            'title': 'Upload bulk ASIN batch',
+                            'form': form,
+                            'opts': self.model._meta,
+                        },
+                    )
+
+                batch = BulkScrapeBatch.objects.create(
+                    id=batch_id,
+                    name=name,
+                    source_filename=upload.name or '',
+                    marketplace=marketplace,
+                    force_rescrape=force_rescrape,
+                    status=BulkScrapeBatch.Status.PARSING,
+                    created_by=request.user if request.user.is_authenticated else None,
+                )
+
+                # Enqueue async parser on `default` queue.
+                import django_rq
+                from scraper_app.tasks import parse_bulk_upload_job
+
+                queue = django_rq.get_queue('default')
+                queue.enqueue(parse_bulk_upload_job, str(batch.id))
+
+                self.message_user(
+                    request,
+                    f"Upload received — parsing batch '{batch.name}' in the background.",
+                    messages.SUCCESS,
+                )
+                return HttpResponseRedirect(
+                    reverse('admin:scraper_app_bulkscrapebatch_change', args=[batch.id])
+                )
+        else:
+            form = BulkScrapeUploadForm()
+
+        context = {
+            **self.admin_site.each_context(request),
+            'title': 'Upload bulk ASIN batch',
+            'form': form,
+            'opts': self.model._meta,
+        }
+        return TemplateResponse(
+            request, 'admin/scraper_app/bulkscrapebatch_upload.html', context,
+        )
+
+    def has_add_permission(self, request):
+        # Creation only via the upload form (not the standard admin add).
         return False

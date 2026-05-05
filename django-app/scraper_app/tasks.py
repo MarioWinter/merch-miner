@@ -13,8 +13,10 @@ from django.utils import timezone
 from scraper_app.models import (
     PRODUCT_TYPE_SPIDER_KWARGS,
     AmazonProduct,
+    BulkScrapeBatch,
     CanaryAsin,
     Keyword,
+    MarketplaceChoices,
     ProductSearchCache,
     ScheduledScrapeTarget,
     ScrapeJob,
@@ -822,3 +824,220 @@ def schedule_health_check_runner():
             )
     logger.info("schedule_health_check_runner enqueued %d jobs", enqueued)
     return enqueued
+
+
+# ---------------------------------------------------------------------------
+# PROJ-25 Phase B — Bulk upload parser (async)
+# ---------------------------------------------------------------------------
+
+PARSE_CHUNK_SIZE = 1000
+PARSE_ERROR_CAP = 100
+
+
+def _open_uploaded_for_parser(path):
+    """Helper for tests to monkeypatch the file-open step independently."""
+    return open(path, 'rb')
+
+
+def parse_bulk_upload_job(batch_id):
+    """Async parser for `BulkScrapeBatch` uploads (PROJ-25 Phase B).
+
+    Streams the saved CSV/XLSX, validates per-row, dedupes within file, and
+    bulk-creates `ScheduledScrapeTarget` rows linked to the batch in chunks of
+    1000 inside one transaction per chunk.
+
+    Sets `batch.status` to READY (>=1 valid row) or PARSE_FAILED. On any
+    uncaught exception: PARSE_FAILED with the exception message in errors[].
+    Cleans up the uploaded file on success.
+
+    See features/PROJ-25-bulk-asin-scrape-batches.md AC-7 / AC-8 / AC-9 / AC-10
+    / EC-11 / EC-12.
+    """
+    from django.db import transaction
+
+    from scraper_app.parsers import (
+        ASIN_PATTERN,
+        _parse_uploaded_file,
+        dedupe_within_file,
+        normalize_asin_row,
+    )
+
+    try:
+        batch = BulkScrapeBatch.objects.get(id=batch_id)
+    except BulkScrapeBatch.DoesNotExist:
+        logger.error("parse_bulk_upload_job: batch %s not found", batch_id)
+        return
+
+    bulk_dir = Path(settings.MEDIA_ROOT) / 'bulk_uploads'
+    # Find the file: <batch_id>.<ext> with ext in {csv, xlsx}
+    candidates = list(bulk_dir.glob(f"{batch.id}.*"))
+    if not candidates:
+        logger.error("parse_bulk_upload_job: no upload file for batch %s", batch.id)
+        batch.status = BulkScrapeBatch.Status.PARSE_FAILED
+        batch.append_error({
+            'event': 'parse_failed',
+            'error': 'uploaded file not found',
+            'at': timezone.now().isoformat(),
+        })
+        batch.save(update_fields=['status', 'errors'])
+        return
+    upload_path = candidates[0]
+
+    # Look up the OneShot tier ONCE up-front (perf + clear failure mode).
+    oneshot_tier = ScrapeTier.objects.filter(name='OneShot').first()
+    if oneshot_tier is None:
+        logger.error("parse_bulk_upload_job: OneShot tier missing — run migrations")
+        batch.status = BulkScrapeBatch.Status.PARSE_FAILED
+        batch.append_error({
+            'event': 'parse_failed',
+            'error': "OneShot tier not seeded — apply migration 0018",
+            'at': timezone.now().isoformat(),
+        })
+        batch.save(update_fields=['status', 'errors'])
+        return
+
+    valid_marketplaces = set(MarketplaceChoices.values)
+    error_buffer = []
+    error_count_total = 0
+
+    def _record_error(msg):
+        nonlocal error_count_total
+        error_count_total += 1
+        if len(error_buffer) < PARSE_ERROR_CAP:
+            error_buffer.append({
+                'event': 'parse_row_error',
+                'error': msg,
+                'at': timezone.now().isoformat(),
+            })
+
+    try:
+        # `_parse_uploaded_file` is built for Django UploadedFile (`.name` + buffer).
+        # For the path-based async case we wrap the on-disk file in a minimal
+        # file-like object that exposes `.name` (used for extension detection)
+        # and forwards everything else to the underlying handle.
+        class _PathFile:
+            def __init__(self, p):
+                self.name = p.name
+                self._fh = _open_uploaded_for_parser(str(p))
+
+            def read(self, *args, **kwargs):
+                return self._fh.read(*args, **kwargs)
+
+            def seek(self, *args, **kwargs):
+                return self._fh.seek(*args, **kwargs)
+
+            def close(self):
+                try:
+                    self._fh.close()
+                except Exception:  # noqa: BLE001
+                    pass
+
+            def __getattr__(self, item):
+                return getattr(self._fh, item)
+
+        file_obj = _PathFile(upload_path)
+        try:
+            rows, headers = _parse_uploaded_file(file_obj)
+        finally:
+            file_obj.close()
+
+        if 'asin' not in headers:
+            batch.status = BulkScrapeBatch.Status.PARSE_FAILED
+            batch.append_error({
+                'event': 'parse_failed',
+                'error': "required column 'asin' missing",
+                'at': timezone.now().isoformat(),
+            })
+            batch.save(update_fields=['status', 'errors'])
+            return
+
+        # Validate + dedupe in one pipeline.
+        def _validated_rows():
+            for raw in rows:
+                clean, err = normalize_asin_row(
+                    raw,
+                    default_marketplace=batch.marketplace,
+                    asin_pattern=ASIN_PATTERN,
+                    valid_marketplaces=valid_marketplaces,
+                )
+                if err:
+                    _record_error(err)
+                    continue
+                yield clean
+
+        dedup_iter = dedupe_within_file(_validated_rows())
+
+        chunk = []
+        valid_count = 0
+        now = timezone.now()
+        for clean in dedup_iter:
+            chunk.append(ScheduledScrapeTarget(
+                asin=clean['asin'],
+                marketplace=clean['marketplace'],
+                tier=oneshot_tier,
+                tier_override=True,
+                active=False,
+                next_scrape_at=now,
+                batch=batch,
+            ))
+            if len(chunk) >= PARSE_CHUNK_SIZE:
+                with transaction.atomic():
+                    ScheduledScrapeTarget.objects.bulk_create(
+                        chunk, ignore_conflicts=True, batch_size=PARSE_CHUNK_SIZE,
+                    )
+                valid_count += len(chunk)
+                chunk = []
+
+        if chunk:
+            with transaction.atomic():
+                ScheduledScrapeTarget.objects.bulk_create(
+                    chunk, ignore_conflicts=True, batch_size=PARSE_CHUNK_SIZE,
+                )
+            valid_count += len(chunk)
+
+        # Append parse errors + duplicate count to batch.errors.
+        for err in error_buffer:
+            batch.append_error(err)
+        if error_count_total > len(error_buffer):
+            batch.append_error({
+                'event': 'parse_row_errors_truncated',
+                'error': f"{error_count_total - len(error_buffer)} additional row errors not recorded",
+                'at': timezone.now().isoformat(),
+            })
+        dup_count = getattr(dedupe_within_file, 'duplicate_count', 0)
+        if dup_count:
+            batch.append_error({
+                'event': 'parse_duplicates',
+                'duplicate_count': dup_count,
+                'at': timezone.now().isoformat(),
+            })
+
+        # Authoritative count from DB (handles ignore_conflicts dedupes too).
+        total = ScheduledScrapeTarget.objects.filter(batch=batch).count()
+        batch.total_count = total
+        batch.pending_count = total
+        batch.status = (
+            BulkScrapeBatch.Status.READY if total > 0 else BulkScrapeBatch.Status.PARSE_FAILED
+        )
+        batch.save(update_fields=['status', 'total_count', 'pending_count', 'errors'])
+
+        # Clean up uploaded file (AC-8: keep MEDIA_ROOT/bulk_uploads/ small).
+        try:
+            os.remove(upload_path)
+        except OSError:
+            logger.warning("parse_bulk_upload_job: could not remove %s", upload_path)
+
+        logger.info(
+            "parse_bulk_upload_job batch=%s total=%d errors=%d duplicates=%d",
+            batch.id, total, error_count_total, dup_count,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("parse_bulk_upload_job failed for batch %s", batch.id)
+        batch.refresh_from_db(fields=['errors', 'status'])
+        batch.status = BulkScrapeBatch.Status.PARSE_FAILED
+        batch.append_error({
+            'event': 'parse_failed',
+            'error': str(exc),
+            'at': timezone.now().isoformat(),
+        })
+        batch.save(update_fields=['status', 'errors'])

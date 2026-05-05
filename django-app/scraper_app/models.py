@@ -563,6 +563,85 @@ class BSRSnapshot(models.Model):
         return f"BSR {self.bsr} for {self.product.asin} at {self.recorded_at}"
 
 
+class BulkScrapeBatch(models.Model):
+    """Represents one bulk-uploaded batch of OneShot ASIN scrape targets (PROJ-25).
+
+    See features/PROJ-25-bulk-asin-scrape-batches.md AC-1 / AC-11b / AC-32.
+    """
+
+    class Status(models.TextChoices):
+        DRAFT = 'draft', 'Draft'
+        PARSING = 'parsing', 'Parsing'
+        PARSE_FAILED = 'parse_failed', 'Parse Failed'
+        READY = 'ready', 'Ready'
+        RUNNING = 'running', 'Running'
+        PAUSED = 'paused', 'Paused'
+        COMPLETED = 'completed', 'Completed'
+        CANCELLED = 'cancelled', 'Cancelled'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=200)
+    source_filename = models.CharField(max_length=500, blank=True, default='')
+    marketplace = models.CharField(
+        max_length=20,
+        choices=MarketplaceChoices.choices,
+        default=MarketplaceChoices.AMAZON_COM,
+    )
+    force_rescrape = models.BooleanField(
+        default=False,
+        help_text=(
+            'If True, the freshness skip (AmazonProduct.updated_at within '
+            'fresh_skip_days) is bypassed for every target in this batch.'
+        ),
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
+        db_index=True,
+    )
+    total_count = models.PositiveIntegerField(default=0)
+    pending_count = models.PositiveIntegerField(default=0)
+    running_count = models.PositiveIntegerField(default=0)
+    done_count = models.PositiveIntegerField(default=0)
+    failed_count = models.PositiveIntegerField(default=0)
+    errors = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Last 100 events: parse warnings, drainer enqueue failures, admin actions.',
+    )
+    created_by = models.ForeignKey(
+        'user_auth_app.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='bulk_scrape_batches',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Bulk Scrape Batch'
+        verbose_name_plural = 'Bulk Scrape Batches'
+
+    def __str__(self):
+        return f"BulkScrapeBatch[{self.status}] {self.name} ({self.total_count} targets)"
+
+    def append_error(self, event_dict, max_keep=100):
+        """Append an event dict to errors[] and trim to last `max_keep` (AC-32).
+
+        Caller is responsible for saving the row. Mutates `self.errors` in place
+        so tests can assert on the live list before save.
+        """
+        if not isinstance(self.errors, list):
+            self.errors = []
+        self.errors.append(event_dict)
+        if len(self.errors) > max_keep:
+            self.errors = self.errors[-max_keep:]
+
+
 class ScheduledScrapeTarget(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     keyword = models.ForeignKey(
@@ -589,9 +668,24 @@ class ScheduledScrapeTarget(models.Model):
     last_scraped_at = models.DateTimeField(null=True, blank=True)
     next_scrape_at = models.DateTimeField(db_index=True)
     active = models.BooleanField(default=True, db_index=True)
+    batch = models.ForeignKey(
+        BulkScrapeBatch,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='targets',
+    )
+    last_error = models.TextField(null=True, blank=True)
+    retry_count = models.PositiveIntegerField(default=0)
 
     class Meta:
         ordering = ['next_scrape_at']
+        indexes = [
+            models.Index(
+                fields=['batch', 'active', 'last_error'],
+                name='sst_batch_active_lasterr_idx',
+            ),
+        ]
 
     def __str__(self):
         target = str(self.keyword) if self.keyword else self.asin or 'unknown'

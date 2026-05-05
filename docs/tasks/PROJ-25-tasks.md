@@ -29,45 +29,45 @@
 **Goal:** Upload form returns within 1 s for any file size; targets land in DB ready to be activated. No drainer / spider yet — Phase B alone produces a `READY` batch that just sits.
 
 ### Models & Migrations
-- [ ] B.1 Add `BulkScrapeBatch` model to `scraper_app/models.py` (AC-1, AC-11b): UUID id, name, source_filename, marketplace (FK choice), force_rescrape bool, status TextChoices (DRAFT, PARSING, PARSE_FAILED, READY, RUNNING, PAUSED, COMPLETED, CANCELLED), 5 PositiveInt counts, errors JSONField default list, created_by FK User nullable, 3 datetimes
-- [ ] B.2 Add `Meta.ordering = ['-created_at']`, add `db_index=True` on `status`
-- [ ] B.3 Add `BulkScrapeBatch.append_error(event_dict, max_keep=100)` instance helper that pushes an entry and trims to last 100 (AC-32)
-- [ ] B.4 Extend `ScheduledScrapeTarget`: nullable `batch` FK CASCADE (related_name='targets'), nullable `last_error` text, `retry_count` PositiveInt default 0 (AC-2)
-- [ ] B.5 Composite index on `ScheduledScrapeTarget(batch, active, last_error)` for drainer pick query
-- [ ] B.6 Migration `0020_bulkscrapebatch.py` (schema)
-- [ ] B.7 Migration `0021_target_batch_lasterror_retry.py` (schema, all additive/nullable so safe on prod)
+- [x] B.1 Add `BulkScrapeBatch` model to `scraper_app/models.py` (AC-1, AC-11b): UUID id, name, source_filename, marketplace (FK choice), force_rescrape bool, status TextChoices (DRAFT, PARSING, PARSE_FAILED, READY, RUNNING, PAUSED, COMPLETED, CANCELLED), 5 PositiveInt counts, errors JSONField default list, created_by FK User nullable, 3 datetimes
+- [x] B.2 Add `Meta.ordering = ['-created_at']`, add `db_index=True` on `status`
+- [x] B.3 Add `BulkScrapeBatch.append_error(event_dict, max_keep=100)` instance helper that pushes an entry and trims to last 100 (AC-32)
+- [x] B.4 Extend `ScheduledScrapeTarget`: nullable `batch` FK CASCADE (related_name='targets'), nullable `last_error` text, `retry_count` PositiveInt default 0 (AC-2)
+- [x] B.5 Composite index on `ScheduledScrapeTarget(batch, active, last_error)` for drainer pick query
+- [x] B.6 Migration `0020_bulkscrapebatch.py` (schema)
+- [x] B.7 Migration `0021_target_batch_lasterror_retry.py` (schema, all additive/nullable so safe on prod)
 
 ### Parser Module
-- [ ] B.8 Create `scraper_app/parsers.py`. Move `_parse_uploaded_file()` from `admin.py` here verbatim. Update `admin.py` to import from new location.
-- [ ] B.9 Add `parsers.normalize_asin_row(row, default_marketplace, asin_pattern, valid_marketplaces) -> (clean_dict | None, error_msg | None)` helper that returns either a normalised row dict ready for `ScheduledScrapeTarget(...)` or an error message
-- [ ] B.10 Add `parsers.dedupe_within_file(rows_iter)` generator yielding only the latest occurrence per `(asin, marketplace)` while counting duplicates
+- [x] B.8 Create `scraper_app/parsers.py`. Move `_parse_uploaded_file()` from `admin.py` here verbatim. Update `admin.py` to import from new location.
+- [x] B.9 Add `parsers.normalize_asin_row(row, default_marketplace, asin_pattern, valid_marketplaces) -> (clean_dict | None, error_msg | None)` helper that returns either a normalised row dict ready for `ScheduledScrapeTarget(...)` or an error message
+- [x] B.10 Add `parsers.dedupe_within_file(rows_iter)` generator yielding only the latest occurrence per `(asin, marketplace)` while counting duplicates
 
 ### Async Parser Task
-- [ ] B.11 Add `parse_bulk_upload_job(batch_id)` to `scraper_app/tasks.py` (AC-7, AC-8, AC-9, AC-10, EC-11, EC-12)
-- [ ] B.12 Job loads `BulkScrapeBatch` + opens file from `MEDIA_ROOT/bulk_uploads/<batch_id>.<ext>`
-- [ ] B.13 Stream rows via `parsers._parse_uploaded_file` (XLSX uses `read_only=True, data_only=True`); chunk into batches of 1000
-- [ ] B.14 For each chunk: validate via `normalize_asin_row`, dedupe via `dedupe_within_file`, build `ScheduledScrapeTarget` instances with `tier=OneShot, active=False, tier_override=True, batch=B`, then `bulk_create(ignore_conflicts=True, batch_size=1000)` inside `transaction.atomic()`
-- [ ] B.15 Append first 100 row-level errors to `batch.errors` via `append_error`
-- [ ] B.16 After parsing: set `total_count` to actual valid-row count via `targets.filter(batch=B).count()`. Set `status=READY` if `total_count > 0`, else `PARSE_FAILED`
-- [ ] B.17 On any uncaught exception: `status=PARSE_FAILED`, append exception message to `errors`, log at ERROR (EC-11)
-- [ ] B.18 On success: `os.remove(uploaded_file_path)` to keep MEDIA_ROOT/bulk_uploads/ small
+- [x] B.11 Add `parse_bulk_upload_job(batch_id)` to `scraper_app/tasks.py` (AC-7, AC-8, AC-9, AC-10, EC-11, EC-12)
+- [x] B.12 Job loads `BulkScrapeBatch` + opens file from `MEDIA_ROOT/bulk_uploads/<batch_id>.<ext>`
+- [x] B.13 Stream rows via `parsers._parse_uploaded_file` (XLSX uses `read_only=True, data_only=True`); chunk into batches of 1000
+- [x] B.14 For each chunk: validate via `normalize_asin_row`, dedupe via `dedupe_within_file`, build `ScheduledScrapeTarget` instances with `tier=OneShot, active=False, tier_override=True, batch=B`, then `bulk_create(ignore_conflicts=True, batch_size=1000)` inside `transaction.atomic()`
+- [x] B.15 Append first 100 row-level errors to `batch.errors` via `append_error`
+- [x] B.16 After parsing: set `total_count` to actual valid-row count via `targets.filter(batch=B).count()`. Set `status=READY` if `total_count > 0`, else `PARSE_FAILED`
+- [x] B.17 On any uncaught exception: `status=PARSE_FAILED`, append exception message to `errors`, log at ERROR (EC-11)
+- [x] B.18 On success: `os.remove(uploaded_file_path)` to keep MEDIA_ROOT/bulk_uploads/ small
 
 ### Admin Upload Form (minimal, full styling in Phase E)
-- [ ] B.19 Register `BulkScrapeBatchAdmin` placeholder in `admin.py` so the changelist exists (basic list_display, no custom actions yet)
-- [ ] B.20 Add `BulkScrapeUploadForm(forms.Form)` with: csv_file FileField (accept .csv,.xlsx), name CharField, marketplace ChoiceField, force_rescrape BooleanField (default False)
-- [ ] B.21 Custom admin URL `/admin/scraper_app/bulkscrapebatch/upload/` rendering the form (template `templates/admin/scraper_app/bulkscrapebatch_upload.html`)
-- [ ] B.22 POST handler: save uploaded file to `MEDIA_ROOT/bulk_uploads/<batch_uuid>.<ext>` (ext from form), create `BulkScrapeBatch(status=PARSING, name, marketplace, force_rescrape, source_filename=upload.name, created_by=request.user)`, enqueue `parse_bulk_upload_job(batch.id)` on `default` queue, redirect to detail page (AC-6, AC-7)
-- [ ] B.23 Handle EC-17 (disk full) — wrap file save in try/except, return form with error message; do NOT create batch row
+- [x] B.19 Register `BulkScrapeBatchAdmin` placeholder in `admin.py` so the changelist exists (basic list_display, no custom actions yet)
+- [x] B.20 Add `BulkScrapeUploadForm(forms.Form)` with: csv_file FileField (accept .csv,.xlsx), name CharField, marketplace ChoiceField, force_rescrape BooleanField (default False)
+- [x] B.21 Custom admin URL `/admin/scraper_app/bulkscrapebatch/upload/` rendering the form (template `templates/admin/scraper_app/bulkscrapebatch_upload.html`)
+- [x] B.22 POST handler: save uploaded file to `MEDIA_ROOT/bulk_uploads/<batch_uuid>.<ext>` (ext from form), create `BulkScrapeBatch(status=PARSING, name, marketplace, force_rescrape, source_filename=upload.name, created_by=request.user)`, enqueue `parse_bulk_upload_job(batch.id)` on `default` queue, redirect to detail page (AC-6, AC-7)
+- [x] B.23 Handle EC-17 (disk full) — wrap file save in try/except, return form with error message; do NOT create batch row
 
 ### Tests
-- [ ] B.24 `tests/test_bulk_parser.py::test_parser_handles_xlsx_with_only_asin_column` — uses fixture file `fixtures/bulk_asin_10.xlsx`
-- [ ] B.25 `test_parser_dedupes_duplicate_asins` — same ASIN twice → one target row, duplicate count in errors
-- [ ] B.26 `test_parser_skips_invalid_asin_rows` — bad regex → row skipped, error appended
-- [ ] B.27 `test_parser_skips_unknown_marketplace` (EC-12)
-- [ ] B.28 `test_parser_handles_partial_last_chunk` — 7 rows; bulk_create works for partial chunk (EC-2)
-- [ ] B.29 `test_parser_marks_failed_on_corrupt_xlsx` (EC-11)
-- [ ] B.30 `test_upload_view_creates_batch_and_enqueues_parser` — Django admin client, mock `django_rq.get_queue('default').enqueue`, assert call args
-- [ ] B.31 `test_upload_view_redirects_within_1s` — perf assertion not strictly enforced in CI but document expected return path
+- [x] B.24 `tests/test_bulk_parser.py::test_parser_handles_xlsx_with_only_asin_column` — uses fixture file `fixtures/bulk_asin_10.xlsx`
+- [x] B.25 `test_parser_dedupes_duplicate_asins` — same ASIN twice → one target row, duplicate count in errors
+- [x] B.26 `test_parser_skips_invalid_asin_rows` — bad regex → row skipped, error appended
+- [x] B.27 `test_parser_skips_unknown_marketplace` (EC-12)
+- [x] B.28 `test_parser_handles_partial_last_chunk` — 7 rows; bulk_create works for partial chunk (EC-2)
+- [x] B.29 `test_parser_marks_failed_on_corrupt_xlsx` (EC-11)
+- [x] B.30 `test_upload_view_creates_batch_and_enqueues_parser` — Django admin client, mock `django_rq.get_queue('default').enqueue`, assert call args
+- [x] B.31 `test_upload_view_redirects_within_1s` — perf assertion not strictly enforced in CI but document expected return path
 
 **Phase B ship gate:** Upload of 10-row XLSX produces `BulkScrapeBatch.status=READY` with 10 `ScheduledScrapeTarget` rows linked. Tests green.
 

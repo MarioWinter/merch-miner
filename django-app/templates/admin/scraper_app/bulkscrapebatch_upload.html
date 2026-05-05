@@ -1,0 +1,29 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+<h1>{{ title }}</h1>
+
+<p>Upload a <strong>.csv</strong> or <strong>.xlsx</strong> file of ASINs. The file is parsed in the background — this page redirects to the batch detail view immediately.</p>
+
+<ul>
+  <li>Required column: <code>asin</code> (10-char uppercase alphanumeric).</li>
+  <li>Optional column: <code>marketplace</code> (overrides the batch default per row).</li>
+  <li>Numeric ASINs (rare, ISBN-style) are zero-padded to 10 chars automatically.</li>
+  <li>Duplicate ASINs within the same file are deduplicated (latest row wins).</li>
+</ul>
+
+<p>Valid marketplaces: <code>amazon_com</code>, <code>amazon_de</code>, <code>amazon_co_uk</code>, <code>amazon_fr</code>, <code>amazon_it</code>, <code>amazon_es</code>.</p>
+
+<form method="post" enctype="multipart/form-data">
+  {% csrf_token %}
+  <table>
+    {{ form.as_table }}
+  </table>
+  <br>
+  <input type="submit" value="Upload" class="default">
+  <a href="{% url 'admin:scraper_app_bulkscrapebatch_changelist' %}">Cancel</a>
+</form>
+{% endblock %}
