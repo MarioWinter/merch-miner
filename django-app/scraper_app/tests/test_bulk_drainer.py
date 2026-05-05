@@ -423,3 +423,110 @@ class TestBulkDrainerLock:
         acquired3, release3 = _bulk_drainer_lock('test-lock-1')
         assert acquired3 is True
         release3()
+
+
+# ---------------------------------------------------------------------------
+# EC-4 (post-QA gap fix) — mid-run batch_size change
+# ---------------------------------------------------------------------------
+
+
+class TestDrainerBatchSizeMidRunChange:
+    """EC-4: changing cfg.batch_size mid-run does not break already-enqueued
+    ScrapeJobs (they keep their original asin_list size); newly created jobs
+    use the new batch_size.
+    """
+
+    @patch('scraper_app.tasks.django_rq')
+    def test_old_jobs_keep_size_new_jobs_use_new_size(self, mock_django_rq):
+        _set_cfg(concurrent_requests=50, batch_size=10)
+        batch = _seed_batch(20)
+
+        fake_conn = MagicMock()
+        fake_conn.set.return_value = True
+        mock_django_rq.get_connection.return_value = fake_conn
+        scraper_q = MagicMock()
+        scraper_q.enqueue.return_value = MagicMock(id='rq-batchsize-1')
+        default_q = MagicMock()
+        mock_django_rq.get_queue.side_effect = lambda n: scraper_q if n == 'scraper' else default_q
+
+        # First tick: batch_size=10. Drainer enqueues 2 jobs of 10 ASINs each.
+        drain_bulk_batch(str(batch.id))
+        first_tick_jobs = list(ScrapeJob.objects.filter(batch=batch).order_by('id'))
+        assert len(first_tick_jobs) == 2
+        assert all(len(j.asin_list) == 10 for j in first_tick_jobs)
+
+        # Mid-run: shrink batch_size 10 -> 5. Mark first-tick jobs as completed
+        # to free slots, and reset target.active=False on a fresh subset to
+        # simulate "more pending work to enqueue".
+        ScrapeJob.objects.filter(batch=batch).update(status=ScrapeJob.Status.COMPLETED)
+        cfg = ScraperConfig.load()
+        cfg.batch_size = 5
+        cfg.save()
+
+        # Add 10 more pending targets so drainer has work for new size.
+        tier = _oneshot()
+        for i in range(20, 30):
+            ScheduledScrapeTarget.objects.create(
+                asin=f'B0DRA{i:05d}',
+                marketplace='amazon_com',
+                tier=tier,
+                tier_override=True,
+                active=False,
+                batch=batch,
+                next_scrape_at=timezone.now(),
+            )
+
+        # Second tick: batch_size=5. Drainer enqueues 10 jobs of 5 ASINs each
+        # (max_in_flight = 50 // 5 = 10).
+        drain_bulk_batch(str(batch.id))
+        new_jobs = list(ScrapeJob.objects.filter(
+            batch=batch, status=ScrapeJob.Status.PENDING,
+        ).order_by('id'))
+        assert len(new_jobs) >= 1
+        assert all(len(j.asin_list) == 5 for j in new_jobs)
+
+        # First-tick jobs still have asin_list size 10 (unchanged).
+        first_tick_after = ScrapeJob.objects.filter(
+            id__in=[j.id for j in first_tick_jobs]
+        )
+        assert all(len(j.asin_list) == 10 for j in first_tick_after)
+
+
+# ---------------------------------------------------------------------------
+# EC-14 (post-QA gap fix) — replicas=0 stalled-queue WARNING log
+# ---------------------------------------------------------------------------
+
+
+class TestDrainerStalledQueueWarning:
+    """EC-14: when scraper queue has 0 workers (e.g. BACKEND_SCRAPER_WORKERS=0),
+    drainer logs a WARNING per tick but keeps running (re-enqueues itself) so
+    the operator can recover by scaling replicas up without losing the batch.
+    """
+
+    @patch('scraper_app.tasks.django_rq')
+    @patch('rq.Worker')
+    def test_warning_logged_when_no_workers(self, mock_worker_cls, mock_django_rq, caplog):
+        import logging
+        _set_cfg(concurrent_requests=50, batch_size=10)
+        batch = _seed_batch(10)
+
+        fake_conn = MagicMock()
+        fake_conn.set.return_value = True
+        mock_django_rq.get_connection.return_value = fake_conn
+        scraper_q = MagicMock()
+        default_q = MagicMock()
+        scraper_q.enqueue.return_value = MagicMock(id='rq-x')
+        mock_django_rq.get_queue.side_effect = lambda n: scraper_q if n == 'scraper' else default_q
+
+        # No workers alive on scraper queue.
+        mock_worker_cls.all.return_value = []
+
+        with caplog.at_level(logging.WARNING, logger='scraper_app.tasks'):
+            drain_bulk_batch(str(batch.id))
+
+        # WARNING about stalled scraper queue must appear.
+        msgs = [r.getMessage() for r in caplog.records if r.levelno == logging.WARNING]
+        assert any('scraper queue has no workers' in m for m in msgs), msgs
+
+        # Drainer must still self-reschedule (does not give up).
+        assert default_q.enqueue_in.called

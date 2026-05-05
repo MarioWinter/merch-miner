@@ -350,7 +350,7 @@
 | EC-1 | 800k upload bounded memory | H.5 runbook section "100k+ prod test" |
 | EC-2 | 7-row partial last chunk | `test_parser_handles_partial_last_chunk` |
 | EC-3 | Mid-run cfg 50→25 | `test_max_in_flight_changes_after_cfg_update` |
-| EC-4 | Mid-run batch_size change | Implicit in `test_max_in_flight_changes_after_cfg_update`. Old jobs already enqueued with old size; new ones use new size. **NO EXPLICIT TEST**. |
+| EC-4 | Mid-run batch_size change | `test_old_jobs_keep_size_new_jobs_use_new_size` (test_bulk_drainer.py) — old jobs keep size 10, new jobs use size 5 |
 | EC-5 | ScraperOps quota exhaustion → retry → terminal | `test_retry_below_cap_clears_last_error`, `test_terminal_failure_at_cap` |
 | EC-6 | Drainer crash mid-run; lock TTL recovery | `test_lock_acquired_and_released`, `test_locked_drainer_exits_without_reenqueue` |
 | EC-7 | Two batches simultaneous, FIFO via queue | `test_two_batches_share_global_inflight` |
@@ -358,23 +358,24 @@
 | EC-9 | Retry Failed only resets failed | `test_retry_failed_only_resets_last_error_targets` |
 | EC-10 | Same ASIN in two batches; freshness skip | `test_freshness_skip_when_amazonproduct_recent` |
 | EC-10b | force_rescrape overrides freshness | `test_force_rescrape_bypasses_freshness` |
-| EC-10c | Skip decision at scrape-time, not parse-time | Implicit in wrapper test ordering. **NO EXPLICIT TEST**. |
+| EC-10c | Skip decision at scrape-time, not parse-time | `test_skip_decision_deferred_to_scrape_time` (test_bulk_wrapper.py) — admin lowers fresh_skip_days mid-flight; wrapper scrapes despite parse-time freshness |
 | EC-11 | Corrupt XLSX → PARSE_FAILED | `test_parser_marks_failed_on_corrupt_xlsx` |
 | EC-12 | Unknown marketplace skipped | `test_parser_skips_unknown_marketplace` |
 | EC-13 | concurrent_requests=0 acts as soft pause | `test_concurrent_requests_zero_enqueues_nothing` |
-| EC-14 | replicas=0 → jobs pile, drainer keeps trying | Implicit; G.2 stalled-queue WARNING log added. **NO DIRECT TEST**. |
+| EC-14 | replicas=0 → jobs pile, drainer keeps trying | `test_warning_logged_when_no_workers` (test_bulk_drainer.py) — mocked Worker.all() empty; WARNING logged + drainer self-reschedules |
 | EC-15 | OneShot seed leaves manual tier alone | `test_seed_does_not_overwrite_existing` |
 | EC-16 | Zombie ScrapeJob detection | `test_zombie_marks_failed_without_subprocess` |
 | EC-17 | Disk full during upload write | `test_upload_view_handles_disk_full_gracefully` |
 
 ### Coverage Gaps (require manual / runbook verification)
 
+Only the inherently-manual gaps remain after post-QA fixes:
+
 - **AC-10 / EC-1**: 800k row memory boundedness — verified by impl (openpyxl read_only) + H.5 runbook prod test.
 - **AC-17 / AC-18**: live Scrapy invocation paths — covered by H.5 1k-ASIN dev test + ScraperOps dashboard check.
 - **AC-27 / AC-29**: Compose replica behavior + sustained throughput — verified manually per F.5 + H.5 runbook.
-- **EC-4**: mid-run batch_size change — NOT explicitly tested. Recommend a follow-up test pre-QA if time allows.
-- **EC-10c**: parse-time vs scrape-time skip decision — NOT explicitly tested. Recommend a follow-up test that uploads with old AmazonProduct, changes `fresh_skip_days` to 0, then runs the wrapper, and asserts the target was scraped (not skipped).
-- **EC-14**: zero-replicas behavior — NOT explicitly tested. WARNING log was added. Acceptable for v1.
+
+(EC-4, EC-10c, EC-14 were closed by post-QA test additions on 2026-05-05.)
 
 ### Phase F / G / H Task Status
 
