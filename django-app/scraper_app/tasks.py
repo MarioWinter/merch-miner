@@ -447,9 +447,17 @@ def scrape_asin_detail_job(asin, marketplace, scrape_job_id=None):
                 # Update ScheduledScrapeTarget for this ASIN
                 targets = ScheduledScrapeTarget.objects.filter(
                     asin=asin, marketplace=marketplace,
-                )
+                ).select_related('tier')
                 for target in targets:
                     target.last_scraped_at = timezone.now()
+                    is_oneshot = bool(target.tier and target.tier.name == 'OneShot')
+                    if is_oneshot:
+                        # PROJ-25 Phase A: OneShot targets are deactivated on
+                        # success; do not recompute next_scrape_at, do not
+                        # reassign tier from BSR.
+                        target.active = False
+                        target.save()
+                        continue
                     # Lookup current BSR from AmazonProduct to update tier
                     try:
                         product = AmazonProduct.objects.get(

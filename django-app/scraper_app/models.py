@@ -141,10 +141,17 @@ class ScrapeTier(models.Model):
 
     @classmethod
     def get_tier_for_bsr(cls, bsr_value):
-        """Return the ScrapeTier matching a given BSR value."""
+        """Return the ScrapeTier matching a given BSR value.
+
+        OneShot is excluded — it is a manual-assignment marker for PROJ-25
+        bulk seeds, not a BSR-based recurring tier. Without this exclusion,
+        OneShot (bsr_min=0, bsr_max=NULL) would match any BSR and override
+        legitimate Tier 1/2/3 assignments.
+        """
+        qs = cls.objects.exclude(name='OneShot')
         if bsr_value is None:
-            return cls.objects.order_by('-bsr_min').first()
-        return cls.objects.filter(
+            return qs.order_by('-bsr_min').first()
+        return qs.filter(
             bsr_min__lte=bsr_value,
         ).filter(
             models.Q(bsr_max__gte=bsr_value) | models.Q(bsr_max__isnull=True)
@@ -591,7 +598,15 @@ class ScheduledScrapeTarget(models.Model):
         return f"Target: {target} ({self.marketplace})"
 
     def save(self, *args, **kwargs):
-        if self.last_scraped_at and self.tier:
+        # OneShot tier (PROJ-25): a successfully scraped target must NOT be
+        # auto-rescheduled. The drainer/wrapper sets active=False as the
+        # canonical "done" signal; next_scrape_at is left untouched so the
+        # scheduler ignores the row.
+        is_oneshot = bool(self.tier and self.tier.name == 'OneShot')
+        if is_oneshot and self.last_scraped_at:
+            if not self.next_scrape_at:
+                self.next_scrape_at = timezone.now()
+        elif self.last_scraped_at and self.tier:
             self.next_scrape_at = self.last_scraped_at + timedelta(days=self.tier.interval_days)
         elif not self.next_scrape_at:
             self.next_scrape_at = timezone.now()

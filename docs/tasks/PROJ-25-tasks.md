@@ -10,15 +10,15 @@
 
 **Goal:** Make the existing admin CSV/XLSX upload path correctly auto-deactivate OneShot targets after a successful scrape. Unblocks 10 / 50 / 1000 ASIN smoke-tests today.
 
-- [ ] A.1 Data migration `0018_seed_oneshot_tier.py`: idempotent `ScrapeTier.objects.get_or_create(name='OneShot', defaults={'bsr_min': 0, 'bsr_max': None, 'interval_days': 999999})` (AC-5, EC-15)
-- [ ] A.2 Reverse migration is a no-op (do NOT auto-delete the tier on rollback)
-- [ ] A.3 Extend `ScheduledScrapeTarget.save()` in `scraper_app/models.py`: when `self.tier and self.tier.name == 'OneShot'` AND `self.last_scraped_at`, do NOT recalculate `next_scrape_at` from `interval_days`; leave it untouched (AC-21)
-- [ ] A.4 Update `scrape_asin_detail_job` in `scraper_app/tasks.py` post-success block: if any of the linked targets has `tier.name == 'OneShot'`, set `target.active=False` instead of letting `save()` reschedule
-- [ ] A.5 Tests `tests/test_oneshot_tier.py`:
+- [x] A.1 Data migration `0018_seed_oneshot_tier.py`: idempotent `ScrapeTier.objects.get_or_create(name='OneShot', defaults={'bsr_min': 0, 'bsr_max': None, 'interval_days': 999999})` (AC-5, EC-15)
+- [x] A.2 Reverse migration is a no-op (do NOT auto-delete the tier on rollback)
+- [x] A.3 Extend `ScheduledScrapeTarget.save()` in `scraper_app/models.py`: when `self.tier and self.tier.name == 'OneShot'` AND `self.last_scraped_at`, do NOT recalculate `next_scrape_at` from `interval_days`; leave it untouched (AC-21)
+- [x] A.4 Update `scrape_asin_detail_job` in `scraper_app/tasks.py` post-success block: if any of the linked targets has `tier.name == 'OneShot'`, set `target.active=False` instead of letting `save()` reschedule
+- [x] A.5 Tests `tests/test_oneshot_tier.py`:
     - `test_oneshot_tier_seed_idempotent` — running migration twice doesn't duplicate
     - `test_oneshot_target_save_does_not_reschedule` — save with last_scraped_at, assert next_scrape_at unchanged
     - `test_oneshot_target_deactivated_after_scrape` — call `scrape_asin_detail_job` with mocked subprocess, assert `active=False`
-- [ ] A.6 Smoke-test runbook (≤ 50 ASINs): upload via existing admin "Upload ASIN CSV" path, click "Run ALL due scheduled scrapes", verify all targets become `active=False`
+- [x] A.6 Smoke-test runbook (≤ 50 ASINs): upload via existing admin "Upload ASIN CSV" path, click "Run ALL due scheduled scrapes", verify all targets become `active=False`
 
 **Phase A ship gate:** all unit tests green; manual 10-ASIN smoke-test passes; `git commit -m "feat(PROJ-25): seed OneShot tier + auto-deactivate after scrape"`.
 
