@@ -97,6 +97,8 @@ class TestDrainerEnqueuesIdle:
             return scraper_q if name == 'scraper' else default_q
 
         mock_django_rq.get_queue.side_effect = _get_queue
+        sched = MagicMock()
+        mock_django_rq.get_scheduler.return_value = sched
 
         drain_bulk_batch(str(batch.id))
 
@@ -106,7 +108,7 @@ class TestDrainerEnqueuesIdle:
         sizes = sorted(len(j.asin_list) for j in jobs)
         assert sizes == [5, 10, 10]
         # Drainer should have re-scheduled itself (work remains in flight).
-        assert default_q.enqueue_in.called
+        assert sched.enqueue_in.called
 
 
 # ---------------------------------------------------------------------------
@@ -135,6 +137,8 @@ class TestDrainerRespectsMaxInFlight:
         scraper_q = MagicMock()
         default_q = MagicMock()
         mock_django_rq.get_queue.side_effect = lambda n: scraper_q if n == 'scraper' else default_q
+        sched = MagicMock()
+        mock_django_rq.get_scheduler.return_value = sched
 
         drain_bulk_batch(str(batch.id))
 
@@ -160,11 +164,13 @@ class TestDrainerPauseExits:
         scraper_q = MagicMock()
         default_q = MagicMock()
         mock_django_rq.get_queue.side_effect = lambda n: scraper_q if n == 'scraper' else default_q
+        sched = MagicMock()
+        mock_django_rq.get_scheduler.return_value = sched
 
         drain_bulk_batch(str(batch.id))
 
         scraper_q.enqueue.assert_not_called()
-        default_q.enqueue_in.assert_not_called()
+        sched.enqueue_in.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -186,13 +192,15 @@ class TestDrainerCompletes:
         scraper_q = MagicMock()
         default_q = MagicMock()
         mock_django_rq.get_queue.side_effect = lambda n: scraper_q if n == 'scraper' else default_q
+        sched = MagicMock()
+        mock_django_rq.get_scheduler.return_value = sched
 
         drain_bulk_batch(str(batch.id))
 
         batch.refresh_from_db()
         assert batch.status == BulkScrapeBatch.Status.COMPLETED
         assert batch.finished_at is not None
-        default_q.enqueue_in.assert_not_called()
+        sched.enqueue_in.assert_not_called()
 
 
 # ---------------------------------------------------------------------------
@@ -213,11 +221,13 @@ class TestDrainerLockIdempotent:
         scraper_q = MagicMock()
         default_q = MagicMock()
         mock_django_rq.get_queue.side_effect = lambda n: scraper_q if n == 'scraper' else default_q
+        sched = MagicMock()
+        mock_django_rq.get_scheduler.return_value = sched
 
         drain_bulk_batch(str(batch.id))
 
         scraper_q.enqueue.assert_not_called()
-        default_q.enqueue_in.assert_not_called()
+        sched.enqueue_in.assert_not_called()
         assert ScrapeJob.objects.filter(batch=batch).count() == 0
 
 
@@ -240,6 +250,8 @@ class TestDrainerConcurrencyChange:
         default_q = MagicMock()
         scraper_q.enqueue.return_value = MagicMock(id='rq')
         mock_django_rq.get_queue.side_effect = lambda n: scraper_q if n == 'scraper' else default_q
+        sched = MagicMock()
+        mock_django_rq.get_scheduler.return_value = sched
 
         drain_bulk_batch(str(batch.id))
 
@@ -293,6 +305,8 @@ class TestDrainerGlobalPoolShared:
         scraper_q = MagicMock()
         default_q = MagicMock()
         mock_django_rq.get_queue.side_effect = lambda n: scraper_q if n == 'scraper' else default_q
+        sched = MagicMock()
+        mock_django_rq.get_scheduler.return_value = sched
 
         # Drainer for B sees 5 pre-existing in-flight -> 0 free slots.
         drain_bulk_batch(str(batch_b.id))
@@ -319,6 +333,8 @@ class TestDrainerSoftPause:
         scraper_q = MagicMock()
         default_q = MagicMock()
         mock_django_rq.get_queue.side_effect = lambda n: scraper_q if n == 'scraper' else default_q
+        sched = MagicMock()
+        mock_django_rq.get_scheduler.return_value = sched
 
         drain_bulk_batch(str(batch.id))
 
@@ -327,7 +343,7 @@ class TestDrainerSoftPause:
         batch.refresh_from_db()
         assert batch.status == BulkScrapeBatch.Status.RUNNING
         # Drainer still re-schedules itself so admin can lift the pause.
-        default_q.enqueue_in.assert_called()
+        sched.enqueue_in.assert_called()
 
 
 # ---------------------------------------------------------------------------
@@ -448,6 +464,8 @@ class TestDrainerBatchSizeMidRunChange:
         scraper_q.enqueue.return_value = MagicMock(id='rq-batchsize-1')
         default_q = MagicMock()
         mock_django_rq.get_queue.side_effect = lambda n: scraper_q if n == 'scraper' else default_q
+        sched = MagicMock()
+        mock_django_rq.get_scheduler.return_value = sched
 
         # First tick: batch_size=10. Drainer enqueues 2 jobs of 10 ASINs each.
         drain_bulk_batch(str(batch.id))
@@ -517,6 +535,8 @@ class TestDrainerStalledQueueWarning:
         default_q = MagicMock()
         scraper_q.enqueue.return_value = MagicMock(id='rq-x')
         mock_django_rq.get_queue.side_effect = lambda n: scraper_q if n == 'scraper' else default_q
+        sched = MagicMock()
+        mock_django_rq.get_scheduler.return_value = sched
 
         # No workers alive on scraper queue.
         mock_worker_cls.all.return_value = []
@@ -529,4 +549,39 @@ class TestDrainerStalledQueueWarning:
         assert any('scraper queue has no workers' in m for m in msgs), msgs
 
         # Drainer must still self-reschedule (does not give up).
-        assert default_q.enqueue_in.called
+        assert sched.enqueue_in.called
+
+
+# ---------------------------------------------------------------------------
+# Smoke-found regression: drainer must NOT re-pick successfully scraped
+# targets. Before the 2026-05-05 fix, _pick_next_targets matched
+# `active=False AND last_error IS NULL AND retry_count < max` — which also
+# matched done targets (last_scraped_at SET). Drainer re-enqueued every tick.
+# Fix: also require last_scraped_at IS NULL.
+# ---------------------------------------------------------------------------
+
+
+class TestDrainerDoesNotRePickDoneTargets:
+    """Regression: targets with last_scraped_at SET must never be re-picked."""
+
+    def test_done_targets_are_skipped(self):
+        from scraper_app.tasks import _pick_next_targets
+
+        _set_cfg(concurrent_requests=50, batch_size=10, max_retries=1)
+        batch = _seed_batch(3)
+        targets = list(ScheduledScrapeTarget.objects.filter(batch=batch).order_by('asin'))
+
+        # Mark the first 2 as successfully scraped (active=False,
+        # last_error=None, last_scraped_at SET).
+        ScheduledScrapeTarget.objects.filter(id__in=[t.id for t in targets[:2]]).update(
+            active=False,
+            last_error=None,
+            last_scraped_at=timezone.now(),
+        )
+
+        picks = _pick_next_targets(batch, count=100)
+
+        # Only the third target (still pristine) is picked.
+        assert len(picks) == 1
+        picked_id, picked_asin = picks[0]
+        assert picked_id == targets[2].id

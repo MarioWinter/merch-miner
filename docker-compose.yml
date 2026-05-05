@@ -22,6 +22,9 @@ services:
     command: python manage.py rqworker default
     env_file: ./.env
     restart: unless-stopped
+    volumes:
+      # PROJ-25: parse_bulk_upload_job reads uploads from MEDIA_ROOT/bulk_uploads/.
+      - media_data:/app/media
     networks:
       - default
       - supabase-net
@@ -38,6 +41,9 @@ services:
     command: python manage.py rqworker scraper
     env_file: ./.env
     restart: unless-stopped
+    volumes:
+      # PROJ-23: amazon_html_snapshot writes HTML to MEDIA_ROOT/snapshots/.
+      - media_data:/app/media
     networks:
       - default
       - supabase-net

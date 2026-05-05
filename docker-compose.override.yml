@@ -36,12 +36,16 @@ services:
   worker:
     volumes:
       - ./django-app:/app
+      # PROJ-25: parser job reads MEDIA_ROOT/bulk_uploads/ — share host media dir.
+      - ./media:/app/media
     depends_on:
       - db
 
   worker-scraper:
     volumes:
       - ./django-app:/app
+      # PROJ-23: amazon_html_snapshot writes HTML to MEDIA_ROOT/snapshots/.
+      - ./media:/app/media
 
   worker-research:
     volumes:

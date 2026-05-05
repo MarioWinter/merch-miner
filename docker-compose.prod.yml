@@ -19,6 +19,9 @@ services:
     image: ghcr.io/mariowinter/merch-miner/backend:latest
     env_file: ./.env
     restart: unless-stopped
+    volumes:
+      # PROJ-25: parse_bulk_upload_job reads uploads from MEDIA_ROOT/bulk_uploads/.
+      - media_volume:/app/media
     networks:
       - default
       - supabase-net
@@ -30,6 +33,9 @@ services:
     command: python manage.py rqworker scraper
     env_file: ./.env
     restart: unless-stopped
+    volumes:
+      # PROJ-23: amazon_html_snapshot writes HTML to MEDIA_ROOT/snapshots/.
+      - media_volume:/app/media
     networks:
       - default
       - supabase-net

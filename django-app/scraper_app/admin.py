@@ -1014,7 +1014,21 @@ class BulkScrapeBatchAdmin(admin.ModelAdmin):
             percent = int((done / total) * 100) if total > 0 else 0
 
             errors_list = batch.errors if isinstance(batch.errors, list) else []
-            recent_errors = list(reversed(errors_list))[:20]
+            # Normalise each entry so the template never hits VariableDoesNotExist
+            # when an audit entry has only `action` (or only `event`, etc.).
+            recent_errors = []
+            for raw in reversed(errors_list[-20:]):
+                if not isinstance(raw, dict):
+                    continue
+                recent_errors.append({
+                    'at': raw.get('at', '-'),
+                    'action': raw.get('action', ''),
+                    'event': raw.get('event', ''),
+                    'error': raw.get('error', ''),
+                    'user': raw.get('user', ''),
+                    'reset_count': raw.get('reset_count'),
+                    'row': raw.get('row', ''),
+                })
 
             status = batch.status
             S = BulkScrapeBatch.Status

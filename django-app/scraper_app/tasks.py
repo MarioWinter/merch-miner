@@ -1410,12 +1410,17 @@ def _pick_next_targets(batch, count):
         cfg = None
     max_retries = getattr(cfg, 'max_retries_per_asin', 1) if cfg else 1
 
+    # Critical: also filter `last_scraped_at IS NULL` so already-successful
+    # targets (active=False, last_error=None, last_scraped_at SET) are never
+    # picked again. Without this guard, the drainer re-scrapes done targets
+    # on every tick — discovered during the 2026-05-05 smoke test.
     return list(
         ScheduledScrapeTarget.objects
         .filter(
             batch=batch,
             active=False,
             last_error__isnull=True,
+            last_scraped_at__isnull=True,
             retry_count__lt=max_retries,
         )
         .order_by('id')
@@ -1562,10 +1567,15 @@ def drain_bulk_batch(batch_id):
             batch.save(update_fields=['status', 'finished_at', 'errors'])
             return  # no re-enqueue
 
-        # Self-reschedule.
+        # Self-reschedule via the rq-scheduler library (django-rq).
+        # NOTE: do NOT use rq's built-in `Queue.enqueue_in` — rq 2.x writes
+        # those to its own `scheduled_job_registry`, which the rq-scheduler
+        # daemon (`manage.py rqscheduler`) does NOT process. Jobs would sit
+        # there forever. The django-rq scheduler keeps the same key format
+        # rq-scheduler reads.
         try:
-            default_q = django_rq.get_queue('default')
-            default_q.enqueue_in(
+            scheduler = django_rq.get_scheduler('default')
+            scheduler.enqueue_in(
                 timedelta(seconds=DRAINER_TICK_SECONDS),
                 drain_bulk_batch,
                 batch_id,
