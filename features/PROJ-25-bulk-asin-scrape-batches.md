@@ -46,7 +46,7 @@ This feature unblocks the planned 800k Merch by Amazon seed scrape (see memory `
 - [ ] AC-12: New django-rq task `drain_bulk_batch(batch_id)` is the heart of the throttle. Loop:
     1. Re-load `ScraperConfig` and `BulkScrapeBatch` from DB.
     2. If `batch.status != RUNNING`: exit.
-    3. `max_in_flight = floor(cfg.concurrent_requests / cfg.batch_size)` (minimum 1).
+    3. `max_in_flight = floor(cfg.concurrent_requests / cfg.batch_size)`. **No minimum** — see EC-13 (soft pause via `concurrent_requests=0` must work).
     4. `global_in_flight = ScrapeJob.objects.filter(status__in=[PENDING, RUNNING], mode=BATCH_ASIN).count()` — global pool across **all** batches.
     5. `slots_free = max_in_flight − global_in_flight`.
     6. If `slots_free > 0`: pick the next `slots_free × cfg.batch_size` `ScheduledScrapeTarget` rows from this batch where `active=False` and `last_error IS NULL` (or `retry_count < cfg.max_retries_per_asin`), chunk into groups of `cfg.batch_size`, create one `ScrapeJob` per chunk (`mode=BATCH_ASIN`, `asin_list=[...]`, `batch=B`, `marketplace=...`), and enqueue `scrape_asin_batch_job(scrape_job_id)` onto the `scraper` queue. Set the picked targets `active=True`.

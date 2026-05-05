@@ -178,12 +178,34 @@ class MetaKeyword(models.Model):
         return f"{self.keyword} ({self.type}, freq={self.frequency})"
 
 
+def _validate_asin_list(value):
+    """Field validator for ScrapeJob.asin_list (PROJ-25 Phase C / AC-3).
+
+    Allows None / [] (legacy non-batch jobs) but enforces that, when set,
+    the value is a list of <=50 strings each matching the ASIN regex.
+    """
+    if value in (None, []):
+        return
+    if not isinstance(value, list):
+        from django.core.exceptions import ValidationError
+        raise ValidationError("asin_list must be a list.")
+    if len(value) > 50:
+        from django.core.exceptions import ValidationError
+        raise ValidationError("asin_list cannot contain more than 50 ASINs.")
+    pattern = ASIN_REGEX_VALIDATOR.regex
+    for entry in value:
+        if not isinstance(entry, str) or not pattern.match(entry):
+            from django.core.exceptions import ValidationError
+            raise ValidationError(f"asin_list entry '{entry}' is not a valid ASIN.")
+
+
 class ScrapeJob(models.Model):
     class Mode(models.TextChoices):
         LIVE = 'live', 'Live Research'
         SCHEDULED = 'scheduled', 'Scheduled Scrape'
         BSR_SNAPSHOT = 'bsr_snapshot', 'BSR Snapshot'
         SEARCH_PAGE_ONLY = 'search_page_only', 'Search Page Only'
+        BATCH_ASIN = 'batch_asin', 'Batch ASIN'
 
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending'
@@ -298,9 +320,28 @@ class ScrapeJob(models.Model):
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)
     rq_job_id = models.CharField(max_length=100, blank=True, default='')
+    asin_list = models.JSONField(
+        null=True,
+        blank=True,
+        validators=[_validate_asin_list],
+        help_text='Up to 50 ASINs for mode=BATCH_ASIN. Validated by _validate_asin_list.',
+    )
+    batch = models.ForeignKey(
+        'BulkScrapeBatch',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='scrape_jobs',
+    )
 
     class Meta:
         ordering = ['-started_at']
+        indexes = [
+            models.Index(
+                fields=['status', 'mode'],
+                name='scrapejob_status_mode_idx',
+            ),
+        ]
 
     def __str__(self):
         target = str(self.keyword) if self.keyword else self.asin or 'unknown'
@@ -437,6 +478,22 @@ class ScraperConfig(models.Model):
     download_delay_ms = models.PositiveIntegerField(
         default=0,
         help_text='Scrapy DOWNLOAD_DELAY in milliseconds (converted to seconds at spawn).',
+    )
+    batch_size = models.PositiveIntegerField(
+        default=10,
+        validators=[MinValueValidator(1), MaxValueValidator(50)],
+        help_text='ASINs per batch spider subprocess (PROJ-25 / AC-4). 1–50.',
+    )
+    max_retries_per_asin = models.PositiveIntegerField(
+        default=1,
+        help_text='How many times a failed ASIN is auto-retried in the same batch (PROJ-25 / AC-4).',
+    )
+    fresh_skip_days = models.PositiveIntegerField(
+        default=30,
+        help_text=(
+            'Skip ASINs whose AmazonProduct was scraped within this many days '
+            'unless the batch has force_rescrape=True (PROJ-25 / AC-4 / AC-11b).'
+        ),
     )
 
     class Meta:

@@ -78,48 +78,48 @@
 **Goal:** A single `ScrapeJob(mode=BATCH_ASIN, asin_list=[…10 ASINs])` row, manually enqueued via Django shell, runs the batch spider end-to-end and reconciles per-ASIN outcomes back to targets. Drainer not yet — Phase C is testable in isolation.
 
 ### ScrapeJob Schema
-- [ ] C.1 Add `BATCH_ASIN = 'batch_asin', 'Batch ASIN'` to `ScrapeJob.Mode` (AC-3)
-- [ ] C.2 Add `asin_list = models.JSONField(null=True, blank=True)` to `ScrapeJob` with a Python-level validator: `len <= 50`, each entry matches ASIN regex
-- [ ] C.3 Add `batch = models.ForeignKey(BulkScrapeBatch, null=True, on_delete=SET_NULL, related_name='scrape_jobs')` (AC-26)
-- [ ] C.4 Composite index on `(status, mode)` for drainer's global-in-flight query
-- [ ] C.5 Migration `0022_scrapejob_batch_asinlist_mode.py`
+- [x] C.1 Add `BATCH_ASIN = 'batch_asin', 'Batch ASIN'` to `ScrapeJob.Mode` (AC-3)
+- [x] C.2 Add `asin_list = models.JSONField(null=True, blank=True)` to `ScrapeJob` with a Python-level validator: `len <= 50`, each entry matches ASIN regex
+- [x] C.3 Add `batch = models.ForeignKey(BulkScrapeBatch, null=True, on_delete=SET_NULL, related_name='scrape_jobs')` (AC-26)
+- [x] C.4 Composite index on `(status, mode)` for drainer's global-in-flight query
+- [x] C.5 Migration `0022_scrapejob_batch_asinlist_mode.py`
 
 ### Batch Spider
-- [ ] C.6 Create `scraper_app/scrapy_app/spiders/amazon_product_batch.py` (AC-16, AC-17, AC-18)
-- [ ] C.7 `class AmazonProductBatchSpider(ProductDetailMixin, scrapy.Spider)` with `name = 'amazon_product_batch'`
-- [ ] C.8 `__init__(self, asins, marketplace='amazon_com', job_id=None)` — `self.asins = asins.split(',')`
-- [ ] C.9 `start_requests` yields one Request per ASIN to `<base>/dp/<asin>/`, identical headers/meta to `amazon_product` (reuse mixin parse callback)
-- [ ] C.10 Outcome JSON file path: `/tmp/scrape_batch_<job_id>.json` (AC-19)
-- [ ] C.11 Connect Scrapy `item_scraped` signal: append `{asin, status: 'ok', http_status: 200, scraped_at}` to in-memory results list, atomically rewrite the JSON file
-- [ ] C.12 Connect `request_failed` / errback: append `{asin, status: 'failed', error_message, http_status}` to results, rewrite file
-- [ ] C.13 At spider close (via `closed(self, reason)`): final flush + ensure JSON parseable (graceful even if reason was 'finished_with_errors')
-- [ ] C.14 Numeric concurrency: spider's own `custom_settings = {}` (left empty); concurrency comes from `-s` flags injected by wrapper
+- [x] C.6 Create `scraper_app/scrapy_app/spiders/amazon_product_batch.py` (AC-16, AC-17, AC-18)
+- [x] C.7 `class AmazonProductBatchSpider(ProductDetailMixin, scrapy.Spider)` with `name = 'amazon_product_batch'`
+- [x] C.8 `__init__(self, asins, marketplace='amazon_com', job_id=None)` — `self.asins = asins.split(',')`
+- [x] C.9 `start_requests` yields one Request per ASIN to `<base>/dp/<asin>/`, identical headers/meta to `amazon_product` (reuse mixin parse callback)
+- [x] C.10 Outcome JSON file path: `/tmp/scrape_batch_<job_id>.json` (AC-19)
+- [x] C.11 Connect Scrapy `item_scraped` signal: append `{asin, status: 'ok', http_status: 200, scraped_at}` to in-memory results list, atomically rewrite the JSON file
+- [x] C.12 Connect `request_failed` / errback: append `{asin, status: 'failed', error_message, http_status}` to results, rewrite file
+- [x] C.13 At spider close (via `closed(self, reason)`): final flush + ensure JSON parseable (graceful even if reason was 'finished_with_errors')
+- [x] C.14 Numeric concurrency: spider's own `custom_settings = {}` (left empty); concurrency comes from `-s` flags injected by wrapper
 
 ### Wrapper Task
-- [ ] C.15 Add `scrape_asin_batch_job(scrape_job_id)` to `scraper_app/tasks.py` (AC-20)
-- [ ] C.16 Zombie detection (EC-16): if `scrape_job.status == RUNNING` at entry, mark FAILED with `error_log='zombie at task entry'`, return; do NOT spawn subprocess
-- [ ] C.17 Set `status=RUNNING, started_at=now`, save
-- [ ] C.18 Build subprocess command: `scrapy crawl amazon_product_batch -a asins=<comma> -a marketplace=<mp> -a job_id=<id>` + `_scrapy_concurrency_settings()` + `-s CONCURRENT_REQUESTS_PER_DOMAIN={cfg.batch_size}` if missing
-- [ ] C.19 `subprocess.Popen` with same `_scrapy_env()` and `cwd=SCRAPY_PROJECT_DIR` as existing `scrape_asin_detail_job`. Capture pid into `ScrapeJob.pid`
-- [ ] C.20 `proc.communicate()` (block on the scraper-queue worker — fine, that's what those workers do)
-- [ ] C.21 After exit: read `/tmp/scrape_batch_<id>.json`. If file missing or unparseable → all ASINs treated as failed with `error_message='no outcome file (subprocess crashed)'`
-- [ ] C.22 **Freshness skip (AC-11, EC-10/10b/10c):** before reconciling outcomes, if `batch.force_rescrape == False`, query `AmazonProduct.objects.filter(asin__in=ok_asins, marketplace=mp, updated_at__gte=now-fresh_skip_days)` to get the set of "skip" ASINs. For these, set `target.active=False, last_error='skipped_fresh'` and DO NOT increment retry. They count as `done`.
-- [ ] C.23 Reconcile per-ASIN outcomes (Phase C continuation):
+- [x] C.15 Add `scrape_asin_batch_job(scrape_job_id)` to `scraper_app/tasks.py` (AC-20)
+- [x] C.16 Zombie detection (EC-16): if `scrape_job.status == RUNNING` at entry, mark FAILED with `error_log='zombie at task entry'`, return; do NOT spawn subprocess
+- [x] C.17 Set `status=RUNNING, started_at=now`, save
+- [x] C.18 Build subprocess command: `scrapy crawl amazon_product_batch -a asins=<comma> -a marketplace=<mp> -a job_id=<id>` + `_scrapy_concurrency_settings()` + `-s CONCURRENT_REQUESTS_PER_DOMAIN={cfg.batch_size}` if missing
+- [x] C.19 `subprocess.Popen` with same `_scrapy_env()` and `cwd=SCRAPY_PROJECT_DIR` as existing `scrape_asin_detail_job`. Capture pid into `ScrapeJob.pid`
+- [x] C.20 `proc.communicate()` (block on the scraper-queue worker — fine, that's what those workers do)
+- [x] C.21 After exit: read `/tmp/scrape_batch_<id>.json`. If file missing or unparseable → all ASINs treated as failed with `error_message='no outcome file (subprocess crashed)'`
+- [x] C.22 **Freshness skip (AC-11, EC-10/10b/10c):** before reconciling outcomes, if `batch.force_rescrape == False`, query `AmazonProduct.objects.filter(asin__in=ok_asins, marketplace=mp, updated_at__gte=now-fresh_skip_days)` to get the set of "skip" ASINs. For these, set `target.active=False, last_error='skipped_fresh'` and DO NOT increment retry. They count as `done`.
+- [x] C.23 Reconcile per-ASIN outcomes (Phase C continuation):
     - ok (and not freshness-skipped): `target.update(active=False, last_scraped_at=now, last_error=NULL)`
     - failed and `retry_count + 1 < cfg.max_retries_per_asin`: `target.update(active=False, retry_count=F('retry_count')+1, last_error=NULL)` — drainer picks up again
     - failed and at retry-cap: `target.update(active=False, retry_count=F('retry_count')+1, last_error=<msg>)` — terminal
-- [ ] C.24 Compute final `ScrapeJob.status`: COMPLETED if all OK or all retried-with-room; COMPLETED with `error_log` summary if mixed; FAILED only if subprocess crashed before any outcome
-- [ ] C.25 Delete `/tmp/scrape_batch_<id>.json` on success (keep on failure for debugging)
+- [x] C.24 Compute final `ScrapeJob.status`: COMPLETED if all OK or all retried-with-room; COMPLETED with `error_log` summary if mixed; FAILED only if subprocess crashed before any outcome
+- [x] C.25 Delete `/tmp/scrape_batch_<id>.json` on success (keep on failure for debugging)
 
 ### Tests
-- [ ] C.26 `tests/test_batch_spider.py::test_spider_writes_outcome_json` — mock HTTP responses, assert file contents
-- [ ] C.27 `test_spider_records_failed_asin` — 1 OK + 1 503; outcome file has both
-- [ ] C.28 `test_wrapper_marks_targets_done_on_success` — mock subprocess, write fake outcome file, assert target.active=False
-- [ ] C.29 `test_wrapper_increments_retry_on_failure_below_cap`
-- [ ] C.30 `test_wrapper_terminal_fails_at_cap`
-- [ ] C.31 `test_wrapper_freshness_skip_when_fresh_amazonproduct_exists` — seed AmazonProduct fresh, run wrapper, target should be skipped_fresh (EC-10)
-- [ ] C.32 `test_wrapper_force_rescrape_bypasses_freshness` (EC-10b)
-- [ ] C.33 `test_wrapper_zombie_detection` — pre-set ScrapeJob.status=RUNNING, run wrapper, assert FAILED without subprocess spawn (EC-16)
+- [x] C.26 `tests/test_batch_spider.py::test_spider_writes_outcome_json` — mock HTTP responses, assert file contents
+- [x] C.27 `test_spider_records_failed_asin` — 1 OK + 1 503; outcome file has both
+- [x] C.28 `test_wrapper_marks_targets_done_on_success` — mock subprocess, write fake outcome file, assert target.active=False
+- [x] C.29 `test_wrapper_increments_retry_on_failure_below_cap`
+- [x] C.30 `test_wrapper_terminal_fails_at_cap`
+- [x] C.31 `test_wrapper_freshness_skip_when_fresh_amazonproduct_exists` — seed AmazonProduct fresh, run wrapper, target should be skipped_fresh (EC-10)
+- [x] C.32 `test_wrapper_force_rescrape_bypasses_freshness` (EC-10b)
+- [x] C.33 `test_wrapper_zombie_detection` — pre-set ScrapeJob.status=RUNNING, run wrapper, assert FAILED without subprocess spawn (EC-16)
 
 **Phase C ship gate:** Manually `python manage.py shell` → enqueue one ScrapeJob with 10 ASINs → all 10 land in AmazonProduct + targets become `active=False`. Tests green.
 
@@ -130,43 +130,43 @@
 **Goal:** Self-rescheduling drainer respects global slot pool, Redis-locked, idempotent. End-to-end: upload → start → drainer drives all targets to completion automatically.
 
 ### ScraperConfig Schema
-- [ ] D.1 Add `batch_size` PositiveIntegerField default 10 with MinValueValidator(1) MaxValueValidator(50), help_text per AC-4
-- [ ] D.2 Add `max_retries_per_asin` PositiveIntegerField default 1
-- [ ] D.3 Add `fresh_skip_days` PositiveIntegerField default 30, help_text per AC-11b
-- [ ] D.4 Migration `0019_scraperconfig_batch_fields.py` (added before B/C migrations? No — order is A then D then B/C then E to keep model-only changes early; renumber as needed and pick consistent order)
-- [ ] D.5 Update `ScraperConfigAdmin` to include the 3 new fields in `fieldsets`
+- [x] D.1 Add `batch_size` PositiveIntegerField default 10 with MinValueValidator(1) MaxValueValidator(50), help_text per AC-4
+- [x] D.2 Add `max_retries_per_asin` PositiveIntegerField default 1
+- [x] D.3 Add `fresh_skip_days` PositiveIntegerField default 30, help_text per AC-11b
+- [x] D.4 Migration `0019_scraperconfig_batch_fields.py` (added before B/C migrations? No — order is A then D then B/C then E to keep model-only changes early; renumber as needed and pick consistent order)
+- [x] D.5 Update `ScraperConfigAdmin` to include the 3 new fields in `fieldsets`
 
 ### Drainer Helpers
-- [ ] D.6 Add `_bulk_drainer_lock(batch_id, ttl=60)` context manager in `tasks.py` using `django_rq.get_connection().set(name=..., value=str(uuid4()), nx=True, ex=ttl)`. Yields acquired-bool. On exit, only DEL the key if the value matches (lua script or check-then-delete) — prevents another worker's lock from being released.
-- [ ] D.7 Add `_refresh_batch_counts(batch)` — single aggregation query updating pending/running/done/failed_count from `ScheduledScrapeTarget.objects.filter(batch=B).aggregate(...)` and `ScrapeJob.objects.filter(batch=B).aggregate(...)`. Save batch with `update_fields`. (AC-31)
-- [ ] D.8 Add `_pick_next_targets(batch, count)` — returns queryset of targets where batch=B AND active=False AND (last_error IS NULL OR (last_error != 'skipped_fresh' AND retry_count < cfg.max_retries_per_asin)), ordered by id, sliced [:count]
+- [x] D.6 Add `_bulk_drainer_lock(batch_id, ttl=60)` context manager in `tasks.py` using `django_rq.get_connection().set(name=..., value=str(uuid4()), nx=True, ex=ttl)`. Yields acquired-bool. On exit, only DEL the key if the value matches (lua script or check-then-delete) — prevents another worker's lock from being released.
+- [x] D.7 Add `_refresh_batch_counts(batch)` — single aggregation query updating pending/running/done/failed_count from `ScheduledScrapeTarget.objects.filter(batch=B).aggregate(...)` and `ScrapeJob.objects.filter(batch=B).aggregate(...)`. Save batch with `update_fields`. (AC-31)
+- [x] D.8 Add `_pick_next_targets(batch, count)` — returns queryset of targets where batch=B AND active=False AND (last_error IS NULL OR (last_error != 'skipped_fresh' AND retry_count < cfg.max_retries_per_asin)), ordered by id, sliced [:count]
 
 ### Drainer Task
-- [ ] D.9 Add `drain_bulk_batch(batch_id)` to `scraper_app/tasks.py` (AC-12, AC-13, AC-14, AC-15)
-- [ ] D.10 Acquire lock via `_bulk_drainer_lock`. If not acquired: log INFO `"drainer batch=<id> already locked, skipping tick"`, exit gracefully without re-enqueueing (the running tick will re-enqueue the next one) (AC-13)
-- [ ] D.11 Reload `BulkScrapeBatch.objects.get(id=batch_id)` and `ScraperConfig.load()` from DB
-- [ ] D.12 If `batch.status != RUNNING`: release lock, exit (no re-enqueue) — handles Pause/Cancel
-- [ ] D.13 Compute `max_in_flight = max(1, cfg.concurrent_requests // cfg.batch_size)` and `global_in_flight = ScrapeJob.objects.filter(status__in=['pending','running'], mode='batch_asin').count()`
-- [ ] D.14 `slots_free = max_in_flight - global_in_flight` (clamped ≥ 0)
-- [ ] D.15 If slots_free > 0: pick `slots_free * cfg.batch_size` targets via `_pick_next_targets`. Loop chunks of `cfg.batch_size`:
+- [x] D.9 Add `drain_bulk_batch(batch_id)` to `scraper_app/tasks.py` (AC-12, AC-13, AC-14, AC-15)
+- [x] D.10 Acquire lock via `_bulk_drainer_lock`. If not acquired: log INFO `"drainer batch=<id> already locked, skipping tick"`, exit gracefully without re-enqueueing (the running tick will re-enqueue the next one) (AC-13)
+- [x] D.11 Reload `BulkScrapeBatch.objects.get(id=batch_id)` and `ScraperConfig.load()` from DB
+- [x] D.12 If `batch.status != RUNNING`: release lock, exit (no re-enqueue) — handles Pause/Cancel
+- [x] D.13 Compute `max_in_flight = max(1, cfg.concurrent_requests // cfg.batch_size)` and `global_in_flight = ScrapeJob.objects.filter(status__in=['pending','running'], mode='batch_asin').count()`
+- [x] D.14 `slots_free = max_in_flight - global_in_flight` (clamped ≥ 0)
+- [x] D.15 If slots_free > 0: pick `slots_free * cfg.batch_size` targets via `_pick_next_targets`. Loop chunks of `cfg.batch_size`:
     - Inside `transaction.atomic()`: create `ScrapeJob(mode=BATCH_ASIN, asin_list=[t.asin for t in chunk], batch=B, marketplace=B.marketplace, status=PENDING)`, then `ScheduledScrapeTarget.objects.filter(id__in=chunk_ids).update(active=True, scrape_job=created_job)` (or skip the FK link — the asin+batch pair is enough to reconcile)
     - `rq_scraper.enqueue(scrape_asin_batch_job, scrape_job.id)`; capture rq_job_id
     - On enqueue exception: `batch.append_error({event:'drainer_enqueue_failed', error:str(e), at:now})`, log WARNING (AC-30)
-- [ ] D.16 `_refresh_batch_counts(batch)`
-- [ ] D.17 Completion check (AC-12 step 8): if no targets remaining (using `_pick_next_targets(batch, 1).exists() == False`) AND `ScrapeJob.objects.filter(batch=B, status__in=[PENDING,RUNNING]).count() == 0`: `batch.status=COMPLETED`, `finished_at=now`, save, release lock, exit (no re-enqueue)
-- [ ] D.18 Otherwise: `django_rq.get_queue('default').enqueue_in(timedelta(seconds=10), drain_bulk_batch, batch_id)` and release lock
-- [ ] D.19 INFO log every tick: `f"drainer batch={batch_id} in_flight={global_in_flight} max={max_in_flight} enqueued={enqueued_this_tick} remaining={remaining}"` (AC-30)
+- [x] D.16 `_refresh_batch_counts(batch)`
+- [x] D.17 Completion check (AC-12 step 8): if no targets remaining (using `_pick_next_targets(batch, 1).exists() == False`) AND `ScrapeJob.objects.filter(batch=B, status__in=[PENDING,RUNNING]).count() == 0`: `batch.status=COMPLETED`, `finished_at=now`, save, release lock, exit (no re-enqueue)
+- [x] D.18 Otherwise: `django_rq.get_queue('default').enqueue_in(timedelta(seconds=10), drain_bulk_batch, batch_id)` and release lock
+- [x] D.19 INFO log every tick: `f"drainer batch={batch_id} in_flight={global_in_flight} max={max_in_flight} enqueued={enqueued_this_tick} remaining={remaining}"` (AC-30)
 
 ### Tests
-- [ ] D.20 `tests/test_bulk_drainer.py::test_drainer_enqueues_first_chunk_when_idle`
-- [ ] D.21 `test_drainer_respects_max_in_flight` — set 5 fake PENDING jobs, drainer enqueues 0 more
-- [ ] D.22 `test_drainer_exits_when_status_paused` (AC-23 Pause path)
-- [ ] D.23 `test_drainer_completes_batch_when_no_remaining_or_in_flight` — assert status=COMPLETED, finished_at set
-- [ ] D.24 `test_drainer_lock_idempotent` — call drainer twice from same test; second call sees lock, exits, does not re-enqueue
-- [ ] D.25 `test_drainer_concurrency_limit_change_takes_effect_next_tick` (AC-14, EC-3) — first tick with cfg=50, second tick with cfg=25 → `max_in_flight` changes
-- [ ] D.26 `test_drainer_global_pool_shared_across_batches` (EC-7, AC-15) — two batches, one drainer sees the other's in-flight
-- [ ] D.27 `test_drainer_batch_size_zero_concurrent_acts_as_soft_pause` (EC-13) — cfg=0 → enqueued=0 every tick, batch stays RUNNING
-- [ ] D.28 `test_drainer_skips_targets_with_skipped_fresh_last_error` — they should never be picked again
+- [x] D.20 `tests/test_bulk_drainer.py::test_drainer_enqueues_first_chunk_when_idle`
+- [x] D.21 `test_drainer_respects_max_in_flight` — set 5 fake PENDING jobs, drainer enqueues 0 more
+- [x] D.22 `test_drainer_exits_when_status_paused` (AC-23 Pause path)
+- [x] D.23 `test_drainer_completes_batch_when_no_remaining_or_in_flight` — assert status=COMPLETED, finished_at set
+- [x] D.24 `test_drainer_lock_idempotent` — call drainer twice from same test; second call sees lock, exits, does not re-enqueue
+- [x] D.25 `test_drainer_concurrency_limit_change_takes_effect_next_tick` (AC-14, EC-3) — first tick with cfg=50, second tick with cfg=25 → `max_in_flight` changes
+- [x] D.26 `test_drainer_global_pool_shared_across_batches` (EC-7, AC-15) — two batches, one drainer sees the other's in-flight
+- [x] D.27 `test_drainer_batch_size_zero_concurrent_acts_as_soft_pause` (EC-13) — cfg=0 → enqueued=0 every tick, batch stays RUNNING
+- [x] D.28 `test_drainer_skips_targets_with_skipped_fresh_last_error` — they should never be picked again
 
 **Phase D ship gate:** End-to-end: upload 10 ASINs (Phase B path), call `drain_bulk_batch(batch_id)` once, observe drainer drive batch to COMPLETED in <1 minute (subprocess startup + Amazon page).
 

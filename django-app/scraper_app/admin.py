@@ -809,6 +809,9 @@ class ScraperConfigAdmin(admin.ModelAdmin):
         'concurrent_requests',
         'concurrent_requests_per_domain',
         'download_delay_ms',
+        'batch_size',
+        'max_retries_per_asin',
+        'fresh_skip_days',
     ]
     fieldsets = (
         (None, {
@@ -820,6 +823,17 @@ class ScraperConfigAdmin(admin.ModelAdmin):
             'description': (
                 'Singleton row — applied to every Scrapy spider invocation. '
                 'Changes take effect on the NEXT spider spawn.'
+            ),
+        }),
+        ('Bulk batch settings (PROJ-25)', {
+            'fields': (
+                'batch_size',
+                'max_retries_per_asin',
+                'fresh_skip_days',
+            ),
+            'description': (
+                'Tunables for the bulk-ASIN drainer. '
+                'Changes propagate within one drainer tick (≤10 s).'
             ),
         }),
     )
