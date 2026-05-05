@@ -9,6 +9,7 @@ from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import format_html
+from django.utils.safestring import mark_safe
 
 from scraper_app.models import (
     AmazonProduct,
@@ -873,14 +874,32 @@ class BulkScrapeUploadForm(forms.Form):
     )
 
 
+# PROJ-25 Phase E — status badge colors (AC-22, AC-23).
+# Use mark_safe (not format_html) for the static HTML to avoid the Django 6
+# format_html-without-args deprecation warning (PROJ-23 fix pattern).
+_BULK_BATCH_BADGE_COLORS = {
+    'draft':         ('#616161', '#fff'),  # grey
+    'parsing':       ('#1565c0', '#fff'),  # blue
+    'parse_failed':  ('#b00020', '#fff'),  # red
+    'ready':         ('#00838f', '#fff'),  # teal
+    'running':       ('#2e7d32', '#fff'),  # green
+    'paused':        ('#ef6c00', '#fff'),  # orange
+    'completed':     ('#1b5e20', '#fff'),  # dark green
+    'cancelled':     ('#424242', '#fff'),  # dark grey
+}
+
+
 @admin.register(BulkScrapeBatch)
 class BulkScrapeBatchAdmin(admin.ModelAdmin):
+    # AC-22: changelist columns + filters + ordering.
     list_display = [
-        'name', 'marketplace', 'status',
+        'name', 'marketplace', 'status_badge',
         'total_count', 'pending_count', 'running_count',
-        'done_count', 'failed_count', 'created_at',
+        'done_count', 'failed_count',
+        'force_rescrape', 'created_at', 'started_at',
     ]
-    list_filter = ['status', 'marketplace']
+    list_filter = ['status', 'marketplace', 'force_rescrape']
+    ordering = ['-created_at']
     readonly_fields = [
         'id', 'errors',
         'total_count', 'pending_count', 'running_count',
@@ -909,11 +928,39 @@ class BulkScrapeBatchAdmin(admin.ModelAdmin):
         }),
     )
 
-    # Phase B: NO custom actions, NO 5 Start/Pause/Resume/Cancel/Retry buttons —
-    # those land in Phase E. Upload form is reachable via a button on the
-    # changelist (added through change_list_template + get_urls).
-
     change_list_template = 'admin/scraper_app/bulkscrapebatch_changelist.html'
+    change_form_template = 'admin/scraper_app/bulkscrapebatch_change_form.html'
+
+    # ------------------------------------------------------------------
+    # Permissions (AC-25)
+    # ------------------------------------------------------------------
+
+    def has_add_permission(self, request):
+        # E.17: creation only via the upload form.
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        # E.19: superuser-only manual delete (AC-26 — cascades targets,
+        # leaves ScrapeJobs with batch=NULL for audit).
+        return bool(request.user and request.user.is_superuser)
+
+    # ------------------------------------------------------------------
+    # Display helpers
+    # ------------------------------------------------------------------
+
+    @admin.display(description='Status', ordering='status')
+    def status_badge(self, obj):
+        # AC-22: colored badge (mark_safe — no user-supplied data here).
+        bg, fg = _BULK_BATCH_BADGE_COLORS.get(obj.status, ('#424242', '#fff'))
+        label = obj.get_status_display()
+        return mark_safe(
+            f'<span style="background:{bg};color:{fg};'
+            f'padding:2px 8px;border-radius:4px;font-weight:600;">{label}</span>'
+        )
+
+    # ------------------------------------------------------------------
+    # URLs (E.9 + E.21 upload)
+    # ------------------------------------------------------------------
 
     def get_urls(self):
         custom_urls = [
@@ -922,8 +969,347 @@ class BulkScrapeBatchAdmin(admin.ModelAdmin):
                 self.admin_site.admin_view(self.upload_view),
                 name='scraper_app_bulkscrapebatch_upload',
             ),
+            path(
+                '<uuid:batch_id>/start/',
+                self.admin_site.admin_view(self.action_start),
+                name='scraper_app_bulkscrapebatch_start',
+            ),
+            path(
+                '<uuid:batch_id>/pause/',
+                self.admin_site.admin_view(self.action_pause),
+                name='scraper_app_bulkscrapebatch_pause',
+            ),
+            path(
+                '<uuid:batch_id>/resume/',
+                self.admin_site.admin_view(self.action_resume),
+                name='scraper_app_bulkscrapebatch_resume',
+            ),
+            path(
+                '<uuid:batch_id>/cancel/',
+                self.admin_site.admin_view(self.action_cancel),
+                name='scraper_app_bulkscrapebatch_cancel',
+            ),
+            path(
+                '<uuid:batch_id>/retry-failed/',
+                self.admin_site.admin_view(self.action_retry_failed),
+                name='scraper_app_bulkscrapebatch_retry_failed',
+            ),
         ]
         return custom_urls + super().get_urls()
+
+    # ------------------------------------------------------------------
+    # Detail-page extra context (progress + recent errors + button flags)
+    # ------------------------------------------------------------------
+
+    def change_view(self, request, object_id, form_url='', extra_context=None):
+        extra_context = extra_context or {}
+        try:
+            batch = BulkScrapeBatch.objects.get(pk=object_id)
+        except BulkScrapeBatch.DoesNotExist:
+            batch = None
+
+        if batch is not None:
+            total = batch.total_count or 0
+            done = batch.done_count or 0
+            percent = int((done / total) * 100) if total > 0 else 0
+
+            errors_list = batch.errors if isinstance(batch.errors, list) else []
+            recent_errors = list(reversed(errors_list))[:20]
+
+            status = batch.status
+            S = BulkScrapeBatch.Status
+            # AC-23: which buttons are visible per status.
+            can_start = status == S.READY
+            can_pause = status == S.RUNNING
+            can_resume = status == S.PAUSED
+            can_cancel = status in {S.READY, S.RUNNING, S.PAUSED}
+            can_retry = status in {S.COMPLETED, S.CANCELLED}
+            # E.15: button label "Resume" when status=CANCELLED, otherwise "Start".
+            can_resume_cancelled = status == S.CANCELLED
+
+            extra_context.update({
+                'bulk_batch': batch,
+                'progress_percent': percent,
+                'progress_done': done,
+                'progress_total': total,
+                'recent_errors': recent_errors,
+                'can_start': can_start,
+                'can_pause': can_pause,
+                'can_resume': can_resume,
+                'can_cancel': can_cancel,
+                'can_retry': can_retry,
+                'can_resume_cancelled': can_resume_cancelled,
+            })
+        return super().change_view(
+            request, object_id, form_url, extra_context=extra_context,
+        )
+
+    # ------------------------------------------------------------------
+    # Action handlers (E.10–E.16) — all require POST + is_staff.
+    # ------------------------------------------------------------------
+
+    def _detail_redirect(self, batch_id):
+        return HttpResponseRedirect(
+            reverse('admin:scraper_app_bulkscrapebatch_change', args=[batch_id])
+        )
+
+    def _audit_username(self, request):
+        u = getattr(request, 'user', None)
+        if not u or not u.is_authenticated:
+            return 'anonymous'
+        return getattr(u, 'email', None) or getattr(u, 'username', None) or str(u.pk)
+
+    def _require_staff_post(self, request):
+        """Return None if request is OK, else an HttpResponse to short-circuit."""
+        from django.http import HttpResponseForbidden, HttpResponseNotAllowed
+        if request.method != 'POST':
+            return HttpResponseNotAllowed(['POST'])
+        if not (request.user and request.user.is_authenticated and request.user.is_staff):
+            return HttpResponseForbidden('Staff only.')
+        return None
+
+    def _enqueue_drainer(self, batch):
+        """Enqueue drain_bulk_batch on the default queue."""
+        import django_rq
+        from scraper_app.tasks import drain_bulk_batch
+        queue = django_rq.get_queue('default')
+        queue.enqueue(drain_bulk_batch, str(batch.id))
+
+    def _start_or_resume(self, request, batch, action_label):
+        """Shared body for E.10 start / E.12 resume / E.14 retry-failed restart."""
+        S = BulkScrapeBatch.Status
+        batch.status = S.RUNNING
+        if batch.started_at is None:
+            batch.started_at = timezone.now()
+        # If we transitioned out of CANCELLED/COMPLETED, clear finished_at so
+        # the lifecycle stays meaningful (E.14 / Q4 nuance).
+        batch.finished_at = None
+        batch.append_error({
+            'action': action_label,
+            'user': self._audit_username(request),
+            'at': timezone.now().isoformat(),
+        })
+        batch.save(update_fields=['status', 'started_at', 'finished_at', 'errors'])
+        try:
+            self._enqueue_drainer(batch)
+        except Exception as exc:  # noqa: BLE001
+            batch.append_error({
+                'event': 'drainer_enqueue_failed',
+                'error': str(exc),
+                'at': timezone.now().isoformat(),
+            })
+            batch.save(update_fields=['errors'])
+            messages.error(
+                request,
+                f"Drainer enqueue failed: {exc}. State set to RUNNING; admin can retry.",
+            )
+
+    def action_start(self, request, batch_id):
+        """E.10 / E.12: Start (READY) or Resume (PAUSED). Renamed to Resume on cancelled."""
+        guard = self._require_staff_post(request)
+        if guard is not None:
+            return guard
+        try:
+            batch = BulkScrapeBatch.objects.get(pk=batch_id)
+        except BulkScrapeBatch.DoesNotExist:
+            messages.error(request, 'Batch not found.')
+            return HttpResponseRedirect(
+                reverse('admin:scraper_app_bulkscrapebatch_changelist')
+            )
+        S = BulkScrapeBatch.Status
+        # AC-23: Start visible for READY or PAUSED; CANCELLED also accepts via Resume.
+        if batch.status not in {S.READY, S.PAUSED, S.CANCELLED}:
+            messages.warning(
+                request,
+                f"Cannot start batch in status '{batch.get_status_display()}'.",
+            )
+            return self._detail_redirect(batch.id)
+        label = 'resume' if batch.status in {S.PAUSED, S.CANCELLED} else 'start'
+        self._start_or_resume(request, batch, label)
+        messages.success(
+            request,
+            f"Batch '{batch.name}' is now RUNNING — drainer enqueued.",
+        )
+        return self._detail_redirect(batch.id)
+
+    def action_resume(self, request, batch_id):
+        """E.12: explicit Resume URL (mirrors Start; precondition PAUSED)."""
+        guard = self._require_staff_post(request)
+        if guard is not None:
+            return guard
+        try:
+            batch = BulkScrapeBatch.objects.get(pk=batch_id)
+        except BulkScrapeBatch.DoesNotExist:
+            messages.error(request, 'Batch not found.')
+            return HttpResponseRedirect(
+                reverse('admin:scraper_app_bulkscrapebatch_changelist')
+            )
+        S = BulkScrapeBatch.Status
+        if batch.status not in {S.PAUSED, S.CANCELLED}:
+            messages.warning(
+                request,
+                f"Cannot resume batch in status '{batch.get_status_display()}'.",
+            )
+            return self._detail_redirect(batch.id)
+        self._start_or_resume(request, batch, 'resume')
+        messages.success(
+            request,
+            f"Batch '{batch.name}' resumed — drainer enqueued.",
+        )
+        return self._detail_redirect(batch.id)
+
+    def action_pause(self, request, batch_id):
+        """E.11: Pause a RUNNING batch — drainer self-detects on next tick."""
+        guard = self._require_staff_post(request)
+        if guard is not None:
+            return guard
+        try:
+            batch = BulkScrapeBatch.objects.get(pk=batch_id)
+        except BulkScrapeBatch.DoesNotExist:
+            messages.error(request, 'Batch not found.')
+            return HttpResponseRedirect(
+                reverse('admin:scraper_app_bulkscrapebatch_changelist')
+            )
+        if batch.status != BulkScrapeBatch.Status.RUNNING:
+            messages.warning(
+                request,
+                f"Cannot pause batch in status '{batch.get_status_display()}'.",
+            )
+            return self._detail_redirect(batch.id)
+        batch.status = BulkScrapeBatch.Status.PAUSED
+        batch.append_error({
+            'action': 'pause',
+            'user': self._audit_username(request),
+            'at': timezone.now().isoformat(),
+        })
+        batch.save(update_fields=['status', 'errors'])
+        messages.success(
+            request,
+            f"Batch '{batch.name}' paused — drainer will exit on next tick.",
+        )
+        return self._detail_redirect(batch.id)
+
+    def action_cancel(self, request, batch_id):
+        """E.13: Cancel a READY/RUNNING/PAUSED batch.
+
+        Scrubs PENDING RQ jobs from the `scraper` queue that belong to this
+        batch. Already-running spider subprocesses are NOT signalled — they
+        finish naturally and their writes still apply (EC-8).
+        """
+        guard = self._require_staff_post(request)
+        if guard is not None:
+            return guard
+        try:
+            batch = BulkScrapeBatch.objects.get(pk=batch_id)
+        except BulkScrapeBatch.DoesNotExist:
+            messages.error(request, 'Batch not found.')
+            return HttpResponseRedirect(
+                reverse('admin:scraper_app_bulkscrapebatch_changelist')
+            )
+        S = BulkScrapeBatch.Status
+        if batch.status not in {S.READY, S.RUNNING, S.PAUSED}:
+            messages.warning(
+                request,
+                f"Cannot cancel batch in status '{batch.get_status_display()}'.",
+            )
+            return self._detail_redirect(batch.id)
+
+        batch.status = S.CANCELLED
+        batch.finished_at = timezone.now()
+        batch.append_error({
+            'action': 'cancel',
+            'user': self._audit_username(request),
+            'at': batch.finished_at.isoformat(),
+        })
+        batch.save(update_fields=['status', 'finished_at', 'errors'])
+
+        # Scrub pending RQ jobs in the scraper queue whose ScrapeJob points at
+        # this batch. Bounded by max_in_flight (~5–10), so iteration is cheap.
+        scrub_count = 0
+        try:
+            import django_rq
+            queue = django_rq.get_queue('scraper')
+            for rq_job in queue.get_jobs():
+                func_name = getattr(rq_job, 'func_name', '') or ''
+                if not func_name.endswith('scrape_asin_batch_job'):
+                    continue
+                args = getattr(rq_job, 'args', None) or []
+                if not args:
+                    continue
+                scrape_job_id = args[0]
+                try:
+                    sj = ScrapeJob.objects.get(pk=scrape_job_id)
+                except ScrapeJob.DoesNotExist:
+                    continue
+                if sj.batch_id == batch.id:
+                    queue.remove(rq_job.id)
+                    scrub_count += 1
+        except Exception as exc:  # noqa: BLE001
+            batch.append_error({
+                'event': 'cancel_scrub_failed',
+                'error': str(exc),
+                'at': timezone.now().isoformat(),
+            })
+            batch.save(update_fields=['errors'])
+            messages.warning(
+                request,
+                f"Batch cancelled, but RQ scrub failed: {exc}",
+            )
+
+        messages.success(
+            request,
+            f"Batch '{batch.name}' cancelled — scrubbed {scrub_count} pending job(s). "
+            "In-flight subprocesses will finish.",
+        )
+        return self._detail_redirect(batch.id)
+
+    def action_retry_failed(self, request, batch_id):
+        """E.14: Retry-Failed (Q4=A strict).
+
+        Only resets targets where last_error IS NOT NULL AND last_error != 'skipped_fresh'.
+        Then transitions to RUNNING + enqueues a fresh drainer.
+        """
+        guard = self._require_staff_post(request)
+        if guard is not None:
+            return guard
+        try:
+            batch = BulkScrapeBatch.objects.get(pk=batch_id)
+        except BulkScrapeBatch.DoesNotExist:
+            messages.error(request, 'Batch not found.')
+            return HttpResponseRedirect(
+                reverse('admin:scraper_app_bulkscrapebatch_changelist')
+            )
+        S = BulkScrapeBatch.Status
+        if batch.status not in {S.COMPLETED, S.CANCELLED}:
+            messages.warning(
+                request,
+                f"Cannot retry failed in status '{batch.get_status_display()}'.",
+            )
+            return self._detail_redirect(batch.id)
+
+        reset_count = (
+            ScheduledScrapeTarget.objects
+            .filter(batch=batch, last_error__isnull=False)
+            .exclude(last_error='skipped_fresh')
+            .update(last_error=None, retry_count=0)
+        )
+        batch.append_error({
+            'action': 'retry_failed',
+            'user': self._audit_username(request),
+            'at': timezone.now().isoformat(),
+            'reset_count': reset_count,
+        })
+        batch.save(update_fields=['errors'])
+
+        # Then mirror Start: status=RUNNING, started_at set if missing,
+        # finished_at cleared, and re-enqueue the drainer.
+        self._start_or_resume(request, batch, 'retry_failed_start')
+
+        messages.info(
+            request,
+            f"Retry-failed reset {reset_count} target(s). Batch '{batch.name}' is RUNNING again.",
+        )
+        return self._detail_redirect(batch.id)
 
     def upload_view(self, request):
         if request.method == 'POST':
@@ -1042,7 +1428,3 @@ class BulkScrapeBatchAdmin(admin.ModelAdmin):
         return TemplateResponse(
             request, 'admin/scraper_app/bulkscrapebatch_upload.html', context,
         )
-
-    def has_add_permission(self, request):
-        # Creation only via the upload form (not the standard admin add).
-        return False

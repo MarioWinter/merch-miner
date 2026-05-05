@@ -177,47 +177,47 @@
 **Goal:** Admin can do everything via the browser: upload, watch progress, Start/Pause/Resume/Cancel/Retry-Failed.
 
 ### Changelist
-- [ ] E.1 `BulkScrapeBatchAdmin.list_display` (AC-22): `name, marketplace, status_badge, total_count, pending_count, running_count, done_count, failed_count, force_rescrape, created_at, started_at`
-- [ ] E.2 `list_filter`: `status, marketplace, force_rescrape`
-- [ ] E.3 Default ordering `-created_at`
-- [ ] E.4 `status_badge` rendered with green/red/yellow color via `mark_safe` (avoid Django 6 `format_html` deprecation per PROJ-23 fix pattern)
-- [ ] E.5 "Upload new batch" button on changelist top → links to `/admin/scraper_app/bulkscrapebatch/upload/`
+- [x] E.1 `BulkScrapeBatchAdmin.list_display` (AC-22): `name, marketplace, status_badge, total_count, pending_count, running_count, done_count, failed_count, force_rescrape, created_at, started_at`
+- [x] E.2 `list_filter`: `status, marketplace, force_rescrape`
+- [x] E.3 Default ordering `-created_at`
+- [x] E.4 `status_badge` rendered with green/red/yellow color via `mark_safe` (avoid Django 6 `format_html` deprecation per PROJ-23 fix pattern)
+- [x] E.5 "Upload new batch" button on changelist top → links to `/admin/scraper_app/bulkscrapebatch/upload/`
 
 ### Detail Page
-- [ ] E.6 Override `change_form_template = 'admin/scraper_app/bulkscrapebatch_change_form.html'`
-- [ ] E.7 Template extends Django admin's change_form, adds:
+- [x] E.6 Override `change_form_template = 'admin/scraper_app/bulkscrapebatch_change_form.html'`
+- [x] E.7 Template extends Django admin's change_form, adds:
     - Progress bar `<progress value=done max=total>` + percentage label (AC-23)
     - Recent errors panel (last 20 from `errors[]` reversed) (AC-23)
     - 5 action buttons rendered conditionally on `status` (AC-23)
-- [ ] E.8 Buttons render as `<form method="post" action="{% url 'admin:bulk_batch_action' batch.id action %}">` POST so they can mutate state safely
-- [ ] E.9 Add `get_urls()` overrides for: `start/`, `pause/`, `resume/`, `cancel/`, `retry-failed/` per batch (AC-23, AC-25)
+- [x] E.8 Buttons render as `<form method="post" action="{% url 'admin:bulk_batch_action' batch.id action %}">` POST so they can mutate state safely
+- [x] E.9 Add `get_urls()` overrides for: `start/`, `pause/`, `resume/`, `cancel/`, `retry-failed/` per batch (AC-23, AC-25)
 
 ### Action Handlers (each is a `self.admin_site.admin_view`-wrapped method)
-- [ ] E.10 `start` (AC-23): preconditions `status ∈ {READY, PAUSED}`. Set `status=RUNNING`, `started_at=now if not set`, append errors entry `{action:'start', user, at}`, enqueue `drain_bulk_batch(batch.id)` on `default` queue. messages.success.
-- [ ] E.11 `pause` (AC-23): preconditions `status=RUNNING`. Set `status=PAUSED`, append errors entry. Drainer self-detects on next tick.
-- [ ] E.12 `resume` (AC-23): preconditions `status=PAUSED`. Same as start.
-- [ ] E.13 `cancel` (AC-23, EC-8): preconditions `status ∈ {READY,RUNNING,PAUSED}`. Set `status=CANCELLED, finished_at=now`, append errors entry. Iterate `rq_scraper.get_jobs()` → if `func_name == 'scrape_asin_batch_job'` and the linked ScrapeJob.batch_id == batch.id, `queue.remove(job.id)`. Bounded by `max_in_flight`, so loop is cheap.
-- [ ] E.14 `retry-failed` (AC-23, EC-9, Q4=A strict semantics): preconditions `status ∈ {COMPLETED, CANCELLED}`. Run `targets.filter(batch=B, last_error__isnull=False).exclude(last_error='skipped_fresh').update(last_error=None, retry_count=0)`. Append errors entry. Then: same body as `start` (status=RUNNING + enqueue drainer). Add explicit `messages.info` showing how many targets were reset.
-- [ ] E.15 Make `cancel`+`start` button text adapt: when `status=CANCELLED`, the "Start" button reads "Resume" (Q4 nuance)
-- [ ] E.16 All actions require `request.user.is_staff` (AC-25); 403 otherwise
+- [x] E.10 `start` (AC-23): preconditions `status ∈ {READY, PAUSED}`. Set `status=RUNNING`, `started_at=now if not set`, append errors entry `{action:'start', user, at}`, enqueue `drain_bulk_batch(batch.id)` on `default` queue. messages.success.
+- [x] E.11 `pause` (AC-23): preconditions `status=RUNNING`. Set `status=PAUSED`, append errors entry. Drainer self-detects on next tick.
+- [x] E.12 `resume` (AC-23): preconditions `status=PAUSED`. Same as start.
+- [x] E.13 `cancel` (AC-23, EC-8): preconditions `status ∈ {READY,RUNNING,PAUSED}`. Set `status=CANCELLED, finished_at=now`, append errors entry. Iterate `rq_scraper.get_jobs()` → if `func_name == 'scrape_asin_batch_job'` and the linked ScrapeJob.batch_id == batch.id, `queue.remove(job.id)`. Bounded by `max_in_flight`, so loop is cheap.
+- [x] E.14 `retry-failed` (AC-23, EC-9, Q4=A strict semantics): preconditions `status ∈ {COMPLETED, CANCELLED}`. Run `targets.filter(batch=B, last_error__isnull=False).exclude(last_error='skipped_fresh').update(last_error=None, retry_count=0)`. Append errors entry. Then: same body as `start` (status=RUNNING + enqueue drainer). Add explicit `messages.info` showing how many targets were reset.
+- [x] E.15 Make `cancel`+`start` button text adapt: when `status=CANCELLED`, the "Start" button reads "Resume" (Q4 nuance)
+- [x] E.16 All actions require `request.user.is_staff` (AC-25); 403 otherwise
 
 ### Permissions / Hardening
-- [ ] E.17 `BulkScrapeBatchAdmin.has_add_permission = lambda self, request: False` (creation only via upload form, not the standard admin add)
-- [ ] E.18 `has_change_permission` returns True only for superusers OR `is_staff` (default Django admin policy is fine, just confirm)
-- [ ] E.19 `has_delete_permission` returns True for superusers — manual delete cascade-removes targets, leaves ScrapeJobs (AC-26)
+- [x] E.17 `BulkScrapeBatchAdmin.has_add_permission = lambda self, request: False` (creation only via upload form, not the standard admin add)
+- [x] E.18 `has_change_permission` returns True only for superusers OR `is_staff` (default Django admin policy is fine, just confirm)
+- [x] E.19 `has_delete_permission` returns True for superusers — manual delete cascade-removes targets, leaves ScrapeJobs (AC-26)
 
 ### Tests
-- [ ] E.20 `tests/test_bulk_admin.py::test_changelist_renders_status_badges`
-- [ ] E.21 `test_upload_form_uploads_xlsx_and_creates_batch`
-- [ ] E.22 `test_upload_form_rejects_unauth_user`
-- [ ] E.23 `test_start_action_sets_running_and_enqueues_drainer` (mock RQ enqueue)
-- [ ] E.24 `test_pause_action_sets_paused`
-- [ ] E.25 `test_cancel_action_scrubs_pending_rq_jobs`
-- [ ] E.26 `test_retry_failed_only_resets_last_error_targets` (AC-23 strict, Q4=A)
-- [ ] E.27 `test_retry_failed_does_not_touch_skipped_fresh_targets`
-- [ ] E.28 `test_action_audit_trail_appended_to_errors_json`
-- [ ] E.29 `test_non_staff_cannot_call_actions` (AC-25)
-- [ ] E.30 `test_delete_batch_cascades_to_targets_but_not_scrapejobs` (AC-26)
+- [x] E.20 `tests/test_bulk_admin.py::test_changelist_renders_status_badges`
+- [x] E.21 `test_upload_form_uploads_xlsx_and_creates_batch`
+- [x] E.22 `test_upload_form_rejects_unauth_user`
+- [x] E.23 `test_start_action_sets_running_and_enqueues_drainer` (mock RQ enqueue)
+- [x] E.24 `test_pause_action_sets_paused`
+- [x] E.25 `test_cancel_action_scrubs_pending_rq_jobs`
+- [x] E.26 `test_retry_failed_only_resets_last_error_targets` (AC-23 strict, Q4=A)
+- [x] E.27 `test_retry_failed_does_not_touch_skipped_fresh_targets`
+- [x] E.28 `test_action_audit_trail_appended_to_errors_json`
+- [x] E.29 `test_non_staff_cannot_call_actions` (AC-25)
+- [x] E.30 `test_delete_batch_cascades_to_targets_but_not_scrapejobs` (AC-26)
 
 **Phase E ship gate:** A non-developer admin user can complete the full upload → start → watch → pause → resume → completed flow without touching the shell. Tests green.
 
