@@ -1296,8 +1296,10 @@ def scrape_asin_batch_job(scrape_job_id):
             pass
 
     logger.info(
-        "batch_job scrape_job=%s ok=%d skipped=%d failed_retry=%d failed_terminal=%d",
-        scrape_job.id, n_ok, n_skip, n_fail_retry, n_fail_terminal,
+        "batch_job job_id=%s batch_id=%s ok=%d failed_terminal=%d failed_retry=%d skipped_fresh=%d",
+        scrape_job.id,
+        batch.id if batch is not None else None,
+        n_ok, n_fail_terminal, n_fail_retry, n_skip,
     )
 
 
@@ -1473,6 +1475,23 @@ def drain_bulk_batch(batch_id):
 
         slots_free = max(0, max_in_flight - global_in_flight)
         enqueued_this_tick = 0
+
+        # G.2: stalled-queue check — if there is pending work but no scraper
+        # workers are alive, log a WARNING so the admin notices before the
+        # batch sits forever. Bounded to once per tick (cheap rq Worker.all()).
+        if global_in_flight > 0 or slots_free > 0:
+            try:
+                from rq import Worker as _RqWorker
+                _scraper_q = django_rq.get_queue('scraper')
+                _worker_count = len(_RqWorker.all(queue=_scraper_q))
+                if _worker_count == 0:
+                    logger.warning(
+                        "drainer batch=%s scraper queue has no workers, jobs will pile",
+                        batch_id,
+                    )
+            except Exception:  # noqa: BLE001
+                # Worker.all may differ between rq versions — keep drainer alive.
+                logger.debug("drainer stalled-queue check failed", exc_info=True)
 
         if slots_free > 0:
             picks = _pick_next_targets(batch, slots_free * cfg_batch_size)

@@ -29,10 +29,11 @@ services:
       - redis
 
   worker-scraper:
+    # PROJ-25 AC-27: replicas controlled by BACKEND_SCRAPER_WORKERS (default 5).
+    # container_name removed — would conflict with replicated containers.
     build:
       context: ./django-app
       dockerfile: backend.Dockerfile
-    container_name: app_worker_scraper
     entrypoint: ["./worker.entrypoint.sh"]
     command: python manage.py rqworker scraper
     env_file: ./.env
@@ -42,6 +43,8 @@ services:
       - supabase-net
     depends_on:
       - redis
+    deploy:
+      replicas: ${BACKEND_SCRAPER_WORKERS:-5}
 
   worker-research:
     build:

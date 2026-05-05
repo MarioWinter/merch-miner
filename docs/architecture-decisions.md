@@ -160,3 +160,37 @@ Alle MM-Listen-Views, die diesem Pattern folgen, sollen identisch aufgebaut sein
 - Virtuoso Docs: https://virtuoso.dev/
 - Virtuoso GitHub: https://github.com/petyosi/react-virtuoso
 - Bundle-Comparison Reference: bundlephobia.com
+
+---
+
+## ADR-003: Multi-Replica `worker-scraper` for Bulk ASIN Throughput
+
+**Date:** 2026-05-05
+**Status:** Decided (PROJ-25 Phase F)
+**Context:** PROJ-25 needs to scrape 800k+ ASINs in step-wise rollouts (10 → 50 → 1k → 100k). One `worker-scraper` container is bottlenecked at ~10 concurrent ASINs (one Scrapy subprocess per RQ worker). To reach the planned ≥45 sustained concurrent HTTP requests on prod (AC-29) and to keep batch throughput tunable per environment, the service must scale horizontally.
+
+### Decision
+
+`worker-scraper` is now a replicated service driven by an env var:
+
+```yaml
+worker-scraper:
+  command: python manage.py rqworker scraper
+  deploy:
+    replicas: ${BACKEND_SCRAPER_WORKERS:-5}
+```
+
+`container_name` was removed (named containers conflict with replicas). Compose auto-names replicas (`merch-miner-worker-scraper-1` … `-N`), which is fine for log inspection. Default = 5 replicas (≈ 5–10 GB RAM at peak Scrapy concurrency, fits comfortably on the 32 GB Strato VC). Operator changes `BACKEND_SCRAPER_WORKERS` in `.env` and re-runs `docker compose up -d worker-scraper` — no code change needed.
+
+Verified compatible with Compose v5.1.3 on the production server (`212.132.102.96`).
+
+### Why not `--scale worker-scraper=N`?
+
+`docker compose up --scale` is a runtime override, not declarative. The deploy CI calls `docker compose up -d` without flags, so the scale would reset to 1 on every deploy. `deploy.replicas` is read on every `up`, so the scale persists across deploys.
+
+### References
+
+- PROJ-25 spec AC-27 / AC-28 / AC-29 (`features/PROJ-25-bulk-asin-scrape-batches.md`)
+- Memory: `project_800k_scrape_strategy.md` — server-side scrape with 25 ScraperOps slots
+- Tasks: `docs/tasks/PROJ-25-tasks.md` Phase F
+
