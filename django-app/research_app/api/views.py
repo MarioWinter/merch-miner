@@ -7,6 +7,7 @@ from datetime import timedelta
 import httpx
 from django.core.cache import cache as redis_cache
 from django.contrib.postgres.search import SearchQuery, SearchRank, SearchVector
+from django.db.models import F
 from django.http import StreamingHttpResponse
 from django.utils import timezone
 from rest_framework import status
@@ -220,13 +221,18 @@ def _build_product_queryset(filters):
         'price_asc': 'price',
         'newest': '-listed_date',
     }
-    if sort_by and sort_by in sort_map:
+    # When user selects "BSR low to high", products without BSR data are
+    # explicitly hidden (per user spec 2026-05-06): no BSR = no usable rank.
+    if sort_by == 'bsr_asc':
+        qs = qs.exclude(bsr__isnull=True).order_by('bsr')
+    elif sort_by and sort_by in sort_map:
         qs = qs.order_by(sort_map[sort_by])
     elif keyword:
         # Relevance order when keyword search active
         qs = qs.order_by('-rank')
     else:
-        qs = qs.order_by('bsr')
+        # Default sort: bsr ASC with NULLs at the end (visible but ranked last)
+        qs = qs.order_by(F('bsr').asc(nulls_last=True))
 
     return qs
 
