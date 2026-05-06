@@ -2297,7 +2297,11 @@
       "addedToNicheList": "'{{keyword}}' zur Nische '{{niche}}' hinzugefügt",
       "alreadyInNicheList": "'{{keyword}}' ist bereits in der Nische '{{niche}}'",
       "addToNicheListFailed": "Konnte nicht zur Nischen-Liste hinzugefügt werden",
-      "noActiveNiche": "Keine aktive Nische — öffne erst eine Nische in den Niche Claims"
+      "noActiveNiche": "Keine aktive Nische — öffne erst eine Nische in den Niche Claims",
+      "createNicheFromKeyword": "Zur Nischen-Liste hinzufügen (neue Nische)",
+      "nicheCreated": "Nische '{{keyword}}' erstellt",
+      "nicheAlreadyExists": "Nische '{{keyword}}' existiert bereits",
+      "nicheCreateFailed": "Nische konnte nicht erstellt werden"
     },
     "detail": {
       "breadcrumb": "Amazon Research",

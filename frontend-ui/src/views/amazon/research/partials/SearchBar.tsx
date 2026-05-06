@@ -18,6 +18,7 @@ import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
+import PlaylistAddOutlinedIcon from '@mui/icons-material/PlaylistAddOutlined';
 import { useGetSuggestionsQuery } from '../../../../store/researchSlice';
 import type { Niche } from '../../../niches/list/types';
 
@@ -42,6 +43,8 @@ interface SearchBarProps {
   onCopyKeyword?: (keyword: string) => void;
   /** Called to add a suggestion keyword as a keyword to the active pipeline niche. */
   onAddToNicheList?: (keyword: string) => void;
+  /** Called to create a new niche row with the suggestion as its name. */
+  onCreateNicheFromKeyword?: (keyword: string) => void;
   /** Keywords already added in this session (show check icon instead of button). */
   addedKeywords?: Set<string>;
   /**
@@ -77,6 +80,7 @@ const SearchBar = ({
   onCancel,
   onCopyKeyword,
   onAddToNicheList,
+  onCreateNicheFromKeyword,
   addedKeywords = new Set<string>(),
   allowEmptyKeyword = false,
 }: SearchBarProps) => {
@@ -171,6 +175,21 @@ const SearchBar = ({
                       sx={{ ml: 0.5, p: 0.25 }}
                     >
                       <ContentCopyOutlinedIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                {onCreateNicheFromKeyword && (
+                  <Tooltip title={t('amazonResearch.searchBar.createNicheFromKeyword')}>
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCreateNicheFromKeyword(option);
+                      }}
+                      aria-label={t('amazonResearch.searchBar.createNicheFromKeyword')}
+                      sx={{ ml: 0.5, p: 0.25 }}
+                    >
+                      <PlaylistAddOutlinedIcon sx={{ fontSize: 18 }} />
                     </IconButton>
                   </Tooltip>
                 )}

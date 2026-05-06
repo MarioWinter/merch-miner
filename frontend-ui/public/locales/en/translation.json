@@ -3053,7 +3053,11 @@
       "addedToNicheList": "'{{keyword}}' added to '{{niche}}'",
       "alreadyInNicheList": "'{{keyword}}' is already in '{{niche}}'",
       "addToNicheListFailed": "Could not add to Niche List",
-      "noActiveNiche": "No active niche — open a niche from Niche Claims first"
+      "noActiveNiche": "No active niche — open a niche from Niche Claims first",
+      "createNicheFromKeyword": "Add to Niche List (new niche)",
+      "nicheCreated": "Niche '{{keyword}}' created",
+      "nicheAlreadyExists": "Niche '{{keyword}}' already exists",
+      "nicheCreateFailed": "Could not create niche"
     },
     "detail": {
       "breadcrumb": "Amazon Research",

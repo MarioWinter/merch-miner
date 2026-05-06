@@ -366,6 +366,33 @@ const AmazonResearchView = () => {
     [pipelineNicheId, pipelineNicheName, addKeywordMutation, enqueueSnackbar, t],
   );
 
+  // Create a new niche row from a suggestion keyword (separate from the
+  // keyword-bank flow above — this adds a niche, not a keyword).
+  const handleCreateNicheFromKeyword = useCallback(
+    async (kw: string) => {
+      try {
+        await createNiche({ name: kw }).unwrap();
+        enqueueSnackbar(
+          t('amazonResearch.searchBar.nicheCreated', { keyword: kw }),
+          { variant: 'success' },
+        );
+      } catch (err) {
+        const e = err as { status?: number };
+        if (e?.status === 409) {
+          enqueueSnackbar(
+            t('amazonResearch.searchBar.nicheAlreadyExists', { keyword: kw }),
+            { variant: 'info' },
+          );
+        } else {
+          enqueueSnackbar(t('amazonResearch.searchBar.nicheCreateFailed'), {
+            variant: 'error',
+          });
+        }
+      }
+    },
+    [createNiche, enqueueSnackbar, t],
+  );
+
   // Niche indicator click handler
   const handleNicheIndicatorClick = useCallback(() => {
     if (matchedNiche) {
@@ -525,6 +552,7 @@ const AmazonResearchView = () => {
         onCancel={handleCancel}
         onCopyKeyword={handleCopyKeyword}
         onAddToNicheList={handleAddToNicheList}
+        onCreateNicheFromKeyword={handleCreateNicheFromKeyword}
         addedKeywords={addedToNicheKeywords}
         allowEmptyKeyword={!isLive}
       />
