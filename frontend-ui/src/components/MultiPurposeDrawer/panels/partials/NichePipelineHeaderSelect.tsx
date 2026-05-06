@@ -96,6 +96,10 @@ export const NichePipelineHeaderSelect = ({
   onCreateNew,
 }: NichePipelineHeaderSelectProps) => {
   const { t } = useTranslation();
+  // Callback-ref pattern: useState instead of useRef so the Menu's anchorEl
+  // and the menu-width sx update reactively when the row mounts. React 19's
+  // react-hooks/refs rule forbids reading `.current` during render.
+  const [anchorEl, setAnchorEl] = useState<HTMLDivElement | null>(null);
   const [open, setOpen] = useState(false);
   const [filterText, setFilterText] = useState('');
 
@@ -142,7 +146,7 @@ export const NichePipelineHeaderSelect = ({
   return (
     <>
       <HeaderRow
-        ref={anchorRef}
+        ref={setAnchorEl}
         role="button"
         tabIndex={0}
         aria-haspopup="menu"
@@ -182,7 +186,7 @@ export const NichePipelineHeaderSelect = ({
       </HeaderRow>
 
       <Menu
-        anchorEl={anchorRef.current}
+        anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
@@ -191,7 +195,7 @@ export const NichePipelineHeaderSelect = ({
           paper: {
             sx: {
               mt: 0.5,
-              width: anchorRef.current?.offsetWidth ?? 320,
+              width: anchorEl?.offsetWidth ?? 320,
               maxHeight: 380,
               display: 'flex',
               flexDirection: 'column',
