@@ -89,7 +89,10 @@ services:
   scheduler:
     image: ghcr.io/mariowinter/merch-miner/backend:latest
     entrypoint: ["./worker.entrypoint.sh"]
-    command: python manage.py rqscheduler
+    # PROJ-25 follow-up: --interval 10 (default 60) so the bulk-scrape drainer's
+    # self-rescheduled ticks fire every ~10s as designed (DRAINER_TICK_SECONDS).
+    # Negligible CPU impact, ~6× more responsive throughput on the scraper queue.
+    command: python manage.py rqscheduler --interval 10
     env_file: ./.env
     restart: unless-stopped
     networks:
