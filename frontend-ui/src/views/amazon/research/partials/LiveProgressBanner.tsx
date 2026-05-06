@@ -57,7 +57,11 @@ const LiveProgressBanner = ({
   }
 
   if (status === 'pending' || status === 'running') {
-    // Show skeleton cards as placeholders for products being scraped
+    // Page 2+ fetch: existing products are already on screen — Virtuoso's
+    // footer renders the loading spinner, so this banner stays out of the way.
+    if (loadedCount > 0) return null;
+
+    // First-page fetch: cover the products area with placeholder cards.
     const remaining = Math.max(0, productsScraped - loadedCount);
     const count = remaining > 0 ? Math.min(remaining, SKELETON_COUNT) : SKELETON_COUNT;
 

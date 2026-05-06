@@ -277,12 +277,13 @@ const AmazonResearchView = () => {
     [isLive, filters.marketplace, addSearch, triggerLivePage],
   );
 
-  // Recent chip click: only fill input + set marketplace, do NOT trigger search
+  // Recent chip click: fill input (via parent keyword prop) + set marketplace,
+  // do NOT trigger search. SearchBar's local inputValue mirrors the keyword prop
+  // via useEffect, so the parent must update keyword for the chip text to appear.
   const handleRecentClick = useCallback(
-    (_kw: string, mp: string) => {
+    (kw: string, mp: string) => {
       setFilter('marketplace', mp);
-      // keyword state is set by SearchBar via setInputValue;
-      // we only sync the marketplace here
+      setKeyword(kw);
     },
     [setFilter],
   );
@@ -554,16 +555,6 @@ const AmazonResearchView = () => {
         onEnabledChange={setEnabled}
       />
 
-      {isLive && (
-        <LiveProgressBanner
-          status={status}
-          productsScraped={productsScraped}
-          errorLog={errorLog}
-          onRetry={handleRetry}
-          loadedCount={allLiveProducts.length}
-        />
-      )}
-
       {hasSearched && (
         <ResultsToolbar
           count={totalCount}
@@ -573,6 +564,16 @@ const AmazonResearchView = () => {
           activeTab={activeTab}
           onTabChange={setActiveTab}
           activeFilterSummary={activeFilterSummary}
+        />
+      )}
+
+      {isLive && (
+        <LiveProgressBanner
+          status={status}
+          productsScraped={productsScraped}
+          errorLog={errorLog}
+          onRetry={handleRetry}
+          loadedCount={allLiveProducts.length}
         />
       )}
 
