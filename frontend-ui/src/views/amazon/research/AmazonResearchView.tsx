@@ -174,7 +174,7 @@ const AmazonResearchView = () => {
   // Live mode — single backend ScrapeJob (up to 10 pages) per Search click.
   const [triggerLiveSearch] = useTriggerLiveSearchMutation();
   const [cancelLiveSearch] = useCancelLiveSearchMutation();
-  const { status, productsScraped, pagesDone, errorLog, isPolling } = usePolling(
+  const { status, productsScraped, errorLog, isPolling } = usePolling(
     isLive ? cacheId : null,
   );
 
@@ -532,7 +532,7 @@ const AmazonResearchView = () => {
           productsScraped={productsScraped}
           errorLog={errorLog}
           onRetry={handleRetry}
-          pagesDone={pagesDone}
+          loadedCount={dbProducts.length}
         />
       )}
 

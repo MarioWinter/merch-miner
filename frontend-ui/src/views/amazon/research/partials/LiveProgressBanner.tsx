@@ -1,4 +1,4 @@
-import { Alert, Box, Button, LinearProgress, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Grid, Skeleton } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import type { ProductSearchStatus } from '../types';
@@ -8,28 +8,30 @@ interface LiveProgressBannerProps {
   productsScraped: number;
   errorLog: string | null;
   onRetry: () => void;
-  /** Pages already crawled (from polling status). Optional. */
-  pagesDone?: number;
-  /** Total pages this scrape will cover. Optional — when unknown we fall back to indeterminate. */
-  pagesTotal?: number;
+  /**
+   * How many products are already on screen (DB list). When > 0 the skeleton
+   * grid stays hidden — fresh products land in the grid via the polling
+   * refresh, so a placeholder block on top would just push them down.
+   */
+  loadedCount?: number;
 }
 
-const Banner = styled(Box)(({ theme }) => ({
-  marginTop: theme.spacing(1),
-  marginBottom: theme.spacing(1),
-  padding: theme.spacing(1, 1.5),
-  borderRadius: theme.shape.borderRadius,
+const SkeletonCard = styled(Box)(({ theme }) => ({
+  height: 370,
+  borderRadius: 12,
   backgroundColor: theme.vars.palette.background.paper,
   border: `1px solid ${theme.vars.palette.divider}`,
+  overflow: 'hidden',
 }));
+
+const SKELETON_COUNT = 8;
 
 const LiveProgressBanner = ({
   status,
   productsScraped,
   errorLog,
   onRetry,
-  pagesDone,
-  pagesTotal,
+  loadedCount = 0,
 }: LiveProgressBannerProps) => {
   if (!status) return null;
 
@@ -60,33 +62,29 @@ const LiveProgressBanner = ({
   }
 
   if (status === 'pending' || status === 'running') {
-    const hasDeterminate =
-      typeof pagesTotal === 'number' && pagesTotal > 0 && typeof pagesDone === 'number';
-    const percent = hasDeterminate
-      ? Math.min(100, Math.round(((pagesDone ?? 0) / (pagesTotal ?? 1)) * 100))
-      : null;
+    // Existing DB content already fills the grid — skip the placeholder cards
+    // so new spider finds (which prepend via refreshFirstPage) aren't pushed
+    // off-screen by a skeleton block.
+    if (loadedCount > 0) return null;
 
-    const progressLabel = hasDeterminate
-      ? `Scraping Amazon · ${productsScraped} products found · page ${pagesDone}/${pagesTotal}`
-      : `Scraping Amazon · ${productsScraped} products found`;
+    const remaining = Math.max(0, productsScraped - loadedCount);
+    const count = remaining > 0 ? Math.min(remaining, SKELETON_COUNT) : SKELETON_COUNT;
 
     return (
-      <Banner role="status" aria-live="polite">
-        <Stack spacing={0.75}>
-          <Typography variant="body2" color="text.secondary">
-            {progressLabel}
-          </Typography>
-          {hasDeterminate ? (
-            <LinearProgress
-              variant="determinate"
-              value={percent ?? 0}
-              color="secondary"
-            />
-          ) : (
-            <LinearProgress color="secondary" />
-          )}
-        </Stack>
-      </Banner>
+      <Grid container spacing={2} sx={{ mt: 1 }}>
+        {[...Array(count)].map((_, i) => (
+          <Grid key={i} size={{ xs: 6, sm: 6, md: 4, lg: 3 }}>
+            <SkeletonCard>
+              <Skeleton variant="rectangular" height={220} animation="wave" />
+              <Box sx={{ p: 1.5 }}>
+                <Skeleton variant="text" width="80%" animation="wave" />
+                <Skeleton variant="text" width="60%" animation="wave" />
+                <Skeleton variant="text" width="40%" animation="wave" />
+              </Box>
+            </SkeletonCard>
+          </Grid>
+        ))}
+      </Grid>
     );
   }
 
