@@ -42,8 +42,8 @@ class TestLiveSearchDedup:
             status=ProductSearchCache.Status.PENDING,
         )
 
-        with patch('research_app.api.views.get_or_create_keyword_cache') as mock_get:
-            mock_get.return_value = (existing_cache, False)
+        with patch('research_app.api.views.compute_pages_to_scrape') as mock_get:
+            mock_get.return_value = (None, 0, existing_cache)
 
             resp = auth_client.post(
                 URL,
@@ -64,9 +64,9 @@ class TestLiveSearchNewJob:
         mock_queue = MagicMock()
         mock_queue.enqueue.return_value = mock_rq_job
 
-        with patch('research_app.api.views.get_or_create_keyword_cache') as mock_get, \
+        with patch('research_app.api.views.compute_pages_to_scrape') as mock_get, \
              patch('research_app.api.views.django_rq.get_queue', return_value=mock_queue):
-            mock_get.return_value = (None, True)
+            mock_get.return_value = (1, 10, None)
 
             resp = auth_client.post(
                 URL,
@@ -91,9 +91,9 @@ class TestLiveSearchNewJob:
         mock_queue = MagicMock()
         mock_queue.enqueue.return_value = mock_rq_job
 
-        with patch('research_app.api.views.get_or_create_keyword_cache') as mock_get, \
+        with patch('research_app.api.views.compute_pages_to_scrape') as mock_get, \
              patch('research_app.api.views.django_rq.get_queue', return_value=mock_queue):
-            mock_get.return_value = (None, True)
+            mock_get.return_value = (1, 10, None)
 
             resp = auth_client.post(
                 URL,
@@ -217,9 +217,9 @@ class TestLiveSearchNewFields:
         mock_queue = MagicMock()
         mock_queue.enqueue.return_value = mock_rq_job
 
-        with patch('research_app.api.views.get_or_create_keyword_cache') as mock_get, \
+        with patch('research_app.api.views.compute_pages_to_scrape') as mock_get, \
              patch('research_app.api.views.django_rq.get_queue', return_value=mock_queue):
-            mock_get.return_value = (None, True)
+            mock_get.return_value = (1, 10, None)
 
             resp = auth_client.post(URL, {
                 'keyword': 'sorted search',
@@ -238,7 +238,9 @@ class TestLiveSearchNewFields:
         assert job.price_min == Decimal('10.00')
         assert job.price_max == Decimal('30.00')
         assert job.browse_node == '12035955011'
-        assert job.pages_total == 5
+        # pages_total now driven by compute_pages_to_scrape (mocked -> 10)
+        # not by request body. Body field kept for back-compat only.
+        assert job.pages_total == 10
 
         cache = ProductSearchCache.objects.get(id=resp.data['cache_id'])
         assert cache.sort_by == 'date-desc-rank'
@@ -253,9 +255,9 @@ class TestLiveSearchNewFields:
         mock_queue = MagicMock()
         mock_queue.enqueue.return_value = mock_rq_job
 
-        with patch('research_app.api.views.get_or_create_keyword_cache') as mock_get, \
+        with patch('research_app.api.views.compute_pages_to_scrape') as mock_get, \
              patch('research_app.api.views.django_rq.get_queue', return_value=mock_queue):
-            mock_get.return_value = (None, True)
+            mock_get.return_value = (1, 10, None)
 
             resp = auth_client.post(URL, {
                 'keyword': 'override test',
@@ -268,3 +270,160 @@ class TestLiveSearchNewFields:
         # The enqueue call should use the explicit browse_node, not the t_shirt default
         call_kwargs = mock_queue.enqueue.call_args.kwargs
         assert call_kwargs['browse_node'] == '99999999999'
+
+
+# ---------------------------------------------------------------------------
+# Per-page freshness behavior (fix/live-research-background-scrape)
+# ---------------------------------------------------------------------------
+
+
+class TestLiveSearchPerPageFreshness:
+    """Tests covering compute_pages_to_scrape integration in LiveSearchView."""
+
+    def _seed_cache(self, workspace, kw, pages_map, status='completed', filters=None):
+        from scraper_app.models import ProductSearchCache
+        kwargs = dict(
+            keyword=kw,
+            workspace=workspace,
+            status=status,
+            pages_scraped_at=pages_map,
+        )
+        if filters:
+            kwargs.update(filters)
+        return ProductSearchCache.objects.create(**kwargs)
+
+    def test_full_cache_returns_existing_no_new_job(
+        self, auth_client, membership, keyword,
+    ):
+        """All 10 pages fresh -> view returns existing cache, no new ScrapeJob."""
+        from django.utils import timezone as dj_tz
+        from scraper_app.models import ProductSearchCache, ScrapeJob
+
+        now_iso = dj_tz.now().isoformat()
+        pages_map = {str(p): now_iso for p in range(1, 11)}
+        existing = self._seed_cache(membership.workspace, keyword, pages_map)
+
+        before_jobs = ScrapeJob.objects.count()
+        before_caches = ProductSearchCache.objects.count()
+
+        resp = auth_client.post(URL, {
+            'keyword': 'funny cats',  # matches keyword fixture
+            'marketplace': 'amazon_com',
+        }, format='json')
+
+        assert resp.status_code == 200
+        assert resp.data['cache_id'] == str(existing.id)
+        assert resp.data['status'] == 'completed'
+        # No new ScrapeJob or cache row created
+        assert ScrapeJob.objects.count() == before_jobs
+        assert ProductSearchCache.objects.count() == before_caches
+
+    def test_partial_cache_starts_at_next_unfresh_page(
+        self, auth_client, membership, keyword,
+    ):
+        """Pages 1-3 fresh -> new ScrapeJob with start_page=4, pages_total=7."""
+        from django.utils import timezone as dj_tz
+        from scraper_app.models import ScrapeJob
+
+        now_iso = dj_tz.now().isoformat()
+        pages_map = {'1': now_iso, '2': now_iso, '3': now_iso}
+        self._seed_cache(membership.workspace, keyword, pages_map)
+
+        mock_rq_job = MagicMock()
+        mock_rq_job.id = 'rq-partial-001'
+        mock_queue = MagicMock()
+        mock_queue.enqueue.return_value = mock_rq_job
+
+        with patch('research_app.api.views.django_rq.get_queue', return_value=mock_queue):
+            resp = auth_client.post(URL, {
+                'keyword': 'funny cats',
+                'marketplace': 'amazon_com',
+            }, format='json')
+
+        assert resp.status_code == 201
+        job = ScrapeJob.objects.get(mode=ScrapeJob.Mode.LIVE)
+        assert job.start_page == 4
+        assert job.pages_total == 7
+        # Forwarded to enqueue
+        call_kwargs = mock_queue.enqueue.call_args.kwargs
+        assert call_kwargs['start_page'] == 4
+        assert call_kwargs['max_pages'] == 7
+
+    def test_stale_cache_rescrapes_from_page_1(
+        self, auth_client, membership, keyword,
+    ):
+        """Pages 1-3 stale (>24h) -> ScrapeJob start_page=1, pages_total=10."""
+        from datetime import timedelta
+        from django.utils import timezone as dj_tz
+        from scraper_app.models import ScrapeJob
+
+        old_iso = (dj_tz.now() - timedelta(hours=25)).isoformat()
+        pages_map = {'1': old_iso, '2': old_iso, '3': old_iso}
+        self._seed_cache(membership.workspace, keyword, pages_map)
+
+        mock_rq_job = MagicMock()
+        mock_rq_job.id = 'rq-stale-001'
+        mock_queue = MagicMock()
+        mock_queue.enqueue.return_value = mock_rq_job
+
+        with patch('research_app.api.views.django_rq.get_queue', return_value=mock_queue):
+            resp = auth_client.post(URL, {
+                'keyword': 'funny cats',
+                'marketplace': 'amazon_com',
+            }, format='json')
+
+        assert resp.status_code == 201
+        job = ScrapeJob.objects.get(mode=ScrapeJob.Mode.LIVE)
+        assert job.start_page == 1
+        assert job.pages_total == 10
+
+    def test_no_cache_starts_fresh(self, auth_client, membership):
+        """No prior cache -> ScrapeJob start_page=1, pages_total=10."""
+        from scraper_app.models import ScrapeJob
+
+        mock_rq_job = MagicMock()
+        mock_rq_job.id = 'rq-fresh-001'
+        mock_queue = MagicMock()
+        mock_queue.enqueue.return_value = mock_rq_job
+
+        with patch('research_app.api.views.django_rq.get_queue', return_value=mock_queue):
+            resp = auth_client.post(URL, {
+                'keyword': 'never seen before',
+                'marketplace': 'amazon_com',
+            }, format='json')
+
+        assert resp.status_code == 201
+        job = ScrapeJob.objects.get(mode=ScrapeJob.Mode.LIVE)
+        assert job.start_page == 1
+        assert job.pages_total == 10
+        call_kwargs = mock_queue.enqueue.call_args.kwargs
+        assert call_kwargs['max_pages'] == 10
+        assert call_kwargs['start_page'] == 1
+
+    def test_partial_cache_carries_pages_scraped_at_to_new_cache(
+        self, auth_client, membership, keyword,
+    ):
+        """New cache row inherits prior pages_scraped_at so fresh pages stay
+        marked even after a re-trigger."""
+        from django.utils import timezone as dj_tz
+        from scraper_app.models import ProductSearchCache
+
+        now_iso = dj_tz.now().isoformat()
+        pages_map = {'1': now_iso, '2': now_iso}
+        self._seed_cache(membership.workspace, keyword, pages_map)
+
+        mock_rq_job = MagicMock()
+        mock_rq_job.id = 'rq-carry-001'
+        mock_queue = MagicMock()
+        mock_queue.enqueue.return_value = mock_rq_job
+
+        with patch('research_app.api.views.django_rq.get_queue', return_value=mock_queue):
+            resp = auth_client.post(URL, {
+                'keyword': 'funny cats',
+                'marketplace': 'amazon_com',
+            }, format='json')
+
+        assert resp.status_code == 201
+        new_cache = ProductSearchCache.objects.get(id=resp.data['cache_id'])
+        assert '1' in new_cache.pages_scraped_at
+        assert '2' in new_cache.pages_scraped_at

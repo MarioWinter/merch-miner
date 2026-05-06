@@ -1,6 +1,8 @@
-import { FormControl, InputLabel, MenuItem, Select, type SelectChangeEvent } from '@mui/material';
+import { FormControl, InputLabel, MenuItem, Select, Typography, type SelectChangeEvent } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { MARKETPLACE_OPTIONS } from './constants';
+import { FEATURE_FLAGS } from '../../constants/featureFlags';
+import { useFeatureFlag } from '../../hooks/useFeatureFlag';
 
 export type { MarketplaceOption } from './constants';
 export { MARKETPLACE_OPTIONS } from './constants';
@@ -12,8 +14,14 @@ interface MarketplaceSelectProps {
   minWidth?: number;
 }
 
+// Only Amazon US is wired into the scraper today. Other marketplaces need
+// per-marketplace selectors before they can be enabled. Gate via feature
+// flag so we can flip them on globally without redeploying selectors.
+const ENABLED_MARKETPLACE_VALUE = 'amazon_com';
+
 const MarketplaceSelect = ({ value, onChange, size = 'small', minWidth = 180 }: MarketplaceSelectProps) => {
   const { t } = useTranslation();
+  const multiMarketplaceEnabled = useFeatureFlag(FEATURE_FLAGS.MULTI_MARKETPLACE_ENABLED);
 
   const handleChange = (e: SelectChangeEvent) => {
     onChange(e.target.value);
@@ -30,11 +38,23 @@ const MarketplaceSelect = ({ value, onChange, size = 'small', minWidth = 180 }: 
         onChange={handleChange}
         renderValue={() => selected ? `${selected.flag} ${selected.label}` : value}
       >
-        {MARKETPLACE_OPTIONS.map((mp) => (
-          <MenuItem key={mp.value} value={mp.value}>
-            {mp.flag} {mp.label}
-          </MenuItem>
-        ))}
+        {MARKETPLACE_OPTIONS.map((mp) => {
+          const isDisabled = !multiMarketplaceEnabled && mp.value !== ENABLED_MARKETPLACE_VALUE;
+          return (
+            <MenuItem key={mp.value} value={mp.value} disabled={isDisabled}>
+              {mp.flag} {mp.label}
+              {isDisabled && (
+                <Typography
+                  component="span"
+                  variant="caption"
+                  sx={{ ml: 1, opacity: 0.6, fontStyle: 'italic' }}
+                >
+                  ({t('research.marketplace.comingSoon', 'coming soon')})
+                </Typography>
+              )}
+            </MenuItem>
+          );
+        })}
       </Select>
     </FormControl>
   );

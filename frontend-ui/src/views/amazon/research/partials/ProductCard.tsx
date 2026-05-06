@@ -1,6 +1,6 @@
 import { Box, Card, Chip, IconButton, Stack, Tooltip, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import BsrChartIcon from './BsrChartIcon';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import ArrowForwardOutlinedIcon from '@mui/icons-material/ArrowForwardOutlined';
@@ -16,6 +16,7 @@ import { MONO_FONT_STACK, SHADOW } from '../../../../style/constants';
 import { HoverOverlay as SharedHoverOverlay, ActionPill, ProductImage as SharedProductImage } from '@/components/CardOverlay';
 import { MARKETPLACE_OPTIONS, type AmazonProduct } from '../types';
 import { getMainBsr } from '../utils/getMainBsr';
+import { formatDaysOnline } from '../utils/formatDaysOnline';
 
 interface ProductCardProps {
   product: AmazonProduct;
@@ -112,7 +113,7 @@ const renderStars = (rating: number | null) => {
         <StarIcon
           key={i}
           sx={{
-            fontSize: 12,
+            fontSize: 14,
             color: i <= filled ? 'warning.main' : 'text.disabled',
           }}
         />
@@ -289,7 +290,7 @@ const ProductCard = ({
         {/* Row 1: BSR + price */}
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ fontFeatureSettings: "'tnum'" }}>
           <Stack direction="row" alignItems="center" spacing={0.5}>
-            <TrendingUpIcon sx={{ fontSize: 14, color: bsrColor }} />
+            <BsrChartIcon sx={{ fontSize: 18, color: bsrColor }} />
             <Typography sx={{ fontWeight: 700, color: bsrColor, fontFamily: MONO_FONT_STACK, fontSize: '0.75rem' }}>
               {mainBsr !== null ? mainBsr.toLocaleString() : '–'}
             </Typography>
@@ -309,20 +310,28 @@ const ProductCard = ({
           </Typography>
         </Stack>
 
-        {/* Row 3: ASIN chip */}
-        <Chip
-          label={product.asin}
-          size="small"
-          variant="outlined"
-          onClick={handleCopyAsin}
-          sx={{
-            height: 18,
-            fontFamily: MONO_FONT_STACK,
-            alignSelf: 'flex-end',
-            '& .MuiChip-label': { px: 0.75, fontSize: '0.6rem' },
-          }}
-          aria-label={`Copy ASIN ${product.asin}`}
-        />
+        {/* Row 3: days online (left) + ASIN chip (right) */}
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          {product.listed_date ? (
+            <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
+              {formatDaysOnline(product.listed_date)}
+            </Typography>
+          ) : (
+            <span />
+          )}
+          <Chip
+            label={product.asin}
+            size="small"
+            variant="outlined"
+            onClick={handleCopyAsin}
+            sx={{
+              height: 18,
+              fontFamily: MONO_FONT_STACK,
+              '& .MuiChip-label': { px: 0.75, fontSize: '0.6rem' },
+            }}
+            aria-label={`Copy ASIN ${product.asin}`}
+          />
+        </Stack>
       </InfoArea>
     </StyledCard>
   );

@@ -130,8 +130,10 @@ export interface ProductDetail extends AmazonProduct {
 export interface BSRSummary {
   overall_trend: 'up' | 'down' | 'stable';
   current_trend: 'up' | 'down' | 'stable';
-  average: number;
-  median: number;
+  // null when no BSR snapshots have a value (backend returns null in that
+  // case — see research_app/api/serializers.py::compute_bsr_summary).
+  average: number | null;
+  median: number | null;
 }
 
 export interface BSRHistoryResponse {
@@ -238,7 +240,9 @@ export const DEFAULT_FILTERS: ResearchFilters = {
   keyword: '',
   marketplace: 'amazon_com',
   bsr_min: 1,
-  bsr_max: 500000,
+  // 20M covers all apparel — observed BSRs in DB go up to ~13M, headroom
+  // for outliers. Was 500k which silently filtered out 99% of products.
+  bsr_max: 20_000_000,
   rating_min: 0,
   reviews_min: 0,
   reviews_max: 10000,

@@ -644,9 +644,15 @@ class TestDrainerOrphanRecovery:
         assert n_orphans == 1
 
         target_a.refresh_from_db()
-        assert target_a.active is False  # now pickable again
+        # Orphan recovery is now TERMINAL: target marked inactive AND poisoned
+        # with last_error so the drainer's pick filter excludes it next tick.
+        assert target_a.active is False
+        assert target_a.retry_count == 1
+        assert target_a.last_error == 'orphan_recovered'
         target_b.refresh_from_db()
         assert target_b.active is True  # untouched (covered by live job)
+        assert target_b.last_error is None
+        assert target_b.retry_count == 0
 
         zombie.refresh_from_db()
         assert zombie.status == ScrapeJob.Status.FAILED
@@ -693,3 +699,91 @@ class TestDrainerOrphanRecovery:
             mock_reset.return_value = (0, 0)
             drain_bulk_batch(str(batch.id))
             assert mock_reset.called
+
+    def test_orphan_recovery_marks_targets_terminal_after_completed_job(self):
+        """Wrapper edge case: ScrapeJob is COMPLETED but its targets were never
+        updated (Scrapy 5xx retry-exhausted yields neither item nor errback).
+        Recovery must be TERMINAL — set active=False, bump retry_count,
+        poison last_error — so the drainer doesn't re-pick the same ASINs
+        every tick (cosmetic log-spam + ScraperOps budget burn).
+        """
+        from scraper_app.tasks import _reset_orphan_state
+
+        _set_cfg()
+        batch = _seed_batch(10)
+
+        # Mark all 10 targets active=True (drainer enqueued them) but
+        # last_scraped_at=NULL, retry_count=0, last_error=None — pristine
+        # orphan state matching the prod evidence.
+        targets = list(batch.targets.order_by('asin'))
+        for t in targets:
+            t.active = True
+            t.retry_count = 0
+            t.last_error = None
+            t.last_scraped_at = None
+            t.save()
+
+        # Simulate the wrapper edge case: ScrapeJob exists but is COMPLETED,
+        # so its asins are NOT in live_asins (only PENDING/RUNNING count).
+        ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.BATCH_ASIN,
+            batch=batch,
+            marketplace='amazon_com',
+            status=ScrapeJob.Status.COMPLETED,
+            asin_list=[t.asin for t in targets],
+            started_at=timezone.now() - timedelta(seconds=60),
+            finished_at=timezone.now() - timedelta(seconds=10),
+        )
+
+        n_zombies, n_orphans = _reset_orphan_state(batch)
+
+        assert n_zombies == 0
+        assert n_orphans == 10
+
+        for t in targets:
+            t.refresh_from_db()
+            assert t.active is False
+            assert t.retry_count == 1
+            assert t.last_error == 'orphan_recovered'
+
+    def test_pick_next_targets_returns_empty_after_orphan_recovery(self):
+        """Critical behavior change: after orphan recovery, the drainer's
+        `_pick_next_targets` must return empty for those targets — otherwise
+        the recovery loop is non-terminal and re-picks them every tick.
+        """
+        from scraper_app.tasks import _reset_orphan_state
+
+        _set_cfg(max_retries=1)
+        batch = _seed_batch(10)
+
+        # Same setup as above: 10 active orphan targets, COMPLETED ScrapeJob.
+        targets = list(batch.targets.order_by('asin'))
+        for t in targets:
+            t.active = True
+            t.retry_count = 0
+            t.last_error = None
+            t.last_scraped_at = None
+            t.save()
+        ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.BATCH_ASIN,
+            batch=batch,
+            marketplace='amazon_com',
+            status=ScrapeJob.Status.COMPLETED,
+            asin_list=[t.asin for t in targets],
+            started_at=timezone.now() - timedelta(seconds=60),
+            finished_at=timezone.now() - timedelta(seconds=10),
+        )
+
+        # First recovery cycle — should mark all 10 terminal.
+        _, n_orphans = _reset_orphan_state(batch)
+        assert n_orphans == 10
+
+        # Drainer's next pick MUST exclude them (last_error is set, so the
+        # `last_error__isnull=True` filter skips them).
+        picks = _pick_next_targets(batch, count=10)
+        assert picks == []
+
+        # Sanity: a second recovery tick should also produce 0 orphans
+        # (active=False already, so the filter `active=True` excludes them).
+        _, n_orphans_second = _reset_orphan_state(batch)
+        assert n_orphans_second == 0

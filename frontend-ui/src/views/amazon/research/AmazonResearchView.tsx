@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useAppDispatch } from '@/store/hooks';
 import { openNicheEdit } from '@/store/chatBarSlice';
 import {
@@ -70,12 +70,6 @@ const AmazonResearchView = () => {
   const [layout, setLayout] = useState<'grid' | 'list'>('grid');
   const [cacheId, setCacheId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ResultsTab>('products');
-
-  // Infinite scroll state (live mode)
-  const [currentPage, setCurrentPage] = useState(1);
-  const [allLiveProducts, setAllLiveProducts] = useState<AmazonProduct[]>([]);
-  const [canLoadMore, setCanLoadMore] = useState(false);
-  const sentinelRef = useRef<HTMLDivElement | null>(null);
 
   // "Save as Niche" dialog state
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -151,9 +145,11 @@ const AmazonResearchView = () => {
     return params;
   }, [keyword, filters, enabled]);
 
-  // AC-64/AC-66 (filter-only search): in DB mode the keyword is optional.
-  // marketplace + product_type + sort are always-applied parameters — sufficient on their own.
-  const shouldQueryDb = !isLive && hasSearched;
+  // AC-64/AC-66 (filter-only search): keyword is optional. marketplace +
+  // product_type + sort are always-applied parameters — sufficient on their own.
+  // Both LIVE and DB modes feed the DB list endpoint; the live scrape merely
+  // populates the same DB rows in the background.
+  const shouldQueryDb = hasSearched;
 
   // Stable signature: any change here resets the infinite scroll + triggers page-1 fetch.
   const dbResetKey = useMemo(
@@ -168,17 +164,19 @@ const AmazonResearchView = () => {
     isFetchingNext: dbFetchingNext,
     hasMore: dbHasMore,
     loadNextPage: loadNextDbPage,
+    refreshFirstPage: refreshDbFirstPage,
   } = useDbInfiniteScroll({
     buildBaseParams: buildQueryParams,
     enabled: shouldQueryDb,
     resetKey: dbResetKey,
   });
 
-  // Live mode
+  // Live mode — single backend ScrapeJob (up to 10 pages) per Search click.
   const [triggerLiveSearch] = useTriggerLiveSearchMutation();
   const [cancelLiveSearch] = useCancelLiveSearchMutation();
-  const { status, productsScraped, products: liveProducts, errorLog, isPolling } =
-    usePolling(isLive ? cacheId : null);
+  const { status, productsScraped, errorLog, isPolling } = usePolling(
+    isLive ? cacheId : null,
+  );
 
   // Fetch extended status for keyword results (statistics)
   const { data: extendedStatus } = usePollSearchStatusExtendedQuery(cacheId ?? '', {
@@ -188,77 +186,27 @@ const AmazonResearchView = () => {
   const keywordResults: SearchKeywordResult | undefined =
     extendedStatus?.keyword_result ?? undefined;
 
-  // Accumulate live products when a page completes
+  // While the live scrape is running, periodically pull page-1 of the DB list
+  // in additive mode so freshly-stored products surface in real time without
+  // resetting the user's scroll position. Backend writes products to DB as
+  // each page is parsed, so this picks them up incrementally.
+  const REFRESH_INTERVAL_MS = 3000;
   useEffect(() => {
-    if (status === 'completed' && liveProducts.length > 0) {
-      setAllLiveProducts((prev) => {
-        // Deduplicate by ASIN
-        const existingAsins = new Set(prev.map((p) => p.asin));
-        const newProducts = liveProducts.filter((p) => !existingAsins.has(p.asin));
-        if (newProducts.length === 0) {
-          setCanLoadMore(false);
-          return prev;
-        }
-        setCanLoadMore(true);
-        return [...prev, ...newProducts];
-      });
-    } else if (status === 'completed' && liveProducts.length === 0) {
-      setCanLoadMore(false);
+    if (!isLive || !isPolling) return;
+    const interval = setInterval(() => {
+      refreshDbFirstPage();
+    }, REFRESH_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [isLive, isPolling, refreshDbFirstPage]);
+
+  // One last refresh when the scrape transitions to a terminal state so the
+  // grid reflects the final batch of products written by the spider.
+  useEffect(() => {
+    if (!isLive) return;
+    if (status === 'completed' || status === 'cancelled') {
+      refreshDbFirstPage();
     }
-  }, [status, liveProducts]);
-
-  // Trigger a live search for a given page
-  const triggerLivePage = useCallback(
-    async (kw: string, startPage: number) => {
-      const browseNode = PRODUCT_TYPE_BROWSE_NODES[filters.product_type] || undefined;
-      try {
-        const result = await triggerLiveSearch({
-          keyword: kw,
-          marketplace: filters.marketplace,
-          product_type: filters.product_type || undefined,
-          hide_official_brands: filters.hide_official_brands || undefined,
-          sort_by: filters.live_sort_by || undefined,
-          price_min: 13,
-          price_max: 100,
-          browse_node: browseNode,
-          pages_total: 1,
-          start_page: startPage,
-        }).unwrap();
-        setCacheId(result.cache_id);
-      } catch {
-        // Error handled by RTK Query
-      }
-    },
-    [filters, triggerLiveSearch],
-  );
-
-  // IntersectionObserver for infinite scroll sentinel
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    if (!sentinel) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const entry = entries[0];
-        if (
-          entry.isIntersecting &&
-          isLive &&
-          status === 'completed' &&
-          canLoadMore &&
-          !isPolling
-        ) {
-          const nextPage = currentPage + 1;
-          setCurrentPage(nextPage);
-          setCanLoadMore(false);
-          triggerLivePage(keyword, nextPage);
-        }
-      },
-      { threshold: 0.1 },
-    );
-
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [isLive, status, canLoadMore, isPolling, currentPage, keyword, triggerLivePage]);
+  }, [isLive, status, refreshDbFirstPage]);
 
   const handleSearch = useCallback(
     async (kw: string) => {
@@ -267,22 +215,33 @@ const AmazonResearchView = () => {
       addSearch(kw, filters.marketplace);
 
       if (isLive) {
-        // Reset infinite scroll state for new keyword
-        setCurrentPage(1);
-        setAllLiveProducts([]);
-        setCanLoadMore(false);
-        await triggerLivePage(kw, 1);
+        try {
+          const result = await triggerLiveSearch({
+            keyword: kw,
+            marketplace: filters.marketplace,
+            product_type: filters.product_type || undefined,
+            hide_official_brands: filters.hide_official_brands || undefined,
+            sort_by: filters.live_sort_by || undefined,
+            price_min: 13,
+            price_max: 100,
+            browse_node: PRODUCT_TYPE_BROWSE_NODES[filters.product_type] || undefined,
+          }).unwrap();
+          setCacheId(result.cache_id);
+        } catch {
+          // RTK Query handles error toasts via base query
+        }
       }
     },
-    [isLive, filters.marketplace, addSearch, triggerLivePage],
+    [isLive, filters, addSearch, triggerLiveSearch],
   );
 
-  // Recent chip click: only fill input + set marketplace, do NOT trigger search
+  // Recent chip click: fill input (via parent keyword prop) + set marketplace,
+  // do NOT trigger search. SearchBar's local inputValue mirrors the keyword prop
+  // via useEffect, so the parent must update keyword for the chip text to appear.
   const handleRecentClick = useCallback(
-    (_kw: string, mp: string) => {
+    (kw: string, mp: string) => {
       setFilter('marketplace', mp);
-      // keyword state is set by SearchBar via setInputValue;
-      // we only sync the marketplace here
+      setKeyword(kw);
     },
     [setFilter],
   );
@@ -299,7 +258,6 @@ const AmazonResearchView = () => {
       // Best-effort cancel
     }
     setCacheId(null);
-    setCanLoadMore(false);
     enqueueSnackbar(t('amazonResearch.searchCancelled', 'Search cancelled'), {
       variant: 'info',
     });
@@ -484,10 +442,12 @@ const AmazonResearchView = () => {
     [activeNicheId, extractSlogan, enqueueSnackbar, t],
   );
 
-  // Determine displayed products
-  const products = isLive ? allLiveProducts : dbProducts;
-  const totalCount = isLive ? allLiveProducts.length : dbTotalCount;
-  const loading = isLive ? (isPolling && allLiveProducts.length === 0) : dbLoading;
+  // Both modes display DB-stored products. Live scrapes populate the same
+  // table in the background; the periodic page-1 refresh above keeps the grid
+  // in sync.
+  const products = dbProducts;
+  const totalCount = dbTotalCount;
+  const loading = dbLoading;
 
   // Build active filter summary for results header
   const activeFilterSummary = useMemo(() => {
@@ -554,16 +514,6 @@ const AmazonResearchView = () => {
         onEnabledChange={setEnabled}
       />
 
-      {isLive && (
-        <LiveProgressBanner
-          status={status}
-          productsScraped={productsScraped}
-          errorLog={errorLog}
-          onRetry={handleRetry}
-          loadedCount={allLiveProducts.length}
-        />
-      )}
-
       {hasSearched && (
         <ResultsToolbar
           count={totalCount}
@@ -573,6 +523,16 @@ const AmazonResearchView = () => {
           activeTab={activeTab}
           onTabChange={setActiveTab}
           activeFilterSummary={activeFilterSummary}
+        />
+      )}
+
+      {isLive && (
+        <LiveProgressBanner
+          status={status}
+          productsScraped={productsScraped}
+          errorLog={errorLog}
+          onRetry={handleRetry}
+          loadedCount={dbProducts.length}
         />
       )}
 
@@ -615,9 +575,9 @@ const AmazonResearchView = () => {
               onToggleFavorite={handleToggleFavorite}
               onExtractSlogan={handleExtractSlogan}
               onDoubleClick={handleCardDoubleClick}
-              onEndReached={!isLive ? loadNextDbPage : undefined}
-              isFetchingNext={!isLive && dbFetchingNext}
-              hasMore={!isLive && dbHasMore}
+              onEndReached={loadNextDbPage}
+              isFetchingNext={dbFetchingNext}
+              hasMore={dbHasMore}
             />
           ) : (
             <ProductTable
@@ -625,38 +585,18 @@ const AmazonResearchView = () => {
               count={totalCount}
               onSortChange={handleSortChange}
               loading={loading}
-              onEndReached={!isLive ? loadNextDbPage : undefined}
+              onEndReached={loadNextDbPage}
             />
           )}
 
-          {/* DB-mode list-view skeleton footer while next page loads */}
-          {!isLive && layout === 'list' && dbFetchingNext && (
+          {/* List-view skeleton footer while the next DB page loads */}
+          {layout === 'list' && dbFetchingNext && (
             <Stack alignItems="center" sx={{ py: 3 }}>
               <CircularProgress size={28} />
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                 {t('amazonResearch.infiniteScroll.loadingMore', 'Loading more products...')}
               </Typography>
             </Stack>
-          )}
-
-          {/* Infinite scroll sentinel + loading indicator (live mode) */}
-          {isLive && (
-            <>
-              {isPolling && allLiveProducts.length > 0 && (
-                <Stack alignItems="center" sx={{ py: 3 }}>
-                  <CircularProgress size={28} />
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                    Loading more products (page {currentPage})...
-                  </Typography>
-                </Stack>
-              )}
-              <Box
-                ref={sentinelRef}
-                data-testid="infinite-scroll-sentinel"
-                sx={{ height: 1, width: '100%' }}
-                aria-hidden="true"
-              />
-            </>
           )}
         </>
       )}

@@ -694,8 +694,15 @@ class SearchPageMixin:
 
         return search_url
 
-    def _increment_pages_done(self):
-        """Increment pages_done on the ScrapeJob if tracked."""
+    def _increment_pages_done(self, page=None):
+        """Increment pages_done on the ScrapeJob and stamp page freshness on
+        the linked ProductSearchCache(s).
+
+        `page` is the 1-indexed search-result page number that was just
+        scraped. When provided, we record an ISO-8601 timestamp in
+        `ProductSearchCache.pages_scraped_at` keyed by `str(page)` so the
+        next Live Research trigger can skip pages younger than 24h.
+        """
         if not self.job_id:
             return
         try:
@@ -706,12 +713,23 @@ class SearchPageMixin:
             os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
             django.setup()
             from django.db.models import F
+            from django.utils import timezone as dj_tz
 
-            from scraper_app.models import ScrapeJob
+            from scraper_app.models import ProductSearchCache, ScrapeJob
 
             ScrapeJob.objects.filter(id=self.job_id).update(
                 pages_done=F("pages_done") + 1,
             )
+
+            if page is not None:
+                page_key = str(int(page))
+                now_iso = dj_tz.now().isoformat()
+                caches = ProductSearchCache.objects.filter(scrape_job_id=self.job_id)
+                for cache in caches:
+                    pages_map = dict(cache.pages_scraped_at or {})
+                    pages_map[page_key] = now_iso
+                    cache.pages_scraped_at = pages_map
+                    cache.save(update_fields=["pages_scraped_at"])
         except Exception:
             self.logger.debug("Failed to increment pages_done for job %s", self.job_id)
 
@@ -736,7 +754,7 @@ class SearchPageMixin:
             keyword,
         )
 
-        self._increment_pages_done()
+        self._increment_pages_done(page=page)
 
         return products, search_sel, page
 

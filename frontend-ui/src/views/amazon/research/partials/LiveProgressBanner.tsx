@@ -8,6 +8,11 @@ interface LiveProgressBannerProps {
   productsScraped: number;
   errorLog: string | null;
   onRetry: () => void;
+  /**
+   * How many products are already on screen (DB list). When > 0 the skeleton
+   * grid stays hidden — fresh products land in the grid via the polling
+   * refresh, so a placeholder block on top would just push them down.
+   */
   loadedCount?: number;
 }
 
@@ -57,7 +62,11 @@ const LiveProgressBanner = ({
   }
 
   if (status === 'pending' || status === 'running') {
-    // Show skeleton cards as placeholders for products being scraped
+    // Existing DB content already fills the grid — skip the placeholder cards
+    // so new spider finds (which prepend via refreshFirstPage) aren't pushed
+    // off-screen by a skeleton block.
+    if (loadedCount > 0) return null;
+
     const remaining = Math.max(0, productsScraped - loadedCount);
     const count = remaining > 0 ? Math.min(remaining, SKELETON_COUNT) : SKELETON_COUNT;
 
