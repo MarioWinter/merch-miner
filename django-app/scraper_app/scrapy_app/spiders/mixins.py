@@ -446,8 +446,76 @@ class ProductDetailMixin:
                         'category_url': '',
                     })
 
-        bsr = min((c['rank'] for c in bsr_categories), default=None)
+        # Mark exactly one entry as the "main" department BSR — the rank
+        # Amazon shows on the page top (e.g. "#5,932,252 in Clothing, Shoes
+        # & Jewelry"). Selection heuristic, in priority order:
+        #
+        # 1) The first entry was prepended by Format 1 from the *parent text*
+        #    of ul.zg_hrsr — this is structurally the department rank on
+        #    apparel pages. Trust it absolutely if Format 1 fired.
+        # 2) Otherwise (Formats 2/3/4): the rank with the largest value, on
+        #    the empirical assumption that the parent department always has
+        #    more competing products than any sub-category.
+        # 3) Tiebreaker for #2: prefer entries whose category text contains
+        #    one of the known amazon.com department roots (last-resort name
+        #    match — only amazon_com is in scope per 2026-05-06 user spec).
+        #
+        # Result: exactly one is_main=True; bsr field = that rank.
+        for c in bsr_categories:
+            c['is_main'] = False
+        main_idx = ProductDetailMixin._select_main_bsr_index(
+            bsr_categories, response,
+        )
+        if main_idx is not None:
+            bsr_categories[main_idx]['is_main'] = True
+            bsr = bsr_categories[main_idx]['rank']
+        else:
+            bsr = None
         return bsr, bsr_categories
+
+    # Department roots used as last-resort tiebreaker (amazon_com scope).
+    _US_DEPT_ROOTS = (
+        'Clothing, Shoes & Jewelry',
+        'Toys & Games',
+        'Home & Kitchen',
+        'Health & Household',
+        'Beauty & Personal Care',
+        'Sports & Outdoors',
+    )
+
+    @staticmethod
+    def _select_main_bsr_index(bsr_categories, response):
+        """Return the index of the entry that should be treated as the main
+        department BSR, or None if bsr_categories is empty.
+        """
+        if not bsr_categories:
+            return None
+        # Signal A: Format 1 fired — its first entry was extracted from the
+        # parent text *outside* ul.zg_hrsr, which is the department rank.
+        # Detect by checking the page actually has a ul.zg_hrsr block AND
+        # the first entry is NOT one of the typical sub-categories Format 1
+        # appends after the parent (Format 1 always prepends parent first).
+        has_zg_hrsr = bool(response.css('ul.zg_hrsr'))
+        first_cat = (bsr_categories[0].get('category') or '').strip()
+        first_is_dept_root = any(
+            root.lower() in first_cat.lower()
+            for root in ProductDetailMixin._US_DEPT_ROOTS
+        )
+        if has_zg_hrsr and first_is_dept_root:
+            return 0
+
+        # Signal B: explicit name match — first entry whose category text
+        # contains a known department root, regardless of order.
+        for i, c in enumerate(bsr_categories):
+            cat = (c.get('category') or '').strip()
+            if any(root.lower() in cat.lower() for root in ProductDetailMixin._US_DEPT_ROOTS):
+                return i
+
+        # Signal C: highest rank wins (department has the most competition).
+        return max(
+            range(len(bsr_categories)),
+            key=lambda i: bsr_categories[i].get('rank', 0),
+        )
 
     @staticmethod
     def _extract_brand(response, detail):

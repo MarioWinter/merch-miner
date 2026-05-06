@@ -80,6 +80,13 @@ jobs:
             # 4. Final health check — confirm all services reached desired state
             sleep 5
             $DC ps
+            # 5. Reclaim disk: every deploy pulls a fresh GHCR image, the old
+            #    one becomes dangling (<none>:<none>). Without periodic prune
+            #    the server accumulates ~2.2 GB per deploy. Dangling-only is
+            #    safe — no tagged image and no running container is touched.
+            #    See diagnostic output 2026-05-06: 27 stale images = ~30 GB.
+            docker container prune -f
+            docker image prune -f
             echo "Deployed $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
         env:
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}

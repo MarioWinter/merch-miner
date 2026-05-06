@@ -1,0 +1,114 @@
+{% extends "admin/change_form.html" %}
+{% load i18n %}
+
+{% block field_sets %}
+  {% if bulk_batch %}
+  <div class="module aligned" style="margin-bottom: 20px; padding: 12px;">
+    <h2>{% trans 'Progress' %}</h2>
+    <div style="margin-top: 10px;">
+      <progress value="{{ progress_done }}" max="{{ progress_total|default:1 }}"
+                style="width: 100%; height: 20px;"></progress>
+      <div style="margin-top: 6px; font-weight: 600;">
+        {{ progress_done }}&nbsp;/&nbsp;{{ progress_total }}
+        ({{ progress_percent }}%)
+      </div>
+    </div>
+  </div>
+
+  {# Action buttons live inside Django's outer change_form. HTML5 forbids
+     nested <form>, so we use formaction= on each button to override the
+     submission URL. The outer form's CSRF token is reused automatically. #}
+  <div class="module aligned" style="margin-bottom: 20px; padding: 12px;">
+    <h2>{% trans 'Actions' %}</h2>
+    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px;">
+      {% if can_start %}
+      <button type="submit" name="_bulk_action" value="start"
+              formaction="{% url 'admin:scraper_app_bulkscrapebatch_start' bulk_batch.id %}"
+              formmethod="post"
+              style="background:#2e7d32;color:#fff;padding:6px 14px;border:0;border-radius:4px;cursor:pointer;">
+        {% trans 'Start' %}
+      </button>
+      {% endif %}
+
+      {% if can_pause %}
+      <button type="submit" name="_bulk_action" value="pause"
+              formaction="{% url 'admin:scraper_app_bulkscrapebatch_pause' bulk_batch.id %}"
+              formmethod="post"
+              style="background:#ef6c00;color:#fff;padding:6px 14px;border:0;border-radius:4px;cursor:pointer;">
+        {% trans 'Pause' %}
+      </button>
+      {% endif %}
+
+      {% if can_resume %}
+      <button type="submit" name="_bulk_action" value="resume"
+              formaction="{% url 'admin:scraper_app_bulkscrapebatch_resume' bulk_batch.id %}"
+              formmethod="post"
+              style="background:#2e7d32;color:#fff;padding:6px 14px;border:0;border-radius:4px;cursor:pointer;">
+        {% trans 'Resume' %}
+      </button>
+      {% endif %}
+
+      {% if can_resume_cancelled %}
+      <button type="submit" name="_bulk_action" value="resume_cancelled"
+              formaction="{% url 'admin:scraper_app_bulkscrapebatch_start' bulk_batch.id %}"
+              formmethod="post"
+              style="background:#2e7d32;color:#fff;padding:6px 14px;border:0;border-radius:4px;cursor:pointer;">
+        {% trans 'Resume' %}
+      </button>
+      {% endif %}
+
+      {% if can_cancel %}
+      <button type="submit" name="_bulk_action" value="cancel"
+              formaction="{% url 'admin:scraper_app_bulkscrapebatch_cancel' bulk_batch.id %}"
+              formmethod="post"
+              onclick="return confirm('Cancel this batch? In-flight subprocesses will finish; pending jobs will be removed.');"
+              style="background:#b00020;color:#fff;padding:6px 14px;border:0;border-radius:4px;cursor:pointer;">
+        {% trans 'Cancel' %}
+      </button>
+      {% endif %}
+
+      {% if can_retry %}
+      <button type="submit" name="_bulk_action" value="retry_failed"
+              formaction="{% url 'admin:scraper_app_bulkscrapebatch_retry_failed' bulk_batch.id %}"
+              formmethod="post"
+              style="background:#1565c0;color:#fff;padding:6px 14px;border:0;border-radius:4px;cursor:pointer;">
+        {% trans 'Retry Failed' %}
+      </button>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="module aligned" style="margin-bottom: 20px; padding: 12px;">
+    <h2>{% trans 'Recent errors' %} <small>({{ recent_errors|length }} of last 100 events)</small></h2>
+    {% if recent_errors %}
+    <table style="width: 100%; border-collapse: collapse; margin-top: 8px;">
+      <thead>
+        <tr style="background: rgba(0,0,0,0.05);">
+          <th style="text-align:left;padding:6px 8px;">When</th>
+          <th style="text-align:left;padding:6px 8px;">Event</th>
+          <th style="text-align:left;padding:6px 8px;">Detail</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for entry in recent_errors %}
+        <tr style="border-top: 1px solid rgba(0,0,0,0.1);">
+          <td style="padding:6px 8px;font-family:monospace;font-size:12px;">{{ entry.at|default:'-' }}</td>
+          <td style="padding:6px 8px;">{% firstof entry.action entry.event '-' %}</td>
+          <td style="padding:6px 8px;font-size:12px;">
+            {% if entry.error %}<span style="color:#b00020;">{{ entry.error }}</span>{% endif %}
+            {% if entry.user %}<span> user={{ entry.user }}</span>{% endif %}
+            {% if entry.reset_count is not None %}<span> reset_count={{ entry.reset_count }}</span>{% endif %}
+            {% if entry.row %}<span> row={{ entry.row }}</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p style="margin-top: 8px;"><em>{% trans 'No events recorded yet.' %}</em></p>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {{ block.super }}
+{% endblock %}

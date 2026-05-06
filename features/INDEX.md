@@ -37,7 +37,10 @@
 | PROJ-22 | Server-Migration auf VC 8-32 + Mono-Repo Infrastruktur | Deployed | [spec](PROJ-22-server-migration-mono-repo.md) | 2026-04-28 |
 | PROJ-23 | Selector Health Check Spider | In Review | [spec](PROJ-23-selector-health-check.md) | 2026-05-01 |
 | PROJ-24 | Legal Pages + Global Footer + Feature Flag System | In Review | [spec](PROJ-24-legal-pages-and-feature-flags.md) | 2026-05-01 |
+| PROJ-25 | Bulk ASIN One-Shot Scrape Batches | In Review | [spec](PROJ-25-bulk-asin-scrape-batches.md) | 2026-05-05 |
 
 <!-- Add features above this line -->
 
-## Next Available ID: PROJ-25
+## Next Available ID: PROJ-27
+
+> Note: PROJ-26 reserved for KeywordChipBoard / Keyword Transfer Tabs (slimmed Item 4.2 from PROJ-7 follow-up; planned in memory `project_keyword_transfer_tabs_pending.md` 2026-05-04).

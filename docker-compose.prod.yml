@@ -19,18 +19,28 @@ services:
     image: ghcr.io/mariowinter/merch-miner/backend:latest
     env_file: ./.env
     restart: unless-stopped
+    volumes:
+      # PROJ-25: parse_bulk_upload_job reads uploads from MEDIA_ROOT/bulk_uploads/.
+      - media_volume:/app/media
     networks:
       - default
       - supabase-net
 
   worker-scraper:
+    # PROJ-25 AC-27: replicas controlled by BACKEND_SCRAPER_WORKERS (default 5).
+    # No container_name — would conflict with replicated containers.
     image: ghcr.io/mariowinter/merch-miner/backend:latest
     command: python manage.py rqworker scraper
     env_file: ./.env
     restart: unless-stopped
+    volumes:
+      # PROJ-23: amazon_html_snapshot writes HTML to MEDIA_ROOT/snapshots/.
+      - media_volume:/app/media
     networks:
       - default
       - supabase-net
+    deploy:
+      replicas: ${BACKEND_SCRAPER_WORKERS:-5}
 
   worker-research:
     image: ghcr.io/mariowinter/merch-miner/backend:latest

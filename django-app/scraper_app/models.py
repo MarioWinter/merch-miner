@@ -141,10 +141,17 @@ class ScrapeTier(models.Model):
 
     @classmethod
     def get_tier_for_bsr(cls, bsr_value):
-        """Return the ScrapeTier matching a given BSR value."""
+        """Return the ScrapeTier matching a given BSR value.
+
+        OneShot is excluded — it is a manual-assignment marker for PROJ-25
+        bulk seeds, not a BSR-based recurring tier. Without this exclusion,
+        OneShot (bsr_min=0, bsr_max=NULL) would match any BSR and override
+        legitimate Tier 1/2/3 assignments.
+        """
+        qs = cls.objects.exclude(name='OneShot')
         if bsr_value is None:
-            return cls.objects.order_by('-bsr_min').first()
-        return cls.objects.filter(
+            return qs.order_by('-bsr_min').first()
+        return qs.filter(
             bsr_min__lte=bsr_value,
         ).filter(
             models.Q(bsr_max__gte=bsr_value) | models.Q(bsr_max__isnull=True)
@@ -171,12 +178,34 @@ class MetaKeyword(models.Model):
         return f"{self.keyword} ({self.type}, freq={self.frequency})"
 
 
+def _validate_asin_list(value):
+    """Field validator for ScrapeJob.asin_list (PROJ-25 Phase C / AC-3).
+
+    Allows None / [] (legacy non-batch jobs) but enforces that, when set,
+    the value is a list of <=50 strings each matching the ASIN regex.
+    """
+    if value in (None, []):
+        return
+    if not isinstance(value, list):
+        from django.core.exceptions import ValidationError
+        raise ValidationError("asin_list must be a list.")
+    if len(value) > 50:
+        from django.core.exceptions import ValidationError
+        raise ValidationError("asin_list cannot contain more than 50 ASINs.")
+    pattern = ASIN_REGEX_VALIDATOR.regex
+    for entry in value:
+        if not isinstance(entry, str) or not pattern.match(entry):
+            from django.core.exceptions import ValidationError
+            raise ValidationError(f"asin_list entry '{entry}' is not a valid ASIN.")
+
+
 class ScrapeJob(models.Model):
     class Mode(models.TextChoices):
         LIVE = 'live', 'Live Research'
         SCHEDULED = 'scheduled', 'Scheduled Scrape'
         BSR_SNAPSHOT = 'bsr_snapshot', 'BSR Snapshot'
         SEARCH_PAGE_ONLY = 'search_page_only', 'Search Page Only'
+        BATCH_ASIN = 'batch_asin', 'Batch ASIN'
 
     class Status(models.TextChoices):
         PENDING = 'pending', 'Pending'
@@ -291,9 +320,28 @@ class ScrapeJob(models.Model):
     started_at = models.DateTimeField(null=True, blank=True)
     finished_at = models.DateTimeField(null=True, blank=True)
     rq_job_id = models.CharField(max_length=100, blank=True, default='')
+    asin_list = models.JSONField(
+        null=True,
+        blank=True,
+        validators=[_validate_asin_list],
+        help_text='Up to 50 ASINs for mode=BATCH_ASIN. Validated by _validate_asin_list.',
+    )
+    batch = models.ForeignKey(
+        'BulkScrapeBatch',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='scrape_jobs',
+    )
 
     class Meta:
         ordering = ['-started_at']
+        indexes = [
+            models.Index(
+                fields=['status', 'mode'],
+                name='scrapejob_status_mode_idx',
+            ),
+        ]
 
     def __str__(self):
         target = str(self.keyword) if self.keyword else self.asin or 'unknown'
@@ -431,6 +479,22 @@ class ScraperConfig(models.Model):
         default=0,
         help_text='Scrapy DOWNLOAD_DELAY in milliseconds (converted to seconds at spawn).',
     )
+    batch_size = models.PositiveIntegerField(
+        default=10,
+        validators=[MinValueValidator(1), MaxValueValidator(50)],
+        help_text='ASINs per batch spider subprocess (PROJ-25 / AC-4). 1–50.',
+    )
+    max_retries_per_asin = models.PositiveIntegerField(
+        default=1,
+        help_text='How many times a failed ASIN is auto-retried in the same batch (PROJ-25 / AC-4).',
+    )
+    fresh_skip_days = models.PositiveIntegerField(
+        default=30,
+        help_text=(
+            'Skip ASINs whose AmazonProduct was scraped within this many days '
+            'unless the batch has force_rescrape=True (PROJ-25 / AC-4 / AC-11b).'
+        ),
+    )
 
     class Meta:
         verbose_name = 'Scraper Config'
@@ -556,6 +620,85 @@ class BSRSnapshot(models.Model):
         return f"BSR {self.bsr} for {self.product.asin} at {self.recorded_at}"
 
 
+class BulkScrapeBatch(models.Model):
+    """Represents one bulk-uploaded batch of OneShot ASIN scrape targets (PROJ-25).
+
+    See features/PROJ-25-bulk-asin-scrape-batches.md AC-1 / AC-11b / AC-32.
+    """
+
+    class Status(models.TextChoices):
+        DRAFT = 'draft', 'Draft'
+        PARSING = 'parsing', 'Parsing'
+        PARSE_FAILED = 'parse_failed', 'Parse Failed'
+        READY = 'ready', 'Ready'
+        RUNNING = 'running', 'Running'
+        PAUSED = 'paused', 'Paused'
+        COMPLETED = 'completed', 'Completed'
+        CANCELLED = 'cancelled', 'Cancelled'
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    name = models.CharField(max_length=200)
+    source_filename = models.CharField(max_length=500, blank=True, default='')
+    marketplace = models.CharField(
+        max_length=20,
+        choices=MarketplaceChoices.choices,
+        default=MarketplaceChoices.AMAZON_COM,
+    )
+    force_rescrape = models.BooleanField(
+        default=False,
+        help_text=(
+            'If True, the freshness skip (AmazonProduct.updated_at within '
+            'fresh_skip_days) is bypassed for every target in this batch.'
+        ),
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.DRAFT,
+        db_index=True,
+    )
+    total_count = models.PositiveIntegerField(default=0)
+    pending_count = models.PositiveIntegerField(default=0)
+    running_count = models.PositiveIntegerField(default=0)
+    done_count = models.PositiveIntegerField(default=0)
+    failed_count = models.PositiveIntegerField(default=0)
+    errors = models.JSONField(
+        default=list,
+        blank=True,
+        help_text='Last 100 events: parse warnings, drainer enqueue failures, admin actions.',
+    )
+    created_by = models.ForeignKey(
+        'user_auth_app.User',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='bulk_scrape_batches',
+    )
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Bulk Scrape Batch'
+        verbose_name_plural = 'Bulk Scrape Batches'
+
+    def __str__(self):
+        return f"BulkScrapeBatch[{self.status}] {self.name} ({self.total_count} targets)"
+
+    def append_error(self, event_dict, max_keep=100):
+        """Append an event dict to errors[] and trim to last `max_keep` (AC-32).
+
+        Caller is responsible for saving the row. Mutates `self.errors` in place
+        so tests can assert on the live list before save.
+        """
+        if not isinstance(self.errors, list):
+            self.errors = []
+        self.errors.append(event_dict)
+        if len(self.errors) > max_keep:
+            self.errors = self.errors[-max_keep:]
+
+
 class ScheduledScrapeTarget(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     keyword = models.ForeignKey(
@@ -582,16 +725,39 @@ class ScheduledScrapeTarget(models.Model):
     last_scraped_at = models.DateTimeField(null=True, blank=True)
     next_scrape_at = models.DateTimeField(db_index=True)
     active = models.BooleanField(default=True, db_index=True)
+    batch = models.ForeignKey(
+        BulkScrapeBatch,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name='targets',
+    )
+    last_error = models.TextField(null=True, blank=True)
+    retry_count = models.PositiveIntegerField(default=0)
 
     class Meta:
         ordering = ['next_scrape_at']
+        indexes = [
+            models.Index(
+                fields=['batch', 'active', 'last_error'],
+                name='sst_batch_active_lasterr_idx',
+            ),
+        ]
 
     def __str__(self):
         target = str(self.keyword) if self.keyword else self.asin or 'unknown'
         return f"Target: {target} ({self.marketplace})"
 
     def save(self, *args, **kwargs):
-        if self.last_scraped_at and self.tier:
+        # OneShot tier (PROJ-25): a successfully scraped target must NOT be
+        # auto-rescheduled. The drainer/wrapper sets active=False as the
+        # canonical "done" signal; next_scrape_at is left untouched so the
+        # scheduler ignores the row.
+        is_oneshot = bool(self.tier and self.tier.name == 'OneShot')
+        if is_oneshot and self.last_scraped_at:
+            if not self.next_scrape_at:
+                self.next_scrape_at = timezone.now()
+        elif self.last_scraped_at and self.tier:
             self.next_scrape_at = self.last_scraped_at + timedelta(days=self.tier.interval_days)
         elif not self.next_scrape_at:
             self.next_scrape_at = timezone.now()
