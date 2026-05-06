@@ -5,8 +5,9 @@ that Amazon shows on the product page (e.g. "#5,932,252 in Clothing, Shoes &
 Jewelry"), NOT the smallest sub-category rank. Pre-fix code used min(rank)
 which silently picked sub-cats. Tests pin the new heuristic against:
 
-- 6 real snapshots captured by PROJ-23 health-check spider — apparel ASINs
-  with the canonical "Clothing, Shoes & Jewelry" department.
+- ONE real Amazon HTML fixture committed to the repo (CI runs this).
+- 6 real snapshots from PROJ-23 health-check spider when present (dev-only,
+  not in repo — those tests gracefully skip in CI).
 - Synthetic fixtures for the empty-bsr_categories case + the no-Format-1 case.
 """
 
@@ -19,17 +20,22 @@ from scraper_app.scrapy_app.spiders.mixins import ProductDetailMixin
 from scraper_app.selectors import get_selectors
 
 
+# Repo-committed fixture (always available, CI-safe).
+COMMITTED_FIXTURE = Path(__file__).parent / 'fixtures' / 'bsr_apparel_clothing.html'
+
+# Dev-only snapshots from PROJ-23 health checks (not in repo). Tests against
+# these gracefully skip if the directory is missing (typical in CI).
 SNAPSHOTS_DIR = Path('/app/media/snapshots/amazon_com')
 
-# Expected (asin, expected_main_rank) for each snapshot. These were captured
-# from the live Amazon product pages on 2026-05-01 (PROJ-23 canary set).
+# Expected (asin, expected_main_rank). Captured from live Amazon pages
+# 2026-05-01 (PROJ-23 canary set). Includes the committed-fixture ASIN.
 EXPECTED_MAIN_RANKS = {
     'B077GWMQGM': 6440889,
     'B09WZHW6DN': 15678,
     'B0D2H71TXP': 21647,
     'B0F24L7GHB': 26202,
     'B0FSGNCR7C': 13010,
-    'B0GYSZZXW8': 262569,
+    'B0GYSZZXW8': 262569,  # ← also lives in the committed fixture
 }
 
 
@@ -41,15 +47,42 @@ def _make_response(asin, html):
     )
 
 
+def test_extract_bsr_committed_fixture_apparel_clothing():
+    """CI-safe baseline: parse the repo-committed Amazon HTML fixture.
+
+    This is the canonical CI test — it runs everywhere, no external snapshots.
+    Asserts the department rank is selected as canonical bsr and is_main is
+    set on the right entry.
+    """
+    asin = 'B0GYSZZXW8'
+    expected_rank = EXPECTED_MAIN_RANKS[asin]
+    resp = _make_response(asin, COMMITTED_FIXTURE.read_text())
+    selectors = get_selectors('amazon_com')['detail']
+    bsr, cats = ProductDetailMixin._extract_bsr(resp, selectors)
+
+    assert bsr == expected_rank, (
+        f"{asin}: bsr={bsr} expected {expected_rank} (department rank). "
+        f"Categories: {cats}"
+    )
+    assert cats
+    main_count = sum(1 for c in cats if c.get('is_main'))
+    assert main_count == 1
+    main = next(c for c in cats if c.get('is_main'))
+    assert main['rank'] == expected_rank
+    assert 'Clothing, Shoes & Jewelry' in main['category']
+
+
 @pytest.mark.parametrize('asin,expected_rank', EXPECTED_MAIN_RANKS.items())
 def test_extract_bsr_picks_department_rank_from_real_snapshot(asin, expected_rank):
-    """Real Amazon HTML must yield department-level rank as canonical bsr."""
+    """Dev-only: parse PROJ-23 snapshot files (skip if absent — typical in CI)."""
+    if not SNAPSHOTS_DIR.exists():
+        pytest.skip(f"{SNAPSHOTS_DIR} not present (CI / fresh checkout).")
     snap = next(
         (f for f in SNAPSHOTS_DIR.iterdir() if f.name.startswith(f'{asin}_')),
         None,
     )
     if snap is None:
-        pytest.skip(f"Snapshot for {asin} not present (cleanup deleted it).")
+        pytest.skip(f"Snapshot for {asin} not present.")
 
     resp = _make_response(asin, snap.read_text())
     selectors = get_selectors('amazon_com')['detail']
@@ -61,7 +94,6 @@ def test_extract_bsr_picks_department_rank_from_real_snapshot(asin, expected_ran
     )
     assert cats, f"{asin}: bsr_categories must not be empty when bsr is set"
 
-    # Exactly one is_main=True.
     main_count = sum(1 for c in cats if c.get('is_main'))
     assert main_count == 1, (
         f"{asin}: expected exactly one is_main=True entry, got {main_count}"
