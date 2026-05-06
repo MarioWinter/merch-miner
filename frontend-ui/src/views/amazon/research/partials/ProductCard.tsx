@@ -309,20 +309,33 @@ const ProductCard = ({
           </Typography>
         </Stack>
 
-        {/* Row 3: ASIN chip */}
-        <Chip
-          label={product.asin}
-          size="small"
-          variant="outlined"
-          onClick={handleCopyAsin}
-          sx={{
-            height: 18,
-            fontFamily: MONO_FONT_STACK,
-            alignSelf: 'flex-end',
-            '& .MuiChip-label': { px: 0.75, fontSize: '0.6rem' },
-          }}
-          aria-label={`Copy ASIN ${product.asin}`}
-        />
+        {/* Row 3: days online (left) + ASIN chip (right) */}
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          {product.listed_date ? (
+            <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
+              {(() => {
+                const days = Math.floor(
+                  (Date.now() - new Date(product.listed_date).getTime()) / 86400000,
+                );
+                return `${days.toLocaleString()} ${days === 1 ? 'day' : 'days'} online`;
+              })()}
+            </Typography>
+          ) : (
+            <span />
+          )}
+          <Chip
+            label={product.asin}
+            size="small"
+            variant="outlined"
+            onClick={handleCopyAsin}
+            sx={{
+              height: 18,
+              fontFamily: MONO_FONT_STACK,
+              '& .MuiChip-label': { px: 0.75, fontSize: '0.6rem' },
+            }}
+            aria-label={`Copy ASIN ${product.asin}`}
+          />
+        </Stack>
       </InfoArea>
     </StyledCard>
   );
