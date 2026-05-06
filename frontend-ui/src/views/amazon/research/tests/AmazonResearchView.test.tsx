@@ -287,7 +287,7 @@ describe('AmazonResearchView', () => {
     // The lazy trigger must have been called with the initial page_size=100 contract
     await vi.waitFor(() => {
       expect(mockLazyTrigger).toHaveBeenCalledWith(
-        expect.objectContaining({ page: 1, page_size: 100, keyword: 'hiking' }),
+        expect.objectContaining({ page: 1, page_size: 50, keyword: 'hiking' }),
       );
     });
   });

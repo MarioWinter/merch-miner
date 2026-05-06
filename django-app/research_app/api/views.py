@@ -212,27 +212,31 @@ def _build_product_queryset(filters):
         for word in words:
             qs = qs.exclude(title__icontains=word)
 
-    # Sorting
+    # Sorting — every order_by adds `id` as a stable tiebreaker. Two products
+    # can share the same primary sort value (e.g. duplicate BSRs across niches,
+    # equal price/rating); without a deterministic secondary key the row order
+    # of paginated slices is undefined and an offset-based fetch can return
+    # the same row on consecutive pages or skip rows entirely.
     sort_by = filters.get('sort_by', '')
     sort_map = {
-        'bsr_asc': 'bsr',
-        'reviews_desc': '-reviews_count',
-        'rating_desc': '-rating',
-        'price_asc': 'price',
-        'newest': '-listed_date',
+        'bsr_asc': ('bsr', 'id'),
+        'reviews_desc': ('-reviews_count', 'id'),
+        'rating_desc': ('-rating', 'id'),
+        'price_asc': ('price', 'id'),
+        'newest': ('-listed_date', 'id'),
     }
     # When user selects "BSR low to high", products without BSR data are
     # explicitly hidden (per user spec 2026-05-06): no BSR = no usable rank.
     if sort_by == 'bsr_asc':
-        qs = qs.exclude(bsr__isnull=True).order_by('bsr')
+        qs = qs.exclude(bsr__isnull=True).order_by('bsr', 'id')
     elif sort_by and sort_by in sort_map:
-        qs = qs.order_by(sort_map[sort_by])
+        qs = qs.order_by(*sort_map[sort_by])
     elif keyword:
         # Relevance order when keyword search active
-        qs = qs.order_by('-rank')
+        qs = qs.order_by('-rank', 'id')
     else:
         # Default sort: bsr ASC with NULLs at the end (visible but ranked last)
-        qs = qs.order_by(F('bsr').asc(nulls_last=True))
+        qs = qs.order_by(F('bsr').asc(nulls_last=True), 'id')
 
     return qs
 
