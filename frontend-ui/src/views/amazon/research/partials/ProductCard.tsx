@@ -112,7 +112,7 @@ const renderStars = (rating: number | null) => {
         <StarIcon
           key={i}
           sx={{
-            fontSize: 12,
+            fontSize: 14,
             color: i <= filled ? 'warning.main' : 'text.disabled',
           }}
         />
@@ -289,7 +289,7 @@ const ProductCard = ({
         {/* Row 1: BSR + price */}
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ fontFeatureSettings: "'tnum'" }}>
           <Stack direction="row" alignItems="center" spacing={0.5}>
-            <BsrChartIcon sx={{ fontSize: 14, color: bsrColor }} />
+            <BsrChartIcon sx={{ fontSize: 18, color: bsrColor }} />
             <Typography sx={{ fontWeight: 700, color: bsrColor, fontFamily: MONO_FONT_STACK, fontSize: '0.75rem' }}>
               {mainBsr !== null ? mainBsr.toLocaleString() : '–'}
             </Typography>
