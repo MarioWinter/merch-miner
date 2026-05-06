@@ -225,7 +225,6 @@
         "fetchError": "Could not load niches",
         "noNichesYet": "No niches yet",
         "loading": "Loading niches…",
-        "keywordsCount": "{{count}} keywords",
         "ago": "{{days}}d ago",
         "today": "today",
         "openMenu": "Open niche selector",

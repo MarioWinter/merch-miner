@@ -257,14 +257,9 @@ export const NichePipelineHeaderSelect = ({
           ) : (
             niches.map((n) => {
               const isActive = n.id === activeNicheId;
-              // Niche has no keyword_count yet — fall back to idea_count.
-              // Replace with `n.keyword_count` once added to the API.
-              const secondary = [
-                t('niches.drawer.selector.keywordsCount', { count: n.idea_count }),
-                dayjs(n.updated_at).isValid() ? formatUpdatedAgo(n.updated_at, t) : null,
-              ]
-                .filter(Boolean)
-                .join(' · ');
+              const secondary = dayjs(n.updated_at).isValid()
+                ? formatUpdatedAgo(n.updated_at, t)
+                : null;
               return (
                 <MenuItem
                   key={n.id}
