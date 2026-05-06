@@ -9,7 +9,6 @@ from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils import timezone
 from django.utils.html import format_html
-from django.utils.safestring import mark_safe
 
 from scraper_app.models import (
     AmazonProduct,
