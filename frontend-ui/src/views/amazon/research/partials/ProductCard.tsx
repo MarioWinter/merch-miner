@@ -1,6 +1,6 @@
 import { Box, Card, Chip, IconButton, Stack, Tooltip, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import TrendingUpIcon from '@mui/icons-material/TrendingUp';
+import LeaderboardOutlinedIcon from '@mui/icons-material/LeaderboardOutlined';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import ArrowForwardOutlinedIcon from '@mui/icons-material/ArrowForwardOutlined';
@@ -289,7 +289,7 @@ const ProductCard = ({
         {/* Row 1: BSR + price */}
         <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ fontFeatureSettings: "'tnum'" }}>
           <Stack direction="row" alignItems="center" spacing={0.5}>
-            <TrendingUpIcon sx={{ fontSize: 14, color: bsrColor }} />
+            <LeaderboardOutlinedIcon sx={{ fontSize: 14, color: bsrColor }} />
             <Typography sx={{ fontWeight: 700, color: bsrColor, fontFamily: MONO_FONT_STACK, fontSize: '0.75rem' }}>
               {mainBsr !== null ? mainBsr.toLocaleString() : '–'}
             </Typography>

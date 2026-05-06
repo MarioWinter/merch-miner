@@ -17,6 +17,9 @@
  *    (PROJ-13). Off until the desktop binary ships.
  *  - `KANBAN_ENABLED`         — Team Kanban view (PROJ-14). Off until the
  *    collaboration board is feature-complete.
+ *  - `MULTI_MARKETPLACE_ENABLED` — Selectable Amazon marketplaces other than
+ *    amazon_com (DE / UK / FR / IT / ES). Off until per-marketplace selectors
+ *    are wired into the spider; non-US options render disabled in dropdowns.
  *
  * Convention: every flag added here MUST also have a default value in
  * `fallbackFlags` (TypeScript will fail to compile otherwise via
@@ -27,6 +30,7 @@ export const FEATURE_FLAGS = {
   CLOUD_STORAGE_ENABLED: 'CLOUD_STORAGE_ENABLED',
   DESKTOP_UPLOAD_APP_ENABLED: 'DESKTOP_UPLOAD_APP_ENABLED',
   KANBAN_ENABLED: 'KANBAN_ENABLED',
+  MULTI_MARKETPLACE_ENABLED: 'MULTI_MARKETPLACE_ENABLED',
 } as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[keyof typeof FEATURE_FLAGS];
@@ -41,4 +45,5 @@ export const fallbackFlags: Readonly<Record<FeatureFlag, boolean>> = {
   [FEATURE_FLAGS.CLOUD_STORAGE_ENABLED]: false,
   [FEATURE_FLAGS.DESKTOP_UPLOAD_APP_ENABLED]: false,
   [FEATURE_FLAGS.KANBAN_ENABLED]: false,
+  [FEATURE_FLAGS.MULTI_MARKETPLACE_ENABLED]: false,
 };

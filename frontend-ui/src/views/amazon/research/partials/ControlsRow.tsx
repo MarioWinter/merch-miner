@@ -9,7 +9,10 @@ import {
   MenuItem,
   Select,
   Stack,
+  Typography,
 } from '@mui/material';
+import { FEATURE_FLAGS } from '../../../../constants/featureFlags';
+import { useFeatureFlag } from '../../../../hooks/useFeatureFlag';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import {
@@ -77,6 +80,7 @@ const ControlsRow = ({
   activeFilterCount,
 }: ControlsRowProps) => {
   const sortOptions: SortOption[] = isLive ? LIVE_SORT_OPTIONS : SORT_OPTIONS;
+  const multiMarketplaceEnabled = useFeatureFlag(FEATURE_FLAGS.MULTI_MARKETPLACE_ENABLED);
   const sortValue = isLive ? filters.live_sort_by : filters.sort_by;
   const sortKey: keyof ResearchFilters = isLive ? 'live_sort_by' : 'sort_by';
 
@@ -95,11 +99,25 @@ const ControlsRow = ({
             }}
             aria-label="Select marketplace"
           >
-            {MARKETPLACE_OPTIONS.map((opt) => (
-              <MenuItem key={opt.value} value={opt.value}>
-                {opt.flag} {opt.label}
-              </MenuItem>
-            ))}
+            {MARKETPLACE_OPTIONS.map((opt) => {
+              // Only Amazon US is wired into the scraper today; gate other
+              // marketplaces behind MULTI_MARKETPLACE_ENABLED feature flag.
+              const isDisabled = !multiMarketplaceEnabled && opt.value !== 'amazon_com';
+              return (
+                <MenuItem key={opt.value} value={opt.value} disabled={isDisabled}>
+                  {opt.flag} {opt.label}
+                  {isDisabled && (
+                    <Typography
+                      component="span"
+                      variant="caption"
+                      sx={{ ml: 1, opacity: 0.6, fontStyle: 'italic' }}
+                    >
+                      (coming soon)
+                    </Typography>
+                  )}
+                </MenuItem>
+              );
+            })}
           </Select>
         </FormControl>
 

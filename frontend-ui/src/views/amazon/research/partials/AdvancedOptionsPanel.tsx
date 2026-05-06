@@ -58,8 +58,8 @@ const AdvancedOptionsPanel = ({
             label="BSR Range"
             value={[filters.bsr_min, filters.bsr_max]}
             min={1}
-            max={500000}
-            step={1000}
+            max={20_000_000}
+            step={10_000}
             onChange={([min, max]) => {
               onFilterChange('bsr_min', min);
               onFilterChange('bsr_max', max);
