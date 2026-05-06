@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../../../utils/test-utils';
 import AmazonResearchView from '../AmazonResearchView';
 import collectedItemsReducer from '../../../../store/collectedItemsSlice';
+import chatBarReducer from '../../../../store/chatBarSlice';
 import type { ProductListResponse } from '../types';
 
 // ── RTK Query mock — researchSlice ─────────────────────────────────────────
@@ -128,9 +129,10 @@ vi.mock('react-router-dom', async (importOriginal) => {
   };
 });
 
-// ── Reducers needed by selectors (collectedItemsSlice) ─────────────────────
+// ── Reducers needed by selectors (collectedItemsSlice + chatBarSlice) ─────
 const extraReducers = {
   collectedItems: collectedItemsReducer,
+  chatBar: chatBarReducer,
 };
 
 describe('AmazonResearchView', () => {

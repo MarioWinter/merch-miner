@@ -2294,9 +2294,10 @@
       "copied": "In Zwischenablage kopiert",
       "copyFailed": "Kopieren fehlgeschlagen",
       "addToNicheList": "Zur Nischen-Liste hinzufügen",
-      "addedToNicheList": "'{{keyword}}' zur Nischen-Liste hinzugefügt",
-      "alreadyInNicheList": "'{{keyword}}' ist bereits in der Nischen-Liste",
-      "addToNicheListFailed": "Konnte nicht zur Nischen-Liste hinzugefügt werden"
+      "addedToNicheList": "'{{keyword}}' zur Nische '{{niche}}' hinzugefügt",
+      "alreadyInNicheList": "'{{keyword}}' ist bereits in der Nische '{{niche}}'",
+      "addToNicheListFailed": "Konnte nicht zur Nischen-Liste hinzugefügt werden",
+      "noActiveNiche": "Keine aktive Nische — öffne erst eine Nische in den Niche Claims"
     },
     "detail": {
       "breadcrumb": "Amazon Research",

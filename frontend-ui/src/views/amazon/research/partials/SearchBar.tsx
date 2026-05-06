@@ -4,7 +4,6 @@ import {
   Autocomplete,
   Box,
   Button,
-  CircularProgress,
   IconButton,
   Stack,
   Switch,
@@ -19,7 +18,6 @@ import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
-import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import { useGetSuggestionsQuery } from '../../../../store/researchSlice';
 import type { Niche } from '../../../niches/list/types';
 
@@ -40,16 +38,12 @@ interface SearchBarProps {
   isSearching?: boolean;
   /** Called to cancel a running live search. */
   onCancel?: () => void;
-  /** Called to save an autocomplete suggestion as a keyword (AC-21). */
-  onSaveKeyword?: (keyword: string) => void;
-  /** Keywords currently being saved (loading state per keyword). */
-  savingKeywords?: Set<string>;
-  /** Keywords already saved in this session (show check icon). */
-  savedKeywords?: Set<string>;
   /** Called to copy a suggestion keyword to clipboard. */
   onCopyKeyword?: (keyword: string) => void;
-  /** Called to add a suggestion keyword to the niche list. */
+  /** Called to add a suggestion keyword as a keyword to the active pipeline niche. */
   onAddToNicheList?: (keyword: string) => void;
+  /** Keywords already added in this session (show check icon instead of button). */
+  addedKeywords?: Set<string>;
   /**
    * Whether Search submission is allowed in DB mode without keyword.
    * When the parent has at least one filter active, this is true → empty-keyword search is allowed.
@@ -81,11 +75,9 @@ const SearchBar = ({
   onNicheIndicatorClick,
   isSearching = false,
   onCancel,
-  onSaveKeyword,
-  savingKeywords = new Set<string>(),
-  savedKeywords = new Set<string>(),
   onCopyKeyword,
   onAddToNicheList,
+  addedKeywords = new Set<string>(),
   allowEmptyKeyword = false,
 }: SearchBarProps) => {
   const { t } = useTranslation();
@@ -183,42 +175,22 @@ const SearchBar = ({
                   </Tooltip>
                 )}
                 {onAddToNicheList && (
-                  <Tooltip title={t('amazonResearch.searchBar.addToNicheList')}>
-                    <IconButton
-                      size="small"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        onAddToNicheList(option);
-                      }}
-                      aria-label={t('amazonResearch.searchBar.addToNicheList')}
-                      sx={{ ml: 0.5, p: 0.25 }}
-                    >
-                      <ListAltOutlinedIcon sx={{ fontSize: 18 }} />
-                    </IconButton>
-                  </Tooltip>
-                )}
-                {onSaveKeyword && matchedNiche && (
-                  savedKeywords.has(option) ? (
+                  addedKeywords.has(option) ? (
                     <CheckCircleIcon
-                      sx={{ fontSize: 18, color: 'success.main', ml: 1 }}
+                      sx={{ fontSize: 18, color: 'success.main', ml: 0.5 }}
                     />
                   ) : (
-                    <Tooltip title={`Save to ${matchedNiche.name}`}>
+                    <Tooltip title={t('amazonResearch.searchBar.addToNicheList')}>
                       <IconButton
                         size="small"
                         onClick={(e) => {
                           e.stopPropagation();
-                          onSaveKeyword(option);
+                          onAddToNicheList(option);
                         }}
-                        disabled={savingKeywords.has(option)}
-                        aria-label={`Save "${option}" to keyword bank`}
-                        sx={{ ml: 1, p: 0.25 }}
+                        aria-label={t('amazonResearch.searchBar.addToNicheList')}
+                        sx={{ ml: 0.5, p: 0.25 }}
                       >
-                        {savingKeywords.has(option) ? (
-                          <CircularProgress size={16} />
-                        ) : (
-                          <AddCircleOutlineIcon sx={{ fontSize: 18 }} />
-                        )}
+                        <AddCircleOutlineIcon sx={{ fontSize: 18 }} />
                       </IconButton>
                     </Tooltip>
                   )
