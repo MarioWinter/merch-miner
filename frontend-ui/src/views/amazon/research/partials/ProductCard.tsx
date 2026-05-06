@@ -16,6 +16,7 @@ import { MONO_FONT_STACK, SHADOW } from '../../../../style/constants';
 import { HoverOverlay as SharedHoverOverlay, ActionPill, ProductImage as SharedProductImage } from '@/components/CardOverlay';
 import { MARKETPLACE_OPTIONS, type AmazonProduct } from '../types';
 import { getMainBsr } from '../utils/getMainBsr';
+import { formatDaysOnline } from '../utils/formatDaysOnline';
 
 interface ProductCardProps {
   product: AmazonProduct;
@@ -313,12 +314,7 @@ const ProductCard = ({
         <Stack direction="row" alignItems="center" justifyContent="space-between">
           {product.listed_date ? (
             <Typography sx={{ fontSize: '0.65rem', color: 'text.secondary' }}>
-              {(() => {
-                const days = Math.floor(
-                  (Date.now() - new Date(product.listed_date).getTime()) / 86400000,
-                );
-                return `${days.toLocaleString()} ${days === 1 ? 'day' : 'days'} online`;
-              })()}
+              {formatDaysOnline(product.listed_date)}
             </Typography>
           ) : (
             <span />
