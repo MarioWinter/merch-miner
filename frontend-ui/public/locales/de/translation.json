@@ -1658,7 +1658,8 @@
       "loading": "Wird angereichert...",
       "success": "Keywords angereichert",
       "noApiKeyTooltip": "JungleScout API-Key in Einstellungen konfigurieren",
-      "comingSoon": "JungleScout kommt bald"
+      "comingSoon": "JungleScout kommt bald",
+      "disabledTooltip": "JungleScout-Anreicherung — bald verfügbar (API-Schlüssel erforderlich)"
     },
     "table": {
       "col_keyword": "Keyword",

@@ -1673,7 +1673,8 @@
       "loading": "Enriching...",
       "success": "Keywords enriched",
       "noApiKeyTooltip": "Configure JungleScout API key in Settings",
-      "comingSoon": "JungleScout coming soon"
+      "comingSoon": "JungleScout coming soon",
+      "disabledTooltip": "JungleScout enrichment — coming soon (requires API key)"
     },
     "table": {
       "col_keyword": "Keyword",
