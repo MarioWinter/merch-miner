@@ -5,6 +5,7 @@ import type { AmazonProduct, ProductSearchStatus } from '../types';
 interface UsePollingReturn {
   status: ProductSearchStatus | null;
   productsScraped: number;
+  pagesDone: number;
   products: AmazonProduct[];
   errorLog: string | null;
   isPolling: boolean;
@@ -43,6 +44,7 @@ const usePolling = (cacheId: string | null): UsePollingReturn => {
     return {
       status: null,
       productsScraped: 0,
+      pagesDone: 0,
       products: [],
       errorLog: null,
       isPolling: false,
@@ -52,6 +54,7 @@ const usePolling = (cacheId: string | null): UsePollingReturn => {
   return {
     status: data?.status ?? null,
     productsScraped: data?.products_scraped ?? 0,
+    pagesDone: data?.pages_done ?? 0,
     products: data?.products ?? [],
     errorLog: data?.error_log ?? null,
     isPolling: !isTerminal && (isLoading || !!data),

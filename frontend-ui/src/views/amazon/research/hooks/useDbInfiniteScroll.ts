@@ -27,6 +27,13 @@ interface UseDbInfiniteScrollReturn {
   isFetchingNext: boolean;
   hasMore: boolean;
   loadNextPage: () => void;
+  /**
+   * Re-fetch page 1 in ADDITIVE mode: keeps the currently accumulated products
+   * (dedup by ASIN) and merges any newly arrived rows onto the head. Used while
+   * a live scrape is running so freshly-stored products surface in real time
+   * without resetting the user's scroll position or paging cursor.
+   */
+  refreshFirstPage: () => void;
 }
 
 /**
@@ -124,6 +131,16 @@ const useDbInfiniteScroll = ({
   // Reset + initial fetch on resetKey change.
   useEffect(() => {
     cancelInFlight();
+    // Also abort any pending background refresh — its result would target the
+    // previous query and could pollute the fresh product list.
+    if (refreshInFlightRef.current) {
+      try {
+        refreshInFlightRef.current.abort();
+      } catch {
+        // ignore
+      }
+      refreshInFlightRef.current = null;
+    }
     if (!enabled) {
       setProducts([]);
       setTotalCount(0);
@@ -143,10 +160,54 @@ const useDbInfiniteScroll = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [resetKey, enabled]);
 
-  // Cleanup any in-flight fetch on unmount.
+  // Cleanup any in-flight fetch (paging + background refresh) on unmount.
   useEffect(() => {
-    return () => cancelInFlight();
+    return () => {
+      cancelInFlight();
+      if (refreshInFlightRef.current) {
+        try {
+          refreshInFlightRef.current.abort();
+        } catch {
+          // ignore
+        }
+        refreshInFlightRef.current = null;
+      }
+    };
   }, [cancelInFlight]);
+
+  // Background page-1 refresh — used during live scrapes to surface freshly
+  // stored rows. Runs INDEPENDENTLY of the main paging fetch (does not abort
+  // it, does not flip isLoadingInitial/isFetchingNext, does not touch `page`
+  // or `hasMore`). Merges new ASINs onto the head; keeps existing order intact.
+  const refreshInFlightRef = useRef<{ abort: () => void } | null>(null);
+  const refreshFirstPage = useCallback(async () => {
+    if (!enabled) return;
+    // Skip if another refresh is already running (cheap throttle).
+    if (refreshInFlightRef.current) return;
+    const baseParams = buildBaseParams();
+    const params = { ...baseParams, page: 1, page_size: INITIAL_PAGE_SIZE };
+    const promise = trigger(params, false);
+    refreshInFlightRef.current = promise;
+    try {
+      const response: ProductListResponse = await promise.unwrap();
+      const incoming = response.results ?? [];
+      setTotalCount((prev) => response.count ?? prev);
+      setProducts((prev) => {
+        if (incoming.length === 0) return prev;
+        const existing = new Set(prev.map((p) => p.asin));
+        const additions = incoming.filter((p) => !existing.has(p.asin));
+        if (additions.length === 0) return prev;
+        // Prepend new rows so they surface at the top of the user's list.
+        return [...additions, ...prev];
+      });
+    } catch {
+      // Silent — background refresh failures don't disturb the user.
+    } finally {
+      if (refreshInFlightRef.current === promise) {
+        refreshInFlightRef.current = null;
+      }
+    }
+  }, [enabled, buildBaseParams, trigger]);
 
   const loadNextPage = useCallback(() => {
     if (!enabled) return;
@@ -173,6 +234,7 @@ const useDbInfiniteScroll = ({
     isFetchingNext,
     hasMore,
     loadNextPage,
+    refreshFirstPage,
   };
 };
 
