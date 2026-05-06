@@ -7,12 +7,10 @@ Covers:
 """
 
 import io
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
-from django.urls import reverse
 
 from scraper_app.models import BulkScrapeBatch
 

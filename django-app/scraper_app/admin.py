@@ -950,12 +950,14 @@ class BulkScrapeBatchAdmin(admin.ModelAdmin):
 
     @admin.display(description='Status', ordering='status')
     def status_badge(self, obj):
-        # AC-22: colored badge (mark_safe — no user-supplied data here).
+        # AC-22: colored badge. Use format_html (auto-escapes its args)
+        # rather than mark_safe; bandit B703/B308 flag mark_safe even when
+        # inputs are server-controlled enums.
         bg, fg = _BULK_BATCH_BADGE_COLORS.get(obj.status, ('#424242', '#fff'))
-        label = obj.get_status_display()
-        return mark_safe(
-            f'<span style="background:{bg};color:{fg};'
-            f'padding:2px 8px;border-radius:4px;font-weight:600;">{label}</span>'
+        return format_html(
+            '<span style="background:{};color:{};'
+            'padding:2px 8px;border-radius:4px;font-weight:600;">{}</span>',
+            bg, fg, obj.get_status_display(),
         )
 
     # ------------------------------------------------------------------

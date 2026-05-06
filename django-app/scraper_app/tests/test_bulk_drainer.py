@@ -3,7 +3,6 @@
 Covers AC-12 / AC-13 / AC-14 / AC-15 / EC-7 / EC-13.
 """
 
-from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest

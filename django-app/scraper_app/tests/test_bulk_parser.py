@@ -10,8 +10,6 @@ Covers:
 - defensive: parser sets PARSE_FAILED when OneShot tier is missing
 """
 
-import io
-import os
 from pathlib import Path
 
 import pytest

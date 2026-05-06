@@ -3,6 +3,7 @@ import os
 import signal
 # subprocess: only used with cmd lists (no shell=True), args from DB models
 import subprocess  # nosec B404
+import tempfile
 from datetime import timedelta
 from pathlib import Path
 
@@ -1047,7 +1048,9 @@ def parse_bulk_upload_job(batch_id):
 # PROJ-25 Phase C — Batch ASIN wrapper task
 # ---------------------------------------------------------------------------
 
-BATCH_OUTCOME_PATH_TEMPLATE = "/tmp/scrape_batch_{job_id}.json"
+BATCH_OUTCOME_PATH_TEMPLATE = os.path.join(
+    tempfile.gettempdir(), "scrape_batch_{job_id}.json",
+)
 
 
 def _read_batch_outcome(scrape_job_id):

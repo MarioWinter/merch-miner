@@ -57,9 +57,9 @@ class AmazonProductBatchSpider(ProductDetailMixin, scrapy.Spider):
         # In-memory results list — keyed by ASIN so duplicate signals (e.g.
         # both item_scraped + spider_error) collapse to one entry per ASIN.
         self._results = {}
-        self._outcome_path = (
-            f"/tmp/scrape_batch_{job_id}.json" if job_id
-            else os.path.join(tempfile.gettempdir(), "scrape_batch_unknown.json")
+        self._outcome_path = os.path.join(
+            tempfile.gettempdir(),
+            f"scrape_batch_{job_id}.json" if job_id else "scrape_batch_unknown.json",
         )
 
     @classmethod

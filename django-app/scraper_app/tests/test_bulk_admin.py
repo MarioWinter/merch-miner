@@ -10,7 +10,6 @@ Notes:
 
 import io
 from unittest.mock import MagicMock, patch
-from uuid import uuid4
 
 import pytest
 from django.contrib.auth import get_user_model
