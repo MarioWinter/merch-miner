@@ -1482,11 +1482,22 @@ def _reset_orphan_state(batch):
         if job.asin_list:
             live_asins.update(job.asin_list)
 
+    # Terminal recovery: also bump retry_count + set last_error so the drainer's
+    # pick filter (last_error__isnull=True AND retry_count__lt=max_retries)
+    # excludes them after this single recovery cycle. Without this, wrappers
+    # that mark ScrapeJob COMPLETED without updating their targets (5xx
+    # retry-exhausted edge case) cause the drainer to re-pick the same ASINs
+    # every tick — burning ScraperOps budget on a self-healing loop.
+    from django.db.models import F
     n_orphans = ScheduledScrapeTarget.objects.filter(
         batch=batch,
         active=True,
         last_scraped_at__isnull=True,
-    ).exclude(asin__in=live_asins).update(active=False)
+    ).exclude(asin__in=live_asins).update(
+        active=False,
+        retry_count=F('retry_count') + 1,
+        last_error='orphan_recovered',
+    )
 
     if n_zombies or n_orphans:
         logger.warning(
