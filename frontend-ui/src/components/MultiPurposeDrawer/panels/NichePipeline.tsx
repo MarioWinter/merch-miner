@@ -21,6 +21,8 @@ import { useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { closeDrawer, openNicheCreate } from '@/store/chatBarSlice';
+import { NichePipelineHeaderSelect } from './partials/NichePipelineHeaderSelect';
+import { useNichePipelineSwitch } from '../hooks/useNichePipelineSwitch';
 import { useNichePipelineDetail } from '@/views/niches/list/hooks/useNichePipelineDetail';
 import { usePipelineStates } from '@/views/niches/list/hooks/usePipelineStates';
 import { usePipelineCounts } from '@/views/niches/list/hooks/usePipelineCounts';
@@ -123,7 +125,15 @@ const NichePipeline = () => {
     setUnsavedDialogOpen,
     requestClose,
     discardAndClose,
+    isDirty,
   } = useNichePipelineDetail({ mode, selectedId, onClose: handleClose });
+
+  const {
+    requestSwitchToNiche,
+    requestSwitchToCreate,
+    unsavedConfirmAction,
+    wrappedSetUnsavedDialogOpen,
+  } = useNichePipelineSwitch({ isDirty, setUnsavedDialogOpen, discardAndClose });
 
   // Stale persisted niche-id (404 / archived). Reset to create mode after a
   // short pause so the alert is visible momentarily.
@@ -143,9 +153,18 @@ const NichePipeline = () => {
   return (
     <PanelRoot>
       <PanelTitleBar>
-        <Typography variant="subtitle1" fontWeight={600} noWrap>
-          {isCreate ? t('niches.drawer.createTitle') : (niche?.name ?? t('niches.drawer.editTitle'))}
-        </Typography>
+        {isCreate ? (
+          <Typography variant="subtitle1" fontWeight={600} noWrap>
+            {t('niches.drawer.createTitle')}
+          </Typography>
+        ) : (
+          <NichePipelineHeaderSelect
+            activeNicheId={selectedId}
+            activeNicheName={niche?.name}
+            onSelectNiche={requestSwitchToNiche}
+            onCreateNew={requestSwitchToCreate}
+          />
+        )}
       </PanelTitleBar>
 
       <PanelBody>
@@ -312,8 +331,9 @@ const NichePipeline = () => {
         handleArchiveConfirm={handleArchiveConfirm}
         deleting={deleting}
         unsavedDialogOpen={unsavedDialogOpen}
-        setUnsavedDialogOpen={setUnsavedDialogOpen}
+        setUnsavedDialogOpen={wrappedSetUnsavedDialogOpen}
         discardAndClose={discardAndClose}
+        unsavedConfirmAction={unsavedConfirmAction}
         linkedIdeasDialogOpen={linkedIdeasDialogOpen}
         linkedIdeaCount={linkedIdeaCount}
         handleArchiveWithIdeas={handleArchiveWithIdeas}

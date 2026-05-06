@@ -19,6 +19,12 @@ interface PipelineConfirmDialogsProps {
   unsavedDialogOpen: boolean;
   setUnsavedDialogOpen: (open: boolean) => void;
   discardAndClose: () => void;
+  /**
+   * Optional override for the unsaved-changes dialog confirm action.
+   * Defaults to `discardAndClose` (drawer close path).
+   * Used by header niche-selector to discard changes and switch niche.
+   */
+  unsavedConfirmAction?: () => void;
   linkedIdeasDialogOpen: boolean;
   linkedIdeaCount: number;
   handleArchiveWithIdeas: () => void;
@@ -33,6 +39,7 @@ export const PipelineConfirmDialogs = ({
   unsavedDialogOpen,
   setUnsavedDialogOpen,
   discardAndClose,
+  unsavedConfirmAction,
   linkedIdeasDialogOpen,
   linkedIdeaCount,
   handleArchiveWithIdeas,
@@ -114,7 +121,11 @@ export const PipelineConfirmDialogs = ({
           <Button variant="text" onClick={() => setUnsavedDialogOpen(false)}>
             {t('niches.drawer.keepEditing')}
           </Button>
-          <Button variant="outlined" color="error" onClick={discardAndClose}>
+          <Button
+            variant="outlined"
+            color="error"
+            onClick={unsavedConfirmAction ?? discardAndClose}
+          >
             {t('niches.drawer.discardChanges')}
           </Button>
         </DialogActions>
