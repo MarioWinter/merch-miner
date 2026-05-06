@@ -60,6 +60,101 @@ def _scrapy_concurrency_settings():
 
 CACHE_TTL_HOURS = 24
 
+# Hard cap for pages a single Live Research scrape may cover.
+LIVE_SEARCH_MAX_PAGES = 10
+# Per-page freshness window. Re-running Live Research within this window will
+# skip pages already scraped and only re-fetch stale / never-scraped pages.
+LIVE_SEARCH_PAGE_FRESH_HOURS = 24
+
+
+def compute_pages_to_scrape(
+    workspace, keyword_str, marketplace,
+    sort_by='', price_min=None, price_max=None, browse_node='',
+    product_type_filter='',
+    max_total_pages=LIVE_SEARCH_MAX_PAGES,
+    fresh_threshold_hours=LIVE_SEARCH_PAGE_FRESH_HOURS,
+):
+    """Decide which pages of a Live Research search still need scraping.
+
+    Walks pages 1..max_total_pages and consults the latest matching
+    ProductSearchCache (workspace + filter tuple) for `pages_scraped_at`
+    timestamps. A page is "fresh" if its timestamp is younger than
+    `fresh_threshold_hours`.
+
+    Strict contiguous semantics: scrapes from the SMALLEST stale page to the
+    end of the window. If pages 1 and 3 are stale but 2 and 4..10 are fresh,
+    this returns (1, 10) — i.e. re-scrape everything from page 1. Rationale:
+    simpler than gap-filling, and if page 1 is stale you almost certainly
+    want fresh ranking anyway.
+
+    Workspace-scoped: only caches belonging to the given workspace count.
+    The `keyword_str` + `marketplace` pair is resolved to a Keyword row;
+    if no Keyword row exists yet, no cache can match and the function falls
+    through to "scrape all pages".
+
+    Returns a 3-tuple:
+      (start_page, pages_total, existing_cache)
+      - All pages fresh -> (None, 0, latest_cache)
+        Caller can return latest_cache.id immediately as already-completed.
+      - Some pages stale / missing ->
+            (smallest_stale_page, count_of_pages_to_scrape, latest_cache_or_None)
+        latest_cache may be None if no prior cache exists for this filter
+        combination.
+    """
+    try:
+        keyword_obj = Keyword.objects.get(
+            keyword=keyword_str, marketplace=marketplace,
+        )
+    except Keyword.DoesNotExist:
+        # No prior cache possible — scrape everything.
+        return 1, max_total_pages, None
+
+    filter_kwargs = dict(
+        keyword=keyword_obj,
+        workspace=workspace,
+        sort_by=sort_by,
+        price_min=price_min,
+        price_max=price_max,
+        browse_node=browse_node,
+        product_type_filter=product_type_filter,
+    )
+
+    # Take the most recently completed/pending cache matching the filter
+    # tuple. We fall back to last_scraped_at, then created-implicit ordering.
+    latest_cache = (
+        ProductSearchCache.objects
+        .filter(**filter_kwargs)
+        .order_by('-last_scraped_at', '-id')
+        .first()
+    )
+    if latest_cache is None:
+        return 1, max_total_pages, None
+
+    cutoff = timezone.now() - timedelta(hours=fresh_threshold_hours)
+    pages_map = latest_cache.pages_scraped_at or {}
+
+    smallest_stale = None
+    for page in range(1, max_total_pages + 1):
+        ts_raw = pages_map.get(str(page))
+        if not ts_raw:
+            smallest_stale = page
+            break
+        try:
+            from datetime import datetime
+            ts = datetime.fromisoformat(ts_raw)
+        except (TypeError, ValueError):
+            smallest_stale = page
+            break
+        if ts < cutoff:
+            smallest_stale = page
+            break
+
+    if smallest_stale is None:
+        return None, 0, latest_cache
+
+    pages_total = max_total_pages - smallest_stale + 1
+    return smallest_stale, pages_total, latest_cache
+
 
 def get_or_create_keyword_cache(
     keyword_str, marketplace,
@@ -107,10 +202,15 @@ def get_or_create_keyword_cache(
 def scrape_keyword_job(
     keyword_str, marketplace, scrape_job_id=None,
     sort_by='', price_min=None, price_max=None, browse_node='',
-    start_page=1,
+    start_page=1, max_pages=None,
     **spider_kwargs,
 ):
-    """Run AmazonSearchProductSpider via subprocess for a keyword search."""
+    """Run AmazonSearchProductSpider via subprocess for a keyword search.
+
+    `max_pages` controls how many pages the spider will crawl in this run
+    (counting from `start_page`). If omitted, the spider's own default
+    (currently 2) applies.
+    """
     scrape_job = None
     if scrape_job_id:
         try:
@@ -149,6 +249,8 @@ def scrape_keyword_job(
             cmd.extend(['-a', f'browse_node={browse_node}'])
         if start_page and int(start_page) > 1:
             cmd.extend(['-a', f'start_page={start_page}'])
+        if max_pages is not None:
+            cmd.extend(['-a', f'max_pages={int(max_pages)}'])
         max_items = spider_kwargs.pop('max_items', None)
         for key, value in spider_kwargs.items():
             if value is not None:

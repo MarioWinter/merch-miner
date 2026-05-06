@@ -27,7 +27,12 @@ from scraper_app.models import (
     SearchKeywordResult,
     ScrapeJob,
 )
-from scraper_app.tasks import cancel_scrape_job, get_or_create_keyword_cache, scrape_keyword_job
+from scraper_app.tasks import (
+    LIVE_SEARCH_MAX_PAGES,
+    cancel_scrape_job,
+    compute_pages_to_scrape,
+    scrape_keyword_job,
+)
 from user_auth_app.api.authentication import CookieJWTAuthentication
 from workspace_app.models import Membership
 
@@ -294,8 +299,11 @@ class LiveSearchView(APIView):
         price_min = serializer.validated_data.get('price_min')
         price_max = serializer.validated_data.get('price_max')
         browse_node = serializer.validated_data.get('browse_node', '').strip()
-        pages_total = serializer.validated_data.get('pages_total', 2)
-        start_page = serializer.validated_data.get('start_page', 1)
+        # NOTE: pages_total / start_page from request body are intentionally
+        # ignored. With per-page freshness tracking we always crawl the full
+        # 1..LIVE_SEARCH_MAX_PAGES window and let `compute_pages_to_scrape`
+        # decide which pages still need scraping. Serializer keeps the fields
+        # for back-compat with older clients.
 
         workspace = _resolve_workspace(request)
         if not workspace:
@@ -304,18 +312,30 @@ class LiveSearchView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # Dedup: check existing pending/completed cache
-        existing_cache, is_new = get_or_create_keyword_cache(
-            keyword_str, marketplace,
-            sort_by=sort_by, price_min=price_min,
-            price_max=price_max, browse_node=browse_node,
+        # Per-page freshness check. Returns:
+        #   (None, 0, existing) -> all pages fresh, skip scrape
+        #   (start, count, existing_or_None) -> scrape from `start` for `count` pages
+        start_page, pages_total, existing_cache = compute_pages_to_scrape(
+            workspace=workspace,
+            keyword_str=keyword_str,
+            marketplace=marketplace,
+            sort_by=sort_by,
+            price_min=price_min,
+            price_max=price_max,
+            browse_node=browse_node,
             product_type_filter=product_type,
+            max_total_pages=LIVE_SEARCH_MAX_PAGES,
         )
-        if existing_cache and not is_new:
+
+        if start_page is None:
+            # All pages fresh — return existing cache as completed.
             return Response({
                 'cache_id': str(existing_cache.id),
                 'status': existing_cache.status,
             })
+
+        # Hard cap (defensive — `compute_pages_to_scrape` already enforces it).
+        pages_total = min(pages_total, LIVE_SEARCH_MAX_PAGES)
 
         # Create new job + cache
         keyword_obj, _ = Keyword.objects.get_or_create(
@@ -336,6 +356,12 @@ class LiveSearchView(APIView):
             start_page=start_page,
         )
 
+        # Carry forward existing pages_scraped_at so the spider's per-page
+        # stamps merge with prior fresh entries instead of clobbering them.
+        carried_pages_map = (
+            dict(existing_cache.pages_scraped_at or {}) if existing_cache else {}
+        )
+
         search_cache = ProductSearchCache.objects.create(
             keyword=keyword_obj,
             scrape_job=scrape_job,
@@ -346,6 +372,7 @@ class LiveSearchView(APIView):
             price_max=price_max,
             browse_node=browse_node,
             product_type_filter=product_type,
+            pages_scraped_at=carried_pages_map,
         )
 
         # Build spider kwargs
@@ -368,6 +395,7 @@ class LiveSearchView(APIView):
             price_max=price_max,
             browse_node=spider_kwargs.get('browse_node', ''),
             start_page=start_page,
+            max_pages=pages_total,
             **{k: v for k, v in spider_kwargs.items() if k != 'browse_node'},
         )
         scrape_job.rq_job_id = rq_job.id

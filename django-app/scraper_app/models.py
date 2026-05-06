@@ -576,6 +576,11 @@ class ProductSearchCache(models.Model):
         default=Status.PENDING,
         db_index=True,
     )
+    # Per-page freshness map: {"1": "2026-05-06T12:34:56+00:00", ...}
+    # Keys are page numbers as strings (JSONField does not reliably support int
+    # keys across PG/SQLite). Values are ISO 8601 timestamps. Used by
+    # `compute_pages_to_scrape` to skip pages scraped <24h ago.
+    pages_scraped_at = models.JSONField(default=dict, blank=True)
 
     class Meta:
         verbose_name_plural = 'Product search caches'
