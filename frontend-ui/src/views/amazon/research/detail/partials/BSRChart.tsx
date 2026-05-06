@@ -133,7 +133,7 @@ const BSRChart = ({ snapshots, summary, categories }: BSRChartProps) => {
                 {t('amazonResearch.detail.average')}
               </Typography>
               <Typography variant="body2">
-                {summary.average.toLocaleString()}
+                {summary.average?.toLocaleString() ?? '–'}
               </Typography>
             </Box>
           </SummaryCard>
@@ -143,7 +143,7 @@ const BSRChart = ({ snapshots, summary, categories }: BSRChartProps) => {
                 {t('amazonResearch.detail.median')}
               </Typography>
               <Typography variant="body2">
-                {summary.median.toLocaleString()}
+                {summary.median?.toLocaleString() ?? '–'}
               </Typography>
             </Box>
           </SummaryCard>

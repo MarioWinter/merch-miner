@@ -130,8 +130,10 @@ export interface ProductDetail extends AmazonProduct {
 export interface BSRSummary {
   overall_trend: 'up' | 'down' | 'stable';
   current_trend: 'up' | 'down' | 'stable';
-  average: number;
-  median: number;
+  // null when no BSR snapshots have a value (backend returns null in that
+  // case — see research_app/api/serializers.py::compute_bsr_summary).
+  average: number | null;
+  median: number | null;
 }
 
 export interface BSRHistoryResponse {
