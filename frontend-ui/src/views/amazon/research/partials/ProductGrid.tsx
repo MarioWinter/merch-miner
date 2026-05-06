@@ -141,16 +141,31 @@ const ProductGrid = ({
     [Footer],
   );
 
+  // Internal scroll container — the AppLayout root has `overflow: hidden`
+  // (see frontend-ui/src/components/AppLayout.tsx), so the document never
+  // scrolls and `useWindowScroll` would leave endReached firing only once at
+  // mount. Owning the scroller here keeps endReached working for every page.
   return (
-    <VirtuosoGrid
-      totalCount={products.length}
-      data-testid="product-virtuoso-grid"
-      useWindowScroll
-      increaseViewportBy={400}
-      endReached={onEndReached}
-      itemContent={itemContent}
-      components={components}
-    />
+    <Box
+      sx={{
+        flex: 1,
+        minHeight: 0,
+        // Account for: topbar (56) + outer padding (24) + filter row + tabs.
+        // 280px is a conservative reserve so the grid fills available space.
+        height: 'calc(100dvh - 280px)',
+        width: '100%',
+      }}
+    >
+      <VirtuosoGrid
+        totalCount={products.length}
+        data-testid="product-virtuoso-grid"
+        increaseViewportBy={400}
+        endReached={onEndReached}
+        itemContent={itemContent}
+        components={components}
+        style={{ height: '100%' }}
+      />
+    </Box>
   );
 };
 

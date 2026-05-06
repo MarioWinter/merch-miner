@@ -2,7 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useLazyListProductsQuery } from '../../../../store/researchSlice';
 import type { AmazonProduct, ProductListResponse } from '../types';
 
-const INITIAL_PAGE_SIZE = 100;
+// Uniform page size: the backend's offset math is `(page - 1) * page_size`,
+// which silently breaks if INITIAL ≠ NEXT (page 2 with size 50 maps to offset
+// 50, returning duplicates of page 1's items 50-99). Keep both at 50.
+const INITIAL_PAGE_SIZE = 50;
 const NEXT_PAGE_SIZE = 50;
 
 interface UseDbInfiniteScrollArgs {

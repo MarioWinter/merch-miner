@@ -82,7 +82,7 @@ describe('useDbInfiniteScroll', () => {
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     expect(fetchSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ page: 1, page_size: 100, keyword: 'hiking' }),
+      expect.objectContaining({ page: 1, page_size: 50, keyword: 'hiking' }),
     );
     expect(result.current.totalCount).toBe(500);
     expect(result.current.hasMore).toBe(true);
@@ -346,14 +346,14 @@ describe('useDbInfiniteScroll', () => {
 
     await waitFor(() => expect(result.current.products).toHaveLength(100));
     expect(fetchSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ keyword: 'hiking', page: 1, page_size: 100 }),
+      expect.objectContaining({ keyword: 'hiking', page: 1, page_size: 50 }),
     );
 
     rerender({ key: 'k2', kw: 'yoga' });
 
     await waitFor(() => expect(result.current.products).toHaveLength(50));
     expect(fetchSpy).toHaveBeenLastCalledWith(
-      expect.objectContaining({ keyword: 'yoga', page: 1, page_size: 100 }),
+      expect.objectContaining({ keyword: 'yoga', page: 1, page_size: 50 }),
     );
   });
 });

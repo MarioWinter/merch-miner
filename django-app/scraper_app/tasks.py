@@ -1431,6 +1431,82 @@ def _pick_next_targets(batch, count):
     )
 
 
+# When a BATCH_ASIN ScrapeJob has been in RUNNING state longer than this, we
+# assume the worker that was processing it died (typical scrape ~30 s, so 5 min
+# is a safe threshold that won't false-positive on slow Amazon responses).
+ZOMBIE_SCRAPEJOB_TIMEOUT_SECONDS = 300
+
+
+def _reset_orphan_state(batch):
+    """Recover from worker-scraper crashes / restarts mid-flight.
+
+    Required by EC-16 ("no zombie jobs forever"). The wrapper's own
+    zombie-detection only fires when its own task re-enters; if 5 worker-scraper
+    containers SIGKILL together (e.g. during a deploy), nothing else cleans up:
+
+      • ScrapeJob rows freeze at status=RUNNING (wrapper never finished)
+      • ScheduledScrapeTarget.active stays True (set by drainer at enqueue)
+      • Drainer pick filter requires active=False → orphan targets stuck forever
+
+    This helper runs every drainer tick. Two cheap idempotent passes:
+
+      1. Mark stale RUNNING ScrapeJobs (older than ZOMBIE_TIMEOUT) as FAILED.
+      2. Reset target.active=False where no live ScrapeJob covers the ASIN —
+         lets the next pick query re-enqueue them.
+
+    Returns (n_zombies_killed, n_orphans_reset).
+    """
+    now = timezone.now()
+    cutoff = now - timedelta(seconds=ZOMBIE_SCRAPEJOB_TIMEOUT_SECONDS)
+
+    # Pass 1: zombie ScrapeJobs.
+    zombie_qs = ScrapeJob.objects.filter(
+        batch=batch,
+        status=ScrapeJob.Status.RUNNING,
+        started_at__lt=cutoff,
+    )
+    n_zombies = zombie_qs.update(
+        status=ScrapeJob.Status.FAILED,
+        finished_at=now,
+        error_log='zombie killed by drainer (worker restart suspected)',
+        pid=None,
+    )
+
+    # Pass 2: orphan targets — active=True but no live ScrapeJob covering them.
+    live_asins = set()
+    live_jobs = ScrapeJob.objects.filter(
+        batch=batch,
+        status__in=[ScrapeJob.Status.PENDING, ScrapeJob.Status.RUNNING],
+    ).only('asin_list')
+    for job in live_jobs:
+        if job.asin_list:
+            live_asins.update(job.asin_list)
+
+    n_orphans = ScheduledScrapeTarget.objects.filter(
+        batch=batch,
+        active=True,
+        last_scraped_at__isnull=True,
+    ).exclude(asin__in=live_asins).update(active=False)
+
+    if n_zombies or n_orphans:
+        logger.warning(
+            "drainer batch=%s recovered zombies=%d orphans=%d",
+            batch.id, n_zombies, n_orphans,
+        )
+        try:
+            batch.append_error({
+                'event': 'orphan_recovery',
+                'zombies': n_zombies,
+                'orphans': n_orphans,
+                'at': now.isoformat(),
+            })
+            batch.save(update_fields=['errors'])
+        except Exception:  # noqa: BLE001
+            logger.warning("orphan_recovery audit-write failed", exc_info=True)
+
+    return n_zombies, n_orphans
+
+
 def drain_bulk_batch(batch_id):
     """One-tick drainer for a BulkScrapeBatch (PROJ-25 Phase D).
 
@@ -1470,6 +1546,11 @@ def drain_bulk_batch(batch_id):
                 batch_id, batch.status,
             )
             return
+
+        # EC-16 / mid-deploy resilience: recover orphan targets + zombie
+        # ScrapeJobs from a previous worker-scraper restart. Idempotent — does
+        # nothing if state is healthy.
+        _reset_orphan_state(batch)
 
         # AC-12 step 3 vs EC-13 contradiction: spec text says "minimum 1" but
         # EC-13 requires concurrent_requests=0 to act as a soft pause. EC-13

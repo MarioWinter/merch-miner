@@ -3,6 +3,7 @@
 Covers AC-12 / AC-13 / AC-14 / AC-15 / EC-7 / EC-13.
 """
 
+from datetime import timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -584,3 +585,111 @@ class TestDrainerDoesNotRePickDoneTargets:
         assert len(picks) == 1
         picked_id, picked_asin = picks[0]
         assert picked_id == targets[2].id
+
+
+# ---------------------------------------------------------------------------
+# EC-16 mid-deploy resilience — orphan target + zombie ScrapeJob recovery
+# ---------------------------------------------------------------------------
+
+
+class TestDrainerOrphanRecovery:
+    """When 5 worker-scraper containers SIGKILL together (deploy mid-run), the
+    in-flight ScrapeJobs freeze at status=RUNNING and their targets stay
+    active=True. The drainer's pick filter requires active=False → orphan
+    targets stuck forever. This test pins that the next drainer tick recovers
+    both: marks zombie ScrapeJobs FAILED and resets target.active=False.
+    """
+
+    def test_reset_orphan_state_recovers_zombie_jobs_and_orphan_targets(self):
+        """Direct unit test of the helper."""
+        from scraper_app.tasks import (
+            ZOMBIE_SCRAPEJOB_TIMEOUT_SECONDS,
+            _reset_orphan_state,
+        )
+
+        _set_cfg()
+        batch = _seed_batch(2)
+        target_a, target_b = list(batch.targets.order_by('asin'))
+
+        # Simulate orphan: drainer marked active, ScrapeJob frozen at RUNNING
+        # with started_at older than ZOMBIE_TIMEOUT.
+        target_a.active = True
+        target_a.save()
+        zombie = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.BATCH_ASIN,
+            batch=batch,
+            marketplace='amazon_com',
+            status=ScrapeJob.Status.RUNNING,
+            asin_list=[target_a.asin],
+            started_at=timezone.now() - timedelta(
+                seconds=ZOMBIE_SCRAPEJOB_TIMEOUT_SECONDS + 60,
+            ),
+        )
+
+        # Healthy in-flight scenario for target_b: should NOT be reset.
+        target_b.active = True
+        target_b.save()
+        live_job = ScrapeJob.objects.create(
+            mode=ScrapeJob.Mode.BATCH_ASIN,
+            batch=batch,
+            marketplace='amazon_com',
+            status=ScrapeJob.Status.RUNNING,
+            asin_list=[target_b.asin],
+            started_at=timezone.now() - timedelta(seconds=10),  # fresh
+        )
+
+        n_zombies, n_orphans = _reset_orphan_state(batch)
+
+        assert n_zombies == 1
+        assert n_orphans == 1
+
+        target_a.refresh_from_db()
+        assert target_a.active is False  # now pickable again
+        target_b.refresh_from_db()
+        assert target_b.active is True  # untouched (covered by live job)
+
+        zombie.refresh_from_db()
+        assert zombie.status == ScrapeJob.Status.FAILED
+        assert 'zombie killed' in (zombie.error_log or '')
+
+        live_job.refresh_from_db()
+        assert live_job.status == ScrapeJob.Status.RUNNING  # untouched
+
+    def test_reset_orphan_state_no_op_when_healthy(self):
+        """Healthy state → no zombies, no orphans, no audit event."""
+        from scraper_app.tasks import _reset_orphan_state
+
+        _set_cfg()
+        batch = _seed_batch(3)  # all targets active=False, no ScrapeJobs
+
+        n_zombies, n_orphans = _reset_orphan_state(batch)
+
+        assert (n_zombies, n_orphans) == (0, 0)
+        # No audit-trail entry written
+        assert not any(
+            (e or {}).get('event') == 'orphan_recovery'
+            for e in (batch.errors or [])
+        )
+
+    @patch('scraper_app.tasks.django_rq')
+    def test_drainer_calls_reset_orphan_state_each_tick(self, mock_django_rq):
+        """drain_bulk_batch invokes _reset_orphan_state before its main work."""
+        _set_cfg()
+        batch = _seed_batch(1)
+
+        fake_conn = MagicMock()
+        fake_conn.set.return_value = True
+        mock_django_rq.get_connection.return_value = fake_conn
+        scraper_q = MagicMock()
+        scraper_q.enqueue.return_value = MagicMock(id='rq-orphan-test')
+        default_q = MagicMock()
+        mock_django_rq.get_queue.side_effect = (
+            lambda n: scraper_q if n == 'scraper' else default_q
+        )
+        sched = MagicMock()
+        mock_django_rq.get_scheduler.return_value = sched
+
+        with patch('scraper_app.tasks._reset_orphan_state') as mock_reset:
+            mock_reset.return_value = (0, 0)
+            drain_bulk_batch(str(batch.id))
+            assert mock_reset.called
