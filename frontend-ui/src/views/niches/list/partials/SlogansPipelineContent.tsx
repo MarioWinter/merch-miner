@@ -59,7 +59,10 @@ export const SlogansPipelineContent = ({
       text: i.slogan_text,
       signalType: i.signal_type,
       isApproved: i.status === 'approved',
-      isSelectable: i.status === 'approved',
+      // Manual ideas (added from the niche-research chip click) are
+      // selectable too — users expect a checkbox so they can bulk-promote
+      // to design projects without first approving each one.
+      isSelectable: i.is_manual || i.status === 'approved',
     }));
 
   const selectableSlogans = slogans.filter((s) => s.isSelectable);

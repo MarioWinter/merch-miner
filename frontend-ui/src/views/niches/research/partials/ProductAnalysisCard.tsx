@@ -61,18 +61,28 @@ export const ProductAnalysisCard = ({ product, nicheId }: ProductAnalysisCardPro
   );
   const [createIdea] = useCreateIdeaMutation();
 
+  // Backend's create-idea view splits slogan_text on \n and creates one
+  // idea per non-empty line (supports newline-separated bulk paste). The
+  // AI vision-analysis sometimes emits multiline strings, which would
+  // shred a single chip click into 4+ fragmented ideas. Collapse all
+  // whitespace runs (including newlines) into single spaces so one click
+  // = one idea.
+  const normalizeSlogan = (s: string) => s.replace(/\s+/g, ' ').trim();
+
   const handleSloganClick = async (sloganText: string) => {
-    if (collectedSlogans.has(sloganText)) {
+    const clean = normalizeSlogan(sloganText);
+    if (!clean) return;
+    if (collectedSlogans.has(clean)) {
       enqueueSnackbar(
-        t('research.products.sloganAlreadyCollected', { slogan: sloganText }),
+        t('research.products.sloganAlreadyCollected', { slogan: clean }),
         { variant: 'info' },
       );
       return;
     }
     try {
-      await createIdea({ nicheId, body: { slogan_text: sloganText } }).unwrap();
+      await createIdea({ nicheId, body: { slogan_text: clean } }).unwrap();
       enqueueSnackbar(
-        t('research.products.sloganAdded', { slogan: sloganText }),
+        t('research.products.sloganAdded', { slogan: clean }),
         { variant: 'success' },
       );
     } catch {
@@ -188,7 +198,7 @@ export const ProductAnalysisCard = ({ product, nicheId }: ProductAnalysisCardPro
         <Box sx={{ px: 2.5, pb: 1.5 }}>
           <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
             {vision?.slogan_text && (() => {
-              const isCollected = collectedSlogans.has(vision.slogan_text);
+              const isCollected = collectedSlogans.has(normalizeSlogan(vision.slogan_text));
               return (
                 <Chip
                   icon={<VisibilityIcon sx={{ fontSize: 14 }} />}
