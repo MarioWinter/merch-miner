@@ -177,11 +177,12 @@
       "colStatus": "Status",
       "colRating": "Bewertung",
       "colAssignee": "Zugewiesen",
-      "colIdeas": "Ideen",
+      "colIdeas": "RECHERCHE",
       "colUpdated": "Aktualisiert",
       "colActions": "Aktionen",
       "unassigned": "Nicht zugewiesen",
       "colDeepDrill": "Deep Drill",
+      "openInAmazonResearch": "In Amazon Recherche öffnen",
       "deepDrill": {
         "idle": "Deep Drill starten",
         "running": "Deep Drill läuft…",

@@ -177,11 +177,12 @@
       "colStatus": "Status",
       "colRating": "Rating",
       "colAssignee": "Assignee",
-      "colIdeas": "Ideas",
+      "colIdeas": "RESEARCH",
       "colUpdated": "Updated",
       "colActions": "Actions",
       "colDeepDrill": "Deep Drill",
       "unassigned": "Unassigned",
+      "openInAmazonResearch": "Open in Amazon Research",
       "deepDrill": {
         "idle": "Start Deep Drill",
         "running": "Deep Drill running…",

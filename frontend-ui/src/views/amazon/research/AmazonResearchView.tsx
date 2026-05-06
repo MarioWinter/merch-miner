@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useAppDispatch } from '@/store/hooks';
 import { openNicheEdit } from '@/store/chatBarSlice';
 import {
@@ -58,6 +59,7 @@ const AmazonResearchView = () => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
   const dispatch = useAppDispatch();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const { filters, enabled, setFilter, setEnabled, resetFilters, activeFilterCount } =
     useFilterState();
@@ -107,6 +109,17 @@ const AmazonResearchView = () => {
   useEffect(() => {
     const saved = getInitialMarketplace();
     if (saved !== filters.marketplace) setFilter('marketplace', saved);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Pre-fill keyword from URL param (?keyword=...) on mount.
+  // Does NOT auto-trigger search — only fills the input. Param is consumed
+  // (removed from URL) so a refresh doesn't re-apply the keyword.
+  useEffect(() => {
+    const kw = searchParams.get('keyword');
+    if (kw) {
+      setKeyword(kw);
+      setSearchParams({}, { replace: true });
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Persist marketplace
