@@ -2289,6 +2289,15 @@
       "label": "Kürzliche Amazon-Suchen",
       "clearAll": "Verlauf leeren"
     },
+    "searchBar": {
+      "copyKeyword": "Keyword kopieren",
+      "copied": "In Zwischenablage kopiert",
+      "copyFailed": "Kopieren fehlgeschlagen",
+      "addToNicheList": "Zur Nischen-Liste hinzufügen",
+      "addedToNicheList": "'{{keyword}}' zur Nischen-Liste hinzugefügt",
+      "alreadyInNicheList": "'{{keyword}}' ist bereits in der Nischen-Liste",
+      "addToNicheListFailed": "Konnte nicht zur Nischen-Liste hinzugefügt werden"
+    },
     "detail": {
       "breadcrumb": "Amazon Research",
       "notFound": "Produkt nicht gefunden",

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Autocomplete,
   Box,
@@ -17,6 +18,8 @@ import StopCircleOutlinedIcon from '@mui/icons-material/StopCircleOutlined';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import ContentCopyOutlinedIcon from '@mui/icons-material/ContentCopyOutlined';
+import ListAltOutlinedIcon from '@mui/icons-material/ListAltOutlined';
 import { useGetSuggestionsQuery } from '../../../../store/researchSlice';
 import type { Niche } from '../../../niches/list/types';
 
@@ -43,6 +46,10 @@ interface SearchBarProps {
   savingKeywords?: Set<string>;
   /** Keywords already saved in this session (show check icon). */
   savedKeywords?: Set<string>;
+  /** Called to copy a suggestion keyword to clipboard. */
+  onCopyKeyword?: (keyword: string) => void;
+  /** Called to add a suggestion keyword to the niche list. */
+  onAddToNicheList?: (keyword: string) => void;
   /**
    * Whether Search submission is allowed in DB mode without keyword.
    * When the parent has at least one filter active, this is true → empty-keyword search is allowed.
@@ -77,8 +84,11 @@ const SearchBar = ({
   onSaveKeyword,
   savingKeywords = new Set<string>(),
   savedKeywords = new Set<string>(),
+  onCopyKeyword,
+  onAddToNicheList,
   allowEmptyKeyword = false,
 }: SearchBarProps) => {
+  const { t } = useTranslation();
   const [inputValue, setInputValue] = useState(keyword);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [debouncedQuery, setDebouncedQuery] = useState('');
@@ -157,6 +167,36 @@ const SearchBar = ({
                 sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
               >
                 <Typography variant="body2" sx={{ flex: 1 }}>{option}</Typography>
+                {onCopyKeyword && (
+                  <Tooltip title={t('amazonResearch.searchBar.copyKeyword')}>
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onCopyKeyword(option);
+                      }}
+                      aria-label={t('amazonResearch.searchBar.copyKeyword')}
+                      sx={{ ml: 0.5, p: 0.25 }}
+                    >
+                      <ContentCopyOutlinedIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                {onAddToNicheList && (
+                  <Tooltip title={t('amazonResearch.searchBar.addToNicheList')}>
+                    <IconButton
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onAddToNicheList(option);
+                      }}
+                      aria-label={t('amazonResearch.searchBar.addToNicheList')}
+                      sx={{ ml: 0.5, p: 0.25 }}
+                    >
+                      <ListAltOutlinedIcon sx={{ fontSize: 18 }} />
+                    </IconButton>
+                  </Tooltip>
+                )}
                 {onSaveKeyword && matchedNiche && (
                   savedKeywords.has(option) ? (
                     <CheckCircleIcon

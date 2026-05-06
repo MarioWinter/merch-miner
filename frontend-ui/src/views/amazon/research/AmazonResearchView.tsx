@@ -339,6 +339,50 @@ const AmazonResearchView = () => {
     [activeNicheId, matchedNiche, addKeywordMutation, enqueueSnackbar, t],
   );
 
+  // Copy suggestion keyword to clipboard
+  const handleCopyKeyword = useCallback(
+    (kw: string) => {
+      navigator.clipboard.writeText(kw).then(
+        () =>
+          enqueueSnackbar(t('amazonResearch.searchBar.copied'), {
+            variant: 'success',
+          }),
+        () =>
+          enqueueSnackbar(t('amazonResearch.searchBar.copyFailed'), {
+            variant: 'error',
+          }),
+      );
+    },
+    [enqueueSnackbar, t],
+  );
+
+  // Add suggestion keyword to Niche List (creates a new niche)
+  const handleAddToNicheList = useCallback(
+    async (kw: string) => {
+      try {
+        await createNiche({ name: kw }).unwrap();
+        enqueueSnackbar(
+          t('amazonResearch.searchBar.addedToNicheList', { keyword: kw }),
+          { variant: 'success' },
+        );
+      } catch (err) {
+        const e = err as { status?: number };
+        if (e?.status === 409) {
+          enqueueSnackbar(
+            t('amazonResearch.searchBar.alreadyInNicheList', { keyword: kw }),
+            { variant: 'info' },
+          );
+        } else {
+          enqueueSnackbar(
+            t('amazonResearch.searchBar.addToNicheListFailed'),
+            { variant: 'error' },
+          );
+        }
+      }
+    },
+    [createNiche, enqueueSnackbar, t],
+  );
+
   // Niche indicator click handler
   const handleNicheIndicatorClick = useCallback(() => {
     if (matchedNiche) {
@@ -499,6 +543,8 @@ const AmazonResearchView = () => {
         onSaveKeyword={activeNicheId ? handleSaveKeyword : undefined}
         savingKeywords={savingKeywords}
         savedKeywords={savedKeywords}
+        onCopyKeyword={handleCopyKeyword}
+        onAddToNicheList={handleAddToNicheList}
         allowEmptyKeyword={!isLive}
       />
 

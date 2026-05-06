@@ -3045,6 +3045,15 @@
       "label": "Recent Amazon searches",
       "clearAll": "Clear history"
     },
+    "searchBar": {
+      "copyKeyword": "Copy keyword",
+      "copied": "Copied to clipboard",
+      "copyFailed": "Could not copy",
+      "addToNicheList": "Add to Niche List",
+      "addedToNicheList": "'{{keyword}}' added to Niche List",
+      "alreadyInNicheList": "'{{keyword}}' is already in Niche List",
+      "addToNicheListFailed": "Could not add to Niche List"
+    },
     "detail": {
       "breadcrumb": "Amazon Research",
       "notFound": "Product not found",
