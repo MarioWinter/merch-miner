@@ -1306,6 +1306,28 @@ def scrape_asin_batch_job(scrape_job_id):
     if batch is not None:
         target_filter_kwargs['batch'] = batch
 
+    # ── DIAGNOSTIC (TEMPORARY) ────────────────────────────────────────────
+    # Capture target state BEFORE the wrapper's transaction so we can see
+    # whether last_error='orphan_recovered' is already set when the wrapper
+    # arrives. If yes, the orphan-recovery fired before the wrapper got to
+    # its updates — explaining why our 4,690+ targets end up stuck. If no,
+    # the bug is somewhere in the update queries themselves.
+    _diag_pre = list(
+        ScheduledScrapeTarget.objects.filter(
+            asin__in=asins, marketplace=marketplace,
+            **({'batch': batch} if batch is not None else {}),
+        ).values('asin', 'active', 'last_error', 'last_scraped_at', 'retry_count')
+    )
+    logger.warning(
+        "DIAG_PRE job=%s n_asins=%d n_targets=%d ok_count=%d skip_count=%d failed_count=%d "
+        "any_orphan_recovered=%s sample=%s",
+        scrape_job.id, len(asins), len(_diag_pre),
+        len(ok_asins), len(skip_set), len(failed_outcomes),
+        any(t['last_error'] == 'orphan_recovered' for t in _diag_pre),
+        [(t['asin'], t['active'], t['last_error']) for t in _diag_pre[:3]],
+    )
+    # ──────────────────────────────────────────────────────────────────────
+
     # Reconcile per-ASIN outcomes.
     #
     # Defensive guard against ghost-wrapper updates: every target update below
@@ -1371,6 +1393,26 @@ def scrape_asin_batch_job(scrape_job_id):
             ).exclude(last_error='orphan_recovered').update(
                 active=False, retry_count=F('retry_count') + 1, last_error=msg,
             )
+
+    # ── DIAGNOSTIC (TEMPORARY) ────────────────────────────────────────────
+    # Snapshot target state AFTER the transaction.atomic exit. If the bug
+    # is real, we will see remaining_active > 0 — i.e. targets that the
+    # wrapper failed to flip to inactive. Compare against pre-state to
+    # know which ones the update queries missed.
+    _diag_post = list(
+        ScheduledScrapeTarget.objects.filter(
+            asin__in=asins, marketplace=marketplace,
+            **({'batch': batch} if batch is not None else {}),
+        ).values('asin', 'active', 'last_error', 'last_scraped_at')
+    )
+    _stuck = [t for t in _diag_post if t['active']]
+    if _stuck:
+        logger.warning(
+            "DIAG_POST_STUCK job=%s n_stuck=%d sample=%s",
+            scrape_job.id, len(_stuck),
+            [(t['asin'], t['last_error']) for t in _stuck[:3]],
+        )
+    # ──────────────────────────────────────────────────────────────────────
 
     # ScrapeJob final status.
     n_ok = len(ok_real) if 'ok_real' in locals() else 0
