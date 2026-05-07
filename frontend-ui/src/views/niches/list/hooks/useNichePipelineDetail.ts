@@ -167,9 +167,12 @@ export const useNichePipelineDetail = ({
   void createForm.formState.isDirty;
   void editForm.formState.isDirty;
 
+  // Active form's dirty state — exposed for callers that need to guard
+  // navigation away (e.g. niche-selector dropdown switching active niche).
+  const isDirty =
+    mode === 'create' ? createForm.formState.isDirty : editForm.formState.isDirty;
+
   const requestClose = () => {
-    const isDirty =
-      mode === 'create' ? createForm.formState.isDirty : editForm.formState.isDirty;
     if (isDirty) {
       setUnsavedDialogOpen(true);
     } else {
@@ -206,5 +209,6 @@ export const useNichePipelineDetail = ({
     setUnsavedDialogOpen,
     requestClose,
     discardAndClose,
+    isDirty,
   };
 };

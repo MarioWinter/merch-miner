@@ -1,6 +1,8 @@
 import { Button, CircularProgress, IconButton, Tooltip } from '@mui/material';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import AutoGraphIcon from '@mui/icons-material/AutoGraph';
 import { useTranslation } from 'react-i18next';
+import { FEATURE_FLAGS } from '@/constants/featureFlags';
+import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 
 interface EnrichButtonProps {
   /** Single keyword enrich (row-level) */
@@ -19,22 +21,28 @@ export const EnrichButton = ({
   variant = 'icon',
 }: EnrichButtonProps) => {
   const { t } = useTranslation();
+  const enrichEnabled = useFeatureFlag(FEATURE_FLAGS.KEYWORD_ENRICH_ENABLED);
+
+  const tooltipLabel = enrichEnabled
+    ? t('keywords.enrich.buttonLabel')
+    : t('keywords.enrich.disabledTooltip');
+  const isDisabled = !enrichEnabled || isEnriching;
 
   if (variant === 'icon') {
     return (
-      <Tooltip title={t('keywords.enrich.buttonLabel')}>
+      <Tooltip title={tooltipLabel}>
         <span>
           <IconButton
             size="small"
             onClick={onEnrich}
-            disabled={isEnriching}
-            aria-label={t('keywords.enrich.buttonLabel')}
+            disabled={isDisabled}
+            aria-label={tooltipLabel}
             sx={{ borderRadius: '8px' }}
           >
             {isEnriching ? (
               <CircularProgress size={16} />
             ) : (
-              <AutoAwesomeIcon sx={{ fontSize: 18 }} />
+              <AutoGraphIcon sx={{ fontSize: 18 }} />
             )}
           </IconButton>
         </span>
@@ -43,18 +51,22 @@ export const EnrichButton = ({
   }
 
   return (
-    <Button
-      size="small"
-      variant="outlined"
-      startIcon={
-        isEnriching ? <CircularProgress size={14} /> : <AutoAwesomeIcon sx={{ fontSize: 16 }} />
-      }
-      onClick={onEnrich}
-      disabled={isEnriching}
-    >
-      {keyword
-        ? t('keywords.enrich.buttonLabel')
-        : t('keywords.enrich.bulkLabel')}
-    </Button>
+    <Tooltip title={tooltipLabel}>
+      <span>
+        <Button
+          size="small"
+          variant="outlined"
+          startIcon={
+            isEnriching ? <CircularProgress size={14} /> : <AutoGraphIcon sx={{ fontSize: 16 }} />
+          }
+          onClick={onEnrich}
+          disabled={isDisabled}
+        >
+          {keyword
+            ? t('keywords.enrich.buttonLabel')
+            : t('keywords.enrich.bulkLabel')}
+        </Button>
+      </span>
+    </Tooltip>
   );
 };

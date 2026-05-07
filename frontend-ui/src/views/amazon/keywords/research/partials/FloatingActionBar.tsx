@@ -1,8 +1,10 @@
 import { Box, Button, Tooltip, Typography } from '@mui/material';
 import { alpha, styled, keyframes } from '@mui/material/styles';
-import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import AutoGraphIcon from '@mui/icons-material/AutoGraph';
 import { useTranslation } from 'react-i18next';
 import { EASING, DURATION } from '@/style/constants';
+import { FEATURE_FLAGS } from '@/constants/featureFlags';
+import { useFeatureFlag } from '@/hooks/useFeatureFlag';
 import { AddToNicheButton } from './AddToNicheButton';
 
 interface FloatingActionBarProps {
@@ -64,6 +66,7 @@ export const FloatingActionBar = ({
   onClearSelection,
 }: FloatingActionBarProps) => {
   const { t } = useTranslation();
+  const enrichEnabled = useFeatureFlag(FEATURE_FLAGS.KEYWORD_ENRICH_ENABLED);
 
   if (selectedCount === 0) return null;
 
@@ -82,13 +85,19 @@ export const FloatingActionBar = ({
         onClearSelection={onClearSelection}
       />
 
-      <Tooltip title={t('keywords.suggestionTabs.comingSoon')}>
+      <Tooltip
+        title={
+          enrichEnabled
+            ? t('keywords.actionBar.enrich')
+            : t('keywords.enrich.disabledTooltip')
+        }
+      >
         <span>
           <Button
             size="small"
             variant="outlined"
-            startIcon={<AutoAwesomeIcon sx={{ fontSize: 16 }} />}
-            disabled
+            startIcon={<AutoGraphIcon sx={{ fontSize: 16 }} />}
+            disabled={!enrichEnabled}
             sx={(theme) => ({
               borderColor: theme.vars.palette.divider,
               '&.Mui-disabled': {

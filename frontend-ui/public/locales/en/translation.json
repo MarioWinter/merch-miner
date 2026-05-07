@@ -177,11 +177,12 @@
       "colStatus": "Status",
       "colRating": "Rating",
       "colAssignee": "Assignee",
-      "colIdeas": "Ideas",
+      "colIdeas": "RESEARCH",
       "colUpdated": "Updated",
       "colActions": "Actions",
       "colDeepDrill": "Deep Drill",
       "unassigned": "Unassigned",
+      "openInAmazonResearch": "Open in Amazon Research",
       "deepDrill": {
         "idle": "Start Deep Drill",
         "running": "Deep Drill running…",
@@ -217,6 +218,18 @@
       "unsavedChangesBody": "You have unsaved changes. Discard them?",
       "discardChanges": "Discard",
       "keepEditing": "Keep editing",
+      "selector": {
+        "filter": "Filter niches…",
+        "createNew": "Create new niche…",
+        "placeholder": "Select a niche",
+        "fetchError": "Could not load niches",
+        "noNichesYet": "No niches yet",
+        "loading": "Loading niches…",
+        "ago": "{{days}}d ago",
+        "today": "today",
+        "openMenu": "Open niche selector",
+        "currentNiche": "Current niche: {{name}}"
+      },
       "collectedSlogans": "Collected Slogans",
       "collectedKeywords": "Collected Keywords",
       "copyAll": "Copy All",
@@ -406,6 +419,9 @@
       "vision": "Vision Analysis",
       "emotional": "Emotional Analysis",
       "slogan": "Slogan",
+      "sloganAdded": "Slogan '{{slogan}}' added to Collected Slogans",
+      "sloganAlreadyCollected": "Slogan '{{slogan}}' is already collected",
+      "sloganAddFailed": "Could not add slogan to Collected Slogans",
       "meaning": "Meaning",
       "visualStyle": "Visual Style",
       "graphicElements": "Graphic Elements",
@@ -1672,7 +1688,8 @@
       "loading": "Enriching...",
       "success": "Keywords enriched",
       "noApiKeyTooltip": "Configure JungleScout API key in Settings",
-      "comingSoon": "JungleScout coming soon"
+      "comingSoon": "JungleScout coming soon",
+      "disabledTooltip": "JungleScout enrichment — coming soon (requires API key)"
     },
     "table": {
       "col_keyword": "Keyword",
@@ -3042,6 +3059,20 @@
     "searchHistory": {
       "label": "Recent Amazon searches",
       "clearAll": "Clear history"
+    },
+    "searchBar": {
+      "copyKeyword": "Copy keyword",
+      "copied": "Copied to clipboard",
+      "copyFailed": "Could not copy",
+      "addToNicheList": "Add to Niche List",
+      "addedToNicheList": "'{{keyword}}' added to '{{niche}}'",
+      "alreadyInNicheList": "'{{keyword}}' is already in '{{niche}}'",
+      "addToNicheListFailed": "Could not add to Niche List",
+      "noActiveNiche": "No active niche — open a niche from Niche Claims first",
+      "createNicheFromKeyword": "Add to Niche List (new niche)",
+      "nicheCreated": "Niche '{{keyword}}' created",
+      "nicheAlreadyExists": "Niche '{{keyword}}' already exists",
+      "nicheCreateFailed": "Could not create niche"
     },
     "detail": {
       "breadcrumb": "Amazon Research",

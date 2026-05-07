@@ -89,17 +89,19 @@ describe('NicheTable', () => {
     expect(screen.getByText('Niche Two')).toBeInTheDocument();
   });
 
-  it('renders correct ideas count in format "approved / total"', () => {
-    const niche = buildNiche({ idea_count: 10, approved_idea_count: 3 });
+  it('renders Amazon Research jump button in the research column', () => {
+    const niche = buildNiche({ name: 'school bus driver' });
     renderWithProviders(<NicheTable {...defaultProps} niches={[niche]} />);
-    expect(screen.getByText('3 / 10')).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(/open in amazon research/i),
+    ).toBeInTheDocument();
   });
 
   it('renders column headers', () => {
     renderWithProviders(<NicheTable {...defaultProps} />);
     expect(screen.getByText(/name/i)).toBeInTheDocument();
     expect(screen.getByText(/status/i)).toBeInTheDocument();
-    expect(screen.getByText(/ideas/i)).toBeInTheDocument();
+    expect(screen.getByText(/research/i)).toBeInTheDocument();
     expect(screen.getByText(/updated/i)).toBeInTheDocument();
   });
 

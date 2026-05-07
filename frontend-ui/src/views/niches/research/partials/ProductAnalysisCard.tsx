@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Box,
   Chip,
@@ -15,11 +15,9 @@ import BlockIcon from '@mui/icons-material/Block';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useTranslation } from 'react-i18next';
 import { getPatternVisual } from './patternConfig';
-import { useDispatch, useSelector } from 'react-redux';
 import { useSnackbar } from 'notistack';
 import { COLORS } from '@/style/constants';
-import { toggleSlogan, selectCollectedSlogans } from '@/store/collectedItemsSlice';
-import type { RootState } from '@/store';
+import { useCreateIdeaMutation, useListIdeasQuery } from '@/store/ideaSlice';
 import type { ResearchProduct } from '../types';
 import {
   Card,
@@ -43,18 +41,53 @@ interface ProductAnalysisCardProps {
 
 export const ProductAnalysisCard = ({ product, nicheId }: ProductAnalysisCardProps) => {
   const { t } = useTranslation();
-  const dispatch = useDispatch();
   const { enqueueSnackbar } = useSnackbar();
   const [expanded, setExpanded] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const vision = product.vision_analysis;
   const emotional = product.emotional_analysis;
-  const collectedSlogans = useSelector((state: RootState) => selectCollectedSlogans(state, nicheId));
 
-  const handleSloganClick = (sloganText: string) => {
-    dispatch(toggleSlogan({ nicheId, value: sloganText }));
-    navigator.clipboard.writeText(sloganText);
-    enqueueSnackbar(t('research.products.slogan') + ': ' + sloganText, { variant: 'success' });
+  // Source of truth for "is this slogan already in the niche pipeline" is the
+  // backend ideas list — not the local Redux toggle slice. Saving a slogan
+  // creates a manual Idea (backend defaults is_manual=true) which then shows
+  // up in the drawer's Collected Slogans card.
+  const { data: ideasData } = useListIdeasQuery(
+    { nicheId, page_size: 200 },
+    { skip: !nicheId },
+  );
+  const collectedSlogans = useMemo(
+    () => new Set((ideasData?.results ?? []).map((i) => i.slogan_text)),
+    [ideasData],
+  );
+  const [createIdea] = useCreateIdeaMutation();
+
+  // Backend's create-idea view splits slogan_text on \n and creates one
+  // idea per non-empty line (supports newline-separated bulk paste). The
+  // AI vision-analysis sometimes emits multiline strings, which would
+  // shred a single chip click into 4+ fragmented ideas. Collapse all
+  // whitespace runs (including newlines) into single spaces so one click
+  // = one idea.
+  const normalizeSlogan = (s: string) => s.replace(/\s+/g, ' ').trim();
+
+  const handleSloganClick = async (sloganText: string) => {
+    const clean = normalizeSlogan(sloganText);
+    if (!clean) return;
+    if (collectedSlogans.has(clean)) {
+      enqueueSnackbar(
+        t('research.products.sloganAlreadyCollected', { slogan: clean }),
+        { variant: 'info' },
+      );
+      return;
+    }
+    try {
+      await createIdea({ nicheId, body: { slogan_text: clean } }).unwrap();
+      enqueueSnackbar(
+        t('research.products.sloganAdded', { slogan: clean }),
+        { variant: 'success' },
+      );
+    } catch {
+      enqueueSnackbar(t('research.products.sloganAddFailed'), { variant: 'error' });
+    }
   };
 
   return (
@@ -165,7 +198,7 @@ export const ProductAnalysisCard = ({ product, nicheId }: ProductAnalysisCardPro
         <Box sx={{ px: 2.5, pb: 1.5 }}>
           <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
             {vision?.slogan_text && (() => {
-              const isCollected = collectedSlogans.includes(vision.slogan_text);
+              const isCollected = collectedSlogans.has(normalizeSlogan(vision.slogan_text));
               return (
                 <Chip
                   icon={<VisibilityIcon sx={{ fontSize: 14 }} />}

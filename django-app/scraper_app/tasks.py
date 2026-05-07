@@ -1307,19 +1307,33 @@ def scrape_asin_batch_job(scrape_job_id):
         target_filter_kwargs['batch'] = batch
 
     # Reconcile per-ASIN outcomes.
+    #
+    # Defensive guard against ghost-wrapper updates: every target update below
+    # `.exclude(last_error='orphan_recovered')`. If a target was orphan-
+    # recovered by the drainer between this wrapper's pick and now (because
+    # this wrapper's parent task was killed and restarted, or because Scrapy
+    # ran past its parent's lifetime), the recovery already counted the
+    # target as terminally failed. Overwriting that record would silently
+    # erase the orphan-recovery audit trail and could re-introduce the
+    # double-pick risk the recovery was protecting against. Skipping these
+    # rows costs nothing — the target is already closed out.
     with transaction.atomic():
         # Successes (and freshness-skip, treated as done).
         ok_real = [a for a in ok_asins if a not in skip_set]
         if ok_real:
             ScheduledScrapeTarget.objects.filter(
                 asin__in=ok_real, **{k: v for k, v in target_filter_kwargs.items() if k != 'asin__in'},
-            ).update(active=False, last_scraped_at=now, last_error=None)
+            ).exclude(last_error='orphan_recovered').update(
+                active=False, last_scraped_at=now, last_error=None,
+            )
 
         if skip_set:
             ScheduledScrapeTarget.objects.filter(
                 asin__in=list(skip_set),
                 **{k: v for k, v in target_filter_kwargs.items() if k != 'asin__in'},
-            ).update(active=False, last_scraped_at=now, last_error='skipped_fresh')
+            ).exclude(last_error='orphan_recovered').update(
+                active=False, last_scraped_at=now, last_error='skipped_fresh',
+            )
 
         # Failures: retry-with-room vs terminal.
         failed_retry_ok = []
@@ -1334,6 +1348,8 @@ def scrape_asin_batch_job(scrape_job_id):
             ).first()
             if target is None:
                 continue
+            if target.last_error == 'orphan_recovered':
+                continue  # ghost-wrapper guard — recovery already closed this row
             new_retry_count = target.retry_count + 1
             if new_retry_count < max_retries:
                 failed_retry_ok.append(asin)
@@ -1344,13 +1360,17 @@ def scrape_asin_batch_job(scrape_job_id):
             ScheduledScrapeTarget.objects.filter(
                 asin__in=failed_retry_ok,
                 **{k: v for k, v in target_filter_kwargs.items() if k != 'asin__in'},
-            ).update(active=False, retry_count=F('retry_count') + 1, last_error=None)
+            ).exclude(last_error='orphan_recovered').update(
+                active=False, retry_count=F('retry_count') + 1, last_error=None,
+            )
 
         for asin, msg in failed_terminal.items():
             ScheduledScrapeTarget.objects.filter(
                 asin=asin,
                 **{k: v for k, v in target_filter_kwargs.items() if k != 'asin__in'},
-            ).update(active=False, retry_count=F('retry_count') + 1, last_error=msg)
+            ).exclude(last_error='orphan_recovered').update(
+                active=False, retry_count=F('retry_count') + 1, last_error=msg,
+            )
 
     # ScrapeJob final status.
     n_ok = len(ok_real) if 'ok_real' in locals() else 0

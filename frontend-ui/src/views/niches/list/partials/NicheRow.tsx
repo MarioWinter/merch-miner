@@ -14,7 +14,9 @@ import {
 } from '@mui/material';
 import { alpha, styled } from '@mui/material/styles';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
+import QueryStatsOutlinedIcon from '@mui/icons-material/QueryStatsOutlined';
 import { useTranslation } from 'react-i18next';
+import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../../../../store';
@@ -67,11 +69,6 @@ const EditingCell = styled(TableCell)(({ theme }) => ({
   padding: '0 6px !important',
   height: 44,
 }));
-
-const IdeasText = styled(Typography)({
-  fontSize: '0.8125rem',
-  fontVariantNumeric: 'tabular-nums',
-});
 
 const isCellActive = (
   activeCell: UseInlineEditReturn['activeCell'],
@@ -391,6 +388,7 @@ export const NicheRow = ({
   widths,
 }: NicheRowProps) => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { toggleOne, isSelected } = selection;
   const selected = isSelected(niche.id);
   const updatedAgo = dayjs(niche.updated_at).fromNow();
@@ -408,6 +406,11 @@ export const NicheRow = ({
       inlineEdit.deactivateCell();
     }
     onDoubleClick(niche.id);
+  };
+
+  const handleAmazonResearchClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigate(`/amazon/research?keyword=${encodeURIComponent(niche.name)}`);
   };
 
   const w = widths;
@@ -432,10 +435,20 @@ export const NicheRow = ({
       <RatingCell niche={niche} inlineEdit={inlineEdit} width={w?.potential_rating} />
       <AssigneeCell niche={niche} inlineEdit={inlineEdit} width={w?.assignee} />
 
-      <TableCell sx={{ width: w?.ideas ?? 80 }} onClick={(e) => e.stopPropagation()}>
-        <IdeasText variant="body2">
-          {niche.approved_idea_count} / {niche.idea_count}
-        </IdeasText>
+      <TableCell
+        sx={{ width: w?.ideas ?? 80, textAlign: 'center', px: 0.5 }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Tooltip title={t('niches.table.openInAmazonResearch')} placement="top">
+          <IconButton
+            size="small"
+            onClick={handleAmazonResearchClick}
+            aria-label={t('niches.table.openInAmazonResearch')}
+            sx={{ width: 32, height: 32, borderRadius: '8px' }}
+          >
+            <QueryStatsOutlinedIcon sx={{ fontSize: 18 }} />
+          </IconButton>
+        </Tooltip>
       </TableCell>
 
       <DeepDrillCell niche={niche} width={w?.ai} />

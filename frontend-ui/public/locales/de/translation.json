@@ -177,11 +177,12 @@
       "colStatus": "Status",
       "colRating": "Bewertung",
       "colAssignee": "Zugewiesen",
-      "colIdeas": "Ideen",
+      "colIdeas": "RECHERCHE",
       "colUpdated": "Aktualisiert",
       "colActions": "Aktionen",
       "unassigned": "Nicht zugewiesen",
       "colDeepDrill": "Deep Drill",
+      "openInAmazonResearch": "In Amazon Recherche öffnen",
       "deepDrill": {
         "idle": "Deep Drill starten",
         "running": "Deep Drill läuft…",
@@ -217,6 +218,18 @@
       "unsavedChangesBody": "Du hast ungespeicherte Änderungen. Verwerfen?",
       "discardChanges": "Verwerfen",
       "keepEditing": "Weiter bearbeiten",
+      "selector": {
+        "filter": "Nischen filtern…",
+        "createNew": "Neue Nische erstellen…",
+        "placeholder": "Nische auswählen",
+        "fetchError": "Nischen konnten nicht geladen werden",
+        "noNichesYet": "Noch keine Nischen",
+        "loading": "Nischen werden geladen…",
+        "ago": "vor {{days}}T",
+        "today": "heute",
+        "openMenu": "Nischen-Auswahl öffnen",
+        "currentNiche": "Aktuelle Nische: {{name}}"
+      },
       "collectedSlogans": "Gesammelte Slogans",
       "collectedKeywords": "Gesammelte Keywords",
       "copyAll": "Alle kopieren",
@@ -397,6 +410,9 @@
       "vision": "Vision-Analyse",
       "emotional": "Emotionale Analyse",
       "slogan": "Slogan",
+      "sloganAdded": "Slogan '{{slogan}}' zur Slogan-Sammlung hinzugefügt",
+      "sloganAlreadyCollected": "Slogan '{{slogan}}' ist bereits in der Sammlung",
+      "sloganAddFailed": "Slogan konnte nicht zur Sammlung hinzugefügt werden",
       "meaning": "Bedeutung",
       "visualStyle": "Visueller Stil",
       "graphicElements": "Grafische Elemente",
@@ -1657,7 +1673,8 @@
       "loading": "Wird angereichert...",
       "success": "Keywords angereichert",
       "noApiKeyTooltip": "JungleScout API-Key in Einstellungen konfigurieren",
-      "comingSoon": "JungleScout kommt bald"
+      "comingSoon": "JungleScout kommt bald",
+      "disabledTooltip": "JungleScout-Anreicherung — bald verfügbar (API-Schlüssel erforderlich)"
     },
     "table": {
       "col_keyword": "Keyword",
@@ -2286,6 +2303,20 @@
     "searchHistory": {
       "label": "Kürzliche Amazon-Suchen",
       "clearAll": "Verlauf leeren"
+    },
+    "searchBar": {
+      "copyKeyword": "Keyword kopieren",
+      "copied": "In Zwischenablage kopiert",
+      "copyFailed": "Kopieren fehlgeschlagen",
+      "addToNicheList": "Zur Nischen-Liste hinzufügen",
+      "addedToNicheList": "'{{keyword}}' zur Nische '{{niche}}' hinzugefügt",
+      "alreadyInNicheList": "'{{keyword}}' ist bereits in der Nische '{{niche}}'",
+      "addToNicheListFailed": "Konnte nicht zur Nischen-Liste hinzugefügt werden",
+      "noActiveNiche": "Keine aktive Nische — öffne erst eine Nische in den Niche Claims",
+      "createNicheFromKeyword": "Zur Nischen-Liste hinzufügen (neue Nische)",
+      "nicheCreated": "Nische '{{keyword}}' erstellt",
+      "nicheAlreadyExists": "Nische '{{keyword}}' existiert bereits",
+      "nicheCreateFailed": "Nische konnte nicht erstellt werden"
     },
     "detail": {
       "breadcrumb": "Amazon Research",

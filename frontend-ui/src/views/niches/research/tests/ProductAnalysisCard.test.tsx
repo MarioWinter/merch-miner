@@ -1,10 +1,27 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '@/utils/test-utils';
-import { ProductAnalysisCard } from '../partials/ProductAnalysisCard';
 import collectedItemsReducer from '@/store/collectedItemsSlice';
 import type { ResearchProduct } from '../types';
+
+// ProductAnalysisCard now reads from useListIdeasQuery (drives the
+// "already collected" chip color) and uses useCreateIdeaMutation on chip
+// click (persists slogans to the backend ideas list). Mock both so the
+// component renders without an RTK Query store + middleware.
+vi.mock('@/store/ideaSlice', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/store/ideaSlice')>();
+  return {
+    ...actual,
+    useListIdeasQuery: () => ({ data: { results: [] }, isLoading: false }),
+    useCreateIdeaMutation: () => [
+      vi.fn().mockReturnValue({ unwrap: () => Promise.resolve({}) }),
+      { isLoading: false },
+    ],
+  };
+});
+
+import { ProductAnalysisCard } from '../partials/ProductAnalysisCard';
 
 const product: ResearchProduct = {
   asin: 'B09TEST123',

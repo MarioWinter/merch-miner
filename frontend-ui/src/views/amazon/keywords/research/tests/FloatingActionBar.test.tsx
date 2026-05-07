@@ -43,7 +43,10 @@ describe('FloatingActionBar', () => {
     expect(screen.getByText('3 selected')).toBeInTheDocument();
   });
 
-  it('shows disabled Enrich button', () => {
+  it('shows disabled Enrich button when KEYWORD_ENRICH_ENABLED flag is off', () => {
+    // Flag default is `false` (no env override in tests), so the bulk-enrich
+    // button must render disabled. When the JS API key ships, flipping the
+    // env var enables it without further code changes.
     renderWithProviders(
       <FloatingActionBar
         selectedCount={2}

@@ -220,7 +220,7 @@ export const NicheTable = ({
               <ResizeHandle onMouseDown={handleResizeMouseDown('assignee')} />
             </HeaderCell>
 
-            <HeaderCell sx={{ width: colWidth('ideas') }}>
+            <HeaderCell sx={{ width: colWidth('ideas'), px: 0.5, textAlign: 'center' }}>
               <OverlineText>{t('niches.table.colIdeas')}</OverlineText>
               <ResizeHandle onMouseDown={handleResizeMouseDown('ideas')} />
             </HeaderCell>

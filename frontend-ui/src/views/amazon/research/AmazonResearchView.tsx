@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { useAppDispatch } from '@/store/hooks';
+import { useSearchParams } from 'react-router-dom';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { openNicheEdit } from '@/store/chatBarSlice';
 import {
   Box,
@@ -22,7 +23,7 @@ import {
   useCancelLiveSearchMutation,
 } from '../../../store/researchSlice';
 import { useExtractSloganMutation } from '../../../store/ideaSlice';
-import { useCreateNicheMutation } from '../../../store/nicheSlice';
+import { useCreateNicheMutation, useGetNicheQuery } from '../../../store/nicheSlice';
 import {
   useGetCollectedProductsQuery,
   useCollectProductMutation,
@@ -58,6 +59,7 @@ const AmazonResearchView = () => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
   const dispatch = useAppDispatch();
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const { filters, enabled, setFilter, setEnabled, resetFilters, activeFilterCount } =
     useFilterState();
@@ -80,10 +82,15 @@ const AmazonResearchView = () => {
   const [extractSlogan] = useExtractSloganMutation();
   const [createNiche, { isLoading: creatingNiche }] = useCreateNicheMutation();
 
-  // Keyword save state (AC-21)
+  // Add-to-niche-list state — keyword is added to the active pipeline niche
+  // (chatBar.activeNicheId), NOT the auto-matched niche from the search keyword.
   const [addKeywordMutation] = useAddKeywordMutation();
-  const [savingKeywords, setSavingKeywords] = useState<Set<string>>(new Set());
-  const [savedKeywords, setSavedKeywords] = useState<Set<string>>(new Set());
+  const [addedToNicheKeywords, setAddedToNicheKeywords] = useState<Set<string>>(new Set());
+  const pipelineNicheId = useAppSelector((state) => state.chatBar.activeNicheId);
+  const { data: pipelineNiche } = useGetNicheQuery(pipelineNicheId ?? '', {
+    skip: !pipelineNicheId,
+  });
+  const pipelineNicheName = pipelineNiche?.name ?? '';
 
   // Auto-detect niche from searched keyword
   const { matchedNiche } = useActiveNiche(keyword);
@@ -107,6 +114,17 @@ const AmazonResearchView = () => {
   useEffect(() => {
     const saved = getInitialMarketplace();
     if (saved !== filters.marketplace) setFilter('marketplace', saved);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Pre-fill keyword from URL param (?keyword=...) on mount.
+  // Does NOT auto-trigger search — only fills the input. Param is consumed
+  // (removed from URL) so a refresh doesn't re-apply the keyword.
+  useEffect(() => {
+    const kw = searchParams.get('keyword');
+    if (kw) {
+      setKeyword(kw);
+      setSearchParams({}, { replace: true });
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Persist marketplace
@@ -286,44 +304,93 @@ const AmazonResearchView = () => {
     [handleSearch],
   );
 
-  // Save autocomplete suggestion to keyword bank (AC-21)
-  const handleSaveKeyword = useCallback(
+  // Copy suggestion keyword to clipboard
+  const handleCopyKeyword = useCallback(
+    (kw: string) => {
+      navigator.clipboard.writeText(kw).then(
+        () =>
+          enqueueSnackbar(t('amazonResearch.searchBar.copied'), {
+            variant: 'success',
+          }),
+        () =>
+          enqueueSnackbar(t('amazonResearch.searchBar.copyFailed'), {
+            variant: 'error',
+          }),
+      );
+    },
+    [enqueueSnackbar, t],
+  );
+
+  // Add suggestion keyword as a keyword to the active pipeline niche
+  // (chatBar.activeNicheId). When no pipeline niche is active, warn the user.
+  const handleAddToNicheList = useCallback(
     async (kw: string) => {
-      if (!activeNicheId) return;
-      setSavingKeywords((prev) => new Set(prev).add(kw));
+      if (!pipelineNicheId) {
+        enqueueSnackbar(t('amazonResearch.searchBar.noActiveNiche'), {
+          variant: 'warning',
+        });
+        return;
+      }
       try {
         await addKeywordMutation({
-          nicheId: activeNicheId,
+          nicheId: pipelineNicheId,
           body: { keyword: kw, source: 'amazon_search' },
         }).unwrap();
-        setSavedKeywords((prev) => new Set(prev).add(kw));
+        setAddedToNicheKeywords((prev) => new Set(prev).add(kw));
         enqueueSnackbar(
-          t('amazonResearch.keyword.saved', { keyword: kw, niche: matchedNiche?.name ?? '' }),
+          t('amazonResearch.searchBar.addedToNicheList', {
+            keyword: kw,
+            niche: pipelineNicheName,
+          }),
           { variant: 'success' },
         );
       } catch (err) {
-        const error = err as { status?: number };
-        if (error?.status === 409) {
-          setSavedKeywords((prev) => new Set(prev).add(kw));
+        const e = err as { status?: number };
+        if (e?.status === 409) {
+          setAddedToNicheKeywords((prev) => new Set(prev).add(kw));
           enqueueSnackbar(
-            t('amazonResearch.keyword.duplicate', { keyword: kw }),
+            t('amazonResearch.searchBar.alreadyInNicheList', {
+              keyword: kw,
+              niche: pipelineNicheName,
+            }),
             { variant: 'info' },
           );
         } else {
           enqueueSnackbar(
-            t('amazonResearch.keyword.saveFailed'),
+            t('amazonResearch.searchBar.addToNicheListFailed'),
             { variant: 'error' },
           );
         }
-      } finally {
-        setSavingKeywords((prev) => {
-          const next = new Set(prev);
-          next.delete(kw);
-          return next;
-        });
       }
     },
-    [activeNicheId, matchedNiche, addKeywordMutation, enqueueSnackbar, t],
+    [pipelineNicheId, pipelineNicheName, addKeywordMutation, enqueueSnackbar, t],
+  );
+
+  // Create a new niche row from a suggestion keyword (separate from the
+  // keyword-bank flow above — this adds a niche, not a keyword).
+  const handleCreateNicheFromKeyword = useCallback(
+    async (kw: string) => {
+      try {
+        await createNiche({ name: kw }).unwrap();
+        enqueueSnackbar(
+          t('amazonResearch.searchBar.nicheCreated', { keyword: kw }),
+          { variant: 'success' },
+        );
+      } catch (err) {
+        const e = err as { status?: number };
+        if (e?.status === 409) {
+          enqueueSnackbar(
+            t('amazonResearch.searchBar.nicheAlreadyExists', { keyword: kw }),
+            { variant: 'info' },
+          );
+        } else {
+          enqueueSnackbar(t('amazonResearch.searchBar.nicheCreateFailed'), {
+            variant: 'error',
+          });
+        }
+      }
+    },
+    [createNiche, enqueueSnackbar, t],
   );
 
   // Niche indicator click handler
@@ -483,9 +550,10 @@ const AmazonResearchView = () => {
         onNicheIndicatorClick={handleNicheIndicatorClick}
         isSearching={isLive && (status === 'pending' || status === 'running')}
         onCancel={handleCancel}
-        onSaveKeyword={activeNicheId ? handleSaveKeyword : undefined}
-        savingKeywords={savingKeywords}
-        savedKeywords={savedKeywords}
+        onCopyKeyword={handleCopyKeyword}
+        onAddToNicheList={handleAddToNicheList}
+        onCreateNicheFromKeyword={handleCreateNicheFromKeyword}
+        addedKeywords={addedToNicheKeywords}
         allowEmptyKeyword={!isLive}
       />
 

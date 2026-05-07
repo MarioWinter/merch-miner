@@ -20,6 +20,9 @@
  *  - `MULTI_MARKETPLACE_ENABLED` — Selectable Amazon marketplaces other than
  *    amazon_com (DE / UK / FR / IT / ES). Off until per-marketplace selectors
  *    are wired into the spider; non-US options render disabled in dropdowns.
+ *  - `KEYWORD_ENRICH_ENABLED` — JungleScout keyword-enrich UI (single-row +
+ *    bulk Enrich button). Off until the JS API key is provisioned in the
+ *    backend env; without the key the enrich endpoint returns 400.
  *
  * Convention: every flag added here MUST also have a default value in
  * `fallbackFlags` (TypeScript will fail to compile otherwise via
@@ -31,6 +34,7 @@ export const FEATURE_FLAGS = {
   DESKTOP_UPLOAD_APP_ENABLED: 'DESKTOP_UPLOAD_APP_ENABLED',
   KANBAN_ENABLED: 'KANBAN_ENABLED',
   MULTI_MARKETPLACE_ENABLED: 'MULTI_MARKETPLACE_ENABLED',
+  KEYWORD_ENRICH_ENABLED: 'KEYWORD_ENRICH_ENABLED',
 } as const;
 
 export type FeatureFlag = (typeof FEATURE_FLAGS)[keyof typeof FEATURE_FLAGS];
@@ -46,4 +50,5 @@ export const fallbackFlags: Readonly<Record<FeatureFlag, boolean>> = {
   [FEATURE_FLAGS.DESKTOP_UPLOAD_APP_ENABLED]: false,
   [FEATURE_FLAGS.KANBAN_ENABLED]: false,
   [FEATURE_FLAGS.MULTI_MARKETPLACE_ENABLED]: false,
+  [FEATURE_FLAGS.KEYWORD_ENRICH_ENABLED]: false,
 };

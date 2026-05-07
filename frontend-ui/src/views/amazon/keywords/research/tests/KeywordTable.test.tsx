@@ -114,8 +114,9 @@ describe('KeywordTable', () => {
     renderWithProviders(<KeywordTable {...defaultProps} />);
 
     const row = screen.getByText('camping shirt').closest('.MuiDataGrid-row');
-    // EnrichButton renders AutoAwesomeIcon
-    const enrichIcon = within(row!).getByTestId('AutoAwesomeIcon');
+    // EnrichButton renders AutoGraphIcon (swapped from AutoAwesomeIcon to a
+    // more meaningful "graph/trend" icon for keyword data enrichment).
+    const enrichIcon = within(row!).getByTestId('AutoGraphIcon');
     expect(enrichIcon).toBeInTheDocument();
   });
 });

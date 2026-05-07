@@ -1,7 +1,17 @@
 import { useState, useCallback } from 'react';
-import { Box, Checkbox, Chip, Link, Stack, Typography } from '@mui/material';
+import {
+  Box,
+  Checkbox,
+  Chip,
+  IconButton,
+  Link,
+  Stack,
+  Tooltip,
+  Typography,
+} from '@mui/material';
 import { alpha, styled } from '@mui/material/styles';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
 import { COLORS, DURATION, EASING, radius } from "@/style/constants";
@@ -59,7 +69,10 @@ export const SlogansPipelineContent = ({
       text: i.slogan_text,
       signalType: i.signal_type,
       isApproved: i.status === 'approved',
-      isSelectable: i.status === 'approved',
+      // Manual ideas (added from the niche-research chip click) are
+      // selectable too — users expect a checkbox so they can bulk-promote
+      // to design projects without first approving each one.
+      isSelectable: i.is_manual || i.status === 'approved',
     }));
 
   const selectableSlogans = slogans.filter((s) => s.isSelectable);
@@ -181,7 +194,6 @@ export const SlogansPipelineContent = ({
                     color: 'success.main',
                   },
                 }}
-                onDelete={() => handleRemoveSlogan(slogan.id)}
               />
             )}
 
@@ -197,7 +209,6 @@ export const SlogansPipelineContent = ({
                   color: 'success.main',
                   '& .MuiChip-icon': { color: 'success.main' },
                 }}
-                onDelete={() => handleRemoveSlogan(slogan.id)}
               />
             )}
 
@@ -207,6 +218,25 @@ export const SlogansPipelineContent = ({
               tooltip={t('niches.pipeline.slogans.toCanvas', 'Send to Design Canvas')}
               onClick={() => handleForgeSingle(slogan.id)}
             />
+
+            {/* Remove from this niche pipeline */}
+            <Tooltip
+              title={t('niches.pipeline.slogans.remove', 'Remove from pipeline')}
+              placement="top"
+            >
+              <IconButton
+                size="small"
+                onClick={() => handleRemoveSlogan(slogan.id)}
+                aria-label={t('niches.pipeline.slogans.remove', 'Remove from pipeline')}
+                sx={{
+                  p: 0.25,
+                  color: 'text.disabled',
+                  '&:hover': { color: 'error.main' },
+                }}
+              >
+                <DeleteOutlineIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
           </SloganRow>
         ))}
       </Stack>
