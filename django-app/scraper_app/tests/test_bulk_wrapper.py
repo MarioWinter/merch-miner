@@ -403,3 +403,72 @@ class TestSkipDecisionAtScrapeTime:
         assert target.active is False
         assert target.last_scraped_at is not None
         assert target.last_error != 'skipped_fresh'
+
+
+# ---------------------------------------------------------------------------
+# Ghost-wrapper guard — orphan_recovered targets must NOT be overwritten
+# ---------------------------------------------------------------------------
+
+
+class TestOrphanRecoveredGuard:
+    """A wrapper running after the drainer has already recovered its targets
+    (parent task killed, Scrapy outlived it, then a delayed re-pickup) must
+    leave `last_error='orphan_recovered'` rows untouched. Otherwise the
+    orphan-recovery audit trail is silently erased and the row gets
+    re-introduced into the pickable pool via wrapper-driven last_error
+    resets.
+    """
+
+    @patch('scraper_app.tasks.subprocess.Popen')
+    def test_ok_path_skips_orphan_recovered_rows(self, mock_popen):
+        mock_popen.return_value = _mock_popen()
+        batch = _make_batch()
+        # 2 targets, both already orphan_recovered before this wrapper runs.
+        t1 = _make_target('B0AAA00001', batch, retry_count=1)
+        t2 = _make_target('B0AAA00002', batch, retry_count=1)
+        for t in (t1, t2):
+            t.active = False
+            t.last_error = 'orphan_recovered'
+            t.last_scraped_at = None
+            t.save()
+        job = _make_job(batch, [t1.asin, t2.asin])
+        _write_outcome(job.id, [
+            {'asin': t1.asin, 'status': 'ok', 'http_status': 200},
+            {'asin': t2.asin, 'status': 'ok', 'http_status': 200},
+        ])
+
+        scrape_asin_batch_job(str(job.id))
+
+        for t in (t1, t2):
+            t.refresh_from_db()
+            assert t.last_error == 'orphan_recovered', (
+                'Wrapper overwrote orphan_recovered marker'
+            )
+            assert t.last_scraped_at is None, (
+                'Wrapper stamped last_scraped_at on a recovered row'
+            )
+            assert t.retry_count == 1, 'retry_count must not be bumped again'
+
+    @patch('scraper_app.tasks.subprocess.Popen')
+    def test_failed_terminal_path_skips_orphan_recovered_rows(self, mock_popen):
+        mock_popen.return_value = _mock_popen()
+        batch = _make_batch()
+        t = _make_target('B0AAA00003', batch, retry_count=1)
+        t.active = False
+        t.last_error = 'orphan_recovered'
+        t.last_scraped_at = None
+        t.save()
+        job = _make_job(batch, [t.asin])
+        _write_outcome(job.id, [
+            {'asin': t.asin, 'status': 'failed',
+             'error_message': 'Ignoring non-200 response',
+             'http_status': 503},
+        ])
+
+        scrape_asin_batch_job(str(job.id))
+
+        t.refresh_from_db()
+        # Recovery marker preserved — wrapper did not overwrite it with the
+        # generic Scrapy 5xx message.
+        assert t.last_error == 'orphan_recovered'
+        assert t.retry_count == 1
