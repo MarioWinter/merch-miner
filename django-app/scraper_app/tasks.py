@@ -1306,46 +1306,28 @@ def scrape_asin_batch_job(scrape_job_id):
     if batch is not None:
         target_filter_kwargs['batch'] = batch
 
-    # ── DIAGNOSTIC (TEMPORARY) ────────────────────────────────────────────
-    # Capture target state BEFORE the wrapper's transaction so we can see
-    # whether last_error='orphan_recovered' is already set when the wrapper
-    # arrives. If yes, the orphan-recovery fired before the wrapper got to
-    # its updates — explaining why our 4,690+ targets end up stuck. If no,
-    # the bug is somewhere in the update queries themselves.
-    _diag_pre = list(
-        ScheduledScrapeTarget.objects.filter(
-            asin__in=asins, marketplace=marketplace,
-            **({'batch': batch} if batch is not None else {}),
-        ).values('asin', 'active', 'last_error', 'last_scraped_at', 'retry_count')
-    )
-    logger.warning(
-        "DIAG_PRE job=%s n_asins=%d n_targets=%d ok_count=%d skip_count=%d failed_count=%d "
-        "any_orphan_recovered=%s sample=%s",
-        scrape_job.id, len(asins), len(_diag_pre),
-        len(ok_asins), len(skip_set), len(failed_outcomes),
-        any(t['last_error'] == 'orphan_recovered' for t in _diag_pre),
-        [(t['asin'], t['active'], t['last_error']) for t in _diag_pre[:3]],
-    )
-    # ──────────────────────────────────────────────────────────────────────
-
-    # Reconcile per-ASIN outcomes.
+    # Reconcile per-ASIN outcomes. The wrapper always overwrites whatever
+    # state the targets currently hold — it has fresh data from the spider
+    # and the pipeline already persisted AmazonProduct rows for any ok
+    # outcomes, so its update is the authoritative source of truth.
     #
-    # Defensive guard against ghost-wrapper updates: every target update below
-    # `.exclude(last_error='orphan_recovered')`. If a target was orphan-
-    # recovered by the drainer between this wrapper's pick and now (because
-    # this wrapper's parent task was killed and restarted, or because Scrapy
-    # ran past its parent's lifetime), the recovery already counted the
-    # target as terminally failed. Overwriting that record would silently
-    # erase the orphan-recovery audit trail and could re-introduce the
-    # double-pick risk the recovery was protecting against. Skipping these
-    # rows costs nothing — the target is already closed out.
+    # An earlier defensive guard (`.exclude(last_error='orphan_recovered')`)
+    # was removed after a 2026-05-07 prod investigation: drainer's
+    # `_reset_orphan_state` can race ahead of the wrapper's transaction.atomic
+    # commit and stamp `last_error='orphan_recovered'` on still-being-scraped
+    # targets. The exclude then blocked the legitimate wrapper from updating
+    # them, leaving 4,690+ targets in a permanently-stuck "failed" state
+    # despite their products having been scraped successfully. The
+    # orphan-recovery loop is still broken by `last_error='orphan_recovered'`
+    # at the drainer's pick filter — the wrapper's exclude was the part
+    # causing the regression.
     with transaction.atomic():
         # Successes (and freshness-skip, treated as done).
         ok_real = [a for a in ok_asins if a not in skip_set]
         if ok_real:
             ScheduledScrapeTarget.objects.filter(
                 asin__in=ok_real, **{k: v for k, v in target_filter_kwargs.items() if k != 'asin__in'},
-            ).exclude(last_error='orphan_recovered').update(
+            ).update(
                 active=False, last_scraped_at=now, last_error=None,
             )
 
@@ -1353,7 +1335,7 @@ def scrape_asin_batch_job(scrape_job_id):
             ScheduledScrapeTarget.objects.filter(
                 asin__in=list(skip_set),
                 **{k: v for k, v in target_filter_kwargs.items() if k != 'asin__in'},
-            ).exclude(last_error='orphan_recovered').update(
+            ).update(
                 active=False, last_scraped_at=now, last_error='skipped_fresh',
             )
 
@@ -1370,8 +1352,6 @@ def scrape_asin_batch_job(scrape_job_id):
             ).first()
             if target is None:
                 continue
-            if target.last_error == 'orphan_recovered':
-                continue  # ghost-wrapper guard — recovery already closed this row
             new_retry_count = target.retry_count + 1
             if new_retry_count < max_retries:
                 failed_retry_ok.append(asin)
@@ -1382,7 +1362,7 @@ def scrape_asin_batch_job(scrape_job_id):
             ScheduledScrapeTarget.objects.filter(
                 asin__in=failed_retry_ok,
                 **{k: v for k, v in target_filter_kwargs.items() if k != 'asin__in'},
-            ).exclude(last_error='orphan_recovered').update(
+            ).update(
                 active=False, retry_count=F('retry_count') + 1, last_error=None,
             )
 
@@ -1390,29 +1370,9 @@ def scrape_asin_batch_job(scrape_job_id):
             ScheduledScrapeTarget.objects.filter(
                 asin=asin,
                 **{k: v for k, v in target_filter_kwargs.items() if k != 'asin__in'},
-            ).exclude(last_error='orphan_recovered').update(
+            ).update(
                 active=False, retry_count=F('retry_count') + 1, last_error=msg,
             )
-
-    # ── DIAGNOSTIC (TEMPORARY) ────────────────────────────────────────────
-    # Snapshot target state AFTER the transaction.atomic exit. If the bug
-    # is real, we will see remaining_active > 0 — i.e. targets that the
-    # wrapper failed to flip to inactive. Compare against pre-state to
-    # know which ones the update queries missed.
-    _diag_post = list(
-        ScheduledScrapeTarget.objects.filter(
-            asin__in=asins, marketplace=marketplace,
-            **({'batch': batch} if batch is not None else {}),
-        ).values('asin', 'active', 'last_error', 'last_scraped_at')
-    )
-    _stuck = [t for t in _diag_post if t['active']]
-    if _stuck:
-        logger.warning(
-            "DIAG_POST_STUCK job=%s n_stuck=%d sample=%s",
-            scrape_job.id, len(_stuck),
-            [(t['asin'], t['last_error']) for t in _stuck[:3]],
-        )
-    # ──────────────────────────────────────────────────────────────────────
 
     # ScrapeJob final status.
     n_ok = len(ok_real) if 'ok_real' in locals() else 0

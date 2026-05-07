@@ -406,24 +406,20 @@ class TestSkipDecisionAtScrapeTime:
 
 
 # ---------------------------------------------------------------------------
-# Ghost-wrapper guard — orphan_recovered targets must NOT be overwritten
+# Wrapper overwrites orphan_recovered targets (regression coverage for the
+# 2026-05-07 race fix). The drainer's _reset_orphan_state can stamp
+# last_error='orphan_recovered' between the wrapper's pick and its commit;
+# the wrapper has fresh data from the spider and must overwrite, otherwise
+# the target stays permanently stuck despite its product having been
+# scraped successfully.
 # ---------------------------------------------------------------------------
 
 
-class TestOrphanRecoveredGuard:
-    """A wrapper running after the drainer has already recovered its targets
-    (parent task killed, Scrapy outlived it, then a delayed re-pickup) must
-    leave `last_error='orphan_recovered'` rows untouched. Otherwise the
-    orphan-recovery audit trail is silently erased and the row gets
-    re-introduced into the pickable pool via wrapper-driven last_error
-    resets.
-    """
-
+class TestWrapperOverwritesOrphanRecovered:
     @patch('scraper_app.tasks.subprocess.Popen')
-    def test_ok_path_skips_orphan_recovered_rows(self, mock_popen):
+    def test_ok_path_overwrites_orphan_recovered(self, mock_popen):
         mock_popen.return_value = _mock_popen()
         batch = _make_batch()
-        # 2 targets, both already orphan_recovered before this wrapper runs.
         t1 = _make_target('B0AAA00001', batch, retry_count=1)
         t2 = _make_target('B0AAA00002', batch, retry_count=1)
         for t in (t1, t2):
@@ -441,16 +437,15 @@ class TestOrphanRecoveredGuard:
 
         for t in (t1, t2):
             t.refresh_from_db()
-            assert t.last_error == 'orphan_recovered', (
-                'Wrapper overwrote orphan_recovered marker'
-            )
-            assert t.last_scraped_at is None, (
-                'Wrapper stamped last_scraped_at on a recovered row'
-            )
-            assert t.retry_count == 1, 'retry_count must not be bumped again'
+            # Wrapper now authoritative: the orphan_recovered marker is gone,
+            # last_scraped_at is stamped (or empty for skip_set), the row is
+            # released. Whether ok_real or skip_set fires depends on whether
+            # an AmazonProduct row exists; the test asserts only that the
+            # wrapper closed out the row.
+            assert t.last_error != 'orphan_recovered'
 
     @patch('scraper_app.tasks.subprocess.Popen')
-    def test_failed_terminal_path_skips_orphan_recovered_rows(self, mock_popen):
+    def test_failed_terminal_overwrites_orphan_recovered(self, mock_popen):
         mock_popen.return_value = _mock_popen()
         batch = _make_batch()
         t = _make_target('B0AAA00003', batch, retry_count=1)
@@ -468,7 +463,6 @@ class TestOrphanRecoveredGuard:
         scrape_asin_batch_job(str(job.id))
 
         t.refresh_from_db()
-        # Recovery marker preserved — wrapper did not overwrite it with the
-        # generic Scrapy 5xx message.
-        assert t.last_error == 'orphan_recovered'
-        assert t.retry_count == 1
+        # Wrapper saw the spider's terminal failure and recorded it; the old
+        # orphan_recovered marker is replaced with the actual error.
+        assert t.last_error == 'Ignoring non-200 response'
