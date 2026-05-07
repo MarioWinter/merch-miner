@@ -18,6 +18,9 @@ DOWNLOADER_MIDDLEWARES = {
     'scrapeops_scrapy.middleware.retry.RetryMiddleware': 550,
     'scrapy.downloadermiddlewares.retry.RetryMiddleware': None,
     'scrapeops_scrapy_proxy_sdk.scrapeops_scrapy_proxy_sdk.ScrapeOpsScrapyProxySdk': 725,
+    # Runs AFTER the proxy SDK (priority 730 > 725) to strip telemetry params
+    # the Monitor extension leaks via meta keys (sops_time -> time=...).
+    'scraper_app.scrapy_app.middlewares.ScrapeOpsURLCleanupMiddleware': 730,
 }
 
 ITEM_PIPELINES = {
