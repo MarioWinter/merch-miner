@@ -1311,68 +1311,105 @@ def scrape_asin_batch_job(scrape_job_id):
     # and the pipeline already persisted AmazonProduct rows for any ok
     # outcomes, so its update is the authoritative source of truth.
     #
-    # An earlier defensive guard (`.exclude(last_error='orphan_recovered')`)
-    # was removed after a 2026-05-07 prod investigation: drainer's
-    # `_reset_orphan_state` can race ahead of the wrapper's transaction.atomic
-    # commit and stamp `last_error='orphan_recovered'` on still-being-scraped
-    # targets. The exclude then blocked the legitimate wrapper from updating
-    # them, leaving 4,690+ targets in a permanently-stuck "failed" state
-    # despite their products having been scraped successfully. The
-    # orphan-recovery loop is still broken by `last_error='orphan_recovered'`
-    # at the drainer's pick filter — the wrapper's exclude was the part
-    # causing the regression.
-    with transaction.atomic():
-        # Successes (and freshness-skip, treated as done).
-        ok_real = [a for a in ok_asins if a not in skip_set]
-        if ok_real:
-            ScheduledScrapeTarget.objects.filter(
-                asin__in=ok_real, **{k: v for k, v in target_filter_kwargs.items() if k != 'asin__in'},
-            ).update(
-                active=False, last_scraped_at=now, last_error=None,
-            )
+    # The wrapper's UPDATE statements compete with the drainer's
+    # `_reset_orphan_state` UPDATE for row-level locks on
+    # ScheduledScrapeTarget. Both can lock overlapping rows in different
+    # orders → PostgreSQL deadlock. To prevent this:
+    #
+    # 1. We acquire row locks DETERMINISTICALLY (sorted by `id`) via
+    #    `select_for_update().order_by('id')` before any update. PostgreSQL
+    #    sorts contenders by lock-acquisition order, so transactions that
+    #    enter sorted-by-id can never deadlock with each other.
+    # 2. As a safety net, the whole reconcile block is wrapped in a deadlock
+    #    retry loop — if PostgreSQL still detects a cycle (e.g. the drainer
+    #    locks in arrival order), we sleep briefly and retry. The spider has
+    #    already finished by this point, so the retry is purely DB-level.
+    from django.db.utils import OperationalError as _OperationalError
+    import time as _time
 
-        if skip_set:
-            ScheduledScrapeTarget.objects.filter(
-                asin__in=list(skip_set),
-                **{k: v for k, v in target_filter_kwargs.items() if k != 'asin__in'},
-            ).update(
-                active=False, last_scraped_at=now, last_error='skipped_fresh',
-            )
+    _MAX_DEADLOCK_RETRIES = 4
+    _retried_deadlocks = 0
+    for _attempt in range(_MAX_DEADLOCK_RETRIES):
+        try:
+            with transaction.atomic():
+                # Acquire row locks in id-order to prevent deadlock with the
+                # drainer's `_reset_orphan_state` UPDATE.
+                list(
+                    ScheduledScrapeTarget.objects.filter(
+                        asin__in=asins,
+                        **{k: v for k, v in target_filter_kwargs.items() if k != 'asin__in'},
+                    ).order_by('id').select_for_update().values_list('id', flat=True)
+                )
 
-        # Failures: retry-with-room vs terminal.
-        failed_retry_ok = []
-        failed_terminal = {}
-        for outcome in failed_outcomes:
-            asin = outcome['asin']
-            if asin in skip_set:
-                continue  # already handled as freshness skip
-            target = ScheduledScrapeTarget.objects.filter(
-                asin=asin,
-                **{k: v for k, v in target_filter_kwargs.items() if k != 'asin__in'},
-            ).first()
-            if target is None:
-                continue
-            new_retry_count = target.retry_count + 1
-            if new_retry_count < max_retries:
-                failed_retry_ok.append(asin)
-            else:
-                failed_terminal[asin] = (outcome.get('error_message') or 'unknown error')[:500]
+                # Successes (and freshness-skip, treated as done).
+                ok_real = [a for a in ok_asins if a not in skip_set]
+                if ok_real:
+                    ScheduledScrapeTarget.objects.filter(
+                        asin__in=ok_real, **{k: v for k, v in target_filter_kwargs.items() if k != 'asin__in'},
+                    ).update(
+                        active=False, last_scraped_at=now, last_error=None,
+                    )
 
-        if failed_retry_ok:
-            ScheduledScrapeTarget.objects.filter(
-                asin__in=failed_retry_ok,
-                **{k: v for k, v in target_filter_kwargs.items() if k != 'asin__in'},
-            ).update(
-                active=False, retry_count=F('retry_count') + 1, last_error=None,
-            )
+                if skip_set:
+                    ScheduledScrapeTarget.objects.filter(
+                        asin__in=list(skip_set),
+                        **{k: v for k, v in target_filter_kwargs.items() if k != 'asin__in'},
+                    ).update(
+                        active=False, last_scraped_at=now, last_error='skipped_fresh',
+                    )
 
-        for asin, msg in failed_terminal.items():
-            ScheduledScrapeTarget.objects.filter(
-                asin=asin,
-                **{k: v for k, v in target_filter_kwargs.items() if k != 'asin__in'},
-            ).update(
-                active=False, retry_count=F('retry_count') + 1, last_error=msg,
-            )
+                # Failures: retry-with-room vs terminal.
+                failed_retry_ok = []
+                failed_terminal = {}
+                for outcome in failed_outcomes:
+                    asin = outcome['asin']
+                    if asin in skip_set:
+                        continue  # already handled as freshness skip
+                    target = ScheduledScrapeTarget.objects.filter(
+                        asin=asin,
+                        **{k: v for k, v in target_filter_kwargs.items() if k != 'asin__in'},
+                    ).first()
+                    if target is None:
+                        continue
+                    new_retry_count = target.retry_count + 1
+                    if new_retry_count < max_retries:
+                        failed_retry_ok.append(asin)
+                    else:
+                        failed_terminal[asin] = (outcome.get('error_message') or 'unknown error')[:500]
+
+                if failed_retry_ok:
+                    ScheduledScrapeTarget.objects.filter(
+                        asin__in=failed_retry_ok,
+                        **{k: v for k, v in target_filter_kwargs.items() if k != 'asin__in'},
+                    ).update(
+                        active=False, retry_count=F('retry_count') + 1, last_error=None,
+                    )
+
+                for asin, msg in failed_terminal.items():
+                    ScheduledScrapeTarget.objects.filter(
+                        asin=asin,
+                        **{k: v for k, v in target_filter_kwargs.items() if k != 'asin__in'},
+                    ).update(
+                        active=False, retry_count=F('retry_count') + 1, last_error=msg,
+                    )
+            break  # success — exit retry loop
+        except _OperationalError as exc:
+            if 'deadlock detected' not in str(exc).lower():
+                raise
+            _retried_deadlocks += 1
+            if _attempt == _MAX_DEADLOCK_RETRIES - 1:
+                logger.error(
+                    "wrapper deadlock-retry exhausted for ScrapeJob %s after %d attempts",
+                    scrape_job.id, _MAX_DEADLOCK_RETRIES,
+                )
+                raise
+            _time.sleep(0.1 * (2 ** _attempt))  # 0.1s, 0.2s, 0.4s, 0.8s
+
+    if _retried_deadlocks:
+        logger.warning(
+            "wrapper recovered from %d deadlock(s) for ScrapeJob %s",
+            _retried_deadlocks, scrape_job.id,
+        )
 
     # ScrapeJob final status.
     n_ok = len(ok_real) if 'ok_real' in locals() else 0
@@ -1612,16 +1649,32 @@ def _reset_orphan_state(batch):
     # that mark ScrapeJob COMPLETED without updating their targets (5xx
     # retry-exhausted edge case) cause the drainer to re-pick the same ASINs
     # every tick — burning ScraperOps budget on a self-healing loop.
+    #
+    # The matched rows are locked in id-order so this UPDATE cannot deadlock
+    # with the wrapper's transaction.atomic block — both lock paths follow
+    # the same id ordering. The lock + UPDATE run in one transaction.atomic
+    # so PostgreSQL holds the locks together, not interleaved with other
+    # statements.
+    from django.db import transaction as _transaction
     from django.db.models import F
-    n_orphans = ScheduledScrapeTarget.objects.filter(
-        batch=batch,
-        active=True,
-        last_scraped_at__isnull=True,
-    ).exclude(asin__in=live_asins).update(
-        active=False,
-        retry_count=F('retry_count') + 1,
-        last_error='orphan_recovered',
-    )
+    with _transaction.atomic():
+        orphan_ids = list(
+            ScheduledScrapeTarget.objects.filter(
+                batch=batch,
+                active=True,
+                last_scraped_at__isnull=True,
+            ).exclude(asin__in=live_asins).order_by('id').select_for_update().values_list('id', flat=True)
+        )
+        if orphan_ids:
+            n_orphans = ScheduledScrapeTarget.objects.filter(
+                id__in=orphan_ids,
+            ).update(
+                active=False,
+                retry_count=F('retry_count') + 1,
+                last_error='orphan_recovered',
+            )
+        else:
+            n_orphans = 0
 
     if n_zombies or n_orphans:
         logger.warning(
