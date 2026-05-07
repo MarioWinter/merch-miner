@@ -275,9 +275,11 @@ export const NichePipelineHeaderSelect = ({
                     primary={n.name}
                     primaryTypographyProps={{ fontWeight: isActive ? 600 : 400, noWrap: true }}
                     secondary={
-                      <SecondaryLine component="span" variant="caption" noWrap>
-                        {secondary}
-                      </SecondaryLine>
+                      secondary ? (
+                        <SecondaryLine variant="caption" noWrap>
+                          {secondary}
+                        </SecondaryLine>
+                      ) : null
                     }
                     secondaryTypographyProps={{ component: 'span' }}
                   />
