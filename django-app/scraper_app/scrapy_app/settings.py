@@ -39,6 +39,12 @@ LOG_LEVEL = 'INFO'
 # Timeout for individual requests
 DOWNLOAD_TIMEOUT = 30
 
+# Scrapy retry policy. ScraperOps' own proxy already retries internally on
+# transient failures, so each Scrapy-level retry is a duplicate billable
+# call. Default Scrapy (RETRY_TIMES=2) caused ~17% billing overhead on the
+# first 100k batch. Drop to 1 attempt = up to 2 calls per ASIN total.
+RETRY_TIMES = int(os.environ.get('SCRAPY_RETRY_TIMES', 1))
+
 # Use synchronous Twisted reactor — required for Django ORM in pipelines
 # Scrapy 2.14+ defaults to AsyncioSelectorReactor which blocks sync DB calls
 TWISTED_REACTOR = 'twisted.internet.selectreactor.SelectReactor'
