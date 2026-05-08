@@ -498,7 +498,7 @@ def reconcile_stuck_jobs():
 
     Scans DesignProcessingJob in `running` state older than the threshold
     and polls Replicate to recover their final state. Scheduled via
-    ``rq-scheduler`` (see schedule_proj27_reconciler management command).
+    ``rq-scheduler`` (see schedule_upscale_reconciler management command).
     """
     from datetime import timedelta
 

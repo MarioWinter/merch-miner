@@ -127,7 +127,7 @@ For EC-3 (60s reconciler):
 - [x] In `design_app/tasks.py`: implement `enqueue_replicate_upscale(job_id, replace_flag)` — fires Replicate, updates DesignProcessingJob with prediction_id
 - [x] Implement `process_replicate_callback(prediction_id, status, output_url, error)` — downloads result, runs center-pad, saves to `Design.upscaled_file`, updates job, optionally enqueues cloud upload
 - [x] Implement `reconcile_stuck_jobs()` — scheduled rq job, runs every 60s, finds DesignProcessingJob in `running` state >5min old, calls `replicate_client.get_prediction()`, reconciles status
-- [x] Configure scheduler entry for `reconcile_stuck_jobs` in `core/settings.py` RQ_QUEUES + django-rq scheduler block — _via `schedule_proj27_reconciler` management command_
+- [x] Configure scheduler entry for `reconcile_stuck_jobs` in `core/settings.py` RQ_QUEUES + django-rq scheduler block — _via `schedule_upscale_reconciler` management command_
 - [ ] Implement `enqueue_cloud_upload(job_id, provider, folder)` — reuses existing `publish_app/tasks.py` upload primitives; called post-success when destination=cloud — _shim only, full wiring deferred_
 
 ## Phase 4: API Endpoints

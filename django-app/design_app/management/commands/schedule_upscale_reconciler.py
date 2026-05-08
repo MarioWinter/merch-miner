@@ -1,11 +1,11 @@
-"""Idempotent scheduler for the PROJ-27 stuck-upscale reconciler.
+"""Idempotent scheduler for the stuck-upscale reconciler.
 
 Run on container start (entrypoint) or manually:
 
-    python manage.py schedule_proj27_reconciler
+    python manage.py schedule_upscale_reconciler
 
 Re-running clears any previous registration so interval changes pick up
-without leaving duplicate jobs. Job runs every 60 seconds (EC-3).
+without leaving duplicate jobs.
 """
 
 from __future__ import annotations
@@ -13,12 +13,12 @@ from __future__ import annotations
 import django_rq
 from django.core.management.base import BaseCommand
 
-JOB_ID = 'design_app.reconcile_stuck_upscales'
+JOB_ID = 'design_app_reconcile_stuck_upscales'
 INTERVAL_SECONDS = 60
 
 
 class Command(BaseCommand):
-    help = 'Schedule the 60s upscale reconciler (PROJ-27 EC-3).'
+    help = 'Schedule the 60s upscale reconciler.'
 
     def handle(self, *args, **options):
         scheduler = django_rq.get_scheduler('design')

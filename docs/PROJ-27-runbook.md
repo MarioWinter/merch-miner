@@ -80,7 +80,7 @@ The 60s stuck-job reconciler runs through django-rq scheduler. Register
 it once after a fresh deploy:
 
 ```bash
-docker compose exec web python manage.py schedule_proj27_reconciler
+docker compose exec web python manage.py schedule_upscale_reconciler
 ```
 
 This is idempotent — running again just re-registers the same entry.
@@ -169,7 +169,7 @@ Likely causes:
   DNS issue) → check `replicate.com/predictions/<id>` for the prediction
   status; if `succeeded` there but our DB says `running`, the webhook is
   the issue.
-- Reconciler not scheduled → run `schedule_proj27_reconciler` again.
+- Reconciler not scheduled → run `schedule_upscale_reconciler` again.
 - Webhook signature rejection → check Django logs for `InvalidSignatureError`;
   if present, secret is stale (re-fetch + restart).
 
