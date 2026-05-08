@@ -4,6 +4,8 @@
 **Priority:** P0 (MVP)
 **Created:** 2026-02-27
 
+> **Tool catalog:** see [docs/design-editor-tools.md](../docs/design-editor-tools.md) for the authoritative reference of all 15 pipeline tools + export compression.
+
 ## Overview
 
 **Project-based** AI design creation board + post-processing editor. Designs are organized into **Projects** (Kittl-style folders). The Design Board works independently — no idea, niche, or slogan required. Users can create projects, generate designs from scratch, and optionally link projects to niches.
