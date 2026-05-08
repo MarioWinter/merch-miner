@@ -99,7 +99,7 @@ const DesignEditorView = ({ projectId, editorBatch, onAddToCanvas }: DesignEdito
     handleRemoveImage, handleRemoveAll, handleDeleteFromServer,
     handleDeleteConfirm, handleDeleteCancel, handleDeleteVersion,
     handleUndo, handleRedo, handleDrop, handleDragOver, getBatchFile,
-    isUpscaleClientSide, ALWAYS_SERVER_TOOLS,
+    ALWAYS_SERVER_TOOLS,
   } = useEditorBatchState({ projectId, editorBatch });
 
   // Processing hooks
@@ -120,25 +120,23 @@ const DesignEditorView = ({ projectId, editorBatch, onAddToCanvas }: DesignEdito
   const handleUpdateParams = useCallback((toolId: string, params: Record<string, unknown>) => { setActivePipeline((prev) => prev.map((t) => (t.id === toolId ? { ...t, params } : t))); }, []);
 
   // -- Apply pipeline --
+  // PROJ-27 — `ai_upscale` is no longer routed through the pipeline. The
+  // Upscale tool panel fires its own Replicate request via `useUpscaleSingle`.
   const handleApplyPipeline = useCallback(async () => {
     if (batchImages.length === 0) return;
     undoRedo.pushSnapshot(batchImages);
 
-    const refW = currentImage?.width;
-    const refH = currentImage?.height;
-
     const clientTools = activePipeline.filter((tool) => {
       if (!tool.enabled) return false;
+      if (tool.name === 'ai_upscale') return false;
       if (ALWAYS_SERVER_TOOLS.includes(tool.name)) return false;
-      if (tool.name === 'ai_upscale') return isUpscaleClientSide(tool, refW, refH);
       return true;
     });
 
     const serverTools = activePipeline.filter((tool) => {
       if (!tool.enabled) return false;
-      if (ALWAYS_SERVER_TOOLS.includes(tool.name)) return true;
-      if (tool.name === 'ai_upscale') return !isUpscaleClientSide(tool, refW, refH);
-      return false;
+      if (tool.name === 'ai_upscale') return false;
+      return ALWAYS_SERVER_TOOLS.includes(tool.name);
     });
 
     if (clientTools.length > 0) {
@@ -175,7 +173,7 @@ const DesignEditorView = ({ projectId, editorBatch, onAddToCanvas }: DesignEdito
         await startProcessing(designIds, steps);
       }
     }
-  }, [activePipeline, batchImages, currentImage, processBatch, startProcessing, undoRedo, saveProcessedImage, projectId, enqueueSnackbar, t, loadImageMeta, setBatchImages, isUpscaleClientSide, ALWAYS_SERVER_TOOLS]);
+  }, [activePipeline, batchImages, processBatch, startProcessing, undoRedo, saveProcessedImage, projectId, enqueueSnackbar, t, loadImageMeta, setBatchImages, ALWAYS_SERVER_TOOLS]);
 
   // -- Job update handler --
   const handleJobUpdate = useCallback(
@@ -258,6 +256,9 @@ const DesignEditorView = ({ projectId, editorBatch, onAddToCanvas }: DesignEdito
             onReorder={handleReorderPipeline} onUpdateParams={handleUpdateParams} onApply={handleApplyPipeline}
             isProcessing={isProcessing} progress={progress} onCancelProcessing={cancelProcessing}
             hasImages={hasImages} onRunServerTool={handleRunServerTool} isServerProcessing={isServerProcessing}
+            currentDesignId={currentImage?.designId ?? null}
+            currentImageWidth={currentImage?.width}
+            currentImageHeight={currentImage?.height}
           />
         </ToolPanelWrapper>
 

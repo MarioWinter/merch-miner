@@ -4,6 +4,7 @@ import workspaceReducer from './workspaceSlice';
 import collectedItemsReducer from './collectedItemsSlice';
 import chatBarReducer from './chatBarSlice';
 import attachmentsReducer from './attachmentsSlice';
+import upscaleReducer from './upscaleSlice';
 import { nicheApi } from './nicheSlice';
 import { researchApi } from './researchSlice';
 import { ideaApi } from './ideaSlice';
@@ -16,6 +17,7 @@ import { notificationApi } from './notificationSlice';
 import { searchApi } from './searchSlice';
 import { agentApi } from './agentSlice';
 import { collectedProductsApi } from './collectedProductsSlice';
+import { upscaleApi } from './upscaleApi';
 
 export const store = configureStore({
   reducer: {
@@ -24,6 +26,7 @@ export const store = configureStore({
     collectedItems: collectedItemsReducer,
     chatBar: chatBarReducer,
     attachments: attachmentsReducer,
+    upscale: upscaleReducer,
     [nicheApi.reducerPath]: nicheApi.reducer,
     [researchApi.reducerPath]: researchApi.reducer,
     [ideaApi.reducerPath]: ideaApi.reducer,
@@ -36,6 +39,7 @@ export const store = configureStore({
     [searchApi.reducerPath]: searchApi.reducer,
     [agentApi.reducerPath]: agentApi.reducer,
     [collectedProductsApi.reducerPath]: collectedProductsApi.reducer,
+    [upscaleApi.reducerPath]: upscaleApi.reducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware()
@@ -50,7 +54,8 @@ export const store = configureStore({
       .concat(notificationApi.middleware)
       .concat(searchApi.middleware)
       .concat(agentApi.middleware)
-      .concat(collectedProductsApi.middleware),
+      .concat(collectedProductsApi.middleware)
+      .concat(upscaleApi.middleware),
 });
 
 export type RootState = ReturnType<typeof store.getState>;

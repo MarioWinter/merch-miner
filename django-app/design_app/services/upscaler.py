@@ -1,5 +1,17 @@
-"""Upscaling service — auto-mode routes between client (Pica.js) and server API."""
+"""Upscaler service (PROJ-27).
 
+Replaces the legacy Pica.js + auto-threshold logic from PROJ-9. The actual
+4× upscale runs externally on Replicate (`nightmareai/real-esrgan`); this
+module owns the local Pillow post-processing — Lanczos-down guard for
+portrait inputs that would overflow the 4500×5400 canvas, then center-pad
+on a transparent RGBA canvas.
+
+See PROJ-27 spec AC-20 / EC-7.
+"""
+
+from __future__ import annotations
+
+import io
 import logging
 
 from PIL import Image
@@ -13,42 +25,54 @@ def check_dimensions(image_path: str) -> tuple[int, int]:
         return img.size
 
 
-def should_use_client(image_path: str, threshold: int = 3000) -> bool:
-    """Check if image is large enough for client-side Pica.js upscaling.
+def center_pad_to_target(
+    image_bytes: bytes,
+    target_w: int = 4500,
+    target_h: int = 5400,
+) -> bytes:
+    """Center-pad upscaled image onto a transparent target canvas.
 
-    Returns True if max dimension >= threshold (route to client).
-    Returns False if image needs server-side API upscaling.
+    AC-20 logic:
+      1. Open the upscaled image (Replicate output, already 4×).
+      2. If either dimension exceeds the target (e.g. tall portrait input
+         where height × 4 > target_h), Lanczos-down to fit the longer
+         dimension first while preserving aspect ratio.
+      3. Compose centered onto a transparent RGBA canvas at (target_w, target_h).
+      4. Save as PNG (compress_level=6).
+
+    Raises:
+        PIL.UnidentifiedImageError when input isn't a valid image (EC-6).
     """
-    width, height = check_dimensions(image_path)
-    return max(width, height) >= threshold
+    src = Image.open(io.BytesIO(image_bytes))
+    src.load()
 
+    # Always work in RGBA so transparent compositing is correct.
+    if src.mode != 'RGBA':
+        src = src.convert('RGBA')
 
-def upscale_api(input_path: str, api_key: str, target_width: int = 4500) -> str:
-    """Upscale using external API (placeholder).
+    width, height = src.size
 
-    Implementation depends on chosen provider.
-    """
-    raise NotImplementedError(
-        "External upscaling API not yet configured. "
-        "Use auto/pica provider in Processing Settings."
-    )
+    # Lanczos-down guard — if either side exceeds target, scale down to fit.
+    scale = 1.0
+    if width > target_w or height > target_h:
+        scale_w = target_w / width
+        scale_h = target_h / height
+        scale = min(scale_w, scale_h)
+        new_w = max(1, int(round(width * scale)))
+        new_h = max(1, int(round(height * scale)))
+        src = src.resize((new_w, new_h), Image.Resampling.LANCZOS)
+        width, height = src.size
+        logger.info(
+            'center_pad: scaled-down %sx%s -> %sx%s (scale=%.4f) before pad',
+            int(width / scale), int(height / scale), width, height, scale,
+        )
 
+    # Transparent target canvas.
+    canvas = Image.new('RGBA', (target_w, target_h), (0, 0, 0, 0))
+    offset_x = (target_w - width) // 2
+    offset_y = (target_h - height) // 2
+    canvas.paste(src, (offset_x, offset_y), src)
 
-def get_upscale_decision(image_path: str, threshold: int = 3000) -> dict:
-    """Return upscale routing decision for frontend.
-
-    Returns:
-        {
-            "route": "client" | "server",
-            "current_dimensions": [w, h],
-            "threshold": threshold
-        }
-    """
-    width, height = check_dimensions(image_path)
-    use_client = max(width, height) >= threshold
-
-    return {
-        'route': 'client' if use_client else 'server',
-        'current_dimensions': [width, height],
-        'threshold': threshold,
-    }
+    out = io.BytesIO()
+    canvas.save(out, format='PNG', compress_level=6)
+    return out.getvalue()

@@ -27,12 +27,17 @@ import ImprintPage from './views/legal/imprint/ImprintPage';
 import PrivacyPage from './views/legal/privacy/PrivacyPage';
 import { getStaticFlag } from './utils/getStaticFlag';
 import { FEATURE_FLAGS } from './constants/featureFlags';
+import { useVerifyActiveBatch } from './views/designs/board/hooks/useVerifyActiveBatch';
 
 
 const App = () => {
   useEffect(() => {
     hydrateAuth();
   }, []);
+
+  // PROJ-27 — verify localStorage-rehydrated activeBatchId is still active
+  // server-side; clear if 404 / terminal so the topbar pill doesn't show stale.
+  useVerifyActiveBatch();
 
   // PROJ-24 AC-22 — gate /register route via static flag (admin-override exempt per AC-20d).
   // Static evaluation at module/component-construction time → Vite tree-shakes when off.
@@ -80,6 +85,7 @@ const App = () => {
             <Route path="profile" element={null} />
             <Route path="billing" element={null} />
             <Route path="workspace" element={null} />
+            <Route path="usage" element={null} />
           </Route>
         </Route>
       </Route>

@@ -1,6 +1,15 @@
 import type { BaseQueryFn } from '@reduxjs/toolkit/query';
 import type { AxiosRequestConfig, AxiosError, AxiosResponseHeaders } from 'axios';
-import { apiClient } from '../services/authService';
+
+// Lazy import to break circular dependency:
+//   authService → store/index → nicheSlice → axiosBaseQuery → authService
+// Calling apiClient inside the inner async function (instead of importing
+// at module-top) lets all modules finish initialization before apiClient
+// is actually invoked.
+const getApiClient = async () => {
+  const { apiClient } = await import('../services/authService');
+  return apiClient;
+};
 
 interface AxiosBaseQueryArgs {
   url: string;
@@ -53,6 +62,7 @@ export const axiosBaseQuery =
   async ({ url, method = 'GET', data, params, responseType }) => {
     try {
       const isFormData = data instanceof FormData;
+      const apiClient = await getApiClient();
       const result = await apiClient({
         url: baseUrl + url,
         method,

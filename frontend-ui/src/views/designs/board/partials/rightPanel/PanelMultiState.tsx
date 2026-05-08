@@ -1,12 +1,22 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Box, IconButton, Stack, Tooltip, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternateOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
+import SendToListingsIcon from '../SendToListingsIcon';
+import PhotoSizeSelectLargeIcon from '@mui/icons-material/PhotoSizeSelectLarge';
+import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 import { useTranslation } from 'react-i18next';
+import { useGetDesignsByIdsQuery } from '@/store/designSlice';
+import { useUpscaleSelection } from '../../hooks/useUpscaleSelection';
+import UpscaleDestinationToggle from '../UpscaleDestinationToggle';
+import UpscaleQuotaIndicator from '../UpscaleQuotaIndicator';
+import BulkReUpscaleDialog from '../BulkReUpscaleDialog';
+import PreflightQuotaDialog from '../PreflightQuotaDialog';
+import PickCloudFolderDialog from '../PickCloudFolderDialog';
+import UpscaleCompareModal from '../UpscaleCompareModal';
 import type { ArtboardData } from '../../types';
 
 // -----------------------------------------------------------------
@@ -37,6 +47,13 @@ const DeleteButton = styled(IconButton)(({ theme }) => ({
   width: 32,
   height: 32,
   color: theme.vars.palette.error.main,
+}));
+
+const UpscaleControls = styled(Stack)(({ theme }) => ({
+  marginTop: theme.spacing(1.5),
+  paddingTop: theme.spacing(1.5),
+  borderTop: `1px solid ${theme.vars.palette.divider}`,
+  gap: theme.spacing(0.75),
 }));
 
 // -----------------------------------------------------------------
@@ -78,6 +95,35 @@ const PanelMultiState = ({
     () => (getSendableDesignIds ? getSendableDesignIds(ids) : []),
     [getSendableDesignIds, ids],
   );
+
+  // PROJ-27 — Bulk-Upscale wiring via shared hook (also used by single-select panel).
+  const upscalableDesignIds = useMemo(
+    () => selectedArtboards.map((a) => a.designId).filter((d): d is string => !!d),
+    [selectedArtboards],
+  );
+  const upscale = useUpscaleSelection({
+    designIds: upscalableDesignIds,
+    hasMaybeUpscaled: upscalableDesignIds.length > 0 && aiCount > 0,
+  });
+
+  // PROJ-27 — Compare carousel: pull design metadata for selection so we can
+  // build the items array for the modal. RTK Query caches by id.
+  const { data: linkedDesigns } = useGetDesignsByIdsQuery(
+    upscalableDesignIds,
+    { skip: upscalableDesignIds.length === 0 },
+  );
+  const compareItems = useMemo(
+    () =>
+      (linkedDesigns ?? [])
+        .filter((d) => !!d.upscaled_file)
+        .map((d) => ({
+          beforeUrl: d.image_file,
+          afterUrl: d.upscaled_file,
+          label: d.id.slice(0, 8),
+        })),
+    [linkedDesigns],
+  );
+  const [compareOpen, setCompareOpen] = useState(false);
 
   const handleAddEditor = useCallback(() => {
     onAddToEditor(ids);
@@ -144,6 +190,36 @@ const PanelMultiState = ({
               <FileDownloadOutlinedIcon sx={{ fontSize: 20 }} />
             </ToolbarButton>
           </Tooltip>
+          {/* PROJ-27 — Bulk Upscale */}
+          <Tooltip title={upscale.tooltip}>
+            <span>
+              <ToolbarButton
+                onClick={upscale.handleClick}
+                disabled={upscale.disabled}
+                aria-label={t('upscale.bulk.aria', 'Bulk upscale')}
+              >
+                <PhotoSizeSelectLargeIcon sx={{ fontSize: 20 }} />
+              </ToolbarButton>
+            </span>
+          </Tooltip>
+          {/* PROJ-27 — Compare carousel (only when ≥1 selected design has upscaled_file) */}
+          {compareItems.length > 0 && (
+            <Tooltip
+              title={t('upscale.compare.bulkTooltip', {
+                defaultValue: 'Compare {{count}} upscaled design(s)',
+                count: compareItems.length,
+              })}
+            >
+              <span>
+                <ToolbarButton
+                  onClick={() => setCompareOpen(true)}
+                  aria-label={t('upscale.compare.aria', 'Compare upscale')}
+                >
+                  <CompareArrowsIcon sx={{ fontSize: 20 }} />
+                </ToolbarButton>
+              </span>
+            </Tooltip>
+          )}
           {onSendToListings && (
             <Tooltip title={sendTooltip}>
               <span>
@@ -152,7 +228,7 @@ const PanelMultiState = ({
                   disabled={sendableDesignIds.length === 0}
                   aria-label={t('designs.sendToListings.cta', 'Send to Listings')}
                 >
-                  <SendOutlinedIcon sx={{ fontSize: 20 }} />
+                  <SendToListingsIcon />
                 </ToolbarButton>
               </span>
             </Tooltip>
@@ -163,7 +239,49 @@ const PanelMultiState = ({
             </DeleteButton>
           </Tooltip>
         </Stack>
+
+        {/* PROJ-27 — Destination toggle + quota indicator */}
+        {upscalableDesignIds.length > 0 && (
+          <UpscaleControls>
+            <UpscaleDestinationToggle
+              workspaceId={upscale.workspaceId}
+              onPickCloudTarget={upscale.openCloudPicker}
+              disabled={upscale.isTriggering}
+            />
+            <UpscaleQuotaIndicator />
+          </UpscaleControls>
+        )}
       </Section>
+
+      {/* PROJ-27 — Dialogs (MUI portals to body) */}
+      <BulkReUpscaleDialog
+        open={upscale.confirmOpen}
+        totalCount={upscalableDesignIds.length}
+        alreadyUpscaledCount={aiCount}
+        onCancel={upscale.closeConfirm}
+        onSkipAlreadyUpscaled={upscale.confirmSkip}
+        onReupscaleAll={upscale.confirmReplace}
+      />
+      <PreflightQuotaDialog
+        open={upscale.preflight.open}
+        selectedCount={upscale.preflight.selectedIds.length}
+        remaining={Math.max(0, upscale.preflight.limit - upscale.preflight.used)}
+        resetsOn={upscale.preflight.resets_on}
+        onCancel={upscale.closePreflight}
+        onConfirmFirstN={() => {
+          void upscale.confirmPreflightFirstN(false);
+        }}
+      />
+      <PickCloudFolderDialog
+        open={upscale.cloudPickerOpen}
+        onClose={upscale.closeCloudPicker}
+        onPick={upscale.applyCloudTarget}
+      />
+      <UpscaleCompareModal
+        open={compareOpen}
+        onClose={() => setCompareOpen(false)}
+        items={compareItems}
+      />
     </Box>
   );
 };

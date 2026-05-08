@@ -11,29 +11,16 @@ import {
 import { useEditorUpload } from './useEditorUpload';
 import { useEditorSelection } from './useEditorSelection';
 import useUndoRedo from './useUndoRedo';
-import type { BatchImage, PipelineTool, ToolName } from '../types';
-import { PICA_THRESHOLD_PX } from './usePicaUpscale';
-import type { UpscaleMode } from './usePicaUpscale';
+import type { BatchImage, ToolName } from '../types';
 
 // -----------------------------------------------------------------
 // Constants
 // -----------------------------------------------------------------
 
+// PROJ-27 — `ai_upscale` no longer goes through the apply-pipeline flow.
+// The Upscale tool panel triggers a Replicate prediction directly via
+// `useUpscaleSingle`. Only `bg_remove` remains as an always-server pipeline tool.
 const ALWAYS_SERVER_TOOLS: ToolName[] = ['bg_remove'];
-
-const isUpscaleClientSide = (
-  tool: PipelineTool,
-  imageWidth?: number,
-  imageHeight?: number,
-): boolean => {
-  const mode = (tool.params.mode as UpscaleMode) ?? 'auto';
-  if (mode === 'client') return true;
-  if (mode === 'server') return false;
-  return (
-    (imageWidth !== undefined && imageWidth >= PICA_THRESHOLD_PX) ||
-    (imageHeight !== undefined && imageHeight >= PICA_THRESHOLD_PX)
-  );
-};
 
 // -----------------------------------------------------------------
 // Types
@@ -321,7 +308,6 @@ const useEditorBatchState = ({
     handleDragOver,
     getBatchFile,
     // Helpers
-    isUpscaleClientSide,
     ALWAYS_SERVER_TOOLS,
   };
 };

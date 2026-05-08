@@ -3,16 +3,19 @@ import { Box, Tab, Tabs } from '@mui/material';
 import PersonOutlinedIcon from '@mui/icons-material/PersonOutlined';
 import CreditCardOutlinedIcon from '@mui/icons-material/CreditCardOutlined';
 import GroupsOutlinedIcon from '@mui/icons-material/GroupsOutlined';
+import BarChartOutlinedIcon from '@mui/icons-material/BarChartOutlined';
 import { useTranslation } from 'react-i18next';
 import React from 'react';
 import ProfileSection from './profile/ProfileSection';
 import BillingSection from './billing/BillingSection';
 import WorkspaceSection from './workspace/WorkspaceSection';
+import UsageSection from './usage/UsageSection';
 
 const TABS: { path: string; labelKey: string; icon: React.ReactElement; Component: React.ComponentType }[] = [
   { path: '/settings/profile', labelKey: 'settings.nav.profile', icon: <PersonOutlinedIcon sx={{ fontSize: 18 }} />, Component: ProfileSection },
   { path: '/settings/billing', labelKey: 'settings.nav.billing', icon: <CreditCardOutlinedIcon sx={{ fontSize: 18 }} />, Component: BillingSection },
   { path: '/settings/workspace', labelKey: 'settings.nav.workspace', icon: <GroupsOutlinedIcon sx={{ fontSize: 18 }} />, Component: WorkspaceSection },
+  { path: '/settings/usage', labelKey: 'settings.nav.usage', icon: <BarChartOutlinedIcon sx={{ fontSize: 18 }} />, Component: UsageSection },
 ];
 
 const SettingsLayout = () => {

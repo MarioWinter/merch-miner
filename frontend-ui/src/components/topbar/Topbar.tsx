@@ -12,6 +12,7 @@ import ProfileMenu from './ProfileMenu';
 import WorkspaceSelector from './WorkspaceSelector';
 import NotificationBell from '../NotificationBell';
 import HealthStatusDot from '../MultiPurposeDrawer/HealthStatusDot';
+import UpscaleStatusPill from '@/views/designs/board/partials/UpscaleStatusPill';
 import { COLORS, DURATION, EASING } from '@/style/constants';
 
 const TopbarRoot = styled(AppBar)(({ theme }) => ({
@@ -82,6 +83,7 @@ const Topbar = () => {
           </Box>
           <LanguageMenu />
           <ColorModeToggle />
+          <UpscaleStatusPill />
           <NotificationBell />
           <ProfileMenu initial={initial} avatarUrl={avatarUrl} />
         </Box>

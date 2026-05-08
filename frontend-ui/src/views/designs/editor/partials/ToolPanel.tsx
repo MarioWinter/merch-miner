@@ -118,6 +118,10 @@ interface SortableToolCardProps {
   t: (key: string) => string;
   onRunServerTool?: (toolName: string) => void;
   isServerProcessing?: boolean;
+  /** PROJ-27 — current selected design id + dimensions for `ai_upscale` panel. */
+  currentDesignId?: string | null;
+  currentImageWidth?: number;
+  currentImageHeight?: number;
 }
 
 const SortableToolCard = ({
@@ -131,6 +135,9 @@ const SortableToolCard = ({
   t,
   onRunServerTool,
   isServerProcessing,
+  currentDesignId,
+  currentImageWidth,
+  currentImageHeight,
 }: SortableToolCardProps) => {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: tool.id });
@@ -276,8 +283,9 @@ const SortableToolCard = ({
                 params={tool.params}
                 onChange={(p) => onUpdateParams(tool.id, p)}
                 disabled={!tool.enabled}
-                onRunNow={onRunServerTool ? () => onRunServerTool('ai_upscale') : undefined}
-                isProcessing={isServerProcessing}
+                imageWidth={currentImageWidth}
+                imageHeight={currentImageHeight}
+                designId={currentDesignId ?? null}
               />
             ) : (
               <Typography variant="caption" color="text.disabled">
@@ -310,6 +318,10 @@ interface ToolPanelProps {
   onRunServerTool?: (toolName: string) => void;
   /** Whether a server-side processing job is active */
   isServerProcessing?: boolean;
+  /** PROJ-27 — design id + dimensions of the currently displayed image. */
+  currentDesignId?: string | null;
+  currentImageWidth?: number;
+  currentImageHeight?: number;
 }
 
 // -----------------------------------------------------------------
@@ -329,6 +341,9 @@ export const ToolPanel = ({
   hasImages,
   onRunServerTool,
   isServerProcessing,
+  currentDesignId: _currentDesignId,
+  currentImageWidth: _currentImageWidth,
+  currentImageHeight: _currentImageHeight,
 }: ToolPanelProps) => {
   const { t } = useTranslation();
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());

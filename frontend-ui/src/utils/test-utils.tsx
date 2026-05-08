@@ -9,6 +9,8 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import authReducer from '../store/authSlice';
 import workspaceReducer from '../store/workspaceSlice';
+import upscaleReducer from '../store/upscaleSlice';
+import { upscaleApi } from '../store/upscaleApi';
 import theme from '../style/theme';
 
 // Import translation resources directly so tests don't depend on HTTP fetch
@@ -31,6 +33,8 @@ type ReducerMap = Record<string, Reducer>;
 interface RenderWithProvidersOptions extends Omit<RenderOptions, 'wrapper'> {
   reducers?: ReducerMap;
   initialRoute?: string;
+  /** Optional initial Redux state — keys must match the reducers map. */
+  preloadedState?: Record<string, unknown>;
 }
 
 /**
@@ -42,6 +46,7 @@ export const renderWithProviders = (
   {
     reducers,
     initialRoute = '/',
+    preloadedState,
     ...renderOptions
   }: RenderWithProvidersOptions = {}
 ) => {
@@ -49,8 +54,18 @@ export const renderWithProviders = (
     reducer: {
       auth: authReducer,
       workspace: workspaceReducer,
+      // PROJ-27 — register by default so any component reading upscale state
+      // (e.g. UpscaleStatusPill mounted in Topbar) doesn't crash in tests
+      // that don't explicitly register it.
+      upscale: upscaleReducer,
+      [upscaleApi.reducerPath]: upscaleApi.reducer,
       ...reducers,
     },
+    middleware: (getDefaultMiddleware) =>
+      getDefaultMiddleware().concat(upscaleApi.middleware),
+    // Cast: configureStore wants a fully-typed PreloadedState shape, but
+    // tests pass partial state for whatever slices they care about.
+    preloadedState: preloadedState as never,
   });
 
   const Wrapper = ({ children }: { children: ReactNode }) => (

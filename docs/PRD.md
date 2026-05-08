@@ -46,6 +46,7 @@ Eliminates spreadsheet chaos and tool-switching by connecting niche data, AI-gen
 | P0 (MVP) | PROJ-22: Server-Migration auf VC 8-32 + Mono-Repo Infrastruktur | Planned |
 | P0 (MVP) | PROJ-24: Legal Pages + Global Footer + Feature Flag System | Planned |
 | P0 (MVP) | PROJ-25: Bulk ASIN One-Shot Scrape Batches | Planned |
+| P0 (MVP) | PROJ-27: AI Upscaler (Single + Bulk via Replicate) | In Review |
 
 ## Success Metrics
 

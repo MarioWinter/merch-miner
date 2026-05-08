@@ -347,6 +347,22 @@ ONEDRIVE_CLIENT_ID = os.environ.get('ONEDRIVE_CLIENT_ID', '')
 ONEDRIVE_CLIENT_SECRET = os.environ.get('ONEDRIVE_CLIENT_SECRET', '')
 
 # ----------------------------------------
+# AI Upscaler — Replicate (PROJ-27)
+# ----------------------------------------
+# `REPLICATE_API_TOKEN` is the env var name the official `replicate` SDK
+# auto-detects, so we don't pass it explicitly anywhere.
+REPLICATE_API_TOKEN = os.environ.get('REPLICATE_API_TOKEN', '')
+# Webhook signing secret (incl. `whsec_` prefix). SDK strips the prefix.
+REPLICATE_WEBHOOK_SECRET = os.environ.get('REPLICATE_WEBHOOK_SECRET', '')
+# Optional rotation grace — see EC-9 in PROJ-27 spec.
+REPLICATE_WEBHOOK_SECRET_PREVIOUS = os.environ.get(
+    'REPLICATE_WEBHOOK_SECRET_PREVIOUS', '',
+)
+# Public URL passed to Replicate as `webhook=`. Must be reachable from the
+# internet. Default falls back to the first ALLOWED_HOST when unset.
+REPLICATE_WEBHOOK_URL = os.environ.get('REPLICATE_WEBHOOK_URL', '')
+
+# ----------------------------------------
 # Django Channels (WebSocket — Desktop Upload App)
 # ----------------------------------------
 CHANNEL_LAYERS = {

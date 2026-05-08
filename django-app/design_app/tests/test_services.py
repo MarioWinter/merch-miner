@@ -531,70 +531,9 @@ class TestUpscalerService:
         assert w == 1920
         assert h == 1080
 
-    def test_should_use_client_below_threshold(self, tmp_path):
-        from design_app.services.upscaler import should_use_client
-
-        img = Image.new('RGB', (2999, 2000))
-        path = str(tmp_path / 'small.png')
-        img.save(path, 'PNG')
-
-        assert should_use_client(path, threshold=3000) is False
-
-    def test_should_use_client_at_threshold(self, tmp_path):
-        from design_app.services.upscaler import should_use_client
-
-        img = Image.new('RGB', (3000, 2000))
-        path = str(tmp_path / 'exact.png')
-        img.save(path, 'PNG')
-
-        assert should_use_client(path, threshold=3000) is True
-
-    def test_should_use_client_above_threshold(self, tmp_path):
-        from design_app.services.upscaler import should_use_client
-
-        img = Image.new('RGB', (3001, 2000))
-        path = str(tmp_path / 'large.png')
-        img.save(path, 'PNG')
-
-        assert should_use_client(path, threshold=3000) is True
-
-    def test_should_use_client_height_exceeds(self, tmp_path):
-        """Height alone exceeding threshold triggers client routing."""
-        from design_app.services.upscaler import should_use_client
-
-        img = Image.new('RGB', (1000, 4000))
-        path = str(tmp_path / 'tall.png')
-        img.save(path, 'PNG')
-
-        assert should_use_client(path, threshold=3000) is True
-
-    def test_get_upscale_decision_client(self, tmp_path):
-        from design_app.services.upscaler import get_upscale_decision
-
-        img = Image.new('RGB', (4500, 5400))
-        path = str(tmp_path / 'big.png')
-        img.save(path, 'PNG')
-
-        decision = get_upscale_decision(path, threshold=3000)
-        assert decision['route'] == 'client'
-        assert decision['current_dimensions'] == [4500, 5400]
-        assert decision['threshold'] == 3000
-
-    def test_get_upscale_decision_server(self, tmp_path):
-        from design_app.services.upscaler import get_upscale_decision
-
-        img = Image.new('RGB', (800, 600))
-        path = str(tmp_path / 'tiny.png')
-        img.save(path, 'PNG')
-
-        decision = get_upscale_decision(path, threshold=3000)
-        assert decision['route'] == 'server'
-        assert decision['current_dimensions'] == [800, 600]
-
-    def test_upscale_api_raises(self):
-        from design_app.services.upscaler import upscale_api
-        with pytest.raises(NotImplementedError, match='not yet configured'):
-            upscale_api('/fake/path.png', 'some-key')
+    # PROJ-9 routing tests (should_use_client, get_upscale_decision, upscale_api)
+    # were removed in PROJ-27 along with the Pica.js / auto-threshold logic.
+    # PROJ-27 upscaler tests live in test_upscaler_service.py.
 
 
 class TestTaskRemoveBackground:
@@ -687,36 +626,10 @@ class TestTaskUpscaleDesign:
         self.design = design
         self.job = job
 
-    @patch('design_app.services.upscaler.get_upscale_decision')
-    def test_task_routes_to_client(self, mock_decision, _upscale_setup):
-        mock_decision.return_value = {
-            'route': 'client',
-            'current_dimensions': [4500, 5400],
-            'threshold': 3000,
-        }
-
-        from design_app.tasks import task_upscale_design
-        task_upscale_design(str(self.job.id))
-
-        self.job.refresh_from_db()
-        assert self.job.status == 'completed'
-        assert self.job.error_message == 'route:client'
-
-    @patch('design_app.services.upscaler.get_upscale_decision')
-    def test_task_server_route_raises_not_implemented(self, mock_decision, _upscale_setup):
-        """Server route with no API configured fails gracefully."""
-        mock_decision.return_value = {
-            'route': 'server',
-            'current_dimensions': [800, 600],
-            'threshold': 3000,
-        }
-
-        from design_app.tasks import task_upscale_design
-        task_upscale_design(str(self.job.id))
-
-        self.job.refresh_from_db()
-        assert self.job.status == 'failed'
-        assert 'not yet configured' in self.job.error_message.lower()
+    # PROJ-9 routing tests (mode=client/server via get_upscale_decision) were
+    # removed in PROJ-27. The new flow always goes through Replicate via
+    # enqueue_replicate_upscale; tests for that flow live in
+    # test_upscale_callback_processing.py.
 
 
     def test_non_multimodal_model_seedream_with_source_image_raises(self):
