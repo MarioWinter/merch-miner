@@ -49,10 +49,12 @@ export interface UpscaleBatchJobRow {
 }
 
 export interface UpscaleBulkResponse {
-  batch_id: string;
+  /** Null when no eligible candidates after server-side filtering. */
+  batch_id: string | null;
   jobs: UpscaleBatchJobRow[];
   skipped_quota: number;
   skipped_already_upscaled: number;
+  skipped_in_progress?: number;
 }
 
 export interface UpscaleBatchStatusResponse {

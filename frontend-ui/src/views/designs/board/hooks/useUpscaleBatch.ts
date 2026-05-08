@@ -156,8 +156,32 @@ export const useUpscaleBatch = ({
           replace,
         };
         const response = await trigger(body).unwrap();
-        dispatchRedux(setActiveBatchAction(response.batch_id));
-        dispatchRedux(openDrawerAction());
+        // Only open the drawer if the backend actually created a batch.
+        // batch_id can be null when ALL selected designs were filtered out
+        // (already upscaled + replace=false, OR already in-progress).
+        if (response.batch_id) {
+          dispatchRedux(setActiveBatchAction(response.batch_id));
+          dispatchRedux(openDrawerAction());
+        } else {
+          const skippedUpscaled = response.skipped_already_upscaled ?? 0;
+          const skippedInProgress = response.skipped_in_progress ?? 0;
+          const message = skippedUpscaled > 0
+            ? t('upscale.bulk.allAlreadyUpscaled', {
+                defaultValue:
+                  '{{count}} selected design(s) already upscaled. Pick "Re-upscale all" to redo.',
+                count: skippedUpscaled,
+              })
+            : skippedInProgress > 0
+              ? t('upscale.bulk.allInProgress', {
+                  defaultValue:
+                    '{{count}} selected design(s) already have an upscale running.',
+                  count: skippedInProgress,
+                })
+              : t('upscale.bulk.noEligible', {
+                  defaultValue: 'No eligible designs in selection',
+                });
+          enqueueSnackbar(message, { variant: 'info' });
+        }
       } catch (err) {
         const status = (err as { status?: number })?.status;
         const data = (err as { data?: QuotaErrorPayload })?.data;
