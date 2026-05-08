@@ -21,10 +21,17 @@ import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
+import PhotoSizeSelectLargeIcon from '@mui/icons-material/PhotoSizeSelectLarge';
 import { useTranslation } from 'react-i18next';
 import type { ArtboardData, CanvasElement } from '../../types';
 import { ARTBOARD_PRESETS } from '../../types';
 import LayerPanel from './LayerPanel';
+import { useUpscaleSelection } from '../../hooks/useUpscaleSelection';
+import UpscaleDestinationToggle from '../UpscaleDestinationToggle';
+import UpscaleQuotaIndicator from '../UpscaleQuotaIndicator';
+import BulkReUpscaleDialog from '../BulkReUpscaleDialog';
+import PreflightQuotaDialog from '../PreflightQuotaDialog';
+import PickCloudFolderDialog from '../PickCloudFolderDialog';
 
 // -----------------------------------------------------------------
 // Styled
@@ -129,6 +136,15 @@ const PanelArtboardState = ({
   onSendToListings,
 }: PanelArtboardStateProps) => {
   const { t } = useTranslation();
+
+  // PROJ-27 — Single-design upscale via the same shared hook used by
+  // PanelMultiState. designIds=[artboard.designId] when present.
+  const upscalableDesignIds = artboard.designId ? [artboard.designId] : [];
+  const upscale = useUpscaleSelection({
+    designIds: upscalableDesignIds,
+    hasMaybeUpscaled: artboard.kind === 'ai' && upscalableDesignIds.length > 0,
+  });
+
   const sendableDesignIds = getSendableDesignIds ? getSendableDesignIds([artboard.id]) : [];
   const sendTooltip = sendableDesignIds.length === 0
     ? t('designs.sendToListings.notApprovedTooltip', 'Only approved designs can be sent.')
@@ -253,6 +269,20 @@ const PanelArtboardState = ({
                 </ToolbarButton>
               </Tooltip>
             )}
+            {/* PROJ-27 — Upscale (only for AI-linked artboards) */}
+            {upscalableDesignIds.length > 0 && (
+              <Tooltip title={upscale.tooltip}>
+                <span>
+                  <ToolbarButton
+                    onClick={upscale.handleClick}
+                    disabled={upscale.disabled}
+                    aria-label={t('upscale.bulk.aria', 'Upscale')}
+                  >
+                    <PhotoSizeSelectLargeIcon sx={{ fontSize: 20 }} />
+                  </ToolbarButton>
+                </span>
+              </Tooltip>
+            )}
             {onSendToListings && (
               <Tooltip title={sendTooltip}>
                 <span>
@@ -275,7 +305,52 @@ const PanelArtboardState = ({
             )}
           </Stack>
         )}
+
+        {/* PROJ-27 — Destination toggle + quota indicator (AI artboards only) */}
+        {upscalableDesignIds.length > 0 && (
+          <Stack
+            sx={{
+              mt: 1.5,
+              pt: 1.5,
+              borderTop: 1,
+              borderColor: 'divider',
+              gap: 0.75,
+            }}
+          >
+            <UpscaleDestinationToggle
+              workspaceId={upscale.workspaceId}
+              onPickCloudTarget={upscale.openCloudPicker}
+              disabled={upscale.isTriggering}
+            />
+            <UpscaleQuotaIndicator />
+          </Stack>
+        )}
       </Section>
+
+      {/* PROJ-27 — Dialogs (MUI portals to body) */}
+      <BulkReUpscaleDialog
+        open={upscale.confirmOpen}
+        totalCount={upscalableDesignIds.length}
+        alreadyUpscaledCount={artboard.kind === 'ai' ? 1 : 0}
+        onCancel={upscale.closeConfirm}
+        onSkipAlreadyUpscaled={upscale.confirmSkip}
+        onReupscaleAll={upscale.confirmReplace}
+      />
+      <PreflightQuotaDialog
+        open={upscale.preflight.open}
+        selectedCount={upscale.preflight.selectedIds.length}
+        remaining={Math.max(0, upscale.preflight.limit - upscale.preflight.used)}
+        resetsOn={upscale.preflight.resets_on}
+        onCancel={upscale.closePreflight}
+        onConfirmFirstN={() => {
+          void upscale.confirmPreflightFirstN(false);
+        }}
+      />
+      <PickCloudFolderDialog
+        open={upscale.cloudPickerOpen}
+        onClose={upscale.closeCloudPicker}
+        onPick={upscale.applyCloudTarget}
+      />
 
       <Divider />
 

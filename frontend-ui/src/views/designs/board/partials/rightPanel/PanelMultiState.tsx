@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Box, IconButton, Stack, Tooltip, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternateOutlined';
@@ -8,15 +8,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
 import PhotoSizeSelectLargeIcon from '@mui/icons-material/PhotoSizeSelectLarge';
 import { useTranslation } from 'react-i18next';
-import { useSnackbar } from 'notistack';
-import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { useGetQuotaQuery } from '@/store/upscaleApi';
-import {
-  setActiveBatch,
-  openDrawer,
-  setCloudTarget as setCloudTargetAction,
-} from '@/store/upscaleSlice';
-import { useUpscaleBatch } from '../../hooks/useUpscaleBatch';
+import { useUpscaleSelection } from '../../hooks/useUpscaleSelection';
 import UpscaleDestinationToggle from '../UpscaleDestinationToggle';
 import UpscaleQuotaIndicator from '../UpscaleQuotaIndicator';
 import BulkReUpscaleDialog from '../BulkReUpscaleDialog';
@@ -91,8 +83,6 @@ const PanelMultiState = ({
   onSendToListings,
 }: PanelMultiStateProps) => {
   const { t } = useTranslation();
-  const { enqueueSnackbar } = useSnackbar();
-  const dispatch = useAppDispatch();
   const ids = selectedArtboards.map((a) => a.id);
 
   const aiCount = selectedArtboards.filter((a) => a.kind === 'ai').length;
@@ -103,107 +93,15 @@ const PanelMultiState = ({
     [getSendableDesignIds, ids],
   );
 
-  // ---------------------------------------------------------------
-  // PROJ-27 Bulk-Upscale wiring
-  // ---------------------------------------------------------------
-
-  const workspaceId = useAppSelector((s) => s.workspace.activeWorkspaceId);
-  const activeBatchId = useAppSelector((s) => s.upscale.activeBatchId);
-
-  const { data: quota } = useGetQuotaQuery();
-
-  // Eligible design IDs for upscaling: any selected artboard that has a linked design.
+  // PROJ-27 — Bulk-Upscale wiring via shared hook (also used by single-select panel).
   const upscalableDesignIds = useMemo(
     () => selectedArtboards.map((a) => a.designId).filter((d): d is string => !!d),
     [selectedArtboards],
   );
-
-  const {
-    triggerBulk,
-    preflight,
-    closePreflight,
-    confirmPreflightFirstN,
-    isTriggering,
-  } = useUpscaleBatch({ activeBatchId });
-
-  const [confirmOpen, setConfirmOpen] = useState(false);
-  const [pendingReplaceFlag, setPendingReplaceFlag] = useState(false);
-  const [cloudPickerOpen, setCloudPickerOpen] = useState(false);
-
-  // Pre-flight: any selected design that already has an upscaled_file.
-  // We don't have upscaled_file on ArtboardData directly, so the user always
-  // gets the option to confirm if there are AI-linked artboards in selection
-  // (server-side will short-circuit if all are fresh).
-  const hasMaybeUpscaled = upscalableDesignIds.length > 0 && aiCount > 0;
-
-  const submitBulk = useCallback(
-    async (replace: boolean) => {
-      if (upscalableDesignIds.length === 0) {
-        enqueueSnackbar(
-          t('upscale.bulk.noEligible', {
-            defaultValue: 'No upscalable designs in selection',
-          }),
-          { variant: 'info' },
-        );
-        return;
-      }
-      const result = await triggerBulk(upscalableDesignIds, { replace });
-      const batchId = (result as unknown as { batch_id?: string })?.batch_id;
-      if (batchId) {
-        dispatch(setActiveBatch(batchId));
-        dispatch(openDrawer());
-      }
-    },
-    [dispatch, enqueueSnackbar, t, triggerBulk, upscalableDesignIds],
-  );
-
-  const handleBulkUpscaleClick = useCallback(() => {
-    if (upscalableDesignIds.length === 0) {
-      enqueueSnackbar(
-        t('upscale.bulk.noEligible', {
-          defaultValue: 'No upscalable designs in selection',
-        }),
-        { variant: 'info' },
-      );
-      return;
-    }
-    if (hasMaybeUpscaled) {
-      setPendingReplaceFlag(false);
-      setConfirmOpen(true);
-      return;
-    }
-    void submitBulk(false);
-  }, [enqueueSnackbar, hasMaybeUpscaled, submitBulk, t, upscalableDesignIds.length]);
-
-  const handleConfirmReplace = useCallback(() => {
-    setConfirmOpen(false);
-    void submitBulk(true);
-  }, [submitBulk]);
-
-  const handleConfirmSkip = useCallback(() => {
-    setConfirmOpen(false);
-    void submitBulk(false);
-  }, [submitBulk]);
-
-  const handlePickCloudTarget = useCallback(() => {
-    setCloudPickerOpen(true);
-  }, []);
-
-  // Quota over-cap → bulk button disabled.
-  const isOverQuota = !!quota && !quota.is_unlimited && quota.limit !== null
-    && quota.used >= quota.limit;
-  const bulkDisabled = isTriggering || upscalableDesignIds.length === 0 || isOverQuota;
-  const bulkTooltip = isOverQuota
-    ? t('upscale.bulk.quotaExceededTooltip', {
-        defaultValue: 'Monthly quota exceeded',
-      })
-    : t('upscale.bulk.tooltip', {
-        defaultValue: 'Upscale to 4500×5400',
-      });
-
-  // ---------------------------------------------------------------
-  // Existing toolbar handlers (untouched)
-  // ---------------------------------------------------------------
+  const upscale = useUpscaleSelection({
+    designIds: upscalableDesignIds,
+    hasMaybeUpscaled: upscalableDesignIds.length > 0 && aiCount > 0,
+  });
 
   const handleAddEditor = useCallback(() => {
     onAddToEditor(ids);
@@ -271,11 +169,11 @@ const PanelMultiState = ({
             </ToolbarButton>
           </Tooltip>
           {/* PROJ-27 — Bulk Upscale */}
-          <Tooltip title={bulkTooltip}>
+          <Tooltip title={upscale.tooltip}>
             <span>
               <ToolbarButton
-                onClick={handleBulkUpscaleClick}
-                disabled={bulkDisabled}
+                onClick={upscale.handleClick}
+                disabled={upscale.disabled}
                 aria-label={t('upscale.bulk.aria', 'Bulk upscale')}
               >
                 <PhotoSizeSelectLargeIcon sx={{ fontSize: 20 }} />
@@ -306,43 +204,38 @@ const PanelMultiState = ({
         {upscalableDesignIds.length > 0 && (
           <UpscaleControls>
             <UpscaleDestinationToggle
-              workspaceId={workspaceId}
-              onPickCloudTarget={handlePickCloudTarget}
-              disabled={isTriggering}
+              workspaceId={upscale.workspaceId}
+              onPickCloudTarget={upscale.openCloudPicker}
+              disabled={upscale.isTriggering}
             />
             <UpscaleQuotaIndicator />
           </UpscaleControls>
         )}
       </Section>
 
-      {/* PROJ-27 — Dialogs (render outside Section, MUI portals to body) */}
+      {/* PROJ-27 — Dialogs (MUI portals to body) */}
       <BulkReUpscaleDialog
-        open={confirmOpen}
+        open={upscale.confirmOpen}
         totalCount={upscalableDesignIds.length}
         alreadyUpscaledCount={aiCount}
-        onCancel={() => setConfirmOpen(false)}
-        onSkipAlreadyUpscaled={handleConfirmSkip}
-        onReupscaleAll={handleConfirmReplace}
+        onCancel={upscale.closeConfirm}
+        onSkipAlreadyUpscaled={upscale.confirmSkip}
+        onReupscaleAll={upscale.confirmReplace}
       />
       <PreflightQuotaDialog
-        open={preflight.open}
-        selectedCount={preflight.selectedIds.length}
-        remaining={Math.max(0, preflight.limit - preflight.used)}
-        resetsOn={preflight.resets_on}
-        onCancel={closePreflight}
+        open={upscale.preflight.open}
+        selectedCount={upscale.preflight.selectedIds.length}
+        remaining={Math.max(0, upscale.preflight.limit - upscale.preflight.used)}
+        resetsOn={upscale.preflight.resets_on}
+        onCancel={upscale.closePreflight}
         onConfirmFirstN={() => {
-          void confirmPreflightFirstN(pendingReplaceFlag);
+          void upscale.confirmPreflightFirstN(false);
         }}
       />
       <PickCloudFolderDialog
-        open={cloudPickerOpen}
-        onClose={() => setCloudPickerOpen(false)}
-        onPick={(target) => {
-          if (workspaceId) {
-            dispatch(setCloudTargetAction({ workspaceId, target }));
-          }
-          setCloudPickerOpen(false);
-        }}
+        open={upscale.cloudPickerOpen}
+        onClose={upscale.closeCloudPicker}
+        onPick={upscale.applyCloudTarget}
       />
     </Box>
   );
