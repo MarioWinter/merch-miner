@@ -16,6 +16,107 @@ from design_app.models import (
 )
 
 
+# -- PROJ-27 AI Upscaler --
+
+class CloudTargetSerializer(serializers.Serializer):
+    """Cloud destination payload (provider+folder)."""
+
+    provider = serializers.ChoiceField(choices=['google_drive', 'onedrive'])
+    folder_id = serializers.CharField(required=False, allow_blank=True, default='')
+    folder_path = serializers.CharField(required=False, allow_blank=True, default='')
+
+
+class UpscaleSingleTriggerSerializer(serializers.Serializer):
+    """Body for POST /api/designs/<id>/upscale/.
+
+    Empty body is valid (defaults: destination=local, no replace).
+    """
+
+    destination = serializers.ChoiceField(
+        choices=['local', 'cloud'], required=False, default='local',
+    )
+    cloud_target = CloudTargetSerializer(required=False, allow_null=True)
+    replace = serializers.BooleanField(required=False, default=False)
+
+    def validate(self, attrs):
+        if attrs.get('destination') == 'cloud' and not attrs.get('cloud_target'):
+            raise serializers.ValidationError(
+                {'cloud_target': 'Required when destination=cloud.'},
+            )
+        return attrs
+
+
+class UpscaleBulkTriggerSerializer(serializers.Serializer):
+    """Body for POST /api/designs/upscale/bulk/."""
+
+    design_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        min_length=1,
+        max_length=500,
+    )
+    destination = serializers.ChoiceField(
+        choices=['local', 'cloud'], required=False, default='local',
+    )
+    cloud_target = CloudTargetSerializer(required=False, allow_null=True)
+    # When True, already-upscaled designs are re-upscaled (overwrite).
+    # When False, those designs are skipped + counted in `skipped_already_upscaled`.
+    replace = serializers.BooleanField(required=False, default=False)
+
+    def validate(self, attrs):
+        if attrs.get('destination') == 'cloud' and not attrs.get('cloud_target'):
+            raise serializers.ValidationError(
+                {'cloud_target': 'Required when destination=cloud.'},
+            )
+        return attrs
+
+
+class UpscaleJobSerializer(serializers.ModelSerializer):
+    """Per-design upscale job (used in single-mode response + batch poll)."""
+
+    design_id = serializers.UUIDField(read_only=True)
+    upscaled_file_url = serializers.SerializerMethodField()
+
+    class Meta:
+        model = DesignProcessingJob
+        fields = [
+            'id', 'design_id', 'status',
+            'replicate_prediction_id', 'batch_id',
+            'error_message', 'created_at', 'completed_at',
+            'upscaled_file_url',
+        ]
+        read_only_fields = fields
+
+    def get_upscaled_file_url(self, obj):
+        if obj.design and obj.design.upscaled_file:
+            try:
+                return obj.design.upscaled_file.url
+            except Exception:  # noqa: BLE001
+                return None
+        return None
+
+
+class BatchStatusSerializer(serializers.Serializer):
+    """Response shape for GET /api/designs/upscale/batch/<id>/."""
+
+    batch_id = serializers.UUIDField()
+    total = serializers.IntegerField()
+    completed = serializers.IntegerField()
+    failed = serializers.IntegerField()
+    pending = serializers.IntegerField()
+    running = serializers.IntegerField()
+    is_terminal = serializers.BooleanField()
+    jobs = UpscaleJobSerializer(many=True)
+
+
+class UpscaleQuotaSerializer(serializers.Serializer):
+    """Response shape for GET /api/designs/upscale/quota/."""
+
+    used = serializers.IntegerField()
+    limit = serializers.IntegerField(allow_null=True)
+    resets_on = serializers.DateField()
+    is_unlimited = serializers.BooleanField()
+
+
 # -- Generation Run --
 
 class DesignGenerationRunSerializer(serializers.ModelSerializer):

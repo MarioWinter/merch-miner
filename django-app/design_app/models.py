@@ -334,6 +334,38 @@ class DesignProcessingJob(models.Model):
         blank=True,
         default='',
     )
+    # PROJ-27: Replicate prediction tracking for webhook callbacks + reconciler.
+    replicate_prediction_id = models.CharField(
+        max_length=100,
+        blank=True,
+        default='',
+        db_index=True,
+        help_text='Replicate prediction ID for webhook idempotency + fallback polling',
+    )
+    # PROJ-27: Bulk batch grouping. Single-mode jobs leave this null.
+    batch_id = models.UUIDField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text='Bulk-batch UUID grouping (null for single-mode jobs)',
+    )
+    # PROJ-27: Bookkeeping so failure-refund knows which user to refund.
+    triggered_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='triggered_processing_jobs',
+        help_text='User who triggered the job (for quota refund)',
+    )
+    # PROJ-27: Cloud destination payload (`{provider, folder_id, folder_path}`)
+    # captured at submission. Worker uses it post-success to enqueue cloud
+    # upload. Empty dict means destination=local.
+    cloud_target = models.JSONField(
+        blank=True,
+        default=dict,
+        help_text='Cloud upload target (provider+folder); empty = local-only',
+    )
 
     class Meta:
         ordering = ['-created_at']
@@ -349,7 +381,14 @@ class DesignProcessingJob(models.Model):
 
 
 class ProcessingSettings(models.Model):
-    """Per-workspace processing provider configuration."""
+    """Per-workspace processing provider configuration.
+
+    PROJ-27 NOTE: ``upscale_provider``, ``upscale_api_key`` and
+    ``upscale_auto_threshold`` are DEPRECATED — kept for one release cycle to
+    avoid breaking PROJ-9 callers, but ignored by the new Replicate flow.
+    The new global ``UpscalerSettings`` singleton owns all upscale config.
+    Targeted for removal: PROJ-27 release N+1.
+    """
 
     class BgProvider(models.TextChoices):
         REMBG = 'rembg', 'rembg (self-hosted)'
@@ -377,20 +416,24 @@ class ProcessingSettings(models.Model):
         default='',
         help_text='Encrypted API key for external BG removal service',
     )
+    # DEPRECATED (PROJ-27): superseded by global UpscalerSettings.
     upscale_provider = models.CharField(
         max_length=20,
         choices=UpscaleProvider.choices,
         default=UpscaleProvider.AUTO,
+        help_text='DEPRECATED (PROJ-27): ignored — use UpscalerSettings.',
     )
+    # DEPRECATED (PROJ-27): superseded by global UpscalerSettings.
     upscale_api_key = models.CharField(
         max_length=500,
         blank=True,
         default='',
-        help_text='Encrypted API key for external upscaling service',
+        help_text='DEPRECATED (PROJ-27): ignored — Replicate token via env var.',
     )
+    # DEPRECATED (PROJ-27): no longer used.
     upscale_auto_threshold = models.IntegerField(
         default=3000,
-        help_text='Images >= this px use Pica.js; below use API',
+        help_text='DEPRECATED (PROJ-27): no longer used; strict 4× upscaling.',
     )
 
     class Meta:
@@ -399,6 +442,112 @@ class ProcessingSettings(models.Model):
 
     def __str__(self):
         return f"ProcessingSettings for {self.workspace}"
+
+
+class UpscalerSettings(models.Model):
+    """Global singleton config for the AI upscaler (PROJ-27).
+
+    Exactly one row exists. Admin-editable; never exposed to API.
+    Use ``UpscalerSettings.load()`` to fetch (auto-creates with defaults).
+    """
+
+    SINGLETON_PK = 1
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=SINGLETON_PK)
+    replicate_model_slug = models.CharField(
+        max_length=200,
+        default='nightmareai/real-esrgan',
+        help_text='Replicate model slug (owner/name).',
+    )
+    replicate_model_version = models.CharField(
+        max_length=200,
+        blank=True,
+        default='',
+        help_text='Pinned version hash for reproducibility (blank = use latest).',
+    )
+    default_scale = models.PositiveSmallIntegerField(
+        default=4,
+        help_text='Replicate `scale` input.',
+    )
+    target_width = models.PositiveIntegerField(
+        default=4500,
+        help_text='Final canvas width after Pillow center-pad.',
+    )
+    target_height = models.PositiveIntegerField(
+        default=5400,
+        help_text='Final canvas height after Pillow center-pad.',
+    )
+    monthly_quota_per_user = models.PositiveIntegerField(
+        default=100,
+        help_text='Hard cap of successful upscales per non-staff user per month.',
+    )
+    bulk_concurrency = models.PositiveSmallIntegerField(
+        default=10,
+        help_text='Max parallel Replicate predictions per bulk batch.',
+    )
+    staff_unlimited = models.BooleanField(
+        default=True,
+        help_text='Skip quota for is_staff/is_superuser users.',
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Upscaler Settings'
+        verbose_name_plural = 'Upscaler Settings'
+
+    def __str__(self):
+        return f"UpscalerSettings (model={self.replicate_model_slug})"
+
+    def save(self, *args, **kwargs):
+        # Force singleton — always pk=1
+        self.pk = self.SINGLETON_PK
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):  # pragma: no cover - guard
+        # Refuse to delete the singleton row from code.
+        raise RuntimeError("UpscalerSettings is a singleton; cannot be deleted.")
+
+    @classmethod
+    def load(cls):
+        """Return the singleton (auto-create with defaults if missing)."""
+        obj, _ = cls.objects.get_or_create(pk=cls.SINGLETON_PK)
+        return obj
+
+
+class UpscaleQuotaUsage(models.Model):
+    """Per-user month-bucket counter for AI upscale consumption (PROJ-27).
+
+    `count` is incremented at job-submission time; refunded on failure.
+    Unique per (user, month) so increments use atomic F-expressions.
+    """
+
+    id = models.BigAutoField(primary_key=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='upscale_quota_usage',
+        db_index=True,
+    )
+    month = models.DateField(
+        help_text='First day of the calendar month bucket.',
+        db_index=True,
+    )
+    count = models.PositiveIntegerField(default=0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = 'Upscale Quota Usage'
+        verbose_name_plural = 'Upscale Quota Usage'
+        unique_together = (('user', 'month'),)
+        indexes = [
+            models.Index(
+                fields=['user', 'month'],
+                name='upscale_quota_user_month_idx',
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.user_id} {self.month:%Y-%m} = {self.count}"
 
 
 class DesignPipeline(models.Model):

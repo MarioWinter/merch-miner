@@ -52,3 +52,7 @@ onnxruntime>=1.17
 # Install manually for prod: pip install git+https://github.com/...
 channels>=4.0
 channels-redis>=4.1
+# replicate — official Python SDK for Replicate predictions API + webhook
+# verification (PROJ-27 AI Upscaler). Pinned to 1.0.7 verified 2026-05-08.
+# webhooks.validate() accepts (headers, body, secret, tolerance) per docs.
+replicate==1.0.7

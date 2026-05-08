@@ -2,6 +2,13 @@
 
 from django.urls import path
 
+from design_app.api.upscale_views import (
+    UpscaleBatchStatusView,
+    UpscaleBulkView,
+    UpscaleCallbackView,
+    UpscaleQuotaView,
+    UpscaleSingleView,
+)
 from design_app.api.views import (
     AnalyzeImageView,
     ApplyPipelineView,
@@ -242,5 +249,35 @@ urlpatterns = [
         'products/<uuid:product_id>/analyze-image/',
         ProductAnalyzeImageView.as_view(),
         name='product-analyze-image',
+    ),
+
+    # PROJ-27 — AI Upscaler endpoints.
+    # Bulk + batch + quota are listed before the single-mode trigger so the
+    # static segment 'upscale/<bulk|batch|quota>' wins over the UUID path.
+    path(
+        'designs/upscale/bulk/',
+        UpscaleBulkView.as_view(),
+        name='design-upscale-bulk',
+    ),
+    path(
+        'designs/upscale/batch/<uuid:batch_id>/',
+        UpscaleBatchStatusView.as_view(),
+        name='design-upscale-batch-status',
+    ),
+    path(
+        'designs/upscale/quota/',
+        UpscaleQuotaView.as_view(),
+        name='design-upscale-quota',
+    ),
+    path(
+        'designs/<uuid:design_id>/upscale/',
+        UpscaleSingleView.as_view(),
+        name='design-upscale-single',
+    ),
+    # Webhook is published at /api/upscale/callback/ — no JWT, signature-verified.
+    path(
+        'upscale/callback/',
+        UpscaleCallbackView.as_view(),
+        name='upscale-replicate-callback',
     ),
 ]
