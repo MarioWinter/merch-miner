@@ -4,6 +4,102 @@
 
 ---
 
+## Replicate API Reference (verified 2026-05-08 via Context7 + replicate.com docs)
+
+> Authoritative implementation reference. Use these exact patterns — do NOT improvise. Verified against `/replicate/replicate-python` SDK docs and `replicate.com/docs/topics/webhooks/verify-webhook`.
+
+### SDK Install
+- Package: `replicate` (Python). Pin version in `requirements.txt` after testing — verify latest stable on PyPI before committing version.
+- Auth: `REPLICATE_API_TOKEN` env var auto-detected by SDK.
+
+### Creating a Prediction (async with webhook)
+
+The `predictions.create()` method (NOT `replicate.run()` which blocks). Required params:
+
+| Param | Value for PROJ-27 |
+|-------|-------------------|
+| `model` | `nightmareai/real-esrgan` (slug only) OR `version=<hash>` for pinned reproducibility |
+| `input` | `{"image": <URL or file>, "scale": 4}` — `face_enhance: false` (POD designs, not portraits) |
+| `webhook` | `https://<domain>/api/upscale/callback/` |
+| `webhook_events_filter` | `["completed"]` — only fire on terminal state (we don't need "start" events) |
+
+**File input strategy:** prefer URL (no upload roundtrip). Since `Design.upscaled_file` originals live on Django storage, expose a signed pre-auth URL OR upload via SDK with file handle. Both work; URL is faster.
+
+**SDK method shape (for `/backend` reference):**
+- Module: `replicate.predictions.create(...)` returns a Prediction object with `.id`, `.status`, `.output`, `.error`
+- Returned `prediction.id` is what we store in `DesignProcessingJob.replicate_prediction_id`
+- For reconciler: `replicate.predictions.get(prediction_id)` re-fetches state
+
+### Webhook Verification (CRITICAL — security-sensitive)
+
+**SDK does it for us — DO NOT hand-roll HMAC.** Use `replicate.webhooks.validate()`:
+
+```
+replicate.webhooks.validate(
+    headers=dict(request.headers),
+    body=request.body.decode(),
+    secret=REPLICATE_WEBHOOK_SECRET,
+    tolerance=300,  # 5 min clock skew window
+)
+# Raises replicate.exceptions.InvalidSignatureError on failure
+```
+
+**Headers Replicate sends** (SDK consumes these — do not parse manually):
+- `webhook-id`
+- `webhook-timestamp`
+- `webhook-signature`
+
+**Secret retrieval:** one-time fetch from `GET https://api.replicate.com/v1/webhooks/default/secret`. Returns `{"key": "whsec_<base64>"}`. Store the FULL string (incl. `whsec_` prefix) in `REPLICATE_WEBHOOK_SECRET` env var. SDK handles prefix stripping internally.
+
+**For rotation grace (EC-9):** if `REPLICATE_WEBHOOK_SECRET_PREVIOUS` is set, attempt validation against PRIMARY first; on `InvalidSignatureError`, retry against PREVIOUS. After 1h grace window, remove PREVIOUS env var.
+
+### Webhook Payload Shape (from SDK docs)
+
+When prediction completes, Replicate POSTs JSON body:
+
+| Field | Type | Notes |
+|-------|------|-------|
+| `id` | string | Prediction ID (matches `replicate_prediction_id` we stored) |
+| `status` | string | `succeeded` / `failed` / `canceled` |
+| `output` | string OR list-of-strings | URL(s) of result file(s). For real-esrgan: single URL string |
+| `error` | string or null | Error message when status=failed |
+| `logs` | string | Optional model logs (last 100 chars useful for debugging) |
+| `metrics.predict_time` | float | Optional, seconds spent in prediction |
+
+**Idempotency:** Replicate may send duplicate webhooks (network retries). Implementation must:
+- Check `DesignProcessingJob.status` before processing — if already `completed` or `failed`, return 200 OK without re-processing.
+- Use `prediction_id` as idempotency key.
+
+### Reconciler / Manual Polling (fallback for lost webhooks)
+
+For EC-3 (60s reconciler):
+- Query `replicate.predictions.get(prediction_id)` — returns same Prediction object
+- Check `.status` against our DB
+- If diverged (Replicate=succeeded but our row=running), trigger same callback path manually
+
+### Cost & Rate Reference (for monitoring / quota tuning)
+
+- `nightmareai/real-esrgan` cost: ~$0.0014/image at 4× scale (verify against current Replicate pricing page before launch)
+- Replicate rate limits: not officially documented but ~600 predictions/min per account is observed safe ceiling. Our `bulk_concurrency=10` default is well below.
+- Cold-start: model is "warm" / always-on so no cold start delay (verify on first prod test).
+
+### What NOT to use
+
+- ❌ `replicate.run()` — synchronous, blocks request thread. Wrong for our async flow.
+- ❌ Manual HMAC verification — error-prone, SDK already maintains the algorithm.
+- ❌ `face_enhance: true` — POD designs are typography/illustration, not faces. Causes artifacts.
+- ❌ Custom scale > 4 — model output quality degrades; stick with `scale: 4`.
+- ❌ Polling Replicate every 2s in worker (the user's original Python sketch) — we use webhook + reconciler instead.
+
+### Open Items to Verify Before /backend Starts
+
+- [ ] Pin exact `replicate` SDK version (check PyPI for latest stable)
+- [ ] Pin exact `nightmareai/real-esrgan` model version hash (check Replicate model page; hash changes when model is republished)
+- [ ] Verify Replicate signing secret is fetched + stored in `REPLICATE_WEBHOOK_SECRET` BEFORE first prediction is fired
+- [ ] Confirm 4500×5400 isn't outside model's tile-output limit (real-esrgan handles up to ~2048×2048 native; our pipeline upscales 1024→4096 then Pillow-pads, so we never hit native limit)
+
+---
+
 ## Phase 1: Backend Foundation (Models + Settings)
 
 - [ ] Add `replicate` to `django-app/requirements.txt` (pin to latest stable as of 2026-05)
