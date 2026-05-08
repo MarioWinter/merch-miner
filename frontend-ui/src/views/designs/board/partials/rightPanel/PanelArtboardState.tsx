@@ -385,9 +385,13 @@ const PanelArtboardState = ({
         <UpscaleCompareModal
           open={compareOpen}
           onClose={() => setCompareOpen(false)}
-          beforeUrl={linkedDesign.image_file}
-          afterUrl={linkedDesign.upscaled_file}
-          designLabel={artboard.label ?? artboard.id.slice(0, 8)}
+          items={[
+            {
+              beforeUrl: linkedDesign.image_file,
+              afterUrl: linkedDesign.upscaled_file,
+              label: artboard.label ?? artboard.id.slice(0, 8),
+            },
+          ]}
         />
       )}
 

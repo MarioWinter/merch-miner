@@ -7,11 +7,14 @@ import {
   DialogTitle,
   IconButton,
   Stack,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
 import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
+import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
+import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { useTranslation } from 'react-i18next';
 import { COLORS } from '@/style/constants';
 
@@ -96,20 +99,79 @@ const Tag = styled(Chip)({
   color: '#fff',
 });
 
+const NavButton = styled(IconButton, {
+  shouldForwardProp: (prop) => prop !== 'side',
+})<{ side: 'left' | 'right' }>(({ side }) => ({
+  position: 'absolute',
+  top: '50%',
+  transform: 'translateY(-50%)',
+  zIndex: 1,
+  width: 40,
+  height: 40,
+  backgroundColor: 'rgba(0, 0, 0, 0.65)',
+  color: '#fff',
+  ...(side === 'left' ? { left: 8 } : { right: 8 }),
+  '&:hover': {
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+  },
+  '&.Mui-disabled': {
+    backgroundColor: 'rgba(0, 0, 0, 0.25)',
+    color: 'rgba(255, 255, 255, 0.4)',
+  },
+}));
+
 // -----------------------------------------------------------------
-// Props
+// Types
 // -----------------------------------------------------------------
 
-interface UpscaleCompareModalProps {
-  open: boolean;
-  onClose: () => void;
+export interface UpscaleCompareItem {
   /** Original (low-res) image URL — Design.image_file. */
   beforeUrl: string;
   /** Upscaled image URL — Design.upscaled_file. */
   afterUrl: string;
-  /** Optional label (e.g. design name). */
-  designLabel?: string;
+  /** Optional label (design name, slogan, ASIN). */
+  label?: string;
 }
+
+interface UpscaleCompareModalProps {
+  open: boolean;
+  onClose: () => void;
+  /** One or more comparison items. Use a single-element array for single-mode. */
+  items: UpscaleCompareItem[];
+  /** Optional initial index into `items` (defaults to 0). */
+  initialIndex?: number;
+}
+
+// -----------------------------------------------------------------
+// Reducer — current carousel index + slider position kept atomic so
+// React 19 cascading-renders rule passes (dispatch in effects allowed).
+// -----------------------------------------------------------------
+
+interface State {
+  index: number;
+  pos: number;
+}
+
+type Action =
+  | { type: 'RESET'; index: number }
+  | { type: 'NEXT' }
+  | { type: 'PREV' }
+  | { type: 'SET_POS'; pos: number };
+
+const reducer = (state: State, action: Action): State => {
+  switch (action.type) {
+    case 'RESET':
+      return { index: action.index, pos: 50 };
+    case 'NEXT':
+      return { ...state, pos: 50, index: state.index + 1 };
+    case 'PREV':
+      return { ...state, pos: 50, index: state.index - 1 };
+    case 'SET_POS':
+      return { ...state, pos: Math.max(0, Math.min(100, action.pos)) };
+    default:
+      return state;
+  }
+};
 
 // -----------------------------------------------------------------
 // Component
@@ -118,31 +180,45 @@ interface UpscaleCompareModalProps {
 const UpscaleCompareModal = ({
   open,
   onClose,
-  beforeUrl,
-  afterUrl,
-  designLabel,
+  items,
+  initialIndex = 0,
 }: UpscaleCompareModalProps) => {
   const { t } = useTranslation();
-  // useReducer over useState — dispatch in effects passes the React 19
-  // cascading-renders rule which flags direct setState calls.
-  const [pos, dispatchPos] = useReducer(
-    (_state: number, next: number) => Math.max(0, Math.min(100, next)),
-    50,
-  );
+  const [{ index, pos }, dispatch] = useReducer(reducer, {
+    index: initialIndex,
+    pos: 50,
+  });
   const stageRef = useRef<HTMLDivElement | null>(null);
   const draggingRef = useRef(false);
 
-  // Reset position to center each time modal opens.
+  // Reset to requested initial index every time modal opens.
   useEffect(() => {
-    if (open) dispatchPos(50);
-  }, [open]);
+    if (open) {
+      const safeIndex = Math.max(0, Math.min(initialIndex, items.length - 1));
+      dispatch({ type: 'RESET', index: safeIndex });
+    }
+  }, [open, initialIndex, items.length]);
+
+  // Keyboard arrows for carousel navigation.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'ArrowRight' && index < items.length - 1) {
+        dispatch({ type: 'NEXT' });
+      } else if (e.key === 'ArrowLeft' && index > 0) {
+        dispatch({ type: 'PREV' });
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [open, index, items.length]);
 
   const updateFromClientX = useCallback((clientX: number) => {
     const stage = stageRef.current;
     if (!stage) return;
     const rect = stage.getBoundingClientRect();
     const ratio = ((clientX - rect.left) / rect.width) * 100;
-    dispatchPos(ratio);
+    dispatch({ type: 'SET_POS', pos: ratio });
   }, []);
 
   const handlePointerDown = useCallback(
@@ -170,6 +246,12 @@ const UpscaleCompareModal = ({
     [],
   );
 
+  if (items.length === 0) return null;
+  const safeIndex = Math.max(0, Math.min(index, items.length - 1));
+  const current = items[safeIndex];
+  const total = items.length;
+  const showCarousel = total > 1;
+
   return (
     <Dialog
       open={open}
@@ -190,58 +272,120 @@ const UpscaleCompareModal = ({
           <Typography variant="h6" sx={{ flex: 1 }}>
             {t('upscale.compare.title', { defaultValue: 'Upscale comparison' })}
           </Typography>
-          {designLabel && (
-            <Typography variant="caption" color="text.secondary">
-              {designLabel}
+          {current.label && (
+            <Typography variant="caption" color="text.secondary" noWrap sx={{ maxWidth: 220 }}>
+              {current.label}
             </Typography>
+          )}
+          {showCarousel && (
+            <Chip
+              label={t('upscale.compare.counter', {
+                defaultValue: '{{current}} / {{total}}',
+                current: safeIndex + 1,
+                total,
+              })}
+              size="small"
+              sx={{ height: 22, fontSize: 11 }}
+            />
           )}
           <IconButton size="small" onClick={onClose} aria-label="close">
             <CloseIcon fontSize="small" />
           </IconButton>
         </Stack>
         <Typography variant="caption" color="text.secondary">
-          {t('upscale.compare.hint', {
-            defaultValue:
-              'Drag the divider to reveal more of the original or the upscaled version.',
-          })}
+          {showCarousel
+            ? t('upscale.compare.hintCarousel', {
+                defaultValue:
+                  'Drag the divider to compare. Use ← / → or the arrow buttons to step through designs.',
+              })
+            : t('upscale.compare.hint', {
+                defaultValue:
+                  'Drag the divider to reveal more of the original or the upscaled version.',
+              })}
         </Typography>
       </DialogTitle>
       <DialogContent>
-        <Stage
-          ref={stageRef}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
-          aria-label={t('upscale.compare.stageAria', 'Upscale comparison slider')}
-        >
-          {/* Bottom layer: upscaled (after) */}
-          <Layer src={afterUrl} alt="upscaled" draggable={false} />
+        <Box sx={{ position: 'relative' }}>
+          <Stage
+            ref={stageRef}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerCancel={handlePointerUp}
+            aria-label={t('upscale.compare.stageAria', 'Upscale comparison slider')}
+          >
+            {/* Bottom layer: upscaled (after) */}
+            <Layer
+              key={`after-${safeIndex}`}
+              src={current.afterUrl}
+              alt="upscaled"
+              draggable={false}
+            />
 
-          {/* Top layer: original (before), clipped to slider position */}
-          <TopLayerWrap pos={pos}>
-            <Layer src={beforeUrl} alt="original" draggable={false} />
-          </TopLayerWrap>
+            {/* Top layer: original (before), clipped to slider position */}
+            <TopLayerWrap pos={pos}>
+              <Layer
+                key={`before-${safeIndex}`}
+                src={current.beforeUrl}
+                alt="original"
+                draggable={false}
+              />
+            </TopLayerWrap>
 
-          {/* Labels */}
-          <Tag
-            label={t('upscale.compare.before', { defaultValue: 'Before' })}
-            size="small"
-            sx={{ left: 12 }}
-          />
-          <Tag
-            label={t('upscale.compare.after', { defaultValue: 'After (4500×5400)' })}
-            size="small"
-            sx={{ right: 12 }}
-          />
+            {/* Labels */}
+            <Tag
+              label={t('upscale.compare.before', { defaultValue: 'Before' })}
+              size="small"
+              sx={{ left: 12 }}
+            />
+            <Tag
+              label={t('upscale.compare.after', { defaultValue: 'After (4500×5400)' })}
+              size="small"
+              sx={{ right: 12 }}
+            />
 
-          {/* Divider line + grip */}
-          <Handle pos={pos}>
-            <Grip>
-              <CompareArrowsIcon sx={{ fontSize: 18 }} />
-            </Grip>
-          </Handle>
-        </Stage>
+            {/* Divider line + grip */}
+            <Handle pos={pos}>
+              <Grip>
+                <CompareArrowsIcon sx={{ fontSize: 18 }} />
+              </Grip>
+            </Handle>
+          </Stage>
+
+          {/* Carousel nav — only shown when >1 item */}
+          {showCarousel && (
+            <>
+              <Tooltip
+                title={t('upscale.compare.prev', { defaultValue: 'Previous' })}
+              >
+                <span>
+                  <NavButton
+                    side="left"
+                    onClick={() => dispatch({ type: 'PREV' })}
+                    disabled={safeIndex === 0}
+                    aria-label={t('upscale.compare.prev', 'Previous')}
+                  >
+                    <ChevronLeftIcon />
+                  </NavButton>
+                </span>
+              </Tooltip>
+              <Tooltip
+                title={t('upscale.compare.next', { defaultValue: 'Next' })}
+              >
+                <span>
+                  <NavButton
+                    side="right"
+                    onClick={() => dispatch({ type: 'NEXT' })}
+                    disabled={safeIndex === total - 1}
+                    aria-label={t('upscale.compare.next', 'Next')}
+                  >
+                    <ChevronRightIcon />
+                  </NavButton>
+                </span>
+              </Tooltip>
+            </>
+          )}
+        </Box>
       </DialogContent>
     </Dialog>
   );
