@@ -160,7 +160,7 @@ For EC-3 (60s reconciler):
 - [x] Wire snackbar notifications (success: "Upscaled to 4500×5400", optionally "Uploaded to Drive"; error: error_message)
 - [x] Delete `views/designs/editor/hooks/usePicaUpscale.ts` entirely
 - [x] Strip upscale path from `views/designs/editor/hooks/useClientProcessing.ts` (BG Remove path stays)
-- [ ] Update i18n strings in `i18n/de/*.json` + `i18n/en/*.json` for new panel labels — _all strings have `defaultValue` inline so they render fine; explicit JSON keys not yet added (Phase 11)_
+- [x] Update i18n strings in `i18n/de/*.json` + `i18n/en/*.json` for new panel labels — _full `upscale.*` + `settings.usage.*` namespaces added to en + de; fr/es/it fall back to en via i18next config_
 
 ## Phase 7: Bulk-Mode UI (Project Artboard Canvas)
 
@@ -218,9 +218,9 @@ For EC-3 (60s reconciler):
 
 ## Phase 11: Documentation + Cleanup
 
-- [ ] Update `docs/design-editor-tools.md` — replace "AI Upscale" row to reflect Replicate-only flow (remove Pica.js mention)
-- [ ] Add `docs/PROJ-27-runbook.md` (operations doc) — env var setup, Replicate token rotation, webhook secret rotation procedure
-- [ ] Update `docs/PRD.md` — bump PROJ-27 status from Planned to In Review when QA enters
+- [x] Update `docs/design-editor-tools.md` — replace "AI Upscale" row to reflect Replicate-only flow (remove Pica.js mention)
+- [x] Add `docs/PROJ-27-runbook.md` (operations doc) — env var setup, Replicate token rotation, webhook secret rotation procedure, quota tuning, incident playbooks, local-dev workflow, cost reference, legacy-removal procedure
+- [x] Update `docs/PRD.md` — bump PROJ-27 status from Planned to In Review (also bumped `features/INDEX.md`)
 - [x] Add deprecation notice to docstrings on `ProcessingSettings.upscale_*` fields with target removal version
 
 ## Cross-Cutting (verify before merge)

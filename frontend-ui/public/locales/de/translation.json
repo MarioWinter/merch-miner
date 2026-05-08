@@ -473,7 +473,8 @@
       "label": "Einstellungsnavigation",
       "profile": "Profil",
       "billing": "Abrechnung",
-      "workspace": "Workspace"
+      "workspace": "Workspace",
+      "usage": "Nutzung"
     },
     "profile": {
       "title": "Profil",
@@ -546,6 +547,15 @@
       "roleChangeError": "Rolle konnte nicht aktualisiert werden",
       "noWorkspace": "Kein Workspace gefunden",
       "activeWorkspace": "Aktiver Workspace"
+    },
+    "usage": {
+      "title": "Nutzung",
+      "aiUpscale": "AI Upscale",
+      "used": "{{used}} von {{limit}} Upscales diesen Monat verbraucht",
+      "resetsOn": "Reset am {{date}}",
+      "unlimited": "Unbegrenzt",
+      "staffNote": "Staff-Accounts haben keine monatliche Begrenzung.",
+      "error": "Nutzung konnte nicht geladen werden. Bitte später erneut versuchen."
     }
   },
   "ideas": {
@@ -3297,5 +3307,98 @@
     "copyright": "© 2026 - Merch Miner",
     "aria": "Seitenfußzeile",
     "legalNavLabel": "Rechtliches"
+  },
+  "upscale": {
+    "single": {
+      "currentSize": "Aktuell: {{w}}×{{h}}",
+      "targetSize": "Ziel: {{w}}×{{h}}",
+      "costHint": "Verbraucht 1 deiner monatlichen Upscales",
+      "runNow": "Jetzt upscalen",
+      "processing": "Upscale läuft…",
+      "success": "Auf 4500×5400 hochskaliert",
+      "timeout": "Der Upscale dauert länger als erwartet — schau später nochmal vorbei.",
+      "error": "Upscale konnte nicht gestartet werden",
+      "alreadyRunning": "Für dieses Design läuft bereits ein Upscale.",
+      "quotaExceeded": "Monatskontingent verbraucht — Reset {{resets_on}}",
+      "reupscaleTitle": "Dieses Design erneut upscalen?",
+      "reupscaleBody": "Dieses Design wurde bereits auf 4500×5400 hochskaliert. Erneutes Upscalen verbraucht 1 deines Monatskontingents und überschreibt die aktuelle Datei.",
+      "reupscaleConfirm": "Erneut upscalen"
+    },
+    "bulk": {
+      "tooltip": "Auf 4500×5400 upscalen",
+      "aria": "Bulk-Upscale",
+      "quotaExceededTooltip": "Monatskontingent verbraucht",
+      "noEligible": "Keine geeigneten Designs in der Auswahl",
+      "allAlreadyUpscaled": "{{count}} ausgewählte(s) Design(s) wurden bereits upscaled. Wähle „Alle erneut upscalen“ um sie neu zu machen.",
+      "allInProgress": "Für {{count}} ausgewählte(s) Design(s) läuft bereits ein Upscale.",
+      "error": "Bulk-Upscale konnte nicht gestartet werden",
+      "drawerTitle": "Bulk-Upscale",
+      "batchLabel": "Batch {{id}}",
+      "empty": "Noch keine Jobs in diesem Batch",
+      "noActiveJobs": "Keine aktiven Jobs",
+      "clearCompleted": "Fertige ausblenden",
+      "showCompleted": "Fertige anzeigen",
+      "dismissBatch": "Batch verwerfen",
+      "retry": "Erneut versuchen",
+      "retryStarted": "Wiederholung gestartet",
+      "retryFailed": "Wiederholung fehlgeschlagen",
+      "permanentFail": "Dauerhafter Fehler: {{error}}",
+      "statusPending": "wartend",
+      "statusRunning": "läuft",
+      "statusCompleted": "fertig",
+      "statusFailed": "fehlgeschlagen",
+      "success": "Auf 4500×5400 hochskaliert",
+      "partial": "Bulk-Upscale: {{completed}} erfolgreich, {{failed}} fehlgeschlagen",
+      "reupscaleTitle": "Einige Designs wurden bereits upscaled",
+      "reupscaleBody": "{{alreadyCount}} von {{totalCount}} ausgewählten Designs haben bereits eine upscalede Version. Wie möchtest du fortfahren?",
+      "skipAlreadyUpscaled": "Bereits upscalede überspringen",
+      "reupscaleAll": "Alle erneut upscalen"
+    },
+    "preflight": {
+      "title": "Auswahl überschreitet dein Monatskontingent",
+      "body": "Du hast {{selectedCount}} Designs ausgewählt, aber nur {{remaining}} Upscales bleiben in diesem Monat (Reset {{resetsOn}}).",
+      "confirmFirstN": "Nur die ersten {{remaining}} upscalen"
+    },
+    "destination": {
+      "switchLabel": "Auch in der Cloud speichern",
+      "switchAria": "Auch in der Cloud speichern",
+      "label": "Upscale-Ziel",
+      "local": "Nur lokal",
+      "localTooltip": "Nur lokal (Django)",
+      "cloud": "Lokal + Cloud",
+      "cloudTooltip": "Lokal + Cloud",
+      "cloudDisabledTooltip": "Verbinde Google Drive oder OneDrive in den Einstellungen",
+      "connectHint": "Verbinde Drive oder OneDrive in den Einstellungen, um Cloud-Upload zu aktivieren",
+      "pickFolder": "Ordner wählen…"
+    },
+    "cloudPicker": {
+      "title": "Cloud-Ordner wählen",
+      "root": "Root",
+      "target": "Ziel: {{provider}} · {{folder}}",
+      "confirm": "Diesen Ordner verwenden",
+      "loadError": "Ordner konnte nicht geladen werden"
+    },
+    "quota": {
+      "inline": "Kontingent: {{remaining}}/{{limit}} übrig diesen Monat"
+    },
+    "pill": {
+      "label": "Upscale {{completed}}/{{total}}",
+      "starting": "Upscale läuft…",
+      "ariaOpen": "Bulk-Upscale-Status öffnen"
+    },
+    "compare": {
+      "title": "Upscale-Vergleich",
+      "tooltip": "Original mit Upscale vergleichen",
+      "bulkTooltip": "{{count}} upscalede Design(s) vergleichen",
+      "aria": "Upscale vergleichen",
+      "stageAria": "Upscale-Vergleichs-Slider",
+      "before": "Vorher",
+      "after": "Nachher (4500×5400)",
+      "hint": "Ziehe den Trenner, um mehr vom Original oder von der upscaleden Version zu sehen.",
+      "hintCarousel": "Ziehe den Trenner zum Vergleich. Mit ← / → oder den Pfeil-Buttons durch Designs blättern.",
+      "counter": "{{current}} / {{total}}",
+      "prev": "Zurück",
+      "next": "Weiter"
+    }
   }
 }

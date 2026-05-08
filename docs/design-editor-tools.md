@@ -27,7 +27,7 @@
 | Tool | Purpose |
 |------|---------|
 | **BG Remove** | rembg (u2net) server-side background removal. Better than Color Removal for complex backgrounds |
-| **AI Upscale** | Increase resolution. Client: Pica.js (Lanczos) for ≥3000px. External API for smaller |
+| **AI Upscale** | Replicate-based AI upscale to 4500×5400 print-ready PNG. Single + Bulk modes; webhook-driven async; quota-gated (100/month for non-staff, unlimited for staff). See [PROJ-27 spec](../features/PROJ-27-ai-upscaler.md) and [PROJ-27 runbook](./PROJ-27-runbook.md) for operations |
 
 ## Export Compression (at download time — NOT a pipeline tool)
 | Control | Detail |
