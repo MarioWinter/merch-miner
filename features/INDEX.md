@@ -39,7 +39,7 @@
 | PROJ-24 | Legal Pages + Global Footer + Feature Flag System | In Review | [spec](PROJ-24-legal-pages-and-feature-flags.md) | 2026-05-01 |
 | PROJ-25 | Bulk ASIN One-Shot Scrape Batches | In Review | [spec](PROJ-25-bulk-asin-scrape-batches.md) | 2026-05-05 |
 | PROJ-27 | AI Upscaler (Single + Bulk via Replicate) | In Review | [spec](PROJ-27-ai-upscaler.md) | 2026-05-07 |
-| PROJ-28 | Niche Research Product Limit | Planned | [spec](PROJ-28-niche-research-product-limit.md) | 2026-05-08 |
+| PROJ-28 | Niche Research Product Limit | In Progress | [spec](PROJ-28-niche-research-product-limit.md) | 2026-05-08 |
 
 <!-- Add features above this line -->
 
