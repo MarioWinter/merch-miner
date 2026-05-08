@@ -22,7 +22,9 @@ import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
 import PhotoSizeSelectLargeIcon from '@mui/icons-material/PhotoSizeSelectLarge';
+import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 import { useTranslation } from 'react-i18next';
+import { useGetDesignsByIdsQuery } from '@/store/designSlice';
 import type { ArtboardData, CanvasElement } from '../../types';
 import { ARTBOARD_PRESETS } from '../../types';
 import LayerPanel from './LayerPanel';
@@ -32,6 +34,7 @@ import UpscaleQuotaIndicator from '../UpscaleQuotaIndicator';
 import BulkReUpscaleDialog from '../BulkReUpscaleDialog';
 import PreflightQuotaDialog from '../PreflightQuotaDialog';
 import PickCloudFolderDialog from '../PickCloudFolderDialog';
+import UpscaleCompareModal from '../UpscaleCompareModal';
 
 // -----------------------------------------------------------------
 // Styled
@@ -144,6 +147,16 @@ const PanelArtboardState = ({
     designIds: upscalableDesignIds,
     hasMaybeUpscaled: artboard.kind === 'ai' && upscalableDesignIds.length > 0,
   });
+
+  // PROJ-27 — Fetch design metadata so we can detect whether an upscaled file
+  // exists (gates the Compare button). RTK Query caches by id.
+  const { data: linkedDesigns } = useGetDesignsByIdsQuery(
+    upscalableDesignIds,
+    { skip: upscalableDesignIds.length === 0 },
+  );
+  const linkedDesign = linkedDesigns?.[0] ?? null;
+  const hasUpscaled = !!linkedDesign?.upscaled_file;
+  const [compareOpen, setCompareOpen] = useState(false);
 
   const sendableDesignIds = getSendableDesignIds ? getSendableDesignIds([artboard.id]) : [];
   const sendTooltip = sendableDesignIds.length === 0
@@ -283,6 +296,23 @@ const PanelArtboardState = ({
                 </span>
               </Tooltip>
             )}
+            {/* PROJ-27 — Compare original vs upscaled (only when upscaled) */}
+            {hasUpscaled && (
+              <Tooltip
+                title={t('upscale.compare.tooltip', {
+                  defaultValue: 'Compare original vs upscaled',
+                })}
+              >
+                <span>
+                  <ToolbarButton
+                    onClick={() => setCompareOpen(true)}
+                    aria-label={t('upscale.compare.aria', 'Compare upscale')}
+                  >
+                    <CompareArrowsIcon sx={{ fontSize: 20 }} />
+                  </ToolbarButton>
+                </span>
+              </Tooltip>
+            )}
             {onSendToListings && (
               <Tooltip title={sendTooltip}>
                 <span>
@@ -351,6 +381,15 @@ const PanelArtboardState = ({
         onClose={upscale.closeCloudPicker}
         onPick={upscale.applyCloudTarget}
       />
+      {linkedDesign && hasUpscaled && (
+        <UpscaleCompareModal
+          open={compareOpen}
+          onClose={() => setCompareOpen(false)}
+          beforeUrl={linkedDesign.image_file}
+          afterUrl={linkedDesign.upscaled_file}
+          designLabel={artboard.label ?? artboard.id.slice(0, 8)}
+        />
+      )}
 
       <Divider />
 
