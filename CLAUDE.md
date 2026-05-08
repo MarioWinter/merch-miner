@@ -1,5 +1,67 @@
 # AI Coding Kit
 
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+## 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them - don't pick silently.
+- If a simpler approach exists, say so. Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it - don't delete it.
+
+When your changes create orphans:
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test: Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+```
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+```
+
+Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
+
+---
+
+**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+
 ## Workflow Rules
 - Run each skill step manually. Always ask before proceeding to the next step. Additionally, ask when:
   - **Scope ambiguity** — spec has contradictions or missing info that can't be inferred
@@ -12,6 +74,60 @@
 > In all interactions and commit messages, be extremely concise. Sacrifice grammar for concision.
 > A React Typescript Vite and Django DRF template with an AI-powered development workflow using specialized skills for Requirements, Architecture, Frontend, Backend, QA, and Deployment.
 
+## Key Conventions
+
+- **Feature IDs:** PROJ-1, PROJ-2, etc. (sequential)
+- **Commits:** Conventional Commits — `feat(PROJ-X): description`, `fix(PROJ-X): description`, `ci:`, `chore:`, etc. release-please reads these to bump SemVer.
+- **Branching:** One PROJ = one branch = one PR. Branch name `feature/PROJ-X-shortname`, off `main`.
+- **Mini-fixes outside any PROJ:** Branch `fix/short-description` off `main`. No spec needed when `/requirements` + `/architecture` would be overkill (typo, env tweak, infra hot-patch).
+- **Branch lifecycle:** Branches are auto-deleted on merge (GitHub setting). Don't reuse a merged branch; start fresh from `main`.
+- **Release cadence:** Code PRs (`feat:`/`fix:`) get merged immediately — that ships the code via the deploy chain. The auto-opened `chore(main): release X.Y.Z` PR from release-please is **NOT merged on every code merge**. It accumulates all changes in a single open PR. Default cadence: **merge the release PR on Mondays** (or whenever an intentional version bump makes sense). This produces clean, batched version tags instead of `v0.2.0 → v0.2.1 → v0.2.2` churn from sequential bug-fix PRs.
+- **MUI first:** Check MUI before building any UI component
+- **MUI v7 only:** Use components from `@mui/material` and icons from `@mui/icons-material`; avoid custom re-implementations for standard controls.
+- **No deprecated APIs:** Never use `GridLegacy`/`Grid2`, `Hidden`, `InputProps`, `@mui/lab` imports, or `createMuiTheme`; use v7 patterns (`Grid size={{...}}`, `slotProps`, `sx` breakpoints).
+- **Single Responsibility:** One feature per spec file
+- **Env vars:** Copy `django-app/.env.template` → `django-app/.env` before running Docker
+- **Human-in-the-loop:** All workflows have user approval checkpoints
+- **Reuse first:** Before creating new API endpoints, components, or utilities — check what already exists. Extend existing code over building new. Promote feature-local code to global when reusable.
+- **No hardcoded colors:** All colors via design system tokens (`theme.vars.palette.*`). New colors → `docs/design-system.md` + MUI theme first.
+
+## Development Workflow (Skills) — MANDATORY
+
+**ALWAYS invoke skills via the `Skill` tool. NEVER manually replicate a skill's workflow.**
+Skills have checklists and formatting rules that manual work does not guarantee.
+
+### Workflow per Feature (in order)
+
+| Step | Skill | When | Output |
+|------|-------|------|--------|
+| 1. Write/review spec | `/requirements` | New feature idea, spec review, fix ACs | `features/PROJ-X-name.md` |
+| 2. Tech Design + Tasks | `/architecture` | After approved spec | Tech Design in spec + `docs/tasks/PROJ-X-tasks.md` |
+| 3. UI Design | `/frontend-design` | When layout/design decisions needed | Design decisions |
+| 4. Build frontend | `/frontend` | After approved architecture | Code in `frontend-ui/src/` |
+| 5. Build backend | `/backend` | After frontend or in parallel | Code in `django-app/` |
+| 6. QA + Security Audit | `/qa` | After implementation complete | QA Report in spec, bugs fixed |
+| 7. Deploy | `/deploy` | After QA passed | Production-ready checks |
+
+### Rules
+- **Two skills minimum per feature:** `/requirements` → `/architecture`
+- **Spec review = `/requirements`**, task files = `/architecture`
+- **"Next PROJ-X"** = first `/requirements` (spec ok?), then `/architecture` (tasks)
+- **Run manual** — execute each skill step, then stop and ask before proceeding to the next step
+- **Never code without tasks** — task file must exist before implementation begins
+- **Brief summary after each step** — state what was done, then continue to next skill
+
+Feature tracking: `features/INDEX.md`. Specs: `features/PROJ-X-name.md`. Tasks: `docs/tasks/PROJ-X-tasks.md`.
+
+## Product Context
+
+@docs/PRD.md
+
+## Feature Overview
+
+@features/INDEX.md
+
+- At the end of each plan, give me a list of unresolved questions to answer, if any. 
+  Make the questions extremely concise. Sacrifice grammar for the sake of concision.
 
 ## What This Repo Is
 
@@ -159,58 +275,3 @@ Placement rules: global reuse → top-level dirs; feature-local code stays insid
 
 ### Background Jobs
 django-rq processes async tasks (n8n triggers, design generation). Redis serves as both cache and job broker. Queue config in `settings.py → RQ_QUEUES`.
-
-## Key Conventions
-
-- **Feature IDs:** PROJ-1, PROJ-2, etc. (sequential)
-- **Commits:** Conventional Commits — `feat(PROJ-X): description`, `fix(PROJ-X): description`, `ci:`, `chore:`, etc. release-please reads these to bump SemVer.
-- **Branching:** One PROJ = one branch = one PR. Branch name `feature/PROJ-X-shortname`, off `main`.
-- **Mini-fixes outside any PROJ:** Branch `fix/short-description` off `main`. No spec needed when `/requirements` + `/architecture` would be overkill (typo, env tweak, infra hot-patch).
-- **Branch lifecycle:** Branches are auto-deleted on merge (GitHub setting). Don't reuse a merged branch; start fresh from `main`.
-- **Release cadence:** Code PRs (`feat:`/`fix:`) get merged immediately — that ships the code via the deploy chain. The auto-opened `chore(main): release X.Y.Z` PR from release-please is **NOT merged on every code merge**. It accumulates all changes in a single open PR. Default cadence: **merge the release PR on Mondays** (or whenever an intentional version bump makes sense). This produces clean, batched version tags instead of `v0.2.0 → v0.2.1 → v0.2.2` churn from sequential bug-fix PRs.
-- **MUI first:** Check MUI before building any UI component
-- **MUI v7 only:** Use components from `@mui/material` and icons from `@mui/icons-material`; avoid custom re-implementations for standard controls.
-- **No deprecated APIs:** Never use `GridLegacy`/`Grid2`, `Hidden`, `InputProps`, `@mui/lab` imports, or `createMuiTheme`; use v7 patterns (`Grid size={{...}}`, `slotProps`, `sx` breakpoints).
-- **Single Responsibility:** One feature per spec file
-- **Env vars:** Copy `django-app/.env.template` → `django-app/.env` before running Docker
-- **Human-in-the-loop:** All workflows have user approval checkpoints
-- **Reuse first:** Before creating new API endpoints, components, or utilities — check what already exists. Extend existing code over building new. Promote feature-local code to global when reusable.
-- **No hardcoded colors:** All colors via design system tokens (`theme.vars.palette.*`). New colors → `docs/design-system.md` + MUI theme first.
-
-## Development Workflow (Skills) — MANDATORY
-
-**ALWAYS invoke skills via the `Skill` tool. NEVER manually replicate a skill's workflow.**
-Skills have checklists and formatting rules that manual work does not guarantee.
-
-### Workflow per Feature (in order)
-
-| Step | Skill | When | Output |
-|------|-------|------|--------|
-| 1. Write/review spec | `/requirements` | New feature idea, spec review, fix ACs | `features/PROJ-X-name.md` |
-| 2. Tech Design + Tasks | `/architecture` | After approved spec | Tech Design in spec + `docs/tasks/PROJ-X-tasks.md` |
-| 3. UI Design | `/frontend-design` | When layout/design decisions needed | Design decisions |
-| 4. Build frontend | `/frontend` | After approved architecture | Code in `frontend-ui/src/` |
-| 5. Build backend | `/backend` | After frontend or in parallel | Code in `django-app/` |
-| 6. QA + Security Audit | `/qa` | After implementation complete | QA Report in spec, bugs fixed |
-| 7. Deploy | `/deploy` | After QA passed | Production-ready checks |
-
-### Rules
-- **Two skills minimum per feature:** `/requirements` → `/architecture`
-- **Spec review = `/requirements`**, task files = `/architecture`
-- **"Next PROJ-X"** = first `/requirements` (spec ok?), then `/architecture` (tasks)
-- **Run manual** — execute each skill step, then stop and ask before proceeding to the next step
-- **Never code without tasks** — task file must exist before implementation begins
-- **Brief summary after each step** — state what was done, then continue to next skill
-
-Feature tracking: `features/INDEX.md`. Specs: `features/PROJ-X-name.md`. Tasks: `docs/tasks/PROJ-X-tasks.md`.
-
-## Product Context
-
-@docs/PRD.md
-
-## Feature Overview
-
-@features/INDEX.md
-
-- At the end of each plan, give me a list of unresolved questions to answer, if any. 
-  Make the questions extremely concise. Sacrifice grammar for the sake of concision.
