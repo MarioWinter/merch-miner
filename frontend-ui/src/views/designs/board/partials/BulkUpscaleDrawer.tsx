@@ -29,6 +29,7 @@ import {
   type UpscaleBatchJobRow,
   type UpscaleJobStatus,
 } from '@/store/upscaleApi';
+import { COLORS } from '@/style/constants';
 
 // -----------------------------------------------------------------
 // Constants
@@ -44,10 +45,15 @@ const MAX_RETRY_ATTEMPTS = 3;
 const StyledDrawer = styled(Drawer)(({ theme }) => ({
   '& .MuiDrawer-paper': {
     width: DRAWER_WIDTH,
-    backgroundColor: alpha(theme.vars.palette.background.paper, 0.85),
+    // alpha() requires resolved color strings — CSS vars (theme.vars.*)
+    // can't be decomposed. Use COLORS constants per project convention.
+    backgroundColor: alpha(COLORS.inkPaper, 0.85),
     backdropFilter: 'blur(16px)',
     WebkitBackdropFilter: 'blur(16px)',
     borderLeft: `1px solid ${theme.vars.palette.divider}`,
+    ...theme.applyStyles('light', {
+      backgroundColor: alpha(COLORS.ashDefault, 0.85),
+    }),
   },
 }));
 

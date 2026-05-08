@@ -176,8 +176,9 @@ const PickCloudFolderDialog = ({
         paper: {
           sx: {
             borderRadius: (theme) => `${Number(theme.shape.borderRadius) * 2}px`,
-            backgroundColor: (theme) =>
-              alpha(theme.vars.palette.background.paper, 0.85),
+            // alpha() can't decompose CSS vars — use COLORS constants per
+            // project pattern (see RightPanel, BulkUpscaleDrawer).
+            backgroundColor: alpha(COLORS.inkPaper, 0.85),
             backdropFilter: 'blur(16px)',
             border: (theme) => `1px solid ${theme.vars.palette.divider}`,
           },
