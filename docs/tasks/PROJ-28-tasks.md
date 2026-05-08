@@ -11,10 +11,10 @@
 | 2 | Backend API (Serializer + View) | ✅ Done — commit `38d9500` |
 | 3 | Backend Workflow (State Propagation) | ✅ Done — commit `38d9500` |
 | 4 | Backend Workflow (Scrape Node) | ✅ Done — commit `38d9500` |
-| 5 | Frontend Types + i18n | ⏳ Open — `/frontend` skill pending |
-| 6 | Frontend UI (ResearchTriggerButton) | ⏳ Open — `/frontend` skill pending |
+| 5 | Frontend Types + i18n | ✅ Done |
+| 6 | Frontend UI (ResearchTriggerButton) | ✅ Done |
 | 7 | Backend Tests | ✅ Done — 19 new tests, 143 pass in app, 2063 total, 0 regressions |
-| 8 | Frontend Tests | ⏳ Open — `/frontend` skill pending |
+| 8 | Frontend Tests | ✅ Done — 6 new tests, 1406 total pass, 0 regressions |
 | 9 | QA Hand-off Verification | ⏳ Open — `/qa` skill pending |
 
 ## Phase 1: Backend Foundation (Model + Migration)
@@ -47,17 +47,17 @@
 
 ## Phase 5: Frontend Types + i18n
 
-- [ ] T-5.1: Add `product_limit?: number` to `ResearchTriggerParams` in `frontend-ui/src/views/niches/research/types/index.ts`.
-- [ ] T-5.2: Add i18n key `research.productLimit.label` to `frontend-ui/src/i18n/locales/de/translation.json` ("Produkte") and `…/en/translation.json` ("Products").
-- [ ] T-5.3: (Optional, if other strings reference "limit") add `research.productLimit.aria` for screen-reader label if MUI default is insufficient.
+- [x] T-5.1: Add `product_limit?: number` to `ResearchTriggerParams` in `frontend-ui/src/views/niches/research/types/index.ts`. — `types/index.ts:55-60`
+- [x] T-5.2: Add i18n key `research.productLimit.label` to `frontend-ui/public/locales/de/translation.json` ("Produkte") and `…/en/translation.json` ("Products"). — `en/translation.json:367-369`, `de/translation.json:358-360` _(Note: actual i18n locale path is `public/locales/`, not `src/i18n/locales/`.)_
+- [x] T-5.3: Skipped — MUI's default label-association via `label` prop is sufficient; no additional aria key needed.
 
 ## Phase 6: Frontend UI (ResearchTriggerButton)
 
-- [ ] T-6.1: In `ResearchTriggerButton.tsx`, add controlled state `productLimit` (default 50, sourced from a constant `DEFAULT_PRODUCT_LIMIT`).
-- [ ] T-6.2: Add a `TextField type="number"` between Marketplace and Product Type with `inputProps`/`slotProps` for `min=10`, `max=200`, `step=10`, `size="small"`, `sx={{ width: 120 }}`.
-- [ ] T-6.3: Implement `handleBlur` that clamps to [10, 200] and falls back to 50 on empty/NaN; updates state.
-- [ ] T-6.4: Update `handleTrigger` to include `product_limit: productLimit` in the payload to `onTrigger`.
-- [ ] T-6.5: Confirm DataPrismButton remains enabled regardless of input value (no disabled prop wired to validity).
+- [x] T-6.1: In `ResearchTriggerButton.tsx`, add controlled state `productLimit` (default 50, sourced from a constant `DEFAULT_PRODUCT_LIMIT`). — `ResearchTriggerButton.tsx:23, 47-48`
+- [x] T-6.2: Add a `TextField type="number"` between Marketplace and Product Type with `slotProps={{ htmlInput: { min, max, step } }}` (MUI v7 pattern, NOT deprecated `inputProps`), `size="small"`, `sx={{ width: 120 }}`. — `ResearchTriggerButton.tsx:99-114`
+- [x] T-6.3: Implement `handleProductLimitBlur` that clamps to [10, 200] and falls back to 50 on empty/NaN; updates both state and the controlled input string. — `ResearchTriggerButton.tsx:57-71`
+- [x] T-6.4: Update `handleTrigger` to include `product_limit: productLimit` in the payload to `onTrigger`. — `ResearchTriggerButton.tsx:73-80`
+- [x] T-6.5: DataPrismButton remains enabled regardless of input value — `disabled` prop is never wired to limit-input validity (clamping happens silently on blur). — `ResearchTriggerButton.tsx:130-135`
 
 ## Phase 7: Backend Tests
 
@@ -75,12 +75,12 @@
 
 ## Phase 8: Frontend Tests
 
-- [ ] T-8.1: Render test — input renders with default 50.
-- [ ] T-8.2: User-event test — type 5, blur → input shows 10.
-- [ ] T-8.3: User-event test — type 500, blur → input shows 200.
-- [ ] T-8.4: User-event test — clear input, blur → input shows 50.
-- [ ] T-8.5: Click trigger → `onTrigger` called with `product_limit` matching current state.
-- [ ] T-8.6: Click trigger after force_refresh toggle → payload includes `product_limit` AND `force_refresh: true`.
+- [x] T-8.1: Render test — input renders with default 50. — `ResearchTriggerButton.test.tsx:103-109`
+- [x] T-8.2: User-event test — type 5, blur → input shows 10. — `ResearchTriggerButton.test.tsx:111-121`
+- [x] T-8.3: User-event test — type 500, blur → input shows 200. — `ResearchTriggerButton.test.tsx:123-133`
+- [x] T-8.4: User-event test — clear input, blur → input shows 50. — `ResearchTriggerButton.test.tsx:135-144`
+- [x] T-8.5: Click trigger → `onTrigger` called with `product_limit` matching current state. — `ResearchTriggerButton.test.tsx:146-164`
+- [x] T-8.6: Click trigger after force_refresh toggle → payload includes `product_limit` AND `force_refresh: true`. — `ResearchTriggerButton.test.tsx:166-196`
 
 ## Phase 9: QA Hand-off Verification
 

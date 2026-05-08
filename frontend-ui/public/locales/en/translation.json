@@ -364,6 +364,9 @@
       "popsocket": "PopSocket",
       "tank_top": "Tank Top"
     },
+    "productLimit": {
+      "label": "Products"
+    },
     "forceRefresh": "Force refresh (re-run LLM analysis)",
     "retryCount": "Retry {{current}}/{{max}}",
     "maxRetriesExceeded": "Max retries exceeded",

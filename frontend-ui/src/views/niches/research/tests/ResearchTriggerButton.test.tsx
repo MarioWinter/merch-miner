@@ -97,4 +97,100 @@ describe('ResearchTriggerButton', () => {
     await user.click(screen.getByRole('button', { name: /ai research/i }));
     expect(onTrigger).toHaveBeenCalledOnce();
   });
+
+  // PROJ-28 — product_limit input
+  describe('product limit input', () => {
+    it('renders the product limit input with default 50', () => {
+      renderWithProviders(<ResearchTriggerButton {...defaultProps} />);
+
+      const input = screen.getByLabelText(/products/i) as HTMLInputElement;
+      expect(input).toBeInTheDocument();
+      expect(input).toHaveValue(50);
+    });
+
+    it('clamps values below 10 up to 10 on blur', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<ResearchTriggerButton {...defaultProps} />);
+
+      const input = screen.getByLabelText(/products/i) as HTMLInputElement;
+      await user.clear(input);
+      await user.type(input, '5');
+      await user.tab(); // triggers blur
+
+      expect(input).toHaveValue(10);
+    });
+
+    it('clamps values above 200 down to 200 on blur', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<ResearchTriggerButton {...defaultProps} />);
+
+      const input = screen.getByLabelText(/products/i) as HTMLInputElement;
+      await user.clear(input);
+      await user.type(input, '500');
+      await user.tab();
+
+      expect(input).toHaveValue(200);
+    });
+
+    it('falls back to 50 when input is cleared', async () => {
+      const user = userEvent.setup();
+      renderWithProviders(<ResearchTriggerButton {...defaultProps} />);
+
+      const input = screen.getByLabelText(/products/i) as HTMLInputElement;
+      await user.clear(input);
+      await user.tab();
+
+      expect(input).toHaveValue(50);
+    });
+
+    it('passes product_limit reflecting current state to onTrigger', async () => {
+      const user = userEvent.setup();
+      const onTrigger = vi.fn();
+      renderWithProviders(
+        <ResearchTriggerButton {...defaultProps} onTrigger={onTrigger} />,
+      );
+
+      const input = screen.getByLabelText(/products/i) as HTMLInputElement;
+      await user.clear(input);
+      await user.type(input, '120');
+      await user.tab();
+
+      await user.click(screen.getByRole('button', { name: /ai research/i }));
+
+      expect(onTrigger).toHaveBeenCalledWith(
+        expect.objectContaining({ product_limit: 120 }),
+      );
+    });
+
+    it('includes product_limit and force_refresh together when toggled on after completion', async () => {
+      const user = userEvent.setup();
+      const onTrigger = vi.fn();
+      renderWithProviders(
+        <ResearchTriggerButton
+          {...defaultProps}
+          status="completed"
+          onTrigger={onTrigger}
+        />,
+      );
+
+      const input = screen.getByLabelText(/products/i) as HTMLInputElement;
+      await user.clear(input);
+      await user.type(input, '75');
+      await user.tab();
+
+      const forceRefreshSwitch = screen.getByRole('switch', {
+        name: /force refresh/i,
+      });
+      await user.click(forceRefreshSwitch);
+
+      await user.click(screen.getByRole('button', { name: /ai research/i }));
+
+      expect(onTrigger).toHaveBeenCalledWith(
+        expect.objectContaining({
+          product_limit: 75,
+          force_refresh: true,
+        }),
+      );
+    });
+  });
 });

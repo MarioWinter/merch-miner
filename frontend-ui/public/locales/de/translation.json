@@ -355,6 +355,9 @@
       "popsocket": "PopSocket",
       "tank_top": "Tank Top"
     },
+    "productLimit": {
+      "label": "Produkte"
+    },
     "forceRefresh": "Erzwungene Aktualisierung (LLM-Analyse erneut ausführen)",
     "retryCount": "Versuch {{current}}/{{max}}",
     "maxRetriesExceeded": "Maximale Versuche überschritten",

@@ -55,6 +55,7 @@ export interface ResearchProgress {
 export interface ResearchTriggerParams {
   marketplace?: Marketplace;
   product_type?: ProductType;
+  product_limit?: number;
   force_refresh?: boolean;
 }
 
