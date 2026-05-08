@@ -40,7 +40,7 @@
 ## Phase 4: Backend Workflow (Scrape Node)
 
 - [x] T-4.1: In `niche_research_app/graph/nodes/scrape.py`, replace `mode=ScrapeJob.Mode.SEARCH_PAGE_ONLY` with `mode=ScrapeJob.Mode.LIVE` in the empty-DB branch. — `scrape.py:98`
-- [x] T-4.2: In the same branch, replace `from scraper_app.tasks import ... scrape_search_page_job` with `scrape_keyword_job`. Compute `derived_max_pages = max(2, math.ceil(product_limit / 45))` from the resolved product_limit (state value or fallback default 50), and pass it as `max_pages=derived_max_pages`. — `scrape.py:31, 38-39, 117-121`
+- [x] T-4.2: In the same branch, replace `from scraper_app.tasks import ... scrape_search_page_job` with `scrape_keyword_job`. Compute `derived_max_pages = max(1, math.ceil(product_limit / 45))` from the resolved product_limit (state value or fallback default 50), and pass it as `max_pages=derived_max_pages`. — `scrape.py:31, 38-39, 117-121`
 - [x] T-4.3: Set `pages_total=derived_max_pages` on the `ScrapeJob` row (instead of fixed 2) so progress UI shows correct totals. — `scrape.py:101`
 - [x] T-4.4: Update the `_get_product_asins` inner function to apply `order_by(F('bsr').asc(nulls_last=True))` and slice `[:product_limit]` (read limit from `state.get('product_limit') or 50`). — `scrape.py:154-162`
 - [x] T-4.5: Verify `Keyword`/`AmazonProduct`/`ScrapeJob` import block in scrape.py still satisfies all references after the swap; add `math` import if needed. — `scrape.py:5, 8`
@@ -70,7 +70,7 @@
 - [x] T-7.6: `tests/test_models_serializers.py` — serializer accepts 10, 50, 200; rejects 9, 201, "abc".
 - [x] T-7.7: `tests/test_nodes.py` — scrape_node with DB seeded 80 products and `product_limit=30` returns 30 ASINs ordered by BSR ASC.
 - [x] T-7.8: `tests/test_nodes.py` — scrape_node with all-NULL BSR products + `product_limit=10` returns 10 (nulls_last fallback works).
-- [x] T-7.9: `tests/test_nodes.py` — empty-DB scrape_node creates a ScrapeJob with `mode=LIVE` and calls `scrape_keyword_job` (mocked); covers three sub-cases: limit=50→max_pages=2, limit=120→max_pages=3, limit=200→max_pages=5.
+- [x] T-7.9: `tests/test_nodes.py` — empty-DB scrape_node creates a ScrapeJob with `mode=LIVE` and calls `scrape_keyword_job` (mocked); covers four sub-cases: **limit=30→max_pages=1** (small-limit saving), limit=50→max_pages=2, limit=120→max_pages=3, limit=200→max_pages=5.
 - [x] T-7.10: `tests/test_nodes.py` — when DB has 30 and `product_limit=200`, return all 30 (no exception, no re-scrape).
 
 ## Phase 8: Frontend Tests
@@ -87,5 +87,5 @@
 - [x] T-9.1: `npm run lint` + `npm run test:ci` — 0 errors, 1406 FE tests pass.
 - [x] T-9.2: `pytest niche_research_app` — 143/143 pass; full backend `pytest` 2063 pass, 0 regressions.
 - [x] T-9.3: `ruff check django-app` — 0 new warnings.
-- [x] T-9.4: Smoke verified via deterministic unit tests (T-7.9 covers empty-DB → LIVE deep-scrape → pages_total propagation for limits 50/120/200) + live HTTP smoke (auth, validation, boundaries, injection-resistance). Full E2E browser run deferred to one-shot post-deploy confirmation (LLM/scrape cost rationale documented in QA Test Results).
+- [x] T-9.4: **Live browser E2E smoke executed 2026-05-09** via Playwright MCP on local dev. Niche `bingo caller shirt` (empty-DB), `product_limit=30` → `pages_total=2` → 96 products scraped → `selected ∩ top_30_by_BSR_ASC = 30/30 PERFECT MATCH` → 6-node workflow completed in ~3 min, status=completed. AC-1/5/6/7/9 + T-2.5 confirmed live. Screenshots committed under `.playwright-mcp/proj28-*.png`. Deploy note: workers must be restarted to load new `product_limit` model attribute.
 - [x] T-9.5: Spec status header → **In Review**; `features/INDEX.md` row updated.

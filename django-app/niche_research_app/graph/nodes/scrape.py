@@ -35,7 +35,7 @@ async def scrape_node(state: ResearchState) -> dict:
     marketplace = state.get('marketplace', 'amazon_com')
     product_type = state.get('product_type', 't_shirt')
     product_limit = state.get('product_limit') or 50
-    derived_max_pages = max(2, math.ceil(product_limit / 45))
+    derived_max_pages = max(1, math.ceil(product_limit / 45))
 
     # Skip guard: check DB for completed nodes
     completed = await get_completed_nodes(research_id)

@@ -362,6 +362,57 @@ class TestScrapeNodeProductLimit:
 
     @patch('scraper_app.brand_filter.get_blacklisted_brands', return_value=set())
     @patch('scraper_app.tasks.scrape_keyword_job')
+    def test_empty_db_limit_30_uses_max_pages_1(
+        self, mock_scrape_keyword, mock_blacklist, user_with_workspace,
+    ):
+        """Empty DB + limit=30 -> max_pages = ceil(30/45) = 1 (small-limit savings)."""
+        from scraper_app.models import (
+            AmazonProduct,
+            Keyword as ScraperKeyword,
+            ProductSearchCache,
+            ScrapeJob,
+        )
+        user, ws = user_with_workspace
+        empty_niche = Niche.objects.create(
+            workspace=ws, name='EmptyLive30', created_by=user,
+        )
+        research = NicheResearch.objects.create(niche=empty_niche, triggered_by=user)
+
+        def _fake_scrape(keyword_str, marketplace, scrape_job_id=None, **kwargs):
+            kw = ScraperKeyword.objects.get(keyword=keyword_str, marketplace=marketplace)
+            sj = ScrapeJob.objects.get(id=scrape_job_id)
+            p = AmazonProduct.objects.create(
+                asin='B00LIVE030A',
+                marketplace=marketplace,
+                title='Live 30',
+                bsr=1,
+            )
+            p.keywords.add(kw)
+            sj.status = ScrapeJob.Status.COMPLETED
+            sj.save(update_fields=['status'])
+            ProductSearchCache.objects.filter(scrape_job=sj).update(
+                status=ProductSearchCache.Status.COMPLETED,
+            )
+
+        mock_scrape_keyword.side_effect = _fake_scrape
+
+        from niche_research_app.graph.nodes.scrape import scrape_node
+        asyncio.get_event_loop().run_until_complete(
+            scrape_node({
+                'research_id': str(research.id),
+                'niche_name': 'EmptyLive30',
+                'marketplace': 'amazon_com',
+                'product_limit': 30,
+            })
+        )
+
+        sj = ScrapeJob.objects.filter(keyword__keyword='EmptyLive30').first()
+        assert sj.mode == ScrapeJob.Mode.LIVE
+        assert sj.pages_total == 1
+        assert mock_scrape_keyword.call_args.kwargs['max_pages'] == 1
+
+    @patch('scraper_app.brand_filter.get_blacklisted_brands', return_value=set())
+    @patch('scraper_app.tasks.scrape_keyword_job')
     def test_empty_db_limit_120_uses_max_pages_3(
         self, mock_scrape_keyword, mock_blacklist, user_with_workspace,
     ):
