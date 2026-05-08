@@ -5,7 +5,7 @@ import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternate
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
+import SendToListingsIcon from '../SendToListingsIcon';
 import PhotoSizeSelectLargeIcon from '@mui/icons-material/PhotoSizeSelectLarge';
 import CompareArrowsIcon from '@mui/icons-material/CompareArrows';
 import { useTranslation } from 'react-i18next';
@@ -228,7 +228,7 @@ const PanelMultiState = ({
                   disabled={sendableDesignIds.length === 0}
                   aria-label={t('designs.sendToListings.cta', 'Send to Listings')}
                 >
-                  <SendOutlinedIcon sx={{ fontSize: 20 }} />
+                  <SendToListingsIcon />
                 </ToolbarButton>
               </span>
             </Tooltip>
