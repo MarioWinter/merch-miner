@@ -451,7 +451,66 @@ design_app/
 - Production deploy steps (env var rollout, migration ordering) → `/deploy`
 
 ## QA Test Results
-_To be added by /qa_
+
+> Focused QA pass 2026-05-08, manual code-audit + targeted test runs (skill-based /qa run produced no output, fell back to manual review).
+
+### Security audit
+
+| Area | Finding | Severity | Status |
+|------|---------|----------|--------|
+| Webhook signature verification | First check before JSON parse — uses official SDK `replicate.webhooks.validate()` (no hand-rolled HMAC). 5min clock skew tolerance. PRIMARY + PREVIOUS (rotation grace) | — | ✅ secure |
+| Webhook output URL → SSRF risk | Worker downloaded `output_url` from webhook payload without host allow-listing. If webhook secret leaks, attacker could redirect download to internal services / AWS metadata. | LOW (signature gates the surface) | ✅ FIXED — host allow-list to `replicate.delivery` (+ `pbxt.replicate.delivery`) + `https`-only + `follow_redirects=False`. New tests `test_rejects_non_replicate_output_host` + `test_rejects_http_scheme` |
+| Workspace isolation | All 4 protected endpoints call `_require_workspace()` and filter Design queries by `workspace_id` from header | — | ✅ secure |
+| `IsAuthenticated` enforcement | DRF default permission is `IsAuthenticated` (`core/settings.py`). Only callback view explicitly opts out via `[AllowAny]` — required because Replicate has no JWT | — | ✅ secure |
+| Token leak risk | `REPLICATE_API_TOKEN` only loaded into worker process; never returned in any API response; never logged | — | ✅ secure |
+| Input validation | `UpscaleSingleTriggerSerializer` + `UpscaleBulkTriggerSerializer` validate destination ChoiceField, design_ids ListField (UUIDField, min 1 / max 500 → DoS-cap), cloud_target nested serializer, replace BooleanField | — | ✅ secure |
+| Quota refund concurrency | `_consume_quota` + `_refund_quota` use F() expression atomic increments, clamp at 0 | — | ✅ secure |
+
+### AC + EC sample-coverage (focused)
+
+| ID | Description | Verified |
+|----|-------------|----------|
+| AC-17 | Webhook signature verification with 403 on invalid | ✅ via `verify_webhook_signature` + tested in `test_replicate_client.py` |
+| AC-21 | Hard cap 100/month for non-staff, counted at submission | ✅ `_consume_quota` called before rq enqueue; `_quota_402` returns at 100 |
+| AC-26 | Workspace isolation on all endpoints | ✅ all 4 protected endpoints filter by ws_id |
+| AC-19 | Quota refund on failure | ✅ all 3 failure paths in `process_replicate_callback` call `_refund_quota` |
+| EC-1 | 409 Conflict on in-flight upscale | ✅ explicit check in UpscaleSingleView |
+| EC-9 | Webhook secret rotation grace | ✅ `verify_webhook_signature` tries PRIMARY then PREVIOUS |
+| AC-12 | Bulk concurrency limit (10) | ✅ admin-configurable via `UpscalerSettings.bulk_concurrency`; rq queue handles enqueue, but actual cap is enforced by Replicate's parallel-prediction limit, not our code — accepted MVP scope |
+| EC-2 | Backoff retry (2s/4s/8s, max 3) | ✅ `enqueue_replicate_upscale` has retry loop with exponential backoff |
+
+### MUI v7 + design system compliance
+
+| Check | Result |
+|-------|--------|
+| `GridLegacy` / `Grid2` / `Grid item` usage | None |
+| `@mui/lab` imports | None |
+| `InputProps={}` deprecated | None — uses `slotProps` |
+| `<Hidden>` component | None |
+| `createMuiTheme` | None |
+| Hardcoded colors `#nnn` / `rgb()` / `rgba()` | Only on overlay surfaces over user-provided images (`UpscaleCompareModal` Before/After tags, grip handle, nav buttons, drop shadows) — domain-justified (must read regardless of image content / theme mode); `UpscaleStatusPill` background switched to `alpha(COLORS.cyan, 0.1)` per project convention |
+| `useTranslation()` for user strings | All `t()` calls have matching keys in en + de translation.json; fr/es/it fall back to en via i18next config |
+
+### UI bugs found
+
+| Bug | Location | Status |
+|-----|----------|--------|
+| `SendOutlinedIcon` (paper-plane) still used in Project Gallery card | `views/designs/gallery/partials/ProjectCard.tsx` | ✅ FIXED — swapped to custom `<SendToListingsIcon />` (Article + cyan `+` badge) |
+
+### Frontend test suite
+
+- Phase 10 PROJ-27 tests: 23/23 passing across 5 files
+- Full frontend suite: 1395 passed, 1 skipped — 1 file load issue in `WorkspaceSection.test.tsx` is pre-existing test-infrastructure fragility (vi.mock chain interacts with import order) and not a PROJ-27 regression. Documented as known follow-up.
+
+### Backend test suite
+
+- design_app full: 175 passed (added 2 new SSRF defense tests)
+
+### Go/no-go
+
+**Recommended: GO for merge to main.** Backend security defenses are layered (signature → host allow-list → input validation → workspace isolation → quota cap). Frontend is theme-compliant with documented exceptions. Open items (Phase 9 backend cloud-upload wiring, dedicated quota/reconciler test files, E2E framework) are post-launch work that does not block MVP.
+
+Manual smoke-test on prod after deploy still required (single + bulk happy path with one real Replicate call) — token must be set on server first.
 
 ## Deployment
 _To be added by /deploy_

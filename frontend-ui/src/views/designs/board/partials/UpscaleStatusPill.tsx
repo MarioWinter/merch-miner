@@ -1,9 +1,10 @@
 import { useEffect, useReducer } from 'react';
 import { Chip, CircularProgress } from '@mui/material';
-import { styled, keyframes } from '@mui/material/styles';
+import { alpha, styled, keyframes } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { openDrawer, setActiveBatch } from '@/store/upscaleSlice';
+import { COLORS } from '@/style/constants';
 import { useUpscaleBatch } from '../hooks/useUpscaleBatch';
 
 // -----------------------------------------------------------------
@@ -31,8 +32,8 @@ const Pill = styled(Chip, {
   fontSize: 12,
   fontWeight: 500,
   color: theme.vars.palette.secondary.main,
-  backgroundColor: 'rgba(0, 200, 215, 0.1)',
-  border: `1px solid ${theme.vars.palette.secondary.main}40`,
+  backgroundColor: alpha(COLORS.cyan, 0.1),
+  border: `1px solid ${alpha(COLORS.cyan, 0.25)}`,
   cursor: 'pointer',
   transition: 'background-color 150ms ease',
   '& .MuiChip-icon': {

@@ -75,7 +75,7 @@ class TestProcessReplicateCallback:
         mock_httpx.Client.return_value.__enter__.return_value.get.return_value = mock_resp
 
         process_replicate_callback(
-            'pred-cb-1', 'succeeded', 'https://r/x.png', None,
+            'pred-cb-1', 'succeeded', 'https://replicate.delivery/x.png', None,
         )
 
         job.refresh_from_db()
@@ -114,7 +114,7 @@ class TestProcessReplicateCallback:
 
         with patch('design_app.tasks.httpx') as mock_httpx:
             process_replicate_callback(
-                'pred-cb-1', 'succeeded', 'https://r/x.png', None,
+                'pred-cb-1', 'succeeded', 'https://replicate.delivery/x.png', None,
             )
             # No HTTP fetch attempted on dup.
             mock_httpx.Client.assert_not_called()
@@ -122,7 +122,7 @@ class TestProcessReplicateCallback:
     def test_unknown_prediction_id_is_noop(self):
         # Should not raise; just log + return.
         process_replicate_callback(
-            'pred-does-not-exist', 'succeeded', 'https://r/x.png', None,
+            'pred-does-not-exist', 'succeeded', 'https://replicate.delivery/x.png', None,
         )
 
     @patch('design_app.tasks.httpx')
@@ -138,13 +138,44 @@ class TestProcessReplicateCallback:
         )
 
         process_replicate_callback(
-            'pred-cb-1', 'succeeded', 'https://r/x.png', None,
+            'pred-cb-1', 'succeeded', 'https://replicate.delivery/x.png', None,
         )
         job.refresh_from_db()
         assert job.status == DesignProcessingJob.Status.FAILED
         assert job.error_message == 'invalid_replicate_output'
         # Quota refunded.
         assert UpscaleQuotaUsage.objects.get(user=user).count == 2
+
+    @patch('design_app.tasks.httpx')
+    def test_rejects_non_replicate_output_host(self, mock_httpx, job, user):
+        """SSRF defense: reject output URLs that aren't on replicate.delivery."""
+        UpscaleQuotaUsage.objects.create(
+            user=user,
+            month=date(date.today().year, date.today().month, 1),
+            count=3,
+        )
+
+        process_replicate_callback(
+            'pred-cb-1', 'succeeded', 'https://attacker.example.com/x.png', None,
+        )
+        job.refresh_from_db()
+        assert job.status == DesignProcessingJob.Status.FAILED
+        assert 'untrusted_output_host' in job.error_message
+        # Defense kicks in BEFORE httpx is touched.
+        mock_httpx.Client.assert_not_called()
+        # Quota refunded.
+        assert UpscaleQuotaUsage.objects.get(user=user).count == 2
+
+    @patch('design_app.tasks.httpx')
+    def test_rejects_http_scheme(self, mock_httpx, job, user):
+        """Even on a Replicate host, reject plain http (TLS-stripping)."""
+        process_replicate_callback(
+            'pred-cb-1', 'succeeded', 'http://replicate.delivery/x.png', None,
+        )
+        job.refresh_from_db()
+        assert job.status == DesignProcessingJob.Status.FAILED
+        assert 'untrusted_output_host' in job.error_message
+        mock_httpx.Client.assert_not_called()
 
 
 # ---- enqueue_replicate_upscale ----
@@ -234,14 +265,14 @@ class TestReconcileStuckJobs:
         mock_get.return_value = {
             'id': 'pred-stuck',
             'status': 'succeeded',
-            'output': 'https://r/x.png',
+            'output': 'https://replicate.delivery/x.png',
             'error': None,
         }
         reconcile_stuck_jobs()
         mock_process.assert_called_once_with(
             prediction_id='pred-stuck',
             status_value='succeeded',
-            output_url='https://r/x.png',
+            output_url='https://replicate.delivery/x.png',
             error_message=None,
         )
 

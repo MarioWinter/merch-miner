@@ -5,7 +5,7 @@ import BrushOutlinedIcon from '@mui/icons-material/BrushOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
 import MoreVertIcon from '@mui/icons-material/MoreVert';
-import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
+import SendToListingsIcon from '@/views/designs/board/partials/SendToListingsIcon';
 import { useTranslation } from 'react-i18next';
 import { COLORS, DURATION, EASING } from '@/style/constants';
 import type { DesignProjectListItem } from '../types';
@@ -194,7 +194,7 @@ const ProjectCard = ({ project, onClick, onDelete, onSendToListings, isSending =
                 disabled={noEligibleDesigns || isSending}
                 aria-label={t('designs.sendToListings.cta', 'Send to Listings')}
               >
-                <SendOutlinedIcon sx={{ fontSize: 18 }} />
+                <SendToListingsIcon />
               </SendButton>
             </span>
           </Tooltip>

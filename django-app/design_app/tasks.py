@@ -438,10 +438,31 @@ def process_replicate_callback(
 
     cfg = UpscalerSettings.load()
 
-    # Download Replicate result.
+    # Defense-in-depth: even though the webhook signature gates out forged
+    # callbacks, validate the output URL host before fetching to prevent SSRF
+    # if the signing secret is ever leaked. Replicate serves outputs from
+    # replicate.delivery (and historically pbxt.replicate.delivery).
+    from urllib.parse import urlparse
+
+    parsed = urlparse(output_url or '')
+    allowed_hosts = ('replicate.delivery', 'pbxt.replicate.delivery')
+    if parsed.scheme != 'https' or not parsed.netloc.endswith(allowed_hosts):
+        job.status = DesignProcessingJob.Status.FAILED
+        job.completed_at = timezone.now()
+        job.error_message = f'untrusted_output_host: {parsed.netloc}'[:2000]
+        job.save(update_fields=['status', 'completed_at', 'error_message'])
+        _refund_quota(job.triggered_by, job.completed_at)
+        logger.error(
+            'replicate output URL host not allow-listed: job=%s host=%s',
+            job.id, parsed.netloc,
+        )
+        return
+
     try:
         with httpx.Client(timeout=60) as client:
-            resp = client.get(output_url, follow_redirects=True)
+            # follow_redirects=False — outputs are direct, redirect would be
+            # another SSRF vector.
+            resp = client.get(output_url, follow_redirects=False)
             resp.raise_for_status()
             raw_bytes = resp.content
     except Exception as exc:  # noqa: BLE001
