@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '@/utils/test-utils';
-import upscaleReducer, { setActiveBatch } from '@/store/upscaleSlice';
+import upscaleReducer from '@/store/upscaleSlice';
 import UpscaleStatusPill from '../UpscaleStatusPill';
 
 // Mock the polling hook so we can drive batch state directly without RTK Query.
