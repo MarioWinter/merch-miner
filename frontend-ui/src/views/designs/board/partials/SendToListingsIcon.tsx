@@ -26,7 +26,7 @@ const PlusBadge = styled(Box)(({ theme }) => ({
   width: 11,
   height: 11,
   borderRadius: '50%',
-  backgroundColor: theme.vars.palette.primary.main,
+  backgroundColor: theme.vars.palette.secondary.main,
   color: theme.vars.palette.common.white,
   display: 'flex',
   alignItems: 'center',
