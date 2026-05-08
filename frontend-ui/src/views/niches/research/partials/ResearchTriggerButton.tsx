@@ -20,6 +20,10 @@ import type {
   ResearchTriggerParams,
 } from '../types';
 
+const DEFAULT_PRODUCT_LIMIT = 50;
+const MIN_PRODUCT_LIMIT = 10;
+const MAX_PRODUCT_LIMIT = 200;
+
 interface ResearchTriggerButtonProps {
   status: ResearchRunStatus | null;
   isPolling: boolean;
@@ -42,12 +46,35 @@ export const ResearchTriggerButton = ({
 
   const [marketplace, setMarketplace] = useState<Marketplace>(initialMarketplace ?? 'amazon_com');
   const [productType, setProductType] = useState<ProductType>(initialProductType ?? 't_shirt');
+  const [productLimit, setProductLimit] = useState<number>(DEFAULT_PRODUCT_LIMIT);
+  const [productLimitInput, setProductLimitInput] = useState<string>(String(DEFAULT_PRODUCT_LIMIT));
   const [forceRefresh, setForceRefresh] = useState(false);
+
+  const handleProductLimitChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setProductLimitInput(e.target.value);
+  };
+
+  const handleProductLimitBlur = () => {
+    const parsed = Number(productLimitInput);
+    let next: number;
+    if (productLimitInput.trim() === '' || Number.isNaN(parsed)) {
+      next = DEFAULT_PRODUCT_LIMIT;
+    } else if (parsed < MIN_PRODUCT_LIMIT) {
+      next = MIN_PRODUCT_LIMIT;
+    } else if (parsed > MAX_PRODUCT_LIMIT) {
+      next = MAX_PRODUCT_LIMIT;
+    } else {
+      next = parsed;
+    }
+    setProductLimit(next);
+    setProductLimitInput(String(next));
+  };
 
   const handleTrigger = () => {
     onTrigger({
       marketplace,
       product_type: productType,
+      product_limit: productLimit,
       ...(showForceRefresh && forceRefresh ? { force_refresh: true } : {}),
     });
   };
@@ -71,6 +98,23 @@ export const ResearchTriggerButton = ({
             </MenuItem>
           ))}
         </TextField>
+
+        <TextField
+          type="number"
+          size="small"
+          value={productLimitInput}
+          onChange={handleProductLimitChange}
+          onBlur={handleProductLimitBlur}
+          label={t('research.productLimit.label')}
+          slotProps={{
+            htmlInput: {
+              min: MIN_PRODUCT_LIMIT,
+              max: MAX_PRODUCT_LIMIT,
+              step: 10,
+            },
+          }}
+          sx={{ width: 120 }}
+        />
 
         <TextField
           select

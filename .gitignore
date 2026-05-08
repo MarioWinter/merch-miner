@@ -1,6 +1,7 @@
 # ── Claude Code ────────────────────────────────────────
 .playwright-mcp/
 snapshot-*.md
+.claude/scheduled_tasks.lock
 
 # ── Build staging copies ───────────────────────────────
 # CI copies repo-root CHANGELOG.md into frontend-ui/ for the docker build

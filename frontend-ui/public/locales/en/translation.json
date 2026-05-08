@@ -364,6 +364,9 @@
       "popsocket": "PopSocket",
       "tank_top": "Tank Top"
     },
+    "productLimit": {
+      "label": "Products"
+    },
     "forceRefresh": "Force refresh (re-run LLM analysis)",
     "retryCount": "Retry {{current}}/{{max}}",
     "maxRetriesExceeded": "Max retries exceeded",
@@ -3074,12 +3077,12 @@
       "copyKeyword": "Copy keyword",
       "copied": "Copied to clipboard",
       "copyFailed": "Could not copy",
-      "addToNicheList": "Add to Niche List",
+      "addToNicheList": "Add to keyword list",
       "addedToNicheList": "'{{keyword}}' added to '{{niche}}'",
       "alreadyInNicheList": "'{{keyword}}' is already in '{{niche}}'",
-      "addToNicheListFailed": "Could not add to Niche List",
+      "addToNicheListFailed": "Could not add to keyword list",
       "noActiveNiche": "No active niche — open a niche from Niche Claims first",
-      "createNicheFromKeyword": "Add to Niche List (new niche)",
+      "createNicheFromKeyword": "Save as new niche",
       "nicheCreated": "Niche '{{keyword}}' created",
       "nicheAlreadyExists": "Niche '{{keyword}}' already exists",
       "nicheCreateFailed": "Could not create niche"

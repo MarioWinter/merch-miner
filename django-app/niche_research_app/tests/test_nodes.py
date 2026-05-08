@@ -186,6 +186,335 @@ class TestScrapeNode:
 
 
 # ---------------------------------------------------------------------------
+# PROJ-28: scrape_node product_limit + BSR ordering + LIVE deep scrape
+# ---------------------------------------------------------------------------
+
+@pytest.mark.django_db(transaction=True)
+class TestScrapeNodeProductLimit:
+    """PROJ-28 tests: BSR ordering, slice by product_limit, deep-scrape switch."""
+
+    def _make_state(self, research, product_limit=50):
+        return {
+            'research_id': str(research.id),
+            'niche_name': research.niche.name,
+            'marketplace': 'amazon_com',
+            'product_limit': product_limit,
+        }
+
+    def _seed_products(self, keyword, count, bsr_values=None):
+        """Create `count` AmazonProducts linked to keyword.
+
+        bsr_values: list of BSR values; if shorter than count, remaining get None.
+        """
+        from scraper_app.models import AmazonProduct
+        bsr_values = bsr_values or []
+        products = []
+        for i in range(count):
+            bsr = bsr_values[i] if i < len(bsr_values) else None
+            p = AmazonProduct.objects.create(
+                asin=f'B00BSR{i:04d}',
+                marketplace='amazon_com',
+                title=f'Product {i}',
+                brand=f'Brand{i}',
+                rating=4.0,
+                reviews_count=10,
+                thumbnail_url=f'https://example.com/{i}.jpg',
+                product_url=f'https://amazon.com/dp/B00BSR{i:04d}',
+                bsr=bsr,
+            )
+            p.keywords.add(keyword)
+            products.append(p)
+        return products
+
+    @patch('scraper_app.brand_filter.get_blacklisted_brands', return_value=set())
+    def test_db_first_slices_by_limit_ordered_by_bsr_asc(
+        self, mock_blacklist, niche, user_with_workspace, keyword,
+    ):
+        """80 seeded products with random BSR + product_limit=30 -> 30 ASINs ordered BSR ASC."""
+        user, _ = user_with_workspace
+        # BSR values: even indices get 1, 2, 3, ... (lowest BSR = 1 at index 0)
+        # Mix some random-but-deterministic BSR values
+        bsr_values = list(range(1000, 1080))  # 80 distinct BSR values 1000..1079
+        # Reorder so creation order doesn't match BSR order
+        # Use reversed BSR: index 0 -> bsr=1079, index 79 -> bsr=1000
+        bsr_values_shuffled = list(reversed(bsr_values))
+        self._seed_products(keyword, 80, bsr_values_shuffled)
+
+        research = NicheResearch.objects.create(niche=niche, triggered_by=user)
+
+        from niche_research_app.graph.nodes.scrape import scrape_node
+        result = asyncio.get_event_loop().run_until_complete(
+            scrape_node(self._make_state(research, product_limit=30))
+        )
+
+        assert len(result['product_asins']) == 30
+
+        # Verify ordering: bsr ASC. Lowest BSR products have asins corresponding
+        # to the products created last (since we used reversed BSR).
+        # bsr=1000 is on the LAST seeded product (index 79) -> asin B00BSR0079
+        # bsr=1029 is at index 50 -> asin B00BSR0050
+        from scraper_app.models import AmazonProduct
+        returned_asins = result['product_asins']
+        returned_bsrs = list(
+            AmazonProduct.objects.filter(asin__in=returned_asins).values_list(
+                'asin', 'bsr',
+            )
+        )
+        bsr_by_asin = dict(returned_bsrs)
+        # The order of returned_asins should match BSR ASC
+        actual_bsrs_in_order = [bsr_by_asin[a] for a in returned_asins]
+        assert actual_bsrs_in_order == sorted(actual_bsrs_in_order)
+        # The smallest 30 BSR values should be 1000..1029
+        assert actual_bsrs_in_order == list(range(1000, 1030))
+
+    @patch('scraper_app.brand_filter.get_blacklisted_brands', return_value=set())
+    def test_all_null_bsr_returns_limit_via_nulls_last(
+        self, mock_blacklist, niche, user_with_workspace, keyword,
+    ):
+        """All-NULL BSR + product_limit=10 -> 10 returned (nulls_last fallback)."""
+        user, _ = user_with_workspace
+        self._seed_products(keyword, 25)  # all NULL BSR
+
+        research = NicheResearch.objects.create(niche=niche, triggered_by=user)
+
+        from niche_research_app.graph.nodes.scrape import scrape_node
+        result = asyncio.get_event_loop().run_until_complete(
+            scrape_node(self._make_state(research, product_limit=10))
+        )
+
+        assert len(result['product_asins']) == 10
+
+    @patch('scraper_app.brand_filter.get_blacklisted_brands', return_value=set())
+    def test_db_has_fewer_than_limit_returns_all(
+        self, mock_blacklist, niche, user_with_workspace, keyword,
+    ):
+        """DB has 30 products, product_limit=200 -> returns all 30 (no exception, no re-scrape)."""
+        user, _ = user_with_workspace
+        self._seed_products(keyword, 30, bsr_values=list(range(1, 31)))
+
+        research = NicheResearch.objects.create(niche=niche, triggered_by=user)
+
+        from niche_research_app.graph.nodes.scrape import scrape_node
+        result = asyncio.get_event_loop().run_until_complete(
+            scrape_node(self._make_state(research, product_limit=200))
+        )
+
+        assert len(result['product_asins']) == 30
+
+    @patch('scraper_app.brand_filter.get_blacklisted_brands', return_value=set())
+    @patch('scraper_app.tasks.scrape_keyword_job')
+    def test_empty_db_uses_live_mode_and_scrape_keyword_job_limit_50(
+        self, mock_scrape_keyword, mock_blacklist, user_with_workspace,
+    ):
+        """Empty DB + limit=50 -> ScrapeJob.Mode.LIVE, scrape_keyword_job(max_pages=2)."""
+        from scraper_app.models import (
+            AmazonProduct,
+            Keyword as ScraperKeyword,
+            ProductSearchCache,
+            ScrapeJob,
+        )
+        user, ws = user_with_workspace
+        empty_niche = Niche.objects.create(
+            workspace=ws, name='EmptyLive50', created_by=user,
+        )
+        research = NicheResearch.objects.create(niche=empty_niche, triggered_by=user)
+
+        # scrape_keyword_job stub: simulate scraper writing products + completing cache
+        def _fake_scrape(keyword_str, marketplace, scrape_job_id=None, **kwargs):
+            kw = ScraperKeyword.objects.get(keyword=keyword_str, marketplace=marketplace)
+            sj = ScrapeJob.objects.get(id=scrape_job_id)
+            for i in range(3):
+                p = AmazonProduct.objects.create(
+                    asin=f'B00LIVE{i:03d}',
+                    marketplace=marketplace,
+                    title=f'Live Product {i}',
+                    bsr=i + 1,
+                )
+                p.keywords.add(kw)
+            sj.status = ScrapeJob.Status.COMPLETED
+            sj.save(update_fields=['status'])
+            ProductSearchCache.objects.filter(scrape_job=sj).update(
+                status=ProductSearchCache.Status.COMPLETED,
+            )
+
+        mock_scrape_keyword.side_effect = _fake_scrape
+
+        from niche_research_app.graph.nodes.scrape import scrape_node
+        result = asyncio.get_event_loop().run_until_complete(
+            scrape_node({
+                'research_id': str(research.id),
+                'niche_name': 'EmptyLive50',
+                'marketplace': 'amazon_com',
+                'product_limit': 50,
+            })
+        )
+
+        assert len(result['product_asins']) == 3
+        # ScrapeJob created with mode=LIVE and pages_total=2
+        sj = ScrapeJob.objects.filter(keyword__keyword='EmptyLive50').first()
+        assert sj is not None
+        assert sj.mode == ScrapeJob.Mode.LIVE
+        assert sj.pages_total == 2
+        # scrape_keyword_job called with max_pages=2
+        assert mock_scrape_keyword.called
+        call_kwargs = mock_scrape_keyword.call_args.kwargs
+        assert call_kwargs['max_pages'] == 2
+
+    @patch('scraper_app.brand_filter.get_blacklisted_brands', return_value=set())
+    @patch('scraper_app.tasks.scrape_keyword_job')
+    def test_empty_db_limit_30_uses_max_pages_1(
+        self, mock_scrape_keyword, mock_blacklist, user_with_workspace,
+    ):
+        """Empty DB + limit=30 -> max_pages = ceil(30/45) = 1 (small-limit savings)."""
+        from scraper_app.models import (
+            AmazonProduct,
+            Keyword as ScraperKeyword,
+            ProductSearchCache,
+            ScrapeJob,
+        )
+        user, ws = user_with_workspace
+        empty_niche = Niche.objects.create(
+            workspace=ws, name='EmptyLive30', created_by=user,
+        )
+        research = NicheResearch.objects.create(niche=empty_niche, triggered_by=user)
+
+        def _fake_scrape(keyword_str, marketplace, scrape_job_id=None, **kwargs):
+            kw = ScraperKeyword.objects.get(keyword=keyword_str, marketplace=marketplace)
+            sj = ScrapeJob.objects.get(id=scrape_job_id)
+            p = AmazonProduct.objects.create(
+                asin='B00LIVE030A',
+                marketplace=marketplace,
+                title='Live 30',
+                bsr=1,
+            )
+            p.keywords.add(kw)
+            sj.status = ScrapeJob.Status.COMPLETED
+            sj.save(update_fields=['status'])
+            ProductSearchCache.objects.filter(scrape_job=sj).update(
+                status=ProductSearchCache.Status.COMPLETED,
+            )
+
+        mock_scrape_keyword.side_effect = _fake_scrape
+
+        from niche_research_app.graph.nodes.scrape import scrape_node
+        asyncio.get_event_loop().run_until_complete(
+            scrape_node({
+                'research_id': str(research.id),
+                'niche_name': 'EmptyLive30',
+                'marketplace': 'amazon_com',
+                'product_limit': 30,
+            })
+        )
+
+        sj = ScrapeJob.objects.filter(keyword__keyword='EmptyLive30').first()
+        assert sj.mode == ScrapeJob.Mode.LIVE
+        assert sj.pages_total == 1
+        assert mock_scrape_keyword.call_args.kwargs['max_pages'] == 1
+
+    @patch('scraper_app.brand_filter.get_blacklisted_brands', return_value=set())
+    @patch('scraper_app.tasks.scrape_keyword_job')
+    def test_empty_db_limit_120_uses_max_pages_3(
+        self, mock_scrape_keyword, mock_blacklist, user_with_workspace,
+    ):
+        """Empty DB + limit=120 -> max_pages = ceil(120/45) = 3."""
+        from scraper_app.models import (
+            AmazonProduct,
+            Keyword as ScraperKeyword,
+            ProductSearchCache,
+            ScrapeJob,
+        )
+        user, ws = user_with_workspace
+        empty_niche = Niche.objects.create(
+            workspace=ws, name='EmptyLive120', created_by=user,
+        )
+        research = NicheResearch.objects.create(niche=empty_niche, triggered_by=user)
+
+        def _fake_scrape(keyword_str, marketplace, scrape_job_id=None, **kwargs):
+            kw = ScraperKeyword.objects.get(keyword=keyword_str, marketplace=marketplace)
+            sj = ScrapeJob.objects.get(id=scrape_job_id)
+            p = AmazonProduct.objects.create(
+                asin='B00LIVE120A',
+                marketplace=marketplace,
+                title='Live 120',
+                bsr=1,
+            )
+            p.keywords.add(kw)
+            sj.status = ScrapeJob.Status.COMPLETED
+            sj.save(update_fields=['status'])
+            ProductSearchCache.objects.filter(scrape_job=sj).update(
+                status=ProductSearchCache.Status.COMPLETED,
+            )
+
+        mock_scrape_keyword.side_effect = _fake_scrape
+
+        from niche_research_app.graph.nodes.scrape import scrape_node
+        asyncio.get_event_loop().run_until_complete(
+            scrape_node({
+                'research_id': str(research.id),
+                'niche_name': 'EmptyLive120',
+                'marketplace': 'amazon_com',
+                'product_limit': 120,
+            })
+        )
+
+        sj = ScrapeJob.objects.filter(keyword__keyword='EmptyLive120').first()
+        assert sj.mode == ScrapeJob.Mode.LIVE
+        assert sj.pages_total == 3
+        assert mock_scrape_keyword.call_args.kwargs['max_pages'] == 3
+
+    @patch('scraper_app.brand_filter.get_blacklisted_brands', return_value=set())
+    @patch('scraper_app.tasks.scrape_keyword_job')
+    def test_empty_db_limit_200_uses_max_pages_5(
+        self, mock_scrape_keyword, mock_blacklist, user_with_workspace,
+    ):
+        """Empty DB + limit=200 -> max_pages = ceil(200/45) = 5."""
+        from scraper_app.models import (
+            AmazonProduct,
+            Keyword as ScraperKeyword,
+            ProductSearchCache,
+            ScrapeJob,
+        )
+        user, ws = user_with_workspace
+        empty_niche = Niche.objects.create(
+            workspace=ws, name='EmptyLive200', created_by=user,
+        )
+        research = NicheResearch.objects.create(niche=empty_niche, triggered_by=user)
+
+        def _fake_scrape(keyword_str, marketplace, scrape_job_id=None, **kwargs):
+            kw = ScraperKeyword.objects.get(keyword=keyword_str, marketplace=marketplace)
+            sj = ScrapeJob.objects.get(id=scrape_job_id)
+            p = AmazonProduct.objects.create(
+                asin='B00LIVE200A',
+                marketplace=marketplace,
+                title='Live 200',
+                bsr=1,
+            )
+            p.keywords.add(kw)
+            sj.status = ScrapeJob.Status.COMPLETED
+            sj.save(update_fields=['status'])
+            ProductSearchCache.objects.filter(scrape_job=sj).update(
+                status=ProductSearchCache.Status.COMPLETED,
+            )
+
+        mock_scrape_keyword.side_effect = _fake_scrape
+
+        from niche_research_app.graph.nodes.scrape import scrape_node
+        asyncio.get_event_loop().run_until_complete(
+            scrape_node({
+                'research_id': str(research.id),
+                'niche_name': 'EmptyLive200',
+                'marketplace': 'amazon_com',
+                'product_limit': 200,
+            })
+        )
+
+        sj = ScrapeJob.objects.filter(keyword__keyword='EmptyLive200').first()
+        assert sj.mode == ScrapeJob.Mode.LIVE
+        assert sj.pages_total == 5
+        assert mock_scrape_keyword.call_args.kwargs['max_pages'] == 5
+
+
+# ---------------------------------------------------------------------------
 # Vision Analyze Node
 # ---------------------------------------------------------------------------
 

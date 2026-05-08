@@ -17,10 +17,17 @@ MAX_WEEKS = 52
 
 
 def _clamp_date_range(date_from, date_to):
-    """Validate and clamp date range to max 52 weeks. Returns (date_from, date_to, warning)."""
+    """Validate and clamp date range to max 52 weeks. Returns (date_from, date_to, warning).
+
+    Uses ``timezone.localdate()`` so the boundary matches Django's
+    ``__date`` lookup (which converts UTC timestamps via ``TIME_ZONE``
+    before extracting the date). Using ``timezone.now().date()`` instead
+    would return the UTC date, which is off-by-one relative to the
+    ``__date`` filter when local-time has crossed midnight.
+    """
     warning = None
     if not date_to:
-        date_to = timezone.now().date()
+        date_to = timezone.localdate()
     if not date_from:
         date_from = date_to - timedelta(weeks=12)
 
