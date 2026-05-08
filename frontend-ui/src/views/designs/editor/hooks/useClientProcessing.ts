@@ -30,8 +30,6 @@ import {
   DEFAULT_EDGE_CLEANER_PARAMS,
   processColorDefringe,
   DEFAULT_COLOR_DEFRINGE_PARAMS,
-  processPicaUpscale,
-  DEFAULT_PICA_UPSCALE_PARAMS,
 } from '../utils/imageProcessing';
 import type {
   ResizeParams,
@@ -49,7 +47,6 @@ import type {
   EdgeCleanerParams,
   ColorDefringeParams,
   TransparencyCleanerHighlightColor,
-  PicaUpscaleParams,
 } from '../utils/imageProcessing';
 
 // -----------------------------------------------------------------
@@ -241,23 +238,6 @@ const resolveColorDefringeParams = (params: Record<string, unknown>): ColorDefri
     (params.colorTolerance as number) ?? DEFAULT_COLOR_DEFRINGE_PARAMS.colorTolerance,
 });
 
-/**
- * Convert a PipelineTool's generic params into typed PicaUpscaleParams,
- * falling back to defaults for any missing fields.
- */
-const resolvePicaUpscaleParams = (params: Record<string, unknown>): PicaUpscaleParams => ({
-  targetWidth: (params.targetWidth as number) ?? DEFAULT_PICA_UPSCALE_PARAMS.targetWidth,
-  targetHeight: (params.targetHeight as number) ?? DEFAULT_PICA_UPSCALE_PARAMS.targetHeight,
-  filter:
-    (params.filter as PicaUpscaleParams['filter']) ?? DEFAULT_PICA_UPSCALE_PARAMS.filter,
-  unsharpAmount:
-    (params.unsharpAmount as number) ?? DEFAULT_PICA_UPSCALE_PARAMS.unsharpAmount,
-  unsharpRadius:
-    (params.unsharpRadius as number) ?? DEFAULT_PICA_UPSCALE_PARAMS.unsharpRadius,
-  unsharpThreshold:
-    (params.unsharpThreshold as number) ?? DEFAULT_PICA_UPSCALE_PARAMS.unsharpThreshold,
-});
-
 // -----------------------------------------------------------------
 // Client-side tool dispatcher
 // -----------------------------------------------------------------
@@ -298,8 +278,6 @@ const executeClientTool = async (
       return processEdgeCleaner(source, resolveEdgeCleanerParams(tool.params));
     case 'color_defringe':
       return processColorDefringe(source, resolveColorDefringeParams(tool.params));
-    case 'ai_upscale':
-      return processPicaUpscale(source, resolvePicaUpscaleParams(tool.params));
     default:
       throw new Error(`Client tool "${tool.name}" is not implemented`);
   }

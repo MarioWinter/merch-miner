@@ -1,274 +1,203 @@
+import { useCallback, useState } from 'react';
 import {
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
   Stack,
   Typography,
-  Box,
-  TextField,
-  Select,
-  MenuItem,
-  ToggleButton,
-  ToggleButtonGroup,
-  Button,
-  CircularProgress,
-  Chip,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import { useTranslation } from 'react-i18next';
-import CloudIcon from '@mui/icons-material/Cloud';
-import ComputerIcon from '@mui/icons-material/Computer';
-import AutoModeIcon from '@mui/icons-material/AutoMode';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import {
-  DEFAULT_PICA_UPSCALE_PARAMS,
-  PICA_THRESHOLD_PX,
-} from '../../hooks/usePicaUpscale';
-import type { UpscaleMode, UpscaleFilter } from '../../hooks/usePicaUpscale';
+import { useTranslation } from 'react-i18next';
+import ConfirmDialog from '@/components/ConfirmDialog';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { setCloudTarget as setCloudTargetAction } from '@/store/upscaleSlice';
+import type { UpscaleCloudTarget } from '@/store/upscaleApi';
+import UpscaleDestinationToggle from '@/views/designs/board/partials/UpscaleDestinationToggle';
+import UpscaleQuotaIndicator from '@/views/designs/board/partials/UpscaleQuotaIndicator';
+import PickCloudFolderDialog from '@/views/designs/board/partials/PickCloudFolderDialog';
+import { useUpscaleSingle } from '../../hooks/useUpscaleSingle';
+
+// -----------------------------------------------------------------
+// Constants — sourced from server via UpscalerSettings; defaults match spec.
+// -----------------------------------------------------------------
+
+const TARGET_W = 4500;
+const TARGET_H = 5400;
 
 // -----------------------------------------------------------------
 // Styled
 // -----------------------------------------------------------------
 
-const InfoBox = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  alignItems: 'center',
-  gap: 8,
-  padding: '8px 12px',
-  borderRadius: 8,
-  backgroundColor: 'rgba(0, 200, 215, 0.08)',
-  border: `1px solid ${theme.vars.palette.secondary.main}20`,
-}));
+const InfoChip = styled(Chip)({
+  alignSelf: 'flex-start',
+  height: 22,
+  fontSize: 11,
+  borderRadius: 6,
+});
 
-const DimRow = styled(Box)({
-  display: 'flex',
-  gap: 8,
-  alignItems: 'center',
+const HintText = styled(Typography)({
+  fontSize: 11,
+  lineHeight: 1.4,
 });
 
 // -----------------------------------------------------------------
-// Types
+// Props (kept compatible with existing ToolPanel.tsx)
 // -----------------------------------------------------------------
 
 interface UpscaleToolParamsProps {
   params: Record<string, unknown>;
   onChange: (params: Record<string, unknown>) => void;
   disabled?: boolean;
-  /** Current image dimensions (used for auto-mode hint) */
   imageWidth?: number;
   imageHeight?: number;
-  onRunNow?: () => void;
-  isProcessing?: boolean;
+  /** Designed-by-us new props — wired via DesignEditorView. */
+  designId?: string | null;
 }
-
-// -----------------------------------------------------------------
-// Helpers
-// -----------------------------------------------------------------
-
-const FILTERS: Array<{ value: UpscaleFilter; labelKey: string }> = [
-  { value: 'lanczos3', labelKey: 'design.tools.upscaleParams.filterLanczos3' },
-  { value: 'lanczos2', labelKey: 'design.tools.upscaleParams.filterLanczos2' },
-  { value: 'mks2013', labelKey: 'design.tools.upscaleParams.filterMks2013' },
-];
-
-const resolveMode = (params: Record<string, unknown>): UpscaleMode =>
-  (params.mode as UpscaleMode) ?? 'auto';
-
-const resolveAutoMethod = (
-  mode: UpscaleMode,
-  imageWidth?: number,
-  imageHeight?: number,
-): 'client' | 'server' => {
-  if (mode === 'client') return 'client';
-  if (mode === 'server') return 'server';
-  // Auto: >= threshold on either axis → client
-  if (
-    imageWidth !== undefined &&
-    imageHeight !== undefined &&
-    (imageWidth >= PICA_THRESHOLD_PX || imageHeight >= PICA_THRESHOLD_PX)
-  ) {
-    return 'client';
-  }
-  return 'server';
-};
 
 // -----------------------------------------------------------------
 // Component
 // -----------------------------------------------------------------
 
 export const UpscaleToolParams = ({
-  params,
-  onChange,
   disabled,
   imageWidth,
   imageHeight,
-  onRunNow,
-  isProcessing,
+  designId,
 }: UpscaleToolParamsProps) => {
   const { t } = useTranslation();
+  const dispatch = useAppDispatch();
+  const workspaceId = useAppSelector((s) => s.workspace.activeWorkspaceId);
 
-  const mode = resolveMode(params);
-  const targetWidth =
-    (params.targetWidth as number) ?? DEFAULT_PICA_UPSCALE_PARAMS.targetWidth;
-  const targetHeight =
-    (params.targetHeight as number) ?? DEFAULT_PICA_UPSCALE_PARAMS.targetHeight;
-  const filter =
-    (params.filter as UpscaleFilter) ?? DEFAULT_PICA_UPSCALE_PARAMS.filter;
+  const destination = useAppSelector((s) =>
+    workspaceId ? s.upscale.destinationByWorkspace[workspaceId] : undefined,
+  ) ?? 'local';
 
-  const resolvedMethod = resolveAutoMethod(mode, imageWidth, imageHeight);
-  const isClient = resolvedMethod === 'client';
+  const cloudTarget = useAppSelector((s) =>
+    workspaceId ? s.upscale.cloudTargetByWorkspace[workspaceId] : null,
+  ) as UpscaleCloudTarget | null;
+
+  const [pickerOpen, setPickerOpen] = useState(false);
+
+  const {
+    isProcessing,
+    isTriggering,
+    needsConfirmation,
+    triggerUpscale,
+    cancelConfirmation,
+  } = useUpscaleSingle({
+    designId: designId ?? null,
+    destination,
+    cloudTarget,
+  });
+
+  const handleClick = useCallback(() => {
+    void triggerUpscale();
+  }, [triggerUpscale]);
+
+  const handleConfirmReplace = useCallback(() => {
+    void triggerUpscale({ replace: true });
+  }, [triggerUpscale]);
+
+  const handlePickCloud = useCallback(
+    (target: UpscaleCloudTarget) => {
+      if (!workspaceId) return;
+      dispatch(setCloudTargetAction({ workspaceId, target }));
+    },
+    [dispatch, workspaceId],
+  );
+
+  const cloudInvalid = destination === 'cloud' && !cloudTarget;
+  const noDesignSelected = !designId;
+  const isBusy = isTriggering || isProcessing;
+  const buttonDisabled = disabled || isBusy || noDesignSelected || cloudInvalid;
 
   return (
     <Stack spacing={1.5} sx={{ opacity: disabled ? 0.5 : 1 }}>
-      {/* Mode toggle: Auto / Client / Server */}
-      <Stack spacing={0.5}>
-        <Typography variant="caption" color="text.secondary">
-          {t('design.tools.upscaleParams.mode')}
-        </Typography>
-        <ToggleButtonGroup
-          value={mode}
-          exclusive
-          onChange={(_, val) => {
-            if (val) onChange({ ...params, mode: val });
-          }}
-          size="small"
-          disabled={disabled || isProcessing}
-          fullWidth
-        >
-          <ToggleButton value="auto" aria-label={t('design.tools.upscaleParams.modeAuto')}>
-            <AutoModeIcon sx={{ fontSize: 16, mr: 0.5 }} />
-            <Typography variant="caption">
-              {t('design.tools.upscaleParams.modeAuto')}
-            </Typography>
-          </ToggleButton>
-          <ToggleButton value="client" aria-label={t('design.tools.upscaleParams.modeClient')}>
-            <ComputerIcon sx={{ fontSize: 16, mr: 0.5 }} />
-            <Typography variant="caption">
-              {t('design.tools.upscaleParams.modeClient')}
-            </Typography>
-          </ToggleButton>
-          <ToggleButton value="server" aria-label={t('design.tools.upscaleParams.modeServer')}>
-            <CloudIcon sx={{ fontSize: 16, mr: 0.5 }} />
-            <Typography variant="caption">
-              {t('design.tools.upscaleParams.modeServer')}
-            </Typography>
-          </ToggleButton>
-        </ToggleButtonGroup>
-      </Stack>
-
-      {/* Auto-mode resolution hint */}
-      {mode === 'auto' && (
-        <InfoBox>
-          {isClient ? (
-            <ComputerIcon sx={{ fontSize: 18, color: 'secondary.main' }} />
-          ) : (
-            <CloudIcon sx={{ fontSize: 18, color: 'secondary.main' }} />
-          )}
-          <Typography variant="caption" color="text.secondary">
-            {isClient
-              ? t('design.tools.upscaleParams.autoClientHint')
-              : t('design.tools.upscaleParams.autoServerHint')}
-          </Typography>
-        </InfoBox>
-      )}
-
-      {/* Current image size chip */}
       {imageWidth !== undefined && imageHeight !== undefined && (
-        <Chip
+        <InfoChip
           size="small"
-          label={t('design.tools.upscaleParams.currentSize', {
+          variant="outlined"
+          label={t('upscale.single.currentSize', {
+            defaultValue: 'Current: {{w}}×{{h}}',
             w: imageWidth,
             h: imageHeight,
           })}
-          variant="outlined"
-          sx={{ alignSelf: 'flex-start' }}
         />
       )}
 
-      {/* Target dimensions */}
-      <Stack spacing={0.5}>
-        <Typography variant="caption" color="text.secondary">
-          {t('design.tools.upscaleParams.targetDimensions')}
-        </Typography>
-        <DimRow>
-          <TextField
-            type="number"
-            size="small"
-            label={t('design.tools.upscaleParams.width')}
-            value={targetWidth}
-            onChange={(e) =>
-              onChange({ ...params, targetWidth: Number(e.target.value) || 0 })
-            }
-            disabled={disabled || isProcessing}
-            slotProps={{ htmlInput: { min: 1, max: 16000 } }}
-            sx={{ flex: 1 }}
-          />
-          <Typography variant="caption" color="text.disabled">
-            x
-          </Typography>
-          <TextField
-            type="number"
-            size="small"
-            label={t('design.tools.upscaleParams.height')}
-            value={targetHeight}
-            onChange={(e) =>
-              onChange({ ...params, targetHeight: Number(e.target.value) || 0 })
-            }
-            disabled={disabled || isProcessing}
-            slotProps={{ htmlInput: { min: 1, max: 16000 } }}
-            sx={{ flex: 1 }}
-          />
-        </DimRow>
-      </Stack>
-
-      {/* Filter (client mode only) */}
-      {(mode === 'client' || (mode === 'auto' && isClient)) && (
-        <Stack spacing={0.5}>
-          <Typography variant="caption" color="text.secondary">
-            {t('design.tools.upscaleParams.filter')}
-          </Typography>
-          <Select
-            size="small"
-            value={filter}
-            onChange={(e) => onChange({ ...params, filter: e.target.value })}
-            disabled={disabled || isProcessing}
-            sx={{ fontSize: 13 }}
-          >
-            {FILTERS.map((f) => (
-              <MenuItem key={f.value} value={f.value} sx={{ fontSize: 13 }}>
-                {t(f.labelKey)}
-              </MenuItem>
-            ))}
-          </Select>
-        </Stack>
-      )}
-
-      {/* Run Now button for server mode */}
-      {(mode === 'server' || (mode === 'auto' && !isClient)) && onRunNow && (
-        <Button
-          variant="contained"
-          color="secondary"
-          size="small"
-          onClick={onRunNow}
-          disabled={disabled || isProcessing}
-          startIcon={
-            isProcessing ? (
-              <CircularProgress size={14} color="inherit" />
-            ) : (
-              <PlayArrowIcon />
-            )
-          }
-          fullWidth
-        >
-          {isProcessing
-            ? t('design.tools.upscaleParams.processing')
-            : t('design.tools.upscaleParams.runNow')}
-        </Button>
-      )}
-
-      {/* Threshold info */}
-      <Typography variant="caption" color="text.disabled">
-        {t('design.tools.upscaleParams.thresholdInfo', {
-          threshold: PICA_THRESHOLD_PX,
+      <InfoChip
+        size="small"
+        variant="filled"
+        color="secondary"
+        label={t('upscale.single.targetSize', {
+          defaultValue: 'Target: {{w}}×{{h}}',
+          w: TARGET_W,
+          h: TARGET_H,
         })}
-      </Typography>
+      />
+
+      <UpscaleDestinationToggle
+        workspaceId={workspaceId ?? null}
+        onPickCloudTarget={() => setPickerOpen(true)}
+        disabled={isBusy}
+      />
+
+      <UpscaleQuotaIndicator />
+
+      <HintText variant="caption" color="text.disabled">
+        {t('upscale.single.costHint', {
+          defaultValue: 'Uses 1 of your monthly upscales',
+        })}
+      </HintText>
+
+      <Button
+        variant="contained"
+        color="primary"
+        size="small"
+        onClick={handleClick}
+        disabled={buttonDisabled}
+        startIcon={
+          isBusy ? (
+            <CircularProgress size={14} color="inherit" />
+          ) : (
+            <PlayArrowIcon sx={{ fontSize: 18 }} />
+          )
+        }
+        fullWidth
+      >
+        {isBusy
+          ? t('upscale.single.processing', { defaultValue: 'Upscaling…' })
+          : t('upscale.single.runNow', { defaultValue: 'Upscale Now' })}
+      </Button>
+
+      <Box>
+        <ConfirmDialog
+          open={needsConfirmation}
+          title={t('upscale.single.reupscaleTitle', {
+            defaultValue: 'Re-upscale this design?',
+          })}
+          body={t('upscale.single.reupscaleBody', {
+            defaultValue:
+              'This design has already been upscaled to 4500×5400. Re-upscaling will consume 1 from your monthly quota and overwrite the current file.',
+          })}
+          confirmLabel={t('upscale.single.reupscaleConfirm', {
+            defaultValue: 'Re-upscale',
+          })}
+          cancelLabel={t('common.cancel', { defaultValue: 'Cancel' })}
+          confirmColor="primary"
+          showDeleteIcon={false}
+          onConfirm={handleConfirmReplace}
+          onCancel={cancelConfirmation}
+        />
+      </Box>
+
+      <PickCloudFolderDialog
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        onPick={handlePickCloud}
+      />
     </Stack>
   );
 };
