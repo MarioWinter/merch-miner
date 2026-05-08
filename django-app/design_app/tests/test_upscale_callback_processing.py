@@ -12,7 +12,6 @@ from design_app.models import (
     Design,
     DesignProcessingJob,
     UpscaleQuotaUsage,
-    UpscalerSettings,
 )
 from design_app.tasks import (
     enqueue_replicate_upscale,

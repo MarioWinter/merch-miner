@@ -75,7 +75,7 @@ class TestVerifyWebhookSignature:
     def test_passes_with_valid_primary(self, settings):
         settings.REPLICATE_WEBHOOK_SECRET = 'whsec_primary'
         settings.REPLICATE_WEBHOOK_SECRET_PREVIOUS = ''
-        with patch('design_app.services.replicate_client.replicate', create=True) as mock_replicate:
+        with patch('design_app.services.replicate_client.replicate', create=True):
             with patch.object(
                 replicate_client, 'WebhookSigningSecret', create=True,
                 new=lambda key: f'wrapped:{key}',
