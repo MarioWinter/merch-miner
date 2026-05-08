@@ -2,6 +2,18 @@ import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '@/utils/test-utils';
+
+// PROJ-27: PanelMultiState calls useGetDesignsByIdsQuery for the
+// Compare-carousel feature. Mock it so this Phase-O test doesn't need
+// the full designApi middleware wired into the store.
+vi.mock('@/store/designSlice', async (importActual) => {
+  const actual = await importActual<typeof import('@/store/designSlice')>();
+  return {
+    ...actual,
+    useGetDesignsByIdsQuery: () => ({ data: [], isLoading: false }),
+  };
+});
+
 import PanelMultiState from '@/views/designs/board/partials/rightPanel/PanelMultiState';
 import type { ArtboardData } from '@/views/designs/board/types';
 

@@ -2,6 +2,18 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../../../utils/test-utils';
+
+// PROJ-27: PanelMultiState added a useGetDesignsByIdsQuery call for the
+// Compare-carousel — mock so this decoupling test doesn't need the full
+// designApi middleware.
+vi.mock('@/store/designSlice', async (importActual) => {
+  const actual = await importActual<typeof import('@/store/designSlice')>();
+  return {
+    ...actual,
+    useGetDesignsByIdsQuery: () => ({ data: [], isLoading: false }),
+  };
+});
+
 import PanelMultiState from '../../board/partials/rightPanel/PanelMultiState';
 import type { ArtboardData } from '../../board/types';
 
