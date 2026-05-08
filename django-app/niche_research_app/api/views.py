@@ -91,6 +91,7 @@ class NicheResearchView(APIView):
         marketplace = trigger.validated_data['marketplace']
         product_type = trigger.validated_data['product_type']
         force_refresh = trigger.validated_data['force_refresh']
+        product_limit = trigger.validated_data['product_limit']
 
         # Check for existing pending/running research
         existing_active = NicheResearch.objects.filter(
@@ -125,9 +126,11 @@ class NicheResearchView(APIView):
             latest.completed_at = None
             latest.marketplace = marketplace
             latest.product_type = product_type
+            latest.product_limit = product_limit
             latest.save(update_fields=[
                 'completed_nodes', 'current_node', 'status',
                 'error_message', 'completed_at', 'marketplace', 'product_type',
+                'product_limit',
             ])
 
             self._enqueue_research(latest)
@@ -168,6 +171,7 @@ class NicheResearchView(APIView):
             config_snapshot=config_snapshot,
             marketplace=marketplace,
             product_type=product_type,
+            product_limit=product_limit,
         )
 
         self._enqueue_research(research)

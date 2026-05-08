@@ -2,8 +2,10 @@
 
 import asyncio
 import logging
+import math
 
 from asgiref.sync import sync_to_async
+from django.db.models import F
 
 from niche_research_app.graph.progress import get_completed_nodes, update_node_progress
 from niche_research_app.graph.resume import load_product_asins_from_db
@@ -26,12 +28,14 @@ async def scrape_node(state: ResearchState) -> dict:
         ScrapeJob,
         PRODUCT_TYPE_SPIDER_KWARGS,
     )
-    from scraper_app.tasks import get_or_create_keyword_cache, scrape_search_page_job
+    from scraper_app.tasks import get_or_create_keyword_cache, scrape_keyword_job
 
     research_id = state['research_id']
     niche_name = state['niche_name']
     marketplace = state.get('marketplace', 'amazon_com')
     product_type = state.get('product_type', 't_shirt')
+    product_limit = state.get('product_limit') or 50
+    derived_max_pages = max(2, math.ceil(product_limit / 45))
 
     # Skip guard: check DB for completed nodes
     completed = await get_completed_nodes(research_id)
@@ -91,11 +95,11 @@ async def scrape_node(state: ResearchState) -> dict:
                 keyword=niche_name, marketplace=marketplace,
             )
             scrape_job = await sync_to_async(ScrapeJob.objects.create)(
-                mode=ScrapeJob.Mode.SEARCH_PAGE_ONLY,
+                mode=ScrapeJob.Mode.LIVE,
                 keyword=keyword_obj,
                 marketplace=marketplace,
                 status=ScrapeJob.Status.PENDING,
-                pages_total=2,
+                pages_total=derived_max_pages,
                 product_type_filter=product_type,
             )
             cache = await sync_to_async(ProductSearchCache.objects.create)(
@@ -110,10 +114,11 @@ async def scrape_node(state: ResearchState) -> dict:
                 spider_kwargs = PRODUCT_TYPE_SPIDER_KWARGS[product_type].copy()
 
             # Run scrape in thread pool (blocking subprocess)
-            await sync_to_async(scrape_search_page_job)(
+            await sync_to_async(scrape_keyword_job)(
                 keyword_str=niche_name,
                 marketplace=marketplace,
                 scrape_job_id=str(scrape_job.id),
+                max_pages=derived_max_pages,
                 **spider_kwargs,
             )
 
@@ -151,7 +156,9 @@ async def scrape_node(state: ResearchState) -> dict:
         return list(
             AmazonProduct.objects.filter(
                 keywords=keyword_obj,
-            ).values_list('asin', flat=True)
+            ).order_by(
+                F('bsr').asc(nulls_last=True),
+            ).values_list('asin', flat=True)[:product_limit]
         )
 
     product_asins = await _get_product_asins()

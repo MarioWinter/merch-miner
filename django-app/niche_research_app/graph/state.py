@@ -10,6 +10,7 @@ class ResearchState(TypedDict, total=False):
     niche_name: str
     marketplace: str
     product_type: str
+    product_limit: int
     product_asins: list[str]
     vision_analyses: list[dict]
     emotional_analyses: list[dict]

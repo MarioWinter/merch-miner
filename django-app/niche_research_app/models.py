@@ -104,6 +104,14 @@ class NicheResearch(models.Model):
         default=0,
         help_text='Number of products filtered out by brand blacklist',
     )
+    product_limit = models.PositiveSmallIntegerField(
+        default=50,
+        help_text=(
+            'How many products this run analyzed (allowed range 10-200). '
+            'Audit value: also reused on force-refresh to repeat the same '
+            'depth of analysis.'
+        ),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     error_message = models.TextField(blank=True, default='')

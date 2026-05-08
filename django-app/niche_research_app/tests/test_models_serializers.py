@@ -14,6 +14,7 @@ from niche_app.models import Niche
 from niche_research_app.api.serializers import (
     NicheResearchDetailSerializer,
     NicheResearchSerializer,
+    ResearchTriggerSerializer,
 )
 from niche_research_app.models import (
     NicheAnalysis,
@@ -334,7 +335,7 @@ class TestNicheResearchSerializer:
             'id', 'status', 'created_at', 'completed_at', 'error_message',
             'completed_nodes', 'current_node', 'total_nodes',
             'marketplace', 'product_type', 'retry_count',
-            'brand_filtered_count',
+            'brand_filtered_count', 'product_limit',
         }
         assert data['status'] == 'completed'
 
@@ -497,3 +498,46 @@ class TestRelatedNichesComputation:
 
         data = NicheResearchDetailSerializer(completed_research).data
         assert data['related_niches'] == []
+
+
+# ---------------------------------------------------------------------------
+# PROJ-28: ResearchTriggerSerializer product_limit validation
+# ---------------------------------------------------------------------------
+
+class TestResearchTriggerSerializerProductLimit:
+    """ResearchTriggerSerializer: validation for product_limit field."""
+
+    def test_accepts_min_value_10(self):
+        s = ResearchTriggerSerializer(data={'product_limit': 10})
+        assert s.is_valid(), s.errors
+        assert s.validated_data['product_limit'] == 10
+
+    def test_accepts_default_value_50(self):
+        s = ResearchTriggerSerializer(data={'product_limit': 50})
+        assert s.is_valid(), s.errors
+        assert s.validated_data['product_limit'] == 50
+
+    def test_accepts_max_value_200(self):
+        s = ResearchTriggerSerializer(data={'product_limit': 200})
+        assert s.is_valid(), s.errors
+        assert s.validated_data['product_limit'] == 200
+
+    def test_rejects_below_min_9(self):
+        s = ResearchTriggerSerializer(data={'product_limit': 9})
+        assert not s.is_valid()
+        assert 'product_limit' in s.errors
+
+    def test_rejects_above_max_201(self):
+        s = ResearchTriggerSerializer(data={'product_limit': 201})
+        assert not s.is_valid()
+        assert 'product_limit' in s.errors
+
+    def test_rejects_non_integer_string(self):
+        s = ResearchTriggerSerializer(data={'product_limit': 'abc'})
+        assert not s.is_valid()
+        assert 'product_limit' in s.errors
+
+    def test_missing_defaults_to_50(self):
+        s = ResearchTriggerSerializer(data={})
+        assert s.is_valid(), s.errors
+        assert s.validated_data['product_limit'] == 50

@@ -79,6 +79,7 @@ async def compile_and_run(
     niche_name: str,
     marketplace: str,
     product_type: str = 't_shirt',
+    product_limit: int = 50,
     retry_count: int = 0,
     checkpointer=None,
     callbacks=None,
@@ -113,6 +114,7 @@ async def compile_and_run(
         'niche_name': niche_name,
         'marketplace': marketplace,
         'product_type': product_type,
+        'product_limit': product_limit,
     }
 
     result = await compiled.ainvoke(initial_state, config=config)

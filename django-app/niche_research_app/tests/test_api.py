@@ -627,3 +627,122 @@ class TestRetryAndForceRefresh:
 
         assert resp.status_code == status.HTTP_200_OK
         assert resp.data['results'][0]['brand_filtered_count'] == 2
+
+
+# ---------------------------------------------------------------------------
+# PROJ-28: product_limit on trigger
+# ---------------------------------------------------------------------------
+
+@pytest.mark.django_db
+class TestResearchTriggerProductLimit:
+    """Tests for PROJ-28 product_limit field on POST trigger."""
+
+    @patch('niche_research_app.api.views.django_rq')
+    def test_trigger_with_product_limit_75(
+        self, mock_rq, niche, auth_client, research_configs,
+    ):
+        """POST with product_limit=75 writes 75 to NicheResearch row."""
+        _mock_rq_queue(mock_rq)
+
+        url = reverse('niche-research', kwargs={'niche_id': niche.id})
+        resp = auth_client.post(url, {'product_limit': 75})
+
+        assert resp.status_code == status.HTTP_201_CREATED
+        assert resp.data['product_limit'] == 75
+        research = NicheResearch.objects.get(niche=niche)
+        assert research.product_limit == 75
+
+    @patch('niche_research_app.api.views.django_rq')
+    def test_trigger_without_product_limit_defaults_to_50(
+        self, mock_rq, niche, auth_client, research_configs,
+    ):
+        """POST without product_limit writes default 50 to row."""
+        _mock_rq_queue(mock_rq)
+
+        url = reverse('niche-research', kwargs={'niche_id': niche.id})
+        resp = auth_client.post(url)
+
+        assert resp.status_code == status.HTTP_201_CREATED
+        assert resp.data['product_limit'] == 50
+        research = NicheResearch.objects.get(niche=niche)
+        assert research.product_limit == 50
+
+    @patch('niche_research_app.api.views.django_rq')
+    def test_trigger_product_limit_below_min_returns_400(
+        self, mock_rq, niche, auth_client, research_configs,
+    ):
+        """POST with product_limit=5 returns 400 (below min=10)."""
+        _mock_rq_queue(mock_rq)
+
+        url = reverse('niche-research', kwargs={'niche_id': niche.id})
+        resp = auth_client.post(url, {'product_limit': 5})
+
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'product_limit' in resp.data
+        assert NicheResearch.objects.filter(niche=niche).count() == 0
+
+    @patch('niche_research_app.api.views.django_rq')
+    def test_trigger_product_limit_above_max_returns_400(
+        self, mock_rq, niche, auth_client, research_configs,
+    ):
+        """POST with product_limit=500 returns 400 (above max=200)."""
+        _mock_rq_queue(mock_rq)
+
+        url = reverse('niche-research', kwargs={'niche_id': niche.id})
+        resp = auth_client.post(url, {'product_limit': 500})
+
+        assert resp.status_code == status.HTTP_400_BAD_REQUEST
+        assert 'product_limit' in resp.data
+        assert NicheResearch.objects.filter(niche=niche).count() == 0
+
+    @patch('niche_research_app.api.views.django_rq')
+    def test_force_refresh_overwrites_product_limit(
+        self, mock_rq, niche, auth_client, user_with_workspace,
+    ):
+        """force_refresh=True with new product_limit updates the row before re-enqueue."""
+        user, _ = user_with_workspace
+        research = NicheResearch.objects.create(
+            niche=niche, triggered_by=user,
+            status=NicheResearch.Status.COMPLETED,
+            product_limit=50,
+            completed_nodes=['scrape', 'vision_analyze', 'emotional_analyze',
+                             'niche_profile', 'keywords', 'finalize'],
+        )
+
+        _mock_rq_queue(mock_rq)
+
+        url = reverse('niche-research', kwargs={'niche_id': niche.id})
+        resp = auth_client.post(url, {
+            'force_refresh': True,
+            'product_limit': 120,
+        })
+
+        assert resp.status_code == status.HTTP_201_CREATED
+        assert resp.data['id'] == str(research.id)
+        assert resp.data['product_limit'] == 120
+
+        research.refresh_from_db()
+        assert research.product_limit == 120
+        assert research.status == NicheResearch.Status.PENDING
+
+    @patch('niche_research_app.api.views.django_rq')
+    def test_failed_retry_preserves_original_product_limit(
+        self, mock_rq, niche, auth_client, user_with_workspace,
+    ):
+        """Retrying a failed run does NOT overwrite product_limit (kept identical to original)."""
+        user, _ = user_with_workspace
+        research = NicheResearch.objects.create(
+            niche=niche, triggered_by=user,
+            status=NicheResearch.Status.FAILED,
+            product_limit=80,
+        )
+
+        _mock_rq_queue(mock_rq)
+
+        url = reverse('niche-research', kwargs={'niche_id': niche.id})
+        # Even if user sends a different value, retry must keep original
+        resp = auth_client.post(url, {'product_limit': 150})
+
+        assert resp.status_code == status.HTTP_201_CREATED
+        research.refresh_from_db()
+        assert research.product_limit == 80  # original preserved

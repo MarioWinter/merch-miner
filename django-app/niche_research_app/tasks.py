@@ -65,6 +65,7 @@ def run_niche_research(research_id: str):
     niche_name = research.niche.name
     marketplace = research.marketplace or 'amazon_com'
     product_type = research.product_type or 't_shirt'
+    product_limit = research.product_limit or 50
     retry_count = research.retry_count
 
     langfuse_handler = _get_langfuse_handler(str(research_id), niche_name)
@@ -98,6 +99,7 @@ def run_niche_research(research_id: str):
                     niche_name=niche_name,
                     marketplace=marketplace,
                     product_type=product_type,
+                    product_limit=product_limit,
                     retry_count=retry_count,
                     checkpointer=saver,
                     callbacks=[langfuse_handler] if langfuse_handler else None,
@@ -111,6 +113,7 @@ def run_niche_research(research_id: str):
                 niche_name=niche_name,
                 marketplace=marketplace,
                 product_type=product_type,
+                product_limit=product_limit,
                 retry_count=retry_count,
                 callbacks=[langfuse_handler] if langfuse_handler else None,
             )

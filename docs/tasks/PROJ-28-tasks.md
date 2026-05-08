@@ -15,7 +15,7 @@
 - [ ] T-2.2: Add `product_limit` to `NicheResearchSerializer.fields` and `NicheResearchDetailSerializer.fields` (read-only, exposed for FE diagnostics + tests).
 - [ ] T-2.3: In `NicheResearchView.post`, read `trigger.validated_data['product_limit']` and write it to `NicheResearch.product_limit` in the **create** path.
 - [ ] T-2.4: In `NicheResearchView.post`, in the **force_refresh** path, overwrite `latest.product_limit` with the new validated value before save (extend the `update_fields` list).
-- [ ] T-2.5: In `NicheResearchView.post`, in the **failed-retry** path, overwrite `latest.product_limit` similarly so retries respect the latest user choice.
+- [ ] T-2.5: In `NicheResearchView.post`, in the **failed-retry** path, **preserve the original `product_limit`** — do NOT overwrite. Per user decision: a retry should re-run the analysis identically to the original request that failed, not adopt a new user-chosen limit. Test must verify the original limit is preserved.
 
 ## Phase 3: Backend Workflow (State Propagation)
 

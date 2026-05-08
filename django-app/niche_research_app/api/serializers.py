@@ -38,7 +38,7 @@ RESEARCH_PRODUCT_TYPE_CHOICES = [
 
 
 class ResearchTriggerSerializer(serializers.Serializer):
-    """Validates trigger request params: marketplace, product_type, force_refresh."""
+    """Validates trigger request params: marketplace, product_type, force_refresh, product_limit."""
 
     marketplace = serializers.ChoiceField(
         choices=MarketplaceChoices.choices,
@@ -49,6 +49,12 @@ class ResearchTriggerSerializer(serializers.Serializer):
         default='t_shirt',
     )
     force_refresh = serializers.BooleanField(default=False)
+    product_limit = serializers.IntegerField(
+        min_value=10,
+        max_value=200,
+        default=50,
+        required=False,
+    )
 
 
 class NicheResearchSerializer(serializers.ModelSerializer):
@@ -62,7 +68,7 @@ class NicheResearchSerializer(serializers.ModelSerializer):
             'id', 'status', 'created_at', 'completed_at', 'error_message',
             'completed_nodes', 'current_node', 'total_nodes',
             'marketplace', 'product_type', 'retry_count',
-            'brand_filtered_count',
+            'brand_filtered_count', 'product_limit',
         ]
         read_only_fields = fields
 
@@ -173,7 +179,7 @@ class NicheResearchDetailSerializer(serializers.ModelSerializer):
             'id', 'status', 'created_at', 'completed_at', 'error_message',
             'completed_nodes', 'current_node', 'total_nodes',
             'marketplace', 'product_type', 'retry_count',
-            'brand_filtered_count',
+            'brand_filtered_count', 'product_limit',
             'analysis', 'keywords', 'products', 'related_niches',
         ]
         read_only_fields = fields
