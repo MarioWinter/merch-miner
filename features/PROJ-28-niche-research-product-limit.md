@@ -1,8 +1,10 @@
 # PROJ-28: Niche Research Product Limit
 
-## Status: Planned
+## Status: In Progress
 **Created:** 2026-05-08
 **Last Updated:** 2026-05-08
+
+> **Implementation progress:** Backend complete (Phases 1–4 + 7), commit `38d9500`. Frontend (Phases 5–6 + 8) and QA (Phase 9) pending. See [tasks file](../docs/tasks/PROJ-28-tasks.md) for per-task status.
 
 ## Dependencies
 - Requires: PROJ-6 (Niche Deep Research) — extends the LangGraph workflow
@@ -131,7 +133,10 @@ Migration: additive, no data backfill required (default applies to existing rows
 | `/api/niches/:id/research/` | GET (list) | Adds `product_limit` to response | Existing list serializer exposes the new field. |
 | `/api/niches/:id/research/latest/` | GET | Adds `product_limit` to response | Detail serializer exposes the new field for diagnostics. |
 
-**Force-refresh path:** on a force_refresh request to an existing completed run, the request's `product_limit` overwrites the record's old value before the workflow re-runs. This prevents the analysis from "remembering" an older limit.
+**Path-specific limit handling:**
+- **Create** (no existing run): `product_limit` from the request is written to the new row.
+- **Force-refresh** (latest is COMPLETED): the request's `product_limit` overwrites the existing row's value, then the workflow re-runs.
+- **Failed-retry** (latest is FAILED, retries left): the row's existing `product_limit` is **preserved** — the new request's value is ignored. A retry must repeat the original analysis identically.
 
 ### Workflow State Propagation
 
@@ -142,7 +147,7 @@ Migration: additive, no data backfill required (default applies to existing rows
 | `tasks.run_niche_research` | Reads `research.product_limit` (alongside marketplace/product_type) and passes to `compile_and_run`. |
 | `compile_and_run` | Adds `product_limit` to the initial state dict. |
 | `ResearchState` (TypedDict) | New optional field `product_limit: int`. |
-| `scrape_node` | Reads `state['product_limit']` (default 50 if absent) and uses it for ordered `[:N]` slice. Also drives the empty-DB scraper choice (always deep + 2 pages, regardless of value). |
+| `scrape_node` | Reads `state['product_limit']` (default 50 if absent) and uses it for ordered `[:N]` slice. Also drives the empty-DB scraper page count via `derived_max_pages = max(2, ceil(product_limit / 45))`. |
 
 The slice is applied **after** `order_by` on BSR ASC (nulls last). Brand filtering remains downstream in `vision_analyze` and is intentionally not re-fetching to fill the limit.
 
@@ -190,7 +195,7 @@ This three-layer defense means a stale or scripted client sending no value, an e
 
 | Decision | Why |
 |----------|-----|
-| Store `product_limit` on `NicheResearch` row, not just transient state | Force-refresh reuses the same record — the new value must persist to the row so the re-run uses it. Also gives audit trail. |
+| Store `product_limit` on `NicheResearch` row, not just transient state | Force-refresh reuses the same record — the new value must persist to the row so the re-run uses it. Failed-retry, by contrast, preserves the persisted original value (retries are identical to first attempt). Also gives audit trail. |
 | BSR ASC with nulls-last ordering | Lowest BSR = bestsellers — most representative of "what works" for the niche. Nulls-last keeps unranked products as a fallback only. |
 | Switch to deep scraper for empty-DB only | Detail-page data dramatically improves Vision LLM quality. The DB-has-products branch already implies someone ran a deep scrape earlier — no need to redo. |
 | `max_pages` derived dynamically from limit (`max(2, ceil(limit / 45))`) | Actual per-page yield is ~48 products (verified 2026-05-08), not the originally assumed 16. Fixed pages=2 would cap at ~96 products and starve high limits (200). Divisor 45 gives ~5.8% headroom against worst-observed 47.6/page — empirically validated against limit values 50, 100, 150, 200, 250, 300, 400. |
@@ -237,8 +242,9 @@ frontend-ui/src/i18n/locales/{de,en}/translation.json ← add research.productLi
 | Risk | Mitigation |
 |------|------------|
 | Behavior change for existing niches with > 50 products in DB (now analyses only Top-50) | Documented in spec; user explicitly chose 50 default. QA must verify on a niche with > 50 products that Top-50 by BSR is selected. |
-| Switching empty-DB to deep scraper increases per-run scrape time + cost | `pages_total=2` keeps it bounded. Existing scrape-progress UI handles the longer wait. ScraperOps slot consumption monitored via existing dashboards. |
-| Force-refresh of an old completed run with no `product_limit` set | Migration default 50 applies; force-refresh path also stamps the new value before re-run. Safe. |
+| Switching empty-DB to deep scraper increases per-run scrape time + cost | `derived_max_pages = max(2, ceil(limit / 45))` keeps it bounded — limit=50 → 2 pages, limit=200 → 5 pages. Existing scrape-progress UI handles the longer wait via the `pages_total` field on ScrapeJob. ScraperOps slot consumption monitored via existing dashboards. |
+| Force-refresh of an old completed run with no `product_limit` set | Migration default 50 applies; force-refresh path overwrites with the new value before re-run. Safe. |
+| Failed-retry of an old run with no `product_limit` set | Migration default 50 applies; failed-retry path leaves it at 50 (preserves whatever was on the row). Safe. |
 | Brand filter shrinks set below limit, leaving "thin" analyses | Pre-existing behavior; not made worse. Out of scope to "top up" the set. |
 
 
