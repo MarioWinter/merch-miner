@@ -2,14 +2,13 @@ import { useCallback } from 'react';
 import {
   Box,
   Chip,
+  FormControlLabel,
   Stack,
-  ToggleButton,
-  ToggleButtonGroup,
+  Switch,
   Tooltip,
+  Typography,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import HardDriveIcon from '@mui/icons-material/SaveAlt';
-import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import { useTranslation } from 'react-i18next';
 import { useGoogleDrive, useOneDrive } from '@/components/CloudStorage';
@@ -18,27 +17,21 @@ import {
   setDestination as setDestinationAction,
   setCloudTarget as setCloudTargetAction,
 } from '@/store/upscaleSlice';
-import type { UpscaleCloudTarget, UpscaleDestination } from '@/store/upscaleApi';
+import type { UpscaleCloudTarget } from '@/store/upscaleApi';
 
 // -----------------------------------------------------------------
 // Styled
 // -----------------------------------------------------------------
 
-const ToggleRow = styled(ToggleButtonGroup)(({ theme }) => ({
-  '& .MuiToggleButton-root': {
+const Row = styled(FormControlLabel)({
+  margin: 0,
+  alignItems: 'center',
+  gap: 8,
+  '& .MuiFormControlLabel-label': {
+    fontSize: 12,
     flex: 1,
-    height: 32,
-    color: theme.vars.palette.text.secondary,
-    border: `1px solid ${theme.vars.palette.divider}`,
-    '&.Mui-selected': {
-      backgroundColor: theme.vars.palette.primary.main,
-      color: theme.vars.palette.common.white,
-      '&:hover': {
-        backgroundColor: theme.vars.palette.primary.dark,
-      },
-    },
   },
-}));
+});
 
 const TargetChip = styled(Chip)(({ theme }) => ({
   height: 24,
@@ -49,6 +42,12 @@ const TargetChip = styled(Chip)(({ theme }) => ({
     fontSize: 11,
     color: theme.vars.palette.text.secondary,
   },
+}));
+
+const HelperText = styled(Typography)(({ theme }) => ({
+  fontSize: 11,
+  color: theme.vars.palette.text.disabled,
+  paddingLeft: 0,
 }));
 
 // -----------------------------------------------------------------
@@ -91,12 +90,19 @@ const UpscaleDestinationToggle = ({
     workspaceId ? state.upscale.cloudTargetByWorkspace[workspaceId] : null,
   ) as UpscaleCloudTarget | null;
 
-  const handleChange = useCallback(
-    (_: React.MouseEvent<HTMLElement>, value: UpscaleDestination | null) => {
-      if (!value || !workspaceId) return;
-      dispatch(setDestinationAction({ workspaceId, destination: value }));
-      // Picking Cloud without a target yet → open the picker
-      if (value === 'cloud' && !cloudTarget) {
+  const isCloudOn = destination === 'cloud';
+
+  const handleSwitchChange = useCallback(
+    (_: React.ChangeEvent<HTMLInputElement>, checked: boolean) => {
+      if (!workspaceId) return;
+      dispatch(
+        setDestinationAction({
+          workspaceId,
+          destination: checked ? 'cloud' : 'local',
+        }),
+      );
+      // Turning Cloud on without a target → auto-open the picker.
+      if (checked && !cloudTarget) {
         onPickCloudTarget();
       }
     },
@@ -108,48 +114,53 @@ const UpscaleDestinationToggle = ({
     dispatch(setCloudTargetAction({ workspaceId, target: null }));
   }, [dispatch, workspaceId]);
 
-  return (
-    <Stack spacing={1}>
-      <ToggleRow
-        value={destination}
-        exclusive
-        size="small"
-        onChange={handleChange}
-        disabled={disabled}
-        aria-label={t('upscale.destination.label', 'Upscale destination')}
-        fullWidth
-      >
-        <ToggleButton
-          value="local"
-          aria-label={t('upscale.destination.local', 'Local only')}
-        >
-          <Tooltip title={t('upscale.destination.localTooltip', 'Local only (Django)')}>
-            <HardDriveIcon sx={{ fontSize: 18 }} />
-          </Tooltip>
-        </ToggleButton>
-        <ToggleButton
-          value="cloud"
-          aria-label={t('upscale.destination.cloud', 'Local + Cloud')}
-          disabled={!cloudConnected || disabled}
-        >
-          <Tooltip
-            title={
-              cloudConnected
-                ? t('upscale.destination.cloudTooltip', 'Local + Cloud')
-                : t(
-                    'upscale.destination.cloudDisabledTooltip',
-                    'Connect Google Drive or OneDrive in Settings',
-                  )
-            }
-          >
-            <span>
-              <CloudUploadIcon sx={{ fontSize: 18 }} />
-            </span>
-          </Tooltip>
-        </ToggleButton>
-      </ToggleRow>
+  const switchDisabled = disabled || !cloudConnected;
 
-      {destination === 'cloud' && cloudTarget && (
+  return (
+    <Stack spacing={0.5}>
+      <Tooltip
+        title={
+          cloudConnected
+            ? ''
+            : t(
+                'upscale.destination.cloudDisabledTooltip',
+                'Connect Google Drive or OneDrive in Settings',
+              )
+        }
+        placement="left"
+      >
+        <span>
+          <Row
+            control={
+              <Switch
+                size="small"
+                checked={isCloudOn}
+                onChange={handleSwitchChange}
+                disabled={switchDisabled}
+                inputProps={{
+                  'aria-label': t(
+                    'upscale.destination.switchAria',
+                    'Also save to Cloud',
+                  ),
+                }}
+              />
+            }
+            label={t('upscale.destination.switchLabel', 'Also save to Cloud')}
+            labelPlacement="start"
+          />
+        </span>
+      </Tooltip>
+
+      {!cloudConnected && (
+        <HelperText>
+          {t(
+            'upscale.destination.connectHint',
+            'Connect Drive or OneDrive in Settings to enable cloud upload',
+          )}
+        </HelperText>
+      )}
+
+      {isCloudOn && cloudTarget && (
         <Box>
           <TargetChip
             icon={<FolderOutlinedIcon sx={{ fontSize: 14 }} />}
@@ -159,6 +170,15 @@ const UpscaleDestinationToggle = ({
             size="small"
           />
         </Box>
+      )}
+
+      {isCloudOn && !cloudTarget && cloudConnected && (
+        <HelperText
+          onClick={onPickCloudTarget}
+          sx={{ cursor: 'pointer', textDecoration: 'underline' }}
+        >
+          {t('upscale.destination.pickFolder', 'Pick a folder…')}
+        </HelperText>
       )}
     </Stack>
   );

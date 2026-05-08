@@ -6,7 +6,7 @@ import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import SendOutlinedIcon from '@mui/icons-material/SendOutlined';
-import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
+import PhotoSizeSelectLargeIcon from '@mui/icons-material/PhotoSizeSelectLarge';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -278,7 +278,7 @@ const PanelMultiState = ({
                 disabled={bulkDisabled}
                 aria-label={t('upscale.bulk.aria', 'Bulk upscale')}
               >
-                <AutoFixHighIcon sx={{ fontSize: 20 }} />
+                <PhotoSizeSelectLargeIcon sx={{ fontSize: 20 }} />
               </ToolbarButton>
             </span>
           </Tooltip>
