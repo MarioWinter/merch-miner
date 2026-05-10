@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.3.1](https://github.com/MarioWinter/merch-miner/compare/v0.3.0...v0.3.1) (2026-05-10)
+
+
+### Bug Fixes
+
+* expose extra_rh_filters in ScrapeJob admin Search Filters fieldset ([b6b692c](https://github.com/MarioWinter/merch-miner/commit/b6b692c144dea0d4cf847f1cfb0cb8a7f2fbda95))
+* **hotfix:** allow NULL on extra_rh_filters to unblock bulk scraper drainer ([51e80e3](https://github.com/MarioWinter/merch-miner/commit/51e80e3e949bd3eebddee625bbd72e6e1158ce53))
+
 ## [0.3.0](https://github.com/MarioWinter/merch-miner/compare/v0.2.1...v0.3.0) (2026-05-10)
 
 
