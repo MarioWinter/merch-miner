@@ -1,5 +1,89 @@
 # Changelog
 
+## [0.3.0](https://github.com/MarioWinter/merch-miner/compare/v0.2.1...v0.3.0) (2026-05-10)
+
+
+### Features
+
+* **amazon-research:** hover actions on keyword suggestions ([a93815f](https://github.com/MarioWinter/merch-miner/commit/a93815f3ac93f43eb9d6b53c80f477e5ee66dc7d))
+* **amazon-research:** page-level cache freshness for Live Search ([a68b806](https://github.com/MarioWinter/merch-miner/commit/a68b806ab98334ee9763d1f294dafe009bca5ee9))
+* **amazon-research:** re-add "Add to Niche List" hover action ([43d1e7a](https://github.com/MarioWinter/merch-miner/commit/43d1e7aaacd7352986b3d425a33fe3ab9aece93e))
+* **amazon-research:** unify Live + DB scroll, background-scrape model ([c50f25f](https://github.com/MarioWinter/merch-miner/commit/c50f25f09e75ccde3b7728ec4565ad7c6fa5aa64))
+* **niche-pipeline:** clickable niche selector in drawer header ([b8bb07c](https://github.com/MarioWinter/merch-miner/commit/b8bb07c83a678f84b9c9f2cd2dbcc32b66db2d90))
+* **niche-pipeline:** dedicated delete icon for collected slogans ([b13484c](https://github.com/MarioWinter/merch-miner/commit/b13484c93c23c3d97ea866b43e33bcc7ad76d2ed))
+* **niches:** replace IDEAS column with Amazon Research jump button ([a45d03c](https://github.com/MarioWinter/merch-miner/commit/a45d03cb2673d2a5a423e64787c5bbffc2c35f72))
+* **PROJ-25:** admin UI with 5 action buttons + progress bar (Phase E) ([29a8824](https://github.com/MarioWinter/merch-miner/commit/29a8824afcf29d4b538f768dfcc306ff75237bee))
+* **PROJ-25:** batch spider + wrapper + drainer (Phases C+D) ([8571ad8](https://github.com/MarioWinter/merch-miner/commit/8571ad86ef12aece00269966bcbb9dcd4981fbca))
+* **PROJ-25:** bulk batch model + async upload + parser job (Phase B) ([d57d3c8](https://github.com/MarioWinter/merch-miner/commit/d57d3c85d0173b342e1a64835ab23986cdffc439))
+* **PROJ-25:** seed OneShot tier + auto-deactivate after scrape ([b26ccc2](https://github.com/MarioWinter/merch-miner/commit/b26ccc201e834053e54c6b560f305a2c01ad74a1))
+* **PROJ-25:** worker scaling + observability + runbook (Phases F+G+H) ([fa34236](https://github.com/MarioWinter/merch-miner/commit/fa34236b7104f68928185de07bec26fa5d880c26))
+* **PROJ-27:** add AI upscaler spec ([ef89727](https://github.com/MarioWinter/merch-miner/commit/ef89727d32932952bd2998f79c0d0231a912c081))
+* **PROJ-27:** add frontend design + architecture + tasks ([4df675d](https://github.com/MarioWinter/merch-miner/commit/4df675d2a7c3888db61c98d5fb5e9a47373541dd))
+* **PROJ-27:** AI Upscaler — Single + Bulk via Replicate ([48ba8cf](https://github.com/MarioWinter/merch-miner/commit/48ba8cf158798d7407bf6c8d9dcdf8656c1b3046))
+* **PROJ-27:** backend (models, replicate client, rq tasks, API) ([ea71cb5](https://github.com/MarioWinter/merch-miner/commit/ea71cb5c75acb8e574fb9742fa9b413038819709))
+* **PROJ-27:** before/after compare modal for upscaled designs ([dab1ade](https://github.com/MarioWinter/merch-miner/commit/dab1adea3a3f1052e928206691125d77026214af))
+* **PROJ-27:** bulk-mode compare carousel with arrow navigation ([943fb0d](https://github.com/MarioWinter/merch-miner/commit/943fb0dbdb4f76fcaf999c39cd3082a9c3e55c51))
+* **PROJ-27:** bulk-mode components — drawer, dialogs, hook (Phase 7.1+7.6-7.8) ([fb86f9c](https://github.com/MarioWinter/merch-miner/commit/fb86f9c2c2044f71864be35eba2bae4d04c13007))
+* **PROJ-27:** extract upscale-selection hook + add to single-artboard panel ([0a52542](https://github.com/MarioWinter/merch-miner/commit/0a52542b9bbf1d77fcdd9834dcd8b3df0e852da5))
+* **PROJ-27:** frontend single-mode upscale (Phase 5+6) ([fd05d6f](https://github.com/MarioWinter/merch-miner/commit/fd05d6f0ae2173bc617fc09327858c0bd3dfbef1))
+* **PROJ-27:** topbar pill + verify-on-mount + Settings Usage tab (Phase 8) ([910476d](https://github.com/MarioWinter/merch-miner/commit/910476dae055bdb16f615d97e11da7bd1f43b0c3))
+* **PROJ-27:** wire bulk-upscale UI into Artboard SELECTION (Phase 7.2-7.5+7.9) ([0c9db90](https://github.com/MarioWinter/merch-miner/commit/0c9db90407983c02d5e478af1caeaaede5e6f255))
+* **PROJ-28:** add spec for niche research product limit ([f8f5703](https://github.com/MarioWinter/merch-miner/commit/f8f570377993e4bf0741117bafe9a8f80a069f77))
+* **PROJ-28:** backend product limit + dynamic max_pages + BSR ordering ([38d9500](https://github.com/MarioWinter/merch-miner/commit/38d95002e0631f7c9b751ae50899686641128c23))
+* **PROJ-28:** frontend product-limit input on niche research trigger ([4083570](https://github.com/MarioWinter/merch-miner/commit/4083570c6ebc7c4517b3cb796c98e86e522e80e5))
+* **PROJ-28:** Niche Research Product Limit + dynamic max_pages + BSR ASC selection ([f283c77](https://github.com/MarioWinter/merch-miner/commit/f283c77f9ff52b089598063878ee33710e756f4b))
+* **scraper:** rescrape endpoint + admin-configurable concurrency ([7d3738a](https://github.com/MarioWinter/merch-miner/commit/7d3738a861919ff63ce2da5b46b2ca444c7942a3))
+
+
+### Bug Fixes
+
+* admin allows browse-node-only scrape jobs + multi-key &rh= support ([#54](https://github.com/MarioWinter/merch-miner/issues/54)) ([ea06c1c](https://github.com/MarioWinter/merch-miner/commit/ea06c1c3aab30f134e7eb15cb5266616701e71b9))
+* **amazon-research:** broadest BSR + IconButtons + reload + history chips ([eb7d8e6](https://github.com/MarioWinter/merch-miner/commit/eb7d8e643922ab28c11193e0916aaaa14267381a))
+* **amazon-research:** bsr_max default 20M + marketplace gate + BSR icon ([79f6f75](https://github.com/MarioWinter/merch-miner/commit/79f6f75cedf2622a6cd92a71eeda1153bf389121))
+* **amazon-research:** bump card icon sizes for visibility ([91a8dbc](https://github.com/MarioWinter/merch-miner/commit/91a8dbcf1697b6b85cbd5f0081f74d20d18f69f0))
+* **amazon-research:** custom BSR icon (axes+trend line) + image alignment ([5e6c4a9](https://github.com/MarioWinter/merch-miner/commit/5e6c4a9c5c94d5839fc8e469adef0a6c0bbbe93b))
+* **amazon-research:** extract days-online formatter to satisfy purity rule ([c25c86f](https://github.com/MarioWinter/merch-miner/commit/c25c86f72d0ace8ddbf06276a3326f3e222870a7))
+* **amazon-research:** history-chip click fills input + skeleton position ([a9c634c](https://github.com/MarioWinter/merch-miner/commit/a9c634c5a792f63b1ee1cd62d2ee142462721300))
+* **amazon-research:** infinite scroll past page-1 + stable order ([c722d97](https://github.com/MarioWinter/merch-miner/commit/c722d970574c92b3f9f2dfbc0a9968d41ea64fb7))
+* **amazon-research:** null-safe BSR summary average/median in detail chart ([42d5105](https://github.com/MarioWinter/merch-miner/commit/42d51058ad19e0de94462f0b8bbed0cd90ef5836))
+* **amazon-research:** revert ProductGrid wrapper, use useWindowScroll only ([5ca2e37](https://github.com/MarioWinter/merch-miner/commit/5ca2e37dbe472bf1c04dafd389246390236e431d))
+* **amazon-research:** show "X days online" on product card ([e42eda3](https://github.com/MarioWinter/merch-miner/commit/e42eda3d3c34d780689bcb340815a239eac2f079))
+* **auth:** drop X-Forwarded-For after extracting real IP ([#38](https://github.com/MarioWinter/merch-miner/issues/38)) ([708575f](https://github.com/MarioWinter/merch-miner/commit/708575f2c3ee013513cab61fef1e82ed29f89bd4))
+* break circular import in axiosBaseQuery + ruff cleanup ([4da3303](https://github.com/MarioWinter/merch-miner/commit/4da33036e1942de95c47fed1a249a4062f437000))
+* **caddy:** trust upstream proxies so XFF reaches Django ([#39](https://github.com/MarioWinter/merch-miner/issues/39)) ([880a3ff](https://github.com/MarioWinter/merch-miner/commit/880a3ff820f77202e425cbdaa43d8b8923acb744))
+* distinguish keyword-list vs new-niche actions in Amazon Research tooltips ([cc9ac0a](https://github.com/MarioWinter/merch-miner/commit/cc9ac0ae1657b7e56c86355bd0347cd0475bffcb))
+* **keywords:** gate enrich behind KEYWORD_ENRICH_ENABLED flag, swap icon ([77dcf4b](https://github.com/MarioWinter/merch-miner/commit/77dcf4bbf7bf928379b39fbb0de7aa73fd6b41f7))
+* **niche-drawer:** simplify keyword bank — flat list, drop groups ([68be8bd](https://github.com/MarioWinter/merch-miner/commit/68be8bdb077f4f31a5cacd3b7bb4ffebec4e27b1))
+* **niche-pipeline:** drop component prop on styled Typography wrapper ([5ee0b64](https://github.com/MarioWinter/merch-miner/commit/5ee0b64741bcd8627da23acfb4c552c029f83114))
+* **niche-pipeline:** drop inaccurate keyword count from selector items ([85169ed](https://github.com/MarioWinter/merch-miner/commit/85169edb1e7ceb91d37bb563dd5f335ab2343187))
+* **niche-pipeline:** replace useRef with state-anchor for menu ([1d7fd96](https://github.com/MarioWinter/merch-miner/commit/1d7fd96c94a110eaffd905304435bbd8955d1550))
+* **niche-research:** one chip click = one idea, manual ideas selectable ([1a210a0](https://github.com/MarioWinter/merch-miner/commit/1a210a0b0a26ad3601932998a062af34ed4da148))
+* **niche-research:** persist slogan-chip click to backend ideas ([c89ccaf](https://github.com/MarioWinter/merch-miner/commit/c89ccafe126037e34e6501d7261c9ffd2a9679bf))
+* **PROJ-25:** admin TZ to Berlin + bsr_asc hides NULL + main BSR detection ([076c459](https://github.com/MarioWinter/merch-miner/commit/076c4593b26aca1d8ee2c0b036f7125ffeb74192))
+* **PROJ-25:** five smoke-test bugs blocking end-to-end pipeline ([bbec138](https://github.com/MarioWinter/merch-miner/commit/bbec1385f540944c2f8eb5ace4bd29dd6c948d15))
+* **PROJ-27:** better icon + simpler destination toggle UX ([df179e2](https://github.com/MarioWinter/merch-miner/commit/df179e25eaeacf66ba42cc14b1384047028e0c77))
+* **PROJ-27:** don't open drawer when bulk produces empty batch ([66c97d9](https://github.com/MarioWinter/merch-miner/commit/66c97d9b37ebe39be10b81b5408a88299688c674))
+* **PROJ-27:** QA pass — SSRF defense + visual + theme compliance ([ab92ee6](https://github.com/MarioWinter/merch-miner/commit/ab92ee6a6db7121c9136ece137c77bfa1e92656a))
+* **PROJ-27:** use COLORS constants for glassmorphism backdrops ([94ac9e8](https://github.com/MarioWinter/merch-miner/commit/94ac9e84ea86e37dcb9ec0983dfb401d03e5ed55))
+* **PROJ-28:** tighten empty-DB max_pages to ceil(limit/45) without min-2 floor ([b9d9dd2](https://github.com/MarioWinter/merch-miner/commit/b9d9dd2f9e25be522d1e3e22a9942bda08e9ea1e))
+* **scraper:** make orphan-target recovery terminal after one cycle ([322a3c2](https://github.com/MarioWinter/merch-miner/commit/322a3c2f07386dc2aa6430600091d5b2addf78fa))
+* use timezone.localdate() in dashboard analytics date clamp ([b5ee149](https://github.com/MarioWinter/merch-miner/commit/b5ee14945bdc423fcb228de3ce0edb6ec1d07fcc))
+
+
+### Reverts
+
+* **amazon-research:** keep skeleton grid, drop LinearProgress banner ([60b0864](https://github.com/MarioWinter/merch-miner/commit/60b0864c014607320c7c8d62a3dab563591b0f28))
+
+
+### Documentation
+
+* add release cadence rule to CLAUDE.md ([#41](https://github.com/MarioWinter/merch-miner/issues/41)) ([0adc5f5](https://github.com/MarioWinter/merch-miner/commit/0adc5f53f43b5e7c9c7985d935eb607a6bb1395f))
+* **PROJ-25:** add spec + tech design + tasks for bulk ASIN scrape ([fa58446](https://github.com/MarioWinter/merch-miner/commit/fa58446c7bd367c8d11581e68ed845363d7f2c68))
+* **PROJ-27:** add Replicate SDK + webhook reference to task file ([3aa56d8](https://github.com/MarioWinter/merch-miner/commit/3aa56d8258afb6130fbe72c16b1a18b5f9592ca7))
+* **PROJ-27:** Phase 11 — runbook, design-editor-tools, i18n, status bumps ([ba252f1](https://github.com/MarioWinter/merch-miner/commit/ba252f166b28fa4fc2e840a0e0087e1f00372431))
+* **PROJ-28:** sync spec + tasks with backend implementation ([3a8201d](https://github.com/MarioWinter/merch-miner/commit/3a8201d5b672f73c8820a96bd006b49d99d852c8))
+* **PROJ-28:** tech design + task breakdown ([8bdc137](https://github.com/MarioWinter/merch-miner/commit/8bdc1377d731528a97c4c5fe0e2d2b2f0f7e8402))
+
 ## [0.2.1](https://github.com/MarioWinter/merch-miner/compare/v0.2.0...v0.2.1) (2026-05-04)
 
 
