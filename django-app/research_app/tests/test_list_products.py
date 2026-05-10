@@ -115,7 +115,7 @@ class TestProductListBSRFilter:
 class TestProductListBrandFilter:
     def test_hide_official_brands_excludes_blacklisted_brand(self, auth_client):
         """hide_official_brands=true excludes blacklisted brand (case-insensitive)."""
-        BrandBlacklist.objects.get_or_create(brand_name='Nike')
+        BrandBlacklist.objects.get_or_create(brand_name='nike')
         make_product(asin='B0NIKE001', brand='Nike')
         make_product(asin='B0INDIE01', brand='IndieShop')
 
@@ -127,7 +127,7 @@ class TestProductListBrandFilter:
 
     def test_hide_official_brands_case_insensitive(self, auth_client):
         """Brand matching is case-insensitive (nike == Nike == NIKE)."""
-        BrandBlacklist.objects.get_or_create(brand_name='Nike')
+        BrandBlacklist.objects.get_or_create(brand_name='nike')
         make_product(asin='B0NIKELO', brand='nike')
         make_product(asin='B0NIKEUP', brand='NIKE')
         make_product(asin='B0GOOD01', brand='MyCoolBrand')
@@ -190,7 +190,7 @@ class TestProductListBrandFilter:
 
     def test_hide_official_brands_caches_blacklist(self, auth_client):
         """Second identical request hits the Redis cache instead of re-querying BrandBlacklist."""
-        BrandBlacklist.objects.get_or_create(brand_name='Nike')
+        BrandBlacklist.objects.get_or_create(brand_name='nike')
         make_product(asin='B0CACHE01', brand='Nike')
         make_product(asin='B0CACHE02', brand='IndieShop')
 
@@ -242,7 +242,7 @@ class TestProductListExcludeWords:
 class TestProductListCombinedFilters:
     def test_multiple_filters_combine_with_and(self, auth_client):
         """BSR range + hide_official_brands + exclude_words all AND together."""
-        BrandBlacklist.objects.get_or_create(brand_name='Nike')
+        BrandBlacklist.objects.get_or_create(brand_name='nike')
         make_product(asin='B0COMB001', bsr=500, brand='IndieShop', title='Cat Lover Shirt')
         make_product(asin='B0COMB002', bsr=500, brand='Nike', title='Cat Lover Shirt')
         make_product(asin='B0COMB003', bsr=500, brand='IndieShop', title='Christmas Cat')

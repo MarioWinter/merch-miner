@@ -176,7 +176,7 @@ class TestDbKeywordsTopNCapping:
 class TestDbKeywordsBrandBlacklist:
     def test_hide_official_brands_excludes_blacklisted_brand_from_sample(self, auth_client):
         """DbKeywordsView honors hide_official_brands via the shared _build_product_queryset."""
-        BrandBlacklist.objects.get_or_create(brand_name='Nike')
+        BrandBlacklist.objects.get_or_create(brand_name='nike')
         # Blacklisted brand: should be excluded from the keyword sample.
         make_product(
             asin='B0KWBL001',
