@@ -5,7 +5,7 @@ import { renderWithProviders } from '../../../../utils/test-utils';
 import AmazonResearchView from '../AmazonResearchView';
 import collectedItemsReducer from '../../../../store/collectedItemsSlice';
 import chatBarReducer from '../../../../store/chatBarSlice';
-import type { ProductListResponse } from '../types';
+import type { ProductListResponse, DbKeywordsResponse } from '../types';
 
 // ── RTK Query mock — researchSlice ─────────────────────────────────────────
 const mockTriggerLiveSearch = vi.fn().mockReturnValue({ unwrap: vi.fn() });
@@ -20,6 +20,16 @@ const emptyResponse: ProductListResponse = {
 // Lazy DB query — controlled per-test via mockLazyResponse
 let mockLazyResponse: ProductListResponse = emptyResponse;
 const mockLazyTrigger = vi.fn();
+
+// Phase 8 — DB-mode keywords mock, controlled per-test
+const emptyDbKeywords: DbKeywordsResponse = {
+  top_focus_keywords: [],
+  top_long_tail_keywords: [],
+  sample_size: 0,
+  cached: false,
+};
+let mockDbKeywordsData: DbKeywordsResponse | undefined = emptyDbKeywords;
+let mockDbKeywordsFetching = false;
 
 vi.mock('../../../../store/researchSlice', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../../../../store/researchSlice')>();
@@ -40,6 +50,10 @@ vi.mock('../../../../store/researchSlice', async (importOriginal) => {
     usePollSearchStatusQuery: () => ({ data: undefined, isLoading: false }),
     usePollSearchStatusExtendedQuery: () => ({ data: undefined, isLoading: false }),
     useGetBSRHistoryQuery: () => ({ data: [], isLoading: false }),
+    useGetDbKeywordsQuery: () => ({
+      data: mockDbKeywordsData,
+      isFetching: mockDbKeywordsFetching,
+    }),
     useCancelLiveSearchMutation: () => [
       vi.fn().mockReturnValue({ unwrap: vi.fn() }),
       { isLoading: false },
@@ -140,6 +154,8 @@ describe('AmazonResearchView', () => {
     vi.clearAllMocks();
     localStorage.clear();
     mockLazyResponse = emptyResponse;
+    mockDbKeywordsData = emptyDbKeywords;
+    mockDbKeywordsFetching = false;
   });
 
   it('renders without crash', () => {
@@ -292,5 +308,78 @@ describe('AmazonResearchView', () => {
         expect.objectContaining({ page: 1, page_size: 50, keyword: 'hiking' }),
       );
     });
+  });
+
+  // ── Phase 8 — DB-mode keywords ───────────────────────────────────────────
+  it('DB mode: Keywords tab renders chips from /research/products/keywords/', async () => {
+    mockDbKeywordsData = {
+      top_focus_keywords: [{ keyword: 'shirt', frequency: 12 }],
+      top_long_tail_keywords: [{ keyword: 'school bus', frequency: 8 }],
+      sample_size: 50,
+      cached: false,
+    };
+
+    renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
+
+    // Trigger a DB-mode search (default mode)
+    const searchInput = screen.getByPlaceholderText('Search keywords...');
+    await userEvent.type(searchInput, 'school');
+    const searchBtn = screen.getByRole('button', { name: 'Search' });
+    await userEvent.click(searchBtn);
+
+    // Switch to Keywords tab
+    const keywordsTab = screen.getByRole('button', { name: /keywords view/i });
+    await userEvent.click(keywordsTab);
+
+    // Both DB-mode keywords should render as chips
+    expect(await screen.findByText('shirt')).toBeInTheDocument();
+    expect(await screen.findByText('school bus')).toBeInTheDocument();
+  });
+
+  it('Search button: clicking twice with identical filters triggers a second fetch', async () => {
+    renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
+
+    const searchInput = screen.getByPlaceholderText('Search keywords...');
+    await userEvent.type(searchInput, 'hiking');
+    const searchBtn = screen.getByRole('button', { name: 'Search' });
+
+    // First Search click: one DB fetch.
+    await userEvent.click(searchBtn);
+    await vi.waitFor(() => {
+      expect(mockLazyTrigger).toHaveBeenCalledTimes(1);
+    });
+
+    // Second Search click with identical keyword + filters: must refetch.
+    await userEvent.click(searchBtn);
+    await vi.waitFor(() => {
+      expect(mockLazyTrigger).toHaveBeenCalledTimes(2);
+    });
+  });
+
+  it('DB mode: Keywords tab shows skeletons while query is fetching', async () => {
+    mockDbKeywordsData = undefined;
+    mockDbKeywordsFetching = true;
+
+    renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
+
+    // Trigger a DB-mode search to set hasSearched=true
+    const searchInput = screen.getByPlaceholderText('Search keywords...');
+    await userEvent.type(searchInput, 'loading');
+    const searchBtn = screen.getByRole('button', { name: 'Search' });
+    await userEvent.click(searchBtn);
+
+    // Switch to Keywords tab
+    const keywordsTab = screen.getByRole('button', { name: /keywords view/i });
+    await userEvent.click(keywordsTab);
+
+    // At least one Skeleton element is rendered (MUI assigns the
+    // .MuiSkeleton-root class to every Skeleton).
+    await vi.waitFor(() => {
+      const skeletons = document.querySelectorAll('.MuiSkeleton-root');
+      expect(skeletons.length).toBeGreaterThan(0);
+    });
+
+    // Empty-state copy must NOT appear while loading
+    expect(screen.queryByText('No keyword data available')).not.toBeInTheDocument();
   });
 });

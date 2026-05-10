@@ -1,9 +1,15 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { Box, Chip, IconButton } from '@mui/material';
-import { DataGrid, type GridColDef, type GridSortModel } from '@mui/x-data-grid';
+import { styled } from '@mui/material/styles';
+import {
+  DataGrid,
+  useGridApiContext,
+  type GridColDef,
+  type GridSortModel,
+} from '@mui/x-data-grid';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import StarIcon from '@mui/icons-material/Star';
-import { styled } from '@mui/material/styles';
+import ThumbnailHoverPreview from '../../../../components/ThumbnailHoverPreview';
 import { MONO_FONT_STACK } from '../../../../style/constants';
 import { MARKETPLACE_OPTIONS, type AmazonProduct } from '../types';
 
@@ -43,6 +49,60 @@ const SORT_MAP: Record<string, string> = {
   listed_date: 'newest',
 };
 
+/**
+ * Custom footer slot that hosts an IntersectionObserver-powered sentinel for
+ * infinite scroll. The sentinel is appended into the virtual scroller's
+ * content node so the IO can use the virtualScroller as its root and fire
+ * `onEndReached` whenever the user scrolls the last row into view.
+ *
+ * DataGrid v8 dropped the `onRowsScrollEnd` prop, so this is the supported
+ * replacement pattern (see `apiRef.current.virtualScrollerRef`).
+ */
+const InfiniteScrollFooter = ({ onEndReached }: { onEndReached?: () => void }) => {
+  const apiRef = useGridApiContext();
+  const lastFiredRef = useRef(0);
+
+  useEffect(() => {
+    if (!onEndReached) return;
+    // Resolve via rootElementRef + querySelector — virtualScrollerRef exists at
+    // runtime but is not on the Community GridApi type.
+    const root = apiRef.current?.rootElementRef?.current;
+    const scroller = root?.querySelector<HTMLElement>('.MuiDataGrid-virtualScroller');
+    const content = scroller?.querySelector<HTMLElement>(
+      '.MuiDataGrid-virtualScrollerContent',
+    );
+    if (!scroller || !content) return;
+
+    const sentinel = document.createElement('div');
+    sentinel.setAttribute('data-testid', 'product-table-sentinel');
+    sentinel.style.height = '1px';
+    sentinel.style.width = '100%';
+    content.appendChild(sentinel);
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry?.isIntersecting) return;
+        // Throttle so we don't fire onEndReached repeatedly while the
+        // sentinel sits in the viewport between data updates.
+        const now = Date.now();
+        if (now - lastFiredRef.current < 500) return;
+        lastFiredRef.current = now;
+        onEndReached();
+      },
+      { root: scroller, rootMargin: '200px 0px 200px 0px', threshold: 0 },
+    );
+    observer.observe(sentinel);
+
+    return () => {
+      observer.disconnect();
+      sentinel.remove();
+    };
+  }, [apiRef, onEndReached]);
+
+  return <Box sx={{ height: 0 }} aria-hidden />;
+};
+
 const ProductTable = ({
   products,
   count,
@@ -75,19 +135,33 @@ const ProductTable = ({
         headerName: '',
         width: 60,
         sortable: false,
+        resizable: true,
         renderCell: (params) => (
-          <ThumbnailImg
-            src={params.value || '/placeholder-product.png'}
-            alt=""
-          />
+          <ThumbnailHoverPreview src={params.value || ''}>
+            <ThumbnailImg src={params.value || '/placeholder-product.png'} alt="" />
+          </ThumbnailHoverPreview>
         ),
       },
-      { field: 'title', headerName: 'Title', flex: 1, minWidth: 200, sortable: false },
-      { field: 'brand', headerName: 'Brand', width: 120, sortable: false },
+      {
+        field: 'title',
+        headerName: 'Title',
+        flex: 1,
+        minWidth: 200,
+        sortable: false,
+        resizable: true,
+      },
+      {
+        field: 'brand',
+        headerName: 'Brand',
+        width: 120,
+        sortable: false,
+        resizable: true,
+      },
       {
         field: 'bsr',
         headerName: 'BSR',
         width: 110,
+        resizable: true,
         renderCell: (params) =>
           params.value != null ? (
             <Chip
@@ -103,6 +177,7 @@ const ProductTable = ({
         field: 'rating',
         headerName: 'Rating',
         width: 80,
+        resizable: true,
         renderCell: (params) =>
           params.value != null ? (
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
@@ -117,6 +192,7 @@ const ProductTable = ({
         field: 'reviews_count',
         headerName: 'Reviews',
         width: 90,
+        resizable: true,
         renderCell: (params) =>
           params.value != null ? params.value.toLocaleString() : '-',
       },
@@ -124,24 +200,31 @@ const ProductTable = ({
         field: 'price',
         headerName: 'Price',
         width: 80,
+        resizable: true,
         renderCell: (params) =>
           params.value != null ? `$${Number(params.value).toFixed(2)}` : '-',
       },
-      { field: 'product_type', headerName: 'Type', width: 100, sortable: false },
+      {
+        field: 'product_type',
+        headerName: 'Type',
+        width: 100,
+        sortable: false,
+        resizable: true,
+      },
       {
         field: 'listed_date',
         headerName: 'Listed',
         width: 100,
+        resizable: true,
         renderCell: (params) =>
-          params.value
-            ? new Date(params.value).toLocaleDateString()
-            : '-',
+          params.value ? new Date(params.value).toLocaleDateString() : '-',
       },
       {
         field: 'asin',
         headerName: 'ASIN',
         width: 120,
         sortable: false,
+        resizable: true,
         renderCell: (params) => (
           <Box sx={{ fontFamily: MONO_FONT_STACK, fontSize: '0.75rem' }}>
             {params.value}
@@ -153,6 +236,7 @@ const ProductTable = ({
         headerName: '',
         width: 50,
         sortable: false,
+        resizable: false,
         renderCell: (params) => (
           <IconButton
             size="small"
@@ -171,6 +255,14 @@ const ProductTable = ({
     [],
   );
 
+  // Memoize the footer slot so the IO effect doesn't tear down on every parent
+  // re-render. We re-bind only when the consumer's onEndReached identity
+  // changes (the parent stabilizes it via useCallback).
+  const FooterSlot = useCallback(
+    () => <InfiniteScrollFooter onEndReached={onEndReached} />,
+    [onEndReached],
+  );
+
   return (
     <DataGrid
       rows={products}
@@ -178,20 +270,16 @@ const ProductTable = ({
       getRowId={(row) => row.asin}
       rowCount={count}
       sortingMode="server"
+      paginationMode="server"
       onSortModelChange={handleSortModelChange}
       onRowClick={handleRowClick}
-      // DataGrid v8 dropped `onRowsScrollEnd`. The community/free tier no
-      // longer has a built-in infinite-scroll prop; we keep the handler wired
-      // via prop-spread for parity, and the upgrade to a virtualScroller-based
-      // approach is tracked as separate tech debt.
-      {...({ onRowsScrollEnd: onEndReached } as object)}
       loading={loading}
       rowHeight={52}
       density="compact"
       disableColumnFilter
       disableRowSelectionOnClick
-      hideFooter
-      pagination={undefined}
+      hideFooterPagination
+      slots={{ footer: FooterSlot }}
       sx={{ border: 0, height: '70vh', minHeight: 480 }}
       aria-label="Product research results"
     />

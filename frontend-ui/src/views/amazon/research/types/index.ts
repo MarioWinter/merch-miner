@@ -172,6 +172,16 @@ export interface SearchCacheStatusExtended extends SearchCacheStatus {
   keyword_result?: SearchKeywordResult | null;
 }
 
+/**
+ * Phase 8 — DB-mode keywords response from
+ * GET /api/research/products/keywords/. Shares the same keyword item shape as
+ * `SearchKeywordResult`; `sample_size` and `cached` are observability fields.
+ */
+export interface DbKeywordsResponse extends SearchKeywordResult {
+  sample_size: number;
+  cached: boolean;
+}
+
 export interface MarketplaceOption {
   value: string;
   label: string;

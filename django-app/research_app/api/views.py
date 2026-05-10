@@ -1,4 +1,5 @@
 import csv
+import hashlib
 import json
 import logging
 import re
@@ -19,6 +20,7 @@ import django_rq
 
 from scraper_app.models import (
     AmazonProduct,
+    BrandBlacklist,
     BSRSnapshot,
     Keyword,
     MarketplaceChoices,
@@ -27,6 +29,7 @@ from scraper_app.models import (
     SearchKeywordResult,
     ScrapeJob,
 )
+from scraper_app.scrapy_app.keyword_extractor import extract_keywords
 from scraper_app.tasks import (
     LIVE_SEARCH_MAX_PAGES,
     cancel_scrape_job,
@@ -63,32 +66,38 @@ MARKETPLACE_MIDS = {
 
 SUGGESTIONS_CACHE_TTL = 60  # seconds
 
-
-def _load_official_brands():
-    """Load official brands from fixture (cached in module)."""
-    import os
-    fixture_path = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)),
-        'fixtures',
-        'official_brands.json',
-    )
-    try:
-        with open(fixture_path, 'r') as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        logger.warning("Could not load official_brands.json")
-        return []
+# DB-mode keyword aggregation
+DB_KEYWORDS_SAMPLE_N = 200
+DB_KEYWORDS_CACHE_TTL = 600  # 10 minutes
 
 
-# Load once at module level
-_OFFICIAL_BRANDS = None
+def _db_keywords_cache_key(validated_data):
+    """Build a stable cache key from validated ProductFilterSerializer data.
+
+    Same filter set in different param ordering must produce the same hash.
+    """
+    canonical = json.dumps(validated_data, sort_keys=True, default=str)
+    digest = hashlib.sha256(canonical.encode()).hexdigest()
+    return f"research:keywords:{digest}"
+
+
+OFFICIAL_BRANDS_CACHE_KEY = 'research:official_brands'
+OFFICIAL_BRANDS_CACHE_TTL = 300  # 5 minutes
+SHORT_BRAND_THRESHOLD = 3  # Mirrors scraper_app.brand_filter.SHORT_BRAND_THRESHOLD
 
 
 def _get_official_brands():
-    global _OFFICIAL_BRANDS
-    if _OFFICIAL_BRANDS is None:
-        _OFFICIAL_BRANDS = _load_official_brands()
-    return _OFFICIAL_BRANDS
+    """Return list of blacklisted brand names (lowercased on save by the model).
+
+    Cached in Redis for 5 minutes so admin edits to BrandBlacklist propagate
+    within that window without per-request DB hits.
+    """
+    cached = redis_cache.get(OFFICIAL_BRANDS_CACHE_KEY)
+    if cached is not None:
+        return cached
+    brands = list(BrandBlacklist.objects.values_list('brand_name', flat=True))
+    redis_cache.set(OFFICIAL_BRANDS_CACHE_KEY, brands, OFFICIAL_BRANDS_CACHE_TTL)
+    return brands
 
 
 def _get_active_membership(user):
@@ -206,10 +215,19 @@ def _build_product_queryset(filters):
     if hide_official_brands:
         brands = _get_official_brands()
         if brands:
-            # Build case-insensitive regex alternation
-            escaped = [b.replace('(', r'\(').replace(')', r'\)').replace('.', r'\.') for b in brands]
-            pattern = '|'.join(escaped)
-            qs = qs.exclude(brand__iregex=f'^({pattern})$')
+            # Mirror scraper_app.brand_filter semantics:
+            #   - brands > SHORT_BRAND_THRESHOLD chars  → substring match
+            #   - brands <= SHORT_BRAND_THRESHOLD chars → exact match only
+            # `re.escape` is mandatory: brand_name is admin-editable, so any
+            # regex metacharacter typed in the admin must be treated as literal.
+            long_brands = [b for b in brands if len(b) > SHORT_BRAND_THRESHOLD]
+            short_brands = [b for b in brands if len(b) <= SHORT_BRAND_THRESHOLD]
+            if long_brands:
+                long_pattern = '|'.join(re.escape(b) for b in long_brands)
+                qs = qs.exclude(brand__iregex=long_pattern)
+            if short_brands:
+                short_pattern = '|'.join(re.escape(b) for b in short_brands)
+                qs = qs.exclude(brand__iregex=f'^(?:{short_pattern})$')
 
     exclude_words = filters.get('exclude_words', '').strip()
     if exclude_words:
@@ -565,6 +583,52 @@ class ProductListView(APIView):
             'next': next_url,
             'previous': previous_url,
         })
+
+
+class DbKeywordsView(APIView):
+    """GET /api/research/products/keywords/ — aggregate keywords for DB-mode filters.
+
+    Runs the existing keyword extractor on the top-N (by BSR asc) products
+    matching the same filter set used by ProductListView. Cached in Redis
+    for 10 minutes, keyed by a SHA256 of the canonicalized validated_data.
+    No workspace scoping — AmazonProduct is a shared global catalog.
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = ProductFilterSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        filters = serializer.validated_data
+
+        cache_key = _db_keywords_cache_key(filters)
+        cached_payload = redis_cache.get(cache_key)
+        if cached_payload is not None:
+            # Don't mutate the cached dict — copy first so concurrent
+            # readers don't see a flipped `cached` flag.
+            payload = dict(cached_payload)
+            payload['cached'] = True
+            return Response(payload)
+
+        qs = _build_product_queryset(filters)
+        # Top-N by BSR ascending, mirroring ProductListView's default ordering.
+        # `.values(...)` projection materializes only what the extractor needs.
+        products = list(
+            qs.order_by(F('bsr').asc(nulls_last=True), 'id')
+            .values('title', 'brand', 'bullet_1', 'bullet_2', 'description')
+            [:DB_KEYWORDS_SAMPLE_N]
+        )
+
+        extracted = extract_keywords(products)
+        payload = {
+            'top_focus_keywords': extracted['global_top_focus'],
+            'top_long_tail_keywords': extracted['global_top_long_tail'],
+            'sample_size': len(products),
+            'cached': False,
+        }
+        redis_cache.set(cache_key, payload, DB_KEYWORDS_CACHE_TTL)
+        return Response(payload)
 
 
 class ProductExportView(APIView):

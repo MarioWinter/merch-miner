@@ -21,6 +21,7 @@ import {
   useTriggerLiveSearchMutation,
   usePollSearchStatusExtendedQuery,
   useCancelLiveSearchMutation,
+  useGetDbKeywordsQuery,
 } from '../../../store/researchSlice';
 import { useExtractSloganMutation } from '../../../store/ideaSlice';
 import { useCreateNicheMutation, useGetNicheQuery } from '../../../store/nicheSlice';
@@ -69,10 +70,12 @@ const AmazonResearchView = () => {
 
   const [keyword, setKeyword] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(true);
   const [layout, setLayout] = useState<'grid' | 'list'>('grid');
   const [cacheId, setCacheId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ResultsTab>('products');
+  // Bumps on every Search click so identical filters still force a DB refetch.
+  const [searchTick, setSearchTick] = useState(0);
 
   // "Save as Niche" dialog state
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -171,9 +174,10 @@ const AmazonResearchView = () => {
   const shouldQueryDb = hasSearched;
 
   // Stable signature: any change here resets the infinite scroll + triggers page-1 fetch.
+  // `searchTick` is folded in so manual Search re-clicks force a refetch even when params are identical.
   const dbResetKey = useMemo(
-    () => JSON.stringify(buildQueryParams()),
-    [buildQueryParams],
+    () => JSON.stringify({ params: buildQueryParams(), tick: searchTick }),
+    [buildQueryParams, searchTick],
   );
 
   const {
@@ -202,8 +206,17 @@ const AmazonResearchView = () => {
     skip: !cacheId || isPolling,
   });
 
-  const keywordResults: SearchKeywordResult | undefined =
-    extendedStatus?.keyword_result ?? undefined;
+  // DB-mode keyword source — companion to the live extendedStatus path above.
+  const { data: dbKeywordsData, isFetching: isDbKeywordsFetching } =
+    useGetDbKeywordsQuery(buildQueryParams(), {
+      skip: isLive || !hasSearched,
+    });
+
+  const keywordResults: SearchKeywordResult | undefined = isLive
+    ? extendedStatus?.keyword_result ?? undefined
+    : dbKeywordsData;
+
+  const keywordsLoading = isLive ? isPolling : isDbKeywordsFetching;
 
   // While the live scrape is running, periodically pull page-1 of the DB list
   // in additive mode so freshly-stored products surface in real time without
@@ -231,6 +244,7 @@ const AmazonResearchView = () => {
     async (kw: string) => {
       setKeyword(kw);
       setHasSearched(true);
+      setSearchTick((t) => t + 1);
       addSearch(kw, filters.marketplace);
 
       if (isLive) {
@@ -621,6 +635,7 @@ const AmazonResearchView = () => {
           keywordResults={keywordResults}
           hasSearched={hasSearched}
           onKeywordClick={handleKeywordClick}
+          loading={keywordsLoading}
         />
       )}
 

@@ -1,15 +1,25 @@
 from datetime import date
+from unittest.mock import patch
 
 import pytest
+from django.core.cache import cache as redis_cache
 from django.urls import reverse
 
-from scraper_app.models import AmazonProduct
+from scraper_app.models import AmazonProduct, BrandBlacklist
 
 from research_app.tests.conftest import make_product
 
 pytestmark = pytest.mark.django_db
 
 URL = reverse('research-products')
+
+
+@pytest.fixture(autouse=True)
+def clear_official_brands_cache():
+    """Ensure the 5-min Redis cache of BrandBlacklist does not leak between tests."""
+    redis_cache.delete('research:official_brands')
+    yield
+    redis_cache.delete('research:official_brands')
 
 
 class TestProductListAuth:
@@ -103,8 +113,9 @@ class TestProductListBSRFilter:
 
 
 class TestProductListBrandFilter:
-    def test_hide_official_brands_excludes_nike(self, auth_client):
-        """hide_official_brands=true excludes brands from fixture (case-insensitive)."""
+    def test_hide_official_brands_excludes_blacklisted_brand(self, auth_client):
+        """hide_official_brands=true excludes blacklisted brand (case-insensitive)."""
+        BrandBlacklist.objects.get_or_create(brand_name='nike')
         make_product(asin='B0NIKE001', brand='Nike')
         make_product(asin='B0INDIE01', brand='IndieShop')
 
@@ -116,6 +127,7 @@ class TestProductListBrandFilter:
 
     def test_hide_official_brands_case_insensitive(self, auth_client):
         """Brand matching is case-insensitive (nike == Nike == NIKE)."""
+        BrandBlacklist.objects.get_or_create(brand_name='nike')
         make_product(asin='B0NIKELO', brand='nike')
         make_product(asin='B0NIKEUP', brand='NIKE')
         make_product(asin='B0GOOD01', brand='MyCoolBrand')
@@ -125,6 +137,92 @@ class TestProductListBrandFilter:
         assert 'B0GOOD01' in asins
         assert 'B0NIKELO' not in asins
         assert 'B0NIKEUP' not in asins
+
+    def test_hide_official_brands_substring_match_for_long_brand(self, auth_client):
+        """Long brand (>3 chars) in blacklist matches as substring (e.g. 'nike' in 'Nike Shoes')."""
+        BrandBlacklist.objects.get_or_create(brand_name='nike')
+        make_product(asin='B0NIKESH', brand='Nike Shoes')
+        make_product(asin='B0NIKEST', brand='My Nike Store')
+        make_product(asin='B0SAFE01', brand='IndieShop')
+
+        resp = auth_client.get(URL, {'hide_official_brands': 'true'})
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert 'B0SAFE01' in asins
+        assert 'B0NIKESH' not in asins
+        assert 'B0NIKEST' not in asins
+
+    def test_hide_official_brands_exact_match_for_short_brand(self, auth_client):
+        """Short brand (<=3 chars) uses exact match only — must NOT match as substring."""
+        BrandBlacklist.objects.get_or_create(brand_name='rh')
+        make_product(asin='B0RH_EXAC', brand='rh')
+        make_product(asin='B0RH_CASE', brand='RH')
+        make_product(asin='B0RH_SUBS', brand='birch')  # contains 'rh' but must not match
+
+        resp = auth_client.get(URL, {'hide_official_brands': 'true'})
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert 'B0RH_SUBS' in asins
+        assert 'B0RH_EXAC' not in asins
+        assert 'B0RH_CASE' not in asins
+
+    def test_hide_official_brands_regex_injection_safe(self, auth_client):
+        """Brand names with regex metacharacters are escaped and treated as literals.
+
+        'foo*bar' must match the literal string 'foo*bar' as a substring, NOT
+        the regex pattern 'foo*bar' (which would match 'fobar', 'foobar', etc.).
+        """
+        BrandBlacklist.objects.get_or_create(brand_name='foo*bar')
+        make_product(asin='B0LITER01', brand='foo*bar')          # literal match → excluded
+        make_product(asin='B0LITER02', brand='prefix foo*bar x')  # literal substring → excluded
+        make_product(asin='B0REGEX01', brand='foobar')            # would match unescaped regex
+        make_product(asin='B0REGEX02', brand='fobar')             # would match unescaped regex
+        make_product(asin='B0SAFE01', brand='IndieShop')
+
+        resp = auth_client.get(URL, {'hide_official_brands': 'true'})
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert 'B0LITER01' not in asins
+        assert 'B0LITER02' not in asins
+        assert 'B0REGEX01' in asins
+        assert 'B0REGEX02' in asins
+        assert 'B0SAFE01' in asins
+
+    def test_hide_official_brands_caches_blacklist(self, auth_client):
+        """Second identical request hits the Redis cache instead of re-querying BrandBlacklist."""
+        BrandBlacklist.objects.get_or_create(brand_name='nike')
+        make_product(asin='B0CACHE01', brand='Nike')
+        make_product(asin='B0CACHE02', brand='IndieShop')
+
+        # First call populates the cache.
+        resp1 = auth_client.get(URL, {'hide_official_brands': 'true'})
+        assert resp1.status_code == 200
+        assert 'B0CACHE01' not in [p['asin'] for p in resp1.data['results']]
+
+        # Second call: BrandBlacklist queryset must not be evaluated.
+        with patch(
+            'research_app.api.views.BrandBlacklist.objects.values_list',
+        ) as mock_values_list:
+            resp2 = auth_client.get(URL, {'hide_official_brands': 'true'})
+            assert resp2.status_code == 200
+            assert 'B0CACHE01' not in [p['asin'] for p in resp2.data['results']]
+            mock_values_list.assert_not_called()
+
+    def test_hide_official_brands_empty_blacklist_returns_all(self, auth_client):
+        """Empty BrandBlacklist + hide_official_brands=true yields same result as =false."""
+        BrandBlacklist.objects.all().delete()
+        make_product(asin='B0EMPT001', brand='Nike')
+        make_product(asin='B0EMPT002', brand='IndieShop')
+
+        resp_hidden = auth_client.get(URL, {'hide_official_brands': 'true'})
+        resp_shown = auth_client.get(URL, {'hide_official_brands': 'false'})
+        assert resp_hidden.status_code == 200
+        assert resp_shown.status_code == 200
+        asins_hidden = sorted(p['asin'] for p in resp_hidden.data['results'])
+        asins_shown = sorted(p['asin'] for p in resp_shown.data['results'])
+        assert asins_hidden == asins_shown
+        assert 'B0EMPT001' in asins_hidden
+        assert 'B0EMPT002' in asins_hidden
 
 
 class TestProductListExcludeWords:
@@ -144,6 +242,7 @@ class TestProductListExcludeWords:
 class TestProductListCombinedFilters:
     def test_multiple_filters_combine_with_and(self, auth_client):
         """BSR range + hide_official_brands + exclude_words all AND together."""
+        BrandBlacklist.objects.get_or_create(brand_name='nike')
         make_product(asin='B0COMB001', bsr=500, brand='IndieShop', title='Cat Lover Shirt')
         make_product(asin='B0COMB002', bsr=500, brand='Nike', title='Cat Lover Shirt')
         make_product(asin='B0COMB003', bsr=500, brand='IndieShop', title='Christmas Cat')

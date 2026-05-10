@@ -20,7 +20,6 @@ vi.mock('../../../../store/researchSlice', async (importOriginal) => {
   };
 });
 
-
 const buildProduct = (overrides?: Partial<AmazonProduct>): AmazonProduct => ({
   id: 'prod-test-123',
   asin: 'B09TEST123',
@@ -46,11 +45,15 @@ const buildProduct = (overrides?: Partial<AmazonProduct>): AmazonProduct => ({
 const baseProps = {
   products: [] as AmazonProduct[],
   count: 0,
-  page: 0,
-  pageSize: 50,
-  onPageChange: vi.fn(),
   onSortChange: vi.fn(),
   loading: false,
+};
+
+const findRow = (cellText: string): HTMLElement => {
+  const cell = screen.getByText(cellText);
+  const row = cell.closest('.MuiDataGrid-row');
+  if (!row) throw new Error(`No DataGrid row ancestor for "${cellText}"`);
+  return row as HTMLElement;
 };
 
 describe('ProductTable', () => {
@@ -59,7 +62,10 @@ describe('ProductTable', () => {
   });
 
   it('renders table headers correctly', () => {
-    renderWithProviders(<ProductTable {...baseProps} />);
+    const products = [buildProduct()];
+    renderWithProviders(
+      <ProductTable {...baseProps} products={products} count={products.length} />,
+    );
 
     const grid = screen.getByRole('grid', { name: 'Product research results' });
     expect(grid).toBeInTheDocument();
@@ -89,18 +95,15 @@ describe('ProductTable', () => {
     ];
 
     renderWithProviders(
-      <ProductTable {...baseProps} products={products} count={2} />,
+      <ProductTable {...baseProps} products={products} count={products.length} />,
     );
 
-    // Verify both product titles
     expect(screen.getByText('Cool Shirt')).toBeInTheDocument();
     expect(screen.getByText('Funny Hat')).toBeInTheDocument();
 
-    // Verify brands
     expect(screen.getByText('CoolBrand')).toBeInTheDocument();
     expect(screen.getByText('HatBrand')).toBeInTheDocument();
 
-    // Verify ASINs
     expect(screen.getByText('B09AAA111')).toBeInTheDocument();
     expect(screen.getByText('B09BBB222')).toBeInTheDocument();
   });
@@ -108,7 +111,7 @@ describe('ProductTable', () => {
   it('renders price formatted as currency', () => {
     const products = [buildProduct({ asin: 'B09PRICE', price: 19.99 })];
     renderWithProviders(
-      <ProductTable {...baseProps} products={products} count={1} />,
+      <ProductTable {...baseProps} products={products} count={products.length} />,
     );
 
     expect(screen.getByText('$19.99')).toBeInTheDocument();
@@ -117,10 +120,9 @@ describe('ProductTable', () => {
   it('renders BSR as a chip with locale-formatted number', () => {
     const products = [buildProduct({ asin: 'B09BSR', bsr: 5000 })];
     renderWithProviders(
-      <ProductTable {...baseProps} products={products} count={1} />,
+      <ProductTable {...baseProps} products={products} count={products.length} />,
     );
 
-    // BSR 5000 => "5,000" in locale format inside a Chip
     const chip = screen.getByText('5,000');
     expect(chip.closest('.MuiChip-root')).toBeInTheDocument();
   });
@@ -128,81 +130,72 @@ describe('ProductTable', () => {
   it('renders dash when bsr is null', () => {
     const products = [buildProduct({ asin: 'B09NULLBSR', bsr: null })];
     renderWithProviders(
-      <ProductTable {...baseProps} products={products} count={1} />,
+      <ProductTable {...baseProps} products={products} count={products.length} />,
     );
 
-    // The cell should show "-" for null BSR
-    const row = screen.getByText('B09NULLBSR').closest('.MuiDataGrid-row');
-    expect(row).toBeInTheDocument();
-    expect(within(row! as HTMLElement).getByText('-')).toBeInTheDocument();
+    const row = findRow('B09NULLBSR');
+    expect(within(row).getByText('-')).toBeInTheDocument();
   });
 
   it('renders dash when rating is null', () => {
     const products = [buildProduct({ asin: 'B09NULLRAT', rating: null })];
     renderWithProviders(
-      <ProductTable {...baseProps} products={products} count={1} />,
+      <ProductTable {...baseProps} products={products} count={products.length} />,
     );
 
-    const row = screen.getByText('B09NULLRAT').closest('.MuiDataGrid-row');
-    expect(row).toBeInTheDocument();
-    // "-" appears for null rating
-    const dashes = within(row! as HTMLElement).getAllByText('-');
+    const row = findRow('B09NULLRAT');
+    const dashes = within(row).getAllByText('-');
     expect(dashes.length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders dash when price is null', () => {
     const products = [buildProduct({ asin: 'B09NULLPRC', price: null })];
     renderWithProviders(
-      <ProductTable {...baseProps} products={products} count={1} />,
+      <ProductTable {...baseProps} products={products} count={products.length} />,
     );
 
-    const row = screen.getByText('B09NULLPRC').closest('.MuiDataGrid-row');
-    expect(row).toBeInTheDocument();
-    const dashes = within(row! as HTMLElement).getAllByText('-');
+    const row = findRow('B09NULLPRC');
+    const dashes = within(row).getAllByText('-');
     expect(dashes.length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders dash when reviews_count is null', () => {
     const products = [buildProduct({ asin: 'B09NULLREV', reviews_count: null })];
     renderWithProviders(
-      <ProductTable {...baseProps} products={products} count={1} />,
+      <ProductTable {...baseProps} products={products} count={products.length} />,
     );
 
-    const row = screen.getByText('B09NULLREV').closest('.MuiDataGrid-row');
-    expect(row).toBeInTheDocument();
-    const dashes = within(row! as HTMLElement).getAllByText('-');
+    const row = findRow('B09NULLREV');
+    const dashes = within(row).getAllByText('-');
     expect(dashes.length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders listed_date formatted as locale date string', () => {
     const products = [buildProduct({ asin: 'B09DATE', listed_date: '2025-06-15' })];
     renderWithProviders(
-      <ProductTable {...baseProps} products={products} count={1} />,
+      <ProductTable {...baseProps} products={products} count={products.length} />,
     );
 
-    // toLocaleDateString output varies by locale; just check a date-like pattern exists
-    const row = screen.getByText('B09DATE').closest('.MuiDataGrid-row');
-    expect(row).toBeInTheDocument();
+    const row = findRow('B09DATE');
     // At minimum, should not show "-" for a valid date
-    expect(within(row! as HTMLElement).queryByText('-')).not.toBeInTheDocument();
+    expect(within(row).queryByText('-')).not.toBeInTheDocument();
   });
 
   it('renders dash when listed_date is null', () => {
     const products = [buildProduct({ asin: 'B09NULLDATE', listed_date: null })];
     renderWithProviders(
-      <ProductTable {...baseProps} products={products} count={1} />,
+      <ProductTable {...baseProps} products={products} count={products.length} />,
     );
 
-    const row = screen.getByText('B09NULLDATE').closest('.MuiDataGrid-row');
-    expect(row).toBeInTheDocument();
-    const dashes = within(row! as HTMLElement).getAllByText('-');
+    const row = findRow('B09NULLDATE');
+    const dashes = within(row).getAllByText('-');
     expect(dashes.length).toBeGreaterThanOrEqual(1);
   });
 
   it('Amazon link has correct href for amazon_com marketplace', () => {
     const products = [buildProduct({ asin: 'B09LINK', marketplace: 'amazon_com' })];
     renderWithProviders(
-      <ProductTable {...baseProps} products={products} count={1} />,
+      <ProductTable {...baseProps} products={products} count={products.length} />,
     );
 
     const link = screen.getByLabelText('Open on Amazon');
@@ -213,15 +206,18 @@ describe('ProductTable', () => {
   it('Amazon link uses correct domain for amazon_de marketplace', () => {
     const products = [buildProduct({ asin: 'B09LINKDE', marketplace: 'amazon_de' })];
     renderWithProviders(
-      <ProductTable {...baseProps} products={products} count={1} />,
+      <ProductTable {...baseProps} products={products} count={products.length} />,
     );
 
     const link = screen.getByLabelText('Open on Amazon');
     expect(link).toHaveAttribute('href', 'https://www.amazon.de/dp/B09LINKDE');
   });
 
-  it('has aria-label on the DataGrid', () => {
-    renderWithProviders(<ProductTable {...baseProps} />);
+  it('has aria-label on the table', () => {
+    const products = [buildProduct()];
+    renderWithProviders(
+      <ProductTable {...baseProps} products={products} count={products.length} />,
+    );
 
     expect(
       screen.getByRole('grid', { name: 'Product research results' }),

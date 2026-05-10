@@ -12,12 +12,20 @@ import type {
   PriceSnapshot,
   UseAsTemplateResponse,
   SearchCacheStatusExtended,
+  DbKeywordsResponse,
 } from '../views/amazon/research/types';
 
 export const researchApi = createApi({
   reducerPath: 'researchApi',
   baseQuery: axiosBaseQuery({ baseUrl: '' }),
-  tagTypes: ['ResearchProducts', 'ResearchStatus', 'BSRHistory', 'ProductDetail', 'PriceHistory'],
+  tagTypes: [
+    'ResearchProducts',
+    'ResearchStatus',
+    'BSRHistory',
+    'ProductDetail',
+    'PriceHistory',
+    'ResearchKeywords',
+  ],
   endpoints: (builder) => ({
     getSuggestions: builder.query<string[], { q: string; marketplace: string }>({
       query: ({ q, marketplace }) => ({
@@ -52,6 +60,15 @@ export const researchApi = createApi({
         params,
       }),
       providesTags: ['ResearchProducts'],
+    }),
+
+    getDbKeywords: builder.query<DbKeywordsResponse, Record<string, unknown>>({
+      query: (params) => ({
+        url: '/api/research/products/keywords/',
+        method: 'GET',
+        params,
+      }),
+      providesTags: [{ type: 'ResearchKeywords', id: 'CURRENT' }],
     }),
 
     getBSRHistory: builder.query<
@@ -172,6 +189,7 @@ export const {
   usePollSearchStatusQuery,
   useListProductsQuery,
   useLazyListProductsQuery,
+  useGetDbKeywordsQuery,
   useGetBSRHistoryQuery,
   useGetBSRHistoryFullQuery,
   useGetProductDetailQuery,

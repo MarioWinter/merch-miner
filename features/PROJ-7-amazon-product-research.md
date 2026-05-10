@@ -1142,3 +1142,137 @@ Existing `getBSRHistory` updated to pass `days=90` param.
 | CI/CD workflows | ci.yml, deploy.yml, docker-publish.yml, security.yml -- all compatible |
 | Migrations | No new migrations needed (uses scraper_app models) |
 | TypeScript | Clean (0 errors) |
+
+---
+
+## Tech Design Amendment: Phase 8 — DB-Mode Keywords (2026-05-10)
+
+### Problem (PM-readable)
+
+The Keywords tab on the Amazon Research page is empty whenever the user does a DB-mode search (the default). Today the keyword aggregator only runs during a Live scrape and is persisted to a row linked to that scrape's cache. DB searches never trigger a scrape, so the Keywords tab has nothing to read.
+
+The aggregator engine itself already exists and is correct. We just need a second way to invoke it on the products the user is currently filtering.
+
+### Solution at a glance
+
+Add one read-only API endpoint that runs the existing keyword aggregator on the top products matching the user's DB filters, with a short Redis cache so repeated queries are free. The frontend picks between the existing Live source and the new DB source depending on the active research mode. The chip rendering stays identical.
+
+### A) Endpoint Contract
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/research/products/keywords/` | GET | Returns top focus + long-tail keywords aggregated from products matching the DB filter set |
+
+| Query Parameter Group | Notes |
+|------------------------|-------|
+| Same as `GET /api/research/products/` | Validated by the existing `ProductFilterSerializer`. Keyword-less (filter-only) mode is supported, matching AC-64/AC-66. `page` and `page_size` are ignored — the endpoint returns flat aggregated lists, not paginated rows. |
+
+| Response Field | Type | Notes |
+|----------------|------|-------|
+| top_focus_keywords | list of `{keyword, frequency}` | Up to 50 entries, frequency > 2 |
+| top_long_tail_keywords | list of `{keyword, frequency}` | Up to 50 entries, frequency > 2 |
+| sample_size | integer | Number of products fed into the extractor |
+| cached | boolean | True when served from Redis (observability) |
+
+### B) Sampling Strategy
+
+| Parameter | Recommended | Rationale |
+|-----------|-------------|-----------|
+| N (sample size) | 200 | Compute cap with minimal signal loss. Aligns with the extractor's noise filters (frequency > 2 and an 80% document-frequency cutoff). Below ~50 the noise filter trips and lists turn empty; above ~500 compute time grows linearly without adding signal. |
+| Sort order for the sample | BSR ascending (best-sellers first) | Same default as `ProductListView`. BSR-best products carry the strongest signal for what a niche actually sells. |
+| Behavior when total < N | Use all matching products | The extractor already adapts its noise filter when n is small. |
+
+### C) Caching
+
+| Aspect | Decision |
+|--------|----------|
+| Backend | Django cache framework over Redis (already configured) |
+| TTL | 10 minutes |
+| Key | `research:keywords:` + SHA256 of the canonicalized validated_data (keys sorted) |
+| Invalidation | TTL-only |
+
+| TTL trade-off | What you give up |
+|---|---|
+| 5 min | Fresher numbers, more cache misses, more compute |
+| **10 min (chosen)** | Balanced — a user re-toggling filters within 10 min stays on the cache |
+| 15 min | Cheaper but feels stale right after a Live scrape adds new rows |
+
+### D) Frontend Wiring
+
+| Surface | Today (Live-only) | After fix |
+|---------|--------------------|-----------|
+| Keywords source — DB mode | Always empty (no cacheId) | Calls new `getDbKeywords` RTK Query |
+| Keywords source — Live mode | `usePollSearchStatusExtendedQuery(cacheId)` | Unchanged |
+| Loading surface | None | Skeleton chips inside `StatisticsView` |
+| Empty state | "No keyword data available" | Unchanged — already correct for empty result |
+
+The `AmazonResearchView` picks the source by `isLive`. Both feed the same `StatisticsView`, so chip rendering, click-to-search behavior, and translations all stay identical.
+
+### E) Edge Cases
+
+| Case | Behavior |
+|------|----------|
+| Filter matches 0 products | Return empty lists + `sample_size: 0` (HTTP 200). Empty-state UI renders. |
+| Filter matches < 5 products | Extractor adapts its noise filter automatically (existing behavior in `keyword_extractor.py`). |
+| Filter matches > 200 products | Cap to top 200 by BSR. |
+| Invalid query parameters | DRF `ValidationError` (mirrors `ProductListView`). |
+| Unauthenticated user | 401 (`IsAuthenticated`). |
+| Concurrent identical requests | First fills the cache; subsequent reads hit Redis. No request coalescing in v1. |
+| New scrape adds products during TTL | Stale up to 10 min — acceptable; user can switch to Live for fresh data. |
+
+### F) Why NOT persist DB-mode results to `SearchKeywordResult`?
+
+That table is 1:1 with `ProductSearchCache` (a Live-scrape artifact). DB-mode keyword sets are query-driven — every filter combination would create a new row, exploding storage with little reuse value. Redis is the right shape: hash-keyed, ephemeral, TTL-bounded.
+
+### G) Authentication & Workspace Scope
+
+| Concern | Decision |
+|---------|----------|
+| Auth | `CookieJWTAuthentication` + `IsAuthenticated` (same as `ProductListView`) |
+| Workspace isolation | None — `AmazonProduct` is a shared global catalog, identical to `ProductListView` |
+| Throttling | DRF defaults (anon=100/h, user=5000/day) — no special rate limit |
+
+### H) Tech Decisions
+
+| Decision | Why |
+|----------|-----|
+| New endpoint over frontend computation | The keyword aggregator does TF-IDF-like noun filtering with n-gram doc-frequency. Reimplementing in TypeScript would diverge from the Python source. |
+| Reuse `ProductFilterSerializer` | Single source of truth for filter validation. No drift between list and keywords endpoints. |
+| Top-200 sample by BSR | Best signal-per-compute trade-off. Matches the list view's default ordering. |
+| Redis cache (10 min) | Cheap, ephemeral, no schema growth. Same pattern as existing app caches. |
+| Reuse `StatisticsView` rendering | Empty state, chip layout, click-to-search, and i18n already work — only the source changes. |
+| Add `cached`/`sample_size` to response | Easy observability; helps debugging without a dashboard. |
+
+### I) New Packages
+
+None. Uses `django.core.cache` (Redis already configured) and existing RTK Query setup.
+
+### J) File Structure (changes only)
+
+```
+django-app/research_app/
+├── api/
+│   ├── views.py          (+1 view: DbKeywordsView)
+│   └── urls.py           (+1 URL pattern)
+└── tests/
+    └── test_db_keywords_view.py   (NEW)
+
+frontend-ui/src/
+├── store/researchSlice.ts                          (+1 query: getDbKeywords)
+└── views/amazon/research/
+    ├── AmazonResearchView.tsx                      (conditional source select)
+    ├── partials/StatisticsView.tsx                 (Skeleton loading state)
+    └── tests/AmazonResearchView.test.tsx           (+1 integration test)
+```
+
+### K) Acceptance Criteria (for /qa later)
+
+- **AC-K1:** `GET /api/research/products/keywords/` returns `top_focus_keywords` + `top_long_tail_keywords` for the given filter set
+- **AC-K2:** Filter-only mode (no keyword) returns valid lists
+- **AC-K3:** Identical filter sets hit the Redis cache on the second call within 10 minutes (`cached: true`)
+- **AC-K4:** Empty filter result returns HTTP 200 with empty lists and `sample_size: 0`
+- **AC-K5:** Frontend DB-mode search populates the Keywords tab without requiring a Live scrape
+- **AC-K6:** Loading skeleton visible while in flight; replaced by chips on success
+- **AC-K7:** Live-mode behavior unchanged (existing extended-status flow still drives the chips)
+- **AC-K8:** Unauthenticated request returns 401
+
