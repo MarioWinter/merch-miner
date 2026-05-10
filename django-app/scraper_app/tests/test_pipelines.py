@@ -85,6 +85,7 @@ def scrape_tiers():
     tier1 = ScrapeTier.objects.create(name="Tier 1", bsr_min=1, bsr_max=50000, interval_days=1)
     tier2 = ScrapeTier.objects.create(name="Tier 2", bsr_min=50001, bsr_max=200000, interval_days=3)
     tier3 = ScrapeTier.objects.create(name="Tier 3", bsr_min=200001, bsr_max=None, interval_days=7)
+    ScrapeTier.objects.create(name="OneShot", bsr_min=0, bsr_max=0, interval_days=0)
     return tier1, tier2, tier3
 
 
@@ -205,57 +206,94 @@ class TestPipelineBSRSnapshot:
 
 
 class TestPipelineAutoEnroll:
-    def test_auto_enrolls_scheduled_target(self, pipeline, scrape_tiers):
+    """Auto-enroll policy as of 2026-05-10:
+
+    Pipeline still creates a ScheduledScrapeTarget row per scraped product
+    (forensics + future opt-in), but defaults to `tier=OneShot, active=False`
+    so the cron `schedule_scrape_runner` ignores it. Activation is now
+    explicit (Admin form, CSV upload, BulkScrapeBatch). Re-scraping does
+    NOT bump tier — the row is left as-is once created.
+    """
+
+    def test_new_target_defaults_to_oneshot_inactive(self, pipeline, scrape_tiers):
+        """Any BSR — high, low, none — yields tier=OneShot + active=False."""
         pipe, spider = pipeline
         item = make_product_item(bsr=5000)
         pipe.process_item(item, spider)
 
         target = ScheduledScrapeTarget.objects.get(asin="B0TEST12345", marketplace="amazon_com")
-        assert target.tier.name == "Tier 1"
-        assert target.active is True
+        assert target.tier.name == "OneShot"
+        assert target.active is False
 
-    def test_auto_enroll_tier2(self, pipeline, scrape_tiers):
+    def test_high_bsr_does_not_become_tier1(self, pipeline, scrape_tiers):
+        """Even a top-BSR product (would have been Tier 1 pre-fix) stays OneShot."""
         pipe, spider = pipeline
         item = make_product_item(bsr=100000)
         pipe.process_item(item, spider)
 
         target = ScheduledScrapeTarget.objects.get(asin="B0TEST12345")
-        assert target.tier.name == "Tier 2"
+        assert target.tier.name == "OneShot"
+        assert target.active is False
 
-    def test_enrollment_with_bsr_none_falls_back_to_tier3(self, pipeline, scrape_tiers):
-        """BUG-P8-02: bsr=None (search_page_only) enrolls at Tier 3."""
+    def test_bsr_none_still_enrolls_oneshot_inactive(self, pipeline, scrape_tiers):
+        """search_page_only items (bsr=None) still get a forensic row."""
         pipe, spider = pipeline
         item = make_product_item(bsr=None)
         pipe.process_item(item, spider)
 
         target = ScheduledScrapeTarget.objects.get(asin="B0TEST12345")
-        assert target.tier.name == "Tier 3"
-        assert target.active is True
+        assert target.tier.name == "OneShot"
+        assert target.active is False
 
-    def test_search_page_only_item_enrolled_tier3(self, pipeline, scrape_tiers):
-        """BUG-P8-02: search_page_only products (bsr=None) auto-enroll at Tier 3."""
+    def test_search_page_only_item_oneshot_inactive(self, pipeline, scrape_tiers):
         pipe, spider = pipeline
         item = _make_search_only_item()
         pipe.process_item(item, spider)
 
         target = ScheduledScrapeTarget.objects.get(asin="B0PATCH0001")
-        assert target.tier.name == "Tier 3"
+        assert target.tier.name == "OneShot"
+        assert target.active is False
+
+    def test_rescrape_does_not_bump_tier(self, pipeline, scrape_tiers):
+        """Existing target's tier must NOT change on re-scrape, even with new BSR.
+
+        Pre-fix this called update_tier_from_bsr() and re-promoted the row.
+        Now the row is left intact so users can rely on manually-set tiers
+        sticking, and pre-existing high-tier rows from the legacy auto-enroll
+        period don't suddenly downgrade to OneShot either.
+        """
+        pipe, spider = pipeline
+
+        # Pre-seed a manually-elevated target (simulating Admin/CSV path)
+        from scraper_app.models import ScrapeTier
+        tier1 = ScrapeTier.objects.get(name="Tier 1")
+        ScheduledScrapeTarget.objects.create(
+            asin="B0TEST12345",
+            marketplace="amazon_com",
+            tier=tier1,
+            active=True,
+        )
+
+        # Re-scrape with a different BSR — should NOT change tier or active
+        item = make_product_item(bsr=200000)
+        pipe.process_item(item, spider)
+
+        target = ScheduledScrapeTarget.objects.get(asin="B0TEST12345")
+        assert target.tier.name == "Tier 1"
         assert target.active is True
 
-    def test_auto_enroll_updates_tier_on_rescrape(self, pipeline, scrape_tiers):
-        """Existing target gets tier updated when BSR changes on keyword re-scrape."""
-        pipe, spider = pipeline
-        # First scrape: BSR=100000 -> Tier 2
-        item1 = make_product_item(bsr=100000)
-        pipe.process_item(item1, spider)
-        target = ScheduledScrapeTarget.objects.get(asin="B0TEST12345")
-        assert target.tier.name == "Tier 2"
+    def test_no_oneshot_tier_does_not_crash(self, pipeline, scrape_tiers):
+        """Defensive: if OneShot tier is missing, _auto_enroll_target silently skips."""
+        from scraper_app.models import ScrapeTier
+        ScrapeTier.objects.filter(name="OneShot").delete()
 
-        # Re-scrape: BSR=5000 -> Tier 1
-        item2 = make_product_item(bsr=5000)
-        pipe.process_item(item2, spider)
-        target.refresh_from_db()
-        assert target.tier.name == "Tier 1"
+        pipe, spider = pipeline
+        item = make_product_item(bsr=5000)
+        # Should not raise
+        pipe.process_item(item, spider)
+
+        # No row created (OneShot missing) — defensive safe path
+        assert not ScheduledScrapeTarget.objects.filter(asin="B0TEST12345").exists()
 
 
 # ------------------------------------------------------------------

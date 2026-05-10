@@ -653,11 +653,28 @@ def cancel_scrape_job(scrape_job_id, cancelled_by='admin'):
 
 
 def schedule_scrape_runner():
-    """Hourly runner: find due ScheduledScrapeTargets and enqueue scrape jobs."""
+    """Hourly runner: find due ScheduledScrapeTargets and enqueue scrape jobs.
+
+    Targets that belong to a non-terminal BulkScrapeBatch (READY / RUNNING /
+    PAUSED) are excluded — those are owned by the batch's own drainer
+    (`drain_bulk_batch`), and double-enqueuing here floods the scraper queue
+    and starves the drainer's `max_in_flight` slot budget. See incident on
+    2026-05-10 where 13.7k single-ASIN jobs queued via this path stalled the
+    bulk batch for hours. Terminal statuses (COMPLETED / CANCELLED /
+    PARSE_FAILED / DRAFT / PARSING) are NOT excluded — drainer is no longer
+    interested in those targets, so the cron runner may legitimately pick
+    them up if they remain active.
+    """
     now = timezone.now()
     due_targets = ScheduledScrapeTarget.objects.filter(
         next_scrape_at__lte=now,
         active=True,
+    ).exclude(
+        batch__status__in=[
+            BulkScrapeBatch.Status.READY,
+            BulkScrapeBatch.Status.RUNNING,
+            BulkScrapeBatch.Status.PAUSED,
+        ],
     ).select_related('keyword', 'tier')
 
     enqueued = 0
