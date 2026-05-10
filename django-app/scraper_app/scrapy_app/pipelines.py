@@ -273,27 +273,24 @@ class DjangoORMPipeline:
         )
 
     def _auto_enroll_target(self, item):
-        # Auto-enrollment policy (changed 2026-05-10):
+        # Auto-enrollment policy (2026-05-10, refined):
         #
-        # The pipeline used to set tier from BSR + active=True, which turned
-        # every scraped product into a scheduled-scrape candidate that the
-        # `schedule_scrape_runner` cron then re-enqueued every hour. With
-        # 600k+ rows this flooded the scraper queue and starved the
-        # BulkScrapeBatch drainer.
+        # NEW rows: created as `tier=OneShot, active=False` so cron-runner
+        # ignores them (avoids the 600k-row queue flood from before).
+        # Activation requires explicit user action (admin / CSV / bulk batch).
         #
-        # New policy: still create a row for forensics + future opt-in, but
-        # default to `tier=OneShot, active=False` so the cron-runner ignores
-        # it. Activation now happens exclusively via:
-        #   - Admin form (manual activate flag)
-        #   - CSV bulk upload (explicit tier set in upload)
-        #   - BulkScrapeBatch upload (batch-scoped, drainer handles)
+        # EXISTING rows: BSR-based tier auto-adapt is restored — when a target
+        # the user activated drifts in BSR, its schedule cadence follows
+        # (top-seller → Tier 1, mid → Tier 2, low → Tier 3). `update_tier_from_bsr`
+        # respects `tier_override=True` (user-locked tier stays sticky).
         #
-        # Existing rows are NOT touched (no tier-bump on re-scrape) so the
-        # one-time `OneShot+active=False` cleanup we ran in prod stays valid.
+        # OneShot rows are SKIPPED in the bump path — those are the parked
+        # 609k cleanup-rows; we don't want a passive re-scrape to unpark them.
+        # If a user wants OneShot → Tier X, they do it manually.
         oneshot = self.ScrapeTier.objects.filter(name='OneShot').first()
         if not oneshot:
             return  # OneShot tier missing — skip rather than risk active=True default
-        self.ScheduledScrapeTarget.objects.get_or_create(
+        target, created = self.ScheduledScrapeTarget.objects.get_or_create(
             asin=item['asin'],
             marketplace=item['marketplace'],
             defaults={
@@ -301,6 +298,9 @@ class DjangoORMPipeline:
                 'active': False,
             },
         )
+        bsr = item.get('bsr')
+        if not created and bsr is not None and target.tier.name != 'OneShot':
+            target.update_tier_from_bsr(bsr)
 
     def _update_job_progress(self):
         if not self.scrape_job:

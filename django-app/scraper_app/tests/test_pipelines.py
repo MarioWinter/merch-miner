@@ -85,7 +85,11 @@ def scrape_tiers():
     tier1 = ScrapeTier.objects.create(name="Tier 1", bsr_min=1, bsr_max=50000, interval_days=1)
     tier2 = ScrapeTier.objects.create(name="Tier 2", bsr_min=50001, bsr_max=200000, interval_days=3)
     tier3 = ScrapeTier.objects.create(name="Tier 3", bsr_min=200001, bsr_max=None, interval_days=7)
-    ScrapeTier.objects.create(name="OneShot", bsr_min=0, bsr_max=0, interval_days=0)
+    # OneShot may already exist from data-migration 0018_seed_oneshot_tier
+    ScrapeTier.objects.get_or_create(
+        name="OneShot",
+        defaults={"bsr_min": 0, "bsr_max": 0, "interval_days": 0},
+    )
     return tier1, tier2, tier3
 
 
@@ -254,18 +258,13 @@ class TestPipelineAutoEnroll:
         assert target.tier.name == "OneShot"
         assert target.active is False
 
-    def test_rescrape_does_not_bump_tier(self, pipeline, scrape_tiers):
-        """Existing target's tier must NOT change on re-scrape, even with new BSR.
+    def test_rescrape_bumps_tier_for_active_non_oneshot_row(self, pipeline, scrape_tiers):
+        """Active Tier-1 row drifts to Tier 2 BSR range → tier auto-adapts.
 
-        Pre-fix this called update_tier_from_bsr() and re-promoted the row.
-        Now the row is left intact so users can rely on manually-set tiers
-        sticking, and pre-existing high-tier rows from the legacy auto-enroll
-        period don't suddenly downgrade to OneShot either.
+        active flag stays True (only `tier` + `next_scrape_at` change).
         """
-        pipe, spider = pipeline
-
-        # Pre-seed a manually-elevated target (simulating Admin/CSV path)
         from scraper_app.models import ScrapeTier
+        pipe, spider = pipeline
         tier1 = ScrapeTier.objects.get(name="Tier 1")
         ScheduledScrapeTarget.objects.create(
             asin="B0TEST12345",
@@ -274,13 +273,54 @@ class TestPipelineAutoEnroll:
             active=True,
         )
 
-        # Re-scrape with a different BSR — should NOT change tier or active
-        item = make_product_item(bsr=200000)
+        # Re-scrape with BSR in Tier 2 range (50001-200000)
+        item = make_product_item(bsr=120000)
+        pipe.process_item(item, spider)
+
+        target = ScheduledScrapeTarget.objects.get(asin="B0TEST12345")
+        assert target.tier.name == "Tier 2"
+        assert target.active is True
+
+    def test_rescrape_skips_bump_for_oneshot_row(self, pipeline, scrape_tiers):
+        """OneShot rows must NOT be auto-promoted by passive re-scrapes.
+
+        Protects the 609k parked-row cleanup from being unparked en masse.
+        """
+        from scraper_app.models import ScrapeTier
+        pipe, spider = pipeline
+        oneshot = ScrapeTier.objects.get(name="OneShot")
+        ScheduledScrapeTarget.objects.create(
+            asin="B0TEST12345",
+            marketplace="amazon_com",
+            tier=oneshot,
+            active=False,
+        )
+
+        item = make_product_item(bsr=5000)  # would be Tier 1 if bumped
+        pipe.process_item(item, spider)
+
+        target = ScheduledScrapeTarget.objects.get(asin="B0TEST12345")
+        assert target.tier.name == "OneShot"
+        assert target.active is False
+
+    def test_rescrape_respects_tier_override(self, pipeline, scrape_tiers):
+        """tier_override=True locks tier; auto-bump must not change it."""
+        from scraper_app.models import ScrapeTier
+        pipe, spider = pipeline
+        tier1 = ScrapeTier.objects.get(name="Tier 1")
+        ScheduledScrapeTarget.objects.create(
+            asin="B0TEST12345",
+            marketplace="amazon_com",
+            tier=tier1,
+            active=True,
+            tier_override=True,
+        )
+
+        item = make_product_item(bsr=300000)  # would normally bump to Tier 3
         pipe.process_item(item, spider)
 
         target = ScheduledScrapeTarget.objects.get(asin="B0TEST12345")
         assert target.tier.name == "Tier 1"
-        assert target.active is True
 
     def test_no_oneshot_tier_does_not_crash(self, pipeline, scrape_tiers):
         """Defensive: if OneShot tier is missing, _auto_enroll_target silently skips."""
