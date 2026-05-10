@@ -20,6 +20,7 @@ import django_rq
 
 from scraper_app.models import (
     AmazonProduct,
+    BrandBlacklist,
     BSRSnapshot,
     Keyword,
     MarketplaceChoices,
@@ -80,31 +81,23 @@ def _db_keywords_cache_key(validated_data):
     return f"research:keywords:{digest}"
 
 
-def _load_official_brands():
-    """Load official brands from fixture (cached in module)."""
-    import os
-    fixture_path = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)),
-        'fixtures',
-        'official_brands.json',
-    )
-    try:
-        with open(fixture_path, 'r') as f:
-            return json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError):
-        logger.warning("Could not load official_brands.json")
-        return []
-
-
-# Load once at module level
-_OFFICIAL_BRANDS = None
+OFFICIAL_BRANDS_CACHE_KEY = 'research:official_brands'
+OFFICIAL_BRANDS_CACHE_TTL = 300  # 5 minutes
+SHORT_BRAND_THRESHOLD = 3  # Mirrors scraper_app.brand_filter.SHORT_BRAND_THRESHOLD
 
 
 def _get_official_brands():
-    global _OFFICIAL_BRANDS
-    if _OFFICIAL_BRANDS is None:
-        _OFFICIAL_BRANDS = _load_official_brands()
-    return _OFFICIAL_BRANDS
+    """Return list of blacklisted brand names (lowercased on save by the model).
+
+    Cached in Redis for 5 minutes so admin edits to BrandBlacklist propagate
+    within that window without per-request DB hits.
+    """
+    cached = redis_cache.get(OFFICIAL_BRANDS_CACHE_KEY)
+    if cached is not None:
+        return cached
+    brands = list(BrandBlacklist.objects.values_list('brand_name', flat=True))
+    redis_cache.set(OFFICIAL_BRANDS_CACHE_KEY, brands, OFFICIAL_BRANDS_CACHE_TTL)
+    return brands
 
 
 def _get_active_membership(user):
@@ -222,10 +215,19 @@ def _build_product_queryset(filters):
     if hide_official_brands:
         brands = _get_official_brands()
         if brands:
-            # Build case-insensitive regex alternation
-            escaped = [b.replace('(', r'\(').replace(')', r'\)').replace('.', r'\.') for b in brands]
-            pattern = '|'.join(escaped)
-            qs = qs.exclude(brand__iregex=f'^({pattern})$')
+            # Mirror scraper_app.brand_filter semantics:
+            #   - brands > SHORT_BRAND_THRESHOLD chars  → substring match
+            #   - brands <= SHORT_BRAND_THRESHOLD chars → exact match only
+            # `re.escape` is mandatory: brand_name is admin-editable, so any
+            # regex metacharacter typed in the admin must be treated as literal.
+            long_brands = [b for b in brands if len(b) > SHORT_BRAND_THRESHOLD]
+            short_brands = [b for b in brands if len(b) <= SHORT_BRAND_THRESHOLD]
+            if long_brands:
+                long_pattern = '|'.join(re.escape(b) for b in long_brands)
+                qs = qs.exclude(brand__iregex=long_pattern)
+            if short_brands:
+                short_pattern = '|'.join(re.escape(b) for b in short_brands)
+                qs = qs.exclude(brand__iregex=f'^(?:{short_pattern})$')
 
     exclude_words = filters.get('exclude_words', '').strip()
     if exclude_words:

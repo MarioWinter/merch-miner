@@ -15,6 +15,7 @@ from research_app.api.views import (
     _db_keywords_cache_key,
 )
 from research_app.tests.conftest import make_product
+from scraper_app.models import BrandBlacklist
 
 pytestmark = pytest.mark.django_db
 
@@ -170,6 +171,37 @@ class TestDbKeywordsTopNCapping:
         assert resp.status_code == 200
         assert resp.data['sample_size'] == DB_KEYWORDS_SAMPLE_N
         assert resp.data['sample_size'] == 200
+
+
+class TestDbKeywordsBrandBlacklist:
+    def test_hide_official_brands_excludes_blacklisted_brand_from_sample(self, auth_client):
+        """DbKeywordsView honors hide_official_brands via the shared _build_product_queryset."""
+        BrandBlacklist.objects.get_or_create(brand_name='Nike')
+        # Blacklisted brand: should be excluded from the keyword sample.
+        make_product(
+            asin='B0KWBL001',
+            title='Nike Athletic Wear',
+            brand='Nike',
+            bullet_1='Premium nike performance gear',
+            bsr=100,
+        )
+        # Safe brand: should be included.
+        make_product(
+            asin='B0KWBL002',
+            title='IndieShop Funny Shirt',
+            brand='IndieShop',
+            bullet_1='Premium cotton tee design',
+            bsr=200,
+        )
+
+        resp_hidden = auth_client.get(URL, {'hide_official_brands': 'true'})
+        assert resp_hidden.status_code == 200
+        assert resp_hidden.data['sample_size'] == 1
+
+        # Sanity: without the toggle both products are in the sample.
+        resp_shown = auth_client.get(URL, {'hide_official_brands': 'false'})
+        assert resp_shown.status_code == 200
+        assert resp_shown.data['sample_size'] == 2
 
 
 class TestDbKeywordsInvalidFilter:
