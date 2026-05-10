@@ -47,7 +47,8 @@ Eliminates spreadsheet chaos and tool-switching by connecting niche data, AI-gen
 | P0 (MVP) | PROJ-24: Legal Pages + Global Footer + Feature Flag System | Planned |
 | P0 (MVP) | PROJ-25: Bulk ASIN One-Shot Scrape Batches | Planned |
 | P0 (MVP) | PROJ-27: AI Upscaler (Single + Bulk via Replicate) | In Review |
-| P0 (MVP) | PROJ-28: Niche Research Product Limit | Planned |
+| P0 (MVP) | PROJ-28: Niche Research Product Limit | In Review |
+| P1 | PROJ-29: Agent Deep Research im Chat | Planned |
 
 ## Success Metrics
 
