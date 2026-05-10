@@ -2,7 +2,7 @@ from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
-from user_auth_app.models import BillingProfile
+from user_auth_app.models import BillingProfile, UserSearchHistory
 
 User = get_user_model()
 
@@ -454,3 +454,28 @@ class BillingProfileSerializer(serializers.ModelSerializer):
                 f"'{value}' is not a valid ISO 3166-1 alpha-2 country code."
             )
         return value.upper() if value else value
+
+
+class UserSearchHistorySerializer(serializers.ModelSerializer):
+    """User search history entry — returned by the list endpoint and accepted
+    by the create endpoint. The view enforces user-scoping; serializer never
+    accepts a `user` field from request data.
+    """
+
+    class Meta:
+        model = UserSearchHistory
+        fields = [
+            'id',
+            'context',
+            'keyword',
+            'marketplace',
+            'extra_metadata',
+            'created_at',
+        ]
+        read_only_fields = ['id', 'created_at']
+
+    def validate_keyword(self, value):
+        cleaned = (value or '').strip()
+        if not cleaned:
+            raise serializers.ValidationError('keyword must not be empty.')
+        return cleaned

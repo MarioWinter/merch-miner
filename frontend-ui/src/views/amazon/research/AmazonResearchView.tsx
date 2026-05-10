@@ -32,7 +32,7 @@ import {
 import { useAddKeywordMutation } from '../../../store/keywordSlice';
 import useResearchMode from './hooks/useResearchMode';
 import useFilterState from './hooks/useFilterState';
-import useRecentSearches from './hooks/useRecentSearches';
+import useUserSearchHistory from '@/hooks/useUserSearchHistory';
 import { SearchHistoryChips } from '@/components/SearchHistory/SearchHistoryChips';
 import usePolling from './hooks/usePolling';
 import useActiveNiche from './hooks/useActiveNiche';
@@ -64,7 +64,8 @@ const AmazonResearchView = () => {
   const { filters, enabled, setFilter, setEnabled, resetFilters, activeFilterCount } =
     useFilterState();
   const { mode, isLive, toggleMode } = useResearchMode(resetFilters);
-  const { searches, addSearch, removeSearch, clearAll: clearRecentSearches } = useRecentSearches();
+  const { searches, addSearch, removeSearch, clearAll: clearRecentSearches } =
+    useUserSearchHistory('amazon_research');
 
   const [keyword, setKeyword] = useState('');
   const [hasSearched, setHasSearched] = useState(false);

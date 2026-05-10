@@ -11,6 +11,7 @@ import authReducer from '../store/authSlice';
 import workspaceReducer from '../store/workspaceSlice';
 import upscaleReducer from '../store/upscaleSlice';
 import { upscaleApi } from '../store/upscaleApi';
+import { searchHistoryApi } from '../store/searchHistorySlice';
 import theme from '../style/theme';
 
 // Import translation resources directly so tests don't depend on HTTP fetch
@@ -59,10 +60,16 @@ export const renderWithProviders = (
       // that don't explicitly register it.
       upscale: upscaleReducer,
       [upscaleApi.reducerPath]: upscaleApi.reducer,
+      // Default-register so every component using useUserSearchHistory
+      // (Amazon Research, Keyword Drilling, …) renders in tests without
+      // requiring per-test reducer wiring.
+      [searchHistoryApi.reducerPath]: searchHistoryApi.reducer,
       ...reducers,
     },
     middleware: (getDefaultMiddleware) =>
-      getDefaultMiddleware().concat(upscaleApi.middleware),
+      getDefaultMiddleware()
+        .concat(upscaleApi.middleware)
+        .concat(searchHistoryApi.middleware),
     // Cast: configureStore wants a fully-typed PreloadedState shape, but
     // tests pass partial state for whatever slices they care about.
     preloadedState: preloadedState as never,

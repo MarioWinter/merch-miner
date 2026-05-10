@@ -6,7 +6,7 @@ import MarketplaceSelect from '@/components/MarketplaceSelect';
 import { useKeywordSearch } from './hooks/useKeywordSearch';
 import { useJSEnrich } from './hooks/useJSEnrich';
 import { useKeywordExport } from './hooks/useKeywordExport';
-import { useRecentSearches } from './hooks/useRecentSearches';
+import useUserSearchHistory from '@/hooks/useUserSearchHistory';
 import { KeywordSearchBar } from './partials/KeywordSearchBar';
 import { SearchHistoryChips } from '@/components/SearchHistory/SearchHistoryChips';
 import { KeywordChipCloud } from './partials/KeywordChipCloud';
@@ -42,8 +42,9 @@ const KeywordResearchView = () => {
     suggestionCounts,
   } = useKeywordSearch();
 
-  // Recent searches
-  const { searches, addSearch, removeSearch, clearAll } = useRecentSearches();
+  // Recent searches — DB-backed, per-user, shared model with Amazon Research.
+  const { searches, addSearch, removeSearch, clearAll } =
+    useUserSearchHistory('keyword_drilling');
 
   // Enrich (always disabled)
   const { enrichSingle, isEnriching } = useJSEnrich(marketplace);
