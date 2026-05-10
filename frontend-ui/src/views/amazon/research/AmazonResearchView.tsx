@@ -74,6 +74,8 @@ const AmazonResearchView = () => {
   const [layout, setLayout] = useState<'grid' | 'list'>('grid');
   const [cacheId, setCacheId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ResultsTab>('products');
+  // Bumps on every Search click so identical filters still force a DB refetch.
+  const [searchTick, setSearchTick] = useState(0);
 
   // "Save as Niche" dialog state
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -172,9 +174,10 @@ const AmazonResearchView = () => {
   const shouldQueryDb = hasSearched;
 
   // Stable signature: any change here resets the infinite scroll + triggers page-1 fetch.
+  // `searchTick` is folded in so manual Search re-clicks force a refetch even when params are identical.
   const dbResetKey = useMemo(
-    () => JSON.stringify(buildQueryParams()),
-    [buildQueryParams],
+    () => JSON.stringify({ params: buildQueryParams(), tick: searchTick }),
+    [buildQueryParams, searchTick],
   );
 
   const {
@@ -241,6 +244,7 @@ const AmazonResearchView = () => {
     async (kw: string) => {
       setKeyword(kw);
       setHasSearched(true);
+      setSearchTick((t) => t + 1);
       addSearch(kw, filters.marketplace);
 
       if (isLive) {

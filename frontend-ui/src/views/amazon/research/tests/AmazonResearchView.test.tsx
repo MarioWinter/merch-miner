@@ -336,6 +336,26 @@ describe('AmazonResearchView', () => {
     expect(await screen.findByText('school bus')).toBeInTheDocument();
   });
 
+  it('Search button: clicking twice with identical filters triggers a second fetch', async () => {
+    renderWithProviders(<AmazonResearchView />, { reducers: extraReducers });
+
+    const searchInput = screen.getByPlaceholderText('Search keywords...');
+    await userEvent.type(searchInput, 'hiking');
+    const searchBtn = screen.getByRole('button', { name: 'Search' });
+
+    // First Search click: one DB fetch.
+    await userEvent.click(searchBtn);
+    await vi.waitFor(() => {
+      expect(mockLazyTrigger).toHaveBeenCalledTimes(1);
+    });
+
+    // Second Search click with identical keyword + filters: must refetch.
+    await userEvent.click(searchBtn);
+    await vi.waitFor(() => {
+      expect(mockLazyTrigger).toHaveBeenCalledTimes(2);
+    });
+  });
+
   it('DB mode: Keywords tab shows skeletons while query is fetching', async () => {
     mockDbKeywordsData = undefined;
     mockDbKeywordsFetching = true;
