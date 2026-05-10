@@ -69,7 +69,7 @@ const AmazonResearchView = () => {
 
   const [keyword, setKeyword] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(true);
   const [layout, setLayout] = useState<'grid' | 'list'>('grid');
   const [cacheId, setCacheId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ResultsTab>('products');
