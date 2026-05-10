@@ -9,6 +9,7 @@ import {
 } from '@mui/x-data-grid';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import StarIcon from '@mui/icons-material/Star';
+import ThumbnailHoverPreview from '../../../../components/ThumbnailHoverPreview';
 import { MONO_FONT_STACK } from '../../../../style/constants';
 import { MARKETPLACE_OPTIONS, type AmazonProduct } from '../types';
 
@@ -136,7 +137,9 @@ const ProductTable = ({
         sortable: false,
         resizable: true,
         renderCell: (params) => (
-          <ThumbnailImg src={params.value || '/placeholder-product.png'} alt="" />
+          <ThumbnailHoverPreview src={params.value || ''}>
+            <ThumbnailImg src={params.value || '/placeholder-product.png'} alt="" />
+          </ThumbnailHoverPreview>
         ),
       },
       {
