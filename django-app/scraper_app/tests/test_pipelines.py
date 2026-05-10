@@ -85,7 +85,11 @@ def scrape_tiers():
     tier1 = ScrapeTier.objects.create(name="Tier 1", bsr_min=1, bsr_max=50000, interval_days=1)
     tier2 = ScrapeTier.objects.create(name="Tier 2", bsr_min=50001, bsr_max=200000, interval_days=3)
     tier3 = ScrapeTier.objects.create(name="Tier 3", bsr_min=200001, bsr_max=None, interval_days=7)
-    ScrapeTier.objects.create(name="OneShot", bsr_min=0, bsr_max=0, interval_days=0)
+    # OneShot may already exist from data-migration 0018_seed_oneshot_tier
+    ScrapeTier.objects.get_or_create(
+        name="OneShot",
+        defaults={"bsr_min": 0, "bsr_max": 0, "interval_days": 0},
+    )
     return tier1, tier2, tier3
 
 
