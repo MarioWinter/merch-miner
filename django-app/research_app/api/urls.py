@@ -2,6 +2,7 @@ from django.urls import path
 
 from research_app.api.views import (
     BSRHistoryView,
+    DbKeywordsView,
     LiveSearchView,
     PriceHistoryView,
     ProductDetailView,
@@ -22,6 +23,9 @@ urlpatterns = [
     path('research/search/<uuid:cache_id>/cancel/', SearchCancelView.as_view(), name='research-search-cancel'),
     path('research/products/', ProductListView.as_view(), name='research-products'),
     path('research/products/export/', ProductExportView.as_view(), name='research-products-export'),
+    # DB-mode keyword aggregation — must come BEFORE <str:asin>/ to avoid
+    # `keywords` being matched as an ASIN.
+    path('research/products/keywords/', DbKeywordsView.as_view(), name='research-products-keywords'),
     # Product detail + sub-resources (order matters: specific paths before <str:asin>/)
     path('research/products/<str:asin>/bsr-history/', BSRHistoryView.as_view(), name='research-bsr-history'),
     path('research/products/<str:asin>/similar/', SimilarProductsView.as_view(), name='research-similar-products'),

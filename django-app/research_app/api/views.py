@@ -1,4 +1,5 @@
 import csv
+import hashlib
 import json
 import logging
 import re
@@ -27,6 +28,7 @@ from scraper_app.models import (
     SearchKeywordResult,
     ScrapeJob,
 )
+from scraper_app.scrapy_app.keyword_extractor import extract_keywords
 from scraper_app.tasks import (
     LIVE_SEARCH_MAX_PAGES,
     cancel_scrape_job,
@@ -62,6 +64,20 @@ MARKETPLACE_MIDS = {
 }
 
 SUGGESTIONS_CACHE_TTL = 60  # seconds
+
+# DB-mode keyword aggregation
+DB_KEYWORDS_SAMPLE_N = 200
+DB_KEYWORDS_CACHE_TTL = 600  # 10 minutes
+
+
+def _db_keywords_cache_key(validated_data):
+    """Build a stable cache key from validated ProductFilterSerializer data.
+
+    Same filter set in different param ordering must produce the same hash.
+    """
+    canonical = json.dumps(validated_data, sort_keys=True, default=str)
+    digest = hashlib.sha256(canonical.encode()).hexdigest()
+    return f"research:keywords:{digest}"
 
 
 def _load_official_brands():
@@ -565,6 +581,52 @@ class ProductListView(APIView):
             'next': next_url,
             'previous': previous_url,
         })
+
+
+class DbKeywordsView(APIView):
+    """GET /api/research/products/keywords/ — aggregate keywords for DB-mode filters.
+
+    Runs the existing keyword extractor on the top-N (by BSR asc) products
+    matching the same filter set used by ProductListView. Cached in Redis
+    for 10 minutes, keyed by a SHA256 of the canonicalized validated_data.
+    No workspace scoping — AmazonProduct is a shared global catalog.
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        serializer = ProductFilterSerializer(data=request.query_params)
+        serializer.is_valid(raise_exception=True)
+        filters = serializer.validated_data
+
+        cache_key = _db_keywords_cache_key(filters)
+        cached_payload = redis_cache.get(cache_key)
+        if cached_payload is not None:
+            # Don't mutate the cached dict — copy first so concurrent
+            # readers don't see a flipped `cached` flag.
+            payload = dict(cached_payload)
+            payload['cached'] = True
+            return Response(payload)
+
+        qs = _build_product_queryset(filters)
+        # Top-N by BSR ascending, mirroring ProductListView's default ordering.
+        # `.values(...)` projection materializes only what the extractor needs.
+        products = list(
+            qs.order_by(F('bsr').asc(nulls_last=True), 'id')
+            .values('title', 'brand', 'bullet_1', 'bullet_2', 'description')
+            [:DB_KEYWORDS_SAMPLE_N]
+        )
+
+        extracted = extract_keywords(products)
+        payload = {
+            'top_focus_keywords': extracted['global_top_focus'],
+            'top_long_tail_keywords': extracted['global_top_long_tail'],
+            'sample_size': len(products),
+            'cached': False,
+        }
+        redis_cache.set(cache_key, payload, DB_KEYWORDS_CACHE_TTL)
+        return Response(payload)
 
 
 class ProductExportView(APIView):
