@@ -17,7 +17,7 @@ import type {
 export const researchApi = createApi({
   reducerPath: 'researchApi',
   baseQuery: axiosBaseQuery({ baseUrl: '' }),
-  tagTypes: ['ResearchProducts', 'ResearchStatus', 'BSRHistory', 'ProductDetail'],
+  tagTypes: ['ResearchProducts', 'ResearchStatus', 'BSRHistory', 'ProductDetail', 'PriceHistory'],
   endpoints: (builder) => ({
     getSuggestions: builder.query<string[], { q: string; marketplace: string }>({
       query: ({ q, marketplace }) => ({
@@ -119,6 +119,9 @@ export const researchApi = createApi({
         method: 'GET',
         params: { marketplace },
       }),
+      providesTags: (_result, _error, { asin }) => [
+        { type: 'PriceHistory', id: asin },
+      ],
     }),
 
     useAsTemplate: builder.mutation<

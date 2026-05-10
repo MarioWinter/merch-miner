@@ -11,7 +11,9 @@ from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
 from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import AccessToken, RefreshToken, TokenError
 
-from user_auth_app.models import BillingProfile
+from django.utils import timezone
+
+from user_auth_app.models import BillingProfile, UserSearchHistory
 
 from .authentication import CookieJWTAuthentication
 from .emails import send_password_reset_email, send_verification_email
@@ -23,6 +25,7 @@ from .serializers import (
     PasswordResetSerializer,
     UserCreateSerializer,
     UserProfileSerializer,
+    UserSearchHistorySerializer,
     UserSerializer,
     UserUpdateSerializer,
 )
@@ -556,3 +559,100 @@ class BillingProfileView(APIView):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+# ---------------------------------------------------------------------------
+# User search history (per-user, multi-context)
+# ---------------------------------------------------------------------------
+
+# Hard cap on history entries the UI surfaces per (user, context) pair.
+# create() prunes anything older than the newest N entries on every write,
+# so the table can't grow unbounded.
+SEARCH_HISTORY_MAX_PER_CONTEXT = 10
+
+
+class SearchHistoryListCreateView(APIView):
+    """`GET` lists newest-first (filtered by ?context=); `POST` upserts one entry."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        qs = UserSearchHistory.objects.filter(user=request.user)
+        context_param = request.query_params.get('context')
+        if context_param:
+            qs = qs.filter(context=context_param)
+        # Cap reads to the same N as the create-prune so clients never see
+        # transient overflow rows that haven't been pruned yet.
+        qs = qs.order_by('-created_at')[:SEARCH_HISTORY_MAX_PER_CONTEXT]
+        serializer = UserSearchHistorySerializer(qs, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    def post(self, request):
+        serializer = UserSearchHistorySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated = serializer.validated_data
+        ctx = validated['context']
+        kw = validated['keyword']
+        mp = validated.get('marketplace', '')
+
+        # Upsert: a re-search of the same (context, keyword, marketplace) pair
+        # bumps `created_at` to now so it floats back to the top of the list.
+        obj, created = UserSearchHistory.objects.update_or_create(
+            user=request.user,
+            context=ctx,
+            keyword=kw,
+            marketplace=mp,
+            defaults={
+                'extra_metadata': validated.get('extra_metadata') or {},
+                'created_at': timezone.now(),
+            },
+        )
+
+        # Prune older overflow per (user, context). Keep only newest N.
+        keep_ids = list(
+            UserSearchHistory.objects.filter(
+                user=request.user, context=ctx,
+            ).order_by('-created_at').values_list(
+                'id', flat=True,
+            )[:SEARCH_HISTORY_MAX_PER_CONTEXT]
+        )
+        UserSearchHistory.objects.filter(
+            user=request.user, context=ctx,
+        ).exclude(id__in=keep_ids).delete()
+
+        out = UserSearchHistorySerializer(obj).data
+        return Response(
+            out,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+
+class SearchHistoryDeleteView(APIView):
+    """`DELETE /api/users/me/search-history/<uuid>/` removes one entry."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request, entry_id):
+        deleted, _ = UserSearchHistory.objects.filter(
+            user=request.user, id=entry_id,
+        ).delete()
+        if not deleted:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class SearchHistoryClearView(APIView):
+    """`DELETE /api/users/me/search-history/clear/?context=...` wipes a context."""
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def delete(self, request):
+        qs = UserSearchHistory.objects.filter(user=request.user)
+        context_param = request.query_params.get('context')
+        if context_param:
+            qs = qs.filter(context=context_param)
+        deleted, _ = qs.delete()
+        return Response({'deleted': deleted}, status=status.HTTP_200_OK)

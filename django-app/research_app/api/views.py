@@ -222,20 +222,25 @@ def _build_product_queryset(filters):
     # equal price/rating); without a deterministic secondary key the row order
     # of paginated slices is undefined and an offset-based fetch can return
     # the same row on consecutive pages or skip rows entirely.
+    # Sorting — every order_by uses F('field').desc/asc(nulls_last=True) so
+    # NULL-valued rows always sink to the bottom regardless of direction.
+    # PostgreSQL's default ORDER BY DESC puts NULLs FIRST, which made
+    # reviews_desc / rating_desc visually identical (the ~40% rows with
+    # NULL reviews/rating piled up at the top of every "high-to-low" sort).
+    # `id` stays as a deterministic tiebreaker for stable pagination.
     sort_by = filters.get('sort_by', '')
     sort_map = {
-        'bsr_asc': ('bsr', 'id'),
-        'reviews_desc': ('-reviews_count', 'id'),
-        'rating_desc': ('-rating', 'id'),
-        'price_asc': ('price', 'id'),
-        'newest': ('-listed_date', 'id'),
+        'reviews_desc': F('reviews_count').desc(nulls_last=True),
+        'rating_desc': F('rating').desc(nulls_last=True),
+        'price_asc': F('price').asc(nulls_last=True),
+        'newest': F('listed_date').desc(nulls_last=True),
     }
     # When user selects "BSR low to high", products without BSR data are
     # explicitly hidden (per user spec 2026-05-06): no BSR = no usable rank.
     if sort_by == 'bsr_asc':
         qs = qs.exclude(bsr__isnull=True).order_by('bsr', 'id')
     elif sort_by and sort_by in sort_map:
-        qs = qs.order_by(*sort_map[sort_by])
+        qs = qs.order_by(sort_map[sort_by], 'id')
     elif keyword:
         # Relevance order when keyword search active
         qs = qs.order_by('-rank', 'id')

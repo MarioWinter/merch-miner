@@ -343,6 +343,55 @@ class TestProductListSorting:
         asins = [p['asin'] for p in resp.data['results']]
         assert asins == ['B0NEW_NEW', 'B0NEW_MID', 'B0NEW_OLD']
 
+    # NULL-handling: every desc/asc sort must put NULL-valued rows LAST.
+    # PostgreSQL's default puts NULLs FIRST on DESC, which made these sorts
+    # visually identical (the ~40% NULL-reviews/rating rows piled up at the top).
+    # Regression guard: NULL-row goes to the END, not the START.
+
+    def test_sort_reviews_desc_nulls_last(self, auth_client):
+        """reviews_desc must place NULL reviews_count rows AFTER non-null rows."""
+        make_product(asin='B0NULL_RV', reviews_count=None)
+        make_product(asin='B0HIGH_RV', reviews_count=999)
+        make_product(asin='B0LOW_RV', reviews_count=1)
+
+        resp = auth_client.get(URL, {'sort_by': 'reviews_desc'})
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert asins == ['B0HIGH_RV', 'B0LOW_RV', 'B0NULL_RV']
+
+    def test_sort_rating_desc_nulls_last(self, auth_client):
+        """rating_desc must place NULL rating rows AFTER non-null rows."""
+        make_product(asin='B0NULL_RT', rating=None)
+        make_product(asin='B0HIGH_RT', rating=4.9)
+        make_product(asin='B0LOW_RT', rating=2.1)
+
+        resp = auth_client.get(URL, {'sort_by': 'rating_desc'})
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert asins == ['B0HIGH_RT', 'B0LOW_RT', 'B0NULL_RT']
+
+    def test_sort_price_asc_nulls_last(self, auth_client):
+        """price_asc must place NULL price rows AFTER non-null rows."""
+        make_product(asin='B0NULL_PR', price=None)
+        make_product(asin='B0HIGH_PR', price='49.99')
+        make_product(asin='B0LOW_PR', price='5.99')
+
+        resp = auth_client.get(URL, {'sort_by': 'price_asc'})
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert asins == ['B0LOW_PR', 'B0HIGH_PR', 'B0NULL_PR']
+
+    def test_sort_newest_nulls_last(self, auth_client):
+        """newest must place NULL listed_date rows AFTER non-null rows."""
+        make_product(asin='B0NULL_DT', listed_date=None)
+        make_product(asin='B0NEW_DT', listed_date=date(2026, 1, 1))
+        make_product(asin='B0OLD_DT', listed_date=date(2024, 1, 1))
+
+        resp = auth_client.get(URL, {'sort_by': 'newest'})
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert asins == ['B0NEW_DT', 'B0OLD_DT', 'B0NULL_DT']
+
     def test_default_sort_is_bsr_asc(self, auth_client):
         """No sort_by param defaults to BSR ascending."""
         make_product(asin='B0DEF_HI', bsr=9000)

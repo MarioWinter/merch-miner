@@ -10,9 +10,31 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '../../store/hooks';
 import { clearAuth } from '../../store/authSlice';
-import { nicheApi } from '../../store/nicheSlice';
+import { resetAllRtkApiCaches } from '../../store';
 import { authService } from '../../services/authService';
 import { clearPublishEditQueues } from '../../views/publish/hooks/editQueueStorage';
+
+/**
+ * One-time cleanup of legacy per-browser search-history localStorage keys.
+ * Search history is now DB-backed (UserSearchHistory model + searchHistoryApi),
+ * so these keys are inert. Removed on logout to free space and prevent
+ * confusion for anyone debugging localStorage post-migration.
+ */
+const clearLegacySearchHistoryStorage = () => {
+  if (typeof localStorage === 'undefined') return;
+  const legacyKeys: string[] = [];
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const key = localStorage.key(i);
+    if (
+      key === 'mm-research-recent' ||
+      key === 'mm-keyword-recent' ||
+      key?.startsWith('mm-research-recent:')
+    ) {
+      legacyKeys.push(key);
+    }
+  }
+  legacyKeys.forEach((k) => localStorage.removeItem(k));
+};
 
 const StyledAvatar = styled(Avatar)({
   width: 32,
@@ -58,8 +80,16 @@ const ProfileMenu = ({ initial, avatarUrl }: ProfileMenuProps) => {
     } catch {
       // proceed even on backend failure
     } finally {
+      // Wipe all per-user state so the next sign-in on the same browser
+      // doesn't see the previous user's data:
+      //   1. localStorage publish queue (PROJ-11 offline drafts)
+      //   2. legacy search-history localStorage keys (now DB-backed)
+      //   3. all RTK Query caches (Niche list, Design Forge projects,
+      //      Publish queue, Dashboard, search history, etc.)
+      //   4. auth state (last, so the redirect-to-login fires cleanly)
       clearPublishEditQueues();
-      dispatch(nicheApi.util.resetApiState());
+      clearLegacySearchHistoryStorage();
+      resetAllRtkApiCaches(dispatch);
       dispatch(clearAuth());
       navigate('/login', { replace: true });
     }

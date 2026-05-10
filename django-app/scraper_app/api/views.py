@@ -9,37 +9,14 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from niche_app.models import CollectedProduct
 from scraper_app.api.serializers import RescrapeProductSerializer
 from scraper_app.models import AmazonProduct, ScrapeJob
 from scraper_app.tasks import scrape_asin_detail_job
 from user_auth_app.api.authentication import CookieJWTAuthentication
-from workspace_app.models import Membership
 
 logger = logging.getLogger(__name__)
 
 ASIN_PATTERN = re.compile(r'^[A-Z0-9]{10}$')
-
-
-def _get_workspace_id(request):
-    """Resolve workspace from `X-Workspace-Id` header or first active membership.
-
-    Mirrors the helper in `publish_app.api.views` (PROJ-11). Centralised here
-    only because scraper_app doesn't import from publish_app.
-    """
-    header_ws = request.headers.get('X-Workspace-Id')
-    if header_ws:
-        return header_ws
-    user = getattr(request, 'user', None)
-    if user is None or not user.is_authenticated:
-        return None
-    membership = (
-        Membership.objects
-        .filter(user=user, status=Membership.Status.ACTIVE)
-        .values_list('workspace_id', flat=True)
-        .first()
-    )
-    return str(membership) if membership else None
 
 
 class RescrapeProductView(APIView):
@@ -67,16 +44,13 @@ class RescrapeProductView(APIView):
         serializer.is_valid(raise_exception=True)
         marketplace = serializer.validated_data['marketplace']
 
-        # 3. Workspace resolution.
-        ws_id = _get_workspace_id(request)
-        if not ws_id:
-            return Response(
-                {'error': 'No active workspace.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # 4. Workspace ownership check — product must be collected on a niche
-        #    in this workspace. Prevents drive-by scraping of arbitrary ASINs.
+        # 3. Product existence — guards against arbitrary ASIN abuse. The
+        # rescrape-trigger is intentionally NOT gated by workspace ownership
+        # (CollectedProduct) because the research search endpoint exposes
+        # AmazonProduct globally to all authenticated users; gating rescrape
+        # tighter than search would be UX-broken (user sees the product on the
+        # research grid, opens the detail page, hits Reload → 403). Throttle
+        # protection (DRF user-throttle) caps abuse at the per-user budget.
         product_exists = AmazonProduct.objects.filter(
             asin=normalised_asin, marketplace=marketplace,
         ).exists()
@@ -86,18 +60,7 @@ class RescrapeProductView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        owns_product = CollectedProduct.objects.filter(
-            product__asin=normalised_asin,
-            product__marketplace=marketplace,
-            niche__workspace_id=ws_id,
-        ).exists()
-        if not owns_product:
-            return Response(
-                {'error': 'Product not reachable from this workspace.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
-
-        # 5. Create ScrapeJob + enqueue.
+        # 4. Create ScrapeJob + enqueue.
         scrape_job = ScrapeJob.objects.create(
             mode=ScrapeJob.Mode.LIVE,
             asin=normalised_asin,

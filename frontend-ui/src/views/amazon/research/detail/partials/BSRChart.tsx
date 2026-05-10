@@ -69,21 +69,32 @@ const BSRChart = ({ snapshots, summary, categories }: BSRChartProps) => {
               {
                 data: chartData.xAxis,
                 scaleType: 'time',
-                valueFormatter: (date: Date) => date.toLocaleDateString(),
+                valueFormatter: (date: Date) =>
+                  date.toLocaleDateString(undefined, {
+                    month: 'short',
+                    day: '2-digit',
+                  }),
               },
             ]}
-            yAxis={[{ reverse: true }]}
+            yAxis={[
+              {
+                reverse: true,
+                valueFormatter: (value: number) =>
+                  value >= 1000 ? value.toLocaleString() : String(value),
+              },
+            ]}
             series={[
               {
                 data: chartData.series,
-                color: 'var(--mui-palette-secondary-main)',
-                area: true,
-                showMark: false,
+                color: 'var(--mui-palette-primary-main)',
+                area: false,
+                showMark: chartData.series.length <= 30,
+                curve: 'monotoneX',
               },
             ]}
             height={300}
-            margin={{ left: 60, right: 20, top: 20, bottom: 40 }}
-            grid={{ horizontal: true }}
+            margin={{ left: 70, right: 20, top: 20, bottom: 40 }}
+            grid={{ horizontal: true, vertical: true }}
             hideLegend
           />
         ) : (

@@ -76,25 +76,55 @@ class TestRescrapeAuth:
 
 
 # ---------------------------------------------------------------------------
-# Workspace ownership
+# Product existence (workspace ownership intentionally NOT enforced — the
+# research search endpoint exposes AmazonProduct globally to all auth'd
+# users, and gating rescrape tighter than search would be UX-broken).
 # ---------------------------------------------------------------------------
 
-class TestRescrapeOwnership:
+class TestRescrapeProductExistence:
     def test_product_not_found_returns_404(self):
         user, workspace = _bootstrap_workspace()
         client = _auth_client(user, workspace)
         response = client.post('/api/scraper/products/B0ZZZZZZZZ/rescrape/')
         assert response.status_code == 404
 
-    def test_product_not_in_workspace_returns_403(self):
-        # Two workspaces. Product collected only in workspace B; user from A.
-        user_a, workspace_a = _bootstrap_workspace('a@test.com')
+    @patch('scraper_app.api.views.django_rq.get_queue')
+    def test_product_in_another_workspace_still_succeeds(self, mock_get_queue):
+        """Any auth'd user can rescrape any AmazonProduct that exists, even if
+        it's not collected on a niche in their workspace. Mirrors the
+        listProducts visibility model (global cache) and the realistic UX
+        (user sees product on /amazon/research → opens detail → hits Reload)."""
+        mock_rq_job = MagicMock(id='rq-cross-ws-1')
+        mock_queue = MagicMock()
+        mock_queue.enqueue.return_value = mock_rq_job
+        mock_get_queue.return_value = mock_queue
+
+        # Workspace B owns the product via CollectedProduct.
         user_b, workspace_b = _bootstrap_workspace('b@test.com')
         _make_collected(workspace_b, user_b, asin='B0ABCDEFGH')
 
+        # User A from workspace A still gets 202 — gating only on existence.
+        user_a, workspace_a = _bootstrap_workspace('a@test.com')
         client = _auth_client(user_a, workspace_a)
         response = client.post('/api/scraper/products/B0ABCDEFGH/rescrape/')
-        assert response.status_code == 403
+        assert response.status_code == 202
+
+    @patch('scraper_app.api.views.django_rq.get_queue')
+    def test_product_with_no_workspace_link_succeeds(self, mock_get_queue):
+        """Bare AmazonProduct row (never added to a niche, e.g. discovered
+        via search-only scrape) is still rescrapeable by any auth'd user."""
+        mock_rq_job = MagicMock(id='rq-bare-1')
+        mock_queue = MagicMock()
+        mock_queue.enqueue.return_value = mock_rq_job
+        mock_get_queue.return_value = mock_queue
+
+        AmazonProduct.objects.create(
+            asin='B0BARE12CD', marketplace='amazon_com', title='Bare product',
+        )
+        user, workspace = _bootstrap_workspace()
+        client = _auth_client(user, workspace)
+        response = client.post('/api/scraper/products/B0BARE12CD/rescrape/')
+        assert response.status_code == 202
 
 
 # ---------------------------------------------------------------------------
