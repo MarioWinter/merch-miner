@@ -23,3 +23,23 @@ if (typeof Range !== 'undefined' && !Range.prototype.getClientRects) {
     } as unknown as DOMRectList;
   };
 }
+
+// jsdom does not implement IntersectionObserver. ProductTable's infinite-scroll
+// footer instantiates one; without the polyfill any test that mounts the List
+// view throws a ReferenceError. The no-op stub lets components mount; tests
+// that need to assert IO behavior should mock the observer per-suite.
+if (typeof globalThis.IntersectionObserver === 'undefined') {
+  class IntersectionObserverStub {
+    readonly root = null;
+    readonly rootMargin = '';
+    readonly thresholds: ReadonlyArray<number> = [];
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+    takeRecords(): IntersectionObserverEntry[] {
+      return [];
+    }
+  }
+  globalThis.IntersectionObserver =
+    IntersectionObserverStub as unknown as typeof IntersectionObserver;
+}
