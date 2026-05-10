@@ -1,5 +1,7 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { researchApi } from '../../../../store/researchSlice';
 import {
   Box,
   Breadcrumbs,
@@ -92,6 +94,25 @@ const ProductDetailPage = () => {
     );
   }, [product]);
 
+  // Auto-refetch product data after rescrape kicks off. The scrape is async
+  // (RQ enqueue → worker subprocess → DB write, typically 5-25s). We poll
+  // RTK Query tags every 3s for 30s; whichever tick the worker finishes on,
+  // the next refetch picks up the fresh BSR + product fields. Spinner stays
+  // visible the whole time so the user knows refresh is in progress.
+  const dispatch = useDispatch();
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  const stopPolling = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current);
+      pollIntervalRef.current = null;
+    }
+    setIsRefreshing(false);
+  }, []);
+
+  useEffect(() => stopPolling, [stopPolling]);
+
   const handleRescrape = useCallback(async () => {
     if (!product) return;
     try {
@@ -102,12 +123,32 @@ const ProductDetailPage = () => {
       enqueueSnackbar(t('amazonResearch.detail.rescrapeStarted'), {
         variant: 'info',
       });
+
+      // Cancel any in-flight polling from a prior rescrape on this view
+      stopPolling();
+      setIsRefreshing(true);
+      const startedAsin = product.asin;
+      let attempts = 0;
+      const MAX_ATTEMPTS = 10; // 10 × 3s = 30s
+      pollIntervalRef.current = setInterval(() => {
+        attempts += 1;
+        dispatch(
+          researchApi.util.invalidateTags([
+            { type: 'ProductDetail', id: startedAsin },
+            { type: 'BSRHistory', id: startedAsin },
+            { type: 'PriceHistory', id: startedAsin },
+          ]),
+        );
+        if (attempts >= MAX_ATTEMPTS) {
+          stopPolling();
+        }
+      }, 3000);
     } catch {
       enqueueSnackbar(t('amazonResearch.detail.rescrapeError'), {
         variant: 'error',
       });
     }
-  }, [product, triggerRescrape, enqueueSnackbar, t]);
+  }, [product, triggerRescrape, enqueueSnackbar, t, dispatch, stopPolling]);
 
   // 404 state (EC-16)
   if (is404) {
@@ -253,10 +294,10 @@ const ProductDetailPage = () => {
                     size="medium"
                     color="secondary"
                     onClick={handleRescrape}
-                    disabled={rescrapeLoading}
+                    disabled={rescrapeLoading || isRefreshing}
                     aria-label={t('amazonResearch.detail.rescrapeButton')}
                   >
-                    {rescrapeLoading ? (
+                    {rescrapeLoading || isRefreshing ? (
                       <CircularProgress size={20} color="inherit" />
                     ) : (
                       <RefreshIcon />
