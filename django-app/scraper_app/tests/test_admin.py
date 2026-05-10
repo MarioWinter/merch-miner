@@ -455,8 +455,8 @@ class TestScrapeJobActions:
         assert call_kwargs['extra_rh_filters'] == {'p_76': '2661625011', 'p_n_g-1': '2'}
 
     @patch('django_rq.get_queue')
-    def test_start_pending_no_keyword_no_browse_no_asin_skipped(self, mock_get_queue, admin_client):
-        """Sanity: a job with neither keyword, browse_node, nor ASIN is still skipped."""
+    def test_start_pending_no_keyword_no_browse_no_pt_no_asin_skipped(self, mock_get_queue, admin_client):
+        """A job with NO trigger field (keyword/browse_node/product_type_filter/asin) is skipped."""
         mock_queue = MagicMock()
         mock_get_queue.return_value = mock_queue
 
@@ -464,6 +464,7 @@ class TestScrapeJobActions:
             keyword=None,
             asin='',
             browse_node='',
+            product_type_filter='',
             status=ScrapeJob.Status.PENDING,
         )
 
@@ -474,6 +475,149 @@ class TestScrapeJobActions:
         })
 
         mock_queue.enqueue.assert_not_called()
+
+    @patch('django_rq.get_queue')
+    def test_start_pending_product_type_filter_only_job(self, mock_get_queue, admin_client):
+        """Job with only product_type_filter (no explicit keyword / browse_node) is enqueued.
+
+        PRODUCT_TYPE_SPIDER_KWARGS supplies search_index + browse_node + seller_filter
+        + hidden_keywords from the preset. Empty browse_node on the job is acceptable —
+        the admin resolves the preset's browse_node and passes it as the explicit
+        browse_node kwarg to the spider task.
+        """
+        mock_queue = MagicMock()
+        mock_rq_job = MagicMock()
+        mock_rq_job.id = 'rq-pt-only-001'
+        mock_queue.enqueue.return_value = mock_rq_job
+        mock_get_queue.return_value = mock_queue
+
+        job = _make_scrape_job(
+            keyword=None,
+            asin='',
+            browse_node='',
+            product_type_filter='t_shirt',
+            status=ScrapeJob.Status.PENDING,
+        )
+
+        changelist_url = reverse('admin:scraper_app_scrapejob_changelist')
+        admin_client.post(changelist_url, {
+            'action': 'start_pending_jobs',
+            '_selected_action': [str(job.id)],
+        })
+
+        mock_queue.enqueue.assert_called_once()
+        call_kwargs = mock_queue.enqueue.call_args.kwargs
+        assert call_kwargs['keyword_str'] == ''
+        # Preset injects search_index + seller_filter
+        assert call_kwargs['search_index'] == 'fashion-novelty'
+        assert call_kwargs['seller_filter'] == 'ATVPDKIKX0DER'
+        # CRITICAL: browse_node must be resolved from the preset when job.browse_node is empty
+        assert call_kwargs['browse_node'] == '12035955011', (
+            f"Expected preset browse_node, got {call_kwargs['browse_node']!r}. "
+            "Without this, the spider URL would miss &bbn= and Amazon's category "
+            "filter would not apply."
+        )
+
+    @patch('django_rq.get_queue')
+    def test_start_pending_explicit_browse_node_wins_over_preset(self, mock_get_queue, admin_client):
+        """If job.browse_node is set explicitly, it overrides the preset's browse_node."""
+        mock_queue = MagicMock()
+        mock_rq_job = MagicMock()
+        mock_rq_job.id = 'rq-explicit-bn-001'
+        mock_queue.enqueue.return_value = mock_rq_job
+        mock_get_queue.return_value = mock_queue
+
+        kw = _make_keyword('explicit bn test')
+        job = _make_scrape_job(
+            keyword=kw,
+            asin='',
+            browse_node='99999999',  # explicit, not the preset's 12035955011
+            product_type_filter='t_shirt',
+            status=ScrapeJob.Status.PENDING,
+        )
+
+        changelist_url = reverse('admin:scraper_app_scrapejob_changelist')
+        admin_client.post(changelist_url, {
+            'action': 'start_pending_jobs',
+            '_selected_action': [str(job.id)],
+        })
+
+        mock_queue.enqueue.assert_called_once()
+        call_kwargs = mock_queue.enqueue.call_args.kwargs
+        assert call_kwargs['browse_node'] == '99999999'
+
+    @patch('django_rq.get_queue')
+    def test_start_pending_full_replication_pipeline(self, mock_get_queue, admin_client):
+        """End-to-end: simulate the user's exact scenario and verify the spider URL.
+
+        Job: product_type_filter=t_shirt, no keyword/asin, browse_node='',
+        sort_by=exact-aware-popularity-rank, price_min=13, price_max=30,
+        extra_rh_filters={n, p_76, p_n_g-...}.
+
+        Expected spider URL contains: i=fashion-novelty, bbn=12035955011, p_6+n+p_76+p_n_g-,
+        s=exact-aware-popularity-rank, low-price=13, high-price=30, page=1, NO &k=.
+        """
+        from scraper_app.scrapy_app.spiders.mixins import SearchPageMixin
+
+        mock_queue = MagicMock()
+        mock_rq_job = MagicMock()
+        mock_rq_job.id = 'rq-full-001'
+        mock_queue.enqueue.return_value = mock_rq_job
+        mock_get_queue.return_value = mock_queue
+
+        job = _make_scrape_job(
+            keyword=None,
+            asin='',
+            browse_node='',
+            product_type_filter='t_shirt',
+            sort_by='exact-aware-popularity-rank',
+            price_min=13,
+            price_max=30,
+            extra_rh_filters={
+                'n': '7147445011',
+                'p_76': '2661625011',
+                'p_n_g-101015233022111': '121075132011',
+            },
+            status=ScrapeJob.Status.PENDING,
+        )
+
+        changelist_url = reverse('admin:scraper_app_scrapejob_changelist')
+        admin_client.post(changelist_url, {
+            'action': 'start_pending_jobs',
+            '_selected_action': [str(job.id)],
+        })
+
+        mock_queue.enqueue.assert_called_once()
+        call_kwargs = mock_queue.enqueue.call_args.kwargs
+
+        # Build a fake spider with the exact kwargs the task would receive
+        class FakeSpider(SearchPageMixin):
+            pass
+        spider = FakeSpider()
+        spider.keyword = call_kwargs['keyword_str']
+        spider.marketplace = call_kwargs['marketplace']
+        spider.search_index = call_kwargs.get('search_index')
+        spider.seller_filter = call_kwargs.get('seller_filter')
+        spider.sort_by = call_kwargs.get('sort_by') or ''
+        spider.price_min = call_kwargs.get('price_min')
+        spider.price_max = call_kwargs.get('price_max')
+        spider.browse_node = call_kwargs.get('browse_node') or ''
+        spider.extra_rh_filters = call_kwargs.get('extra_rh_filters')
+
+        url = spider._build_search_url(page=1)
+
+        # NO keyword in URL
+        assert 's?k=' not in url and '&k=' not in url
+        # All 8 expected URL pieces present
+        assert 'i=fashion-novelty' in url
+        assert '&bbn=12035955011' in url, f"missing bbn= in {url!r}"
+        assert 'p_6' in url and 'ATVPDKIKX0DER' in url
+        assert 'n%3A7147445011' in url or 'n:7147445011' in url
+        assert 'p_76' in url and '2661625011' in url
+        assert 'p_n_g-101015233022111' in url
+        assert '&s=exact-aware-popularity-rank' in url
+        assert '&low-price=13' in url
+        assert '&high-price=30' in url
 
     @patch('django_rq.get_queue')
     def test_retry_copies_extra_rh_filters(self, mock_get_queue, admin_client):

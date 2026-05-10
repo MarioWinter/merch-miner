@@ -121,7 +121,7 @@ class ScrapeJobAdmin(admin.ModelAdmin):
         count = 0
         queue = django_rq.get_queue('scraper')
         for job in pending:
-            if job.keyword or job.browse_node:
+            if job.keyword or job.browse_node or job.product_type_filter:
                 spider_kwargs = {}
                 if job.product_type_filter and job.product_type_filter in PRODUCT_TYPE_SPIDER_KWARGS:
                     spider_kwargs = PRODUCT_TYPE_SPIDER_KWARGS[job.product_type_filter].copy()
@@ -130,8 +130,11 @@ class ScrapeJobAdmin(admin.ModelAdmin):
                     spider_kwargs['max_items'] = job.max_items
                 if job.extra_rh_filters:
                     spider_kwargs['extra_rh_filters'] = job.extra_rh_filters
-                # Remove browse_node from spider_kwargs to avoid conflict with explicit kwarg
-                spider_kwargs.pop('browse_node', None)
+                # Resolve effective browse_node: explicit job.browse_node wins,
+                # else the preset's value (popped from spider_kwargs to avoid
+                # being passed twice to enqueue).
+                preset_browse_node = spider_kwargs.pop('browse_node', '')
+                effective_browse_node = job.browse_node or preset_browse_node
                 # Choose spider based on mode
                 task_func = scrape_search_page_job if job.mode == ScrapeJob.Mode.SEARCH_PAGE_ONLY else scrape_keyword_job
                 rq_job = queue.enqueue(
@@ -142,7 +145,7 @@ class ScrapeJobAdmin(admin.ModelAdmin):
                     sort_by=job.sort_by or '',
                     price_min=job.price_min,
                     price_max=job.price_max,
-                    browse_node=job.browse_node or '',
+                    browse_node=effective_browse_node,
                     start_page=job.start_page,
                     **spider_kwargs,
                 )
@@ -156,7 +159,7 @@ class ScrapeJobAdmin(admin.ModelAdmin):
             else:
                 self.message_user(
                     request,
-                    f"Job {job.id} has no keyword, browse_node, or ASIN — skipped.",
+                    f"Job {job.id} has no keyword, browse_node, product_type_filter, or ASIN — skipped.",
                     messages.WARNING,
                 )
                 continue
@@ -213,7 +216,7 @@ class ScrapeJobAdmin(admin.ModelAdmin):
                 browse_node=job.browse_node,
                 extra_rh_filters=job.extra_rh_filters,
             )
-            if job.keyword or job.browse_node:
+            if job.keyword or job.browse_node or job.product_type_filter:
                 spider_kwargs = {}
                 if job.product_type_filter and job.product_type_filter in PRODUCT_TYPE_SPIDER_KWARGS:
                     spider_kwargs = PRODUCT_TYPE_SPIDER_KWARGS[job.product_type_filter].copy()
@@ -222,8 +225,10 @@ class ScrapeJobAdmin(admin.ModelAdmin):
                     spider_kwargs['max_items'] = job.max_items
                 if job.extra_rh_filters:
                     spider_kwargs['extra_rh_filters'] = job.extra_rh_filters
-                # Remove browse_node from spider_kwargs to avoid conflict with explicit kwarg
-                spider_kwargs.pop('browse_node', None)
+                # Resolve effective browse_node (same logic as start_pending_jobs):
+                # explicit wins, else preset, else empty.
+                preset_browse_node = spider_kwargs.pop('browse_node', '')
+                effective_browse_node = job.browse_node or preset_browse_node
                 task_func = scrape_search_page_job if job.mode == ScrapeJob.Mode.SEARCH_PAGE_ONLY else scrape_keyword_job
                 rq_job = queue.enqueue(
                     task_func,
@@ -233,7 +238,7 @@ class ScrapeJobAdmin(admin.ModelAdmin):
                     sort_by=job.sort_by or '',
                     price_min=job.price_min,
                     price_max=job.price_max,
-                    browse_node=job.browse_node or '',
+                    browse_node=effective_browse_node,
                     start_page=job.start_page,
                     **spider_kwargs,
                 )
