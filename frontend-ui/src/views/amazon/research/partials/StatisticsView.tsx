@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, Skeleton, Stack, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import SearchIcon from '@mui/icons-material/Search';
 import { useTranslation } from 'react-i18next';
@@ -9,7 +9,10 @@ interface StatisticsViewProps {
   keywordResults: SearchKeywordResult | undefined;
   hasSearched: boolean;
   onKeywordClick: (keyword: string) => void;
+  loading?: boolean;
 }
+
+const SKELETON_CHIP_WIDTHS = [96, 112, 80, 120, 88, 104];
 
 const SectionBox = styled(Box)(({ theme }) => ({
   backgroundColor: theme.vars.palette.background.paper,
@@ -55,6 +58,7 @@ const StatisticsView = ({
   keywordResults,
   hasSearched,
   onKeywordClick,
+  loading = false,
 }: StatisticsViewProps) => {
   const { t } = useTranslation();
 
@@ -75,6 +79,26 @@ const StatisticsView = ({
           {t('amazonResearch.statistics.runSearchHint')}
         </Typography>
       </Box>
+    );
+  }
+
+  // Phase 8 — loading state (must precede empty-state branch so the "No
+  // keyword data available" text never flashes during in-flight requests).
+  if (loading) {
+    return (
+      <SectionBox>
+        <Stack direction="row" sx={{ display: 'inline-flex', gap: 1, flexWrap: 'wrap' }}>
+          {SKELETON_CHIP_WIDTHS.map((width, idx) => (
+            <Skeleton
+              key={idx}
+              variant="rounded"
+              width={width}
+              height={28}
+              sx={{ borderRadius: 16 }}
+            />
+          ))}
+        </Stack>
+      </SectionBox>
     );
   }
 

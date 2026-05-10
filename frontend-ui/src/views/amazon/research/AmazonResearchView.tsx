@@ -21,6 +21,7 @@ import {
   useTriggerLiveSearchMutation,
   usePollSearchStatusExtendedQuery,
   useCancelLiveSearchMutation,
+  useGetDbKeywordsQuery,
 } from '../../../store/researchSlice';
 import { useExtractSloganMutation } from '../../../store/ideaSlice';
 import { useCreateNicheMutation, useGetNicheQuery } from '../../../store/nicheSlice';
@@ -202,8 +203,17 @@ const AmazonResearchView = () => {
     skip: !cacheId || isPolling,
   });
 
-  const keywordResults: SearchKeywordResult | undefined =
-    extendedStatus?.keyword_result ?? undefined;
+  // DB-mode keyword source — companion to the live extendedStatus path above.
+  const { data: dbKeywordsData, isFetching: isDbKeywordsFetching } =
+    useGetDbKeywordsQuery(buildQueryParams(), {
+      skip: isLive || !hasSearched,
+    });
+
+  const keywordResults: SearchKeywordResult | undefined = isLive
+    ? extendedStatus?.keyword_result ?? undefined
+    : dbKeywordsData;
+
+  const keywordsLoading = isLive ? isPolling : isDbKeywordsFetching;
 
   // While the live scrape is running, periodically pull page-1 of the DB list
   // in additive mode so freshly-stored products surface in real time without
@@ -621,6 +631,7 @@ const AmazonResearchView = () => {
           keywordResults={keywordResults}
           hasSearched={hasSearched}
           onKeywordClick={handleKeywordClick}
+          loading={keywordsLoading}
         />
       )}
 

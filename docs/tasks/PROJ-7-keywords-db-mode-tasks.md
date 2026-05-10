@@ -38,35 +38,35 @@ Tests live in `django-app/research_app/tests/test_db_keywords_view.py`.
 
 ## Phase 4 — Frontend RTK Query
 
-- [ ] Add `getDbKeywords` builder.query in `frontend-ui/src/store/researchSlice.ts` with the same query-param shape used by `listProducts` (URL: `/api/research/products/keywords/`, method: GET)
-- [ ] Provide tag `{ type: 'ResearchKeywords', id: <hash-of-params> }` so a manual invalidation later is feasible (optional but cheap)
-- [ ] Export `useGetDbKeywordsQuery` from the slice
-- [ ] Add TypeScript response type `DbKeywordsResponse` matching `SearchKeywordResult` shape plus `sample_size` + `cached`
+- [x] Add `getDbKeywords` builder.query in `frontend-ui/src/store/researchSlice.ts` with the same query-param shape used by `listProducts` (URL: `/api/research/products/keywords/`, method: GET) — researchSlice.ts:58-65
+- [x] Provide tag `{ type: 'ResearchKeywords', id: 'CURRENT' }` so a manual invalidation later is feasible (single-tag pattern — per-hash adds no value) — researchSlice.ts:64 + tagTypes researchSlice.ts:21-28
+- [x] Export `useGetDbKeywordsQuery` from the slice — researchSlice.ts:181
+- [x] Add TypeScript response type `DbKeywordsResponse` matching `SearchKeywordResult` shape plus `sample_size` + `cached` — types/index.ts:175-182
 
 ## Phase 5 — Frontend Wiring
 
-- [ ] In `AmazonResearchView.tsx`, call `useGetDbKeywordsQuery(buildQueryParams(), { skip: isLive || !hasSearched })`
-- [ ] Combine sources: `keywordResults = isLive ? extendedStatus?.keyword_result : dbKeywordsData`
-- [ ] Pass `isLoading` (from the new query when DB mode, or `isPolling` when Live) down to `StatisticsView` as a new `loading` prop
-- [ ] In `StatisticsView.tsx`, accept new prop `loading?: boolean`; when `loading && hasSearched`, render a skeleton row (4–6 `Skeleton` rounded chips) instead of the empty state
-- [ ] Verify the "No keyword data available" empty state still renders correctly after a successful query that returned empty arrays
+- [x] In `AmazonResearchView.tsx`, call `useGetDbKeywordsQuery(buildQueryParams(), { skip: isLive || !hasSearched })` — AmazonResearchView.tsx:208-211
+- [x] Combine sources: `keywordResults = isLive ? extendedStatus?.keyword_result : dbKeywordsData` — AmazonResearchView.tsx:213-215
+- [x] Pass loading (from the new query when DB mode, or `isPolling` when Live) down to `StatisticsView` as a new `loading` prop — AmazonResearchView.tsx:217 + 633
+- [x] In `StatisticsView.tsx`, accept new prop `loading?: boolean`; when `loading && hasSearched`, render a skeleton row (6 `Skeleton` rounded chips inside a SectionBox) — StatisticsView.tsx:9-15, 84-101
+- [x] Verify the "No keyword data available" empty state still renders correctly after a successful query that returned empty arrays — loading branch precedes empty-state branch, so empty state only renders when not loading (StatisticsView.tsx:84-101 vs 107-118)
 
 ## Phase 6 — Frontend Tests
 
-- [ ] Update or add an integration test in `frontend-ui/src/views/amazon/research/tests/AmazonResearchView.test.tsx`:
-  - Mocks `getDbKeywords` to return `{ top_focus_keywords: [{keyword: 'shirt', frequency: 12}], top_long_tail_keywords: [], sample_size: 50, cached: false }`
+- [x] Update or add an integration test in `frontend-ui/src/views/amazon/research/tests/AmazonResearchView.test.tsx`:
+  - Mocks `getDbKeywords` to return `{ top_focus_keywords: [{keyword: 'shirt', frequency: 12}], top_long_tail_keywords: [{keyword: 'school bus', frequency: 8}], sample_size: 50, cached: false }`
   - Performs a DB-mode search
   - Switches to the Keywords tab
-  - Asserts the "shirt" chip is in the DOM
-- [ ] Add a separate test for the skeleton loading state (mock the query to return `isLoading: true`) → assert at least one `Skeleton` element under the Keywords tab
-- [ ] Confirm Live-mode test path is unchanged
+  - Asserts both 'shirt' and 'school bus' chips are in the DOM — AmazonResearchView.test.tsx:313-339
+- [x] Add a separate test for the skeleton loading state (mock the query to return `isFetching: true`) → assert at least one `Skeleton` element under the Keywords tab and no empty-state text — AmazonResearchView.test.tsx:341-367
+- [x] Confirm Live-mode test path is unchanged — previous 9 tests still pass (11 passed, 0 regressions)
 
 ## Phase 7 — Verification
 
-- [ ] `docker compose exec web pytest research_app/` — all green
-- [ ] `npm run lint` — 0 new errors
-- [ ] `npx tsc --noEmit` — 0 errors
-- [ ] `npx vitest run` (frontend full suite) — 0 regressions
+- [x] `docker compose exec web pytest research_app/` — all green (158 passed in 5.56s, completed during Phase 3)
+- [x] `npm run lint` — 0 new errors (8 pre-existing warnings in untouched files)
+- [x] `npx tsc --noEmit` — 0 errors
+- [x] `npx vitest run` (frontend full suite) — 0 regressions (1395 passed | 1 skipped)
 - [ ] Manual smoke test in `npm run dev`: DB search → Keywords tab → chips render; click a chip → triggers a new search for that keyword
 
 ## Notes / Out-of-scope
