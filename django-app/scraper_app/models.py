@@ -296,6 +296,7 @@ class ScrapeJob(models.Model):
     extra_rh_filters = models.JSONField(
         default=dict,
         blank=True,
+        null=True,
         help_text=(
             'Additional Amazon `rh=` query refinements as flat key:value '
             'JSON object. Each entry becomes a `key:value` pair in the '

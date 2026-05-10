@@ -80,7 +80,10 @@ class ScrapeJobAdmin(admin.ModelAdmin):
             ),
         }),
         ('Search Filters', {
-            'fields': ('sort_by', 'price_min', 'price_max', 'browse_node'),
+            'fields': (
+                'sort_by', 'price_min', 'price_max', 'browse_node',
+                'extra_rh_filters',
+            ),
         }),
         ('Progress & Metadata', {
             'fields': (
