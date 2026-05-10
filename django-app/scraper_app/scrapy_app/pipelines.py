@@ -273,20 +273,34 @@ class DjangoORMPipeline:
         )
 
     def _auto_enroll_target(self, item):
-        bsr = item.get('bsr')
-        tier = self.ScrapeTier.get_tier_for_bsr(bsr)
-        if not tier:
-            return
-        target, created = self.ScheduledScrapeTarget.objects.get_or_create(
+        # Auto-enrollment policy (changed 2026-05-10):
+        #
+        # The pipeline used to set tier from BSR + active=True, which turned
+        # every scraped product into a scheduled-scrape candidate that the
+        # `schedule_scrape_runner` cron then re-enqueued every hour. With
+        # 600k+ rows this flooded the scraper queue and starved the
+        # BulkScrapeBatch drainer.
+        #
+        # New policy: still create a row for forensics + future opt-in, but
+        # default to `tier=OneShot, active=False` so the cron-runner ignores
+        # it. Activation now happens exclusively via:
+        #   - Admin form (manual activate flag)
+        #   - CSV bulk upload (explicit tier set in upload)
+        #   - BulkScrapeBatch upload (batch-scoped, drainer handles)
+        #
+        # Existing rows are NOT touched (no tier-bump on re-scrape) so the
+        # one-time `OneShot+active=False` cleanup we ran in prod stays valid.
+        oneshot = self.ScrapeTier.objects.filter(name='OneShot').first()
+        if not oneshot:
+            return  # OneShot tier missing — skip rather than risk active=True default
+        self.ScheduledScrapeTarget.objects.get_or_create(
             asin=item['asin'],
             marketplace=item['marketplace'],
             defaults={
-                'tier': tier,
-                'active': True,
+                'tier': oneshot,
+                'active': False,
             },
         )
-        if not created and bsr is not None:
-            target.update_tier_from_bsr(bsr)
 
     def _update_job_progress(self):
         if not self.scrape_job:

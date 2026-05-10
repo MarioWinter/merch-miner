@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from scraper_app.models import (
     AmazonProduct,
+    BulkScrapeBatch,
     Keyword,
     ProductSearchCache,
     ScheduledScrapeTarget,
@@ -520,6 +521,72 @@ class TestScheduleScrapeRunner:
         call_args_list = mock_queue.enqueue.call_args_list
         dispatched_funcs = {call.args[0].__name__ for call in call_args_list}
         assert dispatched_funcs == {'scrape_keyword_job', 'scrape_asin_detail_job'}
+
+    @patch('scraper_app.tasks.django_rq')
+    def test_skips_targets_owned_by_running_bulk_batch(self, mock_django_rq, scrape_tiers):
+        """Targets attached to a non-completed BulkScrapeBatch are owned by the
+        batch's drainer and must NOT be re-enqueued by the cron runner.
+
+        Regression guard for the 2026-05-10 incident where 13.7k single-ASIN
+        scrapes from this path queued ahead of the bulk drainer's BATCH_ASIN
+        jobs and stalled the bulk for hours.
+        """
+        mock_queue = MagicMock()
+        mock_rq_job = MagicMock()
+        mock_rq_job.id = 'rq-bulk-skip-001'
+        mock_queue.enqueue.return_value = mock_rq_job
+        mock_django_rq.get_queue.return_value = mock_queue
+
+        tier1, _, _ = scrape_tiers
+        now = timezone.now()
+
+        # Three batches representing each drainer-owned status
+        running_batch = BulkScrapeBatch.objects.create(
+            name='running', marketplace='amazon_com',
+            status=BulkScrapeBatch.Status.RUNNING,
+        )
+        paused_batch = BulkScrapeBatch.objects.create(
+            name='paused', marketplace='amazon_com',
+            status=BulkScrapeBatch.Status.PAUSED,
+        )
+        ready_batch = BulkScrapeBatch.objects.create(
+            name='ready', marketplace='amazon_com',
+            status=BulkScrapeBatch.Status.READY,
+        )
+        completed_batch = BulkScrapeBatch.objects.create(
+            name='completed', marketplace='amazon_com',
+            status=BulkScrapeBatch.Status.COMPLETED,
+        )
+
+        # Bulk-owned (non-terminal) targets — must be skipped
+        for asin, batch in [
+            ('B0RUN000001', running_batch),
+            ('B0PAU000001', paused_batch),
+            ('B0RDY000001', ready_batch),
+        ]:
+            ScheduledScrapeTarget.objects.create(
+                asin=asin, marketplace='amazon_com', tier=tier1,
+                next_scrape_at=now - timedelta(hours=1), active=True,
+                batch=batch,
+            )
+        # Target owned by COMPLETED batch — drainer is done with it,
+        # cron runner SHOULD pick it up.
+        ScheduledScrapeTarget.objects.create(
+            asin='B0COM000001', marketplace='amazon_com', tier=tier1,
+            next_scrape_at=now - timedelta(hours=1), active=True,
+            batch=completed_batch,
+        )
+        # Lone target with no batch — cron runner SHOULD pick it up.
+        ScheduledScrapeTarget.objects.create(
+            asin='B0LONE00001', marketplace='amazon_com', tier=tier1,
+            next_scrape_at=now - timedelta(hours=1), active=True,
+        )
+
+        count = schedule_scrape_runner()
+
+        # Only the 2 non-bulk-owned targets get enqueued
+        assert count == 2
+        assert mock_queue.enqueue.call_count == 2
 
     @patch('scraper_app.tasks.django_rq')
     def test_enqueue_uses_scrape_job_id_kwarg(self, mock_django_rq, scrape_tiers):
