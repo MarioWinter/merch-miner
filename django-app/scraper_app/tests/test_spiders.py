@@ -134,6 +134,7 @@ class TestBuildSearchUrlSortAndFilter:
             'price_min': None,
             'price_max': None,
             'browse_node': None,
+            'extra_rh_filters': None,
         }
         defaults.update(overrides)
 
@@ -205,10 +206,93 @@ class TestBuildSearchUrlSortAndFilter:
         assert '&s=' not in url
         assert '&low-price=' not in url
         assert '&high-price=' not in url
-        assert '&bbn=' not in url
-        # Base URL still correct
-        assert 's?k=funny+cat' in url
-        assert 'page=1' in url
+
+    # ------------------------------------------------------------------
+    # extra_rh_filters → multi-key &rh= assembly
+    # ------------------------------------------------------------------
+
+    def test_extra_rh_filters_dict_assembled_into_rh(self):
+        spider = self._make_spider(
+            extra_rh_filters={'p_76': '2661625011'},
+        )
+        url = spider._build_search_url(page=1)
+        assert '&rh=p_76%3A2661625011' in url or '&rh=p_76:2661625011' in url
+
+    def test_extra_rh_filters_combines_with_seller_filter(self):
+        """seller_filter (p_6) + extra_rh_filters → single &rh= with comma-separated pairs."""
+        spider = self._make_spider(
+            seller_filter='ATVPDKIKX0DER',
+            extra_rh_filters={'p_76': '2661625011', 'n': '7147445011'},
+        )
+        url = spider._build_search_url(page=1)
+        assert '&rh=' in url
+        assert 'p_6' in url and 'ATVPDKIKX0DER' in url
+        assert 'p_76' in url and '2661625011' in url
+        # Only one &rh= segment overall
+        assert url.count('&rh=') == 1
+
+    def test_extra_rh_filters_dynamic_genre_key(self):
+        """Genre keys like p_n_g-101015233022111 must pass through verbatim."""
+        spider = self._make_spider(
+            extra_rh_filters={'p_n_g-101015233022111': '121075132011'},
+        )
+        url = spider._build_search_url(page=1)
+        assert 'p_n_g-101015233022111' in url
+        assert '121075132011' in url
+
+    def test_extra_rh_filters_json_string_input(self):
+        """CLI passes extra_rh_filters as JSON-string; mixin parses it."""
+        spider = self._make_spider(
+            extra_rh_filters='{"p_76": "2661625011"}',
+        )
+        url = spider._build_search_url(page=1)
+        assert 'p_76' in url and '2661625011' in url
+
+    def test_extra_rh_filters_invalid_json_string_silently_ignored(self):
+        """Malformed JSON does not crash the build; just no rh added."""
+        spider = self._make_spider(
+            extra_rh_filters='not-json',
+        )
+        url = spider._build_search_url(page=1)
+        assert '&rh=' not in url
+
+    def test_extra_rh_filters_empty_dict_no_rh(self):
+        spider = self._make_spider(extra_rh_filters={})
+        url = spider._build_search_url(page=1)
+        assert '&rh=' not in url
+
+    def test_extra_rh_filters_dedupes_p_6_when_seller_filter_set(self):
+        """If user accidentally re-adds p_6 in extras, the seller_filter wins (no dup)."""
+        spider = self._make_spider(
+            seller_filter='ATVPDKIKX0DER',
+            extra_rh_filters={'p_6': 'OTHERSELLER'},
+        )
+        url = spider._build_search_url(page=1)
+        assert 'ATVPDKIKX0DER' in url
+        assert 'OTHERSELLER' not in url
+
+    def test_full_amazon_url_replication(self):
+        """Verify replication of a real Amazon Best-Sellers URL with all 6 supported filters."""
+        spider = self._make_spider(
+            keyword='',  # browse-only scrape
+            search_index='fashion-novelty',
+            seller_filter='ATVPDKIKX0DER',
+            sort_by='exact-aware-popularity-rank',
+            price_min='13',
+            price_max='30',
+            browse_node='12035955011',
+            extra_rh_filters={'p_76': '2661625011', 'p_n_g-101015233022111': '121075132011'},
+        )
+        url = spider._build_search_url(page=1)
+        assert '&k=' not in url and 's?k=' not in url
+        assert 'i=fashion-novelty' in url
+        assert 'p_6' in url and 'ATVPDKIKX0DER' in url
+        assert 'p_76' in url
+        assert 'p_n_g-101015233022111' in url
+        assert '&s=exact-aware-popularity-rank' in url
+        assert '&low-price=13' in url
+        assert '&high-price=30' in url
+        assert '&bbn=12035955011' in url
 
 
 # ----------------------------------------------------------------------

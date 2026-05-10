@@ -293,6 +293,20 @@ class ScrapeJob(models.Model):
         max_length=20, blank=True, default='',
         help_text='Amazon browse node ID for category filtering',
     )
+    extra_rh_filters = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text=(
+            'Additional Amazon `rh=` query refinements as flat key:value '
+            'JSON object. Each entry becomes a `key:value` pair in the '
+            'comma-separated `rh=` URL parameter. Examples: '
+            '{"p_76": "2661625011"} (Prime/shipping filter), '
+            '{"p_n_g-101015233022111": "121075132011"} (genre refinement), '
+            '{"n": "7147445011"} (department node refinement). The built-in '
+            'seller_filter (p_6) from product_type_filter is merged in '
+            'automatically; do not duplicate it here.'
+        ),
+    )
     pages_total = models.IntegerField(
         default=2,
         validators=[MinValueValidator(1), MaxValueValidator(400)],

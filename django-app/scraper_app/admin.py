@@ -118,20 +118,22 @@ class ScrapeJobAdmin(admin.ModelAdmin):
         count = 0
         queue = django_rq.get_queue('scraper')
         for job in pending:
-            if job.keyword:
+            if job.keyword or job.browse_node:
                 spider_kwargs = {}
                 if job.product_type_filter and job.product_type_filter in PRODUCT_TYPE_SPIDER_KWARGS:
                     spider_kwargs = PRODUCT_TYPE_SPIDER_KWARGS[job.product_type_filter].copy()
                 spider_kwargs['max_pages'] = job.pages_total
                 if job.max_items:
                     spider_kwargs['max_items'] = job.max_items
+                if job.extra_rh_filters:
+                    spider_kwargs['extra_rh_filters'] = job.extra_rh_filters
                 # Remove browse_node from spider_kwargs to avoid conflict with explicit kwarg
                 spider_kwargs.pop('browse_node', None)
                 # Choose spider based on mode
                 task_func = scrape_search_page_job if job.mode == ScrapeJob.Mode.SEARCH_PAGE_ONLY else scrape_keyword_job
                 rq_job = queue.enqueue(
                     task_func,
-                    keyword_str=job.keyword.keyword,
+                    keyword_str=job.keyword.keyword if job.keyword else '',
                     marketplace=job.marketplace,
                     scrape_job_id=str(job.id),
                     sort_by=job.sort_by or '',
@@ -151,7 +153,7 @@ class ScrapeJobAdmin(admin.ModelAdmin):
             else:
                 self.message_user(
                     request,
-                    f"Job {job.id} has no keyword or ASIN — skipped.",
+                    f"Job {job.id} has no keyword, browse_node, or ASIN — skipped.",
                     messages.WARNING,
                 )
                 continue
@@ -206,20 +208,23 @@ class ScrapeJobAdmin(admin.ModelAdmin):
                 price_min=job.price_min,
                 price_max=job.price_max,
                 browse_node=job.browse_node,
+                extra_rh_filters=job.extra_rh_filters,
             )
-            if job.keyword:
+            if job.keyword or job.browse_node:
                 spider_kwargs = {}
                 if job.product_type_filter and job.product_type_filter in PRODUCT_TYPE_SPIDER_KWARGS:
                     spider_kwargs = PRODUCT_TYPE_SPIDER_KWARGS[job.product_type_filter].copy()
                 spider_kwargs['max_pages'] = job.pages_total
                 if job.max_items:
                     spider_kwargs['max_items'] = job.max_items
+                if job.extra_rh_filters:
+                    spider_kwargs['extra_rh_filters'] = job.extra_rh_filters
                 # Remove browse_node from spider_kwargs to avoid conflict with explicit kwarg
                 spider_kwargs.pop('browse_node', None)
                 task_func = scrape_search_page_job if job.mode == ScrapeJob.Mode.SEARCH_PAGE_ONLY else scrape_keyword_job
                 rq_job = queue.enqueue(
                     task_func,
-                    keyword_str=job.keyword.keyword,
+                    keyword_str=job.keyword.keyword if job.keyword else '',
                     marketplace=job.marketplace,
                     scrape_job_id=str(new_job.id),
                     sort_by=job.sort_by or '',
