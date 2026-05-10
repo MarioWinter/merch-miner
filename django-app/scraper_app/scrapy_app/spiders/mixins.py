@@ -673,8 +673,35 @@ class SearchPageMixin:
 
         if self.search_index:
             search_url += f"&i={self.search_index}"
+
+        # Assemble single &rh= parameter from seller_filter (p_6) +
+        # extra_rh_filters (arbitrary key:value pairs e.g. p_76, p_n_g-..., n).
+        # Amazon expects ONE rh= with comma-separated key:value pairs.
+        rh_pairs = []
         if self.seller_filter:
-            search_url += f"&rh=p_6:{self.seller_filter}"
+            rh_pairs.append(f"p_6:{self.seller_filter}")
+        extra_rh_filters = getattr(self, "extra_rh_filters", None)
+        if extra_rh_filters:
+            # Allow either a dict (preferred) or a JSON string (CLI-passed)
+            if isinstance(extra_rh_filters, str):
+                try:
+                    extra_rh_filters = json.loads(extra_rh_filters)
+                except (json.JSONDecodeError, TypeError):
+                    logger_obj = getattr(self, 'logger', None)
+                    if logger_obj is not None:
+                        logger_obj.warning(
+                            "extra_rh_filters could not be parsed as JSON: %r",
+                            extra_rh_filters,
+                        )
+                    extra_rh_filters = {}
+            if isinstance(extra_rh_filters, dict):
+                for key, value in extra_rh_filters.items():
+                    # Skip duplicate p_6 (seller_filter handles it)
+                    if key == "p_6" and self.seller_filter:
+                        continue
+                    rh_pairs.append(f"{key}:{value}")
+        if rh_pairs:
+            search_url += "&rh=" + quote_plus(",".join(rh_pairs), safe=":,-")
 
         sort_by = getattr(self, "sort_by", None)
         if sort_by:

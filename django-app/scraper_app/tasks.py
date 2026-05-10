@@ -1,3 +1,4 @@
+import json
 import logging
 import os
 import signal
@@ -252,6 +253,10 @@ def scrape_keyword_job(
         if max_pages is not None:
             cmd.extend(['-a', f'max_pages={int(max_pages)}'])
         max_items = spider_kwargs.pop('max_items', None)
+        # JSON-encode dict-typed kwargs (e.g. extra_rh_filters) before CLI passing.
+        extra_rh_filters = spider_kwargs.pop('extra_rh_filters', None)
+        if extra_rh_filters:
+            cmd.extend(['-a', f'extra_rh_filters={json.dumps(extra_rh_filters)}'])
         for key, value in spider_kwargs.items():
             if value is not None:
                 cmd.extend(['-a', f'{key}={value}'])
@@ -395,6 +400,10 @@ def scrape_search_page_job(
         if start_page and int(start_page) > 1:
             cmd.extend(['-a', f'start_page={start_page}'])
         max_items = spider_kwargs.pop('max_items', None)
+        # JSON-encode dict-typed kwargs (e.g. extra_rh_filters) before CLI passing.
+        extra_rh_filters = spider_kwargs.pop('extra_rh_filters', None)
+        if extra_rh_filters:
+            cmd.extend(['-a', f'extra_rh_filters={json.dumps(extra_rh_filters)}'])
         for key, value in spider_kwargs.items():
             if value is not None:
                 cmd.extend(['-a', f'{key}={value}'])

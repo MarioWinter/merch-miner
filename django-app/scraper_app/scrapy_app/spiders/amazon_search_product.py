@@ -24,6 +24,7 @@ class AmazonSearchProductSpider(SearchPageMixin, ProductDetailMixin, scrapy.Spid
         price_min=None,
         price_max=None,
         browse_node=None,
+        extra_rh_filters=None,
         *args,
         **kwargs,
     ):
@@ -40,6 +41,8 @@ class AmazonSearchProductSpider(SearchPageMixin, ProductDetailMixin, scrapy.Spid
         self.price_min = price_min if price_min is not None and price_min != "" else None
         self.price_max = price_max if price_max is not None and price_max != "" else None
         self.browse_node = browse_node or ""
+        # extra_rh_filters arrives as JSON-encoded string from CLI; mixin parses on use.
+        self.extra_rh_filters = extra_rh_filters or None
 
     def start_requests(self):
         search_url = self._build_search_url(page=self.start_page)

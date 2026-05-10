@@ -401,6 +401,108 @@ class TestScrapeJobActions:
         call_args = mock_queue.enqueue.call_args
         assert call_args.args[0] == scrape_asin_detail_job
 
+    @patch('django_rq.get_queue')
+    def test_start_pending_browse_only_job_no_keyword(self, mock_get_queue, admin_client):
+        """Start action accepts browse_node-only jobs (no keyword) — empty keyword_str passed through."""
+        mock_queue = MagicMock()
+        mock_rq_job = MagicMock()
+        mock_rq_job.id = 'rq-browse-001'
+        mock_queue.enqueue.return_value = mock_rq_job
+        mock_get_queue.return_value = mock_queue
+
+        job = _make_scrape_job(
+            keyword=None,
+            asin='',
+            browse_node='12035955011',
+            status=ScrapeJob.Status.PENDING,
+        )
+
+        changelist_url = reverse('admin:scraper_app_scrapejob_changelist')
+        admin_client.post(changelist_url, {
+            'action': 'start_pending_jobs',
+            '_selected_action': [str(job.id)],
+        })
+
+        mock_queue.enqueue.assert_called_once()
+        call_kwargs = mock_queue.enqueue.call_args.kwargs
+        assert call_kwargs['keyword_str'] == ''
+        assert call_kwargs['browse_node'] == '12035955011'
+
+    @patch('django_rq.get_queue')
+    def test_start_pending_passes_extra_rh_filters(self, mock_get_queue, admin_client):
+        """Start action passes extra_rh_filters from the job into spider_kwargs."""
+        mock_queue = MagicMock()
+        mock_rq_job = MagicMock()
+        mock_rq_job.id = 'rq-rh-001'
+        mock_queue.enqueue.return_value = mock_rq_job
+        mock_get_queue.return_value = mock_queue
+
+        kw = _make_keyword('rh test')
+        job = _make_scrape_job(
+            keyword=kw,
+            status=ScrapeJob.Status.PENDING,
+            extra_rh_filters={'p_76': '2661625011', 'p_n_g-1': '2'},
+        )
+
+        changelist_url = reverse('admin:scraper_app_scrapejob_changelist')
+        admin_client.post(changelist_url, {
+            'action': 'start_pending_jobs',
+            '_selected_action': [str(job.id)],
+        })
+
+        mock_queue.enqueue.assert_called_once()
+        call_kwargs = mock_queue.enqueue.call_args.kwargs
+        assert call_kwargs['extra_rh_filters'] == {'p_76': '2661625011', 'p_n_g-1': '2'}
+
+    @patch('django_rq.get_queue')
+    def test_start_pending_no_keyword_no_browse_no_asin_skipped(self, mock_get_queue, admin_client):
+        """Sanity: a job with neither keyword, browse_node, nor ASIN is still skipped."""
+        mock_queue = MagicMock()
+        mock_get_queue.return_value = mock_queue
+
+        job = _make_scrape_job(
+            keyword=None,
+            asin='',
+            browse_node='',
+            status=ScrapeJob.Status.PENDING,
+        )
+
+        changelist_url = reverse('admin:scraper_app_scrapejob_changelist')
+        admin_client.post(changelist_url, {
+            'action': 'start_pending_jobs',
+            '_selected_action': [str(job.id)],
+        })
+
+        mock_queue.enqueue.assert_not_called()
+
+    @patch('django_rq.get_queue')
+    def test_retry_copies_extra_rh_filters(self, mock_get_queue, admin_client):
+        """Retry action copies extra_rh_filters to the new job."""
+        mock_queue = MagicMock()
+        mock_rq_job = MagicMock()
+        mock_rq_job.id = 'rq-retry-rh-001'
+        mock_queue.enqueue.return_value = mock_rq_job
+        mock_get_queue.return_value = mock_queue
+
+        kw = _make_keyword('retry rh test')
+        failed_job = _make_scrape_job(
+            keyword=kw,
+            status=ScrapeJob.Status.FAILED,
+            extra_rh_filters={'p_76': '2661625011'},
+        )
+
+        changelist_url = reverse('admin:scraper_app_scrapejob_changelist')
+        admin_client.post(changelist_url, {
+            'action': 'retry_failed_jobs',
+            '_selected_action': [str(failed_job.id)],
+        })
+
+        new_job = ScrapeJob.objects.filter(
+            status=ScrapeJob.Status.PENDING, keyword=kw,
+        ).first()
+        assert new_job is not None
+        assert new_job.extra_rh_filters == {'p_76': '2661625011'}
+
 
 # ---------------------------------------------------------------------------
 # Queue Health Page
