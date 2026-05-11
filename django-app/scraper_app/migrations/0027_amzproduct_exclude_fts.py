@@ -22,6 +22,7 @@ SearchVector(...) generates at query time is critical: any deviation
 
 import django.contrib.postgres.indexes
 import django.contrib.postgres.search
+from django.contrib.postgres.operations import TrigramExtension
 from django.db import migrations
 
 
@@ -33,6 +34,9 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # Ensure pg_trgm is available. Idempotent: no-op when the extension is
+        # already installed (dev + prod), creates it where missing (CI test DB).
+        TrigramExtension(),
         migrations.SeparateDatabaseAndState(
             database_operations=[
                 migrations.RunSQL(
