@@ -16,10 +16,12 @@ URL = reverse('research-products')
 
 @pytest.fixture(autouse=True)
 def clear_official_brands_cache():
-    """Ensure the 5-min Redis cache of BrandBlacklist does not leak between tests."""
+    """Ensure the BrandBlacklist-derived Redis caches do not leak between tests."""
     redis_cache.delete('research:official_brands')
+    redis_cache.delete('research:blacklisted_brand_values')
     yield
     redis_cache.delete('research:official_brands')
+    redis_cache.delete('research:blacklisted_brand_values')
 
 
 class TestProductListAuth:
@@ -223,6 +225,104 @@ class TestProductListBrandFilter:
         assert asins_hidden == asins_shown
         assert 'B0EMPT001' in asins_hidden
         assert 'B0EMPT002' in asins_hidden
+
+
+class TestBrandBlacklistCache:
+    """Covers the `research:blacklisted_brand_values` precomputed cache + signal."""
+
+    def test_second_request_hits_cache_skips_distinct_brand_query(self, auth_client):
+        """Second request must not re-run the DISTINCT scan on AmazonProduct."""
+        BrandBlacklist.objects.get_or_create(brand_name='nike')
+        make_product(asin='B0CACHE10', brand='Nike')
+        make_product(asin='B0CACHE11', brand='IndieShop')
+
+        # First request: warms both caches.
+        resp1 = auth_client.get(URL, {'hide_official_brands': 'true'})
+        assert resp1.status_code == 200
+        # Cache must now hold the precomputed brand list.
+        cached = redis_cache.get('research:blacklisted_brand_values')
+        assert cached is not None
+
+        # Second request: the DISTINCT scan on AmazonProduct must NOT run.
+        with patch(
+            'research_app.api.views.AmazonProduct.objects.exclude',
+        ) as mock_exclude:
+            resp2 = auth_client.get(URL, {'hide_official_brands': 'true'})
+            assert resp2.status_code == 200
+            # The DISTINCT scan path calls AmazonProduct.objects.exclude(brand=''),
+            # so a cache hit means this is never called.
+            mock_exclude.assert_not_called()
+
+    def test_brand_blacklist_save_clears_cache(self, auth_client):
+        """Creating a BrandBlacklist row must invalidate the precomputed cache."""
+        # Use uniquely-named test brands to avoid colliding with seeded data
+        # from migration 0007_seed_brand_blacklist.
+        BrandBlacklist.objects.get_or_create(brand_name='zz_testbrand_x')
+        make_product(asin='B0SIG_NK', brand='zz_testbrand_x')
+        # Warm the cache.
+        auth_client.get(URL, {'hide_official_brands': 'true'})
+        assert redis_cache.get('research:blacklisted_brand_values') is not None
+        assert redis_cache.get('research:official_brands') is not None
+
+        # Signal must fire on save() and wipe BOTH caches.
+        BrandBlacklist.objects.create(brand_name='zz_testbrand_y')
+
+        assert redis_cache.get('research:blacklisted_brand_values') is None
+        assert redis_cache.get('research:official_brands') is None
+
+    def test_brand_blacklist_delete_clears_cache(self, auth_client):
+        """Deleting a BrandBlacklist row must invalidate the precomputed cache."""
+        target, _ = BrandBlacklist.objects.get_or_create(brand_name='zz_delbrand_x')
+        make_product(asin='B0SIG_DEL', brand='zz_delbrand_x')
+        auth_client.get(URL, {'hide_official_brands': 'true'})
+        assert redis_cache.get('research:blacklisted_brand_values') is not None
+        assert redis_cache.get('research:official_brands') is not None
+
+        target.delete()
+
+        assert redis_cache.get('research:blacklisted_brand_values') is None
+        assert redis_cache.get('research:official_brands') is None
+
+    def test_empty_blacklist_caches_empty_list(self, auth_client):
+        """Empty BrandBlacklist must still cache (avoid re-running on every call)."""
+        BrandBlacklist.objects.all().delete()
+        # Sanity: signal fired during delete; both caches should be empty pre-call.
+        assert redis_cache.get('research:blacklisted_brand_values') is None
+
+        make_product(asin='B0EMPTY01', brand='Anything')
+        resp = auth_client.get(URL, {'hide_official_brands': 'true'})
+        assert resp.status_code == 200
+        # The empty-list result is cached (None-vs-[] distinction).
+        assert redis_cache.get('research:blacklisted_brand_values') == []
+
+
+class TestBrandFilterPerformanceBaseline:
+    """Soft regression guard: hide_official_brands must not introduce N+1s."""
+
+    def test_no_n_plus_one_on_large_blacklist(self, auth_client, django_assert_max_num_queries):
+        from scraper_app.models import MarketplaceChoices
+
+        # 500 blacklist patterns.
+        BrandBlacklist.objects.bulk_create(
+            [BrandBlacklist(brand_name=f'brand{i:04d}') for i in range(500)],
+            ignore_conflicts=True,
+        )
+        # 1000 products with diverse brand values, most NOT matching.
+        AmazonProduct.objects.bulk_create([
+            AmazonProduct(
+                asin=f'B0NQ{i:06d}',
+                marketplace=MarketplaceChoices.AMAZON_COM,
+                title=f'Product {i}',
+                brand=f'IndieBrand{i:04d}' if i % 50 else 'brand0001 Premium',
+                bsr=1000 + i,
+                product_type=AmazonProduct.ProductType.T_SHIRT,
+            )
+            for i in range(1000)
+        ])
+
+        with django_assert_max_num_queries(15):
+            resp = auth_client.get(URL, {'hide_official_brands': 'true', 'page_size': 50})
+            assert resp.status_code == 200
 
 
 class TestProductListExcludeWords:

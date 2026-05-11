@@ -18,6 +18,7 @@ from rest_framework.views import APIView
 
 import django_rq
 
+from scraper_app.brand_filter import SHORT_BRAND_THRESHOLD
 from scraper_app.models import (
     AmazonProduct,
     BrandBlacklist,
@@ -83,7 +84,14 @@ def _db_keywords_cache_key(validated_data):
 
 OFFICIAL_BRANDS_CACHE_KEY = 'research:official_brands'
 OFFICIAL_BRANDS_CACHE_TTL = 300  # 5 minutes
-SHORT_BRAND_THRESHOLD = 3  # Mirrors scraper_app.brand_filter.SHORT_BRAND_THRESHOLD
+
+# Precomputed set of concrete AmazonProduct.brand values that match the
+# BrandBlacklist patterns. Drives the `hide_official_brands` filter via
+# `brand__in=[...]` (indexed equality) instead of `brand__iregex=...`
+# (Seq Scan on 100k+ rows). Invalidated by the signal handler in
+# research_app.signals on BrandBlacklist save/delete.
+BLACKLISTED_BRAND_VALUES_CACHE_KEY = 'research:blacklisted_brand_values'
+BLACKLISTED_BRAND_VALUES_CACHE_TTL = 3600  # 1 hour
 
 
 def _get_official_brands():
@@ -98,6 +106,68 @@ def _get_official_brands():
     brands = list(BrandBlacklist.objects.values_list('brand_name', flat=True))
     redis_cache.set(OFFICIAL_BRANDS_CACHE_KEY, brands, OFFICIAL_BRANDS_CACHE_TTL)
     return brands
+
+
+def _get_blacklisted_brand_values():
+    """Return the concrete AmazonProduct.brand strings that match the blacklist.
+
+    Replaces the old `brand__iregex` Seq Scan with an indexed `brand__in`
+    lookup. The set is precomputed once per cache window:
+
+      1. Pull every distinct non-empty `brand` from AmazonProduct (uses the
+         btree index on `brand` — index-only scan).
+      2. For each distinct brand, apply the same matching rules as
+         `scraper_app.brand_filter.is_brand_blocked`:
+           - patterns >SHORT_BRAND_THRESHOLD chars → substring match
+           - patterns <=SHORT_BRAND_THRESHOLD chars → exact match
+         (Case-insensitive: lowercase + strip the candidate.)
+      3. Collect the ORIGINAL brand strings (preserves case as stored).
+
+    Cached in Redis for 1 hour; invalidated on BrandBlacklist save/delete
+    via the signal handler in research_app.signals.
+    """
+    cached = redis_cache.get(BLACKLISTED_BRAND_VALUES_CACHE_KEY)
+    if cached is not None:
+        return cached
+
+    patterns = _get_official_brands()
+    long_brands = [b for b in patterns if len(b) > SHORT_BRAND_THRESHOLD]
+    short_brands = [b for b in patterns if len(b) <= SHORT_BRAND_THRESHOLD]
+
+    if not long_brands and not short_brands:
+        redis_cache.set(
+            BLACKLISTED_BRAND_VALUES_CACHE_KEY, [],
+            BLACKLISTED_BRAND_VALUES_CACHE_TTL,
+        )
+        return []
+
+    distinct_brands = (
+        AmazonProduct.objects
+        .exclude(brand='')
+        .values_list('brand', flat=True)
+        .distinct()
+    )
+
+    short_set = set(short_brands)
+    matched = []
+    for brand in distinct_brands:
+        candidate = brand.lower().strip()
+        if not candidate:
+            continue
+        if candidate in short_set:
+            matched.append(brand)
+            continue
+        # Substring match for long blacklist patterns.
+        for pattern in long_brands:
+            if pattern in candidate:
+                matched.append(brand)
+                break
+
+    redis_cache.set(
+        BLACKLISTED_BRAND_VALUES_CACHE_KEY, matched,
+        BLACKLISTED_BRAND_VALUES_CACHE_TTL,
+    )
+    return matched
 
 
 def _get_active_membership(user):
@@ -213,21 +283,13 @@ def _build_product_queryset(filters):
 
     hide_official_brands = filters.get('hide_official_brands', False)
     if hide_official_brands:
-        brands = _get_official_brands()
-        if brands:
-            # Mirror scraper_app.brand_filter semantics:
-            #   - brands > SHORT_BRAND_THRESHOLD chars  → substring match
-            #   - brands <= SHORT_BRAND_THRESHOLD chars → exact match only
-            # `re.escape` is mandatory: brand_name is admin-editable, so any
-            # regex metacharacter typed in the admin must be treated as literal.
-            long_brands = [b for b in brands if len(b) > SHORT_BRAND_THRESHOLD]
-            short_brands = [b for b in brands if len(b) <= SHORT_BRAND_THRESHOLD]
-            if long_brands:
-                long_pattern = '|'.join(re.escape(b) for b in long_brands)
-                qs = qs.exclude(brand__iregex=long_pattern)
-            if short_brands:
-                short_pattern = '|'.join(re.escape(b) for b in short_brands)
-                qs = qs.exclude(brand__iregex=f'^(?:{short_pattern})$')
+        # `brand__in` over a precomputed, cached set hits the btree index on
+        # AmazonProduct.brand instead of the previous `brand__iregex` Seq Scan.
+        # Matching semantics (substring for long patterns, exact for short
+        # patterns) are preserved by `_get_blacklisted_brand_values`.
+        blacklisted_brand_values = _get_blacklisted_brand_values()
+        if blacklisted_brand_values:
+            qs = qs.exclude(brand__in=blacklisted_brand_values)
 
     exclude_words = filters.get('exclude_words', '').strip()
     if exclude_words:
