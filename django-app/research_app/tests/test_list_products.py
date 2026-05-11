@@ -338,6 +338,102 @@ class TestProductListExcludeWords:
         assert 'B0EXCL001' not in asins
         assert 'B0EXCL002' not in asins
 
+    def test_exclude_words_matches_brand(self, auth_client):
+        """exclude_words must filter products by brand, not only by title."""
+        # tsquery matches at word boundaries, so brand must contain `disney`
+        # as a distinct token (not glued into a compound like `DisneyShop`).
+        make_product(asin='B0EXCBR01', brand='Disney Official', title='Cool Cat Shirt')
+        make_product(asin='B0EXCBR02', brand='IndieMakers', title='Cool Cat Shirt')
+
+        resp = auth_client.get(URL, {'exclude_words': 'disney'})
+        asins = [p['asin'] for p in resp.data['results']]
+        assert 'B0EXCBR02' in asins
+        assert 'B0EXCBR01' not in asins
+
+    def test_exclude_words_word_boundary_semantics(self, auth_client):
+        """Exclude uses tsquery — matches WORDS, not arbitrary substrings.
+
+        This intentionally differs from the prior ILIKE behaviour. `cat` no
+        longer filters out `concatenate`, and brand fragments embedded in
+        compound tokens (e.g. `DisneyShop`) are NOT matched by `disney`.
+        For substring brand filtering, use the `hide_official_brands` toggle
+        which has its own substring-match path.
+        """
+        make_product(asin='B0WB_CAT', title='Cat Lover Shirt')
+        make_product(asin='B0WB_CONC', title='Concatenate Math Tee')
+        make_product(asin='B0WB_COMP', brand='DisneyShop', title='Generic Shirt')
+
+        resp = auth_client.get(URL, {'exclude_words': 'cat,disney'})
+        asins = [p['asin'] for p in resp.data['results']]
+        # Word `cat` is filtered.
+        assert 'B0WB_CAT' not in asins
+        # `concatenate` is NOT a match for word `cat` — stays in results.
+        assert 'B0WB_CONC' in asins
+        # `DisneyShop` is one token, `disney` does not match it as a word.
+        assert 'B0WB_COMP' in asins
+
+    def test_exclude_words_matches_bullet_1(self, auth_client):
+        """exclude_words must filter products by bullet_1, not only by title."""
+        make_product(
+            asin='B0EXCB101',
+            title='Generic T-Shirt',
+            bullet_1='Officially licensed Halloween costume tee',
+        )
+        make_product(
+            asin='B0EXCB102',
+            title='Generic T-Shirt',
+            bullet_1='100% cotton premium fabric',
+        )
+
+        resp = auth_client.get(URL, {'exclude_words': 'halloween'})
+        asins = [p['asin'] for p in resp.data['results']]
+        assert 'B0EXCB102' in asins
+        assert 'B0EXCB101' not in asins
+
+    def test_exclude_words_matches_bullet_2(self, auth_client):
+        """exclude_words must filter products by bullet_2 too."""
+        make_product(
+            asin='B0EXCB201',
+            title='Generic T-Shirt',
+            bullet_2='Perfect for the 4th of July barbecue',
+        )
+        make_product(
+            asin='B0EXCB202',
+            title='Generic T-Shirt',
+            bullet_2='Machine wash cold',
+        )
+
+        resp = auth_client.get(URL, {'exclude_words': '4th of july'})
+        asins = [p['asin'] for p in resp.data['results']]
+        assert 'B0EXCB202' in asins
+        assert 'B0EXCB201' not in asins
+
+    def test_exclude_words_does_not_match_description(self, auth_client):
+        """`description` is intentionally NOT scanned by exclude_words.
+
+        Marketing copy in description often contains generic terms that would
+        over-filter (e.g. 'cat' appearing in long Amazon-template text).
+        """
+        make_product(
+            asin='B0EXCDS01',
+            title='Generic Tee',
+            description='This shirt contains the word christmas in the desc.',
+        )
+
+        resp = auth_client.get(URL, {'exclude_words': 'christmas'})
+        asins = [p['asin'] for p in resp.data['results']]
+        # description match must NOT filter the product out.
+        assert 'B0EXCDS01' in asins
+
+    def test_exclude_words_empty_bullets_do_not_break(self, auth_client):
+        """Products with empty bullet fields (default '') must pass through cleanly."""
+        make_product(asin='B0EXCEM01', title='Plain Tee', bullet_1='', bullet_2='')
+
+        resp = auth_client.get(URL, {'exclude_words': 'something'})
+        assert resp.status_code == 200
+        asins = [p['asin'] for p in resp.data['results']]
+        assert 'B0EXCEM01' in asins
+
 
 class TestProductListCombinedFilters:
     def test_multiple_filters_combine_with_and(self, auth_client):

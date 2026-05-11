@@ -303,8 +303,29 @@ def _build_product_queryset(filters):
     exclude_words = filters.get('exclude_words', '').strip()
     if exclude_words:
         words = [w.strip() for w in exclude_words.split(',') if w.strip()]
-        for word in words:
-            qs = qs.exclude(title__icontains=word)
+        if words:
+            # Anti-join: positive `@@` in the inner subquery uses
+            # `ix_amzproduct_excl_fts`; outer NOT IN excludes the matched IDs.
+            # Direct `NOT vec @@` would Seq Scan (high-cardinality negative
+            # match — same planner limitation as negative ILIKE). The vector
+            # MUST match the index expression exactly (fields, order, config)
+            # or the planner won't pick it. tsquery matches WORDS, not
+            # substrings — "xmas" excludes "xmas"/"xmases" but NOT "xmaster".
+            excl_vector = SearchVector(
+                'title', 'brand', 'bullet_1', 'bullet_2', config='english',
+            )
+            excl_query = SearchQuery(words[0], search_type='phrase', config='english')
+            for word in words[1:]:
+                excl_query = excl_query | SearchQuery(
+                    word, search_type='phrase', config='english',
+                )
+            matching_ids = (
+                AmazonProduct.objects
+                .annotate(_excl_vec=excl_vector)
+                .filter(_excl_vec=excl_query)
+                .values('id')
+            )
+            qs = qs.exclude(id__in=matching_ids)
 
     # Sorting — every order_by adds `id` as a stable tiebreaker. Two products
     # can share the same primary sort value (e.g. duplicate BSRs across niches,

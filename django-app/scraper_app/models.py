@@ -1,4 +1,6 @@
 import uuid
+from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVector
 from django.core.validators import MaxValueValidator, MinValueValidator, RegexValidator
 from django.db import models
 from django.utils import timezone
@@ -118,6 +120,21 @@ class AmazonProduct(models.Model):
             # precomputed list). Migration creates this with CREATE INDEX
             # CONCURRENTLY to avoid locking the table on large prod data.
             models.Index(fields=['brand'], name='ix_amzproduct_brand'),
+            # Trigram GIN for `subcategory__icontains` (positive substring match,
+            # benefits from trigram index — `LIKE '%foo%'` becomes indexed).
+            GinIndex(
+                fields=['subcategory'],
+                name='ix_amzproduct_subcat_trgm',
+                opclasses=['gin_trgm_ops'],
+            ),
+            # FTS GIN over (title, brand, bullet_1, bullet_2) for exclude_words.
+            # Consumed via anti-join in views.py: positive `@@` in an inner
+            # subquery uses this index, outer NOT IN excludes the matched IDs.
+            # `description` stays out to avoid over-filtering on marketing copy.
+            GinIndex(
+                SearchVector('title', 'brand', 'bullet_1', 'bullet_2', config='english'),
+                name='ix_amzproduct_excl_fts',
+            ),
         ]
 
     def __str__(self):
