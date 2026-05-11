@@ -15,10 +15,24 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
+      # GitHub blocks workflow chain reactions triggered by GITHUB_TOKEN. If
+      # release-please uses GITHUB_TOKEN to open/update its PR, CI never
+      # auto-runs on that PR and branch protection blocks merge forever.
+      # Workaround: mint a token from a dedicated GitHub App so PR events
+      # come from a non-default identity and downstream workflows fire.
+      # App must have Contents: write, Pull requests: write, Workflows: write
+      # on this repo. App ID + private key live in repo secrets.
+      - name: Generate App Token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.RELEASE_PLEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_PLEASE_APP_PRIVATE_KEY }}
+
       # Reads conventional commits since the last tag, opens (or updates) a
       # release PR with version bump + CHANGELOG.md. When the release PR is
       # merged, it tags the commit and creates a GitHub Release.
       # Config: release-please-config.json + .release-please-manifest.json
       - uses: googleapis/release-please-action@v4
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ steps.app-token.outputs.token }}
