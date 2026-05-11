@@ -1,5 +1,27 @@
 # Changelog
 
+## [0.4.0](https://github.com/MarioWinter/merch-miner/compare/v0.3.1...v0.4.0) (2026-05-11)
+
+
+### Features
+
+* **amazon-research:** thumbnail hover preview in list view ([597a351](https://github.com/MarioWinter/merch-miner/commit/597a351990abc784b7eb3c7505d57153085349e7))
+* **PROJ-7:** db-mode keywords endpoint ([2249d43](https://github.com/MarioWinter/merch-miner/commit/2249d4323dd466408c5b45617d5d1258d987a3c3))
+* **PROJ-7:** wire db-mode keywords into amazon research view ([613653a](https://github.com/MarioWinter/merch-miner/commit/613653aefcf96d9fe15a9900cd4860ceade1a549))
+
+
+### Bug Fixes
+
+* **amazon-research:** list-view infinite scroll + resizable columns ([cba43fc](https://github.com/MarioWinter/merch-miner/commit/cba43fceed37bcfef011b014251e7240325a9bb3))
+* **amazon-research:** search button refetches on identical filters ([1b6db09](https://github.com/MarioWinter/merch-miner/commit/1b6db09b224028a99885ade7d5d5f012a7257acf))
+* **PROJ-7:** hide-official-brands toggle now reads BrandBlacklist ([2d5ce65](https://github.com/MarioWinter/merch-miner/commit/2d5ce6534f5a054ef8e11e5b918d5b4bfdcd6211))
+* **tests:** seed BrandBlacklist with lowercase keys ([fb33f07](https://github.com/MarioWinter/merch-miner/commit/fb33f0792c8c53a91927aba7e40c8427c6670cad))
+
+
+### Performance
+
+* **PROJ-7:** precomputed brand-blacklist for product list filter ([#64](https://github.com/MarioWinter/merch-miner/issues/64)) ([c7db38c](https://github.com/MarioWinter/merch-miner/commit/c7db38ceb280aa07d471b22aa4f32fbabcd105bb))
+
 ## [0.3.1](https://github.com/MarioWinter/merch-miner/compare/v0.3.0...v0.3.1) (2026-05-10)
 
 
