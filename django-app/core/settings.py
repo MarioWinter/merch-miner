@@ -444,11 +444,18 @@ REST_FRAMEWORK = {
         'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
-        # `anon` covers all unauthenticated traffic. 20/hour was too low for
-        # real-world UX: a single deploy's brief offline window cascades to a
-        # 1-hour lockout once the frontend's poll endpoints retry.
-        'anon': '500/hour' if DEBUG else '100/hour',
-        'user': '10000/day' if DEBUG else '5000/day',
+        # `anon`: per-client-IP quota for unauthenticated traffic. 100/hour
+        # proved tight — a single active research session burns it before
+        # login completes. 500/hour leaves headroom; abuse caught by other
+        # scoped throttles (login=10/min, etc.).
+        # If XFF resolution breaks (e.g. Caddy restart with stale bind-mount)
+        # all anon users collapse onto one IP-keyed bucket — this headroom
+        # avoids an immediate sitewide lockout in that failure mode.
+        'anon': '500/hour',
+        # `user`: per-pk quota. 5000/day was hit by power users averaging
+        # 200/hour during active research. 25000/day accommodates them while
+        # still catching runaway scripts.
+        'user': '25000/day',
         # Dedicated burst-protection on the login endpoint — protects against
         # brute-force without punishing legit "forgot pw + 3 retries" UX.
         'login': '10/min',
