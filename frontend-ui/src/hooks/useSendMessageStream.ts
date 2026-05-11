@@ -106,7 +106,13 @@ const buildStreamUrl = (
     params.set('attachment_ids', attachment_ids.join(','));
   }
   if (model) params.set('model', model);
-  return `/api/chat/sessions/${sessionId}/messages/stream/?${params.toString()}`;
+  // Native EventSource resolves a relative URL against the page origin —
+  // which on prod is `merch-miner.mariowinter.com` (frontend) instead of
+  // `miner.mariowinter.com` (API). axios uses VITE_API_URL as baseURL for
+  // normal calls; EventSource doesn't know about that, so we prepend it
+  // here. Empty string in dev keeps the URL relative (vite proxy handles it).
+  const apiBase = import.meta.env.VITE_API_URL ?? '';
+  return `${apiBase}/api/chat/sessions/${sessionId}/messages/stream/?${params.toString()}`;
 };
 
 // Cleanup 2026-04-28: silent-failure timeout. If no SSE event arrives within
