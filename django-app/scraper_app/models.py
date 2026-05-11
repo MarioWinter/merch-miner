@@ -127,11 +127,10 @@ class AmazonProduct(models.Model):
                 name='ix_amzproduct_subcat_trgm',
                 opclasses=['gin_trgm_ops'],
             ),
-            # FTS GIN over (title, brand, bullet_1, bullet_2) for the
-            # exclude_words filter. tsquery negation (`NOT vec @@ query`) is
-            # served by this index — unlike negative ILIKE which falls back to
-            # Seq Scan. `description` is intentionally excluded to avoid
-            # over-filtering on generic marketing text.
+            # FTS GIN over (title, brand, bullet_1, bullet_2) for exclude_words.
+            # Consumed via anti-join in views.py: positive `@@` in an inner
+            # subquery uses this index, outer NOT IN excludes the matched IDs.
+            # `description` stays out to avoid over-filtering on marketing copy.
             GinIndex(
                 SearchVector('title', 'brand', 'bullet_1', 'bullet_2', config='english'),
                 name='ix_amzproduct_excl_fts',

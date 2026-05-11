@@ -304,28 +304,13 @@ def _build_product_queryset(filters):
     if exclude_words:
         words = [w.strip() for w in exclude_words.split(',') if w.strip()]
         if words:
-            # Anti-join via subquery. The inner query finds the IDs of products
-            # that match ANY exclude word using POSITIVE FTS `@@` — that path
-            # is index-served by `ix_amzproduct_excl_fts` (GIN). The outer
-            # query then excludes those IDs.
-            #
-            # Why not direct `NOT vec @@ query`? PostgreSQL's planner picks
-            # Seq Scan for high-cardinality negative matches even with the
-            # GIN index present, so we'd lose the index. The anti-join keeps
-            # the index hot for the small "matching" set, then does a fast
-            # hashed NOT IN over the (typically much larger) result set.
-            #
-            # Each word is a `phrase` SearchQuery so multi-word terms like
-            # "4th of july" stay together; words are OR-combined into one
-            # tsquery. tsquery matches at WORD BOUNDARIES (English stems),
-            # so "xmas" matches "xmas" / "xmases" but NOT "xmaster" — more
-            # precise than the prior ILIKE substring behaviour. `description`
-            # is intentionally NOT in the vector to avoid over-filtering on
-            # marketing copy.
-            #
-            # The SearchVector here MUST match the index expression on
-            # `ix_amzproduct_excl_fts` exactly (same fields, same order,
-            # same config) for the planner to pick the index.
+            # Anti-join: positive `@@` in the inner subquery uses
+            # `ix_amzproduct_excl_fts`; outer NOT IN excludes the matched IDs.
+            # Direct `NOT vec @@` would Seq Scan (high-cardinality negative
+            # match — same planner limitation as negative ILIKE). The vector
+            # MUST match the index expression exactly (fields, order, config)
+            # or the planner won't pick it. tsquery matches WORDS, not
+            # substrings — "xmas" excludes "xmas"/"xmases" but NOT "xmaster".
             excl_vector = SearchVector(
                 'title', 'brand', 'bullet_1', 'bullet_2', config='english',
             )

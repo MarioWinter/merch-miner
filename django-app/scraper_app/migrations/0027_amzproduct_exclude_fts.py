@@ -1,23 +1,17 @@
-"""Indexes for the broadened `exclude_words` filter + the `subcategory` filter.
+"""Indexes for the broadened exclude_words filter + the subcategory filter.
 
-1. `ix_amzproduct_subcat_trgm` — pg_trgm GIN on `subcategory` so
-   `subcategory__icontains=...` is served by an index (positive LIKE).
+- `ix_amzproduct_subcat_trgm` — pg_trgm GIN on `subcategory` for
+  `subcategory__icontains=...` (positive LIKE → index-served).
+- `ix_amzproduct_excl_fts` — FTS GIN over `to_tsvector('english',
+  title || brand || bullet_1 || bullet_2)`. views.py consumes it via
+  anti-join: positive `@@` in an inner subquery uses the index, outer
+  NOT IN excludes the matched IDs. Direct `NOT vec @@` would fall
+  back to Seq Scan (same planner limitation as negative ILIKE).
 
-2. `ix_amzproduct_excl_fts` — FTS GIN over `to_tsvector('english',
-   title || brand || bullet_1 || bullet_2)`. Used by the refactored
-   `exclude_words` filter via tsquery NEGATION (`NOT vec @@ query`),
-   which — unlike negative ILIKE — IS index-served. `description` is
-   intentionally excluded to avoid over-filtering on marketing copy.
-
-Both indexes are created with CONCURRENTLY (atomic = False, IF NOT
-EXISTS) so the migration does not lock `scraper_app_amazonproduct` on
-deploy. The state side mirrors what `makemigrations` produced so the
-Django migration graph stays consistent with the on-disk schema.
-
-The SQL below was captured from `manage.py sqlmigrate` and adapted with
-CONCURRENTLY — keeping the index expression IDENTICAL to what Django's
-SearchVector(...) generates at query time is critical: any deviation
-(quoting, COALESCE, regconfig cast) breaks index usage at runtime.
+CONCURRENTLY + atomic=False so deploy doesn't lock the table. SQL was
+captured from `manage.py sqlmigrate` so the index expression matches
+what Django's SearchVector emits — any drift in quoting/COALESCE/cast
+breaks index usage at runtime.
 """
 
 import django.contrib.postgres.indexes
