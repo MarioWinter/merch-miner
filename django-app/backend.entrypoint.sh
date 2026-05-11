@@ -15,6 +15,7 @@ if [ "$DJANGO_ENV" = "production" ]; then
   python manage.py loaddata default_tiers || true
   python manage.py setup_scheduler || true
   python manage.py schedule_chat_attachment_purge || true
+  python manage.py schedule_brand_blacklist_warmup || true
   python manage.py schedule_upscale_reconciler || true
 fi
 
