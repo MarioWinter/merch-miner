@@ -225,18 +225,18 @@ def _build_product_queryset(filters):
 
     keyword = filters.get('keyword', '').strip()
     if keyword:
+        # Vector MUST match the `scraper_amazonproduct_fts_gin` index expression
+        # (single to_tsvector('english', f1||' '||f2||...)) or the planner will
+        # not use the index and compute tsvector per row — measured at ~20s
+        # on prod (529k products). The previous setweight()-summed form (A/B/C/D
+        # weights) generated a different expression. We trade weighted ranking
+        # for index-served queries; sort is BSR by default anyway, with rank
+        # only used as the implicit order when no sort_by is supplied.
         search_vector = SearchVector(
-            'title', weight='A',
-        ) + SearchVector(
-            'brand', weight='B',
-        ) + SearchVector(
-            'bullet_1', weight='C',
-        ) + SearchVector(
-            'bullet_2', weight='C',
-        ) + SearchVector(
-            'description', weight='D',
+            'title', 'brand', 'bullet_1', 'bullet_2', 'description',
+            config='english',
         )
-        search_query = SearchQuery(keyword)
+        search_query = SearchQuery(keyword, config='english')
         qs = qs.annotate(
             search=search_vector,
             rank=SearchRank(search_vector, search_query),
