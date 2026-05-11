@@ -108,11 +108,12 @@ def _get_official_brands():
     return brands
 
 
-def _get_blacklisted_brand_values():
-    """Return the concrete AmazonProduct.brand strings that match the blacklist.
+def _compute_blacklisted_brand_values():
+    """Pure-compute path: scan distinct brands + match against blacklist patterns.
 
-    Replaces the old `brand__iregex` Seq Scan with an indexed `brand__in`
-    lookup. The set is precomputed once per cache window:
+    Does NOT touch the `BLACKLISTED_BRAND_VALUES_CACHE_KEY` cache. The
+    `_get_official_brands()` patterns call still piggybacks on its own
+    5-minute cache.
 
       1. Pull every distinct non-empty `brand` from AmazonProduct (uses the
          btree index on `brand` — index-only scan).
@@ -122,23 +123,12 @@ def _get_blacklisted_brand_values():
            - patterns <=SHORT_BRAND_THRESHOLD chars → exact match
          (Case-insensitive: lowercase + strip the candidate.)
       3. Collect the ORIGINAL brand strings (preserves case as stored).
-
-    Cached in Redis for 1 hour; invalidated on BrandBlacklist save/delete
-    via the signal handler in research_app.signals.
     """
-    cached = redis_cache.get(BLACKLISTED_BRAND_VALUES_CACHE_KEY)
-    if cached is not None:
-        return cached
-
     patterns = _get_official_brands()
     long_brands = [b for b in patterns if len(b) > SHORT_BRAND_THRESHOLD]
     short_brands = [b for b in patterns if len(b) <= SHORT_BRAND_THRESHOLD]
 
     if not long_brands and not short_brands:
-        redis_cache.set(
-            BLACKLISTED_BRAND_VALUES_CACHE_KEY, [],
-            BLACKLISTED_BRAND_VALUES_CACHE_TTL,
-        )
         return []
 
     distinct_brands = (
@@ -163,6 +153,25 @@ def _get_blacklisted_brand_values():
                 matched.append(brand)
                 break
 
+    return matched
+
+
+def _get_blacklisted_brand_values():
+    """Return the concrete AmazonProduct.brand strings that match the blacklist.
+
+    Replaces the old `brand__iregex` Seq Scan with an indexed `brand__in`
+    lookup. Cache-or-compute wrapper around `_compute_blacklisted_brand_values`.
+
+    Cached in Redis for 1 hour; invalidated on BrandBlacklist save/delete
+    via the signal handler in research_app.signals. A background warmup job
+    (`research_app.tasks.warm_blacklisted_brand_values_cache`) refreshes the
+    cache proactively so users never see the cold-start compute cost.
+    """
+    cached = redis_cache.get(BLACKLISTED_BRAND_VALUES_CACHE_KEY)
+    if cached is not None:
+        return cached
+
+    matched = _compute_blacklisted_brand_values()
     redis_cache.set(
         BLACKLISTED_BRAND_VALUES_CACHE_KEY, matched,
         BLACKLISTED_BRAND_VALUES_CACHE_TTL,
