@@ -113,6 +113,12 @@ class AmazonProduct(models.Model):
 
     class Meta:
         unique_together = ('asin', 'marketplace')
+        indexes = [
+            # Drives the `hide_official_brands` filter (brand__in over a
+            # precomputed list). Migration creates this with CREATE INDEX
+            # CONCURRENTLY to avoid locking the table on large prod data.
+            models.Index(fields=['brand'], name='ix_amzproduct_brand'),
+        ]
 
     def __str__(self):
         return f"{self.asin} - {self.title[:50]}" if self.title else self.asin
