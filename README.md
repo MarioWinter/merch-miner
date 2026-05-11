@@ -44,7 +44,7 @@ merch-miner/
 ├── docker-compose.yml          base services (redis, worker, web, frontend)
 ├── docker-compose.override.yml dev: local db + port bindings (auto-loaded)
 ├── docker-compose.prod.yml     prod: gunicorn + caddy
-├── Caddyfile                   routing (miner.* → Django, merch-miner.* → SPA)
+├── caddy/Caddyfile             routing (miner.* → Django, merch-miner.* → SPA)
 ├── frontend-ui/                React + Vite SPA
 │   └── src/
 │       ├── components/         Global reusable components
