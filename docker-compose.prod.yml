@@ -111,7 +111,12 @@ services:
     image: caddy:2-alpine
     container_name: app_caddy
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      # Directory-mount (NOT single-file) so editor "rename and replace" saves
+      # on the host don't strand the container on a now-orphan inode. A file-
+      # level bind-mount follows the original inode; vim/VSCode-remote etc.
+      # save by creating a new file and renaming over the old — that breaks
+      # the mount silently. See memory: feedback_caddy_bind_mount_gotcha.
+      - ./caddy:/etc/caddy:ro
       - static_volume:/srv/static:ro
       - media_volume:/srv/media:ro
       - caddy_data:/data
