@@ -53,17 +53,17 @@
 
 ### Register new source models in existing embeddable-model registry
 
-- [ ] In `vector_app/signals.py:_get_embeddable_models()` register the **PROJ-29-new** models: `idea_app.Idea` (slogans), `niche_app.NicheNote` (user free-text observations). Already-embedded models (`NicheAnalysis`, `NicheKeywordAnalysis`, `NicheProductEmotionalAnalysis`, `NicheProductVisionAnalysis`, `AmazonProduct`, `WebSearchResult`) are reused as-is — no re-registration.
-- [ ] Add `Idea.get_embedding_text()` method (`slogan_text + ' ' + (why_it_works or '') + ' ' + (buyer_voice_pattern or '')`).
-- [ ] Add `NicheNote.get_embedding_text()` method (`self.text` — **NOTE: real field is `text`, NOT `body`**) and ensure `metadata.niche_id` is set in `vector_app/services.py:_build_metadata` (already does this via `instance.niche_id`).
-- [ ] **Migration `niche_app/migrations/000N_nichenote_source_field.py`** — adds `NicheNote.source` CharField(max_length=30, choices=NicheNote.Source.choices, default='user', db_index=True). Choices: `'user'` (manual entry), `'niche_legacy_notes'` (synced from `Niche.notes` TextField), `'web_search'` (saved Vane result), `'agent_research'` (LangGraph research output). Required for legacy-vs-user disambiguation.
-- [ ] **Legacy `Niche.notes` TextField sync** — on `post_save` of `Niche` when `notes` changed: `NicheNote.objects.update_or_create(niche=niche, source='niche_legacy_notes', defaults={'text': niche.notes, 'created_by': niche.created_by})`. The existing NicheNote-registered signal then auto-embeds it. Avoids re-architecting `Niche` model. Empty `niche.notes` -> delete the synthetic NicheNote (so empty notes don't waste an embedding row).
-- [ ] Add `Niche.post_save` debounce: enqueues `reindex_niche_sources(niche_id)` fanout job (5-second dedup window via `job_id = f"niche_rag:reindex:{niche_id}"`). Fanout re-embeds all niche-scoped Idea + NicheNote rows when the niche name changes (contextual header refresh).
-- [ ] Existing `_enqueue_create` / `_enqueue_delete` + `transaction.on_commit` pattern in `vector_app/signals.py` covers Idea + NicheNote — no new handlers needed.
+- [x] In `vector_app/signals.py:_get_embeddable_models()` register the **PROJ-29-new** models: `idea_app.Idea` (slogans), `niche_app.NicheNote` (user free-text observations). Already-embedded models (`NicheAnalysis`, `NicheKeywordAnalysis`, `NicheProductEmotionalAnalysis`, `NicheProductVisionAnalysis`, `AmazonProduct`, `WebSearchResult`) are reused as-is — no re-registration.
+- [x] Add `Idea.get_embedding_text()` method (`slogan_text + ' ' + (why_it_works or '') + ' ' + (buyer_voice_pattern or '')`).
+- [x] Add `NicheNote.get_embedding_text()` method (`self.text` — **NOTE: real field is `text`, NOT `body`**) and ensure `metadata.niche_id` is set in `vector_app/services.py:_build_metadata` (already does this via `instance.niche_id`).
+- [x] **Migration `niche_app/migrations/000N_nichenote_source_field.py`** — adds `NicheNote.source` CharField(max_length=30, choices=NicheNote.Source.choices, default='user', db_index=True). Choices: `'user'` (manual entry), `'niche_legacy_notes'` (synced from `Niche.notes` TextField), `'web_search'` (saved Vane result), `'agent_research'` (LangGraph research output). Required for legacy-vs-user disambiguation.
+- [x] **Legacy `Niche.notes` TextField sync** — on `post_save` of `Niche` when `notes` changed: `NicheNote.objects.update_or_create(niche=niche, source='niche_legacy_notes', defaults={'text': niche.notes, 'created_by': niche.created_by})`. The existing NicheNote-registered signal then auto-embeds it. Avoids re-architecting `Niche` model. Empty `niche.notes` -> delete the synthetic NicheNote (so empty notes don't waste an embedding row).
+- [x] Add `Niche.post_save` debounce: enqueues `reindex_niche_sources(niche_id)` fanout job (5-second dedup window via `job_id = f"niche_rag:reindex:{niche_id}"`). Fanout re-embeds all niche-scoped Idea + NicheNote rows when the niche name changes (contextual header refresh).
+- [x] Existing `_enqueue_create` / `_enqueue_delete` + `transaction.on_commit` pattern in `vector_app/signals.py` covers Idea + NicheNote — no new handlers needed.
 
 ### `CollectedProduct` deliberately NOT embedded
 
-- [ ] `CollectedProduct` is the M2M join (Niche ↔ AmazonProduct). For niche-scoped product search, the `search_products` tool joins existing-embedded `AmazonProduct` filtered by `CollectedProduct.objects.filter(niche=niche).values_list('product_id')`. No new embedding rows needed — saves 50% storage on huge niches.
+- [x] `CollectedProduct` is the M2M join (Niche ↔ AmazonProduct). For niche-scoped product search, the `search_products` tool joins existing-embedded `AmazonProduct` filtered by `CollectedProduct.objects.filter(niche=niche).values_list('product_id')`. No new embedding rows needed — saves 50% storage on huge niches.
 
 ### Idea-Model Enum Hardening (PROJ-29 prompts produce structured output — DB must enforce shape)
 
@@ -81,10 +81,10 @@
 
 ### Extend `vector_app/models.py` with failure tracking
 
-- [ ] Add `IndexingFailure` model (content_type FK, object_id, attempt_count, last_error TextField, last_attempt_at, resolved_at nullable)
-- [ ] Migration `vector_app/migrations/000N_indexing_failure.py`
-- [ ] Refactor `vector_app/tasks.py:create_or_update_embedding` to (a) increment retry counter on existing `IndexingFailure` row, (b) mark `resolved_at` on success, (c) stop retrying after 3 attempts
-- [ ] Admin: `IndexingFailureAdmin` with content_type filter + unresolved-only default view
+- [x] Add `IndexingFailure` model (content_type FK, object_id, attempt_count, last_error TextField, last_attempt_at, resolved_at nullable)
+- [x] Migration `vector_app/migrations/000N_indexing_failure.py`
+- [x] Refactor `vector_app/tasks.py:create_or_update_embedding` to (a) increment retry counter on existing `IndexingFailure` row, (b) mark `resolved_at` on success, (c) stop retrying after 3 attempts
+- [x] Admin: `IndexingFailureAdmin` with content_type filter + unresolved-only default view
 
 ### Niche-Helper Services (consumed by tools + creative_techniques prompt)
 
@@ -140,11 +140,11 @@
 
 ### Tests
 
-- [ ] Signal handler enqueues exactly one job per save, even on rapid re-saves within dedup window
-- [ ] Rollback in test transaction does NOT enqueue (`transaction.on_commit` test)
-- [ ] `Niche.post_save` debounces multiple saves into one `reindex_niche_sources` job
-- [ ] `post_delete` removes corresponding `Embedding` rows
-- [ ] `create_or_update_embedding` records `IndexingFailure` after 3 failed attempts; success marks resolved
+- [x] Signal handler enqueues exactly one job per save, even on rapid re-saves within dedup window
+- [x] Rollback in test transaction does NOT enqueue (`transaction.on_commit` test)
+- [x] `Niche.post_save` debounces multiple saves into one `reindex_niche_sources` job
+- [x] `post_delete` removes corresponding `Embedding` rows
+- [x] `create_or_update_embedding` records `IndexingFailure` after 3 failed attempts; success marks resolved
 - [ ] Contextual header prepended only for niche source models, not legacy NicheAnalysis
 - [ ] Backfill respects `--dry-run`
 - [ ] Backfill aborts on `--budget` exceeded

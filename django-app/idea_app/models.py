@@ -148,8 +148,11 @@ class Idea(models.Model):
         return self.slogan_text[:80] if self.slogan_text else str(self.id)
 
     def get_embedding_text(self):
-        """Return text to embed for vector search (PROJ-15)."""
-        parts = filter(None, [self.slogan_text, self.why_it_works])
+        """Return text to embed for vector search (PROJ-15 + PROJ-29)."""
+        parts = filter(
+            None,
+            [self.slogan_text, self.why_it_works, self.buyer_voice_pattern],
+        )
         return ' '.join(parts)
 
 

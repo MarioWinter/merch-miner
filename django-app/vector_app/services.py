@@ -28,6 +28,26 @@ EMBEDDABLE_MODELS = {
     # Future: idea, listing, chat_message
 }
 
+# PROJ-29 Phase 1B: content_subtype enrichment for retrieval filtering.
+# Keyed by (app_label, model_name) tuple — matches ContentType.app_label/model.
+_CONTENT_SUBTYPE_MAP: dict[tuple[str, str], str] = {
+    ('idea_app', 'idea'): 'slogan',
+    ('niche_app', 'nichenote'): 'notes',
+    ('niche_app', 'collectedproduct'): 'product',
+    ('keyword_app', 'nichekeyword'): 'keyword',
+    ('niche_research_app', 'nicheanalysis'): 'analysis',
+    ('niche_research_app', 'nichekeywordanalysis'): 'keyword_analysis',
+    ('niche_research_app', 'nicheproductemotionalanalysis'): 'emotional',
+    ('niche_research_app', 'nicheproductvisionanalysis'): 'vision',
+    ('scraper_app', 'amazonproduct'): 'product',
+    ('search_app', 'websearchresult'): 'web',
+}
+
+
+def _resolve_content_subtype(ct: ContentType) -> str:
+    """Map ContentType to subtype label used in Embedding.metadata.content_subtype."""
+    return _CONTENT_SUBTYPE_MAP.get((ct.app_label, ct.model), 'unknown')
+
 
 def _get_content_type_label(ct: ContentType) -> str:
     """Return human-readable label for a content type."""
@@ -116,6 +136,7 @@ class EmbeddingService:
         """Build metadata dict for the embedding."""
         meta = {
             'source_type': _get_content_type_label(ct),
+            'content_subtype': _resolve_content_subtype(ct),
         }
 
         # Add niche context where available
