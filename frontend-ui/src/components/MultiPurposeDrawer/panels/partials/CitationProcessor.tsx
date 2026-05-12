@@ -2,6 +2,7 @@ import { Fragment, type ReactNode } from 'react';
 import type { SourceItem } from '@/types/search';
 import { parseCitations, unescapeCitationBrackets } from './parseCitations';
 import CitationLink from './CitationLink';
+import NicheCitationLink from './NicheCitationLink';
 
 /**
  * PROJ-20 Phase 4.1 — Citation post-processor (AC-25 → AC-29 + EC-5/6/11/12).
@@ -47,7 +48,17 @@ export const processCitationsInText = (
     if (seg.type === 'text') {
       return <Fragment key={i}>{unescapeCitationBrackets(seg.value)}</Fragment>;
     }
-    // AC-28: hallucination guard
+    // PROJ-29 Phase 1H-2: niche markers don't have a sources-array fallback.
+    // chunksUsed lives in Redux and is read by NicheCitationLink itself.
+    if (seg.kind === 'niche') {
+      // Defensive index guard — backend already caps at 200 but a stray 0/-1
+      // should not render an interactive pill.
+      if (seg.index < 1) {
+        return <Fragment key={i}>[NICHE:{seg.index}]</Fragment>;
+      }
+      return <NicheCitationLink key={i} index={seg.index} />;
+    }
+    // AC-28: hallucination guard for web sources
     if (seg.index < 1 || seg.index > totalSources) {
       return <Fragment key={i}>[{seg.index}]</Fragment>;
     }

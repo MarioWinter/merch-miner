@@ -472,6 +472,12 @@ const ChatPanel = () => {
         sessionId={activeSessionId ?? undefined}
         onRegenerate={isReadOnly ? undefined : handleRegenerate}
         onSaveAnswer={isReadOnly ? undefined : handleSaveAnswer}
+        sessionNicheId={session?.niche_context?.id ?? null}
+        onFollowUpClick={
+          isReadOnly
+            ? undefined
+            : (text) => void handleSubmit({ text, chip: inputChip })
+        }
       />
 
       {/* Input area — PROJ-20 Phase 3.7 unified ChatInputBar */}

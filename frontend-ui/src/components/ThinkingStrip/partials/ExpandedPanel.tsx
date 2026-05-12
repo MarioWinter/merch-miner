@@ -12,12 +12,14 @@ import {
   Tooltip,
   Typography,
 } from '@mui/material';
-import { styled } from '@mui/material/styles';
+import { keyframes, styled } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import StepRow from './StepRow';
 import { getStageMeta } from '../utils/stageMeta';
 import type { ChunkSubtype, ChunkUsed, ThinkingStep } from '../types/thinking';
 import { DURATION, EASING, MONO_FONT_STACK } from '@/style/constants';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
+import { setFlashCitation, clearFlashCitation } from '@/store/chatBarSlice';
 
 interface ExpandedPanelProps {
   panelId: string;
@@ -38,11 +40,36 @@ const SectionLabel = styled(Typography)(({ theme }) => ({
   marginBottom: theme.spacing(0.5),
 }));
 
-const ChunkRow = styled(Box)(({ theme }) => ({
+// PROJ-29 Phase 1H-2 — citation-flash keyframe. Skipped under prefers-reduced-motion
+// (the styled() reads a runtime prop to either set or unset animation).
+const citationFlash = keyframes({
+  '0%': { backgroundColor: 'transparent' },
+  '20%': { backgroundColor: 'var(--mm-flash-bg)' },
+  '100%': { backgroundColor: 'transparent' },
+});
+
+const ChunkRow = styled(Box, {
+  shouldForwardProp: (prop) => prop !== 'flashing' && prop !== 'reducedMotion',
+})<{ flashing: boolean; reducedMotion: boolean }>(({ theme, flashing, reducedMotion }) => ({
   display: 'flex',
   alignItems: 'flex-start',
   gap: theme.spacing(0.75),
   padding: theme.spacing(0.25, 0),
+  cursor: 'pointer',
+  borderRadius: theme.shape.borderRadius,
+  // CSS var lets keyframes use a theme-driven color while staying static.
+  ['--mm-flash-bg' as string]: theme.vars.palette.warning.subtle,
+  // Reduced-motion: instant highlight while flashing, no animation.
+  ...(reducedMotion
+    ? flashing
+      ? { backgroundColor: theme.vars.palette.warning.subtle }
+      : {}
+    : flashing
+      ? { animation: `${citationFlash} 600ms ease-out` }
+      : {}),
+  '&:hover': {
+    backgroundColor: theme.vars.palette.background.default,
+  },
 }));
 
 const Marker = styled('span')(({ theme }) => ({
@@ -87,6 +114,13 @@ const ExpandedPanel = ({
   reducedMotion = false,
 }: ExpandedPanelProps) => {
   const { t } = useTranslation();
+  const dispatch = useAppDispatch();
+  // PROJ-29 Phase 1H-2 — flash subscription. Triggered by NicheCitationLink
+  // (hover or click on `[NICHE:N]` marker). The flashing row matches by index.
+  const flash = useAppSelector((s) => s.chatBar?.flashCitation ?? null);
+  const flashingIndex = flash?.type === 'niche' ? flash.index : null;
+  // Re-key the row on every flash event to re-trigger the CSS keyframe.
+  const flashTs = flash?.ts ?? 0;
 
   // Group chunks by content_subtype. Stable iteration order matches GROUP_I18N.
   const grouped = useMemo(() => {
@@ -153,14 +187,25 @@ const ExpandedPanel = ({
                     {t(GROUP_I18N[subtype], subtype)}
                   </SectionLabel>
                   <Stack>
-                    {chunks.map((chunk) => (
-                      <Tooltip key={chunk.index} title={chunk.text} placement="top-start">
-                        <ChunkRow data-chunk-index={chunk.index}>
-                          <Marker>[NICHE:{chunk.index}]</Marker>
-                          <Snippet variant="body2">{truncate(chunk.text)}</Snippet>
-                        </ChunkRow>
-                      </Tooltip>
-                    ))}
+                    {chunks.map((chunk) => {
+                      const isFlashing = flashingIndex === chunk.index;
+                      return (
+                        <Tooltip key={`${chunk.index}-${isFlashing ? flashTs : 'idle'}`} title={chunk.text} placement="top-start">
+                          <ChunkRow
+                            data-chunk-index={chunk.index}
+                            flashing={isFlashing}
+                            reducedMotion={reducedMotion}
+                            onMouseEnter={() =>
+                              dispatch(setFlashCitation({ type: 'niche', index: chunk.index, ts: Date.now() }))
+                            }
+                            onMouseLeave={() => dispatch(clearFlashCitation())}
+                          >
+                            <Marker>[NICHE:{chunk.index}]</Marker>
+                            <Snippet variant="body2">{truncate(chunk.text)}</Snippet>
+                          </ChunkRow>
+                        </Tooltip>
+                      );
+                    })}
                   </Stack>
                 </Box>
               );

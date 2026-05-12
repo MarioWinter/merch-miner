@@ -8,6 +8,7 @@ import type {
 import type {
   ChunkUsed,
   FlashCitation,
+  SloganRow,
   ThinkingStep,
 } from '../types/chat-rag';
 
@@ -101,6 +102,20 @@ interface ChatBarState {
    * ExpandedPanel reads it and flashes the matching row, then resets to null.
    */
   flashCitation: FlashCitation | null;
+  /**
+   * PROJ-29 Phase 1H-2 — structured slogan payload streamed in via the
+   * `generate_slogans_payload` SSE event. Lives on the streaming assistant
+   * message during the active stream.
+   */
+  streamingSloganPayload: SloganRow[] | null;
+  /**
+   * PROJ-29 Phase 1H-2 — payload that survives `done` so the just-persisted
+   * assistant message can keep rendering its slogan table. Captured from
+   * `streamingSloganPayload` on `done`, keyed by the persisted message id.
+   * Cleared on next `init` (new user message). Workaround until the backend
+   * persists generate_slogans_payload on the ChatMessage row (Phase 1I).
+   */
+  completedSloganPayload: { messageId: string; rows: SloganRow[] } | null;
 }
 
 const INITIAL_STREAM: StreamingAssistantMessage = {
@@ -179,6 +194,8 @@ const initialState: ChatBarState = {
   followUps: [],
   streamStartedAt: null,
   flashCitation: null,
+  streamingSloganPayload: null,
+  completedSloganPayload: null,
 };
 
 const chatBarSlice = createSlice({
@@ -290,6 +307,10 @@ const chatBarSlice = createSlice({
       state.streamingStages = [];
       state.chunksUsed = [];
       state.streamStartedAt = Date.now();
+      // 1H-2: drop the previous turn's completed slogan payload so the table
+      // doesn't bleed across turns.
+      state.completedSloganPayload = null;
+      state.streamingSloganPayload = null;
     },
     appendStreamingChunk(state, action: PayloadAction<string>) {
       if (state.streamingAssistantMessage.isStreaming) {
@@ -322,6 +343,7 @@ const chatBarSlice = createSlice({
       state.chunksUsed = [];
       state.streamStartedAt = null;
       state.flashCitation = null;
+      state.streamingSloganPayload = null;
     },
     // --- PROJ-29 Phase 1H: ThinkingStrip reducers ---
     /**
@@ -432,6 +454,37 @@ const chatBarSlice = createSlice({
     clearFlashCitation(state) {
       state.flashCitation = null;
     },
+    /**
+     * PROJ-29 Phase 1H-2 — set the structured slogan payload streamed in via
+     * the `generate_slogans_payload` SSE event. Cleared on stream end +
+     * on next `init`.
+     */
+    setStreamingSloganPayload(state, action: PayloadAction<SloganRow[] | null>) {
+      state.streamingSloganPayload = action.payload;
+    },
+    /**
+     * PROJ-29 Phase 1H-2 — capture the streaming payload on `done` so the
+     * just-persisted assistant message can keep rendering its slogan table.
+     */
+    setCompletedSloganPayload(
+      state,
+      action: PayloadAction<{ messageId: string; rows: SloganRow[] } | null>,
+    ) {
+      state.completedSloganPayload = action.payload;
+    },
+    /**
+     * PROJ-29 Phase 1H-2 — atomically move the streaming payload to
+     * `completedSloganPayload` keyed by the persisted message id. Called from
+     * the SSE `done` handler before `clearStreamingMessage` runs.
+     */
+    promoteStreamingSloganPayload(state, action: PayloadAction<{ messageId: string }>) {
+      if (state.streamingSloganPayload && state.streamingSloganPayload.length > 0) {
+        state.completedSloganPayload = {
+          messageId: action.payload.messageId,
+          rows: state.streamingSloganPayload,
+        };
+      }
+    },
     setRecentChatsOverlayOpen(state, action: PayloadAction<boolean>) {
       state.recentChatsOverlayOpen = action.payload;
     },
@@ -512,6 +565,9 @@ export const {
   setStreamStartedAt,
   setFlashCitation,
   clearFlashCitation,
+  setStreamingSloganPayload,
+  setCompletedSloganPayload,
+  promoteStreamingSloganPayload,
 } = chatBarSlice.actions;
 
 export default chatBarSlice.reducer;

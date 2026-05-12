@@ -103,11 +103,30 @@ export interface SSEFollowUpsEvent {
 /**
  * Structured payload for the `generate_slogans` tool. Matches `Idea` model fields
  * 1:1 so the frontend `useAddSloganToNiche` hook can save without translation.
- * The full row shape lives in Phase 1H-2 (`types/slogan.ts`); here we only
- * declare the SSE-event wrapper so 1H-1 can store the payload opaque-ly until
- * the table component lands.
+ *
+ * Wire shape (backend `niche_chat_agent._validate_slogan_payload`):
+ *   { slogans: SloganRow[], warnings: string[] }
+ *
+ * The full row shape lives in `components/GeneratedSloganTable/types/slogan.ts`.
  */
 export interface SSEGenerateSlogansPayloadEvent {
-  rows: unknown[];
+  slogans: SloganRow[];
   warnings?: string[];
+}
+
+/**
+ * One slogan row emitted by `generate_slogans`. Fields mirror `Idea` model
+ * 1:1 so `useAddSloganToNiche` can POST without translation.
+ */
+export interface SloganRow {
+  slogan_text: string;
+  signal_type: 'self' | 'other';
+  pattern_used: string;
+  stylistic_device: string;
+  /** Backend emits a list of archetypes (e.g. `["Hero", "Rebel"]`). */
+  emotional_archetype: string[];
+  creative_modules_used: string[];
+  buyer_voice_pattern?: string;
+  why_it_works?: string;
+  market_confidence: 'High' | 'Medium' | 'Low';
 }

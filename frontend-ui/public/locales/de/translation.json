@@ -3473,6 +3473,55 @@
         "openChat": "Chat öffnen",
         "thinking": "Denke nach…"
       }
+    },
+    "slogans": {
+      "header": "{{count}} Slogans generiert",
+      "col": {
+        "slogan": "Slogan",
+        "signal": "Signal",
+        "pattern": "Muster",
+        "device": "Stilmittel",
+        "confidence": "Konfidenz",
+        "actions": "Aktionen"
+      },
+      "signal": {
+        "self": "Ich",
+        "other": "Andere"
+      },
+      "confidence": {
+        "high": "Hoch",
+        "medium": "Mittel",
+        "low": "Niedrig"
+      },
+      "action": {
+        "copy": "Slogan kopieren",
+        "copyAll": "Alle kopieren",
+        "add": "Zur Nische hinzufügen",
+        "addAll": "Alle hinzufügen",
+        "added": "Hinzugefügt",
+        "copied": "In die Zwischenablage kopiert",
+        "duplicate": "Bereits in der Nische",
+        "error": "Fehlgeschlagen"
+      },
+      "summary": {
+        "selected": "{{count}} ausgewählt",
+        "withDuplicates": "{{count}} ausgewählt · {{dupes}} Duplikate"
+      },
+      "empty": "Keine Slogans generiert — versuche eine konkretere Eingabe",
+      "selectAll": "Alle Slogans auswählen"
+    },
+    "followUps": {
+      "label": "Frag doch mal…"
+    },
+    "nichePicker": {
+      "title": "Slogan zur Nische hinzufügen",
+      "confirmLabel": "Hinzufügen",
+      "placeholder": "Nische auswählen…",
+      "empty": "Noch keine Nischen. Lege zuerst eine an."
+    },
+    "citation": {
+      "niche": "Nischenwissen-Snippet {{index}}",
+      "web": "Webquelle {{index}}"
     }
   }
 }

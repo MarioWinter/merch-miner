@@ -3430,6 +3430,55 @@
         "openChat": "Open chat",
         "thinking": "Thinking…"
       }
+    },
+    "slogans": {
+      "header": "Generated {{count}} slogans",
+      "col": {
+        "slogan": "Slogan",
+        "signal": "Signal",
+        "pattern": "Pattern",
+        "device": "Device",
+        "confidence": "Confidence",
+        "actions": "Actions"
+      },
+      "signal": {
+        "self": "Self",
+        "other": "Other"
+      },
+      "confidence": {
+        "high": "High",
+        "medium": "Med",
+        "low": "Low"
+      },
+      "action": {
+        "copy": "Copy slogan",
+        "copyAll": "Copy all",
+        "add": "Add to niche",
+        "addAll": "Add all",
+        "added": "Added",
+        "copied": "Copied to clipboard",
+        "duplicate": "Already in niche",
+        "error": "Failed"
+      },
+      "summary": {
+        "selected": "{{count}} selected",
+        "withDuplicates": "{{count}} selected · {{dupes}} duplicates"
+      },
+      "empty": "No slogans generated — try a more specific brief",
+      "selectAll": "Select all slogans"
+    },
+    "followUps": {
+      "label": "Try asking…"
+    },
+    "nichePicker": {
+      "title": "Add slogan to niche",
+      "confirmLabel": "Add",
+      "placeholder": "Pick a niche…",
+      "empty": "No niches yet. Create one first."
+    },
+    "citation": {
+      "niche": "Niche knowledge chunk {{index}}",
+      "web": "Web source {{index}}"
     }
   }
 }

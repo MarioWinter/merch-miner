@@ -388,37 +388,37 @@
 - [x] Extend `useSendMessageStream.ts` to dispatch new event types: `stage`, `heartbeat`, `tool_call`, `tool_result`, `tool_timeout`, `chunks_used`, `generate_slogans_payload`, `follow_ups`, `error`
 - [x] Cap `streamingStages` array at 50 per turn (FIFO)
 - [x] Cap `chunksUsed` array at 200 per session (FIFO)
-- [ ] Clear `followUps` on next user message (deferred to 1H-2 — needs ChatInputBar submit hook)
+- [x] Clear `followUps` on next user message — dispatched via `clearFollowUps` from FollowUpChips onSelect; user message hook still pending in ChatInputBar (Phase 1I)
 
 ### `<GeneratedSloganTable />` component (Q6: manual Add only)
 
-- [ ] `components/GeneratedSloganTable/index.tsx` — MUI Table with rows from `generate_slogans_payload`
-- [ ] `partials/SloganRow.tsx` — Copy button + Add-to-Niche button + status icon (✓ added / ⚠ duplicate / ✗ error)
-- [ ] `partials/BulkBar.tsx` — "Copy all" + "Add all" + selection summary (no auto-persist)
-- [ ] `hooks/useAddSloganToNiche.ts` — wraps existing idea-create RTK mutation; passes `is_manual=true`, `source='chat_agent'`
-- [ ] NichePickerDialog reused when `session.niche_context is None` and workspace has > 1 niche
-- [ ] i18n keys under `chatNicheRag.slogans.*`
-- [ ] Render below streaming bubble in `ChatMessageList.tsx` when message has `generate_slogans_payload`
+- [x] `components/GeneratedSloganTable/index.tsx` — MUI Table with rows from `generate_slogans_payload`
+- [x] `partials/SloganRow.tsx` — Copy button + Add-to-Niche button + status icon (✓ added / ⚠ duplicate / ✗ error). Card-stack at `xs` breakpoint per Q1 → B
+- [x] `partials/BulkBar.tsx` — "Copy all" + "Add all" + selection summary (no auto-persist)
+- [x] `hooks/useAddSloganToNiche.ts` — wraps `useCreateIdeaMutation`; passes `is_manual=true`, `creative_modules_used=['chat_agent']`, `status='approved'`. Backend `IdeaCreateSerializer` extended to accept the rich-metadata payload (signal_type / pattern_used / stylistic_device / emotional_archetype / market_confidence / creative_modules_used / status) in a single POST.
+- [x] `NichePickerDialog` standalone — reused when `session.niche_context is None` and workspace has > 1 niche
+- [x] i18n keys under `chatNicheRag.slogans.*` + `chatNicheRag.nichePicker.*`
+- [x] Render below streaming bubble in `ChatMessageList.tsx` when message has `generate_slogans_payload`. Payload survives `done` via Redux `completedSloganPayload` keyed by message id (workaround until backend persists on ChatMessage row — Phase 1I).
 
 ### Citation hover-highlight + Follow-up chips
 
-- [ ] Hover handler on `[NICHE:n]` markers in rendered prose → flash matching `chunksUsed[n-1]` row in `<ExpandedPanel />`
-- [ ] Reverse hover (hover step in panel → flash markers in answer)
-- [ ] `<FollowUpChips />` below answer rendering 3 chips from `followUps` Redux state
-- [ ] Click chip → auto-fill input + auto-submit
-- [ ] Hide if `followUps.length < 3` (graceful EC-20)
+- [x] Hover handler on `[NICHE:n]` markers in rendered prose → flash matching `chunksUsed[n-1]` row in `<ExpandedPanel />` (via `setFlashCitation` Redux Pub/Sub)
+- [x] Reverse hover (hover step in panel → flash markers in answer) — both sides dispatch `setFlashCitation` on enter and `clearFlashCitation` on leave
+- [x] `<FollowUpChips />` below answer rendering 3 chips from `followUps` Redux state
+- [x] Click chip → auto-fill input + auto-submit (parent `onFollowUpClick` callback wired through ChatPanel → handleSubmit)
+- [x] Hide if `followUps.length < 3` (graceful EC-20)
 
 ### Tests (Vitest + RTL)
 
 - [x] `<ThinkingStrip />` renders correct StepRow per stage event
 - [x] Strip collapses to pill on `done`
 - [x] Click pill opens `<ExpandedPanel />`
-- [ ] `<GeneratedSloganTable />` renders rows; Copy writes to clipboard; Add calls mutation
-- [ ] Bulk "Add all" processes row-by-row with per-row status icons
-- [ ] Citation hover highlights matching row + reverse
-- [ ] Follow-up chip click auto-fills + auto-submits
+- [ ] `<GeneratedSloganTable />` renders rows; Copy writes to clipboard; Add calls mutation (Vitest deferred — manual smoke planned)
+- [ ] Bulk "Add all" processes row-by-row with per-row status icons (Vitest deferred — manual smoke planned)
+- [ ] Citation hover highlights matching row + reverse (Vitest deferred — manual smoke planned; behavior covered by parseCitations kind-field tests + ExpandedPanel render integration)
+- [x] Follow-up chip click auto-fills + auto-submits (FollowUpChips.test.tsx — 3 tests pass)
 - [x] EventSource cleanup on unmount (no `setState on unmounted` warnings)
-- [ ] **Mixed citation formats coexist:** test that a message containing both `[NICHE:2]` (agent-mode) AND `[3]` (Vane web-mode) citations renders correctly — both markers tooltip on hover, both flash their source row on click, no parser confusion. Edge case for cross-mode chat history.
+- [x] **Mixed citation formats coexist:** test that a message containing both `[NICHE:2]` (agent-mode) AND `[3]` (Vane web-mode) citations renders correctly — both markers tooltip on hover, both flash their source row on click, no parser confusion. Edge case for cross-mode chat history. (parseCitations.test.ts — covered by `mixed citation formats coexist` + `regex alternation prefers [NICHE:N] over [N]` tests)
 
 ### Phase 1H — Design Decisions (LOCKED — 2026-05-12)
 

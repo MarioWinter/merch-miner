@@ -95,6 +95,45 @@ class TestIdeaListCreate:
         )
         assert resp.status_code == 400
 
+    def test_create_idea_with_rich_metadata(self, client, workspace, niche):
+        """PROJ-29 Phase 1H-2: chat-agent slogans persist full payload on create."""
+        resp = client.post(
+            f'/api/niches/{niche.id}/ideas/',
+            {
+                'slogan_text': 'Soccer Dad Energy',
+                'signal_type': 'self',
+                'pattern_used': 'IDENTITY_DECLARATION',
+                'stylistic_device': 'DECLARATION',
+                'emotional_archetype': 'Hero',
+                'market_confidence': 'High',
+                'creative_modules_used': ['chat_agent'],
+                'status': 'approved',
+            },
+            format='json',
+            **_ws_headers(workspace),
+        )
+        assert resp.status_code == 201, resp.data
+        row = resp.data[0]
+        assert row['slogan_text'] == 'Soccer Dad Energy'
+        assert row['signal_type'] == 'self'
+        assert row['pattern_used'] == 'IDENTITY_DECLARATION'
+        assert row['stylistic_device'] == 'DECLARATION'
+        assert row['market_confidence'] == 'High'
+        assert row['emotional_archetype'] == 'Hero'
+        assert row['creative_modules_used'] == ['chat_agent']
+        assert row['status'] == 'approved'
+        assert row['is_manual'] is True
+
+    def test_create_idea_rejects_invalid_pattern(self, client, workspace, niche):
+        resp = client.post(
+            f'/api/niches/{niche.id}/ideas/',
+            {'slogan_text': 'X', 'pattern_used': 'NOT_A_REAL_PATTERN'},
+            format='json',
+            **_ws_headers(workspace),
+        )
+        assert resp.status_code == 400
+        assert 'pattern' in str(resp.data).lower()
+
     def test_no_workspace_header_falls_back_to_membership(self, client, niche):
         """Without X-Workspace-Id header, fallback resolves via active membership."""
         resp = client.get(f'/api/niches/{niche.id}/ideas/')

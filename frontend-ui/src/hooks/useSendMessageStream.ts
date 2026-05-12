@@ -41,6 +41,8 @@ import {
   markStageError,
   appendChunksUsed,
   setFollowUps,
+  setStreamingSloganPayload,
+  promoteStreamingSloganPayload,
 } from '@/store/chatBarSlice';
 import { searchApi } from '@/store/searchSlice';
 import type {
@@ -376,16 +378,15 @@ export const useSendMessageStream = ({
         dispatch(appendChunksUsed(data.chunks));
       });
 
-      // `generate_slogans_payload` — structured rows for the GeneratedSloganTable
-      // (full UI lands in Phase 1H-2). Surface via streaming-message sources for
-      // now — kept opaque-ly until the table component is wired.
+      // `generate_slogans_payload` — structured rows for the GeneratedSloganTable.
+      // Backend wire shape: `{ slogans: SloganRow[], warnings: string[] }`.
       es.addEventListener('generate_slogans_payload', (event) => {
         armSilenceTimer();
         const data = parseEventData<SSEGenerateSlogansPayloadEvent>(
           (event as MessageEvent).data,
         );
-        if (!data || !Array.isArray(data.rows)) return;
-        // Wired in 1H-2: dispatch(setStreamingSloganPayload(data.rows))
+        if (!data || !Array.isArray(data.slogans)) return;
+        dispatch(setStreamingSloganPayload(data.slogans));
       });
 
       // `follow_ups` — 3 chip suggestions, fires after `done`
@@ -400,6 +401,11 @@ export const useSendMessageStream = ({
 
       es.addEventListener('done', (event) => {
         const data = parseEventData<SSEDoneEvent>((event as MessageEvent).data);
+        // PROJ-29 Phase 1H-2 — move the slogan payload to the persisted-message
+        // keyed slot BEFORE clearStreamingMessage wipes streamingSloganPayload.
+        if (data?.message_id) {
+          dispatch(promoteStreamingSloganPayload({ messageId: data.message_id }));
+        }
         closeStream();
         dispatch(clearStreamingMessage());
         // Force RTK Query refetch — persisted message + session refresh

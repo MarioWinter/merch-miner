@@ -98,17 +98,52 @@ class IdeaSerializer(serializers.ModelSerializer):
 
 
 class IdeaCreateSerializer(serializers.Serializer):
-    """Create manual/collected ideas. Supports batch (newline-separated)."""
+    """Create manual/collected ideas. Supports batch (newline-separated).
+
+    PROJ-29 Phase 1H-2: optional rich-metadata fields (signal_type, pattern_used,
+    stylistic_device, emotional_archetype, market_confidence, creative_modules_used,
+    status) so chat-agent-generated slogans can persist with their full payload in
+    a single request. All extras are optional — legacy single-line manual adds
+    continue to work without them.
+    """
 
     slogan_text = serializers.CharField(required=True)
     niche = serializers.UUIDField(required=False, allow_null=True, default=None)
     source_product_url = serializers.URLField(required=False, default='')
+    signal_type = serializers.ChoiceField(
+        choices=Idea.SignalType.choices, required=False, allow_null=True, default=None,
+    )
+    pattern_used = serializers.CharField(required=False, allow_blank=True, default='')
+    stylistic_device = serializers.CharField(required=False, allow_blank=True, default='')
+    emotional_archetype = serializers.CharField(required=False, allow_blank=True, default='')
+    market_confidence = serializers.ChoiceField(
+        choices=Idea.MarketConfidence.choices, required=False, allow_null=True, default=None,
+    )
+    creative_modules_used = serializers.ListField(
+        child=serializers.CharField(max_length=64),
+        required=False, default=list,
+    )
+    status = serializers.ChoiceField(
+        choices=Idea.Status.choices, required=False, default=None,
+    )
 
     def validate_slogan_text(self, value):
         value = value.strip()
         if not value:
             raise serializers.ValidationError("Slogan text cannot be empty.")
         return value
+
+    # Reuse the same enum validators as IdeaSerializer so create + update stay
+    # in sync. Delegate to bound-method form so the validator's `self` is the
+    # IdeaSerializer instance method.
+    def validate_pattern_used(self, value):
+        return IdeaSerializer.validate_pattern_used(IdeaSerializer(), value)
+
+    def validate_stylistic_device(self, value):
+        return IdeaSerializer.validate_stylistic_device(IdeaSerializer(), value)
+
+    def validate_emotional_archetype(self, value):
+        return IdeaSerializer.validate_emotional_archetype(IdeaSerializer(), value)
 
 
 class IdeaUpdateSerializer(serializers.ModelSerializer):
