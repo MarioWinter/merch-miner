@@ -886,6 +886,7 @@ EVENT_DONE = 'done'
 EVENT_FOLLOW_UPS = 'follow_ups'
 EVENT_ERROR = 'error'
 EVENT_GENERATE_SLOGANS_PAYLOAD = 'generate_slogans_payload'
+EVENT_SOURCES = 'sources'
 EVENT_HEARTBEAT = 'heartbeat'
 
 # Tools that surface RAG chunks the UI renders as citations.
@@ -942,6 +943,10 @@ def run_chat(session, message: str, model_override=None):
     yield {'event': EVENT_STAGE, 'data': {'stage': 'thinking'}}
 
     chunks_consolidated: list[dict] = []
+    # PROJ-29 follow-up: when the agent calls `web_search`, collect the Vane
+    # source list so the frontend can render <SourceList /> + resolve `[N]`
+    # citation markers in the answer. Reuses the legacy Vane source shape.
+    web_sources_consolidated: list[dict] = []
     final_answer_parts: list[str] = []
     generate_slogans_payload: Optional[dict] = None
     tool_call_starts: dict[str, float] = {}
@@ -1015,6 +1020,26 @@ def run_chat(session, message: str, model_override=None):
                                 and _is_chunk_list(parsed)
                             ):
                                 chunks_consolidated.extend(parsed)
+
+                            # PROJ-29 follow-up: web_search returns a list of
+                            # `{title, url, snippet}` dicts. Emit a `sources`
+                            # SSE event right after the tool_result so the
+                            # frontend SourceList renders + `[N]` citation
+                            # markers in the answer resolve to these URLs.
+                            if (
+                                tool_name == 'web_search'
+                                and isinstance(parsed, list)
+                            ):
+                                new_sources = [
+                                    s for s in parsed
+                                    if isinstance(s, dict) and s.get('url')
+                                ]
+                                if new_sources:
+                                    web_sources_consolidated.extend(new_sources)
+                                    yield {
+                                        'event': EVENT_SOURCES,
+                                        'data': {'sources': new_sources},
+                                    }
 
                             yield {
                                 'event': EVENT_TOOL_RESULT,

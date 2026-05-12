@@ -1132,6 +1132,10 @@ class ChatSessionMessageStreamView(APIView):
             slogan_payload = None
             chunks_used_buf: list[dict] = []
             thinking_stages_buf: list[dict] = []
+            # PROJ-29 follow-up: capture `sources` events fired by run_chat
+            # when the agent invokes `web_search`. Persisted on the
+            # ChatMessage row so SourceList re-renders after page reload.
+            sources_buf: list[dict] = []
             # Track in-flight stages by name so tool_result / tool_timeout can
             # close them out with a status + durationMs.
             stage_idx_by_name: dict[str, int] = {}
@@ -1142,6 +1146,12 @@ class ChatSessionMessageStreamView(APIView):
                     data = evt.get('data') or {}
                     if event_name == 'generate_slogans_payload':
                         slogan_payload = data or None
+                        yield _serialize_sse(evt)
+                        continue
+                    if event_name == 'sources':
+                        # Accumulate web_search source list for persistence.
+                        new_sources = list(data.get('sources') or [])
+                        sources_buf.extend(new_sources)
                         yield _serialize_sse(evt)
                         continue
                     if event_name == 'chunks_used':
@@ -1199,7 +1209,11 @@ class ChatSessionMessageStreamView(APIView):
                                 role=ChatMessage.Role.ASSISTANT,
                                 content=final_answer,
                                 message_type=ChatMessage.MessageType.SEARCH_RESULT,
-                                sources=[],
+                                # PROJ-29 follow-up: persist web_search sources
+                                # so SourceList + [N] citation markers render
+                                # after page reload (same field the legacy
+                                # Vane path uses).
+                                sources=sources_buf or [],
                                 search_mode='balanced',
                                 search_sources=['niche_agent'],
                                 model_used='niche_chat_agent',
