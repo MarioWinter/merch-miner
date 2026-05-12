@@ -24,7 +24,21 @@ from vector_app.tasks import create_or_update_embedding
 logger = logging.getLogger(__name__)
 
 
-CONTENT_TYPE_CHOICES = ['slogan', 'product', 'keyword', 'notes', 'all']
+CONTENT_TYPE_CHOICES = [
+    'slogan', 'product', 'keyword', 'notes',
+    # PROJ-29 follow-up: niche-research output. These rows are auto-embedded
+    # via post_save signals (vector_app/signals.py) — but ONLY for rows
+    # CREATED AFTER the signal registration (Phase 1B-1, commit 4248f61).
+    # Existing niches whose research ran earlier never got embeddings →
+    # `search_niche_knowledge` returns 0 hits → admin needs to run this
+    # backfill once post-deploy to index historical research.
+    'profile',           # NicheAnalysis (niche_summary, emotional_reality, etc.)
+    'emotional',         # NicheProductEmotionalAnalysis (per product)
+    'vision',            # NicheProductVisionAnalysis (per product)
+    'keyword_analysis',  # NicheKeywordAnalysis (research keyword output)
+    'research',          # alias for profile + emotional + vision + keyword_analysis
+    'all',
+]
 
 # Cost-estimation constants (PROJ-29 Phase 1B Round 3 task-file algorithm).
 _AVG_INPUT_TOKENS_PER_ROW = 200
@@ -38,26 +52,60 @@ _BATCH_SIZE = 50
 
 
 def _resolve_source_models(content_type: str):
-    """Map --content-type to (model_class, content_subtype) pairs."""
+    """Map --content-type to (model_class, content_subtype, niche_filter_key) tuples.
+
+    The third tuple element is the kwarg-name used in `_filter_by_niche` —
+    most models have a direct `niche_id` FK; per-product analyses (Emotional /
+    Vision) reach the niche via `research__niche_id`.
+    """
     from idea_app.models import Idea
     from keyword_app.models import NicheKeyword
     from niche_app.models import CollectedProduct, NicheNote
+    from niche_research_app.models import (
+        NicheAnalysis,
+        NicheKeywordAnalysis,
+        NicheProductEmotionalAnalysis,
+        NicheProductVisionAnalysis,
+    )
 
     mapping = {
-        'slogan': [(Idea, 'slogan')],
-        'notes': [(NicheNote, 'notes')],
-        'product': [(CollectedProduct, 'product')],
-        'keyword': [(NicheKeyword, 'keyword')],
+        'slogan': [(Idea, 'slogan', 'niche_id')],
+        'notes': [(NicheNote, 'notes', 'niche_id')],
+        'product': [(CollectedProduct, 'product', 'niche_id')],
+        'keyword': [(NicheKeyword, 'keyword', 'niche_id')],
+        # PROJ-29 follow-up: niche-research output (auto-embedded via signal
+        # for new rows; this list lets the backfill cover historical rows).
+        'profile': [(NicheAnalysis, 'profile', 'niche_id')],
+        'emotional': [(NicheProductEmotionalAnalysis, 'emotional', 'research__niche_id')],
+        'vision': [(NicheProductVisionAnalysis, 'vision', 'research__niche_id')],
+        'keyword_analysis': [(NicheKeywordAnalysis, 'keyword_analysis', 'niche_id')],
     }
+    if content_type == 'research':
+        # All niche-research output (no Ideas/Notes/Products/Keywords).
+        return (
+            mapping['profile']
+            + mapping['emotional']
+            + mapping['vision']
+            + mapping['keyword_analysis']
+        )
     if content_type == 'all':
-        return mapping['slogan'] + mapping['notes'] + mapping['product'] + mapping['keyword']
+        return (
+            mapping['slogan']
+            + mapping['notes']
+            + mapping['product']
+            + mapping['keyword']
+            + mapping['profile']
+            + mapping['emotional']
+            + mapping['vision']
+            + mapping['keyword_analysis']
+        )
     return mapping[content_type]
 
 
-def _filter_by_niche(qs, niche_id):
+def _filter_by_niche(qs, niche_id, filter_key='niche_id'):
     if niche_id is None:
         return qs
-    return qs.filter(niche_id=niche_id)
+    return qs.filter(**{filter_key: niche_id})
 
 
 def _estimate_cost_usd(count_rows: int) -> float:
@@ -119,8 +167,10 @@ class Command(BaseCommand):
         sources = _resolve_source_models(content_type)
         total_count = 0
         per_source_counts: list[tuple[str, int]] = []
-        for model_class, _subtype in sources:
-            qs = _filter_by_niche(model_class.objects.all(), niche_id)
+        for model_class, _subtype, filter_key in sources:
+            qs = _filter_by_niche(
+                model_class.objects.all(), niche_id, filter_key=filter_key,
+            )
             count = qs.count()
             total_count += count
             per_source_counts.append((model_class.__name__, count))
@@ -159,8 +209,10 @@ class Command(BaseCommand):
         max_projected_cost = budget * 1.1
 
         queue = django_rq.get_queue('default')
-        for model_class, _subtype in sources:
-            qs = _filter_by_niche(model_class.objects.all(), niche_id)
+        for model_class, _subtype, filter_key in sources:
+            qs = _filter_by_niche(
+                model_class.objects.all(), niche_id, filter_key=filter_key,
+            )
             ct = ContentType.objects.get_for_model(model_class)
             batch: list[str] = []
             for pk in qs.values_list('pk', flat=True).iterator():
