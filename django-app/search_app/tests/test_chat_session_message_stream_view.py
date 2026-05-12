@@ -116,7 +116,7 @@ def parse_sse(streaming_content) -> list[dict]:
 
 def make_run_chat_stub(events: list[dict]):
     """Build a generator factory mirroring ``run_chat``'s signature."""
-    def _gen(session, message):  # noqa: ARG001 - signature match
+    def _gen(session, message, model_override=None):  # noqa: ARG001 - signature match
         for evt in events:
             yield evt
     return _gen
@@ -400,7 +400,7 @@ class TestHeartbeat:
         # Simulate a slow producer: yield ``init``, sleep > interval, then
         # yield the rest. The view's heartbeat wrapper (3s default) is
         # patched to 0.2s so the test runs in well under a second.
-        def slow_run_chat(session, message):  # noqa: ARG001
+        def slow_run_chat(session, message, model_override=None):  # noqa: ARG001
             yield {'event': 'init', 'data': {
                 'session_id': str(session.id), 'mode': 'agent',
             }}

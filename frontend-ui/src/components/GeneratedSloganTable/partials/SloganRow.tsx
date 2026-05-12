@@ -36,6 +36,10 @@ interface SloganRowProps {
   onToggleSelect: () => void;
   onCopy: () => void;
   onAdd: () => void;
+  /** PROJ-29 Phase 1I follow-up: parent measures container width and forces
+   *  the card-stack layout for narrow drawers (where viewport-based
+   *  `useMediaQuery` wouldn't trigger). Falls back to the viewport check. */
+  narrow?: boolean;
 }
 
 const SloganCell = styled(TableCell)(({ theme }) => ({
@@ -90,10 +94,12 @@ const SloganRowView = ({
   onToggleSelect,
   onCopy,
   onAdd,
+  narrow,
 }: SloganRowProps) => {
   const { t } = useTranslation();
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const viewportNarrow = useMediaQuery(theme.breakpoints.down('sm'));
+  const useCardLayout = narrow ?? viewportNarrow;
   const [hovering, setHovering] = useState(false);
 
   const archetype = Array.isArray(row.emotional_archetype)
@@ -101,7 +107,7 @@ const SloganRowView = ({
     : row.emotional_archetype;
   const canAct = status === 'idle' || status === 'error' || status === 'copied';
 
-  if (isMobile) {
+  if (useCardLayout) {
     return (
       <CardWrap data-row-status={status}>
         <Stack direction="row" alignItems="flex-start" gap={1}>

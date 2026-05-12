@@ -980,6 +980,7 @@ class ChatSessionMessageStreamView(APIView):
         if session.niche_context is not None:
             return self._handle_niche_agent_stream(
                 request, workspace, session, user_msg, content,
+                model_override=model,
             )
 
         vane = VaneService()
@@ -1098,6 +1099,7 @@ class ChatSessionMessageStreamView(APIView):
 
     def _handle_niche_agent_stream(
         self, request, workspace, session, user_msg, content,
+        model_override=None,
     ):
         """PROJ-29 Phase 1E — stream the niche-chat agent.
 
@@ -1134,7 +1136,7 @@ class ChatSessionMessageStreamView(APIView):
             # close them out with a status + durationMs.
             stage_idx_by_name: dict[str, int] = {}
             try:
-                inner = run_chat(session, content)
+                inner = run_chat(session, content, model_override=model_override)
                 for evt in _wrap_with_heartbeat(inner):
                     event_name = evt.get('event')
                     data = evt.get('data') or {}

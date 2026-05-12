@@ -373,7 +373,7 @@ def _render_tool_descriptions(tools: list[Any]) -> str:
     return '\n'.join(lines)
 
 
-def _build_tools(workspace, niche) -> list:
+def _build_tools(workspace, niche, model_override=None) -> list:
     """Construct the 8 tools bound to ``(workspace, niche)`` via closure.
 
     Workspace + niche are NEVER exposed as LLM-supplied parameters — they
@@ -613,7 +613,12 @@ def _build_tools(workspace, niche) -> list:
             )
 
             llm, _ = get_llm_for_node(
-                'creative_techniques', config_resolver=get_node_config,
+                'creative_techniques',
+                config_resolver=get_node_config,
+                # PROJ-29 Phase 1I follow-up: honor user-selected model from
+                # the ChatInputBar Model picker. Falls back to ChatNodeConfig
+                # when no override is set.
+                model_override=model_override,
             )
 
             user_message = (
@@ -732,7 +737,9 @@ def _build_tools(workspace, niche) -> list:
             )
 
             llm, _ = get_llm_for_node(
-                'agent_react', config_resolver=get_node_config,
+                'agent_react',
+                config_resolver=get_node_config,
+                model_override=model_override,
             )
             response = llm.invoke([
                 {'role': 'system', 'content': system_prompt},
@@ -791,7 +798,7 @@ def _build_tools(workspace, niche) -> list:
     ]
 
 
-def build_niche_chat_agent(workspace, niche_id, session_id: str):
+def build_niche_chat_agent(workspace, niche_id, session_id: str, model_override=None):
     """Compile the niche-chat ReAct agent for one user turn.
 
     Per-request LLM (AC-Ops-LG-3) — instantiated here, not at module level,
@@ -800,6 +807,13 @@ def build_niche_chat_agent(workspace, niche_id, session_id: str):
     ``niche_id`` is validated against the workspace inside this function
     (``Niche.objects.get(workspace=workspace, id=niche_id)``) — cross-workspace
     access raises ``Niche.DoesNotExist`` and propagates to the view layer.
+
+    ``model_override``: PROJ-29 Phase 1I follow-up — when set (e.g. from the
+    ChatInputBar Model picker), the user-facing stages (``agent_react`` here
+    + ``creative_techniques`` inside the slogan tool) use this model instead
+    of the ChatNodeConfig default. Utility stages (``query_rewrite``,
+    ``contextual_header``, ``follow_up_suggester``, ``conversation_summarizer``)
+    keep their tuned defaults — those are not visible to the user.
     """
     # Lazy imports — avoid app-loading cycles and keep test-time light.
     from chat_node_config_app.services.resolver import (
@@ -811,10 +825,14 @@ def build_niche_chat_agent(workspace, niche_id, session_id: str):
 
     niche = Niche.objects.get(workspace=workspace, id=niche_id)
 
-    tools = _build_tools(workspace, niche)
+    tools = _build_tools(workspace, niche, model_override=model_override)
 
     # AC-Ops-LG-3 — per-request LLM, NOT a module-level singleton.
-    llm, _ = get_llm_for_node('agent_react', config_resolver=get_node_config)
+    llm, _ = get_llm_for_node(
+        'agent_react',
+        config_resolver=get_node_config,
+        model_override=model_override,
+    )
 
     marketplace = derive_marketplace(niche)
     marketplace_language = marketplace_to_language(marketplace)
@@ -874,7 +892,7 @@ def _is_chunk_list(value: Any) -> bool:
     )
 
 
-def run_chat(session, message: str):
+def run_chat(session, message: str, model_override=None):
     """Yield SSE event dicts for one niche-chat turn.
 
     Phase 1E orchestration entry point. The view layer wraps each yield in
@@ -889,6 +907,12 @@ def run_chat(session, message: str):
     OR ``tool_timeout``) -> ``chunks_used`` -> N x ``chunk`` ->
     ``generate_slogans_payload`` (when applicable) -> ``done`` ->
     ``follow_ups``.
+
+    ``model_override``: PROJ-29 Phase 1I follow-up — when set, the user-facing
+    LLM stages (``agent_react`` + ``creative_techniques``) use this model
+    instead of the per-stage ChatNodeConfig default. Honors the ChatInputBar
+    Model picker. Utility stages (query rewrite, contextual header, follow-up
+    suggester, conversation summarizer) keep their tuned defaults.
 
     On unrecoverable error: ``error`` with ``{code, retry_after_s: 30}``.
     """
@@ -911,6 +935,7 @@ def run_chat(session, message: str):
     try:
         agent = build_niche_chat_agent(
             session.workspace, niche.id, str(session.id),
+            model_override=model_override,
         )
 
         # ``stream_mode=['updates', 'messages']`` -> tuples of

@@ -16,7 +16,7 @@
  *   - When null + workspace has 1 niche: auto-pick.
  *   - When null + workspace has >1 niche: open NichePickerDialog (deferred to first Add click).
  */
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -27,9 +27,8 @@ import {
   TableHead,
   TableRow as MuiTableRow,
   TableCell,
-  useMediaQuery,
 } from '@mui/material';
-import { styled, useTheme } from '@mui/material/styles';
+import { styled } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
 import { useListNichesQuery } from '@/store/nicheSlice';
@@ -67,11 +66,30 @@ const CardList = styled(Stack)(({ theme }) => ({
   padding: theme.spacing(1),
 }));
 
+// PROJ-29 Phase 1I follow-up: container-width threshold below which we render
+// the card-stack layout instead of the dense Table. The drawer is 480/768/1200
+// px wide regardless of viewport size, so `useMediaQuery` on the viewport
+// would never trigger inside a narrow drawer. We measure the table's own
+// outer container with ResizeObserver instead.
+const CARD_STACK_BREAKPOINT_PX = 680;
+
 const GeneratedSloganTable = ({ rows, sessionNicheId }: GeneratedSloganTableProps) => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const [containerWidth, setContainerWidth] = useState<number>(() => 9999);
+  useEffect(() => {
+    const node = containerRef.current;
+    if (!node) return undefined;
+    setContainerWidth(node.getBoundingClientRect().width);
+    const ro = new ResizeObserver((entries) => {
+      const w = entries[0]?.contentRect.width;
+      if (typeof w === 'number') setContainerWidth(w);
+    });
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, []);
+  const isNarrow = containerWidth < CARD_STACK_BREAKPOINT_PX;
 
   const selection = useSloganTableSelection();
   const { statusByIndex, addRow, addMany } = useAddSloganToNiche();
@@ -176,7 +194,7 @@ const GeneratedSloganTable = ({ rows, sessionNicheId }: GeneratedSloganTableProp
 
   if (rows.length === 0) {
     return (
-      <Outer>
+      <Outer ref={containerRef}>
         <Alert severity="info" variant="outlined" sx={{ border: 0 }}>
           {t('chatNicheRag.slogans.empty')}
         </Alert>
@@ -186,7 +204,10 @@ const GeneratedSloganTable = ({ rows, sessionNicheId }: GeneratedSloganTableProp
 
   return (
     <>
-      <Outer aria-label={t('chatNicheRag.slogans.header', { count: rows.length })}>
+      <Outer
+        ref={containerRef}
+        aria-label={t('chatNicheRag.slogans.header', { count: rows.length })}
+      >
         <BulkBar
           totalCount={rows.length}
           selectedCount={selection.selected.size}
@@ -197,7 +218,7 @@ const GeneratedSloganTable = ({ rows, sessionNicheId }: GeneratedSloganTableProp
           onAddAll={handleAddAll}
           busy={busy}
         />
-        {isMobile ? (
+        {isNarrow ? (
           <CardList>
             {rows.map((row, idx) => (
               <SloganRow
@@ -209,6 +230,7 @@ const GeneratedSloganTable = ({ rows, sessionNicheId }: GeneratedSloganTableProp
                 onToggleSelect={() => selection.toggle(idx)}
                 onCopy={() => void handleCopy(idx)}
                 onAdd={() => handleAdd(idx)}
+                narrow
               />
             ))}
           </CardList>

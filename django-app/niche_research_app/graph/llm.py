@@ -62,17 +62,24 @@ def _research_resolver(node_name: str) -> Optional[dict]:
 def get_llm_for_node(
     node_name: str,
     config_resolver: Optional[Callable[[str], Optional[dict]]] = None,
+    model_override: Optional[str] = None,
 ) -> tuple[ChatOpenAI, str]:
     """Return (llm_instance, system_prompt) for the given node.
 
     `config_resolver` is a callable `(node_name) -> dict | None` returning
     `{model_name, temperature, max_tokens, system_prompt}`. When omitted, the
     research-domain resolver is used (existing behaviour).
+
+    `model_override`: PROJ-29 Phase 1I follow-up — when set (e.g. from the
+    ChatInputBar Model picker), it overrides `config.model_name`. Used for
+    user-facing stages (`agent_react`, `creative_techniques`) so the picker
+    is honored; utility stages (`query_rewrite`, `contextual_header`, etc.)
+    ignore the override and keep their tuned defaults.
     """
     resolver = config_resolver or _research_resolver
     config = resolver(node_name) or {}
 
-    model_name = config.get('model_name') or _DEFAULT_MODEL
+    model_name = model_override or config.get('model_name') or _DEFAULT_MODEL
     temperature = config.get('temperature', _DEFAULT_TEMPERATURE)
     max_tokens = config.get('max_tokens')
     system_prompt = config.get('system_prompt', '')
