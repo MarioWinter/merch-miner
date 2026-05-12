@@ -2,7 +2,17 @@
 
 from rest_framework import serializers
 
-from idea_app.models import Idea, IdeaAdaptationRun, IdeaFilterTemplate
+from idea_app.models import (
+    ALLOWED_EMOTIONAL_ARCHETYPES,
+    Idea,
+    IdeaAdaptationRun,
+    IdeaFilterTemplate,
+)
+
+
+_VALID_PATTERN_KEYS = {key for key, _ in Idea.PatternUsed.choices}
+_VALID_STYLISTIC_KEYS = {key for key, _ in Idea.StylisticDevice.choices}
+_VALID_ARCHETYPES_SET = set(ALLOWED_EMOTIONAL_ARCHETYPES)
 
 
 class IdeaSerializer(serializers.ModelSerializer):
@@ -41,6 +51,51 @@ class IdeaSerializer(serializers.ModelSerializer):
             return obj.niche.name
         return None
 
+    # ---- PROJ-29 Phase 1B enum validators ---------------------------------
+    def validate_pattern_used(self, value):
+        """Accept blank '' (legacy / manual rows) or one of 16 enum keys."""
+        if value in (None, ''):
+            return ''
+        if value not in _VALID_PATTERN_KEYS:
+            raise serializers.ValidationError(
+                f"Unknown pattern '{value}'. Allowed: "
+                f"{sorted(_VALID_PATTERN_KEYS)}"
+            )
+        return value
+
+    def validate_stylistic_device(self, value):
+        """Accept blank '' or one of 8 enum keys."""
+        if value in (None, ''):
+            return ''
+        if value not in _VALID_STYLISTIC_KEYS:
+            raise serializers.ValidationError(
+                f"Unknown stylistic_device '{value}'. Allowed: "
+                f"{sorted(_VALID_STYLISTIC_KEYS)}"
+            )
+        return value
+
+    def validate_emotional_archetype(self, value):
+        """Accept blank / list / comma-separated string of 12 archetypes.
+
+        Model field is a CharField for legacy compatibility — agentic output
+        may produce a list (``["Hero", "Rebel"]``) which DRF serialises as a
+        string before reaching this validator. We therefore split on commas to
+        validate each token individually.
+        """
+        if value in (None, ''):
+            return ''
+        if isinstance(value, list):
+            tokens = [str(v).strip() for v in value if str(v).strip()]
+        else:
+            tokens = [t.strip() for t in str(value).split(',') if t.strip()]
+        for tok in tokens:
+            if tok not in _VALID_ARCHETYPES_SET:
+                raise serializers.ValidationError(
+                    f"Unknown archetype '{tok}'. Allowed: "
+                    f"{ALLOWED_EMOTIONAL_ARCHETYPES}"
+                )
+        return value
+
 
 class IdeaCreateSerializer(serializers.Serializer):
     """Create manual/collected ideas. Supports batch (newline-separated)."""
@@ -66,6 +121,10 @@ class IdeaUpdateSerializer(serializers.ModelSerializer):
             'market_confidence', 'emotional_archetype', 'board_layout',
         ]
         extra_kwargs = {field: {'required': False} for field in fields}
+
+    def validate_emotional_archetype(self, value):
+        # Reuse the same archetype validator as IdeaSerializer (PROJ-29).
+        return IdeaSerializer.validate_emotional_archetype(self, value)
 
     def validate_board_layout(self, value):
         if value is not None and not isinstance(value, dict):

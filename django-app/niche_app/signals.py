@@ -1,6 +1,6 @@
 """PROJ-29 Phase 1B niche-side signal handlers.
 
-Two responsibilities on `post_save(Niche)`:
+Responsibilities on `post_save(Niche)`:
 
 1. Sync `Niche.notes` TextField to a synthetic `NicheNote(source='niche_legacy_notes')`
    so the existing embedding pipeline (registered in `vector_app/signals.py`)
@@ -12,6 +12,17 @@ Two responsibilities on `post_save(Niche)`:
    refreshed when niche metadata (e.g. name) changes. Deduplication is enforced
    via `job_id = "niche_rag:reindex:<niche_id>"` — duplicate enqueues within the
    5-second debounce window collapse to a single execution (AC-Ops-RQ-2).
+
+Cache-invalidation responsibilities (Round 1B-2):
+
+* `NicheResearch.post_save` invalidates the cached marketplace key
+  ``niche_marketplace:<niche_id>`` so a subsequent ``derive_marketplace`` call
+  picks up the freshly-completed research.
+* `CollectedProduct.post_save` invalidates the same key so newly-collected
+  products feed back into the marketplace heuristic.
+
+Both invalidations run inside ``transaction.on_commit`` to avoid leaving stale
+cache entries on rollback.
 """
 
 from __future__ import annotations
@@ -24,7 +35,7 @@ from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from niche_app.models import Niche, NicheNote
+from niche_app.models import CollectedProduct, Niche, NicheNote
 from vector_app.tasks import reindex_niche_sources
 
 logger = logging.getLogger(__name__)
@@ -87,3 +98,38 @@ def niche_post_save(sender, instance: Niche, **kwargs):
             )
 
     transaction.on_commit(_on_commit)
+
+
+def _invalidate_marketplace_for_niche(niche_id) -> None:
+    """Drop the cached marketplace inside an on-commit hook."""
+    from niche_app.services import invalidate_marketplace_cache
+
+    def _on_commit():
+        try:
+            invalidate_marketplace_cache(niche_id)
+        except Exception:
+            logger.exception(
+                "marketplace cache invalidation failed for niche %s", niche_id,
+            )
+
+    transaction.on_commit(_on_commit)
+
+
+@receiver(
+    post_save,
+    sender='niche_research_app.NicheResearch',
+    dispatch_uid='niche_app_marketplace_cache_invalidate_research',
+)
+def niche_research_post_save(sender, instance, **kwargs):
+    """Invalidate the marketplace cache when a niche's research changes."""
+    _invalidate_marketplace_for_niche(instance.niche_id)
+
+
+@receiver(
+    post_save,
+    sender=CollectedProduct,
+    dispatch_uid='niche_app_marketplace_cache_invalidate_collected',
+)
+def collected_product_post_save(sender, instance, **kwargs):
+    """Invalidate the marketplace cache when collected-product mix changes."""
+    _invalidate_marketplace_for_niche(instance.niche_id)

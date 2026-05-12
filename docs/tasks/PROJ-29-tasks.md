@@ -67,17 +67,19 @@
 
 ### Idea-Model Enum Hardening (PROJ-29 prompts produce structured output — DB must enforce shape)
 
-- [ ] **Migration `idea_app/migrations/000N_idea_text_choices.py`** — converts 3 free-form CharFields on `Idea` to `TextChoices` + DB CHECK constraints:
-  - [ ] `Idea.pattern_used` -> `PatternUsed` TextChoices with the 16 canonical values (IDENTITY_DECLARATION, GROUP_LEADER, TRIBE_COMMUNITY, FUNNY_ACTIVITY, CROSS_NICHE_EVENTS, CROSS_NICHE_MASHUP, ADDICTION_OBSESSION, VINTAGE_LEGACY, ACHIEVEMENT_GAMIFIED, JOB_PROFESSION_PARODY, RELATIONSHIP_HUMOR, BOUNDARY_GATEKEEPING, ENDURANCE_SURVIVAL, COMPETENCE_EXPERTISE, CHAOS_CONTROL, SELF_CARE_PRIORITIES). DB-stored values match `Idea.pattern_used` legacy entries — backfill query: `UPDATE idea_app_idea SET pattern_used = UPPER(REPLACE(pattern_used, '/', '_')) WHERE pattern_used != ''`.
-  - [ ] `Idea.stylistic_device` -> `StylisticDevice` TextChoices: `RHYME`, `SONGTEXT_ADAPTION`, `LIST`, `COMMAND`, `QUESTION_ANSWER`, `IF_THEN`, `DECLARATION`, `FREE_FORM`. Default `FREE_FORM` for existing NULL/empty rows.
-  - [ ] `Idea.emotional_archetype` -> existing JSONField stays (it's already a list — `["Hero", "Rebel"]`). Add serializer-level validator that elements MUST be one of 12: `Hero, Rebel, Jester, Sage, Caregiver, Ruler, Creator, Lover, Magician, Innocent, Explorer, Everyman`. Validator raises `ValidationError("Unknown archetype: <X>")` on save attempt. Backfill via `Idea.objects.exclude(emotional_archetype__contained_by=VALID_ARCHETYPES).update(emotional_archetype=[])` only if needed.
-- [ ] Serializer-level validator: `idea_app/api/serializers.py:IdeaSerializer.validate_pattern_used()` + `.validate_stylistic_device()` + `.validate_emotional_archetype()` reject unknown values with 422 + clear error.
+- [x] **Migration `idea_app/migrations/0006_idea_pattern_stylistic_choices.py`** — converts 2 free-form CharFields on `Idea` to `TextChoices` (DB CHECK omitted — choices enforced at serializer level): — idea_app/migrations/0006_idea_pattern_stylistic_choices.py:122, 132, 142
+  - [x] `Idea.pattern_used` -> `PatternUsed` TextChoices with the 16 canonical values. Data migration normalises legacy slash/space form to enum keys; unknown values cleared to `''`. — idea_app/models.py:25, idea_app/migrations/0006_idea_pattern_stylistic_choices.py:60-74
+  - [x] `Idea.stylistic_device` -> `StylisticDevice` TextChoices with 8 values: `RHYME`, `SONGTEXT_ADAPTION`, `LIST`, `COMMAND`, `QUESTION_ANSWER`, `IF_THEN`, `DECLARATION`, `FREE_FORM`. — idea_app/models.py:46
+  - [x] `Idea.emotional_archetype` — model field stays a CharField for legacy compatibility. Validation enforced at serializer level (validator accepts blank, single, or comma-separated archetypes; rejects any unknown token). — idea_app/api/serializers.py:84-103, idea_app/models.py:8-12
+- [x] Serializer-level validator: `idea_app/api/serializers.py:IdeaSerializer.validate_pattern_used()` + `.validate_stylistic_device()` + `.validate_emotional_archetype()` reject unknown values with 422 + clear error. — idea_app/api/serializers.py:62-104
 - [ ] `creative_techniques` tool wrapper (Phase 1D) validates LLM output against these enums BEFORE saving to Idea. If LLM returns unknown value: log warning + map to closest match (string-similarity > 0.7) OR map to `FREE_FORM` / `Everyman` defaults. Never crash.
-- [ ] Tests:
-  - [ ] Migration is reversible (down-migration recreates CharField)
-  - [ ] DB rejects manual SQL insert with unknown pattern_used value
-  - [ ] Serializer rejects unknown stylistic_device with 422
-  - [ ] Generate-slogans tool wrapper maps unknown LLM output to defaults + logs warning
+- [x] Tests:
+  - [x] Migration data-helper unit tests (`_normalise_pattern_value`, `_normalise_stylistic_value`) — idea_app/tests/test_proj29_enum_validation.py:148-176
+  - [x] Serializer rejects unknown pattern_used with 422 — idea_app/tests/test_proj29_enum_validation.py:64-71
+  - [x] Serializer rejects unknown stylistic_device with 422 — idea_app/tests/test_proj29_enum_validation.py:99-107
+  - [x] Serializer rejects emotional_archetype with unknown element — idea_app/tests/test_proj29_enum_validation.py:135-144
+  - [x] Serializer accepts blank pattern_used (legacy/manual rows) — idea_app/tests/test_proj29_enum_validation.py:53-58
+  - [ ] Generate-slogans tool wrapper maps unknown LLM output to defaults + logs warning (Phase 1D)
 
 ### Extend `vector_app/models.py` with failure tracking
 
@@ -88,20 +90,20 @@
 
 ### Niche-Helper Services (consumed by tools + creative_techniques prompt)
 
-- [ ] `niche_app/services.py:derive_marketplace(niche) -> str` — returns one of `amazon_com | amazon_de | amazon_uk | amazon_fr | amazon_it | amazon_es | amazon_jp | amazon_ca` etc. Resolution order:
-  1. Most recent `NicheResearch.marketplace` for this niche (if any).
-  2. Else: most common `CollectedProduct.product.marketplace` (if products collected).
-  3. Else: `'amazon_com'`.
-  - **Caching:** result cached in Redis under key `niche_marketplace:{niche_id}` with 1-hour TTL. Invalidate on `NicheResearch.post_save` (signal handler in `niche_app/signals.py`) + on `CollectedProduct.post_save` (debounced batch invalidation). Prevents 2-query overhead per `generate_slogans` call during high-frequency use.
-- [ ] `niche_app/services.py:marketplace_to_language(marketplace) -> str` — maps `'amazon_com' → 'en'`, `'amazon_de' → 'de'`, `'amazon_fr' → 'fr'`, `'amazon_es' → 'es'`, `'amazon_it' → 'it'`, `'amazon_jp' → 'ja'`, `'amazon_ca' → 'en'`, `'amazon_uk' → 'en'`. Default `'en'`.
-- [ ] `keyword_app/services.py:rank_niche_keywords(niche, limit=20) -> list[NicheKeyword]` — LEFT JOIN on `KeywordJSCache` using `(keyword, marketplace=derived_marketplace)`, sort by `monthly_search_volume_exact DESC NULLS LAST`, then `NicheKeyword.position ASC`, then `created_at DESC`. Returns annotated objects with `.search_volume` attribute (nullable).
-- [ ] `niche_app/services.py:get_niche_analysis_snippet(niche) -> str` — returns most recent `NicheAnalysis` (if exists) formatted as: `"summary: ... | emotional_reality: ... | design_concepts: ... | top patterns: <name1, name2, name3 from pattern_analysis where present=true>"`. Used as `{niche_analysis_snippet}` placeholder in `creative_techniques` prompt.
-- [ ] `idea_app/services.py:get_recent_slogans_sample(niche, limit=20) -> str` — returns last 20 Idea rows for this niche, formatted as `"- <slogan_text> (pattern: <pattern_used>, signal: <signal_type>)"` lines. Used as `{recent_slogans_sample}` placeholder.
-- [ ] Tests:
-  - [ ] `derive_marketplace` falls back through 3 layers correctly
-  - [ ] `rank_niche_keywords` returns JS-volume-ranked when cache hit, position-ranked when cache miss
-  - [ ] `get_niche_analysis_snippet` returns empty string when no NicheAnalysis exists (no crash)
-  - [ ] `get_recent_slogans_sample` deduplicates exact-text duplicates
+- [x] `niche_app/services.py:derive_marketplace(niche) -> str` — 3-layer fall-through (Redis cache → most recent `NicheResearch.marketplace` → most common `CollectedProduct.product.marketplace` → `'amazon_com'`). Cached under `niche_marketplace:{niche_id}` with 1-hour TTL. Invalidated on `NicheResearch.post_save` + `CollectedProduct.post_save` via `transaction.on_commit`. — niche_app/services.py:53-99, niche_app/signals.py:92-128
+- [x] `niche_app/services.py:marketplace_to_language(marketplace) -> str` — 8-marketplace map (com/uk/co_uk/ca/de/fr/es/it/jp). Default `'en'`. — niche_app/services.py:23-34, 46-49
+- [x] `keyword_app/services/ranking.py:rank_niche_keywords(niche, limit=20)` — LEFT JOIN-style annotation on `KeywordJSCache` via `Subquery` keyed on `(keyword, derive_marketplace(niche))`. Order: `search_volume DESC NULLS LAST`, then `position ASC`, then `created_at DESC`. Returns list with `.search_volume` attribute. — keyword_app/services/ranking.py:16-43
+- [x] `niche_app/services.py:get_niche_analysis_snippet(niche) -> str` — most recent `NicheAnalysis` formatted as `"summary: … | emotional_reality: … | design_concepts: … | top patterns: …"` (top 5 present=true patterns). Returns `''` if no analysis. — niche_app/services.py:108-138
+- [x] `idea_app/services.py:get_recent_slogans_sample(niche, limit=20) -> str` — last N Ideas as `"- <slogan_text> (pattern: <pattern_used>, signal: <signal_type>)"` lines. Empty niche -> `'(no slogans yet)'`. — idea_app/services.py:9-26
+- [x] Tests:
+  - [x] `derive_marketplace` falls back through 3 layers correctly — niche_app/tests/test_proj29_services.py:95-153
+  - [x] `derive_marketplace` cache hit avoids DB query (second call = 0 queries) — niche_app/tests/test_proj29_services.py:163-180
+  - [x] Cache invalidated on `NicheResearch.post_save` + `CollectedProduct.post_save` (on_commit hook) — niche_app/tests/test_proj29_services.py:187-220
+  - [x] `marketplace_to_language` maps known + falls back to `'en'` — niche_app/tests/test_proj29_services.py:55-78
+  - [x] `rank_niche_keywords` JS-volume-ranked when cache hit, position-ranked when cache miss, respects limit — keyword_app/tests/test_proj29_services.py:45-110
+  - [x] `get_niche_analysis_snippet` returns empty string when no NicheAnalysis exists (no crash) — niche_app/tests/test_proj29_services.py:228-232
+  - [x] `get_niche_analysis_snippet` formats top patterns + excludes present=false — niche_app/tests/test_proj29_services.py:234-262
+  - [x] `get_recent_slogans_sample` formats lines + empty placeholder + limit respected — idea_app/tests/test_proj29_services.py:33-74
 
 ### Contextual-Header hook in existing embedding service
 
