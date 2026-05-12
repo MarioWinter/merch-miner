@@ -10,44 +10,44 @@
 
 ### `chat_node_config_app` (new Django app)
 
-- [ ] Create new app `chat_node_config_app` (registered in `INSTALLED_APPS`)
-- [ ] Add `ChatNodeConfig` model — fields per Spec AC-17 (node_name unique, model_name, temperature, max_tokens, system_prompt, is_active, updated_at, updated_by FK)
-- [ ] Add `ChatNodeConfigVersion` model — immutable snapshot per save
-- [ ] Migration `0001_initial` creates both tables
-- [ ] Migration `0002_seed_node_rows` seeds 8 rows with blank `system_prompt` (fallback kicks in): `chat_with_niche`, `chat_no_niche`, `agent_react`, `query_rewrite`, `contextual_header`, `creative_techniques`, `follow_up_suggester`, `conversation_summarizer`
+- [x] Create new app `chat_node_config_app` (registered in `INSTALLED_APPS`)
+- [x] Add `ChatNodeConfig` model — fields per Spec AC-17 (node_name unique, model_name, temperature, max_tokens, system_prompt, is_active, updated_at, updated_by FK)
+- [x] Add `ChatNodeConfigVersion` model — immutable snapshot per save
+- [x] Migration `0001_initial` creates both tables
+- [x] Migration `0002_seed_node_rows` seeds 8 rows with blank `system_prompt` (fallback kicks in): `chat_with_niche`, `chat_no_niche`, `agent_react`, `query_rewrite`, `contextual_header`, `creative_techniques`, `follow_up_suggester`, `conversation_summarizer`
 - [x] **DONE (all 8 nodes)** `_default_prompts.py` module created with `DEFAULT_PROMPTS` + `DEFAULT_USER_TEMPLATES` + `NODE_DEFAULTS` (per-node model + temperature + max_tokens) + universal `CHAT_GUARDRAILS_BLOCK` (8 rules inherited from PROJ-20 BUG-1 + PROJ-29 additions). All 8 prompts FINAL: `agent_react` (11204 chars), `creative_techniques` (12454), `chat_with_niche` (6059), `chat_no_niche` (7477), `query_rewrite` (2334), `contextual_header` (1857), `follow_up_suggester` (1808), `conversation_summarizer` (2388). Total 45,581 chars. Mirror of `idea_app/graph/prompts.py` pattern. Includes: 8 universal chat guardrails (niche-as-metadata, language lock, audience-from-user, scope=PoD, prompt-injection safety) + 16 canonical emotional patterns + Mario's 14 + Essek 16-formula library + Heidorn CIRCLE + Personalisation Ladder + 7-test validation + 8 Red Flags + Heidorn 7-step niche-discovery framework + 8-source niche-discovery library + HyDE query expansion + Anthropic Contextual Retrieval header generation + 3-chip follow-up suggester + 300-token rolling conversation summarizer.
-- [ ] Add `services/resolver.py` exposing `get_chat_prompt(node_name, **render_context)` — Redis cache → DB row → fallback → `str.format()`
-- [ ] Wire `post_save` signal: (a) invalidate Redis key `chat_node_config:<node_name>`, (b) snapshot to `ChatNodeConfigVersion`, (c) purge versions beyond 10-newest per node
-- [ ] Django Admin: register `ChatNodeConfigAdmin` with per-node placeholder hint UI + "Preview with sample data" action + version-list inline + "Restore version" action
+- [x] Add `services/resolver.py` exposing `get_chat_prompt(node_name, **render_context)` — Redis cache → DB row → fallback → `str.format()`
+- [x] Wire `post_save` signal: (a) invalidate Redis key `chat_node_config:<node_name>`, (b) snapshot to `ChatNodeConfigVersion`, (c) purge versions beyond 10-newest per node
+- [x] Django Admin: register `ChatNodeConfigAdmin` with per-node placeholder hint UI + "Preview with sample data" action + version-list inline + "Restore version" action
 
 ### Refactor `niche_research_app/graph/llm.py` to be config-source-agnostic
 
-- [ ] Refactor `get_llm_for_node(node_name)` → `get_llm_for_node(node_name, config_resolver=None)`
+- [x] Refactor `get_llm_for_node(node_name)` → `get_llm_for_node(node_name, config_resolver=None)`
   - Default `config_resolver` reads from `ResearchNodeConfig` (existing behaviour — no caller breakage)
   - Chat path passes `config_resolver=chat_node_config_app.services.resolver.get_node_config` to read from `ChatNodeConfig`
-- [ ] Unit test verifies both research and chat paths resolve correctly through the same factory
+- [x] Unit test verifies both research and chat paths resolve correctly through the same factory
 
 ### `core/observability/` (shared module)
 
-- [ ] Create `core/observability/__init__.py`
-- [ ] Move `_get_langfuse_handler` from `niche_research_app/tasks.py` to `core/observability/langfuse_handler.py` as `get_langfuse_handler(trace_name, trace_id, metadata)`
-- [ ] Re-export from `niche_research_app/tasks.py` so existing imports keep working (no caller refactor)
-- [ ] Add `core/observability/sentry.py` with `capture_chat_error(session_id, user_id, exception)` (respects `SENTRY_INCLUDE_USER_INPUT`)
-- [ ] Add `sentry-sdk[django]` to `django-app/requirements.txt` (not currently installed per audit)
-- [ ] Tests:
-  - [ ] `get_langfuse_handler` returns `None` when env vars missing (no crash)
-  - [ ] `niche_research_app` import path still works
-  - [ ] `capture_chat_error` strips user input when flag false
+- [x] Create `core/observability/__init__.py`
+- [x] Move `_get_langfuse_handler` from `niche_research_app/tasks.py` to `core/observability/langfuse_handler.py` as `get_langfuse_handler(trace_name, trace_id, metadata)`
+- [x] Re-export from `niche_research_app/tasks.py` so existing imports keep working (no caller refactor)
+- [x] Add `core/observability/sentry.py` with `capture_chat_error(session_id, user_id, exception)` (respects `SENTRY_INCLUDE_USER_INPUT`)
+- [x] Add `sentry-sdk[django]` to `django-app/requirements.txt` (not currently installed per audit)
+- [x] Tests:
+  - [x] `get_langfuse_handler` returns `None` when env vars missing (no crash)
+  - [x] `niche_research_app` import path still works
+  - [x] `capture_chat_error` strips user input when flag false
 
 ### ChatNodeConfig tests
 
-- [ ] Resolver returns DB value when `system_prompt` non-empty
-- [ ] Resolver falls back to `_DEFAULT_PROMPTS` when DB value blank
-- [ ] Resolver falls back to `_DEFAULT_PROMPTS` when row missing
-- [ ] Save creates exactly one new `ChatNodeConfigVersion`
-- [ ] Versions cap at 10 (11th save purges oldest)
-- [ ] Redis cache invalidated on save
-- [ ] Restore-version admin action copies snapshot back
+- [x] Resolver returns DB value when `system_prompt` non-empty
+- [x] Resolver falls back to `_DEFAULT_PROMPTS` when DB value blank
+- [x] Resolver falls back to `_DEFAULT_PROMPTS` when row missing
+- [x] Save creates exactly one new `ChatNodeConfigVersion`
+- [x] Versions cap at 10 (11th save purges oldest)
+- [x] Redis cache invalidated on save
+- [x] Restore-version admin action copies snapshot back
 
 ## Phase 1B — Indexing Pipeline (extends `vector_app`)
 

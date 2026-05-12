@@ -56,3 +56,7 @@ channels-redis>=4.1
 # verification (PROJ-27 AI Upscaler). Pinned to 1.0.7 verified 2026-05-08.
 # webhooks.validate() accepts (headers, body, secret, tolerance) per docs.
 replicate==1.0.7
+# sentry-sdk[django] — error capture for chat-agent surface (PROJ-29 AC-Ops-Obs-2).
+# Wrapper at core/observability/sentry.py redacts user message content unless
+# SENTRY_INCLUDE_USER_INPUT=true.
+sentry-sdk[django]>=2.18

@@ -6,32 +6,24 @@ import logging
 from django.conf import settings
 from django.utils import timezone
 
+from core.observability.langfuse_handler import get_langfuse_handler
+
 logger = logging.getLogger(__name__)
 
 
 def _get_langfuse_handler(research_id: str, niche_name: str):
-    """Return Langfuse CallbackHandler if configured, else None.
+    """Legacy shim: kept for backwards compatibility (PROJ-29 AC-25).
 
-    langfuse v4: initialize Langfuse client first, then create CallbackHandler
-    with trace_context for custom trace IDs.
+    The real implementation now lives in
+    `core.observability.langfuse_handler.get_langfuse_handler`. Existing
+    callers in this module continue to work; new code should import from
+    `core.observability.langfuse_handler` directly.
     """
-    if not settings.LANGFUSE_PUBLIC_KEY or not settings.LANGFUSE_SECRET_KEY:
-        return None
-    try:
-        from langfuse import Langfuse
-        from langfuse.langchain import CallbackHandler
-
-        # Initialize singleton client with credentials
-        Langfuse(
-            public_key=settings.LANGFUSE_PUBLIC_KEY,
-            secret_key=settings.LANGFUSE_SECRET_KEY,
-            base_url=settings.LANGFUSE_HOST,
-        )
-
-        return CallbackHandler()
-    except ImportError:
-        logger.warning("langfuse package not installed, skipping tracing")
-        return None
+    return get_langfuse_handler(
+        trace_name='niche_research',
+        trace_id=str(research_id),
+        metadata={'niche_name': niche_name},
+    )
 
 
 def run_niche_research(research_id: str):

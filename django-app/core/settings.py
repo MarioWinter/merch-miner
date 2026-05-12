@@ -131,6 +131,7 @@ INSTALLED_APPS = [
     'search_app',
     'agent_app',
     'chat_attachments_app',
+    'chat_node_config_app',
 ]
 
 # django-allauth settings
