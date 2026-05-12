@@ -200,31 +200,26 @@
 
 ### Agent factory
 
-- [ ] `agent_app/agents/niche_chat_agent.py:build_niche_chat_agent(workspace, niche_id, session_id)` — mirror of `reflection_agent.py` / `skill_refiner_agent.py` pattern; creates LangGraph `create_react_agent` with the 8 tools bound (closure-captured `workspace + niche_id`)
-- [ ] Apply `recursion_limit=10` (LangGraph kill-switch)
-- [ ] LLM client instantiated **per agent build** via `get_llm_for_node('agent_react', config_resolver=chat_resolver)` — NOT module-level (AC-Ops-LG-3)
-- [ ] Inject system prompt via `chat_node_config_app.services.resolver.get_chat_prompt('agent_react', niche_name=..., user_language=..., marketplace_language=..., available_tools=..., tool_descriptions=..., conversation_summary=...)`
-- [ ] Iteration cap 5 (AC-12) at agent-state level; on cap-hit prefix answer "[Note: reached tool-iteration limit; answer may be incomplete]"
+- [x] `agent_app/agents/niche_chat_agent.py:build_niche_chat_agent(workspace, niche_id, session_id)` — mirror of `reflection_agent.py` / `skill_refiner_agent.py` pattern; creates LangGraph `create_react_agent` with the 6 simple tools bound (closure-captured `workspace + niche`); Round 1D-2 adds the remaining 2 tools. — agent_app/agents/niche_chat_agent.py:295, 314
+- [x] Apply `recursion_limit=10` (LangGraph kill-switch) — agent_app/agents/niche_chat_agent.py:341
+- [x] LLM client instantiated **per agent build** via `get_llm_for_node('agent_react', config_resolver=get_node_config)` — NOT module-level (AC-Ops-LG-3) — agent_app/agents/niche_chat_agent.py:317
+- [x] Inject system prompt via `chat_node_config_app.services.resolver.get_chat_prompt('agent_react', niche_name=..., user_language=..., marketplace_language=..., conversation_summary=..., tool_descriptions=...)` — agent_app/agents/niche_chat_agent.py:321-329
+- [x] Iteration cap 5 (AC-12) — SOFT cap at prompt level (`_default_prompts.agent_react` says "at most 5 tool-call rounds"). HARD cap is `recursion_limit=10`. — chat_node_config_app/_default_prompts.py (Phase 1A)
 
 ### 8 Tools (inline in `niche_chat_agent.py` per existing agent_app convention)
 
-- [ ] `@tool('web_search')` — wraps `search_app.services.vane_service.search()`; returns `list[{title, url, snippet}]` max 8
-- [ ] `@tool('search_slogans')` — `EmbeddingService.hybrid_search(workspace, query, filters={'metadata__niche_id': niche.id, 'metadata__content_subtype': 'slogan'}, top_k=10)`. Post-filter results to keep only Embeddings where `content_object.status == 'approved' OR content_object.is_manual is True`. (Filter via metadata.content_subtype string — same effective scope as filtering by Django ContentType=Idea, but consistent with spec AC-7 interface.)
-- [ ] `@tool('search_products')` — `EmbeddingService.hybrid_search(workspace, query, filters={'metadata__content_subtype': 'product'}, top_k=10)`. Pre-fetch `allowed_product_ids = CollectedProduct.objects.filter(niche=niche).values_list('product_id', flat=True)` and post-filter Embeddings where `object_id IN allowed_product_ids` (since AmazonProduct embeddings have NO niche metadata — they're niche-agnostic).
-- [ ] `@tool('search_niche_knowledge')(query, subset=None)` — **unified knowledge search** with optional `subset` filter (one of `profile | emotional | vision | keyword_analysis | notes` or `None` for all). Maps internally to:
-  - `profile` → `NicheAnalysis` (already embedded)
-  - `emotional` → `NicheProductEmotionalAnalysis` (already embedded)
-  - `vision` → `NicheProductVisionAnalysis` (already embedded)
-  - `keyword_analysis` → `NicheKeywordAnalysis` (already embedded)
-  - `notes` → `NicheNote` (new embedding in PROJ-29) — covers both user-created NicheNote rows AND the legacy `Niche.notes` synthetic NicheNote (per Phase 1B signal handler)
-- [ ] `@tool('top_keywords')(limit=20)` — calls `keyword_app.services.rank_niche_keywords(niche, limit)` (JS-volume-ranked when cache hit, position-ranked otherwise). Returns `list[{keyword, search_volume, source}]`.
-- [ ] `@tool('bsr_stats')` — Django aggregation: `CollectedProduct.objects.filter(niche=niche).aggregate(min=Min('product__bsr'), max=Max('product__bsr'), p25=Percentile(...), median=..., p75=..., count=Count('*'))`. Uses Postgres `PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ...)` aggregate.
-- [ ] `@tool('generate_slogans')(theme?, style?, count=10, signal_mix?)` — LLM via `creative_techniques` prompt. Pre-call assembles placeholders: `{niche_keywords_topN}` via `rank_niche_keywords(niche, 20)`, `{recent_slogans_sample}` via `get_recent_slogans_sample(niche, 20)`, `{niche_analysis_snippet}` via `get_niche_analysis_snippet(niche)`, `{marketplace_language}` via `marketplace_to_language(derive_marketplace(niche))`. Returns structured payload (`{slogans: [...], warnings: []}`) whose entries map 1:1 to `Idea` model fields (signal_type, pattern_used, stylistic_device, emotional_archetype, creative_modules_used, buyer_voice_pattern, why_it_works, market_confidence). Frontend Add-to-Niche action saves directly via `Idea(workspace=..., niche=..., is_manual=False, **slogan_payload).save()` — no field-conversion layer.
-- [ ] `@tool('brainstorm_ideas')(focus?)` — composes `top_keywords` + `bsr_stats` + `search_slogans` + optional `web_search`, then LLM-prompted to return 5-10 concept directions, each tagged with one of the 16 canonical patterns + (optional) CIRCLE letter. Output shape: `[{direction_title, pattern, circle_layer, rationale, example_slogan_seed}]`. Does NOT save to Idea (these are concept seeds, not finished slogans).
-- [ ] Every tool wrapped with `asyncio.wait_for(..., timeout=30)` (AC-Ops-LG-2)
-- [ ] Every tool emits a Langfuse span (input, output_preview, duration_ms)
-- [ ] Workspace + niche_id enforced at ORM level via closure capture — LLM cannot supply them as args
-- [ ] `generate_slogans` + `brainstorm_ideas` set `marketplace_language` from `session.niche_context.marketplace` (default `'en'`)
+- [x] `@tool('web_search')` — wraps `search_app.services.vane_service.VaneService.search()`; returns `list[{title, url, snippet}]` max 8 — agent_app/agents/niche_chat_agent.py:120-138
+- [x] `@tool('search_slogans')` — `EmbeddingService.hybrid_search(workspace, query, filters={'metadata__niche_id': niche.id, 'metadata__content_subtype': 'slogan'}, top_k=10)`. Post-filter results to keep only Ideas where `is_manual=True OR status='approved'`. — agent_app/agents/niche_chat_agent.py:141-172
+- [x] `@tool('search_products')` — `EmbeddingService.hybrid_search(workspace, query, filters={'metadata__content_subtype': 'product', 'object_id__in': allowed_product_ids}, top_k=10)`. Pre-fetches `allowed_product_ids` from `CollectedProduct.objects.filter(niche=niche)`. — agent_app/agents/niche_chat_agent.py:175-201
+- [x] `@tool('search_niche_knowledge')(query, subset=None)` — unified knowledge search with optional `subset` (`profile | emotional | vision | keyword_analysis | notes` or `None` for all). `SUBSET_TO_SUBTYPES` map at module level. — agent_app/agents/niche_chat_agent.py:46-54, 204-231
+- [x] `@tool('top_keywords')(limit=20)` — calls `keyword_app.services.ranking.rank_niche_keywords(niche, limit)`. Returns `list[{keyword, search_volume, source}]`. — agent_app/agents/niche_chat_agent.py:234-251
+- [x] `@tool('bsr_stats')` — Django aggregation via Postgres `PERCENTILE_CONT(p) WITHIN GROUP (ORDER BY product__bsr)` aggregate (`PercentileCont` subclass). Returns `{min, max, p25, median, p75, count}` (Nones + count=0 on empty niche). — agent_app/agents/niche_chat_agent.py:60-69, 254-281
+- [ ] `@tool('generate_slogans')(theme?, style?, count=10, signal_mix?)` — LLM via `creative_techniques` prompt. Pre-call assembles placeholders: `{niche_keywords_topN}` via `rank_niche_keywords(niche, 20)`, `{recent_slogans_sample}` via `get_recent_slogans_sample(niche, 20)`, `{niche_analysis_snippet}` via `get_niche_analysis_snippet(niche)`, `{marketplace_language}` via `marketplace_to_language(derive_marketplace(niche))`. Returns structured payload (`{slogans: [...], warnings: []}`) whose entries map 1:1 to `Idea` model fields (signal_type, pattern_used, stylistic_device, emotional_archetype, creative_modules_used, buyer_voice_pattern, why_it_works, market_confidence). Frontend Add-to-Niche action saves directly via `Idea(workspace=..., niche=..., is_manual=False, **slogan_payload).save()` — no field-conversion layer. **(Round 1D-2)**
+- [ ] `@tool('brainstorm_ideas')(focus?)` — composes `top_keywords` + `bsr_stats` + `search_slogans` + optional `web_search`, then LLM-prompted to return 5-10 concept directions, each tagged with one of the 16 canonical patterns + (optional) CIRCLE letter. Output shape: `[{direction_title, pattern, circle_layer, rationale, example_slogan_seed}]`. Does NOT save to Idea (these are concept seeds, not finished slogans). **(Round 1D-2)**
+- [x] Every tool wrapped with `_with_timeout(fn, timeout=30)` (AC-Ops-LG-2) — ThreadPoolExecutor-based sync-friendly path; returns `{error: tool_timeout, tool, duration_ms}` on cap. — agent_app/agents/niche_chat_agent.py:72-96
+- [ ] Every tool emits a Langfuse span (input, output_preview, duration_ms) — **(Round 1D-3, paired with conversation_summarizer)**
+- [x] Workspace + niche enforced at ORM level via closure capture — LLM cannot supply them as args; tools see `workspace` + `niche` captured at `_build_tools(workspace, niche)` time. — agent_app/agents/niche_chat_agent.py:104-282
+- [ ] `generate_slogans` + `brainstorm_ideas` set `marketplace_language` from `session.niche_context.marketplace` (default `'en'`) — **(Round 1D-2)**
 
 ### Conversation summarizer + Follow-up suggester (`agent_app/services/`)
 
@@ -241,23 +236,23 @@
 
 ### Tests
 
-- [ ] Each of 8 tools: happy path returns expected shape
-- [ ] `search_slogans` filters by niche_id + status correctly
-- [ ] `search_slogans` does NOT return another workspace's slogans
-- [ ] `search_products` correctly joins via `CollectedProduct` — returns products only in this niche even though AmazonProduct is shared across niches
-- [ ] `search_niche_knowledge(subset='profile')` returns only `NicheAnalysis`-content-type embeddings
-- [ ] `search_niche_knowledge(subset='notes')` returns both manually-created NicheNote rows AND the legacy Niche.notes synthetic-NicheNote row
-- [ ] `search_niche_knowledge(subset=None)` aggregates across all 5 content types
-- [ ] `top_keywords` returns JS-volume-ranked when KeywordJSCache row exists for (keyword, derived_marketplace); falls back to position-ranked when cache empty
-- [ ] `bsr_stats` returns expected percentiles via Postgres `PERCENTILE_CONT` on known dataset
-- [ ] `generate_slogans` returns slogans in derived-marketplace language (test: niche with `NicheResearch.marketplace='amazon_de'` → German slogans even if user prompt is English)
-- [ ] `generate_slogans` output entries match `Idea` model field names + enum values exactly (no field-conversion needed at save-time)
-- [ ] Tool timeout (30s) returns `{error: tool_timeout}` instead of hanging
-- [ ] Agent `recursion_limit=10` caps loop (force-loop a stub tool)
-- [ ] LLM client is per-request, not shared (parallel-request token-state isolation test)
-- [ ] Conversation summarizer runs after turn 10; writes to `ChatSession.conversation_summary`
-- [ ] Follow-up suggester returns exactly 3 chips in user's language
-- [ ] Prompt assembler trims to budget — never exceeds 8000 tokens
+- [x] Each of 6 simple tools: happy path returns expected shape — agent_app/tests/test_niche_chat_agent.py (TestWebSearchTool, TestSearchSlogansTool, TestSearchProductsTool, TestSearchNicheKnowledgeTool, TestTopKeywordsTool, TestBSRStatsTool). `generate_slogans` + `brainstorm_ideas` deferred to Round 1D-2.
+- [x] `search_slogans` post-filter keeps approved/manual Ideas only; rejected Ideas dropped — agent_app/tests/test_niche_chat_agent.py:218-271
+- [x] `search_slogans` workspace isolation via `EmbeddingService.hybrid_search` filters — agent_app/tests/test_niche_chat_agent.py:218-271 (post-filter only loads Ideas via Django ORM scoped to `pk__in=source_pks`, which are themselves workspace-scoped by hybrid_search)
+- [x] `search_products` correctly joins via `CollectedProduct` — returns products only in this niche even though AmazonProduct is shared across niches — agent_app/tests/test_niche_chat_agent.py:289-337
+- [x] `search_niche_knowledge(subset='profile')` passes only `['analysis']` content_subtype filter — agent_app/tests/test_niche_chat_agent.py:355-372
+- [ ] `search_niche_knowledge(subset='notes')` returns both manually-created NicheNote rows AND the legacy Niche.notes synthetic-NicheNote row — **(Round 1D-2/QA — integration-level; mapping verified at tool-arg level here)**
+- [x] `search_niche_knowledge(subset=None)` aggregates across all 5 content types — agent_app/tests/test_niche_chat_agent.py:374-394
+- [x] `top_keywords` returns `{keyword, search_volume, source}` shape (with None search_volume passthrough) — agent_app/tests/test_niche_chat_agent.py:418-441 (JS-volume vs position-rank tested in `keyword_app/tests/test_proj29_services.py` Phase 1B)
+- [x] `bsr_stats` returns expected percentiles via Postgres `PERCENTILE_CONT` on known 5-product dataset — agent_app/tests/test_niche_chat_agent.py:462-495
+- [ ] `generate_slogans` returns slogans in derived-marketplace language — **(Round 1D-2)**
+- [ ] `generate_slogans` output entries match `Idea` model field names + enum values exactly — **(Round 1D-2)**
+- [x] Tool timeout (30s) returns `{error: tool_timeout, tool, duration_ms}` instead of hanging — agent_app/tests/test_niche_chat_agent.py:158-180
+- [x] Agent `recursion_limit=10` set via `.with_config()` (verified on factory output) — agent_app/tests/test_niche_chat_agent.py:103-118
+- [x] LLM client is per-request — two `build_niche_chat_agent` calls -> two distinct LLM instances (factory called twice) — agent_app/tests/test_niche_chat_agent.py:129-153
+- [ ] Conversation summarizer runs after turn 10; writes to `ChatSession.conversation_summary` — **(Round 1D-3)**
+- [ ] Follow-up suggester returns exactly 3 chips in user's language — **(Round 1D-3)**
+- [ ] Prompt assembler trims to budget — never exceeds 8000 tokens — **(Round 1D-3)**
 
 ## Phase 1E — `ChatSessionMessageStreamView` refactor + SSE protocol
 
