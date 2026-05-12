@@ -83,6 +83,7 @@ const FloatingChatBar = () => {
     searchSources,
     selectedModel,
     modeOverride,
+    inputChip,
   } = useAppSelector((s) => s.chatBar);
   const isStreaming = useAppSelector(
     (s) => s.chatBar.streamingAssistantMessage.isStreaming,
@@ -161,9 +162,13 @@ const FloatingChatBar = () => {
   const handleSubmit = useCallback(
     async (payload: ChatInputBarSubmitPayload) => {
       const trimmed = payload.text.trim();
-      if (!trimmed || searching || !vaneOnline || isStreaming) return;
-
       const niche_id = payload.chip?.niche_id ?? null;
+      // PROJ-29 Phase 1I follow-up: niche-bound sends route to run_chat (no
+      // Vane / Crawl4ai dependency). Only block on !vaneOnline when there is
+      // no niche context — that path still needs Vane for web-mode answers.
+      const needsVane = niche_id === null && modeOverride !== 'agent';
+      if (!trimmed || searching || isStreaming) return;
+      if (needsVane && !vaneOnline) return;
 
       dispatch(setSearching(true));
       inputRef.current?.clear();
@@ -293,7 +298,9 @@ const FloatingChatBar = () => {
             appearance="floating"
             onSubmit={handleSubmit}
             isSending={searching || isStreaming}
-            disabled={!vaneOnline}
+            // PROJ-29 Phase 1I follow-up: input always typeable so users can
+            // insert an @-mention even when Vane is degraded — `handleSubmit`
+            // gates the actual send when no niche context AND Vane is offline.
           />
         </ExpandedSurface>
       </BarContainer>

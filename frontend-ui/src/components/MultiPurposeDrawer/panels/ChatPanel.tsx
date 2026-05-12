@@ -206,9 +206,16 @@ const ChatPanel = () => {
   const handleSubmit = useCallback(
     async (payload: ChatInputBarSubmitPayload) => {
       const trimmed = payload.text.trim();
-      if (!trimmed || searching || !vaneOnline || isStreaming) return;
-
       const niche_id = payload.chip?.niche_id ?? null;
+      // PROJ-29 Phase 1I follow-up: niche-bound + agent-mode sends route to
+      // run_chat (no Vane dependency). Only require Vane online when neither
+      // a niche chip nor agent mode is active.
+      const needsVane =
+        niche_id === null &&
+        session?.niche_context == null &&
+        modeOverride !== 'agent';
+      if (!trimmed || searching || isStreaming) return;
+      if (needsVane && !vaneOnline) return;
 
       dispatch(setSearching(true));
       inputRef.current?.clear();
@@ -488,7 +495,9 @@ const ChatPanel = () => {
             appearance="panel"
             onSubmit={handleSubmit}
             isSending={searching || isStreaming}
-            disabled={!vaneOnline}
+            // PROJ-29 Phase 1I follow-up: input always typeable so users can
+            // insert an @-mention even when Vane is degraded — `handleSubmit`
+            // gates the actual send when no niche context AND Vane is offline.
           />
         </InputArea>
       )}
