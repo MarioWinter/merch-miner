@@ -24,14 +24,22 @@ Round 1D-2 scope (this round):
   slogans + niche analysis into a one-off prompt and returns 5-10 concept
   directions tagged with the 16 canonical patterns + (optional) CIRCLE layer.
 
-Round 1D-3 (separate module pass): conversation_summarizer + follow_up_suggester
-+ prompt_assembler.
+Round 1D-3 scope (this round):
+
+- ``_with_langfuse_span`` decorator wrapping all 8 tools (AC-Ops-Obs-1):
+  best-effort Langfuse v4 span emission with a documented ``logger.info``
+  fallback when credentials are missing OR the sync wrap is awkward.
+- Companion modules ``agent_app.services.conversation_summarizer`` +
+  ``agent_app.services.follow_up_suggester`` +
+  ``agent_app.services.prompt_assembler`` ship alongside this round.
 """
 
 from __future__ import annotations
 
 import logging
+import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as FuturesTimeout
+from functools import wraps
 from typing import Any, Callable, Optional
 
 from django.db.models import (
@@ -77,6 +85,126 @@ class PercentileCont(Aggregate):
     template = (
         '%(function)s(%(percentile)s) WITHIN GROUP (ORDER BY %(expressions)s)'
     )
+
+
+def _with_langfuse_span(span_name: str) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+    """Wrap a tool callable in a Langfuse span (best-effort, never crashes).
+
+    AC-Ops-Obs-1 — every tool emission needs ``input``, ``output_preview``,
+    ``duration_ms`` captured for SLA dashboards.
+
+    Pragmatic implementation:
+
+    - Try the Langfuse v4 ``Langfuse().start_as_current_span(...)`` context
+      manager when ``LANGFUSE_PUBLIC_KEY`` / ``LANGFUSE_SECRET_KEY`` are set.
+    - When credentials are missing OR the SDK call fails OR the sync wrapping
+      is awkward (Langfuse v4 is async-first), emit a structured
+      ``logger.info('langfuse_tool_span', extra=...)`` line capturing the
+      same fields. This is the documented Phase 1I follow-up — chat-tool
+      observability via structured logs is acceptable until a dedicated
+      sync helper lands. See Round 1D-3 notes.
+    - Telemetry MUST never break the call: catch every exception around the
+      span; only the wrapped function's result/exception is visible to the
+      caller.
+    """
+    def decorator(fn: Callable[..., Any]) -> Callable[..., Any]:
+        @wraps(fn)
+        def wrapper(*args: Any, **kwargs: Any) -> Any:
+            start = time.monotonic()
+            input_repr = _safe_repr({'args': args, 'kwargs': kwargs}, limit=400)
+            handler = None
+            span_ctx = None
+            try:
+                # Late import — keep this module light when Langfuse is absent.
+                from core.observability.langfuse_handler import (
+                    get_langfuse_handler,
+                )
+                handler = get_langfuse_handler(
+                    trace_name=f'chat_tool:{span_name}',
+                )
+            except Exception:  # pragma: no cover - defensive
+                handler = None
+
+            if handler is not None:
+                # Best-effort: try Langfuse v4's start_as_current_span.
+                try:
+                    from langfuse import get_client  # type: ignore
+
+                    client = get_client()
+                    span_ctx = client.start_as_current_span(name=span_name)
+                    span_ctx.__enter__()
+                    try:
+                        span_ctx.update(input=input_repr)
+                    except Exception:  # pragma: no cover - defensive
+                        pass
+                except Exception:
+                    span_ctx = None
+
+            try:
+                result = fn(*args, **kwargs)
+            except Exception as exc:
+                duration_ms = int((time.monotonic() - start) * 1000)
+                if span_ctx is not None:
+                    try:
+                        span_ctx.update(
+                            output={'error': str(exc)[:200]},
+                            metadata={'duration_ms': duration_ms},
+                        )
+                    except Exception:  # pragma: no cover - defensive
+                        pass
+                    try:
+                        span_ctx.__exit__(type(exc), exc, exc.__traceback__)
+                    except Exception:  # pragma: no cover - defensive
+                        pass
+                logger.info(
+                    'langfuse_tool_span',
+                    extra={
+                        'tool': span_name,
+                        'input_preview': input_repr,
+                        'duration_ms': duration_ms,
+                        'error': str(exc)[:200],
+                    },
+                )
+                raise
+            duration_ms = int((time.monotonic() - start) * 1000)
+            output_preview = _safe_repr(result, limit=200)
+            if span_ctx is not None:
+                try:
+                    span_ctx.update(
+                        output=output_preview,
+                        metadata={'duration_ms': duration_ms},
+                    )
+                except Exception:  # pragma: no cover - defensive
+                    pass
+                try:
+                    span_ctx.__exit__(None, None, None)
+                except Exception:  # pragma: no cover - defensive
+                    pass
+            logger.info(
+                'langfuse_tool_span',
+                extra={
+                    'tool': span_name,
+                    'input_preview': input_repr,
+                    'output_preview': output_preview,
+                    'duration_ms': duration_ms,
+                },
+            )
+            return result
+
+        return wrapper
+
+    return decorator
+
+
+def _safe_repr(value: Any, limit: int = 200) -> str:
+    """``repr()`` truncated to ``limit`` chars; never raises."""
+    try:
+        text = repr(value)
+    except Exception:  # pragma: no cover - defensive
+        text = '<unrepr-able>'
+    if len(text) > limit:
+        return text[:limit] + '…'
+    return text
 
 
 def _with_timeout(
@@ -259,6 +387,7 @@ def _build_tools(workspace, niche) -> list:
         each shaped as ``{title, url, snippet}``."""
         from search_app.services.vane_service import VaneService
 
+        @_with_langfuse_span('web_search')
         def _run() -> list[dict]:
             service = VaneService()
             resp = service.search(query=query)
@@ -282,6 +411,7 @@ def _build_tools(workspace, niche) -> list:
         from idea_app.models import Idea
         from vector_app.services import EmbeddingService
 
+        @_with_langfuse_span('search_slogans')
         def _run() -> list[dict]:
             service = EmbeddingService()
             hits = service.hybrid_search(
@@ -317,6 +447,7 @@ def _build_tools(workspace, niche) -> list:
         from niche_app.models import CollectedProduct
         from vector_app.services import EmbeddingService
 
+        @_with_langfuse_span('search_products')
         def _run() -> list[dict]:
             allowed_product_ids = list(
                 CollectedProduct.objects.filter(niche=niche)
@@ -348,6 +479,7 @@ def _build_tools(workspace, niche) -> list:
         restrict to one subtype (defaults to all 5)."""
         from vector_app.services import EmbeddingService
 
+        @_with_langfuse_span('search_niche_knowledge')
         def _run() -> list[dict]:
             if subset is not None and subset not in SUBSET_TO_SUBTYPES:
                 return {
@@ -376,6 +508,7 @@ def _build_tools(workspace, niche) -> list:
         when available (falls back to manual position)."""
         from keyword_app.services.ranking import rank_niche_keywords
 
+        @_with_langfuse_span('top_keywords')
         def _run() -> list[dict]:
             capped = max(1, min(int(limit), 100))
             rows = rank_niche_keywords(niche, limit=capped)
@@ -398,6 +531,7 @@ def _build_tools(workspace, niche) -> list:
         are ``None`` when no products are collected."""
         from niche_app.models import CollectedProduct
 
+        @_with_langfuse_span('bsr_stats')
         def _run() -> dict:
             stats = CollectedProduct.objects.filter(niche=niche).aggregate(
                 min=Min('product__bsr'),
@@ -433,6 +567,7 @@ def _build_tools(workspace, niche) -> list:
         1:1 to ``Idea`` model fields (signal_type, pattern_used,
         stylistic_device, emotional_archetype, creative_modules_used,
         buyer_voice_pattern, why_it_works, market_confidence)."""
+        @_with_langfuse_span('generate_slogans')
         def _run() -> dict:
             # Local imports — avoid app-loading cycles + keep test footprint small.
             from chat_node_config_app.services.resolver import (
@@ -539,6 +674,7 @@ def _build_tools(workspace, niche) -> list:
         canonical patterns + (optional) CIRCLE crossover layer.
         Returns ``{'directions': [{direction_title, pattern, circle_layer,
         rationale, example_slogan_seed}, ...]}``."""
+        @_with_langfuse_span('brainstorm_ideas')
         def _run() -> dict:
             from chat_node_config_app.services.resolver import get_node_config
             from idea_app.models import Idea
@@ -711,5 +847,7 @@ __all__ = [
     '_bsr_snippet',
     '_normalize_enum_token',
     '_parse_llm_json',
+    '_safe_repr',
     '_validate_slogan_payload',
+    '_with_langfuse_span',
 ]

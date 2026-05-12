@@ -217,22 +217,22 @@
 - [x] `@tool('generate_slogans')(theme?, style?, count=10, signal_mix?)` — LLM via `creative_techniques` prompt. Pre-call assembles placeholders: `{niche_keywords_topN}` via `rank_niche_keywords(niche, 20)`, `{recent_slogans_sample}` via `get_recent_slogans_sample(niche, 20)`, `{niche_analysis_snippet}` via `get_niche_analysis_snippet(niche)`, `{marketplace_language}` via `marketplace_to_language(derive_marketplace(niche))`. Returns structured payload (`{slogans: [...], warnings: []}`) whose entries map 1:1 to `Idea` model fields (signal_type, pattern_used, stylistic_device, emotional_archetype, creative_modules_used, buyer_voice_pattern, why_it_works, market_confidence). Frontend Add-to-Niche action saves directly via `Idea(workspace=..., niche=..., is_manual=False, **slogan_payload).save()` — no field-conversion layer. — agent_app/agents/niche_chat_agent.py:326-417
 - [x] `@tool('brainstorm_ideas')(focus?)` — composes `top_keywords` + `bsr_stats` + `search_slogans` + optional `web_search`, then LLM-prompted to return 5-10 concept directions, each tagged with one of the 16 canonical patterns + (optional) CIRCLE letter. Output shape: `[{direction_title, pattern, circle_layer, rationale, example_slogan_seed}]`. Does NOT save to Idea (these are concept seeds, not finished slogans). — agent_app/agents/niche_chat_agent.py:420-518
 - [x] Every tool wrapped with `_with_timeout(fn, timeout=30)` (AC-Ops-LG-2) — ThreadPoolExecutor-based sync-friendly path; returns `{error: tool_timeout, tool, duration_ms}` on cap. — agent_app/agents/niche_chat_agent.py:72-96
-- [ ] Every tool emits a Langfuse span (input, output_preview, duration_ms) — **(Round 1D-3, paired with conversation_summarizer)**
+- [x] Every tool emits a Langfuse span (input, output_preview, duration_ms) — **(Round 1D-3, paired with conversation_summarizer)**
 - [x] Workspace + niche enforced at ORM level via closure capture — LLM cannot supply them as args; tools see `workspace` + `niche` captured at `_build_tools(workspace, niche)` time. — agent_app/agents/niche_chat_agent.py:104-282
 - [x] `generate_slogans` + `brainstorm_ideas` set `marketplace_language` from `session.niche_context.marketplace` (default `'en'`) — **(Round 1D-2)**
 
 ### Conversation summarizer + Follow-up suggester (`agent_app/services/`)
 
-- [ ] `agent_app/services/conversation_summarizer.py:summarize(messages_to_summarize)` — uses `ChatNodeConfig.conversation_summarizer` prompt
-- [ ] rq job `agent_app/tasks.py:summarize_conversation(session_id)` — generates summary covering all-but-last-5 turns, writes to `ChatSession.conversation_summary`
-- [ ] **Triggered after turn ≥ 10** (Q5 decision, env `NICHE_RAG_SUMMARIZE_AFTER_N_TURNS=10`)
-- [ ] `agent_app/services/follow_up_suggester.py:suggest(user_msg, assistant_msg, niche_name, language)` — single cheap LLM call returning 3 chips
-- [ ] Invoked AFTER `done` event, emitted as `event: follow_ups`
+- [x] `agent_app/services/conversation_summarizer.py:summarize(messages_to_summarize)` — uses `ChatNodeConfig.conversation_summarizer` prompt
+- [x] rq job `agent_app/tasks.py:summarize_conversation(session_id)` — generates summary covering all-but-last-5 turns, writes to `ChatSession.conversation_summary`
+- [x] **Triggered after turn ≥ 10** (Q5 decision, env `NICHE_RAG_SUMMARIZE_AFTER_N_TURNS=10`)
+- [x] `agent_app/services/follow_up_suggester.py:suggest(user_msg, assistant_msg, niche_name, language)` — single cheap LLM call returning 3 chips
+- [x] Invoked AFTER `done` event, emitted as `event: follow_ups`
 
 ### Prompt assembler (token-budget enforcer)
 
-- [ ] `agent_app/services/prompt_assembler.py:assemble(system_prompt, history, retrieved_chunks, budget=8000)` enforces order: drop oldest msgs > 10 turns → compress msgs > 5 turns into 1-liners → cap each chunk at 400 tokens
-- [ ] Hard cap never violated (raises if all trims still exceed budget)
+- [x] `agent_app/services/prompt_assembler.py:assemble(system_prompt, history, retrieved_chunks, budget=8000)` enforces order: drop oldest msgs > 10 turns → compress msgs > 5 turns into 1-liners → cap each chunk at 400 tokens
+- [x] Hard cap never violated (raises if all trims still exceed budget)
 
 ### Tests
 
@@ -250,9 +250,9 @@
 - [x] Tool timeout (30s) returns `{error: tool_timeout, tool, duration_ms}` instead of hanging — agent_app/tests/test_niche_chat_agent.py:158-180
 - [x] Agent `recursion_limit=10` set via `.with_config()` (verified on factory output) — agent_app/tests/test_niche_chat_agent.py:103-118
 - [x] LLM client is per-request — two `build_niche_chat_agent` calls -> two distinct LLM instances (factory called twice) — agent_app/tests/test_niche_chat_agent.py:129-153
-- [ ] Conversation summarizer runs after turn 10; writes to `ChatSession.conversation_summary` — **(Round 1D-3)**
-- [ ] Follow-up suggester returns exactly 3 chips in user's language — **(Round 1D-3)**
-- [ ] Prompt assembler trims to budget — never exceeds 8000 tokens — **(Round 1D-3)**
+- [x] Conversation summarizer runs after turn 10; writes to `ChatSession.conversation_summary` — **(Round 1D-3)**
+- [x] Follow-up suggester returns exactly 3 chips in user's language — **(Round 1D-3)**
+- [x] Prompt assembler trims to budget — never exceeds 8000 tokens — **(Round 1D-3)**
 
 ## Phase 1E — `ChatSessionMessageStreamView` refactor + SSE protocol
 

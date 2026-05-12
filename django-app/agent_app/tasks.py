@@ -1,5 +1,9 @@
 """django-rq task entry points for agent workflow execution.
 
+Phase 5/6 cover the orchestrator workflow run; PROJ-29 Phase 1D-3 adds the
+``summarize_conversation(session_id)`` rolling-summary job consumed by the
+chat-agent path (AC-Context-2, EC-21, EC-28).
+
 Phase 5 — implements:
     - AC-36: ``run_agent_workflow(session_id)`` — main RQ entry point.
              Loads session, lazy-seeds default ToolPermissions for the
@@ -31,6 +35,7 @@ Phase 6 — adds:
 from __future__ import annotations
 
 import logging
+import os
 
 from django.utils import timezone
 
@@ -42,6 +47,7 @@ from agent_app.models import (
     SessionStatus,
     ToolPermission,
 )
+from agent_app.services.conversation_summarizer import summarize
 
 logger = logging.getLogger(__name__)
 
@@ -245,7 +251,89 @@ def resume_agent_workflow(session_id: str) -> None:
     run_agent_workflow(session_id)
 
 
+# ── PROJ-29 Phase 1D-3: rolling conversation summarizer (chat agent) ───────
+
+
+def _summarize_after_n_turns() -> int:
+    """Resolve ``NICHE_RAG_SUMMARIZE_AFTER_N_TURNS`` env -> int (default 10)."""
+    raw = os.environ.get('NICHE_RAG_SUMMARIZE_AFTER_N_TURNS', '10')
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        return 10
+
+
+def summarize_conversation(session_id: str) -> None:
+    """rq job: regenerate ``ChatSession.conversation_summary``.
+
+    Triggered by the Phase 1E view AFTER a new assistant turn lands on a
+    session with >= ``NICHE_RAG_SUMMARIZE_AFTER_N_TURNS`` messages
+    (default 10).
+
+    Behavior:
+      - Loads all messages ordered by ``created_at``.
+      - Skips with a log line when message count is below threshold.
+      - Summarizes ``messages[:-5]`` — leaves the newest 5 turns verbatim
+        for the next-turn prompt assembler.
+      - On non-empty result: writes to ``conversation_summary``.
+      - On empty result (LLM failure / EC-21): logs warning, keeps stale
+        summary intact (eventually consistent — EC-28).
+    """
+    from search_app.models import ChatMessage, ChatSession
+
+    try:
+        session = ChatSession.objects.select_related('niche_context').get(
+            id=session_id,
+        )
+    except ChatSession.DoesNotExist:
+        logger.warning(
+            'summarize_conversation: ChatSession %s not found', session_id,
+        )
+        return
+
+    threshold = _summarize_after_n_turns()
+    messages_qs = ChatMessage.objects.filter(session=session).order_by(
+        'created_at',
+    ).values('role', 'content')
+    messages = list(messages_qs)
+    if len(messages) < threshold:
+        logger.info(
+            'summarize_conversation: session %s has %d messages (< %d); '
+            'skipping summary.',
+            session_id, len(messages), threshold,
+        )
+        return
+
+    # Everything EXCEPT the newest 5 turns is summarized.
+    messages_to_summarize = messages[:-5] if len(messages) > 5 else messages
+    payload = [
+        {'role': m['role'], 'content': m['content']}
+        for m in messages_to_summarize
+    ]
+    niche_name = (
+        session.niche_context.name if session.niche_context_id else ''
+    )
+
+    result = summarize(payload, niche_name=niche_name)
+    if not result:
+        logger.warning(
+            'summarize_conversation: empty summary for session %s; '
+            'keeping stale summary (EC-21).',
+            session_id,
+        )
+        return
+
+    session.conversation_summary = result
+    session.save(update_fields=['conversation_summary'])
+    logger.info(
+        'summarize_conversation: updated session %s (%d msgs summarized -> '
+        '%d chars).',
+        session_id, len(messages_to_summarize), len(result),
+    )
+
+
 __all__ = [
     'run_agent_workflow',
     'resume_agent_workflow',
+    'summarize_conversation',
 ]

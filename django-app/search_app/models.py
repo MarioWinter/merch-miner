@@ -41,6 +41,16 @@ class ChatSession(models.Model):
         blank=True,
         related_name='chat_sessions',
     )
+    conversation_summary = models.TextField(
+        blank=True,
+        default='',
+        help_text=(
+            'Rolling summary of turns 1..(N-5) when conversation exceeds '
+            '10 turns (PROJ-29 AC-Context-2). Regenerated after each new '
+            'turn via the conversation_summarizer rq job; eventually '
+            'consistent (EC-28).'
+        ),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
