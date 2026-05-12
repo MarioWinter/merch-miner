@@ -898,12 +898,18 @@ SEARCH_TOOL_NAMES = {
 
 
 def _is_chunk_list(value: Any) -> bool:
-    """Best-effort detector for hybrid_search result lists."""
+    """Best-effort detector for hybrid_search result lists.
+
+    PROJ-29 follow-up: ``EmbeddingService.hybrid_search`` returns hits with a
+    ``text`` key (legacy ``chunk_text`` was renamed during PROJ-15). Accept
+    either so the chunks_used pipeline catches every search-tool result.
+    """
     return (
         isinstance(value, list)
         and value
         and isinstance(value[0], dict)
-        and 'chunk_text' in value[0]
+        and ('chunk_text' in value[0] or 'text' in value[0])
+        and 'content_subtype' in value[0]
     )
 
 
@@ -1100,9 +1106,24 @@ def run_chat(session, message: str, model_override=None):
 
     # Always emit chunks_used (even when empty) so the UI can clear stale
     # citations from a prior turn.
+    # PROJ-29 follow-up: assign stable [NICHE:N] indices (1-based) and
+    # normalize the field name to ``text`` (frontend ChunkUsed type) — the
+    # underlying hybrid_search may emit ``chunk_text`` (legacy) or ``text``.
+    indexed_chunks: list[dict] = []
+    for i, ch in enumerate(chunks_consolidated, start=1):
+        if not isinstance(ch, dict):
+            continue
+        indexed_chunks.append({
+            'index': i,
+            'content_subtype': ch.get('content_subtype', ''),
+            'text': ch.get('chunk_text') or ch.get('text') or '',
+            'source_pk': ch.get('source_pk') or (ch.get('metadata') or {}).get('source_pk'),
+            'score': ch.get('score'),
+            'url': ch.get('url') or (ch.get('metadata') or {}).get('url'),
+        })
     yield {
         'event': EVENT_CHUNKS_USED,
-        'data': {'chunks': chunks_consolidated},
+        'data': {'chunks': indexed_chunks},
     }
 
     if generate_slogans_payload is not None:

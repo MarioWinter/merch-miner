@@ -1198,6 +1198,15 @@ class ChatSessionMessageStreamView(APIView):
                         yield _serialize_sse(evt)
                         continue
                     if event_name == 'done':
+                        # PROJ-29 follow-up: close any stages still in
+                        # `loading` state (e.g. the initial `thinking`
+                        # meta-stage emitted by `run_chat` that has no
+                        # matching tool_result closer). Otherwise the
+                        # persisted ThinkingStrip ExpandedPanel renders a
+                        # forever-spinning CircularProgress.
+                        for row in thinking_stages_buf:
+                            if row.get('status') == 'loading':
+                                row['status'] = 'done'
                         # Persist the assistant turn HERE (before emitting `done`
                         # on the wire) so the wire can carry the persisted
                         # message id.
