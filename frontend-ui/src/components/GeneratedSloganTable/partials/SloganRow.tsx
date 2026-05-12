@@ -55,7 +55,7 @@ const MetaChip = styled(Chip)({
 
 const CardWrap = styled(Box)(({ theme }) => ({
   border: `1px solid ${theme.vars.palette.divider}`,
-  borderRadius: theme.shape.borderRadius * 1.5,
+  borderRadius: Number(theme.shape.borderRadius) * 1.5,
   padding: theme.spacing(1.5),
   backgroundColor: theme.vars.palette.background.paper,
 }));

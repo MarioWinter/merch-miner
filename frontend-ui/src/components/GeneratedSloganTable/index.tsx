@@ -47,7 +47,7 @@ interface GeneratedSloganTableProps {
 
 const Outer = styled(Box)(({ theme }) => ({
   border: `1px solid ${theme.vars.palette.divider}`,
-  borderRadius: theme.shape.borderRadius * 1.5,
+  borderRadius: Number(theme.shape.borderRadius) * 1.5,
   backgroundColor: theme.vars.palette.background.paper,
   overflow: 'hidden',
   marginTop: theme.spacing(1),

@@ -6,7 +6,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import connection
 from django.utils import timezone
 
-from vector_app.models import Embedding, IndexingFailure
+from vector_app.models import IndexingFailure
 from vector_app.services import EmbeddingService
 
 logger = logging.getLogger(__name__)

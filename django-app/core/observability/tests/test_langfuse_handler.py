@@ -34,7 +34,6 @@ def test_returns_none_on_init_failure(monkeypatch):
         def __init__(self, *a, **k):
             raise RuntimeError('langfuse SDK init blew up')
 
-    import core.observability.langfuse_handler as mod
 
     def _import_raise():
         return _Boom, _Boom

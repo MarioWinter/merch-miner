@@ -60,7 +60,7 @@ def test_retry_failed_indexings_enqueues_oldest_unresolved():
         content_type=idea_ct, object_id='00000000-0000-0000-0000-000000000001',
         attempt_count=3, last_error='boom',
     )
-    newer = IndexingFailure.objects.create(
+    IndexingFailure.objects.create(
         content_type=idea_ct, object_id='00000000-0000-0000-0000-000000000002',
         attempt_count=3, last_error='boom',
     )

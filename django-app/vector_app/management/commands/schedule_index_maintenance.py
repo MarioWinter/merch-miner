@@ -9,7 +9,6 @@ Run once per deploy:  docker compose exec web python manage.py schedule_index_ma
 """
 
 import logging
-from datetime import datetime, timezone
 
 import django_rq
 from django.core.management.base import BaseCommand

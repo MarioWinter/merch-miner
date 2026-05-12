@@ -3,7 +3,6 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from django.contrib.contenttypes.models import ContentType
 
 from niche_app.models import Niche, NicheNote
 

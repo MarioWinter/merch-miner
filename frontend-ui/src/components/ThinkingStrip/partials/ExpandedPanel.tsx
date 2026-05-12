@@ -95,7 +95,7 @@ const Snippet = styled(Typography)(({ theme }) => ({
   whiteSpace: 'nowrap',
 }));
 
-const GROUP_I18N: Record<ChunkSubtype, string> = {
+const GROUP_I18N: Partial<Record<ChunkSubtype | string, string>> = {
   slogan: 'chatNicheRag.thinking.group.slogan',
   product: 'chatNicheRag.thinking.group.product',
   keyword: 'chatNicheRag.thinking.group.keyword',
@@ -123,8 +123,10 @@ const ExpandedPanel = ({
   const flashTs = flash?.ts ?? 0;
 
   // Group chunks by content_subtype. Stable iteration order matches GROUP_I18N.
+  // Map key is widened to `string` because the backend may emit subtypes beyond
+  // the narrow `ChunkSubtype` union (e.g. research/profile subtypes).
   const grouped = useMemo(() => {
-    const map = new Map<ChunkSubtype, ChunkUsed[]>();
+    const map = new Map<string, ChunkUsed[]>();
     for (const chunk of chunksUsed) {
       const list = map.get(chunk.content_subtype) ?? [];
       list.push(chunk);
@@ -168,14 +170,16 @@ const ExpandedPanel = ({
             {Array.from(grouped.entries()).map(([subtype, chunks]) => {
               // Pick a representative stage meta for the group emoji. Falls
               // back to no emoji if the subtype doesn't have a stage map.
-              const repStageByGroup: Record<ChunkSubtype, string> = {
+              const repStageByGroup: Partial<Record<string, string>> = {
                 slogan: 'search_slogans',
                 product: 'search_products',
                 keyword: 'top_keywords',
                 notes: 'search_niche_knowledge',
                 web: 'web_search',
               };
-              const emoji = getStageMeta(repStageByGroup[subtype]).groupEmoji;
+              const emoji = getStageMeta(
+                repStageByGroup[subtype] ?? 'thinking',
+              ).groupEmoji;
               return (
                 <Box key={subtype} sx={{ mb: 0.5 }}>
                   <SectionLabel variant="overline" sx={{ mt: 0.25 }}>
@@ -184,7 +188,7 @@ const ExpandedPanel = ({
                         {emoji}
                       </span>
                     )}{' '}
-                    {t(GROUP_I18N[subtype], subtype)}
+                    {t(GROUP_I18N[subtype] ?? subtype, subtype)}
                   </SectionLabel>
                   <Stack>
                     {chunks.map((chunk) => {

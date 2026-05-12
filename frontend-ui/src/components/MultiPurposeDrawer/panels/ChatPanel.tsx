@@ -212,7 +212,7 @@ const ChatPanel = () => {
       // a niche chip nor agent mode is active.
       const needsVane =
         niche_id === null &&
-        session?.niche_context == null &&
+        session?.niche_context_id == null &&
         modeOverride !== 'agent';
       if (!trimmed || searching || isStreaming) return;
       if (needsVane && !vaneOnline) return;
@@ -272,10 +272,10 @@ const ChatPanel = () => {
       searchSources,
       selectedModel,
       modeOverride,
-      // PROJ-29 Phase 1I follow-up: handleSubmit reads `session?.niche_context`
+      // PROJ-29 Phase 1I follow-up: handleSubmit reads `session?.niche_context_id`
       // to decide whether the request needs Vane. Listed here so the callback
       // re-binds when session changes (also satisfies react-hooks/exhaustive-deps).
-      session?.niche_context,
+      session?.niche_context_id,
       attachmentUploads,
       dispatch,
       createSession,
