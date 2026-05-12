@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import json
 import logging
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -27,6 +28,7 @@ logger = logging.getLogger(__name__)
 def summarize(
     messages_to_summarize: list[dict],
     niche_name: str = '',
+    model_override: Optional[str] = None,
 ) -> str:
     """Return a 1-2 paragraph rolling summary of older turns.
 
@@ -61,7 +63,9 @@ def summarize(
         )
 
         llm, _ = get_llm_for_node(
-            'conversation_summarizer', config_resolver=get_node_config,
+            'conversation_summarizer',
+            config_resolver=get_node_config,
+            model_override=model_override,
         )
 
         response = llm.invoke([

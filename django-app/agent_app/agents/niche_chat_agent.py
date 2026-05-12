@@ -390,7 +390,9 @@ def _build_tools(workspace, niche, model_override=None) -> list:
         @_with_langfuse_span('web_search')
         def _run() -> list[dict]:
             service = VaneService()
-            resp = service.search(query=query)
+            # PROJ-29: forward the UI Model picker selection so Vane's
+            # answer-summarization uses the user-chosen LLM.
+            resp = service.search(query=query, model=model_override)
             sources = (resp or {}).get('sources') or []
             return [
                 {
@@ -736,12 +738,14 @@ def _build_tools(workspace, niche, model_override=None) -> list:
                 "5-10 directions. No markdown."
             )
 
-            # PROJ-29 policy: brainstorm_ideas runs on agent_react node, which
-            # is admin-pinned (no UI override). Tool-output accuracy + JSON
-            # discipline matter more than creative-style variation here.
+            # PROJ-29 policy (2026-05-12): brainstorm_ideas is a creative
+            # surface — honor the UI Model picker so users can swap models
+            # for style variation. Uses agent_react node only for the
+            # tuned system prompt + default model; the picker wins.
             llm, _ = get_llm_for_node(
                 'agent_react',
                 config_resolver=get_node_config,
+                model_override=model_override,
             )
             response = llm.invoke([
                 {'role': 'system', 'content': system_prompt},
@@ -1101,6 +1105,7 @@ def run_chat(session, message: str, model_override=None):
             assistant_msg=final_answer,
             niche_name=niche.name if niche else '',
             language=language,
+            model_override=model_override,
         )
         if suggestions:
             yield {

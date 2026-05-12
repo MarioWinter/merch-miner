@@ -18,6 +18,8 @@ from __future__ import annotations
 
 import logging
 
+from typing import Optional
+
 from django.conf import settings
 
 logger = logging.getLogger(__name__)
@@ -28,6 +30,7 @@ def rewrite(
     niche_name: str = '',
     user_language: str = 'en',
     marketplace_language: str = 'en',
+    model_override: Optional[str] = None,
 ) -> str:
     """Return an expanded query for the vector retrieval path.
 
@@ -61,7 +64,9 @@ def rewrite(
             marketplace_language=marketplace_language,
         )
         llm, _ = get_llm_for_node(
-            'query_rewrite', config_resolver=get_node_config,
+            'query_rewrite',
+            config_resolver=get_node_config,
+            model_override=model_override,
         )
 
         response = llm.invoke([

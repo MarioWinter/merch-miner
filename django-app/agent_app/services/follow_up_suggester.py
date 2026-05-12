@@ -46,6 +46,7 @@ def suggest(
     assistant_msg: str,
     niche_name: str = '',
     language: str = 'en',
+    model_override: Optional[str] = None,
 ) -> list[str]:
     """Return up to 3 follow-up chips (each <= 80 chars).
 
@@ -82,7 +83,9 @@ def suggest(
         )
 
         llm, _ = get_llm_for_node(
-            'follow_up_suggester', config_resolver=get_node_config,
+            'follow_up_suggester',
+            config_resolver=get_node_config,
+            model_override=model_override,
         )
 
         response = llm.invoke([
