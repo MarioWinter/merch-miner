@@ -10,12 +10,23 @@
 import { Box, Tooltip } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
-import { useAppDispatch } from '@/store/hooks';
+import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setFlashCitation, clearFlashCitation } from '@/store/chatBarSlice';
 
 interface NicheCitationLinkProps {
   index: number;
 }
+
+const useChunkNicheName = (index: number): string | undefined => {
+  // PROJ-29 cross-niche: surface origin niche of the chunk in the tooltip.
+  // Read live (streaming) or persisted chunks from Redux — falls back to
+  // undefined when chunk isn't loaded yet (graceful tooltip degradation).
+  return useAppSelector((s) => {
+    const live = s.chatBar?.chunksUsed ?? [];
+    if (live.length >= index) return live[index - 1]?.niche_name;
+    return undefined;
+  });
+};
 
 const Pill = styled(Box)(({ theme }) => ({
   display: 'inline-flex',
@@ -43,6 +54,7 @@ const Pill = styled(Box)(({ theme }) => ({
 const NicheCitationLink = ({ index }: NicheCitationLinkProps) => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
+  const nicheName = useChunkNicheName(index);
 
   const handleEnter = () => {
     dispatch(setFlashCitation({ type: 'niche', index, ts: Date.now() }));
@@ -54,13 +66,18 @@ const NicheCitationLink = ({ index }: NicheCitationLinkProps) => {
     dispatch(setFlashCitation({ type: 'niche', index, ts: Date.now() }));
   };
 
+  // Tooltip prefers a niche-scoped label when we know the origin niche.
+  const tooltipLabel = nicheName
+    ? t('chatNicheRag.citation.nicheWithName', { index, niche: nicheName })
+    : t('chatNicheRag.citation.niche', { index });
+
   return (
-    <Tooltip title={t('chatNicheRag.citation.niche', { index })} placement="top">
+    <Tooltip title={tooltipLabel} placement="top">
       <Pill
         as="span"
         role="button"
         tabIndex={0}
-        aria-label={t('chatNicheRag.citation.niche', { index })}
+        aria-label={tooltipLabel}
         data-niche-citation={index}
         onMouseEnter={handleEnter}
         onMouseLeave={handleLeave}

@@ -189,8 +189,15 @@ const ExpandedPanel = ({
                   <Stack>
                     {chunks.map((chunk) => {
                       const isFlashing = flashingIndex === chunk.index;
+                      // PROJ-29 cross-niche: show origin niche when chunk
+                      // is from a niche other than the pinned one (always
+                      // helpful for the user even when same — keeps the
+                      // citation grounded in which niche it came from).
+                      const tooltipTitle = chunk.niche_name
+                        ? `${chunk.niche_name} · ${chunk.text}`
+                        : chunk.text;
                       return (
-                        <Tooltip key={`${chunk.index}-${isFlashing ? flashTs : 'idle'}`} title={chunk.text} placement="top-start">
+                        <Tooltip key={`${chunk.index}-${isFlashing ? flashTs : 'idle'}`} title={tooltipTitle} placement="top-start">
                           <ChunkRow
                             data-chunk-index={chunk.index}
                             flashing={isFlashing}
@@ -201,7 +208,14 @@ const ExpandedPanel = ({
                             onMouseLeave={() => dispatch(clearFlashCitation())}
                           >
                             <Marker>[NICHE:{chunk.index}]</Marker>
-                            <Snippet variant="body2">{truncate(chunk.text)}</Snippet>
+                            <Snippet variant="body2">
+                              {chunk.niche_name && (
+                                <Box component="span" sx={{ color: 'primary.main', mr: 0.5, fontSize: '0.75rem' }}>
+                                  {chunk.niche_name}:
+                                </Box>
+                              )}
+                              {truncate(chunk.text)}
+                            </Snippet>
                           </ChunkRow>
                         </Tooltip>
                       );

@@ -374,12 +374,47 @@ def _render_tool_descriptions(tools: list[Any]) -> str:
 
 
 def _build_tools(workspace, niche, model_override=None) -> list:
-    """Construct the 8 tools bound to ``(workspace, niche)`` via closure.
+    """Construct the 9 tools bound to ``(workspace, niche)`` via closure.
 
-    Workspace + niche are NEVER exposed as LLM-supplied parameters — they
-    are captured here at agent build time, so the LLM cannot cross-pollinate
+    ``workspace`` is NEVER exposed as an LLM-supplied parameter — it is
+    captured here at agent build time, so the LLM cannot cross-pollinate
     workspaces (AC-13).
+
+    ``niche`` is the PINNED niche (session.niche_context) — most tools default
+    to it. PROJ-29 cross-niche: 5 retrieval tools accept an OPTIONAL
+    ``niche_id`` argument to query a DIFFERENT niche FROM THE SAME WORKSPACE
+    (e.g. ``Compare slogans between niche A and niche B``). Workspace isolation
+    is enforced by ``_resolve_niche()`` raising on cross-workspace ids — the
+    LLM cannot exfiltrate data from other workspaces by guessing UUIDs.
     """
+
+    def _resolve_niche(niche_id):
+        """Resolve a cross-niche `niche_id` arg to a Niche instance, or fall
+        back to the pinned niche when the arg is None / empty / matches the
+        pinned id. Raises ``ValueError`` on workspace-isolation violation —
+        the agent surfaces this as a tool-error to the LLM (no data leak).
+
+        Security: malformed UUIDs (e.g. SQL-injection attempts via the
+        LLM-supplied arg) raise Django's ``ValidationError``; we catch it
+        + re-raise the SAME generic error as "niche not found" so the
+        attacker can't distinguish "bad format" from "wrong workspace".
+        """
+        if not niche_id:
+            return niche
+        from django.core.exceptions import ValidationError
+        from niche_app.models import Niche
+        # Avoid extra DB roundtrip when the LLM passes back the pinned id.
+        if str(niche_id) == str(niche.id):
+            return niche
+        try:
+            return Niche.objects.get(workspace=workspace, id=niche_id)
+        except (Niche.DoesNotExist, ValueError, TypeError, ValidationError):
+            # All four covered: missing row, malformed UUID, wrong arg type,
+            # Django ORM rejecting non-UUID-shaped input. The error message
+            # never confirms whether the niche exists in another workspace.
+            raise ValueError(
+                f'niche_id {niche_id!r} not found in this workspace',
+            )
     # ── web_search ──────────────────────────────────────────────────────
     @tool('web_search')
     def web_search(query: str) -> list[dict]:
@@ -407,20 +442,30 @@ def _build_tools(workspace, niche, model_override=None) -> list:
 
     # ── search_slogans ──────────────────────────────────────────────────
     @tool('search_slogans')
-    def search_slogans(query: str) -> list[dict]:
-        """Hybrid search over slogan embeddings for the current niche. Returns
-        approved or manually-created Ideas only. Up to 10 results."""
+    def search_slogans(
+        query: str, niche_id: Optional[str] = None,
+    ) -> list[dict]:
+        """Hybrid search over slogan embeddings. Returns approved or
+        manually-created Ideas only. Up to 10 results.
+
+        Pass ``niche_id`` to query a DIFFERENT niche from the same workspace
+        (cross-niche compare). Default = the pinned niche of this chat.
+        """
         from idea_app.models import Idea
         from vector_app.services import EmbeddingService
 
         @_with_langfuse_span('search_slogans')
         def _run() -> list[dict]:
+            try:
+                target_niche = _resolve_niche(niche_id)
+            except ValueError as exc:
+                return {'error': str(exc)}
             service = EmbeddingService()
             hits = service.hybrid_search(
                 workspace=workspace,
                 query=query,
                 filters={
-                    'metadata__niche_id': str(niche.id),
+                    'metadata__niche_id': str(target_niche.id),
                     'metadata__content_subtype': 'slogan',
                 },
                 top_k=10,
@@ -443,16 +488,26 @@ def _build_tools(workspace, niche, model_override=None) -> list:
 
     # ── search_products ─────────────────────────────────────────────────
     @tool('search_products')
-    def search_products(query: str) -> list[dict]:
-        """Hybrid search over Amazon products *collected for this niche*.
-        Up to 10 results."""
+    def search_products(
+        query: str, niche_id: Optional[str] = None,
+    ) -> list[dict]:
+        """Hybrid search over Amazon products collected for a niche.
+        Up to 10 results.
+
+        Pass ``niche_id`` to query a DIFFERENT niche from the same workspace
+        (cross-niche compare). Default = the pinned niche of this chat.
+        """
         from niche_app.models import CollectedProduct
         from vector_app.services import EmbeddingService
 
         @_with_langfuse_span('search_products')
         def _run() -> list[dict]:
+            try:
+                target_niche = _resolve_niche(niche_id)
+            except ValueError as exc:
+                return {'error': str(exc)}
             allowed_product_ids = list(
-                CollectedProduct.objects.filter(niche=niche)
+                CollectedProduct.objects.filter(niche=target_niche)
                 .values_list('product_id', flat=True)
             )
             if not allowed_product_ids:
@@ -474,15 +529,25 @@ def _build_tools(workspace, niche, model_override=None) -> list:
     # ── search_niche_knowledge ──────────────────────────────────────────
     @tool('search_niche_knowledge')
     def search_niche_knowledge(
-        query: str, subset: Optional[str] = None,
+        query: str,
+        subset: Optional[str] = None,
+        niche_id: Optional[str] = None,
     ) -> list[dict]:
-        """Hybrid search over the niche's stored knowledge (profile,
-        emotional, vision, keyword_analysis, notes). Use ``subset`` to
-        restrict to one subtype (defaults to all 5)."""
+        """Hybrid search over a niche's stored knowledge (profile, emotional,
+        vision, keyword_analysis, notes). Use ``subset`` to restrict to one
+        subtype (defaults to all 5).
+
+        Pass ``niche_id`` to query a DIFFERENT niche from the same workspace
+        (cross-niche compare). Default = the pinned niche of this chat.
+        """
         from vector_app.services import EmbeddingService
 
         @_with_langfuse_span('search_niche_knowledge')
         def _run() -> list[dict]:
+            try:
+                target_niche = _resolve_niche(niche_id)
+            except ValueError as exc:
+                return {'error': str(exc)}
             if subset is not None and subset not in SUBSET_TO_SUBTYPES:
                 return {
                     'error': 'invalid_subset',
@@ -496,7 +561,7 @@ def _build_tools(workspace, niche, model_override=None) -> list:
             return service.hybrid_search(
                 workspace=workspace,
                 query=query,
-                filters={'metadata__niche_id': str(niche.id)},
+                filters={'metadata__niche_id': str(target_niche.id)},
                 content_subtypes=subtypes,
                 top_k=10,
             )
@@ -505,15 +570,25 @@ def _build_tools(workspace, niche, model_override=None) -> list:
 
     # ── top_keywords ────────────────────────────────────────────────────
     @tool('top_keywords')
-    def top_keywords(limit: int = 20) -> list[dict]:
-        """Top keywords for this niche, ranked by JungleScout search volume
-        when available (falls back to manual position)."""
+    def top_keywords(
+        limit: int = 20, niche_id: Optional[str] = None,
+    ) -> list[dict]:
+        """Top keywords for a niche, ranked by JungleScout search volume
+        when available (falls back to manual position).
+
+        Pass ``niche_id`` to query a DIFFERENT niche from the same workspace
+        (cross-niche compare). Default = the pinned niche of this chat.
+        """
         from keyword_app.services.ranking import rank_niche_keywords
 
         @_with_langfuse_span('top_keywords')
         def _run() -> list[dict]:
+            try:
+                target_niche = _resolve_niche(niche_id)
+            except ValueError as exc:
+                return {'error': str(exc)}
             capped = max(1, min(int(limit), 100))
-            rows = rank_niche_keywords(niche, limit=capped)
+            rows = rank_niche_keywords(target_niche, limit=capped)
             return [
                 {
                     'keyword': kw.keyword,
@@ -527,15 +602,23 @@ def _build_tools(workspace, niche, model_override=None) -> list:
 
     # ── bsr_stats ───────────────────────────────────────────────────────
     @tool('bsr_stats')
-    def bsr_stats() -> dict:
-        """BSR (Best Sellers Rank) percentiles over products collected for
-        this niche. Returns ``{min, max, p25, median, p75, count}`` — values
-        are ``None`` when no products are collected."""
+    def bsr_stats(niche_id: Optional[str] = None) -> dict:
+        """BSR (Best Sellers Rank) percentiles over products collected for a
+        niche. Returns ``{min, max, p25, median, p75, count}`` — values are
+        ``None`` when no products are collected.
+
+        Pass ``niche_id`` to query a DIFFERENT niche from the same workspace
+        (cross-niche compare). Default = the pinned niche of this chat.
+        """
         from niche_app.models import CollectedProduct
 
         @_with_langfuse_span('bsr_stats')
         def _run() -> dict:
-            stats = CollectedProduct.objects.filter(niche=niche).aggregate(
+            try:
+                target_niche = _resolve_niche(niche_id)
+            except ValueError as exc:
+                return {'error': str(exc)}
+            stats = CollectedProduct.objects.filter(niche=target_niche).aggregate(
                 min=Min('product__bsr'),
                 max=Max('product__bsr'),
                 p25=PercentileCont('product__bsr', percentile=0.25),
@@ -792,6 +875,34 @@ def _build_tools(workspace, niche, model_override=None) -> list:
 
         return _with_timeout(_run)
 
+    # ── list_workspace_niches ───────────────────────────────────────────
+    @tool('list_workspace_niches')
+    def list_workspace_niches() -> list[dict]:
+        """List ALL niches in the current workspace, including the pinned
+        one. Returns `[{id, name, is_pinned}]`.
+
+        Use this BEFORE calling any search_* tool with a `niche_id` arg —
+        i.e. when the user mentions a different niche by name ("compare
+        with bingo caller shirt") to resolve the name to a UUID. Workspace
+        isolation is enforced — only niches the user has access to are
+        returned.
+        """
+        from niche_app.models import Niche
+
+        @_with_langfuse_span('list_workspace_niches')
+        def _run() -> list[dict]:
+            rows = Niche.objects.filter(workspace=workspace).order_by('name')
+            return [
+                {
+                    'id': str(n.id),
+                    'name': n.name,
+                    'is_pinned': str(n.id) == str(niche.id),
+                }
+                for n in rows
+            ]
+
+        return _with_timeout(_run)
+
     return [
         web_search,
         search_slogans,
@@ -801,6 +912,7 @@ def _build_tools(workspace, niche, model_override=None) -> list:
         bsr_stats,
         generate_slogans,
         brainstorm_ideas,
+        list_workspace_niches,
     ]
 
 
@@ -1113,13 +1225,21 @@ def run_chat(session, message: str, model_override=None):
     for i, ch in enumerate(chunks_consolidated, start=1):
         if not isinstance(ch, dict):
             continue
+        meta = ch.get('metadata') or {}
         indexed_chunks.append({
             'index': i,
             'content_subtype': ch.get('content_subtype', ''),
             'text': ch.get('chunk_text') or ch.get('text') or '',
-            'source_pk': ch.get('source_pk') or (ch.get('metadata') or {}).get('source_pk'),
+            'source_pk': ch.get('source_pk') or meta.get('source_pk'),
             'score': ch.get('score'),
-            'url': ch.get('url') or (ch.get('metadata') or {}).get('url'),
+            'url': ch.get('url') or meta.get('url'),
+            # PROJ-29 cross-niche follow-up: surface the niche this chunk
+            # belongs to so the frontend [NICHE:N] hover-tooltip shows
+            # "Niche knowledge chunk 3 — bingo caller shirt" instead of
+            # bare "chunk 3". Resolved from chunk metadata; falls back to
+            # the pinned niche name when missing.
+            'niche_name': meta.get('niche_name') or niche.name,
+            'niche_id': meta.get('niche_id') or str(niche.id),
         })
     yield {
         'event': EVENT_CHUNKS_USED,

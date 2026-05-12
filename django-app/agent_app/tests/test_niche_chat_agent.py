@@ -900,13 +900,117 @@ class TestBrainstormIdeasTool:
 
 @pytest.mark.django_db
 class TestToolsWiring:
-    def test_build_tools_returns_8_tools_including_new_ones(
+    def test_build_tools_returns_9_tools_including_cross_niche(
         self, workspace_a, niche_a, patch_llm_factory,
     ):
         from agent_app.agents.niche_chat_agent import _build_tools
 
         tools = _build_tools(workspace_a, niche_a)
-        assert len(tools) == 8
+        # PROJ-29 cross-niche: list_workspace_niches added to the 8 existing
+        # tools so the agent can resolve niche names → ids before calling
+        # search_* with a cross-niche `niche_id` arg.
+        assert len(tools) == 9
         names = {t.name for t in tools}
         assert 'generate_slogans' in names
         assert 'brainstorm_ideas' in names
+        assert 'list_workspace_niches' in names
+
+
+# ── Cross-niche workspace isolation ─────────────────────────────────────────
+
+
+@pytest.mark.django_db(transaction=True)
+class TestCrossNicheWorkspaceIsolation:
+    """PROJ-29 cross-niche AC: an LLM-supplied niche_id MUST NOT escape the
+    bound workspace. Even with a correct UUID for a niche in another workspace,
+    every cross-niche tool must return `{error: ...}` without leaking data.
+    """
+
+    def test_list_workspace_niches_excludes_other_workspace(
+        self, workspace_a, workspace_b, niche_a, niche_b, patch_llm_factory,
+    ):
+        from agent_app.agents.niche_chat_agent import _build_tools
+
+        tools = _build_tools(workspace_a, niche_a)
+        lister = next(t for t in tools if t.name == 'list_workspace_niches')
+        result = lister.invoke({})
+
+        ids = {n['id'] for n in result}
+        assert str(niche_a.id) in ids
+        assert str(niche_b.id) not in ids  # cross-workspace niche NEVER listed
+
+    def test_search_slogans_rejects_cross_workspace_niche_id(
+        self, workspace_a, workspace_b, niche_a, niche_b, patch_llm_factory,
+    ):
+        from agent_app.agents.niche_chat_agent import _build_tools
+
+        tools = _build_tools(workspace_a, niche_a)
+        searcher = next(t for t in tools if t.name == 'search_slogans')
+        # Pass niche_b's UUID — belongs to workspace_b, not workspace_a.
+        result = searcher.invoke({
+            'query': 'anything', 'niche_id': str(niche_b.id),
+        })
+
+        assert isinstance(result, dict), result
+        assert 'error' in result
+        assert 'not found in this workspace' in result['error']
+        # Error message must NOT confirm the niche exists in another workspace.
+        assert 'workspace_b' not in result['error'].lower()
+        assert 'hiking' not in result['error'].lower()
+
+    def test_search_niche_knowledge_rejects_cross_workspace(
+        self, workspace_a, workspace_b, niche_a, niche_b, patch_llm_factory,
+    ):
+        from agent_app.agents.niche_chat_agent import _build_tools
+
+        tools = _build_tools(workspace_a, niche_a)
+        searcher = next(t for t in tools if t.name == 'search_niche_knowledge')
+        result = searcher.invoke({
+            'query': 'anything', 'niche_id': str(niche_b.id),
+        })
+
+        assert isinstance(result, dict)
+        assert 'error' in result
+
+    def test_top_keywords_rejects_cross_workspace(
+        self, workspace_a, workspace_b, niche_a, niche_b, patch_llm_factory,
+    ):
+        from agent_app.agents.niche_chat_agent import _build_tools
+
+        tools = _build_tools(workspace_a, niche_a)
+        searcher = next(t for t in tools if t.name == 'top_keywords')
+        result = searcher.invoke({'niche_id': str(niche_b.id)})
+
+        assert isinstance(result, dict)
+        assert 'error' in result
+
+    def test_search_slogans_accepts_same_workspace_niche_id(
+        self, workspace_a, niche_a, patch_llm_factory,
+    ):
+        """Passing the pinned niche's own id explicitly is a no-op (fast path)."""
+        from agent_app.agents.niche_chat_agent import _build_tools
+
+        tools = _build_tools(workspace_a, niche_a)
+        searcher = next(t for t in tools if t.name == 'search_slogans')
+        result = searcher.invoke({
+            'query': 'anything', 'niche_id': str(niche_a.id),
+        })
+        # Should NOT return an error — list (possibly empty) is fine.
+        assert isinstance(result, list), result
+
+    def test_search_slogans_rejects_malformed_niche_id(
+        self, workspace_a, niche_a, patch_llm_factory,
+    ):
+        from agent_app.agents.niche_chat_agent import _build_tools
+
+        tools = _build_tools(workspace_a, niche_a)
+        searcher = next(t for t in tools if t.name == 'search_slogans')
+        result = searcher.invoke({
+            'query': 'anything', 'niche_id': "'; DROP TABLE niche_app_niche; --",
+        })
+
+        assert isinstance(result, dict)
+        assert 'error' in result
+        # Confirm Django ORM parameter binding handled the SQL injection
+        # attempt safely — the message just says "not found".
+        assert 'not found in this workspace' in result['error']

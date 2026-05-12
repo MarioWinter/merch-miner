@@ -3521,6 +3521,7 @@
     },
     "citation": {
       "niche": "Nischenwissen-Snippet {{index}}",
+      "nicheWithName": "Nischenwissen-Snippet {{index}} — {{niche}}",
       "web": "Webquelle {{index}}"
     }
   }

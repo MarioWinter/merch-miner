@@ -37,8 +37,8 @@ export interface ThinkingStep {
 export interface ChunkUsed {
   /** Index in the consolidated chunks list — drives [NICHE:N] citation markers. */
   index: number;
-  /** One of `slogan` | `product` | `keyword` | `notes` | `web`. */
-  content_subtype: ChunkSubtype;
+  /** One of `slogan` | `product` | `keyword` | `notes` | `web` | research subtypes. */
+  content_subtype: ChunkSubtype | string;
   /** Human-readable snippet (first ~200 chars). */
   text: string;
   /** Optional source PK (Idea id / NicheNote id / AmazonProduct id). */
@@ -47,6 +47,11 @@ export interface ChunkUsed {
   url?: string;
   /** Optional fused RRF score 0..1. */
   score?: number;
+  /** PROJ-29 cross-niche: niche this chunk originates from. Shown in
+   *  citation tooltip + ExpandedPanel header so users know when an answer
+   *  pulls from a niche other than the pinned one. */
+  niche_name?: string;
+  niche_id?: string;
 }
 
 export type ChunkSubtype = 'slogan' | 'product' | 'keyword' | 'notes' | 'web';
