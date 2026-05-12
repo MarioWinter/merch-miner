@@ -73,6 +73,13 @@ class EmbeddingService:
     VECTOR_WEIGHT = 0.7
     TEXT_WEIGHT = 0.3
 
+    # PROJ-29 Phase 1B Round 3 — embedding-API input cap (AC-Ops-Chunk-2).
+    # text-embedding-3-small averages ~4 chars per token; 8000 tokens × 4 chars.
+    MAX_EMBED_CHARS = 8000 * 4
+
+    # PROJ-29 Phase 1B Round 3 — defensive cap on chunk count (AC-Ops-Chunk-1).
+    MAX_CHUNKS_PER_SOURCE = 200
+
     def __init__(self):
         self.api_key = settings.OPENROUTER_API_KEY
         self.base_url = settings.OPENROUTER_BASE_URL
@@ -180,8 +187,25 @@ class EmbeddingService:
             return None
 
         ct = ContentType.objects.get_for_model(instance)
-        vector = self._get_embedding_vector(text)
         metadata = self._build_metadata(instance, ct)
+
+        # PROJ-29 Phase 1B Round 3 — prepend contextual header for slogan/notes only.
+        # `metadata['content_subtype']` was set by _build_metadata via _resolve_content_subtype.
+        content_subtype = metadata.get('content_subtype', '')
+        embed_text = text
+        if content_subtype in ('slogan', 'notes'):
+            from vector_app.services.contextual_header import generate_header
+            header = generate_header(instance, content_subtype, text)
+            if header:
+                embed_text = f"{header}\n\n{text}"
+                metadata['context_header'] = header
+
+        # PROJ-29 Phase 1B Round 3 — 8000-token char cap (AC-Ops-Chunk-2).
+        if len(embed_text) > self.MAX_EMBED_CHARS:
+            embed_text = embed_text[: self.MAX_EMBED_CHARS]
+            metadata['truncated'] = True
+
+        vector = self._get_embedding_vector(embed_text)
 
         embedding, _ = Embedding.objects.update_or_create(
             content_type=ct,
@@ -189,7 +213,7 @@ class EmbeddingService:
             defaults={
                 'workspace_id': workspace_id,
                 'embedding': vector,
-                'text_input': text,
+                'text_input': embed_text,
                 'search_text': text,
                 'metadata': metadata,
             },

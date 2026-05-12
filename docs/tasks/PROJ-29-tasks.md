@@ -107,21 +107,21 @@
 
 ### Contextual-Header hook in existing embedding service
 
-- [ ] Add `vector_app/services/contextual_header.py:generate_header(instance, content_subtype, raw_text)` — uses `ChatNodeConfig.contextual_header` prompt; 30–80 token header; cheap LLM via `get_llm_for_node('contextual_header', chat_resolver)`
-- [ ] Modify `vector_app.services.EmbeddingService.create_embedding(instance)` to prepend the contextual header when content_type is one of the 4 niche source models (guard via content_subtype metadata key — skip for legacy `NicheAnalysis`)
-- [ ] Add `content_subtype` enrichment in `_build_metadata` (values: `slogan | product | keyword | notes`)
-- [ ] Reuse existing `vector_app.chunking.chunk_text()` — long-text chunking for `notes` + `product` only (slogans + keywords stay single-chunk)
-- [ ] Hard cap `NICHE_RAG_MAX_CHUNKS_PER_SOURCE=200` per source row; over-cap truncation flagged via `metadata.truncated=true`
+- [x] Add `vector_app/services/contextual_header.py:generate_header(instance, content_subtype, raw_text)` — uses `ChatNodeConfig.contextual_header` prompt; 30–80 token header; cheap LLM via `get_llm_for_node('contextual_header', chat_resolver)`
+- [x] Modify `vector_app.services.EmbeddingService.create_embedding(instance)` to prepend the contextual header when content_type is one of the 4 niche source models (guard via content_subtype metadata key — skip for legacy `NicheAnalysis`)
+- [x] Add `content_subtype` enrichment in `_build_metadata` (values: `slogan | product | keyword | notes`)
+- [x] Reuse existing `vector_app.chunking.chunk_text()` — long-text chunking for `notes` + `product` only (slogans + keywords stay single-chunk)
+- [x] Hard cap `NICHE_RAG_MAX_CHUNKS_PER_SOURCE=200` per source row; over-cap truncation flagged via `metadata.truncated=true`
 
 ### Maintenance + Backfill
 
-- [ ] Add `vector_app/tasks.py:maintain_indexes` rq job — daily REINDEX CONCURRENTLY on pgvector index + bloat check
-- [ ] Add `vector_app/tasks.py:retry_failed_indexings` rq job — iterates `IndexingFailure.objects.filter(resolved_at__isnull=True)` (oldest 100 first), re-enqueues `create_or_update_embedding` for each. Caps at 100 retries per cron-fire to avoid storms.
-- [ ] Add `vector_app/management/commands/schedule_index_maintenance.py` — registers TWO crons via `django_rq.get_scheduler()`:
+- [x] Add `vector_app/tasks.py:maintain_indexes` rq job — daily REINDEX CONCURRENTLY on pgvector index + bloat check
+- [x] Add `vector_app/tasks.py:retry_failed_indexings` rq job — iterates `IndexingFailure.objects.filter(resolved_at__isnull=True)` (oldest 100 first), re-enqueues `create_or_update_embedding` for each. Caps at 100 retries per cron-fire to avoid storms.
+- [x] Add `vector_app/management/commands/schedule_index_maintenance.py` — registers TWO crons via `django_rq.get_scheduler()`:
   - `0 4 * * *` -> `maintain_indexes` (REINDEX)
   - `15 4 * * *` -> `retry_failed_indexings` (15-min offset to avoid contention)
-- [ ] Add `vector_app/management/commands/backfill_niche_rag.py` — args `--niche <id>` / `--content-type slogan|product|keyword|notes|all` / `--budget <usd>` / `--dry-run` / `--reembed-existing` (re-embed already-indexed rows with fresh contextual-header — opt-in for matrix-consistency)
-- [ ] **Cost-estimation algorithm** (run BEFORE batch processing, abort early if over budget):
+- [x] Add `vector_app/management/commands/backfill_niche_rag.py` — args `--niche <id>` / `--content-type slogan|product|keyword|notes|all` / `--budget <usd>` / `--dry-run` / `--reembed-existing` (re-embed already-indexed rows with fresh contextual-header — opt-in for matrix-consistency)
+- [x] **Cost-estimation algorithm** (run BEFORE batch processing, abort early if over budget):
   ```
   count_rows = <ORM count for niche + content_type filter>
   avg_input_tokens_per_row = 200 (slogan-like rows are short; products/notes can be longer — use tiktoken to compute actual mean over a 50-row sample if `--niche` provided)
@@ -136,9 +136,9 @@
   ) × 1.2  # 20% safety margin for retries + outliers
   if estimated_cost_usd > budget: abort(exit 2, log "Budget $X exceeded by $Y; raise via --budget or NICHE_RAG_BACKFILL_BUDGET_USD")
   ```
-- [ ] Batches of 50 rows with contextual-header + embedding; track ACTUAL cost via Langfuse generation events; abort mid-run if actual cost projected to exceed budget by >10% of remaining budget.
-- [ ] **Default budget cap `$20`** (Q4 decision). Use `NICHE_RAG_BACKFILL_BUDGET_USD` env override.
-- [ ] Idempotent — upserts via existing `create_or_update_embedding` unless `--reembed-existing` flag (which forces re-embed even if Embedding exists).
+- [x] Batches of 50 rows with contextual-header + embedding; track ACTUAL cost via Langfuse generation events; abort mid-run if actual cost projected to exceed budget by >10% of remaining budget.
+- [x] **Default budget cap `$20`** (Q4 decision). Use `NICHE_RAG_BACKFILL_BUDGET_USD` env override.
+- [x] Idempotent — upserts via existing `create_or_update_embedding` unless `--reembed-existing` flag (which forces re-embed even if Embedding exists).
 
 ### Tests
 
@@ -147,10 +147,10 @@
 - [x] `Niche.post_save` debounces multiple saves into one `reindex_niche_sources` job
 - [x] `post_delete` removes corresponding `Embedding` rows
 - [x] `create_or_update_embedding` records `IndexingFailure` after 3 failed attempts; success marks resolved
-- [ ] Contextual header prepended only for niche source models, not legacy NicheAnalysis
-- [ ] Backfill respects `--dry-run`
-- [ ] Backfill aborts on `--budget` exceeded
-- [ ] Backfill is idempotent (running twice produces identical row count)
+- [x] Contextual header prepended only for niche source models, not legacy NicheAnalysis
+- [x] Backfill respects `--dry-run`
+- [x] Backfill aborts on `--budget` exceeded
+- [x] Backfill is idempotent (running twice produces identical row count)
 
 ## Phase 1C — Hybrid Retrieval (extends `vector_app.services.EmbeddingService`)
 
