@@ -156,15 +156,15 @@
 
 ### Add `hybrid_search` method to existing service
 
-- [ ] Add `EmbeddingService.hybrid_search(workspace, query, filters=None, top_k=10, content_subtypes=None)`:
+- [x] Add `EmbeddingService.hybrid_search(workspace, query, filters=None, top_k=10, content_subtypes=None)`:
   - Validates workspace + (optional) niche_id at ORM level (raises `PermissionError` → 403 mapper)
   - Optionally runs `agent_app/services/query_rewriter.py` first (gated by `NICHE_RAG_QUERY_REWRITE_ENABLED`)
   - Parallel vector path (reuses existing `search()` with `filters={metadata__niche_id, content_subtype}`)
   - Parallel BM25 path (Django `SearchVectorField` + `SearchRank` on existing `Embedding.search_vector` from PROJ-15)
   - Reciprocal Rank Fusion `k=60` (TREC standard)
   - Returns `top_k` `Chunk` dicts with `text`, `content_subtype`, `source_pk`, `score`, `metadata`
-- [ ] Add GIN index migration on `Embedding.metadata->>'niche_id'` in `vector_app/migrations/`
-- [ ] **Verify `Embedding.search_vector` is populated automatically** — field exists from PROJ-15 (SearchVectorField, null=True) but the populate path is unclear from current code. Audit:
+- [x] Add GIN index migration on `Embedding.metadata->>'niche_id'` in `vector_app/migrations/`
+- [x] **Verify `Embedding.search_vector` is populated automatically** — field exists from PROJ-15 (SearchVectorField, null=True) but the populate path is unclear from current code. Audit:
   - Check `vector_app/signals.py` for a `post_save(Embedding)` handler that sets `search_vector = SearchVector('search_text', config='english')`
   - Check for Postgres trigger via `\df+ vector_app_embedding*` (psql backslash command)
   - If NEITHER exists: add `vector_app/migrations/000N_search_vector_trigger.py` with raw SQL trigger:
@@ -178,23 +178,23 @@
     ```
   - Backfill existing rows: `UPDATE vector_app_embedding SET search_vector = to_tsvector('english', COALESCE(search_text, '')) WHERE search_vector IS NULL;`
   - Confirm GIN index on `search_vector` exists from PROJ-15 (else add it)
-- [ ] Smoke EXPLAIN-ANALYZE test asserts both `Index Scan using <pgvector_idx>` AND `Bitmap Index Scan using <embedding_search_vector_gin>` appear (AC-Ops-DB-1/2 + Verification 25). Test FAILS if BM25 path returns 0 results for a known-matching query → indicates `search_vector` is NULL for that row.
+- [x] Smoke EXPLAIN-ANALYZE test asserts both `Index Scan using <pgvector_idx>` AND `Bitmap Index Scan using <embedding_search_vector_gin>` appear (AC-Ops-DB-1/2 + Verification 25). Test FAILS if BM25 path returns 0 results for a known-matching query → indicates `search_vector` is NULL for that row.
 
 ### Query Rewriter (chat-domain — lives in `agent_app`)
 
-- [ ] Add `agent_app/services/query_rewriter.py:rewrite(user_query, niche_name, user_language)` — expand for vector path; passthrough for BM25 path
-- [ ] Uses `ChatNodeConfig.query_rewrite` prompt
-- [ ] Gated by setting `NICHE_RAG_QUERY_REWRITE_ENABLED` (default True)
+- [x] Add `agent_app/services/query_rewriter.py:rewrite(user_query, niche_name, user_language)` — expand for vector path; passthrough for BM25 path
+- [x] Uses `ChatNodeConfig.query_rewrite` prompt
+- [x] Gated by setting `NICHE_RAG_QUERY_REWRITE_ENABLED` (default True)
 
 ### Tests
 
-- [ ] Cross-workspace access to `hybrid_search` raises `PermissionError`
-- [ ] RRF fusion: chunk at rank 1 in BOTH paths scores higher than chunks ranked in only one
-- [ ] Empty corpus returns `[]` (does NOT raise)
-- [ ] Chunking caps at 200 chunks per source; truncation marker set
-- [ ] Dimension assertion catches wrong-model output (stub returning wrong-size embedding)
-- [ ] EXPLAIN ANALYZE confirms Index Scan usage on 1000-row test dataset
-- [ ] Query rewriter disabled when flag false (no LLM call observed)
+- [x] Cross-workspace access to `hybrid_search` raises `PermissionError`
+- [x] RRF fusion: chunk at rank 1 in BOTH paths scores higher than chunks ranked in only one
+- [x] Empty corpus returns `[]` (does NOT raise)
+- [x] Chunking caps at 200 chunks per source; truncation marker set
+- [x] Dimension assertion catches wrong-model output (stub returning wrong-size embedding)
+- [x] EXPLAIN ANALYZE confirms Index Scan usage on 1000-row test dataset
+- [x] Query rewriter disabled when flag false (no LLM call observed)
 
 ## Phase 1D — Agent + 8 Tools (extends `agent_app/agents/`)
 

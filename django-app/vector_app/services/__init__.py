@@ -207,6 +207,14 @@ class EmbeddingService:
 
         vector = self._get_embedding_vector(embed_text)
 
+        # PROJ-29 Phase 1C — dimension assertion (AC-Ops-Chunk-3).
+        # Embedding-API model drift produces silently-wrong embeddings;
+        # fail loudly here so the DB never stores a wrong-dim vector.
+        assert len(vector) == self.dimensions, (
+            f"Embedding dimension mismatch: expected {self.dimensions}, "
+            f"got {len(vector)} from model {self.model!r}."
+        )
+
         embedding, _ = Embedding.objects.update_or_create(
             content_type=ct,
             object_id=instance.pk,
@@ -435,3 +443,162 @@ class EmbeddingService:
             })
 
         return formatted
+
+    # PROJ-29 Phase 1C — Reciprocal Rank Fusion constant (TREC standard).
+    RRF_K = 60
+
+    def hybrid_search(
+        self,
+        workspace,
+        query: str,
+        filters: Optional[dict] = None,
+        top_k: int = 10,
+        content_subtypes: Optional[list[str]] = None,
+    ) -> list[dict]:
+        """Hybrid retrieval: vector search + BM25 fused via Reciprocal Rank Fusion.
+
+        PROJ-29 Phase 1C entrypoint for the chat agent's RAG tools.
+
+        Args:
+            workspace: Workspace instance OR workspace_id (uuid). Required —
+                strict isolation enforced.
+            query: User query string. Empty -> ``[]``.
+            filters: Optional ORM filters applied to BOTH paths. Common keys:
+                ``metadata__niche_id`` (validated against workspace),
+                ``metadata__content_subtype``, ``content_type_id``.
+            top_k: Number of fused results to return (default 10).
+            content_subtypes: Optional list filter on
+                ``metadata.content_subtype`` (e.g. ``['slogan']``).
+
+        Returns:
+            List of dicts with exactly 5 keys:
+                ``text``, ``content_subtype``, ``source_pk``, ``score``, ``metadata``.
+
+        Raises:
+            PermissionError: when ``filters['metadata__niche_id']`` references
+                a niche not in this workspace.
+        """
+        if workspace is None:
+            raise PermissionError("workspace is required for hybrid_search")
+
+        workspace_id = getattr(workspace, 'pk', None) or workspace
+
+        # Cross-workspace niche access guard (AC-Isolation).
+        filters = dict(filters or {})
+        niche_id = filters.get('metadata__niche_id')
+        if niche_id:
+            from niche_app.models import Niche
+            if not Niche.objects.filter(
+                workspace_id=workspace_id, id=niche_id,
+            ).exists():
+                raise PermissionError(
+                    f"niche_id {niche_id} not in workspace {workspace_id}"
+                )
+
+        if not query or not query.strip():
+            return []
+
+        # Step 1 — optional query rewriter (vector path only). BM25 path
+        # uses the original query verbatim (per spec AC-8).
+        vector_query = query
+        if getattr(settings, 'NICHE_RAG_QUERY_REWRITE_ENABLED', True):
+            try:
+                from agent_app.services.query_rewriter import rewrite
+                niche_name = ''
+                if niche_id:
+                    from niche_app.models import Niche
+                    niche_name = (
+                        Niche.objects.filter(pk=niche_id)
+                        .values_list('name', flat=True)
+                        .first()
+                        or ''
+                    )
+                rewritten = rewrite(
+                    query, niche_name=niche_name, user_language='en',
+                )
+                if rewritten and rewritten.strip():
+                    vector_query = rewritten
+            except Exception as exc:  # pragma: no cover — defensive
+                logger.warning("query rewrite failed, using original: %s", exc)
+
+        # Step 2 — vector path (reuse existing search()).
+        try:
+            vector_query_vector = self._get_embedding_vector(vector_query)
+        except Exception as exc:
+            logger.warning("vector path embedding failed: %s", exc)
+            vector_query_vector = None
+
+        candidate_limit = max(top_k * 2, 1)
+
+        vector_hits: list[dict] = []
+        if vector_query_vector is not None:
+            qs = Embedding.objects.filter(workspace_id=workspace_id)
+            if filters:
+                qs = qs.filter(**filters)
+            if content_subtypes:
+                qs = qs.filter(
+                    metadata__content_subtype__in=content_subtypes,
+                )
+            qs = qs.annotate(
+                cosine_distance=CosineDistance(
+                    'embedding', vector_query_vector,
+                ),
+            ).order_by('cosine_distance')[:candidate_limit]
+            vector_hits = list(
+                qs.values(
+                    'id', 'content_type_id', 'object_id', 'text_input',
+                    'metadata', 'cosine_distance',
+                )
+            )
+
+        # Step 3 — BM25 path on existing search_vector tsvector column.
+        bm25_query = SearchQuery(query, config='english', search_type='plain')
+        bm25_qs = Embedding.objects.filter(workspace_id=workspace_id)
+        if filters:
+            bm25_qs = bm25_qs.filter(**filters)
+        if content_subtypes:
+            bm25_qs = bm25_qs.filter(
+                metadata__content_subtype__in=content_subtypes,
+            )
+        bm25_qs = bm25_qs.annotate(
+            rank=SearchRank(F('search_vector'), bm25_query),
+        ).filter(rank__gt=0).order_by('-rank')[:candidate_limit]
+        bm25_hits = list(
+            bm25_qs.values(
+                'id', 'content_type_id', 'object_id', 'text_input',
+                'metadata', 'rank',
+            )
+        )
+
+        # Step 4 — Reciprocal Rank Fusion.
+        scores: dict[str, float] = {}
+        rows: dict[str, dict] = {}
+        for rank_i, hit in enumerate(vector_hits, start=1):
+            key = str(hit['id'])
+            scores[key] = scores.get(key, 0.0) + 1.0 / (self.RRF_K + rank_i)
+            rows.setdefault(key, hit)
+        for rank_i, hit in enumerate(bm25_hits, start=1):
+            key = str(hit['id'])
+            scores[key] = scores.get(key, 0.0) + 1.0 / (self.RRF_K + rank_i)
+            rows.setdefault(key, hit)
+
+        if not scores:
+            return []
+
+        ranked_ids = sorted(scores, key=lambda k: scores[k], reverse=True)
+        ranked_ids = ranked_ids[:top_k]
+
+        # Step 5 — build the 5-key return dicts.
+        results: list[dict] = []
+        for emb_id in ranked_ids:
+            row = rows[emb_id]
+            meta = row.get('metadata') or {}
+            results.append({
+                'text': row.get('text_input', '') or '',
+                'content_subtype': meta.get('content_subtype', 'unknown'),
+                'source_pk': str(row.get('object_id', '')),
+                'score': round(scores[emb_id], 6),
+                'metadata': meta,
+            })
+
+        return results
