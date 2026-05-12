@@ -232,6 +232,11 @@ RQ_QUEUES = {
         'PORT': os.environ.get("REDIS_PORT", default=6379),
         'DB': os.environ.get("REDIS_DB", default=0),
         'DEFAULT_TIMEOUT': 900,
+        # PROJ-29 AC-Ops-RQ-2/3 — per-result TTL 1h, per-failure TTL 24h.
+        # django-rq's rqworker CLI doesn't accept --result-ttl/--failure-ttl
+        # so we set them at the queue level instead.
+        'DEFAULT_RESULT_TTL': 3600,
+        'DEFAULT_FAILURE_TTL': 86400,
         'REDIS_CLIENT_KWARGS': {},
     },
     'scraper': {
@@ -267,6 +272,9 @@ RQ_QUEUES = {
         'PORT': os.environ.get("REDIS_PORT", default=6379),
         'DB': os.environ.get("REDIS_DB", default=0),
         'DEFAULT_TIMEOUT': 3600,
+        # PROJ-29 AC-Ops-RQ-4/5 — TTLs for chat-domain jobs.
+        'DEFAULT_RESULT_TTL': 3600,
+        'DEFAULT_FAILURE_TTL': 86400,
         'REDIS_CLIENT_KWARGS': {},
     },
     'search': {

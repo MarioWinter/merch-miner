@@ -24,10 +24,10 @@ services:
   worker:
     image: ghcr.io/mariowinter/merch-miner/backend:latest
     env_file: ./.env
-    # PROJ-29 AC-Ops-RQ-1/2/3 — recycle workers after 500 jobs to bound memory
-    # growth from LangGraph state + embedding clients; per-result TTL 1h,
-    # per-failure TTL 24h.
-    command: python manage.py rqworker default --max-jobs 500 --result-ttl 3600 --failure-ttl 86400
+    # PROJ-29 AC-Ops-RQ-1 — recycle workers after 500 jobs to bound memory
+    # growth from LangGraph state + embedding clients. Result/failure TTLs
+    # are set per-queue in settings.RQ_QUEUES.
+    command: python manage.py rqworker default --max-jobs 500
     restart: unless-stopped
     volumes:
       # PROJ-25: parse_bulk_upload_job reads uploads from MEDIA_ROOT/bulk_uploads/.
@@ -83,10 +83,10 @@ services:
   worker-agent:
     image: ghcr.io/mariowinter/merch-miner/backend:latest
     env_file: ./.env
-    # PROJ-29 AC-Ops-RQ-4/5 — agent queue carries chat-domain jobs
-    # (summarize_conversation, follow-up async helpers); recycle after 500 jobs
-    # to bound LangGraph + langchain client memory growth.
-    command: python manage.py rqworker agent --max-jobs 500 --result-ttl 3600 --failure-ttl 86400
+    # PROJ-29 AC-Ops-RQ-4 — agent queue carries chat-domain jobs
+    # (summarize_conversation, follow-up async helpers); recycle after 500
+    # jobs. Result/failure TTLs set in settings.RQ_QUEUES['agent'].
+    command: python manage.py rqworker agent --max-jobs 500
     restart: unless-stopped
     networks:
       - default
