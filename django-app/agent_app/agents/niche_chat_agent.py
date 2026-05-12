@@ -837,13 +837,267 @@ def build_niche_chat_agent(workspace, niche_id, session_id: str):
     return agent.with_config({'recursion_limit': RECURSION_LIMIT})
 
 
+# ---------------------------------------------------------------------------
+# PROJ-29 Phase 1E — ``run_chat`` orchestration entry point
+# ---------------------------------------------------------------------------
+
+# SSE event constants — names map 1:1 to the SSE protocol documented in
+# ``docs/tasks/PROJ-29-tasks.md`` Phase 1E.
+EVENT_INIT = 'init'
+EVENT_STAGE = 'stage'
+EVENT_TOOL_CALL = 'tool_call'
+EVENT_TOOL_RESULT = 'tool_result'
+EVENT_TOOL_TIMEOUT = 'tool_timeout'
+EVENT_CHUNKS_USED = 'chunks_used'
+EVENT_CHUNK = 'chunk'
+EVENT_DONE = 'done'
+EVENT_FOLLOW_UPS = 'follow_ups'
+EVENT_ERROR = 'error'
+EVENT_GENERATE_SLOGANS_PAYLOAD = 'generate_slogans_payload'
+EVENT_HEARTBEAT = 'heartbeat'
+
+# Tools that surface RAG chunks the UI renders as citations.
+SEARCH_TOOL_NAMES = {
+    'search_slogans',
+    'search_products',
+    'search_niche_knowledge',
+}
+
+
+def _is_chunk_list(value: Any) -> bool:
+    """Best-effort detector for hybrid_search result lists."""
+    return (
+        isinstance(value, list)
+        and value
+        and isinstance(value[0], dict)
+        and 'chunk_text' in value[0]
+    )
+
+
+def run_chat(session, message: str):
+    """Yield SSE event dicts for one niche-chat turn.
+
+    Phase 1E orchestration entry point. The view layer wraps each yield in
+    ``event: <name>\\ndata: <json>\\n\\n``. Tests mock this function with a
+    fixture event sequence — the production implementation iterates
+    ``agent.stream(..., stream_mode=['updates', 'messages'])`` and translates
+    LangGraph node updates into the documented event vocabulary.
+
+    Event order (per Phase 1E):
+
+    ``init`` -> ``stage:thinking`` -> N x (``tool_call`` -> ``tool_result``
+    OR ``tool_timeout``) -> ``chunks_used`` -> N x ``chunk`` ->
+    ``generate_slogans_payload`` (when applicable) -> ``done`` ->
+    ``follow_ups``.
+
+    On unrecoverable error: ``error`` with ``{code, retry_after_s: 30}``.
+    """
+    niche = session.niche_context
+    yield {
+        'event': EVENT_INIT,
+        'data': {
+            'session_id': str(session.id),
+            'mode': 'agent',
+            'niche_id': str(niche.id) if niche else None,
+        },
+    }
+    yield {'event': EVENT_STAGE, 'data': {'stage': 'thinking'}}
+
+    chunks_consolidated: list[dict] = []
+    final_answer_parts: list[str] = []
+    generate_slogans_payload: Optional[dict] = None
+    tool_call_starts: dict[str, float] = {}
+
+    try:
+        agent = build_niche_chat_agent(
+            session.workspace, niche.id, str(session.id),
+        )
+
+        # ``stream_mode=['updates', 'messages']`` -> tuples of
+        # ``(mode_name, payload)`` per the LangGraph contract.
+        for stream_mode, payload in agent.stream(
+            {'messages': [{'role': 'user', 'content': message}]},
+            stream_mode=['updates', 'messages'],
+        ):
+            if stream_mode == 'updates':
+                # ``payload`` shape: ``{<node_name>: <state_update>}``.
+                for node_name, update in (payload or {}).items():
+                    if node_name == 'tools':
+                        for tool_msg in (update or {}).get('messages', []):
+                            tool_name = (
+                                getattr(tool_msg, 'name', '') or 'unknown'
+                            )
+                            raw_output = getattr(tool_msg, 'content', '')
+                            duration_ms = int(
+                                (
+                                    time.monotonic()
+                                    - tool_call_starts.pop(tool_name, time.monotonic())
+                                ) * 1000
+                            )
+                            # Tool-timeout / tool-error detection: the tool
+                            # wrapper returns ``{'error': 'tool_timeout', ...}``
+                            # on the 30s cap (AC-Thinking-5). Inspect the
+                            # parsed payload to distinguish timeout vs success.
+                            parsed: Any = raw_output
+                            try:
+                                import json as _json
+                                if isinstance(raw_output, str):
+                                    parsed = _json.loads(raw_output)
+                            except (TypeError, ValueError):
+                                parsed = raw_output
+
+                            if (
+                                isinstance(parsed, dict)
+                                and parsed.get('error') == 'tool_timeout'
+                            ):
+                                yield {
+                                    'event': EVENT_TOOL_TIMEOUT,
+                                    'data': {
+                                        'tool': tool_name,
+                                        'duration_ms': parsed.get(
+                                            'duration_ms', duration_ms,
+                                        ),
+                                        'output_preview': _safe_repr(parsed, 200),
+                                    },
+                                }
+                                continue
+
+                            # Capture generate_slogans payload (special-case).
+                            if (
+                                tool_name == 'generate_slogans'
+                                and isinstance(parsed, dict)
+                                and 'slogans' in parsed
+                            ):
+                                generate_slogans_payload = parsed
+
+                            # Accumulate chunks for the consolidated event.
+                            if (
+                                tool_name in SEARCH_TOOL_NAMES
+                                and _is_chunk_list(parsed)
+                            ):
+                                chunks_consolidated.extend(parsed)
+
+                            yield {
+                                'event': EVENT_TOOL_RESULT,
+                                'data': {
+                                    'tool': tool_name,
+                                    'duration_ms': duration_ms,
+                                    'output_preview': _safe_repr(parsed, 200),
+                                },
+                            }
+                    elif node_name == 'agent':
+                        for ai_msg in (update or {}).get('messages', []):
+                            for tool_call in getattr(
+                                ai_msg, 'tool_calls', [],
+                            ) or []:
+                                tool_name = (
+                                    tool_call.get('name')
+                                    if isinstance(tool_call, dict)
+                                    else getattr(tool_call, 'name', '')
+                                ) or 'unknown'
+                                tool_args = (
+                                    tool_call.get('args')
+                                    if isinstance(tool_call, dict)
+                                    else getattr(tool_call, 'args', {})
+                                ) or {}
+                                tool_call_starts[tool_name] = time.monotonic()
+                                yield {
+                                    'event': EVENT_TOOL_CALL,
+                                    'data': {
+                                        'tool': tool_name,
+                                        'args': tool_args,
+                                    },
+                                }
+            elif stream_mode == 'messages':
+                # ``payload`` shape: ``(message_chunk, metadata)``.
+                try:
+                    msg_chunk, metadata = payload
+                except (TypeError, ValueError):
+                    continue
+                # Only emit token chunks from the agent node (not tool nodes).
+                node = (metadata or {}).get('langgraph_node', '')
+                if node and node != 'agent':
+                    continue
+                delta = getattr(msg_chunk, 'content', '') or ''
+                if not delta:
+                    continue
+                final_answer_parts.append(delta)
+                yield {'event': EVENT_CHUNK, 'data': {'delta': delta}}
+    except Exception as exc:
+        logger.exception('run_chat agent stream failed')
+        yield {
+            'event': EVENT_ERROR,
+            'data': {
+                'code': type(exc).__name__,
+                'retry_after_s': 30,
+            },
+        }
+        return
+
+    # Always emit chunks_used (even when empty) so the UI can clear stale
+    # citations from a prior turn.
+    yield {
+        'event': EVENT_CHUNKS_USED,
+        'data': {'chunks': chunks_consolidated},
+    }
+
+    if generate_slogans_payload is not None:
+        yield {
+            'event': EVENT_GENERATE_SLOGANS_PAYLOAD,
+            'data': generate_slogans_payload,
+        }
+
+    final_answer = ''.join(final_answer_parts)
+    yield {'event': EVENT_DONE, 'data': {'final_answer': final_answer}}
+
+    # Follow-ups — never crashes the stream; suggester returns [] on failure.
+    try:
+        from agent_app.services.follow_up_suggester import suggest as _suggest
+        from niche_app.services import (
+            derive_marketplace,
+            marketplace_to_language,
+        )
+
+        language = marketplace_to_language(derive_marketplace(niche)) if niche else 'en'
+        suggestions = _suggest(
+            user_msg=message,
+            assistant_msg=final_answer,
+            niche_name=niche.name if niche else '',
+            language=language,
+        )
+        if suggestions:
+            yield {
+                'event': EVENT_FOLLOW_UPS,
+                'data': {'suggestions': suggestions},
+            }
+    except Exception:
+        logger.warning(
+            'follow_up_suggester invocation failed; skipping chips',
+            exc_info=True,
+        )
+
+
 __all__ = [
     'AGENT_TYPE',
+    'EVENT_CHUNK',
+    'EVENT_CHUNKS_USED',
+    'EVENT_DONE',
+    'EVENT_ERROR',
+    'EVENT_FOLLOW_UPS',
+    'EVENT_GENERATE_SLOGANS_PAYLOAD',
+    'EVENT_HEARTBEAT',
+    'EVENT_INIT',
+    'EVENT_STAGE',
+    'EVENT_TOOL_CALL',
+    'EVENT_TOOL_RESULT',
+    'EVENT_TOOL_TIMEOUT',
     'PercentileCont',
     'RECURSION_LIMIT',
+    'SEARCH_TOOL_NAMES',
     'SUBSET_TO_SUBTYPES',
     'TOOL_TIMEOUT_SECONDS',
     'build_niche_chat_agent',
+    'run_chat',
     '_bsr_snippet',
     '_normalize_enum_token',
     '_parse_llm_json',

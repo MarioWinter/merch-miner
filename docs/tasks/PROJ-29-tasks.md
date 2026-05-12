@@ -258,30 +258,30 @@
 
 ### View refactor (in `search_app`)
 
-- [ ] Detect `session.niche_context is not None` → route through `agent_app.agents.niche_chat_agent.run_chat(session, message)`; else keep legacy Vane-only path
-- [ ] Wrap entire view in Langfuse trace with `trace_id = session.id`, metadata `{workspace_id, niche_context_id, user_id, mode}`
-- [ ] Build `available_tools` + `tool_descriptions` strings from registered tool registry
-- [ ] Apply `chat_agent` DRF throttle scope via `throttle_classes = [ScopedRateThrottle]` + `throttle_scope = 'chat_agent'`
+- [x] Detect `session.niche_context is not None` → route through `agent_app.agents.niche_chat_agent.run_chat(session, message)`; else keep legacy Vane-only path
+- [x] Wrap entire view in Langfuse trace with `trace_id = session.id`, metadata `{workspace_id, niche_context_id, user_id, mode}`
+- [x] Build `available_tools` + `tool_descriptions` strings from registered tool registry
+- [x] Apply `chat_agent` DRF throttle scope via `throttle_classes = [ScopedRateThrottle]` + `throttle_scope = 'chat_agent'`
 
 ### SSE protocol additions
 
-- [ ] `event: init` (existing) + `event: stage` (new) at each phase boundary
-- [ ] `event: heartbeat data: {elapsed_ms}` every 3s while no `chunk` has fired
-- [ ] `event: tool_call` BEFORE each tool invocation; `event: tool_result` AFTER with `duration_ms`
-- [ ] `event: tool_timeout` if a tool hits hard 20s cancel (AC-Thinking-5)
-- [ ] `event: chunks_used` consolidated from all RAG tool results before final answer streams
-- [ ] `event: generate_slogans_payload` when the `generate_slogans` tool fires (AC-11a structured payload)
-- [ ] `event: follow_ups` AFTER `done` with 3 suggestion strings
-- [ ] `event: error` with `{code, retry_after_s?}` on unrecoverable failure
+- [x] `event: init` (existing) + `event: stage` (new) at each phase boundary
+- [x] `event: heartbeat data: {elapsed_ms}` every 3s while no `chunk` has fired
+- [x] `event: tool_call` BEFORE each tool invocation; `event: tool_result` AFTER with `duration_ms`
+- [x] `event: tool_timeout` if a tool hits hard 20s cancel (AC-Thinking-5)
+- [x] `event: chunks_used` consolidated from all RAG tool results before final answer streams
+- [x] `event: generate_slogans_payload` when the `generate_slogans` tool fires (AC-11a structured payload)
+- [x] `event: follow_ups` AFTER `done` with 3 suggestion strings
+- [x] `event: error` with `{code, retry_after_s?}` on unrecoverable failure
 
 ### Tests
 
-- [ ] Non-niche session → legacy Vane path (no agent overhead)
-- [ ] Niche session → agent path; SSE includes all new event types in correct order
-- [ ] Throttle: 31st call within a minute returns 429
-- [ ] Other endpoints (e.g. `/api/research/products/`) still return 200 while chat throttled (bucket isolation)
-- [ ] Heartbeat fires every 3s during a 10s-tool-call test
-- [ ] Tool timeout emitted at 20s; chat answer still delivered with timeout note
+- [x] Non-niche session → legacy Vane path (no agent overhead)
+- [x] Niche session → agent path; SSE includes all new event types in correct order
+- [x] Throttle: 31st call within a minute returns 429
+- [x] Other endpoints (e.g. `/api/research/products/`) still return 200 while chat throttled (bucket isolation)
+- [x] Heartbeat fires every 3s during a 10s-tool-call test
+- [x] Tool timeout emitted at 20s; chat answer still delivered with timeout note
 
 ## Phase 1F — Chat history management
 

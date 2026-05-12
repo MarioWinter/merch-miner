@@ -11,6 +11,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.renderers import BaseRenderer, JSONRenderer
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from search_app.api.serializers import (
@@ -593,6 +594,72 @@ class ChatSessionMessagesView(APIView):
         )
 
 
+def _serialize_sse(event: dict) -> str:
+    """Serialize a ``{'event': name, 'data': dict}`` payload to SSE wire format.
+
+    Format (Phase 1E): ``event: <name>\\ndata: <json>\\n\\n``.
+    """
+    name = event.get('event', 'message')
+    data = event.get('data', {})
+    return f"event: {name}\ndata: {json.dumps(data)}\n\n"
+
+
+def _wrap_with_heartbeat(event_generator, interval_s: float = 3.0):
+    """Wrap an event generator with a heartbeat injector.
+
+    Yields ``{'event': 'heartbeat', 'data': {'elapsed_ms': N}}`` every
+    ``interval_s`` seconds whenever the underlying generator hasn't produced
+    a real event yet. Uses a worker thread + queue so the heartbeat fires
+    even when the underlying generator is blocked inside a slow tool call.
+
+    Heartbeats stop being emitted once a ``chunk`` event has fired (token
+    streaming has begun — the frontend updates the bubble at every chunk so
+    no further keep-alive is needed).
+    """
+    import queue as _queue
+    import threading
+    import time as _time
+
+    sentinel = object()
+    q: _queue.Queue = _queue.Queue()
+    started_at = _time.monotonic()
+
+    def _producer():
+        try:
+            for evt in event_generator:
+                q.put(evt)
+        except Exception as exc:  # pragma: no cover - defensive
+            q.put({
+                'event': 'error',
+                'data': {'code': type(exc).__name__, 'retry_after_s': 30},
+            })
+        finally:
+            q.put(sentinel)
+
+    thread = threading.Thread(target=_producer, daemon=True)
+    thread.start()
+
+    chunk_fired = False
+    while True:
+        try:
+            item = q.get(timeout=interval_s)
+        except _queue.Empty:
+            if chunk_fired:
+                # Streaming is live; UI gets feedback from chunks themselves.
+                continue
+            elapsed_ms = int((_time.monotonic() - started_at) * 1000)
+            yield {
+                'event': 'heartbeat',
+                'data': {'elapsed_ms': elapsed_ms},
+            }
+            continue
+        if item is sentinel:
+            return
+        if item.get('event') == 'chunk':
+            chunk_fired = True
+        yield item
+
+
 class ChatSessionMessageStreamView(APIView):
     """GET /api/chat/sessions/{id}/messages/stream/?content=...&search_mode=...
 
@@ -606,11 +673,17 @@ class ChatSessionMessageStreamView(APIView):
         model: optional OpenRouter model override
 
     Yields SSE events: init, sources, response (chunks), done.
+
+    PROJ-29 Phase 1E: when the session has ``niche_context`` set, the request
+    routes through the niche-chat agent (``run_chat``) instead of the legacy
+    Vane path. Throttled at 30/min per user via the ``chat_agent`` scope.
     """
 
     authentication_classes = [CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
     renderer_classes = [EventStreamRenderer, JSONRenderer]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'chat_agent'
 
     def get(self, request, session_id):
         # EventSource cannot send custom headers — resolve workspace from the
@@ -851,6 +924,15 @@ class ChatSessionMessageStreamView(APIView):
         if niche_for_context:
             system_instructions = build_system_instructions(niche_for_context)
 
+        # PROJ-29 Phase 1E — niche-bound agent path.
+        # When the session has a pinned niche, route through the niche-chat
+        # agent (run_chat). The legacy Vane path stays untouched for sessions
+        # without niche_context (general web-search chat).
+        if session.niche_context is not None:
+            return self._handle_niche_agent_stream(
+                request, workspace, session, user_msg, content,
+            )
+
         vane = VaneService()
         user_id = request.user.id
         workspace_id = str(workspace.id)
@@ -959,6 +1041,78 @@ class ChatSessionMessageStreamView(APIView):
 
         response = StreamingHttpResponse(
             event_stream(),
+            content_type='text/event-stream',
+        )
+        response['Cache-Control'] = 'no-cache'
+        response['X-Accel-Buffering'] = 'no'
+        return response
+
+    def _handle_niche_agent_stream(
+        self, request, workspace, session, user_msg, content,
+    ):
+        """PROJ-29 Phase 1E — stream the niche-chat agent.
+
+        Wraps the request in a Langfuse trace (no-op when credentials absent),
+        invokes ``run_chat`` for orchestration, and serializes the resulting
+        event dicts into the SSE wire format. Persists the final assistant
+        message on ``done``.
+        """
+        from agent_app.agents.niche_chat_agent import run_chat
+        from core.observability.langfuse_handler import get_langfuse_handler
+
+        # Trace handle is best-effort — initialisation registers the session
+        # with the Langfuse client when keys are present, and short-circuits
+        # to ``None`` when they aren't (graceful no-op).
+        get_langfuse_handler(
+            trace_name='chat_session_stream',
+            trace_id=str(session.id),
+            metadata={
+                'workspace_id': str(workspace.id),
+                'niche_context_id': (
+                    str(session.niche_context.id)
+                    if session.niche_context else None
+                ),
+                'user_id': str(request.user.id),
+                'mode': 'agent',
+            },
+        )
+
+        def agent_event_stream():
+            final_answer = ''
+            try:
+                inner = run_chat(session, content)
+                for evt in _wrap_with_heartbeat(inner):
+                    if evt.get('event') == 'done':
+                        final_answer = (evt.get('data') or {}).get(
+                            'final_answer', '',
+                        ) or ''
+                    yield _serialize_sse(evt)
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.exception('niche_chat_agent stream failed')
+                yield _serialize_sse({
+                    'event': 'error',
+                    'data': {
+                        'code': type(exc).__name__,
+                        'retry_after_s': 30,
+                    },
+                })
+                return
+
+            if final_answer:
+                ChatMessage.objects.create(
+                    session=session,
+                    role=ChatMessage.Role.ASSISTANT,
+                    content=final_answer,
+                    message_type=ChatMessage.MessageType.SEARCH_RESULT,
+                    sources=[],
+                    search_mode='balanced',
+                    search_sources=['niche_agent'],
+                    model_used='niche_chat_agent',
+                )
+                session.save(update_fields=['updated_at'])
+
+        response = StreamingHttpResponse(
+            agent_event_stream(),
             content_type='text/event-stream',
         )
         response['Cache-Control'] = 'no-cache'
