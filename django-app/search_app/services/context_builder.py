@@ -1,4 +1,22 @@
-"""Build system instructions for Vane based on niche context."""
+"""Build system instructions for Vane based on niche context.
+
+LEGACY chat path — used when `session.niche_context is None` and the request
+routes through Vane (PROJ-17/20). When `niche_context is not None`, PROJ-29's
+`agent_react` system prompt takes over and applies the FULL 8-rule guardrail
+set from `chat_node_config_app/_default_prompts.py:CHAT_GUARDRAILS_BLOCK`.
+
+This file encodes rules 1-5 only (the original PROJ-20 BUG-1 fix from
+2026-04-28: niche-name caused language/audience bleed on Schulbusfahrer
+niche). Rules 6-8 (Slogan-Language / Scope / Prompt-Injection) live in
+`CHAT_GUARDRAILS_BLOCK` and are PROJ-29-scoped — non-agent chat does not
+generate slogans or consume retrieved RAG content, so it does not need them.
+
+When editing the clauses below, also update `CHAT_GUARDRAILS_BLOCK` to stay
+in sync. The two files are intentionally redundant for the non-agent path,
+NOT imported from each other (different formatting contexts: this function
+returns a plain string for Vane; CHAT_GUARDRAILS_BLOCK is a `str.format()`
+template with `{niche_name}` placeholder).
+"""
 
 
 def build_system_instructions(niche) -> str:
