@@ -252,7 +252,7 @@ class TestHybridSearchFusion:
 
 @pytest.mark.django_db
 class TestDimensionAssertion:
-    def test_wrong_dim_raises_assertion_error(self, workspace_a, niche_a):
+    def test_wrong_dim_raises_runtime_error(self, workspace_a, niche_a):
         """create_embedding must reject wrong-dim vectors before writing to DB."""
         from idea_app.models import Idea
         idea = Idea.objects.create(
@@ -265,7 +265,7 @@ class TestDimensionAssertion:
         with patch.object(
             EmbeddingService, '_get_embedding_vector', return_value=wrong_dim,
         ):
-            with pytest.raises(AssertionError) as exc:
+            with pytest.raises(RuntimeError) as exc:
                 service.create_embedding(idea)
         msg = str(exc.value)
         assert 'dimension mismatch' in msg.lower()

@@ -266,6 +266,23 @@ class TestChatAgentThrottle:
     scope-isolation contract.
     """
 
+    @pytest.fixture(autouse=True)
+    def _restore_throttle_class_state(self):
+        """Restore ``SimpleRateThrottle.THROTTLE_RATES`` after each test.
+
+        ``_enable_throttling`` overwrites a class attribute on DRF's throttle
+        classes; without this teardown later tests in the same process see a
+        truncated rates dict and crash with ``ImproperlyConfigured``.
+        """
+        from rest_framework.throttling import (
+            ScopedRateThrottle, SimpleRateThrottle,
+        )
+        original_simple = SimpleRateThrottle.THROTTLE_RATES
+        original_scoped = ScopedRateThrottle.THROTTLE_RATES
+        yield
+        SimpleRateThrottle.THROTTLE_RATES = original_simple
+        ScopedRateThrottle.THROTTLE_RATES = original_scoped
+
     def _enable_throttling(self, settings_obj, rate='30/min'):
         """Enable the ``chat_agent`` scope at ``rate``.
 

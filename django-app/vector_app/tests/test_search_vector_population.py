@@ -105,7 +105,7 @@ def test_dimension_assertion_catches_wrong_size(workspace, idea):
         return_value='',
     ):
         service = EmbeddingService()
-        with pytest.raises((AssertionError, ValueError)):
+        with pytest.raises((RuntimeError, ValueError)):
             service.create_embedding(idea)
 
 
