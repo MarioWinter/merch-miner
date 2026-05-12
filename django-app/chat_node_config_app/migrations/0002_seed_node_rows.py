@@ -8,15 +8,29 @@ max_tokens copied from `NODE_DEFAULTS`.
 from django.db import migrations
 
 
+# PROJ-29 model policy (locked 2026-05-12):
+#   - agent_react / creative_techniques: ADMIN-pinned to gpt-4.1-mini.
+#     Reliable structured tool-calling for agent_react; reliable JSON output
+#     + style discipline for creative_techniques. UI Model picker can still
+#     override creative_techniques per request.
+#   - Everything else: gemini-3-flash-preview. Cheap, fast, sufficient
+#     creativity for chat answers / query rewrite / follow-up chips /
+#     summarizer / contextual header.
+#
+# IMPORTANT: `mistralai/mistral-small-creative` was the original seed for
+# creative_techniques. OpenRouter has retired that model — calls return
+# 404 → agent crash on `generate_slogans`. Pinned to gpt-4.1-mini here so
+# any fresh DB install (new server, prod first-deploy) starts in a known-
+# good state. Admins can switch later via Django Admin.
 NODE_SEED = [
     ('agent_react', 'openai/gpt-4.1-mini', 0.3, 4000),
-    ('creative_techniques', 'mistralai/mistral-small-creative', 0.7, 3500),
-    ('chat_with_niche', 'openai/gpt-4.1-mini', 0.3, 2000),
-    ('chat_no_niche', 'openai/gpt-4.1-mini', 0.4, 2000),
-    ('query_rewrite', 'openai/gpt-4.1-mini', 0.2, 500),
-    ('contextual_header', 'openai/gpt-4.1-mini', 0.2, 200),
-    ('follow_up_suggester', 'openai/gpt-4.1-mini', 0.5, 300),
-    ('conversation_summarizer', 'openai/gpt-4.1-mini', 0.2, 1000),
+    ('creative_techniques', 'openai/gpt-4.1-mini', 0.7, 3500),
+    ('chat_with_niche', 'google/gemini-3-flash-preview', 0.3, 2000),
+    ('chat_no_niche', 'google/gemini-3-flash-preview', 0.4, 2000),
+    ('query_rewrite', 'google/gemini-3-flash-preview', 0.2, 500),
+    ('contextual_header', 'google/gemini-3-flash-preview', 0.2, 200),
+    ('follow_up_suggester', 'google/gemini-3-flash-preview', 0.5, 300),
+    ('conversation_summarizer', 'google/gemini-3-flash-preview', 0.2, 1000),
 ]
 
 
