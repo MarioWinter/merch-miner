@@ -6,6 +6,9 @@ from django.test import RequestFactory
 
 from core.middleware import RealIPMiddleware
 
+# DRF imports are exercised in the throttle-key smoke test below — kept inside
+# the test fn so module import stays light.
+
 
 def test_real_ip_overrides_remote_addr_from_xff():
     """X-Forwarded-For first IP becomes REMOTE_ADDR + XFF is dropped."""
@@ -57,3 +60,48 @@ def test_real_ip_empty_xff_keeps_remote_addr():
     mw(request)
 
     assert request.META['REMOTE_ADDR'] == '127.0.0.1'
+
+
+def test_real_ip_throttle_key_uses_client_not_caddy_peer():
+    """PROJ-29 Phase 1G AC-Ops-Throttle-3 / Verification 23 — smoke test the
+    XFF chain ``client → Caddy(172.20.0.4) → Django`` and confirm DRF's
+    ``SimpleRateThrottle.get_ident()`` resolves the throttle key to the
+    *client* IP, not the Caddy container peer.
+
+    Regression gate: if ``RealIPMiddleware`` ever stops dropping XFF, DRF
+    would key throttles by the raw XFF string (effectively per-chain instead
+    of per-client). This test fails loudly in that scenario.
+    """
+    from rest_framework.test import APIRequestFactory
+    from rest_framework.throttling import SimpleRateThrottle
+
+    rf = APIRequestFactory()
+    # Simulate Caddy-proxied request: real client 1.2.3.4 hit Caddy at the
+    # internal IP 172.20.0.4 which then forwarded to Django.
+    request = rf.get(
+        '/api/some/endpoint/',
+        HTTP_X_FORWARDED_FOR='1.2.3.4, 172.20.0.4',
+    )
+    request.META['REMOTE_ADDR'] = '172.20.0.4'  # Caddy peer
+
+    mw = RealIPMiddleware(MagicMock(return_value='ok'))
+    mw(request)
+
+    # Post-middleware: REMOTE_ADDR is the real client, XFF dropped.
+    assert request.META['REMOTE_ADDR'] == '1.2.3.4'
+    assert 'HTTP_X_FORWARDED_FOR' not in request.META
+
+    # DRF's get_ident() reads HTTP_X_FORWARDED_FOR if present (when
+    # NUM_PROXIES is set), else REMOTE_ADDR. With XFF dropped, it MUST
+    # fall through to REMOTE_ADDR (which we just set to the client IP).
+    throttle = SimpleRateThrottle.__new__(SimpleRateThrottle)
+    # SimpleRateThrottle.get_ident accepts request-like objects.
+    ident = throttle.get_ident(request)
+    assert ident == '1.2.3.4', (
+        f'Throttle key resolved to {ident!r}, expected client IP "1.2.3.4". '
+        'If this fails, all users behind Caddy share one throttle bucket.'
+    )
+    # Negative: the Caddy peer IP must NEVER be the throttle key.
+    assert ident != '172.20.0.4', (
+        'Throttle key bound to Caddy peer IP — sitewide throttle collapse!'
+    )

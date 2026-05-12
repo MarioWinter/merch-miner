@@ -1137,6 +1137,18 @@ class ChatSessionMessageStreamView(APIView):
                     yield _serialize_sse(evt)
             except Exception as exc:  # pragma: no cover - defensive
                 logger.exception('niche_chat_agent stream failed')
+                from core.observability.sentry import capture_chat_error
+                capture_chat_error(
+                    session_id=str(session.id),
+                    user_id=str(request.user.id),
+                    exception=exc,
+                    workspace_id=str(workspace.id),
+                    niche_id=(
+                        str(session.niche_context.id)
+                        if session.niche_context else None
+                    ),
+                    message_content=content,
+                )
                 yield _serialize_sse({
                     'event': 'error',
                     'data': {
@@ -1559,3 +1571,109 @@ class SearchHealthView(APIView):
         # to allow 5s offline-recovery polling to surface state changes quickly.
         response['Cache-Control'] = 'private, max-age=3'
         return response
+
+
+class ChatHealthView(APIView):
+    """GET /api/chat/health/ — PROJ-29 Phase 1G AC-Ops-Obs-4 / Verification 31.
+
+    Five-component probe for the niche-chat surface. Returns:
+
+    - 200 ``{'status': 'ok', 'components': {<name>: 'green', ...}, 'failing': []}``
+      when all 5 components healthy.
+    - 503 ``{'status': 'degraded', 'components': {..., <name>: 'red'},
+      'failing': ['<name>', ...]}`` when any component fails.
+
+    Components:
+
+    1. ``embedding_api`` — ``OPENROUTER_API_KEY`` env presence (live ping skipped
+       to avoid burning OpenRouter quota on health checks).
+    2. ``vane`` — HEAD ``settings.VANE_API_URL`` with a 2-second timeout. Green
+       on 200 / 405 (HEAD not allowed = still reachable). Red on
+       connection failure or empty config.
+    3. ``pgvector_index`` — at least one GIN index on ``vector_app_embedding``
+       (covers ``emb_search_gin_idx`` BM25 + ``embedding_metadata_niche_id_gin``
+       JSON filter).
+    4. ``redis`` — ``django_rq.get_queue('default').connection.ping()``.
+    5. ``chat_node_config`` — ``ChatNodeConfig.objects.count() >= 8`` (seed
+       migration ``0002_seed_node_rows`` produces 8 rows).
+
+    Auth: ``IsAuthenticated`` — health probe is operator-facing, not public,
+    and we have no public health surface for this domain.
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        components: dict = {}
+
+        # 1) Embedding API — env-presence only (avoid quota burn).
+        try:
+            has_key = bool(getattr(settings, 'OPENROUTER_API_KEY', '') or '')
+            components['embedding_api'] = 'green' if has_key else 'red'
+        except Exception:  # pragma: no cover - defensive
+            components['embedding_api'] = 'red'
+
+        # 2) Vane reachability — HEAD with a 2s budget.
+        try:
+            import httpx
+            vane_url = (getattr(settings, 'VANE_API_URL', '') or '').strip()
+            if not vane_url:
+                components['vane'] = 'red'
+            else:
+                with httpx.Client(timeout=2.0) as client:
+                    resp = client.head(vane_url.rstrip('/'))
+                # 405 = method-not-allowed still proves reachability.
+                components['vane'] = (
+                    'green' if resp.status_code in (200, 204, 301, 302, 405)
+                    else 'red'
+                )
+        except Exception:
+            components['vane'] = 'red'
+
+        # 3) pgvector indexes — at least one GIN/HNSW on the embedding table.
+        try:
+            from django.db import connection
+            with connection.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT COUNT(*) FROM pg_indexes
+                    WHERE tablename = 'vector_app_embedding'
+                      AND (indexdef ILIKE '%gin%' OR indexdef ILIKE '%hnsw%')
+                    """,
+                )
+                count = cur.fetchone()[0]
+            components['pgvector_index'] = 'green' if count >= 1 else 'red'
+        except Exception:
+            components['pgvector_index'] = 'red'
+
+        # 4) Redis — bound queue's connection.ping().
+        try:
+            redis_conn = django_rq.get_queue('default').connection
+            ok = bool(redis_conn.ping())
+            components['redis'] = 'green' if ok else 'red'
+        except Exception:
+            components['redis'] = 'red'
+
+        # 5) ChatNodeConfig — must have all 8 seeded rows.
+        try:
+            from chat_node_config_app.models import ChatNodeConfig
+            cnt = ChatNodeConfig.objects.count()
+            components['chat_node_config'] = 'green' if cnt >= 8 else 'red'
+        except Exception:
+            components['chat_node_config'] = 'red'
+
+        failing = sorted([k for k, v in components.items() if v != 'green'])
+        if failing:
+            body = {
+                'status': 'degraded',
+                'components': components,
+                'failing': failing,
+            }
+            return Response(body, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        return Response({
+            'status': 'ok',
+            'components': components,
+            'failing': [],
+        })

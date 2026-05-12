@@ -320,7 +320,7 @@
 
 ### gunicorn
 
-- [ ] **REPLACE (not augment) the `web` service `command:` line** in `docker-compose.prod.yml`. Current line:
+- [x] **REPLACE (not augment) the `web` service `command:` line** in `docker-compose.prod.yml`. Current line:
   ```
   command: gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 3
   ```
@@ -328,58 +328,58 @@
   ```
   command: gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 3 --threads 8 --worker-class gthread --timeout 90 --graceful-timeout 30 --max-requests 1000 --max-requests-jitter 100
   ```
-- [ ] Also update `docker-compose.yml` (dev) `web` command if it exists — to keep dev/prod consistent OR document the intentional dev-only override (dev usually runs `python manage.py runserver`).
-- [ ] After deploy: verify `docker compose exec web ps auxf | grep gthread` shows the new worker class.
-- [ ] Local dev `runserver` stays untouched (it's already single-threaded — fine for dev).
+- [x] Also update `docker-compose.yml` (dev) `web` command if it exists — to keep dev/prod consistent OR document the intentional dev-only override (dev usually runs `python manage.py runserver`).
+- [x] After deploy: verify `docker compose exec web ps auxf | grep gthread` shows the new worker class.
+- [x] Local dev `runserver` stays untouched (it's already single-threaded — fine for dev).
 
 ### rq
 
-- [ ] Edit `docker-compose.yml` + `docker-compose.prod.yml` `worker` service command to `python manage.py rqworker default --max-jobs 500 --result-ttl 3600 --failure-ttl 86400` (entrypoint stays — only the `command:` line changes)
-- [ ] Verify rq dashboard shows recycle after 500 jobs
-- [ ] **Queue-split chat-domain jobs onto the existing `worker-agent` queue** so backfill storms on `default` don't delay conversation summarization / follow-ups (audit confirms `worker-agent` service exists in both compose files; consumes queue `agent` via `python manage.py rqworker agent`):
-  - [ ] In `agent_app/tasks.py` declare `summarize_conversation` (and any follow-up async helpers) on the `agent` queue — use `@job('agent', timeout=120)` decorator or `django_rq.get_queue('agent').enqueue(...)` at call sites
-  - [ ] Edit `worker-agent` `command:` in BOTH `docker-compose.yml` AND `docker-compose.prod.yml` to `python manage.py rqworker agent --max-jobs 500 --result-ttl 3600 --failure-ttl 86400`
-  - [ ] Test: enqueue 100 dummy `create_or_update_embedding` jobs onto `default`, fire one `summarize_conversation` onto `agent`, assert summarizer completes within 5s (not blocked behind the 100-deep `default` queue)
+- [x] Edit `docker-compose.yml` + `docker-compose.prod.yml` `worker` service command to `python manage.py rqworker default --max-jobs 500 --result-ttl 3600 --failure-ttl 86400` (entrypoint stays — only the `command:` line changes)
+- [x] Verify rq dashboard shows recycle after 500 jobs
+- [x] **Queue-split chat-domain jobs onto the existing `worker-agent` queue** so backfill storms on `default` don't delay conversation summarization / follow-ups (audit confirms `worker-agent` service exists in both compose files; consumes queue `agent` via `python manage.py rqworker agent`):
+  - [x] In `agent_app/tasks.py` declare `summarize_conversation` (and any follow-up async helpers) on the `agent` queue — use `@job('agent', timeout=120)` decorator or `django_rq.get_queue('agent').enqueue(...)` at call sites
+  - [x] Edit `worker-agent` `command:` in BOTH `docker-compose.yml` AND `docker-compose.prod.yml` to `python manage.py rqworker agent --max-jobs 500 --result-ttl 3600 --failure-ttl 86400`
+  - [x] Test: enqueue 100 dummy `create_or_update_embedding` jobs onto `default`, fire one `summarize_conversation` onto `agent`, assert summarizer completes within 5s (not blocked behind the 100-deep `default` queue)
 
 ### DRF throttle
 
-- [ ] Register `chat_agent` scope in `core/settings.py` `REST_FRAMEWORK.DEFAULT_THROTTLE_RATES = {..., 'chat_agent': '30/min'}`
-- [ ] `ChatSessionMessageStreamView` declares `throttle_classes = [ScopedRateThrottle]` + `throttle_scope = 'chat_agent'`
-- [ ] Boot smoke test `tests/test_real_ip_middleware.py` asserts XFF-resolved IP → throttle key (NOT Caddy peer IP)
+- [x] Register `chat_agent` scope in `core/settings.py` `REST_FRAMEWORK.DEFAULT_THROTTLE_RATES = {..., 'chat_agent': '30/min'}`
+- [x] `ChatSessionMessageStreamView` declares `throttle_classes = [ScopedRateThrottle]` + `throttle_scope = 'chat_agent'`
+- [x] Boot smoke test `tests/test_real_ip_middleware.py` asserts XFF-resolved IP → throttle key (NOT Caddy peer IP)
 
 ### Health probe
 
-- [ ] `search_app/api/views.py:ChatHealthView` returns 200 with all components green; 503 with failing component named
-- [ ] Wire URL `GET /api/chat/health/`
-- [ ] Components checked: Embedding API reachable, Vane reachable, pgvector index present, Redis reachable, `ChatNodeConfig` row count ≥ 8
+- [x] `search_app/api/views.py:ChatHealthView` returns 200 with all components green; 503 with failing component named
+- [x] Wire URL `GET /api/chat/health/`
+- [x] Components checked: Embedding API reachable, Vane reachable, pgvector index present, Redis reachable, `ChatNodeConfig` row count ≥ 8
 
 ### Caddy
 
-- [ ] **Verify SSE buffering via curl-stream test** (server audit: Caddyfile currently has NO explicit `flush_interval` — auto-detect should work but unverified). From outside cluster:
+- [x] **Verify SSE buffering via curl-stream test** (server audit: Caddyfile currently has NO explicit `flush_interval` — auto-detect should work but unverified). From outside cluster:
   ```
   curl -N -H "Cookie: <jwt>" "https://miner.mariowinter.com/api/chat/sessions/<id>/stream/?content=hi" | head -20
   ```
   Expected: first SSE event (`event: init`) arrives within 1s; subsequent events stream in real-time (no batching). If buffering observed: add `flush_interval -1` to the `reverse_proxy web:8000` block in `caddy/Caddyfile`.
-- [ ] After any Caddyfile edit: `docker compose restart caddy` (per `feedback_caddy_bind_mount_gotcha.md` memory — single-file bind-mount inode trap).
-- [ ] Document the explicit `flush_interval -1` decision in `docs/architecture-decisions.md` if added (since Caddy auto-detect was sufficient until PROJ-29).
+- [x] After any Caddyfile edit: `docker compose restart caddy` (per `feedback_caddy_bind_mount_gotcha.md` memory — single-file bind-mount inode trap).
+- [x] Document the explicit `flush_interval -1` decision in `docs/architecture-decisions.md` if added (since Caddy auto-detect was sufficient until PROJ-29).
 
 ### Sentry
 
-- [ ] Wire `core/observability/sentry.py` into `ChatSessionMessageStreamView` exception handler (sentry-sdk added in Phase 1A)
-- [ ] Verify `SENTRY_INCLUDE_USER_INPUT=false` strips message content from events
+- [x] Wire `core/observability/sentry.py` into `ChatSessionMessageStreamView` exception handler (sentry-sdk added in Phase 1A)
+- [x] Verify `SENTRY_INCLUDE_USER_INPUT=false` strips message content from events
 
 ### Tests
 
-- [ ] Throttle isolation test (Verification 22)
-- [ ] Real-IP smoke (Verification 23)
-- [ ] gunicorn worker-class check (Verification 24)
-- [ ] EXPLAIN ANALYZE test (Verification 25)
-- [ ] rq idempotency test (Verification 26)
-- [ ] Tool-timeout test (Verification 27)
-- [ ] EventSource cleanup test (Verification 28)
-- [ ] Memory baseline test (Verification 29)
-- [ ] Graceful degradation test (Verification 30)
-- [ ] Health probe test (Verification 31)
+- [x] Throttle isolation test (Verification 22)
+- [x] Real-IP smoke (Verification 23)
+- [x] gunicorn worker-class check (Verification 24)
+- [x] EXPLAIN ANALYZE test (Verification 25)
+- [x] rq idempotency test (Verification 26)
+- [x] Tool-timeout test (Verification 27)
+- [x] EventSource cleanup test (Verification 28)
+- [x] Memory baseline test (Verification 29)
+- [x] Graceful degradation test (Verification 30)
+- [x] Health probe test (Verification 31)
 
 ## Phase 1H — Frontend: ThinkingStrip + GeneratedSloganTable + Follow-ups + Citations
 

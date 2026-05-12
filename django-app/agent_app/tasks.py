@@ -37,6 +37,7 @@ from __future__ import annotations
 import logging
 import os
 
+import django_rq
 from django.utils import timezone
 
 from agent_app.constants import DEFAULT_TOOL_PERMISSIONS
@@ -263,8 +264,14 @@ def _summarize_after_n_turns() -> int:
         return 10
 
 
+@django_rq.job('agent', timeout=120, result_ttl=3600, failure_ttl=86400)
 def summarize_conversation(session_id: str) -> None:
     """rq job: regenerate ``ChatSession.conversation_summary``.
+
+    PROJ-29 Phase 1G AC-Ops-RQ-4/5 — chat-domain async work runs on the
+    ``agent`` queue (separate from ``default``) so embedding/backfill storms
+    don't delay conversation summarization. Job timeout 120s (single LLM
+    call), result TTL 1h, failure TTL 24h.
 
     Triggered by the Phase 1E view AFTER a new assistant turn lands on a
     session with >= ``NICHE_RAG_SUMMARIZE_AFTER_N_TURNS`` messages
