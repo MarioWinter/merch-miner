@@ -3383,6 +3383,53 @@
       },
       "cleared": "All chats cleared ({{count}})",
       "clearFailed": "Could not clear chats"
+    },
+    "thinking": {
+      "stage": {
+        "rewrite_query": "Rewriting query…",
+        "retrieve_niche": "Searching niche knowledge…",
+        "search_slogans": "Searching slogans…",
+        "search_products": "Searching products…",
+        "search_niche_knowledge": "Searching niche notes…",
+        "top_keywords": "Loading top keywords…",
+        "bsr_stats": "Computing BSR stats…",
+        "web_search": "Searching the web…",
+        "generate_slogans": "Generating slogans…",
+        "brainstorm_ideas": "Brainstorming ideas…",
+        "writing_answer": "Writing answer…"
+      },
+      "pill": {
+        "steps_one": "{{count}} step",
+        "steps_other": "{{count}} steps",
+        "sources_one": "{{count}} source",
+        "sources_other": "{{count}} sources",
+        "duration": "{{value}}s"
+      },
+      "expand": "Show details",
+      "collapse": "Hide details",
+      "section": {
+        "steps": "Steps log",
+        "sources": "Sources used"
+      },
+      "group": {
+        "slogan": "Slogans",
+        "product": "Products",
+        "keyword": "Keywords",
+        "notes": "Niche notes",
+        "web": "Web"
+      },
+      "aria": {
+        "live": "Working on: {{stage}}",
+        "loading": "Loading",
+        "done": "Done",
+        "warning": "Warning",
+        "error": "Error"
+      },
+      "compact": {
+        "ariaLabel": "Agent is thinking. Click to open chat panel.",
+        "openChat": "Open chat",
+        "thinking": "Thinking…"
+      }
     }
   }
 }

@@ -25,6 +25,7 @@ import ChatInputBar, {
   type ChatInputBarSubmitPayload,
 } from '../MultiPurposeDrawer/panels/ChatInputBar';
 import ChevronIndicator from './ChevronIndicator';
+import CompactStrip from '@/components/ThinkingStrip/CompactStrip';
 import { COLORS, EASING, DURATION } from '@/style/constants';
 
 const BAR_MAX_WIDTH = 600;
@@ -259,9 +260,15 @@ const FloatingChatBar = () => {
     return <Box sx={{ display: 'none' }} aria-hidden="true" />;
   }
 
+  // PROJ-29 Phase 1H — CompactStrip is rendered above the input surface while
+  // an SSE stream runs and the drawer is closed. When the drawer is open the
+  // full ThinkingStrip inside ChatMessageList takes over.
+  const showCompactStrip = isStreaming && !hiddenForDrawer;
+
   return (
     <Fade in={barExpanded} timeout={DURATION.default}>
       <BarContainer ref={containerRef}>
+        {showCompactStrip && <CompactStrip />}
         <ExpandedSurface>
           <CollapseHandle>
             <IconButton

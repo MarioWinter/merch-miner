@@ -35,6 +35,12 @@ import {
   appendStreamingChunk,
   appendStreamingSources,
   clearStreamingMessage,
+  pushStreamingStage,
+  markStageDone,
+  markStageWarning,
+  markStageError,
+  appendChunksUsed,
+  setFollowUps,
 } from '@/store/chatBarSlice';
 import { searchApi } from '@/store/searchSlice';
 import type {
@@ -45,6 +51,15 @@ import type {
   SSEDoneEvent,
   SSEErrorEvent,
 } from '@/types/search';
+import type {
+  SSEStageEvent,
+  SSEToolCallEvent,
+  SSEToolResultEvent,
+  SSEToolTimeoutEvent,
+  SSEChunksUsedEvent,
+  SSEFollowUpsEvent,
+  SSEGenerateSlogansPayloadEvent,
+} from '@/types/chat-rag';
 
 interface UseSendMessageStreamOptions {
   sessionId: string | null;
@@ -293,6 +308,96 @@ export const useSendMessageStream = ({
         scheduleFlush();
       });
 
+      // --- PROJ-29 Phase 1H: ThinkingStrip + chunks + follow-ups + slogan-payload ---
+
+      // `stage` — high-level pipeline phase boundary (e.g. retrieve_niche, writing_answer)
+      es.addEventListener('stage', (event) => {
+        armSilenceTimer();
+        const data = parseEventData<SSEStageEvent>((event as MessageEvent).data);
+        if (!data || typeof data.stage !== 'string') return;
+        dispatch(
+          pushStreamingStage({
+            stage: data.stage,
+            status: 'loading',
+            ts: Date.now(),
+          }),
+        );
+      });
+
+      // `heartbeat` — keep-alive only. No Redux dispatch needed; silence-timer reset above.
+      es.addEventListener('heartbeat', () => {
+        armSilenceTimer();
+      });
+
+      // `tool_call` — append a loading row for this tool name
+      es.addEventListener('tool_call', (event) => {
+        armSilenceTimer();
+        const data = parseEventData<SSEToolCallEvent>((event as MessageEvent).data);
+        if (!data || typeof data.tool_name !== 'string') return;
+        dispatch(
+          pushStreamingStage({
+            stage: data.tool_name,
+            status: 'loading',
+            ts: Date.now(),
+          }),
+        );
+      });
+
+      // `tool_result` — transition the matching loading row → done
+      es.addEventListener('tool_result', (event) => {
+        armSilenceTimer();
+        const data = parseEventData<SSEToolResultEvent>((event as MessageEvent).data);
+        if (!data || typeof data.tool_name !== 'string') return;
+        dispatch(markStageDone({ stage: data.tool_name, ts: Date.now() }));
+      });
+
+      // `tool_timeout` — soft warning, agent continues
+      es.addEventListener('tool_timeout', (event) => {
+        armSilenceTimer();
+        const data = parseEventData<SSEToolTimeoutEvent>(
+          (event as MessageEvent).data,
+        );
+        if (!data || typeof data.tool_name !== 'string') return;
+        dispatch(
+          markStageWarning({
+            stage: data.tool_name,
+            message: data.error,
+          }),
+        );
+      });
+
+      // `chunks_used` — append retrieved chunks (FIFO-capped in slice)
+      es.addEventListener('chunks_used', (event) => {
+        armSilenceTimer();
+        const data = parseEventData<SSEChunksUsedEvent>(
+          (event as MessageEvent).data,
+        );
+        if (!data || !Array.isArray(data.chunks)) return;
+        dispatch(appendChunksUsed(data.chunks));
+      });
+
+      // `generate_slogans_payload` — structured rows for the GeneratedSloganTable
+      // (full UI lands in Phase 1H-2). Surface via streaming-message sources for
+      // now — kept opaque-ly until the table component is wired.
+      es.addEventListener('generate_slogans_payload', (event) => {
+        armSilenceTimer();
+        const data = parseEventData<SSEGenerateSlogansPayloadEvent>(
+          (event as MessageEvent).data,
+        );
+        if (!data || !Array.isArray(data.rows)) return;
+        // Wired in 1H-2: dispatch(setStreamingSloganPayload(data.rows))
+      });
+
+      // `follow_ups` — 3 chip suggestions, fires after `done`
+      es.addEventListener('follow_ups', (event) => {
+        armSilenceTimer();
+        const data = parseEventData<SSEFollowUpsEvent>(
+          (event as MessageEvent).data,
+        );
+        if (!data || !Array.isArray(data.chips)) return;
+        dispatch(setFollowUps(data.chips.slice(0, 3)));
+      });
+
       es.addEventListener('done', (event) => {
         const data = parseEventData<SSEDoneEvent>((event as MessageEvent).data);
         closeStream();
@@ -317,6 +422,9 @@ export const useSendMessageStream = ({
           typeof messageEvent.data === 'string'
             ? parseEventData<SSEErrorEvent>(messageEvent.data)
             : null;
+        // PROJ-29 Phase 1H — flag the last in-flight stage as errored BEFORE we
+        // wipe streaming state, so the UI gets a chance to render the bad row.
+        dispatch(markStageError({ message: data?.error }));
         closeStream();
         dispatch(clearStreamingMessage());
         enqueueSnackbar(data?.error ?? t('search.stream.connectionLost'), {

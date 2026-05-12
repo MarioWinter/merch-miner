@@ -385,22 +385,10 @@
 
 ### SSE handler extension
 
-- [ ] Extend `useSendMessageStream.ts` to dispatch new event types: `stage`, `heartbeat`, `tool_call`, `tool_result`, `tool_timeout`, `chunks_used`, `generate_slogans_payload`, `follow_ups`, `error`
-- [ ] Cap `streamingStages` array at 50 per turn (FIFO)
-- [ ] Cap `chunksUsed` array at 200 per session (FIFO)
-- [ ] Clear `followUps` on next user message
-
-### `<ThinkingStrip />` component
-
-- [ ] `components/ThinkingStrip/index.tsx` — sticky strip above streaming bubble; StepRow list during stream; collapsed pill after `done`
-- [ ] `partials/StepRow.tsx` — icon + i18n label + status (loading / done / warning / error)
-- [ ] `partials/CollapsedPill.tsx` — "🔍 4 Schritte · 9 Quellen · 2.3s"
-- [ ] `partials/ExpandedPanel.tsx` — full step log + chunks_used grouped by subtype (slogan / product / keyword / notes / web)
-- [ ] `hooks/useThinkingState.ts` — reduces SSE events into ordered step list
-- [ ] Embed in `ChatPanel.tsx` AND `FloatingChatBar/index.tsx`
-- [ ] i18n keys under `chatNicheRag.thinking.*` (DE + EN)
-- [ ] `prefers-reduced-motion` disables icon spin + yellow flash
-- [ ] `aria-live="polite"` on hidden screen-reader region
+- [x] Extend `useSendMessageStream.ts` to dispatch new event types: `stage`, `heartbeat`, `tool_call`, `tool_result`, `tool_timeout`, `chunks_used`, `generate_slogans_payload`, `follow_ups`, `error`
+- [x] Cap `streamingStages` array at 50 per turn (FIFO)
+- [x] Cap `chunksUsed` array at 200 per session (FIFO)
+- [ ] Clear `followUps` on next user message (deferred to 1H-2 — needs ChatInputBar submit hook)
 
 ### `<GeneratedSloganTable />` component (Q6: manual Add only)
 
@@ -422,15 +410,100 @@
 
 ### Tests (Vitest + RTL)
 
-- [ ] `<ThinkingStrip />` renders correct StepRow per stage event
-- [ ] Strip collapses to pill on `done`
-- [ ] Click pill opens `<ExpandedPanel />`
+- [x] `<ThinkingStrip />` renders correct StepRow per stage event
+- [x] Strip collapses to pill on `done`
+- [x] Click pill opens `<ExpandedPanel />`
 - [ ] `<GeneratedSloganTable />` renders rows; Copy writes to clipboard; Add calls mutation
 - [ ] Bulk "Add all" processes row-by-row with per-row status icons
 - [ ] Citation hover highlights matching row + reverse
 - [ ] Follow-up chip click auto-fills + auto-submits
-- [ ] EventSource cleanup on unmount (no `setState on unmounted` warnings)
+- [x] EventSource cleanup on unmount (no `setState on unmounted` warnings)
 - [ ] **Mixed citation formats coexist:** test that a message containing both `[NICHE:2]` (agent-mode) AND `[3]` (Vane web-mode) citations renders correctly — both markers tooltip on hover, both flash their source row on click, no parser confusion. Edge case for cross-mode chat history.
+
+### Phase 1H — Design Decisions (LOCKED — 2026-05-12)
+
+> Pre-implementation design audit complete. These decisions are binding for the `/frontend` implementation rounds 1H-1 and 1H-2.
+
+**Q1 → B (mobile/<600px SloganTable):** vertical card-stack layout at `xs` breakpoint. Each row becomes a stacked card with vertical metadata.
+
+**Q2 → A (ThinkingStrip on session re-open):** always collapsed pill (loads from message's stored final state). Click → expand.
+
+**Q3 → A (generate_slogans_payload persistence):** backend persists payload on assistant message. Frontend reads from `msg.generate_slogans_payload` — no separate refetch endpoint. Verify schema in 1H-1.
+
+**Q4 → A (theme palette `*.subtle` keys):** add `subtle` slot to primary / secondary / info / success / warning / error in `frontend-ui/src/style/theme.ts`. Both dark + light schemes. No `alpha()` fallbacks.
+
+**Q5 → A (FollowUpChips placement):** above `MessageActionToolbar`. Stack order in `AssistantContent`: `AssistantBubble` → `GeneratedSloganTable` (if payload) → `FollowUpChips` (last msg only) → `MessageActionToolbar` → `SourceList`.
+
+**Q6 → A (NichePicker reuse):** build standalone `<NichePickerDialog />` (~60 LoC, uses `useListNichesQuery` + MUI Autocomplete + Dialog). Do NOT extend `SaveToNicheModal` (different domain — save-snippet vs. add-slogan).
+
+**Q7 → A (FloatingChatBar Compact-Strip):** YES — render `<CompactStrip />` above `ExpandedSurface` inside `BarContainer` when `streamingAssistantMessage.isStreaming && !hiddenForDrawer`. Shows current stage label + elapsed seconds. Click → `dispatch(openDrawer('chat'))`. Required for first-class UX (otherwise user sees nothing when stream runs while drawer closed).
+
+### Phase 1H — Architectural Decisions (LOCKED)
+
+1. **Embed sites for `<ThinkingStrip />`:**
+   - Full variant in `ChatMessageList.tsx` — sticky inside `<AssistantBubble>` above `<MarkdownAnswer>`, 3 states (active / collapsed pill / expanded panel).
+   - Compact variant (`CompactStrip.tsx`) in `FloatingChatBar/index.tsx` — pill above `<ExpandedSurface>`, single-line stage label + elapsed time.
+
+2. **`<GeneratedSloganTable />` ↔ Idea model alignment:**
+   - `useAddSloganToNiche` invokes `useCreateIdeaMutation` with `{niche_id, slogan_text, signal_type, pattern_used, stylistic_device, emotional_archetype, market_confidence, is_manual: true, source: 'chat_agent'}`.
+   - RTK Query `Ideas` tag invalidation auto-refreshes `SlogansPipelineContent.tsx` — no separate sync.
+   - Verify backend `createIdea` accepts `source='chat_agent'` value in 1H-1; if not, add to backend serializer choices.
+
+3. **NichePicker scope:** new component `components/NichePickerDialog/index.tsx`. Uses Autocomplete + Dialog. Returns `nicheId` via callback. Reused by `useAddSloganToNiche` when `session.niche_context === null && workspace.niches.length > 1`.
+
+4. **Redux state additions (`chatBarSlice.ts`):**
+   - `streamingStages: ThinkingStep[]` (cap 50, FIFO)
+   - `chunksUsed: ChunkUsed[]` (cap 200, FIFO)
+   - `followUps: string[]` (max 3)
+   - `streamStartedAt: number | null` (ms epoch)
+   - `flashCitation: {type: 'niche' | 'web', index: number, ts: number} | null` (hover Pub/Sub)
+   - Cleared on `clearStreamingMessage()` and on next `init` event.
+
+5. **Citation parser order:** `CitationProcessor.tsx` MUST match `[NICHE:N]` regex BEFORE `[N]` regex (longer prefix wins). Two render variants: web markers (`info.subtle` bg) and niche markers (`primary.subtle` bg with 🏷️ glyph).
+
+6. **Theme palette extension (`style/theme.ts`):** add `subtle` color slot to dark + light schemes for primary / secondary / info / success / warning / error. Add to MUI module augmentation typings.
+
+7. **Files (full Phase 1H delta):**
+   ```
+   NEW:
+     components/ThinkingStrip/{index.tsx, CompactStrip.tsx, partials/{StepRow, CollapsedPill, ExpandedPanel}.tsx,
+                               hooks/useThinkingState.ts, utils/stageMeta.ts, types/thinking.ts, __tests__/*}
+     components/GeneratedSloganTable/{index.tsx, partials/{SloganRow, BulkBar, ConfidenceChip}.tsx,
+                                       hooks/{useAddSloganToNiche, useSloganTableSelection}.ts,
+                                       types/slogan.ts, __tests__/*}
+     components/FollowUpChips/{index.tsx, __tests__/FollowUpChips.test.tsx}
+     components/NichePickerDialog/{index.tsx, __tests__/NichePickerDialog.test.tsx}
+
+   EXTENDED:
+     hooks/useSendMessageStream.ts                                    — 9 new SSE listeners
+     store/chatBarSlice.ts                                            — 5 new state keys + caps logic
+     components/MultiPurposeDrawer/panels/ChatMessageList.tsx         — embed ThinkingStrip + GeneratedSloganTable + FollowUpChips
+     components/MultiPurposeDrawer/panels/partials/CitationProcessor.tsx — [NICHE:N] regex + flashCitation dispatch
+     components/FloatingChatBar/index.tsx                             — embed CompactStrip
+     style/theme.ts                                                   — *.subtle palette slots
+     i18n/locales/en.json + de.json                                   — chatNicheRag.* keys
+     types/search.ts (or new types/chat-rag.ts)                       — 9 SSE event types + ThinkingStep + ChunkUsed + SloganRow
+   ```
+
+8. **Round split:**
+   - **1H-1:** theme.ts subtle slots → chatBarSlice extension → useSendMessageStream 9 listeners → ThinkingStrip (full + Compact) → embed in ChatMessageList + FloatingChatBar → i18n thinking.* → 6 tests.
+   - **1H-2:** NichePickerDialog → GeneratedSloganTable + hooks → FollowUpChips → CitationProcessor [NICHE:N] extension → flashCitation Pub/Sub → i18n slogans.* + followUps.* → 8 tests (incl. mixed-citation-format).
+
+### `<ThinkingStrip />` — Refined component spec
+
+- [x] `components/ThinkingStrip/index.tsx` — sticky strip inside `<AssistantBubble>` above `<MarkdownAnswer>` (NOT above the bubble); 3 states (active / collapsed pill / expanded panel)
+- [x] `components/ThinkingStrip/CompactStrip.tsx` — mini-pill for `FloatingChatBar` (single-line, current stage + elapsed seconds)
+- [x] `partials/StepRow.tsx` — icon + i18n label + status (loading 12px CircularProgress / done Check / warning WarningAmber / error ErrorOutline) + optional duration caption
+- [x] `partials/CollapsedPill.tsx` — "🔍 4 Schritte · 9 Quellen · 2.3s" — primary.subtle bg, click to expand
+- [x] `partials/ExpandedPanel.tsx` — steps log + chunks_used grouped by `content_subtype` (slogan/product/keyword/notes/web), each row hover-flashes matching `[NICHE:N]` marker
+- [x] `hooks/useThinkingState.ts` — selectors + memoized derivations from `chatBarSlice.streamingStages` + `.chunksUsed` + `.streamStartedAt`
+- [x] `utils/stageMeta.ts` — stage name → {icon, i18n key, group emoji} lookup map
+- [x] Embed full variant in `ChatMessageList.tsx` streaming-bubble section
+- [x] Embed `CompactStrip` in `FloatingChatBar/index.tsx` (above ExpandedSurface, conditional render)
+- [x] On session re-open: render collapsed pill from persisted message metadata (Q2 → A) — prop wiring ready; backend persistence pending Phase 1I
+- [x] i18n keys under `chatNicheRag.thinking.*` (DE + EN)
+- [x] `prefers-reduced-motion` disables CircularProgress rotation + flash keyframes
+- [x] `aria-live="polite"` on hidden screen-reader region announcing each new stage label
 
 ## Phase 1I — Integration + Load test + Deploy Phase 1
 

@@ -14,7 +14,39 @@ declare module '@mui/material/styles' {
   interface PaletteOptions {
     orange?: PaletteOptions['primary'];
   }
+  // PROJ-29 Phase 1H-1 — augment palette colours with a `subtle` slot.
+  // Source-of-truth values defined in docs/design-system.md §2.1 / §2.2.
+  // Use via `theme.vars.palette.primary.subtle` etc. inside styled() callbacks
+  // — never hardcoded rgba in components.
+  interface PaletteColor {
+    subtle?: string;
+  }
+  interface SimplePaletteColorOptions {
+    subtle?: string;
+  }
 }
+
+// PROJ-29 Phase 1H-1 — canonical `*.subtle` translucent backgrounds.
+// Dark scheme: 0.10–0.12 alpha (sits on the dark-bluish canvas).
+// Light scheme: 0.08–0.10 alpha (sits on near-white surfaces).
+// docs/design-system.md §2.1 (dark) and §2.2 (light).
+const SUBTLE_DARK = {
+  primary: 'rgba(255, 90, 79, 0.12)',
+  secondary: 'rgba(0, 200, 215, 0.10)',
+  info: 'rgba(56, 189, 248, 0.10)',
+  success: 'rgba(34, 211, 163, 0.12)',
+  warning: 'rgba(245, 158, 11, 0.12)',
+  error: 'rgba(244, 63, 58, 0.12)',
+} as const;
+
+const SUBTLE_LIGHT = {
+  primary: 'rgba(255, 90, 79, 0.08)',
+  secondary: 'rgba(0, 151, 167, 0.08)',
+  info: 'rgba(2, 132, 199, 0.10)',
+  success: 'rgba(5, 150, 105, 0.10)',
+  warning: 'rgba(217, 119, 6, 0.10)',
+  error: 'rgba(220, 38, 38, 0.10)',
+} as const;
 
 const theme = extendTheme({
   colorSchemeSelector: 'data-mui-color-scheme',
@@ -54,19 +86,23 @@ const theme = extendTheme({
           main: COLORS.red,
           dark: COLORS.redDk,
           light: COLORS.redLt,
+          subtle: SUBTLE_DARK.primary,
         },
         secondary: {
           main: COLORS.cyan,
           dark: COLORS.cyanDk,
           light: COLORS.cyanLt,
+          subtle: SUBTLE_DARK.secondary,
         },
         success: {
           main: COLORS.successDk,
           dark: COLORS.successDkShade,
+          subtle: SUBTLE_DARK.success,
         },
         warning: {
           main: COLORS.warningDk,
           dark: COLORS.warningDkShade,
+          subtle: SUBTLE_DARK.warning,
         },
         orange: {
           main: COLORS.orange,
@@ -77,9 +113,11 @@ const theme = extendTheme({
         error: {
           main: COLORS.errorDk,
           dark: COLORS.errorDkShade,
+          subtle: SUBTLE_DARK.error,
         },
         info: {
           main: COLORS.infoDk,
+          subtle: SUBTLE_DARK.info,
         },
         text: {
           primary: COLORS.snow,
@@ -99,17 +137,21 @@ const theme = extendTheme({
           main: COLORS.red,
           dark: COLORS.redDk,
           light: COLORS.redLt,
+          subtle: SUBTLE_LIGHT.primary,
         },
         secondary: {
           main: COLORS.teal,
           dark: COLORS.tealDk,
           light: COLORS.tealLt,
+          subtle: SUBTLE_LIGHT.secondary,
         },
         success: {
           main: COLORS.successLight,
+          subtle: SUBTLE_LIGHT.success,
         },
         warning: {
           main: COLORS.warningLight,
+          subtle: SUBTLE_LIGHT.warning,
         },
         orange: {
           main: COLORS.orangeShade,
@@ -119,9 +161,11 @@ const theme = extendTheme({
         },
         error: {
           main: COLORS.errorLight,
+          subtle: SUBTLE_LIGHT.error,
         },
         info: {
           main: COLORS.infoLight,
+          subtle: SUBTLE_LIGHT.info,
         },
         text: {
           primary: COLORS.ink,

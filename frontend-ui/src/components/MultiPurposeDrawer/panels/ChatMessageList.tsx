@@ -12,6 +12,7 @@ import MarkdownAnswer from './partials/MarkdownAnswer';
 import MessageActionToolbar from './partials/MessageActionToolbar';
 import SourceList from './partials/SourceList';
 import UserAttachments from './partials/UserAttachments';
+import ThinkingStrip from '@/components/ThinkingStrip';
 
 // Stable id used for the in-flight streaming bubble's citation lookup so
 // SourceCards rendered for the streaming message can be linked from `[N]`.
@@ -299,6 +300,10 @@ const ChatMessageList = ({
                 ) : (
                   <AssistantContent>
                     <AssistantBubble>
+                      {/* PROJ-29 Phase 1H — ThinkingStrip for persisted messages.
+                       *  No persisted thinking metadata yet (Phase 1I) — strip
+                       *  renders nothing until backend wiring lands. */}
+                      <ThinkingStrip messageId={msg.id} isStreaming={false} />
                       <MarkdownAnswer
                         content={msg.content}
                         sources={msg.sources ?? []}
@@ -351,6 +356,11 @@ const ChatMessageList = ({
               </AssistantAvatar>
               <AssistantContent>
                 <AssistantBubble aria-live="polite" aria-label={t('search.stream.streaming')}>
+                  {/* PROJ-29 Phase 1H — live ThinkingStrip above the streaming answer. */}
+                  <ThinkingStrip
+                    messageId={streamingMessage.id ?? STREAMING_MESSAGE_ID}
+                    isStreaming
+                  />
                   <MarkdownAnswer
                     content={streamingMessage.content}
                     sources={streamingMessage.sources}

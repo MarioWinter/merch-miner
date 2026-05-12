@@ -3426,6 +3426,53 @@
       },
       "cleared": "Alle Chats gelöscht ({{count}})",
       "clearFailed": "Chats konnten nicht gelöscht werden"
+    },
+    "thinking": {
+      "stage": {
+        "rewrite_query": "Frage wird umformuliert…",
+        "retrieve_niche": "Durchsuche Nischenwissen…",
+        "search_slogans": "Durchsuche Slogans…",
+        "search_products": "Durchsuche Produkte…",
+        "search_niche_knowledge": "Durchsuche Nischen-Notizen…",
+        "top_keywords": "Lade Top-Keywords…",
+        "bsr_stats": "Berechne BSR-Statistik…",
+        "web_search": "Durchsuche das Web…",
+        "generate_slogans": "Generiere Slogans…",
+        "brainstorm_ideas": "Sammle Ideen…",
+        "writing_answer": "Schreibe Antwort…"
+      },
+      "pill": {
+        "steps_one": "{{count}} Schritt",
+        "steps_other": "{{count}} Schritte",
+        "sources_one": "{{count}} Quelle",
+        "sources_other": "{{count}} Quellen",
+        "duration": "{{value}}s"
+      },
+      "expand": "Details anzeigen",
+      "collapse": "Details ausblenden",
+      "section": {
+        "steps": "Schritt-Protokoll",
+        "sources": "Verwendete Quellen"
+      },
+      "group": {
+        "slogan": "Slogans",
+        "product": "Produkte",
+        "keyword": "Keywords",
+        "notes": "Nischen-Notizen",
+        "web": "Web"
+      },
+      "aria": {
+        "live": "Aktiver Schritt: {{stage}}",
+        "loading": "Lädt",
+        "done": "Fertig",
+        "warning": "Warnung",
+        "error": "Fehler"
+      },
+      "compact": {
+        "ariaLabel": "Agent denkt nach. Klicke, um den Chat zu öffnen.",
+        "openChat": "Chat öffnen",
+        "thinking": "Denke nach…"
+      }
     }
   }
 }
