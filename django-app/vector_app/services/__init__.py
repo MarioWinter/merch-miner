@@ -207,13 +207,16 @@ class EmbeddingService:
 
         vector = self._get_embedding_vector(embed_text)
 
-        # PROJ-29 Phase 1C — dimension assertion (AC-Ops-Chunk-3).
+        # PROJ-29 Phase 1C — dimension check (AC-Ops-Chunk-3).
         # Embedding-API model drift produces silently-wrong embeddings;
         # fail loudly here so the DB never stores a wrong-dim vector.
-        assert len(vector) == self.dimensions, (
-            f"Embedding dimension mismatch: expected {self.dimensions}, "
-            f"got {len(vector)} from model {self.model!r}."
-        )
+        # Explicit RuntimeError instead of `assert` so `python -O` (which
+        # strips asserts) can't disable the safety check in production.
+        if len(vector) != self.dimensions:
+            raise RuntimeError(
+                f"Embedding dimension mismatch: expected {self.dimensions}, "
+                f"got {len(vector)} from model {self.model!r}.",
+            )
 
         embedding, _ = Embedding.objects.update_or_create(
             content_type=ct,

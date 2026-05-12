@@ -272,6 +272,10 @@ const ChatPanel = () => {
       searchSources,
       selectedModel,
       modeOverride,
+      // PROJ-29 Phase 1I follow-up: handleSubmit reads `session?.niche_context`
+      // to decide whether the request needs Vane. Listed here so the callback
+      // re-binds when session changes (also satisfies react-hooks/exhaustive-deps).
+      session?.niche_context,
       attachmentUploads,
       dispatch,
       createSession,

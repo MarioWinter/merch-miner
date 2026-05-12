@@ -83,7 +83,6 @@ const FloatingChatBar = () => {
     searchSources,
     selectedModel,
     modeOverride,
-    inputChip,
   } = useAppSelector((s) => s.chatBar);
   const isStreaming = useAppSelector(
     (s) => s.chatBar.streamingAssistantMessage.isStreaming,
