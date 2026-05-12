@@ -75,6 +75,13 @@ export interface ChatMessage {
   /** PROJ-20 Phase 7.6 — image attachments uploaded with this message
    *  (only populated for `role='user'`; older messages may have []). */
   attachments?: ChatAttachment[];
+  /** PROJ-29 Phase 1I — structured slogan payload from `generate_slogans`
+   *  tool. Null for every non-niche-agent message. Wire shape:
+   *  `{ slogans: SloganRow[], warnings: string[] }`. */
+  generate_slogans_payload?: {
+    slogans: unknown[];
+    warnings?: string[];
+  } | null;
   created_at: string;
 }
 

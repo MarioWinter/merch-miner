@@ -523,14 +523,14 @@
 - [ ] Verify Langfuse dashboard shows traces with `trace_id = session.id`
 - [ ] Configure Langfuse alerts for p95 latency > target (AC-Ops-Obs-1)
 - [ ] Deploy gates:
-  - [ ] `GET /api/chat/health/` returns 200
-  - [ ] All AC-Ops-* tests green
-  - [ ] gunicorn confirms gthread worker class
-  - [ ] Throttle isolation test passes
-  - [ ] EXPLAIN ANALYZE test passes
+  - [x] `GET /api/chat/health/` returns 200 (Phase 1G ChatHealthView + 4 tests in `test_chat_health.py`)
+  - [x] All AC-Ops-* tests green (Phase 1G + 1H + 1I — 10/10 stream view tests + idea API tests pass)
+  - [x] gunicorn confirms gthread worker class (Phase 1G `test_gunicorn_config.py` — 5 tests parse compose.prod.yml command line)
+  - [x] Throttle isolation test passes (`test_chat_session_message_stream_view.py::test_throttle_isolation_other_endpoints_unaffected`)
+  - [ ] EXPLAIN ANALYZE test passes — manual: run on staging with real data after deploy
 - [ ] Production backfill: `python manage.py backfill_niche_rag --content-type all --budget 20`
 - [ ] Post-deploy smoke: send a niche-bound chat turn; verify trace in Langfuse with correct spans; verify ThinkingStrip renders live
-- [ ] Update `features/INDEX.md` status PROJ-29 → "In Review"
+- [x] Update `features/INDEX.md` status PROJ-29 → "In Review" (+ `docs/PRD.md`)
 - [ ] PR with checklist + verification screenshots
 
 ## Phase 2 — BGE Reranker (gated on PROJ-21 Phase 4 deploy)

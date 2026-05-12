@@ -596,3 +596,85 @@ class TestGenerateSlogansPayloadEvent:
         # Strip the _event marker added by the SSE parser before comparing.
         del payload_evt['_event']
         assert payload_evt == slogan_payload
+
+    def test_generate_slogans_payload_persisted_on_chatmessage(
+        self, api_client, workspace, niche_session,
+    ):
+        """PROJ-29 Phase 1I — payload survives the stream by landing on the
+        ChatMessage row, and the wire `done` event carries the persisted
+        message_id so the frontend table can pin to it."""
+        from search_app.models import ChatMessage
+
+        slogan_payload = {
+            'slogans': [
+                {
+                    'slogan_text': 'Quiet Pun, Loud Tee',
+                    'signal_type': 'other',
+                    'pattern_used': 'WORDPLAY',
+                    'stylistic_device': 'RHYME',
+                    'emotional_archetype': ['Jester'],
+                    'creative_modules_used': [],
+                    'buyer_voice_pattern': '',
+                    'why_it_works': '',
+                    'market_confidence': 'High',
+                },
+            ],
+            'warnings': [],
+        }
+        canonical = [
+            {'event': 'init', 'data': {
+                'session_id': str(niche_session.id), 'mode': 'agent',
+            }},
+            {'event': 'generate_slogans_payload', 'data': slogan_payload},
+            {'event': 'chunk', 'data': {'delta': 'Here is your slogan.'}},
+            {'event': 'done', 'data': {'final_answer': 'Here is your slogan.'}},
+        ]
+
+        with patch(
+            'agent_app.agents.niche_chat_agent.run_chat',
+            side_effect=make_run_chat_stub(canonical),
+        ):
+            resp = api_client.get(
+                f'/api/chat/sessions/{niche_session.id}/messages/stream/'
+                f'?content=test-persistence',
+                **_headers(workspace),
+            )
+            events = parse_sse(resp.streaming_content)
+
+        # Wire `done` event must carry message_id of the just-persisted row.
+        done_evt = next(e for e in events if e['_event'] == 'done')
+        assert 'message_id' in done_evt, done_evt
+        assistant_msg = ChatMessage.objects.get(pk=done_evt['message_id'])
+        assert assistant_msg.role == ChatMessage.Role.ASSISTANT
+        assert assistant_msg.content == 'Here is your slogan.'
+        # The full payload — including warnings + slogan row — must be stored.
+        assert assistant_msg.generate_slogans_payload == slogan_payload
+
+    def test_no_payload_persisted_when_event_absent(
+        self, api_client, workspace, niche_session,
+    ):
+        """A turn without a `generate_slogans_payload` event leaves the field
+        as None on the persisted ChatMessage row — no accidental {} or [].
+        """
+        from search_app.models import ChatMessage
+
+        canonical = [
+            {'event': 'init', 'data': {'session_id': str(niche_session.id), 'mode': 'agent'}},
+            {'event': 'chunk', 'data': {'delta': 'No slogans here.'}},
+            {'event': 'done', 'data': {'final_answer': 'No slogans here.'}},
+        ]
+        with patch(
+            'agent_app.agents.niche_chat_agent.run_chat',
+            side_effect=make_run_chat_stub(canonical),
+        ):
+            resp = api_client.get(
+                f'/api/chat/sessions/{niche_session.id}/messages/stream/'
+                f'?content=test-no-payload',
+                **_headers(workspace),
+            )
+            list(parse_sse(resp.streaming_content))
+
+        latest = ChatMessage.objects.filter(
+            session=niche_session, role=ChatMessage.Role.ASSISTANT,
+        ).latest('created_at')
+        assert latest.generate_slogans_payload is None

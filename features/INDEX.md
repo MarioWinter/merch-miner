@@ -40,7 +40,7 @@
 | PROJ-25 | Bulk ASIN One-Shot Scrape Batches | In Review | [spec](PROJ-25-bulk-asin-scrape-batches.md) | 2026-05-05 |
 | PROJ-27 | AI Upscaler (Single + Bulk via Replicate) | In Review | [spec](PROJ-27-ai-upscaler.md) | 2026-05-07 |
 | PROJ-28 | Niche Research Product Limit | In Review | [spec](PROJ-28-niche-research-product-limit.md) | 2026-05-08 |
-| PROJ-29 | Niche-Data Agentic RAG + Configurable System-Prompt + Langfuse Chat Observability | In Progress | [spec](PROJ-29-niche-rag-chat.md) | 2026-05-11 |
+| PROJ-29 | Niche-Data Agentic RAG + Configurable System-Prompt + Langfuse Chat Observability | In Review | [spec](PROJ-29-niche-rag-chat.md) | 2026-05-11 |
 
 <!-- Add features above this line -->
 

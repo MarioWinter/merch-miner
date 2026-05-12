@@ -4,6 +4,7 @@ import { styled, alpha, keyframes } from '@mui/material/styles';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { useTranslation } from 'react-i18next';
 import type { ChatMessage } from '@/types/search';
+import type { SloganRow } from '@/types/chat-rag';
 import { useAppSelector } from '@/store/hooks';
 import JumpToLatestButton from './JumpToLatestButton';
 import WorkflowCard from './WorkflowCard';
@@ -332,16 +333,30 @@ const ChatMessageList = ({
                         messageId={msg.id}
                       />
                     </AssistantBubble>
-                    {/* PROJ-29 Phase 1H-2 — slogan table for the just-finished
-                     *  agent turn that called `generate_slogans`. Persists via
-                     *  Redux `completedSloganPayload` until the next user msg. */}
-                    {completedSloganPayload?.messageId === msg.id &&
-                      completedSloganPayload.rows.length > 0 && (
+                    {/* PROJ-29 Phase 1H-2/1I — slogan table for the just-finished
+                     *  agent turn. Phase 1I persists the payload on the
+                     *  ChatMessage row itself (`msg.generate_slogans_payload`)
+                     *  so the table re-renders after page reload. The Redux
+                     *  fallback covers the small window between `done` and
+                     *  the RTK Query refetch landing the persisted message. */}
+                    {(() => {
+                      const persistedRows =
+                        msg.generate_slogans_payload?.slogans as
+                          | SloganRow[]
+                          | undefined;
+                      const reduxRows =
+                        completedSloganPayload?.messageId === msg.id
+                          ? completedSloganPayload.rows
+                          : undefined;
+                      const rows = persistedRows ?? reduxRows;
+                      if (!rows || rows.length === 0) return null;
+                      return (
                         <GeneratedSloganTable
-                          rows={completedSloganPayload.rows}
+                          rows={rows}
                           sessionNicheId={sessionNicheId}
                         />
-                      )}
+                      );
+                    })()}
                     {/* PROJ-29 Phase 1H-2 — follow-up chips on the LAST
                      *  assistant message only (graceful EC-20 + Q5A above
                      *  MessageActionToolbar). */}

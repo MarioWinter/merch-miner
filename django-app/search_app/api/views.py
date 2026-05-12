@@ -1126,14 +1126,46 @@ class ChatSessionMessageStreamView(APIView):
         )
 
         def agent_event_stream():
-            final_answer = ''
+            slogan_payload = None
             try:
                 inner = run_chat(session, content)
                 for evt in _wrap_with_heartbeat(inner):
-                    if evt.get('event') == 'done':
+                    event_name = evt.get('event')
+                    if event_name == 'generate_slogans_payload':
+                        # PROJ-29 Phase 1I: capture for persistence on the
+                        # ChatMessage. Pass through unchanged so the live
+                        # frontend table renders during the stream.
+                        slogan_payload = evt.get('data') or None
+                        yield _serialize_sse(evt)
+                        continue
+                    if event_name == 'done':
+                        # Persist the assistant turn HERE (before emitting `done`
+                        # on the wire) so the wire can carry the persisted
+                        # message id. This preserves the original event order
+                        # (`done` then `follow_ups`) that downstream tests +
+                        # frontend rely on.
                         final_answer = (evt.get('data') or {}).get(
                             'final_answer', '',
                         ) or ''
+                        assistant_msg = None
+                        if final_answer:
+                            assistant_msg = ChatMessage.objects.create(
+                                session=session,
+                                role=ChatMessage.Role.ASSISTANT,
+                                content=final_answer,
+                                message_type=ChatMessage.MessageType.SEARCH_RESULT,
+                                sources=[],
+                                search_mode='balanced',
+                                search_sources=['niche_agent'],
+                                model_used='niche_chat_agent',
+                                generate_slogans_payload=slogan_payload,
+                            )
+                            session.save(update_fields=['updated_at'])
+                        done_data = dict(evt.get('data') or {})
+                        if assistant_msg is not None:
+                            done_data['message_id'] = str(assistant_msg.pk)
+                        yield _serialize_sse({'event': 'done', 'data': done_data})
+                        continue
                     yield _serialize_sse(evt)
             except Exception as exc:  # pragma: no cover - defensive
                 logger.exception('niche_chat_agent stream failed')
@@ -1157,19 +1189,6 @@ class ChatSessionMessageStreamView(APIView):
                     },
                 })
                 return
-
-            if final_answer:
-                ChatMessage.objects.create(
-                    session=session,
-                    role=ChatMessage.Role.ASSISTANT,
-                    content=final_answer,
-                    message_type=ChatMessage.MessageType.SEARCH_RESULT,
-                    sources=[],
-                    search_mode='balanced',
-                    search_sources=['niche_agent'],
-                    model_used='niche_chat_agent',
-                )
-                session.save(update_fields=['updated_at'])
 
         response = StreamingHttpResponse(
             agent_event_stream(),

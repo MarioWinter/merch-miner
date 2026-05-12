@@ -126,6 +126,17 @@ class ChatMessage(models.Model):
         related_name='triggered_chat_messages',
         help_text='Set for workflow_trigger / workflow_card messages — links to PROJ-18 AgentSession.',
     )
+    # PROJ-29 Phase 1I — structured slogan rows emitted by `generate_slogans`
+    # tool during a niche-chat turn. Persisted on the assistant message so the
+    # GeneratedSloganTable can re-render after page reload (without this the
+    # frontend can only show the table during the active stream + the small
+    # post-`done` window held by Redux `completedSloganPayload`).
+    # Wire shape: `{ slogans: [...], warnings: [...] }`.
+    generate_slogans_payload = models.JSONField(
+        null=True,
+        blank=True,
+        help_text='Structured slogan rows from the niche-RAG agent.',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
