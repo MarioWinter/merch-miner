@@ -512,3 +512,401 @@ class TestBSRStatsTool:
             'p25': None, 'median': None, 'p75': None,
             'count': 0,
         }
+
+
+# ── Tool: generate_slogans (Round 1D-2) ────────────────────────────────────
+
+
+def _make_valid_slogan(**overrides):
+    """Helper: a fully-valid raw LLM slogan dict."""
+    base = {
+        'slogan_text': 'Tight Lines and Good Vibes',
+        'signal_type': 'self',
+        'pattern_used': 'IDENTITY_DECLARATION',
+        'stylistic_device': 'DECLARATION',
+        'emotional_archetype': ['Hero'],
+        'creative_modules_used': ['This Is My (X) Shirt', 'I'],
+        'buyer_voice_pattern': "I'm an angler. This shirt brags about my hobby.",
+        'why_it_works': 'Insider terminology + IDENTITY pattern.',
+        'market_confidence': 'High',
+    }
+    base.update(overrides)
+    return base
+
+
+def _mock_creative_llm(json_content: str):
+    """Return a (llm_mock, captured) pair for the creative_techniques LLM."""
+    llm = MagicMock(name='CreativeLLM')
+    llm.invoke = MagicMock(return_value=MagicMock(content=json_content))
+    return llm
+
+
+@pytest.mark.django_db
+class TestGenerateSlogansTool:
+    def _get_tool(self, workspace, niche):
+        from agent_app.agents.niche_chat_agent import _build_tools
+        tools = _build_tools(workspace, niche)
+        return next(t for t in tools if t.name == 'generate_slogans')
+
+    def test_happy_path_returns_10_valid_slogans(
+        self, workspace_a, niche_a,
+    ):
+        """LLM returns 10 valid slogans -> tool returns all 10 with Idea-shaped keys."""
+        import json
+
+        slogans = [
+            _make_valid_slogan(slogan_text=f"Slogan {i}", signal_type=(
+                'self' if i % 2 == 0 else 'other'
+            ))
+            for i in range(10)
+        ]
+        json_content = json.dumps({'slogans': slogans, 'warnings': []})
+
+        fake_llm = _mock_creative_llm(json_content)
+        with patch(
+            'niche_research_app.graph.llm.get_llm_for_node',
+            return_value=(fake_llm, 'SYSTEM'),
+        ), patch(
+            'chat_node_config_app.services.resolver.get_chat_prompt',
+            return_value='RENDERED_PROMPT',
+        ):
+            tool = self._get_tool(workspace_a, niche_a)
+            result = tool.invoke({'count': 10})
+
+        from idea_app.models import Idea
+        valid_patterns = {c.value for c in Idea.PatternUsed}
+
+        assert isinstance(result, dict)
+        assert set(result.keys()) == {'slogans', 'warnings'}
+        assert len(result['slogans']) == 10
+        # Every cleaned slogan exposes the full 9-key Idea-shaped payload.
+        expected_keys = {
+            'slogan_text', 'signal_type', 'pattern_used', 'stylistic_device',
+            'emotional_archetype', 'creative_modules_used',
+            'buyer_voice_pattern', 'why_it_works', 'market_confidence',
+        }
+        for s in result['slogans']:
+            assert set(s.keys()) == expected_keys
+            assert s['signal_type'] in {'self', 'other'}
+            assert s['pattern_used'] in valid_patterns
+            assert s['market_confidence'] in {'High', 'Medium', 'Low'}
+            assert isinstance(s['emotional_archetype'], list)
+
+    def test_malformed_slogan_routed_to_warnings(
+        self, workspace_a, niche_a,
+    ):
+        """Slogan missing slogan_text -> excluded from output + appended to warnings."""
+        import json
+
+        valid = _make_valid_slogan()
+        malformed = _make_valid_slogan(slogan_text='')  # hard reject
+        payload = {'slogans': [valid, malformed], 'warnings': []}
+        fake_llm = _mock_creative_llm(json.dumps(payload))
+        with patch(
+            'niche_research_app.graph.llm.get_llm_for_node',
+            return_value=(fake_llm, 'SYSTEM'),
+        ), patch(
+            'chat_node_config_app.services.resolver.get_chat_prompt',
+            return_value='RENDERED_PROMPT',
+        ):
+            tool = self._get_tool(workspace_a, niche_a)
+            result = tool.invoke({'count': 2})
+
+        assert len(result['slogans']) == 1
+        assert any('rejected malformed' in w for w in result['warnings'])
+
+    def test_markdown_fenced_json_still_parses(
+        self, workspace_a, niche_a,
+    ):
+        """LLM returns ```json ... ``` -> tool strips fences and parses."""
+        import json
+
+        body = json.dumps({'slogans': [_make_valid_slogan()], 'warnings': []})
+        fenced = f"```json\n{body}\n```"
+        fake_llm = _mock_creative_llm(fenced)
+        with patch(
+            'niche_research_app.graph.llm.get_llm_for_node',
+            return_value=(fake_llm, 'SYSTEM'),
+        ), patch(
+            'chat_node_config_app.services.resolver.get_chat_prompt',
+            return_value='RENDERED_PROMPT',
+        ):
+            tool = self._get_tool(workspace_a, niche_a)
+            result = tool.invoke({'count': 1})
+
+        assert len(result['slogans']) == 1
+        assert result['slogans'][0]['slogan_text'] == 'Tight Lines and Good Vibes'
+
+    def test_non_json_returns_warning(
+        self, workspace_a, niche_a,
+    ):
+        """Pure prose response -> empty slogans + dedicated warning."""
+        fake_llm = _mock_creative_llm("I'm sorry, I can't help with that.")
+        with patch(
+            'niche_research_app.graph.llm.get_llm_for_node',
+            return_value=(fake_llm, 'SYSTEM'),
+        ), patch(
+            'chat_node_config_app.services.resolver.get_chat_prompt',
+            return_value='RENDERED_PROMPT',
+        ):
+            tool = self._get_tool(workspace_a, niche_a)
+            result = tool.invoke({'count': 5})
+
+        assert result == {
+            'slogans': [],
+            'warnings': ['LLM returned non-JSON; try again'],
+        }
+
+    def test_invalid_pattern_used_cleaned_to_empty(
+        self, workspace_a, niche_a,
+    ):
+        """LLM returns a pattern not in the 16-enum -> cleaned to ''."""
+        import json
+
+        bad_pattern = _make_valid_slogan(pattern_used='TOTALLY_MADE_UP')
+        payload = {'slogans': [bad_pattern], 'warnings': []}
+        fake_llm = _mock_creative_llm(json.dumps(payload))
+        with patch(
+            'niche_research_app.graph.llm.get_llm_for_node',
+            return_value=(fake_llm, 'SYSTEM'),
+        ), patch(
+            'chat_node_config_app.services.resolver.get_chat_prompt',
+            return_value='RENDERED_PROMPT',
+        ):
+            tool = self._get_tool(workspace_a, niche_a)
+            result = tool.invoke({'count': 1})
+
+        assert len(result['slogans']) == 1
+        assert result['slogans'][0]['pattern_used'] == ''
+
+    def test_marketplace_language_derived_for_german_niche(
+        self, workspace_a, niche_a,
+    ):
+        """When derive_marketplace returns amazon_de -> prompt receives 'de'.
+
+        We stub ``derive_marketplace`` directly because the production code
+        runs the tool inside a thread-pool worker (see ``_with_timeout``);
+        that thread has its own DB connection and would not see test-fixture
+        rows committed under the test transaction.
+        """
+        import json
+
+        captured: dict = {}
+
+        def _capture_kwargs(node_name, **kwargs):
+            captured['node_name'] = node_name
+            captured['kwargs'] = kwargs
+            return 'RENDERED_PROMPT'
+
+        fake_llm = _mock_creative_llm(
+            json.dumps({'slogans': [_make_valid_slogan()], 'warnings': []}),
+        )
+        with patch(
+            'niche_research_app.graph.llm.get_llm_for_node',
+            return_value=(fake_llm, 'SYSTEM'),
+        ), patch(
+            'chat_node_config_app.services.resolver.get_chat_prompt',
+            side_effect=_capture_kwargs,
+        ), patch(
+            'niche_app.services.derive_marketplace',
+            return_value='amazon_de',
+        ):
+            tool = self._get_tool(workspace_a, niche_a)
+            tool.invoke({'count': 1})
+
+        assert captured['node_name'] == 'creative_techniques'
+        assert captured['kwargs']['marketplace_language'] == 'de'
+        assert captured['kwargs']['niche_name'] == niche_a.name
+
+
+# ── _validate_slogan_payload unit (no LLM, no DB) ──────────────────────────
+
+
+class TestValidateSloganPayload:
+    def _enums(self):
+        from idea_app.models import (
+            ALLOWED_EMOTIONAL_ARCHETYPES, Idea,
+        )
+        return (
+            {c.value for c in Idea.PatternUsed},
+            {c.value for c in Idea.StylisticDevice},
+            set(ALLOWED_EMOTIONAL_ARCHETYPES),
+            {'High', 'Medium', 'Low'},
+        )
+
+    def test_hard_reject_when_signal_type_invalid(self):
+        from agent_app.agents.niche_chat_agent import _validate_slogan_payload
+
+        patterns, devices, archetypes, confidence = self._enums()
+        raw = _make_valid_slogan(signal_type='neutral')
+        assert _validate_slogan_payload(
+            raw, patterns, devices, archetypes, confidence,
+        ) is None
+
+    def test_unknown_device_falls_back_to_free_form(self):
+        from agent_app.agents.niche_chat_agent import _validate_slogan_payload
+
+        patterns, devices, archetypes, confidence = self._enums()
+        raw = _make_valid_slogan(stylistic_device='HAIKU')
+        cleaned = _validate_slogan_payload(
+            raw, patterns, devices, archetypes, confidence,
+        )
+        assert cleaned is not None
+        assert cleaned['stylistic_device'] == 'FREE_FORM'
+
+
+# ── Tool: brainstorm_ideas (Round 1D-2) ────────────────────────────────────
+
+
+@pytest.mark.django_db
+class TestBrainstormIdeasTool:
+    def _get_tool(self, workspace, niche):
+        from agent_app.agents.niche_chat_agent import _build_tools
+        tools = _build_tools(workspace, niche)
+        return next(t for t in tools if t.name == 'brainstorm_ideas')
+
+    def test_happy_path_returns_5_directions(
+        self, workspace_a, niche_a,
+    ):
+        import json
+        directions = [
+            {
+                'direction_title': f"Direction {i}",
+                'pattern': 'IDENTITY DECLARATION',
+                'circle_layer': 'I',
+                'rationale': 'Plays on insider pride.',
+                'example_slogan_seed': 'I am the X',
+            }
+            for i in range(5)
+        ]
+        fake_llm = MagicMock()
+        fake_llm.invoke = MagicMock(
+            return_value=MagicMock(content=json.dumps({'directions': directions})),
+        )
+        with patch(
+            'niche_research_app.graph.llm.get_llm_for_node',
+            return_value=(fake_llm, 'SYSTEM'),
+        ):
+            tool = self._get_tool(workspace_a, niche_a)
+            result = tool.invoke({})
+
+        assert isinstance(result, dict)
+        assert len(result['directions']) == 5
+        expected_keys = {
+            'direction_title', 'pattern', 'circle_layer',
+            'rationale', 'example_slogan_seed',
+        }
+        for d in result['directions']:
+            assert set(d.keys()) == expected_keys
+            # Display form 'IDENTITY DECLARATION' must normalize to enum key.
+            assert d['pattern'] == 'IDENTITY_DECLARATION'
+
+    def test_empty_title_filtered_out(
+        self, workspace_a, niche_a,
+    ):
+        import json
+        directions = [
+            {'direction_title': '', 'pattern': 'GROUP_LEADER',
+             'circle_layer': '', 'rationale': '', 'example_slogan_seed': ''},
+            {'direction_title': 'Keep me', 'pattern': 'GROUP_LEADER',
+             'circle_layer': '', 'rationale': '', 'example_slogan_seed': ''},
+        ]
+        fake_llm = MagicMock()
+        fake_llm.invoke = MagicMock(
+            return_value=MagicMock(content=json.dumps({'directions': directions})),
+        )
+        with patch(
+            'niche_research_app.graph.llm.get_llm_for_node',
+            return_value=(fake_llm, 'SYSTEM'),
+        ):
+            tool = self._get_tool(workspace_a, niche_a)
+            result = tool.invoke({})
+
+        titles = [d['direction_title'] for d in result['directions']]
+        assert titles == ['Keep me']
+
+    def test_unknown_pattern_and_circle_cleaned(
+        self, workspace_a, niche_a,
+    ):
+        import json
+        directions = [{
+            'direction_title': 'X',
+            'pattern': 'BOGUS_PATTERN',
+            'circle_layer': 'Z',
+            'rationale': '',
+            'example_slogan_seed': '',
+        }]
+        fake_llm = MagicMock()
+        fake_llm.invoke = MagicMock(
+            return_value=MagicMock(content=json.dumps({'directions': directions})),
+        )
+        with patch(
+            'niche_research_app.graph.llm.get_llm_for_node',
+            return_value=(fake_llm, 'SYSTEM'),
+        ):
+            tool = self._get_tool(workspace_a, niche_a)
+            result = tool.invoke({})
+
+        assert len(result['directions']) == 1
+        assert result['directions'][0]['pattern'] == ''
+        assert result['directions'][0]['circle_layer'] == ''
+
+    def test_caps_at_10_directions(
+        self, workspace_a, niche_a,
+    ):
+        import json
+        directions = [
+            {
+                'direction_title': f"D{i}",
+                'pattern': 'GROUP_LEADER',
+                'circle_layer': '',
+                'rationale': '',
+                'example_slogan_seed': '',
+            }
+            for i in range(15)
+        ]
+        fake_llm = MagicMock()
+        fake_llm.invoke = MagicMock(
+            return_value=MagicMock(content=json.dumps({'directions': directions})),
+        )
+        with patch(
+            'niche_research_app.graph.llm.get_llm_for_node',
+            return_value=(fake_llm, 'SYSTEM'),
+        ):
+            tool = self._get_tool(workspace_a, niche_a)
+            result = tool.invoke({})
+
+        assert len(result['directions']) == 10
+
+    def test_non_json_returns_empty_directions(
+        self, workspace_a, niche_a,
+    ):
+        fake_llm = MagicMock()
+        fake_llm.invoke = MagicMock(
+            return_value=MagicMock(content='Sorry, no can do.'),
+        )
+        with patch(
+            'niche_research_app.graph.llm.get_llm_for_node',
+            return_value=(fake_llm, 'SYSTEM'),
+        ):
+            tool = self._get_tool(workspace_a, niche_a)
+            result = tool.invoke({})
+
+        assert result == {'directions': []}
+
+
+# ── _build_tools wiring (Round 1D-2) ───────────────────────────────────────
+
+
+@pytest.mark.django_db
+class TestToolsWiring:
+    def test_build_tools_returns_8_tools_including_new_ones(
+        self, workspace_a, niche_a, patch_llm_factory,
+    ):
+        from agent_app.agents.niche_chat_agent import _build_tools
+
+        tools = _build_tools(workspace_a, niche_a)
+        assert len(tools) == 8
+        names = {t.name for t in tools}
+        assert 'generate_slogans' in names
+        assert 'brainstorm_ideas' in names

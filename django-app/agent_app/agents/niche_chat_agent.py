@@ -1,12 +1,12 @@
-"""PROJ-29 Phase 1D — Niche Chat Agent (Round 1D-1).
+"""PROJ-29 Phase 1D — Niche Chat Agent (Rounds 1D-1 + 1D-2).
 
-Factory + 6 simple tools for the niche-bound chat agent. Mirrors the
+Factory + 8 tools for the niche-bound chat agent. Mirrors the
 ``reflection_agent.py`` / ``skill_refiner_agent.py`` pattern.
 
-Round 1D-1 scope (this module):
+Round 1D-1 scope:
 
 - Agent factory ``build_niche_chat_agent(workspace, niche_id, session_id)``
-- 6 tools (workspace + niche captured via closure, never LLM-supplied):
+- 6 simple tools (workspace + niche captured via closure, never LLM-supplied):
   ``web_search``, ``search_slogans``, ``search_products``,
   ``search_niche_knowledge``, ``top_keywords``, ``bsr_stats``.
 - 30s timeout wrapper (``_with_timeout``) — ThreadPoolExecutor-based
@@ -15,7 +15,15 @@ Round 1D-1 scope (this module):
   NOT module-level.
 - ``recursion_limit=10`` hard cap (AC-Ops-LG-1) via ``.with_config()``.
 
-Round 1D-2 (separate module pass): ``generate_slogans`` + ``brainstorm_ideas``.
+Round 1D-2 scope (this round):
+
+- 2 LLM-heavy tools: ``generate_slogans`` + ``brainstorm_ideas``.
+- ``generate_slogans`` uses the ``creative_techniques`` ChatNodeConfig prompt
+  and validates each LLM-returned slogan against ``Idea`` model enums.
+- ``brainstorm_ideas`` composes ``top_keywords`` + ``bsr_stats`` + recent
+  slogans + niche analysis into a one-off prompt and returns 5-10 concept
+  directions tagged with the 16 canonical patterns + (optional) CIRCLE layer.
+
 Round 1D-3 (separate module pass): conversation_summarizer + follow_up_suggester
 + prompt_assembler.
 """
@@ -97,6 +105,132 @@ def _with_timeout(
             }
 
 
+def _parse_llm_json(raw: str) -> Optional[dict]:
+    """Best-effort JSON parse for LLM responses.
+
+    Tries ``json.loads`` directly first. If the LLM returned markdown-fenced
+    JSON (``` ```json ... ``` ```), strips backticks + leading ``json\n`` and
+    retries once. Returns ``None`` on hard failure.
+    """
+    import json
+
+    raw = (raw or '').strip()
+    if not raw:
+        return None
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        pass
+    stripped = raw.strip('`').lstrip('json\n').strip()
+    try:
+        return json.loads(stripped)
+    except json.JSONDecodeError:
+        return None
+
+
+def _normalize_enum_token(value: Any) -> str:
+    """Normalize an LLM-emitted enum token to SCREAMING_SNAKE form.
+
+    Accepts display form (e.g. ``"IDENTITY DECLARATION"``,
+    ``"CROSS-NICHE EVENTS"``) or already-normalized form. Returns ``''`` for
+    falsy input.
+    """
+    if not value:
+        return ''
+    return (
+        str(value).upper()
+        .replace('/', '_')
+        .replace(' ', '_')
+        .replace('-', '_')
+    )
+
+
+def _validate_slogan_payload(
+    raw: Any,
+    valid_patterns: set,
+    valid_devices: set,
+    valid_archetypes: set,
+    valid_confidence: set,
+) -> Optional[dict]:
+    """Validate + clean ONE slogan dict against the ``Idea`` enums.
+
+    Hard rejection (returns ``None``):
+      - ``slogan_text`` missing OR empty
+      - ``signal_type`` not in ``{'self', 'other'}``
+
+    Soft fallback (cleaned to safe default, never rejected):
+      - ``pattern_used`` -> ``''`` when not in ``valid_patterns``
+      - ``stylistic_device`` -> ``'FREE_FORM'`` when not in ``valid_devices``
+      - ``emotional_archetype`` -> ``[]`` when not a list of valid archetypes
+      - ``creative_modules_used`` -> ``[]`` when not list-of-strings
+      - ``buyer_voice_pattern`` -> ``''`` when missing
+      - ``why_it_works`` -> ``''`` when missing
+      - ``market_confidence`` -> ``'Medium'`` when not in ``valid_confidence``
+    """
+    if not isinstance(raw, dict):
+        return None
+    slogan_text = (raw.get('slogan_text') or '').strip()
+    if not slogan_text:
+        return None
+    signal_type = raw.get('signal_type')
+    if signal_type not in ('self', 'other'):
+        return None
+
+    pattern = _normalize_enum_token(raw.get('pattern_used'))
+    if pattern not in valid_patterns:
+        pattern = ''
+
+    device = _normalize_enum_token(raw.get('stylistic_device'))
+    if device not in valid_devices:
+        device = 'FREE_FORM'
+
+    archetype = raw.get('emotional_archetype')
+    if isinstance(archetype, list) and all(
+        isinstance(a, str) and a in valid_archetypes for a in archetype
+    ):
+        archetype_clean = archetype
+    else:
+        archetype_clean = []
+
+    modules = raw.get('creative_modules_used')
+    if isinstance(modules, list) and all(isinstance(m, str) for m in modules):
+        modules_clean = modules
+    else:
+        modules_clean = []
+
+    confidence = raw.get('market_confidence')
+    if confidence not in valid_confidence:
+        confidence = 'Medium'
+
+    return {
+        'slogan_text': slogan_text,
+        'signal_type': signal_type,
+        'pattern_used': pattern,
+        'stylistic_device': device,
+        'emotional_archetype': archetype_clean,
+        'creative_modules_used': modules_clean,
+        'buyer_voice_pattern': (raw.get('buyer_voice_pattern') or '').strip(),
+        'why_it_works': (raw.get('why_it_works') or '').strip(),
+        'market_confidence': confidence,
+    }
+
+
+def _bsr_snippet(niche) -> str:
+    """Return a 1-line BSR summary for the niche's CollectedProducts.
+
+    Used inline by ``brainstorm_ideas`` to give the LLM a compact competitive
+    signal without firing the heavier ``bsr_stats`` aggregate.
+    """
+    from niche_app.models import CollectedProduct
+
+    agg = CollectedProduct.objects.filter(niche=niche).aggregate(
+        n=Count('id'), lo=Min('product__bsr'), hi=Max('product__bsr'),
+    )
+    if not agg['n']:
+        return '(no products collected yet)'
+    return f"{agg['n']} products, BSR range {agg['lo']}-{agg['hi']}"
+
+
 def _render_tool_descriptions(tools: list[Any]) -> str:
     """Multi-line description block for the ``{tool_descriptions}`` placeholder.
 
@@ -112,7 +246,7 @@ def _render_tool_descriptions(tools: list[Any]) -> str:
 
 
 def _build_tools(workspace, niche) -> list:
-    """Construct the 6 tools bound to ``(workspace, niche)`` via closure.
+    """Construct the 8 tools bound to ``(workspace, niche)`` via closure.
 
     Workspace + niche are NEVER exposed as LLM-supplied parameters — they
     are captured here at agent build time, so the LLM cannot cross-pollinate
@@ -285,6 +419,230 @@ def _build_tools(workspace, niche) -> list:
 
         return _with_timeout(_run)
 
+    # ── generate_slogans ───────────────────────────────────────────────
+    @tool('generate_slogans')
+    def generate_slogans(
+        theme: Optional[str] = None,
+        style: Optional[str] = None,
+        count: int = 10,
+        signal_mix: Optional[str] = None,
+    ) -> dict:
+        """Generate slogans for the pinned niche using the
+        ``creative_techniques`` engine. Returns
+        ``{'slogans': [...], 'warnings': [...]}`` where each slogan dict maps
+        1:1 to ``Idea`` model fields (signal_type, pattern_used,
+        stylistic_device, emotional_archetype, creative_modules_used,
+        buyer_voice_pattern, why_it_works, market_confidence)."""
+        def _run() -> dict:
+            # Local imports — avoid app-loading cycles + keep test footprint small.
+            from chat_node_config_app.services.resolver import (
+                get_chat_prompt, get_node_config,
+            )
+            from idea_app.models import ALLOWED_EMOTIONAL_ARCHETYPES, Idea
+            from idea_app.services import get_recent_slogans_sample
+            from keyword_app.services.ranking import rank_niche_keywords
+            from niche_app.services import (
+                derive_marketplace,
+                get_niche_analysis_snippet,
+                marketplace_to_language,
+            )
+            from niche_research_app.graph.llm import get_llm_for_node
+
+            # 1. Assemble placeholders for the creative_techniques prompt.
+            marketplace = derive_marketplace(niche)
+            marketplace_language = marketplace_to_language(marketplace)
+
+            keywords = rank_niche_keywords(niche, limit=20)
+            niche_keywords_topN = '\n'.join(
+                f"- {kw.keyword} (vol: {getattr(kw, 'search_volume', None) or '?'})"
+                for kw in keywords
+            ) or '(no keywords yet)'
+
+            recent_slogans_sample = get_recent_slogans_sample(niche, limit=20)
+            niche_analysis_snippet = (
+                get_niche_analysis_snippet(niche) or '(no niche analysis yet)'
+            )
+
+            signal_mix_value = signal_mix or '5 SELF + 5 OTHER'
+
+            system_prompt = get_chat_prompt(
+                'creative_techniques',
+                niche_name=niche.name,
+                marketplace_language=marketplace_language,
+                niche_keywords_topN=niche_keywords_topN,
+                recent_slogans_sample=recent_slogans_sample,
+                niche_analysis_snippet=niche_analysis_snippet,
+                requested_style=style or '',
+                signal_mix=signal_mix_value,
+                count=count,
+            )
+
+            llm, _ = get_llm_for_node(
+                'creative_techniques', config_resolver=get_node_config,
+            )
+
+            user_message = (
+                f"Generate {count} slogans for niche '{niche.name}'."
+            )
+            if theme:
+                user_message += f" Theme: {theme}."
+
+            response = llm.invoke([
+                {'role': 'system', 'content': system_prompt},
+                {'role': 'user', 'content': user_message},
+            ])
+            raw = (getattr(response, 'content', '') or '').strip()
+
+            payload = _parse_llm_json(raw)
+            if payload is None:
+                logger.warning(
+                    'generate_slogans: LLM returned non-JSON: %s', raw[:200],
+                )
+                return {
+                    'slogans': [],
+                    'warnings': ['LLM returned non-JSON; try again'],
+                }
+
+            valid_patterns = {c.value for c in Idea.PatternUsed}
+            valid_devices = {c.value for c in Idea.StylisticDevice}
+            valid_archetypes = set(ALLOWED_EMOTIONAL_ARCHETYPES)
+            valid_confidence = {'High', 'Medium', 'Low'}
+
+            warnings = list(payload.get('warnings') or [])
+            validated: list[dict] = []
+            for raw_slogan in payload.get('slogans', []) or []:
+                cleaned = _validate_slogan_payload(
+                    raw_slogan, valid_patterns, valid_devices,
+                    valid_archetypes, valid_confidence,
+                )
+                if cleaned:
+                    validated.append(cleaned)
+                else:
+                    text_preview = ''
+                    if isinstance(raw_slogan, dict):
+                        text_preview = (raw_slogan.get('slogan_text') or '<no text>')[:80]
+                    warnings.append(
+                        f"rejected malformed slogan: {text_preview}"
+                    )
+
+            return {'slogans': validated, 'warnings': warnings}
+
+        return _with_timeout(_run)
+
+    # ── brainstorm_ideas ───────────────────────────────────────────────
+    @tool('brainstorm_ideas')
+    def brainstorm_ideas(focus: Optional[str] = None) -> dict:
+        """Brainstorm 5-10 concept directions for the pinned niche.
+
+        Composes top_keywords + bsr_stats + recent slogans + niche analysis,
+        then asks the LLM to propose 5-10 design directions tagged with the 16
+        canonical patterns + (optional) CIRCLE crossover layer.
+        Returns ``{'directions': [{direction_title, pattern, circle_layer,
+        rationale, example_slogan_seed}, ...]}``."""
+        def _run() -> dict:
+            from chat_node_config_app.services.resolver import get_node_config
+            from idea_app.models import Idea
+            from idea_app.services import get_recent_slogans_sample
+            from keyword_app.services.ranking import rank_niche_keywords
+            from niche_app.services import (
+                derive_marketplace,
+                get_niche_analysis_snippet,
+                marketplace_to_language,
+            )
+            from niche_research_app.graph.llm import get_llm_for_node
+
+            marketplace_language = marketplace_to_language(
+                derive_marketplace(niche),
+            )
+            keywords = list(rank_niche_keywords(niche, limit=20))
+            top_keywords_text = (
+                ', '.join(kw.keyword for kw in keywords[:10])
+                or '(none yet)'
+            )
+
+            bsr_text = _bsr_snippet(niche)
+            recent_slogans = get_recent_slogans_sample(niche, limit=10)
+            niche_analysis = (
+                get_niche_analysis_snippet(niche) or '(no analysis yet)'
+            )
+
+            system_prompt = (
+                "You are a Print-on-Demand niche strategist. Brainstorm 5-10 "
+                "concept DIRECTIONS (not finished slogans) for the niche. Each "
+                "direction tags one of the 16 canonical patterns "
+                "(IDENTITY DECLARATION, GROUP LEADER, TRIBE/COMMUNITY, "
+                "FUNNY ACTIVITY, CROSS-NICHE EVENTS, CROSS-NICHE MASHUP, "
+                "ADDICTION/OBSESSION, VINTAGE/LEGACY, ACHIEVEMENT/GAMIFIED, "
+                "JOB/PROFESSION PARODY, RELATIONSHIP HUMOR, "
+                "BOUNDARY/GATEKEEPING, ENDURANCE/SURVIVAL, "
+                "COMPETENCE/EXPERTISE, CHAOS/CONTROL, SELF-CARE/PRIORITIES) "
+                "and optionally a Heidorn CIRCLE letter "
+                "(C / I / R / Crossover / LE).\n\n"
+                f"Niche: {niche.name}\n"
+                f"Marketplace language: {marketplace_language}\n"
+                f"Top keywords: {top_keywords_text}\n"
+                f"BSR profile: {bsr_text}\n"
+                f"Niche analysis: {niche_analysis}\n"
+                f"Recent slogans sample:\n{recent_slogans}\n"
+                f"User focus (optional): "
+                f"{focus or '(none - propose mixed directions)'}\n\n"
+                "Return STRICT JSON: "
+                '{"directions": [{"direction_title": "...", '
+                '"pattern": "<one of 16>", '
+                '"circle_layer": "<C|I|R|Crossover|LE|>", '
+                '"rationale": "1-2 sentences", '
+                '"example_slogan_seed": "<a phrase, not a finished slogan>"}]} '
+                "5-10 directions. No markdown."
+            )
+
+            llm, _ = get_llm_for_node(
+                'agent_react', config_resolver=get_node_config,
+            )
+            response = llm.invoke([
+                {'role': 'system', 'content': system_prompt},
+                {'role': 'user', 'content': f"Focus: {focus or 'mix it up'}"},
+            ])
+            raw = (getattr(response, 'content', '') or '').strip()
+
+            payload = _parse_llm_json(raw)
+            if payload is None:
+                logger.warning(
+                    'brainstorm_ideas: LLM returned non-JSON: %s', raw[:200],
+                )
+                return {'directions': []}
+
+            valid_patterns = {c.value for c in Idea.PatternUsed}
+            valid_circle = {'C', 'I', 'R', 'Crossover', 'LE', ''}
+
+            cleaned: list[dict] = []
+            for d in payload.get('directions', []) or []:
+                if not isinstance(d, dict):
+                    continue
+                title = (d.get('direction_title') or '').strip()
+                if not title:
+                    continue
+                pattern_in = d.get('pattern', '')
+                pattern_norm = _normalize_enum_token(pattern_in)
+                pattern = pattern_norm if pattern_norm in valid_patterns else ''
+
+                circle_layer = d.get('circle_layer') or ''
+                if circle_layer not in valid_circle:
+                    circle_layer = ''
+
+                cleaned.append({
+                    'direction_title': title,
+                    'pattern': pattern,
+                    'circle_layer': circle_layer,
+                    'rationale': (d.get('rationale') or '').strip(),
+                    'example_slogan_seed': (
+                        d.get('example_slogan_seed') or ''
+                    ).strip(),
+                })
+
+            return {'directions': cleaned[:10]}
+
+        return _with_timeout(_run)
+
     return [
         web_search,
         search_slogans,
@@ -292,6 +650,8 @@ def _build_tools(workspace, niche) -> list:
         search_niche_knowledge,
         top_keywords,
         bsr_stats,
+        generate_slogans,
+        brainstorm_ideas,
     ]
 
 
@@ -348,4 +708,8 @@ __all__ = [
     'SUBSET_TO_SUBTYPES',
     'TOOL_TIMEOUT_SECONDS',
     'build_niche_chat_agent',
+    '_bsr_snippet',
+    '_normalize_enum_token',
+    '_parse_llm_json',
+    '_validate_slogan_payload',
 ]

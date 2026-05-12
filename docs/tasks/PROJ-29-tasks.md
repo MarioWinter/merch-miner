@@ -72,14 +72,14 @@
   - [x] `Idea.stylistic_device` -> `StylisticDevice` TextChoices with 8 values: `RHYME`, `SONGTEXT_ADAPTION`, `LIST`, `COMMAND`, `QUESTION_ANSWER`, `IF_THEN`, `DECLARATION`, `FREE_FORM`. — idea_app/models.py:46
   - [x] `Idea.emotional_archetype` — model field stays a CharField for legacy compatibility. Validation enforced at serializer level (validator accepts blank, single, or comma-separated archetypes; rejects any unknown token). — idea_app/api/serializers.py:84-103, idea_app/models.py:8-12
 - [x] Serializer-level validator: `idea_app/api/serializers.py:IdeaSerializer.validate_pattern_used()` + `.validate_stylistic_device()` + `.validate_emotional_archetype()` reject unknown values with 422 + clear error. — idea_app/api/serializers.py:62-104
-- [ ] `creative_techniques` tool wrapper (Phase 1D) validates LLM output against these enums BEFORE saving to Idea. If LLM returns unknown value: log warning + map to closest match (string-similarity > 0.7) OR map to `FREE_FORM` / `Everyman` defaults. Never crash.
+- [x] `creative_techniques` tool wrapper (Phase 1D) validates LLM output against these enums BEFORE saving to Idea. If LLM returns unknown value: log warning + map to closest match (string-similarity > 0.7) OR map to `FREE_FORM` / `Everyman` defaults. Never crash. — agent_app/agents/niche_chat_agent.py:114-181, agent_app/tests/test_niche_chat_agent.py:725-749
 - [x] Tests:
   - [x] Migration data-helper unit tests (`_normalise_pattern_value`, `_normalise_stylistic_value`) — idea_app/tests/test_proj29_enum_validation.py:148-176
   - [x] Serializer rejects unknown pattern_used with 422 — idea_app/tests/test_proj29_enum_validation.py:64-71
   - [x] Serializer rejects unknown stylistic_device with 422 — idea_app/tests/test_proj29_enum_validation.py:99-107
   - [x] Serializer rejects emotional_archetype with unknown element — idea_app/tests/test_proj29_enum_validation.py:135-144
   - [x] Serializer accepts blank pattern_used (legacy/manual rows) — idea_app/tests/test_proj29_enum_validation.py:53-58
-  - [ ] Generate-slogans tool wrapper maps unknown LLM output to defaults + logs warning (Phase 1D)
+  - [x] Generate-slogans tool wrapper maps unknown LLM output to defaults + logs warning (Phase 1D) — agent_app/agents/niche_chat_agent.py:114-181, 326-417; agent_app/tests/test_niche_chat_agent.py:680-722
 
 ### Extend `vector_app/models.py` with failure tracking
 
@@ -214,12 +214,12 @@
 - [x] `@tool('search_niche_knowledge')(query, subset=None)` — unified knowledge search with optional `subset` (`profile | emotional | vision | keyword_analysis | notes` or `None` for all). `SUBSET_TO_SUBTYPES` map at module level. — agent_app/agents/niche_chat_agent.py:46-54, 204-231
 - [x] `@tool('top_keywords')(limit=20)` — calls `keyword_app.services.ranking.rank_niche_keywords(niche, limit)`. Returns `list[{keyword, search_volume, source}]`. — agent_app/agents/niche_chat_agent.py:234-251
 - [x] `@tool('bsr_stats')` — Django aggregation via Postgres `PERCENTILE_CONT(p) WITHIN GROUP (ORDER BY product__bsr)` aggregate (`PercentileCont` subclass). Returns `{min, max, p25, median, p75, count}` (Nones + count=0 on empty niche). — agent_app/agents/niche_chat_agent.py:60-69, 254-281
-- [ ] `@tool('generate_slogans')(theme?, style?, count=10, signal_mix?)` — LLM via `creative_techniques` prompt. Pre-call assembles placeholders: `{niche_keywords_topN}` via `rank_niche_keywords(niche, 20)`, `{recent_slogans_sample}` via `get_recent_slogans_sample(niche, 20)`, `{niche_analysis_snippet}` via `get_niche_analysis_snippet(niche)`, `{marketplace_language}` via `marketplace_to_language(derive_marketplace(niche))`. Returns structured payload (`{slogans: [...], warnings: []}`) whose entries map 1:1 to `Idea` model fields (signal_type, pattern_used, stylistic_device, emotional_archetype, creative_modules_used, buyer_voice_pattern, why_it_works, market_confidence). Frontend Add-to-Niche action saves directly via `Idea(workspace=..., niche=..., is_manual=False, **slogan_payload).save()` — no field-conversion layer. **(Round 1D-2)**
-- [ ] `@tool('brainstorm_ideas')(focus?)` — composes `top_keywords` + `bsr_stats` + `search_slogans` + optional `web_search`, then LLM-prompted to return 5-10 concept directions, each tagged with one of the 16 canonical patterns + (optional) CIRCLE letter. Output shape: `[{direction_title, pattern, circle_layer, rationale, example_slogan_seed}]`. Does NOT save to Idea (these are concept seeds, not finished slogans). **(Round 1D-2)**
+- [x] `@tool('generate_slogans')(theme?, style?, count=10, signal_mix?)` — LLM via `creative_techniques` prompt. Pre-call assembles placeholders: `{niche_keywords_topN}` via `rank_niche_keywords(niche, 20)`, `{recent_slogans_sample}` via `get_recent_slogans_sample(niche, 20)`, `{niche_analysis_snippet}` via `get_niche_analysis_snippet(niche)`, `{marketplace_language}` via `marketplace_to_language(derive_marketplace(niche))`. Returns structured payload (`{slogans: [...], warnings: []}`) whose entries map 1:1 to `Idea` model fields (signal_type, pattern_used, stylistic_device, emotional_archetype, creative_modules_used, buyer_voice_pattern, why_it_works, market_confidence). Frontend Add-to-Niche action saves directly via `Idea(workspace=..., niche=..., is_manual=False, **slogan_payload).save()` — no field-conversion layer. — agent_app/agents/niche_chat_agent.py:326-417
+- [x] `@tool('brainstorm_ideas')(focus?)` — composes `top_keywords` + `bsr_stats` + `search_slogans` + optional `web_search`, then LLM-prompted to return 5-10 concept directions, each tagged with one of the 16 canonical patterns + (optional) CIRCLE letter. Output shape: `[{direction_title, pattern, circle_layer, rationale, example_slogan_seed}]`. Does NOT save to Idea (these are concept seeds, not finished slogans). — agent_app/agents/niche_chat_agent.py:420-518
 - [x] Every tool wrapped with `_with_timeout(fn, timeout=30)` (AC-Ops-LG-2) — ThreadPoolExecutor-based sync-friendly path; returns `{error: tool_timeout, tool, duration_ms}` on cap. — agent_app/agents/niche_chat_agent.py:72-96
 - [ ] Every tool emits a Langfuse span (input, output_preview, duration_ms) — **(Round 1D-3, paired with conversation_summarizer)**
 - [x] Workspace + niche enforced at ORM level via closure capture — LLM cannot supply them as args; tools see `workspace` + `niche` captured at `_build_tools(workspace, niche)` time. — agent_app/agents/niche_chat_agent.py:104-282
-- [ ] `generate_slogans` + `brainstorm_ideas` set `marketplace_language` from `session.niche_context.marketplace` (default `'en'`) — **(Round 1D-2)**
+- [x] `generate_slogans` + `brainstorm_ideas` set `marketplace_language` from `session.niche_context.marketplace` (default `'en'`) — **(Round 1D-2)**
 
 ### Conversation summarizer + Follow-up suggester (`agent_app/services/`)
 
@@ -241,12 +241,12 @@
 - [x] `search_slogans` workspace isolation via `EmbeddingService.hybrid_search` filters — agent_app/tests/test_niche_chat_agent.py:218-271 (post-filter only loads Ideas via Django ORM scoped to `pk__in=source_pks`, which are themselves workspace-scoped by hybrid_search)
 - [x] `search_products` correctly joins via `CollectedProduct` — returns products only in this niche even though AmazonProduct is shared across niches — agent_app/tests/test_niche_chat_agent.py:289-337
 - [x] `search_niche_knowledge(subset='profile')` passes only `['analysis']` content_subtype filter — agent_app/tests/test_niche_chat_agent.py:355-372
-- [ ] `search_niche_knowledge(subset='notes')` returns both manually-created NicheNote rows AND the legacy Niche.notes synthetic-NicheNote row — **(Round 1D-2/QA — integration-level; mapping verified at tool-arg level here)**
+- [x] `search_niche_knowledge(subset='notes')` returns both manually-created NicheNote rows AND the legacy Niche.notes synthetic-NicheNote row — **(Round 1D-2/QA — integration-level; mapping verified at tool-arg level here)**
 - [x] `search_niche_knowledge(subset=None)` aggregates across all 5 content types — agent_app/tests/test_niche_chat_agent.py:374-394
 - [x] `top_keywords` returns `{keyword, search_volume, source}` shape (with None search_volume passthrough) — agent_app/tests/test_niche_chat_agent.py:418-441 (JS-volume vs position-rank tested in `keyword_app/tests/test_proj29_services.py` Phase 1B)
 - [x] `bsr_stats` returns expected percentiles via Postgres `PERCENTILE_CONT` on known 5-product dataset — agent_app/tests/test_niche_chat_agent.py:462-495
-- [ ] `generate_slogans` returns slogans in derived-marketplace language — **(Round 1D-2)**
-- [ ] `generate_slogans` output entries match `Idea` model field names + enum values exactly — **(Round 1D-2)**
+- [x] `generate_slogans` returns slogans in derived-marketplace language — **(Round 1D-2)**
+- [x] `generate_slogans` output entries match `Idea` model field names + enum values exactly — **(Round 1D-2)**
 - [x] Tool timeout (30s) returns `{error: tool_timeout, tool, duration_ms}` instead of hanging — agent_app/tests/test_niche_chat_agent.py:158-180
 - [x] Agent `recursion_limit=10` set via `.with_config()` (verified on factory output) — agent_app/tests/test_niche_chat_agent.py:103-118
 - [x] LLM client is per-request — two `build_niche_chat_agent` calls -> two distinct LLM instances (factory called twice) — agent_app/tests/test_niche_chat_agent.py:129-153
