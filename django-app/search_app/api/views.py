@@ -157,6 +157,39 @@ class ChatSessionListCreateView(APIView):
         out = ChatSessionDetailSerializer(session).data
         return Response(out, status=status.HTTP_201_CREATED)
 
+    def delete(self, request):
+        """Bulk-purge all chat sessions owned by the requesting user in the
+        active workspace.
+
+        PROJ-29 Phase 1F: requires explicit body ``{"confirm_purge": "all"}``
+        (exact-string match) to guard against accidental wipes. Only the
+        requesting user's own sessions in the resolved workspace are removed;
+        other users' sessions in the same workspace are untouched. Returns
+        ``{"deleted_count": N}``.
+        """
+        workspace, err = _resolve_workspace(request)
+        if err:
+            return err
+
+        if request.data.get('confirm_purge') != 'all':
+            return Response(
+                {'error': 'Missing or invalid confirm_purge. Send {"confirm_purge": "all"} to bulk-delete.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # `.delete()` returns ``(int total_rows, dict per_model_counts)`` where
+        # ``total_rows`` includes cascade rows (ChatMessage etc.). Report just
+        # the session count to keep the contract stable as cascades evolve.
+        _total, per_model = ChatSession.objects.filter(
+            workspace=workspace,
+            created_by=request.user,
+        ).delete()
+        session_count = per_model.get('search_app.ChatSession', 0)
+        return Response(
+            {'deleted_count': session_count},
+            status=status.HTTP_200_OK,
+        )
+
 
 class ChatSessionDetailView(APIView):
     """GET /api/chat/sessions/{id}/ -- session detail with messages.
@@ -222,15 +255,30 @@ class ChatSessionDetailView(APIView):
         return Response(ChatSessionDetailSerializer(session).data)
 
     def delete(self, request, session_id):
+        """Delete a chat session.
+
+        PROJ-29 Phase 1F: only the session ``created_by`` user OR a
+        workspace admin can delete. Cross-user / non-admin attempts return
+        **404 (NOT 403)** to avoid leaking session existence (AC-Isolation-2
+        info-leak prevention). ``ChatMessage.session`` is FK with
+        ``on_delete=CASCADE`` -> cascade-delete handled at the ORM level.
+        """
         workspace, session, err = self._get_session(request, session_id)
         if err:
             return err
 
         if session.created_by != request.user:
-            return Response(
-                {'error': 'Only the session owner can delete it.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            is_workspace_admin = Membership.objects.filter(
+                workspace=workspace,
+                user=request.user,
+                role=Membership.Role.ADMIN,
+                status=Membership.Status.ACTIVE,
+            ).exists()
+            if not is_workspace_admin:
+                return Response(
+                    {'error': 'Session not found.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
         session.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)

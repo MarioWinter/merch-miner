@@ -287,10 +287,10 @@
 
 ### Backend endpoints (`search_app`)
 
-- [ ] `DELETE /api/chat/sessions/<uuid:id>/` — only `created_by` user or workspace admin; cascade-deletes `ChatMessage` rows
-- [ ] `DELETE /api/chat/sessions/` (bulk) — requires `confirm_purge=all` in body; deletes all current-user sessions in active workspace; returns `deleted_count`
-- [ ] Add `conversation_summary` field to `ChatSession` (migration)
-- [ ] Audit existing `GET /api/chat/sessions/` filter by `created_by + workspace` (add explicit AC-Isolation-2 test if missing)
+- [x] `DELETE /api/chat/sessions/<uuid:id>/` — only `created_by` user or workspace admin; cascade-deletes `ChatMessage` rows — search_app/api/views.py:228-256
+- [x] `DELETE /api/chat/sessions/` (bulk) — requires `confirm_purge=all` in body; deletes all current-user sessions in active workspace; returns `deleted_count` — search_app/api/views.py:163-194
+- [x] Add `conversation_summary` field to `ChatSession` (migration) — search_app/models.py:44-53, search_app/migrations/0005_chatsession_conversation_summary.py (Phase 1D Round 3)
+- [x] Audit existing `GET /api/chat/sessions/` filter by `created_by + workspace` (add explicit AC-Isolation-2 test if missing) — verified filter at search_app/api/views.py:106-114 (workspace + (created_by OR is_shared)); AC-Isolation-2 lock-in test at search_app/tests/test_chat_session_delete.py:230-245
 
 ### Frontend chat history panel
 
@@ -302,10 +302,10 @@
 
 ### Tests
 
-- [ ] Single-session delete returns 204; second GET returns 404
-- [ ] Bulk delete without `confirm_purge=all` returns 400
-- [ ] Bulk delete deletes only current-user's sessions; other user's untouched
-- [ ] Cross-user GET returns 404 (NOT 403 — avoid leaking session existence)
+- [x] Single-session delete returns 204; second GET returns 404 — search_app/tests/test_chat_session_delete.py:84-99
+- [x] Bulk delete without `confirm_purge=all` returns 400 — search_app/tests/test_chat_session_delete.py:160-165
+- [x] Bulk delete deletes only current-user's sessions; other user's untouched — search_app/tests/test_chat_session_delete.py:198-225
+- [x] Cross-user GET returns 404 (NOT 403 — avoid leaking session existence) — search_app/tests/test_chat_session_delete.py:117-131, 230-245
 - [ ] Playwright E2E: log in as A → 2 sessions → logout → log in as B → see 0 of A's sessions
 - [ ] localStorage cleanup on logout — keys removed assertion
 
