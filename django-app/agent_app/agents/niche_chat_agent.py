@@ -1048,9 +1048,11 @@ def run_chat(session, message: str):
         }
 
     final_answer = ''.join(final_answer_parts)
-    yield {'event': EVENT_DONE, 'data': {'final_answer': final_answer}}
 
-    # Follow-ups — never crashes the stream; suggester returns [] on failure.
+    # PROJ-29 Phase 1I follow-up: emit `follow_ups` BEFORE `done` because the
+    # frontend's `done` handler closes the EventSource immediately — any event
+    # arriving after `done` is lost on a closed connection. The 1-3s suggester
+    # latency is acceptable UX cost for getting the chips to render reliably.
     try:
         from agent_app.services.follow_up_suggester import suggest as _suggest
         from niche_app.services import (
@@ -1068,13 +1070,17 @@ def run_chat(session, message: str):
         if suggestions:
             yield {
                 'event': EVENT_FOLLOW_UPS,
-                'data': {'suggestions': suggestions},
+                # Canonical wire shape: `{chips: [...]}` per
+                # `frontend-ui/src/types/chat-rag.ts:SSEFollowUpsEvent`.
+                'data': {'chips': list(suggestions)},
             }
     except Exception:
         logger.warning(
             'follow_up_suggester invocation failed; skipping chips',
             exc_info=True,
         )
+
+    yield {'event': EVENT_DONE, 'data': {'final_answer': final_answer}}
 
 
 __all__ = [

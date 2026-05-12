@@ -203,10 +203,12 @@ class TestNicheAgentRouting:
             ]}},
             {'event': 'chunk', 'data': {'delta': 'Try '}},
             {'event': 'chunk', 'data': {'delta': 'these slogans'}},
-            {'event': 'done', 'data': {'final_answer': 'Try these slogans'}},
-            {'event': 'follow_ups', 'data': {'suggestions': [
+            # PROJ-29 Phase 1I follow-up: follow_ups MUST fire BEFORE done —
+            # the frontend's done handler closes the EventSource immediately.
+            {'event': 'follow_ups', 'data': {'chips': [
                 'More like this', 'Why does this work?', 'Add to niche',
             ]}},
+            {'event': 'done', 'data': {'final_answer': 'Try these slogans'}},
         ]
 
         with patch(
@@ -240,8 +242,9 @@ class TestNicheAgentRouting:
         assert 'follow_ups' in names
         # chunks_used MUST fire before done (UI clears citation state).
         assert names.index('chunks_used') < names.index('done')
-        # follow_ups MUST fire AFTER done.
-        assert names.index('done') < names.index('follow_ups')
+        # PROJ-29 Phase 1I follow-up: follow_ups MUST fire BEFORE done so the
+        # frontend EventSource is still open when the chips arrive.
+        assert names.index('follow_ups') < names.index('done')
 
         # Assistant message persisted with the streamed final_answer.
         assistant = ChatMessage.objects.get(
