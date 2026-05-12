@@ -137,6 +137,23 @@ class ChatMessage(models.Model):
         blank=True,
         help_text='Structured slogan rows from the niche-RAG agent.',
     )
+    # PROJ-29 Phase 1I follow-up — retrieved chunks (RAG sources) emitted during
+    # the niche-chat turn. Persisted so the ThinkingStrip ExpandedPanel + the
+    # NicheCitationLink hover-flash work after page reload. Each chunk:
+    # `{ index, content_subtype, text, source_pk?, url?, score? }`.
+    chunks_used = models.JSONField(
+        null=True,
+        blank=True,
+        help_text='Retrieved RAG chunks shown in the ThinkingStrip ExpandedPanel.',
+    )
+    # PROJ-29 Phase 1I follow-up — ordered list of stage rows for the
+    # ThinkingStrip collapsed pill (count + duration + status). Each:
+    # `{ stage, status, ts, durationMs?, message? }`.
+    thinking_stages = models.JSONField(
+        null=True,
+        blank=True,
+        help_text='Ordered ThinkingStrip stage rows (active / done / warning / error).',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

@@ -22,6 +22,11 @@ class ChatMessageSerializer(serializers.ModelSerializer):
             # PROJ-29 Phase 1I — structured slogan payload from niche-RAG agent.
             # Null on every non-niche-agent message.
             'generate_slogans_payload',
+            # PROJ-29 Phase 1I follow-up — chunks_used + thinking_stages drive
+            # the ThinkingStrip ExpandedPanel + NicheCitationLink hover-flash
+            # on persisted messages.
+            'chunks_used',
+            'thinking_stages',
             'created_at',
         ]
         read_only_fields = fields

@@ -326,7 +326,23 @@ const ChatMessageList = ({
                       {/* PROJ-29 Phase 1H — ThinkingStrip for persisted messages.
                        *  No persisted thinking metadata yet (Phase 1I) — strip
                        *  renders nothing until backend wiring lands. */}
-                      <ThinkingStrip messageId={msg.id} isStreaming={false} />
+                      <ThinkingStrip
+                        messageId={msg.id}
+                        isStreaming={false}
+                        persistedSteps={msg.thinking_stages ?? undefined}
+                        persistedChunksUsed={msg.chunks_used ?? undefined}
+                        persistedDurationMs={(() => {
+                          // Compute total elapsed from earliest stage ts to the
+                          // last terminal (done/warning/error) ts. Falls back
+                          // to sum of durationMs when ts gap is unavailable.
+                          const stages = msg.thinking_stages ?? [];
+                          if (stages.length === 0) return undefined;
+                          const first = stages[0].ts;
+                          const last = stages[stages.length - 1];
+                          const lastEnd = last.ts + (last.durationMs ?? 0);
+                          return Math.max(0, lastEnd - first);
+                        })()}
+                      />
                       <MarkdownAnswer
                         content={msg.content}
                         sources={msg.sources ?? []}

@@ -479,7 +479,7 @@ const ChatPanel = () => {
         sessionId={activeSessionId ?? undefined}
         onRegenerate={isReadOnly ? undefined : handleRegenerate}
         onSaveAnswer={isReadOnly ? undefined : handleSaveAnswer}
-        sessionNicheId={session?.niche_context?.id ?? null}
+        sessionNicheId={session?.niche_context_id ?? null}
         onFollowUpClick={
           isReadOnly
             ? undefined

@@ -1,6 +1,7 @@
 import json
 import logging
 import secrets
+import time
 
 import django_rq
 from django.conf import settings
@@ -1127,26 +1128,68 @@ class ChatSessionMessageStreamView(APIView):
 
         def agent_event_stream():
             slogan_payload = None
+            chunks_used_buf: list[dict] = []
+            thinking_stages_buf: list[dict] = []
+            # Track in-flight stages by name so tool_result / tool_timeout can
+            # close them out with a status + durationMs.
+            stage_idx_by_name: dict[str, int] = {}
             try:
                 inner = run_chat(session, content)
                 for evt in _wrap_with_heartbeat(inner):
                     event_name = evt.get('event')
+                    data = evt.get('data') or {}
                     if event_name == 'generate_slogans_payload':
-                        # PROJ-29 Phase 1I: capture for persistence on the
-                        # ChatMessage. Pass through unchanged so the live
-                        # frontend table renders during the stream.
-                        slogan_payload = evt.get('data') or None
+                        slogan_payload = data or None
+                        yield _serialize_sse(evt)
+                        continue
+                    if event_name == 'chunks_used':
+                        # Capture for persistence — frontend ExpandedPanel +
+                        # NicheCitationLink need this to render after reload.
+                        new_chunks = list(data.get('chunks') or [])
+                        chunks_used_buf.extend(new_chunks)
+                        yield _serialize_sse(evt)
+                        continue
+                    if event_name in ('stage', 'tool_call'):
+                        # Open a new stage row.
+                        stage_name = (
+                            data.get('stage')
+                            or data.get('tool')
+                            or data.get('tool_name')
+                            or 'unknown'
+                        )
+                        row = {
+                            'stage': stage_name,
+                            'status': 'loading',
+                            'ts': int(time.time() * 1000),
+                        }
+                        thinking_stages_buf.append(row)
+                        stage_idx_by_name[stage_name] = len(thinking_stages_buf) - 1
+                        yield _serialize_sse(evt)
+                        continue
+                    if event_name in ('tool_result', 'tool_timeout'):
+                        stage_name = (
+                            data.get('tool')
+                            or data.get('tool_name')
+                            or 'unknown'
+                        )
+                        idx = stage_idx_by_name.get(stage_name)
+                        if idx is not None and idx < len(thinking_stages_buf):
+                            row = thinking_stages_buf[idx]
+                            row['status'] = (
+                                'warning' if event_name == 'tool_timeout' else 'done'
+                            )
+                            duration = data.get('duration_ms')
+                            if duration is not None:
+                                row['durationMs'] = duration
+                            if event_name == 'tool_timeout':
+                                row['message'] = data.get('output_preview') or data.get('error') or ''
                         yield _serialize_sse(evt)
                         continue
                     if event_name == 'done':
                         # Persist the assistant turn HERE (before emitting `done`
                         # on the wire) so the wire can carry the persisted
-                        # message id. This preserves the original event order
-                        # (`done` then `follow_ups`) that downstream tests +
-                        # frontend rely on.
-                        final_answer = (evt.get('data') or {}).get(
-                            'final_answer', '',
-                        ) or ''
+                        # message id.
+                        final_answer = data.get('final_answer', '') or ''
                         assistant_msg = None
                         if final_answer:
                             assistant_msg = ChatMessage.objects.create(
@@ -1159,9 +1202,11 @@ class ChatSessionMessageStreamView(APIView):
                                 search_sources=['niche_agent'],
                                 model_used='niche_chat_agent',
                                 generate_slogans_payload=slogan_payload,
+                                chunks_used=(chunks_used_buf or None),
+                                thinking_stages=(thinking_stages_buf or None),
                             )
                             session.save(update_fields=['updated_at'])
-                        done_data = dict(evt.get('data') or {})
+                        done_data = dict(data)
                         if assistant_msg is not None:
                             done_data['message_id'] = str(assistant_msg.pk)
                         yield _serialize_sse({'event': 'done', 'data': done_data})

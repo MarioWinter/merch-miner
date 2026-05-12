@@ -195,9 +195,9 @@ const RecentChats = ({ onSelect, activeSessionId }: RecentChatsProps) => {
                 secondary={
                   <Stack gap={0.25} sx={{ mt: 0.25 }}>
                     <Stack direction="row" alignItems="center" gap={0.75} flexWrap="wrap">
-                      {session.niche_context && (
+                      {session.niche_context_name && (
                         <Chip
-                          label={session.niche_context.name}
+                          label={session.niche_context_name}
                           size="small"
                           variant="outlined"
                           color="secondary"
