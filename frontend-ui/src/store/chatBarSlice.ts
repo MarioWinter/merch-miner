@@ -288,6 +288,23 @@ const chatBarSlice = createSlice({
       state.activePanel = 'chat';
       state.drawerOpen = true;
     },
+    /**
+     * PROJ-29 Phase 1F: full reset of chat-scoped slice state. Used on
+     * logout so the next user signing in on the same browser does not see
+     * the previous user's active session id, streaming buffer, niche chip,
+     * or drawer-open state.
+     */
+    resetChatBar() {
+      // Re-read persisted (workspace) fields — but those are wiped by the
+      // logout cleanup separately via `mm-active-chat-*` removal + the
+      // workspace slice's own reducer. We deliberately return a fresh
+      // initial state shape minus the persisted-niche fields.
+      return {
+        ...initialState,
+        activeNicheId: null,
+        nicheMode: 'edit' as NicheMode,
+      };
+    },
   },
 });
 
@@ -316,6 +333,7 @@ export const {
   clearStreamingMessage,
   setRecentChatsOverlayOpen,
   startNewChat,
+  resetChatBar,
 } = chatBarSlice.actions;
 
 export default chatBarSlice.reducer;

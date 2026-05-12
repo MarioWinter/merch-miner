@@ -3403,5 +3403,29 @@
       "prev": "Zurück",
       "next": "Weiter"
     }
+  },
+  "chatNicheRag": {
+    "history": {
+      "delete": "Chat löschen",
+      "deleted": "Chat gelöscht",
+      "deleteFailed": "Chat konnte nicht gelöscht werden",
+      "deleteConfirm": {
+        "title": "Diesen Chat löschen?",
+        "body": "Nachrichten werden dauerhaft entfernt.",
+        "confirm": "Löschen",
+        "cancel": "Abbrechen"
+      },
+      "clearAll": "Alle Chats löschen",
+      "clearAllConfirm": {
+        "title": "Alle Chats löschen?",
+        "body": "Alle Chat-Sessions in diesem Workspace werden dauerhaft entfernt. Tippe DELETE, um zu bestätigen.",
+        "typePlaceholder": "DELETE eintippen",
+        "typeWord": "DELETE",
+        "confirm": "Alle löschen",
+        "cancel": "Abbrechen"
+      },
+      "cleared": "Alle Chats gelöscht ({{count}})",
+      "clearFailed": "Chats konnten nicht gelöscht werden"
+    }
   }
 }

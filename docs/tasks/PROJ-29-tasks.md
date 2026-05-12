@@ -294,11 +294,11 @@
 
 ### Frontend chat history panel
 
-- [ ] Hover over past session row → trash icon appears
-- [ ] Click trash → confirm dialog → DELETE call → optimistic remove + notistack
-- [ ] "Clear all chats" button at top of history panel with `Type DELETE` confirm dialog
-- [ ] After re-login, restore active session id from localStorage `mm-active-chat-session-{workspace_id}` (graceful fallback if deleted)
-- [ ] On logout: clear ALL `mm-active-chat-*` localStorage keys + reset Redux `chatBar`, `chatHistory`, `streamingMessage`
+- [x] Hover over past session row → trash icon appears
+- [x] Click trash → confirm dialog → DELETE call → optimistic remove + notistack
+- [x] "Clear all chats" button at top of history panel with `Type DELETE` confirm dialog
+- [x] After re-login, restore active session id from localStorage `mm-active-chat-session-{workspace_id}` (graceful fallback if deleted)
+- [x] On logout: clear ALL `mm-active-chat-*` localStorage keys + reset Redux `chatBar`, `chatHistory`, `streamingMessage`
 
 ### Tests
 
@@ -306,8 +306,8 @@
 - [x] Bulk delete without `confirm_purge=all` returns 400 — search_app/tests/test_chat_session_delete.py:160-165
 - [x] Bulk delete deletes only current-user's sessions; other user's untouched — search_app/tests/test_chat_session_delete.py:198-225
 - [x] Cross-user GET returns 404 (NOT 403 — avoid leaking session existence) — search_app/tests/test_chat_session_delete.py:117-131, 230-245
-- [ ] Playwright E2E: log in as A → 2 sessions → logout → log in as B → see 0 of A's sessions
-- [ ] localStorage cleanup on logout — keys removed assertion
+- [x] Playwright E2E: log in as A → 2 sessions → logout → log in as B → see 0 of A's sessions
+- [x] localStorage cleanup on logout — keys removed assertion
 
 ## Phase 1G — Operational hardening
 

@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Box,
   IconButton,
@@ -71,6 +71,41 @@ const InputArea = styled(Box)(({ theme }) => ({
   flexShrink: 0,
 }));
 
+/**
+ * PROJ-29 Phase 1F: workspace-scoped active-session pointer in localStorage.
+ * Lets a returning user re-open the same chat after refresh / re-login.
+ * Read-and-write helpers are colocated so the key shape stays a single source
+ * of truth with the logout cleanup in `ProfileMenu`.
+ */
+const activeChatKey = (workspaceId: string | null | undefined) =>
+  workspaceId ? `mm-active-chat-session-${workspaceId}` : null;
+
+const readPersistedActiveChat = (workspaceId: string | null): string | null => {
+  if (typeof window === 'undefined') return null;
+  const key = activeChatKey(workspaceId);
+  if (!key) return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const writePersistedActiveChat = (
+  workspaceId: string | null,
+  sessionId: string | null,
+): void => {
+  if (typeof window === 'undefined') return;
+  const key = activeChatKey(workspaceId);
+  if (!key) return;
+  try {
+    if (sessionId) window.localStorage.setItem(key, sessionId);
+    else window.localStorage.removeItem(key);
+  } catch {
+    /* quota / privacy — ignore */
+  }
+};
+
 const ChatPanel = () => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
@@ -83,15 +118,50 @@ const ChatPanel = () => {
     modeOverride,
     inputChip,
   } = useAppSelector((s) => s.chatBar);
+  const activeWorkspaceId = useAppSelector(
+    (s) => s.workspace?.activeWorkspaceId ?? null,
+  );
   const { vaneOnline } = useSearchHealth();
 
   const inputRef = useRef<ChatInputBarHandle>(null);
   const [modal, setModal] = useState<ModalState>(INITIAL_MODAL);
 
-  const { data: session, isLoading: sessionLoading } = useGetSessionQuery(
+  // PROJ-29 Phase 1F: on mount + whenever the active workspace flips, try to
+  // restore the persisted session id. Only sets when Redux currently has no
+  // active session — never clobbers an in-progress session.
+  const restoreAttemptedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activeWorkspaceId) return;
+    if (restoreAttemptedRef.current === activeWorkspaceId) return;
+    restoreAttemptedRef.current = activeWorkspaceId;
+    if (activeSessionId) return;
+    const persisted = readPersistedActiveChat(activeWorkspaceId);
+    if (persisted) {
+      dispatch(setActiveSession(persisted));
+    }
+  }, [activeWorkspaceId, activeSessionId, dispatch]);
+
+  const { data: session, isLoading: sessionLoading, error: sessionError } = useGetSessionQuery(
     activeSessionId ?? '',
     { skip: !activeSessionId },
   );
+
+  // PROJ-29 Phase 1F: persist the active session id per workspace so a
+  // refresh / re-login restores the same chat. Silently drop the pointer if
+  // the backend 404s (session deleted by user or admin).
+  useEffect(() => {
+    if (!activeWorkspaceId) return;
+    const status =
+      sessionError && typeof sessionError === 'object' && 'status' in sessionError
+        ? (sessionError as { status?: number }).status
+        : undefined;
+    if (status === 404) {
+      writePersistedActiveChat(activeWorkspaceId, null);
+      dispatch(setActiveSession(null));
+      return;
+    }
+    writePersistedActiveChat(activeWorkspaceId, activeSessionId);
+  }, [activeWorkspaceId, activeSessionId, sessionError, dispatch]);
 
   const [createSession] = useCreateSessionMutation();
   const [sendMessage] = useSendMessageMutation();
