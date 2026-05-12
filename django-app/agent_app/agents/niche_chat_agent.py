@@ -712,10 +712,40 @@ def _build_tools(workspace, niche, model_override=None) -> list:
             if theme:
                 user_message += f" Theme: {theme}."
 
-            response = llm.invoke([
+            messages = [
                 {'role': 'system', 'content': system_prompt},
                 {'role': 'user', 'content': user_message},
-            ])
+            ]
+
+            # PROJ-29 follow-up: slogan-gen safety net. The primary model
+            # (default `mistralai/mistral-medium-3`) may be retired or
+            # rate-limited by OpenRouter — we observed exactly that with
+            # `mistral-small-creative` retirement. Auto-fallback to
+            # `google/gemini-3-flash-preview` on any provider error so
+            # the user always gets slogans. Fallback ONLY for this tool —
+            # other LLM calls (agent_react, etc.) keep their configured
+            # model with no automatic switching.
+            FALLBACK_MODEL = 'google/gemini-3-flash-preview'
+            try:
+                response = llm.invoke(messages)
+            except Exception as primary_err:  # pragma: no cover - network
+                primary_model = getattr(llm, 'model_name', '?')
+                if primary_model == FALLBACK_MODEL:
+                    # Already on the fallback — re-raise so the agent loop
+                    # surfaces the error rather than infinite-looping.
+                    raise
+                logger.warning(
+                    'generate_slogans: primary model %r failed (%s: %s); '
+                    'retrying with fallback %r',
+                    primary_model, type(primary_err).__name__, primary_err,
+                    FALLBACK_MODEL,
+                )
+                fallback_llm, _ = get_llm_for_node(
+                    'creative_techniques',
+                    config_resolver=get_node_config,
+                    model_override=FALLBACK_MODEL,
+                )
+                response = fallback_llm.invoke(messages)
             raw = (getattr(response, 'content', '') or '').strip()
 
             payload = _parse_llm_json(raw)

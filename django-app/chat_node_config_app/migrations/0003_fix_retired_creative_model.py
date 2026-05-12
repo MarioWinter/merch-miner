@@ -14,7 +14,10 @@ from django.db import migrations
 
 
 RETIRED_MODELS = {
-    'mistralai/mistral-small-creative': 'openai/gpt-4.1-mini',
+    # `mistral-small-creative` retired between Phase 1A seed and Phase 1I e2e.
+    # New default per user request: Mistral Medium 3 (successor, writing-tuned)
+    # with an in-tool fallback to gemini-3-flash-preview on any API error.
+    'mistralai/mistral-small-creative': 'mistralai/mistral-medium-3',
 }
 
 

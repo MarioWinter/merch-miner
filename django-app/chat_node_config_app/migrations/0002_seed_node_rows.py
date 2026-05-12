@@ -24,7 +24,11 @@ from django.db import migrations
 # good state. Admins can switch later via Django Admin.
 NODE_SEED = [
     ('agent_react', 'openai/gpt-4.1-mini', 0.3, 4000),
-    ('creative_techniques', 'openai/gpt-4.1-mini', 0.7, 3500),
+    # creative_techniques: Mistral Medium 3 is the writing-tuned successor to
+    # the retired Small Creative. The `generate_slogans` tool has an automatic
+    # fallback to google/gemini-3-flash-preview on any API error, so a
+    # retirement / outage of Mistral won't crash slogan generation.
+    ('creative_techniques', 'mistralai/mistral-medium-3', 0.7, 3500),
     ('chat_with_niche', 'google/gemini-3-flash-preview', 0.3, 2000),
     ('chat_no_niche', 'google/gemini-3-flash-preview', 0.4, 2000),
     ('query_rewrite', 'google/gemini-3-flash-preview', 0.2, 500),

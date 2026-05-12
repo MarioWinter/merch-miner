@@ -30,6 +30,14 @@ export const MODELS: ReadonlyArray<ModelEntry> = [
     label: 'Gemini 3.1 Flash Lite (Preview)',
     provider: 'OpenRouter',
   },
+  // PROJ-29 follow-up: Mistral Medium 3 is the writing-tuned creative
+  // baseline. `generate_slogans` falls back to gemini-3-flash-preview
+  // automatically when this model is unavailable.
+  {
+    value: 'mistralai/mistral-medium-3',
+    label: 'Mistral Medium 3',
+    provider: 'OpenRouter',
+  },
 ];
 
 /**
