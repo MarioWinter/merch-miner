@@ -1,13 +1,28 @@
-import { useEffect } from 'react';
-import { Box, IconButton, Stack, Typography } from '@mui/material';
+import { useEffect, useState } from 'react';
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  IconButton,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
 import { styled } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
+import DeleteSweepOutlinedIcon from '@mui/icons-material/DeleteSweepOutlined';
 import { useTranslation } from 'react-i18next';
+import { useSnackbar } from 'notistack';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import {
   setActiveSession,
   setRecentChatsOverlayOpen,
 } from '@/store/chatBarSlice';
+import { usePurgeAllSessionsMutation } from '@/store/searchSlice';
 import type { ChatSession } from '@/types/search';
 import RecentChats from './panels/RecentChats';
 
@@ -32,6 +47,13 @@ const OverlayHeader = styled(Box)(({ theme }) => ({
   flexShrink: 0,
 }));
 
+const OverlayToolbar = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  justifyContent: 'flex-end',
+  padding: `${theme.spacing(0.75)} ${theme.spacing(1.5)}`,
+  flexShrink: 0,
+}));
+
 const OverlayBody = styled(Box)({
   flex: 1,
   overflowY: 'auto',
@@ -40,9 +62,18 @@ const OverlayBody = styled(Box)({
 
 const RecentChatsOverlay = () => {
   const { t } = useTranslation();
+  const { enqueueSnackbar } = useSnackbar();
   const dispatch = useAppDispatch();
   const open = useAppSelector((s) => s.chatBar.recentChatsOverlayOpen);
   const activeSessionId = useAppSelector((s) => s.chatBar.activeSessionId);
+  const activeWorkspaceId = useAppSelector(
+    (s) => s.workspace.activeWorkspaceId,
+  );
+  const [purgeOpen, setPurgeOpen] = useState(false);
+  const [typed, setTyped] = useState('');
+  const [purgeAll, { isLoading: isPurging }] = usePurgeAllSessionsMutation();
+
+  const requiredWord = t('chatNicheRag.history.clearAllConfirm.typeWord');
 
   useEffect(() => {
     if (!open) return;
@@ -58,6 +89,40 @@ const RecentChatsOverlay = () => {
   const handleSelect = (session: ChatSession) => {
     dispatch(setActiveSession(session.id));
     dispatch(setRecentChatsOverlayOpen(false));
+  };
+
+  const handleConfirmPurge = async () => {
+    try {
+      const res = await purgeAll().unwrap();
+      // Clear the active session + the workspace-scoped pointer so the
+      // user doesn't get stranded on a freshly deleted session id.
+      dispatch(setActiveSession(null));
+      if (activeWorkspaceId && typeof window !== 'undefined') {
+        try {
+          window.localStorage.removeItem(
+            `mm-active-chat-session-${activeWorkspaceId}`,
+          );
+        } catch {
+          /* quota / privacy — ignore */
+        }
+      }
+      enqueueSnackbar(
+        t('chatNicheRag.history.cleared', { count: res.deleted_count }),
+        { variant: 'success' },
+      );
+      setPurgeOpen(false);
+      setTyped('');
+    } catch {
+      enqueueSnackbar(t('chatNicheRag.history.clearFailed'), {
+        variant: 'error',
+      });
+    }
+  };
+
+  const handleClosePurge = () => {
+    if (isPurging) return;
+    setPurgeOpen(false);
+    setTyped('');
   };
 
   return (
@@ -77,9 +142,62 @@ const RecentChatsOverlay = () => {
           <CloseIcon sx={{ fontSize: 18 }} />
         </IconButton>
       </OverlayHeader>
+      <OverlayToolbar>
+        <Button
+          variant="text"
+          color="error"
+          size="small"
+          startIcon={<DeleteSweepOutlinedIcon sx={{ fontSize: 18 }} />}
+          onClick={() => setPurgeOpen(true)}
+          aria-label={t('chatNicheRag.history.clearAll')}
+        >
+          {t('chatNicheRag.history.clearAll')}
+        </Button>
+      </OverlayToolbar>
       <OverlayBody>
         <RecentChats onSelect={handleSelect} activeSessionId={activeSessionId} />
       </OverlayBody>
+
+      <Dialog
+        open={purgeOpen}
+        onClose={handleClosePurge}
+        aria-labelledby="purge-dialog-title"
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle id="purge-dialog-title">
+          {t('chatNicheRag.history.clearAllConfirm.title')}
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText sx={{ mb: 2 }}>
+            {t('chatNicheRag.history.clearAllConfirm.body')}
+          </DialogContentText>
+          <TextField
+            autoFocus
+            fullWidth
+            size="small"
+            value={typed}
+            onChange={(e) => setTyped(e.target.value)}
+            placeholder={t('chatNicheRag.history.clearAllConfirm.typePlaceholder')}
+            inputProps={{ 'aria-label': requiredWord, autoComplete: 'off' }}
+            disabled={isPurging}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button variant="text" onClick={handleClosePurge} disabled={isPurging}>
+            {t('chatNicheRag.history.clearAllConfirm.cancel')}
+          </Button>
+          <Button
+            variant="outlined"
+            color="error"
+            startIcon={<DeleteSweepOutlinedIcon />}
+            disabled={typed !== requiredWord || isPurging}
+            onClick={handleConfirmPurge}
+          >
+            {t('chatNicheRag.history.clearAllConfirm.confirm')}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </OverlayRoot>
   );
 };

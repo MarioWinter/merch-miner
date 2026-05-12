@@ -123,6 +123,51 @@ export const searchApi = createApi({
       invalidatesTags: [{ type: 'ChatSessions', id: 'LIST' }],
     }),
 
+    // PROJ-29 Phase 1F: delete a single ChatSession (cascade-removes ChatMessages).
+    // Backend returns 204 No Content. Optimistic update removes the row from
+    // the cached list immediately; rolled back on failure.
+    deleteSession: builder.mutation<void, string>({
+      query: (sessionId) => ({
+        url: `/api/chat/sessions/${sessionId}/`,
+        method: 'DELETE',
+      }),
+      async onQueryStarted(sessionId, { dispatch, queryFulfilled }) {
+        // Optimistically remove the row from the cached list. Rollback on
+        // failure. RecentChats uses `{ page_size: 10 }`; we patch that key.
+        const patch = dispatch(
+          searchApi.util.updateQueryData(
+            'listSessions',
+            { page_size: 10 } as SessionListParams,
+            (draft) => {
+              draft.results = draft.results.filter((s) => s.id !== sessionId);
+              draft.count = Math.max(0, draft.count - 1);
+            },
+          ),
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
+      invalidatesTags: (_r, _e, id) => [
+        { type: 'ChatSessions', id },
+        { type: 'ChatSessions', id: 'LIST' },
+      ],
+    }),
+
+    // PROJ-29 Phase 1F: bulk-delete all sessions for the active user in the
+    // active workspace. Body must include `confirm_purge: 'all'` — backend
+    // returns `{ deleted_count }`.
+    purgeAllSessions: builder.mutation<{ deleted_count: number }, void>({
+      query: () => ({
+        url: '/api/chat/sessions/',
+        method: 'DELETE',
+        data: { confirm_purge: 'all' },
+      }),
+      invalidatesTags: [{ type: 'ChatSessions', id: 'LIST' }],
+    }),
+
     // PROJ-20 Phase 1.3 / Phase 2: create (or re-fetch) a public share-link for a session.
     // Backend is idempotent — repeated calls return the same token/url.
     createShareLink: builder.mutation<CreateShareLinkResponse, string>({
@@ -236,6 +281,8 @@ export const {
   useUnshareSessionMutation,
   useSendMessageMutation,
   useDeleteMessageMutation,
+  useDeleteSessionMutation,
+  usePurgeAllSessionsMutation,
   useCreateShareLinkMutation,
   useGetPublicSessionQuery,
   useTriggerCrawlMutation,

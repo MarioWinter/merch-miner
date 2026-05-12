@@ -2,6 +2,7 @@ import logging
 
 import django_rq
 from django.contrib.contenttypes.models import ContentType
+from django.db import transaction
 from django.db.models.signals import post_delete, post_save
 
 from vector_app.tasks import create_or_update_embedding, delete_embedding
@@ -59,33 +60,61 @@ def _get_embeddable_models():
     except ImportError:
         pass
 
-    # Future models (PROJ-8, PROJ-11) will be added here
-    # when they are created.
+    # PROJ-29 Phase 1B: chat-domain sources.
+    try:
+        from idea_app.models import Idea
+        models.append(Idea)
+    except ImportError:
+        pass
+
+    try:
+        from niche_app.models import NicheNote
+        models.append(NicheNote)
+    except ImportError:
+        pass
 
     _EMBEDDABLE_MODELS = models
     return models
 
 
 def _enqueue_create(sender, instance, **kwargs):
-    """Enqueue embedding creation/update job on post_save."""
+    """Enqueue embedding creation/update job on post_save.
+
+    Deferred to transaction.on_commit so rollbacks don't enqueue orphan jobs
+    (PROJ-29 AC-Ops-RQ-1).
+    """
     ct = ContentType.objects.get_for_model(sender)
-    queue = django_rq.get_queue('default')
-    queue.enqueue(
-        create_or_update_embedding,
-        content_type_id=ct.id,
-        object_id=str(instance.pk),
-    )
+    object_id = str(instance.pk)
+
+    def _enqueue():
+        queue = django_rq.get_queue('default')
+        queue.enqueue(
+            create_or_update_embedding,
+            content_type_id=ct.id,
+            object_id=object_id,
+        )
+
+    transaction.on_commit(_enqueue)
 
 
 def _enqueue_delete(sender, instance, **kwargs):
-    """Enqueue embedding deletion job on post_delete."""
+    """Enqueue embedding deletion job on post_delete.
+
+    Deferred to transaction.on_commit so rollbacks don't enqueue orphan jobs
+    (PROJ-29 AC-Ops-RQ-1).
+    """
     ct = ContentType.objects.get_for_model(sender)
-    queue = django_rq.get_queue('default')
-    queue.enqueue(
-        delete_embedding,
-        content_type_id=ct.id,
-        object_id=str(instance.pk),
-    )
+    object_id = str(instance.pk)
+
+    def _enqueue():
+        queue = django_rq.get_queue('default')
+        queue.enqueue(
+            delete_embedding,
+            content_type_id=ct.id,
+            object_id=object_id,
+        )
+
+    transaction.on_commit(_enqueue)
 
 
 def connect_signals():

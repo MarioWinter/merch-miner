@@ -1,6 +1,7 @@
 import json
 import logging
 import secrets
+import time
 
 import django_rq
 from django.conf import settings
@@ -11,6 +12,7 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.renderers import BaseRenderer, JSONRenderer
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from search_app.api.serializers import (
@@ -156,6 +158,39 @@ class ChatSessionListCreateView(APIView):
         out = ChatSessionDetailSerializer(session).data
         return Response(out, status=status.HTTP_201_CREATED)
 
+    def delete(self, request):
+        """Bulk-purge all chat sessions owned by the requesting user in the
+        active workspace.
+
+        PROJ-29 Phase 1F: requires explicit body ``{"confirm_purge": "all"}``
+        (exact-string match) to guard against accidental wipes. Only the
+        requesting user's own sessions in the resolved workspace are removed;
+        other users' sessions in the same workspace are untouched. Returns
+        ``{"deleted_count": N}``.
+        """
+        workspace, err = _resolve_workspace(request)
+        if err:
+            return err
+
+        if request.data.get('confirm_purge') != 'all':
+            return Response(
+                {'error': 'Missing or invalid confirm_purge. Send {"confirm_purge": "all"} to bulk-delete.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # `.delete()` returns ``(int total_rows, dict per_model_counts)`` where
+        # ``total_rows`` includes cascade rows (ChatMessage etc.). Report just
+        # the session count to keep the contract stable as cascades evolve.
+        _total, per_model = ChatSession.objects.filter(
+            workspace=workspace,
+            created_by=request.user,
+        ).delete()
+        session_count = per_model.get('search_app.ChatSession', 0)
+        return Response(
+            {'deleted_count': session_count},
+            status=status.HTTP_200_OK,
+        )
+
 
 class ChatSessionDetailView(APIView):
     """GET /api/chat/sessions/{id}/ -- session detail with messages.
@@ -221,15 +256,30 @@ class ChatSessionDetailView(APIView):
         return Response(ChatSessionDetailSerializer(session).data)
 
     def delete(self, request, session_id):
+        """Delete a chat session.
+
+        PROJ-29 Phase 1F: only the session ``created_by`` user OR a
+        workspace admin can delete. Cross-user / non-admin attempts return
+        **404 (NOT 403)** to avoid leaking session existence (AC-Isolation-2
+        info-leak prevention). ``ChatMessage.session`` is FK with
+        ``on_delete=CASCADE`` -> cascade-delete handled at the ORM level.
+        """
         workspace, session, err = self._get_session(request, session_id)
         if err:
             return err
 
         if session.created_by != request.user:
-            return Response(
-                {'error': 'Only the session owner can delete it.'},
-                status=status.HTTP_403_FORBIDDEN,
-            )
+            is_workspace_admin = Membership.objects.filter(
+                workspace=workspace,
+                user=request.user,
+                role=Membership.Role.ADMIN,
+                status=Membership.Status.ACTIVE,
+            ).exists()
+            if not is_workspace_admin:
+                return Response(
+                    {'error': 'Session not found.'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
         session.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -593,6 +643,72 @@ class ChatSessionMessagesView(APIView):
         )
 
 
+def _serialize_sse(event: dict) -> str:
+    """Serialize a ``{'event': name, 'data': dict}`` payload to SSE wire format.
+
+    Format (Phase 1E): ``event: <name>\\ndata: <json>\\n\\n``.
+    """
+    name = event.get('event', 'message')
+    data = event.get('data', {})
+    return f"event: {name}\ndata: {json.dumps(data)}\n\n"
+
+
+def _wrap_with_heartbeat(event_generator, interval_s: float = 3.0):
+    """Wrap an event generator with a heartbeat injector.
+
+    Yields ``{'event': 'heartbeat', 'data': {'elapsed_ms': N}}`` every
+    ``interval_s`` seconds whenever the underlying generator hasn't produced
+    a real event yet. Uses a worker thread + queue so the heartbeat fires
+    even when the underlying generator is blocked inside a slow tool call.
+
+    Heartbeats stop being emitted once a ``chunk`` event has fired (token
+    streaming has begun — the frontend updates the bubble at every chunk so
+    no further keep-alive is needed).
+    """
+    import queue as _queue
+    import threading
+    import time as _time
+
+    sentinel = object()
+    q: _queue.Queue = _queue.Queue()
+    started_at = _time.monotonic()
+
+    def _producer():
+        try:
+            for evt in event_generator:
+                q.put(evt)
+        except Exception as exc:  # pragma: no cover - defensive
+            q.put({
+                'event': 'error',
+                'data': {'code': type(exc).__name__, 'retry_after_s': 30},
+            })
+        finally:
+            q.put(sentinel)
+
+    thread = threading.Thread(target=_producer, daemon=True)
+    thread.start()
+
+    chunk_fired = False
+    while True:
+        try:
+            item = q.get(timeout=interval_s)
+        except _queue.Empty:
+            if chunk_fired:
+                # Streaming is live; UI gets feedback from chunks themselves.
+                continue
+            elapsed_ms = int((_time.monotonic() - started_at) * 1000)
+            yield {
+                'event': 'heartbeat',
+                'data': {'elapsed_ms': elapsed_ms},
+            }
+            continue
+        if item is sentinel:
+            return
+        if item.get('event') == 'chunk':
+            chunk_fired = True
+        yield item
+
+
 class ChatSessionMessageStreamView(APIView):
     """GET /api/chat/sessions/{id}/messages/stream/?content=...&search_mode=...
 
@@ -606,11 +722,17 @@ class ChatSessionMessageStreamView(APIView):
         model: optional OpenRouter model override
 
     Yields SSE events: init, sources, response (chunks), done.
+
+    PROJ-29 Phase 1E: when the session has ``niche_context`` set, the request
+    routes through the niche-chat agent (``run_chat``) instead of the legacy
+    Vane path. Throttled at 30/min per user via the ``chat_agent`` scope.
     """
 
     authentication_classes = [CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
     renderer_classes = [EventStreamRenderer, JSONRenderer]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = 'chat_agent'
 
     def get(self, request, session_id):
         # EventSource cannot send custom headers — resolve workspace from the
@@ -851,6 +973,16 @@ class ChatSessionMessageStreamView(APIView):
         if niche_for_context:
             system_instructions = build_system_instructions(niche_for_context)
 
+        # PROJ-29 Phase 1E — niche-bound agent path.
+        # When the session has a pinned niche, route through the niche-chat
+        # agent (run_chat). The legacy Vane path stays untouched for sessions
+        # without niche_context (general web-search chat).
+        if session.niche_context is not None:
+            return self._handle_niche_agent_stream(
+                request, workspace, session, user_msg, content,
+                model_override=model,
+            )
+
         vane = VaneService()
         user_id = request.user.id
         workspace_id = str(workspace.id)
@@ -959,6 +1091,177 @@ class ChatSessionMessageStreamView(APIView):
 
         response = StreamingHttpResponse(
             event_stream(),
+            content_type='text/event-stream',
+        )
+        response['Cache-Control'] = 'no-cache'
+        response['X-Accel-Buffering'] = 'no'
+        return response
+
+    def _handle_niche_agent_stream(
+        self, request, workspace, session, user_msg, content,
+        model_override=None,
+    ):
+        """PROJ-29 Phase 1E — stream the niche-chat agent.
+
+        Wraps the request in a Langfuse trace (no-op when credentials absent),
+        invokes ``run_chat`` for orchestration, and serializes the resulting
+        event dicts into the SSE wire format. Persists the final assistant
+        message on ``done``.
+        """
+        from agent_app.agents.niche_chat_agent import run_chat
+        from core.observability.langfuse_handler import get_langfuse_handler
+
+        # Trace handle is best-effort — initialisation registers the session
+        # with the Langfuse client when keys are present, and short-circuits
+        # to ``None`` when they aren't (graceful no-op).
+        get_langfuse_handler(
+            trace_name='chat_session_stream',
+            trace_id=str(session.id),
+            metadata={
+                'workspace_id': str(workspace.id),
+                'niche_context_id': (
+                    str(session.niche_context.id)
+                    if session.niche_context else None
+                ),
+                'user_id': str(request.user.id),
+                'mode': 'agent',
+            },
+        )
+
+        def agent_event_stream():
+            slogan_payload = None
+            chunks_used_buf: list[dict] = []
+            thinking_stages_buf: list[dict] = []
+            # PROJ-29 follow-up: capture `sources` events fired by run_chat
+            # when the agent invokes `web_search`. Persisted on the
+            # ChatMessage row so SourceList re-renders after page reload.
+            sources_buf: list[dict] = []
+            # Track in-flight stages by name so tool_result / tool_timeout can
+            # close them out with a status + durationMs.
+            stage_idx_by_name: dict[str, int] = {}
+            try:
+                inner = run_chat(session, content, model_override=model_override)
+                for evt in _wrap_with_heartbeat(inner):
+                    event_name = evt.get('event')
+                    data = evt.get('data') or {}
+                    if event_name == 'generate_slogans_payload':
+                        slogan_payload = data or None
+                        yield _serialize_sse(evt)
+                        continue
+                    if event_name == 'sources':
+                        # Accumulate web_search source list for persistence.
+                        new_sources = list(data.get('sources') or [])
+                        sources_buf.extend(new_sources)
+                        yield _serialize_sse(evt)
+                        continue
+                    if event_name == 'chunks_used':
+                        # Capture for persistence — frontend ExpandedPanel +
+                        # NicheCitationLink need this to render after reload.
+                        new_chunks = list(data.get('chunks') or [])
+                        chunks_used_buf.extend(new_chunks)
+                        yield _serialize_sse(evt)
+                        continue
+                    if event_name in ('stage', 'tool_call'):
+                        # Open a new stage row.
+                        stage_name = (
+                            data.get('stage')
+                            or data.get('tool')
+                            or data.get('tool_name')
+                            or 'unknown'
+                        )
+                        row = {
+                            'stage': stage_name,
+                            'status': 'loading',
+                            'ts': int(time.time() * 1000),
+                        }
+                        thinking_stages_buf.append(row)
+                        stage_idx_by_name[stage_name] = len(thinking_stages_buf) - 1
+                        yield _serialize_sse(evt)
+                        continue
+                    if event_name in ('tool_result', 'tool_timeout'):
+                        stage_name = (
+                            data.get('tool')
+                            or data.get('tool_name')
+                            or 'unknown'
+                        )
+                        idx = stage_idx_by_name.get(stage_name)
+                        if idx is not None and idx < len(thinking_stages_buf):
+                            row = thinking_stages_buf[idx]
+                            row['status'] = (
+                                'warning' if event_name == 'tool_timeout' else 'done'
+                            )
+                            duration = data.get('duration_ms')
+                            if duration is not None:
+                                row['durationMs'] = duration
+                            if event_name == 'tool_timeout':
+                                row['message'] = data.get('output_preview') or data.get('error') or ''
+                        yield _serialize_sse(evt)
+                        continue
+                    if event_name == 'done':
+                        # PROJ-29 follow-up: close any stages still in
+                        # `loading` state (e.g. the initial `thinking`
+                        # meta-stage emitted by `run_chat` that has no
+                        # matching tool_result closer). Otherwise the
+                        # persisted ThinkingStrip ExpandedPanel renders a
+                        # forever-spinning CircularProgress.
+                        for row in thinking_stages_buf:
+                            if row.get('status') == 'loading':
+                                row['status'] = 'done'
+                        # Persist the assistant turn HERE (before emitting `done`
+                        # on the wire) so the wire can carry the persisted
+                        # message id.
+                        final_answer = data.get('final_answer', '') or ''
+                        assistant_msg = None
+                        if final_answer:
+                            assistant_msg = ChatMessage.objects.create(
+                                session=session,
+                                role=ChatMessage.Role.ASSISTANT,
+                                content=final_answer,
+                                message_type=ChatMessage.MessageType.SEARCH_RESULT,
+                                # PROJ-29 follow-up: persist web_search sources
+                                # so SourceList + [N] citation markers render
+                                # after page reload (same field the legacy
+                                # Vane path uses).
+                                sources=sources_buf or [],
+                                search_mode='balanced',
+                                search_sources=['niche_agent'],
+                                model_used='niche_chat_agent',
+                                generate_slogans_payload=slogan_payload,
+                                chunks_used=(chunks_used_buf or None),
+                                thinking_stages=(thinking_stages_buf or None),
+                            )
+                            session.save(update_fields=['updated_at'])
+                        done_data = dict(data)
+                        if assistant_msg is not None:
+                            done_data['message_id'] = str(assistant_msg.pk)
+                        yield _serialize_sse({'event': 'done', 'data': done_data})
+                        continue
+                    yield _serialize_sse(evt)
+            except Exception as exc:  # pragma: no cover - defensive
+                logger.exception('niche_chat_agent stream failed')
+                from core.observability.sentry import capture_chat_error
+                capture_chat_error(
+                    session_id=str(session.id),
+                    user_id=str(request.user.id),
+                    exception=exc,
+                    workspace_id=str(workspace.id),
+                    niche_id=(
+                        str(session.niche_context.id)
+                        if session.niche_context else None
+                    ),
+                    message_content=content,
+                )
+                yield _serialize_sse({
+                    'event': 'error',
+                    'data': {
+                        'code': type(exc).__name__,
+                        'retry_after_s': 30,
+                    },
+                })
+                return
+
+        response = StreamingHttpResponse(
+            agent_event_stream(),
             content_type='text/event-stream',
         )
         response['Cache-Control'] = 'no-cache'
@@ -1357,3 +1660,109 @@ class SearchHealthView(APIView):
         # to allow 5s offline-recovery polling to surface state changes quickly.
         response['Cache-Control'] = 'private, max-age=3'
         return response
+
+
+class ChatHealthView(APIView):
+    """GET /api/chat/health/ — PROJ-29 Phase 1G AC-Ops-Obs-4 / Verification 31.
+
+    Five-component probe for the niche-chat surface. Returns:
+
+    - 200 ``{'status': 'ok', 'components': {<name>: 'green', ...}, 'failing': []}``
+      when all 5 components healthy.
+    - 503 ``{'status': 'degraded', 'components': {..., <name>: 'red'},
+      'failing': ['<name>', ...]}`` when any component fails.
+
+    Components:
+
+    1. ``embedding_api`` — ``OPENROUTER_API_KEY`` env presence (live ping skipped
+       to avoid burning OpenRouter quota on health checks).
+    2. ``vane`` — HEAD ``settings.VANE_API_URL`` with a 2-second timeout. Green
+       on 200 / 405 (HEAD not allowed = still reachable). Red on
+       connection failure or empty config.
+    3. ``pgvector_index`` — at least one GIN index on ``vector_app_embedding``
+       (covers ``emb_search_gin_idx`` BM25 + ``embedding_metadata_niche_id_gin``
+       JSON filter).
+    4. ``redis`` — ``django_rq.get_queue('default').connection.ping()``.
+    5. ``chat_node_config`` — ``ChatNodeConfig.objects.count() >= 8`` (seed
+       migration ``0002_seed_node_rows`` produces 8 rows).
+
+    Auth: ``IsAuthenticated`` — health probe is operator-facing, not public,
+    and we have no public health surface for this domain.
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        components: dict = {}
+
+        # 1) Embedding API — env-presence only (avoid quota burn).
+        try:
+            has_key = bool(getattr(settings, 'OPENROUTER_API_KEY', '') or '')
+            components['embedding_api'] = 'green' if has_key else 'red'
+        except Exception:  # pragma: no cover - defensive
+            components['embedding_api'] = 'red'
+
+        # 2) Vane reachability — HEAD with a 2s budget.
+        try:
+            import httpx
+            vane_url = (getattr(settings, 'VANE_API_URL', '') or '').strip()
+            if not vane_url:
+                components['vane'] = 'red'
+            else:
+                with httpx.Client(timeout=2.0) as client:
+                    resp = client.head(vane_url.rstrip('/'))
+                # 405 = method-not-allowed still proves reachability.
+                components['vane'] = (
+                    'green' if resp.status_code in (200, 204, 301, 302, 405)
+                    else 'red'
+                )
+        except Exception:
+            components['vane'] = 'red'
+
+        # 3) pgvector indexes — at least one GIN/HNSW on the embedding table.
+        try:
+            from django.db import connection
+            with connection.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT COUNT(*) FROM pg_indexes
+                    WHERE tablename = 'vector_app_embedding'
+                      AND (indexdef ILIKE '%gin%' OR indexdef ILIKE '%hnsw%')
+                    """,
+                )
+                count = cur.fetchone()[0]
+            components['pgvector_index'] = 'green' if count >= 1 else 'red'
+        except Exception:
+            components['pgvector_index'] = 'red'
+
+        # 4) Redis — bound queue's connection.ping().
+        try:
+            redis_conn = django_rq.get_queue('default').connection
+            ok = bool(redis_conn.ping())
+            components['redis'] = 'green' if ok else 'red'
+        except Exception:
+            components['redis'] = 'red'
+
+        # 5) ChatNodeConfig — must have all 8 seeded rows.
+        try:
+            from chat_node_config_app.models import ChatNodeConfig
+            cnt = ChatNodeConfig.objects.count()
+            components['chat_node_config'] = 'green' if cnt >= 8 else 'red'
+        except Exception:
+            components['chat_node_config'] = 'red'
+
+        failing = sorted([k for k, v in components.items() if v != 'green'])
+        if failing:
+            body = {
+                'status': 'degraded',
+                'components': components,
+                'failing': failing,
+            }
+            return Response(body, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        return Response({
+            'status': 'ok',
+            'components': components,
+            'failing': [],
+        })

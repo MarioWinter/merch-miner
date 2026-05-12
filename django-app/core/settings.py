@@ -131,6 +131,7 @@ INSTALLED_APPS = [
     'search_app',
     'agent_app',
     'chat_attachments_app',
+    'chat_node_config_app',
 ]
 
 # django-allauth settings
@@ -465,6 +466,10 @@ REST_FRAMEWORK = {
         'semantic_search_daily': '500/day',
         'product_count_scrape': '10/hour',
         'ai_improve': '10/min',
+        # PROJ-29 AC-Ops-Throttle-1/2/3: separate bucket for the niche-chat
+        # SSE stream endpoint. Isolation = other endpoints (research, niches,
+        # keywords) stay unblocked while a user hammers chat.
+        'chat_agent': '30/min',
     },
 }
 

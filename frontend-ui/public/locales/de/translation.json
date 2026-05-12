@@ -3403,5 +3403,126 @@
       "prev": "Zurück",
       "next": "Weiter"
     }
+  },
+  "chatNicheRag": {
+    "history": {
+      "delete": "Chat löschen",
+      "deleted": "Chat gelöscht",
+      "deleteFailed": "Chat konnte nicht gelöscht werden",
+      "deleteConfirm": {
+        "title": "Diesen Chat löschen?",
+        "body": "Nachrichten werden dauerhaft entfernt.",
+        "confirm": "Löschen",
+        "cancel": "Abbrechen"
+      },
+      "clearAll": "Alle Chats löschen",
+      "clearAllConfirm": {
+        "title": "Alle Chats löschen?",
+        "body": "Alle Chat-Sessions in diesem Workspace werden dauerhaft entfernt. Tippe DELETE, um zu bestätigen.",
+        "typePlaceholder": "DELETE eintippen",
+        "typeWord": "DELETE",
+        "confirm": "Alle löschen",
+        "cancel": "Abbrechen"
+      },
+      "cleared": "Alle Chats gelöscht ({{count}})",
+      "clearFailed": "Chats konnten nicht gelöscht werden"
+    },
+    "thinking": {
+      "stage": {
+        "rewrite_query": "Frage wird umformuliert…",
+        "retrieve_niche": "Durchsuche Nischenwissen…",
+        "search_slogans": "Durchsuche Slogans…",
+        "search_products": "Durchsuche Produkte…",
+        "search_niche_knowledge": "Durchsuche Nischen-Notizen…",
+        "top_keywords": "Lade Top-Keywords…",
+        "bsr_stats": "Berechne BSR-Statistik…",
+        "web_search": "Durchsuche das Web…",
+        "generate_slogans": "Generiere Slogans…",
+        "brainstorm_ideas": "Sammle Ideen…",
+        "writing_answer": "Schreibe Antwort…"
+      },
+      "pill": {
+        "steps_one": "{{count}} Schritt",
+        "steps_other": "{{count}} Schritte",
+        "sources_one": "{{count}} Quelle",
+        "sources_other": "{{count}} Quellen",
+        "duration": "{{value}}s"
+      },
+      "expand": "Details anzeigen",
+      "collapse": "Details ausblenden",
+      "section": {
+        "steps": "Schritt-Protokoll",
+        "sources": "Verwendete Quellen"
+      },
+      "group": {
+        "slogan": "Slogans",
+        "product": "Produkte",
+        "keyword": "Keywords",
+        "notes": "Nischen-Notizen",
+        "web": "Web"
+      },
+      "aria": {
+        "live": "Aktiver Schritt: {{stage}}",
+        "loading": "Lädt",
+        "done": "Fertig",
+        "warning": "Warnung",
+        "error": "Fehler"
+      },
+      "compact": {
+        "ariaLabel": "Agent denkt nach. Klicke, um den Chat zu öffnen.",
+        "openChat": "Chat öffnen",
+        "thinking": "Denke nach…"
+      }
+    },
+    "slogans": {
+      "header": "{{count}} Slogans generiert",
+      "col": {
+        "slogan": "Slogan",
+        "signal": "Signal",
+        "pattern": "Muster",
+        "device": "Stilmittel",
+        "confidence": "Konfidenz",
+        "actions": "Aktionen"
+      },
+      "signal": {
+        "self": "Ich",
+        "other": "Andere"
+      },
+      "confidence": {
+        "high": "Hoch",
+        "medium": "Mittel",
+        "low": "Niedrig"
+      },
+      "action": {
+        "copy": "Slogan kopieren",
+        "copyAll": "Alle kopieren",
+        "add": "Zur Nische hinzufügen",
+        "addAll": "Alle hinzufügen",
+        "added": "Hinzugefügt",
+        "copied": "In die Zwischenablage kopiert",
+        "duplicate": "Bereits in der Nische",
+        "error": "Fehlgeschlagen"
+      },
+      "summary": {
+        "selected": "{{count}} ausgewählt",
+        "withDuplicates": "{{count}} ausgewählt · {{dupes}} Duplikate"
+      },
+      "empty": "Keine Slogans generiert — versuche eine konkretere Eingabe",
+      "selectAll": "Alle Slogans auswählen"
+    },
+    "followUps": {
+      "label": "Frag doch mal…"
+    },
+    "nichePicker": {
+      "title": "Slogan zur Nische hinzufügen",
+      "confirmLabel": "Hinzufügen",
+      "placeholder": "Nische auswählen…",
+      "empty": "Noch keine Nischen. Lege zuerst eine an."
+    },
+    "citation": {
+      "niche": "Nischenwissen-Snippet {{index}}",
+      "nicheWithName": "Nischenwissen-Snippet {{index}} — {{niche}}",
+      "web": "Webquelle {{index}}"
+    }
   }
 }

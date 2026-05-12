@@ -10,6 +10,8 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch } from '../../store/hooks';
 import { clearAuth } from '../../store/authSlice';
+import { resetChatBar } from '../../store/chatBarSlice';
+import { clearAttachments } from '../../store/attachmentsSlice';
 import { resetAllRtkApiCaches } from '../../store';
 import { authService } from '../../services/authService';
 import { clearPublishEditQueues } from '../../views/publish/hooks/editQueueStorage';
@@ -34,6 +36,23 @@ const clearLegacySearchHistoryStorage = () => {
     }
   }
   legacyKeys.forEach((k) => localStorage.removeItem(k));
+};
+
+/**
+ * PROJ-29 Phase 1F: remove every `mm-active-chat-*` pointer so the next user
+ * signing in on the same browser does not see the previous user's active
+ * chat session restored. Keys are workspace-scoped (`mm-active-chat-session-<workspace_id>`).
+ */
+const clearActiveChatStorage = () => {
+  if (typeof localStorage === 'undefined') return;
+  const chatKeys: string[] = [];
+  for (let i = 0; i < localStorage.length; i += 1) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('mm-active-chat-')) {
+      chatKeys.push(key);
+    }
+  }
+  chatKeys.forEach((k) => localStorage.removeItem(k));
 };
 
 const StyledAvatar = styled(Avatar)({
@@ -84,11 +103,17 @@ const ProfileMenu = ({ initial, avatarUrl }: ProfileMenuProps) => {
       // doesn't see the previous user's data:
       //   1. localStorage publish queue (PROJ-11 offline drafts)
       //   2. legacy search-history localStorage keys (now DB-backed)
-      //   3. all RTK Query caches (Niche list, Design Forge projects,
+      //   3. PROJ-29: `mm-active-chat-*` pointers per workspace
+      //   4. chatBar Redux state (active session, streaming buffer, niche chip)
+      //   5. attachments overlay state
+      //   6. all RTK Query caches (Niche list, Design Forge projects,
       //      Publish queue, Dashboard, search history, etc.)
-      //   4. auth state (last, so the redirect-to-login fires cleanly)
+      //   7. auth state (last, so the redirect-to-login fires cleanly)
       clearPublishEditQueues();
       clearLegacySearchHistoryStorage();
+      clearActiveChatStorage();
+      dispatch(resetChatBar());
+      dispatch(clearAttachments());
       resetAllRtkApiCaches(dispatch);
       dispatch(clearAuth());
       navigate('/login', { replace: true });

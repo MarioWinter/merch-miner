@@ -25,6 +25,7 @@ import ChatInputBar, {
   type ChatInputBarSubmitPayload,
 } from '../MultiPurposeDrawer/panels/ChatInputBar';
 import ChevronIndicator from './ChevronIndicator';
+import CompactStrip from '@/components/ThinkingStrip/CompactStrip';
 import { COLORS, EASING, DURATION } from '@/style/constants';
 
 const BAR_MAX_WIDTH = 600;
@@ -160,9 +161,13 @@ const FloatingChatBar = () => {
   const handleSubmit = useCallback(
     async (payload: ChatInputBarSubmitPayload) => {
       const trimmed = payload.text.trim();
-      if (!trimmed || searching || !vaneOnline || isStreaming) return;
-
       const niche_id = payload.chip?.niche_id ?? null;
+      // PROJ-29 Phase 1I follow-up: niche-bound sends route to run_chat (no
+      // Vane / Crawl4ai dependency). Only block on !vaneOnline when there is
+      // no niche context — that path still needs Vane for web-mode answers.
+      const needsVane = niche_id === null && modeOverride !== 'agent';
+      if (!trimmed || searching || isStreaming) return;
+      if (needsVane && !vaneOnline) return;
 
       dispatch(setSearching(true));
       inputRef.current?.clear();
@@ -259,9 +264,15 @@ const FloatingChatBar = () => {
     return <Box sx={{ display: 'none' }} aria-hidden="true" />;
   }
 
+  // PROJ-29 Phase 1H — CompactStrip is rendered above the input surface while
+  // an SSE stream runs and the drawer is closed. When the drawer is open the
+  // full ThinkingStrip inside ChatMessageList takes over.
+  const showCompactStrip = isStreaming && !hiddenForDrawer;
+
   return (
     <Fade in={barExpanded} timeout={DURATION.default}>
       <BarContainer ref={containerRef}>
+        {showCompactStrip && <CompactStrip />}
         <ExpandedSurface>
           <CollapseHandle>
             <IconButton
@@ -286,7 +297,9 @@ const FloatingChatBar = () => {
             appearance="floating"
             onSubmit={handleSubmit}
             isSending={searching || isStreaming}
-            disabled={!vaneOnline}
+            // PROJ-29 Phase 1I follow-up: input always typeable so users can
+            // insert an @-mention even when Vane is degraded — `handleSubmit`
+            // gates the actual send when no niche context AND Vane is offline.
           />
         </ExpandedSurface>
       </BarContainer>

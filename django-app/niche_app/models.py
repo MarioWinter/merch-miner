@@ -126,6 +126,12 @@ class CollectedProduct(models.Model):
 class NicheNote(models.Model):
     """A free-form text snippet attached to a Niche (e.g. saved from web search results)."""
 
+    class Source(models.TextChoices):
+        USER = 'user', 'User'
+        NICHE_LEGACY_NOTES = 'niche_legacy_notes', 'Niche Legacy Notes'
+        WEB_SEARCH = 'web_search', 'Web Search'
+        AGENT_RESEARCH = 'agent_research', 'Agent Research'
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     niche = models.ForeignKey(
         'Niche',
@@ -134,6 +140,12 @@ class NicheNote(models.Model):
         db_index=True,
     )
     text = models.TextField()
+    source = models.CharField(
+        max_length=30,
+        choices=Source.choices,
+        default=Source.USER,
+        db_index=True,
+    )
     source_url = models.URLField(null=True, blank=True)
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -149,6 +161,10 @@ class NicheNote(models.Model):
     def __str__(self):
         preview = self.text[:50]
         return f"Note ({self.niche}): {preview}"
+
+    def get_embedding_text(self):
+        """Return text to embed for vector search (PROJ-29)."""
+        return self.text or ''
 
 
 class NicheFilterTemplate(models.Model):

@@ -302,7 +302,11 @@ describe('ChatPanel', () => {
     expect(screen.getByText('Hi there!')).toBeInTheDocument();
   });
 
-  it('disables the input bar when vane is offline', () => {
+  it('keeps the input bar enabled when vane is offline (PROJ-29 Phase 1I)', () => {
+    // The Vane gate was relaxed: niche-RAG agent path (run_chat) doesn't need
+    // Vane. Input stays enabled so users can insert @-mention chips and send
+    // niche-bound messages even when Vane is degraded. handleSubmit guards
+    // the actual send when the request would route to Vane.
     mockUseSearchHealth.mockReturnValue({
       health: { vane: 'offline', crawl4ai: 'online' },
       isLoading: false,
@@ -315,7 +319,9 @@ describe('ChatPanel', () => {
       statusColor: 'warning',
     });
     renderPanel();
-    expect(capturedInputProps.current?.disabled).toBe(true);
+    // `disabled` prop is no longer passed (undefined) since the gate moved to
+    // handleSubmit. ChatInputBar treats undefined as enabled.
+    expect(capturedInputProps.current?.disabled).toBeFalsy();
   });
 
   it('agent mode: send triggers sendMessage mutation, not stream', async () => {

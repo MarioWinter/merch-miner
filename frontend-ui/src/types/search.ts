@@ -38,16 +38,18 @@ export interface ChatMessageAgentSessionRef {
 export type CrawlStatus = 'pending' | 'running' | 'completed' | 'failed';
 export type ContentType = 'snippet' | 'full_crawl';
 
-export interface ChatSessionNicheContext {
-  id: string;
-  name: string;
-}
-
+/**
+ * PROJ-29 Phase 1I follow-up: backend serializer returns niche-context as flat
+ * `niche_context_id` + `niche_context_name` fields, not a nested object. The
+ * historical `niche_context: {id, name}` shape was never on the wire — it was
+ * inferred from a model field that gets flattened by `SerializerMethodField`.
+ */
 export interface ChatSession {
   id: string;
   title: string;
   is_shared: boolean;
-  niche_context: ChatSessionNicheContext | null;
+  niche_context_id: string | null;
+  niche_context_name: string | null;
   message_count: number;
   shared_by: string | null;
   created_by: string;
@@ -75,6 +77,32 @@ export interface ChatMessage {
   /** PROJ-20 Phase 7.6 — image attachments uploaded with this message
    *  (only populated for `role='user'`; older messages may have []). */
   attachments?: ChatAttachment[];
+  /** PROJ-29 Phase 1I — structured slogan payload from `generate_slogans`
+   *  tool. Null for every non-niche-agent message. Wire shape:
+   *  `{ slogans: SloganRow[], warnings: string[] }`. */
+  generate_slogans_payload?: {
+    slogans: unknown[];
+    warnings?: string[];
+  } | null;
+  /** PROJ-29 Phase 1I follow-up — retrieved RAG chunks for the ExpandedPanel +
+   *  citation hover-flash. Null on non-niche-agent messages. */
+  chunks_used?: Array<{
+    index: number;
+    content_subtype: string;
+    text: string;
+    source_pk?: string;
+    url?: string;
+    score?: number;
+  }> | null;
+  /** PROJ-29 Phase 1I follow-up — ThinkingStrip stage rows (collapsed pill +
+   *  expanded step log). Null on non-niche-agent messages. */
+  thinking_stages?: Array<{
+    stage: string;
+    status: 'loading' | 'done' | 'warning' | 'error';
+    ts: number;
+    durationMs?: number;
+    message?: string;
+  }> | null;
   created_at: string;
 }
 

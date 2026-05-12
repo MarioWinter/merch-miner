@@ -4,6 +4,7 @@ import { styled, alpha, keyframes } from '@mui/material/styles';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import { useTranslation } from 'react-i18next';
 import type { ChatMessage } from '@/types/search';
+import type { SloganRow } from '@/types/chat-rag';
 import { useAppSelector } from '@/store/hooks';
 import JumpToLatestButton from './JumpToLatestButton';
 import WorkflowCard from './WorkflowCard';
@@ -12,6 +13,9 @@ import MarkdownAnswer from './partials/MarkdownAnswer';
 import MessageActionToolbar from './partials/MessageActionToolbar';
 import SourceList from './partials/SourceList';
 import UserAttachments from './partials/UserAttachments';
+import ThinkingStrip from '@/components/ThinkingStrip';
+import GeneratedSloganTable from '@/components/GeneratedSloganTable';
+import FollowUpChips from '@/components/FollowUpChips';
 
 // Stable id used for the in-flight streaming bubble's citation lookup so
 // SourceCards rendered for the streaming message can be linked from `[N]`.
@@ -35,6 +39,10 @@ interface ChatMessageListProps {
   sessionId?: string;
   onRegenerate?: (assistantMessage: ChatMessage, priorUserMessage: ChatMessage) => void;
   onSaveAnswer?: (assistantMessage: ChatMessage) => void;
+  /** PROJ-29 Phase 1H-2: session.niche_context — drives Add-to-Niche flow. */
+  sessionNicheId?: string | null;
+  /** PROJ-29 Phase 1H-2: invoked when user clicks a FollowUpChip. */
+  onFollowUpClick?: (text: string) => void;
 }
 
 /** Distance from bottom (px) within which we consider the user "at the bottom" and re-engage auto-scroll. */
@@ -149,6 +157,7 @@ const ChatMessageList = ({
   onSaveKeywords, onSaveNotes,
   onSaveSelectionAsKeywords, onSaveSelectionAsNotes,
   sessionId, onRegenerate, onSaveAnswer,
+  sessionNicheId = null, onFollowUpClick,
 }: ChatMessageListProps) => {
   const { t } = useTranslation();
   // BUG-2 fix (2026-04-28): a useRef + useEffect pair was prone to HMR
@@ -167,8 +176,23 @@ const ChatMessageList = ({
   const streamingMessage = useAppSelector(
     (s) => s.chatBar.streamingAssistantMessage,
   );
+  // PROJ-29 Phase 1H-2 — slogan payloads (live + persisted-after-done)
+  const streamingSloganPayload = useAppSelector(
+    (s) => s.chatBar?.streamingSloganPayload ?? null,
+  );
+  const completedSloganPayload = useAppSelector(
+    (s) => s.chatBar?.completedSloganPayload ?? null,
+  );
   const showStreamingBubble =
     streamingMessage.isStreaming && streamingMessage.content !== '';
+
+  // Last assistant message index — drives "render FollowUpChips here only" rule.
+  const lastAssistantIdx = (() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (messages[i].role === 'assistant') return i;
+    }
+    return -1;
+  })();
 
   const setScrollRef = useCallback((node: HTMLDivElement | null) => {
     // Detach from previous element (HMR may keep an old node alive briefly).
@@ -299,12 +323,62 @@ const ChatMessageList = ({
                 ) : (
                   <AssistantContent>
                     <AssistantBubble>
+                      {/* PROJ-29 Phase 1H — ThinkingStrip for persisted messages.
+                       *  No persisted thinking metadata yet (Phase 1I) — strip
+                       *  renders nothing until backend wiring lands. */}
+                      <ThinkingStrip
+                        messageId={msg.id}
+                        isStreaming={false}
+                        persistedSteps={msg.thinking_stages ?? undefined}
+                        persistedChunksUsed={msg.chunks_used ?? undefined}
+                        persistedDurationMs={(() => {
+                          // Compute total elapsed from earliest stage ts to the
+                          // last terminal (done/warning/error) ts. Falls back
+                          // to sum of durationMs when ts gap is unavailable.
+                          const stages = msg.thinking_stages ?? [];
+                          if (stages.length === 0) return undefined;
+                          const first = stages[0].ts;
+                          const last = stages[stages.length - 1];
+                          const lastEnd = last.ts + (last.durationMs ?? 0);
+                          return Math.max(0, lastEnd - first);
+                        })()}
+                      />
                       <MarkdownAnswer
                         content={msg.content}
                         sources={msg.sources ?? []}
                         messageId={msg.id}
                       />
                     </AssistantBubble>
+                    {/* PROJ-29 Phase 1H-2/1I — slogan table for the just-finished
+                     *  agent turn. Phase 1I persists the payload on the
+                     *  ChatMessage row itself (`msg.generate_slogans_payload`)
+                     *  so the table re-renders after page reload. The Redux
+                     *  fallback covers the small window between `done` and
+                     *  the RTK Query refetch landing the persisted message. */}
+                    {(() => {
+                      const persistedRows =
+                        msg.generate_slogans_payload?.slogans as
+                          | SloganRow[]
+                          | undefined;
+                      const reduxRows =
+                        completedSloganPayload?.messageId === msg.id
+                          ? completedSloganPayload.rows
+                          : undefined;
+                      const rows = persistedRows ?? reduxRows;
+                      if (!rows || rows.length === 0) return null;
+                      return (
+                        <GeneratedSloganTable
+                          rows={rows}
+                          sessionNicheId={sessionNicheId}
+                        />
+                      );
+                    })()}
+                    {/* PROJ-29 Phase 1H-2 — follow-up chips on the LAST
+                     *  assistant message only (graceful EC-20 + Q5A above
+                     *  MessageActionToolbar). */}
+                    {idx === lastAssistantIdx && onFollowUpClick && (
+                      <FollowUpChips onSelect={onFollowUpClick} />
+                    )}
                     {/* PROJ-20 Phase 5 — Action Toolbar (AC-30 to AC-34) */}
                     {sessionId && onRegenerate && onSaveAnswer && (
                       <MessageActionToolbar
@@ -351,6 +425,11 @@ const ChatMessageList = ({
               </AssistantAvatar>
               <AssistantContent>
                 <AssistantBubble aria-live="polite" aria-label={t('search.stream.streaming')}>
+                  {/* PROJ-29 Phase 1H — live ThinkingStrip above the streaming answer. */}
+                  <ThinkingStrip
+                    messageId={streamingMessage.id ?? STREAMING_MESSAGE_ID}
+                    isStreaming
+                  />
                   <MarkdownAnswer
                     content={streamingMessage.content}
                     sources={streamingMessage.sources}
@@ -358,6 +437,15 @@ const ChatMessageList = ({
                   />
                   <TypingCursor aria-hidden="true" />
                 </AssistantBubble>
+                {/* PROJ-29 Phase 1H-2 — live slogan table during the streaming
+                 *  turn. After `done` the payload moves to `completedSloganPayload`
+                 *  keyed by message id, and the table re-attaches there. */}
+                {streamingSloganPayload && streamingSloganPayload.length > 0 && (
+                  <GeneratedSloganTable
+                    rows={streamingSloganPayload}
+                    sessionNicheId={sessionNicheId}
+                  />
+                )}
                 {streamingMessage.sources.length > 0 && (
                   <SourceList
                     sources={streamingMessage.sources}

@@ -67,6 +67,35 @@ def _ws_error():
     )
 
 
+def _idea_create_extras(validated_data):
+    """Extract optional rich-metadata kwargs for `Idea.objects.create()`.
+
+    PROJ-29 Phase 1H-2: chat-agent slogans persist their full payload on create.
+    Skip null/empty fields so legacy single-line manual adds keep their existing
+    model defaults. ``status`` is only passed when explicitly supplied — otherwise
+    the model default (Status.PENDING) applies for legacy callers; chat-agent
+    callers pass ``status='approved'`` so slogans land directly in the niche.
+    """
+    extras = {
+        'source_product_url': validated_data.get('source_product_url', '') or '',
+    }
+    optional_fields = (
+        'signal_type',
+        'pattern_used',
+        'stylistic_device',
+        'emotional_archetype',
+        'market_confidence',
+        'creative_modules_used',
+        'status',
+    )
+    for field in optional_fields:
+        value = validated_data.get(field)
+        if value in (None, '', []):
+            continue
+        extras[field] = value
+    return extras
+
+
 def _parse_llm_json(content, expect_array=False):
     """Try to parse JSON from LLM response, with fallback extraction."""
     try:
@@ -110,7 +139,7 @@ class IdeaListCreateView(APIView):
         serializer.is_valid(raise_exception=True)
 
         slogan_text = serializer.validated_data['slogan_text']
-        source_product_url = serializer.validated_data.get('source_product_url', '')
+        extras = _idea_create_extras(serializer.validated_data)
 
         # Support batch: split by newlines
         lines = [line.strip() for line in slogan_text.split('\n') if line.strip()]
@@ -122,8 +151,8 @@ class IdeaListCreateView(APIView):
                 niche_id=niche_id,
                 slogan_text=line,
                 is_manual=True,
-                source_product_url=source_product_url,
                 created_by=request.user,
+                **extras,
             )
             created_ideas.append(idea)
 
@@ -607,7 +636,7 @@ class IdeaWorkspaceListCreateView(APIView):
 
         slogan_text = serializer.validated_data['slogan_text']
         niche_id = serializer.validated_data.get('niche')
-        source_product_url = serializer.validated_data.get('source_product_url', '')
+        extras = _idea_create_extras(serializer.validated_data)
 
         lines = [line.strip() for line in slogan_text.split('\n') if line.strip()]
 
@@ -618,8 +647,8 @@ class IdeaWorkspaceListCreateView(APIView):
                 niche_id=niche_id,
                 slogan_text=line,
                 is_manual=True,
-                source_product_url=source_product_url,
                 created_by=request.user,
+                **extras,
             )
             created_ideas.append(idea)
 

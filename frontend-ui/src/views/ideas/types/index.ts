@@ -73,6 +73,16 @@ export interface IdeaCreateBody {
   slogan_text: string;
   niche?: string | null;
   source_product_url?: string;
+  // PROJ-29 Phase 1H-2 — optional rich metadata for chat-agent ideas. Backend
+  // `IdeaCreateSerializer` validates these against the same enums as the
+  // model. All optional so legacy single-line manual adds keep working.
+  signal_type?: SignalType | null;
+  pattern_used?: string;
+  stylistic_device?: string;
+  emotional_archetype?: string;
+  market_confidence?: MarketConfidence | null;
+  creative_modules_used?: string[];
+  status?: IdeaStatus;
 }
 
 export interface IdeaUpdateBody {

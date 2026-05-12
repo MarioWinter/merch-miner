@@ -3360,5 +3360,126 @@
       "prev": "Previous",
       "next": "Next"
     }
+  },
+  "chatNicheRag": {
+    "history": {
+      "delete": "Delete chat",
+      "deleted": "Chat deleted",
+      "deleteFailed": "Could not delete chat",
+      "deleteConfirm": {
+        "title": "Delete this chat?",
+        "body": "Messages will be permanently removed.",
+        "confirm": "Delete",
+        "cancel": "Cancel"
+      },
+      "clearAll": "Clear all chats",
+      "clearAllConfirm": {
+        "title": "Clear all chats?",
+        "body": "All chat sessions in this workspace will be permanently removed. Type DELETE to confirm.",
+        "typePlaceholder": "Type DELETE",
+        "typeWord": "DELETE",
+        "confirm": "Clear all",
+        "cancel": "Cancel"
+      },
+      "cleared": "All chats cleared ({{count}})",
+      "clearFailed": "Could not clear chats"
+    },
+    "thinking": {
+      "stage": {
+        "rewrite_query": "Rewriting query…",
+        "retrieve_niche": "Searching niche knowledge…",
+        "search_slogans": "Searching slogans…",
+        "search_products": "Searching products…",
+        "search_niche_knowledge": "Searching niche notes…",
+        "top_keywords": "Loading top keywords…",
+        "bsr_stats": "Computing BSR stats…",
+        "web_search": "Searching the web…",
+        "generate_slogans": "Generating slogans…",
+        "brainstorm_ideas": "Brainstorming ideas…",
+        "writing_answer": "Writing answer…"
+      },
+      "pill": {
+        "steps_one": "{{count}} step",
+        "steps_other": "{{count}} steps",
+        "sources_one": "{{count}} source",
+        "sources_other": "{{count}} sources",
+        "duration": "{{value}}s"
+      },
+      "expand": "Show details",
+      "collapse": "Hide details",
+      "section": {
+        "steps": "Steps log",
+        "sources": "Sources used"
+      },
+      "group": {
+        "slogan": "Slogans",
+        "product": "Products",
+        "keyword": "Keywords",
+        "notes": "Niche notes",
+        "web": "Web"
+      },
+      "aria": {
+        "live": "Working on: {{stage}}",
+        "loading": "Loading",
+        "done": "Done",
+        "warning": "Warning",
+        "error": "Error"
+      },
+      "compact": {
+        "ariaLabel": "Agent is thinking. Click to open chat panel.",
+        "openChat": "Open chat",
+        "thinking": "Thinking…"
+      }
+    },
+    "slogans": {
+      "header": "Generated {{count}} slogans",
+      "col": {
+        "slogan": "Slogan",
+        "signal": "Signal",
+        "pattern": "Pattern",
+        "device": "Device",
+        "confidence": "Confidence",
+        "actions": "Actions"
+      },
+      "signal": {
+        "self": "Self",
+        "other": "Other"
+      },
+      "confidence": {
+        "high": "High",
+        "medium": "Med",
+        "low": "Low"
+      },
+      "action": {
+        "copy": "Copy slogan",
+        "copyAll": "Copy all",
+        "add": "Add to niche",
+        "addAll": "Add all",
+        "added": "Added",
+        "copied": "Copied to clipboard",
+        "duplicate": "Already in niche",
+        "error": "Failed"
+      },
+      "summary": {
+        "selected": "{{count}} selected",
+        "withDuplicates": "{{count}} selected · {{dupes}} duplicates"
+      },
+      "empty": "No slogans generated — try a more specific brief",
+      "selectAll": "Select all slogans"
+    },
+    "followUps": {
+      "label": "Try asking…"
+    },
+    "nichePicker": {
+      "title": "Add slogan to niche",
+      "confirmLabel": "Add",
+      "placeholder": "Pick a niche…",
+      "empty": "No niches yet. Create one first."
+    },
+    "citation": {
+      "niche": "Niche knowledge chunk {{index}}",
+      "nicheWithName": "Niche knowledge chunk {{index}} — {{niche}}",
+      "web": "Web source {{index}}"
+    }
   }
 }

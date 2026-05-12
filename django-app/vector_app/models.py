@@ -67,3 +67,36 @@ class Embedding(models.Model):
 
     def __str__(self):
         return f"Embedding {self.id} [{self.content_type}:{self.object_id}]"
+
+
+class IndexingFailure(models.Model):
+    """Tracks embedding-indexing failures for retry + observability (PROJ-29 Phase 1B).
+
+    One row per (content_type, object_id) — upserted on each failure. `resolved_at`
+    is set when a subsequent indexing run succeeds. Unresolved rows are picked up
+    by the daily `retry_failed_indexings` rq cron.
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    content_type = models.ForeignKey(
+        ContentType,
+        on_delete=models.CASCADE,
+        related_name='indexing_failures',
+    )
+    object_id = models.UUIDField()
+    attempt_count = models.PositiveIntegerField(default=0)
+    last_error = models.TextField(blank=True, default='')
+    last_attempt_at = models.DateTimeField(auto_now=True)
+    resolved_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        unique_together = [('content_type', 'object_id')]
+        indexes = [
+            models.Index(
+                fields=['resolved_at', 'last_attempt_at'],
+                name='idx_failure_resolved_attempt',
+            ),
+        ]
+
+    def __str__(self):
+        return f"IndexingFailure [{self.content_type}:{self.object_id}] x{self.attempt_count}"
