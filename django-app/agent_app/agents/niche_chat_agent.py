@@ -736,10 +736,12 @@ def _build_tools(workspace, niche, model_override=None) -> list:
                 "5-10 directions. No markdown."
             )
 
+            # PROJ-29 policy: brainstorm_ideas runs on agent_react node, which
+            # is admin-pinned (no UI override). Tool-output accuracy + JSON
+            # discipline matter more than creative-style variation here.
             llm, _ = get_llm_for_node(
                 'agent_react',
                 config_resolver=get_node_config,
-                model_override=model_override,
             )
             response = llm.invoke([
                 {'role': 'system', 'content': system_prompt},
@@ -828,10 +830,18 @@ def build_niche_chat_agent(workspace, niche_id, session_id: str, model_override=
     tools = _build_tools(workspace, niche, model_override=model_override)
 
     # AC-Ops-LG-3 — per-request LLM, NOT a module-level singleton.
+    # PROJ-29 policy (locked 2026-05-12): `agent_react` is ADMIN-ONLY. The
+    # ReAct loop drives tool selection + tool-call accuracy across all 8
+    # tools — we pin it to the ChatNodeConfig value (default gpt-4.1-mini)
+    # because GPT-4.1 mini has the most reliable structured tool-use in
+    # production. The UI Model picker only affects the user-visible creative
+    # paths: `creative_techniques` (generate_slogans) + the Vane web-search
+    # answer. Brainstorm_ideas also runs on agent_react so it inherits the
+    # same admin-pinned model. To change the agent_react model on prod,
+    # edit `ChatNodeConfig.agent_react.model_name` via Django Admin.
     llm, _ = get_llm_for_node(
         'agent_react',
         config_resolver=get_node_config,
-        model_override=model_override,
     )
 
     marketplace = derive_marketplace(niche)
