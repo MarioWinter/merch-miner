@@ -2666,6 +2666,10 @@
       "toggleControls": "Toggle search controls",
       "errorBubble": {
         "title": "Something went wrong"
+      },
+      "userBubble": {
+        "copy": "Copy",
+        "retry": "Try again"
       }
     },
     "context": {

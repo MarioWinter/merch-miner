@@ -14,6 +14,7 @@ import MarkdownAnswer from './partials/MarkdownAnswer';
 import MessageActionToolbar from './partials/MessageActionToolbar';
 import SourceList from './partials/SourceList';
 import UserAttachments from './partials/UserAttachments';
+import UserMessageToolbar from './partials/UserMessageToolbar';
 import ThinkingStrip from '@/components/ThinkingStrip';
 import GeneratedSloganTable from '@/components/GeneratedSloganTable';
 import FollowUpChips from '@/components/FollowUpChips';
@@ -44,6 +45,11 @@ interface ChatMessageListProps {
   sessionNicheId?: string | null;
   /** PROJ-29 Phase 1H-2: invoked when user clicks a FollowUpChip. */
   onFollowUpClick?: (text: string) => void;
+  /** PROJ-29 Phase 1J follow-up: re-send a previous user message. Wired
+   *  through to the existing `startStream` path by the parent. Only the
+   *  Retry icon's visibility depends on the next-message error pairing —
+   *  the callback itself is always invoked with the original user content. */
+  onRetry?: (userMessage: ChatMessage) => void;
 }
 
 /** Distance from bottom (px) within which we consider the user "at the bottom" and re-engage auto-scroll. */
@@ -78,6 +84,13 @@ const MessageRow = styled(Box, {
   alignItems: 'flex-start',
   gap: theme.spacing(1),
   width: '100%',
+  // PROJ-29 Phase 1J follow-up — hover-reveal user-message toolbar.
+  // CSS-only: avoids a JS hover state that would re-render every row on
+  // scroll. The toolbar starts at opacity:0 (see UserMessageToolbar) and
+  // becomes visible when the row is hovered or any inner control is focused.
+  '&:hover .user-msg-actions, &:focus-within .user-msg-actions': {
+    opacity: 1,
+  },
 }));
 
 /** Right-side bubble — primary red, white text, classic chat-app look. */
@@ -176,6 +189,7 @@ const ChatMessageList = ({
   onSaveSelectionAsKeywords, onSaveSelectionAsNotes,
   sessionId, onRegenerate, onSaveAnswer,
   sessionNicheId = null, onFollowUpClick,
+  onRetry,
 }: ChatMessageListProps) => {
   const { t } = useTranslation();
   // BUG-2 fix (2026-04-28): a useRef + useEffect pair was prone to HMR
@@ -327,12 +341,35 @@ const ChatMessageList = ({
                 )}
 
                 {msg.role === 'user' ? (
-                  <Stack alignItems="flex-end" gap={0.5} sx={{ maxWidth: '85%' }}>
-                    {msg.attachments && msg.attachments.length > 0 && (
-                      <UserAttachments attachments={msg.attachments} />
-                    )}
-                    <UserBubble>{msg.content}</UserBubble>
-                  </Stack>
+                  (() => {
+                    // PROJ-29 Phase 1J follow-up — only attach Retry when the
+                    // next sibling message is a persisted error placeholder.
+                    // Copy is always available via the hover-reveal toolbar.
+                    const nextMsg = messages[idx + 1];
+                    const followedByError =
+                      nextMsg?.role === 'assistant' &&
+                      nextMsg?.message_type === 'error';
+                    const retryHandler =
+                      onRetry && followedByError
+                        ? () => onRetry(msg)
+                        : undefined;
+                    return (
+                      <Stack
+                        alignItems="flex-end"
+                        gap={0.5}
+                        sx={{ maxWidth: '85%' }}
+                      >
+                        {msg.attachments && msg.attachments.length > 0 && (
+                          <UserAttachments attachments={msg.attachments} />
+                        )}
+                        <UserBubble>{msg.content}</UserBubble>
+                        <UserMessageToolbar
+                          content={msg.content}
+                          onRetry={retryHandler}
+                        />
+                      </Stack>
+                    );
+                  })()
                 ) : isWorkflow && msg.agent_session ? (
                   /* AC-42: Workflow-Card inline; takes full row width. */
                   <Box sx={{ flex: 1, minWidth: 0 }}>

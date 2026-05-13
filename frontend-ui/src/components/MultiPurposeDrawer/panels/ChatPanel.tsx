@@ -469,6 +469,15 @@ const ChatPanel = () => {
             ? undefined
             : (text) => void handleSubmit({ text, chip: inputChip })
         }
+        onRetry={
+          isReadOnly
+            ? undefined
+            : (userMessage) =>
+                void handleSubmit({
+                  text: userMessage.content,
+                  chip: inputChip,
+                })
+        }
       />
 
       {/* Input area — PROJ-20 Phase 3.7 unified ChatInputBar */}
