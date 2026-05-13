@@ -653,6 +653,8 @@
     },
     "bulk": {
       "selected": "{{count}} selected",
+      "available": "{{count}} available",
+      "selectAll": "Select all on page",
       "selectIdea": "Select idea",
       "approve": "Approve",
       "reject": "Reject",

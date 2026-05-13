@@ -22,6 +22,7 @@ import { useAdaptation } from './hooks/useAdaptation';
 import { useIdeaActions } from './hooks/useIdeaActions';
 import { useRejectWithDesignWarning } from './hooks/useRejectWithDesignWarning';
 import { IdeaFilterToolbar } from './partials/IdeaFilterToolbar';
+import { SelectionToolbar } from './partials/SelectionToolbar';
 import { InlineAddBar } from './partials/InlineAddBar';
 import { IdeaCard } from './partials/IdeaCard';
 import { IdeaSourceGroup } from './partials/IdeaSourceGroup';
@@ -111,7 +112,7 @@ export const IdeaListView = () => {
     });
   }, []);
 
-  const allIdeas = data?.results ?? [];
+  const allIdeas = useMemo(() => data?.results ?? [], [data?.results]);
   const totalCount = data?.count ?? 0;
 
   // Group ideas: niche-less at top, source groups, orphan adapted
@@ -160,6 +161,14 @@ export const IdeaListView = () => {
     [adaptIdea, adaptation],
   );
 
+  const handleSelectAllOnPage = useCallback(() => {
+    setSelectedIds(new Set(allIdeas.map((idea) => idea.id)));
+  }, [allIdeas]);
+
+  const handleClearSelection = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
+
   const handleBulkApprove = () => {
     actions.bulkUpdateStatus(Array.from(selectedIds), 'approved');
     setSelectedIds(new Set());
@@ -196,6 +205,15 @@ export const IdeaListView = () => {
 
       {/* Filter toolbar */}
       <IdeaFilterToolbar filterState={filterState} />
+
+      {/* Selection toolbar — always-visible counter + select-all */}
+      <SelectionToolbar
+        availableCount={totalCount}
+        selectedCount={selectedIds.size}
+        pageItemCount={allIdeas.length}
+        onSelectAll={handleSelectAllOnPage}
+        onClearSelection={handleClearSelection}
+      />
 
       {/* Inline add bar — always visible */}
       <Box sx={{ mb: 2 }}>

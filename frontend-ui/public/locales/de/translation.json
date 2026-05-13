@@ -644,6 +644,8 @@
     },
     "bulk": {
       "selected": "{{count}} ausgewaehlt",
+      "available": "{{count}} verfuegbar",
+      "selectAll": "Alle auf Seite auswaehlen",
       "selectIdea": "Idee auswaehlen",
       "approve": "Genehmigen",
       "reject": "Ablehnen",
