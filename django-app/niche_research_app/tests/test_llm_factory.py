@@ -35,7 +35,7 @@ def test_injected_chat_resolver_reads_chat_node_config(mock_chat):
     def fake_resolver(node_name: str):
         custom_calls.append(node_name)
         return {
-            'model_name': 'mistralai/mistral-small-creative',
+            'model_name': 'mistralai/mistral-medium-3',
             'temperature': 0.7,
             'max_tokens': 3500,
             'system_prompt': 'CUSTOM SYSTEM PROMPT',
