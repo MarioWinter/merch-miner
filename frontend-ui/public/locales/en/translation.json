@@ -2663,7 +2663,10 @@
       "source_discussions": "Discussions",
       "sendError": "Failed to send message. Please try again.",
       "loadMore": "Load older messages",
-      "toggleControls": "Toggle search controls"
+      "toggleControls": "Toggle search controls",
+      "errorBubble": {
+        "title": "Something went wrong"
+      }
     },
     "context": {
       "label": "Context: {{name}}",
@@ -3386,6 +3389,7 @@
     },
     "thinking": {
       "stage": {
+        "connecting": "Connecting to agent…",
         "rewrite_query": "Rewriting query…",
         "retrieve_niche": "Searching niche knowledge…",
         "search_slogans": "Searching slogans…",

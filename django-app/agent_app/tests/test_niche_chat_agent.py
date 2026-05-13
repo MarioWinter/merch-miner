@@ -1014,3 +1014,123 @@ class TestCrossNicheWorkspaceIsolation:
         # Confirm Django ORM parameter binding handled the SQL injection
         # attempt safely — the message just says "not found".
         assert 'not found in this workspace' in result['error']
+
+
+# ── Phase 1J BUG-5 — Multi-turn history window ─────────────────────────────
+
+
+@pytest.mark.django_db
+class TestBuildHistoryMessages:
+    """PROJ-29 Phase 1J BUG-5 — verify _build_history_messages.
+
+    Confirms multi-turn memory works AND that the session-isolation contract
+    is preserved (other sessions never bleed into this one).
+    """
+
+    def _make_session(self, workspace, user, niche, title='S'):
+        from search_app.models import ChatSession
+        return ChatSession.objects.create(
+            workspace=workspace, created_by=user,
+            title=title, niche_context=niche,
+        )
+
+    def _add_msg(self, session, role, content, message_type=None):
+        from search_app.models import ChatMessage
+        return ChatMessage.objects.create(
+            session=session,
+            role=role,
+            content=content,
+            message_type=message_type or (
+                ChatMessage.MessageType.SEARCH_QUERY if role == 'user'
+                else ChatMessage.MessageType.SEARCH_RESULT
+            ),
+        )
+
+    def test_returns_user_and_assistant_in_chronological_order(
+        self, workspace_a, niche_a, user_a,
+    ):
+        from agent_app.agents.niche_chat_agent import _build_history_messages
+
+        session = self._make_session(workspace_a, user_a, niche_a)
+        self._add_msg(session, 'user', 'first question')
+        self._add_msg(session, 'assistant', 'first answer')
+        self._add_msg(session, 'user', 'follow-up')
+
+        out = _build_history_messages(session)
+
+        assert [m['role'] for m in out] == ['user', 'assistant', 'user']
+        assert [m['content'] for m in out] == [
+            'first question', 'first answer', 'follow-up',
+        ]
+
+    def test_caps_at_limit(self, workspace_a, niche_a, user_a):
+        from agent_app.agents.niche_chat_agent import _build_history_messages
+
+        session = self._make_session(workspace_a, user_a, niche_a)
+        for i in range(20):
+            self._add_msg(session, 'user', f'q{i}')
+
+        out = _build_history_messages(session, limit=15)
+
+        assert len(out) == 15
+        # Keeps the NEWEST 15 (q5..q19), drops the oldest.
+        assert out[0]['content'] == 'q5'
+        assert out[-1]['content'] == 'q19'
+
+    def test_isolated_per_session(
+        self, workspace_a, niche_a, user_a,
+    ):
+        from agent_app.agents.niche_chat_agent import _build_history_messages
+
+        s1 = self._make_session(workspace_a, user_a, niche_a, title='S1')
+        s2 = self._make_session(workspace_a, user_a, niche_a, title='S2')
+        self._add_msg(s1, 'user', 'session-1-only')
+        self._add_msg(s2, 'user', 'session-2-only')
+
+        out_s2 = _build_history_messages(s2)
+
+        contents = [m['content'] for m in out_s2]
+        assert 'session-2-only' in contents
+        assert 'session-1-only' not in contents, (
+            'Cross-session memory leak — session isolation broken.'
+        )
+
+    def test_filters_error_and_system_messages(
+        self, workspace_a, niche_a, user_a,
+    ):
+        from agent_app.agents.niche_chat_agent import _build_history_messages
+        from search_app.models import ChatMessage
+
+        session = self._make_session(workspace_a, user_a, niche_a)
+        self._add_msg(session, 'user', 'real question')
+        self._add_msg(
+            session, 'assistant', 'error placeholder',
+            message_type=ChatMessage.MessageType.ERROR,
+        )
+        self._add_msg(
+            session, ChatMessage.Role.SYSTEM, 'sys note',
+            message_type=ChatMessage.MessageType.SEARCH_RESULT,
+        )
+        self._add_msg(session, 'assistant', 'real answer')
+
+        out = _build_history_messages(session)
+        contents = [m['content'] for m in out]
+        assert contents == ['real question', 'real answer']
+
+    def test_prepends_conversation_summary_when_present(
+        self, workspace_a, niche_a, user_a,
+    ):
+        from agent_app.agents.niche_chat_agent import _build_history_messages
+
+        session = self._make_session(workspace_a, user_a, niche_a)
+        session.conversation_summary = 'Previously: user asked about slogans.'
+        session.save(update_fields=['conversation_summary'])
+        self._add_msg(session, 'user', 'next question')
+
+        out = _build_history_messages(session)
+
+        assert out[0]['role'] == 'user'
+        assert 'Previously: user asked about slogans.' in out[0]['content']
+        # Real user turn comes after the summary block.
+        assert out[1]['content'] == 'next question'
+

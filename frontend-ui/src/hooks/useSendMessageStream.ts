@@ -274,6 +274,17 @@ export const useSendMessageStream = ({
       // and never sends anything (Vane "init then hang" bug).
       armSilenceTimer();
 
+      // PROJ-29 Phase 1J BUG-2 — placeholder step so the ThinkingStrip mounts
+      // immediately (it early-returns when `streamingStages.length === 0`).
+      // First real SSE `stage` event will flip this row to `done`.
+      dispatch(
+        pushStreamingStage({
+          stage: 'connecting',
+          status: 'loading',
+          ts: Date.now(),
+        }),
+      );
+
       es.addEventListener('init', (event) => {
         armSilenceTimer();
         const data = parseEventData<SSEInitEvent>((event as MessageEvent).data);
@@ -313,10 +324,17 @@ export const useSendMessageStream = ({
       // --- PROJ-29 Phase 1H: ThinkingStrip + chunks + follow-ups + slogan-payload ---
 
       // `stage` — high-level pipeline phase boundary (e.g. retrieve_niche, writing_answer)
+      let connectingClosed = false;
       es.addEventListener('stage', (event) => {
         armSilenceTimer();
         const data = parseEventData<SSEStageEvent>((event as MessageEvent).data);
         if (!data || typeof data.stage !== 'string') return;
+        // PROJ-29 Phase 1J BUG-2 — close the synthetic `connecting` placeholder
+        // the first time a real stage event arrives.
+        if (!connectingClosed) {
+          dispatch(markStageDone({ stage: 'connecting', ts: Date.now() }));
+          connectingClosed = true;
+        }
         dispatch(
           pushStreamingStage({
             stage: data.stage,
@@ -433,9 +451,18 @@ export const useSendMessageStream = ({
         dispatch(markStageError({ message: data?.error }));
         closeStream();
         dispatch(clearStreamingMessage());
-        enqueueSnackbar(data?.error ?? t('search.stream.connectionLost'), {
-          variant: 'error',
-        });
+        // PROJ-29 Phase 1J BUG-4 — backend now persists an `error`-typed
+        // ChatMessage when run_chat fails before producing an answer. Invalidate
+        // the session cache so the paired bubble shows up immediately and the
+        // user's message is no longer stranded after reload.
+        const sid = args.sessionIdOverride ?? sessionId;
+        if (sid) {
+          dispatch(searchApi.util.invalidateTags([{ type: 'ChatSessions', id: sid }]));
+        }
+        enqueueSnackbar(
+          data?.display_message ?? data?.error ?? t('search.stream.connectionLost'),
+          { variant: 'error' },
+        );
         onError?.();
       });
 

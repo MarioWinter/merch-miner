@@ -20,7 +20,6 @@ import { clearAttachments } from '@/store/attachmentsSlice';
 import {
   useGetSessionQuery,
   useCreateSessionMutation,
-  useSendMessageMutation,
   useShareSessionMutation,
   useUnshareSessionMutation,
   useSaveSnippetToNicheMutation,
@@ -28,6 +27,7 @@ import {
 } from '@/store/searchSlice';
 import { useSearchHealth } from '../hooks/useSearchHealth';
 import { useSendMessageStream } from '@/hooks/useSendMessageStream';
+import { useOptimisticChatMessage } from '@/hooks/useOptimisticChatMessage';
 import type {
   ChatMessage,
   SaveSnippetKeywordsResponse,
@@ -113,7 +113,6 @@ const ChatPanel = () => {
   const {
     activeSessionId,
     searching,
-    searchSources,
     selectedModel,
     modeOverride,
     inputChip,
@@ -164,7 +163,8 @@ const ChatPanel = () => {
   }, [activeWorkspaceId, activeSessionId, sessionError, dispatch]);
 
   const [createSession] = useCreateSessionMutation();
-  const [sendMessage] = useSendMessageMutation();
+  const { insert: optimisticInsert, rollback: optimisticRollback } =
+    useOptimisticChatMessage();
   const [shareSession] = useShareSessionMutation();
   const [unshareSession] = useUnshareSessionMutation();
   const [saveSnippet] = useSaveSnippetToNicheMutation();
@@ -220,8 +220,9 @@ const ChatPanel = () => {
       dispatch(setSearching(true));
       inputRef.current?.clear();
 
+      let sessionId = activeSessionId;
+      let tempId: string | null = null;
       try {
-        let sessionId = activeSessionId;
         if (!sessionId) {
           const newSession = await createSession({
             niche_context: niche_id ?? undefined,
@@ -232,36 +233,32 @@ const ChatPanel = () => {
           dispatch(openDrawer('chat'));
         }
 
-        // PROJ-17 Phase 4 Step 6: Agent → classic POST. Auto/Web → SSE stream.
-        // EC-7: starting a new stream auto-cancels any active stream.
-        if (modeOverride === 'agent') {
-          await sendMessage({
-            sessionId,
-            body: {
-              content: trimmed,
-              search_sources: searchSources,
-              model: selectedModel,
-              mode_override: modeOverride,
-            },
-          }).unwrap();
-          dispatch(setSearching(false));
-        } else {
-          const attachment_ids = attachmentUploads
-            .filter((u) => u.status === 'completed' && u.serverId)
-            .map((u) => u.serverId as string);
-          startStream({
-            content: trimmed,
-            mode_override: modeOverride,
-            niche_id,
-            sessionIdOverride: sessionId,
-            attachment_ids,
-            model: selectedModel,
-          });
-          // searching cleared by useSendMessageStream onDone callback
-        }
+        // PROJ-29 Phase 1J BUG-1 — show user's message in chat history
+        // within the same render cycle as submit, before the server response.
+        tempId = optimisticInsert({ sessionId, content: trimmed });
+
+        // PROJ-29 Phase 1J BUG-2 — unify agent + auto/web through SSE.
+        // The backend `_handle_niche_agent_stream` now accepts
+        // `mode_override='agent'`; routing via Redux modeOverride is preserved.
+        const attachment_ids = attachmentUploads
+          .filter((u) => u.status === 'completed' && u.serverId)
+          .map((u) => u.serverId as string);
+        startStream({
+          content: trimmed,
+          mode_override: modeOverride,
+          niche_id,
+          sessionIdOverride: sessionId,
+          attachment_ids,
+          model: selectedModel,
+        });
+        // searching cleared by useSendMessageStream onDone callback.
+        // Temp message replaced on RTK Query invalidation after `done` SSE.
       } catch {
         enqueueSnackbar(t('search.chat.sendError'), { variant: 'error' });
         dispatch(setSearching(false));
+        if (sessionId && tempId) {
+          optimisticRollback({ sessionId, tempId });
+        }
       }
     },
     [
@@ -269,7 +266,6 @@ const ChatPanel = () => {
       vaneOnline,
       isStreaming,
       activeSessionId,
-      searchSources,
       selectedModel,
       modeOverride,
       // PROJ-29 Phase 1I follow-up: handleSubmit reads `session?.niche_context_id`
@@ -279,8 +275,9 @@ const ChatPanel = () => {
       attachmentUploads,
       dispatch,
       createSession,
-      sendMessage,
       startStream,
+      optimisticInsert,
+      optimisticRollback,
       enqueueSnackbar,
       t,
     ],
@@ -364,29 +361,15 @@ const ChatPanel = () => {
       // query. Without this, the new SSE call drops attachment_ids and the
       // backend falls back to text-only mode against the same prompt.
       const attachment_ids = priorUserMessage.attachments?.map((a) => a.id) ?? [];
-      if (modeOverride === 'agent') {
-        try {
-          await sendMessage({
-            sessionId: activeSessionId,
-            body: {
-              content: priorUserContent,
-              search_sources: searchSources,
-              model: selectedModel,
-              mode_override: modeOverride,
-            },
-          }).unwrap();
-        } catch {
-          enqueueSnackbar(t('search.chat.sendError'), { variant: 'error' });
-        }
-      } else {
-        startStream({
-          content: priorUserContent,
-          mode_override: modeOverride,
-          niche_id,
-          sessionIdOverride: activeSessionId,
-          attachment_ids: attachment_ids.length > 0 ? attachment_ids : undefined,
-        });
-      }
+      // PROJ-29 Phase 1J BUG-2 — Regenerate also goes through SSE for both
+      // agent and auto/web modes. Backend distinguishes via mode_override.
+      startStream({
+        content: priorUserContent,
+        mode_override: modeOverride,
+        niche_id,
+        sessionIdOverride: activeSessionId,
+        attachment_ids: attachment_ids.length > 0 ? attachment_ids : undefined,
+      });
     },
     [
       activeSessionId,
@@ -395,9 +378,6 @@ const ChatPanel = () => {
       t,
       inputChip,
       modeOverride,
-      searchSources,
-      selectedModel,
-      sendMessage,
       startStream,
     ],
   );

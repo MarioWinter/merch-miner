@@ -1907,7 +1907,10 @@
       "source_discussions": "Diskussionen",
       "sendError": "Nachricht senden fehlgeschlagen.",
       "loadMore": "Altere Nachrichten laden",
-      "toggleControls": "Sucheinstellungen ein-/ausblenden"
+      "toggleControls": "Sucheinstellungen ein-/ausblenden",
+      "errorBubble": {
+        "title": "Etwas ist schiefgelaufen"
+      }
     },
     "context": {
       "label": "Kontext: {{name}}",
@@ -3429,6 +3432,7 @@
     },
     "thinking": {
       "stage": {
+        "connecting": "Verbinde mit Agent…",
         "rewrite_query": "Frage wird umformuliert…",
         "retrieve_niche": "Durchsuche Nischenwissen…",
         "search_slogans": "Durchsuche Slogans…",

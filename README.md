@@ -244,16 +244,31 @@ Set `SCRAPY_CONCURRENT_REQUESTS=10` in `.env` for parallel requests per spider.
 | PROJ-3 | CI/CD & DevOps Setup | P0 | Deployed |
 | PROJ-4 | Workspace & Membership | P0 | Deployed |
 | PROJ-5 | Niche List | P0 | Deployed |
-| PROJ-6 | Niche Deep Research (LangGraph) | P0 | Planned |
-| PROJ-7 | Amazon Product Research | P0 | Planned |
-| PROJ-8 | Idea & Slogan Generation (n8n) | P0 | Planned |
-| PROJ-9 | Design Generation (OpenRouter) | P0 | Planned |
-| PROJ-10 | Niche Keyword Bank | P1 | Planned |
-| PROJ-11 | Listing & Keyword Generator | P0 | Planned |
-| PROJ-12 | Dashboard | P1 | Planned |
-| PROJ-13 | Marketplace Upload Manager (Selenium) | P1 | Planned |
-| PROJ-14 | Team Kanban | P1 | Planned |
-| PROJ-15 | Analytics & Reporting | P2 | Planned |
-| PROJ-16 | Amazon Product Scraper (Scrapy) | P0 | In Progress |
+| PROJ-6 | Niche Deep Research (LangGraph) | P0 | Deployed |
+| PROJ-7 | Amazon Product Research | P0 | In Progress |
+| PROJ-8 | Idea & Slogan Generation (LangGraph) | P0 | In Review |
+| PROJ-9 | Design Generation (OpenRouter) | P0 | In Review |
+| PROJ-10 | Keyword Research & Bank (JungleScout) | P1 | In Review |
+| PROJ-11 | Publish (Listing + Upload Manager) | P0 | In Review |
+| PROJ-12 | Dashboard & Analytics | P1 | In Review |
+| PROJ-13 | Desktop Upload App (Electron + Playwright) | P1 | In Progress |
+| PROJ-14 | Team Kanban & Collaboration | P1 | In Review |
+| PROJ-15 | Vector Database (AI Memory — pgvector) | P0 | In Review |
+| PROJ-16 | Amazon Product Scraper (Scrapy) | P0 | Deployed |
+| PROJ-17 | Deep Web Search (Vane + Crawl4ai) | P0 | Planned |
+| PROJ-18 | OpenClaw Agent (LangGraph Multi-Agent) | P0 | In Review |
+| PROJ-19 | ~~Global Cloud Picker~~ (absorbed into PROJ-11) | — | Absorbed |
+| PROJ-20 | Chat UX Perplexity-Parity | P0 | In Review |
+| PROJ-21 | Chat Attachments + Document RAG + Agentic Tool-Use | P1 | Deferred (Post-MVP) |
+| PROJ-22 | Server-Migration auf VC 8-32 + Mono-Repo Infrastruktur | P0 | Deployed |
+| PROJ-23 | Selector Health Check Spider | — | In Review |
+| PROJ-24 | Legal Pages + Global Footer + Feature Flag System | P0 | In Review |
+| PROJ-25 | Bulk ASIN One-Shot Scrape Batches | P0 | In Review |
+| PROJ-26 | KeywordChipBoard / Keyword Transfer Tabs | — | Reserved |
+| PROJ-27 | AI Upscaler (Single + Bulk via Replicate) | P0 | In Review |
+| PROJ-28 | Niche Research Product Limit | P0 | Planned |
+| PROJ-29 | Niche-Data Agentic RAG + Configurable Prompts + Langfuse | P0 | In Review |
 
-Full specs in `features/`.
+**Status definitions:** Planned = spec written · In Progress = building · In Review = code shipped, QA pending · Deployed = live on prod · Deferred = scoped for post-MVP · Absorbed = scope merged into another PROJ.
+
+**Source of truth:** `features/INDEX.md` (auto-updated by skills) + `docs/PRD.md` (vision + roadmap rationale). Full specs in `features/PROJ-X-name.md`.

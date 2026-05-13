@@ -64,7 +64,12 @@ const {
 vi.mock('@/store/searchSlice', () => ({
   searchApi: {
     reducerPath: 'searchApi',
-    util: { invalidateTags: vi.fn(() => ({ type: 'noop' })) },
+    util: {
+      invalidateTags: vi.fn(() => ({ type: 'noop' })),
+      // PROJ-29 Phase 1J BUG-1 — useOptimisticChatMessage dispatches this; mock
+      // as a no-op action so the hook doesn't throw inside handleSubmit.
+      updateQueryData: vi.fn(() => ({ type: 'noop' })),
+    },
   },
   useGetSessionQuery: (id: string, opts?: { skip?: boolean }) =>
     mockGetSession(id, opts),
@@ -324,16 +329,22 @@ describe('ChatPanel', () => {
     expect(capturedInputProps.current?.disabled).toBeFalsy();
   });
 
-  it('agent mode: send triggers sendMessage mutation, not stream', async () => {
-    mockSendMessage.mockReturnValue({ unwrap: vi.fn().mockResolvedValue({}) });
+  it('agent mode: send triggers SSE stream (PROJ-29 Phase 1J BUG-2 — unified path)', async () => {
     mockCreateSession.mockReturnValue({
       unwrap: vi.fn().mockResolvedValue({ id: 'new-sess-1' }),
     });
     const user = userEvent.setup();
     renderPanel({ modeOverride: 'agent' });
     await user.click(screen.getByTestId('stub-send'));
-    expect(mockSendMessage).toHaveBeenCalledTimes(1);
-    expect(mockStartStream).not.toHaveBeenCalled();
+    expect(mockStartStream).toHaveBeenCalledTimes(1);
+    expect(mockStartStream).toHaveBeenCalledWith(
+      expect.objectContaining({
+        content: 'hello world',
+        mode_override: 'agent',
+        sessionIdOverride: 'new-sess-1',
+      }),
+    );
+    expect(mockSendMessage).not.toHaveBeenCalled();
   });
 
   it('auto mode: send triggers SSE stream with sessionIdOverride', async () => {
@@ -439,7 +450,9 @@ describe('ChatPanel', () => {
   });
 
   it('send error: error snackbar on send failure (agent mode)', async () => {
-    mockSendMessage.mockReturnValue({
+    // PROJ-29 Phase 1J BUG-2: agent + auto paths both go via startStream.
+    // Make createSession reject to trigger the catch branch.
+    mockCreateSession.mockReturnValue({
       unwrap: vi.fn().mockRejectedValue(new Error('boom')),
     });
     mockGetSession.mockReturnValue({
@@ -452,7 +465,7 @@ describe('ChatPanel', () => {
       isLoading: false,
     });
     const user = userEvent.setup();
-    renderPanel({ activeSessionId: 'sess-1', modeOverride: 'agent' });
+    renderPanel({ modeOverride: 'agent' });
     await user.click(screen.getByTestId('stub-send'));
 
     expect(mockEnqueueSnackbar).toHaveBeenCalledWith(
@@ -462,32 +475,16 @@ describe('ChatPanel', () => {
   });
 
   it('isSending flag flips true while a send is in flight (searching=true)', async () => {
-    // Agent mode: sendMessage resolves later → searching stays true through
-    // the click; we observe the flag by inspecting the captured props after
-    // the click resolves.
-    let resolveSend: () => void = () => {};
-    mockSendMessage.mockReturnValue({
-      unwrap: vi.fn().mockReturnValue(
-        new Promise<void>((resolve) => {
-          resolveSend = resolve;
-        }),
-      ),
-    });
+    // PROJ-29 Phase 1J BUG-2: agent path is unified through SSE. Verify the
+    // click reaches startStream; in-flight state tracking is now driven by the
+    // SSE lifecycle, not by an awaited mutation.
     mockCreateSession.mockReturnValue({
       unwrap: vi.fn().mockResolvedValue({ id: 'new-sess-x' }),
     });
     const user = userEvent.setup();
     renderPanel({ modeOverride: 'agent' });
     await user.click(screen.getByTestId('stub-send'));
-    // Resolve the in-flight send so post-test cleanup doesn't leak. Wrap in
-    // act() so the resulting Redux state update isn't flagged by RTL.
-    await act(async () => {
-      resolveSend();
-    });
-    // The captured props record the most recent render — `isSending` is a
-    // function of `searching || isStreaming` from Redux. We just verify that
-    // the click triggered the mutation; the state-flag plumbing itself is
-    // exercised by the integration test above.
-    expect(mockSendMessage).toHaveBeenCalled();
+    await act(async () => {});
+    expect(mockStartStream).toHaveBeenCalled();
   });
 });

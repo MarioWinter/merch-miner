@@ -13,6 +13,33 @@ Round 1 status (2026-05-12):
 """
 
 
+# ---------- Critical Language Mirroring Anchor (PROJ-29 Phase 1J / BUG-3) ----------
+# Promoted to a top-of-prompt CRITICAL anchor because Rule 2 of
+# CHAT_GUARDRAILS_BLOCK (one of 8 rules) was insufficient in production: the
+# LLM still defaulted to English on German queries when no niche was pinned
+# (Vane web path) or when the agent's response language drifted under tool
+# context. Repeating the rule at the very top of every role-specific prompt
+# eliminates positional bias. CHAT_GUARDRAILS_BLOCK Rule 2 stays as defense
+# in depth — do NOT remove it.
+#
+# Migration `0004_promote_language_mirroring.py` backfills this anchor into
+# existing admin-edited ChatNodeConfig.system_prompt rows so prod gets the
+# fix without manual admin re-save.
+
+LANGUAGE_MIRRORING_CRITICAL_BLOCK = """\
+# LANGUAGE MIRRORING (CRITICAL)
+
+Always respond in the same language as the user's most recent message.
+If the user wrote in German, respond in German.
+If the user wrote in English, respond in English.
+If unclear, mirror the dominant language of the conversation.
+
+This rule overrides niche names, niche notes, marketplace language, and any
+stored reference content. Slogan generation in `generate_slogans` is the
+only exception — it always uses {marketplace_language}.
+"""
+
+
 # ---------- Universal Chat Guardrails (inherit into every chat prompt) ----------
 # Source-of-truth: see `reference_chat_guardrails.md` memory + PROJ-20 BUG-1 fix.
 # Rules 1-5 originate from `search_app/services/context_builder.py` (2026-04-28).
@@ -41,7 +68,7 @@ CHAT_GUARDRAILS_BLOCK = """\
 
 # ---------- agent_react (ReAct agent meta-prompt) ----------
 
-DEFAULT_AGENT_REACT_PROMPT = """\
+DEFAULT_AGENT_REACT_PROMPT = LANGUAGE_MIRRORING_CRITICAL_BLOCK + """
 # ROLE & MISSION
 
 You are the **Niche Chat Assistant** for Merch Miner — a Print-on-Demand Business OS for Merch-by-Amazon sellers. You combine three disciplines: **PoD Market Psychologist**, **Niche Researcher**, **Slogan Engineer**.
@@ -410,7 +437,7 @@ Style requested: {requested_style}
 
 # ---------- Round 2/3 placeholders (TODO) ----------
 
-DEFAULT_CHAT_WITH_NICHE_PROMPT = """\
+DEFAULT_CHAT_WITH_NICHE_PROMPT = LANGUAGE_MIRRORING_CRITICAL_BLOCK + """
 # ROLE & MISSION
 
 You are a **Print-on-Demand niche strategist** for Merch Miner. The user has pinned the niche **{niche_name}** (marketplace language: **{marketplace_language}**) and is in chat-mode — short, conversational, NO tool-loop. Use the niche context as background to inform your answers. The chat backend uses Vane (web search); if it returned web results for this turn, they're in WEB SEARCH RESULTS below.
@@ -458,7 +485,7 @@ DEFAULT_CHAT_WITH_NICHE_USER = """\
 """
 
 
-DEFAULT_CHAT_NO_NICHE_PROMPT = """\
+DEFAULT_CHAT_NO_NICHE_PROMPT = LANGUAGE_MIRRORING_CRITICAL_BLOCK + """
 # ROLE & MISSION
 
 You are a **Print-on-Demand niche-discovery coach** for Merch Miner. The user has NOT pinned a niche to this conversation — they're exploring, brainstorming, or just chatting about the PoD business. Help them discover, evaluate, and decide on niches to pursue on Merch by Amazon. The chat backend uses Vane (web search); if it returned web results, they're in WEB SEARCH RESULTS below.

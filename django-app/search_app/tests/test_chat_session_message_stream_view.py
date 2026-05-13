@@ -698,3 +698,82 @@ class TestGenerateSlogansPayloadEvent:
             session=niche_session, role=ChatMessage.Role.ASSISTANT,
         ).latest('created_at')
         assert latest.generate_slogans_payload is None
+
+
+# ---------------------------------------------------------------------------
+# PROJ-29 Phase 1J / BUG-2 — `mode_override='agent'` accepted on SSE GET
+# ---------------------------------------------------------------------------
+
+@pytest.mark.django_db
+class TestModeOverrideAcceptance:
+    """The SSE GET endpoint MUST accept the ``mode_override`` query param so
+    the frontend can stop using the legacy POST ``sendMessage`` mutation for
+    agent-mode submissions (which silently bypassed the entire PROJ-29 SSE
+    protocol — no ThinkingStrip, no tool_call events, no follow-ups).
+
+    For niche-bound sessions, agent mode + the param both route to
+    ``_handle_niche_agent_stream`` regardless of ``mode_override`` value.
+    The contract under test: passing ``mode_override=agent`` does NOT cause
+    a 400 / 422 / serializer-level rejection, and the agent path still fires.
+    """
+
+    def test_chat_stream_accepts_agent_mode_override(
+        self, api_client, workspace, niche_session,
+    ):
+        """``mode_override=agent`` on a niche-bound session returns 200 and
+        routes through ``run_chat`` (the niche-agent SSE path)."""
+        canonical = [
+            {'event': 'init', 'data': {
+                'session_id': str(niche_session.id), 'mode': 'agent',
+            }},
+            {'event': 'stage', 'data': {'stage': 'thinking'}},
+            {'event': 'chunks_used', 'data': {'chunks': []}},
+            {'event': 'chunk', 'data': {'delta': 'ok'}},
+            {'event': 'done', 'data': {'final_answer': 'ok'}},
+        ]
+
+        with patch(
+            'agent_app.agents.niche_chat_agent.run_chat',
+            side_effect=make_run_chat_stub(canonical),
+        ) as mock_run_chat:
+            resp = api_client.get(
+                f'/api/chat/sessions/{niche_session.id}/messages/stream/'
+                f'?content=hi&mode_override=agent',
+                **_headers(workspace),
+            )
+            events = parse_sse(resp.streaming_content)
+
+        assert resp.status_code == 200, (
+            f'mode_override=agent must NOT be rejected; got {resp.status_code}'
+        )
+        # `run_chat` is the canonical entry to ``_handle_niche_agent_stream``.
+        mock_run_chat.assert_called_once()
+        names = [e['_event'] for e in events if e['_event'] != 'heartbeat']
+        assert 'init' in names
+        assert 'done' in names
+
+    def test_chat_stream_rejects_garbage_mode_override(
+        self, api_client, workspace, niche_session,
+    ):
+        """Unknown ``mode_override`` values are silently coerced to ``auto``
+        rather than 400'd, so an outdated frontend cannot cause user-facing
+        errors. Niche-bound sessions still route through the agent path."""
+        canonical = [
+            {'event': 'init', 'data': {
+                'session_id': str(niche_session.id), 'mode': 'agent',
+            }},
+            {'event': 'done', 'data': {'final_answer': 'ok'}},
+        ]
+        with patch(
+            'agent_app.agents.niche_chat_agent.run_chat',
+            side_effect=make_run_chat_stub(canonical),
+        ) as mock_run_chat:
+            resp = api_client.get(
+                f'/api/chat/sessions/{niche_session.id}/messages/stream/'
+                f'?content=hi&mode_override=does_not_exist',
+                **_headers(workspace),
+            )
+            b''.join(resp.streaming_content)
+
+        assert resp.status_code == 200
+        mock_run_chat.assert_called_once()

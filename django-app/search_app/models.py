@@ -86,6 +86,10 @@ class ChatMessage(models.Model):
         CRAWL_RESULT = 'crawl_result', 'Crawl Result'
         WORKFLOW_TRIGGER = 'workflow_trigger', 'Workflow Trigger'
         WORKFLOW_CARD = 'workflow_card', 'Workflow Card'
+        # PROJ-29 Phase 1J BUG-4 — placeholder when the agent stream errors
+        # before producing a final answer. Pairs with the user message so the
+        # chat list doesn't strand a question with no visible response.
+        ERROR = 'error', 'Error'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     session = models.ForeignKey(

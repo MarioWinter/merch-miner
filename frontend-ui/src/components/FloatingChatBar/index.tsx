@@ -14,11 +14,9 @@ import {
   setSearching,
 } from '@/store/chatBarSlice';
 import { clearAttachments } from '@/store/attachmentsSlice';
-import {
-  useCreateSessionMutation,
-  useSendMessageMutation,
-} from '@/store/searchSlice';
+import { useCreateSessionMutation } from '@/store/searchSlice';
 import { useSendMessageStream } from '@/hooks/useSendMessageStream';
+import { useOptimisticChatMessage } from '@/hooks/useOptimisticChatMessage';
 import { useSearchHealth } from '../MultiPurposeDrawer/hooks/useSearchHealth';
 import ChatInputBar, {
   type ChatInputBarHandle,
@@ -80,7 +78,6 @@ const FloatingChatBar = () => {
     activePanel,
     activeSessionId,
     searching,
-    searchSources,
     selectedModel,
     modeOverride,
   } = useAppSelector((s) => s.chatBar);
@@ -92,7 +89,8 @@ const FloatingChatBar = () => {
   const inputRef = useRef<ChatInputBarHandle>(null);
 
   const [createSession] = useCreateSessionMutation();
-  const [sendMessage] = useSendMessageMutation();
+  const { insert: optimisticInsert, rollback: optimisticRollback } =
+    useOptimisticChatMessage();
   const { start: startStream } = useSendMessageStream({
     sessionId: activeSessionId,
     onDone: () => {
@@ -172,8 +170,9 @@ const FloatingChatBar = () => {
       dispatch(setSearching(true));
       inputRef.current?.clear();
 
+      let sessionId = activeSessionId;
+      let tempId: string | null = null;
       try {
-        let sessionId = activeSessionId;
         if (!sessionId) {
           const newSession = await createSession({
             niche_context: niche_id ?? undefined,
@@ -184,34 +183,28 @@ const FloatingChatBar = () => {
           dispatch(openDrawer('chat'));
         }
 
-        if (modeOverride === 'agent') {
-          await sendMessage({
-            sessionId,
-            body: {
-              content: trimmed,
-              search_sources: searchSources,
-              model: selectedModel,
-              mode_override: modeOverride,
-            },
-          }).unwrap();
-          dispatch(setSearching(false));
-        } else {
-          const attachment_ids = attachmentUploads
-            .filter((u) => u.status === 'completed' && u.serverId)
-            .map((u) => u.serverId as string);
-          startStream({
-            content: trimmed,
-            mode_override: modeOverride,
-            niche_id,
-            sessionIdOverride: sessionId,
-            attachment_ids,
-            model: selectedModel,
-          });
-          // searching cleared by useSendMessageStream onDone callback
-        }
+        // PROJ-29 Phase 1J BUG-1 — optimistic user-message echo.
+        tempId = optimisticInsert({ sessionId, content: trimmed });
+
+        // PROJ-29 Phase 1J BUG-2 — unify agent + auto/web through SSE.
+        const attachment_ids = attachmentUploads
+          .filter((u) => u.status === 'completed' && u.serverId)
+          .map((u) => u.serverId as string);
+        startStream({
+          content: trimmed,
+          mode_override: modeOverride,
+          niche_id,
+          sessionIdOverride: sessionId,
+          attachment_ids,
+          model: selectedModel,
+        });
+        // searching cleared by useSendMessageStream onDone callback
       } catch {
         enqueueSnackbar(t('search.chat.sendError'), { variant: 'error' });
         dispatch(setSearching(false));
+        if (sessionId && tempId) {
+          optimisticRollback({ sessionId, tempId });
+        }
       }
     },
     [
@@ -219,14 +212,14 @@ const FloatingChatBar = () => {
       vaneOnline,
       isStreaming,
       activeSessionId,
-      searchSources,
       selectedModel,
       modeOverride,
       attachmentUploads,
       dispatch,
       createSession,
-      sendMessage,
       startStream,
+      optimisticInsert,
+      optimisticRollback,
       enqueueSnackbar,
       t,
     ],
