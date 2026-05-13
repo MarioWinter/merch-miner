@@ -417,17 +417,42 @@ def _build_tools(workspace, niche, model_override=None) -> list:
             )
     # ── web_search ──────────────────────────────────────────────────────
     @tool('web_search')
-    def web_search(query: str) -> list[dict]:
+    def web_search(query: str) -> list[dict] | dict:
         """Live web search via Vane (Perplexica). Returns up to 8 results
-        each shaped as ``{title, url, snippet}``."""
-        from search_app.services.vane_service import VaneService
+        each shaped as ``{title, url, snippet}``.
+
+        PROJ-29 Phase 1J follow-up: when Vane errors (HTTP 500, upstream
+        bug, network) returns a STRUCTURED tool error dict instead of
+        raising — so the LangGraph agent can continue with the remaining
+        niche-local tools and still produce an answer for the user.
+        """
+        from search_app.services.vane_service import (
+            VaneService, VaneServiceError,
+        )
 
         @_with_langfuse_span('web_search')
-        def _run() -> list[dict]:
+        def _run() -> list[dict] | dict:
             service = VaneService()
-            # PROJ-29: forward the UI Model picker selection so Vane's
-            # answer-summarization uses the user-chosen LLM.
-            resp = service.search(query=query, model=model_override)
+            try:
+                # PROJ-29 Phase 1J follow-up: `speed` mode requests a single
+                # LLM-summarization pass inside Vane (vs. `balanced` which
+                # does multiple). Reduces the surface area for the upstream
+                # `Error: ' is empty'` bug. PROJ-29 always pulls citations
+                # from local niche knowledge anyway, so the extra Vane
+                # research depth wasn't paying off.
+                resp = service.search(
+                    query=query, mode='speed', model=model_override,
+                )
+            except VaneServiceError as exc:
+                logger.warning('web_search: Vane unavailable — %s', exc)
+                return {
+                    'error': 'vane_unavailable',
+                    'message': (
+                        'Web search service is temporarily unavailable. '
+                        'Continue with the niche-local tools.'
+                    ),
+                    'reason': str(exc)[:160],
+                }
             sources = (resp or {}).get('sources') or []
             return [
                 {

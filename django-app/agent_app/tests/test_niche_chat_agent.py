@@ -206,6 +206,48 @@ class TestWebSearchTool:
         assert len(result) == 8
         assert all(set(r.keys()) == {'title', 'url', 'snippet'} for r in result)
 
+    def test_vane_unavailable_returns_structured_error_not_raises(
+        self, workspace_a, niche_a, patch_llm_factory,
+    ):
+        """PROJ-29 Phase 1J follow-up: when Vane returns HTTP 500 (upstream
+        bug, network), the tool MUST return a structured dict so the agent
+        can continue with niche-local tools instead of crashing the stream.
+        """
+        from agent_app.agents.niche_chat_agent import _build_tools
+        from search_app.services.vane_service import VaneServiceError
+
+        with patch(
+            'search_app.services.vane_service.VaneService.search',
+            side_effect=VaneServiceError('Vane returned HTTP 500: '),
+        ):
+            tools = _build_tools(workspace_a, niche_a)
+            web_search = next(t for t in tools if t.name == 'web_search')
+            result = web_search.invoke({'query': 'anything'})
+
+        assert isinstance(result, dict), result
+        assert result.get('error') == 'vane_unavailable'
+        assert 'temporarily unavailable' in result.get('message', '')
+        assert 'HTTP 500' in result.get('reason', '')
+
+    def test_calls_vane_with_speed_mode(
+        self, workspace_a, niche_a, patch_llm_factory,
+    ):
+        """PROJ-29 Phase 1J follow-up: web_search uses Vane's `speed` mode
+        (single LLM-summarization pass) to reduce surface area for the
+        upstream `Error: ' is empty'` bug.
+        """
+        from agent_app.agents.niche_chat_agent import _build_tools
+
+        with patch(
+            'search_app.services.vane_service.VaneService.search',
+            return_value={'sources': [], 'answer': '', 'model_used': ''},
+        ) as mocked:
+            tools = _build_tools(workspace_a, niche_a)
+            web_search = next(t for t in tools if t.name == 'web_search')
+            web_search.invoke({'query': 'check mode'})
+
+        assert mocked.call_args.kwargs.get('mode') == 'speed', mocked.call_args
+
 
 # ── Tool: search_slogans ────────────────────────────────────────────────────
 
