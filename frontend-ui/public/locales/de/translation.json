@@ -1910,6 +1910,10 @@
       "toggleControls": "Sucheinstellungen ein-/ausblenden",
       "errorBubble": {
         "title": "Etwas ist schiefgelaufen"
+      },
+      "userBubble": {
+        "copy": "Kopieren",
+        "retry": "Erneut versuchen"
       }
     },
     "context": {
