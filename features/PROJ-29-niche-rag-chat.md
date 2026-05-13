@@ -888,7 +888,116 @@ Plus runtime knobs in compose / entrypoint (NOT env-var driven):
 - rq worker (`default` queue): `--max-jobs 500 --result-ttl 3600 --failure-ttl 86400`
 
 ## QA Test Results
-_To be added by /qa_
+
+### QA Report — 2026-05-13 Follow-up (Chat UX, post-prod deploy)
+
+**Tester:** User report 2026-05-13 (manual smoke on prod).
+**Scope:** Real-world chat UX after Phase 1A-1I production deploy. **Not** a re-run of Phase 1 ACs (those remain passing per task file). This QA pass triages 3 high-impact UX regressions reported by the user.
+**Verdict:** **NOT READY** — 2 High-UX bugs + 1 Medium bug block "ready" status. PROJ-29 stays **In Review** until Phase 1J ships.
+**Branch:** `fix/PROJ-29-chat-ux-followups` (off `main @ 98d1eef`).
+
+| Bug ID | Severity | Title | Status |
+|--------|----------|-------|--------|
+| BUG-1 | High UX | User message not echoed immediately in chat history | Open |
+| BUG-2 | High UX | No streaming feedback / ThinkingStrip missing during agent-mode turns | Open |
+| BUG-3 | Medium | Web-search answers always in English regardless of query language | Open |
+
+---
+
+#### BUG-1 — User message not echoed immediately
+
+- **Severity:** High UX
+- **Reproduce:**
+  1. Open chat (FloatingChatBar OR MultiPurposeDrawer chat panel).
+  2. Send any message (@niche-pinned or plain).
+  3. Watch the conversation history list.
+- **Expected:** Own message bubble appears in the conversation log within ~100 ms of submit (optimistic UI).
+- **Actual:** Input clears immediately, but the user message bubble does NOT appear until the assistant's full response is resolved (5-15 s for the agent path with tool calls). The chat feels "frozen" during the round-trip.
+- **Root cause:**
+  - `frontend-ui/src/components/FloatingChatBar/index.tsx:173` — `inputRef.current?.clear()` runs but no optimistic insert into the messages cache.
+  - `frontend-ui/src/components/MultiPurposeDrawer/panels/ChatPanel.tsx:221` — same pattern, no optimistic insert.
+  - The chat list re-renders only after `useGetSessionMessagesQuery` refetches following the mutation resolve (agent path) or the SSE `done` event (web/auto path).
+- **Fix direction (user-approved Q1 → A):**
+  Optimistic update via RTK Query `updateQueryData` on the message-list endpoint. Push a temp `ChatMessage` with `role=user`, `status='sending'`, client-generated UUID (prefer `crypto.randomUUID()` with a `temp_` prefix to make collision with server UUIDs impossible). Replace with server payload on response; rollback on error.
+- **Security audit on proposed fix:** Temp UUID is client-only state — never written to backend. No PII exposure risk (message body is already sent over the wire). No new attack surface.
+
+---
+
+#### BUG-2 — No streaming feedback / ThinkingStrip missing during agent-mode turns
+
+- **Severity:** High UX
+- **Reproduce:**
+  1. Open chat with a niche pinned via @-chip.
+  2. Submit a query that triggers tool use (e.g. "@my-niche what slogans do I already have?").
+  3. Observe the chat panel during the 5-15 s wait.
+- **Expected:** `ThinkingStrip` (Phase 1H-1, full variant inside `<AssistantBubble>`) visible above the streaming assistant bubble with stages: thinking → retrieve_niche → tool calls → done. (Per spec AC-Thinking-1..5 + Phase 1H Embed sites.)
+- **Actual:** Nothing visible until the full answer pops in. ThinkingStrip never mounts.
+- **Root cause (two distinct sub-issues):**
+  1. **Agent-mode bypass.** `handleSubmit` branches on `modeOverride === 'agent'` and calls the POST `sendMessage` RTK mutation instead of `startStream`. Code refs:
+     - `frontend-ui/src/components/MultiPurposeDrawer/panels/ChatPanel.tsx:237-247` (and a second copy at `:367-380` for the prompt-injection / preset path)
+     - `frontend-ui/src/components/FloatingChatBar/index.tsx:187-197`
+     The backend SSE path (`ChatSessionMessageStreamView._handle_niche_agent_stream` — `django-app/search_app/api/views.py:980-984`) emits the full PROJ-29 protocol (`event: stage`, `event: tool_call`, `event: tool_result`, `event: chunks_used`, `event: follow_ups`). The agent-mode POST path silently bypasses ALL of it → no SSE events → no ThinkingStrip mount.
+  2. **Initial latency gap on SSE path.** Even when SSE is correctly chosen, the first `event: stage` arrives 0.5-2 s after submit. `ThinkingStrip` at `frontend-ui/src/components/ThinkingStrip/index.tsx:94-97` early-returns `null` when `steps.length === 0`. During the 0.5-2 s window the user sees nothing.
+- **Fix direction (user-approved Q2 → C):**
+  - **Backend:** unify agent-mode through SSE. `ChatSessionMessageStreamView._handle_niche_agent_stream` already handles niche-bound; extend to accept `mode_override='agent'` and route through `run_chat` with the existing SSE protocol. Sunset the POST `sendMessage` agent path OR stop calling it from the frontend (preferred — fewer breaking server changes).
+  - **Frontend:** in both `handleSubmit` copies (ChatPanel × 2, FloatingChatBar × 1), drop the `if (modeOverride === 'agent')` branch and always call `startStream(...)`. Add an initial placeholder `ThinkingStep` (e.g. `stage: 'connecting'`) dispatched on `setSearching(true)` so `ThinkingStrip.steps.length > 0` immediately; replace on first real SSE `stage` event.
+- **Security audit on proposed fix:** No new endpoint introduced — `ChatSessionMessageStreamView` already enforces `IsAuthenticated` + workspace isolation (Phase 1E commit `5a6036e`) and is already throttled via `chat_agent` scope (Phase 1G). Routing all chat through it = same attack surface, no expansion. POST `sendMessage` becomes dead code (can be removed in a later cleanup PR; not required for the fix).
+
+---
+
+#### BUG-3 — Web-search answers always in English regardless of query language
+
+- **Severity:** Medium
+- **Reproduce:**
+  1. Open chat WITHOUT pinning a niche (or with a niche pinned but `niche.notes` empty AND no agent-mode trigger).
+  2. Submit a German question that triggers web search, e.g. *"Was sind die aktuellen Trends bei Merch-by-Amazon Shirts für Lehrer?"*
+  3. Read the response.
+- **Expected:** Response in German (CHAT_GUARDRAILS_BLOCK Rule 2 + PROJ-20 BUG-1 fix).
+- **Actual:** Response in English even when both query and Vane web results contain German content.
+- **Root cause:** Two compounding issues:
+  1. **Legacy Vane path runs with NO system instructions when no niche is pinned.** `django-app/search_app/api/views.py:962` initialises `system_instructions = ''`. The block at `:971-974` only sets it from `build_system_instructions(niche)` when `niche_for_context is not None`. `build_system_instructions(None)` at `django-app/search_app/services/context_builder.py:31-32` returns `''`. Vane then runs with zero language directive → defaults to English.
+  2. **Agent-side prompts have a language rule but no explicit "CRITICAL" anchor.** `CHAT_GUARDRAILS_BLOCK` Rule 2 in `django-app/chat_node_config_app/_default_prompts.py:26` says "Always respond in the language of the user's most recent message." but is positioned as one of 8 universal rules — LLM training bias + LangChain default behaviour can still override it. The user-approved fix tightens this wording and re-anchors it at the top of the role-specific prompts.
+- **Fix direction (user-approved Q3 → A):**
+  - Add a CRITICAL language-mirroring rule near the top of all three role-specific prompts in `django-app/chat_node_config_app/_default_prompts.py` (`DEFAULT_CHAT_WITH_NICHE_PROMPT` at `:413`, `DEFAULT_CHAT_NO_NICHE_PROMPT` at `:461`, `DEFAULT_AGENT_REACT_PROMPT` at `:44`):
+    ```
+    LANGUAGE MIRRORING (CRITICAL)
+    Always respond in the same language as the user's most recent message.
+    If the user wrote in German, respond in German.
+    If the user wrote in English, respond in English.
+    If unclear, mirror the dominant language of the conversation.
+    ```
+  - **Also fix the legacy Vane path** — extend `build_system_instructions` (or add a sibling helper) to ALWAYS emit the language-mirroring directive, even when `niche is None`. This is the missing piece that BUG-3 actually hits in production.
+  - **Data migration:** add a Django data migration that updates existing `ChatNodeConfig` rows in prod whose `system_prompt` is non-blank (admin-edited) — otherwise only fresh seeds + fallback users get the new rule. Blank rows fall back to `_default_prompts.py` automatically; admin-edited rows need explicit re-sync. Document the override / no-override decision per row in the migration.
+- **Security audit on proposed fix:** Prompt-only + helper-fn change. No input-handling change. No new endpoint. No new attack surface. The data migration only writes to internal config rows owned by the same workspace admins who can edit prompts via Django Admin today.
+
+---
+
+#### Regression Check — Phase 1 ACs
+
+- Phase 1A-1I AC checkboxes (74 ACs across spec sections) remain `[x]` per the task file. None of the three bugs invalidate a previously-passed AC:
+  - AC-Thinking-1..5 (ThinkingStrip visibility) DO check **mounting + rendering** — BUG-2 does NOT contradict because those ACs were verified in isolated component tests (Vitest), not in the full agent-mode integration path. The integration gap is BUG-2.
+  - AC-Isolation-1..3 (workspace isolation) untouched.
+  - AC-12 / AC-Ops-LG-2 (recursion cap + tool timeout) untouched.
+- **No new ACs added** for Phase 1J — these are bug fixes, not new acceptance criteria.
+
+#### Security Audit Summary (proposed Phase 1J fixes)
+
+| Fix | New Attack Surface | Auth / RBAC change | Risk |
+|-----|---------------------|--------------------|------|
+| BUG-1 optimistic UI | None (client-only) | None | None |
+| BUG-2 SSE unification | None (reuse existing endpoint) | None (existing `IsAuthenticated` + workspace isolation + `chat_agent` throttle stay) | None |
+| BUG-3 language rule + Vane fix | None (prompt + helper-fn) | None | None |
+| BUG-3 data migration | None (internal config) | None | None |
+
+No security review gate required for Phase 1J. Existing PROJ-29 security posture is preserved.
+
+#### Recommendation
+
+- **Status:** PROJ-29 remains **In Review** — do not promote to Deployed until Phase 1J ships.
+- **Hand-off:** `/frontend` (BUG-1 optimistic UI + BUG-2 frontend) → `/backend` (BUG-2 backend agent SSE route + BUG-3 prompts + Vane helper + data migration) → `/qa` (Phase 1J verification pass).
+- **Priority:** BUG-2 first (blocks perception of progress on every agent turn), then BUG-1 (echo gap), then BUG-3 (language). All 3 can ship in a single PR off `fix/PROJ-29-chat-ux-followups` since they touch overlapping files.
+
+
 
 ## Deployment
 _To be added by /deploy_

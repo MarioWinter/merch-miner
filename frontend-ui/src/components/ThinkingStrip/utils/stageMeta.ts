@@ -15,6 +15,7 @@
  * Unknown stages fall back to a generic AutoAwesome icon + raw stage name.
  */
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import HourglassEmptyIcon from '@mui/icons-material/HourglassEmpty';
 import EditNoteIcon from '@mui/icons-material/EditNote';
 import SearchIcon from '@mui/icons-material/Search';
 import LocalOfferIcon from '@mui/icons-material/LocalOffer';
@@ -32,6 +33,14 @@ import type { StageMeta } from '../types/thinking';
  * Lookup table. Add a row here when a new stage / tool is wired in the agent.
  */
 export const STAGE_META: Record<string, StageMeta> = {
+  // PROJ-29 Phase 1J BUG-2 — synthetic placeholder rendered the instant the
+  // SSE EventSource opens; transitions to `done` when the first real `stage`
+  // event arrives. Without it the ThinkingStrip stays unmounted during the
+  // 0.5-2s gap until the backend's first stage hit lands.
+  connecting: {
+    Icon: HourglassEmptyIcon,
+    i18nKey: 'chatNicheRag.thinking.stage.connecting',
+  },
   rewrite_query: {
     Icon: EditNoteIcon,
     i18nKey: 'chatNicheRag.thinking.stage.rewrite_query',

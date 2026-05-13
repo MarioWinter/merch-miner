@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Avatar, Box, Button, Stack, Typography, Skeleton } from '@mui/material';
 import { styled, alpha, keyframes } from '@mui/material/styles';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import ErrorIconOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import { useTranslation } from 'react-i18next';
 import type { ChatMessage } from '@/types/search';
 import type { SloganRow } from '@/types/chat-rag';
@@ -101,6 +102,23 @@ const AssistantBubble = styled(Box)(({ theme }) => ({
   borderRadius: '4px 14px 14px 14px',
   backgroundColor: theme.vars.palette.background.paper,
   border: `1px solid ${theme.vars.palette.divider}`,
+}));
+
+/** PROJ-29 Phase 1J BUG-4 — error placeholder bubble. Persisted when the agent
+ *  stream errors before producing a final answer; pairs with the user message
+ *  so the chat list doesn't strand a question with no visible response. */
+const ErrorBubble = styled(Box)(({ theme }) => ({
+  maxWidth: 'calc(100% - 40px)',
+  display: 'flex',
+  alignItems: 'flex-start',
+  gap: theme.spacing(1),
+  padding: `${theme.spacing(1.25)} ${theme.spacing(1.5)}`,
+  borderRadius: '4px 14px 14px 14px',
+  backgroundColor: alpha(theme.palette.error.main, 0.08),
+  border: `1px solid ${alpha(theme.palette.error.main, 0.35)}`,
+  color: theme.vars.palette.error.main,
+  fontSize: '0.875rem',
+  lineHeight: 1.5,
 }));
 
 /** Small AI avatar to the left of assistant bubbles — ChatGPT-style. */
@@ -320,6 +338,20 @@ const ChatMessageList = ({
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <WorkflowCard agentSessionRef={msg.agent_session} />
                   </Box>
+                ) : msg.message_type === 'error' ? (
+                  /* PROJ-29 Phase 1J BUG-4 — paired error bubble when the agent
+                     stream failed before producing a final answer. */
+                  <AssistantContent>
+                    <ErrorBubble role="alert">
+                      <ErrorIconOutlinedIcon sx={{ fontSize: 18, mt: 0.25, flexShrink: 0 }} />
+                      <Stack gap={0.25}>
+                        <Box sx={{ fontWeight: 600 }}>
+                          {t('search.chat.errorBubble.title', 'Something went wrong')}
+                        </Box>
+                        <Box>{msg.content}</Box>
+                      </Stack>
+                    </ErrorBubble>
+                  </AssistantContent>
                 ) : (
                   <AssistantContent>
                     <AssistantBubble>

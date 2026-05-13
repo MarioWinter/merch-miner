@@ -793,6 +793,21 @@ class ChatSessionMessageStreamView(APIView):
 
         model = request.query_params.get('model') or None
 
+        # PROJ-29 Phase 1J / BUG-2 — accept `mode_override` query param so the
+        # frontend can force the niche-agent path even when no niche is
+        # pinned on the session. Previously the SSE GET endpoint ignored
+        # this param entirely, and the frontend fell back to the legacy
+        # POST `sendMessage` mutation for agent mode (which bypasses the
+        # entire PROJ-29 SSE event protocol — no ThinkingStrip, no tool_call
+        # events, no follow-ups). The routing decision below now considers
+        # both `session.niche_context` AND `mode_override='agent'`.
+        mode_override = (
+            request.query_params.get('mode_override', '').strip().lower()
+            or 'auto'
+        )
+        if mode_override not in ('auto', 'web_search', 'agent'):
+            mode_override = 'auto'
+
         # PROJ-20 Phase 7.3 — image attachments routed through the Vision
         # path (OpenRouter direct, no Vane). Comma-separated UUIDs.
         attachment_ids_raw = request.query_params.get('attachment_ids', '')
@@ -977,6 +992,18 @@ class ChatSessionMessageStreamView(APIView):
         # When the session has a pinned niche, route through the niche-chat
         # agent (run_chat). The legacy Vane path stays untouched for sessions
         # without niche_context (general web-search chat).
+        #
+        # PROJ-29 Phase 1J / BUG-2 — the frontend now ALWAYS funnels niche-bound
+        # agent submissions through this SSE GET endpoint (previously some
+        # agent-mode submissions went to the POST `sendMessage` mutation,
+        # which bypassed the entire PROJ-29 SSE event protocol — no
+        # ThinkingStrip, no tool_call events, no follow-ups). The routing
+        # below is unchanged because `session.niche_context is not None`
+        # already covers every niche-pinned submission regardless of the
+        # frontend `mode_override` query param. `mode_override` is accepted
+        # + validated above so the endpoint contract matches the POST
+        # serializer and request inspection in admin / Langfuse traces shows
+        # the user's intent.
         if session.niche_context is not None:
             return self._handle_niche_agent_stream(
                 request, workspace, session, user_msg, content,
@@ -1139,11 +1166,53 @@ class ChatSessionMessageStreamView(APIView):
             # Track in-flight stages by name so tool_result / tool_timeout can
             # close them out with a status + durationMs.
             stage_idx_by_name: dict[str, int] = {}
+            # PROJ-29 Phase 1J BUG-4 — persist a placeholder assistant row
+            # when run_chat ends with an error event so the chat list shows a
+            # paired bubble instead of stranding the user message.
+            def _persist_error_placeholder(code: str):
+                fallback = (
+                    "Sorry — I couldn't generate an answer just now. "
+                    "Please try again in a moment."
+                )
+                # Close any stages still loading so the persisted strip
+                # doesn't spin forever.
+                for row in thinking_stages_buf:
+                    if row.get('status') == 'loading':
+                        row['status'] = 'error'
+                msg = ChatMessage.objects.create(
+                    session=session,
+                    role=ChatMessage.Role.ASSISTANT,
+                    content=fallback,
+                    message_type=ChatMessage.MessageType.ERROR,
+                    sources=sources_buf or [],
+                    search_mode='balanced',
+                    search_sources=['niche_agent'],
+                    model_used=f'error:{code}',
+                    chunks_used=(chunks_used_buf or None),
+                    thinking_stages=(thinking_stages_buf or None),
+                )
+                session.save(update_fields=['updated_at'])
+                return msg
+
             try:
                 inner = run_chat(session, content, model_override=model_override)
                 for evt in _wrap_with_heartbeat(inner):
                     event_name = evt.get('event')
                     data = evt.get('data') or {}
+                    if event_name == 'error':
+                        # Persist a paired assistant bubble + re-emit error
+                        # with the persisted message_id so the frontend can
+                        # surface it inline (in addition to the snackbar).
+                        code = (data or {}).get('code') or 'AgentError'
+                        err_msg = _persist_error_placeholder(code)
+                        out_data = dict(data or {})
+                        out_data['message_id'] = str(err_msg.pk)
+                        out_data['display_message'] = err_msg.content
+                        yield _serialize_sse({
+                            'event': 'error',
+                            'data': out_data,
+                        })
+                        return
                     if event_name == 'generate_slogans_payload':
                         slogan_payload = data or None
                         yield _serialize_sse(evt)
@@ -1251,13 +1320,30 @@ class ChatSessionMessageStreamView(APIView):
                     ),
                     message_content=content,
                 )
-                yield _serialize_sse({
-                    'event': 'error',
-                    'data': {
-                        'code': type(exc).__name__,
-                        'retry_after_s': 30,
-                    },
-                })
+                # PROJ-29 Phase 1J BUG-4 — same placeholder persistence as
+                # the in-loop error branch so a hard exception doesn't strand
+                # the user message either.
+                try:
+                    err_msg = _persist_error_placeholder(type(exc).__name__)
+                    yield _serialize_sse({
+                        'event': 'error',
+                        'data': {
+                            'code': type(exc).__name__,
+                            'retry_after_s': 30,
+                            'message_id': str(err_msg.pk),
+                            'display_message': err_msg.content,
+                        },
+                    })
+                except Exception:
+                    # If persistence itself fails we still emit the bare
+                    # error so the frontend can at least snackbar.
+                    yield _serialize_sse({
+                        'event': 'error',
+                        'data': {
+                            'code': type(exc).__name__,
+                            'retry_after_s': 30,
+                        },
+                    })
                 return
 
         response = StreamingHttpResponse(

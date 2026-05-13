@@ -535,6 +535,73 @@
 - [x] Update `features/INDEX.md` status PROJ-29 → "In Review" (+ `docs/PRD.md`)
 - [ ] PR with checklist + verification screenshots
 
+## Phase 1J — Chat UX Follow-up (mini-fix off `fix/PROJ-29-chat-ux-followups`)
+
+> Triggered by user-reported bugs after Phase 1I prod deploy (2026-05-13).
+> Documented in `features/PROJ-29-niche-rag-chat.md` → "QA Report — 2026-05-13 Follow-up".
+> All three bugs MUST land in one PR; they touch overlapping files in `ChatPanel.tsx` + `FloatingChatBar/index.tsx` + agent prompts.
+
+### BUG-1 — Optimistic user message echo
+
+- [x] Frontend: `useOptimisticChatMessage` hook inserts a temp `ChatMessage` (`role=user`, id = `temp_${crypto.randomUUID()}`) into the `getSession` cache via `updateQueryData` at submit time.
+- [x] On server response (SSE `done` event triggers RTK Query refetch via tag invalidation), real persisted message replaces the temp row.
+- [x] On submit error, hook's `rollback` removes the temp message from cache.
+- [x] Applied to BOTH call sites: `ChatPanel.tsx:handleSubmit` + `FloatingChatBar/index.tsx:handleSubmit`.
+- [x] Vitest: 5 tests in `useOptimisticChatMessage.test.tsx` (insert / rollback / unknown session / generator).
+
+### BUG-2 — Unify agent-mode through SSE + initial ThinkingStrip placeholder
+
+- [x] Backend audit: confirm `ChatSessionMessageStreamView._handle_niche_agent_stream` (`django-app/search_app/api/views.py:980-984`) already accepts a niche-bound stream regardless of frontend `mode_override`. If a route conditional currently rejects `mode_override='agent'` on the SSE endpoint, drop it.
+- [x] Frontend: agent-mode branch removed from `ChatPanel.handleSubmit` + `handleRegenerate` + `FloatingChatBar.handleSubmit`. All paths now call `startStream(...)`.
+- [x] Frontend: `useSendMessageStream.start()` dispatches initial `ThinkingStep { stage: 'connecting', status: 'loading' }` right after EventSource open. First real `stage` event flips it to `done` via `markStageDone({stage:'connecting'})`.
+- [x] Frontend: i18n keys `chatNicheRag.thinking.stage.connecting` added to EN + DE locale files; `STAGE_META.connecting` added with HourglassEmptyIcon.
+- [x] Cleanup: `useSendMessageMutation` imports removed from both call sites (no longer used by handleSubmit). Mutation still exported for future admin/CLI use.
+- [x] Vitest: `ChatPanel.test.tsx > agent mode: send triggers SSE stream` (PROJ-29 Phase 1J BUG-2 — unified path). All 11 ChatPanel tests pass.
+- [ ] Manual smoke: send a niche-bound agent-mode query; verify ThinkingStrip visible within 100 ms and stages update live. (Deferred to e2e step.)
+
+### BUG-3 — Language mirroring rule + Vane no-niche fallback
+
+- [x] Edit `django-app/chat_node_config_app/_default_prompts.py`:
+  - [x] Add `LANGUAGE MIRRORING (CRITICAL)` block at the TOP of `DEFAULT_AGENT_REACT_PROMPT` (currently `:44`).
+  - [x] Add same block at top of `DEFAULT_CHAT_WITH_NICHE_PROMPT` (`:413`).
+  - [x] Add same block at top of `DEFAULT_CHAT_NO_NICHE_PROMPT` (`:461`).
+  - [x] Keep existing `CHAT_GUARDRAILS_BLOCK` Rule 2 (`:26`) untouched — defense in depth.
+- [x] Edit `django-app/search_app/services/context_builder.py:build_system_instructions`:
+  - [x] When `niche is None` return a NON-empty string containing the same language-mirroring rule (so the legacy Vane path no longer runs with `system_instructions=''`).
+  - [x] Update `search_app/tests/test_services.py:test_build_system_instructions_none_niche` to assert the new behaviour.
+- [x] Data migration `chat_node_config_app/migrations/0004_promote_language_mirroring.py`:
+  - [x] For each `ChatNodeConfig` row whose `system_prompt` is non-blank AND does NOT already contain the substring `LANGUAGE MIRRORING (CRITICAL)`: prepend the rule. Document one-line decision in migration docstring.
+  - [x] Blank `system_prompt` rows untouched (fallback to `_default_prompts.py` covers them).
+  - [x] Reverse migration: strip the prepended block.
+- [ ] Manual smoke: log in, ask in German with NO niche pinned → response in German. Repeat with niche pinned (agent-mode) → response in German.
+- [ ] LLM-behavior test (live-LLM, opt-in): add to `agent_app/tests/test_proj29_llm_behavior.py` — fire 5 German queries through the agent + Vane paths, assert response detected as German by `langdetect` (or LLM-judge).
+
+### BUG-4 — Error placeholder bubble (degraded agent state)
+
+- [x] Backend: `ChatMessage.MessageType.ERROR` enum + migration `0008_chatmessage_error_type.py`.
+- [x] Backend: `_persist_error_placeholder()` helper inside `_handle_niche_agent_stream` persists a fallback assistant row on both the in-loop `error` SSE event AND the outer except path.
+- [x] Backend: error SSE payload now carries `message_id` + `display_message` so the frontend can wire to the persisted row.
+- [x] Frontend: `MessageType` union extended with `'error'`; SSE error handler invalidates the session cache so the paired bubble reloads immediately.
+- [x] Frontend: `<ErrorBubble />` styling (error.main border + ErrorOutlineOutlined icon) + i18n `search.chat.errorBubble.title` (EN + DE).
+- [ ] Vitest: error-typed ChatMessage renders the ErrorBubble path (deferred to follow-up — exhaustive coverage in backend regression + e2e smoke).
+- [ ] Manual smoke: degraded Vane → user sees red bubble paired with their message, persists after reload. (Live e2e in this branch.)
+
+### BUG-5 — Multi-turn conversation memory per session
+
+- [x] Backend: `_build_history_messages(session, limit=15)` helper loads the newest 15 prior turns from THIS session only (session-isolated filter).
+- [x] Backend: `conversation_summary` (when non-empty) prepended as a synthetic user message before the window.
+- [x] Backend: filters out `MessageType.ERROR` placeholders and `Role.SYSTEM` rows so they don't poison the next turn.
+- [x] Backend: `run_chat` passes the full history list to `agent.stream` instead of the single-message payload. De-dupes the current user message when the view already persisted it.
+- [x] Backend: 5 new tests in `TestBuildHistoryMessages` — chronological order, 15-cap, session isolation, ERROR/SYSTEM filter, conversation_summary prepend.
+- [ ] Manual smoke: ask follow-up "und dazu noch 3 Slogans?" after a substantive answer — verify the agent reuses prior context. (Live e2e in this branch.)
+
+### Verification gates before merging Phase 1J PR
+
+- [ ] All Phase 1J `[ ]` checkboxes flipped to `[x]`.
+- [ ] All Phase 1 (1A-1I) checkboxes unchanged.
+- [ ] `/qa` re-run on `fix/PROJ-29-chat-ux-followups` produces a "Phase 1J verified" section in the spec QA Report.
+- [ ] PROJ-29 stays `In Review` in `features/INDEX.md` until this PR ships; promote to `Deployed` only after Phase 1J + the remaining Phase 1I manual deploy gates.
+
 ## Phase 2 — BGE Reranker (gated on PROJ-21 Phase 4 deploy)
 
 - [ ] Verify PROJ-21 Phase 4 deployed `worker-search` container with `BAAI/bge-reranker-base` loaded

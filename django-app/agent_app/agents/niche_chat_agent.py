@@ -1039,6 +1039,46 @@ SEARCH_TOOL_NAMES = {
 }
 
 
+def _build_history_messages(session, limit: int = 15) -> list[dict]:
+    """Load the last ``limit`` prior turns from THIS session for LLM context.
+
+    PROJ-29 Phase 1J BUG-5 — multi-turn memory per chat session.
+
+    Rules:
+      * Session-isolated — filter is strictly ``session=session``; never reads
+        rows from other sessions even within the same workspace.
+      * Sliding window — newest ``limit`` user+assistant messages only.
+      * ``conversation_summary`` (when non-empty) is injected as a single
+        synthetic user message BEFORE the window so the agent keeps awareness
+        of older turns the summarizer rq job has already condensed.
+      * Filters out ``MessageType.ERROR`` placeholders (PROJ-29 Phase 1J BUG-4
+        artifacts) and SYSTEM role rows so they don't bias the next turn.
+      * Skips empty / whitespace-only content rows.
+    """
+    from search_app.models import ChatMessage
+
+    qs = ChatMessage.objects.filter(session=session).exclude(
+        role=ChatMessage.Role.SYSTEM,
+    ).exclude(
+        message_type=ChatMessage.MessageType.ERROR,
+    ).order_by('-created_at')[:limit]
+    rows = list(reversed(list(qs)))
+
+    out: list[dict] = []
+    summary = (getattr(session, 'conversation_summary', '') or '').strip()
+    if summary:
+        out.append({
+            'role': 'user',
+            'content': f'[Earlier conversation summary]\n{summary}',
+        })
+    for row in rows:
+        content = (row.content or '').strip()
+        if not content:
+            continue
+        out.append({'role': row.role, 'content': content})
+    return out
+
+
 def _is_chunk_list(value: Any) -> bool:
     """Best-effort detector for hybrid_search result lists.
 
@@ -1105,10 +1145,27 @@ def run_chat(session, message: str, model_override=None):
             model_override=model_override,
         )
 
+        # PROJ-29 Phase 1J BUG-5 — load prior turns from THIS session so the
+        # LLM has multi-turn memory. Sessions are strictly isolated: no
+        # cross-session leak (filter by session=session). Sliding-window cap
+        # of 15 prior user+assistant messages keeps the token budget bounded;
+        # `ChatSession.conversation_summary` (built by the summarize_conversation
+        # rq job after every 10-turn boundary) covers older context.
+        # The view layer persists the current user message before invoking
+        # run_chat, so the helper already returns it as the tail entry — only
+        # append the current message when the tail doesn't already match it
+        # (covers test paths that bypass view-level persistence).
+        history_messages = _build_history_messages(session, limit=15)
+        if not history_messages or (
+            history_messages[-1].get('role') != 'user'
+            or history_messages[-1].get('content') != message
+        ):
+            history_messages.append({'role': 'user', 'content': message})
+
         # ``stream_mode=['updates', 'messages']`` -> tuples of
         # ``(mode_name, payload)`` per the LangGraph contract.
         for stream_mode, payload in agent.stream(
-            {'messages': [{'role': 'user', 'content': message}]},
+            {'messages': history_messages},
             stream_mode=['updates', 'messages'],
         ):
             if stream_mode == 'updates':

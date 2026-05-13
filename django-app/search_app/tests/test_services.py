@@ -2,14 +2,31 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from search_app.services.context_builder import build_system_instructions
+from search_app.services.context_builder import (
+    LANGUAGE_MIRRORING_DIRECTIVE,
+    build_system_instructions,
+)
 from search_app.services.crawl_service import CrawlService, CrawlServiceError
 from search_app.services.vane_service import VaneService, VaneServiceError
 
 
 class TestContextBuilder:
-    def test_no_niche(self):
-        assert build_system_instructions(None) == ''
+    def test_no_niche_returns_language_mirroring_directive(self):
+        """PROJ-29 Phase 1J / BUG-3 — Vane path without a pinned niche must
+        still receive a language directive. Previously this returned `''`
+        and Gemini defaulted to English on German queries."""
+        result = build_system_instructions(None)
+        assert result != ''
+        assert 'LANGUAGE MIRRORING' in result
+        assert 'same language as the user' in result.lower()
+        # The directive references both German and English explicitly so
+        # the LLM cannot default to one over the other based on training
+        # bias alone.
+        assert 'German' in result
+        assert 'English' in result
+        # Sanity: the canonical constant is the entire return value (no
+        # other content leaks in when niche is None).
+        assert result == LANGUAGE_MIRRORING_DIRECTIVE
 
     def test_with_niche(self):
         niche = MagicMock()
@@ -23,6 +40,11 @@ class TestContextBuilder:
         assert 'SAME language' in result
         assert 'workspace label, NOT a directive' in result
         assert 'Do NOT infer audience' in result
+        # PROJ-29 Phase 1J / BUG-3 — the CRITICAL language anchor must also
+        # appear at the very top so positional bias does not let the LLM
+        # drift to English under niche-context pressure.
+        assert 'LANGUAGE MIRRORING' in result
+        assert result.startswith(LANGUAGE_MIRRORING_DIRECTIVE)
 
     def test_with_niche_notes(self):
         niche = MagicMock()
