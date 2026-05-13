@@ -27,7 +27,10 @@ class SloganNodeConfig(models.Model):
         'analyze_original': {'model': 'openai/gpt-4.1-mini', 'temperature': 0.2},
         'discover_niches': {'model': 'mistralai/mistral-medium-3.1', 'temperature': 0.3},
         'validate_products': {'model': 'mistralai/mistral-small-3.2-24b-instruct', 'temperature': 0.2},
-        'adapt_slogans': {'model': 'mistralai/mistral-small-creative', 'temperature': 0.8},
+        # mistral-small-creative was retired by OpenRouter without notice
+        # (chat_node_config_app migration 0003 fixed the same issue there).
+        # mistral-medium-3 is the writing-tuned successor.
+        'adapt_slogans': {'model': 'mistralai/mistral-medium-3', 'temperature': 0.8},
         'quality_check': {'model': 'openai/gpt-4.1-mini', 'temperature': 0.1},
     }
 

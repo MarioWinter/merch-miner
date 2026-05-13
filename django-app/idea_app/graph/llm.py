@@ -14,7 +14,10 @@ _NODE_DEFAULTS = {
         "model": "mistralai/mistral-small-3.2-24b-instruct",
         "temperature": 0.2,
     },
-    "adapt_slogans": {"model": "mistralai/mistral-small-creative", "temperature": 0.8},
+    # mistral-small-creative was retired by OpenRouter; switched to the
+    # writing-tuned mistral-medium-3 successor. Mirrors the same fix in
+    # chat_node_config_app (migration 0003 for the chat-creative node).
+    "adapt_slogans": {"model": "mistralai/mistral-medium-3", "temperature": 0.8},
     "quality_check": {"model": "openai/gpt-4.1-mini", "temperature": 0.1},
 }
 
