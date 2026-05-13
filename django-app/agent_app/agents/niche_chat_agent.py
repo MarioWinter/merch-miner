@@ -1315,7 +1315,17 @@ def run_chat(session, message: str, model_override=None):
                 if not delta:
                     continue
                 final_answer_parts.append(delta)
-                yield {'event': EVENT_CHUNK, 'data': {'delta': delta}}
+                # PROJ-29 Phase 1J follow-up: emit both `text` (legacy Vane
+                # convention, what useSendMessageStream actually reads) AND
+                # `delta` (older internal convention) so the frontend chunk
+                # handler picks it up. Without `text` every chunk was
+                # silently dropped at the `typeof data.text !== 'string'`
+                # gate, so the final answer only appeared after the `done`
+                # refetch instead of streaming in.
+                yield {
+                    'event': EVENT_CHUNK,
+                    'data': {'text': delta, 'delta': delta},
+                }
     except Exception as exc:
         logger.exception('run_chat agent stream failed')
         yield {

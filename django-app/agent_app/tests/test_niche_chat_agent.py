@@ -1178,3 +1178,54 @@ class TestBuildHistoryMessages:
         # Real user turn comes after the summary block.
         assert out[1]['content'] == 'next question'
 
+
+
+# ── Phase 1J BUG-6 — chunk event wire-shape ────────────────────────────────
+
+
+@pytest.mark.django_db(transaction=True)
+class TestChunkEventShape:
+    """PROJ-29 Phase 1J BUG-6 — `run_chat` MUST emit chunks under `data.text`
+    (the legacy Vane convention that `useSendMessageStream` reads). Previous
+    payload `{'delta': ...}` was silently dropped at the frontend's
+    `typeof data.text !== 'string'` gate, so the assistant answer only
+    appeared after the `done` refetch instead of streaming in.
+    """
+
+    def test_chunk_event_carries_text_key(
+        self, workspace_a, niche_a, user_a, patch_llm_factory,
+    ):
+        from unittest.mock import MagicMock, patch
+        from search_app.models import ChatSession
+        from agent_app.agents.niche_chat_agent import run_chat
+
+        session = ChatSession.objects.create(
+            workspace=workspace_a, created_by=user_a,
+            title='S', niche_context=niche_a,
+        )
+
+        # Fake agent that yields a 'messages' stream chunk via langgraph.
+        fake_chunk = MagicMock()
+        fake_chunk.content = 'hello'
+
+        fake_agent = MagicMock()
+        fake_agent.stream = MagicMock(return_value=iter([
+            ('messages', (fake_chunk, {'langgraph_node': 'agent'})),
+        ]))
+
+        with patch(
+            'agent_app.agents.niche_chat_agent.build_niche_chat_agent',
+            return_value=fake_agent,
+        ):
+            events = list(run_chat(session, 'q'))
+
+        chunk_events = [e for e in events if e.get('event') == 'chunk']
+        assert chunk_events, f'no chunk events; got {[e.get("event") for e in events]}'
+        for ev in chunk_events:
+            data = ev['data']
+            assert 'text' in data, (
+                f"chunk event missing 'text' key — frontend "
+                f"useSendMessageStream silently drops anything without it. Got: {data}"
+            )
+            assert isinstance(data['text'], str)
+            assert data['text']  # non-empty
