@@ -434,14 +434,13 @@ def _build_tools(workspace, niche, model_override=None) -> list:
         def _run() -> list[dict] | dict:
             service = VaneService()
             try:
-                # PROJ-29 Phase 1J follow-up: `speed` mode requests a single
-                # LLM-summarization pass inside Vane (vs. `balanced` which
-                # does multiple). Reduces the surface area for the upstream
-                # `Error: ' is empty'` bug. PROJ-29 always pulls citations
-                # from local niche knowledge anyway, so the extra Vane
-                # research depth wasn't paying off.
+                # Vane default mode = balanced. The earlier `speed` workaround
+                # for the upstream `Error: ' is empty'` bug is gone — the
+                # actual fix landed in the Vane fork (commit 1160c86,
+                # convertToOpenAIMessages now preserves null content for
+                # tool-call assistant messages, matching OpenAI spec).
                 resp = service.search(
-                    query=query, mode='speed', model=model_override,
+                    query=query, model=model_override,
                 )
             except VaneServiceError as exc:
                 logger.warning('web_search: Vane unavailable — %s', exc)
