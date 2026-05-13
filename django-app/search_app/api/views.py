@@ -1008,6 +1008,7 @@ class ChatSessionMessageStreamView(APIView):
             return self._handle_niche_agent_stream(
                 request, workspace, session, user_msg, content,
                 model_override=model,
+                search_sources=search_sources,
             )
 
         vane = VaneService()
@@ -1126,7 +1127,7 @@ class ChatSessionMessageStreamView(APIView):
 
     def _handle_niche_agent_stream(
         self, request, workspace, session, user_msg, content,
-        model_override=None,
+        model_override=None, search_sources=None,
     ):
         """PROJ-29 Phase 1E — stream the niche-chat agent.
 
@@ -1195,7 +1196,11 @@ class ChatSessionMessageStreamView(APIView):
                 return msg
 
             try:
-                inner = run_chat(session, content, model_override=model_override)
+                inner = run_chat(
+                    session, content,
+                    model_override=model_override,
+                    search_sources=search_sources,
+                )
                 for evt in _wrap_with_heartbeat(inner):
                     event_name = evt.get('event')
                     data = evt.get('data') or {}

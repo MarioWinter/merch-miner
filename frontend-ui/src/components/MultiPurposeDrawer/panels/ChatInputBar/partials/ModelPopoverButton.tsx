@@ -126,6 +126,8 @@ const ModelPopoverButton = () => {
         open={open}
         anchorEl={anchorEl}
         onClose={handleClose}
+        // PROJ-29 Phase 1J follow-up: disable scroll-lock — see SourcesPopoverButton.
+        disableScrollLock
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
         transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         slotProps={{
