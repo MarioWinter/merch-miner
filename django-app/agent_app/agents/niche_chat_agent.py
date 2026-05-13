@@ -373,7 +373,9 @@ def _render_tool_descriptions(tools: list[Any]) -> str:
     return '\n'.join(lines)
 
 
-def _build_tools(workspace, niche, model_override=None) -> list:
+def _build_tools(
+    workspace, niche, model_override=None, search_sources=None,
+) -> list:
     """Construct the 9 tools bound to ``(workspace, niche)`` via closure.
 
     ``workspace`` is NEVER exposed as an LLM-supplied parameter — it is
@@ -439,8 +441,15 @@ def _build_tools(workspace, niche, model_override=None) -> list:
                 # actual fix landed in the Vane fork (commit 1160c86,
                 # convertToOpenAIMessages now preserves null content for
                 # tool-call assistant messages, matching OpenAI spec).
+                # PROJ-29 Phase 1J follow-up: forward the user's
+                # search-sources toggle (Web / Academic / Discussions) to
+                # Vane so the UI actually drives engine selection. When
+                # `search_sources` is None VaneService falls back to
+                # `['web']` — same as before this change.
                 resp = service.search(
-                    query=query, model=model_override,
+                    query=query,
+                    model=model_override,
+                    sources=search_sources,
                 )
             except VaneServiceError as exc:
                 logger.warning('web_search: Vane unavailable — %s', exc)
@@ -970,7 +979,10 @@ def _build_tools(workspace, niche, model_override=None) -> list:
     ]
 
 
-def build_niche_chat_agent(workspace, niche_id, session_id: str, model_override=None):
+def build_niche_chat_agent(
+    workspace, niche_id, session_id: str,
+    model_override=None, search_sources=None,
+):
     """Compile the niche-chat ReAct agent for one user turn.
 
     Per-request LLM (AC-Ops-LG-3) — instantiated here, not at module level,
@@ -997,7 +1009,11 @@ def build_niche_chat_agent(workspace, niche_id, session_id: str, model_override=
 
     niche = Niche.objects.get(workspace=workspace, id=niche_id)
 
-    tools = _build_tools(workspace, niche, model_override=model_override)
+    tools = _build_tools(
+        workspace, niche,
+        model_override=model_override,
+        search_sources=search_sources,
+    )
 
     # AC-Ops-LG-3 — per-request LLM, NOT a module-level singleton.
     # PROJ-29 policy (locked 2026-05-12): `agent_react` is ADMIN-ONLY. The
@@ -1119,7 +1135,10 @@ def _is_chunk_list(value: Any) -> bool:
     )
 
 
-def run_chat(session, message: str, model_override=None):
+def run_chat(
+    session, message: str,
+    model_override=None, search_sources=None,
+):
     """Yield SSE event dicts for one niche-chat turn.
 
     Phase 1E orchestration entry point. The view layer wraps each yield in
@@ -1167,6 +1186,7 @@ def run_chat(session, message: str, model_override=None):
         agent = build_niche_chat_agent(
             session.workspace, niche.id, str(session.id),
             model_override=model_override,
+            search_sources=search_sources,
         )
 
         # PROJ-29 Phase 1J BUG-5 — load prior turns from THIS session so the
