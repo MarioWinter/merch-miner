@@ -83,9 +83,7 @@ const AppLayout = () => {
   const sidebarWidth = collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
   const borderSidebarW = collapsed && !hovered ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
 
-  // Side-by-side drawer mode pushes the main column inward by exactly the
-  // drawer's pixel width. Overlap mode leaves margin-right at 0 (drawer
-  // floats on top of the content — legacy behavior).
+  // sideBySide pushes the main column inward by `drawerWidth`; overlap leaves it at 0.
   const drawerOpen = useAppSelector((s) => s.chatBar.drawerOpen);
   const drawerWidth = useAppSelector((s) => s.chatBar.drawerWidth);
   const drawerLayout = useAppSelector((s) => s.chatBar.drawerLayout);

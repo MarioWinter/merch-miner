@@ -13,13 +13,9 @@ const clamp = (n: number): number =>
   Math.max(DRAWER_WIDTH_MIN, Math.min(DRAWER_WIDTH_MAX, n));
 
 /**
- * Drag-handle resize hook for the right drawer.
- * - Drag from the drawer's left edge to change width.
- * - PROJ-29 Phase 1J follow-up: STEPLESS — no snap on release; the live
- *   pixel value is persisted directly.
- * - Width persists in localStorage under `chatBar.drawerWidth`. Restores
- *   on mount when the value parses as a finite number inside the
- *   `[DRAWER_WIDTH_MIN, DRAWER_WIDTH_MAX]` range.
+ * Drag-handle resize for the right drawer. Stepless (no snap), clamped to
+ * `[DRAWER_WIDTH_MIN, DRAWER_WIDTH_MAX]`, persisted under
+ * `chatBar.drawerWidth` in localStorage.
  */
 export const useDrawerResize = () => {
   const dispatch = useAppDispatch();
@@ -30,7 +26,6 @@ export const useDrawerResize = () => {
   const startWidthRef = useRef<number>(width);
   const liveWidthRef = useRef<number>(width);
 
-  // Restore persisted width on mount.
   useEffect(() => {
     const persisted = localStorage.getItem(STORAGE_KEY);
     if (persisted == null) return;
@@ -38,7 +33,6 @@ export const useDrawerResize = () => {
     if (Number.isFinite(v)) {
       dispatch(setDrawerWidth(clamp(v)));
     } else {
-      // Corrupted entry — drop it so the next persist replaces with a valid one.
       localStorage.setItem(STORAGE_KEY, String(DRAWER_WIDTH_DEFAULT));
     }
   }, [dispatch]);
@@ -56,12 +50,10 @@ export const useDrawerResize = () => {
 
   const onPointerMove = useCallback((e: React.PointerEvent<HTMLElement>) => {
     if (!draggingRef.current) return;
-    // Drag-handle is on LEFT edge of right-anchored drawer.
-    // Moving pointer LEFT (negative dx) → drawer wider.
+    // Handle is on the drawer's left edge — pointer LEFT widens the drawer.
     const dx = e.clientX - startXRef.current;
     const newWidth = clamp(startWidthRef.current - dx);
     liveWidthRef.current = newWidth;
-    // Apply live preview via inline style on drawer paper.
     const paper = document.getElementById('mpd-drawer-paper');
     if (paper) paper.style.width = `${newWidth}px`;
   }, []);
@@ -78,7 +70,6 @@ export const useDrawerResize = () => {
       const finalWidth = clamp(liveWidthRef.current);
       dispatch(setDrawerWidth(finalWidth));
       localStorage.setItem(STORAGE_KEY, String(finalWidth));
-      // Clear inline override so Drawer slot styling takes over again.
       const paper = document.getElementById('mpd-drawer-paper');
       if (paper) paper.style.width = '';
     },

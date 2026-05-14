@@ -22,27 +22,13 @@ export interface InputChip {
   niche_name: string;
 }
 
-/**
- * Drawer width in pixels. Stepless between MIN and MAX (no snap steps).
- * Used to be `480 | 768 | 1200`; switched to plain `number` 2026-05-14 so the
- * resize handle can land on any value the user drags to.
- */
+/** Stepless drawer width in px; clamped at the slice boundary. */
 export type DrawerWidth = number;
-
-/** Bounds enforced in `useDrawerResize` and any direct `setDrawerWidth` callers. */
 export const DRAWER_WIDTH_MIN = 380;
 export const DRAWER_WIDTH_MAX = 1400;
 export const DRAWER_WIDTH_DEFAULT = 768;
 
-/**
- * Drawer layout mode (user-toggled via the drawer-left-edge chevron button).
- *
- * - `overlap` — `Drawer variant="persistent"` floats over main content; no
- *   layout reservation in the app frame. Default, preserves prior behaviour.
- * - `sideBySide` — main column reserves a `padding-right` matching
- *   `drawerWidth` so the two regions sit next to each other instead of
- *   overlapping. Resize handle still works in this mode.
- */
+/** `overlap` = floats over content (default); `sideBySide` = pushes main column. */
 export type DrawerLayout = 'overlap' | 'sideBySide';
 
 /** Niche panel mode — drives whether NichePipeline renders the create form or the edit pipeline. */
@@ -252,11 +238,10 @@ const chatBarSlice = createSlice({
       // 'niche' leaves modeOverride untouched.
     },
     setDrawerWidth(state, action: PayloadAction<DrawerWidth>) {
-      // Clamp at the slice boundary in case a caller bypasses the hook.
-      const w = action.payload;
+      // Clamp at the boundary so direct callers can't bypass the hook.
       state.drawerWidth = Math.max(
         DRAWER_WIDTH_MIN,
-        Math.min(DRAWER_WIDTH_MAX, w),
+        Math.min(DRAWER_WIDTH_MAX, action.payload),
       );
     },
     setDrawerLayout(state, action: PayloadAction<DrawerLayout>) {
