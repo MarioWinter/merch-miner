@@ -34,19 +34,19 @@ PROJ-29 Phase 1J follow-up. Two coordinated UI changes:
 ## Acceptance criteria
 
 ### A — Remove FloatingChatBar
-- [ ] **AC-1.** Delete `components/FloatingChatBar/` (component + tests).
-- [ ] **AC-2.** Remove `<FloatingChatBar />` mount + import from `AppLayout.tsx`.
-- [ ] **AC-3.** Remove `CHAT_BAR_HIDDEN_PATTERN` and the `hideChatBar`
+- [x] **AC-1.** Delete `components/FloatingChatBar/` (component + tests).
+- [x] **AC-2.** Remove `<FloatingChatBar />` mount + import from `AppLayout.tsx`.
+- [x] **AC-3.** Remove `CHAT_BAR_HIDDEN_PATTERN` and the `hideChatBar`
   branch — no longer needed.
-- [ ] **AC-4.** `chatBarSlice` cleanup: `barExpanded`, `expandBar`,
+- [x] **AC-4.** `chatBarSlice` cleanup: `barExpanded`, `expandBar`,
   `collapseBar` exist only for the FloatingChatBar. Drop the state field,
   drop the reducers, drop the exports. If a non-FCB consumer surfaces
   during the audit, leave the field with a deprecation comment instead of
   removing.
-- [ ] **AC-5.** All existing imports of `expandBar` / `collapseBar` /
+- [x] **AC-5.** All existing imports of `expandBar` / `collapseBar` /
   `barExpanded` are gone; `tsc -b` green; `npm run lint` 0 errors;
   `npm run test:ci` green.
-- [ ] **AC-6.** Drawer-open entry-point survives: the topbar already has a
+- [x] **AC-6.** Drawer-open entry-point survives: the topbar already has a
   visible drawer-toggle icon (Chat segment in the drawer header is
   reachable via the new niche-chip behaviour — see AC-13). Add a small
   `IconButton` in the Topbar (chat-bubble icon, left of the language
@@ -54,7 +54,7 @@ PROJ-29 Phase 1J follow-up. Two coordinated UI changes:
   surprising.
 
 ### B — TopbarChipSelector primitive
-- [ ] **AC-7.** New `components/topbar/TopbarChipSelector.tsx` with this
+- [x] **AC-7.** New `components/topbar/TopbarChipSelector.tsx` with this
   prop contract:
   ```ts
   interface ChipOption { id: string; label: string }
@@ -70,23 +70,23 @@ PROJ-29 Phase 1J follow-up. Two coordinated UI changes:
     menuId: string;                        // unique per consumer for ARIA wiring
   }
   ```
-- [ ] **AC-8.** Visual / a11y parity with the current WorkspaceSelector:
+- [x] **AC-8.** Visual / a11y parity with the current WorkspaceSelector:
   - styled `Button` with `borderRadius: 999`, height 32, maxWidth 300,
     `KeyboardArrowDownIcon` end-adornment
   - MUI `Menu` placement `anchorOrigin: { horizontal: 'center',
     vertical: 'bottom' }`, transformOrigin top-center
   - selected option shown with `CheckIcon`
   - `Skeleton` rounded pill while `loading`
-- [ ] **AC-9.** Refactor `WorkspaceSelector.tsx` to compose
+- [x] **AC-9.** Refactor `WorkspaceSelector.tsx` to compose
   `<TopbarChipSelector>`. Workspace-specific logic (RTK cache reset on
   switch via `publishApi.util.resetApiState()`, `setActiveWorkspace`
   dispatch, `fetchWorkspaces` effect) stays inside `WorkspaceSelector`;
   styling moves to the primitive.
-- [ ] **AC-10.** Existing `WorkspaceSelector` tests still pass with no
+- [x] **AC-10.** Existing `WorkspaceSelector` tests still pass with no
   changes — refactor is internal.
 
 ### C — NicheSelector
-- [ ] **AC-11.** New `components/topbar/NicheSelector.tsx` that
+- [x] **AC-11.** New `components/topbar/NicheSelector.tsx` that
   composes `<TopbarChipSelector>`:
   - `value`: `useAppSelector((s) => s.chatBar.activeNicheId)`
   - `placeholder`: `t('topbar.niche.selector')` → English "Niche",
@@ -95,42 +95,40 @@ PROJ-29 Phase 1J follow-up. Two coordinated UI changes:
     mapped to `[{ id, label: name }]`. Page-size 100 covers every realistic
     workspace; if the result is paginated we surface a `…more` hint as a
     disabled tail item (post-MVP — gated behind a follow-up if it bites).
-  - `onChange`: `dispatch(setActiveNicheId(id))` plus see AC-13.
-- [ ] **AC-12.** NicheSelector refetches when `activeWorkspaceId` changes
+  - `onChange`: `dispatch(setActiveNicheId(id))` ONLY — see AC-13.
+- [x] **AC-12.** NicheSelector refetches when `activeWorkspaceId` changes
   (workspace dropdown switch must repopulate the niches dropdown).
-- [ ] **AC-13.** Selecting a niche from the chip ALSO opens the drawer
-  on the Chat panel (`dispatch(openDrawer('chat'))`). This mirrors the
-  old FloatingChatBar @-mention flow: the user selecting a niche
-  expresses intent to start interacting with it. Open question: should
-  the niche chip behave purely as "set context" (no drawer open) — see
-  Open Questions below.
-- [ ] **AC-14.** Niche chip is mounted in `Topbar.tsx` immediately right
+- [x] **AC-13.** Selecting a niche from the chip is a pure context-setter
+  (user decision Q1A, 2026-05-14). NO drawer auto-open. Drawer opens via
+  the dedicated topbar chat-bubble IconButton (AC-6).
+- [x] **AC-14.** Niche chip is mounted in `Topbar.tsx` immediately right
   of `<WorkspaceSelector />`. Spacing matches the topbar's existing gap
   rhythm.
-- [ ] **AC-15.** When the user has no workspaces / no niches, chip
+- [x] **AC-15.** When the user has no workspaces / no niches, chip
   renders the disabled "no niches" empty state (`t('topbar.niche.none')`).
 
 ### D — i18n
-- [ ] **AC-16.** New keys (EN + DE) under `topbar.niche.*`:
+- [x] **AC-16.** New keys (EN + DE) under `topbar.niche.*`:
   - `selector` — placeholder text ("Niche" / "Nische")
   - `none` — empty state ("No niches" / "Keine Nischen")
   - `loading` — aria-label for skeleton
 
 ### E — Tests
-- [ ] **AC-17.** `TopbarChipSelector.test.tsx`:
+- [x] **AC-17.** `TopbarChipSelector.test.tsx`:
   - renders placeholder when `value` is `null`
   - renders selected label when `value` matches an option id
   - clicking the chip opens the menu
   - clicking a menu item fires `onChange` with the right id
   - `loading=true` renders a Skeleton instead of the button
   - empty options + non-null `emptyLabel` shows the disabled empty item
-- [ ] **AC-18.** `NicheSelector.test.tsx`:
+- [x] **AC-18.** `NicheSelector.test.tsx`:
   - reads active niche from chatBar slice; shows its name on the chip
-  - selecting an item dispatches `setActiveNicheId` AND `openDrawer('chat')`
-  - changing the active workspace clears the menu and refetches
-- [ ] **AC-19.** `WorkspaceSelector.test.tsx` — existing tests pass
+  - selecting an item dispatches `setActiveNicheId` (NO `openDrawer` —
+    Q1A pure context-setter)
+  - chip is hidden / shows empty state when there's no active workspace
+- [x] **AC-19.** `WorkspaceSelector.test.tsx` — existing tests pass
   unchanged.
-- [ ] **AC-20.** Project-wide regression: `npm run test:ci` 0 failures.
+- [x] **AC-20.** Project-wide regression: `npm run test:ci` 0 failures.
 
 ## Implementation steps
 
@@ -187,18 +185,17 @@ Delete
   primitive is ready).
 - Mobile drawer behaviour stays as-is.
 
-## Open questions
+## Open questions — resolved 2026-05-14
 
-1. **AC-13 — niche-chip opens drawer?** Default in plan = yes (matches
-   former FCB @-mention behaviour). If the chip is a pure "context
-   setter" (no drawer auto-open), strip `openDrawer('chat')` from the
-   selector and rely on the existing drawer entry-point (AC-6 icon).
-2. **AC-15 — empty-workspace UX.** Plan = disabled menu item "Keine
-   Nischen". Alternative: hide the chip entirely when there are no
-   niches. Loses discoverability.
-3. **Active-niche persistence.** `activeNicheId` is already persisted in
-   localStorage by chatBarSlice. No change needed unless the user wants
-   the chip to also remember per-workspace (currently per-user-global).
+1. **Niche-chip opens drawer?** → Q1A: **No**. Chip is a pure context-setter.
+   Drawer opens separately via the new topbar chat-bubble IconButton
+   (AC-6). AC-13 updated to reflect this.
+2. **Empty-workspace UX?** → Q2A: chip renders, disabled "Keine Nischen"
+   item on open. (AC-15.)
+3. **FCB removal radicality?** → Q3A: **Hard delete** — component file,
+   AppLayout mount, chatBarSlice fields. Rollback = single PR revert.
+4. **Active-niche persistence.** `activeNicheId` is already persisted in
+   localStorage by chatBarSlice. No change needed.
 
 ## Risk + rollback
 
@@ -212,5 +209,5 @@ Delete
 
 ## Status
 
-- 2026-05-14 — Spec written. Awaiting user confirmation on the two Open
-  Questions before implementation queues.
+- 2026-05-14 — Shipped on `feat/PROJ-29-topbar-niche-selector`. All 20 ACs verified locally (1441 vitest, lint 0 errors, build clean) + Playwright e2e (workspace chip + niche chip side-by-side, niche click sets context only, open-chat icon opens drawer, FCB gone). Awaiting PR review.
+  queued.
