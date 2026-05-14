@@ -1,15 +1,18 @@
-import { Box, Typography } from '@mui/material';
+import { Box, IconButton, Tooltip, Typography } from '@mui/material';
 import { alpha } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import AppBar from '@mui/material/AppBar';
 import Toolbar from '@mui/material/Toolbar';
 import DiamondOutlinedIcon from '@mui/icons-material/DiamondOutlined';
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
 import { useTranslation } from 'react-i18next';
-import { useAppSelector } from '../../store/hooks';
+import { useAppDispatch, useAppSelector } from '../../store/hooks';
+import { openDrawer } from '../../store/chatBarSlice';
 import LanguageMenu from './LanguageMenu';
 import ColorModeToggle from './ColorModeToggle';
 import ProfileMenu from './ProfileMenu';
 import WorkspaceSelector from './WorkspaceSelector';
+import NicheSelector from './NicheSelector';
 import NotificationBell from '../NotificationBell';
 import HealthStatusDot from '../MultiPurposeDrawer/HealthStatusDot';
 import UpscaleStatusPill from '@/views/designs/board/partials/UpscaleStatusPill';
@@ -50,6 +53,7 @@ const TopbarToolbar = styled(Toolbar)({
 
 const Topbar = () => {
   const { t } = useTranslation();
+  const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
   const initial =
     user?.first_name?.charAt(0)?.toUpperCase() ||
@@ -68,9 +72,19 @@ const Topbar = () => {
           </Typography>
         </Box>
 
-        {/* WorkspaceSelector — absolutely centered */}
-        <Box sx={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
+        {/* Workspace + Niche chips — absolutely centered as a pair */}
+        <Box
+          sx={{
+            position: 'absolute',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+          }}
+        >
           <WorkspaceSelector />
+          <NicheSelector />
         </Box>
 
         {/* Spacer pushes right actions to the end */}
@@ -81,6 +95,16 @@ const Topbar = () => {
           <Box sx={{ px: 1, display: 'flex', alignItems: 'center' }}>
             <HealthStatusDot />
           </Box>
+          <Tooltip title={t('topbar.chat.open')}>
+            <IconButton
+              size="small"
+              onClick={() => dispatch(openDrawer('chat'))}
+              aria-label={t('topbar.chat.open')}
+              data-testid="topbar-open-chat"
+            >
+              <ChatBubbleOutlineIcon sx={{ fontSize: 20 }} />
+            </IconButton>
+          </Tooltip>
           <LanguageMenu />
           <ColorModeToggle />
           <UpscaleStatusPill />

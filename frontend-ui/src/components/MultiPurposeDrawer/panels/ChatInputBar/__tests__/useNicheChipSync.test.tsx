@@ -155,7 +155,6 @@ const renderHarness = (opts: RenderOptions = {}) => {
     reducer: { chatBar: chatBarReducer },
     preloadedState: {
       chatBar: {
-        barExpanded: false,
         drawerOpen: false,
         drawerWidth: 480 as const,
         activePanel: 'chat' as const,

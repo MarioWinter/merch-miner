@@ -1,8 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { configureStore } from '@reduxjs/toolkit';
 import chatBarReducer, {
-  expandBar,
-  collapseBar,
   openDrawer,
   closeDrawer,
   setActivePanel,
@@ -40,7 +38,6 @@ describe('chatBarSlice', () => {
   it('returns the correct initial state', () => {
     const store = createStore();
     const s = getChatBar(store);
-    expect(s.barExpanded).toBe(false);
     expect(s.drawerOpen).toBe(false);
     // PROJ-29 Phase 1J follow-up: default raised from 480 to 768 (mid-size
     // single-column / split-view) and width is now stepless `number` instead
@@ -72,15 +69,7 @@ describe('chatBarSlice', () => {
     expect(s).not.toHaveProperty('searchMode');
   });
 
-  describe('bar/drawer toggles', () => {
-    it('expandBar / collapseBar flips barExpanded', () => {
-      const store = createStore();
-      store.dispatch(expandBar());
-      expect(getChatBar(store).barExpanded).toBe(true);
-      store.dispatch(collapseBar());
-      expect(getChatBar(store).barExpanded).toBe(false);
-    });
-
+  describe('drawer toggles', () => {
     it('openDrawer without payload only sets drawerOpen=true', () => {
       const store = createStore();
       store.dispatch(openDrawer(undefined));

@@ -47,8 +47,6 @@ export interface StreamingAssistantMessage {
 }
 
 interface ChatBarState {
-  /** Whether the floating chat bar is expanded (input visible). When false, only the chevron indicator is shown. */
-  barExpanded: boolean;
   /** The multi-purpose drawer open state */
   drawerOpen: boolean;
   /** Drawer width (stepless, clamped 380–1400px in `useDrawerResize`) */
@@ -182,7 +180,6 @@ const writePersisted = (state: ChatBarState): void => {
 const persisted = readPersisted();
 
 const initialState: ChatBarState = {
-  barExpanded: false,
   drawerOpen: false,
   drawerWidth: DRAWER_WIDTH_DEFAULT,
   drawerLayout: 'overlap',
@@ -211,12 +208,6 @@ const chatBarSlice = createSlice({
   name: 'chatBar',
   initialState,
   reducers: {
-    expandBar(state) {
-      state.barExpanded = true;
-    },
-    collapseBar(state) {
-      state.barExpanded = false;
-    },
     openDrawer(state, action: PayloadAction<DrawerPanel | undefined>) {
       state.drawerOpen = true;
       if (action.payload) {
@@ -549,8 +540,6 @@ const chatBarSlice = createSlice({
 });
 
 export const {
-  expandBar,
-  collapseBar,
   openDrawer,
   closeDrawer,
   setActivePanel,

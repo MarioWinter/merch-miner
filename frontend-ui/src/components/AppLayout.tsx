@@ -4,7 +4,6 @@ import { styled, useTheme } from '@mui/material/styles';
 import { Outlet, useLocation } from 'react-router-dom';
 import Topbar from './topbar/Topbar';
 import Sidebar, { COLLAPSED_WIDTH, EXPANDED_WIDTH } from './sidebar/Sidebar';
-import FloatingChatBar from './FloatingChatBar';
 import MultiPurposeDrawer from './MultiPurposeDrawer';
 import GlobalFooter from './GlobalFooter/GlobalFooter';
 import { DURATION, EASING } from '@/style/constants';
@@ -52,16 +51,13 @@ const getInitialCollapsed = (): boolean => {
   }
 };
 
-// Routes where the floating chat bar should be hidden (e.g. full-screen canvas)
-const CHAT_BAR_HIDDEN_PATTERN = /^\/designs\/[^/]+$/;
-// Routes where the global footer should be hidden — same canvas-style routes as chat bar.
+// Routes where the global footer should be hidden — full-screen canvas pages.
 const FOOTER_HIDDEN_PATTERN = /^\/designs\/[^/]+$/;
 
 const AppLayout = () => {
   const theme = useTheme();
   const location = useLocation();
   const isSmallScreen = useMediaQuery(theme.breakpoints.down('md'));
-  const hideChatBar = CHAT_BAR_HIDDEN_PATTERN.test(location.pathname);
   const hideFooter = FOOTER_HIDDEN_PATTERN.test(location.pathname);
   const [userCollapsed, setUserCollapsed] = useState<boolean>(getInitialCollapsed);
   const [hovered, setHovered] = useState(false);
@@ -92,11 +88,8 @@ const AppLayout = () => {
     drawerOpen && drawerLayout === 'sideBySide' && !isMobile;
   const mainMarginRight = sideBySideActive ? `${drawerWidth}px` : '0px';
 
-  // Keeps the FloatingChatBar / ChevronIndicator pinned just above the global
-  // footer regardless of document height. The footer lives in document flow,
-  // so when content overflows the viewport it scrolls below the fold — a
-  // fixed `bottom: 48px` then floats over empty content. We track the
-  // currently-visible portion of the footer and expose it as a CSS variable.
+  // Expose the currently-visible footer height as a CSS variable so any
+  // fixed-bottom UI (notifications, snackbars) can ride above it.
   useEffect(() => {
     const root = document.documentElement;
     if (hideFooter) {
@@ -154,7 +147,6 @@ const AppLayout = () => {
         {!hideFooter && <GlobalFooter />}
       </MainContent>
 
-      {!hideChatBar && <FloatingChatBar />}
       <MultiPurposeDrawer />
     </Box>
   );

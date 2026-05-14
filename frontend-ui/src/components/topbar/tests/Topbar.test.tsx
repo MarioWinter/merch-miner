@@ -9,6 +9,11 @@ vi.mock('../WorkspaceSelector', () => ({
   default: () => null,
 }));
 
+// NicheSelector reads chatBar.activeNicheId + niches RTK Query — stub it out.
+vi.mock('../NicheSelector', () => ({
+  default: () => null,
+}));
+
 // NotificationBell uses notificationApi (RTK Query) — stub to avoid store middleware error
 vi.mock('../../NotificationBell', () => ({
   default: () => null,

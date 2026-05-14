@@ -78,6 +78,13 @@
       "selector": "Workspace auswählen",
       "noWorkspaces": "Keine Workspaces"
     },
+    "niche": {
+      "selector": "Nische",
+      "none": "Keine Nischen"
+    },
+    "chat": {
+      "open": "Chat öffnen"
+    },
     "languages": {
       "en": "Englisch",
       "de": "Deutsch",
