@@ -25,16 +25,16 @@ Users have asked for:
 
 ## Goal — acceptance criteria
 
-- [ ] **AC-1.** `chatBarSlice` adds a new field `drawerLayout: 'overlap' | 'sideBySide'`, persisted in `localStorage` under `chatBar.drawerLayout`. Default `'overlap'` (preserves current UX).
-- [ ] **AC-2.** A floating toggle button — visually + positionally a mirror of the sidebar's `ToggleButton` — renders on the LEFT edge of the drawer when the drawer is open. Tooltip / aria-label reads `Side-by-side mode` (English) / `Nebeneinander-Ansicht` (German) when in overlap, and the inverse when in side-by-side.
-- [ ] **AC-3.** Clicking the button toggles `drawerLayout`. The chevron direction flips (`ChevronLeftIcon` ↔ `ChevronRightIcon`).
-- [ ] **AC-4.** When `drawerLayout === 'sideBySide'` AND `drawerOpen === true`, the main app frame (the `<main>` wrapper in `AppLayout`) reserves a `padding-right` equal to the current drawer width plus the resize-handle width (≈ 4 px). Smooth `transition` (200 ms standard easing) mirrors the drawer's own open/close animation.
-- [ ] **AC-5.** When `drawerLayout === 'overlap'`, no padding is applied — the drawer floats on top of content (current behavior).
-- [ ] **AC-6.** Stepless resize: `useDrawerResize` no longer calls `snapToStep`. On pointer-up the live width (clamped to `[380, 1400]`) is persisted directly.
-- [ ] **AC-7.** `DrawerWidth` type widens from the `480 | 768 | 1200` union to `number` (with the same clamp range).
-- [ ] **AC-8.** Resize handle continues to work in BOTH modes.
-- [ ] **AC-9.** Mobile (`useMediaQuery(theme.breakpoints.down('sm'))`) is unchanged — drawer is always temporary + full-width, no layout toggle, no resize handle. Toggle button hidden on mobile.
-- [ ] **AC-10.** All existing tests still pass; new tests cover the layout toggle action + stepless persistence + main-view padding contract.
+- [x] **AC-1.** `chatBarSlice` adds a new field `drawerLayout: 'overlap' | 'sideBySide'`, persisted in `localStorage` under `chatBar.drawerLayout`. Default `'overlap'` (preserves current UX).
+- [x] **AC-2.** A floating toggle button — visually + positionally a mirror of the sidebar's `ToggleButton` — renders on the LEFT edge of the drawer when the drawer is open. Tooltip / aria-label reads `Side-by-side mode` (English) / `Nebeneinander-Ansicht` (German) when in overlap, and the inverse when in side-by-side.
+- [x] **AC-3.** Clicking the button toggles `drawerLayout`. The chevron direction flips (`ChevronLeftIcon` ↔ `ChevronRightIcon`).
+- [x] **AC-4.** When `drawerLayout === 'sideBySide'` AND `drawerOpen === true`, the main app frame (the `<main>` wrapper in `AppLayout`) reserves a `padding-right` equal to the current drawer width plus the resize-handle width (≈ 4 px). Smooth `transition` (200 ms standard easing) mirrors the drawer's own open/close animation.
+- [x] **AC-5.** When `drawerLayout === 'overlap'`, no padding is applied — the drawer floats on top of content (current behavior).
+- [x] **AC-6.** Stepless resize: `useDrawerResize` no longer calls `snapToStep`. On pointer-up the live width (clamped to `[380, 1400]`) is persisted directly.
+- [x] **AC-7.** `DrawerWidth` type widens from the `480 | 768 | 1200` union to `number` (with the same clamp range).
+- [x] **AC-8.** Resize handle continues to work in BOTH modes.
+- [x] **AC-9.** Mobile (`useMediaQuery(theme.breakpoints.down('sm'))`) is unchanged — drawer is always temporary + full-width, no layout toggle, no resize handle. Toggle button hidden on mobile.
+- [x] **AC-10.** All existing tests still pass; new tests cover the layout toggle action + stepless persistence + main-view padding contract.
 
 ## Implementation breakdown
 
@@ -103,4 +103,4 @@ Users have asked for:
 
 ## Status
 
-- 2026-05-14 — Spec written. Implementation queued.
+- 2026-05-14 — Spec written. Implementation shipped in PR #83 (merged). All 10 ACs verified locally (vitest 1453 / 1453 green) + e2e via Playwright smoke on localhost. Live verification pending the prod deploy of #83.
