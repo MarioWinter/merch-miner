@@ -19,7 +19,11 @@ services:
       dockerfile: backend.Dockerfile
     container_name: app_worker
     entrypoint: ["./worker.entrypoint.sh"]
-    command: python manage.py rqworker default
+    # PROJ-29 AC-Ops-RQ-1 — recycle workers after 500 jobs to bound memory
+    # growth from LangGraph state + embedding clients. Result/failure TTLs
+    # are set per-queue in settings.RQ_QUEUES (django-rq CLI doesn't expose
+    # those flags).
+    command: python manage.py rqworker default --max-jobs 500
     env_file: ./.env
     restart: unless-stopped
     volumes:
@@ -103,7 +107,10 @@ services:
       dockerfile: backend.Dockerfile
     container_name: app_worker_agent
     entrypoint: ["./worker.entrypoint.sh"]
-    command: python manage.py rqworker agent
+    # PROJ-29 AC-Ops-RQ-4 — agent queue carries chat-domain jobs
+    # (summarize_conversation, follow-up async helpers); recycle after 500
+    # jobs. Result/failure TTLs set in settings.RQ_QUEUES['agent'].
+    command: python manage.py rqworker agent --max-jobs 500
     env_file: ./.env
     restart: unless-stopped
     networks:
@@ -147,6 +154,9 @@ services:
       context: ./django-app
       dockerfile: backend.Dockerfile
     container_name: app_backend
+    # PROJ-29 Phase 1G — dev intentionally stays on `runserver` (single-threaded
+    # auto-reloader) for fast iteration. Prod hardens this to gunicorn gthread
+    # in `docker-compose.prod.yml`; see AC-Ops-Gunicorn-1/2/3 comment there.
     command: python manage.py runserver 0.0.0.0:8000
     env_file: ./.env
     volumes:

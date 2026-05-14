@@ -8,8 +8,9 @@ addopts = [
 
 markers = [
     "unit: Unit Tests",
-    "integration: Integration Tests", 
+    "integration: Integration Tests",
     "slow: Slow running tests",
+    "live_llm: PROJ-29 — LLM-behavior tests that spend OpenRouter budget. Skipped by default; opt-in via LIVE_LLM_TESTS=1 env var.",
 ]
 
 [tool.ruff.lint.per-file-ignores]

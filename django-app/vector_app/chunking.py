@@ -12,6 +12,10 @@ _ENCODING = None
 CHUNK_SIZE = 1500  # tokens
 OVERLAP_RATIO = 0.05
 
+# PROJ-29 Phase 1B Round 3 — defensive cap on chunk count per source row
+# (AC-Ops-Chunk-1). Sources that would split into > 200 chunks get truncated.
+MAX_CHUNKS_PER_SOURCE = 200
+
 
 def _get_encoding():
     global _ENCODING
@@ -26,16 +30,23 @@ def count_tokens(text: str) -> int:
     return len(enc.encode(text))
 
 
-def chunk_text(text: str, chunk_size: int = CHUNK_SIZE, overlap_ratio: float = OVERLAP_RATIO) -> list[str]:
+def chunk_text(
+    text: str,
+    chunk_size: int = CHUNK_SIZE,
+    overlap_ratio: float = OVERLAP_RATIO,
+    max_chunks: int = MAX_CHUNKS_PER_SOURCE,
+) -> list[str]:
     """Split text into chunks of approximately chunk_size tokens with overlap.
 
     Args:
         text: Input text to chunk.
         chunk_size: Target tokens per chunk (default 1500).
         overlap_ratio: Fraction of overlap between chunks (default 0.05).
+        max_chunks: Hard cap on returned chunks (PROJ-29 AC-Ops-Chunk-1).
 
     Returns:
         List of text chunks. Single-element list if text fits in one chunk.
+        Truncated to ``max_chunks`` entries when the input would split further.
     """
     enc = _get_encoding()
     tokens = enc.encode(text)
@@ -53,6 +64,8 @@ def chunk_text(text: str, chunk_size: int = CHUNK_SIZE, overlap_ratio: float = O
         chunk_tokens = tokens[start:end]
         chunks.append(enc.decode(chunk_tokens))
         if end >= len(tokens):
+            break
+        if len(chunks) >= max_chunks:
             break
         start += step
 

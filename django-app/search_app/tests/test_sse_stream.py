@@ -635,15 +635,15 @@ class TestSSEStreamModeRouting:
 
 @pytest.mark.django_db
 class TestSSEStreamNicheContext:
-    @patch('search_app.api.views.django_rq')
-    @patch('search_app.api.views.build_system_instructions')
+    @patch('agent_app.agents.niche_chat_agent.run_chat')
     @patch('search_app.api.views.VaneService')
-    def test_session_niche_context_passed_to_vane(
-        self, mock_vane_cls, mock_build_instr, mock_rq,
+    def test_niche_session_routes_to_agent_not_vane(
+        self, mock_vane_cls, mock_run_chat,
         api_client, workspace, user,
     ):
-        """When ChatSession has a niche_context, build_system_instructions
-        is invoked and its return value is forwarded to Vane.search_stream.
+        """PROJ-29 Phase 1E: niche-bound sessions route to the niche-chat
+        agent (``run_chat``), NOT Vane. Updated from the legacy contract
+        where niche-bound sessions used Vane with build_system_instructions.
         """
         from niche_app.models import Niche
         niche = Niche.objects.create(
@@ -654,15 +654,15 @@ class TestSSEStreamNicheContext:
             title='Niche Session', niche_context=niche,
         )
 
-        mock_build_instr.return_value = 'You are an expert on Camping Dad.'
+        def _stub(session, message):  # noqa: ARG001
+            yield {'event': 'init', 'data': {
+                'session_id': str(session.id), 'mode': 'agent',
+            }}
+            yield {'event': 'done', 'data': {'final_answer': 'ok'}}
+        mock_run_chat.side_effect = _stub
+
         mock_vane = MagicMock()
-        mock_vane.search_stream.side_effect = make_vane_generator([
-            {'type': 'response', 'data': 'a'},
-            {'type': 'done', 'answer': 'a', 'sources': []},
-        ])
-        mock_vane.default_model = 'gpt-4.1-mini'
         mock_vane_cls.return_value = mock_vane
-        mock_rq.get_queue.return_value = MagicMock()
 
         resp = api_client.get(
             f'/api/chat/sessions/{sess.id}/messages/stream/?content=trends',
@@ -670,11 +670,10 @@ class TestSSEStreamNicheContext:
         )
         b''.join(resp.streaming_content)
 
-        mock_build_instr.assert_called_once_with(niche)
-        kwargs = mock_vane.search_stream.call_args.kwargs
-        assert kwargs.get('system_instructions') == (
-            'You are an expert on Camping Dad.'
-        )
+        assert resp.status_code == 200
+        mock_run_chat.assert_called_once()
+        # Vane path MUST NOT fire for niche-bound sessions.
+        mock_vane.search_stream.assert_not_called()
 
     @patch('search_app.api.views.django_rq')
     @patch('search_app.api.views.VaneService')

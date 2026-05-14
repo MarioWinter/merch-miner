@@ -1,6 +1,7 @@
 from django.urls import path
 
 from search_app.api.views import (
+    ChatHealthView,
     ChatMessageDestroyView,
     ChatSessionDetailView,
     ChatSessionListCreateView,
@@ -80,5 +81,10 @@ urlpatterns = [
         'search/health/',
         SearchHealthView.as_view(),
         name='search-health',
+    ),
+    path(
+        'chat/health/',
+        ChatHealthView.as_view(),
+        name='chat-health',
     ),
 ]

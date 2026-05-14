@@ -5,7 +5,13 @@ services:
     container_name: app_backend
     environment:
       DJANGO_ENV: production
-    command: gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 3
+    # PROJ-29 AC-Ops-Gunicorn-1/2/3 — gthread worker class is required so a
+    # single long-running SSE stream cannot occupy a whole worker process; the
+    # 90s timeout covers worst-case niche-agent turns (8-tool * 30s budget is
+    # bounded by recursion_limit=10 + per-tool 30s cap but typical turns finish
+    # well under 90s). --max-requests recycling prevents long-tail memory
+    # growth from accumulated LangGraph state across thousands of requests.
+    command: gunicorn core.wsgi:application --bind 0.0.0.0:8000 --workers 3 --threads 8 --worker-class gthread --timeout 90 --graceful-timeout 30 --max-requests 1000 --max-requests-jitter 100
     volumes:
       - static_volume:/app/static
       - media_volume:/app/media
@@ -18,6 +24,10 @@ services:
   worker:
     image: ghcr.io/mariowinter/merch-miner/backend:latest
     env_file: ./.env
+    # PROJ-29 AC-Ops-RQ-1 — recycle workers after 500 jobs to bound memory
+    # growth from LangGraph state + embedding clients. Result/failure TTLs
+    # are set per-queue in settings.RQ_QUEUES.
+    command: python manage.py rqworker default --max-jobs 500
     restart: unless-stopped
     volumes:
       # PROJ-25: parse_bulk_upload_job reads uploads from MEDIA_ROOT/bulk_uploads/.
@@ -73,6 +83,10 @@ services:
   worker-agent:
     image: ghcr.io/mariowinter/merch-miner/backend:latest
     env_file: ./.env
+    # PROJ-29 AC-Ops-RQ-4 — agent queue carries chat-domain jobs
+    # (summarize_conversation, follow-up async helpers); recycle after 500
+    # jobs. Result/failure TTLs set in settings.RQ_QUEUES['agent'].
+    command: python manage.py rqworker agent --max-jobs 500
     restart: unless-stopped
     networks:
       - default

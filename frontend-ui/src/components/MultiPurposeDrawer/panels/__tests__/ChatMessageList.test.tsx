@@ -74,6 +74,25 @@ vi.mock('../partials/MessageActionToolbar', () => ({
   default: () => <div data-testid="message-action-toolbar-mock" />,
 }));
 
+// PROJ-29 Phase 1J follow-up — stub UserMessageToolbar so we can assert on
+// whether `onRetry` was passed by the parent (drives the retry-visibility
+// integration test for next-message-error pairing).
+const { mockUserMessageToolbar } = vi.hoisted(() => ({
+  mockUserMessageToolbar: vi.fn(),
+}));
+vi.mock('../partials/UserMessageToolbar', () => ({
+  default: (props: { content: string; onRetry?: () => void }) => {
+    mockUserMessageToolbar(props);
+    return (
+      <div
+        data-testid="user-message-toolbar-mock"
+        data-has-retry={props.onRetry ? 'true' : 'false'}
+        data-content={props.content}
+      />
+    );
+  },
+}));
+
 // ---- imports of code under test ----
 import { Provider } from 'react-redux';
 import { configureStore } from '@reduxjs/toolkit';
@@ -112,6 +131,7 @@ interface RenderListOpts {
   isLoading?: boolean;
   hasMore?: boolean;
   withSaveHandlers?: boolean;
+  onRetry?: (m: ChatMessage) => void;
 }
 
 const renderList = (opts: RenderListOpts = {}) => {
@@ -140,6 +160,7 @@ const renderList = (opts: RenderListOpts = {}) => {
       onLoadMore={onLoadMore}
       onSaveKeywords={onSaveKeywords}
       onSaveNotes={onSaveNotes}
+      onRetry={opts.onRetry}
       {...(opts.withSaveHandlers !== false
         ? { onSaveSelectionAsKeywords, onSaveSelectionAsNotes }
         : {})}
@@ -347,5 +368,68 @@ describe('ChatMessageList', () => {
     // i18n key search.chat.loadMore — assert by role=button + closest text match
     const buttons = screen.getAllByRole('button');
     expect(buttons.length).toBeGreaterThan(0);
+  });
+
+  // PROJ-29 Phase 1J follow-up — UserMessageToolbar wiring.
+  it('does NOT pass onRetry to UserMessageToolbar when next message is not an error', () => {
+    const messages: ChatMessage[] = [
+      buildMessage({ id: 'u1', role: 'user', content: 'q' }),
+      buildMessage({ id: 'a1', role: 'assistant', content: 'ok' }),
+    ];
+    renderList({ messages, onRetry: vi.fn() });
+    const toolbars = screen.getAllByTestId('user-message-toolbar-mock');
+    expect(toolbars).toHaveLength(1);
+    expect(toolbars[0].getAttribute('data-has-retry')).toBe('false');
+  });
+
+  it('passes onRetry to UserMessageToolbar when next message is assistant + message_type=error', () => {
+    const messages: ChatMessage[] = [
+      buildMessage({ id: 'u1', role: 'user', content: 'q' }),
+      buildMessage({
+        id: 'e1',
+        role: 'assistant',
+        content: 'boom',
+        message_type: 'error',
+      }),
+    ];
+    renderList({ messages, onRetry: vi.fn() });
+    const toolbars = screen.getAllByTestId('user-message-toolbar-mock');
+    expect(toolbars).toHaveLength(1);
+    expect(toolbars[0].getAttribute('data-has-retry')).toBe('true');
+    expect(toolbars[0].getAttribute('data-content')).toBe('q');
+  });
+
+  it('does NOT pass onRetry when the user message is the last one (no next sibling)', () => {
+    const messages: ChatMessage[] = [
+      buildMessage({ id: 'u1', role: 'user', content: 'q' }),
+    ];
+    renderList({ messages, onRetry: vi.fn() });
+    const toolbars = screen.getAllByTestId('user-message-toolbar-mock');
+    expect(toolbars).toHaveLength(1);
+    expect(toolbars[0].getAttribute('data-has-retry')).toBe('false');
+  });
+
+  it('invokes onRetry with the original user message when the retry handler fires', () => {
+    const userMsg = buildMessage({ id: 'u1', role: 'user', content: 'q' });
+    const errorMsg = buildMessage({
+      id: 'e1',
+      role: 'assistant',
+      content: 'boom',
+      message_type: 'error',
+    });
+    const onRetry = vi.fn();
+    renderList({ messages: [userMsg, errorMsg], onRetry });
+    // Pull the closure that ChatMessageList passed down to the toolbar and
+    // call it — that's the same path the real Retry button would trigger.
+    const lastCall =
+      mockUserMessageToolbar.mock.calls[
+        mockUserMessageToolbar.mock.calls.length - 1
+      ][0];
+    expect(typeof lastCall.onRetry).toBe('function');
+    lastCall.onRetry();
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    expect(onRetry).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'u1', content: 'q' }),
+    );
   });
 });

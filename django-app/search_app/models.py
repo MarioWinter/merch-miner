@@ -41,6 +41,16 @@ class ChatSession(models.Model):
         blank=True,
         related_name='chat_sessions',
     )
+    conversation_summary = models.TextField(
+        blank=True,
+        default='',
+        help_text=(
+            'Rolling summary of turns 1..(N-5) when conversation exceeds '
+            '10 turns (PROJ-29 AC-Context-2). Regenerated after each new '
+            'turn via the conversation_summarizer rq job; eventually '
+            'consistent (EC-28).'
+        ),
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -76,6 +86,10 @@ class ChatMessage(models.Model):
         CRAWL_RESULT = 'crawl_result', 'Crawl Result'
         WORKFLOW_TRIGGER = 'workflow_trigger', 'Workflow Trigger'
         WORKFLOW_CARD = 'workflow_card', 'Workflow Card'
+        # PROJ-29 Phase 1J BUG-4 — placeholder when the agent stream errors
+        # before producing a final answer. Pairs with the user message so the
+        # chat list doesn't strand a question with no visible response.
+        ERROR = 'error', 'Error'
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     session = models.ForeignKey(
@@ -115,6 +129,34 @@ class ChatMessage(models.Model):
         blank=True,
         related_name='triggered_chat_messages',
         help_text='Set for workflow_trigger / workflow_card messages — links to PROJ-18 AgentSession.',
+    )
+    # PROJ-29 Phase 1I — structured slogan rows emitted by `generate_slogans`
+    # tool during a niche-chat turn. Persisted on the assistant message so the
+    # GeneratedSloganTable can re-render after page reload (without this the
+    # frontend can only show the table during the active stream + the small
+    # post-`done` window held by Redux `completedSloganPayload`).
+    # Wire shape: `{ slogans: [...], warnings: [...] }`.
+    generate_slogans_payload = models.JSONField(
+        null=True,
+        blank=True,
+        help_text='Structured slogan rows from the niche-RAG agent.',
+    )
+    # PROJ-29 Phase 1I follow-up — retrieved chunks (RAG sources) emitted during
+    # the niche-chat turn. Persisted so the ThinkingStrip ExpandedPanel + the
+    # NicheCitationLink hover-flash work after page reload. Each chunk:
+    # `{ index, content_subtype, text, source_pk?, url?, score? }`.
+    chunks_used = models.JSONField(
+        null=True,
+        blank=True,
+        help_text='Retrieved RAG chunks shown in the ThinkingStrip ExpandedPanel.',
+    )
+    # PROJ-29 Phase 1I follow-up — ordered list of stage rows for the
+    # ThinkingStrip collapsed pill (count + duration + status). Each:
+    # `{ stage, status, ts, durationMs?, message? }`.
+    thinking_stages = models.JSONField(
+        null=True,
+        blank=True,
+        help_text='Ordered ThinkingStrip stage rows (active / done / warning / error).',
     )
     created_at = models.DateTimeField(auto_now_add=True)
 

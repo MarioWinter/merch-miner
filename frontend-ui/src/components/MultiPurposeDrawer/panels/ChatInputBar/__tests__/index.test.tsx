@@ -100,9 +100,13 @@ describe('ChatInputBar (Phase 3.1 scaffold)', () => {
     expect(helper.textContent ?? '').toMatch(/Shift\+Enter/);
   });
 
-  it('renders all four right-cluster buttons', () => {
+  it('renders the right-cluster buttons (sources button hidden while web is the only source)', () => {
     renderWithProviders(<ChatInputBar appearance="panel" />, { reducers });
-    expect(screen.getByTestId('chat-input-sources-button')).toBeInTheDocument();
+    // PROJ-29 Phase 1J follow-up: Sources popover hides itself when only
+    // `web` is exposed (Academic + Discussions removed from UI). Add the
+    // sources-button assertion back when we wire Reddit OAuth + re-enable
+    // the `discussions` entry in SourcesPopoverButton.SOURCES.
+    expect(screen.queryByTestId('chat-input-sources-button')).not.toBeInTheDocument();
     expect(screen.getByTestId('chat-input-model-button')).toBeInTheDocument();
     expect(screen.getByTestId('chat-input-attachment-button')).toBeInTheDocument();
     expect(screen.getByTestId('chat-input-send-button')).toBeInTheDocument();

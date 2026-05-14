@@ -8,26 +8,29 @@ import FloatingChatBar from './FloatingChatBar';
 import MultiPurposeDrawer from './MultiPurposeDrawer';
 import GlobalFooter from './GlobalFooter/GlobalFooter';
 import { DURATION, EASING } from '@/style/constants';
+import { useAppSelector } from '@/store/hooks';
 
 // Styled components
 
 interface MainContentProps {
   $marginLeft: string;
+  $marginRight: string;
   component?: React.ElementType;
 }
 
 const MainContent = styled(Box, {
-  shouldForwardProp: (prop) => prop !== '$marginLeft',
-})<MainContentProps>(({ $marginLeft }) => ({
+  shouldForwardProp: (prop) => prop !== '$marginLeft' && prop !== '$marginRight',
+})<MainContentProps>(({ $marginLeft, $marginRight }) => ({
   flexGrow: 1,
   minWidth: 0,
   marginLeft: $marginLeft,
+  marginRight: $marginRight,
   marginTop: 56,
   minHeight: 'calc(100dvh - 56px)',
   display: 'flex',
   flexDirection: 'column',
   boxSizing: 'border-box',
-  transition: `margin-left ${DURATION.default}ms ${EASING.standard}`,
+  transition: `margin-left ${DURATION.default}ms ${EASING.standard}, margin-right ${DURATION.default}ms ${EASING.standard}`,
 }));
 
 const ContentArea = styled(Box)(({ theme }) => ({
@@ -80,6 +83,15 @@ const AppLayout = () => {
   const sidebarWidth = collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
   const borderSidebarW = collapsed && !hovered ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
 
+  // sideBySide pushes the main column inward by `drawerWidth`; overlap leaves it at 0.
+  const drawerOpen = useAppSelector((s) => s.chatBar.drawerOpen);
+  const drawerWidth = useAppSelector((s) => s.chatBar.drawerWidth);
+  const drawerLayout = useAppSelector((s) => s.chatBar.drawerLayout);
+  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  const sideBySideActive =
+    drawerOpen && drawerLayout === 'sideBySide' && !isMobile;
+  const mainMarginRight = sideBySideActive ? `${drawerWidth}px` : '0px';
+
   // Keeps the FloatingChatBar / ChevronIndicator pinned just above the global
   // footer regardless of document height. The footer lives in document flow,
   // so when content overflows the viewport it scrolls below the fold — a
@@ -131,7 +143,11 @@ const AppLayout = () => {
 
       <Sidebar collapsed={collapsed} onToggle={handleToggle} onHoverChange={setHovered} />
 
-      <MainContent component="main" $marginLeft={`${sidebarWidth}px`}>
+      <MainContent
+        component="main"
+        $marginLeft={`${sidebarWidth}px`}
+        $marginRight={mainMarginRight}
+      >
         <ContentArea>
           <Outlet />
         </ContentArea>

@@ -4,6 +4,15 @@ from django.conf import settings
 from django.db import models
 
 
+# PROJ-29 Phase 1B — 12 canonical Jungian archetypes accepted on Idea.emotional_archetype.
+# Validation is enforced at serializer level (IdeaSerializer.validate_emotional_archetype);
+# the model column remains a CharField for legacy compatibility.
+ALLOWED_EMOTIONAL_ARCHETYPES = [
+    'Hero', 'Rebel', 'Jester', 'Sage', 'Caregiver', 'Ruler',
+    'Creator', 'Lover', 'Magician', 'Innocent', 'Explorer', 'Everyman',
+]
+
+
 class SloganNodeConfig(models.Model):
     """LLM config per slogan graph node. Editable in Django Admin without redeploy."""
 
@@ -18,7 +27,10 @@ class SloganNodeConfig(models.Model):
         'analyze_original': {'model': 'openai/gpt-4.1-mini', 'temperature': 0.2},
         'discover_niches': {'model': 'mistralai/mistral-medium-3.1', 'temperature': 0.3},
         'validate_products': {'model': 'mistralai/mistral-small-3.2-24b-instruct', 'temperature': 0.2},
-        'adapt_slogans': {'model': 'mistralai/mistral-small-creative', 'temperature': 0.8},
+        # mistral-small-creative was retired by OpenRouter without notice
+        # (chat_node_config_app migration 0003 fixed the same issue there).
+        # mistral-medium-3 is the writing-tuned successor.
+        'adapt_slogans': {'model': 'mistralai/mistral-medium-3', 'temperature': 0.8},
         'quality_check': {'model': 'openai/gpt-4.1-mini', 'temperature': 0.1},
     }
 
@@ -60,6 +72,38 @@ class Idea(models.Model):
         FOR_REVIEW = 'for_review', 'For Review'
         ARCHIVED = 'archived', 'Archived'
 
+    class PatternUsed(models.TextChoices):
+        # PROJ-29 — 16 canonical emotional patterns (Essek). DB-stored key is
+        # SCREAMING_SNAKE; display name preserves slash/space form from the
+        # research-prompt taxonomy.
+        IDENTITY_DECLARATION = 'IDENTITY_DECLARATION', 'IDENTITY DECLARATION'
+        GROUP_LEADER = 'GROUP_LEADER', 'GROUP LEADER'
+        TRIBE_COMMUNITY = 'TRIBE_COMMUNITY', 'TRIBE/COMMUNITY'
+        FUNNY_ACTIVITY = 'FUNNY_ACTIVITY', 'FUNNY ACTIVITY'
+        CROSS_NICHE_EVENTS = 'CROSS_NICHE_EVENTS', 'CROSS-NICHE EVENTS'
+        CROSS_NICHE_MASHUP = 'CROSS_NICHE_MASHUP', 'CROSS-NICHE MASHUP'
+        ADDICTION_OBSESSION = 'ADDICTION_OBSESSION', 'ADDICTION/OBSESSION'
+        VINTAGE_LEGACY = 'VINTAGE_LEGACY', 'VINTAGE/LEGACY'
+        ACHIEVEMENT_GAMIFIED = 'ACHIEVEMENT_GAMIFIED', 'ACHIEVEMENT/GAMIFIED'
+        JOB_PROFESSION_PARODY = 'JOB_PROFESSION_PARODY', 'JOB/PROFESSION PARODY'
+        RELATIONSHIP_HUMOR = 'RELATIONSHIP_HUMOR', 'RELATIONSHIP HUMOR'
+        BOUNDARY_GATEKEEPING = 'BOUNDARY_GATEKEEPING', 'BOUNDARY/GATEKEEPING'
+        ENDURANCE_SURVIVAL = 'ENDURANCE_SURVIVAL', 'ENDURANCE/SURVIVAL'
+        COMPETENCE_EXPERTISE = 'COMPETENCE_EXPERTISE', 'COMPETENCE/EXPERTISE'
+        CHAOS_CONTROL = 'CHAOS_CONTROL', 'CHAOS/CONTROL'
+        SELF_CARE_PRIORITIES = 'SELF_CARE_PRIORITIES', 'SELF-CARE/PRIORITIES'
+
+    class StylisticDevice(models.TextChoices):
+        # PROJ-29 — 8 canonical stylistic devices (creative_techniques prompt).
+        RHYME = 'RHYME', 'Rhyme'
+        SONGTEXT_ADAPTION = 'SONGTEXT_ADAPTION', 'Songtext Adaption'
+        LIST = 'LIST', 'List'
+        COMMAND = 'COMMAND', 'Command'
+        QUESTION_ANSWER = 'QUESTION_ANSWER', 'Question + Answer'
+        IF_THEN = 'IF_THEN', 'If/Then'
+        DECLARATION = 'DECLARATION', 'Declaration'
+        FREE_FORM = 'FREE_FORM', 'Free-form'
+
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     workspace = models.ForeignKey(
         'workspace_app.Workspace',
@@ -100,8 +144,20 @@ class Idea(models.Model):
     creative_modules_used = models.JSONField(default=list, blank=True)
     emotional_archetype = models.CharField(max_length=100, blank=True, default='')
     buyer_voice_pattern = models.TextField(blank=True, default='')
-    stylistic_device = models.CharField(max_length=100, blank=True, default='')
-    pattern_used = models.CharField(max_length=200, blank=True, default='')
+    stylistic_device = models.CharField(
+        max_length=30,
+        choices=StylisticDevice.choices,
+        blank=True,
+        default='',
+        db_index=True,
+    )
+    pattern_used = models.CharField(
+        max_length=50,
+        choices=PatternUsed.choices,
+        blank=True,
+        default='',
+        db_index=True,
+    )
     why_it_works = models.TextField(blank=True, default='')
     market_confidence = models.CharField(
         max_length=10,
@@ -148,8 +204,11 @@ class Idea(models.Model):
         return self.slogan_text[:80] if self.slogan_text else str(self.id)
 
     def get_embedding_text(self):
-        """Return text to embed for vector search (PROJ-15)."""
-        parts = filter(None, [self.slogan_text, self.why_it_works])
+        """Return text to embed for vector search (PROJ-15 + PROJ-29)."""
+        parts = filter(
+            None,
+            [self.slogan_text, self.why_it_works, self.buyer_voice_pattern],
+        )
         return ' '.join(parts)
 
 

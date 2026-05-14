@@ -5,6 +5,12 @@ import type {
   SearchSource,
   SourceItem,
 } from '../types/search';
+import type {
+  ChunkUsed,
+  FlashCitation,
+  SloganRow,
+  ThinkingStep,
+} from '../types/chat-rag';
 
 /**
  * PROJ-20 AC-12/AC-45: niche-context chip rendered atomically inside the
@@ -16,8 +22,14 @@ export interface InputChip {
   niche_name: string;
 }
 
-/** Drawer width steps (px) — single-column / split-view / NotebookLM full command center */
-export type DrawerWidth = 480 | 768 | 1200;
+/** Stepless drawer width in px; clamped at the slice boundary. */
+export type DrawerWidth = number;
+export const DRAWER_WIDTH_MIN = 380;
+export const DRAWER_WIDTH_MAX = 1400;
+export const DRAWER_WIDTH_DEFAULT = 768;
+
+/** `overlap` = floats over content (default); `sideBySide` = pushes main column. */
+export type DrawerLayout = 'overlap' | 'sideBySide';
 
 /** Niche panel mode — drives whether NichePipeline renders the create form or the edit pipeline. */
 export type NicheMode = 'create' | 'edit';
@@ -39,8 +51,10 @@ interface ChatBarState {
   barExpanded: boolean;
   /** The multi-purpose drawer open state */
   drawerOpen: boolean;
-  /** Drawer width (snaps to 480/768/1200) */
+  /** Drawer width (stepless, clamped 380–1400px in `useDrawerResize`) */
   drawerWidth: DrawerWidth;
+  /** Drawer layout mode — overlap (default) or side-by-side with main content */
+  drawerLayout: DrawerLayout;
   /** Active drawer panel */
   activePanel: DrawerPanel;
   /** Currently active chat session ID */
@@ -72,6 +86,44 @@ interface ChatBarState {
   streamingAssistantMessage: StreamingAssistantMessage;
   /** Whether the chat-history overlay (full-panel) is open. Triggered from drawer header icon. */
   recentChatsOverlayOpen: boolean;
+  /**
+   * PROJ-29 Phase 1H — ThinkingStrip rows emitted by SSE `stage`/`tool_call`/`tool_result`.
+   * FIFO-capped at NICHE_RAG_MAX_STAGES (50). Cleared on every new `init` / `clearStreamingMessage`.
+   */
+  streamingStages: ThinkingStep[];
+  /**
+   * PROJ-29 Phase 1H — consolidated chunks emitted by SSE `chunks_used`.
+   * FIFO-capped at NICHE_RAG_MAX_CHUNKS (200) to bound memory across a session.
+   * Cleared on every new `init` / `clearStreamingMessage`.
+   */
+  chunksUsed: ChunkUsed[];
+  /**
+   * PROJ-29 Phase 1H — 3 follow-up chips emitted by SSE `follow_ups` (after `done`).
+   * Max 3 entries. Cleared on the next user message (not on stream-clear) so the
+   * chips persist next to the just-finished assistant answer until the user types.
+   */
+  followUps: string[];
+  /** PROJ-29 Phase 1H — ms-epoch when the current stream started (init event). */
+  streamStartedAt: number | null;
+  /**
+   * PROJ-29 Phase 1H — citation flash pub/sub. Hover [NICHE:N] sets this; the
+   * ExpandedPanel reads it and flashes the matching row, then resets to null.
+   */
+  flashCitation: FlashCitation | null;
+  /**
+   * PROJ-29 Phase 1H-2 — structured slogan payload streamed in via the
+   * `generate_slogans_payload` SSE event. Lives on the streaming assistant
+   * message during the active stream.
+   */
+  streamingSloganPayload: SloganRow[] | null;
+  /**
+   * PROJ-29 Phase 1H-2 — payload that survives `done` so the just-persisted
+   * assistant message can keep rendering its slogan table. Captured from
+   * `streamingSloganPayload` on `done`, keyed by the persisted message id.
+   * Cleared on next `init` (new user message). Workaround until the backend
+   * persists generate_slogans_payload on the ChatMessage row (Phase 1I).
+   */
+  completedSloganPayload: { messageId: string; rows: SloganRow[] } | null;
 }
 
 const INITIAL_STREAM: StreamingAssistantMessage = {
@@ -80,6 +132,11 @@ const INITIAL_STREAM: StreamingAssistantMessage = {
   sources: [],
   isStreaming: false,
 };
+
+/** PROJ-29 Phase 1H — FIFO caps to bound Redux growth across long agent turns. */
+const MAX_STREAMING_STAGES = 50;
+const MAX_CHUNKS_USED = 200;
+const MAX_FOLLOW_UPS = 3;
 
 /**
  * Persisted slice keys (localStorage). Read on hydration, written on each
@@ -127,7 +184,8 @@ const persisted = readPersisted();
 const initialState: ChatBarState = {
   barExpanded: false,
   drawerOpen: false,
-  drawerWidth: 480,
+  drawerWidth: DRAWER_WIDTH_DEFAULT,
+  drawerLayout: 'overlap',
   activePanel: 'chat',
   activeSessionId: null,
   activeAgentSessionId: null,
@@ -140,6 +198,13 @@ const initialState: ChatBarState = {
   modeOverride: 'chat',
   streamingAssistantMessage: INITIAL_STREAM,
   recentChatsOverlayOpen: false,
+  streamingStages: [],
+  chunksUsed: [],
+  followUps: [],
+  streamStartedAt: null,
+  flashCitation: null,
+  streamingSloganPayload: null,
+  completedSloganPayload: null,
 };
 
 const chatBarSlice = createSlice({
@@ -173,7 +238,18 @@ const chatBarSlice = createSlice({
       // 'niche' leaves modeOverride untouched.
     },
     setDrawerWidth(state, action: PayloadAction<DrawerWidth>) {
-      state.drawerWidth = action.payload;
+      // Clamp at the boundary so direct callers can't bypass the hook.
+      state.drawerWidth = Math.max(
+        DRAWER_WIDTH_MIN,
+        Math.min(DRAWER_WIDTH_MAX, action.payload),
+      );
+    },
+    setDrawerLayout(state, action: PayloadAction<DrawerLayout>) {
+      state.drawerLayout = action.payload;
+    },
+    toggleDrawerLayout(state) {
+      state.drawerLayout =
+        state.drawerLayout === 'overlap' ? 'sideBySide' : 'overlap';
     },
     setActiveSession(state, action: PayloadAction<string | null>) {
       state.activeSessionId = action.payload;
@@ -246,6 +322,15 @@ const chatBarSlice = createSlice({
         sources: action.payload.sources ?? [],
         isStreaming: true,
       };
+      // PROJ-29 Phase 1H — also reset ThinkingStrip state for the new turn
+      // and timestamp the stream start (drives elapsed-seconds in CompactStrip).
+      state.streamingStages = [];
+      state.chunksUsed = [];
+      state.streamStartedAt = Date.now();
+      // 1H-2: drop the previous turn's completed slogan payload so the table
+      // doesn't bleed across turns.
+      state.completedSloganPayload = null;
+      state.streamingSloganPayload = null;
     },
     appendStreamingChunk(state, action: PayloadAction<string>) {
       if (state.streamingAssistantMessage.isStreaming) {
@@ -270,6 +355,155 @@ const chatBarSlice = createSlice({
     },
     clearStreamingMessage(state) {
       state.streamingAssistantMessage = INITIAL_STREAM;
+      // PROJ-29 Phase 1H — wipe ThinkingStrip state when the stream ends.
+      // `followUps` is intentionally NOT cleared here — chips persist next to
+      // the just-finished assistant answer until the user types a new message
+      // (use `clearFollowUps` for that).
+      state.streamingStages = [];
+      state.chunksUsed = [];
+      state.streamStartedAt = null;
+      state.flashCitation = null;
+      state.streamingSloganPayload = null;
+    },
+    // --- PROJ-29 Phase 1H: ThinkingStrip reducers ---
+    /**
+     * Push a new stage onto the strip with status='loading'. If a row for the
+     * same `stage` already exists in loading state, this is a no-op (the
+     * tool_call/result pair handles status transitions). Otherwise, FIFO-cap.
+     */
+    pushStreamingStage(state, action: PayloadAction<ThinkingStep>) {
+      const incoming = action.payload;
+      // Avoid duplicate consecutive loading rows for the same stage — the SSE
+      // protocol may emit both `stage` + `tool_call` for a single tool turn.
+      const lastLoading = [...state.streamingStages]
+        .reverse()
+        .find((s) => s.stage === incoming.stage && s.status === 'loading');
+      if (lastLoading) return;
+      state.streamingStages.push(incoming);
+      if (state.streamingStages.length > MAX_STREAMING_STAGES) {
+        // FIFO evict oldest
+        state.streamingStages.splice(
+          0,
+          state.streamingStages.length - MAX_STREAMING_STAGES,
+        );
+      }
+    },
+    /**
+     * Transition the most recent loading row for `stage` → done.
+     * Sets durationMs from the stored ts.
+     */
+    markStageDone(
+      state,
+      action: PayloadAction<{ stage: string; ts: number }>,
+    ) {
+      const { stage, ts } = action.payload;
+      for (let i = state.streamingStages.length - 1; i >= 0; i -= 1) {
+        const row = state.streamingStages[i];
+        if (row.stage === stage && row.status === 'loading') {
+          row.status = 'done';
+          row.durationMs = Math.max(0, ts - row.ts);
+          return;
+        }
+      }
+    },
+    /**
+     * Transition the most recent loading row for `stage` → warning (tool_timeout, etc.).
+     */
+    markStageWarning(
+      state,
+      action: PayloadAction<{ stage: string; message?: string }>,
+    ) {
+      const { stage, message } = action.payload;
+      for (let i = state.streamingStages.length - 1; i >= 0; i -= 1) {
+        const row = state.streamingStages[i];
+        if (row.stage === stage && row.status === 'loading') {
+          row.status = 'warning';
+          if (message) row.message = message;
+          return;
+        }
+      }
+    },
+    /**
+     * Mark the most recent loading row as error (used by global SSE `error` handler).
+     * Stage param optional — defaults to whichever row is still loading.
+     */
+    markStageError(
+      state,
+      action: PayloadAction<{ stage?: string; message?: string }>,
+    ) {
+      const { stage, message } = action.payload;
+      for (let i = state.streamingStages.length - 1; i >= 0; i -= 1) {
+        const row = state.streamingStages[i];
+        const stageMatch = stage ? row.stage === stage : true;
+        if (stageMatch && row.status === 'loading') {
+          row.status = 'error';
+          if (message) row.message = message;
+          return;
+        }
+      }
+    },
+    /**
+     * Append a batch of `chunks_used` rows; FIFO-cap at 200 per turn.
+     */
+    appendChunksUsed(state, action: PayloadAction<ChunkUsed[]>) {
+      if (!Array.isArray(action.payload) || action.payload.length === 0) return;
+      state.chunksUsed.push(...action.payload);
+      if (state.chunksUsed.length > MAX_CHUNKS_USED) {
+        state.chunksUsed.splice(
+          0,
+          state.chunksUsed.length - MAX_CHUNKS_USED,
+        );
+      }
+    },
+    /** Replace follow-up chips (caller has already sliced to 3). */
+    setFollowUps(state, action: PayloadAction<string[]>) {
+      state.followUps = action.payload.slice(0, MAX_FOLLOW_UPS);
+    },
+    /** Clear follow-up chips — fires on next user message. */
+    clearFollowUps(state) {
+      state.followUps = [];
+    },
+    /** Override stream start timestamp (used by SSE `init` handler). */
+    setStreamStartedAt(state, action: PayloadAction<number | null>) {
+      state.streamStartedAt = action.payload;
+    },
+    /** Trigger a citation flash; ExpandedPanel resets via `clearFlashCitation`. */
+    setFlashCitation(state, action: PayloadAction<FlashCitation | null>) {
+      state.flashCitation = action.payload;
+    },
+    clearFlashCitation(state) {
+      state.flashCitation = null;
+    },
+    /**
+     * PROJ-29 Phase 1H-2 — set the structured slogan payload streamed in via
+     * the `generate_slogans_payload` SSE event. Cleared on stream end +
+     * on next `init`.
+     */
+    setStreamingSloganPayload(state, action: PayloadAction<SloganRow[] | null>) {
+      state.streamingSloganPayload = action.payload;
+    },
+    /**
+     * PROJ-29 Phase 1H-2 — capture the streaming payload on `done` so the
+     * just-persisted assistant message can keep rendering its slogan table.
+     */
+    setCompletedSloganPayload(
+      state,
+      action: PayloadAction<{ messageId: string; rows: SloganRow[] } | null>,
+    ) {
+      state.completedSloganPayload = action.payload;
+    },
+    /**
+     * PROJ-29 Phase 1H-2 — atomically move the streaming payload to
+     * `completedSloganPayload` keyed by the persisted message id. Called from
+     * the SSE `done` handler before `clearStreamingMessage` runs.
+     */
+    promoteStreamingSloganPayload(state, action: PayloadAction<{ messageId: string }>) {
+      if (state.streamingSloganPayload && state.streamingSloganPayload.length > 0) {
+        state.completedSloganPayload = {
+          messageId: action.payload.messageId,
+          rows: state.streamingSloganPayload,
+        };
+      }
     },
     setRecentChatsOverlayOpen(state, action: PayloadAction<boolean>) {
       state.recentChatsOverlayOpen = action.payload;
@@ -287,6 +521,29 @@ const chatBarSlice = createSlice({
       state.recentChatsOverlayOpen = false;
       state.activePanel = 'chat';
       state.drawerOpen = true;
+      // PROJ-29 Phase 1H — also reset ThinkingStrip + follow-ups + chunks
+      state.streamingStages = [];
+      state.chunksUsed = [];
+      state.followUps = [];
+      state.streamStartedAt = null;
+      state.flashCitation = null;
+    },
+    /**
+     * PROJ-29 Phase 1F: full reset of chat-scoped slice state. Used on
+     * logout so the next user signing in on the same browser does not see
+     * the previous user's active session id, streaming buffer, niche chip,
+     * or drawer-open state.
+     */
+    resetChatBar() {
+      // Re-read persisted (workspace) fields — but those are wiped by the
+      // logout cleanup separately via `mm-active-chat-*` removal + the
+      // workspace slice's own reducer. We deliberately return a fresh
+      // initial state shape minus the persisted-niche fields.
+      return {
+        ...initialState,
+        activeNicheId: null,
+        nicheMode: 'edit' as NicheMode,
+      };
     },
   },
 });
@@ -298,6 +555,8 @@ export const {
   closeDrawer,
   setActivePanel,
   setDrawerWidth,
+  setDrawerLayout,
+  toggleDrawerLayout,
   setActiveSession,
   setActiveAgentSessionId,
   setInputChip,
@@ -316,6 +575,21 @@ export const {
   clearStreamingMessage,
   setRecentChatsOverlayOpen,
   startNewChat,
+  resetChatBar,
+  // PROJ-29 Phase 1H — ThinkingStrip + follow-ups + chunks + flash-citation
+  pushStreamingStage,
+  markStageDone,
+  markStageWarning,
+  markStageError,
+  appendChunksUsed,
+  setFollowUps,
+  clearFollowUps,
+  setStreamStartedAt,
+  setFlashCitation,
+  clearFlashCitation,
+  setStreamingSloganPayload,
+  setCompletedSloganPayload,
+  promoteStreamingSloganPayload,
 } = chatBarSlice.actions;
 
 export default chatBarSlice.reducer;

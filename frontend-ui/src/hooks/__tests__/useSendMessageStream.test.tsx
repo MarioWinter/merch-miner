@@ -495,6 +495,103 @@ describe('useSendMessageStream', () => {
     );
   });
 
+  // PROJ-29 Phase 1H — ThinkingStrip SSE events
+  describe('PROJ-29 thinking SSE events', () => {
+    it('stage event pushes a loading ThinkingStep', () => {
+      const { result } = renderStreamHook();
+      act(() => {
+        result.current.start({ content: 'hi' });
+      });
+      act(() => {
+        MockEventSource.instances[0].emit('init', {
+          message_id: MESSAGE_ID,
+          session_id: SESSION_ID,
+          mode: 'auto',
+        });
+        MockEventSource.instances[0].emit('stage', { stage: 'retrieve_niche' });
+      });
+      const stages = store.getState().chatBar.streamingStages;
+      expect(stages).toHaveLength(1);
+      expect(stages[0].stage).toBe('retrieve_niche');
+      expect(stages[0].status).toBe('loading');
+    });
+
+    it('tool_call then tool_result flips status loading → done', () => {
+      const { result } = renderStreamHook();
+      act(() => {
+        result.current.start({ content: 'hi' });
+      });
+      act(() => {
+        MockEventSource.instances[0].emit('init', {
+          message_id: MESSAGE_ID,
+          session_id: SESSION_ID,
+          mode: 'auto',
+        });
+        MockEventSource.instances[0].emit('tool_call', {
+          tool_name: 'search_slogans',
+        });
+      });
+      expect(store.getState().chatBar.streamingStages).toHaveLength(1);
+      expect(store.getState().chatBar.streamingStages[0].status).toBe('loading');
+
+      act(() => {
+        MockEventSource.instances[0].emit('tool_result', {
+          tool_name: 'search_slogans',
+          duration_ms: 800,
+        });
+      });
+      const rows = store.getState().chatBar.streamingStages;
+      expect(rows[0].status).toBe('done');
+      expect(typeof rows[0].durationMs).toBe('number');
+    });
+
+    it('chunks_used event dispatches appendChunksUsed', () => {
+      const { result } = renderStreamHook();
+      act(() => {
+        result.current.start({ content: 'hi' });
+      });
+      act(() => {
+        MockEventSource.instances[0].emit('init', {
+          message_id: MESSAGE_ID,
+          session_id: SESSION_ID,
+          mode: 'auto',
+        });
+        MockEventSource.instances[0].emit('chunks_used', {
+          chunks: [
+            { index: 1, content_subtype: 'slogan', text: 'Camping dad slogan' },
+            { index: 2, content_subtype: 'web', text: 'Reddit thread', url: 'https://r.com' },
+          ],
+        });
+      });
+      const chunks = store.getState().chatBar.chunksUsed;
+      expect(chunks).toHaveLength(2);
+      expect(chunks[0].content_subtype).toBe('slogan');
+      expect(chunks[1].url).toBe('https://r.com');
+    });
+
+    it('follow_ups event stores up to 3 chips', () => {
+      const { result } = renderStreamHook();
+      act(() => {
+        result.current.start({ content: 'hi' });
+      });
+      act(() => {
+        MockEventSource.instances[0].emit('init', {
+          message_id: MESSAGE_ID,
+          session_id: SESSION_ID,
+          mode: 'auto',
+        });
+        MockEventSource.instances[0].emit('follow_ups', {
+          chips: ['What about kids?', 'BSR data?', 'Try sarcasm', 'extra ignored'],
+        });
+      });
+      expect(store.getState().chatBar.followUps).toEqual([
+        'What about kids?',
+        'BSR data?',
+        'Try sarcasm',
+      ]);
+    });
+  });
+
   it('malformed event JSON is ignored gracefully', () => {
     const { result } = renderStreamHook();
     act(() => {

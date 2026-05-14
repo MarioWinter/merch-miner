@@ -1,0 +1,28 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+  <h1>{{ title }}</h1>
+  <p>
+    <a href="{% url 'admin:chat_node_config_app_chatnodeconfig_change' config.pk %}">
+      &larr; back to config
+    </a>
+  </p>
+
+  {% if error %}
+    <div style="background:#fdd;border:1px solid #c00;padding:1em;margin:1em 0;">
+      <strong>Render error:</strong> {{ error }}
+    </div>
+  {% endif %}
+
+  <h2>Sample render context</h2>
+  <pre style="background:#f8f8f8;border:1px solid #ddd;padding:1em;">{% for k, v in sample_context.items %}{{ k }} = {{ v }}
+{% endfor %}</pre>
+
+  <h2>Rendered system prompt ({{ default_prompt_len }} chars in default)</h2>
+  <pre style="background:#f8f8f8;border:1px solid #ddd;padding:1em;white-space:pre-wrap;">{{ rendered }}</pre>
+
+  {% if user_template %}
+    <h2>User-message template (raw)</h2>
+    <pre style="background:#f8f8f8;border:1px solid #ddd;padding:1em;">{{ user_template }}</pre>
+  {% endif %}
+{% endblock %}

@@ -1,13 +1,19 @@
 /**
  * PROJ-20 Phase 3.6 — SourcesPopoverButton
  *
- * Replaces the Phase 3.1 stub. IconButton with a Popover containing 3
- * toggleable sources (Web / Academic / Discussions). Each row is an MUI
- * `Switch`. We enforce ≥1 source enabled at all times — toggling off the
- * last enabled source is a no-op + warning Snackbar.
+ * IconButton with a Popover containing toggleable sources. Currently only
+ * `web` is exposed — Academic + Discussions were removed from the UI in
+ * Phase 1J because their backing engines (arxiv/google scholar / reddit)
+ * are unreliable on our datacenter IP (Reddit returns 403, academic
+ * engines are POD-irrelevant). When Reddit OAuth is wired, the
+ * `discussions` row can be re-enabled here without other code changes.
  *
- * The IconButton shows a small primary-colored badge dot whenever the
- * current sources state differs from the default `['web']`.
+ * The IconButton hides itself entirely when there's only one source —
+ * a single-row "Web" popover is useless. When the SOURCES list grows
+ * back beyond one row, the button reappears automatically.
+ *
+ * The badge dot appears when the current sources state differs from the
+ * default `['web']`.
  */
 import { useMemo, useState, type ComponentType, type MouseEvent } from 'react';
 import {
@@ -24,8 +30,6 @@ import {
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import LanguageIcon from '@mui/icons-material/Language';
-import SchoolIcon from '@mui/icons-material/School';
-import ForumIcon from '@mui/icons-material/Forum';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
@@ -41,12 +45,9 @@ interface SourceEntry {
 
 const SOURCES: SourceEntry[] = [
   { value: 'web', labelKey: 'search.chat.source_web', Icon: LanguageIcon },
-  { value: 'academic', labelKey: 'search.chat.source_academic', Icon: SchoolIcon },
-  {
-    value: 'discussions',
-    labelKey: 'search.chat.source_discussions',
-    Icon: ForumIcon,
-  },
+  // 'academic' + 'discussions' removed from UI 2026-05-13. Re-add the
+  // SchoolIcon / ForumIcon imports + entries here when the upstream
+  // engines (arxiv, reddit-via-oauth) come back online.
 ];
 
 const DEFAULT_SOURCES: SearchSource[] = ['web'];
@@ -74,6 +75,13 @@ const SourcesPopoverButton = () => {
   const handleClose = () => setAnchorEl(null);
 
   const showBadge = useMemo(() => !isDefaultState(searchSources), [searchSources]);
+
+  // Hide the entire button when there's nothing meaningful to toggle. The
+  // "≥1 source enabled" rule prevents the user from disabling Web, so a
+  // single-row popover is just chrome with no action.
+  if (SOURCES.length <= 1) {
+    return null;
+  }
 
   const toggleSource = (source: SearchSource) => {
     const isOn = searchSources.includes(source);
@@ -117,6 +125,11 @@ const SourcesPopoverButton = () => {
         open={open}
         anchorEl={anchorEl}
         onClose={handleClose}
+        // PROJ-29 Phase 1J follow-up: disable MUI's default scroll-lock so
+        // opening the popover doesn't trigger `body.overflow:hidden` +
+        // padding-right compensation that briefly exposes the chat-panel
+        // scrollbar (visible layout shift).
+        disableScrollLock
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
         transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         slotProps={{

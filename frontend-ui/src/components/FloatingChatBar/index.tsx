@@ -14,17 +14,16 @@ import {
   setSearching,
 } from '@/store/chatBarSlice';
 import { clearAttachments } from '@/store/attachmentsSlice';
-import {
-  useCreateSessionMutation,
-  useSendMessageMutation,
-} from '@/store/searchSlice';
+import { useCreateSessionMutation } from '@/store/searchSlice';
 import { useSendMessageStream } from '@/hooks/useSendMessageStream';
+import { useOptimisticChatMessage } from '@/hooks/useOptimisticChatMessage';
 import { useSearchHealth } from '../MultiPurposeDrawer/hooks/useSearchHealth';
 import ChatInputBar, {
   type ChatInputBarHandle,
   type ChatInputBarSubmitPayload,
 } from '../MultiPurposeDrawer/panels/ChatInputBar';
 import ChevronIndicator from './ChevronIndicator';
+import CompactStrip from '@/components/ThinkingStrip/CompactStrip';
 import { COLORS, EASING, DURATION } from '@/style/constants';
 
 const BAR_MAX_WIDTH = 600;
@@ -79,7 +78,6 @@ const FloatingChatBar = () => {
     activePanel,
     activeSessionId,
     searching,
-    searchSources,
     selectedModel,
     modeOverride,
   } = useAppSelector((s) => s.chatBar);
@@ -91,7 +89,8 @@ const FloatingChatBar = () => {
   const inputRef = useRef<ChatInputBarHandle>(null);
 
   const [createSession] = useCreateSessionMutation();
-  const [sendMessage] = useSendMessageMutation();
+  const { insert: optimisticInsert, rollback: optimisticRollback } =
+    useOptimisticChatMessage();
   const { start: startStream } = useSendMessageStream({
     sessionId: activeSessionId,
     onDone: () => {
@@ -160,15 +159,20 @@ const FloatingChatBar = () => {
   const handleSubmit = useCallback(
     async (payload: ChatInputBarSubmitPayload) => {
       const trimmed = payload.text.trim();
-      if (!trimmed || searching || !vaneOnline || isStreaming) return;
-
       const niche_id = payload.chip?.niche_id ?? null;
+      // PROJ-29 Phase 1I follow-up: niche-bound sends route to run_chat (no
+      // Vane / Crawl4ai dependency). Only block on !vaneOnline when there is
+      // no niche context — that path still needs Vane for web-mode answers.
+      const needsVane = niche_id === null && modeOverride !== 'agent';
+      if (!trimmed || searching || isStreaming) return;
+      if (needsVane && !vaneOnline) return;
 
       dispatch(setSearching(true));
       inputRef.current?.clear();
 
+      let sessionId = activeSessionId;
+      let tempId: string | null = null;
       try {
-        let sessionId = activeSessionId;
         if (!sessionId) {
           const newSession = await createSession({
             niche_context: niche_id ?? undefined,
@@ -179,34 +183,28 @@ const FloatingChatBar = () => {
           dispatch(openDrawer('chat'));
         }
 
-        if (modeOverride === 'agent') {
-          await sendMessage({
-            sessionId,
-            body: {
-              content: trimmed,
-              search_sources: searchSources,
-              model: selectedModel,
-              mode_override: modeOverride,
-            },
-          }).unwrap();
-          dispatch(setSearching(false));
-        } else {
-          const attachment_ids = attachmentUploads
-            .filter((u) => u.status === 'completed' && u.serverId)
-            .map((u) => u.serverId as string);
-          startStream({
-            content: trimmed,
-            mode_override: modeOverride,
-            niche_id,
-            sessionIdOverride: sessionId,
-            attachment_ids,
-            model: selectedModel,
-          });
-          // searching cleared by useSendMessageStream onDone callback
-        }
+        // PROJ-29 Phase 1J BUG-1 — optimistic user-message echo.
+        tempId = optimisticInsert({ sessionId, content: trimmed });
+
+        // PROJ-29 Phase 1J BUG-2 — unify agent + auto/web through SSE.
+        const attachment_ids = attachmentUploads
+          .filter((u) => u.status === 'completed' && u.serverId)
+          .map((u) => u.serverId as string);
+        startStream({
+          content: trimmed,
+          mode_override: modeOverride,
+          niche_id,
+          sessionIdOverride: sessionId,
+          attachment_ids,
+          model: selectedModel,
+        });
+        // searching cleared by useSendMessageStream onDone callback
       } catch {
         enqueueSnackbar(t('search.chat.sendError'), { variant: 'error' });
         dispatch(setSearching(false));
+        if (sessionId && tempId) {
+          optimisticRollback({ sessionId, tempId });
+        }
       }
     },
     [
@@ -214,14 +212,14 @@ const FloatingChatBar = () => {
       vaneOnline,
       isStreaming,
       activeSessionId,
-      searchSources,
       selectedModel,
       modeOverride,
       attachmentUploads,
       dispatch,
       createSession,
-      sendMessage,
       startStream,
+      optimisticInsert,
+      optimisticRollback,
       enqueueSnackbar,
       t,
     ],
@@ -259,9 +257,15 @@ const FloatingChatBar = () => {
     return <Box sx={{ display: 'none' }} aria-hidden="true" />;
   }
 
+  // PROJ-29 Phase 1H — CompactStrip is rendered above the input surface while
+  // an SSE stream runs and the drawer is closed. When the drawer is open the
+  // full ThinkingStrip inside ChatMessageList takes over.
+  const showCompactStrip = isStreaming && !hiddenForDrawer;
+
   return (
     <Fade in={barExpanded} timeout={DURATION.default}>
       <BarContainer ref={containerRef}>
+        {showCompactStrip && <CompactStrip />}
         <ExpandedSurface>
           <CollapseHandle>
             <IconButton
@@ -286,7 +290,9 @@ const FloatingChatBar = () => {
             appearance="floating"
             onSubmit={handleSubmit}
             isSending={searching || isStreaming}
-            disabled={!vaneOnline}
+            // PROJ-29 Phase 1I follow-up: input always typeable so users can
+            // insert an @-mention even when Vane is degraded — `handleSubmit`
+            // gates the actual send when no niche context AND Vane is offline.
           />
         </ExpandedSurface>
       </BarContainer>

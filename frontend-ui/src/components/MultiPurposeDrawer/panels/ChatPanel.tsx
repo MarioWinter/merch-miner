@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Box,
   IconButton,
@@ -20,7 +20,6 @@ import { clearAttachments } from '@/store/attachmentsSlice';
 import {
   useGetSessionQuery,
   useCreateSessionMutation,
-  useSendMessageMutation,
   useShareSessionMutation,
   useUnshareSessionMutation,
   useSaveSnippetToNicheMutation,
@@ -28,6 +27,7 @@ import {
 } from '@/store/searchSlice';
 import { useSearchHealth } from '../hooks/useSearchHealth';
 import { useSendMessageStream } from '@/hooks/useSendMessageStream';
+import { useOptimisticChatMessage } from '@/hooks/useOptimisticChatMessage';
 import type {
   ChatMessage,
   SaveSnippetKeywordsResponse,
@@ -71,6 +71,41 @@ const InputArea = styled(Box)(({ theme }) => ({
   flexShrink: 0,
 }));
 
+/**
+ * PROJ-29 Phase 1F: workspace-scoped active-session pointer in localStorage.
+ * Lets a returning user re-open the same chat after refresh / re-login.
+ * Read-and-write helpers are colocated so the key shape stays a single source
+ * of truth with the logout cleanup in `ProfileMenu`.
+ */
+const activeChatKey = (workspaceId: string | null | undefined) =>
+  workspaceId ? `mm-active-chat-session-${workspaceId}` : null;
+
+const readPersistedActiveChat = (workspaceId: string | null): string | null => {
+  if (typeof window === 'undefined') return null;
+  const key = activeChatKey(workspaceId);
+  if (!key) return null;
+  try {
+    return window.localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const writePersistedActiveChat = (
+  workspaceId: string | null,
+  sessionId: string | null,
+): void => {
+  if (typeof window === 'undefined') return;
+  const key = activeChatKey(workspaceId);
+  if (!key) return;
+  try {
+    if (sessionId) window.localStorage.setItem(key, sessionId);
+    else window.localStorage.removeItem(key);
+  } catch {
+    /* quota / privacy — ignore */
+  }
+};
+
 const ChatPanel = () => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
@@ -78,23 +113,58 @@ const ChatPanel = () => {
   const {
     activeSessionId,
     searching,
-    searchSources,
     selectedModel,
     modeOverride,
     inputChip,
   } = useAppSelector((s) => s.chatBar);
+  const activeWorkspaceId = useAppSelector(
+    (s) => s.workspace?.activeWorkspaceId ?? null,
+  );
   const { vaneOnline } = useSearchHealth();
 
   const inputRef = useRef<ChatInputBarHandle>(null);
   const [modal, setModal] = useState<ModalState>(INITIAL_MODAL);
 
-  const { data: session, isLoading: sessionLoading } = useGetSessionQuery(
+  // PROJ-29 Phase 1F: on mount + whenever the active workspace flips, try to
+  // restore the persisted session id. Only sets when Redux currently has no
+  // active session — never clobbers an in-progress session.
+  const restoreAttemptedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!activeWorkspaceId) return;
+    if (restoreAttemptedRef.current === activeWorkspaceId) return;
+    restoreAttemptedRef.current = activeWorkspaceId;
+    if (activeSessionId) return;
+    const persisted = readPersistedActiveChat(activeWorkspaceId);
+    if (persisted) {
+      dispatch(setActiveSession(persisted));
+    }
+  }, [activeWorkspaceId, activeSessionId, dispatch]);
+
+  const { data: session, isLoading: sessionLoading, error: sessionError } = useGetSessionQuery(
     activeSessionId ?? '',
     { skip: !activeSessionId },
   );
 
+  // PROJ-29 Phase 1F: persist the active session id per workspace so a
+  // refresh / re-login restores the same chat. Silently drop the pointer if
+  // the backend 404s (session deleted by user or admin).
+  useEffect(() => {
+    if (!activeWorkspaceId) return;
+    const status =
+      sessionError && typeof sessionError === 'object' && 'status' in sessionError
+        ? (sessionError as { status?: number }).status
+        : undefined;
+    if (status === 404) {
+      writePersistedActiveChat(activeWorkspaceId, null);
+      dispatch(setActiveSession(null));
+      return;
+    }
+    writePersistedActiveChat(activeWorkspaceId, activeSessionId);
+  }, [activeWorkspaceId, activeSessionId, sessionError, dispatch]);
+
   const [createSession] = useCreateSessionMutation();
-  const [sendMessage] = useSendMessageMutation();
+  const { insert: optimisticInsert, rollback: optimisticRollback } =
+    useOptimisticChatMessage();
   const [shareSession] = useShareSessionMutation();
   const [unshareSession] = useUnshareSessionMutation();
   const [saveSnippet] = useSaveSnippetToNicheMutation();
@@ -136,15 +206,23 @@ const ChatPanel = () => {
   const handleSubmit = useCallback(
     async (payload: ChatInputBarSubmitPayload) => {
       const trimmed = payload.text.trim();
-      if (!trimmed || searching || !vaneOnline || isStreaming) return;
-
       const niche_id = payload.chip?.niche_id ?? null;
+      // PROJ-29 Phase 1I follow-up: niche-bound + agent-mode sends route to
+      // run_chat (no Vane dependency). Only require Vane online when neither
+      // a niche chip nor agent mode is active.
+      const needsVane =
+        niche_id === null &&
+        session?.niche_context_id == null &&
+        modeOverride !== 'agent';
+      if (!trimmed || searching || isStreaming) return;
+      if (needsVane && !vaneOnline) return;
 
       dispatch(setSearching(true));
       inputRef.current?.clear();
 
+      let sessionId = activeSessionId;
+      let tempId: string | null = null;
       try {
-        let sessionId = activeSessionId;
         if (!sessionId) {
           const newSession = await createSession({
             niche_context: niche_id ?? undefined,
@@ -155,36 +233,32 @@ const ChatPanel = () => {
           dispatch(openDrawer('chat'));
         }
 
-        // PROJ-17 Phase 4 Step 6: Agent → classic POST. Auto/Web → SSE stream.
-        // EC-7: starting a new stream auto-cancels any active stream.
-        if (modeOverride === 'agent') {
-          await sendMessage({
-            sessionId,
-            body: {
-              content: trimmed,
-              search_sources: searchSources,
-              model: selectedModel,
-              mode_override: modeOverride,
-            },
-          }).unwrap();
-          dispatch(setSearching(false));
-        } else {
-          const attachment_ids = attachmentUploads
-            .filter((u) => u.status === 'completed' && u.serverId)
-            .map((u) => u.serverId as string);
-          startStream({
-            content: trimmed,
-            mode_override: modeOverride,
-            niche_id,
-            sessionIdOverride: sessionId,
-            attachment_ids,
-            model: selectedModel,
-          });
-          // searching cleared by useSendMessageStream onDone callback
-        }
+        // PROJ-29 Phase 1J BUG-1 — show user's message in chat history
+        // within the same render cycle as submit, before the server response.
+        tempId = optimisticInsert({ sessionId, content: trimmed });
+
+        // PROJ-29 Phase 1J BUG-2 — unify agent + auto/web through SSE.
+        // The backend `_handle_niche_agent_stream` now accepts
+        // `mode_override='agent'`; routing via Redux modeOverride is preserved.
+        const attachment_ids = attachmentUploads
+          .filter((u) => u.status === 'completed' && u.serverId)
+          .map((u) => u.serverId as string);
+        startStream({
+          content: trimmed,
+          mode_override: modeOverride,
+          niche_id,
+          sessionIdOverride: sessionId,
+          attachment_ids,
+          model: selectedModel,
+        });
+        // searching cleared by useSendMessageStream onDone callback.
+        // Temp message replaced on RTK Query invalidation after `done` SSE.
       } catch {
         enqueueSnackbar(t('search.chat.sendError'), { variant: 'error' });
         dispatch(setSearching(false));
+        if (sessionId && tempId) {
+          optimisticRollback({ sessionId, tempId });
+        }
       }
     },
     [
@@ -192,14 +266,18 @@ const ChatPanel = () => {
       vaneOnline,
       isStreaming,
       activeSessionId,
-      searchSources,
       selectedModel,
       modeOverride,
+      // PROJ-29 Phase 1I follow-up: handleSubmit reads `session?.niche_context_id`
+      // to decide whether the request needs Vane. Listed here so the callback
+      // re-binds when session changes (also satisfies react-hooks/exhaustive-deps).
+      session?.niche_context_id,
       attachmentUploads,
       dispatch,
       createSession,
-      sendMessage,
       startStream,
+      optimisticInsert,
+      optimisticRollback,
       enqueueSnackbar,
       t,
     ],
@@ -283,29 +361,15 @@ const ChatPanel = () => {
       // query. Without this, the new SSE call drops attachment_ids and the
       // backend falls back to text-only mode against the same prompt.
       const attachment_ids = priorUserMessage.attachments?.map((a) => a.id) ?? [];
-      if (modeOverride === 'agent') {
-        try {
-          await sendMessage({
-            sessionId: activeSessionId,
-            body: {
-              content: priorUserContent,
-              search_sources: searchSources,
-              model: selectedModel,
-              mode_override: modeOverride,
-            },
-          }).unwrap();
-        } catch {
-          enqueueSnackbar(t('search.chat.sendError'), { variant: 'error' });
-        }
-      } else {
-        startStream({
-          content: priorUserContent,
-          mode_override: modeOverride,
-          niche_id,
-          sessionIdOverride: activeSessionId,
-          attachment_ids: attachment_ids.length > 0 ? attachment_ids : undefined,
-        });
-      }
+      // PROJ-29 Phase 1J BUG-2 — Regenerate also goes through SSE for both
+      // agent and auto/web modes. Backend distinguishes via mode_override.
+      startStream({
+        content: priorUserContent,
+        mode_override: modeOverride,
+        niche_id,
+        sessionIdOverride: activeSessionId,
+        attachment_ids: attachment_ids.length > 0 ? attachment_ids : undefined,
+      });
     },
     [
       activeSessionId,
@@ -314,9 +378,6 @@ const ChatPanel = () => {
       t,
       inputChip,
       modeOverride,
-      searchSources,
-      selectedModel,
-      sendMessage,
       startStream,
     ],
   );
@@ -402,6 +463,21 @@ const ChatPanel = () => {
         sessionId={activeSessionId ?? undefined}
         onRegenerate={isReadOnly ? undefined : handleRegenerate}
         onSaveAnswer={isReadOnly ? undefined : handleSaveAnswer}
+        sessionNicheId={session?.niche_context_id ?? null}
+        onFollowUpClick={
+          isReadOnly
+            ? undefined
+            : (text) => void handleSubmit({ text, chip: inputChip })
+        }
+        onRetry={
+          isReadOnly
+            ? undefined
+            : (userMessage) =>
+                void handleSubmit({
+                  text: userMessage.content,
+                  chip: inputChip,
+                })
+        }
       />
 
       {/* Input area — PROJ-20 Phase 3.7 unified ChatInputBar */}
@@ -412,7 +488,9 @@ const ChatPanel = () => {
             appearance="panel"
             onSubmit={handleSubmit}
             isSending={searching || isStreaming}
-            disabled={!vaneOnline}
+            // PROJ-29 Phase 1I follow-up: input always typeable so users can
+            // insert an @-mention even when Vane is degraded — `handleSubmit`
+            // gates the actual send when no niche context AND Vane is offline.
           />
         </InputArea>
       )}

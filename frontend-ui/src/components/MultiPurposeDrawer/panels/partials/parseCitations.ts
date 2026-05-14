@@ -16,9 +16,13 @@
  */
 export type CitationSegment =
   | { type: 'text'; value: string }
-  | { type: 'citation'; index: number };
+  | { type: 'citation'; index: number; kind: 'web' | 'niche' };
 
-const CITATION_RE = /\[(\d+)\]/g;
+// PROJ-29 Phase 1H-2: also match `[NICHE:N]` markers emitted by the niche-RAG
+// agent. Alternation tries `[NICHE:` first because the regex engine evaluates
+// branches left-to-right at each position — without this order `[NICHE:3]`
+// could be mis-parsed as `[3]` (matching the trailing `3]` after `NICHE:`).
+const CITATION_RE = /\[NICHE:(\d+)\]|\[(\d+)\]/g;
 
 /**
  * Split a string into text + citation segments.
@@ -55,7 +59,15 @@ export const parseCitations = (input: string): CitationSegment[] => {
       out.push({ type: 'text', value: input.slice(lastEnd, start) });
     }
 
-    out.push({ type: 'citation', index: parseInt(match[1], 10) });
+    // `match[1]` is the niche capture group, `match[2]` is the web capture.
+    // Exactly one is defined for any successful match.
+    const isNiche = match[1] !== undefined;
+    const indexStr = isNiche ? match[1] : match[2];
+    out.push({
+      type: 'citation',
+      index: parseInt(indexStr, 10),
+      kind: isNiche ? 'niche' : 'web',
+    });
     lastEnd = end;
   }
 

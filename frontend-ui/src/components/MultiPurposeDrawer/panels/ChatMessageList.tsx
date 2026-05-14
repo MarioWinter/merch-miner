@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Avatar, Box, Button, Stack, Typography, Skeleton } from '@mui/material';
 import { styled, alpha, keyframes } from '@mui/material/styles';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import ErrorIconOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
 import { useTranslation } from 'react-i18next';
 import type { ChatMessage } from '@/types/search';
+import type { SloganRow } from '@/types/chat-rag';
 import { useAppSelector } from '@/store/hooks';
 import JumpToLatestButton from './JumpToLatestButton';
 import WorkflowCard from './WorkflowCard';
@@ -12,6 +14,10 @@ import MarkdownAnswer from './partials/MarkdownAnswer';
 import MessageActionToolbar from './partials/MessageActionToolbar';
 import SourceList from './partials/SourceList';
 import UserAttachments from './partials/UserAttachments';
+import UserMessageToolbar from './partials/UserMessageToolbar';
+import ThinkingStrip from '@/components/ThinkingStrip';
+import GeneratedSloganTable from '@/components/GeneratedSloganTable';
+import FollowUpChips from '@/components/FollowUpChips';
 
 // Stable id used for the in-flight streaming bubble's citation lookup so
 // SourceCards rendered for the streaming message can be linked from `[N]`.
@@ -35,6 +41,15 @@ interface ChatMessageListProps {
   sessionId?: string;
   onRegenerate?: (assistantMessage: ChatMessage, priorUserMessage: ChatMessage) => void;
   onSaveAnswer?: (assistantMessage: ChatMessage) => void;
+  /** PROJ-29 Phase 1H-2: session.niche_context — drives Add-to-Niche flow. */
+  sessionNicheId?: string | null;
+  /** PROJ-29 Phase 1H-2: invoked when user clicks a FollowUpChip. */
+  onFollowUpClick?: (text: string) => void;
+  /** PROJ-29 Phase 1J follow-up: re-send a previous user message. Wired
+   *  through to the existing `startStream` path by the parent. Only the
+   *  Retry icon's visibility depends on the next-message error pairing —
+   *  the callback itself is always invoked with the original user content. */
+  onRetry?: (userMessage: ChatMessage) => void;
 }
 
 /** Distance from bottom (px) within which we consider the user "at the bottom" and re-engage auto-scroll. */
@@ -69,6 +84,13 @@ const MessageRow = styled(Box, {
   alignItems: 'flex-start',
   gap: theme.spacing(1),
   width: '100%',
+  // PROJ-29 Phase 1J follow-up — hover-reveal user-message toolbar.
+  // CSS-only: avoids a JS hover state that would re-render every row on
+  // scroll. The toolbar starts at opacity:0 (see UserMessageToolbar) and
+  // becomes visible when the row is hovered or any inner control is focused.
+  '&:hover .user-msg-actions, &:focus-within .user-msg-actions': {
+    opacity: 1,
+  },
 }));
 
 /** Right-side bubble — primary red, white text, classic chat-app look. */
@@ -93,6 +115,23 @@ const AssistantBubble = styled(Box)(({ theme }) => ({
   borderRadius: '4px 14px 14px 14px',
   backgroundColor: theme.vars.palette.background.paper,
   border: `1px solid ${theme.vars.palette.divider}`,
+}));
+
+/** PROJ-29 Phase 1J BUG-4 — error placeholder bubble. Persisted when the agent
+ *  stream errors before producing a final answer; pairs with the user message
+ *  so the chat list doesn't strand a question with no visible response. */
+const ErrorBubble = styled(Box)(({ theme }) => ({
+  maxWidth: 'calc(100% - 40px)',
+  display: 'flex',
+  alignItems: 'flex-start',
+  gap: theme.spacing(1),
+  padding: `${theme.spacing(1.25)} ${theme.spacing(1.5)}`,
+  borderRadius: '4px 14px 14px 14px',
+  backgroundColor: alpha(theme.palette.error.main, 0.08),
+  border: `1px solid ${alpha(theme.palette.error.main, 0.35)}`,
+  color: theme.vars.palette.error.main,
+  fontSize: '0.875rem',
+  lineHeight: 1.5,
 }));
 
 /** Small AI avatar to the left of assistant bubbles — ChatGPT-style. */
@@ -149,6 +188,8 @@ const ChatMessageList = ({
   onSaveKeywords, onSaveNotes,
   onSaveSelectionAsKeywords, onSaveSelectionAsNotes,
   sessionId, onRegenerate, onSaveAnswer,
+  sessionNicheId = null, onFollowUpClick,
+  onRetry,
 }: ChatMessageListProps) => {
   const { t } = useTranslation();
   // BUG-2 fix (2026-04-28): a useRef + useEffect pair was prone to HMR
@@ -167,8 +208,23 @@ const ChatMessageList = ({
   const streamingMessage = useAppSelector(
     (s) => s.chatBar.streamingAssistantMessage,
   );
+  // PROJ-29 Phase 1H-2 — slogan payloads (live + persisted-after-done)
+  const streamingSloganPayload = useAppSelector(
+    (s) => s.chatBar?.streamingSloganPayload ?? null,
+  );
+  const completedSloganPayload = useAppSelector(
+    (s) => s.chatBar?.completedSloganPayload ?? null,
+  );
   const showStreamingBubble =
     streamingMessage.isStreaming && streamingMessage.content !== '';
+
+  // Last assistant message index — drives "render FollowUpChips here only" rule.
+  const lastAssistantIdx = (() => {
+    for (let i = messages.length - 1; i >= 0; i -= 1) {
+      if (messages[i].role === 'assistant') return i;
+    }
+    return -1;
+  })();
 
   const setScrollRef = useCallback((node: HTMLDivElement | null) => {
     // Detach from previous element (HMR may keep an old node alive briefly).
@@ -285,26 +341,113 @@ const ChatMessageList = ({
                 )}
 
                 {msg.role === 'user' ? (
-                  <Stack alignItems="flex-end" gap={0.5} sx={{ maxWidth: '85%' }}>
-                    {msg.attachments && msg.attachments.length > 0 && (
-                      <UserAttachments attachments={msg.attachments} />
-                    )}
-                    <UserBubble>{msg.content}</UserBubble>
-                  </Stack>
+                  (() => {
+                    // PROJ-29 Phase 1J follow-up — only attach Retry when the
+                    // next sibling message is a persisted error placeholder.
+                    // Copy is always available via the hover-reveal toolbar.
+                    const nextMsg = messages[idx + 1];
+                    const followedByError =
+                      nextMsg?.role === 'assistant' &&
+                      nextMsg?.message_type === 'error';
+                    const retryHandler =
+                      onRetry && followedByError
+                        ? () => onRetry(msg)
+                        : undefined;
+                    return (
+                      <Stack
+                        alignItems="flex-end"
+                        gap={0.5}
+                        sx={{ maxWidth: '85%' }}
+                      >
+                        {msg.attachments && msg.attachments.length > 0 && (
+                          <UserAttachments attachments={msg.attachments} />
+                        )}
+                        <UserBubble>{msg.content}</UserBubble>
+                        <UserMessageToolbar
+                          content={msg.content}
+                          onRetry={retryHandler}
+                        />
+                      </Stack>
+                    );
+                  })()
                 ) : isWorkflow && msg.agent_session ? (
                   /* AC-42: Workflow-Card inline; takes full row width. */
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     <WorkflowCard agentSessionRef={msg.agent_session} />
                   </Box>
+                ) : msg.message_type === 'error' ? (
+                  /* PROJ-29 Phase 1J BUG-4 — paired error bubble when the agent
+                     stream failed before producing a final answer. */
+                  <AssistantContent>
+                    <ErrorBubble role="alert">
+                      <ErrorIconOutlinedIcon sx={{ fontSize: 18, mt: 0.25, flexShrink: 0 }} />
+                      <Stack gap={0.25}>
+                        <Box sx={{ fontWeight: 600 }}>
+                          {t('search.chat.errorBubble.title', 'Something went wrong')}
+                        </Box>
+                        <Box>{msg.content}</Box>
+                      </Stack>
+                    </ErrorBubble>
+                  </AssistantContent>
                 ) : (
                   <AssistantContent>
                     <AssistantBubble>
+                      {/* PROJ-29 Phase 1H — ThinkingStrip for persisted messages.
+                       *  No persisted thinking metadata yet (Phase 1I) — strip
+                       *  renders nothing until backend wiring lands. */}
+                      <ThinkingStrip
+                        messageId={msg.id}
+                        isStreaming={false}
+                        persistedSteps={msg.thinking_stages ?? undefined}
+                        persistedChunksUsed={msg.chunks_used ?? undefined}
+                        persistedDurationMs={(() => {
+                          // Compute total elapsed from earliest stage ts to the
+                          // last terminal (done/warning/error) ts. Falls back
+                          // to sum of durationMs when ts gap is unavailable.
+                          const stages = msg.thinking_stages ?? [];
+                          if (stages.length === 0) return undefined;
+                          const first = stages[0].ts;
+                          const last = stages[stages.length - 1];
+                          const lastEnd = last.ts + (last.durationMs ?? 0);
+                          return Math.max(0, lastEnd - first);
+                        })()}
+                      />
                       <MarkdownAnswer
                         content={msg.content}
                         sources={msg.sources ?? []}
                         messageId={msg.id}
                       />
                     </AssistantBubble>
+                    {/* PROJ-29 Phase 1H-2/1I — slogan table for the just-finished
+                     *  agent turn. Phase 1I persists the payload on the
+                     *  ChatMessage row itself (`msg.generate_slogans_payload`)
+                     *  so the table re-renders after page reload. The Redux
+                     *  fallback covers the small window between `done` and
+                     *  the RTK Query refetch landing the persisted message. */}
+                    {(() => {
+                      const persistedRows =
+                        msg.generate_slogans_payload?.slogans as
+                          | SloganRow[]
+                          | undefined;
+                      const reduxRows =
+                        completedSloganPayload?.messageId === msg.id
+                          ? completedSloganPayload.rows
+                          : undefined;
+                      const rows = persistedRows ?? reduxRows;
+                      if (!rows || rows.length === 0) return null;
+                      return (
+                        <GeneratedSloganTable
+                          rows={rows}
+                          sessionNicheId={sessionNicheId}
+                        />
+                      );
+                    })()}
+                    {/* PROJ-29 Phase 1H-2 — follow-up chips on the LAST
+                     *  assistant message only (graceful EC-20 + Q5A above
+                     *  MessageActionToolbar). */}
+                    {idx === lastAssistantIdx && onFollowUpClick && (
+                      <FollowUpChips onSelect={onFollowUpClick} />
+                    )}
                     {/* PROJ-20 Phase 5 — Action Toolbar (AC-30 to AC-34) */}
                     {sessionId && onRegenerate && onSaveAnswer && (
                       <MessageActionToolbar
@@ -351,6 +494,11 @@ const ChatMessageList = ({
               </AssistantAvatar>
               <AssistantContent>
                 <AssistantBubble aria-live="polite" aria-label={t('search.stream.streaming')}>
+                  {/* PROJ-29 Phase 1H — live ThinkingStrip above the streaming answer. */}
+                  <ThinkingStrip
+                    messageId={streamingMessage.id ?? STREAMING_MESSAGE_ID}
+                    isStreaming
+                  />
                   <MarkdownAnswer
                     content={streamingMessage.content}
                     sources={streamingMessage.sources}
@@ -358,6 +506,15 @@ const ChatMessageList = ({
                   />
                   <TypingCursor aria-hidden="true" />
                 </AssistantBubble>
+                {/* PROJ-29 Phase 1H-2 — live slogan table during the streaming
+                 *  turn. After `done` the payload moves to `completedSloganPayload`
+                 *  keyed by message id, and the table re-attaches there. */}
+                {streamingSloganPayload && streamingSloganPayload.length > 0 && (
+                  <GeneratedSloganTable
+                    rows={streamingSloganPayload}
+                    sessionNicheId={sessionNicheId}
+                  />
+                )}
                 {streamingMessage.sources.length > 0 && (
                   <SourceList
                     sources={streamingMessage.sources}

@@ -19,7 +19,10 @@ export type MessageType =
   | 'crawl_request'
   | 'crawl_result'
   | 'workflow_trigger'
-  | 'workflow_card';
+  | 'workflow_card'
+  // PROJ-29 Phase 1J BUG-4 — placeholder assistant row written when the agent
+  // stream emits an SSE `error` event before producing a final answer.
+  | 'error';
 
 /** Nested agent_session payload on workflow-card ChatMessages — matches backend ChatMessageSerializer.get_agent_session. */
 export interface ChatMessageAgentSessionRef {
@@ -38,16 +41,18 @@ export interface ChatMessageAgentSessionRef {
 export type CrawlStatus = 'pending' | 'running' | 'completed' | 'failed';
 export type ContentType = 'snippet' | 'full_crawl';
 
-export interface ChatSessionNicheContext {
-  id: string;
-  name: string;
-}
-
+/**
+ * PROJ-29 Phase 1I follow-up: backend serializer returns niche-context as flat
+ * `niche_context_id` + `niche_context_name` fields, not a nested object. The
+ * historical `niche_context: {id, name}` shape was never on the wire — it was
+ * inferred from a model field that gets flattened by `SerializerMethodField`.
+ */
 export interface ChatSession {
   id: string;
   title: string;
   is_shared: boolean;
-  niche_context: ChatSessionNicheContext | null;
+  niche_context_id: string | null;
+  niche_context_name: string | null;
   message_count: number;
   shared_by: string | null;
   created_by: string;
@@ -75,6 +80,32 @@ export interface ChatMessage {
   /** PROJ-20 Phase 7.6 — image attachments uploaded with this message
    *  (only populated for `role='user'`; older messages may have []). */
   attachments?: ChatAttachment[];
+  /** PROJ-29 Phase 1I — structured slogan payload from `generate_slogans`
+   *  tool. Null for every non-niche-agent message. Wire shape:
+   *  `{ slogans: SloganRow[], warnings: string[] }`. */
+  generate_slogans_payload?: {
+    slogans: unknown[];
+    warnings?: string[];
+  } | null;
+  /** PROJ-29 Phase 1I follow-up — retrieved RAG chunks for the ExpandedPanel +
+   *  citation hover-flash. Null on non-niche-agent messages. */
+  chunks_used?: Array<{
+    index: number;
+    content_subtype: string;
+    text: string;
+    source_pk?: string;
+    url?: string;
+    score?: number;
+  }> | null;
+  /** PROJ-29 Phase 1I follow-up — ThinkingStrip stage rows (collapsed pill +
+   *  expanded step log). Null on non-niche-agent messages. */
+  thinking_stages?: Array<{
+    stage: string;
+    status: 'loading' | 'done' | 'warning' | 'error';
+    ts: number;
+    durationMs?: number;
+    message?: string;
+  }> | null;
   created_at: string;
 }
 
@@ -196,7 +227,14 @@ export interface SSEDoneEvent {
 }
 
 export interface SSEErrorEvent {
-  error: string;
+  error?: string;
+  // PROJ-29 Phase 1J BUG-4 — backend now sends `code` (exception class name),
+  // `retry_after_s`, and a human-readable `display_message` so the UI can
+  // both snackbar AND surface the persisted error bubble.
+  code?: string;
+  retry_after_s?: number;
+  display_message?: string;
+  message_id?: string;
 }
 
 // PROJ-20 Phase 1.3 / Phase 2: share-link + public-fetch payloads

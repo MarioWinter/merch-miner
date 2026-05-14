@@ -22,15 +22,15 @@ describe('parseCitations', () => {
   it('parses one trailing citation', () => {
     expect(parseCitations('Hello [1]')).toEqual([
       { type: 'text', value: 'Hello ' },
-      { type: 'citation', index: 1 },
+      { type: 'citation', index: 1, kind: 'web' },
     ]);
   });
 
   it('parses adjacent citations [1][2]', () => {
     expect(parseCitations('Foo [1][2] bar')).toEqual([
       { type: 'text', value: 'Foo ' },
-      { type: 'citation', index: 1 },
-      { type: 'citation', index: 2 },
+      { type: 'citation', index: 1, kind: 'web' },
+      { type: 'citation', index: 2, kind: 'web' },
       { type: 'text', value: ' bar' },
     ]);
   });
@@ -38,14 +38,14 @@ describe('parseCitations', () => {
   it('parses citation followed by punctuation', () => {
     expect(parseCitations('End of sentence.[1]')).toEqual([
       { type: 'text', value: 'End of sentence.' },
-      { type: 'citation', index: 1 },
+      { type: 'citation', index: 1, kind: 'web' },
     ]);
   });
 
   it('parses citation inside parentheses', () => {
     expect(parseCitations('(see [1])')).toEqual([
       { type: 'text', value: '(see ' },
-      { type: 'citation', index: 1 },
+      { type: 'citation', index: 1, kind: 'web' },
       { type: 'text', value: ')' },
     ]);
   });
@@ -53,7 +53,7 @@ describe('parseCitations', () => {
   it('handles multi-digit indices', () => {
     expect(parseCitations('big number [42] in here')).toEqual([
       { type: 'text', value: 'big number ' },
-      { type: 'citation', index: 42 },
+      { type: 'citation', index: 42, kind: 'web' },
       { type: 'text', value: ' in here' },
     ]);
   });
@@ -70,17 +70,17 @@ describe('parseCitations', () => {
   it('handles multiple citations across the same line', () => {
     expect(parseCitations('a [1] b [2] c [3]')).toEqual([
       { type: 'text', value: 'a ' },
-      { type: 'citation', index: 1 },
+      { type: 'citation', index: 1, kind: 'web' },
       { type: 'text', value: ' b ' },
-      { type: 'citation', index: 2 },
+      { type: 'citation', index: 2, kind: 'web' },
       { type: 'text', value: ' c ' },
-      { type: 'citation', index: 3 },
+      { type: 'citation', index: 3, kind: 'web' },
     ]);
   });
 
   it('handles a citation at the very start', () => {
     expect(parseCitations('[1] first')).toEqual([
-      { type: 'citation', index: 1 },
+      { type: 'citation', index: 1, kind: 'web' },
       { type: 'text', value: ' first' },
     ]);
   });
@@ -96,8 +96,35 @@ describe('parseCitations', () => {
     // The parser still emits the index — guard happens upstream.
     expect(parseCitations('text [9999]')).toEqual([
       { type: 'text', value: 'text ' },
-      { type: 'citation', index: 9999 },
+      { type: 'citation', index: 9999, kind: 'web' },
     ]);
+  });
+
+  // PROJ-29 Phase 1H-2 — [NICHE:N] citation markers
+  it('parses one [NICHE:N] citation marker', () => {
+    expect(parseCitations('Soccer dad signal [NICHE:1] confirms it')).toEqual([
+      { type: 'text', value: 'Soccer dad signal ' },
+      { type: 'citation', index: 1, kind: 'niche' },
+      { type: 'text', value: ' confirms it' },
+    ]);
+  });
+
+  it('mixed citation formats coexist — [NICHE:2] AND [3] in same message', () => {
+    // Verification requirement from PROJ-29 Phase 1H task spec.
+    expect(parseCitations('Niche says [NICHE:2] and web confirms [3].')).toEqual([
+      { type: 'text', value: 'Niche says ' },
+      { type: 'citation', index: 2, kind: 'niche' },
+      { type: 'text', value: ' and web confirms ' },
+      { type: 'citation', index: 3, kind: 'web' },
+      { type: 'text', value: '.' },
+    ]);
+  });
+
+  it('regex alternation prefers [NICHE:N] over [N] when prefix matches', () => {
+    // Without longer-alternative-first ordering, [NICHE:3] could collapse to
+    // text "[NICHE:" + citation 3. Guard against that regression.
+    const segs = parseCitations('[NICHE:3]');
+    expect(segs).toEqual([{ type: 'citation', index: 3, kind: 'niche' }]);
   });
 
   it('meets performance budget: 10k chars + 50 citations < 50ms (EC-12)', () => {

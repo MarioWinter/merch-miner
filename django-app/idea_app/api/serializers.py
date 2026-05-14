@@ -2,7 +2,17 @@
 
 from rest_framework import serializers
 
-from idea_app.models import Idea, IdeaAdaptationRun, IdeaFilterTemplate
+from idea_app.models import (
+    ALLOWED_EMOTIONAL_ARCHETYPES,
+    Idea,
+    IdeaAdaptationRun,
+    IdeaFilterTemplate,
+)
+
+
+_VALID_PATTERN_KEYS = {key for key, _ in Idea.PatternUsed.choices}
+_VALID_STYLISTIC_KEYS = {key for key, _ in Idea.StylisticDevice.choices}
+_VALID_ARCHETYPES_SET = set(ALLOWED_EMOTIONAL_ARCHETYPES)
 
 
 class IdeaSerializer(serializers.ModelSerializer):
@@ -41,19 +51,99 @@ class IdeaSerializer(serializers.ModelSerializer):
             return obj.niche.name
         return None
 
+    # ---- PROJ-29 Phase 1B enum validators ---------------------------------
+    def validate_pattern_used(self, value):
+        """Accept blank '' (legacy / manual rows) or one of 16 enum keys."""
+        if value in (None, ''):
+            return ''
+        if value not in _VALID_PATTERN_KEYS:
+            raise serializers.ValidationError(
+                f"Unknown pattern '{value}'. Allowed: "
+                f"{sorted(_VALID_PATTERN_KEYS)}"
+            )
+        return value
+
+    def validate_stylistic_device(self, value):
+        """Accept blank '' or one of 8 enum keys."""
+        if value in (None, ''):
+            return ''
+        if value not in _VALID_STYLISTIC_KEYS:
+            raise serializers.ValidationError(
+                f"Unknown stylistic_device '{value}'. Allowed: "
+                f"{sorted(_VALID_STYLISTIC_KEYS)}"
+            )
+        return value
+
+    def validate_emotional_archetype(self, value):
+        """Accept blank / list / comma-separated string of 12 archetypes.
+
+        Model field is a CharField for legacy compatibility — agentic output
+        may produce a list (``["Hero", "Rebel"]``) which DRF serialises as a
+        string before reaching this validator. We therefore split on commas to
+        validate each token individually.
+        """
+        if value in (None, ''):
+            return ''
+        if isinstance(value, list):
+            tokens = [str(v).strip() for v in value if str(v).strip()]
+        else:
+            tokens = [t.strip() for t in str(value).split(',') if t.strip()]
+        for tok in tokens:
+            if tok not in _VALID_ARCHETYPES_SET:
+                raise serializers.ValidationError(
+                    f"Unknown archetype '{tok}'. Allowed: "
+                    f"{ALLOWED_EMOTIONAL_ARCHETYPES}"
+                )
+        return value
+
 
 class IdeaCreateSerializer(serializers.Serializer):
-    """Create manual/collected ideas. Supports batch (newline-separated)."""
+    """Create manual/collected ideas. Supports batch (newline-separated).
+
+    PROJ-29 Phase 1H-2: optional rich-metadata fields (signal_type, pattern_used,
+    stylistic_device, emotional_archetype, market_confidence, creative_modules_used,
+    status) so chat-agent-generated slogans can persist with their full payload in
+    a single request. All extras are optional — legacy single-line manual adds
+    continue to work without them.
+    """
 
     slogan_text = serializers.CharField(required=True)
     niche = serializers.UUIDField(required=False, allow_null=True, default=None)
     source_product_url = serializers.URLField(required=False, default='')
+    signal_type = serializers.ChoiceField(
+        choices=Idea.SignalType.choices, required=False, allow_null=True, default=None,
+    )
+    pattern_used = serializers.CharField(required=False, allow_blank=True, default='')
+    stylistic_device = serializers.CharField(required=False, allow_blank=True, default='')
+    emotional_archetype = serializers.CharField(required=False, allow_blank=True, default='')
+    market_confidence = serializers.ChoiceField(
+        choices=Idea.MarketConfidence.choices, required=False, allow_null=True, default=None,
+    )
+    creative_modules_used = serializers.ListField(
+        child=serializers.CharField(max_length=64),
+        required=False, default=list,
+    )
+    status = serializers.ChoiceField(
+        choices=Idea.Status.choices, required=False, default=None,
+    )
 
     def validate_slogan_text(self, value):
         value = value.strip()
         if not value:
             raise serializers.ValidationError("Slogan text cannot be empty.")
         return value
+
+    # Reuse the same enum validators as IdeaSerializer so create + update stay
+    # in sync. Delegate to bound-method form so the validator's `self` is the
+    # IdeaSerializer instance method.
+    def validate_pattern_used(self, value):
+        return IdeaSerializer.validate_pattern_used(IdeaSerializer(), value)
+
+    def validate_stylistic_device(self, value):
+        return IdeaSerializer.validate_stylistic_device(IdeaSerializer(), value)
+
+    def validate_emotional_archetype(self, value):
+        return IdeaSerializer.validate_emotional_archetype(IdeaSerializer(), value)
 
 
 class IdeaUpdateSerializer(serializers.ModelSerializer):
@@ -66,6 +156,10 @@ class IdeaUpdateSerializer(serializers.ModelSerializer):
             'market_confidence', 'emotional_archetype', 'board_layout',
         ]
         extra_kwargs = {field: {'required': False} for field in fields}
+
+    def validate_emotional_archetype(self, value):
+        # Reuse the same archetype validator as IdeaSerializer (PROJ-29).
+        return IdeaSerializer.validate_emotional_archetype(self, value)
 
     def validate_board_layout(self, value):
         if value is not None and not isinstance(value, dict):
