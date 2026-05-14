@@ -1,29 +1,25 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
-import { setDrawerWidth, type DrawerWidth } from '@/store/chatBarSlice';
+import {
+  setDrawerWidth,
+  DRAWER_WIDTH_MIN,
+  DRAWER_WIDTH_MAX,
+  DRAWER_WIDTH_DEFAULT,
+} from '@/store/chatBarSlice';
 
-const STEPS: DrawerWidth[] = [480, 768, 1200];
 const STORAGE_KEY = 'chatBar.drawerWidth';
 
-const snapToStep = (px: number): DrawerWidth => {
-  // Snap to closest of 480/768/1200
-  let nearest: DrawerWidth = STEPS[0];
-  let minDist = Math.abs(px - STEPS[0]);
-  for (const s of STEPS) {
-    const d = Math.abs(px - s);
-    if (d < minDist) {
-      nearest = s;
-      minDist = d;
-    }
-  }
-  return nearest;
-};
+const clamp = (n: number): number =>
+  Math.max(DRAWER_WIDTH_MIN, Math.min(DRAWER_WIDTH_MAX, n));
 
 /**
  * Drag-handle resize hook for the right drawer.
- * - Dragging from left edge of drawer changes width
- * - Snaps to 480/768/1200 on release
- * - Persists final width in localStorage
+ * - Drag from the drawer's left edge to change width.
+ * - PROJ-29 Phase 1J follow-up: STEPLESS — no snap on release; the live
+ *   pixel value is persisted directly.
+ * - Width persists in localStorage under `chatBar.drawerWidth`. Restores
+ *   on mount when the value parses as a finite number inside the
+ *   `[DRAWER_WIDTH_MIN, DRAWER_WIDTH_MAX]` range.
  */
 export const useDrawerResize = () => {
   const dispatch = useAppDispatch();
@@ -34,14 +30,16 @@ export const useDrawerResize = () => {
   const startWidthRef = useRef<number>(width);
   const liveWidthRef = useRef<number>(width);
 
-  // Restore persisted width on mount
+  // Restore persisted width on mount.
   useEffect(() => {
     const persisted = localStorage.getItem(STORAGE_KEY);
-    if (persisted) {
-      const v = parseInt(persisted, 10);
-      if (STEPS.includes(v as DrawerWidth)) {
-        dispatch(setDrawerWidth(v as DrawerWidth));
-      }
+    if (persisted == null) return;
+    const v = parseInt(persisted, 10);
+    if (Number.isFinite(v)) {
+      dispatch(setDrawerWidth(clamp(v)));
+    } else {
+      // Corrupted entry — drop it so the next persist replaces with a valid one.
+      localStorage.setItem(STORAGE_KEY, String(DRAWER_WIDTH_DEFAULT));
     }
   }, [dispatch]);
 
@@ -58,12 +56,12 @@ export const useDrawerResize = () => {
 
   const onPointerMove = useCallback((e: React.PointerEvent<HTMLElement>) => {
     if (!draggingRef.current) return;
-    // Drag-handle is on LEFT edge of right-anchored drawer
-    // Moving pointer LEFT (negative dx) → drawer wider
+    // Drag-handle is on LEFT edge of right-anchored drawer.
+    // Moving pointer LEFT (negative dx) → drawer wider.
     const dx = e.clientX - startXRef.current;
-    const newWidth = Math.max(380, Math.min(1400, startWidthRef.current - dx));
+    const newWidth = clamp(startWidthRef.current - dx);
     liveWidthRef.current = newWidth;
-    // Apply live preview via inline style on drawer paper
+    // Apply live preview via inline style on drawer paper.
     const paper = document.getElementById('mpd-drawer-paper');
     if (paper) paper.style.width = `${newWidth}px`;
   }, []);
@@ -77,10 +75,10 @@ export const useDrawerResize = () => {
       } catch {
         /* noop */
       }
-      const snapped = snapToStep(liveWidthRef.current);
-      dispatch(setDrawerWidth(snapped));
-      localStorage.setItem(STORAGE_KEY, String(snapped));
-      // Clear inline override so Drawer slot styling takes over again
+      const finalWidth = clamp(liveWidthRef.current);
+      dispatch(setDrawerWidth(finalWidth));
+      localStorage.setItem(STORAGE_KEY, String(finalWidth));
+      // Clear inline override so Drawer slot styling takes over again.
       const paper = document.getElementById('mpd-drawer-paper');
       if (paper) paper.style.width = '';
     },
