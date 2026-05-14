@@ -2655,7 +2655,10 @@
       "search": "Search",
       "close": "Close drawer",
       "noNicheSelected": "No niche selected",
-      "selectNicheHint": "Open a niche from the list to see its details here."
+      "selectNicheHint": "Open a niche from the list to see its details here.",
+      "layoutOverlapTooltip": "Side-by-side view",
+      "layoutSideBySideTooltip": "Overlap view",
+      "layoutToggleAriaLabel": "Toggle drawer layout"
     },
     "chat": {
       "model": "Model",

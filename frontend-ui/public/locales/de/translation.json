@@ -1899,7 +1899,10 @@
       "search": "Suche",
       "close": "Drawer schliessen",
       "noNicheSelected": "Keine Nische ausgewahlt",
-      "selectNicheHint": "Offne eine Nische aus der Liste, um Details hier zu sehen."
+      "selectNicheHint": "Offne eine Nische aus der Liste, um Details hier zu sehen.",
+      "layoutOverlapTooltip": "Nebeneinander-Ansicht",
+      "layoutSideBySideTooltip": "Ueberlappende Ansicht",
+      "layoutToggleAriaLabel": "Drawer-Layout umschalten"
     },
     "chat": {
       "model": "Modell",

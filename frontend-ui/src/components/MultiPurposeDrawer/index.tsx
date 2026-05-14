@@ -16,6 +16,7 @@ import { clearAttachments } from '@/store/attachmentsSlice';
 import type { DrawerPanel } from '@/types/search';
 import DrawerSegments from './DrawerSegments';
 import DrawerResizeHandle from './DrawerResizeHandle';
+import DrawerLayoutToggle from './DrawerLayoutToggle';
 import RecentChatsOverlay from './RecentChatsOverlay';
 import { useDrawerResize } from './hooks/useDrawerResize';
 import ChatPanel from './panels/ChatPanel';
@@ -104,6 +105,9 @@ const MultiPurposeDrawer = () => {
           onPointerUp={onPointerUp}
         />
       )}
+
+      {/* Layout toggle — flips between overlap and side-by-side modes */}
+      <DrawerLayoutToggle />
 
       <DrawerHeader>
         <DrawerSegments

@@ -42,7 +42,11 @@ describe('chatBarSlice', () => {
     const s = getChatBar(store);
     expect(s.barExpanded).toBe(false);
     expect(s.drawerOpen).toBe(false);
-    expect(s.drawerWidth).toBe(480);
+    // PROJ-29 Phase 1J follow-up: default raised from 480 to 768 (mid-size
+    // single-column / split-view) and width is now stepless `number` instead
+    // of the `480 | 768 | 1200` snap union.
+    expect(s.drawerWidth).toBe(768);
+    expect(s.drawerLayout).toBe('overlap');
     expect(s.activePanel).toBe('chat');
     expect(s.activeSessionId).toBeNull();
     expect(s.activeAgentSessionId).toBeNull();
@@ -106,12 +110,43 @@ describe('chatBarSlice', () => {
       expect(getChatBar(store).activePanel).toBe('niche');
     });
 
-    it('setDrawerWidth snaps to allowed values', () => {
+    it('setDrawerWidth accepts arbitrary stepless values within the clamp range', () => {
       const store = createStore();
-      store.dispatch(setDrawerWidth(768));
-      expect(getChatBar(store).drawerWidth).toBe(768);
-      store.dispatch(setDrawerWidth(1200));
-      expect(getChatBar(store).drawerWidth).toBe(1200);
+      store.dispatch(setDrawerWidth(612));
+      expect(getChatBar(store).drawerWidth).toBe(612);
+      store.dispatch(setDrawerWidth(901));
+      expect(getChatBar(store).drawerWidth).toBe(901);
+    });
+
+    it('setDrawerWidth clamps below 380 to 380', () => {
+      const store = createStore();
+      store.dispatch(setDrawerWidth(100));
+      expect(getChatBar(store).drawerWidth).toBe(380);
+    });
+
+    it('setDrawerWidth clamps above 1400 to 1400', () => {
+      const store = createStore();
+      store.dispatch(setDrawerWidth(5000));
+      expect(getChatBar(store).drawerWidth).toBe(1400);
+    });
+
+    it('toggleDrawerLayout flips between overlap and sideBySide', async () => {
+      const { toggleDrawerLayout } = await import('@/store/chatBarSlice');
+      const store = createStore();
+      expect(getChatBar(store).drawerLayout).toBe('overlap');
+      store.dispatch(toggleDrawerLayout());
+      expect(getChatBar(store).drawerLayout).toBe('sideBySide');
+      store.dispatch(toggleDrawerLayout());
+      expect(getChatBar(store).drawerLayout).toBe('overlap');
+    });
+
+    it('setDrawerLayout sets the value directly', async () => {
+      const { setDrawerLayout } = await import('@/store/chatBarSlice');
+      const store = createStore();
+      store.dispatch(setDrawerLayout('sideBySide'));
+      expect(getChatBar(store).drawerLayout).toBe('sideBySide');
+      store.dispatch(setDrawerLayout('overlap'));
+      expect(getChatBar(store).drawerLayout).toBe('overlap');
     });
   });
 
