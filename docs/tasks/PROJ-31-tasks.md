@@ -40,21 +40,21 @@ Branch: `feature/PROJ-31-entitlement-permission` (off main, already checked out)
 
 ## Phase 2 — Frontend Primitives
 
-- [ ] T2.1: Extend `frontend-ui/src/types/auth.ts` — `User` interface gains `subscription_tier: string` + `features: string[]`
-- [ ] T2.2: Extend `frontend-ui/src/store/authSlice.ts`:
+- [x] T2.1: Extend `frontend-ui/src/types/auth.ts` — `User` interface gains `subscription_tier: string` + `features: string[]`
+- [x] T2.2: Extend `frontend-ui/src/store/authSlice.ts`:
   - [ ] State shape adds `subscription_tier` + `features`
   - [ ] Reducer/action that sets these from `/me/` payload (likely existing `setUser` action — extend)
   - [ ] Default values: `subscription_tier: 'free'`, `features: []`
-- [ ] T2.3: Update `services/authService.ts` `/me/` fetch — TypeScript types pass through new fields
-- [ ] T2.4: Create `frontend-ui/src/constants/featureKeys.ts` — typed catalogue mirroring backend STAFF_ONLY + future tier keys
-- [ ] T2.5: Create `frontend-ui/src/hooks/useCan.ts` — `useCan(feature: string): boolean` reads authSlice; handles wildcard
-- [ ] T2.6: Vitest `hooks/__tests__/useCan.test.ts` — granted, denied, wildcard, empty features
-- [ ] T2.7: Create `frontend-ui/src/components/Gate.tsx` — wrapper component:
+- [x] T2.3: Update `services/authService.ts` `/me/` fetch — TypeScript types pass through new fields
+- [x] T2.4: Create `frontend-ui/src/constants/featureKeys.ts` — typed catalogue mirroring backend STAFF_ONLY + future tier keys
+- [x] T2.5: Create `frontend-ui/src/hooks/useCan.ts` — `useCan(feature: string): boolean` reads authSlice; handles wildcard
+- [x] T2.6: Vitest `hooks/__tests__/useCan.test.ts` — granted, denied, wildcard, empty features
+- [x] T2.7: Create `frontend-ui/src/components/Gate.tsx` — wrapper component:
   - [ ] Renders children when `useCan(feature) === true`
   - [ ] Renders `fallback` prop (optional, default null) otherwise
   - [ ] TypeScript prop interface
-- [ ] T2.8: Vitest `components/__tests__/Gate.test.tsx` — renders, hides, fallback, wildcard
-- [ ] T2.9: Run `npm run lint && npm run test:ci` (from `frontend-ui/`) — zero new failures
+- [x] T2.8: Vitest `components/__tests__/Gate.test.tsx` — renders, hides, fallback, wildcard
+- [x] T2.9: Run `npm run lint && npm run test:ci` (from `frontend-ui/`) — zero new failures
 
 ---
 

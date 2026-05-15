@@ -55,6 +55,8 @@ const LoginPage = () => {
           avatar_url: data.user.avatar_url ?? null,
           is_staff: data.user.is_staff ?? false,
           is_superuser: data.user.is_superuser ?? false,
+          subscription_tier: data.user.subscription_tier ?? 'free',
+          features: Array.isArray(data.user.features) ? data.user.features : [],
         }),
       );
       enqueueSnackbar(t('login.success'), { variant: 'success' });

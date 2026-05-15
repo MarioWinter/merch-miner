@@ -161,6 +161,8 @@ export const hydrateAuth = async () => {
         avatar_url: data.avatar_url ?? null,
         is_staff: data.is_staff ?? false,
         is_superuser: data.is_superuser ?? false,
+        subscription_tier: data.subscription_tier ?? 'free',
+        features: Array.isArray(data.features) ? data.features : [],
       }),
     );
   } catch {
