@@ -25,6 +25,8 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { useTranslation } from 'react-i18next';
 import { COLORS, DURATION, EASING } from '@/style/constants';
+import { useAppSelector } from '@/store/hooks';
+import { FEATURE_KEYS } from '@/constants/featureKeys';
 import VersionBadge from './VersionBadge';
 
 export const EXPANDED_WIDTH = 220;
@@ -182,6 +184,8 @@ interface NavItem {
   label: string;
   path: string;
   icon: React.ReactNode;
+  // PROJ-31 — optional entitlement key; missing = always visible.
+  feature?: string;
 }
 
 interface NavSection {
@@ -224,12 +228,17 @@ const Sidebar = ({
   // Mobile variant is permanently expanded (no hover, no collapse).
   const effectiveCollapsed = isMobileVariant ? false : collapsed && !hovered;
 
-  const sections: NavSection[] = [
+  // PROJ-31 — wildcard `*` = superuser bypass.
+  const userFeatures = useAppSelector((s) => s.auth.user?.features) ?? [];
+  const can = (feature?: string): boolean =>
+    !feature || userFeatures.includes('*') || userFeatures.includes(feature);
+
+  const sectionsRaw: NavSection[] = [
     {
       sectionKey: 'controlRoom',
       items: [
         { label: t('nav.dashboard'), path: '/dashboard', icon: <DashboardOutlinedIcon sx={{ fontSize: 20 }} /> },
-        { label: t('nav.kanban'), path: '/kanban', icon: <ViewKanbanOutlinedIcon sx={{ fontSize: 20 }} /> },
+        { label: t('nav.kanban'), path: '/kanban', icon: <ViewKanbanOutlinedIcon sx={{ fontSize: 20 }} />, feature: FEATURE_KEYS.KANBAN },
       ],
     },
     {
@@ -246,10 +255,15 @@ const Sidebar = ({
         { label: t('nav.slogans'), path: '/slogans', icon: <LightbulbOutlinedIcon sx={{ fontSize: 20 }} /> },
         { label: t('nav.designBoard'), path: '/designs', icon: <BrushOutlinedIcon sx={{ fontSize: 20 }} /> },
         { label: t('nav.listings'), path: '/publish', icon: <ArticleOutlinedIcon sx={{ fontSize: 20 }} /> },
-        { label: t('nav.uploads'), path: '/desktop-app', icon: <CloudUploadOutlinedIcon sx={{ fontSize: 20 }} /> },
+        { label: t('nav.uploads'), path: '/desktop-app', icon: <CloudUploadOutlinedIcon sx={{ fontSize: 20 }} />, feature: FEATURE_KEYS.DESKTOP_UPLOAD },
       ],
     },
   ];
+
+  // Drop items + empty sections that the user has no entitlement for.
+  const sections = sectionsRaw
+    .map((section) => ({ ...section, items: section.items.filter((i) => can(i.feature)) }))
+    .filter((section) => section.items.length > 0);
 
   const sectionLabels: Record<string, string> = {
     controlRoom: t('nav.sections.controlRoom'),
