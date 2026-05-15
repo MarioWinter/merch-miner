@@ -64,14 +64,14 @@ Branch: `feature/PROJ-30-app-responsive` (off `main`)
 
 ### 3B. Medium-risk views (Card-Collapse table partials)
 
-- [ ] T3.7: Create `views/niches/list/partials/NicheCardList.tsx` — vertical card list mirroring NicheTable columns, bulk-select retained
-- [ ] T3.8: Modify `views/niches/list/NicheListView.tsx` — branch to NicheCardList on `<744px` via `useResponsiveLayout` (AC-13)
-- [ ] T3.9: Vitest for NicheCardList — renders rows, bulk-select works
-- [ ] T3.10: Create `views/amazon/research/partials/ProductCardList.tsx`
-- [ ] T3.11: Create `views/amazon/keywords/research/partials/KeywordCardList.tsx`
-- [ ] T3.12: Create `views/settings/workspace/partials/MembersCardList.tsx`
-- [ ] T3.13: Create `views/designs/editor/partials/CloudFileCardList.tsx`
-- [ ] T3.14: Modify `views/amazon/research/AmazonResearchView.tsx`:
+- [x] T3.7: Create `views/niches/list/partials/NicheCardList.tsx` — vertical card list mirroring NicheTable columns, bulk-select retained
+- [x] T3.8: Modify `views/niches/list/NicheListView.tsx` — branch to NicheCardList on `<744px` via `useResponsiveLayout` (AC-13)
+- [x] T3.9: Vitest for NicheCardList — renders rows, bulk-select works
+- [x] T3.10: Create `views/amazon/research/partials/ProductCardList.tsx`
+- [x] T3.11: Create `views/amazon/keywords/research/partials/KeywordCardList.tsx`
+- [x] T3.12: Create `views/settings/workspace/partials/MembersCardList.tsx`
+- [x] T3.13: Create `views/designs/editor/partials/CloudFileCardList.tsx`
+- [x] T3.14: Modify `views/amazon/research/AmazonResearchView.tsx`:
   - Product grid 1/2/3/4 col responsive (AC-17)
   - AdvancedOptionsPanel behind button on `<744px`
   - Branch table → ProductCardList on `<744px`
