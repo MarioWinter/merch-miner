@@ -3,8 +3,8 @@ import { alpha, styled, keyframes } from '@mui/material/styles';
 import AutoGraphIcon from '@mui/icons-material/AutoGraph';
 import { useTranslation } from 'react-i18next';
 import { EASING, DURATION } from '@/style/constants';
-import { FEATURE_FLAGS } from '@/constants/featureFlags';
-import { useFeatureFlag } from '@/hooks/useFeatureFlag';
+import { FEATURE_KEYS } from '@/constants/featureKeys';
+import { useCan } from '@/hooks/useCan';
 import { AddToNicheButton } from './AddToNicheButton';
 
 interface FloatingActionBarProps {
@@ -66,7 +66,7 @@ export const FloatingActionBar = ({
   onClearSelection,
 }: FloatingActionBarProps) => {
   const { t } = useTranslation();
-  const enrichEnabled = useFeatureFlag(FEATURE_FLAGS.KEYWORD_ENRICH_ENABLED);
+  const enrichEnabled = useCan(FEATURE_KEYS.KEYWORD_JUNGLESCOUT);
 
   if (selectedCount === 0) return null;
 

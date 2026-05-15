@@ -25,8 +25,7 @@ import ProductDetailPage from './views/amazon/research/detail/ProductDetailPage'
 import SharedChatView from './views/shared/SharedChatView';
 import ImprintPage from './views/legal/imprint/ImprintPage';
 import PrivacyPage from './views/legal/privacy/PrivacyPage';
-import { getStaticFlag } from './utils/getStaticFlag';
-import { FEATURE_FLAGS } from './constants/featureFlags';
+import { isRegistrationEnabled } from './utils/isRegistrationEnabled';
 import { useVerifyActiveBatch } from './views/designs/board/hooks/useVerifyActiveBatch';
 
 
@@ -39,9 +38,11 @@ const App = () => {
   // server-side; clear if 404 / terminal so the topbar pill doesn't show stale.
   useVerifyActiveBatch();
 
-  // PROJ-24 AC-22 — gate /register route via static flag (admin-override exempt per AC-20d).
-  // Static evaluation at module/component-construction time → Vite tree-shakes when off.
-  const registrationEnabled = getStaticFlag(FEATURE_FLAGS.REGISTRATION_ENABLED);
+  // PROJ-31 — pre-auth flag: registration is the one gate that fires BEFORE
+  // login, so the entitlement system (`useCan`) cannot apply. Single ENV
+  // helper, no admin override needed (route is unreachable for admins anyway
+  // via Django Admin onboarding flow).
+  const registrationEnabled = isRegistrationEnabled();
 
   return (
     <Routes>

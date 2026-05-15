@@ -19,11 +19,11 @@ import { useTranslation } from 'react-i18next';
 import { loginSchema, type LoginFormValues } from './schemas/loginSchema';
 import AuthLayout from '../partials/AuthLayout';
 import GoogleButton from '../partials/GoogleButton';
-import { authService } from '../../../services/authService';
+import { authService, hydrateAuth } from '../../../services/authService';
 import { useAppDispatch } from '../../../store/hooks';
-import { setUser, setError } from '../../../store/authSlice';
-import { useFeatureFlag } from '../../../hooks/useFeatureFlag';
-import { FEATURE_FLAGS } from '../../../constants/featureFlags';
+import { setError } from '../../../store/authSlice';
+import { isRegistrationEnabled } from '../../../utils/isRegistrationEnabled';
+import { isGoogleLoginEnabled } from '../../../utils/isGoogleLoginEnabled';
 
 const LoginPage = () => {
   const { t } = useTranslation();
@@ -31,7 +31,8 @@ const LoginPage = () => {
   const dispatch = useAppDispatch();
   const { enqueueSnackbar } = useSnackbar();
   const [loading, setLoading] = useState(false);
-  const registrationEnabled = useFeatureFlag(FEATURE_FLAGS.REGISTRATION_ENABLED);
+  const registrationEnabled = isRegistrationEnabled();
+  const googleLoginEnabled = isGoogleLoginEnabled();
 
   const {
     control,
@@ -46,17 +47,11 @@ const LoginPage = () => {
     setLoading(true);
     dispatch(setError(null));
     try {
-      const data = await authService.login(values);
-      dispatch(
-        setUser({
-          id: data.user.id,
-          email: data.user.email,
-          first_name: data.user.first_name ?? '',
-          avatar_url: data.user.avatar_url ?? null,
-          is_staff: data.user.is_staff ?? false,
-          is_superuser: data.user.is_superuser ?? false,
-        }),
-      );
+      await authService.login(values);
+      // /me/ is the single source of truth for features + flags (PROJ-31).
+      // Re-hydrating here ensures the next user (after logout→login) gets a
+      // fresh entitlement payload without a hard page reload.
+      await hydrateAuth();
       enqueueSnackbar(t('login.success'), { variant: 'success' });
       navigate('/', { replace: true });
     } catch {
@@ -82,22 +77,26 @@ const LoginPage = () => {
         </Typography>
       </Stack>
 
-      {/* Google OAuth */}
-      <GoogleButton
-        fullWidth
-        variant="outlined"
-        startIcon={<GoogleIcon />}
-        onClick={handleGoogleLogin}
-        aria-label={t('auth.googleLogin')}
-      >
-        {t('auth.googleLogin')}
-      </GoogleButton>
+      {/* Google OAuth — pre-auth gate via ENV (no entitlement system possible here). */}
+      {googleLoginEnabled && (
+        <>
+          <GoogleButton
+            fullWidth
+            variant="outlined"
+            startIcon={<GoogleIcon />}
+            onClick={handleGoogleLogin}
+            aria-label={t('auth.googleLogin')}
+          >
+            {t('auth.googleLogin')}
+          </GoogleButton>
 
-      <Divider sx={{ mb: 3 }}>
-        <Typography variant="caption" sx={{ color: 'text.secondary', px: 1 }}>
-          {t('auth.orDivider')}
-        </Typography>
-      </Divider>
+          <Divider sx={{ mb: 3 }}>
+            <Typography variant="caption" sx={{ color: 'text.secondary', px: 1 }}>
+              {t('auth.orDivider')}
+            </Typography>
+          </Divider>
+        </>
+      )}
 
       {/* Email/Password form */}
       <Box

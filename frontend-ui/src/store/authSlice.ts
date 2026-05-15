@@ -5,10 +5,13 @@ export interface AuthUser {
   email: string;
   first_name: string;
   avatar_url: string | null;
-  // PROJ-24 — read-only flags from the backend serializer; drive the
-  // admin-override branch in `useFeatureFlag`.
   is_staff: boolean;
   is_superuser: boolean;
+  // PROJ-31 — entitlement layer. `subscription_tier` mirrors the User model
+  // field; `features` is the resolved feature-key list backing `useCan()` and
+  // `<Gate>`. Wildcard `'*'` indicates superuser bypass.
+  subscription_tier: string;
+  features: string[];
 }
 
 export interface AuthState {

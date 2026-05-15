@@ -11,8 +11,8 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
-import { FEATURE_FLAGS } from '../../../../constants/featureFlags';
-import { useFeatureFlag } from '../../../../hooks/useFeatureFlag';
+import { FEATURE_KEYS } from '../../../../constants/featureKeys';
+import { useCan } from '../../../../hooks/useCan';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import ExpandLessIcon from '@mui/icons-material/ExpandLess';
 import {
@@ -80,7 +80,7 @@ const ControlsRow = ({
   activeFilterCount,
 }: ControlsRowProps) => {
   const sortOptions: SortOption[] = isLive ? LIVE_SORT_OPTIONS : SORT_OPTIONS;
-  const multiMarketplaceEnabled = useFeatureFlag(FEATURE_FLAGS.MULTI_MARKETPLACE_ENABLED);
+  const multiMarketplaceEnabled = useCan(FEATURE_KEYS.AMAZON_MULTI_MARKETPLACE);
   const sortValue = isLive ? filters.live_sort_by : filters.sort_by;
   const sortKey: keyof ResearchFilters = isLive ? 'live_sort_by' : 'sort_by';
 
