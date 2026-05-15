@@ -1,8 +1,8 @@
 import { Button, CircularProgress, IconButton, Tooltip } from '@mui/material';
 import AutoGraphIcon from '@mui/icons-material/AutoGraph';
 import { useTranslation } from 'react-i18next';
-import { FEATURE_FLAGS } from '@/constants/featureFlags';
-import { useFeatureFlag } from '@/hooks/useFeatureFlag';
+import { FEATURE_KEYS } from '@/constants/featureKeys';
+import { useCan } from '@/hooks/useCan';
 
 interface EnrichButtonProps {
   /** Single keyword enrich (row-level) */
@@ -21,7 +21,7 @@ export const EnrichButton = ({
   variant = 'icon',
 }: EnrichButtonProps) => {
   const { t } = useTranslation();
-  const enrichEnabled = useFeatureFlag(FEATURE_FLAGS.KEYWORD_ENRICH_ENABLED);
+  const enrichEnabled = useCan(FEATURE_KEYS.KEYWORD_JUNGLESCOUT);
 
   const tooltipLabel = enrichEnabled
     ? t('keywords.enrich.buttonLabel')

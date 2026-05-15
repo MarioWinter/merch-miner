@@ -1,8 +1,8 @@
 import { FormControl, InputLabel, MenuItem, Select, Typography, type SelectChangeEvent } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import { MARKETPLACE_OPTIONS } from './constants';
-import { FEATURE_FLAGS } from '../../constants/featureFlags';
-import { useFeatureFlag } from '../../hooks/useFeatureFlag';
+import { FEATURE_KEYS } from '../../constants/featureKeys';
+import { useCan } from '../../hooks/useCan';
 
 export type { MarketplaceOption } from './constants';
 export { MARKETPLACE_OPTIONS } from './constants';
@@ -21,7 +21,7 @@ const ENABLED_MARKETPLACE_VALUE = 'amazon_com';
 
 const MarketplaceSelect = ({ value, onChange, size = 'small', minWidth = 180 }: MarketplaceSelectProps) => {
   const { t } = useTranslation();
-  const multiMarketplaceEnabled = useFeatureFlag(FEATURE_FLAGS.MULTI_MARKETPLACE_ENABLED);
+  const multiMarketplaceEnabled = useCan(FEATURE_KEYS.AMAZON_MULTI_MARKETPLACE);
 
   const handleChange = (e: SelectChangeEvent) => {
     onChange(e.target.value);

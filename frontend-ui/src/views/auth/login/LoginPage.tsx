@@ -22,8 +22,7 @@ import GoogleButton from '../partials/GoogleButton';
 import { authService } from '../../../services/authService';
 import { useAppDispatch } from '../../../store/hooks';
 import { setUser, setError } from '../../../store/authSlice';
-import { useFeatureFlag } from '../../../hooks/useFeatureFlag';
-import { FEATURE_FLAGS } from '../../../constants/featureFlags';
+import { isRegistrationEnabled } from '../../../utils/isRegistrationEnabled';
 
 const LoginPage = () => {
   const { t } = useTranslation();
@@ -31,7 +30,7 @@ const LoginPage = () => {
   const dispatch = useAppDispatch();
   const { enqueueSnackbar } = useSnackbar();
   const [loading, setLoading] = useState(false);
-  const registrationEnabled = useFeatureFlag(FEATURE_FLAGS.REGISTRATION_ENABLED);
+  const registrationEnabled = isRegistrationEnabled();
 
   const {
     control,

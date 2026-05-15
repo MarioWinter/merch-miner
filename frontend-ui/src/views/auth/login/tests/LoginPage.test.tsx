@@ -3,7 +3,7 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../../../utils/test-utils';
 import LoginPage from '../LoginPage';
-import { useFeatureFlag } from '../../../../hooks/useFeatureFlag';
+import { isRegistrationEnabled } from '../../../../utils/isRegistrationEnabled';
 
 vi.mock('../../../../services/authService', () => ({
   authService: {
@@ -12,8 +12,8 @@ vi.mock('../../../../services/authService', () => ({
   },
 }));
 
-vi.mock('../../../../hooks/useFeatureFlag', () => ({
-  useFeatureFlag: vi.fn(() => true),
+vi.mock('../../../../utils/isRegistrationEnabled', () => ({
+  isRegistrationEnabled: vi.fn(() => true),
 }));
 
 const mockNavigate = vi.fn();
@@ -30,7 +30,7 @@ describe('LoginPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Default: registration enabled (existing tests rely on link being present-or-irrelevant)
-    vi.mocked(useFeatureFlag).mockReturnValue(true);
+    vi.mocked(isRegistrationEnabled).mockReturnValue(true);
   });
 
   it('renders email/password form and Google button', () => {
@@ -54,7 +54,7 @@ describe('LoginPage', () => {
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true }));
     expect(store.getState().auth.isAuthenticated).toBe(true);
-    expect(store.getState().auth.user).toEqual({ id: 1, email: 'test@example.com', first_name: 'Test', avatar_url: null, is_staff: false, is_superuser: false });
+    expect(store.getState().auth.user).toEqual({ id: 1, email: 'test@example.com', first_name: 'Test', avatar_url: null, is_staff: false, is_superuser: false, subscription_tier: 'free', features: [] });
   });
 
   it('shows error snackbar and dispatches setError on failed login', async () => {
@@ -100,7 +100,7 @@ describe('LoginPage', () => {
 
   // PROJ-24 AC-21 — register link gating via REGISTRATION_ENABLED feature flag
   it('hides register link when REGISTRATION_ENABLED flag is off', () => {
-    vi.mocked(useFeatureFlag).mockReturnValue(false);
+    vi.mocked(isRegistrationEnabled).mockReturnValue(false);
     renderLoginPage();
 
     expect(screen.queryByRole('link', { name: /sign up/i })).not.toBeInTheDocument();
@@ -108,7 +108,7 @@ describe('LoginPage', () => {
   });
 
   it('shows register link when REGISTRATION_ENABLED flag is on', () => {
-    vi.mocked(useFeatureFlag).mockReturnValue(true);
+    vi.mocked(isRegistrationEnabled).mockReturnValue(true);
     renderLoginPage();
 
     const signUpLink = screen.getByRole('link', { name: /sign up/i });

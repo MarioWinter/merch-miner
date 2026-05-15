@@ -60,23 +60,23 @@ Branch: `feature/PROJ-31-entitlement-permission` (off main, already checked out)
 
 ## Phase 3 — PROJ-24 Cleanup (Clean Cut Removal)
 
-- [ ] T3.1: Rename ENV var `VITE_FF_REGISTRATION_ENABLED` → `VITE_ENABLE_REGISTRATION` in:
+- [x] T3.1: Rename ENV var `VITE_FF_REGISTRATION_ENABLED` → `VITE_ENABLE_REGISTRATION` in:
   - [ ] `frontend-ui/.env*` template files
   - [ ] `docs/` references if any
   - [ ] `frontend-ui/src/utils/getStaticFlag.ts` (trim to single-case API)
-- [ ] T3.2: Update `App.tsx` line 44 — replace `getStaticFlag(FEATURE_FLAGS.REGISTRATION_ENABLED)` with new minimal `getStaticFlag('REGISTRATION_ENABLED')` (or directly `import.meta.env.VITE_ENABLE_REGISTRATION === 'true'`)
-- [ ] T3.3: Update `views/auth/login/LoginPage.tsx` + its test — same env var rename
-- [ ] T3.4: MIGRATE `components/MarketplaceSelect/index.tsx` — replace `useFeatureFlag(MULTI_MARKETPLACE_ENABLED)` with `useCan('amazon.multi-marketplace')`
-- [ ] T3.5: MIGRATE `views/amazon/keywords/research/partials/EnrichButton.tsx` — replace KEYWORD_ENRICH_ENABLED with `useCan('keyword.junglescout')`
-- [ ] T3.6: MIGRATE `views/amazon/keywords/research/partials/FloatingActionBar.tsx` — same migration
-- [ ] T3.7: MIGRATE `views/amazon/research/partials/ControlsRow.tsx` — per Phase 0 inspection result
-- [ ] T3.8: REMOVE references to `useFeatureFlag` in `store/authSlice.ts`
-- [ ] T3.9: DELETE `frontend-ui/src/hooks/useFeatureFlag.ts`
-- [ ] T3.10: DELETE `frontend-ui/src/hooks/__tests__/useFeatureFlag.test.tsx`
-- [ ] T3.11: DELETE `frontend-ui/src/constants/featureFlags.ts` (keep only the `REGISTRATION_ENABLED` key if `getStaticFlag` still needs it, else delete entirely and inline the string)
-- [ ] T3.12: Update or DELETE `frontend-ui/src/utils/__tests__/getStaticFlag.test.ts` — keep tests for the single REGISTRATION_ENABLED case; delete the rest
-- [ ] T3.13: Grep verify — zero remaining `useFeatureFlag` imports anywhere in `src/`
-- [ ] T3.14: Run `npm run lint && npm run test:ci` — zero new failures, zero unused-import warnings
+- [x] T3.2: Update `App.tsx` line 44 — replace `getStaticFlag(FEATURE_FLAGS.REGISTRATION_ENABLED)` with new minimal `getStaticFlag('REGISTRATION_ENABLED')` (or directly `import.meta.env.VITE_ENABLE_REGISTRATION === 'true'`)
+- [x] T3.3: Update `views/auth/login/LoginPage.tsx` + its test — same env var rename
+- [x] T3.4: MIGRATE `components/MarketplaceSelect/index.tsx` — replace `useFeatureFlag(MULTI_MARKETPLACE_ENABLED)` with `useCan('amazon.multi-marketplace')`
+- [x] T3.5: MIGRATE `views/amazon/keywords/research/partials/EnrichButton.tsx` — replace KEYWORD_ENRICH_ENABLED with `useCan('keyword.junglescout')`
+- [x] T3.6: MIGRATE `views/amazon/keywords/research/partials/FloatingActionBar.tsx` — same migration
+- [x] T3.7: MIGRATE `views/amazon/research/partials/ControlsRow.tsx` — per Phase 0 inspection result
+- [x] T3.8: REMOVE references to `useFeatureFlag` in `store/authSlice.ts`
+- [x] T3.9: DELETE `frontend-ui/src/hooks/useFeatureFlag.ts`
+- [x] T3.10: DELETE `frontend-ui/src/hooks/__tests__/useFeatureFlag.test.tsx`
+- [x] T3.11: DELETE `frontend-ui/src/constants/featureFlags.ts` (keep only the `REGISTRATION_ENABLED` key if `getStaticFlag` still needs it, else delete entirely and inline the string)
+- [x] T3.12: Update or DELETE `frontend-ui/src/utils/__tests__/getStaticFlag.test.ts` — keep tests for the single REGISTRATION_ENABLED case; delete the rest
+- [x] T3.13: Grep verify — zero remaining `useFeatureFlag` imports anywhere in `src/`
+- [x] T3.14: Run `npm run lint && npm run test:ci` — zero new failures, zero unused-import warnings
 
 ---
 
