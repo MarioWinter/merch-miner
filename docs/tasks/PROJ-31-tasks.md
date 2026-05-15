@@ -19,22 +19,22 @@ Branch: `feature/PROJ-31-entitlement-permission` (off main, already checked out)
 
 ## Phase 1 — Backend Foundation
 
-- [ ] T1.1: Add `subscription_tier` CharField to `user_auth_app/models.py` `User` model (choices: free/pro/premium/business; default `'free'`; `db_index=True`; max_length=16)
-- [ ] T1.2: Generate migration `python manage.py makemigrations` → review SQL → verify DEFAULT `'free'` applies to existing rows
-- [ ] T1.3: Apply migration in dev: `python manage.py migrate`
-- [ ] T1.4: Confirm Mario (superuser account) gets `subscription_tier = 'free'` after migration (the wildcard `'*'` comes from `is_superuser`, not tier)
-- [ ] T1.5: Create `django-app/core/entitlements.py`:
-  - [ ] `TIER_FEATURES` dict with initial catalogue (free: 4 keys; pro/premium/business: placeholder for now)
-  - [ ] `STAFF_ONLY_FEATURES` list (5 ex-PROJ-24 flags + 3 admin keys)
-  - [ ] `SUPERUSER_FEATURES = ['*']`
-  - [ ] `resolve_features(user) -> list[str]` with dedup logic
-- [ ] T1.6: Create `user_auth_app/api/permissions.py` (or add to existing) — `HasFeature` DRF permission class with logging
-- [ ] T1.7: Extend `UserProfileSerializer` (line 365 of `serializers.py`) — add `subscription_tier` (model field) and `features` (`SerializerMethodField` calling `resolve_features`)
-- [ ] T1.8: Add `subscription_tier` to `UserAdmin` (`user_auth_app/admin.py`) as editable dropdown
-- [ ] T1.9: pytest `test_entitlements.py` — covers each tier resolution, staff append, superuser wildcard, dedup
-- [ ] T1.10: pytest `test_has_feature_permission.py` — granted (200), denied (403), wildcard (200), logging assertion
-- [ ] T1.11: pytest extend `test_me_payload.py` — assert `subscription_tier` + `features[]` in response for each user type
-- [ ] T1.12: Run `docker compose exec web pytest` — zero new failures
+- [x] T1.1: Add `subscription_tier` CharField to `user_auth_app/models.py` `User` model (choices: free/pro/premium/business; default `'free'`; `db_index=True`; max_length=16)
+- [x] T1.2: Generate migration `python manage.py makemigrations` → review SQL → verify DEFAULT `'free'` applies to existing rows
+- [x] T1.3: Apply migration in dev: `python manage.py migrate`
+- [x] T1.4: Confirm Mario (superuser account) gets `subscription_tier = 'free'` after migration (the wildcard `'*'` comes from `is_superuser`, not tier)
+- [x] T1.5: Create `django-app/core/entitlements.py`:
+  - [x] `TIER_FEATURES` dict with initial catalogue (free: 4 keys; pro/premium/business: placeholder for now)
+  - [x] `STAFF_ONLY_FEATURES` list (5 ex-PROJ-24 flags + 3 admin keys)
+  - [x] `SUPERUSER_FEATURES = ['*']`
+  - [x] `resolve_features(user) -> list[str]` with dedup logic
+- [x] T1.6: Create `user_auth_app/api/permissions.py` (or add to existing) — `HasFeature` DRF permission class with logging
+- [x] T1.7: Extend `UserProfileSerializer` (line 365 of `serializers.py`) — add `subscription_tier` (model field) and `features` (`SerializerMethodField` calling `resolve_features`)
+- [x] T1.8: Add `subscription_tier` to `UserAdmin` (`user_auth_app/admin.py`) as editable dropdown
+- [x] T1.9: pytest `test_entitlements.py` — covers each tier resolution, staff append, superuser wildcard, dedup
+- [x] T1.10: pytest `test_has_feature_permission.py` — granted (200), denied (403), wildcard (200), logging assertion
+- [x] T1.11: pytest extend `test_me_payload.py` — assert `subscription_tier` + `features[]` in response for each user type
+- [x] T1.12: Run `docker compose exec web pytest` — zero new failures
 
 ---
 

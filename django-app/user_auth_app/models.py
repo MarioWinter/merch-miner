@@ -30,7 +30,15 @@ class CustomUserManager(BaseUserManager):
 
 class User(AbstractUser):
     """Custom user model with email as username field."""
-    
+
+    # PROJ-31: entitlement tier. Polar.sh (PROJ-32) writes here via webhook.
+    SUBSCRIPTION_TIER_CHOICES = [
+        ('free', 'Free'),
+        ('pro', 'Pro'),
+        ('premium', 'Premium'),
+        ('business', 'Business'),
+    ]
+
     username = models.CharField(
         'username',
         max_length=150,
@@ -43,9 +51,16 @@ class User(AbstractUser):
     is_active = models.BooleanField(default=False)
 
     USERNAME_FIELD = 'email'
-    REQUIRED_FIELDS = []     
+    REQUIRED_FIELDS = []
 
     avatar = models.CharField(max_length=500, blank=True, null=True)
+
+    subscription_tier = models.CharField(
+        max_length=16,
+        choices=SUBSCRIPTION_TIER_CHOICES,
+        default='free',
+        db_index=True,
+    )
 
     objects = CustomUserManager()
 
