@@ -1,13 +1,16 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Alert, Badge, Box, Button, IconButton, InputBase, Skeleton, Tooltip, Typography } from '@mui/material';
+import { Alert, Badge, Box, Button, Drawer, Fab, IconButton, InputBase, Skeleton, Tooltip, Typography } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import SettingsOutlinedIcon from '@mui/icons-material/SettingsOutlined';
 import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import BuildOutlinedIcon from '@mui/icons-material/BuildOutlined';
+import CloseIcon from '@mui/icons-material/Close';
+import TuneIcon from '@mui/icons-material/Tune';
 import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { useGetProjectQuery, useGetProjectBoardQuery, useUpdateProjectMutation } from '@/store/designSlice';
 import { useAppDispatch } from '@/store/hooks';
 import { openNicheEdit } from '@/store/chatBarSlice';
@@ -75,6 +78,8 @@ const DesignWorkspaceView = () => {
   const dispatch = useAppDispatch();
   const { activeTab, setActiveTab } = useWorkspaceTab();
   const { enqueueSnackbar } = useSnackbar();
+  const { isDesktop } = useResponsiveLayout();
+  const [mobileRightPanelOpen, setMobileRightPanelOpen] = useState(false);
 
   const {
     data: project,
@@ -210,6 +215,62 @@ const DesignWorkspaceView = () => {
 
   const handlePromptClick = useCallback((p: ProjectPrompt) => { gen.setPrompt(p.prompt_text); }, [gen]);
 
+  // PROJ-30 T3.17 — Render RightPanel once; re-used by the desktop inline
+  // pane and the mobile bottom Drawer.
+  const rightPanelElement = (
+    <RightPanel
+      panelState={panelState}
+      onUpdateArtboard={artboardState.updateArtboard}
+      onResizeArtboard={artboardState.resizeArtboard}
+      onAddToEditor={actions.handleAddToEditor}
+      onOpenInEditor={actions.handleOpenInEditor}
+      onDeleteSelected={actions.handleDeleteSelected}
+      onExportSelected={actions.handleExportSelected}
+      getSendableDesignIds={getSendableDesignIds}
+      onSendToListings={handleSendToListings}
+      onUpdateElement={canvas.handleElementUpdate}
+      onSelectElement={canvas.handleElementSelect}
+      onReorderElement={canvas.canvasElements.reorderElement}
+      onDeleteElement={canvas.handleDeleteElement}
+      selectedElementId={canvas.elementSelection.selectedElementId}
+      prompt={gen.prompt}
+      onPromptChange={gen.setPrompt}
+      model={gen.aiModel}
+      onModelChange={gen.setAiModel}
+      bgColor={gen.bgColor}
+      onBgColorChange={gen.setBgColor}
+      imageCount={gen.imageCount}
+      onImageCountChange={gen.setImageCount}
+      onGenerate={gen.handleGenerate}
+      isGenerating={gen.generation.isGenerating}
+      isParallel={gen.isParallel}
+      onParallelToggle={gen.setIsParallel}
+      onOpenPromptBuilder={gen.handleOpenPromptBuilder}
+      onAnalyzeImage={actions.handleAnalyzeImage}
+      isAnalyzingImage={gen.imageAnalysis.isAnalyzing}
+      hasSelectedImage={gen.hasSelectedImage}
+      generationMode={gen.generationMode}
+      onGenerationModeChange={gen.setGenerationMode}
+      aspectRatio={gen.aspectRatio}
+      onAspectRatioChange={gen.setAspectRatio}
+      ideas={boardData?.ideas}
+      prompts={boardData?.prompts}
+      artboards={artboardState.artboards}
+      selectedIds={artboardState.selectedIds}
+      onInsertSlogan={gen.handleInsertSlogan}
+      onPromptClick={handlePromptClick}
+      onSelectArtboard={actions.handlePanelSelectArtboard}
+      onCreateSkeletonArtboards={gen.handleCreateSkeletonArtboards}
+      selectedArtboardId={artboardState.selectedIds.size > 0 ? [...artboardState.selectedIds][0] : undefined}
+      projectId={projectId}
+      references={boardData?.references}
+      onUseAsReference={gen.handleUseAsReference}
+      onUseAsPrompt={gen.handleUseAsPrompt}
+      sourceImageUrl={gen.sourceImageUrl}
+      onClearSourceImage={gen.handleClearSourceImage}
+    />
+  );
+
   // -- Loading --
   if (isLoading) {
     return (
@@ -297,6 +358,10 @@ const DesignWorkspaceView = () => {
       <ContentArea>
         {activeTab === 'canvas' ? (
           <>
+            {/* PROJ-30 T3.17 — On non-desktop viewports (<900px) the
+                300px right pane is hidden inline and accessible via a
+                bottom Drawer triggered by the FAB below. Canvas takes
+                100% width on <md so designers retain full preview. */}
             <CanvasColumn>
               <ArtboardCanvas
                 projectId={projectId ?? ''}
@@ -360,57 +425,71 @@ const DesignWorkspaceView = () => {
                 canRedo={canvas.canvasHistory.canRedo}
               />
             </CanvasColumn>
-            <RightPanel
-              panelState={panelState}
-              onUpdateArtboard={artboardState.updateArtboard}
-              onResizeArtboard={artboardState.resizeArtboard}
-              onAddToEditor={actions.handleAddToEditor}
-              onOpenInEditor={actions.handleOpenInEditor}
-              onDeleteSelected={actions.handleDeleteSelected}
-              onExportSelected={actions.handleExportSelected}
-              getSendableDesignIds={getSendableDesignIds}
-              onSendToListings={handleSendToListings}
-              onUpdateElement={canvas.handleElementUpdate}
-              onSelectElement={canvas.handleElementSelect}
-              onReorderElement={canvas.canvasElements.reorderElement}
-              onDeleteElement={canvas.handleDeleteElement}
-              selectedElementId={canvas.elementSelection.selectedElementId}
-              prompt={gen.prompt}
-              onPromptChange={gen.setPrompt}
-              model={gen.aiModel}
-              onModelChange={gen.setAiModel}
-              bgColor={gen.bgColor}
-              onBgColorChange={gen.setBgColor}
-              imageCount={gen.imageCount}
-              onImageCountChange={gen.setImageCount}
-              onGenerate={gen.handleGenerate}
-              isGenerating={gen.generation.isGenerating}
-              isParallel={gen.isParallel}
-              onParallelToggle={gen.setIsParallel}
-              onOpenPromptBuilder={gen.handleOpenPromptBuilder}
-              onAnalyzeImage={actions.handleAnalyzeImage}
-              isAnalyzingImage={gen.imageAnalysis.isAnalyzing}
-              hasSelectedImage={gen.hasSelectedImage}
-              generationMode={gen.generationMode}
-              onGenerationModeChange={gen.setGenerationMode}
-              aspectRatio={gen.aspectRatio}
-              onAspectRatioChange={gen.setAspectRatio}
-              ideas={boardData?.ideas}
-              prompts={boardData?.prompts}
-              artboards={artboardState.artboards}
-              selectedIds={artboardState.selectedIds}
-              onInsertSlogan={gen.handleInsertSlogan}
-              onPromptClick={handlePromptClick}
-              onSelectArtboard={actions.handlePanelSelectArtboard}
-              onCreateSkeletonArtboards={gen.handleCreateSkeletonArtboards}
-              selectedArtboardId={artboardState.selectedIds.size > 0 ? [...artboardState.selectedIds][0] : undefined}
-              projectId={projectId}
-              references={boardData?.references}
-              onUseAsReference={gen.handleUseAsReference}
-              onUseAsPrompt={gen.handleUseAsPrompt}
-              sourceImageUrl={gen.sourceImageUrl}
-              onClearSourceImage={gen.handleClearSourceImage}
-            />
+            {isDesktop && rightPanelElement}
+
+            {!isDesktop && (
+              <>
+                <Tooltip title={t('responsive.designWorkspace.openRightPanel', 'Tools')}>
+                  <Fab
+                    color="primary"
+                    size="medium"
+                    onClick={() => setMobileRightPanelOpen(true)}
+                    aria-label={t('responsive.designWorkspace.openRightPanel', 'Tools')}
+                    sx={{
+                      position: 'absolute',
+                      right: 16,
+                      bottom: 'calc(env(safe-area-inset-bottom, 0px) + 16px)',
+                      zIndex: 1200,
+                    }}
+                  >
+                    <TuneIcon />
+                  </Fab>
+                </Tooltip>
+
+                <Drawer
+                  anchor="bottom"
+                  open={mobileRightPanelOpen}
+                  onClose={() => setMobileRightPanelOpen(false)}
+                  slotProps={{
+                    paper: {
+                      sx: {
+                        borderTopLeftRadius: 16,
+                        borderTopRightRadius: 16,
+                        maxHeight: 'calc(100dvh - 56px)',
+                        height: '80vh',
+                        display: 'flex',
+                        flexDirection: 'column',
+                      },
+                    },
+                  }}
+                >
+                  <Box
+                    sx={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      px: 2,
+                      py: 1,
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                    }}
+                  >
+                    <Typography variant="subtitle1" sx={{ fontWeight: 600 }}>
+                      {t('responsive.designWorkspace.openRightPanel', 'Tools')}
+                    </Typography>
+                    <IconButton
+                      onClick={() => setMobileRightPanelOpen(false)}
+                      aria-label={t('responsive.dialog.closeLabel', 'Close')}
+                    >
+                      <CloseIcon />
+                    </IconButton>
+                  </Box>
+                  <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+                    {rightPanelElement}
+                  </Box>
+                </Drawer>
+              </>
+            )}
           </>
         ) : (
           <DesignEditorView projectId={projectId ?? ''} editorBatch={editorBatchHook.editorBatch} onAddToCanvas={actions.handleAddToCanvas} />

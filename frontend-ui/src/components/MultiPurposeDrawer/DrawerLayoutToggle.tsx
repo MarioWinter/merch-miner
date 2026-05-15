@@ -4,13 +4,14 @@
  * drawer floats on content) and `sideBySide` (main column gets a matching
  * right margin). Desktop-only.
  */
-import { Box, IconButton, Tooltip, useMediaQuery } from '@mui/material';
-import { styled, alpha, useTheme } from '@mui/material/styles';
+import { Box, IconButton, Tooltip } from '@mui/material';
+import { styled, alpha } from '@mui/material/styles';
 import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { useTranslation } from 'react-i18next';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { toggleDrawerLayout } from '@/store/chatBarSlice';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { COLORS, EASING, DURATION } from '@/style/constants';
 
 const ToggleWrap = styled(Box, {
@@ -59,13 +60,14 @@ const ToggleButton = styled(IconButton)({
 
 const DrawerLayoutToggle = () => {
   const { t } = useTranslation();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  // PROJ-30 T2.8 — hide on phones + tablets (sideBySide makes no sense when
+  // the drawer takes 80–100% of viewport width).
+  const { isDesktop } = useResponsiveLayout();
   const dispatch = useAppDispatch();
   const drawerOpen = useAppSelector((s) => s.chatBar.drawerOpen);
   const drawerLayout = useAppSelector((s) => s.chatBar.drawerLayout);
 
-  if (isMobile) return null;
+  if (!isDesktop) return null;
 
   // Chevron points inward (overlap → push aside) / outward (sideBySide → re-overlap).
   const isSideBySide = drawerLayout === 'sideBySide';

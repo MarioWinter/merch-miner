@@ -1,8 +1,11 @@
 import { useState } from 'react';
-import { Box, Stack, Typography } from '@mui/material';
+import { Box, Button, Collapse, Stack, Typography } from '@mui/material';
+import ExpandLessIcon from '@mui/icons-material/ExpandLess';
+import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { styled } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { useEditView } from './hooks/useEditView';
 import EditPageHeader from './partials/edit/EditPageHeader';
 import MarketplaceTabs from './partials/edit/MarketplaceTabs';
@@ -50,8 +53,23 @@ const Layout = styled(Box)(({ theme }) => ({
   gridTemplateColumns: '200px 1fr 300px',
   overflow: 'hidden',
   [theme.breakpoints.down('md')]: {
+    // PROJ-30 T3.18 — Big-Bang single-column stack: thumbnail strip
+    // (horizontal-scrolling at this width) auto-sized at top, then the
+    // center editor fills the remaining height, then the right preview
+    // collapses into its own auto-sized row below.
     gridTemplateColumns: '1fr',
     gridTemplateRows: 'auto 1fr auto',
+    overflow: 'auto',
+  },
+}));
+
+// PROJ-30 T3.18 — On <md, cap the horizontal thumbnail strip at ~120px so
+// the rest of the viewport stays usable.
+const ThumbnailRow = styled(Box)(({ theme }) => ({
+  minHeight: 0,
+  [theme.breakpoints.down('md')]: {
+    maxHeight: 120,
+    overflow: 'hidden',
   },
 }));
 
@@ -59,6 +77,9 @@ const CenterColumn = styled(Box)(({ theme }) => ({
   overflowY: 'auto',
   padding: theme.spacing(3),
   minHeight: 0,
+  [theme.breakpoints.down('md')]: {
+    padding: theme.spacing(2),
+  },
 }));
 
 const RightColumn = styled(Box)(({ theme }) => ({
@@ -73,6 +94,20 @@ const RightColumn = styled(Box)(({ theme }) => ({
     borderLeft: 'none',
     borderTop: `1px solid ${theme.vars.palette.divider}`,
     position: 'static',
+    padding: theme.spacing(2),
+  },
+}));
+
+// PROJ-30 T3.18 — Mobile-only header row above the right preview Collapse
+// section. Lets users hide the preview to focus on form editing.
+const MobilePreviewToggle = styled(Box)(({ theme }) => ({
+  display: 'none',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: theme.spacing(1, 2),
+  borderTop: `1px solid ${theme.vars.palette.divider}`,
+  [theme.breakpoints.down('md')]: {
+    display: 'flex',
   },
 }));
 
@@ -90,6 +125,10 @@ const EmptyWrap = styled(Box)({
 const EditView = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const { isDesktop } = useResponsiveLayout();
+  // PROJ-30 T3.18 — Mobile-only collapsible right preview. Defaults
+  // collapsed on phone so the editor form is the first thing users see.
+  const [mobilePreviewOpen, setMobilePreviewOpen] = useState(false);
   const {
     designIds,
     designs,
@@ -204,13 +243,15 @@ const EditView = () => {
       </TabsBar>
 
       <Layout>
-        <ThumbnailStrip
-          designIds={designIds}
-          designs={designs}
-          activeIndex={activeIndex}
-          onActiveIndexChange={setActiveIndex}
-          isLoading={isLoading}
-        />
+        <ThumbnailRow>
+          <ThumbnailStrip
+            designIds={designIds}
+            designs={designs}
+            activeIndex={activeIndex}
+            onActiveIndexChange={setActiveIndex}
+            isLoading={isLoading}
+          />
+        </ThumbnailRow>
 
         <CenterColumn>
           {isMba ? (
@@ -333,9 +374,35 @@ const EditView = () => {
           )}
         </CenterColumn>
 
-        <RightColumn>
-          <DesignPreview design={activeDesign} />
-        </RightColumn>
+        {isDesktop ? (
+          <RightColumn>
+            <DesignPreview design={activeDesign} />
+          </RightColumn>
+        ) : (
+          <Box>
+            <MobilePreviewToggle>
+              <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+                {t('publish.edit.previewTitle', { defaultValue: 'Preview' })}
+              </Typography>
+              <Button
+                size="small"
+                onClick={() => setMobilePreviewOpen((v) => !v)}
+                endIcon={mobilePreviewOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                aria-expanded={mobilePreviewOpen}
+                aria-controls="edit-view-mobile-preview"
+              >
+                {mobilePreviewOpen
+                  ? t('publish.edit.hidePreview', { defaultValue: 'Hide preview' })
+                  : t('publish.edit.showPreview', { defaultValue: 'Show preview' })}
+              </Button>
+            </MobilePreviewToggle>
+            <Collapse in={mobilePreviewOpen} unmountOnExit id="edit-view-mobile-preview">
+              <RightColumn>
+                <DesignPreview design={activeDesign} />
+              </RightColumn>
+            </Collapse>
+          </Box>
+        )}
       </Layout>
 
       {/* D7: Copy-from-Design Dialog */}

@@ -93,6 +93,119 @@
       "it": "Italiano"
     }
   },
+  "responsive": {
+    "hamburger": {
+      "openLabel": "Open navigation menu",
+      "closeLabel": "Close navigation menu"
+    },
+    "dialog": {
+      "closeLabel": "Close"
+    },
+    "editor": {
+      "toolFab": {
+        "openLabel": "Open design tools",
+        "closeLabel": "Close design tools"
+      },
+      "tools": {
+        "tabLayers": "Layers",
+        "tabTools": "Tools",
+        "tabProperties": "Properties"
+      }
+    },
+    "context": {
+      "chipFallback": "Set context",
+      "empty": "Select context",
+      "sheetTitle": "Workspace & Niche",
+      "workspaceLabel": "Workspace",
+      "nicheLabel": "Niche",
+      "close": "Close",
+      "openLabel": "Open workspace and niche picker"
+    },
+    "drawer": {
+      "closeLabel": "Close drawer"
+    },
+    "cardList": {
+      "selectAria": "Select {{title}}",
+      "actionsAria": "Actions for {{title}}",
+      "tryAgain": "Try again",
+      "errorTitle": "Couldn't load {{entity}}",
+      "errorEntity": {
+        "niche": "niches",
+        "product": "products",
+        "keyword": "keywords",
+        "member": "members",
+        "file": "files"
+      },
+      "empty": {
+        "niche": {
+          "title": "No niches yet",
+          "hint": "Create your first niche to get started",
+          "cta": "New Niche"
+        },
+        "product": {
+          "title": "No products to show",
+          "hint": "Try adjusting filters or run a fresh search"
+        },
+        "keyword": {
+          "title": "No keywords yet",
+          "hint": "Search for a seed keyword to populate suggestions"
+        },
+        "member": {
+          "title": "No members yet",
+          "hint": "Invite teammates to collaborate"
+        },
+        "file": {
+          "title": "No files in this folder",
+          "hint": "Connect cloud storage or upload designs"
+        }
+      },
+      "niche": {
+        "metaCounts": "{{products}} products · {{ideas}} ideas",
+        "createdOn": "Created {{date}}"
+      },
+      "product": {
+        "metaBsr": "BSR {{bsr}} · ${{price}} · {{reviews}} reviews",
+        "metaBsrNoPrice": "BSR {{bsr}} · {{reviews}} reviews",
+        "asin": "ASIN {{asin}}"
+      },
+      "keyword": {
+        "meta": "Vol {{volume}} · CPC ${{cpc}}",
+        "metaNoVolume": "CPC ${{cpc}}",
+        "metaNoCpc": "Vol {{volume}}",
+        "competition": "Comp {{value}}"
+      },
+      "member": {
+        "joined": "Joined {{date}}",
+        "roleJoined": "{{role}} · joined {{date}}"
+      },
+      "file": {
+        "meta": "{{size}} · {{type}}",
+        "modified": "Modified {{date}}"
+      }
+    },
+    "publishView": {
+      "filtersButton": "Filters",
+      "filtersDrawerTitle": "Filters",
+      "filtersClose": "Close",
+      "searchLabel": "Search",
+      "searchPlaceholder": "Search designs…",
+      "sortLabel": "Sort by",
+      "sortNewest": "Newest first",
+      "sortRecentlyEdited": "Recently edited"
+    },
+    "amazonResearch": {
+      "advancedToggleShow": "Show advanced filters",
+      "advancedToggleHide": "Hide advanced filters"
+    },
+    "designWorkspace": {
+      "rightPanelOpen": "Show details panel",
+      "rightPanelClose": "Hide details panel"
+    },
+    "trash": {
+      "selected": "{{count}} selected",
+      "restore": "Restore selected"
+    }
+  },
   "nav": {
     "sidebarLabel": "Main navigation",
     "expandSidebar": "Expand sidebar",

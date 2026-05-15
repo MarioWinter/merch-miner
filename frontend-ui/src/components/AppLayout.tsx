@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Box, useMediaQuery } from '@mui/material';
-import { styled, useTheme } from '@mui/material/styles';
+import { Box } from '@mui/material';
+import { styled } from '@mui/material/styles';
 import { Outlet, useLocation } from 'react-router-dom';
 import Topbar from './topbar/Topbar';
 import Sidebar, { COLLAPSED_WIDTH, EXPANDED_WIDTH } from './sidebar/Sidebar';
@@ -8,6 +8,7 @@ import MultiPurposeDrawer from './MultiPurposeDrawer';
 import GlobalFooter from './GlobalFooter/GlobalFooter';
 import { DURATION, EASING } from '@/style/constants';
 import { useAppSelector } from '@/store/hooks';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 
 // Styled components
 
@@ -55,14 +56,17 @@ const getInitialCollapsed = (): boolean => {
 const FOOTER_HIDDEN_PATTERN = /^\/designs\/[^/]+$/;
 
 const AppLayout = () => {
-  const theme = useTheme();
   const location = useLocation();
-  const isSmallScreen = useMediaQuery(theme.breakpoints.down('md'));
+  // PROJ-30 T2.1 — single source of truth for viewport tiers.
+  const { isPhoneTiny, isMobile, isTablet, isDesktop } = useResponsiveLayout();
   const hideFooter = FOOTER_HIDDEN_PATTERN.test(location.pathname);
   const [userCollapsed, setUserCollapsed] = useState<boolean>(getInitialCollapsed);
   const [hovered, setHovered] = useState(false);
 
-  const collapsed = isSmallScreen || userCollapsed;
+  // <md collapses Sidebar to 60px mini (unchanged behaviour). Below xxs (400px)
+  // the Sidebar is hidden entirely — reachable via HamburgerMenu (T2.2).
+  const collapsedBecauseSmall = isMobile || isTablet;
+  const collapsed = collapsedBecauseSmall || userCollapsed;
 
   const handleToggle = () => {
     setUserCollapsed((prev) => {
@@ -76,16 +80,25 @@ const AppLayout = () => {
     });
   };
 
-  const sidebarWidth = collapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
-  const borderSidebarW = collapsed && !hovered ? COLLAPSED_WIDTH : EXPANDED_WIDTH;
+  const sidebarRendered = !isPhoneTiny;
+  const sidebarWidth = !sidebarRendered
+    ? 0
+    : collapsed
+      ? COLLAPSED_WIDTH
+      : EXPANDED_WIDTH;
+  const borderSidebarW = !sidebarRendered
+    ? 0
+    : collapsed && !hovered
+      ? COLLAPSED_WIDTH
+      : EXPANDED_WIDTH;
 
   // sideBySide pushes the main column inward by `drawerWidth`; overlap leaves it at 0.
+  // Only valid on desktop — phones + tablets always overlap (drawer takes 80–100% width).
   const drawerOpen = useAppSelector((s) => s.chatBar.drawerOpen);
   const drawerWidth = useAppSelector((s) => s.chatBar.drawerWidth);
   const drawerLayout = useAppSelector((s) => s.chatBar.drawerLayout);
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
   const sideBySideActive =
-    drawerOpen && drawerLayout === 'sideBySide' && !isMobile;
+    drawerOpen && drawerLayout === 'sideBySide' && isDesktop;
   const mainMarginRight = sideBySideActive ? `${drawerWidth}px` : '0px';
 
   // Expose the currently-visible footer height as a CSS variable so any
@@ -134,7 +147,9 @@ const AppLayout = () => {
     >
       <Topbar />
 
-      <Sidebar collapsed={collapsed} onToggle={handleToggle} onHoverChange={setHovered} />
+      {sidebarRendered && (
+        <Sidebar collapsed={collapsed} onToggle={handleToggle} onHoverChange={setHovered} />
+      )}
 
       <MainContent
         component="main"

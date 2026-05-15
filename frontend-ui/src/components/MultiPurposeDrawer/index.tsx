@@ -1,6 +1,11 @@
+// z-index stack (MUI defaults + our overrides):
+//   Modal (Dialog) 1300 > MultiPurposeDrawer 1200 > AppBar/Topbar 1100 >
+//   Snackbar 1400 (notistack ≥ Dialog by design)
+// Document any change here so future shell tweaks don't introduce overlap bugs.
+
 import { useRef } from 'react';
-import { Box, Drawer, IconButton, Stack, Tooltip, useMediaQuery } from '@mui/material';
-import { styled, useTheme } from '@mui/material/styles';
+import { Box, Drawer, IconButton, Stack, Tooltip } from '@mui/material';
+import { styled } from '@mui/material/styles';
 import CloseIcon from '@mui/icons-material/Close';
 import HistoryIcon from '@mui/icons-material/History';
 import AddIcon from '@mui/icons-material/Add';
@@ -13,6 +18,7 @@ import {
   startNewChat,
 } from '@/store/chatBarSlice';
 import { clearAttachments } from '@/store/attachmentsSlice';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import type { DrawerPanel } from '@/types/search';
 import DrawerSegments from './DrawerSegments';
 import DrawerResizeHandle from './DrawerResizeHandle';
@@ -43,8 +49,8 @@ const PanelContainer = styled(Box)({
 const MultiPurposeDrawer = () => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
-  const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+  // PROJ-30 T2.8 — viewport-tier source-of-truth.
+  const { isMobile, isTablet, isDesktop } = useResponsiveLayout();
   const { drawerOpen, activePanel } = useAppSelector((s) => s.chatBar);
   const { width, onPointerDown, onPointerMove, onPointerUp } = useDrawerResize();
 
@@ -67,24 +73,37 @@ const MultiPurposeDrawer = () => {
     dispatch(closeDrawer());
   };
 
+  // Geometry per viewport tier (design Section 7):
+  //   <600px        → 100vw, top:0 (covers Topbar), variant=temporary
+  //   600–899px     → 80vw,  variant=temporary
+  //   ≥900px        → user-resized width, top:56, variant=persistent
+  const variant = isDesktop ? 'persistent' : 'temporary';
+  const paperWidth = isMobile
+    ? '100vw'
+    : isTablet
+      ? '80vw'
+      : width;
+  const paperTop = isMobile ? 0 : 56;
+  const paperHeight = isMobile ? '100%' : 'calc(100% - 56px)';
+
   return (
     <Drawer
       anchor="right"
       open={drawerOpen}
       onClose={handleClose}
-      variant={isMobile ? 'temporary' : 'persistent'}
+      variant={variant}
       slotProps={{
         paper: {
           id: 'mpd-drawer-paper',
           sx: {
-            width: isMobile ? '100%' : width,
+            width: paperWidth,
             display: 'flex',
             flexDirection: 'column',
-            top: isMobile ? 0 : 56,
-            height: isMobile ? '100%' : 'calc(100% - 56px)',
+            top: paperTop,
+            height: paperHeight,
             transition: 'width 200ms ease',
-            // 1200px Full Command Center: 3-column NotebookLM layout
-            ...(width >= 1200 && !isMobile
+            // 1200px Full Command Center: 3-column NotebookLM layout (desktop only)
+            ...(isDesktop && width >= 1200
               ? {
                   '& [data-mpd-layout="full"]': {
                     display: 'grid',
@@ -97,8 +116,8 @@ const MultiPurposeDrawer = () => {
         },
       }}
     >
-      {/* Drag-handle on left edge (only on desktop) */}
-      {!isMobile && (
+      {/* Drag-handle on left edge — desktop only */}
+      {isDesktop && (
         <DrawerResizeHandle
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -106,7 +125,7 @@ const MultiPurposeDrawer = () => {
         />
       )}
 
-      {/* Layout toggle — flips between overlap and side-by-side modes */}
+      {/* Layout toggle — flips between overlap and side-by-side modes (desktop only) */}
       <DrawerLayoutToggle />
 
       <DrawerHeader>
@@ -142,10 +161,17 @@ const MultiPurposeDrawer = () => {
               </Tooltip>
             </>
           )}
+          {/* Close button: always visible. On <md the explicit i18n
+              `responsive.drawer.closeLabel` is used to make the affordance
+              clear; on desktop we keep the chat-scoped `search.drawer.close`. */}
           <IconButton
             size="small"
             onClick={handleClose}
-            aria-label={t('search.drawer.close')}
+            aria-label={
+              isDesktop
+                ? t('search.drawer.close')
+                : t('responsive.drawer.closeLabel')
+            }
             sx={{ borderRadius: 2 }}
           >
             <CloseIcon sx={{ fontSize: 18 }} />

@@ -4,6 +4,7 @@ import { styled } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
 import { COLORS } from '@/style/constants';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { PipelineBar } from './partials/PipelineBar';
 import { ToolPanel } from './partials/ToolPanel';
 import { EditorCanvas } from './partials/EditorCanvas';
@@ -12,6 +13,7 @@ import { UnifiedBottomBar } from './partials/UnifiedBottomBar';
 import { PreparingDownloadModal } from './partials/PreparingDownloadModal';
 import { DropZone } from './partials/DropZone';
 import { CloudManagerDialog } from './partials/CloudManagerDialog';
+import { MobileEditorToolSheet } from './partials/MobileEditorToolSheet';
 import { useProcessing } from './hooks/useProcessing';
 import { useClientProcessing } from './hooks/useClientProcessing';
 import { useLivePreview } from './hooks/useLivePreview';
@@ -83,6 +85,9 @@ const ThumbnailRow = styled(Box)({ height: THUMBNAIL_STRIP_HEIGHT, display: 'fle
 const DesignEditorView = ({ projectId, editorBatch, onAddToCanvas }: DesignEditorViewProps) => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
+  // PROJ-30 T3.24 — on <md viewports the 280px ToolPanel is hidden inline and
+  // its content is moved into a FAB-triggered SwipeableDrawer (MobileEditorToolSheet).
+  const { isDesktop } = useResponsiveLayout();
 
   // Pipeline state
   const [activePipeline, setActivePipeline] = useState<PipelineTool[]>([]);
@@ -240,6 +245,20 @@ const DesignEditorView = ({ projectId, editorBatch, onAddToCanvas }: DesignEdito
     void exportState.downloadAll(batchImages, settings.compression);
   }, [batchImages, exportState]);
 
+  // Shared ToolPanel tree — rendered inline on desktop, slotted into the
+  // mobile bottom-sheet's "Tools" tab on <md viewports.
+  const toolPanelNode = (
+    <ToolPanel
+      activePipeline={activePipeline} onRemoveTool={handleRemoveTool} onToggleTool={handleToggleTool}
+      onReorder={handleReorderPipeline} onUpdateParams={handleUpdateParams} onApply={handleApplyPipeline}
+      isProcessing={isProcessing} progress={progress} onCancelProcessing={cancelProcessing}
+      hasImages={hasImages} onRunServerTool={handleRunServerTool} isServerProcessing={isServerProcessing}
+      currentDesignId={currentImage?.designId ?? null}
+      currentImageWidth={currentImage?.width}
+      currentImageHeight={currentImage?.height}
+    />
+  );
+
   return (
     <EditorRoot onDrop={handleDrop} onDragOver={handleDragOver}>
       <input ref={fileInputRef} type="file" accept="image/*" multiple hidden onChange={handleFileInputChange} aria-label={t('design.editor.browseFiles')} />
@@ -250,17 +269,7 @@ const DesignEditorView = ({ projectId, editorBatch, onAddToCanvas }: DesignEdito
       </PipelineBarWrapper>
 
       <ContentRow>
-        <ToolPanelWrapper>
-          <ToolPanel
-            activePipeline={activePipeline} onRemoveTool={handleRemoveTool} onToggleTool={handleToggleTool}
-            onReorder={handleReorderPipeline} onUpdateParams={handleUpdateParams} onApply={handleApplyPipeline}
-            isProcessing={isProcessing} progress={progress} onCancelProcessing={cancelProcessing}
-            hasImages={hasImages} onRunServerTool={handleRunServerTool} isServerProcessing={isServerProcessing}
-            currentDesignId={currentImage?.designId ?? null}
-            currentImageWidth={currentImage?.width}
-            currentImageHeight={currentImage?.height}
-          />
-        </ToolPanelWrapper>
+        {isDesktop && <ToolPanelWrapper>{toolPanelNode}</ToolPanelWrapper>}
 
         <CanvasArea>
           <CanvasMain>
@@ -304,6 +313,14 @@ const DesignEditorView = ({ projectId, editorBatch, onAddToCanvas }: DesignEdito
           )}
         </CanvasArea>
       </ContentRow>
+
+      {!isDesktop && (
+        <MobileEditorToolSheet
+          layersContent={toolPanelNode}
+          toolsContent={toolPanelNode}
+          propertiesContent={toolPanelNode}
+        />
+      )}
 
       <CloudManagerDialog
         open={cloudManagerOpen} onClose={() => setCloudManagerOpen(false)}

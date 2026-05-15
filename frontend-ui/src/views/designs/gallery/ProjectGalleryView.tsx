@@ -144,7 +144,7 @@ const ProjectGalleryView = () => {
         </PageHeader>
         <Grid container spacing={3}>
           {Array.from({ length: 12 }).map((_, i) => (
-            <Grid key={i} size={{ xs: 6, sm: 4, md: 3, lg: 2 }}>
+            <Grid key={i} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
               <SkeletonCard>
                 <Skeleton variant="rectangular" sx={{ aspectRatio: '4 / 3' }} />
                 <Box sx={{ p: 1.5 }}>
@@ -225,7 +225,7 @@ const ProjectGalleryView = () => {
 
       <Grid container spacing={3}>
         {projects.map((project) => (
-          <Grid key={project.id} size={{ xs: 6, sm: 4, md: 3 }}>
+          <Grid key={project.id} size={{ xs: 12, sm: 6, md: 4, lg: 3 }}>
             <ProjectCard
               project={project}
               onClick={handleCardClick}

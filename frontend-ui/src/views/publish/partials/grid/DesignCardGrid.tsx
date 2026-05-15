@@ -32,7 +32,12 @@ interface DesignCardGridProps {
 
 const GridContainer = styled(Box)(({ theme }) => ({
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+  // PROJ-30 T3.15 — tighter `minmax` on `<sm` so phones fit 2 cards/row,
+  // standard `240px` minimum on `≥sm`.
+  gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))',
+  [theme.breakpoints.up('sm')]: {
+    gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+  },
   gap: theme.spacing(2.5),
   position: 'relative',
   userSelect: 'none',

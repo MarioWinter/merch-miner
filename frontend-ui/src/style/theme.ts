@@ -24,6 +24,13 @@ declare module '@mui/material/styles' {
   interface SimplePaletteColorOptions {
     subtle?: string;
   }
+  // PROJ-30 T1.2 — add `xxs: 400` as an ADDITIONAL named breakpoint (Plan B
+  // per Phase 0 audit). `xs` stays at 0 so all 44 existing `xs:` Grid usages
+  // remain semantically correct. `xxs` targets "tiny phones" (<400px) for
+  // Hamburger-menu and other small-screen primitives.
+  interface BreakpointOverrides {
+    xxs: true;
+  }
 }
 
 // PROJ-29 Phase 1H-1 — canonical `*.subtle` translucent backgrounds.
@@ -50,6 +57,18 @@ const SUBTLE_LIGHT = {
 
 const theme = extendTheme({
   colorSchemeSelector: 'data-mui-color-scheme',
+  // PROJ-30 T1.1 — Plan B breakpoints. `xxs: 400` is ADDED; `xs: 0` is
+  // preserved so existing Grid `xs:` props (44 hits) keep their "0+" meaning.
+  breakpoints: {
+    values: {
+      xxs: 400,
+      xs: 0,
+      sm: 600,
+      md: 900,
+      lg: 1200,
+      xl: 1536,
+    },
+  },
   shape: {
     borderRadius: 8,
   },
@@ -179,12 +198,29 @@ const theme = extendTheme({
   components: {
     MuiButton: {
       styleOverrides: {
-        root: {
+        // PROJ-30 T1.4 — enforce 44×44 touch target on <md (mobile + tablet).
+        // Desktop keeps existing 42px to avoid visual layout shift.
+        root: ({ theme }) => ({
           borderRadius: 8,
           textTransform: 'none',
           fontWeight: 600,
           height: 42,
-        },
+          [theme.breakpoints.down('md')]: {
+            minHeight: 44,
+          },
+        }),
+      },
+    },
+    MuiIconButton: {
+      styleOverrides: {
+        // PROJ-30 T1.4 — 44×44 hit area on <md. Visual icon size unchanged
+        // (still controlled by the icon's `fontSize`); only the tap target grows.
+        root: ({ theme }) => ({
+          [theme.breakpoints.down('md')]: {
+            minWidth: 44,
+            minHeight: 44,
+          },
+        }),
       },
     },
     MuiCard: {
@@ -253,9 +289,17 @@ const theme = extendTheme({
       },
     },
     MuiDialog: {
+      // PROJ-30 T1.3 — Note: the per-instance `fullScreen` prop is set by
+      // <ResponsiveDialog> (a hook-based wrapper) since MUI defaultProps
+      // cannot read media queries. The styleOverride below ensures fullscreen
+      // dialogs render edge-to-edge without our `borderRadius: 16` rule
+      // bleeding through.
       styleOverrides: {
         paper: {
           borderRadius: 16,
+        },
+        paperFullScreen: {
+          borderRadius: 0,
         },
       },
     },

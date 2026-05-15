@@ -13,9 +13,12 @@ import ColorModeToggle from './ColorModeToggle';
 import ProfileMenu from './ProfileMenu';
 import WorkspaceSelector from './WorkspaceSelector';
 import NicheSelector from './NicheSelector';
+import HamburgerMenu from './HamburgerMenu';
+import { MobileContextControl } from './MobileContextSheet';
 import NotificationBell from '../NotificationBell';
 import HealthStatusDot from '../MultiPurposeDrawer/HealthStatusDot';
 import UpscaleStatusPill from '@/views/designs/board/partials/UpscaleStatusPill';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { COLORS, DURATION, EASING } from '@/style/constants';
 
 const TopbarRoot = styled(AppBar)(({ theme }) => ({
@@ -41,7 +44,7 @@ const TopbarRoot = styled(AppBar)(({ theme }) => ({
   }),
 }));
 
-const TopbarToolbar = styled(Toolbar)({
+const TopbarToolbar = styled(Toolbar)(({ theme }) => ({
   height: 56,
   minHeight: '56px !important',
   paddingLeft: 24,
@@ -49,12 +52,39 @@ const TopbarToolbar = styled(Toolbar)({
   display: 'flex',
   alignItems: 'center',
   position: 'relative',
+  [theme.breakpoints.down('sm')]: {
+    paddingLeft: 12,
+    paddingRight: 12,
+  },
+}));
+
+// Centered chip pair — absolutely positioned on desktop (≥md). Below md, the
+// pair becomes part of the flex flow (positioned by CSS sibling order).
+const DesktopChipPair = styled(Box)({
+  position: 'absolute',
+  left: '50%',
+  transform: 'translateX(-50%)',
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+});
+
+// Tablet chip pair — sits in flow, gets a small flex gap.
+const TabletChipPair = styled(Box)({
+  display: 'flex',
+  alignItems: 'center',
+  gap: 8,
+  flexShrink: 1,
+  minWidth: 0,
+  overflow: 'hidden',
 });
 
 const Topbar = () => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const user = useAppSelector((state) => state.auth.user);
+  const { isPhoneTiny, isMobile, isTablet, isDesktop } = useResponsiveLayout();
+
   const initial =
     user?.first_name?.charAt(0)?.toUpperCase() ||
     user?.email?.charAt(0)?.toUpperCase() ||
@@ -64,28 +94,41 @@ const Topbar = () => {
   return (
     <TopbarRoot position="fixed" elevation={0}>
       <TopbarToolbar disableGutters>
-        {/* Logo */}
+        {/* Hamburger menu — only on tiny phones (<400px) */}
+        {isPhoneTiny && <HamburgerMenu />}
+
+        {/* Logo — wordmark hidden on phone-tiny to save horizontal space */}
         <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center', gap: 1 }}>
           <DiamondOutlinedIcon sx={{ fontSize: 24, color: 'primary.main' }} />
-          <Typography variant="h5" noWrap sx={{ fontWeight: 700, color: 'text.primary' }}>
-            {t('app.name')}
-          </Typography>
+          {!isPhoneTiny && (
+            <Typography variant="h5" noWrap sx={{ fontWeight: 700, color: 'text.primary' }}>
+              {t('app.name')}
+            </Typography>
+          )}
         </Box>
 
-        {/* Workspace + Niche chips — absolutely centered as a pair */}
-        <Box
-          sx={{
-            position: 'absolute',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-          }}
-        >
-          <WorkspaceSelector />
-          <NicheSelector />
-        </Box>
+        {/* Mobile (<600px): single Context chip in the flex flow */}
+        {isMobile && (
+          <Box sx={{ ml: 1, display: 'flex', alignItems: 'center' }}>
+            <MobileContextControl />
+          </Box>
+        )}
+
+        {/* Tablet (600–899px): chip pair in flex flow (not absolutely centered) */}
+        {isTablet && (
+          <TabletChipPair sx={{ ml: 2 }} data-testid="topbar-chip-pair-tablet">
+            <WorkspaceSelector />
+            <NicheSelector />
+          </TabletChipPair>
+        )}
+
+        {/* Desktop (≥900px): chip pair absolutely centered */}
+        {isDesktop && (
+          <DesktopChipPair data-testid="topbar-chip-pair-desktop">
+            <WorkspaceSelector />
+            <NicheSelector />
+          </DesktopChipPair>
+        )}
 
         {/* Spacer pushes right actions to the end */}
         <Box sx={{ flex: 1 }} />
