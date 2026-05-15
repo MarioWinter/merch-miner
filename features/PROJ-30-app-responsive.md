@@ -120,7 +120,7 @@ None — Q1A / Q2A / Q3A / Q4A answered. Remaining drawer/topbar/modal defaults 
 | Table mobile pattern | Per-table own Card partial (Q1A) | 5 tables, each has different cell semantics; shared schema-wrapper would force unnecessary migration; local Card markup keeps domain logic tight |
 | Test strategy | Playwright responsive smoke @ 3 viewports (Q2A) | Catches visual + functional regressions across all 13 routes; Vitest mock-only would miss layout collisions |
 | EditView / DesignEditorView refactor | Big-Bang single task per view (Q3A) | Both views isolated, no cross-view dep; single PR easier to QA than incremental branch |
-| `xxs=400` breakpoint | Custom MUI breakpoint inserted, shifts `xs` to 400 (Q4A) | Clean API (`theme.breakpoints.down('xs')` works); **risk:** shifts existing `xs` usages — Phase 1 starts with a codebase audit, fallback Plan B documented below |
+| `xxs=400` breakpoint | **Plan B applied** — additive `xxs: 400`, `xs: 0` preserved | Phase 0 audit found **44 existing `xs:` usages**, all semantic "0+"; flipping `xs` to 400 would break every one. User signed off Q4A under the documented Plan B fallback condition |
 | Sidebar mobile | Full 220 ≥900 / mini 60 between 400–899 / hidden + Hamburger <400 | From spec Q1A |
 | Kanban mobile | Tabs (one column visible) on <744 | From spec Q4A |
 | Editor mobile | FAB → BottomSheet on <744 | From spec Q3A |
@@ -129,15 +129,20 @@ None — Q1A / Q2A / Q3A / Q4A answered. Remaining drawer/topbar/modal defaults 
 | Dialogs | `fullScreen` on <600 globally via theme override | From spec AC-4 |
 | Topbar chips | Centered ≥900 / flex 600–899 / single "Context" chip + bottom sheet <600 | From spec AC-2 |
 
-### Plan B (Fallback for Q4A regression)
+### Plan B (Active — Q4A audit triggered)
 
-If the Phase 1 codebase audit reveals more than ~10 existing components relying on `xs=0` semantically (e.g., `size={{ xs: 12 }}` meaning "12-col on all viewports"), we switch to: keep `xs: 0` unchanged and add `xxs: 400` as an ADDITIONAL named breakpoint (Q4B). User has been flagged; decision deferred until audit data is in.
+Phase 0 audit (2026-05-15) found **44 existing `xs:` usages** in Grid sizing, all semantically meaning "0+ / full width on phone" (e.g., `Grid size={{ xs: 12, sm: 6 }}`). Shifting `xs: 0 → 400` would silently break every one. **Plan B is now the active approach:**
+
+- Keep `xs: 0` unchanged
+- Add `xxs: 400` as ADDITIONAL named breakpoint in `theme.breakpoints.values`
+- New mobile-only logic uses `theme.breakpoints.down('xxs')` → tiny phones (<400px)
+- All existing `xs:` usages keep current semantics — zero migration cost
 
 ### Theme Changes (`frontend-ui/src/style/theme.ts`)
 
 | Change | Description |
 |---|---|
-| Breakpoints | Add `xxs: 400` as new lowest tier; shift `xs` from 0 → 400 (pending Phase 1 audit); other tiers unchanged (sm=600, md=900, lg=1200, xl=1536) |
+| Breakpoints | Add `xxs: 400` as ADDITIONAL named breakpoint (Plan B — audit triggered); `xs: 0` unchanged; other tiers unchanged (sm=600, md=900, lg=1200, xl=1536) |
 | Module augmentation | TypeScript module augment for `BreakpointOverrides` so `xxs` is type-safe |
 | MuiDialog default | Add component default override that sets `fullScreen` based on `useMediaQuery(theme.breakpoints.down('sm'))` — global one-shot fix for AC-4 |
 | MuiButton / MuiIconButton minHeight | Add `@media (max-width: 899px)` override to ensure 44×44 minimum touch target |
@@ -249,7 +254,7 @@ frontend-ui/tests/e2e/
 
 | Risk | Likelihood | Impact | Mitigation |
 |---|---|---|---|
-| Q4A `xs` shift breaks existing `xs={12}` semantics | HIGH | HIGH | Phase 1.1 = full grep audit; if >10 hits, fall back to Plan B (additive `xxs: 400`) |
+| ~~Q4A `xs` shift breaks existing `xs={12}` semantics~~ | ~~HIGH~~ | ~~HIGH~~ | **Resolved 2026-05-15:** audit found 44 hits → Plan B active (additive `xxs: 400`, `xs: 0` preserved) |
 | Dialog `fullScreen` default breaks small modals (e.g. ColorPicker, confirm dialogs) | MED | MED | Audit all `<Dialog>` usages in Phase 1; allow `disableMobileFullScreen` opt-out prop on `<ResponsiveDialog>` |
 | Kanban dnd-kit cross-column drag breaks on tab-switched view | MED | MED | "Move to column" menu added to card 3-dot menu as alternative; in-tab drag preserved |
 | Sidebar Hamburger Drawer + MultiPurposeDrawer overlap on phone landscape | LOW | MED | EC-2 covers; z-index ordering tested manually |

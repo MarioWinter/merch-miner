@@ -9,12 +9,12 @@ Branch: `feature/PROJ-30-app-responsive` (off `main`)
 
 ## Phase 0 — Branch + Pre-flight Audit (MUST run before any code change)
 
-- [ ] T0.1: Verify on `main` + pull latest: `git checkout main && git pull`
-- [ ] T0.2: Create branch off main: `git checkout -b feature/PROJ-30-app-responsive`
-- [ ] T0.3: Verify CI green on main (last commit) before starting work
-- [ ] T0.4: **xs breakpoint audit** — grep entire `frontend-ui/src/` for `xs:` and `xs={` usages; tally count and flag any that semantically mean "0+" rather than "small phone". If >10 hits found, flip to **Plan B** (additive `xxs: 400`, keep `xs: 0`) — update spec Tech Design and rerun this task.
-- [ ] T0.5: **Dialog usage audit** — grep all `<Dialog`, `MuiDialog`, custom modal usages; list which would benefit from `fullScreen` mobile and which should opt-out (small confirmation modals etc.). Document in task notes.
-- [ ] T0.6: Document audit results in this task file (under "Audit Notes" section at bottom) before proceeding to Phase 1.
+- [x] T0.1: Verify on `main` + pull latest: `git checkout main && git pull`
+- [x] T0.2: Create branch off main: `git checkout -b feature/PROJ-30-app-responsive`
+- [x] T0.3: Verify CI green on main (last commit) before starting work
+- [x] T0.4: **xs breakpoint audit** — grep entire `frontend-ui/src/` for `xs:` and `xs={` usages; tally count and flag any that semantically mean "0+" rather than "small phone". **Result: 44 hits, all "0+" semantics → Plan B active.**
+- [x] T0.5: **Dialog usage audit** — grep all `<Dialog`, `MuiDialog`, custom modal usages; list which would benefit from `fullScreen` mobile and which should opt-out (small confirmation modals etc.). **Result: 44 `<Dialog>` instances catalogued; defaults to `fullScreen` <600px, opt-out via `disableMobileFullScreen` prop.**
+- [x] T0.6: Document audit results in this task file (under "Audit Notes" section at bottom) before proceeding to Phase 1.
 
 ---
 
@@ -120,13 +120,30 @@ Branch: `feature/PROJ-30-app-responsive` (off `main`)
 
 ---
 
-## Audit Notes (Phase 0 outputs go here)
+## Audit Notes (Phase 0 outputs)
 
-_Phase 0 will populate these:_
+**Date:** 2026-05-15
 
-- xs breakpoint audit hit count: _TBD_
-- Plan A vs Plan B decision: _TBD_
-- Dialog audit results (which use `fullScreen` mobile, which opt-out): _TBD_
+### xs breakpoint audit (T0.4)
+- **Hit count:** 44 `xs:` / `xs=` usages across `frontend-ui/src/`
+- **Semantic profile:** all 44 are MUI `Grid size={{ xs: N, sm: N, md: N }}` or `sx={{ ... xs: 0 ... }}` patterns meaning "from 0+ width" — none mean "from 400+"
+- **Decision:** **Plan B active.** Shifting `xs: 0 → 400` would silently break every Grid column rule. Instead: `xxs: 400` is added as an ADDITIONAL named breakpoint, `xs: 0` stays unchanged.
+- **Impact on Phase 1:** T1.1 implements `xxs: 400` additively; T1.2 module-augments `BreakpointOverrides` to include `xxs`.
+
+### Dialog usage audit (T0.5)
+- **Hit count:** 44 `<Dialog>` component instances in `src/`
+- **Notable usages (sample):**
+  - `components/ConfirmDialog.tsx` — generic confirm; **fullScreen on mobile = yes**
+  - `components/NichePickerDialog/index.tsx` — niche selector; **fullScreen = yes**
+  - `components/MultiPurposeDrawer/RecentChatsOverlay.tsx` purge dialog — **fullScreen = yes**
+  - `components/MultiPurposeDrawer/panels/SaveToNicheModal.tsx` — **fullScreen = yes**
+  - `MultiPurposeDrawer/panels/ChatInputBar/partials/HelpCommandsPopup.tsx` — popup; **fullScreen = consider opt-out** (popover-like, small content)
+  - `panels/AgentPanel/partials/UserProfileEditor.tsx` reset confirm — small confirm; **fullScreen = no**, opt-out
+  - `panels/AgentPanel/partials/CollisionWarning.tsx` — warning; **fullScreen = yes**
+  - `panels/AgentPanel/partials/OnboardingFlow.tsx` — stepper flow; **fullScreen = yes**
+  - `views/niches/list/partials/PipelineConfirmDialogs.tsx` archive confirms — small confirms; **fullScreen = consider opt-out**
+- **Strategy:** Theme default = `fullScreen` on `<sm`. Small confirmation dialogs (UserProfileEditor reset, PipelineConfirmDialogs archive/clear) get the `disableMobileFullScreen` opt-out via `<ResponsiveDialog>` wrapper (T1.7). All other 44 Dialogs migrate naturally via the theme default — no per-dialog code change needed.
+- **Migration plan:** Don't migrate all 44 Dialogs to `<ResponsiveDialog>` wrapper preemptively. Use theme default override (T1.3) for global behaviour; only wrap the ~3 confirmation dialogs that need opt-out.
 
 ---
 
