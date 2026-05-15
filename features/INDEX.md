@@ -36,15 +36,20 @@
 | PROJ-21 | Chat Attachments + Document RAG + Agentic Tool-Use | Deferred (Post-MVP) | [spec](PROJ-21-chat-attachments-rag.md) | 2026-04-26 |
 | PROJ-22 | Server-Migration auf VC 8-32 + Mono-Repo Infrastruktur | Deployed | [spec](PROJ-22-server-migration-mono-repo.md) | 2026-04-28 |
 | PROJ-23 | Selector Health Check Spider | In Review | [spec](PROJ-23-selector-health-check.md) | 2026-05-01 |
-| PROJ-24 | Legal Pages + Global Footer + Feature Flag System | In Review | [spec](PROJ-24-legal-pages-and-feature-flags.md) | 2026-05-01 |
+| PROJ-24 | Legal Pages + Global Footer + ~~Feature Flag System~~ (FF superseded by PROJ-31) | In Review | [spec](PROJ-24-legal-pages-and-feature-flags.md) | 2026-05-01 |
 | PROJ-25 | Bulk ASIN One-Shot Scrape Batches | In Review | [spec](PROJ-25-bulk-asin-scrape-batches.md) | 2026-05-05 |
 | PROJ-27 | AI Upscaler (Single + Bulk via Replicate) | In Review | [spec](PROJ-27-ai-upscaler.md) | 2026-05-07 |
 | PROJ-28 | Niche Research Product Limit | In Review | [spec](PROJ-28-niche-research-product-limit.md) | 2026-05-08 |
 | PROJ-29 | Niche-Data Agentic RAG + Configurable System-Prompt + Langfuse Chat Observability | In Review | [spec](PROJ-29-niche-rag-chat.md) | 2026-05-11 |
 | PROJ-30 | App-wide Responsive Design (iPhone SE / iPad / MacBook) | In Review | [spec](PROJ-30-app-responsive.md) | 2026-05-14 |
+| PROJ-31 | Entitlement & Permission Gating (2-Layer, supersedes PROJ-24) | In Progress | [spec](PROJ-31-entitlement-permission.md) | 2026-05-15 |
 
 <!-- Add features above this line -->
 
-## Next Available ID: PROJ-31
+## Next Available ID: PROJ-34
+
+> Note: PROJ-32 reserved for Polar.sh Subscription Integration (Webhook + Subscription model + Customer Portal). Writes to `user.subscription_tier` from PROJ-31.
+
+> Note: PROJ-33 reserved for Product Analytics + Lean MVP Validation (self-hosted PostHog). Build AFTER PROJ-31 so events carry `subscription_tier` property. See memory `project_proj33_lean_analytics_pending.md`.
 
 > Note: PROJ-26 reserved for KeywordChipBoard / Keyword Transfer Tabs (slimmed Item 4.2 from PROJ-7 follow-up; planned in memory `project_keyword_transfer_tabs_pending.md` 2026-05-04).
