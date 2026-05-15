@@ -55,12 +55,12 @@ Branch: `feature/PROJ-30-app-responsive` (off `main`)
 
 ### 3A. Low-risk views (Grid breakpoint tweaks + minor adjustments)
 
-- [ ] T3.1: `views/dashboard/DashboardView.tsx` — KPI cards 1-col `<744px` / 2-col `744–1199px` / 4-col `≥1200px` (AC-7)
-- [ ] T3.2: `views/designs/gallery/ProjectGalleryView.tsx` — Grid `xs=12 sm=6 md=4 lg=3` (AC-14)
-- [ ] T3.3: `views/invite/InviteAcceptView.tsx` — verify already responsive; if any regression from theme changes, fix (AC-18)
-- [ ] T3.4: `views/shared/SharedChatView.tsx` — 100% width + 12px side padding on `<600px` (AC-19)
-- [ ] T3.5: `views/ideas/IdeaListView.tsx` — bulk-action bar sticky bottom on `<744px`; Generate button accessible (AC-12)
-- [ ] T3.6: Auth views (Login, Register, ForgotPassword, EmailActivation) — `maxWidth: 400` + 16px side padding mobile (AC-20)
+- [x] T3.1: `views/dashboard/DashboardView.tsx` — KPI cards 1-col `<744px` / 2-col `744–1199px` / 4-col `≥1200px` (AC-7)
+- [x] T3.2: `views/designs/gallery/ProjectGalleryView.tsx` — Grid `xs=12 sm=6 md=4 lg=3` (AC-14)
+- [x] T3.3: `views/invite/InviteAcceptView.tsx` — verify already responsive; if any regression from theme changes, fix (AC-18)
+- [x] T3.4: `views/shared/SharedChatView.tsx` — 100% width + 12px side padding on `<600px` (AC-19)
+- [x] T3.5: `views/ideas/IdeaListView.tsx` — bulk-action bar sticky bottom on `<744px`; Generate button accessible (AC-12)
+- [x] T3.6: Auth views (Login, Register, ForgotPassword, EmailActivation) — `maxWidth: 400` + 16px side padding mobile (AC-20)
 
 ### 3B. Medium-risk views (Card-Collapse table partials)
 

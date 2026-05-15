@@ -171,7 +171,7 @@ const SharedChatView = () => {
   if (isLoading) {
     return (
       <Layout>
-        <Container maxWidth="md">
+        <Container maxWidth="md" sx={{ px: { xs: 1.5, sm: 3 } }}>
           <Stack alignItems="center" gap={2} sx={{ pt: 8 }}>
             <CircularProgress />
             <Typography variant="body2" color="text.secondary">
@@ -186,7 +186,7 @@ const SharedChatView = () => {
   if (isError || !data) {
     return (
       <Layout>
-        <Container maxWidth="md">
+        <Container maxWidth="md" sx={{ px: { xs: 1.5, sm: 3 } }}>
           <Stack gap={1.5} sx={{ pt: 4 }}>
             <Typography variant="h5" fontWeight={600}>
               {t('search.shared.notFound')}
@@ -202,7 +202,7 @@ const SharedChatView = () => {
 
   return (
     <Layout>
-      <Container maxWidth="md">
+      <Container maxWidth="md" sx={{ px: { xs: 1.5, sm: 3 } }}>
         <HeaderCard elevation={0}>
           <Stack gap={0.5}>
             <Typography variant="overline" color="text.disabled">
