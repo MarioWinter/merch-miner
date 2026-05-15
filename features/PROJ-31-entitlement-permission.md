@@ -1,6 +1,6 @@
 # PROJ-31: Entitlement & Permission Gating System
 
-## Status: Planned
+## Status: In Review
 **Created:** 2026-05-15
 **Last Updated:** 2026-05-15
 

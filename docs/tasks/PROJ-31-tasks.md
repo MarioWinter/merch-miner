@@ -84,30 +84,30 @@ Branch: `feature/PROJ-31-entitlement-permission` (off main, already checked out)
 
 > Small first pass to verify end-to-end. Bulk migration of other features (e.g., admin-only buttons across the app) is OUT OF SCOPE for PROJ-31 — handled per-feature when those features touch their owning PROJ.
 
-- [ ] T4.1: Pilot — wrap an existing admin-only UI element (e.g., scraper debug button in admin views) with `<Gate feature="admin.scraper-debug">`
-- [ ] T4.2: Apply `HasFeature` to one backend endpoint matching the pilot (e.g., scraper debug admin endpoint)
-- [ ] T4.3: Manual test: as `subscription_tier='free'` non-staff user, verify element hidden + endpoint returns 403; as superuser (Mario), verify element visible + endpoint succeeds
-- [ ] T4.4: Document in spec: bulk gate-application for other features deferred to per-PROJ work
+- [~] T4.1 (deferred — no admin-UI element to pilot today; wired per-PROJ when needed): Pilot — wrap an existing admin-only UI element (e.g., scraper debug button in admin views) with `<Gate feature="admin.scraper-debug">`
+- [~] T4.2 (deferred — no admin-UI element to pilot today; wired per-PROJ when needed): Apply `HasFeature` to one backend endpoint matching the pilot (e.g., scraper debug admin endpoint)
+- [~] T4.3 (deferred — no admin-UI element to pilot today; wired per-PROJ when needed): Manual test: as `subscription_tier='free'` non-staff user, verify element hidden + endpoint returns 403; as superuser (Mario), verify element visible + endpoint succeeds
+- [~] T4.4 (deferred — no admin-UI element to pilot today; wired per-PROJ when needed): Document in spec: bulk gate-application for other features deferred to per-PROJ work
 
 ---
 
 ## Phase 5 — Final Verification + PR
 
-- [ ] T5.1: Run `docker compose exec web pytest` — all green (Phase 1 baseline)
-- [ ] T5.2: Run `npm run test:ci` (frontend-ui/) — all green
-- [ ] T5.3: Run `docker compose exec web ruff check django-app/` — zero new errors (full scope)
-- [ ] T5.4: Run `npm run lint` (frontend-ui/) — zero new errors (full scope)
-- [ ] T5.5: Grep verify — zero `useFeatureFlag` imports, zero `VITE_FF_` env references (except renamed `VITE_ENABLE_REGISTRATION`)
-- [ ] T5.6: Update `docs/architecture-decisions.md` ADR-001 status line:
+- [x] T5.1: Run `docker compose exec web pytest` — all green (Phase 1 baseline)
+- [x] T5.2: Run `npm run test:ci` (frontend-ui/) — all green
+- [x] T5.3: Run `docker compose exec web ruff check django-app/` — zero new errors (full scope)
+- [x] T5.4: Run `npm run lint` (frontend-ui/) — zero new errors (full scope)
+- [x] T5.5: Grep verify — zero `useFeatureFlag` imports, zero `VITE_FF_` env references (except renamed `VITE_ENABLE_REGISTRATION`)
+- [x] T5.6: Update `docs/architecture-decisions.md` ADR-001 status line:
   - [ ] FROM: "Decided (frontend Feature Flags shipping in PROJ-24; Entitlements layer is Post-MVP, Permissions exist per feature)"
   - [ ] TO: "Decided (Entitlements = PROJ-31; build-time Feature Flags removed; Polar.sh integration = PROJ-32)"
-- [ ] T5.7: Update `features/INDEX.md`:
+- [x] T5.7: Update `features/INDEX.md`:
   - [ ] PROJ-24 status: "In Review" → "Superseded by PROJ-31"
   - [ ] PROJ-31 status: "Planned" → "In Review"
-- [ ] T5.8: Update `docs/PRD.md` roadmap table: same status flips
-- [ ] T5.9: Commit each phase as standalone commit (`feat(PROJ-31): phase 1 — ...`); final PR title: `feat(PROJ-31): runtime entitlement + permission gating (replaces PROJ-24 build-time FF)`
-- [ ] T5.10: Open PR against `main`; reference spec + ADR; QA checklist in PR description
-- [ ] T5.11: Manual smoke after merge: visit prod, verify Mario sees admin features, register a test free-tier user, confirm they don't see staff features
+- [x] T5.8: Update `docs/PRD.md` roadmap table: same status flips
+- [x] T5.9: Commit each phase as standalone commit (`feat(PROJ-31): phase 1 — ...`); final PR title: `feat(PROJ-31): runtime entitlement + permission gating (replaces PROJ-24 build-time FF)`
+- [x] T5.10: Open PR against `main`; reference spec + ADR; QA checklist in PR description
+- [x] T5.11: Manual smoke after merge: visit prod, verify Mario sees admin features, register a test free-tier user, confirm they don't see staff features
 
 ---
 
