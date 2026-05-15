@@ -20,15 +20,15 @@ Branch: `feature/PROJ-30-app-responsive` (off `main`)
 
 ## Phase 1 — Theme + Shared Primitives
 
-- [ ] T1.1: Add `xxs: 400` breakpoint to `frontend-ui/src/style/theme.ts` (and Plan B fallback if audit dictates)
-- [ ] T1.2: Add TypeScript module augmentation for `BreakpointOverrides` so `xxs` is type-safe across `theme.breakpoints.*` calls
-- [ ] T1.3: Add MUI Dialog default override to theme: `fullScreen` based on `theme.breakpoints.down('sm')`
-- [ ] T1.4: Add MUI Button / IconButton minHeight 44px override for `breakpoints.down('md')` (44×44 touch target)
-- [ ] T1.5: Create `frontend-ui/src/hooks/useResponsiveLayout.ts` — returns `{ isPhoneTiny, isMobile, isTablet, isDesktop }` based on breakpoints
-- [ ] T1.6: Vitest for `useResponsiveLayout.ts` covering all 4 viewport tiers (mock `useMediaQuery`)
-- [ ] T1.7: Create `frontend-ui/src/components/ResponsiveDialog.tsx` — thin wrapper over MUI Dialog with `disableMobileFullScreen` opt-out prop
-- [ ] T1.8: Vitest for `ResponsiveDialog.tsx` — verifies `fullScreen` switches on mocked viewport
-- [ ] T1.9: Run `npm run lint && npm run test:ci` — zero new failures before continuing
+- [x] T1.1: Add `xxs: 400` breakpoint to `frontend-ui/src/style/theme.ts` (and Plan B fallback if audit dictates)
+- [x] T1.2: Add TypeScript module augmentation for `BreakpointOverrides` so `xxs` is type-safe across `theme.breakpoints.*` calls
+- [x] T1.3: Add MUI Dialog default override to theme: `fullScreen` based on `theme.breakpoints.down('sm')`
+- [x] T1.4: Add MUI Button / IconButton minHeight 44px override for `breakpoints.down('md')` (44×44 touch target)
+- [x] T1.5: Create `frontend-ui/src/hooks/useResponsiveLayout.ts` — returns `{ isPhoneTiny, isMobile, isTablet, isDesktop }` based on breakpoints
+- [x] T1.6: Vitest for `useResponsiveLayout.ts` covering all 4 viewport tiers (mock `useMediaQuery`)
+- [x] T1.7: Create `frontend-ui/src/components/ResponsiveDialog.tsx` — thin wrapper over MUI Dialog with `disableMobileFullScreen` opt-out prop
+- [x] T1.8: Vitest for `ResponsiveDialog.tsx` — verifies `fullScreen` switches on mocked viewport
+- [x] T1.9: Run `npm run lint && npm run test:ci` — zero new failures before continuing
 
 ---
 
