@@ -41,9 +41,10 @@
 | PROJ-27 | AI Upscaler (Single + Bulk via Replicate) | In Review | [spec](PROJ-27-ai-upscaler.md) | 2026-05-07 |
 | PROJ-28 | Niche Research Product Limit | In Review | [spec](PROJ-28-niche-research-product-limit.md) | 2026-05-08 |
 | PROJ-29 | Niche-Data Agentic RAG + Configurable System-Prompt + Langfuse Chat Observability | In Review | [spec](PROJ-29-niche-rag-chat.md) | 2026-05-11 |
+| PROJ-30 | App-wide Responsive Design (iPhone SE / iPad / MacBook) | In Progress | [spec](PROJ-30-app-responsive.md) | 2026-05-14 |
 
 <!-- Add features above this line -->
 
-## Next Available ID: PROJ-30
+## Next Available ID: PROJ-31
 
 > Note: PROJ-26 reserved for KeywordChipBoard / Keyword Transfer Tabs (slimmed Item 4.2 from PROJ-7 follow-up; planned in memory `project_keyword_transfer_tabs_pending.md` 2026-05-04).
