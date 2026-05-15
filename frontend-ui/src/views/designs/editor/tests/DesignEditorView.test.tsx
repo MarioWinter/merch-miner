@@ -14,6 +14,17 @@ vi.mock('react-konva', () => ({
   Image: () => <div data-testid="konva-image" />,
 }));
 
+// PROJ-30 T3.24 — keep test layout in desktop mode so the 280px ToolPanel
+// renders inline (mobile path hides it behind a FAB drawer).
+vi.mock('@/hooks/useResponsiveLayout', () => ({
+  useResponsiveLayout: () => ({
+    isPhoneTiny: false,
+    isMobile: false,
+    isTablet: false,
+    isDesktop: true,
+  }),
+}));
+
 vi.mock('../partials/PipelineBar', () => ({
   PipelineBar: () => <div data-testid="pipeline-bar">PipelineBar</div>,
 }));

@@ -98,6 +98,20 @@
       "openLabel": "Open navigation menu",
       "closeLabel": "Close navigation menu"
     },
+    "dialog": {
+      "closeLabel": "Close"
+    },
+    "editor": {
+      "toolFab": {
+        "openLabel": "Open design tools",
+        "closeLabel": "Close design tools"
+      },
+      "tools": {
+        "tabLayers": "Layers",
+        "tabTools": "Tools",
+        "tabProperties": "Properties"
+      }
+    },
     "context": {
       "chipFallback": "Set context",
       "empty": "Select context",

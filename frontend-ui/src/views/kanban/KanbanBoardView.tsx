@@ -11,6 +11,7 @@ import {
 } from '@dnd-kit/core';
 import ViewKanbanOutlinedIcon from '@mui/icons-material/ViewKanbanOutlined';
 import { useTranslation } from 'react-i18next';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { useBoardData } from './hooks/useBoardData';
 import { useCardDrag } from './hooks/useCardDrag';
 import { useCardModal } from './hooks/useCardModal';
@@ -18,6 +19,7 @@ import KanbanColumn from './partials/KanbanColumn';
 import CardModal from './partials/CardModal';
 import AssigneeFilter from './partials/AssigneeFilter';
 import ArchivedToggle from './partials/ArchivedToggle';
+import MobileKanbanTabs from './partials/MobileKanbanTabs';
 
 // ---------------------------------------------------------------------------
 // Styled
@@ -65,6 +67,7 @@ const BoardSkeleton = () => (
 
 const KanbanBoardView = () => {
   const { t } = useTranslation();
+  const { isDesktop } = useResponsiveLayout();
   const [assigneeFilter, setAssigneeFilter] = useState<number | null>(null);
   const [showArchived, setShowArchived] = useState(false);
 
@@ -139,7 +142,7 @@ const KanbanBoardView = () => {
       {/* Board */}
       {isLoading ? (
         <BoardSkeleton />
-      ) : (
+      ) : isDesktop ? (
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
@@ -182,6 +185,10 @@ const KanbanBoardView = () => {
             ) : null}
           </DragOverlay>
         </DndContext>
+      ) : (
+        // PROJ-30 T3.21 — Mobile: one column visible at a time, tab-switched.
+        // Cross-column moves use the per-card "Move to column…" menu.
+        <MobileKanbanTabs columns={columns} onCardClick={openCard} />
       )}
 
       {/* Card Modal — deep-linked via ?card=nicheId */}

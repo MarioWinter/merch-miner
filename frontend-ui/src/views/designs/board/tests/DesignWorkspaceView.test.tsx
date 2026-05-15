@@ -14,6 +14,16 @@ beforeAll(() => {
 const { fa } = vi.hoisted(() => ({
   fa: (n: string) => ({ reducerPath: n, reducer: () => ({}), middleware: () => (x: any) => (a: any) => x(a), util: { resetApiState: () => ({ type: 'noop' }), invalidateTags: () => ({ type: 'noop' }) } }),
 }));
+// PROJ-30 T3.17 — right panel inline render is desktop-only; force desktop.
+vi.mock('@/hooks/useResponsiveLayout', () => ({
+  useResponsiveLayout: () => ({
+    isPhoneTiny: false,
+    isMobile: false,
+    isTablet: false,
+    isDesktop: true,
+  }),
+}));
+
 vi.mock('@/store/nicheSlice', () => ({ nicheApi: fa('nicheApi'), useListNichesQuery: () => ({ data: { results: [] }, isLoading: false }) }));
 vi.mock('@/store/ideaSlice', () => ({ ideaApi: fa('ideaApi') }));
 vi.mock('@/store/researchSlice', () => ({ researchApi: fa('researchApi') }));

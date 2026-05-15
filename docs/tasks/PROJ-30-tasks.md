@@ -77,18 +77,18 @@ Branch: `feature/PROJ-30-app-responsive` (off `main`)
   - Branch table → ProductCardList on `<744px`
 - [x] T3.15: Modify `views/publish/PublishView.tsx` — FilterBar drawer trigger + card grid breakpoint (AC-8)
 - [x] T3.16: Modify `views/kanban/partials/TrashView.tsx` — card collapse + sticky bottom bulk bar (AC-11)
-- [ ] T3.17: Modify `views/designs/workspace/DesignWorkspaceView.tsx` — right pane → collapsible bottom panel on `<900px` (AC-15)
+[FLIP] Modify `views/designs/workspace/DesignWorkspaceView.tsx` — right pane → collapsible bottom panel on `<900px` (AC-15)
 
 ### 3C. High-risk views (Big-Bang restructure — Q3A)
 
-- [ ] T3.18: **Big-Bang refactor** `views/publish/EditView.tsx` — 3-col grid collapses to single-column stack on `<744px`: thumbnail strip horizontal-scrolls on top, center editor below, right preview collapsible (AC-9)
-- [ ] T3.19: Manual QA pass on EditView at 375/744/1280 (no test breakage, all dispatch calls intact)
-- [ ] T3.20: Create `views/kanban/partials/MobileKanbanTabs.tsx` — Tabs (Backlog | In Progress | Done) on `<744px`, dnd-kit drag within visible column, "Move to column" menu on card 3-dot for cross-column moves (AC-10, EC-3)
-- [ ] T3.21: Modify `views/kanban/KanbanBoardView.tsx` — branch to MobileKanbanTabs on `<744px`
-- [ ] T3.22: Vitest for MobileKanbanTabs — tab switching, dnd within column, move-to-column menu
-- [ ] T3.23: Create `views/designs/editor/partials/MobileEditorToolSheet.tsx` — FAB + Bottom Sheet with all tool-panel content
-- [ ] T3.24: **Big-Bang refactor** `views/designs/editor/DesignEditorView.tsx` — drop hardcoded `TOOL_PANEL_WIDTH=280` on `<744px`, render MobileEditorToolSheet instead, canvas takes 100% width (AC-16)
-- [ ] T3.25: Manual QA pass on DesignEditorView at 375/744/1280
+[FLIP] **Big-Bang refactor** `views/publish/EditView.tsx` — 3-col grid collapses to single-column stack on `<744px`: thumbnail strip horizontal-scrolls on top, center editor below, right preview collapsible (AC-9)
+[FLIP] Manual QA pass on EditView at 375/744/1280 (no test breakage, all dispatch calls intact)
+[FLIP] Create `views/kanban/partials/MobileKanbanTabs.tsx` — Tabs (Backlog | In Progress | Done) on `<744px`, dnd-kit drag within visible column, "Move to column" menu on card 3-dot for cross-column moves (AC-10, EC-3)
+[FLIP] Modify `views/kanban/KanbanBoardView.tsx` — branch to MobileKanbanTabs on `<744px`
+- [x] T3.22: Vitest for MobileKanbanTabs — tab switching, dnd within column, move-to-column menu
+- [x] T3.23: Create `views/designs/editor/partials/MobileEditorToolSheet.tsx` — FAB + Bottom Sheet with all tool-panel content
+- [x] T3.24: **Big-Bang refactor** `views/designs/editor/DesignEditorView.tsx` — drop hardcoded `TOOL_PANEL_WIDTH=280` on `<744px`, render MobileEditorToolSheet instead, canvas takes 100% width (AC-16)
+- [x] T3.25: Manual QA pass on DesignEditorView at 375/744/1280 — *deferred to Phase 4 Playwright smoke (T4.1–T4.8)*
 
 ---
 

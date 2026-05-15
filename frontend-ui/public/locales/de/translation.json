@@ -98,6 +98,20 @@
       "openLabel": "Menü öffnen",
       "closeLabel": "Menü schließen"
     },
+    "dialog": {
+      "closeLabel": "Schließen"
+    },
+    "editor": {
+      "toolFab": {
+        "openLabel": "Design-Werkzeuge öffnen",
+        "closeLabel": "Design-Werkzeuge schließen"
+      },
+      "tools": {
+        "tabLayers": "Ebenen",
+        "tabTools": "Werkzeuge",
+        "tabProperties": "Eigenschaften"
+      }
+    },
     "context": {
       "chipFallback": "Kontext wählen",
       "empty": "Kontext wählen",
