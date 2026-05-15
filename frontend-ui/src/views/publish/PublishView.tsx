@@ -1,9 +1,21 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
-import { Box } from '@mui/material';
+import {
+  Box,
+  Button,
+  Drawer,
+  IconButton,
+  MenuItem,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
 import { styled } from '@mui/material/styles';
+import TuneIcon from '@mui/icons-material/Tune';
+import CloseIcon from '@mui/icons-material/Close';
 import { useNavigate } from 'react-router-dom';
 import { useSnackbar } from 'notistack';
 import { useTranslation } from 'react-i18next';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import {
   useDeleteDesignMutation,
   useDuplicateDesignMutation,
@@ -55,6 +67,24 @@ const ContentArea = styled(Box)(({ theme }) => ({
   overflowY: 'auto',
 }));
 
+// PROJ-30 T3.15 — sticky "Filters" trigger only rendered on `<md` so the
+// search + sort controls remain reachable when the desktop toolbar wraps.
+const MobileFilterBar = styled(Stack)(({ theme }) => ({
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: theme.spacing(1, 2),
+  borderBottom: `1px solid ${theme.vars.palette.divider}`,
+  backgroundColor: theme.vars.palette.background.paper,
+}));
+
+const FilterDrawerBody = styled(Stack)(({ theme }) => ({
+  width: 320,
+  maxWidth: '100vw',
+  padding: theme.spacing(2),
+  gap: theme.spacing(2),
+}));
+
 // ---------------------------------------------------------------------------
 // Component
 // ---------------------------------------------------------------------------
@@ -63,6 +93,7 @@ const PublishView = () => {
   const navigate = useNavigate();
   const { enqueueSnackbar } = useSnackbar();
   const { t } = useTranslation();
+  const { isDesktop } = useResponsiveLayout();
   const [uploadDesign] = useUploadDesignMutation();
   const [updateDesign] = useUpdateDesignMutation();
   const [deleteDesign] = useDeleteDesignMutation();
@@ -93,6 +124,8 @@ const PublishView = () => {
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [moveTargetId, setMoveTargetId] = useState<string | null>(null);
+  // PROJ-30 T3.15 — mobile filters drawer.
+  const [filtersDrawerOpen, setFiltersDrawerOpen] = useState(false);
 
   // Phase W3/W5 — FlyingUpload export state. `exportRequest` is null when
   // the preflight dialog is closed; setting it opens the dialog with the
@@ -453,6 +486,29 @@ const PublishView = () => {
         onChange={(e) => handleFilesSelected(e.target.files)}
       />
 
+      {/* PROJ-30 T3.15 — mobile-only filters trigger. Lives above the
+          gallery so the user can reach the search/sort controls without
+          horizontally scrolling the desktop toolbar. */}
+      {!isDesktop && (
+        <MobileFilterBar>
+          <Typography variant="body2" color="text.secondary">
+            {searchQuery
+              ? t('responsive.publishView.searchLabel') + `: "${searchQuery}"`
+              : t('responsive.publishView.filtersDrawerTitle')}
+          </Typography>
+          <Button
+            variant="outlined"
+            size="small"
+            startIcon={<TuneIcon sx={{ fontSize: 18 }} />}
+            onClick={() => setFiltersDrawerOpen(true)}
+            aria-haspopup="dialog"
+            aria-expanded={filtersDrawerOpen}
+          >
+            {t('responsive.publishView.filtersButton')}
+          </Button>
+        </MobileFilterBar>
+      )}
+
       {/* Content */}
       <ContentArea ref={containerRef}>
         {activeTab === 'my_designs' ? (
@@ -598,6 +654,72 @@ const PublishView = () => {
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
       />
+
+      {/* PROJ-30 T3.15 — mobile Filters drawer with the same search +
+          sort controls available in the desktop toolbar. */}
+      <Drawer
+        anchor="right"
+        open={filtersDrawerOpen}
+        onClose={() => setFiltersDrawerOpen(false)}
+        slotProps={{
+          paper: {
+            'aria-label': t('responsive.publishView.filtersDrawerTitle'),
+          },
+        }}
+      >
+        <FilterDrawerBody>
+          <Stack direction="row" alignItems="center" justifyContent="space-between">
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              {t('responsive.publishView.filtersDrawerTitle')}
+            </Typography>
+            <IconButton
+              size="small"
+              onClick={() => setFiltersDrawerOpen(false)}
+              aria-label={t('responsive.publishView.filtersClose')}
+            >
+              <CloseIcon sx={{ fontSize: 20 }} />
+            </IconButton>
+          </Stack>
+
+          <TextField
+            size="small"
+            fullWidth
+            label={t('responsive.publishView.searchLabel')}
+            placeholder={t('responsive.publishView.searchPlaceholder')}
+            value={searchQuery}
+            onChange={(e) => handleSearchChange(e.target.value)}
+          />
+
+          <TextField
+            select
+            size="small"
+            fullWidth
+            label={t('responsive.publishView.sortLabel')}
+            value={galleryParams.sort_by ?? 'newest'}
+            onChange={(e) =>
+              setGalleryParams((prev) => ({
+                ...prev,
+                sort_by: e.target.value as GalleryListParams['sort_by'],
+              }))
+            }
+          >
+            <MenuItem value="newest">
+              {t('responsive.publishView.sortNewest')}
+            </MenuItem>
+            <MenuItem value="recently_edited">
+              {t('responsive.publishView.sortRecentlyEdited')}
+            </MenuItem>
+          </TextField>
+
+          <Button
+            variant="text"
+            onClick={() => setFiltersDrawerOpen(false)}
+            sx={{ alignSelf: 'flex-end' }}
+          >
+            {t('responsive.publishView.filtersClose')}
+          </Button>
+        </FilterDrawerBody>
+      </Drawer>
     </ViewRoot>
   );
 };

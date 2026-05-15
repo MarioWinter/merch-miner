@@ -75,8 +75,8 @@ Branch: `feature/PROJ-30-app-responsive` (off `main`)
   - Product grid 1/2/3/4 col responsive (AC-17)
   - AdvancedOptionsPanel behind button on `<744px`
   - Branch table → ProductCardList on `<744px`
-- [ ] T3.15: Modify `views/publish/PublishView.tsx` — FilterBar drawer trigger + card grid breakpoint (AC-8)
-- [ ] T3.16: Modify `views/kanban/partials/TrashView.tsx` — card collapse + sticky bottom bulk bar (AC-11)
+- [x] T3.15: Modify `views/publish/PublishView.tsx` — FilterBar drawer trigger + card grid breakpoint (AC-8)
+- [x] T3.16: Modify `views/kanban/partials/TrashView.tsx` — card collapse + sticky bottom bulk bar (AC-11)
 - [ ] T3.17: Modify `views/designs/workspace/DesignWorkspaceView.tsx` — right pane → collapsible bottom panel on `<900px` (AC-15)
 
 ### 3C. High-risk views (Big-Bang restructure — Q3A)

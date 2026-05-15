@@ -172,7 +172,12 @@
     "publishView": {
       "filtersButton": "Filter",
       "filtersDrawerTitle": "Filter",
-      "filtersClose": "Schließen"
+      "filtersClose": "Schließen",
+      "searchLabel": "Suchen",
+      "searchPlaceholder": "Designs suchen…",
+      "sortLabel": "Sortieren nach",
+      "sortNewest": "Neueste zuerst",
+      "sortRecentlyEdited": "Kürzlich bearbeitet"
     },
     "amazonResearch": {
       "advancedToggleShow": "Erweiterte Filter anzeigen",
