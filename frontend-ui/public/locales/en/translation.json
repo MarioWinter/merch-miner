@@ -93,6 +93,24 @@
       "it": "Italiano"
     }
   },
+  "responsive": {
+    "hamburger": {
+      "openLabel": "Open navigation menu",
+      "closeLabel": "Close navigation menu"
+    },
+    "context": {
+      "chipFallback": "Set context",
+      "empty": "Select context",
+      "sheetTitle": "Workspace & Niche",
+      "workspaceLabel": "Workspace",
+      "nicheLabel": "Niche",
+      "close": "Close",
+      "openLabel": "Open workspace and niche picker"
+    },
+    "drawer": {
+      "closeLabel": "Close drawer"
+    }
+  },
   "nav": {
     "sidebarLabel": "Main navigation",
     "expandSidebar": "Expand sidebar",

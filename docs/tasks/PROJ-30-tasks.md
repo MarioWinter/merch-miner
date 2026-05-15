@@ -34,20 +34,20 @@ Branch: `feature/PROJ-30-app-responsive` (off `main`)
 
 ## Phase 2 — Shell Components
 
-- [ ] T2.1: Modify `AppLayout.tsx` — extend `collapsed` logic to use `useResponsiveLayout`; hide Sidebar entirely on `isPhoneTiny`
-- [ ] T2.2: Create `components/topbar/HamburgerMenu.tsx` — IconButton in Topbar + temporary Drawer containing Sidebar (only renders on `isPhoneTiny`)
-- [ ] T2.3: Vitest for `HamburgerMenu.tsx` — open/close, route-change auto-close (EC-5)
-- [ ] T2.4: Modify `components/topbar/Topbar.tsx`:
+- [x] T2.1: Modify `AppLayout.tsx` — extend `collapsed` logic to use `useResponsiveLayout`; hide Sidebar entirely on `isPhoneTiny`
+- [x] T2.2: Create `components/topbar/HamburgerMenu.tsx` — IconButton in Topbar + temporary Drawer containing Sidebar (only renders on `isPhoneTiny`)
+- [x] T2.3: Vitest for `HamburgerMenu.tsx` — open/close, route-change auto-close (EC-5)
+- [x] T2.4: Modify `components/topbar/Topbar.tsx`:
   - On `isPhoneTiny` show Hamburger IconButton at left
   - On `<600px` collapse Workspace+Niche chip pair to a single "Context" Chip
   - On `600–899px` make chip pair flex-flow (not absolutely positioned)
   - On `≥900px` keep current absolutely-centered behavior
-- [ ] T2.5: Create `components/topbar/MobileContextSheet.tsx` — bottom sheet containing both WorkspaceSelector + NicheSelector pickers
-- [ ] T2.6: Vitest for `MobileContextSheet.tsx` + Topbar mobile collapse logic
-- [ ] T2.7: Modify `components/Sidebar/Sidebar.tsx` — accept `variant: 'permanent' | 'mobile'` prop; mobile variant renders inside Drawer
-- [ ] T2.8: Modify `components/MultiPurposeDrawer/index.tsx` — drawer width 100% on `<600px`, 80% on `600–899px`, user-resized ≥900px; preserve existing resize handle on desktop only
-- [ ] T2.9: Verify Sidebar + MultiPurposeDrawer overlap on phone-landscape (EC-2) — add z-index documentation comment
-- [ ] T2.10: Run `npm run lint && npm run test:ci` — zero new failures
+- [x] T2.5: Create `components/topbar/MobileContextSheet.tsx` — bottom sheet containing both WorkspaceSelector + NicheSelector pickers
+- [x] T2.6: Vitest for `MobileContextSheet.tsx` + Topbar mobile collapse logic
+- [x] T2.7: Modify `components/Sidebar/Sidebar.tsx` — accept `variant: 'permanent' | 'mobile'` prop; mobile variant renders inside Drawer
+- [x] T2.8: Modify `components/MultiPurposeDrawer/index.tsx` — drawer width 100% on `<600px`, 80% on `600–899px`, user-resized ≥900px; preserve existing resize handle on desktop only
+- [x] T2.9: Verify Sidebar + MultiPurposeDrawer overlap on phone-landscape (EC-2) — add z-index documentation comment
+- [x] T2.10: Run `npm run lint && npm run test:ci` — zero new failures
 
 ---
 

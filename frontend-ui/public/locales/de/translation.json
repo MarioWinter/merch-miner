@@ -93,6 +93,24 @@
       "it": "Italienisch"
     }
   },
+  "responsive": {
+    "hamburger": {
+      "openLabel": "Menü öffnen",
+      "closeLabel": "Menü schließen"
+    },
+    "context": {
+      "chipFallback": "Kontext wählen",
+      "empty": "Kontext wählen",
+      "sheetTitle": "Workspace & Nische",
+      "workspaceLabel": "Workspace",
+      "nicheLabel": "Nische",
+      "close": "Schließen",
+      "openLabel": "Workspace- und Nischenauswahl öffnen"
+    },
+    "drawer": {
+      "closeLabel": "Drawer schließen"
+    }
+  },
   "nav": {
     "sidebarLabel": "Hauptnavigation",
     "expandSidebar": "Seitenleiste ausklappen",
