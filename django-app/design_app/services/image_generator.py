@@ -1,6 +1,8 @@
 """Image generation via OpenRouter API."""
 
+import base64
 import logging
+import mimetypes
 import os
 import tempfile
 from io import BytesIO
@@ -11,17 +13,20 @@ from PIL import Image
 
 logger = logging.getLogger(__name__)
 
-# OpenRouter model mapping — legacy short names + new full IDs
+# OpenRouter model mapping — DB/frontend value → real OpenRouter model ID.
+# The "image-generation" suffix variants we historically used are NOT real
+# OpenRouter IDs; translate them to the actual published IDs here.
 MODEL_MAP = {
-    # Legacy (kept for existing DB records)
+    # Legacy short names (kept for existing DB records)
     'gemini_flash': 'google/gemini-2.5-flash-image',
     'gemini_pro': 'google/gemini-3-pro-image-preview',
     'gpt_image': 'openai/gpt-image-1',
     'flux': 'black-forest-labs/flux-1.1-pro',
-    # New models (frontend sends full OpenRouter ID)
-    'google/gemini-3.1-flash-preview-image-generation': 'google/gemini-3.1-flash-preview-image-generation',
-    'google/gemini-3-pro-preview-image-generation': 'google/gemini-3-pro-preview-image-generation',
-    'google/gemini-2.5-flash-preview-image-generation': 'google/gemini-2.5-flash-preview-image-generation',
+    # Gemini image-gen — DB values map to real OpenRouter IDs
+    'google/gemini-3.1-flash-preview-image-generation': 'google/gemini-3.1-flash-image-preview',
+    'google/gemini-3-pro-preview-image-generation': 'google/gemini-3-pro-image-preview',
+    'google/gemini-2.5-flash-preview-image-generation': 'google/gemini-2.5-flash-image',
+    # OpenAI + others — IDs already correct
     'openai/gpt-5-image': 'openai/gpt-5-image',
     'openai/gpt-5-image-mini': 'openai/gpt-5-image-mini',
     'black-forest-labs/flux-1.1-pro': 'black-forest-labs/flux-1.1-pro',
@@ -68,6 +73,45 @@ MULTIMODAL_MODELS = {
 }
 
 
+def _to_data_url(url: str) -> str:
+    """Fetch a URL and return a data:image/...;base64,... URI.
+
+    OpenRouter (and downstream models like Gemini) sometimes refuses to fetch
+    external image URLs — Wikipedia thumbnails, Amazon CDN entries, even our
+    own MEDIA_URL when private. Sending the bytes inline as a data URL
+    sidesteps that entire failure mode at the cost of bandwidth from our server.
+    """
+    # If already a data URL, pass through unchanged.
+    if url.startswith('data:'):
+        return url
+    # Local MEDIA_URL — load directly from disk for speed + reliability.
+    media_url = getattr(settings, 'MEDIA_URL', '/media/')
+    media_root = getattr(settings, 'MEDIA_ROOT', None)
+    # Normalize to path: strip scheme+host if present (e.g. http://localhost:5173/media/...).
+    path_only = url
+    for marker in ('://',):
+        if marker in path_only:
+            after_host = path_only.split('://', 1)[1]
+            slash = after_host.find('/')
+            path_only = after_host[slash:] if slash >= 0 else '/'
+    if media_root and path_only.startswith(media_url):
+        rel = path_only[len(media_url):]
+        path = os.path.join(media_root, rel)
+        if os.path.exists(path):
+            with open(path, 'rb') as f:
+                data = f.read()
+            mime = mimetypes.guess_type(path)[0] or 'image/png'
+            return f'data:{mime};base64,' + base64.b64encode(data).decode('ascii')
+    # Fall back to HTTP fetch.
+    with httpx.Client(timeout=20.0, follow_redirects=True) as client:
+        resp = client.get(url, headers={'User-Agent': 'merch-miner/1.0'})
+        resp.raise_for_status()
+    mime = resp.headers.get('content-type', 'image/png').split(';')[0].strip() or 'image/png'
+    if not mime.startswith('image/'):
+        mime = 'image/png'
+    return f'data:{mime};base64,' + base64.b64encode(resp.content).decode('ascii')
+
+
 def _build_content(
     mode: str,
     prompt: str,
@@ -77,8 +121,12 @@ def _build_content(
     """Build OpenRouter message content array based on generation mode.
 
     Returns plain string for text_to_image (no image), or a multimodal
-    content list for image-based modes.
+    content list for image-based modes. Source images are inlined as
+    data URLs to avoid OpenRouter / Gemini failing to fetch them.
     """
+    src1_data = _to_data_url(source_image_url) if source_image_url else ''
+    src2_data = _to_data_url(source_image_url_2) if source_image_url_2 else ''
+
     if mode == 'image_to_image':
         # Prompt dominates — image is style/mood guide
         text = (
@@ -88,7 +136,7 @@ def _build_content(
             f"{prompt}"
         )
         return [
-            {'type': 'image_url', 'image_url': {'url': source_image_url}},
+            {'type': 'image_url', 'image_url': {'url': src1_data}},
             {'type': 'text', 'text': text},
         ]
 
@@ -100,7 +148,7 @@ def _build_content(
             f"{prompt}"
         )
         return [
-            {'type': 'image_url', 'image_url': {'url': source_image_url}},
+            {'type': 'image_url', 'image_url': {'url': src1_data}},
             {'type': 'text', 'text': text},
         ]
 
@@ -113,8 +161,8 @@ def _build_content(
             f"{prompt}"
         )
         return [
-            {'type': 'image_url', 'image_url': {'url': source_image_url}},
-            {'type': 'image_url', 'image_url': {'url': source_image_url_2}},
+            {'type': 'image_url', 'image_url': {'url': src1_data}},
+            {'type': 'image_url', 'image_url': {'url': src2_data}},
             {'type': 'text', 'text': text},
         ]
 
@@ -122,7 +170,7 @@ def _build_content(
     if source_image_url:
         return [
             {'type': 'text', 'text': prompt},
-            {'type': 'image_url', 'image_url': {'url': source_image_url}},
+            {'type': 'image_url', 'image_url': {'url': src1_data}},
         ]
 
     return prompt
