@@ -23,18 +23,18 @@ import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import CloseIcon from '@mui/icons-material/Close';
 import { useTranslation } from 'react-i18next';
 import { COLORS, DURATION, EASING, radius } from '@/style/constants';
-import type { BackgroundColor, DesignModel } from '../types';
+import type { BackgroundColor, DesignModel, GenerationMode } from '../types';
 import ParallelPromptsRow from './ParallelPromptsRow';
 
 // -----------------------------------------------------------------
 // Constants
 // -----------------------------------------------------------------
 
-export type GenerationMode = 'text_to_image' | 'image_to_image_remix' | 'image_to_image_edit';
+export type { GenerationMode };
 
 const MODE_OPTIONS: Array<{ value: GenerationMode; labelKey: string }> = [
   { value: 'text_to_image', labelKey: 'design.generation.mode.textToImage' },
-  { value: 'image_to_image_remix', labelKey: 'design.generation.mode.remixImage' },
+  { value: 'remix', labelKey: 'design.generation.mode.remixImage' },
   { value: 'image_to_image_edit', labelKey: 'design.generation.mode.editImage' },
 ];
 
@@ -62,8 +62,6 @@ const MODEL_LABELS: Record<DesignModel, string> = {
   'google/gemini-2.5-flash-preview-image-generation': 'Nano Banana',
   'openai/gpt-5-image': 'GPT-5 Image',
   'openai/gpt-5-image-mini': 'GPT-5 Mini',
-  'black-forest-labs/flux-1.1-pro': 'Flux 1.1 Pro',
-  'bytedance-seed/seedream-4.5': 'Seedream 4.5',
 };
 
 const MODELS: DesignModel[] = [
@@ -72,8 +70,6 @@ const MODELS: DesignModel[] = [
   'google/gemini-2.5-flash-preview-image-generation',
   'openai/gpt-5-image',
   'openai/gpt-5-image-mini',
-  'black-forest-labs/flux-1.1-pro',
-  'bytedance-seed/seedream-4.5',
 ];
 
 const IMAGES_MIN = 1;
@@ -214,19 +210,94 @@ const SplitMenuPaper = styled(Paper)(({ theme }) => ({
   }),
 }));
 
-const ReferenceIndicator = styled(Box)(({ theme }) => ({
+const ReferenceIndicator = styled(Box, {
+  shouldForwardProp: (prop) => prop !== '$empty',
+})<{ $empty?: boolean }>(({ theme, $empty }) => ({
   display: 'flex',
   alignItems: 'center',
   gap: theme.spacing(1),
   padding: theme.spacing(0.75, 1.25),
   borderRadius: theme.shape.borderRadius,
-  backgroundColor: alpha(COLORS.cyan, 0.12),
-  border: `1px solid ${alpha(COLORS.cyan, 0.3)}`,
+  backgroundColor: $empty ? alpha(COLORS.cyan, 0.04) : alpha(COLORS.cyan, 0.12),
+  border: `1px ${$empty ? 'dashed' : 'solid'} ${alpha(COLORS.cyan, $empty ? 0.2 : 0.3)}`,
   ...theme.applyStyles('light', {
-    backgroundColor: alpha(COLORS.cyan, 0.08),
-    border: `1px solid ${alpha(COLORS.cyan, 0.25)}`,
+    backgroundColor: $empty ? alpha(COLORS.cyan, 0.03) : alpha(COLORS.cyan, 0.08),
+    border: `1px ${$empty ? 'dashed' : 'solid'} ${alpha(COLORS.cyan, $empty ? 0.18 : 0.25)}`,
   }),
 }));
+
+const SlotBadge = styled(Box)(({ theme }) => ({
+  width: 18,
+  height: 18,
+  borderRadius: '50%',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '0.625rem',
+  fontWeight: 700,
+  color: COLORS.white,
+  backgroundColor: COLORS.cyan,
+  flexShrink: 0,
+  ...theme.applyStyles('light', { color: COLORS.ink }),
+}));
+
+interface ReferenceSlotProps {
+  imageUrl: string | null | undefined;
+  slotIndex: 1 | 2 | null;
+  labelFilled: string;
+  labelEmpty: string;
+  onClear?: () => void;
+}
+
+const ReferenceSlot = ({ imageUrl, slotIndex, labelFilled, labelEmpty, onClear }: ReferenceSlotProps) => {
+  const filled = Boolean(imageUrl);
+  return (
+    <ReferenceIndicator $empty={!filled}>
+      {slotIndex !== null && <SlotBadge>{slotIndex}</SlotBadge>}
+      {filled ? (
+        <Box
+          component="img"
+          src={imageUrl ?? undefined}
+          alt=""
+          sx={{
+            width: 32,
+            height: 32,
+            borderRadius: 0.5,
+            objectFit: 'cover',
+            flexShrink: 0,
+            border: `1px solid ${alpha(COLORS.cyan, 0.4)}`,
+          }}
+        />
+      ) : (
+        <Box
+          sx={{
+            width: 32,
+            height: 32,
+            borderRadius: 0.5,
+            border: `1px dashed ${alpha(COLORS.cyan, 0.4)}`,
+            flexShrink: 0,
+          }}
+        />
+      )}
+      <Typography
+        variant="caption"
+        sx={{
+          flex: 1,
+          color: filled ? COLORS.cyan : 'text.secondary',
+          fontWeight: filled ? 500 : 400,
+        }}
+        noWrap
+      >
+        {filled ? labelFilled : labelEmpty}
+      </Typography>
+      {filled && onClear && (
+        <IconButton size="small" onClick={onClear} sx={{ p: 0.25 }}>
+          <CloseIcon sx={{ fontSize: 14, color: COLORS.cyan }} />
+        </IconButton>
+      )}
+    </ReferenceIndicator>
+  );
+};
 
 // -----------------------------------------------------------------
 // Props
@@ -261,6 +332,9 @@ interface GenerationZoneProps {
   /** When set, generation uses this image as source (image-to-image) */
   sourceImageUrl?: string | null;
   onClearSourceImage?: () => void;
+  /** Second reference image — required for Remix mode */
+  sourceImageUrl2?: string | null;
+  onClearSourceImage2?: () => void;
 }
 
 // -----------------------------------------------------------------
@@ -293,6 +367,8 @@ const GenerationZone = ({
   disabled = false,
   sourceImageUrl = null,
   onClearSourceImage,
+  sourceImageUrl2 = null,
+  onClearSourceImage2,
 }: GenerationZoneProps) => {
   const { t } = useTranslation();
   const [sliderValue, setSliderValue] = useState(imageCount);
@@ -337,6 +413,11 @@ const GenerationZone = ({
   const generateLabel = isGenerating
     ? t('design.prompt.generating', 'Generating...')
     : t('design.prompt.generate', 'Generate');
+
+  const remixIncomplete = mode === 'remix' && (!sourceImageUrl || !sourceImageUrl2);
+  const editMissingSource = mode === 'image_to_image_edit' && !sourceImageUrl;
+  const generateDisabled =
+    disabled || isGenerating || !prompt.trim() || remixIncomplete || editMissingSource;
 
   return (
     <ZoneRoot aria-label={t('design.generation.zoneLabel', 'Generation controls')}>
@@ -461,40 +542,24 @@ const GenerationZone = ({
         disabled={disabled || isGenerating}
       />
 
-      {/* Reference image indicator with thumbnail */}
-      {sourceImageUrl && (
-        <ReferenceIndicator>
-          <Box
-            component="img"
-            src={sourceImageUrl}
-            alt=""
-            sx={{
-              width: 32,
-              height: 32,
-              borderRadius: 0.5,
-              objectFit: 'cover',
-              flexShrink: 0,
-              border: `1px solid ${alpha(COLORS.cyan, 0.4)}`,
-            }}
-          />
-          <Typography
-            variant="caption"
-            sx={{ flex: 1, color: COLORS.cyan, fontWeight: 500 }}
-            noWrap
-          >
-            {t('design.generation.withReference', 'Generating with reference image')}
-          </Typography>
-          {onClearSourceImage && (
-            <IconButton
-              size="small"
-              onClick={onClearSourceImage}
-              aria-label={t('design.generation.clearReference', 'Clear reference image')}
-              sx={{ p: 0.25 }}
-            >
-              <CloseIcon sx={{ fontSize: 14, color: COLORS.cyan }} />
-            </IconButton>
-          )}
-        </ReferenceIndicator>
+      {/* Reference image slots — slot 1 always, slot 2 only in Remix mode */}
+      {(sourceImageUrl || mode === 'remix') && (
+        <ReferenceSlot
+          imageUrl={sourceImageUrl}
+          slotIndex={mode === 'remix' ? 1 : null}
+          labelFilled={t('design.generation.withReference', 'Generating with reference image')}
+          labelEmpty={t('design.generation.referenceEmpty1', 'Add reference 1 (click "Use as Reference")')}
+          onClear={onClearSourceImage}
+        />
+      )}
+      {mode === 'remix' && (
+        <ReferenceSlot
+          imageUrl={sourceImageUrl2}
+          slotIndex={2}
+          labelFilled={t('design.generation.withReference2', 'Reference 2')}
+          labelEmpty={t('design.generation.referenceEmpty2', 'Add reference 2 (Remix needs two)')}
+          onClear={onClearSourceImage2}
+        />
       )}
 
       {/* Prompt textarea */}
@@ -522,7 +587,7 @@ const GenerationZone = ({
           <GenerateBtn
             startIcon={<AutoAwesomeIcon sx={{ fontSize: 18 }} />}
             onClick={onGenerate}
-            disabled={disabled || isGenerating || !prompt.trim()}
+            disabled={generateDisabled}
             aria-label={generateLabel}
             sx={
               isGenerating
@@ -534,7 +599,7 @@ const GenerationZone = ({
           </GenerateBtn>
           <SplitDropdownBtn
             onClick={(e) => setSplitAnchorEl(splitAnchorEl ? null : e.currentTarget)}
-            disabled={disabled || isGenerating || !prompt.trim()}
+            disabled={generateDisabled}
             aria-label={t('design.generation.moreOptions', 'More generate options')}
             sx={{
               background: `linear-gradient(135deg, ${COLORS.red} 0%, ${COLORS.redDk} 100%)`,
@@ -594,7 +659,7 @@ const GenerationZone = ({
           variant="contained"
           startIcon={<AutoAwesomeIcon sx={{ fontSize: 18 }} />}
           onClick={onGenerate}
-          disabled={disabled || isGenerating || !prompt.trim()}
+          disabled={generateDisabled}
           aria-label={generateLabel}
           sx={
             isGenerating

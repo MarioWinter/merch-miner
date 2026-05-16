@@ -1,5 +1,6 @@
-import { Box, Stack, Tooltip, Typography } from '@mui/material';
+import { Box, CircularProgress, Stack, Tooltip, Typography } from '@mui/material';
 import { styled, alpha } from '@mui/material/styles';
+import ErrorOutlineIcon from '@mui/icons-material/ErrorOutline';
 import { useTranslation } from 'react-i18next';
 import { COLORS, DURATION, EASING } from '@/style/constants';
 import { InlineFlowButton } from '@/components/FlowButton';
@@ -95,6 +96,12 @@ const ArtboardListSection = ({
             <ThumbBox>
               {ab.imageUrl ? (
                 <img src={ab.imageUrl} alt={ab.label} />
+              ) : ab.isGenerating ? (
+                <CircularProgress size={18} color="secondary" />
+              ) : ab.hasError ? (
+                <Tooltip title={t('design.artboards.failed', 'Generation failed — delete or retry')}>
+                  <ErrorOutlineIcon sx={{ fontSize: 20, color: 'error.main' }} />
+                </Tooltip>
               ) : (
                 <Typography variant="caption" color="text.disabled">
                   --

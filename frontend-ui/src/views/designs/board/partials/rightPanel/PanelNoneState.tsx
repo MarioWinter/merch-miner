@@ -12,7 +12,8 @@ import SearchIcon from '@mui/icons-material/Search';
 import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import { useTranslation } from 'react-i18next';
 import type { ProjectIdea, ProjectPrompt, ProjectReference } from '@/views/designs/gallery/types';
-import type { ArtboardData } from '../../types';
+import type { ArtboardData, BackgroundColor, DesignModel, GenerationMode } from '../../types';
+import type { AspectRatio } from '../GenerationZone';
 import SloganPoolSection from './SloganPoolSection';
 import PromptListSection from './PromptListSection';
 import ArtboardListSection from './ArtboardListSection';
@@ -60,6 +61,15 @@ interface PanelNoneStateProps {
   references?: ProjectReference[];
   onUseAsReference?: (imageUrl: string) => void;
   onUseAsPrompt?: (analysisText: string) => void;
+  // Generation config — required to call /prompts/:id/generate/
+  generationConfig: {
+    model: DesignModel;
+    background_color: BackgroundColor;
+    aspect_ratio: AspectRatio;
+    mode: GenerationMode;
+    source_image_url: string | null;
+    source_image_url_2: string | null;
+  };
 }
 
 // -----------------------------------------------------------------
@@ -80,6 +90,7 @@ const PanelNoneState = ({
   references = [],
   onUseAsReference,
   onUseAsPrompt,
+  generationConfig,
 }: PanelNoneStateProps) => {
   const { t } = useTranslation();
   const [expandedSections, setExpandedSections] = useState<Record<string, boolean>>({
@@ -151,6 +162,7 @@ const PanelNoneState = ({
             <PromptListSection
               projectId={projectId}
               prompts={prompts}
+              generationConfig={generationConfig}
               onPromptClick={onPromptClick}
               onCreateSkeletonArtboards={onCreateSkeletonArtboards}
             />

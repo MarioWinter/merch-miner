@@ -108,9 +108,13 @@ const DesignWorkspaceView = () => {
     }
   };
 
+  // Poll interval is updated below once we know if a generation is running.
+  // Initial fetch happens with no polling; after a skeleton appears, the
+  // polling kicks in so completed designs land automatically.
+  const [hasRunningGeneration, setHasRunningGeneration] = useState(false);
   const { data: boardData } = useGetProjectBoardQuery(
     { projectId: projectId ?? '' },
-    { skip: !projectId },
+    { skip: !projectId, pollingInterval: hasRunningGeneration ? 4000 : undefined },
   );
 
   // -- Artboard state --
@@ -147,12 +151,26 @@ const DesignWorkspaceView = () => {
     projectId: projectId ?? '',
     nicheId: project?.niche ?? null,
     boardDesigns: boardData?.designs,
+    activeRuns: boardData?.active_runs,
+    artboards: artboardState.artboards,
     selectedArtboard: panelState.artboard,
     addArtboard: artboardState.addArtboard,
     updateArtboard: artboardState.updateArtboard,
     pushHistory: canvas.pushHistory,
     hasSelectedImage: Boolean(panelState.artboard?.imageUrl),
   });
+
+  // Poll while a skeleton is mid-generation OR the backend still reports
+  // any pending/running runs we haven't reconciled yet.
+  const serverHasUnfinishedRun = (boardData?.active_runs ?? []).some(
+    (r) => r.status === 'pending' || r.status === 'running',
+  );
+  const computedHasRunningGeneration =
+    serverHasUnfinishedRun ||
+    artboardState.artboards.some((ab) => ab.isGenerating && ab.pendingRunId);
+  if (computedHasRunningGeneration !== hasRunningGeneration) {
+    setHasRunningGeneration(computedHasRunningGeneration);
+  }
 
   // -- Editor batch state --
   const editorBatchHook = useEditorBatch();
@@ -268,6 +286,8 @@ const DesignWorkspaceView = () => {
       onUseAsPrompt={gen.handleUseAsPrompt}
       sourceImageUrl={gen.sourceImageUrl}
       onClearSourceImage={gen.handleClearSourceImage}
+      sourceImageUrl2={gen.sourceImageUrl2}
+      onClearSourceImage2={gen.handleClearSourceImage2}
     />
   );
 
