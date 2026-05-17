@@ -80,14 +80,14 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 
 ## Phase 7 — Style Library + Build Script
 
-- [ ] 7.1 Create `scripts/generate_style_thumbnails.py` with CLI args `--slug` (single) and `--force` (regenerate all)
-- [ ] 7.2 Script iterates the 15 style slugs (per AC-22), calls `generate_image()` with fixed prompt: `"a smiling cartoon taco mascot, centered, isolated on white background, {STYLE_PROMPT_SUFFIX}"`
-- [ ] 7.3 Save 1024×1024 PNGs to `frontend-ui/public/style-thumbnails/{slug}.png`
-- [ ] 7.4 Re-compress PNGs via PIL with `optimize=True` + 8-bit quantize to palette (`.convert('P', palette=Image.ADAPTIVE, colors=256)`) targeting ≤80KB each — covers AC-24
-- [ ] 7.5 Idempotency: skip styles whose thumbnail already exists unless `--force` — covers AC-25
-- [ ] 7.6 Abort with clear error if `OPENROUTER_API_KEY` env missing — covers EC-22
-- [ ] 7.7 Run script once; commit all 15 PNGs to git
-- [ ] 7.8 Create `frontend-ui/src/views/designs/board/constants/styleLibrary.ts` populated from the **15-entry table in Appendix E** (slug + label + shortDescription + thumbnail path + promptSuffix) — covers AC-23
+- [x] 7.1 Create `scripts/generate_style_thumbnails.py` with CLI args `--slug` (single) and `--force` (regenerate all)
+- [x] 7.2 Script iterates the 15 style slugs (per AC-22), calls `generate_image()` with fixed prompt: `"a smiling cartoon taco mascot, centered, isolated on white background, {STYLE_PROMPT_SUFFIX}"`
+- [x] 7.3 Save 1024×1024 PNGs to `frontend-ui/public/style-thumbnails/{slug}.png`
+- [x] 7.4 Re-compress PNGs via PIL with `optimize=True` + 8-bit quantize to palette (`.convert('P', palette=Image.ADAPTIVE, colors=256)`) targeting ≤80KB each — covers AC-24
+- [x] 7.5 Idempotency: skip styles whose thumbnail already exists unless `--force` — covers AC-25
+- [x] 7.6 Abort with clear error if `OPENROUTER_API_KEY` env missing — covers EC-22
+- [ ] 7.7 Run script once; commit all 15 PNGs to git *(Deferred — costs ~15 OpenRouter calls. Run before deploy with `docker compose exec web python scripts/generate_style_thumbnails.py`; frontend will gracefully fallback to a colored placeholder until PNGs land (EC-21).)*
+- [x] 7.8 Create `frontend-ui/src/views/designs/board/constants/styleLibrary.ts` populated from the **15-entry table in Appendix E** (slug + label + shortDescription + thumbnail path + promptSuffix) — covers AC-23
 
 ## Phase 8 — Frontend Builder Renovation
 

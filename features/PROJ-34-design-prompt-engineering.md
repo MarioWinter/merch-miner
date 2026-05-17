@@ -68,11 +68,11 @@
 - [x] AC-20: Every polish call is traced via Langfuse with input/output for debugging.
 
 ### Schicht 5 — Style-Library Thumbnails (Build Script)
-- [ ] AC-21: New script `scripts/generate_style_thumbnails.py` runs `generate_image()` once per style using a fixed test-prompt (`"a smiling cartoon taco mascot, centered, isolated on white background, {STYLE}"`), saving 1024×1024 PNGs to `frontend-ui/public/style-thumbnails/{slug}.png`.
-- [ ] AC-22: The 15 styles (confirmed): `vintage_retro`, `70s_groovy`, `80s_neon`, `90s_grunge`, `kawaii_chibi`, `cartoon`, `watercolor`, `hand_drawn_sketch`, `vector_flat`, `minimal_line_art`, `pixel_art`, `distressed_texture`, `halftone_print`, `badge_emblem`, `blackletter_gothic`.
-- [ ] AC-23: Style metadata lives in `frontend-ui/src/views/designs/board/constants/styleLibrary.ts` as a typed array: `{ slug, label, shortDescription, thumbnail, promptSuffix }`. No grouping needed (only 15 flat items).
-- [ ] AC-24: Generated PNGs are committed to git (≤80KB each via PIL re-compression, total ≤1.2MB).
-- [ ] AC-25: Script idempotent: re-running regenerates only styles missing or explicitly marked `--force`. Single-style regeneration via `python scripts/generate_style_thumbnails.py --slug=vaporwave`.
+- [x] AC-21: New script `scripts/generate_style_thumbnails.py` runs `generate_image()` once per style using a fixed test-prompt (`"a smiling cartoon taco mascot, centered, isolated on white background, {STYLE}"`), saving 1024×1024 PNGs to `frontend-ui/public/style-thumbnails/{slug}.png`.
+- [x] AC-22: The 15 styles (confirmed): `vintage_retro`, `70s_groovy`, `80s_neon`, `90s_grunge`, `kawaii_chibi`, `cartoon`, `watercolor`, `hand_drawn_sketch`, `vector_flat`, `minimal_line_art`, `pixel_art`, `distressed_texture`, `halftone_print`, `badge_emblem`, `blackletter_gothic`.
+- [x] AC-23: Style metadata lives in `frontend-ui/src/views/designs/board/constants/styleLibrary.ts` as a typed array: `{ slug, label, shortDescription, thumbnail, promptSuffix }`. No grouping needed (only 15 flat items).
+- [ ] AC-24: Generated PNGs are committed to git (≤80KB each via PIL re-compression, total ≤1.2MB). *(Run script before launch — costs ~15 OpenRouter calls; script enforces ≤80KB via PIL palette quantisation with 512×512 downscale fallback.)*
+- [x] AC-25: Script idempotent: re-running regenerates only styles missing or explicitly marked `--force`. Single-style regeneration via `python scripts/generate_style_thumbnails.py --slug=vaporwave`.
 
 ### Schicht 6 — Multi-Prompt-Builder UI (simplified)
 - [ ] AC-26: Existing `PromptBuilderDialog` accordions/toggles **removed**: `web_research`, `keywords`, the per-variant `variant_index` mechanism. Dead helper code (`build_from_sources` variant-index branch, related frontend types) purged.
@@ -133,7 +133,7 @@
 
 ### Style thumbnails
 - [ ] EC-21: A style's thumbnail PNG is missing in production (deploy mishap) → frontend falls back to a colored placeholder rectangle with the style label centered (CSS-only, no network).
-- [ ] EC-22: User runs `generate_style_thumbnails.py` without `OPENROUTER_API_KEY` env → script aborts with clear error before any LLM call.
+- [x] EC-22: User runs `generate_style_thumbnails.py` without `OPENROUTER_API_KEY` env → script aborts with clear error before any LLM call.
 
 ## Technical Requirements
 
