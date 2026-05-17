@@ -824,6 +824,63 @@ class TestSystemPromptAndBgColor:
         result = _build_content('text_to_image', 'Vector cat design')
         assert result == 'Vector cat design'
 
+    @patch('design_app.services.image_generator.httpx.Client')
+    def test_seed_kwarg_forwards_to_openrouter(self, mock_client_cls, tmp_path):
+        """AC-39 / Appendix H — seed kwarg lands in payload for supports_seed models."""
+        from design_app.services.image_generator import generate_image
+        mock_client = self._stub_post(mock_client_cls)
+        with patch(
+            'design_app.services.image_generator.settings',
+        ) as mock_settings:
+            mock_settings.OPENROUTER_API_KEY = 'k'
+            mock_settings.OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
+            generate_image(
+                prompt='Bus design',
+                model_name='gemini_flash',
+                output_dir=str(tmp_path),
+                seed=12345,
+            )
+        payload = mock_client.post.call_args.kwargs['json']
+        assert payload.get('seed') == 12345
+
+    @patch('design_app.services.image_generator.httpx.Client')
+    def test_seed_omitted_when_none(self, mock_client_cls, tmp_path):
+        """No seed kwarg → no seed key in payload (back-compat for callers)."""
+        from design_app.services.image_generator import generate_image
+        mock_client = self._stub_post(mock_client_cls)
+        with patch(
+            'design_app.services.image_generator.settings',
+        ) as mock_settings:
+            mock_settings.OPENROUTER_API_KEY = 'k'
+            mock_settings.OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
+            generate_image(
+                prompt='Bus design',
+                model_name='gemini_flash',
+                output_dir=str(tmp_path),
+            )
+        payload = mock_client.post.call_args.kwargs['json']
+        assert 'seed' not in payload
+
+    @patch('design_app.services.image_generator.httpx.Client')
+    def test_seed_bounded_to_32bit(self, mock_client_cls, tmp_path):
+        """Large seed values are masked to 32 bits before going on the wire."""
+        from design_app.services.image_generator import generate_image
+        mock_client = self._stub_post(mock_client_cls)
+        with patch(
+            'design_app.services.image_generator.settings',
+        ) as mock_settings:
+            mock_settings.OPENROUTER_API_KEY = 'k'
+            mock_settings.OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
+            big = (2 ** 64) - 1  # 64-bit max
+            generate_image(
+                prompt='Bus design',
+                model_name='gemini_flash',
+                output_dir=str(tmp_path),
+                seed=big,
+            )
+        payload = mock_client.post.call_args.kwargs['json']
+        assert payload['seed'] == 0xFFFFFFFF
+
 
 class TestImageAnalyzerV2:
     """PROJ-34 Phase 3: AC-10/AC-11/AC-12 — Architect-framework SYSTEM_PROMPT

@@ -48,6 +48,12 @@ def task_generate_design(
         media_dir = os.path.join(settings.MEDIA_ROOT, 'designs', 'generated')
         os.makedirs(media_dir, exist_ok=True)
 
+        # PROJ-34 AC-39 / Appendix H — derive a deterministic 32-bit seed
+        # from this Run's UUID so parallel variants (each its own Run)
+        # produce different — but reproducible — outputs from the same prompt.
+        # Cheaper than carrying a separate seed column on the Run.
+        seed_value = int(run.id.int & 0xFFFFFFFF)
+
         output_path = generate_image(
             prompt=run.prompt_used,
             model_name=run.model_name,
@@ -59,6 +65,7 @@ def task_generate_design(
             # PROJ-34 AC-6: persisted UI selection threads through to the
             # generator instead of being post-hoc derived from prompt text.
             background_color=run.background_color,
+            seed=seed_value,
         )
 
         # Read file and save to Design model

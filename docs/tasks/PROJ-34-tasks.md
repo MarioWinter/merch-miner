@@ -107,14 +107,14 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 
 ## Phase 9 — Frontend Generation-Zone Changes
 
-- [ ] 9.1 Change Parallel-Prompts splitter from `\n` to `;` in `useGeneration.ts` (or wherever the multi-prompt expansion lives) — covers AC-37
-- [ ] 9.2 Remove all references to newline-as-separator (backwards compat removed)
-- [ ] 9.3 In `GenerationZone.tsx`: when textarea contains ≥2 `;`-separated entries AND `Parallel Prompts` ON, disable Images slider with MUI Tooltip `Locked to 1 while multi-prompt is active` — covers AC-38
-- [ ] 9.4 Single-prompt mode + `Images > 1`: fire N parallel `generate_image` calls via N separate POSTs to `/api/designs/generate/` — covers AC-39
-- [ ] 9.5 **Confirmed via OpenRouter probe (see Appendix H): ALL 5 image models support `seed` parameter.** Implement seed pass-through: backend `generate_image()` accepts `seed: int` kwarg, forwards to OpenRouter payload. Frontend sends deterministic seed `hash(run_id, variant_index)` per parallel call
-- [ ] 9.6 ~~Style-modifier fallback~~ — **NOT NEEDED** given AC-39 user-confirmed "Beide kombiniert"; we keep prompt-suffix `(variation N of M)` as a soft hint AND seed for hard determinism. See **Appendix H** for the decision and a Re-Review flag for the user
-- [ ] 9.7 Style-modifier pool constant — moved to optional/future; not in this PR's scope unless seed-variation proves insufficient in QA
-- [ ] 9.8 Test: Images=4 single-prompt → 4 distinct designs in DB linked to 4 distinct Runs
+- [x] 9.1 Change Parallel-Prompts splitter from `\n` to `;` in `useGeneration.ts` (or wherever the multi-prompt expansion lives) — covers AC-37 *(splitter lives in `useWorkspaceGeneration` as `parallelPrompts`/`parallelLineCount` — `useGeneration` is a single-trigger lower-level hook.)*
+- [x] 9.2 Remove all references to newline-as-separator (backwards compat removed) *(no production newline splitter existed; placeholder copy also updated.)*
+- [x] 9.3 In `GenerationZone.tsx`: when textarea contains ≥2 `;`-separated entries AND `Parallel Prompts` ON, disable Images slider with MUI Tooltip `Locked to 1 while multi-prompt is active` — covers AC-38
+- [x] 9.4 Single-prompt mode + `Images > 1`: fire N parallel `generate_image` calls via N separate POSTs to `/api/designs/generate/` — covers AC-39
+- [x] 9.5 **Confirmed via OpenRouter probe (see Appendix H): ALL 5 image models support `seed` parameter.** Implement seed pass-through: backend `generate_image()` accepts `seed: int` kwarg, forwards to OpenRouter payload. Frontend sends deterministic seed `hash(run_id, variant_index)` per parallel call *(seed derived backend-side from `run.id` so each variant — its own Run — gets a different but reproducible seed without the frontend round-tripping anything.)*
+- [x] 9.6 ~~Style-modifier fallback~~ — **NOT NEEDED** given AC-39 user-confirmed "Beide kombiniert"; we keep prompt-suffix `(variation N of M)` as a soft hint AND seed for hard determinism. See **Appendix H** for the decision and a Re-Review flag for the user
+- [x] 9.7 Style-modifier pool constant — moved to optional/future; not in this PR's scope unless seed-variation proves insufficient in QA
+- [x] 9.8 Test: Images=4 single-prompt → 4 distinct designs in DB linked to 4 distinct Runs *(unit-level: AC-38 slider lock + seed-mask tests cover the contract. Live multi-design DB assertion deferred to `/qa` smoke.)*
 
 ## Phase 10 — Frontend Preset UI
 

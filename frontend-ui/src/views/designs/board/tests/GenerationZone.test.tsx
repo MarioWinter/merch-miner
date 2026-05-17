@@ -192,4 +192,52 @@ describe('GenerationZone', () => {
     renderWithProviders(<GenerationZone {...defaultProps} />);
     expect(screen.getByLabelText('Generation controls')).toBeInTheDocument();
   });
+
+  // -------------------------------------------------------------------------
+  // PROJ-34 Phase 9 — multi-prompt slider lock + split-button
+  // -------------------------------------------------------------------------
+
+  it('AC-38: locks the Images slider when isParallel + ≥2 parallelLineCount', () => {
+    renderWithProviders(
+      <GenerationZone
+        {...defaultProps}
+        isParallel
+        parallelLineCount={3}
+        prompt="A; B; C"
+      />,
+    );
+    const slider = screen.getByLabelText('Number of images');
+    expect(slider).toBeDisabled();
+  });
+
+  it('AC-38: leaves the Images slider enabled when only single prompt visible', () => {
+    renderWithProviders(
+      <GenerationZone
+        {...defaultProps}
+        isParallel
+        parallelLineCount={1}
+        prompt="Just one"
+      />,
+    );
+    const slider = screen.getByLabelText('Number of images');
+    expect(slider).not.toBeDisabled();
+  });
+
+  it('AC-36/37: surfaces split-button "Generate All" once ≥2 `;`-split prompts in parallel mode', () => {
+    const onGenerateAll = vi.fn();
+    renderWithProviders(
+      <GenerationZone
+        {...defaultProps}
+        prompt="A; B"
+        isParallel
+        parallelLineCount={2}
+        onGenerateAll={onGenerateAll}
+      />,
+    );
+    // The split-button wraps Generate + a chevron — the count appears in
+    // the dropdown menu, so we at least verify the chevron exists.
+    expect(
+      screen.getByLabelText('More generate options'),
+    ).toBeInTheDocument();
+  });
 });

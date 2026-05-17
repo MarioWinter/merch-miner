@@ -368,6 +368,7 @@ def generate_image(
     source_image_url_2: str = '',
     mode: str = 'text_to_image',
     background_color: str | None = None,
+    seed: int | None = None,
 ) -> str:
     """Generate an image via OpenRouter and save to disk.
 
@@ -385,6 +386,10 @@ def generate_image(
             injected as the final ``Background: solid #HEX, ...`` line of the
             user prompt (PROJ-34 AC-7). When ``None`` no injection happens
             so legacy callers keep their exact payload shape.
+        seed: Deterministic-variation seed (PROJ-34 AC-39 / Appendix H).
+            Forwarded to OpenRouter as the ``seed`` parameter when the model
+            supports it (see ``MODEL_MAP[model].supports_seed``). ``None``
+            disables seed injection so legacy callers stay byte-identical.
 
     Returns:
         Path to saved image file.
@@ -405,6 +410,7 @@ def generate_image(
         raise ValueError(f"Unknown model: {model_name}")
     model_id = model_entry['openrouter_id']
     supports_system_role = model_entry.get('supports_system_role', True)
+    supports_seed = model_entry.get('supports_seed', False)
 
     _IMAGE_MODES = {'image_to_image', 'image_to_image_edit', 'remix'}
     needs_image = mode in _IMAGE_MODES
@@ -447,6 +453,13 @@ def generate_image(
         'model': model_id,
         'messages': messages,
     }
+
+    # PROJ-34 AC-39 / Appendix H — pass-through seed for deterministic
+    # variation when the model supports it. All 5 current image models do
+    # (probed 2026-05-17). The seed is bounded to 32-bit because OpenRouter
+    # forwards it as an int and some providers reject larger values.
+    if seed is not None and supports_seed:
+        payload['seed'] = int(seed) & 0xFFFFFFFF
 
     # PROJ-34 AC-4 prep: the worker may want to log/diagnose context-window
     # overruns (EC-4). The system prompt is ~2.1KB which is trivial for

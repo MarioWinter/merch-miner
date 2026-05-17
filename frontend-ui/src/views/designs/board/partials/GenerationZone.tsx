@@ -14,6 +14,7 @@ import {
   Select,
   Slider,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
 import type { SelectChangeEvent } from '@mui/material';
@@ -411,7 +412,10 @@ const GenerationZone = ({
   const currentAspect = ASPECT_RATIO_OPTIONS[currentAspectIdx >= 0 ? currentAspectIdx : 0];
 
   const placeholderText = isParallel
-    ? t('design.generation.parallelPlaceholder', 'Enter prompts (each line = separate image)...')
+    ? t(
+        'design.generation.parallelPlaceholder',
+        'Enter prompts separated by `;` (each entry = one image)…',
+      )
     : t('design.generation.singlePlaceholder', 'Describe your design...');
 
   const generateLabel = isGenerating
@@ -496,19 +500,42 @@ const GenerationZone = ({
               {sliderValue}
             </Typography>
           </Box>
-          <Slider
-            size="small"
-            color="secondary"
-            min={IMAGES_MIN}
-            max={IMAGES_MAX}
-            step={1}
-            value={sliderValue}
-            onChange={handleSliderChange}
-            onChangeCommitted={handleSliderCommit}
-            disabled={disabled || isGenerating}
-            aria-label={t('design.generation.imageCount', 'Number of images')}
-            sx={{ '& .MuiSlider-thumb': { width: 12, height: 12 } }}
-          />
+          {/* AC-38 — Lock the Images slider to 1 when the textarea holds a
+             multi-prompt batch (`isParallel` AND ≥2 `;`-split entries),
+             since each entry already becomes its own Run. */}
+          {(() => {
+            const multiPromptActive = isParallel && parallelLineCount >= 2;
+            const slider = (
+              <Slider
+                size="small"
+                color="secondary"
+                min={IMAGES_MIN}
+                max={IMAGES_MAX}
+                step={1}
+                value={multiPromptActive ? 1 : sliderValue}
+                onChange={handleSliderChange}
+                onChangeCommitted={handleSliderCommit}
+                disabled={disabled || isGenerating || multiPromptActive}
+                aria-label={t('design.generation.imageCount', 'Number of images')}
+                sx={{ '& .MuiSlider-thumb': { width: 12, height: 12 } }}
+              />
+            );
+            return multiPromptActive ? (
+              <Tooltip
+                title={t(
+                  'design.generation.imagesLockedMultiPrompt',
+                  'Locked to 1 while multi-prompt is active',
+                )}
+                placement="top"
+              >
+                {/* Wrapper required because MUI Tooltip on disabled Slider
+                   needs a non-disabled element to attach pointer events to. */}
+                <span style={{ width: '100%', display: 'block' }}>{slider}</span>
+              </Tooltip>
+            ) : (
+              slider
+            );
+          })()}
         </SliderBox>
 
         <SliderBox>

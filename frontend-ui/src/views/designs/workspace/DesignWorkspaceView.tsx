@@ -261,6 +261,8 @@ const DesignWorkspaceView = () => {
       imageCount={gen.imageCount}
       onImageCountChange={gen.setImageCount}
       onGenerate={gen.handleGenerate}
+      onGenerateAll={gen.handleGenerateAll}
+      parallelLineCount={gen.parallelLineCount}
       isGenerating={gen.generation.isGenerating}
       isParallel={gen.isParallel}
       onParallelToggle={gen.setIsParallel}

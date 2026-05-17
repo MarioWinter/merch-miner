@@ -251,39 +251,119 @@ const useWorkspaceGeneration = ({
     [addArtboard, pushHistory],
   );
 
+  // PROJ-34 AC-37 \u2014 `;` is the single source of truth for multi-prompt splits.
+  // The newline-based fallback is gone (Builder produces `; `-joined output;
+  // free-typed multi-prompts must also use `;`). Empty entries are stripped.
+  const parallelPrompts = useMemo<string[]>(
+    () =>
+      prompt
+        .split(';')
+        .map((p) => p.trim())
+        .filter((p) => p.length > 0),
+    [prompt],
+  );
+  const parallelLineCount = parallelPrompts.length;
+
+  // Source URLs may be relative (/media/...) for local references; the
+  // backend serializer requires absolute URLs.
+  const toAbsolute = useCallback(
+    (u: string | null) =>
+      u && u.startsWith('/') ? `${window.location.origin}${u}` : u,
+    [],
+  );
+
+  // Single low-level fire: skeleton + trigger one Run. Each parallel /
+  // variant call goes through this so the skeleton-reconciliation effect
+  // matches it up later via pendingRunId.
+  const fireOne = useCallback(
+    async (singlePrompt: string, label: string) => {
+      const skeletonAb = addArtboard({
+        label,
+        kind: 'ai',
+        width: 280,
+        height: 280,
+        isGenerating: true,
+        promptUsed: singlePrompt,
+        modelUsed: aiModel,
+        bgColorUsed: bgColor,
+      });
+      try {
+        const run = await generation.trigger({
+          model: aiModel,
+          background_color: bgColor,
+          prompt: singlePrompt,
+          mode: generationMode,
+          aspect_ratio: aspectRatio,
+          ...(sourceImageUrl
+            ? { source_image_url: toAbsolute(sourceImageUrl) as string }
+            : {}),
+          ...(sourceImageUrl2
+            ? { source_image_url_2: toAbsolute(sourceImageUrl2) as string }
+            : {}),
+        });
+        updateArtboard(skeletonAb.id, { pendingRunId: run.id });
+        return run;
+      } catch {
+        updateArtboard(skeletonAb.id, { isGenerating: false, pendingRunId: null });
+        return null;
+      }
+    },
+    [
+      addArtboard, updateArtboard, generation, aiModel, bgColor,
+      generationMode, aspectRatio, sourceImageUrl, sourceImageUrl2, toAbsolute,
+    ],
+  );
+
   const handleGenerate = useCallback(async () => {
     if (!prompt.trim() || generation.isGenerating) return;
     pushHistory();
-    const skeletonAb = addArtboard({
-      label: `AI: ${prompt.slice(0, 30)}${prompt.length > 30 ? '\u2026' : ''}`,
-      kind: 'ai', width: 280, height: 280, isGenerating: true,
-      promptUsed: prompt, modelUsed: aiModel, bgColorUsed: bgColor,
-    });
-    // Source URLs may be relative (/media/...) for local references; the
-    // backend serializer requires absolute URLs.
-    const toAbsolute = (u: string | null) =>
-      u && u.startsWith('/') ? `${window.location.origin}${u}` : u;
-    try {
-      const run = await generation.trigger({
-        model: aiModel,
-        background_color: bgColor,
-        prompt,
-        mode: generationMode,
-        aspect_ratio: aspectRatio,
-        ...(sourceImageUrl ? { source_image_url: toAbsolute(sourceImageUrl) as string } : {}),
-        ...(sourceImageUrl2 ? { source_image_url_2: toAbsolute(sourceImageUrl2) as string } : {}),
-      });
-      // Persist the run id on the skeleton so we can reconnect after F5.
-      updateArtboard(skeletonAb.id, { pendingRunId: run.id });
+
+    // AC-39: single-prompt mode + Images > 1 \u2192 N parallel calls. Each call
+    // is its own Run so the backend's run-id-derived seed (Appendix H)
+    // automatically produces N distinct-but-reproducible variants.
+    if (!isParallel && imageCount > 1) {
+      const baseLabel = `AI: ${prompt.slice(0, 24)}${prompt.length > 24 ? '\u2026' : ''}`;
+      await Promise.all(
+        Array.from({ length: imageCount }, (_, i) =>
+          // Soft suffix as a compositional nudge for models where similar
+          // seeds still produce near-identical results; cost-free.
+          fireOne(
+            `${prompt} (variation ${i + 1} of ${imageCount})`,
+            `${baseLabel} #${i + 1}`,
+          ),
+        ),
+      );
       setSourceImageUrl(null);
       setSourceImageUrl2(null);
-    } catch {
-      updateArtboard(skeletonAb.id, { isGenerating: false, pendingRunId: null });
+      return;
     }
+
+    // Default single-shot fire.
+    await fireOne(
+      prompt,
+      `AI: ${prompt.slice(0, 30)}${prompt.length > 30 ? '\u2026' : ''}`,
+    );
+    setSourceImageUrl(null);
+    setSourceImageUrl2(null);
   }, [
-    prompt, generation, addArtboard, updateArtboard, aiModel, bgColor,
-    pushHistory, sourceImageUrl, sourceImageUrl2, generationMode, aspectRatio,
+    prompt, isParallel, imageCount, generation.isGenerating,
+    pushHistory, fireOne,
   ]);
+
+  // AC-37 / AC-36 \u2014 Generate-All: split the textarea on `;` and fire one
+  // Run per entry. Used by the split-button menu when isParallel is ON and
+  // \u2265 2 entries are present.
+  const handleGenerateAll = useCallback(async () => {
+    if (generation.isGenerating || parallelPrompts.length === 0) return;
+    pushHistory();
+    await Promise.all(
+      parallelPrompts.map((p, i) =>
+        fireOne(p, `AI: ${p.slice(0, 24)}${p.length > 24 ? '\u2026' : ''} #${i + 1}`),
+      ),
+    );
+    setSourceImageUrl(null);
+    setSourceImageUrl2(null);
+  }, [generation.isGenerating, parallelPrompts, pushHistory, fireOne]);
 
   return {
     // Prompt state
@@ -299,6 +379,8 @@ const useWorkspaceGeneration = ({
     // Generation
     generation,
     handleGenerate,
+    handleGenerateAll,
+    parallelLineCount,
     // PROJ-34: Multi-Prompt Builder
     builder,
     promptBuilderOpen,
