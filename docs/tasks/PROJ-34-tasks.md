@@ -9,14 +9,14 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 
 ## Phase 1 — Backend Foundation (Migrations + Models)
 
-- [ ] 1.1 Add `background_color` CharField (choices=`Design.BackgroundColor`, default=`light_gray`) to `DesignGenerationRun` model — covers AC-4
-- [ ] 1.2 Add `prompt_polished` TextField (nullable, blank=True) to `DesignGenerationRun` — covers Tech Design row for debugging
-- [ ] 1.3 Add `polish_builder_prompts_enabled` BooleanField (default `True`) to `ProcessingSettings` — covers AC-17
-- [ ] 1.4 Create `BuilderPreset` model — fields & FK rules per **Appendix F**. UUID PK, workspace+project=CASCADE, created_by=SET_NULL, db_index on (project, is_deleted) — covers AC-41
-- [ ] 1.5 Add partial `UniqueConstraint(fields=['project','name'], condition=Q(is_deleted=False), name='builderpreset_unique_name_per_project_active')` — covers EC-19. Pattern in **Appendix F**
-- [ ] 1.6 Generate and apply migrations: `python manage.py makemigrations design_app && python manage.py migrate`
-- [ ] 1.7 Update Django admin: register `BuilderPreset` (list_display: workspace/project/name/created_by) for ops debugging
-- [ ] 1.8 Add `BuilderPresetSerializer` (ModelSerializer, `read_only_fields=['id','workspace','project','created_by','created_at','updated_at']`, validates `name` length ≤ 80 + non-empty)
+- [x] 1.1 Add `background_color` CharField (choices=`Design.BackgroundColor`, default=`light_gray`) to `DesignGenerationRun` model — covers AC-4
+- [x] 1.2 Add `prompt_polished` TextField (nullable, blank=True) to `DesignGenerationRun` — covers Tech Design row for debugging
+- [x] 1.3 Add `polish_builder_prompts_enabled` BooleanField (default `True`) to `ProcessingSettings` — covers AC-17
+- [x] 1.4 Create `BuilderPreset` model — fields & FK rules per **Appendix F**. UUID PK, workspace+project=CASCADE, created_by=SET_NULL, db_index on (project, is_deleted) — covers AC-41
+- [x] 1.5 Add partial `UniqueConstraint(fields=['project','name'], condition=Q(is_deleted=False), name='builderpreset_unique_name_per_project_active')` — covers EC-19. Pattern in **Appendix F**
+- [x] 1.6 Generate and apply migrations: `python manage.py makemigrations design_app && python manage.py migrate`
+- [x] 1.7 Update Django admin: register `BuilderPreset` (list_display: workspace/project/name/created_by) for ops debugging
+- [x] 1.8 Add `BuilderPresetSerializer` (ModelSerializer, `read_only_fields=['id','workspace','project','created_by','created_at','updated_at']`, validates `name` length ≤ 80 + non-empty)
 
 ## Phase 2 — System Prompt + BG-Color Plumbing
 

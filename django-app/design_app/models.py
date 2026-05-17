@@ -2,6 +2,7 @@ import uuid
 
 from django.conf import settings
 from django.db import models
+from django.db.models import Q, UniqueConstraint
 
 
 class DesignProject(models.Model):
@@ -152,6 +153,29 @@ class DesignGenerationRun(models.Model):
         help_text='Saved prompt this run was generated from',
     )
     prompt_used = models.TextField(blank=True, default='')
+    # PROJ-34: Persist the polished prompt actually sent to the image model
+    # (after Builder polish step) for debugging / Langfuse trace correlation.
+    prompt_polished = models.TextField(
+        blank=True,
+        null=True,
+        help_text='Polished prompt actually sent to the model (PROJ-34, debug).',
+    )
+    # PROJ-34: Background color from UI persists onto the Run so the worker
+    # injects the exact hex without re-guessing from the prompt text.
+    # NOTE: choices kept in sync with Design.BackgroundColor (defined below;
+    # cannot reference class attribute here because Design is declared later
+    # in this module).
+    background_color = models.CharField(
+        max_length=20,
+        choices=[
+            ('light_gray', 'Light Gray'),
+            ('neon_pink', 'Neon Pink'),
+            ('neon_green', 'Neon Green'),
+        ],
+        default='light_gray',
+        help_text='Background color selected in UI (PROJ-34); used by '
+                  'image_generator to inject the exact hex into the user message.',
+    )
     source_image_url = models.URLField(
         blank=True,
         default='',
@@ -434,6 +458,12 @@ class ProcessingSettings(models.Model):
     upscale_auto_threshold = models.IntegerField(
         default=3000,
         help_text='DEPRECATED (PROJ-27): no longer used; strict 4× upscaling.',
+    )
+    # PROJ-34: Workspace-level toggle for Builder prompt auto-polish.
+    polish_builder_prompts_enabled = models.BooleanField(
+        default=True,
+        help_text='When True, prompts created by the Prompt Builder are '
+                  'polished by a small LLM before generation (PROJ-34).',
     )
 
     class Meta:
@@ -726,3 +756,61 @@ class ProjectReference(models.Model):
     def __str__(self):
         label = self.title[:40] if self.title else self.asin or str(self.id)[:8]
         return f"Ref: {label} → {self.project.name}"
+
+
+class BuilderPreset(models.Model):
+    """A saved Prompt-Builder configuration scoped to a single DesignProject.
+
+    PROJ-34: Stores slogans + styles + warp + bg_color + niche_context flag as
+    a JSON blob (config schema iterates as the Builder UI evolves). Soft-deleted
+    via ``is_deleted`` so name re-use after delete is allowed via a partial
+    UniqueConstraint (Appendix F of docs/tasks/PROJ-34-tasks.md).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        'workspace_app.Workspace',
+        on_delete=models.CASCADE,
+        related_name='builder_presets',
+        db_index=True,
+    )
+    project = models.ForeignKey(
+        DesignProject,
+        on_delete=models.CASCADE,
+        related_name='builder_presets',
+    )
+    name = models.CharField(max_length=80)
+    config = models.JSONField(
+        default=dict,
+        help_text='Builder config: slogans, styles, warp, bg_color, '
+                  'niche_context_enabled.',
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='created_builder_presets',
+    )
+    is_deleted = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-updated_at']
+        constraints = [
+            UniqueConstraint(
+                fields=['project', 'name'],
+                condition=Q(is_deleted=False),
+                name='builderpreset_unique_name_per_project_active',
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=['project', 'is_deleted'],
+                name='builderpreset_active_idx',
+            ),
+        ]
+
+    def __str__(self):
+        return f"BuilderPreset: {self.name} ({self.project.name})"

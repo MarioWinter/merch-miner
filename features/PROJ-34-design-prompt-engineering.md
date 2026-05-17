@@ -45,7 +45,7 @@
 - [ ] AC-3: For any model that rejects `role: system` (none today, but future-proofing), the same constant is prepended as a wrapper at the start of the user message — toggled by a per-model flag in `MODEL_MAP`.
 
 ### Schicht 2 — Background-Color Persistence (kills Bug A)
-- [ ] AC-4: `DesignGenerationRun` model gains a `background_color` CharField with choices `Design.BackgroundColor`, defaulting to `light_gray`. Migration created and applied.
+- [x] AC-4: `DesignGenerationRun` model gains a `background_color` CharField with choices `Design.BackgroundColor`, defaulting to `light_gray`. Migration created and applied.
 - [ ] AC-5: `StandaloneGenerateView` AND `GenerateFromPromptView` AND `IdeaGenerateView` write `serializer.validated_data['background_color']` onto the Run.
 - [ ] AC-6: `task_generate_design` reads `run.background_color` and passes it as a parameter to `generate_image()`.
 - [ ] AC-7: `generate_image()` appends `Background: solid {HEX}, saturated, no gradients, flat single color background` to the final user prompt (using `Design.BG_COLOR_HEX[run.background_color]` for the hex value).
@@ -91,7 +91,7 @@
 - [ ] AC-40: **Manual textarea-edit protection**: After Build inserts prompts, if user manually edits the textarea, the next Build asks for confirmation `Replace your manual edits with newly-built prompts?` before overwriting.
 
 ### Schicht 7 — Builder Preset Persistence
-- [ ] AC-41: New Django model `BuilderPreset(workspace FK, project FK, name CharField unique-per-project, config_json JSONField, created_by FK, created_at, updated_at)`. UUID PK. Soft-delete via `is_deleted` BooleanField.
+- [x] AC-41: New Django model `BuilderPreset(workspace FK, project FK, name CharField unique-per-project, config_json JSONField, created_by FK, created_at, updated_at)`. UUID PK. Soft-delete via `is_deleted` BooleanField.
 - [ ] AC-42: DRF endpoints under `/api/designs/projects/{id}/builder-presets/`: `GET /` (list), `POST /` (create), `PATCH /{id}/` (rename), `DELETE /{id}/` (soft-delete).
 - [ ] AC-43: Frontend `Preset` dropdown in Builder: lists `name` of all non-deleted presets for the current project. Selecting a preset loads its `config_json` into the Builder form fields.
 - [ ] AC-44: `Save as Preset` button: opens small inline `TextField` for name + `Save` button. POSTs current Builder config; success → preset appears in dropdown + becomes selected.

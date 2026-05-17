@@ -1,6 +1,7 @@
 from django.contrib import admin
 
 from design_app.models import (
+    BuilderPreset,
     Design,
     DesignGenerationRun,
     DesignPipeline,
@@ -146,3 +147,17 @@ class ProjectReferenceAdmin(admin.ModelAdmin):
     search_fields = ('title', 'asin', 'image_url')
     readonly_fields = ('id', 'added_at')
     raw_id_fields = ('project', 'source_product')
+
+
+@admin.register(BuilderPreset)
+class BuilderPresetAdmin(admin.ModelAdmin):
+    """PROJ-34: ops debugging for project-scoped Builder configs."""
+
+    list_display = (
+        'id', 'workspace', 'project', 'name', 'created_by',
+        'is_deleted', 'created_at', 'updated_at',
+    )
+    list_filter = ('is_deleted', 'workspace')
+    search_fields = ('name',)
+    readonly_fields = ('id', 'created_at', 'updated_at')
+    raw_id_fields = ('workspace', 'project', 'created_by')

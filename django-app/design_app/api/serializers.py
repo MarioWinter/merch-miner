@@ -3,6 +3,7 @@
 from rest_framework import serializers
 
 from design_app.models import (
+    BuilderPreset,
     Design,
     DesignGenerationRun,
     DesignPipeline,
@@ -802,3 +803,36 @@ class AddManualReferencesSerializer(serializers.Serializer):
         min_length=1,
         max_length=50,
     )
+
+
+# -- BuilderPreset (PROJ-34) --
+
+class BuilderPresetSerializer(serializers.ModelSerializer):
+    """PROJ-34: Builder preset CRUD.
+
+    `name` validated: non-empty, length ≤ 80 (also enforced at model level).
+    Server-managed fields are read-only; the unique-name-per-project
+    constraint is enforced at the model level via a partial UniqueConstraint
+    (only among non-deleted rows).
+    """
+
+    class Meta:
+        model = BuilderPreset
+        fields = [
+            'id', 'workspace', 'project', 'name', 'config',
+            'created_by', 'is_deleted', 'created_at', 'updated_at',
+        ]
+        read_only_fields = [
+            'id', 'workspace', 'project', 'created_by',
+            'created_at', 'updated_at',
+        ]
+
+    def validate_name(self, value):
+        stripped = value.strip() if isinstance(value, str) else value
+        if not stripped:
+            raise serializers.ValidationError('Name must not be empty.')
+        if len(stripped) > 80:
+            raise serializers.ValidationError(
+                'Name must be 80 characters or fewer.',
+            )
+        return stripped
