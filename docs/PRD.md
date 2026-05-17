@@ -51,6 +51,7 @@ Eliminates spreadsheet chaos and tool-switching by connecting niche data, AI-gen
 | P0 (MVP) | PROJ-29: Niche-Data Agentic RAG + Configurable Prompts + Langfuse | In Review |
 | P0 (MVP) | PROJ-30: App-wide Responsive Design (iPhone SE / iPad / MacBook) | Planned |
 | P0 (MVP) | PROJ-31: Entitlement & Permission Gating (supersedes PROJ-24 FF) | Planned |
+| P0 (MVP) | PROJ-34: Design-Forge Prompt Engineering & Multi-Prompt Builder | Planned |
 
 ## Success Metrics
 
