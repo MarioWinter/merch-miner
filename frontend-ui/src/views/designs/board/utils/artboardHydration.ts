@@ -1,4 +1,4 @@
-import type { ArtboardData, BackgroundColor, BoardLayout, CanvasElement, DesignModel } from '../types';
+import type { ArtboardData, BackgroundColor, BoardLayout, BoardLayoutNode, CanvasElement, DesignModel } from '../types';
 import {
   DEFAULT_ARTBOARD_HEIGHT,
   DEFAULT_ARTBOARD_WIDTH,
