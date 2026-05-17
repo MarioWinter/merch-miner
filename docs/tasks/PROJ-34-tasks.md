@@ -147,7 +147,7 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 - [x] 12.9 Backend tests: `docker compose exec web pytest` → all green *(PROJ-34's scope: `pytest design_app/` → 210 / 210 passed in 10.7s. Full cross-app suite has pre-existing E's in `chat_node_config_app` / `niche_research_app` unrelated to PROJ-34 — see QA report note.)*
 - [x] 12.10 Run `/qa` skill for full acceptance audit against spec AC-* + EC-* checklist *(Orchestrator-driven manual audit — `/qa` skill returned empty. Full report in spec's `## QA Test Results` section.)*
 - [ ] 12.11 Manual smoke test on localhost: pick "school bus driver" project → open Builder → select 3 slogans + 2 styles → niche-context ON → Build → confirm 6 polished prompts in textarea → Generate → 6 designs land in the canvas *(Reserved for user — dev server running on `:5173`.)*
-- [ ] 12.12 Run `/deploy` skill once QA passes
+- [x] 12.12 Run `/deploy` skill once QA passes *(Deploy report appended to spec — checklist green, recommend `--merge`. Operator pushes branch + opens PR.)*
 
 ---
 

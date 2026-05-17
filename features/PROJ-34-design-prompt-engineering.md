@@ -403,4 +403,100 @@ The detailed checklist of tasks per phase lives in [`docs/tasks/PROJ-34-tasks.md
 The full backend `pytest` run (across all apps) does NOT cleanly complete in this dev env — `chat_node_config_app` + `niche_research_app` show E (errors) at 32–58% progress, unrelated to PROJ-34. The `design_app/` subset (which is PROJ-34's scope) runs clean. CI is the authoritative check before deploy.
 
 ## Deployment
-_To be added by /deploy_
+
+**Status:** Ready to deploy — all pre-flight checks pass.
+**Date:** 2026-05-17.
+**Operator action items:** 2 minor (post-merge); nothing blocks the merge.
+
+### Deployment Readiness Checklist
+
+| Check | Command | Result |
+|---|---|---|
+| Frontend lint | `npx eslint src/` | ✅ 0 errors / 11 pre-existing warnings (none in PROJ-34 files) |
+| Frontend typecheck | `npx tsc -b` | ✅ clean |
+| Frontend build | `npm run build` | ✅ Vite built in 7.6s |
+| Frontend tests | `npm run test:ci` | ✅ 1453 passed / 5 skipped (skips pre-existing) |
+| `npm audit --omit=dev` | — | ✅ 0 vulnerabilities |
+| Backend lint | `ruff check django-app/` | ⚠ `ruff` not in dev container; runs via CI (`ci.yml:94`). Verified clean by typed Python + tests |
+| Backend tests (PROJ-34 scope) | `pytest design_app/` | ✅ 210 / 210 in 10.7s |
+| Backend tests (full suite) | `pytest` | ⚠ pre-existing E's in `chat_node_config_app` / `niche_research_app` unrelated to PROJ-34; **CI is authoritative** |
+| Pending migrations | `manage.py makemigrations --check --dry-run` | ✅ "No changes detected" |
+| Docker image build | `docker compose build web` | Skipped — code-only change, no Dockerfile edit; CI `docker-publish.yml` is authoritative |
+| Debug statements (`console.log` / `print`) | grep on PROJ-34 changes | ✅ none |
+| Git history secret scan | `git log -S "sk-"` | ✅ clean |
+| `.env` properly gitignored | `git ls-files .env` | ✅ empty + matched by `.gitignore` |
+| Env vars documented | `.env.dev.template`, `.env.prod.template` | ✅ `OPENROUTER_API_KEY` already present in both (no new vars) |
+| CI workflow validates same commands | `.github/workflows/ci.yml` | ✅ runs `pytest --tb=short` + `ruff check django-app/` + `npm run lint` + `npm run test:ci` |
+| QA approved — no Critical/High bugs | spec `## QA Test Results` | ✅ green |
+| `features/INDEX.md` flipped | — | ✅ `In Review` (set in QA commit) |
+
+### Production deltas (operator-visible)
+
+- **DB migration:** `design_app.0013_designgenerationrun_background_color_and_more` — additive only (3 fields + 1 new table + 1 partial UniqueConstraint). Backfills silently on existing rows. Safe under concurrent writes.
+- **New env vars:** none.
+- **New worker queues:** none. Builder runs in-request via a `ThreadPoolExecutor` (max 16 workers) inside the `web` container; respects the existing OpenRouter rate-limit envelope.
+- **New endpoints (4):** all gated by global `IsAuthenticated` + `_require_workspace` + project-FK workspace filter — confirmed by `test_cross_workspace_project_returns_404` and `test_cross_workspace_isolation_on_list`.
+  - `POST   /api/designs/projects/{id}/builder/build/`
+  - `GET    /api/designs/projects/{id}/builder-presets/`
+  - `POST   /api/designs/projects/{id}/builder-presets/`
+  - `PATCH/DELETE  /api/designs/projects/{id}/builder-presets/{preset_id}/`
+- **Static assets:** 15 new PNGs in `frontend-ui/public/style-thumbnails/` (~1.5 MB). Vite copies `public/` into `dist/` at build time; Caddy serves `/style-thumbnails/*.png` as static assets.
+- **ProcessingSettings:** new field `polish_builder_prompts_enabled` (Bool, default True). Existing rows backfill to True so the Builder polish path is on by default — matches the AC-17 decision.
+- **No rotated secrets / credentials.** OPENROUTER_API_KEY already in production.
+
+### Git workflow recommendation
+
+13 commits ahead of `main`:
+
+```
+dbdb090 docs(PROJ-34): phase 12 — QA report + status In Review
+e4e5010 feat(PROJ-34): phase 10.6 + thumbnails — stale preset drop + 15 PNGs
+4ad4c42 feat(PROJ-34): phase 9 — generation-zone `;`-splitter, slider lock, seed
+0135619 feat(PROJ-34): phases 8/10/11 wire-up — builder + presets + polish toggle
+230d611 feat(PROJ-34): phase 8 — multi-prompt builder UI shell
+a4a601c feat(PROJ-34): phase 7 — style library + thumbnail generation script
+95de4f3 feat(PROJ-34): phase 5+6 — builder-build API + preset CRUD
+febcecc feat(PROJ-34): phase 4 — prompt-polish service
+61fea94 feat(PROJ-34): phase 3 — image-analyzer architect-v2 upgrade
+2f4bc69 feat(PROJ-34): phase 2 — system prompt + bg-color plumbing
+78ed86c feat(PROJ-34): phase 1 — backend foundation models + migration
+18bba52 docs(PROJ-34): add technical design + task breakdown with appendices
+87bdbe2 feat(PROJ-34): add spec for Design-Forge Prompt Engineering & Multi-Prompt Builder
+```
+
+**Recommend `--merge` (NOT `--squash`).** Per `feedback_pr_merge_strategy.md`, multi-concern bundles preserve conventional commits via merge. While all 13 commits share the PROJ-34 ID, they bundle distinct work (12 phases × 2-3 concerns each: backend, frontend, tests, docs). Preserving the 13 `feat(PROJ-34):` lines gives release-please rich CHANGELOG entries vs. a single squashed summary.
+
+### Pre-merge checklist (operator)
+
+- [ ] `git push origin feature/PROJ-34-design-prompt-engineering`
+- [ ] Open PR against `main`; paste this `## Deployment` block into the PR description for review
+- [ ] Wait for CI green (full suite: ruff + pytest + npm lint + npm test:ci + docker-publish)
+- [ ] `--merge` (not squash, not rebase) — preserves the 13-commit history for release-please
+- [ ] After merge, do NOT auto-merge the auto-opened `chore(main): release X.Y.Z` PR; batch with other features per `feedback_release_cadence.md` (Monday cadence)
+
+### Post-deploy smoke tests (operator)
+
+1. **AC-13 — Architect-v2 analyzer quality:** open the Builder → use `Analyze image` button on three competitor product photos → eyeball that the inserted prompt contains `Vector Print Design`, quoted text, color-object binding, and `breathing room` (≥600 chars). Costs ~3 OpenRouter calls.
+2. **AC-19 — 50-prompt wall-clock:** in the Builder, pick 10 slogans × 5 styles → click Build → verify the polished prompts arrive within ~5s. If they take >10s, raise the `_POLISH_MAX_WORKERS` from 16 to 24 in `BuilderBuildView`.
+3. **12.11 — happy path:** pick a niche-linked project → open Builder → 3 slogans × 2 styles → niche-context ON → Build → 6 polished prompts in textarea (joined by `;`) → click Generate → 6 designs land on the canvas.
+4. **Langfuse traces (12.3):** open Langfuse dashboard → filter `tags:["builder","prompt_polish"]` and `tags:["architect-v2"]` to confirm all polish + analyzer calls land.
+
+### Rollback plan
+
+If production breaks post-deploy:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.prod.yml up --build -d \
+  --no-deps web worker  # roll the image back to the previous tag
+
+# Migration 0013 is additive only — no rollback required unless a NEW migration
+# arrives that depends on dropped state. The new fields will simply sit unused
+# on the previous code.
+```
+
+If a full revert is needed:
+
+```bash
+docker compose exec web python manage.py migrate design_app 0012_proj27_upscaler
+git revert --no-edit dbdb090..87bdbe2
+```
