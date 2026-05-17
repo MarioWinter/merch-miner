@@ -19,7 +19,7 @@
 
 - **As a POD seller working on one niche** (e.g. "school bus driver"), I want to open the Prompt Builder once, multi-select N slogans from the `ProjectIdea` pool of that project AND add additional free-text slogans (one per line), AND pick M visual styles from the curated style library, AND optionally pick one text-warp, AND click `Build` → see exactly N×M ready-to-fire prompts auto-inserted into the prompt textarea (joined by `;`), with the `Parallel Prompts` toggle auto-flipped to ON. Pressing Generate then fires N×M parallel image-gen runs. This replaces today's "type one prompt, click Generate, wait, repeat 15×" loop.
 
-- **As a POD seller picking a style**, I want the style picker to show me **15 POD-relevant styles** as a vertical list of small cards (left: 56×56 thumbnail showing how a sample taco mascot looks in that style, right: style name + 1-line description). When I want a style outside the Top 15, I click `More styles` and a modal opens with all styles in a Grid + a search input. Selecting a style in either place adds it as a removable MUI Chip to the Builder's "Selected styles" row. I'm tired of typing `"make this design vaporwave style"` and not knowing what vaporwave actually looks like in this generator.
+- **As a POD seller picking a style**, I want the style picker to show me **exactly 15 POD-relevant styles** as a vertical list of small cards (left: 56×56 thumbnail showing how a sample taco mascot looks in that style, right: style name + 1-line description). Click anywhere on a row toggles selection; selected styles appear as removable MUI Chips above the list. I'm tired of typing `"make this design vaporwave style"` and not knowing what vaporwave actually looks like in this generator — the 15-tile visual library is the whole library; no nested "More" modal.
 
 - **As a POD seller using the Prompt Builder**, I want the N×M prompts the Builder writes into the textarea to be **automatically polished** by a small, cheap LLM (`google/gemini-3.1-flash-lite`) — grammar tightened, redundancies removed, every concrete detail preserved — *before* they land in the textarea, so the prompts I send to Gemini are well-structured even when my Architect-template-filling produces slightly clunky sentences. **This polish runs ONLY for Builder-generated prompts** — anything I freehand-type into the textarea myself goes through untouched. I want one workspace-level Toggle "Auto-polish Builder prompts" (default ON) to disable this if I'm cost-paranoid.
 
@@ -69,8 +69,8 @@
 
 ### Schicht 5 — Style-Library Thumbnails (Build Script)
 - [ ] AC-21: New script `scripts/generate_style_thumbnails.py` runs `generate_image()` once per style using a fixed test-prompt (`"a smiling cartoon taco mascot, centered, isolated on white background, {STYLE}"`), saving 1024×1024 PNGs to `frontend-ui/public/style-thumbnails/{slug}.png`.
-- [ ] AC-22: The 15 styles (subject to user confirmation in Open Decisions): `vintage_retro`, `70s_groovy`, `80s_neon`, `90s_grunge`, `kawaii_chibi`, `cartoon`, `watercolor`, `hand_drawn_sketch`, `vector_flat`, `minimal_line_art`, `pixel_art`, `distressed_texture`, `halftone_print`, `badge_emblem`, `blackletter_gothic`.
-- [ ] AC-23: Style metadata lives in `frontend-ui/src/views/designs/board/constants/styleLibrary.ts` as a typed array: `{ slug, label, shortDescription, thumbnail, promptSuffix, category }`. `category` maps to the 9 groups from `knowledge.md` (Cute & Character / Illustration & Fine Art / Vintage & Era / etc.) — used for the "More" modal grouping.
+- [ ] AC-22: The 15 styles (confirmed): `vintage_retro`, `70s_groovy`, `80s_neon`, `90s_grunge`, `kawaii_chibi`, `cartoon`, `watercolor`, `hand_drawn_sketch`, `vector_flat`, `minimal_line_art`, `pixel_art`, `distressed_texture`, `halftone_print`, `badge_emblem`, `blackletter_gothic`.
+- [ ] AC-23: Style metadata lives in `frontend-ui/src/views/designs/board/constants/styleLibrary.ts` as a typed array: `{ slug, label, shortDescription, thumbnail, promptSuffix }`. No grouping needed (only 15 flat items).
 - [ ] AC-24: Generated PNGs are committed to git (≤80KB each via PIL re-compression, total ≤1.2MB).
 - [ ] AC-25: Script idempotent: re-running regenerates only styles missing or explicitly marked `--force`. Single-style regeneration via `python scripts/generate_style_thumbnails.py --slug=vaporwave`.
 
@@ -78,9 +78,8 @@
 - [ ] AC-26: Existing `PromptBuilderDialog` accordions/toggles **removed**: `web_research`, `keywords`, the per-variant `variant_index` mechanism. Dead helper code (`build_from_sources` variant-index branch, related frontend types) purged.
 - [ ] AC-27: New Builder layout (top to bottom): Preset dropdown + `Save as Preset` button → Slogans block → Styles block → Warp dropdown (optional) → Reference indicator (read-only, mirrors RightPanel) → `Will generate X prompts` counter + `Build` CTA.
 - [ ] AC-28: **Slogans block**: MUI multi-select chip-list populated from project's `ProjectIdea` pool (showing slogan_text + niche badge) + a multi-line MUI `TextField` for free-text slogans (one per line, empty lines ignored). Combined output = pool selections + free-text lines.
-- [ ] AC-29: **Styles block**: Vertical scrollable list of 15 default styles. Each row: 56×56 thumbnail (lazy-loaded), style label, 1-line description. Click anywhere on row toggles selection. Below the list: `More styles ({remaining count})` button.
-- [ ] AC-30: **"More styles" modal**: MUI Dialog with header search input + Grid of all 80+ style cards (filtered by search across label + category + description). Selecting a card adds the style to the Builder's selected-list and closes the modal.
-- [ ] AC-31: **Selected styles**: shown as removable MUI Chips in a dedicated row above the Styles list; `×` icon removes a chip.
+- [ ] AC-29: **Styles block**: Vertical scrollable list of exactly 15 styles. Each row: 56×56 thumbnail (lazy-loaded), style label, 1-line description. Click anywhere on row toggles selection. No "More" modal; the 15-tile library is the whole library.
+- [ ] AC-30: **Selected styles**: shown as removable MUI Chips in a dedicated row above the Styles list; `×` icon removes a chip.
 - [ ] AC-32: **Warp dropdown**: Single-select MUI `Select` (optional, default = empty/none) with 4 options: `Arc Lower (Banner)`, `Concave Squeeze (Bowtie)`, `Bulge (Football)`, `Flag Wave (Sinuous)`. Labels include the German-friendly hint from `knowledge.md`. Selecting a warp does NOT reset on clicking Build.
 - [ ] AC-33: **Niche-research toggle**: Builder UI has a `Include niche style context` switch above the Build CTA. When ON, the backend `build/` endpoint reads `project.niche.latest_research_data` and appends top 3 each of `visual_styles`, `vibes`, `tones` as a parenthetical context block in every generated prompt. When OFF, the injection is skipped. Default: ON. If the niche has no research data, the switch is `disabled` with MUI Tooltip `No niche research data yet — run PROJ-6 first`. Toggle state is part of the Builder Preset config.
 - [ ] AC-34: **Build CTA**: Disabled when N=0 OR M=0. When enabled, label shows `Build {N×M} prompts`.
@@ -120,7 +119,7 @@
 - [ ] EC-12: User manually edits textarea after Build → next Build shows `Replace your manual edits?` (AC-40). Cancel preserves edits; Continue replaces.
 - [ ] EC-13: User toggles `Parallel Prompts` OFF after Build → textarea contents stay, treated as single prompt at Generate-time (semicolons become literal text). User responsibility; no warning.
 - [ ] EC-14: Saved Preset references a slogan_text that no longer exists in pool (idea deleted) → on load, silently drop missing slogan + show notification snackbar `"X items from this preset were skipped because they no longer exist"`.
-- [ ] EC-15: Saved Preset references a style slug that's been removed from `styleLibrary.ts` → same silent-drop + notification.
+- [ ] EC-15: Saved Preset references a style slug that's been renamed/removed in a future `styleLibrary.ts` update → same silent-drop + notification.
 - [ ] EC-16: Niche has no PROJ-6 research yet → `Include niche style context` switch is disabled with tooltip explaining why; backend `build/` ignores the field if somehow sent and emits no injection block.
 - [ ] EC-23: User turns niche-context toggle ON but the linked project has no `niche` set (e.g. project created without a niche link) → switch disabled with tooltip `Project not linked to a niche`.
 
@@ -182,7 +181,169 @@
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
-_To be added by /architecture_
+
+### What we're building (in 3 sentences)
+
+This feature has two halves. **Quality half:** every image we send to Gemini is now wrapped in strict rules ("only the design, never a t-shirt mockup, honor the background color the user picked") so we stop wasting credits on unusable mockups — plus the existing "Analyze Image" button gets a smarter system prompt that pulls Philip-Anders-quality DNA out of competitor photos. **Pipeline half:** the Prompt Builder gets a major simplification — only Slogans + Styles + Warp + Niche-Toggle remain — and gains a *cross-product mode*: pick 5 slogans × 3 styles, click Build, get 15 polished prompts inserted into the textarea ready to fire in parallel, with optional save-as-Preset for repeat batches.
+
+### Component Tree (Prompt-Builder area)
+
+```
+Design Forge Workspace (existing)
++-- Top Bar (existing)
++-- Center Canvas (existing)
++-- Right Panel (existing)
+    +-- Generation Controls (existing)
+    |   +-- Mode dropdown (existing)
+    |   +-- Model + BG-Color selectors (existing)
+    |   +-- Images slider (NEW: locked + tooltip when multi-prompt active)
+    |   +-- Resolution slider (existing)
+    |   +-- Prompt textarea (existing; "Parallel Prompts" toggle behaviour changes)
+    |   +-- Generate button (existing)
+    +-- Prompt Builder Dialog (RENOVATED — removed accordions; new flow)
+        +-- Preset Bar
+        |   +-- Preset dropdown
+        |   +-- "Save as Preset" button
+        |   +-- Delete-preset icon (uses window.confirm)
+        +-- Slogan Picker
+        |   +-- Multi-select chip-list (from project's ProjectIdea pool)
+        |   +-- Free-text textarea (one slogan per line)
+        +-- Style Picker
+        |   +-- Selected-styles chip row (above)
+        |   +-- Vertical list of 15 style cards (thumbnail + name + 1-line desc)
+        +-- Warp dropdown (optional)
+        +-- "Include niche style context" switch (default ON)
+        +-- Reference indicator (read-only — mirrors RightPanel state)
+        +-- Build counter ("Will generate X prompts")
+        +-- Build CTA
+        +-- Build Confirm Dialog (only when N×M > 30)
+```
+
+### Data Model (new + extended)
+
+**New table — `BuilderPreset`** (project-scoped Builder configurations):
+
+| Field | Type | Purpose |
+|---|---|---|
+| id | UUID | Primary key |
+| workspace | FK → Workspace | Tenant isolation |
+| project | FK → DesignProject | Preset belongs to one project |
+| name | Text (max 80, unique-per-project) | User-given name e.g. "School Bus Set v1" |
+| config | JSON | Slogans + styles + warp + bg_color + niche_context_enabled |
+| created_by | FK → User | Audit |
+| is_deleted | Boolean | Soft-delete flag |
+| created_at / updated_at | Timestamps | Audit |
+
+**Extended table — `DesignGenerationRun`** (add 2 fields):
+
+| Field | Type | Purpose |
+|---|---|---|
+| background_color | Enum (light_gray / neon_pink / neon_green) | Persists user's UI selection so it reaches Gemini (kills the placebo bug) |
+| prompt_polished | Text (nullable) | The final polished version sent to Gemini — stored for debugging |
+
+**Extended table — `ProcessingSettings`** (add 1 field):
+
+| Field | Type | Purpose |
+|---|---|---|
+| polish_builder_prompts_enabled | Boolean (default True) | Workspace-level toggle to enable/disable auto-polish |
+
+### API Endpoints (new)
+
+| Endpoint | Method | What it does |
+|---|---|---|
+| `/api/designs/projects/{id}/builder/build/` | POST | Take a Builder config (slogans + styles + warp + bg + niche-toggle + polish flag), return N×M polished prompts in order |
+| `/api/designs/projects/{id}/builder-presets/` | GET | List all non-deleted presets for the project |
+| `/api/designs/projects/{id}/builder-presets/` | POST | Create a new preset from current Builder config |
+| `/api/designs/projects/{id}/builder-presets/{pid}/` | PATCH | Rename a preset |
+| `/api/designs/projects/{id}/builder-presets/{pid}/` | DELETE | Soft-delete a preset |
+
+Existing endpoints (`/api/designs/generate/`, `/api/designs/projects/{id}/prompts/{pid}/generate/`) gain an additional `background_color` request field that's now persisted onto the Run.
+
+### Tech Decisions
+
+| Decision | Why |
+|---|---|
+| System prompt sent as `role: system` (not prepended in user message) | Gemini Nano Banana family treats system messages as higher-priority than user messages — exactly what we need for hard rules the user shouldn't be able to override |
+| Polish model = `google/gemini-2.5-flash-lite` (instead of the user-requested `3.1-flash-lite`) | The `3.1` lite variant doesn't exist in OpenRouter's lineup today. `2.5-flash-lite` is the closest equivalent — same cost band, sub-second latency, identical purpose. **Flag for user confirmation.** |
+| Background-color injected as final line of user message (not in system prompt) | Lets the polish step reformulate it if needed; system prompt stays static. Also: easier to debug in Langfuse traces (visible at the bottom of every prompt) |
+| Style thumbnails generated once via build-script, committed to git as PNGs | No runtime LLM call needed when user opens Builder. Frontend ships <1.2MB total. Manual regenerate via `--slug=foo` flag when a style doesn't satisfy you |
+| Polish runs ONLY at Builder-build time, never at Generate-time | User clarification: free-typed prompts in textarea stay untouched. Polish is opt-in via Builder usage |
+| Parallel-Prompts separator = `;` only (newline removed) | Single source of truth; no ambiguity. Builder always produces `;`-joined output. Old newline-based prompts in saved state migrate transparently (we treat newline as whitespace) |
+| `BuilderPreset.config` stored as JSON blob (not normalized) | Builder config is small (<2KB), changes shape as we iterate styles, and is only used by one consumer. Normalizing into 3 tables would be over-engineering |
+| `BuilderPreset` uses soft-delete | Preserves audit trail; later we may add "recently deleted" recovery. Cost: ~zero |
+| `ProcessingSettings.polish_builder_prompts_enabled` lives per workspace | Toggle moves once for whole team. Existing `ProcessingSettings` is already a per-workspace singleton — no new pattern needed |
+| Image-Slider seed-variation fallback for Nano Banana = suffix + random style-modifier combined | Per user's pick. Modifier pool is fixed (5 entries); variant index → modifier mapping is deterministic so repeated runs are reproducible |
+| Style picker is flat 15 items, no "More" modal | Per user clarification — 15 *is* the entire library; future additions ship in new releases |
+
+### Dependencies (packages)
+
+No new backend Python packages — `httpx`, `Langfuse` are already installed.
+No new frontend NPM packages — using existing MUI v7 + RTK Query.
+No new external services — only OpenRouter (already wired).
+
+### File Structure (what gets added/changed)
+
+```
+django-app/
++-- design_app/
+|   +-- services/
+|   |   +-- image_generator.py        (CHANGE: add DESIGN_GEN_SYSTEM_PROMPT + role:system wiring + bg-color injection)
+|   |   +-- image_analyzer.py         (CHANGE: replace SYSTEM_PROMPT with 9-Architect-Rule version from knowledge.md)
+|   |   +-- prompt_polish.py          (NEW: polish_prompt() helper + Langfuse trace)
+|   |   +-- prompt_builder.py         (CHANGE: drop variant_index branch; ADD: build_architect_prompt() for the 9-rule template)
+|   +-- models.py                     (CHANGE: DesignGenerationRun + ProcessingSettings extensions; NEW: BuilderPreset)
+|   +-- api/
+|   |   +-- views.py                  (CHANGE: persist bg_color on Run; NEW: BuilderBuildView + BuilderPresetViewSet)
+|   |   +-- serializers.py            (NEW: BuilderBuildSerializer, BuilderPresetSerializer)
+|   |   +-- urls.py                   (NEW: builder/build/ + builder-presets/ routes)
+|   +-- tasks.py                      (CHANGE: read run.background_color; DELETE: _get_bg_from_prompt)
+|   +-- migrations/                   (NEW: 3 migrations — DesignGenerationRun fields, ProcessingSettings field, BuilderPreset table)
+
+frontend-ui/
++-- public/style-thumbnails/          (NEW: 15 PNG files, ~80KB each)
++-- src/views/designs/board/
+|   +-- constants/styleLibrary.ts     (NEW: 15-entry array with slug/label/desc/thumbnail/promptSuffix)
+|   +-- partials/promptBuilder/
+|   |   +-- PromptBuilderDialog.tsx   (RENOVATED: remove web_research/keywords/variant accordions)
+|   |   +-- PresetBar.tsx             (NEW)
+|   |   +-- SloganPicker.tsx          (NEW: pool multi-select + free-text)
+|   |   +-- StylePicker.tsx           (NEW: 15-tile list + chip row)
+|   |   +-- WarpPicker.tsx            (NEW: 4-option select)
+|   |   +-- NicheContextToggle.tsx    (NEW: switch with disabled-state tooltip)
+|   |   +-- BuildCounter.tsx          (NEW)
+|   |   +-- BuildConfirmDialog.tsx    (NEW)
+|   +-- partials/GenerationZone.tsx   (CHANGE: Images-slider lock when multi-prompt active)
+|   +-- hooks/useGeneration.ts        (CHANGE: parallel-prompts split on ; only; single-prompt seed-variation logic)
++-- src/store/designSlice.ts          (CHANGE: add RTK Query endpoints for builder/build + builder-presets)
+
+scripts/
++-- generate_style_thumbnails.py      (NEW: one-shot PNG generator using existing image_generator)
+```
+
+### Phase Plan (12 phases)
+
+The detailed checklist of tasks per phase lives in [`docs/tasks/PROJ-34-tasks.md`](../docs/tasks/PROJ-34-tasks.md).
+
+| # | Phase | Outcome |
+|---|---|---|
+| 1 | Backend Foundation | Migrations applied: bg_color + prompt_polished on Run, polish_builder_prompts_enabled on Settings, BuilderPreset table |
+| 2 | System Prompt + BG-Color Plumbing | Every image-gen call sends 9-rule system prompt + actual user-selected bg-color; placebo bug fixed |
+| 3 | Image-Analyzer Upgrade | Analyze button produces Philip-Anders-quality prompts |
+| 4 | Polish Service | `prompt_polish.py` ready; Langfuse-traced |
+| 5 | Builder-Build API | POST endpoint returns N×M polished prompts |
+| 6 | Builder-Preset API | CRUD endpoints + soft-delete |
+| 7 | Style Library + Build Script | 15 PNGs generated and committed; metadata constants in place |
+| 8 | Frontend Builder Renovation | New PromptBuilderDialog UI: PresetBar + SloganPicker + StylePicker + WarpPicker + NicheToggle + BuildCounter + BuildConfirm |
+| 9 | Frontend Generation-Zone Changes | Parallel-Prompts splits on `;`; Images-slider locked in multi-prompt mode; seed-variation logic for single-prompt |
+| 10 | Frontend Preset UI | Save/Load/Delete preset flow wired |
+| 11 | Settings UI | Workspace `Auto-polish` toggle visible + editable |
+| 12 | Tests + QA | Backend unit tests, frontend component tests, E2E smoke test for full Builder→Build→Generate flow |
+
+### Open Tech Notes (flag for user)
+
+1. **Polish model:** user requested `google/gemini-3.1-flash-lite` — that exact ID isn't on OpenRouter today. Proposal: use `google/gemini-2.5-flash-lite` (closest equivalent, same cost band). Confirm before Phase 4.
+2. **Migration ordering risk:** adding `background_color` to `DesignGenerationRun` is safe (defaults to `light_gray`). Existing rows backfill silently — no data loss, but old Runs will all show `light_gray` regardless of what they actually used.
+3. **Preset name uniqueness scope:** unique-per-project (not per-workspace) — two projects can both have "Set v1".
 
 ## QA Test Results
 _To be added by /qa_
