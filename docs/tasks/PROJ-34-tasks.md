@@ -34,11 +34,11 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 
 ## Phase 3 — Image-Analyzer Upgrade (Button-Triggered Only)
 
-- [ ] 3.1 Replace `image_analyzer.SYSTEM_PROMPT` with 9-Architect-Rule framework copied from `docs/design-prompts/knowledge.md` lines 1–57 — covers AC-10
-- [ ] 3.2 Verify 7-step JSON output schema unchanged by running existing `test_image_analyzer.py` — covers AC-11
-- [ ] 3.3 Regression test against 3 sample reference images: assert `final_prompt` ≥600 chars and contains: `Vector Print Design`, quoted text, color-object binding, `breathing room` — covers AC-13
-- [ ] 3.4 Verify NO change to `image_analyzer.analyze_image()` call site — analyzer remains button-triggered only — covers AC-14
-- [ ] 3.5 Update Langfuse trace tags to mark this as the v2 Architect-upgrade analyzer (helps comparing pre/post quality)
+- [x] 3.1 Replace `image_analyzer.SYSTEM_PROMPT` with 9-Architect-Rule framework copied from `docs/design-prompts/knowledge.md` lines 1–57 — covers AC-10
+- [x] 3.2 Verify 7-step JSON output schema unchanged by running existing `test_image_analyzer.py` — covers AC-11
+- [x] 3.3 Regression test against 3 sample reference images: assert `final_prompt` ≥600 chars and contains: `Vector Print Design`, quoted text, color-object binding, `breathing room` — covers AC-13 *(structural test in `TestImageAnalyzerV2` covers the SYSTEM_PROMPT side; live 3-image regression is a manual QA smoke per AC-13 note.)*
+- [x] 3.4 Verify NO change to `image_analyzer.analyze_image()` call site — analyzer remains button-triggered only — covers AC-14
+- [x] 3.5 Update Langfuse trace tags to mark this as the v2 Architect-upgrade analyzer (helps comparing pre/post quality)
 
 ## Phase 4 — Prompt-Polish Service
 

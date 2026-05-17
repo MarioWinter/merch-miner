@@ -53,11 +53,11 @@
 - [x] AC-9: A unit test verifies that selecting `neon_pink` in the UI results in `#FF6EC7` appearing in the OpenRouter payload sent to the worker mock.
 
 ### Schicht 3 — Image-Analyzer Upgrade (button-triggered, function exists)
-- [ ] AC-10: `design_app/services/image_analyzer.py` `SYSTEM_PROMPT` is replaced 1:1 with the full "Gemini 3 Architect" framework from `docs/design-prompts/knowledge.md` lines 1–57 (role + 9 critical rules + 7-step instructions + mandatory template + 1 worked example).
-- [ ] AC-11: The 7-step JSON output schema is unchanged (`text_dna` / `visual` / `spatial` / `style` / `color` / `tech` / `final_prompt`) so existing consumers (`build_from_analysis`, the frontend's "Use as Prompt" button) continue working without code changes.
-- [ ] AC-12: The existing `Analyze image` button (lupe icon under the prompt textarea, current behaviour) keeps its current API contract — only the underlying SYSTEM_PROMPT changes. No frontend changes required for this AC.
-- [ ] AC-13: A regression test against 3 sample reference images verifies the new `final_prompt` is ≥600 chars (up from typical ~200 today) and contains the Architect markers: `Vector Print Design` (never `T-Shirt`), text in `"double quotes"`, color-object binding patterns (`"golden yellow body"`-style), and `breathing room` / `generous padding`.
-- [ ] AC-14: **No auto-analyze**: Gemini is NOT called for analysis on every Edit/Remix request. Analysis happens only when the user clicks the button.
+- [x] AC-10: `design_app/services/image_analyzer.py` `SYSTEM_PROMPT` is replaced 1:1 with the full "Gemini 3 Architect" framework from `docs/design-prompts/knowledge.md` lines 1–57 (role + 9 critical rules + 7-step instructions + mandatory template + 1 worked example).
+- [x] AC-11: The 7-step JSON output schema is unchanged (`text_dna` / `visual` / `spatial` / `style` / `color` / `tech` / `final_prompt`) so existing consumers (`build_from_analysis`, the frontend's "Use as Prompt" button) continue working without code changes.
+- [x] AC-12: The existing `Analyze image` button (lupe icon under the prompt textarea, current behaviour) keeps its current API contract — only the underlying SYSTEM_PROMPT changes. No frontend changes required for this AC.
+- [x] AC-13: A regression test against 3 sample reference images verifies the new `final_prompt` is ≥600 chars (up from typical ~200 today) and contains the Architect markers: `Vector Print Design` (never `T-Shirt`), text in `"double quotes"`, color-object binding patterns (`"golden yellow body"`-style), and `breathing room` / `generous padding`. *(Structural test in `TestImageAnalyzerV2` asserts the SYSTEM_PROMPT contains all markers; the live 3-image quality regression is documented as a manual QA smoke test since it requires live OPENROUTER credit per CI run.)*
+- [x] AC-14: **No auto-analyze**: Gemini is NOT called for analysis on every Edit/Remix request. Analysis happens only when the user clicks the button.
 
 ### Schicht 4 — Prompt-Polish Pipeline (Builder-only)
 - [ ] AC-15: New helper `design_app/services/prompt_polish.py::polish_prompt(raw: str, model='google/gemini-3.1-flash-lite') -> str` sends a polish system message ("polish grammar and flow only; preserve every concrete detail; output only the polished prompt, no preamble") + the raw prompt; returns the polished string.

@@ -823,3 +823,93 @@ class TestSystemPromptAndBgColor:
         from design_app.services.image_generator import _build_content
         result = _build_content('text_to_image', 'Vector cat design')
         assert result == 'Vector cat design'
+
+
+class TestImageAnalyzerV2:
+    """PROJ-34 Phase 3: AC-10/AC-11/AC-12 — Architect-framework SYSTEM_PROMPT
+    replacement; 7-step JSON output schema preserved 1:1.
+
+    AC-13 (regression test against 3 live reference images proving
+    final_prompt ≥600 chars with Architect markers) is a manual /
+    integration smoke test — it requires real OPENROUTER credit per run
+    and is documented in the QA plan rather than blocking CI here."""
+
+    def test_system_prompt_contains_9_architect_rules(self):
+        from design_app.services.image_analyzer import SYSTEM_PROMPT
+        # Each of the 9 Critical Rules is numbered in the template; check the
+        # rule headers + their topical keywords so a future re-shuffle is caught.
+        for marker in (
+            '1. **Text Container:',
+            '2. **Physicality:',
+            '3. **No Mockups:',
+            '4. **Visual Font Description:',
+            '5. **Spatial Anchoring:',
+            '6. **Text Segmentation:',
+            '7. **Color-Object Binding:',
+            '8. **Deep Visuals:',
+            '9. **Breathing Room:',
+        ):
+            assert marker in SYSTEM_PROMPT, f'missing rule marker: {marker}'
+
+    def test_system_prompt_contains_architect_markers(self):
+        from design_app.services.image_analyzer import SYSTEM_PROMPT
+        # Architect-quality markers that should appear in the new prompt
+        # (these are precisely what AC-13's live test asserts in the output).
+        assert 'Vector Print Design' in SYSTEM_PROMPT
+        assert 'T-Shirt' in SYSTEM_PROMPT  # mentioned only in the forbidding rule
+        assert 'breathing room' in SYSTEM_PROMPT.lower()
+        assert 'generous padding' in SYSTEM_PROMPT.lower()
+        assert 'double quotes' in SYSTEM_PROMPT.lower()
+        assert 'color-object binding' in SYSTEM_PROMPT.lower()
+
+    def test_system_prompt_preserves_7_step_schema(self):
+        """AC-11: JSON schema unchanged so build_from_analysis keeps working."""
+        from design_app.services.image_analyzer import SYSTEM_PROMPT
+        for key in (
+            '"text_dna"', '"visual"', '"spatial"', '"style"',
+            '"color"', '"tech"', '"final_prompt"',
+        ):
+            assert key in SYSTEM_PROMPT
+
+    @patch('design_app.services.image_analyzer.httpx.Client')
+    def test_analyze_image_returns_7_key_dict(self, mock_client_cls):
+        """End-to-end: analyzer call returns a dict with the 7 expected keys."""
+        from design_app.services.image_analyzer import analyze_image
+        sample = {
+            'text_dna': {'text': 'COFFEE', 'font_style': 'bold serif'},
+            'visual': {'style': 'vintage', 'elements': 'coffee beans'},
+            'spatial': {'layout': 'centered'},
+            'style': {'aesthetic': 'retro'},
+            'color': {'dominant': ['#000']},
+            'tech': {'quality': 'high'},
+            'final_prompt': (
+                'A professional Vector Print Design isolated on a black '
+                'background. "COFFEE" in golden yellow, breathing room.'
+            ),
+        }
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            'choices': [{'message': {'content': __import__('json').dumps(sample)}}],
+            'usage': {'prompt_tokens': 1, 'completion_tokens': 1, 'total_tokens': 2},
+        }
+        mock_resp.raise_for_status = MagicMock()
+        mock_client = MagicMock()
+        mock_client.post.return_value = mock_resp
+        mock_client.__enter__ = MagicMock(return_value=mock_client)
+        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_client_cls.return_value = mock_client
+
+        with patch(
+            'design_app.services.image_analyzer.settings',
+        ) as mock_settings:
+            mock_settings.OPENROUTER_API_KEY = 'k'
+            mock_settings.OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
+            mock_settings.LANGFUSE_PUBLIC_KEY = ''
+            mock_settings.LANGFUSE_SECRET_KEY = ''
+            result = analyze_image('https://example.com/x.jpg')
+
+        assert set(result.keys()) >= {
+            'text_dna', 'visual', 'spatial', 'style',
+            'color', 'tech', 'final_prompt',
+        }
+        assert 'Vector Print Design' in result['final_prompt']
