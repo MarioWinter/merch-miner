@@ -328,6 +328,10 @@ class GenerateDesignView(APIView):
             prompt_used=serializer.validated_data['prompt'],
             source_image_url=source_image_url,
             source_image_url_2=source_image_url_2,
+            # PROJ-34 AC-5: persist UI bg_color selection onto the Run.
+            background_color=serializer.validated_data.get(
+                'background_color', 'light_gray',
+            ),
         )
 
         # Resolve optional project_id
@@ -1112,6 +1116,10 @@ class StandaloneGenerateView(APIView):
             prompt_used=serializer.validated_data['prompt'],
             source_image_url=source_image_url,
             source_image_url_2=source_image_url_2,
+            # PROJ-34 AC-5: persist UI bg_color selection onto the Run.
+            background_color=serializer.validated_data.get(
+                'background_color', 'light_gray',
+            ),
         )
 
         # Enqueue to design worker
@@ -1692,6 +1700,10 @@ class GenerateFromPromptView(APIView):
             prompt_used=prompt.prompt_text,
             source_image_url=source_image_url,
             source_image_url_2=source_image_url_2,
+            # PROJ-34 AC-5: persist UI bg_color selection onto the Run.
+            background_color=serializer.validated_data.get(
+                'background_color', 'light_gray',
+            ),
         )
 
         queue = django_rq.get_queue('design')

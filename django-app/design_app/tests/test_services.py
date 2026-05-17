@@ -147,7 +147,9 @@ class TestGenerateImage:
         # Verify payload sent to API had multimodal content array
         call_args = mock_client.post.call_args
         payload = call_args.kwargs['json']
-        content = payload['messages'][0]['content']
+        # PROJ-34 AC-2: messages[0] is the system prompt; user is at [1].
+        assert payload['messages'][0]['role'] == 'system'
+        content = payload['messages'][1]['content']
         assert isinstance(content, list)
         assert len(content) == 2
         assert content[0]['type'] == 'text'
@@ -191,7 +193,9 @@ class TestGenerateImage:
 
         call_args = mock_client.post.call_args
         payload = call_args.kwargs['json']
-        content = payload['messages'][0]['content']
+        # PROJ-34 AC-2: messages[0] is the system prompt; user is at [1].
+        assert payload['messages'][0]['role'] == 'system'
+        content = payload['messages'][1]['content']
         assert isinstance(content, str)
         assert content == 'Simple text prompt'
 
@@ -284,7 +288,9 @@ class TestGenerateImage:
 
         call_args = mock_client.post.call_args
         payload = call_args.kwargs['json']
-        content = payload['messages'][0]['content']
+        # PROJ-34 AC-2: messages[0] is the system prompt; user is at [1].
+        assert payload['messages'][0]['role'] == 'system'
+        content = payload['messages'][1]['content']
         assert isinstance(content, list)
         assert len(content) == 2
         # Image comes first in i2i mode
@@ -332,7 +338,9 @@ class TestGenerateImage:
 
         call_args = mock_client.post.call_args
         payload = call_args.kwargs['json']
-        content = payload['messages'][0]['content']
+        # PROJ-34 AC-2: messages[0] is the system prompt; user is at [1].
+        assert payload['messages'][0]['role'] == 'system'
+        content = payload['messages'][1]['content']
         assert isinstance(content, list)
         # Text-to-image: text comes first
         assert content[0]['type'] == 'text'
@@ -671,3 +679,147 @@ class TestTaskUpscaleDesign:
                     model_name='bytedance-seed/seedream-4.5',
                     source_image_url='https://example.com/img.jpg',
                 )
+
+
+class TestSystemPromptAndBgColor:
+    """PROJ-34 Phase 2: AC-1/AC-2/AC-7/AC-9 — system prompt always sent,
+    bg-color hex injected from persisted UI selection."""
+
+    @pytest.fixture(autouse=True)
+    def _autouse_passthrough(self, _passthrough_data_url):
+        yield
+
+    def _ok_response(self, b64_data):
+        return {
+            'choices': [{
+                'message': {
+                    'content': [
+                        {'inline_data': {'data': b64_data, 'mime_type': 'image/png'}},
+                    ],
+                },
+            }],
+        }
+
+    def _stub_post(self, mock_client_cls):
+        from io import BytesIO
+        from PIL import Image as _PIL
+        buf = BytesIO()
+        _PIL.new('RGBA', (1, 1)).save(buf, 'PNG')
+        b64_data = base64.b64encode(buf.getvalue()).decode()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = self._ok_response(b64_data)
+        mock_resp.raise_for_status = MagicMock()
+        mock_client = MagicMock()
+        mock_client.post.return_value = mock_resp
+        mock_client.__enter__ = MagicMock(return_value=mock_client)
+        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_client_cls.return_value = mock_client
+        return mock_client
+
+    @patch('design_app.services.image_generator.httpx.Client')
+    def test_system_prompt_always_sent_text_only(self, mock_client_cls, tmp_path):
+        """AC-2: every payload has the DESIGN_GEN_SYSTEM_PROMPT at messages[0]."""
+        from design_app.services.image_generator import (
+            DESIGN_GEN_SYSTEM_PROMPT, generate_image,
+        )
+        mock_client = self._stub_post(mock_client_cls)
+        with patch(
+            'design_app.services.image_generator.settings',
+        ) as mock_settings:
+            mock_settings.OPENROUTER_API_KEY = 'test-key'
+            mock_settings.OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
+            generate_image(
+                prompt='Just a plain prompt',
+                model_name='gemini_flash',
+                output_dir=str(tmp_path),
+            )
+        payload = mock_client.post.call_args.kwargs['json']
+        messages = payload['messages']
+        assert len(messages) == 2
+        assert messages[0]['role'] == 'system'
+        assert messages[0]['content'] == DESIGN_GEN_SYSTEM_PROMPT
+        assert messages[1]['role'] == 'user'
+        # Without bg_color, the user prompt is unchanged.
+        assert messages[1]['content'] == 'Just a plain prompt'
+
+    @patch('design_app.services.image_generator.httpx.Client')
+    def test_neon_pink_injects_hex_in_user_prompt(self, mock_client_cls, tmp_path):
+        """AC-9: selecting neon_pink → #FF6EC7 appears in OpenRouter payload."""
+        from design_app.services.image_generator import generate_image
+        mock_client = self._stub_post(mock_client_cls)
+        with patch(
+            'design_app.services.image_generator.settings',
+        ) as mock_settings:
+            mock_settings.OPENROUTER_API_KEY = 'test-key'
+            mock_settings.OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
+            generate_image(
+                prompt='School bus driver design',
+                model_name='gemini_flash',
+                output_dir=str(tmp_path),
+                background_color='neon_pink',
+            )
+        payload = mock_client.post.call_args.kwargs['json']
+        user_content = payload['messages'][1]['content']
+        # Text-only user content with bg_color → string with appended bg line.
+        assert isinstance(user_content, str)
+        assert 'School bus driver design' in user_content
+        assert '#FF6EC7' in user_content
+        assert 'solid #FF6EC7' in user_content
+        assert 'no gradients' in user_content
+
+    @patch('design_app.services.image_generator.httpx.Client')
+    def test_bg_color_appended_to_multimodal_text_part(self, mock_client_cls, tmp_path):
+        """AC-7: bg-color appended even for multimodal (i2i / remix) payloads."""
+        from design_app.services.image_generator import generate_image
+        mock_client = self._stub_post(mock_client_cls)
+        with patch(
+            'design_app.services.image_generator.settings',
+        ) as mock_settings:
+            mock_settings.OPENROUTER_API_KEY = 'test-key'
+            mock_settings.OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
+            generate_image(
+                prompt='Make brighter',
+                model_name='gemini_flash',
+                output_dir=str(tmp_path),
+                source_image_url='https://example.com/ref.jpg',
+                mode='image_to_image',
+                background_color='neon_green',
+            )
+        payload = mock_client.post.call_args.kwargs['json']
+        user_content = payload['messages'][1]['content']
+        assert isinstance(user_content, list)
+        text_parts = [p['text'] for p in user_content if p.get('type') == 'text']
+        assert any('#39FF14' in t for t in text_parts)
+        assert any('Make brighter' in t for t in text_parts)
+
+    def test_unknown_model_still_raises_with_new_map_shape(self):
+        """Restructured MODEL_MAP must still raise on unknown model names."""
+        from design_app.services.image_generator import generate_image
+        with patch(
+            'design_app.services.image_generator.settings',
+        ) as mock_settings:
+            mock_settings.OPENROUTER_API_KEY = 'test-key'
+            mock_settings.OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
+            with pytest.raises(ValueError, match='Unknown model'):
+                generate_image(
+                    prompt='something',
+                    model_name='no-such-model',
+                )
+
+    def test_build_content_appends_bg_color_to_plain_string(self):
+        """Direct _build_content call with bg_color returns string with bg line."""
+        from design_app.services.image_generator import _build_content
+        result = _build_content(
+            'text_to_image', 'Vector cat design',
+            background_color='light_gray',
+        )
+        assert isinstance(result, str)
+        assert 'Vector cat design' in result
+        assert '#D3D3D3' in result
+
+    def test_build_content_no_bg_color_unchanged(self):
+        """_build_content without bg_color returns the prompt verbatim (back-compat)."""
+        from design_app.services.image_generator import _build_content
+        result = _build_content('text_to_image', 'Vector cat design')
+        assert result == 'Vector cat design'

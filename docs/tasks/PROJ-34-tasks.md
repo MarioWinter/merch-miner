@@ -20,17 +20,17 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 
 ## Phase 2 — System Prompt + BG-Color Plumbing
 
-- [ ] 2.1 Define `DESIGN_GEN_SYSTEM_PROMPT` constant — use the **draft text in Appendix A** verbatim, adjust only if review feedback requires — covers AC-1
-- [ ] 2.2 Modify `generate_image()` to always send `DESIGN_GEN_SYSTEM_PROMPT` as `{role: 'system'}` message before the user message — covers AC-2
-- [ ] 2.3 Convert `MODEL_MAP` from flat `{db_value: openrouter_id}` to nested `{db_value: {real_id, supports_system_role}}` per **Appendix B**; threading verified by tests — covers AC-3
-- [ ] 2.4 Modify `_build_content()` to append `"Background: solid {HEX}, saturated, no gradients, flat single color background"` (using `Design.BG_COLOR_HEX[background_color]`) as the final segment of the user message — covers AC-7
-- [ ] 2.5 Add `background_color` parameter to `generate_image()` signature; thread through from `task_generate_design` — covers AC-6
-- [ ] 2.6 Add `background_color` field to `StandaloneGenerateSerializer`, `GenerateFromPromptSerializer`, `IdeaGenerateSerializer` (already exists but verify) and persist onto `Run` — covers AC-5
-- [ ] 2.7 Modify `task_generate_design()` to read `run.background_color` instead of guessing; pass to `generate_image()` — covers AC-6
-- [ ] 2.8 Delete `_get_bg_from_prompt()` helper from `tasks.py`; `Design.background_color` now set directly from `run.background_color` — covers AC-8
-- [ ] 2.9 Write unit test: `neon_pink` selection results in `#FF6EC7` in OpenRouter payload — covers AC-9
-- [ ] 2.10 Write unit test: every payload contains the system message — covers AC-2
-- [ ] 2.11 Add EC handling: log warning if system + user message exceeds Gemini context window (rare) — covers EC-4
+- [x] 2.1 Define `DESIGN_GEN_SYSTEM_PROMPT` constant — use the **draft text in Appendix A** verbatim, adjust only if review feedback requires — covers AC-1
+- [x] 2.2 Modify `generate_image()` to always send `DESIGN_GEN_SYSTEM_PROMPT` as `{role: 'system'}` message before the user message — covers AC-2
+- [x] 2.3 Convert `MODEL_MAP` from flat `{db_value: openrouter_id}` to nested `{db_value: {real_id, supports_system_role}}` per **Appendix B**; threading verified by tests — covers AC-3
+- [x] 2.4 Modify `_build_content()` to append `"Background: solid {HEX}, saturated, no gradients, flat single color background"` (using `Design.BG_COLOR_HEX[background_color]`) as the final segment of the user message — covers AC-7
+- [x] 2.5 Add `background_color` parameter to `generate_image()` signature; thread through from `task_generate_design` — covers AC-6
+- [x] 2.6 Add `background_color` field to `StandaloneGenerateSerializer`, `GenerateFromPromptSerializer`, `IdeaGenerateSerializer` (already exists but verify) and persist onto `Run` — covers AC-5
+- [x] 2.7 Modify `task_generate_design()` to read `run.background_color` instead of guessing; pass to `generate_image()` — covers AC-6
+- [x] 2.8 Delete `_get_bg_from_prompt()` helper from `tasks.py`; `Design.background_color` now set directly from `run.background_color` — covers AC-8
+- [x] 2.9 Write unit test: `neon_pink` selection results in `#FF6EC7` in OpenRouter payload — covers AC-9
+- [x] 2.10 Write unit test: every payload contains the system message — covers AC-2
+- [x] 2.11 Add EC handling: log warning if system + user message exceeds Gemini context window (rare) — covers EC-4
 
 ## Phase 3 — Image-Analyzer Upgrade (Button-Triggered Only)
 

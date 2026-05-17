@@ -56,6 +56,9 @@ def task_generate_design(
             source_image_url=run.source_image_url or '',
             source_image_url_2=run.source_image_url_2 or '',
             mode=run.generation_mode or mode,
+            # PROJ-34 AC-6: persisted UI selection threads through to the
+            # generator instead of being post-hoc derived from prompt text.
+            background_color=run.background_color,
         )
 
         # Read file and save to Design model
@@ -81,7 +84,8 @@ def task_generate_design(
             idea=run.idea,
             generation_run=run,
             status=Design.Status.PENDING,
-            background_color=_get_bg_from_prompt(run.prompt_used),
+            # PROJ-34 AC-8: trust the persisted UI selection on the Run.
+            background_color=run.background_color,
         )
         filename = f"design_{str(run.id)[:8]}.png"
         design.image_file.save(filename, ContentFile(image_content), save=False)
@@ -612,10 +616,3 @@ def task_analyze_product_image(product_id: str, source_image_url: str):
         raise
 
 
-def _get_bg_from_prompt(prompt: str) -> str:
-    """Extract background color from prompt text."""
-    from design_app.models import Design
-    for choice_val, hex_val in Design.BG_COLOR_HEX.items():
-        if hex_val.lower() in prompt.lower():
-            return choice_val
-    return Design.BackgroundColor.LIGHT_GRAY
