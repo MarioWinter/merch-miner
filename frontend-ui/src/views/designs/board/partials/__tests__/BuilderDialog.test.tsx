@@ -166,6 +166,40 @@ describe('BuilderDialog — PROJ-34 Phase 8', () => {
     expect(screen.getByText('(read-only)')).toBeInTheDocument();
   });
 
+  it('EC-14/EC-15: drops stale preset entries silently + warns via snackbar', async () => {
+    const user = userEvent.setup();
+    const presets = [
+      {
+        id: 'p1',
+        name: 'Stale Set',
+        config: {
+          // i1 exists in `ideas`, missing-id does not
+          selectedSloganIds: ['i1', 'missing-id'],
+          freeTextSlogans: '',
+          // 'cartoon' exists, 'vaporwave-gone' does not
+          selectedStyleSlugs: ['cartoon', 'vaporwave-gone'],
+          warpSlug: null,
+          includeNicheContext: true,
+        },
+      },
+    ];
+    renderWithProviders(<BuilderDialog {...baseProps} presets={presets} />);
+    const select = screen.getByRole('combobox', { name: /Preset/i });
+    await user.click(select);
+    await user.click(await screen.findByRole('option', { name: 'Stale Set' }));
+
+    // Snackbar surfaces the drop (2 items: missing-id + vaporwave-gone).
+    expect(
+      await screen.findByText(
+        /2 item\(s\) from this preset were skipped because they no longer exist/i,
+      ),
+    ).toBeInTheDocument();
+
+    // Cartoon style chip is present (kept); other (gone) is not.
+    const chipRegion = screen.getByLabelText('Selected styles');
+    expect(within(chipRegion).getByText('Cartoon')).toBeInTheDocument();
+  });
+
   // Suppress unused-import warning for pickStyles helper (kept for future tests)
   it('helper smoke', () => { void pickStyles; expect(true).toBe(true); });
 });

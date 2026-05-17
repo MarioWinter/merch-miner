@@ -17,6 +17,8 @@ import {
   Stack,
   Typography,
 } from '@mui/material';
+import { useSnackbar } from 'notistack';
+import { STYLE_LIBRARY } from '../constants/styleLibrary';
 import { styled } from '@mui/material/styles';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CloseIcon from '@mui/icons-material/Close';
@@ -139,6 +141,7 @@ const BuilderDialog = ({
   // `confirmKind` is auto-reset when the dialog closes via `onClose` (see
   // `handleClose` below) so we don't need a useEffect synced to `open`.
   const [confirmKind, setConfirmKind] = useState<null | 'threshold' | 'manualEdit'>(null);
+  const { enqueueSnackbar } = useSnackbar();
 
   const handleClose = () => {
     setConfirmKind(null);
@@ -177,7 +180,37 @@ const BuilderDialog = ({
     const preset = presets.find((p) => p.id === id);
     if (!preset) return;
     setSelectedPresetId(id);
-    setConfig({ ...EMPTY_BUILDER_CONFIG, ...preset.config });
+
+    // EC-14 / EC-15 — silently drop preset entries whose slogan_ids or
+    // style slugs no longer exist (idea deleted from pool, or style removed
+    // from the library). Surface the drop via snackbar so the user knows
+    // their preset was partial-loaded.
+    const merged: BuilderConfig = { ...EMPTY_BUILDER_CONFIG, ...preset.config };
+    const knownIdeaIds = new Set(ideas.map((i) => i.id));
+    const knownStyleSlugs = new Set(STYLE_LIBRARY.map((s) => s.slug));
+
+    const filteredIdeas = merged.selectedSloganIds.filter((id) =>
+      knownIdeaIds.has(id),
+    );
+    const filteredStyles = merged.selectedStyleSlugs.filter((slug) =>
+      knownStyleSlugs.has(slug),
+    );
+
+    const droppedIdeas = merged.selectedSloganIds.length - filteredIdeas.length;
+    const droppedStyles = merged.selectedStyleSlugs.length - filteredStyles.length;
+    const droppedTotal = droppedIdeas + droppedStyles;
+    if (droppedTotal > 0) {
+      enqueueSnackbar(
+        `${droppedTotal} item(s) from this preset were skipped because they no longer exist`,
+        { variant: 'warning' },
+      );
+    }
+
+    setConfig({
+      ...merged,
+      selectedSloganIds: filteredIdeas,
+      selectedStyleSlugs: filteredStyles,
+    });
   };
 
   const handleSavePreset = (name: string) => onSavePreset(name, config);

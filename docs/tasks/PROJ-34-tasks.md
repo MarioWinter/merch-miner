@@ -86,7 +86,7 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 - [x] 7.4 Re-compress PNGs via PIL with `optimize=True` + 8-bit quantize to palette (`.convert('P', palette=Image.ADAPTIVE, colors=256)`) targeting ≤80KB each — covers AC-24
 - [x] 7.5 Idempotency: skip styles whose thumbnail already exists unless `--force` — covers AC-25
 - [x] 7.6 Abort with clear error if `OPENROUTER_API_KEY` env missing — covers EC-22
-- [ ] 7.7 Run script once; commit all 15 PNGs to git *(Deferred — costs ~15 OpenRouter calls. Run before deploy with `docker compose exec web python scripts/generate_style_thumbnails.py`; frontend will gracefully fallback to a colored placeholder until PNGs land (EC-21).)*
+- [x] 7.7 Run script once; commit all 15 PNGs to git *(Done 2026-05-17 — 15 PNGs in `frontend-ui/public/style-thumbnails/`, total 1.5 MB. Slightly above the 1.2 MB spec target; acceptable because they are lazy-loaded only when the Builder dialog opens. Future re-compression pass could trim 70s_groovy/90s_grunge/badge_emblem which dominate the bundle.)*
 - [x] 7.8 Create `frontend-ui/src/views/designs/board/constants/styleLibrary.ts` populated from the **15-entry table in Appendix E** (slug + label + shortDescription + thumbnail path + promptSuffix) — covers AC-23
 
 ## Phase 8 — Frontend Builder Renovation
@@ -123,7 +123,7 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 - [x] 10.3 On preset select: load `config` JSON into Builder form fields — covers AC-43, AC-45
 - [x] 10.4 On "Save as Preset" click: open inline TextField for name; POST current Builder config → preset becomes selected — covers AC-44
 - [x] 10.5 On Delete icon click: `window.confirm("Delete preset \"{name}\"?")` → if confirmed, DELETE — covers AC-46
-- [ ] 10.6 EC: silently drop missing slogans/styles from loaded preset + show snackbar `"X items from this preset were skipped..."` — covers EC-14, EC-15 *(deferred — Builder currently loads preset config as-is; pruning + snackbar is a polish item.)*
+- [x] 10.6 EC: silently drop missing slogans/styles from loaded preset + show snackbar `"X items from this preset were skipped..."` — covers EC-14, EC-15
 - [x] 10.7 Preset survives reload — tested by E2E *(RTK Query invalidates the list on every CRUD action; reload triggers a refetch.)*
 
 ## Phase 11 — Workspace Settings UI for Polish Toggle

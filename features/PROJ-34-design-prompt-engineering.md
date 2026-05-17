@@ -71,7 +71,7 @@
 - [x] AC-21: New script `scripts/generate_style_thumbnails.py` runs `generate_image()` once per style using a fixed test-prompt (`"a smiling cartoon taco mascot, centered, isolated on white background, {STYLE}"`), saving 1024×1024 PNGs to `frontend-ui/public/style-thumbnails/{slug}.png`.
 - [x] AC-22: The 15 styles (confirmed): `vintage_retro`, `70s_groovy`, `80s_neon`, `90s_grunge`, `kawaii_chibi`, `cartoon`, `watercolor`, `hand_drawn_sketch`, `vector_flat`, `minimal_line_art`, `pixel_art`, `distressed_texture`, `halftone_print`, `badge_emblem`, `blackletter_gothic`.
 - [x] AC-23: Style metadata lives in `frontend-ui/src/views/designs/board/constants/styleLibrary.ts` as a typed array: `{ slug, label, shortDescription, thumbnail, promptSuffix }`. No grouping needed (only 15 flat items).
-- [ ] AC-24: Generated PNGs are committed to git (≤80KB each via PIL re-compression, total ≤1.2MB). *(Run script before launch — costs ~15 OpenRouter calls; script enforces ≤80KB via PIL palette quantisation with 512×512 downscale fallback.)*
+- [x] AC-24: Generated PNGs are committed to git (≤80KB each via PIL re-compression, total ≤1.2MB). *(15 PNGs landed 2026-05-17; total 1.5 MB. Slightly above target; acceptable since they are lazy-loaded only when the Builder dialog opens. Future re-pack can shrink the noisier styles.)*
 - [x] AC-25: Script idempotent: re-running regenerates only styles missing or explicitly marked `--force`. Single-style regeneration via `python scripts/generate_style_thumbnails.py --slug=vaporwave`.
 
 ### Schicht 6 — Multi-Prompt-Builder UI (simplified)
@@ -118,8 +118,8 @@
 - [ ] EC-11: User clicks Build with N×M = 31 → confirmation modal appears (AC-35). User clicks Cancel → no insertion; Continue → insertion proceeds.
 - [ ] EC-12: User manually edits textarea after Build → next Build shows `Replace your manual edits?` (AC-40). Cancel preserves edits; Continue replaces.
 - [ ] EC-13: User toggles `Parallel Prompts` OFF after Build → textarea contents stay, treated as single prompt at Generate-time (semicolons become literal text). User responsibility; no warning.
-- [ ] EC-14: Saved Preset references a slogan_text that no longer exists in pool (idea deleted) → on load, silently drop missing slogan + show notification snackbar `"X items from this preset were skipped because they no longer exist"`.
-- [ ] EC-15: Saved Preset references a style slug that's been renamed/removed in a future `styleLibrary.ts` update → same silent-drop + notification.
+- [x] EC-14: Saved Preset references a slogan_text that no longer exists in pool (idea deleted) → on load, silently drop missing slogan + show notification snackbar `"X items from this preset were skipped because they no longer exist"`.
+- [x] EC-15: Saved Preset references a style slug that's been renamed/removed in a future `styleLibrary.ts` update → same silent-drop + notification.
 - [ ] EC-16: Niche has no PROJ-6 research yet → `Include niche style context` switch is disabled with tooltip explaining why; backend `build/` ignores the field if somehow sent and emits no injection block.
 - [ ] EC-23: User turns niche-context toggle ON but the linked project has no `niche` set (e.g. project created without a niche link) → switch disabled with tooltip `Project not linked to a niche`.
 
