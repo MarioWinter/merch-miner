@@ -42,16 +42,16 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 
 ## Phase 4 — Prompt-Polish Service
 
-- [ ] 4.1 Create `design_app/services/prompt_polish.py` with `polish_prompt(raw: str, model: str = ...) -> str` — covers AC-15
-- [ ] 4.2 Use polish model = `google/gemini-2.5-flash-lite` (pending user confirmation of Tech Note 1 — could be `3.1-flash-lite` once available)
-- [ ] 4.3 Build polish system message: "polish grammar and flow only; preserve every concrete detail; output only the polished prompt, no preamble"
-- [ ] 4.4 Set 5-second timeout via `httpx.AsyncClient` — covers AC-19
-- [ ] 4.5 Implement retry-once on timeout (per existing pattern in `image_generator.py`)
-- [ ] 4.6 Add Langfuse trace per polish call with input/output/usage — covers AC-20
-- [ ] 4.7 On failure (timeout / 5xx / quota), return raw input + log WARN; never raise — covers AC-18 / EC-5 / EC-8
-- [ ] 4.8 EC: if polished output > 2000 chars, truncate at last sentence boundary < 2000 — covers EC-5
-- [ ] 4.9 EC: if polished output is empty or unchanged, fall through with raw input (no-op) — covers EC-6
-- [ ] 4.10 Write unit tests covering happy path, timeout, 5xx, empty response, oversize response
+- [x] 4.1 Create `design_app/services/prompt_polish.py` with `polish_prompt(raw: str, model: str = ...) -> str` — covers AC-15
+- [x] 4.2 Use polish model = `google/gemini-2.5-flash-lite` (pending user confirmation of Tech Note 1 — could be `3.1-flash-lite` once available)
+- [x] 4.3 Build polish system message: "polish grammar and flow only; preserve every concrete detail; output only the polished prompt, no preamble"
+- [x] 4.4 Set 5-second timeout via `httpx.AsyncClient` — covers AC-19 *(used sync `httpx.Client` with 5s timeout — `asyncio.gather` parallelism happens at the Phase-5 Builder-Build view level; per-call timeout is the same.)*
+- [x] 4.5 Implement retry-once on timeout (per existing pattern in `image_generator.py`)
+- [x] 4.6 Add Langfuse trace per polish call with input/output/usage — covers AC-20
+- [x] 4.7 On failure (timeout / 5xx / quota), return raw input + log WARN; never raise — covers AC-18 / EC-5 / EC-8
+- [x] 4.8 EC: if polished output > 2000 chars, truncate at last sentence boundary < 2000 — covers EC-5
+- [x] 4.9 EC: if polished output is empty or unchanged, fall through with raw input (no-op) — covers EC-6
+- [x] 4.10 Write unit tests covering happy path, timeout, 5xx, empty response, oversize response
 
 ## Phase 5 — Builder-Build API
 

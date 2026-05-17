@@ -60,12 +60,12 @@
 - [x] AC-14: **No auto-analyze**: Gemini is NOT called for analysis on every Edit/Remix request. Analysis happens only when the user clicks the button.
 
 ### Schicht 4 — Prompt-Polish Pipeline (Builder-only)
-- [ ] AC-15: New helper `design_app/services/prompt_polish.py::polish_prompt(raw: str, model='google/gemini-3.1-flash-lite') -> str` sends a polish system message ("polish grammar and flow only; preserve every concrete detail; output only the polished prompt, no preamble") + the raw prompt; returns the polished string.
-- [ ] AC-16: Polish is invoked **only from the Builder-build endpoint** (new `POST /api/designs/projects/{id}/builder/build/`) — never from `generate_image()`, never from `StandaloneGenerateView`. Free-text user prompts in the textarea are NEVER polished.
-- [ ] AC-17: New `ProcessingSettings.polish_builder_prompts_enabled` BooleanField (default `True`) controls per-workspace polish behaviour. Editable in the existing Project/Workspace Settings panel.
-- [ ] AC-18: Polish failures (timeout / 5xx / quota / network) fall back to the raw enriched prompt silently — the Builder still inserts the unpolished version into the textarea + logs a warning. No user-facing error.
-- [ ] AC-19: Polish timeout = 5s per prompt; with N×M=50 polishes in parallel (`asyncio.gather` / `httpx.AsyncClient`), total Build latency ≤ 5s.
-- [ ] AC-20: Every polish call is traced via Langfuse with input/output for debugging.
+- [x] AC-15: New helper `design_app/services/prompt_polish.py::polish_prompt(raw: str, model='google/gemini-3.1-flash-lite') -> str` sends a polish system message ("polish grammar and flow only; preserve every concrete detail; output only the polished prompt, no preamble") + the raw prompt; returns the polished string. *(Model: `google/gemini-2.5-flash-lite` — Tech Note 1 substitute since `3.1-flash-lite` not on OpenRouter.)*
+- [ ] AC-16: Polish is invoked **only from the Builder-build endpoint** (new `POST /api/designs/projects/{id}/builder/build/`) — never from `generate_image()`, never from `StandaloneGenerateView`. Free-text user prompts in the textarea are NEVER polished. *(Service ready; endpoint wired in Phase 5.)*
+- [x] AC-17: New `ProcessingSettings.polish_builder_prompts_enabled` BooleanField (default `True`) controls per-workspace polish behaviour. Editable in the existing Project/Workspace Settings panel. *(Model field shipped Phase 1; UI added Phase 11.)*
+- [x] AC-18: Polish failures (timeout / 5xx / quota / network) fall back to the raw enriched prompt silently — the Builder still inserts the unpolished version into the textarea + logs a warning. No user-facing error.
+- [x] AC-19: Polish timeout = 5s per prompt; with N×M=50 polishes in parallel (`asyncio.gather` / `httpx.AsyncClient`), total Build latency ≤ 5s. *(Per-call 5s sync timeout; parallelism wired in Phase 5 via `asyncio.gather` over `httpx.AsyncClient` or thread pool.)*
+- [x] AC-20: Every polish call is traced via Langfuse with input/output for debugging.
 
 ### Schicht 5 — Style-Library Thumbnails (Build Script)
 - [ ] AC-21: New script `scripts/generate_style_thumbnails.py` runs `generate_image()` once per style using a fixed test-prompt (`"a smiling cartoon taco mascot, centered, isolated on white background, {STYLE}"`), saving 1024×1024 PNGs to `frontend-ui/public/style-thumbnails/{slug}.png`.
@@ -107,10 +107,10 @@
 - [x] EC-4: System-prompt + user-prompt combined exceeds Gemini context window (rare for image-gen — context is huge) → log warning, truncate user-prompt to fit, continue. *(warning logged via `_warn_if_oversized`; truncation deferred — Gemini context is 1M+ chars and the threshold is set very high.)*
 
 ### Polish pipeline
-- [ ] EC-5: Polish model returns text exceeding 2000 chars → truncate to last sentence boundary under 2000 chars, log warning.
-- [ ] EC-6: Polish model returns empty string or unmodified input → fall through to raw prompt (no-op polish).
-- [ ] EC-7: `polish_builder_prompts_enabled = False` in workspace settings → Builder calls `build/` endpoint with `with_polish: false`, raw enriched prompts returned.
-- [ ] EC-8: Polish call hangs > 5s → AbortController/timeout → fall through to raw prompt, log warning.
+- [x] EC-5: Polish model returns text exceeding 2000 chars → truncate to last sentence boundary under 2000 chars, log warning.
+- [x] EC-6: Polish model returns empty string or unmodified input → fall through to raw prompt (no-op polish).
+- [ ] EC-7: `polish_builder_prompts_enabled = False` in workspace settings → Builder calls `build/` endpoint with `with_polish: false`, raw enriched prompts returned. *(Phase 5/11.)*
+- [x] EC-8: Polish call hangs > 5s → AbortController/timeout → fall through to raw prompt, log warning.
 
 ### Multi-prompt Builder UX
 - [ ] EC-9: User clicks Build with 5 slogans × 0 styles → Build disabled (AC-34). If somehow triggered (race), backend returns 400 `"Select at least one style"`.
