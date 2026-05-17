@@ -250,7 +250,11 @@ interface ReferenceSlotProps {
 }
 
 const ReferenceSlot = ({ imageUrl, slotIndex, labelFilled, labelEmpty, onClear }: ReferenceSlotProps) => {
+  const { t } = useTranslation();
   const filled = Boolean(imageUrl);
+  const clearLabel = slotIndex === 2
+    ? t('design.generation.clearReference2', 'Clear reference image 2')
+    : t('design.generation.clearReference', 'Clear reference image');
   return (
     <ReferenceIndicator $empty={!filled}>
       {slotIndex !== null && <SlotBadge>{slotIndex}</SlotBadge>}
@@ -291,7 +295,7 @@ const ReferenceSlot = ({ imageUrl, slotIndex, labelFilled, labelEmpty, onClear }
         {filled ? labelFilled : labelEmpty}
       </Typography>
       {filled && onClear && (
-        <IconButton size="small" onClick={onClear} sx={{ p: 0.25 }}>
+        <IconButton size="small" onClick={onClear} aria-label={clearLabel} sx={{ p: 0.25 }}>
           <CloseIcon sx={{ fontSize: 14, color: COLORS.cyan }} />
         </IconButton>
       )}
