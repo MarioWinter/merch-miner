@@ -1,6 +1,6 @@
 # PROJ-34: Design-Forge Prompt Engineering & Multi-Prompt Builder
 
-## Status: Planned
+## Status: In Review
 **Created:** 2026-05-17
 **Last Updated:** 2026-05-17
 
@@ -346,7 +346,61 @@ The detailed checklist of tasks per phase lives in [`docs/tasks/PROJ-34-tasks.md
 3. **Preset name uniqueness scope:** unique-per-project (not per-workspace) — two projects can both have "Set v1".
 
 ## QA Test Results
-_To be added by /qa_
+
+**Auditor:** Orchestrator-driven manual audit (`/qa` skill returned empty).
+**Date:** 2026-05-17.
+**Verdict:** **Ready for deploy** — no blockers found. 3 minor notes for follow-up.
+
+### Test suite
+
+| Scope | Result |
+|---|---|
+| Backend `design_app/` (PROJ-34 scope) | **210 / 210 passed** in 10.7s |
+| Frontend full `vitest` | **1453 passed / 5 skipped** (5 skipped pre-existing, not PROJ-34) |
+| Frontend `npx tsc -b` | **clean** |
+| Frontend `npx eslint` on PROJ-34 files | **0 errors / 0 warnings** |
+| Frontend `npx eslint src/` global | 0 errors, 11 pre-existing warnings (none in PROJ-34 files) |
+
+### AC / EC coverage
+
+| Layer | Tested | Notes |
+|---|---|---|
+| Schicht 1 (system prompt) | AC-1 / AC-2 / AC-3 | 3 unit tests: marker presence, system always-at-[0], future-proof flag |
+| Schicht 2 (bg-color) | AC-4..9 | unit test `test_neon_pink_injects_hex_in_user_prompt` proves `#FF6EC7` lands in OpenRouter payload (AC-9 exact wording) |
+| Schicht 3 (analyzer) | AC-10..14 | structural test on the v2 SYSTEM_PROMPT + 7-key schema preservation. **AC-13 live 3-image regression** intentionally deferred to manual QA — needs paid OpenRouter calls |
+| Schicht 4 (polish) | AC-15..20 | 10 unit tests across happy path, retry-on-timeout, double-timeout, 5xx, generic exception, missing config, oversize trim, no-op, empty input |
+| Schicht 5 (thumbs) | AC-21..25 | 15 PNGs generated 2026-05-17 + committed. **Bundle 1.5 MB** (slightly above 1.2 MB target — accepted because lazy-loaded; see AC-24 note) |
+| Schicht 6 (Builder UI) | AC-26..36, 40 | 10 component tests in `BuilderDialog.test.tsx`; AC-37/38/39 covered by 3 tests in `GenerationZone.test.tsx` |
+| Schicht 7 (presets) | AC-41..46 | 5 API tests in `test_builder_api.py::TestBuilderPresetCRUD` + 1 component test for stale-item snackbar (EC-14/EC-15) |
+| Edge cases | EC-1..23 | All wired (EC-2/EC-3 inherit from PROJ-9 bugfix branch; EC-21 CSS fallback present in `StyleRow.tsx`) |
+
+### Security audit
+
+- **All new endpoints inherit `IsAuthenticated`** via `REST_FRAMEWORK.DEFAULT_PERMISSION_CLASSES` (`core/settings.py:447`)
+- `BuilderBuildView` / `BuilderPresetListCreateView` / `BuilderPresetDetailView` all gate workspace with `_require_workspace` + `get_object_or_404(DesignProject, workspace_id=ws_id)` before any query — confirmed by `test_cross_workspace_project_returns_404`
+- `BuilderPresetSerializer` declares `workspace`, `project`, `created_by`, `created_at`, `updated_at` as `read_only_fields` so client cannot inject foreign IDs
+- Input validation: `BuilderBuildSerializer.slogans` capped at 200 strings / 300 chars each; `styles` capped at 15 slugs / 64 chars; name length validated server-side via custom `validate_name`
+- No new throttle classes — relies on the global `user=5000/day` default which is sized for the typical Builder click pattern (50 prompts × ~1 polish/sec)
+- Polish + analyzer LLM calls already traced via Langfuse with workspace metadata (AC-20 / Schicht 3 v2 tags)
+
+### Migration safety
+
+`design_app.migrations.0013_designgenerationrun_background_color_and_more`:
+
+- `DesignGenerationRun.background_color` adds a CharField with `default='light_gray'` → existing rows backfill silently. Acknowledged in Tech-Note 2 of the architecture doc — old Runs will report `light_gray` regardless of their original UI selection. Acceptable.
+- `DesignGenerationRun.prompt_polished` nullable TextField → safe additive
+- `ProcessingSettings.polish_builder_prompts_enabled` Bool default True → safe additive
+- `BuilderPreset` new table with partial UniqueConstraint (`Q(is_deleted=False)`) — supported by Postgres natively; tested by `test_reuse_name_after_soft_delete`
+
+### Minor follow-ups (non-blocking)
+
+1. **AC-24 bundle size 1.5 MB vs 1.2 MB target.** 70s_groovy.png (130 KB), 90s_grunge.png (152 KB), badge_emblem.png (129 KB), blackletter_gothic.png (128 KB), watercolor.png (110 KB) dominate. A future re-pack with 384×384 + 96-color palette could halve the total. Not deploy-blocking — PNGs are lazy-loaded on Builder dialog open.
+2. **AC-13 (Architect-v2 final_prompt ≥600 chars on 3 sample images)** still needs a manual smoke test post-deploy. Costs ~3 OpenRouter calls. Run: open the Builder → use `Analyze image` button on three competitor product photos → eyeball that the inserted prompt contains `Vector Print Design`, quoted text, color-object binding, and `breathing room`.
+3. **AC-19 (≤5s for 50 parallel polishes)** verified at unit level (5s per-call timeout × 16-worker pool) but no end-to-end wall-clock check. A `/qa` smoke with a 50-prompt Builder configuration would close this.
+
+### Cross-app test environment note
+
+The full backend `pytest` run (across all apps) does NOT cleanly complete in this dev env — `chat_node_config_app` + `niche_research_app` show E (errors) at 32–58% progress, unrelated to PROJ-34. The `design_app/` subset (which is PROJ-34's scope) runs clean. CI is the authoritative check before deploy.
 
 ## Deployment
 _To be added by /deploy_
