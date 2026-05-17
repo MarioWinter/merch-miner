@@ -6,6 +6,7 @@ import type {
   DesignGenerationRun,
   DesignProcessingJob,
   GenerateDesignBody,
+  GenerateFromPromptBody,
   AnalyzeImageBody,
   UpdateDesignStatusBody,
   BatchProcessBody,
@@ -564,11 +565,12 @@ export const designApi = createApi({
     // Generate design from saved prompt
     generateFromPrompt: builder.mutation<
       DesignGenerationRun & { project_id: string },
-      { projectId: string; promptId: string }
+      { projectId: string; promptId: string; body: GenerateFromPromptBody }
     >({
-      query: ({ projectId, promptId }) => ({
+      query: ({ projectId, promptId, body }) => ({
         url: `/api/designs/projects/${projectId}/prompts/${promptId}/generate/`,
         method: 'POST',
+        data: body,
       }),
       invalidatesTags: (_result, _error, { projectId }) => [
         { type: 'DesignProject', id: projectId },

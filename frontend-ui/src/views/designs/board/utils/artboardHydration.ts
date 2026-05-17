@@ -1,4 +1,4 @@
-import type { ArtboardData, BackgroundColor, BoardLayout, CanvasElement, DesignModel } from '../types';
+import type { ArtboardData, BackgroundColor, BoardLayout, BoardLayoutNode, CanvasElement, DesignModel } from '../types';
 import {
   DEFAULT_ARTBOARD_HEIGHT,
   DEFAULT_ARTBOARD_WIDTH,
@@ -16,8 +16,10 @@ export interface HydratableDesign {
   is_manual?: boolean;
   background_color?: string;
   generation_run?: {
+    id?: string;
     prompt_used?: string;
     model_name?: string;
+    status?: string;
   } | null;
 }
 
@@ -49,10 +51,63 @@ export const hydrateDesigns = (
   const allLabels: string[] = [];
   for (const ab of existingArtboards ?? []) allLabels.push(ab.label);
 
-  return designs.map((d, i) => {
-    const saved = nodeMap.get(d.id);
-    const existing = existingById.get(d.id);
+  const designIds = new Set(designs.map((d) => d.id));
+
+  // Build a map: pendingRunId -> skeleton, so we can absorb a skeleton into
+  // its completed design artboard (keeps position, avoids duplicates).
+  // Source 1: in-memory artboards (same-session generation).
+  // Source 2: saved layout nodes (page-reload mid-generation).
+  const skeletonByRunId = new Map<string, BoardLayoutNode>();
+  for (const n of layoutNodes) {
+    if (n.pendingRunId && n.isGenerating) skeletonByRunId.set(n.pendingRunId, n);
+  }
+  for (const ab of existingArtboards ?? []) {
+    if (ab.pendingRunId && ab.isGenerating) {
+      skeletonByRunId.set(ab.pendingRunId, {
+        id: ab.id, x: ab.x, y: ab.y, label: ab.label,
+        width: ab.width, height: ab.height,
+        backgroundColor: ab.backgroundColor, opacity: ab.opacity,
+        clipContent: ab.clipContent, layers: ab.layers ?? [],
+        kind: ab.kind, isGenerating: ab.isGenerating,
+        pendingRunId: ab.pendingRunId, promptUsed: ab.promptUsed,
+      });
+    }
+  }
+  // Mark which skeletons have been absorbed so we don't emit them twice.
+  const absorbedSkeletonIds = new Set<string>();
+
+  // Skeleton + failed-run artboards from saved layout that don't correspond
+  // to a design yet (in-flight generation OR a failed run with no design).
+  const skeletons: ArtboardData[] = layoutNodes
+    .filter((n) => !designIds.has(n.id) && (n.isGenerating || n.hasError))
+    .map((n) => ({
+      id: n.id,
+      label: n.label ?? 'AI: …',
+      x: n.x,
+      y: n.y,
+      width: n.width ?? DEFAULT_ARTBOARD_WIDTH,
+      height: n.height ?? DEFAULT_ARTBOARD_HEIGHT,
+      imageUrl: null,
+      kind: (n.kind ?? 'ai') as ArtboardData['kind'],
+      sourceId: null,
+      designId: null,
+      opacity: n.opacity ?? 100,
+      backgroundColor: n.backgroundColor ?? '#FFFFFF',
+      clipContent: n.clipContent ?? false,
+      isGenerating: Boolean(n.isGenerating),
+      hasError: Boolean(n.hasError),
+      pendingRunId: n.pendingRunId ?? null,
+      promptUsed: n.promptUsed,
+      layers: (n.layers ?? []) as CanvasElement[],
+    }));
+
+  const hydrated = designs.map((d, i) => {
     const run = d.generation_run;
+    // Absorb a still-persisted skeleton when its run matches this design.
+    const skeletonMatch = run?.id ? skeletonByRunId.get(run.id) : undefined;
+    if (skeletonMatch) absorbedSkeletonIds.add(skeletonMatch.id);
+    const saved = nodeMap.get(d.id) ?? skeletonMatch;
+    const existing = existingById.get(d.id);
     const isAi = !!run && !d.is_manual;
     const promptText = run?.prompt_used ?? '';
     const imageUrl = d.image_file ?? null;
@@ -117,20 +172,29 @@ export const hydrateDesigns = (
       layers,
     };
   });
+
+  const remainingSkeletons = skeletons.filter((s) => !absorbedSkeletonIds.has(s.id));
+  return [...hydrated, ...remainingSkeletons];
 };
 
 /**
  * Merge hydrated artboards with locally-added ones that have no matching design.
  * Prevents duplicates when uploaded artboards (id=ab_xxx, designId=uuid) match
- * a hydrated artboard (id=uuid).
+ * a hydrated artboard (id=uuid). Also drops skeleton artboards whose run has
+ * been absorbed into a hydrated design artboard.
  */
 export const mergeWithLocalArtboards = (
   hydrated: ArtboardData[],
   currentArtboards: ArtboardData[],
   designIds: Set<string>,
+  completedRunIds?: Set<string>,
 ): ArtboardData[] => {
+  const runIds = completedRunIds ?? new Set<string>();
   const localOnly = currentArtboards.filter(
-    (ab) => !designIds.has(ab.id) && !(ab.designId && designIds.has(ab.designId)),
+    (ab) =>
+      !designIds.has(ab.id) &&
+      !(ab.designId && designIds.has(ab.designId)) &&
+      !(ab.pendingRunId && runIds.has(ab.pendingRunId)),
   );
   return [...hydrated, ...localOnly];
 };

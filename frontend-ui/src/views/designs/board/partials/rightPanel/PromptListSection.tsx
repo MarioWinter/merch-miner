@@ -23,6 +23,8 @@ import {
   useGenerateFromPromptMutation,
 } from '@/store/designSlice';
 import type { ProjectPrompt } from '@/views/designs/gallery/types';
+import type { BackgroundColor, DesignModel, GenerateFromPromptBody, GenerationMode } from '@/views/designs/board/types';
+import type { AspectRatio } from '@/views/designs/board/partials/GenerationZone';
 
 // -----------------------------------------------------------------
 // Styled
@@ -54,9 +56,19 @@ const GenerateAllButton = styled(Button)(({ theme }) => ({
 // Props
 // -----------------------------------------------------------------
 
+interface GenerationConfig {
+  model: DesignModel;
+  background_color: BackgroundColor;
+  aspect_ratio: AspectRatio;
+  mode: GenerationMode;
+  source_image_url: string | null;
+  source_image_url_2: string | null;
+}
+
 interface PromptListSectionProps {
   projectId: string;
   prompts: ProjectPrompt[];
+  generationConfig: GenerationConfig;
   onPromptClick?: (prompt: ProjectPrompt) => void;
   onCreateSkeletonArtboards?: (
     items: Array<{ runId: string; label: string }>,
@@ -70,10 +82,20 @@ interface PromptListSectionProps {
 interface PromptCardProps {
   projectId: string;
   prompt: ProjectPrompt;
+  generationConfig: GenerationConfig;
   onClick?: () => void;
 }
 
-const PromptCard = ({ projectId, prompt, onClick }: PromptCardProps) => {
+const buildPromptBody = (cfg: GenerationConfig): GenerateFromPromptBody => ({
+  model: cfg.model,
+  background_color: cfg.background_color,
+  aspect_ratio: cfg.aspect_ratio,
+  mode: cfg.mode,
+  ...(cfg.source_image_url ? { source_image_url: cfg.source_image_url } : {}),
+  ...(cfg.source_image_url_2 ? { source_image_url_2: cfg.source_image_url_2 } : {}),
+});
+
+const PromptCard = ({ projectId, prompt, generationConfig, onClick }: PromptCardProps) => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
   const [isEditing, setIsEditing] = useState(false);
@@ -108,7 +130,11 @@ const PromptCard = ({ projectId, prompt, onClick }: PromptCardProps) => {
   const handleGenerate = async (e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await generateFromPrompt({ projectId, promptId: prompt.id }).unwrap();
+      await generateFromPrompt({
+        projectId,
+        promptId: prompt.id,
+        body: buildPromptBody(generationConfig),
+      }).unwrap();
       enqueueSnackbar(t('design.prompt.generating', 'Generating...'), { variant: 'info' });
     } catch {
       enqueueSnackbar(t('design.board.generateError'), { variant: 'error' });
@@ -252,6 +278,7 @@ const PromptCard = ({ projectId, prompt, onClick }: PromptCardProps) => {
 const PromptListSection = ({
   projectId,
   prompts,
+  generationConfig,
   onPromptClick,
   onCreateSkeletonArtboards,
 }: PromptListSectionProps) => {
@@ -263,9 +290,10 @@ const PromptListSection = ({
 
   const handleGenerateAll = useCallback(async () => {
     try {
+      const body = buildPromptBody(generationConfig);
       const results = await Promise.all(
         ungeneratedPrompts.map((p) =>
-          generateFromPrompt({ projectId, promptId: p.id }).unwrap(),
+          generateFromPrompt({ projectId, promptId: p.id, body }).unwrap(),
         ),
       );
 
@@ -287,7 +315,7 @@ const PromptListSection = ({
     } catch {
       enqueueSnackbar(t('design.board.generateError'), { variant: 'error' });
     }
-  }, [ungeneratedPrompts, generateFromPrompt, projectId, enqueueSnackbar, t, onCreateSkeletonArtboards]);
+  }, [ungeneratedPrompts, generateFromPrompt, projectId, enqueueSnackbar, t, onCreateSkeletonArtboards, generationConfig]);
 
   if (prompts.length === 0) {
     return (
@@ -307,6 +335,7 @@ const PromptListSection = ({
             key={prompt.id}
             projectId={projectId}
             prompt={prompt}
+            generationConfig={generationConfig}
             onClick={() => onPromptClick?.(prompt)}
           />
         ))}

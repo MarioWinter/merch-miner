@@ -35,9 +35,13 @@ describe('ModelSelector', () => {
     fireEvent.mouseDown(screen.getByRole('combobox'));
     const listbox = within(screen.getByRole('listbox'));
     expect(listbox.getByText('Nano Banana 2 (Gemini 3.1 Flash)')).toBeInTheDocument();
+    expect(listbox.getByText('Nano Banana Pro (Gemini 3 Pro)')).toBeInTheDocument();
+    expect(listbox.getByText('Nano Banana (Gemini 2.5 Flash)')).toBeInTheDocument();
     expect(listbox.getByText('GPT-5 Image')).toBeInTheDocument();
-    expect(listbox.getByText('Flux 1.1 Pro')).toBeInTheDocument();
-    expect(listbox.getByText('Seedream 4.5')).toBeInTheDocument();
+    expect(listbox.getByText('GPT-5 Image Mini')).toBeInTheDocument();
+    // Flux + Seedream removed — not valid OpenRouter chat-completion image models.
+    expect(listbox.queryByText('Flux 1.1 Pro')).not.toBeInTheDocument();
+    expect(listbox.queryByText('Seedream 4.5')).not.toBeInTheDocument();
   });
 
   it('calls onChange when a different model is selected', () => {

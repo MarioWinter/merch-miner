@@ -986,6 +986,53 @@ class ProjectBoardView(APIView):
         )
         references_data = ProjectReferenceSerializer(references, many=True).data
 
+        # Active runs for this project — exposed so the frontend can reconcile
+        # skeleton artboards with their run state (pending / running / failed).
+        # Includes runs that produced no design (e.g. failed before save).
+        from datetime import timedelta
+        from django.utils import timezone as _tz
+        active_run_qs = DesignGenerationRun.objects.filter(
+            project_prompt__project=project,
+        ).order_by('-created_at')
+        recent_cutoff = _tz.now() - timedelta(hours=24)
+        active_runs = [
+            {
+                'id': str(r.id),
+                'status': r.status,
+                'generation_mode': r.generation_mode,
+                'error_message': r.error_message,
+            }
+            for r in active_run_qs
+            if r.status in {'pending', 'running'}
+            or (r.status == 'failed' and r.created_at >= recent_cutoff)
+        ]
+        # Also include standalone runs (no project_prompt) that the user just
+        # triggered against this project via /api/designs/generate/.
+        # Match by Design.generation_run scoped to this project's designs.
+        standalone_run_ids = (
+            DesignGenerationRun.objects.filter(
+                designs__design_projects_through__project=project,
+            )
+            .exclude(project_prompt__project=project)
+            .values_list('id', flat=True)
+            .distinct()
+        )
+        # Also any pending/running runs not yet linked to a design but whose
+        # triggered_by matches the requesting user (best-effort for UX).
+        unlinked_recent_runs = DesignGenerationRun.objects.filter(
+            triggered_by=request.user,
+            created_at__gte=recent_cutoff,
+            project_prompt__isnull=True,
+        ).exclude(id__in=standalone_run_ids).order_by('-created_at')[:20]
+        for r in unlinked_recent_runs:
+            if r.status in {'pending', 'running'} or r.status == 'failed':
+                active_runs.append({
+                    'id': str(r.id),
+                    'status': r.status,
+                    'generation_mode': r.generation_mode,
+                    'error_message': r.error_message,
+                })
+
         data = {
             'project': DesignProjectSerializer(project).data,
             'designs': DesignSerializer(designs, many=True).data,
@@ -994,6 +1041,7 @@ class ProjectBoardView(APIView):
             'ideas': ideas_data,
             'prompts': prompts_data,
             'references': references_data,
+            'active_runs': active_runs,
         }
 
         return Response(data)

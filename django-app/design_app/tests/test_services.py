@@ -66,8 +66,27 @@ class TestPromptBuilder:
         assert 'paw print' in result
 
 
+@pytest.fixture
+def _passthrough_data_url():
+    """Patch _to_data_url to leave URLs unchanged.
+
+    Tests assert structural shape of the content array (e.g. result[0]['image_url']['url'])
+    and don't care about base64 inlining. Without this fixture they would try to fetch
+    test URLs over the network or trip over the mocked httpx.Client returning MagicMocks.
+    """
+    with patch(
+        'design_app.services.image_generator._to_data_url',
+        side_effect=lambda url: url,
+    ):
+        yield
+
+
 class TestGenerateImage:
     """Tests for generate_image() — multimodal content and validation."""
+
+    @pytest.fixture(autouse=True)
+    def _autouse_passthrough(self, _passthrough_data_url):
+        yield
 
     def _make_response(self, b64_data):
         """Build a minimal OpenRouter response with base64 image."""
@@ -323,6 +342,10 @@ class TestGenerateImage:
 
 class TestBuildContent:
     """Tests for _build_content helper — verifies content arrays per mode."""
+
+    @pytest.fixture(autouse=True)
+    def _autouse_passthrough(self, _passthrough_data_url):
+        yield
 
     def test_text_to_image_no_image(self):
         from design_app.services.image_generator import _build_content
