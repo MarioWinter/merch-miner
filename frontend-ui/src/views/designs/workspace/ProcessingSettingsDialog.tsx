@@ -11,7 +11,11 @@ import {
   Slider,
   CircularProgress,
   Alert,
+  FormControlLabel,
+  Switch,
+  Tooltip,
 } from '@mui/material';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import { styled } from '@mui/material/styles';
 import ToggleButton from '@mui/material/ToggleButton';
 import ToggleButtonGroup from '@mui/material/ToggleButtonGroup';
@@ -69,7 +73,7 @@ const ProcessingSettingsDialog = ({ open, onClose }: ProcessingSettingsDialogPro
 
   // Derive a stable key from settings to reset form state when server data changes
   const settingsKey = useMemo(
-    () => (settings ? `${settings.bg_removal_provider}_${settings.upscale_provider}_${settings.upscale_auto_threshold}` : ''),
+    () => (settings ? `${settings.bg_removal_provider}_${settings.upscale_provider}_${settings.upscale_auto_threshold}_${settings.polish_builder_prompts_enabled}` : ''),
     [settings],
   );
 
@@ -79,6 +83,7 @@ const ProcessingSettingsDialog = ({ open, onClose }: ProcessingSettingsDialogPro
   const [upscaleProvider, setUpscaleProvider] = useState<'pica' | 'api' | 'auto'>('auto');
   const [upscaleApiKey, setUpscaleApiKey] = useState('');
   const [autoThreshold, setAutoThreshold] = useState(3000);
+  const [polishEnabled, setPolishEnabled] = useState(true);
 
   // Sync server data into local form state when settings key changes
   const [prevKey, setPrevKey] = useState(settingsKey);
@@ -90,6 +95,7 @@ const ProcessingSettingsDialog = ({ open, onClose }: ProcessingSettingsDialogPro
       setUpscaleProvider(settings.upscale_provider);
       setUpscaleApiKey('');
       setAutoThreshold(settings.upscale_auto_threshold);
+      setPolishEnabled(settings.polish_builder_prompts_enabled);
     }
   }
 
@@ -98,6 +104,7 @@ const ProcessingSettingsDialog = ({ open, onClose }: ProcessingSettingsDialogPro
       bg_removal_provider: bgProvider,
       upscale_provider: upscaleProvider,
       upscale_auto_threshold: autoThreshold,
+      polish_builder_prompts_enabled: polishEnabled,
     };
     // Only send API keys if user typed something new
     if (bgApiKey) body.bg_removal_api_key = bgApiKey;
@@ -240,6 +247,37 @@ const ProcessingSettingsDialog = ({ open, onClose }: ProcessingSettingsDialogPro
                 )}
               </>
             )}
+
+            {/* PROJ-34 — Prompt Builder polish toggle */}
+            <SectionLabel>Prompt Builder</SectionLabel>
+            <Stack direction="row" alignItems="center" spacing={1}>
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={polishEnabled}
+                    onChange={(_, v) => setPolishEnabled(v)}
+                    color="secondary"
+                    size="small"
+                  />
+                }
+                label={<FieldLabel>Auto-polish Builder prompts</FieldLabel>}
+              />
+              <Tooltip
+                title={
+                  'When enabled, prompts created by the Prompt Builder are ' +
+                  'polished by a small LLM before generation. Adds up to 5s ' +
+                  'per Build, costs a fraction of a cent per Build. Does not ' +
+                  'affect prompts you type by hand. Applies to the whole workspace.'
+                }
+                arrow
+                placement="top"
+              >
+                <InfoOutlinedIcon
+                  sx={{ fontSize: 16, color: 'text.disabled', cursor: 'help' }}
+                />
+              </Tooltip>
+            </Stack>
+            <HintText>This setting applies to the entire workspace.</HintText>
           </Stack>
         )}
       </DialogContent>

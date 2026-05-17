@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSnackbar } from 'notistack';
 import type { ArtboardData, BackgroundColor, DesignModel } from '../../board/types';
 import type { GenerationMode, AspectRatio } from '../../board/partials/GenerationZone';
 import { useGeneration } from '../../board/hooks/useGeneration';
-import { usePromptBuilder } from '../../board/hooks/usePromptBuilder';
+import { useBuilder } from '../../board/hooks/useBuilder';
 import { useImageAnalysis } from '../../board/hooks/useImageAnalysis';
+import { useGetProcessingSettingsQuery } from '@/store/designSlice';
+import type { ProjectIdea } from '../../gallery/types';
 
 // -----------------------------------------------------------------
 // Types
@@ -13,6 +15,8 @@ import { useImageAnalysis } from '../../board/hooks/useImageAnalysis';
 interface UseWorkspaceGenerationParams {
   projectId: string;
   nicheId: string | null;
+  /** Project slogan pool — feeds the Builder dialog's SloganPicker. */
+  ideas?: ProjectIdea[];
   /** Full board designs (with generation_run.id for skeleton matching) */
   boardDesigns?: Array<{
     id: string;
@@ -41,6 +45,7 @@ interface UseWorkspaceGenerationParams {
 const useWorkspaceGeneration = ({
   projectId,
   nicheId,
+  ideas = [],
   boardDesigns,
   activeRuns,
   artboards,
@@ -66,9 +71,46 @@ const useWorkspaceGeneration = ({
   const { enqueueSnackbar } = useSnackbar();
   const failedRunHandledRef = useRef<Set<string>>(new Set());
 
-  // -- Prompt Builder --
-  const promptBuilder = usePromptBuilder(projectId, nicheId);
+  // -- Prompt Builder (PROJ-34 renovated) --
   const [promptBuilderOpen, setPromptBuilderOpen] = useState(false);
+
+  // AC-40 / Appendix G — last polished output Builder inserted, compared
+  // against current `prompt` on the next Build click to detect manual edits.
+  // Held as state (not ref) so the dialog re-renders when dirtiness flips.
+  const [lastBuildOutput, setLastBuildOutput] = useState<string | null>(null);
+  const textareaDirtySinceBuild =
+    lastBuildOutput !== null && lastBuildOutput !== prompt;
+
+  // Workspace polish toggle (default ON when settings row not yet created).
+  const { data: processingSettings } = useGetProcessingSettingsQuery();
+  const polishEnabled =
+    processingSettings?.polish_builder_prompts_enabled ?? true;
+
+  const handleBuilderComplete = useCallback(
+    (joinedPrompts: string) => {
+      setPrompt(joinedPrompts);
+      setLastBuildOutput(joinedPrompts);
+      // AC-36: auto-flip Parallel Prompts ON when Builder produces ≥2 entries.
+      if (joinedPrompts.includes(';')) setIsParallel(true);
+      setPromptBuilderOpen(false);
+    },
+    [],
+  );
+
+  const builder = useBuilder({
+    projectId,
+    nicheId,
+    backgroundColor: bgColor,
+    polishEnabled,
+    onBuildComplete: handleBuilderComplete,
+  });
+
+  // Pool lookup for the dialog → useBuilder bridge (id → slogan_text).
+  const ideaPoolLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const idea of ideas) map.set(idea.id, idea.slogan_text);
+    return map;
+  }, [ideas]);
 
   // -- Image analysis (G13) --
   const imageAnalysis = useImageAnalysis(projectId);
@@ -152,13 +194,19 @@ const useWorkspaceGeneration = ({
   // -- Handlers --
 
   const handleOpenPromptBuilder = useCallback(() => {
-    promptBuilder.reset();
     setPromptBuilderOpen(true);
-  }, [promptBuilder]);
+  }, []);
 
   const handleClosePromptBuilder = useCallback(() => {
     setPromptBuilderOpen(false);
   }, []);
+
+  const handleBuilderBuild = useCallback(
+    async (config: Parameters<typeof builder.handleBuild>[0]) => {
+      await builder.handleBuild(config, ideaPoolLookup);
+    },
+    [builder, ideaPoolLookup],
+  );
 
   const handleInsertSlogan = useCallback((sloganText: string) => {
     setPrompt(sloganText);
@@ -251,11 +299,13 @@ const useWorkspaceGeneration = ({
     // Generation
     generation,
     handleGenerate,
-    // Prompt Builder
-    promptBuilder,
+    // PROJ-34: Multi-Prompt Builder
+    builder,
     promptBuilderOpen,
     handleOpenPromptBuilder,
     handleClosePromptBuilder,
+    handleBuilderBuild,
+    textareaDirtySinceBuild,
     // Image analysis
     imageAnalysis,
     hasSelectedImage,

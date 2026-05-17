@@ -345,6 +345,8 @@ class ProcessingSettingsSerializer(serializers.ModelSerializer):
             'upscale_provider', 'upscale_api_key',
             'upscale_api_key_set',
             'upscale_auto_threshold',
+            # PROJ-34 — Builder polish toggle (per-workspace).
+            'polish_builder_prompts_enabled',
         ]
         extra_kwargs = {
             'bg_removal_api_key': {'write_only': True, 'required': False},

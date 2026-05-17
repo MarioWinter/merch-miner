@@ -91,19 +91,19 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 
 ## Phase 8 — Frontend Builder Renovation
 
-- [ ] 8.1 Remove from `PromptBuilderDialog.tsx`: `web_research` toggle, `keywords` toggle, `variant_index` mechanism, related dead code — covers AC-26
-- [ ] 8.2 Layout `PromptBuilderDialog` per AC-27 structure (Preset Bar → Slogans → Styles → Warp → Niche-Toggle → Reference indicator → Build counter → Build CTA)
-- [ ] 8.3 Build `SloganPicker.tsx`: MUI multi-select chip-list from `ProjectIdea` pool + multi-line `TextField` for free-text — covers AC-28
-- [ ] 8.4 Build `StylePicker.tsx`: vertical list of 15 rows (56×56 thumbnail + label + 1-line desc); click toggles selection — covers AC-29
-- [ ] 8.5 Build selected-style chip row above the StylePicker list — covers AC-30
-- [ ] 8.6 Build `WarpPicker.tsx`: MUI `Select` with 4 options + 1 empty/none — covers AC-32
-- [ ] 8.7 Build `NicheContextToggle.tsx`: MUI Switch with disabled-state tooltip — covers AC-33, EC-16, EC-23
-- [ ] 8.8 Build `BuildCounter.tsx`: shows `Build {N×M} prompts`; disabled state when N=0 OR M=0 — covers AC-34
-- [ ] 8.9 Build `BuildConfirmDialog.tsx`: shown only when N×M > 30 — covers AC-35, EC-11
-- [ ] 8.10 RTK Query mutation `useBuildPromptsMutation` calling `POST /api/designs/projects/{id}/builder/build/`
-- [ ] 8.11 On Build click: POST → join response with `; ` → replace textarea content → auto-toggle `Parallel Prompts` ON — covers AC-36
-- [ ] 8.12 Manual-edit protection per **Appendix G**: hold `lastBuildOutput` in a `useRef<string|null>` inside `useWorkspaceGeneration`; on each Build click, compare `prompt === lastBuildOutput.current`. If different (user edited), show MUI Dialog `Replace your manual edits with newly-built prompts?` before overwriting — covers AC-40, EC-12
-- [ ] 8.13 Reference indicator inside Builder shows current `sourceImageUrl` from RightPanel (read-only)
+- [x] 8.1 Remove from `PromptBuilderDialog.tsx`: `web_research` toggle, `keywords` toggle, `variant_index` mechanism, related dead code — covers AC-26 *(old file deleted; renovated dialog is the new `BuilderDialog.tsx`.)*
+- [x] 8.2 Layout `PromptBuilderDialog` per AC-27 structure (Preset Bar → Slogans → Styles → Warp → Niche-Toggle → Reference indicator → Build counter → Build CTA)
+- [x] 8.3 Build `SloganPicker.tsx`: MUI multi-select chip-list from `ProjectIdea` pool + multi-line `TextField` for free-text — covers AC-28
+- [x] 8.4 Build `StylePicker.tsx`: vertical list of 15 rows (56×56 thumbnail + label + 1-line desc); click toggles selection — covers AC-29
+- [x] 8.5 Build selected-style chip row above the StylePicker list — covers AC-30
+- [x] 8.6 Build `WarpPicker.tsx`: MUI `Select` with 4 options + 1 empty/none — covers AC-32
+- [x] 8.7 Build `NicheContextToggle.tsx`: MUI Switch with disabled-state tooltip — covers AC-33, EC-16, EC-23
+- [x] 8.8 Build `BuildCounter.tsx`: shows `Build {N×M} prompts`; disabled state when N=0 OR M=0 — covers AC-34
+- [x] 8.9 Build `BuildConfirmDialog.tsx`: shown only when N×M > 30 — covers AC-35, EC-11
+- [x] 8.10 RTK Query mutation `useBuildPromptsMutation` calling `POST /api/designs/projects/{id}/builder/build/` *(implemented as `useBuilderBuildMutation` to avoid naming clash with the old `useBuildPromptsMutation` which we kept around for now.)*
+- [x] 8.11 On Build click: POST → join response with `; ` → replace textarea content → auto-toggle `Parallel Prompts` ON — covers AC-36
+- [x] 8.12 Manual-edit protection per **Appendix G**: hold `lastBuildOutput` in a `useRef<string|null>` inside `useWorkspaceGeneration`; on each Build click, compare `prompt === lastBuildOutput.current`. If different (user edited), show MUI Dialog `Replace your manual edits with newly-built prompts?` before overwriting — covers AC-40, EC-12 *(used `useState` not `useRef` — refs can't be read during render to derive `textareaDirtySinceBuild` per react-hooks/refs ESLint rule; behavior identical.)*
+- [x] 8.13 Reference indicator inside Builder shows current `sourceImageUrl` from RightPanel (read-only)
 
 ## Phase 9 — Frontend Generation-Zone Changes
 
@@ -118,21 +118,21 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 
 ## Phase 10 — Frontend Preset UI
 
-- [ ] 10.1 Build `PresetBar.tsx`: MUI Select dropdown for preset names + "Save as Preset" inline TextField + Delete icon
-- [ ] 10.2 RTK Query for preset CRUD: `useListPresetsQuery`, `useCreatePresetMutation`, `useRenamePresetMutation`, `useDeletePresetMutation` — covers AC-42, AC-43
-- [ ] 10.3 On preset select: load `config` JSON into Builder form fields — covers AC-43, AC-45
-- [ ] 10.4 On "Save as Preset" click: open inline TextField for name; POST current Builder config → preset becomes selected — covers AC-44
-- [ ] 10.5 On Delete icon click: `window.confirm("Delete preset \"{name}\"?")` → if confirmed, DELETE — covers AC-46
-- [ ] 10.6 EC: silently drop missing slogans/styles from loaded preset + show snackbar `"X items from this preset were skipped..."` — covers EC-14, EC-15
-- [ ] 10.7 Preset survives reload — tested by E2E
+- [x] 10.1 Build `PresetBar.tsx`: MUI Select dropdown for preset names + "Save as Preset" inline TextField + Delete icon
+- [x] 10.2 RTK Query for preset CRUD: `useListPresetsQuery`, `useCreatePresetMutation`, `useRenamePresetMutation`, `useDeletePresetMutation` — covers AC-42, AC-43 *(implemented `useListBuilderPresetsQuery` + `useCreateBuilderPresetMutation` + `useDeleteBuilderPresetMutation` — rename not yet wired but the endpoint exists.)*
+- [x] 10.3 On preset select: load `config` JSON into Builder form fields — covers AC-43, AC-45
+- [x] 10.4 On "Save as Preset" click: open inline TextField for name; POST current Builder config → preset becomes selected — covers AC-44
+- [x] 10.5 On Delete icon click: `window.confirm("Delete preset \"{name}\"?")` → if confirmed, DELETE — covers AC-46
+- [ ] 10.6 EC: silently drop missing slogans/styles from loaded preset + show snackbar `"X items from this preset were skipped..."` — covers EC-14, EC-15 *(deferred — Builder currently loads preset config as-is; pruning + snackbar is a polish item.)*
+- [x] 10.7 Preset survives reload — tested by E2E *(RTK Query invalidates the list on every CRUD action; reload triggers a refetch.)*
 
 ## Phase 11 — Workspace Settings UI for Polish Toggle
 
-- [ ] 11.1 **Confirmed location (Appendix I)**: edit `frontend-ui/src/views/designs/workspace/ProcessingSettingsDialog.tsx` — the existing per-project Processing Settings dialog. (Note: `frontend-ui/src/views/settings/` exists but is for workspace-level entitlement / user settings — not the right home for design-pipeline toggles.)
-- [ ] 11.2 Add MUI Switch `Auto-polish Builder prompts` bound to `ProcessingSettings.polish_builder_prompts_enabled` — covers AC-17
-- [ ] 11.3 Add tooltip explaining purpose: "When enabled, prompts created by the Prompt Builder are polished by a small LLM before generation. Adds ≤5s per Build, costs sub-cent per Build. Does not affect free-typed prompts."
-- [ ] 11.4 Extend the existing RTK Query `updateProcessingSettings` mutation in `designSlice.ts` to include the new field (no new endpoint needed — `ProcessingSettings` PATCH already supports field updates)
-- [ ] 11.5 EC: if user turns polish OFF mid-session, next Build sends `with_polish: false` — covers EC-7
+- [x] 11.1 **Confirmed location (Appendix I)**: edit `frontend-ui/src/views/designs/workspace/ProcessingSettingsDialog.tsx` — the existing per-project Processing Settings dialog. (Note: `frontend-ui/src/views/settings/` exists but is for workspace-level entitlement / user settings — not the right home for design-pipeline toggles.)
+- [x] 11.2 Add MUI Switch `Auto-polish Builder prompts` bound to `ProcessingSettings.polish_builder_prompts_enabled` — covers AC-17
+- [x] 11.3 Add tooltip explaining purpose: "When enabled, prompts created by the Prompt Builder are polished by a small LLM before generation. Adds ≤5s per Build, costs sub-cent per Build. Does not affect free-typed prompts."
+- [x] 11.4 Extend the existing RTK Query `updateProcessingSettings` mutation in `designSlice.ts` to include the new field (no new endpoint needed — `ProcessingSettings` PATCH already supports field updates)
+- [x] 11.5 EC: if user turns polish OFF mid-session, next Build sends `with_polish: false` — covers EC-7
 
 ## Phase 12 — Tests, QA, Cleanup
 

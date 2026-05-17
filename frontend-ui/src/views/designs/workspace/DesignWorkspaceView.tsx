@@ -23,7 +23,7 @@ import BottomToolbar from '../board/partials/BottomToolbar';
 import RightPanel from '../board/partials/RightPanel';
 import NicheBindingSelector from '../board/partials/NicheBindingSelector';
 import ExportDialog from '../board/partials/ExportDialog';
-import PromptBuilderDialog from '../board/partials/PromptBuilderDialog';
+import BuilderDialog from '../board/partials/BuilderDialog';
 import DesignEditorView from '../editor/DesignEditorView';
 import ProcessingSettingsDialog from './ProcessingSettingsDialog';
 import type { ProjectPrompt } from '../gallery/types';
@@ -150,6 +150,7 @@ const DesignWorkspaceView = () => {
   const gen = useWorkspaceGeneration({
     projectId: projectId ?? '',
     nicheId: project?.niche ?? null,
+    ideas: boardData?.ideas,
     boardDesigns: boardData?.designs,
     activeRuns: boardData?.active_runs,
     artboards: artboardState.artboards,
@@ -536,34 +537,18 @@ const DesignWorkspaceView = () => {
         onConfirm={() => { void sendToListings.confirmPending(); }}
         onCancel={sendToListings.cancelPending}
       />
-      <PromptBuilderDialog
+      <BuilderDialog
         open={gen.promptBuilderOpen}
         onClose={gen.handleClosePromptBuilder}
         ideas={boardData?.ideas ?? []}
-        sources={gen.promptBuilder.sources}
-        selectedSloganId={gen.promptBuilder.selectedSloganId}
-        imageUrl={gen.promptBuilder.imageUrl}
-        variants={gen.promptBuilder.variants}
-        preview={gen.promptBuilder.preview}
-        isPreviewLoading={gen.promptBuilder.isPreviewLoading}
-        isSaving={gen.promptBuilder.isSaving}
-        hasNiche={gen.promptBuilder.hasNiche}
-        presets={gen.promptBuilder.presets}
-        nicheKeywords={gen.promptBuilder.nicheKeywords}
-        researchPreview={gen.promptBuilder.researchPreview}
-        isResearchLoading={gen.promptBuilder.isResearchLoading}
-        onAnalyzeImage={actions.handleAnalyzeImage}
-        isAnalyzingImage={gen.imageAnalysis.isAnalyzing}
-        imageAnalysisResult={gen.imageAnalysis.lastPrompt}
-        toggleSource={gen.promptBuilder.toggleSource}
-        setSelectedSloganId={gen.promptBuilder.setSelectedSloganId}
-        setImageUrl={gen.promptBuilder.setImageUrl}
-        setVariants={gen.promptBuilder.setVariants}
-        fetchPreview={gen.promptBuilder.fetchPreview}
-        applyPreset={gen.promptBuilder.applyPreset}
-        savePreset={gen.promptBuilder.savePreset}
-        deletePreset={gen.promptBuilder.deletePreset}
-        buildAndSave={gen.promptBuilder.buildAndSave}
+        presets={gen.builder.presets}
+        referenceUrl={gen.sourceImageUrl}
+        textareaDirtySinceBuild={gen.textareaDirtySinceBuild}
+        nicheReason={gen.builder.nicheReason}
+        isBuilding={gen.builder.isBuilding}
+        onSavePreset={gen.builder.handleSavePreset}
+        onDeletePreset={gen.builder.handleDeletePreset}
+        onBuild={gen.handleBuilderBuild}
       />
     </WorkspaceRoot>
   );

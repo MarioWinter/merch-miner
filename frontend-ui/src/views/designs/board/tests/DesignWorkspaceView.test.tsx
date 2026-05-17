@@ -69,6 +69,12 @@ vi.mock('@/store/designSlice', () => ({
   useListPromptPresetsQuery: () => ({ data: [] }),
   useCreatePromptPresetMutation: () => [vi.fn(), { isLoading: false }],
   useDeletePromptPresetMutation: () => [vi.fn(), { isLoading: false }],
+  // PROJ-34 — new endpoints used by useBuilder + useWorkspaceGeneration
+  useGetProcessingSettingsQuery: () => ({ data: undefined }),
+  useBuilderBuildMutation: () => [vi.fn(), { isLoading: false }],
+  useListBuilderPresetsQuery: () => ({ data: [] }),
+  useCreateBuilderPresetMutation: () => [vi.fn(), { isLoading: false }],
+  useDeleteBuilderPresetMutation: () => [vi.fn(), { isLoading: false }],
 }));
 
 // Mock react-router-dom params
