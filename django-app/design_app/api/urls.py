@@ -13,6 +13,9 @@ from design_app.api.views import (
     AnalyzeImageView,
     ApplyPipelineView,
     BatchProcessView,
+    BuilderBuildView,
+    BuilderPresetDetailView,
+    BuilderPresetListCreateView,
     BuildPromptsView,
     DesignBoardView,
     DesignDeleteVersionView,
@@ -232,6 +235,23 @@ urlpatterns = [
         'designs/projects/<uuid:pk>/build-prompts/',
         BuildPromptsView.as_view(),
         name='design-project-build-prompts',
+    ),
+    # PROJ-34 — Multi-Prompt Builder (N×M cross-product + polish)
+    path(
+        'designs/projects/<uuid:pk>/builder/build/',
+        BuilderBuildView.as_view(),
+        name='design-project-builder-build',
+    ),
+    # PROJ-34 — BuilderPreset CRUD
+    path(
+        'designs/projects/<uuid:pk>/builder-presets/',
+        BuilderPresetListCreateView.as_view(),
+        name='design-project-builder-presets',
+    ),
+    path(
+        'designs/projects/<uuid:pk>/builder-presets/<uuid:preset_id>/',
+        BuilderPresetDetailView.as_view(),
+        name='design-project-builder-preset-detail',
     ),
     # Prompt Presets (G10)
     path(

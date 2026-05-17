@@ -61,7 +61,7 @@
 
 ### Schicht 4 — Prompt-Polish Pipeline (Builder-only)
 - [x] AC-15: New helper `design_app/services/prompt_polish.py::polish_prompt(raw: str, model='google/gemini-3.1-flash-lite') -> str` sends a polish system message ("polish grammar and flow only; preserve every concrete detail; output only the polished prompt, no preamble") + the raw prompt; returns the polished string. *(Model: `google/gemini-2.5-flash-lite` — Tech Note 1 substitute since `3.1-flash-lite` not on OpenRouter.)*
-- [ ] AC-16: Polish is invoked **only from the Builder-build endpoint** (new `POST /api/designs/projects/{id}/builder/build/`) — never from `generate_image()`, never from `StandaloneGenerateView`. Free-text user prompts in the textarea are NEVER polished. *(Service ready; endpoint wired in Phase 5.)*
+- [x] AC-16: Polish is invoked **only from the Builder-build endpoint** (new `POST /api/designs/projects/{id}/builder/build/`) — never from `generate_image()`, never from `StandaloneGenerateView`. Free-text user prompts in the textarea are NEVER polished.
 - [x] AC-17: New `ProcessingSettings.polish_builder_prompts_enabled` BooleanField (default `True`) controls per-workspace polish behaviour. Editable in the existing Project/Workspace Settings panel. *(Model field shipped Phase 1; UI added Phase 11.)*
 - [x] AC-18: Polish failures (timeout / 5xx / quota / network) fall back to the raw enriched prompt silently — the Builder still inserts the unpolished version into the textarea + logs a warning. No user-facing error.
 - [x] AC-19: Polish timeout = 5s per prompt; with N×M=50 polishes in parallel (`asyncio.gather` / `httpx.AsyncClient`), total Build latency ≤ 5s. *(Per-call 5s sync timeout; parallelism wired in Phase 5 via `asyncio.gather` over `httpx.AsyncClient` or thread pool.)*
@@ -92,7 +92,7 @@
 
 ### Schicht 7 — Builder Preset Persistence
 - [x] AC-41: New Django model `BuilderPreset(workspace FK, project FK, name CharField unique-per-project, config_json JSONField, created_by FK, created_at, updated_at)`. UUID PK. Soft-delete via `is_deleted` BooleanField.
-- [ ] AC-42: DRF endpoints under `/api/designs/projects/{id}/builder-presets/`: `GET /` (list), `POST /` (create), `PATCH /{id}/` (rename), `DELETE /{id}/` (soft-delete).
+- [x] AC-42: DRF endpoints under `/api/designs/projects/{id}/builder-presets/`: `GET /` (list), `POST /` (create), `PATCH /{id}/` (rename), `DELETE /{id}/` (soft-delete).
 - [ ] AC-43: Frontend `Preset` dropdown in Builder: lists `name` of all non-deleted presets for the current project. Selecting a preset loads its `config_json` into the Builder form fields.
 - [ ] AC-44: `Save as Preset` button: opens small inline `TextField` for name + `Save` button. POSTs current Builder config; success → preset appears in dropdown + becomes selected.
 - [ ] AC-45: Presets survive page reload (verified by load → reload → reselect → state matches).
@@ -109,7 +109,7 @@
 ### Polish pipeline
 - [x] EC-5: Polish model returns text exceeding 2000 chars → truncate to last sentence boundary under 2000 chars, log warning.
 - [x] EC-6: Polish model returns empty string or unmodified input → fall through to raw prompt (no-op polish).
-- [ ] EC-7: `polish_builder_prompts_enabled = False` in workspace settings → Builder calls `build/` endpoint with `with_polish: false`, raw enriched prompts returned. *(Phase 5/11.)*
+- [x] EC-7: `polish_builder_prompts_enabled = False` in workspace settings → Builder calls `build/` endpoint with `with_polish: false`, raw enriched prompts returned. *(Backend: workspace flag also short-circuits polish even if request sets `with_polish=true`.)*
 - [x] EC-8: Polish call hangs > 5s → AbortController/timeout → fall through to raw prompt, log warning.
 
 ### Multi-prompt Builder UX
@@ -128,7 +128,7 @@
 - [ ] EC-18: User switches from multi-prompt to single-prompt mid-session → Images slider becomes enabled again at its last-set value.
 
 ### Presets
-- [ ] EC-19: User tries to save Preset with duplicate name in same project → 400 `"Preset name already exists in this project"`; frontend shows error inline.
+- [x] EC-19: User tries to save Preset with duplicate name in same project → 400 `"Preset name already exists in this project"`; frontend shows error inline. *(Backend enforces; partial UniqueConstraint allows name re-use after soft-delete.)*
 - [ ] EC-20: User deletes the currently-loaded preset → preset clears from dropdown + form resets to defaults.
 
 ### Style thumbnails

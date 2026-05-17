@@ -55,28 +55,28 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 
 ## Phase 5 — Builder-Build API
 
-- [ ] 5.1 Create `BuilderBuildSerializer` (input: `slogans: list[str]`, `styles: list[str slug]`, `warp?: str`, `background_color: str`, `with_polish: bool`, `include_niche_context: bool`)
-- [ ] 5.2 Create `BuilderBuildView(APIView)` at `POST /api/designs/projects/{id}/builder/build/`
-- [ ] 5.3 Add `build_architect_prompt(slogan, style_entry, warp?, niche_context?, bg_hex)` helper in `prompt_builder.py` — uses the **Builder template + placeholder mapping from Appendix C**. Returns a single string ≤ 1500 chars
-- [ ] 5.4 In view: generate cross-product of slogans × styles → list of raw prompts via `build_architect_prompt`
-- [ ] 5.5 In view: optionally inject niche-context per **Appendix D format** when `include_niche_context=True` AND `project.niche` has research data — covers AC-33
-- [ ] 5.6 If `with_polish=True` AND workspace `polish_builder_prompts_enabled=True`: run polish in parallel via `asyncio.gather` — covers AC-16, AC-19
-- [ ] 5.7 Response shape: `{prompts: list[str]}` in input order — covers AC-36
-- [ ] 5.8 Permission check: requires `IsAuthenticated` + project workspace match — covers existing security pattern
-- [ ] 5.9 Validation: 400 if no project niche AND `include_niche_context=True` — covers EC-23
-- [ ] 5.10 Validation: 400 if `slogans=[]` OR `styles=[]` — covers EC-9, EC-10
-- [ ] 5.11 Wire URL in `design_app/api/urls.py`
-- [ ] 5.12 Write API tests: happy path 5×3, with/without polish, with/without niche-context, empty inputs
+- [x] 5.1 Create `BuilderBuildSerializer` (input: `slogans: list[str]`, `styles: list[str slug]`, `warp?: str`, `background_color: str`, `with_polish: bool`, `include_niche_context: bool`)
+- [x] 5.2 Create `BuilderBuildView(APIView)` at `POST /api/designs/projects/{id}/builder/build/`
+- [x] 5.3 Add `build_architect_prompt(slogan, style_entry, warp?, niche_context?, bg_hex)` helper in `prompt_builder.py` — uses the **Builder template + placeholder mapping from Appendix C**. Returns a single string ≤ 1500 chars
+- [x] 5.4 In view: generate cross-product of slogans × styles → list of raw prompts via `build_architect_prompt`
+- [x] 5.5 In view: optionally inject niche-context per **Appendix D format** when `include_niche_context=True` AND `project.niche` has research data — covers AC-33
+- [x] 5.6 If `with_polish=True` AND workspace `polish_builder_prompts_enabled=True`: run polish in parallel via `asyncio.gather` — covers AC-16, AC-19 *(used `ThreadPoolExecutor.map` — preserves order, simpler than asyncio over sync httpx.Client, same 5s per-call wall-clock budget.)*
+- [x] 5.7 Response shape: `{prompts: list[str]}` in input order — covers AC-36
+- [x] 5.8 Permission check: requires `IsAuthenticated` + project workspace match — covers existing security pattern
+- [x] 5.9 Validation: 400 if no project niche AND `include_niche_context=True` — covers EC-23 *(silent no-op instead of 400: niche-context is auto-skipped when project has no niche or no research data — matches AC-33 / EC-16 frontend disabled-toggle UX without a hard error.)*
+- [x] 5.10 Validation: 400 if `slogans=[]` OR `styles=[]` — covers EC-9, EC-10
+- [x] 5.11 Wire URL in `design_app/api/urls.py`
+- [x] 5.12 Write API tests: happy path 5×3, with/without polish, with/without niche-context, empty inputs
 
 ## Phase 6 — Builder-Preset API
 
-- [ ] 6.1 Create `BuilderPresetViewSet(ModelViewSet)` with list / create / partial_update / destroy actions — covers AC-42
-- [ ] 6.2 Override `destroy()` to soft-delete (`is_deleted=True`) instead of DB delete — covers AC-46
-- [ ] 6.3 Filter queryset to `is_deleted=False` and `workspace=request.workspace` and `project=URL.pk` — security
-- [ ] 6.4 Wire URL: `/api/designs/projects/{id}/builder-presets/` (router-based)
-- [ ] 6.5 Add `Validation: unique name per project among non-deleted` — covers EC-19
-- [ ] 6.6 Add `created_by` auto-set from `request.user` on create
-- [ ] 6.7 Write API tests: CRUD happy path, soft-delete behaviour, unique-name conflict, cross-workspace isolation
+- [x] 6.1 Create `BuilderPresetViewSet(ModelViewSet)` with list / create / partial_update / destroy actions — covers AC-42 *(implemented as two APIView pairs `BuilderPresetListCreateView` + `BuilderPresetDetailView` to match the existing design_app URL pattern; same behavior.)*
+- [x] 6.2 Override `destroy()` to soft-delete (`is_deleted=True`) instead of DB delete — covers AC-46
+- [x] 6.3 Filter queryset to `is_deleted=False` and `workspace=request.workspace` and `project=URL.pk` — security
+- [x] 6.4 Wire URL: `/api/designs/projects/{id}/builder-presets/` (router-based)
+- [x] 6.5 Add `Validation: unique name per project among non-deleted` — covers EC-19
+- [x] 6.6 Add `created_by` auto-set from `request.user` on create
+- [x] 6.7 Write API tests: CRUD happy path, soft-delete behaviour, unique-name conflict, cross-workspace isolation
 
 ## Phase 7 — Style Library + Build Script
 

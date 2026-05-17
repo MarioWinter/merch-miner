@@ -805,6 +805,42 @@ class AddManualReferencesSerializer(serializers.Serializer):
     )
 
 
+# -- Builder Build (PROJ-34) --
+
+class BuilderBuildSerializer(serializers.Serializer):
+    """PROJ-34 — input for `POST /api/designs/projects/{id}/builder/build/`.
+
+    Cross-product Builder: N slogans × M styles → N×M polished prompts.
+    Backend-side validation only — frontend disables Build when N=0 or M=0
+    (AC-34) and shows the confirm dialog when N×M > 30 (AC-35), so the
+    backend simply enforces non-empty inputs (EC-9, EC-10) and ignores
+    niche-context when no niche is linked (EC-16, EC-23).
+    """
+
+    slogans = serializers.ListField(
+        child=serializers.CharField(min_length=1, max_length=300),
+        min_length=1,
+        max_length=200,
+        help_text='Slogan strings (combined pool selections + free-text lines).',
+    )
+    styles = serializers.ListField(
+        child=serializers.CharField(min_length=1, max_length=64),
+        min_length=1,
+        max_length=15,
+        help_text='Style slugs from the 15-entry library.',
+    )
+    warp = serializers.CharField(
+        required=False, allow_blank=True, allow_null=True, default='',
+        max_length=64,
+    )
+    background_color = serializers.ChoiceField(
+        choices=Design.BackgroundColor.choices,
+        default=Design.BackgroundColor.LIGHT_GRAY,
+    )
+    with_polish = serializers.BooleanField(default=True)
+    include_niche_context = serializers.BooleanField(default=True)
+
+
 # -- BuilderPreset (PROJ-34) --
 
 class BuilderPresetSerializer(serializers.ModelSerializer):

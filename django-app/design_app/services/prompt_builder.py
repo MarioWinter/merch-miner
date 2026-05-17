@@ -3,13 +3,88 @@
 Two paths:
 - image-driven: from 7-step analysis output
 - idea-driven: from Idea DB fields + NicheResearch analysis
+
+PROJ-34 added a third path: `build_architect_prompt` constructs N×M
+deterministic Builder prompts from (slogan, style, warp?, niche?, bg).
 """
 
 import logging
 
 from design_app.models import Design
+from design_app.services.style_library import STYLE_LIBRARY, WARP_PHRASES
 
 logger = logging.getLogger(__name__)
+
+
+def _format_niche_block(research_data: dict | None) -> str:
+    """PROJ-34 Appendix D — render the niche-context parenthetical block.
+
+    Returns the empty string when no data is available so the caller can
+    omit the placeholder entirely.
+    """
+    if not research_data:
+        return ''
+    bits: list[str] = []
+    visual_styles = research_data.get('visual_styles') or []
+    vibes = research_data.get('vibes') or []
+    tones = research_data.get('tones') or []
+    if visual_styles:
+        bits.append(f'visual styles: {", ".join(visual_styles[:3])}')
+    if vibes:
+        bits.append(f'vibes: {", ".join(vibes[:3])}')
+    if tones:
+        bits.append(f'tones: {", ".join(tones[:3])}')
+    if not bits:
+        return ''
+    return f'(Niche style cues — {"; ".join(bits)})'
+
+
+def build_architect_prompt(
+    slogan: str,
+    style_slug: str,
+    *,
+    warp: str | None = None,
+    niche_context: dict | None = None,
+    background_color: str = 'light_gray',
+) -> str:
+    """PROJ-34 Appendix C — assemble one deterministic Builder prompt.
+
+    Slogan is wrapped in double quotes per Architect Rule 1; style suffix
+    + optional warp phrase + optional niche block are injected in fixed
+    order. The background-color line is appended last so it mirrors what
+    `image_generator._build_content` would have added anyway (and stays
+    immediately visible in Langfuse traces).
+
+    Output is typically 300–700 chars depending on style + niche; well
+    under the 1500-char cap mentioned in task 5.3.
+    """
+    style = STYLE_LIBRARY.get(style_slug)
+    if not style:
+        # Defensive: unknown slug falls back to generic vector style.
+        style = {
+            'label': style_slug.replace('_', ' ').title(),
+            'prompt_suffix': 'Commercial vector design',
+        }
+
+    warp_phrase = WARP_PHRASES.get(warp, '') if warp else ''
+    niche_block = _format_niche_block(niche_context)
+    bg_hex = Design.BG_COLOR_HEX.get(background_color, '#D3D3D3')
+
+    pieces = [
+        f'{style["label"]} t-shirt vector design centered on a {bg_hex} background.',
+        f'The design features the slogan text "{slogan}" as the primary typographic element.',
+        f'{style["prompt_suffix"]}.',
+    ]
+    if warp_phrase:
+        pieces.append(warp_phrase)
+    if niche_block:
+        pieces.append(niche_block)
+    pieces.append(
+        'Layout: centered composition with generous padding and breathing room. '
+        'High contrast, clean outlines, commercial vector art. Screen print '
+        'ready, hard edges, vector sharpness, 300 DPI.'
+    )
+    return ' '.join(pieces)
 
 
 def build_from_analysis(analysis: dict, background_color: str) -> str:

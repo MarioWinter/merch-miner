@@ -20,6 +20,8 @@ from design_app.api.serializers import (
     AnalyzeImageSerializer,
     ApplyPipelineSerializer,
     BatchProcessSerializer,
+    BuilderBuildSerializer,
+    BuilderPresetSerializer,
     BuildPromptsSerializer,
     BulkCreatePromptsSerializer,
     CreateProjectSerializer,
@@ -46,6 +48,7 @@ from design_app.api.serializers import (
 )
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from design_app.models import (
+    BuilderPreset,
     Design,
     DesignGenerationRun,
     DesignPipeline,
@@ -1907,4 +1910,207 @@ class PromptPresetDeleteView(APIView):
         )
         preset.delete()
 
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# -- PROJ-34 Multi-Prompt Builder API --
+
+class BuilderBuildView(APIView):
+    """POST /api/designs/projects/{id}/builder/build/
+
+    Cross-product Builder (PROJ-34 Phase 5). Given N slogans × M styles
+    (+ optional warp, niche-context toggle, bg_color), returns N×M prompts
+    in cross-product order: (slogan[0]×style[0]), (slogan[0]×style[1]), ...
+
+    Polish is parallel-bounded by `workspace.ProcessingSettings
+    .polish_builder_prompts_enabled` AND the request's `with_polish` flag
+    (AC-16 / EC-7). Failures degrade to raw prompts (AC-18 — see
+    prompt_polish.polish_prompt).
+    """
+
+    # Cap on concurrent polish worker threads; matches the AC-19 latency
+    # budget (≤5s for ≤50 polishes when calls run in parallel).
+    _POLISH_MAX_WORKERS = 16
+
+    def post(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        project = get_object_or_404(
+            DesignProject.objects.select_related('niche'),
+            pk=pk,
+            workspace_id=ws_id,
+        )
+
+        serializer = BuilderBuildSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        cfg = serializer.validated_data
+
+        slogans: list[str] = [s.strip() for s in cfg['slogans'] if s and s.strip()]
+        styles: list[str] = [s.strip() for s in cfg['styles'] if s and s.strip()]
+        warp = (cfg.get('warp') or '').strip() or None
+        bg_color = cfg.get('background_color', 'light_gray')
+        with_polish = cfg.get('with_polish', True)
+        include_niche_context = cfg.get('include_niche_context', True)
+
+        # EC-9 / EC-10: defensive guards even though frontend disables Build.
+        if not slogans:
+            return Response(
+                {'error': 'Select at least one slogan.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if not styles:
+            return Response(
+                {'error': 'Select at least one style.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # EC-16 / EC-23: niche-context silently ignored if no linked niche.
+        niche_context = None
+        if include_niche_context and project.niche_id:
+            niche_context = _gather_research_data(project.niche)
+
+        # Build raw prompts in cross-product order.
+        from design_app.services.prompt_builder import build_architect_prompt
+        raw_prompts: list[str] = []
+        for slogan in slogans:
+            for style in styles:
+                raw_prompts.append(
+                    build_architect_prompt(
+                        slogan=slogan,
+                        style_slug=style,
+                        warp=warp,
+                        niche_context=niche_context,
+                        background_color=bg_color,
+                    )
+                )
+
+        # Resolve workspace-level polish toggle.
+        try:
+            ps = ProcessingSettings.objects.get(workspace_id=ws_id)
+            workspace_polish_enabled = ps.polish_builder_prompts_enabled
+        except ProcessingSettings.DoesNotExist:
+            workspace_polish_enabled = True
+
+        run_polish = with_polish and workspace_polish_enabled
+        final_prompts = _maybe_polish_parallel(raw_prompts, run_polish)
+        return Response({'prompts': final_prompts}, status=status.HTTP_200_OK)
+
+
+def _maybe_polish_parallel(raw_prompts: list[str], run_polish: bool) -> list[str]:
+    """Polish all prompts in parallel via a thread pool (preserves order).
+
+    Polish is a sync httpx call; threads are simpler than asyncio here
+    and the per-call 5s timeout caps total wall-clock at ~5s for any
+    realistic Build (≤50 prompts) with `_POLISH_MAX_WORKERS` workers.
+    """
+    if not run_polish:
+        return raw_prompts
+
+    from concurrent.futures import ThreadPoolExecutor
+    from design_app.services.prompt_polish import polish_prompt
+
+    max_workers = min(len(raw_prompts), BuilderBuildView._POLISH_MAX_WORKERS)
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        # map() preserves input order — exactly what we need for AC-36.
+        return list(pool.map(polish_prompt, raw_prompts))
+
+
+# -- PROJ-34 BuilderPreset CRUD --
+
+class BuilderPresetListCreateView(APIView):
+    """GET / POST /api/designs/projects/{id}/builder-presets/"""
+
+    def get(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        # Tenant isolation: project must belong to caller's workspace.
+        project = get_object_or_404(
+            DesignProject, pk=pk, workspace_id=ws_id,
+        )
+        qs = BuilderPreset.objects.filter(
+            workspace_id=ws_id, project=project, is_deleted=False,
+        )
+        return Response(BuilderPresetSerializer(qs, many=True).data)
+
+    def post(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        project = get_object_or_404(
+            DesignProject, pk=pk, workspace_id=ws_id,
+        )
+        serializer = BuilderPresetSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # EC-19: name must be unique among non-deleted rows for the project.
+        name = serializer.validated_data['name']
+        if BuilderPreset.objects.filter(
+            project=project, name=name, is_deleted=False,
+        ).exists():
+            return Response(
+                {'error': 'Preset name already exists in this project.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        preset = BuilderPreset.objects.create(
+            workspace_id=ws_id,
+            project=project,
+            name=name,
+            config=serializer.validated_data.get('config', {}),
+            created_by=request.user,
+        )
+        return Response(
+            BuilderPresetSerializer(preset).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class BuilderPresetDetailView(APIView):
+    """PATCH / DELETE /api/designs/projects/{id}/builder-presets/{preset_id}/"""
+
+    def patch(self, request, pk, preset_id):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        project = get_object_or_404(
+            DesignProject, pk=pk, workspace_id=ws_id,
+        )
+        preset = get_object_or_404(
+            BuilderPreset,
+            pk=preset_id, workspace_id=ws_id, project=project, is_deleted=False,
+        )
+
+        serializer = BuilderPresetSerializer(preset, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        # EC-19: re-check name uniqueness on rename.
+        new_name = serializer.validated_data.get('name')
+        if new_name and new_name != preset.name and BuilderPreset.objects.filter(
+            project=project, name=new_name, is_deleted=False,
+        ).exclude(pk=preset.pk).exists():
+            return Response(
+                {'error': 'Preset name already exists in this project.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer.save()
+        return Response(BuilderPresetSerializer(preset).data)
+
+    def delete(self, request, pk, preset_id):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        project = get_object_or_404(
+            DesignProject, pk=pk, workspace_id=ws_id,
+        )
+        preset = get_object_or_404(
+            BuilderPreset,
+            pk=preset_id, workspace_id=ws_id, project=project, is_deleted=False,
+        )
+        # AC-46: soft-delete via flag (partial UniqueConstraint allows name re-use).
+        preset.is_deleted = True
+        preset.save(update_fields=['is_deleted', 'updated_at'])
         return Response(status=status.HTTP_204_NO_CONTENT)
