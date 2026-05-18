@@ -548,6 +548,9 @@ const DesignWorkspaceView = () => {
         textareaDirtySinceBuild={gen.textareaDirtySinceBuild}
         nicheReason={gen.builder.nicheReason}
         isBuilding={gen.builder.isBuilding}
+        nicheHints={gen.builder.nicheHints}
+        projectId={projectId}
+        workspaceId={project?.workspace}
         onSavePreset={gen.builder.handleSavePreset}
         onDeletePreset={gen.builder.handleDeletePreset}
         onBuild={gen.handleBuilderBuild}

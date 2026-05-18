@@ -2,12 +2,19 @@
 // Source of truth for the StylePicker UI: 15 flat entries (no nested "More" modal per AC-22).
 // If an entry is added or removed here it MUST also be mirrored in the backend file.
 
+import { MATERIAL_OPTIONS, TYPOGRAPHY_OPTIONS } from './slotOptions'
+
 export interface StyleEntry {
   slug: string
   label: string
   shortDescription: string
   thumbnail: string
   promptSuffix: string
+  // PROJ-34 Phase 13a (Appendix K) — auto-defaults for the form-based Builder.
+  // Pulled from TYPOGRAPHY_OPTIONS / MATERIAL_OPTIONS by index, mirroring the
+  // backend `design_app/services/style_library.py:STYLE_LIBRARY` entries.
+  defaultTypography: string
+  defaultMaterial: string
 }
 
 const THUMB = (slug: string) => `/style-thumbnails/${slug}.png`
@@ -20,6 +27,8 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('vintage_retro'),
     promptSuffix:
       'Vintage retro aesthetic with warm faded earth tones (mustard yellow, burnt orange, dusty teal, cream), thick uniform black outlines, slightly distressed grain texture overlay, halftone shading on flat color fills, weathered screen-print feel',
+    defaultTypography: TYPOGRAPHY_OPTIONS[2],
+    defaultMaterial: MATERIAL_OPTIONS[4],
   },
   {
     slug: '70s_groovy',
@@ -28,6 +37,8 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('70s_groovy'),
     promptSuffix:
       '1970s groovy psychedelic vibe with bold flowing curved typography, earthy palette of mustard, burnt orange, olive, cream and rust, thick black outlines, soft halftone dot accents, retro disco poster aesthetic',
+    defaultTypography: TYPOGRAPHY_OPTIONS[5],
+    defaultMaterial: MATERIAL_OPTIONS[1],
   },
   {
     slug: '80s_neon',
@@ -36,6 +47,8 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('80s_neon'),
     promptSuffix:
       '1980s neon synthwave aesthetic with hot magenta, electric cyan, vibrant purple and matte black, chrome reflective typography, vaporwave grid background motifs, glowing neon outlines, retro arcade vibe',
+    defaultTypography: TYPOGRAPHY_OPTIONS[0],
+    defaultMaterial: MATERIAL_OPTIONS[5],
   },
   {
     slug: '90s_grunge',
@@ -44,6 +57,8 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('90s_grunge'),
     promptSuffix:
       '1990s grunge style with distressed ink-bleed textures, faded high-contrast palette of worn black, cream and faded red, torn-edge effects, gritty rough outlines, photocopy-worn screen-print look',
+    defaultTypography: TYPOGRAPHY_OPTIONS[2],
+    defaultMaterial: MATERIAL_OPTIONS[2],
   },
   {
     slug: 'kawaii_chibi',
@@ -52,6 +67,8 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('kawaii_chibi'),
     promptSuffix:
       'Kawaii chibi cartoon style with oversized cute heads, big sparkly black eyes with white highlights, soft pastel palette (baby pink, mint, lavender, butter yellow), thick rounded outlines, gentle pastel cell-shading, adorable expression',
+    defaultTypography: TYPOGRAPHY_OPTIONS[0],
+    defaultMaterial: MATERIAL_OPTIONS[0],
   },
   {
     slug: 'cartoon',
@@ -60,6 +77,8 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('cartoon'),
     promptSuffix:
       'Bold cartoon style with thick uniform black outlines, flat saturated color fills, simple cel-shaded highlights, expressive exaggerated features, playful vibrant palette, Saturday-morning animation aesthetic',
+    defaultTypography: TYPOGRAPHY_OPTIONS[0],
+    defaultMaterial: MATERIAL_OPTIONS[0],
   },
   {
     slug: 'watercolor',
@@ -68,6 +87,8 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('watercolor'),
     promptSuffix:
       'Watercolor illustration style with soft transparent color washes, irregular pigment edges, visible paper texture, organic flowing brush strokes, layered translucent pigment, hand-painted artisan feel',
+    defaultTypography: TYPOGRAPHY_OPTIONS[1],
+    defaultMaterial: MATERIAL_OPTIONS[4],
   },
   {
     slug: 'hand_drawn_sketch',
@@ -76,6 +97,8 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('hand_drawn_sketch'),
     promptSuffix:
       'Hand-drawn sketch style with loose pencil and pen strokes, visible construction lines, slightly imperfect organic linework, monochrome or muted color accents, charming sketchbook journal aesthetic',
+    defaultTypography: TYPOGRAPHY_OPTIONS[1],
+    defaultMaterial: MATERIAL_OPTIONS[4],
   },
   {
     slug: 'vector_flat',
@@ -84,6 +107,8 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('vector_flat'),
     promptSuffix:
       'Clean modern flat vector style with geometric shapes, zero gradients, smart minimalist palette, crisp sharp edges, contemporary commercial design aesthetic, editorial Apple-emoji flatness',
+    defaultTypography: TYPOGRAPHY_OPTIONS[0],
+    defaultMaterial: MATERIAL_OPTIONS[0],
   },
   {
     slug: 'minimal_line_art',
@@ -92,6 +117,8 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('minimal_line_art'),
     promptSuffix:
       'Minimal single-line illustration with consistent monoline weight, no fills, no shading, elegant continuous lines, abundant negative space, refined editorial wordmark aesthetic',
+    defaultTypography: TYPOGRAPHY_OPTIONS[1],
+    defaultMaterial: MATERIAL_OPTIONS[0],
   },
   {
     slug: 'pixel_art',
@@ -100,6 +127,8 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('pixel_art'),
     promptSuffix:
       'Pixel art 8-bit gaming style with sharp pixelated edges, no anti-aliasing, limited 16-color retro arcade palette, blocky uniform pixels, nostalgic NES/Game Boy aesthetic',
+    defaultTypography: TYPOGRAPHY_OPTIONS[4],
+    defaultMaterial: MATERIAL_OPTIONS[0],
   },
   {
     slug: 'distressed_texture',
@@ -108,6 +137,8 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('distressed_texture'),
     promptSuffix:
       'Heavily distressed print texture with worn ink-bleed effect, scratched and cracked color fills, vintage screen-print roughness, aged-on-fabric look, rough rustic typography',
+    defaultTypography: TYPOGRAPHY_OPTIONS[2],
+    defaultMaterial: MATERIAL_OPTIONS[2],
   },
   {
     slug: 'halftone_print',
@@ -116,6 +147,8 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('halftone_print'),
     promptSuffix:
       'Halftone print style with dot-pattern color fills (varying dot sizes), classic comic-book printing aesthetic, limited 2-3 color palette, retro newsprint feel, pop-art flatness',
+    defaultTypography: TYPOGRAPHY_OPTIONS[0],
+    defaultMaterial: MATERIAL_OPTIONS[3],
   },
   {
     slug: 'badge_emblem',
@@ -124,6 +157,8 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('badge_emblem'),
     promptSuffix:
       'Vintage badge emblem layout with circular or shield-shaped border, banner ribbons above and below, central crest illustration, classic monochrome or 2-color palette, heritage trade-mark feel',
+    defaultTypography: TYPOGRAPHY_OPTIONS[2],
+    defaultMaterial: MATERIAL_OPTIONS[5],
   },
   {
     slug: 'blackletter_gothic',
@@ -132,8 +167,14 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('blackletter_gothic'),
     promptSuffix:
       'Heavy blackletter gothic typography with ornate medieval scripts, dramatic high-contrast strokes, decorative flourishes, dark moody palette, often paired with skull / raven / cross / banner motifs',
+    defaultTypography: TYPOGRAPHY_OPTIONS[3],
+    defaultMaterial: MATERIAL_OPTIONS[5],
   },
 ]
+
+/** O(1) lookup helper — returns the StyleEntry whose `slug` matches, or `undefined`. */
+export const getStyleBySlug = (slug: string): StyleEntry | undefined =>
+  STYLE_LIBRARY.find((entry) => entry.slug === slug)
 
 // AC-32 — single-select warp library (4 options + empty/none).
 export interface WarpEntry {

@@ -10,7 +10,9 @@ import {
   useBuilderBuildMutation,
   useCreateBuilderPresetMutation,
   useDeleteBuilderPresetMutation,
+  useGetNicheHintsQuery,
   useListBuilderPresetsQuery,
+  type BuilderFormHints,
 } from '@/store/designSlice';
 import { researchApi } from '@/views/niches/research/services/researchApi';
 import type {
@@ -65,6 +67,16 @@ export const useBuilder = ({
   });
   const [createPreset] = useCreateBuilderPresetMutation();
   const [deletePreset] = useDeleteBuilderPresetMutation();
+
+  // PROJ-34 Phase 13g — niche-hints used by BuilderDialog to pre-fill the
+  // form-based slots when the user hasn't typed anything yet (AC-66). Skipped
+  // until projectId is known so we don't hit the API with an empty string.
+  const { data: nicheHintsData } = useGetNicheHintsQuery(
+    { projectId },
+    { skip: !projectId },
+  );
+  const nicheHints: BuilderFormHints | null =
+    nicheHintsData?.builder_form_hints ?? null;
 
   // Map API rows to the dialog's BuilderPresetSummary shape.
   const presets = useMemo<BuilderPresetSummary[]>(
@@ -198,6 +210,7 @@ export const useBuilder = ({
     presets,
     nicheReason,
     isBuilding,
+    nicheHints,
     handleBuild,
     handleSavePreset,
     handleDeletePreset,

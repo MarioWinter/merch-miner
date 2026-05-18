@@ -1,39 +1,57 @@
-// PROJ-34 Phase 8 — renovated Multi-Prompt Builder dialog.
+// PROJ-34 Phase 13g — renovated Multi-Prompt Builder dialog.
 //
-// Replaces the 8-tab PromptBuilderDialog with a flat linear flow:
-//   PresetBar → Slogans → Styles → Warp + NicheToggle → Reference → Build CTA.
-//
-// This file is intentionally a PURE PRESENTATIONAL composer. State for the
-// Builder form lives here (it is dialog-local); persistence + the actual
-// network call land in the parent via the `onBuild` callback. Wiring into
-// `useWorkspaceGeneration` + the RTK Query mutations is the next /frontend
-// pass — kept out of this commit per the design-spec scope-lock.
+// Restructured into 5 collapsible MUI Accordions (AC-64) + Live Preview panel
+// (AC-67) + niche-hint pre-fill (AC-66) + dirty-flag override-wins (EC-28) +
+// deleted-CustomSpatial fallback chip (EC-32) + v1→v2 preset compat (AC-68 +
+// EC-25). State + dirty-flag logic live in `useBuilderDialogState`; debounced
+// preview lives in `useBuilderLivePreview`.
 
 import { useMemo, useState } from 'react';
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   Box,
+  Button,
+  Chip,
   Dialog,
   IconButton,
   Stack,
   Typography,
 } from '@mui/material';
-import { useSnackbar } from 'notistack';
-import { STYLE_LIBRARY } from '../constants/styleLibrary';
-import { styled } from '@mui/material/styles';
+import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CloseIcon from '@mui/icons-material/Close';
+import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
+import { styled } from '@mui/material/styles';
 import { COLORS } from '@/style/constants';
 import type { ProjectIdea } from '@/views/designs/gallery/types';
 import {
   BUILD_CONFIRM_THRESHOLD,
-  EMPTY_BUILDER_CONFIG,
   type BuilderConfig,
   type BuilderPresetSummary,
   type NicheContextReason,
 } from '../types/builder';
+import { getStyleBySlug } from '../constants/styleLibrary';
+import { isSpatialUuid } from '../constants/slotOptions';
+import {
+  useListCustomSpatialsQuery,
+  type BuilderFormHints,
+} from '@/store/designSlice';
+import useBuilderDialogState from '../hooks/useBuilderDialogState';
+import useBuilderLivePreview from '../hooks/useBuilderLivePreview';
 import PresetBar from './promptBuilder/PresetBar';
 import SloganPicker from './promptBuilder/SloganPicker';
-import StylePicker from './promptBuilder/StylePicker';
+import StyleSlotButton from './promptBuilder/StyleSlotButton';
+import StylePickerModal from './promptBuilder/StylePickerModal';
+import SpatialSlotButton from './promptBuilder/SpatialSlotButton';
+import SpatialPickerModal from './promptBuilder/SpatialPickerModal';
+import TextSegmentationPicker from './promptBuilder/TextSegmentationPicker';
+import AccessoriesPicker from './promptBuilder/AccessoriesPicker';
+import VisualDescriptionField from './promptBuilder/VisualDescriptionField';
+import TypographyPicker from './promptBuilder/TypographyPicker';
+import MaterialPicker from './promptBuilder/MaterialPicker';
+import ExtraContextField from './promptBuilder/ExtraContextField';
 import WarpPicker from './promptBuilder/WarpPicker';
 import NicheContextToggle from './promptBuilder/NicheContextToggle';
 import ReferenceIndicator from './promptBuilder/ReferenceIndicator';
@@ -43,26 +61,26 @@ import BuildConfirmDialog from './promptBuilder/BuildConfirmDialog';
 interface BuilderDialogProps {
   open: boolean;
   onClose: () => void;
-  // Source data
   ideas: ProjectIdea[];
   presets: BuilderPresetSummary[];
   referenceUrl: string | null;
-  /** Whether the parent textarea was manually edited since the last Build (AC-40). */
   textareaDirtySinceBuild?: boolean;
-  /** Reason payload driving the NicheContextToggle's disabled state. */
   nicheReason: NicheContextReason;
-  // Loading
   isBuilding: boolean;
-  // Callbacks
+  /** Phase-13c niche hints used to pre-fill empty form slots (AC-66). */
+  nicheHints?: BuilderFormHints | null;
+  /** Project owning the current Builder session — required for preview + spatial picker. */
+  projectId?: string;
+  /** Workspace owning the Builder session — forwarded to CustomSpatialCreator. */
+  workspaceId?: string;
   onSavePreset: (name: string, config: BuilderConfig) => void;
   onDeletePreset: (id: string) => void;
-  /** Returns the polished prompts; parent joins with `; ` and inserts into textarea. */
   onBuild: (config: BuilderConfig) => Promise<void> | void;
 }
 
-// -----------------------------------------------------------------
+// ---------------------------------------------------------------------------
 // Styled
-// -----------------------------------------------------------------
+// ---------------------------------------------------------------------------
 
 const DialogRoot = styled(Dialog)(({ theme }) => ({
   '& .MuiDialog-paper': {
@@ -90,20 +108,21 @@ const Body = styled(Box)(({ theme }) => ({
   padding: theme.spacing(2, 3),
   display: 'flex',
   flexDirection: 'column',
-  gap: theme.spacing(2.5),
+  gap: theme.spacing(1.5),
 }));
 
-const Section = styled(Box)(({ theme }) => ({
-  paddingBlock: theme.spacing(1),
-  '&:not(:last-of-type)': {
-    borderBottom: `1px solid ${theme.vars.palette.divider}`,
-    paddingBottom: theme.spacing(2.5),
-  },
+const PreviewCode = styled('code')(({ theme }) => ({
+  whiteSpace: 'pre-wrap',
+  wordBreak: 'break-word',
+  fontFamily: '"JetBrains Mono", monospace',
+  fontSize: 12,
+  color: theme.vars.palette.text.secondary,
+  display: 'block',
 }));
 
-// -----------------------------------------------------------------
-// Component
-// -----------------------------------------------------------------
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
 
 const splitFreeText = (raw: string): string[] =>
   raw
@@ -123,6 +142,10 @@ const dedupeCaseInsensitive = (items: string[]): string[] => {
   return out;
 };
 
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
 const BuilderDialog = ({
   open,
   onClose,
@@ -132,103 +155,87 @@ const BuilderDialog = ({
   textareaDirtySinceBuild = false,
   nicheReason,
   isBuilding,
+  nicheHints = null,
+  projectId,
+  workspaceId,
   onSavePreset,
   onDeletePreset,
   onBuild,
 }: BuilderDialogProps) => {
-  const [config, setConfig] = useState<BuilderConfig>(EMPTY_BUILDER_CONFIG);
-  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
-  // `confirmKind` is auto-reset when the dialog closes via `onClose` (see
-  // `handleClose` below) so we don't need a useEffect synced to `open`.
+  const {
+    cfg,
+    setCfg,
+    selectedPresetId,
+    updateSlot,
+    resetSlot,
+    setStyleSlugs,
+    loadPreset,
+  } = useBuilderDialogState({ ideas, presets, nicheHints });
+
   const [confirmKind, setConfirmKind] = useState<null | 'threshold' | 'manualEdit'>(null);
-  const { enqueueSnackbar } = useSnackbar();
+  const [spatialPickerOpen, setSpatialPickerOpen] = useState(false);
+  const [stylePickerOpen, setStylePickerOpen] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  // EC-32 — when the saved preset references a CustomSpatial UUID that no
+  // longer exists in the workspace list, show a warning chip + "Pick
+  // replacement" CTA next to the SpatialSlotButton.
+  const spatialValue = cfg.slots.spatial_configuration ?? '';
+  const looksLikeUuid = spatialValue !== '' && isSpatialUuid(spatialValue);
+  const { data: customSpatials, isSuccess: customSpatialsLoaded } =
+    useListCustomSpatialsQuery(undefined, { skip: !looksLikeUuid });
+  const customSpatialMissing =
+    looksLikeUuid &&
+    customSpatialsLoaded &&
+    !(customSpatials ?? []).some((entry) => entry.id === spatialValue);
 
   const handleClose = () => {
     setConfirmKind(null);
     onClose();
   };
 
+  // ----- Slogan + style derivations -----
+
   const sloganList = useMemo<string[]>(() => {
     const fromPool = ideas
-      .filter((i) => config.selectedSloganIds.includes(i.id))
+      .filter((i) => cfg.selectedSloganIds.includes(i.id))
       .map((i) => i.slogan_text);
-    const fromText = splitFreeText(config.freeTextSlogans);
+    const fromText = splitFreeText(cfg.freeTextSlogans);
     return dedupeCaseInsensitive([...fromPool, ...fromText]);
-  }, [ideas, config.selectedSloganIds, config.freeTextSlogans]);
+  }, [ideas, cfg.selectedSloganIds, cfg.freeTextSlogans]);
 
   const sloganCount = sloganList.length;
-  const styleCount = config.selectedStyleSlugs.length;
+  const styleCount = cfg.selectedStyleSlugs.length;
   const total = sloganCount * styleCount;
 
-  const handleToggleStyle = (slug: string) => {
-    setConfig((c) => {
-      const next = c.selectedStyleSlugs.includes(slug)
-        ? c.selectedStyleSlugs.filter((s) => s !== slug)
-        : [...c.selectedStyleSlugs, slug];
-      return { ...c, selectedStyleSlugs: next };
-    });
-  };
+  const firstStyleEntry = useMemo(() => {
+    const first = cfg.selectedStyleSlugs[0];
+    return first ? getStyleBySlug(first) : undefined;
+  }, [cfg.selectedStyleSlugs]);
 
-  const handleClearStyles = () =>
-    setConfig((c) => ({ ...c, selectedStyleSlugs: [] }));
+  // ----- Live preview wiring -----
 
-  const handleLoadPreset = (id: string) => {
-    if (!id) {
-      setSelectedPresetId(null);
-      return;
-    }
-    const preset = presets.find((p) => p.id === id);
-    if (!preset) return;
-    setSelectedPresetId(id);
+  const livePreview = useBuilderLivePreview({
+    cfg,
+    projectId: projectId ?? '',
+    backgroundColor: 'light_gray',
+    enabled: previewOpen,
+    firstSlogan: sloganList[0],
+  });
 
-    // EC-14 / EC-15 — silently drop preset entries whose slogan_ids or
-    // style slugs no longer exist (idea deleted from pool, or style removed
-    // from the library). Surface the drop via snackbar so the user knows
-    // their preset was partial-loaded.
-    const merged: BuilderConfig = { ...EMPTY_BUILDER_CONFIG, ...preset.config };
-    const knownIdeaIds = new Set(ideas.map((i) => i.id));
-    const knownStyleSlugs = new Set(STYLE_LIBRARY.map((s) => s.slug));
-
-    const filteredIdeas = merged.selectedSloganIds.filter((id) =>
-      knownIdeaIds.has(id),
-    );
-    const filteredStyles = merged.selectedStyleSlugs.filter((slug) =>
-      knownStyleSlugs.has(slug),
-    );
-
-    const droppedIdeas = merged.selectedSloganIds.length - filteredIdeas.length;
-    const droppedStyles = merged.selectedStyleSlugs.length - filteredStyles.length;
-    const droppedTotal = droppedIdeas + droppedStyles;
-    if (droppedTotal > 0) {
-      enqueueSnackbar(
-        `${droppedTotal} item(s) from this preset were skipped because they no longer exist`,
-        { variant: 'warning' },
-      );
-    }
-
-    setConfig({
-      ...merged,
-      selectedSloganIds: filteredIdeas,
-      selectedStyleSlugs: filteredStyles,
-    });
-  };
-
-  const handleSavePreset = (name: string) => onSavePreset(name, config);
+  // ----- Build / confirm cascade -----
 
   const fireBuild = () => {
     setConfirmKind(null);
-    void onBuild(config);
+    void onBuild(cfg);
   };
 
   const handleBuildClick = () => {
     if (sloganCount === 0 || styleCount === 0 || isBuilding) return;
-
-    // AC-40 / Appendix G: ask before clobbering manual textarea edits.
     if (textareaDirtySinceBuild) {
       setConfirmKind('manualEdit');
       return;
     }
-    // AC-35 / EC-11: confirm modal past the threshold.
     if (total > BUILD_CONFIRM_THRESHOLD) {
       setConfirmKind('threshold');
       return;
@@ -236,15 +243,15 @@ const BuilderDialog = ({
     fireBuild();
   };
 
-  // The threshold confirm clears manual-edit state too, so chaining is OK.
   const handleConfirmCascade = () => {
     if (confirmKind === 'manualEdit' && total > BUILD_CONFIRM_THRESHOLD) {
-      // Promote to the second confirm (threshold) after acknowledging edits.
       setConfirmKind('threshold');
       return;
     }
     fireBuild();
   };
+
+  const handleSavePreset = (name: string) => onSavePreset(name, cfg);
 
   return (
     <DialogRoot
@@ -272,56 +279,208 @@ const BuilderDialog = ({
       <PresetBar
         presets={presets}
         selectedPresetId={selectedPresetId}
-        onLoadPreset={handleLoadPreset}
+        onLoadPreset={loadPreset}
         onDeletePreset={onDeletePreset}
         onSavePreset={handleSavePreset}
       />
 
       <Body>
-        <Section>
-          <SloganPicker
-            pool={ideas}
-            selectedIds={config.selectedSloganIds}
-            onSelectedIdsChange={(ids) =>
-              setConfig((c) => ({ ...c, selectedSloganIds: ids }))
-            }
-            freeText={config.freeTextSlogans}
-            onFreeTextChange={(v) =>
-              setConfig((c) => ({ ...c, freeTextSlogans: v }))
-            }
-          />
-        </Section>
-
-        <Section>
-          <StylePicker
-            selectedSlugs={config.selectedStyleSlugs}
-            onToggle={handleToggleStyle}
-            onClear={handleClearStyles}
-          />
-        </Section>
-
-        <Section>
-          <Stack
-            direction="row"
-            spacing={3}
-            alignItems="center"
-            justifyContent="space-between"
-            sx={{ flexWrap: 'wrap', rowGap: 1.5 }}
+        {/* A. Slogans (open by default) */}
+        <Accordion defaultExpanded>
+          <AccordionSummary
+            expandIcon={<ExpandMoreRoundedIcon />}
+            aria-controls="builder-slogans-content"
+            id="builder-slogans-header"
           >
-            <WarpPicker
-              value={config.warpSlug}
-              onChange={(slug) => setConfig((c) => ({ ...c, warpSlug: slug }))}
-            />
-            <NicheContextToggle
-              checked={config.includeNicheContext}
-              onChange={(checked) =>
-                setConfig((c) => ({ ...c, includeNicheContext: checked }))
+            <Typography variant="subtitle1">Slogans</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <SloganPicker
+              pool={ideas}
+              selectedIds={cfg.selectedSloganIds}
+              onSelectedIdsChange={(ids) =>
+                setCfg((c) => ({ ...c, selectedSloganIds: ids }))
               }
-              reason={nicheReason}
+              freeText={cfg.freeTextSlogans}
+              onFreeTextChange={(v) =>
+                setCfg((c) => ({ ...c, freeTextSlogans: v }))
+              }
             />
-          </Stack>
-          <ReferenceIndicator url={referenceUrl} />
-        </Section>
+          </AccordionDetails>
+        </Accordion>
+
+        {/* B. Styles (open by default) */}
+        <Accordion defaultExpanded>
+          <AccordionSummary
+            expandIcon={<ExpandMoreRoundedIcon />}
+            aria-controls="builder-styles-content"
+            id="builder-styles-header"
+          >
+            <Typography variant="subtitle1">Styles</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Stack spacing={1.5}>
+              <StyleSlotButton
+                selectedSlugs={cfg.selectedStyleSlugs}
+                onOpenPicker={() => setStylePickerOpen(true)}
+              />
+              <WarpPicker
+                value={cfg.warpSlug}
+                onChange={(slug) => setCfg((c) => ({ ...c, warpSlug: slug }))}
+              />
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
+
+        {/* C. Layout & Composition (closed by default) */}
+        <Accordion>
+          <AccordionSummary
+            expandIcon={<ExpandMoreRoundedIcon />}
+            aria-controls="builder-layout-content"
+            id="builder-layout-header"
+          >
+            <Typography variant="subtitle1">Layout & Composition</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Stack spacing={2}>
+              <Stack spacing={0.75}>
+                <SpatialSlotButton
+                  value={cfg.slots.spatial_configuration}
+                  onOpenPicker={() => setSpatialPickerOpen(true)}
+                  onReset={() => resetSlot('spatial_configuration')}
+                />
+                {customSpatialMissing && (
+                  <Chip
+                    color="warning"
+                    variant="outlined"
+                    size="small"
+                    icon={<WarningAmberRoundedIcon />}
+                    label="Saved custom spatial deleted — fallback applied"
+                    data-testid="custom-spatial-missing-chip"
+                    onDelete={() => resetSlot('spatial_configuration')}
+                    deleteIcon={
+                      <Button
+                        size="small"
+                        variant="text"
+                        onClick={() => setSpatialPickerOpen(true)}
+                      >
+                        Pick replacement
+                      </Button>
+                    }
+                    sx={{ alignSelf: 'flex-start', height: 'auto', py: 0.5 }}
+                  />
+                )}
+              </Stack>
+              <TextSegmentationPicker
+                value={cfg.slots.text_segmentation ?? ''}
+                onChange={(v) => updateSlot('text_segmentation', v)}
+              />
+              <AccessoriesPicker
+                value={cfg.slots.accessories ?? ''}
+                onChange={(v) => updateSlot('accessories', v)}
+              />
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
+
+        {/* D. Visual Details (open by default) */}
+        <Accordion defaultExpanded>
+          <AccordionSummary
+            expandIcon={<ExpandMoreRoundedIcon />}
+            aria-controls="builder-visual-content"
+            id="builder-visual-header"
+          >
+            <Typography variant="subtitle1">Visual Details</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Stack spacing={2}>
+              <VisualDescriptionField
+                value={cfg.slots.visual_description ?? ''}
+                onChange={(v) => updateSlot('visual_description', v)}
+              />
+              <TypographyPicker
+                value={cfg.slots.typography_adjectives ?? ''}
+                onChange={(v) => updateSlot('typography_adjectives', v)}
+                styleDefault={firstStyleEntry?.defaultTypography}
+                styleLabel={firstStyleEntry?.label}
+              />
+              <MaterialPicker
+                value={cfg.slots.material_texture ?? ''}
+                onChange={(v) => updateSlot('material_texture', v)}
+                styleDefault={firstStyleEntry?.defaultMaterial}
+                styleLabel={firstStyleEntry?.label}
+              />
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
+
+        {/* E. Niche & Extra (closed by default) */}
+        <Accordion>
+          <AccordionSummary
+            expandIcon={<ExpandMoreRoundedIcon />}
+            aria-controls="builder-niche-content"
+            id="builder-niche-header"
+          >
+            <Typography variant="subtitle1">Niche & Extra</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Stack spacing={2}>
+              <Stack
+                direction="row"
+                spacing={3}
+                alignItems="center"
+                justifyContent="space-between"
+                sx={{ flexWrap: 'wrap', rowGap: 1.5 }}
+              >
+                <NicheContextToggle
+                  checked={cfg.includeNicheContext}
+                  onChange={(checked) =>
+                    setCfg((c) => ({ ...c, includeNicheContext: checked }))
+                  }
+                  reason={nicheReason}
+                />
+              </Stack>
+              <ReferenceIndicator url={referenceUrl} />
+              <ExtraContextField
+                value={cfg.slots.extra_context ?? ''}
+                onChange={(v) => updateSlot('extra_context', v)}
+              />
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
+
+        {/* Live preview (AC-67) — placed below all sections, above the Build CTA */}
+        <Accordion
+          expanded={previewOpen}
+          onChange={(_, expanded) => setPreviewOpen(expanded)}
+        >
+          <AccordionSummary
+            expandIcon={<ExpandMoreRoundedIcon />}
+            aria-controls="builder-preview-content"
+            id="builder-preview-header"
+          >
+            <Typography variant="subtitle1">Live Preview</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            {sloganList.length === 0 || cfg.selectedStyleSlugs.length === 0 ? (
+              <Typography variant="body2" color="text.secondary">
+                Pick a slogan and a style to preview…
+              </Typography>
+            ) : livePreview.previewError ? (
+              <Typography variant="body2" color="error">
+                {livePreview.previewError}
+              </Typography>
+            ) : livePreview.previewText ? (
+              <PreviewCode data-testid="builder-live-preview">
+                {livePreview.previewText}
+              </PreviewCode>
+            ) : (
+              <Typography variant="body2" color="text.secondary">
+                {livePreview.isLoading ? 'Building preview…' : 'Preview pending'}
+              </Typography>
+            )}
+          </AccordionDetails>
+        </Accordion>
       </Body>
 
       <BuildCounter
@@ -353,6 +512,21 @@ const BuilderDialog = ({
         confirmLabel={`Generate ${total} prompts`}
         onCancel={() => setConfirmKind(null)}
         onConfirm={fireBuild}
+      />
+
+      <SpatialPickerModal
+        open={spatialPickerOpen}
+        onClose={() => setSpatialPickerOpen(false)}
+        value={cfg.slots.spatial_configuration}
+        onChange={(v) => updateSlot('spatial_configuration', v)}
+        workspaceId={workspaceId}
+        projectId={projectId}
+      />
+      <StylePickerModal
+        open={stylePickerOpen}
+        onClose={() => setStylePickerOpen(false)}
+        selectedSlugs={cfg.selectedStyleSlugs}
+        onChange={(slugs) => setStyleSlugs(slugs)}
       />
     </DialogRoot>
   );
