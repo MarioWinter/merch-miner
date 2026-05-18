@@ -158,23 +158,23 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 > exact template texts in **Appendices J–N below** which are the source-of-truth and
 > must be copy-pasted verbatim by the implementing skill.
 
-### Phase 13a — Backend Foundation: Style Library v2 + 35 Spatial Variants + Anti-Gradient Rule
+### Phase 13a — Backend Foundation: Style Library v2 + 36 Spatial Variants + Anti-Gradient Rule
 
-- [ ] 13a.1 Append Rule #10 to `DESIGN_GEN_SYSTEM_PROMPT` in `design_app/services/image_generator.py` — exact wording in **Appendix N.1** — covers AC-49
-- [ ] 13a.2 In `design_app/services/style_library.py`, add module-level constants:
-  - `ARCHITECT_TEMPLATE_START` — exact string in **Appendix J.1** — covers AC-47
-  - `ARCHITECT_TEMPLATE_END` — exact string in **Appendix J.2** — covers AC-48
-  - `SLOT_SCHEMA` — exact dict in **Appendix J.3** — covers AC-50
-- [ ] 13a.3 In `design_app/services/style_library.py`, add the dropdown-option constants:
-  - `SPATIAL_OPTIONS` — **35 dict entries** with `id`/`ui_label`/`ui_description`/`thumbnail_path`/`prompt_text` (exact list in **Appendix J.4**) — covers AC-51 + AC-70
-  - `TEXT_SEGMENTATION_OPTIONS` (6 strings — **Appendix J.5**)
-  - `TYPOGRAPHY_OPTIONS` (6 strings — **Appendix J.6**)
-  - `ACCESSORIES_OPTIONS` (6 strings, multi-select — **Appendix J.7**)
-  - `MATERIAL_OPTIONS` (6 strings — **Appendix J.8**)
-- [ ] 13a.4 Extend each of the 15 entries in `STYLE_LIBRARY` with 4 new fields: `default_typography`, `default_material`, `default_style_dna`, **`default_spatial_id`** (one of the 35 SPATIAL_OPTIONS ids). Exact mapping in **Appendix K** — covers AC-52
-- [ ] 13a.5 Add helper `style_library.get_spatial_by_id(spatial_id: str) -> dict | None` — O(1) lookup over `SPATIAL_OPTIONS` keyed by `id`. Used by the prompt builder + the spatial scrub validators.
-- [ ] 13a.6 Unit tests: 35 SPATIAL entries; all ids unique; every `default_spatial_id` resolves; every default_typography/material points to a valid options-list value; `SLOT_SCHEMA` internally consistent.
-- [ ] 13a.7 No code path uses `style_library.STYLE_LIBRARY` directly outside `prompt_builder.py` (validated by grep before commit) — keeps the dependency direction clean.
+- [x] 13a.1 Append Rule #10 to `DESIGN_GEN_SYSTEM_PROMPT` in `design_app/services/image_generator.py` — exact wording in **Appendix N.1** — covers AC-49 — image_generator.py:52-56
+- [x] 13a.2 In `design_app/services/style_library.py`, add module-level constants:
+  - `ARCHITECT_TEMPLATE_START` — exact string in **Appendix J.1** — covers AC-47 — style_library.py:19-21
+  - `ARCHITECT_TEMPLATE_END` — exact string in **Appendix J.2** — covers AC-48 — style_library.py:26-30
+  - `SLOT_SCHEMA` — exact dict in **Appendix J.3** — covers AC-50 — style_library.py:36-93
+- [x] 13a.3 In `design_app/services/style_library.py`, add the dropdown-option constants:
+  - `SPATIAL_OPTIONS` — **36 dict entries** with `id`/`ui_label`/`ui_description`/`thumbnail_path`/`prompt_text` (exact list in **Appendix J.4**) — covers AC-51 + AC-70 — style_library.py:106-365
+  - `TEXT_SEGMENTATION_OPTIONS` (6 strings — **Appendix J.5**) — style_library.py:375-382
+  - `TYPOGRAPHY_OPTIONS` (6 strings — **Appendix J.6**) — style_library.py:388-395
+  - `ACCESSORIES_OPTIONS` (6 strings, multi-select — **Appendix J.7**) — style_library.py:398-405
+  - `MATERIAL_OPTIONS` (6 strings — **Appendix J.8**) — style_library.py:408-415
+- [x] 13a.4 Extend each of the 15 entries in `STYLE_LIBRARY` with 4 new fields: `default_typography`, `default_material`, `default_style_dna`, **`default_spatial_id`** (one of the 36 SPATIAL_OPTIONS ids). Exact mapping in **Appendix K** — covers AC-52 — style_library.py:434-619
+- [x] 13a.5 Add helper `style_library.get_spatial_by_id(spatial_id: str) -> dict | None` — O(1) lookup over `SPATIAL_OPTIONS` keyed by `id`. Used by the prompt builder + the spatial scrub validators. — style_library.py:419-427
+- [x] 13a.6 Unit tests: 36 SPATIAL entries; all ids unique; every `default_spatial_id` resolves; every default_typography/material points to a valid options-list value; `SLOT_SCHEMA` internally consistent. — tests/test_style_library_v2.py (31 tests, all green)
+- [x] 13a.7 No code path uses `style_library.STYLE_LIBRARY` directly outside `prompt_builder.py` (validated by grep before commit) — keeps the dependency direction clean. — only callers: prompt_builder.py:14,61 + the v2 test file itself.
 
 ### Phase 13b — Backend Form-Aware Builder + Spatial Resolver
 
@@ -198,7 +198,7 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 - [ ] 13c.5 New view `BuilderNicheHintsView(APIView)` at `GET /api/designs/projects/{id}/builder/niche-hints/`. Returns the JSON dict + metadata per AC-56. `IsAuthenticated` + workspace isolation — covers AC-56
 - [ ] 13c.6 Wire URL in `design_app/api/urls.py`
 - [ ] 13c.7 Management command `niche_app/management/commands/backfill_niche_builder_hints.py` per AC-57 — iterates `Niche.objects.filter(builder_form_hints__isnull=True)` that have a completed research, calls `structure_niche_for_builder` for each.
-- [ ] 13c.8 The system-prompt enumerates the **35 SPATIAL ids** (Appendix J.4) and forces the LLM to pick exactly ONE id (or return `null`). NO free-text spatial strings allowed — see updated **Appendix M**.
+- [ ] 13c.8 The system-prompt enumerates the **36 SPATIAL ids** (Appendix J.4) and forces the LLM to pick exactly ONE id (or return `null`). NO free-text spatial strings allowed — see updated **Appendix M**.
 - [ ] 13c.9 Tests: serializer shape, view auth, view 404 on cross-workspace project, view returns null when no niche linked, mocked LLM happy path returning a valid id, mocked LLM returning an unknown id (gracefully fall through to style default).
 
 ### Phase 13d — Backend Custom Spatial Layouts (model + CRUD + vision-LLM)
@@ -225,7 +225,7 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 
 ### Phase 13e — Frontend Form Components (5 inline + 2 modal-button stubs)
 
-- [ ] 13e.1 Create `frontend-ui/src/views/designs/board/constants/slotOptions.ts` mirroring backend Appendices J.4–J.8 1:1. Exported as typed const arrays. **`SPATIAL_OPTIONS` mirrors the 35-entry dict-list shape** — covers AC-69 + AC-70
+- [ ] 13e.1 Create `frontend-ui/src/views/designs/board/constants/slotOptions.ts` mirroring backend Appendices J.4–J.8 1:1. Exported as typed const arrays. **`SPATIAL_OPTIONS` mirrors the 36-entry dict-list shape** — covers AC-69 + AC-70
 - [ ] 13e.2 Extend `BuilderConfig` type in `types/builder.ts` with `slots: BuilderSlots` (8 optional strings) — covers AC-63
 - [ ] 13e.3 Build `SpatialSlotButton.tsx` (NOT a Select) — shows the currently-selected spatial's thumbnail + ui_label + ui_description-snippet + an "Open picker ▸" affordance. Click → opens `SpatialPickerModal`. Used inside the BuilderDialog form section — covers AC-65 + AC-76
 - [ ] 13e.4 Build `StyleSlotButton.tsx` — analogous to SpatialSlotButton but for style: shows the chosen style's thumbnail + name + a "Change style ▸" affordance. Click → opens `StylePickerModal` — covers AC-77
@@ -251,7 +251,7 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 - [ ] 13f.5 Wire the `CustomSpatialCreator` "From References" source to existing `useGetProjectReferencesQuery(projectId)` — reuse, do NOT build a parallel endpoint
 - [ ] 13f.6 Handle EC-30 client-side: reject upload >10 MB OR non-{jpg,png,webp} before sending to backend; show inline error
 - [ ] 13f.7 Handle EC-31: on 422 response with `forbidden_terms`, show error banner "Analysis hit forbidden terms: …" + "Retry with another image" + "Use raw text anyway (flagged)" escape-hatch button
-- [ ] 13f.8 Tests: SpatialPickerModal renders 35 thumbnails + search filters + tab-switching + selection callback; StylePickerModal renders 15 thumbnails; CustomSpatialCreator full happy path (mocked mutation chain) + forbidden-term error UX.
+- [ ] 13f.8 Tests: SpatialPickerModal renders 36 thumbnails + search filters + tab-switching + selection callback; StylePickerModal renders 15 thumbnails; CustomSpatialCreator full happy path (mocked mutation chain) + forbidden-term error UX.
 
 ### Phase 13g — Frontend Dialog Restructure + Wire-up
 
@@ -272,7 +272,7 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 - [ ] 13h.2 Frontend full suite green (`npx vitest run`)
 - [ ] 13h.3 `npx tsc -b` + `npx eslint src/` clean
 - [ ] 13h.4 Smoke A (Form): pick "school bus driver" niche → open Builder → fields pre-fill from niche-hints → 3 slogans × 2 styles → Build → 6 polished Architect-quality prompts in textarea, none mention "t-shirt", "gradient", or "soft shadow"
-- [ ] 13h.5 Smoke B (SpatialPickerModal): open from BuilderDialog → all 35 thumbnails render → search filters → select `definition_entry` → modal closes → SlotButton shows new selection → Build → prompt contains the Definition layout description
+- [ ] 13h.5 Smoke B (SpatialPickerModal): open from BuilderDialog → all 36 thumbnails render → search filters → select `definition_entry` → modal closes → SlotButton shows new selection → Build → prompt contains the Definition layout description
 - [ ] 13h.6 Smoke C (CustomSpatialCreator — upload path): open Create new → upload a hand-drawn layout sketch → Analyze → editable text appears → name "My-Custom-1" → Save → appears in Custom tab + auto-selected → Build → prompt contains the LLM-generated spatial text + no forbidden colors/style words
 - [ ] 13h.7 Smoke D (CustomSpatialCreator — reference path): open Create new → "From References" tab → pick an existing ProjectReference → Analyze → Save → same outcome
 - [ ] 13h.8 Smoke E (StylePickerModal): open from BuilderDialog → 15 style thumbnails → select `vintage_retro` → modal closes → form auto-defaults update (Typography/Material badges flip)
@@ -371,7 +371,7 @@ SLOT_SCHEMA = [
 ]
 ```
 
-### J.4 `SPATIAL_OPTIONS` (35 dict entries — replaces the v1 6-string list)
+### J.4 `SPATIAL_OPTIONS` (36 dict entries — replaces the v1 6-string list)
 
 > Each entry must be copy-pasted verbatim. `id` is the stable identifier referenced from
 > Appendix K, Appendix M (niche-LLM enum), and frontend `slotOptions.ts`. `thumbnail_path`
@@ -645,7 +645,7 @@ SPATIAL_OPTIONS = [
 
 > The first 6 ids (`vertical_stack` … `text_overlay`) preserve the v1 spec wording so any
 > hand-saved v1 BuilderPreset that stored a free-text override that happened to match is
-> still compatible. The remaining 29 entries are new in Schicht 13.
+> still compatible. The remaining 30 entries are new in Schicht 13.
 
 ### J.5 `TEXT_SEGMENTATION_OPTIONS` (6 items)
 
@@ -707,7 +707,7 @@ MATERIAL_OPTIONS = [
 
 > Each row defines which of the 6 `TYPOGRAPHY_OPTIONS` + 6 `MATERIAL_OPTIONS` is the
 > auto-default for that style, plus a free-form `default_style_dna` descriptor, plus
-> **`default_spatial_id`** referencing one of the 35 `SPATIAL_OPTIONS` ids from Appendix J.4.
+> **`default_spatial_id`** referencing one of the 36 `SPATIAL_OPTIONS` ids from Appendix J.4.
 > `default_typography` and `default_material` use **the exact string** from the
 > options lists in Appendix J.6 / J.8 (not an index).
 >
@@ -1019,7 +1019,7 @@ def _resolve_spatial(*, user_val, niche_hint_id, style_default_id, workspace_id)
 | 11 — Settings UI | ~100 | | ✓ |
 | 12 — Tests + QA | ~600 | ✓ | ✓ |
 | **Σ Phases 1–12** | **~3400 LOC (shipped)** | | |
-| 13a — Style Library v2 + 35 SPATIAL + Rule #10 | ~620 + 35 PNGs | ✓ | |
+| 13a — Style Library v2 + 36 SPATIAL + Rule #10 | ~620 + 36 PNGs | ✓ | |
 | 13b — build_form_prompt + Spatial resolver + Tests | ~290 | ✓ | |
 | 13c — Niche-LLM Pre-structuring (35 ids) | ~290 | ✓ | |
 | 13d — CustomSpatial Backend (model + CRUD + vision-LLM) | ~360 | ✓ | |
@@ -1027,7 +1027,7 @@ def _resolve_spatial(*, user_val, niche_hint_id, style_default_id, workspace_id)
 | 13f — Spatial/Style PickerModals + CustomSpatialCreator | ~520 | | ✓ |
 | 13g — BuilderDialog Rebuild + Wire-up + EC-32 | ~330 | | ✓ |
 | 13h — QA + 5 Smokes | ~90 | ✓ | ✓ |
-| **Σ Phase 13** | **~3220 LOC + 35 PNGs** | | |
+| **Σ Phase 13** | **~3220 LOC + 36 PNGs** | | |
 | **GRAND TOTAL (1–13)** | **~6620 LOC + 50 PNGs** | | |
 
 Realistic dev time for Phase 13 (single-dev): **6–9 working days**. With Claude pair: **2–3 days**.
@@ -1641,7 +1641,7 @@ accordion.
 **Shell:**
 - MUI `Dialog`, `fullScreen={isMobile}`, `maxWidth='lg'`, `fullWidth`.
 - Title bar: "Choose spatial layout" + close icon.
-- Top sticky row: search `TextField` (icon: `SearchIcon`, placeholder `"Search 35 layouts…"`) + `Tabs` with three tabs: **Built-in (35)**, **Custom ({n})**, **Create new**.
+- Top sticky row: search `TextField` (icon: `SearchIcon`, placeholder `"Search 36 layouts…"`) + `Tabs` with three tabs: **Built-in (36)**, **Custom ({n})**, **Create new**.
 - Body: scrollable area.
 - Footer (only when a selection differs from the current value): primary `Button` "Use selection".
 
@@ -1710,10 +1710,10 @@ Next button enabled only when one source is chosen.
 
 ---
 
-## Appendix R — Thumbnail Generation Script (35 Spatial Variants)
+## Appendix R — Thumbnail Generation Script (36 Spatial Variants)
 
 `scripts/generate_spatial_thumbnails.py` — mirrors the existing
-`scripts/generate_style_thumbnails.py` pattern (Phase 7) but renders 35 schematic SVGs +
+`scripts/generate_style_thumbnails.py` pattern (Phase 7) but renders 36 schematic SVGs +
 PNG exports of the layout grammar (NOT full designs). Each thumbnail is a 512×512 PNG with
 a neutral grey background (`#D9D9D9`) and black geometric markers showing where text
 blocks (rectangles) and the illustration (a generic crossed-circle placeholder) sit per
@@ -1729,7 +1729,7 @@ the spatial id.
 ```python
 # scripts/generate_spatial_thumbnails.py
 """
-Render 35 schematic PNG thumbnails for SPATIAL_OPTIONS into
+Render 36 schematic PNG thumbnails for SPATIAL_OPTIONS into
 design_app/static/design_app/thumbnails/spatial/{id}.png
 
 Usage:  python scripts/generate_spatial_thumbnails.py
@@ -1766,7 +1766,7 @@ if __name__ == '__main__':
 ```
 
 **Storage + commit policy:**
-- The 35 PNGs commit to git under `django-app/design_app/static/design_app/thumbnails/spatial/`.
+- The 36 PNGs commit to git under `django-app/design_app/static/design_app/thumbnails/spatial/`.
 - Combined size budget: ≤2 MB total (each PNG ≤60 kB). The schematic style compresses well.
 - The script is idempotent — re-running overwrites. CI never runs it; it's a one-time author step.
 

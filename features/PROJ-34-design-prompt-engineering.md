@@ -153,15 +153,15 @@ slot-shaped suggestions that pre-populate the form when the user opens the Build
 niche-linked project.
 
 **Schicht 13 add-on (modal pickers + custom spatials):** The Spatial slot ships with a
-much richer library of **35 layout variants** (vertical stacks, badges, definitions, jersey
+much richer library of **36 layout variants** (vertical stacks, badges, definitions, jersey
 layouts, postage-stamp, sports-jersey, ticket, map-coordinates, knockout, diagonals,
 triptychs, …). Each variant has a thumbnail + short UI description + rich prompt text. To
 keep the BuilderDialog navigable, **two picker modals** are introduced: a
-**SpatialPickerModal** (grid of 35 thumbnails + search + a "Custom" tab) and a
+**SpatialPickerModal** (grid of 36 thumbnails + search + a "Custom" tab) and a
 **StylePickerModal** (the existing 15 styles refactored into the same modal pattern). Both
 modals open via small "Spatial layout ▸" / "Style ▸" buttons in the BuilderDialog.
 
-If none of the 35 built-in spatials fit, the user can create a **Custom Spatial Layout**:
+If none of the 36 built-in spatials fit, the user can create a **Custom Spatial Layout**:
 upload an image OR pick an existing Design or Project Reference from the Design Forge right
 panel; a vision-LLM (`openai/gpt-4.1-mini`) analyses ONLY the **text-and-vector
 positioning** of the image (explicitly forbidden to describe colors, styles, or
@@ -204,12 +204,12 @@ identically to built-ins.
 - **As a POD seller** who finishes the form, I want a **live preview** at the bottom that
   shows the assembled prompt before I click Build, so I can spot issues.
 
-- **As a POD seller**, I want the Spatial slot to expose **all 35 layout variants** (not 6)
+- **As a POD seller**, I want the Spatial slot to expose **all 36 layout variants** (not 6)
   in a **modal grid with thumbnails + short descriptions** so I can browse visually rather
   than scroll a 35-row dropdown. Same for the 15 Styles — the modal pattern keeps the
   BuilderDialog compact and the picker scannable.
 
-- **As a POD seller** who needs a layout that none of the 35 built-ins cover, I want a
+- **As a POD seller** who needs a layout that none of the 36 built-ins cover, I want a
   **"Create Custom Spatial"** flow inside the SpatialPickerModal that lets me either
   **upload a reference image** OR **pick from my Project References / generated Designs
   in the Design Forge right panel**. A vision-LLM should analyse it and extract ONLY the
@@ -221,19 +221,20 @@ identically to built-ins.
 
 #### Schicht 8 — Architect Template Sections
 
-- [ ] AC-47: A new constant `ARCHITECT_TEMPLATE_START` in `style_library.py` holds the
+- [x] AC-47: A new constant `ARCHITECT_TEMPLATE_START` in `style_library.py` holds the
   static opener `"A professional vector print design isolated on a {bg_hex} background."`
   — `{bg_hex}` is the only placeholder.
-- [ ] AC-48: A new constant `ARCHITECT_TEMPLATE_END` in `style_library.py` holds the
+- [x] AC-48: A new constant `ARCHITECT_TEMPLATE_END` in `style_library.py` holds the
   static closer `"High contrast, clean outlines, commercial vector art. Screen print
   ready, hard edges, no gradients, no glow effects, no soft shadows, no drop shadows,
   vector sharpness, 300 DPI."` — the no-gradients/glow/shadow clauses are NON-NEGOTIABLE
   (covers `*As a POD seller, no gradients ever*` user story).
-- [ ] AC-49: A new constant `DESIGN_GEN_SYSTEM_PROMPT` gets a 10th hard rule appended:
-  `"10. NEVER produce gradient fills, glowing effects, soft-edge shadows, drop shadows,
-  or any blurred edge. Print on Demand requires hard edges and flat color regions even
-  on round shapes."`
-- [ ] AC-50: An 8-slot data structure `SLOT_SCHEMA` enumerates each Architect template
+- [x] AC-49: A new constant `DESIGN_GEN_SYSTEM_PROMPT` gets a 10th hard rule appended.
+  Exact wording in **Appendix N.1 of the tasks file** (verbatim source-of-truth — the
+  rule explicitly forbids gradient fills, glowing effects, soft-edge shadows, drop
+  shadows, and any blurred edge, and requires rounded geometry to be rendered with
+  crisp outlined boundaries and flat fills).
+- [x] AC-50: An 8-slot data structure `SLOT_SCHEMA` enumerates each Architect template
   slot in render order: `spatial_configuration`, `visual_description`,
   `text_segmentation`, `typography_adjectives`, `accessories`, `material_texture`,
   `style_dna`, `extra_context`. Each slot entry declares: `label`, `requires_value`,
@@ -241,13 +242,13 @@ identically to built-ins.
 
 #### Schicht 9 — Slot Dropdown Options (15 styles × 6 dropdown slots)
 
-- [ ] AC-51: For each of the 5 user-driven dropdown slots (Spatial, Text-Segmentation,
+- [x] AC-51: For each of the 5 user-driven dropdown slots (Spatial, Text-Segmentation,
   Typography, Accessories, Material) the file `style_library.py` ships a fixed list of
   **6 preset variants** with crisp ≤30-word Architect-quality descriptions. Lists are
   shared across all 15 styles; the per-style auto-default picks ONE of the 6 as the
   Builder's pre-selected value. Exact text per slot lives in **Appendix J of the tasks
   file**.
-- [ ] AC-52: For each of the 15 styles in `STYLE_LIBRARY`, the entry gains 3 new fields:
+- [x] AC-52: For each of the 15 styles in `STYLE_LIBRARY`, the entry gains 3 new fields:
   `default_typography` (one of the 6 Typography variants), `default_material` (one of
   the 6 Material variants), `default_style_dna` (a per-style descriptor string).
   Exact mapping lives in **Appendix K of the tasks file**.
@@ -358,12 +359,12 @@ identically to built-ins.
 
 #### Schicht 13 — Modal Pickers + Custom Spatial Layouts
 
-- [ ] AC-70: `SPATIAL_OPTIONS` in `style_library.py` ships **35 entries** (replaces the
+- [x] AC-70: `SPATIAL_OPTIONS` in `style_library.py` ships **36 entries** (replaces the
   6-item v1 list). Each entry is a dict with keys `id` (snake_case stable ID, e.g.
   `vertical_stack`), `ui_label` (≤24-char human label), `ui_description` (≤90-char one-line
   UI blurb), `thumbnail_path` (relative path to a 512×512 PNG under
   `design_app/static/design_app/thumbnails/spatial/`), and `prompt_text` (40–70 word
-  Architect-grade layout description used in the rendered Gemini prompt). Exact 35 entries
+  Architect-grade layout description used in the rendered Gemini prompt). Exact 36 entries
   in **Appendix J.4 of the tasks file**.
 - [ ] AC-71: A new Django model `CustomSpatial` in `design_app/models.py` with fields:
   `id` (UUID, PK), `workspace` (FK Workspace), `created_by` (FK User), `name` (CharField,
@@ -408,7 +409,7 @@ identically to built-ins.
   4. else if `niche_hints.spatial` is set → resolve recursively via steps 1–3
   5. else → omit the spatial sentence entirely
 - [ ] AC-76: A new `SpatialPickerModal.tsx` component opens from the BuilderDialog
-  "Spatial layout ▸" button. It renders three tabs: **Built-in** (35 thumbnail cards in a
+  "Spatial layout ▸" button. It renders three tabs: **Built-in** (36 thumbnail cards in a
   responsive 3–4 column grid with `ui_label` + `ui_description` underneath), **Custom**
   (workspace's CustomSpatials), **Create new** (the CustomSpatialCreator inline). Search
   bar filters by label/description. Single-select, returns the chosen id (built-in slug or
