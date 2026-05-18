@@ -6,12 +6,33 @@ import type { StyleEntry } from '../constants/styleLibrary';
 
 export type BackgroundColorSlug = 'light_gray' | 'neon_pink' | 'neon_green';
 
+// PROJ-34 Phase 13e — form-based Architect Builder slots.
+// `spatial_configuration` accepts either a built-in id from
+// `SPATIAL_OPTIONS` (Appendix J.4), a `CustomSpatial` UUID, or raw free-text
+// the user typed. The renderer in 13g picks the right code path.
+export type SpatialSlot = string;
+
+export interface BuilderSlots {
+  spatial_configuration?: SpatialSlot;
+  visual_description?: string;
+  text_segmentation?: string;
+  typography_adjectives?: string;
+  /** Multi-select on the UI; persisted as a `', '`-joined string for the backend. */
+  accessories?: string;
+  material_texture?: string;
+  style_dna?: string;
+  extra_context?: string;
+}
+
 export interface BuilderConfig {
   selectedSloganIds: string[];
   freeTextSlogans: string;
   selectedStyleSlugs: string[];
   warpSlug: string | null;
   includeNicheContext: boolean;
+  // Phase 13e — form-based Architect slots. Optional + always present so
+  // existing v1 presets without the field load cleanly (EC-25).
+  slots: BuilderSlots;
 }
 
 export const EMPTY_BUILDER_CONFIG: BuilderConfig = {
@@ -20,6 +41,7 @@ export const EMPTY_BUILDER_CONFIG: BuilderConfig = {
   selectedStyleSlugs: [],
   warpSlug: null,
   includeNicheContext: true,
+  slots: {},
 };
 
 // Threshold past which a confirm dialog blocks Build (AC-35).

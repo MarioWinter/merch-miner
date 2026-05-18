@@ -225,17 +225,17 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 
 ### Phase 13e — Frontend Form Components (5 inline + 2 modal-button stubs)
 
-- [ ] 13e.1 Create `frontend-ui/src/views/designs/board/constants/slotOptions.ts` mirroring backend Appendices J.4–J.8 1:1. Exported as typed const arrays. **`SPATIAL_OPTIONS` mirrors the 36-entry dict-list shape** — covers AC-69 + AC-70
-- [ ] 13e.2 Extend `BuilderConfig` type in `types/builder.ts` with `slots: BuilderSlots` (8 optional strings) — covers AC-63
-- [ ] 13e.3 Build `SpatialSlotButton.tsx` (NOT a Select) — shows the currently-selected spatial's thumbnail + ui_label + ui_description-snippet + an "Open picker ▸" affordance. Click → opens `SpatialPickerModal`. Used inside the BuilderDialog form section — covers AC-65 + AC-76
-- [ ] 13e.4 Build `StyleSlotButton.tsx` — analogous to SpatialSlotButton but for style: shows the chosen style's thumbnail + name + a "Change style ▸" affordance. Click → opens `StylePickerModal` — covers AC-77
-- [ ] 13e.5 Build `VisualDescriptionField.tsx` — multiline TextField (3 rows min, 6 max), required, with helper text `"Describe the illustration: subject, perspective, 6+ concrete details"` — covers AC-65 + AC-67
-- [ ] 13e.6 Build `TextSegmentationPicker.tsx` — MUI Select + "Custom…" → TextField + style-auto-default badge + ↺ reset icon
-- [ ] 13e.7 Build `TypographyPicker.tsx` — same pattern with style-auto-default
-- [ ] 13e.8 Build `AccessoriesPicker.tsx` — MUI Autocomplete `multiple={true} freeSolo={true}` so user can pick multiple presets + type custom
-- [ ] 13e.9 Build `MaterialPicker.tsx` — same pattern as TypographyPicker
-- [ ] 13e.10 Build `ExtraContextField.tsx` — multiline TextField (2 rows min, 4 max), placeholder `"Optional custom additions appended verbatim before the tech specs"`
-- [ ] 13e.11 Per-component tests: empty state, custom-text reveal on "Custom…" selection, ↺ reset behavior, style-auto-default badge presence/absence; SpatialSlotButton renders thumbnail + label correctly for built-in and custom UUID selections.
+- [x] 13e.1 Create `frontend-ui/src/views/designs/board/constants/slotOptions.ts` mirroring backend Appendices J.4–J.8 1:1. Exported as typed const arrays. **`SPATIAL_OPTIONS` mirrors the 36-entry dict-list shape** — covers AC-69 + AC-70 — `slotOptions.ts:13-380`
+- [x] 13e.2 Extend `BuilderConfig` type in `types/builder.ts` with `slots: BuilderSlots` (8 optional strings) — covers AC-63 — `types/builder.ts:9-45`
+- [x] 13e.3 Build `SpatialSlotButton.tsx` (NOT a Select) — shows the currently-selected spatial's thumbnail + ui_label + ui_description-snippet + an "Open picker ▸" affordance. Click → opens `SpatialPickerModal`. Used inside the BuilderDialog form section — covers AC-65 + AC-76 — `SpatialSlotButton.tsx:108-182`
+- [x] 13e.4 Build `StyleSlotButton.tsx` — analogous to SpatialSlotButton but for style: shows the chosen style's thumbnail + name + a "Change style ▸" affordance. Click → opens `StylePickerModal` — covers AC-77 — `StyleSlotButton.tsx:44-129`
+- [x] 13e.5 Build `VisualDescriptionField.tsx` — multiline TextField (3 rows min, 6 max), required, with helper text `"Describe the illustration: subject, perspective, 6+ concrete details"` — covers AC-65 + AC-67 — `VisualDescriptionField.tsx:29-60`
+- [x] 13e.6 Build `TextSegmentationPicker.tsx` — MUI Select + "Custom…" → TextField + style-auto-default badge + ↺ reset icon — `TextSegmentationPicker.tsx:34-136`
+- [x] 13e.7 Build `TypographyPicker.tsx` — same pattern with style-auto-default — `TypographyPicker.tsx:37-158`
+- [x] 13e.8 Build `AccessoriesPicker.tsx` — MUI Autocomplete `multiple={true} freeSolo={true}` so user can pick multiple presets + type custom — `AccessoriesPicker.tsx:34-100`
+- [x] 13e.9 Build `MaterialPicker.tsx` — same pattern as TypographyPicker — `MaterialPicker.tsx:34-150`
+- [x] 13e.10 Build `ExtraContextField.tsx` — multiline TextField (2 rows min, 4 max), placeholder `"Optional custom additions appended verbatim before the tech specs"` — `ExtraContextField.tsx:18-42`
+- [x] 13e.11 Per-component tests: empty state, custom-text reveal on "Custom…" selection, ↺ reset behavior, style-auto-default badge presence/absence; SpatialSlotButton renders thumbnail + label correctly for built-in and custom UUID selections. — 8 test files in `partials/promptBuilder/__tests__/` (36 tests total)
 
 ### Phase 13f — Frontend Spatial + Style Picker Modals + Custom Spatial Creator
 

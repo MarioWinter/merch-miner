@@ -62,10 +62,34 @@ export interface ProductAnalyzeResponse {
   job_id?: string;
 }
 
+// PROJ-34 Phase 13c — structured niche hints used to pre-fill the form-based
+// Builder slots. `builder_form_hints` schema lives in Appendix L.
+export interface BuilderFormHints {
+  _schema_version?: number;
+  _generated_at?: string;
+  _source_research_id?: string;
+  spatial?: string | null;
+  visual?: string | null;
+  accessories?: string | null;
+  material?: string | null;
+  _alternates?: {
+    spatial?: string[];
+    visual?: string[];
+    accessories?: string[];
+    material?: string[];
+  };
+}
+
+export interface NicheHintsResponse {
+  builder_form_hints: BuilderFormHints | null;
+  niche_id: string | null;
+  last_updated: string | null;
+}
+
 export const designApi = createApi({
   reducerPath: 'designApi',
   baseQuery: axiosBaseQuery({ baseUrl: '' }),
-  tagTypes: ['DesignBoard', 'Design', 'DesignList', 'Run', 'ProcessingJob', 'Pipeline', 'DesignProject', 'DesignProjectList', 'ProcessingSettings', 'BuilderPreset'],
+  tagTypes: ['DesignBoard', 'Design', 'DesignList', 'Run', 'ProcessingJob', 'Pipeline', 'DesignProject', 'DesignProjectList', 'ProcessingSettings', 'BuilderPreset', 'NicheHints'],
   endpoints: (builder) => ({
     // Board context (idea-scoped)
     getBoardContext: builder.query<BoardContext, string>({
@@ -700,6 +724,19 @@ export const designApi = createApi({
       ],
     }),
 
+    // PROJ-34 Phase 13c — niche-hints used to pre-fill form-based Builder
+    // slots. Returns `{ builder_form_hints: null, niche_id: null, last_updated: null }`
+    // when the project has no linked niche (EC-26).
+    getNicheHints: builder.query<NicheHintsResponse, { projectId: string }>({
+      query: ({ projectId }) => ({
+        url: `/api/designs/projects/${projectId}/builder/niche-hints/`,
+        method: 'GET',
+      }),
+      providesTags: (_result, _error, { projectId }) => [
+        { type: 'NicheHints', id: projectId },
+      ],
+    }),
+
     // --- Phase I: Product-to-Canvas References ---
 
     // Add product references to project
@@ -785,6 +822,7 @@ export const {
   useListBuilderPresetsQuery,
   useCreateBuilderPresetMutation,
   useDeleteBuilderPresetMutation,
+  useGetNicheHintsQuery,
   // Phase I: References
   useAddReferencesToProjectMutation,
   useRemoveReferenceFromProjectMutation,

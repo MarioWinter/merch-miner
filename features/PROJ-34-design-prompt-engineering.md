@@ -301,9 +301,9 @@ identically to built-ins.
 
 #### Schicht 12 — Frontend Form UI
 
-- [ ] AC-63: `BuilderConfig` type adds a new field `slots: BuilderSlots` (8 optional
+- [x] AC-63: `BuilderConfig` type adds a new field `slots: BuilderSlots` (8 optional
   strings — same names as backend). Old fields `selectedStyleSlugs`, `warpSlug`,
-  `includeNicheContext` stay.
+  `includeNicheContext` stay. — `frontend-ui/src/views/designs/board/types/builder.ts:9-45`
 - [ ] AC-64: The renovated `BuilderDialog` is restructured into 5 collapsible MUI
   Accordions:
   - **A. Slogans** (existing SloganPicker; open by default)
@@ -314,7 +314,7 @@ identically to built-ins.
     default + TypographyPicker + MaterialPicker)
   - **E. Niche & Extra** (existing NicheContextToggle + ReferenceIndicator + new
     ExtraContextField; closed by default)
-- [ ] AC-65: 7 new partials in `frontend-ui/src/views/designs/board/partials/promptBuilder/`:
+- [x] AC-65: 7 new partials in `frontend-ui/src/views/designs/board/partials/promptBuilder/`:
   `SpatialPicker.tsx`, `VisualDescriptionField.tsx`, `TextSegmentationPicker.tsx`,
   `TypographyPicker.tsx`, `AccessoriesPicker.tsx`, `MaterialPicker.tsx`,
   `ExtraContextField.tsx`. Each:
@@ -322,9 +322,10 @@ identically to built-ins.
   - Shows a `Custom…` final option that reveals a `<TextField>`
   - Shows an "auto from {Style}" badge when the value matches the style-default
   - Has a small "↺" icon to reset back to the style-default
-- [ ] AC-66: A new RTK Query endpoint `useGetNicheHintsQuery(projectId)` calls the
+  — partials live in `frontend-ui/src/views/designs/board/partials/promptBuilder/` (8 files including SpatialSlotButton + StyleSlotButton); SpatialSlotButton replaces the originally-planned SpatialPicker per Phase 13e refinement.
+- [x] AC-66: A new RTK Query endpoint `useGetNicheHintsQuery(projectId)` calls the
   Phase-10 GET. Result is used to pre-fill form slots when `builder_form_hints` is
-  present and the user has not yet typed anything in that slot.
+  present and the user has not yet typed anything in that slot. — `frontend-ui/src/store/designSlice.ts` (endpoint added in Phase 13e)
 - [ ] AC-67: Below the Build CTA, a new collapsible `Live Preview` panel renders the
   exact assembled prompt for `slogans[0] × styles[0]` so the user can sanity-check before
   spending credits.
@@ -332,9 +333,9 @@ identically to built-ins.
   now including the `slots` sub-object. Existing presets (saved under the v1 schema)
   load without the `slots` field — Builder treats it as `{}` so all slot fallbacks
   kick in. No DB migration needed.
-- [ ] AC-69: Every dropdown option set ships as a typed constant in a new file
+- [x] AC-69: Every dropdown option set ships as a typed constant in a new file
   `frontend-ui/src/views/designs/board/constants/slotOptions.ts` mirroring backend
-  Appendix J text 1:1.
+  Appendix J text 1:1. — `frontend-ui/src/views/designs/board/constants/slotOptions.ts:13-380`
 
 ### Edge Cases (Phase 13)
 
