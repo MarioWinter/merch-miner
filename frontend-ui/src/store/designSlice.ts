@@ -86,10 +86,45 @@ export interface NicheHintsResponse {
   last_updated: string | null;
 }
 
+// PROJ-34 Phase 13f — workspace-scoped Custom Spatial layouts created by the
+// user via the SpatialPickerModal "Create new" tab. Field shape mirrors
+// `design_app.api.serializers.CustomSpatialSerializer`.
+export interface CustomSpatial {
+  id: string;
+  name: string;
+  prompt_text: string;
+  source_kind: 'upload' | 'reference' | 'design';
+  source_image_ref: string;
+  is_unsafe: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Body of `POST /api/designs/spatials/custom/analyze/`. One-of:
+//   • `FormData`        — direct image upload (multipart/form-data)
+//   • `{reference_id}`  — analyze an existing ProjectReference
+//   • `{design_id}`     — analyze an existing Design
+export type AnalyzeSpatialBody =
+  | FormData
+  | { reference_id: string }
+  | { design_id: string };
+
+export interface AnalyzeSpatialResponse {
+  prompt_text: string;
+  model: string;
+}
+
+export interface CreateCustomSpatialBody {
+  name: string;
+  prompt_text: string;
+  source_kind: 'upload' | 'reference' | 'design';
+  source_image_ref?: string;
+}
+
 export const designApi = createApi({
   reducerPath: 'designApi',
   baseQuery: axiosBaseQuery({ baseUrl: '' }),
-  tagTypes: ['DesignBoard', 'Design', 'DesignList', 'Run', 'ProcessingJob', 'Pipeline', 'DesignProject', 'DesignProjectList', 'ProcessingSettings', 'BuilderPreset', 'NicheHints'],
+  tagTypes: ['DesignBoard', 'Design', 'DesignList', 'Run', 'ProcessingJob', 'Pipeline', 'DesignProject', 'DesignProjectList', 'ProcessingSettings', 'BuilderPreset', 'NicheHints', 'CustomSpatial'],
   endpoints: (builder) => ({
     // Board context (idea-scoped)
     getBoardContext: builder.query<BoardContext, string>({
@@ -737,6 +772,42 @@ export const designApi = createApi({
       ],
     }),
 
+    // PROJ-34 Phase 13f — Custom Spatial CRUD + LLM analyze (Appendix Q.3).
+    // `analyzeSpatial` accepts FormData (upload) or {reference_id} / {design_id}
+    // (existing asset). Server returns the Architect-grade prompt_text.
+    analyzeSpatial: builder.mutation<AnalyzeSpatialResponse, AnalyzeSpatialBody>({
+      query: (body) => ({
+        url: '/api/designs/spatials/custom/analyze/',
+        method: 'POST',
+        data: body,
+      }),
+    }),
+
+    listCustomSpatials: builder.query<CustomSpatial[], void>({
+      query: () => ({
+        url: '/api/designs/spatials/custom/',
+        method: 'GET',
+      }),
+      providesTags: [{ type: 'CustomSpatial', id: 'LIST' }],
+    }),
+
+    createCustomSpatial: builder.mutation<CustomSpatial, CreateCustomSpatialBody>({
+      query: (body) => ({
+        url: '/api/designs/spatials/custom/',
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: [{ type: 'CustomSpatial', id: 'LIST' }],
+    }),
+
+    deleteCustomSpatial: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/api/designs/spatials/custom/${id}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: [{ type: 'CustomSpatial', id: 'LIST' }],
+    }),
+
     // --- Phase I: Product-to-Canvas References ---
 
     // Add product references to project
@@ -823,6 +894,11 @@ export const {
   useCreateBuilderPresetMutation,
   useDeleteBuilderPresetMutation,
   useGetNicheHintsQuery,
+  // PROJ-34 Phase 13f: Custom Spatial CRUD + analyze
+  useAnalyzeSpatialMutation,
+  useListCustomSpatialsQuery,
+  useCreateCustomSpatialMutation,
+  useDeleteCustomSpatialMutation,
   // Phase I: References
   useAddReferencesToProjectMutation,
   useRemoveReferenceFromProjectMutation,

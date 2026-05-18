@@ -239,8 +239,8 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 
 ### Phase 13f — Frontend Spatial + Style Picker Modals + Custom Spatial Creator
 
-- [ ] 13f.1 Build `SpatialPickerModal.tsx` per UX spec in **Appendix Q.1**: MUI `Dialog` (fullScreen on `xs`, `maxWidth='lg'` otherwise), three tabs (Built-in / Custom / Create new), search bar, responsive 3–4 column thumbnail grid, single-select, ESC closes — covers AC-76
-- [ ] 13f.2 Build `StylePickerModal.tsx` per UX spec in **Appendix Q.2**: Same shell as SpatialPickerModal but two tabs only (Built-in / no Custom for styles — Mario-curated). Re-uses Phase-7 thumbnail PNGs. Replaces the inline `StylePicker` mounted in BuilderDialog — covers AC-77
+- [x] 13f.1 Build `SpatialPickerModal.tsx` per UX spec in **Appendix Q.1**: MUI `Dialog` (fullScreen on `xs`, `maxWidth='lg'` otherwise), three tabs (Built-in / Custom / Create new), search bar, responsive 3–4 column thumbnail grid, single-select, ESC closes — covers AC-76 — SpatialPickerModal.tsx:1-219 + SpatialPickerModal.grids.tsx:1-177 + designSlice.ts:740-789 ("Create new" tab body is a placeholder until 13f part B mounts CustomSpatialCreator)
+- [x] 13f.2 Build `StylePickerModal.tsx` per UX spec in **Appendix Q.2**: Same shell as SpatialPickerModal but two tabs only (Built-in / no Custom for styles — Mario-curated). Re-uses Phase-7 thumbnail PNGs. Replaces the inline `StylePicker` mounted in BuilderDialog — covers AC-77 — StylePickerModal.tsx:1-255 (BuilderDialog wiring intentionally deferred to 13f part B)
 - [ ] 13f.3 Build `CustomSpatialCreator.tsx` (mounted inside SpatialPickerModal "Create new" tab) per **Appendix Q.3**: three-step wizard — (1) Source picker tabs: Upload / From References / From Designs, (2) Analyze (calls `POST /spatials/custom/analyze/`, shows skeleton + LLM response in editable TextField), (3) Name + Save — covers AC-78
 - [ ] 13f.4 Add RTK Query endpoints to `store/designSlice.ts`:
   - `useAnalyzeSpatialMutation` (multipart POST)
