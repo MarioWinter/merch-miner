@@ -152,6 +152,24 @@ Architect 7-Step template directly. Each slot is a dropdown of pre-written varia
 slot-shaped suggestions that pre-populate the form when the user opens the Builder for a
 niche-linked project.
 
+**Schicht 13 add-on (modal pickers + custom spatials):** The Spatial slot ships with a
+much richer library of **35 layout variants** (vertical stacks, badges, definitions, jersey
+layouts, postage-stamp, sports-jersey, ticket, map-coordinates, knockout, diagonals,
+triptychs, …). Each variant has a thumbnail + short UI description + rich prompt text. To
+keep the BuilderDialog navigable, **two picker modals** are introduced: a
+**SpatialPickerModal** (grid of 35 thumbnails + search + a "Custom" tab) and a
+**StylePickerModal** (the existing 15 styles refactored into the same modal pattern). Both
+modals open via small "Spatial layout ▸" / "Style ▸" buttons in the BuilderDialog.
+
+If none of the 35 built-in spatials fit, the user can create a **Custom Spatial Layout**:
+upload an image OR pick an existing Design or Project Reference from the Design Forge right
+panel; a vision-LLM (`openai/gpt-4.1-mini`) analyses ONLY the **text-and-vector
+positioning** of the image (explicitly forbidden to describe colors, styles, or
+illustration content) and returns a layout-prompt that the user can name + save. Custom
+Spatials are **workspace-scoped** (shared with all members) and appear in the SpatialPickerModal
+"Custom" tab. They are referenced by UUID in `slots.spatial_configuration` and render
+identically to built-ins.
+
 ### User Stories (Phase 13)
 
 - **As a POD seller**, when I open the Builder for the "school bus driver" project, I want
@@ -185,6 +203,19 @@ niche-linked project.
 
 - **As a POD seller** who finishes the form, I want a **live preview** at the bottom that
   shows the assembled prompt before I click Build, so I can spot issues.
+
+- **As a POD seller**, I want the Spatial slot to expose **all 35 layout variants** (not 6)
+  in a **modal grid with thumbnails + short descriptions** so I can browse visually rather
+  than scroll a 35-row dropdown. Same for the 15 Styles — the modal pattern keeps the
+  BuilderDialog compact and the picker scannable.
+
+- **As a POD seller** who needs a layout that none of the 35 built-ins cover, I want a
+  **"Create Custom Spatial"** flow inside the SpatialPickerModal that lets me either
+  **upload a reference image** OR **pick from my Project References / generated Designs
+  in the Design Forge right panel**. A vision-LLM should analyse it and extract ONLY the
+  text-and-vector positioning (never the colors, styles or what is actually drawn). I
+  name + save the result. The new Custom Spatial then appears in the SpatialPickerModal
+  "Custom" tab and is shared with my workspace teammates.
 
 ### Acceptance Criteria (Phase 13)
 
@@ -324,6 +355,103 @@ niche-linked project.
   Style dropdown to a different style → the user's typed override **wins**; we do NOT
   silently re-fill with the new style's default. The "auto from {Style}" badge
   disappears. The "↺" reset icon brings the new style's default back.
+
+#### Schicht 13 — Modal Pickers + Custom Spatial Layouts
+
+- [ ] AC-70: `SPATIAL_OPTIONS` in `style_library.py` ships **35 entries** (replaces the
+  6-item v1 list). Each entry is a dict with keys `id` (snake_case stable ID, e.g.
+  `vertical_stack`), `ui_label` (≤24-char human label), `ui_description` (≤90-char one-line
+  UI blurb), `thumbnail_path` (relative path to a 512×512 PNG under
+  `design_app/static/design_app/thumbnails/spatial/`), and `prompt_text` (40–70 word
+  Architect-grade layout description used in the rendered Gemini prompt). Exact 35 entries
+  in **Appendix J.4 of the tasks file**.
+- [ ] AC-71: A new Django model `CustomSpatial` in `design_app/models.py` with fields:
+  `id` (UUID, PK), `workspace` (FK Workspace), `created_by` (FK User), `name` (CharField,
+  required, ≤80 chars), `prompt_text` (TextField, required, 50–500 chars), `source_kind`
+  (CharField, choices: `upload`, `reference`, `design`), `source_image_ref` (CharField,
+  nullable — references `ProjectReference.id` OR `Design.id` when not an upload),
+  `source_image_file` (ImageField, nullable — only set for `upload` kind),
+  `created_at`/`updated_at`, `is_deleted` (Bool, default False). Unique constraint on
+  `(workspace, name)` **partial-indexed where `is_deleted=False`** (PG `Q(is_deleted=False)`).
+  Full schema in **Appendix O**.
+- [ ] AC-72: Three new endpoints on `design_app/api/views.py`:
+  - `POST /api/designs/spatials/custom/analyze/` → multipart body with EITHER
+    `image` (file upload, ≤10 MB, jpg/png/webp) OR `reference_id` (UUID of an existing
+    `ProjectReference`) OR `design_id` (UUID of an existing generated `Design`). Returns
+    `{ prompt_text: str, model: str, raw_response: str }`. Workspace-isolated via
+    `X-Workspace-Id` header.
+  - `POST /api/designs/spatials/custom/` → JSON body `{ name, prompt_text, source_kind,
+    source_image_ref? }` → creates a `CustomSpatial`.
+  - `GET /api/designs/spatials/custom/` → returns the workspace's non-deleted CustomSpatials,
+    ordered by `-created_at`. Used by SpatialPickerModal "Custom" tab.
+  - `DELETE /api/designs/spatials/custom/{id}/` → soft-delete (`is_deleted=True`). No
+    cascade.
+- [ ] AC-73: A new service `design_app/services/spatial_analyzer.py::analyze_spatial_layout(image_bytes) -> str`
+  calls `openai/gpt-4.1-mini` via OpenRouter with the **strict spatial-only system prompt** in
+  **Appendix P**. The system prompt forbids the LLM from mentioning ANY: colors, color
+  names, style names, illustration content nouns ("dog", "skull", "bus", "guitar", etc.),
+  textures, materials, fonts. It must describe only: where text blocks sit, where the
+  vector/illustration block sits, breathing room, alignment, and the overall composition
+  type. Output is a single paragraph of 40–80 words ready to use as `prompt_text`.
+- [ ] AC-74: Backend post-LLM **scrub pass**: response is regex-checked for forbidden
+  words (hex codes, named colors, "red"/"blue"/"yellow"/..., "vintage"/"cartoon"/..., the
+  15 style slugs, common illustration nouns). On hit, the endpoint returns HTTP 422 with
+  `{ error: 'spatial_analysis_failed', forbidden_terms: [...] }` so the frontend can
+  prompt the user to retry. (Compensates for prompt-injection / image-derail risk.)
+- [ ] AC-75: `build_form_prompt` resolves `slots.spatial_configuration` via the chain
+  documented in **Appendix N.3**:
+  1. if value matches a built-in `SPATIAL_OPTIONS[i].id` → use that entry's `prompt_text`
+  2. else if value matches a non-deleted `CustomSpatial.id` (UUID) in the same workspace
+     → use that custom's `prompt_text`
+  3. else if value is a non-empty string → treated as a raw free-text override (legacy /
+     "Custom…" inline path), used as-is
+  4. else if `niche_hints.spatial` is set → resolve recursively via steps 1–3
+  5. else → omit the spatial sentence entirely
+- [ ] AC-76: A new `SpatialPickerModal.tsx` component opens from the BuilderDialog
+  "Spatial layout ▸" button. It renders three tabs: **Built-in** (35 thumbnail cards in a
+  responsive 3–4 column grid with `ui_label` + `ui_description` underneath), **Custom**
+  (workspace's CustomSpatials), **Create new** (the CustomSpatialCreator inline). Search
+  bar filters by label/description. Single-select, returns the chosen id (built-in slug or
+  CustomSpatial UUID) to BuilderDialog state. UX spec in **Appendix Q**.
+- [ ] AC-77: A new `StylePickerModal.tsx` component refactors the existing inline 15-style
+  picker into the same modal pattern (single-select, grid of style cards, thumbnails reused
+  from Phase 7 assets, no "Custom" tab — styles remain Mario-curated). Opens from a "Style ▸"
+  button in the BuilderDialog. BuilderDialog removes the inline `StylePicker` mount; it now
+  shows the currently-selected style name + thumbnail next to the button.
+- [ ] AC-78: A new `CustomSpatialCreator.tsx` component (lives inside the SpatialPickerModal
+  "Create new" tab) offers three sources: (a) drag/drop or click-to-upload (≤10 MB,
+  jpg/png/webp), (b) pick from `ProjectReference[]` of the current Design Project (reusing
+  the existing `useGetProjectReferencesQuery`), (c) pick from generated `Design[]` of the
+  current project. On select → calls `POST /api/designs/spatials/custom/analyze/` → shows
+  the LLM's returned `prompt_text` in an editable TextField → user gives it a name → Save
+  button POSTs the create endpoint → the new custom appears in the "Custom" tab + is
+  auto-selected for the current slot.
+
+### Edge Cases (Phase 13) — Schicht 13 additions
+
+- [ ] EC-29: User tries to create a `CustomSpatial` with a name that already exists in the
+  workspace (non-deleted) → backend returns HTTP 409 with `{ error: 'name_conflict' }`;
+  frontend shows inline form error "A custom spatial with that name already exists in this
+  workspace". Soft-deleted entries with the same name do NOT block creation (partial
+  unique index condition).
+- [ ] EC-30: Image upload exceeds 10 MB OR has unsupported mime-type → backend returns
+  HTTP 400 with `{ error: 'image_invalid', detail: '...' }`. Frontend rejects client-side
+  before upload to avoid round-trip.
+- [ ] EC-31: `analyze_spatial_layout` LLM response triggers the scrub check (contains
+  forbidden color/style/illustration term) → backend returns HTTP 422 with
+  `forbidden_terms`. Frontend shows "Analyze couldn't extract a clean layout — try a
+  different image or upload one with less color/style detail. Detected: …" + a "Retry"
+  button. Optionally a "Use as raw text anyway" escape hatch that stuffs the response into
+  a Custom Spatial **with `source_kind='upload'` but flagged** (`is_unsafe=True` field —
+  also part of Appendix O — surfaces a warning chip in the picker).
+- [ ] EC-32: User deletes a `CustomSpatial` that is currently referenced by a saved
+  `BuilderPreset.config.slots.spatial_configuration` → soft-delete proceeds (no cascade
+  block). When that preset is next loaded, the resolver falls through chain step 4 (the
+  custom UUID no longer matches a non-deleted row); if a niche-hint exists it kicks in,
+  otherwise step 5 omits the spatial sentence. The BuilderDialog shows an inline warning
+  chip "Saved custom spatial deleted — fallback applied" next to the Spatial slot button
+  the first time the preset loads, and offers a one-click "Pick a replacement" CTA that
+  opens the SpatialPickerModal.
 
 
 

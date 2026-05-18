@@ -158,33 +158,36 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 > exact template texts in **Appendices J–N below** which are the source-of-truth and
 > must be copy-pasted verbatim by the implementing skill.
 
-### Phase 13a — Backend Foundation: Style Library v2 + Anti-Gradient Rule
+### Phase 13a — Backend Foundation: Style Library v2 + 35 Spatial Variants + Anti-Gradient Rule
 
 - [ ] 13a.1 Append Rule #10 to `DESIGN_GEN_SYSTEM_PROMPT` in `design_app/services/image_generator.py` — exact wording in **Appendix N.1** — covers AC-49
 - [ ] 13a.2 In `design_app/services/style_library.py`, add module-level constants:
   - `ARCHITECT_TEMPLATE_START` — exact string in **Appendix J.1** — covers AC-47
   - `ARCHITECT_TEMPLATE_END` — exact string in **Appendix J.2** — covers AC-48
   - `SLOT_SCHEMA` — exact dict in **Appendix J.3** — covers AC-50
-- [ ] 13a.3 In `design_app/services/style_library.py`, add 5 dropdown-option lists (one per user-driven slot). Exact text in **Appendices J.4 – J.8**:
-  - `SPATIAL_OPTIONS` (6 items)
-  - `TEXT_SEGMENTATION_OPTIONS` (6 items)
-  - `TYPOGRAPHY_OPTIONS` (6 items)
-  - `ACCESSORIES_OPTIONS` (6 items — multi-select, not single-select)
-  - `MATERIAL_OPTIONS` (6 items)
-- [ ] 13a.4 Extend each of the 15 entries in `STYLE_LIBRARY` with 3 new fields: `default_typography`, `default_material`, `default_style_dna`. Each `default_typography` + `default_material` MUST match a value from the respective options list. Exact mapping in **Appendix K** — covers AC-52
-- [ ] 13a.5 Unit tests: every style has all 3 default fields populated; every default points to a valid options-list value; `SLOT_SCHEMA` is internally consistent (8 slots, render-order numeric).
-- [ ] 13a.6 No code path uses `style_library.STYLE_LIBRARY` directly outside `prompt_builder.py` (validated by grep before commit) — keeps the dependency direction clean.
+- [ ] 13a.3 In `design_app/services/style_library.py`, add the dropdown-option constants:
+  - `SPATIAL_OPTIONS` — **35 dict entries** with `id`/`ui_label`/`ui_description`/`thumbnail_path`/`prompt_text` (exact list in **Appendix J.4**) — covers AC-51 + AC-70
+  - `TEXT_SEGMENTATION_OPTIONS` (6 strings — **Appendix J.5**)
+  - `TYPOGRAPHY_OPTIONS` (6 strings — **Appendix J.6**)
+  - `ACCESSORIES_OPTIONS` (6 strings, multi-select — **Appendix J.7**)
+  - `MATERIAL_OPTIONS` (6 strings — **Appendix J.8**)
+- [ ] 13a.4 Extend each of the 15 entries in `STYLE_LIBRARY` with 4 new fields: `default_typography`, `default_material`, `default_style_dna`, **`default_spatial_id`** (one of the 35 SPATIAL_OPTIONS ids). Exact mapping in **Appendix K** — covers AC-52
+- [ ] 13a.5 Add helper `style_library.get_spatial_by_id(spatial_id: str) -> dict | None` — O(1) lookup over `SPATIAL_OPTIONS` keyed by `id`. Used by the prompt builder + the spatial scrub validators.
+- [ ] 13a.6 Unit tests: 35 SPATIAL entries; all ids unique; every `default_spatial_id` resolves; every default_typography/material points to a valid options-list value; `SLOT_SCHEMA` internally consistent.
+- [ ] 13a.7 No code path uses `style_library.STYLE_LIBRARY` directly outside `prompt_builder.py` (validated by grep before commit) — keeps the dependency direction clean.
 
-### Phase 13b — Backend Form-Aware Builder
+### Phase 13b — Backend Form-Aware Builder + Spatial Resolver
 
-- [ ] 13b.1 In `design_app/services/prompt_builder.py`, add `build_form_prompt(slogan, style_slug, *, slots: dict, background_color: str, niche_hints: dict | None = None) -> str`. Exact composition logic in **Appendix N.2** — covers AC-58
+- [ ] 13b.1 In `design_app/services/prompt_builder.py`, add `build_form_prompt(slogan, style_slug, *, slots: dict, background_color: str, niche_hints: dict | None = None, workspace_id: str | None = None) -> str`. Exact composition logic in **Appendix N.2** — covers AC-58
 - [ ] 13b.2 Implement fallback resolution `explicit slot → niche-hint → style-default → omit` per **Appendix N.3** — covers AC-58 + AC-67
-- [ ] 13b.3 Remove the old `build_architect_prompt` function from `prompt_builder.py` — covers AC-60
-- [ ] 13b.4 Remove the old `_format_niche_block` helper from `prompt_builder.py` — covers AC-61
-- [ ] 13b.5 In `design_app/api/serializers.py`, extend `BuilderBuildSerializer` with the nested `slots` object (8 optional string fields). All field validators in **Appendix N.4** — covers AC-59
-- [ ] 13b.6 In `design_app/api/views.py`, rewrite `BuilderBuildView.post` to consume `cfg['slots']` + (when `include_niche_context=True`) `project.niche.builder_form_hints` and call `build_form_prompt`. Cross-product order unchanged — covers AC-60
-- [ ] 13b.7 Rewrite the 7 existing `test_builder_api.py::TestBuilderBuild` tests against the new shape; add 8 new tests for the per-slot fallback chain — covers AC-62
-- [ ] 13b.8 Add a `polished_prompt_max_chars` cap check: if `build_form_prompt` returns >1500 chars, log a warning and truncate at last sentence boundary.
+- [ ] 13b.3 **NEW** Implement `_resolve_spatial(value: str | None, workspace_id: str | None, niche_hints: dict | None, style_slug: str) -> str | None` per **Appendix N.3 part 2**:
+  built-in id → `SPATIAL_OPTIONS.prompt_text`; UUID-shaped → `CustomSpatial` lookup (workspace-scoped, `is_deleted=False`); raw text → use as-is; niche-hint spatial id → recurse; style default → recurse; else omit — covers AC-75
+- [ ] 13b.4 Remove the old `build_architect_prompt` function from `prompt_builder.py` — covers AC-60
+- [ ] 13b.5 Remove the old `_format_niche_block` helper from `prompt_builder.py` — covers AC-61
+- [ ] 13b.6 In `design_app/api/serializers.py`, extend `BuilderBuildSerializer` with the nested `slots` object (8 optional string fields). `spatial_configuration` accepts: built-in id, UUID, or raw text. All field validators in **Appendix N.4** — covers AC-59
+- [ ] 13b.7 In `design_app/api/views.py`, rewrite `BuilderBuildView.post` to consume `cfg['slots']` + (when `include_niche_context=True`) `project.niche.builder_form_hints`, pass current `workspace_id` to `build_form_prompt`, and call it. Cross-product order unchanged — covers AC-60
+- [ ] 13b.8 Rewrite the 7 existing `test_builder_api.py::TestBuilderBuild` tests against the new shape; add 8 new tests for the per-slot fallback chain + 4 new tests covering built-in / UUID / raw-text / missing-custom resolution paths — covers AC-62 + AC-75
+- [ ] 13b.9 Add a `polished_prompt_max_chars` cap check: if `build_form_prompt` returns >1500 chars, log a warning and truncate at last sentence boundary.
 
 ### Phase 13c — Backend Niche-Vision LLM Pre-structuring
 
@@ -195,39 +198,86 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 - [ ] 13c.5 New view `BuilderNicheHintsView(APIView)` at `GET /api/designs/projects/{id}/builder/niche-hints/`. Returns the JSON dict + metadata per AC-56. `IsAuthenticated` + workspace isolation — covers AC-56
 - [ ] 13c.6 Wire URL in `design_app/api/urls.py`
 - [ ] 13c.7 Management command `niche_app/management/commands/backfill_niche_builder_hints.py` per AC-57 — iterates `Niche.objects.filter(builder_form_hints__isnull=True)` that have a completed research, calls `structure_niche_for_builder` for each.
-- [ ] 13c.8 Tests: serializer shape, view auth, view 404 on cross-workspace project, view returns null when no niche linked, mocked LLM happy path.
+- [ ] 13c.8 The system-prompt enumerates the **35 SPATIAL ids** (Appendix J.4) and forces the LLM to pick exactly ONE id (or return `null`). NO free-text spatial strings allowed — see updated **Appendix M**.
+- [ ] 13c.9 Tests: serializer shape, view auth, view 404 on cross-workspace project, view returns null when no niche linked, mocked LLM happy path returning a valid id, mocked LLM returning an unknown id (gracefully fall through to style default).
 
-### Phase 13d — Frontend Form Components
+### Phase 13d — Backend Custom Spatial Layouts (model + CRUD + vision-LLM)
 
-- [ ] 13d.1 Create `frontend-ui/src/views/designs/board/constants/slotOptions.ts` mirroring backend Appendices J.4–J.8 1:1. Exported as typed const arrays — covers AC-69
-- [ ] 13d.2 Extend `BuilderConfig` type in `types/builder.ts` with `slots: BuilderSlots` (8 optional strings) — covers AC-63
-- [ ] 13d.3 Build `SpatialPicker.tsx` — MUI Select + "Custom…" → TextField + style-auto-default badge + ↺ reset icon — covers AC-65
-- [ ] 13d.4 Build `VisualDescriptionField.tsx` — multiline TextField (3 rows min, 6 max), required, with helper text `"Describe the illustration: subject, perspective, 6+ concrete details"` — covers AC-65 + AC-67
-- [ ] 13d.5 Build `TextSegmentationPicker.tsx` — same pattern as SpatialPicker
-- [ ] 13d.6 Build `TypographyPicker.tsx` — same pattern with style-auto-default
-- [ ] 13d.7 Build `AccessoriesPicker.tsx` — MUI Autocomplete `multiple={true} freeSolo={true}` so user can pick multiple presets + type custom
-- [ ] 13d.8 Build `MaterialPicker.tsx` — same pattern as TypographyPicker
-- [ ] 13d.9 Build `ExtraContextField.tsx` — multiline TextField (2 rows min, 4 max), placeholder `"Optional custom additions appended verbatim before the tech specs"`
-- [ ] 13d.10 Per-component tests: empty state, custom-text reveal on "Custom…" selection, ↺ reset behavior, style-auto-default badge presence/absence.
+- [ ] 13d.1 Add Django model `CustomSpatial` in `design_app/models.py` with exact fields + indexes from **Appendix O.1**. Migration is additive, no data migration needed — covers AC-71
+- [ ] 13d.2 Add the partial unique constraint `UniqueConstraint(fields=['workspace', 'name'], condition=Q(is_deleted=False), name='uniq_custom_spatial_name_per_ws')` — covers EC-29
+- [ ] 13d.3 Create `design_app/services/spatial_analyzer.py::analyze_spatial_layout(image_bytes: bytes, *, mime: str) -> str`. Exact OpenRouter call signature + headers + system prompt in **Appendix P**. Calls `openai/gpt-4.1-mini` (vision-capable text+image). Timeout 12s, no retry. Langfuse-traced with `metadata.workspace_id` — covers AC-73
+- [ ] 13d.4 Add the post-LLM scrub validator `spatial_analyzer._scrub_forbidden(text: str) -> tuple[bool, list[str]]` — checks for hex codes, named colors (≥40-word list), 15 style slugs, common illustration nouns (≥80-word list). Exact word lists in **Appendix P.2** — covers AC-74
+- [ ] 13d.5 Add DRF serializers in `design_app/api/serializers.py`:
+  - `CustomSpatialAnalyzeSerializer` (input: `image` file OR `reference_id` UUID OR `design_id` UUID, exactly-one validator; mime + size constraints)
+  - `CustomSpatialSerializer` (model serializer for CRUD)
+- [ ] 13d.6 Add views in `design_app/api/views.py`:
+  - `CustomSpatialAnalyzeView(APIView)` POST → load bytes (from upload OR fetch `ProjectReference.image` from S3/local OR fetch `Design.output_image` from S3/local) → call `analyze_spatial_layout` → scrub → return `{prompt_text}` or 422 with `forbidden_terms` — covers AC-72 + AC-74
+  - `CustomSpatialViewSet(ModelViewSet)` — list/create/destroy (soft-delete on destroy). `IsAuthenticated` + workspace isolation via `X-Workspace-Id` header. Queryset filtered to `is_deleted=False`. Order by `-created_at` — covers AC-72
+- [ ] 13d.7 Wire URLs in `design_app/api/urls.py`:
+  - `POST /api/designs/spatials/custom/analyze/`
+  - `GET/POST /api/designs/spatials/custom/`
+  - `DELETE /api/designs/spatials/custom/{id}/`
+- [ ] 13d.8 Tests (`test_custom_spatial.py`):
+  - Model: workspace-scoped, partial-unique constraint allows recreating a soft-deleted name
+  - Analyze: upload happy path (mocked LLM), reference_id happy path, design_id happy path, exactly-one validator, 10 MB limit, mime gate, forbidden-term scrub → 422
+  - CRUD: list returns only non-deleted from current workspace, create with conflicting name → 409, delete sets is_deleted, cross-workspace access → 404
+- [ ] 13d.9 No image bytes are stored when `source_kind != 'upload'` — the `source_image_ref` UUID is the audit trail. Validates with a model-level `clean()` check.
 
-### Phase 13e — Frontend Dialog Restructure + Wire-up
+### Phase 13e — Frontend Form Components (5 inline + 2 modal-button stubs)
 
-- [ ] 13e.1 Rewrite `BuilderDialog.tsx` body into 5 MUI Accordions per AC-64. Slogans + Styles + Visual Details open by default; Layout & Composition + Niche & Extra closed by default — covers AC-64
-- [ ] 13e.2 Extend `useBuilder` hook: add `useGetNicheHintsQuery(projectId)` RTK Query (calls Phase-13c endpoint). When hints arrive AND the corresponding slot is empty, pre-fill it via a controlled effect — covers AC-66
-- [ ] 13e.3 Mount the 7 new partials inside the right Accordion sections + remove the old `WarpPicker` from the top-level (it stays inside Styles accordion). The existing `NicheContextToggle` + `ReferenceIndicator` move into the "Niche & Extra" accordion — covers AC-64
-- [ ] 13e.4 Build Live-Preview panel below the Build CTA: collapsible, renders the result of `build_form_prompt` for `slogans[0] × styles[0]` by reusing the backend endpoint via `useBuilderBuildMutation` with `with_polish: false` — covers AC-67
-- [ ] 13e.5 Update `BuilderPreset.config` save/load logic: presets now serialize the `slots` sub-object; loading a v1 preset without `slots` treats it as `{}` and lets the fallback chain fire — covers AC-68 + EC-25
-- [ ] 13e.6 EC-28: when user types into a Typography slot (overrides style-auto-default), changing the Style dropdown does NOT silently re-fill that slot. Implemented via a per-slot "dirty" flag in BuilderConfig that flips on first user input. ↺ reset clears the dirty flag.
-- [ ] 13e.7 Integration tests: render the dialog with mocked niche-hints + style-default; assert all 8 slots show the expected pre-filled values + override behavior + Live-Preview shows the assembled prompt.
+- [ ] 13e.1 Create `frontend-ui/src/views/designs/board/constants/slotOptions.ts` mirroring backend Appendices J.4–J.8 1:1. Exported as typed const arrays. **`SPATIAL_OPTIONS` mirrors the 35-entry dict-list shape** — covers AC-69 + AC-70
+- [ ] 13e.2 Extend `BuilderConfig` type in `types/builder.ts` with `slots: BuilderSlots` (8 optional strings) — covers AC-63
+- [ ] 13e.3 Build `SpatialSlotButton.tsx` (NOT a Select) — shows the currently-selected spatial's thumbnail + ui_label + ui_description-snippet + an "Open picker ▸" affordance. Click → opens `SpatialPickerModal`. Used inside the BuilderDialog form section — covers AC-65 + AC-76
+- [ ] 13e.4 Build `StyleSlotButton.tsx` — analogous to SpatialSlotButton but for style: shows the chosen style's thumbnail + name + a "Change style ▸" affordance. Click → opens `StylePickerModal` — covers AC-77
+- [ ] 13e.5 Build `VisualDescriptionField.tsx` — multiline TextField (3 rows min, 6 max), required, with helper text `"Describe the illustration: subject, perspective, 6+ concrete details"` — covers AC-65 + AC-67
+- [ ] 13e.6 Build `TextSegmentationPicker.tsx` — MUI Select + "Custom…" → TextField + style-auto-default badge + ↺ reset icon
+- [ ] 13e.7 Build `TypographyPicker.tsx` — same pattern with style-auto-default
+- [ ] 13e.8 Build `AccessoriesPicker.tsx` — MUI Autocomplete `multiple={true} freeSolo={true}` so user can pick multiple presets + type custom
+- [ ] 13e.9 Build `MaterialPicker.tsx` — same pattern as TypographyPicker
+- [ ] 13e.10 Build `ExtraContextField.tsx` — multiline TextField (2 rows min, 4 max), placeholder `"Optional custom additions appended verbatim before the tech specs"`
+- [ ] 13e.11 Per-component tests: empty state, custom-text reveal on "Custom…" selection, ↺ reset behavior, style-auto-default badge presence/absence; SpatialSlotButton renders thumbnail + label correctly for built-in and custom UUID selections.
 
-### Phase 13f — QA + Docs
+### Phase 13f — Frontend Spatial + Style Picker Modals + Custom Spatial Creator
 
-- [ ] 13f.1 Backend full suite green (`pytest design_app/ niche_app/ --reuse-db`)
-- [ ] 13f.2 Frontend full suite green (`npx vitest run`)
-- [ ] 13f.3 `npx tsc -b` + `npx eslint src/` clean
-- [ ] 13f.4 Smoke test: pick "school bus driver" niche → open Builder → fields pre-fill from niche-hints → 3 slogans × 2 styles → Build → 6 polished Architect-quality prompts in textarea, none mention "t-shirt", "gradient", or "soft shadow"
-- [ ] 13f.5 Update spec's `## QA Test Results` with Phase-13 audit row
-- [ ] 13f.6 Update `features/INDEX.md` status (stays "In Review" through Phase 13)
+- [ ] 13f.1 Build `SpatialPickerModal.tsx` per UX spec in **Appendix Q.1**: MUI `Dialog` (fullScreen on `xs`, `maxWidth='lg'` otherwise), three tabs (Built-in / Custom / Create new), search bar, responsive 3–4 column thumbnail grid, single-select, ESC closes — covers AC-76
+- [ ] 13f.2 Build `StylePickerModal.tsx` per UX spec in **Appendix Q.2**: Same shell as SpatialPickerModal but two tabs only (Built-in / no Custom for styles — Mario-curated). Re-uses Phase-7 thumbnail PNGs. Replaces the inline `StylePicker` mounted in BuilderDialog — covers AC-77
+- [ ] 13f.3 Build `CustomSpatialCreator.tsx` (mounted inside SpatialPickerModal "Create new" tab) per **Appendix Q.3**: three-step wizard — (1) Source picker tabs: Upload / From References / From Designs, (2) Analyze (calls `POST /spatials/custom/analyze/`, shows skeleton + LLM response in editable TextField), (3) Name + Save — covers AC-78
+- [ ] 13f.4 Add RTK Query endpoints to `store/designSlice.ts`:
+  - `useAnalyzeSpatialMutation` (multipart POST)
+  - `useCreateCustomSpatialMutation`
+  - `useGetCustomSpatialsQuery(workspaceId)`
+  - `useDeleteCustomSpatialMutation`
+  - `useGetProjectDesignsForSpatialQuery(projectId)` if not already exposed (reuses existing `Design` list endpoint with `?limit=50&order=-created_at`)
+- [ ] 13f.5 Wire the `CustomSpatialCreator` "From References" source to existing `useGetProjectReferencesQuery(projectId)` — reuse, do NOT build a parallel endpoint
+- [ ] 13f.6 Handle EC-30 client-side: reject upload >10 MB OR non-{jpg,png,webp} before sending to backend; show inline error
+- [ ] 13f.7 Handle EC-31: on 422 response with `forbidden_terms`, show error banner "Analysis hit forbidden terms: …" + "Retry with another image" + "Use raw text anyway (flagged)" escape-hatch button
+- [ ] 13f.8 Tests: SpatialPickerModal renders 35 thumbnails + search filters + tab-switching + selection callback; StylePickerModal renders 15 thumbnails; CustomSpatialCreator full happy path (mocked mutation chain) + forbidden-term error UX.
+
+### Phase 13g — Frontend Dialog Restructure + Wire-up
+
+- [ ] 13g.1 Rewrite `BuilderDialog.tsx` body into 5 MUI Accordions per AC-64. Slogans + Styles + Visual Details open by default; Layout & Composition + Niche & Extra closed by default — covers AC-64
+- [ ] 13g.2 Inside the **Styles accordion** mount `StyleSlotButton` instead of the inline StylePicker; clicking opens `StylePickerModal`
+- [ ] 13g.3 Inside the **Layout & Composition accordion** mount `SpatialSlotButton` (opens `SpatialPickerModal`) + `TextSegmentationPicker` + `AccessoriesPicker`
+- [ ] 13g.4 Extend `useBuilder` hook: add `useGetNicheHintsQuery(projectId)` RTK Query (calls Phase-13c endpoint). When hints arrive AND the corresponding slot is empty, pre-fill it via a controlled effect — covers AC-66
+- [ ] 13g.5 Mount the remaining new partials (`VisualDescriptionField`, `TypographyPicker`, `MaterialPicker`, `ExtraContextField`) inside the right Accordion sections. The existing `NicheContextToggle` + `ReferenceIndicator` move into the "Niche & Extra" accordion — covers AC-64
+- [ ] 13g.6 Build Live-Preview panel below the Build CTA: collapsible, renders the result of `build_form_prompt` for `slogans[0] × styles[0]` by reusing the backend endpoint via `useBuilderBuildMutation` with `with_polish: false` — covers AC-67
+- [ ] 13g.7 Update `BuilderPreset.config` save/load logic: presets now serialize the `slots` sub-object; loading a v1 preset without `slots` treats it as `{}` and lets the fallback chain fire — covers AC-68 + EC-25
+- [ ] 13g.8 EC-28: when user types into a Typography slot (overrides style-auto-default), changing the Style dropdown does NOT silently re-fill that slot. Implemented via a per-slot "dirty" flag in BuilderConfig that flips on first user input. ↺ reset clears the dirty flag.
+- [ ] 13g.9 EC-32: when loading a preset whose `slots.spatial_configuration` is a UUID that no longer exists in `useGetCustomSpatialsQuery`, show inline warning chip + "Pick a replacement" CTA next to the SpatialSlotButton.
+- [ ] 13g.10 Integration tests: render the dialog with mocked niche-hints + style-default + mocked CustomSpatial list; assert all 8 slots show the expected pre-filled values + override behavior + modal open/close + soft-delete-fallback chip behavior + Live-Preview shows the assembled prompt.
+
+### Phase 13h — QA + Docs
+
+- [ ] 13h.1 Backend full suite green (`pytest design_app/ niche_app/ --reuse-db`)
+- [ ] 13h.2 Frontend full suite green (`npx vitest run`)
+- [ ] 13h.3 `npx tsc -b` + `npx eslint src/` clean
+- [ ] 13h.4 Smoke A (Form): pick "school bus driver" niche → open Builder → fields pre-fill from niche-hints → 3 slogans × 2 styles → Build → 6 polished Architect-quality prompts in textarea, none mention "t-shirt", "gradient", or "soft shadow"
+- [ ] 13h.5 Smoke B (SpatialPickerModal): open from BuilderDialog → all 35 thumbnails render → search filters → select `definition_entry` → modal closes → SlotButton shows new selection → Build → prompt contains the Definition layout description
+- [ ] 13h.6 Smoke C (CustomSpatialCreator — upload path): open Create new → upload a hand-drawn layout sketch → Analyze → editable text appears → name "My-Custom-1" → Save → appears in Custom tab + auto-selected → Build → prompt contains the LLM-generated spatial text + no forbidden colors/style words
+- [ ] 13h.7 Smoke D (CustomSpatialCreator — reference path): open Create new → "From References" tab → pick an existing ProjectReference → Analyze → Save → same outcome
+- [ ] 13h.8 Smoke E (StylePickerModal): open from BuilderDialog → 15 style thumbnails → select `vintage_retro` → modal closes → form auto-defaults update (Typography/Material badges flip)
+- [ ] 13h.9 Update spec's `## QA Test Results` with Phase-13 audit row
+- [ ] 13h.10 Update `features/INDEX.md` status (stays "In Review" through Phase 13)
 
 ---
 
@@ -321,18 +371,281 @@ SLOT_SCHEMA = [
 ]
 ```
 
-### J.4 `SPATIAL_OPTIONS` (6 items)
+### J.4 `SPATIAL_OPTIONS` (35 dict entries — replaces the v1 6-string list)
+
+> Each entry must be copy-pasted verbatim. `id` is the stable identifier referenced from
+> Appendix K, Appendix M (niche-LLM enum), and frontend `slotOptions.ts`. `thumbnail_path`
+> is rendered by the static-file serve under `/static/design_app/thumbnails/spatial/...`.
+> Thumbnails are generated by the script in **Appendix R**.
 
 ```python
 SPATIAL_OPTIONS = [
-    "Vertical stack layout where text sits above and below a central illustration, with generous padding and breathing room between the text lines and the graphic",
-    "Horizontal row layout with the illustration on the left and stacked text on the right, with generous breathing room between the two columns",
-    "Badge emblem layout with the illustration centered inside a circular border, the slogan curving around the top arc of the badge and an accent phrase along the bottom arc",
-    "Banner ribbon at the top carrying the primary text, the illustration filling the lower two-thirds of the canvas with generous padding around it",
-    "Single bold headline at the top, the illustration filling the rest of the canvas with a small subtitle anchored at the bottom edge with breathing room",
-    "Overlay layout where the slogan text is rendered ON TOP of the centered illustration with high-contrast outline so the text stays legible",
+    # ─── Classic foundation layouts ────────────────────────────────────────────
+    {
+        "id": "vertical_stack",
+        "ui_label": "Vertical Stack",
+        "ui_description": "Text above, illustration center, text below — POD classic",
+        "thumbnail_path": "thumbnails/spatial/vertical_stack.png",
+        "prompt_text": "Vertical stack layout where text sits above and below a central illustration, with generous padding and breathing room between the text lines and the graphic. The composition reads top-to-bottom: headline, illustration, supporting line. Equal horizontal centering throughout.",
+    },
+    {
+        "id": "horizontal_row",
+        "ui_label": "Horizontal Row",
+        "ui_description": "Illustration left, stacked text right (or mirrored)",
+        "thumbnail_path": "thumbnails/spatial/horizontal_row.png",
+        "prompt_text": "Horizontal row layout with the illustration anchored on the left half of the canvas and stacked text lines on the right half, separated by a generous vertical gutter of breathing room. Both blocks are vertically centered relative to each other.",
+    },
+    {
+        "id": "badge_emblem",
+        "ui_label": "Badge Emblem",
+        "ui_description": "Round badge, illustration inside, slogan curved on arcs",
+        "thumbnail_path": "thumbnails/spatial/badge_emblem.png",
+        "prompt_text": "Badge emblem layout with the illustration centered inside a circular border, the primary slogan curving along the top arc of the badge and an accent phrase curving along the bottom arc. Thin double-line border separates inner and outer rings.",
+    },
+    {
+        "id": "banner_top",
+        "ui_label": "Banner Top",
+        "ui_description": "Ribbon banner at top, illustration fills below",
+        "thumbnail_path": "thumbnails/spatial/banner_top.png",
+        "prompt_text": "Banner ribbon at the top of the canvas carrying the primary text inside it, with the illustration filling the lower two-thirds of the canvas and generous padding around it. The banner's tails curl slightly outward at the canvas edges.",
+    },
+    {
+        "id": "headline_top_subtitle_bottom",
+        "ui_label": "Headline + Subtitle",
+        "ui_description": "Bold headline top, illustration center, small subtitle bottom",
+        "thumbnail_path": "thumbnails/spatial/headline_top_subtitle_bottom.png",
+        "prompt_text": "Single bold headline anchored at the top edge, the illustration filling the center of the canvas with breathing room around it, and a smaller subtitle line anchored at the bottom edge. Strong top-bottom symmetry, generous vertical breathing room.",
+    },
+    {
+        "id": "text_overlay",
+        "ui_label": "Text Overlay",
+        "ui_description": "Slogan rendered ON TOP of the illustration",
+        "thumbnail_path": "thumbnails/spatial/text_overlay.png",
+        "prompt_text": "Overlay layout where the slogan text is rendered directly ON TOP of the centered illustration with a high-contrast outline or knockout stroke around each letter so the text stays fully legible against the artwork beneath it.",
+    },
+    # ─── Pure typographic layouts (text-only, no illustration) ────────────────
+    {
+        "id": "stacked_word_block",
+        "ui_label": "Stacked Word Block",
+        "ui_description": "4–6 centered text lines, sizes vary, no illustration",
+        "thumbnail_path": "thumbnails/spatial/stacked_word_block.png",
+        "prompt_text": "Pure typographic stacked-word block with 4 to 6 horizontally centered text lines of varying font sizes and weights, no illustration. The visual hierarchy makes the central emphasis word the largest, the framing lines smaller and lighter. Even vertical spacing between lines.",
+    },
+    {
+        "id": "knockout_text",
+        "ui_label": "Knockout Text",
+        "ui_description": "Slogan cut out of a single solid shape",
+        "thumbnail_path": "thumbnails/spatial/knockout_text.png",
+        "prompt_text": "Knockout reverse layout where the slogan text is cut out of a single solid filled shape — a rectangle, oval, or rounded plaque — so the canvas background shows through the letterforms. No separate illustration. The shape fills most of the canvas with even padding to the edges.",
+    },
+    {
+        "id": "big_word_tiny_tag",
+        "ui_label": "Big Word + Tiny Tag",
+        "ui_description": "One huge word, tiny subtitle, no illustration",
+        "thumbnail_path": "thumbnails/spatial/big_word_tiny_tag.png",
+        "prompt_text": "Single dominant word filling roughly two-thirds of the canvas in massive heavyweight type, with a small subtitle line in tiny all-caps anchored centered immediately beneath it. No separate illustration. The supporting line is one-tenth the size of the dominant word.",
+    },
+    {
+        "id": "word_as_shape",
+        "ui_label": "Word-as-Shape",
+        "ui_description": "Text bent to form a silhouette (heart, animal, …)",
+        "thumbnail_path": "thumbnails/spatial/word_as_shape.png",
+        "prompt_text": "Word-as-shape layout where the slogan text is bent, curved and arranged so the overall outline of the text block forms a recognizable silhouette — a heart, animal, or symbol related to the subject — without a separate illustration. The text itself IS the imagery.",
+    },
+    {
+        "id": "diagonal_text",
+        "ui_label": "Diagonal Text Block",
+        "ui_description": "Slogan tilted 15–25° as a single rotated block",
+        "thumbnail_path": "thumbnails/spatial/diagonal_text.png",
+        "prompt_text": "Diagonal text block tilted 15 to 25 degrees off horizontal, the slogan stacked into 2 or 3 lines and rotated together as a single unit. Illustration is either omitted or sits subtly behind the text as a low-contrast silhouette. The diagonal cuts across the visual center.",
+    },
+    {
+        "id": "pyramid_stack",
+        "ui_label": "Pyramid Stack",
+        "ui_description": "Lines growing/shrinking in size, pyramid silhouette",
+        "thumbnail_path": "thumbnails/spatial/pyramid_stack.png",
+        "prompt_text": "Pyramid word-stack layout with 4 to 5 stacked text lines forming a pyramid: the top line is shortest and smallest, each subsequent line wider and bolder, with the bottom line as the dominant emphasis word. No illustration. Tight vertical spacing for triangular cohesion.",
+    },
+    # ─── Frame / Stamp / Crest layouts ────────────────────────────────────────
+    {
+        "id": "rectangular_frame",
+        "ui_label": "Rectangular Frame",
+        "ui_description": "Thin border, illustration center, text above + below",
+        "thumbnail_path": "thumbnails/spatial/rectangular_frame.png",
+        "prompt_text": "Rectangular frame layout with a thin border running around the canvas edge, the illustration centered inside the frame, and the slogan placed inside the frame above and below the illustration with generous interior padding. The frame has subtle ornamental corners.",
+    },
+    {
+        "id": "crest_coat_of_arms",
+        "ui_label": "Crest / Coat of Arms",
+        "ui_description": "Heraldic vertical shield + banner + flanking elements",
+        "thumbnail_path": "thumbnails/spatial/crest_coat_of_arms.png",
+        "prompt_text": "Vertical heraldic crest layout with the illustration at the visual center inside a shield outline, a flowing banner ribbon underneath carrying the slogan, and decorative laurel-leaf or wing motifs flanking the shield on left and right. Symmetric on the vertical axis.",
+    },
+    {
+        "id": "postage_stamp",
+        "ui_label": "Postage Stamp",
+        "ui_description": "Perforated jagged border, denomination tag, framed",
+        "thumbnail_path": "thumbnails/spatial/postage_stamp.png",
+        "prompt_text": "Postage-stamp layout with a perforated jagged-edge border around the canvas, a small denomination tag in one upper corner, the illustration filling the inner stamp area, and the slogan running along the bottom of the inner stamp frame. Visible perforation dots on all four edges.",
+    },
+    {
+        "id": "hexagon_medallion",
+        "ui_label": "Hexagon Medallion",
+        "ui_description": "Hexagon or diamond outline, illustration inside",
+        "thumbnail_path": "thumbnails/spatial/hexagon_medallion.png",
+        "prompt_text": "Hexagonal medallion layout with the illustration centered inside a sharp hexagon or diamond outline, the slogan placed above the medallion and an accent word below it. Sharp geometric border lines, no rounded corners, strict symmetry.",
+    },
+    {
+        "id": "road_sign",
+        "ui_label": "Road Sign / Placard",
+        "ui_description": "Octagon / triangle / shield sign with legend",
+        "thumbnail_path": "thumbnails/spatial/road_sign.png",
+        "prompt_text": "Road-sign placard layout shaped like an octagon, triangle, or highway-shield outline filling most of the canvas. The slogan is rendered as the sign legend in centered all-caps inside the sign shape. The illustration, if any, is small and tucked into one corner.",
+    },
+    # ─── Listing / definition / structured layouts ────────────────────────────
+    {
+        "id": "definition_entry",
+        "ui_label": "Dictionary Definition",
+        "ui_description": "Headword, phonetics, part-of-speech, paragraph",
+        "thumbnail_path": "thumbnails/spatial/definition_entry.png",
+        "prompt_text": "Dictionary-definition layout with the headword in large bold at the top, a phonetic pronunciation guide in brackets plus a part-of-speech label on the second line, then a multi-line definition paragraph beneath set in a smaller serif. No separate illustration.",
+    },
+    {
+        "id": "knolling_grid",
+        "ui_label": "Knolling Grid",
+        "ui_description": "4–9 illustrated items in a tidy uniform grid + title bar",
+        "thumbnail_path": "thumbnails/spatial/knolling_grid.png",
+        "prompt_text": "Knolling-grid layout with 4 to 9 small illustrated objects arranged in a tidy uniform grid (e.g. 3×3 or 3×2), each separated by equal padding, and a centered title bar across the top spanning the full grid width carrying the slogan.",
+    },
+    {
+        "id": "anatomy_diagram",
+        "ui_label": "Anatomy Diagram",
+        "ui_description": "Central illustration with labeled pointer lines",
+        "thumbnail_path": "thumbnails/spatial/anatomy_diagram.png",
+        "prompt_text": "Anatomy-diagram layout with the central illustration in the middle of the canvas, thin pointer lines radiating outward to small text labels at multiple cardinal positions around it, and the slogan or title placed at the very top of the canvas as a header.",
+    },
+    {
+        "id": "checklist",
+        "ui_label": "Checklist",
+        "ui_description": "4–6 stacked lines, each with a checkbox tick",
+        "thumbnail_path": "thumbnails/spatial/checklist.png",
+        "prompt_text": "Vertical checklist layout with 4 to 6 stacked text lines, each preceded by a small checkbox or tick icon, a header line at the top carrying the title, generous line height between items, and no separate illustration. The list is centered horizontally on the canvas.",
+    },
+    {
+        "id": "periodic_tile",
+        "ui_label": "Periodic Element Tile",
+        "ui_description": "Square tile, atomic-number style, symbol + name",
+        "thumbnail_path": "thumbnails/spatial/periodic_tile.png",
+        "prompt_text": "Periodic-table element-tile layout with a single square tile centered on the canvas, an atomic-number-style small digit in the top-left corner of the tile, a large symbol or word in the tile's center, and a longer name underneath the symbol. No separate illustration.",
+    },
+    {
+        "id": "recipe_card",
+        "ui_label": "Recipe / Ingredients Card",
+        "ui_description": "Title, subtitle, bulleted ingredient list",
+        "thumbnail_path": "thumbnails/spatial/recipe_card.png",
+        "prompt_text": "Recipe-card layout with a headline title at the top, a small subtitle directly beneath, then an ingredients list of 4 to 6 short bulleted lines below, optionally a tiny garnish illustration anchored in one bottom corner. Even left alignment for the list, centered headline.",
+    },
+    # ─── Themed templates ─────────────────────────────────────────────────────
+    {
+        "id": "vintage_postcard",
+        "ui_label": "Vintage Postcard",
+        "ui_description": "'Greetings from …' headline + small caption",
+        "thumbnail_path": "thumbnails/spatial/vintage_postcard.png",
+        "prompt_text": "Vintage-postcard layout with a 'Greetings from …' style phrase as the dominant headline filling the top half of the canvas in chunky stacked letters, a stylized illustration beneath the headline filling the lower half, and a small caption line at the very bottom.",
+    },
+    {
+        "id": "sports_jersey",
+        "ui_label": "Sports Jersey",
+        "ui_description": "Massive number center, arched name + team name",
+        "thumbnail_path": "thumbnails/spatial/sports_jersey.png",
+        "prompt_text": "Sports-jersey layout with a massive sports-style number filling the visual center of the canvas, a player-name-style word arched above the number, and a smaller team-name caption arched below the number. No separate illustration — the typography is the whole composition.",
+    },
+    {
+        "id": "movie_poster",
+        "ui_label": "Movie Poster",
+        "ui_description": "Central illustration, heavy title bottom, credit block",
+        "thumbnail_path": "thumbnails/spatial/movie_poster.png",
+        "prompt_text": "Movie-poster layout with the illustration filling the central two-thirds of the canvas, a dramatic title in heavyweight letters across the bottom third, and small credit-block lines tucked beneath the title. Vertical poster-aspect framing implied even on a square canvas.",
+    },
+    {
+        "id": "license_plate",
+        "ui_label": "License Plate",
+        "ui_description": "Horizontal plate box with chunky plate letters",
+        "thumbnail_path": "thumbnails/spatial/license_plate.png",
+        "prompt_text": "License-plate layout with a horizontal rectangular plate-shaped box filling the canvas center, the slogan rendered in chunky license-plate-style block letters inside the box, and small region or state tags positioned above and below the plate rectangle.",
+    },
+    {
+        "id": "concert_ticket",
+        "ui_label": "Concert Ticket",
+        "ui_description": "Ticket shape with perforation + stub",
+        "thumbnail_path": "thumbnails/spatial/concert_ticket.png",
+        "prompt_text": "Concert-ticket layout with a horizontal ticket-shape outline filling the canvas, dashed perforation lines running vertically to separate a stub from the main area, the headline event-name in the main ticket area, and small detail lines (date / time / seat) in the stub portion.",
+    },
+    {
+        "id": "map_coordinates",
+        "ui_label": "Map Coordinates",
+        "ui_description": "Place name + GPS numbers + landmark line-art",
+        "thumbnail_path": "thumbnails/spatial/map_coordinates.png",
+        "prompt_text": "Map-coordinates layout with a city or place name as the dominant headline at the top, GPS-style coordinate numbers in a smaller caption immediately below it, and a minimal-line-art illustration of a landmark or geographic outline anchored below the coordinates.",
+    },
+    # ─── Asymmetric / compositional layouts ───────────────────────────────────
+    {
+        "id": "off_center_text_wrap",
+        "ui_label": "Off-Center Text Wrap",
+        "ui_description": "Illustration on one side, text wraps its silhouette",
+        "thumbnail_path": "thumbnails/spatial/off_center_text_wrap.png",
+        "prompt_text": "Off-center composition with the illustration anchored to the right side of the canvas and the slogan text broken into multiple short lines that wrap and follow the silhouette edge of the illustration on the left, creating a flowing left-side text block.",
+    },
+    {
+        "id": "diagonal_split",
+        "ui_label": "Diagonal Split",
+        "ui_description": "Canvas split along a diagonal: illustration vs. text",
+        "thumbnail_path": "thumbnails/spatial/diagonal_split.png",
+        "prompt_text": "Diagonal split layout where the canvas is divided into two triangular halves along a single diagonal line: the illustration fills one triangular half and the stacked slogan text fills the other triangular half. The diagonal line itself is a clean hard edge with no shading.",
+    },
+    {
+        "id": "triptych_three_panel",
+        "ui_label": "Triptych (3-Panel)",
+        "ui_description": "Three vertical panels, each with a variant, header bar",
+        "thumbnail_path": "thumbnails/spatial/triptych_three_panel.png",
+        "prompt_text": "Triptych three-panel layout with the canvas divided into three vertical panels of equal width separated by thin dividers, a small illustration variation in each panel, and the slogan running across as a header bar spanning all three panels at the top.",
+    },
+    {
+        "id": "concentric_circular_text",
+        "ui_label": "Concentric Circular Text",
+        "ui_description": "Rings of text running around a center illustration",
+        "thumbnail_path": "thumbnails/spatial/concentric_circular_text.png",
+        "prompt_text": "Concentric circular text layout with the illustration at the dead center of the canvas and one to three rings of text running around it: the outer ring as primary slogan, the inner ring as accent or date — all text aligned along its respective arc path.",
+    },
+    # ─── Speech / quote layouts ──────────────────────────────────────────────
+    {
+        "id": "speech_bubble",
+        "ui_label": "Speech Bubble",
+        "ui_description": "Comic bubble with slogan, character below pointing up",
+        "thumbnail_path": "thumbnails/spatial/speech_bubble.png",
+        "prompt_text": "Comic speech-bubble layout with a rounded speech bubble in the upper half of the canvas holding the slogan inside it, and a small character illustration in the lower half from which the speech-bubble tail visually points. Classic comic-strip composition.",
+    },
+    {
+        "id": "quote_marks_frame",
+        "ui_label": "Quote Marks Frame",
+        "ui_description": "Giant quotation marks bracket a centered slogan",
+        "thumbnail_path": "thumbnails/spatial/quote_marks_frame.png",
+        "prompt_text": "Quote-marks frame layout with two giant decorative quotation marks anchoring the upper-left and lower-right corners of the canvas, the slogan centered between them in an italic style. No separate illustration — the typography and the marks are the whole composition.",
+    },
+    # ─── Sunburst layout (full composition, distinct from sunburst accessory) ──
+    {
+        "id": "sunburst_layout",
+        "ui_label": "Sunburst Layout",
+        "ui_description": "Center illustration, rays to edges, text on arcs",
+        "thumbnail_path": "thumbnails/spatial/sunburst_layout.png",
+        "prompt_text": "Sunburst layout with the illustration sitting at the dead center of the canvas and straight ray lines radiating outward from behind it to the canvas edges, the slogan text running along the top arc above the rays and a secondary tag along the bottom arc beneath.",
+    },
 ]
 ```
+
+> The first 6 ids (`vertical_stack` … `text_overlay`) preserve the v1 spec wording so any
+> hand-saved v1 BuilderPreset that stored a free-text override that happened to match is
+> still compatible. The remaining 29 entries are new in Schicht 13.
 
 ### J.5 `TEXT_SEGMENTATION_OPTIONS` (6 items)
 
@@ -390,30 +703,35 @@ MATERIAL_OPTIONS = [
 
 ---
 
-## Appendix K — Per-Style Auto-Defaults (15 styles × 3 fields)
+## Appendix K — Per-Style Auto-Defaults (15 styles × 4 fields)
 
 > Each row defines which of the 6 `TYPOGRAPHY_OPTIONS` + 6 `MATERIAL_OPTIONS` is the
-> auto-default for that style, plus a free-form `default_style_dna` descriptor.
+> auto-default for that style, plus a free-form `default_style_dna` descriptor, plus
+> **`default_spatial_id`** referencing one of the 35 `SPATIAL_OPTIONS` ids from Appendix J.4.
 > `default_typography` and `default_material` use **the exact string** from the
 > options lists in Appendix J.6 / J.8 (not an index).
+>
+> Note: the user may always override the spatial via the SpatialPickerModal. The
+> per-style default is the **fallback** used when the user hasn't picked one and no
+> niche-hint exists.
 
-| Style slug | default_typography (J.6 row) | default_material (J.8 row) | default_style_dna |
-|---|---|---|---|
-| `vintage_retro` | row 3 (varsity-collegiate) | row 5 (vintage worn) | "Vintage retro aesthetic with warm faded earth tones, thick uniform black outlines, and slight halftone shading on flat color fills" |
-| `70s_groovy` | row 6 (brush-script) | row 2 (matte screenprint) | "1970s groovy psychedelic aesthetic with bold flowing curves, earthy mustard-orange-olive palette, and retro disco-poster flatness" |
-| `80s_neon` | row 1 (cartoon-block) | row 6 (high-contrast 2-color) | "1980s synthwave aesthetic with hot magenta + electric cyan + matte black palette and crisp neon-arcade flatness — no actual glow effects, only saturated flat colors" |
-| `90s_grunge` | row 3 (varsity-collegiate) | row 3 (heavily distressed) | "1990s grunge aesthetic with faded worn palette, torn-edge effects, gritty rough outlines and photocopy-worn screen-print look" |
-| `kawaii_chibi` | row 1 (cartoon-block) | row 1 (clean digital vector) | "Kawaii chibi cartoon aesthetic with oversized cute features, soft pastel palette, thick rounded outlines and gentle pastel cel-shading" |
-| `cartoon` | row 1 (cartoon-block) | row 1 (clean digital vector) | "Bold cartoon aesthetic with thick uniform black outlines, flat saturated color fills, simple cel-shaded highlights and Saturday-morning animation flatness" |
-| `watercolor` | row 2 (hand-drawn marker) | row 5 (vintage worn) | "Watercolor illustration aesthetic with soft transparent washes, irregular pigment edges and visible paper-texture underlay — rendered with hard-edged compositional outlines for print fidelity" |
-| `hand_drawn_sketch` | row 2 (hand-drawn marker) | row 5 (vintage worn) | "Hand-drawn sketchbook aesthetic with loose pencil strokes, visible construction lines, slightly imperfect organic linework and charming journal feel" |
-| `vector_flat` | row 1 (cartoon-block) | row 1 (clean digital vector) | "Modern flat-vector aesthetic with geometric shapes, zero gradients, minimalist palette, crisp sharp edges and editorial-emoji flatness" |
-| `minimal_line_art` | row 2 (hand-drawn marker) | row 1 (clean digital vector) | "Minimal single-line aesthetic with consistent monoline weight, no fills, no shading, abundant negative space and elegant wordmark refinement" |
-| `pixel_art` | row 5 (pixelated 8-bit) | row 1 (clean digital vector) | "8-bit pixel-art aesthetic with sharp pixelated edges, no anti-aliasing, limited 16-color retro arcade palette and blocky uniform pixels" |
-| `distressed_texture` | row 3 (varsity-collegiate) | row 3 (heavily distressed) | "Heavily distressed print aesthetic with worn ink-bleed effect, scratched and cracked color fills, vintage screen-print roughness" |
-| `halftone_print` | row 1 (cartoon-block) | row 4 (halftone-dot) | "Halftone-print pop-art aesthetic with dot-pattern fills, limited 2-3 color palette and retro newsprint feel" |
-| `badge_emblem` | row 3 (varsity-collegiate) | row 6 (high-contrast 2-color) | "Vintage badge-emblem aesthetic with classic monochrome or 2-color palette, heritage trade-mark feel and ornate border-frame structure" |
-| `blackletter_gothic` | row 4 (blackletter) | row 6 (high-contrast 2-color) | "Heavy blackletter-gothic aesthetic with ornate medieval scripts, decorative flourishes, dramatic high-contrast strokes and dark moody palette" |
+| Style slug | default_typography (J.6 row) | default_material (J.8 row) | default_spatial_id (J.4 id) | default_style_dna |
+|---|---|---|---|---|
+| `vintage_retro` | row 3 (varsity-collegiate) | row 5 (vintage worn) | `vintage_postcard` | "Vintage retro aesthetic with warm faded earth tones, thick uniform black outlines, and slight halftone shading on flat color fills" |
+| `70s_groovy` | row 6 (brush-script) | row 2 (matte screenprint) | `concentric_circular_text` | "1970s groovy psychedelic aesthetic with bold flowing curves, earthy mustard-orange-olive palette, and retro disco-poster flatness" |
+| `80s_neon` | row 1 (cartoon-block) | row 6 (high-contrast 2-color) | `sunburst_layout` | "1980s synthwave aesthetic with hot magenta + electric cyan + matte black palette and crisp neon-arcade flatness — no actual glow effects, only saturated flat colors" |
+| `90s_grunge` | row 3 (varsity-collegiate) | row 3 (heavily distressed) | `stacked_word_block` | "1990s grunge aesthetic with faded worn palette, torn-edge effects, gritty rough outlines and photocopy-worn screen-print look" |
+| `kawaii_chibi` | row 1 (cartoon-block) | row 1 (clean digital vector) | `headline_top_subtitle_bottom` | "Kawaii chibi cartoon aesthetic with oversized cute features, soft pastel palette, thick rounded outlines and gentle pastel cel-shading" |
+| `cartoon` | row 1 (cartoon-block) | row 1 (clean digital vector) | `vertical_stack` | "Bold cartoon aesthetic with thick uniform black outlines, flat saturated color fills, simple cel-shaded highlights and Saturday-morning animation flatness" |
+| `watercolor` | row 2 (hand-drawn marker) | row 5 (vintage worn) | `vertical_stack` | "Watercolor illustration aesthetic with soft transparent washes, irregular pigment edges and visible paper-texture underlay — rendered with hard-edged compositional outlines for print fidelity" |
+| `hand_drawn_sketch` | row 2 (hand-drawn marker) | row 5 (vintage worn) | `definition_entry` | "Hand-drawn sketchbook aesthetic with loose pencil strokes, visible construction lines, slightly imperfect organic linework and charming journal feel" |
+| `vector_flat` | row 1 (cartoon-block) | row 1 (clean digital vector) | `headline_top_subtitle_bottom` | "Modern flat-vector aesthetic with geometric shapes, zero gradients, minimalist palette, crisp sharp edges and editorial-emoji flatness" |
+| `minimal_line_art` | row 2 (hand-drawn marker) | row 1 (clean digital vector) | `big_word_tiny_tag` | "Minimal single-line aesthetic with consistent monoline weight, no fills, no shading, abundant negative space and elegant wordmark refinement" |
+| `pixel_art` | row 5 (pixelated 8-bit) | row 1 (clean digital vector) | `periodic_tile` | "8-bit pixel-art aesthetic with sharp pixelated edges, no anti-aliasing, limited 16-color retro arcade palette and blocky uniform pixels" |
+| `distressed_texture` | row 3 (varsity-collegiate) | row 3 (heavily distressed) | `knockout_text` | "Heavily distressed print aesthetic with worn ink-bleed effect, scratched and cracked color fills, vintage screen-print roughness" |
+| `halftone_print` | row 1 (cartoon-block) | row 4 (halftone-dot) | `vertical_stack` | "Halftone-print pop-art aesthetic with dot-pattern fills, limited 2-3 color palette and retro newsprint feel" |
+| `badge_emblem` | row 3 (varsity-collegiate) | row 6 (high-contrast 2-color) | `badge_emblem` | "Vintage badge-emblem aesthetic with classic monochrome or 2-color palette, heritage trade-mark feel and ornate border-frame structure" |
+| `blackletter_gothic` | row 4 (blackletter) | row 6 (high-contrast 2-color) | `crest_coat_of_arms` | "Heavy blackletter-gothic aesthetic with ornate medieval scripts, decorative flourishes, dramatic high-contrast strokes and dark moody palette" |
 
 ---
 
@@ -424,15 +742,15 @@ MATERIAL_OPTIONS = [
 
 ```json
 {
-  "_schema_version": 1,
+  "_schema_version": 2,
   "_generated_at": "2026-05-17T15:30:00Z",
   "_source_research_id": "uuid-of-NicheResearch-this-was-built-from",
-  "spatial": "Vertical stack layout where text sits above and below a central illustration, with generous padding and breathing room between the text lines and the graphic",
+  "spatial": "vertical_stack",
   "visual": "a stylized illustration of [niche subject] in a [perspective] view, featuring [3-6 concrete visual elements]",
   "accessories": "white radiating motion-burst lines around the illustration",
   "material": "matte screenprint plastisol ink texture with subtle paper-grain underlay",
   "_alternates": {
-    "spatial": ["Badge emblem layout ...", "Banner ribbon at the top ..."],
+    "spatial": ["badge_emblem", "banner_top"],
     "visual": ["alternate illustration angle ..."],
     "accessories": ["a sparse scattering of small filled stars ..."],
     "material": ["clean digital vector ..."]
@@ -441,9 +759,10 @@ MATERIAL_OPTIONS = [
 ```
 
 **Notes for the implementer:**
+- `spatial` and `_alternates.spatial[]` hold **ids** from `SPATIAL_OPTIONS` (Appendix J.4), NOT free-text descriptions. The resolver in N.3 maps them to `prompt_text`.
 - Top-level slot keys (`spatial`, `visual`, `accessories`, `material`) hold the **single best** suggestion. These pre-fill the form.
-- `_alternates` holds 1-2 backup options per slot. Frontend may surface them in a "Try alternates" sub-menu (Phase 13d.7+ stretch).
-- `_schema_version` lets us evolve the shape later without breaking old hints.
+- `_alternates` holds 1-2 backup options per slot. Frontend may surface them in a "Try alternates" sub-menu (Phase 13e stretch).
+- `_schema_version` lets us evolve the shape later without breaking old hints. **v1 → v2** changed `spatial` from free-text to id. The backfill mgmt command in Phase 13c.7 regenerates v1 hints transparently — no migration code needed.
 - Top-level keys are the 4 slots the LLM is best-positioned to suggest. Typography / Material auto-defaults remain style-driven (Appendix K).
 
 ---
@@ -463,13 +782,16 @@ You are a Print-on-Demand niche-research analyst preparing data for the Architec
 
 You produce exactly four slot suggestions:
 
-1. SPATIAL — how text is arranged relative to the illustration. Pick one from this fixed list and return it verbatim (do not paraphrase):
-   - "Vertical stack layout where text sits above and below a central illustration, with generous padding and breathing room between the text lines and the graphic"
-   - "Horizontal row layout with the illustration on the left and stacked text on the right, with generous breathing room between the two columns"
-   - "Badge emblem layout with the illustration centered inside a circular border, the slogan curving around the top arc of the badge and an accent phrase along the bottom arc"
-   - "Banner ribbon at the top carrying the primary text, the illustration filling the lower two-thirds of the canvas with generous padding around it"
-   - "Single bold headline at the top, the illustration filling the rest of the canvas with a small subtitle anchored at the bottom edge with breathing room"
-   - "Overlay layout where the slogan text is rendered ON TOP of the centered illustration with high-contrast outline so the text stays legible"
+1. SPATIAL — how text is arranged relative to the illustration. **Return ONE id from this fixed enum.** Do NOT return a free-text description. Return `null` only if none fits remotely. Allowed ids:
+   `vertical_stack`, `horizontal_row`, `badge_emblem`, `banner_top`, `headline_top_subtitle_bottom`, `text_overlay`, `stacked_word_block`, `knockout_text`, `big_word_tiny_tag`, `word_as_shape`, `diagonal_text`, `pyramid_stack`, `rectangular_frame`, `crest_coat_of_arms`, `postage_stamp`, `hexagon_medallion`, `road_sign`, `definition_entry`, `knolling_grid`, `anatomy_diagram`, `checklist`, `periodic_tile`, `recipe_card`, `vintage_postcard`, `sports_jersey`, `movie_poster`, `license_plate`, `concert_ticket`, `map_coordinates`, `off_center_text_wrap`, `diagonal_split`, `triptych_three_panel`, `concentric_circular_text`, `speech_bubble`, `quote_marks_frame`, `sunburst_layout`.
+   Short reference (pick the closest semantic match — do not invent new ids):
+   - Most niches → `vertical_stack` (headline + illu + sub)
+   - Trade / job / role badges → `badge_emblem` or `crest_coat_of_arms`
+   - Quote-driven slogans → `stacked_word_block` or `quote_marks_frame`
+   - Location / city niches → `map_coordinates` or `vintage_postcard`
+   - Sports / number themes → `sports_jersey`
+   - Comic / character niches → `speech_bubble`
+   - Subject-with-rays niches → `sunburst_layout`
 
 2. VISUAL — a free-form description (60-120 words) of the dominant illustration subject seen across the niche's bestsellers. MUST follow the Architect rule of ≥6 concrete details (perspective, color-object binding, line weight, pose, body parts, accessories). Start with "a [adjective] [SUBJECT] in [PERSPECTIVE], featuring ..." Use color-object binding ("golden yellow bus body") not bare colors. NEVER use the words "T-shirt", "mockup", "model wearing", "gradient", "glow", or "soft shadow".
 
@@ -494,12 +816,12 @@ You produce exactly four slot suggestions:
 Return ONLY a valid JSON object with this exact shape. No preamble, no markdown, no explanation:
 
 {
-  "spatial": "<one of the 6 spatial variants verbatim>",
+  "spatial": "<one of the 36 spatial ids verbatim, or null>",
   "visual": "<your 60-120 word visual description>",
   "accessories": "<one of the 6 accessories variants verbatim>",
   "material": "<one of the 6 material variants verbatim>",
   "_alternates": {
-    "spatial": ["<second-best spatial variant verbatim>", "<third-best>"],
+    "spatial": ["<second-best spatial id>", "<third-best>"],
     "visual": ["<one alternate visual description, 60-120 words>"],
     "accessories": ["<second-best accessories verbatim>"],
     "material": ["<second-best material verbatim>"]
@@ -512,6 +834,7 @@ Return ONLY a valid JSON object with this exact shape. No preamble, no markdown,
 - NEVER mention "on a black shirt", "yellow on a yellow shirt", or any phrase that describes the wearer/fabric.
 - NEVER produce a `visual` containing gradients, glowing effects, soft shadows, or drop shadows.
 - NEVER paraphrase the fixed-list slot values — return them verbatim or pick a different one.
+- For `spatial`, NEVER invent ids. Return only ids from the explicit enum above OR `null`.
 ```
 
 ### User message template
@@ -576,11 +899,19 @@ def build_form_prompt(
 ### N.3 `_resolve_slot` fallback chain
 
 ```python
-def _resolve_slot(slot, user_slots, niche_hints, style, slogan):
+def _resolve_slot(slot, user_slots, niche_hints, style, slogan, workspace_id=None):
+    # SPATIAL is special — see _resolve_spatial below
+    if slot['key'] == 'spatial_configuration':
+        return _resolve_spatial(
+            user_val=(user_slots or {}).get('spatial_configuration', '').strip(),
+            niche_hint_id=(niche_hints or {}).get('spatial'),
+            style_default_id=style.get('default_spatial_id'),
+            workspace_id=workspace_id,
+        )
+
     # 1. Explicit user value wins
     user_val = (user_slots or {}).get(slot['key'], '').strip()
     if user_val:
-        # Special-case: text_segmentation references the actual slogan
         return user_val
 
     # 2. Niche-hint, if available + this slot supports niche hints
@@ -592,10 +923,6 @@ def _resolve_slot(slot, user_slots, niche_hints, style, slogan):
 
     # 3. Style auto-default, if this slot supports style defaults
     if slot.get('style_auto_default'):
-        default_key = f"default_{slot['key'].rsplit('_', 1)[0] if slot['key'] == 'typography_adjectives' else slot['key']}"
-        # Maps: typography_adjectives -> default_typography
-        #       material_texture      -> default_material
-        #       style_dna             -> default_style_dna
         mapping = {
             'typography_adjectives': 'default_typography',
             'material_texture': 'default_material',
@@ -606,6 +933,65 @@ def _resolve_slot(slot, user_slots, niche_hints, style, slogan):
     # 4. Special: visual_description ALWAYS needs SOMETHING if requested.
     #    If we end up here with no user value + no hint + no style default,
     #    return empty string so the slot is OMITTED from the prompt (per EC-24).
+    return ''
+```
+
+### N.3 (part 2) `_resolve_spatial` — Schicht 13 resolver
+
+```python
+import re
+from uuid import UUID
+
+_UUID_RE = re.compile(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-'
+                      r'[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$')
+
+
+def _resolve_spatial(*, user_val, niche_hint_id, style_default_id, workspace_id):
+    """
+    Resolution chain for slots.spatial_configuration. Returns the rendered
+    prompt-text (str) or '' to omit the sentence.
+
+    Order:
+      1) user_val is a built-in id          -> SPATIAL_OPTIONS[id].prompt_text
+      2) user_val is a UUID                 -> CustomSpatial lookup (ws-scoped)
+      3) user_val is non-empty raw string   -> use as-is (legacy / inline custom)
+      4) niche_hint_id is a built-in id     -> SPATIAL_OPTIONS[id].prompt_text
+      5) style_default_id                   -> SPATIAL_OPTIONS[id].prompt_text
+      6) else                               -> '' (omit sentence)
+    """
+    builtin_ids = {opt['id']: opt['prompt_text'] for opt in SPATIAL_OPTIONS}
+
+    # 1) explicit built-in id
+    if user_val in builtin_ids:
+        return builtin_ids[user_val]
+
+    # 2) explicit UUID -> CustomSpatial
+    if user_val and _UUID_RE.match(user_val):
+        from design_app.models import CustomSpatial  # local import to avoid cycle
+        try:
+            cs = CustomSpatial.objects.get(
+                id=UUID(user_val),
+                workspace_id=workspace_id,
+                is_deleted=False,
+            )
+            return cs.prompt_text
+        except CustomSpatial.DoesNotExist:
+            # custom was soft-deleted between preset-save and now → drop through
+            pass
+
+    # 3) explicit raw text
+    if user_val:
+        return user_val
+
+    # 4) niche-hint id
+    if niche_hint_id and niche_hint_id in builtin_ids:
+        return builtin_ids[niche_hint_id]
+
+    # 5) style default
+    if style_default_id and style_default_id in builtin_ids:
+        return builtin_ids[style_default_id]
+
+    # 6) omit
     return ''
 ```
 
@@ -632,9 +1018,19 @@ def _resolve_slot(slot, user_slots, niche_hints, style, slogan):
 | 10 — Preset UI | ~400 | | ✓ |
 | 11 — Settings UI | ~100 | | ✓ |
 | 12 — Tests + QA | ~600 | ✓ | ✓ |
-| **TOTAL** | **~3400 LOC** | | |
+| **Σ Phases 1–12** | **~3400 LOC (shipped)** | | |
+| 13a — Style Library v2 + 35 SPATIAL + Rule #10 | ~620 + 35 PNGs | ✓ | |
+| 13b — build_form_prompt + Spatial resolver + Tests | ~290 | ✓ | |
+| 13c — Niche-LLM Pre-structuring (35 ids) | ~290 | ✓ | |
+| 13d — CustomSpatial Backend (model + CRUD + vision-LLM) | ~360 | ✓ | |
+| 13e — Frontend Form Pickers + Slot Buttons | ~720 | | ✓ |
+| 13f — Spatial/Style PickerModals + CustomSpatialCreator | ~520 | | ✓ |
+| 13g — BuilderDialog Rebuild + Wire-up + EC-32 | ~330 | | ✓ |
+| 13h — QA + 5 Smokes | ~90 | ✓ | ✓ |
+| **Σ Phase 13** | **~3220 LOC + 35 PNGs** | | |
+| **GRAND TOTAL (1–13)** | **~6620 LOC + 50 PNGs** | | |
 
-Realistic dev time (single-dev): **8–12 working days**. With Claude pair: **3–4 days**.
+Realistic dev time for Phase 13 (single-dev): **6–9 working days**. With Claude pair: **2–3 days**.
 
 ---
 
@@ -924,3 +1320,460 @@ User answered "Beide kombiniert" (suffix + random style-modifier) under the assu
 - `ProcessingSettingsDialog.tsx` — add `Auto-polish Builder prompts` MUI Switch.
 - `designSlice.ts` — extend existing `updateProcessingSettings` RTK Query mutation type to include the new field (no new endpoint).
 - Backend `ProcessingSettingsSerializer` — add the field to `fields = [...]`.
+
+
+---
+
+## Appendix O — `CustomSpatial` Model + Endpoints (Schicht 13)
+
+### O.1 Django model
+
+```python
+# design_app/models.py
+
+import uuid
+from django.db import models
+from django.db.models import Q, UniqueConstraint
+from django.contrib.auth import get_user_model
+
+from workspace_app.models import Workspace
+
+User = get_user_model()
+
+
+class CustomSpatial(models.Model):
+    SOURCE_KIND_CHOICES = [
+        ('upload', 'Image upload'),
+        ('reference', 'Project reference'),
+        ('design', 'Generated design'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        Workspace, on_delete=models.CASCADE, related_name='custom_spatials',
+        db_index=True,
+    )
+    created_by = models.ForeignKey(
+        User, on_delete=models.PROTECT, related_name='created_custom_spatials',
+    )
+
+    name = models.CharField(max_length=80)
+    prompt_text = models.TextField()  # 50–500 chars enforced at serializer
+
+    source_kind = models.CharField(max_length=16, choices=SOURCE_KIND_CHOICES)
+    source_image_ref = models.CharField(max_length=64, blank=True, default='')
+    # ↑ stores ProjectReference.id OR Design.id (UUID-string) when source_kind != 'upload'
+    source_image_file = models.ImageField(
+        upload_to='custom_spatials/%Y/%m/', blank=True, null=True,
+    )
+    # ↑ ONLY set when source_kind='upload'
+
+    is_unsafe = models.BooleanField(default=False)
+    # ↑ EC-31 escape-hatch: user saved a flagged custom anyway
+
+    is_deleted = models.BooleanField(default=False, db_index=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = 'design_app'
+        ordering = ['-created_at']
+        constraints = [
+            UniqueConstraint(
+                fields=['workspace', 'name'],
+                condition=Q(is_deleted=False),
+                name='uniq_custom_spatial_name_per_ws',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.workspace_id}/{self.name}'
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.source_kind == 'upload':
+            if not self.source_image_file:
+                raise ValidationError('source_image_file required when source_kind=upload')
+            if self.source_image_ref:
+                raise ValidationError('source_image_ref must be empty when source_kind=upload')
+        else:
+            if self.source_image_file:
+                raise ValidationError('source_image_file forbidden when source_kind!=upload')
+            if not self.source_image_ref:
+                raise ValidationError('source_image_ref required when source_kind!=upload')
+```
+
+### O.2 DRF serializers
+
+```python
+# design_app/api/serializers.py
+
+class CustomSpatialAnalyzeSerializer(serializers.Serializer):
+    image = serializers.ImageField(required=False, allow_null=True)
+    reference_id = serializers.UUIDField(required=False, allow_null=True)
+    design_id = serializers.UUIDField(required=False, allow_null=True)
+
+    def validate(self, attrs):
+        provided = [k for k in ('image', 'reference_id', 'design_id') if attrs.get(k)]
+        if len(provided) != 1:
+            raise serializers.ValidationError(
+                'Provide exactly one of: image, reference_id, design_id.'
+            )
+        img = attrs.get('image')
+        if img is not None:
+            if img.size > 10 * 1024 * 1024:
+                raise serializers.ValidationError({'image': 'Max 10 MB.'})
+            if img.content_type not in ('image/jpeg', 'image/png', 'image/webp'):
+                raise serializers.ValidationError({'image': 'Use JPG, PNG, or WebP.'})
+        return attrs
+
+
+class CustomSpatialSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CustomSpatial
+        fields = [
+            'id', 'name', 'prompt_text', 'source_kind', 'source_image_ref',
+            'is_unsafe', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def validate_name(self, value):
+        v = value.strip()
+        if len(v) < 2:
+            raise serializers.ValidationError('Name too short (min 2 chars).')
+        return v
+
+    def validate_prompt_text(self, value):
+        v = value.strip()
+        if not (50 <= len(v) <= 500):
+            raise serializers.ValidationError('prompt_text must be 50–500 chars.')
+        return v
+
+    def validate(self, attrs):
+        workspace = self.context['workspace']
+        name = attrs.get('name')
+        qs = CustomSpatial.objects.filter(
+            workspace=workspace, name=name, is_deleted=False,
+        )
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(
+                {'name': 'A custom spatial with that name already exists.'},
+                code='name_conflict',
+            )
+        return attrs
+```
+
+### O.3 URLs
+
+```
+POST   /api/designs/spatials/custom/analyze/   → CustomSpatialAnalyzeView.post  (multipart)
+GET    /api/designs/spatials/custom/           → CustomSpatialViewSet.list
+POST   /api/designs/spatials/custom/           → CustomSpatialViewSet.create
+DELETE /api/designs/spatials/custom/{id}/      → CustomSpatialViewSet.destroy (soft-delete)
+```
+
+All require `IsAuthenticated` + `X-Workspace-Id` header (workspace isolation pattern
+established in PROJ-4).
+
+### O.4 Soft-delete contract
+
+- `DELETE` flips `is_deleted=True`, does NOT remove rows.
+- `GET /custom/` filters by `is_deleted=False` always.
+- The partial unique index allows a deleted name to be re-created later.
+- BuilderPreset `slots.spatial_configuration` UUID references survive a delete — the
+  resolver in **Appendix N.3 part 2** gracefully falls through to the next chain step
+  (per EC-32).
+
+---
+
+## Appendix P — `analyze_spatial_layout` Vision-LLM Prompt
+
+### P.1 System prompt (verbatim — paste into `spatial_analyzer.py`)
+
+```
+You are a Print-on-Demand layout analyst. Your ONE job is to look at the supplied image and produce a SHORT paragraph that describes ONLY the spatial arrangement of text blocks and vector/illustration elements on the canvas.
+
+# What "spatial" means here
+
+- WHERE the text sits (top, bottom, center, left, right, arc, ribbon, frame, on top of the illustration, …)
+- WHERE the vector/illustration sits relative to the text (above, below, behind, centered, off-center, framed inside, …)
+- HOW the composition is organized (stacked, horizontal row, diagonal, badge, triptych, grid, list, dictionary-entry, …)
+- HOW much breathing room separates the blocks (tight, generous, asymmetric, edge-bleeding, …)
+
+# What you are FORBIDDEN to describe
+
+You MUST NOT mention or even hint at:
+- Any color (no "red", "yellow", "blue", "black", "white", "neon", "pastel", "warm tones", "earth tones", no hex codes — NOTHING about color)
+- Any style name (no "vintage", "retro", "cartoon", "watercolor", "grunge", "kawaii", "halftone", "pixel-art", "vector-flat", "blackletter", "sketch", "minimal", …)
+- The actual subject of the illustration (no "skull", "dog", "bus", "guitar", "tree", "child", "tractor", "rocket", "heart", …) — call it only "the illustration" or "the vector element"
+- Any texture, material, ink, paper, fabric, screen-print, halftone, gradient, glow, or shadow
+- Any font name, font family, or font style description (no "serif", "sans-serif", "blackletter", "script", "bold", "italic", "thin"…)
+- Any words: "T-shirt", "shirt", "tee", "mockup", "model wearing", "fabric", "garment"
+
+If the image contains people, words, characters, brands — IGNORE them. Describe ONLY the geometric placement of blocks.
+
+# Output format
+
+Return one English paragraph, 40 to 80 words, no markdown, no headings, no JSON, no bullet list. Begin the paragraph with the layout name + the word "layout" (e.g. "Badge emblem layout with …", "Diagonal split layout with …"). Use neutral geometric language ("text block", "illustration block", "vector element", "headline area", "subtitle line", "outer arc", "lower third", "upper-left corner").
+
+# If the image cannot be analysed
+
+If the image is too cluttered, blurry, abstract, or photographic (not a print design) to identify a clear layout, return exactly the literal token:
+
+LAYOUT_UNCLEAR
+```
+
+### P.2 Post-LLM scrub validator (`_scrub_forbidden`)
+
+The validator is a regex pass that rejects the LLM response if it contains any of:
+
+```python
+# Colors (named) — case-insensitive
+COLOR_WORDS = {
+    'red', 'orange', 'yellow', 'green', 'blue', 'cyan', 'teal', 'purple', 'magenta',
+    'pink', 'brown', 'beige', 'tan', 'black', 'white', 'grey', 'gray', 'silver',
+    'gold', 'golden', 'neon', 'pastel', 'warm', 'cool', 'earth', 'earthy', 'faded',
+    'saturated', 'muted', 'bright', 'dark', 'light',
+}
+# Style slugs (Mario-curated 15)
+STYLE_WORDS = {
+    'vintage', 'retro', '70s', 'groovy', '80s', 'synthwave', 'neon', '90s', 'grunge',
+    'kawaii', 'chibi', 'cartoon', 'watercolor', 'sketch', 'hand-drawn', 'vector',
+    'flat', 'minimal', 'pixel', '8-bit', 'distressed', 'halftone', 'badge', 'emblem',
+    'blackletter', 'gothic', 'screenprint', 'plastisol',
+}
+# Forbidden phrases
+PHRASE_BLOCKLIST = {
+    't-shirt', 'tshirt', 'tee', 'mockup', 'model wearing', 'fabric', 'garment',
+    'gradient', 'glow', 'soft shadow', 'drop shadow', 'blur',
+}
+# Hex code regex
+HEX_RE = re.compile(r'#[0-9A-Fa-f]{3,8}\b')
+
+# Illustration-subject nouns (defensive, non-exhaustive — implementer can extend)
+SUBJECT_NOUNS = {
+    'skull', 'dog', 'cat', 'bus', 'truck', 'car', 'guitar', 'drum', 'piano', 'tree',
+    'flower', 'rose', 'heart', 'star', 'rocket', 'unicorn', 'shark', 'tiger',
+    'lion', 'eagle', 'pirate', 'ninja', 'samurai', 'astronaut', 'cowboy', 'farmer',
+    'nurse', 'teacher', 'mom', 'dad', 'grandma', 'grandpa', 'child', 'baby',
+    'tractor', 'helicopter', 'plane', 'boat', 'ship', 'fish',
+}
+
+def _scrub_forbidden(text: str) -> tuple[bool, list[str]]:
+    t = text.lower()
+    hits: list[str] = []
+    if HEX_RE.search(text):
+        hits.append('hex_code')
+    for w in COLOR_WORDS | STYLE_WORDS | SUBJECT_NOUNS:
+        if re.search(rf'\b{re.escape(w)}\b', t):
+            hits.append(w)
+    for ph in PHRASE_BLOCKLIST:
+        if ph in t:
+            hits.append(ph)
+    return (len(hits) == 0, hits)
+```
+
+Note: the subject-nouns set is conservative. The image-input is constrained to user-uploaded
+POD-style designs, so the false-positive rate is acceptable. If QA shows too-aggressive
+scrubbing, the implementer can downgrade SUBJECT_NOUNS hits to **warnings** instead of
+422s (still surfaced to the user, who can opt in via `is_unsafe=True`).
+
+### P.3 OpenRouter call signature
+
+```python
+def analyze_spatial_layout(image_bytes: bytes, *, mime: str) -> str:
+    import base64, httpx
+    b64 = base64.b64encode(image_bytes).decode('ascii')
+    data_url = f'data:{mime};base64,{b64}'
+
+    payload = {
+        'model': 'openai/gpt-4.1-mini',
+        'temperature': 0.2,
+        'max_tokens': 220,
+        'messages': [
+            {'role': 'system', 'content': SPATIAL_ANALYZER_SYSTEM_PROMPT},
+            {'role': 'user', 'content': [
+                {'type': 'text', 'text': 'Analyse the spatial layout of this design.'},
+                {'type': 'image_url', 'image_url': {'url': data_url}},
+            ]},
+        ],
+    }
+    r = httpx.post(
+        'https://openrouter.ai/api/v1/chat/completions',
+        json=payload,
+        headers={
+            'Authorization': f'Bearer {settings.OPENROUTER_API_KEY}',
+            'HTTP-Referer': settings.OPENROUTER_REFERER,
+            'X-Title': 'merch-miner / spatial-analyzer',
+        },
+        timeout=12.0,
+    )
+    r.raise_for_status()
+    text = r.json()['choices'][0]['message']['content'].strip()
+    if text == 'LAYOUT_UNCLEAR':
+        raise SpatialUnclearError()
+    return text
+```
+
+`SpatialUnclearError` is a custom exception bubbled up by the view as HTTP 422 with
+`{ error: 'spatial_unclear' }`.
+
+### P.4 Langfuse trace tags
+
+- `metadata.workspace_id`
+- `metadata.user_id`
+- `metadata.source_kind` ∈ {`upload`, `reference`, `design`}
+- `metadata.scrub_passed` (bool)
+- `metadata.scrub_terms` (list, only when scrub failed)
+
+---
+
+## Appendix Q — Modal UX Specs (frontend)
+
+### Q.1 `SpatialPickerModal.tsx`
+
+**Trigger:** "Spatial layout ▸" button inside the BuilderDialog "Layout & Composition"
+accordion.
+
+**Shell:**
+- MUI `Dialog`, `fullScreen={isMobile}`, `maxWidth='lg'`, `fullWidth`.
+- Title bar: "Choose spatial layout" + close icon.
+- Top sticky row: search `TextField` (icon: `SearchIcon`, placeholder `"Search 35 layouts…"`) + `Tabs` with three tabs: **Built-in (35)**, **Custom ({n})**, **Create new**.
+- Body: scrollable area.
+- Footer (only when a selection differs from the current value): primary `Button` "Use selection".
+
+**Built-in tab:**
+- Responsive `Grid` with `size={{ xs: 12, sm: 6, md: 4 }}`.
+- Each `Card`: 1:1 thumbnail (`thumbnail_path`), `ui_label` below thumbnail (`Typography variant='subtitle2'`), `ui_description` below label (`Typography variant='caption' color='text.secondary'`).
+- Selected card: 2-px primary-color border + check icon overlay.
+- Click → set local `selectedId`, do NOT close. Footer button commits.
+
+**Custom tab:**
+- Same grid layout. If no customs yet → empty-state illustration + CTA "Create your first" (switches to "Create new" tab).
+- Each Custom card shows a tiny "Delete" icon overlay (on hover) → confirm dialog → soft-delete mutation → optimistic UI removal.
+
+**Create new tab:**
+- Renders `<CustomSpatialCreator />` inline. On save, switches to "Custom" tab and selects the newly created custom automatically.
+
+**Selection lifecycle:**
+- `selectedId` initial = `slots.spatial_configuration` from BuilderDialog.
+- On "Use selection" → calls `onChange(selectedId)` → BuilderDialog updates its slot → modal closes.
+- ESC closes without committing.
+
+### Q.2 `StylePickerModal.tsx`
+
+**Trigger:** "Style ▸" button inside BuilderDialog "Styles" accordion.
+
+**Shell:** Same as SpatialPickerModal but **two** tabs only:
+- **Built-in (15)** — the 15 Mario-curated styles
+- *(No Custom tab — explicitly forbidden, styles remain curated)*
+
+**Built-in tab:**
+- Same Card grid. Thumbnails are the existing Phase-7 PNG assets under `design_app/static/design_app/thumbnails/styles/{slug}.png`.
+- Card label = style slug humanised ("vintage_retro" → "Vintage Retro"), description = a one-line blurb (add a new `ui_description` field to `STYLE_LIBRARY` entries in this PR — see task 13a.4 amendment).
+
+**Multi-select?** Phase 1–12 already supports multi-style cross-product. The modal therefore must:
+- Show selection state with a check-icon badge.
+- Footer: "Use 3 selected" with the count.
+- Persist multi-select state to BuilderConfig's existing `selectedStyleSlugs` array.
+
+### Q.3 `CustomSpatialCreator.tsx` (wizard)
+
+**Three steps with a horizontal `Stepper`:**
+
+#### Step 1 — Source
+
+- Three sub-tabs: **Upload image**, **From References**, **From Designs**.
+- Upload: MUI `Button component='label'` + drag-zone (dnd-kit). Max 10 MB. Mime filter `image/jpeg,image/png,image/webp`. Shows preview thumbnail on selection.
+- From References: thumbnail grid of `ProjectReference[]` from `useGetProjectReferencesQuery(projectId)`. Single-select.
+- From Designs: thumbnail grid of `Design[]` for the current project from `useGetProjectDesignsForSpatialQuery(projectId)`. Single-select.
+
+Next button enabled only when one source is chosen.
+
+#### Step 2 — Analyze
+
+- Shows the chosen source thumbnail on the left.
+- On entering this step → immediately calls `useAnalyzeSpatialMutation` with the source.
+- While loading → MUI `Skeleton` for the right column.
+- On success → editable `TextField` `multiline rows={4}` filled with the LLM's `prompt_text`. User may edit before saving. Char counter (must be 50–500).
+- On error (422 forbidden): error `Alert` shows `forbidden_terms` list + two buttons "Try another image" (back to step 1) and "Use raw text anyway" (proceeds to step 3 with `is_unsafe=true`).
+- On error (other): `Alert` + Retry button.
+
+#### Step 3 — Name + Save
+
+- `TextField` for name (max 80 chars, validator hits the unique-name check via mutation error → inline error on 409).
+- Save button → `useCreateCustomSpatialMutation` with payload `{name, prompt_text (from step 2 textfield), source_kind, source_image_ref?}`.
+- On success: notify (`enqueueSnackbar`), switch parent SpatialPickerModal to "Custom" tab, auto-select the new custom.
+
+---
+
+## Appendix R — Thumbnail Generation Script (35 Spatial Variants)
+
+`scripts/generate_spatial_thumbnails.py` — mirrors the existing
+`scripts/generate_style_thumbnails.py` pattern (Phase 7) but renders 35 schematic SVGs +
+PNG exports of the layout grammar (NOT full designs). Each thumbnail is a 512×512 PNG with
+a neutral grey background (`#D9D9D9`) and black geometric markers showing where text
+blocks (rectangles) and the illustration (a generic crossed-circle placeholder) sit per
+the spatial id.
+
+**Why schematic and not Gemini-rendered:**
+- Schematic SVGs are zero-cost and deterministic.
+- The thumbnail's job is to communicate the **geometric grammar** at a glance, not the visual style.
+- A Gemini-rendered preview would blur the spatial structure with style flourishes the user hasn't picked yet.
+
+**Script outline:**
+
+```python
+# scripts/generate_spatial_thumbnails.py
+"""
+Render 35 schematic PNG thumbnails for SPATIAL_OPTIONS into
+design_app/static/design_app/thumbnails/spatial/{id}.png
+
+Usage:  python scripts/generate_spatial_thumbnails.py
+"""
+from pathlib import Path
+import cairosvg  # already a dep for PDF/SVG handling in image_generator
+
+from design_app.services.style_library import SPATIAL_OPTIONS
+
+OUT_DIR = Path('django-app/design_app/static/design_app/thumbnails/spatial')
+
+# One SVG template per id, written as inline strings here.
+# Each draws: outer 512x512 light-grey frame, then black rectangles/circles
+# marking text/illustration regions per the spatial id.
+SVG_TEMPLATES = {
+    'vertical_stack': '''<svg ...>...</svg>''',
+    'horizontal_row': '''<svg ...>...</svg>''',
+    # ... 33 more entries — implementer fills in the SVGs.
+}
+
+def main():
+    OUT_DIR.mkdir(parents=True, exist_ok=True)
+    for opt in SPATIAL_OPTIONS:
+        svg = SVG_TEMPLATES[opt['id']]
+        cairosvg.svg2png(
+            bytestring=svg.encode('utf-8'),
+            write_to=str(OUT_DIR / f'{opt["id"]}.png'),
+            output_width=512, output_height=512,
+        )
+        print(f'wrote {opt["id"]}.png')
+
+if __name__ == '__main__':
+    main()
+```
+
+**Storage + commit policy:**
+- The 35 PNGs commit to git under `django-app/design_app/static/design_app/thumbnails/spatial/`.
+- Combined size budget: ≤2 MB total (each PNG ≤60 kB). The schematic style compresses well.
+- The script is idempotent — re-running overwrites. CI never runs it; it's a one-time author step.
+
+**Custom Spatial thumbnails:**
+- For CustomSpatials, the **source image itself** is the thumbnail in the picker. No additional generation.
+- For `source_kind='upload'`, the picker reads the `source_image_file` URL directly.
+- For `source_kind='reference' | 'design'`, the picker fetches the referenced `ProjectReference`/`Design` image URL on demand.
+
+---
+
