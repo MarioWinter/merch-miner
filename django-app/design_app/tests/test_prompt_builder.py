@@ -15,6 +15,8 @@ sentences. Tests pin down:
 
 from __future__ import annotations
 
+import pytest
+
 from design_app.services.prompt_builder import (
     _POLISHED_PROMPT_MAX_CHARS,
     _resolve_slot,
@@ -269,19 +271,21 @@ class TestResolveSpatial:
         # user_val is a UUID we already consumed) → omit.
         assert out == ''
 
+    @pytest.mark.django_db
     def test_uuid_branch_gracefully_skips_when_custom_spatial_missing(self):
-        """Phase 13b ships before Phase 13d's CustomSpatial model. The
-        resolver must NOT crash; it falls through (here: to omit)."""
+        """Phase 13d: model exists but the UUID has no row. The resolver
+        must NOT crash; it falls through to omit (no hint/default supplied).
+        Empty DB → DoesNotExist branch fires.
+        """
         uuid_str = '11111111-2222-3333-4444-555555555555'
+        ws_uuid = '22222222-2222-2222-2222-222222222222'
         out = _resolve_spatial(
             user_val=uuid_str,
             niche_hint_id=None,
             style_default_id=None,
-            workspace_id='some-ws-id',
+            workspace_id=ws_uuid,
         )
-        # Either the model doesn't exist (ImportError → skip) or
-        # DoesNotExist → skip. Either way the loop falls through; with no
-        # other fallback the result is '' (omit).
+        # DoesNotExist → skip. With no other fallback the result is '' (omit).
         assert out == ''
 
     def test_priority_user_over_hint_and_default(self):

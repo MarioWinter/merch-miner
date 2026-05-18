@@ -18,6 +18,9 @@ from design_app.api.views import (
     BuilderPresetDetailView,
     BuilderPresetListCreateView,
     BuildPromptsView,
+    CustomSpatialAnalyzeView,
+    CustomSpatialDetailView,
+    CustomSpatialListCreateView,
     DesignBoardView,
     DesignDeleteVersionView,
     DesignDetailView,
@@ -259,6 +262,22 @@ urlpatterns = [
         'designs/projects/<uuid:pk>/builder-presets/<uuid:preset_id>/',
         BuilderPresetDetailView.as_view(),
         name='design-project-builder-preset-detail',
+    ),
+    # PROJ-34 Phase 13d — CustomSpatial (Analyze + CRUD)
+    path(
+        'designs/spatials/custom/analyze/',
+        CustomSpatialAnalyzeView.as_view(),
+        name='custom-spatial-analyze',
+    ),
+    path(
+        'designs/spatials/custom/',
+        CustomSpatialListCreateView.as_view(),
+        name='custom-spatial-list-create',
+    ),
+    path(
+        'designs/spatials/custom/<uuid:pk>/',
+        CustomSpatialDetailView.as_view(),
+        name='custom-spatial-detail',
     ),
     # Prompt Presets (G10)
     path(

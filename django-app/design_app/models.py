@@ -814,3 +814,89 @@ class BuilderPreset(models.Model):
 
     def __str__(self):
         return f"BuilderPreset: {self.name} ({self.project.name})"
+
+
+class CustomSpatial(models.Model):
+    """PROJ-34 Phase 13d — user-defined spatial layout entries.
+
+    Each row is a workspace-scoped reusable spatial-configuration block.
+    Created via vision-LLM analysis of an uploaded image OR an existing
+    ``ProjectReference`` / ``Design``. Soft-deleted via ``is_deleted`` so a
+    BuilderPreset that referenced a deleted custom can fall through the
+    resolver chain (Appendix N.3 / EC-32).
+
+    Schema: Appendix O.1 of docs/tasks/PROJ-34-tasks.md (verbatim).
+    """
+
+    SOURCE_KIND_CHOICES = [
+        ('upload', 'Image upload'),
+        ('reference', 'Project reference'),
+        ('design', 'Generated design'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        'workspace_app.Workspace',
+        on_delete=models.CASCADE,
+        related_name='custom_spatials',
+        db_index=True,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='created_custom_spatials',
+    )
+
+    name = models.CharField(max_length=80)
+    prompt_text = models.TextField()  # 50–500 chars enforced at serializer
+
+    source_kind = models.CharField(max_length=16, choices=SOURCE_KIND_CHOICES)
+    source_image_ref = models.CharField(max_length=64, blank=True, default='')
+    # ↑ stores ProjectReference.id OR Design.id (UUID-string) when source_kind != 'upload'
+    source_image_file = models.ImageField(
+        upload_to='custom_spatials/%Y/%m/', blank=True, null=True,
+    )
+    # ↑ ONLY set when source_kind='upload'
+
+    is_unsafe = models.BooleanField(default=False)
+    # ↑ EC-31 escape-hatch: user saved a flagged custom anyway
+
+    is_deleted = models.BooleanField(default=False, db_index=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = 'design_app'
+        ordering = ['-created_at']
+        constraints = [
+            UniqueConstraint(
+                fields=['workspace', 'name'],
+                condition=Q(is_deleted=False),
+                name='uniq_custom_spatial_name_per_ws',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.workspace_id}/{self.name}'
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        if self.source_kind == 'upload':
+            if not self.source_image_file:
+                raise ValidationError(
+                    'source_image_file required when source_kind=upload',
+                )
+            if self.source_image_ref:
+                raise ValidationError(
+                    'source_image_ref must be empty when source_kind=upload',
+                )
+        else:
+            if self.source_image_file:
+                raise ValidationError(
+                    'source_image_file forbidden when source_kind!=upload',
+                )
+            if not self.source_image_ref:
+                raise ValidationError(
+                    'source_image_ref required when source_kind!=upload',
+                )

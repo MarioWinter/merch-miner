@@ -366,7 +366,7 @@ identically to built-ins.
   `design_app/static/design_app/thumbnails/spatial/`), and `prompt_text` (40–70 word
   Architect-grade layout description used in the rendered Gemini prompt). Exact 36 entries
   in **Appendix J.4 of the tasks file**.
-- [ ] AC-71: A new Django model `CustomSpatial` in `design_app/models.py` with fields:
+- [x] AC-71: A new Django model `CustomSpatial` in `design_app/models.py` with fields:
   `id` (UUID, PK), `workspace` (FK Workspace), `created_by` (FK User), `name` (CharField,
   required, ≤80 chars), `prompt_text` (TextField, required, 50–500 chars), `source_kind`
   (CharField, choices: `upload`, `reference`, `design`), `source_image_ref` (CharField,
@@ -375,7 +375,7 @@ identically to built-ins.
   `created_at`/`updated_at`, `is_deleted` (Bool, default False). Unique constraint on
   `(workspace, name)` **partial-indexed where `is_deleted=False`** (PG `Q(is_deleted=False)`).
   Full schema in **Appendix O**.
-- [ ] AC-72: Three new endpoints on `design_app/api/views.py`:
+- [x] AC-72: Three new endpoints on `design_app/api/views.py`:
   - `POST /api/designs/spatials/custom/analyze/` → multipart body with EITHER
     `image` (file upload, ≤10 MB, jpg/png/webp) OR `reference_id` (UUID of an existing
     `ProjectReference`) OR `design_id` (UUID of an existing generated `Design`). Returns
@@ -387,14 +387,14 @@ identically to built-ins.
     ordered by `-created_at`. Used by SpatialPickerModal "Custom" tab.
   - `DELETE /api/designs/spatials/custom/{id}/` → soft-delete (`is_deleted=True`). No
     cascade.
-- [ ] AC-73: A new service `design_app/services/spatial_analyzer.py::analyze_spatial_layout(image_bytes) -> str`
+- [x] AC-73: A new service `design_app/services/spatial_analyzer.py::analyze_spatial_layout(image_bytes) -> str`
   calls `openai/gpt-4.1-mini` via OpenRouter with the **strict spatial-only system prompt** in
   **Appendix P**. The system prompt forbids the LLM from mentioning ANY: colors, color
   names, style names, illustration content nouns ("dog", "skull", "bus", "guitar", etc.),
   textures, materials, fonts. It must describe only: where text blocks sit, where the
   vector/illustration block sits, breathing room, alignment, and the overall composition
   type. Output is a single paragraph of 40–80 words ready to use as `prompt_text`.
-- [ ] AC-74: Backend post-LLM **scrub pass**: response is regex-checked for forbidden
+- [x] AC-74: Backend post-LLM **scrub pass**: response is regex-checked for forbidden
   words (hex codes, named colors, "red"/"blue"/"yellow"/..., "vintage"/"cartoon"/..., the
   15 style slugs, common illustration nouns). On hit, the endpoint returns HTTP 422 with
   `{ error: 'spatial_analysis_failed', forbidden_terms: [...] }` so the frontend can
@@ -430,15 +430,15 @@ identically to built-ins.
 
 ### Edge Cases (Phase 13) — Schicht 13 additions
 
-- [ ] EC-29: User tries to create a `CustomSpatial` with a name that already exists in the
+- [x] EC-29: User tries to create a `CustomSpatial` with a name that already exists in the
   workspace (non-deleted) → backend returns HTTP 409 with `{ error: 'name_conflict' }`;
   frontend shows inline form error "A custom spatial with that name already exists in this
   workspace". Soft-deleted entries with the same name do NOT block creation (partial
   unique index condition).
-- [ ] EC-30: Image upload exceeds 10 MB OR has unsupported mime-type → backend returns
+- [x] EC-30: Image upload exceeds 10 MB OR has unsupported mime-type → backend returns
   HTTP 400 with `{ error: 'image_invalid', detail: '...' }`. Frontend rejects client-side
   before upload to avoid round-trip.
-- [ ] EC-31: `analyze_spatial_layout` LLM response triggers the scrub check (contains
+- [x] EC-31: `analyze_spatial_layout` LLM response triggers the scrub check (contains
   forbidden color/style/illustration term) → backend returns HTTP 422 with
   `forbidden_terms`. Frontend shows "Analyze couldn't extract a clean layout — try a
   different image or upload one with less color/style detail. Detected: …" + a "Retry"

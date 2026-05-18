@@ -4,6 +4,7 @@ from rest_framework import serializers
 
 from design_app.models import (
     BuilderPreset,
+    CustomSpatial,
     Design,
     DesignGenerationRun,
     DesignPipeline,
@@ -903,3 +904,77 @@ class BuilderPresetSerializer(serializers.ModelSerializer):
                 'Name must be 80 characters or fewer.',
             )
         return stripped
+
+
+# -- CustomSpatial (PROJ-34 Phase 13d) --
+
+class CustomSpatialAnalyzeSerializer(serializers.Serializer):
+    """PROJ-34 Phase 13d AC-72 — analyze-spatial-layout input.
+
+    Exactly one of ``image`` / ``reference_id`` / ``design_id`` is required.
+    Upload file is gated to ≤10 MB and JPG/PNG/WebP (EC-30). Verbatim from
+    Appendix O.2.
+    """
+
+    image = serializers.ImageField(required=False, allow_null=True)
+    reference_id = serializers.UUIDField(required=False, allow_null=True)
+    design_id = serializers.UUIDField(required=False, allow_null=True)
+
+    def validate(self, attrs):
+        provided = [k for k in ('image', 'reference_id', 'design_id') if attrs.get(k)]
+        if len(provided) != 1:
+            raise serializers.ValidationError(
+                'Provide exactly one of: image, reference_id, design_id.'
+            )
+        img = attrs.get('image')
+        if img is not None:
+            if img.size > 10 * 1024 * 1024:
+                raise serializers.ValidationError({'image': 'Max 10 MB.'})
+            if img.content_type not in ('image/jpeg', 'image/png', 'image/webp'):
+                raise serializers.ValidationError({'image': 'Use JPG, PNG, or WebP.'})
+        return attrs
+
+
+class CustomSpatialSerializer(serializers.ModelSerializer):
+    """PROJ-34 Phase 13d AC-71 — CustomSpatial CRUD.
+
+    Per Appendix O.2: name 2–80 chars, prompt_text 50–500 chars, partial-unique
+    name per workspace enforced at the model AND serializer levels (the
+    serializer surfaces the ``name_conflict`` code so the API can return a
+    clean 400 with that error code).
+    """
+
+    class Meta:
+        model = CustomSpatial
+        fields = [
+            'id', 'name', 'prompt_text', 'source_kind', 'source_image_ref',
+            'is_unsafe', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def validate_name(self, value):
+        v = value.strip()
+        if len(v) < 2:
+            raise serializers.ValidationError('Name too short (min 2 chars).')
+        return v
+
+    def validate_prompt_text(self, value):
+        v = value.strip()
+        if not (50 <= len(v) <= 500):
+            raise serializers.ValidationError('prompt_text must be 50–500 chars.')
+        return v
+
+    def validate(self, attrs):
+        workspace = self.context['workspace']
+        name = attrs.get('name')
+        qs = CustomSpatial.objects.filter(
+            workspace=workspace, name=name, is_deleted=False,
+        )
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(
+                {'name': 'A custom spatial with that name already exists.'},
+                code='name_conflict',
+            )
+        return attrs

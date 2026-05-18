@@ -203,25 +203,25 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 
 ### Phase 13d — Backend Custom Spatial Layouts (model + CRUD + vision-LLM)
 
-- [ ] 13d.1 Add Django model `CustomSpatial` in `design_app/models.py` with exact fields + indexes from **Appendix O.1**. Migration is additive, no data migration needed — covers AC-71
-- [ ] 13d.2 Add the partial unique constraint `UniqueConstraint(fields=['workspace', 'name'], condition=Q(is_deleted=False), name='uniq_custom_spatial_name_per_ws')` — covers EC-29
-- [ ] 13d.3 Create `design_app/services/spatial_analyzer.py::analyze_spatial_layout(image_bytes: bytes, *, mime: str) -> str`. Exact OpenRouter call signature + headers + system prompt in **Appendix P**. Calls `openai/gpt-4.1-mini` (vision-capable text+image). Timeout 12s, no retry. Langfuse-traced with `metadata.workspace_id` — covers AC-73
-- [ ] 13d.4 Add the post-LLM scrub validator `spatial_analyzer._scrub_forbidden(text: str) -> tuple[bool, list[str]]` — checks for hex codes, named colors (≥40-word list), 15 style slugs, common illustration nouns (≥80-word list). Exact word lists in **Appendix P.2** — covers AC-74
-- [ ] 13d.5 Add DRF serializers in `design_app/api/serializers.py`:
+- [x] 13d.1 Add Django model `CustomSpatial` in `design_app/models.py` with exact fields + indexes from **Appendix O.1**. Migration is additive, no data migration needed — covers AC-71
+- [x] 13d.2 Add the partial unique constraint `UniqueConstraint(fields=['workspace', 'name'], condition=Q(is_deleted=False), name='uniq_custom_spatial_name_per_ws')` — covers EC-29
+- [x] 13d.3 Create `design_app/services/spatial_analyzer.py::analyze_spatial_layout(image_bytes: bytes, *, mime: str) -> str`. Exact OpenRouter call signature + headers + system prompt in **Appendix P**. Calls `openai/gpt-4.1-mini` (vision-capable text+image). Timeout 12s, no retry. Langfuse-traced with `metadata.workspace_id` — covers AC-73
+- [x] 13d.4 Add the post-LLM scrub validator `spatial_analyzer._scrub_forbidden(text: str) -> tuple[bool, list[str]]` — checks for hex codes, named colors (≥40-word list), 15 style slugs, common illustration nouns (≥80-word list). Exact word lists in **Appendix P.2** — covers AC-74
+- [x] 13d.5 Add DRF serializers in `design_app/api/serializers.py`:
   - `CustomSpatialAnalyzeSerializer` (input: `image` file OR `reference_id` UUID OR `design_id` UUID, exactly-one validator; mime + size constraints)
   - `CustomSpatialSerializer` (model serializer for CRUD)
-- [ ] 13d.6 Add views in `design_app/api/views.py`:
+- [x] 13d.6 Add views in `design_app/api/views.py`:
   - `CustomSpatialAnalyzeView(APIView)` POST → load bytes (from upload OR fetch `ProjectReference.image` from S3/local OR fetch `Design.output_image` from S3/local) → call `analyze_spatial_layout` → scrub → return `{prompt_text}` or 422 with `forbidden_terms` — covers AC-72 + AC-74
   - `CustomSpatialViewSet(ModelViewSet)` — list/create/destroy (soft-delete on destroy). `IsAuthenticated` + workspace isolation via `X-Workspace-Id` header. Queryset filtered to `is_deleted=False`. Order by `-created_at` — covers AC-72
-- [ ] 13d.7 Wire URLs in `design_app/api/urls.py`:
+- [x] 13d.7 Wire URLs in `design_app/api/urls.py`:
   - `POST /api/designs/spatials/custom/analyze/`
   - `GET/POST /api/designs/spatials/custom/`
   - `DELETE /api/designs/spatials/custom/{id}/`
-- [ ] 13d.8 Tests (`test_custom_spatial.py`):
+- [x] 13d.8 Tests (`test_custom_spatial.py`):
   - Model: workspace-scoped, partial-unique constraint allows recreating a soft-deleted name
   - Analyze: upload happy path (mocked LLM), reference_id happy path, design_id happy path, exactly-one validator, 10 MB limit, mime gate, forbidden-term scrub → 422
   - CRUD: list returns only non-deleted from current workspace, create with conflicting name → 409, delete sets is_deleted, cross-workspace access → 404
-- [ ] 13d.9 No image bytes are stored when `source_kind != 'upload'` — the `source_image_ref` UUID is the audit trail. Validates with a model-level `clean()` check.
+- [x] 13d.9 No image bytes are stored when `source_kind != 'upload'` — the `source_image_ref` UUID is the audit trail. Validates with a model-level `clean()` check.
 
 ### Phase 13e — Frontend Form Components (5 inline + 2 modal-button stubs)
 
@@ -1541,11 +1541,14 @@ COLOR_WORDS = {
     'gold', 'golden', 'neon', 'pastel', 'warm', 'cool', 'earth', 'earthy', 'faded',
     'saturated', 'muted', 'bright', 'dark', 'light',
 }
-# Style slugs (Mario-curated 15)
+# Style slugs (Mario-curated 15). 'badge' + 'emblem' deliberately omitted —
+# they are also legitimate spatial-layout terms (SPATIAL_OPTIONS id
+# `badge_emblem` whose prompt_text begins "Badge emblem layout with…").
+# Forbidding them would scrub every clean badge-layout response.
 STYLE_WORDS = {
     'vintage', 'retro', '70s', 'groovy', '80s', 'synthwave', 'neon', '90s', 'grunge',
     'kawaii', 'chibi', 'cartoon', 'watercolor', 'sketch', 'hand-drawn', 'vector',
-    'flat', 'minimal', 'pixel', '8-bit', 'distressed', 'halftone', 'badge', 'emblem',
+    'flat', 'minimal', 'pixel', '8-bit', 'distressed', 'halftone',
     'blackletter', 'gothic', 'screenprint', 'plastisol',
 }
 # Forbidden phrases
