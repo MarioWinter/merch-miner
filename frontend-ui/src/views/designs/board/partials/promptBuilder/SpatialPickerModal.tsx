@@ -15,7 +15,6 @@ import {
   Tab,
   Tabs,
   TextField,
-  Typography,
   useMediaQuery,
 } from '@mui/material';
 import { styled, useTheme } from '@mui/material/styles';
@@ -27,6 +26,7 @@ import {
   type CustomSpatial,
 } from '@/store/designSlice';
 import { BuiltinGrid, CustomGrid } from './SpatialPickerModal.grids';
+import CustomSpatialCreator from './CustomSpatialCreator';
 
 // ---------------------------------------------------------------------------
 // Styled
@@ -67,6 +67,8 @@ const SpatialPickerModal = ({
   onClose,
   value,
   onChange,
+  workspaceId,
+  projectId,
 }: SpatialPickerModalProps) => {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
@@ -199,11 +201,15 @@ const SpatialPickerModal = ({
             />
           )}
           {tab === 'create' && (
-            <Box sx={{ p: 4, textAlign: 'center' }}>
-              <Typography color="text.secondary">
-                Custom spatial creator — coming in 13f part B
-              </Typography>
-            </Box>
+            <CustomSpatialCreator
+              workspaceId={workspaceId}
+              projectId={projectId}
+              onCreated={(newId) => {
+                setLocalSelectedId(newId);
+                setTab('custom');
+              }}
+              onCancel={() => setTab('builtin')}
+            />
           )}
         </Box>
       </DialogContent>
