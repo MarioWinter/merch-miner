@@ -280,22 +280,22 @@ identically to built-ins.
 
 #### Schicht 11 — Backend Form-Aware Builder
 
-- [ ] AC-58: A new function `prompt_builder.build_form_prompt(slogan, style_slug, *, slots: dict, background_color: str) -> str`
+- [x] AC-58: A new function `prompt_builder.build_form_prompt(slogan, style_slug, *, slots: dict, background_color: str) -> str`
   composes `ARCHITECT_TEMPLATE_START` + 8 ordered slots + `ARCHITECT_TEMPLATE_END`. When a
   slot is missing, the function applies fallback resolution: explicit user value →
   niche-hint value → style auto-default → omit. Output is typically 600–1200 chars.
-- [ ] AC-59: `BuilderBuildSerializer` is extended with a new nested object
+- [x] AC-59: `BuilderBuildSerializer` is extended with a new nested object
   `slots: { spatial_configuration?: str, visual_description?: str,
   text_segmentation?: str, typography_adjectives?: str, accessories?: str,
   material_texture?: str, style_dna?: str, extra_context?: str }`. All fields optional;
   empty strings treated as "use fallback".
-- [ ] AC-60: `BuilderBuildView.post` calls `build_form_prompt` (not the deprecated
+- [x] AC-60: `BuilderBuildView.post` calls `build_form_prompt` (not the deprecated
   `build_architect_prompt`) for the cross-product. The old `build_architect_prompt` is
   removed in the same commit so there is one Builder path, not two.
-- [ ] AC-61: The deprecated `prompt_builder._format_niche_block` is removed. Niche
+- [x] AC-61: The deprecated `prompt_builder._format_niche_block` is removed. Niche
   context is no longer dumped verbatim — it is consumed only via the structured
   `builder_form_hints` to pre-fill form slots.
-- [ ] AC-62: All `prompt_builder` unit tests are rewritten against `build_form_prompt`
+- [x] AC-62: All `prompt_builder` unit tests are rewritten against `build_form_prompt`
   with full coverage: each slot's fallback chain, hard-rule presence in output, output
   length stays ≤1500 chars.
 

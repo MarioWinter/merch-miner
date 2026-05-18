@@ -1949,10 +1949,10 @@ class BuilderBuildView(APIView):
 
         slogans: list[str] = [s.strip() for s in cfg['slogans'] if s and s.strip()]
         styles: list[str] = [s.strip() for s in cfg['styles'] if s and s.strip()]
-        warp = (cfg.get('warp') or '').strip() or None
         bg_color = cfg.get('background_color', 'light_gray')
         with_polish = cfg.get('with_polish', True)
         include_niche_context = cfg.get('include_niche_context', True)
+        slots: dict = cfg.get('slots') or {}
 
         # EC-9 / EC-10: defensive guards even though frontend disables Build.
         if not slogans:
@@ -1967,22 +1967,27 @@ class BuilderBuildView(APIView):
             )
 
         # EC-16 / EC-23: niche-context silently ignored if no linked niche.
-        niche_context = None
+        # Phase 13b consumes the structured `builder_form_hints` JSON (set by
+        # Phase 13c's niche-vision LLM) — NOT the verbatim research dump.
+        # The field lands in Phase 13c; until then `getattr` returns None and
+        # the resolver falls through to style defaults.
+        niche_hints: dict | None = None
         if include_niche_context and project.niche_id:
-            niche_context = _gather_research_data(project.niche)
+            niche_hints = getattr(project.niche, 'builder_form_hints', None)
 
         # Build raw prompts in cross-product order.
-        from design_app.services.prompt_builder import build_architect_prompt
+        from design_app.services.prompt_builder import build_form_prompt
         raw_prompts: list[str] = []
         for slogan in slogans:
             for style in styles:
                 raw_prompts.append(
-                    build_architect_prompt(
+                    build_form_prompt(
                         slogan=slogan,
                         style_slug=style,
-                        warp=warp,
-                        niche_context=niche_context,
+                        slots=slots,
                         background_color=bg_color,
+                        niche_hints=niche_hints,
+                        workspace_id=ws_id,
                     )
                 )
 

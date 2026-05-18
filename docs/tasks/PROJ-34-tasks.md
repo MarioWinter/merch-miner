@@ -178,16 +178,16 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 
 ### Phase 13b — Backend Form-Aware Builder + Spatial Resolver
 
-- [ ] 13b.1 In `design_app/services/prompt_builder.py`, add `build_form_prompt(slogan, style_slug, *, slots: dict, background_color: str, niche_hints: dict | None = None, workspace_id: str | None = None) -> str`. Exact composition logic in **Appendix N.2** — covers AC-58
-- [ ] 13b.2 Implement fallback resolution `explicit slot → niche-hint → style-default → omit` per **Appendix N.3** — covers AC-58 + AC-67
-- [ ] 13b.3 **NEW** Implement `_resolve_spatial(value: str | None, workspace_id: str | None, niche_hints: dict | None, style_slug: str) -> str | None` per **Appendix N.3 part 2**:
-  built-in id → `SPATIAL_OPTIONS.prompt_text`; UUID-shaped → `CustomSpatial` lookup (workspace-scoped, `is_deleted=False`); raw text → use as-is; niche-hint spatial id → recurse; style default → recurse; else omit — covers AC-75
-- [ ] 13b.4 Remove the old `build_architect_prompt` function from `prompt_builder.py` — covers AC-60
-- [ ] 13b.5 Remove the old `_format_niche_block` helper from `prompt_builder.py` — covers AC-61
-- [ ] 13b.6 In `design_app/api/serializers.py`, extend `BuilderBuildSerializer` with the nested `slots` object (8 optional string fields). `spatial_configuration` accepts: built-in id, UUID, or raw text. All field validators in **Appendix N.4** — covers AC-59
-- [ ] 13b.7 In `design_app/api/views.py`, rewrite `BuilderBuildView.post` to consume `cfg['slots']` + (when `include_niche_context=True`) `project.niche.builder_form_hints`, pass current `workspace_id` to `build_form_prompt`, and call it. Cross-product order unchanged — covers AC-60
-- [ ] 13b.8 Rewrite the 7 existing `test_builder_api.py::TestBuilderBuild` tests against the new shape; add 8 new tests for the per-slot fallback chain + 4 new tests covering built-in / UUID / raw-text / missing-custom resolution paths — covers AC-62 + AC-75
-- [ ] 13b.9 Add a `polished_prompt_max_chars` cap check: if `build_form_prompt` returns >1500 chars, log a warning and truncate at last sentence boundary.
+- [x] 13b.1 In `design_app/services/prompt_builder.py`, add `build_form_prompt(slogan, style_slug, *, slots: dict, background_color: str, niche_hints: dict | None = None, workspace_id: str | None = None) -> str`. Exact composition logic in **Appendix N.2** — covers AC-58 — prompt_builder.py:188-249
+- [x] 13b.2 Implement fallback resolution `explicit slot → niche-hint → style-default → omit` per **Appendix N.3** — covers AC-58 + AC-67 — prompt_builder.py:125-167
+- [x] 13b.3 **NEW** Implement `_resolve_spatial(value: str | None, workspace_id: str | None, niche_hints: dict | None, style_slug: str) -> str | None` per **Appendix N.3 part 2**:
+  built-in id → `SPATIAL_OPTIONS.prompt_text`; UUID-shaped → `CustomSpatial` lookup (workspace-scoped, `is_deleted=False`); raw text → use as-is; niche-hint spatial id → recurse; style default → recurse; else omit — covers AC-75 — prompt_builder.py:56-122
+- [x] 13b.4 Remove the old `build_architect_prompt` function from `prompt_builder.py` — covers AC-60 — prompt_builder.py (deleted)
+- [x] 13b.5 Remove the old `_format_niche_block` helper from `prompt_builder.py` — covers AC-61 — prompt_builder.py (deleted)
+- [x] 13b.6 In `design_app/api/serializers.py`, extend `BuilderBuildSerializer` with the nested `slots` object (8 optional string fields). `spatial_configuration` accepts: built-in id, UUID, or raw text. All field validators in **Appendix N.4** — covers AC-59 — serializers.py:852-871
+- [x] 13b.7 In `design_app/api/views.py`, rewrite `BuilderBuildView.post` to consume `cfg['slots']` + (when `include_niche_context=True`) `project.niche.builder_form_hints`, pass current `workspace_id` to `build_form_prompt`, and call it. Cross-product order unchanged — covers AC-60 — views.py:1935-2001
+- [x] 13b.8 Rewrite the 7 existing `test_builder_api.py::TestBuilderBuild` tests against the new shape; add 8 new tests for the per-slot fallback chain + 4 new tests covering built-in / UUID / raw-text / missing-custom resolution paths — covers AC-62 + AC-75 — test_builder_api.py (10 build tests) + new test_prompt_builder.py (23 tests)
+- [x] 13b.9 Add a `polished_prompt_max_chars` cap check: if `build_form_prompt` returns >1500 chars, log a warning and truncate at last sentence boundary. — prompt_builder.py:240-248 + _truncate_at_sentence_boundary helper:170-186
 
 ### Phase 13c — Backend Niche-Vision LLM Pre-structuring
 
@@ -979,8 +979,11 @@ def _resolve_spatial(*, user_val, niche_hint_id, style_default_id, workspace_id)
             # custom was soft-deleted between preset-save and now → drop through
             pass
 
-    # 3) explicit raw text
-    if user_val:
+    # 3) explicit raw text (legacy / inline "Custom…" path).
+    #    Skip for UUID-shaped values so a failed CustomSpatial lookup never
+    #    leaks the raw UUID into the rendered Gemini prompt — fall through
+    #    to niche-hint / style-default / omit instead.
+    if user_val and not _UUID_RE.match(user_val):
         return user_val
 
     # 4) niche-hint id

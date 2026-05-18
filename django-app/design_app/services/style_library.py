@@ -2,7 +2,7 @@
 
 The frontend ships `frontend-ui/src/views/designs/board/constants/styleLibrary.ts`
 with the same 15 entries; this module is the backend source of truth for
-slug → label / promptSuffix lookup used by `build_architect_prompt`.
+slug → label / promptSuffix lookup used by `build_form_prompt`.
 
 If a future entry is added it must be mirrored in both files.
 

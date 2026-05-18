@@ -1,4 +1,13 @@
-"""PROJ-34 Phase 5 + 6 — Builder Build API + BuilderPreset CRUD tests."""
+"""PROJ-34 Phase 5 + 6 + 13b — Builder Build API + BuilderPreset CRUD tests.
+
+Phase 13b reshaped the Build endpoint: it now consumes a `slots` object
+(8 optional strings keyed by SLOT_SCHEMA) and calls `build_form_prompt`
+for the cross-product.
+
+Tests cover: cross-product order, polish gate, niche-hint pre-fill,
+serializer validation (unknown slot key), and the spatial resolver's
+UUID-missing-custom path (AC-75).
+"""
 
 import uuid
 from unittest.mock import patch
@@ -55,7 +64,6 @@ class TestBuilderBuild:
     def test_happy_path_5x3_polish_off(self, auth_client, project):
         """AC-34/AC-36/AC-37: 5 slogans × 3 styles → 15 prompts in order."""
         url = self.URL.format(pid=project.id)
-        # Polish OFF — no LLM call, deterministic output we can pin down.
         resp = auth_client.post(
             url,
             data={
@@ -64,24 +72,24 @@ class TestBuilderBuild:
                 'background_color': 'neon_pink',
                 'with_polish': False,
                 'include_niche_context': False,
+                'slots': {},
             },
             format='json',
         )
         assert resp.status_code == 200, resp.content
         prompts = resp.json()['prompts']
         assert len(prompts) == 15  # 5 * 3
-        # AC-7 + Architect template: bg hex + slogan + style label present.
-        assert '"A"' in prompts[0]
-        assert 'Vintage Retro' in prompts[0]
+        # Architect template + bg hex + slogan present in first prompt
+        assert prompts[0].startswith('A professional vector print design')
         assert '#FF6EC7' in prompts[0]
+        assert '"A"' in prompts[0]
         # Cross-product order: slogan stays at outer loop.
-        assert '"A"' in prompts[1] and '80s Neon Synthwave' in prompts[1]
-        assert '"E"' in prompts[14] and 'Cartoon' in prompts[14]
+        assert '"A"' in prompts[1]
+        assert '"E"' in prompts[14]
 
     @patch('design_app.api.views.polish_prompt', create=True)
     def test_polish_runs_when_with_polish_true(self, _patched, auth_client, project):
         """AC-16: with_polish=true triggers polish_prompt() per raw prompt."""
-        # Note: we patch via the lazy import path inside _maybe_polish_parallel.
         with patch(
             'design_app.services.prompt_polish.polish_prompt',
             side_effect=lambda raw, **kw: f'<polished>{raw}</polished>',
@@ -95,6 +103,7 @@ class TestBuilderBuild:
                     'background_color': 'light_gray',
                     'with_polish': True,
                     'include_niche_context': False,
+                    'slots': {},
                 },
                 format='json',
             )
@@ -121,6 +130,7 @@ class TestBuilderBuild:
                     'styles': ['cartoon'],
                     'with_polish': True,  # but workspace says NO
                     'include_niche_context': False,
+                    'slots': {},
                 },
                 format='json',
             )
@@ -131,7 +141,7 @@ class TestBuilderBuild:
         url = self.URL.format(pid=project.id)
         resp = auth_client.post(
             url,
-            data={'slogans': [], 'styles': ['cartoon']},
+            data={'slogans': [], 'styles': ['cartoon'], 'slots': {}},
             format='json',
         )
         assert resp.status_code == 400
@@ -140,7 +150,7 @@ class TestBuilderBuild:
         url = self.URL.format(pid=project.id)
         resp = auth_client.post(
             url,
-            data={'slogans': ['X'], 'styles': []},
+            data={'slogans': ['X'], 'styles': [], 'slots': {}},
             format='json',
         )
         assert resp.status_code == 400
@@ -155,27 +165,157 @@ class TestBuilderBuild:
         url = self.URL.format(pid=other_project.id)
         resp = auth_client.post(
             url,
-            data={'slogans': ['x'], 'styles': ['cartoon'], 'with_polish': False},
+            data={
+                'slogans': ['x'], 'styles': ['cartoon'],
+                'with_polish': False, 'slots': {},
+            },
             format='json',
         )
         assert resp.status_code == 404
 
-    def test_warp_phrase_injected(self, auth_client, project):
+    def test_slots_field_accepts_all_8_keys(self, auth_client, project):
+        """AC-59: serializer accepts the full 8-slot dict; values land in the
+        assembled prompt verbatim (per AC-58 fallback-chain step 1)."""
+        url = self.URL.format(pid=project.id)
+        slots = {
+            'spatial_configuration': 'vertical_stack',
+            'visual_description': 'a vector school bus rolling forward',
+            'text_segmentation': 'a single centered slogan rendered as one block of text',
+            'typography_adjectives': "'massive heavyweight cartoon-block font'",
+            'accessories': 'white radiating motion-burst lines',
+            'material_texture': 'clean digital vector with flat color regions',
+            'style_dna': 'Bold cartoon aesthetic',
+            'extra_context': 'High-energy kid-friendly mood',
+        }
+        resp = auth_client.post(
+            url,
+            data={
+                'slogans': ['SCHOOL BUS LIFE'],
+                'styles': ['cartoon'],
+                'with_polish': False,
+                'include_niche_context': False,
+                'slots': slots,
+            },
+            format='json',
+        )
+        assert resp.status_code == 200, resp.content
+        out = resp.json()['prompts'][0]
+        # Spatial id resolves to its prompt_text (not the raw id)
+        assert 'vertical_stack' not in out
+        assert 'Vertical stack layout' in out
+        # Non-spatial slot values render verbatim
+        for fragment in (
+            'a vector school bus rolling forward',
+            'single centered slogan rendered as one block of text',
+            "'massive heavyweight cartoon-block font'",
+            'white radiating motion-burst lines',
+            'clean digital vector with flat color regions',
+            'Bold cartoon aesthetic',
+            'High-energy kid-friendly mood',
+        ):
+            assert fragment in out
+
+    def test_unknown_slot_key_rejected_400(self, auth_client, project):
+        """AC-59 / N.4: unknown slot keys raise ValidationError."""
         url = self.URL.format(pid=project.id)
         resp = auth_client.post(
             url,
             data={
-                'slogans': ['BUS LIFE'],
-                'styles': ['cartoon'],
-                'warp': 'arc_lower',
-                'with_polish': False,
-                'include_niche_context': False,
+                'slogans': ['X'], 'styles': ['cartoon'],
+                'with_polish': False, 'include_niche_context': False,
+                'slots': {'not_a_real_slot': 'value'},
             },
             format='json',
         )
-        assert resp.status_code == 200
-        prompt = resp.json()['prompts'][0]
-        assert 'Arc Lower' in prompt
+        assert resp.status_code == 400
+        err_body = resp.json()
+        # DRF serializer field error nests under 'slots'.
+        assert 'slots' in err_body
+        # The offending key name surfaces in the error message.
+        assert 'not_a_real_slot' in str(err_body['slots'])
+
+    def test_niche_hint_pre_fills_when_slots_empty(self, auth_client, project, workspace, user):
+        """AC-58 / EC-24-adjacent: when slots empty and the linked niche has
+        `builder_form_hints`, the view passes them into `build_form_prompt`.
+
+        The actual `builder_form_hints` JSONField on Niche lands in Phase 13c
+        — for 13b we verify the wiring: view → resolver. We patch
+        `build_form_prompt` to capture its kwargs and patch the project's
+        niche access so the view sees a hint dict on `niche.builder_form_hints`.
+        """
+        from niche_app.models import Niche
+        niche = Niche.objects.create(
+            workspace=workspace, name='School Buses', created_by=user,
+        )
+        project.niche = niche
+        project.save(update_fields=['niche'])
+
+        hints = {
+            '_schema_version': 2,
+            'spatial': 'vertical_stack',
+            'visual': 'a stylized illustration of a vintage school bus',
+            'accessories': 'a sparse scattering of small filled stars',
+            'material': 'matte screenprint plastisol ink texture',
+        }
+
+        captured: dict = {}
+
+        def _fake_build(slogan, style_slug, **kw):
+            captured.update(kw)
+            captured['slogan'] = slogan
+            captured['style_slug'] = style_slug
+            return f'<built {slogan} {style_slug}>'
+
+        # Intercept `_gather_research_data` to avoid touching unrelated
+        # research models and replace `getattr` indirection by patching the
+        # Niche class so `niche.builder_form_hints` returns our test dict.
+        url = self.URL.format(pid=project.id)
+        with patch(
+            'design_app.services.prompt_builder.build_form_prompt',
+            side_effect=_fake_build,
+        ), patch.object(
+            Niche, 'builder_form_hints', hints, create=True,
+        ):
+            resp = auth_client.post(
+                url,
+                data={
+                    'slogans': ['X'],
+                    'styles': ['cartoon'],
+                    'with_polish': False,
+                    'include_niche_context': True,
+                    'slots': {},
+                },
+                format='json',
+            )
+        assert resp.status_code == 200, resp.content
+        # The view forwarded the niche-hint dict into the prompt builder.
+        assert captured.get('niche_hints') == hints
+        assert captured.get('slots') == {}
+        assert captured.get('workspace_id') == str(workspace.id)
+
+    def test_slot_uuid_spatial_falls_through_to_style_default(self, auth_client, project):
+        """AC-75: a UUID-shaped spatial_configuration that resolves to no
+        CustomSpatial (Phase 13d not yet shipped) falls through to the style
+        default (`cartoon` → 'vertical_stack')."""
+        url = self.URL.format(pid=project.id)
+        bogus_uuid = '00000000-1111-2222-3333-444444444444'
+        resp = auth_client.post(
+            url,
+            data={
+                'slogans': ['X'],
+                'styles': ['cartoon'],
+                'with_polish': False,
+                'include_niche_context': False,
+                'slots': {'spatial_configuration': bogus_uuid},
+            },
+            format='json',
+        )
+        assert resp.status_code == 200, resp.content
+        out = resp.json()['prompts'][0]
+        # The UUID itself never appears in the output.
+        assert bogus_uuid not in out
+        # cartoon → default_spatial_id='vertical_stack' → prompt_text below.
+        assert 'Vertical stack layout' in out
 
 
 # ---- /builder-presets/ -------------------------------------------------------

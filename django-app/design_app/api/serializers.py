@@ -817,6 +817,11 @@ class BuilderBuildSerializer(serializers.Serializer):
     (AC-34) and shows the confirm dialog when N×M > 30 (AC-35), so the
     backend simply enforces non-empty inputs (EC-9, EC-10) and ignores
     niche-context when no niche is linked (EC-16, EC-23).
+
+    Phase 13b adds the form-based `slots` object (8 optional strings) that
+    `build_form_prompt` consumes via the explicit → niche-hint → style-default
+    → omit fallback chain. Empty strings are preserved (distinguishes
+    "user touched but cleared" from "user never touched").
     """
 
     slogans = serializers.ListField(
@@ -841,6 +846,30 @@ class BuilderBuildSerializer(serializers.Serializer):
     )
     with_polish = serializers.BooleanField(default=True)
     include_niche_context = serializers.BooleanField(default=True)
+    # PROJ-34 Phase 13b — Architect form slots. 8 optional strings keyed by
+    # `SLOT_SCHEMA[i]['key']`. Per Appendix N.4: `DictField` of
+    # blank-allowed CharFields; unknown keys rejected; whitespace-stripped.
+    slots = serializers.DictField(
+        child=serializers.CharField(allow_blank=True, max_length=2000),
+        required=False,
+        default=dict,
+        help_text='Form-based Architect slots (Appendix J.3 / N.4).',
+    )
+
+    def validate_slots(self, value):
+        """Reject unknown slot keys + whitespace-normalize each value."""
+        from design_app.services.style_library import SLOT_SCHEMA
+
+        valid_keys = {slot['key'] for slot in SLOT_SCHEMA}
+        cleaned: dict[str, str] = {}
+        for key, raw in value.items():
+            if key not in valid_keys:
+                raise serializers.ValidationError(
+                    f'Unknown slot key: {key!r}. Valid keys: '
+                    f'{sorted(valid_keys)}.',
+                )
+            cleaned[key] = raw.strip() if isinstance(raw, str) else raw
+        return cleaned
 
 
 # -- BuilderPreset (PROJ-34) --
