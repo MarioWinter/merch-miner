@@ -3,6 +3,9 @@
 These helpers feed the `creative_techniques` prompt and various agent tools
 (see Phase 1D). Each is small, side-effect-free (modulo Redis cache writes),
 and Django-ORM only — no LLM calls.
+
+PROJ-34 Phase 13c added `builder_hints` (LLM-backed) — that module is
+imported lazily on demand to keep the default symbol surface unchanged.
 """
 
 from __future__ import annotations

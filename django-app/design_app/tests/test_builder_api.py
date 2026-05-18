@@ -238,18 +238,13 @@ class TestBuilderBuild:
         """AC-58 / EC-24-adjacent: when slots empty and the linked niche has
         `builder_form_hints`, the view passes them into `build_form_prompt`.
 
-        The actual `builder_form_hints` JSONField on Niche lands in Phase 13c
-        — for 13b we verify the wiring: view → resolver. We patch
-        `build_form_prompt` to capture its kwargs and patch the project's
-        niche access so the view sees a hint dict on `niche.builder_form_hints`.
+        Phase 13c shipped the real `builder_form_hints` JSONField on Niche, so
+        we assign the dict directly instead of monkey-patching the class.
         """
         from niche_app.models import Niche
         niche = Niche.objects.create(
             workspace=workspace, name='School Buses', created_by=user,
         )
-        project.niche = niche
-        project.save(update_fields=['niche'])
-
         hints = {
             '_schema_version': 2,
             'spatial': 'vertical_stack',
@@ -257,6 +252,10 @@ class TestBuilderBuild:
             'accessories': 'a sparse scattering of small filled stars',
             'material': 'matte screenprint plastisol ink texture',
         }
+        niche.builder_form_hints = hints
+        niche.save(update_fields=['builder_form_hints'])
+        project.niche = niche
+        project.save(update_fields=['niche'])
 
         captured: dict = {}
 
@@ -266,15 +265,10 @@ class TestBuilderBuild:
             captured['style_slug'] = style_slug
             return f'<built {slogan} {style_slug}>'
 
-        # Intercept `_gather_research_data` to avoid touching unrelated
-        # research models and replace `getattr` indirection by patching the
-        # Niche class so `niche.builder_form_hints` returns our test dict.
         url = self.URL.format(pid=project.id)
         with patch(
             'design_app.services.prompt_builder.build_form_prompt',
             side_effect=_fake_build,
-        ), patch.object(
-            Niche, 'builder_form_hints', hints, create=True,
         ):
             resp = auth_client.post(
                 url,

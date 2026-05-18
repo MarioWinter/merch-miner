@@ -65,6 +65,11 @@ class Niche(models.Model):
         help_text='Current active round for the niche',
     )
     position = models.PositiveIntegerField(default=0)
+    # PROJ-34 Phase 13c — structured pre-fill hints for the Architect Builder
+    # form, produced by `niche_app.services.builder_hints.structure_niche_for_builder`.
+    # Schema documented in docs/tasks/PROJ-34-tasks.md Appendix L. Null until
+    # the niche has a completed research run + the LLM call succeeded.
+    builder_form_hints = models.JSONField(null=True, blank=True)
     assigned_to = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

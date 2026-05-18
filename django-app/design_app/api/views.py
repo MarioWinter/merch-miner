@@ -2022,6 +2022,57 @@ def _maybe_polish_parallel(raw_prompts: list[str], run_polish: bool) -> list[str
         return list(pool.map(polish_prompt, raw_prompts))
 
 
+# -- PROJ-34 Phase 13c — Niche Builder Hints --
+
+class BuilderNicheHintsView(APIView):
+    """GET /api/designs/projects/{id}/builder/niche-hints/
+
+    Returns the structured `Niche.builder_form_hints` dict produced by
+    `niche_app.services.builder_hints.structure_niche_for_builder` for the
+    project's linked niche, plus the niche id + the hint's `_generated_at`
+    timestamp so the frontend can show "auto from niche" badges.
+
+    When the project has no linked niche (or the niche has no hints yet —
+    EC-26), returns a null trio. Workspace isolation is enforced by the
+    `get_object_or_404(workspace_id=ws_id)` filter (cross-workspace → 404).
+    """
+
+    def get(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        project = get_object_or_404(
+            DesignProject.objects.select_related('niche'),
+            pk=pk,
+            workspace_id=ws_id,
+        )
+
+        if project.niche_id is None:
+            return Response(
+                {
+                    'builder_form_hints': None,
+                    'niche_id': None,
+                    'last_updated': None,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        hints = project.niche.builder_form_hints
+        last_updated = None
+        if isinstance(hints, dict):
+            last_updated = hints.get('_generated_at')
+
+        return Response(
+            {
+                'builder_form_hints': hints,
+                'niche_id': str(project.niche_id),
+                'last_updated': last_updated,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 # -- PROJ-34 BuilderPreset CRUD --
 
 class BuilderPresetListCreateView(APIView):

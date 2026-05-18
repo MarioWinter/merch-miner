@@ -255,24 +255,24 @@ identically to built-ins.
 
 #### Schicht 10 — Niche-Vision LLM Pre-structuring
 
-- [ ] AC-53: A new field `Niche.builder_form_hints` (JSONField, nullable, blank=True) on
+- [x] AC-53: A new field `Niche.builder_form_hints` (JSONField, nullable, blank=True) on
   the existing `niche_app.Niche` model. Migration is additive, defaults to `null`.
   Field schema documented in **Appendix L of the tasks file**.
-- [ ] AC-54: A new internal helper `niche_app.services.builder_hints.structure_niche_for_builder(niche_id) -> dict`
+- [x] AC-54: A new internal helper `niche_app.services.builder_hints.structure_niche_for_builder(niche_id) -> dict`
   loads the latest `NicheResearch` + `NicheProductVisionAnalysis` rows for that niche,
   sends them to `openai/gpt-4.1-mini` via OpenRouter with a strict system prompt
   (exact text in **Appendix M of the tasks file**), and stores the resulting structured
   dict on `Niche.builder_form_hints`. The function is idempotent on repeat runs.
-- [ ] AC-55: The function `structure_niche_for_builder` is invoked automatically at the
+- [x] AC-55: The function `structure_niche_for_builder` is invoked automatically at the
   end of the existing PROJ-6 niche-research workflow (in
   `niche_research_app.tasks.task_run_niche_research` after the final step succeeds).
   When PROJ-6 is re-run, `builder_form_hints` is regenerated.
-- [ ] AC-56: A new GET endpoint
+- [x] AC-56: A new GET endpoint
   `GET /api/designs/projects/{id}/builder/niche-hints/` returns
   `{ builder_form_hints: {...} | null, niche_id: str | null, last_updated: iso | null }`.
   When no niche is linked, returns `{ builder_form_hints: null }`. Requires
   `IsAuthenticated` + workspace isolation.
-- [ ] AC-57: A new management command
+- [x] AC-57: A new management command
   `python manage.py backfill_niche_builder_hints` walks every niche with a completed
   research run and triggers `structure_niche_for_builder` for those whose
   `builder_form_hints` is still null. Used once post-deploy to populate existing

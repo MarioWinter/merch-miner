@@ -14,6 +14,7 @@ from design_app.api.views import (
     ApplyPipelineView,
     BatchProcessView,
     BuilderBuildView,
+    BuilderNicheHintsView,
     BuilderPresetDetailView,
     BuilderPresetListCreateView,
     BuildPromptsView,
@@ -241,6 +242,12 @@ urlpatterns = [
         'designs/projects/<uuid:pk>/builder/build/',
         BuilderBuildView.as_view(),
         name='design-project-builder-build',
+    ),
+    # PROJ-34 Phase 13c — Niche Builder Hints (AC-56)
+    path(
+        'designs/projects/<uuid:pk>/builder/niche-hints/',
+        BuilderNicheHintsView.as_view(),
+        name='design-project-builder-niche-hints',
     ),
     # PROJ-34 — BuilderPreset CRUD
     path(

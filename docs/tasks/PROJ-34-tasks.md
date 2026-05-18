@@ -191,15 +191,15 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 
 ### Phase 13c — Backend Niche-Vision LLM Pre-structuring
 
-- [ ] 13c.1 Add field `builder_form_hints` (JSONField, nullable, blank=True) to `niche_app.models.Niche`. Migration is additive (no default needed — `null` is acceptable) — covers AC-53
-- [ ] 13c.2 Create `niche_app/services/builder_hints.py` with `structure_niche_for_builder(niche_id) -> dict | None`. Exact LLM payload + system prompt in **Appendix M** — covers AC-54
-- [ ] 13c.3 Cache strategy: if `niche.builder_form_hints` is non-null AND the latest `NicheResearch.updated_at` is older than that hints' `_generated_at` field, return the cached dict and skip the LLM call. Force-regenerate via `force=True` kwarg.
-- [ ] 13c.4 Hook `structure_niche_for_builder` into the existing `niche_research_app.tasks.task_run_niche_research` task right before it marks the run as COMPLETED. Errors don't fail the parent task (logged, hints stay null) — covers AC-55 + EC-27
-- [ ] 13c.5 New view `BuilderNicheHintsView(APIView)` at `GET /api/designs/projects/{id}/builder/niche-hints/`. Returns the JSON dict + metadata per AC-56. `IsAuthenticated` + workspace isolation — covers AC-56
-- [ ] 13c.6 Wire URL in `design_app/api/urls.py`
-- [ ] 13c.7 Management command `niche_app/management/commands/backfill_niche_builder_hints.py` per AC-57 — iterates `Niche.objects.filter(builder_form_hints__isnull=True)` that have a completed research, calls `structure_niche_for_builder` for each.
-- [ ] 13c.8 The system-prompt enumerates the **36 SPATIAL ids** (Appendix J.4) and forces the LLM to pick exactly ONE id (or return `null`). NO free-text spatial strings allowed — see updated **Appendix M**.
-- [ ] 13c.9 Tests: serializer shape, view auth, view 404 on cross-workspace project, view returns null when no niche linked, mocked LLM happy path returning a valid id, mocked LLM returning an unknown id (gracefully fall through to style default).
+- [x] 13c.1 Add field `builder_form_hints` (JSONField, nullable, blank=True) to `niche_app.models.Niche`. Migration is additive (no default needed — `null` is acceptable) — covers AC-53 — niche_app/models.py:72 + migration 0009_niche_builder_form_hints.py
+- [x] 13c.2 Create `niche_app/services/builder_hints.py` with `structure_niche_for_builder(niche_id) -> dict | None`. Exact LLM payload + system prompt in **Appendix M** — covers AC-54 — niche_app/services/builder_hints.py:460-527
+- [x] 13c.3 Cache strategy: if `niche.builder_form_hints` is non-null AND the latest `NicheResearch.updated_at` is older than that hints' `_generated_at` field, return the cached dict and skip the LLM call. Force-regenerate via `force=True` kwarg. — builder_hints.py:200-233 (_is_cache_fresh) + 499-504 (cache short-circuit)
+- [x] 13c.4 Hook `structure_niche_for_builder` into the existing `niche_research_app.tasks.task_run_niche_research` task right before it marks the run as COMPLETED. Errors don't fail the parent task (logged, hints stay null) — covers AC-55 + EC-27 — niche_research_app/graph/workflow.py (hook)
+- [x] 13c.5 New view `BuilderNicheHintsView(APIView)` at `GET /api/designs/projects/{id}/builder/niche-hints/`. Returns the JSON dict + metadata per AC-56. `IsAuthenticated` + workspace isolation — covers AC-56 — design_app/api/views.py:2027-2073
+- [x] 13c.6 Wire URL in `design_app/api/urls.py` — design_app/api/urls.py:246-251
+- [x] 13c.7 Management command `niche_app/management/commands/backfill_niche_builder_hints.py` per AC-57 — iterates `Niche.objects.filter(builder_form_hints__isnull=True)` that have a completed research, calls `structure_niche_for_builder` for each. — backfill_niche_builder_hints.py:1-118
+- [x] 13c.8 The system-prompt enumerates the **36 SPATIAL ids** (Appendix J.4) and forces the LLM to pick exactly ONE id (or return `null`). NO free-text spatial strings allowed — see updated **Appendix M**. — builder_hints.py:50-108 (SYSTEM_PROMPT)
+- [x] 13c.9 Tests: serializer shape, view auth, view 404 on cross-workspace project, view returns null when no niche linked, mocked LLM happy path returning a valid id, mocked LLM returning an unknown id (gracefully fall through to style default). — niche_app/tests/test_builder_hints.py (7 tests), niche_app/tests/test_backfill_command.py (5 tests), design_app/tests/test_builder_niche_hints_view.py (5 tests)
 
 ### Phase 13d — Backend Custom Spatial Layouts (model + CRUD + vision-LLM)
 
