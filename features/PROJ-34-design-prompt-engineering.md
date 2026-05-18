@@ -135,7 +135,197 @@
 - [ ] EC-21: A style's thumbnail PNG is missing in production (deploy mishap) → frontend falls back to a colored placeholder rectangle with the style label centered (CSS-only, no network).
 - [x] EC-22: User runs `generate_style_thumbnails.py` without `OPENROUTER_API_KEY` env → script aborts with clear error before any LLM call.
 
-## Technical Requirements
+---
+
+# Phase 13 — Form-Based Architect Builder (post-QA revision)
+
+**Why:** The QA-passed v1 Builder produced low-quality prompts because the simple template
+violated Architect Rules 3, 4, 5, 6, 8, 10 — it said "t-shirt" verbatim, gave Gemini no
+illustration/font/layout direction, and dumped unfiltered PROJ-6 niche-research text
+(including "yellow on a black shirt") that contradicted the user's bg-color choice. Polish
+couldn't help because its system prompt explicitly forbade removing concrete details.
+
+**What changes:** The Builder dialog becomes an 8-slot **structured form** that fills the
+Architect 7-Step template directly. Each slot is a dropdown of pre-written variants + a
+"Custom…" override + a Style-driven auto-default badge. The PROJ-6 niche-vision data is
+**pre-structured by an LLM** (one call per niche, cached on the Niche model) into
+slot-shaped suggestions that pre-populate the form when the user opens the Builder for a
+niche-linked project.
+
+### User Stories (Phase 13)
+
+- **As a POD seller**, when I open the Builder for the "school bus driver" project, I want
+  the form to be **pre-filled** based on the linked niche's research data — so Spatial
+  Configuration suggests "Badge layout" or "Top text + bus illustration + bottom text",
+  Accessories suggests "motion lines + stars", and Material/Texture suggests "halftone
+  print + slight distressed grain". I can override any field. This kills the cold-start
+  problem where I'd otherwise have to type all 8 slots myself.
+
+- **As a POD seller**, when I pick a style (e.g. `cartoon`), I want **Typography**,
+  **Material**, and **Style-DNA** slots to auto-fill with Cartoon-typical values ("massive
+  heavyweight cartoon-block font", "clean digital vector", "Saturday-morning animation
+  flat shading"). The auto-filled fields show an "auto from Cartoon style" badge that I
+  can override.
+
+- **As a POD seller**, I want the **Visual Description** slot to be a **multiline free-text
+  field** because no preset can know that THIS design needs "a smiling cartoon school bus
+  in 3/4 view facing right, with curved yellow roof, horizontal grille slats, rounded
+  wheel arches, dark grey bumper, square white windows, white motion lines around it".
+  This field is the heart of the Architect "≥6 visual details" rule (#8).
+
+- **As a POD seller**, I want **no gradients, no glowing shadows, no soft-shadow effects
+  EVER** in the produced prompt — POD print needs hard edges always, even on round
+  graphics. This must be a hard rule that no Style can override.
+
+- **As a POD seller** who built a great form configuration, I want to **save it as a
+  Preset** with all 8 slot values, so my next batch in this project starts from there.
+
+- **As a POD seller** who turned off Niche-Context, I want my Visual Description /
+  Accessories / Material slots to fall back to the **Style-default** values (not blank).
+
+- **As a POD seller** who finishes the form, I want a **live preview** at the bottom that
+  shows the assembled prompt before I click Build, so I can spot issues.
+
+### Acceptance Criteria (Phase 13)
+
+#### Schicht 8 — Architect Template Sections
+
+- [ ] AC-47: A new constant `ARCHITECT_TEMPLATE_START` in `style_library.py` holds the
+  static opener `"A professional vector print design isolated on a {bg_hex} background."`
+  — `{bg_hex}` is the only placeholder.
+- [ ] AC-48: A new constant `ARCHITECT_TEMPLATE_END` in `style_library.py` holds the
+  static closer `"High contrast, clean outlines, commercial vector art. Screen print
+  ready, hard edges, no gradients, no glow effects, no soft shadows, no drop shadows,
+  vector sharpness, 300 DPI."` — the no-gradients/glow/shadow clauses are NON-NEGOTIABLE
+  (covers `*As a POD seller, no gradients ever*` user story).
+- [ ] AC-49: A new constant `DESIGN_GEN_SYSTEM_PROMPT` gets a 10th hard rule appended:
+  `"10. NEVER produce gradient fills, glowing effects, soft-edge shadows, drop shadows,
+  or any blurred edge. Print on Demand requires hard edges and flat color regions even
+  on round shapes."`
+- [ ] AC-50: An 8-slot data structure `SLOT_SCHEMA` enumerates each Architect template
+  slot in render order: `spatial_configuration`, `visual_description`,
+  `text_segmentation`, `typography_adjectives`, `accessories`, `material_texture`,
+  `style_dna`, `extra_context`. Each slot entry declares: `label`, `requires_value`,
+  `has_dropdown`, `has_custom_text`, `style_auto_default` (bool).
+
+#### Schicht 9 — Slot Dropdown Options (15 styles × 6 dropdown slots)
+
+- [ ] AC-51: For each of the 5 user-driven dropdown slots (Spatial, Text-Segmentation,
+  Typography, Accessories, Material) the file `style_library.py` ships a fixed list of
+  **6 preset variants** with crisp ≤30-word Architect-quality descriptions. Lists are
+  shared across all 15 styles; the per-style auto-default picks ONE of the 6 as the
+  Builder's pre-selected value. Exact text per slot lives in **Appendix J of the tasks
+  file**.
+- [ ] AC-52: For each of the 15 styles in `STYLE_LIBRARY`, the entry gains 3 new fields:
+  `default_typography` (one of the 6 Typography variants), `default_material` (one of
+  the 6 Material variants), `default_style_dna` (a per-style descriptor string).
+  Exact mapping lives in **Appendix K of the tasks file**.
+
+#### Schicht 10 — Niche-Vision LLM Pre-structuring
+
+- [ ] AC-53: A new field `Niche.builder_form_hints` (JSONField, nullable, blank=True) on
+  the existing `niche_app.Niche` model. Migration is additive, defaults to `null`.
+  Field schema documented in **Appendix L of the tasks file**.
+- [ ] AC-54: A new internal helper `niche_app.services.builder_hints.structure_niche_for_builder(niche_id) -> dict`
+  loads the latest `NicheResearch` + `NicheProductVisionAnalysis` rows for that niche,
+  sends them to `openai/gpt-4.1-mini` via OpenRouter with a strict system prompt
+  (exact text in **Appendix M of the tasks file**), and stores the resulting structured
+  dict on `Niche.builder_form_hints`. The function is idempotent on repeat runs.
+- [ ] AC-55: The function `structure_niche_for_builder` is invoked automatically at the
+  end of the existing PROJ-6 niche-research workflow (in
+  `niche_research_app.tasks.task_run_niche_research` after the final step succeeds).
+  When PROJ-6 is re-run, `builder_form_hints` is regenerated.
+- [ ] AC-56: A new GET endpoint
+  `GET /api/designs/projects/{id}/builder/niche-hints/` returns
+  `{ builder_form_hints: {...} | null, niche_id: str | null, last_updated: iso | null }`.
+  When no niche is linked, returns `{ builder_form_hints: null }`. Requires
+  `IsAuthenticated` + workspace isolation.
+- [ ] AC-57: A new management command
+  `python manage.py backfill_niche_builder_hints` walks every niche with a completed
+  research run and triggers `structure_niche_for_builder` for those whose
+  `builder_form_hints` is still null. Used once post-deploy to populate existing
+  workspaces.
+
+#### Schicht 11 — Backend Form-Aware Builder
+
+- [ ] AC-58: A new function `prompt_builder.build_form_prompt(slogan, style_slug, *, slots: dict, background_color: str) -> str`
+  composes `ARCHITECT_TEMPLATE_START` + 8 ordered slots + `ARCHITECT_TEMPLATE_END`. When a
+  slot is missing, the function applies fallback resolution: explicit user value →
+  niche-hint value → style auto-default → omit. Output is typically 600–1200 chars.
+- [ ] AC-59: `BuilderBuildSerializer` is extended with a new nested object
+  `slots: { spatial_configuration?: str, visual_description?: str,
+  text_segmentation?: str, typography_adjectives?: str, accessories?: str,
+  material_texture?: str, style_dna?: str, extra_context?: str }`. All fields optional;
+  empty strings treated as "use fallback".
+- [ ] AC-60: `BuilderBuildView.post` calls `build_form_prompt` (not the deprecated
+  `build_architect_prompt`) for the cross-product. The old `build_architect_prompt` is
+  removed in the same commit so there is one Builder path, not two.
+- [ ] AC-61: The deprecated `prompt_builder._format_niche_block` is removed. Niche
+  context is no longer dumped verbatim — it is consumed only via the structured
+  `builder_form_hints` to pre-fill form slots.
+- [ ] AC-62: All `prompt_builder` unit tests are rewritten against `build_form_prompt`
+  with full coverage: each slot's fallback chain, hard-rule presence in output, output
+  length stays ≤1500 chars.
+
+#### Schicht 12 — Frontend Form UI
+
+- [ ] AC-63: `BuilderConfig` type adds a new field `slots: BuilderSlots` (8 optional
+  strings — same names as backend). Old fields `selectedStyleSlugs`, `warpSlug`,
+  `includeNicheContext` stay.
+- [ ] AC-64: The renovated `BuilderDialog` is restructured into 5 collapsible MUI
+  Accordions:
+  - **A. Slogans** (existing SloganPicker; open by default)
+  - **B. Styles** (existing StylePicker + WarpPicker; open by default)
+  - **C. Layout & Composition** (new SpatialPicker + TextSegmentationPicker +
+    AccessoriesPicker; closed by default)
+  - **D. Visual Details** (new VisualDescriptionField — always required, open by
+    default + TypographyPicker + MaterialPicker)
+  - **E. Niche & Extra** (existing NicheContextToggle + ReferenceIndicator + new
+    ExtraContextField; closed by default)
+- [ ] AC-65: 7 new partials in `frontend-ui/src/views/designs/board/partials/promptBuilder/`:
+  `SpatialPicker.tsx`, `VisualDescriptionField.tsx`, `TextSegmentationPicker.tsx`,
+  `TypographyPicker.tsx`, `AccessoriesPicker.tsx`, `MaterialPicker.tsx`,
+  `ExtraContextField.tsx`. Each:
+  - Renders a MUI `<Select>` populated from the Phase-9 dropdown options
+  - Shows a `Custom…` final option that reveals a `<TextField>`
+  - Shows an "auto from {Style}" badge when the value matches the style-default
+  - Has a small "↺" icon to reset back to the style-default
+- [ ] AC-66: A new RTK Query endpoint `useGetNicheHintsQuery(projectId)` calls the
+  Phase-10 GET. Result is used to pre-fill form slots when `builder_form_hints` is
+  present and the user has not yet typed anything in that slot.
+- [ ] AC-67: Below the Build CTA, a new collapsible `Live Preview` panel renders the
+  exact assembled prompt for `slogans[0] × styles[0]` so the user can sanity-check before
+  spending credits.
+- [ ] AC-68: `BuilderPreset.config` JSON keeps storing the same `BuilderConfig` shape,
+  now including the `slots` sub-object. Existing presets (saved under the v1 schema)
+  load without the `slots` field — Builder treats it as `{}` so all slot fallbacks
+  kick in. No DB migration needed.
+- [ ] AC-69: Every dropdown option set ships as a typed constant in a new file
+  `frontend-ui/src/views/designs/board/constants/slotOptions.ts` mirroring backend
+  Appendix J text 1:1.
+
+### Edge Cases (Phase 13)
+
+- [ ] EC-24: Build with `Visual Description` slot blank AND no niche-hint AND no
+  style-default → backend renders the prompt without the illustration sentence at all
+  (gracefully skips). Frontend Live Preview warns: "No illustration described — Gemini
+  may produce abstract output."
+- [ ] EC-25: User loads a Phase-12 (v1) preset on the new Phase-13 dialog → all 8 slot
+  fields stay empty, fall back through `niche-hint → style-default → omit` chain.
+  No snackbar warning needed because v1→v2 is a forward-compatible JSON additive change.
+- [ ] EC-26: Niche research has just completed but `builder_form_hints` is still being
+  generated (LLM in flight) → `GET /builder/niche-hints/` returns `null`, frontend
+  treats it as "no hints available", form starts empty. No spinner UX (rare case,
+  PROJ-6 runs are minutes-long, hints generate in seconds).
+- [ ] EC-27: `openai/gpt-4.1-mini` is unreachable when `structure_niche_for_builder`
+  runs → function logs the error, leaves `builder_form_hints` as `null`, returns
+  without raising. Future PROJ-6 runs will retry.
+- [ ] EC-28: User overrides a style-auto-default in Typography slot, then switches the
+  Style dropdown to a different style → the user's typed override **wins**; we do NOT
+  silently re-fill with the new style's default. The "auto from {Style}" badge
+  disappears. The "↺" reset icon brings the new style's default back.
+
+
 
 - **Backend:**
   - `DESIGN_GEN_SYSTEM_PROMPT` constant in one place (`image_generator.py`), reused everywhere.

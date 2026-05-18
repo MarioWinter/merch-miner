@@ -151,7 +151,472 @@ Each phase below maps to a coherent reviewable PR. Tasks are checked off by impl
 
 ---
 
-## Estimated Effort
+## Phase 13 — Form-Based Architect Builder (post-QA revision)
+
+> **Why this exists:** QA-passed v1 Builder produces low-quality prompts. See spec's
+> "Phase 13" header for the why and the User-Stories. Implementation references the
+> exact template texts in **Appendices J–N below** which are the source-of-truth and
+> must be copy-pasted verbatim by the implementing skill.
+
+### Phase 13a — Backend Foundation: Style Library v2 + Anti-Gradient Rule
+
+- [ ] 13a.1 Append Rule #10 to `DESIGN_GEN_SYSTEM_PROMPT` in `design_app/services/image_generator.py` — exact wording in **Appendix N.1** — covers AC-49
+- [ ] 13a.2 In `design_app/services/style_library.py`, add module-level constants:
+  - `ARCHITECT_TEMPLATE_START` — exact string in **Appendix J.1** — covers AC-47
+  - `ARCHITECT_TEMPLATE_END` — exact string in **Appendix J.2** — covers AC-48
+  - `SLOT_SCHEMA` — exact dict in **Appendix J.3** — covers AC-50
+- [ ] 13a.3 In `design_app/services/style_library.py`, add 5 dropdown-option lists (one per user-driven slot). Exact text in **Appendices J.4 – J.8**:
+  - `SPATIAL_OPTIONS` (6 items)
+  - `TEXT_SEGMENTATION_OPTIONS` (6 items)
+  - `TYPOGRAPHY_OPTIONS` (6 items)
+  - `ACCESSORIES_OPTIONS` (6 items — multi-select, not single-select)
+  - `MATERIAL_OPTIONS` (6 items)
+- [ ] 13a.4 Extend each of the 15 entries in `STYLE_LIBRARY` with 3 new fields: `default_typography`, `default_material`, `default_style_dna`. Each `default_typography` + `default_material` MUST match a value from the respective options list. Exact mapping in **Appendix K** — covers AC-52
+- [ ] 13a.5 Unit tests: every style has all 3 default fields populated; every default points to a valid options-list value; `SLOT_SCHEMA` is internally consistent (8 slots, render-order numeric).
+- [ ] 13a.6 No code path uses `style_library.STYLE_LIBRARY` directly outside `prompt_builder.py` (validated by grep before commit) — keeps the dependency direction clean.
+
+### Phase 13b — Backend Form-Aware Builder
+
+- [ ] 13b.1 In `design_app/services/prompt_builder.py`, add `build_form_prompt(slogan, style_slug, *, slots: dict, background_color: str, niche_hints: dict | None = None) -> str`. Exact composition logic in **Appendix N.2** — covers AC-58
+- [ ] 13b.2 Implement fallback resolution `explicit slot → niche-hint → style-default → omit` per **Appendix N.3** — covers AC-58 + AC-67
+- [ ] 13b.3 Remove the old `build_architect_prompt` function from `prompt_builder.py` — covers AC-60
+- [ ] 13b.4 Remove the old `_format_niche_block` helper from `prompt_builder.py` — covers AC-61
+- [ ] 13b.5 In `design_app/api/serializers.py`, extend `BuilderBuildSerializer` with the nested `slots` object (8 optional string fields). All field validators in **Appendix N.4** — covers AC-59
+- [ ] 13b.6 In `design_app/api/views.py`, rewrite `BuilderBuildView.post` to consume `cfg['slots']` + (when `include_niche_context=True`) `project.niche.builder_form_hints` and call `build_form_prompt`. Cross-product order unchanged — covers AC-60
+- [ ] 13b.7 Rewrite the 7 existing `test_builder_api.py::TestBuilderBuild` tests against the new shape; add 8 new tests for the per-slot fallback chain — covers AC-62
+- [ ] 13b.8 Add a `polished_prompt_max_chars` cap check: if `build_form_prompt` returns >1500 chars, log a warning and truncate at last sentence boundary.
+
+### Phase 13c — Backend Niche-Vision LLM Pre-structuring
+
+- [ ] 13c.1 Add field `builder_form_hints` (JSONField, nullable, blank=True) to `niche_app.models.Niche`. Migration is additive (no default needed — `null` is acceptable) — covers AC-53
+- [ ] 13c.2 Create `niche_app/services/builder_hints.py` with `structure_niche_for_builder(niche_id) -> dict | None`. Exact LLM payload + system prompt in **Appendix M** — covers AC-54
+- [ ] 13c.3 Cache strategy: if `niche.builder_form_hints` is non-null AND the latest `NicheResearch.updated_at` is older than that hints' `_generated_at` field, return the cached dict and skip the LLM call. Force-regenerate via `force=True` kwarg.
+- [ ] 13c.4 Hook `structure_niche_for_builder` into the existing `niche_research_app.tasks.task_run_niche_research` task right before it marks the run as COMPLETED. Errors don't fail the parent task (logged, hints stay null) — covers AC-55 + EC-27
+- [ ] 13c.5 New view `BuilderNicheHintsView(APIView)` at `GET /api/designs/projects/{id}/builder/niche-hints/`. Returns the JSON dict + metadata per AC-56. `IsAuthenticated` + workspace isolation — covers AC-56
+- [ ] 13c.6 Wire URL in `design_app/api/urls.py`
+- [ ] 13c.7 Management command `niche_app/management/commands/backfill_niche_builder_hints.py` per AC-57 — iterates `Niche.objects.filter(builder_form_hints__isnull=True)` that have a completed research, calls `structure_niche_for_builder` for each.
+- [ ] 13c.8 Tests: serializer shape, view auth, view 404 on cross-workspace project, view returns null when no niche linked, mocked LLM happy path.
+
+### Phase 13d — Frontend Form Components
+
+- [ ] 13d.1 Create `frontend-ui/src/views/designs/board/constants/slotOptions.ts` mirroring backend Appendices J.4–J.8 1:1. Exported as typed const arrays — covers AC-69
+- [ ] 13d.2 Extend `BuilderConfig` type in `types/builder.ts` with `slots: BuilderSlots` (8 optional strings) — covers AC-63
+- [ ] 13d.3 Build `SpatialPicker.tsx` — MUI Select + "Custom…" → TextField + style-auto-default badge + ↺ reset icon — covers AC-65
+- [ ] 13d.4 Build `VisualDescriptionField.tsx` — multiline TextField (3 rows min, 6 max), required, with helper text `"Describe the illustration: subject, perspective, 6+ concrete details"` — covers AC-65 + AC-67
+- [ ] 13d.5 Build `TextSegmentationPicker.tsx` — same pattern as SpatialPicker
+- [ ] 13d.6 Build `TypographyPicker.tsx` — same pattern with style-auto-default
+- [ ] 13d.7 Build `AccessoriesPicker.tsx` — MUI Autocomplete `multiple={true} freeSolo={true}` so user can pick multiple presets + type custom
+- [ ] 13d.8 Build `MaterialPicker.tsx` — same pattern as TypographyPicker
+- [ ] 13d.9 Build `ExtraContextField.tsx` — multiline TextField (2 rows min, 4 max), placeholder `"Optional custom additions appended verbatim before the tech specs"`
+- [ ] 13d.10 Per-component tests: empty state, custom-text reveal on "Custom…" selection, ↺ reset behavior, style-auto-default badge presence/absence.
+
+### Phase 13e — Frontend Dialog Restructure + Wire-up
+
+- [ ] 13e.1 Rewrite `BuilderDialog.tsx` body into 5 MUI Accordions per AC-64. Slogans + Styles + Visual Details open by default; Layout & Composition + Niche & Extra closed by default — covers AC-64
+- [ ] 13e.2 Extend `useBuilder` hook: add `useGetNicheHintsQuery(projectId)` RTK Query (calls Phase-13c endpoint). When hints arrive AND the corresponding slot is empty, pre-fill it via a controlled effect — covers AC-66
+- [ ] 13e.3 Mount the 7 new partials inside the right Accordion sections + remove the old `WarpPicker` from the top-level (it stays inside Styles accordion). The existing `NicheContextToggle` + `ReferenceIndicator` move into the "Niche & Extra" accordion — covers AC-64
+- [ ] 13e.4 Build Live-Preview panel below the Build CTA: collapsible, renders the result of `build_form_prompt` for `slogans[0] × styles[0]` by reusing the backend endpoint via `useBuilderBuildMutation` with `with_polish: false` — covers AC-67
+- [ ] 13e.5 Update `BuilderPreset.config` save/load logic: presets now serialize the `slots` sub-object; loading a v1 preset without `slots` treats it as `{}` and lets the fallback chain fire — covers AC-68 + EC-25
+- [ ] 13e.6 EC-28: when user types into a Typography slot (overrides style-auto-default), changing the Style dropdown does NOT silently re-fill that slot. Implemented via a per-slot "dirty" flag in BuilderConfig that flips on first user input. ↺ reset clears the dirty flag.
+- [ ] 13e.7 Integration tests: render the dialog with mocked niche-hints + style-default; assert all 8 slots show the expected pre-filled values + override behavior + Live-Preview shows the assembled prompt.
+
+### Phase 13f — QA + Docs
+
+- [ ] 13f.1 Backend full suite green (`pytest design_app/ niche_app/ --reuse-db`)
+- [ ] 13f.2 Frontend full suite green (`npx vitest run`)
+- [ ] 13f.3 `npx tsc -b` + `npx eslint src/` clean
+- [ ] 13f.4 Smoke test: pick "school bus driver" niche → open Builder → fields pre-fill from niche-hints → 3 slogans × 2 styles → Build → 6 polished Architect-quality prompts in textarea, none mention "t-shirt", "gradient", or "soft shadow"
+- [ ] 13f.5 Update spec's `## QA Test Results` with Phase-13 audit row
+- [ ] 13f.6 Update `features/INDEX.md` status (stays "In Review" through Phase 13)
+
+---
+
+# Appendices J–N — Phase 13 Template Texts (source-of-truth)
+
+> **Implementation rule:** these strings MUST be copy-pasted verbatim into the code.
+> Do NOT paraphrase or improve them — they have been reviewed by the user. If the
+> implementing skill thinks a phrase should change, it MUST surface that as a question
+> first, not silently rewrite.
+
+---
+
+## Appendix J — Template + Slot Constants (backend `style_library.py`)
+
+### J.1 `ARCHITECT_TEMPLATE_START`
+
+```
+A professional vector print design isolated on a {bg_hex} background.
+```
+
+(The `{bg_hex}` placeholder gets replaced with `Design.BG_COLOR_HEX[bg_color]` at render time.)
+
+### J.2 `ARCHITECT_TEMPLATE_END`
+
+```
+High contrast, clean outlines, commercial vector art. Screen print ready, hard edges, no gradients, no glow effects, no soft shadows, no drop shadows, vector sharpness, 300 DPI.
+```
+
+(No placeholders. Anti-gradient/glow/shadow clauses are non-negotiable per the user's POD-print requirement.)
+
+### J.3 `SLOT_SCHEMA`
+
+```python
+SLOT_SCHEMA = [
+    {
+        'key': 'spatial_configuration',
+        'label': 'Spatial Configuration',
+        'render_template': '{value}.',
+        'has_dropdown': True, 'has_custom_text': True,
+        'style_auto_default': False, 'niche_hint_key': 'spatial',
+    },
+    {
+        'key': 'visual_description',
+        'label': 'Visual Description',
+        'render_template': 'The illustration features {value}.',
+        'has_dropdown': False, 'has_custom_text': True,
+        'style_auto_default': False, 'niche_hint_key': 'visual',
+    },
+    {
+        'key': 'text_segmentation',
+        'label': 'Text Segmentation',
+        'render_template': 'The typography is integrated into the layout: {value}.',
+        'has_dropdown': True, 'has_custom_text': True,
+        'style_auto_default': False, 'niche_hint_key': None,
+    },
+    {
+        'key': 'typography_adjectives',
+        'label': 'Typography Adjectives',
+        'render_template': "The text is rendered in a {value} font style.",
+        'has_dropdown': True, 'has_custom_text': True,
+        'style_auto_default': True, 'niche_hint_key': None,
+    },
+    {
+        'key': 'accessories',
+        'label': 'Accessories',
+        'render_template': 'The design features {value}.',
+        'has_dropdown': True, 'has_custom_text': True,
+        'style_auto_default': False, 'niche_hint_key': 'accessories',
+    },
+    {
+        'key': 'material_texture',
+        'label': 'Material / Texture',
+        'render_template': 'The graphics are made of {value}.',
+        'has_dropdown': True, 'has_custom_text': True,
+        'style_auto_default': True, 'niche_hint_key': 'material',
+    },
+    {
+        'key': 'style_dna',
+        'label': 'Style DNA',
+        'render_template': '{value}.',
+        'has_dropdown': False, 'has_custom_text': False,
+        'style_auto_default': True, 'niche_hint_key': None,
+    },
+    {
+        'key': 'extra_context',
+        'label': 'Extra Context',
+        'render_template': '{value}.',
+        'has_dropdown': False, 'has_custom_text': True,
+        'style_auto_default': False, 'niche_hint_key': None,
+    },
+]
+```
+
+### J.4 `SPATIAL_OPTIONS` (6 items)
+
+```python
+SPATIAL_OPTIONS = [
+    "Vertical stack layout where text sits above and below a central illustration, with generous padding and breathing room between the text lines and the graphic",
+    "Horizontal row layout with the illustration on the left and stacked text on the right, with generous breathing room between the two columns",
+    "Badge emblem layout with the illustration centered inside a circular border, the slogan curving around the top arc of the badge and an accent phrase along the bottom arc",
+    "Banner ribbon at the top carrying the primary text, the illustration filling the lower two-thirds of the canvas with generous padding around it",
+    "Single bold headline at the top, the illustration filling the rest of the canvas with a small subtitle anchored at the bottom edge with breathing room",
+    "Overlay layout where the slogan text is rendered ON TOP of the centered illustration with high-contrast outline so the text stays legible",
+]
+```
+
+### J.5 `TEXT_SEGMENTATION_OPTIONS` (6 items)
+
+```python
+TEXT_SEGMENTATION_OPTIONS = [
+    'a single centered slogan rendered as one block of text',
+    'the slogan split in half, first half on top and second half on the bottom of the design',
+    'a primary headline followed by a smaller subtitle line beneath it',
+    'a three-line stacked block where the middle line is the largest emphasis word',
+    'the slogan placed on a banner ribbon with one accent word sitting outside the ribbon',
+    'two-tone segmentation where the dominant nouns are in one color/style and the connecting words in another',
+]
+```
+
+### J.6 `TYPOGRAPHY_OPTIONS` (6 items)
+
+```python
+TYPOGRAPHY_OPTIONS = [
+    "'massive heavyweight cartoon-block font with sharp rounded corners and internal white gloss lines'",
+    "'thin casual hand-drawn marker font with slightly irregular wobble and rough ink-bleed edges'",
+    "'chunky distressed varsity-collegiate serif with a heavyweight slab base and weathered worn-in texture'",
+    "'ornate medieval blackletter font with decorative flourishes, dramatic thick-thin contrast and gothic terminals'",
+    "'pixelated 8-bit monospace bitmap font with sharp uniform pixels and zero anti-aliasing'",
+    "'elegant brush-script handwriting font with thick-thin contrast, ligatures and a confident calligraphic flow'",
+]
+```
+
+(Note: each variant is wrapped in single-quotes inside the string so it slots into the Architect template `"The text is rendered in a {value} font style."` cleanly.)
+
+### J.7 `ACCESSORIES_OPTIONS` (6 items — multi-select)
+
+```python
+ACCESSORIES_OPTIONS = [
+    'white radiating motion-burst lines around the illustration',
+    'a sparse scattering of small filled stars and tiny dots framing the design',
+    'a thin geometric border frame enclosing the entire composition',
+    'a curved banner ribbon underneath the illustration with secondary text on it',
+    'sunburst rays radiating outward from behind the illustration',
+    'halftone-dot accents in the negative space around the illustration',
+]
+```
+
+### J.8 `MATERIAL_OPTIONS` (6 items)
+
+```python
+MATERIAL_OPTIONS = [
+    'clean digital vector with flat color regions and crisp hard edges',
+    'matte screenprint plastisol ink texture with subtle paper-grain underlay',
+    'heavily distressed and weathered ink-bleed texture with cracked color fills',
+    'halftone-dot color fills with classic comic-book printing aesthetic and a limited 2-3 color palette',
+    'gritty vintage worn-on-fabric look with faded color washes and ink-loss patches',
+    'high-contrast 2-color screenprint with bold blocky color regions and hand-cut stencil edges',
+]
+```
+
+---
+
+## Appendix K — Per-Style Auto-Defaults (15 styles × 3 fields)
+
+> Each row defines which of the 6 `TYPOGRAPHY_OPTIONS` + 6 `MATERIAL_OPTIONS` is the
+> auto-default for that style, plus a free-form `default_style_dna` descriptor.
+> `default_typography` and `default_material` use **the exact string** from the
+> options lists in Appendix J.6 / J.8 (not an index).
+
+| Style slug | default_typography (J.6 row) | default_material (J.8 row) | default_style_dna |
+|---|---|---|---|
+| `vintage_retro` | row 3 (varsity-collegiate) | row 5 (vintage worn) | "Vintage retro aesthetic with warm faded earth tones, thick uniform black outlines, and slight halftone shading on flat color fills" |
+| `70s_groovy` | row 6 (brush-script) | row 2 (matte screenprint) | "1970s groovy psychedelic aesthetic with bold flowing curves, earthy mustard-orange-olive palette, and retro disco-poster flatness" |
+| `80s_neon` | row 1 (cartoon-block) | row 6 (high-contrast 2-color) | "1980s synthwave aesthetic with hot magenta + electric cyan + matte black palette and crisp neon-arcade flatness — no actual glow effects, only saturated flat colors" |
+| `90s_grunge` | row 3 (varsity-collegiate) | row 3 (heavily distressed) | "1990s grunge aesthetic with faded worn palette, torn-edge effects, gritty rough outlines and photocopy-worn screen-print look" |
+| `kawaii_chibi` | row 1 (cartoon-block) | row 1 (clean digital vector) | "Kawaii chibi cartoon aesthetic with oversized cute features, soft pastel palette, thick rounded outlines and gentle pastel cel-shading" |
+| `cartoon` | row 1 (cartoon-block) | row 1 (clean digital vector) | "Bold cartoon aesthetic with thick uniform black outlines, flat saturated color fills, simple cel-shaded highlights and Saturday-morning animation flatness" |
+| `watercolor` | row 2 (hand-drawn marker) | row 5 (vintage worn) | "Watercolor illustration aesthetic with soft transparent washes, irregular pigment edges and visible paper-texture underlay — rendered with hard-edged compositional outlines for print fidelity" |
+| `hand_drawn_sketch` | row 2 (hand-drawn marker) | row 5 (vintage worn) | "Hand-drawn sketchbook aesthetic with loose pencil strokes, visible construction lines, slightly imperfect organic linework and charming journal feel" |
+| `vector_flat` | row 1 (cartoon-block) | row 1 (clean digital vector) | "Modern flat-vector aesthetic with geometric shapes, zero gradients, minimalist palette, crisp sharp edges and editorial-emoji flatness" |
+| `minimal_line_art` | row 2 (hand-drawn marker) | row 1 (clean digital vector) | "Minimal single-line aesthetic with consistent monoline weight, no fills, no shading, abundant negative space and elegant wordmark refinement" |
+| `pixel_art` | row 5 (pixelated 8-bit) | row 1 (clean digital vector) | "8-bit pixel-art aesthetic with sharp pixelated edges, no anti-aliasing, limited 16-color retro arcade palette and blocky uniform pixels" |
+| `distressed_texture` | row 3 (varsity-collegiate) | row 3 (heavily distressed) | "Heavily distressed print aesthetic with worn ink-bleed effect, scratched and cracked color fills, vintage screen-print roughness" |
+| `halftone_print` | row 1 (cartoon-block) | row 4 (halftone-dot) | "Halftone-print pop-art aesthetic with dot-pattern fills, limited 2-3 color palette and retro newsprint feel" |
+| `badge_emblem` | row 3 (varsity-collegiate) | row 6 (high-contrast 2-color) | "Vintage badge-emblem aesthetic with classic monochrome or 2-color palette, heritage trade-mark feel and ornate border-frame structure" |
+| `blackletter_gothic` | row 4 (blackletter) | row 6 (high-contrast 2-color) | "Heavy blackletter-gothic aesthetic with ornate medieval scripts, decorative flourishes, dramatic high-contrast strokes and dark moody palette" |
+
+---
+
+## Appendix L — `Niche.builder_form_hints` JSON schema
+
+> The structured output of `structure_niche_for_builder()` stored on the Niche model.
+> Optional keys are missing when the LLM can't extract a strong signal for that slot.
+
+```json
+{
+  "_schema_version": 1,
+  "_generated_at": "2026-05-17T15:30:00Z",
+  "_source_research_id": "uuid-of-NicheResearch-this-was-built-from",
+  "spatial": "Vertical stack layout where text sits above and below a central illustration, with generous padding and breathing room between the text lines and the graphic",
+  "visual": "a stylized illustration of [niche subject] in a [perspective] view, featuring [3-6 concrete visual elements]",
+  "accessories": "white radiating motion-burst lines around the illustration",
+  "material": "matte screenprint plastisol ink texture with subtle paper-grain underlay",
+  "_alternates": {
+    "spatial": ["Badge emblem layout ...", "Banner ribbon at the top ..."],
+    "visual": ["alternate illustration angle ..."],
+    "accessories": ["a sparse scattering of small filled stars ..."],
+    "material": ["clean digital vector ..."]
+  }
+}
+```
+
+**Notes for the implementer:**
+- Top-level slot keys (`spatial`, `visual`, `accessories`, `material`) hold the **single best** suggestion. These pre-fill the form.
+- `_alternates` holds 1-2 backup options per slot. Frontend may surface them in a "Try alternates" sub-menu (Phase 13d.7+ stretch).
+- `_schema_version` lets us evolve the shape later without breaking old hints.
+- Top-level keys are the 4 slots the LLM is best-positioned to suggest. Typography / Material auto-defaults remain style-driven (Appendix K).
+
+---
+
+## Appendix M — `structure_niche_for_builder` LLM Prompt
+
+> System + user message template for the `openai/gpt-4.1-mini` call inside
+> `niche_app/services/builder_hints.py`. Copy verbatim — wording was tuned to produce
+> Architect-compatible output.
+
+### System prompt
+
+```
+You are a Print-on-Demand niche-research analyst preparing data for the Architect Prompt Builder. You receive a structured dump of vision-analysis records describing the top-selling T-shirt designs in a single Amazon niche. Your job is to extract the dominant patterns and express them as four pre-formatted slot suggestions that will pre-fill a downstream prompt-builder form.
+
+# Slot definitions
+
+You produce exactly four slot suggestions:
+
+1. SPATIAL — how text is arranged relative to the illustration. Pick one from this fixed list and return it verbatim (do not paraphrase):
+   - "Vertical stack layout where text sits above and below a central illustration, with generous padding and breathing room between the text lines and the graphic"
+   - "Horizontal row layout with the illustration on the left and stacked text on the right, with generous breathing room between the two columns"
+   - "Badge emblem layout with the illustration centered inside a circular border, the slogan curving around the top arc of the badge and an accent phrase along the bottom arc"
+   - "Banner ribbon at the top carrying the primary text, the illustration filling the lower two-thirds of the canvas with generous padding around it"
+   - "Single bold headline at the top, the illustration filling the rest of the canvas with a small subtitle anchored at the bottom edge with breathing room"
+   - "Overlay layout where the slogan text is rendered ON TOP of the centered illustration with high-contrast outline so the text stays legible"
+
+2. VISUAL — a free-form description (60-120 words) of the dominant illustration subject seen across the niche's bestsellers. MUST follow the Architect rule of ≥6 concrete details (perspective, color-object binding, line weight, pose, body parts, accessories). Start with "a [adjective] [SUBJECT] in [PERSPECTIVE], featuring ..." Use color-object binding ("golden yellow bus body") not bare colors. NEVER use the words "T-shirt", "mockup", "model wearing", "gradient", "glow", or "soft shadow".
+
+3. ACCESSORIES — pick one from this fixed list and return it verbatim:
+   - "white radiating motion-burst lines around the illustration"
+   - "a sparse scattering of small filled stars and tiny dots framing the design"
+   - "a thin geometric border frame enclosing the entire composition"
+   - "a curved banner ribbon underneath the illustration with secondary text on it"
+   - "sunburst rays radiating outward from behind the illustration"
+   - "halftone-dot accents in the negative space around the illustration"
+
+4. MATERIAL — pick one from this fixed list and return it verbatim:
+   - "clean digital vector with flat color regions and crisp hard edges"
+   - "matte screenprint plastisol ink texture with subtle paper-grain underlay"
+   - "heavily distressed and weathered ink-bleed texture with cracked color fills"
+   - "halftone-dot color fills with classic comic-book printing aesthetic and a limited 2-3 color palette"
+   - "gritty vintage worn-on-fabric look with faded color washes and ink-loss patches"
+   - "high-contrast 2-color screenprint with bold blocky color regions and hand-cut stencil edges"
+
+# Output format
+
+Return ONLY a valid JSON object with this exact shape. No preamble, no markdown, no explanation:
+
+{
+  "spatial": "<one of the 6 spatial variants verbatim>",
+  "visual": "<your 60-120 word visual description>",
+  "accessories": "<one of the 6 accessories variants verbatim>",
+  "material": "<one of the 6 material variants verbatim>",
+  "_alternates": {
+    "spatial": ["<second-best spatial variant verbatim>", "<third-best>"],
+    "visual": ["<one alternate visual description, 60-120 words>"],
+    "accessories": ["<second-best accessories verbatim>"],
+    "material": ["<second-best material verbatim>"]
+  }
+}
+
+# Forbidden patterns
+
+- NEVER use the word "T-shirt" anywhere in the output.
+- NEVER mention "on a black shirt", "yellow on a yellow shirt", or any phrase that describes the wearer/fabric.
+- NEVER produce a `visual` containing gradients, glowing effects, soft shadows, or drop shadows.
+- NEVER paraphrase the fixed-list slot values — return them verbatim or pick a different one.
+```
+
+### User message template
+
+```
+NICHE: {niche.name}
+PRODUCT COUNT IN RESEARCH: {n_products}
+
+VISION ANALYSIS RECORDS (one block per top-selling product):
+
+{for each product:}
+---
+TITLE: {product.title}
+VISUAL_STYLE: {vision.visual_style}
+GRAPHIC_ELEMENTS: {vision.graphic_elements}
+LAYOUT_COMPOSITION: {vision.layout_composition}
+COLOR_PALETTE: {vision.dominant_color_palette}
+---
+```
+
+(Maximum 10 products to keep the input <4k tokens — `NicheResearchProduct.objects.filter(brand_blocked=False)[:10]`.)
+
+---
+
+## Appendix N — Backend Helpers (image_generator + prompt_builder)
+
+### N.1 `DESIGN_GEN_SYSTEM_PROMPT` Rule #10
+
+Append exactly this block to the existing 9 rules (between Rule 9 and "## Style adherence"):
+
+```
+10. NEVER produce gradient fills, glowing effects, soft-edge shadows, drop shadows, or any blurred edge. Print on Demand requires hard edges and flat color regions even on round shapes — render rounded geometry with crisp outlined boundaries and flat fills.
+```
+
+### N.2 `build_form_prompt` composition logic
+
+Pseudo-implementation (the implementer translates this 1:1 to Python):
+
+```python
+def build_form_prompt(
+    slogan: str,
+    style_slug: str,
+    *,
+    slots: dict,             # 8 optional strings, keys match SLOT_SCHEMA
+    background_color: str,
+    niche_hints: dict | None = None,
+) -> str:
+    style = STYLE_LIBRARY.get(style_slug) or _fallback_style(style_slug)
+    bg_hex = Design.BG_COLOR_HEX.get(background_color, '#D3D3D3')
+
+    parts: list[str] = [ARCHITECT_TEMPLATE_START.format(bg_hex=bg_hex)]
+
+    for slot in SLOT_SCHEMA:
+        value = _resolve_slot(slot, slots, niche_hints, style, slogan)
+        if value:
+            parts.append(slot['render_template'].format(value=value))
+
+    parts.append(ARCHITECT_TEMPLATE_END)
+    return ' '.join(parts)
+```
+
+### N.3 `_resolve_slot` fallback chain
+
+```python
+def _resolve_slot(slot, user_slots, niche_hints, style, slogan):
+    # 1. Explicit user value wins
+    user_val = (user_slots or {}).get(slot['key'], '').strip()
+    if user_val:
+        # Special-case: text_segmentation references the actual slogan
+        return user_val
+
+    # 2. Niche-hint, if available + this slot supports niche hints
+    hint_key = slot.get('niche_hint_key')
+    if hint_key and niche_hints:
+        hint_val = (niche_hints.get(hint_key) or '').strip()
+        if hint_val:
+            return hint_val
+
+    # 3. Style auto-default, if this slot supports style defaults
+    if slot.get('style_auto_default'):
+        default_key = f"default_{slot['key'].rsplit('_', 1)[0] if slot['key'] == 'typography_adjectives' else slot['key']}"
+        # Maps: typography_adjectives -> default_typography
+        #       material_texture      -> default_material
+        #       style_dna             -> default_style_dna
+        mapping = {
+            'typography_adjectives': 'default_typography',
+            'material_texture': 'default_material',
+            'style_dna': 'default_style_dna',
+        }
+        return style.get(mapping.get(slot['key']), '')
+
+    # 4. Special: visual_description ALWAYS needs SOMETHING if requested.
+    #    If we end up here with no user value + no hint + no style default,
+    #    return empty string so the slot is OMITTED from the prompt (per EC-24).
+    return ''
+```
+
+### N.4 `BuilderBuildSerializer.slots` field validators
+
+- `slots` is a `serializers.DictField(child=serializers.CharField(allow_blank=True, max_length=2000), required=False, default=dict)`
+- Custom `validate_slots` rejects any top-level key not in `SLOT_SCHEMA.keys`
+- Each slot's `value.strip()` is whitespace-normalized server-side
+- Empty strings stay empty (not None) so the resolver can distinguish "user touched but cleared" from "user never touched"
+
+---
 
 | Phase | LOC (rough) | Backend | Frontend |
 |---|---|---|---|
