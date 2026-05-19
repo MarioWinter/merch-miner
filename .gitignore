@@ -6,6 +6,12 @@ snapshot-*.md
 # ── Local-only prompt-engineering knowledge (incl. PDFs) ───
 docs/design-prompts/
 
+# ── Generator caches ──────────────────────────────────
+# Phase 13m-a typography-thumbnail generator caches Google Fonts TTFs
+# locally on first run. Open-source fonts so technically safe to commit,
+# but caching out keeps the repo lean.
+scripts/fonts-cache/
+
 # ── Build staging copies ───────────────────────────────
 # CI copies repo-root CHANGELOG.md into frontend-ui/ for the docker build
 # context; the source-of-truth lives at the root and shouldn't be duplicated
