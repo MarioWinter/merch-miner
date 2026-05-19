@@ -51,7 +51,8 @@ import AccessoriesPicker from './promptBuilder/AccessoriesPicker';
 import VisualDescriptionField from './promptBuilder/VisualDescriptionField';
 import TypographySlotButton from './promptBuilder/TypographySlotButton';
 import TypographyPickerModal from './promptBuilder/TypographyPickerModal';
-import FontCombinationPicker from './promptBuilder/FontCombinationPicker';
+import FontCombinationSlotButton from './promptBuilder/FontCombinationSlotButton';
+import FontCombinationPickerModal from './promptBuilder/FontCombinationPickerModal';
 import MaterialPicker from './promptBuilder/MaterialPicker';
 import ExtraContextField from './promptBuilder/ExtraContextField';
 import NicheContextToggle from './promptBuilder/NicheContextToggle';
@@ -177,6 +178,7 @@ const BuilderDialog = ({
   const [spatialPickerOpen, setSpatialPickerOpen] = useState(false);
   const [stylePickerOpen, setStylePickerOpen] = useState(false);
   const [typographyPickerOpen, setTypographyPickerOpen] = useState(false);
+  const [fontCombinationPickerOpen, setFontCombinationPickerOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
   // EC-32 — when the saved preset references a CustomSpatial UUID that no
@@ -403,9 +405,10 @@ const BuilderDialog = ({
                 styleDefault={firstStyleEntry?.defaultTypography}
                 styleLabel={firstStyleEntry?.label}
               />
-              <FontCombinationPicker
+              <FontCombinationSlotButton
                 value={cfg.slots.font_combination ?? ''}
-                onChange={(v) => updateSlot('font_combination', v)}
+                onOpenPicker={() => setFontCombinationPickerOpen(true)}
+                onReset={() => resetSlot('font_combination')}
               />
               <MaterialPicker
                 value={cfg.slots.material_texture ?? ''}
@@ -538,6 +541,12 @@ const BuilderDialog = ({
         onChange={(v) => updateSlot('typography_adjectives', v)}
         styleDefault={firstStyleEntry?.defaultTypography}
         styleLabel={firstStyleEntry?.label}
+      />
+      <FontCombinationPickerModal
+        open={fontCombinationPickerOpen}
+        onClose={() => setFontCombinationPickerOpen(false)}
+        value={cfg.slots.font_combination ?? ''}
+        onChange={(v) => updateSlot('font_combination', v)}
       />
     </DialogRoot>
   );
