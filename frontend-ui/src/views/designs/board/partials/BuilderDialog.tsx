@@ -53,7 +53,6 @@ import TypographySlotButton from './promptBuilder/TypographySlotButton';
 import TypographyPickerModal from './promptBuilder/TypographyPickerModal';
 import FontCombinationSlotButton from './promptBuilder/FontCombinationSlotButton';
 import FontCombinationPickerModal from './promptBuilder/FontCombinationPickerModal';
-import MaterialPicker from './promptBuilder/MaterialPicker';
 import ExtraContextField from './promptBuilder/ExtraContextField';
 import NicheContextToggle from './promptBuilder/NicheContextToggle';
 import ReferenceIndicator from './promptBuilder/ReferenceIndicator';
@@ -410,12 +409,12 @@ const BuilderDialog = ({
                 onOpenPicker={() => setFontCombinationPickerOpen(true)}
                 onReset={() => resetSlot('font_combination')}
               />
-              <MaterialPicker
-                value={cfg.slots.material_texture ?? ''}
-                onChange={(v) => updateSlot('material_texture', v)}
-                styleDefault={firstStyleEntry?.defaultMaterial}
-                styleLabel={firstStyleEntry?.label}
-              />
+              {/* Phase 13p — MaterialPicker removed from UI: the slot is
+                  now auto-filled from the chosen style.default_material via
+                  the backend resolver. Power-users can still override via
+                  niche-hint or by setting slots.material_texture
+                  programmatically. The MaterialPicker.tsx component is
+                  retained as fallback (not mounted). */}
             </Stack>
           </AccordionDetails>
         </Accordion>
