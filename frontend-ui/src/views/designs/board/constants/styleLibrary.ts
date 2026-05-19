@@ -8,7 +8,7 @@
 // raw `prompt_text` so the TypographyPicker `value === styleDefault` equality
 // check keeps working without any callsite changes.
 
-import { getTypographyById, MATERIAL_OPTIONS } from './slotOptions'
+import { getTypographyById } from './slotOptions'
 
 const typoText = (id: string): string => {
   const entry = getTypographyById(id)
@@ -30,7 +30,6 @@ export interface StyleEntry {
   // Phase 13j: `defaultTypography` is the resolved `prompt_text` of the style's
   // `default_typography_id`. The id mapping lives below per row.
   defaultTypography: string
-  defaultMaterial: string
 }
 
 const THUMB = (slug: string) => `/style-thumbnails/${slug}.png`
@@ -44,7 +43,6 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     promptSuffix:
       'Vintage retro aesthetic with warm faded earth tones (mustard yellow, burnt orange, dusty teal, cream), thick uniform black outlines, slightly distressed grain texture overlay, halftone shading on flat color fills, weathered screen-print feel',
     defaultTypography: typoText('distressed_vintage_slab'),
-    defaultMaterial: MATERIAL_OPTIONS[4],
   },
   {
     slug: '70s_groovy',
@@ -54,7 +52,6 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     promptSuffix:
       '1970s groovy psychedelic vibe with bold flowing curved typography, earthy palette of mustard, burnt orange, olive, cream and rust, thick black outlines, soft halftone dot accents, retro disco poster aesthetic',
     defaultTypography: typoText('seventies_groovy_bold'),
-    defaultMaterial: MATERIAL_OPTIONS[1],
   },
   {
     slug: '80s_neon',
@@ -64,7 +61,6 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     promptSuffix:
       '1980s neon synthwave aesthetic with hot magenta, electric cyan, vibrant purple and matte black, chrome reflective typography, vaporwave grid background motifs, glowing neon outlines, retro arcade vibe',
     defaultTypography: typoText('chrome_bevel_display'),
-    defaultMaterial: MATERIAL_OPTIONS[5],
   },
   {
     slug: '90s_grunge',
@@ -74,7 +70,6 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     promptSuffix:
       '1990s grunge style with distressed ink-bleed textures, faded high-contrast palette of worn black, cream and faded red, torn-edge effects, gritty rough outlines, photocopy-worn screen-print look',
     defaultTypography: typoText('distressed_industrial_sans'),
-    defaultMaterial: MATERIAL_OPTIONS[2],
   },
   {
     slug: 'kawaii_chibi',
@@ -84,7 +79,6 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     promptSuffix:
       'Kawaii chibi cartoon style with oversized cute heads, big sparkly black eyes with white highlights, soft pastel palette (baby pink, mint, lavender, butter yellow), thick rounded outlines, gentle pastel cell-shading, adorable expression',
     defaultTypography: typoText('childlike_rounded_block'),
-    defaultMaterial: MATERIAL_OPTIONS[0],
   },
   {
     slug: 'cartoon',
@@ -94,7 +88,6 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     promptSuffix:
       'Bold cartoon style with thick uniform black outlines, flat saturated color fills, simple cel-shaded highlights, expressive exaggerated features, playful vibrant palette, Saturday-morning animation aesthetic',
     defaultTypography: typoText('chunky_cartoon_block_gloss'),
-    defaultMaterial: MATERIAL_OPTIONS[0],
   },
   {
     slug: 'watercolor',
@@ -104,7 +97,6 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     promptSuffix:
       'Watercolor illustration style with soft transparent color washes, irregular pigment edges, visible paper texture, organic flowing brush strokes, layered translucent pigment, hand-painted artisan feel',
     defaultTypography: typoText('modern_elegant_brush'),
-    defaultMaterial: MATERIAL_OPTIONS[4],
   },
   {
     slug: 'hand_drawn_sketch',
@@ -114,7 +106,6 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     promptSuffix:
       'Hand-drawn sketch style with loose pencil and pen strokes, visible construction lines, slightly imperfect organic linework, monochrome or muted color accents, charming sketchbook journal aesthetic',
     defaultTypography: typoText('playful_marker_script'),
-    defaultMaterial: MATERIAL_OPTIONS[4],
   },
   {
     slug: 'vector_flat',
@@ -124,7 +115,6 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     promptSuffix:
       'Clean modern flat vector style with geometric shapes, zero gradients, smart minimalist palette, crisp sharp edges, contemporary commercial design aesthetic, editorial Apple-emoji flatness',
     defaultTypography: typoText('minimal_geometric_sans'),
-    defaultMaterial: MATERIAL_OPTIONS[0],
   },
   {
     slug: 'minimal_line_art',
@@ -134,7 +124,6 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     promptSuffix:
       'Minimal single-line illustration with consistent monoline weight, no fills, no shading, elegant continuous lines, abundant negative space, refined editorial wordmark aesthetic',
     defaultTypography: typoText('minimal_geometric_sans'),
-    defaultMaterial: MATERIAL_OPTIONS[0],
   },
   {
     slug: 'pixel_art',
@@ -144,7 +133,6 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     promptSuffix:
       'Pixel art 8-bit gaming style with sharp pixelated edges, no anti-aliasing, limited 16-color retro arcade palette, blocky uniform pixels, nostalgic NES/Game Boy aesthetic',
     defaultTypography: typoText('pixel_eight_bit_bitmap'),
-    defaultMaterial: MATERIAL_OPTIONS[0],
   },
   {
     slug: 'distressed_texture',
@@ -154,7 +142,6 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     promptSuffix:
       'Heavily distressed print texture with worn ink-bleed effect, scratched and cracked color fills, vintage screen-print roughness, aged-on-fabric look, rough rustic typography',
     defaultTypography: typoText('tattoo_old_school_bold'),
-    defaultMaterial: MATERIAL_OPTIONS[2],
   },
   {
     slug: 'halftone_print',
@@ -164,7 +151,6 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     promptSuffix:
       'Halftone print style with dot-pattern color fills (varying dot sizes), classic comic-book printing aesthetic, limited 2-3 color palette, retro newsprint feel, pop-art flatness',
     defaultTypography: typoText('retro_diner_brush'),
-    defaultMaterial: MATERIAL_OPTIONS[3],
   },
   {
     slug: 'badge_emblem',
@@ -174,7 +160,6 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     promptSuffix:
       'Vintage badge emblem layout with circular or shield-shaped border, banner ribbons above and below, central crest illustration, classic monochrome or 2-color palette, heritage trade-mark feel',
     defaultTypography: typoText('varsity_script_swash'),
-    defaultMaterial: MATERIAL_OPTIONS[5],
   },
   {
     slug: 'blackletter_gothic',
@@ -184,7 +169,6 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     promptSuffix:
       'Heavy blackletter gothic typography with ornate medieval scripts, dramatic high-contrast strokes, decorative flourishes, dark moody palette, often paired with skull / raven / cross / banner motifs',
     defaultTypography: typoText('blackletter_gothic'),
-    defaultMaterial: MATERIAL_OPTIONS[5],
   },
 ]
 

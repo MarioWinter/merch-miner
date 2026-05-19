@@ -55,15 +55,10 @@ VALID_LLM_RESPONSE = {
         'a sparse scattering of small filled stars and tiny dots framing '
         'the design'
     ),
-    'material': (
-        'matte screenprint plastisol ink texture with subtle paper-grain '
-        'underlay'
-    ),
     '_alternates': {
         'spatial': ['badge_emblem'],
         'visual': [],
         'accessories': [],
-        'material': [],
     },
 }
 
@@ -156,7 +151,6 @@ class TestStructureNicheForBuilder:
         hints = niche.builder_form_hints
         assert hints['spatial'] == 'vertical_stack'
         assert hints['accessories'] == VALID_LLM_RESPONSE['accessories']
-        assert hints['material'] == VALID_LLM_RESPONSE['material']
         assert hints['visual'] == VALID_LLM_RESPONSE['visual']
         assert hints['_schema_version'] == SCHEMA_VERSION
         assert '_generated_at' in hints
@@ -197,9 +191,8 @@ class TestStructureNicheForBuilder:
             'spatial': 'vertical_stack',
             'visual': 'cached visual',
             'accessories': None,
-            'material': None,
             '_alternates': {
-                'spatial': [], 'visual': [], 'accessories': [], 'material': [],
+                'spatial': [], 'visual': [], 'accessories': [],
             },
         }
         niche.save(update_fields=['builder_form_hints'])
@@ -223,9 +216,8 @@ class TestStructureNicheForBuilder:
             'spatial': 'vertical_stack',
             'visual': 'cached',
             'accessories': None,
-            'material': None,
             '_alternates': {
-                'spatial': [], 'visual': [], 'accessories': [], 'material': [],
+                'spatial': [], 'visual': [], 'accessories': [],
             },
         }
         niche.save(update_fields=['builder_form_hints'])

@@ -14,8 +14,8 @@ Output schema validation:
 - `spatial` is constrained to `SPATIAL_OPTIONS` ids (Appendix J.4 — 36 ids).
   Unknown ids are dropped to ``None`` with a warning, mirroring the
   resolver's safe-fallback behavior.
-- `accessories` / `material` are constrained to the verbatim 6-entry lists
-  in `style_library.ACCESSORIES_OPTIONS` / `MATERIAL_OPTIONS`. Mismatches
+- `accessories` is constrained to the verbatim 6-entry list in
+  `style_library.ACCESSORIES_OPTIONS`. Mismatches
   are dropped.
 - `visual` is validated for the 60–120 word range. Out-of-range entries are
   KEPT (the LLM occasionally goes slightly over) but a warning is logged so
@@ -90,12 +90,10 @@ Return ONLY a valid JSON object with this exact shape. No preamble, no markdown,
   "spatial": "<one of the 43 spatial ids verbatim, or null>",
   "visual": "<your 60-120 word visual description>",
   "accessories": "<one of the 6 accessories variants verbatim>",
-  "material": "<one of the 6 material variants verbatim>",
   "_alternates": {
     "spatial": ["<second-best spatial id>", "<third-best>"],
     "visual": ["<one alternate visual description, 60-120 words>"],
-    "accessories": ["<second-best accessories verbatim>"],
-    "material": ["<second-best material verbatim>"]
+    "accessories": ["<second-best accessories verbatim>"]
   }
 }
 
@@ -243,7 +241,6 @@ def _validate_and_clean(raw: dict[str, Any]) -> dict[str, Any]:
     # Local import to avoid load-time cycles.
     from design_app.services.style_library import (
         ACCESSORIES_OPTIONS,
-        MATERIAL_OPTIONS,
         get_spatial_by_id,
     )
 
@@ -286,17 +283,7 @@ def _validate_and_clean(raw: dict[str, Any]) -> dict[str, Any]:
             )
         cleaned['accessories'] = None
 
-    # Material — same treatment.
-    material = raw.get('material')
-    if isinstance(material, str) and material in MATERIAL_OPTIONS:
-        cleaned['material'] = material
-    else:
-        if material:
-            logger.warning(
-                'structure_niche_for_builder: dropping non-canonical material: %r',
-                material[:80] if isinstance(material, str) else material,
-            )
-        cleaned['material'] = None
+    # Phase 13q — MATERIAL slot removed; the LLM no longer suggests it.
 
     # Alternates — same filters, but drop invalid entries silently (they're
     # backups so noise is unhelpful).
@@ -305,7 +292,6 @@ def _validate_and_clean(raw: dict[str, Any]) -> dict[str, Any]:
         'spatial': [],
         'visual': [],
         'accessories': [],
-        'material': [],
     }
     if isinstance(alts_raw, dict):
         for sid in (alts_raw.get('spatial') or []):
@@ -317,9 +303,6 @@ def _validate_and_clean(raw: dict[str, Any]) -> dict[str, Any]:
         for a in (alts_raw.get('accessories') or []):
             if isinstance(a, str) and a in ACCESSORIES_OPTIONS:
                 alts['accessories'].append(a)
-        for m in (alts_raw.get('material') or []):
-            if isinstance(m, str) and m in MATERIAL_OPTIONS:
-                alts['material'].append(m)
     cleaned['_alternates'] = alts
 
     return cleaned

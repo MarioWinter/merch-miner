@@ -26,7 +26,6 @@ export interface BuilderSlots {
   font_combination?: string;
   /** Multi-select on the UI; persisted as a `', '`-joined string for the backend. */
   accessories?: string;
-  material_texture?: string;
   style_dna?: string;
   extra_context?: string;
 }

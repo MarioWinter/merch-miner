@@ -8,9 +8,9 @@ If a future entry is added it must be mirrored in both files.
 
 PROJ-34 Phase 13a adds the Architect template scaffolding + 36 spatial variants
 + 5 fixed-option dropdown lists (Appendices J.1–J.8, K) used by the form-based
-Builder. Existing `STYLE_LIBRARY` entries gain 4 new auto-default fields
-(`default_typography_id`, `default_material`, `default_style_dna`,
-`default_spatial_id`) per Appendix K.
+Builder. Existing `STYLE_LIBRARY` entries gain auto-default fields
+(`default_typography_id`, `default_style_dna`, `default_spatial_id`) per
+Appendix K. (Phase 13q dropped `default_material`.)
 
 PROJ-34 Phase 13j rewrites `TYPOGRAPHY_OPTIONS` from 6 flat strings to 21
 list-of-dicts (id / ui_label / ui_description / prompt_text), renames every
@@ -19,6 +19,14 @@ list-of-dicts (id / ui_label / ui_description / prompt_text), renames every
 adds a `get_typography_by_id` lookup helper. Distress is rendered as
 TRANSPARENT KNOCKOUT cutouts revealing the underlying garment color — never
 as added white ink.
+
+PROJ-34 Phase 13q removes the MATERIAL slot completely from the form-based
+Architect Builder: `MATERIAL_OPTIONS`, the `material_texture` SLOT_SCHEMA
+entry, and every `default_material` field on the 15 STYLE_LIBRARY entries
+are deleted. Reason: MATERIAL is triple-redundant in the rendered Gemini
+prompt — STYLE_DNA describes texture, ARCHITECT_TEMPLATE_END commits to
+"screen print ready, hard edges, vector sharpness", and Rule #10 in
+DESIGN_GEN_SYSTEM_PROMPT forbids gradients/glow/shadows.
 """
 
 from __future__ import annotations
@@ -42,6 +50,7 @@ ARCHITECT_TEMPLATE_END = (
 # ─── Slot schema (Appendix J.3) ────────────────────────────────────────────
 # 8 ordered slots, rendered between ARCHITECT_TEMPLATE_START and
 # ARCHITECT_TEMPLATE_END by `prompt_builder.build_form_prompt`.
+# Phase 13q removed the `material_texture` slot (9 → 8 entries).
 SLOT_SCHEMA = [
     {
         'key': 'spatial_configuration',
@@ -84,13 +93,6 @@ SLOT_SCHEMA = [
         'render_template': 'The design features {value}.',
         'has_dropdown': True, 'has_custom_text': True,
         'style_auto_default': False, 'niche_hint_key': 'accessories',
-    },
-    {
-        'key': 'material_texture',
-        'label': 'Material / Texture',
-        'render_template': 'The graphics are made of {value}.',
-        'has_dropdown': True, 'has_custom_text': True,
-        'style_auto_default': True, 'niche_hint_key': 'material',
     },
     {
         'key': 'style_dna',
@@ -630,15 +632,8 @@ ACCESSORIES_OPTIONS = [
     'halftone-dot accents in the negative space around the illustration',
 ]
 
-# J.8 — Material / Texture (slot key: material_texture)
-MATERIAL_OPTIONS = [
-    'clean digital vector with flat color regions and crisp hard edges',
-    'matte screenprint plastisol ink texture with subtle paper-grain underlay',
-    'heavily distressed and weathered ink-bleed texture with cracked color fills',
-    'halftone-dot color fills with classic comic-book printing aesthetic and a limited 2-3 color palette',
-    'gritty vintage worn-on-fabric look with faded color washes and ink-loss patches',
-    'high-contrast 2-color screenprint with bold blocky color regions and hand-cut stencil edges',
-]
+# J.8 — Material / Texture: REMOVED in Phase 13q (slot dropped entirely;
+# texture is already covered by STYLE_DNA + ARCHITECT_TEMPLATE_END + Rule #10).
 
 
 # ─── Font Combination options (Phase 13l) ─────────────────────────────────
@@ -784,7 +779,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
         # Phase 13j: `default_typography` renamed to `default_typography_id`,
         # value is a TYPOGRAPHY_OPTIONS id (resolved via get_typography_by_id).
         'default_typography_id': 'distressed_vintage_slab',
-        'default_material': MATERIAL_OPTIONS[4],       # row 5 — vintage worn
         'default_style_dna': (
             'Vintage retro aesthetic with warm faded earth tones, thick '
             'uniform black outlines, and slight halftone shading on flat '
@@ -802,7 +796,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'poster aesthetic'
         ),
         'default_typography_id': 'seventies_groovy_bold',
-        'default_material': MATERIAL_OPTIONS[1],       # row 2 — matte screenprint
         'default_style_dna': (
             '1970s groovy psychedelic aesthetic with bold flowing curves, '
             'earthy mustard-orange-olive palette, and retro disco-poster '
@@ -820,7 +813,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'arcade vibe'
         ),
         'default_typography_id': 'chrome_bevel_display',
-        'default_material': MATERIAL_OPTIONS[5],       # row 6 — high-contrast 2-color
         'default_style_dna': (
             '1980s synthwave aesthetic with hot magenta + electric cyan + '
             'matte black palette and crisp neon-arcade flatness — no actual '
@@ -838,7 +830,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'screen-print look'
         ),
         'default_typography_id': 'distressed_industrial_sans',
-        'default_material': MATERIAL_OPTIONS[2],       # row 3 — heavily distressed
         'default_style_dna': (
             '1990s grunge aesthetic with faded worn palette, torn-edge '
             'effects, gritty rough outlines and photocopy-worn screen-print '
@@ -856,7 +847,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'outlines, gentle pastel cell-shading, adorable expression'
         ),
         'default_typography_id': 'childlike_rounded_block',
-        'default_material': MATERIAL_OPTIONS[0],       # row 1 — clean digital vector
         'default_style_dna': (
             'Kawaii chibi cartoon aesthetic with oversized cute features, '
             'soft pastel palette, thick rounded outlines and gentle pastel '
@@ -874,7 +864,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'animation aesthetic'
         ),
         'default_typography_id': 'chunky_cartoon_block_gloss',
-        'default_material': MATERIAL_OPTIONS[0],       # row 1 — clean digital vector
         'default_style_dna': (
             'Bold cartoon aesthetic with thick uniform black outlines, flat '
             'saturated color fills, simple cel-shaded highlights and '
@@ -892,7 +881,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'feel'
         ),
         'default_typography_id': 'modern_elegant_brush',
-        'default_material': MATERIAL_OPTIONS[4],       # row 5 — vintage worn
         'default_style_dna': (
             'Watercolor illustration aesthetic with soft transparent washes, '
             'irregular pigment edges and visible paper-texture underlay — '
@@ -911,7 +899,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'aesthetic'
         ),
         'default_typography_id': 'playful_marker_script',
-        'default_material': MATERIAL_OPTIONS[4],       # row 5 — vintage worn
         'default_style_dna': (
             'Hand-drawn sketchbook aesthetic with loose pencil strokes, '
             'visible construction lines, slightly imperfect organic linework '
@@ -929,7 +916,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'flatness'
         ),
         'default_typography_id': 'minimal_geometric_sans',
-        'default_material': MATERIAL_OPTIONS[0],       # row 1 — clean digital vector
         'default_style_dna': (
             'Modern flat-vector aesthetic with geometric shapes, zero '
             'gradients, minimalist palette, crisp sharp edges and '
@@ -946,7 +932,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'space, refined editorial wordmark aesthetic'
         ),
         'default_typography_id': 'minimal_geometric_sans',
-        'default_material': MATERIAL_OPTIONS[0],       # row 1 — clean digital vector
         'default_style_dna': (
             'Minimal single-line aesthetic with consistent monoline weight, '
             'no fills, no shading, abundant negative space and elegant '
@@ -963,7 +948,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'uniform pixels, nostalgic NES/Game Boy aesthetic'
         ),
         'default_typography_id': 'pixel_eight_bit_bitmap',
-        'default_material': MATERIAL_OPTIONS[0],       # row 1 — clean digital vector
         'default_style_dna': (
             '8-bit pixel-art aesthetic with sharp pixelated edges, no '
             'anti-aliasing, limited 16-color retro arcade palette and '
@@ -980,7 +964,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'roughness, aged-on-fabric look, rough rustic typography'
         ),
         'default_typography_id': 'tattoo_old_school_bold',
-        'default_material': MATERIAL_OPTIONS[2],       # row 3 — heavily distressed
         'default_style_dna': (
             'Heavily distressed print aesthetic with worn ink-bleed effect, '
             'scratched and cracked color fills, vintage screen-print roughness'
@@ -996,7 +979,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'palette, retro newsprint feel, pop-art flatness'
         ),
         'default_typography_id': 'retro_diner_brush',
-        'default_material': MATERIAL_OPTIONS[3],       # row 4 — halftone-dot
         'default_style_dna': (
             'Halftone-print pop-art aesthetic with dot-pattern fills, '
             'limited 2-3 color palette and retro newsprint feel'
@@ -1012,7 +994,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'classic monochrome or 2-color palette, heritage trade-mark feel'
         ),
         'default_typography_id': 'varsity_script_swash',
-        'default_material': MATERIAL_OPTIONS[5],       # row 6 — high-contrast 2-color
         'default_style_dna': (
             'Vintage badge-emblem aesthetic with classic monochrome or '
             '2-color palette, heritage trade-mark feel and ornate '
@@ -1029,7 +1010,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'palette, often paired with skull / raven / cross / banner motifs'
         ),
         'default_typography_id': 'blackletter_gothic',
-        'default_material': MATERIAL_OPTIONS[5],       # row 6 — high-contrast 2-color
         'default_style_dna': (
             'Heavy blackletter-gothic aesthetic with ornate medieval scripts, '
             'decorative flourishes, dramatic high-contrast strokes and dark '

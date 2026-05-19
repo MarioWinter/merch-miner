@@ -175,15 +175,19 @@ class TestBuilderBuild:
 
     def test_slots_field_accepts_all_8_keys(self, auth_client, project):
         """AC-59: serializer accepts the full 8-slot dict; values land in the
-        assembled prompt verbatim (per AC-58 fallback-chain step 1)."""
+        assembled prompt verbatim (per AC-58 fallback-chain step 1).
+
+        Phase 13l added font_combination (9 slots). Phase 13q removed
+        material_texture (back to 8). The 8 keys below are the canonical set.
+        """
         url = self.URL.format(pid=project.id)
         slots = {
             'spatial_configuration': 'vertical_stack',
             'visual_description': 'a vector school bus rolling forward',
             'text_segmentation': 'a single centered slogan rendered as one block of text',
             'typography_adjectives': "'massive heavyweight cartoon-block font'",
+            'font_combination': '',
             'accessories': 'white radiating motion-burst lines',
-            'material_texture': 'clean digital vector with flat color regions',
             'style_dna': 'Bold cartoon aesthetic',
             'extra_context': 'High-energy kid-friendly mood',
         }
@@ -209,7 +213,6 @@ class TestBuilderBuild:
             'single centered slogan rendered as one block of text',
             "'massive heavyweight cartoon-block font'",
             'white radiating motion-burst lines',
-            'clean digital vector with flat color regions',
             'Bold cartoon aesthetic',
             'High-energy kid-friendly mood',
         ):

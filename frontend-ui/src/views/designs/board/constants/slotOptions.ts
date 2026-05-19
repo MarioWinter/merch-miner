@@ -723,15 +723,9 @@ export const ACCESSORIES_OPTIONS: readonly string[] = [
   'halftone-dot accents in the negative space around the illustration',
 ] as const;
 
-// J.8 — Material / Texture (slot key: material_texture).
-export const MATERIAL_OPTIONS: readonly string[] = [
-  'clean digital vector with flat color regions and crisp hard edges',
-  'matte screenprint plastisol ink texture with subtle paper-grain underlay',
-  'heavily distressed and weathered ink-bleed texture with cracked color fills',
-  'halftone-dot color fills with classic comic-book printing aesthetic and a limited 2-3 color palette',
-  'gritty vintage worn-on-fabric look with faded color washes and ink-loss patches',
-  'high-contrast 2-color screenprint with bold blocky color regions and hand-cut stencil edges',
-] as const;
+// J.8 was MATERIAL_OPTIONS — removed in Phase 13q. The material_texture slot
+// became redundant with STYLE_DNA / ARCHITECT_TEMPLATE_END / Rule #10 and was
+// dropped from both SLOT_SCHEMA and the resolver.
 
 /** O(1) lookup helper — returns the `SpatialOption` whose `id` matches, or `undefined`. */
 export const getSpatialById = (id: string): SpatialOption | undefined =>

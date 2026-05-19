@@ -44,7 +44,6 @@ def _all_slots_filled() -> dict:
         'text_segmentation': 'a single centered slogan rendered as one block of text',
         'typography_adjectives': "'massive heavyweight cartoon-block font'",
         'accessories': 'white radiating motion-burst lines',
-        'material_texture': 'clean digital vector with flat color regions',
         'style_dna': 'Bold cartoon aesthetic with thick uniform black outlines',
         'extra_context': 'High-energy, kid-friendly mood',
     }
@@ -81,7 +80,6 @@ class TestBuildFormPromptHappyPath:
             assert 'single centered slogan rendered as one block of text' in out
             assert "'massive heavyweight cartoon-block font'" in out
             assert 'white radiating motion-burst lines' in out
-            assert 'clean digital vector with flat color regions' in out
             assert 'High-energy, kid-friendly mood' in out
 
     def test_anti_gradient_rule_present_in_every_output(self):
@@ -132,7 +130,8 @@ class TestSlotFallbackChain:
         # Phase 13j — typography is id-resolved to prompt_text
         expected_typo = get_typography_by_id(style['default_typography_id'])['prompt_text']
         assert expected_typo in out
-        assert style['default_material'] in out
+        # Phase 13q — material slot removed; only typography + style_dna remain
+        # as style-defaulted slots.
         assert style['default_style_dna'] in out
 
     def test_niche_hint_fills_slot_when_user_empty(self):
@@ -140,7 +139,6 @@ class TestSlotFallbackChain:
         niche_hints = {
             'visual': 'a vintage diner counter with stacked plates',
             'accessories': 'a sparse scattering of small filled stars',
-            'material': 'matte screenprint plastisol ink texture',
         }
         out = build_form_prompt(
             slogan='X',
@@ -152,8 +150,7 @@ class TestSlotFallbackChain:
         assert 'a vintage diner counter with stacked plates' in out
         # accessories niche-hint beats the style default
         assert 'a sparse scattering of small filled stars' in out
-        # material niche-hint beats the style default
-        assert 'matte screenprint plastisol ink texture' in out
+        # Phase 13q — material slot removed; niche-hint no longer suggests material.
 
     def test_explicit_user_value_wins_over_niche_hint(self):
         niche_hints = {'visual': 'hint visual'}
@@ -319,8 +316,7 @@ class TestResolveSlotSmoke:
         assert keys == {
             'spatial_configuration', 'visual_description',
             'text_segmentation', 'typography_adjectives',
-            'font_combination',
-            'accessories', 'material_texture',
+            'font_combination', 'accessories',
             'style_dna', 'extra_context',
         }
 

@@ -15,7 +15,6 @@ from design_app.services.style_library import (
     ARCHITECT_TEMPLATE_END,
     ARCHITECT_TEMPLATE_START,
     FONT_COMBINATION_OPTIONS,
-    MATERIAL_OPTIONS,
     SLOT_SCHEMA,
     SPATIAL_OPTIONS,
     STYLE_LIBRARY,
@@ -93,7 +92,6 @@ class TestSlotSchema:
         'typography_adjectives',
         'font_combination',
         'accessories',
-        'material_texture',
         'style_dna',
         'extra_context',
     ]
@@ -104,10 +102,10 @@ class TestSlotSchema:
         'style_auto_default', 'niche_hint_key',
     }
 
-    def test_has_nine_entries(self):
-        # Phase 13l — added `font_combination` slot between typography and
-        # accessories.
-        assert len(SLOT_SCHEMA) == 9
+    def test_has_eight_entries(self):
+        # Phase 13l added font_combination (9 entries). Phase 13q removed
+        # material_texture (back to 8).
+        assert len(SLOT_SCHEMA) == 8
 
     def test_keys_in_expected_order(self):
         assert [s['key'] for s in SLOT_SCHEMA] == self.EXPECTED_KEYS
@@ -144,9 +142,6 @@ class TestDropdownOptions:
     def test_accessories_count(self):
         assert len(ACCESSORIES_OPTIONS) == 6
 
-    def test_material_count(self):
-        assert len(MATERIAL_OPTIONS) == 6
-
     def test_typography_entries_have_required_keys(self):
         # Phase 13j — dict shape mirrors SPATIAL_OPTIONS.
         required = {'id', 'ui_label', 'ui_description', 'prompt_text'}
@@ -163,7 +158,7 @@ class TestDropdownOptions:
 
     @pytest.mark.parametrize(
         'options',
-        [TEXT_SEGMENTATION_OPTIONS, ACCESSORIES_OPTIONS, MATERIAL_OPTIONS],
+        [TEXT_SEGMENTATION_OPTIONS, ACCESSORIES_OPTIONS],
     )
     def test_no_blank_entries(self, options):
         for value in options:
@@ -245,7 +240,6 @@ class TestStyleAutoDefaults:
 
     DEFAULT_FIELDS = (
         'default_typography_id',
-        'default_material',
         'default_style_dna',
         'default_spatial_id',
     )
@@ -253,7 +247,7 @@ class TestStyleAutoDefaults:
     def test_fifteen_styles(self):
         assert len(STYLE_LIBRARY) == 15
 
-    def test_every_style_has_all_four_default_fields(self):
+    def test_every_style_has_all_three_default_fields(self):
         for slug, style in STYLE_LIBRARY.items():
             for field in self.DEFAULT_FIELDS:
                 assert field in style, (
@@ -283,15 +277,6 @@ class TestStyleAutoDefaults:
                 f"style {slug!r} default_typography_id {typo_id!r} does not "
                 f"match any TYPOGRAPHY_OPTIONS id"
             )
-
-    def test_every_default_material_in_options(self):
-        for slug, style in STYLE_LIBRARY.items():
-            value = style['default_material']
-            assert value in MATERIAL_OPTIONS, (
-                f"style {slug!r} default_material is not one of the "
-                f"6 MATERIAL_OPTIONS — got {value!r}"
-            )
-
 
 # ─── Architect template scaffolding ───────────────────────────────────────
 

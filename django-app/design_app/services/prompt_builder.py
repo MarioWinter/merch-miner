@@ -50,7 +50,6 @@ def _fallback_style(style_slug: str) -> dict:
         'prompt_suffix': 'Commercial vector design',
         # Phase 13j: typography is now an id resolved via get_typography_by_id.
         'default_typography_id': '',
-        'default_material': '',
         'default_style_dna': '',
         'default_spatial_id': None,
     }
@@ -187,7 +186,6 @@ def _resolve_slot(slot, user_slots, niche_hints, style, slogan, workspace_id=Non
         # gracefully omit the sentence (EC-35).
         mapping = {
             'typography_adjectives': 'default_typography_id',
-            'material_texture': 'default_material',
             'style_dna': 'default_style_dna',
         }
         mapped_key = mapping.get(slot['key'])
