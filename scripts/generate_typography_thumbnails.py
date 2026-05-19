@@ -83,7 +83,7 @@ GF_BASE = 'https://github.com/google/fonts/raw/main'
 # for a thumbnail-sized preview.
 FONT_MAP = {
     'distressed_vintage_slab':    ('ofl/rye/Rye-Regular.ttf',                                  'VINTAGE',    'grunge_knockout',  None),
-    'chunky_cartoon_block_gloss': ('ofl/bowlbyonesc/BowlbyOneSC-Regular.ttf',                  'CARTOON',    'gloss_stripe',     None),
+    'chunky_cartoon_block_gloss': ('ofl/bowlbyonesc/BowlbyOneSC-Regular.ttf',                  'CARTOON',    None,               None),
     'distressed_industrial_sans': ('ofl/anton/Anton-Regular.ttf',                              'AWESOME',    'grunge_knockout',  None),
     'varsity_script_swash':       ('ofl/allura/Allura-Regular.ttf',                            'Varsity',    'swash_underline',  None),
     'retro_diner_brush':          ('ofl/lobster/Lobster-Regular.ttf',                          'Diner',      'stripe_knockout',  None),
@@ -98,7 +98,7 @@ FONT_MAP = {
     'minimal_geometric_sans':     ('ofl/inter/Inter%5Bopsz%2Cwght%5D.ttf',                     'MINIMAL',    None,               [24, 400]),
     # Lora: wght 400-700 — keep at 500 for book-weight feel.
     'transitional_book_serif':    ('ofl/lora/Lora%5Bwght%5D.ttf',                              'Book Serif', None,               [500]),
-    'western_country_slab':       ('apache/smokum/Smokum-Regular.ttf',                         'WESTERN',    'edge_cutouts',     None),
+    'western_country_slab':       ('apache/smokum/Smokum-Regular.ttf',                         'WESTERN',    None,               None),
     'blackletter_gothic':         ('ofl/unifrakturmaguntia/UnifrakturMaguntia-Book.ttf',       'Gothic',     None,               None),
     'pixel_eight_bit_bitmap':     ('ofl/pressstart2p/PressStart2P-Regular.ttf',                '8-BIT',      None,               None),
     # Oswald: wght 200-700 — bold for jersey punch.
@@ -107,7 +107,7 @@ FONT_MAP = {
     # FredokaOne was removed from google/fonts (replaced by variable Fredoka).
     # LuckiestGuy is a faithful kindergarten-block stand-in.
     'childlike_rounded_block':    ('apache/luckiestguy/LuckiestGuy-Regular.ttf',               'FUN',        None,               None),
-    'bubble_graffiti_letters':    ('ofl/sigmarone/SigmarOne-Regular.ttf',                      'BUBBLE',     'inflated',         None),
+    'bubble_graffiti_letters':    ('ofl/sigmarone/SigmarOne-Regular.ttf',                      'BUBBLE',     None,               None),
     'tattoo_old_school_bold':     ('ofl/pirataone/PirataOne-Regular.ttf',                      'TATTOO',     None,               None),
     # Caveat: wght 400-700 — heavier for clearer hand-lettering.
     'italic_handdrawn_indie':     ('ofl/caveat/Caveat%5Bwght%5D.ttf',                          'indie',      'rotate_5deg',      [700]),
@@ -243,13 +243,15 @@ def grunge_knockout(text: str, font: ImageFont.FreeTypeFont) -> Image.Image:
     img = Image.new('RGB', (CANVAS, CANVAS), BG)
     text_mask = _text_mask(text, font)
 
-    # Build a noise mask the same size as the canvas — 60% of pixels punched out.
+    # Build a noise mask the same size as the canvas — only ~18% of pixels
+    # punched out (user feedback 2026-05-19: 38% knockout was too aggressive,
+    # made the letterforms hard to read in the picker).
     rng = random.Random(hash(text) & 0xFFFF)
     noise = Image.new('L', (CANVAS, CANVAS), 0)
     np = noise.load()
     for y in range(CANVAS):
         for x in range(CANVAS):
-            np[x, y] = 255 if rng.random() > 0.62 else 0
+            np[x, y] = 255 if rng.random() > 0.82 else 0
     # Combine: ink where text AND noise both say "on" — knockout reveals BG.
     combined = Image.eval(text_mask, lambda v: v)  # copy
     cp = combined.load()
