@@ -8,8 +8,11 @@ import { renderWithProviders } from '@/utils/test-utils';
 import TypographyPicker from '../TypographyPicker';
 import { TYPOGRAPHY_OPTIONS } from '../../../constants/slotOptions';
 
-const DEFAULT = TYPOGRAPHY_OPTIONS[0];
-const OTHER = TYPOGRAPHY_OPTIONS[1];
+// Phase 13j — TYPOGRAPHY_OPTIONS is now a dict list; tests pass the
+// resolved `prompt_text` as the value (same string the parent sends from
+// styleLibrary.defaultTypography).
+const DEFAULT = TYPOGRAPHY_OPTIONS[0].prompt_text;
+const OTHER = TYPOGRAPHY_OPTIONS[1].prompt_text;
 
 const openSelect = () =>
   fireEvent.mouseDown(
@@ -62,12 +65,15 @@ describe('TypographyPicker', () => {
   });
 
   it('calls onChange with the picked preset when an option is selected', () => {
+    // Phase 13j — MenuItem renders ui_label, sends prompt_text via value.
     const onChange = vi.fn();
     renderWithProviders(
       <TypographyPicker value="" onChange={onChange} />,
     );
     openSelect();
-    fireEvent.click(within(screen.getByRole('listbox')).getByText(DEFAULT));
+    fireEvent.click(
+      within(screen.getByRole('listbox')).getByText(TYPOGRAPHY_OPTIONS[0].ui_label),
+    );
     expect(onChange).toHaveBeenCalledWith(DEFAULT);
   });
 

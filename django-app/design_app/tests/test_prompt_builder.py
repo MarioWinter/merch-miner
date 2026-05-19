@@ -121,6 +121,7 @@ class TestSlotFallbackChain:
     def test_empty_slots_fall_through_to_style_defaults(self):
         """typography / material / style_dna come from STYLE_LIBRARY when no
         user value and no niche hint."""
+        from design_app.services.style_library import get_typography_by_id
         style = STYLE_LIBRARY['cartoon']
         out = build_form_prompt(
             slogan='X',
@@ -128,7 +129,9 @@ class TestSlotFallbackChain:
             slots={},
             background_color='light_gray',
         )
-        assert style['default_typography'] in out
+        # Phase 13j — typography is id-resolved to prompt_text
+        expected_typo = get_typography_by_id(style['default_typography_id'])['prompt_text']
+        assert expected_typo in out
         assert style['default_material'] in out
         assert style['default_style_dna'] in out
 
@@ -166,6 +169,7 @@ class TestSlotFallbackChain:
 
     def test_explicit_value_wins_over_style_default(self):
         """typography_adjectives has a style default — user override wins."""
+        from design_app.services.style_library import get_typography_by_id
         out = build_form_prompt(
             slogan='X',
             style_slug='cartoon',
@@ -173,8 +177,11 @@ class TestSlotFallbackChain:
             background_color='light_gray',
         )
         assert "'tiny custom override font'" in out
-        # The style default should NOT also leak in.
-        assert STYLE_LIBRARY['cartoon']['default_typography'] not in out
+        # Phase 13j — the style default prompt_text should NOT leak in.
+        cartoon_default_text = get_typography_by_id(
+            STYLE_LIBRARY['cartoon']['default_typography_id']
+        )['prompt_text']
+        assert cartoon_default_text not in out
 
     def test_ec24_visual_omitted_when_no_user_no_hint_no_default(self):
         """EC-24: visual_description has no style auto-default → if user empty
@@ -316,6 +323,9 @@ class TestResolveSlotSmoke:
         }
 
     def test_style_default_lookup_for_typography(self):
+        # Phase 13j — style.default_typography_id is an id; the resolver
+        # looks it up in TYPOGRAPHY_OPTIONS and returns the prompt_text.
+        from design_app.services.style_library import get_typography_by_id
         style = STYLE_LIBRARY['cartoon']
         typo_slot = next(s for s in SLOT_SCHEMA if s['key'] == 'typography_adjectives')
         out = _resolve_slot(
@@ -325,7 +335,8 @@ class TestResolveSlotSmoke:
             style=style,
             slogan='X',
         )
-        assert out == style['default_typography']
+        expected = get_typography_by_id(style['default_typography_id'])['prompt_text']
+        assert out == expected
 
 
 # ─── 1500-char cap (task 13b.9) ───────────────────────────────────────────

@@ -9,8 +9,16 @@ If a future entry is added it must be mirrored in both files.
 PROJ-34 Phase 13a adds the Architect template scaffolding + 36 spatial variants
 + 5 fixed-option dropdown lists (Appendices J.1–J.8, K) used by the form-based
 Builder. Existing `STYLE_LIBRARY` entries gain 4 new auto-default fields
-(`default_typography`, `default_material`, `default_style_dna`,
+(`default_typography_id`, `default_material`, `default_style_dna`,
 `default_spatial_id`) per Appendix K.
+
+PROJ-34 Phase 13j rewrites `TYPOGRAPHY_OPTIONS` from 6 flat strings to 21
+list-of-dicts (id / ui_label / ui_description / prompt_text), renames every
+`default_typography` → `default_typography_id` on the 15 STYLE_LIBRARY entries
+(stores an id, resolved via `get_typography_by_id` in the prompt builder), and
+adds a `get_typography_by_id` lookup helper. Distress is rendered as
+TRANSPARENT KNOCKOUT cutouts revealing the underlying garment color — never
+as added white ink.
 """
 
 from __future__ import annotations
@@ -383,17 +391,144 @@ TEXT_SEGMENTATION_OPTIONS = [
     'two-tone segmentation where the dominant nouns are in one color/style and the connecting words in another',
 ]
 
-# J.6 — Typography Adjectives (slot key: typography_adjectives)
-# Each variant is wrapped in single-quotes inside the string so it slots
-# into the Architect template "The text is rendered in a {value} font style."
-# cleanly.
+# J.6 — Typography Adjectives (slot key: typography_adjectives) — Phase 13j v2
+# 21 dict entries (replaces the v1 6-string list). Each entry mirrors the
+# SPATIAL_OPTIONS shape (no `thumbnail_path` — typography thumbs are a future
+# phase). The `prompt_text` is wrapped in single-quotes inside the string so it
+# slots into the Architect template `"The text is rendered in a {value} font
+# style."` cleanly. Each entry also includes `id` (snake_case, stable),
+# `ui_label` (≤24 chars), and `ui_description` (≤90 chars).
+#
+# Distress is rendered as TRANSPARENT KNOCKOUT cutouts revealing the underlying
+# garment color — never as added white ink (covers the recurring "white grunge"
+# bug from Phase 13 v1).
 TYPOGRAPHY_OPTIONS = [
-    "'massive heavyweight cartoon-block font with sharp rounded corners and internal white gloss lines'",
-    "'thin casual hand-drawn marker font with slightly irregular wobble and rough ink-bleed edges'",
-    "'chunky distressed varsity-collegiate serif with a heavyweight slab base and weathered worn-in texture'",
-    "'ornate medieval blackletter font with decorative flourishes, dramatic thick-thin contrast and gothic terminals'",
-    "'pixelated 8-bit monospace bitmap font with sharp uniform pixels and zero anti-aliasing'",
-    "'elegant brush-script handwriting font with thick-thin contrast, ligatures and a confident calligraphic flow'",
+    {
+        "id": "distressed_vintage_slab",
+        "ui_label": "Distressed Vintage Slab",
+        "ui_description": "Heavy slab serif with transparent grunge cutouts",
+        "prompt_text": "'heavyweight vintage slab-serif font with sturdy rectangular serif feet, slightly condensed proportions, uniform vertical stroke weight, and a coarse-grain screen-print distress pattern rendered as TRANSPARENT KNOCKOUT cutouts inside each letterform revealing the underlying garment color through the scratches — never as added white ink'",
+    },
+    {
+        "id": "chunky_cartoon_block_gloss",
+        "ui_label": "Cartoon Block (Gloss)",
+        "ui_description": "Thick block letters with internal white gloss line",
+        "prompt_text": "'massive heavyweight cartoon-block font with thick black outlines, generously rounded corners, internal white gloss highlight lines running across the upper third of each letter, and a friendly Saturday-morning animation feel'",
+    },
+    {
+        "id": "distressed_industrial_sans",
+        "ui_label": "Industrial Distressed Sans",
+        "ui_description": "Condensed all-caps display with transparent distress",
+        "prompt_text": "'heavyweight condensed all-caps display sans-serif font with squared terminals, no humanist warmth, and a heavy worn-screen-print distress pattern rendered as TRANSPARENT KNOCKOUT cutouts carved out of each letter revealing the underlying garment color through the scratches — never as added white ink'",
+    },
+    {
+        "id": "varsity_script_swash",
+        "ui_label": "Varsity Script + Swash",
+        "ui_description": "Sports script with curving underline tail swash",
+        "prompt_text": "'classic varsity sports-script font with confident italic slope, flowing brush-style thick-thin stroke contrast, joined cursive ligatures, a long horizontal underline swash tail beneath the lowercase baseline, and faint screen-print roughness rendered as TRANSPARENT ink-loss patches revealing the underlying garment color'",
+    },
+    {
+        "id": "retro_diner_brush",
+        "ui_label": "Retro Diner Brush",
+        "ui_description": "50s brush-script with internal stripe/halftone fills",
+        "prompt_text": "'retro 1950s brush-script font with bold thick-thin stroke contrast, casual italic slope, internal stripe or halftone-dot patterns rendered as TRANSPARENT KNOCKOUT cutouts inside each letterform revealing the underlying garment color, slightly playful uneven baseline, and a vintage hand-painted diner-signage character'",
+    },
+    {
+        "id": "modern_elegant_brush",
+        "ui_label": "Modern Elegant Brush",
+        "ui_description": "Refined brush with ligatures, no distress",
+        "prompt_text": "'elegant modern brush-script font with refined thick-thin contrast, smooth confident ligatures, gentle italic slope, clean uniform line endings without distress, and a polished hand-lettered editorial character'",
+    },
+    {
+        "id": "rounded_friendly_slab",
+        "ui_label": "Rounded Friendly Slab",
+        "ui_description": "Soft slab with rounded body corners",
+        "prompt_text": "'rounded chunky slab-serif font with heavyweight bowls, gently rounded body corners, blunt soft slab feet, balanced proportions, low stroke contrast, and a friendly approachable character without distress'",
+    },
+    {
+        "id": "seventies_groovy_bold",
+        "ui_label": "70s Groovy Bold",
+        "ui_description": "Flowing retro-disco curves",
+        "prompt_text": "'1970s groovy bold display font with flowing organic curves, soft rounded apertures, slight wavy baseline irregularity, mild italic slope, condensed proportions, and an unmistakable retro disco-poster character'",
+    },
+    {
+        "id": "playful_marker_script",
+        "ui_label": "Playful Marker Script",
+        "ui_description": "Casual hand-drawn marker, kid-style",
+        "prompt_text": "'casual hand-drawn marker-script font with thin slightly irregular strokes, organic wobble in the letterforms, rough ink-bleed edges, mixed-case or lowercase letterforms, and a friendly kid-style hand-written feel'",
+    },
+    {
+        "id": "minimal_geometric_sans",
+        "ui_label": "Minimal Geometric Sans",
+        "ui_description": "Monoline editorial flat",
+        "prompt_text": "'minimal geometric monoline sans-serif font with uniform stroke weight, perfectly circular bowls, no contrast, no humanist details, generous letter spacing, and a refined modern editorial character'",
+    },
+    {
+        "id": "transitional_book_serif",
+        "ui_label": "Book Serif",
+        "ui_description": "Refined low-contrast classic body serif",
+        "prompt_text": "'transitional refined book-serif font with moderate stroke contrast, bracketed serifs, balanced proportions, low x-height, calm restrained character, and the classic body-text feel of a printed novel'",
+    },
+    {
+        "id": "western_country_slab",
+        "ui_label": "Western Country Slab",
+        "ui_description": "Heavyweight serif with sharp pointed spurs",
+        "prompt_text": "'western country slab-serif font with heavyweight strokes, sharp pointed serif spurs flaring outward at the terminals, strong vertical impact, and slight rough-cut edge irregularity rendered as TRANSPARENT ink-loss cutouts along the outlines revealing the underlying garment color'",
+    },
+    {
+        "id": "blackletter_gothic",
+        "ui_label": "Blackletter Gothic",
+        "ui_description": "Ornate medieval textura",
+        "prompt_text": "'ornate medieval blackletter gothic font with dramatic thick-thin contrast, broken textura strokes, decorative spike flourishes at the terminals, narrow vertical proportions, and a dark monastic-manuscript character'",
+    },
+    {
+        "id": "pixel_eight_bit_bitmap",
+        "ui_label": "Pixel 8-bit Bitmap",
+        "ui_description": "Sharp square pixels, retro arcade",
+        "prompt_text": "'pixelated 8-bit bitmap font with sharp uniform square pixels, zero anti-aliasing, blocky stair-step diagonals, fixed monospace width, and a crisp retro arcade-game character'",
+    },
+    {
+        "id": "athletic_jersey_sans",
+        "ui_label": "Athletic Jersey Sans",
+        "ui_description": "Clean billboard sports condensed",
+        "prompt_text": "'clean heavyweight athletic-jersey sans-serif font with squared terminals, uniform stroke weight, slightly condensed proportions, no distress, slight italic slope, and a strong sports-billboard character'",
+    },
+    {
+        "id": "chrome_bevel_display",
+        "ui_label": "3D Chrome Bevel",
+        "ui_description": "Hard-faceted metallic dimensional letters",
+        "prompt_text": "'3D chrome-bevel display font with sculpted dimensional letterforms, hard-edged facet transitions between bright and dark bevel planes, crisp metallic angled highlights painted as flat color regions, no gradients or blur, and an eye-catching trophy-style character'",
+    },
+    {
+        "id": "childlike_rounded_block",
+        "ui_label": "Childlike Rounded Block",
+        "ui_description": "Kindergarten pastel-friendly bowls",
+        "prompt_text": "'childlike rounded cartoon-block sans-serif font with heavyweight bowls, generously rounded corners on both inside and outside of letterforms, no distress, no internal gloss line, friendly soft proportions, and a kindergarten-classroom playful character'",
+    },
+    {
+        "id": "bubble_graffiti_letters",
+        "ui_label": "Bubble Graffiti",
+        "ui_description": "Puffy inflated streetwear letters",
+        "prompt_text": "'bubble-style graffiti font with bulging puffy letterforms, exaggerated rounded bowls swelling outward like inflated cushions, thick uniform stroke weight, generous interior counters, and a streetwear hand-spray-can character'",
+    },
+    {
+        "id": "tattoo_old_school_bold",
+        "ui_label": "Tattoo Old-School",
+        "ui_description": "Bold woodcut with banner flourishes",
+        "prompt_text": "'old-school traditional-tattoo display font with heavyweight bold strokes, sharp serif terminals decorated with banner-ribbon flourishes, strong line variation, hand-inked nineteenth-century woodcut character, and confident sailor-banner attitude'",
+    },
+    {
+        "id": "italic_handdrawn_indie",
+        "ui_label": "Italic Indie",
+        "ui_description": "Wobbly DIY zine slant",
+        "prompt_text": "'italic hand-drawn indie display font with intentionally uneven baseline, slanted irregular slope, slightly wobbly imperfect strokes, mixed-case letterforms, casual DIY zine character, and a self-published Etsy-handmade feel'",
+    },
+    {
+        "id": "stencil_military_uniform",
+        "ui_label": "Stencil Military",
+        "ui_description": "Block strokes with stencil gaps",
+        "prompt_text": "'stencil military display font with uniform thick block-letter strokes interrupted by characteristic narrow gaps cutting through the body of each letter to mimic spray-stencil templates, all-caps, squared terminals, and a strict combat-issue character'",
+    },
 ]
 
 # J.7 — Accessories (slot key: accessories) — multi-select on the frontend
@@ -431,6 +566,21 @@ def get_spatial_by_id(spatial_id: str) -> dict | None:
     return _SPATIAL_BY_ID.get(spatial_id)
 
 
+# ─── Typography lookup helper (Phase 13j) ─────────────────────────────────
+# O(1) `id` → entry dict lookup over the 21 TYPOGRAPHY_OPTIONS entries. Used
+# by `prompt_builder._resolve_slot` to resolve a style's
+# `default_typography_id` to its `prompt_text` before the Architect sentence
+# is rendered.
+_TYPOGRAPHY_BY_ID = {entry['id']: entry for entry in TYPOGRAPHY_OPTIONS}
+
+
+def get_typography_by_id(typography_id: str) -> dict | None:
+    """Return the `TYPOGRAPHY_OPTIONS` entry whose `id` matches, or `None`."""
+    if not typography_id:
+        return None
+    return _TYPOGRAPHY_BY_ID.get(typography_id)
+
+
 STYLE_LIBRARY: dict[str, dict[str, str]] = {
     'vintage_retro': {
         'label': 'Vintage Retro',
@@ -442,7 +592,9 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'shading on flat color fills, weathered screen-print feel'
         ),
         # PROJ-34 Phase 13a (Appendix K) — Architect form auto-defaults.
-        'default_typography': TYPOGRAPHY_OPTIONS[2],   # row 3 — varsity-collegiate
+        # Phase 13j: `default_typography` renamed to `default_typography_id`,
+        # value is a TYPOGRAPHY_OPTIONS id (resolved via get_typography_by_id).
+        'default_typography_id': 'distressed_vintage_slab',
         'default_material': MATERIAL_OPTIONS[4],       # row 5 — vintage worn
         'default_style_dna': (
             'Vintage retro aesthetic with warm faded earth tones, thick '
@@ -460,7 +612,7 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'thick black outlines, soft halftone dot accents, retro disco '
             'poster aesthetic'
         ),
-        'default_typography': TYPOGRAPHY_OPTIONS[5],   # row 6 — brush-script
+        'default_typography_id': 'seventies_groovy_bold',
         'default_material': MATERIAL_OPTIONS[1],       # row 2 — matte screenprint
         'default_style_dna': (
             '1970s groovy psychedelic aesthetic with bold flowing curves, '
@@ -478,7 +630,7 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'vaporwave grid background motifs, glowing neon outlines, retro '
             'arcade vibe'
         ),
-        'default_typography': TYPOGRAPHY_OPTIONS[0],   # row 1 — cartoon-block
+        'default_typography_id': 'chrome_bevel_display',
         'default_material': MATERIAL_OPTIONS[5],       # row 6 — high-contrast 2-color
         'default_style_dna': (
             '1980s synthwave aesthetic with hot magenta + electric cyan + '
@@ -496,7 +648,7 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'torn-edge effects, gritty rough outlines, photocopy-worn '
             'screen-print look'
         ),
-        'default_typography': TYPOGRAPHY_OPTIONS[2],   # row 3 — varsity-collegiate
+        'default_typography_id': 'distressed_industrial_sans',
         'default_material': MATERIAL_OPTIONS[2],       # row 3 — heavily distressed
         'default_style_dna': (
             '1990s grunge aesthetic with faded worn palette, torn-edge '
@@ -514,7 +666,7 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             '(baby pink, mint, lavender, butter yellow), thick rounded '
             'outlines, gentle pastel cell-shading, adorable expression'
         ),
-        'default_typography': TYPOGRAPHY_OPTIONS[0],   # row 1 — cartoon-block
+        'default_typography_id': 'childlike_rounded_block',
         'default_material': MATERIAL_OPTIONS[0],       # row 1 — clean digital vector
         'default_style_dna': (
             'Kawaii chibi cartoon aesthetic with oversized cute features, '
@@ -532,7 +684,7 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'exaggerated features, playful vibrant palette, Saturday-morning '
             'animation aesthetic'
         ),
-        'default_typography': TYPOGRAPHY_OPTIONS[0],   # row 1 — cartoon-block
+        'default_typography_id': 'chunky_cartoon_block_gloss',
         'default_material': MATERIAL_OPTIONS[0],       # row 1 — clean digital vector
         'default_style_dna': (
             'Bold cartoon aesthetic with thick uniform black outlines, flat '
@@ -550,7 +702,7 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'brush strokes, layered translucent pigment, hand-painted artisan '
             'feel'
         ),
-        'default_typography': TYPOGRAPHY_OPTIONS[1],   # row 2 — hand-drawn marker
+        'default_typography_id': 'modern_elegant_brush',
         'default_material': MATERIAL_OPTIONS[4],       # row 5 — vintage worn
         'default_style_dna': (
             'Watercolor illustration aesthetic with soft transparent washes, '
@@ -569,7 +721,7 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'monochrome or muted color accents, charming sketchbook journal '
             'aesthetic'
         ),
-        'default_typography': TYPOGRAPHY_OPTIONS[1],   # row 2 — hand-drawn marker
+        'default_typography_id': 'playful_marker_script',
         'default_material': MATERIAL_OPTIONS[4],       # row 5 — vintage worn
         'default_style_dna': (
             'Hand-drawn sketchbook aesthetic with loose pencil strokes, '
@@ -587,7 +739,7 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'contemporary commercial design aesthetic, editorial Apple-emoji '
             'flatness'
         ),
-        'default_typography': TYPOGRAPHY_OPTIONS[0],   # row 1 — cartoon-block
+        'default_typography_id': 'minimal_geometric_sans',
         'default_material': MATERIAL_OPTIONS[0],       # row 1 — clean digital vector
         'default_style_dna': (
             'Modern flat-vector aesthetic with geometric shapes, zero '
@@ -604,7 +756,7 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'no fills, no shading, elegant continuous lines, abundant negative '
             'space, refined editorial wordmark aesthetic'
         ),
-        'default_typography': TYPOGRAPHY_OPTIONS[1],   # row 2 — hand-drawn marker
+        'default_typography_id': 'minimal_geometric_sans',
         'default_material': MATERIAL_OPTIONS[0],       # row 1 — clean digital vector
         'default_style_dna': (
             'Minimal single-line aesthetic with consistent monoline weight, '
@@ -621,7 +773,7 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'anti-aliasing, limited 16-color retro arcade palette, blocky '
             'uniform pixels, nostalgic NES/Game Boy aesthetic'
         ),
-        'default_typography': TYPOGRAPHY_OPTIONS[4],   # row 5 — pixelated 8-bit
+        'default_typography_id': 'pixel_eight_bit_bitmap',
         'default_material': MATERIAL_OPTIONS[0],       # row 1 — clean digital vector
         'default_style_dna': (
             '8-bit pixel-art aesthetic with sharp pixelated edges, no '
@@ -638,7 +790,7 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'scratched and cracked color fills, vintage screen-print '
             'roughness, aged-on-fabric look, rough rustic typography'
         ),
-        'default_typography': TYPOGRAPHY_OPTIONS[2],   # row 3 — varsity-collegiate
+        'default_typography_id': 'tattoo_old_school_bold',
         'default_material': MATERIAL_OPTIONS[2],       # row 3 — heavily distressed
         'default_style_dna': (
             'Heavily distressed print aesthetic with worn ink-bleed effect, '
@@ -654,7 +806,7 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'sizes), classic comic-book printing aesthetic, limited 2-3 color '
             'palette, retro newsprint feel, pop-art flatness'
         ),
-        'default_typography': TYPOGRAPHY_OPTIONS[0],   # row 1 — cartoon-block
+        'default_typography_id': 'retro_diner_brush',
         'default_material': MATERIAL_OPTIONS[3],       # row 4 — halftone-dot
         'default_style_dna': (
             'Halftone-print pop-art aesthetic with dot-pattern fills, '
@@ -670,7 +822,7 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'banner ribbons above and below, central crest illustration, '
             'classic monochrome or 2-color palette, heritage trade-mark feel'
         ),
-        'default_typography': TYPOGRAPHY_OPTIONS[2],   # row 3 — varsity-collegiate
+        'default_typography_id': 'varsity_script_swash',
         'default_material': MATERIAL_OPTIONS[5],       # row 6 — high-contrast 2-color
         'default_style_dna': (
             'Vintage badge-emblem aesthetic with classic monochrome or '
@@ -687,7 +839,7 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'dramatic high-contrast strokes, decorative flourishes, dark moody '
             'palette, often paired with skull / raven / cross / banner motifs'
         ),
-        'default_typography': TYPOGRAPHY_OPTIONS[3],   # row 4 — blackletter
+        'default_typography_id': 'blackletter_gothic',
         'default_material': MATERIAL_OPTIONS[5],       # row 6 — high-contrast 2-color
         'default_style_dna': (
             'Heavy blackletter-gothic aesthetic with ornate medieval scripts, '

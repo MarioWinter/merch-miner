@@ -336,17 +336,183 @@ export const TEXT_SEGMENTATION_OPTIONS: readonly string[] = [
   'two-tone segmentation where the dominant nouns are in one color/style and the connecting words in another',
 ] as const;
 
-// J.6 — Typography Adjectives (slot key: typography_adjectives).
-// Each variant is wrapped in single-quotes inside the string so it slots into
-// the Architect template "The text is rendered in a {value} font style." cleanly.
-export const TYPOGRAPHY_OPTIONS: readonly string[] = [
-  "'massive heavyweight cartoon-block font with sharp rounded corners and internal white gloss lines'",
-  "'thin casual hand-drawn marker font with slightly irregular wobble and rough ink-bleed edges'",
-  "'chunky distressed varsity-collegiate serif with a heavyweight slab base and weathered worn-in texture'",
-  "'ornate medieval blackletter font with decorative flourishes, dramatic thick-thin contrast and gothic terminals'",
-  "'pixelated 8-bit monospace bitmap font with sharp uniform pixels and zero anti-aliasing'",
-  "'elegant brush-script handwriting font with thick-thin contrast, ligatures and a confident calligraphic flow'",
+// J.6 — Typography Adjectives (slot key: typography_adjectives) — Phase 13j v2.
+// 21 dict entries (replaces the v1 6-string list). Each entry mirrors the
+// SpatialOption shape (no `thumbnail_path` — typography thumbs are a future
+// phase). `prompt_text` is wrapped in single-quotes inside the string so it
+// slots into the Architect template "The text is rendered in a {value} font
+// style." cleanly.
+//
+// IMPORTANT: copy-pasted verbatim from
+// `django-app/design_app/services/style_library.py::TYPOGRAPHY_OPTIONS`. Drift
+// breaks the mirror_check CI step.
+
+export interface TypographyOption {
+  /** Stable snake_case identifier referenced from STYLE_LIBRARY.default_typography_id. */
+  id: string;
+  /** Display label used in the Typography dropdown (≤24 chars). */
+  ui_label: string;
+  /** Short 1-line description shown below the label (≤90 chars). */
+  ui_description: string;
+  /** Architect-grade font description injected into the prompt (single-quoted). */
+  prompt_text: string;
+}
+
+export const TYPOGRAPHY_OPTIONS: readonly TypographyOption[] = [
+  {
+    id: 'distressed_vintage_slab',
+    ui_label: 'Distressed Vintage Slab',
+    ui_description: 'Heavy slab serif with transparent grunge cutouts',
+    prompt_text:
+      "'heavyweight vintage slab-serif font with sturdy rectangular serif feet, slightly condensed proportions, uniform vertical stroke weight, and a coarse-grain screen-print distress pattern rendered as TRANSPARENT KNOCKOUT cutouts inside each letterform revealing the underlying garment color through the scratches — never as added white ink'",
+  },
+  {
+    id: 'chunky_cartoon_block_gloss',
+    ui_label: 'Cartoon Block (Gloss)',
+    ui_description: 'Thick block letters with internal white gloss line',
+    prompt_text:
+      "'massive heavyweight cartoon-block font with thick black outlines, generously rounded corners, internal white gloss highlight lines running across the upper third of each letter, and a friendly Saturday-morning animation feel'",
+  },
+  {
+    id: 'distressed_industrial_sans',
+    ui_label: 'Industrial Distressed Sans',
+    ui_description: 'Condensed all-caps display with transparent distress',
+    prompt_text:
+      "'heavyweight condensed all-caps display sans-serif font with squared terminals, no humanist warmth, and a heavy worn-screen-print distress pattern rendered as TRANSPARENT KNOCKOUT cutouts carved out of each letter revealing the underlying garment color through the scratches — never as added white ink'",
+  },
+  {
+    id: 'varsity_script_swash',
+    ui_label: 'Varsity Script + Swash',
+    ui_description: 'Sports script with curving underline tail swash',
+    prompt_text:
+      "'classic varsity sports-script font with confident italic slope, flowing brush-style thick-thin stroke contrast, joined cursive ligatures, a long horizontal underline swash tail beneath the lowercase baseline, and faint screen-print roughness rendered as TRANSPARENT ink-loss patches revealing the underlying garment color'",
+  },
+  {
+    id: 'retro_diner_brush',
+    ui_label: 'Retro Diner Brush',
+    ui_description: '50s brush-script with internal stripe/halftone fills',
+    prompt_text:
+      "'retro 1950s brush-script font with bold thick-thin stroke contrast, casual italic slope, internal stripe or halftone-dot patterns rendered as TRANSPARENT KNOCKOUT cutouts inside each letterform revealing the underlying garment color, slightly playful uneven baseline, and a vintage hand-painted diner-signage character'",
+  },
+  {
+    id: 'modern_elegant_brush',
+    ui_label: 'Modern Elegant Brush',
+    ui_description: 'Refined brush with ligatures, no distress',
+    prompt_text:
+      "'elegant modern brush-script font with refined thick-thin contrast, smooth confident ligatures, gentle italic slope, clean uniform line endings without distress, and a polished hand-lettered editorial character'",
+  },
+  {
+    id: 'rounded_friendly_slab',
+    ui_label: 'Rounded Friendly Slab',
+    ui_description: 'Soft slab with rounded body corners',
+    prompt_text:
+      "'rounded chunky slab-serif font with heavyweight bowls, gently rounded body corners, blunt soft slab feet, balanced proportions, low stroke contrast, and a friendly approachable character without distress'",
+  },
+  {
+    id: 'seventies_groovy_bold',
+    ui_label: '70s Groovy Bold',
+    ui_description: 'Flowing retro-disco curves',
+    prompt_text:
+      "'1970s groovy bold display font with flowing organic curves, soft rounded apertures, slight wavy baseline irregularity, mild italic slope, condensed proportions, and an unmistakable retro disco-poster character'",
+  },
+  {
+    id: 'playful_marker_script',
+    ui_label: 'Playful Marker Script',
+    ui_description: 'Casual hand-drawn marker, kid-style',
+    prompt_text:
+      "'casual hand-drawn marker-script font with thin slightly irregular strokes, organic wobble in the letterforms, rough ink-bleed edges, mixed-case or lowercase letterforms, and a friendly kid-style hand-written feel'",
+  },
+  {
+    id: 'minimal_geometric_sans',
+    ui_label: 'Minimal Geometric Sans',
+    ui_description: 'Monoline editorial flat',
+    prompt_text:
+      "'minimal geometric monoline sans-serif font with uniform stroke weight, perfectly circular bowls, no contrast, no humanist details, generous letter spacing, and a refined modern editorial character'",
+  },
+  {
+    id: 'transitional_book_serif',
+    ui_label: 'Book Serif',
+    ui_description: 'Refined low-contrast classic body serif',
+    prompt_text:
+      "'transitional refined book-serif font with moderate stroke contrast, bracketed serifs, balanced proportions, low x-height, calm restrained character, and the classic body-text feel of a printed novel'",
+  },
+  {
+    id: 'western_country_slab',
+    ui_label: 'Western Country Slab',
+    ui_description: 'Heavyweight serif with sharp pointed spurs',
+    prompt_text:
+      "'western country slab-serif font with heavyweight strokes, sharp pointed serif spurs flaring outward at the terminals, strong vertical impact, and slight rough-cut edge irregularity rendered as TRANSPARENT ink-loss cutouts along the outlines revealing the underlying garment color'",
+  },
+  {
+    id: 'blackletter_gothic',
+    ui_label: 'Blackletter Gothic',
+    ui_description: 'Ornate medieval textura',
+    prompt_text:
+      "'ornate medieval blackletter gothic font with dramatic thick-thin contrast, broken textura strokes, decorative spike flourishes at the terminals, narrow vertical proportions, and a dark monastic-manuscript character'",
+  },
+  {
+    id: 'pixel_eight_bit_bitmap',
+    ui_label: 'Pixel 8-bit Bitmap',
+    ui_description: 'Sharp square pixels, retro arcade',
+    prompt_text:
+      "'pixelated 8-bit bitmap font with sharp uniform square pixels, zero anti-aliasing, blocky stair-step diagonals, fixed monospace width, and a crisp retro arcade-game character'",
+  },
+  {
+    id: 'athletic_jersey_sans',
+    ui_label: 'Athletic Jersey Sans',
+    ui_description: 'Clean billboard sports condensed',
+    prompt_text:
+      "'clean heavyweight athletic-jersey sans-serif font with squared terminals, uniform stroke weight, slightly condensed proportions, no distress, slight italic slope, and a strong sports-billboard character'",
+  },
+  {
+    id: 'chrome_bevel_display',
+    ui_label: '3D Chrome Bevel',
+    ui_description: 'Hard-faceted metallic dimensional letters',
+    prompt_text:
+      "'3D chrome-bevel display font with sculpted dimensional letterforms, hard-edged facet transitions between bright and dark bevel planes, crisp metallic angled highlights painted as flat color regions, no gradients or blur, and an eye-catching trophy-style character'",
+  },
+  {
+    id: 'childlike_rounded_block',
+    ui_label: 'Childlike Rounded Block',
+    ui_description: 'Kindergarten pastel-friendly bowls',
+    prompt_text:
+      "'childlike rounded cartoon-block sans-serif font with heavyweight bowls, generously rounded corners on both inside and outside of letterforms, no distress, no internal gloss line, friendly soft proportions, and a kindergarten-classroom playful character'",
+  },
+  {
+    id: 'bubble_graffiti_letters',
+    ui_label: 'Bubble Graffiti',
+    ui_description: 'Puffy inflated streetwear letters',
+    prompt_text:
+      "'bubble-style graffiti font with bulging puffy letterforms, exaggerated rounded bowls swelling outward like inflated cushions, thick uniform stroke weight, generous interior counters, and a streetwear hand-spray-can character'",
+  },
+  {
+    id: 'tattoo_old_school_bold',
+    ui_label: 'Tattoo Old-School',
+    ui_description: 'Bold woodcut with banner flourishes',
+    prompt_text:
+      "'old-school traditional-tattoo display font with heavyweight bold strokes, sharp serif terminals decorated with banner-ribbon flourishes, strong line variation, hand-inked nineteenth-century woodcut character, and confident sailor-banner attitude'",
+  },
+  {
+    id: 'italic_handdrawn_indie',
+    ui_label: 'Italic Indie',
+    ui_description: 'Wobbly DIY zine slant',
+    prompt_text:
+      "'italic hand-drawn indie display font with intentionally uneven baseline, slanted irregular slope, slightly wobbly imperfect strokes, mixed-case letterforms, casual DIY zine character, and a self-published Etsy-handmade feel'",
+  },
+  {
+    id: 'stencil_military_uniform',
+    ui_label: 'Stencil Military',
+    ui_description: 'Block strokes with stencil gaps',
+    prompt_text:
+      "'stencil military display font with uniform thick block-letter strokes interrupted by characteristic narrow gaps cutting through the body of each letter to mimic spray-stencil templates, all-caps, squared terminals, and a strict combat-issue character'",
+  },
 ] as const;
+
+/** O(1) lookup helper — returns the `TypographyOption` whose `id` matches, or `undefined`. */
+export const getTypographyById = (
+  id: string,
+): TypographyOption | undefined =>
+  TYPOGRAPHY_OPTIONS.find((entry) => entry.id === id);
 
 // J.7 — Accessories (slot key: accessories) — multi-select on the frontend.
 export const ACCESSORIES_OPTIONS: readonly string[] = [

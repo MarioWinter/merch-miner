@@ -42,7 +42,7 @@ const TypographyPicker = ({
   disabled = false,
 }: TypographyPickerProps) => {
   const isPreset = useMemo(
-    () => TYPOGRAPHY_OPTIONS.includes(value),
+    () => TYPOGRAPHY_OPTIONS.some((o) => o.prompt_text === value),
     [value],
   );
   const [customMode, setCustomMode] = useState<boolean>(
@@ -115,8 +115,8 @@ const TypographyPicker = ({
               <em>None — auto from style</em>
             </MenuItem>
             {TYPOGRAPHY_OPTIONS.map((option) => (
-              <MenuItem key={option} value={option}>
-                {option}
+              <MenuItem key={option.id} value={option.prompt_text}>
+                {option.ui_label}
               </MenuItem>
             ))}
             <MenuItem value={CUSTOM_SENTINEL}>Custom…</MenuItem>

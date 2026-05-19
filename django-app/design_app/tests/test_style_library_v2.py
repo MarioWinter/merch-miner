@@ -130,7 +130,10 @@ class TestDropdownOptions:
         assert len(TEXT_SEGMENTATION_OPTIONS) == 6
 
     def test_typography_count(self):
-        assert len(TYPOGRAPHY_OPTIONS) == 6
+        # Phase 13j — TYPOGRAPHY_OPTIONS expanded from 6 strings to 21 dict
+        # entries (image-extracted POD font library, dict shape mirrors
+        # SPATIAL_OPTIONS).
+        assert len(TYPOGRAPHY_OPTIONS) == 21
 
     def test_accessories_count(self):
         assert len(ACCESSORIES_OPTIONS) == 6
@@ -138,11 +141,19 @@ class TestDropdownOptions:
     def test_material_count(self):
         assert len(MATERIAL_OPTIONS) == 6
 
-    def test_typography_entries_quoted(self):
-        # Each typography variant is wrapped in single-quotes inside the
-        # string so it slots into the Architect template cleanly.
-        for value in TYPOGRAPHY_OPTIONS:
-            assert value.startswith("'") and value.endswith("'"), value
+    def test_typography_entries_have_required_keys(self):
+        # Phase 13j — dict shape mirrors SPATIAL_OPTIONS.
+        required = {'id', 'ui_label', 'ui_description', 'prompt_text'}
+        for entry in TYPOGRAPHY_OPTIONS:
+            assert set(entry.keys()) >= required, entry
+            # prompt_text is still wrapped in single-quotes so it slots
+            # into the Architect template cleanly.
+            pt = entry['prompt_text']
+            assert pt.startswith("'") and pt.endswith("'"), entry['id']
+
+    def test_typography_ids_unique(self):
+        ids = [e['id'] for e in TYPOGRAPHY_OPTIONS]
+        assert len(ids) == len(set(ids)), 'TYPOGRAPHY_OPTIONS ids must be unique'
 
     @pytest.mark.parametrize(
         'options',
@@ -161,7 +172,7 @@ class TestStyleAutoDefaults:
     one points to a valid SPATIAL/TYPOGRAPHY/MATERIAL value (AC-52)."""
 
     DEFAULT_FIELDS = (
-        'default_typography',
+        'default_typography_id',
         'default_material',
         'default_style_dna',
         'default_spatial_id',
@@ -190,12 +201,15 @@ class TestStyleAutoDefaults:
                 f"does not match any SPATIAL_OPTIONS entry"
             )
 
-    def test_every_default_typography_in_options(self):
+    def test_every_default_typography_id_resolves(self):
+        # Phase 13j — STYLE_LIBRARY.default_typography_id is a stable id;
+        # resolve via TYPOGRAPHY_OPTIONS entry lookup.
+        valid_ids = {e['id'] for e in TYPOGRAPHY_OPTIONS}
         for slug, style in STYLE_LIBRARY.items():
-            value = style['default_typography']
-            assert value in TYPOGRAPHY_OPTIONS, (
-                f"style {slug!r} default_typography is not one of the "
-                f"6 TYPOGRAPHY_OPTIONS — got {value!r}"
+            typo_id = style['default_typography_id']
+            assert typo_id in valid_ids, (
+                f"style {slug!r} default_typography_id {typo_id!r} does not "
+                f"match any TYPOGRAPHY_OPTIONS id"
             )
 
     def test_every_default_material_in_options(self):

@@ -20,6 +20,7 @@ from design_app.services.style_library import (
     SLOT_SCHEMA,
     SPATIAL_OPTIONS,
     STYLE_LIBRARY,
+    get_typography_by_id,
 )
 
 logger = logging.getLogger(__name__)
@@ -46,7 +47,8 @@ def _fallback_style(style_slug: str) -> dict:
     return {
         'label': style_slug.replace('_', ' ').title(),
         'prompt_suffix': 'Commercial vector design',
-        'default_typography': '',
+        # Phase 13j: typography is now an id resolved via get_typography_by_id.
+        'default_typography_id': '',
         'default_material': '',
         'default_style_dna': '',
         'default_spatial_id': None,
@@ -154,12 +156,22 @@ def _resolve_slot(slot, user_slots, niche_hints, style, slogan, workspace_id=Non
 
     # 3. Style auto-default, if this slot supports style defaults
     if slot.get('style_auto_default'):
+        # Phase 13j: typography_adjectives' style-default is an id (resolved
+        # via get_typography_by_id → prompt_text). User-typed values and
+        # niche-hint values are raw text and stay raw — only this style-
+        # default path goes through the id lookup. If the id is unknown,
+        # gracefully omit the sentence (EC-35).
         mapping = {
-            'typography_adjectives': 'default_typography',
+            'typography_adjectives': 'default_typography_id',
             'material_texture': 'default_material',
             'style_dna': 'default_style_dna',
         }
-        return style.get(mapping.get(slot['key']), '')
+        mapped_key = mapping.get(slot['key'])
+        val = style.get(mapped_key, '')
+        if slot['key'] == 'typography_adjectives' and val:
+            entry = get_typography_by_id(val)
+            return entry['prompt_text'] if entry else ''
+        return val
 
     # 4. Special: visual_description ALWAYS needs SOMETHING if requested.
     #    If we end up here with no user value + no hint + no style default,

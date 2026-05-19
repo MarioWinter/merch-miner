@@ -1,8 +1,24 @@
 // PROJ-34 Phase 7 — frontend mirror of design_app.services.style_library.STYLE_LIBRARY.
 // Source of truth for the StylePicker UI: 15 flat entries (no nested "More" modal per AC-22).
 // If an entry is added or removed here it MUST also be mirrored in the backend file.
+//
+// PROJ-34 Phase 13j: typography defaults moved from `TYPOGRAPHY_OPTIONS[i]` (raw
+// strings, v1 shape) to `getTypographyById(id).prompt_text` (id-resolved from the
+// new 21-entry dict list, Appendix K). `defaultTypography` continues to hold the
+// raw `prompt_text` so the TypographyPicker `value === styleDefault` equality
+// check keeps working without any callsite changes.
 
-import { MATERIAL_OPTIONS, TYPOGRAPHY_OPTIONS } from './slotOptions'
+import { getTypographyById, MATERIAL_OPTIONS } from './slotOptions'
+
+const typoText = (id: string): string => {
+  const entry = getTypographyById(id)
+  if (!entry) {
+    throw new Error(
+      `styleLibrary.ts: unknown typography id "${id}" — Appendix K mapping drift`,
+    )
+  }
+  return entry.prompt_text
+}
 
 export interface StyleEntry {
   slug: string
@@ -11,8 +27,8 @@ export interface StyleEntry {
   thumbnail: string
   promptSuffix: string
   // PROJ-34 Phase 13a (Appendix K) — auto-defaults for the form-based Builder.
-  // Pulled from TYPOGRAPHY_OPTIONS / MATERIAL_OPTIONS by index, mirroring the
-  // backend `design_app/services/style_library.py:STYLE_LIBRARY` entries.
+  // Phase 13j: `defaultTypography` is the resolved `prompt_text` of the style's
+  // `default_typography_id`. The id mapping lives below per row.
   defaultTypography: string
   defaultMaterial: string
 }
@@ -27,7 +43,7 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('vintage_retro'),
     promptSuffix:
       'Vintage retro aesthetic with warm faded earth tones (mustard yellow, burnt orange, dusty teal, cream), thick uniform black outlines, slightly distressed grain texture overlay, halftone shading on flat color fills, weathered screen-print feel',
-    defaultTypography: TYPOGRAPHY_OPTIONS[2],
+    defaultTypography: typoText('distressed_vintage_slab'),
     defaultMaterial: MATERIAL_OPTIONS[4],
   },
   {
@@ -37,7 +53,7 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('70s_groovy'),
     promptSuffix:
       '1970s groovy psychedelic vibe with bold flowing curved typography, earthy palette of mustard, burnt orange, olive, cream and rust, thick black outlines, soft halftone dot accents, retro disco poster aesthetic',
-    defaultTypography: TYPOGRAPHY_OPTIONS[5],
+    defaultTypography: typoText('seventies_groovy_bold'),
     defaultMaterial: MATERIAL_OPTIONS[1],
   },
   {
@@ -47,7 +63,7 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('80s_neon'),
     promptSuffix:
       '1980s neon synthwave aesthetic with hot magenta, electric cyan, vibrant purple and matte black, chrome reflective typography, vaporwave grid background motifs, glowing neon outlines, retro arcade vibe',
-    defaultTypography: TYPOGRAPHY_OPTIONS[0],
+    defaultTypography: typoText('chrome_bevel_display'),
     defaultMaterial: MATERIAL_OPTIONS[5],
   },
   {
@@ -57,7 +73,7 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('90s_grunge'),
     promptSuffix:
       '1990s grunge style with distressed ink-bleed textures, faded high-contrast palette of worn black, cream and faded red, torn-edge effects, gritty rough outlines, photocopy-worn screen-print look',
-    defaultTypography: TYPOGRAPHY_OPTIONS[2],
+    defaultTypography: typoText('distressed_industrial_sans'),
     defaultMaterial: MATERIAL_OPTIONS[2],
   },
   {
@@ -67,7 +83,7 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('kawaii_chibi'),
     promptSuffix:
       'Kawaii chibi cartoon style with oversized cute heads, big sparkly black eyes with white highlights, soft pastel palette (baby pink, mint, lavender, butter yellow), thick rounded outlines, gentle pastel cell-shading, adorable expression',
-    defaultTypography: TYPOGRAPHY_OPTIONS[0],
+    defaultTypography: typoText('childlike_rounded_block'),
     defaultMaterial: MATERIAL_OPTIONS[0],
   },
   {
@@ -77,7 +93,7 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('cartoon'),
     promptSuffix:
       'Bold cartoon style with thick uniform black outlines, flat saturated color fills, simple cel-shaded highlights, expressive exaggerated features, playful vibrant palette, Saturday-morning animation aesthetic',
-    defaultTypography: TYPOGRAPHY_OPTIONS[0],
+    defaultTypography: typoText('chunky_cartoon_block_gloss'),
     defaultMaterial: MATERIAL_OPTIONS[0],
   },
   {
@@ -87,7 +103,7 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('watercolor'),
     promptSuffix:
       'Watercolor illustration style with soft transparent color washes, irregular pigment edges, visible paper texture, organic flowing brush strokes, layered translucent pigment, hand-painted artisan feel',
-    defaultTypography: TYPOGRAPHY_OPTIONS[1],
+    defaultTypography: typoText('modern_elegant_brush'),
     defaultMaterial: MATERIAL_OPTIONS[4],
   },
   {
@@ -97,7 +113,7 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('hand_drawn_sketch'),
     promptSuffix:
       'Hand-drawn sketch style with loose pencil and pen strokes, visible construction lines, slightly imperfect organic linework, monochrome or muted color accents, charming sketchbook journal aesthetic',
-    defaultTypography: TYPOGRAPHY_OPTIONS[1],
+    defaultTypography: typoText('playful_marker_script'),
     defaultMaterial: MATERIAL_OPTIONS[4],
   },
   {
@@ -107,7 +123,7 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('vector_flat'),
     promptSuffix:
       'Clean modern flat vector style with geometric shapes, zero gradients, smart minimalist palette, crisp sharp edges, contemporary commercial design aesthetic, editorial Apple-emoji flatness',
-    defaultTypography: TYPOGRAPHY_OPTIONS[0],
+    defaultTypography: typoText('minimal_geometric_sans'),
     defaultMaterial: MATERIAL_OPTIONS[0],
   },
   {
@@ -117,7 +133,7 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('minimal_line_art'),
     promptSuffix:
       'Minimal single-line illustration with consistent monoline weight, no fills, no shading, elegant continuous lines, abundant negative space, refined editorial wordmark aesthetic',
-    defaultTypography: TYPOGRAPHY_OPTIONS[1],
+    defaultTypography: typoText('minimal_geometric_sans'),
     defaultMaterial: MATERIAL_OPTIONS[0],
   },
   {
@@ -127,7 +143,7 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('pixel_art'),
     promptSuffix:
       'Pixel art 8-bit gaming style with sharp pixelated edges, no anti-aliasing, limited 16-color retro arcade palette, blocky uniform pixels, nostalgic NES/Game Boy aesthetic',
-    defaultTypography: TYPOGRAPHY_OPTIONS[4],
+    defaultTypography: typoText('pixel_eight_bit_bitmap'),
     defaultMaterial: MATERIAL_OPTIONS[0],
   },
   {
@@ -137,7 +153,7 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('distressed_texture'),
     promptSuffix:
       'Heavily distressed print texture with worn ink-bleed effect, scratched and cracked color fills, vintage screen-print roughness, aged-on-fabric look, rough rustic typography',
-    defaultTypography: TYPOGRAPHY_OPTIONS[2],
+    defaultTypography: typoText('tattoo_old_school_bold'),
     defaultMaterial: MATERIAL_OPTIONS[2],
   },
   {
@@ -147,7 +163,7 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('halftone_print'),
     promptSuffix:
       'Halftone print style with dot-pattern color fills (varying dot sizes), classic comic-book printing aesthetic, limited 2-3 color palette, retro newsprint feel, pop-art flatness',
-    defaultTypography: TYPOGRAPHY_OPTIONS[0],
+    defaultTypography: typoText('retro_diner_brush'),
     defaultMaterial: MATERIAL_OPTIONS[3],
   },
   {
@@ -157,7 +173,7 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('badge_emblem'),
     promptSuffix:
       'Vintage badge emblem layout with circular or shield-shaped border, banner ribbons above and below, central crest illustration, classic monochrome or 2-color palette, heritage trade-mark feel',
-    defaultTypography: TYPOGRAPHY_OPTIONS[2],
+    defaultTypography: typoText('varsity_script_swash'),
     defaultMaterial: MATERIAL_OPTIONS[5],
   },
   {
@@ -167,7 +183,7 @@ export const STYLE_LIBRARY: StyleEntry[] = [
     thumbnail: THUMB('blackletter_gothic'),
     promptSuffix:
       'Heavy blackletter gothic typography with ornate medieval scripts, dramatic high-contrast strokes, decorative flourishes, dark moody palette, often paired with skull / raven / cross / banner motifs',
-    defaultTypography: TYPOGRAPHY_OPTIONS[3],
+    defaultTypography: typoText('blackletter_gothic'),
     defaultMaterial: MATERIAL_OPTIONS[5],
   },
 ]
