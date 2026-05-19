@@ -191,16 +191,3 @@ export const STYLE_LIBRARY: StyleEntry[] = [
 /** O(1) lookup helper — returns the StyleEntry whose `slug` matches, or `undefined`. */
 export const getStyleBySlug = (slug: string): StyleEntry | undefined =>
   STYLE_LIBRARY.find((entry) => entry.slug === slug)
-
-// AC-32 — single-select warp library (4 options + empty/none).
-export interface WarpEntry {
-  slug: string
-  label: string
-}
-
-export const WARP_LIBRARY: WarpEntry[] = [
-  { slug: 'arc_lower', label: 'Arc Lower (Banner)' },
-  { slug: 'concave_squeeze', label: 'Concave Squeeze (Bowtie)' },
-  { slug: 'bulge', label: 'Bulge (Football)' },
-  { slug: 'flag_wave', label: 'Flag Wave (Sinuous)' },
-]

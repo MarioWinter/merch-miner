@@ -691,7 +691,6 @@ export const designApi = createApi({
         body: {
           slogans: string[];
           styles: string[];
-          warp: string | null;
           background_color: string;
           with_polish: boolean;
           include_niche_context: boolean;

@@ -54,7 +54,6 @@ export const useBuilderLivePreview = ({
             body: {
               slogans: [firstSlogan],
               styles: [firstStyle],
-              warp: cfg.warpSlug,
               background_color: backgroundColor,
               with_polish: false,
               include_niche_context: cfg.includeNicheContext,
@@ -84,7 +83,6 @@ export const useBuilderLivePreview = ({
     firstStyle,
     projectId,
     backgroundColor,
-    cfg.warpSlug,
     cfg.includeNicheContext,
     slotsKey,
     buildPrompts,

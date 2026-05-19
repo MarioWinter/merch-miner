@@ -198,7 +198,6 @@ describe.skip('BuilderDialog — PROJ-34 Phase 8 (legacy, rewrite in 13h)', () =
           freeTextSlogans: '',
           // 'cartoon' exists, 'vaporwave-gone' does not
           selectedStyleSlugs: ['cartoon', 'vaporwave-gone'],
-          warpSlug: null,
           includeNicheContext: true,
         },
       },

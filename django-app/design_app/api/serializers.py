@@ -838,10 +838,6 @@ class BuilderBuildSerializer(serializers.Serializer):
         max_length=15,
         help_text='Style slugs from the 15-entry library.',
     )
-    warp = serializers.CharField(
-        required=False, allow_blank=True, allow_null=True, default='',
-        max_length=64,
-    )
     background_color = serializers.ChoiceField(
         choices=Design.BackgroundColor.choices,
         default=Design.BackgroundColor.LIGHT_GRAY,

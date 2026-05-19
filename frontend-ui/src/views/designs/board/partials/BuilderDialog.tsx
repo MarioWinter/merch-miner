@@ -52,7 +52,6 @@ import VisualDescriptionField from './promptBuilder/VisualDescriptionField';
 import TypographyPicker from './promptBuilder/TypographyPicker';
 import MaterialPicker from './promptBuilder/MaterialPicker';
 import ExtraContextField from './promptBuilder/ExtraContextField';
-import WarpPicker from './promptBuilder/WarpPicker';
 import NicheContextToggle from './promptBuilder/NicheContextToggle';
 import ReferenceIndicator from './promptBuilder/ReferenceIndicator';
 import BuildCounter from './promptBuilder/BuildCounter';
@@ -323,10 +322,6 @@ const BuilderDialog = ({
               <StyleSlotButton
                 selectedSlugs={cfg.selectedStyleSlugs}
                 onOpenPicker={() => setStylePickerOpen(true)}
-              />
-              <WarpPicker
-                value={cfg.warpSlug}
-                onChange={(slug) => setCfg((c) => ({ ...c, warpSlug: slug }))}
               />
             </Stack>
           </AccordionDetails>

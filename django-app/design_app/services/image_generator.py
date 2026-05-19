@@ -59,9 +59,6 @@ DESIGN_GEN_SYSTEM_PROMPT = (
     "typography, color palette, line treatment, shading, and texture all match "
     "the named style.\n\n"
     "## Format reminder\n\n"
-    "The user prompt may include warp instructions (e.g. \"Arc Lower warp: top "
-    "straight, bottom curved\") for text shaping. Apply the warp to the "
-    "typographic element only, not to the illustration.\n\n"
     "The user prompt ends with the background-color instruction. That line is "
     "NOT decorative — it is the exact color of the canvas behind the design."
 )

@@ -851,23 +851,3 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
 }
 
 
-# PROJ-34 Appendix C — warp slug → final-prompt phrase mapping.
-WARP_PHRASES: dict[str, str] = {
-    'arc_lower': (
-        "The text uses an 'Arc Lower' warp: the headline remains straight at "
-        "the top but arches downwards at the bottom to frame the illustration."
-    ),
-    'concave_squeeze': (
-        "The typography uses a concave 'bowtie' warp, with massive tall "
-        "letters on the far left and right flanks that strictly taper down to "
-        "a smaller size in the center."
-    ),
-    'bulge': (
-        "The typography features a convex bulge, making the center words "
-        "massive and dominant while the edges taper off."
-    ),
-    'flag_wave': (
-        "The text flows in a sinuous 'flag wave' motion, rising on the left "
-        "and dipping on the right."
-    ),
-}

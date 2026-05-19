@@ -1926,9 +1926,10 @@ class PromptPresetDeleteView(APIView):
 class BuilderBuildView(APIView):
     """POST /api/designs/projects/{id}/builder/build/
 
-    Cross-product Builder (PROJ-34 Phase 5). Given N slogans × M styles
-    (+ optional warp, niche-context toggle, bg_color), returns N×M prompts
-    in cross-product order: (slogan[0]×style[0]), (slogan[0]×style[1]), ...
+    Cross-product Builder (PROJ-34 Phase 5; Phase 13k removed the legacy
+    warp field). Given N slogans × M styles (+ optional niche-context
+    toggle, bg_color), returns N×M prompts in cross-product order:
+    (slogan[0]×style[0]), (slogan[0]×style[1]), ...
 
     Polish is parallel-bounded by `workspace.ProcessingSettings
     .polish_builder_prompts_enabled` AND the request's `with_polish` flag

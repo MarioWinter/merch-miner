@@ -761,10 +761,11 @@ class ProjectReference(models.Model):
 class BuilderPreset(models.Model):
     """A saved Prompt-Builder configuration scoped to a single DesignProject.
 
-    PROJ-34: Stores slogans + styles + warp + bg_color + niche_context flag as
-    a JSON blob (config schema iterates as the Builder UI evolves). Soft-deleted
-    via ``is_deleted`` so name re-use after delete is allowed via a partial
-    UniqueConstraint (Appendix F of docs/tasks/PROJ-34-tasks.md).
+    PROJ-34: Stores slogans + styles + bg_color + niche_context flag + form
+    slots as a JSON blob (config schema iterates as the Builder UI evolves;
+    Phase 13k removed the legacy `warp` field). Soft-deleted via ``is_deleted``
+    so name re-use after delete is allowed via a partial UniqueConstraint
+    (Appendix F of docs/tasks/PROJ-34-tasks.md).
     """
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -782,8 +783,8 @@ class BuilderPreset(models.Model):
     name = models.CharField(max_length=80)
     config = models.JSONField(
         default=dict,
-        help_text='Builder config: slogans, styles, warp, bg_color, '
-                  'niche_context_enabled.',
+        help_text='Builder config: slogans, styles, bg_color, '
+                  'niche_context_enabled, slots.',
     )
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,

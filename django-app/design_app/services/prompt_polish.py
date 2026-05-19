@@ -34,11 +34,11 @@ POLISH_MAX_OUTPUT_CHARS = 2000  # EC-5
 POLISH_SYSTEM_PROMPT = (
     'You polish T-shirt design generation prompts. Tighten grammar and flow '
     'only. Preserve every concrete detail — every adjective, color, layout '
-    'instruction, style cue, font description, background-color line, and '
-    'warp instruction must remain in the polished output. Do not add new '
-    'concepts, do not summarize, do not strip "double-quoted" strings. '
-    'Output ONLY the polished prompt, no preamble, no quotes around the '
-    'whole reply, no explanation.'
+    'instruction, style cue, font description, and background-color line '
+    'must remain in the polished output. Do not add new concepts, do not '
+    'summarize, do not strip "double-quoted" strings. Output ONLY the '
+    'polished prompt, no preamble, no quotes around the whole reply, no '
+    'explanation.'
 )
 
 

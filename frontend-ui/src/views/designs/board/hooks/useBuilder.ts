@@ -152,7 +152,6 @@ export const useBuilder = ({
           body: {
             slogans,
             styles: config.selectedStyleSlugs,
-            warp: config.warpSlug,
             background_color: backgroundColor,
             with_polish: polishEnabled,
             include_niche_context:
