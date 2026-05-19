@@ -214,7 +214,7 @@ const StylePickerModal = ({
                       >
                         <ThumbWrapper>
                           <img
-                            src={`/static/design_app/thumbnails/styles/${entry.slug}.png`}
+                            src={`/style-thumbnails/${entry.slug}.png`}
                             alt=""
                             loading="lazy"
                             onError={(e) => {

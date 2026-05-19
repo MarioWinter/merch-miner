@@ -82,7 +82,7 @@ export const BuiltinGrid = ({
             >
               <ThumbWrapper>
                 <img
-                  src={`/static/design_app/${entry.thumbnail_path}`}
+                  src={`/${entry.thumbnail_path}`}
                   alt=""
                   loading="lazy"
                 />

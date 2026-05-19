@@ -66,7 +66,7 @@ interface VariantContent {
 const buildBuiltInContent = (entry: SpatialOption): VariantContent => ({
   thumb: (
     <ThumbImg
-      src={`/static/design_app/${entry.thumbnail_path}`}
+      src={`/${entry.thumbnail_path}`}
       alt=""
       loading="lazy"
       onError={(event) => {
