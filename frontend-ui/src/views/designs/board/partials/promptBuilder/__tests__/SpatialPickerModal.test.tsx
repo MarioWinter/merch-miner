@@ -1,5 +1,5 @@
 // PROJ-34 Phase 13f.1 — SpatialPickerModal unit tests.
-// Covers: 36-card render, label-substring search filter, description-substring
+// Covers: 43-card render, label-substring search filter, description-substring
 // search filter, empty-state Custom tab, populated Custom tab, commit lifecycle.
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
@@ -55,7 +55,7 @@ const baseProps = {
 };
 
 describe('SpatialPickerModal', () => {
-  it('renders all 36 built-in spatial cards on the Built-in tab', () => {
+  it('renders all 43 built-in spatial cards on the Built-in tab', () => {
     mockListCustom.mockReturnValue({ data: [], isLoading: false });
     renderWithProviders(<SpatialPickerModal {...baseProps} />);
     // Every entry's ui_label is unique in the SPATIAL_OPTIONS list, so each
@@ -161,10 +161,10 @@ describe('SpatialPickerModal', () => {
     expect(screen.getByRole('button', { name: /Use selection/i })).toBeDisabled();
   });
 
-  it('renders 36 cards but the tabs label confirms the built-in count', () => {
+  it('renders 43 cards but the tabs label confirms the built-in count', () => {
     mockListCustom.mockReturnValue({ data: [], isLoading: false });
     renderWithProviders(<SpatialPickerModal {...baseProps} />);
-    const builtinTab = screen.getByRole('tab', { name: /Built-in \(36\)/ });
-    expect(within(builtinTab).getByText(/Built-in \(36\)/)).toBeInTheDocument();
+    const builtinTab = screen.getByRole('tab', { name: /Built-in \(43\)/ });
+    expect(within(builtinTab).getByText(/Built-in \(43\)/)).toBeInTheDocument();
   });
 });

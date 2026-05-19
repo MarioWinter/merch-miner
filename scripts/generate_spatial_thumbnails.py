@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""PROJ-34 Phase 13a-ext — generate 36 schematic spatial thumbnail PNGs.
+"""PROJ-34 Phase 13a-ext + 13o — generate 43 schematic spatial thumbnail PNGs.
 
 Renders one 512×512 PNG per `SPATIAL_OPTIONS` entry (`design_app.services.
 style_library`) into
@@ -615,6 +615,102 @@ def L_sunburst_layout() -> Image.Image:
     return img
 
 
+# ─── Phase 13o layouts (German POD layout-canon references) ──────────────
+
+def L_flush_aligned_block() -> Image.Image:
+    img, d = new_canvas()
+    # 5 stacked rects, all flush-left at x=60, varying widths → staircase silhouette.
+    widths = [200, 280, 220, 300, 180]
+    y = 110
+    for w in widths:
+        text_rect(d, 60, y, w, 30)
+        y += 60
+    return img
+
+
+def L_full_canvas_word_block() -> Image.Image:
+    img, d = new_canvas()
+    # 4 lines filling the entire canvas edge-to-edge, almost no padding.
+    # x = 20 → x = 492 (width 472). Tight vertical gaps.
+    for y in (80, 200, 320, 440):
+        text_rect(d, 20, y, 472, 50)
+    return img
+
+
+def L_vertical_pillar_text() -> Image.Image:
+    img, d = new_canvas()
+    # One TALL vertical rect down the center.
+    text_rect(d, 240, 60, 40, 390)
+    # Small crossed-circle in the lower-left corner for context.
+    crossed_circle(d, 100, 420, 40)
+    return img
+
+
+def L_illustration_only_no_text() -> Image.Image:
+    img, d = new_canvas()
+    # Just a single large crossed-circle, generous breathing room. NO text rects.
+    crossed_circle(d, 256, 256, 140)
+    return img
+
+
+def L_unconventional_integration() -> Image.Image:
+    img = Image.new('RGB', (CANVAS, CANVAS), BG)
+    d = ImageDraw.Draw(img)
+    # Crossed-circle offset to upper-left of center.
+    crossed_circle(d, 200, 200, 100)
+    # Scattered text rects at different angles overlapping the illustration.
+    # Use a rotated overlay layer for the angled rects.
+    layer = Image.new('RGBA', (CANVAS, CANVAS), (0, 0, 0, 0))
+    dl = ImageDraw.Draw(layer)
+    # Rect 1: angled, overlapping the circle's lower edge.
+    text_rect(dl, 130, 280, 220, 28)
+    rotated1 = layer.rotate(-12, resample=Image.BICUBIC, center=(240, 294))
+    img.paste(rotated1, (0, 0), rotated1)
+
+    # Rect 2: anchored to the upper-right, sharp rotation.
+    layer2 = Image.new('RGBA', (CANVAS, CANVAS), (0, 0, 0, 0))
+    dl2 = ImageDraw.Draw(layer2)
+    text_rect(dl2, 320, 70, 160, 26)
+    rotated2 = layer2.rotate(15, resample=Image.BICUBIC, center=(400, 83))
+    img.paste(rotated2, (0, 0), rotated2)
+
+    # Rect 3: lower-right horizontal anchor, not rotated.
+    text_rect(d, 280, 380, 180, 26)
+    return img
+
+
+def L_crossed_tools_intersection() -> Image.Image:
+    img = Image.new('RGB', (CANVAS, CANVAS), BG)
+    d = ImageDraw.Draw(img)
+    # Build two thick "tool" bars crossing at the canvas center on a rotated layer.
+    # Each bar = thick rect 16px tall × 400px long, centered.
+    # Tool 1 rotated +30°.
+    layer1 = Image.new('RGBA', (CANVAS, CANVAS), (0, 0, 0, 0))
+    dl1 = ImageDraw.Draw(layer1)
+    dl1.rectangle((56, 248, 456, 264), fill=INK)
+    rotated1 = layer1.rotate(30, resample=Image.BICUBIC, center=(256, 256))
+    img.paste(rotated1, (0, 0), rotated1)
+    # Tool 2 rotated -30°.
+    layer2 = Image.new('RGBA', (CANVAS, CANVAS), (0, 0, 0, 0))
+    dl2 = ImageDraw.Draw(layer2)
+    dl2.rectangle((56, 248, 456, 264), fill=INK)
+    rotated2 = layer2.rotate(-30, resample=Image.BICUBIC, center=(256, 256))
+    img.paste(rotated2, (0, 0), rotated2)
+    # Text bands above and below the X.
+    text_rect(d, 110, 80, 292, 30)        # primary line above
+    text_rect(d, 156, 410, 200, 22)       # smaller accent line below
+    return img
+
+
+def L_subject_portrait_with_caption() -> Image.Image:
+    img, d = new_canvas()
+    # Big subject portrait filling upper 2/3.
+    crossed_circle(d, 256, 200, 140)
+    # Small minimal caption at the bottom edge with generous breathing room.
+    text_rect(d, 166, 420, 180, 30)
+    return img
+
+
 # ─── Layout registry ─────────────────────────────────────────────────────
 LAYOUTS = {
     'vertical_stack': L_vertical_stack,
@@ -653,6 +749,14 @@ LAYOUTS = {
     'speech_bubble': L_speech_bubble,
     'quote_marks_frame': L_quote_marks_frame,
     'sunburst_layout': L_sunburst_layout,
+    # Phase 13o additions.
+    'flush_aligned_block': L_flush_aligned_block,
+    'full_canvas_word_block': L_full_canvas_word_block,
+    'vertical_pillar_text': L_vertical_pillar_text,
+    'illustration_only_no_text': L_illustration_only_no_text,
+    'unconventional_integration': L_unconventional_integration,
+    'crossed_tools_intersection': L_crossed_tools_intersection,
+    'subject_portrait_with_caption': L_subject_portrait_with_caption,
 }
 
 

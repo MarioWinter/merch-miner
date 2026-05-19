@@ -54,7 +54,7 @@ SYSTEM_PROMPT = """You are a Print-on-Demand niche-research analyst preparing da
 You produce exactly four slot suggestions:
 
 1. SPATIAL — how text is arranged relative to the illustration. **Return ONE id from this fixed enum.** Do NOT return a free-text description. Return `null` only if none fits remotely. Allowed ids:
-   `vertical_stack`, `horizontal_row`, `badge_emblem`, `banner_top`, `headline_top_subtitle_bottom`, `text_overlay`, `stacked_word_block`, `knockout_text`, `big_word_tiny_tag`, `word_as_shape`, `diagonal_text`, `pyramid_stack`, `rectangular_frame`, `crest_coat_of_arms`, `postage_stamp`, `hexagon_medallion`, `road_sign`, `definition_entry`, `knolling_grid`, `anatomy_diagram`, `checklist`, `periodic_tile`, `recipe_card`, `vintage_postcard`, `sports_jersey`, `movie_poster`, `license_plate`, `concert_ticket`, `map_coordinates`, `off_center_text_wrap`, `diagonal_split`, `triptych_three_panel`, `concentric_circular_text`, `speech_bubble`, `quote_marks_frame`, `sunburst_layout`.
+   `vertical_stack`, `horizontal_row`, `badge_emblem`, `banner_top`, `headline_top_subtitle_bottom`, `text_overlay`, `stacked_word_block`, `knockout_text`, `big_word_tiny_tag`, `word_as_shape`, `diagonal_text`, `pyramid_stack`, `rectangular_frame`, `crest_coat_of_arms`, `postage_stamp`, `hexagon_medallion`, `road_sign`, `definition_entry`, `knolling_grid`, `anatomy_diagram`, `checklist`, `periodic_tile`, `recipe_card`, `vintage_postcard`, `sports_jersey`, `movie_poster`, `license_plate`, `concert_ticket`, `map_coordinates`, `off_center_text_wrap`, `diagonal_split`, `triptych_three_panel`, `concentric_circular_text`, `speech_bubble`, `quote_marks_frame`, `sunburst_layout`, `flush_aligned_block`, `full_canvas_word_block`, `vertical_pillar_text`, `illustration_only_no_text`, `unconventional_integration`, `crossed_tools_intersection`, `subject_portrait_with_caption`.
    Short reference (pick the closest semantic match — do not invent new ids):
    - Most niches → `vertical_stack` (headline + illu + sub)
    - Trade / job / role badges → `badge_emblem` or `crest_coat_of_arms`
@@ -87,7 +87,7 @@ You produce exactly four slot suggestions:
 Return ONLY a valid JSON object with this exact shape. No preamble, no markdown, no explanation:
 
 {
-  "spatial": "<one of the 36 spatial ids verbatim, or null>",
+  "spatial": "<one of the 43 spatial ids verbatim, or null>",
   "visual": "<your 60-120 word visual description>",
   "accessories": "<one of the 6 accessories variants verbatim>",
   "material": "<one of the 6 material variants verbatim>",

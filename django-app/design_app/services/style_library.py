@@ -109,7 +109,7 @@ SLOT_SCHEMA = [
 ]
 
 
-# ─── Spatial options (Appendix J.4) — 36 entries ──────────────────────────
+# ─── Spatial options (Appendix J.4) — 43 entries (36 base + 7 Phase 13o) ──
 # Each entry is a dict with stable `id` (snake_case), `ui_label` (≤24 chars),
 # `ui_description` (≤90 chars), `thumbnail_path` (under
 # `design_app/static/design_app/thumbnails/spatial/`), and `prompt_text`
@@ -379,6 +379,56 @@ SPATIAL_OPTIONS = [
         "ui_description": "Center illustration, rays to edges, text on arcs",
         "thumbnail_path": "thumbnails/spatial/sunburst_layout.png",
         "prompt_text": "Sunburst layout with the illustration sitting at the dead center of the canvas and straight ray lines radiating outward from behind it to the canvas edges, the slogan text running along the top arc above the rays and a secondary tag along the bottom arc beneath.",
+    },
+    # ─── Phase 13o additions (German POD layout-canon references) ─────────────
+    {
+        "id": "flush_aligned_block",
+        "ui_label": "Flush-Aligned Block",
+        "ui_description": "Multi-line text all aligned left or right, never centered",
+        "thumbnail_path": "thumbnails/spatial/flush_aligned_block.png",
+        "prompt_text": "Multi-line typographic block with all text lines flush-aligned to a single left or right edge (not centered), creating a vertical column of staircased line lengths. Pure typographic composition with no separate illustration. The flush edge creates a strong vertical axis and an editorial-magazine character.",
+    },
+    {
+        "id": "full_canvas_word_block",
+        "ui_label": "Full-Canvas Word Block",
+        "ui_description": "Text fills entire canvas edge-to-edge, no breathing room",
+        "thumbnail_path": "thumbnails/spatial/full_canvas_word_block.png",
+        "prompt_text": "Massive text block filling the entire canvas edge-to-edge with minimal padding on all sides. Each line stretches across the full width, line heights are tight, and the typography itself becomes the full surface treatment. No separate illustration; the text IS the design.",
+    },
+    {
+        "id": "vertical_pillar_text",
+        "ui_label": "Vertical Pillar Text",
+        "ui_description": "Text rotated 90° running vertically down the canvas height",
+        "thumbnail_path": "thumbnails/spatial/vertical_pillar_text.png",
+        "prompt_text": "Vertical pillar layout where the slogan text is rotated ninety degrees so it runs down the canvas height as a tall single-column line. Letters stack vertically as a continuous column or rotate together as one rotated word. The illustration, if any, sits small alongside the column with generous breathing room.",
+    },
+    {
+        "id": "illustration_only_no_text",
+        "ui_label": "Illustration Only (No Text)",
+        "ui_description": "Pure visual composition with no slogan or text at all",
+        "thumbnail_path": "thumbnails/spatial/illustration_only_no_text.png",
+        "prompt_text": "Illustration-only composition where the entire canvas is given over to the artwork with no text or slogan present. The visual elements alone carry the message. The illustration sits centered with generous breathing room on all sides, no caption, no headline, no subtitle.",
+    },
+    {
+        "id": "unconventional_integration",
+        "ui_label": "Unconventional Integration",
+        "ui_description": "Text breaks through or weaves between illustration in atypical ways",
+        "thumbnail_path": "thumbnails/spatial/unconventional_integration.png",
+        "prompt_text": "Unconventional integration layout where text breaks through, weaves between, or anchors against the illustration in an atypical non-grid arrangement. Letters may overlap edges of objects, illustrations may extend beyond the text bounds, and the relationship between type and image breaks the standard top-or-bottom-or-overlay grid.",
+    },
+    {
+        "id": "crossed_tools_intersection",
+        "ui_label": "Crossed Tools Intersection",
+        "ui_description": "Two crossed tools/objects form an X with text wrapped around",
+        "thumbnail_path": "thumbnails/spatial/crossed_tools_intersection.png",
+        "prompt_text": "Crossed-tools intersection layout where two illustrated objects (axes, hammers, arrows, paddles, or similar implements) form an X across the canvas center, and the text wraps around the crossing — typically a primary line above the intersection and a smaller accent line below. Classic vintage-Americana craft composition.",
+    },
+    {
+        "id": "subject_portrait_with_caption",
+        "ui_label": "Subject Portrait + Caption",
+        "ui_description": "Big subject portrait dominant with minimal caption underneath",
+        "thumbnail_path": "thumbnails/spatial/subject_portrait_with_caption.png",
+        "prompt_text": "Subject-portrait composition with a single dominant illustrated subject — a face, head, animal, or hero element — filling roughly the upper two-thirds of the canvas, and a minimal one- or two-line caption anchored at the bottom edge with generous breathing room. Album-cover or band-merch aesthetic.",
     },
 ]
 

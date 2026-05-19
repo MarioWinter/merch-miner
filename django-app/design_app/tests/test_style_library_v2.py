@@ -35,9 +35,9 @@ class TestSpatialOptions:
     REQUIRED_KEYS = {'id', 'ui_label', 'ui_description', 'thumbnail_path', 'prompt_text'}
 
     def test_count_matches_appendix(self):
-        # Appendix J.4 ships 36 dict entries verbatim (Schicht-13 spec spans
-        # 36 layout variants total — first 6 preserve v1 wording).
-        assert len(SPATIAL_OPTIONS) == 36
+        # Appendix J.4 ships 43 dict entries verbatim (36 base + 7 Phase 13o
+        # German POD layout-canon additions). First 6 preserve v1 wording.
+        assert len(SPATIAL_OPTIONS) == 43
 
     def test_all_ids_unique(self):
         ids = [entry['id'] for entry in SPATIAL_OPTIONS]
