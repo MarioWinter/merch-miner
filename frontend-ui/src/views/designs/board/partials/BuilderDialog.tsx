@@ -49,7 +49,8 @@ import SpatialPickerModal from './promptBuilder/SpatialPickerModal';
 import TextSegmentationPicker from './promptBuilder/TextSegmentationPicker';
 import AccessoriesPicker from './promptBuilder/AccessoriesPicker';
 import VisualDescriptionField from './promptBuilder/VisualDescriptionField';
-import TypographyPicker from './promptBuilder/TypographyPicker';
+import TypographySlotButton from './promptBuilder/TypographySlotButton';
+import TypographyPickerModal from './promptBuilder/TypographyPickerModal';
 import FontCombinationPicker from './promptBuilder/FontCombinationPicker';
 import MaterialPicker from './promptBuilder/MaterialPicker';
 import ExtraContextField from './promptBuilder/ExtraContextField';
@@ -175,6 +176,7 @@ const BuilderDialog = ({
   const [confirmKind, setConfirmKind] = useState<null | 'threshold' | 'manualEdit'>(null);
   const [spatialPickerOpen, setSpatialPickerOpen] = useState(false);
   const [stylePickerOpen, setStylePickerOpen] = useState(false);
+  const [typographyPickerOpen, setTypographyPickerOpen] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
 
   // EC-32 — when the saved preset references a CustomSpatial UUID that no
@@ -394,9 +396,10 @@ const BuilderDialog = ({
                 value={cfg.slots.visual_description ?? ''}
                 onChange={(v) => updateSlot('visual_description', v)}
               />
-              <TypographyPicker
+              <TypographySlotButton
                 value={cfg.slots.typography_adjectives ?? ''}
-                onChange={(v) => updateSlot('typography_adjectives', v)}
+                onOpenPicker={() => setTypographyPickerOpen(true)}
+                onReset={() => resetSlot('typography_adjectives')}
                 styleDefault={firstStyleEntry?.defaultTypography}
                 styleLabel={firstStyleEntry?.label}
               />
@@ -527,6 +530,14 @@ const BuilderDialog = ({
         onClose={() => setStylePickerOpen(false)}
         selectedSlugs={cfg.selectedStyleSlugs}
         onChange={(slugs) => setStyleSlugs(slugs)}
+      />
+      <TypographyPickerModal
+        open={typographyPickerOpen}
+        onClose={() => setTypographyPickerOpen(false)}
+        value={cfg.slots.typography_adjectives ?? ''}
+        onChange={(v) => updateSlot('typography_adjectives', v)}
+        styleDefault={firstStyleEntry?.defaultTypography}
+        styleLabel={firstStyleEntry?.label}
       />
     </DialogRoot>
   );
