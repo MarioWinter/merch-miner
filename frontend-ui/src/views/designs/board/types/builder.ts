@@ -18,6 +18,12 @@ export interface BuilderSlots {
   visual_description?: string;
   text_segmentation?: string;
   typography_adjectives?: string;
+  /**
+   * Phase 13l — optional multi-font hierarchy. When set, the backend
+   * silences `typography_adjectives` (the combo sentence carries the
+   * full typographic anatomy). See `_resolve_slot` in prompt_builder.py.
+   */
+  font_combination?: string;
   /** Multi-select on the UI; persisted as a `', '`-joined string for the backend. */
   accessories?: string;
   material_texture?: string;

@@ -514,6 +514,88 @@ export const getTypographyById = (
 ): TypographyOption | undefined =>
   TYPOGRAPHY_OPTIONS.find((entry) => entry.id === id);
 
+// Font Combination (slot key: font_combination) — Phase 13l multi-font hierarchy.
+// 8 dict entries mirror backend `FONT_COMBINATION_OPTIONS` verbatim — see
+// `django-app/design_app/services/style_library.py` lines ~573-622. When a
+// font_combination is set, the typography_adjectives sentence is silenced
+// server-side (the combo sentence carries the typographic anatomy).
+
+export interface FontCombinationOption {
+  /** Stable snake_case identifier. */
+  id: string;
+  /** Display label used in the Font Combination dropdown. */
+  ui_label: string;
+  /** Short 1-line description shown below the label. */
+  ui_description: string;
+  /** Architect-grade complete-sentence font description injected verbatim. */
+  prompt_text: string;
+}
+
+export const FONT_COMBINATION_OPTIONS: readonly FontCombinationOption[] = [
+  {
+    id: 'serif_plus_sans_hierarchy',
+    ui_label: 'Serif + Sans Hierarchy',
+    ui_description: 'Serif headline paired with sans-serif body (or reverse)',
+    prompt_text:
+      'The typography uses a two-font anatomical hierarchy: the primary headline is rendered in a heavyweight slab-serif or transitional book-serif font with bracketed serifs and balanced proportions, while the supporting lines are rendered in a heavyweight all-caps sans-serif font with squared terminals and uniform stroke weight, creating clear visual contrast between the serif structure of the hero and the calm sans-serif body',
+  },
+  {
+    id: 'script_plus_block_hierarchy',
+    ui_label: 'Script + Block Hierarchy',
+    ui_description: 'Brush-script accent paired with chunky block primary',
+    prompt_text:
+      'The typography uses a two-font emotional hierarchy: an accent line is rendered in an elegant brush-script font with thick-thin stroke contrast, smooth confident ligatures, and gentle italic slope, paired with a heavyweight all-caps cartoon-block or sans-serif primary line with thick uniform strokes, friendly rounded corners, and strong impact — the script carries personality while the block carries authority',
+  },
+  {
+    id: 'single_font_color_hierarchy',
+    ui_label: 'Single Font + Color Hierarchy',
+    ui_description: 'One font, hierarchy driven by per-word color variation',
+    prompt_text:
+      'The typography uses a single heavyweight cartoon-block font family with thick black outlines and generously rounded corners across every line, but the hierarchy is driven entirely by per-word color variation — each significant word or line painted in a different flat saturated color so the eye reads importance through color rather than through font weight or family changes',
+  },
+  {
+    id: 'vintage_slab_plus_script_accent',
+    ui_label: 'Vintage Slab + Script Accent',
+    ui_description: 'Distressed slab serif hero with curving script middle word',
+    prompt_text:
+      'The typography uses a two-font Americana hierarchy: the primary headline and supporting lines are rendered in a heavyweight vintage slab-serif font with sturdy rectangular serif feet and a coarse-grain TRANSPARENT KNOCKOUT distress pattern revealing the underlying garment color, while a single accent word in the middle is rendered in a classic varsity-script font with curving brush strokes, joined ligatures, and a horizontal underline swash tail',
+  },
+  {
+    id: 'athletic_sans_plus_script_sandwich',
+    ui_label: 'Athletic Sans + Script Sandwich',
+    ui_description: 'Sports-team sandwich — athletic sans top/bottom + script middle',
+    prompt_text:
+      'The typography uses a three-tier sports-team sandwich: the top and bottom lines are rendered in a clean heavyweight athletic-jersey sans-serif font with squared terminals, uniform stroke weight, and slightly condensed proportions, while the middle accent word is rendered in a classic varsity-script font with confident italic slope, thick-thin contrast, and a horizontal underline swash tail — top and bottom act as anchors framing the script center',
+  },
+  {
+    id: 'cartoon_block_plus_marker_script',
+    ui_label: 'Cartoon Block + Marker Script',
+    ui_description: 'Chunky cartoon-block hero with casual marker-script accent',
+    prompt_text:
+      'The typography uses a two-font playful hierarchy: the primary hero line is rendered in a massive heavyweight cartoon-block font with thick outlines, internal white gloss highlight lines, and generously rounded corners, while an accent line above or below is rendered in a casual hand-drawn marker-script font with thin slightly irregular strokes, organic wobble, and a friendly kid-style hand-written feel',
+  },
+  {
+    id: 'groovy_bold_plus_modern_brush_alternating',
+    ui_label: 'Groovy Bold + Modern Brush',
+    ui_description: 'Alternating lines: groovy bold + modern elegant brush',
+    prompt_text:
+      'The typography uses a two-font alternating-line hierarchy: half the lines are rendered in a 1970s groovy bold display font with flowing organic curves, soft rounded apertures, and slight wavy baseline irregularity, while the other lines are rendered in an elegant modern brush-script font with refined thick-thin contrast, smooth confident ligatures, and gentle italic slope — alternating line by line creates a rhythmic boho aesthetic',
+  },
+  {
+    id: 'sans_frame_plus_color_hero',
+    ui_label: 'Sans Frame + Color Hero',
+    ui_description: 'Small sans frame top/bottom with multi-color cartoon-block hero',
+    prompt_text:
+      'The typography uses a frame-plus-hero hierarchy: small all-caps thin sans-serif lines anchor the top and bottom of the composition as framing captions with generous letter spacing, while the central hero text is rendered in a heavyweight cartoon-block font with each significant word or line painted in a different flat saturated color — the sans-serif frame stays uniform while the cartoon-block hero carries all the visual energy',
+  },
+] as const;
+
+/** O(1) lookup helper — returns the `FontCombinationOption` whose `id` matches, or `undefined`. */
+export const getFontCombinationById = (
+  id: string,
+): FontCombinationOption | undefined =>
+  FONT_COMBINATION_OPTIONS.find((entry) => entry.id === id);
+
 // J.7 — Accessories (slot key: accessories) — multi-select on the frontend.
 export const ACCESSORIES_OPTIONS: readonly string[] = [
   'white radiating motion-burst lines around the illustration',

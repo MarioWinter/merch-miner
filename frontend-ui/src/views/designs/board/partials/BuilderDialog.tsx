@@ -50,6 +50,7 @@ import TextSegmentationPicker from './promptBuilder/TextSegmentationPicker';
 import AccessoriesPicker from './promptBuilder/AccessoriesPicker';
 import VisualDescriptionField from './promptBuilder/VisualDescriptionField';
 import TypographyPicker from './promptBuilder/TypographyPicker';
+import FontCombinationPicker from './promptBuilder/FontCombinationPicker';
 import MaterialPicker from './promptBuilder/MaterialPicker';
 import ExtraContextField from './promptBuilder/ExtraContextField';
 import NicheContextToggle from './promptBuilder/NicheContextToggle';
@@ -398,6 +399,10 @@ const BuilderDialog = ({
                 onChange={(v) => updateSlot('typography_adjectives', v)}
                 styleDefault={firstStyleEntry?.defaultTypography}
                 styleLabel={firstStyleEntry?.label}
+              />
+              <FontCombinationPicker
+                value={cfg.slots.font_combination ?? ''}
+                onChange={(v) => updateSlot('font_combination', v)}
               />
               <MaterialPicker
                 value={cfg.slots.material_texture ?? ''}
