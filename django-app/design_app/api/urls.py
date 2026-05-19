@@ -21,6 +21,9 @@ from design_app.api.views import (
     CustomSpatialAnalyzeView,
     CustomSpatialDetailView,
     CustomSpatialListCreateView,
+    CustomTypographyAnalyzeView,
+    CustomTypographyDetailView,
+    CustomTypographyListCreateView,
     DesignBoardView,
     DesignDeleteVersionView,
     DesignDetailView,
@@ -278,6 +281,22 @@ urlpatterns = [
         'designs/spatials/custom/<uuid:pk>/',
         CustomSpatialDetailView.as_view(),
         name='custom-spatial-detail',
+    ),
+    # PROJ-34 Phase 13i — CustomTypography (Analyze + CRUD)
+    path(
+        'designs/typography/custom/analyze/',
+        CustomTypographyAnalyzeView.as_view(),
+        name='custom-typography-analyze',
+    ),
+    path(
+        'designs/typography/custom/',
+        CustomTypographyListCreateView.as_view(),
+        name='custom-typography-list-create',
+    ),
+    path(
+        'designs/typography/custom/<uuid:pk>/',
+        CustomTypographyDetailView.as_view(),
+        name='custom-typography-detail',
     ),
     # Prompt Presets (G10)
     path(

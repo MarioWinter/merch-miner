@@ -30,6 +30,8 @@ from design_app.api.serializers import (
     CreatePromptPresetSerializer,
     CustomSpatialAnalyzeSerializer,
     CustomSpatialSerializer,
+    CustomTypographyAnalyzeSerializer,
+    CustomTypographySerializer,
     DesignPipelineSerializer,
     DesignProcessingJobSerializer,
     DesignGenerationRunSerializer,
@@ -54,6 +56,7 @@ from rest_framework.exceptions import ValidationError as DRFValidationError
 from design_app.models import (
     BuilderPreset,
     CustomSpatial,
+    CustomTypography,
     Design,
     DesignGenerationRun,
     DesignPipeline,
@@ -2349,6 +2352,187 @@ class CustomSpatialDetailView(APIView):
             return _ws_error()
         instance = get_object_or_404(
             CustomSpatial,
+            pk=pk,
+            workspace_id=ws_id,
+            is_deleted=False,
+        )
+        instance.is_deleted = True
+        instance.save(update_fields=['is_deleted', 'updated_at'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# -- PROJ-34 Phase 13i — CustomTypography (Analyze + CRUD) --
+
+class CustomTypographyAnalyzeView(APIView):
+    """POST /api/designs/typography/custom/analyze/ — vision-LLM typography extractor.
+
+    Accepts one of:
+      - ``image`` (multipart upload, ≤10 MB, JPG/PNG/WebP)
+      - ``reference_id`` (UUID of a ProjectReference in caller's workspace)
+      - ``design_id`` (UUID of a Design in caller's workspace)
+
+    Returns ``{prompt_text, model}`` (200) or one of:
+      - 400 missing X-Workspace-Id / serializer validation
+      - 404 cross-workspace reference/design or not found
+      - 422 ``typography_unclear`` (LLM returned TYPOGRAPHY_UNCLEAR sentinel)
+      - 422 ``typography_analysis_failed`` (forbidden terms detected by scrub)
+      - 502 ``analyzer_unavailable`` (network / HTTP / parse error)
+    """
+
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def post(self, request):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        serializer = CustomTypographyAnalyzeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        # ---- Resolve image bytes + mime ---------------------------------
+        if data.get('image'):
+            upload = request.FILES['image']
+            image_bytes = upload.read()
+            mime = upload.content_type or 'image/jpeg'
+            source_kind = 'upload'
+        elif data.get('reference_id'):
+            ref = get_object_or_404(
+                ProjectReference,
+                id=data['reference_id'],
+                project__workspace_id=ws_id,
+            )
+            # ProjectReference stores a URL — fetch bytes via httpx so we
+            # forward them as base64 to the vision LLM.
+            try:
+                r = httpx.get(ref.image_url, timeout=10.0)
+                r.raise_for_status()
+                image_bytes = r.content
+                mime = (
+                    r.headers.get('content-type', '').split(';')[0].strip()
+                    or 'image/jpeg'
+                )
+            except Exception as exc:  # noqa: BLE001 — surface as analyzer-down
+                logger.warning(
+                    'CustomTypographyAnalyze: reference fetch failed %s: %s',
+                    type(exc).__name__, exc,
+                )
+                return Response(
+                    {'error': 'analyzer_unavailable'},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+            source_kind = 'reference'
+        else:
+            design = get_object_or_404(
+                Design,
+                id=data['design_id'],
+                workspace_id=ws_id,
+            )
+            if not design.image_file:
+                return Response(
+                    {'error': 'design has no image_file'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            try:
+                with design.image_file.open('rb') as fh:
+                    image_bytes = fh.read()
+            except Exception:  # noqa: BLE001 — fall back to .read()
+                image_bytes = design.image_file.read()
+            import mimetypes as _mimetypes
+            mime, _ = _mimetypes.guess_type(design.image_file.name)
+            mime = mime or 'image/png'
+            source_kind = 'design'
+
+        # ---- Call vision LLM --------------------------------------------
+        from design_app.services.typography_analyzer import (
+            TypographyAnalyzerError,
+            TypographyUnclearError,
+            _scrub_forbidden,
+            analyze_typography_style,
+        )
+
+        try:
+            text = analyze_typography_style(
+                image_bytes,
+                mime=mime,
+                workspace_id=str(ws_id),
+                user_id=str(request.user.id),
+                source_kind=source_kind,
+            )
+        except TypographyUnclearError:
+            return Response(
+                {'error': 'typography_unclear'},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        except TypographyAnalyzerError:
+            return Response(
+                {'error': 'analyzer_unavailable'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        ok, hits = _scrub_forbidden(text)
+        if not ok:
+            return Response(
+                {
+                    'error': 'typography_analysis_failed',
+                    'forbidden_terms': hits,
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        return Response(
+            {'prompt_text': text, 'model': 'openai/gpt-4.1-mini'},
+            status=status.HTTP_200_OK,
+        )
+
+
+class CustomTypographyListCreateView(APIView):
+    """GET / POST /api/designs/typography/custom/ — workspace-scoped CustomTypography CRUD."""
+
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get(self, request):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        qs = (
+            CustomTypography.objects
+            .filter(workspace_id=ws_id, is_deleted=False)
+            .order_by('-created_at')
+        )
+        return Response(
+            CustomTypographySerializer(qs, many=True).data,
+        )
+
+    def post(self, request):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        from workspace_app.models import Workspace
+        workspace = get_object_or_404(Workspace, pk=ws_id)
+        serializer = CustomTypographySerializer(
+            data=request.data, context={'workspace': workspace},
+        )
+        serializer.is_valid(raise_exception=True)
+        instance = serializer.save(
+            workspace=workspace,
+            created_by=request.user,
+        )
+        return Response(
+            CustomTypographySerializer(instance).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class CustomTypographyDetailView(APIView):
+    """DELETE /api/designs/typography/custom/{id}/ — soft-delete a CustomTypography."""
+
+    def delete(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        instance = get_object_or_404(
+            CustomTypography,
             pk=pk,
             workspace_id=ws_id,
             is_deleted=False,

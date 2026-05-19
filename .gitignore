@@ -153,3 +153,4 @@ celerybeat-schedule.*
 *.sw?
 sftp-config.json
 /scripts/migration/
+docs/font-references/
