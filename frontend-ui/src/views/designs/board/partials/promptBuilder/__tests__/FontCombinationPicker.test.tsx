@@ -17,12 +17,16 @@ const openSelect = () =>
   );
 
 describe('FontCombinationPicker', () => {
-  it('renders all 8 preset options + None + Custom… in the listbox', () => {
+  it('renders all preset options + None + Custom… in the listbox', () => {
+    // Phase 13l-followup: list grew from 8 → 10 entries (added
+    // vintage_slab_plus_modern_brush_accent + body_sans_plus_extruded_emphasis).
     renderWithProviders(<FontCombinationPicker value="" onChange={vi.fn()} />);
     openSelect();
     const listbox = screen.getByRole('listbox');
-    // 8 presets + "None — single font" + "Custom…" = 10 menu items
-    expect(within(listbox).getAllByRole('option')).toHaveLength(10);
+    // N presets + "None — single font" + "Custom…" = N + 2 menu items
+    expect(within(listbox).getAllByRole('option')).toHaveLength(
+      FONT_COMBINATION_OPTIONS.length + 2,
+    );
     expect(within(listbox).getByText('None — single font')).toBeInTheDocument();
     expect(within(listbox).getByText('Custom…')).toBeInTheDocument();
     FONT_COMBINATION_OPTIONS.forEach((opt) => {

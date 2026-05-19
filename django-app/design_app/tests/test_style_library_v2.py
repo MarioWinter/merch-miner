@@ -138,7 +138,8 @@ class TestDropdownOptions:
         # Phase 13j — TYPOGRAPHY_OPTIONS expanded from 6 strings to 21 dict
         # entries (image-extracted POD font library, dict shape mirrors
         # SPATIAL_OPTIONS).
-        assert len(TYPOGRAPHY_OPTIONS) == 21
+        # Phase 13j: 21. Phase 13l-followup: +1 (extruded_3d_block) → 22.
+        assert len(TYPOGRAPHY_OPTIONS) == 22
 
     def test_accessories_count(self):
         assert len(ACCESSORIES_OPTIONS) == 6
@@ -178,7 +179,9 @@ class TestFontCombinationOptions:
     REQUIRED_KEYS = {'id', 'ui_label', 'ui_description', 'prompt_text'}
 
     def test_count_is_eight(self):
-        assert len(FONT_COMBINATION_OPTIONS) == 8
+        # Phase 13l: 8. Followup: +2 (vintage_slab+modern_brush_accent,
+        # body_sans+extruded_emphasis) → 10.
+        assert len(FONT_COMBINATION_OPTIONS) == 10
 
     def test_all_ids_unique(self):
         ids = [entry['id'] for entry in FONT_COMBINATION_OPTIONS]

@@ -536,6 +536,12 @@ TYPOGRAPHY_OPTIONS = [
         "ui_description": "Block strokes with stencil gaps",
         "prompt_text": "'stencil military display font with uniform thick block-letter strokes interrupted by characteristic narrow gaps cutting through the body of each letter to mimic spray-stencil templates, all-caps, squared terminals, and a strict combat-issue character'",
     },
+    {
+        "id": "extruded_3d_block",
+        "ui_label": "Extruded 3D Block",
+        "ui_description": "Cartoon-block with hard-edged 3D side extrusion",
+        "prompt_text": "'heavyweight extruded 3D cartoon-block font with thick uniform outlines, generously rounded letterforms, hard-edged dimensional side faces extending from each letter at a fixed depth, sharp flat facet transitions between the front face and the extruded side faces painted as separate flat-color regions with no gradients or blur, and a marquee-style comic-book depth character'",
+    },
 ]
 
 # J.7 — Accessories (slot key: accessories) — multi-select on the frontend
@@ -618,6 +624,18 @@ FONT_COMBINATION_OPTIONS = [
         "ui_label": "Sans Frame + Color Hero",
         "ui_description": "Small sans frame top/bottom with multi-color cartoon-block hero",
         "prompt_text": "The typography uses a frame-plus-hero hierarchy: small all-caps thin sans-serif lines anchor the top and bottom of the composition as framing captions with generous letter spacing, while the central hero text is rendered in a heavyweight cartoon-block font with each significant word or line painted in a different flat saturated color — the sans-serif frame stays uniform while the cartoon-block hero carries all the visual energy",
+    },
+    {
+        "id": "vintage_slab_plus_modern_brush_accent",
+        "ui_label": "Vintage Slab + Modern Brush Accent",
+        "ui_description": "Distressed slab body with elegant modern brush on accent word",
+        "prompt_text": "The typography uses a two-font vintage Americana hierarchy with a contemporary twist: the primary headline and supporting lines are rendered in a heavyweight vintage slab-serif font with sturdy rectangular serif feet and a coarse-grain TRANSPARENT KNOCKOUT distress pattern revealing the underlying garment color, while a single accent word in the middle is rendered in an elegant modern brush-script font with refined thick-thin contrast, smooth confident ligatures, gentle italic slope, and clean uniform line endings without distress — the slab body anchors the design while the modern brush adds a refined personal touch",
+    },
+    {
+        "id": "body_sans_plus_extruded_emphasis",
+        "ui_label": "Body Sans + 3D Extruded Emphasis",
+        "ui_description": "Clean sans body lines with 3D-extruded cartoon-block on emphasis words",
+        "prompt_text": "The typography uses a two-font emphasis hierarchy: the body lines are rendered in a clean heavyweight all-caps sans-serif font with squared terminals and uniform stroke weight for steady readability, while the emphasis words are rendered in a heavyweight extruded 3D cartoon-block font with hard-edged dimensional side faces extending at a fixed depth and sharp flat facet transitions between the front face and the side faces painted as separate flat-color regions with no gradients or blur — the sans body carries the message while the extruded block carries the impact",
     },
 ]
 
