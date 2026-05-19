@@ -313,11 +313,13 @@ class TestResolveSpatial:
 
 class TestResolveSlotSmoke:
     def test_slot_keys_match_schema(self):
-        """Sanity: SLOT_SCHEMA ships exactly the 8 expected keys."""
+        """Sanity: SLOT_SCHEMA ships exactly the 9 expected keys (Phase 13l
+        added `font_combination`)."""
         keys = {slot['key'] for slot in SLOT_SCHEMA}
         assert keys == {
             'spatial_configuration', 'visual_description',
             'text_segmentation', 'typography_adjectives',
+            'font_combination',
             'accessories', 'material_texture',
             'style_dna', 'extra_context',
         }
@@ -379,3 +381,84 @@ class TestPromptCap:
         text = 'abcdefghijklmnopqrst'  # no '.', longer than max
         out = _truncate_at_sentence_boundary(text, max_chars=5)
         assert out == 'abcde'
+
+
+# ─── Font Combination resolver (Phase 13l) ────────────────────────────────
+
+
+class TestFontCombinationResolver:
+    """`font_combination` slot resolution + typography-silencing override."""
+
+    def test_typography_silenced_when_font_combination_set(self):
+        """When the user explicitly sets `font_combination`, the
+        `typography_adjectives` sentence is OMITTED entirely (the font
+        combination prompt_text carries the typographic anatomy)."""
+        from design_app.services.style_library import get_font_combination_by_id
+
+        slots = {
+            # Both set — font_combination must win and silence typography.
+            'typography_adjectives': "'tiny custom override font'",
+            'font_combination': 'vintage_slab_plus_script_accent',
+        }
+        out = build_form_prompt(
+            slogan='X',
+            style_slug='cartoon',
+            slots=slots,
+            background_color='light_gray',
+        )
+        # Typography sentence is omitted entirely.
+        assert "'tiny custom override font'" not in out
+        assert 'The text is rendered in a' not in out
+
+        # Font-combination prompt_text appears verbatim.
+        combo = get_font_combination_by_id('vintage_slab_plus_script_accent')
+        assert combo['prompt_text'] in out
+
+    def test_font_combination_id_resolves(self):
+        """An id matching `FONT_COMBINATION_OPTIONS` resolves to its
+        prompt_text (not the raw id string)."""
+        from design_app.services.style_library import get_font_combination_by_id
+
+        out = build_form_prompt(
+            slogan='X',
+            style_slug='cartoon',
+            slots={'font_combination': 'vintage_slab_plus_script_accent'},
+            background_color='light_gray',
+        )
+        combo = get_font_combination_by_id('vintage_slab_plus_script_accent')
+        assert combo['prompt_text'] in out
+        # The raw id is not leaked verbatim into the prompt.
+        assert 'vintage_slab_plus_script_accent' not in out
+
+    def test_font_combination_raw_text_passes_through(self):
+        """A non-id user value is rendered verbatim (raw text override)."""
+        raw = 'my arbitrary custom font combination description'
+        out = build_form_prompt(
+            slogan='X',
+            style_slug='cartoon',
+            slots={'font_combination': raw},
+            background_color='light_gray',
+        )
+        assert raw in out
+
+    def test_font_combination_empty_omits_sentence(self):
+        """No font_combination set → no `{value}.` sentence rendered AND
+        typography is NOT silenced."""
+        from design_app.services.style_library import get_typography_by_id
+
+        out = build_form_prompt(
+            slogan='X',
+            style_slug='cartoon',
+            slots={},
+            background_color='light_gray',
+        )
+        # None of the 8 font-combination prompt_texts should appear.
+        for entry in __import__(
+            'design_app.services.style_library', fromlist=['FONT_COMBINATION_OPTIONS'],
+        ).FONT_COMBINATION_OPTIONS:
+            assert entry['prompt_text'] not in out
+        # Typography style-default still resolves (NOT silenced).
+        cartoon_default = get_typography_by_id(
+            STYLE_LIBRARY['cartoon']['default_typography_id'],
+        )['prompt_text']
+        assert cartoon_default in out

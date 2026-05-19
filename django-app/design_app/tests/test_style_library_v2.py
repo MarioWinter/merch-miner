@@ -14,12 +14,14 @@ from design_app.services.style_library import (
     ACCESSORIES_OPTIONS,
     ARCHITECT_TEMPLATE_END,
     ARCHITECT_TEMPLATE_START,
+    FONT_COMBINATION_OPTIONS,
     MATERIAL_OPTIONS,
     SLOT_SCHEMA,
     SPATIAL_OPTIONS,
     STYLE_LIBRARY,
     TEXT_SEGMENTATION_OPTIONS,
     TYPOGRAPHY_OPTIONS,
+    get_font_combination_by_id,
     get_spatial_by_id,
 )
 
@@ -89,6 +91,7 @@ class TestSlotSchema:
         'visual_description',
         'text_segmentation',
         'typography_adjectives',
+        'font_combination',
         'accessories',
         'material_texture',
         'style_dna',
@@ -101,8 +104,10 @@ class TestSlotSchema:
         'style_auto_default', 'niche_hint_key',
     }
 
-    def test_has_eight_entries(self):
-        assert len(SLOT_SCHEMA) == 8
+    def test_has_nine_entries(self):
+        # Phase 13l — added `font_combination` slot between typography and
+        # accessories.
+        assert len(SLOT_SCHEMA) == 9
 
     def test_keys_in_expected_order(self):
         assert [s['key'] for s in SLOT_SCHEMA] == self.EXPECTED_KEYS
@@ -162,6 +167,70 @@ class TestDropdownOptions:
     def test_no_blank_entries(self, options):
         for value in options:
             assert isinstance(value, str) and value.strip()
+
+
+# ─── Font Combination options (Phase 13l) ─────────────────────────────────
+
+
+class TestFontCombinationOptions:
+    """`FONT_COMBINATION_OPTIONS` ships 8 dict entries — Phase 13l."""
+
+    REQUIRED_KEYS = {'id', 'ui_label', 'ui_description', 'prompt_text'}
+
+    def test_count_is_eight(self):
+        assert len(FONT_COMBINATION_OPTIONS) == 8
+
+    def test_all_ids_unique(self):
+        ids = [entry['id'] for entry in FONT_COMBINATION_OPTIONS]
+        assert len(ids) == len(set(ids)), 'FONT_COMBINATION_OPTIONS ids must be unique'
+
+    def test_every_entry_has_required_keys(self):
+        for entry in FONT_COMBINATION_OPTIONS:
+            missing = self.REQUIRED_KEYS - set(entry.keys())
+            assert not missing, (
+                f"font-combination entry {entry.get('id', '<missing id>')!r} "
+                f"is missing keys: {missing}"
+            )
+
+    def test_every_entry_has_non_empty_strings(self):
+        for entry in FONT_COMBINATION_OPTIONS:
+            for key in self.REQUIRED_KEYS:
+                value = entry[key]
+                assert isinstance(value, str) and value.strip(), (
+                    f"font-combination entry {entry['id']!r} has empty {key!r}"
+                )
+
+    def test_prompt_text_no_leading_quote(self):
+        # Unlike TYPOGRAPHY_OPTIONS entries (whose prompt_text is wrapped
+        # in single-quotes so it slots into
+        # "The text is rendered in a {value} font style."), the
+        # FONT_COMBINATION_OPTIONS prompt_text is a complete sentence that
+        # slots into "{value}." — therefore it must NOT start/end with a
+        # single-quote.
+        for entry in FONT_COMBINATION_OPTIONS:
+            pt = entry['prompt_text']
+            assert not pt.startswith("'"), (
+                f"font-combination {entry['id']!r} prompt_text must NOT "
+                f"start with a single-quote (it's a full sentence, not a "
+                f"phrase fragment)"
+            )
+            assert not pt.endswith("'"), (
+                f"font-combination {entry['id']!r} prompt_text must NOT "
+                f"end with a single-quote"
+            )
+
+    def test_get_font_combination_by_id_returns_known_entry(self):
+        entry = get_font_combination_by_id('vintage_slab_plus_script_accent')
+        assert entry is not None
+        assert entry['id'] == 'vintage_slab_plus_script_accent'
+        assert entry['ui_label'] == 'Vintage Slab + Script Accent'
+
+    def test_get_font_combination_by_id_returns_none_for_unknown(self):
+        assert get_font_combination_by_id('does_not_exist') is None
+
+    def test_get_font_combination_by_id_handles_empty(self):
+        assert get_font_combination_by_id('') is None
+        assert get_font_combination_by_id(None) is None  # type: ignore[arg-type]
 
 
 # ─── Per-style auto-defaults (Appendix K) ─────────────────────────────────

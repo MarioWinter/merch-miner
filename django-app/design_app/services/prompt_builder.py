@@ -20,6 +20,7 @@ from design_app.services.style_library import (
     SLOT_SCHEMA,
     SPATIAL_OPTIONS,
     STYLE_LIBRARY,
+    get_font_combination_by_id,
     get_typography_by_id,
 )
 
@@ -141,6 +142,29 @@ def _resolve_slot(slot, user_slots, niche_hints, style, slogan, workspace_id=Non
             style_default_id=style.get('default_spatial_id'),
             workspace_id=workspace_id,
         )
+
+    # Phase 13l — typography_adjectives is silenced when the user explicitly
+    # set a font_combination. The font_combination sentence carries the
+    # typographic anatomy on its own, so emitting both would duplicate /
+    # contradict the font instructions.
+    if slot['key'] == 'typography_adjectives':
+        combo = (user_slots or {}).get('font_combination', '').strip()
+        if combo:
+            return ''
+
+    # Phase 13l — font_combination slot resolution. Standard chain WITHOUT
+    # niche-hint and WITHOUT style-default:
+    #   1) explicit user value matching a built-in id → prompt_text
+    #   2) explicit raw text override (legacy / inline custom)
+    #   3) otherwise omit
+    if slot['key'] == 'font_combination':
+        user_val_combo = (user_slots or {}).get('font_combination', '').strip()
+        if not user_val_combo:
+            return ''
+        entry = get_font_combination_by_id(user_val_combo)
+        if entry:
+            return entry['prompt_text']
+        return user_val_combo
 
     # 1. Explicit user value wins
     user_val = (user_slots or {}).get(slot['key'], '').strip()

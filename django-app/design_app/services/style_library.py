@@ -72,6 +72,13 @@ SLOT_SCHEMA = [
         'style_auto_default': True, 'niche_hint_key': None,
     },
     {
+        'key': 'font_combination',
+        'label': 'Font Combination',
+        'render_template': '{value}.',
+        'has_dropdown': True, 'has_custom_text': True,
+        'style_auto_default': False, 'niche_hint_key': None,
+    },
+    {
         'key': 'accessories',
         'label': 'Accessories',
         'render_template': 'The design features {value}.',
@@ -552,6 +559,69 @@ MATERIAL_OPTIONS = [
 ]
 
 
+# ─── Font Combination options (Phase 13l) ─────────────────────────────────
+# 8 dict entries, same shape as TYPOGRAPHY_OPTIONS (id / ui_label /
+# ui_description / prompt_text). Each prompt_text is a COMPLETE grammatical
+# sentence (no leading "a") because it slots into the Architect template
+# `"{value}."` as a full sentence rather than into the
+# `"The text is rendered in a {value} font style."` clause used by
+# typography_adjectives.
+#
+# When a user selects a font_combination, the typography_adjectives sentence
+# is omitted (the font_combination sentence carries the typographic
+# anatomy) — enforced by `_resolve_slot` in prompt_builder.py.
+FONT_COMBINATION_OPTIONS = [
+    {
+        "id": "serif_plus_sans_hierarchy",
+        "ui_label": "Serif + Sans Hierarchy",
+        "ui_description": "Serif headline paired with sans-serif body (or reverse)",
+        "prompt_text": "The typography uses a two-font anatomical hierarchy: the primary headline is rendered in a heavyweight slab-serif or transitional book-serif font with bracketed serifs and balanced proportions, while the supporting lines are rendered in a heavyweight all-caps sans-serif font with squared terminals and uniform stroke weight, creating clear visual contrast between the serif structure of the hero and the calm sans-serif body",
+    },
+    {
+        "id": "script_plus_block_hierarchy",
+        "ui_label": "Script + Block Hierarchy",
+        "ui_description": "Brush-script accent paired with chunky block primary",
+        "prompt_text": "The typography uses a two-font emotional hierarchy: an accent line is rendered in an elegant brush-script font with thick-thin stroke contrast, smooth confident ligatures, and gentle italic slope, paired with a heavyweight all-caps cartoon-block or sans-serif primary line with thick uniform strokes, friendly rounded corners, and strong impact — the script carries personality while the block carries authority",
+    },
+    {
+        "id": "single_font_color_hierarchy",
+        "ui_label": "Single Font + Color Hierarchy",
+        "ui_description": "One font, hierarchy driven by per-word color variation",
+        "prompt_text": "The typography uses a single heavyweight cartoon-block font family with thick black outlines and generously rounded corners across every line, but the hierarchy is driven entirely by per-word color variation — each significant word or line painted in a different flat saturated color so the eye reads importance through color rather than through font weight or family changes",
+    },
+    {
+        "id": "vintage_slab_plus_script_accent",
+        "ui_label": "Vintage Slab + Script Accent",
+        "ui_description": "Distressed slab serif hero with curving script middle word",
+        "prompt_text": "The typography uses a two-font Americana hierarchy: the primary headline and supporting lines are rendered in a heavyweight vintage slab-serif font with sturdy rectangular serif feet and a coarse-grain TRANSPARENT KNOCKOUT distress pattern revealing the underlying garment color, while a single accent word in the middle is rendered in a classic varsity-script font with curving brush strokes, joined ligatures, and a horizontal underline swash tail",
+    },
+    {
+        "id": "athletic_sans_plus_script_sandwich",
+        "ui_label": "Athletic Sans + Script Sandwich",
+        "ui_description": "Sports-team sandwich — athletic sans top/bottom + script middle",
+        "prompt_text": "The typography uses a three-tier sports-team sandwich: the top and bottom lines are rendered in a clean heavyweight athletic-jersey sans-serif font with squared terminals, uniform stroke weight, and slightly condensed proportions, while the middle accent word is rendered in a classic varsity-script font with confident italic slope, thick-thin contrast, and a horizontal underline swash tail — top and bottom act as anchors framing the script center",
+    },
+    {
+        "id": "cartoon_block_plus_marker_script",
+        "ui_label": "Cartoon Block + Marker Script",
+        "ui_description": "Chunky cartoon-block hero with casual marker-script accent",
+        "prompt_text": "The typography uses a two-font playful hierarchy: the primary hero line is rendered in a massive heavyweight cartoon-block font with thick outlines, internal white gloss highlight lines, and generously rounded corners, while an accent line above or below is rendered in a casual hand-drawn marker-script font with thin slightly irregular strokes, organic wobble, and a friendly kid-style hand-written feel",
+    },
+    {
+        "id": "groovy_bold_plus_modern_brush_alternating",
+        "ui_label": "Groovy Bold + Modern Brush",
+        "ui_description": "Alternating lines: groovy bold + modern elegant brush",
+        "prompt_text": "The typography uses a two-font alternating-line hierarchy: half the lines are rendered in a 1970s groovy bold display font with flowing organic curves, soft rounded apertures, and slight wavy baseline irregularity, while the other lines are rendered in an elegant modern brush-script font with refined thick-thin contrast, smooth confident ligatures, and gentle italic slope — alternating line by line creates a rhythmic boho aesthetic",
+    },
+    {
+        "id": "sans_frame_plus_color_hero",
+        "ui_label": "Sans Frame + Color Hero",
+        "ui_description": "Small sans frame top/bottom with multi-color cartoon-block hero",
+        "prompt_text": "The typography uses a frame-plus-hero hierarchy: small all-caps thin sans-serif lines anchor the top and bottom of the composition as framing captions with generous letter spacing, while the central hero text is rendered in a heavyweight cartoon-block font with each significant word or line painted in a different flat saturated color — the sans-serif frame stays uniform while the cartoon-block hero carries all the visual energy",
+    },
+]
+
+
 # ─── Spatial lookup helper ────────────────────────────────────────────────
 # O(1) `id` → entry dict lookup. Built once at module import time. Used by
 # the prompt builder (`_resolve_spatial`) and the spatial scrub validators
@@ -579,6 +649,21 @@ def get_typography_by_id(typography_id: str) -> dict | None:
     if not typography_id:
         return None
     return _TYPOGRAPHY_BY_ID.get(typography_id)
+
+
+# ─── Font Combination lookup helper (Phase 13l) ───────────────────────────
+# O(1) `id` → entry dict lookup over the 8 FONT_COMBINATION_OPTIONS entries.
+# Used by `prompt_builder._resolve_slot` to resolve a user-selected font
+# combination id to its `prompt_text` before the Architect sentence is
+# rendered. Raw text overrides bypass this lookup entirely.
+_FONT_COMBINATION_BY_ID = {entry['id']: entry for entry in FONT_COMBINATION_OPTIONS}
+
+
+def get_font_combination_by_id(combo_id: str) -> dict | None:
+    """Return the `FONT_COMBINATION_OPTIONS` entry whose `id` matches, or `None`."""
+    if not combo_id:
+        return None
+    return _FONT_COMBINATION_BY_ID.get(combo_id)
 
 
 STYLE_LIBRARY: dict[str, dict[str, str]] = {
