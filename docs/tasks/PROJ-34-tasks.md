@@ -2003,27 +2003,39 @@ with passing tests + an isolated commit. **DO NOT batch commits across phases.**
 
 **Scope-lock:** Services consuming preset_matcher + preset_hash from 13t-b. NO API.
 
-- [ ] 13t-c.1 New file `django-app/design_app/services/preset_ranker.py` —
+- [x] 13t-c.1 New file `django-app/design_app/services/preset_ranker.py` —
   `rank_top_products(niche, limit=10) -> list[NicheProductVisionAnalysis]`. Pre-filter
   `brand_blocked=False AND is_niche_match=True`, score per AC-82 formula. Constants
   `PRESET_WEIGHT_RATING / _BSR / _RECENCY` exposed in `django-app/core/settings.py`
   with default values 0.45 / 0.40 / 0.15.
-- [ ] 13t-c.2 New file `django-app/design_app/services/top_card_builder.py` —
+  — preset_ranker.py:1-138 (rank_top_products + 4 helpers); settings.py:374-388.
+- [x] 13t-c.2 New file `django-app/design_app/services/top_card_builder.py` —
   `build_top_card_preset(vision_row, niche) -> dict`. Returns dict with 7 slot values
   (+ 7 `is_raw` flags) + auto-generated `preset_label` (2-4 word label from
   `slogan_text` + dominant keyword of `graphic_elements`).
-- [ ] 13t-c.3 The label generator function `_generate_preset_label(vision_row) -> str`
+  — top_card_builder.py:48-118 (build_top_card_preset).
+- [x] 13t-c.3 The label generator function `_generate_preset_label(vision_row) -> str`
   must be deterministic + idempotent + ≤200 chars. Test it independently.
-- [ ] 13t-c.4 Add constants `PRESET_WEIGHT_RATING`, `PRESET_WEIGHT_BSR`,
+  — top_card_builder.py:124-159 (_generate_preset_label + helpers);
+    test_top_card_builder.py:172-235 (10 label-focused tests).
+- [x] 13t-c.4 Add constants `PRESET_WEIGHT_RATING`, `PRESET_WEIGHT_BSR`,
   `PRESET_WEIGHT_RECENCY`, `PRESET_RECENCY_HALF_LIFE_DAYS=180` to
   `core/settings.py` under a `# PROJ-34 Phase 13t` section.
-- [ ] 13t-c.5 New file `django-app/design_app/tests/test_preset_ranker.py` —
+  — settings.py:374-388 (also adds NICHE_PRESET_HISTORY_CAP for 13t-f).
+- [x] 13t-c.5 New file `django-app/design_app/tests/test_preset_ranker.py` —
   parametrized weighting verification + edge cases (zero reviews, missing BSR,
   ancient products, all-blocked niche).
-- [ ] 13t-c.6 New file `django-app/design_app/tests/test_top_card_builder.py` —
+  — test_preset_ranker.py:1-262 (17 tests covering empty niche, brand-blocked,
+    is_niche_match filter, limit, ordering, missing BSR / rating / date, ancient
+    recency, BSR monotonicity, reviews clamp, latest-research selection).
+- [x] 13t-c.6 New file `django-app/design_app/tests/test_top_card_builder.py` —
   builds preset from synthetic vision_row fixtures, asserts `is_raw` flags correct,
   label length + uniqueness reasonable.
-- [ ] 13t-c.7 Tests green.
+  — test_top_card_builder.py:1-243 (19 tests: shape, structural-raw flags,
+    source refs, label deterministic + fallback chain, matcher built-in hit).
+- [x] 13t-c.7 Tests green.
+  — 17 + 19 = 36 new tests pass; full design_app suite 452 passed / 34 skipped /
+    0 regressions (was 416 before 13t-c, exact +36 delta).
 
 **Commit message:** `feat(PROJ-34): phase 13t-c — preset_ranker + top_card_builder services + tests`
 

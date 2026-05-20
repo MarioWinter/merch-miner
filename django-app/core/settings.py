@@ -372,6 +372,21 @@ REPLICATE_WEBHOOK_SECRET_PREVIOUS = os.environ.get(
 REPLICATE_WEBHOOK_URL = os.environ.get('REPLICATE_WEBHOOK_URL', '')
 
 # ----------------------------------------
+# PROJ-34 Phase 13t — Niche-Reference Preset Picker
+# ----------------------------------------
+# Top-Product ranking weights (AC-82). Sum should equal 1.0; tweak without
+# code changes via env-less constants so QA can A/B different mixes by
+# patching settings in tests.
+PRESET_WEIGHT_RATING = 0.45
+PRESET_WEIGHT_BSR = 0.40
+PRESET_WEIGHT_RECENCY = 0.15
+# `recency_score = exp(-days_since_pub / HALF_LIFE)` — 180d ≈ 6-month
+# half-life so a year-old product scores ≈ 0.13 vs a brand-new one at 1.0.
+PRESET_RECENCY_HALF_LIFE_DAYS = 180
+# Workspace history cap consumed by Phase 13t-f LRU eviction.
+NICHE_PRESET_HISTORY_CAP = 50
+
+# ----------------------------------------
 # Django Channels (WebSocket — Desktop Upload App)
 # ----------------------------------------
 CHANNEL_LAYERS = {
