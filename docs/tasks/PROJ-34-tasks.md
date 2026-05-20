@@ -2116,7 +2116,7 @@ with passing tests + an isolated commit. **DO NOT batch commits across phases.**
 
 **Scope-lock:** ONLY persistence logic. NO API.
 
-- [ ] 13t-f.1 New file `django-app/design_app/services/preset_persistence.py` —
+- [x] 13t-f.1 New file `django-app/design_app/services/preset_persistence.py` —
   `upsert_preset(workspace_id, preset_dict, source_card_type, source_refs) ->
   NicheCardPreset`. Single transaction (`@transaction.atomic`):
   1. Compute `preset_hash` via `preset_hash.compute_preset_hash`.
@@ -2129,18 +2129,25 @@ with passing tests + an isolated commit. **DO NOT batch commits across phases.**
      (tie-break: oldest `created_at`, then smallest `id`) WHERE `is_in_custom=False`
      → DELETE it. If oldest row has `is_in_custom=True` → set `is_in_history=False`
      (preserve Custom).
-- [ ] 13t-f.2 New constants in `settings.py`: `NICHE_PRESET_HISTORY_CAP = 50`.
-- [ ] 13t-f.3 New helper `promote_to_custom(preset_id, user) -> NicheCardPreset` —
+  — preset_persistence.py:33-128 (`upsert_preset` + `_merge_source_refs` + `_enforce_lru_cap`).
+- [x] 13t-f.2 New constants in `settings.py`: `NICHE_PRESET_HISTORY_CAP = 50`.
+  — settings.py:387 (verified pre-existing from 13t-c; preset_persistence.py:151 reads it).
+- [x] 13t-f.3 New helper `promote_to_custom(preset_id, user) -> NicheCardPreset` —
   sets `is_in_custom=True`, `custom_promoted_by=user`, `custom_promoted_at=now()`.
   Idempotent (returns existing if already promoted).
-- [ ] 13t-f.4 New helper `unpromote_from_custom(preset_id) -> bool` — sets
+  — preset_persistence.py:185-217 (`promote_to_custom`; returns `None` on missing pk).
+- [x] 13t-f.4 New helper `unpromote_from_custom(preset_id) -> bool` — sets
   `is_in_custom=False`, clears `custom_promoted_*`. Hard-deletes row if
   `is_in_history=False` AND `is_in_custom=False` (unreachable through normal flow).
-- [ ] 13t-f.5 New file `django-app/design_app/tests/test_preset_persistence.py` —
+  — preset_persistence.py:223-253 (`unpromote_from_custom`; `True`=deleted, `False`=survived, `None`=missing).
+- [x] 13t-f.5 New file `django-app/design_app/tests/test_preset_persistence.py` —
   covers: fresh insert, dedup-hit appends refs, LRU eviction at cap+1 (custom-only
   survives), tie-break on identical `last_clicked_at`, promote idempotency, unpromote
   hard-delete edge.
-- [ ] 13t-f.6 Tests green.
+  — test_preset_persistence.py:1-330 (15 tests).
+- [x] 13t-f.6 Tests green.
+  — `pytest design_app/tests/test_preset_persistence.py` → 15/15 PASS;
+  `pytest design_app/` → 490 passed (up from 475), 34 skipped, 0 regressions.
 
 **Commit message:** `feat(PROJ-34): phase 13t-f — preset persistence service (dedup + LRU) + tests`
 
