@@ -57,6 +57,7 @@ import NicheContextToggle from './promptBuilder/NicheContextToggle';
 import ReferenceIndicator from './promptBuilder/ReferenceIndicator';
 import BuildCounter from './promptBuilder/BuildCounter';
 import BuildConfirmDialog from './promptBuilder/BuildConfirmDialog';
+import NichePresetsAccordion from './promptBuilder/nichePresets/NichePresetsAccordion';
 
 interface BuilderDialogProps {
   open: boolean;
@@ -69,6 +70,8 @@ interface BuilderDialogProps {
   isBuilding: boolean;
   /** Phase-13c niche hints used to pre-fill empty form slots (AC-66). */
   nicheHints?: BuilderFormHints | null;
+  /** Phase-13t niche id used by `NichePresetsAccordion` to fetch Vorschläge cards. */
+  nicheId?: string | null;
   /** Project owning the current Builder session — required for preview + spatial picker. */
   projectId?: string;
   /** Workspace owning the Builder session — forwarded to CustomSpatialCreator. */
@@ -156,6 +159,7 @@ const BuilderDialog = ({
   nicheReason,
   isBuilding,
   nicheHints = null,
+  nicheId = null,
   projectId,
   workspaceId,
   onSavePreset,
@@ -177,7 +181,8 @@ const BuilderDialog = ({
   const [stylePickerOpen, setStylePickerOpen] = useState(false);
   const [typographyPickerOpen, setTypographyPickerOpen] = useState(false);
   const [fontCombinationPickerOpen, setFontCombinationPickerOpen] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
+  // Phase 13t-i (AC-80) — Live Preview defaults open on dialog mount.
+  const [previewOpen, setPreviewOpen] = useState(true);
 
   // EC-32 — when the saved preset references a CustomSpatial UUID that no
   // longer exists in the workspace list, show a warning chip + "Pick
@@ -287,6 +292,9 @@ const BuilderDialog = ({
       />
 
       <Body>
+        {/* Phase 13t-i — "Aus der Niche" preset picker (AC-79). */}
+        <NichePresetsAccordion nicheId={nicheId} />
+
         {/* A. Slogans (open by default) */}
         <Accordion defaultExpanded>
           <AccordionSummary
@@ -330,8 +338,8 @@ const BuilderDialog = ({
           </AccordionDetails>
         </Accordion>
 
-        {/* C. Layout & Composition (closed by default) */}
-        <Accordion>
+        {/* C. Layout & Composition (open by default per AC-80) */}
+        <Accordion defaultExpanded>
           <AccordionSummary
             expandIcon={<ExpandMoreRoundedIcon />}
             aria-controls="builder-layout-content"
@@ -417,8 +425,8 @@ const BuilderDialog = ({
           </AccordionDetails>
         </Accordion>
 
-        {/* E. Niche & Extra (closed by default) */}
-        <Accordion>
+        {/* E. Niche & Extra (open by default per AC-80) */}
+        <Accordion defaultExpanded>
           <AccordionSummary
             expandIcon={<ExpandMoreRoundedIcon />}
             aria-controls="builder-niche-content"

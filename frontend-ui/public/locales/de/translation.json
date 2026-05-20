@@ -3657,5 +3657,21 @@
       "nicheWithName": "Nischenwissen-Snippet {{index}} — {{niche}}",
       "web": "Webquelle {{index}}"
     }
+  },
+  "designForge": {
+    "builder": {
+      "nichePresets": {
+        "title": "Aus der Niche",
+        "tabs": {
+          "vorschlaege": "Vorschläge",
+          "history": "Verlauf",
+          "custom": "Custom",
+          "placeholderVorschlaege": "Vorschläge laden… echte Karten kommen in Phase 13t-j.",
+          "placeholderHistory": "Verlauf wird geladen… echte Karten kommen in Phase 13t-k.",
+          "placeholderCustom": "Custom wird geladen… echte Karten kommen in Phase 13t-k.",
+          "placeholderNoNiche": "Wähle eine Niche im Projekt um Vorschläge zu sehen."
+        }
+      }
+    }
   }
 }

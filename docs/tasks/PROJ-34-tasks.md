@@ -2250,24 +2250,36 @@ with passing tests + an isolated commit. **DO NOT batch commits across phases.**
 
 **Scope-lock:** Section shell only. NO tab content yet. NO Confirm-Dialog.
 
-- [ ] 13t-i.1 Create dir `frontend-ui/src/views/designs/board/partials/promptBuilder/
+- [x] 13t-i.1 Create dir `frontend-ui/src/views/designs/board/partials/promptBuilder/
   nichePresets/`. Add `NichePresetsAccordion.tsx` — MUI `Accordion` w/ `defaultExpanded`,
   custom `AccordionSummary` (title "Aus der Niche" + tab-aware count badges), renders
-  `<NichePresetsTabs/>` in `AccordionDetails`.
-- [ ] 13t-i.2 Add `NichePresetsTabs.tsx` — MUI `Tabs` w/ 3 `Tab` elements ("Vorschläge",
+  `<NichePresetsTabs/>` in `AccordionDetails`. — `nichePresets/NichePresetsAccordion.tsx:1-36`
+- [x] 13t-i.2 Add `NichePresetsTabs.tsx` — MUI `Tabs` w/ 3 `Tab` elements ("Vorschläge",
   "History", "Custom"). Uses local `useState` for active tab. Renders empty placeholder
-  content per tab for now (real grids land in 13t-j and 13t-k).
-- [ ] 13t-i.3 Mount `<NichePresetsAccordion/>` at the TOP of `BuilderDialog.tsx` (above
+  content per tab for now (real grids land in 13t-j and 13t-k). — `nichePresets/NichePresetsTabs.tsx:1-108`
+- [x] 13t-i.3 Mount `<NichePresetsAccordion/>` at the TOP of `BuilderDialog.tsx` (above
   current first Accordion). Pass `nicheId` prop derived from existing builder context.
-- [ ] 13t-i.4 Edit ALL existing `<Accordion>` elements in `BuilderDialog.tsx` to add
+  — `BuilderDialog.tsx:61-79,159-167,291-294`; threaded `nicheId={project?.niche ?? null}`
+  in `DesignWorkspaceView.tsx:554`.
+- [x] 13t-i.4 Edit ALL existing `<Accordion>` elements in `BuilderDialog.tsx` to add
   `defaultExpanded` prop (per AC-80). Verify no currently-collapsed Accordion is meant
-  to be collapsed (check existing tests).
-- [ ] 13t-i.5 Add i18n keys to `frontend-ui/src/i18n/locales/de.json` and `en.json`:
+  to be collapsed (check existing tests). — flipped `Layout & Composition`
+  (`BuilderDialog.tsx:336-344`) + `Niche & Extra` (`BuilderDialog.tsx:423-431`); Live
+  Preview defaults `previewOpen=true` (`BuilderDialog.tsx:181-182`). Slogans, Styles,
+  Visual Details already had `defaultExpanded`.
+- [x] 13t-i.5 Add i18n keys to `frontend-ui/src/i18n/locales/de.json` and `en.json`:
   `designForge.builder.nichePresets.title`, `.tabs.vorschlaege`, `.tabs.history`,
-  `.tabs.custom`.
-- [ ] 13t-i.6 Vitest test `NichePresetsAccordion.test.tsx` — renders, expands by
+  `.tabs.custom`. — actual locale paths are
+  `frontend-ui/public/locales/{en,de}/translation.json`; added `designForge.builder.
+  nichePresets` block in both (en:3619-3635, de:3662-3678) with title + 3 tab labels +
+  4 placeholder strings (`placeholderVorschlaege` / `placeholderHistory` /
+  `placeholderCustom` / `placeholderNoNiche`).
+- [x] 13t-i.6 Vitest test `NichePresetsAccordion.test.tsx` — renders, expands by
   default, tab clicks change active tab, count badges render.
-- [ ] 13t-i.7 `npm run test:ci` for files under `nichePresets/` must be green.
+  — `nichePresets/__tests__/NichePresetsAccordion.test.tsx:1-60` (5 cases).
+- [x] 13t-i.7 `npm run test:ci` for files under `nichePresets/` must be green.
+  — 5/5 pass in 355 ms; full `npm run test:ci` = 1543 tests / 0 failures;
+  `npx tsc -b` + `npm run build` both clean.
 
 **Commit message:** `feat(PROJ-34): phase 13t-i — NichePresetsAccordion + Tabs shell + default-expanded all`
 

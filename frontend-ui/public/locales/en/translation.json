@@ -3614,5 +3614,21 @@
       "nicheWithName": "Niche knowledge chunk {{index}} — {{niche}}",
       "web": "Web source {{index}}"
     }
+  },
+  "designForge": {
+    "builder": {
+      "nichePresets": {
+        "title": "From the Niche",
+        "tabs": {
+          "vorschlaege": "Suggestions",
+          "history": "History",
+          "custom": "Custom",
+          "placeholderVorschlaege": "Loading suggestions… real cards land in Phase 13t-j.",
+          "placeholderHistory": "Loading history… real cards land in Phase 13t-k.",
+          "placeholderCustom": "Loading custom… real cards land in Phase 13t-k.",
+          "placeholderNoNiche": "Pick a niche on the project to see suggestions."
+        }
+      }
+    }
   }
 }

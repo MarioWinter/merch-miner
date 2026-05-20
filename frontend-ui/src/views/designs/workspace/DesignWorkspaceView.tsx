@@ -551,6 +551,7 @@ const DesignWorkspaceView = () => {
         nicheReason={gen.builder.nicheReason}
         isBuilding={gen.builder.isBuilding}
         nicheHints={gen.builder.nicheHints}
+        nicheId={project?.niche ?? null}
         projectId={projectId}
         workspaceId={activeWorkspaceId ?? undefined}
         onSavePreset={gen.builder.handleSavePreset}
