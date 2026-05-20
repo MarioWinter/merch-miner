@@ -170,6 +170,15 @@ export const STYLE_LIBRARY: StyleEntry[] = [
       'Heavy blackletter gothic typography with ornate medieval scripts, dramatic high-contrast strokes, decorative flourishes, dark moody palette, often paired with skull / raven / cross / banner motifs',
     defaultTypography: typoText('blackletter_gothic'),
   },
+  {
+    slug: 'comic_book',
+    label: 'Comic Book',
+    shortDescription: 'Bold ink outlines, action-lines, flat saturated fills',
+    thumbnail: THUMB('comic_book'),
+    promptSuffix:
+      'Classic American comic-book aesthetic with bold uniform black ink outlines around every shape, flat saturated single-color fills with NO cel-shading and NO halftone-dot shading, hand-inked organic line weight variation, action-line accents (motion-bursts, impact-rays, speed-streaks) where energy is implied, vibrant primary-color palette (red / yellow / blue accents on a flat background), Marvel/DC superhero feel stripped of chiaroscuro shading',
+    defaultTypography: typoText('chunky_cartoon_block_gloss'),
+  },
 ]
 
 /** O(1) lookup helper — returns the StyleEntry whose `slug` matches, or `undefined`. */

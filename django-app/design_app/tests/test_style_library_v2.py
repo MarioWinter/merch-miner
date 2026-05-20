@@ -244,8 +244,9 @@ class TestStyleAutoDefaults:
         'default_spatial_id',
     )
 
-    def test_fifteen_styles(self):
-        assert len(STYLE_LIBRARY) == 15
+    def test_sixteen_styles(self):
+        # Phase 13r added comic_book (clean American comic, no shading).
+        assert len(STYLE_LIBRARY) == 16
 
     def test_every_style_has_all_three_default_fields(self):
         for slug, style in STYLE_LIBRARY.items():

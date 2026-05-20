@@ -1017,6 +1017,28 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
         ),
         'default_spatial_id': 'crest_coat_of_arms',
     },
+    'comic_book': {
+        'label': 'Comic Book',
+        'short_description': 'Bold ink outlines, action-line accents, flat saturated fills',
+        'prompt_suffix': (
+            'Classic American comic-book aesthetic with bold uniform black ink '
+            'outlines around every shape, flat saturated single-color fills with '
+            'NO cel-shading and NO halftone-dot shading, hand-inked organic line '
+            'weight variation, action-line accents (motion-bursts, impact-rays, '
+            'speed-streaks) where energy is implied, vibrant primary-color palette '
+            '(red / yellow / blue accents on a flat background), Marvel/DC '
+            'superhero feel stripped of chiaroscuro shading'
+        ),
+        'default_typography_id': 'chunky_cartoon_block_gloss',
+        'default_style_dna': (
+            'Classic American comic-book aesthetic with bold hand-inked outlines, '
+            'flat saturated single-color fills, vibrant primary-color palette, '
+            'action-line accents for energy — NO cel-shading, NO halftone-dot '
+            'shading, NO gradients, only crisp flat areas of color separated by '
+            'confident ink contour lines'
+        ),
+        'default_spatial_id': 'subject_portrait_with_caption',
+    },
 }
 
 
