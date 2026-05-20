@@ -6,6 +6,23 @@
 import { describe, it, expect, vi } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// PROJ-34 Phase 13t-m — Mock customTypographyApi so the picker can mount its
+// new Custom / Create-new tabs without a real RTK Query middleware wired in.
+vi.mock('@/services/customTypographyApi', () => ({
+  customTypographyApi: {
+    reducerPath: 'customTypographyApi',
+    reducer: () => ({}),
+    middleware: () => (x: any) => (a: any) => x(a),
+    util: { resetApiState: () => ({ type: 'noop' }) },
+  },
+  useListCustomTypographiesQuery: () => ({ data: [], isLoading: false }),
+  useDeleteCustomTypographyMutation: () => [vi.fn(), { isLoading: false }],
+  useAnalyzeTypographyMutation: () => [vi.fn(), { isLoading: false, error: undefined }],
+  useCreateCustomTypographyMutation: () => [vi.fn(), { isLoading: false }],
+}));
+
 import { renderWithProviders } from '@/utils/test-utils';
 import TypographyPickerModal from '../TypographyPickerModal';
 import { TYPOGRAPHY_OPTIONS } from '../../../constants/slotOptions';

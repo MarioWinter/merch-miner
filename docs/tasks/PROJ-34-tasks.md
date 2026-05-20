@@ -2385,23 +2385,23 @@ with passing tests + an isolated commit. **DO NOT batch commits across phases.**
 **Scope-lock:** CustomTypography UI ONLY. Mirror `CustomSpatialCreator` exactly.
 DECOUPLED from niche-cards flow.
 
-- [ ] 13t-m.1 `CustomTypographyCreator.shared.tsx` — shared types
+- [x] 13t-m.1 `CustomTypographyCreator.shared.tsx` — shared types
   (`CustomTypographyDraft`, `ImageSource = "upload" | "reference" | "design"`) +
   helper hooks. Mirror `CustomSpatialCreator.shared.tsx` 1:1.
-- [ ] 13t-m.2 `CustomTypographyCreator.Step1.tsx` — image source picker UI: upload
+- [x] 13t-m.2 `CustomTypographyCreator.Step1.tsx` — image source picker UI: upload
   drag-drop OR pick from `ProjectReference[]` (reuse `useGetProjectReferencesQuery`)
   OR pick from generated `Design[]`. Mirror `CustomSpatialCreator.Step1.tsx`.
-- [ ] 13t-m.3 `CustomTypographyCreator.steps.tsx` — Step 2 (call analyze API + show
+- [x] 13t-m.3 `CustomTypographyCreator.steps.tsx` — Step 2 (call analyze API + show
   result) + Step 3 (name input + Save button). Mirror existing pattern.
-- [ ] 13t-m.4 `CustomTypographyCreator.tsx` — top-level orchestrator using
+- [x] 13t-m.4 `CustomTypographyCreator.tsx` — top-level orchestrator using
   `useReducer` for step state. Submits via `createCustomTypography` mutation. On
   success auto-selects new entry in parent picker.
-- [ ] 13t-m.5 Edit `TypographyPickerModal.tsx` to add 3rd `Tab` "Create new" between
+- [x] 13t-m.5 Edit `TypographyPickerModal.tsx` to add 3rd `Tab` "Create new" between
   existing Built-in and Custom tabs. Mount `<CustomTypographyCreator/>` in its panel.
-- [ ] 13t-m.6 i18n keys in de/en: `designForge.builder.typography.createNew.*`.
-- [ ] 13t-m.7 Vitest `CustomTypographyCreator.test.tsx` — happy path with mocked API,
+- [x] 13t-m.6 i18n keys in de/en: `designForge.builder.typography.createNew.*`.
+- [x] 13t-m.7 Vitest `CustomTypographyCreator.test.tsx` — happy path with mocked API,
   upload validation (>10MB rejected), error states, name uniqueness conflict.
-- [ ] 13t-m.8 All Vitest green. `npx tsc -b` clean.
+- [x] 13t-m.8 All Vitest green. `npx tsc -b` clean.
 
 **Commit message:** `feat(PROJ-34): phase 13t-m — CustomTypographyCreator UI (Phase 13i frontend debt)`
 

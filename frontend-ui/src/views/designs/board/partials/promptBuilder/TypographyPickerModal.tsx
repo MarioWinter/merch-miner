@@ -1,24 +1,19 @@
-// PROJ-34 Phase 13m-b — modal picker for typography adjectives (single-select).
-// Mirrors the StylePickerModal/SpatialPickerModal grammar with a single tab
-// ("Built-in (22)"); custom typography lands in a later phase. Selection
-// semantics differ from StylePickerModal — typography is single-select, the
-// chosen entry's `prompt_text` is sent to `onChange`. ESC closes without
-// commit (Dialog default behavior + Cancel button).
+// PROJ-34 Phase 13m-b + 13t-m — modal picker for typography adjectives
+// (single-select). Mirrors the SpatialPickerModal/StylePickerModal grammar
+// with Built-in / Custom / Create new tabs. Selection semantics differ from
+// StylePickerModal — typography is single-select, the chosen entry's
+// `prompt_text` is sent to `onChange`. ESC closes without commit
+// (Dialog default behavior + Cancel button).
 
 import { useMemo, useState } from 'react';
 import {
   Box,
   Button,
-  Card,
-  CardActionArea,
-  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  Grid,
   IconButton,
-  Stack,
   Tab,
   Tabs,
   TextField,
@@ -26,16 +21,24 @@ import {
   useMediaQuery,
 } from '@mui/material';
 import { styled, useTheme } from '@mui/material/styles';
-import CheckCircleRoundedIcon from '@mui/icons-material/CheckCircleRounded';
 import CloseRoundedIcon from '@mui/icons-material/CloseRounded';
 import SearchRoundedIcon from '@mui/icons-material/SearchRounded';
+import { useTranslation } from 'react-i18next';
+import { useSnackbar } from 'notistack';
 import {
   TYPOGRAPHY_OPTIONS,
   type TypographyOption,
 } from '../../constants/slotOptions';
+import {
+  useListCustomTypographiesQuery,
+  useDeleteCustomTypographyMutation,
+  type CustomTypography,
+} from '@/services/customTypographyApi';
+import { BuiltinGrid, CustomGrid } from './TypographyPickerModal.grids';
+import CustomTypographyCreator from './CustomTypographyCreator';
 
 // ---------------------------------------------------------------------------
-// Styled bits — mirror the SpatialPickerModal card grammar for visual parity.
+// Styled
 // ---------------------------------------------------------------------------
 
 const StickyHeader = styled(Box)(({ theme }) => ({
@@ -45,46 +48,6 @@ const StickyHeader = styled(Box)(({ theme }) => ({
   backgroundColor: theme.vars.palette.background.paper,
   paddingBottom: theme.spacing(1),
   borderBottom: `1px solid ${theme.vars.palette.divider}`,
-}));
-
-const ThumbWrapper = styled(Box)(({ theme }) => ({
-  position: 'relative',
-  width: '100%',
-  aspectRatio: '1 / 1',
-  borderRadius: 8,
-  overflow: 'hidden',
-  backgroundColor: theme.vars.palette.action.disabledBackground,
-  '& img': {
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover',
-    display: 'block',
-  },
-}));
-
-const SelectableCard = styled(Card)<{ 'data-selected': 'true' | 'false' }>(
-  ({ theme, ...props }) => ({
-    border:
-      props['data-selected'] === 'true'
-        ? `2px solid ${theme.vars.palette.primary.main}`
-        : `2px solid transparent`,
-    transition: 'border-color 150ms ease',
-  }),
-);
-
-const CheckOverlay = styled(CheckCircleRoundedIcon)(({ theme }) => ({
-  position: 'absolute',
-  top: theme.spacing(0.5),
-  right: theme.spacing(0.5),
-  color: theme.vars.palette.primary.main,
-  fontSize: 24,
-}));
-
-const AutoChip = styled(Chip)(({ theme }) => ({
-  position: 'absolute',
-  top: theme.spacing(0.5),
-  left: theme.spacing(0.5),
-  backgroundColor: theme.vars.palette.background.paper,
 }));
 
 // ---------------------------------------------------------------------------
@@ -102,7 +65,11 @@ interface TypographyPickerModalProps {
   styleDefault?: string;
   /** Display label of the style currently driving the default. */
   styleLabel?: string;
+  workspaceId?: string;
+  projectId?: string;
 }
+
+type TabKey = 'builtin' | 'custom' | 'create';
 
 // ---------------------------------------------------------------------------
 // Component
@@ -115,10 +82,15 @@ const TypographyPickerModal = ({
   onChange,
   styleDefault,
   styleLabel,
+  workspaceId,
+  projectId,
 }: TypographyPickerModalProps) => {
+  const { t } = useTranslation();
+  const { enqueueSnackbar } = useSnackbar();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
+  const [tab, setTab] = useState<TabKey>('builtin');
   const [search, setSearch] = useState('');
   const [localValue, setLocalValue] = useState<string>(value);
 
@@ -130,10 +102,15 @@ const TypographyPickerModal = ({
     if (open) {
       setLocalValue(value);
       setSearch('');
+      setTab('builtin');
     }
   }
 
-  const filtered = useMemo<TypographyOption[]>(() => {
+  const { data: customs = [], isLoading: customsLoading } =
+    useListCustomTypographiesQuery(undefined, { skip: !open });
+  const [deleteCustom] = useDeleteCustomTypographyMutation();
+
+  const filteredBuiltins = useMemo<TypographyOption[]>(() => {
     const q = search.trim().toLowerCase();
     if (!q) return [...TYPOGRAPHY_OPTIONS];
     return TYPOGRAPHY_OPTIONS.filter((entry) =>
@@ -141,11 +118,36 @@ const TypographyPickerModal = ({
     );
   }, [search]);
 
+  const filteredCustoms = useMemo<CustomTypography[]>(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return customs;
+    return customs.filter(
+      (entry) =>
+        entry.name.toLowerCase().includes(q) ||
+        entry.prompt_text.toLowerCase().includes(q),
+    );
+  }, [customs, search]);
+
   const isDirty = localValue !== value;
 
   const handleCommit = () => {
     onChange(localValue);
     onClose();
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      await deleteCustom({ id }).unwrap();
+      enqueueSnackbar(
+        t('designForge.builder.typography.deleteSuccess'),
+        { variant: 'success' },
+      );
+    } catch {
+      enqueueSnackbar(
+        t('designForge.builder.typography.deleteError'),
+        { variant: 'error' },
+      );
+    }
   };
 
   return (
@@ -165,11 +167,11 @@ const TypographyPickerModal = ({
           justifyContent: 'space-between',
         }}
       >
-        Choose typography
+        {t('designForge.builder.typography.title')}
         <IconButton
           edge="end"
           onClick={onClose}
-          aria-label="Close picker"
+          aria-label={t('designForge.builder.typography.closeAria')}
           size="small"
         >
           <CloseRoundedIcon />
@@ -181,7 +183,9 @@ const TypographyPickerModal = ({
           <TextField
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder={`Search ${TYPOGRAPHY_OPTIONS.length} typography styles…`}
+            placeholder={t('designForge.builder.typography.searchPlaceholder', {
+              count: TYPOGRAPHY_OPTIONS.length,
+            })}
             size="small"
             fullWidth
             slotProps={{
@@ -191,102 +195,86 @@ const TypographyPickerModal = ({
                     sx={{ mr: 1, color: 'text.secondary', fontSize: 20 }}
                   />
                 ),
-                inputProps: { 'aria-label': 'Search typography' },
+                inputProps: {
+                  'aria-label': t(
+                    'designForge.builder.typography.searchAria',
+                  ),
+                },
               },
             }}
           />
           <Tabs
-            value="builtin"
+            value={tab}
+            onChange={(_, v: TabKey) => setTab(v)}
             sx={{ mt: 1 }}
-            aria-label="Typography source tabs"
+            aria-label={t('designForge.builder.typography.tabsAria')}
           >
             <Tab
               value="builtin"
-              label={`Built-in (${TYPOGRAPHY_OPTIONS.length})`}
+              label={t('designForge.builder.typography.tabBuiltin', {
+                count: TYPOGRAPHY_OPTIONS.length,
+              })}
+            />
+            <Tab
+              value="custom"
+              label={t('designForge.builder.typography.tabCustom', {
+                count: customs.length,
+              })}
+            />
+            <Tab
+              value="create"
+              label={t('designForge.builder.typography.createNew.tab')}
             />
           </Tabs>
         </StickyHeader>
 
         <Box sx={{ p: 3 }}>
-          {filtered.length === 0 ? (
-            <Box sx={{ py: 6, textAlign: 'center' }}>
-              <Typography color="text.secondary">
-                No typography matches your search.
-              </Typography>
-            </Box>
-          ) : (
-            <Grid container spacing={2}>
-              {filtered.map((entry) => {
-                const selected = localValue === entry.prompt_text;
-                const isStyleDefault =
-                  styleDefault !== undefined &&
-                  entry.prompt_text === styleDefault;
-                return (
-                  <Grid key={entry.id} size={{ xs: 12, sm: 6, md: 4 }}>
-                    <SelectableCard
-                      data-selected={selected ? 'true' : 'false'}
-                    >
-                      <CardActionArea
-                        onClick={() => setLocalValue(entry.prompt_text)}
-                        aria-label={`Select ${entry.ui_label}`}
-                        aria-pressed={selected}
-                      >
-                        <ThumbWrapper>
-                          <img
-                            src={`/${entry.thumbnail_path}`}
-                            alt=""
-                            loading="lazy"
-                            onError={(e) => {
-                              (
-                                e.currentTarget as HTMLImageElement
-                              ).style.display = 'none';
-                            }}
-                          />
-                          {selected && <CheckOverlay aria-hidden />}
-                          {isStyleDefault && (
-                            <AutoChip
-                              size="small"
-                              color="secondary"
-                              variant="outlined"
-                              label={
-                                styleLabel
-                                  ? `auto from ${styleLabel}`
-                                  : 'auto from style'
-                              }
-                              data-testid="typography-modal-auto-chip"
-                            />
-                          )}
-                        </ThumbWrapper>
-                        <Stack spacing={0.25} sx={{ p: 1.25 }}>
-                          <Typography variant="subtitle2" noWrap>
-                            {entry.ui_label}
-                          </Typography>
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            noWrap
-                          >
-                            {entry.ui_description}
-                          </Typography>
-                        </Stack>
-                      </CardActionArea>
-                    </SelectableCard>
-                  </Grid>
-                );
-              })}
-            </Grid>
+          {tab === 'builtin' &&
+            (filteredBuiltins.length === 0 ? (
+              <Box sx={{ py: 6, textAlign: 'center' }}>
+                <Typography color="text.secondary">
+                  {t('designForge.builder.typography.emptySearch')}
+                </Typography>
+              </Box>
+            ) : (
+              <BuiltinGrid
+                entries={filteredBuiltins}
+                selectedValue={localValue}
+                styleDefault={styleDefault}
+                styleLabel={styleLabel}
+                onSelect={setLocalValue}
+              />
+            ))}
+          {tab === 'custom' && (
+            <CustomGrid
+              entries={filteredCustoms}
+              loading={customsLoading}
+              selectedValue={localValue}
+              onSelect={setLocalValue}
+              onCreateNew={() => setTab('create')}
+              onDelete={handleDelete}
+            />
+          )}
+          {tab === 'create' && (
+            <CustomTypographyCreator
+              workspaceId={workspaceId}
+              projectId={projectId}
+              onCreated={(newPromptText) => {
+                setLocalValue(newPromptText);
+                setTab('custom');
+              }}
+              onCancel={() => setTab('builtin')}
+            />
           )}
         </Box>
       </DialogContent>
 
       <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button
-          variant="contained"
-          disabled={!isDirty}
-          onClick={handleCommit}
-        >
-          Use selection
+        <Button onClick={onClose}>
+          {t('designForge.builder.typography.cancel')}
+        </Button>
+        <Button variant="contained" disabled={!isDirty} onClick={handleCommit}>
+          {t('designForge.builder.typography.useSelection')}
         </Button>
       </DialogActions>
     </Dialog>
