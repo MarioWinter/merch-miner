@@ -1067,6 +1067,7 @@ class NicheCardPresetSerializer(serializers.ModelSerializer):
     slots = serializers.SerializerMethodField()
     raw_flags = serializers.SerializerMethodField()
     source = serializers.SerializerMethodField()
+    custom_promoted_by = serializers.SerializerMethodField()
 
     class Meta:
         model = NicheCardPreset
@@ -1086,6 +1087,12 @@ class NicheCardPresetSerializer(serializers.ModelSerializer):
             'created_at',
         )
         read_only_fields = fields
+
+    def get_custom_promoted_by(self, obj):
+        u = obj.custom_promoted_by
+        if not u:
+            return None
+        return (u.email or '').split('@')[0] or str(u.id)
 
     def get_slots(self, obj):
         return {

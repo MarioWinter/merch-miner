@@ -59,7 +59,7 @@ export interface NichePresetCard {
   reference_thumbnail_url: string;
   is_in_history: boolean;
   is_in_custom: boolean;
-  custom_promoted_by: string | null;
+  custom_promoted_by: string | number | null;
   custom_promoted_at: string | null;
   last_clicked_at: string;
   created_at: string;

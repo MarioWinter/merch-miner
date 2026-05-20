@@ -95,13 +95,14 @@ const CustomGrid = ({ onCardClick }: CustomGridProps = {}) => {
       {cards.map((card) => {
         const promoterRaw = card.custom_promoted_by;
         const promoterDisplay = promoterRaw
-          ? promoterRaw.slice(0, 8)
+          ? String(promoterRaw).slice(0, 16)
           : t('designForge.builder.nichePresets.unknownUser');
         return (
           <Grid size={{ xs: 6, md: 'auto' }} key={card.id}>
             <NichePresetCard
               card={card}
               onClick={handleCardClick}
+              wide={card.source.card_type !== 'top'}
               topRightChip={
                 <Chip
                   size="small"

@@ -217,6 +217,7 @@ const BestOfMixRow = ({ nicheId, onCardClick }: BestOfMixRowProps) => {
               card={labeledCard}
               onClick={handleCardClick}
               disabled={mixDisabled}
+              wide
             />
           );
         })}

@@ -107,6 +107,7 @@ const HistoryGrid = ({ onCardClick }: HistoryGridProps = {}) => {
             <NichePresetCard
               card={card}
               onClick={handleCardClick}
+              wide={card.source.card_type !== 'top'}
               topRightChip={
                 <Stack direction="row" spacing={0.5}>
                   <Chip

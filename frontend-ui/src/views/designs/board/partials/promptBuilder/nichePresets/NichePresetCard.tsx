@@ -28,23 +28,31 @@ interface NichePresetCardProps {
   bottomActions?: ReactNode;
   selected?: boolean;
   disabled?: boolean;
+  /** When true, renders a wider card (300×100 thumb, 3:1 aspect) for collage
+   *  thumbnails (Best-of-Mix cards). Default: false (200×200 square thumb). */
+  wide?: boolean;
 }
 
 const CardRoot = styled(Card, {
-  shouldForwardProp: (prop) => prop !== 'selected' && prop !== 'disabled',
-})<{ selected?: boolean; disabled?: boolean }>(({ theme, selected, disabled }) => ({
-  width: 200,
-  position: 'relative',
-  border: `2px solid ${
-    selected ? theme.vars.palette.primary.main : 'transparent'
-  }`,
-  transition: 'border-color 150ms ease, opacity 150ms ease',
-  opacity: disabled ? 0.5 : 1,
-}));
+  shouldForwardProp: (prop) =>
+    prop !== 'selected' && prop !== 'disabled' && prop !== 'wide',
+})<{ selected?: boolean; disabled?: boolean; wide?: boolean }>(
+  ({ theme, selected, disabled, wide }) => ({
+    width: wide ? 300 : 200,
+    position: 'relative',
+    border: `2px solid ${
+      selected ? theme.vars.palette.primary.main : 'transparent'
+    }`,
+    transition: 'border-color 150ms ease, opacity 150ms ease',
+    opacity: disabled ? 0.5 : 1,
+  }),
+);
 
-const ThumbnailImg = styled('img')(({ theme }) => ({
-  width: 200,
-  height: 200,
+const ThumbnailImg = styled('img', {
+  shouldForwardProp: (prop) => prop !== 'wide',
+})<{ wide?: boolean }>(({ theme, wide }) => ({
+  width: wide ? 300 : 200,
+  height: wide ? 100 : 200,
   objectFit: 'cover',
   display: 'block',
   backgroundColor: theme.vars.palette.action.disabledBackground,
@@ -83,6 +91,7 @@ const NichePresetCard = ({
   bottomActions,
   selected,
   disabled,
+  wide,
 }: NichePresetCardProps) => {
   const label = card.preset_label;
   const thumbUrl = card.reference_thumbnail_url;
@@ -91,6 +100,7 @@ const NichePresetCard = ({
     <CardRoot
       selected={selected}
       disabled={disabled}
+      wide={wide}
       data-selected={selected ? 'true' : 'false'}
     >
       <CardActionArea
@@ -102,6 +112,7 @@ const NichePresetCard = ({
           src={thumbUrl || undefined}
           alt={label}
           loading="lazy"
+          wide={wide}
         />
         <Label variant="body2">{label}</Label>
       </CardActionArea>
