@@ -3696,6 +3696,12 @@
           "edgy": "Edgy Mix",
           "safe": "Safe Mix"
         },
+        "sourceLabels": {
+          "top": "Top",
+          "mix_most_common": "Mix · Most-Common",
+          "mix_edgy": "Mix · Edgy",
+          "mix_safe": "Mix · Safe"
+        },
         "confirmTitle": "Preset übernehmen?",
         "confirmButton": "Bestätigen",
         "confirmSuccess": "Preset übernommen.",
@@ -3729,6 +3735,8 @@
         "delete": "Löschen",
         "deleteSuccess": "Entfernt.",
         "deleteError": "Entfernen fehlgeschlagen.",
+        "selectAria": "{{label}} auswählen",
+        "deleteAria": "{{label}} löschen",
         "autoFromStyle": "auto aus Style",
         "autoFromStyleLabel": "auto aus {{style}}",
         "createNew": {
@@ -3746,6 +3754,8 @@
           "sourcePreviewAlt": "Vorschau Quellbild",
           "emptyReferences": "Keine References im Projekt. Füge zuerst eine im rechten Panel hinzu.",
           "emptyDesigns": "Noch keine Designs. Generiere zuerst eines.",
+          "designFallbackLabel": "Design",
+          "selectAria": "{{label}} auswählen",
           "errorTooLarge": "Datei zu groß (max. 10 MB).",
           "errorWrongMime": "Nur JPG, PNG oder WebP erlaubt.",
           "errorUnclear": "Das Bild konnte nicht klar analysiert werden. Versuche ein anderes Bild.",

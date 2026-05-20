@@ -32,11 +32,11 @@ import type {
 
 const SKELETON_COUNT = 6;
 
-const SOURCE_TYPE_LABEL: Record<NichePresetSourceCardType, string> = {
-  top: 'Top',
-  mix_most_common: 'Mix · Most-Common',
-  mix_edgy: 'Mix · Edgy',
-  mix_safe: 'Mix · Safe',
+const SOURCE_TYPE_I18N_KEY: Record<NichePresetSourceCardType, string> = {
+  top: 'designForge.builder.nichePresets.sourceLabels.top',
+  mix_most_common: 'designForge.builder.nichePresets.sourceLabels.mix_most_common',
+  mix_edgy: 'designForge.builder.nichePresets.sourceLabels.mix_edgy',
+  mix_safe: 'designForge.builder.nichePresets.sourceLabels.mix_safe',
 };
 
 interface HistoryGridProps {
@@ -111,7 +111,10 @@ const HistoryGrid = ({ onCardClick }: HistoryGridProps = {}) => {
                 <Stack direction="row" spacing={0.5}>
                   <Chip
                     size="small"
-                    label={SOURCE_TYPE_LABEL[card.source.card_type] ?? 'Top'}
+                    label={t(
+                      SOURCE_TYPE_I18N_KEY[card.source.card_type] ??
+                        SOURCE_TYPE_I18N_KEY.top,
+                    )}
                   />
                   {overflow > 0 && (
                     <Chip

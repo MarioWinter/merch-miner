@@ -2411,18 +2411,18 @@ DECOUPLED from niche-cards flow.
 
 **Scope-lock:** No new components. No new logic.
 
-- [ ] 13t-n.1 Audit ALL new components for i18n compliance — no hardcoded user-visible
+- [x] 13t-n.1 Audit ALL new components for i18n compliance — no hardcoded user-visible
   strings (CLAUDE.md rule). Add any missing keys to de/en JSON files.
-- [ ] 13t-n.2 Add ARIA labels to all `IconButton` + interactive elements per
+- [x] 13t-n.2 Add ARIA labels to all `IconButton` + interactive elements per
   accessibility rules.
-- [ ] 13t-n.3 Verify all colors via `theme.vars.palette.*` — NO hex/rgb in any new
+- [x] 13t-n.3 Verify all colors via `theme.vars.palette.*` — NO hex/rgb in any new
   component (memory `feedback_no_hardcoded_colors`).
-- [ ] 13t-n.4 Verify all new components use MUI v7 patterns — no `Grid item`, no
+- [x] 13t-n.4 Verify all new components use MUI v7 patterns — no `Grid item`, no
   `InputProps`, no `Hidden`, no `@mui/lab` imports.
-- [ ] 13t-n.5 Manual smoke test in Docker: open BuilderDialog, see Accordion expanded,
+- [x] 13t-n.5 Manual smoke test in Docker: open BuilderDialog, see Accordion expanded,
   see 10 Top + 3 Mix cards, click a card → Confirm-Dialog → Bestätigen → slots
   replaced, History tab shows the entry. Document any anomalies inline in this file.
-- [ ] 13t-n.6 Lint full scope (per memory `feedback_lint_full_scope`):
+- [x] 13t-n.6 Lint full scope (per memory `feedback_lint_full_scope`):
   `docker compose exec web ruff check django-app/` AND
   `cd frontend-ui && npx eslint src/`. Both must be 0 errors in 13t scope.
 

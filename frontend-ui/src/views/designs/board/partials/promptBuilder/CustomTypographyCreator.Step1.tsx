@@ -192,7 +192,9 @@ export const Step1Source = ({
           items={designs.map((d) => ({
             id: d.id,
             url: d.image_file,
-            label: d.idea_summary?.slogan_text ?? 'Design',
+            label:
+              d.idea_summary?.slogan_text ??
+              t('designForge.builder.typography.createNew.designFallbackLabel'),
           }))}
           emptyText={t('designForge.builder.typography.createNew.emptyDesigns')}
           selectedId={value?.kind === 'design' ? value.id : undefined}

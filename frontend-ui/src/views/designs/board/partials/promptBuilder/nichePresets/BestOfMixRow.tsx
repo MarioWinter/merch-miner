@@ -45,7 +45,9 @@ const BestOfMixRow = ({ nicheId, onCardClick }: BestOfMixRowProps) => {
   const [pollExhausted, setPollExhausted] = useState(false);
   const pollStartedAt = useRef<number | null>(null);
   const pollExhaustedRef = useRef(pollExhausted);
-  pollExhaustedRef.current = pollExhausted;
+  useEffect(() => {
+    pollExhaustedRef.current = pollExhausted;
+  }, [pollExhausted]);
 
   const queryArg = nicheId ? { nicheId } : skipToken;
 
