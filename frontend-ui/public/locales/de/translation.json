@@ -3670,6 +3670,19 @@
           "placeholderHistory": "Verlauf wird geladen… echte Karten kommen in Phase 13t-k.",
           "placeholderCustom": "Custom wird geladen… echte Karten kommen in Phase 13t-k.",
           "placeholderNoNiche": "Wähle eine Niche im Projekt um Vorschläge zu sehen."
+        },
+        "emptyVorschlaege": "Diese Niche hat noch keine analysierten Produkte. Starte zuerst die Niche-Recherche, oder nutze History / Custom.",
+        "bestOfMix": "Best-of-Mix",
+        "regenerateTooltip": "Neu berechnen",
+        "regenerateSuccess": "Mix neu berechnet.",
+        "regenerateRateLimited": "Zu viele Regenerationen — bitte in einer Stunde erneut versuchen.",
+        "regenerateError": "Regeneration fehlgeschlagen.",
+        "errorLoading": "Vorschläge konnten nicht geladen werden. Bitte erneut versuchen.",
+        "mixGenerationTimeout": "Die Mix-Generierung dauert länger als erwartet. Versuche es mit Neu berechnen.",
+        "mixLabels": {
+          "most_common": "Most-Common Mix",
+          "edgy": "Edgy Mix",
+          "safe": "Safe Mix"
         }
       }
     }

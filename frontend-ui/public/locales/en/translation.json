@@ -3627,6 +3627,19 @@
           "placeholderHistory": "Loading history… real cards land in Phase 13t-k.",
           "placeholderCustom": "Loading custom… real cards land in Phase 13t-k.",
           "placeholderNoNiche": "Pick a niche on the project to see suggestions."
+        },
+        "emptyVorschlaege": "This niche has no analyzed products yet. Run niche research first, or use History / Custom.",
+        "bestOfMix": "Best-of-Mix",
+        "regenerateTooltip": "Recalculate",
+        "regenerateSuccess": "Mix regenerated.",
+        "regenerateRateLimited": "Too many regenerations — please try again in an hour.",
+        "regenerateError": "Regeneration failed.",
+        "errorLoading": "Could not load suggestions. Please try again.",
+        "mixGenerationTimeout": "Mix generation is taking longer than expected. Try regenerating.",
+        "mixLabels": {
+          "most_common": "Most-Common Mix",
+          "edgy": "Edgy Mix",
+          "safe": "Safe Mix"
         }
       }
     }

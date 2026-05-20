@@ -4,7 +4,7 @@
 // until 13t-j (Vorschläge grid) and 13t-k (History + Custom grids) land.
 
 import { useState, type SyntheticEvent } from 'react';
-import { Alert, Badge, Box, Tab, Tabs } from '@mui/material';
+import { Alert, Badge, Box, Stack, Tab, Tabs } from '@mui/material';
 import { skipToken } from '@reduxjs/toolkit/query';
 import { useTranslation } from 'react-i18next';
 import {
@@ -12,6 +12,8 @@ import {
   useGetHistoryQuery,
   useGetVorschlaegeQuery,
 } from '@/services/presetCardsApi';
+import TopCardsGrid from './TopCardsGrid';
+import BestOfMixRow from './BestOfMixRow';
 
 type TabKey = 'vorschlaege' | 'history' | 'custom';
 
@@ -89,13 +91,17 @@ const NichePresetsTabs = ({ nicheId }: NichePresetsTabsProps) => {
         />
       </Tabs>
 
-      {active === 'vorschlaege' && (
-        <Alert severity="info">
-          {nicheId
-            ? t('designForge.builder.nichePresets.tabs.placeholderVorschlaege')
-            : t('designForge.builder.nichePresets.tabs.placeholderNoNiche')}
-        </Alert>
-      )}
+      {active === 'vorschlaege' &&
+        (nicheId ? (
+          <Stack spacing={3}>
+            <TopCardsGrid nicheId={nicheId} />
+            <BestOfMixRow nicheId={nicheId} />
+          </Stack>
+        ) : (
+          <Alert severity="info">
+            {t('designForge.builder.nichePresets.tabs.placeholderNoNiche')}
+          </Alert>
+        ))}
       {active === 'history' && (
         <Alert severity="info">
           {t('designForge.builder.nichePresets.tabs.placeholderHistory')}

@@ -2289,27 +2289,27 @@ with passing tests + an isolated commit. **DO NOT batch commits across phases.**
 
 **Scope-lock:** Vorschläge tab content. NO History/Custom UI yet. NO Confirm-Dialog.
 
-- [ ] 13t-j.1 `NichePresetCard.tsx` — shared MUI `Card` component: square thumbnail
+- [x] 13t-j.1 `NichePresetCard.tsx` — shared MUI `Card` component: square thumbnail
   (200×200), label below (`Typography variant="body2"`, max 2 lines + ellipsis),
   optional bottom-right action area (slot for promote/delete buttons). Props: `card:
   NichePresetCard`, `onClick: (card) => void`, `topRightChip?: ReactNode`,
   `bottomActions?: ReactNode`. Active selection visual marker (border + checkmark).
-- [ ] 13t-j.2 `TopCardsGrid.tsx` — renders up to 10 `NichePresetCard` in a responsive
+- [x] 13t-j.2 `TopCardsGrid.tsx` — renders up to 10 `NichePresetCard` in a responsive
   MUI `Grid` (5×2 on `md+`, 2×5 on `xs–sm`). Skeleton-state per card while loading.
   Empty-state Alert per AC-91 when zero results.
-- [ ] 13t-j.3 `BestOfMixRow.tsx` — header row with title "Best-of-Mix" + `IconButton`
+- [x] 13t-j.3 `BestOfMixRow.tsx` — header row with title "Best-of-Mix" + `IconButton`
   (RefreshIcon) wired to `regenerateMix` mutation (loading state via RTK Query
   `isLoading`). Three `NichePresetCard` below (labels "Most-Common", "Edgy", "Safe").
   Cards with `card === null` (cache miss / generating) render `Skeleton`. Polling:
   if 202 returned, refetch every 3s for up to 60s, then error state.
-- [ ] 13t-j.4 Wire `<TopCardsGrid/>` + `<BestOfMixRow/>` into Vorschläge tab in
+- [x] 13t-j.4 Wire `<TopCardsGrid/>` + `<BestOfMixRow/>` into Vorschläge tab in
   `NichePresetsTabs.tsx`. Pass `nicheId` from props.
-- [ ] 13t-j.5 Cards clickable but currently log to console with TODO comment for
+- [x] 13t-j.5 Cards clickable but currently log to console with TODO comment for
   Confirm-Dialog handler (wired in 13t-l). No card-click side-effects yet.
-- [ ] 13t-j.6 Vitest tests for each of 3 new components. Use MSW mocks. Cover:
+- [x] 13t-j.6 Vitest tests for each of 3 new components. Use MSW mocks. Cover:
   loading skeleton, error fallback, empty-state Alert, regen button click triggers
   mutation, polling on 202.
-- [ ] 13t-j.7 `npm run test:ci` for `nichePresets/` green. ESLint clean.
+- [x] 13t-j.7 `npm run test:ci` for `nichePresets/` green. ESLint clean.
 
 **Commit message:** `feat(PROJ-34): phase 13t-j — Vorschläge tab UI (Top + Best-of-Mix + Skeleton)`
 
