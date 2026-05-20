@@ -1965,27 +1965,35 @@ with passing tests + an isolated commit. **DO NOT batch commits across phases.**
 
 **Scope-lock:** ONLY pure-function services. NO models. NO API. NO frontend. NO LLM.
 
-- [ ] 13t-b.1 New file `django-app/design_app/services/preset_hash.py` per **Appendix T
+- [x] 13t-b.1 New file `django-app/design_app/services/preset_hash.py` per **Appendix T
   of this file**. Implements `compute_preset_hash(slots_dict: dict) -> str` returning
   SHA256 hex over NFKD-normalized + lowercased + sorted-JSON serialization of the 7
-  slot values.
-- [ ] 13t-b.2 New file `django-app/design_app/tests/test_preset_hash.py` — pytest
+  slot values. — preset_hash.py:51 (compute_preset_hash)
+- [x] 13t-b.2 New file `django-app/design_app/tests/test_preset_hash.py` — pytest
   parametrize over the test-vectors in Appendix T.4. Covers: identical inputs →
   identical hash; unicode-normalization equivalence; slot-order independence; one-char
-  diff → different hash.
-- [ ] 13t-b.3 New file `django-app/design_app/services/preset_matcher.py` per
+  diff → different hash. — test_preset_hash.py:56-127 (8 tests, all 8 Appendix T.4
+  vectors covered)
+- [x] 13t-b.3 New file `django-app/design_app/services/preset_matcher.py` per
   **Appendix U of this file**. Implements `match_slot_to_builtin(slot_key: str,
   raw_text: str) -> tuple[str | None, bool]`. Returns `(built_in_id, is_raw=False)` or
   `(raw_text_truncated, is_raw=True)`. Uses Jaccard token similarity ≥ 0.55.
-- [ ] 13t-b.4 The matcher imports from existing style_library: `SPATIAL_OPTIONS`,
+  — preset_matcher.py:84 (match_slot_to_builtin), :122 (_tokenize), :127 (_jaccard)
+- [x] 13t-b.4 The matcher imports from existing style_library: `SPATIAL_OPTIONS`,
   `TYPOGRAPHY_OPTIONS`, `FONT_COMBINATION_OPTIONS`, `ACCESSORIES_OPTIONS`,
   `STYLE_LIBRARY`. DO NOT modify any of them. Read-only consumption.
-- [ ] 13t-b.5 New file `django-app/design_app/tests/test_preset_matcher.py` — covers
+  — preset_matcher.py:17-22 (imports, no STYLE_LIBRARY needed — only the 4 option
+  lists participate in matching per Appendix U.1)
+- [x] 13t-b.5 New file `django-app/design_app/tests/test_preset_matcher.py` — covers
   each of 5 mappable slots with 3 test cases each: clear match, ambiguous below
   threshold, no match. Use realistic niche text vectors (e.g. "stencil military
   propaganda font" → `stencil_bold` for typography slot).
-- [ ] 13t-b.6 Both test files run green: `docker compose exec web pytest
+  — test_preset_matcher.py:43-160 (15 parametrized + 5 unit tests = 20 total).
+  Real typography id is `stencil_military_uniform` (not assumed `stencil_bold`);
+  deviation documented in module docstring.
+- [x] 13t-b.6 Both test files run green: `docker compose exec web pytest
   design_app/tests/test_preset_hash.py design_app/tests/test_preset_matcher.py`.
+  — 28 passed (8 hash + 20 matcher), 0 failed, 0.12s.
 
 **Commit message:** `feat(PROJ-34): phase 13t-b — preset_hash + preset_matcher services + tests`
 
