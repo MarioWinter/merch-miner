@@ -384,15 +384,9 @@ export const SPATIAL_OPTIONS: readonly SpatialOption[] = [
   },
 ] as const;
 
-// J.5 — Text Segmentation (slot key: text_segmentation)
-export const TEXT_SEGMENTATION_OPTIONS: readonly string[] = [
-  'a single centered slogan rendered as one block of text',
-  'the slogan split in half, first half on top and second half on the bottom of the design',
-  'a primary headline followed by a smaller subtitle line beneath it',
-  'a three-line stacked block where the middle line is the largest emphasis word',
-  'the slogan placed on a banner ribbon with one accent word sitting outside the ribbon',
-  'two-tone segmentation where the dominant nouns are in one color/style and the connecting words in another',
-] as const;
+// J.5 was TEXT_SEGMENTATION_OPTIONS — removed in Phase 13s. Spatial layouts
+// already prescribe how the slogan is segmented (headline_top_subtitle_bottom,
+// stacked_word_block, banner_top, etc.), so the separate slot was redundant.
 
 // J.6 — Typography Adjectives (slot key: typography_adjectives) — Phase 13j v2.
 // 22 dict entries (replaces the v1 6-string list). Each entry mirrors the

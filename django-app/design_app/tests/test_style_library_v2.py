@@ -18,7 +18,6 @@ from design_app.services.style_library import (
     SLOT_SCHEMA,
     SPATIAL_OPTIONS,
     STYLE_LIBRARY,
-    TEXT_SEGMENTATION_OPTIONS,
     TYPOGRAPHY_OPTIONS,
     get_font_combination_by_id,
     get_spatial_by_id,
@@ -88,7 +87,6 @@ class TestSlotSchema:
     EXPECTED_KEYS = [
         'spatial_configuration',
         'visual_description',
-        'text_segmentation',
         'typography_adjectives',
         'font_combination',
         'accessories',
@@ -102,10 +100,10 @@ class TestSlotSchema:
         'style_auto_default', 'niche_hint_key',
     }
 
-    def test_has_eight_entries(self):
-        # Phase 13l added font_combination (9 entries). Phase 13q removed
-        # material_texture (back to 8).
-        assert len(SLOT_SCHEMA) == 8
+    def test_has_seven_entries(self):
+        # Phase 13l added font_combination (9). Phase 13q removed
+        # material_texture (8). Phase 13s removed text_segmentation (7).
+        assert len(SLOT_SCHEMA) == 7
 
     def test_keys_in_expected_order(self):
         assert [s['key'] for s in SLOT_SCHEMA] == self.EXPECTED_KEYS
@@ -128,9 +126,6 @@ class TestSlotSchema:
 
 class TestDropdownOptions:
     """6-item dropdown lists (Appendices J.5 – J.8)."""
-
-    def test_text_segmentation_count(self):
-        assert len(TEXT_SEGMENTATION_OPTIONS) == 6
 
     def test_typography_count(self):
         # Phase 13j — TYPOGRAPHY_OPTIONS expanded from 6 strings to 21 dict
@@ -158,7 +153,7 @@ class TestDropdownOptions:
 
     @pytest.mark.parametrize(
         'options',
-        [TEXT_SEGMENTATION_OPTIONS, ACCESSORIES_OPTIONS],
+        [ACCESSORIES_OPTIONS],
     )
     def test_no_blank_entries(self, options):
         for value in options:

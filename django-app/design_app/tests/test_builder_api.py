@@ -184,7 +184,6 @@ class TestBuilderBuild:
         slots = {
             'spatial_configuration': 'vertical_stack',
             'visual_description': 'a vector school bus rolling forward',
-            'text_segmentation': 'a single centered slogan rendered as one block of text',
             'typography_adjectives': "'massive heavyweight cartoon-block font'",
             'font_combination': '',
             'accessories': 'white radiating motion-burst lines',
@@ -210,7 +209,6 @@ class TestBuilderBuild:
         # Non-spatial slot values render verbatim
         for fragment in (
             'a vector school bus rolling forward',
-            'single centered slogan rendered as one block of text',
             "'massive heavyweight cartoon-block font'",
             'white radiating motion-burst lines',
             'Bold cartoon aesthetic',

@@ -46,7 +46,6 @@ import StyleSlotButton from './promptBuilder/StyleSlotButton';
 import StylePickerModal from './promptBuilder/StylePickerModal';
 import SpatialSlotButton from './promptBuilder/SpatialSlotButton';
 import SpatialPickerModal from './promptBuilder/SpatialPickerModal';
-import TextSegmentationPicker from './promptBuilder/TextSegmentationPicker';
 import AccessoriesPicker from './promptBuilder/AccessoriesPicker';
 import VisualDescriptionField from './promptBuilder/VisualDescriptionField';
 import TypographySlotButton from './promptBuilder/TypographySlotButton';
@@ -370,10 +369,9 @@ const BuilderDialog = ({
                   />
                 )}
               </Stack>
-              <TextSegmentationPicker
-                value={cfg.slots.text_segmentation ?? ''}
-                onChange={(v) => updateSlot('text_segmentation', v)}
-              />
+              {/* Phase 13s — TextSegmentationPicker removed: the slot was
+                  redundant with spatial_configuration which already prescribes
+                  how the slogan is laid out across the design. */}
               <AccessoriesPicker
                 value={cfg.slots.accessories ?? ''}
                 onChange={(v) => updateSlot('accessories', v)}

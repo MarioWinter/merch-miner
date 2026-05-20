@@ -41,7 +41,6 @@ def _all_slots_filled() -> dict:
     return {
         'spatial_configuration': 'vertical_stack',  # built-in id
         'visual_description': 'a smiling vector school bus rolling forward',
-        'text_segmentation': 'a single centered slogan rendered as one block of text',
         'typography_adjectives': "'massive heavyweight cartoon-block font'",
         'accessories': 'white radiating motion-burst lines',
         'style_dna': 'Bold cartoon aesthetic with thick uniform black outlines',
@@ -77,7 +76,6 @@ class TestBuildFormPromptHappyPath:
 
             # Each non-spatial slot value appears verbatim
             assert 'a smiling vector school bus rolling forward' in out
-            assert 'single centered slogan rendered as one block of text' in out
             assert "'massive heavyweight cartoon-block font'" in out
             assert 'white radiating motion-burst lines' in out
             assert 'High-energy, kid-friendly mood' in out
@@ -315,9 +313,8 @@ class TestResolveSlotSmoke:
         keys = {slot['key'] for slot in SLOT_SCHEMA}
         assert keys == {
             'spatial_configuration', 'visual_description',
-            'text_segmentation', 'typography_adjectives',
-            'font_combination', 'accessories',
-            'style_dna', 'extra_context',
+            'typography_adjectives', 'font_combination',
+            'accessories', 'style_dna', 'extra_context',
         }
 
     def test_style_default_lookup_for_typography(self):

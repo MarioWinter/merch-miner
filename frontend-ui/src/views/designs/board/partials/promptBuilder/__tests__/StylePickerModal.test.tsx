@@ -49,9 +49,10 @@ const baseProps = {
 };
 
 describe('StylePickerModal', () => {
-  it('renders all 15 style cards', () => {
+  it('renders all 16 style cards', () => {
+    // Phase 13r added comic_book → 16 styles
     renderWithProviders(<StylePickerModal {...baseProps} />);
-    expect(STYLE_LIBRARY.length).toBe(15);
+    expect(STYLE_LIBRARY.length).toBe(16);
     STYLE_LIBRARY.forEach((entry) => {
       // Each card exposes the label inside its CardActionArea aria-label.
       expect(

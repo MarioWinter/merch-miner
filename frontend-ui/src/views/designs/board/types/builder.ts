@@ -16,7 +16,6 @@ export type SpatialSlot = string;
 export interface BuilderSlots {
   spatial_configuration?: SpatialSlot;
   visual_description?: string;
-  text_segmentation?: string;
   typography_adjectives?: string;
   /**
    * Phase 13l — optional multi-font hierarchy. When set, the backend

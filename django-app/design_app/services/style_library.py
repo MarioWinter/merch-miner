@@ -67,13 +67,6 @@ SLOT_SCHEMA = [
         'style_auto_default': False, 'niche_hint_key': 'visual',
     },
     {
-        'key': 'text_segmentation',
-        'label': 'Text Segmentation',
-        'render_template': 'The typography is integrated into the layout: {value}.',
-        'has_dropdown': True, 'has_custom_text': True,
-        'style_auto_default': False, 'niche_hint_key': None,
-    },
-    {
         'key': 'typography_adjectives',
         'label': 'Typography Adjectives',
         'render_template': "The text is rendered in a {value} font style.",
@@ -440,15 +433,12 @@ SPATIAL_OPTIONS = [
 # auto-default picks ONE of these as the Builder's pre-selected value
 # (Appendix K).
 
-# J.5 — Text Segmentation (slot key: text_segmentation)
-TEXT_SEGMENTATION_OPTIONS = [
-    'a single centered slogan rendered as one block of text',
-    'the slogan split in half, first half on top and second half on the bottom of the design',
-    'a primary headline followed by a smaller subtitle line beneath it',
-    'a three-line stacked block where the middle line is the largest emphasis word',
-    'the slogan placed on a banner ribbon with one accent word sitting outside the ribbon',
-    'two-tone segmentation where the dominant nouns are in one color/style and the connecting words in another',
-]
+# J.5 was TEXT_SEGMENTATION_OPTIONS — removed in Phase 13s. The slot was
+# redundant with `spatial_configuration` which already prescribes how the
+# slogan is segmented across the layout (e.g. headline_top_subtitle_bottom,
+# stacked_word_block, banner_top, big_word_tiny_tag all prescribe text
+# segmentation by their nature). The slot also has no niche-hint key and no
+# style-default, so it required user attention without adding new value.
 
 # J.6 — Typography Adjectives (slot key: typography_adjectives) — Phase 13j v2
 # 22 dict entries (replaces the v1 6-string list). Each entry mirrors the

@@ -1783,3 +1783,125 @@ if __name__ == '__main__':
 
 ---
 
+
+## Phase 13o — German POD layout canon: +7 SPATIAL_OPTIONS + LLM thumbnails
+
+Read `docs/layouts/examples/` (60 references: 17 German POD layout-course
+teaching slides + 43 application T-shirts) and identified 7 patterns not
+already in the 36 SPATIAL_OPTIONS:
+
+- [x] 13o.1 `flush_aligned_block` (Der Bündige) — multi-line text flush left or right
+- [x] 13o.2 `full_canvas_word_block` (Der Flächenfüller) — text fills entire canvas edge-to-edge
+- [x] 13o.3 `vertical_pillar_text` (Der Pfeiler) — text rotated 90° down the canvas height
+- [x] 13o.4 `illustration_only_no_text` (Der Sprachlose) — pure visual, no text
+- [x] 13o.5 `unconventional_integration` (Der Unkonventionelle) — text weaves through illu
+- [x] 13o.6 `crossed_tools_intersection` (Die Kreuzung) — crossed objects form X
+- [x] 13o.7 `subject_portrait_with_caption` (Das Portrait) — dominant subject + caption
+- [x] 13o.8 SPATIAL_OPTIONS 36 → 43 (style_library.py + slotOptions.ts mirror)
+- [x] 13o.9 Niche-LLM enum + Appendix M updated to 43 ids
+- [x] 13o.10 Test count assertion bumped (36 → 43)
+
+Phase 13o-llm: replaced the schematic Pillow placeholders with bespoke
+LLM-rendered thumbnails for all 43 entries:
+
+- [x] LLM script `scripts/generate_spatial_thumbnails_llm.py` — google/gemini-3.1-flash-image-preview via OpenRouter, ~$0.04/img × 43 = ~$1.70
+- [x] Consistent pizza subject across all 43: pizza slice with pepperoni + basil + cheese strings + slogan "PIZZA TIME"
+- [x] 3 conditional branches: illustration-only / text-only / default
+- [x] Pizza-theme substitution rule: layouts referencing "axes/hammers/tools" → crossed pizza cutters / rolling pins / kitchen knives
+
+Phase 13o-dedup: removed the redundant Django static mirror.
+
+- [x] Refactored 3 thumbnail tests (spatial/typography/font-combination) to point at frontend-ui/public/ with skip-if-not-mounted (Docker container scenario)
+- [x] Deleted 75 PNGs under `django-app/design_app/static/design_app/thumbnails/` (~6 MB)
+- [x] Frontend-ui/public/ is now the single source of truth for thumbnail bundles
+
+---
+
+## Phase 13p — drop MaterialPicker from BuilderDialog (auto-from-style)
+
+- [x] 13p.1 Removed `<MaterialPicker>` mount from BuilderDialog "Visual Details" accordion
+- [x] 13p.2 Inline comment explains: slot now auto-filled from style.default_material via resolver fallback
+- [x] 13p.3 MaterialPicker.tsx retained as soft-deprecated component (not mounted anywhere)
+
+**Why:** style.default_material covers the typical user need; the explicit
+picker added choice paralysis without strong user-meaningful overrides.
+
+---
+
+## Phase 13q — REMOVE MATERIAL slot completely (end-to-end)
+
+After 13p UI-only removal, user feedback: material is **triple-redundant**
+in the rendered Gemini prompt:
+
+1. STYLE_DNA already describes texture (e.g. vintage_retro has "slight halftone shading on flat color fills")
+2. ARCHITECT_TEMPLATE_END commits to "screen print ready, hard edges, vector sharpness"
+3. Rule #10 in DESIGN_GEN_SYSTEM_PROMPT forbids gradients/glow/soft-shadows
+
+Adding a 4th texture sentence ("The graphics are made of …") created
+conflicting instructions that Gemini sometimes resolved by smearing
+gradients in violation of Rule #10.
+
+- [x] 13q.1 `MATERIAL_OPTIONS` const deleted (backend style_library.py + frontend slotOptions.ts mirror)
+- [x] 13q.2 `material_texture` slot dropped from SLOT_SCHEMA (9 → 8 entries)
+- [x] 13q.3 `default_material` field deleted from all 15 STYLE_LIBRARY entries (backend + frontend styleLibrary.ts mirror)
+- [x] 13q.4 `_resolve_slot` mapping no longer references `default_material`
+- [x] 13q.5 `niche_app.services.builder_hints` — material removed from LLM SYSTEM_PROMPT, JSON response shape, validation, alternates
+- [x] 13q.6 `BuilderSlots.material_texture` field removed from TypeScript type
+- [x] 13q.7 MaterialPicker.tsx + MaterialPicker.test.tsx deleted (no remaining importers)
+- [x] 13q.8 Test updates: removed `test_material_count` / `test_every_default_material_in_options`, SLOT_SCHEMA count 9 → 8, DEFAULT_FIELDS dropped to 3 (was 4)
+
+Style_DNA is now the single source of truth for design texture.
+
+---
+
+## Phase 13r — Add Comic Book style (clean American comic, no shading)
+
+User feedback: STYLE_LIBRARY was missing a classic comic-book aesthetic
+distinct from `cartoon` (Saturday-morning animation with cel-shading) and
+`halftone_print` (pop-art with halftone-dot FILLS). Marvel/DC-style bold
+inked outlines + action-line accents + flat saturated colors had no slot.
+
+- [x] 13r.1 New `comic_book` STYLE_LIBRARY entry (#16)
+- [x] 13r.2 Frontend mirror in styleLibrary.ts
+- [x] 13r.3 Thumbnail (`/style-thumbnails/comic_book.png`) generated via existing generate_style_thumbnails.py — taco mascot in clean American comic style, 110 KB
+- [x] 13r.4 default_typography_id = `chunky_cartoon_block_gloss`, default_spatial_id = `subject_portrait_with_caption`
+- [x] 13r.5 Test count assertion bumped: `test_fifteen_styles` → `test_sixteen_styles`
+- [x] 13r.6 Frontend StylePickerModal test bumped: `15 style cards` → `16 style cards`
+
+**Key constraint in prompt_suffix + default_style_dna:** explicit "NO cel-shading
+AND NO halftone-dot shading" — preserves the comic-book LINE aesthetic without
+the SHADING that would conflict with style_dna / Rule #10.
+
+---
+
+## Phase 13s — REMOVE TEXT_SEGMENTATION slot (end-to-end)
+
+After 13q material removal, user observed the same redundancy pattern in
+`text_segmentation`: the slot prescribes how text is segmented across the
+design (centered / split top-bottom / headline+subtitle / 3-line stack / etc.),
+but `spatial_configuration` **already** prescribes this for most of the 43
+spatial layouts:
+
+| spatial | already prescribes |
+|---|---|
+| `vertical_stack` | "text sits above AND below" = text-seg #2 |
+| `headline_top_subtitle_bottom` | = text-seg #3 verbatim |
+| `stacked_word_block` | "stacked text lines, central emphasis largest" = text-seg #4 |
+| `big_word_tiny_tag` | "Single dominant word + tiny subtitle" = text-seg #3 |
+| `banner_top` | "banner ribbon carrying primary text" = text-seg #5 |
+
+→ text_segmentation was redundant with spatial. Same Material story.
+
+- [x] 13s.1 `TEXT_SEGMENTATION_OPTIONS` const deleted (backend + frontend mirror)
+- [x] 13s.2 `text_segmentation` slot dropped from SLOT_SCHEMA (8 → 7 entries)
+- [x] 13s.3 `BuilderSlots.text_segmentation` field removed from TypeScript type
+- [x] 13s.4 `TextSegmentationPicker.tsx` + test deleted (no remaining importers)
+- [x] 13s.5 `<TextSegmentationPicker>` mount removed from BuilderDialog "Layout & Composition" accordion
+- [x] 13s.6 Test updates: removed `test_text_segmentation_count`, SLOT_SCHEMA count 8 → 7, EXPECTED_KEYS list reduced
+
+SLOT_SCHEMA now has 7 entries:
+spatial → visual → typography → font_combination → accessories → style_dna → extra_context
+
+Spatial is now the single source of truth for text segmentation.
+
+---
