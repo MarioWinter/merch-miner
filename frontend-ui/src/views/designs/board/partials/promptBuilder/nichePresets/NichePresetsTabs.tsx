@@ -14,6 +14,8 @@ import {
 } from '@/services/presetCardsApi';
 import TopCardsGrid from './TopCardsGrid';
 import BestOfMixRow from './BestOfMixRow';
+import HistoryGrid from './HistoryGrid';
+import CustomGrid from './CustomGrid';
 
 type TabKey = 'vorschlaege' | 'history' | 'custom';
 
@@ -102,16 +104,8 @@ const NichePresetsTabs = ({ nicheId }: NichePresetsTabsProps) => {
             {t('designForge.builder.nichePresets.tabs.placeholderNoNiche')}
           </Alert>
         ))}
-      {active === 'history' && (
-        <Alert severity="info">
-          {t('designForge.builder.nichePresets.tabs.placeholderHistory')}
-        </Alert>
-      )}
-      {active === 'custom' && (
-        <Alert severity="info">
-          {t('designForge.builder.nichePresets.tabs.placeholderCustom')}
-        </Alert>
-      )}
+      {active === 'history' && <HistoryGrid />}
+      {active === 'custom' && <CustomGrid />}
     </Box>
   );
 };

@@ -2319,26 +2319,33 @@ with passing tests + an isolated commit. **DO NOT batch commits across phases.**
 
 **Scope-lock:** History + Custom tab content. NO Confirm-Dialog.
 
-- [ ] 13t-k.1 `HistoryGrid.tsx` — renders cards from `getHistory()` query in responsive
+- [x] 13t-k.1 `HistoryGrid.tsx` — renders cards from `getHistory()` query in responsive
   Grid. Each card's `bottomActions` slot = `<IconButton>` (`BookmarkBorderIcon` →
   triggers `promoteCustom` mutation). Each card's `topRightChip` shows
   `source_card_type` badge ("Top", "Mix · Most-Common", etc.) + source-niche chip with
   `+N more` overflow per AC-100. Empty-state Alert per AC-99.
-- [ ] 13t-k.2 `CustomGrid.tsx` — same pattern as HistoryGrid but card actions =
+  — `nichePresets/HistoryGrid.tsx:1-157`
+- [x] 13t-k.2 `CustomGrid.tsx` — same pattern as HistoryGrid but card actions =
   `IconButton(DeleteOutlineIcon)` triggering `window.confirm` + `removeCustom`
   mutation. `topRightChip` shows `custom_promoted_by` username per AC-104.
   Empty-state Alert per AC-106.
-- [ ] 13t-k.3 Wire `<HistoryGrid/>` + `<CustomGrid/>` into respective tabs of
+  — `nichePresets/CustomGrid.tsx:1-149`
+- [x] 13t-k.3 Wire `<HistoryGrid/>` + `<CustomGrid/>` into respective tabs of
   `NichePresetsTabs.tsx`. Add tab count badges (`N/50` for History, `N` for Custom)
   derived from query results.
-- [ ] 13t-k.4 Promote success → notistack `enqueueSnackbar` (variant=success) per AC-98.
+  — `nichePresets/NichePresetsTabs.tsx:17-18,107-108` (badges already wired in 13t-i lines 64-91)
+- [x] 13t-k.4 Promote success → notistack `enqueueSnackbar` (variant=success) per AC-98.
   Delete success → notistack snackbar (variant=info). All user-visible strings via i18n.
-- [ ] 13t-k.5 RTK Query `invalidatesTags`: confirm-mutation invalidates `History`;
+  — `HistoryGrid.tsx:47-60`, `CustomGrid.tsx:36-55`, i18n keys in `de/translation.json` + `en/translation.json` `designForge.builder.nichePresets.*`
+- [x] 13t-k.5 RTK Query `invalidatesTags`: confirm-mutation invalidates `History`;
   promote invalidates `Custom`+`History`; remove invalidates `Custom`.
-- [ ] 13t-k.6 Vitest tests for both grids. Cover: promote click → mutation fires +
+  — verified pre-wired in `services/presetCardsApi.ts:54,62,70` (no changes needed)
+- [x] 13t-k.6 Vitest tests for both grids. Cover: promote click → mutation fires +
   toast appears; delete confirms via `window.confirm` + mutation + toast; source-chip
   overflow renders `+N more`.
-- [ ] 13t-k.7 `npm run test:ci` green. ESLint clean.
+  — `__tests__/HistoryGrid.test.tsx` (7 tests) + `__tests__/CustomGrid.test.tsx` (8 tests)
+- [x] 13t-k.7 `npm run test:ci` green. ESLint clean.
+  — nichePresets/ 38 tests pass (23 prior + 7 HistoryGrid + 8 CustomGrid); tsc clean; build clean; new files have no lint warnings
 
 **Commit message:** `feat(PROJ-34): phase 13t-k — History + Custom tabs UI with promote/delete actions`
 
