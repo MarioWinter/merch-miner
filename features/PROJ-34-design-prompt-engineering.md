@@ -455,6 +455,476 @@ identically to built-ins.
   the first time the preset loads, and offers a one-click "Pick a replacement" CTA that
   opens the SpatialPickerModal.
 
+---
+
+## Phase 13t — Niche-Reference Preset Picker (Cards + Best-of-Mix + History + Custom)
+
+**Status:** Planned (spec written 2026-05-20)
+**Branch:** `feature/PROJ-34-design-prompt-engineering` (continues)
+**Scope estimate:** ~1100–1400 LOC (backend ~450, frontend ~950 incl. CustomTypography UI debt from Phase 13i)
+
+### Motivation
+
+Phase 13a–13s built a functional form-based Architect Builder with 7 slots. The
+Niche-LLM (Phase 13c) currently pre-fills only **3 of 7 slots** (spatial, visual,
+accessories). The remaining 4 slots (typography_adjectives, font_combination, style_dna,
+extra_context) rely on style-defaults or empty user input — niche context never reaches
+them. Worse, the rich `NicheProductEmotionalAnalysis` (tone, vibe, customer_psychology,
+adaptation_formula) and aggregated `NicheAnalysis` (dominant_design_aesthetics,
+pattern_analysis, design_concepts) fields are completely unused.
+
+Phase 13t closes this gap **without** expanding the LLM-Slot-Suggestion mechanism (which
+was rejected — Approach A from discussion). Instead it introduces a **visual
+Reference-Preset Picker** at the top of the BuilderDialog: the user sees the actual
+analyzed niche-products + 3 synthetic "Best-of-Mix" cards, clicks one, gets a
+Confirm-Dialog preview, and (on confirm) all 7 slots are replaced atomically.
+
+### User Stories (Phase 13t)
+
+- **As a POD designer with an active Niche context**, I want to see the **10 best-selling
+  analyzed products of the niche** as visual cards at the top of the BuilderDialog so I
+  can quickly start designing from a proven, real-world pattern.
+
+- **As a POD designer**, I want to see **3 "Best-of-Mix" synthetic cards** ("Most-Common",
+  "Edgy", "Safe") per niche that aggregate insights from ALL niche analyses, so I can
+  explore creative variations distilled from the entire niche corpus rather than copying
+  one specific product.
+
+- **As a POD designer**, when I click any Card, I want a **Confirmation Dialog** showing
+  exactly what will fill each of my 7 builder slots, so I never accidentally overwrite my
+  current work without seeing it first.
+
+- **As a POD designer**, I want a **History tab** of presets I've confirmed, persisting
+  across niches, so I can re-apply favorites when working on a different niche later.
+
+- **As a POD designer**, I want to **promote favorite History presets to a Custom
+  collection** so they survive the 50-cap LRU eviction and remain available indefinitely.
+
+- **As a POD designer**, when a Niche-Preset's typography / font-combination / style
+  doesn't match any of our built-in library entries, I want the **raw extracted text in
+  the slot's input field (editable)** so the design still uses that niche-specific
+  aesthetic — without contaminating the shared built-in template library.
+
+- **As a POD designer**, I want the **"Aus der Niche" Accordion section default-expanded**
+  on BuilderDialog open so presets are visible immediately without an extra click.
+
+- **As a POD designer**, I want to **delete Custom entries** I no longer want.
+
+- **As a POD designer working in a workspace team**, I want **Custom entries to be
+  workspace-scoped** so my teammates and I share the same curated collection.
+
+- **As a POD designer**, I want a **"Neu berechnen" button on the Best-of-Mix card row**
+  so I can regenerate the 3 mix variants if the current ones don't inspire me.
+
+- **As a POD designer**, I want to **manually create CustomTypography entries via
+  reference image** (the Phase 13i frontend debt) — independent of niche cards.
+
+- **As a POD designer working on a standalone design (no niche linked)**, I want the
+  "Vorschläge" tab to show a helpful empty state while History + Custom remain fully
+  functional cross-niche.
+
+### Acceptance Criteria (Phase 13t)
+
+#### Schicht 14 — Accordion + Tabs UI
+
+- [ ] AC-79: A new collapsible `Accordion` section titled **"Aus der Niche"** is rendered
+  at the **TOP** of `BuilderDialog.tsx` — above all existing sections (Slogans, Styles,
+  Layout & Composition, Visual Details, Niche & Extra).
+- [ ] AC-80: ALL Accordion sections in BuilderDialog (existing + new) default to
+  **expanded=true** on dialog open. State is per-session (resets on close/reopen).
+- [ ] AC-81: The "Aus der Niche" section contains an MUI v7 `Tabs` component with exactly
+  3 tabs in fixed order: **`Vorschläge`** (with count badge `N/13`), **`History`** (with
+  count badge `N/50`), **`Custom`** (with count badge). Tab navigation preserves scroll
+  position within each tab.
+
+#### Schicht 15 — Vorschläge Tab (Top-10 + Best-of-Mix)
+
+- [ ] AC-82: The Vorschläge tab shows up to 10 **Top-Cards** representing real
+  `NicheProductVisionAnalysis` rows for the current niche, ranked by:
+  `score = 0.45 × rating_score + 0.40 × bsr_score + 0.15 × recency_score`
+  where
+    `rating_score = rating × min(review_count, 100) / 500`,
+    `bsr_score = 1 / log10(BSR + 10)` (lower BSR → higher score),
+    `recency_score = exp(-days_since_pub / 180)`.
+  Pre-filter `brand_blocked=False AND is_niche_match=True` BEFORE ranking. Weights live
+  as constants in `settings.py` so they can be tuned without code change.
+- [ ] AC-83: Each Top-Card thumbnail = the analyzed product's primary image
+  (`NicheProductVisionAnalysis.product.image_url` or equivalent). Label below thumbnail
+  = a 2–4 word auto-generated preset label derived from slogan + key visual element
+  (e.g. "Vintage Skull Plumber"). Sorting follows the ranking score (highest first).
+- [ ] AC-84: Below the Top-10 grid, a **second row** renders exactly 3 **Best-of-Mix
+  Cards** labelled **"Most-Common Mix"**, **"Edgy Mix"**, **"Safe Mix"**. Order is fixed.
+  Each mix is a synthetic preset (no single source product).
+- [ ] AC-85: Best-of-Mix generation uses `openai/gpt-4.1-mini` via OpenRouter (same model
+  as `niche_app.services.builder_hints`). The LLM aggregates from **all available**
+  `NicheProductVisionAnalysis` rows (visual_style, graphic_elements, layout_composition,
+  meaning_context, slogan_text) + all `NicheProductEmotionalAnalysis` rows (tone,
+  customer_psychology, emotional_pattern, vibe, key_elements, adaptation_formula) + the
+  single `NicheAnalysis` row (dominant_design_aesthetics, design_concepts,
+  primary_emotions, pattern_analysis). Exact system prompt + JSON schema documented in
+  **Appendix S of the tasks file** (to be written by /architecture — Appendix R is
+  taken by the Phase 13a Thumbnail Generation Script).
+- [ ] AC-86: Each Best-of-Mix variant produces a complete 7-slot bundle (same shape as
+  Top-Cards). Variant intent: **Most-Common** = highest-frequency patterns across niche;
+  **Edgy** = riskier/punchier slogans + bolder composition; **Safe** = broadly appealing,
+  conservative slogan tone + neutral composition.
+- [ ] AC-87: A new JSONField `Niche.best_of_mix_cache` persists the 3 generated Mix
+  presets per niche, keyed by variant (`{ "most_common": {...}, "edgy": {...}, "safe":
+  {...}, "generated_at": iso }`). The first request after Niche-Research-completion
+  triggers generation and stores the result. Subsequent BuilderDialog opens read from
+  cache (no LLM call).
+- [ ] AC-88: Each Best-of-Mix Card thumbnail = a server-rendered **collage of the top-3
+  ranked Niche-products** (same top-3 for all 3 variants — fixed). Collage layout: 3
+  thumbnails arranged horizontally, 4:3 aspect, generated once and cached at
+  `frontend-ui/public/best-of-mix-collages/{niche_id}.webp` OR streamed via a backend
+  endpoint. Decision: **served via backend endpoint** to avoid bundling user content
+  in /public.
+- [ ] AC-89: A **"Neu berechnen"** button (MUI `IconButton` with refresh icon) sits in
+  the Best-of-Mix card row header. Click invalidates `Niche.best_of_mix_cache`, triggers
+  re-generation (workspace-isolated rate limit: max 5 regens/hour per niche per user),
+  and refreshes the 3 cards. Loading state: cards show MUI `Skeleton` placeholders
+  (Skeleton-Loading bevorzugt — `feedback_skeleton_over_spinner`).
+- [ ] AC-90: When Best-of-Mix is generated (first time OR regen), all 3 variants are
+  **automatically inserted into the workspace History** (`source_card_type` = one of
+  `mix_most_common` / `mix_edgy` / `mix_safe`). This is the only path where History
+  entries appear without user Confirm.
+- [ ] AC-91: Empty-state for Vorschläge tab when niche has 0 analyzed products with
+  `is_niche_match=True AND brand_blocked=False` → render an `Alert` (`severity="info"`)
+  with text: *"Diese Niche hat noch keine analysierten Produkte. Starte zuerst die
+  Niche-Recherche, oder nutze History / Custom."* + a CTA button "Zur Niche-Recherche"
+  that navigates to the Niche detail page.
+
+#### Schicht 16 — History Tab (LRU + Hash-Dedup)
+
+- [ ] AC-92: History is **workspace-scoped** with a hard cap of **50 presets per
+  workspace** (constant `NICHE_PRESET_HISTORY_CAP = 50` in `settings.py`). Cap counts
+  ALL entries regardless of source niche.
+- [ ] AC-93: History is **cross-niche visible** — every History entry is shown to every
+  workspace member regardless of which niche they're currently working in. The History
+  tab also displays a small chip per entry indicating the source niche name (clickable to
+  navigate to that niche).
+- [ ] AC-94: When the cap (50) is reached and a new entry must be inserted, the
+  **least-recently-clicked** entry (by `last_clicked_at`) is evicted. If a tie exists on
+  `last_clicked_at`, the entry with the **older `created_at`** is evicted first.
+  Eviction is hard-delete (the row is removed from the DB), NOT soft-delete.
+- [ ] AC-95: A **Top-Card** preset lands in History **only** when the user clicks
+  "Bestätigen" in the Confirm-Dialog. Clicking the card itself (opening the dialog) does
+  NOT create a History entry. Cancelling the dialog does NOT create a History entry.
+- [ ] AC-96: Hash-dedup uses **SHA256 over the normalized bundled-preset text** — defined
+  as the JSON serialization of the 7 slot values (sorted keys, NFKD-normalized, lowercased
+  for non-slug fields). If a hash collision matches an existing History/Custom entry
+  in the same workspace, NO new entry is created; instead the existing entry's
+  `source_card_references` array (list of `{niche_id, product_id}` tuples) is appended
+  with the new source.
+- [ ] AC-97: When a dedup hit occurs, the existing entry's `last_clicked_at` is updated
+  to `now()` (so it moves to the top of the LRU order, regardless of which niche
+  triggered the hit).
+- [ ] AC-98: Each History entry renders an action button **"In Custom speichern"**
+  (MUI `IconButton` with bookmark icon) that promotes the preset to the Custom tab.
+  After promotion, the entry **remains in History** AND appears in Custom — they are
+  distinct rows (not a single shared row with a flag). A toast `enqueueSnackbar` confirms
+  the promotion.
+- [ ] AC-99: Empty-state for History tab (workspace has 0 History entries) → render an
+  `Alert` (`severity="info"`) with text: *"Bestätige einen Vorschlag um die History zu
+  füllen."* + a small illustration (MUI icon).
+- [ ] AC-100: History entries display a chip with the source-card-type:
+  `"Top"` (default — single source product), `"Mix · Most-Common"`, `"Mix · Edgy"`,
+  `"Mix · Safe"`. Top-cards from multiple niches (via dedup) show a `"+N more"` chip.
+
+#### Schicht 17 — Custom Tab (Workspace-Promoted)
+
+- [ ] AC-101: Custom is **workspace-scoped** with **no cap** — entries persist
+  indefinitely until manually deleted.
+- [ ] AC-102: The only path INTO Custom is the "In Custom speichern" promote button on a
+  History entry (AC-98). There is no separate "create new" action in the Custom tab UI
+  (manual preset creation is OUT OF SCOPE for 13t).
+- [ ] AC-103: Each Custom entry shows a **"Löschen"** button (MUI `IconButton` with
+  trash icon). Click opens a `window.confirm()` dialog ("Custom-Eintrag entfernen?") —
+  on confirm, the Custom row is hard-deleted. The corresponding History row (if still
+  present) is NOT affected.
+- [ ] AC-104: Custom entries display a workspace-attribution chip showing the username
+  of the promoter (e.g. `"☆ Promoted by Mario"`). This is FYI only — any workspace
+  member can delete any Custom entry (no per-user permissions).
+- [ ] AC-105: Custom entries are **independent** of the History row they were promoted
+  from. If the History row is LRU-evicted, the Custom row survives unchanged (same data,
+  same hash, just persisted in a separate table or with a `is_custom_promoted=True`
+  flag — exact storage decision deferred to /architecture).
+- [ ] AC-106: Empty-state for Custom tab → render an `Alert` (`severity="info"`):
+  *"Speichere History-Einträge unter Custom um sie dauerhaft zu behalten."*
+
+#### Schicht 18 — Confirm-Dialog Flow
+
+- [ ] AC-107: Click on ANY Card (Top, Mix, History, Custom) opens a **modal Confirm-Dialog**
+  (`@mui/material` `Dialog`, `maxWidth="md"`) titled `"Preset übernehmen?"`. Body shows:
+  reference thumbnail (left, 200px wide) + read-only preview of all 7 slot values
+  (right column, labelled rows). Each slot value shows the resolved built-in label OR
+  the raw-override text (with an "Raw" chip).
+- [ ] AC-108: The Confirm-Dialog footer has exactly 2 buttons: **"Bestätigen"** (primary,
+  filled, right-aligned) + **"Cancel"** (text, left-aligned). No editing affordances
+  in the dialog (slot values are read-only here).
+- [ ] AC-109: Clicking **Bestätigen** atomically replaces ALL 7 slot values in the
+  BuilderDialog form state (Redux/local state, depending on current builder
+  architecture — `Replace-All` semantics). Existing user edits are overwritten without
+  further confirmation. Dialog closes. A toast `enqueueSnackbar` confirms the apply
+  (variant=`success`).
+- [ ] AC-110: Clicking **Cancel** (or backdrop click, or ESC key) closes the Dialog with
+  NO changes to BuilderDialog state.
+- [ ] AC-111: After Bestätigen, the user can freely edit any slot in the BuilderDialog
+  (built-in pickers + text-override fields work as before — slots are not locked).
+  Card click is a one-shot pre-fill, NOT a binding.
+- [ ] AC-112: When a Top-Card is Bestätigen'd, a History row is created (or dedup-hit
+  updates an existing row's `last_clicked_at`). When a History/Custom/Mix card is
+  Bestätigen'd, the corresponding row's `last_clicked_at` is updated to `now()` and
+  the row's LRU position changes.
+
+#### Schicht 19 — Style/Font Mapping (Built-in vs Raw-Override)
+
+- [ ] AC-113: Built-in template libraries — **22 Typography Options**, **10 Font-Combination
+  Options**, **16 Styles**, **43 Spatial Options**, **6 Accessories Options** — are
+  NEVER modified, extended, or shadowed by this feature. No new entries are created in
+  any of those libraries from niche-extracted data.
+- [ ] AC-114: For each of the 5 mappable slots (`spatial_configuration`,
+  `typography_adjectives`, `font_combination`, `accessories`, `style_dna`) the
+  preset-generation pipeline runs a **matching algorithm** against the corresponding
+  built-in option list:
+    1. Extract raw text from the source data (single product analysis for Top-Card; LLM
+       aggregate for Mix).
+    2. Normalize (lowercase, strip punctuation, tokenize).
+    3. Score each built-in option by token overlap with `prompt_text + label` of the
+       option (Jaccard similarity or simple containment — exact algorithm + threshold
+       deferred to /architecture, candidate threshold = **≥0.55 Jaccard**).
+    4. If best-match score ≥ threshold → store **built-in id** as slot value and set
+       `is_raw_override=False`.
+    5. Else → store the raw extracted text (truncated to a slot-appropriate length:
+       spatial ≤200 chars, typography ≤120, font_combination ≤120, accessories ≤100,
+       style_dna ≤200) and set `is_raw_override=True`.
+- [ ] AC-115: `visual_description` (free text 60–120 words) and `extra_context` (free text)
+  always use raw extraction → `is_raw_override=True` is structurally implied (there are
+  no built-in options to map to). The 60–120 word range is enforced for Mix-generation
+  via LLM constraint; Top-Card extraction is best-effort (clamped to ≤200 words).
+- [ ] AC-116: When `is_raw_override=True` for a slot, the BuilderDialog after Bestätigen
+  shows:
+    - The slot's Picker-Modal button label = `"Custom override"` (or equivalent visual
+      indicator that no built-in is selected).
+    - The slot's text-override field (where applicable: spatial has it, typography has it,
+      font_combination has it, accessories has freeSolo autocomplete) is populated with
+      the raw text.
+- [ ] AC-117: Picker-Modals (`TypographyPickerModal`, `FontCombinationPickerModal`,
+  `SpatialPickerModal`, `StylePickerModal`) get **NO new tabs** from Phase 13t. Their
+  existing Built-in tabs + Custom tabs (for CustomSpatial / future CustomTypography)
+  remain unchanged.
+- [ ] AC-118: `ARCHITECT_TEMPLATE_START`, `ARCHITECT_TEMPLATE_END`, the 7-slot
+  `SLOT_SCHEMA`, and the per-slot resolution chains in `prompt_builder.py` are
+  UNCHANGED by Phase 13t.
+
+#### Schicht 20 — Preset Data Model
+
+- [ ] AC-119: A new model `NicheCardPreset` (Django app: `design_app` or new
+  `niche_preset_app` — decided in /architecture) with these fields:
+    - `id` (UUID PK)
+    - `workspace` (FK to `Workspace`, `on_delete=CASCADE`, `db_index=True`)
+    - `preset_hash` (CharField(64), `db_index=True` — SHA256 hex)
+    - `preset_label` (CharField(200) — auto-generated)
+    - 7 slot value fields (each CharField/TextField as appropriate):
+      `slot_spatial_configuration`, `slot_visual_description`,
+      `slot_typography_adjectives`, `slot_font_combination`, `slot_accessories`,
+      `slot_style_dna`, `slot_extra_context`
+    - 7 raw-override flags: `spatial_is_raw`, `visual_is_raw`, `typography_is_raw`,
+      `font_combination_is_raw`, `accessories_is_raw`, `style_dna_is_raw`,
+      `extra_context_is_raw` — booleans
+    - `reference_thumbnail_url` (URLField or CharField(500))
+    - `source_card_type` (CharField with choices: `top`, `mix_most_common`,
+      `mix_edgy`, `mix_safe`)
+    - `source_card_references` (JSONField — list of `{niche_id: str, product_ids:
+      list[str]}` entries, append-only on dedup hits)
+    - `is_in_history` (Boolean, default=True)
+    - `is_in_custom` (Boolean, default=False)
+    - `custom_promoted_by` (FK to User, null=True, blank=True — set when promoted)
+    - `custom_promoted_at` (DateTimeField, null=True, blank=True)
+    - `last_clicked_at` (DateTimeField, default=now, `db_index=True`)
+    - `created_at` (DateTimeField, auto_now_add=True)
+    - `updated_at` (DateTimeField, auto_now=True)
+  Unique constraint: `(workspace, preset_hash)` — partial-unique enforced at DB level
+  for dedup.
+- [ ] AC-120: Migration is **additive only** — no changes to existing tables in this
+  Phase. `Niche.best_of_mix_cache` JSONField is added as a separate additive migration
+  on the existing `niche_app.Niche` table (defaults to `{}`, nullable=True).
+- [ ] AC-121: `preset_hash` is computed deterministically by a single function
+  `compute_preset_hash(slots_dict) -> str` (located in `design_app/services/`). It
+  serializes the 7 slot values in fixed order (per `SLOT_SCHEMA` render order) as JSON
+  with `sort_keys=True`, NFKD-normalizes strings, lowercases non-slug fields, and
+  SHA256-hexdigests the result.
+- [ ] AC-122: A new ViewSet `NicheCardPresetViewSet` (DRF `ModelViewSet`) exposes:
+    - `GET /api/designs/preset-cards/?niche_id=<uuid>` — list Vorschläge for niche
+      (returns 10 Top-Cards + 3 Mix-Cards as a single payload)
+    - `GET /api/designs/preset-cards/history/` — list workspace History (ordered by
+      `last_clicked_at` desc, capped at 50)
+    - `GET /api/designs/preset-cards/custom/` — list workspace Custom (uncapped)
+    - `POST /api/designs/preset-cards/confirm/` — body `{ preset_id: str }` → updates
+      `last_clicked_at`, runs hash-dedup if not yet in workspace, returns final preset
+      payload to apply to slots
+    - `POST /api/designs/preset-cards/{id}/promote-custom/` — sets `is_in_custom=True`
+    - `DELETE /api/designs/preset-cards/{id}/custom/` — sets `is_in_custom=False`
+      (NOT a row delete; row remains in History until LRU-evicted)
+    - `POST /api/designs/preset-cards/regenerate-mix/` — body `{ niche_id: str }` →
+      invalidates `best_of_mix_cache`, regenerates, returns new 3 mixes (rate-limited
+      per AC-89)
+  All endpoints require `IsAuthenticated` + workspace isolation (via `X-Workspace-Id`
+  header per `_get_workspace_id` pattern from CLAUDE.md). Endpoints are auto-throttled
+  by DRF defaults.
+
+#### Schicht 21 — CustomTypography UI (Phase 13i Frontend Debt)
+
+- [ ] AC-123: The `TypographyPickerModal` gains a **"Create new"** tab alongside its
+  existing "Built-in" tab (and any existing tabs from prior phases). The Create-new tab
+  contains a `CustomTypographyCreator` component analogous to `CustomSpatialCreator`
+  (built in Phase 13d/f).
+- [ ] AC-124: The Create-new flow lets the user:
+    - (a) Upload a reference image (jpg/png/webp, max 10 MB)
+    - (b) Pick from `ProjectReference[]` of the current Design Project (reuse
+      `useGetProjectReferencesQuery`)
+    - (c) Pick from generated `Design[]` of the current project
+- [ ] AC-125: On reference-image select → frontend calls the existing endpoint
+  `POST /api/designs/typographies/custom/analyze/` (Phase 13i backend, commit ce392a1)
+  → shows the LLM's returned `prompt_text` in an editable `TextField` → user enters a
+  name → Save button POSTs the create endpoint → the new CustomTypography appears in
+  the "Custom" sub-tab of `TypographyPickerModal` AND is auto-selected for the current
+  slot.
+- [ ] AC-126: CustomTypography entries are workspace-shared (Phase 13i backend already
+  enforces this).
+- [ ] AC-127: CustomTypography UI is **INDEPENDENT** of Niche-Preset-Picker flow.
+  Bestätigen on a niche-card NEVER creates a CustomTypography entry — non-matching
+  typography from a niche-preset always uses the raw-text-override path (per AC-115).
+  CustomTypography is purely a user-initiated, reference-image-driven flow.
+- [ ] AC-128: The CustomTypography "Custom" sub-tab also exposes a delete affordance per
+  entry (same pattern as CustomSpatial from Phase 13d). Soft-delete (`is_deleted=True`)
+  per existing backend convention.
+
+### Edge Cases (Phase 13t)
+
+- [ ] EC-33: Current niche has 0 analyzed products meeting filter (`is_niche_match=True
+  AND brand_blocked=False`) → Vorschläge tab shows empty-state per AC-91. Best-of-Mix
+  cards still attempt to generate (LLM with empty input → returns a `null` result; UI
+  shows "Nicht genug Daten" per Mix card).
+- [ ] EC-34: Niche has 1–9 analyzed products meeting filter → render exactly as many
+  Top-Cards as available (no padding, no placeholders). Best-of-Mix still generates if
+  ≥1 product is available, otherwise EC-33 applies.
+- [ ] EC-35: Best-of-Mix LLM call fails (timeout >30s, HTTP 5xx, malformed JSON
+  response) → if `best_of_mix_cache` has a previous successful result, fall back to it
+  with a small chip on the cards "Cached (LLM failed)". If no previous cache exists →
+  show error state per Mix card with a "Erneut versuchen" button.
+- [ ] EC-36: SHA256 hash collision between two *different* presets (mathematically
+  improbable at 2^256 entropy, but specified) → the second insert is treated as a
+  dedup hit (intentional — the cost of an incorrect dedup is negligible vs. the
+  complexity of collision detection). Document this as accepted risk in the
+  architecture doc.
+- [ ] EC-37: LRU eviction has 2+ candidates with identical `last_clicked_at` → tie-break
+  by `created_at` ascending (oldest creation evicted first). If both timestamps are
+  exactly equal (clock-skew artifact), tie-break by `id` ascending.
+- [ ] EC-38: Concurrent promote-then-delete race: user A promotes preset to Custom while
+  user B deletes the same Custom entry — last-write-wins on `is_in_custom`. The
+  endpoint returns 200 either way; no special locking required. Frontend re-fetches
+  Custom list on next tab focus to reconcile.
+- [ ] EC-39: Niche is re-researched (PROJ-6 re-run) → existing History/Custom presets
+  referencing old `product_ids` REMAIN valid. The Niche may now have additional
+  analyses, but the preset's `source_card_references` still points to the (potentially
+  stale) original product UUIDs. If a referenced `product_id` no longer exists (e.g.
+  product purged), the History card UI shows a gray "Source unavailable" chip but the
+  preset itself remains fully usable.
+- [ ] EC-40: A workspace member deletes the source Niche while presets referencing it
+  exist in History/Custom → presets are NOT cascade-deleted. The source-niche chip
+  shows as "Niche removed" (greyed-out, non-clickable). Presets remain applicable.
+- [ ] EC-41: Per-slot raw-override flags are independent — e.g. a Top-Card may produce
+  `typography_is_raw=False` (good built-in match), `font_combination_is_raw=True` (no
+  match found), `style_dna_is_raw=True` (always raw). The BuilderDialog UI must
+  render each slot's state independently (no all-or-nothing assumption).
+- [ ] EC-42: User clicks a card while Best-of-Mix LLM is still generating (Mix cards
+  showing Skeleton) → Mix cards are click-disabled during generation; Top-Cards remain
+  clickable. After Mix generation completes, cards become clickable.
+- [ ] EC-43: Workspace already at 50 History entries, user Bestätigen's a new Top-Card →
+  the new preset is inserted, LRU-evicting the least-recently-clicked existing entry.
+  If the to-be-evicted entry has `is_in_custom=True`, only its `is_in_history` flag is
+  flipped to `False` (the row survives in Custom; no row deletion).
+- [ ] EC-44: User opens BuilderDialog without an active Niche-link (e.g. standalone
+  design via the design-board direct-add flow) → "Vorschläge" tab shows empty state
+  *"Wähle eine Niche um Vorschläge zu sehen."*; History + Custom tabs remain fully
+  populated and functional (cross-niche).
+- [ ] EC-45: Hash-dedup encounters a preset whose label/thumbnail differ from the
+  existing dedup-target (same 7-slot text, different source product) → the existing
+  entry's `source_card_references` is extended; the dedup-target's `preset_label`
+  and `reference_thumbnail_url` are NOT updated (the first preset to claim that hash
+  keeps its visual identity).
+- [ ] EC-46: User clicks "Neu berechnen" 6 times in 1 hour (exceeds AC-89 rate limit)
+  → endpoint returns HTTP 429 with `{ error: 'rate_limited', retry_after: <seconds> }`.
+  Frontend shows a snackbar (`variant="warning"`): *"Zu viele Regenerationen — versuche
+  es in X Minuten erneut."*
+- [ ] EC-47: CustomTypography reference-image upload exceeds 10 MB OR has unsupported
+  mime-type → backend returns HTTP 400 with `{ error: 'image_invalid', detail: '...' }`.
+  Frontend rejects client-side before upload (mirrors EC-30 from Phase 13).
+- [ ] EC-48: User clicks Bestätigen on a Custom preset that was concurrently deleted by
+  a teammate → backend returns HTTP 404. Frontend shows snackbar
+  (`variant="error"`): *"Preset wurde von einem Teamkollegen entfernt."* + re-fetches
+  Custom list.
+- [ ] EC-49: A preset's raw-override text exceeds the slot's allowed length (AC-114.5)
+  → backend truncation is applied during preset insert; truncation is silent (no
+  warning shown). The frontend never receives over-length raw-override text.
+
+### Out of Scope (Phase 13t)
+
+- Per-picker History/Custom tabs inside `TypographyPickerModal` etc. (rejected — only
+  the unified preset system at the top of BuilderDialog provides History/Custom).
+- Modifying `ARCHITECT_TEMPLATE_START`, `ARCHITECT_TEMPLATE_END`, or the 7-slot
+  `SLOT_SCHEMA`.
+- LLM expansion of `niche_app/services/builder_hints.py` to suggest `typography_id` or
+  `font_combination_id` (rejected — Approach A from discussion brings no
+  user-visible value).
+- Reference-image upload as a new preset source path (deferred — current 13t focuses
+  on derivations from existing niche-research data only).
+- Embedding-similarity dedup (deferred — SHA256 sufficient for MVP per AC-96).
+- Auto-generated Gemini Best-of-Mix thumbnails (deferred — using server-rendered
+  collage per AC-88).
+- Inline slot editing inside the Confirm-Dialog (deferred — edits happen in
+  BuilderDialog slots AFTER Bestätigen per AC-111).
+- Per-user-private Custom entries (rejected — workspace-scoped only per AC-101/AC-103).
+- Auto-promote frequently-clicked History to Custom (rejected — explicit user action
+  only per AC-102).
+- Cross-workspace preset sharing (out of scope — workspace isolation is sacred).
+- Mobile-specific Card layout (Phase 13t targets desktop BuilderDialog only;
+  responsive design follows the PROJ-30 schedule).
+- Best-of-Mix variant customization (the 3 variants — Most-Common / Edgy / Safe —
+  are hardcoded; no user configuration of mix "personas" in this Phase).
+
+### Dependencies (Phase 13t)
+
+- **Requires:** Phase 13a–13s shipped (current state on branch).
+- **Requires:** `niche_research_app.NicheProductVisionAnalysis` populated for the active
+  niche (PROJ-6 pipeline completed). Without it, only the empty-state path applies.
+- **Requires:** `niche_research_app.NicheProductEmotionalAnalysis` populated (PROJ-29 or
+  prior workflow). If missing, Best-of-Mix LLM input is limited to vision-only fields.
+- **Requires:** Phase 13i backend for CustomTypography (commit `ce392a1`). The frontend
+  UI for it (Schicht 21) is built fresh in this Phase.
+
+### Resolved Decisions (Phase 13t)
+
+| # | Decision | Outcome |
+|---|---|---|
+| 8 | Niche-data → Builder mechanism | Visual Reference-Card Picker (D), NOT LLM-Slot-Expansion (A) |
+| 9 | Top-Card ranking formula | `0.45·rating + 0.40·bsr + 0.15·recency` per AC-82 |
+| 10 | Best-of-Mix variant count | 3 (Most-Common, Edgy, Safe) per AC-84 |
+| 11 | Best-of-Mix thumbnail strategy | Server-rendered collage of top-3 ranked products per AC-88 |
+| 12 | History cap | 50 workspace-wide, LRU by last_clicked_at per AC-92/AC-94 |
+| 13 | History entry creation rule | Top-Cards: only on Confirm. Mix-Cards: auto on generation. Per AC-95/AC-90 |
+| 14 | Dedup mechanism | SHA256 over normalized preset text per AC-96 |
+| 15 | Custom promotion path | Explicit user action from History only per AC-102 |
+| 16 | Custom delete behavior | Soft per-row flag, History row survives per AC-103/AC-105 |
+| 17 | Style/Font mapping policy | Match → built-in id. No match → raw-text-override. Built-in libs NEVER modified. Per AC-113/AC-114 |
+| 18 | Accordion default state | All Accordions default-expanded per AC-80 |
+| 19 | Confirm-Dialog editing | Read-only preview. Edits happen in BuilderDialog slots after confirm. Per AC-108/AC-111 |
+| 20 | CustomTypography UI scope | Build the Phase 13i frontend debt in parallel with 13t (Schicht 21). Decoupled from niche-cards flow. |
+| 21 | BuilderDialog without Niche | Vorschläge empty-state; History/Custom fully functional cross-niche. Per AC-44 |
+
+---
+
 
 
 - **Backend:**
@@ -664,6 +1134,298 @@ The detailed checklist of tasks per phase lives in [`docs/tasks/PROJ-34-tasks.md
 1. **Polish model:** user requested `google/gemini-3.1-flash-lite` — that exact ID isn't on OpenRouter today. Proposal: use `google/gemini-2.5-flash-lite` (closest equivalent, same cost band). Confirm before Phase 4.
 2. **Migration ordering risk:** adding `background_color` to `DesignGenerationRun` is safe (defaults to `light_gray`). Existing rows backfill silently — no data loss, but old Runs will all show `light_gray` regardless of what they actually used.
 3. **Preset name uniqueness scope:** unique-per-project (not per-workspace) — two projects can both have "Set v1".
+
+---
+
+### Tech Design — Phase 13t (Niche-Reference Preset Picker)
+
+#### What we're building (in 3 sentences)
+
+A **visual reference-card layer** at the top of the BuilderDialog that lets POD
+designers click their way to a fully pre-filled 7-slot configuration — either from
+real bestselling niche products or from 3 LLM-synthesized "Best-of-Mix" variants
+(Most-Common / Edgy / Safe). A **workspace History** (50-cap LRU + SHA256 dedup) and
+a **Custom collection** (uncapped, promoted from History) carry favorites across niches.
+Plus the long-overdue **CustomTypography UI** (Phase 13i frontend debt) ships in
+parallel — independent of niche-cards, mirroring the proven CustomSpatial pattern.
+
+#### Component Tree (Prompt-Builder area — additions only)
+
+```
+BuilderDialog.tsx (existing — line 552)
++-- (NEW) NichePresetsAccordion       <- top of dialog, defaultExpanded
+|   +-- (NEW) NichePresetsTabs
+|       +-- "Vorschläge" Tab
+|       |   +-- (NEW) TopCardsGrid           — 10 cards, 5x2 desktop / 2x5 mobile
+|       |   |   +-- (NEW) NichePresetCard    — Card w/ image, label, click handler
+|       |   +-- (NEW) BestOfMixRow           — 3 cards w/ "Neu berechnen" header button
+|       |       +-- (NEW) NichePresetCard
+|       +-- "History" Tab
+|       |   +-- (NEW) PresetGrid (workspace-scoped, cross-niche)
+|       |       +-- (NEW) NichePresetCard    — with "★ Custom speichern" + source chip
+|       +-- "Custom" Tab
+|           +-- (NEW) PresetGrid (workspace-scoped)
+|               +-- (NEW) NichePresetCard    — with "🗑 Löschen" + promoter chip
++-- (existing 4 Accordions: Slogans / Styles / Layout&Composition / Visual Details / Niche&Extra
+    — defaultExpanded flag confirmed on all of them per AC-80)
++-- (NEW) NichePresetConfirmDialog   <- modal, opens on card click
+    +-- Reference thumbnail (left, 200px)
+    +-- Slot preview rows (right, read-only)
+    +-- "Bestätigen" + "Cancel" buttons
+
+TypographyPickerModal.tsx (existing — line 296, already has Tabs)
++-- (NEW) "Create new" Tab
+    +-- (NEW) CustomTypographyCreator         — mirrors CustomSpatialCreator pattern
+        +-- (NEW) CustomTypographyCreator.Step1 — image source picker
+        +-- (NEW) CustomTypographyCreator.steps — analyze + name + save
+        +-- (NEW) CustomTypographyCreator.shared — shared types/helpers
+```
+
+#### Data Model — new table + 1 extended
+
+**New table — `NicheCardPreset`** (workspace-scoped preset bundles):
+
+| Field | Type | Purpose |
+|---|---|---|
+| id | UUID | PK |
+| workspace | FK → Workspace (CASCADE, indexed) | Tenant isolation |
+| preset_hash | CharField(64), indexed | SHA256 hex over normalized slot bundle (AC-96) |
+| preset_label | CharField(200) | Auto-generated 2–4 word label |
+| slot_spatial_configuration | TextField | Slot 1 value (id OR raw text) |
+| slot_visual_description | TextField | Slot 2 value (free text 60–120 words) |
+| slot_typography_adjectives | TextField | Slot 3 value (id OR raw text) |
+| slot_font_combination | TextField | Slot 4 value (id OR raw text) |
+| slot_accessories | TextField | Slot 5 value (one of 6 OR raw text) |
+| slot_style_dna | TextField | Slot 6 value (raw text) |
+| slot_extra_context | TextField | Slot 7 value (free text, optional) |
+| spatial_is_raw | Boolean | True when no built-in match (AC-114) |
+| visual_is_raw | Boolean | Structurally always True (no built-in pool) |
+| typography_is_raw | Boolean | True when no built-in match |
+| font_combination_is_raw | Boolean | True when no built-in match |
+| accessories_is_raw | Boolean | True when not one of 6 verbatim options |
+| style_dna_is_raw | Boolean | Structurally always True |
+| extra_context_is_raw | Boolean | Structurally always True |
+| reference_thumbnail_url | CharField(500) | Niche-product image URL OR collage endpoint URL |
+| source_card_type | CharField(20) w/ choices | `top` / `mix_most_common` / `mix_edgy` / `mix_safe` |
+| source_card_references | JSONField | `[{niche_id, product_ids}, ...]` — append-only on dedup |
+| is_in_history | Boolean, default=True | LRU eviction sets this False if also in custom |
+| is_in_custom | Boolean, default=False | Set True on user promote |
+| custom_promoted_by | FK → User, nullable | Set on promote (AC-104 attribution chip) |
+| custom_promoted_at | DateTimeField, nullable | Set on promote |
+| last_clicked_at | DateTimeField, default=now, indexed | LRU sort key |
+| created_at | DateTimeField, auto_now_add | Audit |
+| updated_at | DateTimeField, auto_now | Audit |
+
+**Meta:**
+- `UniqueConstraint(fields=['workspace', 'preset_hash'], name='uniq_preset_hash_per_ws')`
+  — dedup enforcement at DB level
+- `ordering = ['-last_clicked_at']`
+- `indexes = [Index(fields=['workspace', 'is_in_history', '-last_clicked_at']),
+   Index(fields=['workspace', 'is_in_custom', '-custom_promoted_at'])]`
+
+**Extended table — `niche_app.Niche`** (add 1 field):
+
+| Field | Type | Purpose |
+|---|---|---|
+| best_of_mix_cache | JSONField, null=True, blank=True, default=dict | `{ "most_common": {...preset}, "edgy": {...preset}, "safe": {...preset}, "generated_at": iso, "top3_product_ids": [...] }` (AC-87) |
+
+**No changes to:**
+- `style_library.SLOT_SCHEMA` (7 slots — locked)
+- `ARCHITECT_TEMPLATE_START` / `ARCHITECT_TEMPLATE_END` — locked
+- Any of the 22 Typography / 10 FontCombination / 16 Styles / 43 Spatial / 6 Accessories
+  built-in option lists — locked
+- `prompt_builder.py` per-slot resolution chains — locked
+- `CustomSpatial`, `CustomTypography` models — used as-is
+
+#### API Endpoints (new — 6 + 1 thumbnail proxy)
+
+| Method | Path | Behavior |
+|---|---|---|
+| GET | `/api/designs/preset-cards/?niche_id=<uuid>` | Returns `{ top: [10 cards], best_of_mix: { most_common, edgy, safe }, top3_product_ids }`. Top-10 ranked via formula (AC-82). Best-of-Mix served from cache; triggers async LLM generation on cache-miss (returns `null` placeholders + 202 status so frontend can poll). |
+| GET | `/api/designs/preset-cards/history/` | Returns workspace History list (≤50, ordered by `last_clicked_at` desc). Includes per-card source-niche chip data. |
+| GET | `/api/designs/preset-cards/custom/` | Returns workspace Custom list (uncapped, ordered by `custom_promoted_at` desc). |
+| POST | `/api/designs/preset-cards/confirm/` | Body `{ preset_id: uuid }`. Updates `last_clicked_at=now()`. If preset NOT yet in workspace History (Top-Card path): inserts row, runs hash-dedup, enforces 50-cap LRU eviction. Returns the final preset payload. |
+| POST | `/api/designs/preset-cards/<id>/promote-custom/` | Sets `is_in_custom=True`, `custom_promoted_by=request.user`, `custom_promoted_at=now()`. Idempotent. |
+| DELETE | `/api/designs/preset-cards/<id>/custom/` | Sets `is_in_custom=False`. Row stays in History if `is_in_history=True`. Hard-deletes only when both flags are False (unreachable through normal flow). |
+| POST | `/api/designs/preset-cards/regenerate-mix/` | Body `{ niche_id: uuid }`. Invalidates `Niche.best_of_mix_cache`, regenerates 3 mixes via LLM, auto-inserts into History (AC-90). Rate-limited 5/hour/niche/user (per AC-89). |
+| GET | `/api/designs/preset-cards/collage/<niche_id>.webp` | Server-rendered collage of top-3 ranked products (AC-88). Cached at `MEDIA_ROOT/best_of_mix_collages/<niche_id>.webp` with 7-day stale-invalidation. |
+
+All endpoints: `IsAuthenticated` + workspace isolation via `X-Workspace-Id` header
+(`_get_workspace_id` pattern). Throttling: DRF default + custom per-user rate-limit for
+`regenerate-mix/` (Redis-backed via `django-rest-framework` ScopedRateThrottle).
+
+#### Tech Decisions
+
+| Decision | Choice | Why |
+|---|---|---|
+| Matching algorithm (raw → built-in) | **Jaccard token similarity** on normalized lower-cased tokens (label + prompt_text), threshold = **≥0.55** | Cheap, deterministic, no LLM dependency. Embedding-similarity overkill for MVP. Threshold tuned per-slot in Appendix U if needed. |
+| Hash normalization | **NFKD + lowercase non-slug + sorted JSON + SHA256-hex** | Deterministic, stdlib-only, collision-safe at 2^256. EC-36 accepts collision risk. |
+| Rate-limit storage | **Redis** via DRF ScopedRateThrottle + custom cache key `regen-mix:<workspace_id>:<niche_id>:<user_id>` | Redis already in stack (cache + queue); workspace+niche+user scoping prevents abuse without blocking team members. |
+| Collage rendering | **Pillow** (already in `requirements.txt` for thumbnail scripts) + `webp` output, 600×200 px (3× 200×200 cells), quality=85 | Pillow handles webp natively, no new dep. WebP is ~30% smaller than JPEG at same quality. |
+| Best-of-Mix LLM model | **openai/gpt-4.1-mini** via OpenRouter (same as `builder_hints.py`) | Proven for this codebase; `response_format={"type": "json_object"}` enforced; temperature=0.4 (slightly higher than builder_hints' 0.3 because Mix needs creative aggregation). |
+| Best-of-Mix caching | **JSONField on Niche** (NOT separate cache layer) | Persistence survives Redis flush. Cache is per-niche, not per-user, so Niche row is natural home. |
+| LRU eviction strategy | **DB-level on insert** (single transaction: DELETE WHERE history-only AND oldest last_clicked_at) | Synchronous, deterministic, no background job. Cap=50 → eviction cost negligible (~1ms). |
+| Hash dedup conflict resolution | **First-write-wins on label/thumbnail; append on source_card_references** | Stable visual identity for users who see the preset; new sources accrue silently in metadata. |
+| BuilderDialog state integration | **Direct setSlot dispatches** on Confirm (reuse existing `useBuilderDialogState` hook setters) — no new Redux slice required | Slots are local form-state; no global state pollution. RTK Query handles the server-side preset list independently. |
+| CustomTypography UI scope | **Mirror CustomSpatialCreator exactly** (Step1 → analyze → name → save) — only differs in API endpoint + slot label | Proven pattern, low cognitive load, zero new design decisions. |
+| Best-of-Mix on niche without `NicheProductEmotionalAnalysis` | **Degrade gracefully** — LLM gets vision-only data; Mix quality drops but doesn't fail | PROJ-29 may not have run yet on every workspace; resilience > perfection. |
+
+#### Service Layer (new files)
+
+| File | Responsibility | LOC est |
+|---|---|---|
+| `design_app/services/preset_hash.py` | `compute_preset_hash(slots_dict) -> str`. Pure function. SHA256. Tests via parametrized vectors. | ~80 |
+| `design_app/services/preset_matcher.py` | `match_slot_to_builtin(slot_key, raw_text) -> (id_or_none, is_raw)`. Jaccard per slot. Tests cover threshold behavior + each of 5 slot types. | ~180 |
+| `design_app/services/preset_ranker.py` | `rank_top_products(niche, limit=10) -> list[NicheProductVisionAnalysis]`. Pre-filter + weighted score per AC-82. | ~100 |
+| `design_app/services/top_card_builder.py` | `build_top_card_preset(vision_row, niche) -> dict`. Calls matcher per slot + sets `is_raw` flags + auto-generates `preset_label`. | ~140 |
+| `design_app/services/best_of_mix_generator.py` | `generate_best_of_mix(niche, force=False) -> dict`. Mirrors `niche_app/services/builder_hints.py` structure — OpenRouter + Langfuse + JSON validation. Loads vision + emotional + niche analysis. Validates 3-variant output. | ~340 |
+| `design_app/services/collage_renderer.py` | `render_collage_webp(product_ids: list[str]) -> bytes`. Pillow 600×200, 3 cells, webp. Caches to `MEDIA_ROOT/best_of_mix_collages/`. | ~110 |
+| `design_app/services/preset_persistence.py` | `upsert_preset(workspace_id, preset_dict, source_type, source_refs) -> NicheCardPreset`. Handles hash-dedup + LRU eviction in single transaction. | ~150 |
+
+**Existing files extended (minor):**
+
+| File | Change |
+|---|---|
+| `niche_app/models.py` | + `best_of_mix_cache = JSONField(null=True, blank=True, default=dict)` on `Niche` |
+| `design_app/models.py` | + `NicheCardPreset` model |
+| `design_app/api/serializers.py` | + `NicheCardPresetSerializer`, `PresetConfirmSerializer`, `PresetRegenerateSerializer` |
+| `design_app/api/views.py` | + `NicheCardPresetViewSet`, `RegenerateMixView`, `CollageView` |
+| `design_app/api/urls.py` | + 6 URL routes |
+| `frontend-ui/src/views/designs/board/partials/BuilderDialog.tsx` | + `NichePresetsAccordion` import + render at top; all existing `Accordion` → `defaultExpanded=true` |
+| `frontend-ui/src/views/designs/board/partials/promptBuilder/TypographyPickerModal.tsx` | + 3rd Tab "Create new" |
+| `frontend-ui/src/services/api.ts` (or wherever RTK Query slice lives) | + `presetCardsApi` slice with 6 endpoints |
+
+#### File Structure (what gets added)
+
+```
+django-app/
+  design_app/
+    services/
+      preset_hash.py            (NEW ~80)
+      preset_matcher.py         (NEW ~180)
+      preset_ranker.py          (NEW ~100)
+      top_card_builder.py       (NEW ~140)
+      best_of_mix_generator.py  (NEW ~340)
+      collage_renderer.py       (NEW ~110)
+      preset_persistence.py     (NEW ~150)
+    models.py                   (EXTEND — add NicheCardPreset)
+    api/
+      serializers.py            (EXTEND — add 3 serializers)
+      views.py                  (EXTEND — add ViewSet + 2 views)
+      urls.py                   (EXTEND — add 6 routes)
+    migrations/
+      0017_nichecardpreset.py   (NEW — atomic, additive)
+      0018_niche_bom_cache.py   (NEW — atomic, additive)
+    tests/
+      test_preset_hash.py       (NEW — parametrized vectors)
+      test_preset_matcher.py    (NEW — per-slot + threshold)
+      test_preset_ranker.py     (NEW — weighting + edge cases)
+      test_top_card_builder.py  (NEW)
+      test_best_of_mix_generator.py (NEW — mock LLM)
+      test_collage_renderer.py  (NEW)
+      test_preset_persistence.py(NEW — dedup + LRU)
+      test_preset_api.py        (NEW — 6 endpoint integration)
+
+frontend-ui/src/views/designs/board/partials/promptBuilder/
+  nichePresets/                 (NEW dir)
+    NichePresetsAccordion.tsx   (NEW ~120)
+    NichePresetsTabs.tsx        (NEW ~80)
+    TopCardsGrid.tsx            (NEW ~80)
+    BestOfMixRow.tsx            (NEW ~110 — incl. regen button)
+    HistoryGrid.tsx             (NEW ~90)
+    CustomGrid.tsx              (NEW ~90)
+    NichePresetCard.tsx         (NEW ~150 — shared card component)
+    NichePresetConfirmDialog.tsx(NEW ~180)
+    hooks/
+      useNichePresets.ts        (NEW ~80 — RTK Query wrappers + selectors)
+    __tests__/
+      NichePresetsAccordion.test.tsx (NEW)
+      NichePresetCard.test.tsx       (NEW)
+      NichePresetConfirmDialog.test.tsx (NEW)
+      useNichePresets.test.ts        (NEW)
+  CustomTypographyCreator.tsx        (NEW — mirror CustomSpatialCreator)
+  CustomTypographyCreator.Step1.tsx  (NEW)
+  CustomTypographyCreator.steps.tsx  (NEW)
+  CustomTypographyCreator.shared.tsx (NEW)
+  __tests__/
+    CustomTypographyCreator.test.tsx (NEW)
+
+frontend-ui/src/services/
+  presetCardsApi.ts             (NEW ~120 — RTK Query slice)
+  customTypographyApi.ts        (NEW ~80 — Phase 13i debt)
+
+frontend-ui/src/types/
+  nichePreset.ts                (NEW — TypeScript interfaces matching backend serializers)
+```
+
+#### Dependencies (new packages)
+
+**Backend:** NONE — all dependencies already in repo:
+- `Pillow` — already pinned (used by `scripts/generate_*_thumbnails*.py`)
+- `httpx` — already used by `builder_hints.py`
+- `langfuse` — already used
+- `django-rest-framework` — already used (ScopedRateThrottle in stdlib)
+
+**Frontend:** NONE — all dependencies already in repo:
+- MUI v7, RTK Query, react-hook-form, notistack, i18next — all current
+
+#### Performance
+
+- Preset Card list endpoint: **≤300ms** (cached top-10 + cached mixes; only DB fetch).
+- Best-of-Mix LLM generation (cold cache): **≤8s** (single OpenRouter call, gpt-4.1-mini, ~2k tokens out).
+- Collage rendering: **≤500ms** first request, cached thereafter (<10ms).
+- BuilderDialog open → Preset cards visible: **≤400ms** (don't block on Mix-cards if uncached — show Skeleton).
+- LRU eviction transaction: **≤5ms** (single DELETE + INSERT in same transaction).
+- Hash compute: **<1ms** per preset (SHA256 over <2KB JSON).
+
+#### Observability
+
+- Langfuse traces on every `generate_best_of_mix` call with `metadata.workspace_id`, `metadata.niche_id`, `metadata.regen_trigger` (auto / user).
+- Standard Django request logging on all 6 endpoints.
+- Console warnings: dedup collisions, LRU evictions, raw-override decisions (in DEBUG only).
+
+#### Browser Support
+
+Chrome, Firefox, Safari (current evergreen).
+
+#### Phase Plan — Phase 13t (15 sub-phases, ~1100–1400 LOC total)
+
+| Phase | Title | Files | LOC | Independently committable |
+|---|---|---|---|---|
+| 13t-a | Migrations — NicheCardPreset + Niche.best_of_mix_cache | 2 migrations | ~120 | ✓ |
+| 13t-b | preset_hash + preset_matcher services + tests | 2 svc + 2 tests | ~280 | ✓ |
+| 13t-c | preset_ranker + top_card_builder services + tests | 2 svc + 2 tests | ~280 | ✓ |
+| 13t-d | best_of_mix_generator service + Appendix S prompt + tests | 1 svc + 1 test | ~360 | ✓ |
+| 13t-e | collage_renderer service + endpoint + tests | 1 svc + 1 view + 1 test | ~180 | ✓ |
+| 13t-f | preset_persistence service (dedup + LRU) + tests | 1 svc + 1 test | ~210 | ✓ |
+| 13t-g | DRF serializers + ViewSet (6 endpoints) + URLs + tests | 1 ser ext + 1 view ext + 1 url + 1 test | ~360 | ✓ |
+| 13t-h | RTK Query slice + TypeScript types | 2 files | ~200 | ✓ |
+| 13t-i | NichePresetsAccordion shell + Tabs + default-expanded for all existing Accordions | 2 components + BuilderDialog edit | ~180 | ✓ |
+| 13t-j | Vorschläge Tab — TopCardsGrid + BestOfMixRow + NichePresetCard (shared) + Skeleton states | 4 components + tests | ~440 | ✓ |
+| 13t-k | History + Custom Tabs — HistoryGrid + CustomGrid + promote/delete actions | 2 components + tests | ~270 | ✓ |
+| 13t-l | NichePresetConfirmDialog + wire to BuilderDialog state | 1 component + BuilderDialog edit + tests | ~240 | ✓ |
+| 13t-m | CustomTypographyCreator (Phase 13i debt) — 4 files mirroring CustomSpatialCreator + RTK slice + TypographyPickerModal tab | 5 components + 1 RTK slice + tests | ~580 | ✓ |
+| 13t-n | i18n strings + accessibility polish + manual smoke checklist | translation JSONs + ARIA fixes | ~80 | ✓ |
+| 13t-o | QA round — full backend + frontend test suites green, AC/EC coverage check, doc update | runs + spec updates | ~30 | ✓ |
+
+**Phase ordering rules:**
+- 13t-a MUST land before 13t-b through 13t-g (model exists).
+- 13t-b through 13t-g can be reviewed independently but should land in order.
+- 13t-h MUST land before any frontend phase (13t-i+).
+- 13t-i through 13t-l are sequential (each builds on the previous's components).
+- 13t-m is INDEPENDENT — can be built in parallel with 13t-i through 13t-l (different files entirely).
+- 13t-n + 13t-o are final polish + QA.
+
+#### Resolved Tech Notes — Phase 13t (locked by user 2026-05-20)
+
+| # | Decision | Outcome |
+|---|---|---|
+| T1 | Best-of-Mix endpoint behavior | **Async + polling** — `GET /preset-cards/?niche_id=...` returns `null` for missing mixes + HTTP 202; frontend polls every 3s for up to 60s, then renders error-state per Mix card |
+| T2 | Jaccard threshold | **Start at 0.55** (global), per-slot overrides per Appendix U (typography=0.50, accessories=0.65). Tune empirically in 13t-b tests; may shift ±0.05 based on coverage. Threshold constants live in `preset_matcher.py` (not settings) so changes don't require redeploy |
+| T3 | Collage caching path | **Use `MEDIA_ROOT / 'best_of_mix_collages' /`** as primary. Phase 13t-e includes a writability check at startup; if not writable → graceful fallback to in-memory Django cache (key `bom_collage:<niche_id>`, 7-day TTL) + on-demand regen |
+| T4 | CustomTypography LLM prod smoke | **Required as Phase 13t-m kickoff** — manual `analyze_typography_layout` smoke test against 3 sample prod images before exposing UI. Document result in this spec under QA section |
+| T5 | History dedup cross-niche scope | **Cross-niche dedup ON** per AC-96 (existing default — no change) — same 7-slot hash collapses across niches, `source_card_references` accumulates sources, `last_clicked_at` updates |
+| T6 | Rate-limit on Vorschläge tab fetch | **No backend rate-limit** — endpoint is DB-only after cache fill (~5-30ms). Standard DRF anon/user throttles cover abuse |
 
 ## QA Test Results
 

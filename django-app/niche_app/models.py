@@ -70,6 +70,11 @@ class Niche(models.Model):
     # Schema documented in docs/tasks/PROJ-34-tasks.md Appendix L. Null until
     # the niche has a completed research run + the LLM call succeeded.
     builder_form_hints = models.JSONField(null=True, blank=True)
+    # PROJ-34 Phase 13t — cached Best-of-Mix presets per niche (3 variants:
+    # most_common, edgy, safe). Schema documented in docs/tasks/PROJ-34-tasks.md
+    # Appendix S. Produced by design_app.services.best_of_mix_generator.
+    # Empty dict until first generation.
+    best_of_mix_cache = models.JSONField(null=True, blank=True, default=dict)
     assigned_to = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,

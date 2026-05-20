@@ -3,6 +3,7 @@ import uuid
 from django.conf import settings
 from django.db import models
 from django.db.models import Q, UniqueConstraint
+from django.utils import timezone
 
 
 class DesignProject(models.Model):
@@ -901,6 +902,101 @@ class CustomSpatial(models.Model):
                 raise ValidationError(
                     'source_image_ref required when source_kind!=upload',
                 )
+
+
+class NicheCardPreset(models.Model):
+    """PROJ-34 Phase 13t — saved Niche-Reference preset bundle.
+
+    Workspace-scoped, dedup'd by SHA256 hash over the 7 normalized slot values.
+    Acts as both History (LRU) and Custom (user-promoted) entry — the two
+    boolean flags toggle membership independently. Source-card-type tracks
+    whether the preset originated from the Top card or a Best-of-Mix variant
+    (most_common / edgy / safe). Schema: Tech Design — Phase 13t (Data Model
+    table) of features/PROJ-34-design-prompt-engineering.md.
+    """
+
+    SOURCE_CARD_TYPE_CHOICES = [
+        ('top', 'Top'),
+        ('mix_most_common', 'Mix · Most-Common'),
+        ('mix_edgy', 'Mix · Edgy'),
+        ('mix_safe', 'Mix · Safe'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        'workspace_app.Workspace',
+        on_delete=models.CASCADE,
+        related_name='niche_card_presets',
+        db_index=True,
+    )
+    preset_hash = models.CharField(max_length=64, db_index=True)
+    preset_label = models.CharField(max_length=200)
+
+    # 7 slot values (raw text OR built-in option id; resolution handled by
+    # prompt_builder per-slot chains, not by this model).
+    slot_spatial_configuration = models.TextField(blank=True, default='')
+    slot_visual_description = models.TextField(blank=True, default='')
+    slot_typography_adjectives = models.TextField(blank=True, default='')
+    slot_font_combination = models.TextField(blank=True, default='')
+    slot_accessories = models.TextField(blank=True, default='')
+    slot_style_dna = models.TextField(blank=True, default='')
+    slot_extra_context = models.TextField(blank=True, default='')
+
+    # 7 raw-override flags. visual_is_raw / style_dna_is_raw / extra_context_is_raw
+    # are structurally always True (no built-in pool), but kept for schema symmetry.
+    spatial_is_raw = models.BooleanField(default=False)
+    visual_is_raw = models.BooleanField(default=False)
+    typography_is_raw = models.BooleanField(default=False)
+    font_combination_is_raw = models.BooleanField(default=False)
+    accessories_is_raw = models.BooleanField(default=False)
+    style_dna_is_raw = models.BooleanField(default=False)
+    extra_context_is_raw = models.BooleanField(default=False)
+
+    reference_thumbnail_url = models.CharField(max_length=500, blank=True, default='')
+    source_card_type = models.CharField(
+        max_length=20,
+        choices=SOURCE_CARD_TYPE_CHOICES,
+    )
+    source_card_references = models.JSONField(default=list, blank=True)
+    # ↑ list of {'niche_id': str, 'product_ids': list[str]} — append-only on dedup
+
+    is_in_history = models.BooleanField(default=True, db_index=True)
+    is_in_custom = models.BooleanField(default=False, db_index=True)
+    custom_promoted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='promoted_niche_presets',
+    )
+    custom_promoted_at = models.DateTimeField(null=True, blank=True)
+    last_clicked_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        app_label = 'design_app'
+        ordering = ['-last_clicked_at']
+        constraints = [
+            UniqueConstraint(
+                fields=['workspace', 'preset_hash'],
+                name='uniq_preset_hash_per_ws',
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=['workspace', 'is_in_history', '-last_clicked_at'],
+                name='nichepreset_ws_hist_idx',
+            ),
+            models.Index(
+                fields=['workspace', 'is_in_custom', '-custom_promoted_at'],
+                name='nichepreset_ws_custom_idx',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.workspace_id}/{self.preset_label[:40]}'
 
 
 class CustomTypography(models.Model):

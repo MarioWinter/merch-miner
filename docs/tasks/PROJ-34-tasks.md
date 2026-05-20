@@ -1905,3 +1905,942 @@ spatial → visual → typography → font_combination → accessories → style
 Spatial is now the single source of truth for text segmentation.
 
 ---
+
+## Phase 13t — Niche-Reference Preset Picker (Cards + Best-of-Mix + History + Custom)
+
+**Spec source-of-truth:** `features/PROJ-34-design-prompt-engineering.md` Phase 13t
+section (AC-79 → AC-128, EC-33 → EC-49, 8 Schichten 14–21).
+**Tech Design:** in the same spec under "Tech Design — Phase 13t" subsection.
+
+**Branch:** continues on `feature/PROJ-34-design-prompt-engineering` (already 44 commits
+ahead — Phase 13a–13s shipped on it).
+
+**Scope budget:** ~1100–1400 LOC. 15 sub-phases (13t-a through 13t-o). Each phase ends
+with passing tests + an isolated commit. **DO NOT batch commits across phases.**
+
+**Build order:** 13t-a → 13t-b → 13t-c → 13t-d → 13t-e → 13t-f → 13t-g → 13t-h →
+(13t-i → 13t-j → 13t-k → 13t-l) || (13t-m in parallel) → 13t-n → 13t-o.
+
+---
+
+### Phase 13t-a — Backend: Migrations (NicheCardPreset + best_of_mix_cache)
+
+**Scope-lock:** ONLY migrations. NO service logic. NO API. NO frontend.
+
+- [x] 13t-a.1 New file `django-app/design_app/migrations/0017_nichecardpreset.py` defines
+  `NicheCardPreset` model per Tech Design data-model table — all 20 fields incl. 7
+  `is_raw` flags, indexes on `(workspace, is_in_history, -last_clicked_at)` and
+  `(workspace, is_in_custom, -custom_promoted_at)`, `UniqueConstraint(workspace,
+  preset_hash)`. — migration emitted as `0016_nichecardpreset.py` (next free
+  number was 0016, not 0017). Bundles a help_text-only AlterField on
+  `builderpreset.config` (pre-existing drift from Phase 13k WarpPicker removal;
+  cosmetic only, no DB change).
+- [x] 13t-a.2 New file `django-app/niche_app/migrations/00NN_niche_bom_cache.py` adds
+  `best_of_mix_cache = JSONField(null=True, blank=True, default=dict)` to
+  `niche_app.Niche`. Migration number = next free in niche_app/migrations/. —
+  `niche_app/migrations/0010_niche_bom_cache.py`.
+- [x] 13t-a.3 Add `NicheCardPreset` model class to `django-app/design_app/models.py`
+  with `Meta.app_label = 'design_app'`, default ordering by `-last_clicked_at`, all
+  choices for `source_card_type`. Use existing `Workspace` and `User` FK conventions
+  from `CustomSpatial` (Phase 13d Appendix O). — `design_app/models.py:910-998`.
+- [x] 13t-a.4 Add `best_of_mix_cache` field to `niche_app.models.Niche` (right below
+  the existing `builder_form_hints` field — keep PROJ-34 fields grouped together).
+  Add a docstring comment pointing to Appendix S for cache schema. —
+  `niche_app/models.py:73-77`.
+- [x] 13t-a.5 Run `docker compose exec web python manage.py makemigrations
+  --dry-run` to verify migration is clean + additive. Then real `makemigrations` +
+  `migrate`. Verify both apps' migration counts incremented by 1. — design_app
+  15→16, niche_app 9→10, both `migrate` OK.
+- [x] 13t-a.6 New file `django-app/design_app/tests/test_niche_card_preset_model.py`
+  — single test class with: model save round-trip, unique constraint enforcement,
+  default ordering check, JSONField roundtrip on `source_card_references`.
+  **`docker compose exec web pytest design_app/tests/test_niche_card_preset_model.py`
+  must be green before commit.** — 4/4 passed.
+
+**Commit message:** `feat(PROJ-34): phase 13t-a — NicheCardPreset model + Niche.best_of_mix_cache migration`
+
+---
+
+### Phase 13t-b — Backend: preset_hash + preset_matcher services
+
+**Scope-lock:** ONLY pure-function services. NO models. NO API. NO frontend. NO LLM.
+
+- [ ] 13t-b.1 New file `django-app/design_app/services/preset_hash.py` per **Appendix T
+  of this file**. Implements `compute_preset_hash(slots_dict: dict) -> str` returning
+  SHA256 hex over NFKD-normalized + lowercased + sorted-JSON serialization of the 7
+  slot values.
+- [ ] 13t-b.2 New file `django-app/design_app/tests/test_preset_hash.py` — pytest
+  parametrize over the test-vectors in Appendix T.4. Covers: identical inputs →
+  identical hash; unicode-normalization equivalence; slot-order independence; one-char
+  diff → different hash.
+- [ ] 13t-b.3 New file `django-app/design_app/services/preset_matcher.py` per
+  **Appendix U of this file**. Implements `match_slot_to_builtin(slot_key: str,
+  raw_text: str) -> tuple[str | None, bool]`. Returns `(built_in_id, is_raw=False)` or
+  `(raw_text_truncated, is_raw=True)`. Uses Jaccard token similarity ≥ 0.55.
+- [ ] 13t-b.4 The matcher imports from existing style_library: `SPATIAL_OPTIONS`,
+  `TYPOGRAPHY_OPTIONS`, `FONT_COMBINATION_OPTIONS`, `ACCESSORIES_OPTIONS`,
+  `STYLE_LIBRARY`. DO NOT modify any of them. Read-only consumption.
+- [ ] 13t-b.5 New file `django-app/design_app/tests/test_preset_matcher.py` — covers
+  each of 5 mappable slots with 3 test cases each: clear match, ambiguous below
+  threshold, no match. Use realistic niche text vectors (e.g. "stencil military
+  propaganda font" → `stencil_bold` for typography slot).
+- [ ] 13t-b.6 Both test files run green: `docker compose exec web pytest
+  design_app/tests/test_preset_hash.py design_app/tests/test_preset_matcher.py`.
+
+**Commit message:** `feat(PROJ-34): phase 13t-b — preset_hash + preset_matcher services + tests`
+
+---
+
+### Phase 13t-c — Backend: preset_ranker + top_card_builder services
+
+**Scope-lock:** Services consuming preset_matcher + preset_hash from 13t-b. NO API.
+
+- [ ] 13t-c.1 New file `django-app/design_app/services/preset_ranker.py` —
+  `rank_top_products(niche, limit=10) -> list[NicheProductVisionAnalysis]`. Pre-filter
+  `brand_blocked=False AND is_niche_match=True`, score per AC-82 formula. Constants
+  `PRESET_WEIGHT_RATING / _BSR / _RECENCY` exposed in `django-app/core/settings.py`
+  with default values 0.45 / 0.40 / 0.15.
+- [ ] 13t-c.2 New file `django-app/design_app/services/top_card_builder.py` —
+  `build_top_card_preset(vision_row, niche) -> dict`. Returns dict with 7 slot values
+  (+ 7 `is_raw` flags) + auto-generated `preset_label` (2-4 word label from
+  `slogan_text` + dominant keyword of `graphic_elements`).
+- [ ] 13t-c.3 The label generator function `_generate_preset_label(vision_row) -> str`
+  must be deterministic + idempotent + ≤200 chars. Test it independently.
+- [ ] 13t-c.4 Add constants `PRESET_WEIGHT_RATING`, `PRESET_WEIGHT_BSR`,
+  `PRESET_WEIGHT_RECENCY`, `PRESET_RECENCY_HALF_LIFE_DAYS=180` to
+  `core/settings.py` under a `# PROJ-34 Phase 13t` section.
+- [ ] 13t-c.5 New file `django-app/design_app/tests/test_preset_ranker.py` —
+  parametrized weighting verification + edge cases (zero reviews, missing BSR,
+  ancient products, all-blocked niche).
+- [ ] 13t-c.6 New file `django-app/design_app/tests/test_top_card_builder.py` —
+  builds preset from synthetic vision_row fixtures, asserts `is_raw` flags correct,
+  label length + uniqueness reasonable.
+- [ ] 13t-c.7 Tests green.
+
+**Commit message:** `feat(PROJ-34): phase 13t-c — preset_ranker + top_card_builder services + tests`
+
+---
+
+### Phase 13t-d — Backend: best_of_mix_generator (LLM service)
+
+**Scope-lock:** ONLY the LLM call + JSON validation + cache write. NO API endpoint yet.
+
+- [ ] 13t-d.1 New file `django-app/design_app/services/best_of_mix_generator.py` —
+  follows the **structural pattern of `niche_app/services/builder_hints.py`**: module
+  docstring, `SYSTEM_PROMPT` constant (copy verbatim from **Appendix S of this file**),
+  `_load_research_context(niche)` helper, `_build_user_message(niche, context)` helper,
+  `_call_openrouter(...)` helper with Langfuse tracing, `_validate_and_clean(raw)`
+  helper, public `generate_best_of_mix(niche_id, force=False) -> dict | None`.
+- [ ] 13t-d.2 Model: `openai/gpt-4.1-mini` (constant `DEFAULT_MODEL`). Temperature
+  `0.4`. `response_format={'type': 'json_object'}`. Timeout `15s`. `max_tokens` `2400`.
+- [ ] 13t-d.3 Validation rejects malformed output (missing variant, missing slot, slot
+  value not str/None). On any failure → returns None (never raises — EC-35 pattern).
+- [ ] 13t-d.4 After successful LLM call, runs `match_slot_to_builtin` on the 5 mappable
+  slots for each of the 3 variants (so the cache stores `(slot_value, is_raw)` tuples
+  ready for persistence). Stores result in `niche.best_of_mix_cache = {"most_common":
+  {...}, "edgy": {...}, "safe": {...}, "generated_at": iso, "top3_product_ids": [...]}`
+  via `niche.save(update_fields=['best_of_mix_cache', 'updated_at'])`.
+- [ ] 13t-d.5 Cache-hit logic: if `force=False` AND `best_of_mix_cache` is non-empty
+  AND `generated_at` exists AND `_source_research_id` matches latest research → return
+  cached dict without LLM call. Mirrors `_is_cache_fresh` from `builder_hints.py`.
+- [ ] 13t-d.6 New file `django-app/design_app/tests/test_best_of_mix_generator.py` —
+  mocks OpenRouter via `httpx_mock` fixture; covers: cache hit, cache miss, LLM
+  timeout, LLM malformed JSON, LLM returns missing variant, force=True bypass,
+  workspace+niche metadata in Langfuse trace.
+- [ ] 13t-d.7 Tests green.
+
+**Commit message:** `feat(PROJ-34): phase 13t-d — best_of_mix_generator LLM service + tests`
+
+---
+
+### Phase 13t-e — Backend: collage_renderer + endpoint
+
+**Scope-lock:** ONLY the collage rendering + serving endpoint. NO frontend.
+
+- [ ] 13t-e.1 New file `django-app/design_app/services/collage_renderer.py` per
+  **Appendix V of this file**. Implements `render_collage_webp(product_ids: list[str])
+  -> bytes`. Uses Pillow to compose 3 images at 200×200 each into a 600×200 webp
+  (quality=85). Handles missing product images gracefully (placeholder gray cell).
+- [ ] 13t-e.2 Caching to `MEDIA_ROOT / 'best_of_mix_collages' / f'{niche_id}.webp'`
+  (7-day staleness check). Helper `get_collage_path(niche_id) -> Path` exposed.
+- [ ] 13t-e.3 New view `CollageView(APIView)` in `design_app/api/views.py` —
+  `GET /api/designs/preset-cards/collage/<uuid:niche_id>.webp`. Resolves niche,
+  reads `best_of_mix_cache['top3_product_ids']`, returns
+  `FileResponse(open(get_collage_path(niche_id), 'rb'), content_type='image/webp')`.
+  Triggers regeneration if file missing OR older than 7 days.
+- [ ] 13t-e.4 URL route added to `design_app/api/urls.py` per AC-122.
+- [ ] 13t-e.5 New file `django-app/design_app/tests/test_collage_renderer.py` —
+  asserts: webp file bytes start with WebP magic, dimensions = 600×200, file size
+  <80 KB, gracefully handles missing image URL (placeholder fallback), file cached
+  on second call (mtime unchanged).
+- [ ] 13t-e.6 Tests green.
+
+**Commit message:** `feat(PROJ-34): phase 13t-e — best_of_mix collage renderer + endpoint`
+
+---
+
+### Phase 13t-f — Backend: preset_persistence (dedup + LRU)
+
+**Scope-lock:** ONLY persistence logic. NO API.
+
+- [ ] 13t-f.1 New file `django-app/design_app/services/preset_persistence.py` —
+  `upsert_preset(workspace_id, preset_dict, source_card_type, source_refs) ->
+  NicheCardPreset`. Single transaction (`@transaction.atomic`):
+  1. Compute `preset_hash` via `preset_hash.compute_preset_hash`.
+  2. SELECT existing row WHERE `workspace=workspace_id AND preset_hash=hash`.
+  3. If exists → append `source_refs` to row's `source_card_references`, set
+     `last_clicked_at=now()`, save. Return row.
+  4. If not exists → INSERT new row with `is_in_history=True`, then enforce LRU cap:
+     `count = NicheCardPreset.objects.filter(workspace=..., is_in_history=True).count()`
+     — if `count > NICHE_PRESET_HISTORY_CAP` → SELECT row with oldest `last_clicked_at`
+     (tie-break: oldest `created_at`, then smallest `id`) WHERE `is_in_custom=False`
+     → DELETE it. If oldest row has `is_in_custom=True` → set `is_in_history=False`
+     (preserve Custom).
+- [ ] 13t-f.2 New constants in `settings.py`: `NICHE_PRESET_HISTORY_CAP = 50`.
+- [ ] 13t-f.3 New helper `promote_to_custom(preset_id, user) -> NicheCardPreset` —
+  sets `is_in_custom=True`, `custom_promoted_by=user`, `custom_promoted_at=now()`.
+  Idempotent (returns existing if already promoted).
+- [ ] 13t-f.4 New helper `unpromote_from_custom(preset_id) -> bool` — sets
+  `is_in_custom=False`, clears `custom_promoted_*`. Hard-deletes row if
+  `is_in_history=False` AND `is_in_custom=False` (unreachable through normal flow).
+- [ ] 13t-f.5 New file `django-app/design_app/tests/test_preset_persistence.py` —
+  covers: fresh insert, dedup-hit appends refs, LRU eviction at cap+1 (custom-only
+  survives), tie-break on identical `last_clicked_at`, promote idempotency, unpromote
+  hard-delete edge.
+- [ ] 13t-f.6 Tests green.
+
+**Commit message:** `feat(PROJ-34): phase 13t-f — preset persistence service (dedup + LRU) + tests`
+
+---
+
+### Phase 13t-g — Backend: DRF serializers + ViewSet + URLs
+
+**Scope-lock:** ONLY the 6 API endpoints + workspace isolation + rate-limiting. NO frontend.
+
+- [ ] 13t-g.1 Add `NicheCardPresetSerializer(serializers.ModelSerializer)` to
+  `design_app/api/serializers.py` — all fields above `is_raw` flags grouped, source
+  metadata as nested object, computed `reference_thumbnail_url` (resolves to
+  collage endpoint for mix-cards, raw image URL for top-cards).
+- [ ] 13t-g.2 Add `PresetConfirmSerializer` (1 field: `preset_id: UUIDField`).
+  Add `PresetRegenerateSerializer` (1 field: `niche_id: UUIDField`).
+- [ ] 13t-g.3 Add `NicheCardPresetViewSet(viewsets.GenericViewSet)` with
+  custom actions:
+  - `list` → standard but supports `?niche_id=<uuid>` to return Vorschläge structure
+    (top: list, best_of_mix: dict, top3_product_ids: list).
+  - `@action(detail=False) history()` → list workspace history (≤50, ordered).
+  - `@action(detail=False) custom()` → list workspace custom (uncapped).
+  - `@action(detail=False, methods=['post']) confirm()` → calls `upsert_preset` +
+    returns final payload.
+  - `@action(detail=True, methods=['post']) promote_custom()` → calls
+    `promote_to_custom`.
+  - `@action(detail=True, methods=['delete']) custom_remove()` (URL: `<id>/custom/`)
+    → calls `unpromote_from_custom`.
+  - `@action(detail=False, methods=['post']) regenerate_mix()` → calls
+    `generate_best_of_mix(niche_id, force=True)` + persists 3 mixes to History via
+    `upsert_preset`. Throttled via `ScopedRateThrottle` with scope
+    `'preset_regenerate'` and per-user 5/h limit defined in `settings.REST_FRAMEWORK`.
+- [ ] 13t-g.4 ALL endpoints `permission_classes = [IsAuthenticated]`. Workspace
+  isolation via `_get_workspace_id(self.request)` pattern — return 403 on mismatch.
+- [ ] 13t-g.5 Add 6 URL routes to `design_app/api/urls.py` per Tech Design endpoint
+  table. Verify no conflict with existing `customspatial/`, `custom-typography/`,
+  `projects/` routes.
+- [ ] 13t-g.6 Add throttle config `'preset_regenerate': '5/hour'` to
+  `REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']` in `settings.py`.
+- [ ] 13t-g.7 New file `django-app/design_app/tests/test_preset_api.py` — integration
+  tests using DRF `APIClient`: workspace isolation (403 on wrong header), confirm
+  endpoint creates History row, promote endpoint flips flag, custom-delete preserves
+  History, regenerate-mix throttled at 6th request, list endpoint returns correct
+  structure with mix placeholders.
+- [ ] 13t-g.8 Run full backend suite: `docker compose exec web pytest design_app/`.
+  Must be green.
+
+**Commit message:** `feat(PROJ-34): phase 13t-g — DRF serializers + ViewSet + URLs + integration tests`
+
+---
+
+### Phase 13t-h — Frontend: RTK Query slice + TypeScript types
+
+**Scope-lock:** ONLY API layer + types. NO components.
+
+- [ ] 13t-h.1 New file `frontend-ui/src/types/nichePreset.ts` — TypeScript interfaces
+  matching backend serializers verbatim: `NichePresetCard`, `NichePresetSlotValues`,
+  `NichePresetSlotIsRawFlags`, `NichePresetSourceMeta`, `VorschlaegeResponse`
+  (`{top: NichePresetCard[]; best_of_mix: { most_common: ... | null; edgy: ... | null;
+  safe: ... | null }; top3_product_ids: string[]}`).
+- [ ] 13t-h.2 New file `frontend-ui/src/services/presetCardsApi.ts` — RTK Query slice
+  `presetCardsApi` with `createApi`. Endpoints: `getVorschlaege(nicheId)`,
+  `getHistory()`, `getCustom()`, `confirmPreset(presetId)`, `promoteCustom(presetId)`,
+  `removeCustom(presetId)`, `regenerateMix(nicheId)`. Provide proper `tagTypes:
+  ['PresetCards', 'History', 'Custom']` and `invalidatesTags` on mutations.
+- [ ] 13t-h.3 Add `presetCardsApi.reducerPath: presetCardsApi.reducer` to root store
+  in `frontend-ui/src/store/store.ts`. Add middleware. Verify `store.getState()` types
+  resolve correctly.
+- [ ] 13t-h.4 New file `frontend-ui/src/services/customTypographyApi.ts` — RTK Query
+  slice mirroring `customSpatialApi` pattern. Endpoints: `analyzeTypography(payload)`,
+  `createCustomTypography(payload)`, `listCustomTypographies()`,
+  `deleteCustomTypography(id)`. Register in store same as above.
+- [ ] 13t-h.5 `npm run build` must succeed; `npx tsc -b` must be clean.
+
+**Commit message:** `feat(PROJ-34): phase 13t-h — RTK Query slices + types for niche presets + custom typography`
+
+---
+
+### Phase 13t-i — Frontend: NichePresetsAccordion shell + Tabs + default-expanded
+
+**Scope-lock:** Section shell only. NO tab content yet. NO Confirm-Dialog.
+
+- [ ] 13t-i.1 Create dir `frontend-ui/src/views/designs/board/partials/promptBuilder/
+  nichePresets/`. Add `NichePresetsAccordion.tsx` — MUI `Accordion` w/ `defaultExpanded`,
+  custom `AccordionSummary` (title "Aus der Niche" + tab-aware count badges), renders
+  `<NichePresetsTabs/>` in `AccordionDetails`.
+- [ ] 13t-i.2 Add `NichePresetsTabs.tsx` — MUI `Tabs` w/ 3 `Tab` elements ("Vorschläge",
+  "History", "Custom"). Uses local `useState` for active tab. Renders empty placeholder
+  content per tab for now (real grids land in 13t-j and 13t-k).
+- [ ] 13t-i.3 Mount `<NichePresetsAccordion/>` at the TOP of `BuilderDialog.tsx` (above
+  current first Accordion). Pass `nicheId` prop derived from existing builder context.
+- [ ] 13t-i.4 Edit ALL existing `<Accordion>` elements in `BuilderDialog.tsx` to add
+  `defaultExpanded` prop (per AC-80). Verify no currently-collapsed Accordion is meant
+  to be collapsed (check existing tests).
+- [ ] 13t-i.5 Add i18n keys to `frontend-ui/src/i18n/locales/de.json` and `en.json`:
+  `designForge.builder.nichePresets.title`, `.tabs.vorschlaege`, `.tabs.history`,
+  `.tabs.custom`.
+- [ ] 13t-i.6 Vitest test `NichePresetsAccordion.test.tsx` — renders, expands by
+  default, tab clicks change active tab, count badges render.
+- [ ] 13t-i.7 `npm run test:ci` for files under `nichePresets/` must be green.
+
+**Commit message:** `feat(PROJ-34): phase 13t-i — NichePresetsAccordion + Tabs shell + default-expanded all`
+
+---
+
+### Phase 13t-j — Frontend: Vorschläge Tab (Top + Best-of-Mix + Skeleton + Regen)
+
+**Scope-lock:** Vorschläge tab content. NO History/Custom UI yet. NO Confirm-Dialog.
+
+- [ ] 13t-j.1 `NichePresetCard.tsx` — shared MUI `Card` component: square thumbnail
+  (200×200), label below (`Typography variant="body2"`, max 2 lines + ellipsis),
+  optional bottom-right action area (slot for promote/delete buttons). Props: `card:
+  NichePresetCard`, `onClick: (card) => void`, `topRightChip?: ReactNode`,
+  `bottomActions?: ReactNode`. Active selection visual marker (border + checkmark).
+- [ ] 13t-j.2 `TopCardsGrid.tsx` — renders up to 10 `NichePresetCard` in a responsive
+  MUI `Grid` (5×2 on `md+`, 2×5 on `xs–sm`). Skeleton-state per card while loading.
+  Empty-state Alert per AC-91 when zero results.
+- [ ] 13t-j.3 `BestOfMixRow.tsx` — header row with title "Best-of-Mix" + `IconButton`
+  (RefreshIcon) wired to `regenerateMix` mutation (loading state via RTK Query
+  `isLoading`). Three `NichePresetCard` below (labels "Most-Common", "Edgy", "Safe").
+  Cards with `card === null` (cache miss / generating) render `Skeleton`. Polling:
+  if 202 returned, refetch every 3s for up to 60s, then error state.
+- [ ] 13t-j.4 Wire `<TopCardsGrid/>` + `<BestOfMixRow/>` into Vorschläge tab in
+  `NichePresetsTabs.tsx`. Pass `nicheId` from props.
+- [ ] 13t-j.5 Cards clickable but currently log to console with TODO comment for
+  Confirm-Dialog handler (wired in 13t-l). No card-click side-effects yet.
+- [ ] 13t-j.6 Vitest tests for each of 3 new components. Use MSW mocks. Cover:
+  loading skeleton, error fallback, empty-state Alert, regen button click triggers
+  mutation, polling on 202.
+- [ ] 13t-j.7 `npm run test:ci` for `nichePresets/` green. ESLint clean.
+
+**Commit message:** `feat(PROJ-34): phase 13t-j — Vorschläge tab UI (Top + Best-of-Mix + Skeleton)`
+
+---
+
+### Phase 13t-k — Frontend: History + Custom Tabs (promote / delete actions)
+
+**Scope-lock:** History + Custom tab content. NO Confirm-Dialog.
+
+- [ ] 13t-k.1 `HistoryGrid.tsx` — renders cards from `getHistory()` query in responsive
+  Grid. Each card's `bottomActions` slot = `<IconButton>` (`BookmarkBorderIcon` →
+  triggers `promoteCustom` mutation). Each card's `topRightChip` shows
+  `source_card_type` badge ("Top", "Mix · Most-Common", etc.) + source-niche chip with
+  `+N more` overflow per AC-100. Empty-state Alert per AC-99.
+- [ ] 13t-k.2 `CustomGrid.tsx` — same pattern as HistoryGrid but card actions =
+  `IconButton(DeleteOutlineIcon)` triggering `window.confirm` + `removeCustom`
+  mutation. `topRightChip` shows `custom_promoted_by` username per AC-104.
+  Empty-state Alert per AC-106.
+- [ ] 13t-k.3 Wire `<HistoryGrid/>` + `<CustomGrid/>` into respective tabs of
+  `NichePresetsTabs.tsx`. Add tab count badges (`N/50` for History, `N` for Custom)
+  derived from query results.
+- [ ] 13t-k.4 Promote success → notistack `enqueueSnackbar` (variant=success) per AC-98.
+  Delete success → notistack snackbar (variant=info). All user-visible strings via i18n.
+- [ ] 13t-k.5 RTK Query `invalidatesTags`: confirm-mutation invalidates `History`;
+  promote invalidates `Custom`+`History`; remove invalidates `Custom`.
+- [ ] 13t-k.6 Vitest tests for both grids. Cover: promote click → mutation fires +
+  toast appears; delete confirms via `window.confirm` + mutation + toast; source-chip
+  overflow renders `+N more`.
+- [ ] 13t-k.7 `npm run test:ci` green. ESLint clean.
+
+**Commit message:** `feat(PROJ-34): phase 13t-k — History + Custom tabs UI with promote/delete actions`
+
+---
+
+### Phase 13t-l — Frontend: NichePresetConfirmDialog + wire to BuilderDialog state
+
+**Scope-lock:** Confirm-Dialog + slot-replacement wiring. NO new tab content.
+
+- [ ] 13t-l.1 `NichePresetConfirmDialog.tsx` — MUI `Dialog` (`maxWidth="md"`), title
+  "Preset übernehmen?", body = horizontal split: left 200px reference thumbnail (with
+  `loading="lazy"`), right column = read-only preview rows for all 7 slots. Each slot
+  row shows label (i18n) + resolved value text + "Raw" chip when `is_raw=true`.
+- [ ] 13t-l.2 Footer: 2 MUI `Button` — "Cancel" (text, left) + "Bestätigen" (filled,
+  primary, right). ESC + backdrop + Cancel all close without changes.
+- [ ] 13t-l.3 Bestätigen handler: fires `confirmPreset(preset_id)` mutation, then
+  dispatches 7 slot setters into the existing `useBuilderDialogState` hook (REUSE
+  existing setters — do NOT create new state). Then closes dialog. Toast on success.
+- [ ] 13t-l.4 Wire dialog into `NichePresetsAccordion` — local `useState` holds active
+  card; `NichePresetCard.onClick` sets it; dialog opens when active card is non-null.
+- [ ] 13t-l.5 Confirm-Dialog reads slot labels for built-in IDs via existing
+  resolvers from `style_library.py` mirrors in `slotOptions.ts` — DO NOT re-implement.
+  For raw values: show truncated text (max 200 chars per row) with full text in tooltip.
+- [ ] 13t-l.6 Vitest test `NichePresetConfirmDialog.test.tsx` — covers: opens on card
+  click, shows 7 slot rows, Bestätigen fires mutation + dispatches setters + closes,
+  Cancel closes without effects.
+- [ ] 13t-l.7 Integration test `BuilderDialog.test.tsx` (existing) extended: niche
+  preset card click → confirm → BuilderDialog form state reflects new slot values.
+- [ ] 13t-l.8 All Vitest green. `npx tsc -b` clean. ESLint clean.
+
+**Commit message:** `feat(PROJ-34): phase 13t-l — NichePresetConfirmDialog + Replace-All slot wiring`
+
+---
+
+### Phase 13t-m — Frontend: CustomTypographyCreator (Phase 13i debt — parallel)
+
+**Scope-lock:** CustomTypography UI ONLY. Mirror `CustomSpatialCreator` exactly.
+DECOUPLED from niche-cards flow.
+
+- [ ] 13t-m.1 `CustomTypographyCreator.shared.tsx` — shared types
+  (`CustomTypographyDraft`, `ImageSource = "upload" | "reference" | "design"`) +
+  helper hooks. Mirror `CustomSpatialCreator.shared.tsx` 1:1.
+- [ ] 13t-m.2 `CustomTypographyCreator.Step1.tsx` — image source picker UI: upload
+  drag-drop OR pick from `ProjectReference[]` (reuse `useGetProjectReferencesQuery`)
+  OR pick from generated `Design[]`. Mirror `CustomSpatialCreator.Step1.tsx`.
+- [ ] 13t-m.3 `CustomTypographyCreator.steps.tsx` — Step 2 (call analyze API + show
+  result) + Step 3 (name input + Save button). Mirror existing pattern.
+- [ ] 13t-m.4 `CustomTypographyCreator.tsx` — top-level orchestrator using
+  `useReducer` for step state. Submits via `createCustomTypography` mutation. On
+  success auto-selects new entry in parent picker.
+- [ ] 13t-m.5 Edit `TypographyPickerModal.tsx` to add 3rd `Tab` "Create new" between
+  existing Built-in and Custom tabs. Mount `<CustomTypographyCreator/>` in its panel.
+- [ ] 13t-m.6 i18n keys in de/en: `designForge.builder.typography.createNew.*`.
+- [ ] 13t-m.7 Vitest `CustomTypographyCreator.test.tsx` — happy path with mocked API,
+  upload validation (>10MB rejected), error states, name uniqueness conflict.
+- [ ] 13t-m.8 All Vitest green. `npx tsc -b` clean.
+
+**Commit message:** `feat(PROJ-34): phase 13t-m — CustomTypographyCreator UI (Phase 13i frontend debt)`
+
+---
+
+### Phase 13t-n — Polish: i18n + accessibility + smoke checklist
+
+**Scope-lock:** No new components. No new logic.
+
+- [ ] 13t-n.1 Audit ALL new components for i18n compliance — no hardcoded user-visible
+  strings (CLAUDE.md rule). Add any missing keys to de/en JSON files.
+- [ ] 13t-n.2 Add ARIA labels to all `IconButton` + interactive elements per
+  accessibility rules.
+- [ ] 13t-n.3 Verify all colors via `theme.vars.palette.*` — NO hex/rgb in any new
+  component (memory `feedback_no_hardcoded_colors`).
+- [ ] 13t-n.4 Verify all new components use MUI v7 patterns — no `Grid item`, no
+  `InputProps`, no `Hidden`, no `@mui/lab` imports.
+- [ ] 13t-n.5 Manual smoke test in Docker: open BuilderDialog, see Accordion expanded,
+  see 10 Top + 3 Mix cards, click a card → Confirm-Dialog → Bestätigen → slots
+  replaced, History tab shows the entry. Document any anomalies inline in this file.
+- [ ] 13t-n.6 Lint full scope (per memory `feedback_lint_full_scope`):
+  `docker compose exec web ruff check django-app/` AND
+  `cd frontend-ui && npx eslint src/`. Both must be 0 errors in 13t scope.
+
+**Commit message:** `chore(PROJ-34): phase 13t-n — i18n + a11y + lint polish`
+
+---
+
+### Phase 13t-o — QA Round + AC/EC coverage + spec update
+
+**Scope-lock:** Tests + docs only.
+
+- [ ] 13t-o.1 Run full backend test suite: `docker compose exec web pytest`. All green.
+- [ ] 13t-o.2 Run full frontend test suite: `cd frontend-ui && npm run test:ci`. All
+  green. Coverage on new components ≥1 test each.
+- [ ] 13t-o.3 Mark all AC-79 → AC-128 + EC-33 → EC-49 checkboxes in
+  `features/PROJ-34-design-prompt-engineering.md` (per memory
+  `feedback_skills_must_follow_rules` — coding skills MUST flip these).
+- [ ] 13t-o.4 Mark all 13t-a → 13t-n task checkboxes in this file.
+- [ ] 13t-o.5 Append a "## QA Results — Phase 13t" subsection in the spec under
+  the existing QA Test Results section. Document: backend test count, frontend test
+  count, AC/EC coverage table, any deferred items.
+- [ ] 13t-o.6 Update memory file `project_proj34_status.md` to reflect Phase 13t
+  shipped state. Update `features/INDEX.md` PROJ-34 status to "In Review" if not
+  already (no change expected).
+
+**Commit message:** `chore(PROJ-34): phase 13t-o — QA round + AC/EC coverage + docs`
+
+---
+
+## Appendix S — Best-of-Mix LLM SYSTEM_PROMPT
+
+**Source-of-truth:** This is the verbatim text used in
+`django-app/design_app/services/best_of_mix_generator.py` constant `SYSTEM_PROMPT`.
+Copy-paste; do NOT paraphrase (Phase 13t-d.1 enforces "no paraphrasing").
+
+### S.1 SYSTEM_PROMPT (verbatim)
+
+```
+You are a Print-on-Demand niche-research synthesizer producing three "Best-of-Mix"
+prompt configurations for the Architect Prompt Builder. You receive a structured
+aggregate of vision + emotional + niche-level analyses for an entire Amazon T-shirt
+niche. Your job is to distill three distinct synthetic preset configurations from
+the corpus — NOT to copy any single product.
+
+# The 3 variants you produce
+
+1. **most_common** — captures the dominant visual + emotional patterns present in the
+   majority of bestsellers. Goal: maximum recognizability, lowest risk.
+2. **edgy** — pushes the niche tonality + composition toward riskier, punchier choices
+   that some bestsellers exhibit but most don't. Goal: stand out, willing to polarize.
+3. **safe** — broadly appealing, neutral tone, conservative composition that would
+   sell across the widest demographic in the niche. Goal: maximum mass-market appeal.
+
+# Each variant produces exactly these 7 slot values (NO MORE, NO LESS)
+
+For each variant return a JSON object containing all 7 slots:
+
+1. `spatial_configuration` — one of the 43 spatial layout IDs, OR a free-text
+   description ≤200 chars. IDs are listed in the user message below. Pick an ID when
+   one fits cleanly; use raw text only when nothing fits.
+2. `visual_description` — a free-form 60-120 word description of the dominant
+   illustration subject. MUST contain ≥6 concrete details (perspective, color-object
+   binding, line weight, pose, body parts, accessories). Start with "a [adjective]
+   [SUBJECT] in [PERSPECTIVE], featuring ...". Use color-object binding ("golden yellow
+   bus body") not bare colors. NEVER use the words "T-shirt", "mockup", "model wearing",
+   "gradient", "glow", "soft shadow".
+3. `typography_adjectives` — descriptors of the dominant typography choice for this
+   variant. Free-text ≤120 chars (e.g. "bold compressed stencil with hand-cut edges").
+4. `font_combination` — describes the pairing of fonts used in this variant. Free-text
+   ≤120 chars (e.g. "athletic varsity serif headline + sans-serif tagline").
+5. `accessories` — one of the 6 fixed accessory variants verbatim, OR null. List in
+   user message below.
+6. `style_dna` — a per-variant aesthetic descriptor that captures the overall design
+   philosophy. Free-text ≤200 chars (e.g. "1970s underground comic with halftone
+   prints and bold linework").
+7. `extra_context` — optional verbatim tail describing any final compositional or
+   tonal nuance specific to this variant. Free-text ≤200 chars OR empty string.
+
+# Forbidden patterns
+
+- NEVER use the word "T-shirt" anywhere in any output.
+- NEVER mention "on a black shirt", "model wearing", "fabric texture", or any phrase
+  describing the wearer.
+- NEVER produce a `visual_description` containing gradients, glowing effects, soft
+  shadows, or drop shadows.
+- NEVER paraphrase the 6 fixed accessory variants — return them verbatim or use null.
+- NEVER invent spatial IDs — use only ones from the explicit enum in the user message
+  OR free-text.
+- NEVER make all 3 variants the same — each MUST be meaningfully distinct.
+
+# Output format
+
+Return ONLY a valid JSON object with this exact shape. No preamble, no markdown.
+
+{
+  "most_common": {
+    "spatial_configuration": "<id or raw text>",
+    "visual_description": "<60-120 words>",
+    "typography_adjectives": "<≤120 chars>",
+    "font_combination": "<≤120 chars>",
+    "accessories": "<verbatim variant or null>",
+    "style_dna": "<≤200 chars>",
+    "extra_context": "<≤200 chars or empty>"
+  },
+  "edgy": { ... same shape ... },
+  "safe": { ... same shape ... }
+}
+```
+
+### S.2 User message template (rendered by `_build_user_message`)
+
+```
+NICHE: {niche.name}
+TOTAL ANALYZED PRODUCTS: {len(vision_rows)}
+TOP-RANKED PRODUCTS USED FOR THUMBNAIL: {top3_product_ids}
+
+ALLOWED SPATIAL IDS (use one or null/free-text):
+vertical_stack, horizontal_row, badge_emblem, banner_top,
+headline_top_subtitle_bottom, text_overlay, stacked_word_block, knockout_text,
+big_word_tiny_tag, word_as_shape, diagonal_text, pyramid_stack, rectangular_frame,
+crest_coat_of_arms, postage_stamp, hexagon_medallion, road_sign, definition_entry,
+knolling_grid, anatomy_diagram, checklist, periodic_tile, recipe_card,
+vintage_postcard, sports_jersey, movie_poster, license_plate, concert_ticket,
+map_coordinates, off_center_text_wrap, diagonal_split, triptych_three_panel,
+concentric_circular_text, speech_bubble, quote_marks_frame, sunburst_layout,
+flush_aligned_block, full_canvas_word_block, vertical_pillar_text,
+illustration_only_no_text, unconventional_integration, crossed_tools_intersection,
+subject_portrait_with_caption
+
+ALLOWED ACCESSORIES (use one verbatim or null):
+- "white radiating motion-burst lines around the illustration"
+- "a sparse scattering of small filled stars and tiny dots framing the design"
+- "a thin geometric border frame enclosing the entire composition"
+- "a curved banner ribbon underneath the illustration with secondary text on it"
+- "sunburst rays radiating outward from behind the illustration"
+- "halftone-dot accents in the negative space around the illustration"
+
+=== NICHE-LEVEL AGGREGATE ===
+NICHE_SUMMARY: {niche_analysis.niche_summary}
+SENTIMENT: {niche_analysis.sentiment}
+PRIMARY_EMOTIONS: {niche_analysis.primary_emotions}
+EMOTIONAL_ARCHETYPE: {niche_analysis.emotional_archetype}
+DOMINANT_DESIGN_AESTHETICS: {niche_analysis.dominant_design_aesthetics}
+DESIGN_CONCEPTS: {niche_analysis.design_concepts}
+PATTERN_ANALYSIS: {niche_analysis.pattern_analysis}
+EMOTIONAL_REALITY: {niche_analysis.emotional_reality}
+
+=== PER-PRODUCT VISION + EMOTIONAL BLOCKS ===
+(One block per analyzed product, separated by ---)
+
+---
+TITLE: {vision.product.title}
+SLOGAN: {vision.slogan_text}
+MEANING: {vision.meaning_context}
+VISUAL_STYLE: {vision.visual_style}
+GRAPHIC_ELEMENTS: {vision.graphic_elements}
+LAYOUT_COMPOSITION: {vision.layout_composition}
+EMOTIONAL.TONE: {emotional.tone}
+EMOTIONAL.PATTERN: {emotional.emotional_pattern}
+EMOTIONAL.VIBE: {emotional.vibe}
+EMOTIONAL.KEY_ELEMENTS: {emotional.key_elements}
+EMOTIONAL.ADAPTATION_FORMULA: {emotional.adaptation_formula}
+---
+... (repeat per product)
+```
+
+### S.3 Tunables (constants in best_of_mix_generator.py)
+
+| Constant | Value | Why |
+|---|---|---|
+| `DEFAULT_MODEL` | `openai/gpt-4.1-mini` | Proven for this codebase |
+| `TIMEOUT_SEC` | `15.0` | Mix needs more thinking than spatial-only |
+| `TEMPERATURE` | `0.4` | Slightly higher than builder_hints (0.3) — Mix needs creative aggregation |
+| `MAX_TOKENS` | `2400` | 3 variants × ~800 tokens each |
+| `MAX_VISION_PRODUCTS` | `20` | Cap input — typically ≤2k tokens fit comfortably |
+| `MAX_EMOTIONAL_PRODUCTS` | `15` | Cap input — emotional analyses tend to be larger |
+| `SCHEMA_VERSION` | `1` | Versioning for cache invalidation when prompt evolves |
+
+---
+
+## Appendix T — Preset Hash Normalization
+
+### T.1 Algorithm (pseudocode)
+
+```
+def compute_preset_hash(slots: dict) -> str:
+    """
+    SHA256 hex over normalized + sorted-JSON serialization of the 7 slot values.
+
+    Input shape (exact keys, in any order):
+      {
+        "spatial_configuration": str | "",
+        "visual_description":    str | "",
+        "typography_adjectives": str | "",
+        "font_combination":      str | "",
+        "accessories":           str | "",
+        "style_dna":             str | "",
+        "extra_context":         str | "",
+      }
+    """
+    SLOT_ORDER = [
+        "spatial_configuration",
+        "visual_description",
+        "typography_adjectives",
+        "font_combination",
+        "accessories",
+        "style_dna",
+        "extra_context",
+    ]
+    SLUG_SLOTS = {"spatial_configuration", "typography_adjectives",
+                  "font_combination", "accessories"}
+    # ^ These slots can hold either built-in IDs (slugs) OR raw text.
+    # Slugs are already lowercase + underscored; raw text must be lowercased
+    # for hash equivalence.
+
+    normalized = {}
+    for slot in SLOT_ORDER:
+        raw = (slots.get(slot) or "").strip()
+        # NFKD canonical decomposition — equates é/é, fi-ligature/fi, etc.
+        nfkd = unicodedata.normalize("NFKD", raw)
+        # Drop combining marks (accents)
+        no_marks = "".join(c for c in nfkd if not unicodedata.combining(c))
+        # Collapse internal whitespace to single spaces
+        collapsed = " ".join(no_marks.split())
+        # Lowercase non-slug slots only (slugs are already lowercase)
+        if slot in SLUG_SLOTS:
+            normalized[slot] = collapsed
+        else:
+            normalized[slot] = collapsed.lower()
+
+    # sort_keys ensures deterministic JSON regardless of dict ordering
+    canonical_json = json.dumps(normalized, sort_keys=True, ensure_ascii=False)
+    return hashlib.sha256(canonical_json.encode("utf-8")).hexdigest()
+```
+
+### T.2 Properties
+
+- **Deterministic:** identical input → identical hash.
+- **Order-independent:** dict input order has no effect (sorted JSON).
+- **Unicode-stable:** "café" and "café" produce same hash.
+- **Whitespace-stable:** "Hello  World" and " Hello World " produce same hash.
+- **Case-stable on raw slots:** "BOLD STENCIL" and "bold stencil" in
+  `visual_description` produce same hash. (Slug slots already canonical.)
+- **One-char diff → different hash:** standard SHA256 avalanche.
+
+### T.3 What does NOT participate in the hash
+
+- `preset_label` (auto-generated, may differ by accident across producers)
+- `reference_thumbnail_url` (varies by source product)
+- `source_card_type` (top vs mix variant — same 7 slots could legitimately appear)
+- `source_card_references` (metadata only)
+- All flags (`is_in_history`, `is_in_custom`, `is_raw`, etc.)
+- All timestamps
+
+### T.4 Test vectors (for `test_preset_hash.py`)
+
+| Input | Expected behavior |
+|---|---|
+| All 7 slots = `""` | Stable hash A1 |
+| Slots populated with sample data | Stable hash A2 ≠ A1 |
+| Same as A2 but dict keys in reverse order | Hash = A2 |
+| Same as A2 but `visual_description` "café" → "café" | Hash = A2 |
+| Same as A2 but `style_dna` "BOLD" → "bold" | Hash = A2 (raw slot, lowercased) |
+| Same as A2 but `spatial_configuration` "vertical_stack" → "VERTICAL_STACK" | Hash ≠ A2 (slug slot, case-sensitive) |
+| Same as A2 but extra whitespace in `extra_context` | Hash = A2 |
+| Same as A2 but `visual_description` changed by 1 char | Hash ≠ A2 |
+
+---
+
+## Appendix U — Jaccard Matching Algorithm
+
+### U.1 Algorithm (pseudocode)
+
+```
+def match_slot_to_builtin(slot_key: str, raw_text: str) -> tuple[str | None, bool]:
+    """
+    Return (matched_built_in_id, is_raw=False) when Jaccard ≥ threshold.
+    Return (truncated_raw_text, is_raw=True) otherwise.
+    """
+    SLOT_OPTIONS = {
+        "spatial_configuration": SPATIAL_OPTIONS,
+        "typography_adjectives": TYPOGRAPHY_OPTIONS,
+        "font_combination":      FONT_COMBINATION_OPTIONS,
+        "accessories":           ACCESSORIES_OPTIONS,
+        "style_dna":             None,  # style_dna has no built-in pool — always raw
+    }
+    SLOT_MAX_RAW_LEN = {
+        "spatial_configuration": 200,
+        "typography_adjectives": 120,
+        "font_combination":      120,
+        "accessories":           100,
+        "style_dna":             200,
+    }
+    SLOT_THRESHOLDS = {
+        "spatial_configuration": 0.55,
+        "typography_adjectives": 0.50,  # shorter vocabulary, lower bar
+        "font_combination":      0.55,
+        "accessories":           0.65,  # only 6 options — must match cleanly
+    }
+
+    options = SLOT_OPTIONS.get(slot_key)
+    if options is None:
+        # No pool to match against (style_dna, visual_description, extra_context).
+        return (raw_text[: SLOT_MAX_RAW_LEN.get(slot_key, 200)].strip(), True)
+
+    raw_tokens = _tokenize(raw_text)  # lowercase, alphanum-only, drop stopwords
+    threshold = SLOT_THRESHOLDS[slot_key]
+
+    best_id, best_score = None, 0.0
+    for opt in options:
+        # Tokens from label + prompt_text concatenated
+        opt_text = f"{opt.get('label', '')} {opt.get('prompt_text', '')}"
+        opt_tokens = _tokenize(opt_text)
+        score = _jaccard(raw_tokens, opt_tokens)
+        if score > best_score:
+            best_id, best_score = opt['id'], score
+
+    if best_score >= threshold:
+        return (best_id, False)
+    truncated = raw_text[: SLOT_MAX_RAW_LEN[slot_key]].strip()
+    return (truncated, True)
+
+
+def _jaccard(a: set, b: set) -> float:
+    if not a and not b:
+        return 0.0
+    intersection = len(a & b)
+    union = len(a | b)
+    return intersection / union if union else 0.0
+
+
+def _tokenize(text: str) -> set[str]:
+    STOPWORDS = {"the", "a", "an", "with", "and", "of", "in", "on", "at",
+                 "to", "for", "from", "by", "design", "style"}
+    tokens = re.findall(r"[a-z0-9]+", text.lower())
+    return {t for t in tokens if t not in STOPWORDS and len(t) >= 2}
+```
+
+### U.2 Per-slot threshold rationale
+
+| Slot | Threshold | Why |
+|---|---|---|
+| spatial_configuration | 0.55 | 43 options — moderate threshold to avoid mis-matching close-but-wrong layouts |
+| typography_adjectives | 0.50 | 22 options — shorter labels, more ambiguous vocabulary |
+| font_combination | 0.55 | 10 options — combinations are distinct, moderate bar OK |
+| accessories | 0.65 | Only 6 options + each ~10 words — match must be high-confidence |
+| style_dna | — | No pool — always raw |
+
+### U.3 Test cases (for `test_preset_matcher.py`)
+
+Each parametrized: `(slot_key, raw_text, expected_id_or_None, expected_is_raw)`.
+
+| slot | raw_text | expected | is_raw |
+|---|---|---|---|
+| spatial_configuration | "centered stacked layout with text top and illustration bottom" | `vertical_stack` | False |
+| spatial_configuration | "weird upside-down corkscrew thing" | `(truncated_raw)` | True |
+| typography_adjectives | "bold compressed stencil military style" | `stencil_bold` (assumed id) | False |
+| typography_adjectives | "art-nouveau curlicue swooshes" | `(truncated_raw)` | True |
+| accessories | "white radiating motion-burst lines around the illustration" | exact-match id | False |
+| accessories | "rainbow sparkle particles" | `(truncated_raw)` | True |
+| style_dna | "1970s halftone underground comic" | `("1970s halftone underground comic", True)` | True |
+
+### U.4 Tuning notes
+
+- Thresholds are constants in `preset_matcher.py` (NOT in `settings.py`) so dev can
+  tune in tests without redeploying. Once stable, they can move to settings.
+- If real-world coverage is low, consider:
+  - Adding synonym dictionary (e.g. "weathered" ≈ "distressed").
+  - Switching from Jaccard to TF-IDF cosine.
+  - Going to embeddings (deferred — out of scope per spec).
+
+---
+
+## Appendix V — Collage Renderer Technical Spec
+
+### V.1 Output spec
+
+- Format: WebP
+- Dimensions: 600 × 200 px (3 cells of 200 × 200, side-by-side)
+- Quality: 85 (Pillow default for webp)
+- Background: solid fill `#1f1f1f` (matches design-system dark mode bg)
+- Per cell: center-cropped + resized to 200×200, then composited.
+
+### V.2 Inputs
+
+- `product_ids: list[str]` — UUIDs of the 3 top-ranked products.
+- Source images: `NicheProductVisionAnalysis.product.image_url` (or equivalent
+  `AmazonProduct.image_url`). Resolve to local cache path if mirrored, else fetch
+  remote URL via `httpx` (5s timeout per image).
+
+### V.3 Error handling
+
+- Missing product → render a 200×200 placeholder cell with text "no image"
+  (Pillow `ImageDraw` + system font).
+- Image fetch failure → same placeholder.
+- Invalid image bytes → same placeholder.
+- All 3 products missing → still produce a 600×200 webp with 3 placeholders.
+
+### V.4 Caching
+
+- Output path: `MEDIA_ROOT / 'best_of_mix_collages' / f'{niche_id}.webp'`
+- Staleness check: regenerate if file is missing OR `mtime` > 7 days old.
+- On regen, write atomically (write to `.tmp` + rename) to avoid serving partial.
+
+### V.5 Test cases (for `test_collage_renderer.py`)
+
+| Case | Expected |
+|---|---|
+| 3 valid product image URLs | webp file 600×200, <80 KB |
+| 1 missing product | 1 placeholder cell + 2 real cells |
+| All 3 missing | 3 placeholder cells, file still 600×200 |
+| Repeat call within 7 days | mtime unchanged, no re-render |
+| Repeat call after 8 days (mtime touched) | re-rendered |
+| Concurrent calls | atomic write — never partial file served |
+
+### V.6 Pseudocode (NOT for blind copy — implementation belongs to 13t-e)
+
+```
+def render_collage_webp(product_ids: list[str]) -> bytes:
+    cells = []
+    for pid in product_ids[:3]:
+        try:
+            img = _fetch_or_load(pid)
+            cells.append(_center_crop_200(img))
+        except Exception:
+            cells.append(_placeholder_200("no image"))
+    while len(cells) < 3:
+        cells.append(_placeholder_200("no image"))
+
+    canvas = Image.new("RGB", (600, 200), color=(0x1f, 0x1f, 0x1f))
+    for i, cell in enumerate(cells):
+        canvas.paste(cell, (i * 200, 0))
+
+    buf = io.BytesIO()
+    canvas.save(buf, format="WEBP", quality=85)
+    return buf.getvalue()
+```
+
+---
+
+## Appendix W — CustomTypography UI Component Tree (Schicht 21)
+
+This mirrors `CustomSpatialCreator` (Phase 13d/Appendix O of this file) verbatim.
+
+### W.1 Component tree
+
+```
+TypographyPickerModal.tsx (existing, line 296)
++-- existing "Built-in" Tab (unchanged)
++-- existing "Custom" Tab (unchanged — shows existing CustomTypography list)
++-- (NEW) "Create new" Tab
+    +-- (NEW) CustomTypographyCreator.tsx              [orchestrator]
+        +-- Step 1: source picker
+        |   +-- (NEW) CustomTypographyCreator.Step1.tsx
+        |       +-- ImageUploadDropzone (MUI styled, drag-drop)
+        |       +-- ProjectReferenceList (re-uses useGetProjectReferencesQuery)
+        |       +-- GeneratedDesignList (lists Design[] of current project)
+        +-- Step 2: analyze + edit
+        |   +-- (NEW) CustomTypographyCreator.steps.tsx (Step 2 sub-component)
+        |       +-- POST /api/designs/typographies/custom/analyze/
+        |       +-- TextField (multiline, editable LLM result)
+        +-- Step 3: name + save
+            +-- (NEW) CustomTypographyCreator.steps.tsx (Step 3 sub-component)
+                +-- TextField (name, max 80, uniqueness validation)
+                +-- Save Button → POST /api/designs/typographies/custom/
+                +-- On success: auto-select in TypographyPickerModal "Custom" tab
+```
+
+### W.2 Backend endpoints used (Phase 13i — already shipped)
+
+| Method | Path | Behavior |
+|---|---|---|
+| POST | `/api/designs/typographies/custom/analyze/` | Returns LLM-extracted typography description from image |
+| POST | `/api/designs/typographies/custom/` | Persists CustomTypography in workspace |
+| GET | `/api/designs/typographies/custom/` | Lists workspace CustomTypography entries (existing) |
+| DELETE | `/api/designs/typographies/custom/<id>/` | Soft-delete (existing) |
+
+No new backend work in Schicht 21. RTK Query slice `customTypographyApi` wraps these.
+
+### W.3 Step transitions
+
+- Step 1 → Step 2: when user picks an image source AND it validates (upload <10MB,
+  correct mime, OR reference/design selected).
+- Step 2 → Step 3: when user clicks "Looks good, name it" after editing the LLM result.
+- Step 3 → Done: when Save succeeds. Modal switches to "Custom" tab + auto-selects
+  the new entry. New CustomTypography becomes the slot's selected value automatically.
+
+### W.4 Validation rules (frontend-side, mirror CustomSpatial)
+
+- Image upload: ≤10 MB, mime ∈ {image/jpeg, image/png, image/webp}.
+- Name: 1–80 chars, trimmed. Uniqueness checked on Save via 409 response handling.
+- LLM result: required non-empty after edit before Step 2 → Step 3 transition.
+
+### W.5 Tests (Vitest)
+
+- Renders Step 1 by default.
+- Upload >10MB → rejected with inline error message.
+- Pick reference → advances to Step 2 with analyze API mocked.
+- Edit LLM result → advances to Step 3.
+- Name conflict (409) → inline error, stays on Step 3.
+- Save success → mutation called, modal tab switches, parent receives new id.
