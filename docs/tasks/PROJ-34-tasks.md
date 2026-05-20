@@ -2045,29 +2045,42 @@ with passing tests + an isolated commit. **DO NOT batch commits across phases.**
 
 **Scope-lock:** ONLY the LLM call + JSON validation + cache write. NO API endpoint yet.
 
-- [ ] 13t-d.1 New file `django-app/design_app/services/best_of_mix_generator.py` —
+- [x] 13t-d.1 New file `django-app/design_app/services/best_of_mix_generator.py` —
   follows the **structural pattern of `niche_app/services/builder_hints.py`**: module
   docstring, `SYSTEM_PROMPT` constant (copy verbatim from **Appendix S of this file**),
   `_load_research_context(niche)` helper, `_build_user_message(niche, context)` helper,
   `_call_openrouter(...)` helper with Langfuse tracing, `_validate_and_clean(raw)`
   helper, public `generate_best_of_mix(niche_id, force=False) -> dict | None`.
-- [ ] 13t-d.2 Model: `openai/gpt-4.1-mini` (constant `DEFAULT_MODEL`). Temperature
+  — best_of_mix_generator.py:1-78 (constants + SYSTEM_PROMPT verbatim), 187-275
+  (_build_user_message), 278-307 (_is_cache_fresh), 310-360 (_validate_and_clean),
+  363-417 (_resolve_built_in_matches), 420-543 (_call_openrouter),
+  546-606 (generate_best_of_mix).
+- [x] 13t-d.2 Model: `openai/gpt-4.1-mini` (constant `DEFAULT_MODEL`). Temperature
   `0.4`. `response_format={'type': 'json_object'}`. Timeout `15s`. `max_tokens` `2400`.
-- [ ] 13t-d.3 Validation rejects malformed output (missing variant, missing slot, slot
+  — best_of_mix_generator.py:36-42 (tunables) + payload at 467-477.
+- [x] 13t-d.3 Validation rejects malformed output (missing variant, missing slot, slot
   value not str/None). On any failure → returns None (never raises — EC-35 pattern).
-- [ ] 13t-d.4 After successful LLM call, runs `match_slot_to_builtin` on the 5 mappable
+  — best_of_mix_generator.py:310-360 (_validate_and_clean) + 591-593 (caller).
+- [x] 13t-d.4 After successful LLM call, runs `match_slot_to_builtin` on the 5 mappable
   slots for each of the 3 variants (so the cache stores `(slot_value, is_raw)` tuples
   ready for persistence). Stores result in `niche.best_of_mix_cache = {"most_common":
   {...}, "edgy": {...}, "safe": {...}, "generated_at": iso, "top3_product_ids": [...]}`
   via `niche.save(update_fields=['best_of_mix_cache', 'updated_at'])`.
-- [ ] 13t-d.5 Cache-hit logic: if `force=False` AND `best_of_mix_cache` is non-empty
+  — best_of_mix_generator.py:363-417 (_resolve_built_in_matches), 595-604
+  (cache payload + save with update_fields).
+- [x] 13t-d.5 Cache-hit logic: if `force=False` AND `best_of_mix_cache` is non-empty
   AND `generated_at` exists AND `_source_research_id` matches latest research → return
   cached dict without LLM call. Mirrors `_is_cache_fresh` from `builder_hints.py`.
-- [ ] 13t-d.6 New file `django-app/design_app/tests/test_best_of_mix_generator.py` —
+  — best_of_mix_generator.py:278-307 (_is_cache_fresh) + 581-586 (short-circuit).
+- [x] 13t-d.6 New file `django-app/design_app/tests/test_best_of_mix_generator.py` —
   mocks OpenRouter via `httpx_mock` fixture; covers: cache hit, cache miss, LLM
   timeout, LLM malformed JSON, LLM returns missing variant, force=True bypass,
   workspace+niche metadata in Langfuse trace.
-- [ ] 13t-d.7 Tests green.
+  — test_best_of_mix_generator.py:177-394 (13 tests; uses unittest.mock.patch
+  since pytest-httpx not installed — mirrors test_builder_hints.py pattern).
+- [x] 13t-d.7 Tests green. — `pytest design_app/tests/test_best_of_mix_generator.py
+  -v` → 13 passed in 0.63s. Regression `pytest design_app/` → 465 passed, 34 skipped,
+  0 failures (up from 452 baseline).
 
 **Commit message:** `feat(PROJ-34): phase 13t-d — best_of_mix_generator LLM service + tests`
 
