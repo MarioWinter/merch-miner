@@ -28,7 +28,6 @@ const HINT_TO_SLOT: Array<[keyof BuilderSlots, keyof BuilderFormHints]> = [
   ['spatial_configuration', 'spatial'],
   ['visual_description', 'visual'],
   ['accessories', 'accessories'],
-  ['material_texture', 'material'],
 ];
 
 export const useBuilderDialogState = ({

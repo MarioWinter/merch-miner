@@ -26,6 +26,7 @@ import ExportDialog from '../board/partials/ExportDialog';
 import BuilderDialog from '../board/partials/BuilderDialog';
 import DesignEditorView from '../editor/DesignEditorView';
 import ProcessingSettingsDialog from './ProcessingSettingsDialog';
+import { useAppSelector } from '../../../store/hooks';
 import type { ProjectPrompt } from '../gallery/types';
 import useWorkspaceTab from './hooks/useWorkspaceTab';
 import type { WorkspaceTab } from './hooks/useWorkspaceTab';
@@ -73,6 +74,7 @@ const TabToggle = ({ tab, icon, label, active, onClick }: TabToggleProps) => (
 
 const DesignWorkspaceView = () => {
   const { projectId } = useParams<{ projectId: string }>();
+  const activeWorkspaceId = useAppSelector((s) => s.workspace.activeWorkspaceId);
   const navigate = useNavigate();
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
@@ -550,7 +552,7 @@ const DesignWorkspaceView = () => {
         isBuilding={gen.builder.isBuilding}
         nicheHints={gen.builder.nicheHints}
         projectId={projectId}
-        workspaceId={project?.workspace}
+        workspaceId={activeWorkspaceId ?? undefined}
         onSavePreset={gen.builder.handleSavePreset}
         onDeletePreset={gen.builder.handleDeletePreset}
         onBuild={gen.handleBuilderBuild}
