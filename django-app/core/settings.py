@@ -493,6 +493,9 @@ REST_FRAMEWORK = {
         # SSE stream endpoint. Isolation = other endpoints (research, niches,
         # keywords) stay unblocked while a user hammers chat.
         'chat_agent': '30/min',
+        # PROJ-34 Phase 13t-g (AC-89) — regenerate Best-of-Mix is LLM-expensive;
+        # 5/h/user prevents abuse while leaving room for legitimate retries.
+        'preset_regenerate': '5/hour',
     },
 }
 

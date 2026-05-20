@@ -12,6 +12,7 @@ from design_app.models import (
     DesignProcessingJob,
     DesignProject,
     DesignProjectDesign,
+    NicheCardPreset,
     ProcessingSettings,
     ProjectPrompt,
     ProjectReference,
@@ -1049,3 +1050,124 @@ class CustomTypographySerializer(serializers.ModelSerializer):
                 code='name_conflict',
             )
         return attrs
+
+
+# -- PROJ-34 Phase 13t-g — NicheCardPreset (Niche-Reference Preset Picker) --
+
+
+class NicheCardPresetSerializer(serializers.ModelSerializer):
+    """Serialize NicheCardPreset for list/history/custom/confirm responses.
+
+    Groups the 7 ``slot_*`` fields into a nested ``slots`` object and the 7
+    ``*_is_raw`` flags into ``raw_flags``. Source metadata (``card_type`` +
+    ``references``) is collapsed into a ``source`` object. Read-only — writes
+    go through ``preset_persistence`` service helpers, never this serializer.
+    """
+
+    slots = serializers.SerializerMethodField()
+    raw_flags = serializers.SerializerMethodField()
+    source = serializers.SerializerMethodField()
+
+    class Meta:
+        model = NicheCardPreset
+        fields = (
+            'id',
+            'preset_label',
+            'preset_hash',
+            'slots',
+            'raw_flags',
+            'source',
+            'reference_thumbnail_url',
+            'is_in_history',
+            'is_in_custom',
+            'custom_promoted_by',
+            'custom_promoted_at',
+            'last_clicked_at',
+            'created_at',
+        )
+        read_only_fields = fields
+
+    def get_slots(self, obj):
+        return {
+            'spatial_configuration': obj.slot_spatial_configuration,
+            'visual_description': obj.slot_visual_description,
+            'typography_adjectives': obj.slot_typography_adjectives,
+            'font_combination': obj.slot_font_combination,
+            'accessories': obj.slot_accessories,
+            'style_dna': obj.slot_style_dna,
+            'extra_context': obj.slot_extra_context,
+        }
+
+    def get_raw_flags(self, obj):
+        return {
+            'spatial_configuration': obj.spatial_is_raw,
+            'visual_description': obj.visual_is_raw,
+            'typography_adjectives': obj.typography_is_raw,
+            'font_combination': obj.font_combination_is_raw,
+            'accessories': obj.accessories_is_raw,
+            'style_dna': obj.style_dna_is_raw,
+            'extra_context': obj.extra_context_is_raw,
+        }
+
+    def get_source(self, obj):
+        return {
+            'card_type': obj.source_card_type,
+            'references': obj.source_card_references or [],
+        }
+
+
+class PresetConfirmSerializer(serializers.Serializer):
+    """Body for POST /api/designs/preset-cards/confirm/.
+
+    Two paths:
+      * ``preset_id`` — preset already persisted (History / Custom / Mix).
+        Endpoint bumps ``last_clicked_at`` only.
+      * ``preset_dict`` + ``source_card_type`` + ``source_refs`` — Top-Card
+        path (preset computed on the fly from a vision row, not yet in DB).
+        Endpoint calls ``upsert_preset`` to insert + dedup + LRU-evict.
+
+    Exactly one of the two paths must be provided.
+    """
+
+    SOURCE_CARD_TYPE_CHOICES = (
+        'top',
+        'mix_most_common',
+        'mix_edgy',
+        'mix_safe',
+    )
+
+    preset_id = serializers.UUIDField(required=False, allow_null=True)
+    preset_dict = serializers.DictField(required=False, allow_null=True)
+    source_card_type = serializers.ChoiceField(
+        choices=SOURCE_CARD_TYPE_CHOICES,
+        required=False, allow_null=True,
+    )
+    source_refs = serializers.ListField(
+        child=serializers.DictField(),
+        required=False, allow_null=True,
+    )
+
+    def validate(self, attrs):
+        has_id = attrs.get('preset_id') is not None
+        has_dict = attrs.get('preset_dict') is not None
+        if has_id == has_dict:
+            raise serializers.ValidationError(
+                'Provide exactly one of: preset_id OR preset_dict '
+                '(with source_card_type + source_refs).',
+            )
+        if has_dict:
+            if not attrs.get('source_card_type'):
+                raise serializers.ValidationError(
+                    {'source_card_type': 'Required with preset_dict.'},
+                )
+            if not attrs.get('source_refs'):
+                raise serializers.ValidationError(
+                    {'source_refs': 'Required with preset_dict.'},
+                )
+        return attrs
+
+
+class PresetRegenerateSerializer(serializers.Serializer):
+    """Body for POST /api/designs/preset-cards/regenerate-mix/."""
+
+    niche_id = serializers.UUIDField()

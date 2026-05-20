@@ -6,11 +6,14 @@ import django_rq
 import httpx
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
-from rest_framework import status
+from django.utils import timezone
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from django.db.models import Count, Exists, OuterRef
@@ -43,6 +46,9 @@ from design_app.api.serializers import (
     DesignUploadSerializer,
     GenerateDesignSerializer,
     GenerateFromPromptSerializer,
+    NicheCardPresetSerializer,
+    PresetConfirmSerializer,
+    PresetRegenerateSerializer,
     ProcessingSettingsSerializer,
     ProductAnalyzeImageSerializer,
     ProjectIdeaSerializer,
@@ -65,6 +71,7 @@ from design_app.models import (
     DesignProject,
     DesignProjectDesign,
     DesignProjectIdea,
+    NicheCardPreset,
     ProcessingSettings,
     ProjectPrompt,
     ProjectReference,
@@ -2577,3 +2584,325 @@ class CustomTypographyDetailView(APIView):
         instance.is_deleted = True
         instance.save(update_fields=['is_deleted', 'updated_at'])
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# -- PROJ-34 Phase 13t-g — NicheCardPreset endpoints --
+
+class NicheCardPresetViewSet(viewsets.GenericViewSet):
+    """Niche-Reference Preset Picker endpoints (PROJ-34 Phase 13t).
+
+    Six actions:
+      * ``list``           — GET /api/designs/preset-cards/?niche_id=<uuid>
+      * ``history``        — GET /api/designs/preset-cards/history/
+      * ``custom``         — GET /api/designs/preset-cards/custom/
+      * ``confirm``        — POST /api/designs/preset-cards/confirm/
+      * ``promote_custom`` — POST /api/designs/preset-cards/<id>/promote-custom/
+      * ``custom_remove``  — DELETE /api/designs/preset-cards/<id>/custom/
+      * ``regenerate_mix`` — POST /api/designs/preset-cards/regenerate-mix/
+
+    All endpoints: ``IsAuthenticated`` + workspace isolation via
+    ``X-Workspace-Id`` header. ``regenerate_mix`` adds a 5/h/user
+    ``ScopedRateThrottle`` (scope ``preset_regenerate``, AC-89).
+    """
+
+    permission_classes = [IsAuthenticated]
+    serializer_class = NicheCardPresetSerializer
+
+    def get_queryset(self):
+        ws_id = _get_workspace_id(self.request)
+        if not ws_id:
+            return NicheCardPreset.objects.none()
+        return NicheCardPreset.objects.filter(workspace_id=ws_id)
+
+    # -- list (Vorschläge): niche-scoped Top + Best-of-Mix -----------------
+
+    def list(self, request):
+        """Return Vorschläge structure for one niche.
+
+        Shape::
+          {
+            "top": [<Top-Card preset_dict>, ...]       # up to 10
+            "best_of_mix": {
+              "most_common": <preset_dict | null>,
+              "edgy":        <preset_dict | null>,
+              "safe":        <preset_dict | null>,
+            },
+            "top3_product_ids": [<uuid>, ...]
+          }
+
+        On Best-of-Mix cache-miss, enqueues async LLM generation via
+        ``django_rq`` and returns ``null`` placeholders with HTTP 202 so the
+        frontend can poll. Top-cards are computed in-memory (not persisted) —
+        they only land in History via the ``confirm`` action (AC-95).
+        """
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        niche_id = request.query_params.get('niche_id')
+        if not niche_id:
+            return Response(
+                {'error': 'niche_id query parameter is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from niche_app.models import Niche
+        niche = get_object_or_404(Niche, pk=niche_id, workspace_id=ws_id)
+
+        # ---- Top-10 Cards (computed in-memory, not persisted) -----------
+        from design_app.services.preset_ranker import rank_top_products
+        from design_app.services.top_card_builder import build_top_card_preset
+
+        top_vision_rows = rank_top_products(niche, limit=10)
+        top_cards = [
+            build_top_card_preset(vision, niche) for vision in top_vision_rows
+        ]
+
+        # ---- Best-of-Mix (from cache or async-trigger) ------------------
+        cache_dict = niche.best_of_mix_cache or {}
+        has_variants = any(
+            cache_dict.get(key) for key in ('most_common', 'edgy', 'safe')
+        )
+
+        response_status = status.HTTP_200_OK
+        if not has_variants:
+            # Cache-miss: enqueue async LLM generation. Frontend polls list.
+            try:
+                django_rq.enqueue(
+                    'design_app.services.best_of_mix_generator.generate_best_of_mix',
+                    str(niche.id),
+                )
+            except Exception as exc:  # noqa: BLE001 — best-effort enqueue
+                logger.warning(
+                    'NicheCardPresetViewSet.list: enqueue failed (%s): %s',
+                    type(exc).__name__, exc,
+                )
+            response_status = status.HTTP_202_ACCEPTED
+
+        collage_url = (
+            f'/api/designs/preset-cards/collage/{niche.id}.webp'
+        )
+
+        def _mix_payload(variant_key: str):
+            variant = cache_dict.get(variant_key)
+            if not variant:
+                return None
+            payload = dict(variant)
+            payload.setdefault(
+                'preset_label',
+                f'{variant_key.replace("_", "-").title()} Mix',
+            )
+            payload['reference_thumbnail_url'] = collage_url
+            payload['source_card_type'] = f'mix_{variant_key}'
+            payload['source_card_references'] = [
+                {
+                    'niche_id': str(niche.id),
+                    'product_ids': cache_dict.get('top3_product_ids', []),
+                },
+            ]
+            return payload
+
+        return Response(
+            {
+                'top': top_cards,
+                'best_of_mix': {
+                    'most_common': _mix_payload('most_common'),
+                    'edgy': _mix_payload('edgy'),
+                    'safe': _mix_payload('safe'),
+                },
+                'top3_product_ids': cache_dict.get('top3_product_ids', []),
+            },
+            status=response_status,
+        )
+
+    # -- history -----------------------------------------------------------
+
+    @action(detail=False, methods=['get'])
+    def history(self, request):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        qs = (
+            self.get_queryset()
+            .filter(is_in_history=True)
+            .order_by('-last_clicked_at')[:50]
+        )
+        return Response(NicheCardPresetSerializer(qs, many=True).data)
+
+    # -- custom ------------------------------------------------------------
+
+    @action(detail=False, methods=['get'])
+    def custom(self, request):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        qs = (
+            self.get_queryset()
+            .filter(is_in_custom=True)
+            .order_by('-custom_promoted_at')
+        )
+        return Response(NicheCardPresetSerializer(qs, many=True).data)
+
+    # -- confirm -----------------------------------------------------------
+
+    @action(detail=False, methods=['post'])
+    def confirm(self, request):
+        """Confirm a preset selection.
+
+        Two paths (mutually exclusive — serializer enforces):
+          * ``preset_id``  — existing row, bump ``last_clicked_at``.
+          * ``preset_dict`` — Top-Card path: ``upsert_preset`` inserts /
+            dedups / runs LRU eviction. ``source_card_type`` + ``source_refs``
+            required alongside.
+        """
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        serializer = PresetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        if data.get('preset_id'):
+            try:
+                preset = self.get_queryset().get(id=data['preset_id'])
+            except NicheCardPreset.DoesNotExist:
+                return Response(
+                    {'error': 'preset not found'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            preset.last_clicked_at = timezone.now()
+            # Revive if previously evicted from History (AC-105 mirror).
+            if not preset.is_in_history:
+                preset.is_in_history = True
+                preset.save(update_fields=[
+                    'last_clicked_at', 'is_in_history', 'updated_at',
+                ])
+            else:
+                preset.save(update_fields=['last_clicked_at', 'updated_at'])
+            return Response(NicheCardPresetSerializer(preset).data)
+
+        # Top-Card upsert path.
+        from design_app.services import preset_persistence
+        preset = preset_persistence.upsert_preset(
+            workspace_id=ws_id,
+            preset_dict=data['preset_dict'],
+            source_card_type=data['source_card_type'],
+            source_refs=data['source_refs'],
+        )
+        return Response(NicheCardPresetSerializer(preset).data)
+
+    # -- promote_custom ----------------------------------------------------
+
+    @action(detail=True, methods=['post'], url_path='promote-custom')
+    def promote_custom(self, request, pk=None):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        # Workspace isolation: row must exist in caller's workspace.
+        if not self.get_queryset().filter(pk=pk).exists():
+            return Response(
+                {'error': 'preset not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        from design_app.services import preset_persistence
+        result = preset_persistence.promote_to_custom(pk, request.user)
+        if result is None:
+            return Response(
+                {'error': 'preset not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(NicheCardPresetSerializer(result).data)
+
+    # -- custom_remove -----------------------------------------------------
+
+    @action(detail=True, methods=['delete'], url_path='custom')
+    def custom_remove(self, request, pk=None):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        if not self.get_queryset().filter(pk=pk).exists():
+            return Response(
+                {'error': 'preset not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        from design_app.services import preset_persistence
+        result = preset_persistence.unpromote_from_custom(pk)
+        if result is None:
+            return Response(
+                {'error': 'preset not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    # -- regenerate_mix ----------------------------------------------------
+
+    def get_throttles(self):
+        """Apply ``preset_regenerate`` scope only to the ``regenerate_mix`` action."""
+        if getattr(self, 'action', None) == 'regenerate_mix':
+            self.throttle_scope = 'preset_regenerate'
+            return [ScopedRateThrottle()]
+        return super().get_throttles()
+
+    @action(detail=False, methods=['post'], url_path='regenerate-mix')
+    def regenerate_mix(self, request):
+        """Force-regenerate Best-of-Mix variants for a niche + persist to History.
+
+        AC-89: rate-limited 5/h/user via ``preset_regenerate`` scope.
+        AC-90: all 3 variants inserted into History on success.
+        """
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        serializer = PresetRegenerateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        niche_id = serializer.validated_data['niche_id']
+
+        from niche_app.models import Niche
+        try:
+            niche = Niche.objects.get(id=niche_id, workspace_id=ws_id)
+        except Niche.DoesNotExist:
+            return Response(
+                {'error': 'niche not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        from design_app.services.best_of_mix_generator import (
+            generate_best_of_mix,
+        )
+        cache_payload = generate_best_of_mix(niche.id, force=True)
+        if cache_payload is None:
+            return Response(
+                {'error': 'generation_failed'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        # AC-90: insert all 3 mix variants into History via upsert.
+        from design_app.services import preset_persistence
+        collage_url = (
+            f'/api/designs/preset-cards/collage/{niche.id}.webp'
+        )
+        top3 = cache_payload.get('top3_product_ids', [])
+        source_refs = [{
+            'niche_id': str(niche.id),
+            'product_ids': top3,
+        }]
+        for variant_key in ('most_common', 'edgy', 'safe'):
+            variant_data = cache_payload.get(variant_key)
+            if not variant_data:
+                continue
+            preset_dict = dict(variant_data)
+            preset_dict.setdefault(
+                'preset_label',
+                f'{variant_key.replace("_", "-").title()} Mix',
+            )
+            preset_dict['reference_thumbnail_url'] = collage_url
+            preset_persistence.upsert_preset(
+                workspace_id=ws_id,
+                preset_dict=preset_dict,
+                source_card_type=f'mix_{variant_key}',
+                source_refs=source_refs,
+            )
+
+        return Response(cache_payload)

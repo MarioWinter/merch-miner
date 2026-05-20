@@ -35,6 +35,7 @@ from design_app.api.views import (
     DesignSaveProcessedView,
     GenerateDesignView,
     GenerateFromPromptView,
+    NicheCardPresetViewSet,
     PipelineDetailView,
     PipelineListCreateView,
     ProcessingJobStatusView,
@@ -272,6 +273,44 @@ urlpatterns = [
         'designs/preset-cards/collage/<uuid:niche_id>.webp',
         CollageView.as_view(),
         name='preset-collage',
+    ),
+    # PROJ-34 Phase 13t-g — NicheCardPreset endpoints (6 actions).
+    # Static segments declared BEFORE the <uuid:pk> routes so 'history/',
+    # 'custom/', 'confirm/', 'regenerate-mix/' aren't swallowed by the UUID matcher.
+    path(
+        'designs/preset-cards/',
+        NicheCardPresetViewSet.as_view({'get': 'list'}),
+        name='preset-cards-list',
+    ),
+    path(
+        'designs/preset-cards/history/',
+        NicheCardPresetViewSet.as_view({'get': 'history'}),
+        name='preset-cards-history',
+    ),
+    path(
+        'designs/preset-cards/custom/',
+        NicheCardPresetViewSet.as_view({'get': 'custom'}),
+        name='preset-cards-custom',
+    ),
+    path(
+        'designs/preset-cards/confirm/',
+        NicheCardPresetViewSet.as_view({'post': 'confirm'}),
+        name='preset-cards-confirm',
+    ),
+    path(
+        'designs/preset-cards/regenerate-mix/',
+        NicheCardPresetViewSet.as_view({'post': 'regenerate_mix'}),
+        name='preset-cards-regenerate-mix',
+    ),
+    path(
+        'designs/preset-cards/<uuid:pk>/promote-custom/',
+        NicheCardPresetViewSet.as_view({'post': 'promote_custom'}),
+        name='preset-cards-promote-custom',
+    ),
+    path(
+        'designs/preset-cards/<uuid:pk>/custom/',
+        NicheCardPresetViewSet.as_view({'delete': 'custom_remove'}),
+        name='preset-cards-custom-remove',
     ),
     # PROJ-34 Phase 13d — CustomSpatial (Analyze + CRUD)
     path(

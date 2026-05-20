@@ -2157,13 +2157,13 @@ with passing tests + an isolated commit. **DO NOT batch commits across phases.**
 
 **Scope-lock:** ONLY the 6 API endpoints + workspace isolation + rate-limiting. NO frontend.
 
-- [ ] 13t-g.1 Add `NicheCardPresetSerializer(serializers.ModelSerializer)` to
+- [x] 13t-g.1 Add `NicheCardPresetSerializer(serializers.ModelSerializer)` to
   `design_app/api/serializers.py` — all fields above `is_raw` flags grouped, source
   metadata as nested object, computed `reference_thumbnail_url` (resolves to
   collage endpoint for mix-cards, raw image URL for top-cards).
-- [ ] 13t-g.2 Add `PresetConfirmSerializer` (1 field: `preset_id: UUIDField`).
+- [x] 13t-g.2 Add `PresetConfirmSerializer` (1 field: `preset_id: UUIDField`).
   Add `PresetRegenerateSerializer` (1 field: `niche_id: UUIDField`).
-- [ ] 13t-g.3 Add `NicheCardPresetViewSet(viewsets.GenericViewSet)` with
+- [x] 13t-g.3 Add `NicheCardPresetViewSet(viewsets.GenericViewSet)` with
   custom actions:
   - `list` → standard but supports `?niche_id=<uuid>` to return Vorschläge structure
     (top: list, best_of_mix: dict, top3_product_ids: list).
@@ -2179,19 +2179,19 @@ with passing tests + an isolated commit. **DO NOT batch commits across phases.**
     `generate_best_of_mix(niche_id, force=True)` + persists 3 mixes to History via
     `upsert_preset`. Throttled via `ScopedRateThrottle` with scope
     `'preset_regenerate'` and per-user 5/h limit defined in `settings.REST_FRAMEWORK`.
-- [ ] 13t-g.4 ALL endpoints `permission_classes = [IsAuthenticated]`. Workspace
+- [x] 13t-g.4 ALL endpoints `permission_classes = [IsAuthenticated]`. Workspace
   isolation via `_get_workspace_id(self.request)` pattern — return 403 on mismatch.
-- [ ] 13t-g.5 Add 6 URL routes to `design_app/api/urls.py` per Tech Design endpoint
+- [x] 13t-g.5 Add 6 URL routes to `design_app/api/urls.py` per Tech Design endpoint
   table. Verify no conflict with existing `customspatial/`, `custom-typography/`,
   `projects/` routes.
-- [ ] 13t-g.6 Add throttle config `'preset_regenerate': '5/hour'` to
+- [x] 13t-g.6 Add throttle config `'preset_regenerate': '5/hour'` to
   `REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']` in `settings.py`.
-- [ ] 13t-g.7 New file `django-app/design_app/tests/test_preset_api.py` — integration
+- [x] 13t-g.7 New file `django-app/design_app/tests/test_preset_api.py` — integration
   tests using DRF `APIClient`: workspace isolation (403 on wrong header), confirm
   endpoint creates History row, promote endpoint flips flag, custom-delete preserves
   History, regenerate-mix throttled at 6th request, list endpoint returns correct
   structure with mix placeholders.
-- [ ] 13t-g.8 Run full backend suite: `docker compose exec web pytest design_app/`.
+- [x] 13t-g.8 Run full backend suite: `docker compose exec web pytest design_app/`.
   Must be green.
 
 **Commit message:** `feat(PROJ-34): phase 13t-g — DRF serializers + ViewSet + URLs + integration tests`
