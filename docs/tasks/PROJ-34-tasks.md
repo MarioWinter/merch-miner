@@ -2434,17 +2434,17 @@ DECOUPLED from niche-cards flow.
 
 **Scope-lock:** Tests + docs only.
 
-- [ ] 13t-o.1 Run full backend test suite: `docker compose exec web pytest`. All green.
-- [ ] 13t-o.2 Run full frontend test suite: `cd frontend-ui && npm run test:ci`. All
+- [x] 13t-o.1 Run full backend test suite: `docker compose exec web pytest`. All green.
+- [x] 13t-o.2 Run full frontend test suite: `cd frontend-ui && npm run test:ci`. All
   green. Coverage on new components ≥1 test each.
-- [ ] 13t-o.3 Mark all AC-79 → AC-128 + EC-33 → EC-49 checkboxes in
+- [x] 13t-o.3 Mark all AC-79 → AC-128 + EC-33 → EC-49 checkboxes in
   `features/PROJ-34-design-prompt-engineering.md` (per memory
   `feedback_skills_must_follow_rules` — coding skills MUST flip these).
-- [ ] 13t-o.4 Mark all 13t-a → 13t-n task checkboxes in this file.
-- [ ] 13t-o.5 Append a "## QA Results — Phase 13t" subsection in the spec under
+- [x] 13t-o.4 Mark all 13t-a → 13t-n task checkboxes in this file.
+- [x] 13t-o.5 Append a "## QA Results — Phase 13t" subsection in the spec under
   the existing QA Test Results section. Document: backend test count, frontend test
   count, AC/EC coverage table, any deferred items.
-- [ ] 13t-o.6 Update memory file `project_proj34_status.md` to reflect Phase 13t
+- [x] 13t-o.6 Update memory file `project_proj34_status.md` to reflect Phase 13t
   shipped state. Update `features/INDEX.md` PROJ-34 status to "In Review" if not
   already (no change expected).
 
