@@ -18,6 +18,7 @@ from design_app.api.views import (
     BuilderPresetDetailView,
     BuilderPresetListCreateView,
     BuildPromptsView,
+    CollageView,
     CustomSpatialAnalyzeView,
     CustomSpatialDetailView,
     CustomSpatialListCreateView,
@@ -265,6 +266,12 @@ urlpatterns = [
         'designs/projects/<uuid:pk>/builder-presets/<uuid:preset_id>/',
         BuilderPresetDetailView.as_view(),
         name='design-project-builder-preset-detail',
+    ),
+    # PROJ-34 Phase 13t-e — Best-of-Mix Top-3 Product Collage (AC-88, AC-122)
+    path(
+        'designs/preset-cards/collage/<uuid:niche_id>.webp',
+        CollageView.as_view(),
+        name='preset-collage',
     ),
     # PROJ-34 Phase 13d — CustomSpatial (Analyze + CRUD)
     path(

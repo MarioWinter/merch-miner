@@ -9,6 +9,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -2080,6 +2081,41 @@ class BuilderNicheHintsView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+# -- PROJ-34 Phase 13t-e — Best-of-Mix Collage Endpoint (AC-88, AC-122) --
+
+class CollageView(APIView):
+    """GET /api/designs/preset-cards/collage/<uuid:niche_id>.webp
+
+    Returns the server-rendered Best-of-Mix top-3 product collage as
+    ``image/webp``. Triggers regeneration if the cached file is missing
+    or older than 7 days. Workspace isolation: niche must belong to the
+    caller's workspace (cross-workspace → 404).
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, niche_id):
+        from django.http import HttpResponse
+
+        from design_app.services.collage_renderer import (
+            get_or_generate_collage_bytes,
+        )
+        from niche_app.models import Niche
+
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        niche = get_object_or_404(Niche, pk=niche_id, workspace_id=ws_id)
+        cache_dict = niche.best_of_mix_cache or {}
+        product_ids = cache_dict.get('top3_product_ids') or []
+
+        data = get_or_generate_collage_bytes(niche.id, product_ids)
+        response = HttpResponse(data, content_type='image/webp')
+        response['Cache-Control'] = 'public, max-age=86400'
+        return response
 
 
 # -- PROJ-34 BuilderPreset CRUD --

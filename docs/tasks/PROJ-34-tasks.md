@@ -2090,23 +2090,23 @@ with passing tests + an isolated commit. **DO NOT batch commits across phases.**
 
 **Scope-lock:** ONLY the collage rendering + serving endpoint. NO frontend.
 
-- [ ] 13t-e.1 New file `django-app/design_app/services/collage_renderer.py` per
+- [x] 13t-e.1 New file `django-app/design_app/services/collage_renderer.py` per
   **Appendix V of this file**. Implements `render_collage_webp(product_ids: list[str])
   -> bytes`. Uses Pillow to compose 3 images at 200×200 each into a 600×200 webp
   (quality=85). Handles missing product images gracefully (placeholder gray cell).
-- [ ] 13t-e.2 Caching to `MEDIA_ROOT / 'best_of_mix_collages' / f'{niche_id}.webp'`
+- [x] 13t-e.2 Caching to `MEDIA_ROOT / 'best_of_mix_collages' / f'{niche_id}.webp'`
   (7-day staleness check). Helper `get_collage_path(niche_id) -> Path` exposed.
-- [ ] 13t-e.3 New view `CollageView(APIView)` in `design_app/api/views.py` —
+- [x] 13t-e.3 New view `CollageView(APIView)` in `design_app/api/views.py` —
   `GET /api/designs/preset-cards/collage/<uuid:niche_id>.webp`. Resolves niche,
   reads `best_of_mix_cache['top3_product_ids']`, returns
   `FileResponse(open(get_collage_path(niche_id), 'rb'), content_type='image/webp')`.
   Triggers regeneration if file missing OR older than 7 days.
-- [ ] 13t-e.4 URL route added to `design_app/api/urls.py` per AC-122.
-- [ ] 13t-e.5 New file `django-app/design_app/tests/test_collage_renderer.py` —
+- [x] 13t-e.4 URL route added to `design_app/api/urls.py` per AC-122.
+- [x] 13t-e.5 New file `django-app/design_app/tests/test_collage_renderer.py` —
   asserts: webp file bytes start with WebP magic, dimensions = 600×200, file size
   <80 KB, gracefully handles missing image URL (placeholder fallback), file cached
   on second call (mtime unchanged).
-- [ ] 13t-e.6 Tests green.
+- [x] 13t-e.6 Tests green.
 
 **Commit message:** `feat(PROJ-34): phase 13t-e — best_of_mix collage renderer + endpoint`
 
