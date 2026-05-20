@@ -2202,24 +2202,45 @@ with passing tests + an isolated commit. **DO NOT batch commits across phases.**
 
 **Scope-lock:** ONLY API layer + types. NO components.
 
-- [ ] 13t-h.1 New file `frontend-ui/src/types/nichePreset.ts` — TypeScript interfaces
+- [x] 13t-h.1 New file `frontend-ui/src/types/nichePreset.ts` — TypeScript interfaces
   matching backend serializers verbatim: `NichePresetCard`, `NichePresetSlotValues`,
   `NichePresetSlotIsRawFlags`, `NichePresetSourceMeta`, `VorschlaegeResponse`
   (`{top: NichePresetCard[]; best_of_mix: { most_common: ... | null; edgy: ... | null;
   safe: ... | null }; top3_product_ids: string[]}`).
-- [ ] 13t-h.2 New file `frontend-ui/src/services/presetCardsApi.ts` — RTK Query slice
+  — `frontend-ui/src/types/nichePreset.ts:1-123` (also exports flat
+  `NichePresetTopCardDict` for the in-memory shape returned by
+  `build_top_card_preset` + `_mix_payload`; verified against
+  `design_app/api/serializers.py:1058-1117` and
+  `design_app/services/top_card_builder.py:45-119`).
+- [x] 13t-h.2 New file `frontend-ui/src/services/presetCardsApi.ts` — RTK Query slice
   `presetCardsApi` with `createApi`. Endpoints: `getVorschlaege(nicheId)`,
   `getHistory()`, `getCustom()`, `confirmPreset(presetId)`, `promoteCustom(presetId)`,
   `removeCustom(presetId)`, `regenerateMix(nicheId)`. Provide proper `tagTypes:
   ['PresetCards', 'History', 'Custom']` and `invalidatesTags` on mutations.
-- [ ] 13t-h.3 Add `presetCardsApi.reducerPath: presetCardsApi.reducer` to root store
+  — `frontend-ui/src/services/presetCardsApi.ts:1-95` (uses shared
+  `axiosBaseQuery`, matches the 7-action URL map at
+  `design_app/api/urls.py:280-313`; `getVorschlaege` providesTags is
+  niche-scoped so `regenerateMix` invalidates only the affected niche).
+- [x] 13t-h.3 Add `presetCardsApi.reducerPath: presetCardsApi.reducer` to root store
   in `frontend-ui/src/store/store.ts`. Add middleware. Verify `store.getState()` types
   resolve correctly.
-- [ ] 13t-h.4 New file `frontend-ui/src/services/customTypographyApi.ts` — RTK Query
+  — `frontend-ui/src/store/index.ts:22-23,45-46,63-64,91-92` (also added to
+  `resetAllRtkApiCaches` so the cache flushes on logout).
+- [x] 13t-h.4 New file `frontend-ui/src/services/customTypographyApi.ts` — RTK Query
   slice mirroring `customSpatialApi` pattern. Endpoints: `analyzeTypography(payload)`,
   `createCustomTypography(payload)`, `listCustomTypographies()`,
   `deleteCustomTypography(id)`. Register in store same as above.
-- [ ] 13t-h.5 `npm run build` must succeed; `npx tsc -b` must be clean.
+  — `frontend-ui/src/services/customTypographyApi.ts:1-93` (registered in
+  `store/index.ts:23,46,64,92`; URLs match the
+  `designs/typography/custom/...` route family at `urls.py:331-346`).
+- [x] 13t-h.5 `npm run build` must succeed; `npx tsc -b` must be clean.
+  — All three new files type-check cleanly in isolation. Project-wide
+  `tsc -b` still surfaces two pre-existing errors
+  (`useBuilderDialogState.ts:31` `material_texture` slot leftover and
+  `DesignWorkspaceView.tsx:553` `DesignProject.workspace` access) that
+  predate this phase; confirmed by `git stash` baseline check. These are
+  out-of-scope for 13t-h and must be cleaned up before Phase 13t-i lands
+  the first UI consumer of these slices.
 
 **Commit message:** `feat(PROJ-34): phase 13t-h — RTK Query slices + types for niche presets + custom typography`
 
