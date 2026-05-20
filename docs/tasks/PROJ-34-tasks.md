@@ -2355,26 +2355,26 @@ with passing tests + an isolated commit. **DO NOT batch commits across phases.**
 
 **Scope-lock:** Confirm-Dialog + slot-replacement wiring. NO new tab content.
 
-- [ ] 13t-l.1 `NichePresetConfirmDialog.tsx` — MUI `Dialog` (`maxWidth="md"`), title
+- [x] 13t-l.1 `NichePresetConfirmDialog.tsx` — MUI `Dialog` (`maxWidth="md"`), title
   "Preset übernehmen?", body = horizontal split: left 200px reference thumbnail (with
   `loading="lazy"`), right column = read-only preview rows for all 7 slots. Each slot
   row shows label (i18n) + resolved value text + "Raw" chip when `is_raw=true`.
-- [ ] 13t-l.2 Footer: 2 MUI `Button` — "Cancel" (text, left) + "Bestätigen" (filled,
+- [x] 13t-l.2 Footer: 2 MUI `Button` — "Cancel" (text, left) + "Bestätigen" (filled,
   primary, right). ESC + backdrop + Cancel all close without changes.
-- [ ] 13t-l.3 Bestätigen handler: fires `confirmPreset(preset_id)` mutation, then
+- [x] 13t-l.3 Bestätigen handler: fires `confirmPreset(preset_id)` mutation, then
   dispatches 7 slot setters into the existing `useBuilderDialogState` hook (REUSE
   existing setters — do NOT create new state). Then closes dialog. Toast on success.
-- [ ] 13t-l.4 Wire dialog into `NichePresetsAccordion` — local `useState` holds active
+- [x] 13t-l.4 Wire dialog into `NichePresetsAccordion` — local `useState` holds active
   card; `NichePresetCard.onClick` sets it; dialog opens when active card is non-null.
-- [ ] 13t-l.5 Confirm-Dialog reads slot labels for built-in IDs via existing
+- [x] 13t-l.5 Confirm-Dialog reads slot labels for built-in IDs via existing
   resolvers from `style_library.py` mirrors in `slotOptions.ts` — DO NOT re-implement.
   For raw values: show truncated text (max 200 chars per row) with full text in tooltip.
-- [ ] 13t-l.6 Vitest test `NichePresetConfirmDialog.test.tsx` — covers: opens on card
+- [x] 13t-l.6 Vitest test `NichePresetConfirmDialog.test.tsx` — covers: opens on card
   click, shows 7 slot rows, Bestätigen fires mutation + dispatches setters + closes,
   Cancel closes without effects.
-- [ ] 13t-l.7 Integration test `BuilderDialog.test.tsx` (existing) extended: niche
+- [x] 13t-l.7 Integration test `BuilderDialog.test.tsx` (existing) extended: niche
   preset card click → confirm → BuilderDialog form state reflects new slot values.
-- [ ] 13t-l.8 All Vitest green. `npx tsc -b` clean. ESLint clean.
+- [x] 13t-l.8 All Vitest green. `npx tsc -b` clean. ESLint clean.
 
 **Commit message:** `feat(PROJ-34): phase 13t-l — NichePresetConfirmDialog + Replace-All slot wiring`
 

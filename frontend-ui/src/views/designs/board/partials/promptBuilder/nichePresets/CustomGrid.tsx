@@ -28,7 +28,11 @@ import type { NichePresetCard as NichePresetCardType } from '@/types/nichePreset
 
 const SKELETON_COUNT = 6;
 
-const CustomGrid = () => {
+interface CustomGridProps {
+  onCardClick?: (card: AnyPresetCard) => void;
+}
+
+const CustomGrid = ({ onCardClick }: CustomGridProps = {}) => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
   const { data, isLoading, isError } = useGetCustomQuery();
@@ -54,8 +58,7 @@ const CustomGrid = () => {
   };
 
   const handleCardClick = (card: AnyPresetCard) => {
-    // TODO: 13t-l ConfirmDialog wire-up
-    console.log('Custom card clicked:', card);
+    onCardClick?.(card);
   };
 
   if (isLoading) {

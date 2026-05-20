@@ -39,7 +39,11 @@ const SOURCE_TYPE_LABEL: Record<NichePresetSourceCardType, string> = {
   mix_safe: 'Mix · Safe',
 };
 
-const HistoryGrid = () => {
+interface HistoryGridProps {
+  onCardClick?: (card: AnyPresetCard) => void;
+}
+
+const HistoryGrid = ({ onCardClick }: HistoryGridProps = {}) => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
   const { data, isLoading, isError } = useGetHistoryQuery();
@@ -61,8 +65,7 @@ const HistoryGrid = () => {
   };
 
   const handleCardClick = (card: AnyPresetCard) => {
-    // TODO: 13t-l ConfirmDialog wire-up
-    console.log('History card clicked:', card);
+    onCardClick?.(card);
   };
 
   if (isLoading) {

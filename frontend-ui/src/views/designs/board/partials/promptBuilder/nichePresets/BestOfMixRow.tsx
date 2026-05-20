@@ -32,9 +32,10 @@ type MixVariant = (typeof MIX_VARIANTS)[number];
 
 interface BestOfMixRowProps {
   nicheId: string | null;
+  onCardClick?: (card: AnyPresetCard) => void;
 }
 
-const BestOfMixRow = ({ nicheId }: BestOfMixRowProps) => {
+const BestOfMixRow = ({ nicheId, onCardClick }: BestOfMixRowProps) => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
 
@@ -121,8 +122,7 @@ const BestOfMixRow = ({ nicheId }: BestOfMixRowProps) => {
   if (!nicheId) return null;
 
   const handleCardClick = (card: AnyPresetCard) => {
-    // TODO: 13t-l ConfirmDialog wire-up
-    console.log('Mix card clicked:', card);
+    onCardClick?.(card);
   };
 
   const variants: { key: MixVariant; card: NichePresetTopCardDict | null }[] =

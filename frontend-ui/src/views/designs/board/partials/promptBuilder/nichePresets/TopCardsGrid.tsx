@@ -13,9 +13,10 @@ const SKELETON_COUNT = 10;
 
 interface TopCardsGridProps {
   nicheId: string | null;
+  onCardClick?: (card: AnyPresetCard) => void;
 }
 
-const TopCardsGrid = ({ nicheId }: TopCardsGridProps) => {
+const TopCardsGrid = ({ nicheId, onCardClick }: TopCardsGridProps) => {
   const { t } = useTranslation();
   const { data, isLoading, isError } = useGetVorschlaegeQuery(
     nicheId ? { nicheId } : skipToken,
@@ -54,8 +55,7 @@ const TopCardsGrid = ({ nicheId }: TopCardsGridProps) => {
   }
 
   const handleCardClick = (card: AnyPresetCard) => {
-    // TODO: 13t-l ConfirmDialog wire-up
-    console.log('TopCard clicked:', card);
+    onCardClick?.(card);
   };
 
   return (

@@ -58,6 +58,7 @@ import ReferenceIndicator from './promptBuilder/ReferenceIndicator';
 import BuildCounter from './promptBuilder/BuildCounter';
 import BuildConfirmDialog from './promptBuilder/BuildConfirmDialog';
 import NichePresetsAccordion from './promptBuilder/nichePresets/NichePresetsAccordion';
+import type { ResolvedSlots } from './promptBuilder/nichePresets/NichePresetConfirmDialog';
 
 interface BuilderDialogProps {
   open: boolean;
@@ -260,6 +261,17 @@ const BuilderDialog = ({
 
   const handleSavePreset = (name: string) => onSavePreset(name, cfg);
 
+  // Phase 13t-l (AC-109) — Niche-Preset Confirm dialog atomically replaces
+  // all 7 form slots. Re-uses the existing dirty-flag setter so subsequent
+  // niche-hint pre-fills don't silently clobber the applied values.
+  const handleApplyNichePreset = (slots: ResolvedSlots) => {
+    (Object.entries(slots) as Array<[keyof ResolvedSlots, string]>).forEach(
+      ([slotKey, value]) => {
+        updateSlot(slotKey, value);
+      },
+    );
+  };
+
   return (
     <DialogRoot
       open={open}
@@ -293,7 +305,10 @@ const BuilderDialog = ({
 
       <Body>
         {/* Phase 13t-i — "Aus der Niche" preset picker (AC-79). */}
-        <NichePresetsAccordion nicheId={nicheId} />
+        <NichePresetsAccordion
+          nicheId={nicheId}
+          onApplyPreset={handleApplyNichePreset}
+        />
 
         {/* A. Slogans (open by default) */}
         <Accordion defaultExpanded>

@@ -3652,7 +3652,21 @@
           "most_common": "Most-Common Mix",
           "edgy": "Edgy Mix",
           "safe": "Safe Mix"
-        }
+        },
+        "confirmTitle": "Apply preset?",
+        "confirmButton": "Confirm",
+        "confirmSuccess": "Preset applied.",
+        "confirmError": "Apply failed.",
+        "rawChip": "Raw"
+      },
+      "slotLabels": {
+        "spatial_configuration": "Spatial",
+        "visual_description": "Visual",
+        "typography_adjectives": "Typography",
+        "font_combination": "Font Combination",
+        "accessories": "Accessories",
+        "style_dna": "Style DNA",
+        "extra_context": "Extra Context"
       }
     }
   }

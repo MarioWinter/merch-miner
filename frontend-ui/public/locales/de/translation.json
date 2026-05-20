@@ -3695,7 +3695,21 @@
           "most_common": "Most-Common Mix",
           "edgy": "Edgy Mix",
           "safe": "Safe Mix"
-        }
+        },
+        "confirmTitle": "Preset übernehmen?",
+        "confirmButton": "Bestätigen",
+        "confirmSuccess": "Preset übernommen.",
+        "confirmError": "Übernehmen fehlgeschlagen.",
+        "rawChip": "Raw"
+      },
+      "slotLabels": {
+        "spatial_configuration": "Räumliche Anordnung",
+        "visual_description": "Visuelle Beschreibung",
+        "typography_adjectives": "Typografie",
+        "font_combination": "Schriftkombination",
+        "accessories": "Accessoires",
+        "style_dna": "Style DNA",
+        "extra_context": "Extra Kontext"
       }
     }
   }
