@@ -207,12 +207,14 @@ class TestSlotFallbackChain:
 
 
 class TestResolveSpatial:
+    """Phase 13t-u: style-default fallback removed; resolver now takes only
+    user_val + niche_hint_id + workspace_id."""
+
     def test_builtin_id_resolves_to_prompt_text(self):
         builtin = SPATIAL_OPTIONS[0]
         out = _resolve_spatial(
             user_val=builtin['id'],
             niche_hint_id=None,
-            style_default_id=None,
             workspace_id=None,
         )
         assert out == builtin['prompt_text']
@@ -221,7 +223,6 @@ class TestResolveSpatial:
         out = _resolve_spatial(
             user_val='a wildly custom layout that is not in the library',
             niche_hint_id=None,
-            style_default_id=None,
             workspace_id=None,
         )
         assert out == 'a wildly custom layout that is not in the library'
@@ -231,27 +232,16 @@ class TestResolveSpatial:
         out = _resolve_spatial(
             user_val='',
             niche_hint_id=builtin['id'],
-            style_default_id=None,
             workspace_id=None,
         )
         assert out == builtin['prompt_text']
 
-    def test_style_default_fills_when_no_user_no_hint(self):
-        builtin = SPATIAL_OPTIONS[2]
+    def test_no_user_no_hint_omits(self):
+        """Phase 13t-u: without user_val and without niche-hint, the sentence
+        is omitted — style picker no longer auto-fills layout."""
         out = _resolve_spatial(
             user_val='',
             niche_hint_id=None,
-            style_default_id=builtin['id'],
-            workspace_id=None,
-        )
-        assert out == builtin['prompt_text']
-
-    def test_missing_id_returns_empty_to_omit_sentence(self):
-        """Style default points to a nonexistent id → resolver omits."""
-        out = _resolve_spatial(
-            user_val='',
-            niche_hint_id=None,
-            style_default_id='not_a_real_spatial_id',
             workspace_id=None,
         )
         assert out == ''
@@ -259,43 +249,34 @@ class TestResolveSpatial:
     def test_uuid_branch_skipped_when_workspace_id_none(self):
         """No workspace context → UUID lookup MUST short-circuit. Without a
         raw-text fallback the result is the empty string."""
-        # A syntactically valid UUID that isn't a CustomSpatial.
         uuid_str = '00000000-0000-0000-0000-000000000000'
         out = _resolve_spatial(
             user_val=uuid_str,
             niche_hint_id=None,
-            style_default_id=None,
             workspace_id=None,
         )
-        # workspace_id=None → branch skipped → no raw-text path (the
-        # user_val is a UUID we already consumed) → omit.
         assert out == ''
 
     @pytest.mark.django_db
     def test_uuid_branch_gracefully_skips_when_custom_spatial_missing(self):
         """Phase 13d: model exists but the UUID has no row. The resolver
-        must NOT crash; it falls through to omit (no hint/default supplied).
-        Empty DB → DoesNotExist branch fires.
+        must NOT crash; it falls through to omit.
         """
         uuid_str = '11111111-2222-3333-4444-555555555555'
         ws_uuid = '22222222-2222-2222-2222-222222222222'
         out = _resolve_spatial(
             user_val=uuid_str,
             niche_hint_id=None,
-            style_default_id=None,
             workspace_id=ws_uuid,
         )
-        # DoesNotExist → skip. With no other fallback the result is '' (omit).
         assert out == ''
 
-    def test_priority_user_over_hint_and_default(self):
+    def test_priority_user_over_hint(self):
         builtin_a = SPATIAL_OPTIONS[0]
         builtin_b = SPATIAL_OPTIONS[1]
-        builtin_c = SPATIAL_OPTIONS[2]
         out = _resolve_spatial(
             user_val=builtin_a['id'],
             niche_hint_id=builtin_b['id'],
-            style_default_id=builtin_c['id'],
             workspace_id=None,
         )
         assert out == builtin_a['prompt_text']

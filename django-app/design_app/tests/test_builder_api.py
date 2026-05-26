@@ -293,10 +293,10 @@ class TestBuilderBuild:
         assert captured.get('slots') == {}
         assert captured.get('workspace_id') == str(workspace.id)
 
-    def test_slot_uuid_spatial_falls_through_to_style_default(self, auth_client, project):
-        """AC-75: a UUID-shaped spatial_configuration that resolves to no
-        CustomSpatial (Phase 13d not yet shipped) falls through to the style
-        default (`cartoon` → 'vertical_stack')."""
+    def test_slot_uuid_spatial_omits_layout_sentence(self, auth_client, project):
+        """Phase 13t-u: a UUID-shaped spatial_configuration that resolves to no
+        CustomSpatial falls through to OMIT (style picker no longer auto-fills
+        layout). The UUID must never leak into the polished prompt either."""
         url = self.URL.format(pid=project.id)
         bogus_uuid = '00000000-1111-2222-3333-444444444444'
         resp = auth_client.post(
@@ -314,8 +314,8 @@ class TestBuilderBuild:
         out = resp.json()['prompts'][0]
         # The UUID itself never appears in the output.
         assert bogus_uuid not in out
-        # cartoon → default_spatial_id='vertical_stack' → prompt_text below.
-        assert 'Vertical stack layout' in out
+        # Phase 13t-u: layout sentence omitted (no style-default fallback).
+        assert 'Vertical stack layout' not in out
 
 
 # ---- /builder-presets/ -------------------------------------------------------

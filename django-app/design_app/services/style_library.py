@@ -9,8 +9,9 @@ If a future entry is added it must be mirrored in both files.
 PROJ-34 Phase 13a adds the Architect template scaffolding + 36 spatial variants
 + 5 fixed-option dropdown lists (Appendices J.1–J.8, K) used by the form-based
 Builder. Existing `STYLE_LIBRARY` entries gain auto-default fields
-(`default_typography_id`, `default_style_dna`, `default_spatial_id`) per
-Appendix K. (Phase 13q dropped `default_material`.)
+(`default_typography_id`, `default_style_dna`) per Appendix K. (Phase 13q
+dropped `default_material`; Phase 13t-u dropped `default_spatial_id` so the
+style picker only contributes STYLE descriptors, never LAYOUT.)
 
 PROJ-34 Phase 13j rewrites `TYPOGRAPHY_OPTIONS` from 6 flat strings to 21
 list-of-dicts (id / ui_label / ui_description / prompt_text), renames every
@@ -774,7 +775,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'uniform black outlines, and slight halftone shading on flat '
             'color fills'
         ),
-        'default_spatial_id': 'vintage_postcard',
     },
     '70s_groovy': {
         'label': '70s Groovy',
@@ -791,7 +791,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'earthy mustard-orange-olive palette, and retro disco-poster '
             'flatness'
         ),
-        'default_spatial_id': 'concentric_circular_text',
     },
     '80s_neon': {
         'label': '80s Neon Synthwave',
@@ -808,7 +807,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'matte black palette and crisp neon-arcade flatness — no actual '
             'glow effects, only saturated flat colors'
         ),
-        'default_spatial_id': 'sunburst_layout',
     },
     '90s_grunge': {
         'label': '90s Grunge',
@@ -825,7 +823,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'effects, gritty rough outlines and photocopy-worn screen-print '
             'look'
         ),
-        'default_spatial_id': 'stacked_word_block',
     },
     'kawaii_chibi': {
         'label': 'Kawaii Chibi',
@@ -842,7 +839,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'soft pastel palette, thick rounded outlines and gentle pastel '
             'cel-shading'
         ),
-        'default_spatial_id': 'headline_top_subtitle_bottom',
     },
     'cartoon': {
         'label': 'Cartoon',
@@ -859,7 +855,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'saturated color fills, simple cel-shaded highlights and '
             'Saturday-morning animation flatness'
         ),
-        'default_spatial_id': 'vertical_stack',
     },
     'watercolor': {
         'label': 'Watercolor',
@@ -877,7 +872,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'rendered with hard-edged compositional outlines for print '
             'fidelity'
         ),
-        'default_spatial_id': 'vertical_stack',
     },
     'hand_drawn_sketch': {
         'label': 'Hand-Drawn Sketch',
@@ -894,7 +888,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'visible construction lines, slightly imperfect organic linework '
             'and charming journal feel'
         ),
-        'default_spatial_id': 'definition_entry',
     },
     'vector_flat': {
         'label': 'Vector Flat',
@@ -911,7 +904,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'gradients, minimalist palette, crisp sharp edges and '
             'editorial-emoji flatness'
         ),
-        'default_spatial_id': 'headline_top_subtitle_bottom',
     },
     'minimal_line_art': {
         'label': 'Minimal Line Art',
@@ -927,7 +919,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'no fills, no shading, abundant negative space and elegant '
             'wordmark refinement'
         ),
-        'default_spatial_id': 'big_word_tiny_tag',
     },
     'pixel_art': {
         'label': 'Pixel Art',
@@ -943,7 +934,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'anti-aliasing, limited 16-color retro arcade palette and '
             'blocky uniform pixels'
         ),
-        'default_spatial_id': 'periodic_tile',
     },
     'distressed_texture': {
         'label': 'Distressed Texture',
@@ -958,7 +948,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'Heavily distressed print aesthetic with worn ink-bleed effect, '
             'scratched and cracked color fills, vintage screen-print roughness'
         ),
-        'default_spatial_id': 'knockout_text',
     },
     'halftone_print': {
         'label': 'Halftone Print',
@@ -973,7 +962,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'Halftone-print pop-art aesthetic with dot-pattern fills, '
             'limited 2-3 color palette and retro newsprint feel'
         ),
-        'default_spatial_id': 'vertical_stack',
     },
     'badge_emblem': {
         'label': 'Badge / Emblem',
@@ -989,7 +977,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             '2-color palette, heritage trade-mark feel and ornate '
             'border-frame structure'
         ),
-        'default_spatial_id': 'badge_emblem',
     },
     'blackletter_gothic': {
         'label': 'Blackletter Gothic',
@@ -1005,7 +992,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'decorative flourishes, dramatic high-contrast strokes and dark '
             'moody palette'
         ),
-        'default_spatial_id': 'crest_coat_of_arms',
     },
     'comic_book': {
         'label': 'Comic Book',
@@ -1027,7 +1013,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'shading, NO gradients, only crisp flat areas of color separated by '
             'confident ink contour lines'
         ),
-        'default_spatial_id': 'subject_portrait_with_caption',
     },
 }
 

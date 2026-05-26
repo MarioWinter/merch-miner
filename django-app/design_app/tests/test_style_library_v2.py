@@ -230,20 +230,21 @@ class TestFontCombinationOptions:
 
 
 class TestStyleAutoDefaults:
-    """Every entry in STYLE_LIBRARY has the 4 new default fields and each
-    one points to a valid SPATIAL/TYPOGRAPHY/MATERIAL value (AC-52)."""
+    """Every entry in STYLE_LIBRARY has the style auto-default fields and
+    each one points to a valid TYPOGRAPHY value. Phase 13t-u removed
+    `default_spatial_id` so the style picker only contributes STYLE
+    descriptors, never LAYOUT."""
 
     DEFAULT_FIELDS = (
         'default_typography_id',
         'default_style_dna',
-        'default_spatial_id',
     )
 
     def test_sixteen_styles(self):
         # Phase 13r added comic_book (clean American comic, no shading).
         assert len(STYLE_LIBRARY) == 16
 
-    def test_every_style_has_all_three_default_fields(self):
+    def test_every_style_has_typography_and_style_dna_defaults(self):
         for slug, style in STYLE_LIBRARY.items():
             for field in self.DEFAULT_FIELDS:
                 assert field in style, (
@@ -254,13 +255,12 @@ class TestStyleAutoDefaults:
                     f"style {slug!r} has empty {field!r}"
                 )
 
-    def test_every_default_spatial_id_resolves(self):
+    def test_no_style_carries_a_default_spatial_id(self):
+        """Phase 13t-u: style picker must NOT auto-fill spatial layout."""
         for slug, style in STYLE_LIBRARY.items():
-            spatial_id = style['default_spatial_id']
-            entry = get_spatial_by_id(spatial_id)
-            assert entry is not None, (
-                f"style {slug!r} default_spatial_id {spatial_id!r} "
-                f"does not match any SPATIAL_OPTIONS entry"
+            assert 'default_spatial_id' not in style, (
+                f"style {slug!r} still carries a default_spatial_id; "
+                f"Phase 13t-u dropped this field"
             )
 
     def test_every_default_typography_id_resolves(self):

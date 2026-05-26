@@ -46,7 +46,8 @@ def _fallback_style(style_slug: str) -> dict:
         # Phase 13j: typography is now an id resolved via get_typography_by_id.
         'default_typography_id': '',
         'default_style_dna': '',
-        'default_spatial_id': None,
+        # Phase 13t-u: `default_spatial_id` removed from STYLE_LIBRARY — the
+        # style picker no longer auto-fills layout.
     }
 
 
@@ -54,20 +55,19 @@ def _resolve_spatial(
     *,
     user_val: str,
     niche_hint_id: str | None,
-    style_default_id: str | None,
     workspace_id: str | None,
 ) -> str:
     """Resolve `slots.spatial_configuration` per Appendix N.3 (part 2).
 
     Returns the rendered prompt-text (str) or '' to omit the sentence.
 
-    Order:
+    Order (Phase 13t-u: style-default step removed — style picker no longer
+    auto-fills LAYOUT; user must pick spatial explicitly OR niche-hint sets it):
       1) user_val is a built-in id          -> SPATIAL_OPTIONS[id].prompt_text
       2) user_val is a UUID                 -> CustomSpatial lookup (ws-scoped)
       3) user_val is non-empty raw string   -> use as-is (legacy / inline custom)
       4) niche_hint_id is a built-in id     -> SPATIAL_OPTIONS[id].prompt_text
-      5) style_default_id                   -> SPATIAL_OPTIONS[id].prompt_text
-      6) else                               -> '' (omit sentence)
+      5) else                               -> '' (omit sentence)
     """
     builtin_ids = {opt['id']: opt['prompt_text'] for opt in SPATIAL_OPTIONS}
 
@@ -111,11 +111,7 @@ def _resolve_spatial(
     if niche_hint_id and niche_hint_id in builtin_ids:
         return builtin_ids[niche_hint_id]
 
-    # 5) style default
-    if style_default_id and style_default_id in builtin_ids:
-        return builtin_ids[style_default_id]
-
-    # 6) omit
+    # 5) omit (Phase 13t-u: removed style-default fallback)
     return ''
 
 
@@ -133,7 +129,6 @@ def _resolve_slot(slot, user_slots, niche_hints, style, slogan, workspace_id=Non
         return _resolve_spatial(
             user_val=(user_slots or {}).get('spatial_configuration', '').strip(),
             niche_hint_id=(niche_hints or {}).get('spatial'),
-            style_default_id=style.get('default_spatial_id'),
             workspace_id=workspace_id,
         )
 
