@@ -249,7 +249,10 @@ def task_upscale_design(job_id: str):
 # How long we let an upscale job sit in `running` before the reconciler
 # considers it stuck. Replicate predictions for real-esrgan typically finish
 # in 3-5s, so 5min is an order of magnitude safety margin.
-RECONCILE_STUCK_THRESHOLD_SEC = 300
+RECONCILE_STUCK_THRESHOLD_SEC = 60  # Phase 13t-u: was 300s — Replicate webhook
+# losses are common (no TLS issues on our side; just intermittent). 60s polling
+# means worst-case wait is ~1 min after Replicate finishes instead of ~5 min.
+# Polling cost: ~89 / day max (1 prediction lookup per stuck job per minute).
 
 # Max retries when firing the initial Replicate prediction. Per EC-2 in spec.
 REPLICATE_RETRY_BACKOFF_SEC = (2, 4, 8)
