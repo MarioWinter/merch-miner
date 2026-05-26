@@ -87,7 +87,7 @@ class TestReindexDebounce:
         mock_queue.enqueue_in.assert_called()
         # Inspect last call kwargs to assert job_id dedup key.
         call_kwargs = mock_queue.enqueue_in.call_args.kwargs
-        assert call_kwargs.get('job_id') == f"niche_rag:reindex:{niche.pk}"
+        assert call_kwargs.get('job_id') == f"niche-rag-reindex-{niche.pk}"
 
     @patch('niche_app.signals.django_rq.get_queue')
     def test_two_saves_use_same_job_id(self, mock_get_queue, workspace, user):
@@ -105,7 +105,7 @@ class TestReindexDebounce:
         all_calls = mock_queue.enqueue_in.call_args_list
         assert len(all_calls) == 2
         job_ids = {c.kwargs.get('job_id') for c in all_calls}
-        assert job_ids == {f"niche_rag:reindex:{niche.pk}"}
+        assert job_ids == {f"niche-rag-reindex-{niche.pk}"}
 
 
 @pytest.mark.django_db(transaction=True)

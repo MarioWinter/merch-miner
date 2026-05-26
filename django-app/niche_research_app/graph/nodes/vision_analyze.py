@@ -115,6 +115,12 @@ async def vision_analyze_node(state: ResearchState) -> dict:
 
         product, analysis = item
 
+        def _str_field(name: str) -> str:
+            """Return the attribute as a string, else empty (defensive for old
+            Vision schema variants and test fixtures using MagicMock)."""
+            val = getattr(analysis, name, '')
+            return val if isinstance(val, str) else ''
+
         # Save to DB (all results, including filtered-out)
         record = NicheProductVisionAnalysis(
             research=research,
@@ -124,11 +130,9 @@ async def vision_analyze_node(state: ResearchState) -> dict:
             visual_style=analysis.visual_style,
             graphic_elements=analysis.graphic_elements,
             layout_composition=analysis.layout_composition,
-            typography_descriptors=getattr(analysis, 'typography_descriptors', ''),
-            font_combination_descriptors=getattr(
-                analysis, 'font_combination_descriptors', '',
-            ),
-            accessory_descriptors=getattr(analysis, 'accessory_descriptors', ''),
+            typography_descriptors=_str_field('typography_descriptors'),
+            font_combination_descriptors=_str_field('font_combination_descriptors'),
+            accessory_descriptors=_str_field('accessory_descriptors'),
             is_niche_match=analysis.is_niche_match,
         )
         vision_records.append(record)

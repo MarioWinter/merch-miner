@@ -199,22 +199,22 @@ const NicheResearchView = () => {
           )}
 
           {/* Brand filter info */}
-          {data.brand_filtered_count > 0 && (
+          {(data.brand_filtered_count ?? 0) > 0 && (
             <Alert severity="info" variant="outlined">
               {t('research.brandFiltered', { count: data.brand_filtered_count })}
             </Alert>
           )}
 
           {/* Products grouped by pattern */}
-          {data.products.length > 0 && (
+          {(data.products?.length ?? 0) > 0 && (
             <GroupedProductAnalysis
-              products={data.products}
+              products={data.products ?? []}
               nicheId={nicheId!}
             />
           )}
 
           {/* Related niches */}
-          <RelatedNiches niches={data.related_niches} />
+          <RelatedNiches niches={data.related_niches ?? []} />
         </Stack>
       )}
     </Box>
