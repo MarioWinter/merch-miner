@@ -1289,6 +1289,98 @@ extraction. CollectedProducts without a matching vision row are skipped
 | 7 | Niche-context toggle default | `ON` (AC-33) |
 
 ---
+
+## Phase 13t-u — Resolution-Chain Cleanups + Style/Layout Decoupling
+
+### Background
+
+Multiple post-13t bugs surfaced during E2E testing of the slogan-only build
+flow and the niche-preset Confirm → Build pipeline. They all relate to how
+slots resolve: Style-Picker injecting Layout, double-Style descriptors, lost
+slot data in the Build request, and confusing "default style applied" UX.
+Phase 13t-u is the consolidating cleanup.
+
+### Acceptance Criteria (Phase 13t-u)
+
+- [x] AC-151: Style-Picker MUST NOT auto-fill spatial_configuration.
+  `default_spatial_id` removed from all 16 STYLE_LIBRARY entries +
+  `_fallback_style`; `_resolve_spatial` drops the `style_default_id` parameter
+  + Step 5 fallback. Layout sentence is omitted when no user_val + no niche-hint.
+- [x] AC-152: Style-Picker MUST NOT auto-fill typography_adjectives.
+  `default_typography_id` removed from all 16 STYLE_LIBRARY entries;
+  `SLOT_SCHEMA.typography_adjectives.style_auto_default` → False;
+  `_resolve_slot` typography branch deleted. Style picker now contributes
+  ONLY `default_style_dna` + the (unused) `prompt_suffix`.
+- [x] AC-153: Style is OPTIONAL — slogan-only Build is supported end-to-end.
+  Backend: `BuilderBuildSerializer.styles` `min_length=0` + `required=False`;
+  `BuilderBuildView` falls back to `['']` (→ `_fallback_style`) when empty;
+  view-level "select at least one style" 400 guard removed. Frontend:
+  `BuildCounter.ready` requires only `sloganCount > 0`; `useBuilderLivePreview`
+  no longer short-circuits on missing style; `useBuilder.handleBuild` drops
+  the `styleCount === 0` guard.
+- [x] AC-154: `useBuilder.handleBuild` forwards `cfg.slots` in the Build
+  request body (was missing). Without this, the final polished prompt
+  ignored niche-preset slot values and fell through to style defaults —
+  Live Preview was correct but Build output diverged.
+- [x] AC-155: `_POLISHED_PROMPT_MAX_CHARS` (1500) + `_truncate_at_sentence_boundary`
+  removed from `prompt_builder.py`. Phase 13t-q enriched slot descriptors
+  routinely pushed prompts past 1500 chars; truncation cut the
+  ARCHITECT_TEMPLATE_END's non-negotiable anti-gradient clauses (AC-48).
+  Prompt now ends with full tech specs regardless of length.
+- [x] AC-156: SLOG­AN-AGNOSTIC RULE extended to ALL 6 design-description
+  fields (visual_style + graphic_elements + layout_composition + the 3
+  Phase 13t-p descriptors). Migration 0010 smart-updates DB-seeded
+  vision_analyze prompt (POST_13T_Q verbatim → EXTENDED). Re-Vision on the
+  school-bus-driver niche: quoted-slogan hits in design fields dropped from
+  ~30+ to 5/89 (all 5 are in-design text labels, not user-slogan leakage).
+- [x] AC-157: `includeNicheContext` defaults to `false` (was `true`). Niche
+  `builder_form_hints` no longer silently leak into empty slots; user opts
+  in via the toggle.
+- [x] AC-158: BuilderDialog header gains a "Reset" IconButton
+  (`RestartAltIcon`). One click clears all 7 slots + selectedSloganIds +
+  freeTextSlogans + selectedStyleSlugs + dirty flags + preset markers.
+  Snackbar confirms.
+- [x] AC-159: BuilderDialog header shows a "Niche-preset applied (N/7)"
+  Chip when ≥1 slot is preset-sourced. Tooltip lists affected slot keys.
+  Chip disappears as soon as the user types over a preset value.
+  Backed by a new `presetSlots: Set<SlotKey>` state in
+  `useBuilderDialogState` populated by a new `applyPresetSlot()` callback
+  (separate from `updateSlot()` which marks "user-edited").
+- [x] AC-160: Visual Description field pre-fills with the Architect template
+  skeleton (`"a stylized illustration of [SUBJECT] in [PERSPECTIVE], featuring
+  [6+ concrete details: ...]"`) as the actual input value instead of ghost-
+  text placeholder. User can read + edit inline; Reset restores it.
+- [x] AC-161: `PresetConfirmSerializer.SOURCE_CARD_TYPE_CHOICES` extended
+  with `'collection'` to accept Collection-Card Confirms (was missing → HTTP
+  400 in 13t-s5 browser test).
+
+### Edge Cases (Phase 13t-u)
+
+- [x] EC-59: User has a niche-preset applied (style_dna slot set) AND picks a
+  Style in the picker → slot value wins per resolver (rank 1 beats rank 3
+  style default). No duplicated/contradictory style sentence in output.
+- [x] EC-60: User picks an empty styles array (style_dna slot also empty) →
+  backend uses `[''] → _fallback_style`; style_dna sentence omitted; rest
+  of prompt renders cleanly with ARCHITECT_TEMPLATE_END.
+- [x] EC-61: User opens BuilderDialog after a niche-preset Confirm → header
+  Chip "Niche-preset applied (7/7)" visible until any slot is edited.
+- [x] EC-62: User clicks Reset after niche-preset Confirm → all slots
+  cleared (visual_description re-seeded with the Architect template
+  skeleton), slogans + styles cleared, Chip disappears, snackbar fires.
+
+### Resolved Decisions (Phase 13t-u)
+
+| # | Decision | Outcome |
+|---|---|---|
+| 35 | Style-Picker auto-fills | Removed for spatial + typography. Only style_dna + (unused) prompt_suffix remain. |
+| 36 | Style required for Build | Optional. Slogan-only Build → `_fallback_style` neutral path. |
+| 37 | Niche-context default | OFF. User opts in via toggle. |
+| 38 | Truncate vs preserve ARCHITECT_TEMPLATE_END | Preserve always — cap removed entirely. Token budget acceptable. |
+| 39 | Slot-source UI hint | Single Chip in header ("Niche-preset applied N/7") instead of per-slot badges (minimal surface). |
+| 40 | Reset button scope | Full reset: slots + slogans + styles (not just slots). |
+| 41 | Visual Description default | Pre-fill template skeleton as actual input value (not placeholder). |
+
+---
 <!-- Sections below are added by subsequent skills -->
 
 ## Tech Design (Solution Architect)
@@ -2036,6 +2128,112 @@ f5be00f  feat(PROJ-34): phase 13t-k — History + Custom tabs UI with promote/de
 #### Suggested PR Title
 
 `feat(PROJ-34): Phase 13t — Niche-Reference Preset Picker (15 sub-phases, ~3800 BE + ~2200 FE LOC, +192 tests)`
+
+### QA Results — Phase 13t-p..u (Post-13t bundle)
+
+**Auditor:** Orchestrator-driven manual audit (`/qa` skill returned empty).
+**Date:** 2026-05-27.
+**Verdict:** **Ready for deploy** — no blockers; 2 pre-existing notes carried.
+
+#### Test suite
+
+- Backend (design_app + niche_research_app): **673 passed, 34 skipped, 0 failed.**
+- Frontend (designs/board): **238 passed, 10 skipped, 0 failed.**
+- Ruff: clean on touched files. ESLint: 1 error pre-existing in
+  `CustomSpatialCreator.tsx:95` (Phase 13d, not 13t-*).
+
+#### Security audit
+
+- ✅ Authentication enforced (`permission_classes = [IsAuthenticated]`, project
+  default `CookieJWTAuthentication`).
+- ✅ Workspace isolation (`_require_workspace` + `get_object_or_404(Niche,
+  workspace_id=ws_id)` on all new + extended endpoints).
+- ✅ No raw SQL in new services (vision_backfill, collection_cards,
+  preset_persistence) — Django ORM only.
+- ✅ No hardcoded secrets — `OPENROUTER_API_KEY` / `LANGFUSE_*` via
+  `getattr(settings, ...)`.
+- ✅ Input validation via DRF serializers (`BuilderBuildSerializer`,
+  `PresetConfirmSerializer`, `NicheCardPresetSerializer`) — no raw
+  `request.data` access for write paths.
+- ✅ Backfill operator-only (Django management command, not API-exposed).
+- ✅ httpx calls bounded by `BACKFILL_TIMEOUT_S=15` / `POLISH_TIMEOUT_SEC=5`
+  — no DoS surface.
+- ✅ No `eval` / `exec` / dynamic imports on user input.
+- ⚠️ Slogan-leakage protection is prompt-only (Resolved Decision #23). E2E
+  test shows 5/89 hits remaining — all in-design text labels (stop sign,
+  bus side), not user-slogan leakage.
+
+#### Code-rules compliance (.claude/rules)
+
+- backend.md: ✅ DRF ViewSets, `CookieJWTAuthentication`,
+  `permission_classes = [IsAuthenticated]`, `serializer.is_valid(raise_exception=True)`,
+  `select_related()` in `get_collection_cards`, `db_index=True` on hot columns
+  (Phase 13t-p model fields), additive migrations only.
+- frontend.md: ✅ MUI v7 only (no `GridLegacy` / `Grid2` / `Hidden` /
+  `InputProps` / `@mui/lab` / `createMuiTheme`), arrow-fn components, no
+  hardcoded colors in new code (`theme.vars.palette.*` everywhere), `styled()`
+  for reusable styles + `sx` only for tiny overrides, RTK Query for CRUD,
+  no `style={{...}}` in new code.
+- security.md: ✅ No secrets in commits, env-driven config, X-Frame /
+  X-Content-Type via existing Django middleware (unchanged).
+- general.md: ✅ Feature spec + tasks tracked, conventional commits per
+  PROJ-34 phase, single-concern PRs merged via `--merge` (per memory).
+
+#### AC / EC coverage
+
+- **AC-79..AC-128 (Phase 13t main):** 50/50 ✅ (verified pre-13t-p shipping).
+- **AC-129..AC-138 (Phase 13t-p):** 10/10 ✅
+- **AC-139..AC-144 (Phase 13t-q):** 6/6 ✅
+- **AC-145..AC-150 (Phase 13t-s):** 6/6 ✅
+- **AC-151..AC-161 (Phase 13t-u):** 11/11 ✅ (added this round)
+- **EC-33..EC-58 (Phase 13t main + p + q + s):** 26/26 ✅
+- **EC-59..EC-62 (Phase 13t-u):** 4/4 ✅
+- Unchecked AC/EC (25) are all from pre-13t phases (AC-34..78, EC-1..32) —
+  carried legacy, out of 13t-* scope.
+
+#### Migration safety
+
+- `niche_research_app/0007` additive (3 nullable TextFields, `blank=True, default=''`).
+- `niche_research_app/0008` smart-update DB-seeded prompt — only overwrites if
+  current value matches OLD verbatim; warn-and-skip on customized prompts.
+- `niche_research_app/0009` same pattern (POST_13T_P → ENRICHED).
+- `niche_research_app/0010` same pattern (POST_13T_Q → EXTENDED).
+- `design_app/0017` additive `source_card_type` choices update (no schema change).
+- All four data migrations include matching reverse functions for rollback.
+
+#### Browser-verified happy paths
+
+- **Niche-preset Confirm** → 7 slots applied + Header Chip "Niche-preset
+  applied (7/7)" visible.
+- **Build with niche-preset + custom slogan** → polished prompt contains
+  preset slots (sandwich layout, school bus illustration), no Vintage Retro
+  hallucinations.
+- **Slogan-only Build** (no style picked) → backend uses `_fallback_style`,
+  prompt assembled cleanly, `Build N prompts` button enabled.
+- **Live Preview** ends with full ARCHITECT_TEMPLATE_END ("no gradients, no
+  glow, ..., 300 DPI") at 2041 chars (was cut at 1411 pre-13t-t).
+- **Collection sub-section** shows above Top-10 for "school bus driver"
+  niche with 3/4 CollectedProducts displayed (1 skipped — no Vision row).
+
+#### Production smoke executed during QA
+
+- Replicate webhook loss reproduced on prod (job
+  `06f6c4b3-26b1-4977-8c9f-0b07396506e1`); reconciler-fallback completed
+  the job at threshold + 5 min. Threshold lowered 300 → 60s (commit
+  `208225c`) for next deploy.
+
+#### Deferred / known limitations
+
+- **CustomSpatialCreator.tsx:95** pre-existing lint error (Phase 13d).
+- **prompt_suffix** field on STYLE_LIBRARY entries is stored but never
+  consumed by `build_form_prompt`. Dead code — flag for future cleanup.
+- **builder_form_hints** of old niches (analyzed pre-13t-p) still carry
+  slogan-quote leakage. Mitigated by `includeNicheContext=false` default
+  (Phase 13t-u Bug 3). Re-run niche-research to refresh hints.
+
+#### Suggested PR Title (post-13t bundle)
+
+`feat(PROJ-34): Phase 13t-p..u — Vision schema extension + enriched prompts + Collection products + resolution-chain cleanups`
 
 ## Deployment
 
