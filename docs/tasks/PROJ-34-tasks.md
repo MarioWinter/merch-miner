@@ -2783,7 +2783,7 @@ Top-10 in the Vorschläge tab. Skip products without Vision analysis.
   3 cards (3 CollectedProducts have Vision; 1 skipped). Screenshot.
 - [x] 13t-s5.2 Flip all AC-145..AC-150 + EC-56..EC-58 checkboxes in spec to `[x]`.
 - [x] 13t-s5.3 Flip all 13t-s1..13t-s5 task checkboxes in this file to `[x]`.
-- [ ] 13t-s5.4 Commit + push:
+- [x] 13t-s5.4 Commit + push:
     - Message: `feat(PROJ-34): phase 13t-s — Collection products in Vorschläge tab`
     - Push to `feature/PROJ-34-design-prompt-engineering`.
 
