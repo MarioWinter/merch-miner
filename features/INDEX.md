@@ -43,10 +43,11 @@
 | PROJ-29 | Niche-Data Agentic RAG + Configurable System-Prompt + Langfuse Chat Observability | In Review | [spec](PROJ-29-niche-rag-chat.md) | 2026-05-11 |
 | PROJ-30 | App-wide Responsive Design (iPhone SE / iPad / MacBook) | In Review | [spec](PROJ-30-app-responsive.md) | 2026-05-14 |
 | PROJ-31 | Entitlement & Permission Gating (2-Layer, supersedes PROJ-24) | In Review | [spec](PROJ-31-entitlement-permission.md) | 2026-05-15 |
+| PROJ-34 | Design-Forge Prompt Engineering & Multi-Prompt Builder | In Review | [spec](PROJ-34-design-prompt-engineering.md) | 2026-05-17 |
 
 <!-- Add features above this line -->
 
-## Next Available ID: PROJ-34
+## Next Available ID: PROJ-35
 
 > Note: PROJ-32 reserved for Polar.sh Subscription Integration (Webhook + Subscription model + Customer Portal). Writes to `user.subscription_tier` from PROJ-31.
 

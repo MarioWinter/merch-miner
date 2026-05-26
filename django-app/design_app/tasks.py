@@ -48,6 +48,12 @@ def task_generate_design(
         media_dir = os.path.join(settings.MEDIA_ROOT, 'designs', 'generated')
         os.makedirs(media_dir, exist_ok=True)
 
+        # PROJ-34 AC-39 / Appendix H — derive a deterministic 32-bit seed
+        # from this Run's UUID so parallel variants (each its own Run)
+        # produce different — but reproducible — outputs from the same prompt.
+        # Cheaper than carrying a separate seed column on the Run.
+        seed_value = int(run.id.int & 0xFFFFFFFF)
+
         output_path = generate_image(
             prompt=run.prompt_used,
             model_name=run.model_name,
@@ -56,6 +62,10 @@ def task_generate_design(
             source_image_url=run.source_image_url or '',
             source_image_url_2=run.source_image_url_2 or '',
             mode=run.generation_mode or mode,
+            # PROJ-34 AC-6: persisted UI selection threads through to the
+            # generator instead of being post-hoc derived from prompt text.
+            background_color=run.background_color,
+            seed=seed_value,
         )
 
         # Read file and save to Design model
@@ -81,7 +91,8 @@ def task_generate_design(
             idea=run.idea,
             generation_run=run,
             status=Design.Status.PENDING,
-            background_color=_get_bg_from_prompt(run.prompt_used),
+            # PROJ-34 AC-8: trust the persisted UI selection on the Run.
+            background_color=run.background_color,
         )
         filename = f"design_{str(run.id)[:8]}.png"
         design.image_file.save(filename, ContentFile(image_content), save=False)
@@ -238,7 +249,10 @@ def task_upscale_design(job_id: str):
 # How long we let an upscale job sit in `running` before the reconciler
 # considers it stuck. Replicate predictions for real-esrgan typically finish
 # in 3-5s, so 5min is an order of magnitude safety margin.
-RECONCILE_STUCK_THRESHOLD_SEC = 300
+RECONCILE_STUCK_THRESHOLD_SEC = 60  # Phase 13t-u: was 300s — Replicate webhook
+# losses are common (no TLS issues on our side; just intermittent). 60s polling
+# means worst-case wait is ~1 min after Replicate finishes instead of ~5 min.
+# Polling cost: ~89 / day max (1 prediction lookup per stuck job per minute).
 
 # Max retries when firing the initial Replicate prediction. Per EC-2 in spec.
 REPLICATE_RETRY_BACKOFF_SEC = (2, 4, 8)
@@ -612,10 +626,3 @@ def task_analyze_product_image(product_id: str, source_image_url: str):
         raise
 
 
-def _get_bg_from_prompt(prompt: str) -> str:
-    """Extract background color from prompt text."""
-    from design_app.models import Design
-    for choice_val, hex_val in Design.BG_COLOR_HEX.items():
-        if hex_val.lower() in prompt.lower():
-            return choice_val
-    return Design.BackgroundColor.LIGHT_GRAY

@@ -72,5 +72,11 @@ export default defineConfig({
     environment: 'jsdom',
     setupFiles: ['./src/setupTests.ts'],
     globals: true,
+    // CI under v8 coverage instrumentation runs heavier tests 5-8× slower than
+    // bare host. Default 5000ms timeout flakes on Modal-heavy tests with ~50+
+    // option cards (SpatialPickerModal, AmazonResearchView). Bumping to 15s
+    // globally — local runs still complete in <1s per test, no developer-feedback hit.
+    testTimeout: 15000,
+    hookTimeout: 15000,
   },
 })

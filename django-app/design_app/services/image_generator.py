@@ -13,25 +13,149 @@ from PIL import Image
 
 logger = logging.getLogger(__name__)
 
-# OpenRouter model mapping — DB/frontend value → real OpenRouter model ID.
-# The "image-generation" suffix variants we historically used are NOT real
-# OpenRouter IDs; translate them to the actual published IDs here.
+# PROJ-34 — Hard rules always-on system prompt. Sent as ``role: system``
+# before the user message on every generate_image() call (AC-1, AC-2).
+# Encodes the 9 Architect Critical Rules from docs/design-prompts/knowledge.md
+# plus the design-only / no-mockup / no-person hard rules and tech-specs.
+DESIGN_GEN_SYSTEM_PROMPT = (
+    "You are a Print-on-Demand (POD) vector design generator producing artwork "
+    "for Merch-by-Amazon T-shirt listings. Your only output is a print-ready "
+    "isolated graphic — never a t-shirt mockup, never a model wearing the "
+    "design, never a product photograph, never a scene with the design in "
+    "context. The output is the design itself, isolated, on the requested "
+    "background color.\n\n"
+    "## Hard rules — never violate\n\n"
+    "1. NEVER produce a t-shirt, hoodie, mug, sticker mockup, or any other "
+    "product as the output. Output ONLY the printable design / artwork / "
+    "graphic itself.\n"
+    "2. NEVER include a person, body part, or model. The output is "
+    "product-photo-free and human-free.\n"
+    "3. NEVER include scene context (no rooms, no backgrounds beyond a solid "
+    "color, no environments).\n"
+    "4. ALWAYS render the design centered, with generous padding and breathing "
+    "room around all elements — no edge-to-edge text or imagery.\n"
+    "5. ALWAYS honor the background color specified at the end of the user "
+    "prompt (look for \"Background: solid #HEX, ...\"). The output background "
+    "MUST be that exact solid color, flat, no gradients.\n"
+    "6. Text inside the design MUST be inside double quotes in the prompt; "
+    "render it as a physical typographic element with material properties "
+    "(matte vinyl, glossy plastisol ink, screenprint flat).\n"
+    "7. Use color-object binding: when a color is named, bind it to a specific "
+    "element (\"golden yellow bus body\", \"white hand-drawn marker font\") "
+    "rather than describing colors in isolation.\n"
+    "8. Maintain hard vector edges, no anti-aliasing softness, no JPEG noise, "
+    "no film grain unless explicitly requested as part of a vintage/distressed "
+    "style.\n"
+    "9. The output is print-ready: high contrast, clean outlines, commercial "
+    "vector art, screen print ready, hard edges, no unnecessary gradients, "
+    "vector sharpness, 300 DPI quality.\n"
+    "10. NEVER produce gradient fills, glowing effects, soft-edge shadows, "
+    "drop shadows, or any blurred edge. Print on Demand requires hard edges "
+    "and flat color regions even on round shapes — render rounded geometry "
+    "with crisp outlined boundaries and flat fills.\n\n"
+    "## Style adherence\n\n"
+    "If the user prompt names a style (e.g. \"vintage retro\", \"kawaii chibi\", "
+    "\"halftone print\"), the entire design adopts that style consistently — "
+    "typography, color palette, line treatment, shading, and texture all match "
+    "the named style.\n\n"
+    "## Format reminder\n\n"
+    "The user prompt ends with the background-color instruction. That line is "
+    "NOT decorative — it is the exact color of the canvas behind the design."
+)
+
+
+# OpenRouter model mapping — DB/frontend value → {openrouter_id + per-model flags}.
+# Restructured (PROJ-34 task 2.3 / Appendix B) from flat str→str dict to nested
+# {db_value: {openrouter_id, supports_system_role, supports_seed}} so we can
+# carry per-model capability flags. All current models support both flags
+# (probed 2026-05-17); defaults are kept ``True`` so future models stay safe
+# by default and have to opt out.
 MODEL_MAP = {
     # Legacy short names (kept for existing DB records)
-    'gemini_flash': 'google/gemini-2.5-flash-image',
-    'gemini_pro': 'google/gemini-3-pro-image-preview',
-    'gpt_image': 'openai/gpt-image-1',
-    'flux': 'black-forest-labs/flux-1.1-pro',
+    'gemini_flash': {
+        'openrouter_id': 'google/gemini-2.5-flash-image',
+        'supports_system_role': True,
+        'supports_seed': True,
+    },
+    'gemini_pro': {
+        'openrouter_id': 'google/gemini-3-pro-image-preview',
+        'supports_system_role': True,
+        'supports_seed': True,
+    },
+    'gpt_image': {
+        'openrouter_id': 'openai/gpt-image-1',
+        'supports_system_role': True,
+        'supports_seed': True,
+    },
+    'flux': {
+        'openrouter_id': 'black-forest-labs/flux-1.1-pro',
+        'supports_system_role': True,
+        'supports_seed': True,
+    },
     # Gemini image-gen — DB values map to real OpenRouter IDs
-    'google/gemini-3.1-flash-preview-image-generation': 'google/gemini-3.1-flash-image-preview',
-    'google/gemini-3-pro-preview-image-generation': 'google/gemini-3-pro-image-preview',
-    'google/gemini-2.5-flash-preview-image-generation': 'google/gemini-2.5-flash-image',
+    'google/gemini-3.1-flash-preview-image-generation': {
+        'openrouter_id': 'google/gemini-3.1-flash-image-preview',
+        'supports_system_role': True,
+        'supports_seed': True,
+    },
+    'google/gemini-3-pro-preview-image-generation': {
+        'openrouter_id': 'google/gemini-3-pro-image-preview',
+        'supports_system_role': True,
+        'supports_seed': True,
+    },
+    'google/gemini-2.5-flash-preview-image-generation': {
+        'openrouter_id': 'google/gemini-2.5-flash-image',
+        'supports_system_role': True,
+        'supports_seed': True,
+    },
     # OpenAI + others — IDs already correct
-    'openai/gpt-5-image': 'openai/gpt-5-image',
-    'openai/gpt-5-image-mini': 'openai/gpt-5-image-mini',
-    'black-forest-labs/flux-1.1-pro': 'black-forest-labs/flux-1.1-pro',
-    'bytedance-seed/seedream-4.5': 'bytedance-seed/seedream-4.5',
+    'openai/gpt-5-image': {
+        'openrouter_id': 'openai/gpt-5-image',
+        'supports_system_role': True,
+        'supports_seed': True,
+    },
+    'openai/gpt-5-image-mini': {
+        'openrouter_id': 'openai/gpt-5-image-mini',
+        'supports_system_role': True,
+        'supports_seed': True,
+    },
+    'black-forest-labs/flux-1.1-pro': {
+        'openrouter_id': 'black-forest-labs/flux-1.1-pro',
+        'supports_system_role': True,
+        'supports_seed': True,
+    },
+    'bytedance-seed/seedream-4.5': {
+        'openrouter_id': 'bytedance-seed/seedream-4.5',
+        'supports_system_role': True,
+        'supports_seed': True,
+    },
 }
+
+
+# Background-color hex map. Mirrors Design.BG_COLOR_HEX. Kept here to avoid an
+# import cycle (image_generator is imported by services + tasks).
+BG_COLOR_HEX = {
+    'light_gray': '#D3D3D3',
+    'neon_pink': '#FF6EC7',
+    'neon_green': '#39FF14',
+}
+
+
+def _bg_color_instruction(background_color: str | None) -> str:
+    """Render the trailing background-color instruction line (AC-7).
+
+    Returns an empty string when no bg_color is provided so callers stay
+    backwards-compatible (tests + direct calls without bg propagation).
+    """
+    if not background_color:
+        return ''
+    hex_value = BG_COLOR_HEX.get(background_color)
+    if not hex_value:
+        return ''
+    return (
+        f"Background: solid {hex_value}, saturated, no gradients, "
+        "flat single color background"
+    )
 
 # Aspect ratio → pixel dimensions
 ASPECT_RATIO_DIMS = {
@@ -117,15 +241,27 @@ def _build_content(
     prompt: str,
     source_image_url: str = '',
     source_image_url_2: str = '',
+    background_color: str | None = None,
 ):
     """Build OpenRouter message content array based on generation mode.
 
     Returns plain string for text_to_image (no image), or a multimodal
     content list for image-based modes. Source images are inlined as
     data URLs to avoid OpenRouter / Gemini failing to fetch them.
+
+    PROJ-34 AC-7: when ``background_color`` is provided, the
+    ``Background: solid #HEX, ...`` instruction is appended as the final
+    segment of the user message (or as a trailing text part for multimodal
+    modes). Omitted when ``background_color`` is None/empty so existing
+    callers (tests, legacy paths) keep their byte-for-byte payload shape.
     """
     src1_data = _to_data_url(source_image_url) if source_image_url else ''
     src2_data = _to_data_url(source_image_url_2) if source_image_url_2 else ''
+
+    bg_instruction = _bg_color_instruction(background_color)
+
+    def _with_bg(text: str) -> str:
+        return f"{text}\n\n{bg_instruction}" if bg_instruction else text
 
     if mode == 'image_to_image':
         # Prompt dominates — image is style/mood guide
@@ -137,7 +273,7 @@ def _build_content(
         )
         return [
             {'type': 'image_url', 'image_url': {'url': src1_data}},
-            {'type': 'text', 'text': text},
+            {'type': 'text', 'text': _with_bg(text)},
         ]
 
     if mode == 'image_to_image_edit':
@@ -149,7 +285,7 @@ def _build_content(
         )
         return [
             {'type': 'image_url', 'image_url': {'url': src1_data}},
-            {'type': 'text', 'text': text},
+            {'type': 'text', 'text': _with_bg(text)},
         ]
 
     if mode == 'remix':
@@ -163,17 +299,65 @@ def _build_content(
         return [
             {'type': 'image_url', 'image_url': {'url': src1_data}},
             {'type': 'image_url', 'image_url': {'url': src2_data}},
-            {'type': 'text', 'text': text},
+            {'type': 'text', 'text': _with_bg(text)},
         ]
 
     # text_to_image — may have optional reference image
     if source_image_url:
         return [
-            {'type': 'text', 'text': prompt},
+            {'type': 'text', 'text': _with_bg(prompt)},
             {'type': 'image_url', 'image_url': {'url': src1_data}},
         ]
 
-    return prompt
+    return _with_bg(prompt)
+
+
+def _build_messages(content, supports_system_role: bool) -> list[dict]:
+    """Wrap user ``content`` with the design-only system prompt.
+
+    AC-2: always sent as ``role: system`` before the user message.
+    AC-3: for any model that rejects system messages, the constant is
+    prepended as a wrapper at the start of the user message instead.
+    Today every model in ``MODEL_MAP`` supports system role, but the
+    branch exists so a future opt-out is a one-flag change.
+    """
+    if supports_system_role:
+        return [
+            {'role': 'system', 'content': DESIGN_GEN_SYSTEM_PROMPT},
+            {'role': 'user', 'content': content},
+        ]
+
+    # Fallback: prepend the system text into the user message.
+    prefix = f"{DESIGN_GEN_SYSTEM_PROMPT}\n\n---\n\n"
+    if isinstance(content, str):
+        merged = prefix + content
+    else:
+        # Multimodal content list: inject a leading text part with the prefix.
+        merged = [{'type': 'text', 'text': prefix}, *content]
+    return [{'role': 'user', 'content': merged}]
+
+
+# Very rough char budget warning. Gemini supports ~1M context so this is just
+# a sanity check for grossly-oversized user prompts (EC-4).
+_USER_PROMPT_WARN_CHARS = 200_000
+
+
+def _warn_if_oversized(content) -> None:
+    """Log a warning if the user-side content looks dangerously large (EC-4)."""
+    if isinstance(content, str):
+        size = len(content)
+    elif isinstance(content, list):
+        size = sum(
+            len(part.get('text', '')) for part in content
+            if isinstance(part, dict) and part.get('type') == 'text'
+        )
+    else:
+        return
+    if size > _USER_PROMPT_WARN_CHARS:
+        logger.warning(
+            'generate_image: user content unusually large (%s chars) — '
+            'check for accidental concatenation.', size,
+        )
 
 
 def generate_image(
@@ -184,6 +368,8 @@ def generate_image(
     source_image_url: str = '',
     source_image_url_2: str = '',
     mode: str = 'text_to_image',
+    background_color: str | None = None,
+    seed: int | None = None,
 ) -> str:
     """Generate an image via OpenRouter and save to disk.
 
@@ -196,6 +382,15 @@ def generate_image(
         source_image_url_2: Second reference image URL for remix mode.
         mode: Generation mode — text_to_image, image_to_image,
             image_to_image_edit, or remix.
+        background_color: One of ``light_gray`` / ``neon_pink`` /
+            ``neon_green``. When provided, the corresponding hex value is
+            injected as the final ``Background: solid #HEX, ...`` line of the
+            user prompt (PROJ-34 AC-7). When ``None`` no injection happens
+            so legacy callers keep their exact payload shape.
+        seed: Deterministic-variation seed (PROJ-34 AC-39 / Appendix H).
+            Forwarded to OpenRouter as the ``seed`` parameter when the model
+            supports it (see ``MODEL_MAP[model].supports_seed``). ``None``
+            disables seed injection so legacy callers stay byte-identical.
 
     Returns:
         Path to saved image file.
@@ -211,9 +406,12 @@ def generate_image(
     if not api_key:
         raise ValueError("OPENROUTER_API_KEY not configured")
 
-    model_id = MODEL_MAP.get(model_name)
-    if not model_id:
+    model_entry = MODEL_MAP.get(model_name)
+    if not model_entry:
         raise ValueError(f"Unknown model: {model_name}")
+    model_id = model_entry['openrouter_id']
+    supports_system_role = model_entry.get('supports_system_role', True)
+    supports_seed = model_entry.get('supports_seed', False)
 
     _IMAGE_MODES = {'image_to_image', 'image_to_image_edit', 'remix'}
     needs_image = mode in _IMAGE_MODES
@@ -242,18 +440,33 @@ def generate_image(
         'X-Title': 'Merch Miner Design Generator',
     }
 
-    # Build message content based on mode
-    content = _build_content(mode, prompt, source_image_url, source_image_url_2)
+    # Build message content based on mode (AC-7: bg-color appended to user msg)
+    content = _build_content(
+        mode, prompt, source_image_url, source_image_url_2, background_color,
+    )
+
+    # PROJ-34 AC-1 / AC-2 / AC-3: always send the design-only system prompt.
+    # For models that don't accept ``role: system`` we prepend the prompt to
+    # the user message instead (future-proofing — no current model needs this).
+    messages = _build_messages(content, supports_system_role)
 
     payload = {
         'model': model_id,
-        'messages': [
-            {
-                'role': 'user',
-                'content': content,
-            },
-        ],
+        'messages': messages,
     }
+
+    # PROJ-34 AC-39 / Appendix H — pass-through seed for deterministic
+    # variation when the model supports it. All 5 current image models do
+    # (probed 2026-05-17). The seed is bounded to 32-bit because OpenRouter
+    # forwards it as an int and some providers reject larger values.
+    if seed is not None and supports_seed:
+        payload['seed'] = int(seed) & 0xFFFFFFFF
+
+    # PROJ-34 AC-4 prep: the worker may want to log/diagnose context-window
+    # overruns (EC-4). The system prompt is ~2.1KB which is trivial for
+    # Gemini's huge context, but emit a warning if user-side content is
+    # unexpectedly large so it shows up in Langfuse pre-truncation.
+    _warn_if_oversized(content)
 
     # Model-specific params
     if model_name in _GEMINI_MODELS:

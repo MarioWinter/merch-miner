@@ -41,6 +41,8 @@ export interface ProcessingSettings {
   upscale_provider: 'pica' | 'api' | 'auto';
   upscale_api_key_set: boolean;
   upscale_auto_threshold: number;
+  // PROJ-34 — workspace polish toggle for Builder-generated prompts.
+  polish_builder_prompts_enabled: boolean;
 }
 
 export interface UpdateProcessingSettingsBody {
@@ -49,6 +51,7 @@ export interface UpdateProcessingSettingsBody {
   upscale_provider?: 'pica' | 'api' | 'auto';
   upscale_api_key?: string;
   upscale_auto_threshold?: number;
+  polish_builder_prompts_enabled?: boolean;
 }
 
 /** Response from POST /api/products/{id}/analyze-image/ */
@@ -59,10 +62,69 @@ export interface ProductAnalyzeResponse {
   job_id?: string;
 }
 
+// PROJ-34 Phase 13c — structured niche hints used to pre-fill the form-based
+// Builder slots. `builder_form_hints` schema lives in Appendix L.
+export interface BuilderFormHints {
+  _schema_version?: number;
+  _generated_at?: string;
+  _source_research_id?: string;
+  spatial?: string | null;
+  visual?: string | null;
+  accessories?: string | null;
+  material?: string | null;
+  _alternates?: {
+    spatial?: string[];
+    visual?: string[];
+    accessories?: string[];
+    material?: string[];
+  };
+}
+
+export interface NicheHintsResponse {
+  builder_form_hints: BuilderFormHints | null;
+  niche_id: string | null;
+  last_updated: string | null;
+}
+
+// PROJ-34 Phase 13f — workspace-scoped Custom Spatial layouts created by the
+// user via the SpatialPickerModal "Create new" tab. Field shape mirrors
+// `design_app.api.serializers.CustomSpatialSerializer`.
+export interface CustomSpatial {
+  id: string;
+  name: string;
+  prompt_text: string;
+  source_kind: 'upload' | 'reference' | 'design';
+  source_image_ref: string;
+  is_unsafe: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+// Body of `POST /api/designs/spatials/custom/analyze/`. One-of:
+//   • `FormData`        — direct image upload (multipart/form-data)
+//   • `{reference_id}`  — analyze an existing ProjectReference
+//   • `{design_id}`     — analyze an existing Design
+export type AnalyzeSpatialBody =
+  | FormData
+  | { reference_id: string }
+  | { design_id: string };
+
+export interface AnalyzeSpatialResponse {
+  prompt_text: string;
+  model: string;
+}
+
+export interface CreateCustomSpatialBody {
+  name: string;
+  prompt_text: string;
+  source_kind: 'upload' | 'reference' | 'design';
+  source_image_ref?: string;
+}
+
 export const designApi = createApi({
   reducerPath: 'designApi',
   baseQuery: axiosBaseQuery({ baseUrl: '' }),
-  tagTypes: ['DesignBoard', 'Design', 'DesignList', 'Run', 'ProcessingJob', 'Pipeline', 'DesignProject', 'DesignProjectList', 'ProcessingSettings'],
+  tagTypes: ['DesignBoard', 'Design', 'DesignList', 'Run', 'ProcessingJob', 'Pipeline', 'DesignProject', 'DesignProjectList', 'ProcessingSettings', 'BuilderPreset', 'NicheHints', 'CustomSpatial'],
   endpoints: (builder) => ({
     // Board context (idea-scoped)
     getBoardContext: builder.query<BoardContext, string>({
@@ -620,6 +682,131 @@ export const designApi = createApi({
       invalidatesTags: [{ type: 'DesignProject', id: 'PRESETS' }],
     }),
 
+    // --- PROJ-34: Multi-Prompt Builder + BuilderPreset CRUD ---
+
+    builderBuild: builder.mutation<
+      { prompts: string[] },
+      {
+        projectId: string;
+        body: {
+          slogans: string[];
+          styles: string[];
+          background_color: string;
+          with_polish: boolean;
+          include_niche_context: boolean;
+        };
+      }
+    >({
+      query: ({ projectId, body }) => ({
+        url: `/api/designs/projects/${projectId}/builder/build/`,
+        method: 'POST',
+        data: body,
+      }),
+    }),
+
+    listBuilderPresets: builder.query<
+      Array<{
+        id: string;
+        name: string;
+        config: Record<string, unknown>;
+        workspace: string;
+        project: string;
+        created_by: string | null;
+        is_deleted: boolean;
+        created_at: string;
+        updated_at: string;
+      }>,
+      string
+    >({
+      query: (projectId) => ({
+        url: `/api/designs/projects/${projectId}/builder-presets/`,
+        method: 'GET',
+      }),
+      providesTags: (_result, _error, projectId) => [
+        { type: 'BuilderPreset', id: projectId },
+      ],
+    }),
+
+    createBuilderPreset: builder.mutation<
+      {
+        id: string;
+        name: string;
+        config: Record<string, unknown>;
+      },
+      { projectId: string; body: { name: string; config: Record<string, unknown> } }
+    >({
+      query: ({ projectId, body }) => ({
+        url: `/api/designs/projects/${projectId}/builder-presets/`,
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: (_r, _e, { projectId }) => [
+        { type: 'BuilderPreset', id: projectId },
+      ],
+    }),
+
+    deleteBuilderPreset: builder.mutation<
+      void,
+      { projectId: string; presetId: string }
+    >({
+      query: ({ projectId, presetId }) => ({
+        url: `/api/designs/projects/${projectId}/builder-presets/${presetId}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: (_r, _e, { projectId }) => [
+        { type: 'BuilderPreset', id: projectId },
+      ],
+    }),
+
+    // PROJ-34 Phase 13c — niche-hints used to pre-fill form-based Builder
+    // slots. Returns `{ builder_form_hints: null, niche_id: null, last_updated: null }`
+    // when the project has no linked niche (EC-26).
+    getNicheHints: builder.query<NicheHintsResponse, { projectId: string }>({
+      query: ({ projectId }) => ({
+        url: `/api/designs/projects/${projectId}/builder/niche-hints/`,
+        method: 'GET',
+      }),
+      providesTags: (_result, _error, { projectId }) => [
+        { type: 'NicheHints', id: projectId },
+      ],
+    }),
+
+    // PROJ-34 Phase 13f — Custom Spatial CRUD + LLM analyze (Appendix Q.3).
+    // `analyzeSpatial` accepts FormData (upload) or {reference_id} / {design_id}
+    // (existing asset). Server returns the Architect-grade prompt_text.
+    analyzeSpatial: builder.mutation<AnalyzeSpatialResponse, AnalyzeSpatialBody>({
+      query: (body) => ({
+        url: '/api/designs/spatials/custom/analyze/',
+        method: 'POST',
+        data: body,
+      }),
+    }),
+
+    listCustomSpatials: builder.query<CustomSpatial[], void>({
+      query: () => ({
+        url: '/api/designs/spatials/custom/',
+        method: 'GET',
+      }),
+      providesTags: [{ type: 'CustomSpatial', id: 'LIST' }],
+    }),
+
+    createCustomSpatial: builder.mutation<CustomSpatial, CreateCustomSpatialBody>({
+      query: (body) => ({
+        url: '/api/designs/spatials/custom/',
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: [{ type: 'CustomSpatial', id: 'LIST' }],
+    }),
+
+    deleteCustomSpatial: builder.mutation<void, string>({
+      query: (id) => ({
+        url: `/api/designs/spatials/custom/${id}/`,
+        method: 'DELETE',
+      }),
+      invalidatesTags: [{ type: 'CustomSpatial', id: 'LIST' }],
+    }),
+
     // --- Phase I: Product-to-Canvas References ---
 
     // Add product references to project
@@ -700,6 +887,17 @@ export const {
   useListPromptPresetsQuery,
   useCreatePromptPresetMutation,
   useDeletePromptPresetMutation,
+  // PROJ-34: Multi-Prompt Builder + Builder presets
+  useBuilderBuildMutation,
+  useListBuilderPresetsQuery,
+  useCreateBuilderPresetMutation,
+  useDeleteBuilderPresetMutation,
+  useGetNicheHintsQuery,
+  // PROJ-34 Phase 13f: Custom Spatial CRUD + analyze
+  useAnalyzeSpatialMutation,
+  useListCustomSpatialsQuery,
+  useCreateCustomSpatialMutation,
+  useDeleteCustomSpatialMutation,
   // Phase I: References
   useAddReferencesToProjectMutation,
   useRemoveReferenceFromProjectMutation,

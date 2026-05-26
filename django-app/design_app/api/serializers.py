@@ -3,12 +3,16 @@
 from rest_framework import serializers
 
 from design_app.models import (
+    BuilderPreset,
+    CustomSpatial,
+    CustomTypography,
     Design,
     DesignGenerationRun,
     DesignPipeline,
     DesignProcessingJob,
     DesignProject,
     DesignProjectDesign,
+    NicheCardPreset,
     ProcessingSettings,
     ProjectPrompt,
     ProjectReference,
@@ -344,6 +348,8 @@ class ProcessingSettingsSerializer(serializers.ModelSerializer):
             'upscale_provider', 'upscale_api_key',
             'upscale_api_key_set',
             'upscale_auto_threshold',
+            # PROJ-34 — Builder polish toggle (per-workspace).
+            'polish_builder_prompts_enabled',
         ]
         extra_kwargs = {
             'bg_removal_api_key': {'write_only': True, 'required': False},
@@ -802,3 +808,379 @@ class AddManualReferencesSerializer(serializers.Serializer):
         min_length=1,
         max_length=50,
     )
+
+
+# -- Builder Build (PROJ-34) --
+
+class BuilderBuildSerializer(serializers.Serializer):
+    """PROJ-34 — input for `POST /api/designs/projects/{id}/builder/build/`.
+
+    Cross-product Builder: N slogans × M styles → N×M polished prompts.
+    Backend-side validation only — frontend disables Build when N=0 or M=0
+    (AC-34) and shows the confirm dialog when N×M > 30 (AC-35), so the
+    backend simply enforces non-empty inputs (EC-9, EC-10) and ignores
+    niche-context when no niche is linked (EC-16, EC-23).
+
+    Phase 13b adds the form-based `slots` object (8 optional strings) that
+    `build_form_prompt` consumes via the explicit → niche-hint → style-default
+    → omit fallback chain. Empty strings are preserved (distinguishes
+    "user touched but cleared" from "user never touched").
+    """
+
+    slogans = serializers.ListField(
+        child=serializers.CharField(min_length=1, max_length=300),
+        min_length=1,
+        max_length=200,
+        help_text='Slogan strings (combined pool selections + free-text lines).',
+    )
+    styles = serializers.ListField(
+        child=serializers.CharField(min_length=1, max_length=64),
+        min_length=0,
+        max_length=15,
+        required=False,
+        default=list,
+        help_text=(
+            'Style slugs from the 15-entry library. Phase 13t-u: empty list '
+            'allowed → backend uses `_fallback_style` for slogan-only builds.'
+        ),
+    )
+    background_color = serializers.ChoiceField(
+        choices=Design.BackgroundColor.choices,
+        default=Design.BackgroundColor.LIGHT_GRAY,
+    )
+    with_polish = serializers.BooleanField(default=True)
+    include_niche_context = serializers.BooleanField(default=True)
+    # PROJ-34 Phase 13b — Architect form slots. 8 optional strings keyed by
+    # `SLOT_SCHEMA[i]['key']`. Per Appendix N.4: `DictField` of
+    # blank-allowed CharFields; unknown keys rejected; whitespace-stripped.
+    slots = serializers.DictField(
+        child=serializers.CharField(allow_blank=True, max_length=2000),
+        required=False,
+        default=dict,
+        help_text='Form-based Architect slots (Appendix J.3 / N.4).',
+    )
+
+    def validate_slots(self, value):
+        """Reject unknown slot keys + whitespace-normalize each value."""
+        from design_app.services.style_library import SLOT_SCHEMA
+
+        valid_keys = {slot['key'] for slot in SLOT_SCHEMA}
+        cleaned: dict[str, str] = {}
+        for key, raw in value.items():
+            if key not in valid_keys:
+                raise serializers.ValidationError(
+                    f'Unknown slot key: {key!r}. Valid keys: '
+                    f'{sorted(valid_keys)}.',
+                )
+            cleaned[key] = raw.strip() if isinstance(raw, str) else raw
+        return cleaned
+
+
+# -- BuilderPreset (PROJ-34) --
+
+class BuilderPresetSerializer(serializers.ModelSerializer):
+    """PROJ-34: Builder preset CRUD.
+
+    `name` validated: non-empty, length ≤ 80 (also enforced at model level).
+    Server-managed fields are read-only; the unique-name-per-project
+    constraint is enforced at the model level via a partial UniqueConstraint
+    (only among non-deleted rows).
+    """
+
+    class Meta:
+        model = BuilderPreset
+        fields = [
+            'id', 'workspace', 'project', 'name', 'config',
+            'created_by', 'is_deleted', 'created_at', 'updated_at',
+        ]
+        read_only_fields = [
+            'id', 'workspace', 'project', 'created_by',
+            'created_at', 'updated_at',
+        ]
+
+    def validate_name(self, value):
+        stripped = value.strip() if isinstance(value, str) else value
+        if not stripped:
+            raise serializers.ValidationError('Name must not be empty.')
+        if len(stripped) > 80:
+            raise serializers.ValidationError(
+                'Name must be 80 characters or fewer.',
+            )
+        return stripped
+
+
+# -- CustomSpatial (PROJ-34 Phase 13d) --
+
+class CustomSpatialAnalyzeSerializer(serializers.Serializer):
+    """PROJ-34 Phase 13d AC-72 — analyze-spatial-layout input.
+
+    Exactly one of ``image`` / ``reference_id`` / ``design_id`` is required.
+    Upload file is gated to ≤10 MB and JPG/PNG/WebP (EC-30). Verbatim from
+    Appendix O.2.
+    """
+
+    image = serializers.ImageField(required=False, allow_null=True)
+    reference_id = serializers.UUIDField(required=False, allow_null=True)
+    design_id = serializers.UUIDField(required=False, allow_null=True)
+
+    def validate(self, attrs):
+        provided = [k for k in ('image', 'reference_id', 'design_id') if attrs.get(k)]
+        if len(provided) != 1:
+            raise serializers.ValidationError(
+                'Provide exactly one of: image, reference_id, design_id.'
+            )
+        img = attrs.get('image')
+        if img is not None:
+            if img.size > 10 * 1024 * 1024:
+                raise serializers.ValidationError({'image': 'Max 10 MB.'})
+            if img.content_type not in ('image/jpeg', 'image/png', 'image/webp'):
+                raise serializers.ValidationError({'image': 'Use JPG, PNG, or WebP.'})
+        return attrs
+
+
+class CustomSpatialSerializer(serializers.ModelSerializer):
+    """PROJ-34 Phase 13d AC-71 — CustomSpatial CRUD.
+
+    Per Appendix O.2: name 2–80 chars, prompt_text 50–500 chars, partial-unique
+    name per workspace enforced at the model AND serializer levels (the
+    serializer surfaces the ``name_conflict`` code so the API can return a
+    clean 400 with that error code).
+    """
+
+    class Meta:
+        model = CustomSpatial
+        fields = [
+            'id', 'name', 'prompt_text', 'source_kind', 'source_image_ref',
+            'is_unsafe', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def validate_name(self, value):
+        v = value.strip()
+        if len(v) < 2:
+            raise serializers.ValidationError('Name too short (min 2 chars).')
+        return v
+
+    def validate_prompt_text(self, value):
+        v = value.strip()
+        if not (50 <= len(v) <= 500):
+            raise serializers.ValidationError('prompt_text must be 50–500 chars.')
+        return v
+
+    def validate(self, attrs):
+        workspace = self.context['workspace']
+        name = attrs.get('name')
+        qs = CustomSpatial.objects.filter(
+            workspace=workspace, name=name, is_deleted=False,
+        )
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(
+                {'name': 'A custom spatial with that name already exists.'},
+                code='name_conflict',
+            )
+        return attrs
+
+
+# -- CustomTypography (PROJ-34 Phase 13i) --
+
+class CustomTypographyAnalyzeSerializer(serializers.Serializer):
+    """PROJ-34 Phase 13i — analyze-typography-style input.
+
+    Exactly one of ``image`` / ``reference_id`` / ``design_id`` is required.
+    Upload file is gated to ≤10 MB and JPG/PNG/WebP. Mirror of
+    ``CustomSpatialAnalyzeSerializer``.
+    """
+
+    image = serializers.ImageField(required=False, allow_null=True)
+    reference_id = serializers.UUIDField(required=False, allow_null=True)
+    design_id = serializers.UUIDField(required=False, allow_null=True)
+
+    def validate(self, attrs):
+        provided = [k for k in ('image', 'reference_id', 'design_id') if attrs.get(k)]
+        if len(provided) != 1:
+            raise serializers.ValidationError(
+                'Provide exactly one of: image, reference_id, design_id.'
+            )
+        img = attrs.get('image')
+        if img is not None:
+            if img.size > 10 * 1024 * 1024:
+                raise serializers.ValidationError({'image': 'Max 10 MB.'})
+            if img.content_type not in ('image/jpeg', 'image/png', 'image/webp'):
+                raise serializers.ValidationError({'image': 'Use JPG, PNG, or WebP.'})
+        return attrs
+
+
+class CustomTypographySerializer(serializers.ModelSerializer):
+    """PROJ-34 Phase 13i — CustomTypography CRUD.
+
+    Name 2–80 chars, prompt_text 50–500 chars, partial-unique name per
+    workspace enforced at the model AND serializer levels (the serializer
+    surfaces the ``name_conflict`` code so the API can return a clean 400
+    with that error code).
+    """
+
+    class Meta:
+        model = CustomTypography
+        fields = [
+            'id', 'name', 'prompt_text', 'source_kind', 'source_image_ref',
+            'is_unsafe', 'created_at', 'updated_at',
+        ]
+        read_only_fields = ['id', 'created_at', 'updated_at']
+
+    def validate_name(self, value):
+        v = value.strip()
+        if len(v) < 2:
+            raise serializers.ValidationError('Name too short (min 2 chars).')
+        return v
+
+    def validate_prompt_text(self, value):
+        v = value.strip()
+        if not (50 <= len(v) <= 500):
+            raise serializers.ValidationError('prompt_text must be 50–500 chars.')
+        return v
+
+    def validate(self, attrs):
+        workspace = self.context['workspace']
+        name = attrs.get('name')
+        qs = CustomTypography.objects.filter(
+            workspace=workspace, name=name, is_deleted=False,
+        )
+        if self.instance:
+            qs = qs.exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise serializers.ValidationError(
+                {'name': 'A custom typography with that name already exists.'},
+                code='name_conflict',
+            )
+        return attrs
+
+
+# -- PROJ-34 Phase 13t-g — NicheCardPreset (Niche-Reference Preset Picker) --
+
+
+class NicheCardPresetSerializer(serializers.ModelSerializer):
+    """Serialize NicheCardPreset for list/history/custom/confirm responses.
+
+    Groups the 7 ``slot_*`` fields into a nested ``slots`` object and the 7
+    ``*_is_raw`` flags into ``raw_flags``. Source metadata (``card_type`` +
+    ``references``) is collapsed into a ``source`` object. Read-only — writes
+    go through ``preset_persistence`` service helpers, never this serializer.
+    """
+
+    slots = serializers.SerializerMethodField()
+    raw_flags = serializers.SerializerMethodField()
+    source = serializers.SerializerMethodField()
+    custom_promoted_by = serializers.SerializerMethodField()
+
+    class Meta:
+        model = NicheCardPreset
+        fields = (
+            'id',
+            'preset_label',
+            'preset_hash',
+            'slots',
+            'raw_flags',
+            'source',
+            'reference_thumbnail_url',
+            'is_in_history',
+            'is_in_custom',
+            'custom_promoted_by',
+            'custom_promoted_at',
+            'last_clicked_at',
+            'created_at',
+        )
+        read_only_fields = fields
+
+    def get_custom_promoted_by(self, obj):
+        u = obj.custom_promoted_by
+        if not u:
+            return None
+        return (u.email or '').split('@')[0] or str(u.id)
+
+    def get_slots(self, obj):
+        return {
+            'spatial_configuration': obj.slot_spatial_configuration,
+            'visual_description': obj.slot_visual_description,
+            'typography_adjectives': obj.slot_typography_adjectives,
+            'font_combination': obj.slot_font_combination,
+            'accessories': obj.slot_accessories,
+            'style_dna': obj.slot_style_dna,
+            'extra_context': obj.slot_extra_context,
+        }
+
+    def get_raw_flags(self, obj):
+        return {
+            'spatial_configuration': obj.spatial_is_raw,
+            'visual_description': obj.visual_is_raw,
+            'typography_adjectives': obj.typography_is_raw,
+            'font_combination': obj.font_combination_is_raw,
+            'accessories': obj.accessories_is_raw,
+            'style_dna': obj.style_dna_is_raw,
+            'extra_context': obj.extra_context_is_raw,
+        }
+
+    def get_source(self, obj):
+        return {
+            'card_type': obj.source_card_type,
+            'references': obj.source_card_references or [],
+        }
+
+
+class PresetConfirmSerializer(serializers.Serializer):
+    """Body for POST /api/designs/preset-cards/confirm/.
+
+    Two paths:
+      * ``preset_id`` — preset already persisted (History / Custom / Mix).
+        Endpoint bumps ``last_clicked_at`` only.
+      * ``preset_dict`` + ``source_card_type`` + ``source_refs`` — Top-Card
+        path (preset computed on the fly from a vision row, not yet in DB).
+        Endpoint calls ``upsert_preset`` to insert + dedup + LRU-evict.
+
+    Exactly one of the two paths must be provided.
+    """
+
+    SOURCE_CARD_TYPE_CHOICES = (
+        'top',
+        'mix_most_common',
+        'mix_edgy',
+        'mix_safe',
+        'collection',
+    )
+
+    preset_id = serializers.UUIDField(required=False, allow_null=True)
+    preset_dict = serializers.DictField(required=False, allow_null=True)
+    source_card_type = serializers.ChoiceField(
+        choices=SOURCE_CARD_TYPE_CHOICES,
+        required=False, allow_null=True,
+    )
+    source_refs = serializers.ListField(
+        child=serializers.DictField(),
+        required=False, allow_null=True,
+    )
+
+    def validate(self, attrs):
+        has_id = attrs.get('preset_id') is not None
+        has_dict = attrs.get('preset_dict') is not None
+        if has_id == has_dict:
+            raise serializers.ValidationError(
+                'Provide exactly one of: preset_id OR preset_dict '
+                '(with source_card_type + source_refs).',
+            )
+        if has_dict:
+            if not attrs.get('source_card_type'):
+                raise serializers.ValidationError(
+                    {'source_card_type': 'Required with preset_dict.'},
+                )
+            if not attrs.get('source_refs'):
+                raise serializers.ValidationError(
+                    {'source_refs': 'Required with preset_dict.'},
+                )
+        return attrs
+
+
+class PresetRegenerateSerializer(serializers.Serializer):
+    """Body for POST /api/designs/preset-cards/regenerate-mix/."""
+
+    niche_id = serializers.UUIDField()

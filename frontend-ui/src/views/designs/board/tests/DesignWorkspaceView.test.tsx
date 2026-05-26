@@ -69,6 +69,18 @@ vi.mock('@/store/designSlice', () => ({
   useListPromptPresetsQuery: () => ({ data: [] }),
   useCreatePromptPresetMutation: () => [vi.fn(), { isLoading: false }],
   useDeletePromptPresetMutation: () => [vi.fn(), { isLoading: false }],
+  // PROJ-34 — new endpoints used by useBuilder + useWorkspaceGeneration
+  useGetProcessingSettingsQuery: () => ({ data: undefined }),
+  useBuilderBuildMutation: () => [vi.fn(), { isLoading: false }],
+  useListBuilderPresetsQuery: () => ({ data: [] }),
+  useCreateBuilderPresetMutation: () => [vi.fn(), { isLoading: false }],
+  useDeleteBuilderPresetMutation: () => [vi.fn(), { isLoading: false }],
+  // PROJ-34 Phase 13c/13d/13f — niche-hints + custom-spatial hooks consumed by useBuilder.
+  useGetNicheHintsQuery: () => ({ data: undefined, isLoading: false, error: undefined }),
+  useListCustomSpatialsQuery: () => ({ data: [], isLoading: false, error: undefined }),
+  useAnalyzeSpatialMutation: () => [vi.fn(), { isLoading: false }],
+  useCreateCustomSpatialMutation: () => [vi.fn(), { isLoading: false }],
+  useDeleteCustomSpatialMutation: () => [vi.fn(), { isLoading: false }],
 }));
 
 // Mock react-router-dom params
