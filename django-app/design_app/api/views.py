@@ -1971,15 +1971,12 @@ class BuilderBuildView(APIView):
         include_niche_context = cfg.get('include_niche_context', True)
         slots: dict = cfg.get('slots') or {}
 
-        # EC-9 / EC-10: defensive guards even though frontend disables Build.
+        # EC-9 defensive guard (slogan is non-negotiable). Phase 13t-u: style
+        # guard removed — empty styles list is valid and triggers the
+        # _fallback_style path in build_form_prompt.
         if not slogans:
             return Response(
                 {'error': 'Select at least one slogan.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-        if not styles:
-            return Response(
-                {'error': 'Select at least one style.'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

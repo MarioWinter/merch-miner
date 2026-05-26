@@ -146,14 +146,19 @@ class TestBuilderBuild:
         )
         assert resp.status_code == 400
 
-    def test_empty_styles_returns_400(self, auth_client, project):
+    def test_empty_styles_uses_fallback_style(self, auth_client, project):
+        """Phase 13t-u: style is optional — empty list uses _fallback_style
+        so the user can build slogan-only prompts."""
         url = self.URL.format(pid=project.id)
         resp = auth_client.post(
             url,
             data={'slogans': ['X'], 'styles': [], 'slots': {}},
             format='json',
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 200
+        body = resp.json()
+        assert 'prompts' in body
+        assert len(body['prompts']) == 1
 
     def test_cross_workspace_project_returns_404(self, auth_client, user):
         """Tenant isolation: project from a different workspace is 404."""
