@@ -142,7 +142,8 @@ export const useBuilder = ({
       const fromText = splitFreeText(config.freeTextSlogans);
       const slogans = dedupeCaseInsensitive([...fromPool, ...fromText]);
 
-      if (slogans.length === 0 || config.selectedStyleSlugs.length === 0) {
+      // Phase 13t-u: style optional — only slogan is required.
+      if (slogans.length === 0) {
         return;
       }
 
@@ -156,6 +157,11 @@ export const useBuilder = ({
             with_polish: polishEnabled,
             include_niche_context:
               config.includeNicheContext && !nicheReason.disabled,
+            // Phase 13t-u bug-fix: forward the form slots so the polish path
+            // matches Live Preview. Without this, the user's Niche-Preset
+            // values were dropped and the backend fell through to style
+            // auto-defaults (e.g. Vintage Retro's "Greetings from …" layout).
+            ...({ slots: config.slots } as Record<string, unknown>),
           },
         }).unwrap();
         // AC-36: join with `;` separator; parent inserts + flips parallel on.
