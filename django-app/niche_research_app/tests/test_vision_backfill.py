@@ -166,6 +166,41 @@ class TestBackfillIdempotency:
         mock_client_cls.assert_not_called()
 
     @patch('niche_research_app.services.vision_backfill.httpx.Client')
+    def test_force_reprocesses_already_populated_rows(
+        self, mock_client_cls, settings,
+    ):
+        """Phase 13t-q5: --force bypasses empty-field filter."""
+        _apply_openrouter_settings(settings)
+        row = self._make_eligible_row()
+
+        from niche_research_app.models import NicheProductVisionAnalysis
+        NicheProductVisionAnalysis.objects.filter(id=row.id).update(
+            typography_descriptors='stale old value',
+            font_combination_descriptors='stale old value',
+            accessory_descriptors='stale old value',
+        )
+
+        mock_client_cls.return_value = _mock_httpx_client(
+            _mock_openrouter_resp({
+                'typography_descriptors': 'enriched new value',
+                'font_combination_descriptors': 'enriched new value',
+                'accessory_descriptors': 'enriched new value',
+            }),
+        )
+
+        summary = backfill_vision_descriptors(
+            rows=NicheProductVisionAnalysis.objects.filter(id=row.id),
+            dry_run=False,
+            force=True,
+        )
+
+        assert summary.processed == 1
+        row.refresh_from_db()
+        assert row.typography_descriptors == 'enriched new value'
+        assert row.font_combination_descriptors == 'enriched new value'
+        assert row.accessory_descriptors == 'enriched new value'
+
+    @patch('niche_research_app.services.vision_backfill.httpx.Client')
     def test_processes_eligible_row_and_persists(
         self, mock_client_cls, settings,
     ):

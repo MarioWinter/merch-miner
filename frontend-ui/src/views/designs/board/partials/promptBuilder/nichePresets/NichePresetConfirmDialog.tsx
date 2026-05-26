@@ -14,7 +14,6 @@ import {
   DialogContent,
   DialogTitle,
   Stack,
-  Tooltip,
   Typography,
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
@@ -75,8 +74,6 @@ interface FlatCard {
   reference_thumbnail_url: string;
   preset_label: string;
 }
-
-const MAX_PREVIEW_CHARS = 200;
 
 const Thumbnail = styled('img')(({ theme }) => ({
   width: 200,
@@ -143,9 +140,6 @@ const resolveSlotLabel = (slotKey: SlotKey, value: string, isRaw: boolean): stri
       return value;
   }
 };
-
-const truncate = (text: string): string =>
-  text.length > MAX_PREVIEW_CHARS ? `${text.slice(0, MAX_PREVIEW_CHARS)}…` : text;
 
 const NichePresetConfirmDialog = ({
   open,
@@ -216,22 +210,18 @@ const NichePresetConfirmDialog = ({
               const rawValue = flat[slotKey];
               const isRaw = flat.raw[slotKey];
               const label = resolveSlotLabel(slotKey, rawValue, isRaw);
-              const display = label ? truncate(label) : '—';
-              const showTooltip = label.length > MAX_PREVIEW_CHARS;
               return (
                 <Box key={slotKey} data-testid={`slot-row-${slotKey}`}>
                   <Typography variant="caption" color="text.secondary">
                     {t(`designForge.builder.slotLabels.${slotKey}`)}
                   </Typography>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Tooltip title={showTooltip ? label : ''} placement="top">
-                      <Typography
-                        variant="body2"
-                        sx={{ wordBreak: 'break-word' }}
-                      >
-                        {display}
-                      </Typography>
-                    </Tooltip>
+                  <Stack direction="row" spacing={1} alignItems="flex-start">
+                    <Typography
+                      variant="body2"
+                      sx={{ wordBreak: 'break-word', flex: 1 }}
+                    >
+                      {label || '—'}
+                    </Typography>
                     {isRaw && (
                       <Chip
                         size="small"

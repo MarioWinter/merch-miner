@@ -61,6 +61,26 @@ information into one paragraph. Extract three separate slogan-agnostic descripto
 3. **accessory_descriptors:** decorative non-text elements (stars, lines, borders,
    distressing, ornaments) and motif details that are NOT the main subject.
 
+## Dimensions to Address Per Field
+
+For typography_descriptors cover ≥3 of these dimensions:
+- Weight (light/regular/medium/bold/extra-bold/black)
+- Casing (all-uppercase / all-lowercase / title-case / mixed)
+- Classification (serif/sans-serif/slab-serif/script/display/mono/handwritten)
+- Color treatment (which colors, headline vs secondary differentiation)
+- Special effects (outline/shadow/glow/distress/3D/gradient/chrome)
+- Size hierarchy across primary/secondary/accent text
+
+For font_combination_descriptors cover:
+- Count of distinct fonts (1/2/3+)
+- Per font: classification + role (primary headline / secondary text / accent)
+- Pairing strategy (contrast vs harmony)
+
+For accessory_descriptors cover:
+- Count + name of each element (stars/lines/borders/distressing/ornaments/dot-patterns)
+- Position relative to main motif (above/below/around/behind)
+- Style (filled/outlined/distressed/minimal/ornate)
+
 ## Output Format
 
 Return ONLY valid JSON matching this shape:
@@ -84,20 +104,27 @@ No markdown fences, no commentary, no preamble — just the JSON object.
   using placeholders (e.g. "bold for the primary headline").
 
 GOOD typography_descriptors:
-  "bold uppercase block letters for the primary headline; cursive script font for
-   the secondary text and accent words; high contrast between weights"
+  "extra-bold uppercase slab-serif for the primary headline in bright yellow with
+   subtle inner-glow; regular-weight condensed sans-serif in white for secondary
+   text; cursive italic script for accent words; clear 3-tier size hierarchy with
+   the headline roughly 3x the tagline size"
 
 BAD (DO NOT DO THIS — contains literal slogan):
   "bold block letters for 'SCHOOL BUS'; cursive for 'Driver' and 'Just Like'"
 
 GOOD font_combination_descriptors:
-  "Sans-serif uppercase paired with a handwritten cursive script accent"
+  "three-font system: chunky slab-serif for maximum impact on the primary headline;
+   clean geometric sans-serif as a neutral counter-weight for secondary text;
+   handwritten cursive script as the playful accent — high-contrast pairing
+   strategy mixing rigid + organic"
 
 BAD: "ROLLIN' in handwritten font, THEY in block"
 
 GOOD accessory_descriptors:
-  "white stars and decorative lines arranged around the central motif;
-   subtle distressing on the headline; small dot-pattern border"
+  "five small filled white stars scattered above and below the central motif;
+   two thin horizontal divider lines flanking the headline; light distressing
+   applied to the headline text edges; subtle dot-pattern border framing the
+   whole composition"
 
 BAD: "stars and lines around 'SCHOOL BUS DRIVER'"
 
@@ -191,6 +218,7 @@ def backfill_vision_descriptors(
     rows: QuerySet | None = None,
     dry_run: bool = False,
     limit: int | None = None,
+    force: bool = False,
 ) -> Summary:
     """Iterate eligible rows, call LLM per row, persist 3 new fields.
 
@@ -202,17 +230,23 @@ def backfill_vision_descriptors(
 
     When `dry_run=True`, logs the would-be result but does NOT save.
     `limit` (if set) caps the number of eligible rows processed.
+    When `force=True`, bypasses the empty-field eligibility filter — all rows
+    with non-empty `graphic_elements` are reprocessed (overwrites existing
+    descriptors). Use after enriching the LLM prompt to refresh stale outputs.
     """
     from niche_research_app.models import NicheProductVisionAnalysis
 
     _warn_if_custom_prompt_active()
 
     base_qs = rows if rows is not None else NicheProductVisionAnalysis.objects.all()
-    eligible = base_qs.filter(
-        Q(typography_descriptors='')
-        | Q(font_combination_descriptors='')
-        | Q(accessory_descriptors=''),
-    ).exclude(graphic_elements='').order_by('created_at')
+    if force:
+        eligible = base_qs.exclude(graphic_elements='').order_by('created_at')
+    else:
+        eligible = base_qs.filter(
+            Q(typography_descriptors='')
+            | Q(font_combination_descriptors='')
+            | Q(accessory_descriptors=''),
+        ).exclude(graphic_elements='').order_by('created_at')
 
     if limit is not None:
         eligible = eligible[:limit]

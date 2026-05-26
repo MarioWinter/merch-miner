@@ -2635,6 +2635,85 @@ should still pass (they use fixtures with `graphic_elements` set; fallback kicks
 
 ---
 
+## Phase 13t-q — Prompt Quality + UI Detail (post-13t-p refinement)
+
+**Spec source-of-truth:** `features/PROJ-34-design-prompt-engineering.md` Phase 13t-q
+section (AC-139..AC-144 + EC-54..EC-55).
+
+**Goal:** Remove ConfirmDialog truncation + enrich LLM outputs with explicit
+dimensions checklist; re-run backfill on dev DB.
+
+**Branch:** continues on `feature/PROJ-34-design-prompt-engineering`.
+
+**Cost target:** Re-backfill ≤$0.05 (119 rows × ~$0.0002 enriched output).
+
+### Phase 13t-q1 — Frontend: remove ConfirmDialog truncation
+
+- [x] 13t-q1.1 `NichePresetConfirmDialog.tsx` — remove `MAX_PREVIEW_CHARS` constant
+  (line 79), `truncate()` function (lines 147-148), `display` variable + Tooltip
+  guard (lines 219-220, 227, 234). Render `label` directly. `wordBreak: 'break-word'`
+  stays.
+- [x] 13t-q1.2 Update affected tests in `__tests__/NichePresetConfirmDialog.test.tsx`
+  if any assert on truncated text.
+- [x] 13t-q1.3 `npm run lint && npm run test:ci` green on touched files.
+
+### Phase 13t-q2 — Backend: enrich Vision prompt
+
+- [x] 13t-q2.1 `niche_research_app/graph/prompts.py` — replace existing items 6/7/8
+  in `DEFAULT_VISION_PROMPT` with the enriched checklist + 1 reicher GOOD example
+  per field. Reference: **Appendix AA.1** for verbatim text.
+- [x] 13t-q2.2 No schema changes needed (fields already exist).
+- [x] 13t-q2.3 Ruff clean.
+
+### Phase 13t-q3 — Backend: enrich Backfill LLM prompt
+
+- [x] 13t-q3.1 `niche_research_app/services/vision_backfill.py` — replace
+  `BACKFILL_SYSTEM_PROMPT` constant with **Appendix AA.2** verbatim text (mirrors
+  Vision prompt enrichment exactly).
+- [x] 13t-q3.2 Ruff clean.
+
+### Phase 13t-q4 — Data migration 0009
+
+- [x] 13t-q4.1 Create `niche_research_app/migrations/0009_enrich_vision_prompt_with_dimension_checklist.py`
+  manually. Constants:
+    - `POST_13T_P_VISION_PROMPT` = the prompt from Phase 13t-p (current code state
+      pre-q2, verbatim) — operator-runnable comparison anchor.
+    - `ENRICHED_VISION_PROMPT` = same as new `DEFAULT_VISION_PROMPT` from q2.1.
+  Smart-update pattern from 0008:
+    - row exists + matches `POST_13T_P_VISION_PROMPT` verbatim → overwrite with
+      `ENRICHED_VISION_PROMPT` + save + print success.
+    - row exists + doesn't match → print warning + return (operator-customized).
+    - row doesn't exist → return.
+  Reverse: same logic in reverse.
+- [x] 13t-q4.2 Apply: `docker compose exec web python manage.py migrate
+  niche_research_app`. Verify dev DB gets auto-upgraded.
+
+### Phase 13t-q5 — Backfill re-run with `--force`
+
+- [x] 13t-q5.1 `vision_backfill.py` — add `force: bool = False` parameter to
+  `backfill_vision_descriptors()`. When `True`, skip the
+  `Q(typography_descriptors='')...` eligibility filter so all rows with non-empty
+  `graphic_elements` are processed.
+- [x] 13t-q5.2 `management/commands/backfill_vision_descriptors.py` — add `--force`
+  flag, pass to service.
+- [x] 13t-q5.3 Tests: extend `test_vision_backfill.py` with a `--force` path test
+  (already-populated row IS reprocessed with `force=True`).
+- [x] 13t-q5.4 Run: `docker compose exec web python manage.py backfill_vision_descriptors --force`
+  on dev DB. Verify ≤$0.05 cost + 119 rows processed.
+- [x] 13t-q5.5 Spot-check 3 random rows for enriched output (≥3 dimensions per field).
+
+### Phase 13t-q6 — Browser-verify + commit + push
+
+- [x] 13t-q6.1 Open BuilderDialog in browser, click a Top-Card, verify (a) no
+  truncation, (b) richer Typography/Font/Accessories descriptions. Screenshot.
+- [x] 13t-q6.2 Flip all AC-139..AC-144 + EC-54..EC-55 checkboxes in spec to `[x]`.
+- [x] 13t-q6.3 Flip all 13t-q1..13t-q6 task checkboxes in this file to `[x]`.
+- [ ] 13t-q6.4 Commit + push:
+    - Message: `feat(PROJ-34): phase 13t-q — enriched Vision prompts + ConfirmDialog full-text + force-backfill`
+    - Push to `feature/PROJ-34-design-prompt-engineering`.
+
+---
+
 ## Appendix S — Best-of-Mix LLM SYSTEM_PROMPT
 
 **Source-of-truth:** This is the verbatim text used in
@@ -3366,3 +3445,87 @@ print('OLD prompt len:', len(m.OLD_VISION_PROMPT.strip()))
 If the length doesn't match the prod DB row length, the smart-update will fail
 silently (mismatch path) on prod — fix `OLD_VISION_PROMPT` to match prod verbatim
 before deploy.
+
+---
+
+## Appendix AA — Enriched Vision + Backfill Prompts (Phase 13t-q)
+
+**Source-of-truth:** Verbatim replacements applied in q2.1 (Vision) and q3.1
+(Backfill). Both must stay in sync — any change to one mirrors to the other.
+
+### AA.1 Enriched typography/font/accessory blocks for `DEFAULT_VISION_PROMPT`
+
+Replace items 6, 7, 8 in the existing prompt with:
+
+```
+6. **typography_descriptors:** Slogan-agnostic typography treatment. Address these
+   dimensions explicitly:
+   - **Weight:** light / regular / medium / bold / extra-bold / black
+   - **Casing:** all-uppercase / all-lowercase / title-case / mixed
+   - **Classification:** serif / sans-serif / slab-serif / script / display / mono / handwritten
+   - **Color treatment:** which color(s), is the primary headline a different color than secondary text?
+   - **Special effects:** outline / drop shadow / inner glow / distress / 3D / gradient / chrome / none
+   - **Size hierarchy:** relative size of primary headline vs secondary text vs accent words (e.g. "headline ~3× tagline")
+   Cover ≥3 of these dimensions per output.
+
+7. **font_combination_descriptors:** Slogan-agnostic font pairing description.
+   Address these dimensions:
+   - **Count:** how many distinct fonts (1 / 2 / 3+)?
+   - **Per font:** classification (slab-serif / geometric sans / brush script / etc.) + role (primary headline / secondary text / accent)
+   - **Pairing strategy:** contrast (serif + sans, heavy + light, rigid + organic) vs harmony (all from same family)
+
+8. **accessory_descriptors:** Decorative non-text elements. Address:
+   - **Count + name** of each element (e.g. "3 white stars, 2 horizontal lines, 1 dot-pattern border")
+   - **Position** relative to the main motif (above / below / around / behind)
+   - **Style** (filled / outlined / distressed / minimal / ornate)
+   Include the central motif itself if it's not the primary subject (e.g. small mascot in corner).
+```
+
+### AA.2 Enriched dimensions block for `BACKFILL_SYSTEM_PROMPT`
+
+Same checklist as AA.1, embedded inside the existing backfill system prompt
+between the task instructions and the SLOGAN-AGNOSTIC RULE block. Verbatim:
+
+```
+## Dimensions to Address Per Field
+
+For typography_descriptors cover ≥3 of these dimensions:
+- Weight (light/regular/medium/bold/extra-bold/black)
+- Casing (all-uppercase / all-lowercase / title-case / mixed)
+- Classification (serif/sans-serif/slab-serif/script/display/mono/handwritten)
+- Color treatment (which colors, headline vs secondary differentiation)
+- Special effects (outline/shadow/glow/distress/3D/gradient/chrome)
+- Size hierarchy across primary/secondary/accent text
+
+For font_combination_descriptors cover:
+- Count of distinct fonts (1/2/3+)
+- Per font: classification + role (primary headline / secondary text / accent)
+- Pairing strategy (contrast vs harmony)
+
+For accessory_descriptors cover:
+- Count + name of each element (stars/lines/borders/distressing/ornaments/dot-patterns)
+- Position relative to main motif (above/below/around/behind)
+- Style (filled/outlined/distressed/minimal/ornate)
+```
+
+### AA.3 Updated GOOD examples (replace existing GOOD blocks)
+
+```
+GOOD typography_descriptors:
+  "extra-bold uppercase slab-serif for the primary headline in bright yellow with
+   subtle inner-glow; regular-weight condensed sans-serif in white for secondary
+   text; cursive italic script for accent words; clear 3-tier size hierarchy with
+   the headline roughly 3× the tagline size"
+
+GOOD font_combination_descriptors:
+  "three-font system: chunky slab-serif for maximum impact on the primary headline;
+   clean geometric sans-serif as a neutral counter-weight for secondary text;
+   handwritten cursive script as the playful accent — high-contrast pairing
+   strategy mixing rigid + organic"
+
+GOOD accessory_descriptors:
+  "five small filled white stars scattered above and below the central motif;
+   two thin horizontal divider lines flanking the headline; light distressing
+   applied to the headline text edges; subtle dot-pattern border framing the
+   whole composition"
+```

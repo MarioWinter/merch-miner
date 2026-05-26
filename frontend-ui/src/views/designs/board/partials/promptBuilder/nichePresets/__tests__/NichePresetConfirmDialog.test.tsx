@@ -232,7 +232,7 @@ describe('NichePresetConfirmDialog (PROJ-34 Phase 13t-l)', () => {
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it('truncates raw text >200 chars (13t-l.5)', () => {
+  it('renders raw text in full (>200 chars, no truncation per 13t-q1)', () => {
     const longText = 'a'.repeat(250);
     renderDialog({
       card: buildPersistedCard({
@@ -257,7 +257,7 @@ describe('NichePresetConfirmDialog (PROJ-34 Phase 13t-l)', () => {
       }),
     });
     const row = screen.getByTestId('slot-row-spatial_configuration');
-    expect(row.textContent ?? '').toContain('…');
-    expect((row.textContent ?? '').length).toBeLessThan(longText.length);
+    expect(row.textContent ?? '').not.toContain('…');
+    expect(row.textContent ?? '').toContain(longText);
   });
 });

@@ -1078,6 +1078,84 @@ rows without re-running the full Vision pipeline.
 
 ---
 
+## Phase 13t-q — Prompt Quality + UI Detail (post-13t-p refinement)
+
+### Background
+
+Post-13t-p browser verification (2026-05-26) revealed two follow-up issues:
+
+1. **ConfirmDialog truncates** Typography / Font Combination / Accessories at 200 chars
+   (`MAX_PREVIEW_CHARS` in `NichePresetConfirmDialog.tsx:79`). Full text is only
+   reachable via Tooltip-hover → poor UX.
+2. **Outputs lack detail.** The Phase 13t-p prompt was correct (slogan-agnostic) but
+   the per-field instructions were too brief (single sentence each), so the LLM
+   returned minimal descriptors. Example actual output:
+   `font_combination_descriptors: "hand-drawn casual font used consistently across
+   all text elements"` — only 1 piece of information.
+
+### Acceptance Criteria (Phase 13t-q)
+
+- [x] AC-139: `NichePresetConfirmDialog.tsx` no longer truncates slot text; all 7
+  slot values render in full. Long values wrap (existing `wordBreak: 'break-word'`
+  remains). `MAX_PREVIEW_CHARS`, `truncate()`, and the Tooltip guard are removed.
+- [x] AC-140: `DEFAULT_VISION_PROMPT` per-field instructions for typography_descriptors,
+  font_combination_descriptors, and accessory_descriptors gain an explicit
+  **dimensions checklist** the LLM must address:
+    - **typography_descriptors:** weight (light/regular/bold/extra-bold), casing
+      (uppercase/mixed/lowercase), classification (serif/sans/script/display),
+      color treatment, special effects (outline/shadow/distress/3D/gradient),
+      size hierarchy across primary/secondary/accent text.
+    - **font_combination_descriptors:** count of fonts (1/2/3+), classification of
+      each, pairing strategy (contrast vs harmony), specific style descriptors per
+      font (e.g. "chunky slab-serif", "geometric sans", "brush script").
+    - **accessory_descriptors:** count + position + style of each decorative element
+      (stars/lines/borders/distressing/ornaments/dot-patterns), motif-vs-text role.
+  Plus 1 reicher GOOD example per field (3+ dimensions covered).
+- [x] AC-141: `BACKFILL_SYSTEM_PROMPT` in `vision_backfill.py` mirrors AC-140
+  verbatim so backfill output matches new Vision-run quality.
+- [x] AC-142: Data migration `0009_enrich_vision_prompt_with_dimension_checklist.py`
+  smart-updates the DB-seeded `ResearchNodeConfig.system_prompt` for `vision_analyze`
+  using the same comparison pattern as 0008 (OLD = post-13t-p prompt verbatim →
+  overwrite; mismatch → warn + skip).
+- [x] AC-143: Management command gains `--force` flag that bypasses the empty-field
+  eligibility filter, allowing re-backfill of rows already populated. Default
+  behavior unchanged (idempotent skip).
+- [x] AC-144: Dev DB re-backfilled on all 119 rows with the enriched prompt; spot
+  check 3 random rows show ≥3 dimensions covered per field. Budget ≤$0.05.
+
+### Edge Cases (Phase 13t-q)
+
+- [x] EC-54: User has manually edited `vision_analyze.system_prompt` in Django
+  Admin since Phase 13t-p deploy → migration 0009 detects mismatch, warns,
+  leaves row alone (same pattern as EC-52).
+- [x] EC-55: Re-backfill with `--force` interrupts mid-run → idempotent because
+  every row write is atomic (single `.save(update_fields=[...])`); partial state
+  is consistent; re-run with `--force` completes remaining rows + redoes
+  already-overwritten ones (operator-accepted cost).
+
+### Out of Scope (Phase 13t-q)
+
+- Stronger Vision model (gpt-4.1 vs gpt-4.1-mini) — deferred unless enriched
+  prompt with mini proves insufficient on spot-check.
+- Updating frontend `t()` translations for slot labels — separate concern.
+- Refactoring `truncate()` into a reusable component — not needed (single
+  call site).
+
+### Dependencies (Phase 13t-q)
+
+- **Requires:** Phase 13t-p shipped (commits `1d8b43d` + `8aa8691`).
+
+### Resolved Decisions (Phase 13t-q)
+
+| # | Decision | Outcome |
+|---|---|---|
+| 27 | Truncation fix in ConfirmDialog | Option A: remove limit entirely, Stack stretches, wordBreak handles long values |
+| 28 | Detail level approach | Option A: enriched prompt checklist + Backfill; stay on gpt-4.1-mini |
+| 29 | Re-backfill mechanism | New `--force` flag on management command; preserves idempotent default |
+| 30 | DB prompt smart-update | Migration 0009 mirrors 0008 pattern (verbatim comparison + warn-on-mismatch) |
+
+---
+
 
 
 - **Backend:**

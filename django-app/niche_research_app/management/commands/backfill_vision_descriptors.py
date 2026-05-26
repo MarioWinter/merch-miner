@@ -46,6 +46,12 @@ class Command(BaseCommand):
             default=None,
             help='Scope to a single Workspace UUID.',
         )
+        parser.add_argument(
+            '--force',
+            action='store_true',
+            help='Bypass empty-field eligibility filter; reprocess all rows '
+                 'with non-empty graphic_elements (overwrites existing descriptors).',
+        )
 
     def handle(self, *args, **options):
         qs = NicheProductVisionAnalysis.objects.all()
@@ -62,6 +68,7 @@ class Command(BaseCommand):
             rows=qs,
             dry_run=options.get('dry_run', False),
             limit=options.get('limit'),
+            force=options.get('force', False),
         )
 
         self.stdout.write(self.style.SUCCESS('Backfill complete.'))
