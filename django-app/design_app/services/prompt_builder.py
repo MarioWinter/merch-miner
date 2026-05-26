@@ -21,7 +21,6 @@ from design_app.services.style_library import (
     SPATIAL_OPTIONS,
     STYLE_LIBRARY,
     get_font_combination_by_id,
-    get_typography_by_id,
 )
 
 logger = logging.getLogger(__name__)
@@ -43,11 +42,9 @@ def _fallback_style(style_slug: str) -> dict:
     return {
         'label': style_slug.replace('_', ' ').title(),
         'prompt_suffix': 'Commercial vector design',
-        # Phase 13j: typography is now an id resolved via get_typography_by_id.
-        'default_typography_id': '',
         'default_style_dna': '',
-        # Phase 13t-u: `default_spatial_id` removed from STYLE_LIBRARY — the
-        # style picker no longer auto-fills layout.
+        # Phase 13t-u: `default_spatial_id` + `default_typography_id` removed —
+        # style picker only contributes style_dna + the (unused) prompt_suffix.
     }
 
 
@@ -167,23 +164,12 @@ def _resolve_slot(slot, user_slots, niche_hints, style, slogan, workspace_id=Non
         if hint_val:
             return hint_val
 
-    # 3. Style auto-default, if this slot supports style defaults
-    if slot.get('style_auto_default'):
-        # Phase 13j: typography_adjectives' style-default is an id (resolved
-        # via get_typography_by_id → prompt_text). User-typed values and
-        # niche-hint values are raw text and stay raw — only this style-
-        # default path goes through the id lookup. If the id is unknown,
-        # gracefully omit the sentence (EC-35).
-        mapping = {
-            'typography_adjectives': 'default_typography_id',
-            'style_dna': 'default_style_dna',
-        }
-        mapped_key = mapping.get(slot['key'])
-        val = style.get(mapped_key, '')
-        if slot['key'] == 'typography_adjectives' and val:
-            entry = get_typography_by_id(val)
-            return entry['prompt_text'] if entry else ''
-        return val
+    # 3. Style auto-default — Phase 13t-u: ONLY style_dna remains. typography
+    # auto-default was removed (symmetric to default_spatial_id removal) so
+    # the style picker contributes ONLY style_dna + the (currently unused)
+    # prompt_suffix. User must explicitly pick typography via the picker.
+    if slot.get('style_auto_default') and slot['key'] == 'style_dna':
+        return style.get('default_style_dna', '')
 
     # 4. Special: visual_description ALWAYS needs SOMETHING if requested.
     #    If we end up here with no user value + no hint + no style default,

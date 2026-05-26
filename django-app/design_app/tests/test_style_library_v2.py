@@ -235,44 +235,34 @@ class TestStyleAutoDefaults:
     `default_spatial_id` so the style picker only contributes STYLE
     descriptors, never LAYOUT."""
 
-    DEFAULT_FIELDS = (
-        'default_typography_id',
-        'default_style_dna',
-    )
-
     def test_sixteen_styles(self):
         # Phase 13r added comic_book (clean American comic, no shading).
         assert len(STYLE_LIBRARY) == 16
 
-    def test_every_style_has_typography_and_style_dna_defaults(self):
+    def test_every_style_has_style_dna_default(self):
+        """Phase 13t-u: only default_style_dna remains as a style auto-fill."""
         for slug, style in STYLE_LIBRARY.items():
-            for field in self.DEFAULT_FIELDS:
-                assert field in style, (
-                    f"style {slug!r} missing default field {field!r}"
-                )
-                value = style[field]
-                assert isinstance(value, str) and value.strip(), (
-                    f"style {slug!r} has empty {field!r}"
-                )
+            assert 'default_style_dna' in style, (
+                f"style {slug!r} missing default_style_dna"
+            )
+            value = style['default_style_dna']
+            assert isinstance(value, str) and value.strip(), (
+                f"style {slug!r} has empty default_style_dna"
+            )
 
-    def test_no_style_carries_a_default_spatial_id(self):
-        """Phase 13t-u: style picker must NOT auto-fill spatial layout."""
+    def test_no_style_carries_default_spatial_or_typography_id(self):
+        """Phase 13t-u: style picker must NOT auto-fill layout or typography."""
         for slug, style in STYLE_LIBRARY.items():
             assert 'default_spatial_id' not in style, (
-                f"style {slug!r} still carries a default_spatial_id; "
-                f"Phase 13t-u dropped this field"
+                f"style {slug!r} still carries default_spatial_id"
+            )
+            assert 'default_typography_id' not in style, (
+                f"style {slug!r} still carries default_typography_id"
             )
 
-    def test_every_default_typography_id_resolves(self):
-        # Phase 13j — STYLE_LIBRARY.default_typography_id is a stable id;
-        # resolve via TYPOGRAPHY_OPTIONS entry lookup.
-        valid_ids = {e['id'] for e in TYPOGRAPHY_OPTIONS}
-        for slug, style in STYLE_LIBRARY.items():
-            typo_id = style['default_typography_id']
-            assert typo_id in valid_ids, (
-                f"style {slug!r} default_typography_id {typo_id!r} does not "
-                f"match any TYPOGRAPHY_OPTIONS id"
-            )
+    # Phase 13t-u: default_typography_id removed from STYLE_LIBRARY.
+    # `test_no_style_carries_default_spatial_or_typography_id` above asserts
+    # the absence; no per-style id-resolution test is needed any more.
 
 # ─── Architect template scaffolding ───────────────────────────────────────
 

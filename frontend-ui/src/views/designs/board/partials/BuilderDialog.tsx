@@ -174,6 +174,8 @@ const BuilderDialog = ({
     setCfg,
     selectedPresetId,
     updateSlot,
+    applyPresetSlot,
+    presetSlots,
     resetSlot,
     resetAllSlots,
     setStyleSlugs,
@@ -184,7 +186,9 @@ const BuilderDialog = ({
 
   const handleClearAllSlots = () => {
     resetAllSlots();
-    enqueueSnackbar('All slot values cleared', { variant: 'info' });
+    enqueueSnackbar('Builder reset — slots, slogans + styles cleared', {
+      variant: 'info',
+    });
   };
 
   const [confirmKind, setConfirmKind] = useState<null | 'threshold' | 'manualEdit'>(null);
@@ -275,9 +279,13 @@ const BuilderDialog = ({
   // all 7 form slots. Re-uses the existing dirty-flag setter so subsequent
   // niche-hint pre-fills don't silently clobber the applied values.
   const handleApplyNichePreset = (slots: ResolvedSlots) => {
+    // Phase 13t-u Bug 4: use applyPresetSlot so each slot is tagged as
+    // "from preset" → BuilderDialog can render a "From Preset" chip per
+    // slot until the user types their own value (which calls updateSlot
+    // and removes the tag).
     (Object.entries(slots) as Array<[keyof ResolvedSlots, string]>).forEach(
       ([slotKey, value]) => {
-        updateSlot(slotKey, value);
+        applyPresetSlot(slotKey, value);
       },
     );
   };
@@ -295,11 +303,21 @@ const BuilderDialog = ({
         <Typography id="builder-dialog-title" variant="h4" sx={{ flex: 1 }}>
           Prompt Builder
         </Typography>
+        {presetSlots.size > 0 && (
+          <Chip
+            size="small"
+            color="info"
+            variant="outlined"
+            label={`Niche-preset applied (${presetSlots.size}/7)`}
+            title={`Slots filled from a niche-preset: ${Array.from(presetSlots).join(', ')}. Typing or picking a slot replaces it with your value.`}
+            sx={{ mr: 1 }}
+          />
+        )}
         <IconButton
           onClick={handleClearAllSlots}
           size="small"
-          aria-label="Clear all slot values"
-          title="Clear all slot values"
+          aria-label="Reset builder (clear slots, slogans, styles)"
+          title="Reset builder (clear slots, slogans, styles)"
           sx={{ width: 32, height: 32, mr: 0.5 }}
         >
           <RestartAltIcon sx={{ fontSize: 18 }} />

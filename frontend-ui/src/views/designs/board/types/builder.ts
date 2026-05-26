@@ -43,7 +43,9 @@ export const EMPTY_BUILDER_CONFIG: BuilderConfig = {
   selectedSloganIds: [],
   freeTextSlogans: '',
   selectedStyleSlugs: [],
-  includeNicheContext: true,
+  // Phase 13t-u: niche-context starts OFF. User opts in via the toggle when
+  // they explicitly want builder_form_hints from the niche to fill empty slots.
+  includeNicheContext: false,
   slots: {},
 };
 

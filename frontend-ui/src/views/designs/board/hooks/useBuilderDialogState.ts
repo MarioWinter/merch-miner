@@ -39,6 +39,13 @@ export const useBuilderDialogState = ({
   const [cfg, setCfg] = useState<BuilderConfig>(EMPTY_BUILDER_CONFIG);
   const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
   const [dirtySlots, setDirtySlots] = useState<DirtySlots>({});
+  // Phase 13t-u Bug 4: tracks which slots were last filled by a niche-preset
+  // Confirm. Used by BuilderDialog to render a "From Preset" chip per slot
+  // so the user can see the origin at a glance. Cleared per-slot when the
+  // user types (updateSlot), wiped entirely on resetAllSlots / loadPreset.
+  const [presetSlots, setPresetSlots] = useState<
+    Set<keyof BuilderSlots>
+  >(new Set());
 
   // AC-66 — niche-hints pre-fill. Only fills empty + non-dirty slots so the
   // user's typed overrides always win (EC-28).
@@ -62,7 +69,9 @@ export const useBuilderDialogState = ({
   }, [nicheHints, dirtySlots]);
 
   // EC-28 — every user edit flips the dirty flag so subsequent style switches
-  // do NOT silently replace the typed value.
+  // do NOT silently replace the typed value. Phase 13t-u Bug 4: also clears
+  // the preset-origin marker so the "From Preset" chip disappears once the
+  // user has typed over the preset's value.
   const updateSlot = useCallback(
     (key: keyof BuilderSlots, value: string) => {
       setCfg((prev) => ({
@@ -70,6 +79,35 @@ export const useBuilderDialogState = ({
         slots: { ...prev.slots, [key]: value },
       }));
       setDirtySlots((prev) => ({ ...prev, [key]: true }));
+      setPresetSlots((prev) => {
+        if (!prev.has(key)) return prev;
+        const next = new Set(prev);
+        next.delete(key);
+        return next;
+      });
+    },
+    [],
+  );
+
+  // Phase 13t-u Bug 4: niche-preset Confirm path — same as updateSlot but
+  // marks the slot as "from preset" instead of "user-dirty". Used by
+  // BuilderDialog.handleApplyNichePreset.
+  const applyPresetSlot = useCallback(
+    (key: keyof BuilderSlots, value: string) => {
+      setCfg((prev) => ({
+        ...prev,
+        slots: { ...prev.slots, [key]: value },
+      }));
+      setDirtySlots((prev) => {
+        const { [key]: _omit, ...rest } = prev;
+        void _omit;
+        return rest;
+      });
+      setPresetSlots((prev) => {
+        const next = new Set(prev);
+        next.add(key);
+        return next;
+      });
     },
     [],
   );
@@ -88,13 +126,17 @@ export const useBuilderDialogState = ({
     });
   }, []);
 
-  // PROJ-34 Phase 13t-u: Clear ALL 7 slots in one shot (used by the
-  // "Clear all slots" button in the BuilderDialog header). After a
-  // niche-preset Confirm, this lets the user wipe inherited slot values
-  // (e.g. style_dna) without unselecting them one by one.
+  // PROJ-34 Phase 13t-u: full reset — wipes all 7 slots PLUS selected
+  // slogans (pool + free-text) PLUS selected styles. Used by the
+  // RestartAlt "Reset" button in the BuilderDialog header so the user can
+  // start fresh after a niche-preset Confirm or any auto-fill cascade.
+  // niche-context toggle is preserved (separate user preference).
   const resetAllSlots = useCallback(() => {
     setCfg((prev) => ({
       ...prev,
+      selectedSloganIds: [],
+      freeTextSlogans: '',
+      selectedStyleSlugs: [],
       slots: {
         spatial_configuration: '',
         visual_description: '',
@@ -106,6 +148,7 @@ export const useBuilderDialogState = ({
       },
     }));
     setDirtySlots({});
+    setPresetSlots(new Set());
   }, []);
 
   const setStyleSlugs = useCallback((slugs: string[]) => {
@@ -170,6 +213,7 @@ export const useBuilderDialogState = ({
       });
       // Reset dirty state — preset-loaded slots are considered the new baseline.
       setDirtySlots({});
+      setPresetSlots(new Set());
     },
     [presets, ideas, enqueueSnackbar],
   );
@@ -178,8 +222,10 @@ export const useBuilderDialogState = ({
     cfg,
     setCfg,
     dirtySlots,
+    presetSlots,
     selectedPresetId,
     updateSlot,
+    applyPresetSlot,
     resetSlot,
     resetAllSlots,
     setStyleSlugs,

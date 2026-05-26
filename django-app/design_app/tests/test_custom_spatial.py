@@ -606,7 +606,6 @@ class TestResolveSpatialWithCustomSpatial:
         out = _resolve_spatial(
             user_val=str(cs.id),
             niche_hint_id=None,
-            style_default_id=None,
             workspace_id=str(workspace.id),
         )
         assert out == cs.prompt_text
@@ -626,7 +625,6 @@ class TestResolveSpatialWithCustomSpatial:
         out = _resolve_spatial(
             user_val=str(cs.id),
             niche_hint_id=None,
-            style_default_id=None,
             workspace_id=str(workspace.id),
         )
         # Falls through to omit when no hint/default supplied.

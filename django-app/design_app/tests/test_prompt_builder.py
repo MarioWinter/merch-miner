@@ -112,10 +112,9 @@ class TestBuildFormPromptHappyPath:
 
 
 class TestSlotFallbackChain:
-    def test_empty_slots_fall_through_to_style_defaults(self):
-        """typography / material / style_dna come from STYLE_LIBRARY when no
-        user value and no niche hint."""
-        from design_app.services.style_library import get_typography_by_id
+    def test_empty_slots_fall_through_to_style_dna_default(self):
+        """Phase 13t-u: only style_dna falls through to STYLE_LIBRARY when no
+        user value + no niche hint. typography auto-default was removed."""
         style = STYLE_LIBRARY['cartoon']
         out = build_form_prompt(
             slogan='X',
@@ -123,11 +122,7 @@ class TestSlotFallbackChain:
             slots={},
             background_color='light_gray',
         )
-        # Phase 13j — typography is id-resolved to prompt_text
-        expected_typo = get_typography_by_id(style['default_typography_id'])['prompt_text']
-        assert expected_typo in out
-        # Phase 13q — material slot removed; only typography + style_dna remain
-        # as style-defaulted slots.
+        # Style picker contributes only style_dna now.
         assert style['default_style_dna'] in out
 
     def test_niche_hint_fills_slot_when_user_empty(self):
@@ -160,21 +155,19 @@ class TestSlotFallbackChain:
         assert 'user visual' in out
         assert 'hint visual' not in out
 
-    def test_explicit_value_wins_over_style_default(self):
-        """typography_adjectives has a style default — user override wins."""
-        from design_app.services.style_library import get_typography_by_id
+    def test_explicit_style_dna_overrides_style_default(self):
+        """style_dna still has a style picker default — explicit user value
+        must win. Phase 13t-u: typography auto-default removed, so this test
+        now exercises style_dna instead."""
         out = build_form_prompt(
             slogan='X',
             style_slug='cartoon',
-            slots={'typography_adjectives': "'tiny custom override font'"},
+            slots={'style_dna': 'EXPLICIT user-set style_dna text'},
             background_color='light_gray',
         )
-        assert "'tiny custom override font'" in out
-        # Phase 13j — the style default prompt_text should NOT leak in.
-        cartoon_default_text = get_typography_by_id(
-            STYLE_LIBRARY['cartoon']['default_typography_id']
-        )['prompt_text']
-        assert cartoon_default_text not in out
+        assert 'EXPLICIT user-set style_dna text' in out
+        # The cartoon style default should NOT leak in.
+        assert STYLE_LIBRARY['cartoon']['default_style_dna'] not in out
 
     def test_ec24_visual_omitted_when_no_user_no_hint_no_default(self):
         """EC-24: visual_description has no style auto-default → if user empty
@@ -296,10 +289,9 @@ class TestResolveSlotSmoke:
             'accessories', 'style_dna', 'extra_context',
         }
 
-    def test_style_default_lookup_for_typography(self):
-        # Phase 13j — style.default_typography_id is an id; the resolver
-        # looks it up in TYPOGRAPHY_OPTIONS and returns the prompt_text.
-        from design_app.services.style_library import get_typography_by_id
+    def test_typography_omits_when_no_user_value(self):
+        # Phase 13t-u: style picker no longer auto-fills typography. With
+        # empty user_slots + no niche-hint the resolver returns ''.
         style = STYLE_LIBRARY['cartoon']
         typo_slot = next(s for s in SLOT_SCHEMA if s['key'] == 'typography_adjectives')
         out = _resolve_slot(
@@ -309,8 +301,7 @@ class TestResolveSlotSmoke:
             style=style,
             slogan='X',
         )
-        expected = get_typography_by_id(style['default_typography_id'])['prompt_text']
-        assert out == expected
+        assert out == ''
 
 
 # ─── No-cap / template-end preservation (PROJ-34 Phase 13t-t) ─────────────
@@ -409,10 +400,7 @@ class TestFontCombinationResolver:
         assert raw in out
 
     def test_font_combination_empty_omits_sentence(self):
-        """No font_combination set → no `{value}.` sentence rendered AND
-        typography is NOT silenced."""
-        from design_app.services.style_library import get_typography_by_id
-
+        """No font_combination set → no `{value}.` sentence rendered."""
         out = build_form_prompt(
             slogan='X',
             style_slug='cartoon',
@@ -424,8 +412,5 @@ class TestFontCombinationResolver:
             'design_app.services.style_library', fromlist=['FONT_COMBINATION_OPTIONS'],
         ).FONT_COMBINATION_OPTIONS:
             assert entry['prompt_text'] not in out
-        # Typography style-default still resolves (NOT silenced).
-        cartoon_default = get_typography_by_id(
-            STYLE_LIBRARY['cartoon']['default_typography_id'],
-        )['prompt_text']
-        assert cartoon_default in out
+        # Phase 13t-u: typography auto-default removed — no typography sentence
+        # appears when user_slots are empty and no niche-hint exists.

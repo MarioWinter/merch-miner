@@ -8,10 +8,11 @@ If a future entry is added it must be mirrored in both files.
 
 PROJ-34 Phase 13a adds the Architect template scaffolding + 36 spatial variants
 + 5 fixed-option dropdown lists (Appendices J.1–J.8, K) used by the form-based
-Builder. Existing `STYLE_LIBRARY` entries gain auto-default fields
-(`default_typography_id`, `default_style_dna`) per Appendix K. (Phase 13q
-dropped `default_material`; Phase 13t-u dropped `default_spatial_id` so the
-style picker only contributes STYLE descriptors, never LAYOUT.)
+Builder. Existing `STYLE_LIBRARY` entries gain auto-default fields per
+Appendix K. (Phase 13q dropped `default_material`; Phase 13t-u dropped
+`default_spatial_id` AND `default_typography_id` so the style picker only
+contributes the `default_style_dna` aesthetic descriptor + the (unused)
+`prompt_suffix`. Style picker no longer auto-fills LAYOUT or TYPOGRAPHY.)
 
 PROJ-34 Phase 13j rewrites `TYPOGRAPHY_OPTIONS` from 6 flat strings to 21
 list-of-dicts (id / ui_label / ui_description / prompt_text), renames every
@@ -72,7 +73,9 @@ SLOT_SCHEMA = [
         'label': 'Typography Adjectives',
         'render_template': "The text is rendered in a {value} font style.",
         'has_dropdown': True, 'has_custom_text': True,
-        'style_auto_default': True, 'niche_hint_key': None,
+        # Phase 13t-u: style_auto_default → False (was True). Style picker
+        # no longer auto-fills typography; user must pick via the modal.
+        'style_auto_default': False, 'niche_hint_key': None,
     },
     {
         'key': 'font_combination',
@@ -727,10 +730,11 @@ def get_spatial_by_id(spatial_id: str) -> dict | None:
 
 
 # ─── Typography lookup helper (Phase 13j) ─────────────────────────────────
-# O(1) `id` → entry dict lookup over the 21 TYPOGRAPHY_OPTIONS entries. Used
-# by `prompt_builder._resolve_slot` to resolve a style's
-# `default_typography_id` to its `prompt_text` before the Architect sentence
-# is rendered.
+# O(1) `id` → entry dict lookup over the 21 TYPOGRAPHY_OPTIONS entries.
+# Used by `prompt_builder._resolve_slot` to resolve a user-picked typography
+# id to its `prompt_text` before the Architect sentence is rendered.
+# Phase 13t-u: style picker no longer carries default_typography_id, so this
+# helper is now only hit from frontend-supplied user values.
 _TYPOGRAPHY_BY_ID = {entry['id']: entry for entry in TYPOGRAPHY_OPTIONS}
 
 
@@ -769,7 +773,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
         # PROJ-34 Phase 13a (Appendix K) — Architect form auto-defaults.
         # Phase 13j: `default_typography` renamed to `default_typography_id`,
         # value is a TYPOGRAPHY_OPTIONS id (resolved via get_typography_by_id).
-        'default_typography_id': 'distressed_vintage_slab',
         'default_style_dna': (
             'Vintage retro aesthetic with warm faded earth tones, thick '
             'uniform black outlines, and slight halftone shading on flat '
@@ -785,7 +788,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'thick black outlines, soft halftone dot accents, retro disco '
             'poster aesthetic'
         ),
-        'default_typography_id': 'seventies_groovy_bold',
         'default_style_dna': (
             '1970s groovy psychedelic aesthetic with bold flowing curves, '
             'earthy mustard-orange-olive palette, and retro disco-poster '
@@ -801,7 +803,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'vaporwave grid background motifs, glowing neon outlines, retro '
             'arcade vibe'
         ),
-        'default_typography_id': 'chrome_bevel_display',
         'default_style_dna': (
             '1980s synthwave aesthetic with hot magenta + electric cyan + '
             'matte black palette and crisp neon-arcade flatness — no actual '
@@ -817,7 +818,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'torn-edge effects, gritty rough outlines, photocopy-worn '
             'screen-print look'
         ),
-        'default_typography_id': 'distressed_industrial_sans',
         'default_style_dna': (
             '1990s grunge aesthetic with faded worn palette, torn-edge '
             'effects, gritty rough outlines and photocopy-worn screen-print '
@@ -833,7 +833,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             '(baby pink, mint, lavender, butter yellow), thick rounded '
             'outlines, gentle pastel cell-shading, adorable expression'
         ),
-        'default_typography_id': 'childlike_rounded_block',
         'default_style_dna': (
             'Kawaii chibi cartoon aesthetic with oversized cute features, '
             'soft pastel palette, thick rounded outlines and gentle pastel '
@@ -849,7 +848,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'exaggerated features, playful vibrant palette, Saturday-morning '
             'animation aesthetic'
         ),
-        'default_typography_id': 'chunky_cartoon_block_gloss',
         'default_style_dna': (
             'Bold cartoon aesthetic with thick uniform black outlines, flat '
             'saturated color fills, simple cel-shaded highlights and '
@@ -865,7 +863,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'brush strokes, layered translucent pigment, hand-painted artisan '
             'feel'
         ),
-        'default_typography_id': 'modern_elegant_brush',
         'default_style_dna': (
             'Watercolor illustration aesthetic with soft transparent washes, '
             'irregular pigment edges and visible paper-texture underlay — '
@@ -882,7 +879,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'monochrome or muted color accents, charming sketchbook journal '
             'aesthetic'
         ),
-        'default_typography_id': 'playful_marker_script',
         'default_style_dna': (
             'Hand-drawn sketchbook aesthetic with loose pencil strokes, '
             'visible construction lines, slightly imperfect organic linework '
@@ -898,7 +894,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'contemporary commercial design aesthetic, editorial Apple-emoji '
             'flatness'
         ),
-        'default_typography_id': 'minimal_geometric_sans',
         'default_style_dna': (
             'Modern flat-vector aesthetic with geometric shapes, zero '
             'gradients, minimalist palette, crisp sharp edges and '
@@ -913,7 +908,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'no fills, no shading, elegant continuous lines, abundant negative '
             'space, refined editorial wordmark aesthetic'
         ),
-        'default_typography_id': 'minimal_geometric_sans',
         'default_style_dna': (
             'Minimal single-line aesthetic with consistent monoline weight, '
             'no fills, no shading, abundant negative space and elegant '
@@ -928,7 +922,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'anti-aliasing, limited 16-color retro arcade palette, blocky '
             'uniform pixels, nostalgic NES/Game Boy aesthetic'
         ),
-        'default_typography_id': 'pixel_eight_bit_bitmap',
         'default_style_dna': (
             '8-bit pixel-art aesthetic with sharp pixelated edges, no '
             'anti-aliasing, limited 16-color retro arcade palette and '
@@ -943,7 +936,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'scratched and cracked color fills, vintage screen-print '
             'roughness, aged-on-fabric look, rough rustic typography'
         ),
-        'default_typography_id': 'tattoo_old_school_bold',
         'default_style_dna': (
             'Heavily distressed print aesthetic with worn ink-bleed effect, '
             'scratched and cracked color fills, vintage screen-print roughness'
@@ -957,7 +949,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'sizes), classic comic-book printing aesthetic, limited 2-3 color '
             'palette, retro newsprint feel, pop-art flatness'
         ),
-        'default_typography_id': 'retro_diner_brush',
         'default_style_dna': (
             'Halftone-print pop-art aesthetic with dot-pattern fills, '
             'limited 2-3 color palette and retro newsprint feel'
@@ -971,7 +962,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'banner ribbons above and below, central crest illustration, '
             'classic monochrome or 2-color palette, heritage trade-mark feel'
         ),
-        'default_typography_id': 'varsity_script_swash',
         'default_style_dna': (
             'Vintage badge-emblem aesthetic with classic monochrome or '
             '2-color palette, heritage trade-mark feel and ornate '
@@ -986,7 +976,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             'dramatic high-contrast strokes, decorative flourishes, dark moody '
             'palette, often paired with skull / raven / cross / banner motifs'
         ),
-        'default_typography_id': 'blackletter_gothic',
         'default_style_dna': (
             'Heavy blackletter-gothic aesthetic with ornate medieval scripts, '
             'decorative flourishes, dramatic high-contrast strokes and dark '
@@ -1005,7 +994,6 @@ STYLE_LIBRARY: dict[str, dict[str, str]] = {
             '(red / yellow / blue accents on a flat background), Marvel/DC '
             'superhero feel stripped of chiaroscuro shading'
         ),
-        'default_typography_id': 'chunky_cartoon_block_gloss',
         'default_style_dna': (
             'Classic American comic-book aesthetic with bold hand-inked outlines, '
             'flat saturated single-color fills, vibrant primary-color palette, '
