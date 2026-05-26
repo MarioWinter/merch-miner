@@ -2626,7 +2626,7 @@ should still pass (they use fixtures with `graphic_elements` set; fallback kicks
 - [x] 13t-p5.6 (Optional) Run the backfill on the local dev DB:
   `docker compose exec web python manage.py backfill_vision_descriptors` →
   ~89 rows × ~$0.0001 = ~$0.01. Capture the Summary in the commit body.
-- [ ] 13t-p5.7 Commit + push:
+- [x] 13t-p5.7 Commit + push:
     - Stage exactly the files listed in Phase Plan above + this file + spec.
     - Message: `feat(PROJ-34): phase 13t-p — Vision schema extension (3 distinct descriptors + backfill)`
     - Push to `feature/PROJ-34-design-prompt-engineering`.
