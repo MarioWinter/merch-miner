@@ -82,6 +82,8 @@ class NicheProductVisionAnalysisSerializer(serializers.ModelSerializer):
         fields = [
             'slogan_text', 'meaning_context', 'visual_style',
             'graphic_elements', 'layout_composition',
+            'typography_descriptors', 'font_combination_descriptors',
+            'accessory_descriptors',
         ]
 
 

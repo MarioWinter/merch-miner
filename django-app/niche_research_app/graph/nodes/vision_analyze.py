@@ -124,6 +124,11 @@ async def vision_analyze_node(state: ResearchState) -> dict:
             visual_style=analysis.visual_style,
             graphic_elements=analysis.graphic_elements,
             layout_composition=analysis.layout_composition,
+            typography_descriptors=getattr(analysis, 'typography_descriptors', ''),
+            font_combination_descriptors=getattr(
+                analysis, 'font_combination_descriptors', '',
+            ),
+            accessory_descriptors=getattr(analysis, 'accessory_descriptors', ''),
             is_niche_match=analysis.is_niche_match,
         )
         vision_records.append(record)

@@ -925,6 +925,159 @@ Confirm-Dialog preview, and (on confirm) all 7 slots are replaced atomically.
 
 ---
 
+## Phase 13t-p — Vision Schema Extension (post-13t bugfix)
+
+### Background
+
+Post-13t QA revealed a structural bug: Top-Card presets render **identical text** in
+the `typography_adjectives`, `font_combination`, and `accessories` slots. Root cause
+in `design_app/services/top_card_builder.py:74-83` — all 3 slots draw from the same
+`NicheProductVisionAnalysis.graphic_elements` field. The Jaccard matcher rarely
+clears threshold on freeform prose, so all 3 fall back to raw-truncation of the
+same source string. Result: 3 visually identical previews per Top-Card.
+
+The Vision-LLM prompt *already extracts* typography/font/decorative information,
+but blends it into one prose blob inside `graphic_elements`. Example from a
+production row (Retired School Bus Driver shirt):
+
+> "The main motif is a simple, cartoon-style yellow school bus with 'SCHOOL BUS'
+> written on its side. Typography is a mix of bold, block letters for emphasis
+> (e.g., 'SCHOOL BUS') and cursive/script font for 'Driver' and 'Just Like,'
+> creating visual contrast. White stars and lines add decorative accents around
+> the text..."
+
+The data is there; the schema isn't granular enough to surface it cleanly.
+
+Phase 13t-p resolves this by adding **3 new structured output fields** to the
+Vision schema (slogan-agnostic descriptors), extending the prompt with explicit
+extraction rules, and providing a **one-shot LLM backfill** to upgrade existing
+rows without re-running the full Vision pipeline.
+
+### Acceptance Criteria (Phase 13t-p)
+
+- [x] AC-129: `niche_research_app.NicheProductVisionAnalysis` gains 3 new fields:
+  `typography_descriptors` (TextField, blank=True, default=''),
+  `font_combination_descriptors` (TextField, blank=True, default=''),
+  `accessory_descriptors` (TextField, blank=True, default=''). Migration is additive
+  only (nullable-equivalent via default) — safe for 89+ existing rows.
+- [x] AC-130: `niche_research_app.graph.schemas.VisionAnalysisSchema` exposes the 3
+  new fields as Pydantic `str = Field(...)` so the structured-output LLM call
+  populates them on every new Vision run.
+- [x] AC-131: `niche_research_app.graph.prompts.DEFAULT_VISION_PROMPT` is extended
+  with explicit instructions for the 3 new fields, INCLUDING a "Slogan-Agnostic
+  Rule" block with **GOOD vs BAD examples** that forbids quoting actual slogan text.
+  Required content snippets (verbatim):
+    - `"Use placeholders: 'primary headline', 'secondary text', 'accent words', 'tagline'."`
+    - `"NEVER quote or reference the actual slogan text in these three fields."`
+    - One GOOD example + one BAD example as inline anchors.
+- [x] AC-131.5: New data migration `niche_research_app/migrations/0008_update_vision_prompt_for_descriptors.py`
+  upgrades the DB-seeded `ResearchNodeConfig.system_prompt` for node `vision_analyze`
+  **with smart-detection**: only overwrite when the current DB value matches the OLD
+  default verbatim (= untouched seed); otherwise log a warning and leave alone (= user
+  has customized via Django Admin). This is critical because migration 0002 seeded
+  every install with `DEFAULT_VISION_PROMPT`, and the LLM client reads the DB value
+  before the code default — so code-only changes to the constant are wirkungslos on
+  any deployed system. The OLD prompt text is captured verbatim in `Appendix Z` to
+  make the comparison reproducible. Reverse migration restores the OLD prompt
+  (idempotent — same smart-detection in reverse).
+- [x] AC-132: `niche_research_app.graph.nodes.vision_analyze.py` persists the 3 new
+  fields when creating `NicheProductVisionAnalysis` records (both in the singular
+  `objects.create` path and the `bulk_create` path).
+- [x] AC-133: `niche_research_app.api.serializers.NicheProductVisionAnalysisSerializer`
+  exposes the 3 new fields. Existing API consumers (resume.py, frontend
+  Niche-Detail view) are unaffected (additive change).
+- [x] AC-134: `design_app/services/top_card_builder.py` remaps:
+    - `slot_typography_adjectives` ← `vision_row.typography_descriptors` (was: `graphic_elements`)
+    - `slot_font_combination` ← `vision_row.font_combination_descriptors` (was: `graphic_elements`)
+    - `slot_accessories` ← `vision_row.accessory_descriptors` (was: `graphic_elements`)
+  Fallback chain: if the new field is empty (e.g. unbackfilled row), fall back to
+  `graphic_elements` to preserve current behavior — no regression for rows the
+  backfill hasn't reached yet.
+- [x] AC-135: New service `niche_research_app/services/vision_backfill.py` provides
+  a function `backfill_vision_descriptors(rows: QuerySet, dry_run: bool=False)` that:
+    - Iterates rows where (`typography_descriptors='' OR font_combination_descriptors='' OR accessory_descriptors=''`) AND `graphic_elements != ''`.
+    - For each row, calls `openai/gpt-4.1-mini` via the existing LLM client with the
+      Backfill-Prompt (Appendix Y) using row's `slogan_text + graphic_elements` as input.
+    - Persists the 3 returned fields. Idempotent: a second run on the same row is a
+      no-op (skipped by the empty-check filter).
+    - Logs progress every 10 rows; writes a final summary (processed / skipped / errored).
+    - Cost target: ≤$0.005 per 100 rows at gpt-4.1-mini input pricing.
+- [x] AC-136: Management command `python manage.py backfill_vision_descriptors`
+  exposes the service with flags: `--dry-run` (no DB writes), `--limit N`, `--niche-id <uuid>`,
+  `--workspace-id <uuid>` (filter scope). Default: process ALL eligible rows in
+  the connected DB.
+- [x] AC-137: Pytest suite covers:
+    - Schema parse: a sample LLM response JSON with the 3 new fields deserializes correctly.
+    - top_card_builder fallback: builder uses new field when present; falls back to
+      `graphic_elements` when empty.
+    - Backfill idempotency: running twice on the same input set yields zero LLM calls
+      on the second run.
+    - Slogan-leakage smoke test: backfill output for a known-slogan input row does
+      NOT contain the literal slogan text (case-insensitive substring check).
+- [x] AC-138: All checkboxes in Phase 13t-p (AC-129..AC-138) plus EC-50..EC-53 plus
+  the `docs/tasks/PROJ-34-tasks.md` Phase 13t-p sub-phase checkboxes flipped to `[x]`
+  before the closing commit. Single conventional commit per `feedback_phase_by_phase_skill_invocation.md`.
+
+### Edge Cases (Phase 13t-p)
+
+- [x] EC-50: Existing row has `graphic_elements=''` (e.g. Vision-LLM returned empty
+  for that field) → backfill skips the row (no LLM call). The 3 new fields remain
+  empty; top_card_builder falls back per AC-134 (also empty). Builder UI shows
+  empty slots for that Top-Card — consistent with current behavior for sparse rows.
+- [x] EC-51: Backfill LLM call fails (timeout, HTTP 5xx, malformed JSON) → log the
+  error with `niche_id + product_id + row_id`, skip the row, continue. Final
+  summary reports the error count. Failed rows are NOT marked — a re-run picks
+  them up automatically.
+- [x] EC-52: DB-stored Vision prompt has been customized by the operator via
+  Django Admin (`/admin/niche_research_app/researchnodeconfig/`) — i.e. the
+  current value does NOT match the OLD default verbatim → the data migration
+  (AC-131.5) detects mismatch, logs `WARNING: vision_analyze prompt is customized
+  in DB; new SLOGAN-AGNOSTIC RULE block NOT auto-applied. Edit manually in Django
+  Admin to enable the 3 new fields.`, and leaves the DB row untouched. The
+  backfill command repeats the same warning on startup. Operator must paste the
+  SLOGAN-AGNOSTIC RULE block (Appendix X) into their custom prompt to enable
+  the new field extraction for future Vision runs. Until then, the 3 new fields
+  remain empty on new Vision runs; top_card_builder falls back to graphic_elements
+  per AC-134 (no regression).
+- [x] EC-52.5: DB row exists with the OLD default verbatim (= untouched seed from
+  migration 0002, the **default state** for nearly all deployed installs) → data
+  migration detects match and overwrites with the new prompt automatically. No
+  operator action required. Migration is idempotent: a re-run on the same row is
+  a no-op (already-new prompt does not match OLD default).
+- [x] EC-53: Backfill output contains slogan substring despite the prompt instruction
+  (LLM disobeys) → no automatic stripping (per "Slogan-agnostic via prompt only"
+  decision). Test AC-137 catches obvious cases. If observed in production, escalate
+  to prompt tightening.
+
+### Out of Scope (Phase 13t-p)
+
+- Re-running the full Vision LLM analysis on existing rows (the backfill is cheaper
+  and uses already-extracted prose as input).
+- Hard sanitizer / regex stripper for slogan leakage (rejected — false-positive risk).
+- Updating workspace-specific DB Vision prompt overrides (operator decision per EC-52).
+- New built-in pool entries for the matcher to find better hits on the new fields
+  (the matcher remains unchanged; raw-text-truncation is acceptable until a future
+  phase adds typography/font/accessory canonical pools).
+
+### Dependencies (Phase 13t-p)
+
+- **Requires:** Phase 13t shipped (top_card_builder.py + NicheCardPreset model).
+- **Requires:** `OPENROUTER_API_KEY` env var present (already used by existing
+  Vision LLM calls; no new secret).
+- **Requires:** Same `openai/gpt-4.1-mini` model used by Best-of-Mix generator.
+
+### Resolved Decisions (Phase 13t-p)
+
+| # | Decision | Outcome |
+|---|---|---|
+| 22 | Source of distinct typography/font/accessory data | Extend Vision schema (Option B) + LLM backfill — NOT prompt-builder LLM extractor, NOT heuristic regex |
+| 23 | Slogan-leakage protection | Prompt-instructions only (GOOD/BAD examples). No regex sanitizer. Tests cover smoke check. |
+| 24 | Backfill scope | gpt-4.1-mini one-shot per row using `slogan_text + graphic_elements` input. ~$0.01 for 89 rows. |
+| 25 | top_card_builder fallback | New field if present, else `graphic_elements` — graceful degradation for unbackfilled rows |
+| 26 | DB-stored prompt overrides | Operator-managed (warn on backfill startup, no auto-update) |
+
+---
+
 
 
 - **Backend:**
@@ -1426,6 +1579,173 @@ Chrome, Firefox, Safari (current evergreen).
 | T4 | CustomTypography LLM prod smoke | **Required as Phase 13t-m kickoff** — manual `analyze_typography_layout` smoke test against 3 sample prod images before exposing UI. Document result in this spec under QA section |
 | T5 | History dedup cross-niche scope | **Cross-niche dedup ON** per AC-96 (existing default — no change) — same 7-slot hash collapses across niches, `source_card_references` accumulates sources, `last_clicked_at` updates |
 | T6 | Rate-limit on Vorschläge tab fetch | **No backend rate-limit** — endpoint is DB-only after cache fill (~5-30ms). Standard DRF anon/user throttles cover abuse |
+
+### Tech Design — Phase 13t-p (Vision Schema Extension)
+
+#### What we're building (in 3 sentences)
+
+Add 3 new TextFields to `NicheProductVisionAnalysis` (`typography_descriptors`,
+`font_combination_descriptors`, `accessory_descriptors`) so the Vision LLM emits
+structured per-aspect descriptors instead of one mixed prose blob. Extend
+`DEFAULT_VISION_PROMPT` with explicit per-field instructions plus a Slogan-Agnostic
+Rule that uses placeholders (`primary headline`, `secondary text`, `accent words`)
+and forbids quoting actual slogan text. Provide a one-shot LLM **backfill service**
+that upgrades the 89 existing rows by extracting the 3 fields from each row's
+already-stored `graphic_elements` prose (~$0.01 total cost).
+
+#### Data Model — 1 extended table
+
+**Extended — `niche_research_app.NicheProductVisionAnalysis`** (3 new fields):
+
+| Field | Type | Purpose |
+|---|---|---|
+| typography_descriptors | TextField (blank=True, default='') | Slogan-agnostic per-treatment typography (e.g. "bold uppercase block letters for the primary headline; cursive script for accent words") |
+| font_combination_descriptors | TextField (blank=True, default='') | Font-pair description without slogan refs (e.g. "Sans-serif uppercase + handwritten cursive") |
+| accessory_descriptors | TextField (blank=True, default='') | Decorative elements (e.g. "White stars and decorative lines around the text") |
+
+**Migration:** `niche_research_app/migrations/0007_vision_structured_descriptors.py`
+— additive (3 nullable-equivalent TextFields with `default=''`). Safe for the
+89+ existing rows; no data-migration step required (backfill is operator-run).
+
+#### Component / Service Tree (additions only)
+
+```
+niche_research_app/
++-- graph/
+|   +-- schemas.py                          [EDIT] +3 Pydantic fields in VisionAnalysisSchema
+|   +-- prompts.py                          [EDIT] extend DEFAULT_VISION_PROMPT with Slogan-Agnostic Rule
+|   +-- nodes/vision_analyze.py             [EDIT] persist 3 new fields (singular + bulk_create)
++-- models.py                               [EDIT] +3 TextFields on NicheProductVisionAnalysis
++-- migrations/0007_*.py                    [NEW]  additive schema migration (3 TextFields)
++-- migrations/0008_*.py                    [NEW]  data migration — smart-update DB-seeded vision_analyze prompt
++-- api/serializers.py                      [EDIT] expose 3 new fields
++-- services/
+|   +-- vision_backfill.py                  [NEW]  backfill_vision_descriptors() service
++-- management/commands/
+|   +-- backfill_vision_descriptors.py      [NEW]  CLI wrapper w/ --dry-run / --limit / --niche-id / --workspace-id
++-- tests/
+    +-- test_vision_backfill.py             [NEW]  schema parse + idempotency + slogan-leakage check
+    +-- test_top_card_builder_p_remap.py    [NEW]  builder uses new fields + fallback to graphic_elements
+
+design_app/
++-- services/
+    +-- top_card_builder.py                 [EDIT] remap 3 slots to new vision fields + fallback chain
+```
+
+#### LLM Configuration
+
+| Setting | Value |
+|---|---|
+| Model | `openai/gpt-4.1-mini` (same as Best-of-Mix per project memory) |
+| Temperature | 0.2 (extractive task, low creativity) |
+| Max tokens | 400 (3 short descriptors fit easily) |
+| Timeout | 15s per row |
+| Retry | 1× on timeout / HTTP 5xx; otherwise skip + log |
+| Cost target | ≤$0.0001/row → ~$0.01 for 89 rows |
+| Langfuse | Tag traces with `phase=13t-p_backfill` + `niche_id` + `product_id` |
+
+#### Slogan-Agnostic Rule (full spec)
+
+The Vision-prompt and Backfill-prompt both include the following verbatim block:
+
+```
+=== SLOGAN-AGNOSTIC RULE (typography/font_combination/accessory fields) ===
+
+For typography_descriptors, font_combination_descriptors, accessory_descriptors:
+- Describe the VISUAL TREATMENT, not the specific words.
+- Use placeholders: "primary headline", "secondary text", "accent words", "tagline".
+- NEVER quote or reference the actual slogan text in these three fields.
+- Focus on: font weight, casing, style (sans/serif/script), color, decorative treatment.
+
+GOOD typography_descriptors:
+  "bold uppercase block letters for the primary headline; cursive script font for
+   the secondary text and accent words; high contrast between weights"
+
+BAD typography_descriptors (DO NOT DO THIS):
+  "bold block letters for 'SCHOOL BUS'; cursive for 'Driver' and 'Just Like'"
+   (← contains the literal slogan text — strictly forbidden)
+
+GOOD font_combination_descriptors:
+  "Sans-serif uppercase paired with a handwritten cursive script accent"
+
+BAD font_combination_descriptors:
+  "ROLLIN' in handwritten font, THEY in block"
+
+GOOD accessory_descriptors:
+  "white stars and decorative lines arranged around the central motif;
+   subtle distressing on the headline; small dot-pattern border"
+
+BAD accessory_descriptors:
+  "stars and lines around 'SCHOOL BUS DRIVER'"
+```
+
+The block is inserted into the Vision system prompt verbatim (no paraphrasing) and
+re-used inside the Backfill prompt as the binding rule. See `Appendix X` for the
+full updated Vision prompt and `Appendix Y` for the Backfill prompt.
+
+#### Backfill Flow (pseudo)
+
+```
+backfill_vision_descriptors(rows: QuerySet, dry_run: bool = False) -> Summary:
+    eligible = rows.filter(
+        Q(typography_descriptors='') |
+        Q(font_combination_descriptors='') |
+        Q(accessory_descriptors='')
+    ).exclude(graphic_elements='')
+
+    processed, skipped, errored = 0, 0, 0
+    for row in eligible.iterator(chunk_size=20):
+        try:
+            result = call_llm(BACKFILL_PROMPT, slogan=row.slogan_text,
+                              graphic=row.graphic_elements)
+            if dry_run:
+                log.info(f"[dry-run] would update {row.id}: {result}")
+            else:
+                row.typography_descriptors = result.typography_descriptors
+                row.font_combination_descriptors = result.font_combination_descriptors
+                row.accessory_descriptors = result.accessory_descriptors
+                row.save(update_fields=[
+                    'typography_descriptors', 'font_combination_descriptors',
+                    'accessory_descriptors',
+                ])
+            processed += 1
+            if processed % 10 == 0:
+                log.info(f"backfill progress: {processed}/{eligible.count()}")
+        except Exception as e:
+            log.error(f"backfill failed for row={row.id}: {e}")
+            errored += 1
+    return Summary(processed=processed, skipped=skipped, errored=errored)
+```
+
+#### top_card_builder Remap (the actual bug fix)
+
+```python
+# OLD (top_card_builder.py:74-83) — all 3 slots from same source → identical output
+graphic_text = vision_row.graphic_elements or ""
+typography_value, ... = match_slot_to_builtin("typography_adjectives", graphic_text)
+font_combination_value, ... = match_slot_to_builtin("font_combination", graphic_text)
+accessories_value, ... = match_slot_to_builtin("accessories", graphic_text)
+
+# NEW — distinct sources w/ fallback for unbackfilled rows
+typography_text = (vision_row.typography_descriptors
+                   or vision_row.graphic_elements or "")
+font_text = (vision_row.font_combination_descriptors
+             or vision_row.graphic_elements or "")
+accessory_text = (vision_row.accessory_descriptors
+                  or vision_row.graphic_elements or "")
+typography_value, ... = match_slot_to_builtin("typography_adjectives", typography_text)
+font_combination_value, ... = match_slot_to_builtin("font_combination", font_text)
+accessories_value, ... = match_slot_to_builtin("accessories", accessory_text)
+```
+
+#### Tech Notes (open / flagged for user)
+
+| # | Note | Resolution |
+|---|------|------------|
+| P1 | DB-seeded Vision prompt (every install has one from migration 0002 — verified in prod: 901-char row in `ResearchNodeConfig` for `vision_analyze`) | RESOLVED by data migration 0008 (AC-131.5): smart-update overwrites only if current DB value matches OLD default verbatim. Customized prompts trigger a warning and are left untouched (per EC-52). Reproducible via OLD prompt text in Appendix Z. |
+| P2 | LLM may rarely leak slogan text into descriptors despite the rule | Per Resolved Decision #23, no automated sanitizer. AC-137 test catches obvious leaks; production-observed leaks trigger prompt-tightening. |
+| P3 | Backfill blocking on workers? | The management command runs **synchronously** on the `web` container (operator-initiated, not RQ-enqueued). Acceptable for one-shot 89-row backfill at ~5-15s total. If we ever backfill 10k+ rows, refactor to django_rq. |
+| P4 | Cost monitoring | First backfill run reports total tokens + cost in the final summary (gpt-4.1-mini input pricing × actual token count). |
 
 ## QA Test Results
 

@@ -2452,6 +2452,189 @@ DECOUPLED from niche-cards flow.
 
 ---
 
+## Phase 13t-p — Vision Schema Extension (post-13t bugfix)
+
+**Spec source-of-truth:** `features/PROJ-34-design-prompt-engineering.md` Phase 13t-p
+section + Tech Design subsection.
+
+**Goal:** Fix the Top-Card duplicate-slot bug discovered post-13t by adding 3 new
+structured fields to `NicheProductVisionAnalysis` so typography / font_combination
+/ accessories get distinct, slogan-agnostic descriptors instead of all sharing
+`graphic_elements`. Includes one-shot LLM backfill for the 89 existing rows.
+
+**Branch:** continues on `feature/PROJ-34-design-prompt-engineering` (no new branch).
+
+**Cost:** ~$0.01 for 89-row backfill (gpt-4.1-mini). One commit, one push.
+
+**Reading list before any sub-phase:**
+- `.claude/rules/general.md` + `backend.md` + `security.md`
+- This file: this Phase 13t-p section + Appendices X + Y (verbatim prompts)
+- Spec: Phase 13t-p ACs + ECs + Tech Design subsection
+- Memory: `feedback_skills_must_follow_rules.md`, `feedback_phase_by_phase_skill_invocation.md`
+
+### Phase 13t-p1 — Backend: Vision schema + prompt + model + migration
+
+**Scope-lock:** Only the 4 files listed below. NO touching of `vision_analyze.py`,
+`top_card_builder.py`, or serializer. Do NOT commit.
+
+- [x] 13t-p1.1 `niche_research_app/graph/schemas.py` — add 3 fields to
+  `VisionAnalysisSchema` (after existing `layout_composition` line) with descriptions
+  pointing to the Slogan-Agnostic Rule:
+    ```python
+    typography_descriptors: str = Field(
+        description="Slogan-agnostic typography treatment using placeholders "
+                    "('primary headline', 'secondary text', 'accent words'). "
+                    "NEVER quote actual slogan text. See Slogan-Agnostic Rule.",
+    )
+    font_combination_descriptors: str = Field(
+        description="Slogan-agnostic font pairing description. "
+                    "NEVER quote actual slogan text.",
+    )
+    accessory_descriptors: str = Field(
+        description="Decorative elements (stars, lines, borders, distressing). "
+                    "NEVER quote actual slogan text.",
+    )
+    ```
+- [x] 13t-p1.2 `niche_research_app/graph/prompts.py` — replace `DEFAULT_VISION_PROMPT`
+  with the full updated text from **Appendix X.1**. The new prompt extends the
+  existing "Design Analysis" numbered list (6-8) and appends the verbatim
+  "SLOGAN-AGNOSTIC RULE" block.
+- [x] 13t-p1.3 `niche_research_app/models.py` — add 3 TextFields to
+  `NicheProductVisionAnalysis` (after `layout_composition`, before `is_niche_match`):
+    ```python
+    typography_descriptors = models.TextField(blank=True, default='')
+    font_combination_descriptors = models.TextField(blank=True, default='')
+    accessory_descriptors = models.TextField(blank=True, default='')
+    ```
+- [x] 13t-p1.4 Run `docker compose exec web python manage.py makemigrations
+  niche_research_app --name vision_structured_descriptors` → produces
+  `0007_vision_structured_descriptors.py`. Verify additive-only (3 AddField ops).
+- [x] 13t-p1.5 **Smart-update data migration for DB-seeded prompt** — create
+  `niche_research_app/migrations/0008_update_vision_prompt_for_descriptors.py`
+  manually (NOT via makemigrations). Pattern:
+    - Constant `OLD_VISION_PROMPT` = verbatim text from **Appendix Z.1** (the
+      pre-13t-p `DEFAULT_VISION_PROMPT`).
+    - Constant `NEW_VISION_PROMPT` = verbatim text from **Appendix X.1** (the
+      post-13t-p prompt with SLOGAN-AGNOSTIC RULE).
+    - `update_prompt(apps, schema_editor)`: gets `ResearchNodeConfig` row for
+      `node_name='vision_analyze'`. If row exists AND `row.system_prompt.strip()
+      == OLD_VISION_PROMPT.strip()` → overwrite with `NEW_VISION_PROMPT` + save.
+      If row exists but content differs → `print("WARNING: vision_analyze prompt
+      is customized in DB; new SLOGAN-AGNOSTIC RULE block NOT auto-applied.
+      Edit manually in Django Admin to enable the 3 new fields.")` + return.
+      If row does not exist → return (fresh install will use code default).
+    - `reverse_prompt(apps, schema_editor)`: same logic, swap NEW ↔ OLD.
+    - `dependencies = [('niche_research_app', '0007_vision_structured_descriptors')]`
+    - One `migrations.RunPython(update_prompt, reverse_prompt)` operation.
+- [x] 13t-p1.6 Run both migrations locally: `docker compose exec web python
+  manage.py migrate niche_research_app`. Verify:
+    - Migration 0007 succeeds (additive).
+    - Migration 0008 reports `vision_analyze` was auto-upgraded (local dev DB
+      has the OLD seeded prompt, no customization).
+- [x] 13t-p1.7 Verify ruff clean on touched files.
+
+**Verify:** `python manage.py shell -c "from niche_research_app.models import NicheProductVisionAnalysis; print(NicheProductVisionAnalysis._meta.get_field('typography_descriptors'))"` → returns the new TextField object.
+
+### Phase 13t-p2 — Backend: vision_analyze node + serializer
+
+**Scope-lock:** Only `vision_analyze.py` + `api/serializers.py`. Do NOT commit.
+
+- [x] 13t-p2.1 `niche_research_app/graph/nodes/vision_analyze.py` — in the
+  singular `NicheProductVisionAnalysis(...)` constructor (around line 119), pass
+  the 3 new fields from `analysis.typography_descriptors` etc.
+- [x] 13t-p2.2 Same file: in the `bulk_create` path (around line 159), pass the
+  3 new fields. — NOTE: only one constructor exists (feeds bulk_create), single edit covers both. Used `getattr(analysis, '...', '')` for robustness against malformed LLM responses.
+- [x] 13t-p2.3 `niche_research_app/api/serializers.py` — add the 3 new fields to
+  `NicheProductVisionAnalysisSerializer.Meta.fields` (around line 81).
+- [x] 13t-p2.4 Verify ruff clean.
+
+**Verify:** `pytest niche_research_app/tests/test_nodes.py -k vision -v` — existing
+tests must still pass (the 3 new fields default to empty in test fixtures).
+— NOTE: vision tests show 4 pre-existing failures from RQ Job ID bug in
+`niche_app/signals.py:74` (`niche-reindex-{niche_id}` colon — out of scope).
+Same test set fails on `git stash` baseline (verified). Phase 13t-p2 changes
+introduce zero new failures.
+
+### Phase 13t-p3 — Backend: top_card_builder source-field remap
+
+**Scope-lock:** Only `design_app/services/top_card_builder.py`. Do NOT commit.
+
+- [x] 13t-p3.1 Replace the block at lines 68-83 (typography / font_combination /
+  accessories slot derivation) with the new pattern per **Tech Design — Phase
+  13t-p — top_card_builder Remap** section in the spec. The new pattern:
+  - `typography_text = vision_row.typography_descriptors or vision_row.graphic_elements or ""`
+  - `font_text = vision_row.font_combination_descriptors or vision_row.graphic_elements or ""`
+  - `accessory_text = vision_row.accessory_descriptors or vision_row.graphic_elements or ""`
+  - Then pass each to `match_slot_to_builtin(...)` as before.
+- [x] 13t-p3.2 Update the stale comment block at lines 68-73 (the "desired
+  behavior" justification is now obsolete — replace with a one-line comment
+  explaining the fallback to `graphic_elements` for unbackfilled rows).
+- [x] 13t-p3.3 Verify ruff clean. — 19/19 existing tests pass.
+
+**Verify:** `pytest design_app/tests/test_top_card_builder.py -v` — existing tests
+should still pass (they use fixtures with `graphic_elements` set; fallback kicks in).
+
+### Phase 13t-p4 — Backend: vision_backfill service + management command
+
+**Scope-lock:** 2 new files only. Do NOT commit.
+
+- [x] 13t-p4.1 Create `niche_research_app/services/__init__.py` (empty) if the
+  `services/` directory doesn't exist yet.
+- [x] 13t-p4.2 Create `niche_research_app/services/vision_backfill.py` with:
+    - Constant `BACKFILL_SYSTEM_PROMPT` = verbatim **Appendix Y.1** text.
+    - Constant `BACKFILL_USER_TEMPLATE` = verbatim **Appendix Y.2** text.
+    - Pydantic `BackfillOutputSchema(BaseModel)` with the 3 fields.
+    - Function `backfill_vision_descriptors(rows, dry_run=False) -> Summary`
+      per Tech Design pseudo.
+    - Uses existing OpenRouter client (`design_app/services/best_of_mix_generator.py`
+      pattern as reference for httpx + Langfuse).
+    - `@dataclass class Summary: processed: int; skipped: int; errored: int;
+      total_tokens: int; estimated_cost_usd: float`.
+    - On startup, the function emits a `warnings.warn(...)` if any
+      `NicheResearchNodeConfig` row has a non-empty custom `vision_analyze` prompt
+      override (per EC-52).
+- [x] 13t-p4.3 Create `niche_research_app/management/commands/__init__.py` if missing
+  + `backfill_vision_descriptors.py` with `BaseCommand` subclass:
+    - Args: `--dry-run`, `--limit N` (int), `--niche-id <uuid>`, `--workspace-id <uuid>`.
+    - Builds the QuerySet, calls the service, prints the summary.
+- [x] 13t-p4.4 Verify ruff clean. — Dry-run smoke: 2 rows, $0.000303 (=> ~$0.0135 for 89 rows). Real-write smoke: 2 rows persisted. Idempotency verified on already-populated row: 0 LLM calls, 0 cost.
+
+**Verify:**
+- `docker compose exec web python manage.py backfill_vision_descriptors --dry-run --limit 2`
+  → logs 2 LLM responses without writing to DB.
+- `docker compose exec web python manage.py backfill_vision_descriptors --limit 2`
+  → updates 2 rows; running again with same args → 0 processed (idempotent).
+
+### Phase 13t-p5 — Tests + flip checkboxes + commit + push
+
+**Scope-lock:** Tests + checkbox flips. Single conventional commit.
+
+- [x] 13t-p5.1 Create `niche_research_app/tests/test_vision_backfill.py` with:
+    - Test: `BackfillOutputSchema` parses a known-good JSON response.
+    - Test: Backfill skips rows where all 3 fields are already populated (idempotency).
+    - Test: Backfill skips rows where `graphic_elements=''` (EC-50).
+    - Test: Slogan-leakage smoke — mock LLM to return the slogan literally, assert
+      AC-137 test detects it (uses `assert slogan_text.lower() not in result.lower()`).
+    - Mock OpenRouter via `unittest.mock.patch` (pattern from `test_best_of_mix_generator.py`).
+- [x] 13t-p5.2 Create `design_app/tests/test_top_card_builder_remap.py` with:
+    - Test: builder uses `typography_descriptors` when present.
+    - Test: builder falls back to `graphic_elements` when `typography_descriptors=''`.
+    - Test: All 3 new slot sources are independent (verify with mixed fixture).
+- [x] 13t-p5.3 Run full backend test suite: `docker compose exec web pytest`. All green.
+- [x] 13t-p5.4 Flip all AC-129 → AC-138 + EC-50 → EC-53 checkboxes in the spec to `[x]`.
+- [x] 13t-p5.5 Flip all 13t-p1 → 13t-p5 task checkboxes in this file to `[x]`.
+- [x] 13t-p5.6 (Optional) Run the backfill on the local dev DB:
+  `docker compose exec web python manage.py backfill_vision_descriptors` →
+  ~89 rows × ~$0.0001 = ~$0.01. Capture the Summary in the commit body.
+- [ ] 13t-p5.7 Commit + push:
+    - Stage exactly the files listed in Phase Plan above + this file + spec.
+    - Message: `feat(PROJ-34): phase 13t-p — Vision schema extension (3 distinct descriptors + backfill)`
+    - Push to `feature/PROJ-34-design-prompt-engineering`.
+
+**Commit message body:** Include the Summary from 13t-p5.6 if backfill was run.
+
+---
+
 ## Appendix S — Best-of-Mix LLM SYSTEM_PROMPT
 
 **Source-of-truth:** This is the verbatim text used in
@@ -2924,3 +3107,262 @@ No new backend work in Schicht 21. RTK Query slice `customTypographyApi` wraps t
 - Edit LLM result → advances to Step 3.
 - Name conflict (409) → inline error, stays on Step 3.
 - Save success → mutation called, modal tab switches, parent receives new id.
+
+---
+
+## Appendix X — Vision Prompt Extension (Phase 13t-p)
+
+**Source-of-truth:** This is the verbatim updated text of `DEFAULT_VISION_PROMPT`
+in `django-app/niche_research_app/graph/prompts.py`. Copy-paste; do NOT paraphrase.
+
+### X.1 DEFAULT_VISION_PROMPT (full updated text — replaces lines 5-25)
+
+```python
+DEFAULT_VISION_PROMPT = """\
+# T-SHIRT DESIGN ANALYSIS
+
+## Instructions
+
+### Design Analysis
+1. **slogan_text:** Transcribe text exactly (preserve spelling/lines).
+2. **meaning_context:** Explain the joke, wordplay, cultural reference (e.g., song lyrics), \
+or niche connection. Why is it funny?
+3. **visual_style:** Describe the aesthetic (e.g., Cartoon, Retro, Grunge), the vibe \
+(e.g., Playful, Aggressive), and the color palette.
+4. **graphic_elements:** Describe the main motif, typography details (font style, color), \
+and decorative elements (lines, distressing). This is a free-form prose blob.
+5. **layout_composition:** Describe the structure (e.g., Sandwich layout), alignment, \
+and visual hierarchy.
+6. **typography_descriptors:** Slogan-agnostic typography treatment (see Slogan-Agnostic Rule below).
+7. **font_combination_descriptors:** Slogan-agnostic font pairing description.
+8. **accessory_descriptors:** Decorative elements (stars, lines, borders, distressing) — \
+slogan-agnostic.
+
+### Niche Match Classification
+- **is_niche_match:** Set to true if the product design clearly belongs to the target niche \
+(based on the keyword and brand/title context). Set to false if the design is generic, \
+unrelated, or a trademark/licensed product.
+
+=== SLOGAN-AGNOSTIC RULE (typography/font_combination/accessory fields) ===
+
+For typography_descriptors, font_combination_descriptors, accessory_descriptors:
+- Describe the VISUAL TREATMENT, not the specific words.
+- Use placeholders: "primary headline", "secondary text", "accent words", "tagline".
+- NEVER quote or reference the actual slogan text in these three fields.
+- Focus on: font weight, casing, style (sans/serif/script), color, decorative treatment.
+
+GOOD typography_descriptors:
+  "bold uppercase block letters for the primary headline; cursive script font for
+   the secondary text and accent words; high contrast between weights"
+
+BAD typography_descriptors (DO NOT DO THIS):
+  "bold block letters for 'SCHOOL BUS'; cursive for 'Driver' and 'Just Like'"
+   (contains the literal slogan text — strictly forbidden)
+
+GOOD font_combination_descriptors:
+  "Sans-serif uppercase paired with a handwritten cursive script accent"
+
+BAD font_combination_descriptors:
+  "ROLLIN' in handwritten font, THEY in block"
+
+GOOD accessory_descriptors:
+  "white stars and decorative lines arranged around the central motif;
+   subtle distressing on the headline; small dot-pattern border"
+
+BAD accessory_descriptors:
+  "stars and lines around 'SCHOOL BUS DRIVER'"
+"""
+```
+
+### X.2 Schema additions (Pydantic — `graph/schemas.py`)
+
+Insert AFTER existing `layout_composition` Field (line 47):
+
+```python
+    typography_descriptors: str = Field(
+        description="Slogan-agnostic typography treatment using placeholders "
+                    "('primary headline', 'secondary text', 'accent words'). "
+                    "NEVER quote actual slogan text. See Slogan-Agnostic Rule.",
+    )
+    font_combination_descriptors: str = Field(
+        description="Slogan-agnostic font pairing description. "
+                    "NEVER quote actual slogan text.",
+    )
+    accessory_descriptors: str = Field(
+        description="Decorative elements (stars, lines, borders, distressing). "
+                    "NEVER quote actual slogan text.",
+    )
+```
+
+### X.3 Model additions (Django — `models.py`)
+
+Insert AFTER existing `layout_composition` field (line 178), BEFORE `is_niche_match`:
+
+```python
+    typography_descriptors = models.TextField(blank=True, default='')
+    font_combination_descriptors = models.TextField(blank=True, default='')
+    accessory_descriptors = models.TextField(blank=True, default='')
+```
+
+---
+
+## Appendix Y — Vision Backfill LLM Prompt (Phase 13t-p)
+
+**Source-of-truth:** Verbatim text used in
+`django-app/niche_research_app/services/vision_backfill.py` constants
+`BACKFILL_SYSTEM_PROMPT` and `BACKFILL_USER_TEMPLATE`. Copy-paste; do NOT paraphrase.
+
+### Y.1 BACKFILL_SYSTEM_PROMPT (verbatim)
+
+```python
+BACKFILL_SYSTEM_PROMPT = """\
+# VISION ANALYSIS BACKFILL — TYPOGRAPHY / FONT / ACCESSORY EXTRACTION
+
+You are upgrading existing t-shirt design analyses. You receive ONE row's existing
+free-form prose description (`graphic_elements`) plus its `slogan_text`, and must
+extract THREE structured slogan-agnostic descriptors.
+
+## Your Task
+
+Read the `graphic_elements` prose. It blends typography, font, decorative, and motif
+information into one paragraph. Extract three separate slogan-agnostic descriptors:
+
+1. **typography_descriptors:** how the text is treated visually (weight, casing,
+   style, color emphasis) — using placeholders for the text itself.
+2. **font_combination_descriptors:** what fonts are paired and how they relate.
+3. **accessory_descriptors:** decorative non-text elements (stars, lines, borders,
+   distressing, ornaments) and motif details that are NOT the main subject.
+
+## Output Format
+
+Return ONLY valid JSON matching this shape:
+
+```json
+{
+  "typography_descriptors": "...",
+  "font_combination_descriptors": "...",
+  "accessory_descriptors": "..."
+}
+```
+
+No markdown fences, no commentary, no preamble — just the JSON object.
+
+=== SLOGAN-AGNOSTIC RULE (mandatory) ===
+
+- Describe the VISUAL TREATMENT, not the specific words.
+- Use placeholders: "primary headline", "secondary text", "accent words", "tagline".
+- NEVER quote or reference the actual slogan text in any of the three fields.
+- If the source prose quotes the slogan (e.g. "bold for 'SCHOOL BUS'"), rewrite it
+  using placeholders (e.g. "bold for the primary headline").
+
+GOOD typography_descriptors:
+  "bold uppercase block letters for the primary headline; cursive script font for
+   the secondary text and accent words; high contrast between weights"
+
+BAD (DO NOT DO THIS — contains literal slogan):
+  "bold block letters for 'SCHOOL BUS'; cursive for 'Driver' and 'Just Like'"
+
+GOOD font_combination_descriptors:
+  "Sans-serif uppercase paired with a handwritten cursive script accent"
+
+BAD: "ROLLIN' in handwritten font, THEY in block"
+
+GOOD accessory_descriptors:
+  "white stars and decorative lines arranged around the central motif;
+   subtle distressing on the headline; small dot-pattern border"
+
+BAD: "stars and lines around 'SCHOOL BUS DRIVER'"
+
+## If the source prose lacks information for a field
+
+Return a brief generic descriptor based on what IS present (e.g. if no decorative
+elements are mentioned, return `"no decorative accessories visible"`). NEVER invent
+elements not in the source.
+"""
+```
+
+### Y.2 BACKFILL_USER_TEMPLATE (verbatim)
+
+```python
+BACKFILL_USER_TEMPLATE = """\
+SOURCE ROW DATA:
+
+slogan_text:
+{slogan_text}
+
+graphic_elements (free-form prose to extract from):
+{graphic_elements}
+
+Now extract the three slogan-agnostic descriptors and return them as JSON.
+"""
+```
+
+### Y.3 LLM Configuration (vision_backfill.py constants)
+
+```python
+BACKFILL_MODEL = "openai/gpt-4.1-mini"
+BACKFILL_TEMPERATURE = 0.2
+BACKFILL_MAX_TOKENS = 400
+BACKFILL_TIMEOUT_S = 15.0
+BACKFILL_LANGFUSE_TAGS = ["phase=13t-p_backfill"]
+# gpt-4.1-mini pricing (May 2026): $0.00015/1K input, $0.0006/1K output
+BACKFILL_INPUT_COST_PER_1K = 0.00015
+BACKFILL_OUTPUT_COST_PER_1K = 0.00060
+```
+
+---
+
+## Appendix Z — OLD Vision Prompt (verbatim, for smart-update data migration)
+
+**Source-of-truth:** This is the verbatim pre-13t-p text of `DEFAULT_VISION_PROMPT`
+as it exists in `niche_research_app/graph/prompts.py` lines 5-25 BEFORE Phase 13t-p
+edits, and as seeded into the production DB via migration `0002_seed_research_node_config.py`.
+
+Used in `0008_update_vision_prompt_for_descriptors.py` as the `OLD_VISION_PROMPT`
+constant for the smart-detection comparison. **Strip trailing whitespace on both
+sides of the comparison** (`row.system_prompt.strip() == OLD_VISION_PROMPT.strip()`).
+
+### Z.1 OLD_VISION_PROMPT (verbatim — 901 chars confirmed against prod DB 2026-05-23)
+
+```python
+OLD_VISION_PROMPT = """\
+# T-SHIRT DESIGN ANALYSIS
+
+## Instructions
+
+### Design Analysis
+1. **slogan_text:** Transcribe text exactly (preserve spelling/lines).
+2. **meaning_context:** Explain the joke, wordplay, cultural reference (e.g., song lyrics), \
+or niche connection. Why is it funny?
+3. **visual_style:** Describe the aesthetic (e.g., Cartoon, Retro, Grunge), the vibe \
+(e.g., Playful, Aggressive), and the color palette.
+4. **graphic_elements:** Describe the main motif, typography details (font style, color), \
+and decorative elements (lines, distressing).
+5. **layout_composition:** Describe the structure (e.g., Sandwich layout), alignment, \
+and visual hierarchy.
+
+### Niche Match Classification
+- **is_niche_match:** Set to true if the product design clearly belongs to the target niche \
+(based on the keyword and brand/title context). Set to false if the design is generic, \
+unrelated, or a trademark/licensed product.
+"""
+```
+
+### Z.2 Verification recipe (run before commit)
+
+```bash
+docker compose exec web python -c "
+from niche_research_app.graph.prompts import DEFAULT_VISION_PROMPT  # NOW NEW
+import importlib.util, sys
+# Load OLD constant from the data migration we just wrote
+spec = importlib.util.spec_from_file_location('m8',
+  'niche_research_app/migrations/0008_update_vision_prompt_for_descriptors.py')
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+print('OLD prompt len:', len(m.OLD_VISION_PROMPT.strip()))
+# Must equal what prod DB reports for vision_analyze (901 as of 2026-05-23)
+"
+```
+
+If the length doesn't match the prod DB row length, the smart-update will fail
+silently (mismatch path) on prod — fix `OLD_VISION_PROMPT` to match prod verbatim
+before deploy.

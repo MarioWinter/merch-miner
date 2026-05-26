@@ -14,14 +14,47 @@ or niche connection. Why is it funny?
 3. **visual_style:** Describe the aesthetic (e.g., Cartoon, Retro, Grunge), the vibe \
 (e.g., Playful, Aggressive), and the color palette.
 4. **graphic_elements:** Describe the main motif, typography details (font style, color), \
-and decorative elements (lines, distressing).
+and decorative elements (lines, distressing). This is a free-form prose blob.
 5. **layout_composition:** Describe the structure (e.g., Sandwich layout), alignment, \
 and visual hierarchy.
+6. **typography_descriptors:** Slogan-agnostic typography treatment (see Slogan-Agnostic Rule below).
+7. **font_combination_descriptors:** Slogan-agnostic font pairing description.
+8. **accessory_descriptors:** Decorative elements (stars, lines, borders, distressing) — \
+slogan-agnostic.
 
 ### Niche Match Classification
 - **is_niche_match:** Set to true if the product design clearly belongs to the target niche \
 (based on the keyword and brand/title context). Set to false if the design is generic, \
 unrelated, or a trademark/licensed product.
+
+=== SLOGAN-AGNOSTIC RULE (typography/font_combination/accessory fields) ===
+
+For typography_descriptors, font_combination_descriptors, accessory_descriptors:
+- Describe the VISUAL TREATMENT, not the specific words.
+- Use placeholders: "primary headline", "secondary text", "accent words", "tagline".
+- NEVER quote or reference the actual slogan text in these three fields.
+- Focus on: font weight, casing, style (sans/serif/script), color, decorative treatment.
+
+GOOD typography_descriptors:
+  "bold uppercase block letters for the primary headline; cursive script font for
+   the secondary text and accent words; high contrast between weights"
+
+BAD typography_descriptors (DO NOT DO THIS):
+  "bold block letters for 'SCHOOL BUS'; cursive for 'Driver' and 'Just Like'"
+   (contains the literal slogan text — strictly forbidden)
+
+GOOD font_combination_descriptors:
+  "Sans-serif uppercase paired with a handwritten cursive script accent"
+
+BAD font_combination_descriptors:
+  "ROLLIN' in handwritten font, THEY in block"
+
+GOOD accessory_descriptors:
+  "white stars and decorative lines arranged around the central motif;
+   subtle distressing on the headline; small dot-pattern border"
+
+BAD accessory_descriptors:
+  "stars and lines around 'SCHOOL BUS DRIVER'"
 """
 
 DEFAULT_VISION_USER_TEMPLATE = """\

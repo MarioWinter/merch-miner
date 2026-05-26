@@ -65,21 +65,20 @@ def build_top_card_preset(vision_row, niche) -> dict:
         "visual_description", visual_source,
     )
 
-    # Typography / font_combination / accessories all draw from
-    # `graphic_elements` — the only field that mentions decorative + type
-    # cues in NicheProductVisionAnalysis. The matcher's Jaccard score will
-    # rarely clear the threshold on freeform vision paragraphs so these
-    # mostly fall back to raw truncations, which is the desired behavior
-    # (preserves user-visible signal vs collapsing to a single built-in).
+    # Distinct source per slot (PROJ-34 Phase 13t-p). Fallback to
+    # `graphic_elements` for rows that haven't been backfilled yet.
     graphic_text = vision_row.graphic_elements or ""
+    typography_text = vision_row.typography_descriptors or graphic_text
+    font_text = vision_row.font_combination_descriptors or graphic_text
+    accessory_text = vision_row.accessory_descriptors or graphic_text
     typography_value, typography_is_raw = match_slot_to_builtin(
-        "typography_adjectives", graphic_text,
+        "typography_adjectives", typography_text,
     )
     font_combination_value, font_combination_is_raw = match_slot_to_builtin(
-        "font_combination", graphic_text,
+        "font_combination", font_text,
     )
     accessories_value, accessories_is_raw = match_slot_to_builtin(
-        "accessories", graphic_text,
+        "accessories", accessory_text,
     )
 
     style_dna_value, style_dna_is_raw = match_slot_to_builtin(

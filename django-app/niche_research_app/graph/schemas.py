@@ -46,6 +46,19 @@ class VisionAnalysisSchema(BaseModel):
     layout_composition: str = Field(
         description="Structure (e.g. Sandwich layout), alignment, and visual hierarchy.",
     )
+    typography_descriptors: str = Field(
+        description="Slogan-agnostic typography treatment using placeholders "
+                    "('primary headline', 'secondary text', 'accent words'). "
+                    "NEVER quote actual slogan text. See Slogan-Agnostic Rule.",
+    )
+    font_combination_descriptors: str = Field(
+        description="Slogan-agnostic font pairing description. "
+                    "NEVER quote actual slogan text.",
+    )
+    accessory_descriptors: str = Field(
+        description="Decorative elements (stars, lines, borders, distressing). "
+                    "NEVER quote actual slogan text.",
+    )
     is_niche_match: bool = Field(
         description="True if the product design clearly belongs to the target niche.",
     )
