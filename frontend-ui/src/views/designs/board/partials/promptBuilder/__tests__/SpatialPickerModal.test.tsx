@@ -128,9 +128,7 @@ describe('SpatialPickerModal', () => {
     expect(screen.getByText('My retro grid')).toBeInTheDocument();
   });
 
-  // CI hits 5-6s under coverage instrumentation (the modal renders ~50 cards
-  // + each click triggers React state churn). 10s timeout removes flakes.
-  it('commits selection via the "Use selection" button and closes', { timeout: 10000 }, async () => {
+  it('commits selection via the "Use selection" button and closes', async () => {
     mockListCustom.mockReturnValue({ data: [], isLoading: false });
     const onChange = vi.fn();
     const onClose = vi.fn();
