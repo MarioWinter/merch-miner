@@ -23,6 +23,8 @@ import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import CloseIcon from '@mui/icons-material/Close';
 import WarningAmberRoundedIcon from '@mui/icons-material/WarningAmberRounded';
+import RestartAltIcon from '@mui/icons-material/RestartAlt';
+import { useSnackbar } from 'notistack';
 import { styled } from '@mui/material/styles';
 import { COLORS } from '@/style/constants';
 import type { ProjectIdea } from '@/views/designs/gallery/types';
@@ -173,9 +175,17 @@ const BuilderDialog = ({
     selectedPresetId,
     updateSlot,
     resetSlot,
+    resetAllSlots,
     setStyleSlugs,
     loadPreset,
   } = useBuilderDialogState({ ideas, presets, nicheHints });
+
+  const { enqueueSnackbar } = useSnackbar();
+
+  const handleClearAllSlots = () => {
+    resetAllSlots();
+    enqueueSnackbar('All slot values cleared', { variant: 'info' });
+  };
 
   const [confirmKind, setConfirmKind] = useState<null | 'threshold' | 'manualEdit'>(null);
   const [spatialPickerOpen, setSpatialPickerOpen] = useState(false);
@@ -285,6 +295,15 @@ const BuilderDialog = ({
         <Typography id="builder-dialog-title" variant="h4" sx={{ flex: 1 }}>
           Prompt Builder
         </Typography>
+        <IconButton
+          onClick={handleClearAllSlots}
+          size="small"
+          aria-label="Clear all slot values"
+          title="Clear all slot values"
+          sx={{ width: 32, height: 32, mr: 0.5 }}
+        >
+          <RestartAltIcon sx={{ fontSize: 18 }} />
+        </IconButton>
         <IconButton
           onClick={handleClose}
           size="small"

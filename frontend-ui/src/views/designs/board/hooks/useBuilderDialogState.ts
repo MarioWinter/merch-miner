@@ -88,6 +88,26 @@ export const useBuilderDialogState = ({
     });
   }, []);
 
+  // PROJ-34 Phase 13t-u: Clear ALL 7 slots in one shot (used by the
+  // "Clear all slots" button in the BuilderDialog header). After a
+  // niche-preset Confirm, this lets the user wipe inherited slot values
+  // (e.g. style_dna) without unselecting them one by one.
+  const resetAllSlots = useCallback(() => {
+    setCfg((prev) => ({
+      ...prev,
+      slots: {
+        spatial_configuration: '',
+        visual_description: '',
+        typography_adjectives: '',
+        font_combination: '',
+        accessories: '',
+        style_dna: '',
+        extra_context: '',
+      },
+    }));
+    setDirtySlots({});
+  }, []);
+
   const setStyleSlugs = useCallback((slugs: string[]) => {
     setCfg((prev) => ({ ...prev, selectedStyleSlugs: slugs }));
   }, []);
@@ -161,6 +181,7 @@ export const useBuilderDialogState = ({
     selectedPresetId,
     updateSlot,
     resetSlot,
+    resetAllSlots,
     setStyleSlugs,
     toggleStyle,
     loadPreset,
