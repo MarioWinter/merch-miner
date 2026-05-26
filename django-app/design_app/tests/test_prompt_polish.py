@@ -7,7 +7,6 @@ oversize truncation, and the OPENROUTER-not-configured passthrough.
 from unittest.mock import MagicMock, patch
 
 import httpx
-import pytest
 
 from design_app.services.prompt_polish import (
     POLISH_MAX_OUTPUT_CHARS,

@@ -89,10 +89,12 @@ const CustomSpatialCreator = ({
   const [analyzeSpatial, analyzeState] = useAnalyzeSpatialMutation();
   const [createCustomSpatial, createState] = useCreateCustomSpatialMutation();
 
-  // Auto-fire analyze when entering step 2.
+  // Auto-fire analyze when entering step 2. Resetting promptText on step
+  // re-entry with a new source is the explicit purpose here — the
+  // set-state-in-effect rule is a false positive in this case.
   useEffect(() => {
     if (activeStep !== 1 || !source) return;
-    setPromptText('');
+    setPromptText(''); // eslint-disable-line react-hooks/set-state-in-effect
     let body: FormData | { reference_id: string } | { design_id: string };
     if (source.kind === 'upload') {
       const fd = new FormData();

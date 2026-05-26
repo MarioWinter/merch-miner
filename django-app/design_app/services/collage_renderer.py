@@ -22,7 +22,6 @@ import logging
 import os
 import pathlib
 import time
-import uuid as _uuid
 from typing import Optional
 
 from django.conf import settings

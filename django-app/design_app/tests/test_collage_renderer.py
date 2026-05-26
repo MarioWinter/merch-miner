@@ -27,7 +27,6 @@ from PIL import Image
 from design_app.services import collage_renderer
 from design_app.services.collage_renderer import (
     COLLAGE_CACHE_KEY_PREFIX,
-    COLLAGE_CELL_SIZE,
     COLLAGE_HEIGHT,
     COLLAGE_STALENESS_SECONDS,
     COLLAGE_WIDTH,
