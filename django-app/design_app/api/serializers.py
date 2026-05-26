@@ -1141,6 +1141,7 @@ class PresetConfirmSerializer(serializers.Serializer):
         'mix_most_common',
         'mix_edgy',
         'mix_safe',
+        'collection',
     )
 
     preset_id = serializers.UUIDField(required=False, allow_null=True)
