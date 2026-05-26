@@ -1993,10 +1993,15 @@ class BuilderBuildView(APIView):
             niche_hints = getattr(project.niche, 'builder_form_hints', None)
 
         # Build raw prompts in cross-product order.
+        # PROJ-34 Phase 13t-u: empty `styles` list → fall back to a single
+        # neutral style so the user can build slogan-only prompts.
+        # `build_form_prompt` resolves an unknown style_slug via
+        # `_fallback_style()` (no auto-defaults bleed in).
         from design_app.services.prompt_builder import build_form_prompt
+        effective_styles = styles or ['']
         raw_prompts: list[str] = []
         for slogan in slogans:
-            for style in styles:
+            for style in effective_styles:
                 raw_prompts.append(
                     build_form_prompt(
                         slogan=slogan,

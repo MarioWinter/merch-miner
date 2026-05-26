@@ -40,7 +40,8 @@ export const useBuilderLivePreview = ({
 
   useEffect(() => {
     if (!enabled) return;
-    if (!firstSlogan || !firstStyle || !projectId) {
+    if (!firstSlogan || !projectId) {
+      // PROJ-34 Phase 13t-u: style optional — only slogan + project required.
       setPreviewText('');
       setPreviewError(null);
       return;
@@ -53,7 +54,8 @@ export const useBuilderLivePreview = ({
             projectId,
             body: {
               slogans: [firstSlogan],
-              styles: [firstStyle],
+              // Empty array → backend uses _fallback_style for slogan-only preview.
+              styles: firstStyle ? [firstStyle] : [],
               background_color: backgroundColor,
               with_polish: false,
               include_niche_context: cfg.includeNicheContext,

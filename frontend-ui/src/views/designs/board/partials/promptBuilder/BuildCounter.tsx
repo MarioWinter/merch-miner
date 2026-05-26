@@ -43,19 +43,33 @@ const BuildButton = styled(Button)(() => ({
 }));
 
 const BuildCounter = ({ sloganCount, styleCount, isBuilding, onBuild }: BuildCounterProps) => {
-  const total = sloganCount * styleCount;
-  const ready = sloganCount > 0 && styleCount > 0;
+  // PROJ-34 Phase 13t-u: Style is now optional. Slogan-only build uses a
+  // neutral fallback style (server-side _fallback_style) so the user can
+  // ship prompts quickly without picking from the style library.
+  const effectiveStyleCount = Math.max(styleCount, 1);
+  const total = sloganCount * effectiveStyleCount;
+  const ready = sloganCount > 0;
 
   return (
     <Footer>
       {ready ? (
         <CountText>
           Will generate <strong>{total}</strong> prompts ({sloganCount} slogans
-          × {styleCount} styles)
+          × {effectiveStyleCount} {styleCount > 0 ? 'styles' : 'style'})
+          {styleCount === 0 && (
+            <Typography
+              component="span"
+              variant="caption"
+              color="text.secondary"
+              sx={{ ml: 1 }}
+            >
+              · using neutral default style
+            </Typography>
+          )}
         </CountText>
       ) : (
         <Typography variant="body2" color="text.disabled">
-          Select slogans and styles
+          Select at least one slogan
         </Typography>
       )}
       <BuildButton

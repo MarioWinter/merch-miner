@@ -488,9 +488,9 @@ const BuilderDialog = ({
             <Typography variant="subtitle1">Live Preview</Typography>
           </AccordionSummary>
           <AccordionDetails>
-            {sloganList.length === 0 || cfg.selectedStyleSlugs.length === 0 ? (
+            {sloganList.length === 0 ? (
               <Typography variant="body2" color="text.secondary">
-                Pick a slogan and a style to preview…
+                Pick a slogan to preview… (style is optional)
               </Typography>
             ) : livePreview.previewError ? (
               <Typography variant="body2" color="error">

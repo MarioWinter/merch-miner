@@ -44,13 +44,23 @@ vs harmony (all from same family)
 (based on the keyword and brand/title context). Set to false if the design is generic, \
 unrelated, or a trademark/licensed product.
 
-=== SLOGAN-AGNOSTIC RULE (typography/font_combination/accessory fields) ===
+=== SLOGAN-AGNOSTIC RULE (ALL design-description fields) ===
 
-For typography_descriptors, font_combination_descriptors, accessory_descriptors:
-- Describe the VISUAL TREATMENT, not the specific words.
-- Use placeholders: "primary headline", "secondary text", "accent words", "tagline".
-- NEVER quote or reference the actual slogan text in these three fields.
-- Focus on: font weight, casing, style (sans/serif/script), color, decorative treatment.
+The slogan text belongs ONLY in `slogan_text` (verbatim transcript) and in
+`meaning_context` (interpretation of the wordplay). EVERY other field —
+visual_style, graphic_elements, layout_composition, typography_descriptors,
+font_combination_descriptors, accessory_descriptors — must describe the
+VISUAL TREATMENT abstractly:
+
+- Use placeholders: "primary headline", "secondary text", "accent words",
+  "tagline", "main subject", "secondary subject".
+- NEVER quote, paraphrase, or reference the actual slogan text in these
+  six fields. Phrases like 'SCHOOL BUS', "ROLLIN'", "RETIRED Driver" must
+  not appear — replace with the role placeholder.
+- If a slot of the original Vision instruction example explicitly listed
+  the slogan text, treat that as outdated and rewrite using placeholders.
+- Allowed: describing weight/casing/classification/color/effects/positioning
+  of the text and graphic elements without quoting what the text says.
 
 GOOD typography_descriptors:
   "extra-bold uppercase slab-serif for the primary headline in bright yellow with
@@ -79,6 +89,31 @@ GOOD accessory_descriptors:
 
 BAD accessory_descriptors:
   "stars and lines around 'SCHOOL BUS DRIVER'"
+
+GOOD layout_composition:
+  "centered sandwich layout: primary headline stacked across two top lines,
+   central illustration in the middle, secondary tagline below — clear vertical
+   hierarchy with the headline dominant"
+
+BAD layout_composition (DO NOT DO THIS):
+  "layout splits 'LEGENDARY SCHOOL BUS' top, illustration center,
+   'RETIRED Driver' bottom" (contains literal slogan text)
+
+GOOD graphic_elements:
+  "detailed cartoon illustration of a classic yellow school bus, centered;
+   primary headline rendered in bold yellow block letters with weathered texture;
+   secondary text in white; three small filled stars placed below the headline
+   for emphasis"
+
+BAD graphic_elements (DO NOT DO THIS):
+  "bus with 'SCHOOL BUS' on its side; 'ROLLIN'' in large yellow letters"
+
+GOOD visual_style:
+  "vintage retro aesthetic with warm faded earth tones; bold playful vibe;
+   yellow + white text on a black background; halftone shading on flat-color fills"
+
+BAD visual_style (DO NOT DO THIS):
+  "vintage retro look featuring 'RETIRED' as a bold word"
 """
 
 DEFAULT_VISION_USER_TEMPLATE = """\

@@ -835,9 +835,14 @@ class BuilderBuildSerializer(serializers.Serializer):
     )
     styles = serializers.ListField(
         child=serializers.CharField(min_length=1, max_length=64),
-        min_length=1,
+        min_length=0,
         max_length=15,
-        help_text='Style slugs from the 15-entry library.',
+        required=False,
+        default=list,
+        help_text=(
+            'Style slugs from the 15-entry library. Phase 13t-u: empty list '
+            'allowed → backend uses `_fallback_style` for slogan-only builds.'
+        ),
     )
     background_color = serializers.ChoiceField(
         choices=Design.BackgroundColor.choices,
