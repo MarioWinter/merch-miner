@@ -3629,6 +3629,8 @@
           "placeholderNoNiche": "Pick a niche on the project to see suggestions."
         },
         "emptyVorschlaege": "This niche has no analyzed products yet. Run niche research first, or use History / Custom.",
+        "collectionHeader": "Collection",
+        "collectionEmpty": "No collected products with vision analysis. Add products via the Niche page or re-run research.",
         "emptyHistory": "Confirm a suggestion to fill history.",
         "emptyCustom": "Save history entries to Custom to keep them permanently.",
         "promoteTooltip": "Save to Custom",
@@ -3657,7 +3659,8 @@
           "top": "Top",
           "mix_most_common": "Mix · Most-Common",
           "mix_edgy": "Mix · Edgy",
-          "mix_safe": "Mix · Safe"
+          "mix_safe": "Mix · Safe",
+          "collection": "Collection"
         },
         "confirmTitle": "Apply preset?",
         "confirmButton": "Confirm",

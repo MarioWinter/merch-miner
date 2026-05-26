@@ -920,6 +920,7 @@ class NicheCardPreset(models.Model):
         ('mix_most_common', 'Mix · Most-Common'),
         ('mix_edgy', 'Mix · Edgy'),
         ('mix_safe', 'Mix · Safe'),
+        ('collection', 'Collection'),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

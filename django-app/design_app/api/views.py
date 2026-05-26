@@ -2658,6 +2658,10 @@ class NicheCardPresetViewSet(viewsets.GenericViewSet):
             build_top_card_preset(vision, niche) for vision in top_vision_rows
         ]
 
+        # ---- Collection Cards (Phase 13t-s) -----------------------------
+        from design_app.services.collection_cards import get_collection_cards
+        collection_cards = get_collection_cards(niche, ws_id)
+
         # ---- Best-of-Mix (from cache or async-trigger) ------------------
         cache_dict = niche.best_of_mix_cache or {}
         has_variants = any(
@@ -2705,6 +2709,7 @@ class NicheCardPresetViewSet(viewsets.GenericViewSet):
         return Response(
             {
                 'top': top_cards,
+                'collection': collection_cards,
                 'best_of_mix': {
                     'most_common': _mix_payload('most_common'),
                     'edgy': _mix_payload('edgy'),

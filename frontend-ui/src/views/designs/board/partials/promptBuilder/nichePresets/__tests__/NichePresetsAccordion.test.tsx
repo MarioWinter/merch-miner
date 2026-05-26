@@ -52,7 +52,9 @@ describe('NichePresetsAccordion (PROJ-34 Phase 13t-i)', () => {
 
   it('renders count badges in the documented format', () => {
     renderShell();
-    expect(screen.getByText(/0\/13/)).toBeInTheDocument();
+    // Phase 13t-s removed the /13 hard-coded denominator (Collection cards can
+    // push the total above 13). Vorschläge badge is now just the count; only
+    // the History badge keeps the /50 LRU-cap denominator.
     expect(screen.getByText(/0\/50/)).toBeInTheDocument();
   });
 

@@ -37,6 +37,7 @@ const SOURCE_TYPE_I18N_KEY: Record<NichePresetSourceCardType, string> = {
   mix_most_common: 'designForge.builder.nichePresets.sourceLabels.mix_most_common',
   mix_edgy: 'designForge.builder.nichePresets.sourceLabels.mix_edgy',
   mix_safe: 'designForge.builder.nichePresets.sourceLabels.mix_safe',
+  collection: 'designForge.builder.nichePresets.sourceLabels.collection',
 };
 
 interface HistoryGridProps {

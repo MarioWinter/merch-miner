@@ -172,6 +172,8 @@ def test_list_returns_vorschlaege_structure_with_cached_mixes(auth_client, niche
     assert r.status_code == 200
     body = r.json()
     assert 'top' in body
+    assert 'collection' in body  # Phase 13t-s
+    assert isinstance(body['collection'], list)
     assert 'best_of_mix' in body
     assert 'top3_product_ids' in body
     assert body['best_of_mix']['most_common'] is not None

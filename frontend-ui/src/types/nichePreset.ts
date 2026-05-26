@@ -16,7 +16,8 @@ export type NichePresetSourceCardType =
   | 'top'
   | 'mix_most_common'
   | 'mix_edgy'
-  | 'mix_safe';
+  | 'mix_safe'
+  | 'collection';
 
 export interface NichePresetSourceRef {
   niche_id: string;
@@ -97,6 +98,7 @@ export interface BestOfMixGroup {
 
 export interface VorschlaegeResponse {
   top: NichePresetTopCardDict[];
+  collection: NichePresetTopCardDict[];
   best_of_mix: BestOfMixGroup;
   top3_product_ids: string[];
 }

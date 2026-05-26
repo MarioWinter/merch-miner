@@ -3672,6 +3672,8 @@
           "placeholderNoNiche": "Wähle eine Niche im Projekt um Vorschläge zu sehen."
         },
         "emptyVorschlaege": "Diese Niche hat noch keine analysierten Produkte. Starte zuerst die Niche-Recherche, oder nutze History / Custom.",
+        "collectionHeader": "Sammlung",
+        "collectionEmpty": "Keine gesammelten Produkte mit Vision-Analyse. Füge Produkte über die Niche-Seite hinzu oder starte die Recherche erneut.",
         "emptyHistory": "Bestätige einen Vorschlag um die History zu füllen.",
         "emptyCustom": "Speichere History-Einträge unter Custom um sie dauerhaft zu behalten.",
         "promoteTooltip": "In Custom speichern",
@@ -3700,7 +3702,8 @@
           "top": "Top",
           "mix_most_common": "Mix · Most-Common",
           "mix_edgy": "Mix · Edgy",
-          "mix_safe": "Mix · Safe"
+          "mix_safe": "Mix · Safe",
+          "collection": "Sammlung"
         },
         "confirmTitle": "Preset übernehmen?",
         "confirmButton": "Bestätigen",

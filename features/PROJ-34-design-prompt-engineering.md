@@ -1156,6 +1156,96 @@ Post-13t-p browser verification (2026-05-26) revealed two follow-up issues:
 
 ---
 
+## Phase 13t-s — Collection Products in Vorschläge Tab
+
+### Background
+
+`CollectedProduct` (`niche_app/models.py:111`) is the user-curated set of
+products manually saved into a niche (separate from the AI-research-driven
+`NicheProductVisionAnalysis`). Today the Prompt-Builder only surfaces the
+AI-derived Top-10. User explicitly requested Collection items to appear
+**above** Top-10 as their own preset-card subsection, so curated picks land
+first in the consideration order.
+
+Most CollectedProducts overlap with AI-analyzed products (same `AmazonProduct`
+reachable via both `CollectedProduct.product` and `NicheProductVisionAnalysis.product`),
+so we can reuse `build_top_card_preset(vision_row, niche)` for the slot
+extraction. CollectedProducts without a matching vision row are skipped
+(operator runs niche research to include them).
+
+### Acceptance Criteria (Phase 13t-s)
+
+- [x] AC-145: New service `design_app/services/collection_cards.py` provides
+  `get_collection_cards(niche, workspace_id) -> list[dict]`:
+    - Iterates `CollectedProduct.objects.filter(niche=niche).select_related('product').order_by('-collected_at')`.
+    - For each, finds the latest `NicheProductVisionAnalysis` where
+      `vision.product_id == cp.product_id AND vision.research.niche_id == niche.id`.
+    - If found → call `build_top_card_preset(vision, niche)` + override
+      `source_card_type='collection'` + `source_card_references=[{niche_id, product_ids:[cp.product_id], collected_at: cp.collected_at.isoformat()}]`.
+    - If no vision row → **skip silently** (per Resolved Decision #31).
+    - Returns list (no max limit — all qualifying CollectedProducts).
+- [x] AC-146: `NicheCardPreset.source_card_type` choices extended:
+  `(('top', 'Top'), ('mix_most_common', ...), ('mix_edgy', ...), ('mix_safe', ...), ('collection', 'Collection'))`.
+  Migration `0017_add_collection_source_type.py` (additive — `CharField(20)`
+  unchanged, only `choices` metadata updated).
+- [x] AC-147: `GET /api/designs/preset-cards/vorschlaege/?niche_id=...` response
+  shape extended:
+    ```json
+    {
+      "top": [...],                 // existing
+      "collection": [...],          // NEW — array (possibly empty) of card dicts
+      "best_of_mix": {...}          // existing
+    }
+    ```
+    Existing consumers that ignore the `collection` key remain functional.
+- [x] AC-148: New frontend component
+  `frontend-ui/src/views/designs/board/partials/promptBuilder/nichePresets/CollectionCardsRow.tsx`
+  mirrors `TopCardsGrid.tsx` structure: renders `NichePresetCard` per item +
+  small "Collection" header chip + count badge. Uses existing
+  `NichePresetCard` (no new card component).
+- [x] AC-149: `NichePresetsTabs.tsx` Vorschläge tab renders in order:
+  Collection (if non-empty) → Top-10 → Best-of-Mix. Empty Collection list
+  → entire Collection subsection (header + grid) is not rendered (no empty
+  header).
+- [x] AC-150: i18n strings added: `designForge.builder.nichePresets.collectionHeader`
+  ("Collection"), `designForge.builder.nichePresets.collectionEmpty` (unused
+  per AC-149 hide-when-empty, kept for translator visibility).
+
+### Edge Cases (Phase 13t-s)
+
+- [x] EC-56: Niche has 0 CollectedProducts → `collection` array is empty in
+  API response; subsection NOT rendered. Top-10 + Best-of-Mix remain visible.
+- [x] EC-57: All CollectedProducts skipped (none have Vision) → `collection`
+  array empty (same as EC-56). No "X products not analyzed" warning shown
+  per Resolved Decision #31.
+- [x] EC-58: CollectedProduct has multiple Vision rows (re-run scenarios) →
+  latest by `NicheProductVisionAnalysis.created_at` wins. Deterministic.
+
+### Out of Scope (Phase 13t-s)
+
+- Auto-trigger Vision analysis for non-analyzed CollectedProducts (operator
+  re-runs niche research instead).
+- Pagination of Collection cards (no limit per Resolved Decision #32).
+- Differentiating Collection cards visually beyond a header (no per-card chip
+  in v1; can add later if needed).
+- Editing Collection from inside the Builder (read-only surface).
+
+### Dependencies (Phase 13t-s)
+
+- **Requires:** Phase 13t-p + 13t-q + 13t-r shipped.
+- **Requires:** `CollectedProduct` model + endpoints (already deployed pre-PROJ-34).
+
+### Resolved Decisions (Phase 13t-s)
+
+| # | Decision | Outcome |
+|---|---|---|
+| 31 | CollectedProducts without Vision analysis | Option A: skip silently. Operator re-runs niche research to include. |
+| 32 | Max cards per Collection subsection | Option B: no limit. Show all qualifying CollectedProducts. |
+| 33 | Layout order in Vorschläge tab | Option A: Collection above Top-10 above Best-of-Mix (user-curated first). |
+| 34 | Endpoint shape | Option A: extend existing vorschlaege endpoint w/ `collection` field (additive, backward-compatible). |
+
+---
+
 
 
 - **Backend:**

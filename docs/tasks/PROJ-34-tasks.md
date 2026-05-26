@@ -2714,6 +2714,81 @@ dimensions checklist; re-run backfill on dev DB.
 
 ---
 
+## Phase 13t-s — Collection Products in Vorschläge Tab
+
+**Spec source-of-truth:** `features/PROJ-34-design-prompt-engineering.md`
+Phase 13t-s section (AC-145..AC-150 + EC-56..EC-58 + Resolved Decisions #31-34).
+
+**Goal:** Surface user-curated `CollectedProduct` items as preset cards above
+Top-10 in the Vorschläge tab. Skip products without Vision analysis.
+
+### Phase 13t-s1 — Backend: collection_cards service + model + migration
+
+- [x] 13t-s1.1 Create `design_app/services/collection_cards.py` with function
+  `get_collection_cards(niche, workspace_id) -> list[dict]`. Reuse
+  `build_top_card_preset(vision_row, niche)`; override `source_card_type='collection'`
+  + `source_card_references` to include `collected_at`. Per AC-145.
+- [x] 13t-s1.2 `design_app/models.py` — extend `NicheCardPreset.source_card_type`
+  choices with `('collection', 'Collection')`. Run `makemigrations design_app`
+  → produces `0017_add_collection_source_type.py` (only `choices` update,
+  no schema change).
+- [x] 13t-s1.3 Apply migration locally; verify with shell that
+  `NicheCardPreset._meta.get_field('source_card_type').choices` contains 5 entries.
+- [x] 13t-s1.4 Create `design_app/tests/test_collection_cards.py`:
+    - returns empty list when niche has 0 CollectedProducts
+    - returns 1 card when 1 CollectedProduct has matching Vision
+    - skips CollectedProduct when no matching Vision exists
+    - cards ordered by `collected_at DESC` (newest first)
+    - `source_card_type=='collection'` on every returned card
+- [x] 13t-s1.5 Ruff clean + pytest green on touched files.
+
+### Phase 13t-s2 — Backend: extend vorschlaege endpoint
+
+- [x] 13t-s2.1 `design_app/api/views.py` — locate the `vorschlaege` action on
+  `NicheCardPresetViewSet`. Add `'collection': get_collection_cards(niche, ws_id)`
+  to the response dict.
+- [x] 13t-s2.2 Update existing test `test_preset_api.py` for `vorschlaege` to
+  assert `'collection'` key present + correct content.
+- [x] 13t-s2.3 Ruff clean + pytest green.
+
+### Phase 13t-s3 — Frontend: RTK Query + CollectionCardsRow component
+
+- [x] 13t-s3.1 `frontend-ui/src/types/nichePreset.ts` — extend `VorschlaegeResponse`
+  type to include `collection: NichePresetCard[]`.
+- [x] 13t-s3.2 `frontend-ui/src/services/presetCardsApi.ts` — if a response
+  transformer exists, ensure `collection` is exposed; otherwise just type update.
+- [x] 13t-s3.3 Create `frontend-ui/src/views/designs/board/partials/promptBuilder/nichePresets/CollectionCardsRow.tsx`
+  mirroring `TopCardsGrid.tsx` structure: header row with "Collection (count)"
+  + grid of `NichePresetCard` (square 200×200, `wide={false}`).
+- [x] 13t-s3.4 Vitest unit test in `__tests__/CollectionCardsRow.test.tsx`:
+    renders N cards from props, calls `onCardClick(card)` on click,
+    renders nothing when items array empty.
+- [x] 13t-s3.5 `npm run lint && npm run test:ci` green.
+
+### Phase 13t-s4 — Frontend: VorschlaegeTab integration
+
+- [x] 13t-s4.1 `NichePresetsTabs.tsx` (Vorschläge tab area) — mount
+  `CollectionCardsRow` above `TopCardsGrid` + `BestOfMixRow`. Use
+  `collection.length > 0` guard so empty Collection skips rendering entirely.
+- [x] 13t-s4.2 i18n: add `designForge.builder.nichePresets.collectionHeader`
+  = "Collection" (EN) / "Sammlung" (DE) to both i18n JSON files.
+- [x] 13t-s4.3 Update existing `NichePresetsTabs` tests if they assert on the
+  rendered tab structure.
+- [x] 13t-s4.4 `npm run lint && npm run test:ci` green.
+
+### Phase 13t-s5 — Browser-verify + commit + push
+
+- [x] 13t-s5.1 Open BuilderDialog in browser for "school bus driver" niche
+  → Vorschläge tab → verify Collection subsection appears above Top-10 with
+  3 cards (3 CollectedProducts have Vision; 1 skipped). Screenshot.
+- [x] 13t-s5.2 Flip all AC-145..AC-150 + EC-56..EC-58 checkboxes in spec to `[x]`.
+- [x] 13t-s5.3 Flip all 13t-s1..13t-s5 task checkboxes in this file to `[x]`.
+- [ ] 13t-s5.4 Commit + push:
+    - Message: `feat(PROJ-34): phase 13t-s — Collection products in Vorschläge tab`
+    - Push to `feature/PROJ-34-design-prompt-engineering`.
+
+---
+
 ## Appendix S — Best-of-Mix LLM SYSTEM_PROMPT
 
 **Source-of-truth:** This is the verbatim text used in
