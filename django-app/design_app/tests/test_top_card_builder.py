@@ -174,12 +174,12 @@ def test_slot_values_are_strings():
         assert isinstance(result[key], str)
 
 
-def test_visual_description_truncated_to_max_len():
-    long_graphic = "skull " * 200
+def test_visual_description_passes_through_in_full():
+    """Phase 13t-r: SLOT_MAX_RAW_LEN removed — long descriptors no longer truncated."""
+    long_graphic = "skull " * 200  # 1200 chars
     niche, vision = _setup_niche_and_vision(graphic_elements=long_graphic)
     result = build_top_card_preset(vision, niche)
-    # SLOT_MAX_RAW_LEN['visual_description'] == 200
-    assert len(result["slot_visual_description"]) <= 200
+    assert len(result["slot_visual_description"]) > 200
 
 
 # ─── Label generator tests ───────────────────────────────────────────────

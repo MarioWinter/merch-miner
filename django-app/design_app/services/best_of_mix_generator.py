@@ -427,13 +427,7 @@ def _resolve_built_in_matches(cleaned: dict[str, dict[str, str]]) -> dict[str, d
     `visual_description` + `extra_context` have no built-in pool — they are
     structurally always raw + truncated.
     """
-    from design_app.services.preset_matcher import (
-        SLOT_MAX_RAW_LEN,
-        match_slot_to_builtin,
-    )
-
-    visual_max = SLOT_MAX_RAW_LEN.get('visual_description', 200)
-    extra_max = SLOT_MAX_RAW_LEN.get('extra_context', 200)
+    from design_app.services.preset_matcher import match_slot_to_builtin
 
     resolved: dict[str, dict[str, Any]] = {}
     for variant, slots in cleaned.items():
@@ -455,12 +449,12 @@ def _resolve_built_in_matches(cleaned: dict[str, dict[str, str]]) -> dict[str, d
 
         resolved[variant] = {
             'slot_spatial_configuration': spatial_value or '',
-            'slot_visual_description': (slots['visual_description'] or '')[:visual_max].strip(),
+            'slot_visual_description': (slots['visual_description'] or '').strip(),
             'slot_typography_adjectives': typo_value or '',
             'slot_font_combination': font_value or '',
             'slot_accessories': acc_value or '',
             'slot_style_dna': style_value or '',
-            'slot_extra_context': (slots['extra_context'] or '')[:extra_max].strip(),
+            'slot_extra_context': (slots['extra_context'] or '').strip(),
             'spatial_is_raw': spatial_is_raw,
             'visual_is_raw': True,
             'typography_is_raw': typo_is_raw,

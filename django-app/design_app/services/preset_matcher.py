@@ -34,15 +34,11 @@ SLOT_THRESHOLDS: dict[str, float] = {
     "accessories": 0.65,
 }
 
-SLOT_MAX_RAW_LEN: dict[str, int] = {
-    "spatial_configuration": 200,
-    "typography_adjectives": 120,
-    "font_combination": 120,
-    "accessories": 100,
-    "style_dna": 200,
-    "visual_description": 200,
-    "extra_context": 200,
-}
+# PROJ-34 Phase 13t-r: SLOT_MAX_RAW_LEN removed. Enriched LLM outputs (3-6
+# dimensions per descriptor) routinely exceed the old 100-200 char limits and
+# were being cut mid-word in the UI. Slots now persist + display in full.
+# Down-stream prompt budget: 7 slots × ~500 char avg ≈ 3500 chars ≈ 900 tokens
+# in the final Generate prompt — well within budget.
 
 STOPWORDS: frozenset[str] = frozenset(
     {
@@ -99,8 +95,7 @@ def match_slot_to_builtin(slot_key: str, raw_text: str) -> tuple[str | None, boo
     if pool is None or pool == "__missing__":
         # No pool to match against — style_dna, visual_description, extra_context,
         # or any unknown slot key. Always return raw.
-        max_len = SLOT_MAX_RAW_LEN.get(slot_key, 200)
-        return (raw_text[:max_len].strip(), True)
+        return (raw_text.strip(), True)
 
     raw_tokens = _tokenize(raw_text)
     threshold = SLOT_THRESHOLDS[slot_key]
@@ -117,8 +112,7 @@ def match_slot_to_builtin(slot_key: str, raw_text: str) -> tuple[str | None, boo
     if best_id is not None and best_score >= threshold:
         return (best_id, False)
 
-    max_len = SLOT_MAX_RAW_LEN[slot_key]
-    return (raw_text[:max_len].strip(), True)
+    return (raw_text.strip(), True)
 
 
 # ─── Helpers ──────────────────────────────────────────────────────────────

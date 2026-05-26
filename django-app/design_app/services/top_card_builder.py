@@ -18,10 +18,7 @@ from __future__ import annotations
 import logging
 import re
 
-from design_app.services.preset_matcher import (
-    SLOT_MAX_RAW_LEN,
-    match_slot_to_builtin,
-)
+from design_app.services.preset_matcher import match_slot_to_builtin
 
 logger = logging.getLogger(__name__)
 
@@ -172,8 +169,6 @@ def _titlecase(word: str) -> str:
     return word[:1].upper() + word[1:].lower() if word else word
 
 
-# Re-exported so callers can sanity-check slot caps without importing matcher
 __all__ = [
     "build_top_card_preset",
-    "SLOT_MAX_RAW_LEN",
 ]

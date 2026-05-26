@@ -28,10 +28,7 @@ from __future__ import annotations
 
 import pytest
 
-from design_app.services.preset_matcher import (
-    SLOT_MAX_RAW_LEN,
-    match_slot_to_builtin,
-)
+from design_app.services.preset_matcher import match_slot_to_builtin
 
 
 # ─── Parametrized slot-coverage cases ─────────────────────────────────────
@@ -188,17 +185,18 @@ def test_unknown_slot_key_always_raw():
     assert out == "hello world"
 
 
-# ─── Truncation ──────────────────────────────────────────────────────────
+# ─── No truncation (Phase 13t-r) ─────────────────────────────────────────
 
 
-def test_truncation_respects_max_len():
-    """Raw text exceeding the slot's max length is truncated to that length."""
-    for slot_key, max_len in SLOT_MAX_RAW_LEN.items():
-        long_raw = "x" * (max_len + 100)
+def test_raw_text_not_truncated():
+    """Raw text passes through in full (PROJ-34 Phase 13t-r removed length caps)."""
+    long_raw = "x" * 1000
+    for slot_key in ("spatial_configuration", "typography_adjectives",
+                     "font_combination", "accessories", "style_dna",
+                     "visual_description", "extra_context"):
         out, is_raw = match_slot_to_builtin(slot_key, long_raw)
-        # No real match for "xxx..." in any pool — must be raw
         assert is_raw is True
-        assert len(out) <= max_len, f"{slot_key}: got len={len(out)} > {max_len}"
+        assert len(out) == 1000, f"{slot_key}: got len={len(out)}"
 
 
 def test_empty_raw_text_returns_empty_raw():
