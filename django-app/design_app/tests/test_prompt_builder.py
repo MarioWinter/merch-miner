@@ -18,10 +18,8 @@ from __future__ import annotations
 import pytest
 
 from design_app.services.prompt_builder import (
-    _POLISHED_PROMPT_MAX_CHARS,
     _resolve_slot,
     _resolve_spatial,
-    _truncate_at_sentence_boundary,
     build_form_prompt,
 )
 from design_app.services.style_library import (
@@ -334,11 +332,13 @@ class TestResolveSlotSmoke:
         assert out == expected
 
 
-# ─── 1500-char cap (task 13b.9) ───────────────────────────────────────────
+# ─── No-cap / template-end preservation (PROJ-34 Phase 13t-t) ─────────────
 
 
 class TestPromptCap:
-    def test_typical_output_under_1500_chars(self):
+    def test_always_ends_with_architect_template_end(self):
+        """The anti-gradient / no-glow clauses are non-negotiable (AC-48) and
+        must survive in the final prompt regardless of total length."""
         slots = _all_slots_filled()
         out = build_form_prompt(
             slogan='SCHOOL BUS LIFE',
@@ -346,11 +346,15 @@ class TestPromptCap:
             slots=slots,
             background_color='light_gray',
         )
-        assert len(out) <= _POLISHED_PROMPT_MAX_CHARS
+        assert 'no gradients' in out
+        assert 'no glow effects' in out
+        assert 'no soft shadows' in out
+        assert 'no drop shadows' in out
+        assert out.rstrip().endswith('300 DPI.')
 
-    def test_oversize_truncates_at_sentence_boundary(self):
-        """Force the cap by injecting a huge slot value, then assert the
-        output is trimmed at the last sentence boundary."""
+    def test_oversize_does_not_truncate_template_end(self):
+        """Inject a huge slot value; the template end must still be there
+        (Phase 13t-t removed the 1500-char truncation that was cutting it)."""
         bloat = '. '.join([f'sentence {i}' for i in range(200)])
         slots = _all_slots_filled()
         slots['extra_context'] = bloat
@@ -360,20 +364,9 @@ class TestPromptCap:
             slots=slots,
             background_color='light_gray',
         )
-        assert len(out) <= _POLISHED_PROMPT_MAX_CHARS
-        # Truncated at a sentence boundary → ends in '.'
-        assert out.endswith('.')
-
-    def test_truncate_helper_prefers_sentence_boundary(self):
-        text = 'First sentence. Second sentence. Third sentence.'
-        out = _truncate_at_sentence_boundary(text, max_chars=25)
-        # Largest prefix ending in '. ' within 25 chars → 'First sentence.'
-        assert out == 'First sentence.'
-
-    def test_truncate_helper_hard_slices_when_no_period(self):
-        text = 'abcdefghijklmnopqrst'  # no '.', longer than max
-        out = _truncate_at_sentence_boundary(text, max_chars=5)
-        assert out == 'abcde'
+        assert len(out) > 1500
+        assert 'no gradients' in out
+        assert out.rstrip().endswith('300 DPI.')
 
 
 # ─── Font Combination resolver (Phase 13l) ────────────────────────────────

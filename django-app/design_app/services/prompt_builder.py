@@ -34,11 +34,6 @@ _UUID_RE = re.compile(
     r'[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
 )
 
-# Hard cap on the assembled prompt (Architect-grade prompts target 600–1200
-# chars; the 1500 cap mirrors task 13b.9 and `image_generator`'s budget).
-_POLISHED_PROMPT_MAX_CHARS = 1500
-
-
 def _fallback_style(style_slug: str) -> dict:
     """Defensive fallback when `style_slug` is not in STYLE_LIBRARY.
 
@@ -201,24 +196,6 @@ def _resolve_slot(slot, user_slots, niche_hints, style, slogan, workspace_id=Non
     return ''
 
 
-def _truncate_at_sentence_boundary(text: str, max_chars: int) -> str:
-    """Truncate `text` at the last full sentence ending within `max_chars`.
-
-    Used by `build_form_prompt` to enforce the 1500-char cap without leaving
-    a half-sentence dangling. Falls back to a hard slice if no boundary is
-    found within the budget.
-    """
-    if len(text) <= max_chars:
-        return text
-    window = text[:max_chars]
-    last_period = window.rfind('. ')
-    if last_period == -1:
-        last_period = window.rfind('.')
-    if last_period > 0:
-        return text[:last_period + 1]
-    return window
-
-
 def build_form_prompt(
     slogan: str,
     style_slug: str,
@@ -242,9 +219,11 @@ def build_form_prompt(
     the LLM always sees the literal text it must render (mirrors v1 behaviour
     and AC-7).
 
-    Output is typically 600–1200 chars. If it exceeds the 1500-char cap a
-    warning is logged and the string is truncated at the last sentence
-    boundary (task 13b.9).
+    Output is typically 600–1500 chars after Phase 13t-q's enriched slot
+    descriptors. No length cap — the anti-gradient/no-glow clauses in
+    ARCHITECT_TEMPLATE_END are non-negotiable per AC-48 and must always
+    survive in the final prompt (Phase 13t-t removed the 1500-char truncate
+    that was cutting them off).
     """
     style = STYLE_LIBRARY.get(style_slug) or _fallback_style(style_slug)
     bg_hex = Design.BG_COLOR_HEX.get(background_color, '#D3D3D3')
@@ -267,19 +246,7 @@ def build_form_prompt(
             parts.append(slot['render_template'].format(value=value))
 
     parts.append(ARCHITECT_TEMPLATE_END)
-    result = ' '.join(parts)
-
-    if len(result) > _POLISHED_PROMPT_MAX_CHARS:
-        logger.warning(
-            'build_form_prompt exceeded %d chars (%d) — truncating at '
-            'sentence boundary. style=%s slogan=%r',
-            _POLISHED_PROMPT_MAX_CHARS, len(result), style_slug, slogan[:60],
-        )
-        result = _truncate_at_sentence_boundary(
-            result, _POLISHED_PROMPT_MAX_CHARS,
-        )
-
-    return result
+    return ' '.join(parts)
 
 
 def build_from_analysis(analysis: dict, background_color: str) -> str:
