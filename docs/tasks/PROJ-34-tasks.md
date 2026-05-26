@@ -2708,7 +2708,7 @@ dimensions checklist; re-run backfill on dev DB.
   truncation, (b) richer Typography/Font/Accessories descriptions. Screenshot.
 - [x] 13t-q6.2 Flip all AC-139..AC-144 + EC-54..EC-55 checkboxes in spec to `[x]`.
 - [x] 13t-q6.3 Flip all 13t-q1..13t-q6 task checkboxes in this file to `[x]`.
-- [ ] 13t-q6.4 Commit + push:
+- [x] 13t-q6.4 Commit + push:
     - Message: `feat(PROJ-34): phase 13t-q — enriched Vision prompts + ConfirmDialog full-text + force-backfill`
     - Push to `feature/PROJ-34-design-prompt-engineering`.
 
