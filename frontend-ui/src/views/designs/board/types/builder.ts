@@ -39,6 +39,12 @@ export interface BuilderConfig {
   slots: BuilderSlots;
 }
 
+// Phase 13t-u: visual_description seeds with the template skeleton so the
+// user sees the structure inline (no longer just a ghost-text placeholder).
+// They are expected to replace the bracketed tokens with concrete details.
+export const DEFAULT_VISUAL_DESCRIPTION =
+  'a stylized illustration of [SUBJECT] in [PERSPECTIVE], featuring [6+ concrete details: colors, body parts, accessories, pose, line weight]';
+
 export const EMPTY_BUILDER_CONFIG: BuilderConfig = {
   selectedSloganIds: [],
   freeTextSlogans: '',
@@ -46,7 +52,9 @@ export const EMPTY_BUILDER_CONFIG: BuilderConfig = {
   // Phase 13t-u: niche-context starts OFF. User opts in via the toggle when
   // they explicitly want builder_form_hints from the niche to fill empty slots.
   includeNicheContext: false,
-  slots: {},
+  slots: {
+    visual_description: DEFAULT_VISUAL_DESCRIPTION,
+  },
 };
 
 // Threshold past which a confirm dialog blocks Build (AC-35).

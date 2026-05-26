@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useSnackbar } from 'notistack';
 import { STYLE_LIBRARY } from '../constants/styleLibrary';
 import {
+  DEFAULT_VISUAL_DESCRIPTION,
   EMPTY_BUILDER_CONFIG,
   type BuilderConfig,
   type BuilderPresetSummary,
@@ -139,7 +140,9 @@ export const useBuilderDialogState = ({
       selectedStyleSlugs: [],
       slots: {
         spatial_configuration: '',
-        visual_description: '',
+        // Phase 13t-u: re-seed the visual_description template on reset so
+        // the user sees the skeleton again, not a blank box.
+        visual_description: DEFAULT_VISUAL_DESCRIPTION,
         typography_adjectives: '',
         font_combination: '',
         accessories: '',
