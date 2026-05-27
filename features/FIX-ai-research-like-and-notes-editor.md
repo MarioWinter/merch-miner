@@ -65,8 +65,8 @@ Two independent, frontend-only enhancements bundled in a single PR. No backend c
 - [x] AC-B2: The component has two modes toggled via a small control (Tabs or ToggleButtonGroup — chosen by `/architecture`/`/frontend-design`): **Edit** (default) and **Preview**.
 - [x] AC-B3: Edit mode renders a MUI `TextField` with `multiline`, `minRows={3}`, `maxRows={20}` so it auto-grows with content up to ~20 rows, then scrolls.
 - [x] AC-B4: The textarea slot has CSS `resize: vertical` so the user can manually drag the bottom-right handle to override auto-grow height. Width remains fixed.
-- [ ] AC-B5: Typing `/` in Edit mode at the **start of a line** OR **immediately after whitespace** opens a floating command menu (Notion-style) anchored near the caret. The `/` character is visible in the textarea while the menu is open.
-- [ ] AC-B6: Command menu contains exactly these 15 commands (MUST). Each entry shows label + small icon + optional short description (Notion-style). The "Behaviour" column defines how the command modifies the textarea content:
+- [x] AC-B5: Typing `/` in Edit mode at the **start of a line** OR **immediately after whitespace** opens a floating command menu (Notion-style) anchored near the caret. The `/` character is visible in the textarea while the menu is open.
+- [x] AC-B6: Command menu contains exactly these 15 commands (MUST). Each entry shows label + small icon + optional short description (Notion-style). The "Behaviour" column defines how the command modifies the textarea content:
 
   | # | Command | Inserts | Behaviour |
   |---|---|---|---|
@@ -90,35 +90,35 @@ Two independent, frontend-only enhancements bundled in a single PR. No backend c
   - **Line-prefix:** the `/` + filter chars are removed; the prefix string is prepended to the start of the current line; existing line content is preserved after the prefix; caret lands at the end of the prefix.
   - **Block (multi-line / single-line / code):** the `/` + filter chars are removed; the block is inserted at the caret position; if the current line has content before the caret, a leading newline is added so the block starts on a fresh line; caret lands at the documented position (inside the callout body / on the empty middle line for code / at start of next line for divider).
   - **Inline:** the `/` + filter chars are removed; the wrapper/template is inserted at the caret position; caret/selection positioned as documented.
-- [ ] AC-B7: Continuing to type after `/` filters the menu by case-insensitive substring match on the command labels (e.g. `/bu` → "Bulleted list"; `/to` → "To-do list").
-- [ ] AC-B8: Keyboard navigation in the open menu: `ArrowDown` / `ArrowUp` moves selection, `Enter` or `Tab` confirms, `Esc` closes. Mouse: click on a row also confirms.
-- [ ] AC-B9: Confirming a command removes the `/` + filter chars typed since `/` was pressed and inserts the chosen prefix at the start of the current line (preserving any content already on the line after the prefix). Caret lands at the end of the inserted prefix.
-- [ ] AC-B10: `Esc` or clicking outside the menu closes it; the `/` and any filter chars stay in the textarea as plain text (no destructive auto-revert).
-- [ ] AC-B11: Pressing `Enter` while the cursor is on a non-empty list line (line starts with `- `, `- [ ] `, or `N. `) inserts a new line with the same prefix (continuation pattern).
-- [ ] AC-B12: Pressing `Enter` on a list line containing only the prefix (e.g. just `- ` or `- [ ] `) removes the prefix and inserts a plain newline (escape pattern).
+- [x] AC-B7: Continuing to type after `/` filters the menu by case-insensitive substring match on the command labels (e.g. `/bu` → "Bulleted list"; `/to` → "To-do list").
+- [x] AC-B8: Keyboard navigation in the open menu: `ArrowDown` / `ArrowUp` moves selection, `Enter` or `Tab` confirms, `Esc` closes. Mouse: click on a row also confirms.
+- [x] AC-B9: Confirming a command removes the `/` + filter chars typed since `/` was pressed and inserts the chosen prefix at the start of the current line (preserving any content already on the line after the prefix). Caret lands at the end of the inserted prefix.
+- [x] AC-B10: `Esc` or clicking outside the menu closes it; the `/` and any filter chars stay in the textarea as plain text (no destructive auto-revert).
+- [x] AC-B11: Pressing `Enter` while the cursor is on a non-empty list line (line starts with `- `, `- [ ] `, or `N. `) inserts a new line with the same prefix (continuation pattern).
+- [x] AC-B12: Pressing `Enter` on a list line containing only the prefix (e.g. just `- ` or `- [ ] `) removes the prefix and inserts a plain newline (escape pattern).
 - [ ] AC-B13: Preview mode renders the markdown via `react-markdown` + `remark-gfm` (already in dependencies) — same pattern as existing `MarkdownAnswer`/`MemoryEditor`/`SkillEditor` components. Reuse, do not reimplement.
 - [ ] AC-B14: GFM checkboxes in Preview mode are interactive: clicking `[ ]` toggles to `[x]` (and vice versa); the change updates the form value via `onChange` so the form becomes dirty and can be saved with the existing form Save button.
 - [ ] AC-B15: Stored value remains plain-text markdown in `Niche.notes` — no schema change, no serializer change.
 - [x] AC-B16: Editor honours `react-hook-form` `Controller` integration so existing form validation, dirty state, and Save behaviour continue to work unchanged.
 - [x] AC-B17: All user-visible strings (mode labels, command labels + descriptions, aria-labels, placeholder, tooltips) go through `useTranslation()`.
 - [ ] AC-B18: Colors come from the theme (`theme.vars.palette.*`) — no hardcoded hex.
-- [ ] AC-B19: Slash-menu interception and Enter-continuation are scoped to the notes editor only (event listeners bound to the textarea element) — they do not fire when focus is elsewhere on the page.
+- [x] AC-B19: Slash-menu interception and Enter-continuation are scoped to the notes editor only (event listeners bound to the textarea element) — they do not fire when focus is elsewhere on the page.
 
 ### Edge Cases
 - [ ] EC-B1: Notes field empty → Preview mode shows a muted placeholder ("No notes yet", i18n key) instead of empty space.
 - [ ] EC-B2: Notes contain only whitespace → treated as empty in preview (same placeholder).
 - [ ] EC-B3: User toggles to Preview, clicks a checkbox, toggles back to Edit → the new `[x]`/`[ ]` is visible in the textarea at the correct position.
-- [ ] EC-B4: User types `- ` then presses Enter twice (empty list line) → prefix removed on second Enter, plain newline inserted (per AC-B12).
-- [ ] EC-B5: User types `/` in the middle of a word (e.g. "and/or") → menu does NOT open; `/` is treated as plain text. Trigger only when `/` is preceded by start-of-line or whitespace.
-- [ ] EC-B6: Slash menu is open + user keeps typing characters that match no command (e.g. `/zzz`) → menu shows an empty state ("No matching commands", i18n key). `Esc` closes it without altering text.
-- [ ] EC-B7: Slash menu is open + user types whitespace (space/tab) → menu closes, `/` + filter chars stay as plain text (whitespace ends the filter context).
+- [x] EC-B4: User types `- ` then presses Enter twice (empty list line) → prefix removed on second Enter, plain newline inserted (per AC-B12).
+- [x] EC-B5: User types `/` in the middle of a word (e.g. "and/or") → menu does NOT open; `/` is treated as plain text. Trigger only when `/` is preceded by start-of-line or whitespace.
+- [x] EC-B6: Slash menu is open + user keeps typing characters that match no command (e.g. `/zzz`) → menu shows an empty state ("No matching commands", i18n key). `Esc` closes it without altering text.
+- [x] EC-B7: Slash menu is open + user types whitespace (space/tab) → menu closes, `/` + filter chars stay as plain text (whitespace ends the filter context).
 - [ ] EC-B8: Caret is near the bottom edge of the textarea → command menu opens **above** the caret to stay in viewport (auto-flip via Popper placement).
 - [ ] EC-B9: Caret is near the right edge of the textarea → menu shifts left to stay in viewport.
-- [ ] EC-B10: Slash menu confirms via `Enter` → `Enter`'s default new-line behaviour is prevented; only the prefix insertion fires.
-- [ ] EC-B11: User pastes multi-line text containing `/` characters → no menu opens during paste (only on a single keystroke that produces `/`).
-- [ ] EC-B12: Block command (Callout / Code block / Divider) confirmed while caret is mid-line with content on either side → a leading newline is inserted so the block starts on a fresh line; content after the caret remains on the line after the block.
-- [ ] EC-B13: Line-prefix command confirmed while current line already has a different prefix (e.g. line is `- existing`, user runs Heading 1) → existing prefix is replaced with the new prefix (line becomes `# existing`); content preserved.
-- [ ] EC-B14: Inline Link command confirmed → `url` placeholder is selected (not just cursor placed), so the user can immediately paste a URL to replace it.
+- [x] EC-B10: Slash menu confirms via `Enter` → `Enter`'s default new-line behaviour is prevented; only the prefix insertion fires.
+- [x] EC-B11: User pastes multi-line text containing `/` characters → no menu opens during paste (only on a single keystroke that produces `/`).
+- [x] EC-B12: Block command (Callout / Code block / Divider) confirmed while caret is mid-line with content on either side → a leading newline is inserted so the block starts on a fresh line; content after the caret remains on the line after the block.
+- [x] EC-B13: Line-prefix command confirmed while current line already has a different prefix (e.g. line is `- existing`, user runs Heading 1) → existing prefix is replaced with the new prefix (line becomes `# existing`); content preserved.
+- [x] EC-B14: Inline Link command confirmed → `url` placeholder is selected (not just cursor placed), so the user can immediately paste a URL to replace it.
 - [x] EC-B15: Notes field exceeds `maxRows={20}` → textarea scrolls internally instead of growing further. Manual resize handle still works.
 - [x] EC-B16: User manually drags the resize handle smaller than `minRows={3}` → browser enforces `min-height` derived from `minRows`; cannot go below 3 visible rows.
 - [ ] EC-B17: Switching between Edit/Preview while form has unsaved changes → mode toggle does NOT save; form dirty state preserved.

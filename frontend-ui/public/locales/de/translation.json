@@ -263,6 +263,70 @@
     },
     "preview": {
       "phase3Placeholder": "Vorschau folgt in Phase 5"
+    },
+    "commands": {
+      "empty": "Keine passenden Befehle",
+      "listboxAriaLabel": "Slash-Befehle",
+      "bulleted": {
+        "label": "Aufzählung",
+        "description": "Einfache Aufzählungsliste"
+      },
+      "todo": {
+        "label": "To-do-Liste",
+        "description": "Checkliste mit Kontrollkästchen"
+      },
+      "numbered": {
+        "label": "Nummerierte Liste",
+        "description": "Automatisch nummerierte Liste"
+      },
+      "h1": {
+        "label": "Überschrift 1",
+        "description": "Große Überschrift"
+      },
+      "h2": {
+        "label": "Überschrift 2",
+        "description": "Mittlere Überschrift"
+      },
+      "h3": {
+        "label": "Überschrift 3",
+        "description": "Kleine Überschrift"
+      },
+      "quote": {
+        "label": "Zitat",
+        "description": "Blockzitat"
+      },
+      "callout-note": {
+        "label": "Hinweis-Callout",
+        "description": "Hervorgehobener Hinweisblock"
+      },
+      "callout-tip": {
+        "label": "Tipp-Callout",
+        "description": "Hervorgehobener Tipp-Block"
+      },
+      "callout-warning": {
+        "label": "Warnung-Callout",
+        "description": "Hervorgehobener Warnblock"
+      },
+      "callout-important": {
+        "label": "Wichtig-Callout",
+        "description": "Hervorgehobener Wichtigblock"
+      },
+      "code-block": {
+        "label": "Code-Block",
+        "description": "Eingerahmter Code-Block"
+      },
+      "divider": {
+        "label": "Trennlinie",
+        "description": "Horizontale Linie"
+      },
+      "bold": {
+        "label": "Fett",
+        "description": "Auswahl mit **fett** umschließen"
+      },
+      "link": {
+        "label": "Link",
+        "description": "Vorlage [text](url) einfügen"
+      }
     }
   },
   "niches": {

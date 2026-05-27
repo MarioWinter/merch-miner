@@ -93,41 +93,41 @@
 
 ### 4A. Command Registry + Insertion Strategies
 
-- [ ] T4.1: Create `components/NotesMarkdownEditor/utils/commandRegistry.ts` — TypeScript type `SlashCommand { id, labelI18nKey, descriptionI18nKey, icon, behaviour: 'line-prefix' | 'block' | 'inline', insert: string, caretOffsetFromInsertStart?: number, selectionStart?: number, selectionEnd?: number }`. Export the 15-command array. Export `findMatches(query: string, list)` (case-insensitive substring on translated label). (AC-B6, B7)
-- [ ] T4.2: Create `components/NotesMarkdownEditor/utils/linePrefixRegex.ts` — export the detector regex `^(#{1,6}\s|\-\s\[[ x]\]\s|\-\s|\d+\.\s|>\s)` and a `replaceLinePrefix(text, lineStart, newPrefix)` helper. (Decision-7, EC-B13)
-- [ ] T4.3: Create `components/NotesMarkdownEditor/utils/insertionStrategies.ts` — three functions: `applyLinePrefix(text, sel, prefix)`, `applyBlock(text, sel, block, caretOffset)`, `applyInline(text, sel, template, selectionRange?)`. Each returns `{ newText, newSelectionStart, newSelectionEnd }`. (AC-B6, B9, EC-B12, EC-B13, EC-B14)
-- [ ] T4.4: Create `components/NotesMarkdownEditor/utils/tests/insertionStrategies.test.ts` — table-driven tests for each strategy: cursor mid-line, cursor at start, cursor at end, existing prefix replace, block with leading newline. (Cross-cuts AC-B6, EC-B12, EC-B13, EC-B14)
+- [x] T4.1: Created `components/NotesMarkdownEditor/utils/commandRegistry.ts` — `SlashCommand` type + `COMMANDS` array of 15 + `findMatches`. (AC-B6, B7)
+- [x] T4.2: Created `components/NotesMarkdownEditor/utils/linePrefixRegex.ts` — `LINE_PREFIX_REGEX` + `matchExistingPrefix(text, lineStart)`. (Decision-7, EC-B13)
+- [x] T4.3: Created `components/NotesMarkdownEditor/utils/insertionStrategies.ts` — `applyLinePrefix`, `applyBlock`, `applyInline`. (AC-B6, B9, EC-B12, EC-B13, EC-B14)
+- [x] T4.4: Created `components/NotesMarkdownEditor/utils/tests/insertionStrategies.test.ts` — table-driven tests pass. (Cross-cuts AC-B6, EC-B12, EC-B13, EC-B14)
 
 ### 4B. Hook
 
-- [ ] T4.5: Create `components/NotesMarkdownEditor/hooks/useTextareaSlashMenu.ts` — state machine per Tech Design Decision 4. Returns `{ menuProps: { open, anchorRect, query, activeIndex, commands, onSelect, onHoverIndex, onClose } }`. Listens on the textarea ref. (AC-B5, B7, B8, B10, B11, B12, B19, EC-B5, EC-B6, EC-B7, EC-B8, EC-B9, EC-B10, EC-B11)
-- [ ] T4.6: Inside hook: `/` keystroke gate — only opens when previous char is undefined / whitespace / start-of-line. (AC-B5, EC-B5)
-- [ ] T4.7: Inside hook: ArrowUp/Down navigation, Enter/Tab commit, Esc close (leaves `/query` text intact). (AC-B8, AC-B10)
-- [ ] T4.8: Inside hook: typing whitespace closes menu (EC-B7). Backspace past `/` closes menu.
-- [ ] T4.9: Inside hook: paste does NOT open the menu (only single-keystroke `/`). (EC-B11)
-- [ ] T4.10: Inside hook: caret rect via `textarea-caret`'s `getCaretCoordinates(textarea, selectionStart)` → translates to screen rect for Popper anchor. (Decision-4)
-- [ ] T4.11: Inside hook: on confirm, call `applyLinePrefix` / `applyBlock` / `applyInline` per command behaviour and dispatch `onChange` to the parent. (AC-B9)
-- [ ] T4.12: Create `components/NotesMarkdownEditor/tests/useTextareaSlashMenu.test.ts` — open/filter/select/cancel flows, mid-word guard, whitespace close, Esc close.
+- [x] T4.5: Create `components/NotesMarkdownEditor/hooks/useTextareaSlashMenu.ts` — state machine per Tech Design Decision 4. Returns `{ menuProps: { open, anchorRect, query, activeIndex, commands, onSelect, onHoverIndex, onClose } }`. Listens on the textarea ref. (AC-B5, B7, B8, B10, B11, B12, B19, EC-B5, EC-B6, EC-B7, EC-B8, EC-B9, EC-B10, EC-B11)
+- [x] T4.6: Inside hook: `/` keystroke gate — only opens when previous char is undefined / whitespace / start-of-line. (AC-B5, EC-B5)
+- [x] T4.7: Inside hook: ArrowUp/Down navigation, Enter/Tab commit, Esc close (leaves `/query` text intact). (AC-B8, AC-B10)
+- [x] T4.8: Inside hook: typing whitespace closes menu (EC-B7). Backspace past `/` closes menu.
+- [x] T4.9: Inside hook: paste does NOT open the menu (only single-keystroke `/`). (EC-B11)
+- [x] T4.10: Inside hook: caret rect via `textarea-caret`'s `getCaretCoordinates(textarea, selectionStart)` → translates to screen rect for Popper anchor. (Decision-4)
+- [x] T4.11: Inside hook: on confirm, call `applyLinePrefix` / `applyBlock` / `applyInline` per command behaviour and dispatch `onChange` to the parent. (AC-B9)
+- [x] T4.12: Create `components/NotesMarkdownEditor/tests/useTextareaSlashMenu.test.ts` — open/filter/select/cancel flows, mid-word guard, whitespace close, Esc close.
 
 ### 4C. Enter-Continuation Hook
 
-- [ ] T4.13: Create `components/NotesMarkdownEditor/hooks/useListContinuation.ts` — keydown listener for `Enter`: if cursor line starts with `- `, `- [ ] `, `- [x] `, or `N. ` and the line has content after the prefix → insert newline + same prefix (numbered list increments N). If line contains only prefix → remove prefix, insert plain newline. (AC-B11, AC-B12, EC-B4)
-- [ ] T4.14: Tests for `useListContinuation` — bulleted, to-do, numbered, escape on empty list line.
+- [x] T4.13: Create `components/NotesMarkdownEditor/hooks/useListContinuation.ts` — keydown listener for `Enter`: if cursor line starts with `- `, `- [ ] `, `- [x] `, or `N. ` and the line has content after the prefix → insert newline + same prefix (numbered list increments N). If line contains only prefix → remove prefix, insert plain newline. (AC-B11, AC-B12, EC-B4)
+- [x] T4.14: Tests for `useListContinuation` — bulleted, to-do, numbered, escape on empty list line.
 
 ### 4D. UI Popper
 
-- [ ] T4.15: Create `components/NotesMarkdownEditor/partials/SlashCommandMenu.tsx` — MUI `Popper` with `Paper` + `MenuList`. Virtual anchorEl from `anchorRect` prop. Modifiers: `flip` + `preventOverflow`. Each row: icon + label + secondary description text. Active row highlighted (background `theme.vars.palette.action.selected`). (AC-B6, EC-B8, EC-B9)
-- [ ] T4.16: Empty state: when `commands.length === 0` show "No matching commands" (i18n key). (EC-B6)
-- [ ] T4.17: Click outside / Esc close hook plumbed via `onClose` prop. (AC-B10)
+- [x] T4.15: Create `components/NotesMarkdownEditor/partials/SlashCommandMenu.tsx` — MUI `Popper` with `Paper` + `MenuList`. Virtual anchorEl from `anchorRect` prop. Modifiers: `flip` + `preventOverflow`. Each row: icon + label + secondary description text. Active row highlighted (background `theme.vars.palette.action.selected`). (AC-B6, EC-B8, EC-B9)
+- [x] T4.16: Empty state: when `commands.length === 0` show "No matching commands" (i18n key). (EC-B6)
+- [x] T4.17: Click outside / Esc close hook plumbed via `onClose` prop. (AC-B10)
 
 ### 4E. Wire-up
 
-- [ ] T4.18: Create `components/NotesMarkdownEditor/partials/EditTextarea.tsx` — owns the textarea ref, wires both hooks (`useTextareaSlashMenu` + `useListContinuation`), renders `<TextField>` + `<SlashCommandMenu />`. Replaces the placeholder textarea from Phase 3. (AC-B3, B4, B5, B19)
-- [ ] T4.19: i18n keys for all 15 command labels + descriptions + empty state. Use a single namespace `notesEditor.commands.*`. (AC-B17)
+- [x] T4.18: Create `components/NotesMarkdownEditor/partials/EditTextarea.tsx` — owns the textarea ref, wires both hooks (`useTextareaSlashMenu` + `useListContinuation`), renders `<TextField>` + `<SlashCommandMenu />`. Replaces the placeholder textarea from Phase 3. (AC-B3, B4, B5, B19)
+- [x] T4.19: i18n keys for all 15 command labels + descriptions + empty state. Use a single namespace `notesEditor.commands.*`. (AC-B17)
 
 ### 4F. Component-Level Tests
 
-- [ ] T4.20: `tests/NotesMarkdownEditor.slashmenu.test.tsx` — type `/` → menu opens; type `bu` → filters to Bulleted list; Enter → `- ` inserted; type `/` mid-word → menu does NOT open. (AC-B5, B7, B9, EC-B5)
+- [x] T4.20: `tests/NotesMarkdownEditor.slashmenu.test.tsx` — type `/` → menu opens; type `bu` → filters to Bulleted list; Enter → `- ` inserted; type `/` mid-word → menu does NOT open. (AC-B5, B7, B9, EC-B5)
 
 **Dependencies:** Phase 3.
 **Blocks:** none (Phase 5 is independent).
