@@ -17,6 +17,7 @@
 import { useEffect, useRef } from 'react';
 import { Box, FormHelperText } from '@mui/material';
 import { styled, alpha } from '@mui/material/styles';
+import { COLORS } from '@/style/constants';
 import { EditorContent, useEditor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import TaskList from '@tiptap/extension-task-list';
@@ -58,9 +59,11 @@ const EditorSurface = styled(Box, {
         ? theme.vars.palette.error.main
         : alpha(theme.palette.divider, 0.6)
     }`,
+    // Match the OutlinedInput dark-mode background used by every other form
+    // field in this drawer (Name, Status, Potential rating, Assignee).
     backgroundColor: editorDisabled
       ? alpha(theme.palette.action.disabledBackground, 0.4)
-      : 'transparent',
+      : COLORS.inkElevated,
     cursor: editorDisabled ? 'not-allowed' : 'text',
     color: theme.vars.palette.text.primary,
     fontSize: '0.875rem',
