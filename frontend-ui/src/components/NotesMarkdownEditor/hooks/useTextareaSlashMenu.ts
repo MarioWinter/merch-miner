@@ -196,7 +196,12 @@ export const useTextareaSlashMenu = ({
     commitRef.current = commitCommand;
   }, [commitCommand]);
 
-  // DOM listeners.
+  // DOM listeners — KEYDOWN ONLY. We intentionally do NOT listen for `input`
+  // here. Setting state synchronously inside a native input handler racing
+  // with React's controlled-component sync caused the textarea value to
+  // revert to its stale prop value (the user's typed char never reached the
+  // form state). Query is derived from the `value` prop in a `useEffect`
+  // below — same source of truth React uses.
   useEffect(() => {
     const el = textareaRef.current;
     if (!el) return;
@@ -276,33 +281,43 @@ export const useTextareaSlashMenu = ({
       }
     };
 
-    const onInput = () => {
-      if (!open) return;
-      const trigger = triggerOffsetRef.current;
-      if (trigger === null) return;
-      const caret = el.selectionEnd;
-      // Backspace past `/` or `/` was deleted → close.
-      if (caret < trigger + 1 || el.value[trigger] !== '/') {
-        closeMenu();
-        return;
-      }
-      const slice = el.value.slice(trigger + 1, caret);
-      if (/\s/.test(slice)) {
-        closeMenu();
-        return;
-      }
-      setQuery(slice);
-      setActiveIndex(0);
-      setAnchorRect(computeAnchor());
-    };
-
     el.addEventListener('keydown', onKeyDown);
-    el.addEventListener('input', onInput);
     return () => {
       el.removeEventListener('keydown', onKeyDown);
-      el.removeEventListener('input', onInput);
     };
   }, [textareaRef, open, closeMenu, computeAnchor]);
+
+  // Derive query from the controlled `value` prop on every change. This runs
+  // after React commits the latest value, so DOM and React state are in sync.
+  // The setState calls below are intentional — they reflect the new value
+  // back into the menu's filter / anchor state. Cascading rerenders are
+  // bounded because `setQuery`/`setActiveIndex` reach a fixed point quickly.
+  useEffect(() => {
+    if (!open) return;
+    const el = textareaRef.current;
+    if (!el) return;
+    const trigger = triggerOffsetRef.current;
+    if (trigger === null) return;
+    const caret = el.selectionEnd;
+    // Backspace past `/` or `/` was deleted → close.
+    if (caret < trigger + 1 || value[trigger] !== '/') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      closeMenu();
+      return;
+    }
+    const slice = value.slice(trigger + 1, caret);
+    if (/\s/.test(slice)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      closeMenu();
+      return;
+    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setQuery(slice);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setActiveIndex(0);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAnchorRect(computeAnchor());
+  }, [value, open, textareaRef, closeMenu, computeAnchor]);
 
   const onSelect = useCallback(
     (cmd: SlashCommand) => commitCommand(cmd),

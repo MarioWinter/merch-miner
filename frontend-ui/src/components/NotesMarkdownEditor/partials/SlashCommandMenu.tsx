@@ -64,12 +64,11 @@ interface SlashCommandMenuComponentProps extends SlashMenuProps {
   textareaRef: RefObject<HTMLTextAreaElement | null>;
 }
 
-const MenuPaper = styled(Paper)(({ theme }) => ({
+const MenuPaper = styled(Paper)({
   width: 300,
   maxHeight: 360,
   overflowY: 'auto',
-  zIndex: theme.zIndex.tooltip + 1,
-}));
+});
 
 const Row = styled(MenuItem, {
   shouldForwardProp: (prop) => prop !== 'isActive',
@@ -168,6 +167,12 @@ const SlashCommandMenu = (props: SlashCommandMenuComponentProps) => {
           options: { boundary: 'viewport' },
         },
       ]}
+      // The Popper is portaled to <body>, but its outer wrapper defaults to
+      // z-index:auto which loses against the Drawer's z-index:1200. The Paper's
+      // own z-index can't escape this stacking context — so we must lift the
+      // wrapper itself above the Drawer. Tooltip layer + 1 keeps it above any
+      // surface MUI ever puts on top of a drawer.
+      sx={(theme) => ({ zIndex: theme.zIndex.tooltip + 1 })}
       data-testid="notes-editor-slash-menu"
     >
       <ClickAwayListener onClickAway={onClose}>
