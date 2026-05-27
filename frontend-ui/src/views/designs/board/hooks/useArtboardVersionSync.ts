@@ -13,13 +13,13 @@ interface UseArtboardVersionSyncParams {
 const resolveSlotUrl = (design: Design, slot: VersionSlot): string => {
   switch (slot) {
     case 'upscaled':
-      return design.upscaled_file;
+      return design.upscaled_file ?? '';
     case 'bg_removed':
-      return design.bg_removed_file;
+      return design.bg_removed_file ?? '';
     case 'processed':
-      return design.processed_file;
+      return design.processed_file ?? '';
     case 'original':
-      return design.image_file;
+      return design.image_file ?? '';
   }
 };
 
@@ -27,7 +27,8 @@ const resolveLatestUrl = (design: Design): string =>
   design.upscaled_file ||
   design.bg_removed_file ||
   design.processed_file ||
-  design.image_file;
+  design.image_file ||
+  '';
 
 /**
  * Keeps each linked artboard's `imageUrl` in sync with the resolved Design
