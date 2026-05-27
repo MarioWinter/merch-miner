@@ -3312,7 +3312,7 @@
       "saveKeywords": "Save Keywords",
       "selectNicheFirst": "Select a niche first",
       "rescrapeButton": "Refresh product data",
-      "rescrapeStarted": "Scrape started — please refresh the page in ~30s.",
+      "rescrapeStarted": "Scrape started — data will refresh automatically in ~30s.",
       "rescrapeError": "Failed to refresh.",
       "readMore": "Read more",
       "showLess": "Show less",

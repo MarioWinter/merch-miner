@@ -2556,7 +2556,7 @@
       "saveKeywords": "Keywords speichern",
       "selectNicheFirst": "Waehle zuerst eine Nische",
       "rescrapeButton": "Produkt-Daten aktualisieren",
-      "rescrapeStarted": "Scrape gestartet — bitte in ~30s die Seite aktualisieren.",
+      "rescrapeStarted": "Scrape gestartet — Daten aktualisieren sich automatisch in ~30s.",
       "rescrapeError": "Fehler beim Aktualisieren.",
       "readMore": "Mehr lesen",
       "showLess": "Weniger anzeigen",
