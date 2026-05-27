@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { useDispatch } from 'react-redux';
 import { useSnackbar } from 'notistack';
 import { useTranslation } from 'react-i18next';
-import { useGetDesignsByIdsQuery } from '@/store/designSlice';
+import { designApi, useGetDesignsByIdsQuery } from '@/store/designSlice';
 import {
   useTriggerSingleMutation,
   type UpscaleCloudTarget,
@@ -26,6 +27,8 @@ interface UseUpscaleSingleArgs {
   designId: string | null;
   destination: UpscaleDestination;
   cloudTarget: UpscaleCloudTarget | null;
+  /** When provided, invalidates the DesignProject tag on poll completion so the canvas refetches. */
+  projectId?: string | null;
 }
 
 interface UseUpscaleSingleReturn {
@@ -55,9 +58,11 @@ export const useUpscaleSingle = ({
   designId,
   destination,
   cloudTarget,
+  projectId,
 }: UseUpscaleSingleArgs): UseUpscaleSingleReturn => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
+  const reduxDispatch = useDispatch();
 
   const [trigger, { isLoading: isTriggering }] = useTriggerSingleMutation();
 
@@ -116,8 +121,15 @@ export const useUpscaleSingle = ({
         t('upscale.single.success', { defaultValue: 'Upscaled to 4500×5400' }),
         { variant: 'success' },
       );
+      // triggerSingle mutation only invalidates UpscaleQuota — the canvas reads
+      // designs via the DesignProject query, so we invalidate that tag here.
+      if (projectId) {
+        reduxDispatch(
+          designApi.util.invalidateTags([{ type: 'DesignProject', id: projectId }]),
+        );
+      }
     }
-  }, [currentDesign, enqueueSnackbar, pollEnabled, t]);
+  }, [currentDesign, enqueueSnackbar, pollEnabled, projectId, reduxDispatch, t]);
 
   // Hard timeout — after 20min, stop polling and surface error.
   useEffect(() => {

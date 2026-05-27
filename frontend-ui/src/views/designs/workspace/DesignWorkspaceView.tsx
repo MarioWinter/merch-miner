@@ -17,6 +17,9 @@ import { openNicheEdit } from '@/store/chatBarSlice';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import useSendDesignsToListings from '@/hooks/useSendDesignsToListings';
 import useArtboards from '../board/hooks/useArtboards';
+import useArtboardVersionSync from '../board/hooks/useArtboardVersionSync';
+import type { VersionSlot } from '../board/hooks/useArtboardVersionSync';
+import type { Design } from '../board/types';
 import useRightPanelState from '../board/hooks/useRightPanelState';
 import ArtboardCanvas from '../board/partials/ArtboardCanvas';
 import BottomToolbar from '../board/partials/BottomToolbar';
@@ -125,6 +128,49 @@ const DesignWorkspaceView = () => {
     savedLayout: boardData?.board_layout ?? null,
     designs: boardData?.designs,
   });
+
+  // Phase 6 wiring — picker UI will read/write this map; for Phase 4 we only
+  // declare it so the sync hook has a stable reference.
+  const [userPickedVersions, setUserPickedVersions] = useState<Map<string, VersionSlot>>(
+    () => new Map(),
+  );
+  // EC-2-5 — reset picks on workspace switch via render-time compare (matches
+  // existing `hasRunningGeneration` pattern; avoids React 19 cascading-effect rule).
+  const [lastWorkspaceIdForPicks, setLastWorkspaceIdForPicks] = useState<string | null>(
+    activeWorkspaceId,
+  );
+  if (lastWorkspaceIdForPicks !== activeWorkspaceId) {
+    setLastWorkspaceIdForPicks(activeWorkspaceId);
+    if (userPickedVersions.size > 0) setUserPickedVersions(new Map());
+  }
+
+  const setUserPickedVersion = useCallback(
+    (designId: string, slot: VersionSlot | null) => {
+      setUserPickedVersions((prev) => {
+        const next = new Map(prev);
+        if (slot === null) next.delete(designId);
+        else next.set(designId, slot);
+        return next;
+      });
+    },
+    [],
+  );
+
+  const designsById = useMemo<Map<string, Design>>(() => {
+    const map = new Map<string, Design>();
+    for (const d of boardData?.designs ?? []) map.set(d.id, d);
+    return map;
+  }, [boardData?.designs]);
+
+  useArtboardVersionSync({
+    artboards: artboardState.artboards,
+    designsById,
+    userPickedVersions,
+    updateArtboard: artboardState.updateArtboard,
+  });
+
+  // Suppress unused warning until Phase 6 wires the picker.
+  void setUserPickedVersion;
 
   // -- Canvas tools/elements/keyboard/text editing --
   const canvas = useWorkspaceCanvas({

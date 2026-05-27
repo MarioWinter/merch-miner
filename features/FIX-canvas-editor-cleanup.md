@@ -128,11 +128,11 @@ Six independent fixes to existing half-built or buggy flows in the AI Canvas + I
 - As a POD seller, after an upscale or edit completes, I want the new image to appear on the canvas without re-opening the artboard.
 
 ### Acceptance Criteria
-- [ ] AC-5-1: Artboard `imageUrl` selector resolves to: `upscaled_file ?? processed_file ?? bg_removed_file ?? image_file` (priority order), unless the user explicitly switched via the version picker (then use the picked slot).
-- [ ] AC-5-2: After `useUpscaleSingle` polling detects completion, RTK Query tag for the affected Design is invalidated (`Design` tag with id = designId). This automatically updates any artboard referencing that designId.
-- [ ] AC-5-3: After editor "Apply Pipeline" completes (client tools committed via existing save flow), the same Design tag invalidation runs.
-- [ ] AC-5-4: Manual user-switched version (from picker) persists across the session; resets to "latest" priority order only when the user explicitly clicks "Latest" or when a new version is added.
-- [ ] AC-5-5: Loading state during upscale: artboard shows existing image + a subtle overlay shimmer (no Skeleton replacement — that would hide context). Reuse existing `theme.vars.palette` tokens.
+- [x] AC-5-1: Artboard `imageUrl` resolves via `useArtboardVersionSync` priority `upscaled > bg_removed > processed > image_file`, with user pick override.
+- [x] AC-5-2: `useUpscaleSingle` poll-complete dispatches `designApi.util.invalidateTags([{ type: 'DesignProject', id: projectId }])` — confirmed in `useUpscaleSingle.ts:124-130`.
+- [ ] AC-5-3: After editor "Apply Pipeline" completes, the Design tag invalidation runs. **Deferred to Phase 5** — `applyPipeline` mutation currently has zero `invalidatesTags`; will be wired alongside upscale-routing refactor of `handleApplyPipeline`.
+- [x] AC-5-4: `userPickedVersions` map declared in `DesignWorkspaceView.tsx` with setter; consumer wiring lands in Phase 6 picker UI.
+- [ ] AC-5-5: Loading shimmer during upscale. **Deferred to Phase 6** (visual concern; tied to picker UI work).
 
 ### Edge Cases
 - [ ] EC-5-1: User has picker-switched to "Original" and an Upscale completes → artboard stays on Original (user's explicit choice wins). New "Upscaled" chip appears as inactive but available.

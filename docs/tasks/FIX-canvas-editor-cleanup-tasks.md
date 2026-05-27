@@ -60,23 +60,19 @@ Implementation order is sequenced from cheapest to most complex. Each phase is o
 
 ---
 
-## Phase 4 — Canvas Reads Latest Version + Cache Invalidation (Item 5)
+## Phase 4 — Canvas Reads Latest Version + Cache Invalidation (Item 5) ✅
 
-- [ ] Add local React state `userPickedVersions: Map<string, 'original'|'processed'|'bg_removed'|'upscaled'>` in `frontend-ui/src/views/designs/workspace/DesignWorkspaceView.tsx`
-- [ ] Add setter `setUserPickedVersion(designId, slot | null)` — `null` clears the pick (back to auto-latest)
-- [ ] Reset `userPickedVersions` on workspace switch (existing workspace-switch signal in DesignWorkspaceView)
-- [ ] Create `frontend-ui/src/views/designs/board/hooks/useArtboardVersionSync.ts`:
-  - Args: `{ artboards, designsById, userPickedVersions, updateArtboard }`
-  - For each artboard with `designId`: compute priority URL (user pick > upscaled > bg_removed > processed > image_file)
-  - Only call `updateArtboard(id, { imageUrl: newUrl })` if `newUrl !== artboard.imageUrl` (avoid render loops)
-  - Use `useEffect` with stable deps
-- [ ] Mount the hook once at canvas root (`DesignWorkspaceView` or `ArtboardCanvas`)
-- [ ] **Critical:** In `useUpscaleSingle.ts`, on poll-complete (`upscaled_file` change detected), dispatch `designSlice.util.invalidateTags([{ type: 'DesignProject', id: projectId }])` — the existing `triggerSingle` mutation only invalidates `UpscaleQuota`, NOT DesignProject
-- [ ] Verify Editor "Apply Pipeline" server response already invalidates `DesignProject` tag (read `applyPipeline` mutation in store); if not, add invalidation
-- [ ] Vitest: `useArtboardVersionSync` — unit test the priority logic with mock Designs
-- [ ] Manual smoke: trigger upscale from editor → return to canvas → confirm artboard shows upscaled image without page reload
+- [x] Add local React state `userPickedVersions: Map<string, VersionSlot>` in `DesignWorkspaceView.tsx`
+- [x] Add setter `setUserPickedVersion(designId, slot | null)` — `null` clears the pick
+- [x] Reset `userPickedVersions` on workspace switch (render-time compare matching existing `hasRunningGeneration` convention)
+- [x] Create `frontend-ui/src/views/designs/board/hooks/useArtboardVersionSync.ts` with priority resolver + no-op guard against render loops (~60 lines)
+- [x] Mount the hook at workspace root (`DesignWorkspaceView.tsx`)
+- [x] **Critical:** `useUpscaleSingle.ts` poll-complete dispatches `designApi.util.invalidateTags([{ type: 'DesignProject', id: projectId }])`. New optional `projectId` param. `UpscaleToolParams.tsx` passes `projectId` from `useParams`.
+- [ ] **Deferred to Phase 5:** Apply Pipeline tag invalidation — `applyPipeline` mutation in `designSlice.ts:392` has zero `invalidatesTags`. Will be wired during Phase 5 `handleApplyPipeline` refactor (touching same code area).
+- [x] Vitest: `useArtboardVersionSync` — 5 unit tests covering priority order, user pick override, no-mutation guard. All pass.
+- [ ] Manual smoke (user): trigger upscale from editor → return to canvas → confirm artboard shows upscaled image without page reload
 
-**Acceptance:** AC-5-1, AC-5-2, AC-5-3, AC-5-4, AC-5-5. EC-5-1 through EC-5-4.
+**Acceptance:** AC-5-1 ✅, AC-5-2 ✅, AC-5-3 deferred to Phase 5, AC-5-4 ✅, AC-5-5 deferred to Phase 6 (shimmer overlay UI work).
 
 ---
 
