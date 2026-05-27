@@ -1,10 +1,9 @@
 import { useCallback, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Button, Skeleton, Stack, Typography } from '@mui/material';
+import { Box, Skeleton, Stack, Typography } from '@mui/material';
 import { alpha, styled } from '@mui/material/styles';
 import FolderOutlinedIcon from '@mui/icons-material/FolderOutlined';
 import ImageOutlinedIcon from '@mui/icons-material/ImageOutlined';
-import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
 import { useListProjectsQuery, useLazyGetProjectBoardQuery } from '@/store/designSlice';
@@ -206,26 +205,6 @@ export const DesignsPipelineContent = ({ nicheId }: DesignsPipelineContentProps)
           </Box>
         ))}
       </Stack>
-
-      {/* Open Canvas ghost button */}
-      <Button
-        variant="text"
-        size="small"
-        startIcon={<OpenInNewOutlinedIcon sx={{ fontSize: 16 }} />}
-        onClick={() => navigate('/designs')}
-        sx={{
-          mt: 1.5,
-          width: '100%',
-          color: 'text.secondary',
-          justifyContent: 'center',
-          '&:hover': {
-            color: 'text.primary',
-            backgroundColor: alpha(COLORS.white, 0.04),
-          },
-        }}
-      >
-        {t('niches.pipeline.designs.openCanvas', 'Open Design Canvas')}
-      </Button>
 
       <BulkConfirmDialog
         open={Boolean(sendToListings.pendingConfirm)}

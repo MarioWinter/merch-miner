@@ -32,9 +32,9 @@ Six independent fixes to existing half-built or buggy flows in the AI Canvas + I
 - As a POD seller triggering a re-scrape, I want the snackbar to tell me the data refreshes automatically, so I don't manually reload the page.
 
 ### Acceptance Criteria
-- [ ] AC-1-1: i18n key `amazonResearch.detail.rescrapeStarted` (EN + DE) replaced with copy that reflects automatic refresh — no instruction to reload manually.
-- [ ] AC-1-2: Snackbar fires exactly once on trigger success (current behaviour preserved).
-- [ ] AC-1-3: Error key `amazonResearch.detail.rescrapeError` unchanged.
+- [x] AC-1-1: i18n key `amazonResearch.detail.rescrapeStarted` (EN + DE) replaced with copy that reflects automatic refresh — no instruction to reload manually.
+- [x] AC-1-2: Snackbar fires exactly once on trigger success (current behaviour preserved).
+- [x] AC-1-3: Error key `amazonResearch.detail.rescrapeError` unchanged.
 
 ### Edge Cases
 - [ ] EC-1-1: Polling timeout (no fresh data after 30s) → existing fallback behaviour unchanged; no additional snackbar.
@@ -147,10 +147,10 @@ Six independent fixes to existing half-built or buggy flows in the AI Canvas + I
 - As a POD seller browsing a niche pipeline drawer, I don't need a separate button to open the AI Canvas — the canvas is accessible via the main nav.
 
 ### Acceptance Criteria
-- [ ] AC-6-1: `DesignsPipelineContent.tsx:210-228` Button (`OpenInNewOutlinedIcon` + i18n `niches.pipeline.designs.openCanvas`) removed.
-- [ ] AC-6-2: i18n key `niches.pipeline.designs.openCanvas` removed from EN + DE if no other reference.
-- [ ] AC-6-3: Surrounding layout (Stack/Box) collapses cleanly — no empty padding/spacer left.
-- [ ] AC-6-4: Unused import `OpenInNewOutlinedIcon` removed from the file.
+- [x] AC-6-1: `DesignsPipelineContent.tsx:210-228` Button (`OpenInNewOutlinedIcon` + i18n `niches.pipeline.designs.openCanvas`) removed.
+- [x] AC-6-2: i18n key `niches.pipeline.designs.openCanvas` removed from EN + DE if no other reference.
+- [x] AC-6-3: Surrounding layout (Stack/Box) collapses cleanly — no empty padding/spacer left.
+- [x] AC-6-4: Unused import `OpenInNewOutlinedIcon` removed from the file.
 
 ### Edge Cases
 - [ ] EC-6-1: Other niche pipeline sections (Slogans, Research) keep their own navigation buttons untouched.

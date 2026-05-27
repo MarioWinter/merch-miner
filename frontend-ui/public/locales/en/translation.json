@@ -527,8 +527,7 @@
         "forgeSelected": "Forge {{count}} to Canvas"
       },
       "designs": {
-        "toListings": "Send to Listings",
-        "openCanvas": "Open Design Canvas"
+        "toListings": "Send to Listings"
       }
     }
   },

@@ -9,23 +9,23 @@ Implementation order is sequenced from cheapest to most complex. Each phase is o
 
 ---
 
-## Phase 1 — Re-scrape Snackbar Text (Item 1)
+## Phase 1 — Re-scrape Snackbar Text (Item 1) ✅
 
-- [ ] Update `frontend-ui/public/locales/en/translation.json` key `amazonResearch.detail.rescrapeStarted` to reflect automatic refresh (e.g. `"Scrape started — data will refresh automatically in ~30s."`)
-- [ ] Update `frontend-ui/public/locales/de/translation.json` same key (e.g. `"Scrape gestartet — Daten aktualisieren sich automatisch in ~30s."`)
-- [ ] `grep -r "refresh the page" frontend-ui/public/locales/` — verify no stale copies elsewhere
-- [ ] Manual smoke: trigger re-scrape on a product detail page, confirm snackbar reads new copy
+- [x] Update `frontend-ui/public/locales/en/translation.json` key `amazonResearch.detail.rescrapeStarted` to reflect automatic refresh
+- [x] Update `frontend-ui/public/locales/de/translation.json` same key
+- [x] `grep -r "refresh the page" frontend-ui/public/locales/` — zero hits confirmed
+- [ ] Manual smoke (user): trigger re-scrape on a product detail page, confirm snackbar reads new copy
 
 **Acceptance:** AC-1-1, AC-1-2, AC-1-3 — all checked.
 
 ---
 
-## Phase 2 — Remove Niche Pipeline "Open Design Canvas" Button (Item 6)
+## Phase 2 — Remove Niche Pipeline "Open Design Canvas" Button (Item 6) ✅
 
-- [ ] Remove Button block at `DesignsPipelineContent.tsx:210-228`
-- [ ] Remove `OpenInNewOutlinedIcon` import if no other usage in file
-- [ ] Remove key `niches.pipeline.designs.openCanvas` from `frontend-ui/public/locales/{en,de,fr,es,it}/translation.json` if no other reference (check all 5 locales)
-- [ ] Verify surrounding Stack/Box layout has no orphan padding/spacer
+- [x] Remove Button block at `DesignsPipelineContent.tsx:210-228` — DesignsPipelineContent.tsx (removed lines 210-228; file now ends with `<BulkConfirmDialog>` immediately after `</Stack>`)
+- [x] Remove `OpenInNewOutlinedIcon` import if no other usage in file — DesignsPipelineContent.tsx:1-11 (import removed; also dropped now-orphan `Button` from `@mui/material` named imports)
+- [x] Remove key `niches.pipeline.designs.openCanvas` from `frontend-ui/public/locales/{en,de,fr,es,it}/translation.json` if no other reference (check all 5 locales) — en/translation.json:529-531, de/translation.json:520-522 (key only existed in EN + DE; FR/ES/IT did not contain it)
+- [x] Verify surrounding Stack/Box layout has no orphan padding/spacer — DesignsPipelineContent.tsx:204-209 (outer `<Box>` and `</Stack>` collapse cleanly; `BulkConfirmDialog` is a non-rendering sibling)
 - [ ] Manual smoke: open Niche pipeline drawer, confirm button gone
 
 **Acceptance:** AC-6-1, AC-6-2, AC-6-3, AC-6-4 — all checked.
