@@ -98,7 +98,7 @@ Two independent, frontend-only enhancements bundled in a single PR. No backend c
 - [x] AC-B12: Pressing `Enter` on a list line containing only the prefix (e.g. just `- ` or `- [ ] `) removes the prefix and inserts a plain newline (escape pattern).
 - [x] AC-B13: Preview mode renders the markdown via `react-markdown` + `remark-gfm` (already in dependencies) — same pattern as existing `MarkdownAnswer`/`MemoryEditor`/`SkillEditor` components. Reuse, do not reimplement.
 - [x] AC-B14: GFM checkboxes in Preview mode are interactive: clicking `[ ]` toggles to `[x]` (and vice versa); the change updates the form value via `onChange` so the form becomes dirty and can be saved with the existing form Save button.
-- [ ] AC-B15: Stored value remains plain-text markdown in `Niche.notes` — no schema change, no serializer change.
+- [x] AC-B15: Stored value remains plain-text markdown in `Niche.notes` — no schema change, no serializer change.
 - [x] AC-B16: Editor honours `react-hook-form` `Controller` integration so existing form validation, dirty state, and Save behaviour continue to work unchanged.
 - [x] AC-B17: All user-visible strings (mode labels, command labels + descriptions, aria-labels, placeholder, tooltips) go through `useTranslation()`.
 - [x] AC-B18: Colors come from the theme (`theme.vars.palette.*`) — no hardcoded hex.
@@ -121,7 +121,7 @@ Two independent, frontend-only enhancements bundled in a single PR. No backend c
 - [x] EC-B14: Inline Link command confirmed → `url` placeholder is selected (not just cursor placed), so the user can immediately paste a URL to replace it.
 - [x] EC-B15: Notes field exceeds `maxRows={20}` → textarea scrolls internally instead of growing further. Manual resize handle still works.
 - [x] EC-B16: User manually drags the resize handle smaller than `minRows={3}` → browser enforces `min-height` derived from `minRows`; cannot go below 3 visible rows.
-- [ ] EC-B17: Switching between Edit/Preview while form has unsaved changes → mode toggle does NOT save; form dirty state preserved.
+- [x] EC-B17: Switching between Edit/Preview while form has unsaved changes → mode toggle does NOT save; form dirty state preserved.
 - [x] EC-B18: User pastes multi-line text with checkboxes/lists/callouts → preview renders them correctly via remark-gfm + remark-github-blockquote-alert; no special handling on edit side.
 - [x] EC-B19: User toggles to Preview with a callout that uses an unsupported alert type (e.g. `> [!CUSTOM]`) → renderer falls back to plain blockquote (no crash, no console error).
 

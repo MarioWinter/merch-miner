@@ -156,14 +156,14 @@
 
 **Goal:** Integration tests, all i18n locked in, accessibility verified, no console warnings.
 
-- [ ] T6.1: Create `tests/NotesMarkdownEditor.integration.test.tsx` — full flow: open editor → type `/bu` → Enter → see `- ` → type text → Enter → see `- ` again (continuation) → switch to Preview → see rendered bullet → switch back, value preserved. (AC-B2, B7, B9, B11, EC-B17)
-- [ ] T6.2: Run `npm run lint -- --max-warnings 0` from `frontend-ui/` — fix any new warnings introduced by Feature A or B touches. (rules/general.md)
-- [ ] T6.3: Run `npm run build` (tsc + vite) — must succeed with zero TS errors.
-- [ ] T6.4: Run `npm run test:ci` — full suite green; coverage acceptable for new files.
-- [ ] T6.5: Verify all `i18n/locales/en.json` AND `de.json` have matching keys for: all 15 command labels, all 15 command descriptions, empty-commands state, "No notes yet", "Edit"/"Preview" tab labels, callout titles ("Note"/"Tip"/"Warning"/"Important"), heart button aria-labels and tooltips, error toast messages. (AC-A9, AC-B17)
-- [ ] T6.6: Aria audit: heart button has `aria-label`; tab buttons have implicit Tab role; slash menu has `role="listbox"` and items `role="option"` with `aria-selected` on active row.
-- [ ] T6.7: Manual a11y smoke: navigate the editor with keyboard only — Tab into textarea, type `/`, Up/Down arrow, Enter, Esc. Tab between Edit/Preview tabs. No focus traps.
-- [ ] T6.8: Hard-code colour grep: `grep -rE "#[0-9a-fA-F]{3,8}|rgb\(|rgba\(" frontend-ui/src/components/{NotesMarkdownEditor,NicheCollectionHeartButton}/` returns no hits except in test fixtures. (AC-A7, AC-B18)
+- [x] T6.1: Create `tests/NotesMarkdownEditor.integration.test.tsx` — full flow: open editor → type `/bu` → Enter → see `- ` → type text → Enter → see `- ` again (continuation) → switch to Preview → see rendered bullet → switch back, value preserved. (AC-B2, B7, B9, B11, EC-B17)
+- [x] T6.2: Run `npm run lint -- --max-warnings 0` from `frontend-ui/` — fix any new warnings introduced by Feature A or B touches. (rules/general.md)
+- [x] T6.3: Run `npm run build` (tsc + vite) — must succeed with zero TS errors.
+- [x] T6.4: Run `npm run test:ci` — full suite green; coverage acceptable for new files.
+- [x] T6.5: Verify all `i18n/locales/en.json` AND `de.json` have matching keys for: all 15 command labels, all 15 command descriptions, empty-commands state, "No notes yet", "Edit"/"Preview" tab labels, callout titles ("Note"/"Tip"/"Warning"/"Important"), heart button aria-labels and tooltips, error toast messages. (AC-A9, AC-B17)
+- [x] T6.6: Aria audit: heart button has `aria-label`; tab buttons have implicit Tab role; slash menu has `role="listbox"` and items `role="option"` with `aria-selected` on active row.
+- [x] T6.7: Manual a11y smoke: navigate the editor with keyboard only — Tab into textarea, type `/`, Up/Down arrow, Enter, Esc. Tab between Edit/Preview tabs. No focus traps.
+- [x] T6.8: Hard-code colour grep: `grep -rE "#[0-9a-fA-F]{3,8}|rgb\(|rgba\(" frontend-ui/src/components/{NotesMarkdownEditor,NicheCollectionHeartButton}/` returns no hits except in test fixtures. (AC-A7, AC-B18)
 
 **Dependencies:** Phases 2, 4, 5.
 **Blocks:** Phase 7.
