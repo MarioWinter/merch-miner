@@ -252,6 +252,19 @@
       "removeError": "Could not remove product from collection"
     }
   },
+  "notesEditor": {
+    "tab": {
+      "edit": "Edit",
+      "preview": "Preview"
+    },
+    "placeholder": {
+      "empty": "No notes yet",
+      "startTyping": "Write notes…"
+    },
+    "preview": {
+      "phase3Placeholder": "Preview coming in Phase 5"
+    }
+  },
   "niches": {
     "pageTitle": "Niche Claims",
     "newNiche": "New Niche",

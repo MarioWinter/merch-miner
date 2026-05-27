@@ -61,10 +61,10 @@ Two independent, frontend-only enhancements bundled in a single PR. No backend c
 - As a POD seller in preview mode, I want to tick off checklist items by clicking them directly, so I can track progress without switching back to edit.
 
 ### Acceptance Criteria
-- [ ] AC-B1: The notes field in `PipelineEditForm.tsx` is replaced by a `NotesMarkdownEditor` component (location: `frontend-ui/src/components/NotesMarkdownEditor/` or feature-local under `views/niches/list/partials/` — to be decided by `/architecture` based on reuse potential).
-- [ ] AC-B2: The component has two modes toggled via a small control (Tabs or ToggleButtonGroup — chosen by `/architecture`/`/frontend-design`): **Edit** (default) and **Preview**.
-- [ ] AC-B3: Edit mode renders a MUI `TextField` with `multiline`, `minRows={3}`, `maxRows={20}` so it auto-grows with content up to ~20 rows, then scrolls.
-- [ ] AC-B4: The textarea slot has CSS `resize: vertical` so the user can manually drag the bottom-right handle to override auto-grow height. Width remains fixed.
+- [x] AC-B1: The notes field in `PipelineEditForm.tsx` is replaced by a `NotesMarkdownEditor` component (location: `frontend-ui/src/components/NotesMarkdownEditor/` or feature-local under `views/niches/list/partials/` — to be decided by `/architecture` based on reuse potential).
+- [x] AC-B2: The component has two modes toggled via a small control (Tabs or ToggleButtonGroup — chosen by `/architecture`/`/frontend-design`): **Edit** (default) and **Preview**.
+- [x] AC-B3: Edit mode renders a MUI `TextField` with `multiline`, `minRows={3}`, `maxRows={20}` so it auto-grows with content up to ~20 rows, then scrolls.
+- [x] AC-B4: The textarea slot has CSS `resize: vertical` so the user can manually drag the bottom-right handle to override auto-grow height. Width remains fixed.
 - [ ] AC-B5: Typing `/` in Edit mode at the **start of a line** OR **immediately after whitespace** opens a floating command menu (Notion-style) anchored near the caret. The `/` character is visible in the textarea while the menu is open.
 - [ ] AC-B6: Command menu contains exactly these 15 commands (MUST). Each entry shows label + small icon + optional short description (Notion-style). The "Behaviour" column defines how the command modifies the textarea content:
 
@@ -99,8 +99,8 @@ Two independent, frontend-only enhancements bundled in a single PR. No backend c
 - [ ] AC-B13: Preview mode renders the markdown via `react-markdown` + `remark-gfm` (already in dependencies) — same pattern as existing `MarkdownAnswer`/`MemoryEditor`/`SkillEditor` components. Reuse, do not reimplement.
 - [ ] AC-B14: GFM checkboxes in Preview mode are interactive: clicking `[ ]` toggles to `[x]` (and vice versa); the change updates the form value via `onChange` so the form becomes dirty and can be saved with the existing form Save button.
 - [ ] AC-B15: Stored value remains plain-text markdown in `Niche.notes` — no schema change, no serializer change.
-- [ ] AC-B16: Editor honours `react-hook-form` `Controller` integration so existing form validation, dirty state, and Save behaviour continue to work unchanged.
-- [ ] AC-B17: All user-visible strings (mode labels, command labels + descriptions, aria-labels, placeholder, tooltips) go through `useTranslation()`.
+- [x] AC-B16: Editor honours `react-hook-form` `Controller` integration so existing form validation, dirty state, and Save behaviour continue to work unchanged.
+- [x] AC-B17: All user-visible strings (mode labels, command labels + descriptions, aria-labels, placeholder, tooltips) go through `useTranslation()`.
 - [ ] AC-B18: Colors come from the theme (`theme.vars.palette.*`) — no hardcoded hex.
 - [ ] AC-B19: Slash-menu interception and Enter-continuation are scoped to the notes editor only (event listeners bound to the textarea element) — they do not fire when focus is elsewhere on the page.
 
@@ -119,8 +119,8 @@ Two independent, frontend-only enhancements bundled in a single PR. No backend c
 - [ ] EC-B12: Block command (Callout / Code block / Divider) confirmed while caret is mid-line with content on either side → a leading newline is inserted so the block starts on a fresh line; content after the caret remains on the line after the block.
 - [ ] EC-B13: Line-prefix command confirmed while current line already has a different prefix (e.g. line is `- existing`, user runs Heading 1) → existing prefix is replaced with the new prefix (line becomes `# existing`); content preserved.
 - [ ] EC-B14: Inline Link command confirmed → `url` placeholder is selected (not just cursor placed), so the user can immediately paste a URL to replace it.
-- [ ] EC-B15: Notes field exceeds `maxRows={20}` → textarea scrolls internally instead of growing further. Manual resize handle still works.
-- [ ] EC-B16: User manually drags the resize handle smaller than `minRows={3}` → browser enforces `min-height` derived from `minRows`; cannot go below 3 visible rows.
+- [x] EC-B15: Notes field exceeds `maxRows={20}` → textarea scrolls internally instead of growing further. Manual resize handle still works.
+- [x] EC-B16: User manually drags the resize handle smaller than `minRows={3}` → browser enforces `min-height` derived from `minRows`; cannot go below 3 visible rows.
 - [ ] EC-B17: Switching between Edit/Preview while form has unsaved changes → mode toggle does NOT save; form dirty state preserved.
 - [ ] EC-B18: User pastes multi-line text with checkboxes/lists/callouts → preview renders them correctly via remark-gfm + remark-github-blockquote-alert; no special handling on edit side.
 - [ ] EC-B19: User toggles to Preview with a callout that uses an unsupported alert type (e.g. `> [!CUSTOM]`) → renderer falls back to plain blockquote (no crash, no console error).

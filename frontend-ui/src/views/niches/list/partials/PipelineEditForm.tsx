@@ -10,6 +10,7 @@ import {
 import { Controller, type UseFormReturn, type SubmitHandler } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useSelector } from 'react-redux';
+import NotesMarkdownEditor from '@/components/NotesMarkdownEditor';
 import type { RootState } from '../../../../store';
 import type { UpdateNicheFormValues } from '../schemas/nicheSchema';
 import type { Niche, NicheStatus, PotentialRating } from '../types';
@@ -60,16 +61,20 @@ export const PipelineEditForm = ({ form, onSubmit, niche, isFetching }: Pipeline
             name="notes"
             control={form.control}
             render={({ field, fieldState }) => (
-              <TextField
-                {...field}
-                label={t('niches.drawer.notes')}
-                error={!!fieldState.error}
-                helperText={fieldState.error ? t(fieldState.error.message ?? '') : undefined}
-                multiline
-                rows={3}
-                fullWidth
-                size="small"
-              />
+              <Box>
+                <Typography variant="subtitle2" sx={{ mb: 0.75, color: 'text.secondary' }}>
+                  {t('niches.drawer.notes')}
+                </Typography>
+                <NotesMarkdownEditor
+                  value={field.value ?? ''}
+                  onChange={field.onChange}
+                  onBlur={field.onBlur}
+                  error={!!fieldState.error}
+                  helperText={fieldState.error ? t(fieldState.error.message ?? '') : undefined}
+                  ariaLabel={t('niches.drawer.notes')}
+                  placeholder={t('notesEditor.placeholder.startTyping')}
+                />
+              </Box>
             )}
           />
           <Controller

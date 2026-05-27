@@ -74,17 +74,13 @@
 
 **Goal:** `NotesMarkdownEditor` mounted in `PipelineEditForm` with Edit/Preview tabs and auto-grow textarea. Slash menu + preview NOT yet wired (placeholders shown).
 
-- [ ] T3.1: Create `components/NotesMarkdownEditor/index.tsx` — props `{ value: string; onChange: (v: string) => void; placeholder?: string; minRows?: number; maxRows?: number; ariaLabel?: string }`. (AC-B1, B12, B16)
-- [ ] T3.2: Inside index: MUI `Tabs` with two `Tab` entries ("Edit" / "Preview"). Edit is default. State held internally (no external control). (AC-B2)
-- [ ] T3.3: Edit tab: `<EditTextarea />` partial (placeholder for now: plain TextField with multiline, minRows={3}, maxRows={20}, fullWidth, size="small"). `slotProps.htmlInput.style = { resize: 'vertical' }`. (AC-B3, B4, EC-B15, EC-B16)
-- [ ] T3.4: Preview tab: placeholder `<Typography>Preview coming in Phase 5</Typography>` for now.
-- [ ] T3.5: Edit `views/niches/list/partials/PipelineEditForm.tsx` — replace the `notes` Controller's `<TextField multiline rows={3}>` with `<NotesMarkdownEditor value={field.value} onChange={field.onChange} … />`. Keep `field.onBlur`, error, helperText handling. (AC-B1, B16)
-- [ ] T3.6: i18n keys:
-  - `notesEditor.tab.edit` ("Edit")
-  - `notesEditor.tab.preview` ("Preview")
-  - `notesEditor.placeholder.empty` ("No notes yet")
-  (AC-B17, EC-B1)
-- [ ] T3.7: Visual smoke check: open Niche-Pipeline edit drawer, see Tabs + auto-grow textarea + resize handle. No regression in form Save behaviour.
+- [x] T3.1: Created `components/NotesMarkdownEditor/index.tsx` — arrow-function component exporting `NotesMarkdownEditorProps` with value/onChange/placeholder/minRows/maxRows/ariaLabel/onBlur/error/helperText/disabled. Defaults minRows=3, maxRows=20. (AC-B1, B12, B16) — index.tsx:18-80
+- [x] T3.2: Inside index: MUI `Tabs` (Edit/Preview), Edit is default (`useState(0)`), pattern lifted from `SkillEditor.tsx:142`. (AC-B2) — index.tsx:43-50
+- [x] T3.3: Edit tab: `<EditTextarea />` partial (`forwardRef<HTMLTextAreaElement>`) wraps MUI TextField with `multiline`, `minRows`/`maxRows` passthrough, `fullWidth`, `size="small"`, `slotProps={{ htmlInput: { ref, style: { resize: 'vertical' }, 'aria-label': ariaLabel } }}`. Phase 4 slash-menu marker left in code. (AC-B3, B4, EC-B15, EC-B16) — partials/EditTextarea.tsx:24-61
+- [x] T3.4: Preview tab: inline `<Box>` placeholder rendering `t('notesEditor.preview.phase3Placeholder')`. (AC-B2) — index.tsx:67-77
+- [x] T3.5: Edited `views/niches/list/partials/PipelineEditForm.tsx` — `notes` Controller now renders `<Box>` + `<Typography>` label + `<NotesMarkdownEditor>` (value coerced via `?? ''`, onBlur/error/helperText/ariaLabel passed through). (AC-B1, B16) — PipelineEditForm.tsx:60-78
+- [x] T3.6: i18n keys added to BOTH `public/locales/en/translation.json` AND `de/translation.json` under top-level `notesEditor.*`: tab.edit, tab.preview, placeholder.empty, placeholder.startTyping, preview.phase3Placeholder. (AC-B17, EC-B1) — en/translation.json:254-266 + de/translation.json:254-266
+- [x] T3.7: Verification — lint 0 errors / 11 pre-existing warnings (baseline matched); build PASS 7.78s; test:ci 1608/1608 pass, 0 failures, 0 errors (no regression from PipelineEditForm change since no existing test queried the notes textarea by label/role).
 
 **Dependencies:** Phase 1.
 **Blocks:** Phase 4 + Phase 5 build on this shell.

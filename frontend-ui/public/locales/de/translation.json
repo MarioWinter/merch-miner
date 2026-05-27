@@ -252,6 +252,19 @@
       "removeError": "Produkt konnte nicht aus der Sammlung entfernt werden"
     }
   },
+  "notesEditor": {
+    "tab": {
+      "edit": "Bearbeiten",
+      "preview": "Vorschau"
+    },
+    "placeholder": {
+      "empty": "Noch keine Notizen",
+      "startTyping": "Notizen schreiben…"
+    },
+    "preview": {
+      "phase3Placeholder": "Vorschau folgt in Phase 5"
+    }
+  },
   "niches": {
     "pageTitle": "Nischen",
     "newNiche": "Neue Nische",
