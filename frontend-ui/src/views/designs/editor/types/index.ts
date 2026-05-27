@@ -72,6 +72,12 @@ export interface UpdatePipelineBody {
 export interface ApplyPipelineBody {
   design_ids: string[];
   pipeline_id: string;
+  /**
+   * Frontend-only field used to scope RTK Query tag invalidation. The backend
+   * ignores extra payload keys; including it here avoids a separate dispatch
+   * round-trip after the mutation resolves.
+   */
+  projectId?: string;
 }
 
 export interface ApplyPipelineResult {

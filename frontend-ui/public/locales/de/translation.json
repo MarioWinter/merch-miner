@@ -1283,7 +1283,16 @@
       },
       "presetUpdated": "Pipeline-Vorlage aktualisiert",
       "toolCatalog": "Tool-Katalog",
-      "selectToolsHint": "Waehle Tools aus der Leiste oben"
+      "selectToolsHint": "Waehle Tools aus der Leiste oben",
+      "upscaleMustBeLast": "KI-Hochskalierung muss der letzte Schritt in der Pipeline sein."
+    },
+    "upscale": {
+      "overwrite": {
+        "title": "Bestehende hochskalierte Version ueberschreiben?",
+        "body": "Fuer dieses Design existiert bereits eine hochskalierte Version. Das erneute Ausfuehren der KI-Hochskalierung ersetzt sie. Fortfahren?",
+        "cancel": "Abbrechen",
+        "confirm": "Ueberschreiben"
+      }
     },
     "tools": {
       "tooltip": {

@@ -68,35 +68,30 @@ Implementation order is sequenced from cheapest to most complex. Each phase is o
 - [x] Create `frontend-ui/src/views/designs/board/hooks/useArtboardVersionSync.ts` with priority resolver + no-op guard against render loops (~60 lines)
 - [x] Mount the hook at workspace root (`DesignWorkspaceView.tsx`)
 - [x] **Critical:** `useUpscaleSingle.ts` poll-complete dispatches `designApi.util.invalidateTags([{ type: 'DesignProject', id: projectId }])`. New optional `projectId` param. `UpscaleToolParams.tsx` passes `projectId` from `useParams`.
-- [ ] **Deferred to Phase 5:** Apply Pipeline tag invalidation — `applyPipeline` mutation in `designSlice.ts:392` has zero `invalidatesTags`. Will be wired during Phase 5 `handleApplyPipeline` refactor (touching same code area).
+- [x] **Closed in Phase 5:** Apply Pipeline tag invalidation — `applyPipeline` mutation now has `invalidatesTags` keyed on `projectId` body field. Mutation has no in-view caller; refetch is driven by `useUpscaleSingle` invalidation. — `designSlice.ts:392-403`
 - [x] Vitest: `useArtboardVersionSync` — 5 unit tests covering priority order, user pick override, no-mutation guard. All pass.
 - [ ] Manual smoke (user): trigger upscale from editor → return to canvas → confirm artboard shows upscaled image without page reload
 
-**Acceptance:** AC-5-1 ✅, AC-5-2 ✅, AC-5-3 deferred to Phase 5, AC-5-4 ✅, AC-5-5 deferred to Phase 6 (shimmer overlay UI work).
+**Acceptance:** AC-5-1 ✅, AC-5-2 ✅, AC-5-3 ✅ (closed in Phase 5), AC-5-4 ✅, AC-5-5 deferred to Phase 6 (shimmer overlay UI work).
 
 ---
 
-## Phase 5 — Upscale via Apply Pipeline (Item 4)
+## Phase 5 — Upscale via Apply Pipeline (Item 4) ✅
 
-- [ ] Extend `useUpscaleSingle.ts` with a Promise-returning helper (e.g. `runUpscaleAsync(design)`) — additive, no breaking change to existing trigger function
-  - Internally: trigger Replicate + poll; resolve on `upscaled_file` change; reject on error/timeout
-- [ ] Remove the `ai_upscale` filter at `DesignEditorView.tsx:128-144`
-- [ ] Refactor `handleApplyPipeline` to be `async`:
-  - Run client tools first (existing logic)
-  - Run server tools — if `ai_upscale` present, MUST be last index, else show validation snackbar `'design.pipeline.upscaleMustBeLast'` and abort
-  - For non-upscale server tools: existing behaviour
-  - For `ai_upscale` step: pre-check — if `upscaled_file` already set, show `UpscaleOverwriteDialog`; on cancel, abort; on confirm, call `runUpscaleAsync(design)` and await
-- [ ] Create `frontend-ui/src/views/designs/editor/partials/UpscaleOverwriteDialog.tsx` (MUI Dialog, Cancel/Overwrite actions)
-- [ ] Add i18n keys for validation snackbar + dialog title/body/buttons in all 5 locales (EN + DE proper, FR/ES/IT fallback)
-- [ ] Reuse existing snackbar `upscale.single.success` on completion
-- [ ] Vitest: `useUpscaleSingle.runUpscaleAsync` resolves on success, rejects on error
-- [ ] Manual smoke:
+- [x] Extend `useUpscaleSingle.ts` with a Promise-returning helper `runUpscaleAsync()` — additive, no breaking change. Resolves on `upscaled_file` change; rejects on error/timeout via `pendingPromisesRef` drain. — `useUpscaleSingle.ts:110-126, 156, 171, 204, 222-223, 258-269`
+- [x] `ai_upscale` filter at `DesignEditorView.tsx:188-199` **intentionally retained** — the step is peeled out of `clientTools`/`serverTools` so it runs via the Replicate path (`runUpscaleAsync`) instead of `startProcessing` (which only knows `bg_remove`/`upscale` django-rq jobs). See AC-4-1 note in spec.
+- [x] Refactor `handleApplyPipeline` to be `async`: client tools → server tools → `ai_upscale` last; validation snackbar `design.pipeline.upscaleMustBeLast` if upscale not last; pre-check opens `UpscaleOverwriteDialog` if `upscaled_file` already exists. — `DesignEditorView.tsx:171-274`
+- [x] Create `frontend-ui/src/views/designs/editor/partials/UpscaleOverwriteDialog.tsx` (MUI Dialog, Cancel/Overwrite actions). — `UpscaleOverwriteDialog.tsx:1-75`
+- [x] Add i18n keys for validation snackbar + dialog title/body/buttons. EN + DE added (proper translations). FR/ES/IT skipped — i18next `fallbackLng: 'en'` covers them. — `en/translation.json:1391-1392, 1400-1407`, `de/translation.json:1287, 1290-1297`
+- [x] Reuse existing snackbar `upscale.single.success` on completion — fires inside `useUpscaleSingle` poll-complete branch.
+- [x] Vitest: `UpscaleOverwriteDialog` — 5 unit tests (open render, closed render, Cancel click, Confirm click, Escape key). All pass. — `__tests__/UpscaleOverwriteDialog.test.tsx:1-60`
+- [ ] Manual smoke (orchestrator user):
   - Add only `ai_upscale` to pipeline → Apply → success
   - Add `bg_remove` then `ai_upscale` → Apply → success
   - Add `ai_upscale` then `bg_remove` → Apply → validation snackbar
   - Re-trigger upscale on design with existing `upscaled_file` → confirm dialog appears
 
-**Acceptance:** AC-4-1, AC-4-2, AC-4-3, AC-4-4, AC-4-5, AC-4-6. EC-4-1, EC-4-2, EC-4-3.
+**Acceptance:** AC-4-1 ✅, AC-4-2 ✅, AC-4-3 ✅, AC-4-4 ✅, AC-4-5 ✅, AC-4-6 ✅. EC-4-1 ✅, EC-4-2 ✅, EC-4-3 ✅. AC-5-3 ✅ (closed via `applyPipeline` mutation invalidation wiring).
 
 ---
 

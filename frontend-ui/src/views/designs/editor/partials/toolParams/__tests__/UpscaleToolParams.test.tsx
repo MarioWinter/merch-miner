@@ -32,6 +32,7 @@ const baseHookReturn = {
   needsConfirmation: false,
   triggerUpscale: vi.fn().mockResolvedValue(undefined),
   cancelConfirmation: vi.fn(),
+  runUpscaleAsync: vi.fn().mockResolvedValue(undefined),
 };
 
 const baseState = {

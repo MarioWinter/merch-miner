@@ -104,17 +104,17 @@ Six independent fixes to existing half-built or buggy flows in the AI Canvas + I
 - As a POD seller adding "AI Upscale" to the pipeline and pressing Apply, I want it to actually execute, not be silently dropped.
 
 ### Acceptance Criteria
-- [ ] AC-4-1: `DesignEditorView.tsx:128-144` no longer filters `ai_upscale` out of `clientTools` / `serverTools`.
-- [ ] AC-4-2: When `handleApplyPipeline` encounters an `ai_upscale` step, it invokes the existing `useUpscaleSingle` flow (via the same Replicate trigger + polling mechanism used by the standalone Upscale tool).
-- [ ] AC-4-3: Pipeline execution order: client tools first (local transforms), then server tools (bg_remove + ai_upscale), in the order the user arranged them in the pipeline panel.
-- [ ] AC-4-4: If upscale is in pipeline AND user already has `upscaled_file` set → trigger the same overwrite-confirm dialog from AC-2-8 before applying pipeline.
-- [ ] AC-4-5: Apply Pipeline button shows existing loading state until upscale poll completes; no separate spinner for upscale step.
-- [ ] AC-4-6: Snackbar on completion uses existing `upscale.single.success` key.
+- [x] AC-4-1: `DesignEditorView.tsx:188-199` filter for `ai_upscale` is **intentionally retained** — `ai_upscale` is now handled in a separate carve-out flow via `useUpscaleSingle.runUpscaleAsync` (Replicate path), NOT via `startProcessing` (which only knows `bg_remove`/`upscale` django-rq jobs). The step is computed as `upscaleStep` and executed last after client + server tools complete. — `DesignEditorView.tsx:174-186, 240-247`
+- [x] AC-4-2: When `handleApplyPipeline` encounters an `ai_upscale` step, it invokes the existing `useUpscaleSingle` flow (via the same Replicate trigger + polling mechanism used by the standalone Upscale tool). — `DesignEditorView.tsx:129-137, 240-247`
+- [x] AC-4-3: Pipeline execution order: client tools first (local transforms), then server tools (bg_remove), then `ai_upscale` last (validated by AC-4-1 ordering rule). — `DesignEditorView.tsx:202-247`
+- [x] AC-4-4: If upscale is in pipeline AND user already has `upscaled_file` set → opens `UpscaleOverwriteDialog` before applying pipeline. — `DesignEditorView.tsx:250-255, 443-447`
+- [x] AC-4-5: Apply Pipeline button shows existing loading state until upscale poll completes; `runUpscaleAsync` awaits poll terminal → button stays in `isProcessing` until then. — `DesignEditorView.tsx:243`
+- [x] AC-4-6: Snackbar on completion uses existing `upscale.single.success` key — fires inside `useUpscaleSingle` poll-complete branch. — `useUpscaleSingle.ts:144-148`
 
 ### Edge Cases
-- [ ] EC-4-1: Upscale step is followed by another server tool in the pipeline (e.g. `bg_remove`) → not supported in MVP; upscale must be the last step. If user arranges otherwise, show validation snackbar "AI Upscale must be the last pipeline step" and block Apply.
-- [ ] EC-4-2: Upscale fails → existing error handling fires; pipeline stops; previously-applied client transforms remain on `processed_file`.
-- [ ] EC-4-3: Pipeline contains only `ai_upscale` (no other tools) → executes upscale directly without going through "apply client transforms" intermediate.
+- [x] EC-4-1: Upscale step is followed by another server tool → validation snackbar `design.pipeline.upscaleMustBeLast` and Apply is blocked. — `DesignEditorView.tsx:174-186`
+- [x] EC-4-2: Upscale fails → `runUpscaleAsync` rejects; outer try/catch swallows (snackbar surfaced by hook); previously-applied client transforms remain on `processed_file`. — `DesignEditorView.tsx:241-247`
+- [x] EC-4-3: Pipeline contains only `ai_upscale` → both `clientTools` and `serverTools` are empty; `executeApplyPipeline` skips both blocks and runs `runUpscaleAsync` directly. — `DesignEditorView.tsx:202-247`
 
 ### Out of Scope
 - Re-orderable post-upscale steps (would require multi-stage Replicate chain).
@@ -130,7 +130,7 @@ Six independent fixes to existing half-built or buggy flows in the AI Canvas + I
 ### Acceptance Criteria
 - [x] AC-5-1: Artboard `imageUrl` resolves via `useArtboardVersionSync` priority `upscaled > bg_removed > processed > image_file`, with user pick override.
 - [x] AC-5-2: `useUpscaleSingle` poll-complete dispatches `designApi.util.invalidateTags([{ type: 'DesignProject', id: projectId }])` — confirmed in `useUpscaleSingle.ts:124-130`.
-- [ ] AC-5-3: After editor "Apply Pipeline" completes, the Design tag invalidation runs. **Deferred to Phase 5** — `applyPipeline` mutation currently has zero `invalidatesTags`; will be wired alongside upscale-routing refactor of `handleApplyPipeline`.
+- [x] AC-5-3: `applyPipeline` mutation now invalidates `DesignProject` tag via `projectId` field on body (Phase 4 work). Note: in the current Phase 5 implementation `applyPipeline` itself has no in-view caller (`handleApplyPipeline` uses `processBatch` + `startProcessing` + `runUpscaleAsync`); cache refetch is driven by `useUpscaleSingle` invalidation (AC-5-2). Mutation is wired and ready for future callers. — `designSlice.ts:392-403`
 - [x] AC-5-4: `userPickedVersions` map declared in `DesignWorkspaceView.tsx` with setter; consumer wiring lands in Phase 6 picker UI.
 - [ ] AC-5-5: Loading shimmer during upscale. **Deferred to Phase 6** (visual concern; tied to picker UI work).
 

@@ -43,6 +43,14 @@ interface UseUpscaleSingleReturn {
   triggerUpscale: (opts?: { replace?: boolean }) => Promise<void>;
   /** Cancel the pending re-upscale confirmation. */
   cancelConfirmation: () => void;
+  /**
+   * Pipeline-friendly variant: triggers (always with replace=true to bypass the
+   * confirmation gate; caller is expected to have shown its own overwrite
+   * dialog if needed) and resolves when polling detects an `upscaled_file`
+   * change. Rejects on trigger error or the 20-min hard timeout.
+   * The existing fire-and-forget `triggerUpscale` API is unchanged.
+   */
+  runUpscaleAsync: () => Promise<void>;
 }
 
 /**
@@ -99,6 +107,23 @@ export const useUpscaleSingle = ({
 
   const initialUpscaledRef = useRef<string | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Promise resolvers/rejecters held while a runUpscaleAsync() is awaiting the
+  // poll-complete or timeout signal. Drained on either terminal effect below.
+  const pendingPromisesRef = useRef<
+    Array<{ resolve: () => void; reject: (err: Error) => void }>
+  >([]);
+
+  const drainPendingPromises = useCallback(
+    (outcome: 'resolve' | 'reject', err?: Error) => {
+      const pending = pendingPromisesRef.current;
+      pendingPromisesRef.current = [];
+      pending.forEach((p) => {
+        if (outcome === 'resolve') p.resolve();
+        else p.reject(err ?? new Error('Upscale failed'));
+      });
+    },
+    [],
+  );
 
   // RTK Query design poller — pauses when tab is hidden via skipPollingIfUnfocused.
   const designIds = designId ? [designId] : [];
@@ -128,8 +153,9 @@ export const useUpscaleSingle = ({
           designApi.util.invalidateTags([{ type: 'DesignProject', id: projectId }]),
         );
       }
+      drainPendingPromises('resolve');
     }
-  }, [currentDesign, enqueueSnackbar, pollEnabled, projectId, reduxDispatch, t]);
+  }, [currentDesign, drainPendingPromises, enqueueSnackbar, pollEnabled, projectId, reduxDispatch, t]);
 
   // Hard timeout — after 20min, stop polling and surface error.
   useEffect(() => {
@@ -142,11 +168,12 @@ export const useUpscaleSingle = ({
         }),
         { variant: 'warning' },
       );
+      drainPendingPromises('reject', new Error('Upscale timed out'));
     }, POLL_TIMEOUT_MS);
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [enqueueSnackbar, pollEnabled, t]);
+  }, [drainPendingPromises, enqueueSnackbar, pollEnabled, t]);
 
   const startTrigger = useCallback(
     async (replace: boolean) => {
@@ -174,6 +201,7 @@ export const useUpscaleSingle = ({
             }),
             { variant: 'error' },
           );
+          drainPendingPromises('reject', new Error('Upscale quota exceeded'));
         } else if (status === 409) {
           // EC-1: a job is already running — adopt it as our active job.
           enqueueSnackbar(
@@ -183,6 +211,8 @@ export const useUpscaleSingle = ({
             { variant: 'info' },
           );
           // Adopt running job — START action without specific jobId (one is server-side).
+          // Pending promises stay queued; they'll resolve when polling detects
+          // the upscaled_file change for the in-flight server-side job.
           dispatch({ type: 'START', jobId: '' });
           initialUpscaledRef.current = currentDesign?.upscaled_file ?? null;
         } else {
@@ -190,6 +220,7 @@ export const useUpscaleSingle = ({
             t('upscale.single.error', { defaultValue: 'Failed to start upscale' }),
             { variant: 'error' },
           );
+          drainPendingPromises('reject', new Error('Failed to start upscale'));
         }
       }
     },
@@ -198,6 +229,7 @@ export const useUpscaleSingle = ({
       currentDesign,
       designId,
       destination,
+      drainPendingPromises,
       enqueueSnackbar,
       t,
       trigger,
@@ -223,6 +255,19 @@ export const useUpscaleSingle = ({
     dispatch({ type: 'CANCEL_CONFIRM' });
   }, []);
 
+  const runUpscaleAsync = useCallback(() => {
+    return new Promise<void>((resolve, reject) => {
+      if (!designId) {
+        reject(new Error('No designId for upscale'));
+        return;
+      }
+      pendingPromisesRef.current.push({ resolve, reject });
+      // Always force replace=true: pipeline callers are expected to have
+      // shown their own overwrite dialog upstream.
+      void startTrigger(true);
+    });
+  }, [designId, startTrigger]);
+
   return {
     isProcessing: pollEnabled,
     isTriggering,
@@ -230,5 +275,6 @@ export const useUpscaleSingle = ({
     needsConfirmation,
     triggerUpscale,
     cancelConfirmation,
+    runUpscaleAsync,
   };
 };

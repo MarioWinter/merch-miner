@@ -5,6 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
 import { COLORS } from '@/style/constants';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { useAppSelector } from '@/store/hooks';
+import { useGetDesignsByIdsQuery } from '@/store/designSlice';
+import type { UpscaleCloudTarget } from '@/store/upscaleApi';
 import { PipelineBar } from './partials/PipelineBar';
 import { ToolPanel } from './partials/ToolPanel';
 import { EditorCanvas } from './partials/EditorCanvas';
@@ -14,10 +17,12 @@ import { PreparingDownloadModal } from './partials/PreparingDownloadModal';
 import { DropZone } from './partials/DropZone';
 import { CloudManagerDialog } from './partials/CloudManagerDialog';
 import { MobileEditorToolSheet } from './partials/MobileEditorToolSheet';
+import UpscaleOverwriteDialog from './partials/UpscaleOverwriteDialog';
 import { useProcessing } from './hooks/useProcessing';
 import { useClientProcessing } from './hooks/useClientProcessing';
 import { useLivePreview } from './hooks/useLivePreview';
 import { useExportCompression } from './hooks/useExportCompression';
+import { useUpscaleSingle } from './hooks/useUpscaleSingle';
 import { JobPollerManager } from './partials/JobPollerManager';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import useEditorBatchState from './hooks/useEditorBatchState';
@@ -94,6 +99,9 @@ const DesignEditorView = ({ projectId, editorBatch, onAddToCanvas }: DesignEdito
   const [activeCanvasTool, setActiveCanvasTool] = useState<CanvasToolType>('move');
   const [exportCompressionLevel, setExportCompressionLevel] = useState<CompressionLevel>('medium');
   const [cloudManagerOpen, setCloudManagerOpen] = useState(false);
+  // Phase 5 — Apply-Pipeline upscale-overwrite gate. Holds the pending execution
+  // callback while the UpscaleOverwriteDialog is open. `null` = dialog closed.
+  const [pendingPipelineExec, setPendingPipelineExec] = useState<(() => void) | null>(null);
 
   // Batch state (destructured to satisfy react-hooks/refs lint rule)
   const {
@@ -106,6 +114,35 @@ const DesignEditorView = ({ projectId, editorBatch, onAddToCanvas }: DesignEdito
     handleUndo, handleRedo, handleDrop, handleDragOver, getBatchFile,
     ALWAYS_SERVER_TOOLS,
   } = useEditorBatchState({ projectId, editorBatch });
+
+  // Upscale destination (Phase 5 pipeline routing). Read from upscale slice
+  // identical to UpscaleToolParams — keeps the pipeline upscale honoring the
+  // user's destination toggle.
+  const workspaceId = useAppSelector((s) => s.workspace.activeWorkspaceId);
+  const upscaleDestination = useAppSelector((s) =>
+    workspaceId ? s.upscale.destinationByWorkspace[workspaceId] : undefined,
+  ) ?? 'local';
+  const upscaleCloudTarget = useAppSelector((s) =>
+    workspaceId ? s.upscale.cloudTargetByWorkspace[workspaceId] : null,
+  ) as UpscaleCloudTarget | null;
+
+  // Separate `useUpscaleSingle` instance for the Apply-Pipeline flow. The
+  // standalone Upscale tool panel mounts its own instance independently — two
+  // instances each manage their own polling state.
+  const pipelineUpscale = useUpscaleSingle({
+    designId: currentImage?.designId ?? null,
+    destination: upscaleDestination,
+    cloudTarget: upscaleCloudTarget,
+    projectId,
+  });
+
+  // Live design data for the current image — used to detect `upscaled_file`
+  // presence and gate the overwrite dialog (AC-4-4). Skipped when no designId.
+  const designIdForLookup = currentImage?.designId ? [currentImage.designId] : [];
+  const { data: currentDesignList } = useGetDesignsByIdsQuery(designIdForLookup, {
+    skip: designIdForLookup.length === 0,
+  });
+  const currentDesign = currentDesignList?.[0] ?? null;
 
   // Processing hooks
   const { startProcessing, jobs, onJobUpdate } = useProcessing();
@@ -125,11 +162,28 @@ const DesignEditorView = ({ projectId, editorBatch, onAddToCanvas }: DesignEdito
   const handleUpdateParams = useCallback((toolId: string, params: Record<string, unknown>) => { setActivePipeline((prev) => prev.map((t) => (t.id === toolId ? { ...t, params } : t))); }, []);
 
   // -- Apply pipeline --
-  // PROJ-27 — `ai_upscale` is no longer routed through the pipeline. The
-  // Upscale tool panel fires its own Replicate request via `useUpscaleSingle`.
+  // Phase 5 — `ai_upscale` IS supported in the pipeline but uses the Replicate
+  // path via `useUpscaleSingle.runUpscaleAsync` rather than `startProcessing`.
+  // The two `ai_upscale` filter lines below are INTENTIONALLY KEPT: they peel
+  // the upscale step out of the client/server buckets so it can be executed
+  // last via the dedicated Replicate flow (which polls `upscaled_file` and
+  // honors quota / cloud-destination state). See spec AC-4-1.
   const handleApplyPipeline = useCallback(async () => {
     if (batchImages.length === 0) return;
-    undoRedo.pushSnapshot(batchImages);
+
+    // Compute upscale step (if any) and validate ordering before touching state.
+    const enabledSteps = activePipeline.filter((tool) => tool.enabled);
+    const upscaleStep = enabledSteps.find((t) => t.name === 'ai_upscale') ?? null;
+    if (upscaleStep && enabledSteps[enabledSteps.length - 1]?.id !== upscaleStep.id) {
+      enqueueSnackbar(
+        t(
+          'design.pipeline.upscaleMustBeLast',
+          'AI Upscale must be the last step in the pipeline.',
+        ),
+        { variant: 'error' },
+      );
+      return;
+    }
 
     const clientTools = activePipeline.filter((tool) => {
       if (!tool.enabled) return false;
@@ -144,41 +198,90 @@ const DesignEditorView = ({ projectId, editorBatch, onAddToCanvas }: DesignEdito
       return ALWAYS_SERVER_TOOLS.includes(tool.name);
     });
 
-    if (clientTools.length > 0) {
-      const results = await processBatch(batchImages, clientTools);
-      setBatchImages(results);
-      results.forEach((img) => {
-        const url = img.processedUrl ?? img.previewUrl;
-        if (url) loadImageMeta(img.id, url);
-      });
-      for (const img of results) {
-        if (img.processedUrl && img.designId && img.processedUrl.startsWith('blob:')) {
-          try {
-            const resp = await fetch(img.processedUrl);
-            const blob = await resp.blob();
-            const file = new File([blob], img.name, { type: blob.type || 'image/png' });
-            const design = await saveProcessedImage({ designId: img.designId, file, projectId }).unwrap();
-            setBatchImages((prev) =>
-              prev.map((bi) =>
-                bi.designId === img.designId
-                  ? { ...bi, previewUrl: design.processed_file || design.image_file, processedUrl: design.processed_file || undefined, originalUrl: design.image_file }
-                  : bi,
-              ),
-            );
-          } catch { /* Keep blob URL as fallback */ }
+    // Execution body — extracted so the overwrite-confirm dialog can defer it.
+    const executeApplyPipeline = async () => {
+      undoRedo.pushSnapshot(batchImages);
+
+      if (clientTools.length > 0) {
+        const results = await processBatch(batchImages, clientTools);
+        setBatchImages(results);
+        results.forEach((img) => {
+          const url = img.processedUrl ?? img.previewUrl;
+          if (url) loadImageMeta(img.id, url);
+        });
+        for (const img of results) {
+          if (img.processedUrl && img.designId && img.processedUrl.startsWith('blob:')) {
+            try {
+              const resp = await fetch(img.processedUrl);
+              const blob = await resp.blob();
+              const file = new File([blob], img.name, { type: blob.type || 'image/png' });
+              const design = await saveProcessedImage({ designId: img.designId, file, projectId }).unwrap();
+              setBatchImages((prev) =>
+                prev.map((bi) =>
+                  bi.designId === img.designId
+                    ? { ...bi, previewUrl: design.processed_file || design.image_file, processedUrl: design.processed_file || undefined, originalUrl: design.image_file }
+                    : bi,
+                ),
+              );
+            } catch { /* Keep blob URL as fallback */ }
+          }
+        }
+        enqueueSnackbar(t('design.editor.pipelineSaved', 'Pipeline applied & saved'), { variant: 'success' });
+      }
+
+      if (serverTools.length > 0) {
+        const designIds = batchImages.filter((img) => img.designId).map((img) => img.designId!);
+        if (designIds.length > 0) {
+          const steps = serverTools.map((t) => t.name) as Array<'bg_remove' | 'upscale'>;
+          await startProcessing(designIds, steps);
         }
       }
-      enqueueSnackbar(t('design.editor.pipelineSaved', 'Pipeline applied & saved'), { variant: 'success' });
+
+      // Upscale step runs last via the Replicate path (AC-4-2 / EC-4-3).
+      if (upscaleStep && currentImage?.designId) {
+        try {
+          await pipelineUpscale.runUpscaleAsync();
+        } catch {
+          // Error snackbar already surfaced by `useUpscaleSingle`; abort silently here.
+        }
+      }
+    };
+
+    // Overwrite-confirm gate (AC-4-4 / EC-2-6): if design already has an
+    // upscaled_file, ask before overwriting.
+    if (upscaleStep && currentDesign?.upscaled_file) {
+      setPendingPipelineExec(() => executeApplyPipeline);
+      return;
     }
 
-    if (serverTools.length > 0) {
-      const designIds = batchImages.filter((img) => img.designId).map((img) => img.designId!);
-      if (designIds.length > 0) {
-        const steps = serverTools.map((t) => t.name) as Array<'bg_remove' | 'upscale'>;
-        await startProcessing(designIds, steps);
-      }
-    }
-  }, [activePipeline, batchImages, processBatch, startProcessing, undoRedo, saveProcessedImage, projectId, enqueueSnackbar, t, loadImageMeta, setBatchImages, ALWAYS_SERVER_TOOLS]);
+    await executeApplyPipeline();
+  }, [
+    activePipeline,
+    batchImages,
+    processBatch,
+    startProcessing,
+    undoRedo,
+    saveProcessedImage,
+    projectId,
+    enqueueSnackbar,
+    t,
+    loadImageMeta,
+    setBatchImages,
+    ALWAYS_SERVER_TOOLS,
+    currentDesign,
+    currentImage,
+    pipelineUpscale,
+  ]);
+
+  // Overwrite-dialog handlers.
+  const handleUpscaleOverwriteCancel = useCallback(() => {
+    setPendingPipelineExec(null);
+  }, []);
+  const handleUpscaleOverwriteConfirm = useCallback(() => {
+    const fn = pendingPipelineExec;
+    setPendingPipelineExec(null);
+    void fn?.();
+  }, [pendingPipelineExec]);
 
   // -- Job update handler --
   const handleJobUpdate = useCallback(
@@ -336,6 +439,11 @@ const DesignEditorView = ({ projectId, editorBatch, onAddToCanvas }: DesignEdito
         body={t('design.editor.deleteServerDialogBody', { name: deleteConfirmIndex !== null ? batchImages[deleteConfirmIndex]?.name ?? '' : '' })}
         confirmLabel={t('design.editor.deleteServerConfirm')} cancelLabel={t('design.editor.deleteServerCancel')}
         onConfirm={handleDeleteConfirm} onCancel={handleDeleteCancel} isLoading={isDeletingDesign}
+      />
+      <UpscaleOverwriteDialog
+        open={pendingPipelineExec !== null}
+        onCancel={handleUpscaleOverwriteCancel}
+        onConfirm={handleUpscaleOverwriteConfirm}
       />
     </EditorRoot>
   );
