@@ -4,21 +4,22 @@ Cross-cutting architectural patterns. Add a new entry per major decision — kee
 
 ---
 
-## ADR-001: 3-Layer Access Control (Feature Flags + Entitlements + Permissions)
+## ADR-001: 2-Layer Access Control (Entitlements + Permissions)
 
-**Date:** 2026-05-01
-**Status:** Decided (frontend Feature Flags shipping in PROJ-24; Entitlements layer is Post-MVP, Permissions exist per feature)
-**Context:** Discussion during PROJ-24 spec finalization — how to think about feature gating now and as paid tiers come online.
+**Date:** 2026-05-01 (revised 2026-05-15 in PROJ-31)
+**Status:** Decided (Entitlements = PROJ-31 shipped; build-time Feature Flags removed; Polar.sh subscription = PROJ-32; per-tier credit-limits = future PROJ; Lean MVP analytics = PROJ-33)
+**Context:** Original ADR (2026-05-01) had 3 layers including build-time `VITE_FF_*` flags. PROJ-31 (2026-05-15) collapsed to 2 layers because the build-time flag layer was never used effectively — all gating concerns (staff-only beta, paid tier, etc.) can run through the runtime entitlement layer. Single pre-auth case (REGISTRATION_ENABLED) kept as one minimal ENV helper.
 
-### The 3 Layers
+### The 2 Layers
 
-Three independent concerns, complementary, NOT interchangeable:
+Two independent concerns, complementary, NOT interchangeable:
 
 | Layer | Question | Source of Truth | When |
 |---|---|---|---|
-| **Feature Flag** | "Ist das Feature im Build überhaupt aktiv?" | `import.meta.env.VITE_FF_*` (build-time) | Now (PROJ-24) |
-| **Entitlement** | "Hat dieser User für das Feature bezahlt?" | DB `Subscription` → `/api/auth/me/` payload | Post-MVP (Polar.sh) |
-| **Permission** | "Darf dieser User diese Action auf diese Resource?" | DRF permission_classes per endpoint | Per Feature-Spec |
+| **Entitlement** | "Hat dieser User Zugriff auf Feature X?" (tier + role + staff) | `core/entitlements.resolve_features(user)` → `/api/auth/me/` payload `features: [...]` | Shipping (PROJ-31) |
+| **Permission** | "Darf dieser User diese Action auf diese Resource?" | DRF `permission_classes` per endpoint | Per Feature-Spec |
+
+Single special case: `isRegistrationEnabled()` reads `VITE_ENABLE_REGISTRATION` ENV at build-time — required because registration UI fires BEFORE login (no user → no entitlement resolution possible).
 
 ### Beispiel Cloud Storage (PROJ-9/11)
 

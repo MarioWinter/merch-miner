@@ -8,7 +8,6 @@ import chatBarReducer from '@/store/chatBarSlice';
 import FollowUpChips from '../index';
 
 const baseChatBar = {
-  barExpanded: false,
   drawerOpen: false,
   drawerWidth: 480,
   activePanel: 'chat',

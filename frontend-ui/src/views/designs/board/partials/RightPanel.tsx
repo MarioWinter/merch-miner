@@ -140,6 +140,9 @@ interface RightPanelProps {
   // Phase I7: Source image for generation
   sourceImageUrl?: string | null;
   onClearSourceImage?: () => void;
+  // Remix: second source image
+  sourceImageUrl2?: string | null;
+  onClearSourceImage2?: () => void;
 }
 
 // -----------------------------------------------------------------
@@ -202,6 +205,9 @@ const RightPanel = ({
   // Phase I7: Source image for generation
   sourceImageUrl,
   onClearSourceImage,
+  // Remix: second source image
+  sourceImageUrl2,
+  onClearSourceImage2,
 }: RightPanelProps) => {
   const { t } = useTranslation();
 
@@ -261,6 +267,8 @@ const RightPanel = ({
             onAspectRatioChange={onAspectRatioChange}
             sourceImageUrl={sourceImageUrl}
             onClearSourceImage={onClearSourceImage}
+            sourceImageUrl2={sourceImageUrl2}
+            onClearSourceImage2={onClearSourceImage2}
           />
         )
       )}
@@ -324,6 +332,14 @@ const RightPanel = ({
               <PromptListSection
                 projectId={projectId}
                 prompts={prompts}
+                generationConfig={{
+                  model,
+                  background_color: bgColor,
+                  aspect_ratio: aspectRatio,
+                  mode: generationMode,
+                  source_image_url: sourceImageUrl ?? null,
+                  source_image_url_2: sourceImageUrl2 ?? null,
+                }}
                 onPromptClick={onPromptClick}
                 onCreateSkeletonArtboards={onCreateSkeletonArtboards}
               />

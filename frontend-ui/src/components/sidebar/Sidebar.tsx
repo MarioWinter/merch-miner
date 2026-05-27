@@ -25,6 +25,8 @@ import ChevronLeftIcon from '@mui/icons-material/ChevronLeft';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { useTranslation } from 'react-i18next';
 import { COLORS, DURATION, EASING } from '@/style/constants';
+import { useAppSelector } from '@/store/hooks';
+import { FEATURE_KEYS } from '@/constants/featureKeys';
 import VersionBadge from './VersionBadge';
 
 export const EXPANDED_WIDTH = 220;
@@ -35,27 +37,32 @@ export const COLLAPSED_WIDTH = 60;
 // ------------------------------------------------------------------
 
 const SidebarRoot = styled(Box, {
-  shouldForwardProp: (prop) => prop !== '$collapsed',
-})<{ $collapsed: boolean; component?: React.ElementType }>(({ theme }) => ({
-  position: 'fixed',
-  top: 0,
-  left: 0,
-  bottom: 0,
-  backgroundColor: COLORS.white,
-  borderRight: '1px solid',
-  borderColor: theme.vars.palette.divider,
-  ...theme.applyStyles('dark', {
-    backgroundColor: COLORS.inkPaper,
+  shouldForwardProp: (prop) => prop !== '$collapsed' && prop !== '$mobileVariant',
+})<{ $collapsed: boolean; $mobileVariant: boolean; component?: React.ElementType }>(
+  ({ theme, $mobileVariant }) => ({
+    position: $mobileVariant ? 'static' : 'fixed',
+    top: 0,
+    left: 0,
+    bottom: 0,
+    backgroundColor: COLORS.white,
+    borderRight: $mobileVariant ? 'none' : '1px solid',
+    borderColor: theme.vars.palette.divider,
+    ...theme.applyStyles('dark', {
+      backgroundColor: COLORS.inkPaper,
+    }),
+    // Mobile variant sits inside a Drawer — no Topbar offset since the Drawer
+    // covers the Topbar area too (per design Section 1).
+    paddingTop: $mobileVariant ? theme.spacing(2) : 'calc(56px + 16px)',
+    paddingBottom: theme.spacing(1.5),
+    display: 'flex',
+    flexDirection: 'column',
+    overflow: 'visible',
+    zIndex: theme.zIndex.drawer,
+    transition: `width ${DURATION.default}ms ${EASING.standard}`,
+    '&:hover .sidebar-toggle': { opacity: 1 },
+    height: $mobileVariant ? '100%' : undefined,
   }),
-  paddingTop: 'calc(56px + 16px)',
-  paddingBottom: theme.spacing(1.5),
-  display: 'flex',
-  flexDirection: 'column',
-  overflow: 'visible',
-  zIndex: theme.zIndex.drawer,
-  transition: `width ${DURATION.default}ms ${EASING.standard}`,
-  '&:hover .sidebar-toggle': { opacity: 1 },
-}));
+);
 
 const NavScrollBox = styled(Box)({
   flex: 1,
@@ -177,6 +184,8 @@ interface NavItem {
   label: string;
   path: string;
   icon: React.ReactNode;
+  // PROJ-31 — optional entitlement key; missing = always visible.
+  feature?: string;
 }
 
 interface NavSection {
@@ -184,32 +193,52 @@ interface NavSection {
   items: NavItem[];
 }
 
+export type SidebarVariant = 'permanent' | 'mobile';
+
 export interface SidebarProps {
   collapsed: boolean;
   onToggle: () => void;
   onHoverChange?: (hovered: boolean) => void;
+  /**
+   * PROJ-30 T2.7 — `permanent` (default) = fixed sidebar with collapse/hover
+   * logic; `mobile` = sidebar rendered inside the Hamburger Drawer with width
+   * forced to EXPANDED_WIDTH, no collapse logic, no toggle button.
+   */
+  variant?: SidebarVariant;
 }
 
 // ------------------------------------------------------------------
 // Component
 // ------------------------------------------------------------------
 
-const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
+const Sidebar = ({
+  collapsed,
+  onToggle,
+  onHoverChange,
+  variant = 'permanent',
+}: SidebarProps) => {
   const { t } = useTranslation();
   const location = useLocation();
   const navigate = useNavigate();
   const [hovered, setHovered] = useState(false);
+  const isMobileVariant = variant === 'mobile';
 
   // effectiveCollapsed drives all visual logic:
-  // locked open (!collapsed) → always expanded; unlocked → expand on hover only
-  const effectiveCollapsed = collapsed && !hovered;
+  // locked open (!collapsed) → always expanded; unlocked → expand on hover only.
+  // Mobile variant is permanently expanded (no hover, no collapse).
+  const effectiveCollapsed = isMobileVariant ? false : collapsed && !hovered;
 
-  const sections: NavSection[] = [
+  // PROJ-31 — wildcard `*` = superuser bypass.
+  const userFeatures = useAppSelector((s) => s.auth.user?.features) ?? [];
+  const can = (feature?: string): boolean =>
+    !feature || userFeatures.includes('*') || userFeatures.includes(feature);
+
+  const sectionsRaw: NavSection[] = [
     {
       sectionKey: 'controlRoom',
       items: [
         { label: t('nav.dashboard'), path: '/dashboard', icon: <DashboardOutlinedIcon sx={{ fontSize: 20 }} /> },
-        { label: t('nav.kanban'), path: '/kanban', icon: <ViewKanbanOutlinedIcon sx={{ fontSize: 20 }} /> },
+        { label: t('nav.kanban'), path: '/kanban', icon: <ViewKanbanOutlinedIcon sx={{ fontSize: 20 }} />, feature: FEATURE_KEYS.KANBAN },
       ],
     },
     {
@@ -226,10 +255,15 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
         { label: t('nav.slogans'), path: '/slogans', icon: <LightbulbOutlinedIcon sx={{ fontSize: 20 }} /> },
         { label: t('nav.designBoard'), path: '/designs', icon: <BrushOutlinedIcon sx={{ fontSize: 20 }} /> },
         { label: t('nav.listings'), path: '/publish', icon: <ArticleOutlinedIcon sx={{ fontSize: 20 }} /> },
-        { label: t('nav.uploads'), path: '/desktop-app', icon: <CloudUploadOutlinedIcon sx={{ fontSize: 20 }} /> },
+        { label: t('nav.uploads'), path: '/desktop-app', icon: <CloudUploadOutlinedIcon sx={{ fontSize: 20 }} />, feature: FEATURE_KEYS.DESKTOP_UPLOAD },
       ],
     },
   ];
+
+  // Drop items + empty sections that the user has no entitlement for.
+  const sections = sectionsRaw
+    .map((section) => ({ ...section, items: section.items.filter((i) => can(i.feature)) }))
+    .filter((section) => section.items.length > 0);
 
   const sectionLabels: Record<string, string> = {
     controlRoom: t('nav.sections.controlRoom'),
@@ -302,9 +336,24 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
       component="nav"
       aria-label={t('nav.sidebarLabel')}
       $collapsed={effectiveCollapsed}
-      sx={{ width: effectiveCollapsed ? COLLAPSED_WIDTH : EXPANDED_WIDTH }}
-      onMouseEnter={() => { setHovered(true); onHoverChange?.(true); }}
-      onMouseLeave={() => { setHovered(false); onHoverChange?.(false); }}
+      $mobileVariant={isMobileVariant}
+      sx={{
+        width: isMobileVariant
+          ? '100%'
+          : effectiveCollapsed
+            ? COLLAPSED_WIDTH
+            : EXPANDED_WIDTH,
+      }}
+      onMouseEnter={
+        isMobileVariant
+          ? undefined
+          : () => { setHovered(true); onHoverChange?.(true); }
+      }
+      onMouseLeave={
+        isMobileVariant
+          ? undefined
+          : () => { setHovered(false); onHoverChange?.(false); }
+      }
     >
       <NavScrollBox>
         {sections.map((section, index) => (
@@ -339,18 +388,20 @@ const Sidebar = ({ collapsed, onToggle, onHoverChange }: SidebarProps) => {
       {/* Version badge (click → popover with build date + changelog link) */}
       <VersionBadge collapsed={effectiveCollapsed} />
 
-      {/* Sidebar toggle — round button with cutout ring */}
-      <ToggleWrap className="sidebar-toggle" $visible={!collapsed}>
-        <ToggleButton
-          onClick={onToggle}
-          size="small"
-          aria-label={collapsed ? t('nav.expandSidebar') : t('nav.collapseSidebar')}
-        >
-          {effectiveCollapsed
-            ? <ChevronRightIcon sx={{ fontSize: 18 }} />
-            : <ChevronLeftIcon sx={{ fontSize: 18 }} />}
-        </ToggleButton>
-      </ToggleWrap>
+      {/* Sidebar toggle — round button with cutout ring. Hidden in mobile variant. */}
+      {!isMobileVariant && (
+        <ToggleWrap className="sidebar-toggle" $visible={!collapsed}>
+          <ToggleButton
+            onClick={onToggle}
+            size="small"
+            aria-label={collapsed ? t('nav.expandSidebar') : t('nav.collapseSidebar')}
+          >
+            {effectiveCollapsed
+              ? <ChevronRightIcon sx={{ fontSize: 18 }} />
+              : <ChevronLeftIcon sx={{ fontSize: 18 }} />}
+          </ToggleButton>
+        </ToggleWrap>
+      )}
     </SidebarRoot>
   );
 };

@@ -3,11 +3,17 @@
 import logging
 
 import django_rq
+import httpx
 from django.http import FileResponse
 from django.shortcuts import get_object_or_404
-from rest_framework import status
+from django.utils import timezone
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.parsers import FormParser, JSONParser, MultiPartParser
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from django.db.models import Count, Exists, OuterRef
@@ -20,10 +26,16 @@ from design_app.api.serializers import (
     AnalyzeImageSerializer,
     ApplyPipelineSerializer,
     BatchProcessSerializer,
+    BuilderBuildSerializer,
+    BuilderPresetSerializer,
     BuildPromptsSerializer,
     BulkCreatePromptsSerializer,
     CreateProjectSerializer,
     CreatePromptPresetSerializer,
+    CustomSpatialAnalyzeSerializer,
+    CustomSpatialSerializer,
+    CustomTypographyAnalyzeSerializer,
+    CustomTypographySerializer,
     DesignPipelineSerializer,
     DesignProcessingJobSerializer,
     DesignGenerationRunSerializer,
@@ -34,6 +46,9 @@ from design_app.api.serializers import (
     DesignUploadSerializer,
     GenerateDesignSerializer,
     GenerateFromPromptSerializer,
+    NicheCardPresetSerializer,
+    PresetConfirmSerializer,
+    PresetRegenerateSerializer,
     ProcessingSettingsSerializer,
     ProductAnalyzeImageSerializer,
     ProjectIdeaSerializer,
@@ -46,6 +61,9 @@ from design_app.api.serializers import (
 )
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from design_app.models import (
+    BuilderPreset,
+    CustomSpatial,
+    CustomTypography,
     Design,
     DesignGenerationRun,
     DesignPipeline,
@@ -53,6 +71,7 @@ from design_app.models import (
     DesignProject,
     DesignProjectDesign,
     DesignProjectIdea,
+    NicheCardPreset,
     ProcessingSettings,
     ProjectPrompt,
     ProjectReference,
@@ -328,6 +347,10 @@ class GenerateDesignView(APIView):
             prompt_used=serializer.validated_data['prompt'],
             source_image_url=source_image_url,
             source_image_url_2=source_image_url_2,
+            # PROJ-34 AC-5: persist UI bg_color selection onto the Run.
+            background_color=serializer.validated_data.get(
+                'background_color', 'light_gray',
+            ),
         )
 
         # Resolve optional project_id
@@ -986,6 +1009,53 @@ class ProjectBoardView(APIView):
         )
         references_data = ProjectReferenceSerializer(references, many=True).data
 
+        # Active runs for this project — exposed so the frontend can reconcile
+        # skeleton artboards with their run state (pending / running / failed).
+        # Includes runs that produced no design (e.g. failed before save).
+        from datetime import timedelta
+        from django.utils import timezone as _tz
+        active_run_qs = DesignGenerationRun.objects.filter(
+            project_prompt__project=project,
+        ).order_by('-created_at')
+        recent_cutoff = _tz.now() - timedelta(hours=24)
+        active_runs = [
+            {
+                'id': str(r.id),
+                'status': r.status,
+                'generation_mode': r.generation_mode,
+                'error_message': r.error_message,
+            }
+            for r in active_run_qs
+            if r.status in {'pending', 'running'}
+            or (r.status == 'failed' and r.created_at >= recent_cutoff)
+        ]
+        # Also include standalone runs (no project_prompt) that the user just
+        # triggered against this project via /api/designs/generate/.
+        # Match by Design.generation_run scoped to this project's designs.
+        standalone_run_ids = (
+            DesignGenerationRun.objects.filter(
+                designs__design_projects_through__project=project,
+            )
+            .exclude(project_prompt__project=project)
+            .values_list('id', flat=True)
+            .distinct()
+        )
+        # Also any pending/running runs not yet linked to a design but whose
+        # triggered_by matches the requesting user (best-effort for UX).
+        unlinked_recent_runs = DesignGenerationRun.objects.filter(
+            triggered_by=request.user,
+            created_at__gte=recent_cutoff,
+            project_prompt__isnull=True,
+        ).exclude(id__in=standalone_run_ids).order_by('-created_at')[:20]
+        for r in unlinked_recent_runs:
+            if r.status in {'pending', 'running'} or r.status == 'failed':
+                active_runs.append({
+                    'id': str(r.id),
+                    'status': r.status,
+                    'generation_mode': r.generation_mode,
+                    'error_message': r.error_message,
+                })
+
         data = {
             'project': DesignProjectSerializer(project).data,
             'designs': DesignSerializer(designs, many=True).data,
@@ -994,6 +1064,7 @@ class ProjectBoardView(APIView):
             'ideas': ideas_data,
             'prompts': prompts_data,
             'references': references_data,
+            'active_runs': active_runs,
         }
 
         return Response(data)
@@ -1064,6 +1135,10 @@ class StandaloneGenerateView(APIView):
             prompt_used=serializer.validated_data['prompt'],
             source_image_url=source_image_url,
             source_image_url_2=source_image_url_2,
+            # PROJ-34 AC-5: persist UI bg_color selection onto the Run.
+            background_color=serializer.validated_data.get(
+                'background_color', 'light_gray',
+            ),
         )
 
         # Enqueue to design worker
@@ -1644,6 +1719,10 @@ class GenerateFromPromptView(APIView):
             prompt_used=prompt.prompt_text,
             source_image_url=source_image_url,
             source_image_url_2=source_image_url_2,
+            # PROJ-34 AC-5: persist UI bg_color selection onto the Run.
+            background_color=serializer.validated_data.get(
+                'background_color', 'light_gray',
+            ),
         )
 
         queue = django_rq.get_queue('design')
@@ -1848,3 +1927,989 @@ class PromptPresetDeleteView(APIView):
         preset.delete()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# -- PROJ-34 Multi-Prompt Builder API --
+
+class BuilderBuildView(APIView):
+    """POST /api/designs/projects/{id}/builder/build/
+
+    Cross-product Builder (PROJ-34 Phase 5; Phase 13k removed the legacy
+    warp field). Given N slogans × M styles (+ optional niche-context
+    toggle, bg_color), returns N×M prompts in cross-product order:
+    (slogan[0]×style[0]), (slogan[0]×style[1]), ...
+
+    Polish is parallel-bounded by `workspace.ProcessingSettings
+    .polish_builder_prompts_enabled` AND the request's `with_polish` flag
+    (AC-16 / EC-7). Failures degrade to raw prompts (AC-18 — see
+    prompt_polish.polish_prompt).
+    """
+
+    # Cap on concurrent polish worker threads; matches the AC-19 latency
+    # budget (≤5s for ≤50 polishes when calls run in parallel).
+    _POLISH_MAX_WORKERS = 16
+
+    def post(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        project = get_object_or_404(
+            DesignProject.objects.select_related('niche'),
+            pk=pk,
+            workspace_id=ws_id,
+        )
+
+        serializer = BuilderBuildSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        cfg = serializer.validated_data
+
+        slogans: list[str] = [s.strip() for s in cfg['slogans'] if s and s.strip()]
+        styles: list[str] = [s.strip() for s in cfg['styles'] if s and s.strip()]
+        bg_color = cfg.get('background_color', 'light_gray')
+        with_polish = cfg.get('with_polish', True)
+        include_niche_context = cfg.get('include_niche_context', True)
+        slots: dict = cfg.get('slots') or {}
+
+        # EC-9 defensive guard (slogan is non-negotiable). Phase 13t-u: style
+        # guard removed — empty styles list is valid and triggers the
+        # _fallback_style path in build_form_prompt.
+        if not slogans:
+            return Response(
+                {'error': 'Select at least one slogan.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # EC-16 / EC-23: niche-context silently ignored if no linked niche.
+        # Phase 13b consumes the structured `builder_form_hints` JSON (set by
+        # Phase 13c's niche-vision LLM) — NOT the verbatim research dump.
+        # The field lands in Phase 13c; until then `getattr` returns None and
+        # the resolver falls through to style defaults.
+        niche_hints: dict | None = None
+        if include_niche_context and project.niche_id:
+            niche_hints = getattr(project.niche, 'builder_form_hints', None)
+
+        # Build raw prompts in cross-product order.
+        # PROJ-34 Phase 13t-u: empty `styles` list → fall back to a single
+        # neutral style so the user can build slogan-only prompts.
+        # `build_form_prompt` resolves an unknown style_slug via
+        # `_fallback_style()` (no auto-defaults bleed in).
+        from design_app.services.prompt_builder import build_form_prompt
+        effective_styles = styles or ['']
+        raw_prompts: list[str] = []
+        for slogan in slogans:
+            for style in effective_styles:
+                raw_prompts.append(
+                    build_form_prompt(
+                        slogan=slogan,
+                        style_slug=style,
+                        slots=slots,
+                        background_color=bg_color,
+                        niche_hints=niche_hints,
+                        workspace_id=ws_id,
+                    )
+                )
+
+        # Resolve workspace-level polish toggle.
+        try:
+            ps = ProcessingSettings.objects.get(workspace_id=ws_id)
+            workspace_polish_enabled = ps.polish_builder_prompts_enabled
+        except ProcessingSettings.DoesNotExist:
+            workspace_polish_enabled = True
+
+        run_polish = with_polish and workspace_polish_enabled
+        final_prompts = _maybe_polish_parallel(raw_prompts, run_polish)
+        return Response({'prompts': final_prompts}, status=status.HTTP_200_OK)
+
+
+def _maybe_polish_parallel(raw_prompts: list[str], run_polish: bool) -> list[str]:
+    """Polish all prompts in parallel via a thread pool (preserves order).
+
+    Polish is a sync httpx call; threads are simpler than asyncio here
+    and the per-call 5s timeout caps total wall-clock at ~5s for any
+    realistic Build (≤50 prompts) with `_POLISH_MAX_WORKERS` workers.
+    """
+    if not run_polish:
+        return raw_prompts
+
+    from concurrent.futures import ThreadPoolExecutor
+    from design_app.services.prompt_polish import polish_prompt
+
+    max_workers = min(len(raw_prompts), BuilderBuildView._POLISH_MAX_WORKERS)
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        # map() preserves input order — exactly what we need for AC-36.
+        return list(pool.map(polish_prompt, raw_prompts))
+
+
+# -- PROJ-34 Phase 13c — Niche Builder Hints --
+
+class BuilderNicheHintsView(APIView):
+    """GET /api/designs/projects/{id}/builder/niche-hints/
+
+    Returns the structured `Niche.builder_form_hints` dict produced by
+    `niche_app.services.builder_hints.structure_niche_for_builder` for the
+    project's linked niche, plus the niche id + the hint's `_generated_at`
+    timestamp so the frontend can show "auto from niche" badges.
+
+    When the project has no linked niche (or the niche has no hints yet —
+    EC-26), returns a null trio. Workspace isolation is enforced by the
+    `get_object_or_404(workspace_id=ws_id)` filter (cross-workspace → 404).
+    """
+
+    def get(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        project = get_object_or_404(
+            DesignProject.objects.select_related('niche'),
+            pk=pk,
+            workspace_id=ws_id,
+        )
+
+        if project.niche_id is None:
+            return Response(
+                {
+                    'builder_form_hints': None,
+                    'niche_id': None,
+                    'last_updated': None,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        hints = project.niche.builder_form_hints
+        last_updated = None
+        if isinstance(hints, dict):
+            last_updated = hints.get('_generated_at')
+
+        return Response(
+            {
+                'builder_form_hints': hints,
+                'niche_id': str(project.niche_id),
+                'last_updated': last_updated,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+# -- PROJ-34 Phase 13t-e — Best-of-Mix Collage Endpoint (AC-88, AC-122) --
+
+class CollageView(APIView):
+    """GET /api/designs/preset-cards/collage/<uuid:niche_id>.webp
+
+    Returns the server-rendered Best-of-Mix top-3 product collage as
+    ``image/webp``. Triggers regeneration if the cached file is missing
+    or older than 7 days. Workspace isolation: niche must belong to the
+    caller's workspace (cross-workspace → 404).
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, niche_id):
+        from django.http import HttpResponse
+
+        from design_app.services.collage_renderer import (
+            get_or_generate_collage_bytes,
+        )
+        from niche_app.models import Niche
+
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        niche = get_object_or_404(Niche, pk=niche_id, workspace_id=ws_id)
+        cache_dict = niche.best_of_mix_cache or {}
+        product_ids = cache_dict.get('top3_product_ids') or []
+
+        data = get_or_generate_collage_bytes(niche.id, product_ids)
+        response = HttpResponse(data, content_type='image/webp')
+        response['Cache-Control'] = 'public, max-age=86400'
+        return response
+
+
+# -- PROJ-34 BuilderPreset CRUD --
+
+class BuilderPresetListCreateView(APIView):
+    """GET / POST /api/designs/projects/{id}/builder-presets/"""
+
+    def get(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        # Tenant isolation: project must belong to caller's workspace.
+        project = get_object_or_404(
+            DesignProject, pk=pk, workspace_id=ws_id,
+        )
+        qs = BuilderPreset.objects.filter(
+            workspace_id=ws_id, project=project, is_deleted=False,
+        )
+        return Response(BuilderPresetSerializer(qs, many=True).data)
+
+    def post(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        project = get_object_or_404(
+            DesignProject, pk=pk, workspace_id=ws_id,
+        )
+        serializer = BuilderPresetSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # EC-19: name must be unique among non-deleted rows for the project.
+        name = serializer.validated_data['name']
+        if BuilderPreset.objects.filter(
+            project=project, name=name, is_deleted=False,
+        ).exists():
+            return Response(
+                {'error': 'Preset name already exists in this project.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        preset = BuilderPreset.objects.create(
+            workspace_id=ws_id,
+            project=project,
+            name=name,
+            config=serializer.validated_data.get('config', {}),
+            created_by=request.user,
+        )
+        return Response(
+            BuilderPresetSerializer(preset).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class BuilderPresetDetailView(APIView):
+    """PATCH / DELETE /api/designs/projects/{id}/builder-presets/{preset_id}/"""
+
+    def patch(self, request, pk, preset_id):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        project = get_object_or_404(
+            DesignProject, pk=pk, workspace_id=ws_id,
+        )
+        preset = get_object_or_404(
+            BuilderPreset,
+            pk=preset_id, workspace_id=ws_id, project=project, is_deleted=False,
+        )
+
+        serializer = BuilderPresetSerializer(preset, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+
+        # EC-19: re-check name uniqueness on rename.
+        new_name = serializer.validated_data.get('name')
+        if new_name and new_name != preset.name and BuilderPreset.objects.filter(
+            project=project, name=new_name, is_deleted=False,
+        ).exclude(pk=preset.pk).exists():
+            return Response(
+                {'error': 'Preset name already exists in this project.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer.save()
+        return Response(BuilderPresetSerializer(preset).data)
+
+    def delete(self, request, pk, preset_id):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        project = get_object_or_404(
+            DesignProject, pk=pk, workspace_id=ws_id,
+        )
+        preset = get_object_or_404(
+            BuilderPreset,
+            pk=preset_id, workspace_id=ws_id, project=project, is_deleted=False,
+        )
+        # AC-46: soft-delete via flag (partial UniqueConstraint allows name re-use).
+        preset.is_deleted = True
+        preset.save(update_fields=['is_deleted', 'updated_at'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# -- PROJ-34 Phase 13d — CustomSpatial (Analyze + CRUD) --
+
+class CustomSpatialAnalyzeView(APIView):
+    """POST /api/designs/spatials/custom/analyze/ — vision-LLM spatial extractor.
+
+    Accepts one of:
+      - ``image`` (multipart upload, ≤10 MB, JPG/PNG/WebP) — EC-30
+      - ``reference_id`` (UUID of a ProjectReference in caller's workspace)
+      - ``design_id`` (UUID of a Design in caller's workspace)
+
+    Returns ``{prompt_text, model}`` (200) or one of:
+      - 400 missing X-Workspace-Id / serializer validation
+      - 404 cross-workspace reference/design or not found
+      - 422 ``spatial_unclear`` (LLM returned LAYOUT_UNCLEAR sentinel)
+      - 422 ``spatial_analysis_failed`` (forbidden terms detected by scrub)
+      - 502 ``analyzer_unavailable`` (network / HTTP / parse error)
+    """
+
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def post(self, request):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        serializer = CustomSpatialAnalyzeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        # ---- Resolve image bytes + mime ---------------------------------
+        if data.get('image'):
+            upload = request.FILES['image']
+            image_bytes = upload.read()
+            mime = upload.content_type or 'image/jpeg'
+            source_kind = 'upload'
+        elif data.get('reference_id'):
+            ref = get_object_or_404(
+                ProjectReference,
+                id=data['reference_id'],
+                project__workspace_id=ws_id,
+            )
+            # ProjectReference stores a URL — fetch bytes via httpx so we
+            # forward them as base64 to the vision LLM.
+            try:
+                r = httpx.get(ref.image_url, timeout=10.0)
+                r.raise_for_status()
+                image_bytes = r.content
+                mime = (
+                    r.headers.get('content-type', '').split(';')[0].strip()
+                    or 'image/jpeg'
+                )
+            except Exception as exc:  # noqa: BLE001 — surface as analyzer-down
+                logger.warning(
+                    'CustomSpatialAnalyze: reference fetch failed %s: %s',
+                    type(exc).__name__, exc,
+                )
+                return Response(
+                    {'error': 'analyzer_unavailable'},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+            source_kind = 'reference'
+        else:
+            design = get_object_or_404(
+                Design,
+                id=data['design_id'],
+                workspace_id=ws_id,
+            )
+            if not design.image_file:
+                return Response(
+                    {'error': 'design has no image_file'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            try:
+                with design.image_file.open('rb') as fh:
+                    image_bytes = fh.read()
+            except Exception:  # noqa: BLE001 — fall back to .read()
+                image_bytes = design.image_file.read()
+            import mimetypes as _mimetypes
+            mime, _ = _mimetypes.guess_type(design.image_file.name)
+            mime = mime or 'image/png'
+            source_kind = 'design'
+
+        # ---- Call vision LLM --------------------------------------------
+        from design_app.services.spatial_analyzer import (
+            SpatialAnalyzerError,
+            SpatialUnclearError,
+            _scrub_forbidden,
+            analyze_spatial_layout,
+        )
+
+        try:
+            text = analyze_spatial_layout(
+                image_bytes,
+                mime=mime,
+                workspace_id=str(ws_id),
+                user_id=str(request.user.id),
+                source_kind=source_kind,
+            )
+        except SpatialUnclearError:
+            return Response(
+                {'error': 'spatial_unclear'},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        except SpatialAnalyzerError:
+            return Response(
+                {'error': 'analyzer_unavailable'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        ok, hits = _scrub_forbidden(text)
+        if not ok:
+            return Response(
+                {
+                    'error': 'spatial_analysis_failed',
+                    'forbidden_terms': hits,
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        return Response(
+            {'prompt_text': text, 'model': 'openai/gpt-4.1-mini'},
+            status=status.HTTP_200_OK,
+        )
+
+
+class CustomSpatialListCreateView(APIView):
+    """GET / POST /api/designs/spatials/custom/ — workspace-scoped CustomSpatial CRUD."""
+
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get(self, request):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        qs = (
+            CustomSpatial.objects
+            .filter(workspace_id=ws_id, is_deleted=False)
+            .order_by('-created_at')
+        )
+        return Response(
+            CustomSpatialSerializer(qs, many=True).data,
+        )
+
+    def post(self, request):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        from workspace_app.models import Workspace
+        workspace = get_object_or_404(Workspace, pk=ws_id)
+        serializer = CustomSpatialSerializer(
+            data=request.data, context={'workspace': workspace},
+        )
+        serializer.is_valid(raise_exception=True)
+        instance = serializer.save(
+            workspace=workspace,
+            created_by=request.user,
+        )
+        return Response(
+            CustomSpatialSerializer(instance).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class CustomSpatialDetailView(APIView):
+    """DELETE /api/designs/spatials/custom/{id}/ — soft-delete a CustomSpatial."""
+
+    def delete(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        instance = get_object_or_404(
+            CustomSpatial,
+            pk=pk,
+            workspace_id=ws_id,
+            is_deleted=False,
+        )
+        instance.is_deleted = True
+        instance.save(update_fields=['is_deleted', 'updated_at'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# -- PROJ-34 Phase 13i — CustomTypography (Analyze + CRUD) --
+
+class CustomTypographyAnalyzeView(APIView):
+    """POST /api/designs/typography/custom/analyze/ — vision-LLM typography extractor.
+
+    Accepts one of:
+      - ``image`` (multipart upload, ≤10 MB, JPG/PNG/WebP)
+      - ``reference_id`` (UUID of a ProjectReference in caller's workspace)
+      - ``design_id`` (UUID of a Design in caller's workspace)
+
+    Returns ``{prompt_text, model}`` (200) or one of:
+      - 400 missing X-Workspace-Id / serializer validation
+      - 404 cross-workspace reference/design or not found
+      - 422 ``typography_unclear`` (LLM returned TYPOGRAPHY_UNCLEAR sentinel)
+      - 422 ``typography_analysis_failed`` (forbidden terms detected by scrub)
+      - 502 ``analyzer_unavailable`` (network / HTTP / parse error)
+    """
+
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def post(self, request):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        serializer = CustomTypographyAnalyzeSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        # ---- Resolve image bytes + mime ---------------------------------
+        if data.get('image'):
+            upload = request.FILES['image']
+            image_bytes = upload.read()
+            mime = upload.content_type or 'image/jpeg'
+            source_kind = 'upload'
+        elif data.get('reference_id'):
+            ref = get_object_or_404(
+                ProjectReference,
+                id=data['reference_id'],
+                project__workspace_id=ws_id,
+            )
+            # ProjectReference stores a URL — fetch bytes via httpx so we
+            # forward them as base64 to the vision LLM.
+            try:
+                r = httpx.get(ref.image_url, timeout=10.0)
+                r.raise_for_status()
+                image_bytes = r.content
+                mime = (
+                    r.headers.get('content-type', '').split(';')[0].strip()
+                    or 'image/jpeg'
+                )
+            except Exception as exc:  # noqa: BLE001 — surface as analyzer-down
+                logger.warning(
+                    'CustomTypographyAnalyze: reference fetch failed %s: %s',
+                    type(exc).__name__, exc,
+                )
+                return Response(
+                    {'error': 'analyzer_unavailable'},
+                    status=status.HTTP_502_BAD_GATEWAY,
+                )
+            source_kind = 'reference'
+        else:
+            design = get_object_or_404(
+                Design,
+                id=data['design_id'],
+                workspace_id=ws_id,
+            )
+            if not design.image_file:
+                return Response(
+                    {'error': 'design has no image_file'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            try:
+                with design.image_file.open('rb') as fh:
+                    image_bytes = fh.read()
+            except Exception:  # noqa: BLE001 — fall back to .read()
+                image_bytes = design.image_file.read()
+            import mimetypes as _mimetypes
+            mime, _ = _mimetypes.guess_type(design.image_file.name)
+            mime = mime or 'image/png'
+            source_kind = 'design'
+
+        # ---- Call vision LLM --------------------------------------------
+        from design_app.services.typography_analyzer import (
+            TypographyAnalyzerError,
+            TypographyUnclearError,
+            _scrub_forbidden,
+            analyze_typography_style,
+        )
+
+        try:
+            text = analyze_typography_style(
+                image_bytes,
+                mime=mime,
+                workspace_id=str(ws_id),
+                user_id=str(request.user.id),
+                source_kind=source_kind,
+            )
+        except TypographyUnclearError:
+            return Response(
+                {'error': 'typography_unclear'},
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+        except TypographyAnalyzerError:
+            return Response(
+                {'error': 'analyzer_unavailable'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        ok, hits = _scrub_forbidden(text)
+        if not ok:
+            return Response(
+                {
+                    'error': 'typography_analysis_failed',
+                    'forbidden_terms': hits,
+                },
+                status=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            )
+
+        return Response(
+            {'prompt_text': text, 'model': 'openai/gpt-4.1-mini'},
+            status=status.HTTP_200_OK,
+        )
+
+
+class CustomTypographyListCreateView(APIView):
+    """GET / POST /api/designs/typography/custom/ — workspace-scoped CustomTypography CRUD."""
+
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
+
+    def get(self, request):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        qs = (
+            CustomTypography.objects
+            .filter(workspace_id=ws_id, is_deleted=False)
+            .order_by('-created_at')
+        )
+        return Response(
+            CustomTypographySerializer(qs, many=True).data,
+        )
+
+    def post(self, request):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        from workspace_app.models import Workspace
+        workspace = get_object_or_404(Workspace, pk=ws_id)
+        serializer = CustomTypographySerializer(
+            data=request.data, context={'workspace': workspace},
+        )
+        serializer.is_valid(raise_exception=True)
+        instance = serializer.save(
+            workspace=workspace,
+            created_by=request.user,
+        )
+        return Response(
+            CustomTypographySerializer(instance).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class CustomTypographyDetailView(APIView):
+    """DELETE /api/designs/typography/custom/{id}/ — soft-delete a CustomTypography."""
+
+    def delete(self, request, pk):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        instance = get_object_or_404(
+            CustomTypography,
+            pk=pk,
+            workspace_id=ws_id,
+            is_deleted=False,
+        )
+        instance.is_deleted = True
+        instance.save(update_fields=['is_deleted', 'updated_at'])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# -- PROJ-34 Phase 13t-g — NicheCardPreset endpoints --
+
+class NicheCardPresetViewSet(viewsets.GenericViewSet):
+    """Niche-Reference Preset Picker endpoints (PROJ-34 Phase 13t).
+
+    Six actions:
+      * ``list``           — GET /api/designs/preset-cards/?niche_id=<uuid>
+      * ``history``        — GET /api/designs/preset-cards/history/
+      * ``custom``         — GET /api/designs/preset-cards/custom/
+      * ``confirm``        — POST /api/designs/preset-cards/confirm/
+      * ``promote_custom`` — POST /api/designs/preset-cards/<id>/promote-custom/
+      * ``custom_remove``  — DELETE /api/designs/preset-cards/<id>/custom/
+      * ``regenerate_mix`` — POST /api/designs/preset-cards/regenerate-mix/
+
+    All endpoints: ``IsAuthenticated`` + workspace isolation via
+    ``X-Workspace-Id`` header. ``regenerate_mix`` adds a 5/h/user
+    ``ScopedRateThrottle`` (scope ``preset_regenerate``, AC-89).
+    """
+
+    permission_classes = [IsAuthenticated]
+    serializer_class = NicheCardPresetSerializer
+
+    def get_queryset(self):
+        ws_id = _get_workspace_id(self.request)
+        if not ws_id:
+            return NicheCardPreset.objects.none()
+        return NicheCardPreset.objects.filter(workspace_id=ws_id)
+
+    # -- list (Vorschläge): niche-scoped Top + Best-of-Mix -----------------
+
+    def list(self, request):
+        """Return Vorschläge structure for one niche.
+
+        Shape::
+          {
+            "top": [<Top-Card preset_dict>, ...]       # up to 10
+            "best_of_mix": {
+              "most_common": <preset_dict | null>,
+              "edgy":        <preset_dict | null>,
+              "safe":        <preset_dict | null>,
+            },
+            "top3_product_ids": [<uuid>, ...]
+          }
+
+        On Best-of-Mix cache-miss, enqueues async LLM generation via
+        ``django_rq`` and returns ``null`` placeholders with HTTP 202 so the
+        frontend can poll. Top-cards are computed in-memory (not persisted) —
+        they only land in History via the ``confirm`` action (AC-95).
+        """
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        niche_id = request.query_params.get('niche_id')
+        if not niche_id:
+            return Response(
+                {'error': 'niche_id query parameter is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        from niche_app.models import Niche
+        niche = get_object_or_404(Niche, pk=niche_id, workspace_id=ws_id)
+
+        # ---- Top-10 Cards (computed in-memory, not persisted) -----------
+        from design_app.services.preset_ranker import rank_top_products
+        from design_app.services.top_card_builder import build_top_card_preset
+
+        top_vision_rows = rank_top_products(niche, limit=10)
+        top_cards = [
+            build_top_card_preset(vision, niche) for vision in top_vision_rows
+        ]
+
+        # ---- Collection Cards (Phase 13t-s) -----------------------------
+        from design_app.services.collection_cards import get_collection_cards
+        collection_cards = get_collection_cards(niche, ws_id)
+
+        # ---- Best-of-Mix (from cache or async-trigger) ------------------
+        cache_dict = niche.best_of_mix_cache or {}
+        has_variants = any(
+            cache_dict.get(key) for key in ('most_common', 'edgy', 'safe')
+        )
+
+        response_status = status.HTTP_200_OK
+        if not has_variants:
+            # Cache-miss: enqueue async LLM generation. Frontend polls list.
+            try:
+                django_rq.enqueue(
+                    'design_app.services.best_of_mix_generator.generate_best_of_mix',
+                    str(niche.id),
+                )
+            except Exception as exc:  # noqa: BLE001 — best-effort enqueue
+                logger.warning(
+                    'NicheCardPresetViewSet.list: enqueue failed (%s): %s',
+                    type(exc).__name__, exc,
+                )
+            response_status = status.HTTP_202_ACCEPTED
+
+        collage_url = (
+            f'/api/designs/preset-cards/collage/{niche.id}.webp'
+        )
+
+        def _mix_payload(variant_key: str):
+            variant = cache_dict.get(variant_key)
+            if not variant:
+                return None
+            payload = dict(variant)
+            payload.setdefault(
+                'preset_label',
+                f'{variant_key.replace("_", "-").title()} Mix',
+            )
+            payload['reference_thumbnail_url'] = collage_url
+            payload['source_card_type'] = f'mix_{variant_key}'
+            payload['source_card_references'] = [
+                {
+                    'niche_id': str(niche.id),
+                    'product_ids': cache_dict.get('top3_product_ids', []),
+                },
+            ]
+            return payload
+
+        return Response(
+            {
+                'top': top_cards,
+                'collection': collection_cards,
+                'best_of_mix': {
+                    'most_common': _mix_payload('most_common'),
+                    'edgy': _mix_payload('edgy'),
+                    'safe': _mix_payload('safe'),
+                },
+                'top3_product_ids': cache_dict.get('top3_product_ids', []),
+            },
+            status=response_status,
+        )
+
+    # -- history -----------------------------------------------------------
+
+    @action(detail=False, methods=['get'])
+    def history(self, request):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        qs = (
+            self.get_queryset()
+            .filter(is_in_history=True)
+            .order_by('-last_clicked_at')[:50]
+        )
+        return Response(NicheCardPresetSerializer(qs, many=True).data)
+
+    # -- custom ------------------------------------------------------------
+
+    @action(detail=False, methods=['get'])
+    def custom(self, request):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        qs = (
+            self.get_queryset()
+            .filter(is_in_custom=True)
+            .order_by('-custom_promoted_at')
+        )
+        return Response(NicheCardPresetSerializer(qs, many=True).data)
+
+    # -- confirm -----------------------------------------------------------
+
+    @action(detail=False, methods=['post'])
+    def confirm(self, request):
+        """Confirm a preset selection.
+
+        Two paths (mutually exclusive — serializer enforces):
+          * ``preset_id``  — existing row, bump ``last_clicked_at``.
+          * ``preset_dict`` — Top-Card path: ``upsert_preset`` inserts /
+            dedups / runs LRU eviction. ``source_card_type`` + ``source_refs``
+            required alongside.
+        """
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        serializer = PresetConfirmSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        if data.get('preset_id'):
+            try:
+                preset = self.get_queryset().get(id=data['preset_id'])
+            except NicheCardPreset.DoesNotExist:
+                return Response(
+                    {'error': 'preset not found'},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+            preset.last_clicked_at = timezone.now()
+            # Revive if previously evicted from History (AC-105 mirror).
+            if not preset.is_in_history:
+                preset.is_in_history = True
+                preset.save(update_fields=[
+                    'last_clicked_at', 'is_in_history', 'updated_at',
+                ])
+            else:
+                preset.save(update_fields=['last_clicked_at', 'updated_at'])
+            return Response(NicheCardPresetSerializer(preset).data)
+
+        # Top-Card upsert path.
+        from design_app.services import preset_persistence
+        preset = preset_persistence.upsert_preset(
+            workspace_id=ws_id,
+            preset_dict=data['preset_dict'],
+            source_card_type=data['source_card_type'],
+            source_refs=data['source_refs'],
+        )
+        return Response(NicheCardPresetSerializer(preset).data)
+
+    # -- promote_custom ----------------------------------------------------
+
+    @action(detail=True, methods=['post'], url_path='promote-custom')
+    def promote_custom(self, request, pk=None):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        # Workspace isolation: row must exist in caller's workspace.
+        if not self.get_queryset().filter(pk=pk).exists():
+            return Response(
+                {'error': 'preset not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        from design_app.services import preset_persistence
+        result = preset_persistence.promote_to_custom(pk, request.user)
+        if result is None:
+            return Response(
+                {'error': 'preset not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(NicheCardPresetSerializer(result).data)
+
+    # -- custom_remove -----------------------------------------------------
+
+    @action(detail=True, methods=['delete'], url_path='custom')
+    def custom_remove(self, request, pk=None):
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+        if not self.get_queryset().filter(pk=pk).exists():
+            return Response(
+                {'error': 'preset not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        from design_app.services import preset_persistence
+        result = preset_persistence.unpromote_from_custom(pk)
+        if result is None:
+            return Response(
+                {'error': 'preset not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    # -- regenerate_mix ----------------------------------------------------
+
+    def get_throttles(self):
+        """Apply ``preset_regenerate`` scope only to the ``regenerate_mix`` action."""
+        if getattr(self, 'action', None) == 'regenerate_mix':
+            self.throttle_scope = 'preset_regenerate'
+            return [ScopedRateThrottle()]
+        return super().get_throttles()
+
+    @action(detail=False, methods=['post'], url_path='regenerate-mix')
+    def regenerate_mix(self, request):
+        """Force-regenerate Best-of-Mix variants for a niche + persist to History.
+
+        AC-89: rate-limited 5/h/user via ``preset_regenerate`` scope.
+        AC-90: all 3 variants inserted into History on success.
+        """
+        ws_id = _require_workspace(request)
+        if not ws_id:
+            return _ws_error()
+
+        serializer = PresetRegenerateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        niche_id = serializer.validated_data['niche_id']
+
+        from niche_app.models import Niche
+        try:
+            niche = Niche.objects.get(id=niche_id, workspace_id=ws_id)
+        except Niche.DoesNotExist:
+            return Response(
+                {'error': 'niche not found'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        from design_app.services.best_of_mix_generator import (
+            generate_best_of_mix,
+        )
+        cache_payload = generate_best_of_mix(niche.id, force=True)
+        if cache_payload is None:
+            return Response(
+                {'error': 'generation_failed'},
+                status=status.HTTP_502_BAD_GATEWAY,
+            )
+
+        # AC-90: insert all 3 mix variants into History via upsert.
+        from design_app.services import preset_persistence
+        collage_url = (
+            f'/api/designs/preset-cards/collage/{niche.id}.webp'
+        )
+        top3 = cache_payload.get('top3_product_ids', [])
+        source_refs = [{
+            'niche_id': str(niche.id),
+            'product_ids': top3,
+        }]
+        for variant_key in ('most_common', 'edgy', 'safe'):
+            variant_data = cache_payload.get(variant_key)
+            if not variant_data:
+                continue
+            preset_dict = dict(variant_data)
+            preset_dict.setdefault(
+                'preset_label',
+                f'{variant_key.replace("_", "-").title()} Mix',
+            )
+            preset_dict['reference_thumbnail_url'] = collage_url
+            preset_persistence.upsert_preset(
+                workspace_id=ws_id,
+                preset_dict=preset_dict,
+                source_card_type=f'mix_{variant_key}',
+                source_refs=source_refs,
+            )
+
+        return Response(cache_payload)

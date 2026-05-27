@@ -17,6 +17,16 @@ vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({
   dispatchEvent: vi.fn(),
 }));
 
+// PROJ-30 T2.8 — DrawerLayoutToggle now hides on !isDesktop; force desktop.
+vi.mock('@/hooks/useResponsiveLayout', () => ({
+  useResponsiveLayout: () => ({
+    isPhoneTiny: false,
+    isMobile: false,
+    isTablet: false,
+    isDesktop: true,
+  }),
+}));
+
 describe('DrawerLayoutToggle', () => {
   const reducers = { chatBar: chatBarReducer };
 

@@ -239,3 +239,99 @@ def test_user_profile_invalid_methods():
     url = reverse("user-profile")
     response = client.delete(url)
     assert response.status_code == 405
+
+
+# ---------------------------------------------------------------------------
+# PROJ-31 — subscription_tier + features in /api/users/me/ payload
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_user_profile_includes_subscription_tier_default_free():
+    """PROJ-31 AC-5: /me/ exposes subscription_tier; default for new users is 'free'."""
+    user = User.objects.create_user(
+        email="freetier@test.com",
+        password="TestPassword123!",
+        username="freetier@test.com",
+        is_active=True,
+    )
+    client = auth_client(user)
+    response = client.get(reverse("user-profile"))
+    assert response.status_code == 200
+    body = response.json()
+    assert body["subscription_tier"] == "free"
+
+
+@pytest.mark.django_db
+def test_user_profile_includes_features_list_for_free_user():
+    """PROJ-31 AC-5: /me/ returns features[] resolved from tier (free baseline)."""
+    user = User.objects.create_user(
+        email="free2@test.com",
+        password="TestPassword123!",
+        username="free2@test.com",
+        is_active=True,
+    )
+    client = auth_client(user)
+    body = client.get(reverse("user-profile")).json()
+    assert isinstance(body["features"], list)
+    assert body["features"] == [
+        "niche.research",
+        "amazon.basic-search",
+        "design.gallery",
+        "slogan.basic",
+    ]
+    assert "*" not in body["features"]
+
+
+@pytest.mark.django_db
+def test_user_profile_features_for_staff_includes_staff_only():
+    """PROJ-31: staff (non-superuser) sees STAFF_ONLY_FEATURES appended."""
+    user = User.objects.create_user(
+        email="profstaff@test.com",
+        password="TestPassword123!",
+        username="profstaff@test.com",
+        is_active=True,
+        is_staff=True,
+    )
+    client = auth_client(user)
+    body = client.get(reverse("user-profile")).json()
+    assert "admin.scraper-debug" in body["features"]
+    assert "kanban" in body["features"]
+    assert "*" not in body["features"]
+
+
+@pytest.mark.django_db
+def test_user_profile_features_for_superuser_contains_wildcard():
+    """PROJ-31: superuser features list contains '*'."""
+    user = User.objects.create_user(
+        email="profsuper@test.com",
+        password="TestPassword123!",
+        username="profsuper@test.com",
+        is_active=True,
+        is_staff=True,
+        is_superuser=True,
+    )
+    client = auth_client(user)
+    body = client.get(reverse("user-profile")).json()
+    assert "*" in body["features"]
+
+
+@pytest.mark.django_db
+def test_user_profile_subscription_tier_readonly_via_patch():
+    """PROJ-31: clients MUST NOT be able to bump their own tier via PATCH."""
+    user = User.objects.create_user(
+        email="upgrade@test.com",
+        password="TestPassword123!",
+        username="upgrade@test.com",
+        is_active=True,
+    )
+    client = auth_client(user)
+    response = client.patch(
+        reverse("user-profile"),
+        {"subscription_tier": "business", "first_name": "Stays"},
+        format="json",
+    )
+    assert response.status_code == 200
+    user.refresh_from_db()
+    assert user.subscription_tier == "free"
+    assert user.first_name == "Stays"

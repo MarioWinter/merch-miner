@@ -14,6 +14,16 @@ beforeAll(() => {
 const { fa } = vi.hoisted(() => ({
   fa: (n: string) => ({ reducerPath: n, reducer: () => ({}), middleware: () => (x: any) => (a: any) => x(a), util: { resetApiState: () => ({ type: 'noop' }), invalidateTags: () => ({ type: 'noop' }) } }),
 }));
+// PROJ-30 T3.17 — right panel inline render is desktop-only; force desktop.
+vi.mock('@/hooks/useResponsiveLayout', () => ({
+  useResponsiveLayout: () => ({
+    isPhoneTiny: false,
+    isMobile: false,
+    isTablet: false,
+    isDesktop: true,
+  }),
+}));
+
 vi.mock('@/store/nicheSlice', () => ({ nicheApi: fa('nicheApi'), useListNichesQuery: () => ({ data: { results: [] }, isLoading: false }) }));
 vi.mock('@/store/ideaSlice', () => ({ ideaApi: fa('ideaApi') }));
 vi.mock('@/store/researchSlice', () => ({ researchApi: fa('researchApi') }));
@@ -59,6 +69,18 @@ vi.mock('@/store/designSlice', () => ({
   useListPromptPresetsQuery: () => ({ data: [] }),
   useCreatePromptPresetMutation: () => [vi.fn(), { isLoading: false }],
   useDeletePromptPresetMutation: () => [vi.fn(), { isLoading: false }],
+  // PROJ-34 — new endpoints used by useBuilder + useWorkspaceGeneration
+  useGetProcessingSettingsQuery: () => ({ data: undefined }),
+  useBuilderBuildMutation: () => [vi.fn(), { isLoading: false }],
+  useListBuilderPresetsQuery: () => ({ data: [] }),
+  useCreateBuilderPresetMutation: () => [vi.fn(), { isLoading: false }],
+  useDeleteBuilderPresetMutation: () => [vi.fn(), { isLoading: false }],
+  // PROJ-34 Phase 13c/13d/13f — niche-hints + custom-spatial hooks consumed by useBuilder.
+  useGetNicheHintsQuery: () => ({ data: undefined, isLoading: false, error: undefined }),
+  useListCustomSpatialsQuery: () => ({ data: [], isLoading: false, error: undefined }),
+  useAnalyzeSpatialMutation: () => [vi.fn(), { isLoading: false }],
+  useCreateCustomSpatialMutation: () => [vi.fn(), { isLoading: false }],
+  useDeleteCustomSpatialMutation: () => [vi.fn(), { isLoading: false }],
 }));
 
 // Mock react-router-dom params

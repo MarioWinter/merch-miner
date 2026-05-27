@@ -2,6 +2,7 @@ from django.contrib.auth import authenticate, get_user_model
 from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
+from core.entitlements import resolve_features
 from user_auth_app.models import BillingProfile, UserSearchHistory
 
 User = get_user_model()
@@ -363,9 +364,14 @@ class UserSerializer(serializers.ModelSerializer):
 
 
 class UserProfileSerializer(serializers.ModelSerializer):
-    """Read-only profile view: id, email, username, names, date_joined, avatar_url."""
+    """Read-only profile view: id, email, username, names, date_joined, avatar_url.
+
+    PROJ-31: also exposes `subscription_tier` and computed `features` list so
+    the frontend can drive `useCan()` / `<Gate>` directly off `/api/users/me/`.
+    """
 
     avatar_url = serializers.SerializerMethodField()
+    features = serializers.SerializerMethodField()
 
     def get_avatar_url(self, obj):
         if not obj.avatar:
@@ -374,6 +380,9 @@ class UserProfileSerializer(serializers.ModelSerializer):
         if request:
             return request.build_absolute_uri(obj.avatar)
         return obj.avatar
+
+    def get_features(self, obj):
+        return resolve_features(obj)
 
     class Meta:
         model = User
@@ -387,6 +396,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
             "avatar_url",
             "is_staff",
             "is_superuser",
+            "subscription_tier",
+            "features",
         )
         read_only_fields = fields
 

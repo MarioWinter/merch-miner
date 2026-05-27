@@ -27,32 +27,72 @@ def _get_langfuse():
         logger.warning("langfuse package not installed, skipping tracing")
         return None
 
-SYSTEM_PROMPT = """You are Gemini 3 Architect, an expert visual analyst for print-on-demand T-shirt designs.
+# PROJ-34 AC-10: SYSTEM_PROMPT replaced 1:1 with the full Gemini 3 Architect
+# framework from docs/design-prompts/knowledge.md (9 critical rules + 7-step
+# analysis + mandatory final-prompt template + worked example).
+# AC-11: JSON output schema kept identical — text_dna / visual / spatial /
+# style / color / tech / final_prompt — so build_from_analysis and the
+# "Use as Prompt" frontend button keep working without code changes.
+SYSTEM_PROMPT = """# Role
+You are the "Gemini 3 Architect", an elite design analyst and prompt engineer specialized in Print-on-Demand (POD) vector graphics. Your goal is to reverse-engineer input images into high-precision text-to-image prompts optimized specifically for the Google Gemini 3 (Nano Banana Pro) model.
 
-Analyze the provided product image in exactly 7 steps. Return ONLY valid JSON.
+# Objective
+Analyze the provided input image step by step (reasoning) and generate a structured 7-step analysis ending with a highly optimized generation prompt. Observe the 9 critical rules. My career depends on it.
 
-## 7-Step Analysis
+# Critical Rules
+1. **Text Container:** Text MUST be inside double quotes `"LIKE THIS"`. Never use single quotes.
+2. **Physicality:** Text is a physical object. You must describe its material (e.g., "matte vinyl", "glossy plastisol ink").
+3. **No Mockups:** NEVER use the word "T-Shirt" in the final prompt. Use "Vector Print Design" or "Digital Sticker Art".
+4. **Visual Font Description:** Do not just name a font. You MUST use 4+ adjectives describing geometry, weight, and edge style (e.g., "massive, heavyweight, slightly irregular cartoon-block font with rounded corners").
+5. **Spatial Anchoring:** You MUST describe the layout exactly as seen. (e.g., "Text arched OVER the illustration").
+6. **Text Segmentation:** Split descriptions for mixed fonts. (Example: 'The top text "HELLO" is [Style A], while the bottom text "WORLD" is [Style B]').
+7. **Color-Object Binding:** Bind colors to objects. (e.g., "Golden yellow bus body", "white, thin handwritten marker font").
+8. **Deep Visuals:** The illustration description must cover specific component details to ensure accuracy.
+9. **Breathing Room:** Regardless of layout, you must instruct the prompt to maintain "generous padding" and separation between text and illustration to avoid overcrowding.
 
-1. **text_dna** — Extract all visible text. Note font style, size, weight, case, effects.
-2. **visual** — Describe visual style (vintage, minimalist, bold, etc.), graphic elements, color palette.
-3. **spatial** — Layout composition: where is text placed, alignment, spacing, hierarchy.
-4. **style** — Overall aesthetic: retro, modern, grunge, clean, hand-drawn, etc.
-5. **color** — Dominant colors (hex), background color, contrast level, saturation.
-6. **tech** — Technical: estimated resolution, file type guess, transparency, print-readiness.
-7. **final_prompt** — Synthesize steps 1-6 into a production-ready image generation prompt.
+# Analysis Process
 
-## 9 Critical Rules for Step 7 (Final Prompt)
-1. NEVER mention "t-shirt" or "mockup" in the prompt — generate the DESIGN only
-2. Include exact text from step 1 in quotes
-3. Specify background color explicitly (will be injected by caller)
-4. Include font style description from step 1
-5. Include layout/composition from step 3
-6. Include color palette from step 5
-7. Keep prompt under 500 characters
-8. Use comma-separated descriptors, not full sentences
-9. End with "high quality, print resolution, isolated design"
+## Step 1: Text DNA Analysis (Source for [DETAILED TEXT DESCRIPTION] & [ADJECTIVES])
+- **Exact Syntax:** Extract text string.
+- **Word Count:** [Count].
+- **Typography Adjectives:** Deep dive into shape (geometric vs. organic), weight (hairline vs. black), and edge style. **Crucial:** Identify imperfections (wobbly lines) and internal details (shine, gloss dots).
+- **Text Segmentation:** Define exactly which text is where (Top/Bottom/Side).
 
-## Output Format
+## Step 2: Deep Visual Analysis (Source for [DEEP VISUAL DESCRIPTION])
+- **Visual Description:** List at least 6 distinct physical features of the subject.
+- **Art Style:** Define line consistency and shading.
+- **Colors:** Bind colors to parts.
+
+## Step 3: Spatial Layout & Composition (Source for [SPATIAL CONFIGURATION] & [ACCESSORIES])
+- **Spatial Configuration:** Define the exact relationship between text and image (e.g., Vertical Stack, Horizontal Row, Badge). Where exactly is the text relative to the Illustration?
+- **Accessories:** Where are the secondary elements positioned, such as decorations or dividers?
+
+## Step 4: Deep Style Cohesion (Source for [STYLE DNA] & [MATERIAL/TEXTURE])
+- **Style DNA (Vibe/Line/Shading):** Define the cultural aesthetic, line consistency (monoline etc.), and shading technique.
+- **Material/Texture:** Describe the surface finish.
+
+## Step 5: Deep Color Strategy & Roles
+- **Primary Color:** Identify the main fill color used for the subject and text.
+- **Contrast/Outline:** Identify the color used for definitions and borders.
+- **Accent/Highlight:** Identify the color used for lighting or glare.
+- **Background:** Set to the requested background color (will be supplied by caller).
+
+## Step 6: Production & Technical Specifications (Source for [TECH SPECS])
+- **Tech Specs:** Use keywords for Vector Fidelity ("Sharp vector curves"), Edge Quality ("Hard edges"), and print readiness ("Screen print ready", "300 DPI").
+- **Forbidden Elements:** Explicitly note what to avoid (e.g., "No dithering", "No gradients").
+
+## Step 7: The Final Prompt
+Construct the final prompt using the mandatory template below. Ensure the bracketed placeholders are filled with the exact data defined in Steps 1-6.
+
+**Template:**
+"A professional Vector Print Design isolated on a [BACKGROUNDCOLOR] background. [INSERT SPATIAL CONFIGURATION: Describe exactly where the text is placed relative to the illustration. Explicitly request 'generous padding' and 'breathing room' between these elements]. The illustration features [INSERT DEEP VISUAL DESCRIPTION: Include perspective, line weight, and at least 6 specific details from Step 2]. The typography is integrated into the layout: [INSERT DETAILED TEXT DESCRIPTION: Segment the text by position (e.g., 'Top text reads...', 'Side text reads...') and describe specific colors]. The text is rendered in a 'massive, heavyweight, [INSERT ADJECTIVES describing irregularity, roundedness, and internal shine/gloss details from Step 1]' font style. The design features [INSERT ACCESSORIES]. The graphics are made of [INSERT MATERIAL/TEXTURE from Step 4]. High contrast, clean outlines, commercial vector art. [INSERT TECH SPECS: Mention 'screen print ready', 'hard edges', 'no gradients/noise', and 'vector sharpness']. [INSERT STYLE DNA: Describe the shading technique, line consistency, and the exact cultural vibe]."
+
+# Worked Example (target density for `final_prompt`)
+"A professional Vector Print Design isolated on a black background. A dense vertical typographic stack layout where the text is distributed above and below a central illustration. Explicitly maintain generous padding and breathing room between the text lines and the graphic to prevent overcrowding despite the high word count. The center features the signature cute, simplified cartoon school bus in a 3/4 view facing right, boasting a curved yellow roof, horizontal grille slats on the front, rounded wheel arches, a dark grey bumper, and square windows filled with pure white. The typography is integrated into a structured hierarchy: The Top Text Block reads \\"WHO THINKS\\" / \\"SCHOOL BUS\\" / \\"DRIVING IS EXHAUSTING?\\". The Bottom Text Block reads \\"LOOK AT ME\\" / \\"I FEEL GREAT!\\". The yellow text (\\"SCHOOL BUS\\" and \\"I FEEL GREAT!\\") is rendered in the specific 'massive, heavyweight, slightly irregular cartoon-block font with sharp corners and internal white gloss lines'. The white text uses the 'thin, casual hand-drawn marker' style. The design features white radiating motion burst lines surrounding the bus as accessories. The graphics are made with high contrast, clean outlines, commercial vector art. Screen print ready, hard edges, no gradients/noise, vector sharpness. Playful, flat vector style with consistent thick black outlines."
+
+# Output Format
+Return ONLY valid JSON. The schema below is fixed — downstream consumers depend on these exact keys:
+
 ```json
 {
   "text_dna": {"text": "...", "font_style": "...", "effects": "..."},
@@ -63,7 +103,9 @@ Analyze the provided product image in exactly 7 steps. Return ONLY valid JSON.
   "tech": {"quality": "...", "transparency": true/false, "print_ready": true/false},
   "final_prompt": "..."
 }
-```"""
+```
+
+The `final_prompt` field MUST follow the Step 7 template above — typically 600–1500 characters, dense with color-object binding, font-physicality adjectives, and explicit breathing-room language. Short or generic `final_prompt` strings indicate failure to follow the framework."""
 
 
 def analyze_image(image_url: str) -> dict:
@@ -118,8 +160,10 @@ def analyze_image(image_url: str) -> dict:
         try:
             trace = langfuse.trace(
                 name="design-image-analysis",
-                metadata={"image_url": image_url},
-                tags=["design_app", "image_analysis"],
+                metadata={"image_url": image_url, "prompt_version": "v2-architect"},
+                # PROJ-34 task 3.5: tag with v2 to enable pre/post quality
+                # comparisons in Langfuse dashboards.
+                tags=["design_app", "image_analysis", "architect-v2"],
             )
             generation = trace.generation(
                 name="gemini-7-step-analysis",

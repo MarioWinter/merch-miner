@@ -13,6 +13,7 @@ from rest_framework_simplejwt.tokens import AccessToken, RefreshToken, TokenErro
 
 from django.utils import timezone
 
+from core.entitlements import resolve_features
 from user_auth_app.models import BillingProfile, UserSearchHistory
 
 from .authentication import CookieJWTAuthentication
@@ -313,7 +314,12 @@ class PasswordConfirmView(APIView):
 
 
 class MeView(APIView):
-    """Return authenticated user's id and email for Redux session hydration."""
+    """Return authenticated user payload for Redux session hydration.
+
+    PROJ-31: includes `subscription_tier` + computed `features` so the
+    frontend can drive `useCan()` / `<Gate>` right after login without an
+    extra round-trip to /api/users/me/.
+    """
 
     authentication_classes = [CookieJWTAuthentication]
     permission_classes = [IsAuthenticated]
@@ -328,6 +334,10 @@ class MeView(APIView):
                 "avatar_url": request.build_absolute_uri(user.avatar)
                 if user.avatar
                 else None,
+                "is_staff": user.is_staff,
+                "is_superuser": user.is_superuser,
+                "subscription_tier": user.subscription_tier,
+                "features": resolve_features(user),
             },
             status=status.HTTP_200_OK,
         )

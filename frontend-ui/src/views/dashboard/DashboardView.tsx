@@ -47,13 +47,13 @@ const DashboardView = () => {
 
       {/* Pipeline Funnel + Activity Feed */}
       <Grid container spacing={3} sx={{ mt: 1 }}>
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid size={{ xs: 12, sm: 12, md: 6 }}>
           <PipelineFunnel
             nicheCounts={dashboard?.niche_counts ?? null}
             isLoading={dashLoading}
           />
         </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid size={{ xs: 12, sm: 12, md: 6 }}>
           <ActivityFeed
             events={dashboard?.recent_activity ?? []}
             isLoading={dashLoading}
@@ -71,14 +71,14 @@ const DashboardView = () => {
 
       {/* Agent + Search Widgets (from main dashboard data) */}
       <Grid container spacing={3} sx={{ mt: 1 }}>
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid size={{ xs: 12, sm: 12, md: 6 }}>
           <AgentActivityWidget
             data={dashboard?.agent_activity ?? null}
             isLoading={dashLoading}
             onExport={() => exportCSV('agent')}
           />
         </Grid>
-        <Grid size={{ xs: 12, md: 6 }}>
+        <Grid size={{ xs: 12, sm: 12, md: 6 }}>
           <SearchActivityWidget
             data={dashboard?.search_activity ?? null}
             isLoading={dashLoading}

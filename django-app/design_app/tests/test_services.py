@@ -66,8 +66,27 @@ class TestPromptBuilder:
         assert 'paw print' in result
 
 
+@pytest.fixture
+def _passthrough_data_url():
+    """Patch _to_data_url to leave URLs unchanged.
+
+    Tests assert structural shape of the content array (e.g. result[0]['image_url']['url'])
+    and don't care about base64 inlining. Without this fixture they would try to fetch
+    test URLs over the network or trip over the mocked httpx.Client returning MagicMocks.
+    """
+    with patch(
+        'design_app.services.image_generator._to_data_url',
+        side_effect=lambda url: url,
+    ):
+        yield
+
+
 class TestGenerateImage:
     """Tests for generate_image() — multimodal content and validation."""
+
+    @pytest.fixture(autouse=True)
+    def _autouse_passthrough(self, _passthrough_data_url):
+        yield
 
     def _make_response(self, b64_data):
         """Build a minimal OpenRouter response with base64 image."""
@@ -128,7 +147,9 @@ class TestGenerateImage:
         # Verify payload sent to API had multimodal content array
         call_args = mock_client.post.call_args
         payload = call_args.kwargs['json']
-        content = payload['messages'][0]['content']
+        # PROJ-34 AC-2: messages[0] is the system prompt; user is at [1].
+        assert payload['messages'][0]['role'] == 'system'
+        content = payload['messages'][1]['content']
         assert isinstance(content, list)
         assert len(content) == 2
         assert content[0]['type'] == 'text'
@@ -172,7 +193,9 @@ class TestGenerateImage:
 
         call_args = mock_client.post.call_args
         payload = call_args.kwargs['json']
-        content = payload['messages'][0]['content']
+        # PROJ-34 AC-2: messages[0] is the system prompt; user is at [1].
+        assert payload['messages'][0]['role'] == 'system'
+        content = payload['messages'][1]['content']
         assert isinstance(content, str)
         assert content == 'Simple text prompt'
 
@@ -265,7 +288,9 @@ class TestGenerateImage:
 
         call_args = mock_client.post.call_args
         payload = call_args.kwargs['json']
-        content = payload['messages'][0]['content']
+        # PROJ-34 AC-2: messages[0] is the system prompt; user is at [1].
+        assert payload['messages'][0]['role'] == 'system'
+        content = payload['messages'][1]['content']
         assert isinstance(content, list)
         assert len(content) == 2
         # Image comes first in i2i mode
@@ -313,7 +338,9 @@ class TestGenerateImage:
 
         call_args = mock_client.post.call_args
         payload = call_args.kwargs['json']
-        content = payload['messages'][0]['content']
+        # PROJ-34 AC-2: messages[0] is the system prompt; user is at [1].
+        assert payload['messages'][0]['role'] == 'system'
+        content = payload['messages'][1]['content']
         assert isinstance(content, list)
         # Text-to-image: text comes first
         assert content[0]['type'] == 'text'
@@ -323,6 +350,10 @@ class TestGenerateImage:
 
 class TestBuildContent:
     """Tests for _build_content helper — verifies content arrays per mode."""
+
+    @pytest.fixture(autouse=True)
+    def _autouse_passthrough(self, _passthrough_data_url):
+        yield
 
     def test_text_to_image_no_image(self):
         from design_app.services.image_generator import _build_content
@@ -648,3 +679,294 @@ class TestTaskUpscaleDesign:
                     model_name='bytedance-seed/seedream-4.5',
                     source_image_url='https://example.com/img.jpg',
                 )
+
+
+class TestSystemPromptAndBgColor:
+    """PROJ-34 Phase 2: AC-1/AC-2/AC-7/AC-9 — system prompt always sent,
+    bg-color hex injected from persisted UI selection."""
+
+    @pytest.fixture(autouse=True)
+    def _autouse_passthrough(self, _passthrough_data_url):
+        yield
+
+    def _ok_response(self, b64_data):
+        return {
+            'choices': [{
+                'message': {
+                    'content': [
+                        {'inline_data': {'data': b64_data, 'mime_type': 'image/png'}},
+                    ],
+                },
+            }],
+        }
+
+    def _stub_post(self, mock_client_cls):
+        from io import BytesIO
+        from PIL import Image as _PIL
+        buf = BytesIO()
+        _PIL.new('RGBA', (1, 1)).save(buf, 'PNG')
+        b64_data = base64.b64encode(buf.getvalue()).decode()
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.json.return_value = self._ok_response(b64_data)
+        mock_resp.raise_for_status = MagicMock()
+        mock_client = MagicMock()
+        mock_client.post.return_value = mock_resp
+        mock_client.__enter__ = MagicMock(return_value=mock_client)
+        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_client_cls.return_value = mock_client
+        return mock_client
+
+    @patch('design_app.services.image_generator.httpx.Client')
+    def test_system_prompt_always_sent_text_only(self, mock_client_cls, tmp_path):
+        """AC-2: every payload has the DESIGN_GEN_SYSTEM_PROMPT at messages[0]."""
+        from design_app.services.image_generator import (
+            DESIGN_GEN_SYSTEM_PROMPT, generate_image,
+        )
+        mock_client = self._stub_post(mock_client_cls)
+        with patch(
+            'design_app.services.image_generator.settings',
+        ) as mock_settings:
+            mock_settings.OPENROUTER_API_KEY = 'test-key'
+            mock_settings.OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
+            generate_image(
+                prompt='Just a plain prompt',
+                model_name='gemini_flash',
+                output_dir=str(tmp_path),
+            )
+        payload = mock_client.post.call_args.kwargs['json']
+        messages = payload['messages']
+        assert len(messages) == 2
+        assert messages[0]['role'] == 'system'
+        assert messages[0]['content'] == DESIGN_GEN_SYSTEM_PROMPT
+        assert messages[1]['role'] == 'user'
+        # Without bg_color, the user prompt is unchanged.
+        assert messages[1]['content'] == 'Just a plain prompt'
+
+    @patch('design_app.services.image_generator.httpx.Client')
+    def test_neon_pink_injects_hex_in_user_prompt(self, mock_client_cls, tmp_path):
+        """AC-9: selecting neon_pink → #FF6EC7 appears in OpenRouter payload."""
+        from design_app.services.image_generator import generate_image
+        mock_client = self._stub_post(mock_client_cls)
+        with patch(
+            'design_app.services.image_generator.settings',
+        ) as mock_settings:
+            mock_settings.OPENROUTER_API_KEY = 'test-key'
+            mock_settings.OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
+            generate_image(
+                prompt='School bus driver design',
+                model_name='gemini_flash',
+                output_dir=str(tmp_path),
+                background_color='neon_pink',
+            )
+        payload = mock_client.post.call_args.kwargs['json']
+        user_content = payload['messages'][1]['content']
+        # Text-only user content with bg_color → string with appended bg line.
+        assert isinstance(user_content, str)
+        assert 'School bus driver design' in user_content
+        assert '#FF6EC7' in user_content
+        assert 'solid #FF6EC7' in user_content
+        assert 'no gradients' in user_content
+
+    @patch('design_app.services.image_generator.httpx.Client')
+    def test_bg_color_appended_to_multimodal_text_part(self, mock_client_cls, tmp_path):
+        """AC-7: bg-color appended even for multimodal (i2i / remix) payloads."""
+        from design_app.services.image_generator import generate_image
+        mock_client = self._stub_post(mock_client_cls)
+        with patch(
+            'design_app.services.image_generator.settings',
+        ) as mock_settings:
+            mock_settings.OPENROUTER_API_KEY = 'test-key'
+            mock_settings.OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
+            generate_image(
+                prompt='Make brighter',
+                model_name='gemini_flash',
+                output_dir=str(tmp_path),
+                source_image_url='https://example.com/ref.jpg',
+                mode='image_to_image',
+                background_color='neon_green',
+            )
+        payload = mock_client.post.call_args.kwargs['json']
+        user_content = payload['messages'][1]['content']
+        assert isinstance(user_content, list)
+        text_parts = [p['text'] for p in user_content if p.get('type') == 'text']
+        assert any('#39FF14' in t for t in text_parts)
+        assert any('Make brighter' in t for t in text_parts)
+
+    def test_unknown_model_still_raises_with_new_map_shape(self):
+        """Restructured MODEL_MAP must still raise on unknown model names."""
+        from design_app.services.image_generator import generate_image
+        with patch(
+            'design_app.services.image_generator.settings',
+        ) as mock_settings:
+            mock_settings.OPENROUTER_API_KEY = 'test-key'
+            mock_settings.OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
+            with pytest.raises(ValueError, match='Unknown model'):
+                generate_image(
+                    prompt='something',
+                    model_name='no-such-model',
+                )
+
+    def test_build_content_appends_bg_color_to_plain_string(self):
+        """Direct _build_content call with bg_color returns string with bg line."""
+        from design_app.services.image_generator import _build_content
+        result = _build_content(
+            'text_to_image', 'Vector cat design',
+            background_color='light_gray',
+        )
+        assert isinstance(result, str)
+        assert 'Vector cat design' in result
+        assert '#D3D3D3' in result
+
+    def test_build_content_no_bg_color_unchanged(self):
+        """_build_content without bg_color returns the prompt verbatim (back-compat)."""
+        from design_app.services.image_generator import _build_content
+        result = _build_content('text_to_image', 'Vector cat design')
+        assert result == 'Vector cat design'
+
+    @patch('design_app.services.image_generator.httpx.Client')
+    def test_seed_kwarg_forwards_to_openrouter(self, mock_client_cls, tmp_path):
+        """AC-39 / Appendix H — seed kwarg lands in payload for supports_seed models."""
+        from design_app.services.image_generator import generate_image
+        mock_client = self._stub_post(mock_client_cls)
+        with patch(
+            'design_app.services.image_generator.settings',
+        ) as mock_settings:
+            mock_settings.OPENROUTER_API_KEY = 'k'
+            mock_settings.OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
+            generate_image(
+                prompt='Bus design',
+                model_name='gemini_flash',
+                output_dir=str(tmp_path),
+                seed=12345,
+            )
+        payload = mock_client.post.call_args.kwargs['json']
+        assert payload.get('seed') == 12345
+
+    @patch('design_app.services.image_generator.httpx.Client')
+    def test_seed_omitted_when_none(self, mock_client_cls, tmp_path):
+        """No seed kwarg → no seed key in payload (back-compat for callers)."""
+        from design_app.services.image_generator import generate_image
+        mock_client = self._stub_post(mock_client_cls)
+        with patch(
+            'design_app.services.image_generator.settings',
+        ) as mock_settings:
+            mock_settings.OPENROUTER_API_KEY = 'k'
+            mock_settings.OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
+            generate_image(
+                prompt='Bus design',
+                model_name='gemini_flash',
+                output_dir=str(tmp_path),
+            )
+        payload = mock_client.post.call_args.kwargs['json']
+        assert 'seed' not in payload
+
+    @patch('design_app.services.image_generator.httpx.Client')
+    def test_seed_bounded_to_32bit(self, mock_client_cls, tmp_path):
+        """Large seed values are masked to 32 bits before going on the wire."""
+        from design_app.services.image_generator import generate_image
+        mock_client = self._stub_post(mock_client_cls)
+        with patch(
+            'design_app.services.image_generator.settings',
+        ) as mock_settings:
+            mock_settings.OPENROUTER_API_KEY = 'k'
+            mock_settings.OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
+            big = (2 ** 64) - 1  # 64-bit max
+            generate_image(
+                prompt='Bus design',
+                model_name='gemini_flash',
+                output_dir=str(tmp_path),
+                seed=big,
+            )
+        payload = mock_client.post.call_args.kwargs['json']
+        assert payload['seed'] == 0xFFFFFFFF
+
+
+class TestImageAnalyzerV2:
+    """PROJ-34 Phase 3: AC-10/AC-11/AC-12 — Architect-framework SYSTEM_PROMPT
+    replacement; 7-step JSON output schema preserved 1:1.
+
+    AC-13 (regression test against 3 live reference images proving
+    final_prompt ≥600 chars with Architect markers) is a manual /
+    integration smoke test — it requires real OPENROUTER credit per run
+    and is documented in the QA plan rather than blocking CI here."""
+
+    def test_system_prompt_contains_9_architect_rules(self):
+        from design_app.services.image_analyzer import SYSTEM_PROMPT
+        # Each of the 9 Critical Rules is numbered in the template; check the
+        # rule headers + their topical keywords so a future re-shuffle is caught.
+        for marker in (
+            '1. **Text Container:',
+            '2. **Physicality:',
+            '3. **No Mockups:',
+            '4. **Visual Font Description:',
+            '5. **Spatial Anchoring:',
+            '6. **Text Segmentation:',
+            '7. **Color-Object Binding:',
+            '8. **Deep Visuals:',
+            '9. **Breathing Room:',
+        ):
+            assert marker in SYSTEM_PROMPT, f'missing rule marker: {marker}'
+
+    def test_system_prompt_contains_architect_markers(self):
+        from design_app.services.image_analyzer import SYSTEM_PROMPT
+        # Architect-quality markers that should appear in the new prompt
+        # (these are precisely what AC-13's live test asserts in the output).
+        assert 'Vector Print Design' in SYSTEM_PROMPT
+        assert 'T-Shirt' in SYSTEM_PROMPT  # mentioned only in the forbidding rule
+        assert 'breathing room' in SYSTEM_PROMPT.lower()
+        assert 'generous padding' in SYSTEM_PROMPT.lower()
+        assert 'double quotes' in SYSTEM_PROMPT.lower()
+        assert 'color-object binding' in SYSTEM_PROMPT.lower()
+
+    def test_system_prompt_preserves_7_step_schema(self):
+        """AC-11: JSON schema unchanged so build_from_analysis keeps working."""
+        from design_app.services.image_analyzer import SYSTEM_PROMPT
+        for key in (
+            '"text_dna"', '"visual"', '"spatial"', '"style"',
+            '"color"', '"tech"', '"final_prompt"',
+        ):
+            assert key in SYSTEM_PROMPT
+
+    @patch('design_app.services.image_analyzer.httpx.Client')
+    def test_analyze_image_returns_7_key_dict(self, mock_client_cls):
+        """End-to-end: analyzer call returns a dict with the 7 expected keys."""
+        from design_app.services.image_analyzer import analyze_image
+        sample = {
+            'text_dna': {'text': 'COFFEE', 'font_style': 'bold serif'},
+            'visual': {'style': 'vintage', 'elements': 'coffee beans'},
+            'spatial': {'layout': 'centered'},
+            'style': {'aesthetic': 'retro'},
+            'color': {'dominant': ['#000']},
+            'tech': {'quality': 'high'},
+            'final_prompt': (
+                'A professional Vector Print Design isolated on a black '
+                'background. "COFFEE" in golden yellow, breathing room.'
+            ),
+        }
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            'choices': [{'message': {'content': __import__('json').dumps(sample)}}],
+            'usage': {'prompt_tokens': 1, 'completion_tokens': 1, 'total_tokens': 2},
+        }
+        mock_resp.raise_for_status = MagicMock()
+        mock_client = MagicMock()
+        mock_client.post.return_value = mock_resp
+        mock_client.__enter__ = MagicMock(return_value=mock_client)
+        mock_client.__exit__ = MagicMock(return_value=False)
+        mock_client_cls.return_value = mock_client
+
+        with patch(
+            'design_app.services.image_analyzer.settings',
+        ) as mock_settings:
+            mock_settings.OPENROUTER_API_KEY = 'k'
+            mock_settings.OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
+            mock_settings.LANGFUSE_PUBLIC_KEY = ''
+            mock_settings.LANGFUSE_SECRET_KEY = ''
+            result = analyze_image('https://example.com/x.jpg')
+
+        assert set(result.keys()) >= {
+            'text_dna', 'visual', 'spatial', 'style',
+            'color', 'tech', 'final_prompt',
+        }
+        assert 'Vector Print Design' in result['final_prompt']

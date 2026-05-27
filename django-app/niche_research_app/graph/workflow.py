@@ -35,6 +35,23 @@ async def finalize_node(state: ResearchState) -> dict:
     @sync_to_async
     def _finalize():
         research = NicheResearch.objects.select_related('niche').get(id=research_id)
+
+        # PROJ-34 Phase 13c — generate Architect Builder pre-fill hints
+        # BEFORE flipping status to COMPLETED. Wrapped in try/except so any
+        # LLM/network failure NEVER blocks the research run from finalizing
+        # (EC-27 — hints stay null, next research run retries).
+        try:
+            from niche_app.services.builder_hints import (
+                structure_niche_for_builder,
+            )
+            structure_niche_for_builder(research.niche_id)
+        except Exception:
+            logger.exception(
+                "Failed to generate builder_form_hints for niche %s — "
+                "continuing finalization",
+                research.niche_id,
+            )
+
         research.status = NicheResearch.Status.COMPLETED
         research.completed_at = timezone.now()
         research.save(update_fields=['status', 'completed_at'])

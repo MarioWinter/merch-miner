@@ -94,7 +94,7 @@ const KPICards = ({ nicheCounts, designCounts, listingCounts, isLoading }: KPICa
   return (
     <Grid container spacing={2}>
       {items.map((item) => (
-        <Grid key={item.label} size={{ xs: 6, sm: 4, md: 2 }}>
+        <Grid key={item.label} size={{ xs: 12, sm: 6, md: 3 }}>
           <KPICard elevation={0}>
             <CardContent sx={{ p: 0, '&:last-child': { pb: 0 } }}>
               <Stack direction="row" justifyContent="space-between" alignItems="flex-start">

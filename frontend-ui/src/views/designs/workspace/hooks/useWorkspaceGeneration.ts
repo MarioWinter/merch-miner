@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSnackbar } from 'notistack';
 import type { ArtboardData, BackgroundColor, DesignModel } from '../../board/types';
 import type { GenerationMode, AspectRatio } from '../../board/partials/GenerationZone';
 import { useGeneration } from '../../board/hooks/useGeneration';
-import { usePromptBuilder } from '../../board/hooks/usePromptBuilder';
+import { useBuilder } from '../../board/hooks/useBuilder';
 import { useImageAnalysis } from '../../board/hooks/useImageAnalysis';
+import { useGetProcessingSettingsQuery } from '@/store/designSlice';
+import type { ProjectIdea } from '../../gallery/types';
 
 // -----------------------------------------------------------------
 // Types
@@ -12,8 +15,19 @@ import { useImageAnalysis } from '../../board/hooks/useImageAnalysis';
 interface UseWorkspaceGenerationParams {
   projectId: string;
   nicheId: string | null;
-  /** Board designs from API (for detecting new design arrivals) */
-  boardDesigns?: Array<{ id: string; image_file: string | null; status: string }>;
+  /** Project slogan pool — feeds the Builder dialog's SloganPicker. */
+  ideas?: ProjectIdea[];
+  /** Full board designs (with generation_run.id for skeleton matching) */
+  boardDesigns?: Array<{
+    id: string;
+    image_file: string | null;
+    status: string;
+    generation_run?: { id?: string; status?: string } | null;
+  }>;
+  /** Active runs (pending/running/failed) — drives error UX on skeletons */
+  activeRuns?: Array<{ id: string; status: string; error_message: string }>;
+  /** Current artboards (read-only access for reconciliation) */
+  artboards?: ArtboardData[];
   /** Selected artboard from panel state */
   selectedArtboard: ArtboardData | null;
   /** Artboard mutations */
@@ -31,7 +45,10 @@ interface UseWorkspaceGenerationParams {
 const useWorkspaceGeneration = ({
   projectId,
   nicheId,
+  ideas = [],
   boardDesigns,
+  activeRuns,
+  artboards,
   selectedArtboard,
   addArtboard,
   updateArtboard,
@@ -47,14 +64,53 @@ const useWorkspaceGeneration = ({
   const [generationMode, setGenerationMode] = useState<GenerationMode>('text_to_image');
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [sourceImageUrl, setSourceImageUrl] = useState<string | null>(null);
+  const [sourceImageUrl2, setSourceImageUrl2] = useState<string | null>(null);
 
   // -- AI generation --
   const generation = useGeneration(projectId);
-  const generatingArtboardRef = useRef<string | null>(null);
+  const { enqueueSnackbar } = useSnackbar();
+  const failedRunHandledRef = useRef<Set<string>>(new Set());
 
-  // -- Prompt Builder --
-  const promptBuilder = usePromptBuilder(projectId, nicheId);
+  // -- Prompt Builder (PROJ-34 renovated) --
   const [promptBuilderOpen, setPromptBuilderOpen] = useState(false);
+
+  // AC-40 / Appendix G — last polished output Builder inserted, compared
+  // against current `prompt` on the next Build click to detect manual edits.
+  // Held as state (not ref) so the dialog re-renders when dirtiness flips.
+  const [lastBuildOutput, setLastBuildOutput] = useState<string | null>(null);
+  const textareaDirtySinceBuild =
+    lastBuildOutput !== null && lastBuildOutput !== prompt;
+
+  // Workspace polish toggle (default ON when settings row not yet created).
+  const { data: processingSettings } = useGetProcessingSettingsQuery();
+  const polishEnabled =
+    processingSettings?.polish_builder_prompts_enabled ?? true;
+
+  const handleBuilderComplete = useCallback(
+    (joinedPrompts: string) => {
+      setPrompt(joinedPrompts);
+      setLastBuildOutput(joinedPrompts);
+      // AC-36: auto-flip Parallel Prompts ON when Builder produces ≥2 entries.
+      if (joinedPrompts.includes(';')) setIsParallel(true);
+      setPromptBuilderOpen(false);
+    },
+    [],
+  );
+
+  const builder = useBuilder({
+    projectId,
+    nicheId,
+    backgroundColor: bgColor,
+    polishEnabled,
+    onBuildComplete: handleBuilderComplete,
+  });
+
+  // Pool lookup for the dialog → useBuilder bridge (id → slogan_text).
+  const ideaPoolLookup = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const idea of ideas) map.set(idea.id, idea.slogan_text);
+    return map;
+  }, [ideas]);
 
   // -- Image analysis (G13) --
   const imageAnalysis = useImageAnalysis(projectId);
@@ -81,47 +137,104 @@ const useWorkspaceGeneration = ({
     }
   }, [selectedArtboard]);
 
-  // -- Update skeleton artboard when generation completes --
-  const prevDesignCountRef = useRef(boardDesigns?.length ?? 0);
+  // -- Reconcile skeleton artboards with completed runs --
+  // Matches designs to skeletons via generation_run.id <-> pendingRunId.
+  // Survives page reload: skeletons are restored from board_layout JSON,
+  // so even after F5 the design lands in the right slot.
   useEffect(() => {
-    if (!boardDesigns || !generatingArtboardRef.current) return;
-    const prevCount = prevDesignCountRef.current;
-    prevDesignCountRef.current = boardDesigns.length;
-    if (boardDesigns.length > prevCount && !generation.isGenerating) {
-      const newest = boardDesigns[0];
-      if (newest?.image_file) {
-        updateArtboard(generatingArtboardRef.current, {
-          imageUrl: newest.image_file,
-          designId: newest.id,
+    if (!boardDesigns || !artboards) return;
+    const skeletons = artboards.filter((ab) => ab.isGenerating && ab.pendingRunId);
+    if (skeletons.length === 0) return;
+    for (const ab of skeletons) {
+      const match = boardDesigns.find(
+        (d) => d.generation_run?.id === ab.pendingRunId && d.image_file,
+      );
+      if (match) {
+        updateArtboard(ab.id, {
+          imageUrl: match.image_file,
+          designId: match.id,
           isGenerating: false,
+          pendingRunId: null,
+          hasError: false,
         });
-        generatingArtboardRef.current = null;
       }
     }
-  }, [boardDesigns, generation.isGenerating, updateArtboard]);
+  }, [boardDesigns, artboards, updateArtboard]);
+
+  // -- Reconcile skeletons with FAILED runs --
+  // When the worker marks a run failed, no design is created. We surface the
+  // error on the matching skeleton and notify the user once per run.
+  useEffect(() => {
+    if (!activeRuns || !artboards) return;
+    const failedById = new Map(
+      activeRuns.filter((r) => r.status === 'failed').map((r) => [r.id, r]),
+    );
+    if (failedById.size === 0) return;
+    for (const ab of artboards) {
+      if (!ab.pendingRunId || !ab.isGenerating) continue;
+      const failed = failedById.get(ab.pendingRunId);
+      if (!failed) continue;
+      updateArtboard(ab.id, {
+        isGenerating: false,
+        hasError: true,
+        pendingRunId: null,
+      });
+      if (!failedRunHandledRef.current.has(failed.id)) {
+        failedRunHandledRef.current.add(failed.id);
+        enqueueSnackbar(
+          failed.error_message
+            ? `Generation failed: ${failed.error_message.slice(0, 120)}`
+            : 'Generation failed',
+          { variant: 'error' },
+        );
+      }
+    }
+  }, [activeRuns, artboards, updateArtboard, enqueueSnackbar]);
 
   // -- Handlers --
 
   const handleOpenPromptBuilder = useCallback(() => {
-    promptBuilder.reset();
     setPromptBuilderOpen(true);
-  }, [promptBuilder]);
+  }, []);
 
   const handleClosePromptBuilder = useCallback(() => {
     setPromptBuilderOpen(false);
   }, []);
+
+  const handleBuilderBuild = useCallback(
+    async (config: Parameters<typeof builder.handleBuild>[0]) => {
+      await builder.handleBuild(config, ideaPoolLookup);
+    },
+    [builder, ideaPoolLookup],
+  );
 
   const handleInsertSlogan = useCallback((sloganText: string) => {
     setPrompt(sloganText);
   }, []);
 
   const handleUseAsReference = useCallback((imageUrl: string) => {
-    setGenerationMode('image_to_image_remix');
+    if (generationMode === 'remix') {
+      if (!sourceImageUrl) {
+        setSourceImageUrl(imageUrl);
+      } else if (!sourceImageUrl2) {
+        setSourceImageUrl2(imageUrl);
+      } else {
+        setSourceImageUrl(imageUrl);
+      }
+      return;
+    }
     setSourceImageUrl(imageUrl);
-  }, []);
+    if (generationMode === 'text_to_image') {
+      setGenerationMode('image_to_image_edit');
+    }
+  }, [generationMode, sourceImageUrl, sourceImageUrl2]);
 
   const handleClearSourceImage = useCallback(() => {
     setSourceImageUrl(null);
+  }, []);
+
+  const handleClearSourceImage2 = useCallback(() => {
+    setSourceImageUrl2(null);
   }, []);
 
   const handleUseAsPrompt = useCallback((analysisText: string) => {
@@ -138,25 +251,119 @@ const useWorkspaceGeneration = ({
     [addArtboard, pushHistory],
   );
 
+  // PROJ-34 AC-37 \u2014 `;` is the single source of truth for multi-prompt splits.
+  // The newline-based fallback is gone (Builder produces `; `-joined output;
+  // free-typed multi-prompts must also use `;`). Empty entries are stripped.
+  const parallelPrompts = useMemo<string[]>(
+    () =>
+      prompt
+        .split(';')
+        .map((p) => p.trim())
+        .filter((p) => p.length > 0),
+    [prompt],
+  );
+  const parallelLineCount = parallelPrompts.length;
+
+  // Source URLs may be relative (/media/...) for local references; the
+  // backend serializer requires absolute URLs.
+  const toAbsolute = useCallback(
+    (u: string | null) =>
+      u && u.startsWith('/') ? `${window.location.origin}${u}` : u,
+    [],
+  );
+
+  // Single low-level fire: skeleton + trigger one Run. Each parallel /
+  // variant call goes through this so the skeleton-reconciliation effect
+  // matches it up later via pendingRunId.
+  const fireOne = useCallback(
+    async (singlePrompt: string, label: string) => {
+      const skeletonAb = addArtboard({
+        label,
+        kind: 'ai',
+        width: 280,
+        height: 280,
+        isGenerating: true,
+        promptUsed: singlePrompt,
+        modelUsed: aiModel,
+        bgColorUsed: bgColor,
+      });
+      try {
+        const run = await generation.trigger({
+          model: aiModel,
+          background_color: bgColor,
+          prompt: singlePrompt,
+          mode: generationMode,
+          aspect_ratio: aspectRatio,
+          ...(sourceImageUrl
+            ? { source_image_url: toAbsolute(sourceImageUrl) as string }
+            : {}),
+          ...(sourceImageUrl2
+            ? { source_image_url_2: toAbsolute(sourceImageUrl2) as string }
+            : {}),
+        });
+        updateArtboard(skeletonAb.id, { pendingRunId: run.id });
+        return run;
+      } catch {
+        updateArtboard(skeletonAb.id, { isGenerating: false, pendingRunId: null });
+        return null;
+      }
+    },
+    [
+      addArtboard, updateArtboard, generation, aiModel, bgColor,
+      generationMode, aspectRatio, sourceImageUrl, sourceImageUrl2, toAbsolute,
+    ],
+  );
+
   const handleGenerate = useCallback(async () => {
     if (!prompt.trim() || generation.isGenerating) return;
     pushHistory();
-    const skeletonAb = addArtboard({
-      label: `AI: ${prompt.slice(0, 30)}${prompt.length > 30 ? '\u2026' : ''}`,
-      kind: 'ai', width: 280, height: 280, isGenerating: true,
-      promptUsed: prompt, modelUsed: aiModel, bgColorUsed: bgColor,
-    });
-    generatingArtboardRef.current = skeletonAb.id;
-    try {
-      await generation.trigger({
-        model: aiModel, background_color: bgColor, prompt,
-        ...(sourceImageUrl ? { source_image_url: sourceImageUrl } : {}),
-      });
+
+    // AC-39: single-prompt mode + Images > 1 \u2192 N parallel calls. Each call
+    // is its own Run so the backend's run-id-derived seed (Appendix H)
+    // automatically produces N distinct-but-reproducible variants.
+    if (!isParallel && imageCount > 1) {
+      const baseLabel = `AI: ${prompt.slice(0, 24)}${prompt.length > 24 ? '\u2026' : ''}`;
+      await Promise.all(
+        Array.from({ length: imageCount }, (_, i) =>
+          // Soft suffix as a compositional nudge for models where similar
+          // seeds still produce near-identical results; cost-free.
+          fireOne(
+            `${prompt} (variation ${i + 1} of ${imageCount})`,
+            `${baseLabel} #${i + 1}`,
+          ),
+        ),
+      );
       setSourceImageUrl(null);
-    } catch {
-      updateArtboard(skeletonAb.id, { isGenerating: false });
+      setSourceImageUrl2(null);
+      return;
     }
-  }, [prompt, generation, addArtboard, updateArtboard, aiModel, bgColor, pushHistory, sourceImageUrl]);
+
+    // Default single-shot fire.
+    await fireOne(
+      prompt,
+      `AI: ${prompt.slice(0, 30)}${prompt.length > 30 ? '\u2026' : ''}`,
+    );
+    setSourceImageUrl(null);
+    setSourceImageUrl2(null);
+  }, [
+    prompt, isParallel, imageCount, generation.isGenerating,
+    pushHistory, fireOne,
+  ]);
+
+  // AC-37 / AC-36 \u2014 Generate-All: split the textarea on `;` and fire one
+  // Run per entry. Used by the split-button menu when isParallel is ON and
+  // \u2265 2 entries are present.
+  const handleGenerateAll = useCallback(async () => {
+    if (generation.isGenerating || parallelPrompts.length === 0) return;
+    pushHistory();
+    await Promise.all(
+      parallelPrompts.map((p, i) =>
+        fireOne(p, `AI: ${p.slice(0, 24)}${p.length > 24 ? '\u2026' : ''} #${i + 1}`),
+      ),
+    );
+    setSourceImageUrl(null);
+    setSourceImageUrl2(null);
+  }, [generation.isGenerating, parallelPrompts, pushHistory, fireOne]);
 
   return {
     // Prompt state
@@ -168,14 +375,19 @@ const useWorkspaceGeneration = ({
     generationMode, setGenerationMode,
     aspectRatio, setAspectRatio,
     sourceImageUrl,
+    sourceImageUrl2,
     // Generation
     generation,
     handleGenerate,
-    // Prompt Builder
-    promptBuilder,
+    handleGenerateAll,
+    parallelLineCount,
+    // PROJ-34: Multi-Prompt Builder
+    builder,
     promptBuilderOpen,
     handleOpenPromptBuilder,
     handleClosePromptBuilder,
+    handleBuilderBuild,
+    textareaDirtySinceBuild,
     // Image analysis
     imageAnalysis,
     hasSelectedImage,
@@ -183,6 +395,7 @@ const useWorkspaceGeneration = ({
     handleInsertSlogan,
     handleUseAsReference,
     handleClearSourceImage,
+    handleClearSourceImage2,
     handleUseAsPrompt,
     handleCreateSkeletonArtboards,
   };

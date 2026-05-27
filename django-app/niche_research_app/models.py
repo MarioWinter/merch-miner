@@ -176,6 +176,9 @@ class NicheProductVisionAnalysis(models.Model):
     visual_style = models.TextField(blank=True, default='')
     graphic_elements = models.TextField(blank=True, default='')
     layout_composition = models.TextField(blank=True, default='')
+    typography_descriptors = models.TextField(blank=True, default='')
+    font_combination_descriptors = models.TextField(blank=True, default='')
+    accessory_descriptors = models.TextField(blank=True, default='')
     is_niche_match = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
 

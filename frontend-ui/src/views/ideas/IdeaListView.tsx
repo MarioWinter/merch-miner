@@ -68,6 +68,25 @@ const EmptyHint = styled(Box)(({ theme }) => ({
   gap: theme.spacing(1),
 }));
 
+/**
+ * PROJ-30 T3.5 — bulk-action bar pinned to viewport bottom on `<md`
+ * (phones + small tablets). On `>=md` it sits inline above the list.
+ */
+const BulkActionBar = styled(Stack)(({ theme }) => ({
+  marginBottom: theme.spacing(2),
+  [theme.breakpoints.down('md')]: {
+    position: 'fixed',
+    bottom: 'env(safe-area-inset-bottom, 0px)',
+    left: 0,
+    right: 0,
+    zIndex: 1100,
+    padding: theme.spacing(2),
+    margin: 0,
+    backgroundColor: theme.vars.palette.background.paper,
+    borderTop: `1px solid ${theme.vars.palette.divider}`,
+  },
+}));
+
 export const IdeaListView = () => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
@@ -185,8 +204,12 @@ export const IdeaListView = () => {
   const showEmpty = !isLoading && !isError && ideas.length === 0;
   const showList = !isLoading && !isError && ideas.length > 0;
 
+  // Extra bottom padding while bulk bar is sticky on small viewports so the
+  // last list item / Generate button is not clipped behind the fixed bar.
+  const hasStickyBulkBar = selectedIds.size > 0;
+
   return (
-    <Box sx={{ pb: 8 }}>
+    <Box sx={{ pb: { xs: hasStickyBulkBar ? 14 : 8, md: 8 } }}>
       {/* Page header */}
       <PageHeader>
         <Typography component="h1" variant="h4" fontWeight={700}>
@@ -227,9 +250,9 @@ export const IdeaListView = () => {
         </Box>
       )}
 
-      {/* Bulk actions bar */}
+      {/* Bulk actions bar — sticky bottom on <md (T3.5) */}
       {selectedIds.size > 0 && (
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 2 }}>
+        <BulkActionBar direction="row" spacing={1} alignItems="center">
           <Typography variant="body2" color="text.secondary">
             {t('ideas.bulk.selected', { count: selectedIds.size })}
           </Typography>
@@ -242,7 +265,7 @@ export const IdeaListView = () => {
           <Button size="small" onClick={() => setSelectedIds(new Set())}>
             {t('ideas.bulk.clear')}
           </Button>
-        </Stack>
+        </BulkActionBar>
       )}
 
       {/* Error */}

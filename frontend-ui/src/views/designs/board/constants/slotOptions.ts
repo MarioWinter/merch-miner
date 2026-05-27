@@ -1,0 +1,736 @@
+// PROJ-34 Phase 13e — frontend mirror of backend Appendices J.4–J.8.
+// Source of truth for the form-based Builder slot pickers (TextSegmentation,
+// Typography, Accessories, Material) and for the SpatialPickerModal grid
+// rendered in Phase 13f.
+//
+// IMPORTANT: every string MUST be copy-pasted verbatim from
+// `django-app/design_app/services/style_library.py`. If a single character
+// drifts, the `mirror_check` step in CI will fail (Phase 13a).
+//
+// Thumbnails resolve to `/{thumbnail_path}` served by Vite from
+// `frontend-ui/public/spatial-thumbnails/`. The PNGs mirror what lives under
+// `design_app/static/design_app/thumbnails/spatial/` on the backend; hosting
+// them in the frontend bundle avoids Vite/Django proxy plumbing for the
+// placeholder set. Replace either copy in-place to swap the visuals.
+
+export interface SpatialOption {
+  /** Stable identifier referenced from Appendix K + niche-LLM enum + presets. */
+  id: string;
+  /** Display label used in the SpatialPickerModal card. */
+  ui_label: string;
+  /** Short 1-line description shown below the label. */
+  ui_description: string;
+  /** Vite-public-relative path (without leading slash). */
+  thumbnail_path: string;
+  /** 40–70 word Architect-grade layout description injected into the prompt. */
+  prompt_text: string;
+}
+
+// J.4 — 43 spatial layouts (36 base + 7 Phase 13o additions) — mirrors
+// backend SPATIAL_OPTIONS verbatim.
+export const SPATIAL_OPTIONS: readonly SpatialOption[] = [
+  // ─── Classic foundation layouts ──────────────────────────────────────────
+  {
+    id: 'vertical_stack',
+    ui_label: 'Vertical Stack',
+    ui_description: 'Text above, illustration center, text below — POD classic',
+    thumbnail_path: 'spatial-thumbnails/vertical_stack.png',
+    prompt_text:
+      'Vertical stack layout where text sits above and below a central illustration, with generous padding and breathing room between the text lines and the graphic. The composition reads top-to-bottom: headline, illustration, supporting line. Equal horizontal centering throughout.',
+  },
+  {
+    id: 'horizontal_row',
+    ui_label: 'Horizontal Row',
+    ui_description: 'Illustration left, stacked text right (or mirrored)',
+    thumbnail_path: 'spatial-thumbnails/horizontal_row.png',
+    prompt_text:
+      'Horizontal row layout with the illustration anchored on the left half of the canvas and stacked text lines on the right half, separated by a generous vertical gutter of breathing room. Both blocks are vertically centered relative to each other.',
+  },
+  {
+    id: 'badge_emblem',
+    ui_label: 'Badge Emblem',
+    ui_description: 'Round badge, illustration inside, slogan curved on arcs',
+    thumbnail_path: 'spatial-thumbnails/badge_emblem.png',
+    prompt_text:
+      'Badge emblem layout with the illustration centered inside a circular border, the primary slogan curving along the top arc of the badge and an accent phrase curving along the bottom arc. Thin double-line border separates inner and outer rings.',
+  },
+  {
+    id: 'banner_top',
+    ui_label: 'Banner Top',
+    ui_description: 'Ribbon banner at top, illustration fills below',
+    thumbnail_path: 'spatial-thumbnails/banner_top.png',
+    prompt_text:
+      "Banner ribbon at the top of the canvas carrying the primary text inside it, with the illustration filling the lower two-thirds of the canvas and generous padding around it. The banner's tails curl slightly outward at the canvas edges.",
+  },
+  {
+    id: 'headline_top_subtitle_bottom',
+    ui_label: 'Headline + Subtitle',
+    ui_description: 'Bold headline top, illustration center, small subtitle bottom',
+    thumbnail_path: 'spatial-thumbnails/headline_top_subtitle_bottom.png',
+    prompt_text:
+      'Single bold headline anchored at the top edge, the illustration filling the center of the canvas with breathing room around it, and a smaller subtitle line anchored at the bottom edge. Strong top-bottom symmetry, generous vertical breathing room.',
+  },
+  {
+    id: 'text_overlay',
+    ui_label: 'Text Overlay',
+    ui_description: 'Slogan rendered ON TOP of the illustration',
+    thumbnail_path: 'spatial-thumbnails/text_overlay.png',
+    prompt_text:
+      'Overlay layout where the slogan text is rendered directly ON TOP of the centered illustration with a high-contrast outline or knockout stroke around each letter so the text stays fully legible against the artwork beneath it.',
+  },
+  // ─── Pure typographic layouts (text-only, no illustration) ──────────────
+  {
+    id: 'stacked_word_block',
+    ui_label: 'Stacked Word Block',
+    ui_description: '4–6 centered text lines, sizes vary, no illustration',
+    thumbnail_path: 'spatial-thumbnails/stacked_word_block.png',
+    prompt_text:
+      'Pure typographic stacked-word block with 4 to 6 horizontally centered text lines of varying font sizes and weights, no illustration. The visual hierarchy makes the central emphasis word the largest, the framing lines smaller and lighter. Even vertical spacing between lines.',
+  },
+  {
+    id: 'knockout_text',
+    ui_label: 'Knockout Text',
+    ui_description: 'Slogan cut out of a single solid shape',
+    thumbnail_path: 'spatial-thumbnails/knockout_text.png',
+    prompt_text:
+      'Knockout reverse layout where the slogan text is cut out of a single solid filled shape — a rectangle, oval, or rounded plaque — so the canvas background shows through the letterforms. No separate illustration. The shape fills most of the canvas with even padding to the edges.',
+  },
+  {
+    id: 'big_word_tiny_tag',
+    ui_label: 'Big Word + Tiny Tag',
+    ui_description: 'One huge word, tiny subtitle, no illustration',
+    thumbnail_path: 'spatial-thumbnails/big_word_tiny_tag.png',
+    prompt_text:
+      'Single dominant word filling roughly two-thirds of the canvas in massive heavyweight type, with a small subtitle line in tiny all-caps anchored centered immediately beneath it. No separate illustration. The supporting line is one-tenth the size of the dominant word.',
+  },
+  {
+    id: 'word_as_shape',
+    ui_label: 'Word-as-Shape',
+    ui_description: 'Text bent to form a silhouette (heart, animal, …)',
+    thumbnail_path: 'spatial-thumbnails/word_as_shape.png',
+    prompt_text:
+      'Word-as-shape layout where the slogan text is bent, curved and arranged so the overall outline of the text block forms a recognizable silhouette — a heart, animal, or symbol related to the subject — without a separate illustration. The text itself IS the imagery.',
+  },
+  {
+    id: 'diagonal_text',
+    ui_label: 'Diagonal Text Block',
+    ui_description: 'Slogan tilted 15–25° as a single rotated block',
+    thumbnail_path: 'spatial-thumbnails/diagonal_text.png',
+    prompt_text:
+      'Diagonal text block tilted 15 to 25 degrees off horizontal, the slogan stacked into 2 or 3 lines and rotated together as a single unit. Illustration is either omitted or sits subtly behind the text as a low-contrast silhouette. The diagonal cuts across the visual center.',
+  },
+  {
+    id: 'pyramid_stack',
+    ui_label: 'Pyramid Stack',
+    ui_description: 'Lines growing/shrinking in size, pyramid silhouette',
+    thumbnail_path: 'spatial-thumbnails/pyramid_stack.png',
+    prompt_text:
+      'Pyramid word-stack layout with 4 to 5 stacked text lines forming a pyramid: the top line is shortest and smallest, each subsequent line wider and bolder, with the bottom line as the dominant emphasis word. No illustration. Tight vertical spacing for triangular cohesion.',
+  },
+  // ─── Frame / Stamp / Crest layouts ──────────────────────────────────────
+  {
+    id: 'rectangular_frame',
+    ui_label: 'Rectangular Frame',
+    ui_description: 'Thin border, illustration center, text above + below',
+    thumbnail_path: 'spatial-thumbnails/rectangular_frame.png',
+    prompt_text:
+      'Rectangular frame layout with a thin border running around the canvas edge, the illustration centered inside the frame, and the slogan placed inside the frame above and below the illustration with generous interior padding. The frame has subtle ornamental corners.',
+  },
+  {
+    id: 'crest_coat_of_arms',
+    ui_label: 'Crest / Coat of Arms',
+    ui_description: 'Heraldic vertical shield + banner + flanking elements',
+    thumbnail_path: 'spatial-thumbnails/crest_coat_of_arms.png',
+    prompt_text:
+      'Vertical heraldic crest layout with the illustration at the visual center inside a shield outline, a flowing banner ribbon underneath carrying the slogan, and decorative laurel-leaf or wing motifs flanking the shield on left and right. Symmetric on the vertical axis.',
+  },
+  {
+    id: 'postage_stamp',
+    ui_label: 'Postage Stamp',
+    ui_description: 'Perforated jagged border, denomination tag, framed',
+    thumbnail_path: 'spatial-thumbnails/postage_stamp.png',
+    prompt_text:
+      'Postage-stamp layout with a perforated jagged-edge border around the canvas, a small denomination tag in one upper corner, the illustration filling the inner stamp area, and the slogan running along the bottom of the inner stamp frame. Visible perforation dots on all four edges.',
+  },
+  {
+    id: 'hexagon_medallion',
+    ui_label: 'Hexagon Medallion',
+    ui_description: 'Hexagon or diamond outline, illustration inside',
+    thumbnail_path: 'spatial-thumbnails/hexagon_medallion.png',
+    prompt_text:
+      'Hexagonal medallion layout with the illustration centered inside a sharp hexagon or diamond outline, the slogan placed above the medallion and an accent word below it. Sharp geometric border lines, no rounded corners, strict symmetry.',
+  },
+  {
+    id: 'road_sign',
+    ui_label: 'Road Sign / Placard',
+    ui_description: 'Octagon / triangle / shield sign with legend',
+    thumbnail_path: 'spatial-thumbnails/road_sign.png',
+    prompt_text:
+      'Road-sign placard layout shaped like an octagon, triangle, or highway-shield outline filling most of the canvas. The slogan is rendered as the sign legend in centered all-caps inside the sign shape. The illustration, if any, is small and tucked into one corner.',
+  },
+  // ─── Listing / definition / structured layouts ──────────────────────────
+  {
+    id: 'definition_entry',
+    ui_label: 'Dictionary Definition',
+    ui_description: 'Headword, phonetics, part-of-speech, paragraph',
+    thumbnail_path: 'spatial-thumbnails/definition_entry.png',
+    prompt_text:
+      'Dictionary-definition layout with the headword in large bold at the top, a phonetic pronunciation guide in brackets plus a part-of-speech label on the second line, then a multi-line definition paragraph beneath set in a smaller serif. No separate illustration.',
+  },
+  {
+    id: 'knolling_grid',
+    ui_label: 'Knolling Grid',
+    ui_description: '4–9 illustrated items in a tidy uniform grid + title bar',
+    thumbnail_path: 'spatial-thumbnails/knolling_grid.png',
+    prompt_text:
+      'Knolling-grid layout with 4 to 9 small illustrated objects arranged in a tidy uniform grid (e.g. 3×3 or 3×2), each separated by equal padding, and a centered title bar across the top spanning the full grid width carrying the slogan.',
+  },
+  {
+    id: 'anatomy_diagram',
+    ui_label: 'Anatomy Diagram',
+    ui_description: 'Central illustration with labeled pointer lines',
+    thumbnail_path: 'spatial-thumbnails/anatomy_diagram.png',
+    prompt_text:
+      'Anatomy-diagram layout with the central illustration in the middle of the canvas, thin pointer lines radiating outward to small text labels at multiple cardinal positions around it, and the slogan or title placed at the very top of the canvas as a header.',
+  },
+  {
+    id: 'checklist',
+    ui_label: 'Checklist',
+    ui_description: '4–6 stacked lines, each with a checkbox tick',
+    thumbnail_path: 'spatial-thumbnails/checklist.png',
+    prompt_text:
+      'Vertical checklist layout with 4 to 6 stacked text lines, each preceded by a small checkbox or tick icon, a header line at the top carrying the title, generous line height between items, and no separate illustration. The list is centered horizontally on the canvas.',
+  },
+  {
+    id: 'periodic_tile',
+    ui_label: 'Periodic Element Tile',
+    ui_description: 'Square tile, atomic-number style, symbol + name',
+    thumbnail_path: 'spatial-thumbnails/periodic_tile.png',
+    prompt_text:
+      "Periodic-table element-tile layout with a single square tile centered on the canvas, an atomic-number-style small digit in the top-left corner of the tile, a large symbol or word in the tile's center, and a longer name underneath the symbol. No separate illustration.",
+  },
+  {
+    id: 'recipe_card',
+    ui_label: 'Recipe / Ingredients Card',
+    ui_description: 'Title, subtitle, bulleted ingredient list',
+    thumbnail_path: 'spatial-thumbnails/recipe_card.png',
+    prompt_text:
+      'Recipe-card layout with a headline title at the top, a small subtitle directly beneath, then an ingredients list of 4 to 6 short bulleted lines below, optionally a tiny garnish illustration anchored in one bottom corner. Even left alignment for the list, centered headline.',
+  },
+  // ─── Themed templates ───────────────────────────────────────────────────
+  {
+    id: 'vintage_postcard',
+    ui_label: 'Vintage Postcard',
+    ui_description: "'Greetings from …' headline + small caption",
+    thumbnail_path: 'spatial-thumbnails/vintage_postcard.png',
+    prompt_text:
+      "Vintage-postcard layout with a 'Greetings from …' style phrase as the dominant headline filling the top half of the canvas in chunky stacked letters, a stylized illustration beneath the headline filling the lower half, and a small caption line at the very bottom.",
+  },
+  {
+    id: 'sports_jersey',
+    ui_label: 'Sports Jersey',
+    ui_description: 'Massive number center, arched name + team name',
+    thumbnail_path: 'spatial-thumbnails/sports_jersey.png',
+    prompt_text:
+      'Sports-jersey layout with a massive sports-style number filling the visual center of the canvas, a player-name-style word arched above the number, and a smaller team-name caption arched below the number. No separate illustration — the typography is the whole composition.',
+  },
+  {
+    id: 'movie_poster',
+    ui_label: 'Movie Poster',
+    ui_description: 'Central illustration, heavy title bottom, credit block',
+    thumbnail_path: 'spatial-thumbnails/movie_poster.png',
+    prompt_text:
+      'Movie-poster layout with the illustration filling the central two-thirds of the canvas, a dramatic title in heavyweight letters across the bottom third, and small credit-block lines tucked beneath the title. Vertical poster-aspect framing implied even on a square canvas.',
+  },
+  {
+    id: 'license_plate',
+    ui_label: 'License Plate',
+    ui_description: 'Horizontal plate box with chunky plate letters',
+    thumbnail_path: 'spatial-thumbnails/license_plate.png',
+    prompt_text:
+      'License-plate layout with a horizontal rectangular plate-shaped box filling the canvas center, the slogan rendered in chunky license-plate-style block letters inside the box, and small region or state tags positioned above and below the plate rectangle.',
+  },
+  {
+    id: 'concert_ticket',
+    ui_label: 'Concert Ticket',
+    ui_description: 'Ticket shape with perforation + stub',
+    thumbnail_path: 'spatial-thumbnails/concert_ticket.png',
+    prompt_text:
+      'Concert-ticket layout with a horizontal ticket-shape outline filling the canvas, dashed perforation lines running vertically to separate a stub from the main area, the headline event-name in the main ticket area, and small detail lines (date / time / seat) in the stub portion.',
+  },
+  {
+    id: 'map_coordinates',
+    ui_label: 'Map Coordinates',
+    ui_description: 'Place name + GPS numbers + landmark line-art',
+    thumbnail_path: 'spatial-thumbnails/map_coordinates.png',
+    prompt_text:
+      'Map-coordinates layout with a city or place name as the dominant headline at the top, GPS-style coordinate numbers in a smaller caption immediately below it, and a minimal-line-art illustration of a landmark or geographic outline anchored below the coordinates.',
+  },
+  // ─── Asymmetric / compositional layouts ─────────────────────────────────
+  {
+    id: 'off_center_text_wrap',
+    ui_label: 'Off-Center Text Wrap',
+    ui_description: 'Illustration on one side, text wraps its silhouette',
+    thumbnail_path: 'spatial-thumbnails/off_center_text_wrap.png',
+    prompt_text:
+      'Off-center composition with the illustration anchored to the right side of the canvas and the slogan text broken into multiple short lines that wrap and follow the silhouette edge of the illustration on the left, creating a flowing left-side text block.',
+  },
+  {
+    id: 'diagonal_split',
+    ui_label: 'Diagonal Split',
+    ui_description: 'Canvas split along a diagonal: illustration vs. text',
+    thumbnail_path: 'spatial-thumbnails/diagonal_split.png',
+    prompt_text:
+      'Diagonal split layout where the canvas is divided into two triangular halves along a single diagonal line: the illustration fills one triangular half and the stacked slogan text fills the other triangular half. The diagonal line itself is a clean hard edge with no shading.',
+  },
+  {
+    id: 'triptych_three_panel',
+    ui_label: 'Triptych (3-Panel)',
+    ui_description: 'Three vertical panels, each with a variant, header bar',
+    thumbnail_path: 'spatial-thumbnails/triptych_three_panel.png',
+    prompt_text:
+      'Triptych three-panel layout with the canvas divided into three vertical panels of equal width separated by thin dividers, a small illustration variation in each panel, and the slogan running across as a header bar spanning all three panels at the top.',
+  },
+  {
+    id: 'concentric_circular_text',
+    ui_label: 'Concentric Circular Text',
+    ui_description: 'Rings of text running around a center illustration',
+    thumbnail_path: 'spatial-thumbnails/concentric_circular_text.png',
+    prompt_text:
+      'Concentric circular text layout with the illustration at the dead center of the canvas and one to three rings of text running around it: the outer ring as primary slogan, the inner ring as accent or date — all text aligned along its respective arc path.',
+  },
+  // ─── Speech / quote layouts ─────────────────────────────────────────────
+  {
+    id: 'speech_bubble',
+    ui_label: 'Speech Bubble',
+    ui_description: 'Comic bubble with slogan, character below pointing up',
+    thumbnail_path: 'spatial-thumbnails/speech_bubble.png',
+    prompt_text:
+      'Comic speech-bubble layout with a rounded speech bubble in the upper half of the canvas holding the slogan inside it, and a small character illustration in the lower half from which the speech-bubble tail visually points. Classic comic-strip composition.',
+  },
+  {
+    id: 'quote_marks_frame',
+    ui_label: 'Quote Marks Frame',
+    ui_description: 'Giant quotation marks bracket a centered slogan',
+    thumbnail_path: 'spatial-thumbnails/quote_marks_frame.png',
+    prompt_text:
+      'Quote-marks frame layout with two giant decorative quotation marks anchoring the upper-left and lower-right corners of the canvas, the slogan centered between them in an italic style. No separate illustration — the typography and the marks are the whole composition.',
+  },
+  // ─── Sunburst layout (full composition, distinct from sunburst accessory) ──
+  {
+    id: 'sunburst_layout',
+    ui_label: 'Sunburst Layout',
+    ui_description: 'Center illustration, rays to edges, text on arcs',
+    thumbnail_path: 'spatial-thumbnails/sunburst_layout.png',
+    prompt_text:
+      'Sunburst layout with the illustration sitting at the dead center of the canvas and straight ray lines radiating outward from behind it to the canvas edges, the slogan text running along the top arc above the rays and a secondary tag along the bottom arc beneath.',
+  },
+  // ─── Phase 13o additions (German POD layout-canon references) ─────────────
+  {
+    id: 'flush_aligned_block',
+    ui_label: 'Flush-Aligned Block',
+    ui_description: 'Multi-line text all aligned left or right, never centered',
+    thumbnail_path: 'spatial-thumbnails/flush_aligned_block.png',
+    prompt_text:
+      'Multi-line typographic block with all text lines flush-aligned to a single left or right edge (not centered), creating a vertical column of staircased line lengths. Pure typographic composition with no separate illustration. The flush edge creates a strong vertical axis and an editorial-magazine character.',
+  },
+  {
+    id: 'full_canvas_word_block',
+    ui_label: 'Full-Canvas Word Block',
+    ui_description: 'Text fills entire canvas edge-to-edge, no breathing room',
+    thumbnail_path: 'spatial-thumbnails/full_canvas_word_block.png',
+    prompt_text:
+      'Massive text block filling the entire canvas edge-to-edge with minimal padding on all sides. Each line stretches across the full width, line heights are tight, and the typography itself becomes the full surface treatment. No separate illustration; the text IS the design.',
+  },
+  {
+    id: 'vertical_pillar_text',
+    ui_label: 'Vertical Pillar Text',
+    ui_description: 'Text rotated 90° running vertically down the canvas height',
+    thumbnail_path: 'spatial-thumbnails/vertical_pillar_text.png',
+    prompt_text:
+      'Vertical pillar layout where the slogan text is rotated ninety degrees so it runs down the canvas height as a tall single-column line. Letters stack vertically as a continuous column or rotate together as one rotated word. The illustration, if any, sits small alongside the column with generous breathing room.',
+  },
+  {
+    id: 'illustration_only_no_text',
+    ui_label: 'Illustration Only (No Text)',
+    ui_description: 'Pure visual composition with no slogan or text at all',
+    thumbnail_path: 'spatial-thumbnails/illustration_only_no_text.png',
+    prompt_text:
+      'Illustration-only composition where the entire canvas is given over to the artwork with no text or slogan present. The visual elements alone carry the message. The illustration sits centered with generous breathing room on all sides, no caption, no headline, no subtitle.',
+  },
+  {
+    id: 'unconventional_integration',
+    ui_label: 'Unconventional Integration',
+    ui_description: 'Text breaks through or weaves between illustration in atypical ways',
+    thumbnail_path: 'spatial-thumbnails/unconventional_integration.png',
+    prompt_text:
+      'Unconventional integration layout where text breaks through, weaves between, or anchors against the illustration in an atypical non-grid arrangement. Letters may overlap edges of objects, illustrations may extend beyond the text bounds, and the relationship between type and image breaks the standard top-or-bottom-or-overlay grid.',
+  },
+  {
+    id: 'crossed_tools_intersection',
+    ui_label: 'Crossed Tools Intersection',
+    ui_description: 'Two crossed tools/objects form an X with text wrapped around',
+    thumbnail_path: 'spatial-thumbnails/crossed_tools_intersection.png',
+    prompt_text:
+      'Crossed-tools intersection layout where two illustrated objects (axes, hammers, arrows, paddles, or similar implements) form an X across the canvas center, and the text wraps around the crossing — typically a primary line above the intersection and a smaller accent line below. Classic vintage-Americana craft composition.',
+  },
+  {
+    id: 'subject_portrait_with_caption',
+    ui_label: 'Subject Portrait + Caption',
+    ui_description: 'Big subject portrait dominant with minimal caption underneath',
+    thumbnail_path: 'spatial-thumbnails/subject_portrait_with_caption.png',
+    prompt_text:
+      'Subject-portrait composition with a single dominant illustrated subject — a face, head, animal, or hero element — filling roughly the upper two-thirds of the canvas, and a minimal one- or two-line caption anchored at the bottom edge with generous breathing room. Album-cover or band-merch aesthetic.',
+  },
+] as const;
+
+// J.5 was TEXT_SEGMENTATION_OPTIONS — removed in Phase 13s. Spatial layouts
+// already prescribe how the slogan is segmented (headline_top_subtitle_bottom,
+// stacked_word_block, banner_top, etc.), so the separate slot was redundant.
+
+// J.6 — Typography Adjectives (slot key: typography_adjectives) — Phase 13j v2.
+// 22 dict entries (replaces the v1 6-string list). Each entry mirrors the
+// SpatialOption shape including `thumbnail_path`, which resolves to
+// `frontend-ui/public/typography-thumbnails/{id}.png` (generated by
+// `scripts/generate_typography_thumbnails.py` in Phase 13m-a).
+// `prompt_text` is wrapped in single-quotes inside the string so it slots
+// into the Architect template "The text is rendered in a {value} font
+// style." cleanly.
+//
+// IMPORTANT: copy-pasted verbatim from
+// `django-app/design_app/services/style_library.py::TYPOGRAPHY_OPTIONS`. Drift
+// breaks the mirror_check CI step.
+
+export interface TypographyOption {
+  /** Stable snake_case identifier referenced from STYLE_LIBRARY.default_typography_id. */
+  id: string;
+  /** Display label used in the Typography dropdown (≤24 chars). */
+  ui_label: string;
+  /** Short 1-line description shown below the label (≤90 chars). */
+  ui_description: string;
+  /** Vite-public-relative path (without leading slash). */
+  thumbnail_path: string;
+  /** Architect-grade font description injected into the prompt (single-quoted). */
+  prompt_text: string;
+}
+
+export const TYPOGRAPHY_OPTIONS: readonly TypographyOption[] = [
+  {
+    id: 'distressed_vintage_slab',
+    ui_label: 'Distressed Vintage Slab',
+    ui_description: 'Heavy slab serif with transparent grunge cutouts',
+    thumbnail_path: 'typography-thumbnails/distressed_vintage_slab.png',
+    prompt_text:
+      "'heavyweight vintage slab-serif font with sturdy rectangular serif feet, slightly condensed proportions, uniform vertical stroke weight, and a coarse-grain screen-print distress pattern rendered as TRANSPARENT KNOCKOUT cutouts inside each letterform revealing the underlying garment color through the scratches — never as added white ink'",
+  },
+  {
+    id: 'chunky_cartoon_block_gloss',
+    ui_label: 'Cartoon Block (Gloss)',
+    ui_description: 'Thick block letters with internal white gloss line',
+    thumbnail_path: 'typography-thumbnails/chunky_cartoon_block_gloss.png',
+    prompt_text:
+      "'massive heavyweight cartoon-block font with thick black outlines, generously rounded corners, internal white gloss highlight lines running across the upper third of each letter, and a friendly Saturday-morning animation feel'",
+  },
+  {
+    id: 'distressed_industrial_sans',
+    ui_label: 'Industrial Distressed Sans',
+    ui_description: 'Condensed all-caps display with transparent distress',
+    thumbnail_path: 'typography-thumbnails/distressed_industrial_sans.png',
+    prompt_text:
+      "'heavyweight condensed all-caps display sans-serif font with squared terminals, no humanist warmth, and a heavy worn-screen-print distress pattern rendered as TRANSPARENT KNOCKOUT cutouts carved out of each letter revealing the underlying garment color through the scratches — never as added white ink'",
+  },
+  {
+    id: 'varsity_script_swash',
+    ui_label: 'Varsity Script + Swash',
+    ui_description: 'Sports script with curving underline tail swash',
+    thumbnail_path: 'typography-thumbnails/varsity_script_swash.png',
+    prompt_text:
+      "'classic varsity sports-script font with confident italic slope, flowing brush-style thick-thin stroke contrast, joined cursive ligatures, a long horizontal underline swash tail beneath the lowercase baseline, and faint screen-print roughness rendered as TRANSPARENT ink-loss patches revealing the underlying garment color'",
+  },
+  {
+    id: 'retro_diner_brush',
+    ui_label: 'Retro Diner Brush',
+    ui_description: '50s brush-script with internal stripe/halftone fills',
+    thumbnail_path: 'typography-thumbnails/retro_diner_brush.png',
+    prompt_text:
+      "'retro 1950s brush-script font with bold thick-thin stroke contrast, casual italic slope, internal stripe or halftone-dot patterns rendered as TRANSPARENT KNOCKOUT cutouts inside each letterform revealing the underlying garment color, slightly playful uneven baseline, and a vintage hand-painted diner-signage character'",
+  },
+  {
+    id: 'modern_elegant_brush',
+    ui_label: 'Modern Elegant Brush',
+    ui_description: 'Refined brush with ligatures, no distress',
+    thumbnail_path: 'typography-thumbnails/modern_elegant_brush.png',
+    prompt_text:
+      "'elegant modern brush-script font with refined thick-thin contrast, smooth confident ligatures, gentle italic slope, clean uniform line endings without distress, and a polished hand-lettered editorial character'",
+  },
+  {
+    id: 'rounded_friendly_slab',
+    ui_label: 'Rounded Friendly Slab',
+    ui_description: 'Soft slab with rounded body corners',
+    thumbnail_path: 'typography-thumbnails/rounded_friendly_slab.png',
+    prompt_text:
+      "'rounded chunky slab-serif font with heavyweight bowls, gently rounded body corners, blunt soft slab feet, balanced proportions, low stroke contrast, and a friendly approachable character without distress'",
+  },
+  {
+    id: 'seventies_groovy_bold',
+    ui_label: '70s Groovy Bold',
+    ui_description: 'Flowing retro-disco curves',
+    thumbnail_path: 'typography-thumbnails/seventies_groovy_bold.png',
+    prompt_text:
+      "'1970s groovy bold display font with flowing organic curves, soft rounded apertures, slight wavy baseline irregularity, mild italic slope, condensed proportions, and an unmistakable retro disco-poster character'",
+  },
+  {
+    id: 'playful_marker_script',
+    ui_label: 'Playful Marker Script',
+    ui_description: 'Casual hand-drawn marker, kid-style',
+    thumbnail_path: 'typography-thumbnails/playful_marker_script.png',
+    prompt_text:
+      "'casual hand-drawn marker-script font with thin slightly irregular strokes, organic wobble in the letterforms, rough ink-bleed edges, mixed-case or lowercase letterforms, and a friendly kid-style hand-written feel'",
+  },
+  {
+    id: 'minimal_geometric_sans',
+    ui_label: 'Minimal Geometric Sans',
+    ui_description: 'Monoline editorial flat',
+    thumbnail_path: 'typography-thumbnails/minimal_geometric_sans.png',
+    prompt_text:
+      "'minimal geometric monoline sans-serif font with uniform stroke weight, perfectly circular bowls, no contrast, no humanist details, generous letter spacing, and a refined modern editorial character'",
+  },
+  {
+    id: 'transitional_book_serif',
+    ui_label: 'Book Serif',
+    ui_description: 'Refined low-contrast classic body serif',
+    thumbnail_path: 'typography-thumbnails/transitional_book_serif.png',
+    prompt_text:
+      "'transitional refined book-serif font with moderate stroke contrast, bracketed serifs, balanced proportions, low x-height, calm restrained character, and the classic body-text feel of a printed novel'",
+  },
+  {
+    id: 'western_country_slab',
+    ui_label: 'Western Country Slab',
+    ui_description: 'Heavyweight serif with sharp pointed spurs',
+    thumbnail_path: 'typography-thumbnails/western_country_slab.png',
+    prompt_text:
+      "'western country slab-serif font with heavyweight strokes, sharp pointed serif spurs flaring outward at the terminals, strong vertical impact, and slight rough-cut edge irregularity rendered as TRANSPARENT ink-loss cutouts along the outlines revealing the underlying garment color'",
+  },
+  {
+    id: 'blackletter_gothic',
+    ui_label: 'Blackletter Gothic',
+    ui_description: 'Ornate medieval textura',
+    thumbnail_path: 'typography-thumbnails/blackletter_gothic.png',
+    prompt_text:
+      "'ornate medieval blackletter gothic font with dramatic thick-thin contrast, broken textura strokes, decorative spike flourishes at the terminals, narrow vertical proportions, and a dark monastic-manuscript character'",
+  },
+  {
+    id: 'pixel_eight_bit_bitmap',
+    ui_label: 'Pixel 8-bit Bitmap',
+    ui_description: 'Sharp square pixels, retro arcade',
+    thumbnail_path: 'typography-thumbnails/pixel_eight_bit_bitmap.png',
+    prompt_text:
+      "'pixelated 8-bit bitmap font with sharp uniform square pixels, zero anti-aliasing, blocky stair-step diagonals, fixed monospace width, and a crisp retro arcade-game character'",
+  },
+  {
+    id: 'athletic_jersey_sans',
+    ui_label: 'Athletic Jersey Sans',
+    ui_description: 'Clean billboard sports condensed',
+    thumbnail_path: 'typography-thumbnails/athletic_jersey_sans.png',
+    prompt_text:
+      "'clean heavyweight athletic-jersey sans-serif font with squared terminals, uniform stroke weight, slightly condensed proportions, no distress, slight italic slope, and a strong sports-billboard character'",
+  },
+  {
+    id: 'chrome_bevel_display',
+    ui_label: '3D Chrome Bevel',
+    ui_description: 'Hard-faceted metallic dimensional letters',
+    thumbnail_path: 'typography-thumbnails/chrome_bevel_display.png',
+    prompt_text:
+      "'3D chrome-bevel display font with sculpted dimensional letterforms, hard-edged facet transitions between bright and dark bevel planes, crisp metallic angled highlights painted as flat color regions, no gradients or blur, and an eye-catching trophy-style character'",
+  },
+  {
+    id: 'childlike_rounded_block',
+    ui_label: 'Childlike Rounded Block',
+    ui_description: 'Kindergarten pastel-friendly bowls',
+    thumbnail_path: 'typography-thumbnails/childlike_rounded_block.png',
+    prompt_text:
+      "'childlike rounded cartoon-block sans-serif font with heavyweight bowls, generously rounded corners on both inside and outside of letterforms, no distress, no internal gloss line, friendly soft proportions, and a kindergarten-classroom playful character'",
+  },
+  {
+    id: 'bubble_graffiti_letters',
+    ui_label: 'Bubble Graffiti',
+    ui_description: 'Puffy inflated streetwear letters',
+    thumbnail_path: 'typography-thumbnails/bubble_graffiti_letters.png',
+    prompt_text:
+      "'bubble-style graffiti font with bulging puffy letterforms, exaggerated rounded bowls swelling outward like inflated cushions, thick uniform stroke weight, generous interior counters, and a streetwear hand-spray-can character'",
+  },
+  {
+    id: 'tattoo_old_school_bold',
+    ui_label: 'Tattoo Old-School',
+    ui_description: 'Bold woodcut with banner flourishes',
+    thumbnail_path: 'typography-thumbnails/tattoo_old_school_bold.png',
+    prompt_text:
+      "'old-school traditional-tattoo display font with heavyweight bold strokes, sharp serif terminals decorated with banner-ribbon flourishes, strong line variation, hand-inked nineteenth-century woodcut character, and confident sailor-banner attitude'",
+  },
+  {
+    id: 'italic_handdrawn_indie',
+    ui_label: 'Italic Indie',
+    ui_description: 'Wobbly DIY zine slant',
+    thumbnail_path: 'typography-thumbnails/italic_handdrawn_indie.png',
+    prompt_text:
+      "'italic hand-drawn indie display font with intentionally uneven baseline, slanted irregular slope, slightly wobbly imperfect strokes, mixed-case letterforms, casual DIY zine character, and a self-published Etsy-handmade feel'",
+  },
+  {
+    id: 'stencil_military_uniform',
+    ui_label: 'Stencil Military',
+    ui_description: 'Block strokes with stencil gaps',
+    thumbnail_path: 'typography-thumbnails/stencil_military_uniform.png',
+    prompt_text:
+      "'stencil military display font with uniform thick block-letter strokes interrupted by characteristic narrow gaps cutting through the body of each letter to mimic spray-stencil templates, all-caps, squared terminals, and a strict combat-issue character'",
+  },
+  {
+    id: 'extruded_3d_block',
+    ui_label: 'Extruded 3D Block',
+    ui_description: 'Cartoon-block with hard-edged 3D side extrusion',
+    thumbnail_path: 'typography-thumbnails/extruded_3d_block.png',
+    prompt_text:
+      "'heavyweight extruded 3D cartoon-block font with thick uniform outlines, generously rounded letterforms, hard-edged dimensional side faces extending from each letter at a fixed depth, sharp flat facet transitions between the front face and the extruded side faces painted as separate flat-color regions with no gradients or blur, and a marquee-style comic-book depth character'",
+  },
+] as const;
+
+/** O(1) lookup helper — returns the `TypographyOption` whose `id` matches, or `undefined`. */
+export const getTypographyById = (
+  id: string,
+): TypographyOption | undefined =>
+  TYPOGRAPHY_OPTIONS.find((entry) => entry.id === id);
+
+// Font Combination (slot key: font_combination) — Phase 13l multi-font hierarchy.
+// 8 dict entries mirror backend `FONT_COMBINATION_OPTIONS` verbatim — see
+// `django-app/design_app/services/style_library.py` lines ~573-622. When a
+// font_combination is set, the typography_adjectives sentence is silenced
+// server-side (the combo sentence carries the typographic anatomy).
+
+export interface FontCombinationOption {
+  /** Stable snake_case identifier. */
+  id: string;
+  /** Display label used in the Font Combination dropdown. */
+  ui_label: string;
+  /** Short 1-line description shown below the label. */
+  ui_description: string;
+  /** Vite-public-relative path (without leading slash) — Phase 13n-a thumbnail. */
+  thumbnail_path: string;
+  /** Architect-grade complete-sentence font description injected verbatim. */
+  prompt_text: string;
+}
+
+export const FONT_COMBINATION_OPTIONS: readonly FontCombinationOption[] = [
+  {
+    id: 'serif_plus_sans_hierarchy',
+    ui_label: 'Serif + Sans Hierarchy',
+    ui_description: 'Serif headline paired with sans-serif body (or reverse)',
+    thumbnail_path: 'font-combination-thumbnails/serif_plus_sans_hierarchy.png',
+    prompt_text:
+      'The typography uses a two-font anatomical hierarchy: the primary headline is rendered in a heavyweight slab-serif or transitional book-serif font with bracketed serifs and balanced proportions, while the supporting lines are rendered in a heavyweight all-caps sans-serif font with squared terminals and uniform stroke weight, creating clear visual contrast between the serif structure of the hero and the calm sans-serif body',
+  },
+  {
+    id: 'script_plus_block_hierarchy',
+    ui_label: 'Script + Block Hierarchy',
+    ui_description: 'Brush-script accent paired with chunky block primary',
+    thumbnail_path: 'font-combination-thumbnails/script_plus_block_hierarchy.png',
+    prompt_text:
+      'The typography uses a two-font emotional hierarchy: an accent line is rendered in an elegant brush-script font with thick-thin stroke contrast, smooth confident ligatures, and gentle italic slope, paired with a heavyweight all-caps cartoon-block or sans-serif primary line with thick uniform strokes, friendly rounded corners, and strong impact — the script carries personality while the block carries authority',
+  },
+  {
+    id: 'single_font_color_hierarchy',
+    ui_label: 'Single Font + Color Hierarchy',
+    ui_description: 'One font, hierarchy driven by per-word color variation',
+    thumbnail_path: 'font-combination-thumbnails/single_font_color_hierarchy.png',
+    prompt_text:
+      'The typography uses a single heavyweight cartoon-block font family with thick black outlines and generously rounded corners across every line, but the hierarchy is driven entirely by per-word color variation — each significant word or line painted in a different flat saturated color so the eye reads importance through color rather than through font weight or family changes',
+  },
+  {
+    id: 'vintage_slab_plus_script_accent',
+    ui_label: 'Vintage Slab + Script Accent',
+    ui_description: 'Distressed slab serif hero with curving script middle word',
+    thumbnail_path: 'font-combination-thumbnails/vintage_slab_plus_script_accent.png',
+    prompt_text:
+      'The typography uses a two-font Americana hierarchy: the primary headline and supporting lines are rendered in a heavyweight vintage slab-serif font with sturdy rectangular serif feet and a coarse-grain TRANSPARENT KNOCKOUT distress pattern revealing the underlying garment color, while a single accent word in the middle is rendered in a classic varsity-script font with curving brush strokes, joined ligatures, and a horizontal underline swash tail',
+  },
+  {
+    id: 'athletic_sans_plus_script_sandwich',
+    ui_label: 'Athletic Sans + Script Sandwich',
+    ui_description: 'Sports-team sandwich — athletic sans top/bottom + script middle',
+    thumbnail_path: 'font-combination-thumbnails/athletic_sans_plus_script_sandwich.png',
+    prompt_text:
+      'The typography uses a three-tier sports-team sandwich: the top and bottom lines are rendered in a clean heavyweight athletic-jersey sans-serif font with squared terminals, uniform stroke weight, and slightly condensed proportions, while the middle accent word is rendered in a classic varsity-script font with confident italic slope, thick-thin contrast, and a horizontal underline swash tail — top and bottom act as anchors framing the script center',
+  },
+  {
+    id: 'cartoon_block_plus_marker_script',
+    ui_label: 'Cartoon Block + Marker Script',
+    ui_description: 'Chunky cartoon-block hero with casual marker-script accent',
+    thumbnail_path: 'font-combination-thumbnails/cartoon_block_plus_marker_script.png',
+    prompt_text:
+      'The typography uses a two-font playful hierarchy: the primary hero line is rendered in a massive heavyweight cartoon-block font with thick outlines, internal white gloss highlight lines, and generously rounded corners, while an accent line above or below is rendered in a casual hand-drawn marker-script font with thin slightly irregular strokes, organic wobble, and a friendly kid-style hand-written feel',
+  },
+  {
+    id: 'groovy_bold_plus_modern_brush_alternating',
+    ui_label: 'Groovy Bold + Modern Brush',
+    ui_description: 'Alternating lines: groovy bold + modern elegant brush',
+    thumbnail_path: 'font-combination-thumbnails/groovy_bold_plus_modern_brush_alternating.png',
+    prompt_text:
+      'The typography uses a two-font alternating-line hierarchy: half the lines are rendered in a 1970s groovy bold display font with flowing organic curves, soft rounded apertures, and slight wavy baseline irregularity, while the other lines are rendered in an elegant modern brush-script font with refined thick-thin contrast, smooth confident ligatures, and gentle italic slope — alternating line by line creates a rhythmic boho aesthetic',
+  },
+  {
+    id: 'sans_frame_plus_color_hero',
+    ui_label: 'Sans Frame + Color Hero',
+    ui_description: 'Small sans frame top/bottom with multi-color cartoon-block hero',
+    thumbnail_path: 'font-combination-thumbnails/sans_frame_plus_color_hero.png',
+    prompt_text:
+      'The typography uses a frame-plus-hero hierarchy: small all-caps thin sans-serif lines anchor the top and bottom of the composition as framing captions with generous letter spacing, while the central hero text is rendered in a heavyweight cartoon-block font with each significant word or line painted in a different flat saturated color — the sans-serif frame stays uniform while the cartoon-block hero carries all the visual energy',
+  },
+  {
+    id: 'vintage_slab_plus_modern_brush_accent',
+    ui_label: 'Vintage Slab + Modern Brush Accent',
+    ui_description: 'Distressed slab body with elegant modern brush on accent word',
+    thumbnail_path: 'font-combination-thumbnails/vintage_slab_plus_modern_brush_accent.png',
+    prompt_text:
+      'The typography uses a two-font vintage Americana hierarchy with a contemporary twist: the primary headline and supporting lines are rendered in a heavyweight vintage slab-serif font with sturdy rectangular serif feet and a coarse-grain TRANSPARENT KNOCKOUT distress pattern revealing the underlying garment color, while a single accent word in the middle is rendered in an elegant modern brush-script font with refined thick-thin contrast, smooth confident ligatures, gentle italic slope, and clean uniform line endings without distress — the slab body anchors the design while the modern brush adds a refined personal touch',
+  },
+  {
+    id: 'body_sans_plus_extruded_emphasis',
+    ui_label: 'Body Sans + 3D Extruded Emphasis',
+    ui_description: 'Clean sans body lines with 3D-extruded cartoon-block on emphasis words',
+    thumbnail_path: 'font-combination-thumbnails/body_sans_plus_extruded_emphasis.png',
+    prompt_text:
+      'The typography uses a two-font emphasis hierarchy: the body lines are rendered in a clean heavyweight all-caps sans-serif font with squared terminals and uniform stroke weight for steady readability, while the emphasis words are rendered in a heavyweight extruded 3D cartoon-block font with hard-edged dimensional side faces extending at a fixed depth and sharp flat facet transitions between the front face and the side faces painted as separate flat-color regions with no gradients or blur — the sans body carries the message while the extruded block carries the impact',
+  },
+] as const;
+
+/** O(1) lookup helper — returns the `FontCombinationOption` whose `id` matches, or `undefined`. */
+export const getFontCombinationById = (
+  id: string,
+): FontCombinationOption | undefined =>
+  FONT_COMBINATION_OPTIONS.find((entry) => entry.id === id);
+
+// J.7 — Accessories (slot key: accessories) — multi-select on the frontend.
+export const ACCESSORIES_OPTIONS: readonly string[] = [
+  'white radiating motion-burst lines around the illustration',
+  'a sparse scattering of small filled stars and tiny dots framing the design',
+  'a thin geometric border frame enclosing the entire composition',
+  'a curved banner ribbon underneath the illustration with secondary text on it',
+  'sunburst rays radiating outward from behind the illustration',
+  'halftone-dot accents in the negative space around the illustration',
+] as const;
+
+// J.8 was MATERIAL_OPTIONS — removed in Phase 13q. The material_texture slot
+// became redundant with STYLE_DNA / ARCHITECT_TEMPLATE_END / Rule #10 and was
+// dropped from both SLOT_SCHEMA and the resolver.
+
+/** O(1) lookup helper — returns the `SpatialOption` whose `id` matches, or `undefined`. */
+export const getSpatialById = (id: string): SpatialOption | undefined =>
+  SPATIAL_OPTIONS.find((entry) => entry.id === id);
+
+/**
+ * Heuristic: a value that looks like a UUID v4 (8-4-4-4-12 hex with dashes).
+ * Used by SpatialSlotButton to decide whether to render the "Custom layout"
+ * variant (UUID points at a `CustomSpatial` row owned by the workspace) vs
+ * the raw-text variant.
+ */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+export const isSpatialUuid = (value: string): boolean => UUID_RE.test(value);

@@ -12,10 +12,12 @@ import { useInlineEdit } from './hooks/useInlineEdit';
 import { useInlineAdd } from './hooks/useInlineAdd';
 import { NicheFilterToolbar } from './partials/NicheFilterToolbar';
 import { NicheTable } from './partials/NicheTable';
+import { NicheCardList } from './partials/NicheCardList';
 import { TableSkeleton } from './partials/TableSkeleton';
 import { EmptyState } from './partials/EmptyState';
 import { BulkActionBar } from './partials/BulkActionBar';
 import { useSnackbar } from 'notistack';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import type { NicheListParams } from './types';
 
 const SIDEBAR_COLLAPSED_KEY = 'mm-sidebar-collapsed';
@@ -77,6 +79,8 @@ const NicheListView = () => {
   const dispatch = useAppDispatch();
 
   const sidebarCollapsed = useSidebarCollapsed();
+  const { isMobile, isTablet } = useResponsiveLayout();
+  const useCardLayout = isMobile || isTablet;
 
   const filterState = useNicheFilters();
   const { filters, setOrdering, resetFilters, setPage } = filterState;
@@ -182,16 +186,25 @@ const NicheListView = () => {
       )}
 
       {showTable && (
-        <NicheTable
-          niches={niches}
-          ordering={filters.ordering}
-          onOrderingChange={setOrdering}
-          selection={selection}
-          onRowClick={handleOpenEdit}
-          onArchive={handleArchive}
-          inlineEdit={inlineEdit}
-          inlineAdd={inlineAdd}
-        />
+        useCardLayout ? (
+          <NicheCardList
+            niches={niches}
+            selection={selection}
+            onRowClick={handleOpenEdit}
+            onArchive={handleArchive}
+          />
+        ) : (
+          <NicheTable
+            niches={niches}
+            ordering={filters.ordering}
+            onOrderingChange={setOrdering}
+            selection={selection}
+            onRowClick={handleOpenEdit}
+            onArchive={handleArchive}
+            inlineEdit={inlineEdit}
+            inlineAdd={inlineAdd}
+          />
+        )
       )}
 
       {pageCount > 1 && (

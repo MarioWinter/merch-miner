@@ -3,17 +3,25 @@ import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { renderWithProviders } from '../../../../utils/test-utils';
 import LoginPage from '../LoginPage';
-import { useFeatureFlag } from '../../../../hooks/useFeatureFlag';
+import { isRegistrationEnabled } from '../../../../utils/isRegistrationEnabled';
+import { isGoogleLoginEnabled } from '../../../../utils/isGoogleLoginEnabled';
 
 vi.mock('../../../../services/authService', () => ({
   authService: {
     login: vi.fn(),
+    getMe: vi.fn(),
     googleLoginUrl: vi.fn(() => '/api/auth/google/'),
   },
+  // hydrateAuth pulls /me/ and dispatches setUser — drive it via getMe mock.
+  hydrateAuth: vi.fn(),
 }));
 
-vi.mock('../../../../hooks/useFeatureFlag', () => ({
-  useFeatureFlag: vi.fn(() => true),
+vi.mock('../../../../utils/isRegistrationEnabled', () => ({
+  isRegistrationEnabled: vi.fn(() => true),
+}));
+
+vi.mock('../../../../utils/isGoogleLoginEnabled', () => ({
+  isGoogleLoginEnabled: vi.fn(() => true),
 }));
 
 const mockNavigate = vi.fn();
@@ -30,7 +38,8 @@ describe('LoginPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     // Default: registration enabled (existing tests rely on link being present-or-irrelevant)
-    vi.mocked(useFeatureFlag).mockReturnValue(true);
+    vi.mocked(isRegistrationEnabled).mockReturnValue(true);
+    vi.mocked(isGoogleLoginEnabled).mockReturnValue(true);
   });
 
   it('renders email/password form and Google button', () => {
@@ -41,20 +50,20 @@ describe('LoginPage', () => {
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
   });
 
-  it('dispatches setUser and navigates on successful login', async () => {
-    const { authService } = await import('../../../../services/authService');
-    vi.mocked(authService.login).mockResolvedValueOnce({
-      user: { id: 1, email: 'test@example.com', first_name: 'Test', avatar_url: null },
-    });
+  it('calls hydrateAuth and navigates on successful login', async () => {
+    const { authService, hydrateAuth } = await import('../../../../services/authService');
+    vi.mocked(authService.login).mockResolvedValueOnce({ detail: 'Login successful' });
+    vi.mocked(hydrateAuth).mockResolvedValueOnce(undefined);
 
-    const { store } = renderLoginPage();
+    renderLoginPage();
     await userEvent.type(screen.getByLabelText(/email/i), 'test@example.com');
     await userEvent.type(screen.getByLabelText(/password/i), 'password123');
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true }));
-    expect(store.getState().auth.isAuthenticated).toBe(true);
-    expect(store.getState().auth.user).toEqual({ id: 1, email: 'test@example.com', first_name: 'Test', avatar_url: null, is_staff: false, is_superuser: false });
+    // hydrateAuth (not raw login response) is the source of truth for the
+    // Redux user — guarantees fresh features list on user-switch.
+    expect(hydrateAuth).toHaveBeenCalledTimes(1);
   });
 
   it('shows error snackbar and dispatches setError on failed login', async () => {
@@ -71,17 +80,19 @@ describe('LoginPage', () => {
     expect(store.getState().auth.error).toBe('Invalid email or password');
   });
 
-  it('stores avatar_url in Redux when login returns one', async () => {
-    const { authService } = await import('../../../../services/authService');
-    vi.mocked(authService.login).mockResolvedValueOnce({
-      user: { id: 2, email: 'alice@example.com', first_name: 'Alice', avatar_url: '/media/avatars/user_2/avatar.jpg' },
-    });
-    const { store } = renderLoginPage();
+  it('triggers hydrateAuth even for users with avatar_url (covered by hydrateAuth/me/ payload)', async () => {
+    const { authService, hydrateAuth } = await import('../../../../services/authService');
+    vi.mocked(authService.login).mockResolvedValueOnce({ detail: 'Login successful' });
+    vi.mocked(hydrateAuth).mockResolvedValueOnce(undefined);
+
+    renderLoginPage();
     await userEvent.type(screen.getByLabelText(/email/i), 'alice@example.com');
     await userEvent.type(screen.getByLabelText(/password/i), 'password123');
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
     await waitFor(() => expect(mockNavigate).toHaveBeenCalledWith('/', { replace: true }));
-    expect(store.getState().auth.user?.avatar_url).toBe('/media/avatars/user_2/avatar.jpg');
+    // Avatar URL handling lives in hydrateAuth (covered by its own tests);
+    // here we just verify the flow delegates to hydrateAuth.
+    expect(hydrateAuth).toHaveBeenCalledTimes(1);
   });
 
   it('shows loading spinner while login is in progress', async () => {
@@ -100,7 +111,7 @@ describe('LoginPage', () => {
 
   // PROJ-24 AC-21 — register link gating via REGISTRATION_ENABLED feature flag
   it('hides register link when REGISTRATION_ENABLED flag is off', () => {
-    vi.mocked(useFeatureFlag).mockReturnValue(false);
+    vi.mocked(isRegistrationEnabled).mockReturnValue(false);
     renderLoginPage();
 
     expect(screen.queryByRole('link', { name: /sign up/i })).not.toBeInTheDocument();
@@ -108,7 +119,7 @@ describe('LoginPage', () => {
   });
 
   it('shows register link when REGISTRATION_ENABLED flag is on', () => {
-    vi.mocked(useFeatureFlag).mockReturnValue(true);
+    vi.mocked(isRegistrationEnabled).mockReturnValue(true);
     renderLoginPage();
 
     const signUpLink = screen.getByRole('link', { name: /sign up/i });

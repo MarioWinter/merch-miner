@@ -22,6 +22,17 @@ vi.mock('../hooks/useDrawerResize', () => ({
   useDrawerResize: () => mockUseDrawerResize(),
 }));
 
+// PROJ-30 T2.8 — MultiPurposeDrawer resize handle + layout toggle now hide on
+// !isDesktop. Force desktop so existing assertions remain valid.
+vi.mock('@/hooks/useResponsiveLayout', () => ({
+  useResponsiveLayout: () => ({
+    isPhoneTiny: false,
+    isMobile: false,
+    isTablet: false,
+    isDesktop: true,
+  }),
+}));
+
 vi.mock('../HealthStatusDot', () => ({
   default: () => null,
 }));

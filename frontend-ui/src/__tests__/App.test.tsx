@@ -3,11 +3,11 @@ import { screen } from '@testing-library/react';
 import { renderWithProviders } from '../utils/test-utils';
 
 // Hoisted mock — must be set BEFORE the App module is imported because
-// `getStaticFlag` is called at App component-construction time.
-const getStaticFlagMock = vi.hoisted(() => vi.fn(() => true));
+// `isRegistrationEnabled` is called at App component-construction time.
+const isRegistrationEnabledMock = vi.hoisted(() => vi.fn(() => true));
 
-vi.mock('../utils/getStaticFlag', () => ({
-  getStaticFlag: getStaticFlagMock,
+vi.mock('../utils/isRegistrationEnabled', () => ({
+  isRegistrationEnabled: isRegistrationEnabledMock,
 }));
 
 // Stub heavy views so the test runner doesn't transitively load every service.
@@ -90,7 +90,7 @@ describe('App routing — REGISTRATION_ENABLED feature flag (PROJ-24 AC-22)', ()
   });
 
   it('mounts /register route when REGISTRATION_ENABLED flag is on', async () => {
-    getStaticFlagMock.mockReturnValue(true);
+    isRegistrationEnabledMock.mockReturnValue(true);
     const { default: App } = await import('../App');
 
     renderWithProviders(<App />, { initialRoute: '/register' });
@@ -99,7 +99,7 @@ describe('App routing — REGISTRATION_ENABLED feature flag (PROJ-24 AC-22)', ()
   });
 
   it('does NOT mount /register route when REGISTRATION_ENABLED flag is off — falls through to fallback', async () => {
-    getStaticFlagMock.mockReturnValue(false);
+    isRegistrationEnabledMock.mockReturnValue(false);
     const { default: App } = await import('../App');
 
     renderWithProviders(<App />, { initialRoute: '/register' });
@@ -112,7 +112,7 @@ describe('App routing — REGISTRATION_ENABLED feature flag (PROJ-24 AC-22)', ()
   });
 
   it('renders LoginPage at /login regardless of flag state', async () => {
-    getStaticFlagMock.mockReturnValue(false);
+    isRegistrationEnabledMock.mockReturnValue(false);
     const { default: App } = await import('../App');
 
     renderWithProviders(<App />, { initialRoute: '/login' });

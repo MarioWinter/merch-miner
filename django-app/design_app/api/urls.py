@@ -13,7 +13,18 @@ from design_app.api.views import (
     AnalyzeImageView,
     ApplyPipelineView,
     BatchProcessView,
+    BuilderBuildView,
+    BuilderNicheHintsView,
+    BuilderPresetDetailView,
+    BuilderPresetListCreateView,
     BuildPromptsView,
+    CollageView,
+    CustomSpatialAnalyzeView,
+    CustomSpatialDetailView,
+    CustomSpatialListCreateView,
+    CustomTypographyAnalyzeView,
+    CustomTypographyDetailView,
+    CustomTypographyListCreateView,
     DesignBoardView,
     DesignDeleteVersionView,
     DesignDetailView,
@@ -24,6 +35,7 @@ from design_app.api.views import (
     DesignSaveProcessedView,
     GenerateDesignView,
     GenerateFromPromptView,
+    NicheCardPresetViewSet,
     PipelineDetailView,
     PipelineListCreateView,
     ProcessingJobStatusView,
@@ -232,6 +244,105 @@ urlpatterns = [
         'designs/projects/<uuid:pk>/build-prompts/',
         BuildPromptsView.as_view(),
         name='design-project-build-prompts',
+    ),
+    # PROJ-34 — Multi-Prompt Builder (N×M cross-product + polish)
+    path(
+        'designs/projects/<uuid:pk>/builder/build/',
+        BuilderBuildView.as_view(),
+        name='design-project-builder-build',
+    ),
+    # PROJ-34 Phase 13c — Niche Builder Hints (AC-56)
+    path(
+        'designs/projects/<uuid:pk>/builder/niche-hints/',
+        BuilderNicheHintsView.as_view(),
+        name='design-project-builder-niche-hints',
+    ),
+    # PROJ-34 — BuilderPreset CRUD
+    path(
+        'designs/projects/<uuid:pk>/builder-presets/',
+        BuilderPresetListCreateView.as_view(),
+        name='design-project-builder-presets',
+    ),
+    path(
+        'designs/projects/<uuid:pk>/builder-presets/<uuid:preset_id>/',
+        BuilderPresetDetailView.as_view(),
+        name='design-project-builder-preset-detail',
+    ),
+    # PROJ-34 Phase 13t-e — Best-of-Mix Top-3 Product Collage (AC-88, AC-122)
+    path(
+        'designs/preset-cards/collage/<uuid:niche_id>.webp',
+        CollageView.as_view(),
+        name='preset-collage',
+    ),
+    # PROJ-34 Phase 13t-g — NicheCardPreset endpoints (6 actions).
+    # Static segments declared BEFORE the <uuid:pk> routes so 'history/',
+    # 'custom/', 'confirm/', 'regenerate-mix/' aren't swallowed by the UUID matcher.
+    path(
+        'designs/preset-cards/',
+        NicheCardPresetViewSet.as_view({'get': 'list'}),
+        name='preset-cards-list',
+    ),
+    path(
+        'designs/preset-cards/history/',
+        NicheCardPresetViewSet.as_view({'get': 'history'}),
+        name='preset-cards-history',
+    ),
+    path(
+        'designs/preset-cards/custom/',
+        NicheCardPresetViewSet.as_view({'get': 'custom'}),
+        name='preset-cards-custom',
+    ),
+    path(
+        'designs/preset-cards/confirm/',
+        NicheCardPresetViewSet.as_view({'post': 'confirm'}),
+        name='preset-cards-confirm',
+    ),
+    path(
+        'designs/preset-cards/regenerate-mix/',
+        NicheCardPresetViewSet.as_view({'post': 'regenerate_mix'}),
+        name='preset-cards-regenerate-mix',
+    ),
+    path(
+        'designs/preset-cards/<uuid:pk>/promote-custom/',
+        NicheCardPresetViewSet.as_view({'post': 'promote_custom'}),
+        name='preset-cards-promote-custom',
+    ),
+    path(
+        'designs/preset-cards/<uuid:pk>/custom/',
+        NicheCardPresetViewSet.as_view({'delete': 'custom_remove'}),
+        name='preset-cards-custom-remove',
+    ),
+    # PROJ-34 Phase 13d — CustomSpatial (Analyze + CRUD)
+    path(
+        'designs/spatials/custom/analyze/',
+        CustomSpatialAnalyzeView.as_view(),
+        name='custom-spatial-analyze',
+    ),
+    path(
+        'designs/spatials/custom/',
+        CustomSpatialListCreateView.as_view(),
+        name='custom-spatial-list-create',
+    ),
+    path(
+        'designs/spatials/custom/<uuid:pk>/',
+        CustomSpatialDetailView.as_view(),
+        name='custom-spatial-detail',
+    ),
+    # PROJ-34 Phase 13i — CustomTypography (Analyze + CRUD)
+    path(
+        'designs/typography/custom/analyze/',
+        CustomTypographyAnalyzeView.as_view(),
+        name='custom-typography-analyze',
+    ),
+    path(
+        'designs/typography/custom/',
+        CustomTypographyListCreateView.as_view(),
+        name='custom-typography-list-create',
+    ),
+    path(
+        'designs/typography/custom/<uuid:pk>/',
+        CustomTypographyDetailView.as_view(),
+        name='custom-typography-detail',
     ),
     # Prompt Presets (G10)
     path(

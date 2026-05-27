@@ -30,6 +30,9 @@ from chat_node_config_app.models import ChatNodeConfig
 # syntax (``from chat_node_config_app.migrations.0004... import ...``)
 # is a SyntaxError. Use ``importlib`` instead — this is the standard
 # pattern for testing Django data migrations.
+migration_0002 = importlib.import_module(
+    'chat_node_config_app.migrations.0002_seed_node_rows',
+)
 migration_0004 = importlib.import_module(
     'chat_node_config_app.migrations.0004_promote_language_mirroring',
 )
@@ -51,6 +54,20 @@ def _clear_cache():
     cache.clear()
     yield
     cache.clear()
+
+
+@pytest.fixture(autouse=True)
+def _seed_chat_node_config_rows(db):
+    """Re-run the 0002 seed inside the per-test transaction.
+
+    pytest-django's `--reuse-db` + `@pytest.mark.django_db` transactional
+    rollback hides rows created by data migrations from individual tests
+    (the seed runs once on DB creation, then transactions roll back any
+    state the migration left). Re-running `seed()` here is idempotent
+    (`get_or_create`) and gives every test the 8 baseline rows the
+    migration-under-test (`0004`) assumes exist.
+    """
+    migration_0002.seed(_StubApps(), schema_editor=None)
 
 
 @pytest.fixture

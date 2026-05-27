@@ -145,6 +145,13 @@ export interface ProjectReference {
   added_at: string;
 }
 
+export interface ActiveRun {
+  id: string;
+  status: 'pending' | 'running' | 'failed' | 'completed';
+  generation_mode: string;
+  error_message: string;
+}
+
 export interface ProjectBoardResponse {
   project: DesignProject;
   designs: import('../../board/types').Design[];
@@ -153,4 +160,5 @@ export interface ProjectBoardResponse {
   ideas: ProjectIdea[];
   prompts: ProjectPrompt[];
   references: ProjectReference[];
+  active_runs?: ActiveRun[];
 }

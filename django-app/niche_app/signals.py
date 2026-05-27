@@ -10,7 +10,7 @@ Responsibilities on `post_save(Niche)`:
 2. Enqueue a debounced `reindex_niche_sources(niche_id)` rq job so that all
    niche-scoped Idea + NicheNote embeddings get their contextual headers
    refreshed when niche metadata (e.g. name) changes. Deduplication is enforced
-   via `job_id = "niche_rag:reindex:<niche_id>"` — duplicate enqueues within the
+   via `job_id = "niche-rag-reindex-<niche_id>"` — duplicate enqueues within the
    5-second debounce window collapse to a single execution (AC-Ops-RQ-2).
 
 Cache-invalidation responsibilities (Round 1B-2):
@@ -68,7 +68,9 @@ def _sync_legacy_notes(niche: Niche) -> None:
 def _enqueue_reindex(niche_id) -> None:
     """Enqueue debounced reindex; deduped via job_id within the 5s window."""
     queue = django_rq.get_queue('default')
-    job_id = f"niche_rag:reindex:{niche_id}"
+    # rq.job.validate_job_id only allows letters/numbers/underscores/dashes —
+    # colons would raise ValueError. Use dashes as separators.
+    job_id = f"niche-rag-reindex-{niche_id}"
     # rq dedups pending jobs with the same job_id — duplicate enqueues become no-ops
     # if a prior job has not yet started.
     queue.enqueue_in(

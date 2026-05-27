@@ -47,9 +47,12 @@ import AdvancedOptionsPanel from './partials/AdvancedOptionsPanel';
 import ResultsToolbar from './partials/ResultsToolbar';
 import ProductGrid from './partials/ProductGrid';
 import ProductTable from './partials/ProductTable';
+import ProductCardList from './partials/ProductCardList';
 import LiveProgressBanner from './partials/LiveProgressBanner';
 import EmptyState from './partials/EmptyState';
 import StatisticsView from './partials/StatisticsView';
+import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import TuneRoundedIcon from '@mui/icons-material/TuneRounded';
 
 const STORAGE_MARKETPLACE_KEY = 'mm-research-marketplace';
 
@@ -68,9 +71,14 @@ const AmazonResearchView = () => {
   const { searches, addSearch, removeSearch, clearAll: clearRecentSearches } =
     useUserSearchHistory('amazon_research');
 
+  const { isMobile, isTablet, isDesktop } = useResponsiveLayout();
+  const useCardLayout = isMobile || isTablet;
+
   const [keyword, setKeyword] = useState('');
   const [hasSearched, setHasSearched] = useState(false);
-  const [advancedOpen, setAdvancedOpen] = useState(true);
+  // Advanced filters: open by default on desktop, collapsed on mobile/tablet
+  // so the keyword + result list dominate the viewport (AC-17).
+  const [advancedOpen, setAdvancedOpen] = useState(isDesktop);
   const [layout, setLayout] = useState<'grid' | 'list'>('grid');
   const [cacheId, setCacheId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<ResultsTab>('products');
@@ -589,13 +597,31 @@ const AmazonResearchView = () => {
         activeFilterCount={activeFilterCount}
       />
 
-      <AdvancedOptionsPanel
-        open={advancedOpen}
-        isLive={isLive}
-        filters={filters}
-        onFilterChange={handleFilterChange}
-        onEnabledChange={setEnabled}
-      />
+      {!isDesktop && (
+        <Button
+          variant="outlined"
+          size="small"
+          startIcon={<TuneRoundedIcon />}
+          onClick={() => setAdvancedOpen((prev) => !prev)}
+          sx={{ mt: 1 }}
+          aria-expanded={advancedOpen}
+          aria-controls="amazon-advanced-options"
+        >
+          {advancedOpen
+            ? t('responsive.amazonResearch.advancedToggleHide')
+            : t('responsive.amazonResearch.advancedToggleShow')}
+        </Button>
+      )}
+
+      <Box id="amazon-advanced-options">
+        <AdvancedOptionsPanel
+          open={advancedOpen}
+          isLive={isLive}
+          filters={filters}
+          onFilterChange={handleFilterChange}
+          onEnabledChange={setEnabled}
+        />
+      </Box>
 
       {hasSearched && (
         <ResultsToolbar
@@ -650,7 +676,9 @@ const AmazonResearchView = () => {
 
       {hasSearched && activeTab === 'products' && products.length > 0 && (
         <>
-          {layout === 'grid' ? (
+          {useCardLayout ? (
+            <ProductCardList products={products} />
+          ) : layout === 'grid' ? (
             <ProductGrid
               products={products}
               favoriteAsins={favoriteAsins}
@@ -674,7 +702,7 @@ const AmazonResearchView = () => {
           )}
 
           {/* List-view skeleton footer while the next DB page loads */}
-          {layout === 'list' && dbFetchingNext && (
+          {!useCardLayout && layout === 'list' && dbFetchingNext && (
             <Stack alignItems="center" sx={{ py: 3 }}>
               <CircularProgress size={28} />
               <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>

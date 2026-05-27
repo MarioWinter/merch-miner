@@ -5,9 +5,7 @@ export type DesignModel =
   | 'google/gemini-3.1-flash-preview-image-generation'
   | 'google/gemini-3-pro-preview-image-generation'
   | 'openai/gpt-5-image'
-  | 'openai/gpt-5-image-mini'
-  | 'black-forest-labs/flux-1.1-pro'
-  | 'bytedance-seed/seedream-4.5';
+  | 'openai/gpt-5-image-mini';
 
 export type DesignStatus = 'pending' | 'approved' | 'rejected' | 'failed';
 
@@ -16,6 +14,12 @@ export type BackgroundColor = 'light_gray' | 'neon_pink' | 'neon_green';
 export type RunStatus = 'pending' | 'running' | 'completed' | 'failed';
 
 export type ProcessingJobType = 'upscale' | 'bg_remove';
+
+export type GenerationMode =
+  | 'text_to_image'
+  | 'image_to_image'
+  | 'image_to_image_edit'
+  | 'remix';
 
 export interface DesignGenerationRun {
   id: string;
@@ -92,7 +96,19 @@ export interface GenerateDesignBody {
   prompt: string;
   project_id?: string;
   idea_id?: string;
+  mode?: GenerationMode;
+  aspect_ratio?: string;
   source_image_url?: string;
+  source_image_url_2?: string;
+}
+
+export interface GenerateFromPromptBody {
+  model: DesignModel;
+  background_color?: BackgroundColor;
+  aspect_ratio?: string;
+  mode?: GenerationMode;
+  source_image_url?: string;
+  source_image_url_2?: string;
 }
 
 export interface AnalyzeImageBody {
@@ -171,6 +187,12 @@ export interface BoardLayoutNode {
   clipContent?: boolean;
   /** Canvas elements (layers) within this artboard */
   layers?: CanvasElement[];
+  /** AI skeleton metadata — persisted so page reload can resume a running run */
+  kind?: ArtboardKind;
+  isGenerating?: boolean;
+  pendingRunId?: string | null;
+  promptUsed?: string;
+  hasError?: boolean;
 }
 
 export interface BoardLayout {
@@ -210,6 +232,10 @@ export interface ArtboardData {
   clipContent: boolean;
   /** Whether AI generation is in progress for this artboard */
   isGenerating?: boolean;
+  /** Run id this artboard waits for (survives page reload so we can resume polling) */
+  pendingRunId?: string | null;
+  /** When true, the linked run failed and the artboard shows an error state */
+  hasError?: boolean;
   /** Prompt used to generate this artboard (for regeneration) */
   promptUsed?: string;
   /** AI model used for generation */

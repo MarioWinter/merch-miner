@@ -78,12 +78,132 @@
       "selector": "Select workspace",
       "noWorkspaces": "No workspaces"
     },
+    "niche": {
+      "selector": "Niche",
+      "none": "No niches"
+    },
+    "chat": {
+      "open": "Open chat"
+    },
     "languages": {
       "en": "English",
       "de": "Deutsch",
       "fr": "Français",
       "es": "Español",
       "it": "Italiano"
+    }
+  },
+  "responsive": {
+    "hamburger": {
+      "openLabel": "Open navigation menu",
+      "closeLabel": "Close navigation menu"
+    },
+    "dialog": {
+      "closeLabel": "Close"
+    },
+    "editor": {
+      "toolFab": {
+        "openLabel": "Open design tools",
+        "closeLabel": "Close design tools"
+      },
+      "tools": {
+        "tabLayers": "Layers",
+        "tabTools": "Tools",
+        "tabProperties": "Properties"
+      }
+    },
+    "context": {
+      "chipFallback": "Set context",
+      "empty": "Select context",
+      "sheetTitle": "Workspace & Niche",
+      "workspaceLabel": "Workspace",
+      "nicheLabel": "Niche",
+      "close": "Close",
+      "openLabel": "Open workspace and niche picker"
+    },
+    "drawer": {
+      "closeLabel": "Close drawer"
+    },
+    "cardList": {
+      "selectAria": "Select {{title}}",
+      "actionsAria": "Actions for {{title}}",
+      "tryAgain": "Try again",
+      "errorTitle": "Couldn't load {{entity}}",
+      "errorEntity": {
+        "niche": "niches",
+        "product": "products",
+        "keyword": "keywords",
+        "member": "members",
+        "file": "files"
+      },
+      "empty": {
+        "niche": {
+          "title": "No niches yet",
+          "hint": "Create your first niche to get started",
+          "cta": "New Niche"
+        },
+        "product": {
+          "title": "No products to show",
+          "hint": "Try adjusting filters or run a fresh search"
+        },
+        "keyword": {
+          "title": "No keywords yet",
+          "hint": "Search for a seed keyword to populate suggestions"
+        },
+        "member": {
+          "title": "No members yet",
+          "hint": "Invite teammates to collaborate"
+        },
+        "file": {
+          "title": "No files in this folder",
+          "hint": "Connect cloud storage or upload designs"
+        }
+      },
+      "niche": {
+        "metaCounts": "{{products}} products · {{ideas}} ideas",
+        "createdOn": "Created {{date}}"
+      },
+      "product": {
+        "metaBsr": "BSR {{bsr}} · ${{price}} · {{reviews}} reviews",
+        "metaBsrNoPrice": "BSR {{bsr}} · {{reviews}} reviews",
+        "asin": "ASIN {{asin}}"
+      },
+      "keyword": {
+        "meta": "Vol {{volume}} · CPC ${{cpc}}",
+        "metaNoVolume": "CPC ${{cpc}}",
+        "metaNoCpc": "Vol {{volume}}",
+        "competition": "Comp {{value}}"
+      },
+      "member": {
+        "joined": "Joined {{date}}",
+        "roleJoined": "{{role}} · joined {{date}}"
+      },
+      "file": {
+        "meta": "{{size}} · {{type}}",
+        "modified": "Modified {{date}}"
+      }
+    },
+    "publishView": {
+      "filtersButton": "Filters",
+      "filtersDrawerTitle": "Filters",
+      "filtersClose": "Close",
+      "searchLabel": "Search",
+      "searchPlaceholder": "Search designs…",
+      "sortLabel": "Sort by",
+      "sortNewest": "Newest first",
+      "sortRecentlyEdited": "Recently edited"
+    },
+    "amazonResearch": {
+      "advancedToggleShow": "Show advanced filters",
+      "advancedToggleHide": "Hide advanced filters"
+    },
+    "designWorkspace": {
+      "rightPanelOpen": "Show details panel",
+      "rightPanelClose": "Hide details panel"
+    },
+    "trash": {
+      "selected": "{{count}} selected",
+      "restore": "Restore selected"
     }
   },
   "nav": {
@@ -3493,6 +3613,137 @@
       "niche": "Niche knowledge chunk {{index}}",
       "nicheWithName": "Niche knowledge chunk {{index}} — {{niche}}",
       "web": "Web source {{index}}"
+    }
+  },
+  "designForge": {
+    "builder": {
+      "nichePresets": {
+        "title": "From the Niche",
+        "tabs": {
+          "vorschlaege": "Suggestions",
+          "history": "History",
+          "custom": "Custom",
+          "placeholderVorschlaege": "Loading suggestions… real cards land in Phase 13t-j.",
+          "placeholderHistory": "Loading history… real cards land in Phase 13t-k.",
+          "placeholderCustom": "Loading custom… real cards land in Phase 13t-k.",
+          "placeholderNoNiche": "Pick a niche on the project to see suggestions."
+        },
+        "emptyVorschlaege": "This niche has no analyzed products yet. Run niche research first, or use History / Custom.",
+        "collectionHeader": "Collection",
+        "collectionEmpty": "No collected products with vision analysis. Add products via the Niche page or re-run research.",
+        "emptyHistory": "Confirm a suggestion to fill history.",
+        "emptyCustom": "Save history entries to Custom to keep them permanently.",
+        "promoteTooltip": "Save to Custom",
+        "promoteSuccess": "Saved to Custom.",
+        "promoteError": "Save failed.",
+        "promotedBy": "Promoted by {{id}}",
+        "unknownUser": "unknown",
+        "sourceOverflow": "+{{count}} more",
+        "deleteTooltip": "Delete",
+        "deleteConfirm": "Remove custom entry?",
+        "deleteSuccess": "Removed.",
+        "deleteError": "Remove failed.",
+        "bestOfMix": "Best-of-Mix",
+        "regenerateTooltip": "Recalculate",
+        "regenerateSuccess": "Mix regenerated.",
+        "regenerateRateLimited": "Too many regenerations — please try again in an hour.",
+        "regenerateError": "Regeneration failed.",
+        "errorLoading": "Could not load suggestions. Please try again.",
+        "mixGenerationTimeout": "Mix generation is taking longer than expected. Try regenerating.",
+        "mixLabels": {
+          "most_common": "Most-Common Mix",
+          "edgy": "Edgy Mix",
+          "safe": "Safe Mix"
+        },
+        "sourceLabels": {
+          "top": "Top",
+          "mix_most_common": "Mix · Most-Common",
+          "mix_edgy": "Mix · Edgy",
+          "mix_safe": "Mix · Safe",
+          "collection": "Collection"
+        },
+        "confirmTitle": "Apply preset?",
+        "confirmButton": "Confirm",
+        "confirmSuccess": "Preset applied.",
+        "confirmError": "Apply failed.",
+        "rawChip": "Raw"
+      },
+      "slotLabels": {
+        "spatial_configuration": "Spatial",
+        "visual_description": "Visual",
+        "typography_adjectives": "Typography",
+        "font_combination": "Font Combination",
+        "accessories": "Accessories",
+        "style_dna": "Style DNA",
+        "extra_context": "Extra Context"
+      },
+      "typography": {
+        "title": "Choose typography",
+        "closeAria": "Close picker",
+        "searchPlaceholder": "Search {{count}} typography styles…",
+        "searchAria": "Search typography",
+        "tabsAria": "Typography source tabs",
+        "tabBuiltin": "Built-in ({{count}})",
+        "tabCustom": "Custom ({{count}})",
+        "emptySearch": "No typography matches your search.",
+        "emptyBuiltin": "No typography matches your search.",
+        "emptyCustom": "You haven't created any custom typographies yet.",
+        "createFirst": "Create your first",
+        "loading": "Loading…",
+        "useSelection": "Use selection",
+        "cancel": "Cancel",
+        "delete": "Delete",
+        "deleteSuccess": "Removed.",
+        "deleteError": "Remove failed.",
+        "selectAria": "Select {{label}}",
+        "deleteAria": "Delete {{label}}",
+        "autoFromStyle": "auto from style",
+        "autoFromStyleLabel": "auto from {{style}}",
+        "createNew": {
+          "tab": "Create new",
+          "stepSource": "Source",
+          "stepAnalyze": "Analyze",
+          "stepSave": "Name & Save",
+          "sourceTypeAria": "Source type",
+          "subTabUpload": "Upload",
+          "subTabReference": "From References",
+          "subTabDesign": "From Designs",
+          "dropZoneAria": "Upload image drop zone",
+          "dropZoneText": "Drop a JPG, PNG, or WebP here (max 10 MB) or click to browse",
+          "previewAlt": "Selected upload preview",
+          "sourcePreviewAlt": "Selected source preview",
+          "emptyReferences": "No references in this project. Add one from the right panel first.",
+          "emptyDesigns": "No designs yet. Generate one first.",
+          "designFallbackLabel": "Design",
+          "selectAria": "Select {{label}}",
+          "errorTooLarge": "File too large (max 10 MB).",
+          "errorWrongMime": "Use JPG, PNG, or WebP.",
+          "errorUnclear": "The image couldn't be clearly analyzed. Try a different image.",
+          "errorForbidden": "Forbidden terms detected: {{terms}}",
+          "errorAnalyzerUnavailable": "Analyzer unavailable, please try again later.",
+          "errorAnalysisFailed": "Analysis failed. Please retry.",
+          "tryAnother": "Try another",
+          "tryAnotherImage": "Try another image",
+          "useAnyway": "Use raw text anyway",
+          "useAnywayDisabled": "Backend returned no usable text — try another image",
+          "retry": "Retry",
+          "promptLabel": "Typography prompt",
+          "promptAria": "Typography prompt text",
+          "promptCounter": "{{count}} / 500 chars (min 50)",
+          "nameLabel": "Name",
+          "nameAria": "Name",
+          "nameHelp": "Max 80 characters.",
+          "nameLengthError": "Name must be 2–80 characters.",
+          "nameConflict": "Name already used in this workspace",
+          "promptReadonlyLabel": "Prompt",
+          "saveSuccess": "Custom typography saved",
+          "saveError": "Failed to save custom typography",
+          "cancel": "Cancel",
+          "back": "← Back",
+          "next": "Next →",
+          "save": "Save"
+        }
+      }
     }
   }
 }

@@ -104,8 +104,11 @@ const useArtboards = ({
       queueMicrotask(() => {
         setArtboards((currentArtboards) => {
           const designIds = new Set(designs.map((d) => d.id));
+          const completedRunIds = new Set(
+            designs.map((d) => d.generation_run?.id).filter((x): x is string => !!x),
+          );
           const hydrated = hydrateDesigns(designs, savedLayout, currentArtboards);
-          return mergeWithLocalArtboards(hydrated, currentArtboards, designIds);
+          return mergeWithLocalArtboards(hydrated, currentArtboards, designIds, completedRunIds);
         });
         const savedEdges = savedLayout?.edges ?? [];
         setEdges(savedEdges.map((e) => ({ source: e.source, target: e.target })));
@@ -155,6 +158,11 @@ const useArtboards = ({
         const nodes = boards.map((b) => ({
           id: b.id, x: b.x, y: b.y, label: b.label, width: b.width, height: b.height,
           backgroundColor: b.backgroundColor, opacity: b.opacity, clipContent: b.clipContent, layers: b.layers ?? [],
+          kind: b.kind,
+          isGenerating: b.isGenerating ?? false,
+          pendingRunId: b.pendingRunId ?? null,
+          promptUsed: b.promptUsed,
+          hasError: b.hasError ?? false,
         }));
         setEdges((latestEdges) => {
           const edgesToSave = currentEdges ?? latestEdges;
@@ -208,36 +216,37 @@ const useArtboards = ({
   // -- Add --
   const addArtboard = useCallback(
     (partial?: Partial<ArtboardData>) => {
-      let created: ArtboardData | null = null;
+      const newBoard: ArtboardData = {
+        id: partial?.id ?? nextId(),
+        label: partial?.label ?? nextArtboardLabel(artboards.map((ab) => ab.label)),
+        x: partial?.x ?? 80 + artboards.length * (DEFAULT_ARTBOARD_WIDTH + 60),
+        y: partial?.y ?? 80,
+        width: partial?.width ?? DEFAULT_ARTBOARD_WIDTH,
+        height: partial?.height ?? DEFAULT_ARTBOARD_HEIGHT,
+        imageUrl: partial?.imageUrl ?? null,
+        kind: partial?.kind ?? 'regular',
+        sourceId: partial?.sourceId ?? null,
+        designId: partial?.designId ?? null,
+        opacity: partial?.opacity ?? 100,
+        backgroundColor: partial?.backgroundColor ?? '#FFFFFF',
+        clipContent: partial?.clipContent ?? false,
+        layers: partial?.layers ?? [],
+        isGenerating: partial?.isGenerating ?? false,
+        promptUsed: partial?.promptUsed,
+        modelUsed: partial?.modelUsed,
+        bgColorUsed: partial?.bgColorUsed,
+      };
       setArtboards((prev) => {
-        const newBoard: ArtboardData = {
-          id: partial?.id ?? nextId(),
-          label: partial?.label ?? nextArtboardLabel(prev.map((ab) => ab.label)),
-          x: partial?.x ?? 80 + prev.length * (DEFAULT_ARTBOARD_WIDTH + 60),
-          y: partial?.y ?? 80,
-          width: partial?.width ?? DEFAULT_ARTBOARD_WIDTH,
-          height: partial?.height ?? DEFAULT_ARTBOARD_HEIGHT,
-          imageUrl: partial?.imageUrl ?? null,
-          kind: partial?.kind ?? 'regular',
-          sourceId: partial?.sourceId ?? null,
-          designId: partial?.designId ?? null,
-          opacity: partial?.opacity ?? 100,
-          backgroundColor: partial?.backgroundColor ?? '#FFFFFF',
-          clipContent: partial?.clipContent ?? false,
-          layers: partial?.layers ?? [],
-          isGenerating: partial?.isGenerating ?? false,
-          promptUsed: partial?.promptUsed,
-          modelUsed: partial?.modelUsed,
-          bgColorUsed: partial?.bgColorUsed,
-        };
-        created = newBoard;
+        // Strict-Mode safety: the updater function runs twice in dev, so
+        // guard against pushing the same newBoard twice.
+        if (prev.some((ab) => ab.id === newBoard.id)) return prev;
         const next = [...prev, newBoard];
         persistLayout(next);
         return next;
       });
-      return created as unknown as ArtboardData;
+      return newBoard;
     },
-    [persistLayout],
+    [artboards, persistLayout],
   );
 
   // -- Add AI Image Board --

@@ -9,8 +9,6 @@ const MODEL_LABELS: Record<DesignModel, string> = {
   'google/gemini-2.5-flash-preview-image-generation': 'Nano Banana (Gemini 2.5 Flash)',
   'openai/gpt-5-image': 'GPT-5 Image',
   'openai/gpt-5-image-mini': 'GPT-5 Image Mini',
-  'black-forest-labs/flux-1.1-pro': 'Flux 1.1 Pro',
-  'bytedance-seed/seedream-4.5': 'Seedream 4.5',
 };
 
 const MODELS: DesignModel[] = [
@@ -19,8 +17,6 @@ const MODELS: DesignModel[] = [
   'google/gemini-2.5-flash-preview-image-generation',
   'openai/gpt-5-image',
   'openai/gpt-5-image-mini',
-  'black-forest-labs/flux-1.1-pro',
-  'bytedance-seed/seedream-4.5',
 ];
 
 interface ModelSelectorProps {

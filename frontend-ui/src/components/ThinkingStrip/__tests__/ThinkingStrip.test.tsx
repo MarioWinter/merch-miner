@@ -32,7 +32,6 @@ const renderStrip = (
     reducers: { chatBar: chatBarReducer },
     preloadedState: {
       chatBar: {
-        barExpanded: false,
         drawerOpen: false,
         drawerWidth: 480,
         activePanel: 'chat',
