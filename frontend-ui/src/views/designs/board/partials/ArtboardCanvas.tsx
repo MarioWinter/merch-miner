@@ -95,8 +95,7 @@ export interface ArtboardCanvasProps {
   onBrushDrawEnd?: () => void;
   /** Phase G13: analyze image from context menu */
   onAnalyzeImage?: (artboardId: string) => void;
-  /** Phase N: transfer actions for context menu */
-  onAddToEditor?: (artboardIds: string[]) => void;
+  /** Phase N: open in editor (context menu) */
   onOpenInEditor?: (artboardIds: string[]) => void;
   /** Element currently being inline-edited (text editing) — hide from Konva render */
   editingElementId?: string | null;
@@ -151,7 +150,6 @@ const ArtboardCanvas = ({
   onBrushDrawMove,
   onBrushDrawEnd,
   onAnalyzeImage,
-  onAddToEditor,
   onOpenInEditor,
   editingElementId,
   hasDesignAsset,
@@ -467,7 +465,6 @@ const ArtboardCanvas = ({
         onBringToFront={bringToFront}
         onSendToBack={sendToBack}
         onAnalyzeImage={onAnalyzeImage}
-        onAddToEditor={onAddToEditor}
         onOpenInEditor={onOpenInEditor}
       />
       <CanvasContextMenu

@@ -243,7 +243,6 @@ const DesignWorkspaceView = () => {
       panelState={panelState}
       onUpdateArtboard={artboardState.updateArtboard}
       onResizeArtboard={artboardState.resizeArtboard}
-      onAddToEditor={actions.handleAddToEditor}
       onOpenInEditor={actions.handleOpenInEditor}
       onDeleteSelected={actions.handleDeleteSelected}
       onExportSelected={actions.handleExportSelected}
@@ -429,7 +428,6 @@ const DesignWorkspaceView = () => {
                 onBrushDrawMove={canvas.brushTool.handleBrushMove}
                 onBrushDrawEnd={canvas.brushTool.handleBrushEnd}
                 onAnalyzeImage={actions.handleContextMenuAnalyze}
-                onAddToEditor={actions.handleAddToEditor}
                 onOpenInEditor={actions.handleOpenInEditor}
                 editingElementId={canvas.textEditing.editingElementId}
                 hasDesignAsset={hasDesignAssetByArtboard}

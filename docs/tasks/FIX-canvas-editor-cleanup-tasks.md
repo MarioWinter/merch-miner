@@ -32,17 +32,31 @@ Implementation order is sequenced from cheapest to most complex. Each phase is o
 
 ---
 
-## Phase 3 — Remove "Add to Editor" Action (Item 3)
+## Phase 3 — Remove "Add to Editor" Action (Item 3) ✅ + RightPanel extension done
 
-- [ ] Delete menu item from `frontend-ui/src/views/designs/board/partials/ArtboardContextMenu.tsx:163-175`
-- [ ] Remove `onAddToEditor` prop from `ArtboardContextMenu` interface + props
-- [ ] Remove handler call site in `frontend-ui/src/views/designs/workspace/DesignWorkspaceView.tsx`
-- [ ] Remove `handleAddToEditor` from `frontend-ui/src/views/designs/workspace/hooks/useWorkspaceActions.ts` if no other caller (verify via `grep -r "handleAddToEditor" frontend-ui/src/`)
-- [ ] Remove key `design.contextMenu.addToEditor` from all 5 locale JSONs
-- [ ] Run `npm run lint` to catch orphan imports/types
+- [x] Delete menu item from `frontend-ui/src/views/designs/board/partials/ArtboardContextMenu.tsx:163-175` — ArtboardContextMenu.tsx:147-156 (entire `{hasImage && onAddToEditor && (<>...</>)}` block removed; "Open in Editor" preserved)
+- [x] Remove `onAddToEditor` prop from `ArtboardContextMenu` interface + props — ArtboardContextMenu.tsx:38-41 (interface field removed); destructuring at :57-60 (parameter removed); orphan import `AddPhotoAlternateOutlinedIcon` removed at :1-11; orphan `handleAddToEditor` callback removed
+- [x] Remove handler call site in `frontend-ui/src/views/designs/workspace/DesignWorkspaceView.tsx` — DesignWorkspaceView.tsx:430-431 (only the `<ArtboardCanvas onAddToEditor={...}>` prop removed; the `<RightPanel onAddToEditor={...}>` at :246 retained — RightPanel still hosts its own Add-to-Editor toolbar buttons, out of scope for Phase 3)
+- [x] Also removed passthrough prop from `ArtboardCanvas.tsx` (props type, destructuring, and forwarding to `<ArtboardContextMenu>`) — ArtboardCanvas.tsx:97-99, :151-153, :467-469
+- [x] Verified `handleAddToEditor` in `useWorkspaceActions.ts` STILL has other callers (RightPanel via DesignWorkspaceView:246 → PanelArtboardState + PanelMultiState) — kept per AC-3-3 "if no other caller remains" clause
+- [x] i18n key `design.contextMenu.addToEditor` — not present in any locale JSON (verified via `grep -rn "addToEditor" frontend-ui/public/locales/` — zero hits); was only used as inline `t()` fallback default, removed with the MenuItem block
+- [x] `npm run lint` — 0 errors, 12 pre-existing warnings unrelated to Phase 3
 - [ ] Manual smoke: right-click artboard, confirm only "Open in Editor" remains
 
-**Acceptance:** AC-3-1, AC-3-2, AC-3-3, AC-3-4, AC-3-5 — all checked. EC-3-1.
+### Phase 3 extension — RightPanel toolbar variant (AC-3-6, 2026-05-27)
+
+- [x] PanelArtboardState.tsx — removed `onAddToEditor` from props interface + destructuring, removed Tooltip+ToolbarButton block, dropped `onAddToEditor ||` term from conditional wrapper, removed orphan `AddPhotoAlternateOutlinedIcon` import
+- [x] PanelMultiState.tsx — removed `onAddToEditor` from props interface + destructuring, removed `handleAddEditor` callback, removed Tooltip+ToolbarButton block, removed orphan `AddPhotoAlternateOutlinedIcon` import
+- [x] RightPanel.tsx — removed `onAddToEditor` from props interface + destructuring, removed the two passthrough `onAddToEditor={onAddToEditor}` lines to PanelMultiState + PanelArtboardState
+- [x] DesignWorkspaceView.tsx — removed `onAddToEditor={actions.handleAddToEditor}` passthrough
+- [x] useWorkspaceActions.ts — removed `handleAddToEditor` callback implementation + key from returned object
+- [x] Test updates — canvasEditorDecoupling.test.tsx (deleted "calls onAddToEditor" test case, dropped removed prop), PanelMultiStateSend.test.tsx (dropped 4 `onAddToEditor={vi.fn()}` props)
+- [x] i18n key `design.panel.addToEditor` — never existed in any locale JSON (verified zero hits via `grep "addToEditor" public/locales/{en,de,fr,es,it}/translation.json`); only inline `t()` fallback default, removed with the button blocks
+- [x] Verification: `grep -rn "handleAddToEditor\|onAddToEditor\|design.panel.addToEditor" frontend-ui/src/` → zero hits
+- [x] `npm run lint` — 0 errors, 12 pre-existing warnings unrelated
+- [x] `npm run test:ci` — 1606/1607 passed; the 1 failure (`ProductDetailPage.test.tsx > clicks Reload button`) is **pre-existing** from Phase 1 (locale text was updated but test assertion still references old copy) — NOT caused by this extension
+
+**Acceptance:** AC-3-1, AC-3-2, AC-3-3, AC-3-4, AC-3-5, AC-3-6 — all checked. EC-3-1.
 
 ---
 

@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState } from 'react';
 import { Box, IconButton, Stack, Tooltip, Typography } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternateOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -62,7 +61,6 @@ const UpscaleControls = styled(Stack)(({ theme }) => ({
 
 interface PanelMultiStateProps {
   selectedArtboards: ArtboardData[];
-  onAddToEditor: (ids: string[]) => void;
   onOpenInEditor: (ids: string[]) => void;
   onDeleteAll: (ids: string[]) => void;
   onExportSelected: (ids: string[]) => void;
@@ -78,7 +76,6 @@ interface PanelMultiStateProps {
 
 const PanelMultiState = ({
   selectedArtboards,
-  onAddToEditor,
   onOpenInEditor,
   onDeleteAll,
   onExportSelected,
@@ -124,10 +121,6 @@ const PanelMultiState = ({
     [linkedDesigns],
   );
   const [compareOpen, setCompareOpen] = useState(false);
-
-  const handleAddEditor = useCallback(() => {
-    onAddToEditor(ids);
-  }, [ids, onAddToEditor]);
 
   const handleOpenEditor = useCallback(() => {
     onOpenInEditor(ids);
@@ -175,11 +168,6 @@ const PanelMultiState = ({
 
         {/* Action toolbar */}
         <Stack direction="row" sx={{ gap: 0.5, mt: 1 }}>
-          <Tooltip title={t('design.panel.addToEditor', 'Add to Editor')}>
-            <ToolbarButton onClick={handleAddEditor} aria-label={t('design.panel.addToEditor', 'Add to Editor')}>
-              <AddPhotoAlternateOutlinedIcon sx={{ fontSize: 20 }} />
-            </ToolbarButton>
-          </Tooltip>
           <Tooltip title={t('design.panel.openInEditor', 'Open in Editor')}>
             <ToolbarButton onClick={handleOpenEditor} aria-label={t('design.panel.openInEditor', 'Open in Editor')}>
               <OpenInNewOutlinedIcon sx={{ fontSize: 20 }} />

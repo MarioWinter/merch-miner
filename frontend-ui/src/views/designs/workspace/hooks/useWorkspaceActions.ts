@@ -114,20 +114,6 @@ const useWorkspaceActions = ({
   );
 
   // -- Editor transfer --
-  const handleAddToEditor = useCallback(
-    (artboardIds: string[]) => {
-      const selected = artboardState.artboards.filter((ab) => artboardIds.includes(ab.id) && ab.imageUrl);
-      if (selected.length === 0) return;
-      const images = selected.map((ab) => ({ url: ab.imageUrl as string, name: ab.label, width: ab.width, height: ab.height }));
-      editorBatchHook.addToEditorBatch(images);
-      enqueueSnackbar(
-        t('design.transfer.addedToEditor', '{{count}} image(s) added to Editor', { count: images.length }),
-        { variant: 'success' },
-      );
-    },
-    [artboardState.artboards, editorBatchHook, enqueueSnackbar, t],
-  );
-
   const handleOpenInEditor = useCallback(
     (artboardIds: string[]) => {
       const selected = artboardState.artboards.filter((ab) => artboardIds.includes(ab.id) && ab.imageUrl);
@@ -177,7 +163,7 @@ const useWorkspaceActions = ({
     // Analyze
     handleAnalyzeImage, handleContextMenuAnalyze,
     // Transfer
-    handleAddToEditor, handleOpenInEditor, handleAddToCanvas,
+    handleOpenInEditor, handleAddToCanvas,
     // Panel
     handleAddReferenceArtboard, handlePanelSelectArtboard,
   };

@@ -86,11 +86,12 @@ Six independent fixes to existing half-built or buggy flows in the AI Canvas + I
 - As a POD seller right-clicking an artboard, I want a single clear action to open it in the editor, so I'm not confused by two similar options.
 
 ### Acceptance Criteria
-- [ ] AC-3-1: "Add to Editor" menu item removed from `ArtboardContextMenu.tsx` (lines 163–175).
-- [ ] AC-3-2: "Open in Editor" menu item retained and unchanged in behaviour.
-- [ ] AC-3-3: Handler `handleAddToEditor` and related callback chain removed from `DesignWorkspaceView.tsx` + `useWorkspaceActions.ts` if no other caller remains.
-- [ ] AC-3-4: i18n key `design.contextMenu.addToEditor` removed from EN + DE if no other reference.
-- [ ] AC-3-5: No dead code (orphan imports, unused props) left after removal.
+- [x] AC-3-1: "Add to Editor" menu item removed from `ArtboardContextMenu.tsx` (lines 163–175).
+- [x] AC-3-2: "Open in Editor" menu item retained and unchanged in behaviour.
+- [x] AC-3-3: Handler `handleAddToEditor` and related callback chain removed from `DesignWorkspaceView.tsx` + `useWorkspaceActions.ts` after all callers (context menu + RightPanel toolbar) are removed. — useWorkspaceActions.ts:117 (callback) + :172 (returned object key) removed; DesignWorkspaceView.tsx:246 passthrough removed.
+- [x] AC-3-4: i18n key `design.contextMenu.addToEditor` was never present in any locale JSON (verified via `grep -rn "addToEditor" frontend-ui/public/locales/` — zero hits); existed only as inline `t()` fallback default, removed with the MenuItem block.
+- [x] AC-3-5: Verified after full Phase 3 (incl. AC-3-6) — `npm run lint` 0 errors; `grep -rn "handleAddToEditor\|onAddToEditor\|design.panel.addToEditor" frontend-ui/src/` → zero hits. Orphan `AddPhotoAlternateOutlinedIcon` imports removed from `ArtboardContextMenu.tsx`, `PanelArtboardState.tsx`, `PanelMultiState.tsx`.
+- [x] AC-3-6: RightPanel toolbar "Add to Editor" button removed from `PanelArtboardState.tsx` (single-select) + `PanelMultiState.tsx` (multi-select) + `RightPanel.tsx` prop chain — PanelArtboardState.tsx (Tooltip+ToolbarButton block, prop, destructured prop, orphan icon import, conditional wrapper term removed), PanelMultiState.tsx (Tooltip+ToolbarButton block, prop, destructured prop, `handleAddEditor` callback, orphan icon import removed), RightPanel.tsx (prop interface, destructured prop, 2 child passthroughs removed). i18n key `design.panel.addToEditor` was never present in any locale JSON (verified zero hits via grep across en/de/fr/es/it) — only inline `t()` fallback default, removed with the button blocks. Scope extended per user decision 2026-05-27.
 
 ### Edge Cases
 - [ ] EC-3-1: User has muscle-memory for "Add to Editor" → no migration needed; the remaining "Open in Editor" performs the equivalent flow.
