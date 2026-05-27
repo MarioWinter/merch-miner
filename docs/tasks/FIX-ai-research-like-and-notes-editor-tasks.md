@@ -174,9 +174,9 @@
 
 **Goal:** Ready for `/qa` skill. Status updated. Smoke checklist documented.
 
-- [ ] T7.1: Update `features/INDEX.md` Mini-Fixes row status: Planned → In Review.
-- [ ] T7.2: Update spec header "Status: Planned" → "Status: In Review".
-- [ ] T7.3: Append a "Smoke Checklist" subsection inside the spec (under QA Test Results, leaving the rest for `/qa`):
+- [x] T7.1: Update `features/INDEX.md` Mini-Fixes row status: Planned → In Review.
+- [x] T7.2: Update spec header "Status: Planned" → "Status: In Review".
+- [x] T7.3: Append a "Smoke Checklist" subsection inside the spec (under QA Test Results, leaving the rest for `/qa`):
   - [ ] Heart appears on every AI Research product card.
   - [ ] Heart filled when product already in collection; outlined otherwise.
   - [ ] Click outlined → filled + product appears in Niche Pipeline ProductsGrid after refetch.
@@ -194,7 +194,7 @@
   - [ ] Click checkbox in Preview toggles `[ ]`/`[x]` and marks form dirty.
   - [ ] Save persists notes; reload shows them; round-trip preserves all markdown.
   - [ ] EN and DE translations both present for all new strings.
-- [ ] T7.4: Verify no orphan files in branch: `git status` clean except for intended new files; `git diff --stat` matches the scope.
+- [x] T7.4: Verify no orphan files in branch: `git status` clean except for intended new files; `git diff --stat` matches the scope.
 
 **Dependencies:** Phases 1-6 all checked.
 **Blocks:** `/qa` skill invocation.

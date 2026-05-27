@@ -49,7 +49,7 @@
 
 | ID | Feature | Status | Spec | Created |
 |----|---------|--------|------|---------|
-| FIX | AI Research Like + Notes Editor | In Progress | [spec](FIX-ai-research-like-and-notes-editor.md) | 2026-05-27 |
+| FIX | AI Research Like + Notes Editor | In Review | [spec](FIX-ai-research-like-and-notes-editor.md) | 2026-05-27 |
 
 <!-- Add features above this line -->
 

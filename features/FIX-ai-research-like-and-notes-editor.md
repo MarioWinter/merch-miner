@@ -1,6 +1,6 @@
 # FIX: AI Research Like + Niche Pipeline Notes Editor
 
-## Status: Planned
+## Status: In Review
 **Created:** 2026-05-27
 **Last Updated:** 2026-05-27
 **Type:** Combined Mini-Fix (two small frontend-only features, one PR)
@@ -400,7 +400,39 @@ frontend-ui/src/components/
 - [ ] OQ-4: Behaviour when user is in Preview and Save is clicked: spec implies normal Save fires (the form's existing handler). Confirm in Phase 6.
 
 ## QA Test Results
-_To be added by /qa_
+
+### Smoke Checklist (orchestrator runtime smoke before `/qa`)
+
+**Feature A — AI Research Heart-Toggle**
+- [ ] Heart icon appears on every AI Research product card (top-right next to expand icon).
+- [ ] Heart is filled (red) when the product is already in the active niche's collection; outlined otherwise.
+- [ ] Click outlined heart → flips to filled immediately (optimistic) → product appears in Niche Pipeline ProductsGrid after refetch.
+- [ ] Click filled heart → flips to outlined immediately → product disappears from ProductsGrid.
+- [ ] Heart disabled (greyed-out) with tooltip "Select a niche first" when no active niche.
+- [ ] Simulate network error (DevTools offline) → icon reverts + error toast appears.
+- [ ] EC-A4: Open AI Research in two browser windows; like a product in window A → window B updates heart state on next refetch.
+- [ ] EC-A5: Switch workspace mid-session → heart state recomputes against the new workspace's active niche.
+
+**Feature B — Notes Markdown Editor**
+- [ ] Notes editor opens in Edit tab by default; clicking Preview switches view.
+- [ ] Edit tab textarea auto-grows up to ~20 rows; manual resize handle (bottom-right) drags to override.
+- [ ] Type `/` at line start → slash menu opens; type `/` mid-word → no menu.
+- [ ] Type `bu` after `/` → menu filters to "Bulleted list".
+- [ ] ArrowUp/Down navigates; Enter inserts the prefix; Esc closes; Space closes.
+- [ ] All 15 commands insert the correct markdown (sample each from the menu).
+- [ ] Enter continues a list/checklist/numbered prefix; Enter on empty list line escapes.
+- [ ] EC-B8: Place caret near textarea bottom edge + type `/` → menu opens **above** the caret (auto-flip).
+- [ ] EC-B9: Place caret near textarea right edge → menu shifts left to stay in viewport.
+- [ ] Preview tab renders all 4 callout types (Note/Tip/Warning/Important) in distinct colours.
+- [ ] Click a `[ ]` checkbox in Preview → toggles to `[x]` and form goes dirty (Save button enables).
+- [ ] Save persists notes; reload niche → notes come back identical (markdown round-trip preserved).
+- [ ] Both EN and DE locales display correct translations for all editor + heart strings.
+
+**General**
+- [ ] No console errors in DevTools across the full Niche-Pipeline + AI-Research flows.
+- [ ] Tab-key keyboard navigation reaches the textarea, the tabs, and the heart button — no focus traps.
+
+_To be added by /qa after smoke checklist passes._
 
 ## Deployment
 _To be added by /deploy_
