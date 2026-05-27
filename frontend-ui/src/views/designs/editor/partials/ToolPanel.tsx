@@ -341,9 +341,9 @@ export const ToolPanel = ({
   hasImages,
   onRunServerTool,
   isServerProcessing,
-  currentDesignId: _currentDesignId,
-  currentImageWidth: _currentImageWidth,
-  currentImageHeight: _currentImageHeight,
+  currentDesignId,
+  currentImageWidth,
+  currentImageHeight,
 }: ToolPanelProps) => {
   const { t } = useTranslation();
   const [expandedCards, setExpandedCards] = useState<Set<string>>(new Set());
@@ -431,6 +431,9 @@ export const ToolPanel = ({
                     t={t}
                     onRunServerTool={onRunServerTool}
                     isServerProcessing={isServerProcessing}
+                    currentDesignId={currentDesignId}
+                    currentImageWidth={currentImageWidth}
+                    currentImageHeight={currentImageHeight}
                   />
                 );
               })}
