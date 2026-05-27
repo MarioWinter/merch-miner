@@ -76,6 +76,59 @@ export const collectedProductsApi = createApi({
       invalidatesTags: (_result, _error, { nicheId }) => [
         { type: 'CollectedProducts', id: nicheId },
       ],
+      // Optimistic insert into `getCollectedProducts(nicheId)` so the heart
+      // icon flips immediately. The temporary id is replaced when the tag
+      // invalidation refetches the canonical list on success. On error we
+      // undo the patch and the caller surfaces a snackbar.
+      async onQueryStarted(
+        { nicheId, asin, marketplace },
+        { dispatch, queryFulfilled },
+      ) {
+        const optimisticEntry: CollectedProduct = {
+          id: `optimistic-${asin}-${Date.now()}`,
+          niche: nicheId,
+          product: {
+            id: `optimistic-${asin}`,
+            asin,
+            title: '',
+            brand: '',
+            bsr: null,
+            bsr_categories: [],
+            rating: null,
+            reviews_count: null,
+            price: null,
+            product_type: '',
+            subcategory: '',
+            listed_date: null,
+            thumbnail_url: '',
+            bullet_1: '',
+            bullet_2: '',
+            description: '',
+            marketplace,
+            scraped_at: new Date().toISOString(),
+          },
+          collected_at: new Date().toISOString(),
+          extracted_keywords: [],
+          listing_template: {},
+        };
+        const patch = dispatch(
+          collectedProductsApi.util.updateQueryData(
+            'getCollectedProducts',
+            nicheId,
+            (draft) => {
+              // Defensive: cache may be undefined on first call.
+              if (!draft.results) return;
+              draft.results.unshift(optimisticEntry);
+              draft.count = (draft.count ?? 0) + 1;
+            },
+          ),
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
     }),
 
     removeCollectedProduct: builder.mutation<void, RemoveCollectedProductBody>({
@@ -86,6 +139,34 @@ export const collectedProductsApi = createApi({
       invalidatesTags: (_result, _error, { nicheId }) => [
         { type: 'CollectedProducts', id: nicheId },
       ],
+      // Optimistic removal from `getCollectedProducts(nicheId)`. Rollback on
+      // error.
+      async onQueryStarted(
+        { nicheId, collectedProductId },
+        { dispatch, queryFulfilled },
+      ) {
+        const patch = dispatch(
+          collectedProductsApi.util.updateQueryData(
+            'getCollectedProducts',
+            nicheId,
+            (draft) => {
+              if (!draft.results) return;
+              const before = draft.results.length;
+              draft.results = draft.results.filter(
+                (item) => item.id !== collectedProductId,
+              );
+              if (draft.results.length < before) {
+                draft.count = Math.max(0, (draft.count ?? 0) - 1);
+              }
+            },
+          ),
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
     }),
 
     extractKeywords: builder.mutation<ExtractKeywordsResponse, ExtractKeywordsBody>({

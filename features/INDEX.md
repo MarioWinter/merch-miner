@@ -45,6 +45,12 @@
 | PROJ-31 | Entitlement & Permission Gating (2-Layer, supersedes PROJ-24) | In Review | [spec](PROJ-31-entitlement-permission.md) | 2026-05-15 |
 | PROJ-34 | Design-Forge Prompt Engineering & Multi-Prompt Builder | In Review | [spec](PROJ-34-design-prompt-engineering.md) | 2026-05-17 |
 
+## Mini-Fixes (non-PROJ, single-PR bundles)
+
+| ID | Feature | Status | Spec | Created |
+|----|---------|--------|------|---------|
+| FIX | AI Research Like + Notes Editor | In Review | [spec](FIX-ai-research-like-and-notes-editor.md) | 2026-05-27 |
+
 <!-- Add features above this line -->
 
 ## Next Available ID: PROJ-35

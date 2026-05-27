@@ -210,6 +210,7 @@ const NicheResearchView = () => {
             <GroupedProductAnalysis
               products={data.products ?? []}
               nicheId={nicheId!}
+              marketplace={data.marketplace}
             />
           )}
 
