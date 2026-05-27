@@ -7,13 +7,10 @@ import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import BuildOutlinedIcon from '@mui/icons-material/BuildOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import TuneIcon from '@mui/icons-material/Tune';
-import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import { useGetProjectQuery, useGetProjectBoardQuery, useUpdateProjectMutation } from '@/store/designSlice';
-import { useAppDispatch } from '@/store/hooks';
-import { openNicheEdit } from '@/store/chatBarSlice';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import useSendDesignsToListings from '@/hooks/useSendDesignsToListings';
 import useArtboards from '../board/hooks/useArtboards';
@@ -80,7 +77,6 @@ const DesignWorkspaceView = () => {
   const activeWorkspaceId = useAppSelector((s) => s.workspace.activeWorkspaceId);
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const dispatch = useAppDispatch();
   const { activeTab, setActiveTab } = useWorkspaceTab();
   const { enqueueSnackbar } = useSnackbar();
   const { isDesktop } = useResponsiveLayout();
@@ -259,12 +255,6 @@ const DesignWorkspaceView = () => {
   // -- Dialog state --
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const handleOpenNichePipeline = () => {
-    if (project?.niche) {
-      dispatch(openNicheEdit(project.niche));
-    }
-  };
-
   // -- Actions (delete, export, transfer, analyze, panel) --
   const actions = useWorkspaceActions({
     projectId: projectId ?? '',
@@ -395,13 +385,6 @@ const DesignWorkspaceView = () => {
         {project && (
           <>
             <NicheBindingSelector projectId={projectId} currentNicheId={project.niche} currentNicheName={project.niche_summary?.name ?? null} />
-            {project.niche && (
-              <Tooltip title={t('design.workspace.openNicheDrawer', 'Niche Pipeline')}>
-                <IconButton size="small" onClick={handleOpenNichePipeline} aria-label={t('design.workspace.openNicheDrawer', 'Niche Pipeline')}>
-                  <Inventory2OutlinedIcon sx={{ fontSize: 18 }} />
-                </IconButton>
-              </Tooltip>
-            )}
           </>
         )}
 

@@ -527,7 +527,8 @@
         "forgeSelected": "Forge {{count}} to Canvas"
       },
       "designs": {
-        "toListings": "Send to Listings"
+        "toListings": "Send to Listings",
+        "openCanvas": "Open Design Canvas"
       }
     }
   },
@@ -1745,8 +1746,7 @@
       "tabEditor": "Image Editor",
       "settings": "Project Settings",
       "canvasComingSoon": "Artboard Canvas coming soon",
-      "canvasDescription": "The Konva.js-powered artboard will replace the old React Flow board.",
-      "openNicheDrawer": "Niche Pipeline"
+      "canvasDescription": "The Konva.js-powered artboard will replace the old React Flow board."
     },
     "settings": {
       "title": "Processing Settings",

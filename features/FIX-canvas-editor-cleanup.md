@@ -138,19 +138,23 @@ Six independent fixes to existing half-built or buggy flows in the AI Canvas + I
 
 ---
 
-## Item 6 — Remove Niche Pipeline "Open Design Canvas" Button
+## Item 6 — Remove Niche Pipeline Icon from AI Canvas Header
+
+### Direction Correction (2026-05-27)
+The original spec wording was ambiguous ("Niche pipline icon AI Canvas delete"). The first interpretation (Phase 2, commit `c173254`) removed the "Open Design Canvas" button **inside the Niche Pipeline drawer**. After user manual smoke, the actual intent was the **inverse**: remove the `Inventory2OutlinedIcon` button **inside the AI Canvas header** that opens the Niche Pipeline drawer. Phase 2 has been reverted (button restored); the correct icon is now removed.
 
 ### User Stories
-- As a POD seller browsing a niche pipeline drawer, I don't need a separate button to open the AI Canvas — the canvas is accessible via the main nav.
+- As a POD seller working in the AI Canvas, I don't want the canvas header cluttered by a button that opens the Niche Pipeline drawer — Niche planning happens elsewhere; the canvas is for design work.
 
 ### Acceptance Criteria
-- [x] AC-6-1: `DesignsPipelineContent.tsx:210-228` Button (`OpenInNewOutlinedIcon` + i18n `niches.pipeline.designs.openCanvas`) removed.
-- [x] AC-6-2: i18n key `niches.pipeline.designs.openCanvas` removed from EN + DE if no other reference.
-- [x] AC-6-3: Surrounding layout (Stack/Box) collapses cleanly — no empty padding/spacer left.
-- [x] AC-6-4: Unused import `OpenInNewOutlinedIcon` removed from the file.
+- [x] AC-6-1: `Inventory2OutlinedIcon` IconButton (with Tooltip) in `DesignWorkspaceView.tsx` header removed.
+- [x] AC-6-2: Handler `handleOpenNichePipeline` removed.
+- [x] AC-6-3: Orphan imports removed: `Inventory2OutlinedIcon`, `openNicheEdit` from chatBarSlice, `useAppDispatch`, local `dispatch` declaration.
+- [x] AC-6-4: i18n key `design.workspace.openNicheDrawer` removed from all 5 locale JSONs.
+- [x] AC-6-5: Phase 2 reverted — "Open Design Canvas" ghost button restored in `DesignsPipelineContent.tsx` along with its i18n key (`niches.pipeline.designs.openCanvas` EN + DE).
 
 ### Edge Cases
-- [ ] EC-6-1: Other niche pipeline sections (Slogans, Research) keep their own navigation buttons untouched.
+- [x] EC-6-1: Niche-binding selector + niche-link chip in canvas header remain — they're useful workflow indicators, not navigation.
 
 ---
 

@@ -518,7 +518,8 @@
         "forgeSelected": "{{count}} zum Canvas schmieden"
       },
       "designs": {
-        "toListings": "An Listings senden"
+        "toListings": "An Listings senden",
+        "openCanvas": "Design-Canvas öffnen"
       }
     }
   },
@@ -1634,8 +1635,7 @@
       "tabEditor": "Bildbearbeitung",
       "settings": "Projekteinstellungen",
       "canvasComingSoon": "Artboard Canvas kommt bald",
-      "canvasDescription": "Der Konva.js-basierte Artboard ersetzt das alte React Flow Board.",
-      "openNicheDrawer": "Niche Pipeline"
+      "canvasDescription": "Der Konva.js-basierte Artboard ersetzt das alte React Flow Board."
     },
     "canvas": {
       "emptyTitle": "Bilder ablegen oder KI-Bildboard erstellen",
