@@ -32,35 +32,29 @@
 
 ### 2A. Verifications
 
-- [ ] T2.1: Verify `marketplace` field on `ResearchProduct` type — read `frontend-ui/src/views/niches/research/types/index.ts`. If absent: document the gap and pass `marketplace` as prop from `NicheResearchView` (which has access to the active niche's `marketplace_country`). (OQ-1, EC-A6)
-- [ ] T2.2: Confirm `ProductAnalysisCard` always receives a non-null `nicheId` in current usage — read `views/niches/research/index.tsx`. (OQ-2, EC-A1)
+- [x] T2.1: Verify `marketplace` field on `ResearchProduct` type — `ResearchProduct` has NO `marketplace` field. Confirmed via `grep -E "marketplace" src/views/niches/research/types/index.ts` (returns only `marketplace?: Marketplace` / `marketplace: Marketplace` from other types, not ResearchProduct). Resolution: parent passes `marketplace` from `data.marketplace` of the niche-research response → wired through `index.tsx` → `GroupedProductAnalysis` → `PatternProductGroup` → `ProductAnalysisCard` → `NicheCollectionHeartButton`. (OQ-1, EC-A6)
+- [x] T2.2: `ProductAnalysisCard` always receives non-null `nicheId` in current usage — confirmed via `views/niches/research/index.tsx:211` (`nicheId={nicheId!}` non-null assertion at the call site, gated by the parent view's data-loaded branch). (OQ-2, EC-A1)
 
 ### 2B. Hook + Slice Updates
 
-- [ ] T2.3: Create `components/NicheCollectionHeartButton/hooks/useIsProductLiked.ts` — wraps `useGetCollectedProductsQuery(nicheId)`, returns `{ isLiked, collectedProductId, isLoading }` by matching `item.product.asin === asin && item.product.marketplace === marketplace`. (AC-A2)
-- [ ] T2.4: Edit `store/collectedProductsSlice.ts` — add `onQueryStarted` to `collectProduct` mutation for optimistic patch on `getCollectedProducts(nicheId)`. Rollback on error. (AC-A5, EC-A3)
-- [ ] T2.5: Edit `store/collectedProductsSlice.ts` — add `onQueryStarted` to `removeCollectedProduct` mutation for optimistic patch. Rollback on error. (AC-A5, EC-A3)
+- [x] T2.3: Created `components/NicheCollectionHeartButton/hooks/useIsProductLiked.ts` — wraps `useGetCollectedProductsQuery(nicheId)` with skip, returns `{ isLiked, collectedProductId, isLoading }` by matching ASIN+marketplace. (AC-A2)
+- [x] T2.4: Edited `store/collectedProductsSlice.ts` — `onQueryStarted` added to `collectProduct` (inserts optimistic entry with temporary id `optimistic-{asin}-{Date.now()}`, rolls back on error). (AC-A5, EC-A3)
+- [x] T2.5: Edited `store/collectedProductsSlice.ts` — `onQueryStarted` added to `removeCollectedProduct` (filters out by id, rolls back on error). (AC-A5, EC-A3)
 
 ### 2C. Component
 
-- [ ] T2.6: Create `components/NicheCollectionHeartButton/index.tsx` — `IconButton` with `Favorite`/`FavoriteBorder` swap, disabled-state with tooltip when `nicheId` is null, hidden when `asin` or `marketplace` missing. Use `theme.vars.palette.error.main` (filled) / `theme.vars.palette.action.active` (outline). (AC-A1, A2, A7, A8, EC-A1, EC-A6)
-- [ ] T2.7: Inside component: wire click handler → `useCollectProductMutation` or `useRemoveCollectedProductMutation` based on `isLiked`. Disable button while mutation pending (EC-A2). Show notistack error toast on mutation reject; icon reverts via rollback. (AC-A3, A4, A6, EC-A2, EC-A3)
-- [ ] T2.8: i18n keys (add to `i18n/locales/en.json` and `de.json`):
-  - `nicheCollection.heart.addAriaLabel` ("Add to niche collection")
-  - `nicheCollection.heart.removeAriaLabel` ("Remove from niche collection")
-  - `nicheCollection.heart.noNicheTooltip` ("Select a niche first")
-  - `nicheCollection.heart.addError` ("Could not add product to collection")
-  - `nicheCollection.heart.removeError` ("Could not remove product from collection")
-  (AC-A8, A9)
+- [x] T2.6: Created `components/NicheCollectionHeartButton/index.tsx` — `IconButton` with filled/outline swap, disabled+tooltip when `nicheId === null`, returns null when ASIN/marketplace missing. Inline `styled(IconButton)` with `theme.vars.palette.error.main` (filled) / `theme.vars.palette.action.active` (outline). (AC-A1, A2, A7, A8, EC-A1, EC-A6)
+- [x] T2.7: Click handler in same component uses `useCollectProductMutation` or `useRemoveCollectedProductMutation` based on `isLiked`. Button disabled while either mutation `isLoading`. notistack error toast on reject — icon reverts via slice rollback. (AC-A3, A4, A6, EC-A2, EC-A3)
+- [x] T2.8: i18n keys added to `public/locales/{en,de}/translation.json` under `nicheCollection.heart.*`: `addAriaLabel`, `removeAriaLabel`, `noNicheTooltip`, `addError`, `removeError`. EN + DE both present. (AC-A8, A9)
 
 ### 2D. Integration
 
-- [ ] T2.9: Edit `views/niches/research/partials/ProductAnalysisCard.tsx` — render `<NicheCollectionHeartButton />` in the `ProductHeader` area (top-right, next to the existing expand IconButton). Pass `nicheId`, `product.asin`, `product.marketplace` (or `nicheMarketplace` if T2.1 confirms gap). (AC-A1)
-- [ ] T2.10: If T2.1 confirms `marketplace` gap → edit `views/niches/research/index.tsx` to also pass `marketplace` prop into `ProductAnalysisCard`. (EC-A6)
+- [x] T2.9: Edited `views/niches/research/partials/ProductAnalysisCard.tsx` — `<NicheCollectionHeartButton />` rendered in a `Stack direction="row"` alongside the expand `IconButton` (top-right). Accepts new required `marketplace: string` prop. (AC-A1)
+- [x] T2.10: Gap confirmed in T2.1 → marketplace threaded through `views/niches/research/index.tsx` → `GroupedProductAnalysis.tsx` → `PatternProductGroup.tsx` → `ProductAnalysisCard.tsx`. (EC-A6)
 
 ### 2E. Tests
 
-- [ ] T2.11: Create `components/NicheCollectionHeartButton/tests/NicheCollectionHeartButton.test.tsx`:
+- [x] T2.11: Created `components/NicheCollectionHeartButton/tests/NicheCollectionHeartButton.test.tsx` — 9 tests, all pass:
   - renders outlined heart when product not in collection (AC-A2)
   - renders filled heart when product in collection (AC-A2)
   - click outlined → fires `collectProduct` (AC-A3)
@@ -69,7 +63,7 @@
   - disabled with tooltip when `nicheId === null` (EC-A1)
   - hidden when `asin` missing (EC-A6)
   - shows error toast on mutation reject (AC-A6)
-- [ ] T2.12: Run `npm run test:ci` — all green; no console errors.
+- [x] T2.12: `npm run test:ci` — 1608/1608 PASS, 0 failures, 0 errors. Lint: 0 errors, 11 pre-existing warnings (no new). Fixed regression in `views/niches/research/tests/ProductAnalysisCard.test.tsx` by mocking `@/store/collectedProductsSlice` hooks (same pattern as existing `ideaSlice` mock) and adding `marketplace="amazon_com"` to all 9 render calls.
 
 **Dependencies:** Phase 1.
 **Blocks:** none for Feature B, but Phase 7 (QA prep) requires Phase 2 done.

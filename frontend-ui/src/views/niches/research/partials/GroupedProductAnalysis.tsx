@@ -10,6 +10,7 @@ import { PatternProductGroup } from './PatternProductGroup';
 interface GroupedProductAnalysisProps {
   products: ResearchProduct[];
   nicheId: string;
+  marketplace: string;
 }
 
 const UNCATEGORIZED = 'Uncategorized';
@@ -17,6 +18,7 @@ const UNCATEGORIZED = 'Uncategorized';
 export const GroupedProductAnalysis = ({
   products,
   nicheId,
+  marketplace,
 }: GroupedProductAnalysisProps) => {
   const { t } = useTranslation();
 
@@ -100,6 +102,7 @@ export const GroupedProductAnalysis = ({
               patternName={patternName}
               products={groupProducts}
               nicheId={nicheId}
+              marketplace={marketplace}
               expanded={expandedGroups.has(patternName)}
               onToggle={() => handleToggleGroup(patternName)}
             />

@@ -21,6 +21,29 @@ vi.mock('@/store/ideaSlice', async (importOriginal) => {
   };
 });
 
+// NicheCollectionHeartButton (added in Phase 2 of FIX-ai-research-like-and-notes-editor)
+// uses useGetCollectedProductsQuery which would require collectedProductsApi
+// middleware in the test store. Mock the hooks so this test stays focused on
+// ProductAnalysisCard's own concerns.
+vi.mock('@/store/collectedProductsSlice', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/store/collectedProductsSlice')>();
+  return {
+    ...actual,
+    useGetCollectedProductsQuery: () => ({
+      data: { count: 0, results: [], next: null, previous: null },
+      isLoading: false,
+    }),
+    useCollectProductMutation: () => [
+      vi.fn().mockReturnValue({ unwrap: () => Promise.resolve({}) }),
+      { isLoading: false },
+    ],
+    useRemoveCollectedProductMutation: () => [
+      vi.fn().mockReturnValue({ unwrap: () => Promise.resolve() }),
+      { isLoading: false },
+    ],
+  };
+});
+
 import { ProductAnalysisCard } from '../partials/ProductAnalysisCard';
 
 const product: ResearchProduct = {
@@ -95,40 +118,40 @@ const opts = { reducers: { collectedItems: collectedItemsReducer } };
 
 describe('ProductAnalysisCard', () => {
   it('renders product title and ASIN', () => {
-    renderWithProviders(<ProductAnalysisCard product={product} nicheId="n-1" />, opts);
+    renderWithProviders(<ProductAnalysisCard product={product} nicheId="n-1" marketplace="amazon_com" />, opts);
 
     expect(screen.getByText(product.title)).toBeInTheDocument();
     expect(screen.getByText(product.asin)).toBeInTheDocument();
   });
 
   it('renders brand name', () => {
-    renderWithProviders(<ProductAnalysisCard product={product} nicheId="n-1" />, opts);
+    renderWithProviders(<ProductAnalysisCard product={product} nicheId="n-1" marketplace="amazon_com" />, opts);
 
     expect(screen.getByText('TrailWear')).toBeInTheDocument();
   });
 
   it('renders review count', () => {
-    renderWithProviders(<ProductAnalysisCard product={product} nicheId="n-1" />, opts);
+    renderWithProviders(<ProductAnalysisCard product={product} nicheId="n-1" marketplace="amazon_com" />, opts);
 
     expect(screen.getByText('142 reviews')).toBeInTheDocument();
   });
 
   it('renders slogan chip when vision analysis exists', () => {
-    renderWithProviders(<ProductAnalysisCard product={product} nicheId="n-1" />, opts);
+    renderWithProviders(<ProductAnalysisCard product={product} nicheId="n-1" marketplace="amazon_com" />, opts);
 
     const matches = screen.getAllByText('I Hike Because Murder Is Wrong');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('renders emotional pattern chip when emotional analysis exists', () => {
-    renderWithProviders(<ProductAnalysisCard product={product} nicheId="n-1" />, opts);
+    renderWithProviders(<ProductAnalysisCard product={product} nicheId="n-1" marketplace="amazon_com" />, opts);
 
     const matches = screen.getAllByText('1: IDENTITY_DECLARATION');
     expect(matches.length).toBeGreaterThanOrEqual(1);
   });
 
   it('does not render chips when no analysis', () => {
-    renderWithProviders(<ProductAnalysisCard product={productNoAnalysis} nicheId="n-1" />, opts);
+    renderWithProviders(<ProductAnalysisCard product={productNoAnalysis} nicheId="n-1" marketplace="amazon_com" />, opts);
 
     expect(screen.getByText('Plain Hiking Tee')).toBeInTheDocument();
     expect(screen.queryByText('IDENTITY_DECLARATION')).not.toBeInTheDocument();
@@ -136,7 +159,7 @@ describe('ProductAnalysisCard', () => {
 
   it('expands to show detailed analysis on click', async () => {
     const user = userEvent.setup();
-    renderWithProviders(<ProductAnalysisCard product={product} nicheId="n-1" />, opts);
+    renderWithProviders(<ProductAnalysisCard product={product} nicheId="n-1" marketplace="amazon_com" />, opts);
 
     // Details collapsed by default (MUI Collapse renders children in DOM with height: 0px)
     const collapseRegion = screen.getByText('Dark humor about stress relief via hiking').closest('.MuiCollapse-root') as HTMLElement;
@@ -165,14 +188,14 @@ describe('ProductAnalysisCard', () => {
   });
 
   it('renders thumbnail image when URL provided', () => {
-    renderWithProviders(<ProductAnalysisCard product={product} nicheId="n-1" />, opts);
+    renderWithProviders(<ProductAnalysisCard product={product} nicheId="n-1" marketplace="amazon_com" />, opts);
 
     const img = screen.getByRole('img', { name: product.title });
     expect(img).toHaveAttribute('src', product.thumbnail_url);
   });
 
   it('does not render thumbnail when URL is empty', () => {
-    renderWithProviders(<ProductAnalysisCard product={productNoAnalysis} nicheId="n-1" />, opts);
+    renderWithProviders(<ProductAnalysisCard product={productNoAnalysis} nicheId="n-1" marketplace="amazon_com" />, opts);
 
     expect(screen.queryByRole('img', { name: productNoAnalysis.title })).not.toBeInTheDocument();
   });

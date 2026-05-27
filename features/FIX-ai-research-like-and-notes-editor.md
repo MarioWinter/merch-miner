@@ -26,23 +26,23 @@ Two independent, frontend-only enhancements bundled in a single PR. No backend c
 - As a POD seller, I want to click the filled heart again to remove a product from the collection (undo a mistake).
 
 ### Acceptance Criteria
-- [ ] AC-A1: Every `ProductAnalysisCard` in the AI Research view renders a heart icon button (top-right corner of the card).
-- [ ] AC-A2: When the product's `(asin, marketplace)` exists in the active niche's `CollectedProduct` set (read via `useGetCollectedProductsQuery`), the icon is filled (`FavoriteIcon`); otherwise outlined (`FavoriteBorderIcon`).
-- [ ] AC-A3: Clicking an outlined heart calls `useAddCollectedProductMutation` with `{ nicheId, asin, marketplace }`; on success the icon becomes filled.
-- [ ] AC-A4: Clicking a filled heart calls `useRemoveCollectedProductMutation`; on success the icon becomes outlined.
-- [ ] AC-A5: Mutations apply optimistic UI updates — icon state flips immediately, rolls back on error.
-- [ ] AC-A6: On mutation error, a notistack toast displays an error message (i18n key) and the icon reverts to the previous state.
-- [ ] AC-A7: Color tokens come from the theme (`theme.vars.palette.error.main` for filled heart, `theme.vars.palette.action.active` for outline) — no hardcoded hex.
-- [ ] AC-A8: Heart button has an `aria-label` ("Add to niche collection" / "Remove from niche collection", i18n keys).
-- [ ] AC-A9: All user-visible strings (aria-labels, tooltips, toast messages) go through `useTranslation()`.
+- [x] AC-A1: Every `ProductAnalysisCard` in the AI Research view renders a heart icon button (top-right corner of the card).
+- [x] AC-A2: When the product's `(asin, marketplace)` exists in the active niche's `CollectedProduct` set (read via `useGetCollectedProductsQuery`), the icon is filled (`FavoriteIcon`); otherwise outlined (`FavoriteBorderIcon`).
+- [x] AC-A3: Clicking an outlined heart calls `useCollectProductMutation` (corrected from spec's `useAddCollectedProductMutation`) with `{ nicheId, asin, marketplace }`; on success the icon becomes filled.
+- [x] AC-A4: Clicking a filled heart calls `useRemoveCollectedProductMutation`; on success the icon becomes outlined.
+- [x] AC-A5: Mutations apply optimistic UI updates — icon state flips immediately, rolls back on error.
+- [x] AC-A6: On mutation error, a notistack toast displays an error message (i18n key) and the icon reverts to the previous state.
+- [x] AC-A7: Color tokens come from the theme (`theme.vars.palette.error.main` for filled heart, `theme.vars.palette.action.active` for outline) — no hardcoded hex.
+- [x] AC-A8: Heart button has an `aria-label` ("Add to niche collection" / "Remove from niche collection", i18n keys).
+- [x] AC-A9: All user-visible strings (aria-labels, tooltips, toast messages) go through `useTranslation()`.
 
 ### Edge Cases
-- [ ] EC-A1: No active niche selected → heart button is disabled with tooltip "Select a niche first" (i18n key).
-- [ ] EC-A2: Rapid double-click on heart → second click ignored while the first mutation is pending (button shows `loading` state).
-- [ ] EC-A3: Network failure → optimistic update rolls back, error toast shown, no orphan state in cache.
-- [ ] EC-A4: User opens AI Research while another user adds the same product to the niche in parallel → next `useGetCollectedProductsQuery` refetch reconciles state correctly (RTK Query cache invalidation on mutation success).
-- [ ] EC-A5: Workspace switch mid-session → heart state recomputes against the new workspace's active niche (RTK Query tag invalidation handles this; verify in QA).
-- [ ] EC-A6: Product card lacks an ASIN or marketplace (malformed scraper result) → heart button is hidden (not disabled), since the request would fail validation.
+- [x] EC-A1: No active niche selected → heart button is disabled with tooltip "Select a niche first" (i18n key).
+- [x] EC-A2: Rapid double-click on heart → second click ignored while the first mutation is pending (button shows `loading` state).
+- [x] EC-A3: Network failure → optimistic update rolls back, error toast shown, no orphan state in cache.
+- [ ] EC-A4: User opens AI Research while another user adds the same product to the niche in parallel → next `useGetCollectedProductsQuery` refetch reconciles state correctly (RTK Query cache invalidation on mutation success). _(deferred to QA — needs runtime verification)_
+- [ ] EC-A5: Workspace switch mid-session → heart state recomputes against the new workspace's active niche (RTK Query tag invalidation handles this; verify in QA). _(deferred to QA — needs runtime verification)_
+- [x] EC-A6: Product card lacks an ASIN or marketplace (malformed scraper result) → heart button is hidden (not disabled), since the request would fail validation.
 
 ### Out of Scope (Feature A)
 - New "Liked" stage separate from `CollectedProduct` (rejected during requirements — heart toggles existing collection directly).

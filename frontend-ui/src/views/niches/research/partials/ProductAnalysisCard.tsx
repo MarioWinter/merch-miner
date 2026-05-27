@@ -18,6 +18,7 @@ import { getPatternVisual } from './patternConfig';
 import { useSnackbar } from 'notistack';
 import { COLORS } from '@/style/constants';
 import { useCreateIdeaMutation, useListIdeasQuery } from '@/store/ideaSlice';
+import NicheCollectionHeartButton from '@/components/NicheCollectionHeartButton';
 import type { ResearchProduct } from '../types';
 import {
   Card,
@@ -37,9 +38,10 @@ import {
 interface ProductAnalysisCardProps {
   product: ResearchProduct;
   nicheId: string;
+  marketplace: string;
 }
 
-export const ProductAnalysisCard = ({ product, nicheId }: ProductAnalysisCardProps) => {
+export const ProductAnalysisCard = ({ product, nicheId, marketplace }: ProductAnalysisCardProps) => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
   const [expanded, setExpanded] = useState(false);
@@ -179,18 +181,29 @@ export const ProductAnalysisCard = ({ product, nicheId }: ProductAnalysisCardPro
             </Typography>
           </Stack>
         </Box>
-        <IconButton
-          size="small"
-          onClick={() => setExpanded((prev) => !prev)}
-          sx={{
-            alignSelf: 'flex-start',
-            transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
-            transition: 'transform 150ms ease',
-          }}
-          aria-label={expanded ? 'Collapse' : 'Expand'}
+        <Stack
+          direction="row"
+          spacing={0.5}
+          alignItems="center"
+          sx={{ alignSelf: 'flex-start' }}
         >
-          <ExpandMoreIcon sx={{ fontSize: 20 }} />
-        </IconButton>
+          <NicheCollectionHeartButton
+            nicheId={nicheId || null}
+            asin={product.asin}
+            marketplace={marketplace}
+          />
+          <IconButton
+            size="small"
+            onClick={() => setExpanded((prev) => !prev)}
+            sx={{
+              transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)',
+              transition: 'transform 150ms ease',
+            }}
+            aria-label={expanded ? 'Collapse' : 'Expand'}
+          >
+            <ExpandMoreIcon sx={{ fontSize: 20 }} />
+          </IconButton>
+        </Stack>
       </ProductHeader>
 
       {/* Compact summary chips */}

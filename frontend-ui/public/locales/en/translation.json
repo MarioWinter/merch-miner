@@ -243,6 +243,15 @@
     "invalidLink": "Invalid or expired invite link.",
     "backToLogin": "Back to login"
   },
+  "nicheCollection": {
+    "heart": {
+      "addAriaLabel": "Add to niche collection",
+      "removeAriaLabel": "Remove from niche collection",
+      "noNicheTooltip": "Select a niche first",
+      "addError": "Could not add product to collection",
+      "removeError": "Could not remove product from collection"
+    }
+  },
   "niches": {
     "pageTitle": "Niche Claims",
     "newNiche": "New Niche",

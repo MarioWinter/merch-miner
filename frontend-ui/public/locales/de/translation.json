@@ -243,6 +243,15 @@
     "invalidLink": "Ungültiger oder abgelaufener Einladungslink.",
     "backToLogin": "Zurück zur Anmeldung"
   },
+  "nicheCollection": {
+    "heart": {
+      "addAriaLabel": "Zur Nischen-Sammlung hinzufügen",
+      "removeAriaLabel": "Aus Nischen-Sammlung entfernen",
+      "noNicheTooltip": "Erst eine Nische auswählen",
+      "addError": "Produkt konnte nicht zur Sammlung hinzugefügt werden",
+      "removeError": "Produkt konnte nicht aus der Sammlung entfernt werden"
+    }
+  },
   "niches": {
     "pageTitle": "Nischen",
     "newNiche": "Neue Nische",

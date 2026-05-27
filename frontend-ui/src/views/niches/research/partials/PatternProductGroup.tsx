@@ -11,6 +11,7 @@ interface PatternProductGroupProps {
   patternName: string;
   products: ResearchProduct[];
   nicheId: string;
+  marketplace: string;
   expanded: boolean;
   onToggle: () => void;
 }
@@ -26,6 +27,7 @@ export const PatternProductGroup = ({
   patternName,
   products,
   nicheId,
+  marketplace,
   expanded,
   onToggle,
 }: PatternProductGroupProps) => {
@@ -119,6 +121,7 @@ export const PatternProductGroup = ({
               key={product.asin}
               product={product}
               nicheId={nicheId}
+              marketplace={marketplace}
             />
           ))}
         </Stack>
