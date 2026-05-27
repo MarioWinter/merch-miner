@@ -261,9 +261,6 @@
       "empty": "No notes yet",
       "startTyping": "Write notes…"
     },
-    "preview": {
-      "phase3Placeholder": "Preview coming in Phase 5"
-    },
     "commands": {
       "empty": "No matching commands",
       "listboxAriaLabel": "Slash commands",

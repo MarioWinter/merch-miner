@@ -96,18 +96,18 @@ Two independent, frontend-only enhancements bundled in a single PR. No backend c
 - [x] AC-B10: `Esc` or clicking outside the menu closes it; the `/` and any filter chars stay in the textarea as plain text (no destructive auto-revert).
 - [x] AC-B11: Pressing `Enter` while the cursor is on a non-empty list line (line starts with `- `, `- [ ] `, or `N. `) inserts a new line with the same prefix (continuation pattern).
 - [x] AC-B12: Pressing `Enter` on a list line containing only the prefix (e.g. just `- ` or `- [ ] `) removes the prefix and inserts a plain newline (escape pattern).
-- [ ] AC-B13: Preview mode renders the markdown via `react-markdown` + `remark-gfm` (already in dependencies) — same pattern as existing `MarkdownAnswer`/`MemoryEditor`/`SkillEditor` components. Reuse, do not reimplement.
-- [ ] AC-B14: GFM checkboxes in Preview mode are interactive: clicking `[ ]` toggles to `[x]` (and vice versa); the change updates the form value via `onChange` so the form becomes dirty and can be saved with the existing form Save button.
+- [x] AC-B13: Preview mode renders the markdown via `react-markdown` + `remark-gfm` (already in dependencies) — same pattern as existing `MarkdownAnswer`/`MemoryEditor`/`SkillEditor` components. Reuse, do not reimplement.
+- [x] AC-B14: GFM checkboxes in Preview mode are interactive: clicking `[ ]` toggles to `[x]` (and vice versa); the change updates the form value via `onChange` so the form becomes dirty and can be saved with the existing form Save button.
 - [ ] AC-B15: Stored value remains plain-text markdown in `Niche.notes` — no schema change, no serializer change.
 - [x] AC-B16: Editor honours `react-hook-form` `Controller` integration so existing form validation, dirty state, and Save behaviour continue to work unchanged.
 - [x] AC-B17: All user-visible strings (mode labels, command labels + descriptions, aria-labels, placeholder, tooltips) go through `useTranslation()`.
-- [ ] AC-B18: Colors come from the theme (`theme.vars.palette.*`) — no hardcoded hex.
+- [x] AC-B18: Colors come from the theme (`theme.vars.palette.*`) — no hardcoded hex.
 - [x] AC-B19: Slash-menu interception and Enter-continuation are scoped to the notes editor only (event listeners bound to the textarea element) — they do not fire when focus is elsewhere on the page.
 
 ### Edge Cases
-- [ ] EC-B1: Notes field empty → Preview mode shows a muted placeholder ("No notes yet", i18n key) instead of empty space.
-- [ ] EC-B2: Notes contain only whitespace → treated as empty in preview (same placeholder).
-- [ ] EC-B3: User toggles to Preview, clicks a checkbox, toggles back to Edit → the new `[x]`/`[ ]` is visible in the textarea at the correct position.
+- [x] EC-B1: Notes field empty → Preview mode shows a muted placeholder ("No notes yet", i18n key) instead of empty space.
+- [x] EC-B2: Notes contain only whitespace → treated as empty in preview (same placeholder).
+- [x] EC-B3: User toggles to Preview, clicks a checkbox, toggles back to Edit → the new `[x]`/`[ ]` is visible in the textarea at the correct position.
 - [x] EC-B4: User types `- ` then presses Enter twice (empty list line) → prefix removed on second Enter, plain newline inserted (per AC-B12).
 - [x] EC-B5: User types `/` in the middle of a word (e.g. "and/or") → menu does NOT open; `/` is treated as plain text. Trigger only when `/` is preceded by start-of-line or whitespace.
 - [x] EC-B6: Slash menu is open + user keeps typing characters that match no command (e.g. `/zzz`) → menu shows an empty state ("No matching commands", i18n key). `Esc` closes it without altering text.
@@ -122,8 +122,8 @@ Two independent, frontend-only enhancements bundled in a single PR. No backend c
 - [x] EC-B15: Notes field exceeds `maxRows={20}` → textarea scrolls internally instead of growing further. Manual resize handle still works.
 - [x] EC-B16: User manually drags the resize handle smaller than `minRows={3}` → browser enforces `min-height` derived from `minRows`; cannot go below 3 visible rows.
 - [ ] EC-B17: Switching between Edit/Preview while form has unsaved changes → mode toggle does NOT save; form dirty state preserved.
-- [ ] EC-B18: User pastes multi-line text with checkboxes/lists/callouts → preview renders them correctly via remark-gfm + remark-github-blockquote-alert; no special handling on edit side.
-- [ ] EC-B19: User toggles to Preview with a callout that uses an unsupported alert type (e.g. `> [!CUSTOM]`) → renderer falls back to plain blockquote (no crash, no console error).
+- [x] EC-B18: User pastes multi-line text with checkboxes/lists/callouts → preview renders them correctly via remark-gfm + remark-github-blockquote-alert; no special handling on edit side.
+- [x] EC-B19: User toggles to Preview with a callout that uses an unsupported alert type (e.g. `> [!CUSTOM]`) → renderer falls back to plain blockquote (no crash, no console error).
 
 ### Out of Scope (Feature B)
 - WYSIWYG editing (inline bold/italic styling visible in Edit mode). Markdown stays as plain-text source.

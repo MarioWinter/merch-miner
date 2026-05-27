@@ -138,25 +138,14 @@
 
 **Goal:** Preview tab renders markdown with GFM + GitHub-Alerts + interactive checkboxes.
 
-- [ ] T5.1: Create `components/NotesMarkdownEditor/partials/NotesMarkdownRenderer.tsx` — props `{ value: string; onChange: (v: string) => void; emptyPlaceholderI18nKey: string }`. (AC-B13, B14)
-- [ ] T5.2: Inside renderer: `react-markdown` with `remarkPlugins={[remarkGfm, remarkGithubBlockquoteAlert]}` and `rehypePlugins={[rehypeSanitize]}`. (AC-B13, Tech-Req new dep)
-- [ ] T5.3: Inside renderer: empty/whitespace-only value → render `<Typography>` with placeholder, fontStyle italic, `text.secondary`. (EC-B1, EC-B2)
-- [ ] T5.4: Inside renderer: GFM checkbox click handler — locate the source `[ ]` / `[x]` substring corresponding to the clicked DOM checkbox (Nth task-list-item across the source), toggle, call `onChange` with the patched string. (AC-B14, EC-B3)
-- [ ] T5.5: Inside renderer: `Root` styled `Box` with markdown CSS (borrow pattern from `MarkdownAnswer.tsx:34`). Add callout selectors:
-  - `.markdown-alert-note` → `info` palette
-  - `.markdown-alert-tip` → `success` palette
-  - `.markdown-alert-warning` → `warning` palette
-  - `.markdown-alert-important` → `error` palette
-  Each: left border + tinted background using `alpha(theme.palette.X.main, 0.1)`. (Decision-6, EC-B19, AC-B18)
-- [ ] T5.6: Edit `components/NotesMarkdownEditor/index.tsx` — replace Phase 3 placeholder Preview with `<NotesMarkdownRenderer value={value} onChange={onChange} emptyPlaceholderI18nKey="notesEditor.placeholder.empty" />`. (AC-B2)
-- [ ] T5.7: Create `tests/NotesMarkdownRenderer.test.tsx`:
-  - renders bullet list (AC-B13)
-  - renders each callout type with correct alert class (Decision-6)
-  - falls back to plain blockquote for unknown alert type (EC-B19)
-  - empty value → placeholder shown (EC-B1)
-  - whitespace-only → placeholder shown (EC-B2)
-  - checkbox click toggles `[ ]` → `[x]` in source and fires `onChange` (AC-B14)
-- [ ] T5.8: Visual smoke: open a niche with sample callouts/checklists in notes → render in Preview correctly.
+- [x] T5.1: Created `components/NotesMarkdownEditor/partials/NotesMarkdownRenderer.tsx` — arrow-function component, props `{ value, onChange, emptyPlaceholderI18nKey? }`, default key `notesEditor.placeholder.empty`. (AC-B13, B14) — NotesMarkdownRenderer.tsx:201-243
+- [x] T5.2: Inside renderer: `<Markdown remarkPlugins={[remarkGfm, remarkAlert]} rehypePlugins={[[rehypeSanitize, schema]]}>`. Sanitize schema extended to allow `className` on div/p/span/li/ul, override `input` to drop forced `disabled` attribute, allow `svg`/`path` for the octicon used in callout titles. (AC-B13, Tech-Req new dep) — NotesMarkdownRenderer.tsx:22-50 + 235-241
+- [x] T5.3: Empty / whitespace-only `value.trim() === ''` → renders `<Typography variant="body2" fontStyle italic, text.secondary>` with the placeholder i18n key. (EC-B1, EC-B2) — NotesMarkdownRenderer.tsx:223-231
+- [x] T5.4: GFM checkbox click handler — `enumerateTaskMatches(value)` enumerates source positions of every `- [ ] ` / `- [x] ` prefix via a multiline regex; the `input` components override increments a counter per render, maps the Nth checkbox to the Nth match, and on click replaces the 5-char `- [ ]` / `- [x]` span with the toggled variant via `onChange`. (AC-B14, EC-B3) — NotesMarkdownRenderer.tsx:158-182 + 184-204
+- [x] T5.5: `Root` styled `Box` — borrowed markdown CSS pattern from `MarkdownAnswer.tsx:34`. Added callout block: `.markdown-alert` (padding, left-border `4px solid currentColor`, radius); per-type tint via `theme.vars.palette.{info|success|warning|error}.main` + `alpha(theme.palette.X.main, 0.08)` background. Title-row uses flex+gap, octicon svg sized `16x16` with `fill: currentColor`. Body `<p>` inside callout uses `theme.vars.palette.text.primary` so only border/title/bg carry the alert color. (Decision-6, EC-B19, AC-B18) — NotesMarkdownRenderer.tsx:54-141
+- [x] T5.6: Edited `components/NotesMarkdownEditor/index.tsx` — Phase 3 placeholder block replaced with `<NotesMarkdownRenderer value={value} onChange={onChange} />` (default empty-key inside renderer). Removed `notesEditor.preview.phase3Placeholder` key from BOTH `en/translation.json` and `de/translation.json`. (AC-B2) — index.tsx:71-73 + en/translation.json (key removed) + de/translation.json (key removed)
+- [x] T5.7: Created `tests/NotesMarkdownRenderer.test.tsx` — 15 tests, all pass: bulleted/numbered list, h1, plain blockquote, all four callout types, unknown-alert blockquote fallback, empty placeholder, whitespace-only placeholder, `[ ]`→`[x]` round-trip + `[x]`→`[ ]`, multi-checkbox correct-index, callout+list combo. (AC-B13, B14, B18, EC-B1, EC-B2, EC-B3, EC-B18, EC-B19) — NotesMarkdownRenderer.test.tsx:1-159
+- [x] T5.8: `npx vitest run src/components/NotesMarkdownEditor/tests/NotesMarkdownRenderer` → 15/15 pass. `npm run test:ci` → 1662/1662 pass, 0 failures, 0 errors. `npm run lint` → 0 errors, 11 pre-existing warnings (matches Phase 4 baseline). `npm run build` → PASS 7.81s. No regression in existing slash-menu test (it only exercises Edit tab).
 
 **Dependencies:** Phase 3.
 **Blocks:** Phase 7.

@@ -1,8 +1,10 @@
 /**
  * NotesMarkdownEditor — Edit/Preview shell for the niche-notes markdown editor.
  *
- * Phase 3: Tabs + auto-grow textarea + manual resize. Preview is a placeholder
- *          that Phase 5 will replace with a `NotesMarkdownRenderer`.
+ * Phase 3: Tabs + auto-grow textarea + manual resize.
+ * Phase 4: slash-menu + Enter-continuation hooks wired into EditTextarea.
+ * Phase 5: Preview tab renders markdown via `NotesMarkdownRenderer` with
+ *          GFM, GitHub-Alerts callouts, and interactive checkboxes.
  *
  * Public API stays stable across phases — `value` / `onChange` are the only
  * required props, so `react-hook-form` `Controller` can consume it as-is.
@@ -11,6 +13,7 @@ import { useState } from 'react';
 import { Box, Tab, Tabs } from '@mui/material';
 import { useTranslation } from 'react-i18next';
 import EditTextarea from './partials/EditTextarea';
+import NotesMarkdownRenderer from './partials/NotesMarkdownRenderer';
 
 export interface NotesMarkdownEditorProps {
   value: string;
@@ -66,17 +69,7 @@ const NotesMarkdownEditor = (props: NotesMarkdownEditorProps) => {
           disabled={disabled}
         />
       ) : (
-        // Phase 5: replace with <NotesMarkdownRenderer value={value} onChange={onChange} />
-        <Box
-          sx={{
-            p: 1.5,
-            minHeight: 80,
-            color: 'text.secondary',
-            fontStyle: 'italic',
-          }}
-        >
-          {t('notesEditor.preview.phase3Placeholder')}
-        </Box>
+        <NotesMarkdownRenderer value={value} onChange={onChange} />
       )}
     </Box>
   );

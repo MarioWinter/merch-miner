@@ -261,9 +261,6 @@
       "empty": "Noch keine Notizen",
       "startTyping": "Notizen schreiben…"
     },
-    "preview": {
-      "phase3Placeholder": "Vorschau folgt in Phase 5"
-    },
     "commands": {
       "empty": "Keine passenden Befehle",
       "listboxAriaLabel": "Slash-Befehle",
