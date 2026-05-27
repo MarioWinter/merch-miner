@@ -1869,6 +1869,15 @@
       "fullscreen": "Fullscreen",
       "exitFullscreen": "Exit fullscreen",
       "importFromCloud": "Import from Cloud"
+    },
+    "versions": {
+      "original": "Original",
+      "edited": "Edited",
+      "bgRemoved": "BG Removed",
+      "upscaled": "Upscaled",
+      "deleted": "Version deleted",
+      "undo": "Undo",
+      "deleteFailed": "Failed to delete version"
     }
   },
   "designs": {

@@ -1854,6 +1854,15 @@
       "fullscreen": "Vollbild",
       "exitFullscreen": "Vollbild beenden",
       "importFromCloud": "Aus Cloud importieren"
+    },
+    "versions": {
+      "original": "Original",
+      "edited": "Bearbeitet",
+      "bgRemoved": "Hintergrund entfernt",
+      "upscaled": "Hochskaliert",
+      "deleted": "Version gelöscht",
+      "undo": "Rückgängig",
+      "deleteFailed": "Löschen fehlgeschlagen"
     }
   },
   "designs": {

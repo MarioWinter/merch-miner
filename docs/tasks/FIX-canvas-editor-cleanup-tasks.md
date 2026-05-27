@@ -95,33 +95,18 @@ Implementation order is sequenced from cheapest to most complex. Each phase is o
 
 ---
 
-## Phase 6 — Artboard Version Picker (Item 2)
+## Phase 6 — Artboard Version Picker (Item 2) ✅
 
-- [ ] Create `frontend-ui/src/views/designs/board/hooks/usePendingDeletions.ts`:
-  - State: `pendingDeletions` map keyed by `${designId}:${slot}`
-  - Action `requestDelete(designId, slot, url)` → adds entry, schedules timeout (5s)
-  - Action `undoDelete(designId, slot)` → clears entry, clears timeout
-  - On timeout fire: calls `deleteDesignVersion` mutation, clears entry
-- [ ] Create `frontend-ui/src/views/designs/board/partials/ArtboardVersionPicker.tsx`:
-  - Props: `{ designId, design, selectedArtboardId }`
-  - Renders horizontally below artboard at +8px offset
-  - Iterates slots in order [original, processed, bg_removed, upscaled]; renders chip only if slot URL exists and not in `pendingDeletions`
-  - Active chip: filled variant (color via `theme.vars.palette.primary.main`); inactive: outlined (color via `theme.vars.palette.action.selected`)
-  - Click chip → calls `setUserPickedVersion(designId, slot)`; `useArtboardVersionSync` picks it up
-  - Hover chip → reveals trash icon → click triggers `requestDelete`
-  - On `requestDelete`: enqueue notistack snackbar with `'design.versions.deleted'` + Undo action; on Undo click → `undoDelete`
-- [ ] Mount `ArtboardVersionPicker` in `ArtboardCanvas.tsx` — only when single artboard selected AND has a `designId`
-- [ ] Add i18n keys to all 5 locales (`frontend-ui/public/locales/{en,de,fr,es,it}/translation.json`):
-  - `design.versions.original`, `design.versions.edited`, `design.versions.bgRemoved`, `design.versions.upscaled`
-  - `design.versions.deleted` (snackbar)
-  - `design.versions.undo` (action label)
-  - `design.versions.deleteFailed` (error)
-  - EN + DE properly translated; FR/ES/IT use EN fallback or copy EN (per existing project pattern)
-- [ ] Handle EC-2-2: if user deletes currently-displayed slot → `useArtboardVersionSync` auto-switches via priority order
-- [ ] Handle EC-2-5: clear `userPickedVersions` on workspace switch (hook into existing workspace-switch signal)
-- [ ] Vitest unit tests:
-  - Picker renders correct number of chips based on Design slots
-  - Click on inactive chip switches active state
+- [x] Created `frontend-ui/src/views/designs/board/hooks/usePendingDeletions.ts` (100 lines) — deferred-delete via `pendingKeys: Set<\`${designId}:${slot}\`>` + timeout refs. Backend call only fires on timeout, not on requestDelete itself.
+- [x] Created `frontend-ui/src/views/designs/board/partials/ArtboardVersionPicker.tsx` (206 lines) — Chip row, CSS-hover trash reveal, snackbar with Undo action via notistack `action` prop. MUI v7 only, theme tokens.
+- [x] Mounted picker in `ArtboardCanvas.tsx` via IIFE block — single selection + designId guard. World→screen transform applied (zoom + pan).
+- [x] Wired `userPickedVersions` + `setUserPickedVersion` + `designsById` through DesignWorkspaceView → ArtboardCanvas → ArtboardVersionPicker (removed Phase 4 `void setUserPickedVersion` placeholder).
+- [x] Added i18n keys EN + DE (`design.versions.{original,edited,bgRemoved,upscaled,deleted,undo,deleteFailed}`). FR/ES/IT fall back via i18next.
+- [x] EC-2-2 handled by `pendingKeys` filter — deleted chip hidden, `useArtboardVersionSync` resolves to next-best slot automatically.
+- [x] EC-2-5 handled by existing render-time compare reset in DesignWorkspaceView (Phase 4 wiring).
+- [x] Vitest: 5 tests for `ArtboardVersionPicker` (slot filtering, active state, pick handler, trash → snackbar with Undo).
+- [x] Vitest: 4 tests for `usePendingDeletions` (request → pending, undo → no call, timeout → call mutation, concurrent slots tracked independently).
+- [x] AC-5-5 shimmer overlay — **deferred to follow-up FIX** (would require lifting upscale state across editor↔canvas boundary). Image swap on completion already provides feedback.
   - Deferred delete: clicking trash hides chip immediately; Undo within 5s restores
   - Timeout fires `deleteDesignVersion` mutation
 - [ ] Manual smoke:

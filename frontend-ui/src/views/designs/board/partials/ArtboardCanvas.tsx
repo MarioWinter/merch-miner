@@ -13,6 +13,7 @@ import useGridDots from '../hooks/useGridDots';
 import useRubberBand from '../hooks/useRubberBand';
 import Artboard from './Artboard';
 import ArtboardContextMenu from './ArtboardContextMenu';
+import ArtboardVersionPicker from './ArtboardVersionPicker';
 import CanvasContextMenu from './CanvasContextMenu';
 import CanvasMinimap from './CanvasMinimap';
 import ConnectionArrow from './ConnectionArrow';
@@ -24,7 +25,8 @@ import {
   HiddenInput,
 } from './ArtboardCanvas.styles';
 import type Konva from 'konva';
-import type { ArtboardData, CanvasElement } from '../types';
+import type { ArtboardData, CanvasElement, Design } from '../types';
+import type { VersionSlot } from '../hooks/useArtboardVersionSync';
 
 // -----------------------------------------------------------------
 // Constants
@@ -103,6 +105,12 @@ export interface ArtboardCanvasProps {
   hasDesignAsset?: (artboardId: string) => boolean;
   /** PROJ-9 Phase O — localized label rendered inside the In-Listings chip. */
   inListingsLabel?: string;
+  /** FIX Phase 6 — Design records keyed by id (powers the version picker). */
+  designsById?: Map<string, Design>;
+  /** FIX Phase 6 — explicit user version picks per designId. */
+  userPickedVersions?: Map<string, VersionSlot>;
+  /** FIX Phase 6 — pass null to clear an explicit pick (revert to auto). */
+  onPickVersion?: (designId: string, slot: VersionSlot | null) => void;
 }
 
 // -----------------------------------------------------------------
@@ -154,6 +162,9 @@ const ArtboardCanvas = ({
   editingElementId,
   hasDesignAsset,
   inListingsLabel,
+  designsById,
+  userPickedVersions,
+  onPickVersion,
 }: ArtboardCanvasProps) => {
   const { t } = useTranslation();
   const { mode } = useColorScheme();
@@ -475,6 +486,28 @@ const ArtboardCanvas = ({
         onAddArtboard={handleAddArtboardFromFile}
         onDeleteSelected={handleDeleteSelected}
       />
+
+      {(() => {
+        if (selectedIds.size !== 1) return null;
+        if (!designsById || !onPickVersion) return null;
+        const selectedId = [...selectedIds][0];
+        const ab = artboards.find((a) => a.id === selectedId);
+        if (!ab?.designId) return null;
+        const design = designsById.get(ab.designId);
+        if (!design) return null;
+        const screenX = ab.x * zoom + panX;
+        const screenY = (ab.y + ab.height) * zoom + panY + 8;
+        return (
+          <ArtboardVersionPicker
+            designId={ab.designId}
+            design={design}
+            projectId={projectId}
+            currentPickedSlot={userPickedVersions?.get(ab.designId) ?? null}
+            onPick={(slot) => onPickVersion(ab.designId!, slot)}
+            positionAt={{ x: screenX, y: screenY }}
+          />
+        );
+      })()}
 
       <CanvasMinimap
         artboards={artboards}

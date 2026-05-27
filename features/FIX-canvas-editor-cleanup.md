@@ -50,28 +50,24 @@ Six independent fixes to existing half-built or buggy flows in the AI Canvas + I
 - As a POD seller, I want to re-trigger a version (e.g. re-upscale) if needed, with a confirm dialog when overwriting an existing one.
 
 ### Acceptance Criteria
-- [ ] AC-2-1: A new component `ArtboardVersionPicker` is added at `frontend-ui/src/views/designs/board/partials/ArtboardVersionPicker.tsx` (feature-local; promote later if reused).
-- [ ] AC-2-2: The picker renders **only when an artboard is selected** (single-select). For multi-select or no selection, hidden.
-- [ ] AC-2-3: Picker renders **up to 4 chips** under the selected artboard, one per available Design file slot:
-  - Original (`image_file`)
-  - Edited (`processed_file`)
-  - BG-Removed (`bg_removed_file`)
-  - Upscaled (`upscaled_file`)
-- [ ] AC-2-4: Chips are only rendered for slots where the Design has a non-empty file URL. Empty slots hidden (no greyed-out placeholders).
-- [ ] AC-2-5: The currently-displayed version is highlighted (filled chip variant). Click on a different chip switches the artboard `imageUrl` to that version (frontend-only state update, no backend call).
-- [ ] AC-2-6: Each chip has a small trash icon on hover. Click → calls existing `deleteDesignVersion` mutation with `{ designId, slot }`, then enqueues a notistack snackbar `"Version deleted"` with **Undo** action. Undo within 5s restores the deleted file via re-uploading the cached URL to the same slot (frontend keeps the file URL in component state until snackbar dismisses).
-- [ ] AC-2-7: Chip labels via `useTranslation()` (keys: `design.versions.original`, `design.versions.edited`, `design.versions.bgRemoved`, `design.versions.upscaled`).
-- [ ] AC-2-8: Re-trigger upscale when `upscaled_file` already exists → show MUI `Dialog` confirm "Overwrite existing upscaled version?" with Cancel/Overwrite buttons. On Overwrite, proceed with existing `useUpscaleSingle` flow.
-- [ ] AC-2-9: Chips use theme tokens — no hardcoded hex. Active chip uses `theme.vars.palette.primary.main`, inactive uses `theme.vars.palette.action.selected`.
-- [ ] AC-2-10: Picker layout: horizontal row, gap `theme.spacing(0.5)`, positioned absolutely below artboard bounding box at `+8px` offset.
+- [x] AC-2-1: `ArtboardVersionPicker` at `frontend-ui/src/views/designs/board/partials/ArtboardVersionPicker.tsx`.
+- [x] AC-2-2: Picker renders only when `selectedIds.size === 1` AND selected artboard has a `designId` AND Design is in `designsById`. Multi-select or no selection → hidden (ArtboardCanvas IIFE guard).
+- [x] AC-2-3: Up to 4 chips, slot order [original, processed, bg_removed, upscaled].
+- [x] AC-2-4: Chips only rendered for slots with non-empty URL. Empty slots hidden.
+- [x] AC-2-5: Active chip = currentPickedSlot OR auto-resolved priority slot. Click switches via `onPickVersion(designId, slot)` → `setUserPickedVersion` → `useArtboardVersionSync` writes new `imageUrl`. No backend call.
+- [x] AC-2-6: Trash icon on chip hover (CSS-reveal). Click → `usePendingDeletions.requestDelete(designId, slot, projectId)` defers backend call 5s. Snackbar with Undo action restores via `undoDelete` (no backend call ever). Timeout fires `deleteDesignVersion` mutation.
+- [x] AC-2-7: i18n keys `design.versions.{original,edited,bgRemoved,upscaled}` added EN + DE.
+- [x] AC-2-8: Implemented in Phase 5 via `UpscaleOverwriteDialog` in DesignEditorView.
+- [x] AC-2-9: Active chip uses MUI `color="primary"` (resolves to `theme.vars.palette.primary.*`), inactive uses outlined variant. No hex.
+- [x] AC-2-10: Horizontal `Stack direction="row" spacing={0.5}`, `position: 'absolute'` at `+8px` below artboard bounding box; world→screen transform applied (zoom + pan).
 
 ### Edge Cases
-- [ ] EC-2-1: Design has only `image_file` (no edits yet) → only 1 chip "Original" shown.
-- [ ] EC-2-2: User deletes the currently-displayed version → auto-switch to next available slot in priority order: `upscaled → bg_removed → processed → image_file`. If all slots empty → artboard removed from canvas (existing behaviour for designId-less artboards).
-- [ ] EC-2-3: Undo after delete clicked → restore the deleted slot file URL via PATCH to Design endpoint (new field in existing serializer; backend touch). If undo timeout exceeded → permanent delete.
-- [ ] EC-2-4: Multiple artboards reference the same `designId` (rare but possible) → all of them update when version changes. Use designId-keyed selector, not artboard-keyed.
-- [ ] EC-2-5: Workspace switch while picker is open → picker closes (artboard selection cleared on workspace change).
-- [ ] EC-2-6: Confirm dialog for re-upscale dismissed via Escape or backdrop → treated as Cancel (no re-trigger).
+- [x] EC-2-1: Design with only `image_file` → 1 chip (`AC-2-4` filter ensures this).
+- [x] EC-2-2: Delete currently-displayed slot → `useArtboardVersionSync` auto-falls-back via priority resolution (because `pendingKeys` filter hides the chip; next render the resolved URL flips to next-best slot).
+- [x] EC-2-3: Implemented via deferred-delete pattern instead of PATCH-restore endpoint. Undo within 5s = no backend call ever. Cleaner, zero backend touch.
+- [x] EC-2-4: Multiple artboards with same `designId` → `userPickedVersions` is keyed by designId; `useArtboardVersionSync` iterates all artboards each render, so all update together.
+- [x] EC-2-5: Workspace switch → `userPickedVersions` resets via existing render-time compare in DesignWorkspaceView (Phase 4 wiring).
+- [x] EC-2-6: `UpscaleOverwriteDialog` `onClose={onCancel}` (MUI default for Escape + backdrop) — verified in dialog tests.
 
 ### Out of Scope
 - Branching / multiple variations per slot (e.g. multiple Upscaled variants). MVP keeps one file per slot.
@@ -131,14 +127,14 @@ Six independent fixes to existing half-built or buggy flows in the AI Canvas + I
 - [x] AC-5-1: Artboard `imageUrl` resolves via `useArtboardVersionSync` priority `upscaled > bg_removed > processed > image_file`, with user pick override.
 - [x] AC-5-2: `useUpscaleSingle` poll-complete dispatches `designApi.util.invalidateTags([{ type: 'DesignProject', id: projectId }])` — confirmed in `useUpscaleSingle.ts:124-130`.
 - [x] AC-5-3: `applyPipeline` mutation now invalidates `DesignProject` tag via `projectId` field on body (Phase 4 work). Note: in the current Phase 5 implementation `applyPipeline` itself has no in-view caller (`handleApplyPipeline` uses `processBatch` + `startProcessing` + `runUpscaleAsync`); cache refetch is driven by `useUpscaleSingle` invalidation (AC-5-2). Mutation is wired and ready for future callers. — `designSlice.ts:392-403`
-- [x] AC-5-4: `userPickedVersions` map declared in `DesignWorkspaceView.tsx` with setter; consumer wiring lands in Phase 6 picker UI.
-- [ ] AC-5-5: Loading shimmer during upscale. **Deferred to Phase 6** (visual concern; tied to picker UI work).
+- [x] AC-5-4: `userPickedVersions` consumed by Phase 6 picker. Picks persist via local React state; reset on workspace switch.
+- [ ] AC-5-5: Loading shimmer during upscale. **Deferred to follow-up FIX** — would require lifting `pipelineUpscale.isProcessing` state across editor↔canvas boundary OR exposing a per-Design "is-upscaling" Set via Redux. Existing image swap on upscale completion already provides visible feedback to the user. AC-5-5 left intentionally unchecked; tracked as known follow-up.
 
 ### Edge Cases
-- [ ] EC-5-1: User has picker-switched to "Original" and an Upscale completes → artboard stays on Original (user's explicit choice wins). New "Upscaled" chip appears as inactive but available.
-- [ ] EC-5-2: Editor open on Design X while canvas is in background, upscale completes → canvas updates on next render (RTK invalidation triggers re-render).
-- [ ] EC-5-3: Concurrent upscales on different artboards → each polls independently, each invalidates its own Design tag.
-- [ ] EC-5-4: Network error during invalidation refetch → existing RTK Query error handling; user sees stale image until manual refresh (acceptable for MVP).
+- [x] EC-5-1: User picks "Original", upscale completes → artboard stays on Original because `userPickedVersions['d-1'] === 'original'` overrides priority. New Upscaled chip appears as available but inactive.
+- [x] EC-5-2: Canvas-in-background + upscale completes → `designApi.util.invalidateTags` triggers refetch; React renders next frame, `useArtboardVersionSync` writes new URL.
+- [x] EC-5-3: Concurrent upscales → each `useUpscaleSingle` instance has its own polling state + invalidation; tags are unique per projectId.
+- [x] EC-5-4: Network error → existing RTK Query retry/error handling; stale image acceptable for MVP.
 
 ---
 

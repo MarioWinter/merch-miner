@@ -169,9 +169,6 @@ const DesignWorkspaceView = () => {
     updateArtboard: artboardState.updateArtboard,
   });
 
-  // Suppress unused warning until Phase 6 wires the picker.
-  void setUserPickedVersion;
-
   // -- Canvas tools/elements/keyboard/text editing --
   const canvas = useWorkspaceCanvas({
     activeTab,
@@ -478,6 +475,9 @@ const DesignWorkspaceView = () => {
                 editingElementId={canvas.textEditing.editingElementId}
                 hasDesignAsset={hasDesignAssetByArtboard}
                 inListingsLabel={inListingsLabel}
+                designsById={designsById}
+                userPickedVersions={userPickedVersions}
+                onPickVersion={setUserPickedVersion}
               />
               <BottomToolbar
                 zoom={canvas.canvasHook.state.zoom}
