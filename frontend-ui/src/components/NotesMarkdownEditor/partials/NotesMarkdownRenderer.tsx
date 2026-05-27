@@ -6,14 +6,13 @@
  * placeholder. Borrows the `Root` markdown CSS pattern from MarkdownAnswer.tsx
  * (PROJ-20) without importing it — that one is citation- and code-block-specific.
  */
-import { useMemo, type ReactNode } from 'react';
+import { useCallback, useRef, type MouseEvent, type ReactNode } from 'react';
 import { Box, Typography } from '@mui/material';
 import { styled, alpha } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { remarkAlert } from 'remark-github-blockquote-alert';
-import rehypeSanitize, { defaultSchema, type Options as SanitizeSchema } from 'rehype-sanitize';
 
 export interface NotesMarkdownRendererProps {
   value: string;
@@ -21,31 +20,11 @@ export interface NotesMarkdownRendererProps {
   emptyPlaceholderI18nKey?: string;
 }
 
-// ---- Sanitize schema -----------------------------------------------------
-// The plugin emits `<div class="markdown-alert …">`, `<p class="markdown-alert-title">`
-// containing an inline `<svg class="octicon">…<path … /></svg>`. The default
-// rehype-sanitize schema:
-//   - strips `className` (not in the global `*` allowlist)
-//   - drops `<svg>` and `<path>` entirely (not in default `tagNames`)
-//   - forces `<input type=checkbox disabled>` (we want interactive checkboxes)
-// Extend the schema to allow our specific cases without opening the floodgates.
-const schema: SanitizeSchema = {
-  ...defaultSchema,
-  tagNames: [...(defaultSchema.tagNames ?? []), 'svg', 'path'],
-  attributes: {
-    ...defaultSchema.attributes,
-    div: [...(defaultSchema.attributes?.div ?? []), 'className'],
-    p: [...(defaultSchema.attributes?.p ?? []), 'className'],
-    span: [...(defaultSchema.attributes?.span ?? []), 'className'],
-    li: [...(defaultSchema.attributes?.li ?? []), 'className'],
-    ul: [...(defaultSchema.attributes?.ul ?? []), 'className'],
-    // Override the default `[ 'disabled', true ]` tuple so we can render
-    // checkboxes without the forced `disabled` attribute.
-    input: ['type', 'checked', 'className'],
-    svg: ['className', 'viewBox', 'width', 'height', 'ariaHidden', 'fill'],
-    path: ['d', 'fillRule', 'clipRule'],
-  },
-};
+// No rehype-sanitize: source is markdown-only (no rehype-raw → no inline
+// HTML allowed through). Sanitize was previously stripping `node.position`
+// metadata, which broke interactive checkboxes (the input override could
+// not locate its source-line offset). The blockquote-alert plugin's emitted
+// `<svg>` and class names render correctly without sanitize.
 
 // ---- Root styled wrapper (markdown CSS + callout palette) ----------------
 
@@ -145,76 +124,52 @@ interface InputProps {
   type?: string;
   checked?: boolean;
   className?: string;
-  node?: { properties?: { type?: string; checked?: boolean } };
 }
 
 /**
- * Build the components override map. The `input` override handles
- * GFM task-list checkbox toggles by mapping the clicked DOM element to its
- * source-position via the `taskMatches` index (count of `- [ ]` / `- [x]` in
- * the source up to and including the clicked occurrence).
+ * Component overrides for react-markdown. The `input` override only strips
+ * the GFM-injected `disabled` attribute so checkboxes are interactive;
+ * the actual toggle logic lives in a delegated click handler on the Root
+ * element (see `NotesMarkdownRenderer` below). React-markdown 9+ does not
+ * expose `node.position` in the component props, so we map click → source
+ * position by DOM index instead.
  */
-const buildComponents = (
-  value: string,
-  onChange: (next: string) => void,
-  taskMatches: Array<{ start: number; checked: boolean }>,
-) => {
-  // Mutable counter — incremented per checkbox render so each `<input>` knows
-  // its task-list-item index. Reset per render by being re-created inside
-  // `useMemo` below.
-  const counter = { current: 0 };
+const buildComponents = () => ({
+  input: ({ type, checked, ...rest }: InputProps) => {
+    if (type !== 'checkbox') {
+      return <input type={type} {...rest} />;
+    }
+    // `onChange` is intentionally a no-op — React requires an onChange on a
+    // controlled `<input checked>`, and the actual toggle is handled by the
+    // Root-level click delegation. Without this no-op React warns about an
+    // uncontrolled input becoming controlled.
+    return <input type="checkbox" checked={!!checked} onChange={() => {}} />;
+  },
+  a: ({ children, href, ...rest }: { children?: ReactNode; href?: string }) => (
+    <a href={href} target="_blank" rel="noopener noreferrer" {...rest}>
+      {children}
+    </a>
+  ),
+});
 
-  return {
-    input: ({ type, checked, ...rest }: InputProps) => {
-      if (type !== 'checkbox') {
-        return <input type={type} {...rest} />;
-      }
-      const idx = counter.current;
-      counter.current += 1;
-      const match = taskMatches[idx];
-      return (
-        <input
-          type="checkbox"
-          checked={!!checked}
-          onChange={() => {
-            if (!match) return;
-            // Replace the 5-char prefix `- [ ]` or `- [x]` at match.start.
-            const before = value.slice(0, match.start);
-            const after = value.slice(match.start + 5);
-            const toggled = match.checked ? '- [ ]' : '- [x]';
-            onChange(before + toggled + after);
-          }}
-        />
-      );
-    },
-    a: ({ children, href, ...rest }: { children?: ReactNode; href?: string }) => (
-      <a href={href} target="_blank" rel="noopener noreferrer" {...rest}>
-        {children}
-      </a>
-    ),
-  };
-};
-
-// Enumerate the source positions of every GFM task-list-item prefix
-// (`- [ ] ` or `- [x] `) at the start of a line. The Nth match aligns with
-// the Nth `<input type="checkbox">` produced by react-markdown's GFM output.
-const enumerateTaskMatches = (source: string): Array<{ start: number; checked: boolean }> => {
-  const matches: Array<{ start: number; checked: boolean }> = [];
-  // Multiline mode — `^` matches start-of-line. Accept any leading whitespace
-  // so nested task-list items still map correctly.
-  const re = /^[ \t]*-\s\[([ xX])\]\s/gm;
+/**
+ * Find the source positions of every GFM task-list marker (`- [ ]` or
+ * `- [x]` at the start of a line, possibly indented). The Nth match aligns
+ * with the Nth `<input type="checkbox">` react-markdown renders.
+ */
+const findTaskMarkers = (source: string): Array<{ start: number; checked: boolean }> => {
+  const out: Array<{ start: number; checked: boolean }> = [];
+  const re = /^[ \t]*(-\s\[[ xX]\]\s)/gm;
   let m: RegExpExecArray | null;
   while ((m = re.exec(source)) !== null) {
-    // Track the position of the `- ` literal so the toggle slice replaces
-    // exactly the 5-char `- [ ]` / `- [x]` span.
-    const dashIdx = source.indexOf('- [', m.index);
+    // The marker literal begins at the `-` — which is `m.index` plus any
+    // leading whitespace captured by `[ \t]*`.
+    const dashIdx = source.indexOf('-', m.index);
     if (dashIdx === -1) continue;
-    matches.push({
-      start: dashIdx,
-      checked: m[1].toLowerCase() === 'x',
-    });
+    const ch = source[dashIdx + 3]; // the char inside [ ]
+    out.push({ start: dashIdx, checked: ch.toLowerCase() === 'x' });
   }
-  return matches;
+  return out;
 };
 
 // ---- Component -----------------------------------------------------------
@@ -229,12 +184,40 @@ const NotesMarkdownRenderer = (props: NotesMarkdownRendererProps) => {
 
   const isEmpty = value.trim() === '';
 
-  // Recompute the task-match table per render so checkbox indices stay in
-  // sync with the source.
-  const taskMatches = useMemo(() => enumerateTaskMatches(value), [value]);
-  const components = useMemo(
-    () => buildComponents(value, onChange, taskMatches),
-    [value, onChange, taskMatches],
+  // Root container ref so we can enumerate rendered checkboxes on click.
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  // Stable components map — no per-value dependency; checkbox toggle lives
+  // in the Root-level click handler below.
+  const components = buildComponents();
+
+  // Delegated click handler: when the user clicks a task-list checkbox,
+  // find its index among all rendered checkboxes (= its source-order index)
+  // and toggle the matching `- [ ]`/`- [x]` literal in the markdown source.
+  const handleRootClick = useCallback(
+    (event: MouseEvent<HTMLDivElement>) => {
+      const target = event.target as HTMLElement;
+      if (!(target instanceof HTMLInputElement) || target.type !== 'checkbox') {
+        return;
+      }
+      const root = rootRef.current;
+      if (!root) return;
+      const allCheckboxes = Array.from(
+        root.querySelectorAll<HTMLInputElement>('input[type="checkbox"]'),
+      );
+      const idx = allCheckboxes.indexOf(target);
+      if (idx === -1) return;
+      const markers = findTaskMarkers(value);
+      const match = markers[idx];
+      if (!match) return;
+      const span = value.slice(match.start, match.start + 5);
+      if (span !== '- [ ]' && span !== '- [x]' && span !== '- [X]') return;
+      const toggled = match.checked ? '- [ ]' : '- [x]';
+      onChange(
+        value.slice(0, match.start) + toggled + value.slice(match.start + 5),
+      );
+    },
+    [value, onChange],
   );
 
   if (isEmpty) {
@@ -249,10 +232,13 @@ const NotesMarkdownRenderer = (props: NotesMarkdownRendererProps) => {
   }
 
   return (
-    <Root data-testid="notes-markdown-renderer">
+    <Root
+      ref={rootRef}
+      onClick={handleRootClick}
+      data-testid="notes-markdown-renderer"
+    >
       <Markdown
         remarkPlugins={[remarkGfm, remarkAlert]}
-        rehypePlugins={[[rehypeSanitize, schema]]}
         components={components}
       >
         {value}
