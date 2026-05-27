@@ -194,7 +194,7 @@ describe('ProductDetailPage', () => {
       marketplace: 'amazon_com',
     });
     expect(enqueueSnackbarMock).toHaveBeenCalledWith(
-      'Scrape started — please refresh the page in ~30s.',
+      'Scrape started — data will refresh automatically in ~30s.',
       { variant: 'info' },
     );
   });
