@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Alert, Badge, Box, Button, Drawer, Fab, IconButton, InputBase, Skeleton, Tooltip, Typography } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -10,6 +10,12 @@ import TuneIcon from '@mui/icons-material/Tune';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import {
+  usePersistentState,
+  serializeMap,
+  deserializeMap,
+  clearPersistentKey,
+} from '@/hooks/usePersistentState';
 import { useGetProjectQuery, useGetProjectBoardQuery, useUpdateProjectMutation } from '@/store/designSlice';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import useSendDesignsToListings from '@/hooks/useSendDesignsToListings';
@@ -25,6 +31,9 @@ import NicheBindingSelector from '../board/partials/NicheBindingSelector';
 import ExportDialog from '../board/partials/ExportDialog';
 import BuilderDialog from '../board/partials/BuilderDialog';
 import DesignEditorView from '../editor/DesignEditorView';
+import useEditorBatchState from '../editor/hooks/useEditorBatchState';
+import type { PipelineTool, ToolName } from '../editor/types';
+import { TOOL_CATALOG } from '../editor/types';
 import ProcessingSettingsDialog from './ProcessingSettingsDialog';
 import { useAppSelector } from '../../../store/hooks';
 import type { ProjectPrompt } from '../gallery/types';
@@ -125,19 +134,36 @@ const DesignWorkspaceView = () => {
     designs: boardData?.designs,
   });
 
-  // Phase 6 wiring — picker UI will read/write this map; for Phase 4 we only
-  // declare it so the sync hook has a stable reference.
-  const [userPickedVersions, setUserPickedVersions] = useState<Map<string, VersionSlot>>(
-    () => new Map(),
+  // Phase 8 — persist user picks per-project across reloads + cross-tab.
+  // Custom Map<->entries serialization keeps the JSON small.
+  const pickedVersionsKey = `mm.canvas.pickedVersions.${projectId ?? 'unknown'}`;
+  const [userPickedVersions, setUserPickedVersions] = usePersistentState<Map<string, VersionSlot>>(
+    pickedVersionsKey,
+    new Map(),
+    {
+      serialize: serializeMap,
+      deserialize: deserializeMap,
+      skipPersistence: !projectId,
+    },
   );
-  // EC-2-5 — reset picks on workspace switch via render-time compare (matches
-  // existing `hasRunningGeneration` pattern; avoids React 19 cascading-effect rule).
+  // Persisted keys we may need to purge on workspace switch (Phase 8e).
+  const pipelineKey = `mm.editor.pipeline.${projectId ?? 'unknown'}`;
+  const currentIndexKey = `mm.editor.currentIndex.${projectId ?? 'unknown'}`;
+  // EC-2-5 / AC-7-4 — reset picks on workspace switch via render-time compare
+  // (matches existing `hasRunningGeneration` pattern; avoids React 19
+  // cascading-effect rule). Also purge per-project localStorage entries so
+  // unrelated projects in the same workspace don't share state.
   const [lastWorkspaceIdForPicks, setLastWorkspaceIdForPicks] = useState<string | null>(
     activeWorkspaceId,
   );
   if (lastWorkspaceIdForPicks !== activeWorkspaceId) {
     setLastWorkspaceIdForPicks(activeWorkspaceId);
     if (userPickedVersions.size > 0) setUserPickedVersions(new Map());
+    if (projectId) {
+      clearPersistentKey(pickedVersionsKey);
+      clearPersistentKey(pipelineKey);
+      clearPersistentKey(currentIndexKey);
+    }
   }
 
   const setUserPickedVersion = useCallback(
@@ -149,7 +175,7 @@ const DesignWorkspaceView = () => {
         return next;
       });
     },
-    [],
+    [setUserPickedVersions],
   );
 
   const designsById = useMemo<Map<string, Design>>(() => {
@@ -157,6 +183,21 @@ const DesignWorkspaceView = () => {
     for (const d of boardData?.designs ?? []) map.set(d.id, d);
     return map;
   }, [boardData?.designs]);
+
+  // AC-7-4 — after restoring `userPickedVersions` from localStorage, drop any
+  // picks whose designId is no longer in the live board (deleted design).
+  useEffect(() => {
+    if (userPickedVersions.size === 0) return;
+    let changed = false;
+    const next = new Map(userPickedVersions);
+    for (const designId of next.keys()) {
+      if (!designsById.has(designId)) {
+        next.delete(designId);
+        changed = true;
+      }
+    }
+    if (changed) setUserPickedVersions(next);
+  }, [designsById, userPickedVersions, setUserPickedVersions]);
 
   useArtboardVersionSync({
     artboards: artboardState.artboards,
@@ -216,6 +257,32 @@ const DesignWorkspaceView = () => {
 
   // -- Editor batch state --
   const editorBatchHook = useEditorBatch();
+
+  // Phase 8 — hoist editor batch state to workspace level so Canvas↔Editor tab
+  // switches don't unmount/remount the hook (AC-7-7..AC-7-9). The full editor
+  // API is forwarded to `DesignEditorView` as a single `editorState` prop.
+  const editorState = useEditorBatchState({
+    projectId: projectId ?? '',
+    editorBatch: editorBatchHook.editorBatch,
+  });
+
+  // Phase 8 — persist + hoist the pipeline draft so it survives tab switches
+  // and reloads. AC-7-1 + AC-7-7. Restored tools whose name is no longer in
+  // TOOL_CATALOG are silently dropped (AC-7-5).
+  const TOOL_NAMES = useMemo<Set<ToolName>>(
+    () => new Set(TOOL_CATALOG.map((tc) => tc.name)),
+    [],
+  );
+  const [activePipeline, setActivePipeline] = usePersistentState<PipelineTool[]>(
+    pipelineKey,
+    [],
+    { skipPersistence: !projectId },
+  );
+  useEffect(() => {
+    if (activePipeline.length === 0) return;
+    const filtered = activePipeline.filter((tool) => TOOL_NAMES.has(tool.name));
+    if (filtered.length !== activePipeline.length) setActivePipeline(filtered);
+  }, [activePipeline, TOOL_NAMES, setActivePipeline]);
 
   // -- PROJ-9 Phase O — Send to Listings (selection-driven via right panel) -
   const sendToListings = useSendDesignsToListings({
@@ -544,7 +611,14 @@ const DesignWorkspaceView = () => {
             )}
           </>
         ) : (
-          <DesignEditorView projectId={projectId ?? ''} editorBatch={editorBatchHook.editorBatch} onAddToCanvas={actions.handleAddToCanvas} />
+          <DesignEditorView
+            projectId={projectId ?? ''}
+            editorBatch={editorBatchHook.editorBatch}
+            onAddToCanvas={actions.handleAddToCanvas}
+            editorState={editorState}
+            activePipeline={activePipeline}
+            setActivePipeline={setActivePipeline}
+          />
         )}
       </ContentArea>
 

@@ -25,7 +25,7 @@ import { useExportCompression } from './hooks/useExportCompression';
 import { useUpscaleSingle } from './hooks/useUpscaleSingle';
 import { JobPollerManager } from './partials/JobPollerManager';
 import ConfirmDialog from '@/components/ConfirmDialog';
-import useEditorBatchState from './hooks/useEditorBatchState';
+import type useEditorBatchState from './hooks/useEditorBatchState';
 import type { PipelineTool, CanvasToolType, CompressionLevel, ExportSettings } from './types';
 
 // -----------------------------------------------------------------
@@ -36,6 +36,11 @@ interface DesignEditorViewProps {
   projectId: string;
   editorBatch?: Array<{ id: string; url: string; name: string; width?: number; height?: number }>;
   onAddToCanvas?: (data: { url: string; name: string; width?: number; height?: number }) => void;
+  // Phase 8 — editor batch state + pipeline draft are owned by `DesignWorkspaceView`
+  // so they survive Canvas↔Editor tab unmount/remount cycles (AC-7-7..AC-7-9).
+  editorState: ReturnType<typeof useEditorBatchState>;
+  activePipeline: PipelineTool[];
+  setActivePipeline: React.Dispatch<React.SetStateAction<PipelineTool[]>>;
 }
 
 // -----------------------------------------------------------------
@@ -87,15 +92,25 @@ const ThumbnailRow = styled(Box)({ height: THUMBNAIL_STRIP_HEIGHT, display: 'fle
 // Component
 // -----------------------------------------------------------------
 
-const DesignEditorView = ({ projectId, editorBatch, onAddToCanvas }: DesignEditorViewProps) => {
+const DesignEditorView = ({
+  projectId,
+  // `editorBatch` flows through `editorState`; the prop is preserved for the
+  // view's parent (DesignWorkspaceView), which forwards it into the hoisted
+  // `useEditorBatchState` call.
+  editorBatch: _editorBatch,
+  onAddToCanvas,
+  editorState,
+  activePipeline,
+  setActivePipeline,
+}: DesignEditorViewProps) => {
+  void _editorBatch;
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
   // PROJ-30 T3.24 — on <md viewports the 280px ToolPanel is hidden inline and
   // its content is moved into a FAB-triggered SwipeableDrawer (MobileEditorToolSheet).
   const { isDesktop } = useResponsiveLayout();
 
-  // Pipeline state
-  const [activePipeline, setActivePipeline] = useState<PipelineTool[]>([]);
+  // Local UI state — kept inside the editor (no benefit from hoisting).
   const [activeCanvasTool, setActiveCanvasTool] = useState<CanvasToolType>('move');
   const [exportCompressionLevel, setExportCompressionLevel] = useState<CompressionLevel>('medium');
   const [cloudManagerOpen, setCloudManagerOpen] = useState(false);
@@ -103,7 +118,7 @@ const DesignEditorView = ({ projectId, editorBatch, onAddToCanvas }: DesignEdito
   // callback while the UpscaleOverwriteDialog is open. `null` = dialog closed.
   const [pendingPipelineExec, setPendingPipelineExec] = useState<(() => void) | null>(null);
 
-  // Batch state (destructured to satisfy react-hooks/refs lint rule)
+  // Batch state — hoisted in Phase 8 (consumed via prop bundle).
   const {
     batchImages, setBatchImages, currentImageIndex, setCurrentImageIndex,
     currentImage, hasImages, fileInputRef, preloadIds, undoRedo, selection,
@@ -113,7 +128,7 @@ const DesignEditorView = ({ projectId, editorBatch, onAddToCanvas }: DesignEdito
     handleDeleteConfirm, handleDeleteCancel, handleDeleteVersion,
     handleUndo, handleRedo, handleDrop, handleDragOver, getBatchFile,
     ALWAYS_SERVER_TOOLS,
-  } = useEditorBatchState({ projectId, editorBatch });
+  } = editorState;
 
   // Upscale destination (Phase 5 pipeline routing). Read from upscale slice
   // identical to UpscaleToolParams — keeps the pipeline upscale honoring the
@@ -155,11 +170,11 @@ const DesignEditorView = ({ projectId, editorBatch, onAddToCanvas }: DesignEdito
   const exportState = useExportCompression();
 
   // -- Pipeline handlers --
-  const handleAddTool = useCallback((tool: PipelineTool) => { setActivePipeline((prev) => [...prev, tool]); }, []);
-  const handleRemoveTool = useCallback((toolId: string) => { setActivePipeline((prev) => prev.filter((t) => t.id !== toolId)); }, []);
-  const handleReorderPipeline = useCallback((tools: PipelineTool[]) => { setActivePipeline(tools); }, []);
-  const handleToggleTool = useCallback((toolId: string) => { setActivePipeline((prev) => prev.map((t) => (t.id === toolId ? { ...t, enabled: !t.enabled } : t))); }, []);
-  const handleUpdateParams = useCallback((toolId: string, params: Record<string, unknown>) => { setActivePipeline((prev) => prev.map((t) => (t.id === toolId ? { ...t, params } : t))); }, []);
+  const handleAddTool = useCallback((tool: PipelineTool) => { setActivePipeline((prev) => [...prev, tool]); }, [setActivePipeline]);
+  const handleRemoveTool = useCallback((toolId: string) => { setActivePipeline((prev) => prev.filter((t) => t.id !== toolId)); }, [setActivePipeline]);
+  const handleReorderPipeline = useCallback((tools: PipelineTool[]) => { setActivePipeline(tools); }, [setActivePipeline]);
+  const handleToggleTool = useCallback((toolId: string) => { setActivePipeline((prev) => prev.map((t) => (t.id === toolId ? { ...t, enabled: !t.enabled } : t))); }, [setActivePipeline]);
+  const handleUpdateParams = useCallback((toolId: string, params: Record<string, unknown>) => { setActivePipeline((prev) => prev.map((t) => (t.id === toolId ? { ...t, params } : t))); }, [setActivePipeline]);
 
   // -- Apply pipeline --
   // Phase 5 — `ai_upscale` IS supported in the pipeline but uses the Replicate

@@ -132,6 +132,48 @@ vi.mock('@/store/designSlice', async (importOriginal) => {
 });
 
 // -----------------------------------------------------------------
+// Test helpers — Phase 8 hoisted editorState shape
+// -----------------------------------------------------------------
+
+const makeEditorState = (overrides: Partial<Record<string, unknown>> = {}) => ({
+  batchImages: [],
+  setBatchImages: vi.fn(),
+  currentImageIndex: 0,
+  setCurrentImageIndex: vi.fn(),
+  currentImage: null,
+  hasImages: false,
+  fileInputRef: { current: null },
+  preloadIds: [],
+  undoRedo: { canUndo: false, canRedo: false, undo: vi.fn(), redo: vi.fn(), pushSnapshot: vi.fn() },
+  selection: { selectedIndices: new Set<number>(), toggle: vi.fn(), clear: vi.fn(), selectAll: vi.fn() },
+  isDeletingDesign: false,
+  deleteConfirmIndex: null,
+  loadImageMeta: vi.fn(),
+  saveProcessedImage: vi.fn(),
+  handleFilesAdded: vi.fn(),
+  handleBrowseClick: vi.fn(),
+  handleFileInputChange: vi.fn(),
+  handleRemoveImage: vi.fn(),
+  handleRemoveAll: vi.fn(),
+  handleDeleteFromServer: vi.fn(),
+  handleDeleteConfirm: vi.fn(),
+  handleDeleteCancel: vi.fn(),
+  handleDeleteVersion: vi.fn(),
+  handleUndo: vi.fn(),
+  handleRedo: vi.fn(),
+  handleDrop: vi.fn(),
+  handleDragOver: vi.fn(),
+  getBatchFile: vi.fn(),
+  ALWAYS_SERVER_TOOLS: [] as string[],
+  ...overrides,
+}) as unknown as React.ComponentProps<typeof DesignEditorView>['editorState'];
+
+const defaultPipelineState = {
+  activePipeline: [],
+  setActivePipeline: vi.fn(),
+};
+
+// -----------------------------------------------------------------
 // Tests
 // -----------------------------------------------------------------
 
@@ -142,7 +184,7 @@ describe('DesignEditorView', () => {
 
   it('renders without crash', () => {
     renderWithProviders(
-      <DesignEditorView projectId="proj-1" />,
+      <DesignEditorView projectId="proj-1" editorState={makeEditorState()} {...defaultPipelineState} />,
     );
     expect(screen.getByTestId('pipeline-bar')).toBeInTheDocument();
     expect(screen.getByTestId('tool-panel')).toBeInTheDocument();
@@ -150,7 +192,7 @@ describe('DesignEditorView', () => {
 
   it('shows drop zone when no images loaded', () => {
     renderWithProviders(
-      <DesignEditorView projectId="proj-1" />,
+      <DesignEditorView projectId="proj-1" editorState={makeEditorState()} {...defaultPipelineState} />,
     );
     expect(screen.getByTestId('drop-zone')).toBeInTheDocument();
     expect(screen.queryByTestId('editor-canvas')).not.toBeInTheDocument();
@@ -158,14 +200,14 @@ describe('DesignEditorView', () => {
 
   it('does not show batch strip when no images loaded', () => {
     renderWithProviders(
-      <DesignEditorView projectId="proj-1" />,
+      <DesignEditorView projectId="proj-1" editorState={makeEditorState()} {...defaultPipelineState} />,
     );
     expect(screen.queryByTestId('batch-strip')).not.toBeInTheDocument();
   });
 
   it('renders hidden file input with correct accept attribute', () => {
     renderWithProviders(
-      <DesignEditorView projectId="proj-1" />,
+      <DesignEditorView projectId="proj-1" editorState={makeEditorState()} {...defaultPipelineState} />,
     );
     const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
     expect(fileInput).toBeTruthy();
@@ -179,6 +221,8 @@ describe('DesignEditorView', () => {
       <DesignEditorView
         projectId="proj-1"
         editorBatch={[{ id: 'b1', url: 'blob:http://localhost/test', name: 'test.png' }]}
+        editorState={makeEditorState({ hasImages: true, batchImages: [{ id: 'b1', file: null, previewUrl: 'blob:http://localhost/test', name: 'test.png', status: 'idle' as const }], currentImage: { id: 'b1', file: null, previewUrl: 'blob:http://localhost/test', name: 'test.png', status: 'idle' as const } })}
+        {...defaultPipelineState}
       />,
     );
     expect(screen.getByTestId('editor-canvas')).toBeInTheDocument();
@@ -190,6 +234,8 @@ describe('DesignEditorView', () => {
       <DesignEditorView
         projectId="proj-1"
         editorBatch={[{ id: 'b1', url: 'blob:http://localhost/test', name: 'test.png' }]}
+        editorState={makeEditorState({ hasImages: true, batchImages: [{ id: 'b1', file: null, previewUrl: 'blob:http://localhost/test', name: 'test.png', status: 'idle' as const }], currentImage: { id: 'b1', file: null, previewUrl: 'blob:http://localhost/test', name: 'test.png', status: 'idle' as const } })}
+        {...defaultPipelineState}
       />,
     );
     expect(screen.getByTestId('batch-strip')).toBeInTheDocument();
@@ -198,7 +244,7 @@ describe('DesignEditorView', () => {
   it('triggers file input click via Browse Files button in drop zone', async () => {
     const user = userEvent.setup();
     renderWithProviders(
-      <DesignEditorView projectId="proj-1" />,
+      <DesignEditorView projectId="proj-1" editorState={makeEditorState()} {...defaultPipelineState} />,
     );
     const browseBtn = screen.getByText('Browse Files');
     // The click handler calls fileInputRef.current?.click()
