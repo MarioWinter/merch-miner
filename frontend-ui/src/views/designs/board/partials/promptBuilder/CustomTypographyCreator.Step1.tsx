@@ -191,7 +191,7 @@ export const Step1Source = ({
         <ThumbGrid
           items={designs.map((d) => ({
             id: d.id,
-            url: d.image_file,
+            url: d.image_file ?? '',
             label:
               d.idea_summary?.slogan_text ??
               t('designForge.builder.typography.createNew.designFallbackLabel'),

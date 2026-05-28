@@ -114,8 +114,8 @@ const PanelMultiState = ({
       (linkedDesigns ?? [])
         .filter((d) => !!d.upscaled_file)
         .map((d) => ({
-          beforeUrl: d.image_file,
-          afterUrl: d.upscaled_file,
+          beforeUrl: d.image_file ?? '',
+          afterUrl: d.upscaled_file ?? '',
           label: d.id.slice(0, 8),
         })),
     [linkedDesigns],

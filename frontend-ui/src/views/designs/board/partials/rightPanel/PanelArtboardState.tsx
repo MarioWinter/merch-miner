@@ -377,8 +377,8 @@ const PanelArtboardState = ({
           onClose={() => setCompareOpen(false)}
           items={[
             {
-              beforeUrl: linkedDesign.image_file,
-              afterUrl: linkedDesign.upscaled_file,
+              beforeUrl: linkedDesign.image_file ?? '',
+              afterUrl: linkedDesign.upscaled_file ?? '',
               label: artboard.label ?? artboard.id.slice(0, 8),
             },
           ]}

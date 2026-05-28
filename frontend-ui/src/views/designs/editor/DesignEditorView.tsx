@@ -249,7 +249,12 @@ const DesignEditorView = ({
               setBatchImages((prev) =>
                 prev.map((bi) =>
                   bi.designId === img.designId
-                    ? { ...bi, previewUrl: design.processed_file || design.image_file, processedUrl: design.processed_file || undefined, originalUrl: design.image_file }
+                    ? {
+                        ...bi,
+                        previewUrl: design.processed_file || design.image_file || '',
+                        processedUrl: design.processed_file || undefined,
+                        originalUrl: design.image_file ?? undefined,
+                      }
                     : bi,
                 ),
               );

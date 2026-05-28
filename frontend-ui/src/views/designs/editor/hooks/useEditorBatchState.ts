@@ -111,10 +111,11 @@ const useEditorBatchState = ({
         const latestUrl = d.processed_file || d.bg_removed_file || d.image_file;
         const hasProcessing = !!(d.processed_file || d.bg_removed_file || d.upscaled_file);
         if (!latestUrl || latestUrl === bi.previewUrl) return bi;
+        const url: string = latestUrl;
         return {
           ...bi,
-          previewUrl: latestUrl,
-          processedUrl: hasProcessing ? latestUrl : undefined,
+          previewUrl: url,
+          processedUrl: hasProcessing ? url : undefined,
           originalUrl: hasProcessing ? (d.image_file ?? undefined) : undefined,
           status: hasProcessing ? ('completed' as const) : bi.status,
         };
@@ -126,7 +127,9 @@ const useEditorBatchState = ({
       for (const d of serverDesigns) {
         if (!d.image_file) continue;
         if (existingIds.has(d.id)) continue;
-        const latestUrl = d.processed_file || d.bg_removed_file || d.image_file;
+        // `image_file` is truthy after the guard above, so the chain falls back
+        // to a non-empty string at worst.
+        const latestUrl: string = d.processed_file || d.bg_removed_file || d.image_file;
         const hasProcessing = !!(d.processed_file || d.bg_removed_file || d.upscaled_file);
         appended.push({
           id: d.id,
@@ -304,7 +307,13 @@ const useEditorBatchState = ({
         setBatchImages((prev) =>
           prev.map((bi, i) =>
             i === currentImageIndex
-              ? { ...bi, previewUrl: newLatest, processedUrl: hasAny ? newLatest : undefined, originalUrl: hasAny ? updated.image_file : undefined, status: hasAny ? 'completed' : 'idle' }
+              ? {
+                  ...bi,
+                  previewUrl: newLatest,
+                  processedUrl: hasAny ? newLatest : undefined,
+                  originalUrl: hasAny ? (updated.image_file ?? undefined) : undefined,
+                  status: hasAny ? 'completed' : 'idle',
+                }
               : bi,
           ),
         );
