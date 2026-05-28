@@ -121,13 +121,105 @@ Implementation order is sequenced from cheapest to most complex. Each phase is o
 
 ---
 
-## Phase 7 — Lint, Tests, Diff Review, Commit Bundle
+## Phase 8 — Persistence + Cross-tab Diff Refresh (Item 7, AC-7-1..AC-7-12)
 
+### 8a — localStorage hooks (foundation)
+- [ ] Create `frontend-ui/src/views/designs/workspace/hooks/usePersistentState.ts`:
+  - Generic `<T>(key: string, initial: T, options?: { serialize, deserialize }): [T, (v: T) => void]`
+  - Reads localStorage on init (one-time); writes on every state change (debounced 250ms)
+  - Try/catch around JSON.parse + localStorage access; graceful fallback to in-memory on quota errors
+  - Listens to `storage` event for cross-tab sync (other tab edits same key → react)
+
+### 8b — Apply persistence to existing state
+- [ ] `userPickedVersions` in `DesignWorkspaceView.tsx`: replace `useState(new Map())` with `usePersistentState`-backed Map (custom serialize: Map→entries[], deserialize: entries→Map). Key: `mm.canvas.pickedVersions.<projectId>`.
+- [ ] Restore-time validation: filter out picks for designs no longer in `designsById` (AC-7-4).
+- [ ] Workspace switch reset retained (clear localStorage entry for current projectId on workspace change).
+
+### 8c — Hoist editor state to workspace + persist
+- [ ] Lift `activePipeline` from `DesignEditorView` to `DesignWorkspaceView`. Persist via `usePersistentState` with key `mm.editor.pipeline.<projectId>`.
+- [ ] Lift `currentImageIndex` similarly. Key: `mm.editor.currentIndex.<projectId>`.
+- [ ] On restore: filter `activePipeline` tools that aren't in TOOL_CATALOG anymore (AC-7-5). Clamp `currentImageIndex` to `batchImages.length - 1` (AC-7-6).
+- [ ] Pass state + setters as props to `DesignEditorView`.
+
+### 8d — Cross-tab diff refresh in useEditorBatchState
+- [ ] Remove `hydratedRef.current` guard.
+- [ ] Replace single hydration `useEffect` with **diff-based merge**:
+  - On every `boardData?.designs` change, compute diff:
+    - **New designs** (designId not in current batch): append as new `BatchImage` entries (run `loadImageMeta`)
+    - **Removed designs** (in batch but not in boardData): filter out from batch
+    - **Updated designs** (same id, changed file URLs): refresh `previewUrl`/`processedUrl`/`originalUrl` in-place
+  - Clamp `currentImageIndex` after diff.
+- [ ] Existing tests must still pass (verify `useEditorBatchState` test suite if exists).
+
+### 8e — Tab switch state preservation
+- [ ] **Decision (architect note):** With state hoisted in 8c, the Editor remount on tab switch no longer loses pipeline/current-index. Undo/redo: lift `undoRedo` similarly to workspace level, OR document as "in-memory only, resets on tab switch" if undo state proves too coupled. **Default: hoist undoRedo too.**
+
+### 8f — Verification
+- [ ] `npm run lint` — 0 errors
+- [ ] `npm run test:ci` — 0 failures
+- [ ] Manual smoke: build pipeline → switch tab → switch back → pipeline retained
+- [ ] Manual smoke: build pipeline → reload page → pipeline retained
+- [ ] Manual smoke: pick version → reload → pick retained
+- [ ] Manual smoke: 2 browser tabs of same project — generate AI image in tab A while tab B has Editor open → tab B's batch grows automatically
+
+**Acceptance:** AC-7-1..AC-7-12. EC-7-1..EC-7-5.
+
+---
+
+## Phase 9 — Optimistic Updates + Shimmer Overlay (Item 7, AC-7-13..AC-7-17)
+
+### 9a — Optimistic artboard imageUrl
+- [ ] Add `optimisticArtboardUrls: Map<artboardId, string>` to workspace state.
+- [ ] In `handleApplyPipeline` (DesignEditorView): after `processBatch` completes locally for each batch image with a `designId`, find matching artboard(s) (designId → artboardIds via `designsById`/`artboards`), set optimistic URL to local blob.
+- [ ] `useArtboardVersionSync` updated: optimistic URL takes priority over Design slot resolution UNTIL the backend confirms (`saveProcessedImage` resolves). Then optimistic entry cleared.
+- [ ] On `saveProcessedImage` error: clear optimistic entry, revert to last-known good (artboard.imageUrl from Design cache).
+
+### 9b — Shimmer overlay during upscale
+- [ ] Add `upscalingDesignIds: Set<designId>` workspace state.
+- [ ] Wire `useUpscaleSingle` to push/pop the set:
+  - Add a callback prop to the hook OR expose `isProcessing` + `designId` for the caller to drive a useEffect that maintains the set
+  - **Cleaner approach:** add `onProcessingChange?: (designId, isProcessing) => void` to `UseUpscaleSingleArgs` (additive, no breaking change). Both `UpscaleToolParams` and `DesignEditorView` pipeline instance pass the callback.
+- [ ] Pass `upscalingDesignIds` as prop to `ArtboardCanvas`.
+- [ ] In `Artboard.tsx` (or ArtboardCanvas's render of artboards): if `artboard.designId` is in the set, overlay a Konva.Rect with primary-tinted gradient that pulses via `Konva.Tween` (~1.5s loop). Reuse existing isGenerating overlay pattern if it exists.
+- [ ] Or: simpler DOM overlay positioned absolutely over artboard rect (matches version-picker approach). Easier to maintain.
+
+### 9c — Verification
+- [ ] `npm run lint` — 0 errors
+- [ ] `npm run test:ci` — 0 failures
+- [ ] Manual smoke: Apply Pipeline with Trim — artboard image updates instantly (no 500ms wait)
+- [ ] Manual smoke: trigger upscale — shimmer appears on artboard, disappears on completion
+
+**Acceptance:** AC-7-13..AC-7-17. EC-7-6..EC-7-8.
+
+---
+
+## Phase 10 — Cross-tab Notifications + Final Sweep (Item 7, AC-7-18..AC-7-19, plus Phase 7 sweep)
+
+### 10a — Cross-tab snackbars
+- [ ] In the hook that drives upscale (DesignEditorView level), detect if user is on Canvas tab at the moment of completion (via `activeTab` from `useWorkspaceTab()`).
+- [ ] If completion happens while NOT in Editor: enqueue snackbar `'upscale.single.successCrossTab'` (with design name if available).
+- [ ] Same for error path: `'upscale.single.errorCrossTab'`.
+- [ ] Apply Pipeline completion: same cross-tab snackbar pattern with key `'design.pipeline.appliedCrossTab'`.
+
+### 10b — i18n keys (all 5 locales)
+- [ ] `upscale.single.successCrossTab` (EN: "Upscale completed", DE: "Hochskalierung abgeschlossen")
+- [ ] `upscale.single.errorCrossTab` (EN: "Upscale failed", DE: "Hochskalierung fehlgeschlagen")
+- [ ] `design.pipeline.appliedCrossTab` (EN: "Pipeline applied to design", DE: "Pipeline auf Design angewendet")
+
+### 10c — Final sweep
 - [ ] `npm run lint` in `frontend-ui/` — zero errors
 - [ ] `npm run test:ci` in `frontend-ui/` — zero failures
-- [ ] Verify no orphan imports, unused props, or commented-out code
-- [ ] Final manual smoke: full editor → canvas → upscale → version pick → delete-undo cycle
-- [ ] Push branch + open PR (after user approval per CLAUDE.md no-auto-push rule)
+- [ ] Verify no orphan imports, unused props, commented-out code
+- [ ] Final manual smoke checklist:
+  - [ ] Build pipeline → reload page → pipeline + current image retained
+  - [ ] Pick version chip → reload → pick retained
+  - [ ] Trigger upscale → shimmer on artboard → wait for completion → image swap
+  - [ ] Apply Pipeline → artboard updates instantly (optimistic)
+  - [ ] Switch tabs back-and-forth — zero state loss
+  - [ ] 2 browser tabs same project — AI generate in one → other tab's batch grows
+- [ ] Push branch + open PR (user approval required per CLAUDE.md)
+
+**Acceptance:** AC-7-18..AC-7-19. Final smoke covers all FIX items.
 
 ---
 

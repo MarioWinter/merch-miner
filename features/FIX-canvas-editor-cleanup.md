@@ -158,6 +158,73 @@ The original spec wording was ambiguous ("Niche pipline icon AI Canvas delete").
 
 ---
 
+## Item 7 — Canvas↔Editor State Resilience (Phase 8-10)
+
+### Direction (2026-05-28)
+After Items 1-6 shipped, user-test surfaced two robustness gaps:
+1. **Tab switch = state loss.** `{activeTab === 'canvas' ? <Canvas/> : <Editor/>}` unmount/remount drops the editor's `activePipeline` draft, `currentImageIndex`, `undoRedo` history, selected version picks. Same on page reload.
+2. **Cross-window staleness.** `useEditorBatchState.hydratedRef.current` guard means a new design created on Canvas in a second browser window/tab doesn't appear in an already-open Editor.
+
+### User Stories
+- As a POD seller mid-edit, I want to switch from Editor to Canvas to check a thumbnail and back, without losing my pipeline draft / current image / version picks.
+- As a POD seller who accidentally reloads, I want my pipeline draft + current image + picks restored exactly where I left off (within the same project).
+- As a POD seller working on a design while my AI Canvas generates a new design in parallel, I want the new design to appear automatically in both views.
+- As a POD seller watching an upscale run, I want the affected artboard on Canvas to show a subtle "processing" overlay so I know something is happening — not just a sudden image swap on completion.
+- As a POD seller applying client edits in the Editor, I want the new image to appear on the Canvas artboard immediately (within ~16ms render), not after a server round-trip.
+- As a POD seller in the Canvas tab while an upscale I triggered earlier completes, I want a snackbar to inform me (currently only Editor-tab shows it).
+
+### Acceptance Criteria
+
+**State Persistence (reload-safe):**
+- [ ] AC-7-1: `activePipeline` (tool list + per-tool params) persists to `localStorage` under key `mm.editor.pipeline.<projectId>`. Restores on mount.
+- [ ] AC-7-2: `userPickedVersions` Map persists to `localStorage` under `mm.canvas.pickedVersions.<projectId>`. Restores on mount.
+- [ ] AC-7-3: `currentImageIndex` (editor batch) persists to `localStorage` under `mm.editor.currentIndex.<projectId>`. Restores on mount.
+- [ ] AC-7-4: Persistence layer cleaned on workspace switch (avoid leaking picks between unrelated projects in same workspace) — `userPickedVersions` reset matches existing render-time-compare pattern.
+- [ ] AC-7-5: Restored pipeline tools that no longer exist in `TOOL_CATALOG` (e.g. removed tool) are silently dropped during restore.
+- [ ] AC-7-6: Restored `currentImageIndex` is clamped to `batchImages.length - 1` (out-of-range index after design deletion).
+
+**Tab-switch resilience (no remount-cost):**
+- [ ] AC-7-7: Pipeline draft survives Canvas↔Editor tab switches with zero flash.
+- [ ] AC-7-8: `userPickedVersions` survive tab switches.
+- [ ] AC-7-9: Undo/redo history (in-memory only) — acceptable to reset on reload but MUST survive tab switches. Hoist to workspace level OR use display-none pattern (`/architecture` decides).
+
+**Cross-tab diff refresh (multi-window safety):**
+- [ ] AC-7-10: `useEditorBatchState`'s `hydratedRef.current` guard replaced with diff-based merge. New designs in `boardData` are appended as new `BatchImage` entries without resetting existing batch state.
+- [ ] AC-7-11: Deleted designs (no longer in `boardData`) are filtered out of batch. `currentImageIndex` clamped if it pointed to a deleted slot.
+- [ ] AC-7-12: Updated designs (same `id`, changed file URLs) refresh their `previewUrl`/`processedUrl` in-place — no batch reorder.
+
+**Optimistic updates:**
+- [ ] AC-7-13: After Apply Pipeline client tools complete locally (before `saveProcessedImage` resolves), corresponding artboard's `imageUrl` updates to the local blob URL immediately. On backend failure, revert to last-known good URL.
+- [ ] AC-7-14: Optimistic update writes to a separate "pending overlay" state, not directly to `artboard.imageUrl`, so the version-sync hook can still resolve auto-priority correctly once backend confirms.
+
+**Shimmer overlay (deferred AC-5-5):**
+- [ ] AC-7-15: A workspace-level `Set<designId>` tracks designs currently being upscaled (populated when `useUpscaleSingle.isProcessing` flips true, cleared on poll-complete or error). Passed to `ArtboardCanvas`.
+- [ ] AC-7-16: Artboards whose `designId` is in the upscaling-set render a subtle pulse overlay (semi-transparent gradient sweeping across the image, ~1.5s loop) on top of the existing image — no Skeleton replacement.
+- [ ] AC-7-17: Overlay uses `theme.vars.palette.primary.main` at ~12% opacity. No hardcoded hex.
+
+**Cross-tab notifications:**
+- [ ] AC-7-18: When upscale completes while user is on Canvas tab (i.e. not in the Editor where it was triggered), notistack snackbar fires with key `'upscale.single.successCrossTab'`. Same for Apply Pipeline completion.
+- [ ] AC-7-19: When upscale FAILS while user is on the other tab, error snackbar fires with key `'upscale.single.errorCrossTab'`.
+
+### Edge Cases
+- [ ] EC-7-1: localStorage quota exceeded (e.g. 10MB limit hit by many projects) — graceful fallback to in-memory state + console warning. No crash.
+- [ ] EC-7-2: User logs out / token expires → localStorage retained but user must re-authenticate on next mount. Acceptable.
+- [ ] EC-7-3: Two browser tabs both editing same project simultaneously → last-write-wins for localStorage. Acceptable for MVP (not collaborative editing).
+- [ ] EC-7-4: User opens project, edits pipeline, then opens same project in second tab → second tab sees the restored pipeline (localStorage shared across tabs of same origin).
+- [ ] EC-7-5: Design deleted while user has it as currentImageIndex → `currentImageIndex` clamped to new range, batch shows next available; if batch empty, editor empty state.
+- [ ] EC-7-6: Optimistic update applied, then user undoes the operation client-side → optimistic state must also undo (don't strand the local blob on the artboard).
+- [ ] EC-7-7: Upscale times out (20min) → upscaling-set entry cleared, shimmer overlay removed, error snackbar shown.
+- [ ] EC-7-8: User reloads mid-upscale → upscaling-set lost (only in-memory), polling resumed via existing `pendingRunId` artboard mechanism if applicable, OR overlay simply doesn't appear (acceptable degradation).
+
+### Out of Scope (Item 7)
+- Real-time collaborative editing (multi-user simultaneously on same project).
+- Cross-device sync (always single-device per session).
+- Server-side persistence of pipeline drafts (localStorage only — pipeline is a draft until applied).
+- Undo/redo persistence across page reload (in-memory only).
+- Zoom/pan state persistence (out of scope; UX impact minor).
+
+---
+
 ## QA Notes
 - Manual smoke per item; coverage tests for `ArtboardVersionPicker` (new component) only.
 - Existing tests for `DesignEditorView`, `ArtboardContextMenu`, `DesignsPipelineContent` must still pass after edits.
