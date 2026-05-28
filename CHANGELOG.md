@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.2](https://github.com/MarioWinter/merch-miner/compare/v0.5.1...v0.5.2) (2026-05-28)
+
+
+### Bug Fixes
+
+* Canvas + Editor Cleanup (snackbar, version picker, pipeline upscale, state resilience) ([c6ac025](https://github.com/MarioWinter/merch-miner/commit/c6ac025aca13d406aac9216c547e341238b175b7))
+
 ## [0.5.1](https://github.com/MarioWinter/merch-miner/compare/v0.5.0...v0.5.1) (2026-05-27)
 
 
