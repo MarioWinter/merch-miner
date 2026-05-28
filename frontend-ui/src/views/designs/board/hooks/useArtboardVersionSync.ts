@@ -8,6 +8,13 @@ interface UseArtboardVersionSyncParams {
   designsById: Map<string, Design>;
   userPickedVersions: Map<string, VersionSlot>;
   updateArtboard: (id: string, patch: Partial<ArtboardData>) => void;
+  /**
+   * Phase 9 — per-artboard optimistic URL overrides. Highest priority: when
+   * an entry exists for `artboard.id`, that URL is written to `imageUrl`
+   * regardless of user picks or auto-priority resolution. Cleared by the
+   * caller once the server-side save round-trip completes (or fails).
+   */
+  optimisticArtboardUrls?: Map<string, string>;
 }
 
 const resolveSlotUrl = (design: Design, slot: VersionSlot): string => {
@@ -40,9 +47,18 @@ export const useArtboardVersionSync = ({
   designsById,
   userPickedVersions,
   updateArtboard,
+  optimisticArtboardUrls,
 }: UseArtboardVersionSyncParams): void => {
   useEffect(() => {
     for (const ab of artboards) {
+      // Optimistic override beats both user pick and auto-priority resolution.
+      const optimistic = optimisticArtboardUrls?.get(ab.id);
+      if (optimistic) {
+        if (optimistic !== ab.imageUrl) {
+          updateArtboard(ab.id, { imageUrl: optimistic });
+        }
+        continue;
+      }
       if (!ab.designId) continue;
       const design = designsById.get(ab.designId);
       if (!design) continue;
@@ -55,7 +71,7 @@ export const useArtboardVersionSync = ({
         updateArtboard(ab.id, { imageUrl: resolved });
       }
     }
-  }, [artboards, designsById, userPickedVersions, updateArtboard]);
+  }, [artboards, designsById, userPickedVersions, updateArtboard, optimisticArtboardUrls]);
 };
 
 export default useArtboardVersionSync;

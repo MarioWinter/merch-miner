@@ -11,8 +11,10 @@ import useContextMenu from '../hooks/useContextMenu';
 import useExternalDrop from '../hooks/useExternalDrop';
 import useGridDots from '../hooks/useGridDots';
 import useRubberBand from '../hooks/useRubberBand';
+import { useAppSelector } from '@/store/hooks';
 import Artboard from './Artboard';
 import ArtboardContextMenu from './ArtboardContextMenu';
+import ArtboardShimmerOverlay from './ArtboardShimmerOverlay';
 import ArtboardVersionPicker from './ArtboardVersionPicker';
 import CanvasContextMenu from './CanvasContextMenu';
 import CanvasMinimap from './CanvasMinimap';
@@ -170,6 +172,10 @@ const ArtboardCanvas = ({
   const { mode } = useColorScheme();
   const isDark = mode !== 'light';
   const stageRef = useRef<Konva.Stage>(null);
+  // Phase 9 — read the workspace-level set of upscaling designs. Both
+  // `useUpscaleSingle` instances (standalone Upscale tool + Apply-Pipeline
+  // upscale step) push/pop entries from this list.
+  const processingDesignIds = useAppSelector((s) => s.upscale.processingDesignIds);
 
   // Sync Konva Stage ref to canvas hook so zoom reads live position during drag
   const stageCallbackRef = useCallback(
@@ -486,6 +492,22 @@ const ArtboardCanvas = ({
         onAddArtboard={handleAddArtboardFromFile}
         onDeleteSelected={handleDeleteSelected}
       />
+
+      {processingDesignIds.length > 0 &&
+        artboards.map((ab) => {
+          if (!ab.designId || !processingDesignIds.includes(ab.designId)) return null;
+          const screenX = ab.x * zoom + panX;
+          const screenY = ab.y * zoom + panY;
+          return (
+            <ArtboardShimmerOverlay
+              key={`shimmer-${ab.id}`}
+              x={screenX}
+              y={screenY}
+              width={ab.width * zoom}
+              height={ab.height * zoom}
+            />
+          );
+        })}
 
       {(() => {
         if (selectedIds.size !== 1) return null;

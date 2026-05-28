@@ -49,6 +49,13 @@ export interface UpscaleSliceState {
   cloudTargetByWorkspace: Record<string, UpscaleCloudTarget | null>;
   /** Local-only filter — hides completed rows in the drawer (does not delete). */
   hideCompletedInDrawer: boolean;
+  /**
+   * Phase 9 — workspace-level set of designIds currently being upscaled.
+   * Stored as array (Redux Toolkit avoids non-serializable Set in state).
+   * Powers the shimmer overlay on the canvas while either the standalone
+   * Upscale tool OR the Apply-Pipeline upscale step is running.
+   */
+  processingDesignIds: string[];
 }
 
 const initialState: UpscaleSliceState = {
@@ -57,6 +64,7 @@ const initialState: UpscaleSliceState = {
   destinationByWorkspace: {},
   cloudTargetByWorkspace: {},
   hideCompletedInDrawer: false,
+  processingDesignIds: [],
 };
 
 // -----------------------------------------------------------------
@@ -110,6 +118,17 @@ const upscaleSlice = createSlice({
      * localStorage. Called from a thunk in the App shell, after auth
      * resolves (so we know which workspaces this user has).
      */
+    addProcessingDesignId(state, action: PayloadAction<string>) {
+      const designId = action.payload;
+      if (!state.processingDesignIds.includes(designId)) {
+        state.processingDesignIds.push(designId);
+      }
+    },
+    removeProcessingDesignId(state, action: PayloadAction<string>) {
+      state.processingDesignIds = state.processingDesignIds.filter(
+        (id) => id !== action.payload,
+      );
+    },
     hydrateFromStorage(state, action: PayloadAction<{ workspaceIds: string[] }>) {
       action.payload.workspaceIds.forEach((wsId) => {
         const dest = safeGet(LS_DESTINATION_PREFIX + wsId);
@@ -136,6 +155,8 @@ export const {
   toggleHideCompleted,
   setDestination,
   setCloudTarget,
+  addProcessingDesignId,
+  removeProcessingDesignId,
   hydrateFromStorage,
 } = upscaleSlice.actions;
 

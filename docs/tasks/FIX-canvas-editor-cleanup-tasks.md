@@ -166,30 +166,32 @@ Implementation order is sequenced from cheapest to most complex. Each phase is o
 
 ---
 
-## Phase 9 — Optimistic Updates + Shimmer Overlay (Item 7, AC-7-13..AC-7-17)
+## Phase 9 — Optimistic Updates + Shimmer Overlay (Item 7, AC-7-13..AC-7-17) ✅
 
 ### 9a — Optimistic artboard imageUrl
-- [ ] Add `optimisticArtboardUrls: Map<artboardId, string>` to workspace state.
-- [ ] In `handleApplyPipeline` (DesignEditorView): after `processBatch` completes locally for each batch image with a `designId`, find matching artboard(s) (designId → artboardIds via `designsById`/`artboards`), set optimistic URL to local blob.
-- [ ] `useArtboardVersionSync` updated: optimistic URL takes priority over Design slot resolution UNTIL the backend confirms (`saveProcessedImage` resolves). Then optimistic entry cleared.
-- [ ] On `saveProcessedImage` error: clear optimistic entry, revert to last-known good (artboard.imageUrl from Design cache).
+- [x] Added `optimisticArtboardUrls: Map<artboardId, string>` + `setOptimisticArtboardUrl` to `DesignWorkspaceView`. — `DesignWorkspaceView.tsx:207-225`
+- [x] `useArtboardVersionSync` extended with optional `optimisticArtboardUrls?: Map<string, string>` arg; optimistic entry beats both user pick and auto-priority. — `useArtboardVersionSync.ts:14-22, 47-56`
+- [x] Added `handleOptimisticDesignUpdate(designId, url|null)` helper that fans out to every artboard linked to the designId. Passed as `onOptimisticUpdate` prop into `DesignEditorView`. — `DesignWorkspaceView.tsx:227-238, 626`
+- [x] `handleApplyPipeline`: after `processBatch`, for each result with `processedUrl` + `designId`, call `onOptimisticUpdate(designId, processedUrl)`. After `saveProcessedImage` resolves OR rejects, call `onOptimisticUpdate(designId, null)` to clear. — `DesignEditorView.tsx:230-235, 247-258`
+- [x] EC-7-6: documented in spec as "optimistic state clears on next saveProcessedImage round-trip; client-side undo while save in flight may briefly show stale URL — acceptable for MVP".
 
 ### 9b — Shimmer overlay during upscale
-- [ ] Add `upscalingDesignIds: Set<designId>` workspace state.
-- [ ] Wire `useUpscaleSingle` to push/pop the set:
-  - Add a callback prop to the hook OR expose `isProcessing` + `designId` for the caller to drive a useEffect that maintains the set
-  - **Cleaner approach:** add `onProcessingChange?: (designId, isProcessing) => void` to `UseUpscaleSingleArgs` (additive, no breaking change). Both `UpscaleToolParams` and `DesignEditorView` pipeline instance pass the callback.
-- [ ] Pass `upscalingDesignIds` as prop to `ArtboardCanvas`.
-- [ ] In `Artboard.tsx` (or ArtboardCanvas's render of artboards): if `artboard.designId` is in the set, overlay a Konva.Rect with primary-tinted gradient that pulses via `Konva.Tween` (~1.5s loop). Reuse existing isGenerating overlay pattern if it exists.
-- [ ] Or: simpler DOM overlay positioned absolutely over artboard rect (matches version-picker approach). Easier to maintain.
+- [x] Decision: **Redux upscaleSlice** (not prop chain). Added `processingDesignIds: string[]` + `addProcessingDesignId` / `removeProcessingDesignId` reducers. — `upscaleSlice.ts:51-58, 64, 108-118, 137-144`
+- [x] `useUpscaleSingle`: added cleanup-on-unmount useEffect that dispatches add on `pollEnabled=true` and remove on cleanup. Cleanup ensures the set is cleared on unmount or designId switch even if the trigger never reached a terminal state (e.g. user navigates away mid-flight). Works for both call sites (UpscaleToolParams + pipelineUpscale in DesignEditorView) without prop changes. — `useUpscaleSingle.ts:163-176`
+- [x] `ArtboardCanvas` reads `processingDesignIds` via `useAppSelector` + renders `ArtboardShimmerOverlay` for each matching artboard with world→screen positioning. — `ArtboardCanvas.tsx:174-178, 496-510`
+- [x] New `ArtboardShimmerOverlay.tsx` — DOM overlay (matches version-picker positioning) with `@mui/material/styles` keyframes pulse. Uses `color-mix(in srgb, ${theme.vars.palette.primary.main} 12%, transparent)` — no hardcoded hex. — `ArtboardShimmerOverlay.tsx:1-60`
+- [x] Tests: 2 new test cases for `useArtboardVersionSync` (optimistic beats user pick, optimistic beats auto-priority). 1 test for `ArtboardShimmerOverlay` (renders at correct screen-space rect, pointerEvents none). — `useArtboardVersionSync.test.ts:127-160`, `ArtboardShimmerOverlay.test.tsx:1-21`
 
 ### 9c — Verification
-- [ ] `npm run lint` — 0 errors
-- [ ] `npm run test:ci` — 0 failures
-- [ ] Manual smoke: Apply Pipeline with Trim — artboard image updates instantly (no 500ms wait)
-- [ ] Manual smoke: trigger upscale — shimmer appears on artboard, disappears on completion
+- [x] `npm run lint` — 0 errors (17 pre-existing warnings, none in touched files)
+- [x] `./node_modules/.bin/vitest run` — 1621 passed, 15 skipped, 0 failures
+- [ ] Manual smoke (orchestrator user verifies after deploy):
+  - Apply Pipeline with Trim → artboard image updates instantly
+  - Trigger upscale (standalone Upscale Now or via Apply Pipeline) → shimmer appears on artboard, disappears on completion
+  - Cancel upscale or quota error → shimmer disappears (cleanup on isProcessing flip)
+  - Two designs upscaling concurrently → both artboards show shimmer
 
-**Acceptance:** AC-7-13..AC-7-17. EC-7-6..EC-7-8.
+**Acceptance:** AC-7-13 ✅, AC-7-14 ✅, AC-7-15 ✅, AC-7-16 ✅, AC-7-17 ✅. EC-7-6 ✅ (documented partial), EC-7-7 ✅, EC-7-8 ✅.
 
 ---
 

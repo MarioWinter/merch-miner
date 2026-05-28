@@ -4,6 +4,10 @@ import { useSnackbar } from 'notistack';
 import { useTranslation } from 'react-i18next';
 import { designApi, useGetDesignsByIdsQuery } from '@/store/designSlice';
 import {
+  addProcessingDesignId,
+  removeProcessingDesignId,
+} from '@/store/upscaleSlice';
+import {
   useTriggerSingleMutation,
   type UpscaleCloudTarget,
   type UpscaleDestination,
@@ -156,6 +160,19 @@ export const useUpscaleSingle = ({
       drainPendingPromises('resolve');
     }
   }, [currentDesign, drainPendingPromises, enqueueSnackbar, pollEnabled, projectId, reduxDispatch, t]);
+
+  // Phase 9 — maintain workspace-level shimmer set: while polling is active for
+  // this designId, broadcast it via the upscaleSlice so the canvas can render a
+  // shimmer overlay on any artboard linked to the same Design. Cleanup ensures
+  // the set is cleared on unmount or designId switch even if the trigger never
+  // reached a terminal state (e.g. user navigates away mid-flight).
+  useEffect(() => {
+    if (!pollEnabled || !designId) return;
+    reduxDispatch(addProcessingDesignId(designId));
+    return () => {
+      reduxDispatch(removeProcessingDesignId(designId));
+    };
+  }, [designId, pollEnabled, reduxDispatch]);
 
   // Hard timeout — after 20min, stop polling and surface error.
   useEffect(() => {

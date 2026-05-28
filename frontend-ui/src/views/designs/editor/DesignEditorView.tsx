@@ -41,6 +41,13 @@ interface DesignEditorViewProps {
   editorState: ReturnType<typeof useEditorBatchState>;
   activePipeline: PipelineTool[];
   setActivePipeline: React.Dispatch<React.SetStateAction<PipelineTool[]>>;
+  /**
+   * Phase 9 — set/clear an optimistic artboard imageUrl override for every
+   * artboard linked to `designId`. Used during Apply Pipeline so the canvas
+   * reflects client-side transforms instantly, then clears once the server
+   * round-trip completes (or fails).
+   */
+  onOptimisticUpdate?: (designId: string, url: string | null) => void;
 }
 
 // -----------------------------------------------------------------
@@ -102,6 +109,7 @@ const DesignEditorView = ({
   editorState,
   activePipeline,
   setActivePipeline,
+  onOptimisticUpdate,
 }: DesignEditorViewProps) => {
   void _editorBatch;
   const { t } = useTranslation();
@@ -224,6 +232,13 @@ const DesignEditorView = ({
           const url = img.processedUrl ?? img.previewUrl;
           if (url) loadImageMeta(img.id, url);
         });
+        // Phase 9 — paint the local blob onto canvas artboards immediately
+        // so the user sees the transform before the server round-trip.
+        for (const img of results) {
+          if (img.processedUrl && img.designId) {
+            onOptimisticUpdate?.(img.designId, img.processedUrl);
+          }
+        }
         for (const img of results) {
           if (img.processedUrl && img.designId && img.processedUrl.startsWith('blob:')) {
             try {
@@ -238,7 +253,14 @@ const DesignEditorView = ({
                     : bi,
                 ),
               );
-            } catch { /* Keep blob URL as fallback */ }
+              // Clear optimistic override — the refetched Design now flows
+              // through `useArtboardVersionSync` via the normal path.
+              onOptimisticUpdate?.(img.designId, null);
+            } catch {
+              // Server save failed: revert optimistic override so the artboard
+              // falls back to the last-known good Design URL.
+              onOptimisticUpdate?.(img.designId, null);
+            }
           }
         }
         enqueueSnackbar(t('design.editor.pipelineSaved', 'Pipeline applied & saved'), { variant: 'success' });
@@ -286,6 +308,7 @@ const DesignEditorView = ({
     currentDesign,
     currentImage,
     pipelineUpscale,
+    onOptimisticUpdate,
   ]);
 
   // Overwrite-dialog handlers.

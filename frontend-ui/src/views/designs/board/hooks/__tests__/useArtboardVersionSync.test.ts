@@ -46,6 +46,7 @@ const renderSync = (
   artboards: ArtboardData[],
   design: Design,
   userPickedVersions: Map<string, VersionSlot> = new Map(),
+  optimisticArtboardUrls?: Map<string, string>,
 ) => {
   const updateArtboard = vi.fn();
   const designsById = new Map<string, Design>([[design.id, design]]);
@@ -55,6 +56,7 @@ const renderSync = (
       designsById,
       userPickedVersions,
       updateArtboard,
+      optimisticArtboardUrls,
     }),
   );
   return updateArtboard;
@@ -121,5 +123,42 @@ describe('useArtboardVersionSync', () => {
       design,
     );
     expect(update).not.toHaveBeenCalled();
+  });
+
+  it('optimistic URL beats user pick', () => {
+    const design = makeDesign({
+      image_file: 'https://x.test/original.png',
+      processed_file: 'https://x.test/processed.png',
+      bg_removed_file: 'https://x.test/bg.png',
+      upscaled_file: 'https://x.test/upscaled.png',
+    });
+    const picks = new Map<string, VersionSlot>([['d-1', 'original']]);
+    const optimistic = new Map<string, string>([['ab-1', 'blob:fake/optimistic']]);
+    const update = renderSync(
+      [makeArtboard({ imageUrl: null })],
+      design,
+      picks,
+      optimistic,
+    );
+    expect(update).toHaveBeenCalledWith('ab-1', {
+      imageUrl: 'blob:fake/optimistic',
+    });
+  });
+
+  it('optimistic URL beats auto-priority resolution', () => {
+    const design = makeDesign({
+      image_file: 'https://x.test/original.png',
+      upscaled_file: 'https://x.test/upscaled.png',
+    });
+    const optimistic = new Map<string, string>([['ab-1', 'blob:fake/optimistic']]);
+    const update = renderSync(
+      [makeArtboard({ imageUrl: null })],
+      design,
+      new Map(),
+      optimistic,
+    );
+    expect(update).toHaveBeenCalledWith('ab-1', {
+      imageUrl: 'blob:fake/optimistic',
+    });
   });
 });

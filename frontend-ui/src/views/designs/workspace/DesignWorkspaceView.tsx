@@ -199,11 +199,47 @@ const DesignWorkspaceView = () => {
     if (changed) setUserPickedVersions(next);
   }, [designsById, userPickedVersions, setUserPickedVersions]);
 
+  // Phase 9 — workspace-level optimistic overrides for artboard imageUrl.
+  // Keyed by artboardId. Set immediately after a client-side pipeline step
+  // completes (so the canvas updates within ~16ms) and cleared once the
+  // server-side `saveProcessedImage` round-trip completes — at which point
+  // the normal version-sync flow takes over.
+  const [optimisticArtboardUrls, setOptimisticArtboardUrlsState] = useState<
+    Map<string, string>
+  >(() => new Map());
+  const setOptimisticArtboardUrl = useCallback(
+    (artboardId: string, url: string | null) => {
+      setOptimisticArtboardUrlsState((prev) => {
+        const next = new Map(prev);
+        if (url === null) next.delete(artboardId);
+        else next.set(artboardId, url);
+        return next;
+      });
+    },
+    [],
+  );
+
+  // Helper passed to the editor: maps designId → optimistic URL change for
+  // every artboard linked to that Design. Null URL clears all entries for
+  // matching artboards.
+  const handleOptimisticDesignUpdate = useCallback(
+    (designId: string, url: string | null) => {
+      const matchingArtboardIds = artboardState.artboards
+        .filter((ab) => ab.designId === designId)
+        .map((ab) => ab.id);
+      for (const artboardId of matchingArtboardIds) {
+        setOptimisticArtboardUrl(artboardId, url);
+      }
+    },
+    [artboardState.artboards, setOptimisticArtboardUrl],
+  );
+
   useArtboardVersionSync({
     artboards: artboardState.artboards,
     designsById,
     userPickedVersions,
     updateArtboard: artboardState.updateArtboard,
+    optimisticArtboardUrls,
   });
 
   // -- Canvas tools/elements/keyboard/text editing --
@@ -618,6 +654,7 @@ const DesignWorkspaceView = () => {
             editorState={editorState}
             activePipeline={activePipeline}
             setActivePipeline={setActivePipeline}
+            onOptimisticUpdate={handleOptimisticDesignUpdate}
           />
         )}
       </ContentArea>
