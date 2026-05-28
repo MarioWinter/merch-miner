@@ -12,21 +12,28 @@ import { usePendingDeletions } from '../hooks/usePendingDeletions';
 // Styled
 // -----------------------------------------------------------------
 
-const PickerRoot = styled(Box)({
+const PickerRoot = styled(Box)(({ theme }) => ({
   position: 'absolute',
   zIndex: 30,
   pointerEvents: 'auto',
-});
+  padding: theme.spacing(0.5, 0.75),
+  borderRadius: 999,
+  backgroundColor: `color-mix(in srgb, ${theme.vars.palette.background.paper} 90%, transparent)`,
+  border: `1px solid ${theme.vars.palette.divider}`,
+  backdropFilter: 'blur(8px)',
+}));
 
-// Wrap each chip so the trash icon can absolutely-position relative to it
-// and stays hidden until hover. Keeps chip visuals identical to defaults.
+// Hover-reveal wrapper for the trash icon. Trash sits inline to the right of
+// the chip and only shows when the chip itself is hovered.
 const ChipWrap = styled(Box)({
   position: 'relative',
   display: 'inline-flex',
+  alignItems: 'center',
   '& .picker-trash': {
     opacity: 0,
     pointerEvents: 'none',
-    transition: 'opacity 150ms ease',
+    transition: 'opacity 120ms ease',
+    marginLeft: -4,
   },
   '&:hover .picker-trash': {
     opacity: 1,
@@ -35,18 +42,13 @@ const ChipWrap = styled(Box)({
 });
 
 const TrashButton = styled(IconButton)(({ theme }) => ({
-  position: 'absolute',
-  top: -8,
-  right: -8,
   width: 18,
   height: 18,
   padding: 0,
-  backgroundColor: theme.vars.palette.background.paper,
-  border: `1px solid ${theme.vars.palette.divider}`,
+  color: theme.vars.palette.text.secondary,
   '&:hover': {
-    backgroundColor: theme.vars.palette.error.main,
-    color: theme.vars.palette.common.white,
-    borderColor: theme.vars.palette.error.main,
+    color: theme.vars.palette.error.main,
+    backgroundColor: 'transparent',
   },
 }));
 
@@ -170,7 +172,7 @@ const ArtboardVersionPicker = ({
 
   return (
     <PickerRoot sx={{ left: positionAt.x, top: positionAt.y }}>
-      <Stack direction="row" spacing={0.5}>
+      <Stack direction="row" spacing={0.25} alignItems="center">
         {visibleSlots.map((slot) => {
           const isActive = slot === activeSlot;
           const label = t(SLOT_LABEL_KEY[slot]);
@@ -179,10 +181,27 @@ const ArtboardVersionPicker = ({
               <Chip
                 label={label}
                 size="small"
-                color={isActive ? 'primary' : 'default'}
-                variant={isActive ? 'filled' : 'outlined'}
                 onClick={() => handleChipClick(slot)}
                 aria-pressed={isActive}
+                sx={(theme) => ({
+                  height: 22,
+                  fontSize: 11,
+                  fontWeight: isActive ? 600 : 500,
+                  borderRadius: 999,
+                  backgroundColor: isActive
+                    ? theme.vars.palette.action.selected
+                    : 'transparent',
+                  color: isActive
+                    ? theme.vars.palette.text.primary
+                    : theme.vars.palette.text.secondary,
+                  border: 'none',
+                  '&:hover': {
+                    backgroundColor: isActive
+                      ? theme.vars.palette.action.selected
+                      : theme.vars.palette.action.hover,
+                    color: theme.vars.palette.text.primary,
+                  },
+                })}
               />
               <TrashButton
                 className="picker-trash"
@@ -193,7 +212,7 @@ const ArtboardVersionPicker = ({
                   handleTrashClick(slot);
                 }}
               >
-                <DeleteOutlineIcon sx={{ fontSize: 12 }} />
+                <DeleteOutlineIcon sx={{ fontSize: 14 }} />
               </TrashButton>
             </ChipWrap>
           );
