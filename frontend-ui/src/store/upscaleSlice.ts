@@ -156,6 +156,14 @@ const upscaleSlice = createSlice({
      */
     recordCompletion(state, action: PayloadAction<UpscaleCompletion>) {
       state.lastCompletion = action.payload;
+      // Defensive: any terminal-state completion also clears the matching
+      // designId from `processingDesignIds`, so the shimmer overlay stops
+      // even if the hook that started the upscale already unmounted.
+      if (action.payload.designId) {
+        state.processingDesignIds = state.processingDesignIds.filter(
+          (id) => id !== action.payload.designId,
+        );
+      }
     },
     hydrateFromStorage(state, action: PayloadAction<{ workspaceIds: string[] }>) {
       action.payload.workspaceIds.forEach((wsId) => {

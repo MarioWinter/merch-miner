@@ -35,7 +35,8 @@ import useEditorBatchState from '../editor/hooks/useEditorBatchState';
 import type { PipelineTool, ToolName } from '../editor/types';
 import { TOOL_CATALOG } from '../editor/types';
 import ProcessingSettingsDialog from './ProcessingSettingsDialog';
-import { useAppSelector } from '../../../store/hooks';
+import { useAppSelector, useAppDispatch } from '../../../store/hooks';
+import { recordCompletion } from '@/store/upscaleSlice';
 import type { ProjectPrompt } from '../gallery/types';
 import useWorkspaceTab from './hooks/useWorkspaceTab';
 import type { WorkspaceTab } from './hooks/useWorkspaceTab';
@@ -118,13 +119,22 @@ const DesignWorkspaceView = () => {
     }
   };
 
-  // Poll interval is updated below once we know if a generation is running.
-  // Initial fetch happens with no polling; after a skeleton appears, the
-  // polling kicks in so completed designs land automatically.
+  // Poll interval is updated below once we know if a generation is running
+  // OR an upscale is in flight (Phase-10 fix: when the editor unmounts on tab
+  // switch, the upscale hook can no longer poll the Design; workspace polls
+  // boardData instead so the canvas shimmer clears once `upscaled_file`
+  // flips).
   const [hasRunningGeneration, setHasRunningGeneration] = useState(false);
+  const processingUpscaleCount = useAppSelector(
+    (s) => s.upscale.processingDesignIds.length,
+  );
   const { data: boardData } = useGetProjectBoardQuery(
     { projectId: projectId ?? '' },
-    { skip: !projectId, pollingInterval: hasRunningGeneration ? 4000 : undefined },
+    {
+      skip: !projectId,
+      pollingInterval:
+        hasRunningGeneration || processingUpscaleCount > 0 ? 4000 : undefined,
+    },
   );
 
   // -- Artboard state --
@@ -241,6 +251,47 @@ const DesignWorkspaceView = () => {
     updateArtboard: artboardState.updateArtboard,
     optimisticArtboardUrls,
   });
+
+  // Phase-10 fix — workspace-level upscale-completion monitor. The hook in
+  // UpscaleToolParams + DesignEditorView unmounts when the user switches to
+  // the canvas tab, so its polling dies mid-flight. While processingDesignIds
+  // is non-empty, the workspace polls `boardData` (above) and dispatches
+  // `recordCompletion` once a Design's `upscaled_file` flips away from the
+  // baseline observed at entry. The reducer clears the designId from
+  // processingDesignIds, the shimmer overlay disappears.
+  const reduxDispatch = useAppDispatch();
+  const upscaleBaselinesRef = useRef<Map<string, string | null>>(new Map());
+  const processingDesignIds = useAppSelector(
+    (s) => s.upscale.processingDesignIds,
+  );
+  useEffect(() => {
+    if (!boardData?.designs) return;
+    const baselines = upscaleBaselinesRef.current;
+    for (const id of processingDesignIds) {
+      const d = boardData.designs.find((x) => x.id === id);
+      if (!d) continue;
+      if (!baselines.has(id)) {
+        baselines.set(id, d.upscaled_file ?? null);
+        continue;
+      }
+      const current = d.upscaled_file ?? null;
+      const baseline = baselines.get(id) ?? null;
+      if (current && current !== baseline) {
+        baselines.delete(id);
+        reduxDispatch(
+          recordCompletion({
+            designId: id,
+            kind: 'success',
+            ts: Date.now(),
+          }),
+        );
+      }
+    }
+    // Cleanup baselines for designIds no longer in processing.
+    for (const id of Array.from(baselines.keys())) {
+      if (!processingDesignIds.includes(id)) baselines.delete(id);
+    }
+  }, [boardData?.designs, processingDesignIds, reduxDispatch]);
 
   // Phase 10 — workspace-level snackbar for single upscale terminal states.
   // The hook only dispatches `recordCompletion`; the snackbar fires here so
