@@ -169,7 +169,7 @@ const ChatPanel = () => {
   const [unshareSession] = useUnshareSessionMutation();
   const [saveSnippet] = useSaveSnippetToNicheMutation();
   const [deleteMessage] = useDeleteMessageMutation();
-  const { start: startStream } = useSendMessageStream({
+  const { start: startStream, stop: stopStream } = useSendMessageStream({
     sessionId: activeSessionId,
     onDone: () => {
       dispatch(setSearching(false));
@@ -487,6 +487,7 @@ const ChatPanel = () => {
             ref={inputRef}
             appearance="panel"
             onSubmit={handleSubmit}
+            onStop={stopStream}
             isSending={searching || isStreaming}
             // PROJ-29 Phase 1I follow-up: input always typeable so users can
             // insert an @-mention even when Vane is degraded — `handleSubmit`

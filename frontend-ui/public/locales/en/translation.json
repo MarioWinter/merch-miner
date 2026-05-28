@@ -3008,6 +3008,9 @@
       "connectionLost": "Connection lost. Please retry.",
       "timeout": "Search timed out. Please try again."
     },
+    "stop": {
+      "aria": "Stop generating"
+    },
     "actions": {
       "toolbarLabel": "Message actions",
       "copy": "Copy message",

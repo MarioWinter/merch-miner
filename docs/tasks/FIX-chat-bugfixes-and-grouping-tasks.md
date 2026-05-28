@@ -56,18 +56,18 @@
 **Commit:** `feat(chat): toggle send button to stop while streaming`
 **Skill:** `/frontend`
 
-- [ ] Add `isStreaming: boolean` + `onStop: () => void` props to `SendButton.tsx`.
-- [ ] **Wiring task — verify `useSendMessageStream` is mounted ABOVE the SendButton render tree** so the same hook instance owns both `start` and `stop`:
-  - [ ] Today the hook is mounted in `ChatPanel.tsx` and `FloatingChatBar.tsx`. SendButton lives inside `ChatInputBar`, which is rendered by both.
-  - [ ] Pass `stop` as a callback prop chain: `ChatPanel → ChatInputBar → SendButton.onStop`. Same wiring in `FloatingChatBar`.
-  - [ ] Note: because Phase 1 introduced a module-singleton `activeAbortController`, calling `stop()` from any hook instance aborts the active stream regardless of which instance owns it. Wiring is still required so the button has SOMETHING to call.
-- [ ] Read `isStreaming` from `chatBar` slice in `ChatInputBar/index.tsx` (already a selector path); pass to `SendButton`.
-- [ ] Render `SendIcon` when `!isStreaming`; render `StopIcon` from `@mui/icons-material/Stop` when streaming.
-- [ ] No transition between icon states (straight swap — avoid CSS transitions on the icon element).
-- [ ] Add i18n key `search.stop.aria` (EN + DE).
-- [ ] New test `frontend-ui/src/components/MultiPurposeDrawer/panels/ChatInputBar/partials/__tests__/SendButton.test.tsx`: renders SendIcon when not streaming, StopIcon when streaming, click invokes correct handler per state.
-- [ ] Verify keyboard Enter while streaming is no-op (input disabled — already in place; spot-check it still is).
-- [ ] `npm run lint` + `npm run test:ci` green.
+- [x] Add `isStreaming: boolean` + `onStop: () => void` props to `SendButton.tsx`. — SendButton.tsx:18-32
+- [x] **Wiring task — verify `useSendMessageStream` is mounted ABOVE the SendButton render tree** so the same hook instance owns both `start` and `stop`:
+  - [x] Today the hook is mounted in `ChatPanel.tsx` and `FloatingChatBar.tsx`. SendButton lives inside `ChatInputBar`, which is rendered by both. — `FloatingChatBar` does NOT exist today; ChatPanel is the sole mount-point. Verified via `grep -rn "useSendMessageStream"` and `grep -rn "FloatingChatBar"` — both return only ChatPanel + hook self + tests. No symmetric wiring needed because the second host does not exist.
+  - [x] Pass `stop` as a callback prop chain: `ChatPanel → ChatInputBar → SendButton.onStop`. Same wiring in `FloatingChatBar`. — ChatPanel.tsx:172 destructures `stop: stopStream`; ChatPanel.tsx:489 passes `onStop={stopStream}`; ChatInputBar/index.tsx:73-78 declares prop, line 131 destructures, line 369 forwards to SendButton.
+  - [x] Note: because Phase 1 introduced a module-singleton `activeAbortController`, calling `stop()` from any hook instance aborts the active stream regardless of which instance owns it. Wiring is still required so the button has SOMETHING to call.
+- [x] Read `isStreaming` from `chatBar` slice in `ChatInputBar/index.tsx` (already a selector path); pass to `SendButton`. — index.tsx:142-144 selector; line 366 passes real `isStreaming` to SendButton (previously `sendDisabled` was misrouted into `isStreaming` — split fixed).
+- [x] Render `SendIcon` when `!isStreaming`; render `StopIcon` from `@mui/icons-material/Stop` when streaming. — SendButton.tsx:78-82
+- [x] No transition between icon states (straight swap — avoid CSS transitions on the icon element). — No `transition` CSS on the icon; ternary swap only.
+- [x] Add i18n key `search.stop.aria` (EN + DE). — en/translation.json:3011-3013, de/translation.json:2255-2257
+- [x] New test `frontend-ui/src/components/MultiPurposeDrawer/panels/ChatInputBar/partials/__tests__/SendButton.test.tsx`: renders SendIcon when not streaming, StopIcon when streaming, click invokes correct handler per state. — SendButton.test.tsx:18-110 (4 cases, all passing).
+- [x] Verify keyboard Enter while streaming is no-op (input disabled — already in place; spot-check it still is). — SmartTextarea.tsx:211-214 fires `onSubmit?.()` on Enter; in ChatInputBar that maps to `handleSubmit` which short-circuits via `if (disabled || isSending || isStreaming) return;` at index.tsx:165. No regression to fix.
+- [x] `npm run lint` + `npm run test:ci` green. — lint 0 errors / 17 pre-existing warnings; test:ci 1640 testcases, 0 failures, 0 errors.
 
 ### Review checkpoint
 - [ ] Manual smoke: send → button flips to Stop → click stops the stream → button flips back to Send.

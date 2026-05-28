@@ -73,6 +73,12 @@ interface ChatInputBarProps {
    * and styles the editable surface as disabled.
    */
   disabled?: boolean;
+  /**
+   * FIX (Item 3): callback invoked when the user clicks the Stop button
+   * (rendered in place of Send while a stream is active). Wired to
+   * `useSendMessageStream().stop` in the parent.
+   */
+  onStop?: () => void;
 }
 
 interface ShellProps {
@@ -128,7 +134,7 @@ const ActionBar = styled(Stack)(({ theme }) => ({
 
 const ChatInputBar = forwardRef<ChatInputBarHandle, ChatInputBarProps>(
   function ChatInputBar(
-    { appearance, onSubmit, isSending = false, disabled = false },
+    { appearance, onSubmit, isSending = false, disabled = false, onStop },
     ref,
   ) {
   const { t } = useTranslation();
@@ -290,9 +296,10 @@ const ChatInputBar = forwardRef<ChatInputBarHandle, ChatInputBarProps>(
 
   // Send is gated on any in-flight upload — server requires `attachment_ids`
   // for completed cards only, so we hold the user back until the upload
-  // round-trip resolves.
-  const sendDisabled =
-    disabled || isSending || isStreaming || hasInflightUpload;
+  // round-trip resolves. `isStreaming` is intentionally NOT included here:
+  // while streaming, the SendButton swaps to a Stop affordance which must
+  // remain clickable. Send-mode disabled state stays driven by upload + parent.
+  const sendDisabled = disabled || isSending || hasInflightUpload;
 
   // Phase 7.5 — drag-and-drop image upload onto the Shell.
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -363,8 +370,10 @@ const ChatInputBar = forwardRef<ChatInputBarHandle, ChatInputBarProps>(
             <Box sx={{ ml: 0.5 }}>
               <SendButton
                 isEmpty={isEmpty}
-                isStreaming={sendDisabled}
+                isStreaming={isStreaming}
+                disabled={sendDisabled}
                 onSubmit={handleSubmit}
+                onStop={onStop}
               />
             </Box>
           </Stack>
