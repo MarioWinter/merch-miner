@@ -28,6 +28,15 @@ import type { ChatMessage } from '@/types/search';
 interface InsertArgs {
   sessionId: string;
   content: string;
+  /**
+   * FIX 2026-05-29 (Item 4 follow-up) — when the user sent with a pinned
+   * niche chip, surface it on the optimistic row so the read-only
+   * HistoryNicheChip renders within the same tick as submit. Without this
+   * the chip only appears after the SSE `done` invalidation refetches the
+   * persisted row from the server.
+   */
+  referencedNicheId?: string | null;
+  referencedNicheName?: string | null;
 }
 
 interface RollbackArgs {
@@ -56,6 +65,8 @@ const buildTempUserMessage = (
   sessionId: string,
   tempId: string,
   content: string,
+  referencedNicheId: string | null,
+  referencedNicheName: string | null,
 ): ChatMessage => ({
   id: tempId,
   session: sessionId,
@@ -70,6 +81,8 @@ const buildTempUserMessage = (
   model_used: '',
   agent_session: null,
   attachments: [],
+  referenced_niche_id: referencedNicheId,
+  referenced_niche_name: referencedNicheName,
   created_at: new Date().toISOString(),
 });
 
@@ -90,9 +103,20 @@ export const useOptimisticChatMessage = (): UseOptimisticChatMessageReturn => {
   const dispatch = useAppDispatch();
 
   const insert = useCallback(
-    ({ sessionId, content }: InsertArgs): string => {
+    ({
+      sessionId,
+      content,
+      referencedNicheId = null,
+      referencedNicheName = null,
+    }: InsertArgs): string => {
       const tempId = generateTempId();
-      const tempMessage = buildTempUserMessage(sessionId, tempId, content);
+      const tempMessage = buildTempUserMessage(
+        sessionId,
+        tempId,
+        content,
+        referencedNicheId,
+        referencedNicheName,
+      );
       dispatch(
         searchApi.util.updateQueryData('getSession', sessionId, (draft) => {
           // `getSession` may be in an "uninitialized" cache slot when the

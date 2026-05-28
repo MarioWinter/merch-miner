@@ -235,7 +235,15 @@ const ChatPanel = () => {
 
         // PROJ-29 Phase 1J BUG-1 — show user's message in chat history
         // within the same render cycle as submit, before the server response.
-        tempId = optimisticInsert({ sessionId, content: trimmed });
+        // FIX 2026-05-29 (Item 4 follow-up) — pipe the niche chip through so
+        // HistoryNicheChip renders immediately and doesn't wait for the SSE
+        // `done` cache invalidation.
+        tempId = optimisticInsert({
+          sessionId,
+          content: trimmed,
+          referencedNicheId: niche_id,
+          referencedNicheName: payload.chip?.niche_name ?? null,
+        });
 
         // PROJ-29 Phase 1J BUG-2 — unify agent + auto/web through SSE.
         // The backend `_handle_niche_agent_stream` now accepts
