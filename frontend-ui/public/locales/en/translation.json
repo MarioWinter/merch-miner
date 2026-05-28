@@ -3011,6 +3011,9 @@
     "stop": {
       "aria": "Stop generating"
     },
+    "history": {
+      "referencedNicheAria": "Referenced niche: {{name}}"
+    },
     "actions": {
       "toolbarLabel": "Message actions",
       "copy": "Copy message",

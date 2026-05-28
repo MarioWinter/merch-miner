@@ -857,3 +857,204 @@ class TestPostStream:
             session=niche_session, role=ChatMessage.Role.ASSISTANT,
         )
         assert assistant.content == 'Try these slogans'
+
+
+# ---------------------------------------------------------------------------
+# FIX 2026-05-28 / Item 4 — @Niche persistence on user messages
+# ---------------------------------------------------------------------------
+
+@pytest.fixture
+def foreign_workspace(db):
+    """Workspace B owned by an unrelated user (no membership for `user`)."""
+    other_user = User.objects.create_user(
+        email='proj29-foreign@example.com', password='testpass123',
+    )
+    ws = Workspace.objects.create(
+        name='Foreign WS', slug='proj29-foreign-ws', owner=other_user,
+    )
+    Membership.objects.create(
+        workspace=ws, user=other_user, role='admin', status='active',
+    )
+    return ws
+
+
+@pytest.fixture
+def foreign_niche(db, foreign_workspace):
+    """Niche living in workspace B — must be rejected when referenced from A."""
+    return Niche.objects.create(
+        workspace=foreign_workspace,
+        name='Foreign Niche',
+        created_by=foreign_workspace.owner,
+    )
+
+
+@pytest.mark.django_db
+class TestReferencedNichePersistence:
+    """The stream view MUST persist `niche_id` from the request body onto
+    the user `ChatMessage.referenced_niche` FK (assistant message stays
+    NULL). Cross-workspace `niche_id` MUST be rejected before any message
+    is persisted.
+    """
+
+    def test_referenced_niche_persisted_on_user_message(
+        self, api_client, workspace, niche_session, niche,
+    ):
+        """POST with `niche_id` -> user msg has FK set; assistant msg NULL."""
+        canonical = [
+            {'event': 'init', 'data': {
+                'session_id': str(niche_session.id), 'mode': 'agent',
+            }},
+            {'event': 'chunks_used', 'data': {'chunks': []}},
+            {'event': 'chunk', 'data': {'delta': 'ok'}},
+            {'event': 'done', 'data': {'final_answer': 'ok'}},
+        ]
+
+        with patch(
+            'agent_app.agents.niche_chat_agent.run_chat',
+            side_effect=make_run_chat_stub(canonical),
+        ):
+            resp = api_client.post(
+                f'/api/chat/sessions/{niche_session.id}/messages/stream/',
+                data={
+                    'content': 'tell me about this niche',
+                    'niche_id': str(niche.id),
+                },
+                format='json',
+                **_headers(workspace),
+            )
+            b''.join(resp.streaming_content)
+
+        assert resp.status_code == 200
+
+        user_msg = ChatMessage.objects.get(
+            session=niche_session, role=ChatMessage.Role.USER,
+        )
+        assert user_msg.referenced_niche_id == niche.id
+
+        assistant_msg = ChatMessage.objects.get(
+            session=niche_session, role=ChatMessage.Role.ASSISTANT,
+        )
+        assert assistant_msg.referenced_niche_id is None
+
+    def test_referenced_niche_cross_workspace_rejected(
+        self, api_client, workspace, niche_session, foreign_niche,
+    ):
+        """`niche_id` from workspace B + X-Workspace-Id=A -> 400 + no persisted
+        user message + no assistant message + niche_not_in_workspace code."""
+        # Sanity baseline: no messages exist on the session yet.
+        assert not ChatMessage.objects.filter(session=niche_session).exists()
+
+        with patch(
+            'agent_app.agents.niche_chat_agent.run_chat',
+        ) as mock_run_chat:
+            resp = api_client.post(
+                f'/api/chat/sessions/{niche_session.id}/messages/stream/',
+                data={
+                    'content': 'should be rejected',
+                    'niche_id': str(foreign_niche.id),
+                },
+                format='json',
+                **_headers(workspace),
+            )
+
+        assert resp.status_code == 400
+        # The agent must NEVER be invoked when the request is rejected.
+        mock_run_chat.assert_not_called()
+
+        # Error body surfaces the code so the frontend can branch on it.
+        # The view's content-negotiated renderer is `EventStreamRenderer`
+        # (for the streaming-success path); the rendered byte body is sparse,
+        # but DRF's `Response.data` carries the structured payload pre-render:
+        # `{'niche_id': [ErrorDetail('niche_not_in_workspace', code=...)]}`.
+        assert 'niche_id' in resp.data
+        error_detail = resp.data['niche_id']
+        # `error_detail` is either a single ErrorDetail or a list of them,
+        # depending on how DRF normalizes the raised payload. Coerce to a
+        # list of strings for a robust check, and assert both the message
+        # AND the code carry the contract value.
+        items = (
+            [error_detail] if isinstance(error_detail, str)
+            else list(error_detail)
+        )
+        assert any(str(item) == 'niche_not_in_workspace' for item in items), (
+            f'expected niche_not_in_workspace string in {items!r}'
+        )
+        codes = [getattr(item, 'code', None) for item in items]
+        assert 'niche_not_in_workspace' in codes, (
+            f'expected niche_not_in_workspace code in {codes!r}'
+        )
+
+        # No partial state: no ChatMessage rows were created before the
+        # rejection landed.
+        assert not ChatMessage.objects.filter(session=niche_session).exists()
+
+    def test_chat_message_serializer_returns_referenced_niche_fields(
+        self, api_client, workspace, niche_session, niche,
+    ):
+        """`GET /messages/` returns both id+name when set, both null when not."""
+        # Message with referenced niche.
+        with_niche = ChatMessage.objects.create(
+            session=niche_session,
+            role=ChatMessage.Role.USER,
+            content='msg with niche',
+            referenced_niche=niche,
+        )
+        # Message without referenced niche.
+        without_niche = ChatMessage.objects.create(
+            session=niche_session,
+            role=ChatMessage.Role.USER,
+            content='msg without niche',
+        )
+
+        resp = api_client.get(
+            f'/api/chat/sessions/{niche_session.id}/messages/',
+            **_headers(workspace),
+        )
+        assert resp.status_code == 200
+        by_id = {m['id']: m for m in resp.data['messages']}
+
+        # With niche set: both fields populated.
+        ref = by_id[str(with_niche.id)]
+        assert ref['referenced_niche_id'] == str(niche.id)
+        assert ref['referenced_niche_name'] == niche.name
+
+        # Without niche set: both fields null.
+        unref = by_id[str(without_niche.id)]
+        assert unref['referenced_niche_id'] is None
+        assert unref['referenced_niche_name'] is None
+
+    def test_shared_chat_view_strips_referenced_niche(
+        self, api_client, workspace, niche_session, niche,
+    ):
+        """Public share endpoint MUST NOT expose workspace-private niche
+        reference fields (workspace-isolation regression test)."""
+        ChatMessage.objects.create(
+            session=niche_session,
+            role=ChatMessage.Role.USER,
+            content='private niche reference',
+            referenced_niche=niche,
+        )
+
+        # Owner publishes the session.
+        share_resp = api_client.post(
+            f'/api/chat/sessions/{niche_session.id}/share/',
+            **_headers(workspace),
+        )
+        assert share_resp.status_code in (200, 201)
+        token = share_resp.data['share_token']
+
+        # Anonymous public fetch — no auth, no workspace header.
+        from rest_framework.test import APIClient
+        anon = APIClient()
+        resp = anon.get(f'/api/chat/sessions/shared/{token}/')
+        assert resp.status_code == 200
+
+        # The public payload MUST NOT include referenced_niche_id /
+        # referenced_niche_name on any message (workspace-private data).
+        for msg in resp.data['messages']:
+            assert 'referenced_niche_id' not in msg, (
+                'Public share serializer leaks referenced_niche_id'
+            )
+            assert 'referenced_niche_name' not in msg, (
+                'Public share serializer leaks referenced_niche_name'
+            )

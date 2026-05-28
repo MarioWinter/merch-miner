@@ -8,6 +8,7 @@ import type { ChatMessage } from '@/types/search';
 import type { SloganRow } from '@/types/chat-rag';
 import { useAppSelector } from '@/store/hooks';
 import JumpToLatestButton from './JumpToLatestButton';
+import HistoryNicheChip from './HistoryNicheChip';
 import WorkflowCard from './WorkflowCard';
 import SaveSnippetToolbar from './SaveSnippetToolbar';
 import MarkdownAnswer from './partials/MarkdownAnswer';
@@ -359,6 +360,16 @@ const ChatMessageList = ({
                         gap={0.5}
                         sx={{ maxWidth: '85%' }}
                       >
+                        {/* FIX-chat-bugfixes-and-grouping Item 4 — per-message
+                         *  @niche reference chip. Read-only; rendered only
+                         *  when the persisted user message carries a
+                         *  referenced niche name. */}
+                        {msg.referenced_niche_name && (
+                          <HistoryNicheChip
+                            name={msg.referenced_niche_name}
+                            nicheId={msg.referenced_niche_id}
+                          />
+                        )}
                         {msg.attachments && msg.attachments.length > 0 && (
                           <UserAttachments attachments={msg.attachments} />
                         )}

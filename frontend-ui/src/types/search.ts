@@ -106,6 +106,12 @@ export interface ChatMessage {
     durationMs?: number;
     message?: string;
   }> | null;
+  /** FIX-chat-bugfixes-and-grouping Item 4 — per-message @niche reference.
+   *  Set on `role='user'` messages when the original request carried `niche_id`.
+   *  Assistant messages have both fields as `null`. Optional + nullable: old
+   *  messages persisted before the 0009 migration may omit the field entirely. */
+  referenced_niche_id?: string | null;
+  referenced_niche_name?: string | null;
   created_at: string;
 }
 

@@ -12,6 +12,13 @@ class ChatMessageSerializer(serializers.ModelSerializer):
 
     agent_session = serializers.SerializerMethodField()
     attachments = serializers.SerializerMethodField()
+    # FIX 2026-05-28 Item 4 — per-message niche reference. Set only on
+    # role='user' messages by the SSE stream view; null on assistant rows.
+    # Exposed for the chat-history NicheChip render (read-only).
+    referenced_niche_id = serializers.UUIDField(
+        source='referenced_niche.id', read_only=True, allow_null=True,
+    )
+    referenced_niche_name = serializers.SerializerMethodField()
 
     class Meta:
         model = ChatMessage
@@ -27,9 +34,17 @@ class ChatMessageSerializer(serializers.ModelSerializer):
             # on persisted messages.
             'chunks_used',
             'thinking_stages',
+            # FIX 2026-05-28 Item 4 — per-message niche reference.
+            'referenced_niche_id',
+            'referenced_niche_name',
             'created_at',
         ]
         read_only_fields = fields
+
+    def get_referenced_niche_name(self, obj):
+        if obj.referenced_niche_id:
+            return obj.referenced_niche.name
+        return None
 
     def get_agent_session(self, obj):
         """Return nested {id, status, current_step} when agent_session is set."""
@@ -142,7 +157,11 @@ class ChatSessionDetailSerializer(serializers.ModelSerializer):
 
     def get_messages(self, obj):
         """Return latest 50 messages (EC-9: paginate 100+ messages)."""
-        qs = obj.messages.order_by('-created_at')[:50]
+        # FIX 2026-05-28 Item 4 — select_related so the new
+        # referenced_niche_name field doesn't hit a per-row query.
+        qs = obj.messages.select_related('referenced_niche').order_by(
+            '-created_at',
+        )[:50]
         # Reverse to show oldest first in the list
         messages = list(reversed(qs))
         return ChatMessageSerializer(messages, many=True).data

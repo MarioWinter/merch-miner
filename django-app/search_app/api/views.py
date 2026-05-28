@@ -8,6 +8,7 @@ from django.conf import settings
 from django.db.models import Count
 from django.http import StreamingHttpResponse
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.renderers import BaseRenderer, JSONRenderer
@@ -320,7 +321,12 @@ class ChatSessionMessagesView(APIView):
             )
 
         before = request.query_params.get('before')  # message ID cursor
-        qs = session.messages.order_by('-created_at')
+        # FIX 2026-05-28 Item 4 — pull the per-message niche reference in the
+        # same query to avoid N+1 when the serializer reads
+        # `referenced_niche.name`.
+        qs = session.messages.select_related('referenced_niche').order_by(
+            '-created_at',
+        )
 
         if before:
             try:
@@ -886,6 +892,22 @@ class ChatSessionMessageStreamView(APIView):
         attachment_ids = validated['attachment_ids']
         per_message_niche_id = validated['per_message_niche_id']
 
+        # FIX 2026-05-28 Item 4 — workspace-isolation check for the per-message
+        # `niche_id`. Verify the niche belongs to the same workspace as the
+        # session BEFORE any user message is persisted; reject cross-workspace
+        # references with a 400 so the request never reaches the streaming
+        # branch (no partial-state side effects).
+        from niche_app.models import Niche as _NicheCheck
+        if per_message_niche_id:
+            niche_in_ws = _NicheCheck.objects.filter(
+                pk=per_message_niche_id, workspace=workspace,
+            ).exists()
+            if not niche_in_ws:
+                raise ValidationError(
+                    {'niche_id': 'niche_not_in_workspace'},
+                    code='niche_not_in_workspace',
+                )
+
         # PROJ-20 Phase 7.3 — Vision branch. If the request carries
         # attachment_ids the message goes through OpenRouter directly with
         # image content blocks; Vane is bypassed (no native vision support).
@@ -912,6 +934,10 @@ class ChatSessionMessageStreamView(APIView):
                 message_type=ChatMessage.MessageType.SEARCH_QUERY,
                 search_mode=search_mode,
                 search_sources=search_sources,
+                # FIX 2026-05-28 Item 4 — persist per-message niche reference.
+                # Already workspace-validated above; assistant message stays
+                # NULL (see vision_event_stream below).
+                referenced_niche_id=per_message_niche_id,
             )
             # Link freshly-uploaded attachments to the just-persisted user
             # message so chat-history rendering can surface thumbnails. On
@@ -1020,6 +1046,10 @@ class ChatSessionMessageStreamView(APIView):
             message_type=ChatMessage.MessageType.SEARCH_QUERY,
             search_mode=search_mode,
             search_sources=search_sources,
+            # FIX 2026-05-28 Item 4 — persist per-message niche reference for
+            # both Vane web-search and niche-agent paths. Already
+            # workspace-validated above. Assistant message remains NULL.
+            referenced_niche_id=per_message_niche_id,
         )
 
         # Auto-set title from first query

@@ -2255,6 +2255,9 @@
     "stop": {
       "aria": "Generierung stoppen"
     },
+    "history": {
+      "referencedNicheAria": "Referenzierte Niche: {{name}}"
+    },
     "actions": {
       "toolbarLabel": "Nachrichten-Aktionen",
       "copy": "Nachricht kopieren",

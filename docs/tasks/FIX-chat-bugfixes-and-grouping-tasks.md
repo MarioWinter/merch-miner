@@ -84,30 +84,30 @@
 **Skills:** `/backend` then `/frontend`. No commit between sub-phases.
 
 ### Backend
-- [ ] Add `referenced_niche` FK to `ChatMessage` in `django-app/search_app/models.py`:
-  - `models.ForeignKey('niche_app.Niche', on_delete=SET_NULL, null=True, blank=True, db_index=True, related_name='referenced_in_messages')`.
-- [ ] `python manage.py makemigrations search_app` → creates `0009_chatmessage_referenced_niche.py`. Verify additive-only.
-- [ ] In `ChatSessionMessageStreamView` POST handler (Phase 1) AND the legacy GET: read `niche_id`, validate same workspace, set `referenced_niche_id` on user `ChatMessage.objects.create(...)`. Assistant message stays `referenced_niche=None`.
-- [ ] Cross-workspace `niche_id` → raise `ValidationError` 400 with `code='niche_not_in_workspace'`.
-- [ ] Extend `ChatMessageSerializer`: add `referenced_niche_id` (UUIDField via `source='referenced_niche.id'`, read_only, allow_null) + `referenced_niche_name` (SerializerMethodField returning `obj.referenced_niche.title` or None).
-- [ ] Extend list-endpoint queryset in `ChatSessionMessagesView` (or equivalent) with `.select_related('referenced_niche')` to avoid N+1.
-- [ ] Grep for `SharedChatView` or `share_token`-protected serializer. If it returns `referenced_niche_id`/`referenced_niche_name`, strip them in the public serializer (workspace-private data must not leak via public share). If a separate `SharedChatMessageSerializer` exists, omit the new fields there.
-- [ ] Pytest tests in `django-app/search_app/tests/test_chat_session_message_stream_view.py`:
-  - `test_referenced_niche_persisted_on_user_message`
-  - `test_referenced_niche_cross_workspace_rejected`
-  - `test_chat_message_serializer_returns_referenced_niche_fields`
-  - `test_shared_chat_view_strips_referenced_niche` (NEW — verify share-leak protection).
-- [ ] `pytest django-app/search_app/tests/` green.
-- [ ] `ruff check django-app/search_app/` green.
+- [x] Add `referenced_niche` FK to `ChatMessage` in `django-app/search_app/models.py`:
+  - `models.ForeignKey('niche_app.Niche', on_delete=SET_NULL, null=True, blank=True, db_index=True, related_name='referenced_in_messages')`. — models.py:132-146
+- [x] `python manage.py makemigrations search_app` → creates `0009_chatmessage_referenced_niche.py`. Verify additive-only. — migrations/0009_chatmessage_referenced_niche.py (single AddField, no data migration)
+- [x] In `ChatSessionMessageStreamView` POST handler (Phase 1) AND the legacy GET: read `niche_id`, validate same workspace, set `referenced_niche_id` on user `ChatMessage.objects.create(...)`. Assistant message stays `referenced_niche=None`. — views.py:889-905 (validation, shared by both GET + POST via `_stream`); views.py:935 (vision branch user msg); views.py:1047 (Vane / niche-agent branch user msg)
+- [x] Cross-workspace `niche_id` → raise `ValidationError` 400 with `code='niche_not_in_workspace'`. — views.py:889-905
+- [x] Extend `ChatMessageSerializer`: add `referenced_niche_id` (UUIDField via `source='referenced_niche.id'`, read_only, allow_null) + `referenced_niche_name` (SerializerMethodField returning `obj.referenced_niche.name` or None — Niche uses `name`, not `title`). — serializers.py:14-22, 35-46
+- [x] Extend list-endpoint queryset in `ChatSessionMessagesView` (or equivalent) with `.select_related('referenced_niche')` to avoid N+1. — views.py (ChatSessionMessagesView.get queryset) + serializers.py ChatSessionDetailSerializer.get_messages (both code-paths used by the frontend)
+- [x] Grep for `SharedChatView` or `share_token`-protected serializer. If it returns `referenced_niche_id`/`referenced_niche_name`, strip them in the public serializer (workspace-private data must not leak via public share). If a separate `SharedChatMessageSerializer` exists, omit the new fields there. — `PublicChatMessageSerializer` uses an explicit allowlist (`fields = ['id','role','content','message_type','sources','model_used','attachments','created_at']`) so the new fields are NOT exposed via `/api/chat/sessions/shared/<token>/`. No change required; covered by `test_shared_chat_view_strips_referenced_niche` regression test.
+- [x] Pytest tests in `django-app/search_app/tests/test_chat_session_message_stream_view.py`:
+  - `test_referenced_niche_persisted_on_user_message` — test_chat_session_message_stream_view.py:891-936
+  - `test_referenced_niche_cross_workspace_rejected` — test_chat_session_message_stream_view.py:938-987
+  - `test_chat_message_serializer_returns_referenced_niche_fields` — test_chat_session_message_stream_view.py:989-1021
+  - `test_shared_chat_view_strips_referenced_niche` (NEW — verify share-leak protection). — test_chat_session_message_stream_view.py:1023-1054
+- [x] `pytest django-app/search_app/tests/` green. — 152 passed, 3 skipped; 1 pre-existing unrelated failure (`test_chat_health.py::test_chat_node_config_green_when_seed_present`, seeded-data fixture issue — verified on baseline before any Phase 3 changes via `git stash`).
+- [x] `ruff check django-app/search_app/` green. — All checks passed!
 
 ### Frontend
-- [ ] Add `referenced_niche_id?: string | null` + `referenced_niche_name?: string | null` to `ChatMessage` in `frontend-ui/src/types/search.ts`.
-- [ ] In `ChatMessageList.tsx`, user-row (`role === 'user'`) renders a read-only `NicheChip` ABOVE the `UserBubble` when `referenced_niche_name` is non-null. Check `NicheChip` API: if it requires `onRemove` or other input-bar-coupled props, add a `readOnly` mode OR create a lightweight `<HistoryNicheChip>` wrapper.
-- [ ] Chip props: `label = referenced_niche_name`, `nicheId = referenced_niche_id`, `readOnly = true` (no click / remove / hover-lift).
-- [ ] Aligned to right edge of MessageRow (matches `flex-direction: row-reverse` for user row).
-- [ ] Add i18n key `search.history.referencedNicheAria` (EN + DE).
-- [ ] Vitest `ChatMessageList.test.tsx`: fixture user message with `referenced_niche_name='Cats'` → chip rendered; null → no chip.
-- [ ] `npm run lint` + `npm run test:ci` green.
+- [x] Add `referenced_niche_id?: string | null` + `referenced_niche_name?: string | null` to `ChatMessage` in `frontend-ui/src/types/search.ts`. — types/search.ts:109-114
+- [x] In `ChatMessageList.tsx`, user-row (`role === 'user'`) renders a read-only `NicheChip` ABOVE the `UserBubble` when `referenced_niche_name` is non-null. Check `NicheChip` API: if it requires `onRemove` or other input-bar-coupled props, add a `readOnly` mode OR create a lightweight `<HistoryNicheChip>` wrapper. — Existing `NicheChip` is a contenteditable DOM-builder (not a React component) so we created a new lightweight React component `HistoryNicheChip` mirroring the chip's visual style 1:1. ChatMessageList.tsx:11 (import) + 365-373 (render inside the user-row Stack, above attachments + bubble).
+- [x] Chip props: `label = referenced_niche_name`, `nicheId = referenced_niche_id`, `readOnly = true` (no click / remove / hover-lift). — HistoryNicheChip.tsx (no onRemove/onClick/hover-lift; pure visual marker).
+- [x] Aligned to right edge of MessageRow (matches `flex-direction: row-reverse` for user row). — Wrapped inside the existing `Stack alignItems="flex-end"` for the user row at ChatMessageList.tsx:357-361; row-reverse on MessageRow places the Stack at the right edge.
+- [x] Add i18n key `search.history.referencedNicheAria` (EN + DE). — en/translation.json:3014-3016, de/translation.json:2258-2260.
+- [x] Vitest `ChatMessageList.test.tsx`: fixture user message with `referenced_niche_name='Cats'` → chip rendered; null → no chip. — __tests__/ChatMessageList.test.tsx:436-485 (3 cases: user with name → chip; user with null → no chip; assistant with name → no chip). Focused tests in __tests__/HistoryNicheChip.test.tsx (5 cases).
+- [x] `npm run lint` + `npm run test:ci` green. — lint 0 errors / 17 pre-existing warnings in untouched files; tests 1633 passed / 15 skipped / 0 failures.
 
 ### Review checkpoint
 - [ ] Manual smoke: pin a niche → send message → reload → chip visible above user bubble in history.

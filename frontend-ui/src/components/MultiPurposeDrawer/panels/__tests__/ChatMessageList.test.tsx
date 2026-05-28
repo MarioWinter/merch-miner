@@ -432,4 +432,55 @@ describe('ChatMessageList', () => {
       expect.objectContaining({ id: 'u1', content: 'q' }),
     );
   });
+
+  // FIX-chat-bugfixes-and-grouping Item 4 — referenced-niche chip render path.
+  describe('referenced niche chip', () => {
+    it('renders the chip on a user message that carries referenced_niche_name', () => {
+      const messages: ChatMessage[] = [
+        buildMessage({
+          id: 'u1',
+          role: 'user',
+          content: 'about my cats',
+          referenced_niche_id: 'niche-uuid-1',
+          referenced_niche_name: 'Cats',
+        }),
+      ];
+      renderList({ messages });
+      const chip = screen.getByTestId('referenced-niche-chip');
+      expect(chip).toBeInTheDocument();
+      expect(chip.textContent).toContain('Cats');
+      expect(chip.getAttribute('aria-label')).toContain('Cats');
+    });
+
+    it('does NOT render the chip when referenced_niche_name is null', () => {
+      const messages: ChatMessage[] = [
+        buildMessage({
+          id: 'u1',
+          role: 'user',
+          content: 'no niche',
+          referenced_niche_id: null,
+          referenced_niche_name: null,
+        }),
+      ];
+      renderList({ messages });
+      expect(screen.queryByTestId('referenced-niche-chip')).toBeNull();
+    });
+
+    it('does NOT render the chip on assistant messages (defence in depth)', () => {
+      // Backend guarantees assistant messages never carry the field, but the
+      // render path should be guarded regardless. We synthesise the field on
+      // an assistant row and assert no chip leaks through.
+      const messages: ChatMessage[] = [
+        buildMessage({
+          id: 'a1',
+          role: 'assistant',
+          content: 'reply',
+          referenced_niche_id: 'niche-uuid-1',
+          referenced_niche_name: 'Cats',
+        }),
+      ];
+      renderList({ messages });
+      expect(screen.queryByTestId('referenced-niche-chip')).toBeNull();
+    });
+  });
 });

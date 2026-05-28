@@ -130,6 +130,21 @@ class ChatMessage(models.Model):
         related_name='triggered_chat_messages',
         help_text='Set for workflow_trigger / workflow_card messages — links to PROJ-18 AgentSession.',
     )
+    # FIX 2026-05-28 Item 4 — per-message niche reference. Set only on
+    # role='user' messages by the SSE stream view when the request carries a
+    # `niche_id` that belongs to the same workspace as the session. Distinct
+    # from session-level `ChatSession.niche_context`: this field captures the
+    # niche the USER explicitly referenced for THIS turn, so the chat history
+    # can render a read-only NicheChip next to the user bubble even when the
+    # session pin changed turn-by-turn.
+    referenced_niche = models.ForeignKey(
+        'niche_app.Niche',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_index=True,
+        related_name='referenced_in_messages',
+    )
     # PROJ-29 Phase 1I — structured slogan rows emitted by `generate_slogans`
     # tool during a niche-chat turn. Persisted on the assistant message so the
     # GeneratedSloganTable can re-render after page reload (without this the
