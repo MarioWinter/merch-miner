@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.5.1](https://github.com/MarioWinter/merch-miner/compare/v0.5.0...v0.5.1) (2026-05-27)
+
+
+### Bug Fixes
+
+* AI Research heart-toggle + Notion-style Notes editor (TipTap) ([#92](https://github.com/MarioWinter/merch-miner/issues/92)) ([1b23ca1](https://github.com/MarioWinter/merch-miner/commit/1b23ca1a09ac2a92e1dbc4cb7c12670382efc603))
+
 ## [0.5.0](https://github.com/MarioWinter/merch-miner/compare/v0.4.0...v0.5.0) (2026-05-27)
 
 
