@@ -38,6 +38,20 @@ const safeRemove = (key: string): void => {
 // State
 // -----------------------------------------------------------------
 
+/**
+ * Phase 10 — last terminal-state event of a single upscale.
+ * Used by the workspace-level snackbar effect to fire exactly one snackbar
+ * per completion, with the wording switched based on which tab the user is
+ * currently on (same-tab vs cross-tab variant).
+ */
+export interface UpscaleCompletion {
+  designId: string | null;
+  kind: 'success' | 'error';
+  /** Optional sub-error code for finer-grained snackbar wording (timeout, etc.). */
+  reason?: 'timeout' | 'trigger_failed' | 'quota_exceeded';
+  ts: number;
+}
+
 export interface UpscaleSliceState {
   /** Currently-tracked batch id (for the topbar pill + drawer rehydrate). */
   activeBatchId: string | null;
@@ -56,6 +70,12 @@ export interface UpscaleSliceState {
    * Upscale tool OR the Apply-Pipeline upscale step is running.
    */
   processingDesignIds: string[];
+  /**
+   * Phase 10 — last terminal-state completion event. Workspace effect
+   * watches this and fires either the same-tab or the cross-tab snackbar
+   * exactly once per change. Hook never enqueues snackbars itself.
+   */
+  lastCompletion: UpscaleCompletion | null;
 }
 
 const initialState: UpscaleSliceState = {
@@ -65,6 +85,7 @@ const initialState: UpscaleSliceState = {
   cloudTargetByWorkspace: {},
   hideCompletedInDrawer: false,
   processingDesignIds: [],
+  lastCompletion: null,
 };
 
 // -----------------------------------------------------------------
@@ -129,6 +150,13 @@ const upscaleSlice = createSlice({
         (id) => id !== action.payload,
       );
     },
+    /**
+     * Phase 10 — record a terminal-state completion. Workspace effect
+     * reacts to ts changes and fires the appropriate snackbar exactly once.
+     */
+    recordCompletion(state, action: PayloadAction<UpscaleCompletion>) {
+      state.lastCompletion = action.payload;
+    },
     hydrateFromStorage(state, action: PayloadAction<{ workspaceIds: string[] }>) {
       action.payload.workspaceIds.forEach((wsId) => {
         const dest = safeGet(LS_DESTINATION_PREFIX + wsId);
@@ -157,6 +185,7 @@ export const {
   setCloudTarget,
   addProcessingDesignId,
   removeProcessingDesignId,
+  recordCompletion,
   hydrateFromStorage,
 } = upscaleSlice.actions;
 

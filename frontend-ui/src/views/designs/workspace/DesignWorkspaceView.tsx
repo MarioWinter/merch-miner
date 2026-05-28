@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Alert, Badge, Box, Button, Drawer, Fab, IconButton, InputBase, Skeleton, Tooltip, Typography } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -241,6 +241,46 @@ const DesignWorkspaceView = () => {
     updateArtboard: artboardState.updateArtboard,
     optimisticArtboardUrls,
   });
+
+  // Phase 10 — workspace-level snackbar for single upscale terminal states.
+  // The hook only dispatches `recordCompletion`; the snackbar fires here so
+  // it appears exactly once per completion regardless of which tab is active
+  // and so the wording can be switched between same-tab and cross-tab
+  // variants. SnackbarProvider lives at the app root so enqueueing from
+  // here works even when the editor tab is unmounted.
+  const lastCompletion = useAppSelector((s) => s.upscale.lastCompletion);
+  const handledCompletionTsRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!lastCompletion) return;
+    if (handledCompletionTsRef.current === lastCompletion.ts) return;
+    handledCompletionTsRef.current = lastCompletion.ts;
+    const onEditorTab = activeTab === 'editor';
+    if (lastCompletion.kind === 'success') {
+      enqueueSnackbar(
+        onEditorTab
+          ? t('upscale.single.success', { defaultValue: 'Upscaled to 4500×5400' })
+          : t('upscale.single.successCrossTab', { defaultValue: 'Upscale completed' }),
+        { variant: 'success' },
+      );
+      return;
+    }
+    // kind === 'error'
+    if (lastCompletion.reason === 'timeout') {
+      enqueueSnackbar(
+        t('upscale.single.timeout', {
+          defaultValue: 'Upscale is taking longer than expected — check back later.',
+        }),
+        { variant: 'warning' },
+      );
+      return;
+    }
+    enqueueSnackbar(
+      onEditorTab
+        ? t('upscale.single.error', { defaultValue: 'Failed to start upscale' })
+        : t('upscale.single.errorCrossTab', { defaultValue: 'Upscale failed' }),
+      { variant: 'error' },
+    );
+  }, [activeTab, enqueueSnackbar, lastCompletion, t]);
 
   // -- Canvas tools/elements/keyboard/text editing --
   const canvas = useWorkspaceCanvas({

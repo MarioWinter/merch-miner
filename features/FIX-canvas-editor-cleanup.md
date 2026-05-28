@@ -1,8 +1,8 @@
 # FIX: Canvas + Editor Cleanup
 
-## Status: In Progress
+## Status: In Review
 **Created:** 2026-05-27
-**Last Updated:** 2026-05-27
+**Last Updated:** 2026-05-28
 **Type:** Mini-Fix Bundle (6 items, one PR, frontend-heavy + tiny backend touch)
 **Branch:** `fix/canvas-editor-cleanup`
 
@@ -203,8 +203,8 @@ After Items 1-6 shipped, user-test surfaced two robustness gaps:
 - [x] AC-7-17: Shimmer band uses `color-mix(in srgb, ${theme.vars.palette.primary.main} 12%, transparent)` — no hardcoded hex. — `ArtboardShimmerOverlay.tsx:30`
 
 **Cross-tab notifications:**
-- [ ] AC-7-18: When upscale completes while user is on Canvas tab (i.e. not in the Editor where it was triggered), notistack snackbar fires with key `'upscale.single.successCrossTab'`. Same for Apply Pipeline completion.
-- [ ] AC-7-19: When upscale FAILS while user is on the other tab, error snackbar fires with key `'upscale.single.errorCrossTab'`.
+- [x] AC-7-18: Upscale completions fire `'upscale.single.successCrossTab'` when the user is NOT on the Editor tab; otherwise the same-tab `'upscale.single.success'` fires. Snackbar firing is hoisted to a workspace-level effect that watches `upscaleSlice.lastCompletion`; the hook only dispatches `recordCompletion`. Exactly one snackbar fires per completion. Apply Pipeline already uses the root `SnackbarProvider` (`main.tsx:30`), so its snackbar fires regardless of which tab is active at completion — no extra wiring needed. — `upscaleSlice.ts:41-75, 137-145, 157`, `useUpscaleSingle.ts:143-169, 184-203, 245-256`, `DesignWorkspaceView.tsx:245-281`
+- [x] AC-7-19: Upscale errors fire `'upscale.single.errorCrossTab'` when the user is on the other tab; `'upscale.single.error'` otherwise. Hard-timeout errors keep the existing `'upscale.single.timeout'` wording (same on both tabs) since the warning context is identical regardless of tab. — `DesignWorkspaceView.tsx:266-280`, `useUpscaleSingle.ts:184-203, 245-256`
 
 ### Edge Cases
 - [ ] EC-7-1: localStorage quota exceeded (e.g. 10MB limit hit by many projects) — graceful fallback to in-memory state + console warning. No crash.

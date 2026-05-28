@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { designApi, useGetDesignsByIdsQuery } from '@/store/designSlice';
 import {
   addProcessingDesignId,
+  recordCompletion,
   removeProcessingDesignId,
 } from '@/store/upscaleSlice';
 import {
@@ -146,9 +147,15 @@ export const useUpscaleSingle = ({
     if (currentDesign.upscaled_file && currentDesign.upscaled_file !== baseline) {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       dispatch({ type: 'STOP' });
-      enqueueSnackbar(
-        t('upscale.single.success', { defaultValue: 'Upscaled to 4500×5400' }),
-        { variant: 'success' },
+      // Phase 10 — snackbar firing is hoisted to the workspace level so that
+      // exactly one snackbar fires per completion regardless of which tab the
+      // user is on. We only record the completion here.
+      reduxDispatch(
+        recordCompletion({
+          designId: designId ?? null,
+          kind: 'success',
+          ts: Date.now(),
+        }),
       );
       // triggerSingle mutation only invalidates UpscaleQuota — the canvas reads
       // designs via the DesignProject query, so we invalidate that tag here.
@@ -159,7 +166,7 @@ export const useUpscaleSingle = ({
       }
       drainPendingPromises('resolve');
     }
-  }, [currentDesign, drainPendingPromises, enqueueSnackbar, pollEnabled, projectId, reduxDispatch, t]);
+  }, [currentDesign, designId, drainPendingPromises, pollEnabled, projectId, reduxDispatch]);
 
   // Phase 9 — maintain workspace-level shimmer set: while polling is active for
   // this designId, broadcast it via the upscaleSlice so the canvas can render a
@@ -179,18 +186,21 @@ export const useUpscaleSingle = ({
     if (!pollEnabled) return;
     timeoutRef.current = setTimeout(() => {
       dispatch({ type: 'STOP' });
-      enqueueSnackbar(
-        t('upscale.single.timeout', {
-          defaultValue: 'Upscale is taking longer than expected — check back later.',
+      // Phase 10 — workspace-level snackbar fires from `recordCompletion`.
+      reduxDispatch(
+        recordCompletion({
+          designId: designId ?? null,
+          kind: 'error',
+          reason: 'timeout',
+          ts: Date.now(),
         }),
-        { variant: 'warning' },
       );
       drainPendingPromises('reject', new Error('Upscale timed out'));
     }, POLL_TIMEOUT_MS);
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [drainPendingPromises, enqueueSnackbar, pollEnabled, t]);
+  }, [designId, drainPendingPromises, pollEnabled, reduxDispatch]);
 
   const startTrigger = useCallback(
     async (replace: boolean) => {
@@ -233,9 +243,14 @@ export const useUpscaleSingle = ({
           dispatch({ type: 'START', jobId: '' });
           initialUpscaledRef.current = currentDesign?.upscaled_file ?? null;
         } else {
-          enqueueSnackbar(
-            t('upscale.single.error', { defaultValue: 'Failed to start upscale' }),
-            { variant: 'error' },
+          // Phase 10 — workspace-level snackbar fires from `recordCompletion`.
+          reduxDispatch(
+            recordCompletion({
+              designId: designId ?? null,
+              kind: 'error',
+              reason: 'trigger_failed',
+              ts: Date.now(),
+            }),
           );
           drainPendingPromises('reject', new Error('Failed to start upscale'));
         }
@@ -248,6 +263,7 @@ export const useUpscaleSingle = ({
       destination,
       drainPendingPromises,
       enqueueSnackbar,
+      reduxDispatch,
       t,
       trigger,
     ],

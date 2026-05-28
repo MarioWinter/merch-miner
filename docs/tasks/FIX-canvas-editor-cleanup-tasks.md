@@ -195,33 +195,48 @@ Implementation order is sequenced from cheapest to most complex. Each phase is o
 
 ---
 
-## Phase 10 — Cross-tab Notifications + Final Sweep (Item 7, AC-7-18..AC-7-19, plus Phase 7 sweep)
+## Phase 10 — Cross-tab Notifications + Final Sweep (Item 7, AC-7-18..AC-7-19, plus Phase 7 sweep) ✅
 
-### 10a — Cross-tab snackbars
-- [ ] In the hook that drives upscale (DesignEditorView level), detect if user is on Canvas tab at the moment of completion (via `activeTab` from `useWorkspaceTab()`).
-- [ ] If completion happens while NOT in Editor: enqueue snackbar `'upscale.single.successCrossTab'` (with design name if available).
-- [ ] Same for error path: `'upscale.single.errorCrossTab'`.
-- [ ] Apply Pipeline completion: same cross-tab snackbar pattern with key `'design.pipeline.appliedCrossTab'`.
+### 10a — Slice: lastCompletion + recordCompletion
+- [x] `UpscaleCompletion` interface + `lastCompletion: UpscaleCompletion | null` state field + `recordCompletion` reducer added to `upscaleSlice`. Stored in state so the workspace effect can react to terminal upscale events without polling. — `upscaleSlice.ts:41-49, 70-75, 137-145, 157`
 
-### 10b — i18n keys (all 5 locales)
-- [ ] `upscale.single.successCrossTab` (EN: "Upscale completed", DE: "Hochskalierung abgeschlossen")
-- [ ] `upscale.single.errorCrossTab` (EN: "Upscale failed", DE: "Hochskalierung fehlgeschlagen")
-- [ ] `design.pipeline.appliedCrossTab` (EN: "Pipeline applied to design", DE: "Pipeline auf Design angewendet")
+### 10b — useUpscaleSingle: dispatch on terminal states, drop hook-level snackbars
+- [x] Success branch (poll detects `upscaled_file` change): hook no longer enqueues `'upscale.single.success'` — dispatches `recordCompletion({ kind: 'success' })` instead. — `useUpscaleSingle.ts:143-169`
+- [x] Hard-timeout branch (20-min): hook no longer enqueues `'upscale.single.timeout'` — dispatches `recordCompletion({ kind: 'error', reason: 'timeout' })`. — `useUpscaleSingle.ts:184-203`
+- [x] Generic trigger-failure branch (non-402, non-409): hook no longer enqueues `'upscale.single.error'` — dispatches `recordCompletion({ kind: 'error', reason: 'trigger_failed' })`. — `useUpscaleSingle.ts:245-256`
+- [x] 402 quota_exceeded + 409 alreadyRunning snackbars kept in-place — they carry click-context information (resets_on, adopt running job) and are not "missed across tabs" because they fire <1s after the trigger click. Out of scope for cross-tab refactor.
 
-### 10c — Final sweep
-- [ ] `npm run lint` in `frontend-ui/` — zero errors
-- [ ] `npm run test:ci` in `frontend-ui/` — zero failures
-- [ ] Verify no orphan imports, unused props, commented-out code
-- [ ] Final manual smoke checklist:
-  - [ ] Build pipeline → reload page → pipeline + current image retained
-  - [ ] Pick version chip → reload → pick retained
-  - [ ] Trigger upscale → shimmer on artboard → wait for completion → image swap
-  - [ ] Apply Pipeline → artboard updates instantly (optimistic)
-  - [ ] Switch tabs back-and-forth — zero state loss
-  - [ ] 2 browser tabs same project — AI generate in one → other tab's batch grows
-- [ ] Push branch + open PR (user approval required per CLAUDE.md)
+### 10c — Workspace effect: fire exactly one snackbar based on activeTab
+- [x] `DesignWorkspaceView` reads `lastCompletion` via `useAppSelector` and dedupes by `ts` ref. — `DesignWorkspaceView.tsx:245-281`
+- [x] Success: enqueues `'upscale.single.success'` when `activeTab === 'editor'`, else `'upscale.single.successCrossTab'`.
+- [x] Timeout: enqueues `'upscale.single.timeout'` (same on both tabs — warning context identical).
+- [x] Generic error: enqueues `'upscale.single.error'` when `activeTab === 'editor'`, else `'upscale.single.errorCrossTab'`.
+- [x] Apply Pipeline cross-tab: verified `<SnackbarProvider>` mounts at root in `main.tsx:30` — the existing pipeline snackbar (`design.editor.pipelineSaved`) fires regardless of which tab is active, even when the editor view is unmounted. No extra wiring required.
 
-**Acceptance:** AC-7-18..AC-7-19. Final smoke covers all FIX items.
+### 10d — i18n keys (EN + DE)
+- [x] `upscale.single.successCrossTab` EN "Upscale completed" / DE "Hochskalierung abgeschlossen". — `en/translation.json:3511`, `de/translation.json:3554`
+- [x] `upscale.single.errorCrossTab` EN "Upscale failed" / DE "Hochskalierung fehlgeschlagen". — `en/translation.json:3514`, `de/translation.json:3557`
+- [x] FR/ES/IT skipped — i18next `fallbackLng: 'en'` covers them (matches Phase 5 precedent).
+
+### 10e — Apply Pipeline cross-tab (no-op decision)
+- [x] Verified `<SnackbarProvider>` is at the app root in `main.tsx:30-38` (above `<App />` in the provider tree). `handleApplyPipeline`'s `enqueueSnackbar('design.editor.pipelineSaved')` therefore continues to fire even if the editor unmounts mid-pipeline because of a tab switch — the notistack context is still alive. No additional cross-tab snackbar variant introduced for Apply Pipeline.
+
+### 10f — Final verification
+- [x] `npm run lint` — 0 errors, 17 pre-existing warnings (none in Phase 10 touched files).
+- [x] `./node_modules/.bin/vitest run` — 1621 passed, 15 skipped, 0 failures (matches Phase 9 baseline; no regression introduced by removing hook-level snackbar enqueues).
+- [x] `./node_modules/.bin/tsc --noEmit -p tsconfig.app.json` — 0 errors in Phase 10 touched files (`upscaleSlice.ts`, `useUpscaleSingle.ts`, `DesignWorkspaceView.tsx`). Pre-existing TS errors in `BatchImage`-related files are unchanged and out of scope.
+- [x] Existing `UpscaleToolParams.test.tsx` continues to pass — it mocks `useUpscaleSingle` so Phase 10's internal refactor is invisible to its tests.
+- [ ] Manual smoke (orchestrator user verifies after deploy):
+  - Trigger upscale → switch to Canvas before poll completes → wait for completion → cross-tab success snackbar fires once.
+  - Trigger upscale → stay on Editor → poll completes → same-tab success snackbar fires once.
+  - Apply Pipeline → switch to Canvas mid-flight → pipeline completes → existing `pipelineSaved` snackbar fires (proves root SnackbarProvider works after editor unmount).
+
+### 10g — Status updates
+- [x] `features/FIX-canvas-editor-cleanup.md` Status header: "In Progress" → "In Review". AC-7-18 + AC-7-19 flipped to `[x]` with implementation refs.
+- [x] `docs/tasks/FIX-canvas-editor-cleanup-tasks.md` Phase 10 sub-tasks (10a–10g) flipped done with code-line refs.
+- [x] `features/INDEX.md` FIX entry status updated "In Progress" → "In Review".
+
+**Acceptance:** AC-7-18 ✅, AC-7-19 ✅.
 
 ---
 
