@@ -777,3 +777,83 @@ class TestModeOverrideAcceptance:
 
         assert resp.status_code == 200
         mock_run_chat.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# FIX 2026-05-28 / Item 1 — SSE GET → POST refactor
+# ---------------------------------------------------------------------------
+
+@pytest.mark.django_db
+class TestPostStream:
+    """The POST surface MUST stream the same canonical SSE sequence (``init``
+    → ``chunk`` → ``done``) as the legacy GET surface for an identical
+    input. Mirrors ``TestNicheAgentRouting.test_niche_session_routes_through_agent``
+    using the new POST contract introduced by FIX item 1.
+    """
+
+    def test_post_streams_init_chunk_done_sequence(
+        self, api_client, workspace, niche_session,
+    ):
+        canonical = [
+            {'event': 'init', 'data': {
+                'session_id': str(niche_session.id), 'mode': 'agent',
+            }},
+            {'event': 'stage', 'data': {'stage': 'thinking'}},
+            {'event': 'tool_call', 'data': {
+                'tool': 'top_keywords', 'args': {'limit': 5},
+            }},
+            {'event': 'tool_result', 'data': {
+                'tool': 'top_keywords', 'duration_ms': 12,
+                'output_preview': '[{...}]',
+            }},
+            {'event': 'chunks_used', 'data': {'chunks': [
+                {
+                    'chunk_text': 'Camping Dad slogan example',
+                    'content_subtype': 'slogan',
+                    'source_pk': 'idea-123',
+                    'score': 0.91,
+                },
+            ]}},
+            {'event': 'chunk', 'data': {'delta': 'Try '}},
+            {'event': 'chunk', 'data': {'delta': 'these slogans'}},
+            {'event': 'follow_ups', 'data': {'chips': [
+                'More like this', 'Why does this work?', 'Add to niche',
+            ]}},
+            {'event': 'done', 'data': {'final_answer': 'Try these slogans'}},
+        ]
+
+        with patch(
+            'agent_app.agents.niche_chat_agent.run_chat',
+            side_effect=make_run_chat_stub(canonical),
+        ):
+            resp = api_client.post(
+                f'/api/chat/sessions/{niche_session.id}/messages/stream/',
+                data={'content': 'hi'},
+                format='json',
+                **_headers(workspace),
+            )
+            events = parse_sse(resp.streaming_content)
+
+        assert resp.status_code == 200
+        assert resp['Content-Type'].startswith('text/event-stream')
+        assert resp['X-Accel-Buffering'] == 'no'
+
+        non_heartbeats = [e for e in events if e['_event'] != 'heartbeat']
+        names = [e['_event'] for e in non_heartbeats]
+
+        # Same canonical ordered subset asserted for the GET path.
+        assert names[0] == 'init'
+        assert 'stage' in names
+        assert names.index('tool_call') < names.index('tool_result')
+        assert 'chunks_used' in names
+        assert 'chunk' in names
+        assert 'done' in names
+        assert 'follow_ups' in names
+        assert names.index('chunks_used') < names.index('done')
+        assert names.index('follow_ups') < names.index('done')
+
+        # Assistant message persisted via the shared ``_stream`` helper.
+        assistant = ChatMessage.objects.get(
+            session=niche_session, role=ChatMessage.Role.ASSISTANT,
+        )
+        assert assistant.content == 'Try these slogans'

@@ -20,6 +20,7 @@ from search_app.api.serializers import (
     ChatSessionDetailSerializer,
     ChatSessionListSerializer,
     ChatSessionUpdateSerializer,
+    ChatStreamRequestSerializer,
     PublicChatSessionSerializer,
     SaveToNicheSerializer,
     SendMessageSerializer,
@@ -735,6 +736,119 @@ class ChatSessionMessageStreamView(APIView):
     throttle_scope = 'chat_agent'
 
     def get(self, request, session_id):
+        # Deprecated 2026-05-28: use POST. Removal planned next release.
+        #
+        # Legacy ``EventSource``-compatible GET surface. Reads inputs from
+        # query params then funnels into the shared ``_stream`` helper. New
+        # callers should use POST so the prompt body avoids the Caddy
+        # ~8 KB URI cap (FIX item 1).
+        validated = self._parse_get_query_params(request)
+        if isinstance(validated, Response):
+            return validated
+        return self._stream(validated, session_id, request)
+
+    def post(self, request, session_id):
+        # FIX 2026-05-28: SSE stream over POST so prompts > ~8 KB no longer
+        # blow past Caddy's URI cap. Body shape validated via
+        # ``ChatStreamRequestSerializer``; wire-compatible with the legacy
+        # GET — both paths share ``_stream``.
+        serializer = ChatStreamRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated = self._normalize_validated(serializer.validated_data)
+        return self._stream(validated, session_id, request)
+
+    def _parse_get_query_params(self, request):
+        """Translate the legacy GET query params into the ``_stream`` dict shape.
+
+        Returns a ``Response`` on validation failure (matches the original
+        400 contract for missing ``content``).
+        """
+        content = request.query_params.get('content', '').strip()
+        if not content:
+            return Response(
+                {'error': 'content query parameter is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Cleanup 2026-04-28: `search_mode` is the Vane optimization knob
+        # (speed/balanced/quality). The frontend used to overload this with
+        # routing intent ('web_search'/'agent') — those values fell through
+        # to 'balanced'. We now accept an explicit `optimization_mode` (and
+        # keep `search_mode` as a fallback for backward compatibility).
+        search_mode = (
+            request.query_params.get('optimization_mode')
+            or request.query_params.get('search_mode')
+            or 'balanced'
+        )
+        if search_mode not in ('speed', 'balanced', 'quality'):
+            search_mode = 'balanced'
+
+        sources_raw = request.query_params.get('search_sources', 'web')
+        search_sources = [
+            s.strip() for s in sources_raw.split(',')
+            if s.strip() in ('web', 'academic', 'discussions')
+        ] or ['web']
+
+        model = request.query_params.get('model') or None
+
+        mode_override = (
+            request.query_params.get('mode_override', '').strip().lower()
+            or 'auto'
+        )
+        if mode_override not in ('auto', 'web_search', 'agent'):
+            mode_override = 'auto'
+
+        attachment_ids_raw = request.query_params.get('attachment_ids', '')
+        attachment_ids = [
+            s.strip() for s in attachment_ids_raw.split(',') if s.strip()
+        ]
+
+        per_message_niche_id = request.query_params.get('niche_id') or None
+
+        return {
+            'content': content,
+            'search_mode': search_mode,
+            'search_sources': search_sources,
+            'model': model,
+            'mode_override': mode_override,
+            'attachment_ids': attachment_ids,
+            'per_message_niche_id': per_message_niche_id,
+        }
+
+    def _normalize_validated(self, validated):
+        """Translate ``ChatStreamRequestSerializer.validated_data`` into the
+        same dict shape ``_stream`` expects from the GET path.
+
+        POST body intentionally does NOT carry the Vane-only
+        ``search_mode``/``search_sources`` knobs — those default to the
+        canonical ``balanced`` / ``['web']``. ``mode_override`` is
+        normalised to one of ``auto`` / ``web_search`` / ``agent`` (unknown
+        values fall back to ``auto``, matching GET behaviour).
+        """
+        mode_override = (validated.get('mode_override') or '').strip().lower() or 'auto'
+        if mode_override not in ('auto', 'web_search', 'agent'):
+            mode_override = 'auto'
+        niche_id = validated.get('niche_id')
+        per_message_niche_id = str(niche_id) if niche_id else None
+        model = validated.get('model') or None
+        return {
+            'content': validated['content'].strip(),
+            'search_mode': 'balanced',
+            'search_sources': ['web'],
+            'model': model,
+            'mode_override': mode_override,
+            'attachment_ids': [str(a) for a in validated.get('attachment_ids') or []],
+            'per_message_niche_id': per_message_niche_id,
+        }
+
+    def _stream(self, validated, session_id, request):
+        """Shared SSE handler used by both GET (legacy) and POST.
+
+        Resolves the session + workspace membership, then dispatches to the
+        Vision / niche-agent / Vane branches based on the validated inputs.
+        Returns either an error ``Response`` or a streaming
+        ``StreamingHttpResponse``.
+        """
         # EventSource cannot send custom headers — resolve workspace from the
         # session itself + verify user has active membership there.
         try:
@@ -765,61 +879,12 @@ class ChatSessionMessageStreamView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        content = request.query_params.get('content', '').strip()
-        if not content:
-            return Response(
-                {'error': 'content query parameter is required.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        # Cleanup 2026-04-28: `search_mode` is the Vane optimization knob
-        # (speed/balanced/quality). The frontend used to overload this with
-        # routing intent ('web_search'/'agent') — those values fell through
-        # to 'balanced'. We now accept an explicit `optimization_mode` (and
-        # keep `search_mode` as a fallback for backward compatibility).
-        search_mode = (
-            request.query_params.get('optimization_mode')
-            or request.query_params.get('search_mode')
-            or 'balanced'
-        )
-        if search_mode not in ('speed', 'balanced', 'quality'):
-            search_mode = 'balanced'
-
-        sources_raw = request.query_params.get('search_sources', 'web')
-        search_sources = [
-            s.strip() for s in sources_raw.split(',')
-            if s.strip() in ('web', 'academic', 'discussions')
-        ] or ['web']
-
-        model = request.query_params.get('model') or None
-
-        # PROJ-29 Phase 1J / BUG-2 — accept `mode_override` query param so the
-        # frontend can force the niche-agent path even when no niche is
-        # pinned on the session. Previously the SSE GET endpoint ignored
-        # this param entirely, and the frontend fell back to the legacy
-        # POST `sendMessage` mutation for agent mode (which bypasses the
-        # entire PROJ-29 SSE event protocol — no ThinkingStrip, no tool_call
-        # events, no follow-ups). The routing decision below now considers
-        # both `session.niche_context` AND `mode_override='agent'`.
-        mode_override = (
-            request.query_params.get('mode_override', '').strip().lower()
-            or 'auto'
-        )
-        if mode_override not in ('auto', 'web_search', 'agent'):
-            mode_override = 'auto'
-
-        # PROJ-20 Phase 7.3 — image attachments routed through the Vision
-        # path (OpenRouter direct, no Vane). Comma-separated UUIDs.
-        attachment_ids_raw = request.query_params.get('attachment_ids', '')
-        attachment_ids = [
-            s.strip() for s in attachment_ids_raw.split(',') if s.strip()
-        ]
-
-        # Cleanup 2026-04-28: read per-message niche_id query param. If
-        # provided, override session.niche_context for THIS request only.
-        # This lets follow-up messages re-target a niche without creating a
-        # new session.
-        per_message_niche_id = request.query_params.get('niche_id') or None
+        content = validated['content']
+        search_mode = validated['search_mode']
+        search_sources = validated['search_sources']
+        model = validated['model']
+        attachment_ids = validated['attachment_ids']
+        per_message_niche_id = validated['per_message_niche_id']
 
         # PROJ-20 Phase 7.3 — Vision branch. If the request carries
         # attachment_ids the message goes through OpenRouter directly with

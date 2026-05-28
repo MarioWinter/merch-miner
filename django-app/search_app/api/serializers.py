@@ -285,6 +285,34 @@ class SendMessageSerializer(serializers.Serializer):
     )
 
 
+class ChatStreamRequestSerializer(serializers.Serializer):
+    """Input serializer for the SSE chat stream POST body (FIX 2026-05-28).
+
+    Replaces the URL-query-string GET contract on
+    ``ChatSessionMessageStreamView`` so prompts larger than the proxy URI
+    cap (~8 KB on Caddy) can travel in the request body instead. The shape
+    is intentionally the union of every query param the legacy GET accepts;
+    the view's internal ``_stream`` helper consumes both paths identically.
+    """
+
+    content = serializers.CharField(
+        required=True, max_length=64000, allow_blank=False,
+    )
+    mode_override = serializers.CharField(
+        required=False, allow_blank=True, default='',
+    )
+    niche_id = serializers.UUIDField(
+        required=False, allow_null=True, default=None,
+    )
+    attachment_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False, allow_empty=True, default=list,
+    )
+    model = serializers.CharField(
+        required=False, allow_blank=True, default='',
+    )
+
+
 class TriggerCrawlSerializer(serializers.Serializer):
     """Input serializer for triggering a deep crawl."""
     url = serializers.URLField(max_length=2000)

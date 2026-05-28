@@ -1,30 +1,43 @@
 /**
- * PROJ-17 Phase 4 Step 6: SSE streaming hook for chat messages.
+ * Chat SSE streaming hook.
  *
- * Wraps the browser EventSource API around the backend SSE endpoint
- * `GET /api/chat/sessions/{session_id}/messages/stream/`.
+ * FIX (chat-bugfixes-and-grouping, Item 1) — 2026-05-28:
+ * Replaces the previous `new EventSource(GET)` implementation with a
+ * `fetch(POST)` + manual SSE parser over `response.body.getReader()`.
  *
- * Cookies (httpOnly JWT) are sent automatically because the request hits the
- * same origin via the Vite proxy in dev and same domain in prod, so we set
- * `withCredentials: true` to be explicit.
+ * Why: Caddy on prod caps request URI length at ~8 KB. URL-encoded German
+ * prompts of ~4 KB already exceed it (Caddy returns 400 BEFORE CORS headers,
+ * the user sees a CORS error in DevTools). POST puts the prompt in the body
+ * — no URI cap.
+ *
+ * The SSE wire format on the response is identical (`event: foo\ndata: {...}\n\n`);
+ * we just parse it manually here instead of letting the browser parse it.
  *
  * Events handled (matches backend StreamingHttpResponse):
  *   init    → setStreamingAssistantMessage({id, sources: [], content: ''})
  *   sources → appendStreamingSources([...WebSearchResult])
  *   chunk   → buffer + rAF-batched appendStreamingChunk(text)
+ *   stage / heartbeat / tool_call / tool_result / tool_timeout / chunks_used
+ *           / generate_slogans_payload / follow_ups → Redux dispatch 1:1
  *   done    → clearStreamingMessage + RTK Query tag invalidation + onDone(message_id)
  *   error   → close + clear + notistack error
  *
- * EC-7: starting a new stream cancels any active stream (close existing ES first).
+ * EC-7: starting a new stream cancels any active stream (AbortController.abort).
  *
  * Memory hygiene:
  *   - Chunks are buffered and dispatched once per animation frame (~16ms)
  *     instead of one Redux action per SSE event. Drops Redux DevTools
  *     history bloat from ~100 actions/answer to ~5–10.
- *   - A module-scoped singleton ref tracks the currently-active EventSource
- *     across all hook instances (FloatingChatBar + ChatPanel both call this
- *     hook). Starting a new stream from any caller closes the previous one,
- *     preventing two concurrent streams from corrupting Redux content.
+ *   - A module-scoped singleton AbortController tracks the currently-active
+ *     stream across all hook instances (FloatingChatBar + ChatPanel both call
+ *     this hook). Starting a new stream from any caller aborts the previous
+ *     one, preventing two concurrent streams from corrupting Redux content.
+ *
+ * 401 handling: fetch() bypasses the axios interceptor, so the hook checks
+ * `response.status === 401` BEFORE entering the SSE parse loop and
+ * replicates the terminal interceptor behavior (clearAuth + redirect to
+ * /login). Mid-stream 401 (rare — token expires while streaming) surfaces
+ * as a network error and falls through the existing `connectionLost` path.
  */
 import { useCallback, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -44,6 +57,7 @@ import {
   setStreamingSloganPayload,
   promoteStreamingSloganPayload,
 } from '@/store/chatBarSlice';
+import { clearAuth } from '@/store/authSlice';
 import { searchApi } from '@/store/searchSlice';
 import type {
   ModeOverride,
@@ -101,35 +115,37 @@ interface UseSendMessageStreamReturn {
 }
 
 /**
- * Cleanup 2026-04-28 (PROJ-20 follow-up): the SSE stream endpoint is the Vane
- * (Chat-mode) path only — Agent-mode goes via POST. So the URL only needs:
- *   - content       : the user's question
- *   - niche_id      : optional niche-context id (server falls back to session.niche_context)
- *   - mode_override : informational (server logs it; doesn't affect routing here)
+ * Build the POST stream URL. Body is the JSON payload; URL is just the
+ * session-scoped endpoint (no query string).
  *
- * `search_mode` (Vane optimization: speed/balanced/quality) is intentionally
- * omitted — backend defaults to 'balanced'. If we ever surface that knob,
- * add a separate `optimization_mode` URL param.
+ * `apiBase` mirrors the original buildStreamUrl logic: on prod the frontend
+ * lives on a different subdomain than the API, so we need `VITE_API_URL`
+ * for absolute targeting. In dev the empty string keeps it relative and the
+ * Vite proxy handles routing.
  */
-const buildStreamUrl = (
-  sessionId: string,
-  { content, mode_override, niche_id, attachment_ids, model }: StartArgs,
-): string => {
-  const params = new URLSearchParams();
-  params.set('content', content);
-  if (mode_override) params.set('mode_override', mode_override);
-  if (niche_id) params.set('niche_id', niche_id);
-  if (attachment_ids && attachment_ids.length > 0) {
-    params.set('attachment_ids', attachment_ids.join(','));
-  }
-  if (model) params.set('model', model);
-  // Native EventSource resolves a relative URL against the page origin —
-  // which on prod is `merch-miner.mariowinter.com` (frontend) instead of
-  // `miner.mariowinter.com` (API). axios uses VITE_API_URL as baseURL for
-  // normal calls; EventSource doesn't know about that, so we prepend it
-  // here. Empty string in dev keeps the URL relative (vite proxy handles it).
+const buildStreamUrl = (sessionId: string): string => {
   const apiBase = import.meta.env.VITE_API_URL ?? '';
-  return `${apiBase}/api/chat/sessions/${sessionId}/messages/stream/?${params.toString()}`;
+  return `${apiBase}/api/chat/sessions/${sessionId}/messages/stream/`;
+};
+
+interface StreamRequestBody {
+  content: string;
+  mode_override?: ModeOverride;
+  niche_id?: string;
+  attachment_ids?: string[];
+  model?: string;
+}
+
+/** Build the JSON body matching `ChatStreamRequestSerializer` on the backend. */
+const buildRequestBody = (args: StartArgs): StreamRequestBody => {
+  const body: StreamRequestBody = { content: args.content };
+  if (args.mode_override) body.mode_override = args.mode_override;
+  if (args.niche_id) body.niche_id = args.niche_id;
+  if (args.attachment_ids && args.attachment_ids.length > 0) {
+    body.attachment_ids = args.attachment_ids;
+  }
+  if (args.model) body.model = args.model;
+  return body;
 };
 
 // Cleanup 2026-04-28: silent-failure timeout. If no SSE event arrives within
@@ -145,11 +161,68 @@ const parseEventData = <T,>(raw: string): T | null => {
   }
 };
 
-// Module-scoped singleton — the only EventSource that should be active at any
-// time across all useSendMessageStream consumers. Closing this on every new
-// start() prevents Bar + ChatPanel race conditions where two streams could
-// otherwise dispatch chunks into the same Redux slice concurrently.
-let activeEventSource: EventSource | null = null;
+/**
+ * Read an SSE response body and dispatch `(event, data)` pairs.
+ *
+ * Wire format per SSE spec: each record ends in `\n\n`. Inside a record,
+ * lines starting with `event: ` carry the event name, `data: ` carry the
+ * payload. Multi-line `data: ` is concatenated with `\n`. Lines starting
+ * with `:` are comments (heartbeat colons) and skipped.
+ *
+ * Exits cleanly on `AbortError`; rethrows any other error so the hook's
+ * outer try/catch can run the connection-lost path.
+ */
+const parseSSEStream = async (
+  response: Response,
+  dispatchEvent: (eventName: string, data: string) => void,
+): Promise<void> => {
+  const body = response.body;
+  if (!body) return;
+  const reader = body.getReader();
+  const decoder = new TextDecoder('utf-8');
+  let buffer = '';
+
+  try {
+    for (;;) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      // Process every complete `\n\n`-terminated record in the buffer.
+      let boundary = buffer.indexOf('\n\n');
+      while (boundary !== -1) {
+        const record = buffer.slice(0, boundary);
+        buffer = buffer.slice(boundary + 2);
+        let eventName = 'message';
+        const dataLines: string[] = [];
+        for (const line of record.split('\n')) {
+          if (!line || line.startsWith(':')) continue;
+          if (line.startsWith('event:')) {
+            eventName = line.slice(6).trim();
+          } else if (line.startsWith('data:')) {
+            dataLines.push(line.slice(5).replace(/^ /, ''));
+          }
+        }
+        if (dataLines.length > 0) {
+          dispatchEvent(eventName, dataLines.join('\n'));
+        }
+        boundary = buffer.indexOf('\n\n');
+      }
+    }
+  } catch (err) {
+    if (err instanceof Error && err.name === 'AbortError') {
+      return; // intentional cancel — caller already cleaned up.
+    }
+    throw err;
+  }
+};
+
+// Module-scoped singleton — the only AbortController that should be active
+// at any time across all useSendMessageStream consumers. Aborting this on
+// every new start() prevents Bar + ChatPanel race conditions where two
+// streams could otherwise dispatch chunks into the same Redux slice
+// concurrently.
+let activeAbortController: AbortController | null = null;
 
 export const useSendMessageStream = ({
   sessionId,
@@ -162,8 +235,11 @@ export const useSendMessageStream = ({
   const isStreaming = useAppSelector(
     (s) => s.chatBar.streamingAssistantMessage.isStreaming,
   );
+  const activeWorkspaceId = useAppSelector(
+    (s) => s.workspace.activeWorkspaceId,
+  );
 
-  const eventSourceRef = useRef<EventSource | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
   const isStreamingRef = useRef(false);
   // rAF chunk-batching: buffer text between frames, dispatch once per frame.
   const chunkBufferRef = useRef('');
@@ -208,13 +284,12 @@ export const useSendMessageStream = ({
       chunkBufferRef.current = '';
       dispatch(appendStreamingChunk(pending));
     }
-    if (eventSourceRef.current) {
+    if (abortControllerRef.current) {
       // Drop the singleton pointer if we own it
-      if (activeEventSource === eventSourceRef.current) {
-        activeEventSource = null;
+      if (activeAbortController === abortControllerRef.current) {
+        activeAbortController = null;
       }
-      eventSourceRef.current.close();
-      eventSourceRef.current = null;
+      abortControllerRef.current = null;
     }
     isStreamingRef.current = false;
   }, [dispatch]);
@@ -234,6 +309,7 @@ export const useSendMessageStream = ({
   }, [closeStream, dispatch, enqueueSnackbar, t, onError]);
 
   const stop = useCallback(() => {
+    abortControllerRef.current?.abort();
     closeStream();
     dispatch(clearStreamingMessage());
   }, [closeStream, dispatch]);
@@ -245,33 +321,34 @@ export const useSendMessageStream = ({
         enqueueSnackbar(t('search.stream.error'), { variant: 'error' });
         return;
       }
-
-      // EC-7: cancel any in-flight stream before starting a new one — including
-      // streams owned by a different hook instance (e.g. FloatingChatBar's
-      // stream when ChatPanel kicks off a new one).
-      closeStream();
-      if (activeEventSource) {
-        activeEventSource.close();
-        activeEventSource = null;
-      }
-      dispatch(clearStreamingMessage());
-
-      const url = buildStreamUrl(effectiveSessionId, args);
-
-      let es: EventSource;
-      try {
-        es = new EventSource(url, { withCredentials: true });
-      } catch {
+      if (!activeWorkspaceId) {
+        // Fail-fast: no workspace → backend would 400; better to surface here.
         enqueueSnackbar(t('search.stream.error'), { variant: 'error' });
         return;
       }
 
-      eventSourceRef.current = es;
-      activeEventSource = es;
+      // EC-7: cancel any in-flight stream before starting a new one — including
+      // streams owned by a different hook instance (e.g. FloatingChatBar's
+      // stream when ChatPanel kicks off a new one). Abort BEFORE closeStream
+      // so the in-flight fetch reader rejects with AbortError and unwinds.
+      abortControllerRef.current?.abort();
+      if (activeAbortController) {
+        activeAbortController.abort();
+        activeAbortController = null;
+      }
+      closeStream();
+      dispatch(clearStreamingMessage());
+
+      const url = buildStreamUrl(effectiveSessionId);
+      const body = buildRequestBody(args);
+
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+      activeAbortController = abortController;
       isStreamingRef.current = true;
-      // Cleanup 2026-04-28: arm silence watchdog from the moment the
-      // EventSource opens — protects against backend that opens the stream
-      // and never sends anything (Vane "init then hang" bug).
+      // Cleanup 2026-04-28: arm silence watchdog from the moment the stream
+      // is initiated — protects against backend that opens the stream and
+      // never sends anything (Vane "init then hang" bug).
       armSilenceTimer();
 
       // PROJ-29 Phase 1J BUG-2 — placeholder step so the ThinkingStrip mounts
@@ -285,202 +362,256 @@ export const useSendMessageStream = ({
         }),
       );
 
-      es.addEventListener('init', (event) => {
-        armSilenceTimer();
-        const data = parseEventData<SSEInitEvent>((event as MessageEvent).data);
-        if (!data) return;
-        dispatch(
-          setStreamingAssistantMessage({
-            id: data.message_id,
-            sources: [],
-            content: '',
-          }),
-        );
-        // Phase 7.6 — surface the vision-model fallback so users know we
-        // swapped their selected (non-vision) model out for this request.
-        if (data.vision_fallback && data.model_used) {
-          enqueueSnackbar(
-            t('search.attachments.visionFallback', { model: data.model_used }),
-            { variant: 'info' },
-          );
-        }
-      });
-
-      es.addEventListener('sources', (event) => {
-        armSilenceTimer();
-        const data = parseEventData<SSESourcesEvent>((event as MessageEvent).data);
-        if (!data || !Array.isArray(data.sources)) return;
-        dispatch(appendStreamingSources(data.sources));
-      });
-
-      es.addEventListener('chunk', (event) => {
-        armSilenceTimer();
-        const data = parseEventData<SSEChunkEvent>((event as MessageEvent).data);
-        if (!data || typeof data.text !== 'string') return;
-        chunkBufferRef.current += data.text;
-        scheduleFlush();
-      });
-
-      // --- PROJ-29 Phase 1H: ThinkingStrip + chunks + follow-ups + slogan-payload ---
-
-      // `stage` — high-level pipeline phase boundary (e.g. retrieve_niche, writing_answer)
+      // Track whether a `done` arrived — used to suppress the
+      // "connectionLost" path when the server closes the stream cleanly.
+      let doneSeen = false;
+      // PROJ-29 Phase 1J BUG-2 — close the synthetic `connecting` placeholder
+      // the first time a real stage event arrives.
       let connectingClosed = false;
-      es.addEventListener('stage', (event) => {
+
+      const handleEvent = (eventName: string, raw: string) => {
         armSilenceTimer();
-        const data = parseEventData<SSEStageEvent>((event as MessageEvent).data);
-        if (!data || typeof data.stage !== 'string') return;
-        // PROJ-29 Phase 1J BUG-2 — close the synthetic `connecting` placeholder
-        // the first time a real stage event arrives.
-        if (!connectingClosed) {
-          dispatch(markStageDone({ stage: 'connecting', ts: Date.now() }));
-          connectingClosed = true;
+        switch (eventName) {
+          case 'init': {
+            const data = parseEventData<SSEInitEvent>(raw);
+            if (!data) return;
+            dispatch(
+              setStreamingAssistantMessage({
+                id: data.message_id,
+                sources: [],
+                content: '',
+              }),
+            );
+            if (data.vision_fallback && data.model_used) {
+              enqueueSnackbar(
+                t('search.attachments.visionFallback', { model: data.model_used }),
+                { variant: 'info' },
+              );
+            }
+            return;
+          }
+          case 'sources': {
+            const data = parseEventData<SSESourcesEvent>(raw);
+            if (!data || !Array.isArray(data.sources)) return;
+            dispatch(appendStreamingSources(data.sources));
+            return;
+          }
+          case 'chunk': {
+            const data = parseEventData<SSEChunkEvent>(raw);
+            if (!data || typeof data.text !== 'string') return;
+            chunkBufferRef.current += data.text;
+            scheduleFlush();
+            return;
+          }
+          case 'stage': {
+            const data = parseEventData<SSEStageEvent>(raw);
+            if (!data || typeof data.stage !== 'string') return;
+            if (!connectingClosed) {
+              dispatch(markStageDone({ stage: 'connecting', ts: Date.now() }));
+              connectingClosed = true;
+            }
+            dispatch(
+              pushStreamingStage({
+                stage: data.stage,
+                status: 'loading',
+                ts: Date.now(),
+              }),
+            );
+            return;
+          }
+          case 'heartbeat':
+            return; // silence-timer already rearmed above.
+          case 'tool_call': {
+            const data = parseEventData<SSEToolCallEvent>(raw);
+            if (!data || typeof data.tool_name !== 'string') return;
+            dispatch(
+              pushStreamingStage({
+                stage: data.tool_name,
+                status: 'loading',
+                ts: Date.now(),
+              }),
+            );
+            return;
+          }
+          case 'tool_result': {
+            const data = parseEventData<SSEToolResultEvent>(raw);
+            if (!data || typeof data.tool_name !== 'string') return;
+            dispatch(markStageDone({ stage: data.tool_name, ts: Date.now() }));
+            return;
+          }
+          case 'tool_timeout': {
+            const data = parseEventData<SSEToolTimeoutEvent>(raw);
+            if (!data || typeof data.tool_name !== 'string') return;
+            dispatch(
+              markStageWarning({
+                stage: data.tool_name,
+                message: data.error,
+              }),
+            );
+            return;
+          }
+          case 'chunks_used': {
+            const data = parseEventData<SSEChunksUsedEvent>(raw);
+            if (!data || !Array.isArray(data.chunks)) return;
+            dispatch(appendChunksUsed(data.chunks));
+            return;
+          }
+          case 'generate_slogans_payload': {
+            const data = parseEventData<SSEGenerateSlogansPayloadEvent>(raw);
+            if (!data || !Array.isArray(data.slogans)) return;
+            dispatch(setStreamingSloganPayload(data.slogans));
+            return;
+          }
+          case 'follow_ups': {
+            const data = parseEventData<SSEFollowUpsEvent>(raw);
+            if (!data || !Array.isArray(data.chips)) return;
+            dispatch(setFollowUps(data.chips.slice(0, 3)));
+            return;
+          }
+          case 'done': {
+            const data = parseEventData<SSEDoneEvent>(raw);
+            doneSeen = true;
+            if (data?.message_id) {
+              dispatch(promoteStreamingSloganPayload({ messageId: data.message_id }));
+            }
+            closeStream();
+            dispatch(clearStreamingMessage());
+            dispatch(
+              searchApi.util.invalidateTags([
+                { type: 'ChatMessages', id: effectiveSessionId },
+                { type: 'ChatSessions', id: effectiveSessionId },
+                { type: 'ChatSessions', id: 'LIST' },
+              ]),
+            );
+            if (data?.message_id) {
+              onDone?.(data.message_id);
+            }
+            return;
+          }
+          case 'error': {
+            const data = parseEventData<SSEErrorEvent>(raw);
+            doneSeen = true; // server closed deliberately — don't fire connectionLost on top.
+            dispatch(markStageError({ message: data?.error }));
+            closeStream();
+            dispatch(clearStreamingMessage());
+            const sid = args.sessionIdOverride ?? sessionId;
+            if (sid) {
+              dispatch(
+                searchApi.util.invalidateTags([{ type: 'ChatSessions', id: sid }]),
+              );
+            }
+            enqueueSnackbar(
+              data?.display_message ?? data?.error ?? t('search.stream.connectionLost'),
+              { variant: 'error' },
+            );
+            onError?.();
+            return;
+          }
+          default:
+            return; // unknown event — ignore.
         }
-        dispatch(
-          pushStreamingStage({
-            stage: data.stage,
-            status: 'loading',
-            ts: Date.now(),
-          }),
-        );
-      });
-
-      // `heartbeat` — keep-alive only. No Redux dispatch needed; silence-timer reset above.
-      es.addEventListener('heartbeat', () => {
-        armSilenceTimer();
-      });
-
-      // `tool_call` — append a loading row for this tool name
-      es.addEventListener('tool_call', (event) => {
-        armSilenceTimer();
-        const data = parseEventData<SSEToolCallEvent>((event as MessageEvent).data);
-        if (!data || typeof data.tool_name !== 'string') return;
-        dispatch(
-          pushStreamingStage({
-            stage: data.tool_name,
-            status: 'loading',
-            ts: Date.now(),
-          }),
-        );
-      });
-
-      // `tool_result` — transition the matching loading row → done
-      es.addEventListener('tool_result', (event) => {
-        armSilenceTimer();
-        const data = parseEventData<SSEToolResultEvent>((event as MessageEvent).data);
-        if (!data || typeof data.tool_name !== 'string') return;
-        dispatch(markStageDone({ stage: data.tool_name, ts: Date.now() }));
-      });
-
-      // `tool_timeout` — soft warning, agent continues
-      es.addEventListener('tool_timeout', (event) => {
-        armSilenceTimer();
-        const data = parseEventData<SSEToolTimeoutEvent>(
-          (event as MessageEvent).data,
-        );
-        if (!data || typeof data.tool_name !== 'string') return;
-        dispatch(
-          markStageWarning({
-            stage: data.tool_name,
-            message: data.error,
-          }),
-        );
-      });
-
-      // `chunks_used` — append retrieved chunks (FIFO-capped in slice)
-      es.addEventListener('chunks_used', (event) => {
-        armSilenceTimer();
-        const data = parseEventData<SSEChunksUsedEvent>(
-          (event as MessageEvent).data,
-        );
-        if (!data || !Array.isArray(data.chunks)) return;
-        dispatch(appendChunksUsed(data.chunks));
-      });
-
-      // `generate_slogans_payload` — structured rows for the GeneratedSloganTable.
-      // Backend wire shape: `{ slogans: SloganRow[], warnings: string[] }`.
-      es.addEventListener('generate_slogans_payload', (event) => {
-        armSilenceTimer();
-        const data = parseEventData<SSEGenerateSlogansPayloadEvent>(
-          (event as MessageEvent).data,
-        );
-        if (!data || !Array.isArray(data.slogans)) return;
-        dispatch(setStreamingSloganPayload(data.slogans));
-      });
-
-      // `follow_ups` — 3 chip suggestions, fires after `done`
-      es.addEventListener('follow_ups', (event) => {
-        armSilenceTimer();
-        const data = parseEventData<SSEFollowUpsEvent>(
-          (event as MessageEvent).data,
-        );
-        if (!data || !Array.isArray(data.chips)) return;
-        dispatch(setFollowUps(data.chips.slice(0, 3)));
-      });
-
-      es.addEventListener('done', (event) => {
-        const data = parseEventData<SSEDoneEvent>((event as MessageEvent).data);
-        // PROJ-29 Phase 1H-2 — move the slogan payload to the persisted-message
-        // keyed slot BEFORE clearStreamingMessage wipes streamingSloganPayload.
-        if (data?.message_id) {
-          dispatch(promoteStreamingSloganPayload({ messageId: data.message_id }));
-        }
-        closeStream();
-        dispatch(clearStreamingMessage());
-        // Force RTK Query refetch — persisted message + session refresh
-        dispatch(
-          searchApi.util.invalidateTags([
-            { type: 'ChatMessages', id: effectiveSessionId },
-            { type: 'ChatSessions', id: effectiveSessionId },
-            { type: 'ChatSessions', id: 'LIST' },
-          ]),
-        );
-        if (data?.message_id) {
-          onDone?.(data.message_id);
-        }
-      });
-
-      // SSE-level error event from server
-      es.addEventListener('error', (event) => {
-        const messageEvent = event as MessageEvent;
-        const data =
-          typeof messageEvent.data === 'string'
-            ? parseEventData<SSEErrorEvent>(messageEvent.data)
-            : null;
-        // PROJ-29 Phase 1H — flag the last in-flight stage as errored BEFORE we
-        // wipe streaming state, so the UI gets a chance to render the bad row.
-        dispatch(markStageError({ message: data?.error }));
-        closeStream();
-        dispatch(clearStreamingMessage());
-        // PROJ-29 Phase 1J BUG-4 — backend now persists an `error`-typed
-        // ChatMessage when run_chat fails before producing an answer. Invalidate
-        // the session cache so the paired bubble shows up immediately and the
-        // user's message is no longer stranded after reload.
-        const sid = args.sessionIdOverride ?? sessionId;
-        if (sid) {
-          dispatch(searchApi.util.invalidateTags([{ type: 'ChatSessions', id: sid }]));
-        }
-        enqueueSnackbar(
-          data?.display_message ?? data?.error ?? t('search.stream.connectionLost'),
-          { variant: 'error' },
-        );
-        onError?.();
-      });
-
-      // Connection-level error fallback (no `data` payload — onerror handler)
-      es.onerror = () => {
-        if (!isStreamingRef.current) return;
-        closeStream();
-        dispatch(clearStreamingMessage());
-        enqueueSnackbar(t('search.stream.connectionLost'), { variant: 'error' });
-        onError?.();
       };
+
+      // Run the fetch + parse loop. Any non-AbortError thrown here surfaces
+      // as the connection-lost path.
+      void (async () => {
+        let response: Response;
+        try {
+          response = await fetch(url, {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Workspace-Id': activeWorkspaceId,
+            },
+            body: JSON.stringify(body),
+            signal: abortController.signal,
+          });
+        } catch (err) {
+          if (err instanceof Error && err.name === 'AbortError') {
+            return; // intentional cancel.
+          }
+          if (!isStreamingRef.current) return;
+          closeStream();
+          dispatch(clearStreamingMessage());
+          enqueueSnackbar(t('search.stream.connectionLost'), { variant: 'error' });
+          onError?.();
+          return;
+        }
+
+        // 401 — mirror the terminal axios-interceptor behavior. fetch
+        // bypasses the interceptor entirely, so we replicate clearAuth +
+        // redirect here.
+        if (response.status === 401) {
+          closeStream();
+          dispatch(clearStreamingMessage());
+          dispatch(clearAuth());
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
+          return;
+        }
+
+        // Pre-stream non-2xx (4xx/5xx that isn't 401) — surface backend's
+        // display_message if present, no SSE parsing.
+        if (!response.ok) {
+          let displayMessage: string | undefined;
+          try {
+            const json = (await response.json()) as { display_message?: string; error?: string };
+            displayMessage = json.display_message ?? json.error;
+          } catch {
+            // body wasn't JSON — fall back to generic message.
+          }
+          closeStream();
+          dispatch(clearStreamingMessage());
+          enqueueSnackbar(displayMessage ?? t('search.stream.error'), {
+            variant: 'error',
+          });
+          onError?.();
+          return;
+        }
+
+        try {
+          await parseSSEStream(response, handleEvent);
+        } catch {
+          // Network-level error mid-stream (DNS, socket close, decode fail).
+          if (!isStreamingRef.current) return;
+          closeStream();
+          dispatch(clearStreamingMessage());
+          enqueueSnackbar(t('search.stream.connectionLost'), { variant: 'error' });
+          onError?.();
+          return;
+        }
+
+        // Stream ended cleanly without a `done` event → silence-watchdog
+        // already covers it, but if reader returned done synchronously
+        // (rare), surface as connection lost.
+        if (!doneSeen && isStreamingRef.current) {
+          closeStream();
+          dispatch(clearStreamingMessage());
+          enqueueSnackbar(t('search.stream.connectionLost'), { variant: 'error' });
+          onError?.();
+        }
+      })();
     },
-    [sessionId, closeStream, scheduleFlush, armSilenceTimer, dispatch, enqueueSnackbar, t, onDone, onError],
+    [
+      sessionId,
+      activeWorkspaceId,
+      closeStream,
+      scheduleFlush,
+      armSilenceTimer,
+      dispatch,
+      enqueueSnackbar,
+      t,
+      onDone,
+      onError,
+    ],
   );
 
   // Cleanup on unmount or session change
   useEffect(
     () => () => {
+      abortControllerRef.current?.abort();
       closeStream();
     },
     [closeStream],
