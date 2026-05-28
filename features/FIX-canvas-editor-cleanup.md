@@ -37,7 +37,7 @@ Six independent fixes to existing half-built or buggy flows in the AI Canvas + I
 - [x] AC-1-3: Error key `amazonResearch.detail.rescrapeError` unchanged.
 
 ### Edge Cases
-- [ ] EC-1-1: Polling timeout (no fresh data after 30s) → existing fallback behaviour unchanged; no additional snackbar.
+- [x] EC-1-1: Polling timeout handler is the existing implementation — no new code touched here; verified by inspection.
 
 ---
 
@@ -90,7 +90,7 @@ Six independent fixes to existing half-built or buggy flows in the AI Canvas + I
 - [x] AC-3-6: RightPanel toolbar "Add to Editor" button removed from `PanelArtboardState.tsx` (single-select) + `PanelMultiState.tsx` (multi-select) + `RightPanel.tsx` prop chain — PanelArtboardState.tsx (Tooltip+ToolbarButton block, prop, destructured prop, orphan icon import, conditional wrapper term removed), PanelMultiState.tsx (Tooltip+ToolbarButton block, prop, destructured prop, `handleAddEditor` callback, orphan icon import removed), RightPanel.tsx (prop interface, destructured prop, 2 child passthroughs removed). i18n key `design.panel.addToEditor` was never present in any locale JSON (verified zero hits via grep across en/de/fr/es/it) — only inline `t()` fallback default, removed with the button blocks. Scope extended per user decision 2026-05-27.
 
 ### Edge Cases
-- [ ] EC-3-1: User has muscle-memory for "Add to Editor" → no migration needed; the remaining "Open in Editor" performs the equivalent flow.
+- [x] EC-3-1: No migration needed — "Open in Editor" performs the equivalent flow; documented as part of the removal rationale.
 
 ---
 
@@ -127,8 +127,8 @@ Six independent fixes to existing half-built or buggy flows in the AI Canvas + I
 - [x] AC-5-1: Artboard `imageUrl` resolves via `useArtboardVersionSync` priority `upscaled > bg_removed > processed > image_file`, with user pick override.
 - [x] AC-5-2: `useUpscaleSingle` poll-complete dispatches `designApi.util.invalidateTags([{ type: 'DesignProject', id: projectId }])` — confirmed in `useUpscaleSingle.ts:124-130`.
 - [x] AC-5-3: `applyPipeline` mutation now invalidates `DesignProject` tag via `projectId` field on body (Phase 4 work). Note: in the current Phase 5 implementation `applyPipeline` itself has no in-view caller (`handleApplyPipeline` uses `processBatch` + `startProcessing` + `runUpscaleAsync`); cache refetch is driven by `useUpscaleSingle` invalidation (AC-5-2). Mutation is wired and ready for future callers. — `designSlice.ts:392-403`
-- [x] AC-5-4: `userPickedVersions` consumed by Phase 6 picker. Picks persist via local React state; reset on workspace switch.
-- [ ] AC-5-5: Loading shimmer during upscale. **Deferred to follow-up FIX** — would require lifting `pipelineUpscale.isProcessing` state across editor↔canvas boundary OR exposing a per-Design "is-upscaling" Set via Redux. Existing image swap on upscale completion already provides visible feedback to the user. AC-5-5 left intentionally unchecked; tracked as known follow-up.
+- [x] AC-5-4: `userPickedVersions` consumed by Phase 6 picker. Picks persist via local React state; reset on workspace switch. **Upgraded in Phase 8:** picks now persist to `localStorage` (`mm.canvas.pickedVersions.<projectId>`) and survive reload.
+- [x] AC-5-5: Loading shimmer during upscale — **closed in Phase 9 + 10 follow-up.** `ArtboardShimmerOverlay` renders per artboard whose `designId` is in `upscaleSlice.processingDesignIds`. Workspace-level monitor (`bfb3a41`) ensures the set survives Editor↔Canvas tab switches and recovers via boardData polling when the hook unmounts.
 
 ### Edge Cases
 - [x] EC-5-1: User picks "Original", upscale completes → artboard stays on Original because `userPickedVersions['d-1'] === 'original'` overrides priority. New Upscaled chip appears as available but inactive.
@@ -176,22 +176,22 @@ After Items 1-6 shipped, user-test surfaced two robustness gaps:
 ### Acceptance Criteria
 
 **State Persistence (reload-safe):**
-- [ ] AC-7-1: `activePipeline` (tool list + per-tool params) persists to `localStorage` under key `mm.editor.pipeline.<projectId>`. Restores on mount.
-- [ ] AC-7-2: `userPickedVersions` Map persists to `localStorage` under `mm.canvas.pickedVersions.<projectId>`. Restores on mount.
-- [ ] AC-7-3: `currentImageIndex` (editor batch) persists to `localStorage` under `mm.editor.currentIndex.<projectId>`. Restores on mount.
-- [ ] AC-7-4: Persistence layer cleaned on workspace switch (avoid leaking picks between unrelated projects in same workspace) — `userPickedVersions` reset matches existing render-time-compare pattern.
-- [ ] AC-7-5: Restored pipeline tools that no longer exist in `TOOL_CATALOG` (e.g. removed tool) are silently dropped during restore.
-- [ ] AC-7-6: Restored `currentImageIndex` is clamped to `batchImages.length - 1` (out-of-range index after design deletion).
+- [x] AC-7-1: `activePipeline` persists via `usePersistentState` (`DesignWorkspaceView.tsx`), key `mm.editor.pipeline.<projectId>`. Restores on mount. Verified live: pipeline draft survives hard reload.
+- [x] AC-7-2: `userPickedVersions` Map persists, key `mm.canvas.pickedVersions.<projectId>`, via `serializeMap`/`deserializeMap`. Restores on mount.
+- [x] AC-7-3: `currentImageIndex` persists, key `mm.editor.currentIndex.<projectId>`. Restores on mount.
+- [x] AC-7-4: Workspace-switch render-time compare clears all 3 keys via `clearPersistentKey` — `DesignWorkspaceView.tsx:159-167`.
+- [x] AC-7-5: Restore filter strips tools not in `TOOL_CATALOG` — see `usePersistentState` deserialize + downstream filter in `DesignWorkspaceView`.
+- [x] AC-7-6: `currentImageIndex` clamped via clamp effect — `useEditorBatchState.ts`.
 
 **Tab-switch resilience (no remount-cost):**
-- [ ] AC-7-7: Pipeline draft survives Canvas↔Editor tab switches with zero flash.
-- [ ] AC-7-8: `userPickedVersions` survive tab switches.
-- [ ] AC-7-9: Undo/redo history (in-memory only) — acceptable to reset on reload but MUST survive tab switches. Hoist to workspace level OR use display-none pattern (`/architecture` decides).
+- [x] AC-7-7: Pipeline draft hoisted to workspace level; Phase 8 commit `c7d4764`. Verified live via Playwright (Canvas→Editor→Canvas→Editor cycle preserves Trim + AI Upscale).
+- [x] AC-7-8: `userPickedVersions` lives at workspace level + persists; survives tab switches.
+- [x] AC-7-9: `useEditorBatchState` is now mounted at workspace level (Phase 8 hoist), so `undoRedo` (held inside that hook) survives tab switches alongside the rest of editor state.
 
 **Cross-tab diff refresh (multi-window safety):**
-- [ ] AC-7-10: `useEditorBatchState`'s `hydratedRef.current` guard replaced with diff-based merge. New designs in `boardData` are appended as new `BatchImage` entries without resetting existing batch state.
-- [ ] AC-7-11: Deleted designs (no longer in `boardData`) are filtered out of batch. `currentImageIndex` clamped if it pointed to a deleted slot.
-- [ ] AC-7-12: Updated designs (same `id`, changed file URLs) refresh their `previewUrl`/`processedUrl` in-place — no batch reorder.
+- [x] AC-7-10: `hydratedRef` guard removed; diff-based merge in `useEditorBatchState.ts:93-145` appends new server designs without resetting batch state.
+- [x] AC-7-11: Removed-design filter + `currentImageIndex` clamp — same effect.
+- [x] AC-7-12: In-place refresh on `previewUrl`/`processedUrl`/`originalUrl` for matching designId — same effect.
 
 **Optimistic updates:**
 - [x] AC-7-13: After Apply Pipeline client tools complete locally (before `saveProcessedImage` resolves), corresponding artboard's `imageUrl` updates to the local blob URL immediately. On backend failure, revert to last-known good URL. — `DesignEditorView.tsx:230-235, 247-258`, `DesignWorkspaceView.tsx:202-235`
@@ -207,11 +207,11 @@ After Items 1-6 shipped, user-test surfaced two robustness gaps:
 - [x] AC-7-19: Upscale errors fire `'upscale.single.errorCrossTab'` when the user is on the other tab; `'upscale.single.error'` otherwise. Hard-timeout errors keep the existing `'upscale.single.timeout'` wording (same on both tabs) since the warning context is identical regardless of tab. — `DesignWorkspaceView.tsx:266-280`, `useUpscaleSingle.ts:184-203, 245-256`
 
 ### Edge Cases
-- [ ] EC-7-1: localStorage quota exceeded (e.g. 10MB limit hit by many projects) — graceful fallback to in-memory state + console warning. No crash.
-- [ ] EC-7-2: User logs out / token expires → localStorage retained but user must re-authenticate on next mount. Acceptable.
-- [ ] EC-7-3: Two browser tabs both editing same project simultaneously → last-write-wins for localStorage. Acceptable for MVP (not collaborative editing).
-- [ ] EC-7-4: User opens project, edits pipeline, then opens same project in second tab → second tab sees the restored pipeline (localStorage shared across tabs of same origin).
-- [ ] EC-7-5: Design deleted while user has it as currentImageIndex → `currentImageIndex` clamped to new range, batch shows next available; if batch empty, editor empty state.
+- [x] EC-7-1: `usePersistentState` catches `QuotaExceededError`, logs `console.warn` once via the `quotaWarned` flag, continues in-memory — `usePersistentState.ts:71-78`.
+- [x] EC-7-2: Token expiry doesn't touch localStorage — auth lives in HttpOnly cookie. Pipeline drafts remain across re-auth (acceptable, no sensitive data exposed).
+- [x] EC-7-3: Last-write-wins via debounced `setItem`; documented in spec. Not collaborative editing — out of scope for MVP.
+- [x] EC-7-4: Second tab reads localStorage on mount (same origin); `storage` event keeps both tabs in sync — `usePersistentState.ts:85-98`.
+- [x] EC-7-5: Diff-merge filter drops deleted designs from batch; index clamp effect ensures `currentImageIndex` stays in range — `useEditorBatchState.ts`.
 - [x] EC-7-6: Optimistic update is cleared on every terminal branch of `saveProcessedImage` (success AND error) — see AC-7-13 wiring. Pure client-side undo while a save is in flight may briefly show the stale blob URL until the next save resolves; documented as acceptable (MVP). Full sync to `handleUndo` would require coupling the undo stack to the optimistic map and is deferred to a follow-up FIX.
 - [x] EC-7-7: 20-min hard timeout in `useUpscaleSingle` dispatches `STOP` (which flips `pollEnabled=false`), the `useEffect` cleanup runs and removes the designId from `processingDesignIds` → shimmer disappears. Error snackbar already fires inside the existing timeout branch. — `useUpscaleSingle.ts:163-176, 178-193`
 - [x] EC-7-8: On reload mid-upscale the Redux `processingDesignIds` is in-memory and resets to `[]`. The shimmer simply doesn't appear after reload — acceptable degradation. Re-mount of `useUpscaleSingle` for the same designId would re-populate the set via the existing `pendingRunId` polling resume path if applicable.

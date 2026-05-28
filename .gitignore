@@ -161,3 +161,10 @@ sftp-config.json
 /scripts/migration/
 docs/font-references/
 docs/layouts/
+
+# ── Smoke-test / Playwright screenshots (dev artifacts, never commit) ──
+/smoke-*.png
+/picker-*.png
+/canvas-*.png
+/editor-*.png
+
