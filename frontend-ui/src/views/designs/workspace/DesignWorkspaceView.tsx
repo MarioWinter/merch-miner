@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Alert, Badge, Box, Button, Drawer, Fab, IconButton, InputBase, Skeleton, Tooltip, Typography } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -8,7 +8,6 @@ import BuildOutlinedIcon from '@mui/icons-material/BuildOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import TuneIcon from '@mui/icons-material/Tune';
 import { useTranslation } from 'react-i18next';
-import { useSnackbar } from 'notistack';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
 import {
   usePersistentState,
@@ -16,7 +15,7 @@ import {
   deserializeMap,
   clearPersistentKey,
 } from '@/hooks/usePersistentState';
-import { useGetProjectQuery, useGetProjectBoardQuery, useUpdateProjectMutation } from '@/store/designSlice';
+import { useGetProjectQuery, useGetProjectBoardQuery } from '@/store/designSlice';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import useSendDesignsToListings from '@/hooks/useSendDesignsToListings';
 import useArtboards from '../board/hooks/useArtboards';
@@ -35,12 +34,14 @@ import useEditorBatchState from '../editor/hooks/useEditorBatchState';
 import type { PipelineTool, ToolName } from '../editor/types';
 import { TOOL_CATALOG } from '../editor/types';
 import ProcessingSettingsDialog from './ProcessingSettingsDialog';
-import { useAppSelector, useAppDispatch } from '../../../store/hooks';
-import { recordCompletion } from '@/store/upscaleSlice';
+import { useAppSelector } from '../../../store/hooks';
 import type { ProjectPrompt } from '../gallery/types';
 import useWorkspaceTab from './hooks/useWorkspaceTab';
 import type { WorkspaceTab } from './hooks/useWorkspaceTab';
 import useEditorBatch from './hooks/useEditorBatch';
+import useProjectNameEdit from './hooks/useProjectNameEdit';
+import useOptimisticArtboardUrls from './hooks/useOptimisticArtboardUrls';
+import useUpscaleCompletionMonitor from './hooks/useUpscaleCompletionMonitor';
 import useWorkspaceCanvas from './hooks/useWorkspaceCanvas';
 import useWorkspaceGeneration from './hooks/useWorkspaceGeneration';
 import useWorkspaceActions from './hooks/useWorkspaceActions';
@@ -88,7 +89,6 @@ const DesignWorkspaceView = () => {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { activeTab, setActiveTab } = useWorkspaceTab();
-  const { enqueueSnackbar } = useSnackbar();
   const { isDesktop } = useResponsiveLayout();
   const [mobileRightPanelOpen, setMobileRightPanelOpen] = useState(false);
 
@@ -97,27 +97,7 @@ const DesignWorkspaceView = () => {
     isLoading,
     isError,
   } = useGetProjectQuery(projectId ?? '', { skip: !projectId });
-  const [updateProject] = useUpdateProjectMutation();
-
-  // -- Inline project name editing --
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [editingName, setEditingName] = useState('');
-
-  const handleStartEditName = () => {
-    setEditingName(project?.name ?? '');
-    setIsEditingName(true);
-  };
-
-  const handleSaveName = async () => {
-    const trimmed = editingName.trim();
-    setIsEditingName(false);
-    if (!trimmed || !projectId || trimmed === project?.name) return;
-    try {
-      await updateProject({ projectId, body: { name: trimmed } }).unwrap();
-    } catch {
-      enqueueSnackbar(t('design.workspace.renameError', 'Failed to rename project'), { variant: 'error' });
-    }
-  };
+  const nameEdit = useProjectNameEdit({ projectId, currentName: project?.name });
 
   // Poll interval is updated below once we know if a generation is running
   // OR an upscale is in flight (Phase-10 fix: when the editor unmounts on tab
@@ -209,40 +189,9 @@ const DesignWorkspaceView = () => {
     if (changed) setUserPickedVersions(next);
   }, [designsById, userPickedVersions, setUserPickedVersions]);
 
-  // Phase 9 — workspace-level optimistic overrides for artboard imageUrl.
-  // Keyed by artboardId. Set immediately after a client-side pipeline step
-  // completes (so the canvas updates within ~16ms) and cleared once the
-  // server-side `saveProcessedImage` round-trip completes — at which point
-  // the normal version-sync flow takes over.
-  const [optimisticArtboardUrls, setOptimisticArtboardUrlsState] = useState<
-    Map<string, string>
-  >(() => new Map());
-  const setOptimisticArtboardUrl = useCallback(
-    (artboardId: string, url: string | null) => {
-      setOptimisticArtboardUrlsState((prev) => {
-        const next = new Map(prev);
-        if (url === null) next.delete(artboardId);
-        else next.set(artboardId, url);
-        return next;
-      });
-    },
-    [],
-  );
-
-  // Helper passed to the editor: maps designId → optimistic URL change for
-  // every artboard linked to that Design. Null URL clears all entries for
-  // matching artboards.
-  const handleOptimisticDesignUpdate = useCallback(
-    (designId: string, url: string | null) => {
-      const matchingArtboardIds = artboardState.artboards
-        .filter((ab) => ab.designId === designId)
-        .map((ab) => ab.id);
-      for (const artboardId of matchingArtboardIds) {
-        setOptimisticArtboardUrl(artboardId, url);
-      }
-    },
-    [artboardState.artboards, setOptimisticArtboardUrl],
-  );
+  const { optimisticArtboardUrls, handleOptimisticDesignUpdate } = useOptimisticArtboardUrls({
+    artboards: artboardState.artboards,
+  });
 
   useArtboardVersionSync({
     artboards: artboardState.artboards,
@@ -252,86 +201,10 @@ const DesignWorkspaceView = () => {
     optimisticArtboardUrls,
   });
 
-  // Phase-10 fix — workspace-level upscale-completion monitor. The hook in
-  // UpscaleToolParams + DesignEditorView unmounts when the user switches to
-  // the canvas tab, so its polling dies mid-flight. While processingDesignIds
-  // is non-empty, the workspace polls `boardData` (above) and dispatches
-  // `recordCompletion` once a Design's `upscaled_file` flips away from the
-  // baseline observed at entry. The reducer clears the designId from
-  // processingDesignIds, the shimmer overlay disappears.
-  const reduxDispatch = useAppDispatch();
-  const upscaleBaselinesRef = useRef<Map<string, string | null>>(new Map());
-  const processingDesignIds = useAppSelector(
-    (s) => s.upscale.processingDesignIds,
-  );
-  useEffect(() => {
-    if (!boardData?.designs) return;
-    const baselines = upscaleBaselinesRef.current;
-    for (const id of processingDesignIds) {
-      const d = boardData.designs.find((x) => x.id === id);
-      if (!d) continue;
-      if (!baselines.has(id)) {
-        baselines.set(id, d.upscaled_file ?? null);
-        continue;
-      }
-      const current = d.upscaled_file ?? null;
-      const baseline = baselines.get(id) ?? null;
-      if (current && current !== baseline) {
-        baselines.delete(id);
-        reduxDispatch(
-          recordCompletion({
-            designId: id,
-            kind: 'success',
-            ts: Date.now(),
-          }),
-        );
-      }
-    }
-    // Cleanup baselines for designIds no longer in processing.
-    for (const id of Array.from(baselines.keys())) {
-      if (!processingDesignIds.includes(id)) baselines.delete(id);
-    }
-  }, [boardData?.designs, processingDesignIds, reduxDispatch]);
-
-  // Phase 10 — workspace-level snackbar for single upscale terminal states.
-  // The hook only dispatches `recordCompletion`; the snackbar fires here so
-  // it appears exactly once per completion regardless of which tab is active
-  // and so the wording can be switched between same-tab and cross-tab
-  // variants. SnackbarProvider lives at the app root so enqueueing from
-  // here works even when the editor tab is unmounted.
-  const lastCompletion = useAppSelector((s) => s.upscale.lastCompletion);
-  const handledCompletionTsRef = useRef<number | null>(null);
-  useEffect(() => {
-    if (!lastCompletion) return;
-    if (handledCompletionTsRef.current === lastCompletion.ts) return;
-    handledCompletionTsRef.current = lastCompletion.ts;
-    const onEditorTab = activeTab === 'editor';
-    if (lastCompletion.kind === 'success') {
-      enqueueSnackbar(
-        onEditorTab
-          ? t('upscale.single.success', { defaultValue: 'Upscaled to 4500×5400' })
-          : t('upscale.single.successCrossTab', { defaultValue: 'Upscale completed' }),
-        { variant: 'success' },
-      );
-      return;
-    }
-    // kind === 'error'
-    if (lastCompletion.reason === 'timeout') {
-      enqueueSnackbar(
-        t('upscale.single.timeout', {
-          defaultValue: 'Upscale is taking longer than expected — check back later.',
-        }),
-        { variant: 'warning' },
-      );
-      return;
-    }
-    enqueueSnackbar(
-      onEditorTab
-        ? t('upscale.single.error', { defaultValue: 'Failed to start upscale' })
-        : t('upscale.single.errorCrossTab', { defaultValue: 'Upscale failed' }),
-      { variant: 'error' },
-    );
-  }, [activeTab, enqueueSnackbar, lastCompletion, t]);
+  useUpscaleCompletionMonitor({
+    designs: boardData?.designs,
+    activeTab,
+  });
 
   // -- Canvas tools/elements/keyboard/text editing --
   const canvas = useWorkspaceCanvas({
@@ -559,18 +432,21 @@ const DesignWorkspaceView = () => {
           </IconButton>
         </Tooltip>
 
-        {isEditingName ? (
+        {nameEdit.isEditingName ? (
           <InputBase
-            value={editingName}
-            onChange={(e) => setEditingName(e.target.value)}
-            onBlur={handleSaveName}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') setIsEditingName(false); }}
+            value={nameEdit.editingName}
+            onChange={(e) => nameEdit.setEditingName(e.target.value)}
+            onBlur={nameEdit.save}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void nameEdit.save();
+              if (e.key === 'Escape') nameEdit.setEditingName(project?.name ?? '');
+            }}
             autoFocus
             sx={{ fontSize: '1.25rem', fontWeight: 600, px: 1, py: 0.25, borderRadius: 1, border: '1px solid', borderColor: 'divider', minWidth: 120, maxWidth: 280 }}
           />
         ) : (
           <Tooltip title={t('design.workspace.clickToRename', 'Click to rename')}>
-            <Typography variant="h6" sx={{ fontWeight: 600, cursor: 'pointer', px: 1, py: 0.25, borderRadius: 1, '&:hover': { bgcolor: 'action.hover' } }} noWrap onClick={handleStartEditName}>
+            <Typography variant="h6" sx={{ fontWeight: 600, cursor: 'pointer', px: 1, py: 0.25, borderRadius: 1, '&:hover': { bgcolor: 'action.hover' } }} noWrap onClick={nameEdit.startEdit}>
               {project?.name ?? t('design.workspace.untitled')}
             </Typography>
           </Tooltip>

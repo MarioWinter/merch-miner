@@ -12,6 +12,7 @@ import { usePersistentState } from '@/hooks/usePersistentState';
 import { useEditorUpload } from './useEditorUpload';
 import { useEditorSelection } from './useEditorSelection';
 import useUndoRedo from './useUndoRedo';
+import useBoardDataDiffMerge from './useBoardDataDiffMerge';
 import type { BatchImage, ToolName } from '../types';
 
 // -----------------------------------------------------------------
@@ -85,80 +86,14 @@ const useEditorBatchState = ({
     { skipPersistence: !projectId },
   );
 
-  // Hydrate + cross-tab diff merge from API.
-  // Replaces the previous one-time `hydratedRef` guard: every change in
-  // `boardData.designs` is reconciled with the in-memory batch so a new design
-  // created in another browser tab appears here, and a deleted design is
-  // removed (AC-7-10..AC-7-12).
+  // RTK Query for project board (drives the diff-merge hook below).
   const { data: boardData } = useGetProjectBoardQuery({ projectId }, { skip: !projectId });
 
-  useEffect(() => {
-    const serverDesigns = boardData?.designs;
-    if (!serverDesigns) return;
-    const serverIds = new Set(serverDesigns.map((d) => d.id));
-
-    const newlyAppendedIds: Array<{ id: string; url: string }> = [];
-
-    setBatchImages((prev) => {
-      // 1. Drop batch entries whose backing design is gone from the server.
-      const filtered = prev.filter((bi) => !bi.designId || serverIds.has(bi.designId));
-
-      // 2. Refresh in-place URL when the server slot changed.
-      const updated = filtered.map((bi) => {
-        if (!bi.designId) return bi;
-        const d = serverDesigns.find((sd) => sd.id === bi.designId);
-        if (!d) return bi;
-        const latestUrl = d.processed_file || d.bg_removed_file || d.image_file;
-        const hasProcessing = !!(d.processed_file || d.bg_removed_file || d.upscaled_file);
-        if (!latestUrl || latestUrl === bi.previewUrl) return bi;
-        const url: string = latestUrl;
-        return {
-          ...bi,
-          previewUrl: url,
-          processedUrl: hasProcessing ? url : undefined,
-          originalUrl: hasProcessing ? (d.image_file ?? undefined) : undefined,
-          status: hasProcessing ? ('completed' as const) : bi.status,
-        };
-      });
-
-      // 3. Append server designs not yet represented in the batch.
-      const existingIds = new Set(updated.map((bi) => bi.designId).filter(Boolean) as string[]);
-      const appended: BatchImage[] = [];
-      for (const d of serverDesigns) {
-        if (!d.image_file) continue;
-        if (existingIds.has(d.id)) continue;
-        // `image_file` is truthy after the guard above, so the chain falls back
-        // to a non-empty string at worst.
-        const latestUrl: string = d.processed_file || d.bg_removed_file || d.image_file;
-        const hasProcessing = !!(d.processed_file || d.bg_removed_file || d.upscaled_file);
-        appended.push({
-          id: d.id,
-          file: null,
-          previewUrl: latestUrl,
-          name: (d.image_file ?? '').split('/').pop() ?? 'design.png',
-          status: hasProcessing ? ('completed' as const) : ('idle' as const),
-          designId: d.id,
-          originalUrl: hasProcessing ? (d.image_file ?? undefined) : undefined,
-          processedUrl: hasProcessing ? latestUrl : undefined,
-        });
-        newlyAppendedIds.push({ id: d.id, url: latestUrl });
-      }
-
-      // Skip re-render when nothing changed (avoid useless updates).
-      if (filtered.length === prev.length && appended.length === 0) {
-        // Mutations may still have occurred (URL refresh) — compare shallowly.
-        const sameRefs = updated.every((bi, i) => bi === filtered[i]);
-        if (sameRefs) return prev;
-        return updated;
-      }
-      return [...updated, ...appended];
-    });
-
-    // Load meta for newly appended entries (outside setState to avoid double work).
-    newlyAppendedIds.forEach(({ id, url }) => {
-      if (url) loadImageMeta(id, url);
-    });
-  }, [boardData?.designs, loadImageMeta]);
+  useBoardDataDiffMerge({
+    serverDesigns: boardData?.designs,
+    setBatchImages,
+    loadImageMeta,
+  });
 
   // AC-7-6 / AC-7-11 — clamp currentImageIndex when batch length changes
   // (initial restore from localStorage, or design deletion).

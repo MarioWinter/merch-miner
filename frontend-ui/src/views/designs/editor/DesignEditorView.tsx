@@ -23,6 +23,7 @@ import { useClientProcessing } from './hooks/useClientProcessing';
 import { useLivePreview } from './hooks/useLivePreview';
 import { useExportCompression } from './hooks/useExportCompression';
 import { useUpscaleSingle } from './hooks/useUpscaleSingle';
+import useApplyPipeline from './hooks/useApplyPipeline';
 import { JobPollerManager } from './partials/JobPollerManager';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import type useEditorBatchState from './hooks/useEditorBatchState';
@@ -130,7 +131,7 @@ const DesignEditorView = ({
   const {
     batchImages, setBatchImages, currentImageIndex, setCurrentImageIndex,
     currentImage, hasImages, fileInputRef, preloadIds, undoRedo, selection,
-    isDeletingDesign, deleteConfirmIndex, loadImageMeta, saveProcessedImage,
+    isDeletingDesign, deleteConfirmIndex, loadImageMeta,
     handleFilesAdded, handleBrowseClick, handleFileInputChange,
     handleRemoveImage, handleRemoveAll, handleDeleteFromServer,
     handleDeleteConfirm, handleDeleteCancel, handleDeleteVersion,
@@ -184,137 +185,22 @@ const DesignEditorView = ({
   const handleToggleTool = useCallback((toolId: string) => { setActivePipeline((prev) => prev.map((t) => (t.id === toolId ? { ...t, enabled: !t.enabled } : t))); }, [setActivePipeline]);
   const handleUpdateParams = useCallback((toolId: string, params: Record<string, unknown>) => { setActivePipeline((prev) => prev.map((t) => (t.id === toolId ? { ...t, params } : t))); }, [setActivePipeline]);
 
-  // -- Apply pipeline --
-  // Phase 5 — `ai_upscale` IS supported in the pipeline but uses the Replicate
-  // path via `useUpscaleSingle.runUpscaleAsync` rather than `startProcessing`.
-  // The two `ai_upscale` filter lines below are INTENTIONALLY KEPT: they peel
-  // the upscale step out of the client/server buckets so it can be executed
-  // last via the dedicated Replicate flow (which polls `upscaled_file` and
-  // honors quota / cloud-destination state). See spec AC-4-1.
-  const handleApplyPipeline = useCallback(async () => {
-    if (batchImages.length === 0) return;
-
-    // Compute upscale step (if any) and validate ordering before touching state.
-    const enabledSteps = activePipeline.filter((tool) => tool.enabled);
-    const upscaleStep = enabledSteps.find((t) => t.name === 'ai_upscale') ?? null;
-    if (upscaleStep && enabledSteps[enabledSteps.length - 1]?.id !== upscaleStep.id) {
-      enqueueSnackbar(
-        t(
-          'design.pipeline.upscaleMustBeLast',
-          'AI Upscale must be the last step in the pipeline.',
-        ),
-        { variant: 'error' },
-      );
-      return;
-    }
-
-    const clientTools = activePipeline.filter((tool) => {
-      if (!tool.enabled) return false;
-      if (tool.name === 'ai_upscale') return false;
-      if (ALWAYS_SERVER_TOOLS.includes(tool.name)) return false;
-      return true;
-    });
-
-    const serverTools = activePipeline.filter((tool) => {
-      if (!tool.enabled) return false;
-      if (tool.name === 'ai_upscale') return false;
-      return ALWAYS_SERVER_TOOLS.includes(tool.name);
-    });
-
-    // Execution body — extracted so the overwrite-confirm dialog can defer it.
-    const executeApplyPipeline = async () => {
-      undoRedo.pushSnapshot(batchImages);
-
-      if (clientTools.length > 0) {
-        const results = await processBatch(batchImages, clientTools);
-        setBatchImages(results);
-        results.forEach((img) => {
-          const url = img.processedUrl ?? img.previewUrl;
-          if (url) loadImageMeta(img.id, url);
-        });
-        // Phase 9 — paint the local blob onto canvas artboards immediately
-        // so the user sees the transform before the server round-trip.
-        for (const img of results) {
-          if (img.processedUrl && img.designId) {
-            onOptimisticUpdate?.(img.designId, img.processedUrl);
-          }
-        }
-        for (const img of results) {
-          if (img.processedUrl && img.designId && img.processedUrl.startsWith('blob:')) {
-            try {
-              const resp = await fetch(img.processedUrl);
-              const blob = await resp.blob();
-              const file = new File([blob], img.name, { type: blob.type || 'image/png' });
-              const design = await saveProcessedImage({ designId: img.designId, file, projectId }).unwrap();
-              setBatchImages((prev) =>
-                prev.map((bi) =>
-                  bi.designId === img.designId
-                    ? {
-                        ...bi,
-                        previewUrl: design.processed_file || design.image_file || '',
-                        processedUrl: design.processed_file || undefined,
-                        originalUrl: design.image_file ?? undefined,
-                      }
-                    : bi,
-                ),
-              );
-              // Clear optimistic override — the refetched Design now flows
-              // through `useArtboardVersionSync` via the normal path.
-              onOptimisticUpdate?.(img.designId, null);
-            } catch {
-              // Server save failed: revert optimistic override so the artboard
-              // falls back to the last-known good Design URL.
-              onOptimisticUpdate?.(img.designId, null);
-            }
-          }
-        }
-        enqueueSnackbar(t('design.editor.pipelineSaved', 'Pipeline applied & saved'), { variant: 'success' });
-      }
-
-      if (serverTools.length > 0) {
-        const designIds = batchImages.filter((img) => img.designId).map((img) => img.designId!);
-        if (designIds.length > 0) {
-          const steps = serverTools.map((t) => t.name) as Array<'bg_remove' | 'upscale'>;
-          await startProcessing(designIds, steps);
-        }
-      }
-
-      // Upscale step runs last via the Replicate path (AC-4-2 / EC-4-3).
-      if (upscaleStep && currentImage?.designId) {
-        try {
-          await pipelineUpscale.runUpscaleAsync();
-        } catch {
-          // Error snackbar already surfaced by `useUpscaleSingle`; abort silently here.
-        }
-      }
-    };
-
-    // Overwrite-confirm gate (AC-4-4 / EC-2-6): if design already has an
-    // upscaled_file, ask before overwriting.
-    if (upscaleStep && currentDesign?.upscaled_file) {
-      setPendingPipelineExec(() => executeApplyPipeline);
-      return;
-    }
-
-    await executeApplyPipeline();
-  }, [
+  const handleApplyPipeline = useApplyPipeline({
     activePipeline,
     batchImages,
-    processBatch,
-    startProcessing,
-    undoRedo,
-    saveProcessedImage,
-    projectId,
-    enqueueSnackbar,
-    t,
-    loadImageMeta,
     setBatchImages,
     ALWAYS_SERVER_TOOLS,
-    currentDesign,
+    projectId,
     currentImage,
+    currentDesign,
+    processBatch,
+    startProcessing,
+    loadImageMeta,
+    undoRedo,
     pipelineUpscale,
     onOptimisticUpdate,
-  ]);
+    setPendingPipelineExec,
+  });
 
   // Overwrite-dialog handlers.
   const handleUpscaleOverwriteCancel = useCallback(() => {
