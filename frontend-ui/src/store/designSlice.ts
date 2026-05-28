@@ -395,6 +395,11 @@ export const designApi = createApi({
         method: 'POST',
         data: body,
       }),
+      // projectId is frontend-only (see ApplyPipelineBody) — used here to
+      // invalidate the canvas's DesignProject cache so the artboard image
+      // refreshes after the pipeline completes.
+      invalidatesTags: (_result, _error, { projectId }) =>
+        projectId ? [{ type: 'DesignProject', id: projectId }] : [],
     }),
 
     // Fetch designs by IDs (for editor preload from URL params)

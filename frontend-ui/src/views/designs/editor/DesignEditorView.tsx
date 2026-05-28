@@ -5,6 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
 import { COLORS } from '@/style/constants';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
+import { useAppSelector } from '@/store/hooks';
+import { useGetDesignsByIdsQuery } from '@/store/designSlice';
+import type { UpscaleCloudTarget } from '@/store/upscaleApi';
 import { PipelineBar } from './partials/PipelineBar';
 import { ToolPanel } from './partials/ToolPanel';
 import { EditorCanvas } from './partials/EditorCanvas';
@@ -14,13 +17,16 @@ import { PreparingDownloadModal } from './partials/PreparingDownloadModal';
 import { DropZone } from './partials/DropZone';
 import { CloudManagerDialog } from './partials/CloudManagerDialog';
 import { MobileEditorToolSheet } from './partials/MobileEditorToolSheet';
+import UpscaleOverwriteDialog from './partials/UpscaleOverwriteDialog';
 import { useProcessing } from './hooks/useProcessing';
 import { useClientProcessing } from './hooks/useClientProcessing';
 import { useLivePreview } from './hooks/useLivePreview';
 import { useExportCompression } from './hooks/useExportCompression';
+import { useUpscaleSingle } from './hooks/useUpscaleSingle';
+import useApplyPipeline from './hooks/useApplyPipeline';
 import { JobPollerManager } from './partials/JobPollerManager';
 import ConfirmDialog from '@/components/ConfirmDialog';
-import useEditorBatchState from './hooks/useEditorBatchState';
+import type useEditorBatchState from './hooks/useEditorBatchState';
 import type { PipelineTool, CanvasToolType, CompressionLevel, ExportSettings } from './types';
 
 // -----------------------------------------------------------------
@@ -31,6 +37,18 @@ interface DesignEditorViewProps {
   projectId: string;
   editorBatch?: Array<{ id: string; url: string; name: string; width?: number; height?: number }>;
   onAddToCanvas?: (data: { url: string; name: string; width?: number; height?: number }) => void;
+  // Phase 8 — editor batch state + pipeline draft are owned by `DesignWorkspaceView`
+  // so they survive Canvas↔Editor tab unmount/remount cycles (AC-7-7..AC-7-9).
+  editorState: ReturnType<typeof useEditorBatchState>;
+  activePipeline: PipelineTool[];
+  setActivePipeline: React.Dispatch<React.SetStateAction<PipelineTool[]>>;
+  /**
+   * Phase 9 — set/clear an optimistic artboard imageUrl override for every
+   * artboard linked to `designId`. Used during Apply Pipeline so the canvas
+   * reflects client-side transforms instantly, then clears once the server
+   * round-trip completes (or fails).
+   */
+  onOptimisticUpdate?: (designId: string, url: string | null) => void;
 }
 
 // -----------------------------------------------------------------
@@ -82,30 +100,73 @@ const ThumbnailRow = styled(Box)({ height: THUMBNAIL_STRIP_HEIGHT, display: 'fle
 // Component
 // -----------------------------------------------------------------
 
-const DesignEditorView = ({ projectId, editorBatch, onAddToCanvas }: DesignEditorViewProps) => {
+const DesignEditorView = ({
+  projectId,
+  // `editorBatch` flows through `editorState`; the prop is preserved for the
+  // view's parent (DesignWorkspaceView), which forwards it into the hoisted
+  // `useEditorBatchState` call.
+  editorBatch: _editorBatch,
+  onAddToCanvas,
+  editorState,
+  activePipeline,
+  setActivePipeline,
+  onOptimisticUpdate,
+}: DesignEditorViewProps) => {
+  void _editorBatch;
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
   // PROJ-30 T3.24 — on <md viewports the 280px ToolPanel is hidden inline and
   // its content is moved into a FAB-triggered SwipeableDrawer (MobileEditorToolSheet).
   const { isDesktop } = useResponsiveLayout();
 
-  // Pipeline state
-  const [activePipeline, setActivePipeline] = useState<PipelineTool[]>([]);
+  // Local UI state — kept inside the editor (no benefit from hoisting).
   const [activeCanvasTool, setActiveCanvasTool] = useState<CanvasToolType>('move');
   const [exportCompressionLevel, setExportCompressionLevel] = useState<CompressionLevel>('medium');
   const [cloudManagerOpen, setCloudManagerOpen] = useState(false);
+  // Phase 5 — Apply-Pipeline upscale-overwrite gate. Holds the pending execution
+  // callback while the UpscaleOverwriteDialog is open. `null` = dialog closed.
+  const [pendingPipelineExec, setPendingPipelineExec] = useState<(() => void) | null>(null);
 
-  // Batch state (destructured to satisfy react-hooks/refs lint rule)
+  // Batch state — hoisted in Phase 8 (consumed via prop bundle).
   const {
     batchImages, setBatchImages, currentImageIndex, setCurrentImageIndex,
     currentImage, hasImages, fileInputRef, preloadIds, undoRedo, selection,
-    isDeletingDesign, deleteConfirmIndex, loadImageMeta, saveProcessedImage,
+    isDeletingDesign, deleteConfirmIndex, loadImageMeta,
     handleFilesAdded, handleBrowseClick, handleFileInputChange,
     handleRemoveImage, handleRemoveAll, handleDeleteFromServer,
     handleDeleteConfirm, handleDeleteCancel, handleDeleteVersion,
     handleUndo, handleRedo, handleDrop, handleDragOver, getBatchFile,
     ALWAYS_SERVER_TOOLS,
-  } = useEditorBatchState({ projectId, editorBatch });
+  } = editorState;
+
+  // Upscale destination (Phase 5 pipeline routing). Read from upscale slice
+  // identical to UpscaleToolParams — keeps the pipeline upscale honoring the
+  // user's destination toggle.
+  const workspaceId = useAppSelector((s) => s.workspace.activeWorkspaceId);
+  const upscaleDestination = useAppSelector((s) =>
+    workspaceId ? s.upscale.destinationByWorkspace[workspaceId] : undefined,
+  ) ?? 'local';
+  const upscaleCloudTarget = useAppSelector((s) =>
+    workspaceId ? s.upscale.cloudTargetByWorkspace[workspaceId] : null,
+  ) as UpscaleCloudTarget | null;
+
+  // Separate `useUpscaleSingle` instance for the Apply-Pipeline flow. The
+  // standalone Upscale tool panel mounts its own instance independently — two
+  // instances each manage their own polling state.
+  const pipelineUpscale = useUpscaleSingle({
+    designId: currentImage?.designId ?? null,
+    destination: upscaleDestination,
+    cloudTarget: upscaleCloudTarget,
+    projectId,
+  });
+
+  // Live design data for the current image — used to detect `upscaled_file`
+  // presence and gate the overwrite dialog (AC-4-4). Skipped when no designId.
+  const designIdForLookup = currentImage?.designId ? [currentImage.designId] : [];
+  const { data: currentDesignList } = useGetDesignsByIdsQuery(designIdForLookup, {
+    skip: designIdForLookup.length === 0,
+  });
+  const currentDesign = currentDesignList?.[0] ?? null;
 
   // Processing hooks
   const { startProcessing, jobs, onJobUpdate } = useProcessing();
@@ -118,67 +179,38 @@ const DesignEditorView = ({ projectId, editorBatch, onAddToCanvas }: DesignEdito
   const exportState = useExportCompression();
 
   // -- Pipeline handlers --
-  const handleAddTool = useCallback((tool: PipelineTool) => { setActivePipeline((prev) => [...prev, tool]); }, []);
-  const handleRemoveTool = useCallback((toolId: string) => { setActivePipeline((prev) => prev.filter((t) => t.id !== toolId)); }, []);
-  const handleReorderPipeline = useCallback((tools: PipelineTool[]) => { setActivePipeline(tools); }, []);
-  const handleToggleTool = useCallback((toolId: string) => { setActivePipeline((prev) => prev.map((t) => (t.id === toolId ? { ...t, enabled: !t.enabled } : t))); }, []);
-  const handleUpdateParams = useCallback((toolId: string, params: Record<string, unknown>) => { setActivePipeline((prev) => prev.map((t) => (t.id === toolId ? { ...t, params } : t))); }, []);
+  const handleAddTool = useCallback((tool: PipelineTool) => { setActivePipeline((prev) => [...prev, tool]); }, [setActivePipeline]);
+  const handleRemoveTool = useCallback((toolId: string) => { setActivePipeline((prev) => prev.filter((t) => t.id !== toolId)); }, [setActivePipeline]);
+  const handleReorderPipeline = useCallback((tools: PipelineTool[]) => { setActivePipeline(tools); }, [setActivePipeline]);
+  const handleToggleTool = useCallback((toolId: string) => { setActivePipeline((prev) => prev.map((t) => (t.id === toolId ? { ...t, enabled: !t.enabled } : t))); }, [setActivePipeline]);
+  const handleUpdateParams = useCallback((toolId: string, params: Record<string, unknown>) => { setActivePipeline((prev) => prev.map((t) => (t.id === toolId ? { ...t, params } : t))); }, [setActivePipeline]);
 
-  // -- Apply pipeline --
-  // PROJ-27 — `ai_upscale` is no longer routed through the pipeline. The
-  // Upscale tool panel fires its own Replicate request via `useUpscaleSingle`.
-  const handleApplyPipeline = useCallback(async () => {
-    if (batchImages.length === 0) return;
-    undoRedo.pushSnapshot(batchImages);
+  const handleApplyPipeline = useApplyPipeline({
+    activePipeline,
+    batchImages,
+    setBatchImages,
+    ALWAYS_SERVER_TOOLS,
+    projectId,
+    currentImage,
+    currentDesign,
+    processBatch,
+    startProcessing,
+    loadImageMeta,
+    undoRedo,
+    pipelineUpscale,
+    onOptimisticUpdate,
+    setPendingPipelineExec,
+  });
 
-    const clientTools = activePipeline.filter((tool) => {
-      if (!tool.enabled) return false;
-      if (tool.name === 'ai_upscale') return false;
-      if (ALWAYS_SERVER_TOOLS.includes(tool.name)) return false;
-      return true;
-    });
-
-    const serverTools = activePipeline.filter((tool) => {
-      if (!tool.enabled) return false;
-      if (tool.name === 'ai_upscale') return false;
-      return ALWAYS_SERVER_TOOLS.includes(tool.name);
-    });
-
-    if (clientTools.length > 0) {
-      const results = await processBatch(batchImages, clientTools);
-      setBatchImages(results);
-      results.forEach((img) => {
-        const url = img.processedUrl ?? img.previewUrl;
-        if (url) loadImageMeta(img.id, url);
-      });
-      for (const img of results) {
-        if (img.processedUrl && img.designId && img.processedUrl.startsWith('blob:')) {
-          try {
-            const resp = await fetch(img.processedUrl);
-            const blob = await resp.blob();
-            const file = new File([blob], img.name, { type: blob.type || 'image/png' });
-            const design = await saveProcessedImage({ designId: img.designId, file, projectId }).unwrap();
-            setBatchImages((prev) =>
-              prev.map((bi) =>
-                bi.designId === img.designId
-                  ? { ...bi, previewUrl: design.processed_file || design.image_file, processedUrl: design.processed_file || undefined, originalUrl: design.image_file }
-                  : bi,
-              ),
-            );
-          } catch { /* Keep blob URL as fallback */ }
-        }
-      }
-      enqueueSnackbar(t('design.editor.pipelineSaved', 'Pipeline applied & saved'), { variant: 'success' });
-    }
-
-    if (serverTools.length > 0) {
-      const designIds = batchImages.filter((img) => img.designId).map((img) => img.designId!);
-      if (designIds.length > 0) {
-        const steps = serverTools.map((t) => t.name) as Array<'bg_remove' | 'upscale'>;
-        await startProcessing(designIds, steps);
-      }
-    }
-  }, [activePipeline, batchImages, processBatch, startProcessing, undoRedo, saveProcessedImage, projectId, enqueueSnackbar, t, loadImageMeta, setBatchImages, ALWAYS_SERVER_TOOLS]);
+  // Overwrite-dialog handlers.
+  const handleUpscaleOverwriteCancel = useCallback(() => {
+    setPendingPipelineExec(null);
+  }, []);
+  const handleUpscaleOverwriteConfirm = useCallback(() => {
+    const fn = pendingPipelineExec;
+    setPendingPipelineExec(null);
+    void fn?.();
+  }, [pendingPipelineExec]);
 
   // -- Job update handler --
   const handleJobUpdate = useCallback(
@@ -336,6 +368,11 @@ const DesignEditorView = ({ projectId, editorBatch, onAddToCanvas }: DesignEdito
         body={t('design.editor.deleteServerDialogBody', { name: deleteConfirmIndex !== null ? batchImages[deleteConfirmIndex]?.name ?? '' : '' })}
         confirmLabel={t('design.editor.deleteServerConfirm')} cancelLabel={t('design.editor.deleteServerCancel')}
         onConfirm={handleDeleteConfirm} onCancel={handleDeleteCancel} isLoading={isDeletingDesign}
+      />
+      <UpscaleOverwriteDialog
+        open={pendingPipelineExec !== null}
+        onCancel={handleUpscaleOverwriteCancel}
+        onConfirm={handleUpscaleOverwriteConfirm}
       />
     </EditorRoot>
   );

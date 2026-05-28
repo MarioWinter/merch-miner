@@ -1476,8 +1476,7 @@
       "tabEditor": "Editeur d'images",
       "settings": "Parametres du projet",
       "canvasComingSoon": "Artboard Canvas bientot disponible",
-      "canvasDescription": "L'artboard Konva.js remplacera l'ancien React Flow.",
-      "openNicheDrawer": "Niche Pipeline"
+      "canvasDescription": "L'artboard Konva.js remplacera l'ancien React Flow."
     },
     "settings": {
       "title": "Parametres de traitement",

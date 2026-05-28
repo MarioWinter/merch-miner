@@ -39,7 +39,6 @@ describe('PanelMultiState — Send to Listings (PROJ-9 Phase O)', () => {
     renderWithProviders(
       <PanelMultiState
         selectedArtboards={[makeArtboard('a1', 'd1'), makeArtboard('a2', 'd2')]}
-        onAddToEditor={vi.fn()}
         onOpenInEditor={vi.fn()}
         onDeleteAll={vi.fn()}
         onExportSelected={vi.fn()}
@@ -54,7 +53,6 @@ describe('PanelMultiState — Send to Listings (PROJ-9 Phase O)', () => {
     renderWithProviders(
       <PanelMultiState
         selectedArtboards={[makeArtboard('a1', 'd1')]}
-        onAddToEditor={vi.fn()}
         onOpenInEditor={vi.fn()}
         onDeleteAll={vi.fn()}
         onExportSelected={vi.fn()}
@@ -67,7 +65,6 @@ describe('PanelMultiState — Send to Listings (PROJ-9 Phase O)', () => {
     renderWithProviders(
       <PanelMultiState
         selectedArtboards={[makeArtboard('a1', 'd1'), makeArtboard('a2', null)]}
-        onAddToEditor={vi.fn()}
         onOpenInEditor={vi.fn()}
         onDeleteAll={vi.fn()}
         onExportSelected={vi.fn()}
@@ -88,7 +85,6 @@ describe('PanelMultiState — Send to Listings (PROJ-9 Phase O)', () => {
           makeArtboard('a2', 'd2'),
           makeArtboard('a3', null),
         ]}
-        onAddToEditor={vi.fn()}
         onOpenInEditor={vi.fn()}
         onDeleteAll={vi.fn()}
         onExportSelected={vi.fn()}

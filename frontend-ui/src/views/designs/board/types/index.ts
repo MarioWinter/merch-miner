@@ -44,16 +44,16 @@ export interface Design {
   idea: string;
   idea_summary: IdeaSummary | null;
   generation_run: DesignGenerationRun | null;
-  image_file: string;
+  image_file: string | null;
   status: DesignStatus;
   is_manual: boolean;
   background_color: BackgroundColor;
   source_image_url: string;
   prompt_analysis: Record<string, unknown>;
-  upscaled_file: string;
-  bg_removed_file: string;
+  upscaled_file: string | null;
+  bg_removed_file: string | null;
   /** Latest editor-pipeline output (processed via tools like Trim, Resize, Defringe, etc.). */
-  processed_file: string;
+  processed_file: string | null;
   created_at: string;
   /**
    * PROJ-9 Phase O — true when at least one non-deleted DesignAsset exists

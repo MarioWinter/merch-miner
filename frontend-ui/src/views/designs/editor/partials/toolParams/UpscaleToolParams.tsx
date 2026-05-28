@@ -1,4 +1,5 @@
 import { useCallback, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import {
   Box,
   Button,
@@ -69,6 +70,7 @@ export const UpscaleToolParams = ({
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
   const workspaceId = useAppSelector((s) => s.workspace.activeWorkspaceId);
+  const { projectId } = useParams<{ projectId: string }>();
 
   const destination = useAppSelector((s) =>
     workspaceId ? s.upscale.destinationByWorkspace[workspaceId] : undefined,
@@ -90,6 +92,7 @@ export const UpscaleToolParams = ({
     designId: designId ?? null,
     destination,
     cloudTarget,
+    projectId: projectId ?? null,
   });
 
   const handleClick = useCallback(() => {

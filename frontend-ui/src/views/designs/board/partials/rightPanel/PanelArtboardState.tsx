@@ -16,7 +16,6 @@ import { styled } from '@mui/material/styles';
 import type { SelectChangeEvent } from '@mui/material/Select';
 import LinkIcon from '@mui/icons-material/Link';
 import LinkOffIcon from '@mui/icons-material/LinkOff';
-import AddPhotoAlternateOutlinedIcon from '@mui/icons-material/AddPhotoAlternateOutlined';
 import OpenInNewOutlinedIcon from '@mui/icons-material/OpenInNewOutlined';
 import FileDownloadOutlinedIcon from '@mui/icons-material/FileDownloadOutlined';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
@@ -98,7 +97,6 @@ interface PanelArtboardStateProps {
     patch: Partial<Omit<CanvasElement, 'id' | 'type'>>,
   ) => void;
   onReorderElement?: (artboardId: string, elementId: string, newIndex: number) => void;
-  onAddToEditor?: (ids: string[]) => void;
   onOpenInEditor?: (ids: string[]) => void;
   onExportSelected?: (ids: string[]) => void;
   onDeleteSelected?: (ids: string[]) => void;
@@ -131,7 +129,6 @@ const PanelArtboardState = ({
   onSelectElement,
   onUpdateElement,
   onReorderElement,
-  onAddToEditor,
   onOpenInEditor,
   onExportSelected,
   onDeleteSelected,
@@ -259,15 +256,8 @@ const PanelArtboardState = ({
         />
 
         {/* Action toolbar */}
-        {(onAddToEditor || onOpenInEditor || onExportSelected || onDeleteSelected) && (
+        {(onOpenInEditor || onExportSelected || onDeleteSelected) && (
           <Stack direction="row" sx={{ gap: 0.5, mt: 1 }}>
-            {onAddToEditor && (
-              <Tooltip title={t('design.panel.addToEditor', 'Add to Editor')}>
-                <ToolbarButton onClick={() => onAddToEditor([artboard.id])} aria-label={t('design.panel.addToEditor', 'Add to Editor')}>
-                  <AddPhotoAlternateOutlinedIcon sx={{ fontSize: 20 }} />
-                </ToolbarButton>
-              </Tooltip>
-            )}
             {onOpenInEditor && (
               <Tooltip title={t('design.panel.openInEditor', 'Open in Editor')}>
                 <ToolbarButton onClick={() => onOpenInEditor([artboard.id])} aria-label={t('design.panel.openInEditor', 'Open in Editor')}>
@@ -387,8 +377,8 @@ const PanelArtboardState = ({
           onClose={() => setCompareOpen(false)}
           items={[
             {
-              beforeUrl: linkedDesign.image_file,
-              afterUrl: linkedDesign.upscaled_file,
+              beforeUrl: linkedDesign.image_file ?? '',
+              afterUrl: linkedDesign.upscaled_file ?? '',
               label: artboard.label ?? artboard.id.slice(0, 8),
             },
           ]}

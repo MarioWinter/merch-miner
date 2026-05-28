@@ -40,38 +40,16 @@ const makeArtboard = (overrides: Partial<ArtboardData> = {}): ArtboardData => ({
 });
 
 // -----------------------------------------------------------------
-// Tests: "Add to Editor" from PanelMultiState
+// Tests: "Open in Editor" from PanelMultiState
 // -----------------------------------------------------------------
 
-describe('PanelMultiState: Add to Editor', () => {
-  const onAddToEditor = vi.fn();
+describe('PanelMultiState: Open in Editor', () => {
   const onOpenInEditor = vi.fn();
   const onDeleteAll = vi.fn();
   const onExportSelected = vi.fn();
 
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  it('calls onAddToEditor with selected artboard IDs when button clicked', async () => {
-    const user = userEvent.setup();
-    const artboards = [makeArtboard({ id: 'ab-1' }), makeArtboard({ id: 'ab-2' })];
-
-    renderWithProviders(
-      <PanelMultiState
-        selectedArtboards={artboards}
-        onAddToEditor={onAddToEditor}
-        onOpenInEditor={onOpenInEditor}
-        onDeleteAll={onDeleteAll}
-        onExportSelected={onExportSelected}
-      />,
-    );
-
-    const addBtn = screen.getByLabelText(/Add to Editor/i);
-    await user.click(addBtn);
-
-    expect(onAddToEditor).toHaveBeenCalledTimes(1);
-    expect(onAddToEditor).toHaveBeenCalledWith(['ab-1', 'ab-2']);
   });
 
   it('calls onOpenInEditor with selected artboard IDs when button clicked', async () => {
@@ -81,7 +59,6 @@ describe('PanelMultiState: Add to Editor', () => {
     renderWithProviders(
       <PanelMultiState
         selectedArtboards={artboards}
-        onAddToEditor={onAddToEditor}
         onOpenInEditor={onOpenInEditor}
         onDeleteAll={onDeleteAll}
         onExportSelected={onExportSelected}

@@ -11,8 +11,11 @@ import useContextMenu from '../hooks/useContextMenu';
 import useExternalDrop from '../hooks/useExternalDrop';
 import useGridDots from '../hooks/useGridDots';
 import useRubberBand from '../hooks/useRubberBand';
+import { useAppSelector } from '@/store/hooks';
 import Artboard from './Artboard';
 import ArtboardContextMenu from './ArtboardContextMenu';
+import ArtboardShimmerOverlay from './ArtboardShimmerOverlay';
+import ArtboardVersionPicker from './ArtboardVersionPicker';
 import CanvasContextMenu from './CanvasContextMenu';
 import CanvasMinimap from './CanvasMinimap';
 import ConnectionArrow from './ConnectionArrow';
@@ -24,7 +27,8 @@ import {
   HiddenInput,
 } from './ArtboardCanvas.styles';
 import type Konva from 'konva';
-import type { ArtboardData, CanvasElement } from '../types';
+import type { ArtboardData, CanvasElement, Design } from '../types';
+import type { VersionSlot } from '../hooks/useArtboardVersionSync';
 
 // -----------------------------------------------------------------
 // Constants
@@ -95,8 +99,7 @@ export interface ArtboardCanvasProps {
   onBrushDrawEnd?: () => void;
   /** Phase G13: analyze image from context menu */
   onAnalyzeImage?: (artboardId: string) => void;
-  /** Phase N: transfer actions for context menu */
-  onAddToEditor?: (artboardIds: string[]) => void;
+  /** Phase N: open in editor (context menu) */
   onOpenInEditor?: (artboardIds: string[]) => void;
   /** Element currently being inline-edited (text editing) — hide from Konva render */
   editingElementId?: string | null;
@@ -104,6 +107,12 @@ export interface ArtboardCanvasProps {
   hasDesignAsset?: (artboardId: string) => boolean;
   /** PROJ-9 Phase O — localized label rendered inside the In-Listings chip. */
   inListingsLabel?: string;
+  /** FIX Phase 6 — Design records keyed by id (powers the version picker). */
+  designsById?: Map<string, Design>;
+  /** FIX Phase 6 — explicit user version picks per designId. */
+  userPickedVersions?: Map<string, VersionSlot>;
+  /** FIX Phase 6 — pass null to clear an explicit pick (revert to auto). */
+  onPickVersion?: (designId: string, slot: VersionSlot | null) => void;
 }
 
 // -----------------------------------------------------------------
@@ -151,16 +160,22 @@ const ArtboardCanvas = ({
   onBrushDrawMove,
   onBrushDrawEnd,
   onAnalyzeImage,
-  onAddToEditor,
   onOpenInEditor,
   editingElementId,
   hasDesignAsset,
   inListingsLabel,
+  designsById,
+  userPickedVersions,
+  onPickVersion,
 }: ArtboardCanvasProps) => {
   const { t } = useTranslation();
   const { mode } = useColorScheme();
   const isDark = mode !== 'light';
   const stageRef = useRef<Konva.Stage>(null);
+  // Phase 9 — read the workspace-level set of upscaling designs. Both
+  // `useUpscaleSingle` instances (standalone Upscale tool + Apply-Pipeline
+  // upscale step) push/pop entries from this list.
+  const processingDesignIds = useAppSelector((s) => s.upscale.processingDesignIds);
 
   // Sync Konva Stage ref to canvas hook so zoom reads live position during drag
   const stageCallbackRef = useCallback(
@@ -467,7 +482,6 @@ const ArtboardCanvas = ({
         onBringToFront={bringToFront}
         onSendToBack={sendToBack}
         onAnalyzeImage={onAnalyzeImage}
-        onAddToEditor={onAddToEditor}
         onOpenInEditor={onOpenInEditor}
       />
       <CanvasContextMenu
@@ -478,6 +492,44 @@ const ArtboardCanvas = ({
         onAddArtboard={handleAddArtboardFromFile}
         onDeleteSelected={handleDeleteSelected}
       />
+
+      {processingDesignIds.length > 0 &&
+        artboards.map((ab) => {
+          if (!ab.designId || !processingDesignIds.includes(ab.designId)) return null;
+          const screenX = ab.x * zoom + panX;
+          const screenY = ab.y * zoom + panY;
+          return (
+            <ArtboardShimmerOverlay
+              key={`shimmer-${ab.id}`}
+              x={screenX}
+              y={screenY}
+              width={ab.width * zoom}
+              height={ab.height * zoom}
+            />
+          );
+        })}
+
+      {(() => {
+        if (selectedIds.size !== 1) return null;
+        if (!designsById || !onPickVersion) return null;
+        const selectedId = [...selectedIds][0];
+        const ab = artboards.find((a) => a.id === selectedId);
+        if (!ab?.designId) return null;
+        const design = designsById.get(ab.designId);
+        if (!design) return null;
+        const screenX = ab.x * zoom + panX;
+        const screenY = (ab.y + ab.height) * zoom + panY + 8;
+        return (
+          <ArtboardVersionPicker
+            designId={ab.designId}
+            design={design}
+            projectId={projectId}
+            currentPickedSlot={userPickedVersions?.get(ab.designId) ?? null}
+            onPick={(slot) => onPickVersion(ab.designId!, slot)}
+            positionAt={{ x: screenX, y: screenY }}
+          />
+        );
+      })()}
 
       <CanvasMinimap
         artboards={artboards}

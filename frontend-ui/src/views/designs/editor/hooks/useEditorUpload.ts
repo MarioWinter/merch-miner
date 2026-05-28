@@ -47,7 +47,7 @@ export const useEditorUpload = ({
                 bi.id === img.id
                   ? {
                       ...bi,
-                      previewUrl: design.image_file,
+                      previewUrl: design.image_file ?? bi.previewUrl,
                       designId: design.id,
                     }
                   : bi,

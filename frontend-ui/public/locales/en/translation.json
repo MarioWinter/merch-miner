@@ -1390,11 +1390,20 @@
       "toolCatalog": "Tool Catalog",
       "selectToolsHint": "Select tools from the bar above",
       "toggleTooltips": "Show tool descriptions",
+      "upscaleMustBeLast": "AI Upscale must be the last step in the pipeline.",
       "categories": {
         "standard": "Standard",
         "edge": "Edge Cleanup",
         "ai": "AI Processing",
         "quality": "Quality"
+      }
+    },
+    "upscale": {
+      "overwrite": {
+        "title": "Overwrite existing upscaled version?",
+        "body": "This design already has an upscaled version. Running AI Upscale again will replace it. Continue?",
+        "cancel": "Cancel",
+        "confirm": "Overwrite"
       }
     },
     "tools": {
@@ -1737,8 +1746,7 @@
       "tabEditor": "Image Editor",
       "settings": "Project Settings",
       "canvasComingSoon": "Artboard Canvas coming soon",
-      "canvasDescription": "The Konva.js-powered artboard will replace the old React Flow board.",
-      "openNicheDrawer": "Niche Pipeline"
+      "canvasDescription": "The Konva.js-powered artboard will replace the old React Flow board."
     },
     "settings": {
       "title": "Processing Settings",
@@ -1861,6 +1869,15 @@
       "fullscreen": "Fullscreen",
       "exitFullscreen": "Exit fullscreen",
       "importFromCloud": "Import from Cloud"
+    },
+    "versions": {
+      "original": "Original",
+      "edited": "Edited",
+      "bgRemoved": "BG Removed",
+      "upscaled": "Upscaled",
+      "deleted": "Version deleted",
+      "undo": "Undo",
+      "deleteFailed": "Failed to delete version"
     }
   },
   "designs": {
@@ -3312,7 +3329,7 @@
       "saveKeywords": "Save Keywords",
       "selectNicheFirst": "Select a niche first",
       "rescrapeButton": "Refresh product data",
-      "rescrapeStarted": "Scrape started — please refresh the page in ~30s.",
+      "rescrapeStarted": "Scrape started — data will refresh automatically in ~30s.",
       "rescrapeError": "Failed to refresh.",
       "readMore": "Read more",
       "showLess": "Show less",
@@ -3491,8 +3508,10 @@
       "runNow": "Upscale Now",
       "processing": "Upscaling…",
       "success": "Upscaled to 4500×5400",
+      "successCrossTab": "Upscale completed",
       "timeout": "Upscale is taking longer than expected — check back later.",
       "error": "Failed to start upscale",
+      "errorCrossTab": "Upscale failed",
       "alreadyRunning": "An upscale is already running for this design.",
       "quotaExceeded": "Monthly quota exceeded — resets {{resets_on}}",
       "reupscaleTitle": "Re-upscale this design?",

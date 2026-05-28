@@ -8,9 +8,11 @@ import {
   useSaveProcessedImageMutation,
   useDeleteDesignVersionMutation,
 } from '@/store/designSlice';
+import { usePersistentState } from '@/hooks/usePersistentState';
 import { useEditorUpload } from './useEditorUpload';
 import { useEditorSelection } from './useEditorSelection';
 import useUndoRedo from './useUndoRedo';
+import useBoardDataDiffMerge from './useBoardDataDiffMerge';
 import type { BatchImage, ToolName } from '../types';
 
 // -----------------------------------------------------------------
@@ -76,35 +78,34 @@ const useEditorBatchState = ({
       width: item.width, height: item.height, status: 'idle' as const,
     }));
   });
-  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  // Phase 8 — persist currentImageIndex per-project. Restoration is clamped
+  // by the effect below once `batchImages` is known.
+  const [currentImageIndex, setCurrentImageIndex] = usePersistentState<number>(
+    `mm.editor.currentIndex.${projectId}`,
+    0,
+    { skipPersistence: !projectId },
+  );
 
-  // Hydrate from API
+  // RTK Query for project board (drives the diff-merge hook below).
   const { data: boardData } = useGetProjectBoardQuery({ projectId }, { skip: !projectId });
-  const hydratedRef = useRef(false);
 
+  useBoardDataDiffMerge({
+    serverDesigns: boardData?.designs,
+    setBatchImages,
+    loadImageMeta,
+  });
+
+  // AC-7-6 / AC-7-11 — clamp currentImageIndex when batch length changes
+  // (initial restore from localStorage, or design deletion).
   useEffect(() => {
-    if (hydratedRef.current || !boardData?.designs?.length) return;
-    if (batchImages.length > 0) return;
-    const persisted: BatchImage[] = boardData.designs
-      .filter((d) => d.image_file)
-      .map((d) => {
-        const latestUrl = d.processed_file || d.bg_removed_file || d.image_file;
-        const hasProcessing = !!(d.processed_file || d.bg_removed_file || d.upscaled_file);
-        return {
-          id: d.id, file: null, previewUrl: latestUrl,
-          name: d.image_file.split('/').pop() ?? 'design.png',
-          status: hasProcessing ? 'completed' as const : 'idle' as const,
-          designId: d.id,
-          originalUrl: hasProcessing ? d.image_file : undefined,
-          processedUrl: hasProcessing ? latestUrl : undefined,
-        };
-      });
-    if (persisted.length > 0) {
-      setBatchImages(persisted);
-      hydratedRef.current = true;
-      persisted.forEach((img) => loadImageMeta(img.id, img.previewUrl));
+    if (batchImages.length === 0) {
+      if (currentImageIndex !== 0) setCurrentImageIndex(0);
+      return;
     }
-  }, [boardData, batchImages.length, loadImageMeta]);
+    if (currentImageIndex >= batchImages.length) {
+      setCurrentImageIndex(Math.max(0, batchImages.length - 1));
+    }
+  }, [batchImages.length, currentImageIndex, setCurrentImageIndex]);
 
   // Sync from editorBatch prop
   const prevBatchLenRef = useRef(editorBatch?.length ?? 0);
@@ -241,7 +242,13 @@ const useEditorBatchState = ({
         setBatchImages((prev) =>
           prev.map((bi, i) =>
             i === currentImageIndex
-              ? { ...bi, previewUrl: newLatest, processedUrl: hasAny ? newLatest : undefined, originalUrl: hasAny ? updated.image_file : undefined, status: hasAny ? 'completed' : 'idle' }
+              ? {
+                  ...bi,
+                  previewUrl: newLatest,
+                  processedUrl: hasAny ? newLatest : undefined,
+                  originalUrl: hasAny ? (updated.image_file ?? undefined) : undefined,
+                  status: hasAny ? 'completed' : 'idle',
+                }
               : bi,
           ),
         );

@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { useDispatch } from 'react-redux';
 import { useSnackbar } from 'notistack';
 import { useTranslation } from 'react-i18next';
-import { useGetDesignsByIdsQuery } from '@/store/designSlice';
+import { designApi, useGetDesignsByIdsQuery } from '@/store/designSlice';
+import {
+  addProcessingDesignId,
+  recordCompletion,
+} from '@/store/upscaleSlice';
 import {
   useTriggerSingleMutation,
   type UpscaleCloudTarget,
@@ -26,6 +31,8 @@ interface UseUpscaleSingleArgs {
   designId: string | null;
   destination: UpscaleDestination;
   cloudTarget: UpscaleCloudTarget | null;
+  /** When provided, invalidates the DesignProject tag on poll completion so the canvas refetches. */
+  projectId?: string | null;
 }
 
 interface UseUpscaleSingleReturn {
@@ -40,6 +47,14 @@ interface UseUpscaleSingleReturn {
   triggerUpscale: (opts?: { replace?: boolean }) => Promise<void>;
   /** Cancel the pending re-upscale confirmation. */
   cancelConfirmation: () => void;
+  /**
+   * Pipeline-friendly variant: triggers (always with replace=true to bypass the
+   * confirmation gate; caller is expected to have shown its own overwrite
+   * dialog if needed) and resolves when polling detects an `upscaled_file`
+   * change. Rejects on trigger error or the 20-min hard timeout.
+   * The existing fire-and-forget `triggerUpscale` API is unchanged.
+   */
+  runUpscaleAsync: () => Promise<void>;
 }
 
 /**
@@ -55,9 +70,11 @@ export const useUpscaleSingle = ({
   designId,
   destination,
   cloudTarget,
+  projectId,
 }: UseUpscaleSingleArgs): UseUpscaleSingleReturn => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
+  const reduxDispatch = useDispatch();
 
   const [trigger, { isLoading: isTriggering }] = useTriggerSingleMutation();
 
@@ -94,6 +111,23 @@ export const useUpscaleSingle = ({
 
   const initialUpscaledRef = useRef<string | null>(null);
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Promise resolvers/rejecters held while a runUpscaleAsync() is awaiting the
+  // poll-complete or timeout signal. Drained on either terminal effect below.
+  const pendingPromisesRef = useRef<
+    Array<{ resolve: () => void; reject: (err: Error) => void }>
+  >([]);
+
+  const drainPendingPromises = useCallback(
+    (outcome: 'resolve' | 'reject', err?: Error) => {
+      const pending = pendingPromisesRef.current;
+      pendingPromisesRef.current = [];
+      pending.forEach((p) => {
+        if (outcome === 'resolve') p.resolve();
+        else p.reject(err ?? new Error('Upscale failed'));
+      });
+    },
+    [],
+  );
 
   // RTK Query design poller — pauses when tab is hidden via skipPollingIfUnfocused.
   const designIds = designId ? [designId] : [];
@@ -112,29 +146,60 @@ export const useUpscaleSingle = ({
     if (currentDesign.upscaled_file && currentDesign.upscaled_file !== baseline) {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       dispatch({ type: 'STOP' });
-      enqueueSnackbar(
-        t('upscale.single.success', { defaultValue: 'Upscaled to 4500×5400' }),
-        { variant: 'success' },
+      // Phase 10 — snackbar firing is hoisted to the workspace level so that
+      // exactly one snackbar fires per completion regardless of which tab the
+      // user is on. We only record the completion here.
+      reduxDispatch(
+        recordCompletion({
+          designId: designId ?? null,
+          kind: 'success',
+          ts: Date.now(),
+        }),
       );
+      // triggerSingle mutation only invalidates UpscaleQuota — the canvas reads
+      // designs via the DesignProject query, so we invalidate that tag here.
+      if (projectId) {
+        reduxDispatch(
+          designApi.util.invalidateTags([{ type: 'DesignProject', id: projectId }]),
+        );
+      }
+      drainPendingPromises('resolve');
     }
-  }, [currentDesign, enqueueSnackbar, pollEnabled, t]);
+  }, [currentDesign, designId, drainPendingPromises, pollEnabled, projectId, reduxDispatch]);
+
+  // Phase 9 — maintain workspace-level shimmer set: while polling is active for
+  // this designId, broadcast it via the upscaleSlice so the canvas can render a
+  // shimmer overlay on any artboard linked to the same Design. Phase-10 fix:
+  // no cleanup-on-unmount — the set survives tab switches (the hook unmounts
+  // when DesignEditorView is hidden). Workspace-level monitor in
+  // DesignWorkspaceView watches `boardData` against `processingDesignIds`
+  // and dispatches `recordCompletion` once `upscaled_file` flips, which
+  // clears the entry via the slice reducer.
+  useEffect(() => {
+    if (!pollEnabled || !designId) return;
+    reduxDispatch(addProcessingDesignId(designId));
+  }, [designId, pollEnabled, reduxDispatch]);
 
   // Hard timeout — after 20min, stop polling and surface error.
   useEffect(() => {
     if (!pollEnabled) return;
     timeoutRef.current = setTimeout(() => {
       dispatch({ type: 'STOP' });
-      enqueueSnackbar(
-        t('upscale.single.timeout', {
-          defaultValue: 'Upscale is taking longer than expected — check back later.',
+      // Phase 10 — workspace-level snackbar fires from `recordCompletion`.
+      reduxDispatch(
+        recordCompletion({
+          designId: designId ?? null,
+          kind: 'error',
+          reason: 'timeout',
+          ts: Date.now(),
         }),
-        { variant: 'warning' },
       );
+      drainPendingPromises('reject', new Error('Upscale timed out'));
     }, POLL_TIMEOUT_MS);
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
-  }, [enqueueSnackbar, pollEnabled, t]);
+  }, [designId, drainPendingPromises, pollEnabled, reduxDispatch]);
 
   const startTrigger = useCallback(
     async (replace: boolean) => {
@@ -162,6 +227,7 @@ export const useUpscaleSingle = ({
             }),
             { variant: 'error' },
           );
+          drainPendingPromises('reject', new Error('Upscale quota exceeded'));
         } else if (status === 409) {
           // EC-1: a job is already running — adopt it as our active job.
           enqueueSnackbar(
@@ -171,13 +237,21 @@ export const useUpscaleSingle = ({
             { variant: 'info' },
           );
           // Adopt running job — START action without specific jobId (one is server-side).
+          // Pending promises stay queued; they'll resolve when polling detects
+          // the upscaled_file change for the in-flight server-side job.
           dispatch({ type: 'START', jobId: '' });
           initialUpscaledRef.current = currentDesign?.upscaled_file ?? null;
         } else {
-          enqueueSnackbar(
-            t('upscale.single.error', { defaultValue: 'Failed to start upscale' }),
-            { variant: 'error' },
+          // Phase 10 — workspace-level snackbar fires from `recordCompletion`.
+          reduxDispatch(
+            recordCompletion({
+              designId: designId ?? null,
+              kind: 'error',
+              reason: 'trigger_failed',
+              ts: Date.now(),
+            }),
           );
+          drainPendingPromises('reject', new Error('Failed to start upscale'));
         }
       }
     },
@@ -186,7 +260,9 @@ export const useUpscaleSingle = ({
       currentDesign,
       designId,
       destination,
+      drainPendingPromises,
       enqueueSnackbar,
+      reduxDispatch,
       t,
       trigger,
     ],
@@ -211,6 +287,19 @@ export const useUpscaleSingle = ({
     dispatch({ type: 'CANCEL_CONFIRM' });
   }, []);
 
+  const runUpscaleAsync = useCallback(() => {
+    return new Promise<void>((resolve, reject) => {
+      if (!designId) {
+        reject(new Error('No designId for upscale'));
+        return;
+      }
+      pendingPromisesRef.current.push({ resolve, reject });
+      // Always force replace=true: pipeline callers are expected to have
+      // shown their own overwrite dialog upstream.
+      void startTrigger(true);
+    });
+  }, [designId, startTrigger]);
+
   return {
     isProcessing: pollEnabled,
     isTriggering,
@@ -218,5 +307,6 @@ export const useUpscaleSingle = ({
     needsConfirmation,
     triggerUpscale,
     cancelConfirmation,
+    runUpscaleAsync,
   };
 };

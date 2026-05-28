@@ -1367,8 +1367,7 @@
       "tabEditor": "Editor immagini",
       "settings": "Impostazioni progetto",
       "canvasComingSoon": "Artboard Canvas in arrivo",
-      "canvasDescription": "L'artboard Konva.js sostituira il vecchio React Flow.",
-      "openNicheDrawer": "Niche Pipeline"
+      "canvasDescription": "L'artboard Konva.js sostituira il vecchio React Flow."
     },
     "canvas": {
       "emptyTitle": "Rilascia immagini o crea una tavola IA",

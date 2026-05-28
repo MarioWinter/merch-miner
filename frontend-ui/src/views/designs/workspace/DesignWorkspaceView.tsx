@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Alert, Badge, Box, Button, Drawer, Fab, IconButton, InputBase, Skeleton, Tooltip, Typography } from '@mui/material';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
@@ -7,16 +7,21 @@ import AutoFixHighIcon from '@mui/icons-material/AutoFixHigh';
 import BuildOutlinedIcon from '@mui/icons-material/BuildOutlined';
 import CloseIcon from '@mui/icons-material/Close';
 import TuneIcon from '@mui/icons-material/Tune';
-import Inventory2OutlinedIcon from '@mui/icons-material/Inventory2Outlined';
 import { useTranslation } from 'react-i18next';
-import { useSnackbar } from 'notistack';
 import { useResponsiveLayout } from '@/hooks/useResponsiveLayout';
-import { useGetProjectQuery, useGetProjectBoardQuery, useUpdateProjectMutation } from '@/store/designSlice';
-import { useAppDispatch } from '@/store/hooks';
-import { openNicheEdit } from '@/store/chatBarSlice';
+import {
+  usePersistentState,
+  serializeMap,
+  deserializeMap,
+  clearPersistentKey,
+} from '@/hooks/usePersistentState';
+import { useGetProjectQuery, useGetProjectBoardQuery } from '@/store/designSlice';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import useSendDesignsToListings from '@/hooks/useSendDesignsToListings';
 import useArtboards from '../board/hooks/useArtboards';
+import useArtboardVersionSync from '../board/hooks/useArtboardVersionSync';
+import type { VersionSlot } from '../board/hooks/useArtboardVersionSync';
+import type { Design } from '../board/types';
 import useRightPanelState from '../board/hooks/useRightPanelState';
 import ArtboardCanvas from '../board/partials/ArtboardCanvas';
 import BottomToolbar from '../board/partials/BottomToolbar';
@@ -25,12 +30,18 @@ import NicheBindingSelector from '../board/partials/NicheBindingSelector';
 import ExportDialog from '../board/partials/ExportDialog';
 import BuilderDialog from '../board/partials/BuilderDialog';
 import DesignEditorView from '../editor/DesignEditorView';
+import useEditorBatchState from '../editor/hooks/useEditorBatchState';
+import type { PipelineTool, ToolName } from '../editor/types';
+import { TOOL_CATALOG } from '../editor/types';
 import ProcessingSettingsDialog from './ProcessingSettingsDialog';
 import { useAppSelector } from '../../../store/hooks';
 import type { ProjectPrompt } from '../gallery/types';
 import useWorkspaceTab from './hooks/useWorkspaceTab';
 import type { WorkspaceTab } from './hooks/useWorkspaceTab';
 import useEditorBatch from './hooks/useEditorBatch';
+import useProjectNameEdit from './hooks/useProjectNameEdit';
+import useOptimisticArtboardUrls from './hooks/useOptimisticArtboardUrls';
+import useUpscaleCompletionMonitor from './hooks/useUpscaleCompletionMonitor';
 import useWorkspaceCanvas from './hooks/useWorkspaceCanvas';
 import useWorkspaceGeneration from './hooks/useWorkspaceGeneration';
 import useWorkspaceActions from './hooks/useWorkspaceActions';
@@ -77,9 +88,7 @@ const DesignWorkspaceView = () => {
   const activeWorkspaceId = useAppSelector((s) => s.workspace.activeWorkspaceId);
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const dispatch = useAppDispatch();
   const { activeTab, setActiveTab } = useWorkspaceTab();
-  const { enqueueSnackbar } = useSnackbar();
   const { isDesktop } = useResponsiveLayout();
   const [mobileRightPanelOpen, setMobileRightPanelOpen] = useState(false);
 
@@ -88,35 +97,24 @@ const DesignWorkspaceView = () => {
     isLoading,
     isError,
   } = useGetProjectQuery(projectId ?? '', { skip: !projectId });
-  const [updateProject] = useUpdateProjectMutation();
+  const nameEdit = useProjectNameEdit({ projectId, currentName: project?.name });
 
-  // -- Inline project name editing --
-  const [isEditingName, setIsEditingName] = useState(false);
-  const [editingName, setEditingName] = useState('');
-
-  const handleStartEditName = () => {
-    setEditingName(project?.name ?? '');
-    setIsEditingName(true);
-  };
-
-  const handleSaveName = async () => {
-    const trimmed = editingName.trim();
-    setIsEditingName(false);
-    if (!trimmed || !projectId || trimmed === project?.name) return;
-    try {
-      await updateProject({ projectId, body: { name: trimmed } }).unwrap();
-    } catch {
-      enqueueSnackbar(t('design.workspace.renameError', 'Failed to rename project'), { variant: 'error' });
-    }
-  };
-
-  // Poll interval is updated below once we know if a generation is running.
-  // Initial fetch happens with no polling; after a skeleton appears, the
-  // polling kicks in so completed designs land automatically.
+  // Poll interval is updated below once we know if a generation is running
+  // OR an upscale is in flight (Phase-10 fix: when the editor unmounts on tab
+  // switch, the upscale hook can no longer poll the Design; workspace polls
+  // boardData instead so the canvas shimmer clears once `upscaled_file`
+  // flips).
   const [hasRunningGeneration, setHasRunningGeneration] = useState(false);
+  const processingUpscaleCount = useAppSelector(
+    (s) => s.upscale.processingDesignIds.length,
+  );
   const { data: boardData } = useGetProjectBoardQuery(
     { projectId: projectId ?? '' },
-    { skip: !projectId, pollingInterval: hasRunningGeneration ? 4000 : undefined },
+    {
+      skip: !projectId,
+      pollingInterval:
+        hasRunningGeneration || processingUpscaleCount > 0 ? 4000 : undefined,
+    },
   );
 
   // -- Artboard state --
@@ -124,6 +122,88 @@ const DesignWorkspaceView = () => {
     projectId: projectId ?? '',
     savedLayout: boardData?.board_layout ?? null,
     designs: boardData?.designs,
+  });
+
+  // Phase 8 — persist user picks per-project across reloads + cross-tab.
+  // Custom Map<->entries serialization keeps the JSON small.
+  const pickedVersionsKey = `mm.canvas.pickedVersions.${projectId ?? 'unknown'}`;
+  const [userPickedVersions, setUserPickedVersions] = usePersistentState<Map<string, VersionSlot>>(
+    pickedVersionsKey,
+    new Map(),
+    {
+      serialize: serializeMap,
+      deserialize: deserializeMap,
+      skipPersistence: !projectId,
+    },
+  );
+  // Persisted keys we may need to purge on workspace switch (Phase 8e).
+  const pipelineKey = `mm.editor.pipeline.${projectId ?? 'unknown'}`;
+  const currentIndexKey = `mm.editor.currentIndex.${projectId ?? 'unknown'}`;
+  // EC-2-5 / AC-7-4 — reset picks on workspace switch via render-time compare
+  // (matches existing `hasRunningGeneration` pattern; avoids React 19
+  // cascading-effect rule). Also purge per-project localStorage entries so
+  // unrelated projects in the same workspace don't share state.
+  const [lastWorkspaceIdForPicks, setLastWorkspaceIdForPicks] = useState<string | null>(
+    activeWorkspaceId,
+  );
+  if (lastWorkspaceIdForPicks !== activeWorkspaceId) {
+    setLastWorkspaceIdForPicks(activeWorkspaceId);
+    if (userPickedVersions.size > 0) setUserPickedVersions(new Map());
+    if (projectId) {
+      clearPersistentKey(pickedVersionsKey);
+      clearPersistentKey(pipelineKey);
+      clearPersistentKey(currentIndexKey);
+    }
+  }
+
+  const setUserPickedVersion = useCallback(
+    (designId: string, slot: VersionSlot | null) => {
+      setUserPickedVersions((prev) => {
+        const next = new Map(prev);
+        if (slot === null) next.delete(designId);
+        else next.set(designId, slot);
+        return next;
+      });
+    },
+    [setUserPickedVersions],
+  );
+
+  const designsById = useMemo<Map<string, Design>>(() => {
+    const map = new Map<string, Design>();
+    for (const d of boardData?.designs ?? []) map.set(d.id, d);
+    return map;
+  }, [boardData?.designs]);
+
+  // AC-7-4 — after restoring `userPickedVersions` from localStorage, drop any
+  // picks whose designId is no longer in the live board (deleted design).
+  useEffect(() => {
+    if (userPickedVersions.size === 0) return;
+    let changed = false;
+    const next = new Map(userPickedVersions);
+    for (const designId of next.keys()) {
+      if (!designsById.has(designId)) {
+        next.delete(designId);
+        changed = true;
+      }
+    }
+    if (changed) setUserPickedVersions(next);
+  }, [designsById, userPickedVersions, setUserPickedVersions]);
+
+  const { optimisticArtboardUrls, handleOptimisticDesignUpdate } = useOptimisticArtboardUrls({
+    artboards: artboardState.artboards,
+  });
+
+  useArtboardVersionSync({
+    artboards: artboardState.artboards,
+    designsById,
+    userPickedVersions,
+    updateArtboard: artboardState.updateArtboard,
+    optimisticArtboardUrls,
+  });
+
+  useUpscaleCompletionMonitor({
+    designs: boardData?.designs,
+    activeTab,
   });
 
   // -- Canvas tools/elements/keyboard/text editing --
@@ -178,6 +258,32 @@ const DesignWorkspaceView = () => {
   // -- Editor batch state --
   const editorBatchHook = useEditorBatch();
 
+  // Phase 8 — hoist editor batch state to workspace level so Canvas↔Editor tab
+  // switches don't unmount/remount the hook (AC-7-7..AC-7-9). The full editor
+  // API is forwarded to `DesignEditorView` as a single `editorState` prop.
+  const editorState = useEditorBatchState({
+    projectId: projectId ?? '',
+    editorBatch: editorBatchHook.editorBatch,
+  });
+
+  // Phase 8 — persist + hoist the pipeline draft so it survives tab switches
+  // and reloads. AC-7-1 + AC-7-7. Restored tools whose name is no longer in
+  // TOOL_CATALOG are silently dropped (AC-7-5).
+  const TOOL_NAMES = useMemo<Set<ToolName>>(
+    () => new Set(TOOL_CATALOG.map((tc) => tc.name)),
+    [],
+  );
+  const [activePipeline, setActivePipeline] = usePersistentState<PipelineTool[]>(
+    pipelineKey,
+    [],
+    { skipPersistence: !projectId },
+  );
+  useEffect(() => {
+    if (activePipeline.length === 0) return;
+    const filtered = activePipeline.filter((tool) => TOOL_NAMES.has(tool.name));
+    if (filtered.length !== activePipeline.length) setActivePipeline(filtered);
+  }, [activePipeline, TOOL_NAMES, setActivePipeline]);
+
   // -- PROJ-9 Phase O — Send to Listings (selection-driven via right panel) -
   const sendToListings = useSendDesignsToListings({
     onSuccess: () => artboardState.deselectAll(),
@@ -216,12 +322,6 @@ const DesignWorkspaceView = () => {
   // -- Dialog state --
   const [settingsOpen, setSettingsOpen] = useState(false);
 
-  const handleOpenNichePipeline = () => {
-    if (project?.niche) {
-      dispatch(openNicheEdit(project.niche));
-    }
-  };
-
   // -- Actions (delete, export, transfer, analyze, panel) --
   const actions = useWorkspaceActions({
     projectId: projectId ?? '',
@@ -243,7 +343,6 @@ const DesignWorkspaceView = () => {
       panelState={panelState}
       onUpdateArtboard={artboardState.updateArtboard}
       onResizeArtboard={artboardState.resizeArtboard}
-      onAddToEditor={actions.handleAddToEditor}
       onOpenInEditor={actions.handleOpenInEditor}
       onDeleteSelected={actions.handleDeleteSelected}
       onExportSelected={actions.handleExportSelected}
@@ -333,18 +432,21 @@ const DesignWorkspaceView = () => {
           </IconButton>
         </Tooltip>
 
-        {isEditingName ? (
+        {nameEdit.isEditingName ? (
           <InputBase
-            value={editingName}
-            onChange={(e) => setEditingName(e.target.value)}
-            onBlur={handleSaveName}
-            onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') setIsEditingName(false); }}
+            value={nameEdit.editingName}
+            onChange={(e) => nameEdit.setEditingName(e.target.value)}
+            onBlur={nameEdit.save}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void nameEdit.save();
+              if (e.key === 'Escape') nameEdit.setEditingName(project?.name ?? '');
+            }}
             autoFocus
             sx={{ fontSize: '1.25rem', fontWeight: 600, px: 1, py: 0.25, borderRadius: 1, border: '1px solid', borderColor: 'divider', minWidth: 120, maxWidth: 280 }}
           />
         ) : (
           <Tooltip title={t('design.workspace.clickToRename', 'Click to rename')}>
-            <Typography variant="h6" sx={{ fontWeight: 600, cursor: 'pointer', px: 1, py: 0.25, borderRadius: 1, '&:hover': { bgcolor: 'action.hover' } }} noWrap onClick={handleStartEditName}>
+            <Typography variant="h6" sx={{ fontWeight: 600, cursor: 'pointer', px: 1, py: 0.25, borderRadius: 1, '&:hover': { bgcolor: 'action.hover' } }} noWrap onClick={nameEdit.startEdit}>
               {project?.name ?? t('design.workspace.untitled')}
             </Typography>
           </Tooltip>
@@ -353,13 +455,6 @@ const DesignWorkspaceView = () => {
         {project && (
           <>
             <NicheBindingSelector projectId={projectId} currentNicheId={project.niche} currentNicheName={project.niche_summary?.name ?? null} />
-            {project.niche && (
-              <Tooltip title={t('design.workspace.openNicheDrawer', 'Niche Pipeline')}>
-                <IconButton size="small" onClick={handleOpenNichePipeline} aria-label={t('design.workspace.openNicheDrawer', 'Niche Pipeline')}>
-                  <Inventory2OutlinedIcon sx={{ fontSize: 18 }} />
-                </IconButton>
-              </Tooltip>
-            )}
           </>
         )}
 
@@ -429,11 +524,13 @@ const DesignWorkspaceView = () => {
                 onBrushDrawMove={canvas.brushTool.handleBrushMove}
                 onBrushDrawEnd={canvas.brushTool.handleBrushEnd}
                 onAnalyzeImage={actions.handleContextMenuAnalyze}
-                onAddToEditor={actions.handleAddToEditor}
                 onOpenInEditor={actions.handleOpenInEditor}
                 editingElementId={canvas.textEditing.editingElementId}
                 hasDesignAsset={hasDesignAssetByArtboard}
                 inListingsLabel={inListingsLabel}
+                designsById={designsById}
+                userPickedVersions={userPickedVersions}
+                onPickVersion={setUserPickedVersion}
               />
               <BottomToolbar
                 zoom={canvas.canvasHook.state.zoom}
@@ -517,7 +614,15 @@ const DesignWorkspaceView = () => {
             )}
           </>
         ) : (
-          <DesignEditorView projectId={projectId ?? ''} editorBatch={editorBatchHook.editorBatch} onAddToCanvas={actions.handleAddToCanvas} />
+          <DesignEditorView
+            projectId={projectId ?? ''}
+            editorBatch={editorBatchHook.editorBatch}
+            onAddToCanvas={actions.handleAddToCanvas}
+            editorState={editorState}
+            activePipeline={activePipeline}
+            setActivePipeline={setActivePipeline}
+            onOptimisticUpdate={handleOptimisticDesignUpdate}
+          />
         )}
       </ContentArea>
 
