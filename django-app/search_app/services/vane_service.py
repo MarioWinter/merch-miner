@@ -26,8 +26,11 @@ class VaneServiceError(Exception):
 class VaneService:
     """Client for Vane (Perplexica) POST /api/search endpoint."""
 
-    # In-process cache for provider lookups (UUIDs change per Vane instance).
-    _providers_cache: Optional[dict] = None
+    # In-process cache for the RAW /api/providers payload (UUIDs change per
+    # Vane instance, so we cache the list and resolve per model on each call —
+    # caching the resolved {chatModel, embeddingModel} dict broke model-switching
+    # because the cache key didn't include the model name.
+    _providers_data_cache: Optional[dict] = None
 
     def __init__(self):
         self.base_url = getattr(settings, 'VANE_API_URL', '')
@@ -53,22 +56,25 @@ class VaneService:
               'embeddingModel': {'providerId': '<uuid>', 'key': 'openai/text-embedding-3-small'},
             }
         Or None if Vane's setup is incomplete / lookup fails.
-        Cached at class-level after first successful resolve.
+        Raw provider list is cached at class-level; resolution runs per call so
+        a different `chat_model_name` picks a different chatModel without a
+        cache flush.
         """
-        if VaneService._providers_cache:
-            return VaneService._providers_cache
         if not self.base_url:
             return None
-        try:
-            with httpx.Client(timeout=5.0) as client:
-                resp = client.get(
-                    f"{self.base_url.rstrip('/')}/api/providers",
-                )
-                resp.raise_for_status()
-                data = resp.json()
-        except Exception:
-            logger.warning('Failed to fetch /api/providers from Vane.', exc_info=True)
-            return None
+        data = VaneService._providers_data_cache
+        if not data:
+            try:
+                with httpx.Client(timeout=5.0) as client:
+                    resp = client.get(
+                        f"{self.base_url.rstrip('/')}/api/providers",
+                    )
+                    resp.raise_for_status()
+                    data = resp.json()
+            except Exception:
+                logger.warning('Failed to fetch /api/providers from Vane.', exc_info=True)
+                return None
+            VaneService._providers_data_cache = data
 
         target_chat_name = (chat_model_name or self.default_model).lower()
         target_embed_name = self.embedding_model.lower()
@@ -118,9 +124,7 @@ class VaneService:
             )
             return None
 
-        result = {'chatModel': chat_match, 'embeddingModel': embed_match}
-        VaneService._providers_cache = result
-        return result
+        return {'chatModel': chat_match, 'embeddingModel': embed_match}
 
     def _build_payload(
         self,
