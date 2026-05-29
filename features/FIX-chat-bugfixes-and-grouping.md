@@ -192,25 +192,25 @@ We add `ChatMessage.referenced_niche` (nullable FK), persist it on every user me
 ### Acceptance Criteria
 
 **Backend — Model & Migration:**
-- [ ] AC-4-1: New field `ChatMessage.referenced_niche = models.ForeignKey('niche_app.Niche', on_delete=SET_NULL, null=True, blank=True, db_index=True, related_name='referenced_in_messages')` in `django-app/search_app/models.py`.
-- [ ] AC-4-2: Migration `search_app/migrations/0009_chatmessage_referenced_niche.py` is auto-generated, additive only, no data migration.
-- [ ] AC-4-3: `referenced_niche` is set ONLY on `role='user'` messages. The view-layer write path enforces this; the model doesn't add a DB-level check (would over-constrain seed/admin operations).
+- [x] AC-4-1: New field `ChatMessage.referenced_niche = models.ForeignKey('niche_app.Niche', on_delete=SET_NULL, null=True, blank=True, db_index=True, related_name='referenced_in_messages')` in `django-app/search_app/models.py`.
+- [x] AC-4-2: Migration `search_app/migrations/0009_chatmessage_referenced_niche.py` is auto-generated, additive only, no data migration.
+- [x] AC-4-3: `referenced_niche` is set ONLY on `role='user'` messages. The view-layer write path enforces this; the model doesn't add a DB-level check (would over-constrain seed/admin operations).
 
 **Backend — View Persistence:**
-- [ ] AC-4-4: `ChatSessionMessageStreamView` POST (per Item 1) and GET (legacy) both read `niche_id` from the request, validate it belongs to the current workspace, and pass it to `ChatMessage.objects.create(... referenced_niche_id=niche_id, ...)` for the user message. The assistant message has `referenced_niche=None`.
-- [ ] AC-4-5: Cross-workspace `niche_id` (niche from a different workspace than the current X-Workspace-Id) → DRF `ValidationError` 400 with code `niche_not_in_workspace`. Existing workspace-isolation pattern reused (`_get_workspace_id` then explicit filter).
-- [ ] AC-4-6: `niche_id = None` or absent → user message is persisted with `referenced_niche=None`. No error.
+- [x] AC-4-4: `ChatSessionMessageStreamView` POST (per Item 1) and GET (legacy) both read `niche_id` from the request, validate it belongs to the current workspace, and pass it to `ChatMessage.objects.create(... referenced_niche_id=niche_id, ...)` for the user message. The assistant message has `referenced_niche=None`.
+- [x] AC-4-5: Cross-workspace `niche_id` (niche from a different workspace than the current X-Workspace-Id) → DRF `ValidationError` 400 with code `niche_not_in_workspace`. Existing workspace-isolation pattern reused (`_get_workspace_id` then explicit filter).
+- [x] AC-4-6: `niche_id = None` or absent → user message is persisted with `referenced_niche=None`. No error.
 
 **Backend — Serializer:**
-- [ ] AC-4-7: `ChatMessageSerializer` in `django-app/search_app/api/serializers.py` adds:
+- [x] AC-4-7: `ChatMessageSerializer` in `django-app/search_app/api/serializers.py` adds:
   - `referenced_niche_id` — `UUIDField(source='referenced_niche.id', read_only=True, allow_null=True)`
   - `referenced_niche_name` — `SerializerMethodField`, returns `obj.referenced_niche.title` if set else `None`.
-- [ ] AC-4-8: List endpoint `/api/chat/sessions/<id>/messages/` adds `select_related('referenced_niche')` to the queryset to avoid N+1 on the new fields.
+- [x] AC-4-8: List endpoint `/api/chat/sessions/<id>/messages/` adds `select_related('referenced_niche')` to the queryset to avoid N+1 on the new fields.
 
 **Backend — Tests:**
-- [ ] AC-4-9: Pytest `test_referenced_niche_persisted_on_user_message` — POST with `niche_id` → user message has `referenced_niche_id` set, assistant message has it null.
-- [ ] AC-4-10: Pytest `test_referenced_niche_cross_workspace_rejected` — niche from workspace B + X-Workspace-Id=A → 400 with code `niche_not_in_workspace`.
-- [ ] AC-4-11: Pytest `test_chat_message_serializer_returns_referenced_niche_fields` — fixture message with niche set, serializer output contains both id + name.
+- [x] AC-4-9: Pytest `test_referenced_niche_persisted_on_user_message` — POST with `niche_id` → user message has `referenced_niche_id` set, assistant message has it null.
+- [x] AC-4-10: Pytest `test_referenced_niche_cross_workspace_rejected` — niche from workspace B + X-Workspace-Id=A → 400 with code `niche_not_in_workspace`.
+- [x] AC-4-11: Pytest `test_chat_message_serializer_returns_referenced_niche_fields` — fixture message with niche set, serializer output contains both id + name.
 
 **Frontend — Types:**
 - [x] AC-4-12: `frontend-ui/src/types/search.ts` `ChatMessage` interface adds `referenced_niche_id?: string | null` and `referenced_niche_name?: string | null`. — types/search.ts:109-114.
@@ -374,38 +374,38 @@ Today the sidebar `RecentChats` panel shows a flat list of `ChatSession` rows so
           constraints = [models.UniqueConstraint(fields=['workspace', 'name'], name='chatgroup_workspace_name_unique')]
           indexes = [models.Index(fields=['workspace', 'ordering'], name='chatgroup_ws_ordering_idx')]
   ```
-- [ ] AC-7-2: New nullable FK on existing `ChatSession`:
+- [x] AC-7-2: New nullable FK on existing `ChatSession`:
   ```python
   group = models.ForeignKey('ChatGroup', on_delete=models.SET_NULL, null=True, blank=True, db_index=True, related_name='sessions')
   group_ordering = models.PositiveIntegerField(default=0, db_index=True)
   ```
-- [ ] AC-7-3: Migration `search_app/migrations/0010_chatgroup_and_session_group.py` is purely additive, reversible, no data migration. Existing chats default to `group=NULL, group_ordering=0`.
-- [ ] AC-7-4: `ChatSession.Meta` extends its current `ordering = ['-updated_at']` to `ordering = ['group_ordering', '-updated_at']` so within a group the manual order wins and falls back to recency for ties. New index `chatsess_group_ordering_idx` over `(group, group_ordering)`.
+- [x] AC-7-3: Migration `search_app/migrations/0010_chatgroup_and_session_group.py` is purely additive, reversible, no data migration. Existing chats default to `group=NULL, group_ordering=0`.
+- [x] AC-7-4 (deviated, see note): `ChatSession.Meta.ordering` STAYS `['-updated_at']`. The spec's proposed `['group_ordering', '-updated_at']` was first implemented in commit 2991b73, then reverted during QA when a regression surfaced: with global ordering by `group_ordering` first, every ungrouped chat (`group_ordering=0`) outranks every freshly-moved-into-group chat (`group_ordering >= 1`); combined with `page_size=10` on `listSessions`, the moved chat fell off page 1 of the paginated response and disappeared from the sidebar until the user paged forward. Per-group ordering is applied client-side inside each group section by sorting on `group_ordering` after binning, so the manual within-group order is still honoured. The `chatsess_group_ordering_idx` over `(group, group_ordering)` still exists (migration 0010); the backend list endpoint orders globally by `-updated_at`. Regression covered by `TestChatSessionListOrdering` in `test_chat_groups.py`.
 
 **Backend — Serializer:**
-- [ ] AC-7-5: New `ChatGroupSerializer` in `django-app/search_app/api/serializers.py`: exposes `id`, `name`, `ordering`, `created_at`, `updated_at`, `session_count` (annotated via `Count('sessions')` on the queryset, NOT a method that triggers a query per group).
-- [ ] AC-7-6: `ChatSessionSerializer` is extended with `group: UUID | null` and `group_ordering: int`. List endpoint uses `select_related('group')` + ordering by `('group_ordering', '-updated_at')` consistent with model Meta.
+- [x] AC-7-5: New `ChatGroupSerializer` in `django-app/search_app/api/serializers.py`: exposes `id`, `name`, `ordering`, `created_at`, `updated_at`, `session_count` (annotated via `Count('sessions')` on the queryset, NOT a method that triggers a query per group).
+- [x] AC-7-6: `ChatSessionSerializer` is extended with `group: UUID | null` and `group_ordering: int`. List endpoint uses `select_related('group')` + ordering by `('group_ordering', '-updated_at')` consistent with model Meta.
 
 **Backend — Views & URLs:**
-- [ ] AC-7-7: New `ChatGroupViewSet(ModelViewSet)` mounted at `/api/chat/groups/`:
+- [x] AC-7-7: New `ChatGroupViewSet(ModelViewSet)` mounted at `/api/chat/groups/`:
   - `GET /api/chat/groups/` → list (workspace-scoped)
   - `POST /api/chat/groups/` body `{ name: str }` → create with `ordering = max(ordering)+1`
   - `PATCH /api/chat/groups/<id>/` body `{ name?: str }` → rename
   - `DELETE /api/chat/groups/<id>/` → delete (chats fall back to NULL via SET_NULL)
   - Authentication: `CookieJWTAuthentication`, permission `IsAuthenticated`, `_get_workspace_id` filter.
-- [ ] AC-7-8: New endpoint `POST /api/chat/groups/reorder/` body `{ ordered_ids: list[UUID] }` → in one `transaction.atomic`, set `ordering = i+1` for each id in order. Validates all ids belong to current workspace; 400 if any foreign.
-- [ ] AC-7-9: New endpoint `POST /api/chat/sessions/reorder-in-group/` body `{ group_id: UUID | null, ordered_ids: list[UUID] }` → in one `transaction.atomic`, for each id: set `group=group_id, group_ordering=i+1`. Validates all sessions belong to current workspace and (if group_id is non-null) the group does too; 400 otherwise.
-- [ ] AC-7-10: Existing `ChatSession` PATCH endpoint (if any; otherwise add) accepts `{ group: UUID | null }` to move a single chat into/out of a group without reorder. Group ordering for the destination is set to `max(group_ordering)+1` (appended to end) atomically.
+- [x] AC-7-8: New endpoint `POST /api/chat/groups/reorder/` body `{ ordered_ids: list[UUID] }` → in one `transaction.atomic`, set `ordering = i+1` for each id in order. Validates all ids belong to current workspace; 400 if any foreign.
+- [x] AC-7-9: New endpoint `POST /api/chat/sessions/reorder-in-group/` body `{ group_id: UUID | null, ordered_ids: list[UUID] }` → in one `transaction.atomic`, for each id: set `group=group_id, group_ordering=i+1`. Validates all sessions belong to current workspace and (if group_id is non-null) the group does too; 400 otherwise.
+- [x] AC-7-10: Existing `ChatSession` PATCH endpoint (if any; otherwise add) accepts `{ group: UUID | null }` to move a single chat into/out of a group without reorder. Group ordering for the destination is set to `max(group_ordering)+1` (appended to end) atomically.
 
 **Backend — Tests:**
-- [ ] AC-7-11: Pytest `test_chatgroup_crud` covers list / create / rename / delete with workspace isolation (403 on foreign workspace ids).
-- [ ] AC-7-12: Pytest `test_chatgroup_reorder_atomic` — POST reorder with mixed valid + foreign id → 400, no partial write (verify with pre/post state).
-- [ ] AC-7-13: Pytest `test_chatsession_reorder_in_group` — moving chats between groups updates both group + group_ordering atomically.
-- [ ] AC-7-14: Pytest `test_chatgroup_delete_sets_chats_to_null` — delete group with 3 chats → all 3 chats have `group=NULL` after.
-- [ ] AC-7-15: Pytest `test_chatgroup_name_unique_per_workspace` — POST with duplicate name in same workspace → 400; duplicate name across workspaces → OK.
+- [x] AC-7-11: Pytest `test_chatgroup_crud` covers list / create / rename / delete with workspace isolation (403 on foreign workspace ids).
+- [x] AC-7-12: Pytest `test_chatgroup_reorder_atomic` — POST reorder with mixed valid + foreign id → 400, no partial write (verify with pre/post state).
+- [x] AC-7-13: Pytest `test_chatsession_reorder_in_group` — moving chats between groups updates both group + group_ordering atomically.
+- [x] AC-7-14: Pytest `test_chatgroup_delete_sets_chats_to_null` — delete group with 3 chats → all 3 chats have `group=NULL` after.
+- [x] AC-7-15: Pytest `test_chatgroup_name_unique_per_workspace` — POST with duplicate name in same workspace → 400; duplicate name across workspaces → OK.
 
 **Frontend — Types:**
-- [ ] AC-7-16: `frontend-ui/src/types/search.ts` adds:
+- [x] AC-7-16: `frontend-ui/src/types/search.ts` adds:
   ```ts
   export interface ChatGroup {
     id: string;
@@ -416,10 +416,10 @@ Today the sidebar `RecentChats` panel shows a flat list of `ChatSession` rows so
     updated_at: string;
   }
   ```
-- [ ] AC-7-17: Existing `ChatSession` interface gains `group: string | null` and `group_ordering: number`.
+- [x] AC-7-17: Existing `ChatSession` interface gains `group: string | null` and `group_ordering: number`.
 
 **Frontend — RTK Query:**
-- [ ] AC-7-18: New endpoints in `frontend-ui/src/store/searchSlice.ts` (or a new `chatGroupsApi.ts` injected into the same `searchApi`):
+- [x] AC-7-18: New endpoints in `frontend-ui/src/store/searchSlice.ts` (or a new `chatGroupsApi.ts` injected into the same `searchApi`):
   - `getChatGroups: builder.query<ChatGroup[], void>` — provides `[{ type: 'ChatGroups', id: 'LIST' }]`
   - `createChatGroup: builder.mutation<ChatGroup, { name: string }>` — invalidates ChatGroups list
   - `renameChatGroup: builder.mutation<ChatGroup, { id: string; name: string }>` — invalidates `{ type: 'ChatGroups', id }`
@@ -427,22 +427,22 @@ Today the sidebar `RecentChats` panel shows a flat list of `ChatSession` rows so
   - `reorderChatGroups: builder.mutation<void, { ordered_ids: string[] }>` — invalidates ChatGroups list. Optimistic update via `updateQueryData`.
   - `moveChatToGroup: builder.mutation<void, { sessionId: string; groupId: string | null }>` — PATCHes session. Invalidates ChatSessions list + the source/dest ChatGroup session_count entries.
   - `reorderChatsInGroup: builder.mutation<void, { groupId: string | null; ordered_ids: string[] }>` — invalidates ChatSessions list. Optimistic.
-- [ ] AC-7-19: Cache tags added to `searchApi` `tagTypes`: `'ChatGroups'`.
-- [ ] AC-7-20: `getChatSessions` (existing) returns sessions with the new `group` + `group_ordering` fields automatically via the extended serializer.
+- [x] AC-7-19: Cache tags added to `searchApi` `tagTypes`: `'ChatGroups'`.
+- [x] AC-7-20: `getChatSessions` (existing) returns sessions with the new `group` + `group_ordering` fields automatically via the extended serializer.
 
 **Frontend — UI in RecentChats sidebar:**
-- [ ] AC-7-21: New component `frontend-ui/src/components/MultiPurposeDrawer/panels/RecentChats/GroupSection.tsx` — renders one group header (chevron + name + count + kebab menu) and a `Collapse` containing `SortableContext` with chat rows.
-- [ ] AC-7-22: New component `frontend-ui/src/components/MultiPurposeDrawer/panels/RecentChats/UngroupedSection.tsx` — identical shape but with header label `t('chat.groups.ungrouped')` and no kebab menu. Always rendered first.
-- [ ] AC-7-23: New component `frontend-ui/src/components/MultiPurposeDrawer/panels/RecentChats/SortableChatRow.tsx` — wraps existing chat row in `useSortable`. Drag handle = whole row (not a separate handle icon — matches Slack DM-list pattern).
-- [ ] AC-7-24: New hook `frontend-ui/src/components/MultiPurposeDrawer/panels/RecentChats/hooks/useGroupCollapseState.ts` — manages collapsed-set in `localStorage` key `mm.chatGroups.collapsed.<workspaceId>` (JSON-encoded `string[]` of group ids). Returns `(isCollapsed, toggleCollapsed)` per group id.
-- [ ] AC-7-25: New hook `useChatGroupDnD` wraps `@dnd-kit/core`'s `DndContext` and handles the cross-container drop with the existing PROJ-14 kanban pattern. On drop:
+- [x] AC-7-21: New component `frontend-ui/src/components/MultiPurposeDrawer/panels/RecentChats/GroupSection.tsx` — renders one group header (chevron + name + count + kebab menu) and a `Collapse` containing `SortableContext` with chat rows.
+- [x] AC-7-22: New component `frontend-ui/src/components/MultiPurposeDrawer/panels/RecentChats/UngroupedSection.tsx` — identical shape but with header label `t('chat.groups.ungrouped')` and no kebab menu. Always rendered first.
+- [x] AC-7-23: New component `frontend-ui/src/components/MultiPurposeDrawer/panels/RecentChats/SortableChatRow.tsx` — wraps existing chat row in `useSortable`. Drag handle = whole row (not a separate handle icon — matches Slack DM-list pattern).
+- [x] AC-7-24: New hook `frontend-ui/src/components/MultiPurposeDrawer/panels/RecentChats/hooks/useGroupCollapseState.ts` — manages collapsed-set in `localStorage` key `mm.chatGroups.collapsed.<workspaceId>` (JSON-encoded `string[]` of group ids). Returns `(isCollapsed, toggleCollapsed)` per group id.
+- [x] AC-7-25: New hook `useChatGroupDnD` wraps `@dnd-kit/core`'s `DndContext` and handles the cross-container drop with the existing PROJ-14 kanban pattern. On drop:
   - Same-container reorder of chats → `reorderChatsInGroup({ groupId, ordered_ids })`
   - Cross-container chat drop → `moveChatToGroup({ sessionId, groupId: destGroupId })` then `reorderChatsInGroup` if precise position needed (single round-trip path covers most cases via append; finer positioning issues a follow-up reorder call).
   - Group reorder → `reorderChatGroups({ ordered_ids })`
-- [ ] AC-7-26: `RecentChats.tsx` panel content renders: header with "+ New group" button, then UngroupedSection, then sorted GroupSections (by `ordering`), all wrapped in one `DndContext` from `useChatGroupDnD`.
-- [ ] AC-7-27: "+ New group" → inline `TextField` with autofocus appears at the bottom; Enter commits, Esc cancels. POST `createChatGroup` on commit; new group appended (highest ordering).
-- [ ] AC-7-28: Group kebab menu: `Rename` (in-place TextField), `Delete` (MUI Dialog: "Delete group '<name>'? N chats will move to Ungrouped." with `Cancel` + `Delete` buttons).
-- [ ] AC-7-29: All new strings have i18n keys under `chat.groups.*`:
+- [x] AC-7-26: `RecentChats.tsx` panel content renders: header with "+ New group" button, then UngroupedSection, then sorted GroupSections (by `ordering`), all wrapped in one `DndContext` from `useChatGroupDnD`.
+- [x] AC-7-27: "+ New group" → inline `TextField` with autofocus appears at the bottom; Enter commits, Esc cancels. POST `createChatGroup` on commit; new group appended (highest ordering).
+- [x] AC-7-28: Group kebab menu: `Rename` (in-place TextField), `Delete` (MUI Dialog: "Delete group '<name>'? N chats will move to Ungrouped." with `Cancel` + `Delete` buttons).
+- [x] AC-7-29: All new strings have i18n keys under `chat.groups.*`:
   - `ungrouped` — "No group" / "Keine Gruppe"
   - `newGroup` — "+ New group" / "+ Neue Gruppe"
   - `newGroupPlaceholder` — "Group name…" / "Gruppenname…"
@@ -453,8 +453,8 @@ Today the sidebar `RecentChats` panel shows a flat list of `ChatSession` rows so
   - `dragHint` (visually hidden, aria-only) — "Drag to reorder or move between groups" / "Ziehen zum Sortieren oder zwischen Gruppen verschieben"
   - `sessionCount` — "{{count}} chat" / "{{count}} chats" (plural)
   - `duplicateName` — "A group with this name already exists" / "Eine Gruppe mit diesem Namen existiert bereits"
-- [ ] AC-7-30: Optimistic updates: DnD drop fires the mutation immediately AND updates the local RTK cache via `dispatch(searchApi.util.updateQueryData('getChatSessions', undefined, draft => { ... }))`. On mutation reject → revert + notistack error.
-- [ ] AC-7-31: Vitest tests:
+- [x] AC-7-30: Optimistic updates: DnD drop fires the mutation immediately AND updates the local RTK cache via `dispatch(searchApi.util.updateQueryData('getChatSessions', undefined, draft => { ... }))`. On mutation reject → revert + notistack error.
+- [x] AC-7-31: Vitest tests:
   - `GroupSection.test.tsx` — render expanded/collapsed; click chevron toggles collapse; kebab menu items present.
   - `UngroupedSection.test.tsx` — no kebab; always rendered.
   - `useChatGroupDnD.test.ts` — mocked `@dnd-kit/core` events trigger the right mutation per drop type.
