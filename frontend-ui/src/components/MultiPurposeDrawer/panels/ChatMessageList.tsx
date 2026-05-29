@@ -3,6 +3,7 @@ import { Avatar, Box, Button, Stack, Typography, Skeleton } from '@mui/material'
 import { styled, alpha, keyframes } from '@mui/material/styles';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import ErrorIconOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { useTranslation } from 'react-i18next';
 import type { ChatMessage } from '@/types/search';
 import type { SloganRow } from '@/types/chat-rag';
@@ -51,6 +52,12 @@ interface ChatMessageListProps {
    *  Retry icon's visibility depends on the next-message error pairing —
    *  the callback itself is always invoked with the original user content. */
   onRetry?: (userMessage: ChatMessage) => void;
+  /** FIX-chat-bugfixes-and-grouping Item 2 — Retry button inside the
+   *  ERROR-bubble of a paired assistant error message. Parent reconstructs
+   *  the original StartArgs from the prior user message
+   *  (content, niche_id, model, mode_override). Falls back to the existing
+   *  `onRetry` semantics when not provided. */
+  onRetryWebSearch?: (priorUserMessage: ChatMessage) => void;
 }
 
 /** Distance from bottom (px) within which we consider the user "at the bottom" and re-engage auto-scroll. */
@@ -190,7 +197,7 @@ const ChatMessageList = ({
   onSaveSelectionAsKeywords, onSaveSelectionAsNotes,
   sessionId, onRegenerate, onSaveAnswer,
   sessionNicheId = null, onFollowUpClick,
-  onRetry,
+  onRetry, onRetryWebSearch,
 }: ChatMessageListProps) => {
   const { t } = useTranslation();
   // FIX-chat-bugfixes-and-grouping Item 5 (Phase 4) — auto-scroll engine.
@@ -499,16 +506,46 @@ const ChatMessageList = ({
                   </Box>
                 ) : msg.message_type === 'error' ? (
                   /* PROJ-29 Phase 1J BUG-4 — paired error bubble when the agent
-                     stream failed before producing a final answer. */
+                     stream failed before producing a final answer.
+                     FIX-chat-bugfixes-and-grouping Item 2 — render a Retry
+                     button when a prior user message exists. The button is
+                     wired to `onRetryWebSearch` which reconstructs the
+                     original StartArgs (content, niche_id, model,
+                     mode_override) from the persisted user message. For MVP
+                     simplicity Retry shows on ALL paired ERROR rows — not
+                     just the `web_search_unavailable` flavor — because the
+                     SSE marker is observed at stream time, not on persisted
+                     rows. Re-firing the same prompt is safe: if the
+                     underlying issue persists, the marker triggers again
+                     and the per-session snackbar-dedupe ref absorbs it. */
                   <AssistantContent>
                     <ErrorBubble role="alert">
                       <ErrorIconOutlinedIcon sx={{ fontSize: 18, mt: 0.25, flexShrink: 0 }} />
-                      <Stack gap={0.25}>
+                      <Stack gap={0.25} sx={{ flex: 1, minWidth: 0 }}>
                         <Box sx={{ fontWeight: 600 }}>
                           {t('search.chat.errorBubble.title', 'Something went wrong')}
                         </Box>
                         <Box>{msg.content}</Box>
                       </Stack>
+                      {onRetryWebSearch && priorUserMessage && (
+                        <Button
+                          size="small"
+                          variant="text"
+                          color="error"
+                          startIcon={<RefreshIcon sx={{ fontSize: 16 }} />}
+                          onClick={() => onRetryWebSearch(priorUserMessage as ChatMessage)}
+                          aria-label={t('search.fallback.webSearchUnavailable.retry')}
+                          data-testid="web-search-retry-button"
+                          sx={{
+                            flexShrink: 0,
+                            textTransform: 'none',
+                            fontSize: '0.75rem',
+                            alignSelf: 'flex-start',
+                          }}
+                        >
+                          {t('search.fallback.webSearchUnavailable.retry')}
+                        </Button>
+                      )}
                     </ErrorBubble>
                   </AssistantContent>
                 ) : (

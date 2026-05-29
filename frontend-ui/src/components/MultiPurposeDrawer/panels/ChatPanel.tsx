@@ -30,6 +30,7 @@ import { useSendMessageStream } from '@/hooks/useSendMessageStream';
 import { useOptimisticChatMessage } from '@/hooks/useOptimisticChatMessage';
 import type {
   ChatMessage,
+  ModeOverride,
   SaveSnippetKeywordsResponse,
   SaveSnippetNotesResponse,
 } from '@/types/search';
@@ -390,6 +391,41 @@ const ChatPanel = () => {
     ],
   );
 
+  // FIX-chat-bugfixes-and-grouping Item 2 — Retry button on a paired ERROR
+  // bubble. Reconstructs the original StartArgs from the persisted user
+  // message (content, niche_id via referenced_niche_id from Phase 3, model,
+  // mode_override) and re-streams. Per spec AC-2-4 the prior ERROR bubble
+  // stays in history; the next attempt produces a fresh assistant message
+  // below — successful or another ERROR row.
+  const handleRetryWebSearch = useCallback(
+    (priorUserMessage: ChatMessage) => {
+      if (!activeSessionId) return;
+      const content = priorUserMessage.content;
+      const niche_id = priorUserMessage.referenced_niche_id ?? null;
+      const model = priorUserMessage.model_used || undefined;
+      // `search_mode` on ChatMessage carries the persisted server-side mode
+      // (`speed | balanced | quality`), not the ModeOverride enum (`chat |
+      // agent`). Per Phase 6 task spec we forward it as `mode_override`
+      // only when it's non-empty — cast is narrow on purpose so a future
+      // backend that starts returning the enum here Just Works without a
+      // code change. Unknown values fall back to the current selectedModel
+      // / Redux modeOverride via the start() default path.
+      const persistedMode = priorUserMessage.search_mode;
+      const mode_override =
+        persistedMode === 'chat' || persistedMode === 'agent'
+          ? (persistedMode as ModeOverride)
+          : undefined;
+      startStream({
+        content,
+        mode_override,
+        niche_id,
+        sessionIdOverride: activeSessionId,
+        model,
+      });
+    },
+    [activeSessionId, startStream],
+  );
+
   // PROJ-20 Phase 5.5 — Save answer to a niche. With active chip → direct save.
   // Without chip → open existing SaveToNicheModal pre-filled with the answer.
   const handleSaveAnswer = useCallback(
@@ -489,6 +525,7 @@ const ChatPanel = () => {
                   chip: inputChip,
                 })
         }
+        onRetryWebSearch={isReadOnly ? undefined : handleRetryWebSearch}
       />
 
       {/* Input area — PROJ-20 Phase 3.7 unified ChatInputBar */}

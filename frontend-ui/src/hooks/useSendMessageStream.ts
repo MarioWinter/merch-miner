@@ -250,6 +250,15 @@ export const useSendMessageStream = ({
   // Cleanup 2026-04-28: silence-watchdog. Reset on every event; if it fires,
   // the stream is stuck (e.g. Vane returned init then hung) — close + error.
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // FIX-chat-bugfixes-and-grouping Item 2 — per-session dedupe set for the
+  // info-variant `web_search_unavailable` snackbar. Tracks every session id
+  // that has already triggered the info snackbar within this hook instance.
+  // Reset is intentionally NOT performed on session-id change — if a user
+  // re-enters the same session after switching, a repeat suppression is fine
+  // (the persisted ERROR row in history still explains the prior failure).
+  // Per-marker-occurrence retries within the same session deliberately do
+  // NOT re-fire the snackbar; the user already saw it.
+  const webSearchFallbackSeenRef = useRef<Set<string>>(new Set());
 
   const flushChunkBuffer = useCallback(() => {
     flushScheduledRef.current = false;
@@ -497,8 +506,31 @@ export const useSendMessageStream = ({
             const sid = args.sessionIdOverride ?? sessionId;
             if (sid) {
               dispatch(
-                searchApi.util.invalidateTags([{ type: 'ChatSessions', id: sid }]),
+                searchApi.util.invalidateTags([
+                  { type: 'ChatMessages', id: sid },
+                  { type: 'ChatSessions', id: sid },
+                ]),
               );
+            }
+            // FIX-chat-bugfixes-and-grouping Item 2 — friendly fallback when
+            // the backend emits the `web_search_unavailable` marker. We fire
+            // an info-variant snackbar at most once per session id (tracked
+            // in `webSearchFallbackSeenRef`). The synthetic ERROR-bubble is
+            // persisted by the backend via the existing PROJ-29 BUG-4 path
+            // and surfaces on the next RTK Query refetch — no extra dispatch
+            // here. Suppress BOTH the generic error snackbar AND any
+            // connectionLost fallback so the info snackbar is the only
+            // notification the user sees.
+            if (data?.error === 'web_search_unavailable') {
+              if (sid && !webSearchFallbackSeenRef.current.has(sid)) {
+                webSearchFallbackSeenRef.current.add(sid);
+                enqueueSnackbar(
+                  t('search.fallback.webSearchUnavailable.snackbar'),
+                  { variant: 'info' },
+                );
+              }
+              onError?.();
+              return;
             }
             enqueueSnackbar(
               data?.display_message ?? data?.error ?? t('search.stream.connectionLost'),

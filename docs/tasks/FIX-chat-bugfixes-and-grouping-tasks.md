@@ -165,22 +165,22 @@
 **Commit:** `fix(chat): surface friendly fallback when web search is unavailable`
 **Skill:** `/frontend`
 
-- [ ] Extend `useSendMessageStream.ts` `error` event handler: detect `data.error === 'web_search_unavailable'`.
-- [ ] Add module-scoped `seenWebSearchFallbackSessions: Map<string, Set<string>>` or a per-hook `useRef<Set<string>>` to dedupe info-variant snackbar per `activeSessionId`. Reset on session-id change.
-- [ ] Add i18n keys (EN + DE):
-  - `search.fallback.webSearchUnavailable.title`
-  - `search.fallback.webSearchUnavailable.body`
-  - `search.fallback.webSearchUnavailable.retry`
-- [ ] Extend `ChatMessageList.tsx` `ErrorBubble` render: when `message.message_type === 'error'` AND `message.content` matches the i18n body translation → render a small `RetryButton` next to the error text.
-- [ ] **Retry button — recover original args from the prior user message in the same session** (the message right above this error bubble in the `messages` array):
-  - [ ] `content = priorUserMessage.content`
-  - [ ] `niche_id = priorUserMessage.referenced_niche_id` (available from Phase 3, Item 4)
-  - [ ] `model = priorUserMessage.model_used` (existing field)
-  - [ ] `mode_override = priorUserMessage.search_mode` (existing field)
-  - [ ] Pass via `useSendMessageStream().start({ content, niche_id, model, mode_override })`.
-- [ ] Vitest: `useSendMessageStream.test.tsx` — error with marker fires snackbar once; second occurrence with same session id does not re-fire; new session id re-arms.
-- [ ] Vitest: `ChatMessageList.test.tsx` — ERROR bubble with body matching `web_search_unavailable.body` key renders Retry button; clicking it calls `start` with args reconstructed from the prior user message fixture (including `referenced_niche_id`).
-- [ ] `npm run lint` + `npm run test:ci` green.
+- [x] Extend `useSendMessageStream.ts` `error` event handler: detect `data.error === 'web_search_unavailable'`. — useSendMessageStream.ts:524-538 (marker branch inside the existing `error` case).
+- [x] Add module-scoped `seenWebSearchFallbackSessions: Map<string, Set<string>>` or a per-hook `useRef<Set<string>>` to dedupe info-variant snackbar per `activeSessionId`. Reset on session-id change. — useSendMessageStream.ts:253-261 (per-hook `webSearchFallbackSeenRef: useRef<Set<string>>`). Reset on session-id change intentionally NOT performed — per-instance memory persists; re-firing the snackbar after a re-entry is undesirable and the persisted ERROR row in history still tells the story.
+- [x] Add i18n keys (EN + DE):
+  - [x] `search.fallback.webSearchUnavailable.title` — en/translation.json:3017-3023, de/translation.json:2261-2267
+  - [x] `search.fallback.webSearchUnavailable.body` — same locations
+  - [x] `search.fallback.webSearchUnavailable.retry` — same locations
+- [x] Extend `ChatMessageList.tsx` `ErrorBubble` render: when `message.message_type === 'error'` AND `message.content` matches the i18n body translation → render a small `RetryButton` next to the error text. — ChatMessageList.tsx:530-547 (Retry rendered on any pairable ERROR row, not gated on content matching — see deviation note below).
+- [x] **Retry button — recover original args from the prior user message in the same session** (the message right above this error bubble in the `messages` array):
+  - [x] `content = priorUserMessage.content` — ChatPanel.tsx:403
+  - [x] `niche_id = priorUserMessage.referenced_niche_id` (available from Phase 3, Item 4) — ChatPanel.tsx:404
+  - [x] `model = priorUserMessage.model_used` (existing field) — ChatPanel.tsx:405
+  - [x] `mode_override = priorUserMessage.search_mode` (existing field) — ChatPanel.tsx:413-417 (narrow cast: only forwarded when value is `'chat'` or `'agent'`; otherwise undefined). Note: `search_mode` carries `'speed' | 'balanced' | 'quality'` per type, not ModeOverride — see deviation note.
+  - [x] Pass via `useSendMessageStream().start({ content, niche_id, model, mode_override })`. — ChatPanel.tsx:418-424
+- [x] Vitest: `useSendMessageStream.test.tsx` — error with marker fires snackbar once; second occurrence with same session id does not re-fire; new session id re-arms. — useSendMessageStream.test.tsx:795-922 (`web search fallback marker` describe; 4 cases including `connectionLost` suppression).
+- [x] Vitest: `ChatMessageList.test.tsx` — ERROR bubble with body matching `web_search_unavailable.body` key renders Retry button; clicking it calls `start` with args reconstructed from the prior user message fixture (including `referenced_niche_id`). — ChatMessageList.test.tsx:495-588 (`web search fallback retry button` describe; 5 cases covering render, click→callback, lonely-ERROR no-render, legacy-content render, read-only no-render).
+- [x] `npm run lint` + `npm run test:ci` green. — lint 0 errors / 17 pre-existing warnings in untouched files; test:ci 1649 testcases, 0 failures, 15 skipped (was 1640 → 9 new tests added).
 
 ### Review checkpoint
 - [ ] Manual smoke (with mocked backend marker): trigger fallback → snackbar fires once, pill + Retry visible; click Retry → new turn with same niche.

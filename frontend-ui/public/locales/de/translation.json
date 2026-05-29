@@ -2258,6 +2258,14 @@
     "history": {
       "referencedNicheAria": "Referenzierte Niche: {{name}}"
     },
+    "fallback": {
+      "webSearchUnavailable": {
+        "title": "Web-Suche temporär nicht verfügbar",
+        "body": "Die Live-Web-Suche liefert gerade keine Ergebnisse. Bitte versuche es in ein paar Minuten erneut.",
+        "retry": "Erneut versuchen",
+        "snackbar": "Web-Suche temporär nicht verfügbar"
+      }
+    },
     "actions": {
       "toolbarLabel": "Nachrichten-Aktionen",
       "copy": "Nachricht kopieren",

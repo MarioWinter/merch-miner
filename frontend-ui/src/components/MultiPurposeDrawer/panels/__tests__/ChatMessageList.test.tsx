@@ -190,6 +190,9 @@ interface RenderListOpts {
   hasMore?: boolean;
   withSaveHandlers?: boolean;
   onRetry?: (m: ChatMessage) => void;
+  /** FIX-chat-bugfixes-and-grouping Item 2 — Retry button inside ERROR-bubble
+   *  reconstructs the original StartArgs from the prior user message. */
+  onRetryWebSearch?: (m: ChatMessage) => void;
   /** Force remount on rerender via a key change — exercises AC-5-4. */
   remountKey?: string;
 }
@@ -222,6 +225,7 @@ const renderList = (opts: RenderListOpts = {}) => {
       onSaveKeywords={onSaveKeywords}
       onSaveNotes={onSaveNotes}
       onRetry={opts.onRetry}
+      onRetryWebSearch={opts.onRetryWebSearch}
       {...(opts.withSaveHandlers !== false
         ? { onSaveSelectionAsKeywords, onSaveSelectionAsNotes }
         : {})}
@@ -490,6 +494,100 @@ describe('ChatMessageList', () => {
     expect(onRetry).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'u1', content: 'q' }),
     );
+  });
+
+  // FIX-chat-bugfixes-and-grouping Item 2 — Retry button inside ERROR-bubble.
+  describe('web search fallback retry button', () => {
+    it('renders Retry inside the ERROR bubble when a prior user message exists', () => {
+      const messages: ChatMessage[] = [
+        buildMessage({ id: 'u1', role: 'user', content: 'q with niche' }),
+        buildMessage({
+          id: 'e1',
+          role: 'assistant',
+          content:
+            'Live web search is returning no results right now. Please try again in a few minutes.',
+          message_type: 'error',
+        }),
+      ];
+      renderList({ messages, onRetryWebSearch: vi.fn() });
+      const btn = screen.getByTestId('web-search-retry-button');
+      expect(btn).toBeInTheDocument();
+      expect(btn.getAttribute('aria-label')).toMatch(/retry/i);
+    });
+
+    it('invokes onRetryWebSearch with the prior user message on click', () => {
+      const userMsg = buildMessage({
+        id: 'u1',
+        role: 'user',
+        content: 'about my cats',
+        referenced_niche_id: 'niche-uuid-1',
+        referenced_niche_name: 'Cats',
+      });
+      const errorMsg = buildMessage({
+        id: 'e1',
+        role: 'assistant',
+        content:
+          'Live web search is returning no results right now. Please try again in a few minutes.',
+        message_type: 'error',
+      });
+      const onRetryWebSearch = vi.fn();
+      renderList({ messages: [userMsg, errorMsg], onRetryWebSearch });
+      const btn = screen.getByTestId('web-search-retry-button');
+      fireEvent.click(btn);
+      expect(onRetryWebSearch).toHaveBeenCalledTimes(1);
+      expect(onRetryWebSearch).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'u1',
+          content: 'about my cats',
+          referenced_niche_id: 'niche-uuid-1',
+        }),
+      );
+    });
+
+    it('does NOT render Retry when the ERROR message has no prior user message', () => {
+      // Lonely ERROR row at the start of the session.
+      const messages: ChatMessage[] = [
+        buildMessage({
+          id: 'e1',
+          role: 'assistant',
+          content: 'boom',
+          message_type: 'error',
+        }),
+      ];
+      renderList({ messages, onRetryWebSearch: vi.fn() });
+      expect(screen.queryByTestId('web-search-retry-button')).toBeNull();
+    });
+
+    it('renders Retry on legacy ERROR rows regardless of content (MVP simplicity)', () => {
+      // Per Phase 6 spec: render Retry on any pairable ERROR row — we do not
+      // parse the content to decide visibility. The marker lives on the SSE
+      // event at stream time, not on the persisted row.
+      const messages: ChatMessage[] = [
+        buildMessage({ id: 'u1', role: 'user', content: 'q' }),
+        buildMessage({
+          id: 'e1',
+          role: 'assistant',
+          content: 'Some other backend error message that is not the marker body',
+          message_type: 'error',
+        }),
+      ];
+      renderList({ messages, onRetryWebSearch: vi.fn() });
+      expect(screen.getByTestId('web-search-retry-button')).toBeInTheDocument();
+    });
+
+    it('does NOT render Retry when onRetryWebSearch is not provided (read-only view)', () => {
+      const messages: ChatMessage[] = [
+        buildMessage({ id: 'u1', role: 'user', content: 'q' }),
+        buildMessage({
+          id: 'e1',
+          role: 'assistant',
+          content: 'boom',
+          message_type: 'error',
+        }),
+      ];
+      renderList({ messages });
+      expect(screen.queryByTestId('web-search-retry-button')).toBeNull();
+    });
   });
 
   // FIX-chat-bugfixes-and-grouping Item 4 — referenced-niche chip render path.

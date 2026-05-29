@@ -3014,6 +3014,14 @@
     "history": {
       "referencedNicheAria": "Referenced niche: {{name}}"
     },
+    "fallback": {
+      "webSearchUnavailable": {
+        "title": "Web search temporarily unavailable",
+        "body": "Live web search is returning no results right now. Please try again in a few minutes.",
+        "retry": "Retry",
+        "snackbar": "Web search temporarily unavailable"
+      }
+    },
     "actions": {
       "toolbarLabel": "Message actions",
       "copy": "Copy message",

@@ -790,6 +790,162 @@ describe('useSendMessageStream', () => {
     });
   });
 
+  // FIX-chat-bugfixes-and-grouping Phase 6 (Item 2) — `web_search_unavailable`
+  // SSE marker → info-variant snackbar fires at most once per session id.
+  describe('web search fallback marker', () => {
+    it('fires an info-variant snackbar with the title key on first marker', async () => {
+      const { result } = renderStreamHook();
+      act(() => {
+        result.current.start({ content: 'hi' });
+      });
+      await flush();
+
+      await act(async () => {
+        MockStreamController.instances[0].emit('init', {
+          message_id: MESSAGE_ID,
+          session_id: SESSION_ID,
+          mode: 'auto',
+        });
+        MockStreamController.instances[0].emit('error', {
+          error: 'web_search_unavailable',
+        });
+        await Promise.resolve();
+      });
+
+      const infoCalls = mockEnqueueSnackbar.mock.calls.filter(
+        (c) => c[1]?.variant === 'info',
+      );
+      expect(infoCalls.length).toBe(1);
+      // EN translation of search.fallback.webSearchUnavailable.snackbar
+      expect(infoCalls[0][0]).toBe('Web search temporarily unavailable');
+    });
+
+    it('does NOT fire the connectionLost / error snackbar when the marker is present', async () => {
+      const { result } = renderStreamHook();
+      act(() => {
+        result.current.start({ content: 'hi' });
+      });
+      await flush();
+
+      await act(async () => {
+        MockStreamController.instances[0].emit('init', {
+          message_id: MESSAGE_ID,
+          session_id: SESSION_ID,
+          mode: 'auto',
+        });
+        MockStreamController.instances[0].emit('error', {
+          error: 'web_search_unavailable',
+        });
+        await Promise.resolve();
+      });
+
+      const errorCalls = mockEnqueueSnackbar.mock.calls.filter(
+        (c) => c[1]?.variant === 'error',
+      );
+      expect(errorCalls.length).toBe(0);
+    });
+
+    it('does NOT re-fire the snackbar on a second marker within the same session id', async () => {
+      const { result } = renderStreamHook();
+
+      // First marker.
+      act(() => {
+        result.current.start({ content: 'first' });
+      });
+      await flush();
+      await act(async () => {
+        MockStreamController.instances[0].emit('init', {
+          message_id: MESSAGE_ID,
+          session_id: SESSION_ID,
+          mode: 'auto',
+        });
+        MockStreamController.instances[0].emit('error', {
+          error: 'web_search_unavailable',
+        });
+        await Promise.resolve();
+      });
+      const infoCallsAfterFirst = mockEnqueueSnackbar.mock.calls.filter(
+        (c) => c[1]?.variant === 'info',
+      );
+      expect(infoCallsAfterFirst.length).toBe(1);
+
+      // Second marker — same session id. Retry path.
+      act(() => {
+        result.current.start({ content: 'retry' });
+      });
+      await flush();
+      await act(async () => {
+        MockStreamController.instances[1].emit('init', {
+          message_id: MESSAGE_ID,
+          session_id: SESSION_ID,
+          mode: 'auto',
+        });
+        MockStreamController.instances[1].emit('error', {
+          error: 'web_search_unavailable',
+        });
+        await Promise.resolve();
+      });
+
+      const infoCallsAfterSecond = mockEnqueueSnackbar.mock.calls.filter(
+        (c) => c[1]?.variant === 'info',
+      );
+      // Still 1 — dedupe absorbed the second occurrence.
+      expect(infoCallsAfterSecond.length).toBe(1);
+    });
+
+    it('re-arms the snackbar when the session id changes', async () => {
+      const { result, rerender } = renderHook(
+        ({ sid }: { sid: string }) =>
+          useSendMessageStream({ sessionId: sid }),
+        { wrapper, initialProps: { sid: 'session-A' } },
+      );
+
+      // Marker on session A.
+      act(() => {
+        result.current.start({ content: 'hi A' });
+      });
+      await flush();
+      await act(async () => {
+        MockStreamController.instances[0].emit('init', {
+          message_id: MESSAGE_ID,
+          session_id: 'session-A',
+          mode: 'auto',
+        });
+        MockStreamController.instances[0].emit('error', {
+          error: 'web_search_unavailable',
+        });
+        await Promise.resolve();
+      });
+      expect(
+        mockEnqueueSnackbar.mock.calls.filter((c) => c[1]?.variant === 'info').length,
+      ).toBe(1);
+
+      // Switch to session B (new prop).
+      rerender({ sid: 'session-B' });
+
+      // Marker on session B → new entry in the set → snackbar fires again.
+      act(() => {
+        result.current.start({ content: 'hi B' });
+      });
+      await flush();
+      await act(async () => {
+        MockStreamController.instances[1].emit('init', {
+          message_id: MESSAGE_ID,
+          session_id: 'session-B',
+          mode: 'auto',
+        });
+        MockStreamController.instances[1].emit('error', {
+          error: 'web_search_unavailable',
+        });
+        await Promise.resolve();
+      });
+      const infoCalls = mockEnqueueSnackbar.mock.calls.filter(
+        (c) => c[1]?.variant === 'info',
+      );
+      expect(infoCalls.length).toBe(2);
+    });
+  });
+
   it('malformed event JSON is ignored gracefully', async () => {
     const { result } = renderStreamHook();
     act(() => {
