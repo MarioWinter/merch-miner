@@ -93,19 +93,27 @@ const streamingRotate = keyframes`
 `;
 
 // Outer two-layer wrapper. Holds the rotating glow as an absolutely-
-// positioned sibling of ShellInner; ShellInner sits on top with z-index
-// and covers all of the Shell area EXCEPT the 1px Shell padding gap,
-// which is where the glow shines through as a running ring. When not
-// streaming the glow node is not rendered at all and the bar looks
-// visually identical to the original single-Shell version.
+// positioned sibling of ShellInner; ShellInner sits on top in normal
+// DOM-paint order and covers all of the Shell area EXCEPT the 1px
+// Shell padding gap, which is where the glow shines through as a
+// running ring. When not streaming the glow node is not rendered at
+// all and the bar looks visually identical to the original
+// single-Shell version.
+//
+// We clip the rotating glow via `clip-path: inset(...)` instead of
+// `overflow: hidden`. WebKit (Safari + Chromium) has a long-standing
+// contenteditable bug where an `overflow: hidden` ancestor of a
+// contenteditable area corrupts cursor placement and triggers the
+// system "double-space → period" autocorrect at random — both
+// symptoms reported on this surface. `clip-path: inset(0 round
+// <radius>)` produces an identical visual clip without touching the
+// scroll machinery a contenteditable relies on.
 const Shell = styled(Box)({
   position: 'relative',
   width: '100%',
   borderRadius: 22,
   padding: 1,
-  // Clip the rotating glow to the rounded-rect shape so it never bleeds
-  // outside the bar. Always on (cheap, no layout effect either way).
-  overflow: 'hidden',
+  clipPath: 'inset(0 round 22px)',
 });
 
 // Rotating background — a conic-gradient (transparent → primary → transparent)
