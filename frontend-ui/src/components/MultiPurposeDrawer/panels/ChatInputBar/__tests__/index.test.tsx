@@ -70,7 +70,7 @@ vi.mock('@/store/collectedProductsSlice', () => ({
 /* eslint-enable @typescript-eslint/no-explicit-any */
 
 import { renderWithProviders } from '@/utils/test-utils';
-import chatBarReducer, { setStreamingAssistantMessage } from '@/store/chatBarSlice';
+import chatBarReducer from '@/store/chatBarSlice';
 import attachmentsReducer from '@/store/attachmentsSlice';
 import ChatInputBar from '../index';
 
@@ -121,29 +121,5 @@ describe('ChatInputBar (Phase 3.1 scaffold)', () => {
     renderWithProviders(<ChatInputBar appearance="panel" />, { reducers });
     const sendBtn = screen.getByTestId('chat-input-send-button');
     expect(sendBtn).toBeDisabled();
-  });
-
-  it('mounts the streaming glow + flips ShellInner data-streaming while a stream is in flight (Item 7.5)', () => {
-    const initial = chatBarReducer(undefined, { type: '@@INIT' });
-    const streaming = chatBarReducer(
-      initial,
-      setStreamingAssistantMessage({
-        id: 'streaming',
-        sources: [],
-        content: '',
-      }),
-    );
-    renderWithProviders(<ChatInputBar appearance="panel" />, {
-      reducers,
-      preloadedState: { chatBar: streaming },
-    });
-    expect(screen.getByTestId('chat-input-streaming-glow')).toBeInTheDocument();
-    const bar = screen.getByTestId('chat-input-bar');
-    expect(bar.querySelector('[data-streaming="true"]')).not.toBeNull();
-  });
-
-  it('omits the streaming glow when no stream is in flight', () => {
-    renderWithProviders(<ChatInputBar appearance="panel" />, { reducers });
-    expect(screen.queryByTestId('chat-input-streaming-glow')).toBeNull();
   });
 });

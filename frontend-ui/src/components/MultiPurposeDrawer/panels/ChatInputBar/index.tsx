@@ -7,7 +7,7 @@ import {
   useState,
 } from 'react';
 import { Box, Stack } from '@mui/material';
-import { styled, alpha, keyframes } from '@mui/material/styles';
+import { styled, alpha } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
 import { COLORS } from '@/style/constants';
@@ -85,78 +85,16 @@ interface ShellProps {
   appearance: 'floating' | 'panel';
 }
 
-// FIX-chat-bugfixes-and-grouping Item 7.5 — single rotation cycle of the
-// streaming glow. A SOLID transform animation (no @property / no mask)
-// drives the rotation, so the effect works in every modern browser.
-const streamingRotate = keyframes`
-  to { transform: translate(-50%, -50%) rotate(360deg); }
-`;
-
-// Outer two-layer wrapper. Holds the rotating glow as an absolutely-
-// positioned sibling of ShellInner; ShellInner sits on top in normal
-// DOM-paint order and covers all of the Shell area EXCEPT the 1px
-// Shell padding gap, which is where the glow shines through as a
-// running ring. When not streaming the glow node is not rendered at
-// all and the bar looks visually identical to the original
-// single-Shell version.
-//
-// We clip the rotating glow via `clip-path: inset(...)` instead of
-// `overflow: hidden`. WebKit (Safari + Chromium) has a long-standing
-// contenteditable bug where an `overflow: hidden` ancestor of a
-// contenteditable area corrupts cursor placement and triggers the
-// system "double-space → period" autocorrect at random — both
-// symptoms reported on this surface. `clip-path: inset(0 round
-// <radius>)` produces an identical visual clip without touching the
-// scroll machinery a contenteditable relies on.
-const Shell = styled(Box)({
-  position: 'relative',
-  width: '100%',
-  borderRadius: 22,
-  padding: 1,
-  clipPath: 'inset(0 round 22px)',
-});
-
-// Rotating background — a conic-gradient (transparent → primary → transparent)
-// painted on an element ~3x larger than the Shell and rotated around its
-// own centre. Because the parent has overflow:hidden the user sees only
-// the visible perimeter of the gradient, producing a glow that runs
-// around the border. No CSS @property or mask trickery required.
-const StreamingGlow = styled('span')(({ theme }) => ({
-  position: 'absolute',
-  top: '50%',
-  left: '50%',
-  width: '300%',
-  height: '300%',
-  transform: 'translate(-50%, -50%) rotate(0deg)',
-  background: `conic-gradient(transparent 0deg, ${theme.vars.palette.primary.main} 90deg, transparent 180deg)`,
-  animation: `${streamingRotate} 2.5s linear infinite`,
-  pointerEvents: 'none',
-  zIndex: 0,
-  // Accessibility: reduced-motion users get a static primary ring
-  // instead of a rotating gradient.
-  '@media (prefers-reduced-motion: reduce)': {
-    animation: 'none',
-    background: theme.vars.palette.primary.main,
-  },
-}));
-
-const ShellInner = styled(Box, {
+const Shell = styled(Box, {
   shouldForwardProp: (prop) => prop !== 'appearance',
 })<ShellProps>(({ theme, appearance }) => ({
   width: '100%',
-  // Inherit the outer Shell's border radius so the inner box's rounded
-  // corners line up exactly with the outer clip.
-  borderRadius: 'inherit',
+  borderRadius: 22,
   padding: theme.spacing(1.5, 1.75),
   border: `1px solid ${theme.vars.palette.divider}`,
   display: 'flex',
   flexDirection: 'column',
   gap: theme.spacing(1),
-  // No `position: relative` or `z-index` here. The natural DOM-order
-  // paint already places ShellInner on top of the absolutely-positioned
-  // StreamingGlow (which is rendered first in JSX). Adding a stacking
-  // context here triggered contenteditable cursor/selection glitches
-  // in WebKit during streaming.
   transition: 'border-color 150ms ease, background-color 150ms ease',
   ...(appearance === 'floating'
     ? {
@@ -177,19 +115,11 @@ const ShellInner = styled(Box, {
   '&:focus-within': {
     borderColor: theme.vars.palette.primary.main,
   },
-  // PROJ-20 Phase 7.5 — drag-over visual feedback when files are dragged over.
+  // Phase 7.5 — drag-over visual feedback when files are dragged over.
   '&[data-drag-over="true"]': {
     borderColor: theme.vars.palette.primary.main,
     borderStyle: 'dashed',
     backgroundColor: alpha(theme.palette.primary.main, 0.08),
-  },
-  // FIX-chat-bugfixes-and-grouping Item 7.5 — while a stream is in flight
-  // we drop the static border (incl. :focus-within highlight) to
-  // transparent so the rotating glow behind us is visible through the
-  // 1px Shell padding gap. Compound selector keeps the focus override
-  // from overriding the running-border visual.
-  '&[data-streaming="true"], &[data-streaming="true"]:focus-within': {
-    borderColor: 'transparent',
   },
 }));
 
@@ -410,48 +340,44 @@ const ChatInputBar = forwardRef<ChatInputBarHandle, ChatInputBarProps>(
 
   return (
     <Box data-testid="chat-input-bar" sx={{ width: '100%' }}>
-      <Shell data-streaming={isStreaming ? 'true' : undefined}>
-        {isStreaming && <StreamingGlow data-testid="chat-input-streaming-glow" />}
-        <ShellInner
+      <Shell
+        appearance={appearance}
+        data-appearance={appearance}
+        data-drag-over={isDragOver ? 'true' : undefined}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        onPaste={handlePaste}
+      >
+        <AttachmentBar />
+        <SmartTextarea
+          ref={textareaRef}
           appearance={appearance}
-          data-appearance={appearance}
-          data-drag-over={isDragOver ? 'true' : undefined}
-          data-streaming={isStreaming ? 'true' : undefined}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          onPaste={handlePaste}
-        >
-          <AttachmentBar />
-          <SmartTextarea
-            ref={textareaRef}
-            appearance={appearance}
-            placeholder={placeholder}
-            ariaLabel={placeholder}
-            disabled={disabled}
-            onValueChange={handleValueChange}
-            onSubmit={handleSubmit}
-          />
-          <ActionBar>
-            <Stack direction="row" alignItems="center" gap={0.75}>
-              <ModePopoverButton />
-            </Stack>
-            <Stack direction="row" alignItems="center" gap={0.25}>
-              <SourcesPopoverButton />
-              <ModelPopoverButton />
-              <AttachmentButton />
-              <Box sx={{ ml: 0.5 }}>
-                <SendButton
-                  isEmpty={isEmpty}
-                  isStreaming={isStreaming}
-                  disabled={sendDisabled}
-                  onSubmit={handleSubmit}
-                  onStop={onStop}
-                />
-              </Box>
-            </Stack>
-          </ActionBar>
-        </ShellInner>
+          placeholder={placeholder}
+          ariaLabel={placeholder}
+          disabled={disabled}
+          onValueChange={handleValueChange}
+          onSubmit={handleSubmit}
+        />
+        <ActionBar>
+          <Stack direction="row" alignItems="center" gap={0.75}>
+            <ModePopoverButton />
+          </Stack>
+          <Stack direction="row" alignItems="center" gap={0.25}>
+            <SourcesPopoverButton />
+            <ModelPopoverButton />
+            <AttachmentButton />
+            <Box sx={{ ml: 0.5 }}>
+              <SendButton
+                isEmpty={isEmpty}
+                isStreaming={isStreaming}
+                disabled={sendDisabled}
+                onSubmit={handleSubmit}
+                onStop={onStop}
+              />
+            </Box>
+          </Stack>
+        </ActionBar>
       </Shell>
       <HelperHint />
       <MentionPicker {...pickerProps} />
