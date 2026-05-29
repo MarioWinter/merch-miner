@@ -306,17 +306,17 @@ The Chat icon in the topbar currently uses different padding, icon size, and hov
 - As a POD seller looking at the topbar, I want the Chat-Icon button to visually match the other topbar IconButtons (ColorMode / Language) — same size, padding, hover state — so the topbar looks cohesive.
 
 ### Acceptance Criteria
-- [ ] AC-6-1: Locate the Chat-Icon `IconButton` in `frontend-ui/src/components/topbar/Topbar.tsx` (or wherever the chat-open button lives — verify via grep).
-- [ ] AC-6-2: Adjust IconButton `size`, `sx`, and `aria-label` to match `ColorModeToggle.tsx` shape: `size="small"`, identical padding sx, identical hover background via `theme.vars.palette.action.hover`.
-- [ ] AC-6-3: Icon color uses `theme.vars.palette.text.primary` (matches other topbar icons in both light + dark mode).
-- [ ] AC-6-4: Active/badge state (if there's an unread badge today) preserved using `theme.vars.palette.primary.main`.
-- [ ] AC-6-5: No hardcoded hex/rgb values introduced. ESLint passes.
-- [ ] AC-6-6: Visual smoke: take a screenshot of topbar light + dark mode; chat icon visually matches Clock / ColorMode / Language siblings (same height + padding + hover).
+- [x] AC-6-1: Locate the Chat-Icon `IconButton` in `frontend-ui/src/components/topbar/Topbar.tsx` (or wherever the chat-open button lives — verify via grep). — Topbar.tsx:141-150 (Tooltip wraps the chat IconButton; `ChatBubbleOutlineIcon` at line 7).
+- [x] AC-6-2: Adjust IconButton `size`, `sx`, and `aria-label` to match `ColorModeToggle.tsx` shape: `size="small"`, identical padding sx, identical hover background via `theme.vars.palette.action.hover`. — Topbar.tsx:82-93 new `TopbarIconButton` styled component mirrors ColorModeToggle.tsx:9-18 verbatim (width 32, height 32, borderRadius '8px', hover bg `action.hover`); applied at Topbar.tsx:155-163 with `size="small"` + existing `aria-label`.
+- [x] AC-6-3: Icon color uses `theme.vars.palette.text.primary` (matches other topbar icons in both light + dark mode). — Implemented per Item 6 Decisions ("copy the exact IconButton `sx` shape from `ColorModeToggle.tsx`"): siblings use `text.secondary` default + hover→`text.primary`. Touched IconButton now matches that pattern at Topbar.tsx:86 + 89, achieving the AC's underlying goal (matching siblings in both modes) without diverging from the reference shape.
+- [x] AC-6-4: Active/badge state (if there's an unread badge today) preserved using `theme.vars.palette.primary.main`. — No badge currently exists on the chat IconButton (verified: only `NotificationBell` carries a badge in the topbar). Out-of-scope per "Adding a badge if none exists today."
+- [x] AC-6-5: No hardcoded hex/rgb values introduced. ESLint passes. — Touched lines (Topbar.tsx:82-93, 155-163) reference only `theme.vars.palette.*` tokens; `npm run lint` → 0 errors (17 pre-existing warnings in untouched files).
+- [ ] AC-6-6: Visual smoke: take a screenshot of topbar light + dark mode; chat icon visually matches Clock / ColorMode / Language siblings (same height + padding + hover). — Deferred to orchestrator manual smoke (out of code-skill scope; behavior verified structurally via shared `TopbarIconButton` styled component reused 1:1 from sibling pattern).
 
 ### Edge Cases
-- [ ] EC-6-1: Mobile breakpoint (<600px) — Topbar collapses to `MobileContextSheet`; this fix applies only to the desktop topbar visible icon.
-- [ ] EC-6-2: Color-scheme switch (light ↔ dark) — `theme.vars.*` ensures the icon adapts correctly.
-- [ ] EC-6-3: Workspace-switch animation triggers a re-render — style alignment is purely CSS-driven; no flicker.
+- [x] EC-6-1: Mobile breakpoint (<600px) — Topbar collapses to `MobileContextSheet`; this fix applies only to the desktop topbar visible icon. — Chat IconButton lives inside the right-actions Box (Topbar.tsx:137-156), which is part of the desktop layout; `MobileContextControl` renders separately at lines 111-115 and is untouched.
+- [x] EC-6-2: Color-scheme switch (light ↔ dark) — `theme.vars.*` ensures the icon adapts correctly. — `TopbarIconButton` uses CSS vars (`theme.vars.palette.text.secondary`, `action.hover`, `text.primary`) which MUI's CssVarsProvider swaps at runtime without React re-render.
+- [x] EC-6-3: Workspace-switch animation triggers a re-render — style alignment is purely CSS-driven; no flicker. — Style attached via `styled()` (static CSS class), no inline `style={{ }}` and no `sx` evaluated per-render on the touched button; class is stable across re-renders.
 
 ### Out of Scope
 - Rearranging icon order in the topbar.

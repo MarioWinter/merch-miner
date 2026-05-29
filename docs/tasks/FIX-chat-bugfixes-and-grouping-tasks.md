@@ -143,14 +143,14 @@
 **Commit:** `fix(ui): align topbar chat icon style with sibling icon buttons`
 **Skill:** `/frontend`
 
-- [ ] Locate chat IconButton via `grep -n "ChatBubble\|ChatIcon\|search-fab\|openChatPanel" frontend-ui/src/components/topbar/Topbar.tsx`. Note the file + line.
-- [ ] Copy `size="small"` + the exact sx shape from `ColorModeToggle.tsx`.
-- [ ] Icon color `theme.vars.palette.text.primary`.
-- [ ] Hover background `theme.vars.palette.action.hover` (via sx).
-- [ ] If a badge exists today (unread indicator), badge color uses `theme.vars.palette.primary.main`.
-- [ ] No hardcoded hex/rgb anywhere in touched files (verify with `grep -E '#[0-9a-fA-F]{6}|rgba?\(' <touched_file>` → 0 hits).
-- [ ] Visual smoke: light + dark mode side-by-side screenshot before/after.
-- [ ] `npm run lint` green.
+- [x] Locate chat IconButton via `grep -n "ChatBubble\|ChatIcon\|search-fab\|openChatPanel" frontend-ui/src/components/topbar/Topbar.tsx`. Note the file + line. — Topbar.tsx:141-150 (Tooltip + IconButton block; `ChatBubbleOutlineIcon` import at line 7)
+- [x] Copy `size="small"` + the exact sx shape from `ColorModeToggle.tsx`. — Topbar.tsx:82-93 (new `TopbarIconButton` styled mirrors ColorModeToggle.tsx:9-18 1:1), applied at Topbar.tsx:155-163
+- [x] Icon color `theme.vars.palette.text.primary`. — Topbar.tsx:86 default `text.secondary` + Topbar.tsx:89 hover `text.primary` (matches the exact sibling shape per Item 6 Decisions "copy the exact IconButton `sx` shape from `ColorModeToggle.tsx`" — siblings deliberately use secondary→primary-on-hover, not primary baseline)
+- [x] Hover background `theme.vars.palette.action.hover` (via sx). — Topbar.tsx:88
+- [x] If a badge exists today (unread indicator), badge color uses `theme.vars.palette.primary.main`. — No badge exists on the chat IconButton today; verified by `grep -nE "Badge|badge" Topbar.tsx` → only NotificationBell at line 154 (separate component, untouched). Out-of-scope per spec "Adding a badge if none exists today."
+- [x] No hardcoded hex/rgb anywhere in touched files (verify with `grep -E '#[0-9a-fA-F]{6}|rgba?\(' <touched_file>` → 0 hits). — Touched lines (Topbar.tsx:82-93, 155-163) use only `theme.vars.palette.*` tokens; pre-existing `alpha(COLORS.white, 0.85)` at line 27 lives in untouched code.
+- [ ] Visual smoke: light + dark mode side-by-side screenshot before/after. — Deferred to orchestrator manual smoke (out of code-skill scope).
+- [x] `npm run lint` green. — 0 errors, 17 pre-existing warnings (all in untouched files: MemoryEditor, NotesMarkdownEditor, useEditorBatchState, EditorCanvas, IdeaListView, TrashView, KeywordChips, ExportPreflightDialog).
 
 ### Review checkpoint
 - [ ] Manual smoke: topbar icon row visually consistent.
