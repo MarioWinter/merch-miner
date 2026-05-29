@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { startTransition, useState } from 'react';
 import {
   Box,
   Button,
@@ -380,6 +380,35 @@ const GenerationZone = ({
   const [splitAnchorEl, setSplitAnchorEl] = useState<HTMLElement | null>(null);
   const splitMenuOpen = Boolean(splitAnchorEl);
 
+  // PERF — local prompt buffer keeps typing fast.
+  // The parent's `prompt` state drives many downstream consumers
+  // (parallelPrompts split, BuilderDialog dirty check, save/Generate handlers).
+  // Letting each keystroke run through `onPromptChange` made the whole
+  // DesignWorkspaceView tree re-render synchronously per character,
+  // producing 150-180ms long tasks while typing on the canvas. We keep
+  // the textarea responsive with a local state and push updates to the
+  // parent inside a `startTransition` so React can interrupt the heavy
+  // render if more keystrokes are pending.
+  const [localPrompt, setLocalPrompt] = useState(prompt);
+  // Sync external changes (slogan-insert, Builder build, image-analysis
+  // auto-fill, page hydration) into local state without bouncing them
+  // straight back to the parent. Uses the "adjusting state from props"
+  // pattern from the React docs — paired useState trackers avoid the
+  // refs-in-render lint, and React bails out of the duplicate render
+  // cleanly because `lastExternal === prompt` after the sync.
+  const [lastExternal, setLastExternal] = useState(prompt);
+  if (prompt !== lastExternal) {
+    setLastExternal(prompt);
+    if (prompt !== localPrompt) setLocalPrompt(prompt);
+  }
+  const handlePromptInputChange = (value: string) => {
+    setLocalPrompt(value);
+    setLastExternal(value);
+    startTransition(() => {
+      onPromptChange(value);
+    });
+  };
+
   const handleModelChange = (e: SelectChangeEvent<unknown>) => {
     onModelChange(e.target.value as DesignModel);
   };
@@ -424,8 +453,11 @@ const GenerationZone = ({
 
   const remixIncomplete = mode === 'remix' && (!sourceImageUrl || !sourceImageUrl2);
   const editMissingSource = mode === 'image_to_image_edit' && !sourceImageUrl;
+  // Use the local buffer for the disable check too — the parent's `prompt`
+  // lags one transition behind during a typing burst and would briefly
+  // re-disable Generate between local-update and transition-commit.
   const generateDisabled =
-    disabled || isGenerating || !prompt.trim() || remixIncomplete || editMissingSource;
+    disabled || isGenerating || !localPrompt.trim() || remixIncomplete || editMissingSource;
 
   return (
     <ZoneRoot aria-label={t('design.generation.zoneLabel', 'Generation controls')}>
@@ -599,8 +631,8 @@ const GenerationZone = ({
         minRows={isParallel ? 8 : 4}
         maxRows={isParallel ? 8 : 4}
         fullWidth
-        value={prompt}
-        onChange={(e) => onPromptChange(e.target.value)}
+        value={localPrompt}
+        onChange={(e) => handlePromptInputChange(e.target.value)}
         placeholder={placeholderText}
         disabled={disabled || isGenerating}
         size="small"

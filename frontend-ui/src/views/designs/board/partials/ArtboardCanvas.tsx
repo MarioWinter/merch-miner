@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
 import { Stage, Layer, Circle } from 'react-konva';
 import { Typography } from '@mui/material';
 import { useColorScheme } from '@mui/material/styles';
@@ -564,4 +564,9 @@ const ArtboardCanvas = ({
   );
 };
 
-export default ArtboardCanvas;
+// React.memo to stop prop-only re-renders from cascading into Konva's
+// internal layer/stage diff. Typing in sibling inputs (chat, prompt
+// textarea, etc.) lives in DesignWorkspaceView's hooks; each keystroke
+// re-renders the workspace and would otherwise drag the entire canvas
+// through React's reconciliation for no behavioural change.
+export default memo(ArtboardCanvas);
