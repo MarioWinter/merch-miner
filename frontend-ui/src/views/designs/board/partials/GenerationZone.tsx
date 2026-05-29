@@ -1,4 +1,4 @@
-import { startTransition, useState } from 'react';
+import { startTransition, useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -391,19 +391,21 @@ const GenerationZone = ({
   // render if more keystrokes are pending.
   const [localPrompt, setLocalPrompt] = useState(prompt);
   // Sync external changes (slogan-insert, Builder build, image-analysis
-  // auto-fill, page hydration) into local state without bouncing them
-  // straight back to the parent. Uses the "adjusting state from props"
-  // pattern from the React docs — paired useState trackers avoid the
-  // refs-in-render lint, and React bails out of the duplicate render
-  // cleanly because `lastExternal === prompt` after the sync.
-  const [lastExternal, setLastExternal] = useState(prompt);
-  if (prompt !== lastExternal) {
-    setLastExternal(prompt);
-    if (prompt !== localPrompt) setLocalPrompt(prompt);
-  }
+  // auto-fill, page hydration) into local state. Effect runs only when
+  // the parent prop changes — when the user types, our handler updates
+  // `localPrompt` urgently AND schedules `onPromptChange` in a
+  // transition, so the parent prop catches up to our local value on a
+  // later render and the equality bail-out skips the redundant sync.
+  // Intentionally NOT depending on `localPrompt` here: doing so would
+  // re-fire the effect mid-typing (parent stale, local fresh) and yank
+  // the textarea back to the stale value mid-keystroke — the bug we hit
+  // with the in-render setState pattern.
+  useEffect(() => {
+    setLocalPrompt((curr) => (curr === prompt ? curr : prompt));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prompt]);
   const handlePromptInputChange = (value: string) => {
     setLocalPrompt(value);
-    setLastExternal(value);
     startTransition(() => {
       onPromptChange(value);
     });
