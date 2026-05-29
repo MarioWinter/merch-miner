@@ -4,6 +4,54 @@ from django.conf import settings
 from django.db import models
 
 
+class ChatGroup(models.Model):
+    """Workspace-scoped named folder for organising ChatSessions.
+
+    FIX 2026-05-28 Item 7 — single-level groups (no nesting). Each session
+    has at most one group via ``ChatSession.group`` (SET_NULL on delete so
+    deleting a group does NOT delete its chats — they fall back to the
+    virtual "Ungrouped" section rendered by the frontend as ``group=NULL``).
+    """
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    workspace = models.ForeignKey(
+        'workspace_app.Workspace',
+        on_delete=models.CASCADE,
+        related_name='chat_groups',
+        db_index=True,
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='chat_groups',
+    )
+    name = models.CharField(max_length=80)
+    # Manual sort order within the workspace (1-based after first reorder;
+    # default 0 lets newly created groups sort behind any reordered ones
+    # until a reorder happens — view assigns max+1 at create time).
+    ordering = models.PositiveIntegerField(default=0, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['ordering', 'created_at']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['workspace', 'name'],
+                name='chatgroup_workspace_name_unique',
+            ),
+        ]
+        indexes = [
+            models.Index(
+                fields=['workspace', 'ordering'],
+                name='chatgroup_ws_ordering_idx',
+            ),
+        ]
+
+    def __str__(self):
+        return self.name or f"Group {self.id}"
+
+
 class ChatSession(models.Model):
     """Persistent chat session for web search conversations."""
 
@@ -51,10 +99,31 @@ class ChatSession(models.Model):
             'consistent (EC-28).'
         ),
     )
+    # FIX 2026-05-28 Item 7 — group + group_ordering wire single-level folder
+    # organisation. group=NULL means "Ungrouped" (rendered by the frontend as
+    # a virtual section, no DB row). group_ordering is the per-group manual
+    # sort position; default 0 places new sessions at the top of their bucket
+    # until a reorder POST assigns explicit positions.
+    group = models.ForeignKey(
+        'ChatGroup',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        db_index=True,
+        related_name='sessions',
+    )
+    group_ordering = models.PositiveIntegerField(default=0, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        # Global default stays on recency. `group_ordering` is only used for
+        # within-a-group manual sort (driven by the dnd-kit sidebar) and is
+        # applied explicitly inside per-group queries — never as a global
+        # default. Reverting the earlier experiment that pinned
+        # group_ordering ASC globally: that pushed moved chats with
+        # group_ordering > 0 off page 1 of the paginated listSessions
+        # response, making them invisible until the user paged forward.
         ordering = ['-updated_at']
         indexes = [
             models.Index(
@@ -64,6 +133,12 @@ class ChatSession(models.Model):
             models.Index(
                 fields=['created_by', '-updated_at'],
                 name='chatsess_user_updated_idx',
+            ),
+            # FIX 2026-05-28 Item 7 — supports the per-group manual ordering
+            # used by the sidebar group sections + reorder-in-group endpoint.
+            models.Index(
+                fields=['group', 'group_ordering'],
+                name='chatsess_group_ordering_idx',
             ),
         ]
 

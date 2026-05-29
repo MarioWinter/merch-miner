@@ -5,7 +5,8 @@ import time
 
 import django_rq
 from django.conf import settings
-from django.db.models import Count
+from django.db import IntegrityError, transaction
+from django.db.models import Count, Max
 from django.http import StreamingHttpResponse
 from rest_framework import status
 from rest_framework.exceptions import ValidationError
@@ -17,9 +18,12 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from search_app.api.serializers import (
+    ChatGroupReorderSerializer,
+    ChatGroupSerializer,
     ChatSessionCreateSerializer,
     ChatSessionDetailSerializer,
     ChatSessionListSerializer,
+    ChatSessionReorderInGroupSerializer,
     ChatSessionUpdateSerializer,
     ChatStreamRequestSerializer,
     PublicChatSessionSerializer,
@@ -29,6 +33,7 @@ from search_app.api.serializers import (
     WebSearchResultSerializer,
 )
 from search_app.models import (
+    ChatGroup,
     ChatMessage,
     ChatSession,
     WebSearchResult,
@@ -119,7 +124,11 @@ class ChatSessionListCreateView(APIView):
         if niche_id:
             qs = qs.filter(niche_context_id=niche_id)
 
-        qs = qs.select_related('created_by', 'niche_context').annotate(
+        # FIX 2026-05-28 Item 7 — select_related('group') so the new
+        # serializer field doesn't hit a per-row query. Order by recency
+        # globally; the sidebar bins by `group` client-side and applies
+        # `group_ordering` only WITHIN each group section.
+        qs = qs.select_related('created_by', 'niche_context', 'group').annotate(
             _message_count=Count('messages')
         ).order_by('-updated_at')
 
@@ -251,9 +260,43 @@ class ChatSessionDetailView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
+        update_fields = []
         if 'title' in data:
             session.title = data['title']
-            session.save(update_fields=['title', 'updated_at'])
+            update_fields.append('title')
+
+        # FIX 2026-05-28 Item 7 — move this session into/out of a group.
+        # ``group`` is required to be a UUID belonging to the same workspace
+        # (or null to move into the Ungrouped virtual section). The
+        # destination's ``group_ordering`` is set to max(existing) + 1 so the
+        # moved chat lands at the end of the destination bucket atomically.
+        if 'group' in data:
+            new_group_id = data['group']
+            if new_group_id is not None:
+                try:
+                    new_group = ChatGroup.objects.get(
+                        pk=new_group_id, workspace=workspace,
+                    )
+                except ChatGroup.DoesNotExist:
+                    raise ValidationError(
+                        {'group': ['chatgroup_not_in_workspace']},
+                    )
+                new_group_pk = new_group.pk
+            else:
+                new_group_pk = None
+
+            with transaction.atomic():
+                current_max = ChatSession.objects.filter(
+                    workspace=workspace,
+                    group_id=new_group_pk,
+                ).aggregate(m=Max('group_ordering'))['m'] or 0
+                session.group_id = new_group_pk
+                session.group_ordering = current_max + 1
+            update_fields.extend(['group', 'group_ordering'])
+
+        if update_fields:
+            update_fields.append('updated_at')
+            session.save(update_fields=update_fields)
 
         return Response(ChatSessionDetailSerializer(session).data)
 
@@ -1610,6 +1653,218 @@ class ChatMessageDestroyView(APIView):
 
         message.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ============================================================================
+# FIX 2026-05-28 Item 7 — Chat Groups (sidebar folder organisation)
+# ============================================================================
+
+
+class ChatGroupListCreateView(APIView):
+    """``GET  /api/chat/groups/`` — list workspace groups (annotated with
+    ``session_count`` via ``Count('sessions')`` so the serializer doesn't
+    trigger a per-row COUNT query).
+
+    ``POST /api/chat/groups/`` — create new group. Body ``{name: str}``.
+    Server assigns ``ordering = max(existing in workspace) + 1`` atomically.
+    Duplicate ``(workspace, name)`` returns a 400 ``ValidationError`` via the
+    existing ``UniqueConstraint`` (caught and re-raised with a stable error
+    code for the frontend).
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        workspace, err = _resolve_workspace(request)
+        if err:
+            return err
+        qs = (
+            ChatGroup.objects.filter(workspace=workspace)
+            .annotate(session_count=Count('sessions'))
+            .order_by('ordering', 'created_at')
+        )
+        data = ChatGroupSerializer(qs, many=True).data
+        return Response(data)
+
+    def post(self, request):
+        workspace, err = _resolve_workspace(request)
+        if err:
+            return err
+        serializer = ChatGroupSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        name = serializer.validated_data['name']
+
+        try:
+            with transaction.atomic():
+                current_max = ChatGroup.objects.filter(
+                    workspace=workspace,
+                ).aggregate(m=Max('ordering'))['m'] or 0
+                group = ChatGroup.objects.create(
+                    workspace=workspace,
+                    created_by=request.user,
+                    name=name,
+                    ordering=current_max + 1,
+                )
+        except IntegrityError:
+            raise ValidationError(
+                {'name': ['chatgroup_duplicate_name']},
+            )
+
+        # Re-fetch with the annotation so session_count is populated in the
+        # response (will be 0 for a brand-new group).
+        group = (
+            ChatGroup.objects.filter(pk=group.pk)
+            .annotate(session_count=Count('sessions'))
+            .first()
+        )
+        return Response(
+            ChatGroupSerializer(group).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ChatGroupDetailView(APIView):
+    """``PATCH  /api/chat/groups/<id>/`` — rename group.
+    ``DELETE /api/chat/groups/<id>/`` — delete group. ``ChatSession.group``
+    uses ``on_delete=SET_NULL`` so all sessions inside the deleted group
+    cascade-clear to NULL (= Ungrouped virtual section) automatically.
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def _get_group(self, request, group_id):
+        workspace, err = _resolve_workspace(request)
+        if err:
+            return None, None, err
+        try:
+            group = ChatGroup.objects.get(pk=group_id, workspace=workspace)
+        except ChatGroup.DoesNotExist:
+            return None, None, Response(
+                {'error': 'Group not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return workspace, group, None
+
+    def patch(self, request, group_id):
+        workspace, group, err = self._get_group(request, group_id)
+        if err:
+            return err
+        serializer = ChatGroupSerializer(group, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        new_name = serializer.validated_data.get('name')
+        if new_name is not None and new_name != group.name:
+            group.name = new_name
+            # Wrap the rename in atomic() so the IntegrityError raised by the
+            # (workspace, name) UniqueConstraint is contained in its own
+            # savepoint and the surrounding request-level transaction stays
+            # usable (Django would otherwise mark the outer txn as broken).
+            try:
+                with transaction.atomic():
+                    group.save(update_fields=['name', 'updated_at'])
+            except IntegrityError:
+                raise ValidationError(
+                    {'name': ['chatgroup_duplicate_name']},
+                )
+
+        group = (
+            ChatGroup.objects.filter(pk=group.pk)
+            .annotate(session_count=Count('sessions'))
+            .first()
+        )
+        return Response(ChatGroupSerializer(group).data)
+
+    def delete(self, request, group_id):
+        workspace, group, err = self._get_group(request, group_id)
+        if err:
+            return err
+        group.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ChatGroupReorderView(APIView):
+    """``POST /api/chat/groups/reorder/`` — set ``ordering = i + 1`` for each
+    id in ``ordered_ids``. Atomic: rejects (400) if any id is foreign to the
+    current workspace WITHOUT mutating the DB.
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        workspace, err = _resolve_workspace(request)
+        if err:
+            return err
+        serializer = ChatGroupReorderSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        ordered_ids = serializer.validated_data['ordered_ids']
+
+        # Foreign-id detection BEFORE any write: count matching rows scoped to
+        # workspace and compare against the request length.
+        valid_count = ChatGroup.objects.filter(
+            workspace=workspace,
+            id__in=ordered_ids,
+        ).count()
+        if valid_count != len(ordered_ids):
+            raise ValidationError(
+                {'ordered_ids': ['foreign_group_in_list']},
+            )
+
+        with transaction.atomic():
+            for index, gid in enumerate(ordered_ids):
+                ChatGroup.objects.filter(id=gid).update(ordering=index + 1)
+
+        return Response({'ok': True})
+
+
+class ChatSessionReorderInGroupView(APIView):
+    """``POST /api/chat/sessions/reorder-in-group/`` — set
+    ``(group_id, group_ordering)`` for every session in ``ordered_ids``.
+    Atomic: rejects (400) on any foreign session or foreign destination group
+    WITHOUT mutating the DB.
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        workspace, err = _resolve_workspace(request)
+        if err:
+            return err
+        serializer = ChatSessionReorderInGroupSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        group_id = serializer.validated_data['group_id']
+        ordered_ids = serializer.validated_data['ordered_ids']
+
+        # Validate destination group (if non-null) is in this workspace.
+        if group_id is not None:
+            group_exists = ChatGroup.objects.filter(
+                pk=group_id, workspace=workspace,
+            ).exists()
+            if not group_exists:
+                raise ValidationError(
+                    {'group_id': ['chatgroup_not_in_workspace']},
+                )
+
+        # Validate all session ids belong to this workspace BEFORE writing.
+        valid_count = ChatSession.objects.filter(
+            workspace=workspace,
+            id__in=ordered_ids,
+        ).count()
+        if valid_count != len(ordered_ids):
+            raise ValidationError(
+                {'ordered_ids': ['foreign_session_in_list']},
+            )
+
+        with transaction.atomic():
+            for index, sid in enumerate(ordered_ids):
+                ChatSession.objects.filter(id=sid).update(
+                    group_id=group_id,
+                    group_ordering=index + 1,
+                )
+
+        return Response({'ok': True})
 
 
 class TriggerCrawlView(APIView):

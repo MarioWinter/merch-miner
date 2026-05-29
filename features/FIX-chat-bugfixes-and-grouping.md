@@ -359,7 +359,7 @@ Today the sidebar `RecentChats` panel shows a flat list of `ChatSession` rows so
 ### Acceptance Criteria
 
 **Backend — Model & Migration:**
-- [ ] AC-7-1: New model in `django-app/search_app/models.py`:
+- [x] AC-7-1: New model in `django-app/search_app/models.py`:
   ```python
   class ChatGroup(models.Model):
       id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

@@ -1,6 +1,7 @@
 import { createApi } from '@reduxjs/toolkit/query/react';
 import { axiosBaseQuery } from './axiosBaseQuery';
 import type {
+  ChatGroup,
   ChatSession,
   ChatSessionDetail,
   ChatSessionListResponse,
@@ -24,7 +25,7 @@ import { nicheApi } from './nicheSlice';
 export const searchApi = createApi({
   reducerPath: 'searchApi',
   baseQuery: axiosBaseQuery({ baseUrl: '' }),
-  tagTypes: ['ChatSessions', 'ChatMessages', 'CrawlJobs', 'SearchHealth'],
+  tagTypes: ['ChatSessions', 'ChatMessages', 'CrawlJobs', 'SearchHealth', 'ChatGroups'],
   endpoints: (builder) => ({
     // --- Sessions ---
     listSessions: builder.query<ChatSessionListResponse, SessionListParams | void>({
@@ -191,6 +192,192 @@ export const searchApi = createApi({
       }),
     }),
 
+    // --- Chat Groups (FIX-chat-bugfixes-and-grouping Item 7) ---
+    // Workspace-scoped folders for ChatSession rows in the sidebar.
+    // Sessions with `group=null` render in a virtual "Ungrouped" section
+    // (no DB row — purely a UI grouping).
+    getChatGroups: builder.query<ChatGroup[], void>({
+      query: () => ({
+        url: '/api/chat/groups/',
+        method: 'GET',
+      }),
+      providesTags: (result) =>
+        result
+          ? [
+              ...result.map(({ id }) => ({ type: 'ChatGroups' as const, id })),
+              { type: 'ChatGroups', id: 'LIST' },
+            ]
+          : [{ type: 'ChatGroups', id: 'LIST' }],
+    }),
+
+    createChatGroup: builder.mutation<ChatGroup, { name: string }>({
+      query: (body) => ({
+        url: '/api/chat/groups/',
+        method: 'POST',
+        data: body,
+      }),
+      invalidatesTags: [{ type: 'ChatGroups', id: 'LIST' }],
+    }),
+
+    renameChatGroup: builder.mutation<ChatGroup, { id: string; name: string }>({
+      query: ({ id, name }) => ({
+        url: `/api/chat/groups/${id}/`,
+        method: 'PATCH',
+        data: { name },
+      }),
+      invalidatesTags: (_r, _e, { id }) => [
+        { type: 'ChatGroups', id },
+        { type: 'ChatGroups', id: 'LIST' },
+      ],
+    }),
+
+    deleteChatGroup: builder.mutation<void, { id: string }>({
+      query: ({ id }) => ({
+        url: `/api/chat/groups/${id}/`,
+        method: 'DELETE',
+      }),
+      // Group delete sets `ChatSession.group = NULL` via SET_NULL; refresh both
+      // groups + sessions caches so the moved chats appear under Ungrouped.
+      invalidatesTags: [
+        { type: 'ChatGroups', id: 'LIST' },
+        { type: 'ChatSessions', id: 'LIST' },
+      ],
+    }),
+
+    reorderChatGroups: builder.mutation<void, { ordered_ids: string[] }>({
+      query: ({ ordered_ids }) => ({
+        url: '/api/chat/groups/reorder/',
+        method: 'POST',
+        data: { ordered_ids },
+      }),
+      // Optimistic resequence of the groups list cache; revert + invalidate on
+      // failure so the server's ground truth wins.
+      async onQueryStarted({ ordered_ids }, { dispatch, queryFulfilled }) {
+        const patch = dispatch(
+          searchApi.util.updateQueryData('getChatGroups', undefined, (draft) => {
+            const indexById = new Map(
+              ordered_ids.map((id, idx) => [id, idx] as const),
+            );
+            draft.sort((a, b) => {
+              const ai = indexById.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+              const bi = indexById.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+              return ai - bi;
+            });
+            ordered_ids.forEach((id, idx) => {
+              const row = draft.find((g) => g.id === id);
+              if (row) row.ordering = idx + 1;
+            });
+          }),
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
+      invalidatesTags: [{ type: 'ChatGroups', id: 'LIST' }],
+    }),
+
+    moveChatToGroup: builder.mutation<
+      ChatSession,
+      { sessionId: string; groupId: string | null }
+    >({
+      query: ({ sessionId, groupId }) => ({
+        url: `/api/chat/sessions/${sessionId}/`,
+        method: 'PATCH',
+        data: { group: groupId },
+      }),
+      // Optimistic patch: flip the moved session's `group` field in the
+      // listSessions cache so the row re-renders in the destination section
+      // immediately, without waiting for the post-mutation refetch. Without
+      // this the chat briefly disappears (old section filters it out via the
+      // now-stale `group=null`, new section's session_count badge bumps via
+      // ChatGroups refetch, but the row itself is in transit until the
+      // ChatSessions refetch lands).
+      async onQueryStarted(
+        { sessionId, groupId },
+        { dispatch, queryFulfilled },
+      ) {
+        const patch = dispatch(
+          searchApi.util.updateQueryData(
+            'listSessions',
+            { page_size: 10 } as SessionListParams,
+            (draft) => {
+              const row = draft.results.find((s) => s.id === sessionId);
+              if (row) {
+                row.group = groupId;
+                // Append to end of destination — backend assigns
+                // group_ordering = max + 1; mirror that here so the row
+                // appears at the bottom of the destination section instead
+                // of jumping to position 0.
+                row.group_ordering = Number.MAX_SAFE_INTEGER;
+              }
+            },
+          ),
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
+      // Invalidate the sessions list (chat row moves between sections) and any
+      // affected group id tags so `session_count` refreshes for source + dest.
+      invalidatesTags: (_r, _e, { groupId }) => {
+        const tags: Array<
+          | { type: 'ChatSessions'; id: string }
+          | { type: 'ChatGroups'; id: string }
+        > = [{ type: 'ChatSessions', id: 'LIST' }];
+        if (groupId) tags.push({ type: 'ChatGroups', id: groupId });
+        // Also refresh the LIST tag so session_count totals re-compute even if
+        // the source group's id isn't known to this caller.
+        tags.push({ type: 'ChatGroups', id: 'LIST' } as unknown as {
+          type: 'ChatGroups';
+          id: string;
+        });
+        return tags;
+      },
+    }),
+
+    reorderChatsInGroup: builder.mutation<
+      void,
+      { groupId: string | null; ordered_ids: string[] }
+    >({
+      query: ({ groupId, ordered_ids }) => ({
+        url: '/api/chat/sessions/reorder-in-group/',
+        method: 'POST',
+        data: { group_id: groupId, ordered_ids },
+      }),
+      // Optimistic patch of the session list cache: reassign `group` and
+      // `group_ordering` for the touched ids; revert on failure.
+      async onQueryStarted(
+        { groupId, ordered_ids },
+        { dispatch, queryFulfilled },
+      ) {
+        const patch = dispatch(
+          searchApi.util.updateQueryData(
+            'listSessions',
+            { page_size: 10 } as SessionListParams,
+            (draft) => {
+              ordered_ids.forEach((id, idx) => {
+                const row = draft.results.find((s) => s.id === id);
+                if (row) {
+                  row.group = groupId;
+                  row.group_ordering = idx + 1;
+                }
+              });
+            },
+          ),
+        );
+        try {
+          await queryFulfilled;
+        } catch {
+          patch.undo();
+        }
+      },
+      invalidatesTags: [{ type: 'ChatSessions', id: 'LIST' }],
+    }),
+
     // --- Crawl ---
     triggerCrawl: builder.mutation<WebSearchResult, TriggerCrawlBody>({
       query: (body) => ({
@@ -290,4 +477,12 @@ export const {
   useSaveToNicheMutation,
   useSaveSnippetToNicheMutation,
   useHealthCheckQuery,
+  // FIX-chat-bugfixes-and-grouping Item 7
+  useGetChatGroupsQuery,
+  useCreateChatGroupMutation,
+  useRenameChatGroupMutation,
+  useDeleteChatGroupMutation,
+  useReorderChatGroupsMutation,
+  useMoveChatToGroupMutation,
+  useReorderChatsInGroupMutation,
 } = searchApi;

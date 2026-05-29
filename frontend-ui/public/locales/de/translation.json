@@ -3774,6 +3774,23 @@
       "web": "Webquelle {{index}}"
     }
   },
+  "chat": {
+    "groups": {
+      "ungrouped": "Keine Gruppe",
+      "newGroup": "Neue Gruppe",
+      "newGroupPlaceholder": "Gruppenname…",
+      "rename": "Umbenennen",
+      "delete": "Löschen",
+      "deleteConfirmTitle": "Gruppe '{{name}}' löschen?",
+      "deleteConfirmBody": "{{count}} Chat(s) wandern in 'Keine Gruppe'.",
+      "dragHint": "Ziehen zum Sortieren oder zwischen Gruppen verschieben",
+      "sessionCount_one": "{{count}} Chat",
+      "sessionCount_other": "{{count}} Chats",
+      "duplicateName": "Eine Gruppe mit diesem Namen existiert bereits",
+      "confirm": "Bestätigen",
+      "cancel": "Abbrechen"
+    }
+  },
   "designForge": {
     "builder": {
       "nichePresets": {

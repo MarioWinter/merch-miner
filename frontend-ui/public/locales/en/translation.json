@@ -3731,6 +3731,23 @@
       "web": "Web source {{index}}"
     }
   },
+  "chat": {
+    "groups": {
+      "ungrouped": "No group",
+      "newGroup": "New group",
+      "newGroupPlaceholder": "Group name…",
+      "rename": "Rename",
+      "delete": "Delete",
+      "deleteConfirmTitle": "Delete group '{{name}}'?",
+      "deleteConfirmBody": "{{count}} chat(s) will move to 'Ungrouped'.",
+      "dragHint": "Drag to reorder or move between groups",
+      "sessionCount_one": "{{count}} chat",
+      "sessionCount_other": "{{count}} chats",
+      "duplicateName": "A group with this name already exists",
+      "confirm": "Confirm",
+      "cancel": "Cancel"
+    }
+  },
   "designForge": {
     "builder": {
       "nichePresets": {

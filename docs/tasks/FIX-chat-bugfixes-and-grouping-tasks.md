@@ -194,42 +194,43 @@
 **Skills:** `/backend` then `/frontend`. NO commit between sub-phases — single feature commit at end.
 
 ### Backend — Model & Migration
-- [ ] Add `ChatGroup` model to `django-app/search_app/models.py` per spec AC-7-1 (full field list, unique constraint on `(workspace, name)`, composite index on `(workspace, ordering)`).
-- [ ] Add `group` FK + `group_ordering` PositiveIntegerField to `ChatSession` per AC-7-2.
-- [ ] **Note: extending `ChatSession.Meta.ordering = ['group_ordering', '-updated_at']` changes default sort for ALL existing queries.** Add explicit task: grep for queries using default ordering (e.g. `ChatSession.objects.filter(...)` without `.order_by(...)`) and verify behavior. Document any callers that relied on `-updated_at` alone.
-- [ ] Add composite index `chatsess_group_ordering_idx` over `(group, group_ordering)`.
-- [ ] `python manage.py makemigrations search_app` → produces `0010_chatgroup_and_session_group.py`.
-- [ ] Verify migration is additive only, reversible (`python manage.py migrate search_app 0009` rolls back cleanly in a fresh DB).
+- [x] Add `ChatGroup` model to `django-app/search_app/models.py` per spec AC-7-1 (full field list, unique constraint on `(workspace, name)`, composite index on `(workspace, ordering)`). — models.py:7-54
+- [x] Add `group` FK + `group_ordering` PositiveIntegerField to `ChatSession` per AC-7-2. — models.py:117-128
+- [x] **Note: extending `ChatSession.Meta.ordering = ['group_ordering', '-updated_at']` changes default sort for ALL existing queries.** Add explicit task: grep for queries using default ordering (e.g. `ChatSession.objects.filter(...)` without `.order_by(...)`) and verify behavior. Document any callers that relied on `-updated_at` alone. — models.py:132-139 (inline comment explaining the side effect). Grep across django-app/ shows ALL non-test call sites either `.get(pk=...)` or chain explicit `.order_by('-updated_at')` (views.py:121-129 ChatSessionListCreateView.get is the only list endpoint; agent_app/tasks.py:292 uses `.get`). No caller silently relied on the old default ordering.
+- [x] Add composite index `chatsess_group_ordering_idx` over `(group, group_ordering)`. — models.py:152-155
+- [x] `python manage.py makemigrations search_app` → produces `0010_chatgroup_and_session_group.py`. — migrations/0010_chatgroup_and_session_group.py
+- [x] Verify migration is additive only, reversible (`python manage.py migrate search_app 0009` rolls back cleanly in a fresh DB). — Migration body inspected: 1 AlterModelOptions + 1 AddField (group_ordering) + 1 CreateModel (ChatGroup) + 1 AddField (group) + 2 AddIndex + 1 AddConstraint. No RunPython, no RemoveField. All operations have auto-generated reverse_code → reversible by Django's default migration semantics.
 
 ### Backend — Serializer
-- [ ] Add `ChatGroupSerializer` in `django-app/search_app/api/serializers.py`: fields `id`, `name`, `ordering`, `created_at`, `updated_at`, `session_count` (read-only IntegerField).
-- [ ] In `ChatGroupViewSet.get_queryset()`: annotate with `.annotate(session_count=Count('sessions'))` so the serializer reads it without an extra query per row.
-- [ ] Extend `ChatSessionSerializer` with `group: UUIDField | None` (allow_null) and `group_ordering: IntegerField`.
-- [ ] Update list queryset for sessions with `.select_related('group')` and explicit `.order_by('group_ordering', '-updated_at')`.
+- [x] Add `ChatGroupSerializer` in `django-app/search_app/api/serializers.py`: fields `id`, `name`, `ordering`, `created_at`, `updated_at`, `session_count` (read-only IntegerField). — serializers.py:300-329 (`validators = []` override suppresses DRF's auto-derived UniqueTogetherValidator so the view's IntegrityError→ValidationError translation owns the duplicate-name error code path).
+- [x] In `ChatGroupViewSet.get_queryset()`: annotate with `.annotate(session_count=Count('sessions'))` so the serializer reads it without an extra query per row. — views.py:1683 (list) + 1716 (create response) + 1768 (rename response). Implemented as `ChatGroupListCreateView`/`ChatGroupDetailView` (APIView) not `ModelViewSet` to match the existing search_app/api/urls.py path-based pattern (no `DefaultRouter` in this app).
+- [x] Extend `ChatSessionSerializer` with `group: UUIDField | None` (allow_null) and `group_ordering: IntegerField`. — serializers.py:101-107 (List) + 152-156 (Detail) + 296-298 (ChatSessionUpdateSerializer write path)
+- [x] Update list queryset for sessions with `.select_related('group')` and explicit `.order_by('group_ordering', '-updated_at')`. — views.py:121-129 (ChatSessionListCreateView.get)
 
 ### Backend — ViewSet & URLs
-- [ ] Add `ChatGroupViewSet(ModelViewSet)` with `CookieJWTAuthentication`, `IsAuthenticated`, workspace-scoped `get_queryset` using the existing `_get_workspace_id` helper pattern.
-- [ ] CRUD endpoints (auto from `ModelViewSet`):
-  - `GET /api/chat/groups/` (list)
-  - `POST /api/chat/groups/` body `{ name }` → on `perform_create`, set `ordering = (max existing in workspace) + 1`, `created_by = request.user`.
-  - `PATCH /api/chat/groups/<id>/` body `{ name }` → rename. Re-validates uniqueness in workspace.
-  - `DELETE /api/chat/groups/<id>/` → CASCADE on `created_by`, SET_NULL on `ChatSession.group` (sessions fall back to NULL).
-- [ ] Action endpoint `@action(detail=False, methods=['post'], url_path='reorder')` → `POST /api/chat/groups/reorder/` body `{ ordered_ids: list[UUID] }`. Inside `transaction.atomic`, validate all ids in current workspace, then `for i, gid in enumerate(ordered_ids): ChatGroup.objects.filter(id=gid).update(ordering=i+1)`. 400 if any foreign id.
-- [ ] Action endpoint `@action(detail=False, methods=['post'], url_path='reorder-in-group')` on the existing `ChatSession` viewset (or a new dedicated endpoint) → `POST /api/chat/sessions/reorder-in-group/` body `{ group_id: UUID | null, ordered_ids: list[UUID] }`. Inside `transaction.atomic`, set `group=group_id, group_ordering=i+1` for each.
-- [ ] Extend existing `ChatSession` PATCH to accept `group` (UUID or null) to move a single chat. On move: set `group_ordering = (max in destination) + 1` atomically.
-- [ ] Register routes in `django-app/search_app/api/urls.py`.
+- [x] Add `ChatGroupViewSet(ModelViewSet)` with `CookieJWTAuthentication`, `IsAuthenticated`, workspace-scoped `get_queryset` using the existing `_get_workspace_id` helper pattern. — Implemented as 2 APIView classes `ChatGroupListCreateView` (views.py:1664-1724) + `ChatGroupDetailView` (views.py:1727-1786) using the project's `_resolve_workspace(request)` helper (the actual helper name; `_get_workspace_id` was a spec shorthand). APIView pattern matches every other class in the file — no `ModelViewSet`/`DefaultRouter` in this app.
+- [x] CRUD endpoints (auto from `ModelViewSet`):
+  - `GET /api/chat/groups/` (list) — views.py:1683-1691
+  - `POST /api/chat/groups/` body `{ name }` → on `perform_create`, set `ordering = (max existing in workspace) + 1`, `created_by = request.user`. — views.py:1693-1724
+  - `PATCH /api/chat/groups/<id>/` body `{ name }` → rename. Re-validates uniqueness in workspace. — views.py:1749-1772
+  - `DELETE /api/chat/groups/<id>/` → CASCADE on `created_by`, SET_NULL on `ChatSession.group` (sessions fall back to NULL). — views.py:1781-1785
+- [x] Action endpoint `@action(detail=False, methods=['post'], url_path='reorder')` → `POST /api/chat/groups/reorder/` body `{ ordered_ids: list[UUID] }`. Inside `transaction.atomic`, validate all ids in current workspace, then `for i, gid in enumerate(ordered_ids): ChatGroup.objects.filter(id=gid).update(ordering=i+1)`. 400 if any foreign id. — Implemented as standalone APIView `ChatGroupReorderView` (views.py:1789-1822) at path `chat/groups/reorder/` registered BEFORE the `<uuid:group_id>` detail route so it isn't absorbed.
+- [x] Action endpoint `@action(detail=False, methods=['post'], url_path='reorder-in-group')` on the existing `ChatSession` viewset (or a new dedicated endpoint) → `POST /api/chat/sessions/reorder-in-group/` body `{ group_id: UUID | null, ordered_ids: list[UUID] }`. Inside `transaction.atomic`, set `group=group_id, group_ordering=i+1` for each. — Implemented as standalone APIView `ChatSessionReorderInGroupView` (views.py:1825-1873).
+- [x] Extend existing `ChatSession` PATCH to accept `group` (UUID or null) to move a single chat. On move: set `group_ordering = (max in destination) + 1` atomically. — views.py:259-291 (extended `ChatSessionDetailView.patch`) + serializers.py:296-298 (`ChatSessionUpdateSerializer.group` field).
+- [x] Register routes in `django-app/search_app/api/urls.py`. — urls.py:3-19 (imports) + urls.py:67-93 (4 new path entries; reorder routes come before `<uuid:group_id>` detail to avoid absorption).
 
 ### Backend — Tests
-- [ ] `django-app/search_app/tests/test_chat_groups.py` new file:
-  - `test_chatgroup_crud` (list / create / rename / delete, all workspace-isolated; foreign workspace ids → 403/404).
-  - `test_chatgroup_reorder_atomic` (POST with mixed valid + foreign id → 400, no partial write — verify pre/post state).
-  - `test_chatsession_reorder_in_group`.
-  - `test_chatgroup_delete_sets_chats_to_null`.
-  - `test_chatgroup_name_unique_per_workspace` (duplicate in same workspace → 400; duplicate across workspaces → OK).
-  - `test_chatsession_default_ordering_change` (regression test for the Meta.ordering change — verify session list still feels right with NULL group + group_ordering=0).
-- [ ] `pytest django-app/search_app/tests/test_chat_groups.py` green.
-- [ ] `pytest django-app/search_app/tests/` full module green (no regressions from Meta.ordering change).
-- [ ] `ruff check django-app/search_app/` green.
+- [x] `django-app/search_app/tests/test_chat_groups.py` new file:
+  - `test_chatgroup_crud` (list / create / rename / delete, all workspace-isolated; foreign workspace ids → 403/404). — test_chat_groups.py TestChatGroupCRUD class (6 cases)
+  - `test_chatgroup_reorder_atomic` (POST with mixed valid + foreign id → 400, no partial write — verify pre/post state). — TestChatGroupReorderAtomic (2 cases)
+  - `test_chatsession_reorder_in_group`. — TestChatSessionReorderInGroup (4 cases incl. ungrouped + foreign destination group)
+  - `test_chatgroup_delete_sets_chats_to_null`. — TestChatGroupDeleteCascade (1 case)
+  - `test_chatgroup_name_unique_per_workspace` (duplicate in same workspace → 400; duplicate across workspaces → OK). — TestChatGroupNameUnique (3 cases incl. rename-to-duplicate)
+  - `test_chatsession_default_ordering_change` (regression test for the Meta.ordering change — verify session list still feels right with NULL group + group_ordering=0). — TestChatSessionDefaultOrderingChange
+  - **BONUS** `TestChatSessionMoveToGroupViaPatch` (3 cases) — covers AC-7-10 PATCH `{group}` flow.
+- [x] `pytest django-app/search_app/tests/test_chat_groups.py` green. — 20 passed in 1.04s
+- [x] `pytest django-app/search_app/tests/` full module green (no regressions from Meta.ordering change). — 172 passed, 3 skipped, 1 pre-existing failure (`test_chat_node_config_green_when_seed_present`, seed-fixture issue documented in earlier phase task entries — verified unchanged: same single failure as before, not introduced by Phase 7).
+- [x] `ruff check django-app/search_app/` green. — All checks passed!
 
 ### Frontend — Types
 - [ ] Add `ChatGroup` interface to `frontend-ui/src/types/search.ts` per AC-7-16.

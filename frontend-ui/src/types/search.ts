@@ -58,6 +58,29 @@ export interface ChatSession {
   created_by: string;
   created_at: string;
   updated_at: string;
+  /** FIX-chat-bugfixes-and-grouping Item 7 — nullable FK to the owning
+   *  `ChatGroup` in the same workspace. `null` ⇒ session renders in the
+   *  virtual "Ungrouped" section. */
+  group: string | null;
+  /** Per-group manual sort key. Backend resequences via the
+   *  `/api/chat/sessions/reorder-in-group/` endpoint. */
+  group_ordering: number;
+}
+
+/**
+ * FIX-chat-bugfixes-and-grouping Item 7 — workspace-scoped chat folder.
+ * `session_count` is annotated server-side via `Count('sessions')` on the
+ * queryset and exposed read-only on the serializer. `ordering` drives the
+ * sidebar's group order; resequencing happens via the
+ * `/api/chat/groups/reorder/` action endpoint.
+ */
+export interface ChatGroup {
+  id: string;
+  name: string;
+  ordering: number;
+  session_count: number;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface SourceItem {
