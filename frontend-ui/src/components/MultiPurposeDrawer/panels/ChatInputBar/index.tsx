@@ -6,7 +6,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Box, GlobalStyles, Stack } from '@mui/material';
+import { Box, Stack } from '@mui/material';
 import { styled, alpha, keyframes } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
@@ -88,25 +88,35 @@ interface ShellProps {
 // FIX-chat-bugfixes-and-grouping Item 7.5 — one rotation of the streaming
 // border glow arc. 2.5s per turn = calm, easy to recognise as "running"
 // without being distracting. Drives the `--mm-stream-angle` custom
-// property registered at module load below.
+// property registered via `CSS.registerProperty` below.
 const streamingBorderRotate = keyframes`
   to { --mm-stream-angle: 360deg; }
 `;
 
-// Register the custom angle property so it can be animated. Without
-// @property the browser treats it as a static string and the
-// conic-gradient never rotates.
-const streamingPropertyGlobal = (
-  <GlobalStyles
-    styles={{
-      '@property --mm-stream-angle': {
-        syntax: "'<angle>'",
-        inherits: false,
-        initialValue: '0deg',
-      },
-    }}
-  />
-);
+// Register the custom angle property at module load so the
+// conic-gradient's `from var(--mm-stream-angle)` can be interpolated as
+// an angle (without registration the browser treats the value as an
+// opaque string and discrete-jumps between keyframes, killing the
+// animation). Wrapped because CSS.registerProperty throws when called
+// twice with the same name during HMR / repeated module evaluation.
+if (
+  typeof window !== 'undefined' &&
+  typeof CSS !== 'undefined' &&
+  typeof CSS.registerProperty === 'function'
+) {
+  try {
+    CSS.registerProperty({
+      name: '--mm-stream-angle',
+      syntax: '<angle>',
+      inherits: false,
+      initialValue: '0deg',
+    });
+  } catch {
+    // Already registered (HMR) or unsupported runtime — fall through;
+    // the static fallback in `@media (prefers-reduced-motion)` still
+    // gives users a visible primary ring.
+  }
+}
 
 const Shell = styled(Box, {
   shouldForwardProp: (prop) => prop !== 'appearance',
@@ -401,7 +411,6 @@ const ChatInputBar = forwardRef<ChatInputBarHandle, ChatInputBarProps>(
 
   return (
     <Box data-testid="chat-input-bar" sx={{ width: '100%' }}>
-      {streamingPropertyGlobal}
       <Shell
         appearance={appearance}
         data-appearance={appearance}
