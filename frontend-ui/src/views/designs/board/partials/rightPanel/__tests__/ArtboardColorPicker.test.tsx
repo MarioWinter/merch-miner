@@ -80,6 +80,10 @@ describe('ArtboardColorPicker', () => {
     );
     await user.click(screen.getByTestId(SWATCH));
     const input = await screen.findByTestId(HEX_INPUT);
+    // The input is pre-filled with the current value (#FFFFFF) on open
+    // so the user can read the active hex at a glance. Clear it before
+    // typing the new value.
+    await user.clear(input);
     await user.type(input, '#FF5A4F80');
     await user.keyboard('{Enter}');
     // 0x80 = 128 → 128/255 ≈ 0.502

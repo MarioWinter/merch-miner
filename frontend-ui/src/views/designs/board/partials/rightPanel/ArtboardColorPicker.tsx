@@ -18,8 +18,21 @@ import { parseColorToRgba } from '../../utils/parseColorToRgba';
 // -----------------------------------------------------------------
 
 const HEX_REGEX = /^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/;
-const RGBA_ALPHA_REGEX = /rgba\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*,\s*([\d.]+)\s*\)/;
+const RGBA_PARTS_REGEX = /rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([\d.]+)\s*\)/;
 const SHAKE_DURATION_MS = 320;
+
+// Render the canonical rgba string as #RRGGBB or #RRGGBBAA so the hex
+// input shows the current value as soon as the popover opens.
+const rgbaToHex = (rgba: string): string => {
+  const m = rgba.match(RGBA_PARTS_REGEX);
+  if (!m) return '#FFFFFF';
+  const [, r, g, b, a] = m;
+  const toHex2 = (n: number) => Math.max(0, Math.min(255, n)).toString(16).padStart(2, '0').toUpperCase();
+  const base = `#${toHex2(Number(r))}${toHex2(Number(g))}${toHex2(Number(b))}`;
+  const alpha = Number(a);
+  if (!Number.isFinite(alpha) || alpha >= 0.999) return base;
+  return `${base}${toHex2(Math.round(alpha * 255))}`;
+};
 
 // -----------------------------------------------------------------
 // Styled
@@ -68,33 +81,95 @@ const SwatchButton = styled('button', {
 const PopoverBody = styled(Box, {
   shouldForwardProp: (p) => p !== 'shaking',
 })<{ shaking: boolean }>(({ theme, shaking }) => ({
-  padding: theme.spacing(1.5),
-  width: 240,
+  padding: theme.spacing(1.75, 1.75, 1.5),
+  width: 256,
   display: 'flex',
   flexDirection: 'column',
-  gap: theme.spacing(1),
+  gap: theme.spacing(1.25),
   animation: shaking ? `${shake} ${SHAKE_DURATION_MS}ms ${EASING.standard}` : 'none',
+}));
+
+// Top-of-popover preview row: bigger checker-backed swatch + canonical
+// rgba string in monospace + alpha % badge. Gives the user a single
+// glance summary of "what color am I editing right now".
+const PreviewRow = styled(Box)(({ theme }) => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: theme.spacing(1),
+}));
+
+const PreviewSwatch = styled(Box, {
+  shouldForwardProp: (p) => p !== 'rgbaColor',
+})<{ rgbaColor: string }>(({ theme, rgbaColor }) => ({
+  position: 'relative',
+  width: 32,
+  height: 32,
+  flexShrink: 0,
+  borderRadius: Number(theme.shape.borderRadius),
+  border: `1px solid ${theme.vars.palette.divider}`,
+  backgroundImage:
+    'conic-gradient(#ccc 25%, #fff 25% 50%, #ccc 50% 75%, #fff 75%)',
+  backgroundSize: '8px 8px',
+  backgroundColor: '#fff',
+  overflow: 'hidden',
+  '&::after': {
+    content: '""',
+    position: 'absolute',
+    inset: 0,
+    backgroundColor: rgbaColor,
+  },
+}));
+
+const PreviewValue = styled(Typography)(({ theme }) => ({
+  flex: 1,
+  minWidth: 0,
+  fontFamily: 'monospace',
+  fontSize: '0.6875rem',
+  color: theme.vars.palette.text.secondary,
+  whiteSpace: 'nowrap',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+}));
+
+const AlphaBadge = styled(Typography)(({ theme }) => ({
+  fontSize: '0.6875rem',
+  fontWeight: 600,
+  color: theme.vars.palette.text.primary,
+  fontVariantNumeric: 'tabular-nums',
+  padding: theme.spacing(0.25, 0.75),
+  borderRadius: Number(theme.shape.borderRadius),
+  backgroundColor: theme.vars.palette.action.hover,
+  flexShrink: 0,
+  transition: `background-color ${DURATION.fast}ms ${EASING.standard}`,
 }));
 
 const PickerWrap = styled(Box)(({ theme }) => ({
   '& .react-colorful': {
     width: '100%',
-    height: 180,
+    height: 160,
   },
   '& .react-colorful__saturation': {
     borderRadius: Number(theme.shape.borderRadius),
+    border: `1px solid ${theme.vars.palette.divider}`,
   },
   '& .react-colorful__hue, & .react-colorful__alpha': {
-    height: theme.spacing(2),
+    height: theme.spacing(1.5),
     marginTop: theme.spacing(1),
-    borderRadius: theme.spacing(1),
+    borderRadius: theme.spacing(0.75),
   },
+  '& .react-colorful__hue-pointer, & .react-colorful__alpha-pointer, & .react-colorful__saturation-pointer':
+    {
+      width: 14,
+      height: 14,
+      borderWidth: 2,
+    },
 }));
 
-const AlphaLabel = styled(Typography)(({ theme }) => ({
-  color: theme.vars.palette.text.secondary,
-  fontVariantNumeric: 'tabular-nums',
-  transition: `color ${DURATION.fast}ms ${EASING.standard}`,
+const Divider = styled(Box)(({ theme }) => ({
+  height: 1,
+  width: '100%',
+  backgroundColor: theme.vars.palette.divider,
+  opacity: 0.6,
 }));
 
 // -----------------------------------------------------------------
@@ -102,9 +177,9 @@ const AlphaLabel = styled(Typography)(({ theme }) => ({
 // -----------------------------------------------------------------
 
 const extractAlphaPercent = (rgba: string): number => {
-  const m = rgba.match(RGBA_ALPHA_REGEX);
+  const m = rgba.match(RGBA_PARTS_REGEX);
   if (!m) return 100;
-  const a = Number(m[1]);
+  const a = Number(m[4]);
   if (!Number.isFinite(a)) return 100;
   return Math.round(Math.max(0, Math.min(1, a)) * 100);
 };
@@ -149,11 +224,16 @@ const ArtboardColorPicker = ({ value, onChange }: ArtboardColorPickerProps) => {
     }, SHAKE_DURATION_MS);
   }, []);
 
-  const handleSwatchClick = useCallback((e: MouseEvent<HTMLButtonElement>) => {
-    setAnchorEl(e.currentTarget);
-    setHexBuffer('');
-    setHexError(false);
-  }, []);
+  const handleSwatchClick = useCallback(
+    (e: MouseEvent<HTMLButtonElement>) => {
+      setAnchorEl(e.currentTarget);
+      // Pre-fill the hex input with the current value so the user can
+      // edit it directly instead of staring at an empty field.
+      setHexBuffer(rgbaToHex(parseColorToRgba(value)));
+      setHexError(false);
+    },
+    [value],
+  );
 
   const handlePopoverClose = useCallback(() => {
     setAnchorEl(null);
@@ -164,12 +244,13 @@ const ArtboardColorPicker = ({ value, onChange }: ArtboardColorPickerProps) => {
   const handlePickerChange = useCallback(
     (next: string) => {
       // RgbaStringColorPicker always emits canonical rgba() — pass through.
-      // Clear any stale hex input + error when the picker drives the change.
-      if (hexBuffer) setHexBuffer('');
+      // Keep the hex input in sync with the picker so the user can read
+      // off the live hex while dragging.
+      setHexBuffer(rgbaToHex(next));
       if (hexError) setHexError(false);
       onChange(next);
     },
-    [onChange, hexBuffer, hexError],
+    [onChange, hexError],
   );
 
   const commitHex = useCallback(() => {
@@ -219,15 +300,31 @@ const ArtboardColorPicker = ({ value, onChange }: ArtboardColorPickerProps) => {
         slotProps={{ paper: { 'data-testid': 'ArtboardColorPicker-popover' } }}
       >
         <PopoverBody shaking={shaking}>
+          {/* Preview row — large swatch + canonical rgba string + alpha badge */}
+          <PreviewRow>
+            <PreviewSwatch
+              rgbaColor={rgba}
+              data-testid="ArtboardColorPicker-preview"
+            />
+            <PreviewValue data-testid="ArtboardColorPicker-rgba-value">
+              {rgba}
+            </PreviewValue>
+            <AlphaBadge data-testid="ArtboardColorPicker-alpha-badge">
+              {t('design.panel.bgColor.alphaLabel', {
+                defaultValue: 'Alpha: {{percent}}%',
+                percent: alphaPercent,
+              })}
+            </AlphaBadge>
+          </PreviewRow>
+
+          <Divider />
+
           <PickerWrap>
             <RgbaStringColorPicker color={rgba} onChange={handlePickerChange} />
           </PickerWrap>
-          <AlphaLabel variant="caption">
-            {t('design.panel.bgColor.alphaLabel', {
-              defaultValue: 'Alpha: {{percent}}%',
-              percent: alphaPercent,
-            })}
-          </AlphaLabel>
+
+          <Divider />
+
           <TextField
             value={hexBuffer}
             onChange={(e) => {
@@ -242,6 +339,7 @@ const ArtboardColorPicker = ({ value, onChange }: ArtboardColorPickerProps) => {
             label={t('design.panel.bgColor.hexLabel', 'Hex')}
             error={hexError}
             slotProps={{
+              inputLabel: { shrink: true },
               htmlInput: {
                 maxLength: 9,
                 'aria-label': t('design.panel.bgColor.hexLabel', 'Hex'),
@@ -251,7 +349,12 @@ const ArtboardColorPicker = ({ value, onChange }: ArtboardColorPickerProps) => {
                 autoCorrect: 'off',
               },
             }}
-            sx={{ '& .MuiInputBase-input': { fontFamily: 'monospace' } }}
+            sx={{
+              '& .MuiInputBase-input': {
+                fontFamily: 'monospace',
+                letterSpacing: '0.04em',
+              },
+            }}
           />
           {hexError && (
             <FormHelperText error data-testid="ArtboardColorPicker-hex-error">
