@@ -123,7 +123,7 @@ describe('useSearchHealth', () => {
     expect(mockUseHealthCheckQuery).toHaveBeenNthCalledWith(
       2,
       undefined,
-      expect.objectContaining({ pollingInterval: 5_000, skip: true }),
+      expect.objectContaining({ pollingInterval: 30_000, skip: true }),
     );
   });
 
@@ -138,7 +138,7 @@ describe('useSearchHealth', () => {
     expect(mockUseHealthCheckQuery).toHaveBeenNthCalledWith(
       2,
       undefined,
-      expect.objectContaining({ pollingInterval: 5_000, skip: false }),
+      expect.objectContaining({ pollingInterval: 30_000, skip: false }),
     );
   });
 

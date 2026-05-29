@@ -41,34 +41,51 @@ interface MockNicheQueryResult {
 
 // vi.mock factories are hoisted ABOVE all top-level statements, so any value
 // they touch must be created via vi.hoisted (which is hoisted further still).
-const { fa, queryHolder, enqueueSnackbarMock } = vi.hoisted(() => ({
-  fa: (n: string) => ({
-    reducerPath: n,
-    reducer: () => ({}),
-    middleware: () => (x: any) => (a: any) => x(a),
-    util: { resetApiState: () => ({ type: 'noop' }) },
+const { fa, queryHolder, queryListeners, enqueueSnackbarMock } = vi.hoisted(
+  () => ({
+    fa: (n: string) => ({
+      reducerPath: n,
+      reducer: () => ({}),
+      middleware: () => (x: any) => (a: any) => x(a),
+      util: { resetApiState: () => ({ type: 'noop' }) },
+    }),
+    queryHolder: {
+      current: { data: undefined, isError: false, isLoading: false } as
+        | { data: { id: string; name: string } | undefined; isError: boolean; isLoading: boolean },
+    },
+    // Mirrors the real RTK Query hook: change `queryHolder` then notify
+    // every subscribed mounted hook so it re-renders with the new value.
+    // Production RTK Query does this implicitly via its slice subscription;
+    // the test mock has to spell it out.
+    queryListeners: new Set<() => void>(),
+    enqueueSnackbarMock: vi.fn(),
   }),
-  queryHolder: {
-    current: { data: undefined, isError: false, isLoading: false } as
-      | { data: { id: string; name: string } | undefined; isError: boolean; isLoading: boolean },
-  },
-  enqueueSnackbarMock: vi.fn(),
-}));
+);
 
 vi.mock('notistack', () => ({
   useSnackbar: () => ({ enqueueSnackbar: enqueueSnackbarMock }),
   SnackbarProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-vi.mock('@/store/nicheSlice', () => ({
-  nicheApi: fa('nicheApi'),
-  useGetNicheQuery: (_id: string, opts?: { skip?: boolean }) => {
-    if (opts?.skip) {
-      return { data: undefined, isError: false, isLoading: false };
-    }
-    return queryHolder.current;
-  },
-}));
+vi.mock('@/store/nicheSlice', async () => {
+  const react = await import('react');
+  return {
+    nicheApi: fa('nicheApi'),
+    useGetNicheQuery: (_id: string, opts?: { skip?: boolean }) => {
+      const [, force] = react.useReducer((x: number) => x + 1, 0);
+      react.useEffect(() => {
+        queryListeners.add(force);
+        return () => {
+          queryListeners.delete(force);
+        };
+      }, []);
+      if (opts?.skip) {
+        return { data: undefined, isError: false, isLoading: false };
+      }
+      return queryHolder.current;
+    },
+  };
+});
 
 // Stub i18n: no provider is attached (we don't pull in test-utils to avoid
 // dragging the global store). The hook only uses `t()` for the toast
@@ -187,15 +204,16 @@ const renderHarness = (opts: RenderOptions = {}) => {
 };
 
 const setQueryAndRerender = (
-  store: ReturnType<typeof renderHarness>['store'],
+  _store: ReturnType<typeof renderHarness>['store'],
   query: MockNicheQueryResult,
 ) => {
-  // Update the holder, then trigger a state-change so the hook re-runs.
+  // Mirror RTK Query's reactive behaviour: change the cache value then
+  // notify subscribed hooks so they re-render. The store dispatch path
+  // is intentionally NOT used here — that was the workaround for the
+  // old useSyncExternalStore subscription, removed for typing perf.
   queryHolder.current = query;
-  // Dispatch a no-op-style action to force re-render — easiest: dispatch
-  // a setter back to its current value.
   act(() => {
-    store.dispatch({ type: 'chatBar/__noop__' });
+    queryListeners.forEach((notify) => notify());
   });
 };
 

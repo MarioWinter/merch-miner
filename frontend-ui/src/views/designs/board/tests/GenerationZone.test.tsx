@@ -113,14 +113,22 @@ describe('GenerationZone', () => {
     expect(screen.getByLabelText('Design prompt')).toBeInTheDocument();
   });
 
-  it('calls onPromptChange when textarea value changes', () => {
+  it('updates the textarea on input and syncs to onPromptChange on blur', () => {
+    // PERF — onPromptChange no longer fires on every keystroke; the
+    // textarea keeps a local buffer and the parent is only notified on
+    // blur. See GenerationZone.tsx comment on `handlePromptBlur`.
     const onPromptChange = vi.fn();
     renderWithProviders(
       <GenerationZone {...defaultProps} onPromptChange={onPromptChange} />,
     );
-    // MUI multiline TextField renders a <textarea> — find by placeholder text
     const textarea = screen.getByPlaceholderText(/describe your design/i);
     fireEvent.change(textarea, { target: { value: 'A funny dog' } });
+    // Mid-typing: the textarea shows the new value but the parent
+    // hasn't been notified yet.
+    expect(textarea).toHaveValue('A funny dog');
+    expect(onPromptChange).not.toHaveBeenCalled();
+    // Blur flushes the buffered value to the parent.
+    fireEvent.blur(textarea);
     expect(onPromptChange).toHaveBeenCalledWith('A funny dog');
   });
 

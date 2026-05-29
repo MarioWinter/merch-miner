@@ -30,6 +30,7 @@ import { useSendMessageStream } from '@/hooks/useSendMessageStream';
 import { useOptimisticChatMessage } from '@/hooks/useOptimisticChatMessage';
 import type {
   ChatMessage,
+  ModeOverride,
   SaveSnippetKeywordsResponse,
   SaveSnippetNotesResponse,
 } from '@/types/search';
@@ -120,7 +121,15 @@ const ChatPanel = () => {
   const activeWorkspaceId = useAppSelector(
     (s) => s.workspace?.activeWorkspaceId ?? null,
   );
+  // We still subscribe so the value is fresh, but we ALSO mirror into a ref
+  // so `handleSubmit` can read the latest value without listing `vaneOnline`
+  // in its useCallback deps — listing it there would re-create the callback
+  // on every health-check poll and bust React.memo on ChatInputBar.
   const { vaneOnline } = useSearchHealth();
+  const vaneOnlineRef = useRef(vaneOnline);
+  useEffect(() => {
+    vaneOnlineRef.current = vaneOnline;
+  }, [vaneOnline]);
 
   const inputRef = useRef<ChatInputBarHandle>(null);
   const [modal, setModal] = useState<ModalState>(INITIAL_MODAL);
@@ -169,7 +178,7 @@ const ChatPanel = () => {
   const [unshareSession] = useUnshareSessionMutation();
   const [saveSnippet] = useSaveSnippetToNicheMutation();
   const [deleteMessage] = useDeleteMessageMutation();
-  const { start: startStream } = useSendMessageStream({
+  const { start: startStream, stop: stopStream } = useSendMessageStream({
     sessionId: activeSessionId,
     onDone: () => {
       dispatch(setSearching(false));
@@ -215,7 +224,7 @@ const ChatPanel = () => {
         session?.niche_context_id == null &&
         modeOverride !== 'agent';
       if (!trimmed || searching || isStreaming) return;
-      if (needsVane && !vaneOnline) return;
+      if (needsVane && !vaneOnlineRef.current) return;
 
       dispatch(setSearching(true));
       inputRef.current?.clear();
@@ -235,7 +244,15 @@ const ChatPanel = () => {
 
         // PROJ-29 Phase 1J BUG-1 — show user's message in chat history
         // within the same render cycle as submit, before the server response.
-        tempId = optimisticInsert({ sessionId, content: trimmed });
+        // FIX 2026-05-29 (Item 4 follow-up) — pipe the niche chip through so
+        // HistoryNicheChip renders immediately and doesn't wait for the SSE
+        // `done` cache invalidation.
+        tempId = optimisticInsert({
+          sessionId,
+          content: trimmed,
+          referencedNicheId: niche_id,
+          referencedNicheName: payload.chip?.niche_name ?? null,
+        });
 
         // PROJ-29 Phase 1J BUG-2 — unify agent + auto/web through SSE.
         // The backend `_handle_niche_agent_stream` now accepts
@@ -263,7 +280,6 @@ const ChatPanel = () => {
     },
     [
       searching,
-      vaneOnline,
       isStreaming,
       activeSessionId,
       selectedModel,
@@ -382,6 +398,45 @@ const ChatPanel = () => {
     ],
   );
 
+  // FIX-chat-bugfixes-and-grouping Item 2 — Retry button on a paired ERROR
+  // bubble. Reconstructs the original StartArgs from the persisted user
+  // message (content, niche_id via referenced_niche_id from Phase 3, model,
+  // mode_override) and re-streams. Per spec AC-2-4 the prior ERROR bubble
+  // stays in history; the next attempt produces a fresh assistant message
+  // below — successful or another ERROR row.
+  const handleRetryWebSearch = useCallback(
+    (priorUserMessage: ChatMessage) => {
+      if (!activeSessionId) return;
+      const content = priorUserMessage.content;
+      const niche_id = priorUserMessage.referenced_niche_id ?? null;
+      const model = priorUserMessage.model_used || undefined;
+      // `search_mode` on ChatMessage carries the persisted server-side mode
+      // (`speed | balanced | quality`), not the ModeOverride enum (`chat |
+      // agent`). Per Phase 6 task spec we forward it as `mode_override`
+      // only when it's non-empty — cast is narrow on purpose so a future
+      // backend that starts returning the enum here Just Works without a
+      // code change. Unknown values fall back to the current selectedModel
+      // / Redux modeOverride via the start() default path.
+      // SearchMode (speed|balanced|quality|null) and ModeOverride (chat|agent)
+      // do not currently overlap, so the static check is always false — TS
+      // would refuse it. Cast through `unknown` so a future backend that
+      // starts persisting the ModeOverride enum here Just Works.
+      const persistedMode = priorUserMessage.search_mode as unknown as string | null;
+      const mode_override: ModeOverride | undefined =
+        persistedMode === 'chat' || persistedMode === 'agent'
+          ? (persistedMode as ModeOverride)
+          : undefined;
+      startStream({
+        content,
+        mode_override,
+        niche_id,
+        sessionIdOverride: activeSessionId,
+        model,
+      });
+    },
+    [activeSessionId, startStream],
+  );
+
   // PROJ-20 Phase 5.5 — Save answer to a niche. With active chip → direct save.
   // Without chip → open existing SaveToNicheModal pre-filled with the answer.
   const handleSaveAnswer = useCallback(
@@ -450,8 +505,11 @@ const ChatPanel = () => {
         </Stack>
       )}
 
-      {/* Message list */}
+      {/* Message list — keyed on activeSessionId so switching chats remounts
+       *  the list and re-fires the initial-scroll effect inside ChatMessageList
+       *  (FIX-chat-bugfixes-and-grouping Item 5 AC-5-4). */}
       <ChatMessageList
+        key={activeSessionId ?? 'no-session'}
         messages={messages}
         isLoading={sessionLoading}
         hasMore={messages.length >= 50}
@@ -478,6 +536,7 @@ const ChatPanel = () => {
                   chip: inputChip,
                 })
         }
+        onRetryWebSearch={isReadOnly ? undefined : handleRetryWebSearch}
       />
 
       {/* Input area — PROJ-20 Phase 3.7 unified ChatInputBar */}
@@ -487,6 +546,7 @@ const ChatPanel = () => {
             ref={inputRef}
             appearance="panel"
             onSubmit={handleSubmit}
+            onStop={stopStream}
             isSending={searching || isStreaming}
             // PROJ-29 Phase 1I follow-up: input always typeable so users can
             // insert an @-mention even when Vane is degraded — `handleSubmit`

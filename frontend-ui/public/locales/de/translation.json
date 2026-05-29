@@ -1744,7 +1744,12 @@
       "opacity": "Op",
       "opacityLabel": "Deckkraft",
       "color": "Farbe",
-      "bgColor": "Hintergrundfarbe",
+      "bgColor": {
+        "label": "Hintergrundfarbe",
+        "alphaLabel": "Alpha: {{percent}}%",
+        "hexLabel": "Hex",
+        "invalidHex": "Ungültiger Farbwert"
+      },
       "clipContent": "Inhalt beschneiden",
       "toolsLabel": "Werkzeuge",
       "selection": "Auswahl",
@@ -2251,6 +2256,20 @@
       "error": "Streaming fehlgeschlagen. Bitte erneut versuchen.",
       "connectionLost": "Verbindung verloren. Bitte erneut versuchen.",
       "timeout": "Suche hat zu lange gedauert. Bitte erneut versuchen."
+    },
+    "stop": {
+      "aria": "Generierung stoppen"
+    },
+    "history": {
+      "referencedNicheAria": "Referenzierte Niche: {{name}}"
+    },
+    "fallback": {
+      "webSearchUnavailable": {
+        "title": "Web-Suche temporär nicht verfügbar",
+        "body": "Die Live-Web-Suche liefert gerade keine Ergebnisse. Bitte versuche es in ein paar Minuten erneut.",
+        "retry": "Erneut versuchen",
+        "snackbar": "Web-Suche temporär nicht verfügbar"
+      }
     },
     "actions": {
       "toolbarLabel": "Nachrichten-Aktionen",
@@ -3758,6 +3777,23 @@
       "niche": "Nischenwissen-Snippet {{index}}",
       "nicheWithName": "Nischenwissen-Snippet {{index}} — {{niche}}",
       "web": "Webquelle {{index}}"
+    }
+  },
+  "chat": {
+    "groups": {
+      "ungrouped": "Keine Gruppe",
+      "newGroup": "Neue Gruppe",
+      "newGroupPlaceholder": "Gruppenname…",
+      "rename": "Umbenennen",
+      "delete": "Löschen",
+      "deleteConfirmTitle": "Gruppe '{{name}}' löschen?",
+      "deleteConfirmBody": "{{count}} Chat(s) wandern in 'Keine Gruppe'.",
+      "dragHint": "Ziehen zum Sortieren oder zwischen Gruppen verschieben",
+      "sessionCount_one": "{{count}} Chat",
+      "sessionCount_other": "{{count}} Chats",
+      "duplicateName": "Eine Gruppe mit diesem Namen existiert bereits",
+      "confirm": "Bestätigen",
+      "cancel": "Abbrechen"
     }
   },
   "designForge": {

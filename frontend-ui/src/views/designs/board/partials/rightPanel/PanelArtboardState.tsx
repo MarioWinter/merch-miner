@@ -27,6 +27,7 @@ import { useGetDesignsByIdsQuery } from '@/store/designSlice';
 import type { ArtboardData, CanvasElement } from '../../types';
 import { ARTBOARD_PRESETS } from '../../types';
 import LayerPanel from './LayerPanel';
+import ArtboardColorPicker from './ArtboardColorPicker';
 import { useUpscaleSelection } from '../../hooks/useUpscaleSelection';
 import UpscaleDestinationToggle from '../UpscaleDestinationToggle';
 import UpscaleQuotaIndicator from '../UpscaleQuotaIndicator';
@@ -220,13 +221,6 @@ const PanelArtboardState = ({
     (_: Event, value: number | number[]) => {
       const opacity = Array.isArray(value) ? value[0] : value;
       onUpdate(artboard.id, { opacity });
-    },
-    [artboard.id, onUpdate],
-  );
-
-  const handleBgColorChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      onUpdate(artboard.id, { backgroundColor: e.target.value });
     },
     [artboard.id, onUpdate],
   );
@@ -494,35 +488,9 @@ const PanelArtboardState = ({
           {t('design.panel.color', 'Color')}
         </SectionLabel>
         <FieldRow>
-          <Box
-            component="input"
-            type="color"
+          <ArtboardColorPicker
             value={artboard.backgroundColor}
-            onChange={handleBgColorChange}
-            aria-label={t('design.panel.bgColor', 'Background color')}
-            sx={{
-              width: 28,
-              height: 28,
-              padding: 0,
-              border: '1px solid',
-              borderColor: 'divider',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              backgroundColor: 'transparent',
-            }}
-          />
-          <TextField
-            size="small"
-            fullWidth
-            value={artboard.backgroundColor}
-            onChange={(e) =>
-              onUpdate(artboard.id, {
-                backgroundColor: e.target.value,
-              })
-            }
-            slotProps={{
-              htmlInput: { maxLength: 7 },
-            }}
+            onChange={(rgba) => onUpdate(artboard.id, { backgroundColor: rgba })}
           />
         </FieldRow>
       </Section>

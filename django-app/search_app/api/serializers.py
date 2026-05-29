@@ -1,6 +1,7 @@
 from rest_framework import serializers
 
 from search_app.models import (
+    ChatGroup,
     ChatMessage,
     ChatSession,
     WebSearchResult,
@@ -12,6 +13,13 @@ class ChatMessageSerializer(serializers.ModelSerializer):
 
     agent_session = serializers.SerializerMethodField()
     attachments = serializers.SerializerMethodField()
+    # FIX 2026-05-28 Item 4 — per-message niche reference. Set only on
+    # role='user' messages by the SSE stream view; null on assistant rows.
+    # Exposed for the chat-history NicheChip render (read-only).
+    referenced_niche_id = serializers.UUIDField(
+        source='referenced_niche.id', read_only=True, allow_null=True,
+    )
+    referenced_niche_name = serializers.SerializerMethodField()
 
     class Meta:
         model = ChatMessage
@@ -27,9 +35,17 @@ class ChatMessageSerializer(serializers.ModelSerializer):
             # on persisted messages.
             'chunks_used',
             'thinking_stages',
+            # FIX 2026-05-28 Item 4 — per-message niche reference.
+            'referenced_niche_id',
+            'referenced_niche_name',
             'created_at',
         ]
         read_only_fields = fields
+
+    def get_referenced_niche_name(self, obj):
+        if obj.referenced_niche_id:
+            return obj.referenced_niche.name
+        return None
 
     def get_agent_session(self, obj):
         """Return nested {id, status, current_step} when agent_session is set."""
@@ -84,12 +100,20 @@ class ChatSessionListSerializer(serializers.ModelSerializer):
     shared_by = serializers.SerializerMethodField()
     niche_context_name = serializers.SerializerMethodField()
     niche_context_id = serializers.SerializerMethodField()
+    # FIX 2026-05-28 Item 7 — sidebar groups. ``group`` exposes the FK id (or
+    # null for the Ungrouped virtual section). ``group_ordering`` drives
+    # per-group manual sort order on the frontend.
+    group = serializers.UUIDField(
+        source='group_id', read_only=True, allow_null=True,
+    )
+    group_ordering = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = ChatSession
         fields = [
             'id', 'title', 'is_shared', 'niche_context_id',
             'niche_context_name', 'message_count', 'shared_by',
+            'group', 'group_ordering',
             'created_at', 'updated_at',
         ]
         read_only_fields = fields
@@ -130,19 +154,30 @@ class ChatSessionDetailSerializer(serializers.ModelSerializer):
     shared_by = serializers.SerializerMethodField()
     niche_context_name = serializers.SerializerMethodField()
     niche_context_id = serializers.SerializerMethodField()
+    # FIX 2026-05-28 Item 7 — mirror of ChatSessionListSerializer so the
+    # detail payload returned after PATCH also carries the new group fields.
+    group = serializers.UUIDField(
+        source='group_id', read_only=True, allow_null=True,
+    )
+    group_ordering = serializers.IntegerField(read_only=True)
 
     class Meta:
         model = ChatSession
         fields = [
             'id', 'title', 'is_shared', 'niche_context_id',
             'niche_context_name', 'messages', 'message_count',
-            'shared_by', 'created_at', 'updated_at',
+            'shared_by', 'group', 'group_ordering',
+            'created_at', 'updated_at',
         ]
         read_only_fields = fields
 
     def get_messages(self, obj):
         """Return latest 50 messages (EC-9: paginate 100+ messages)."""
-        qs = obj.messages.order_by('-created_at')[:50]
+        # FIX 2026-05-28 Item 4 — select_related so the new
+        # referenced_niche_name field doesn't hit a per-row query.
+        qs = obj.messages.select_related('referenced_niche').order_by(
+            '-created_at',
+        )[:50]
         # Reverse to show oldest first in the list
         messages = list(reversed(qs))
         return ChatMessageSerializer(messages, many=True).data
@@ -261,8 +296,68 @@ class ChatSessionCreateSerializer(serializers.Serializer):
 
 
 class ChatSessionUpdateSerializer(serializers.Serializer):
-    """Input serializer for PATCH update (title only)."""
+    """Input serializer for PATCH update.
+
+    Accepts ``title`` and / or ``group`` (FIX 2026-05-28 Item 7). ``group`` is
+    a UUID identifying the destination ``ChatGroup`` or ``null`` to move the
+    session into the virtual Ungrouped section. The view validates that the
+    referenced group belongs to the same workspace.
+    """
+
     title = serializers.CharField(max_length=200, required=False)
+    group = serializers.UUIDField(required=False, allow_null=True)
+
+
+class ChatGroupSerializer(serializers.ModelSerializer):
+    """Read + write serializer for ``ChatGroup`` (FIX 2026-05-28 Item 7).
+
+    ``session_count`` is sourced from a queryset ``Count('sessions')``
+    annotation populated by the view (NOT a SerializerMethodField, which
+    would hit one COUNT query per row → N+1).
+    """
+
+    session_count = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = ChatGroup
+        fields = [
+            'id', 'name', 'ordering', 'session_count',
+            'created_at', 'updated_at',
+        ]
+        read_only_fields = [
+            'id', 'ordering', 'session_count', 'created_at', 'updated_at',
+        ]
+        # Suppress DRF's auto-derived UniqueTogetherValidator for the
+        # (workspace, name) constraint. The view layer enforces uniqueness
+        # via the DB ``UniqueConstraint`` and surfaces ``IntegrityError`` as
+        # a stable ``{'name': ['chatgroup_duplicate_name']}`` response so the
+        # frontend can branch on the code without parsing translated text.
+        # Without this override the serializer would fail validation BEFORE
+        # the view's IntegrityError handler runs.
+        validators = []
+
+
+class ChatGroupReorderSerializer(serializers.Serializer):
+    """Input serializer for ``POST /api/chat/groups/reorder/``."""
+
+    ordered_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        allow_empty=False,
+    )
+
+
+class ChatSessionReorderInGroupSerializer(serializers.Serializer):
+    """Input serializer for ``POST /api/chat/sessions/reorder-in-group/``.
+
+    ``group_id`` may be ``null`` to reorder sessions inside the virtual
+    Ungrouped section.
+    """
+
+    group_id = serializers.UUIDField(allow_null=True, required=True)
+    ordered_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        allow_empty=False,
+    )
 
 
 class SendMessageSerializer(serializers.Serializer):
@@ -282,6 +377,34 @@ class SendMessageSerializer(serializers.Serializer):
         choices=['auto', 'web_search', 'agent'],
         default='auto',
         help_text='Pattern B: auto = LLM classifier, web_search = force Vane, agent = force PROJ-18.',
+    )
+
+
+class ChatStreamRequestSerializer(serializers.Serializer):
+    """Input serializer for the SSE chat stream POST body (FIX 2026-05-28).
+
+    Replaces the URL-query-string GET contract on
+    ``ChatSessionMessageStreamView`` so prompts larger than the proxy URI
+    cap (~8 KB on Caddy) can travel in the request body instead. The shape
+    is intentionally the union of every query param the legacy GET accepts;
+    the view's internal ``_stream`` helper consumes both paths identically.
+    """
+
+    content = serializers.CharField(
+        required=True, max_length=64000, allow_blank=False,
+    )
+    mode_override = serializers.CharField(
+        required=False, allow_blank=True, default='',
+    )
+    niche_id = serializers.UUIDField(
+        required=False, allow_null=True, default=None,
+    )
+    attachment_ids = serializers.ListField(
+        child=serializers.UUIDField(),
+        required=False, allow_empty=True, default=list,
+    )
+    model = serializers.CharField(
+        required=False, allow_blank=True, default='',
     )
 
 

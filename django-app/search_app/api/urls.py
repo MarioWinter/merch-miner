@@ -1,6 +1,9 @@
 from django.urls import path
 
 from search_app.api.views import (
+    ChatGroupDetailView,
+    ChatGroupListCreateView,
+    ChatGroupReorderView,
     ChatHealthView,
     ChatMessageDestroyView,
     ChatSessionDetailView,
@@ -8,6 +11,7 @@ from search_app.api.views import (
     ChatSessionMessagesView,
     ChatSessionMessageStreamView,
     ChatSessionPublicFetchView,
+    ChatSessionReorderInGroupView,
     ChatSessionShareCreateView,
     ChatSessionUnshareView,
     CrawlStatusView,
@@ -57,6 +61,30 @@ urlpatterns = [
         'chat/messages/<uuid:message_id>/',
         ChatMessageDestroyView.as_view(),
         name='chat-message-destroy',
+    ),
+
+    # FIX 2026-05-28 Item 7 — Chat Groups (sidebar folders).
+    # Reorder endpoints come BEFORE the detail route so
+    # ``chat/groups/reorder/`` is not absorbed by ``<uuid:group_id>``.
+    path(
+        'chat/groups/reorder/',
+        ChatGroupReorderView.as_view(),
+        name='chat-group-reorder',
+    ),
+    path(
+        'chat/sessions/reorder-in-group/',
+        ChatSessionReorderInGroupView.as_view(),
+        name='chat-session-reorder-in-group',
+    ),
+    path(
+        'chat/groups/',
+        ChatGroupListCreateView.as_view(),
+        name='chat-group-list-create',
+    ),
+    path(
+        'chat/groups/<uuid:group_id>/',
+        ChatGroupDetailView.as_view(),
+        name='chat-group-detail',
     ),
 
     # Search / Crawl

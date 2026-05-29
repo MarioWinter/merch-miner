@@ -47,13 +47,6 @@ const OverlayHeader = styled(Box)(({ theme }) => ({
   flexShrink: 0,
 }));
 
-const OverlayToolbar = styled(Box)(({ theme }) => ({
-  display: 'flex',
-  justifyContent: 'flex-end',
-  padding: `${theme.spacing(0.75)} ${theme.spacing(1.5)}`,
-  flexShrink: 0,
-}));
-
 const OverlayBody = styled(Box)({
   flex: 1,
   overflowY: 'auto',
@@ -142,20 +135,24 @@ const RecentChatsOverlay = () => {
           <CloseIcon sx={{ fontSize: 18 }} />
         </IconButton>
       </OverlayHeader>
-      <OverlayToolbar>
-        <Button
-          variant="text"
-          color="error"
-          size="small"
-          startIcon={<DeleteSweepOutlinedIcon sx={{ fontSize: 18 }} />}
-          onClick={() => setPurgeOpen(true)}
-          aria-label={t('chatNicheRag.history.clearAll')}
-        >
-          {t('chatNicheRag.history.clearAll')}
-        </Button>
-      </OverlayToolbar>
       <OverlayBody>
-        <RecentChats onSelect={handleSelect} activeSessionId={activeSessionId} />
+        <RecentChats
+          onSelect={handleSelect}
+          activeSessionId={activeSessionId}
+          headerLeftAction={
+            <Button
+              variant="text"
+              color="error"
+              size="small"
+              startIcon={<DeleteSweepOutlinedIcon sx={{ fontSize: 18 }} />}
+              onClick={() => setPurgeOpen(true)}
+              aria-label={t('chatNicheRag.history.clearAll')}
+              sx={{ textTransform: 'none', fontSize: '0.75rem', fontWeight: 600 }}
+            >
+              {t('chatNicheRag.history.clearAll')}
+            </Button>
+          }
+        />
       </OverlayBody>
 
       <Dialog

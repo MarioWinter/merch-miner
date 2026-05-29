@@ -94,6 +94,39 @@ describe('useOptimisticChatMessage', () => {
     expect(messages[0].content).toBe('hello world');
   });
 
+  it('insert carries referenced_niche_id + name onto the temp row when supplied', async () => {
+    await seedCache(store);
+    const { result } = renderHook(() => useOptimisticChatMessage(), { wrapper });
+
+    act(() => {
+      result.current.insert({
+        sessionId: SESSION_ID,
+        content: 'with niche',
+        referencedNicheId: '11111111-1111-1111-1111-111111111111',
+        referencedNicheName: 'Cats',
+      });
+    });
+
+    const [message] = selectMessages(store);
+    expect(message.referenced_niche_id).toBe(
+      '11111111-1111-1111-1111-111111111111',
+    );
+    expect(message.referenced_niche_name).toBe('Cats');
+  });
+
+  it('insert defaults niche fields to null when not supplied (no chip case)', async () => {
+    await seedCache(store);
+    const { result } = renderHook(() => useOptimisticChatMessage(), { wrapper });
+
+    act(() => {
+      result.current.insert({ sessionId: SESSION_ID, content: 'no niche' });
+    });
+
+    const [message] = selectMessages(store);
+    expect(message.referenced_niche_id).toBeNull();
+    expect(message.referenced_niche_name).toBeNull();
+  });
+
   it('rollback removes the temp message keyed by tempId', async () => {
     await seedCache(store);
     const { result } = renderHook(() => useOptimisticChatMessage(), { wrapper });

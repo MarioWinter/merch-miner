@@ -79,6 +79,19 @@ const TabletChipPair = styled(Box)({
   overflow: 'hidden',
 });
 
+// Mirrors the TopbarIconButton shape used by ColorModeToggle + LanguageMenu so
+// all topbar IconButtons share size, padding, radius, and hover state.
+const TopbarIconButton = styled(IconButton)(({ theme }) => ({
+  width: 32,
+  height: 32,
+  borderRadius: '8px',
+  color: theme.vars.palette.text.secondary,
+  '&:hover': {
+    backgroundColor: theme.vars.palette.action.hover,
+    color: theme.vars.palette.text.primary,
+  },
+}));
+
 const Topbar = () => {
   const { t } = useTranslation();
   const dispatch = useAppDispatch();
@@ -139,14 +152,14 @@ const Topbar = () => {
             <HealthStatusDot />
           </Box>
           <Tooltip title={t('topbar.chat.open')}>
-            <IconButton
+            <TopbarIconButton
               size="small"
               onClick={() => dispatch(openDrawer('chat'))}
               aria-label={t('topbar.chat.open')}
               data-testid="topbar-open-chat"
             >
               <ChatBubbleOutlineIcon sx={{ fontSize: 20 }} />
-            </IconButton>
+            </TopbarIconButton>
           </Tooltip>
           <LanguageMenu />
           <ColorModeToggle />

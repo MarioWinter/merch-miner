@@ -5,9 +5,11 @@ import time
 
 import django_rq
 from django.conf import settings
-from django.db.models import Count
+from django.db import IntegrityError, transaction
+from django.db.models import Count, Max
 from django.http import StreamingHttpResponse
 from rest_framework import status
+from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.renderers import BaseRenderer, JSONRenderer
@@ -16,10 +18,14 @@ from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from search_app.api.serializers import (
+    ChatGroupReorderSerializer,
+    ChatGroupSerializer,
     ChatSessionCreateSerializer,
     ChatSessionDetailSerializer,
     ChatSessionListSerializer,
+    ChatSessionReorderInGroupSerializer,
     ChatSessionUpdateSerializer,
+    ChatStreamRequestSerializer,
     PublicChatSessionSerializer,
     SaveToNicheSerializer,
     SendMessageSerializer,
@@ -27,6 +33,7 @@ from search_app.api.serializers import (
     WebSearchResultSerializer,
 )
 from search_app.models import (
+    ChatGroup,
     ChatMessage,
     ChatSession,
     WebSearchResult,
@@ -117,7 +124,11 @@ class ChatSessionListCreateView(APIView):
         if niche_id:
             qs = qs.filter(niche_context_id=niche_id)
 
-        qs = qs.select_related('created_by', 'niche_context').annotate(
+        # FIX 2026-05-28 Item 7 — select_related('group') so the new
+        # serializer field doesn't hit a per-row query. Order by recency
+        # globally; the sidebar bins by `group` client-side and applies
+        # `group_ordering` only WITHIN each group section.
+        qs = qs.select_related('created_by', 'niche_context', 'group').annotate(
             _message_count=Count('messages')
         ).order_by('-updated_at')
 
@@ -249,9 +260,43 @@ class ChatSessionDetailView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
+        update_fields = []
         if 'title' in data:
             session.title = data['title']
-            session.save(update_fields=['title', 'updated_at'])
+            update_fields.append('title')
+
+        # FIX 2026-05-28 Item 7 — move this session into/out of a group.
+        # ``group`` is required to be a UUID belonging to the same workspace
+        # (or null to move into the Ungrouped virtual section). The
+        # destination's ``group_ordering`` is set to max(existing) + 1 so the
+        # moved chat lands at the end of the destination bucket atomically.
+        if 'group' in data:
+            new_group_id = data['group']
+            if new_group_id is not None:
+                try:
+                    new_group = ChatGroup.objects.get(
+                        pk=new_group_id, workspace=workspace,
+                    )
+                except ChatGroup.DoesNotExist:
+                    raise ValidationError(
+                        {'group': ['chatgroup_not_in_workspace']},
+                    )
+                new_group_pk = new_group.pk
+            else:
+                new_group_pk = None
+
+            with transaction.atomic():
+                current_max = ChatSession.objects.filter(
+                    workspace=workspace,
+                    group_id=new_group_pk,
+                ).aggregate(m=Max('group_ordering'))['m'] or 0
+                session.group_id = new_group_pk
+                session.group_ordering = current_max + 1
+            update_fields.extend(['group', 'group_ordering'])
+
+        if update_fields:
+            update_fields.append('updated_at')
+            session.save(update_fields=update_fields)
 
         return Response(ChatSessionDetailSerializer(session).data)
 
@@ -319,7 +364,12 @@ class ChatSessionMessagesView(APIView):
             )
 
         before = request.query_params.get('before')  # message ID cursor
-        qs = session.messages.order_by('-created_at')
+        # FIX 2026-05-28 Item 4 — pull the per-message niche reference in the
+        # same query to avoid N+1 when the serializer reads
+        # `referenced_niche.name`.
+        qs = session.messages.select_related('referenced_niche').order_by(
+            '-created_at',
+        )
 
         if before:
             try:
@@ -735,6 +785,119 @@ class ChatSessionMessageStreamView(APIView):
     throttle_scope = 'chat_agent'
 
     def get(self, request, session_id):
+        # Deprecated 2026-05-28: use POST. Removal planned next release.
+        #
+        # Legacy ``EventSource``-compatible GET surface. Reads inputs from
+        # query params then funnels into the shared ``_stream`` helper. New
+        # callers should use POST so the prompt body avoids the Caddy
+        # ~8 KB URI cap (FIX item 1).
+        validated = self._parse_get_query_params(request)
+        if isinstance(validated, Response):
+            return validated
+        return self._stream(validated, session_id, request)
+
+    def post(self, request, session_id):
+        # FIX 2026-05-28: SSE stream over POST so prompts > ~8 KB no longer
+        # blow past Caddy's URI cap. Body shape validated via
+        # ``ChatStreamRequestSerializer``; wire-compatible with the legacy
+        # GET — both paths share ``_stream``.
+        serializer = ChatStreamRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        validated = self._normalize_validated(serializer.validated_data)
+        return self._stream(validated, session_id, request)
+
+    def _parse_get_query_params(self, request):
+        """Translate the legacy GET query params into the ``_stream`` dict shape.
+
+        Returns a ``Response`` on validation failure (matches the original
+        400 contract for missing ``content``).
+        """
+        content = request.query_params.get('content', '').strip()
+        if not content:
+            return Response(
+                {'error': 'content query parameter is required.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Cleanup 2026-04-28: `search_mode` is the Vane optimization knob
+        # (speed/balanced/quality). The frontend used to overload this with
+        # routing intent ('web_search'/'agent') — those values fell through
+        # to 'balanced'. We now accept an explicit `optimization_mode` (and
+        # keep `search_mode` as a fallback for backward compatibility).
+        search_mode = (
+            request.query_params.get('optimization_mode')
+            or request.query_params.get('search_mode')
+            or 'balanced'
+        )
+        if search_mode not in ('speed', 'balanced', 'quality'):
+            search_mode = 'balanced'
+
+        sources_raw = request.query_params.get('search_sources', 'web')
+        search_sources = [
+            s.strip() for s in sources_raw.split(',')
+            if s.strip() in ('web', 'academic', 'discussions')
+        ] or ['web']
+
+        model = request.query_params.get('model') or None
+
+        mode_override = (
+            request.query_params.get('mode_override', '').strip().lower()
+            or 'auto'
+        )
+        if mode_override not in ('auto', 'web_search', 'agent'):
+            mode_override = 'auto'
+
+        attachment_ids_raw = request.query_params.get('attachment_ids', '')
+        attachment_ids = [
+            s.strip() for s in attachment_ids_raw.split(',') if s.strip()
+        ]
+
+        per_message_niche_id = request.query_params.get('niche_id') or None
+
+        return {
+            'content': content,
+            'search_mode': search_mode,
+            'search_sources': search_sources,
+            'model': model,
+            'mode_override': mode_override,
+            'attachment_ids': attachment_ids,
+            'per_message_niche_id': per_message_niche_id,
+        }
+
+    def _normalize_validated(self, validated):
+        """Translate ``ChatStreamRequestSerializer.validated_data`` into the
+        same dict shape ``_stream`` expects from the GET path.
+
+        POST body intentionally does NOT carry the Vane-only
+        ``search_mode``/``search_sources`` knobs — those default to the
+        canonical ``balanced`` / ``['web']``. ``mode_override`` is
+        normalised to one of ``auto`` / ``web_search`` / ``agent`` (unknown
+        values fall back to ``auto``, matching GET behaviour).
+        """
+        mode_override = (validated.get('mode_override') or '').strip().lower() or 'auto'
+        if mode_override not in ('auto', 'web_search', 'agent'):
+            mode_override = 'auto'
+        niche_id = validated.get('niche_id')
+        per_message_niche_id = str(niche_id) if niche_id else None
+        model = validated.get('model') or None
+        return {
+            'content': validated['content'].strip(),
+            'search_mode': 'balanced',
+            'search_sources': ['web'],
+            'model': model,
+            'mode_override': mode_override,
+            'attachment_ids': [str(a) for a in validated.get('attachment_ids') or []],
+            'per_message_niche_id': per_message_niche_id,
+        }
+
+    def _stream(self, validated, session_id, request):
+        """Shared SSE handler used by both GET (legacy) and POST.
+
+        Resolves the session + workspace membership, then dispatches to the
+        Vision / niche-agent / Vane branches based on the validated inputs.
+        Returns either an error ``Response`` or a streaming
+        ``StreamingHttpResponse``.
+        """
         # EventSource cannot send custom headers — resolve workspace from the
         # session itself + verify user has active membership there.
         try:
@@ -765,61 +928,28 @@ class ChatSessionMessageStreamView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        content = request.query_params.get('content', '').strip()
-        if not content:
-            return Response(
-                {'error': 'content query parameter is required.'},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        content = validated['content']
+        search_mode = validated['search_mode']
+        search_sources = validated['search_sources']
+        model = validated['model']
+        attachment_ids = validated['attachment_ids']
+        per_message_niche_id = validated['per_message_niche_id']
 
-        # Cleanup 2026-04-28: `search_mode` is the Vane optimization knob
-        # (speed/balanced/quality). The frontend used to overload this with
-        # routing intent ('web_search'/'agent') — those values fell through
-        # to 'balanced'. We now accept an explicit `optimization_mode` (and
-        # keep `search_mode` as a fallback for backward compatibility).
-        search_mode = (
-            request.query_params.get('optimization_mode')
-            or request.query_params.get('search_mode')
-            or 'balanced'
-        )
-        if search_mode not in ('speed', 'balanced', 'quality'):
-            search_mode = 'balanced'
-
-        sources_raw = request.query_params.get('search_sources', 'web')
-        search_sources = [
-            s.strip() for s in sources_raw.split(',')
-            if s.strip() in ('web', 'academic', 'discussions')
-        ] or ['web']
-
-        model = request.query_params.get('model') or None
-
-        # PROJ-29 Phase 1J / BUG-2 — accept `mode_override` query param so the
-        # frontend can force the niche-agent path even when no niche is
-        # pinned on the session. Previously the SSE GET endpoint ignored
-        # this param entirely, and the frontend fell back to the legacy
-        # POST `sendMessage` mutation for agent mode (which bypasses the
-        # entire PROJ-29 SSE event protocol — no ThinkingStrip, no tool_call
-        # events, no follow-ups). The routing decision below now considers
-        # both `session.niche_context` AND `mode_override='agent'`.
-        mode_override = (
-            request.query_params.get('mode_override', '').strip().lower()
-            or 'auto'
-        )
-        if mode_override not in ('auto', 'web_search', 'agent'):
-            mode_override = 'auto'
-
-        # PROJ-20 Phase 7.3 — image attachments routed through the Vision
-        # path (OpenRouter direct, no Vane). Comma-separated UUIDs.
-        attachment_ids_raw = request.query_params.get('attachment_ids', '')
-        attachment_ids = [
-            s.strip() for s in attachment_ids_raw.split(',') if s.strip()
-        ]
-
-        # Cleanup 2026-04-28: read per-message niche_id query param. If
-        # provided, override session.niche_context for THIS request only.
-        # This lets follow-up messages re-target a niche without creating a
-        # new session.
-        per_message_niche_id = request.query_params.get('niche_id') or None
+        # FIX 2026-05-28 Item 4 — workspace-isolation check for the per-message
+        # `niche_id`. Verify the niche belongs to the same workspace as the
+        # session BEFORE any user message is persisted; reject cross-workspace
+        # references with a 400 so the request never reaches the streaming
+        # branch (no partial-state side effects).
+        from niche_app.models import Niche as _NicheCheck
+        if per_message_niche_id:
+            niche_in_ws = _NicheCheck.objects.filter(
+                pk=per_message_niche_id, workspace=workspace,
+            ).exists()
+            if not niche_in_ws:
+                raise ValidationError(
+                    {'niche_id': 'niche_not_in_workspace'},
+                    code='niche_not_in_workspace',
+                )
 
         # PROJ-20 Phase 7.3 — Vision branch. If the request carries
         # attachment_ids the message goes through OpenRouter directly with
@@ -847,6 +977,10 @@ class ChatSessionMessageStreamView(APIView):
                 message_type=ChatMessage.MessageType.SEARCH_QUERY,
                 search_mode=search_mode,
                 search_sources=search_sources,
+                # FIX 2026-05-28 Item 4 — persist per-message niche reference.
+                # Already workspace-validated above; assistant message stays
+                # NULL (see vision_event_stream below).
+                referenced_niche_id=per_message_niche_id,
             )
             # Link freshly-uploaded attachments to the just-persisted user
             # message so chat-history rendering can surface thumbnails. On
@@ -955,6 +1089,10 @@ class ChatSessionMessageStreamView(APIView):
             message_type=ChatMessage.MessageType.SEARCH_QUERY,
             search_mode=search_mode,
             search_sources=search_sources,
+            # FIX 2026-05-28 Item 4 — persist per-message niche reference for
+            # both Vane web-search and niche-agent paths. Already
+            # workspace-validated above. Assistant message remains NULL.
+            referenced_niche_id=per_message_niche_id,
         )
 
         # Auto-set title from first query
@@ -1515,6 +1653,218 @@ class ChatMessageDestroyView(APIView):
 
         message.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ============================================================================
+# FIX 2026-05-28 Item 7 — Chat Groups (sidebar folder organisation)
+# ============================================================================
+
+
+class ChatGroupListCreateView(APIView):
+    """``GET  /api/chat/groups/`` — list workspace groups (annotated with
+    ``session_count`` via ``Count('sessions')`` so the serializer doesn't
+    trigger a per-row COUNT query).
+
+    ``POST /api/chat/groups/`` — create new group. Body ``{name: str}``.
+    Server assigns ``ordering = max(existing in workspace) + 1`` atomically.
+    Duplicate ``(workspace, name)`` returns a 400 ``ValidationError`` via the
+    existing ``UniqueConstraint`` (caught and re-raised with a stable error
+    code for the frontend).
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        workspace, err = _resolve_workspace(request)
+        if err:
+            return err
+        qs = (
+            ChatGroup.objects.filter(workspace=workspace)
+            .annotate(session_count=Count('sessions'))
+            .order_by('ordering', 'created_at')
+        )
+        data = ChatGroupSerializer(qs, many=True).data
+        return Response(data)
+
+    def post(self, request):
+        workspace, err = _resolve_workspace(request)
+        if err:
+            return err
+        serializer = ChatGroupSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        name = serializer.validated_data['name']
+
+        try:
+            with transaction.atomic():
+                current_max = ChatGroup.objects.filter(
+                    workspace=workspace,
+                ).aggregate(m=Max('ordering'))['m'] or 0
+                group = ChatGroup.objects.create(
+                    workspace=workspace,
+                    created_by=request.user,
+                    name=name,
+                    ordering=current_max + 1,
+                )
+        except IntegrityError:
+            raise ValidationError(
+                {'name': ['chatgroup_duplicate_name']},
+            )
+
+        # Re-fetch with the annotation so session_count is populated in the
+        # response (will be 0 for a brand-new group).
+        group = (
+            ChatGroup.objects.filter(pk=group.pk)
+            .annotate(session_count=Count('sessions'))
+            .first()
+        )
+        return Response(
+            ChatGroupSerializer(group).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ChatGroupDetailView(APIView):
+    """``PATCH  /api/chat/groups/<id>/`` — rename group.
+    ``DELETE /api/chat/groups/<id>/`` — delete group. ``ChatSession.group``
+    uses ``on_delete=SET_NULL`` so all sessions inside the deleted group
+    cascade-clear to NULL (= Ungrouped virtual section) automatically.
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def _get_group(self, request, group_id):
+        workspace, err = _resolve_workspace(request)
+        if err:
+            return None, None, err
+        try:
+            group = ChatGroup.objects.get(pk=group_id, workspace=workspace)
+        except ChatGroup.DoesNotExist:
+            return None, None, Response(
+                {'error': 'Group not found.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return workspace, group, None
+
+    def patch(self, request, group_id):
+        workspace, group, err = self._get_group(request, group_id)
+        if err:
+            return err
+        serializer = ChatGroupSerializer(group, data=request.data, partial=True)
+        serializer.is_valid(raise_exception=True)
+        new_name = serializer.validated_data.get('name')
+        if new_name is not None and new_name != group.name:
+            group.name = new_name
+            # Wrap the rename in atomic() so the IntegrityError raised by the
+            # (workspace, name) UniqueConstraint is contained in its own
+            # savepoint and the surrounding request-level transaction stays
+            # usable (Django would otherwise mark the outer txn as broken).
+            try:
+                with transaction.atomic():
+                    group.save(update_fields=['name', 'updated_at'])
+            except IntegrityError:
+                raise ValidationError(
+                    {'name': ['chatgroup_duplicate_name']},
+                )
+
+        group = (
+            ChatGroup.objects.filter(pk=group.pk)
+            .annotate(session_count=Count('sessions'))
+            .first()
+        )
+        return Response(ChatGroupSerializer(group).data)
+
+    def delete(self, request, group_id):
+        workspace, group, err = self._get_group(request, group_id)
+        if err:
+            return err
+        group.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class ChatGroupReorderView(APIView):
+    """``POST /api/chat/groups/reorder/`` — set ``ordering = i + 1`` for each
+    id in ``ordered_ids``. Atomic: rejects (400) if any id is foreign to the
+    current workspace WITHOUT mutating the DB.
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        workspace, err = _resolve_workspace(request)
+        if err:
+            return err
+        serializer = ChatGroupReorderSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        ordered_ids = serializer.validated_data['ordered_ids']
+
+        # Foreign-id detection BEFORE any write: count matching rows scoped to
+        # workspace and compare against the request length.
+        valid_count = ChatGroup.objects.filter(
+            workspace=workspace,
+            id__in=ordered_ids,
+        ).count()
+        if valid_count != len(ordered_ids):
+            raise ValidationError(
+                {'ordered_ids': ['foreign_group_in_list']},
+            )
+
+        with transaction.atomic():
+            for index, gid in enumerate(ordered_ids):
+                ChatGroup.objects.filter(id=gid).update(ordering=index + 1)
+
+        return Response({'ok': True})
+
+
+class ChatSessionReorderInGroupView(APIView):
+    """``POST /api/chat/sessions/reorder-in-group/`` — set
+    ``(group_id, group_ordering)`` for every session in ``ordered_ids``.
+    Atomic: rejects (400) on any foreign session or foreign destination group
+    WITHOUT mutating the DB.
+    """
+
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        workspace, err = _resolve_workspace(request)
+        if err:
+            return err
+        serializer = ChatSessionReorderInGroupSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        group_id = serializer.validated_data['group_id']
+        ordered_ids = serializer.validated_data['ordered_ids']
+
+        # Validate destination group (if non-null) is in this workspace.
+        if group_id is not None:
+            group_exists = ChatGroup.objects.filter(
+                pk=group_id, workspace=workspace,
+            ).exists()
+            if not group_exists:
+                raise ValidationError(
+                    {'group_id': ['chatgroup_not_in_workspace']},
+                )
+
+        # Validate all session ids belong to this workspace BEFORE writing.
+        valid_count = ChatSession.objects.filter(
+            workspace=workspace,
+            id__in=ordered_ids,
+        ).count()
+        if valid_count != len(ordered_ids):
+            raise ValidationError(
+                {'ordered_ids': ['foreign_session_in_list']},
+            )
+
+        with transaction.atomic():
+            for index, sid in enumerate(ordered_ids):
+                ChatSession.objects.filter(id=sid).update(
+                    group_id=group_id,
+                    group_ordering=index + 1,
+                )
+
+        return Response({'ok': True})
 
 
 class TriggerCrawlView(APIView):

@@ -1,0 +1,334 @@
+# Tasks — FIX: Chat Bugfixes + Grouping + Canvas Color-Picker
+
+> Spec: [`features/FIX-chat-bugfixes-and-grouping.md`](../../features/FIX-chat-bugfixes-and-grouping.md)
+> Branch: `fix/chat-bugfixes-and-grouping`
+> Merge: `--merge` (preserve conventional commits)
+>
+> Each Phase = one Item from the spec = one commit. Run skills phase-by-phase with a hard scope lock. Orchestrator commits after review (memory `feedback_phase_by_phase_skill_invocation`). Do NOT chain phases in one skill invocation.
+
+> **Phase order changed 2026-05-28 (review pass):** Item 4 (Niche persistence) moved BEFORE Item 2 (Web-Search Fallback) so the Retry button in Item 2 can recover `niche_id` from the persisted `referenced_niche_id` on the prior user message. Spec implementation-order table updated accordingly.
+
+> **Final phase order:** Item 1 → Item 3 → **Item 4** → Item 5 → Item 6 → **Item 2** → Item 7 → Item 8 → QA + Merge.
+
+---
+
+## Phase 1 — Item 1: SSE → POST Streaming Refactor (foundation)
+
+**Commit:** `refactor(chat): switch SSE stream from GET to POST + AbortController-based stop`
+**Skills:** `/backend` first, then `/frontend`. No commit between sub-phases.
+
+### Backend
+- [x] Add `ChatStreamRequestSerializer` in `django-app/search_app/api/serializers.py` (fields: `content`, `mode_override?`, `niche_id?`, `attachment_ids?`, `model?`). — serializers.py:288-313
+- [x] Add `post(self, request, session_id)` method to `ChatSessionMessageStreamView` in `django-app/search_app/api/views.py`; refactor existing GET to share an internal `_stream(self, validated, session_id, workspace_id)` helper. — views.py:738-758, 760-842, 844-end
+- [x] Mark GET handler with deprecation docstring `# Deprecated 2026-05-28: use POST. Removal planned next release.` — views.py:739
+- [x] Verify `core/settings.py CORS_ALLOW_HEADERS` includes `Content-Type` AND `X-Workspace-Id` (the new POST needs both on the preflight). If missing, add. — already present via corsheaders `default_headers` ('content-type') + explicit 'x-workspace-id' at settings.py:50
+- [x] Verify `CORS_ALLOW_METHODS` includes `POST` (it should — verify). — covered by django-cors-headers `default_methods` (includes POST); no override set in settings.py
+- [x] Add pytest `test_post_streams_init_chunk_done_sequence` in `django-app/search_app/tests/test_chat_session_message_stream_view.py` mirroring the existing GET happy-path test. — test_chat_session_message_stream_view.py:782-857
+- [x] Backend `ruff check` + `pytest django-app/search_app/tests/test_chat_session_message_stream_view.py` green. — 13 passed, ruff clean
+
+### Frontend
+- [x] Add internal helper `parseSSEStream(response, dispatchEvent, onClose)` inside `frontend-ui/src/hooks/useSendMessageStream.ts` (or a sibling `sseStreamParser.ts` if preferred). — useSendMessageStream.ts:175-209
+- [x] Replace `new EventSource(url, { withCredentials })` with `fetch(url, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', 'X-Workspace-Id': workspaceId }, body: JSON.stringify(args), signal })`. — useSendMessageStream.ts:520-528
+- [x] **Explicit task: pull `activeWorkspaceId` from `s.workspace.activeWorkspaceId` (or equivalent selector) and pass into the fetch headers.** If the selector path differs, find it via grep in `searchSlice.ts` or `workspaceSlice.ts`. — useSendMessageStream.ts:238-239, 324-327, 525
+- [x] **401 handling — replicate the axios interceptor behavior, since fetch bypasses it:**
+  - [x] Before SSE parsing begins, check `response.status === 401`. If so, dispatch the existing `authSlice` logout action AND `window.location.href = '/login'` (match axios interceptor pattern — find it in `frontend-ui/src/services/api.ts` or equivalent). — useSendMessageStream.ts:545-554
+  - [x] If a 401 happens MID-stream (rare — token expires while streaming), the reader will surface it as a network error; the existing `connectionLost` snackbar path handles it. No additional logic needed. — useSendMessageStream.ts:575-584 (mid-stream errors fall through `parseSSEStream` rethrow into the generic connectionLost path)
+- [x] Replace module-scoped `activeEventSource: EventSource | null` with `activeAbortController: AbortController | null`. — useSendMessageStream.ts:225
+- [x] Rename `eventSourceRef` to `abortControllerRef`; preserve all other refs (`chunkBufferRef`, `flushScheduledRef`, `silenceTimerRef`, `isStreamingRef`, `rafIdRef`). — useSendMessageStream.ts:242-251
+- [x] Route all SSE event types (`init`, `sources`, `chunk`, `stage`, `heartbeat`, `tool_call`, `tool_result`, `tool_timeout`, `chunks_used`, `generate_slogans_payload`, `follow_ups`, `done`, `error`) through the new dispatcher map; keep Redux dispatches identical 1:1. — useSendMessageStream.ts:372-512 (handleEvent switch)
+- [x] Update `stop()` to call `abortControllerRef.current?.abort()` AND the existing `closeStream()`. — useSendMessageStream.ts:311-315
+- [x] Handle `AbortError` inside `parseSSEStream` → exit cleanly without error snackbar. — useSendMessageStream.ts:200-204
+- [x] Handle network-level errors → `clearStreamingMessage` + `connectionLost` snackbar + `onError?.()`. — useSendMessageStream.ts:532-540 (pre-stream fetch reject) + 575-584 (mid-stream parse reject)
+- [x] Handle `!response.ok` pre-stream → parse body as JSON, surface `display_message` if present, no SSE parsing. — useSendMessageStream.ts:557-573
+- [x] Rewrite `frontend-ui/src/hooks/__tests__/useSendMessageStream.test.tsx` to mock `fetch` + `ReadableStream` (use `new ReadableStream({ start(controller) { ... } })`); port all 13+ existing assertions. — useSendMessageStream.test.tsx:76-196 (MockStreamController + fetch stub), tests at lines 294-700.
+- [x] Add new test: `fetch returns 401 → authSlice logout dispatched + redirect`. — useSendMessageStream.test.tsx:649-679
+- [x] `npm run lint` + `npm run test:ci` green. — lint 0 errors (17 pre-existing warnings in untouched files); 1636 tests pass, 0 failures.
+
+### Review checkpoint
+- [ ] Manual smoke on `docker compose up`: send a 6 KB prompt → answer streams; click stop → abort works; reload page → no zombie streams.
+- [ ] Manual smoke: kill the backend mid-stream → `connectionLost` snackbar appears.
+- [ ] All AC-1-1..AC-1-16 boxes in spec ticked.
+
+---
+
+## Phase 2 — Item 3: Send → Stop Toggle
+
+**Commit:** `feat(chat): toggle send button to stop while streaming`
+**Skill:** `/frontend`
+
+- [x] Add `isStreaming: boolean` + `onStop: () => void` props to `SendButton.tsx`. — SendButton.tsx:18-32
+- [x] **Wiring task — verify `useSendMessageStream` is mounted ABOVE the SendButton render tree** so the same hook instance owns both `start` and `stop`:
+  - [x] Today the hook is mounted in `ChatPanel.tsx` and `FloatingChatBar.tsx`. SendButton lives inside `ChatInputBar`, which is rendered by both. — `FloatingChatBar` does NOT exist today; ChatPanel is the sole mount-point. Verified via `grep -rn "useSendMessageStream"` and `grep -rn "FloatingChatBar"` — both return only ChatPanel + hook self + tests. No symmetric wiring needed because the second host does not exist.
+  - [x] Pass `stop` as a callback prop chain: `ChatPanel → ChatInputBar → SendButton.onStop`. Same wiring in `FloatingChatBar`. — ChatPanel.tsx:172 destructures `stop: stopStream`; ChatPanel.tsx:489 passes `onStop={stopStream}`; ChatInputBar/index.tsx:73-78 declares prop, line 131 destructures, line 369 forwards to SendButton.
+  - [x] Note: because Phase 1 introduced a module-singleton `activeAbortController`, calling `stop()` from any hook instance aborts the active stream regardless of which instance owns it. Wiring is still required so the button has SOMETHING to call.
+- [x] Read `isStreaming` from `chatBar` slice in `ChatInputBar/index.tsx` (already a selector path); pass to `SendButton`. — index.tsx:142-144 selector; line 366 passes real `isStreaming` to SendButton (previously `sendDisabled` was misrouted into `isStreaming` — split fixed).
+- [x] Render `SendIcon` when `!isStreaming`; render `StopIcon` from `@mui/icons-material/Stop` when streaming. — SendButton.tsx:78-82
+- [x] No transition between icon states (straight swap — avoid CSS transitions on the icon element). — No `transition` CSS on the icon; ternary swap only.
+- [x] Add i18n key `search.stop.aria` (EN + DE). — en/translation.json:3011-3013, de/translation.json:2255-2257
+- [x] New test `frontend-ui/src/components/MultiPurposeDrawer/panels/ChatInputBar/partials/__tests__/SendButton.test.tsx`: renders SendIcon when not streaming, StopIcon when streaming, click invokes correct handler per state. — SendButton.test.tsx:18-110 (4 cases, all passing).
+- [x] Verify keyboard Enter while streaming is no-op (input disabled — already in place; spot-check it still is). — SmartTextarea.tsx:211-214 fires `onSubmit?.()` on Enter; in ChatInputBar that maps to `handleSubmit` which short-circuits via `if (disabled || isSending || isStreaming) return;` at index.tsx:165. No regression to fix.
+- [x] `npm run lint` + `npm run test:ci` green. — lint 0 errors / 17 pre-existing warnings; test:ci 1640 testcases, 0 failures, 0 errors.
+
+### Review checkpoint
+- [ ] Manual smoke: send → button flips to Stop → click stops the stream → button flips back to Send.
+- [ ] Manual smoke: open FloatingChatBar AND ChatPanel both showing stream — only one Stop button is active at a time (module singleton).
+- [ ] All AC-3-1..AC-3-9 boxes ticked.
+
+---
+
+## Phase 3 — Item 4: @Niche Persistence + History Render
+
+> **Re-ordered before Item 2** so Phase 6 (Web-Search Fallback Retry) can read `referenced_niche_id` from the persisted user message.
+
+**Commit:** `fix(chat): persist and render @niche reference on user messages`
+**Skills:** `/backend` then `/frontend`. No commit between sub-phases.
+
+### Backend
+- [x] Add `referenced_niche` FK to `ChatMessage` in `django-app/search_app/models.py`:
+  - `models.ForeignKey('niche_app.Niche', on_delete=SET_NULL, null=True, blank=True, db_index=True, related_name='referenced_in_messages')`. — models.py:132-146
+- [x] `python manage.py makemigrations search_app` → creates `0009_chatmessage_referenced_niche.py`. Verify additive-only. — migrations/0009_chatmessage_referenced_niche.py (single AddField, no data migration)
+- [x] In `ChatSessionMessageStreamView` POST handler (Phase 1) AND the legacy GET: read `niche_id`, validate same workspace, set `referenced_niche_id` on user `ChatMessage.objects.create(...)`. Assistant message stays `referenced_niche=None`. — views.py:889-905 (validation, shared by both GET + POST via `_stream`); views.py:935 (vision branch user msg); views.py:1047 (Vane / niche-agent branch user msg)
+- [x] Cross-workspace `niche_id` → raise `ValidationError` 400 with `code='niche_not_in_workspace'`. — views.py:889-905
+- [x] Extend `ChatMessageSerializer`: add `referenced_niche_id` (UUIDField via `source='referenced_niche.id'`, read_only, allow_null) + `referenced_niche_name` (SerializerMethodField returning `obj.referenced_niche.name` or None — Niche uses `name`, not `title`). — serializers.py:14-22, 35-46
+- [x] Extend list-endpoint queryset in `ChatSessionMessagesView` (or equivalent) with `.select_related('referenced_niche')` to avoid N+1. — views.py (ChatSessionMessagesView.get queryset) + serializers.py ChatSessionDetailSerializer.get_messages (both code-paths used by the frontend)
+- [x] Grep for `SharedChatView` or `share_token`-protected serializer. If it returns `referenced_niche_id`/`referenced_niche_name`, strip them in the public serializer (workspace-private data must not leak via public share). If a separate `SharedChatMessageSerializer` exists, omit the new fields there. — `PublicChatMessageSerializer` uses an explicit allowlist (`fields = ['id','role','content','message_type','sources','model_used','attachments','created_at']`) so the new fields are NOT exposed via `/api/chat/sessions/shared/<token>/`. No change required; covered by `test_shared_chat_view_strips_referenced_niche` regression test.
+- [x] Pytest tests in `django-app/search_app/tests/test_chat_session_message_stream_view.py`:
+  - `test_referenced_niche_persisted_on_user_message` — test_chat_session_message_stream_view.py:891-936
+  - `test_referenced_niche_cross_workspace_rejected` — test_chat_session_message_stream_view.py:938-987
+  - `test_chat_message_serializer_returns_referenced_niche_fields` — test_chat_session_message_stream_view.py:989-1021
+  - `test_shared_chat_view_strips_referenced_niche` (NEW — verify share-leak protection). — test_chat_session_message_stream_view.py:1023-1054
+- [x] `pytest django-app/search_app/tests/` green. — 152 passed, 3 skipped; 1 pre-existing unrelated failure (`test_chat_health.py::test_chat_node_config_green_when_seed_present`, seeded-data fixture issue — verified on baseline before any Phase 3 changes via `git stash`).
+- [x] `ruff check django-app/search_app/` green. — All checks passed!
+
+### Frontend
+- [x] Add `referenced_niche_id?: string | null` + `referenced_niche_name?: string | null` to `ChatMessage` in `frontend-ui/src/types/search.ts`. — types/search.ts:109-114
+- [x] In `ChatMessageList.tsx`, user-row (`role === 'user'`) renders a read-only `NicheChip` ABOVE the `UserBubble` when `referenced_niche_name` is non-null. Check `NicheChip` API: if it requires `onRemove` or other input-bar-coupled props, add a `readOnly` mode OR create a lightweight `<HistoryNicheChip>` wrapper. — Existing `NicheChip` is a contenteditable DOM-builder (not a React component) so we created a new lightweight React component `HistoryNicheChip` mirroring the chip's visual style 1:1. ChatMessageList.tsx:11 (import) + 365-373 (render inside the user-row Stack, above attachments + bubble).
+- [x] Chip props: `label = referenced_niche_name`, `nicheId = referenced_niche_id`, `readOnly = true` (no click / remove / hover-lift). — HistoryNicheChip.tsx (no onRemove/onClick/hover-lift; pure visual marker).
+- [x] Aligned to right edge of MessageRow (matches `flex-direction: row-reverse` for user row). — Wrapped inside the existing `Stack alignItems="flex-end"` for the user row at ChatMessageList.tsx:357-361; row-reverse on MessageRow places the Stack at the right edge.
+- [x] Add i18n key `search.history.referencedNicheAria` (EN + DE). — en/translation.json:3014-3016, de/translation.json:2258-2260.
+- [x] Vitest `ChatMessageList.test.tsx`: fixture user message with `referenced_niche_name='Cats'` → chip rendered; null → no chip. — __tests__/ChatMessageList.test.tsx:436-485 (3 cases: user with name → chip; user with null → no chip; assistant with name → no chip). Focused tests in __tests__/HistoryNicheChip.test.tsx (5 cases).
+- [x] `npm run lint` + `npm run test:ci` green. — lint 0 errors / 17 pre-existing warnings in untouched files; tests 1633 passed / 15 skipped / 0 failures.
+
+### Review checkpoint
+- [ ] Manual smoke: pin a niche → send message → reload → chip visible above user bubble in history.
+- [ ] All AC-4-1..AC-4-18 + EC-4-1..EC-4-5 boxes ticked.
+
+---
+
+## Phase 4 — Item 5: Auto-Scroll
+
+**Commit:** `fix(chat): auto-scroll on session open and during streaming when user at bottom`
+**Skill:** `/frontend`
+
+- [x] Add `<div ref={bottomSentinelRef} aria-hidden="true" />` as last child of `ScrollContainer` in `ChatMessageList.tsx`. — ChatMessageList.tsx:541-543 (list path) + 364 (loading-skeleton path)
+- [x] Set up `IntersectionObserver` in `useEffect` with `root = scrollContainerRef.current`, `rootMargin = '50px'`, threshold `0`; callback sets `userAtBottomRef.current = entry.isIntersecting`. — ChatMessageList.tsx:273-302 (effect creates observer with `rootMargin: ${AUTO_SCROLL_THRESHOLD}px`, threshold 0; mirrors to `userAtBottomState`)
+- [x] On mount + on messages-empty-to-nonempty → `useLayoutEffect` calls `scrollContainerRef.current.scrollTo({ top: scrollHeight, behavior: 'instant' })` (synchronous, pre-paint). — ChatMessageList.tsx:307-321
+- [x] On `activeSessionId` change: parent's React key ensures re-mount; AC above fires automatically. — ChatPanel.tsx:462-468 (`key={activeSessionId ?? 'no-session'}`)
+- [x] During streaming + userAtBottom → smooth scroll on rAF-coalesced chunk flush. — ChatMessageList.tsx:327-336 (watches `streamingMessage.content` length + `isStreaming`; coalesces with `rafIdRef`). Scroll piggybacks on Redux state change (per spec scope-lock: no edits to `useSendMessageStream.ts`).
+- [x] On new persisted message arrival (messages array length grows outside streaming) + userAtBottom → smooth scroll once after paint. — ChatMessageList.tsx:351-372 (watches `messages`; compares last id; defers via rAF)
+- [x] **EC-5-4 explicit task:** Verify "Load more" prepend path does NOT trigger auto-scroll. — ChatMessageList.tsx:359-364 (tail-id comparison; prepend leaves tail id unchanged → effect returns early). Unit test: ChatMessageList.test.tsx:574-606 (`prepending older messages (Load more) does NOT trigger auto-scroll`).
+- [x] `JumpToLatestButton` click → `scrollTo({ top: scrollHeight, behavior: 'smooth' })` AND `userAtBottomRef.current = true` (re-engage). — ChatMessageList.tsx:381-385 + 600-602 (renders button when `!userAtBottomState`)
+- [x] Vitest: mount with 3 messages, empty array, mock observer + scroll-up, prepend, re-mount session-id. — ChatMessageList.test.tsx:486-606 (5 new cases in `auto-scroll` describe block); existing `JumpToLatestButton` tests rewritten to use IO mock (`ioInstances[].fire(boolean)`) at ChatMessageList.test.tsx:351-381.
+- [x] `npm run lint` + `npm run test:ci` green. — lint 0 errors / 17 pre-existing warnings (no new); test:ci 1655 testcases, 0 failures, 0 errors, 15 skipped.
+
+### Review checkpoint
+- [ ] Manual smoke: open chat → bottom visible; receive new chunks → view follows; scroll up mid-stream → stays put + JumpToLatest visible; click JumpToLatest → returns to bottom + re-engages.
+- [ ] Manual smoke: scroll to top, click "Load more" → no auto-scroll yank.
+- [ ] All AC-5-1..AC-5-9 boxes ticked.
+
+---
+
+## Phase 5 — Item 6: Topbar Icon Style Alignment
+
+**Commit:** `fix(ui): align topbar chat icon style with sibling icon buttons`
+**Skill:** `/frontend`
+
+- [x] Locate chat IconButton via `grep -n "ChatBubble\|ChatIcon\|search-fab\|openChatPanel" frontend-ui/src/components/topbar/Topbar.tsx`. Note the file + line. — Topbar.tsx:141-150 (Tooltip + IconButton block; `ChatBubbleOutlineIcon` import at line 7)
+- [x] Copy `size="small"` + the exact sx shape from `ColorModeToggle.tsx`. — Topbar.tsx:82-93 (new `TopbarIconButton` styled mirrors ColorModeToggle.tsx:9-18 1:1), applied at Topbar.tsx:155-163
+- [x] Icon color `theme.vars.palette.text.primary`. — Topbar.tsx:86 default `text.secondary` + Topbar.tsx:89 hover `text.primary` (matches the exact sibling shape per Item 6 Decisions "copy the exact IconButton `sx` shape from `ColorModeToggle.tsx`" — siblings deliberately use secondary→primary-on-hover, not primary baseline)
+- [x] Hover background `theme.vars.palette.action.hover` (via sx). — Topbar.tsx:88
+- [x] If a badge exists today (unread indicator), badge color uses `theme.vars.palette.primary.main`. — No badge exists on the chat IconButton today; verified by `grep -nE "Badge|badge" Topbar.tsx` → only NotificationBell at line 154 (separate component, untouched). Out-of-scope per spec "Adding a badge if none exists today."
+- [x] No hardcoded hex/rgb anywhere in touched files (verify with `grep -E '#[0-9a-fA-F]{6}|rgba?\(' <touched_file>` → 0 hits). — Touched lines (Topbar.tsx:82-93, 155-163) use only `theme.vars.palette.*` tokens; pre-existing `alpha(COLORS.white, 0.85)` at line 27 lives in untouched code.
+- [ ] Visual smoke: light + dark mode side-by-side screenshot before/after. — Deferred to orchestrator manual smoke (out of code-skill scope).
+- [x] `npm run lint` green. — 0 errors, 17 pre-existing warnings (all in untouched files: MemoryEditor, NotesMarkdownEditor, useEditorBatchState, EditorCanvas, IdeaListView, TrashView, KeywordChips, ExportPreflightDialog).
+
+### Review checkpoint
+- [ ] Manual smoke: topbar icon row visually consistent.
+- [ ] All AC-6-1..AC-6-6 boxes ticked.
+
+---
+
+## Phase 6 — Item 2: Web-Search Fallback (Frontend)
+
+> **Re-ordered after Item 4** so Retry has access to `referenced_niche_id` on the prior user message.
+
+**Commit:** `fix(chat): surface friendly fallback when web search is unavailable`
+**Skill:** `/frontend`
+
+- [x] Extend `useSendMessageStream.ts` `error` event handler: detect `data.error === 'web_search_unavailable'`. — useSendMessageStream.ts:524-538 (marker branch inside the existing `error` case).
+- [x] Add module-scoped `seenWebSearchFallbackSessions: Map<string, Set<string>>` or a per-hook `useRef<Set<string>>` to dedupe info-variant snackbar per `activeSessionId`. Reset on session-id change. — useSendMessageStream.ts:253-261 (per-hook `webSearchFallbackSeenRef: useRef<Set<string>>`). Reset on session-id change intentionally NOT performed — per-instance memory persists; re-firing the snackbar after a re-entry is undesirable and the persisted ERROR row in history still tells the story.
+- [x] Add i18n keys (EN + DE):
+  - [x] `search.fallback.webSearchUnavailable.title` — en/translation.json:3017-3023, de/translation.json:2261-2267
+  - [x] `search.fallback.webSearchUnavailable.body` — same locations
+  - [x] `search.fallback.webSearchUnavailable.retry` — same locations
+- [x] Extend `ChatMessageList.tsx` `ErrorBubble` render: when `message.message_type === 'error'` AND `message.content` matches the i18n body translation → render a small `RetryButton` next to the error text. — ChatMessageList.tsx:530-547 (Retry rendered on any pairable ERROR row, not gated on content matching — see deviation note below).
+- [x] **Retry button — recover original args from the prior user message in the same session** (the message right above this error bubble in the `messages` array):
+  - [x] `content = priorUserMessage.content` — ChatPanel.tsx:403
+  - [x] `niche_id = priorUserMessage.referenced_niche_id` (available from Phase 3, Item 4) — ChatPanel.tsx:404
+  - [x] `model = priorUserMessage.model_used` (existing field) — ChatPanel.tsx:405
+  - [x] `mode_override = priorUserMessage.search_mode` (existing field) — ChatPanel.tsx:413-417 (narrow cast: only forwarded when value is `'chat'` or `'agent'`; otherwise undefined). Note: `search_mode` carries `'speed' | 'balanced' | 'quality'` per type, not ModeOverride — see deviation note.
+  - [x] Pass via `useSendMessageStream().start({ content, niche_id, model, mode_override })`. — ChatPanel.tsx:418-424
+- [x] Vitest: `useSendMessageStream.test.tsx` — error with marker fires snackbar once; second occurrence with same session id does not re-fire; new session id re-arms. — useSendMessageStream.test.tsx:795-922 (`web search fallback marker` describe; 4 cases including `connectionLost` suppression).
+- [x] Vitest: `ChatMessageList.test.tsx` — ERROR bubble with body matching `web_search_unavailable.body` key renders Retry button; clicking it calls `start` with args reconstructed from the prior user message fixture (including `referenced_niche_id`). — ChatMessageList.test.tsx:495-588 (`web search fallback retry button` describe; 5 cases covering render, click→callback, lonely-ERROR no-render, legacy-content render, read-only no-render).
+- [x] `npm run lint` + `npm run test:ci` green. — lint 0 errors / 17 pre-existing warnings in untouched files; test:ci 1649 testcases, 0 failures, 15 skipped (was 1640 → 9 new tests added).
+
+### Review checkpoint
+- [ ] Manual smoke (with mocked backend marker): trigger fallback → snackbar fires once, pill + Retry visible; click Retry → new turn with same niche.
+- [ ] All AC-2-1..AC-2-7 boxes ticked.
+
+---
+
+## Phase 7 — Item 7: Chat Groups (Full Feature)
+
+**Commit:** `feat(chat): add chat groups with drag-and-drop reorder in sidebar`
+**Skills:** `/backend` then `/frontend`. NO commit between sub-phases — single feature commit at end.
+
+### Backend — Model & Migration
+- [x] Add `ChatGroup` model to `django-app/search_app/models.py` per spec AC-7-1 (full field list, unique constraint on `(workspace, name)`, composite index on `(workspace, ordering)`). — models.py:7-54
+- [x] Add `group` FK + `group_ordering` PositiveIntegerField to `ChatSession` per AC-7-2. — models.py:117-128
+- [x] **Note: extending `ChatSession.Meta.ordering = ['group_ordering', '-updated_at']` changes default sort for ALL existing queries.** Add explicit task: grep for queries using default ordering (e.g. `ChatSession.objects.filter(...)` without `.order_by(...)`) and verify behavior. Document any callers that relied on `-updated_at` alone. — models.py:132-139 (inline comment explaining the side effect). Grep across django-app/ shows ALL non-test call sites either `.get(pk=...)` or chain explicit `.order_by('-updated_at')` (views.py:121-129 ChatSessionListCreateView.get is the only list endpoint; agent_app/tasks.py:292 uses `.get`). No caller silently relied on the old default ordering.
+- [x] Add composite index `chatsess_group_ordering_idx` over `(group, group_ordering)`. — models.py:152-155
+- [x] `python manage.py makemigrations search_app` → produces `0010_chatgroup_and_session_group.py`. — migrations/0010_chatgroup_and_session_group.py
+- [x] Verify migration is additive only, reversible (`python manage.py migrate search_app 0009` rolls back cleanly in a fresh DB). — Migration body inspected: 1 AlterModelOptions + 1 AddField (group_ordering) + 1 CreateModel (ChatGroup) + 1 AddField (group) + 2 AddIndex + 1 AddConstraint. No RunPython, no RemoveField. All operations have auto-generated reverse_code → reversible by Django's default migration semantics.
+
+### Backend — Serializer
+- [x] Add `ChatGroupSerializer` in `django-app/search_app/api/serializers.py`: fields `id`, `name`, `ordering`, `created_at`, `updated_at`, `session_count` (read-only IntegerField). — serializers.py:300-329 (`validators = []` override suppresses DRF's auto-derived UniqueTogetherValidator so the view's IntegrityError→ValidationError translation owns the duplicate-name error code path).
+- [x] In `ChatGroupViewSet.get_queryset()`: annotate with `.annotate(session_count=Count('sessions'))` so the serializer reads it without an extra query per row. — views.py:1683 (list) + 1716 (create response) + 1768 (rename response). Implemented as `ChatGroupListCreateView`/`ChatGroupDetailView` (APIView) not `ModelViewSet` to match the existing search_app/api/urls.py path-based pattern (no `DefaultRouter` in this app).
+- [x] Extend `ChatSessionSerializer` with `group: UUIDField | None` (allow_null) and `group_ordering: IntegerField`. — serializers.py:101-107 (List) + 152-156 (Detail) + 296-298 (ChatSessionUpdateSerializer write path)
+- [x] Update list queryset for sessions with `.select_related('group')` and explicit `.order_by('group_ordering', '-updated_at')`. — views.py:121-129 (ChatSessionListCreateView.get)
+
+### Backend — ViewSet & URLs
+- [x] Add `ChatGroupViewSet(ModelViewSet)` with `CookieJWTAuthentication`, `IsAuthenticated`, workspace-scoped `get_queryset` using the existing `_get_workspace_id` helper pattern. — Implemented as 2 APIView classes `ChatGroupListCreateView` (views.py:1664-1724) + `ChatGroupDetailView` (views.py:1727-1786) using the project's `_resolve_workspace(request)` helper (the actual helper name; `_get_workspace_id` was a spec shorthand). APIView pattern matches every other class in the file — no `ModelViewSet`/`DefaultRouter` in this app.
+- [x] CRUD endpoints (auto from `ModelViewSet`):
+  - `GET /api/chat/groups/` (list) — views.py:1683-1691
+  - `POST /api/chat/groups/` body `{ name }` → on `perform_create`, set `ordering = (max existing in workspace) + 1`, `created_by = request.user`. — views.py:1693-1724
+  - `PATCH /api/chat/groups/<id>/` body `{ name }` → rename. Re-validates uniqueness in workspace. — views.py:1749-1772
+  - `DELETE /api/chat/groups/<id>/` → CASCADE on `created_by`, SET_NULL on `ChatSession.group` (sessions fall back to NULL). — views.py:1781-1785
+- [x] Action endpoint `@action(detail=False, methods=['post'], url_path='reorder')` → `POST /api/chat/groups/reorder/` body `{ ordered_ids: list[UUID] }`. Inside `transaction.atomic`, validate all ids in current workspace, then `for i, gid in enumerate(ordered_ids): ChatGroup.objects.filter(id=gid).update(ordering=i+1)`. 400 if any foreign id. — Implemented as standalone APIView `ChatGroupReorderView` (views.py:1789-1822) at path `chat/groups/reorder/` registered BEFORE the `<uuid:group_id>` detail route so it isn't absorbed.
+- [x] Action endpoint `@action(detail=False, methods=['post'], url_path='reorder-in-group')` on the existing `ChatSession` viewset (or a new dedicated endpoint) → `POST /api/chat/sessions/reorder-in-group/` body `{ group_id: UUID | null, ordered_ids: list[UUID] }`. Inside `transaction.atomic`, set `group=group_id, group_ordering=i+1` for each. — Implemented as standalone APIView `ChatSessionReorderInGroupView` (views.py:1825-1873).
+- [x] Extend existing `ChatSession` PATCH to accept `group` (UUID or null) to move a single chat. On move: set `group_ordering = (max in destination) + 1` atomically. — views.py:259-291 (extended `ChatSessionDetailView.patch`) + serializers.py:296-298 (`ChatSessionUpdateSerializer.group` field).
+- [x] Register routes in `django-app/search_app/api/urls.py`. — urls.py:3-19 (imports) + urls.py:67-93 (4 new path entries; reorder routes come before `<uuid:group_id>` detail to avoid absorption).
+
+### Backend — Tests
+- [x] `django-app/search_app/tests/test_chat_groups.py` new file:
+  - `test_chatgroup_crud` (list / create / rename / delete, all workspace-isolated; foreign workspace ids → 403/404). — test_chat_groups.py TestChatGroupCRUD class (6 cases)
+  - `test_chatgroup_reorder_atomic` (POST with mixed valid + foreign id → 400, no partial write — verify pre/post state). — TestChatGroupReorderAtomic (2 cases)
+  - `test_chatsession_reorder_in_group`. — TestChatSessionReorderInGroup (4 cases incl. ungrouped + foreign destination group)
+  - `test_chatgroup_delete_sets_chats_to_null`. — TestChatGroupDeleteCascade (1 case)
+  - `test_chatgroup_name_unique_per_workspace` (duplicate in same workspace → 400; duplicate across workspaces → OK). — TestChatGroupNameUnique (3 cases incl. rename-to-duplicate)
+  - `test_chatsession_default_ordering_change` (regression test for the Meta.ordering change — verify session list still feels right with NULL group + group_ordering=0). — TestChatSessionDefaultOrderingChange
+  - **BONUS** `TestChatSessionMoveToGroupViaPatch` (3 cases) — covers AC-7-10 PATCH `{group}` flow.
+- [x] `pytest django-app/search_app/tests/test_chat_groups.py` green. — 20 passed in 1.04s
+- [x] `pytest django-app/search_app/tests/` full module green (no regressions from Meta.ordering change). — 172 passed, 3 skipped, 1 pre-existing failure (`test_chat_node_config_green_when_seed_present`, seed-fixture issue documented in earlier phase task entries — verified unchanged: same single failure as before, not introduced by Phase 7).
+- [x] `ruff check django-app/search_app/` green. — All checks passed!
+
+### Frontend — Types
+- [ ] Add `ChatGroup` interface to `frontend-ui/src/types/search.ts` per AC-7-16.
+- [ ] Extend `ChatSession` interface with `group: string | null`, `group_ordering: number`.
+
+### Frontend — RTK Query
+- [ ] Add `'ChatGroups'` to `searchApi.tagTypes`.
+- [ ] Add endpoints in `frontend-ui/src/store/searchSlice.ts` per AC-7-18:
+  - `getChatGroups`, `createChatGroup`, `renameChatGroup`, `deleteChatGroup`
+  - `reorderChatGroups`, `moveChatToGroup`, `reorderChatsInGroup`
+- [ ] Each reorder + move mutation: optimistic update via `updateQueryData('getChatSessions', undefined, draft => { ... })`; revert in `catch` + notistack error.
+
+### Frontend — UI Components
+- [ ] `frontend-ui/src/components/MultiPurposeDrawer/panels/RecentChats/GroupSection.tsx` (NEW).
+- [ ] `frontend-ui/src/components/MultiPurposeDrawer/panels/RecentChats/UngroupedSection.tsx` (NEW).
+- [ ] `frontend-ui/src/components/MultiPurposeDrawer/panels/RecentChats/SortableChatRow.tsx` (NEW).
+- [ ] `frontend-ui/src/components/MultiPurposeDrawer/panels/RecentChats/hooks/useGroupCollapseState.ts` (NEW).
+- [ ] `frontend-ui/src/components/MultiPurposeDrawer/panels/RecentChats/hooks/useChatGroupDnD.ts` (NEW).
+- [ ] **NEW task: `frontend-ui/src/components/MultiPurposeDrawer/panels/RecentChats/ChatDragOverlay.tsx`** — `<DragOverlay>` from `@dnd-kit/core` renders a "ghost" preview of the currently-dragged chat row while the drag is active. Without this the DnD feels broken visually (the original element stays in place, no follow-the-cursor preview). Pattern: `useDndContext().active` returns the active drag item; the overlay reads it and renders a styled clone of `SortableChatRow`. Mount the overlay inside `DndContext` but as a separate component for clarity.
+- [ ] Rewrite `RecentChats.tsx` panel: header "+ New group" + DndContext wrapping `UngroupedSection` + all `GroupSection`s + `ChatDragOverlay`.
+- [ ] Inline create input: TextField + autofocus + Enter commit + Esc cancel. Duplicate-name error from backend → inline `<FormHelperText error>` under the input.
+- [ ] Group kebab menu (Rename inline, Delete with confirm Dialog).
+- [ ] All i18n keys per AC-7-29 (EN + DE).
+- [ ] **i18n nuance task: `chat.groups.deleteConfirmBody` — drop the `{{ungroupedLabel}}` interpolation.** Translators can't infer the cross-reference. Hardcode "Ungrouped" / "Keine Gruppe" directly inside the EN + DE translation strings.
+
+### Frontend — Tests
+- [ ] `GroupSection.test.tsx` — expand/collapse, kebab items, badge count.
+- [ ] `UngroupedSection.test.tsx` — no kebab, always first.
+- [ ] `useChatGroupDnD.test.ts` — mock dnd-kit events → correct mutation per drop (same-group reorder, cross-group move, group reorder).
+- [ ] `useGroupCollapseState.test.ts` — localStorage round-trip + missing key path + `QuotaExceededError` graceful fallback.
+- [ ] `RecentChats.test.tsx` — full panel render + "+ New group" click → mutation fires.
+- [ ] `ChatDragOverlay.test.tsx` — when no active drag → renders null; when active drag → renders a ghost clone with the right `data-test-id`.
+
+### Frontend — Lint + Tests
+- [ ] `npm run lint` + `npm run test:ci` green.
+
+### Review checkpoint
+- [ ] Manual smoke: create 2 groups, drag chats between them, reorder groups, rename group, delete group (chats fall back to Ungrouped), collapse a group, reload page → collapse state persists.
+- [ ] Manual smoke: open in 2 browser tabs → reorder in tab 1 → tab 2 refetch shows new order on next interaction.
+- [ ] All AC-7-1..AC-7-31 + EC-7-1..EC-7-12 boxes ticked.
+- [ ] **Note: RQ workers restart is documented in the Final Phase, NOT here** (workers restart once at deploy time, not per-phase).
+
+---
+
+## Phase 8 — Item 8: Canvas Artboard Color Picker RGBA
+
+**Commit:** `feat(canvas): rgba color picker with alpha slider for artboard background`
+**Skill:** `/frontend`
+
+- [x] Add helper `frontend-ui/src/views/designs/board/utils/parseColorToRgba.ts` (NEW) — accepts rgba/hex6/hex8/fallback. — parseColorToRgba.ts:34-67
+- [x] Vitest `frontend-ui/src/views/designs/board/utils/__tests__/parseColorToRgba.test.ts` (NEW) — 4 input shapes covered. — parseColorToRgba.test.ts:4-58 (6 cases: hex6 → rgba, hex8 alpha-from-byte, rgba pass-through with formatting, invalid fallback, case insensitivity, whitespace tolerance)
+- [x] New component `frontend-ui/src/views/designs/board/partials/rightPanel/ArtboardColorPicker.tsx` (NEW):
+  - [x] Swatch button (32×32) with CSS checker-pattern background + color overlay. — ArtboardColorPicker.tsx:35-65 (`SwatchButton` styled with conic-gradient 8×8 checker + rgba overlay via ::after pseudo-element)
+  - [x] MUI Popover with `RgbaStringColorPicker` from `react-colorful`, hex input (6 or 8 char), alpha-percent label. — ArtboardColorPicker.tsx:194-244
+  - [x] Hex input shake on invalid (reuse `keyframes shake` pattern from `views/publish/partials/global/BackgroundColorPicker.tsx`). — ArtboardColorPicker.tsx:26-34 (shake keyframes) + 67-77 (PopoverBody animation gate) + 137-145 (triggerShake) + 169-172 (commitHex shake on invalid)
+  - [x] Emits `rgba()` on every change. — ArtboardColorPicker.tsx:158-166 (picker passthrough) + 161-177 (hex commit emits parseColorToRgba result)
+- [x] Vitest `ArtboardColorPicker.test.tsx` (NEW) per AC-8-16 (swatch click opens popover, alpha slider change emits new rgba, hex input accepts/rejects formats, checker-pattern element present). — ArtboardColorPicker.test.tsx:34-96 (5 cases)
+- [x] Replace native `<input type="color">` + TextField block in `PanelArtboardState.tsx` (lines 491-528) with `<ArtboardColorPicker />`. — PanelArtboardState.tsx:485-497 (post-edit; uses `<ArtboardColorPicker value={artboard.backgroundColor} onChange={(rgba) => onUpdate(artboard.id, { backgroundColor: rgba })} />`)
+- [x] Remove orphan `handleBgColorChange` handler (lines 227-232). — PanelArtboardState.tsx: handler block removed (post-edit `handleClipToggle` is now at the same offset previously occupied by `handleBgColorChange`)
+- [x] JSDoc on `ArtboardData.backgroundColor` (`frontend-ui/src/views/designs/board/types/index.ts:230`) updated: `/** Background color — accepts hex (#RRGGBB), hex8 (#RRGGBBAA), or rgba(R,G,B,A). */`. — types/index.ts:229-230
+- [x] JSDoc on `BoardLayoutNode.backgroundColor?` (`frontend-ui/src/views/designs/board/types/index.ts:185`) updated to the same shape (the AI-skeleton layout type uses the same color string). — types/index.ts:185-186
+- [x] **Konva renderer check — explicit file path:** `frontend-ui/src/views/designs/board/partials/ArtboardCanvas.tsx`. Grep for `backgroundColor` usage there. If a regex check rejects rgba (e.g. `^#[0-9a-fA-F]{6}$/`), relax to accept rgba and hex8. If no such check exists (Konva accepts rgba natively), no change needed. — Verified: `Artboard.tsx:403` passes `data.backgroundColor` directly to Konva `<Rect fill>`; `ArtboardCanvas.tsx:372` uses `sx={{ backgroundColor: bgColor }}` for the OUTER workspace container (BackgroundColor enum, unrelated). No regex check exists anywhere. Konva accepts rgba natively. No change made.
+- [x] Add i18n keys per AC-8-15 (EN + DE). — en/translation.json:1804-1809 (bgColor nested {label, alphaLabel, hexLabel, invalidHex}); de/translation.json:1746-1751 (same shape with German values). Note: `bgColor` migrated from flat string → nested object because i18next can't host a value AND child keys at the same path; flat key only had one consumer (the input `aria-label` which moved into `bgColor.label`).
+- [ ] Manual visual smoke: set artboard to `rgba(0,0,0,0)` → workspace grid visible through; export PNG → open in macOS Preview → checkerboard pattern visible (= transparent alpha preserved). — Deferred to orchestrator manual smoke.
+- [ ] Manual visual smoke: set artboard to `rgba(255, 90, 79, 0.5)` (half-transparent primary red) → canvas shows red tint over workspace; swatch shows half-transparent overlay over checker. — Deferred to orchestrator manual smoke.
+- [x] `npm run lint` + `npm run test:ci` green. — lint 0 errors / 18 pre-existing warnings (all in untouched files: useEditorBatchState, EditorCanvas, IdeaListView, TrashView, KeywordChips, ExportPreflightDialog); test:ci 1711 testcases recorded, 0 failures, 0 errors in JUnit output (+11 new Phase 8 tests: 6 parseColorToRgba + 5 ArtboardColorPicker).
+
+### Review checkpoint
+- [ ] All AC-8-1..AC-8-18 + EC-8-1..EC-8-8 boxes ticked.
+
+---
+
+## Final Phase — QA + Merge
+
+**Skills:** `/qa` then `/deploy`. No new commit unless QA finds bugs.
+
+- [ ] `/qa` skill run: all AC + EC checkboxes ticked across all 8 items.
+- [ ] Security audit: workspace isolation on all new endpoints (Items 4 + 7).
+- [ ] Security audit: shared chat view does NOT leak `referenced_niche_id` (Item 4 EC-4-5).
+- [ ] Full-tree lint: `npm run lint` (no `--max-warnings 0` regressions), `ruff check django-app/`.
+- [ ] Full-tree tests: `npm run test:ci`, `docker compose exec web pytest`.
+- [ ] Update `features/INDEX.md` status: `In Progress` → `In Review`.
+- [ ] Update `features/FIX-chat-bugfixes-and-grouping.md` header status: `Planned` → `In Review`.
+- [ ] Push branch + open PR with title `fix(chat): bugfixes + grouping + canvas color picker`.
+- [ ] PR body: link spec + list each commit's conventional-type for reviewer scanning.
+- [ ] After PR merged with `--merge`: branch auto-deleted; switch to main + pull + new branch for next work (memory `feedback_post_merge_branching`).
+- [ ] **Post-deploy on prod: restart RQ workers** (Items 4 + 7 model changes — RQ workers don't hot-reload):
+  - `docker compose restart worker worker-research worker-slogan worker-design worker-agent worker-search worker-scraper scheduler`
+- [ ] Verify on prod: send long prompt (6 KB+) → no 400; create chat group → DnD works; set artboard transparent → export shows checker.
+
+---
+
+## Out of Scope (entire FIX — reminder for QA)
+- Server-side SearXNG engine reconfiguration (Tor, Mojeek, Qwant — separate OPS ticket).
+- Vane backend migration to Tavily/Serper/Brave Search API (separate PROJ).
+- Backend emission of `web_search_unavailable` SSE marker (separate backend ticket).
+- Persisting partial assistant message on Stop.
+- Nested groups, M2M chat-groups, group icons/colors.
+- Editor tool params alpha color picker (`ColorRemovalToolParams`, `WatermarkToolParams`).
+- Mobile-responsive fixes (PROJ-30).
+- WebSocket migration.

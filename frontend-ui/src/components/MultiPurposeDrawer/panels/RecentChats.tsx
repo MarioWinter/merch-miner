@@ -1,111 +1,153 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import {
   Box,
-  Chip,
-  IconButton,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
+  Button,
+  FormHelperText,
   Skeleton,
   Stack,
-  Tooltip,
+  TextField,
   Typography,
 } from '@mui/material';
-import { styled, alpha } from '@mui/material/styles';
-import ShareOutlinedIcon from '@mui/icons-material/ShareOutlined';
-import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-// TagChipRow removed in PROJ-17 Phase 2 cleanup (ChatSession.tags M2M dropped).
+import { styled } from '@mui/material/styles';
+import AddIcon from '@mui/icons-material/Add';
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
 import {
   useListSessionsQuery,
+  useGetChatGroupsQuery,
   useDeleteSessionMutation,
+  useCreateChatGroupMutation,
 } from '@/store/searchSlice';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setActiveSession } from '@/store/chatBarSlice';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import type { ChatSession } from '@/types/search';
+import UngroupedSection from './RecentChats/UngroupedSection';
+import GroupSection from './RecentChats/GroupSection';
+import ChatDragOverlay from './RecentChats/ChatDragOverlay';
+import { useGroupCollapseState } from './RecentChats/hooks/useGroupCollapseState';
+import { useChatGroupDnD } from './RecentChats/hooks/useChatGroupDnD';
+
+// ---------------------------------------------------------------------------
+// Styled
+// ---------------------------------------------------------------------------
+
+const HeaderRow = styled(Stack)(({ theme }) => ({
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  padding: theme.spacing(0.5, 1),
+}));
+
+const NewGroupButton = styled(Button)({
+  textTransform: 'none',
+  fontSize: '0.75rem',
+  fontWeight: 600,
+});
+
+// ---------------------------------------------------------------------------
+// Props
+// ---------------------------------------------------------------------------
 
 interface RecentChatsProps {
   onSelect: (session: ChatSession) => void;
   activeSessionId: string | null;
+  /** Optional slot rendered on the LEFT of the header row, opposite the
+   *  "+ New group" button. Used by the parent drawer to colocate global
+   *  actions (e.g. Clear all chats) so the two top-rows merge into one,
+   *  saving vertical space. */
+  headerLeftAction?: React.ReactNode;
 }
 
-const SessionItem = styled(ListItemButton)(({ theme }) => ({
-  position: 'relative',
-  borderRadius: 8,
-  padding: `${theme.spacing(1)} ${theme.spacing(1.25)} ${theme.spacing(1)} ${theme.spacing(1.5)}`,
-  marginBottom: theme.spacing(0.5),
-  alignItems: 'flex-start',
-  gap: theme.spacing(1),
-  transition: 'background-color 120ms ease',
-  '&:hover': {
-    backgroundColor: alpha(theme.palette.primary.main, 0.06),
-  },
-  '&:hover .RecentChats-deleteBtn': {
-    opacity: 1,
-    transform: 'translateY(0)',
-  },
-  '&.Mui-selected': {
-    backgroundColor: alpha(theme.palette.primary.main, 0.1),
-    '&::before': {
-      content: '""',
-      position: 'absolute',
-      left: 0,
-      top: 6,
-      bottom: 6,
-      width: 3,
-      borderRadius: '0 2px 2px 0',
-      backgroundColor: theme.vars.palette.primary.main,
-    },
-    '&:hover': {
-      backgroundColor: alpha(theme.palette.primary.main, 0.14),
-    },
-  },
-}));
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
 
-const ChatIconBox = styled(ListItemIcon)(({ theme }) => ({
-  minWidth: 0,
-  marginTop: 2,
-  color: theme.vars.palette.text.secondary,
-}));
-
-const DeleteButton = styled(IconButton)(({ theme }) => ({
-  opacity: 0,
-  transform: 'translateY(-2px)',
-  transition: 'opacity 120ms ease, transform 120ms ease',
-  color: theme.vars.palette.text.secondary,
-  padding: 4,
-  '&:hover': {
-    color: theme.vars.palette.error.main,
-    backgroundColor: alpha(theme.palette.error.main, 0.08),
-  },
-  '&:focus-visible': {
-    opacity: 1,
-    transform: 'translateY(0)',
-  },
-}));
-
-const RecentChats = ({ onSelect, activeSessionId }: RecentChatsProps) => {
+const RecentChats = ({
+  onSelect,
+  activeSessionId,
+  headerLeftAction,
+}: RecentChatsProps) => {
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
   const dispatch = useAppDispatch();
-  const activeWorkspaceId = useAppSelector((s) => s.workspace.activeWorkspaceId);
-  const { data, isLoading } = useListSessionsQuery({ page_size: 10 });
-  const [deleteSession, { isLoading: isDeleting }] = useDeleteSessionMutation();
-  const [pendingDelete, setPendingDelete] = useState<ChatSession | null>(null);
+  const activeWorkspaceId = useAppSelector(
+    (s) => s.workspace.activeWorkspaceId,
+  );
 
+  const { data: sessionsData, isLoading: isLoadingSessions } =
+    useListSessionsQuery({ page_size: 10 });
+  const { data: groupsData, isLoading: isLoadingGroups } =
+    useGetChatGroupsQuery();
+  const [deleteSession, { isLoading: isDeleting }] = useDeleteSessionMutation();
+  const [createGroup] = useCreateChatGroupMutation();
+
+  const { isCollapsed, toggleCollapsed } =
+    useGroupCollapseState(activeWorkspaceId);
+
+  const [pendingDelete, setPendingDelete] = useState<ChatSession | null>(null);
+  const [isCreatingGroup, setIsCreatingGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState('');
+  const [newGroupError, setNewGroupError] = useState<string | null>(null);
+
+  // ---- Derived data ----
+  const groups = useMemo(
+    () => [...(groupsData ?? [])].sort((a, b) => a.ordering - b.ordering),
+    [groupsData],
+  );
+  const sessions = useMemo(
+    () => sessionsData?.results ?? [],
+    [sessionsData],
+  );
+
+  const ungroupedSessions = useMemo(
+    () =>
+      sessions
+        .filter((s) => s.group === null)
+        .sort((a, b) => a.group_ordering - b.group_ordering),
+    [sessions],
+  );
+
+  const sessionsByGroupId = useMemo(() => {
+    const map = new Map<string, ChatSession[]>();
+    for (const s of sessions) {
+      if (!s.group) continue;
+      const list = map.get(s.group) ?? [];
+      list.push(s);
+      map.set(s.group, list);
+    }
+    for (const [, list] of map) {
+      list.sort((a, b) => a.group_ordering - b.group_ordering);
+    }
+    return map;
+  }, [sessions]);
+
+  const groupOrderedIds = useMemo(() => groups.map((g) => g.id), [groups]);
+
+  // ---- DnD ----
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+  );
+  const dnd = useChatGroupDnD({ groups, sessions });
+
+  // ---- Handlers ----
   const handleConfirmDelete = async () => {
     if (!pendingDelete) return;
     const session = pendingDelete;
     setPendingDelete(null);
     try {
       await deleteSession(session.id).unwrap();
-      // If the deleted session is the active one, clear it + drop the
-      // workspace-scoped localStorage pointer so a reload doesn't try to
-      // resurrect a 404'd id.
       if (activeSessionId === session.id) {
         dispatch(setActiveSession(null));
         if (activeWorkspaceId && typeof window !== 'undefined') {
@@ -120,115 +162,181 @@ const RecentChats = ({ onSelect, activeSessionId }: RecentChatsProps) => {
       }
       enqueueSnackbar(t('chatNicheRag.history.deleted'), { variant: 'success' });
     } catch {
-      enqueueSnackbar(t('chatNicheRag.history.deleteFailed'), { variant: 'error' });
+      enqueueSnackbar(t('chatNicheRag.history.deleteFailed'), {
+        variant: 'error',
+      });
     }
   };
 
+  const handleStartCreateGroup = () => {
+    setNewGroupName('');
+    setNewGroupError(null);
+    setIsCreatingGroup(true);
+  };
+
+  const handleCancelCreateGroup = () => {
+    setIsCreatingGroup(false);
+    setNewGroupName('');
+    setNewGroupError(null);
+  };
+
+  const handleCommitCreateGroup = async () => {
+    const trimmed = newGroupName.trim();
+    if (!trimmed) {
+      handleCancelCreateGroup();
+      return;
+    }
+    try {
+      await createGroup({ name: trimmed }).unwrap();
+      setIsCreatingGroup(false);
+      setNewGroupName('');
+      setNewGroupError(null);
+    } catch (err) {
+      const apiErr = err as { data?: { code?: string } } | undefined;
+      if (apiErr?.data?.code === 'chatgroup_duplicate_name') {
+        setNewGroupError(t('chat.groups.duplicateName'));
+      } else {
+        enqueueSnackbar(t('chatNicheRag.history.deleteFailed'), {
+          variant: 'error',
+        });
+        handleCancelCreateGroup();
+      }
+    }
+  };
+
+  // ---- Loading state ----
+  const isLoading = isLoadingSessions || isLoadingGroups;
   if (isLoading) {
     return (
       <Box sx={{ px: 1, py: 1 }}>
         {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} variant="rounded" height={48} sx={{ mb: 0.5, borderRadius: 2 }} />
+          <Skeleton
+            key={i}
+            variant="rounded"
+            height={48}
+            sx={{ mb: 0.5, borderRadius: 2 }}
+          />
         ))}
       </Box>
     );
   }
 
-  const sessions = data?.results ?? [];
-
-  if (sessions.length === 0) {
+  // ---- Empty state ----
+  if (sessions.length === 0 && groups.length === 0 && !isCreatingGroup) {
     return (
-      <Box sx={{ px: 2, py: 3, textAlign: 'center' }}>
-        <Typography variant="body2" color="text.secondary">
-          {t('search.empty.noSessions')}
-        </Typography>
-      </Box>
+      <>
+        <HeaderRow>
+          <Box sx={{ flex: 1 }} />
+          <NewGroupButton
+            size="small"
+            startIcon={<AddIcon sx={{ fontSize: 16 }} />}
+            onClick={handleStartCreateGroup}
+          >
+            {t('chat.groups.newGroup')}
+          </NewGroupButton>
+        </HeaderRow>
+        <Box sx={{ px: 2, py: 3, textAlign: 'center' }}>
+          <Typography variant="body2" color="text.secondary">
+            {t('search.empty.noSessions')}
+          </Typography>
+        </Box>
+      </>
     );
   }
 
   return (
     <>
-      <List dense disablePadding sx={{ px: 0.5, py: 0.5 }}>
-        {sessions.map((session) => {
-          const selected = session.id === activeSessionId;
-          return (
-            <SessionItem
-              key={session.id}
-              selected={selected}
-              onClick={() => onSelect(session)}
-            >
-              <ChatIconBox>
-                <ChatBubbleOutlineIcon sx={{ fontSize: 16 }} />
-              </ChatIconBox>
-              <ListItemText
-                sx={{ my: 0 }}
-                primary={
-                  <Stack direction="row" alignItems="center" gap={0.5}>
-                    <Typography
-                      variant="body2"
-                      fontWeight={selected ? 600 : 500}
-                      noWrap
-                      sx={{ flex: 1, fontSize: '0.8125rem', lineHeight: 1.4 }}
-                    >
-                      {session.title || t('search.sessions.untitled')}
-                    </Typography>
-                    {session.is_shared && (
-                      <IconButton size="small" tabIndex={-1} sx={{ p: 0 }}>
-                        <ShareOutlinedIcon sx={{ fontSize: 14, color: 'text.secondary' }} />
-                      </IconButton>
-                    )}
-                    <Tooltip title={t('chatNicheRag.history.delete')}>
-                      <DeleteButton
-                        className="RecentChats-deleteBtn"
-                        size="small"
-                        aria-label={t('chatNicheRag.history.delete')}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setPendingDelete(session);
-                        }}
-                      >
-                        <DeleteOutlineIcon sx={{ fontSize: 16 }} />
-                      </DeleteButton>
-                    </Tooltip>
-                  </Stack>
-                }
-                secondary={
-                  <Stack gap={0.25} sx={{ mt: 0.25 }}>
-                    <Stack direction="row" alignItems="center" gap={0.75} flexWrap="wrap">
-                      {session.niche_context_name && (
-                        <Chip
-                          label={session.niche_context_name}
-                          size="small"
-                          variant="outlined"
-                          color="secondary"
-                          sx={{ fontSize: '0.6875rem', height: 18, '& .MuiChip-label': { px: 0.75 } }}
-                        />
-                      )}
-                      <Typography variant="caption" color="text.disabled" sx={{ fontSize: '0.6875rem' }}>
-                        {new Date(session.updated_at).toLocaleDateString()}
-                      </Typography>
-                    </Stack>
-                    {/* Tags removed in PROJ-17 Phase 2 cleanup — ChatSession.tags M2M dropped. */}
-                    {session.shared_by && (
-                      <Typography
-                        variant="caption"
-                        color="text.secondary"
-                        sx={{ fontStyle: 'italic', fontSize: '0.6875rem' }}
-                      >
-                        {t('search.sessions.sharedBy', { name: session.shared_by })}
-                      </Typography>
-                    )}
-                  </Stack>
-                }
-                slotProps={{
-                  primary: { noWrap: true, component: 'div' },
-                  secondary: { component: 'div' },
-                }}
-              />
-            </SessionItem>
-          );
-        })}
-      </List>
+      <HeaderRow>
+        <Box sx={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+          {headerLeftAction}
+        </Box>
+        <NewGroupButton
+          size="small"
+          startIcon={<AddIcon sx={{ fontSize: 16 }} />}
+          onClick={handleStartCreateGroup}
+          aria-label={t('chat.groups.newGroup')}
+        >
+          {t('chat.groups.newGroup')}
+        </NewGroupButton>
+      </HeaderRow>
+
+      {isCreatingGroup && (
+        <Box sx={{ px: 1, py: 0.5 }}>
+          <TextField
+            autoFocus
+            fullWidth
+            size="small"
+            value={newGroupName}
+            placeholder={t('chat.groups.newGroupPlaceholder')}
+            onChange={(e) => {
+              setNewGroupName(e.target.value);
+              if (newGroupError) setNewGroupError(null);
+            }}
+            onBlur={() => {
+              // Commit-on-blur unless the user is mid-fix on a duplicate error.
+              if (!newGroupError) void handleCommitCreateGroup();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                void handleCommitCreateGroup();
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                handleCancelCreateGroup();
+              }
+            }}
+            error={newGroupError !== null}
+            slotProps={{
+              htmlInput: {
+                maxLength: 80,
+                'aria-label': t('chat.groups.newGroup'),
+              },
+            }}
+          />
+          {newGroupError && (
+            <FormHelperText error sx={{ ml: 1 }}>
+              {newGroupError}
+            </FormHelperText>
+          )}
+        </Box>
+      )}
+
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={dnd.handleDragStart}
+        onDragEnd={dnd.handleDragEnd}
+        onDragCancel={dnd.handleDragCancel}
+      >
+        <SortableContext
+          items={groupOrderedIds}
+          strategy={verticalListSortingStrategy}
+        >
+          {groups.map((group) => (
+            <GroupSection
+              key={group.id}
+              group={group}
+              sessions={sessionsByGroupId.get(group.id) ?? []}
+              activeSessionId={activeSessionId}
+              collapsed={isCollapsed(group.id)}
+              onToggleCollapsed={() => toggleCollapsed(group.id)}
+              onSelectSession={onSelect}
+              onRequestDeleteSession={setPendingDelete}
+              groupOrderedIds={groupOrderedIds}
+            />
+          ))}
+        </SortableContext>
+
+        <UngroupedSection
+          sessions={ungroupedSessions}
+          activeSessionId={activeSessionId}
+          onSelectSession={onSelect}
+          onRequestDeleteSession={setPendingDelete}
+        />
+
+        <ChatDragOverlay sessions={sessions} groups={groups} />
+      </DndContext>
+
       <ConfirmDialog
         open={pendingDelete !== null}
         title={t('chatNicheRag.history.deleteConfirm.title')}

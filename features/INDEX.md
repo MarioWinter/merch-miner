@@ -51,6 +51,7 @@
 |----|---------|--------|------|---------|
 | FIX | AI Research Like + Notes Editor | In Review | [spec](FIX-ai-research-like-and-notes-editor.md) | 2026-05-27 |
 | FIX | Canvas + Editor Cleanup (snackbar, version picker, pipeline upscale, redundant action removal) | In Review | [spec](FIX-canvas-editor-cleanup.md) | 2026-05-27 |
+| FIX | Chat Bugfixes + Grouping + Canvas Color-Picker RGBA (8 items) | In Progress | [spec](FIX-chat-bugfixes-and-grouping.md) | 2026-05-28 |
 
 <!-- Add features above this line -->
 

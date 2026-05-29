@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Avatar, Box, Button, Stack, Typography, Skeleton } from '@mui/material';
 import { styled, alpha, keyframes } from '@mui/material/styles';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import ErrorIconOutlinedIcon from '@mui/icons-material/ErrorOutlineOutlined';
+import RefreshIcon from '@mui/icons-material/Refresh';
 import { useTranslation } from 'react-i18next';
 import type { ChatMessage } from '@/types/search';
 import type { SloganRow } from '@/types/chat-rag';
 import { useAppSelector } from '@/store/hooks';
 import JumpToLatestButton from './JumpToLatestButton';
+import HistoryNicheChip from './HistoryNicheChip';
 import WorkflowCard from './WorkflowCard';
 import SaveSnippetToolbar from './SaveSnippetToolbar';
 import MarkdownAnswer from './partials/MarkdownAnswer';
@@ -50,6 +52,12 @@ interface ChatMessageListProps {
    *  Retry icon's visibility depends on the next-message error pairing —
    *  the callback itself is always invoked with the original user content. */
   onRetry?: (userMessage: ChatMessage) => void;
+  /** FIX-chat-bugfixes-and-grouping Item 2 — Retry button inside the
+   *  ERROR-bubble of a paired assistant error message. Parent reconstructs
+   *  the original StartArgs from the prior user message
+   *  (content, niche_id, model, mode_override). Falls back to the existing
+   *  `onRetry` semantics when not provided. */
+  onRetryWebSearch?: (priorUserMessage: ChatMessage) => void;
 }
 
 /** Distance from bottom (px) within which we consider the user "at the bottom" and re-engage auto-scroll. */
@@ -189,20 +197,43 @@ const ChatMessageList = ({
   onSaveSelectionAsKeywords, onSaveSelectionAsNotes,
   sessionId, onRegenerate, onSaveAnswer,
   sessionNicheId = null, onFollowUpClick,
-  onRetry,
+  onRetry, onRetryWebSearch,
 }: ChatMessageListProps) => {
   const { t } = useTranslation();
-  // BUG-2 fix (2026-04-28): a useRef + useEffect pair was prone to HMR
-  // staleness — when ChatMessageList re-mounted via Vite HMR, the previous
-  // effect's cleanup sometimes ran AFTER the new effect attached its
-  // listener, leaving the live ScrollContainer without a working handler.
-  // Use a callback-ref instead: attach/detach the listener inline with the
-  // node lifecycle so HMR fast-refresh can never desync the two.
-  const bottomRef = useRef<HTMLDivElement>(null);
+  // FIX-chat-bugfixes-and-grouping Item 5 (Phase 4) — auto-scroll engine.
+  //
+  // Replaces the previous `scroll` event listener with an IntersectionObserver
+  // watching a sentinel `<div>` at the bottom of the ScrollContainer. The
+  // sentinel approach is more reliable than measuring `scrollHeight` because
+  // the observer re-evaluates automatically on layout shifts (image loads,
+  // bubble growth, textarea resize — EC-5-1 / EC-5-5).
+  //
+  // BUG-2 fix (2026-04-28, preserved here): the callback-ref pattern is the
+  // HMR-resilience defence. A `useRef` + `useEffect` pair was prone to staleness
+  // on Vite fast-refresh — the previous effect's cleanup sometimes ran AFTER
+  // the new effect attached, leaving the live ScrollContainer without a
+  // working observer. The callback-ref attaches the IO inline with the node
+  // lifecycle so HMR re-mount can never desync the two (EC-5-3).
   const scrollElRef = useRef<HTMLDivElement | null>(null);
+  const bottomSentinelRef = useRef<HTMLDivElement | null>(null);
+  const observerRef = useRef<IntersectionObserver | null>(null);
 
-  // AC-39/40: auto-scroll engaged by default, disengages on user scroll-up
-  const [autoScroll, setAutoScroll] = useState(true);
+  // `userAtBottomRef` is read synchronously inside effects; `userAtBottomState`
+  // mirrors it for re-render purposes (JumpToLatestButton visibility).
+  const userAtBottomRef = useRef(true);
+  const [userAtBottomState, setUserAtBottomState] = useState(true);
+
+  // Coalesce scroll-during-stream into one rAF. Multiple chunk events within a
+  // single frame only schedule a single scrollTo.
+  const rafIdRef = useRef<number | null>(null);
+
+  // Track last-seen tail message id to distinguish "tail grew" (auto-scroll)
+  // from "head prepended" (do NOT auto-scroll — EC-5-4).
+  const prevLastMessageIdRef = useRef<string | null>(null);
+
+  // Track whether the initial mount scroll has fired. Used to flip from "empty
+  // → non-empty" without re-firing on every later render.
+  const didInitialScrollRef = useRef(false);
 
   // PROJ-17 Phase 4 Step 6: live streaming bubble state
   const streamingMessage = useAppSelector(
@@ -226,42 +257,129 @@ const ChatMessageList = ({
     return -1;
   })();
 
+  const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
+    const el = scrollElRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior });
+  }, []);
+
+  // Callback-ref for the scroll container. Tears down any previous observer
+  // (HMR may briefly keep the prior node alive) before binding the new one.
+  // The sentinel is mounted as a sibling JSX node and observed via a separate
+  // effect once both refs are stable.
   const setScrollRef = useCallback((node: HTMLDivElement | null) => {
-    // Detach from previous element (HMR may keep an old node alive briefly).
-    const prev = scrollElRef.current;
-    if (prev && (prev as unknown as { __mmHandler?: EventListener }).__mmHandler) {
-      const h = (prev as unknown as { __mmHandler?: EventListener }).__mmHandler;
-      if (h) prev.removeEventListener('scroll', h);
-      delete (prev as unknown as { __mmHandler?: EventListener }).__mmHandler;
+    if (observerRef.current) {
+      observerRef.current.disconnect();
+      observerRef.current = null;
     }
     scrollElRef.current = node;
-    if (!node) return;
-    const handler: EventListener = () => {
-      const el = scrollElRef.current;
-      if (!el) return;
-      const distance = el.scrollHeight - el.scrollTop - el.clientHeight;
-      const atBottom = distance <= AUTO_SCROLL_THRESHOLD;
-      setAutoScroll((curr) => (curr === atBottom ? curr : atBottom));
-    };
-    (node as unknown as { __mmHandler?: EventListener }).__mmHandler = handler;
-    node.addEventListener('scroll', handler, { passive: true });
   }, []);
 
-  // Scroll to bottom on new messages or streaming chunk — only if autoScroll
-  // engaged. Use 'auto' (instant) to avoid kicking off smooth-scroll
-  // animations that retrigger the scroll listener and feed back into the
-  // autoScroll state, which could cause Maximum-update-depth in chunk-heavy
-  // streams.
+  // Wire the IntersectionObserver once both refs are bound. The observer fires
+  // whenever the sentinel crosses the threshold (50 px before the bottom edge
+  // of the viewport), giving us a layout-shift-safe `userAtBottom` signal.
   useEffect(() => {
-    if (autoScroll) {
-      bottomRef.current?.scrollIntoView({ behavior: 'auto' });
+    const root = scrollElRef.current;
+    const sentinel = bottomSentinelRef.current;
+    if (!root || !sentinel) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const entry = entries[0];
+        if (!entry) return;
+        const atBottom = entry.isIntersecting;
+        userAtBottomRef.current = atBottom;
+        setUserAtBottomState((curr) => (curr === atBottom ? curr : atBottom));
+      },
+      {
+        root,
+        rootMargin: `${AUTO_SCROLL_THRESHOLD}px`,
+        threshold: 0,
+      },
+    );
+    observer.observe(sentinel);
+    observerRef.current = observer;
+
+    return () => {
+      observer.disconnect();
+      if (observerRef.current === observer) observerRef.current = null;
+    };
+    // Re-run when the scroll container is replaced (HMR) or when messages
+    // toggle the JSX tree between skeleton / empty-state / list paths.
+  }, [messages.length, showStreamingBubble, isLoading]);
+
+  // AC-5-3 / AC-5-4 — initial scroll (instant, pre-paint) on mount AND on
+  // empty→non-empty transition. Re-mounting via parent `key={activeSessionId}`
+  // resets `didInitialScrollRef` automatically (new component instance).
+  useLayoutEffect(() => {
+    if (messages.length === 0) return;
+    if (didInitialScrollRef.current) return;
+    const el = scrollElRef.current;
+    if (!el) return;
+    el.scrollTo({ top: el.scrollHeight, behavior: 'instant' as ScrollBehavior });
+    didInitialScrollRef.current = true;
+    // Seed the prevLastMessageIdRef so the "new persisted message" effect
+    // below does not treat this initial render as a tail-growth event.
+    prevLastMessageIdRef.current = messages[messages.length - 1]?.id ?? null;
+    // Only re-run on length transitions; depending on `messages` (the array
+    // reference) would re-fire on every render and defeat the guard above.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length]);
+
+  // AC-5-5 — smooth scroll on each streaming chunk, rAF-coalesced.
+  // Watches the streaming content length (the cheapest stable signal for
+  // "a new chunk landed in Redux"). Only fires when the user is at the
+  // bottom AND a stream is in progress.
+  useEffect(() => {
+    if (!streamingMessage.isStreaming) return;
+    if (!userAtBottomRef.current) return;
+    if (rafIdRef.current !== null) return; // already queued — coalesce.
+    rafIdRef.current = requestAnimationFrame(() => {
+      rafIdRef.current = null;
+      scrollToBottom('smooth');
+    });
+  }, [streamingMessage.content, streamingMessage.isStreaming, scrollToBottom]);
+
+  useEffect(() => {
+    return () => {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+        rafIdRef.current = null;
+      }
+    };
+  }, []);
+
+  // AC-5-6 / EC-5-4 — new persisted message arrival.
+  // Only auto-scroll when the TAIL grew (last message id changed). A grown
+  // messages array whose last id is unchanged is a head-prepend (Load more)
+  // and must NOT yank the viewport down.
+  useEffect(() => {
+    if (messages.length === 0) {
+      prevLastMessageIdRef.current = null;
+      return;
     }
-  }, [messages.length, autoScroll, streamingMessage.content]);
+    const newLastId = messages[messages.length - 1]?.id ?? null;
+    const prevLastId = prevLastMessageIdRef.current;
+    // First observation after the initial-scroll effect — seed silently.
+    if (prevLastId === null) {
+      prevLastMessageIdRef.current = newLastId;
+      return;
+    }
+    if (newLastId === prevLastId) return;
+    prevLastMessageIdRef.current = newLastId;
+    if (!userAtBottomRef.current) return;
+    // Defer to next frame so the new DOM has committed before we measure.
+    const id = requestAnimationFrame(() => {
+      scrollToBottom('smooth');
+    });
+    return () => cancelAnimationFrame(id);
+  }, [messages, scrollToBottom]);
 
   const handleJumpToLatest = useCallback(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-    setAutoScroll(true);
-  }, []);
+    userAtBottomRef.current = true;
+    setUserAtBottomState(true);
+    scrollToBottom('smooth');
+  }, [scrollToBottom]);
 
   if (isLoading && messages.length === 0) {
     return (
@@ -276,6 +394,7 @@ const ChatMessageList = ({
               sx={{ alignSelf: i % 2 === 0 ? 'flex-end' : 'flex-start', borderRadius: 3 }}
             />
           ))}
+          <div ref={bottomSentinelRef} aria-hidden="true" />
         </ScrollContainer>
       </Wrapper>
     );
@@ -301,7 +420,7 @@ const ChatMessageList = ({
   }
 
   return (
-    <Wrapper data-auto-scroll={autoScroll ? 'true' : 'false'}>
+    <Wrapper data-auto-scroll={userAtBottomState ? 'true' : 'false'}>
       <ScrollContainer ref={setScrollRef}>
         {hasMore && (
           <Button
@@ -359,6 +478,16 @@ const ChatMessageList = ({
                         gap={0.5}
                         sx={{ maxWidth: '85%' }}
                       >
+                        {/* FIX-chat-bugfixes-and-grouping Item 4 — per-message
+                         *  @niche reference chip. Read-only; rendered only
+                         *  when the persisted user message carries a
+                         *  referenced niche name. */}
+                        {msg.referenced_niche_name && (
+                          <HistoryNicheChip
+                            name={msg.referenced_niche_name}
+                            nicheId={msg.referenced_niche_id}
+                          />
+                        )}
                         {msg.attachments && msg.attachments.length > 0 && (
                           <UserAttachments attachments={msg.attachments} />
                         )}
@@ -377,16 +506,46 @@ const ChatMessageList = ({
                   </Box>
                 ) : msg.message_type === 'error' ? (
                   /* PROJ-29 Phase 1J BUG-4 — paired error bubble when the agent
-                     stream failed before producing a final answer. */
+                     stream failed before producing a final answer.
+                     FIX-chat-bugfixes-and-grouping Item 2 — render a Retry
+                     button when a prior user message exists. The button is
+                     wired to `onRetryWebSearch` which reconstructs the
+                     original StartArgs (content, niche_id, model,
+                     mode_override) from the persisted user message. For MVP
+                     simplicity Retry shows on ALL paired ERROR rows — not
+                     just the `web_search_unavailable` flavor — because the
+                     SSE marker is observed at stream time, not on persisted
+                     rows. Re-firing the same prompt is safe: if the
+                     underlying issue persists, the marker triggers again
+                     and the per-session snackbar-dedupe ref absorbs it. */
                   <AssistantContent>
                     <ErrorBubble role="alert">
                       <ErrorIconOutlinedIcon sx={{ fontSize: 18, mt: 0.25, flexShrink: 0 }} />
-                      <Stack gap={0.25}>
+                      <Stack gap={0.25} sx={{ flex: 1, minWidth: 0 }}>
                         <Box sx={{ fontWeight: 600 }}>
                           {t('search.chat.errorBubble.title', 'Something went wrong')}
                         </Box>
                         <Box>{msg.content}</Box>
                       </Stack>
+                      {onRetryWebSearch && priorUserMessage && (
+                        <Button
+                          size="small"
+                          variant="text"
+                          color="error"
+                          startIcon={<RefreshIcon sx={{ fontSize: 16 }} />}
+                          onClick={() => onRetryWebSearch(priorUserMessage as ChatMessage)}
+                          aria-label={t('search.fallback.webSearchUnavailable.retry')}
+                          data-testid="web-search-retry-button"
+                          sx={{
+                            flexShrink: 0,
+                            textTransform: 'none',
+                            fontSize: '0.75rem',
+                            alignSelf: 'flex-start',
+                          }}
+                        >
+                          {t('search.fallback.webSearchUnavailable.retry')}
+                        </Button>
+                      )}
                     </ErrorBubble>
                   </AssistantContent>
                 ) : (
@@ -528,10 +687,12 @@ const ChatMessageList = ({
           </Box>
         )}
 
-        <div ref={bottomRef} />
+        {/* AC-5-1 — bottom sentinel observed by IntersectionObserver above.
+         *  Must remain the LAST child of ScrollContainer. */}
+        <div ref={bottomSentinelRef} aria-hidden="true" />
       </ScrollContainer>
 
-      <JumpToLatestButton onClick={handleJumpToLatest} visible={!autoScroll} />
+      <JumpToLatestButton onClick={handleJumpToLatest} visible={!userAtBottomState} />
 
       {/* AC-50–53: floating toolbar on text selection inside assistant bubbles + source snippets */}
       {(onSaveSelectionAsKeywords || onSaveSelectionAsNotes) && (

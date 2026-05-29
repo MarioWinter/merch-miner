@@ -1802,7 +1802,12 @@
       "opacity": "Op",
       "opacityLabel": "Opacity",
       "color": "Color",
-      "bgColor": "Background color",
+      "bgColor": {
+        "label": "Background color",
+        "alphaLabel": "Alpha: {{percent}}%",
+        "hexLabel": "Hex",
+        "invalidHex": "Invalid color value"
+      },
       "clipContent": "Clip Content",
       "toolsLabel": "Tools",
       "selection": "Selection",
@@ -3008,6 +3013,20 @@
       "connectionLost": "Connection lost. Please retry.",
       "timeout": "Search timed out. Please try again."
     },
+    "stop": {
+      "aria": "Stop generating"
+    },
+    "history": {
+      "referencedNicheAria": "Referenced niche: {{name}}"
+    },
+    "fallback": {
+      "webSearchUnavailable": {
+        "title": "Web search temporarily unavailable",
+        "body": "Live web search is returning no results right now. Please try again in a few minutes.",
+        "retry": "Retry",
+        "snackbar": "Web search temporarily unavailable"
+      }
+    },
     "actions": {
       "toolbarLabel": "Message actions",
       "copy": "Copy message",
@@ -3715,6 +3734,23 @@
       "niche": "Niche knowledge chunk {{index}}",
       "nicheWithName": "Niche knowledge chunk {{index}} — {{niche}}",
       "web": "Web source {{index}}"
+    }
+  },
+  "chat": {
+    "groups": {
+      "ungrouped": "No group",
+      "newGroup": "New group",
+      "newGroupPlaceholder": "Group name…",
+      "rename": "Rename",
+      "delete": "Delete",
+      "deleteConfirmTitle": "Delete group '{{name}}'?",
+      "deleteConfirmBody": "{{count}} chat(s) will move to 'Ungrouped'.",
+      "dragHint": "Drag to reorder or move between groups",
+      "sessionCount_one": "{{count}} chat",
+      "sessionCount_other": "{{count}} chats",
+      "duplicateName": "A group with this name already exists",
+      "confirm": "Confirm",
+      "cancel": "Cancel"
     }
   },
   "designForge": {
