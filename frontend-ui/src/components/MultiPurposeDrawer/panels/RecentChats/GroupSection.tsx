@@ -299,7 +299,7 @@ const GroupSection = ({
         ) : (
           <>
             <SectionLabel>{group.name}</SectionLabel>
-            <CountBadge component="span">{group.session_count}</CountBadge>
+            <CountBadge>{group.session_count}</CountBadge>
             <Tooltip title={t('chat.groups.rename')}>
               <KebabButton
                 className="RecentChats-groupKebab"

@@ -59,7 +59,7 @@ const UngroupedSection = ({
     <Box sx={{ mb: 0.5 }} data-testid="ungrouped-section">
       <SectionHeader>
         <SectionLabel>{t('chat.groups.ungrouped')}</SectionLabel>
-        <CountBadge component="span">{sessions.length}</CountBadge>
+        <CountBadge>{sessions.length}</CountBadge>
       </SectionHeader>
       <Box ref={setNodeRef} sx={{ minHeight: 4 }}>
         <SortableContext

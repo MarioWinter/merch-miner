@@ -11,7 +11,6 @@
  * remove, or hover-lift behaviour — per Item 4 decision "read-only chip".
  */
 import { useTranslation } from 'react-i18next';
-import { Box } from '@mui/material';
 import { styled } from '@mui/material/styles';
 
 interface HistoryNicheChipProps {
@@ -22,7 +21,7 @@ interface HistoryNicheChipProps {
   nicheId?: string | null;
 }
 
-const ChipRoot = styled(Box)(({ theme }) => ({
+const ChipRoot = styled('span')(({ theme }) => ({
   display: 'inline-flex',
   alignItems: 'center',
   gap: theme.spacing(0.25),
@@ -45,7 +44,6 @@ const HistoryNicheChip = ({ name, nicheId }: HistoryNicheChipProps) => {
   const { t } = useTranslation();
   return (
     <ChipRoot
-      component="span"
       role="status"
       aria-label={t('search.history.referencedNicheAria', { name })}
       data-testid="referenced-niche-chip"

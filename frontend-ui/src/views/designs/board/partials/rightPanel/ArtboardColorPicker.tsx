@@ -297,7 +297,15 @@ const ArtboardColorPicker = ({ value, onChange }: ArtboardColorPickerProps) => {
         onClose={handlePopoverClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-        slotProps={{ paper: { 'data-testid': 'ArtboardColorPicker-popover' } }}
+        slotProps={{
+          paper: {
+            // MUI's Popover slot type doesn't list arbitrary data-* attributes,
+            // but the underlying Paper accepts them at runtime — cast through
+            // a small Record so the test selector keeps working under tsc -b
+            // strict.
+            ...({ 'data-testid': 'ArtboardColorPicker-popover' } as Record<string, string>),
+          },
+        }}
       >
         <PopoverBody shaking={shaking}>
           {/* Preview row — large swatch + canonical rgba string + alpha badge */}

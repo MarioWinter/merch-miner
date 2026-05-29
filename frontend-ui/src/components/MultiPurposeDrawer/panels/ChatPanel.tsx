@@ -417,8 +417,12 @@ const ChatPanel = () => {
       // backend that starts returning the enum here Just Works without a
       // code change. Unknown values fall back to the current selectedModel
       // / Redux modeOverride via the start() default path.
-      const persistedMode = priorUserMessage.search_mode;
-      const mode_override =
+      // SearchMode (speed|balanced|quality|null) and ModeOverride (chat|agent)
+      // do not currently overlap, so the static check is always false — TS
+      // would refuse it. Cast through `unknown` so a future backend that
+      // starts persisting the ModeOverride enum here Just Works.
+      const persistedMode = priorUserMessage.search_mode as unknown as string | null;
+      const mode_override: ModeOverride | undefined =
         persistedMode === 'chat' || persistedMode === 'agent'
           ? (persistedMode as ModeOverride)
           : undefined;
