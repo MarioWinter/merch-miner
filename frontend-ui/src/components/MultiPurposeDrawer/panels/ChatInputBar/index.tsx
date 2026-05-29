@@ -144,9 +144,11 @@ const ShellInner = styled(Box, {
   display: 'flex',
   flexDirection: 'column',
   gap: theme.spacing(1),
-  position: 'relative',
-  // Above the rotating glow.
-  zIndex: 1,
+  // No `position: relative` or `z-index` here. The natural DOM-order
+  // paint already places ShellInner on top of the absolutely-positioned
+  // StreamingGlow (which is rendered first in JSX). Adding a stacking
+  // context here triggered contenteditable cursor/selection glitches
+  // in WebKit during streaming.
   transition: 'border-color 150ms ease, background-color 150ms ease',
   ...(appearance === 'floating'
     ? {
