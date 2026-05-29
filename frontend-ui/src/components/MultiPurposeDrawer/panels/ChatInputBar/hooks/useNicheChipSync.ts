@@ -45,10 +45,9 @@
  *    monotonic tick. Each store dispatch advances the tick → re-render →
  *    re-evaluation of `useGetNicheQuery` and the error effect.
  */
-import { useEffect, useRef, useSyncExternalStore, type RefObject } from 'react';
+import { useEffect, useRef, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
-import { useStore } from 'react-redux';
 import { useAppDispatch, useAppSelector } from '@/store/hooks';
 import { setActiveNicheId } from '@/store/chatBarSlice';
 import { useGetNicheQuery } from '@/store/nicheSlice';
@@ -62,20 +61,17 @@ export const useNicheChipSync = ({ smartTextareaRef }: UseNicheChipSyncArgs): vo
   const { t } = useTranslation();
   const { enqueueSnackbar } = useSnackbar();
   const dispatch = useAppDispatch();
-  const store = useStore();
-
-  // Force a re-render on every store dispatch so RTK Query state changes
-  // (e.g. niche 404 errors that live in `nicheApi`'s slice) propagate to
-  // this hook even if our chatBar-scoped selectors didn't change.
-  const tickRef = useRef(0);
-  useSyncExternalStore(
-    (cb) =>
-      store.subscribe(() => {
-        tickRef.current += 1;
-        cb();
-      }),
-    () => tickRef.current,
-  );
+  // NOTE: a previous version of this hook subscribed to the entire Redux
+  // store via `useSyncExternalStore` to force a re-render on every
+  // dispatch — the comment explained it was needed so RTK Query state
+  // changes in `nicheApi` would propagate. That comment was wrong: RTK
+  // Query's `useGetNicheQuery` below already subscribes to its own cache
+  // slot and re-renders on `data`/`isError`/`isLoading` transitions. The
+  // store-wide subscription made ChatInputBar re-render on every Redux
+  // action in the whole app (incl. every SSE chunk dispatch during a
+  // stream, ~60 Hz) and caused noticeable typing lag in dev mode where
+  // Redux DevTools / strict-mode double-invocation amplify per-render
+  // cost. Removed 2026-05-29.
 
   const activeNicheId = useAppSelector((s) => s.chatBar.activeNicheId);
   const activeSessionId = useAppSelector((s) => s.chatBar.activeSessionId);
