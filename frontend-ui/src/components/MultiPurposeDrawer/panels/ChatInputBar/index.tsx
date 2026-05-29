@@ -149,19 +149,20 @@ const Shell = styled(Box, {
   // FIX-chat-bugfixes-and-grouping Item 7.5 — animated "running light"
   // border while a stream is in flight. A glow arc travels around the
   // bar's perimeter so the running state is obvious without taking up
-  // any extra space. The bar's own border color is masked behind the
-  // conic-gradient overlay; the :focus-within outline still applies
-  // when the user clicks back into the textarea mid-stream.
-  '&[data-streaming="true"]': {
+  // any extra space. The ::before sits AT the shell's border position
+  // (inset: 0) and the static border is hidden — including the
+  // :focus-within highlight, which would otherwise sit on top of the
+  // animation and cover it with a solid primary line.
+  '&[data-streaming="true"], &[data-streaming="true"]:focus-within': {
     borderColor: 'transparent',
   },
   '&[data-streaming="true"]::before': {
     content: '""',
     position: 'absolute',
-    inset: -1,
+    inset: 0,
     borderRadius: 'inherit',
     padding: 1,
-    background: `conic-gradient(from var(--mm-stream-angle), transparent 0deg, ${theme.vars.palette.primary.main} 80deg, transparent 160deg)`,
+    background: `conic-gradient(from var(--mm-stream-angle), transparent 0deg, ${theme.vars.palette.primary.main} 90deg, transparent 180deg)`,
     WebkitMask:
       'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
     WebkitMaskComposite: 'xor',
@@ -170,6 +171,7 @@ const Shell = styled(Box, {
     maskComposite: 'exclude',
     animation: `${streamingBorderRotate} 2.5s linear infinite`,
     pointerEvents: 'none',
+    zIndex: 1,
   },
   // Accessibility: respect the user's motion preference. Reduced motion
   // falls back to a static primary-coloured border ring so the running
