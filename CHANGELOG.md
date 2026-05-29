@@ -1,5 +1,48 @@
 # Changelog
 
+## [0.6.0](https://github.com/MarioWinter/merch-miner/compare/v0.5.2...v0.6.0) (2026-05-29)
+
+
+### Features
+
+* **canvas:** rgba color picker with alpha slider for artboard background ([2182b36](https://github.com/MarioWinter/merch-miner/commit/2182b3630e93e8a56bfb3de60ac6a80e7e9331b0))
+* **chat:** add chat groups with drag-and-drop reorder in sidebar ([2991b73](https://github.com/MarioWinter/merch-miner/commit/2991b73d350b6fd2925e1ca475453a0eaae372c7))
+* **chat:** running conic-gradient border via two-layer MUI pattern ([fceb697](https://github.com/MarioWinter/merch-miner/commit/fceb697a4565e2d01975c42abba4c788f4e34bcf))
+* **chat:** running conic-gradient border while streaming ([f15433b](https://github.com/MarioWinter/merch-miner/commit/f15433b4c251a38efb0c3afe27e6caa2b43ccbba))
+* **chat:** toggle send button to stop while streaming ([8cf5cd1](https://github.com/MarioWinter/merch-miner/commit/8cf5cd12b3a5a45b7167475afe12e82391ab6ad9))
+
+
+### Bug Fixes
+
+* **build:** satisfy tsc -b strict types broken in CI ([70a23dd](https://github.com/MarioWinter/merch-miner/commit/70a23dd47534cd261423fc2f31352c46dc121bb7))
+* **canvas:** exempt contenteditable from pan-mode space-key swallow ([f28e29b](https://github.com/MarioWinter/merch-miner/commit/f28e29b1681f716084eb32ddceab902ec9f270e6))
+* **canvas:** polish ArtboardColorPicker popover layout ([50c3af1](https://github.com/MarioWinter/merch-miner/commit/50c3af12a62d0a73724a8b15f5e2bf827ed5b2e1))
+* **canvas:** repair prompt textarea sync to stop yanking text mid-typing ([7c27e86](https://github.com/MarioWinter/merch-miner/commit/7c27e86d12f49666fdbf4261b02b50568a526a6f))
+* **chat:** auto-scroll on session open and during streaming when user at bottom ([955d196](https://github.com/MarioWinter/merch-miner/commit/955d196b41298af939d262c2af777a96c21a8ec3))
+* **chat:** chat bugfixes + grouping + canvas color picker (FIX 8-item bundle) ([51027ff](https://github.com/MarioWinter/merch-miner/commit/51027ffc8d6143d7df600cb532c0df8407fcce68))
+* **chat:** drop ShellInner stacking context to unblock contenteditable typing ([62ebe77](https://github.com/MarioWinter/merch-miner/commit/62ebe774729b6fcd2f615ad27b5be319f9761d7d))
+* **chat:** make streaming border ring visible over focus outline ([f538362](https://github.com/MarioWinter/merch-miner/commit/f53836222a1f0cc0db3d0646252e88e8ecc60469))
+* **chat:** persist and render [@niche](https://github.com/niche) reference on user messages ([9c2f6d5](https://github.com/MarioWinter/merch-miner/commit/9c2f6d57a3bdc0468fd57342b13b3f296e474dc9))
+* **chat:** register --mm-stream-angle via CSS.registerProperty so the streaming border actually rotates ([6404956](https://github.com/MarioWinter/merch-miner/commit/64049565d6242c60f1dbff240c16917e6f4caa0d))
+* **chat:** surface friendly fallback when web search is unavailable ([06dba14](https://github.com/MarioWinter/merch-miner/commit/06dba14ad1abbf2f4bf8a94b9fbd1901da521554))
+* **chat:** swap overflow:hidden for clip-path to unblock contenteditable typing ([5eee4cc](https://github.com/MarioWinter/merch-miner/commit/5eee4cc4a54457b3fa34921856e3502a81efbc0d))
+* **chat:** wire [@niche](https://github.com/niche) reference into optimistic chat message ([09613da](https://github.com/MarioWinter/merch-miner/commit/09613da64dcef334fb5ae4086b694ff9354fe92c))
+* **ui:** align topbar chat icon style with sibling icon buttons ([78642e2](https://github.com/MarioWinter/merch-miner/commit/78642e2bed0284ab66637fd8c1e13ff7d8af6736))
+
+
+### Performance
+
+* **canvas:** fully isolate prompt textarea from DesignWorkspaceView typing pressure ([d2dc56f](https://github.com/MarioWinter/merch-miner/commit/d2dc56f5bf76f575065b01f26032a020e06d2a32))
+* **canvas:** isolate prompt typing from DesignWorkspaceView re-renders ([8a9b31a](https://github.com/MarioWinter/merch-miner/commit/8a9b31ae141b939719195c59a162ad243f0b3714))
+* **chat:** cut cascading re-renders driving typing lag when canvas is open ([de33034](https://github.com/MarioWinter/merch-miner/commit/de33034373c274913ae8594487d9dcc55348728b))
+* **chat:** drop store-wide subscription in useNicheChipSync to fix typing lag ([fb9c3e4](https://github.com/MarioWinter/merch-miner/commit/fb9c3e4b2d1f064c000fb2fd40e4f350e3ea09e3))
+
+
+### Documentation
+
+* **chat:** add FIX spec + task plan for chat bugfixes and grouping ([1cd55af](https://github.com/MarioWinter/merch-miner/commit/1cd55aff37217f26c9795910a6889e16546c8196))
+* **chat:** QA pass — flip implemented AC checkboxes + document AC-7-4 deviation ([3f20c70](https://github.com/MarioWinter/merch-miner/commit/3f20c70265972f2c014f6f0fb651a0e48b4252ab))
+
 ## [0.5.2](https://github.com/MarioWinter/merch-miner/compare/v0.5.1...v0.5.2) (2026-05-28)
 
 
