@@ -120,16 +120,16 @@
 **Commit:** `fix(chat): auto-scroll on session open and during streaming when user at bottom`
 **Skill:** `/frontend`
 
-- [ ] Add `<div ref={bottomSentinelRef} aria-hidden="true" />` as last child of `ScrollContainer` in `ChatMessageList.tsx`.
-- [ ] Set up `IntersectionObserver` in `useEffect` with `root = scrollContainerRef.current`, `rootMargin = '50px'`, threshold `0`; callback sets `userAtBottomRef.current = entry.isIntersecting`.
-- [ ] On mount + on messages-empty-to-nonempty → `useLayoutEffect` calls `scrollContainerRef.current.scrollTo({ top: scrollHeight, behavior: 'instant' })` (synchronous, pre-paint).
-- [ ] On `activeSessionId` change: parent's React key ensures re-mount; AC above fires automatically.
-- [ ] During streaming + userAtBottom → smooth scroll on rAF-coalesced chunk flush (extend existing `flushChunkBuffer` to also call `scrollTo({ top: scrollHeight, behavior: 'smooth' })` AFTER the dispatch when `userAtBottomRef.current === true`).
-- [ ] On new persisted message arrival (messages array length grows outside streaming) + userAtBottom → smooth scroll once after paint (`useEffect` with `messages.length` dep).
-- [ ] **EC-5-4 explicit task:** Verify "Load more" prepend path is detected (e.g. `prevMessagesLengthRef` decreases? No — pages append. Check actual implementation in `useInfiniteScroll`-like hook or pagination state) and does NOT trigger auto-scroll. Add a unit test asserting prepend → no scroll.
-- [ ] `JumpToLatestButton` click → `scrollTo({ top: scrollHeight, behavior: 'smooth' })` AND `userAtBottomRef.current = true` (re-engage).
-- [ ] Vitest: mount with 3 messages → scrollTop = scrollHeight - clientHeight after first paint; empty array → no scroll; mock observer + scroll-up → no auto-scroll on next chunk; new sessionId via re-mount → scroll re-applies.
-- [ ] `npm run lint` + `npm run test:ci` green.
+- [x] Add `<div ref={bottomSentinelRef} aria-hidden="true" />` as last child of `ScrollContainer` in `ChatMessageList.tsx`. — ChatMessageList.tsx:541-543 (list path) + 364 (loading-skeleton path)
+- [x] Set up `IntersectionObserver` in `useEffect` with `root = scrollContainerRef.current`, `rootMargin = '50px'`, threshold `0`; callback sets `userAtBottomRef.current = entry.isIntersecting`. — ChatMessageList.tsx:273-302 (effect creates observer with `rootMargin: ${AUTO_SCROLL_THRESHOLD}px`, threshold 0; mirrors to `userAtBottomState`)
+- [x] On mount + on messages-empty-to-nonempty → `useLayoutEffect` calls `scrollContainerRef.current.scrollTo({ top: scrollHeight, behavior: 'instant' })` (synchronous, pre-paint). — ChatMessageList.tsx:307-321
+- [x] On `activeSessionId` change: parent's React key ensures re-mount; AC above fires automatically. — ChatPanel.tsx:462-468 (`key={activeSessionId ?? 'no-session'}`)
+- [x] During streaming + userAtBottom → smooth scroll on rAF-coalesced chunk flush. — ChatMessageList.tsx:327-336 (watches `streamingMessage.content` length + `isStreaming`; coalesces with `rafIdRef`). Scroll piggybacks on Redux state change (per spec scope-lock: no edits to `useSendMessageStream.ts`).
+- [x] On new persisted message arrival (messages array length grows outside streaming) + userAtBottom → smooth scroll once after paint. — ChatMessageList.tsx:351-372 (watches `messages`; compares last id; defers via rAF)
+- [x] **EC-5-4 explicit task:** Verify "Load more" prepend path does NOT trigger auto-scroll. — ChatMessageList.tsx:359-364 (tail-id comparison; prepend leaves tail id unchanged → effect returns early). Unit test: ChatMessageList.test.tsx:574-606 (`prepending older messages (Load more) does NOT trigger auto-scroll`).
+- [x] `JumpToLatestButton` click → `scrollTo({ top: scrollHeight, behavior: 'smooth' })` AND `userAtBottomRef.current = true` (re-engage). — ChatMessageList.tsx:381-385 + 600-602 (renders button when `!userAtBottomState`)
+- [x] Vitest: mount with 3 messages, empty array, mock observer + scroll-up, prepend, re-mount session-id. — ChatMessageList.test.tsx:486-606 (5 new cases in `auto-scroll` describe block); existing `JumpToLatestButton` tests rewritten to use IO mock (`ioInstances[].fire(boolean)`) at ChatMessageList.test.tsx:351-381.
+- [x] `npm run lint` + `npm run test:ci` green. — lint 0 errors / 17 pre-existing warnings (no new); test:ci 1655 testcases, 0 failures, 0 errors, 15 skipped.
 
 ### Review checkpoint
 - [ ] Manual smoke: open chat → bottom visible; receive new chunks → view follows; scroll up mid-stream → stays put + JumpToLatest visible; click JumpToLatest → returns to bottom + re-engages.

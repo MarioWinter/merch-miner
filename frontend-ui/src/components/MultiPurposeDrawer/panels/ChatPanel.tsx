@@ -458,8 +458,11 @@ const ChatPanel = () => {
         </Stack>
       )}
 
-      {/* Message list */}
+      {/* Message list — keyed on activeSessionId so switching chats remounts
+       *  the list and re-fires the initial-scroll effect inside ChatMessageList
+       *  (FIX-chat-bugfixes-and-grouping Item 5 AC-5-4). */}
       <ChatMessageList
+        key={activeSessionId ?? 'no-session'}
         messages={messages}
         isLoading={sessionLoading}
         hasMore={messages.length >= 50}

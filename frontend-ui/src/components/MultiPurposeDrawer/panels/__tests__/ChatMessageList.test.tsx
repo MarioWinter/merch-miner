@@ -3,11 +3,15 @@
  *
  * Strategy: stub react-markdown / rehype-sanitize / SourceCard / WorkflowCard /
  * SaveSnippetToolbar so we test only ChatMessageList rendering + scroll logic.
- * Mock Element.prototype.scrollIntoView (jsdom doesn't implement it).
- * Drive streaming bubble via Redux; drive scroll-engagement via direct
- * scrollTop manipulation + manual scroll event dispatch.
+ *
+ * FIX-chat-bugfixes-and-grouping Phase 4 (Item 5) — Auto-scroll now sits on a
+ * sentinel `<div>` observed by IntersectionObserver instead of the previous
+ * `scroll` event listener. Tests install a controllable IO mock so they can
+ * fire `isIntersecting: true | false` deterministically. We also stub
+ * Element.prototype.scrollTo (not implemented in jsdom) so the hook can write
+ * to it without throwing — and so we can assert on calls.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, fireEvent, act } from '@testing-library/react';
 import type { ReactNode } from 'react';
 
@@ -20,6 +24,60 @@ if (!('scrollIntoView' in HTMLElement.prototype)) {
   });
 } else {
   HTMLElement.prototype.scrollIntoView = vi.fn();
+}
+
+// jsdom does not implement Element.prototype.scrollTo. The IO-driven
+// auto-scroll path calls `scrollContainer.scrollTo({ top, behavior })`; without
+// the polyfill any test that mounts the list with messages throws.
+const scrollToSpy = vi.fn();
+Object.defineProperty(Element.prototype, 'scrollTo', {
+  value: scrollToSpy,
+  writable: true,
+  configurable: true,
+});
+
+// ---- Controllable IntersectionObserver mock ----
+// Replaces the no-op stub in setupTests.ts for this suite. Each instance
+// exposes a `fire(isIntersecting)` method so tests can simulate the sentinel
+// crossing the threshold without juggling scrollHeight / scrollTop in jsdom.
+type IOInstance = {
+  callback: IntersectionObserverCallback;
+  fire: (isIntersecting: boolean) => void;
+  disconnect: () => void;
+};
+const ioInstances: IOInstance[] = [];
+
+class ControllableIntersectionObserver implements IntersectionObserver {
+  readonly root: Element | Document | null = null;
+  readonly rootMargin: string = '';
+  readonly thresholds: ReadonlyArray<number> = [];
+  private cb: IntersectionObserverCallback;
+  constructor(cb: IntersectionObserverCallback) {
+    this.cb = cb;
+    const inst: IOInstance = {
+      callback: cb,
+      fire: (isIntersecting: boolean) => {
+        const entry = {
+          isIntersecting,
+          intersectionRatio: isIntersecting ? 1 : 0,
+          time: Date.now(),
+          target: document.body,
+          boundingClientRect: new DOMRect(),
+          intersectionRect: new DOMRect(),
+          rootBounds: new DOMRect(),
+        } as IntersectionObserverEntry;
+        this.cb([entry], this);
+      },
+      disconnect: () => {},
+    };
+    ioInstances.push(inst);
+  }
+  observe(): void {}
+  unobserve(): void {}
+  disconnect(): void {}
+  takeRecords(): IntersectionObserverEntry[] {
+    return [];
+  }
 }
 
 // ---- hoisted mocks ----
@@ -132,6 +190,8 @@ interface RenderListOpts {
   hasMore?: boolean;
   withSaveHandlers?: boolean;
   onRetry?: (m: ChatMessage) => void;
+  /** Force remount on rerender via a key change — exercises AC-5-4. */
+  remountKey?: string;
 }
 
 const renderList = (opts: RenderListOpts = {}) => {
@@ -154,6 +214,7 @@ const renderList = (opts: RenderListOpts = {}) => {
 
   const result = render(
     <ChatMessageList
+      key={opts.remountKey}
       messages={opts.messages ?? []}
       isLoading={opts.isLoading ?? false}
       hasMore={opts.hasMore ?? false}
@@ -193,8 +254,31 @@ const buildMessage = (overrides: Partial<ChatMessage> = {}): ChatMessage => ({
   ...overrides,
 });
 
+const originalIO = globalThis.IntersectionObserver;
+
 beforeEach(() => {
   vi.clearAllMocks();
+  scrollToSpy.mockClear();
+  ioInstances.length = 0;
+  globalThis.IntersectionObserver =
+    ControllableIntersectionObserver as unknown as typeof IntersectionObserver;
+  // Default jsdom geometry so scrollHeight - clientHeight is a meaningful number.
+  Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
+    configurable: true,
+    get() {
+      return 1000;
+    },
+  });
+  Object.defineProperty(HTMLElement.prototype, 'clientHeight', {
+    configurable: true,
+    get() {
+      return 200;
+    },
+  });
+});
+
+afterEach(() => {
+  globalThis.IntersectionObserver = originalIO;
 });
 
 describe('ChatMessageList', () => {
@@ -302,7 +386,7 @@ describe('ChatMessageList', () => {
     expect(typeof props.onSaveNotes).toBe('function');
   });
 
-  it('JumpToLatestButton appears when user scrolls up away from bottom', () => {
+  it('JumpToLatestButton appears when sentinel leaves viewport (user scrolled up)', () => {
     const messages: ChatMessage[] = Array.from({ length: 8 }).map((_, i) =>
       buildMessage({
         id: `m${i}`,
@@ -310,53 +394,28 @@ describe('ChatMessageList', () => {
         content: `msg ${i}`,
       }),
     );
-    const { container } = renderList({ messages });
-    // The scroll container is the styled Box with overflowY:auto inside Wrapper.
-    const scroller = container.querySelector('.MuiBox-root [class*="css"]');
-    // Easier: query by overflowY style via inline element — fall back to first Box
-    // with class containing 'css'. We'll select via role-none → find by role=presentation.
-    // Simpler: find by data attribute. We'll grab the only div ancestor of bottomRef.
-    const allDivs = container.querySelectorAll('div');
-    let scrollEl: HTMLElement | null = null;
-    for (const div of Array.from(allDivs)) {
-      const style = window.getComputedStyle(div);
-      if (style.overflowY === 'auto') {
-        scrollEl = div;
-        break;
-      }
-    }
-    expect(scrollEl).not.toBeNull();
-    // Force jsdom to think we have content + scrolled up
-    Object.defineProperty(scrollEl, 'scrollHeight', { value: 1000, configurable: true });
-    Object.defineProperty(scrollEl, 'clientHeight', { value: 200, configurable: true });
-    Object.defineProperty(scrollEl, 'scrollTop', { value: 100, configurable: true });
-    fireEvent.scroll(scrollEl!);
+    renderList({ messages });
+    // Initial: button hidden (userAtBottom defaults to true).
+    expect(screen.queryByTestId('jump-to-latest-mock')).toBeNull();
+    // Simulate sentinel leaving the viewport (user scrolled up).
+    expect(ioInstances.length).toBeGreaterThan(0);
+    act(() => {
+      ioInstances[ioInstances.length - 1].fire(false);
+    });
     expect(screen.getByTestId('jump-to-latest-mock')).toBeInTheDocument();
-    void scroller; // unused, kept for clarity
   });
 
-  it('JumpToLatestButton hidden when scrolled to bottom (autoScroll engaged)', () => {
+  it('JumpToLatestButton hidden when sentinel is in viewport (at bottom)', () => {
     const messages: ChatMessage[] = Array.from({ length: 4 }).map((_, i) =>
       buildMessage({ id: `m${i}`, role: 'assistant', content: `msg ${i}` }),
     );
-    const { container } = renderList({ messages });
-    // Default: autoScroll=true → button hidden
+    renderList({ messages });
+    // Default: userAtBottom=true → button hidden.
     expect(screen.queryByTestId('jump-to-latest-mock')).toBeNull();
-    // Now: scroll to bottom → still hidden (idempotent)
-    const allDivs = container.querySelectorAll('div');
-    let scrollEl: HTMLElement | null = null;
-    for (const div of Array.from(allDivs)) {
-      if (window.getComputedStyle(div).overflowY === 'auto') {
-        scrollEl = div;
-        break;
-      }
-    }
-    if (scrollEl) {
-      Object.defineProperty(scrollEl, 'scrollHeight', { value: 500, configurable: true });
-      Object.defineProperty(scrollEl, 'clientHeight', { value: 500, configurable: true });
-      Object.defineProperty(scrollEl, 'scrollTop', { value: 0, configurable: true });
-      fireEvent.scroll(scrollEl);
-    }
+    // Explicitly fire isIntersecting=true → still hidden (idempotent).
+    act(() => {
+      ioInstances[ioInstances.length - 1]?.fire(true);
+    });
     expect(screen.queryByTestId('jump-to-latest-mock')).toBeNull();
   });
 
@@ -481,6 +540,130 @@ describe('ChatMessageList', () => {
       ];
       renderList({ messages });
       expect(screen.queryByTestId('referenced-niche-chip')).toBeNull();
+    });
+  });
+
+  // FIX-chat-bugfixes-and-grouping Phase 4 (Item 5) — Auto-scroll engine.
+  describe('auto-scroll', () => {
+    it('mounting with 3 messages scrolls the container to the bottom (instant) on first paint', () => {
+      const messages: ChatMessage[] = [
+        buildMessage({ id: 'a', role: 'user', content: 'one' }),
+        buildMessage({ id: 'b', role: 'assistant', content: 'two' }),
+        buildMessage({ id: 'c', role: 'user', content: 'three' }),
+      ];
+      renderList({ messages });
+      // useLayoutEffect runs synchronously before paint — assert scrollTo was
+      // called with `top = scrollHeight (1000)` and `behavior: 'instant'`.
+      const instantCalls = scrollToSpy.mock.calls.filter(
+        (c) => c[0]?.behavior === 'instant',
+      );
+      expect(instantCalls.length).toBeGreaterThanOrEqual(1);
+      expect(instantCalls[0][0].top).toBe(1000);
+    });
+
+    it('mounting with an empty array does NOT call scrollTo', () => {
+      renderList({ messages: [] });
+      expect(scrollToSpy).not.toHaveBeenCalled();
+    });
+
+    it('re-mounting with a new session-id (key change) re-fires the initial scroll', () => {
+      const messages: ChatMessage[] = [
+        buildMessage({ id: 'a', role: 'user', content: 'one' }),
+        buildMessage({ id: 'b', role: 'assistant', content: 'two' }),
+      ];
+      const { rerender } = renderList({ messages, remountKey: 'session-1' });
+      const firstInstantCount = scrollToSpy.mock.calls.filter(
+        (c) => c[0]?.behavior === 'instant',
+      ).length;
+      expect(firstInstantCount).toBeGreaterThanOrEqual(1);
+      // Force remount with a new key — simulates parent switching activeSessionId.
+      rerender(
+        <ChatMessageList
+          key="session-2"
+          messages={messages}
+          isLoading={false}
+          hasMore={false}
+          onLoadMore={() => {}}
+        />,
+      );
+      const secondInstantCount = scrollToSpy.mock.calls.filter(
+        (c) => c[0]?.behavior === 'instant',
+      ).length;
+      expect(secondInstantCount).toBeGreaterThan(firstInstantCount);
+    });
+
+    it('when user scrolled up, the next streaming chunk does NOT trigger scrollTo', async () => {
+      const messages: ChatMessage[] = [
+        buildMessage({ id: 'a', role: 'user', content: 'q' }),
+      ];
+      const { store } = renderList({ messages });
+      // Simulate user scrolling up FIRST — sets userAtBottomRef.current=false
+      // before any streaming effect can read it.
+      act(() => {
+        ioInstances[ioInstances.length - 1]?.fire(false);
+      });
+      // Clear initial-mount scrollTo + any leftover rAF state.
+      await act(async () => {
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => resolve());
+        });
+      });
+      scrollToSpy.mockClear();
+      // Begin streaming bubble + dispatch a chunk while user is scrolled up.
+      act(() => {
+        store.dispatch(
+          setStreamingAssistantMessage({ id: 'streaming-1', content: 'live' }),
+        );
+      });
+      act(() => {
+        store.dispatch(appendStreamingChunk('chunk after scroll-up'));
+      });
+      // Flush any scheduled rAF.
+      await act(async () => {
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => resolve());
+        });
+      });
+      // userAtBottomRef.current was false when the effect read it, so no
+      // smooth scroll should have been issued.
+      const smoothCalls = scrollToSpy.mock.calls.filter(
+        (c) => c[0]?.behavior === 'smooth',
+      );
+      expect(smoothCalls.length).toBe(0);
+    });
+
+    it('prepending older messages (Load more) does NOT trigger auto-scroll', async () => {
+      const initial: ChatMessage[] = [
+        buildMessage({ id: 'b', role: 'user', content: 'two' }),
+        buildMessage({ id: 'c', role: 'assistant', content: 'three' }),
+      ];
+      const { rerender } = renderList({ messages: initial });
+      // Clear any initial-scroll calls before the prepend.
+      scrollToSpy.mockClear();
+      // Simulate "Load more" — older messages prepended at the front. The
+      // tail message id is unchanged (still 'c'), so no auto-scroll.
+      const withOlder: ChatMessage[] = [
+        buildMessage({ id: 'a-older', role: 'user', content: 'zero' }),
+        ...initial,
+      ];
+      rerender(
+        <ChatMessageList
+          messages={withOlder}
+          isLoading={false}
+          hasMore={false}
+          onLoadMore={() => {}}
+        />,
+      );
+      // Flush any deferred rAF the effect may have scheduled.
+      await act(async () => {
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => resolve());
+        });
+      });
+      const smoothCalls = scrollToSpy.mock.calls.filter(
+        (c) => c[0]?.behavior === 'smooth',
+      );
+      expect(smoothCalls.length).toBe(0);
     });
   });
 });
