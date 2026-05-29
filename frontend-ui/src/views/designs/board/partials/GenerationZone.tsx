@@ -1,4 +1,4 @@
-import { startTransition, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   Box,
   Button,
@@ -389,26 +389,30 @@ const GenerationZone = ({
   // the textarea responsive with a local state and push updates to the
   // parent inside a `startTransition` so React can interrupt the heavy
   // render if more keystrokes are pending.
+  // PERF — fully decouple prompt typing from DesignWorkspaceView's render.
+  //
+  // Previous attempts went through `onPromptChange` on every keystroke
+  // (with or without startTransition). The transition only deferred the
+  // re-render — it didn't eliminate it — so Konva's rAF loop continued
+  // to compete with React commits for the main thread and the textarea
+  // still felt sluggish during a typing burst.
+  //
+  // This version keeps the textarea entirely local. The parent's
+  // `prompt` is only updated on blur (when the user is done with the
+  // burst) and on programmatic external assignments (slogan insert,
+  // Builder build, image-analysis auto-fill, page hydration). The
+  // Generate button reads `localPrompt` directly, so the sync timing
+  // of `onPromptChange` doesn't matter for that path.
   const [localPrompt, setLocalPrompt] = useState(prompt);
-  // Sync external changes (slogan-insert, Builder build, image-analysis
-  // auto-fill, page hydration) into local state. Effect runs only when
-  // the parent prop changes — when the user types, our handler updates
-  // `localPrompt` urgently AND schedules `onPromptChange` in a
-  // transition, so the parent prop catches up to our local value on a
-  // later render and the equality bail-out skips the redundant sync.
-  // Intentionally NOT depending on `localPrompt` here: doing so would
-  // re-fire the effect mid-typing (parent stale, local fresh) and yank
-  // the textarea back to the stale value mid-keystroke — the bug we hit
-  // with the in-render setState pattern.
   useEffect(() => {
     setLocalPrompt((curr) => (curr === prompt ? curr : prompt));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prompt]);
   const handlePromptInputChange = (value: string) => {
     setLocalPrompt(value);
-    startTransition(() => {
-      onPromptChange(value);
-    });
+  };
+  const handlePromptBlur = () => {
+    if (localPrompt !== prompt) onPromptChange(localPrompt);
   };
 
   const handleModelChange = (e: SelectChangeEvent<unknown>) => {
@@ -635,6 +639,7 @@ const GenerationZone = ({
         fullWidth
         value={localPrompt}
         onChange={(e) => handlePromptInputChange(e.target.value)}
+        onBlur={handlePromptBlur}
         placeholder={placeholderText}
         disabled={disabled || isGenerating}
         size="small"
