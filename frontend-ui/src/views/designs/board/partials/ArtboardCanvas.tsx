@@ -194,8 +194,27 @@ const ArtboardCanvas = ({
   // -- Space key tracking for temporary pan mode --
   const [spaceHeld, setSpaceHeld] = useState(false);
   useEffect(() => {
+    // Returns true when the keystroke originated in any editable surface
+    // and pan-mode should NOT swallow it. The original guard only checked
+    // <input> and <textarea>, which let the keydown reach the contenteditable
+    // chat input as well — pan-mode then preventDefault'd it, dropping every
+    // space typed in chat while the canvas was mounted (debugged 2026-05-29).
+    const isEditableTarget = (target: EventTarget | null): boolean => {
+      if (!(target instanceof Element)) return false;
+      if (target instanceof HTMLInputElement) return true;
+      if (target instanceof HTMLTextAreaElement) return true;
+      // ContentEditable covers SmartTextarea + any other contenteditable
+      // host. `isContentEditable` walks the inheritance chain so it's true
+      // for both the editable host and any nested element.
+      if (target instanceof HTMLElement && target.isContentEditable) return true;
+      // Defensive — also bail if the event bubbled up from an editable
+      // ancestor (e.g. nested span inside the contenteditable).
+      if (target.closest('[contenteditable="true"], input, textarea')) return true;
+      return false;
+    };
+
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !e.repeat && !(e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement)) {
+      if (e.code === 'Space' && !e.repeat && !isEditableTarget(e.target)) {
         e.preventDefault();
         setSpaceHeld(true);
       }
