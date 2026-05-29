@@ -6,8 +6,8 @@ import {
   useRef,
   useState,
 } from 'react';
-import { Box, Stack } from '@mui/material';
-import { styled, alpha } from '@mui/material/styles';
+import { Box, GlobalStyles, Stack } from '@mui/material';
+import { styled, alpha, keyframes } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import { useSnackbar } from 'notistack';
 import { COLORS } from '@/style/constants';
@@ -85,6 +85,29 @@ interface ShellProps {
   appearance: 'floating' | 'panel';
 }
 
+// FIX-chat-bugfixes-and-grouping Item 7.5 — one rotation of the streaming
+// border glow arc. 2.5s per turn = calm, easy to recognise as "running"
+// without being distracting. Drives the `--mm-stream-angle` custom
+// property registered at module load below.
+const streamingBorderRotate = keyframes`
+  to { --mm-stream-angle: 360deg; }
+`;
+
+// Register the custom angle property so it can be animated. Without
+// @property the browser treats it as a static string and the
+// conic-gradient never rotates.
+const streamingPropertyGlobal = (
+  <GlobalStyles
+    styles={{
+      '@property --mm-stream-angle': {
+        syntax: "'<angle>'",
+        inherits: false,
+        initialValue: '0deg',
+      },
+    }}
+  />
+);
+
 const Shell = styled(Box, {
   shouldForwardProp: (prop) => prop !== 'appearance',
 })<ShellProps>(({ theme, appearance }) => ({
@@ -96,6 +119,8 @@ const Shell = styled(Box, {
   flexDirection: 'column',
   gap: theme.spacing(1),
   transition: 'border-color 150ms ease, background-color 150ms ease',
+  // Required for the streaming ::before overlay to anchor against this box.
+  position: 'relative',
   ...(appearance === 'floating'
     ? {
         // Vane-style dark glass. We can't use `theme.vars.palette.background.paper`
@@ -115,11 +140,45 @@ const Shell = styled(Box, {
   '&:focus-within': {
     borderColor: theme.vars.palette.primary.main,
   },
-  // Phase 7.5 — drag-over visual feedback when files are dragged over.
+  // PROJ-20 Phase 7.5 — drag-over visual feedback when files are dragged over.
   '&[data-drag-over="true"]': {
     borderColor: theme.vars.palette.primary.main,
     borderStyle: 'dashed',
     backgroundColor: alpha(theme.palette.primary.main, 0.08),
+  },
+  // FIX-chat-bugfixes-and-grouping Item 7.5 — animated "running light"
+  // border while a stream is in flight. A glow arc travels around the
+  // bar's perimeter so the running state is obvious without taking up
+  // any extra space. The bar's own border color is masked behind the
+  // conic-gradient overlay; the :focus-within outline still applies
+  // when the user clicks back into the textarea mid-stream.
+  '&[data-streaming="true"]': {
+    borderColor: 'transparent',
+  },
+  '&[data-streaming="true"]::before': {
+    content: '""',
+    position: 'absolute',
+    inset: -1,
+    borderRadius: 'inherit',
+    padding: 1,
+    background: `conic-gradient(from var(--mm-stream-angle), transparent 0deg, ${theme.vars.palette.primary.main} 80deg, transparent 160deg)`,
+    WebkitMask:
+      'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
+    WebkitMaskComposite: 'xor',
+    mask:
+      'linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0)',
+    maskComposite: 'exclude',
+    animation: `${streamingBorderRotate} 2.5s linear infinite`,
+    pointerEvents: 'none',
+  },
+  // Accessibility: respect the user's motion preference. Reduced motion
+  // falls back to a static primary-coloured border ring so the running
+  // state is still visible without the animation.
+  '@media (prefers-reduced-motion: reduce)': {
+    '&[data-streaming="true"]::before': {
+      animation: 'none',
+      background: theme.vars.palette.primary.main,
+    },
   },
 }));
 
@@ -340,10 +399,12 @@ const ChatInputBar = forwardRef<ChatInputBarHandle, ChatInputBarProps>(
 
   return (
     <Box data-testid="chat-input-bar" sx={{ width: '100%' }}>
+      {streamingPropertyGlobal}
       <Shell
         appearance={appearance}
         data-appearance={appearance}
         data-drag-over={isDragOver ? 'true' : undefined}
+        data-streaming={isStreaming ? 'true' : undefined}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
