@@ -182,6 +182,7 @@ export interface BoardLayoutNode {
   label?: string;
   width?: number;
   height?: number;
+  /** Background color — accepts hex (#RRGGBB), hex8 (#RRGGBBAA), or rgba(R,G,B,A). */
   backgroundColor?: string;
   opacity?: number;
   clipContent?: boolean;
@@ -226,7 +227,7 @@ export interface ArtboardData {
   designId: string | null;
   /** Layer opacity (0-100) */
   opacity: number;
-  /** Background color hex (e.g. '#FFFFFF') */
+  /** Background color — accepts hex (#RRGGBB), hex8 (#RRGGBBAA), or rgba(R,G,B,A). */
   backgroundColor: string;
   /** Whether content is clipped to artboard bounds */
   clipContent: boolean;

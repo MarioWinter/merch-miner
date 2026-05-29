@@ -1802,7 +1802,12 @@
       "opacity": "Op",
       "opacityLabel": "Opacity",
       "color": "Color",
-      "bgColor": "Background color",
+      "bgColor": {
+        "label": "Background color",
+        "alphaLabel": "Alpha: {{percent}}%",
+        "hexLabel": "Hex",
+        "invalidHex": "Invalid color value"
+      },
       "clipContent": "Clip Content",
       "toolsLabel": "Tools",
       "selection": "Selection",

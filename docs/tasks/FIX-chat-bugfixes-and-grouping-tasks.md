@@ -280,23 +280,23 @@
 **Commit:** `feat(canvas): rgba color picker with alpha slider for artboard background`
 **Skill:** `/frontend`
 
-- [ ] Add helper `frontend-ui/src/views/designs/board/utils/parseColorToRgba.ts` (NEW) — accepts rgba/hex6/hex8/fallback.
-- [ ] Vitest `frontend-ui/src/views/designs/board/utils/__tests__/parseColorToRgba.test.ts` (NEW) — 4 input shapes covered.
-- [ ] New component `frontend-ui/src/views/designs/board/partials/rightPanel/ArtboardColorPicker.tsx` (NEW):
-  - Swatch button (32×32) with CSS checker-pattern background + color overlay.
-  - MUI Popover with `RgbaStringColorPicker` from `react-colorful`, hex input (6 or 8 char), alpha-percent label.
-  - Hex input shake on invalid (reuse `keyframes shake` pattern from `views/publish/partials/global/BackgroundColorPicker.tsx`).
-  - Emits `rgba()` on every change.
-- [ ] Vitest `ArtboardColorPicker.test.tsx` (NEW) per AC-8-16 (swatch click opens popover, alpha slider change emits new rgba, hex input accepts/rejects formats, checker-pattern element present).
-- [ ] Replace native `<input type="color">` + TextField block in `PanelArtboardState.tsx` (lines 491-528) with `<ArtboardColorPicker />`.
-- [ ] Remove orphan `handleBgColorChange` handler (lines 227-232).
-- [ ] JSDoc on `ArtboardData.backgroundColor` (`frontend-ui/src/views/designs/board/types/index.ts:230`) updated: `/** Background color — accepts hex (#RRGGBB), hex8 (#RRGGBBAA), or rgba(R,G,B,A). */`.
-- [ ] JSDoc on `BoardLayoutNode.backgroundColor?` (`frontend-ui/src/views/designs/board/types/index.ts:185`) updated to the same shape (the AI-skeleton layout type uses the same color string).
-- [ ] **Konva renderer check — explicit file path:** `frontend-ui/src/views/designs/board/partials/ArtboardCanvas.tsx`. Grep for `backgroundColor` usage there. If a regex check rejects rgba (e.g. `^#[0-9a-fA-F]{6}$/`), relax to accept rgba and hex8. If no such check exists (Konva accepts rgba natively), no change needed.
-- [ ] Add i18n keys per AC-8-15 (EN + DE).
-- [ ] Manual visual smoke: set artboard to `rgba(0,0,0,0)` → workspace grid visible through; export PNG → open in macOS Preview → checkerboard pattern visible (= transparent alpha preserved).
-- [ ] Manual visual smoke: set artboard to `rgba(255, 90, 79, 0.5)` (half-transparent primary red) → canvas shows red tint over workspace; swatch shows half-transparent overlay over checker.
-- [ ] `npm run lint` + `npm run test:ci` green.
+- [x] Add helper `frontend-ui/src/views/designs/board/utils/parseColorToRgba.ts` (NEW) — accepts rgba/hex6/hex8/fallback. — parseColorToRgba.ts:34-67
+- [x] Vitest `frontend-ui/src/views/designs/board/utils/__tests__/parseColorToRgba.test.ts` (NEW) — 4 input shapes covered. — parseColorToRgba.test.ts:4-58 (6 cases: hex6 → rgba, hex8 alpha-from-byte, rgba pass-through with formatting, invalid fallback, case insensitivity, whitespace tolerance)
+- [x] New component `frontend-ui/src/views/designs/board/partials/rightPanel/ArtboardColorPicker.tsx` (NEW):
+  - [x] Swatch button (32×32) with CSS checker-pattern background + color overlay. — ArtboardColorPicker.tsx:35-65 (`SwatchButton` styled with conic-gradient 8×8 checker + rgba overlay via ::after pseudo-element)
+  - [x] MUI Popover with `RgbaStringColorPicker` from `react-colorful`, hex input (6 or 8 char), alpha-percent label. — ArtboardColorPicker.tsx:194-244
+  - [x] Hex input shake on invalid (reuse `keyframes shake` pattern from `views/publish/partials/global/BackgroundColorPicker.tsx`). — ArtboardColorPicker.tsx:26-34 (shake keyframes) + 67-77 (PopoverBody animation gate) + 137-145 (triggerShake) + 169-172 (commitHex shake on invalid)
+  - [x] Emits `rgba()` on every change. — ArtboardColorPicker.tsx:158-166 (picker passthrough) + 161-177 (hex commit emits parseColorToRgba result)
+- [x] Vitest `ArtboardColorPicker.test.tsx` (NEW) per AC-8-16 (swatch click opens popover, alpha slider change emits new rgba, hex input accepts/rejects formats, checker-pattern element present). — ArtboardColorPicker.test.tsx:34-96 (5 cases)
+- [x] Replace native `<input type="color">` + TextField block in `PanelArtboardState.tsx` (lines 491-528) with `<ArtboardColorPicker />`. — PanelArtboardState.tsx:485-497 (post-edit; uses `<ArtboardColorPicker value={artboard.backgroundColor} onChange={(rgba) => onUpdate(artboard.id, { backgroundColor: rgba })} />`)
+- [x] Remove orphan `handleBgColorChange` handler (lines 227-232). — PanelArtboardState.tsx: handler block removed (post-edit `handleClipToggle` is now at the same offset previously occupied by `handleBgColorChange`)
+- [x] JSDoc on `ArtboardData.backgroundColor` (`frontend-ui/src/views/designs/board/types/index.ts:230`) updated: `/** Background color — accepts hex (#RRGGBB), hex8 (#RRGGBBAA), or rgba(R,G,B,A). */`. — types/index.ts:229-230
+- [x] JSDoc on `BoardLayoutNode.backgroundColor?` (`frontend-ui/src/views/designs/board/types/index.ts:185`) updated to the same shape (the AI-skeleton layout type uses the same color string). — types/index.ts:185-186
+- [x] **Konva renderer check — explicit file path:** `frontend-ui/src/views/designs/board/partials/ArtboardCanvas.tsx`. Grep for `backgroundColor` usage there. If a regex check rejects rgba (e.g. `^#[0-9a-fA-F]{6}$/`), relax to accept rgba and hex8. If no such check exists (Konva accepts rgba natively), no change needed. — Verified: `Artboard.tsx:403` passes `data.backgroundColor` directly to Konva `<Rect fill>`; `ArtboardCanvas.tsx:372` uses `sx={{ backgroundColor: bgColor }}` for the OUTER workspace container (BackgroundColor enum, unrelated). No regex check exists anywhere. Konva accepts rgba natively. No change made.
+- [x] Add i18n keys per AC-8-15 (EN + DE). — en/translation.json:1804-1809 (bgColor nested {label, alphaLabel, hexLabel, invalidHex}); de/translation.json:1746-1751 (same shape with German values). Note: `bgColor` migrated from flat string → nested object because i18next can't host a value AND child keys at the same path; flat key only had one consumer (the input `aria-label` which moved into `bgColor.label`).
+- [ ] Manual visual smoke: set artboard to `rgba(0,0,0,0)` → workspace grid visible through; export PNG → open in macOS Preview → checkerboard pattern visible (= transparent alpha preserved). — Deferred to orchestrator manual smoke.
+- [ ] Manual visual smoke: set artboard to `rgba(255, 90, 79, 0.5)` (half-transparent primary red) → canvas shows red tint over workspace; swatch shows half-transparent overlay over checker. — Deferred to orchestrator manual smoke.
+- [x] `npm run lint` + `npm run test:ci` green. — lint 0 errors / 18 pre-existing warnings (all in untouched files: useEditorBatchState, EditorCanvas, IdeaListView, TrashView, KeywordChips, ExportPreflightDialog); test:ci 1711 testcases recorded, 0 failures, 0 errors in JUnit output (+11 new Phase 8 tests: 6 parseColorToRgba + 5 ArtboardColorPicker).
 
 ### Review checkpoint
 - [ ] All AC-8-1..AC-8-18 + EC-8-1..EC-8-8 boxes ticked.
