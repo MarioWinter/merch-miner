@@ -8,6 +8,7 @@
  * Stop icon and clicking it invokes `onStop` instead of `onSubmit`. Same
  * bounding box, no CSS transition on the icon swap (straight swap).
  */
+import { memo } from 'react';
 import { IconButton } from '@mui/material';
 import { styled } from '@mui/material/styles';
 import SendIcon from '@mui/icons-material/Send';
@@ -86,4 +87,6 @@ const SendButton = ({
   );
 };
 
-export default SendButton;
+// Memo: props are primitives + stable useCallback handlers from
+// ChatInputBar, so default shallow-compare is sufficient.
+export default memo(SendButton);

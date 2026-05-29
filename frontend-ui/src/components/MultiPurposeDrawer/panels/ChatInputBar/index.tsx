@@ -1,5 +1,6 @@
 import {
   forwardRef,
+  memo,
   useCallback,
   useImperativeHandle,
   useMemo,
@@ -388,4 +389,8 @@ const ChatInputBar = forwardRef<ChatInputBarHandle, ChatInputBarProps>(
   },
 );
 
-export default ChatInputBar;
+// Memo via React.memo on the forwardRef return. Cuts cascading re-renders
+// from ChatPanel (which polls health, niches, attachments, etc.) when none
+// of the props this bar actually depends on changed. Default shallow prop
+// comparison is enough because callers pass stable useCallback handlers.
+export default memo(ChatInputBar);

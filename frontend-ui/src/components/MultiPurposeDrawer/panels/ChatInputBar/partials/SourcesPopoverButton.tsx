@@ -15,7 +15,7 @@
  * The badge dot appears when the current sources state differs from the
  * default `['web']`.
  */
-import { useMemo, useState, type ComponentType, type MouseEvent } from 'react';
+import { memo, useMemo, useState, type ComponentType, type MouseEvent } from 'react';
 import {
   Badge,
   Box,
@@ -184,4 +184,5 @@ const SourcesPopoverButton = () => {
   );
 };
 
-export default SourcesPopoverButton;
+// Memo: no props, reads Redux only.
+export default memo(SourcesPopoverButton);

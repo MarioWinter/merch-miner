@@ -14,7 +14,7 @@
  *   - Chat  → secondary (#00C8D7 cyan, "Vane Intelligence" vibe)
  *   - Agent → primary (#FF5A4F red)
  */
-import { useState, type ComponentType, type MouseEvent } from 'react';
+import { memo, useState, type ComponentType, type MouseEvent } from 'react';
 import {
   Box,
   ButtonBase,
@@ -292,4 +292,7 @@ const ModePopoverButton = () => {
   );
 };
 
-export default ModePopoverButton;
+// Memo: this component has no props and reads everything from Redux
+// selectors (incl. useSearchHealth). React.memo cuts cascading re-renders
+// from the parent ChatInputBar/ChatPanel tree on every health-check poll.
+export default memo(ModePopoverButton);

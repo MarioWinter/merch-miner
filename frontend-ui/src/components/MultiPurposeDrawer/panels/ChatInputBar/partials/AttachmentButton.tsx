@@ -1,7 +1,7 @@
 /**
  * PROJ-20 Phase 7.5 — opens a hidden <input type=file> for image attachments.
  */
-import { useRef } from 'react';
+import { memo, useRef } from 'react';
 import { IconButton, Tooltip } from '@mui/material';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import { useTranslation } from 'react-i18next';
@@ -50,4 +50,5 @@ const AttachmentButton = () => {
   );
 };
 
-export default AttachmentButton;
+// Memo: no props, reads Redux only.
+export default memo(AttachmentButton);

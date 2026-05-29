@@ -6,7 +6,7 @@
  * trailing checkmark; clicking a row dispatches `setSelectedModel` and
  * closes the popover.
  */
-import { useMemo, useState, type MouseEvent } from 'react';
+import { memo, useMemo, useState, type MouseEvent } from 'react';
 import {
   Box,
   IconButton,
@@ -237,4 +237,5 @@ const ModelPopoverButton = () => {
   );
 };
 
-export default ModelPopoverButton;
+// Memo: no props, reads Redux only.
+export default memo(ModelPopoverButton);

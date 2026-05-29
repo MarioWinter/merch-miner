@@ -121,7 +121,15 @@ const ChatPanel = () => {
   const activeWorkspaceId = useAppSelector(
     (s) => s.workspace?.activeWorkspaceId ?? null,
   );
+  // We still subscribe so the value is fresh, but we ALSO mirror into a ref
+  // so `handleSubmit` can read the latest value without listing `vaneOnline`
+  // in its useCallback deps — listing it there would re-create the callback
+  // on every health-check poll and bust React.memo on ChatInputBar.
   const { vaneOnline } = useSearchHealth();
+  const vaneOnlineRef = useRef(vaneOnline);
+  useEffect(() => {
+    vaneOnlineRef.current = vaneOnline;
+  }, [vaneOnline]);
 
   const inputRef = useRef<ChatInputBarHandle>(null);
   const [modal, setModal] = useState<ModalState>(INITIAL_MODAL);
@@ -216,7 +224,7 @@ const ChatPanel = () => {
         session?.niche_context_id == null &&
         modeOverride !== 'agent';
       if (!trimmed || searching || isStreaming) return;
-      if (needsVane && !vaneOnline) return;
+      if (needsVane && !vaneOnlineRef.current) return;
 
       dispatch(setSearching(true));
       inputRef.current?.clear();
@@ -272,7 +280,6 @@ const ChatPanel = () => {
     },
     [
       searching,
-      vaneOnline,
       isStreaming,
       activeSessionId,
       selectedModel,

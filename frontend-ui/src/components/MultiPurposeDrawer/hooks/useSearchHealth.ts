@@ -1,8 +1,17 @@
 import { useHealthCheckQuery } from '@/store/searchSlice';
 
-// Adaptive polling: 60s when healthy, 5s when offline (faster recovery feedback).
+// Adaptive polling: 60s when healthy, 30s when offline. We used to poll at
+// 5s when offline for snappy recovery feedback, but that turned out to be a
+// significant per-render driver across every subscriber (ModePopoverButton,
+// ChatPanel) — each poll dispatches pending+fulfilled Redux actions, every
+// useAppSelector reruns, and ChatInputBar's tree (~12 components) recommits.
+// When the chat drawer is open alongside the Konva designs canvas the
+// combined RAF + commit pressure surfaces as typing lag in the contenteditable.
+// 30s offline is still fast enough that a recovered Vane gets noticed within
+// half a minute without paying the per-keystroke price the whole time it's
+// down.
 const POLL_INTERVAL_HEALTHY_MS = 60_000;
-const POLL_INTERVAL_OFFLINE_MS = 5_000;
+const POLL_INTERVAL_OFFLINE_MS = 30_000;
 
 export const useSearchHealth = () => {
   // Bootstrap query without polling so we have data to drive the polling interval.
