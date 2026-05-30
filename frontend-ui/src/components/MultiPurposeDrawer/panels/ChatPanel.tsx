@@ -172,8 +172,11 @@ const ChatPanel = () => {
   }, [activeWorkspaceId, activeSessionId, sessionError, dispatch]);
 
   const [createSession] = useCreateSessionMutation();
-  const { insert: optimisticInsert, rollback: optimisticRollback } =
-    useOptimisticChatMessage();
+  const {
+    insert: optimisticInsert,
+    rollback: optimisticRollback,
+    clearAllTemp: optimisticClearAllTemp,
+  } = useOptimisticChatMessage();
   const [shareSession] = useShareSessionMutation();
   const [unshareSession] = useUnshareSessionMutation();
   const [saveSnippet] = useSaveSnippetToNicheMutation();
@@ -184,12 +187,18 @@ const ChatPanel = () => {
       dispatch(setSearching(false));
       // Phase 7 — release attachments after the message persisted.
       dispatch(clearAttachments());
+      // FIX 2026-05-30 — drop any lingering temp_* user bubble so the
+      // server-persisted one doesn't render alongside it. The SSE done
+      // handler invalidates the getSession cache, but the inserted
+      // updateQueryData patch can outlive the refetch in some cases.
+      if (activeSessionId) optimisticClearAllTemp(activeSessionId);
     },
     // Mirror the onDone reset on Vane 500 / connection-loss / silence-timeout
     // so the panel doesn't stay locked at `searching = true`.
     onError: () => {
       dispatch(setSearching(false));
       dispatch(clearAttachments());
+      if (activeSessionId) optimisticClearAllTemp(activeSessionId);
     },
   });
   // Phase 7 — pull completed attachment ids at submit-time so they ride along
