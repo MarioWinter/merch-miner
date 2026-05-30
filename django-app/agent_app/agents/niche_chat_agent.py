@@ -57,7 +57,12 @@ logger = logging.getLogger(__name__)
 AGENT_TYPE = 'niche_chat'
 
 # AC-Ops-LG-2 — hard 30s wall-clock cap per tool call.
-TOOL_TIMEOUT_SECONDS = 30
+TOOL_TIMEOUT_SECONDS = 90  # bumped 2026-05-30 from 30s — Vane research-mode
+# in speed mode with ScraperOps render_js=true regularly takes 30-60s for
+# multi-query web searches. 30s was firing tool_timeout warnings while the
+# LLM still produced an answer (from RAG context), giving the user a
+# confusing "Suche abgebrochen + Antwort"-dual-signal. 90s gives Vane
+# enough headroom without being unboundedly slow.
 
 # AC-Ops-LG-1 — LangGraph recursion kill-switch.
 RECURSION_LIMIT = 10
