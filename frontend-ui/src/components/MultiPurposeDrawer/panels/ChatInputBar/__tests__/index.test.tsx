@@ -122,4 +122,59 @@ describe('ChatInputBar (Phase 3.1 scaffold)', () => {
     const sendBtn = screen.getByTestId('chat-input-send-button');
     expect(sendBtn).toBeDisabled();
   });
+
+  // FIX chat — streaming border overlay (Task #37).
+  describe('streaming border', () => {
+    const preloadedStreaming = (isStreaming: boolean) => ({
+      chatBar: {
+        drawerOpen: false,
+        drawerWidth: 480,
+        drawerLayout: 'overlap',
+        activePanel: 'chat',
+        activeSessionId: null,
+        activeAgentSessionId: null,
+        inputChip: null,
+        activeNicheId: null,
+        nicheMode: 'edit',
+        searching: false,
+        searchSources: ['web'],
+        selectedModel: 'openai/gpt-4.1-mini',
+        modeOverride: 'chat',
+        streamingAssistantMessage: {
+          id: null,
+          content: '',
+          sources: [],
+          isStreaming,
+        },
+        recentChatsOverlayOpen: false,
+        streamingStages: [],
+        chunksUsed: [],
+        followUps: [],
+        streamStartedAt: null,
+        flashCitation: null,
+        streamingSloganPayload: null,
+        completedSloganPayload: null,
+      },
+      attachments: { uploads: [] },
+    });
+
+    it('overlay node is present but inactive when not streaming', () => {
+      renderWithProviders(<ChatInputBar appearance="panel" />, {
+        reducers,
+        preloadedState: preloadedStreaming(false),
+      });
+      const overlay = screen.getByTestId('chat-input-streaming-border');
+      expect(overlay).toBeInTheDocument();
+      expect(overlay.getAttribute('data-active')).toBe('false');
+    });
+
+    it('overlay flips to active when isStreaming is true', () => {
+      renderWithProviders(<ChatInputBar appearance="panel" />, {
+        reducers,
+        preloadedState: preloadedStreaming(true),
+      });
+      const overlay = screen.getByTestId('chat-input-streaming-border');
+      expect(overlay.getAttribute('data-active')).toBe('true');
+    });
+  });
 });

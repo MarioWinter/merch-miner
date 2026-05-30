@@ -19,6 +19,7 @@ import AttachmentButton from './partials/AttachmentButton';
 import AttachmentBar from './partials/AttachmentBar';
 import SendButton from './partials/SendButton';
 import HelperHint from './partials/HelperHint';
+import StreamingBorder from './partials/StreamingBorder';
 import SmartTextarea, {
   type SmartTextareaHandle,
   type SmartTextareaValue,
@@ -97,6 +98,10 @@ const Shell = styled(Box, {
   flexDirection: 'column',
   gap: theme.spacing(1),
   transition: 'border-color 150ms ease, background-color 150ms ease',
+  // Required so the absolutely-positioned <StreamingBorder /> overlay anchors
+  // to the Shell. We deliberately do NOT add overflow:hidden / clip-path here
+  // — those broke contenteditable typing in earlier attempts (see partial).
+  position: 'relative',
   ...(appearance === 'floating'
     ? {
         // Vane-style dark glass. We can't use `theme.vars.palette.background.paper`
@@ -379,6 +384,7 @@ const ChatInputBar = forwardRef<ChatInputBarHandle, ChatInputBarProps>(
             </Box>
           </Stack>
         </ActionBar>
+        <StreamingBorder active={isStreaming} />
       </Shell>
       <HelperHint />
       <MentionPicker {...pickerProps} />
