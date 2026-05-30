@@ -665,7 +665,10 @@ class TestSSEStreamNicheContext:
         mock_vane_cls.return_value = mock_vane
 
         resp = api_client.get(
-            f'/api/chat/sessions/{sess.id}/messages/stream/?content=trends',
+            # Per-message routing: pass niche_id explicitly so the request
+            # carries the chip equivalent.
+            f'/api/chat/sessions/{sess.id}/messages/stream/?content=trends'
+            f'&niche_id={niche.id}',
             **_headers(workspace),
         )
         b''.join(resp.streaming_content)
