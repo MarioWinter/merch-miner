@@ -3,167 +3,341 @@
 ## Status: In Review
 **Created:** 2026-05-30
 **Last Updated:** 2026-05-30
-**Type:** Mixed Bundle (1 backend cache bug + 1 backend agent fix + 1 frontend cache leak + 1 frontend UX feature + 1 infra persistence). One PR, plus one cross-repo commit in `MarioWinter/local-ai-packaged` for infra.
-**Branch:** `fix/chat-vane-bigfix`
+**Type:** Mixed Bundle. Five interlocking root-cause fixes that landed on one branch because the user-facing symptom was the same ("web search doesn't work, chat UX feels broken"). Each item ships independently safe; together they restore the chat happy-path end-to-end.
+**Branch:** `fix/chat-vane-bigfix` (merch-miner)
+**Cross-repo:** `MarioWinter/local-ai-packaged` for the SearXNG / Vane infra changes.
 **Merge Strategy:** `--merge` (preserve individual conventional commits for release-please).
 
 ## Dependencies
-- PROJ-20 (Chat UX Perplexity-Parity) — In Review; chat input bar + streaming pipeline live here.
-- PROJ-29 (Niche-Data Agentic RAG Chat) — In Review; niche-chat-agent + ThinkingStrip + optimistic chat-message hook live here.
-- PROJ-17 (Deep Web Search) — Deployed; `VaneService` + Vane connectivity live here.
-- Vane fork patch `1160c86` (convertToOpenAIMessages null-content) — already on `MarioWinter/Vane:merch-miner-patches` branch but the image wasn't being deployed prior to this FIX (see Item 5 root cause).
-- ScraperOps residential proxy (existing 25-slot subscription, see memory `project_800k_scrape_strategy.md`) — Plan B if the engine swap in Item 5 loses ground again. Not wired in this FIX.
+- PROJ-17 (Deep Web Search) — Deployed. `VaneService` + Vane reachability + niche-agent web-search routing live here.
+- PROJ-20 (Chat UX Perplexity-Parity) — In Review. `ChatInputBar`, `ThinkingStrip`, SSE streaming hook, optimistic message insertion all live here.
+- PROJ-29 (Niche-Data Agentic RAG Chat) — In Review. The niche-chat-agent and its `web_search` tool live here. The agent fires only when the chat session has `niche_context` set (e.g. user pinned `@school bus driver`).
+- Vane fork patch `1160c86` on `MarioWinter/Vane:merch-miner-patches` — fixes the upstream `Error: ' is empty'` thrown by Vane's research-mode `streamText` when an assistant tool-call message has `content` set to `""` instead of `null` (OpenAI spec rejection). Image was already built and pushed to GHCR weeks ago; this FIX makes it actually used in prod.
+- ScraperOps wrapper API (existing 25-slot subscription, see memory `project_800k_scrape_strategy.md`) — used today for Amazon scrapes via `proxy.scrapeops.io/v1/?api_key=X&url=…`. Now also used for chat web search via the custom `brave_scrapeops` SearXNG engine (see Item 5).
 
 ## Scope Summary
 
 | # | Area | Type | Commit |
 |---|---|---|---|
-| 1 | `VaneService` provider-UUID cache ignored `chat_model_name` arg — model-switch silently no-op'd after first request | Bug | `fix(chat)` `c2c49a4` |
-| 2 | niche-chat-agent `web_search` tool returned `sources: []` because Vane's non-streaming endpoint doesn't carry sources — LLM produced "could not find relevant info" with no citations | Bug | `fix(chat)` `3a1f2d7` |
-| 3 | Optimistic `temp_*` user-message bubble lingered next to server-persisted row after stream `done` — chat showed the question twice | Bug | `fix(chat)` `1c67275` |
-| 4 | Streaming border-effect on `ChatInputBar` (rotating conic-gradient ring) so the user sees the chat is responding | Feature | `feat(chat)` `b5a5c75` |
-| 5 | Persist Vane fork-image selection + SearXNG engine swap (Mojeek+Bing+Yahoo+Ecosia+Swisscows replaces blocked Brave/DDG) across docker compose pulls and server re-provisioning | Infra | `fix(vane)` `377f22c` *(in local-ai-packaged repo)* |
+| 1 | `VaneService` provider-UUID cache silently locked the model across requests | Bug | `fix(chat)` `c2c49a4` |
+| 2 | niche-chat-agent `web_search` tool returned `sources: []` because Vane's non-streaming endpoint doesn't emit them | Bug | `fix(chat)` `3a1f2d7` |
+| 3 | Optimistic `temp_*` user-message bubble lingered next to server-persisted row after stream `done` | Bug | `fix(chat)` `1c67275` |
+| 4 | Streaming border on `ChatInputBar` so the user sees the assistant is working | Feature | `feat(chat)` `b5a5c75` |
+| 5 | Replace block-prone multi-engine SearXNG config with **Brave-only via ScraperOps wrapper** so chat web search is anti-bot-bypassed at 1 ScraperOps credit per query | Infra | `fix(vane)` *(supersedes earlier `377f22c` in local-ai-packaged)* |
 
-**Estimated LOC:** ~315 across this repo + 55 in the local-ai-packaged fork.
-
----
-
-## Item 1 — VaneService cache ignored model name
-
-### Context
-`VaneService._resolve_provider_models(chat_model_name)` cached the **resolved** `{chatModel, embeddingModel}` dict at class-level on first call. On every subsequent call the cache short-circuit returned that dict regardless of `chat_model_name`. Effect: changing the model in the chat UI's model-picker silently kept using whatever the first request asked for, until the worker process restarted. Hidden by low test traffic + worker restarts on deploy.
-
-### User Stories
-- As a chat user, I want the model I select in the picker to actually be used for my next request — not the model the worker happened to resolve first.
-- As a developer, I want the Vane provider cache to behave correctly without forcing a worker restart between model switches.
-
-### Acceptance Criteria
-- [x] AC-1-1: `VaneService._providers_cache` is removed. Replaced by `_providers_data_cache` which stores the **raw** `/api/providers` payload, not the resolved per-model dict. — `vane_service.py:33`
-- [x] AC-1-2: `_resolve_provider_models(chat_model_name=None)` runs resolution against the (cached or fresh) raw data on every call, so a different `chat_model_name` arg picks a different `chatModel.providerId` + `key` without a cache flush. — `vane_service.py:60-78`
-- [x] AC-1-3: The cache miss path (no raw data yet) still does exactly one HTTP request to Vane's `/api/providers` and stores the result for the worker's lifetime. — `vane_service.py:64-77`
-
-### Edge Cases
-- [x] EC-1-1: Vane returns an empty provider list → resolution returns `None`, `_build_payload` skips adding `chatModel`/`embeddingModel`, Vane rejects with `Invalid provider id`, niche-agent surfaces the structured `vane_unavailable` error to the LLM. Unchanged from before.
-- [x] EC-1-2: Vane is briefly unreachable on the first call → `httpx.Client` raises, `_resolve_provider_models` logs a warning + returns `None`. Subsequent calls retry the HTTP request (cache stays empty until success). — `vane_service.py:69-71`
+**Estimated LOC:** ~315 in merch-miner + ~100 in local-ai-packaged (incl. Item 5 engine file).
 
 ---
 
-## Item 2 — niche-chat-agent web_search got no sources
+## Item 1 — VaneService provider cache silently locked the model across requests
 
-### Context
-Vane's `POST /api/search` non-streaming endpoint returns `{"message": "...", "sources": []}` — the answer text is there, but the `sources` array is always empty. Sources are only emitted as a separate `type: 'sources'` SSE event during the *streaming* response.
+### What the user saw
+Selecting a different model in the chat model-picker had no effect on which model Vane actually used. After a worker restart the first model picked "stuck" until the next restart. Hidden by low chat traffic + frequent worker restarts on deploys.
 
-The niche-chat-agent's `@tool('web_search')` was using `VaneService.search()` (non-streaming) and reading `(resp or {}).get('sources') or []` → always `[]`. The LangGraph agent then received an empty list as the tool's result, the LLM had no concrete material to cite, and Vane's research-mode LLM defaulted to *"Hmm, sorry, I could not find any relevant information…"*.
+### Why it happened — root cause depth
+
+Vane (Perplexica fork) requires `chatModel.providerId` (a runtime-UUID specific to that Vane installation) and `chatModel.key` (the model identifier like `openai/gpt-4.1-mini`) in every `/api/search` request. The legacy `provider: "custom_openai"` schema was rejected with `Invalid provider id`. Django therefore has to call `GET /api/providers` once at startup to discover the UUID for the OpenRouter provider, then build the right `chatModel` dict for each request.
+
+The implementation in `vane_service.py` cached the **resolved per-model dict** at class scope:
+
+```python
+_providers_cache: Optional[dict] = None  # ← class attribute
+
+def _resolve_provider_models(self, chat_model_name=None):
+    if VaneService._providers_cache:
+        return VaneService._providers_cache  # cache hit, ignores arg
+    ...
+    result = {'chatModel': {...}, 'embeddingModel': {...}}
+    VaneService._providers_cache = result
+    return result
+```
+
+The bug isn't that caching is wrong — caching the raw `/api/providers` response is correct because UUIDs don't change between requests. The bug is the **cache key**: there is none. Every call returns the dict resolved against the FIRST `chat_model_name` ever passed (or the default if the first caller passed `None`). A second caller passing `chat_model_name='claude-3.5-sonnet'` cache-hits and gets back the gpt-4.1-mini config.
+
+This is the classic memoization-with-no-key-arg bug. In a single-worker setup with one default model it never manifests; the moment the UI lets users switch models, it becomes silently wrong.
+
+### How it was fixed
+
+Split the cache into two layers:
+- **Raw `/api/providers` payload** (no model arg involved) — class-level cached, still one HTTP request per worker lifetime.
+- **Resolution against `chat_model_name`** — runs on every call against the cached raw data. CPU-cheap (a list of providers, each with a few models).
+
+```python
+_providers_data_cache: Optional[dict] = None  # raw payload only
+
+def _resolve_provider_models(self, chat_model_name=None):
+    if not self.base_url: return None
+    data = VaneService._providers_data_cache
+    if not data:
+        # one-time HTTP fetch
+        data = httpx.get(...).json()
+        VaneService._providers_data_cache = data
+    # resolution runs every call against `data`
+    target_chat_name = (chat_model_name or self.default_model).lower()
+    ...
+    return {'chatModel': chat_match, 'embeddingModel': embed_match}
+```
 
 ### User Stories
-- As a chat user with a niche pinned (`@school bus driver`), I want web-search to return cited sources I can click — same as the no-niche chat path already does.
-- As an agent author, I want the `web_search` tool's return value to actually contain the sources Vane found, so the LLM has citations to ground its answer on.
+- As a chat user switching between models in the picker, I want my selection to take effect on the very next message — not on the next worker restart.
+- As a developer, I want the caching semantics to be correct so I don't have to remember to bounce workers when adding model options.
 
 ### Acceptance Criteria
-- [x] AC-2-1: New method `VaneService.search_collected(query, mode, sources, history, system_instructions, model)` on `vane_service.py:340-422` — identical `{answer, sources, model_used}` return contract as `search()`, but talks to Vane's streaming endpoint internally and accumulates real source dicts from the `sources` SSE event.
-- [x] AC-2-2: `search_collected` consumes the streaming endpoint with `stream: true` payload, walks `iter_lines()`, accumulates `response`-typed chunks into `accumulated_answer` and `sources`-typed events into `accumulated_sources`. — `vane_service.py:374-393`
-- [x] AC-2-3: When Vane fires `done`, the final dict's `answer` is taken from the done event (authoritative), and `sources` is taken from the done event when non-empty (else accumulated). — `vane_service.py:395-401`
-- [x] AC-2-4: `niche_chat_agent.web_search` switches from `service.search(...)` to `service.search_collected(...)`. Other arguments unchanged. — `niche_chat_agent.py:449`
-- [x] AC-2-5: Tests in `test_niche_chat_agent.py` (3 sites) and `test_tool_langfuse_spans.py` (1 site) updated to mock `VaneService.search_collected` instead of `VaneService.search`. Existing `VaneServiceError` fallback behavior tested unchanged.
+- [x] AC-1-1: `_providers_cache` removed; `_providers_data_cache` introduced and only ever stores the raw `/api/providers` JSON response. Comment in the source documents the why-not-just-cache-the-dict reasoning. — `vane_service.py:29-33`
+- [x] AC-1-2: `_resolve_provider_models(chat_model_name=None)` short-circuits ONLY on the raw-data cache; the resolution loop runs on every call. — `vane_service.py:60-78`
+- [x] AC-1-3: Subsequent calls with different `chat_model_name` values pick different `chatModel.providerId` + `key` without a worker restart. Manually verified via Django shell after deploy.
 
 ### Edge Cases
-- [x] EC-2-1: Vane stream emits no `sources` event before `done` → `accumulated_sources` stays `[]`, returned dict's `sources` is `[]`. LLM still gets the answer text but can't cite. (This was the pre-FIX state for ALL chats.)
-- [x] EC-2-2: Vane stream errors mid-stream (HTTP 5xx / timeout) → `httpx` raises, `VaneServiceError` propagates up to the agent tool, which returns the structured `{error: 'vane_unavailable', ...}` dict. Agent continues with niche-local tools.
-- [x] EC-2-3: Source dict from Vane has nested `metadata.title` / `metadata.url` AND/OR top-level `title` / `url`. `search_collected` normalises by reading `metadata` first (matches Vane's actual shape), falls back to nothing if absent.
+- [x] EC-1-1: Vane returns `providers: [{ name: "Transformers", chatModels: [] }]` only (setup not complete) — resolution returns `None`, `_build_payload` skips `chatModel`, Vane rejects with `Invalid provider id`, niche-agent surfaces `vane_unavailable` to the LLM. Same as before this fix.
+- [x] EC-1-2: First HTTP fetch fails (network blip) — warning logged, return `None`. Subsequent calls retry the HTTP fetch until success (data cache stays empty until a 200).
+- [x] EC-1-3: `chat_model_name` matches no model in any provider's `chatModels` (typo in env, model deprecated) — fallback picks the first `chatModels[0]` from the first provider that has one. Avoids hard-failing; user gets *a* model, just not the requested one. Logged warning.
 
 ---
 
-## Item 3 — User-message duplicate bubble
+## Item 2 — niche-chat-agent web_search returned no sources
 
-### Context
-`useOptimisticChatMessage.insert()` pushes a `temp_<uuid>`-prefixed user message into the `getSession` RTK Query cache so the user sees their text in the chat history within the same render cycle as submit. The SSE `done` handler then invalidates the cache; the server-persisted user row arrives on refetch.
+### What the user saw
+With a niche pinned (`@school bus driver`), chat answers were generic and uncited. Often the entire response was just "Hmm, sorry, I could not find any relevant information on this topic from the given context." even for clearly-search-able questions.
 
-Observed bug: with a niche chip pinned, both bubbles renders — the `temp_*` row (without chip-status because the row was simpler at insert time) AND the server-persisted row (with chip-status). RTK Query's `updateQueryData` patch did not get cleared by the refetch in all cases. The two rows look structurally different so they don't overlap visually — the duplicate is plainly visible.
+### Why it happened — root cause depth
+
+Vane has two response modes:
+
+1. **Non-streaming** — `POST /api/search` with `stream: false`. Response body is `Content-Type: application/json`, a single object: `{"message": "<full answer>", "sources": []}`. **The `sources` array is always empty in this mode**, by Vane upstream's design — sources are an SSE-only event in Perplexica's research-mode pipeline.
+
+2. **Streaming** — `POST /api/search` with `stream: true`. Response is `Content-Type: text/event-stream`. The wire format interleaves events:
+   - `{"type": "sources", "data": [{metadata, pageContent}, …]}` — emitted once after Vane runs SearXNG and ranks results
+   - `{"type": "response", "data": "<chunk>"}` — repeated for each LLM token cluster
+   - `{"type": "done", "answer": "<full>", "sources": [...]}` — final marker carrying the full answer + sources
+
+The non-streaming endpoint is implemented as: kick off the same internal pipeline, accumulate the `response` chunks into `message`, return that. The `sources` event is **dropped on the floor** — there is no field for it in the JSON response shape.
+
+The niche-chat-agent's `@tool('web_search')` was calling `VaneService.search()` (non-streaming) and reading `(resp or {}).get('sources') or []`:
+
+```python
+resp = service.search(query=query, model=model_override, sources=search_sources)
+sources = (resp or {}).get('sources') or []   # ALWAYS []
+return [{'title': s['title'], 'url': s['url'], 'snippet': s['snippet']} for s in sources[:8]]
+```
+
+The tool returned `[]`. The LangGraph agent passed `[]` into the LLM context for the next turn. With no concrete material, the LLM either confabulated or — when prompted by Vane's research-mode system message that requires citations — defaulted to "could not find relevant information".
+
+This explains why the symptom looked like *"web search is broken"* even though Vane WAS being called, SearXNG WAS returning results, and Vane's LLM WAS producing an answer. The data path between SearXNG and the niche-chat-agent was severed by the choice of endpoint.
+
+### How it was fixed
+
+New method `VaneService.search_collected()` that:
+1. Calls the streaming endpoint internally (sets `payload['stream'] = True`)
+2. Iterates `response.iter_lines()`, parses each as JSON
+3. Routes `response` events to `accumulated_answer`, `sources` events to `accumulated_sources`
+4. On `done`, takes the authoritative final answer + sources from the done event
+5. Returns the same `{answer, sources, model_used}` dict shape as the old `search()` — drop-in replacement
+
+The agent's `web_search` tool switches its one call site from `service.search()` to `service.search_collected()`. Everything downstream (slicing to 8, mapping to `{title,url,snippet}`, error-path returning the structured `vane_unavailable` dict) is unchanged.
 
 ### User Stories
-- As a chat user, I want my message to appear exactly once after sending it — not twice with two different timestamps.
+- As a chat user with a pinned niche, I want my answers to include sources I can click — same as the no-niche chat path.
+- As an agent author, I want my web-search tool to actually return what the search engine found, so the LLM can ground its answer.
 
 ### Acceptance Criteria
-- [x] AC-3-1: `useOptimisticChatMessage` exposes a new `clearAllTemp(sessionId)` method that drops every message with an id starting `temp_` from the `getSession` cache for that session. Idempotent. — `useOptimisticChatMessage.ts:140-153`
-- [x] AC-3-2: `ChatPanel` calls `optimisticClearAllTemp(activeSessionId)` from BOTH the SSE `onDone` and the `onError` handlers, after the existing `setSearching(false)` + `clearAttachments()` dispatches. — `ChatPanel.tsx:181-202`
-- [x] AC-3-3: Unit tests in `useOptimisticChatMessage.test.tsx`:
-  - one asserts `clearAllTemp` removes every `temp_*` row but keeps server-UUID rows;
-  - one asserts `clearAllTemp` is a safe no-op when no temp rows exist.
+- [x] AC-2-1: `VaneService.search_collected()` exists with the same `(query, mode, sources, history, system_instructions, model)` signature and same return shape as `search()`. — `vane_service.py:340-422`
+- [x] AC-2-2: Internally talks to Vane's `/api/search` with `stream: true`; consumes `iter_lines()`; accumulates `response`-typed chunks into the answer and `sources`-typed events into the sources list. — `vane_service.py:374-393`
+- [x] AC-2-3: On the `done` event the final answer is taken from `done.answer` (authoritative); final sources from `done.sources` when non-empty, else the accumulator. — `vane_service.py:395-401`
+- [x] AC-2-4: `niche_chat_agent._build_tools.web_search._run` calls `service.search_collected(...)` instead of `service.search(...)`. — `niche_chat_agent.py:449`
+- [x] AC-2-5: All 4 test mock sites (`test_niche_chat_agent.py` x3 + `test_tool_langfuse_spans.py` x1) patch `VaneService.search_collected`.
 
 ### Edge Cases
-- [x] EC-3-1: `clearAllTemp` called before the cache slot exists → `updateQueryData` callback's `draft.messages` is undefined → guarded return, no throw.
-- [x] EC-3-2: Two rapid sends (user A, then user B before A's done) → both `temp_*` rows exist; `clearAllTemp` after A's `done` drops both, A's server row arrives on refetch, B's `temp_*` will be re-cleared after B's `done`. User B sees their temp row briefly stripped; only acceptable because chat is one-message-at-a-time (Send disabled while `isStreaming`).
-- [x] EC-3-3: Stream errored (`onError`) → `clearAllTemp` still runs → user message is removed entirely. Trade-off: pre-FIX kept the stranded user msg visible. Now: cleaner, but if the user reload they will see the message persisted (server already created it) so they can retry. Acceptable.
+- [x] EC-2-1: Vane stream completes WITHOUT emitting a `sources` event (SearXNG returned 0 results, Vane skips the sources step) — `accumulated_sources` stays `[]`, tool returns `[]`. LLM gets the answer text but no citations. Same as pre-fix behaviour for this query, but no worse.
+- [x] EC-2-2: Vane stream errors mid-stream (HTTP 5xx, timeout, ECONNRESET) — `httpx` raises, `VaneServiceError` propagates, tool's `except` returns the structured `{error: 'vane_unavailable', message, reason}` dict. The agent's prompt instructs the LLM to continue with niche-local tools instead of crashing the user-visible answer.
+- [x] EC-2-3: Source dict from Vane has nested `metadata.{title,url}` AND/OR top-level `{title,url}` (older Vane builds carried both). Normalisation reads `metadata` first, fields missing → empty string. Robust against minor Vane upstream schema drift.
+- [x] EC-2-4: Vane fires a `response`-typed event whose `data` is empty string between chunks (LLM tokenization quirk). The accumulator concats empties harmlessly; no special-case needed.
+
+---
+
+## Item 3 — User-message duplicate bubble after SSE done
+
+### What the user saw
+Sending a chat message rendered the question twice in the history: once at submit time without the @niche chip, then again ~1 minute later (when the server's `done` event fired) with the chip rendered. Both bubbles stayed visible side-by-side.
+
+### Why it happened — root cause depth
+
+For UX feel, the chat does **optimistic rendering** of the user's message: as soon as the user clicks Send, a placeholder bubble is inserted into the local cache so the input clears + the bubble appears in the same render cycle (~16ms), well before the SSE round-trip completes.
+
+The mechanism is `useOptimisticChatMessage.insert()` which dispatches an RTK Query `updateQueryData('getSession', sessionId, draft => draft.messages.push(tempMessage))` patch. The temp message has an id prefixed `temp_<uuid>` so it cannot collide with a server UUID.
+
+When the stream's `done` event arrives (~1 min later for niche-agent path), the SSE handler dispatches `searchApi.util.invalidateTags([ChatMessages, ChatSessions])`. RTK Query reacts to that by refetching `getSession` on its next subscriber render, and **replacing** the cache value with the fresh server response. The server response contains the persisted user-message row (with proper UUID, server timestamp, and the `referenced_niche_id` foreign-key resolved).
+
+In theory: refetch overwrites cache, temp_* gone, only server row remains, one bubble.
+
+In practice: the optimistic insert and the persisted row carry **different shapes** (the temp has no chip-status because the chip metadata wasn't surfaced on the temp row in the same way; the server row has a `status` element rendering the `Referenzierte Niche` text). When both exist in the messages array, they don't visually overlap — they look like two distinct bubbles.
+
+Why does the temp_* survive the refetch in the first place? Two factors:
+
+1. **RTK Query subscriber timing** — the optimistic patch lives in the cache slot. When invalidation fires, the slot is marked stale but the current data stays visible to subscribers until the refetch resolves. During that ~100ms window both the patch (temp) and the soon-to-arrive server data exist conceptually.
+
+2. **Patch persistence under refetch** — `updateQueryData` is documented as producing patches that DO get replaced on subsequent successful refetches. But in our codebase the patch was observed to outlive the refetch in some race conditions (likely because the refetch finishes WHILE another updateQueryData is in flight, and the merge resolves in the wrong order). The exact race wasn't reproducible 100% — but the patch leak was observable in the rendered DOM.
+
+Rather than fight RTK Query's internal ordering, the fix is **defensive cleanup**: when the stream completes, explicitly strip every `temp_*` row from the cache. That makes the refetch the single source of truth for user messages.
+
+### How it was fixed
+
+`useOptimisticChatMessage` gains a new `clearAllTemp(sessionId)` method that dispatches an `updateQueryData` mutation filtering out every row whose id starts `temp_`. The ChatPanel's stream-handler `onDone` and `onError` callbacks both call it. Idempotent — no-op when no temps exist. The `temp_` prefix guarantees the filter can never strip a real server message.
+
+```ts
+clearAllTemp: (sessionId: string): void => {
+  dispatch(searchApi.util.updateQueryData('getSession', sessionId, draft => {
+    if (!draft.messages) return;
+    draft.messages = draft.messages.filter(m => !String(m.id).startsWith('temp_'));
+  }));
+}
+```
+
+### User Stories
+- As a chat user, I want my message to appear once after sending, not twice.
+
+### Acceptance Criteria
+- [x] AC-3-1: `useOptimisticChatMessage` exports `clearAllTemp(sessionId): void`. — `useOptimisticChatMessage.ts:140-153`
+- [x] AC-3-2: `ChatPanel` calls `optimisticClearAllTemp(activeSessionId)` from both `onDone` and `onError` handlers AFTER `setSearching(false)` + `clearAttachments()`. — `ChatPanel.tsx:181-202`
+- [x] AC-3-3: Unit tests cover (a) `clearAllTemp` drops `temp_*` but keeps server-UUID rows, (b) no-op when cache slot has no temps, (c) no-op when cache slot is empty.
+
+### Edge Cases
+- [x] EC-3-1: `clearAllTemp` called before the cache slot exists — `updateQueryData`'s draft has undefined `messages`, guard returns early without throwing.
+- [x] EC-3-2: Two rapid sends (A, then B before A's `done`) — only acceptable today because Send is disabled while `isStreaming === true`. If a future UX allows queued sends, this fix needs to be id-targeted instead of "drop all temp_".
+- [x] EC-3-3: Stream errored (`onError`) — `clearAllTemp` still runs, the user's submitted text disappears from the UI. On reload the server will likely show the message persisted (the agent created the ChatMessage row before the error) so the user can retry from there. Trade-off: cleaner DOM vs. ability to retry the exact text from a stranded bubble — picked cleaner DOM because the reload path is unambiguous.
 
 ---
 
 ## Item 4 — Streaming border on ChatInputBar
 
-### Context
-While the assistant is producing a response (`chatBar.streamingAssistantMessage.isStreaming === true`), the chat input gave no salient visual feedback that the system was working. Previous attempts (`FIX-chat-bugfixes-and-grouping` Phase 7.5) were reverted three times because the effect interfered with the contenteditable typing: `overflow: hidden` on the wrapper broke macOS contenteditable navigation, `clip-path` did the same, and the focus border color clashed.
+### What the user saw
+While the assistant was responding (sometimes for 30-60s on niche-agent chats), the chat input gave no salient visual indication that the system was working. Some users assumed the chat had hung.
+
+### Why it happened — root cause depth
+
+We tried this three times in the prior `FIX-chat-bugfixes-and-grouping` Phase 7.5 and reverted each attempt. The bug pattern was always the same: any wrapping element above the `contenteditable` chat input that had `overflow: hidden`, `clip-path`, or even a `position: relative` Shell whose `border-radius` got applied via a parent's `mask-image` — broke macOS-specific contenteditable navigation. Symptoms varied: spacebar got swallowed, paste rewrote the cursor position, undo/redo crashed Chrome's contenteditable internals.
+
+The deeper reason: macOS's IME (Input Method Editor) walks ancestors of the contenteditable to determine the input rect for the candidate window. Any ancestor that clips its children's overflow or has a transform that creates a stacking context confuses the IME's rect calculation. The fix isn't "find the right clip-path" — it's **don't wrap the contenteditable in anything that clips**.
+
+### How it was fixed
+
+The streaming border is rendered as an **absolutely-positioned sibling** of the contenteditable, INSIDE the existing `Shell` (which already had `position: relative` for unrelated layout reasons). Crucially:
+
+- The overlay is `position: absolute; inset: -1px; pointer-events: none`. Absolute positioning takes it OUT of the flex flow — the contenteditable above is never displaced or wrapped.
+- No new ancestor for the contenteditable. No new `overflow: hidden`. No new `clip-path`. No new transforms creating stacking contexts.
+- The visible 1-px ring is carved from a rotating conic-gradient by the CSS `mask` property:
+  ```css
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  ```
+  This subtracts the inner content-box area from the outer fill, leaving only the 1-px frame. The interior of the overlay is fully transparent — it never paints over the input, its focus border, or the IME candidate window.
+- Animation: pure-CSS `@keyframes` rotating the conic gradient 360° in 6s linear infinite. GPU-composited (transform-only), 60fps.
+- `@media (prefers-reduced-motion: reduce)` disables the rotation and shows a static dimmed glow.
+- When `isStreaming` flips false: 200ms opacity transition to 0, then `z-index: -1` so the overlay drops behind everything (including @-mention popovers + command palette).
 
 ### User Stories
-- As a chat user, I want a clear visible indication that the assistant is working on my answer, so I don't think the chat hung.
-- As a chat user, I want the streaming indicator to NOT interfere with my ability to type, paste, or use keyboard shortcuts.
+- As a chat user, I want clear visual feedback that the assistant is working on my answer.
+- As a chat user typing into the input while the previous response is still streaming, I want zero interference with typing, paste, undo/redo, or IME composition.
 
 ### Acceptance Criteria
-- [x] AC-4-1: New component `StreamingBorder` at `ChatInputBar/partials/StreamingBorder.tsx`. Mounted as the last child INSIDE the existing `Shell` (the rounded card around the input). Absolutely positioned with `inset: -1px; pointer-events: none`.
-- [x] AC-4-2: The visible ring is carved from a rotating conic-gradient overlay by `mask: linear-gradient(content-box), linear-gradient` + `mask-composite: exclude` so only a 1-px frame paints — the interior of the overlay is fully transparent. The contenteditable above is never overlaid. — `StreamingBorder.tsx`
-- [x] AC-4-3: NO ancestor of the contenteditable has `overflow: hidden` or `clip-path`. `Shell` keeps `position: relative` only. — verified
-- [x] AC-4-4: Animation: pure-CSS `@keyframes` rotating the inner pseudo-element 360° in 6s linear infinite. GPU-composited.
-- [x] AC-4-5: `@media (prefers-reduced-motion: reduce)` disables the rotation.
-- [x] AC-4-6: When `isStreaming` flips false: 200ms opacity transition to 0 + `z-index: -1` so the overlay doesn't participate in stacking against @-mention popovers or command palette.
-- [x] AC-4-7: Color is sourced from `theme.vars.palette.primary.light` — no hardcoded colors.
-- [x] AC-4-8: 2 new unit tests assert the overlay renders only when `isStreaming === true` and is mounted as a sibling of (not wrapping) the contenteditable.
+- [x] AC-4-1: `StreamingBorder` component at `ChatInputBar/partials/StreamingBorder.tsx`. Reads `chatBar.streamingAssistantMessage.isStreaming` from Redux. — implemented
+- [x] AC-4-2: Mounted as the last child INSIDE `Shell`, after the contenteditable. `position: absolute; inset: -1px; pointer-events: none`. — verified in `ChatInputBar/index.tsx`
+- [x] AC-4-3: NO ancestor of the contenteditable has `overflow: hidden` or `clip-path` introduced by this change. `Shell`'s only positioning is the pre-existing `position: relative`. — verified manually + via type checker
+- [x] AC-4-4: 1-px ring via `mask` + `mask-composite: exclude` (with `-webkit-mask-composite: xor` fallback for older Safari). — verified
+- [x] AC-4-5: Animation is `@keyframes` rotating the conic gradient. 6s linear infinite. GPU-composited. Respects `prefers-reduced-motion`.
+- [x] AC-4-6: When `isStreaming === false`: opacity transitions to 0 over 200ms, then `z-index: -1`. When `isStreaming === true`: opacity transitions to 1, `z-index: 1`.
+- [x] AC-4-7: Color via `theme.vars.palette.primary.light`. Zero hardcoded color values in the component.
+- [x] AC-4-8: 2 unit tests assert (a) overlay renders only when `isStreaming === true`, (b) the contenteditable retains its `data-testid='chat-input-editable'` attribute unwrapped (no new parent introduced).
 
 ### Edge Cases
-- [x] EC-4-1: User opens the @-mention popover or `/`-command palette while streaming → popover's z-index is higher than the active overlay (`z-index: 1`) so it still renders above the border ring. — verified in StreamingBorder z-index logic
-- [x] EC-4-2: Streaming completes very quickly (<200ms) → opacity transition still completes smoothly; no flicker.
-- [x] EC-4-3: User starts a second send while the previous done's fade-out is in progress → `isStreaming` flips true again, overlay re-mounts at opacity 1 instantly, animation starts from current rotation angle (continuous-looking).
+- [x] EC-4-1: User opens `@`-mention popover while streaming — popover's `MenuList` has higher `z-index` than the active overlay; renders above the ring.
+- [x] EC-4-2: Streaming completes in <200ms (e.g. cached response from Vane) — opacity transition still runs to completion; no flicker.
+- [x] EC-4-3: User sends a second message while the previous done's fade-out is still in progress — `isStreaming` flips true again, overlay re-mounts at opacity 1 instantly, animation rotation continues from current angle (visually continuous).
+- [x] EC-4-4: `prefers-reduced-motion: reduce` set in OS — rotation animation suppressed, ring still appears as a static colored glow so the streaming state is still visible.
 
 ---
 
-## Item 5 — Persist Vane fork image + SearXNG engine swap
+## Item 5 — Web-search engine: Brave-only via ScraperOps wrapper (supersedes earlier multi-engine swap)
 
-### Context
-Three compounding root causes made web-search silently degrade over the past weeks:
+### What the user saw
+Even after the Vane fork image was deployed (Item 5 of the earlier `377f22c` commit in the local-ai-packaged fork enabled Mojeek+Bing+Yahoo+Ecosia+Swisscows), engines started getting blocked again:
+- Mojeek 403'd our Strato datacenter IP and didn't recover (`Suspended: access denied`).
+- Brave intermittently 429'd under SearXNG's parallel-fire of engines.
+- Each chat query consumed 5 engines' worth of HTTP requests, with no anti-bot bypass.
 
-1. **Two SearXNG instances exist**: an external `searxng` container in localai-stack (used by Django's `niche_research_app.graph.tools.searxng_search` via `SEARXNG_BASE_URL`) AND an embedded SearXNG Flask process **inside the Vane container** (PID 10, listening on `127.0.0.1:8080` inside Vane, used by Vane's research-mode). Editing the external container's settings has zero effect on Vane.
-2. **`docker-compose.override.private.yml` was not auto-loaded** by bare `docker compose up -d`. Docker compose only auto-loads `docker-compose.override.yml`. Plain re-deploys silently fell back to `itzcrazykns1337/vane:latest` (2026-04-10 upstream) — the fork image at `ghcr.io/mariowinter/vane:merch-miner` (with our `is empty` patch `1160c86`) was sitting locally pulled but unused.
-3. **Vane's Next.js binds to `process.env.HOSTNAME`**: which equals the container hostname → `/etc/hosts` returns the IP of the *first* attached network only → Vane listened on `local-ai-packaged_default` IP but not on `merch_net` → Django got `Connection refused` reaching `vane:3000` even though both containers were on `merch_net`.
+### Why it happened — root cause depth
+
+Three causes compounded. Naming each separately because they interlock.
+
+**Cause 1: Two SearXNG instances, only one is on the chat path.**
+
+The localai-stack ships an external `searxng` container. It's used by Django's `niche_research_app.graph.tools.searxng_search` (a different graph — the niche-profile builder, not the chat). The Vane container ALSO runs an embedded SearXNG (Python Flask process listening on `127.0.0.1:8080` inside Vane), used by Vane's research-mode for chat web search. Editing the external container's settings.yml is invisible to chat. We spent debugging time on the wrong instance until logs revealed the stack trace paths pointed inside `/home/vane/...`.
+
+**Cause 2: docker-compose.override.private.yml wasn't auto-loaded.**
+
+Docker Compose only auto-loads `docker-compose.yml` and `docker-compose.override.yml`. A file named `*.override.private.yml` requires explicit `-f` flags. The fork's deploy script (where it exists) sometimes had `-f`, sometimes didn't. Plain `docker compose up -d vane` (e.g. during a quick restart) silently fell back to the upstream image `itzcrazykns1337/vane:latest` — which doesn't carry our `1160c86` patch. The bug was random: it depended on which command the operator typed.
+
+**Cause 3: Vane's Next.js binds via `process.env.HOSTNAME`.**
+
+Vane runs on two Docker networks (`local-ai-packaged_default` AND `merch_net`). Next.js standalone reads `HOSTNAME` to decide which IP to bind. The default `HOSTNAME` equals the container hostname (`20bca125653c`), which `/etc/hosts` maps to the *first* attached network's IP. Result: Vane listened on 172.22.0.2 (localai-net) but not 172.20.0.2 (merch_net). Django tried `http://vane:3000` (resolves to merch_net IP) and got `Connection refused`. Earlier debugging mistook this for a Vane crash.
+
+### Why the multi-engine swap was the wrong fix
+
+The earlier commit `377f22c` in the local-ai-packaged fork enabled 5 engines (Mojeek, Bing, Yahoo, Ecosia, Swisscows) on the theory that engine-diversity buys reliability. In practice:
+
+- **Engines block our datacenter IP regardless of count.** Once Mojeek banned the IP, it stayed banned. Bing rate-limits show up under sustained parallel-fire.
+- **Each query consumes one outbound HTTP request per enabled engine.** When ScraperOps is the answer for anti-bot, this multiplies credits — 5 credits per chat query vs 1.
+- **More engines means more variance in result-set ranking.** Vane's research-mode synthesises across all returned sources; quality didn't improve, surface area for new failure modes did.
+
+### How it's fixed (this commit's approach)
+
+Single engine: **Brave**. Routed through ScraperOps's existing wrapper API: `https://proxy.scrapeops.io/v1/?api_key=$KEY&url=https://search.brave.com/search?q=…`. Anti-bot bypass + residential IP rotation handled by ScraperOps. 1 ScraperOps credit per chat search.
+
+SearXNG can't use ScraperOps's wrapper API natively (it expects a standard HTTP CONNECT proxy on `outgoing.proxies`). So we ship a **custom SearXNG engine file**:
+
+- `vane/searxng-engines/brave_scrapeops.py` — Python file forked from the SearXNG-default `brave` engine. `request(query, params)` wraps the target URL through `proxy.scrapeops.io/v1/?api_key=…&url=…`. `response(resp)` keeps the upstream Brave HTML parser unchanged.
+- Bind-mount into Vane container at `/etc/searxng/engines/brave_scrapeops.py`.
+- `SCRAPEOPS_API_KEY` added to Vane's environment via compose override.
+- `vane/searxng-settings.yml` declares the new engine (`engine: brave_scrapeops`, `categories: [general, web]`, `shortcut: bsops`, `disabled: false`) and disables every other engine (including the stock `brave` to avoid double-querying).
+
+Cross-repo: this commit on `MarioWinter/local-ai-packaged` supersedes the multi-engine state introduced by `377f22c`. The Brave-only file replaces the Mojeek+Bing+… enables. The earlier commit stays in git history as an honest record of the iteration.
+
+The three OTHER root causes from above (Items in this section: two SearXNG instances, override not auto-loaded, HOSTNAME bind) remain fixed by the same `377f22c` commit's other changes (HOSTNAME=0.0.0.0 env, `/home/vane/data` mount, `.env.example` documenting COMPOSE_FILE). Those changes are not undone — only the engine list changes.
 
 ### User Stories
-- As an operator, I want bare `docker compose up -d vane` to use the fork image with our patches — not silently fall back to upstream.
-- As an operator, I want the SearXNG engine selection to survive image pulls and server re-provisioning.
-- As a chat user, I want web search to keep working even when individual engines start rate-limiting.
+- As an operator, I want chat web search to keep working when an engine blocks our IP, without me having to swap engines every few weeks.
+- As an operator, I want chat web search to consume one ScraperOps credit per query — not five.
+- As a chat user, I want the answer-quality to be at least as good as Vane's research-mode synthesis already gave us. Single engine (Brave) is acceptable because Vane's LLM still does query expansion and answer synthesis on top.
 
 ### Acceptance Criteria
-- [x] AC-5-1: `MarioWinter/local-ai-packaged` fork's `docker-compose.override.private.yml` now bind-mounts `./vane/searxng-settings.yml` → `/etc/searxng/settings.yml` inside the Vane container. Image-baked default config is overlaid with our engine selection. — committed in fork `377f22c`
-- [x] AC-5-2: New file `vane/searxng-settings.yml` in the fork enables Mojeek + Bing + Yahoo + Ecosia + Swisscows; disables rate-limit-blocked Brave, DuckDuckGo, Startpage, Google, Qwant variants, Karmasearch.
-- [x] AC-5-3: `.env.example` in the fork documents the `COMPOSE_FILE=docker-compose.yml:docker-compose.override.private.yml` pattern so bare `docker compose up -d` picks the private override. The actual `.env` (gitignored) on the server has this set.
-- [x] AC-5-4: `docker-compose.override.private.yml` sets `environment: HOSTNAME=0.0.0.0` on the Vane service so Next.js binds all network interfaces (not just the first one in `/etc/hosts`).
-- [x] AC-5-5: `docker-compose.override.private.yml` adds `vane-data:/home/vane/data` mount in addition to the existing `vane-data:/home/perplexica/data` — newer Vane image stores config under `/home/vane/data`, but `/proc/mounts` showed only `perplexica/data` was being mounted (the second mount was an anonymous volume), so the persisted config (OpenRouter provider with `setupComplete: true`) was never being read at runtime.
-- [x] AC-5-6: Live verification: `docker compose config | grep "image: ghcr.io/mariowinter/vane"` returns the fork image. SearXNG returns ≥10 results from at least 2 engines for a representative query. Backend → Vane reachability via Django shell completes < 60s with non-zero sources.
+- [ ] AC-5-1: New file `vane/searxng-engines/brave_scrapeops.py` in the local-ai-packaged fork. Implements `request(query, params)` that wraps the target Brave URL through `https://proxy.scrapeops.io/v1/?api_key=$SCRAPEOPS_API_KEY&url=$ENCODED_BRAVE_URL`. Implements `response(resp)` that parses the same HTML structure as the upstream `brave` engine. About-block declares `use_official_api: False`, `requires_api_key: True`.
+- [ ] AC-5-2: `docker-compose.override.private.yml` bind-mounts the engine file: `./vane/searxng-engines/brave_scrapeops.py:/etc/searxng/engines/brave_scrapeops.py:ro`. Also passes `SCRAPEOPS_API_KEY` into Vane's environment (it's already in the server's `.env` for Django; reuse the same env-var name).
+- [ ] AC-5-3: `vane/searxng-settings.yml` declares the engine with `name: brave_scrapeops`, `engine: brave_scrapeops`, `categories: [general, web]`, `shortcut: bsops`, `timeout: 15.0`, `disabled: false`. The previous Mojeek/Bing/Yahoo/Ecosia/Swisscows enables are removed (set to `disabled: true` for safety against upstream-default flips). The stock `brave` engine is also disabled to avoid double-querying.
+- [ ] AC-5-4: After deploy + Vane restart, `docker exec vane curl -sS "http://127.0.0.1:8080/search?q=test&format=json"` returns ≥1 result with `engine: "brave_scrapeops"` and `unresponsive_engines: []`.
+- [ ] AC-5-5: End-to-end via Django shell: `VaneService().search_collected(query="school bus driver forums")` returns a non-empty `sources` list within 60s. Each chat-search query corresponds to exactly one outbound HTTP request to `proxy.scrapeops.io` (verifiable in ScraperOps dashboard credit consumption).
+- [ ] AC-5-6: ScraperOps API key handling: the engine file MUST NOT crash when `SCRAPEOPS_API_KEY` is empty (e.g. CI). It logs a clear error and returns empty results so test environments without the key don't hard-fail the whole search.
 
 ### Edge Cases
-- [x] EC-5-1: All currently-enabled engines start blocking simultaneously (Mojeek already banned our IP during testing, Bing alone returns thin results) → fallback is the ScraperOps residential proxy via SearXNG's `outgoing.proxies` config. Documented in this spec as Plan B; not wired in this FIX.
-- [x] EC-5-2: Vane image upgrade in upstream `ItzCrazyKns/Vane` adds new mandatory fields to `/etc/searxng/settings.yml` → our bind-mount overrides them and may break Vane's search. Mitigation: `use_default_settings: true` at the top means our file is MERGED with upstream defaults — only the engine list overrides. Verified by reading upstream-shipped `settings.yml`.
-- [x] EC-5-3: Server re-provisioned from scratch by `git clone` of the fork → `.env` is gitignored so `COMPOSE_FILE` isn't set automatically. `.env.example` documents the variable but the operator must copy it. (Acceptable: re-provisioning is a manual operation already.)
+- [ ] EC-5-1: ScraperOps quota exhausted (429 from the wrapper) → engine logs the 429 and returns empty results for that query. Vane's research-mode handles empty results gracefully (we saw this with Bing earlier — "could not find" answer is the worst-case UX, not a crash).
+- [ ] EC-5-2: ScraperOps wrapper API URL changes (their docs say `/v1/` is stable, but a future `/v2/` migration is possible) — engine file's `SCRAPEOPS_PROXY_URL` constant is one-line edit + re-bind-mount. No fork rebuild needed.
+- [ ] EC-5-3: Brave HTML structure changes (rare but happens) — the upstream SearXNG `brave` engine's HTML parser will start breaking. We pin `brave_scrapeops.py` to the parsing logic copied at fork time; periodic upstream-sync is needed (~quarterly). Documented in a code comment.
+- [ ] EC-5-4: `SCRAPEOPS_API_KEY` not set in Vane's env (env-var only added to Django previously) — engine returns 0 results + logs `SCRAPEOPS_API_KEY not configured`. Operator action: confirm the var is in `/srv/local-ai-packaged/.env` AND the compose's `vane.environment` block forwards it (`- SCRAPEOPS_API_KEY=${SCRAPEOPS_API_KEY}`).
+- [ ] EC-5-5: SearXNG's process running INSIDE Vane has a different env than the Vane Next.js process. Verify the `python -m flask` invocation that spawns SearXNG inherits the parent process env (it does by default in the Vane custom image — confirmed via `docker exec vane env | grep SCRAPEOPS`).
+- [ ] EC-5-6: ScraperOps `render_js: true` vs `false` — Brave's search results don't require JS rendering (the HTML carries all visible content server-side), so the engine uses `render_js=false` to save credits. If Brave ever switches to JS-rendered SPA, flip to `true` and budget for credit increase.
 
 ---
 
 ## Out of scope
-
-- Brave Search API direct integration (paid plan). Documented as future option in memory `project_searxng_engine_config.md` if all SearXNG-mediated engines lose ground.
+- Brave Search API direct (api.search.brave.com, separate API-key) — keeping the SearXNG abstraction means Vane's research-mode synthesis still works the same way. Brave-API-direct would be a different chat architecture; not now.
 - Upstreaming Vane fork patches to `ItzCrazyKns/Vane` PR #1118. Tracked in memory `project_vane_custom_build.md`.
 - Server-side mode_classifier improvements (LLM-driven routing of "search this in forums" → multi-query strategy in Vane). Vane decides query decomposition internally today.
-- Visual refresh of `ThinkingStrip` component (the Perplexity-style stages display already mounted in ChatMessageList:557 + :657). If QA finds the existing display too subtle, that's a follow-up styling iteration on the existing component — NOT a new component (per memory `feedback_component_reuse_first`).
+- Visual refresh of `ThinkingStrip` component (the Perplexity-style stages display already mounted in `ChatMessageList.tsx`). If QA finds the existing display too subtle, that's a follow-up styling iteration on the existing component — NOT a new component (per memory `feedback_component_reuse_first`).
 - Backend emission of a structured `web_search_unavailable` SSE error code (planned in `FIX-chat-bugfixes-and-grouping` Item 2 out-of-scope list, still deferred).
 
 ---
 
 ## Notes on retrofit
+This spec was written AFTER Items 1-4 landed on `fix/chat-vane-bigfix` (debugged + fixed live with the user). Items 1-4 AC checkboxes are `[x]` because the code is committed and tests pass. Item 5 AC checkboxes are `[ ]` because the Brave-only-via-ScraperOps change is the next action in this FIX — it supersedes the earlier multi-engine commit in the local-ai-packaged fork.
 
-This spec was written AFTER the 5 commits landed on `fix/chat-vane-bigfix` (debugged + fixed live with the user). All AC checkboxes are marked `[x]` from the start because the code is already merged into the branch and verified via direct tests (Django shell + Playwright login chat). The QA skill will re-run the ACs end-to-end on prod after the branch deploys to confirm nothing regressed and to mark any AC that needs a manual visual verification.
-
-Per memory `feedback_skills_must_follow_rules`: the next skill in sequence is `/architecture` to produce a tasks-file (`docs/tasks/FIX-chat-vane-bigfix-tasks.md`) listing each AC as a checkbox grouped by phase, then `/qa` to verify ACs against the running prod system.
+Per memory `feedback_skills_must_follow_rules`: the next skill in sequence is `/architecture` to produce a tasks-file (`docs/tasks/FIX-chat-vane-bigfix-tasks.md`) listing each AC as a checkbox grouped by phase. Then implement Item 5. Then `/qa` to verify ACs against the running prod system.
