@@ -874,8 +874,10 @@ class TestPostStream:
             side_effect=make_run_chat_stub(canonical),
         ):
             resp = api_client.post(
-                f'/api/chat/sessions/{niche_session.id}/messages/stream/?niche_id={niche.id}',
-                data={'content': 'hi'},
+                f'/api/chat/sessions/{niche_session.id}/messages/stream/',
+                # POST endpoint reads niche_id from body, not query string —
+                # per-message routing extracts it from the validated payload.
+                data={'content': 'hi', 'niche_id': str(niche.id)},
                 format='json',
                 **_headers(workspace),
             )
