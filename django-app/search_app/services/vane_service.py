@@ -26,8 +26,11 @@ class VaneServiceError(Exception):
 class VaneService:
     """Client for Vane (Perplexica) POST /api/search endpoint."""
 
-    # In-process cache for provider lookups (UUIDs change per Vane instance).
-    _providers_cache: Optional[dict] = None
+    # In-process cache for the RAW /api/providers payload (UUIDs change per
+    # Vane instance, so we cache the list and resolve per model on each call —
+    # caching the resolved {chatModel, embeddingModel} dict broke model-switching
+    # because the cache key didn't include the model name.
+    _providers_data_cache: Optional[dict] = None
 
     def __init__(self):
         self.base_url = getattr(settings, 'VANE_API_URL', '')
@@ -53,22 +56,25 @@ class VaneService:
               'embeddingModel': {'providerId': '<uuid>', 'key': 'openai/text-embedding-3-small'},
             }
         Or None if Vane's setup is incomplete / lookup fails.
-        Cached at class-level after first successful resolve.
+        Raw provider list is cached at class-level; resolution runs per call so
+        a different `chat_model_name` picks a different chatModel without a
+        cache flush.
         """
-        if VaneService._providers_cache:
-            return VaneService._providers_cache
         if not self.base_url:
             return None
-        try:
-            with httpx.Client(timeout=5.0) as client:
-                resp = client.get(
-                    f"{self.base_url.rstrip('/')}/api/providers",
-                )
-                resp.raise_for_status()
-                data = resp.json()
-        except Exception:
-            logger.warning('Failed to fetch /api/providers from Vane.', exc_info=True)
-            return None
+        data = VaneService._providers_data_cache
+        if not data:
+            try:
+                with httpx.Client(timeout=5.0) as client:
+                    resp = client.get(
+                        f"{self.base_url.rstrip('/')}/api/providers",
+                    )
+                    resp.raise_for_status()
+                    data = resp.json()
+            except Exception:
+                logger.warning('Failed to fetch /api/providers from Vane.', exc_info=True)
+                return None
+            VaneService._providers_data_cache = data
 
         target_chat_name = (chat_model_name or self.default_model).lower()
         target_embed_name = self.embedding_model.lower()
@@ -118,9 +124,7 @@ class VaneService:
             )
             return None
 
-        result = {'chatModel': chat_match, 'embeddingModel': embed_match}
-        VaneService._providers_cache = result
-        return result
+        return {'chatModel': chat_match, 'embeddingModel': embed_match}
 
     def _build_payload(
         self,
@@ -332,6 +336,87 @@ class VaneService:
             raise
         except Exception as e:
             raise VaneServiceError(f"Vane stream failed: {e}")
+
+    def search_collected(
+        self,
+        query: str,
+        mode: str = 'balanced',
+        sources: Optional[list[str]] = None,
+        history: Optional[list[dict]] = None,
+        system_instructions: Optional[str] = None,
+        model: Optional[str] = None,
+    ) -> dict:
+        """Streaming search via Vane SSE, accumulated into a final dict.
+
+        Identical contract to ``search()`` (returns ``{answer, sources,
+        model_used}``) but talks to Vane's streaming endpoint internally
+        so the ``sources`` array is actually populated. Vane's
+        non-streaming response only carries ``message`` text; sources
+        are emitted as a separate SSE event during stream.
+
+        Used by the niche-chat-agent web_search tool (and any other
+        caller that wants real sources without building an SSE consumer).
+        """
+        if not self.base_url:
+            raise VaneServiceError("VANE_API_URL not configured.")
+
+        payload = self._build_payload(
+            query, mode, sources, history, system_instructions, model,
+        )
+        payload['stream'] = True
+        url = f"{self.base_url.rstrip('/')}/api/search"
+
+        accumulated_answer = ''
+        accumulated_sources: list[dict] = []
+
+        try:
+            with httpx.Client(timeout=STREAM_TIMEOUT) as client:
+                with client.stream('POST', url, json=payload) as resp:
+                    resp.raise_for_status()
+                    for line in resp.iter_lines():
+                        if not line:
+                            continue
+                        try:
+                            data = json.loads(line)
+                        except json.JSONDecodeError:
+                            accumulated_answer += line
+                            continue
+                        event_type = data.get('type', 'response')
+                        if event_type == 'sources':
+                            for src in data.get('data', []) or []:
+                                if isinstance(src, dict):
+                                    accumulated_sources.append({
+                                        'title': src.get('metadata', {}).get('title', ''),
+                                        'url': src.get('metadata', {}).get('url', ''),
+                                        'snippet': src.get('pageContent', ''),
+                                    })
+                        elif event_type == 'response':
+                            accumulated_answer += data.get('data', '')
+                        elif event_type == 'done':
+                            # Vane's done carries authoritative final state.
+                            accumulated_answer = data.get('answer', accumulated_answer)
+                            done_sources = data.get('sources') or []
+                            if done_sources:
+                                accumulated_sources = [
+                                    s for s in done_sources
+                                    if isinstance(s, dict)
+                                ]
+        except httpx.TimeoutException:
+            raise VaneServiceError("Vane stream timed out.")
+        except httpx.HTTPStatusError as e:
+            raise VaneServiceError(
+                f"Vane returned HTTP {e.response.status_code}"
+            )
+        except VaneServiceError:
+            raise
+        except Exception as e:
+            raise VaneServiceError(f"Vane stream failed: {e}")
+
+        return {
+            'answer': accumulated_answer,
+            'sources': accumulated_sources,
+            'model_used': model or self.default_model,
+        }
 
     @staticmethod
     def estimate_tokens(text: str) -> int:

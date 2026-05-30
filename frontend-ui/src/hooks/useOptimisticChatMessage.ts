@@ -55,6 +55,13 @@ interface UseOptimisticChatMessageReturn {
    * (e.g. the SSE `done` refetch already replaced it).
    */
   rollback: (args: RollbackArgs) => void;
+  /**
+   * Drop every `temp_*` message from the session cache. Defensive call
+   * for the SSE `done` / `error` handlers so a stale optimistic bubble
+   * never lingers next to the server-persisted one when an upstream
+   * refetch doesn't reset the cache cleanly. Idempotent.
+   */
+  clearAllTemp: (sessionId: string) => void;
 }
 
 /**
@@ -147,5 +154,19 @@ export const useOptimisticChatMessage = (): UseOptimisticChatMessageReturn => {
     [dispatch],
   );
 
-  return { insert, rollback };
+  const clearAllTemp = useCallback(
+    (sessionId: string): void => {
+      dispatch(
+        searchApi.util.updateQueryData('getSession', sessionId, (draft) => {
+          if (!draft.messages) return;
+          draft.messages = draft.messages.filter(
+            (m) => !String(m.id).startsWith('temp_'),
+          );
+        }),
+      );
+    },
+    [dispatch],
+  );
+
+  return { insert, rollback, clearAllTemp };
 };

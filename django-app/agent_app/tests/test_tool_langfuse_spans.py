@@ -147,7 +147,7 @@ class TestToolsEmitSpan:
         )
 
         with patch(
-            'search_app.services.vane_service.VaneService.search',
+            'search_app.services.vane_service.VaneService.search_collected',
             return_value={'sources': [], 'answer': '', 'model_used': ''},
         ), self._patch_handler_none(), caplog.at_level(
             logging.INFO, logger='agent_app.agents.niche_chat_agent',

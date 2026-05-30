@@ -176,6 +176,61 @@ describe('useOptimisticChatMessage', () => {
     }).not.toThrow();
   });
 
+  it('clearAllTemp removes every temp_* message but keeps server UUIDs', async () => {
+    await seedCache(store);
+    const { result } = renderHook(() => useOptimisticChatMessage(), { wrapper });
+
+    // Insert two temp rows, then prime the cache with a "server-persisted"
+    // row that has a non-temp id.
+    act(() => {
+      result.current.insert({ sessionId: SESSION_ID, content: 'temp A' });
+      result.current.insert({ sessionId: SESSION_ID, content: 'temp B' });
+    });
+    act(() => {
+      store.dispatch(
+        searchApi.util.updateQueryData('getSession', SESSION_ID, (draft) => {
+          draft.messages.push({
+            id: 'server-uuid-1',
+            session: SESSION_ID,
+            role: 'user',
+            content: 'persisted',
+            message_type: 'search_query',
+            sources: [],
+            search_mode: null,
+            search_sources: null,
+            model_used: '',
+            agent_session: null,
+            attachments: [],
+            referenced_niche_id: null,
+            referenced_niche_name: null,
+            created_at: new Date().toISOString(),
+          });
+        }),
+      );
+    });
+    expect(selectMessages(store)).toHaveLength(3);
+
+    act(() => {
+      result.current.clearAllTemp(SESSION_ID);
+    });
+
+    const remaining = selectMessages(store);
+    expect(remaining).toHaveLength(1);
+    expect(remaining[0].id).toBe('server-uuid-1');
+  });
+
+  it('clearAllTemp is a safe no-op when no temp messages exist', async () => {
+    await seedCache(store);
+    const { result } = renderHook(() => useOptimisticChatMessage(), { wrapper });
+
+    expect(() => {
+      act(() => {
+        result.current.clearAllTemp(SESSION_ID);
+      });
+    }).not.toThrow();
+    expect(selectMessages(store)).toHaveLength(0);
+  });
+
   it('temp id prefix is "temp_" so it can never collide with a server UUID', async () => {
     await seedCache(store);
     const { result } = renderHook(() => useOptimisticChatMessage(), { wrapper });
