@@ -1,5 +1,34 @@
 # Changelog
 
+## [0.7.0](https://github.com/MarioWinter/merch-miner/compare/v0.6.0...v0.7.0) (2026-05-30)
+
+
+### Features
+
+* **chat:** default search_mode='speed' for ALL Vane call sites ([6f5f052](https://github.com/MarioWinter/merch-miner/commit/6f5f05291f09b0fafa6b0621b16bb59eb1cd88c6))
+* **chat:** force Vane optimizationMode='speed' for cost control ([d365e71](https://github.com/MarioWinter/merch-miner/commit/d365e712b0c40c64b6a565f9c2df8554198d6466))
+* **chat:** streaming border on ChatInputBar (rotating conic-gradient via mask) ([b5a5c75](https://github.com/MarioWinter/merch-miner/commit/b5a5c759ba53a5a35433c91a575536d94d7d776b))
+
+
+### Bug Fixes
+
+* **chat:** drop lingering temp_* user bubble on SSE done/error ([1c67275](https://github.com/MarioWinter/merch-miner/commit/1c672753d508f913203b0affcaf53db24b7acb04))
+* **chat:** extract mode_override in _stream so routing can read it ([2075436](https://github.com/MarioWinter/merch-miner/commit/2075436a4935c43abb477240c4600d06eb5dd730))
+* **chat:** niche-agent web_search now gets real sources via streaming ([3a1f2d7](https://github.com/MarioWinter/merch-miner/commit/3a1f2d77febb9345d24b3a8733d86df3cabf54f2))
+* **chat:** POST test passes niche_id in body not query string ([2afcc1e](https://github.com/MarioWinter/merch-miner/commit/2afcc1e2a9392d1832fa1659b0bd2f077781a2cf))
+* **chat:** route niche-agent per-message, not per-session ([5a21294](https://github.com/MarioWinter/merch-miner/commit/5a21294aa4ba21c4356b8f65f7605870fef817e0))
+* **chat:** route niche-agent per-message, not per-session ([1c24db0](https://github.com/MarioWinter/merch-miner/commit/1c24db0bdd666eb07a5dc94185e86177adf2b731))
+* **chat:** update agent-path tests to pass per-message niche_id ([d50700d](https://github.com/MarioWinter/merch-miner/commit/d50700d463e00496e8cd48ea7cff42901a179d4d))
+* **chat:** vane streaming + cache + dedup + border + ScraperOps engine ([4a10d32](https://github.com/MarioWinter/merch-miner/commit/4a10d324e93b6270d2df4531cfc3afb05416ef77))
+* **chat:** vane_service cache ignored chat_model_name ([c2c49a4](https://github.com/MarioWinter/merch-miner/commit/c2c49a4f8ce7f85008d903c3bb4c2c0b23f0d29b))
+
+
+### Documentation
+
+* **chat:** deepen FIX spec — root-cause analysis on items 1-4, pivot item 5 to Brave+ScraperOps ([71ce1d5](https://github.com/MarioWinter/merch-miner/commit/71ce1d53c8562f47be4c3dd9f13548689b0e6e99))
+* **chat:** mark FIX Item 5 ACs as done — Brave-only ScraperOps deployed ([95be4ec](https://github.com/MarioWinter/merch-miner/commit/95be4ec1e92296611f580768ecdd4bf8ce481793))
+* **chat:** retrofit FIX spec for chat-vane-bigfix branch ([f02614e](https://github.com/MarioWinter/merch-miner/commit/f02614e3e5a3ec9487455955a78bc906ffec803c))
+
 ## [0.6.0](https://github.com/MarioWinter/merch-miner/compare/v0.5.2...v0.6.0) (2026-05-29)
 
 
