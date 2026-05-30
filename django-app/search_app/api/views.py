@@ -441,7 +441,7 @@ class ChatSessionMessagesView(APIView):
             role=ChatMessage.Role.USER,
             content=data['content'],
             message_type=ChatMessage.MessageType.SEARCH_QUERY,
-            search_mode=data.get('search_mode', 'balanced'),
+            search_mode=data.get('search_mode', 'speed'),
             search_sources=data.get('search_sources', ['web']),
         )
 
@@ -490,7 +490,7 @@ class ChatSessionMessagesView(APIView):
         try:
             result = vane.search(
                 query=data['content'],
-                mode=data.get('search_mode', 'balanced'),
+                mode=data.get('search_mode', 'speed'),
                 sources=data.get('search_sources', ['web']),
                 history=history,
                 system_instructions=system_instructions,
@@ -517,7 +517,7 @@ class ChatSessionMessagesView(APIView):
             content=result['answer'],
             message_type=ChatMessage.MessageType.SEARCH_RESULT,
             sources=result['sources'],
-            search_mode=data.get('search_mode', 'balanced'),
+            search_mode=data.get('search_mode', 'speed'),
             search_sources=data.get('search_sources', ['web']),
             model_used=result.get('model_used', ''),
         )
@@ -558,7 +558,7 @@ class ChatSessionMessagesView(APIView):
 
                 for event in vane.search_stream(
                     query=data['content'],
-                    mode=data.get('search_mode', 'balanced'),
+                    mode=data.get('search_mode', 'speed'),
                     sources=data.get('search_sources', ['web']),
                     history=history,
                     system_instructions=system_instructions,
@@ -585,7 +585,7 @@ class ChatSessionMessagesView(APIView):
                         content=final_answer,
                         message_type=ChatMessage.MessageType.SEARCH_RESULT,
                         sources=final_sources,
-                        search_mode=data.get('search_mode', 'balanced'),
+                        search_mode=data.get('search_mode', 'speed'),
                         search_sources=data.get('search_sources', ['web']),
                         model_used=model or vane.default_model,
                     )
@@ -824,13 +824,20 @@ class ChatSessionMessageStreamView(APIView):
         # routing intent ('web_search'/'agent') — those values fell through
         # to 'balanced'. We now accept an explicit `optimization_mode` (and
         # keep `search_mode` as a fallback for backward compatibility).
+        #
+        # Cost control 2026-05-30 — default is now 'speed' (was 'balanced').
+        # Vane's research-mode in balanced expanded one chat into 30–50
+        # SearXNG sub-queries; each = 1 ScraperOps credit. 'speed' caps it
+        # to ~3–8 sub-queries with no perceptible quality loss for our
+        # POD-niche use case. Frontend can still opt into 'balanced' or
+        # 'quality' explicitly via optimization_mode param.
         search_mode = (
             request.query_params.get('optimization_mode')
             or request.query_params.get('search_mode')
-            or 'balanced'
+            or 'speed'
         )
         if search_mode not in ('speed', 'balanced', 'quality'):
-            search_mode = 'balanced'
+            search_mode = 'speed'
 
         sources_raw = request.query_params.get('search_sources', 'web')
         search_sources = [
@@ -882,7 +889,10 @@ class ChatSessionMessageStreamView(APIView):
         model = validated.get('model') or None
         return {
             'content': validated['content'].strip(),
-            'search_mode': 'balanced',
+            # 'speed' (was 'balanced') — see GET endpoint comment above.
+            # Caps Vane research-mode sub-query expansion for ScraperOps
+            # credit control.
+            'search_mode': 'speed',
             'search_sources': ['web'],
             'model': model,
             'mode_override': mode_override,
