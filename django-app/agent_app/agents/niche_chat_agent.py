@@ -444,8 +444,16 @@ def _build_tools(
                 # real sources for the agent to cite. Without this the
                 # tool always returned `[]` for sources and the LLM had
                 # no concrete material to ground its answer on.
+                # Cost control 2026-05-30 — `speed` mode tells Vane's
+                # research-mode to skip aggressive query-expansion. With
+                # `balanced` (the prior default) we observed one chat
+                # question expanding into 30–50 sub-queries, each of which
+                # is a ScraperOps credit. `speed` keeps it to ~3–8
+                # sub-queries — same answer quality for our POD-niche use
+                # case, ~10x lower ScraperOps spend.
                 resp = service.search_collected(
                     query=query,
+                    mode='speed',
                     model=model_override,
                     sources=search_sources,
                 )
