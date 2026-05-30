@@ -436,17 +436,15 @@ def _build_tools(
         def _run() -> list[dict] | dict:
             service = VaneService()
             try:
-                # Vane default mode = balanced. The earlier `speed` workaround
-                # for the upstream `Error: ' is empty'` bug is gone — the
-                # actual fix landed in the Vane fork (commit 1160c86,
-                # convertToOpenAIMessages now preserves null content for
-                # tool-call assistant messages, matching OpenAI spec).
-                # PROJ-29 Phase 1J follow-up: forward the user's
-                # search-sources toggle (Web / Academic / Discussions) to
-                # Vane so the UI actually drives engine selection. When
-                # `search_sources` is None VaneService falls back to
-                # `['web']` — same as before this change.
-                resp = service.search(
+                # Use the streaming endpoint internally — Vane's
+                # non-streaming /api/search response only carries the
+                # `message` text, sources are emitted as a separate SSE
+                # event during the stream. `search_collected` accumulates
+                # them and returns the same shape as `search()` but with
+                # real sources for the agent to cite. Without this the
+                # tool always returned `[]` for sources and the LLM had
+                # no concrete material to ground its answer on.
+                resp = service.search_collected(
                     query=query,
                     model=model_override,
                     sources=search_sources,

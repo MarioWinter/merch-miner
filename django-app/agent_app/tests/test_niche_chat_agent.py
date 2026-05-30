@@ -195,7 +195,7 @@ class TestWebSearchTool:
             for i in range(10)
         ]
         with patch(
-            'search_app.services.vane_service.VaneService.search',
+            'search_app.services.vane_service.VaneService.search_collected',
             return_value={'sources': fake_sources, 'answer': '', 'model_used': ''},
         ):
             tools = _build_tools(workspace_a, niche_a)
@@ -217,7 +217,7 @@ class TestWebSearchTool:
         from search_app.services.vane_service import VaneServiceError
 
         with patch(
-            'search_app.services.vane_service.VaneService.search',
+            'search_app.services.vane_service.VaneService.search_collected',
             side_effect=VaneServiceError('Vane returned HTTP 500: '),
         ):
             tools = _build_tools(workspace_a, niche_a)
@@ -240,7 +240,7 @@ class TestWebSearchTool:
         from agent_app.agents.niche_chat_agent import _build_tools
 
         with patch(
-            'search_app.services.vane_service.VaneService.search',
+            'search_app.services.vane_service.VaneService.search_collected',
             return_value={'sources': [], 'answer': '', 'model_used': ''},
         ) as mocked:
             tools = _build_tools(workspace_a, niche_a)

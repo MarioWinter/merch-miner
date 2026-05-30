@@ -337,6 +337,87 @@ class VaneService:
         except Exception as e:
             raise VaneServiceError(f"Vane stream failed: {e}")
 
+    def search_collected(
+        self,
+        query: str,
+        mode: str = 'balanced',
+        sources: Optional[list[str]] = None,
+        history: Optional[list[dict]] = None,
+        system_instructions: Optional[str] = None,
+        model: Optional[str] = None,
+    ) -> dict:
+        """Streaming search via Vane SSE, accumulated into a final dict.
+
+        Identical contract to ``search()`` (returns ``{answer, sources,
+        model_used}``) but talks to Vane's streaming endpoint internally
+        so the ``sources`` array is actually populated. Vane's
+        non-streaming response only carries ``message`` text; sources
+        are emitted as a separate SSE event during stream.
+
+        Used by the niche-chat-agent web_search tool (and any other
+        caller that wants real sources without building an SSE consumer).
+        """
+        if not self.base_url:
+            raise VaneServiceError("VANE_API_URL not configured.")
+
+        payload = self._build_payload(
+            query, mode, sources, history, system_instructions, model,
+        )
+        payload['stream'] = True
+        url = f"{self.base_url.rstrip('/')}/api/search"
+
+        accumulated_answer = ''
+        accumulated_sources: list[dict] = []
+
+        try:
+            with httpx.Client(timeout=STREAM_TIMEOUT) as client:
+                with client.stream('POST', url, json=payload) as resp:
+                    resp.raise_for_status()
+                    for line in resp.iter_lines():
+                        if not line:
+                            continue
+                        try:
+                            data = json.loads(line)
+                        except json.JSONDecodeError:
+                            accumulated_answer += line
+                            continue
+                        event_type = data.get('type', 'response')
+                        if event_type == 'sources':
+                            for src in data.get('data', []) or []:
+                                if isinstance(src, dict):
+                                    accumulated_sources.append({
+                                        'title': src.get('metadata', {}).get('title', ''),
+                                        'url': src.get('metadata', {}).get('url', ''),
+                                        'snippet': src.get('pageContent', ''),
+                                    })
+                        elif event_type == 'response':
+                            accumulated_answer += data.get('data', '')
+                        elif event_type == 'done':
+                            # Vane's done carries authoritative final state.
+                            accumulated_answer = data.get('answer', accumulated_answer)
+                            done_sources = data.get('sources') or []
+                            if done_sources:
+                                accumulated_sources = [
+                                    s for s in done_sources
+                                    if isinstance(s, dict)
+                                ]
+        except httpx.TimeoutException:
+            raise VaneServiceError("Vane stream timed out.")
+        except httpx.HTTPStatusError as e:
+            raise VaneServiceError(
+                f"Vane returned HTTP {e.response.status_code}"
+            )
+        except VaneServiceError:
+            raise
+        except Exception as e:
+            raise VaneServiceError(f"Vane stream failed: {e}")
+
+        return {
+            'answer': accumulated_answer,
+            'sources': accumulated_sources,
+            'model_used': model or self.default_model,
+        }
+
     @staticmethod
     def estimate_tokens(text: str) -> int:
         """Rough token estimate for usage logging.
