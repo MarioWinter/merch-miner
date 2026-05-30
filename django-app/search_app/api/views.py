@@ -934,6 +934,9 @@ class ChatSessionMessageStreamView(APIView):
         model = validated['model']
         attachment_ids = validated['attachment_ids']
         per_message_niche_id = validated['per_message_niche_id']
+        # Per-message routing 2026-05-30: explicit `mode_override=agent`
+        # forces the niche-agent path even without a chip on this message.
+        mode_override = validated.get('mode_override') or 'auto'
 
         # FIX 2026-05-28 Item 4 — workspace-isolation check for the per-message
         # `niche_id`. Verify the niche belongs to the same workspace as the
