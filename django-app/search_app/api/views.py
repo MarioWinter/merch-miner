@@ -1127,22 +1127,32 @@ class ChatSessionMessageStreamView(APIView):
             system_instructions = build_system_instructions(niche_for_context)
 
         # PROJ-29 Phase 1E — niche-bound agent path.
-        # When the session has a pinned niche, route through the niche-chat
-        # agent (run_chat). The legacy Vane path stays untouched for sessions
-        # without niche_context (general web-search chat).
+        # Route through the niche-chat agent (run_chat) ONLY when THIS
+        # message carries an explicit `@niche` chip (per_message_niche_id).
+        # The legacy Vane research-mode stays the default — general web
+        # search without RAG.
         #
-        # PROJ-29 Phase 1J / BUG-2 — the frontend now ALWAYS funnels niche-bound
-        # agent submissions through this SSE GET endpoint (previously some
-        # agent-mode submissions went to the POST `sendMessage` mutation,
-        # which bypassed the entire PROJ-29 SSE event protocol — no
-        # ThinkingStrip, no tool_call events, no follow-ups). The routing
-        # below is unchanged because `session.niche_context is not None`
-        # already covers every niche-pinned submission regardless of the
-        # frontend `mode_override` query param. `mode_override` is accepted
-        # + validated above so the endpoint contract matches the POST
-        # serializer and request inspection in admin / Langfuse traces shows
-        # the user's intent.
-        if session.niche_context is not None:
+        # Bug 2026-05-30: routing originally keyed on `session.niche_context`,
+        # which is set once on session create and never cleared. That made
+        # every subsequent message in the session route through the agent
+        # even after the user removed the chip — the user had no way to opt
+        # back into the general web-search path without starting a brand-new
+        # chat. Per-message routing fixes that: each request decides for
+        # itself based on the chip currently in the input.
+        #
+        # `session.niche_context` is preserved on the row for future
+        # cross-message RAG (and is still used for system_instructions
+        # above when this message has no explicit niche). It just no longer
+        # gates routing on its own.
+        #
+        # `mode_override='agent'` is the explicit user signal "use the
+        # niche-agent for this request" — still routes to the agent
+        # regardless of chip presence. The agent's own retrieval falls
+        # back to `session.niche_context` when no chip is supplied.
+        wants_agent_route = (
+            per_message_niche_id is not None or mode_override == 'agent'
+        )
+        if wants_agent_route:
             return self._handle_niche_agent_stream(
                 request, workspace, session, user_msg, content,
                 model_override=model,

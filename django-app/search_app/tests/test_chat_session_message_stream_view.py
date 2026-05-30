@@ -136,9 +136,18 @@ def make_vane_generator(events: list[dict]):
 
 @pytest.mark.django_db
 class TestNicheAgentRouting:
-    """When ``session.niche_context`` is set the view MUST route to
-    ``run_chat``. When not set the legacy Vane path MUST be used (no agent
-    overhead)."""
+    """Routing keys on the CURRENT request's `niche_id` (per-message),
+    NOT on `session.niche_context` (session-locked). A request with
+    `?niche_id=<uuid>` routes to ``run_chat``; a request without it
+    routes to the legacy Vane path, even when the session has a
+    pinned niche from earlier messages.
+
+    Bug fixed 2026-05-30: previously the route check was
+    `session.niche_context is not None`, which made every subsequent
+    message after the first @-mention go through the agent — the user
+    could never opt back into general web-search without starting a
+    fresh chat. Per-message routing fixes that.
+    """
 
     @patch('search_app.api.views.django_rq')
     @patch('search_app.api.views.VaneService')
@@ -172,7 +181,7 @@ class TestNicheAgentRouting:
         mock_vane.search_stream.assert_called_once()
 
     def test_niche_session_routes_through_agent(
-        self, api_client, workspace, niche_session,
+        self, api_client, workspace, niche_session, niche,
     ):
         canonical = [
             {'event': 'init', 'data': {
@@ -215,9 +224,11 @@ class TestNicheAgentRouting:
             'agent_app.agents.niche_chat_agent.run_chat',
             side_effect=make_run_chat_stub(canonical),
         ):
+            # Pass niche_id explicitly — routing now requires a per-message
+            # niche reference (not just session.niche_context).
             resp = api_client.get(
                 f'/api/chat/sessions/{niche_session.id}/messages/stream/'
-                f'?content=hi',
+                f'?content=hi&niche_id={niche.id}',
                 **_headers(workspace),
             )
             events = parse_sse(resp.streaming_content)
@@ -251,6 +262,42 @@ class TestNicheAgentRouting:
             session=niche_session, role=ChatMessage.Role.ASSISTANT,
         )
         assert assistant.content == 'Try these slogans'
+
+    @patch('search_app.api.views.django_rq')
+    @patch('search_app.api.views.VaneService')
+    def test_niche_session_without_per_message_chip_uses_vane_not_agent(
+        self, mock_vane_cls, mock_rq,
+        api_client, workspace, niche_session,
+    ):
+        """Bug fix 2026-05-30 — a session that was created with a pinned
+        niche but whose CURRENT message has NO `niche_id` query param
+        MUST route through the legacy Vane path. The user has dropped the
+        chip; routing must respect their intent for THIS request even
+        though `session.niche_context` is still set.
+        """
+        mock_vane = MagicMock()
+        mock_vane.search_stream.side_effect = make_vane_generator([
+            {'type': 'response', 'data': 'general'},
+            {'type': 'done', 'answer': 'general', 'sources': []},
+        ])
+        mock_vane.default_model = 'gpt-4.1-mini'
+        mock_vane_cls.return_value = mock_vane
+        mock_rq.get_queue.return_value = MagicMock()
+
+        with patch(
+            'agent_app.agents.niche_chat_agent.run_chat'
+        ) as mock_run_chat:
+            resp = api_client.get(
+                # No niche_id query param — chip dropped.
+                f'/api/chat/sessions/{niche_session.id}/messages/stream/'
+                f'?content=general%20question',
+                **_headers(workspace),
+            )
+            b''.join(resp.streaming_content)
+
+        assert resp.status_code == 200
+        mock_run_chat.assert_not_called()
+        mock_vane.search_stream.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
