@@ -136,9 +136,18 @@ def make_vane_generator(events: list[dict]):
 
 @pytest.mark.django_db
 class TestNicheAgentRouting:
-    """When ``session.niche_context`` is set the view MUST route to
-    ``run_chat``. When not set the legacy Vane path MUST be used (no agent
-    overhead)."""
+    """Routing keys on the CURRENT request's `niche_id` (per-message),
+    NOT on `session.niche_context` (session-locked). A request with
+    `?niche_id=<uuid>` routes to ``run_chat``; a request without it
+    routes to the legacy Vane path, even when the session has a
+    pinned niche from earlier messages.
+
+    Bug fixed 2026-05-30: previously the route check was
+    `session.niche_context is not None`, which made every subsequent
+    message after the first @-mention go through the agent — the user
+    could never opt back into general web-search without starting a
+    fresh chat. Per-message routing fixes that.
+    """
 
     @patch('search_app.api.views.django_rq')
     @patch('search_app.api.views.VaneService')
@@ -172,7 +181,7 @@ class TestNicheAgentRouting:
         mock_vane.search_stream.assert_called_once()
 
     def test_niche_session_routes_through_agent(
-        self, api_client, workspace, niche_session,
+        self, api_client, workspace, niche_session, niche,
     ):
         canonical = [
             {'event': 'init', 'data': {
@@ -215,9 +224,11 @@ class TestNicheAgentRouting:
             'agent_app.agents.niche_chat_agent.run_chat',
             side_effect=make_run_chat_stub(canonical),
         ):
+            # Pass niche_id explicitly — routing now requires a per-message
+            # niche reference (not just session.niche_context).
             resp = api_client.get(
                 f'/api/chat/sessions/{niche_session.id}/messages/stream/'
-                f'?content=hi',
+                f'?content=hi&niche_id={niche.id}',
                 **_headers(workspace),
             )
             events = parse_sse(resp.streaming_content)
@@ -251,6 +262,42 @@ class TestNicheAgentRouting:
             session=niche_session, role=ChatMessage.Role.ASSISTANT,
         )
         assert assistant.content == 'Try these slogans'
+
+    @patch('search_app.api.views.django_rq')
+    @patch('search_app.api.views.VaneService')
+    def test_niche_session_without_per_message_chip_uses_vane_not_agent(
+        self, mock_vane_cls, mock_rq,
+        api_client, workspace, niche_session,
+    ):
+        """Bug fix 2026-05-30 — a session that was created with a pinned
+        niche but whose CURRENT message has NO `niche_id` query param
+        MUST route through the legacy Vane path. The user has dropped the
+        chip; routing must respect their intent for THIS request even
+        though `session.niche_context` is still set.
+        """
+        mock_vane = MagicMock()
+        mock_vane.search_stream.side_effect = make_vane_generator([
+            {'type': 'response', 'data': 'general'},
+            {'type': 'done', 'answer': 'general', 'sources': []},
+        ])
+        mock_vane.default_model = 'gpt-4.1-mini'
+        mock_vane_cls.return_value = mock_vane
+        mock_rq.get_queue.return_value = MagicMock()
+
+        with patch(
+            'agent_app.agents.niche_chat_agent.run_chat'
+        ) as mock_run_chat:
+            resp = api_client.get(
+                # No niche_id query param — chip dropped.
+                f'/api/chat/sessions/{niche_session.id}/messages/stream/'
+                f'?content=general%20question',
+                **_headers(workspace),
+            )
+            b''.join(resp.streaming_content)
+
+        assert resp.status_code == 200
+        mock_run_chat.assert_not_called()
+        mock_vane.search_stream.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
@@ -318,7 +365,7 @@ class TestChatAgentThrottle:
         django_cache.clear()
 
     def test_31st_call_returns_429(
-        self, api_client, workspace, niche_session, settings,
+        self, api_client, workspace, niche_session, niche, settings,
     ):
         """30 streams succeed within a minute; the 31st returns 429."""
         self._enable_throttling(settings, rate='30/min')
@@ -339,7 +386,7 @@ class TestChatAgentThrottle:
             for i in range(30):
                 resp = api_client.get(
                     f'/api/chat/sessions/{niche_session.id}/messages/stream/'
-                    f'?content=ping-{i}',
+                    f'?content=ping-{i}&niche_id={niche.id}',
                     **_headers(workspace),
                 )
                 # Drain to release the streaming response cleanly.
@@ -352,7 +399,7 @@ class TestChatAgentThrottle:
             # 31st call within the same minute window -> 429.
             resp = api_client.get(
                 f'/api/chat/sessions/{niche_session.id}/messages/stream/'
-                f'?content=ping-31',
+                f'?content=ping-31&niche_id={niche.id}',
                 **_headers(workspace),
             )
 
@@ -362,7 +409,7 @@ class TestChatAgentThrottle:
         }
 
     def test_throttle_isolation_other_endpoints_unaffected(
-        self, api_client, workspace, niche_session, settings,
+        self, api_client, workspace, niche_session, niche, settings,
     ):
         """After the chat-agent bucket is drained, the user can still hit
         other endpoints (different throttle bucket / no chat_agent scope)."""
@@ -381,7 +428,7 @@ class TestChatAgentThrottle:
         ):
             ok = api_client.get(
                 f'/api/chat/sessions/{niche_session.id}/messages/stream/'
-                f'?content=first',
+                f'?content=first&niche_id={niche.id}',
                 **_headers(workspace),
             )
             b''.join(ok.streaming_content)
@@ -389,7 +436,7 @@ class TestChatAgentThrottle:
 
             throttled = api_client.get(
                 f'/api/chat/sessions/{niche_session.id}/messages/stream/'
-                f'?content=second',
+                f'?content=second&niche_id={niche.id}',
                 **_headers(workspace),
             )
         assert throttled.status_code == 429
@@ -412,7 +459,7 @@ class TestHeartbeat:
     underlying generator blocks longer than the interval."""
 
     def test_heartbeat_fires_during_long_tool_call(
-        self, api_client, workspace, niche_session,
+        self, api_client, workspace, niche_session, niche,
     ):
         # Simulate a slow producer: yield ``init``, sleep > interval, then
         # yield the rest. The view's heartbeat wrapper (3s default) is
@@ -440,7 +487,7 @@ class TestHeartbeat:
         ):
             resp = api_client.get(
                 f'/api/chat/sessions/{niche_session.id}/messages/stream/'
-                f'?content=hello',
+                f'?content=hello&niche_id={niche.id}',
                 **_headers(workspace),
             )
             events = parse_sse(resp.streaming_content)
@@ -465,7 +512,7 @@ class TestToolTimeoutEvent:
     ``run_chat`` MUST emit ``tool_timeout`` (NOT ``tool_result``)."""
 
     def test_tool_timeout_emitted_in_place_of_tool_result(
-        self, api_client, workspace, niche_session,
+        self, api_client, workspace, niche_session, niche,
     ):
         canonical = [
             {'event': 'init', 'data': {
@@ -493,7 +540,7 @@ class TestToolTimeoutEvent:
         ):
             resp = api_client.get(
                 f'/api/chat/sessions/{niche_session.id}/messages/stream/'
-                f'?content=do-it',
+                f'?content=do-it&niche_id={niche.id}',
                 **_headers(workspace),
             )
             events = parse_sse(resp.streaming_content)
@@ -520,7 +567,7 @@ class TestLangfuseTraceWrap:
     still complete normally (graceful no-op)."""
 
     def test_langfuse_handler_invoked_per_request(
-        self, api_client, workspace, niche_session,
+        self, api_client, workspace, niche_session, niche,
     ):
         canonical = [
             {'event': 'init', 'data': {
@@ -538,7 +585,7 @@ class TestLangfuseTraceWrap:
         ) as mock_handler:
             resp = api_client.get(
                 f'/api/chat/sessions/{niche_session.id}/messages/stream/'
-                f'?content=hi',
+                f'?content=hi&niche_id={niche.id}',
                 **_headers(workspace),
             )
             b''.join(resp.streaming_content)
@@ -564,7 +611,7 @@ class TestGenerateSlogansPayloadEvent:
     MUST serialize it without dropping its structured fields."""
 
     def test_generate_slogans_payload_passthrough(
-        self, api_client, workspace, niche_session,
+        self, api_client, workspace, niche_session, niche,
     ):
         slogan_payload = {
             'slogans': [
@@ -605,7 +652,7 @@ class TestGenerateSlogansPayloadEvent:
         ):
             resp = api_client.get(
                 f'/api/chat/sessions/{niche_session.id}/messages/stream/'
-                f'?content=generate-1',
+                f'?content=generate-1&niche_id={niche.id}',
                 **_headers(workspace),
             )
             events = parse_sse(resp.streaming_content)
@@ -618,7 +665,7 @@ class TestGenerateSlogansPayloadEvent:
         assert payload_evt == slogan_payload
 
     def test_generate_slogans_payload_persisted_on_chatmessage(
-        self, api_client, workspace, niche_session,
+        self, api_client, workspace, niche_session, niche,
     ):
         """PROJ-29 Phase 1I — payload survives the stream by landing on the
         ChatMessage row, and the wire `done` event carries the persisted
@@ -656,7 +703,7 @@ class TestGenerateSlogansPayloadEvent:
         ):
             resp = api_client.get(
                 f'/api/chat/sessions/{niche_session.id}/messages/stream/'
-                f'?content=test-persistence',
+                f'?content=test-persistence&niche_id={niche.id}',
                 **_headers(workspace),
             )
             events = parse_sse(resp.streaming_content)
@@ -671,7 +718,7 @@ class TestGenerateSlogansPayloadEvent:
         assert assistant_msg.generate_slogans_payload == slogan_payload
 
     def test_no_payload_persisted_when_event_absent(
-        self, api_client, workspace, niche_session,
+        self, api_client, workspace, niche_session, niche,
     ):
         """A turn without a `generate_slogans_payload` event leaves the field
         as None on the persisted ChatMessage row — no accidental {} or [].
@@ -689,7 +736,7 @@ class TestGenerateSlogansPayloadEvent:
         ):
             resp = api_client.get(
                 f'/api/chat/sessions/{niche_session.id}/messages/stream/'
-                f'?content=test-no-payload',
+                f'?content=test-no-payload&niche_id={niche.id}',
                 **_headers(workspace),
             )
             list(parse_sse(resp.streaming_content))
@@ -718,7 +765,7 @@ class TestModeOverrideAcceptance:
     """
 
     def test_chat_stream_accepts_agent_mode_override(
-        self, api_client, workspace, niche_session,
+        self, api_client, workspace, niche_session, niche,
     ):
         """``mode_override=agent`` on a niche-bound session returns 200 and
         routes through ``run_chat`` (the niche-agent SSE path)."""
@@ -738,7 +785,7 @@ class TestModeOverrideAcceptance:
         ) as mock_run_chat:
             resp = api_client.get(
                 f'/api/chat/sessions/{niche_session.id}/messages/stream/'
-                f'?content=hi&mode_override=agent',
+                f'?content=hi&mode_override=agent&niche_id={niche.id}',
                 **_headers(workspace),
             )
             events = parse_sse(resp.streaming_content)
@@ -753,7 +800,7 @@ class TestModeOverrideAcceptance:
         assert 'done' in names
 
     def test_chat_stream_rejects_garbage_mode_override(
-        self, api_client, workspace, niche_session,
+        self, api_client, workspace, niche_session, niche,
     ):
         """Unknown ``mode_override`` values are silently coerced to ``auto``
         rather than 400'd, so an outdated frontend cannot cause user-facing
@@ -770,7 +817,7 @@ class TestModeOverrideAcceptance:
         ) as mock_run_chat:
             resp = api_client.get(
                 f'/api/chat/sessions/{niche_session.id}/messages/stream/'
-                f'?content=hi&mode_override=does_not_exist',
+                f'?content=hi&mode_override=does_not_exist&niche_id={niche.id}',
                 **_headers(workspace),
             )
             b''.join(resp.streaming_content)
@@ -792,7 +839,7 @@ class TestPostStream:
     """
 
     def test_post_streams_init_chunk_done_sequence(
-        self, api_client, workspace, niche_session,
+        self, api_client, workspace, niche_session, niche,
     ):
         canonical = [
             {'event': 'init', 'data': {
@@ -828,7 +875,9 @@ class TestPostStream:
         ):
             resp = api_client.post(
                 f'/api/chat/sessions/{niche_session.id}/messages/stream/',
-                data={'content': 'hi'},
+                # POST endpoint reads niche_id from body, not query string —
+                # per-message routing extracts it from the validated payload.
+                data={'content': 'hi', 'niche_id': str(niche.id)},
                 format='json',
                 **_headers(workspace),
             )
@@ -914,7 +963,7 @@ class TestReferencedNichePersistence:
             side_effect=make_run_chat_stub(canonical),
         ):
             resp = api_client.post(
-                f'/api/chat/sessions/{niche_session.id}/messages/stream/',
+                f'/api/chat/sessions/{niche_session.id}/messages/stream/?niche_id={niche.id}',
                 data={
                     'content': 'tell me about this niche',
                     'niche_id': str(niche.id),
@@ -937,7 +986,7 @@ class TestReferencedNichePersistence:
         assert assistant_msg.referenced_niche_id is None
 
     def test_referenced_niche_cross_workspace_rejected(
-        self, api_client, workspace, niche_session, foreign_niche,
+        self, api_client, workspace, niche_session, niche, foreign_niche,
     ):
         """`niche_id` from workspace B + X-Workspace-Id=A -> 400 + no persisted
         user message + no assistant message + niche_not_in_workspace code."""
@@ -948,7 +997,7 @@ class TestReferencedNichePersistence:
             'agent_app.agents.niche_chat_agent.run_chat',
         ) as mock_run_chat:
             resp = api_client.post(
-                f'/api/chat/sessions/{niche_session.id}/messages/stream/',
+                f'/api/chat/sessions/{niche_session.id}/messages/stream/?niche_id={niche.id}',
                 data={
                     'content': 'should be rejected',
                     'niche_id': str(foreign_niche.id),

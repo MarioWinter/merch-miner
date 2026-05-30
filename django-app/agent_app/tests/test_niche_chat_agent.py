@@ -229,13 +229,12 @@ class TestWebSearchTool:
         assert 'temporarily unavailable' in result.get('message', '')
         assert 'HTTP 500' in result.get('reason', '')
 
-    def test_calls_vane_without_mode_override(
+    def test_calls_vane_with_speed_mode_for_cost_control(
         self, workspace_a, niche_a, patch_llm_factory,
     ):
-        """web_search lets Vane use its default `balanced` mode. The earlier
-        `speed` workaround was reverted once the upstream `Error: ' is empty'`
-        bug was fixed in the Vane fork (convertToOpenAIMessages now preserves
-        null content for tool-call assistant messages per OpenAI spec).
+        """web_search MUST pass `mode='speed'` to cap Vane research-mode
+        sub-query expansion. Verified live 2026-05-30: balanced expanded
+        one chat into 30–50 ScraperOps credits; speed caps it to ~3–8.
         """
         from agent_app.agents.niche_chat_agent import _build_tools
 
@@ -247,8 +246,7 @@ class TestWebSearchTool:
             web_search = next(t for t in tools if t.name == 'web_search')
             web_search.invoke({'query': 'check mode'})
 
-        # `mode` arg must NOT be passed (so VaneService uses its default).
-        assert 'mode' not in mocked.call_args.kwargs, mocked.call_args
+        assert mocked.call_args.kwargs.get('mode') == 'speed', mocked.call_args
 
 
 # ── Tool: search_slogans ────────────────────────────────────────────────────
