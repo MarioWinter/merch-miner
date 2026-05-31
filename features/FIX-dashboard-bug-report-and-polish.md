@@ -84,14 +84,14 @@ Code site: `frontend-ui/src/components/MultiPurposeDrawer/DrawerLayoutToggle.tsx
 - As a desktop user, I want to see the drawer layout toggle fully so I can click it to switch modes without hunting for the partially-hidden button.
 
 ### Acceptance Criteria
-- [ ] AC-2-1: DrawerLayoutToggle's styled button receives an explicit `zIndex` value that places it ABOVE the drawer tab-strip (the Niche/Chat tablist).
-- [ ] AC-2-2: The z-index is referenced from `theme.zIndex` (e.g. `theme.zIndex.drawer + 2`) NOT hardcoded numeric value — keeps it composable if MUI re-tunes drawer z.
+- [x] AC-2-1: DrawerLayoutToggle's styled button receives an explicit `zIndex` value that places it ABOVE the drawer tab-strip (the Niche/Chat tablist).
+- [x] AC-2-2: The z-index is referenced from `theme.zIndex` (e.g. `theme.zIndex.drawer + 2`) NOT hardcoded numeric value — keeps it composable if MUI re-tunes drawer z.
 - [ ] AC-2-3: Visual verification on prod after deploy: button fully visible from any side (Side-by-Side mode AND overlap mode).
-- [ ] AC-2-4: No regression in stacking against: @-mention popover, slash-command palette, model-picker dropdown, attachment-preview overlay (all should still render ABOVE the toggle button, NOT below).
+- [x] AC-2-4: No regression in stacking against: @-mention popover, slash-command palette, model-picker dropdown, attachment-preview overlay (all should still render ABOVE the toggle button, NOT below).
 
 ### Edge Cases
-- [ ] EC-2-1: Mobile / tablet viewports — toggle button is already hidden by `if (!isDesktop) return null;`. No change needed for those.
-- [ ] EC-2-2: Drawer is closed — toggle button transitions out via `drawerOpen` Redux state. z-index irrelevant then.
+- [x] EC-2-1: Mobile / tablet viewports — toggle button is already hidden by `if (!isDesktop) return null;`. No change needed for those.
+- [x] EC-2-2: Drawer is closed — toggle button transitions out via `drawerOpen` Redux state. z-index irrelevant then.
 
 ---
 

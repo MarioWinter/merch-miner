@@ -22,7 +22,9 @@ const ToggleWrap = styled(Box, {
   left: -24,
   width: 48,
   height: 48,
-  zIndex: 1,
+  // Sits above the drawer tab-strip (Niche / Chat tabs) so the chevron button
+  // is not visually clipped. Symbolic reference per FIX-dashboard AC-2-2.
+  zIndex: theme.zIndex.drawer + 2,
   borderRadius: '50%',
   backgroundColor: COLORS.ashDefault,
   display: 'flex',

@@ -39,12 +39,12 @@ Skill: manual + Bash. NOT a /backend or /frontend phase (separate repo).
 
 Skill: `/frontend` with hard scope lock to ONLY `DrawerLayoutToggle.tsx`.
 
-- [ ] T2.1: Read `frontend-ui/src/components/MultiPurposeDrawer/DrawerLayoutToggle.tsx` to confirm the styled-button definition.
-- [ ] T2.2: Add `zIndex: theme.zIndex.drawer + 2` to the styled-button block (via the `theme` callback). NO hardcoded numeric value.
-- [ ] T2.3: Restart Vite dev OR rely on TS check; visual-verify in dev that the chevron-button no longer gets clipped by drawer tab-strip.
-- [ ] T2.4: `npm run lint && npx tsc --noEmit && npm run test -- --run` — zero failures.
-- [ ] T2.5: Update existing test if it asserts no `zIndex` was set; otherwise no new test (1-line CSS fix doesn't warrant a unit test).
-- [ ] T2.6: Flip AC-2-1 through AC-2-4 to `[x]`. Mark AC-2-3 as "to verify after prod deploy".
+- [x] T2.1: Read `frontend-ui/src/components/MultiPurposeDrawer/DrawerLayoutToggle.tsx` to confirm the styled-button definition.
+- [x] T2.2: Add `zIndex: theme.zIndex.drawer + 2` to the styled-button block (via the `theme` callback). NO hardcoded numeric value.
+- [x] T2.3: Restart Vite dev OR rely on TS check; visual-verify in dev that the chevron-button no longer gets clipped by drawer tab-strip.
+- [x] T2.4: `npm run lint && npx tsc --noEmit && npm run test -- --run` — zero failures.
+- [x] T2.5: Update existing test if it asserts no `zIndex` was set; otherwise no new test (1-line CSS fix doesn't warrant a unit test).
+- [x] T2.6: Flip AC-2-1 through AC-2-4 to `[x]`. Mark AC-2-3 as "to verify after prod deploy".
 
 ---
 
