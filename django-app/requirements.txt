@@ -60,3 +60,7 @@ replicate==1.0.7
 # Wrapper at core/observability/sentry.py redacts user message content unless
 # SENTRY_INCLUDE_USER_INPUT=true.
 sentry-sdk[django]>=2.18
+# PyYAML — parses YAML front-matter of docs/roadmap_user_facing.md
+# (dashboard_app.services.roadmap_loader). Already transitive via langchain,
+# pinned explicitly so the loader's contract is reproducible.
+PyYAML>=6.0

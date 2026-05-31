@@ -10,6 +10,7 @@ from dashboard_app.api.views import (
     ListingAnalyticsExportView,
     AgentAnalyticsExportView,
     SearchAnalyticsExportView,
+    RoadmapView,
 )
 
 urlpatterns = [
@@ -27,4 +28,7 @@ urlpatterns = [
     path('dashboard/analytics/listings/export/', ListingAnalyticsExportView.as_view(), name='dashboard_listing_export'),
     path('dashboard/analytics/agent/export/', AgentAnalyticsExportView.as_view(), name='dashboard_agent_export'),
     path('dashboard/analytics/search/export/', SearchAnalyticsExportView.as_view(), name='dashboard_search_export'),
+
+    # Roadmap (Item 3 — visible to all authenticated users)
+    path('dashboard/roadmap/', RoadmapView.as_view(), name='dashboard-roadmap'),
 ]

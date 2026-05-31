@@ -34,6 +34,10 @@ from dashboard_app.services.analytics_aggregator import (
     get_agent_analytics,
     get_search_analytics,
 )
+from dashboard_app.services.roadmap_loader import (
+    load_roadmap,
+    roadmap_last_modified,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -356,3 +360,30 @@ class SearchAnalyticsExportView(APIView):
             ['week', 'searches', 'crawls', 'crawl_success_rate', 'top_query'],
             csv_rows,
         )
+
+
+class RoadmapView(APIView):
+    """
+    GET /api/dashboard/roadmap/ — user-facing roadmap items.
+
+    Source: hand-curated ``docs/roadmap_user_facing.md`` (YAML front-matter).
+    Visible to ALL authenticated users; no workspace gating.
+    """
+    authentication_classes = [CookieJWTAuthentication]
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            items = load_roadmap()
+            last_modified = roadmap_last_modified()
+        except Exception:
+            logger.exception('Roadmap load failed')
+            return Response(
+                {'error': 'Failed to load roadmap.'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        return Response({
+            'items': items,
+            'last_updated': last_modified.isoformat() if last_modified else None,
+        })

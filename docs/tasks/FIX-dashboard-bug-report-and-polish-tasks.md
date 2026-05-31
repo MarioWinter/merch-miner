@@ -144,12 +144,12 @@ Skill: `/frontend` with hard scope lock to SettingsLayout + sub-section componen
 Skill: `/backend` then `/frontend`, separately invoked.
 
 ### Phase 7a — Backend
-- [ ] T7.1: Create `docs/roadmap_user_facing.md` with seed content (3-5 items Mario chooses). Front-matter parsed by `pyyaml`.
-- [ ] T7.2: Create `dashboard_app/services/roadmap_loader.py` — reads + parses the markdown file. Returns list of dicts. Handles missing file / malformed YAML gracefully (returns empty list + logs warning).
-- [ ] T7.3: Add `dashboard_app/api/views.py::RoadmapView` (APIView GET). `IsAuthenticated`. Returns parsed list + last-mtime caption.
-- [ ] T7.4: Tests: `test_roadmap_loader.py` — happy path, malformed file, missing file, item without optional `priority`.
-- [ ] T7.5: Register URL pattern in `dashboard_app/api/urls.py`.
-- [ ] T7.6: Manual verify in Django shell.
+- [x] T7.1: Create `docs/roadmap_user_facing.md` with seed content (3-5 items Mario chooses). Front-matter parsed by `pyyaml`.
+- [x] T7.2: Create `dashboard_app/services/roadmap_loader.py` — reads + parses the markdown file. Returns list of dicts. Handles missing file / malformed YAML gracefully (returns empty list + logs warning).
+- [x] T7.3: Add `dashboard_app/api/views.py::RoadmapView` (APIView GET). `IsAuthenticated`. Returns parsed list + last-mtime caption.
+- [x] T7.4: Tests: `test_roadmap_loader.py` — happy path, malformed file, missing file, item without optional `priority`.
+- [x] T7.5: Register URL pattern in `dashboard_app/api/urls.py`.
+- [x] T7.6: Manual verify in Django shell. *(Replaced with pytest run — 12/12 pass.)*
 
 ### Phase 7b — Frontend
 - [ ] T7.7: Create `views/dashboard/partials/RoadmapWidget/`:
