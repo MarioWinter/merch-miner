@@ -166,6 +166,10 @@ ASPECT_RATIO_DIMS = {
     '9:16': (1024, 1820),
     '3:2': (1536, 1024),
     '2:3': (1024, 1536),
+    # 5:6 portrait — exact ratio (1000/1200 = 5/6) AND multiple-of-8
+    # (diffusion friendly). 4.5× upscale lands on Merch by Amazon shirt
+    # print target exactly (4500×5400 at 300dpi = 15"×18").
+    '5:6': (1000, 1200),
 }
 
 # Models that are Gemini-family (use modalities param)
