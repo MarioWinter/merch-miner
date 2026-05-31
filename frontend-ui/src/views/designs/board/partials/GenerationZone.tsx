@@ -40,7 +40,7 @@ const MODE_OPTIONS: Array<{ value: GenerationMode; labelKey: string }> = [
   { value: 'image_to_image_edit', labelKey: 'design.generation.mode.editImage' },
 ];
 
-export type AspectRatio = '1:1' | '4:3' | '3:4' | '16:9' | '9:16' | '3:2' | '2:3';
+export type AspectRatio = '1:1' | '4:3' | '3:4' | '16:9' | '9:16' | '3:2' | '2:3' | '5:6';
 
 const ASPECT_RATIO_OPTIONS: Array<{ value: AspectRatio; label: string; width: number; height: number }> = [
   { value: '1:1', label: '1 : 1', width: 1024, height: 1024 },
@@ -50,6 +50,10 @@ const ASPECT_RATIO_OPTIONS: Array<{ value: AspectRatio; label: string; width: nu
   { value: '9:16', label: '9 : 16', width: 1024, height: 1820 },
   { value: '3:2', label: '3 : 2', width: 1536, height: 1024 },
   { value: '2:3', label: '2 : 3', width: 1024, height: 1536 },
+  // 5:6 portrait — exact ratio (1000/1200 = 5/6) AND multiple-of-8 (diffusion
+  // friendly). 4.5× upscale lands on the Merch by Amazon shirt print target
+  // EXACTLY (4500×5400 at 300dpi = 15"×18" print).
+  { value: '5:6', label: '5 : 6', width: 1000, height: 1200 },
 ];
 
 const BG_COLOR_OPTIONS: Array<{ value: BackgroundColor; hex: string }> = [
