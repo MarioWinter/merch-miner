@@ -157,6 +157,38 @@ def _bg_color_instruction(background_color: str | None) -> str:
         "flat single color background"
     )
 
+
+def _aspect_ratio_instruction(aspect_ratio: str | None, model_name: str) -> str:
+    """Render the trailing aspect-ratio instruction line for Gemini models.
+
+    Gemini's image-preview endpoint silently ignores ``width``/``height``/
+    ``size`` parameters today — it only honors ``modalities``. To get the
+    user's chosen aspect ratio to actually influence the output, we inject
+    a plain-text directive into the user prompt instead. Inspired by the
+    way ``_bg_color_instruction`` already appends a colour-targeting line.
+
+    Returns empty string for non-Gemini models (they receive the ratio via
+    real API params — ``size`` for OpenAI, ``width``/``height`` for
+    Flux/Seedream) and for the 1:1 default (no need to spell out the
+    obvious + keeps payloads byte-identical for legacy callers).
+    """
+    if not aspect_ratio or aspect_ratio == '1:1':
+        return ''
+    if model_name not in _GEMINI_MODELS:
+        return ''
+    dims = ASPECT_RATIO_DIMS.get(aspect_ratio)
+    if not dims:
+        return ''
+    width, height = dims
+    orientation = 'portrait' if height > width else (
+        'landscape' if width > height else 'square'
+    )
+    return (
+        f"Output aspect ratio: {aspect_ratio} {orientation}, target "
+        f"dimensions {width}×{height} pixels. The generated image MUST "
+        "fill the full canvas at this aspect ratio with no letterboxing."
+    )
+
 # Aspect ratio → pixel dimensions
 ASPECT_RATIO_DIMS = {
     '1:1': (1024, 1024),
@@ -246,6 +278,8 @@ def _build_content(
     source_image_url: str = '',
     source_image_url_2: str = '',
     background_color: str | None = None,
+    aspect_ratio: str | None = None,
+    model_name: str = '',
 ):
     """Build OpenRouter message content array based on generation mode.
 
@@ -258,14 +292,33 @@ def _build_content(
     segment of the user message (or as a trailing text part for multimodal
     modes). Omitted when ``background_color`` is None/empty so existing
     callers (tests, legacy paths) keep their byte-for-byte payload shape.
+
+    FIX-canvas-editor-bugs-and-image-gen Phase D bonus — Gemini models
+    silently ignore ``width``/``height``/``size`` params (they only honor
+    ``modalities``). To get the user's selected aspect ratio to actually
+    influence Gemini's output we ALSO append a plain-text ratio directive
+    after the bg-color line via ``_aspect_ratio_instruction``. The helper
+    returns empty string for non-Gemini models (they receive real params)
+    AND for the 1:1 default (no need to spell it out + preserves
+    byte-identical payloads for legacy callers).
     """
     src1_data = _to_data_url(source_image_url) if source_image_url else ''
     src2_data = _to_data_url(source_image_url_2) if source_image_url_2 else ''
 
     bg_instruction = _bg_color_instruction(background_color)
+    ar_instruction = _aspect_ratio_instruction(aspect_ratio, model_name)
 
     def _with_bg(text: str) -> str:
-        return f"{text}\n\n{bg_instruction}" if bg_instruction else text
+        # Renamed in spirit to `_with_trailers` — appends both bg-color and
+        # aspect-ratio directives when present, in that order so the
+        # bg-color line stays the explicit "look here" anchor the system
+        # prompt references (PROJ-34 hard-rule #5).
+        parts = [text]
+        if bg_instruction:
+            parts.append(bg_instruction)
+        if ar_instruction:
+            parts.append(ar_instruction)
+        return '\n\n'.join(parts)
 
     if mode == 'image_to_image':
         # Prompt dominates — image is style/mood guide
@@ -444,9 +497,12 @@ def generate_image(
         'X-Title': 'Merch Miner Design Generator',
     }
 
-    # Build message content based on mode (AC-7: bg-color appended to user msg)
+    # Build message content based on mode (AC-7: bg-color appended to user
+    # msg + FIX phase-D bonus: aspect-ratio appended for Gemini models that
+    # silently ignore the width/height/size API param).
     content = _build_content(
         mode, prompt, source_image_url, source_image_url_2, background_color,
+        aspect_ratio=aspect_ratio, model_name=model_name,
     )
 
     # PROJ-34 AC-1 / AC-2 / AC-3: always send the design-only system prompt.
