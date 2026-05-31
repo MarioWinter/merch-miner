@@ -686,6 +686,7 @@
     "title": "Settings",
     "nav": {
       "label": "Settings navigation",
+      "aria_jumpto": "Jump to section",
       "profile": "Profile",
       "billing": "Billing",
       "workspace": "Workspace",

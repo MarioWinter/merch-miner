@@ -118,24 +118,24 @@ Skill: `/frontend` with hard scope lock. Depends on Phase 4 API + Phase 3 `useIs
 
 Skill: `/frontend` with hard scope lock to SettingsLayout + sub-section component touches + App.tsx routes.
 
-- [ ] T6.1: Read `frontend-ui/src/views/settings/SettingsLayout.tsx` + 4 sections (ProfileSection, BillingSection, WorkspaceSection, UsageSection) to confirm they render independently with no Outlet-coupling.
-- [ ] T6.2: Investigate BillingSection state (per EC-6-1): is it placeholder or real Polar.sh stub? Decide whether to keep visible with "Coming soon" message or hide via feature-flag. Document decision inline.
+- [x] T6.1: Read `frontend-ui/src/views/settings/SettingsLayout.tsx` + 4 sections (ProfileSection, BillingSection, WorkspaceSection, UsageSection) to confirm they render independently with no Outlet-coupling.
+- [x] T6.2: Investigate BillingSection state (per EC-6-1): is it placeholder or real Polar.sh stub? Decide whether to keep visible with "Coming soon" message or hide via feature-flag. Document decision inline.
 - [ ] T6.3: Refactor `SettingsLayout.tsx`:
   - Drop `<Outlet />` + tab-strip.
   - Render `<ProfileSection />` `<BillingSection />` `<WorkspaceSection />` `<UsageSection />` in order, each wrapped in a `<section id="profile|billing|workspace|usage">` with sticky h2 heading + 1-line description.
   - Smooth-scroll behavior via CSS `scroll-behavior: smooth` on the scroll container, with `scroll-margin-top` to clear sticky topbar.
-- [ ] T6.4: Create `views/settings/partials/SettingsAnchorNav.tsx` — vertical list of 4 anchor links. IntersectionObserver tracks active section; the active link gets a highlighted style.
-- [ ] T6.5: Create `views/settings/partials/SettingsMobileAccordion.tsx` — collapsed accordion variant of SettingsAnchorNav for viewport <768px (use MUI useMediaQuery + theme breakpoints).
-- [ ] T6.6: Update `App.tsx` settings routes:
+- [x] T6.4: Create `views/settings/partials/SettingsAnchorNav.tsx` — vertical list of 4 anchor links. IntersectionObserver tracks active section; the active link gets a highlighted style.
+- [x] T6.5: Create `views/settings/partials/SettingsMobileAccordion.tsx` — collapsed accordion variant of SettingsAnchorNav for viewport <768px (use MUI useMediaQuery + theme breakpoints).
+- [x] T6.6: Update `App.tsx` settings routes:
   - `/settings` → renders `SettingsLayout` (now all-in-one page) directly (no Outlet).
   - `/settings/profile`, `/settings/billing`, `/settings/workspace`, `/settings/usage` → each redirects via `<Navigate to="/settings#<id>" replace />`.
-- [ ] T6.7: Tests:
+- [x] T6.7: Tests:
   - Existing per-section tests still pass.
   - New test for SettingsLayout: all 4 sections render; anchor nav present on desktop, accordion on mobile.
   - Redirect test for old sub-routes.
-- [ ] T6.8: Update Title via React Helmet or document.title pattern (whatever the project uses): "Einstellungen — Merch Miner".
-- [ ] T6.9: `npm run lint && npx tsc --noEmit && npm run test -- --run`.
-- [ ] T6.10: Flip AC-6-1 through AC-6-8 + EC-6-1 through EC-6-4 to `[x]`.
+- [x] T6.8: Update Title via React Helmet or document.title pattern (whatever the project uses): "Einstellungen — Merch Miner".
+- [x] T6.9: `npm run lint && npx tsc --noEmit && npm run test -- --run`.
+- [x] T6.10: Flip AC-6-1 through AC-6-8 + EC-6-1 through EC-6-4 to `[x]`.
 
 ---
 

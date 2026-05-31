@@ -80,14 +80,14 @@ const App = () => {
           <Route path="/publish/edit" element={<EditView />} />
           <Route path="/kanban" element={<KanbanBoardView />} />
 
-          {/* Settings routes */}
-          <Route path="/settings" element={<SettingsLayout />}>
-            <Route index element={<Navigate to="/settings/profile" replace />} />
-            <Route path="profile" element={null} />
-            <Route path="billing" element={null} />
-            <Route path="workspace" element={null} />
-            <Route path="usage" element={null} />
-          </Route>
+          {/* Settings routes — all 4 sections render on ONE scrollable page.
+              Legacy sub-paths redirect to the single page with the right hash
+              so deep-links from elsewhere in the app keep working. */}
+          <Route path="/settings" element={<SettingsLayout />} />
+          <Route path="/settings/profile" element={<Navigate to="/settings#profile" replace />} />
+          <Route path="/settings/billing" element={<Navigate to="/settings#billing" replace />} />
+          <Route path="/settings/workspace" element={<Navigate to="/settings#workspace" replace />} />
+          <Route path="/settings/usage" element={<Navigate to="/settings#usage" replace />} />
         </Route>
       </Route>
 

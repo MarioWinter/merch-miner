@@ -677,6 +677,7 @@
     "title": "Einstellungen",
     "nav": {
       "label": "Einstellungsnavigation",
+      "aria_jumpto": "Zu Abschnitt springen",
       "profile": "Profil",
       "billing": "Abrechnung",
       "workspace": "Workspace",

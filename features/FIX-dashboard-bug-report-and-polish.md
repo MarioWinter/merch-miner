@@ -190,19 +190,19 @@ SettingsLayout has a tabbed navigation to switch. User wants ONE scrollable page
 - As a user with quick edits across multiple sections (e.g. "change my email AND invite a teammate"), I want to scroll instead of navigating away.
 
 ### Acceptance Criteria
-- [ ] AC-6-1: New consolidated route `/settings` (replaces the index redirect) renders a single page with ALL 4 sections rendered in this order: Profile → Billing → Workspace → Usage.
-- [ ] AC-6-2: Existing sub-routes `/settings/profile`, `/settings/billing`, `/settings/workspace`, `/settings/usage` STILL WORK — they redirect via `Navigate replace` to `/settings#<section-id>` so any deep link from old bookmarks/notifications keeps working AND scrolls to the right section.
+- [x] AC-6-1: New consolidated route `/settings` (replaces the index redirect) renders a single page with ALL 4 sections rendered in this order: Profile → Billing → Workspace → Usage.
+- [x] AC-6-2: Existing sub-routes `/settings/profile`, `/settings/billing`, `/settings/workspace`, `/settings/usage` STILL WORK — they redirect via `Navigate replace` to `/settings#<section-id>` so any deep link from old bookmarks/notifications keeps working AND scrolls to the right section.
 - [ ] AC-6-3: Each section starts with a sticky `h2` heading + brief 1-line description. Section ids: `profile`, `billing`, `workspace`, `usage`. Anchor scroll uses smooth-scroll with header offset.
-- [ ] AC-6-4: Sidebar navigation within Settings (the existing tab strip) is REPLACED with a vertical anchor-link list showing the 4 section names. Clicking a link scrolls to that section. Active section highlighted as user scrolls (IntersectionObserver).
-- [ ] AC-6-5: SettingsLayout is refactored: no `<Outlet />`, no Route children. Just renders all 4 sections directly.
-- [ ] AC-6-6: Each existing section component (`ProfileSection`, `BillingSection`, `WorkspaceSection`, `UsageSection`) is reused unchanged — only the routing/layout container changes. Per memory `feedback_component_reuse_first`.
-- [ ] AC-6-7: Page title `<title>Einstellungen — Merch Miner</title>` (singular, not per-section).
-- [ ] AC-6-8: If a section requires async data (Workspace members, Usage stats), each section fetches independently. A section in error/loading state doesn't block the others from rendering.
+- [x] AC-6-4: Sidebar navigation within Settings (the existing tab strip) is REPLACED with a vertical anchor-link list showing the 4 section names. Clicking a link scrolls to that section. Active section highlighted as user scrolls (IntersectionObserver).
+- [x] AC-6-5: SettingsLayout is refactored: no `<Outlet />`, no Route children. Just renders all 4 sections directly.
+- [x] AC-6-6: Each existing section component (`ProfileSection`, `BillingSection`, `WorkspaceSection`, `UsageSection`) is reused unchanged — only the routing/layout container changes. Per memory `feedback_component_reuse_first`.
+- [x] AC-6-7: Page title `<title>Einstellungen — Merch Miner</title>` (singular, not per-section).
+- [x] AC-6-8: If a section requires async data (Workspace members, Usage stats), each section fetches independently. A section in error/loading state doesn't block the others from rendering.
 
 ### Edge Cases
-- [ ] EC-6-1: Billing section is a placeholder (no real Polar.sh integration yet) → still renders with a "Coming soon — Polar.sh integration arrives with payment rollout" message rather than being hidden. Mario investigates current `BillingSection` state during /architecture phase and decides whether to keep visible or hide via feature-flag.
-- [ ] EC-6-2: User's window is narrow (<768px mobile) → anchor link strip becomes a collapsed accordion at top instead of vertical sidebar. Sections still scroll one beneath the other.
-- [ ] EC-6-3: User deep-links to `/settings#workspace` from an external link → page loads, all sections render, scroll smoothly to workspace section after a beat (waits for sections to mount + layout to settle, ~150ms).
+- [x] EC-6-1: Billing section is a placeholder (no real Polar.sh integration yet) → still renders with a "Coming soon — Polar.sh integration arrives with payment rollout" message rather than being hidden. Mario investigates current `BillingSection` state during /architecture phase and decides whether to keep visible or hide via feature-flag.
+- [x] EC-6-2: User's window is narrow (<768px mobile) → anchor link strip becomes a collapsed accordion at top instead of vertical sidebar. Sections still scroll one beneath the other.
+- [x] EC-6-3: User deep-links to `/settings#workspace` from an external link → page loads, all sections render, scroll smoothly to workspace section after a beat (waits for sections to mount + layout to settle, ~150ms).
 - [ ] EC-6-4: Workspace section requires admin (workspace-owner) to see member-management — if user is not owner, that subsection is hidden inline; other 3 sections still show.
 
 ---
