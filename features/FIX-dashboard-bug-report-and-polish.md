@@ -133,13 +133,13 @@ Users have no in-app way to learn about what's new. Today the `CHANGELOG.md` is 
 - As Mario, I don't want to write user-facing release notes by hand every time; the LLM should do it.
 
 ### Acceptance Criteria
-- [ ] AC-4-1: New panel on the Dashboard view titled "Was ist neu" / "What's new" (i18n).
+- [x] AC-4-1: New panel on the Dashboard view titled "Was ist neu" / "What's new" (i18n).
 - [x] AC-4-2: Backend GET `/api/dashboard/changelog/` reads `CHANGELOG.md` (the release-please generated file), extracts the 3 most-recent version sections, sends each commit-line to an LLM (OpenRouter, model from env `CHANGELOG_TRANSLATE_MODEL` default `openai/gpt-4o-mini` for cost), gets back user-benefit copy.
 - [x] AC-4-3: LLM prompt explicitly: rewrite as ≤2 sentences in German, focus on user benefit not feature name, drop commit-shas + PR numbers + scope prefixes. Example in prompt: "feat(chat): niche-agent web_search now gets real sources via streaming (#100)" → "Chat-Suche liefert jetzt deutlich mehr und bessere Web-Quellen, ideal für tiefere Recherche."
 - [x] AC-4-4: Result is CACHED for 6 hours in Redis keyed by `changelog_user:v<latest-tag>` so repeated dashboard loads don't re-bill the LLM. Cache invalidated on tag change.
-- [ ] AC-4-5: Panel renders grouped by version: `v0.7.0 (vor 2 Tagen)` heading, then a bullet list of user-benefit copy. NO commit shas, NO PR numbers, NO GitHub links.
+- [x] AC-4-5: Panel renders grouped by version: `v0.7.0 (vor 2 Tagen)` heading, then a bullet list of user-benefit copy. NO commit shas, NO PR numbers, NO GitHub links.
 - [x] AC-4-6: Panel visible to ALL authenticated users (no gating). The technical detail link (PR numbers etc.) stays inside Item 5's superuser-only changelog popup.
-- [ ] AC-4-7: Empty state — if CHANGELOG.md unavailable or LLM error, panel shows "Updates folgen in Kürze" (i18n).
+- [x] AC-4-7: Empty state — if CHANGELOG.md unavailable or LLM error, panel shows "Updates folgen in Kürze" (i18n).
 
 ### Edge Cases
 - [x] EC-4-1: LLM call fails (OpenRouter down, rate-limit) → backend returns the most-recent version section title + a generic "Verbesserungen in v<x.y.z>" placeholder. Logs warning, retries next cache miss.

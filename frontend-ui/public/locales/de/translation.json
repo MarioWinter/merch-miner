@@ -3332,6 +3332,11 @@
       "priority_medium": "Mittlere Prioritaet",
       "priority_low": "Niedrige Prioritaet"
     },
+    "changelog": {
+      "title": "Was ist neu",
+      "error": "Changelog konnte nicht geladen werden",
+      "empty_placeholder": "Updates folgen in Kuerze"
+    },
     "agent": {
       "title": "Agent-Aktivitaet",
       "activeWorkflows": "Aktive Workflows",

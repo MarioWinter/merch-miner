@@ -179,13 +179,13 @@ Skill: `/backend` then `/frontend`, separately invoked.
 - [x] T8.5: Register URL in `dashboard_app/api/urls.py`.
 
 ### Phase 8b — Frontend
-- [ ] T8.6: Create `views/dashboard/partials/ChangelogWidget/`:
+- [x] T8.6: Create `views/dashboard/partials/ChangelogWidget/`:
   - `index.tsx` — MUI Card with title + versioned sections + bullet lists.
   - `hooks/useChangelog.ts` — RTK Query endpoint for `/api/dashboard/changelog/`.
   - `__tests__/ChangelogWidget.test.tsx`.
-- [ ] T8.7: Mount in Dashboard view next to RoadmapWidget.
-- [ ] T8.8: i18n keys under `dashboard.changelog.*`.
-- [ ] T8.9: Flip AC-4-1 through AC-4-7 + EC-4-1 through EC-4-6 to `[x]`.
+- [x] T8.7: Mount in Dashboard view next to RoadmapWidget.
+- [x] T8.8: i18n keys under `dashboard.changelog.*`.
+- [x] T8.9: Flip AC-4-1 through AC-4-7 + EC-4-1 through EC-4-6 to `[x]` *(frontend satisfies AC-4-1, AC-4-5, AC-4-7; backend ACs flipped in Phase 8a; EC-4-5 lang-detect retry is a backend concern — not implemented).*
 
 ---
 

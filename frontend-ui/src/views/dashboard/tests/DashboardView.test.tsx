@@ -46,6 +46,14 @@ vi.mock('../../../store/dashboardSlice', () => ({
     isLoading: false,
     isError: false,
   })),
+  // FIX-dashboard Phase 8b: mounted ChangelogWidget calls useGetChangelogQuery
+  // through useChangelog. Stub the hook so DashboardView renders the widget
+  // in its empty-state branch without hitting the network.
+  useGetChangelogQuery: vi.fn(() => ({
+    data: undefined,
+    isLoading: false,
+    isError: false,
+  })),
   dashboardApi: {
     reducerPath: 'dashboardApi',
     reducer: (state = {}) => state,

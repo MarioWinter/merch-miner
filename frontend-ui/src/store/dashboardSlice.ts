@@ -20,10 +20,20 @@ export interface RoadmapResponse {
   last_updated: string | null;
 }
 
+export interface ChangelogVersion {
+  version: string;
+  date: string;
+  items: string[];
+}
+
+export interface ChangelogResponse {
+  versions: ChangelogVersion[];
+}
+
 export const dashboardApi = createApi({
   reducerPath: 'dashboardApi',
   baseQuery: axiosBaseQuery({ baseUrl: '' }),
-  tagTypes: ['Dashboard', 'DesignAnalytics', 'ListingAnalytics', 'AgentAnalytics', 'SearchAnalytics', 'Roadmap'],
+  tagTypes: ['Dashboard', 'DesignAnalytics', 'ListingAnalytics', 'AgentAnalytics', 'SearchAnalytics', 'Roadmap', 'Changelog'],
   endpoints: (builder) => ({
     getDashboard: builder.query<DashboardData, void>({
       query: () => ({
@@ -76,6 +86,14 @@ export const dashboardApi = createApi({
       }),
       providesTags: ['Roadmap'],
     }),
+
+    getChangelog: builder.query<ChangelogResponse, void>({
+      query: () => ({
+        url: '/api/dashboard/changelog/',
+        method: 'GET',
+      }),
+      providesTags: ['Changelog'],
+    }),
   }),
 });
 
@@ -86,4 +104,5 @@ export const {
   useGetAgentAnalyticsQuery,
   useGetSearchAnalyticsQuery,
   useGetRoadmapQuery,
+  useGetChangelogQuery,
 } = dashboardApi;

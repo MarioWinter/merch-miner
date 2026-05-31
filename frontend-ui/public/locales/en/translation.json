@@ -2664,6 +2664,11 @@
       "priority_medium": "Medium priority",
       "priority_low": "Low priority"
     },
+    "changelog": {
+      "title": "What's new",
+      "error": "Could not load changelog",
+      "empty_placeholder": "Updates coming soon"
+    },
     "agent": {
       "title": "Agent Activity",
       "activeWorkflows": "Active Workflows",
