@@ -51,25 +51,25 @@ There is no in-app channel for users to send Mario bug reports or feature reques
   - Description — `TextField multiline rows=6` required, max 4000 chars
   - Screenshot (optional) — file input accepting `image/png, image/jpeg, image/webp`, max 5 MB
 - [ ] AC-1-4: Submit button disabled until type + title + description present and within limits. Submitting shows progress + disables form. Success → snackbar "Danke! Dein Hinweis ist angekommen." (via notistack), modal closes. Error → snackbar "Konnte Hinweis nicht senden — bitte später nochmal probieren." (notistack error variant), modal stays open with fields intact.
-- [ ] AC-1-5: Backend POST `/api/feedback/reports/` accepts JSON `{type, title, description, screenshot_id?}` (screenshot uploaded via separate POST `/api/feedback/screenshots/` returns id). Workspace + user inferred from `X-Workspace-Id` header + JWT, NOT submitted by client.
-- [ ] AC-1-6: New Django model `BugFeatureReport` with fields: `id (uuid pk)`, `workspace (FK)`, `user (FK)`, `type (choices=bug|feature)`, `title (200)`, `description (text)`, `screenshot (FK to FileField or inline ImageField)`, `created_at (auto)`, `status (choices=new|triaged|in_progress|done|wontfix, default=new)`, `admin_notes (text blank)`.
-- [ ] AC-1-7: On report creation, Django triggers an async django-rq job `send_feedback_email` that sends an email to `DEFAULT_FROM_EMAIL` recipient (initially Mario only; configurable via env `FEEDBACK_RECIPIENT_EMAIL`) with subject `[Merch Miner Feedback] <type>: <title>`, body containing description + user/workspace info + admin URL link to the report row.
-- [ ] AC-1-8: Email send failure does NOT block the API response — the report row is saved either way. Failed email retried via django-rq retry semantics (max 3 attempts).
-- [ ] AC-1-9: Screenshot stored under media path `feedback/screenshots/<uuid>.<ext>` with same access control as existing media (workspace-scoped read; only the uploading user + superusers can fetch).
-- [ ] AC-1-10: Workspace-isolation enforced at ORM level — listing reports filters by `workspace_id=request.workspace.id`. Only superusers see ALL workspaces.
+- [x] AC-1-5: Backend POST `/api/feedback/reports/` accepts JSON `{type, title, description, screenshot_id?}` (screenshot uploaded via separate POST `/api/feedback/screenshots/` returns id). Workspace + user inferred from `X-Workspace-Id` header + JWT, NOT submitted by client.
+- [x] AC-1-6: New Django model `BugFeatureReport` with fields: `id (uuid pk)`, `workspace (FK)`, `user (FK)`, `type (choices=bug|feature)`, `title (200)`, `description (text)`, `screenshot (FK to FileField or inline ImageField)`, `created_at (auto)`, `status (choices=new|triaged|in_progress|done|wontfix, default=new)`, `admin_notes (text blank)`.
+- [x] AC-1-7: On report creation, Django triggers an async django-rq job `send_feedback_email` that sends an email to `DEFAULT_FROM_EMAIL` recipient (initially Mario only; configurable via env `FEEDBACK_RECIPIENT_EMAIL`) with subject `[Merch Miner Feedback] <type>: <title>`, body containing description + user/workspace info + admin URL link to the report row.
+- [x] AC-1-8: Email send failure does NOT block the API response — the report row is saved either way. Failed email retried via django-rq retry semantics (max 3 attempts).
+- [x] AC-1-9: Screenshot stored under media path `feedback/screenshots/<uuid>.<ext>` with same access control as existing media (workspace-scoped read; only the uploading user + superusers can fetch).
+- [x] AC-1-10: Workspace-isolation enforced at ORM level — listing reports filters by `workspace_id=request.workspace.id`. Only superusers see ALL workspaces.
 - [ ] AC-1-11: Frontend Modal component lives at `frontend-ui/src/components/FeedbackReportModal/` (reusable shape per memory `feedback_component_reuse_first` — could be opened from other surfaces later).
 - [ ] AC-1-12: Modal closes via "Schließen" button OR Escape OR backdrop click. Backdrop click with unsaved input shows a confirm dialog "Wirklich verwerfen?" before discarding.
 - [ ] AC-1-13: Form respects `prefers-reduced-motion`: no entrance animation when set.
 - [ ] AC-1-14: i18n: all UI strings via `useTranslation()` namespace `feedback.*`. German + English translations included.
 
 ### Edge Cases
-- [ ] EC-1-1: User submits without workspace selected (edge of multi-workspace user) → backend returns 400 "workspace_id missing"; frontend shows snackbar prompting user to select a workspace.
+- [x] EC-1-1: User submits without workspace selected (edge of multi-workspace user) → backend returns 400 "workspace_id missing"; frontend shows snackbar prompting user to select a workspace.
 - [ ] EC-1-2: User uploads non-image screenshot (e.g. PDF) → frontend filter rejects before submit + shows error helper-text on the upload field.
 - [ ] EC-1-3: Screenshot >5 MB → frontend shows "Maximum 5 MB" error; submit disabled until removed.
-- [ ] EC-1-4: SMTP unavailable (EMAIL_HOST_PASSWORD unset / blocked) → job-handler logs warning, retries 3x, gives up gracefully. Report row already persisted so admin widget still shows it.
-- [ ] EC-1-5: Rate-limit anti-abuse — same user submits >10 reports in 60s → backend throttle (DRF `ScopedRateThrottle` scope `feedback_create=10/min`) returns 429.
-- [ ] EC-1-6: User on `is_active=False` (account suspended) hits POST → 401 from `IsAuthenticated`. No report row created. (No special handling needed; existing auth guard covers this.)
-- [ ] EC-1-7: Title or description contains HTML/script — backend uses standard DRF serializer escaping; email body sends as plain text (`send_mail` default). No XSS path.
+- [x] EC-1-4: SMTP unavailable (EMAIL_HOST_PASSWORD unset / blocked) → job-handler logs warning, retries 3x, gives up gracefully. Report row already persisted so admin widget still shows it.
+- [x] EC-1-5: Rate-limit anti-abuse — same user submits >10 reports in 60s → backend throttle (DRF `ScopedRateThrottle` scope `feedback_create=10/min`) returns 429.
+- [x] EC-1-6: User on `is_active=False` (account suspended) hits POST → 401 from `IsAuthenticated`. No report row created. (No special handling needed; existing auth guard covers this.)
+- [x] EC-1-7: Title or description contains HTML/script — backend uses standard DRF serializer escaping; email body sends as plain text (`send_mail` default). No XSS path.
 
 ---
 

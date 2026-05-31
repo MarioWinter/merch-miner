@@ -66,29 +66,29 @@ Skill: `/frontend` with hard scope lock to: NEW `hooks/useIsSuperuser.ts` + EDIT
 
 Skill: `/backend` with hard scope lock to NEW `feedback_app/` ONLY.
 
-- [ ] T4.1: Create new Django app `feedback_app/`. Add to `INSTALLED_APPS` in `core/settings.py`. Add `feedback_app.api.urls` include in `core/urls.py`.
-- [ ] T4.2: Models per spec:
+- [x] T4.1: Create new Django app `feedback_app/`. Add to `INSTALLED_APPS` in `core/settings.py`. Add `feedback_app.api.urls` include in `core/urls.py`.
+- [x] T4.2: Models per spec:
   - `BugFeatureReport` (id uuid pk, workspace FK CASCADE, user FK SET_NULL, type choices, title CharField(200), description TextField, screenshot FK nullable, status choices default 'new', admin_notes TextField blank, created_at).
   - `FeedbackScreenshot` (id uuid, image ImageField upload_to='feedback/screenshots/', uploaded_by FK User, uploaded_at).
-- [ ] T4.3: Migration `0001_initial.py` — additive only. Indexes on `(workspace, created_at)` and `(status, created_at)`.
-- [ ] T4.4: Serializers: `BugFeatureReportSerializer` (read-only fields for status+admin_notes+id+created_at; write fields type, title, description, screenshot_id). `FeedbackScreenshotSerializer`. Validation: title ≤200, description ≤4000, image mime in (png/jpeg/webp), image size ≤5MB.
-- [ ] T4.5: Views:
+- [x] T4.3: Migration `0001_initial.py` — additive only. Indexes on `(workspace, created_at)` and `(status, created_at)`.
+- [x] T4.4: Serializers: `BugFeatureReportSerializer` (read-only fields for status+admin_notes+id+created_at; write fields type, title, description, screenshot_id). `FeedbackScreenshotSerializer`. Validation: title ≤200, description ≤4000, image mime in (png/jpeg/webp), image size ≤5MB.
+- [x] T4.5: Views:
   - `ReportViewSet` (DRF ModelViewSet, `IsAuthenticated`).
     - `list`: filter by `workspace_id` from header. Non-superusers see only their workspace's reports.
     - `create`: enforce same workspace as session. Calls `tasks.send_feedback_email.delay(report_id)` after save.
     - `partial_update` (PATCH): only allowed for superusers; updates `status` + `admin_notes`.
     - `retrieve` / others as needed.
   - `ScreenshotUploadView` (APIView POST): handles multipart, returns id.
-- [ ] T4.6: DRF throttle: register scope `feedback_create=10/min`. Apply to POST endpoints only (GET list is fine at default rate).
-- [ ] T4.7: `tasks.py: send_feedback_email(report_id)` — fetches the report, builds plain-text email (subject `[Merch Miner Feedback] <type>: <title>`, body with user/workspace info + admin URL), sends via `django.core.mail.send_mail`. Recipient = env `FEEDBACK_RECIPIENT_EMAIL` (default `mariowinter.sg@gmail.com`). On failure: log warning, raise to let django-rq retry (max 3 attempts).
-- [ ] T4.8: Django admin registration for both models (list_display: type, title, status, workspace, user, created_at; search_fields: title, description; list_filter: type, status).
-- [ ] T4.9: Tests:
+- [x] T4.6: DRF throttle: register scope `feedback_create=10/min`. Apply to POST endpoints only (GET list is fine at default rate).
+- [x] T4.7: `tasks.py: send_feedback_email(report_id)` — fetches the report, builds plain-text email (subject `[Merch Miner Feedback] <type>: <title>`, body with user/workspace info + admin URL), sends via `django.core.mail.send_mail`. Recipient = env `FEEDBACK_RECIPIENT_EMAIL` (default `mariowinter.sg@gmail.com`). On failure: log warning, raise to let django-rq retry (max 3 attempts).
+- [x] T4.8: Django admin registration for both models (list_display: type, title, status, workspace, user, created_at; search_fields: title, description; list_filter: type, status).
+- [x] T4.9: Tests:
   - `test_models.py`: workspace cascade on workspace delete; user SET_NULL on user delete.
   - `test_api.py`: POST creates row + enqueues job; cross-workspace read denial; superuser sees all; PATCH gated on superuser; 5MB+ screenshot rejected; non-image rejected; rate limit triggers 429.
   - `test_email_job.py`: email build correctness + retry on SMTP failure (mock `send_mail`).
-- [ ] T4.10: Add `FEEDBACK_RECIPIENT_EMAIL` to `django-app/.env.template` with `mariowinter.sg@gmail.com` placeholder.
-- [ ] T4.11: `docker compose exec web python manage.py migrate feedback_app` + run pytest.
-- [ ] T4.12: Flip AC-1-5 through AC-1-10 + EC-1-1 through EC-1-7 to `[x]` (frontend ACs come in Phase 5).
+- [x] T4.10: Add `FEEDBACK_RECIPIENT_EMAIL` to `django-app/.env.template` with `mariowinter.sg@gmail.com` placeholder.
+- [x] T4.11: `docker compose exec web python manage.py migrate feedback_app` + run pytest.
+- [x] T4.12: Flip AC-1-5 through AC-1-10 + EC-1-1 through EC-1-7 to `[x]` (frontend ACs come in Phase 5).
 
 ---
 

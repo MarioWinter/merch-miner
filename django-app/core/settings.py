@@ -132,6 +132,7 @@ INSTALLED_APPS = [
     'agent_app',
     'chat_attachments_app',
     'chat_node_config_app',
+    'feedback_app',
 ]
 
 # django-allauth settings
@@ -496,8 +497,21 @@ REST_FRAMEWORK = {
         # PROJ-34 Phase 13t-g (AC-89) — regenerate Best-of-Mix is LLM-expensive;
         # 5/h/user prevents abuse while leaving room for legitimate retries.
         'preset_regenerate': '5/hour',
+        # FIX-dashboard-bug-report-and-polish Item 1 (EC-1-5) — anti-spam on
+        # bug/feature submission. Applies to POST /feedback/screenshots/ AND
+        # POST /feedback/reports/ so the screenshot pre-warm trick is blocked too.
+        'feedback_create': '10/min',
     },
 }
+
+# ----------------------------------------
+# Feedback (FIX-dashboard-bug-report-and-polish Item 1)
+# ----------------------------------------
+# Recipient for new bug/feature reports. Falls back to DEFAULT_FROM_EMAIL
+# when unset so a missing env var doesn't break the email job entirely.
+FEEDBACK_RECIPIENT_EMAIL = os.environ.get(
+    'FEEDBACK_RECIPIENT_EMAIL', DEFAULT_FROM_EMAIL or '',
+)
 
 # Security headers
 SECURE_CONTENT_TYPE_NOSNIFF = True
