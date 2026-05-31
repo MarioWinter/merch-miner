@@ -590,3 +590,14 @@ Single optional addition if not present: a Markdown front-matter parser for Pyth
 
 - `features/INDEX.md` — `Dashboard Widgets + Bug-Report Modal + Settings Merge + Polish` → **In Review**
 - All Item-1..9 ACs + ECs flipped except the explicit deferrals listed above
+
+## Post-QA Note — Worker restart required
+
+During local QA (2026-05-31) the first bug-report submission was created in the DB but the email job failed:
+`RuntimeError: Model class feedback_app.models.FeedbackScreenshot doesn't declare an explicit app_label and isn't in an application in INSTALLED_APPS`
+
+Root cause: the `worker` container was running stale code from before this branch. `web` auto-reloads on code changes; `worker` does NOT (per memory `feedback_restart_workers_after_model_changes`).
+
+Fix: `docker compose restart worker` → re-enqueued the report → email delivered to mariowinter.sg@gmail.com (verified via Gmail). Subject: `[Merch Miner Feedback] Bug: Test`.
+
+**Production note:** the GHA deploy workflow does a full `docker compose up --force-recreate -d`, so the worker will be rebuilt with the new code automatically. Manual restart only needed for already-running dev environments that pull the branch without rebuilding.
