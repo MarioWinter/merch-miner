@@ -87,9 +87,12 @@ const fillRequiredFields = async (
   );
 };
 
-describe('FeedbackReportModal', () => {
+// Per-test timeout 30s — userEvent.type() across two long fields + RHF
+// re-renders on every keystroke pushes the slower CI runners past the 15s
+// default occasionally. delay:null trims a few seconds; 30s gives margin.
+describe('FeedbackReportModal', { timeout: 30000 }, () => {
   it('happy path: submits the form, calls createReport, shows success snackbar and closes', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     createReportMock.mockImplementation(mockMutationResolved({ id: 'r-1' }));
 
     renderModal();
@@ -116,7 +119,7 @@ describe('FeedbackReportModal', () => {
   });
 
   it('keeps submit disabled while title is empty', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderModal();
 
     const submit = screen.getByRole('button', { name: /^Send$/i });
@@ -131,7 +134,7 @@ describe('FeedbackReportModal', () => {
   });
 
   it('shows the descriptionTooLong helper text when over 4000 chars', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderModal();
 
     await user.type(screen.getByLabelText(/^Title/i), 'ok');
@@ -155,7 +158,7 @@ describe('FeedbackReportModal', () => {
   });
 
   it('rejects an oversize screenshot (>5 MB) and disables submit', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderModal();
     await fillRequiredFields(user);
 
@@ -179,7 +182,7 @@ describe('FeedbackReportModal', () => {
   });
 
   it('rejects a non-image upload (application/pdf)', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderModal();
     await fillRequiredFields(user);
 
@@ -204,7 +207,7 @@ describe('FeedbackReportModal', () => {
   });
 
   it('shows the discard-confirm dialog when closing with unsaved input', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     renderModal();
 
     // Make the form dirty.
@@ -227,7 +230,7 @@ describe('FeedbackReportModal', () => {
   });
 
   it('shows error snackbar when createReport rejects', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
     createReportMock.mockImplementation(
       mockMutationRejected(new Error('boom')),
     );

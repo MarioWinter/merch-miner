@@ -1170,6 +1170,7 @@ class ChatSessionMessageStreamView(APIView):
                 request, workspace, session, user_msg, content,
                 model_override=model,
                 search_sources=search_sources,
+                search_mode=search_mode,
             )
 
         vane = VaneService()
@@ -1288,7 +1289,7 @@ class ChatSessionMessageStreamView(APIView):
 
     def _handle_niche_agent_stream(
         self, request, workspace, session, user_msg, content,
-        model_override=None, search_sources=None,
+        model_override=None, search_sources=None, search_mode='speed',
     ):
         """PROJ-29 Phase 1E — stream the niche-chat agent.
 
