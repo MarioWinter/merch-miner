@@ -117,6 +117,12 @@ interface RightPanelProps {
   // Mode + Resolution
   generationMode?: GenerationMode;
   onGenerationModeChange?: (mode: GenerationMode) => void;
+  /**
+   * FIX Item 4 — `'auto'` when the latest mode change was driven by the
+   * canvas-selection reflex hook; `'manual'` when the user touched the
+   * dropdown. Forwarded to `GenerationZone` to render the "Auto" chip.
+   */
+  generationModeSource?: 'auto' | 'manual';
   aspectRatio?: AspectRatio;
   onAspectRatioChange?: (ratio: AspectRatio) => void;
   // Phase G props
@@ -184,6 +190,7 @@ const RightPanel = ({
   // Mode + Resolution
   generationMode = 'text_to_image',
   onGenerationModeChange,
+  generationModeSource = 'manual',
   aspectRatio = '1:1',
   onAspectRatioChange,
   // Phase G props
@@ -261,6 +268,7 @@ const RightPanel = ({
             parallelLineCount={parallelLineCount}
             mode={generationMode}
             onModeChange={onGenerationModeChange}
+            modeSource={generationModeSource}
             aspectRatio={aspectRatio}
             onAspectRatioChange={onAspectRatioChange}
             sourceImageUrl={sourceImageUrl}

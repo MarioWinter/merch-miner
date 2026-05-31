@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   ButtonGroup,
+  Chip,
   ClickAwayListener,
   FormControl,
   IconButton,
@@ -328,6 +329,12 @@ interface GenerationZoneProps {
   /** Generation mode */
   mode?: GenerationMode;
   onModeChange?: (mode: GenerationMode) => void;
+  /**
+   * FIX Item 4 — `'auto'` when the latest mode change came from the
+   * selection-driven reflex; shows an "Auto" chip beside the dropdown so
+   * the user knows the panel switched itself (AC-4-11).
+   */
+  modeSource?: 'auto' | 'manual';
   /** Aspect ratio / resolution */
   aspectRatio?: AspectRatio;
   onAspectRatioChange?: (ratio: AspectRatio) => void;
@@ -365,6 +372,7 @@ const GenerationZone = ({
   hasSelectedImage = false,
   mode = 'text_to_image',
   onModeChange,
+  modeSource = 'manual',
   aspectRatio = '1:1',
   onAspectRatioChange,
   onGenerateAll,
@@ -405,8 +413,8 @@ const GenerationZone = ({
   // of `onPromptChange` doesn't matter for that path.
   const [localPrompt, setLocalPrompt] = useState(prompt);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing parent-controlled prompt is intentional
     setLocalPrompt((curr) => (curr === prompt ? curr : prompt));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prompt]);
   const handlePromptInputChange = (value: string) => {
     setLocalPrompt(value);
@@ -467,21 +475,43 @@ const GenerationZone = ({
 
   return (
     <ZoneRoot aria-label={t('design.generation.zoneLabel', 'Generation controls')}>
-      {/* Mode selector — full width */}
+      {/* Mode selector — full width. FIX Item 4: when the selection-driven
+          reflex set the mode (modeSource === 'auto'), render a small "Auto"
+          chip beside the dropdown so the user understands the panel
+          switched itself based on the canvas selection (AC-4-11). */}
       {onModeChange && (
-        <FormControl size="small" fullWidth disabled={disabled || isGenerating}>
-          <CompactSelect
-            value={mode}
-            onChange={handleModeChange}
-            aria-label={t('design.generation.mode.label', 'Mode')}
-          >
-            {MODE_OPTIONS.map((opt) => (
-              <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: '0.8125rem' }}>
-                {t(opt.labelKey, opt.value)}
-              </MenuItem>
-            ))}
-          </CompactSelect>
-        </FormControl>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <FormControl size="small" sx={{ flex: 1 }} disabled={disabled || isGenerating}>
+            <CompactSelect
+              value={mode}
+              onChange={handleModeChange}
+              aria-label={t('design.generation.mode.label', 'Mode')}
+            >
+              {MODE_OPTIONS.map((opt) => (
+                <MenuItem key={opt.value} value={opt.value} sx={{ fontSize: '0.8125rem' }}>
+                  {t(opt.labelKey, opt.value)}
+                </MenuItem>
+              ))}
+            </CompactSelect>
+          </FormControl>
+          {modeSource === 'auto' && (
+            <Tooltip
+              title={t(
+                'design.imageGen.mode.auto.tooltip',
+                'Mode derived from Canvas selection',
+              )}
+            >
+              <Chip
+                size="small"
+                variant="outlined"
+                color="primary"
+                label={t('design.imageGen.mode.auto.badge', 'Auto')}
+                data-testid="generation-mode-auto-badge"
+                sx={{ height: 24, fontSize: '0.6875rem', fontWeight: 600 }}
+              />
+            </Tooltip>
+          )}
+        </Box>
       )}
 
       {/* Model + BG Color selectors */}

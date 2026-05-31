@@ -56,17 +56,17 @@ Items 1 + 3 ship as ONE commit (single root cause). Item 2 depends on Item 1 (Ca
 
 ### Item 4 — Image-Gen auto-mode flow
 
-- [ ] AC-4-1: When `useArtboards.selectedIds` transitions from empty → non-empty AND the selection contains 1+ image artboards (`ab.designId` non-null AND `ab.imageUrl` non-null), the AI Image-Gen panel automatically switches mode from `text_to_image` → `image_to_image_edit`.
-- [ ] AC-4-2: Up to 2 selected image artboards are passed as references (backend hard limit: `source_image_url` + `source_image_url_2`). When the user selects >2 images, the first 2 in selection order are used AND a snackbar warns: "Es werden nur die ersten 2 Bilder als Referenz verwendet" / "Only the first 2 images are used as references". Snackbar shown ONCE per session (useRef + localStorage gate, same pattern as the chat cost-warning from PR #103). Implementation adds a NEW helper `handleUseSelectionAsReferences(imageUrls: string[])` to `useWorkspaceGeneration` that wraps the existing `setSourceImageUrl` / `setSourceImageUrl2` setters — preserves the existing `handleUseAsReference(imageUrl: string)` signature so all current callers (right-panel "Use as reference" button etc.) keep working unchanged.
-- [ ] AC-4-3: When `selectedIds` empties AND the mode was set BY THIS AUTO-FLOW (not manually), the panel auto-reverts to `text_to_image` and the reference slots clear. Requires tracking "auto" vs "manual" mode source — new state field `generationModeSource: 'auto' | 'manual'`.
-- [ ] AC-4-4: When the user manually selects `text_to_image` in the mode dropdown WHILE `selectedIds` is non-empty, the Canvas selection is cleared (`useArtboards.deselectAll()` dispatched).
-- [ ] AC-4-5: Mode source resets to `'manual'` whenever the user touches the mode dropdown — auto-revert no longer fires until next selection-change cycle.
-- [ ] AC-4-6: Auto-trigger reuses existing `useWorkspaceGeneration.handleUseAsReference` plumbing (verified in Playwright recon — it already sets `sourceImageUrl` + flips mode). Wiring layer is a NEW hook `useSelectionDrivenImageGen` that subscribes to `selectedIds` + `boardData.artboards` and calls into the generation hook.
-- [ ] AC-4-7: Mid-prompt selection change: reference slot updates SILENTLY (per user decision — no confirm dialog). Prompt textarea content is preserved.
-- [ ] AC-4-8: Race with ongoing upscale (Bug 2): selection-driven reference takes `ab.imageUrl` at the time of selection (= current rendered version). After Item 1 fix, that's the active version including just-completed upscales.
-- [ ] AC-4-9: No user-facing settings toggle for opt-out (per user decision — "Nein, immer aktiv"). Behavior is hardcoded ON.
-- [ ] AC-4-10: Unit tests cover: empty → selection (1 + many images), selection → empty, manual mode-switch clears selection, manual mode-switch sets `'manual'` source, auto-revert only fires when source is `'auto'`, multi-image cap-to-2 warning fires once per session.
-- [ ] AC-4-11: When the mode is set BY THE AUTO-FLOW (`generationModeSource === 'auto'`), a small "Auto" Badge / Chip renders next to the mode dropdown with a Tooltip explaining "Modus aus Canvas-Selektion abgeleitet" / "Mode derived from Canvas selection". Badge disappears immediately when the user touches the mode dropdown OR Canvas selection clears.
+- [x] AC-4-1: When `useArtboards.selectedIds` transitions from empty → non-empty AND the selection contains 1+ image artboards (`ab.designId` non-null AND `ab.imageUrl` non-null), the AI Image-Gen panel automatically switches mode from `text_to_image` → `image_to_image_edit`.
+- [x] AC-4-2: Up to 2 selected image artboards are passed as references (backend hard limit: `source_image_url` + `source_image_url_2`). When the user selects >2 images, the first 2 in selection order are used AND a snackbar warns: "Es werden nur die ersten 2 Bilder als Referenz verwendet" / "Only the first 2 images are used as references". Snackbar shown ONCE per session (useRef + localStorage gate, same pattern as the chat cost-warning from PR #103). Implementation adds a NEW helper `handleUseSelectionAsReferences(imageUrls: string[])` to `useWorkspaceGeneration` that wraps the existing `setSourceImageUrl` / `setSourceImageUrl2` setters — preserves the existing `handleUseAsReference(imageUrl: string)` signature so all current callers (right-panel "Use as reference" button etc.) keep working unchanged.
+- [x] AC-4-3: When `selectedIds` empties AND the mode was set BY THIS AUTO-FLOW (not manually), the panel auto-reverts to `text_to_image` and the reference slots clear. Requires tracking "auto" vs "manual" mode source — new state field `generationModeSource: 'auto' | 'manual'`.
+- [x] AC-4-4: When the user manually selects `text_to_image` in the mode dropdown WHILE `selectedIds` is non-empty, the Canvas selection is cleared (`useArtboards.deselectAll()` dispatched).
+- [x] AC-4-5: Mode source resets to `'manual'` whenever the user touches the mode dropdown — auto-revert no longer fires until next selection-change cycle.
+- [x] AC-4-6: Auto-trigger reuses existing `useWorkspaceGeneration.handleUseAsReference` plumbing (verified in Playwright recon — it already sets `sourceImageUrl` + flips mode). Wiring layer is a NEW hook `useSelectionDrivenImageGen` that subscribes to `selectedIds` + `boardData.artboards` and calls into the generation hook.
+- [x] AC-4-7: Mid-prompt selection change: reference slot updates SILENTLY (per user decision — no confirm dialog). Prompt textarea content is preserved.
+- [x] AC-4-8: Race with ongoing upscale (Bug 2): selection-driven reference takes `ab.imageUrl` at the time of selection (= current rendered version). After Item 1 fix, that's the active version including just-completed upscales.
+- [x] AC-4-9: No user-facing settings toggle for opt-out (per user decision — "Nein, immer aktiv"). Behavior is hardcoded ON.
+- [x] AC-4-10: Unit tests cover: empty → selection (1 + many images), selection → empty, manual mode-switch clears selection, manual mode-switch sets `'manual'` source, auto-revert only fires when source is `'auto'`, multi-image cap-to-2 warning fires once per session.
+- [x] AC-4-11: When the mode is set BY THE AUTO-FLOW (`generationModeSource === 'auto'`), a small "Auto" Badge / Chip renders next to the mode dropdown with a Tooltip explaining "Modus aus Canvas-Selektion abgeleitet" / "Mode derived from Canvas selection". Badge disappears immediately when the user touches the mode dropdown OR Canvas selection clears.
 
 ## Edge Cases
 
@@ -87,11 +87,11 @@ Items 1 + 3 ship as ONE commit (single root cause). Item 2 depends on Item 1 (Ca
 
 ### Item 4
 
-- [ ] EC-4-1: Selection contains a mix of image artboards and non-image artboards (text, shape, …) → filter to image-bearing artboards only when building the reference list. If filter leaves 0, no mode switch fires.
-- [ ] EC-4-2: User selects > 2 artboards → first 2 in selection order used; warning snackbar fires once per session per AC-4-2.
-- [ ] EC-4-3: User is mid-generation (Generate clicked) and selection changes → don't update reference for the in-flight request; queue the update for the NEXT request.
-- [ ] EC-4-4: User is in `remix` mode (2-slot) and selection changes → respect existing `remix` 2-slot handling (`handleUseAsReference` already does this). The new selection-driven flow short-circuits when mode is `remix`.
-- [ ] EC-4-5: Selection includes an artboard whose linked design was deleted server-side → skip that artboard, use the rest.
+- [x] EC-4-1: Selection contains a mix of image artboards and non-image artboards (text, shape, …) → filter to image-bearing artboards only when building the reference list. If filter leaves 0, no mode switch fires.
+- [x] EC-4-2: User selects > 2 artboards → first 2 in selection order used; warning snackbar fires once per session per AC-4-2.
+- [x] EC-4-3: User is mid-generation (Generate clicked) and selection changes → don't update reference for the in-flight request; queue the update for the NEXT request.
+- [x] EC-4-4: User is in `remix` mode (2-slot) and selection changes → respect existing `remix` 2-slot handling (`handleUseAsReference` already does this). The new selection-driven flow short-circuits when mode is `remix`.
+- [x] EC-4-5: Selection includes an artboard whose linked design was deleted server-side → skip that artboard, use the rest.
 
 ## Dependencies
 

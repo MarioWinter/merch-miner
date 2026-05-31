@@ -44,6 +44,7 @@ import useOptimisticArtboardUrls from './hooks/useOptimisticArtboardUrls';
 import useUpscaleCompletionMonitor from './hooks/useUpscaleCompletionMonitor';
 import useWorkspaceCanvas from './hooks/useWorkspaceCanvas';
 import useWorkspaceGeneration from './hooks/useWorkspaceGeneration';
+import useSelectionDrivenImageGen from './hooks/useSelectionDrivenImageGen';
 import useWorkspaceActions from './hooks/useWorkspaceActions';
 import BulkConfirmDialog from './partials/BulkConfirmDialog';
 import {
@@ -241,6 +242,24 @@ const DesignWorkspaceView = () => {
     updateArtboard: artboardState.updateArtboard,
     pushHistory: canvas.pushHistory,
     hasSelectedImage: Boolean(panelState.artboard?.imageUrl),
+    // FIX Item 4 AC-4-4 — when the user manually reverts the mode to
+    // `text_to_image` while a selection is still active, clear the canvas
+    // selection so the panel + canvas stay coherent.
+    onManualRevertToTextToImage: artboardState.deselectAll,
+  });
+
+  // FIX Item 4 — selection-driven reflex: empty<->selection transitions
+  // automatically flip the panel into `image_to_image_edit` (or back to
+  // `text_to_image`). Mounted here so the hook lives in the same tree as
+  // both consumers (`useArtboards` selection + `useWorkspaceGeneration`).
+  useSelectionDrivenImageGen({
+    selectedIds: artboardState.selectedIds,
+    artboards: artboardState.artboards,
+    generationMode: gen.generationMode,
+    generationModeSource: gen.generationModeSource,
+    isGenerationInFlight: gen.generation.isGenerating,
+    handleUseSelectionAsReferences: gen.handleUseSelectionAsReferences,
+    revertToTextToImage: gen.revertToTextToImage,
   });
 
   // Poll while a skeleton is mid-generation OR the backend still reports
@@ -373,6 +392,7 @@ const DesignWorkspaceView = () => {
       hasSelectedImage={gen.hasSelectedImage}
       generationMode={gen.generationMode}
       onGenerationModeChange={gen.setGenerationMode}
+      generationModeSource={gen.generationModeSource}
       aspectRatio={gen.aspectRatio}
       onAspectRatioChange={gen.setAspectRatio}
       ideas={boardData?.ideas}

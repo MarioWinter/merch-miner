@@ -59,29 +59,29 @@ Skill: `/frontend`. Depends on Phase A (the snackbar's "open in canvas" must sho
 Skill: `/frontend`. Independent of A/B; largest item.
 
 ### C1 — Generation hook: mode source + multi-ref helper
-- [ ] TC.1: Read `views/designs/workspace/hooks/useWorkspaceGeneration.ts` + `RightPanel.tsx` + `GenerationZone.tsx` to confirm the mode-change wiring (`onGenerationModeChange`).
-- [ ] TC.2: Add `generationModeSource: 'auto' | 'manual'` state to `useWorkspaceGeneration` (default `'manual'`). Expose it + a setter alongside `generationMode`.
-- [ ] TC.3: When the user changes the mode via the dropdown, set source = `'manual'` (AC-4-5). When the auto-flow changes it, set source = `'auto'`.
-- [ ] TC.4: Add `handleUseSelectionAsReferences(imageUrls: string[])` — caps at 2 (sets `sourceImageUrl` + `sourceImageUrl2`), flips mode → `image_to_image_edit` with source `'auto'`. Fires the once-per-session ">2 images" warning snackbar when `imageUrls.length > 2` (useRef + localStorage `chat-...`-style flag). Keep existing `handleUseAsReference(string)` untouched (AC-4-2).
-- [ ] TC.5: When the user manually selects `text_to_image` while a selection exists → dispatch `deselectAll()` on the artboards (AC-4-4). Wire the deselect callback into the mode-change handler.
+- [x] TC.1: Read `views/designs/workspace/hooks/useWorkspaceGeneration.ts` + `RightPanel.tsx` + `GenerationZone.tsx` to confirm the mode-change wiring (`onGenerationModeChange`).
+- [x] TC.2: Add `generationModeSource: 'auto' | 'manual'` state to `useWorkspaceGeneration` (default `'manual'`). Expose it + a setter alongside `generationMode`.
+- [x] TC.3: When the user changes the mode via the dropdown, set source = `'manual'` (AC-4-5). When the auto-flow changes it, set source = `'auto'`.
+- [x] TC.4: Add `handleUseSelectionAsReferences(imageUrls: string[])` — caps at 2 (sets `sourceImageUrl` + `sourceImageUrl2`), flips mode → `image_to_image_edit` with source `'auto'`. Fires the once-per-session ">2 images" warning snackbar when `imageUrls.length > 2` (useRef + localStorage `chat-...`-style flag). Keep existing `handleUseAsReference(string)` untouched (AC-4-2).
+- [x] TC.5: When the user manually selects `text_to_image` while a selection exists → dispatch `deselectAll()` on the artboards (AC-4-4). Wire the deselect callback into the mode-change handler.
 
 ### C2 — Selection-driven reflex hook
-- [ ] TC.6: Create `views/designs/workspace/hooks/useSelectionDrivenImageGen.ts` — subscribes to `selectedIds` + `boardData.artboards` + the generation hook. On selection change:
+- [x] TC.6: Create `views/designs/workspace/hooks/useSelectionDrivenImageGen.ts` — subscribes to `selectedIds` + `boardData.artboards` + the generation hook. On selection change:
   - empty → non-empty with 1+ image artboards: call `handleUseSelectionAsReferences(imageUrlsInSelectionOrder)` (AC-4-1).
   - non-empty → empty AND `generationModeSource === 'auto'`: revert mode → `text_to_image`, clear reference slots (AC-4-3).
   - filter to image-bearing artboards only (`designId` + `imageUrl` non-null); if filter leaves 0, no switch (EC-4-1).
   - short-circuit when mode is `remix` (EC-4-4) and when a generation is in-flight (queue for next request — EC-4-3).
   - take `ab.imageUrl` at selection time (AC-4-8). Skip artboards whose linked design was deleted (EC-4-5).
-- [ ] TC.7: Mount `useSelectionDrivenImageGen` in `DesignWorkspaceView`. Keep the view thin.
+- [x] TC.7: Mount `useSelectionDrivenImageGen` in `DesignWorkspaceView`. Keep the view thin.
 
 ### C3 — Auto badge
-- [ ] TC.8: In `GenerationZone.tsx` (near the mode dropdown), render a small MUI Badge/Chip "Auto" with Tooltip "Modus aus Canvas-Selektion abgeleitet" when `generationModeSource === 'auto'`. Hide on manual switch or selection clear (AC-4-11). Use `theme.vars.palette.*`, no hex.
+- [x] TC.8: In `GenerationZone.tsx` (near the mode dropdown), render a small MUI Badge/Chip "Auto" with Tooltip "Modus aus Canvas-Selektion abgeleitet" when `generationModeSource === 'auto'`. Hide on manual switch or selection clear (AC-4-11). Use `theme.vars.palette.*`, no hex.
 
 ### C4 — i18n + tests
-- [ ] TC.9: Add i18n keys `design.imageGen.mode.auto.badge`, `design.imageGen.mode.auto.tooltip`, `design.imageGen.references.capWarning` (de + en).
-- [ ] TC.10: Create `views/designs/workspace/hooks/__tests__/useSelectionDrivenImageGen.test.ts`: empty→selection (1 / 2 / 5 images), selection→empty auto-revert, manual T2I clears selection, manual switch sets source='manual', auto-revert only when source='auto', 5-image cap-to-2 warning once (AC-4-10).
-- [ ] TC.11: `npm run lint && npx tsc -b && npm run test -- --run`. Zero failures.
-- [ ] TC.12: Flip AC-4-1..AC-4-11 + EC-4-1..EC-4-5 to `[x]`.
+- [x] TC.9: Add i18n keys `design.imageGen.mode.auto.badge`, `design.imageGen.mode.auto.tooltip`, `design.imageGen.references.capWarning` (de + en).
+- [x] TC.10: Create `views/designs/workspace/hooks/__tests__/useSelectionDrivenImageGen.test.ts`: empty→selection (1 / 2 / 5 images), selection→empty auto-revert, manual T2I clears selection, manual switch sets source='manual', auto-revert only when source='auto', 5-image cap-to-2 warning once (AC-4-10).
+- [x] TC.11: `npm run lint && npx tsc -b && npm run test -- --run`. Zero failures.
+- [x] TC.12: Flip AC-4-1..AC-4-11 + EC-4-1..EC-4-5 to `[x]`.
 
 ---
 

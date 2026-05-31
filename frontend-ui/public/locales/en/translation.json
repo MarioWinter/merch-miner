@@ -983,6 +983,17 @@
       "withReference": "Generating with reference image",
       "clearReference": "Clear reference image"
     },
+    "imageGen": {
+      "mode": {
+        "auto": {
+          "badge": "Auto",
+          "tooltip": "Mode derived from Canvas selection"
+        }
+      },
+      "references": {
+        "capWarning": "Only the first 2 images are used as references"
+      }
+    },
     "canvas": {
       "emptyTitle": "Drop images or create an AI Image Board",
       "emptyDescription": "Drag images from your desktop or use the toolbar to get started.",

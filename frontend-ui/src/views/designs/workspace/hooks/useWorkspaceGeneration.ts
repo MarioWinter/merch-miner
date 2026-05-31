@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSnackbar } from 'notistack';
+import { useTranslation } from 'react-i18next';
 import type { ArtboardData, BackgroundColor, DesignModel } from '../../board/types';
 import type { GenerationMode, AspectRatio } from '../../board/partials/GenerationZone';
 import { useGeneration } from '../../board/hooks/useGeneration';
@@ -36,7 +37,36 @@ interface UseWorkspaceGenerationParams {
   pushHistory: () => void;
   /** Whether the selected artboard has an image */
   hasSelectedImage: boolean;
+  /**
+   * FIX Item 4 — fired when the user manually flips the mode back to
+   * `text_to_image` via the dropdown. `DesignWorkspaceView` wires this to
+   * `artboardState.deselectAll` so the canvas selection clears when the
+   * user manually reverts (AC-4-4).
+   */
+  onManualRevertToTextToImage?: () => void;
 }
+
+// FIX Item 4 — once-per-browser flag so the ">2 images" cap warning fires
+// once. Same pattern as PR #103 `chat-search-mode-cost-warning-seen`.
+const REFERENCE_CAP_WARNING_FLAG_KEY = 'mm-imagegen-cap-warning-seen';
+
+const hasSeenReferenceCapWarning = (): boolean => {
+  if (typeof window === 'undefined' || !window.localStorage) return true;
+  try {
+    return window.localStorage.getItem(REFERENCE_CAP_WARNING_FLAG_KEY) === '1';
+  } catch {
+    return true;
+  }
+};
+
+const markReferenceCapWarningSeen = (): void => {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+  try {
+    window.localStorage.setItem(REFERENCE_CAP_WARNING_FLAG_KEY, '1');
+  } catch {
+    /* quota / privacy — ignore */
+  }
+};
 
 // -----------------------------------------------------------------
 // Hook
@@ -54,6 +84,7 @@ const useWorkspaceGeneration = ({
   updateArtboard,
   pushHistory,
   hasSelectedImage,
+  onManualRevertToTextToImage,
 }: UseWorkspaceGenerationParams) => {
   // -- Prompt state --
   const [prompt, setPrompt] = useState('');
@@ -61,7 +92,13 @@ const useWorkspaceGeneration = ({
   const [bgColor, setBgColor] = useState<BackgroundColor>('light_gray');
   const [imageCount, setImageCount] = useState(1);
   const [isParallel, setIsParallel] = useState(false);
-  const [generationMode, setGenerationMode] = useState<GenerationMode>('text_to_image');
+  const [generationMode, setGenerationModeInternal] = useState<GenerationMode>('text_to_image');
+  // FIX Item 4 — tracks whether the latest mode change came from the user
+  // (`'manual'`) or from the selection-driven reflex (`'auto'`). Defaults to
+  // `'manual'` since the initial state is "the panel boots in text-to-image
+  // because that's the panel default, not because we derived it from any
+  // selection".
+  const [generationModeSource, setGenerationModeSource] = useState<'auto' | 'manual'>('manual');
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('1:1');
   const [sourceImageUrl, setSourceImageUrl] = useState<string | null>(null);
   const [sourceImageUrl2, setSourceImageUrl2] = useState<string | null>(null);
@@ -69,7 +106,12 @@ const useWorkspaceGeneration = ({
   // -- AI generation --
   const generation = useGeneration(projectId);
   const { enqueueSnackbar } = useSnackbar();
+  const { t } = useTranslation();
   const failedRunHandledRef = useRef<Set<string>>(new Set());
+  // FIX Item 4 — guards the cap-warning so it fires once per browser session
+  // even if localStorage flag is wiped mid-session (matches the PR #103
+  // pattern in `SearchDepthPicker`).
+  const referenceCapWarningFiredRef = useRef<boolean>(hasSeenReferenceCapWarning());
 
   // -- Prompt Builder (PROJ-34 renovated) --
   const [promptBuilderOpen, setPromptBuilderOpen] = useState(false);
@@ -193,6 +235,66 @@ const useWorkspaceGeneration = ({
 
   // -- Handlers --
 
+  // FIX Item 4 — public mode setter. Every manual switch atomically tags the
+  // source as `'manual'` so the selection-driven reflex stops auto-reverting
+  // (AC-4-5). When the user manually flips back to `text_to_image` we also
+  // clear both reference slots AND fire the `onManualRevertToTextToImage`
+  // callback so the parent can clear the canvas selection (AC-4-4).
+  const setGenerationMode = useCallback(
+    (mode: GenerationMode) => {
+      setGenerationModeInternal(mode);
+      setGenerationModeSource('manual');
+      if (mode === 'text_to_image') {
+        setSourceImageUrl(null);
+        setSourceImageUrl2(null);
+        onManualRevertToTextToImage?.();
+      }
+    },
+    [onManualRevertToTextToImage],
+  );
+
+  // FIX Item 4 — selection-driven helper. Caps the incoming list at the
+  // backend's 2-slot maximum (`source_image_url` + `source_image_url_2`) and
+  // tags the resulting mode change as `'auto'` so the reflex hook knows to
+  // revert when the selection empties. Fires a once-per-session warning when
+  // the caller passed more than 2 URLs. Keeps `handleUseAsReference` (the
+  // existing single-arg helper) untouched so the right-panel "Use as
+  // reference" button keeps working unchanged (AC-4-2).
+  const handleUseSelectionAsReferences = useCallback(
+    (imageUrls: string[]) => {
+      if (imageUrls.length === 0) return;
+      const capped = imageUrls.slice(0, 2);
+      setSourceImageUrl(capped[0] ?? null);
+      setSourceImageUrl2(capped[1] ?? null);
+      setGenerationModeInternal('image_to_image_edit');
+      setGenerationModeSource('auto');
+      if (imageUrls.length > 2 && !referenceCapWarningFiredRef.current) {
+        referenceCapWarningFiredRef.current = true;
+        markReferenceCapWarningSeen();
+        enqueueSnackbar(
+          t(
+            'design.imageGen.references.capWarning',
+            'Only the first 2 images are used as references',
+          ),
+          { variant: 'warning' },
+        );
+      }
+    },
+    [enqueueSnackbar, t],
+  );
+
+  // FIX Item 4 — counterpart to `handleUseSelectionAsReferences`: atomic
+  // "drop the auto-derived references AND fall back to text-to-image" used
+  // by the selection-driven reflex when the canvas selection empties.
+  // Tagged `'auto'` so the badge stays visible until the user touches the
+  // mode dropdown (which would flip the source to `'manual'`).
+  const revertToTextToImage = useCallback(() => {
+    setSourceImageUrl(null);
+    setSourceImageUrl2(null);
+    setGenerationModeInternal('text_to_image');
+    setGenerationModeSource('auto');
+  }, []);
+
   const handleOpenPromptBuilder = useCallback(() => {
     setPromptBuilderOpen(true);
   }, []);
@@ -225,9 +327,12 @@ const useWorkspaceGeneration = ({
     }
     setSourceImageUrl(imageUrl);
     if (generationMode === 'text_to_image') {
+      // FIX Item 4 — routes through the public wrapper so the "Use as
+      // reference" right-panel button is correctly tagged as a manual mode
+      // flip (source = 'manual'). Existing single-arg contract preserved.
       setGenerationMode('image_to_image_edit');
     }
-  }, [generationMode, sourceImageUrl, sourceImageUrl2]);
+  }, [generationMode, sourceImageUrl, sourceImageUrl2, setGenerationMode]);
 
   const handleClearSourceImage = useCallback(() => {
     setSourceImageUrl(null);
@@ -373,6 +478,10 @@ const useWorkspaceGeneration = ({
     imageCount, setImageCount,
     isParallel, setIsParallel,
     generationMode, setGenerationMode,
+    // FIX Item 4 — exposed so the right-panel can render the "Auto" badge
+    // and the selection-driven reflex hook can short-circuit auto-revert
+    // once the user touches the dropdown.
+    generationModeSource,
     aspectRatio, setAspectRatio,
     sourceImageUrl,
     sourceImageUrl2,
@@ -394,6 +503,9 @@ const useWorkspaceGeneration = ({
     // Slogan/reference handlers
     handleInsertSlogan,
     handleUseAsReference,
+    // FIX Item 4 — selection-driven multi-ref helper + atomic revert.
+    handleUseSelectionAsReferences,
+    revertToTextToImage,
     handleClearSourceImage,
     handleClearSourceImage2,
     handleUseAsPrompt,

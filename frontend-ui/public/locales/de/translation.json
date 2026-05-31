@@ -1823,6 +1823,17 @@
       "withReference": "Generierung mit Referenzbild",
       "clearReference": "Referenzbild entfernen"
     },
+    "imageGen": {
+      "mode": {
+        "auto": {
+          "badge": "Auto",
+          "tooltip": "Modus aus Canvas-Selektion abgeleitet"
+        }
+      },
+      "references": {
+        "capWarning": "Es werden nur die ersten 2 Bilder als Referenz verwendet"
+      }
+    },
     "cloud": {
       "title": "Cloud-Speicher",
       "googleDrive": "Google Drive",
