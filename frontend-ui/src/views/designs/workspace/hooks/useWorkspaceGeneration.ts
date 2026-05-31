@@ -3,6 +3,7 @@ import { useSnackbar } from 'notistack';
 import { useTranslation } from 'react-i18next';
 import type { ArtboardData, BackgroundColor, DesignModel } from '../../board/types';
 import type { GenerationMode, AspectRatio } from '../../board/partials/GenerationZone';
+import { DEFAULT_DESIGN_MODEL } from '../../board/constants';
 import { useGeneration } from '../../board/hooks/useGeneration';
 import { useBuilder } from '../../board/hooks/useBuilder';
 import { useImageAnalysis } from '../../board/hooks/useImageAnalysis';
@@ -88,7 +89,7 @@ const useWorkspaceGeneration = ({
 }: UseWorkspaceGenerationParams) => {
   // -- Prompt state --
   const [prompt, setPrompt] = useState('');
-  const [aiModel, setAiModel] = useState<DesignModel>('google/gemini-3.1-flash-preview-image-generation');
+  const [aiModel, setAiModel] = useState<DesignModel>(DEFAULT_DESIGN_MODEL);
   const [bgColor, setBgColor] = useState<BackgroundColor>('light_gray');
   const [imageCount, setImageCount] = useState(1);
   const [isParallel, setIsParallel] = useState(false);

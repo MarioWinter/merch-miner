@@ -3,6 +3,7 @@ import { styled } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import { COLORS, DURATION, EASING } from '@/style/constants';
 import type { ArtboardData, BackgroundColor, CanvasElement, DesignModel } from '../types';
+import { DEFAULT_DESIGN_MODEL } from '../constants';
 import type { RightPanelState } from '../hooks/useRightPanelState';
 import type { ProjectIdea, ProjectPrompt, ProjectReference } from '../../gallery/types';
 import GenerationZone from './GenerationZone';
@@ -171,7 +172,7 @@ const RightPanel = ({
   // Generation zone
   prompt = '',
   onPromptChange,
-  model = 'google/gemini-3.1-flash-preview-image-generation',
+  model = DEFAULT_DESIGN_MODEL,
   onModelChange,
   bgColor = 'light_gray',
   onBgColorChange,
