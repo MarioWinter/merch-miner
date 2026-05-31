@@ -8,7 +8,6 @@ loader's BASE_DIR-derived path to ``tmp_path``.
 from __future__ import annotations
 
 import logging
-from pathlib import Path
 
 import pytest
 
