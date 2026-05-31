@@ -1,5 +1,13 @@
 # Changelog
 
+## [0.7.1](https://github.com/MarioWinter/merch-miner/compare/v0.7.0...v0.7.1) (2026-05-31)
+
+
+### Bug Fixes
+
+* **chat:** focus border over streaming ring + tool-timeout false alarm ([e200ab9](https://github.com/MarioWinter/merch-miner/commit/e200ab946c2d75657c80615ac13514a6cd9e4192))
+* **chat:** two UX bugs — focus border over streaming ring + tool-timeout false alarm ([67d842a](https://github.com/MarioWinter/merch-miner/commit/67d842adddcd2d2ef63fad67062f5223da24b69b))
+
 ## [0.7.0](https://github.com/MarioWinter/merch-miner/compare/v0.6.0...v0.7.0) (2026-05-30)
 
 
