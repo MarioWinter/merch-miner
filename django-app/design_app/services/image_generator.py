@@ -129,6 +129,28 @@ MODEL_MAP = {
         'supports_system_role': True,
         'supports_seed': True,
     },
+    # FLUX.2 family — all support text + image input. Use width/height
+    # param shape (Flux/Seedream branch in generate_image — line ~485).
+    'black-forest-labs/flux.2-klein-4b': {
+        'openrouter_id': 'black-forest-labs/flux.2-klein-4b',
+        'supports_system_role': True,
+        'supports_seed': True,
+    },
+    'black-forest-labs/flux.2-max': {
+        'openrouter_id': 'black-forest-labs/flux.2-max',
+        'supports_system_role': True,
+        'supports_seed': True,
+    },
+    'black-forest-labs/flux.2-flex': {
+        'openrouter_id': 'black-forest-labs/flux.2-flex',
+        'supports_system_role': True,
+        'supports_seed': True,
+    },
+    'black-forest-labs/flux.2-pro': {
+        'openrouter_id': 'black-forest-labs/flux.2-pro',
+        'supports_system_role': True,
+        'supports_seed': True,
+    },
     'bytedance-seed/seedream-4.5': {
         'openrouter_id': 'bytedance-seed/seedream-4.5',
         'supports_system_role': True,
@@ -237,6 +259,11 @@ MULTIMODAL_MODELS = {
     'openai/gpt-5-image',
     'openai/gpt-5-image-mini',
     'openai/gpt-5.4-image-2',
+    # FLUX.2 family — all support text + image input (editing)
+    'black-forest-labs/flux.2-klein-4b',
+    'black-forest-labs/flux.2-max',
+    'black-forest-labs/flux.2-flex',
+    'black-forest-labs/flux.2-pro',
 }
 
 

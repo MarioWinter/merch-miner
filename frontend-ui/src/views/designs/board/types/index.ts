@@ -6,7 +6,11 @@ export type DesignModel =
   | 'google/gemini-3-pro-preview-image-generation'
   | 'openai/gpt-5-image'
   | 'openai/gpt-5-image-mini'
-  | 'openai/gpt-5.4-image-2';
+  | 'openai/gpt-5.4-image-2'
+  | 'black-forest-labs/flux.2-klein-4b'
+  | 'black-forest-labs/flux.2-max'
+  | 'black-forest-labs/flux.2-flex'
+  | 'black-forest-labs/flux.2-pro';
 
 export type DesignStatus = 'pending' | 'approved' | 'rejected' | 'failed';
 

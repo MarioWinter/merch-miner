@@ -62,13 +62,30 @@ const BG_COLOR_OPTIONS: Array<{ value: BackgroundColor; hex: string }> = [
   { value: 'neon_green', hex: '#39FF14' },
 ];
 
-// Display order: newest version first (proxy for release date when exact
+// Display order: newest release first (or best-known proxy when exact
 // dates aren't tracked here). Keep MODELS + MODEL_LABELS in sync with the
-// equivalent registry in `ModelSelector.tsx`.
+// equivalent registry in `ModelSelector.tsx` and the FE multimodal set
+// in `constants.ts`.
+//
+// Release timeline (best-known as of 2026-05-31):
+//   - GPT-5.4 Image 2:    ~2026 mid
+//   - Nano Banana 2:      Gemini 3.1 line, early-2026
+//   - FLUX.2 Klein 4B:    2026-01-14
+//   - FLUX.2 Max:         2025-12-16
+//   - Nano Banana Pro:    Gemini 3 Pro, late-2025
+//   - FLUX.2 Flex:        2025-11-25
+//   - FLUX.2 Pro:         2025-11-25
+//   - GPT-5 Image:        mid-2025
+//   - GPT-5 Mini:         mid-2025
+//   - Nano Banana:        Gemini 2.5, mid-2025 (oldest)
 const MODEL_LABELS: Record<DesignModel, string> = {
   'openai/gpt-5.4-image-2': 'GPT-5.4 Image 2',
   'google/gemini-3.1-flash-preview-image-generation': 'Nano Banana 2',
+  'black-forest-labs/flux.2-klein-4b': 'FLUX.2 Klein 4B',
+  'black-forest-labs/flux.2-max': 'FLUX.2 Max',
   'google/gemini-3-pro-preview-image-generation': 'Nano Banana Pro',
+  'black-forest-labs/flux.2-flex': 'FLUX.2 Flex',
+  'black-forest-labs/flux.2-pro': 'FLUX.2 Pro',
   'openai/gpt-5-image': 'GPT-5 Image',
   'openai/gpt-5-image-mini': 'GPT-5 Mini',
   'google/gemini-2.5-flash-preview-image-generation': 'Nano Banana',
@@ -77,7 +94,11 @@ const MODEL_LABELS: Record<DesignModel, string> = {
 const MODELS: DesignModel[] = [
   'openai/gpt-5.4-image-2',
   'google/gemini-3.1-flash-preview-image-generation',
+  'black-forest-labs/flux.2-klein-4b',
+  'black-forest-labs/flux.2-max',
   'google/gemini-3-pro-preview-image-generation',
+  'black-forest-labs/flux.2-flex',
+  'black-forest-labs/flux.2-pro',
   'openai/gpt-5-image',
   'openai/gpt-5-image-mini',
   'google/gemini-2.5-flash-preview-image-generation',

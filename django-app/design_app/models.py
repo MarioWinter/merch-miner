@@ -107,6 +107,10 @@ class DesignGenerationRun(models.Model):
         GPT5_MINI = 'openai/gpt-5-image-mini', 'GPT-5 Mini'
         GPT54_IMAGE_2 = 'openai/gpt-5.4-image-2', 'GPT-5.4 Image 2'
         FLUX_PRO = 'black-forest-labs/flux-1.1-pro', 'Flux 1.1 Pro'
+        FLUX2_KLEIN_4B = 'black-forest-labs/flux.2-klein-4b', 'FLUX.2 Klein 4B'
+        FLUX2_MAX = 'black-forest-labs/flux.2-max', 'FLUX.2 Max'
+        FLUX2_FLEX = 'black-forest-labs/flux.2-flex', 'FLUX.2 Flex'
+        FLUX2_PRO = 'black-forest-labs/flux.2-pro', 'FLUX.2 Pro'
         SEEDREAM = 'bytedance-seed/seedream-4.5', 'Seedream 4.5'
 
     class Status(models.TextChoices):

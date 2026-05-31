@@ -11,6 +11,11 @@ export const MULTIMODAL_MODELS: ReadonlySet<DesignModel> = new Set<DesignModel>(
   'google/gemini-2.5-flash-preview-image-generation',
   'openai/gpt-5-image',
   'openai/gpt-5-image-mini',
+  // FLUX.2 family — all support text + image input (editing)
+  'black-forest-labs/flux.2-klein-4b',
+  'black-forest-labs/flux.2-max',
+  'black-forest-labs/flux.2-flex',
+  'black-forest-labs/flux.2-pro',
 ]);
 
 /** Default model selected when the workspace opens. */
